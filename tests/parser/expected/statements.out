@@ -1,4 +1,4 @@
-N_MODULE (19) <1:1>
+N_MODULE (20) <1:1>
   N_NAMESPACE 'demo' <1:1>
     N_CONST <2:1>
       N_VAR_ITEM 'max' <2:7>
@@ -166,3 +166,38 @@ N_MODULE (19) <1:1>
       N_PARAM 'a' <75:31>
         N_TYPEREF 'byte' [BYTE] <75:42>
           N_STRING_LIT len=4 kind=0 <75:53>
+  N_PROC 'varia' [SUB] <81:1>
+    N_BLOCK (7) <81:40>
+      N_VAR [DIM] <82:5>
+        N_VAR_ITEM 'vl' <82:20>
+          N_TYPEREF ptr <82:12>
+            N_TYPEREF 'any' [ANY] <82:12>
+        N_VAR_ITEM 'vl2' <82:24>
+          N_TYPEREF ptr <82:12>
+            N_TYPEREF 'any' [ANY] <82:12>
+      N_VAR [DIM] <83:5>
+        N_VAR_ITEM 'got' <83:17>
+          N_TYPEREF 'long' [LONG] <83:12>
+      N_INTRINSIC [CVA_START] <84:5>
+        N_TUPLE <84:14>
+          N_IDENT 'vl' <84:16>
+          N_IDENT 'n' <84:20>
+      N_AMBIGUOUS [=] <85:5>
+        N_IDENT 'got' <85:5>
+        N_CALL <85:18>
+          N_IDENT 'cva_arg' <85:11>
+          N_IDENT 'vl' <85:20>
+          N_IDENT 'long' <85:24>
+      N_INTRINSIC [CVA_COPY] <86:5>
+        N_TUPLE <86:13>
+          N_IDENT 'vl2' <86:15>
+          N_IDENT 'vl' <86:20>
+      N_INTRINSIC [CVA_END] <87:5>
+        N_PAREN <87:12>
+          N_IDENT 'vl2' <87:14>
+      N_INTRINSIC [CVA_END] <88:5>
+        N_PAREN <88:12>
+          N_IDENT 'vl' <88:14>
+    N_PARAM 'n' <81:18>
+      N_TYPEREF 'long' [LONG] <81:29>
+    N_PARAM <81:35>

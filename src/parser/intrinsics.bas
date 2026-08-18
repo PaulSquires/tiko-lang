@@ -391,6 +391,15 @@ function ParseIntrinsic( byref p as Fbx.ParserState ) as Fbx.NodeId
         if Accept( p, Fbx.TK_COMMA ) = false then Accept( p, Fbx.KW_AS )
         sp.b = Expression( p )
 
+    case Fbx.IFORM_CVA_ARG
+        '' cva_arg( list, TYPE ). The second argument is a TYPE REFERENCE, not an
+        '' expression, so the argument list cannot be parsed generically.
+        Expect( p, Fbx.TK_LPAREN, "(" )
+        sp.a = Expression( p )
+        Expect( p, Fbx.TK_COMMA, "," )
+        sp.c = TypeRef( p )
+        Expect( p, Fbx.TK_RPAREN, ")" )
+
     case Fbx.IFORM_UNSUPPORTED
         ErrorNode( p, Fbx.FBX0409, Fbx.TokenKindText( k ) )
         EndOfStatement( p )

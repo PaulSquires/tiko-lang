@@ -42,6 +42,7 @@ namespace Fbx
         IFORM_DEFTYPE       '' DEFINT A-Z
         IFORM_GFX           '' PSET/PRESET/CIRCLE/PAINT/DRAW/VIEW/WINDOW/PALETTE/...
         IFORM_UNSUPPORTED   '' GOSUB, RESUME: not in -lang fb (probes D1, D2)
+        IFORM_CVA_ARG       '' cva_arg( list, TYPE ) -- the second argument is a type
         IFORM_DECLARED      '' OPTION, REDIM: parsed by the declaration layer instead
     end enum
 
@@ -61,6 +62,13 @@ namespace Fbx
         INTR( KW_CVLONGINT,   IFORM_EXPR )
         INTR( KW_CVS,         IFORM_EXPR )
         INTR( KW_CVSHORT,     IFORM_EXPR )
+        '' The varargs intrinsics. cva_start/cva_end/cva_copy are STATEMENTS; cva_arg is
+        '' an expression whose SECOND ARGUMENT IS A TYPE -- 'cva_arg( x, long )' -- which
+        '' no ordinary argument list can parse, so it has its own form.
+        INTR( KW_CVA_START,   IFORM_GENERIC )
+        INTR( KW_CVA_END,     IFORM_GENERIC )
+        INTR( KW_CVA_COPY,    IFORM_GENERIC )
+        INTR( KW_CVA_ARG,     IFORM_CVA_ARG )
         INTR( KW_DEFINED,     IFORM_EXPR )
         INTR( KW_ERR,         IFORM_EXPR )
         INTR( KW_EXP,         IFORM_EXPR )

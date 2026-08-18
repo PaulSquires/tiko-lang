@@ -74,3 +74,16 @@ dim as unsigned longint ub5
 extern "c++"
     declare function cppchar( byval a as byte alias "char" ) as byte alias "char"
 end extern
+
+'' The varargs intrinsics. cva_start/cva_end/cva_copy are STATEMENTS; cva_arg is an
+'' expression whose SECOND ARGUMENT IS A TYPE, which no ordinary argument list can parse.
+'' All four were keywords with no parser at all, so each was "expected a statement".
+sub Varia cdecl( byval n as long, ... )
+    dim as any ptr vl, vl2
+    dim as long got
+    cva_start( vl, n )
+    got = cva_arg( vl, long )
+    cva_copy( vl2, vl )
+    cva_end( vl2 )
+    cva_end( vl )
+end sub
