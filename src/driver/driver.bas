@@ -8,6 +8,7 @@
 #include once "parser/parser.bi"
 #include once "symbols/collect.bi"
 #include once "symbols/resolve.bi"
+#include once "symbols/mangle.bi"
 
 namespace Fbx
 
@@ -154,7 +155,8 @@ function Run( byref args as Fbx.StrVec ) as long
             print using "  load  ##.### s  (##.# MB/s)"; tLoad; mb / iif( tLoad > 0, tLoad, 1 )
             print using "  lex   ##.### s  (##.# MB/s)"; tLex; mb / iif( tLex > 0, tLex, 1 )
         end if
-    elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly then
+    elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
+           ctx.options.dumpMangle then
         for i as long = 1 to ctx.sources.Count( )
             dim as Fbx.FileId id = cast( Fbx.FileId, i )
             dim as Fbx.PpResult pr
@@ -179,9 +181,16 @@ function Run( byref args as Fbx.StrVec ) as long
             dim as Fbx.SymbolTable syms
             syms.Attach( @ctx.names )
             dim as Fbx.SemanticInfo info
-            Fbx.Collect.Run( ast, root, syms, ctx.names, ctx.diags, info )
+            Fbx.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info )
 
-            if ctx.options.resolveOnly then
+            if ctx.options.dumpMangle then
+                '' Mangling needs the parameter TYPES, so it runs after Resolve --
+                '' but the reference-binding report is not wanted here.
+                dim as Fbx.Resolve.Stats rst
+                Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                                 info, rst )
+                print Fbx.Mangle.Dump( ast, root, syms, ctx.names, ctx.types, info );
+            elseif ctx.options.resolveOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                  info, rst )

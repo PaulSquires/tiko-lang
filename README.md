@@ -36,6 +36,7 @@ fbx --parse-only                  parse and report counts; the corpus gate
 fbx --dump-types                  the type table with sizes and alignments
 fbx --dump-symbols                collect declarations and dump the symbol table
 fbx --resolve                     bind references and resolve type references
+fbx --dump-mangle                 print the emitted symbol name of each procedure
 ```
 
 Source files are accepted as ANSI, UTF-8, UTF-16LE and UTF-16BE (with or without BOM) and

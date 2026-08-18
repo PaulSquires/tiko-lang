@@ -1,0 +1,27 @@
+'' Decision D3: the emitted symbol name must be BYTE-IDENTICAL to fbc's. A name that
+'' differs by one character does not fail loudly -- it fails at link time in someone
+'' else's project, against a library fbx never saw.
+''
+'' The full 60-name differential against fbc's own object file is
+'' tools/gen/check-mangle.sh, which needs fbc present. This test is the part that
+'' runs without it: the shapes whose rules were hardest to establish.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/probe.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: PLAIN
+'' EXPECT-OUT: CFunc
+'' EXPECT-OUT: my_alias
+'' EXPECT-OUT: _Z4SOLOi
+'' EXPECT-OUT: _Z10lower_casei
+'' EXPECT-OUT: _ZN2TB3B07Eu7INTEGER
+'' EXPECT-OUT: _ZN2TB3B20EPKi
+'' EXPECT-OUT: _ZN2TB3B24EPPFvvE
+'' EXPECT-OUT: _ZN5SUBST2S3EP3UDTS1_S1_
+'' EXPECT-OUT: _ZN5SUBST2S7E3UDTPS0_S0_
+'' EXPECT-OUT: _ZN1WC1Ei
+'' EXPECT-OUT: _ZN1WD1Ev
+'' EXPECT-OUT: _ZN1W11SIZE__set__Ei
+'' EXPECT-OUT: _ZN1WaSERS_
+'' EXPECT-OUT: _ZN1Wcv8FBSTRINGEv
+'' EXPECT-OUT: _ZNK1W2CFEv
+'' EXPECT-NOT: HIDDEN

@@ -170,6 +170,85 @@ end function
 
 '' -------------------------------------------------------------------- queries
 
+function TypeContext.NamedType _
+    ( byval k as TypeKind, byval nm as InternId, _
+      byval declScope as ulong = 0 ) as TypeId
+
+    if nm = 0 then return TYPE_NONE
+    for i as long = 1 to this.types.Count - 1
+        dim as TypeInfo ptr t = @this.types[i]
+        if (t->kind = cast( ubyte, k )) andalso (t->name = nm) andalso _
+           (t->declScope = declScope) then
+            return cast( TypeId, i )
+        end if
+    next
+    dim as TypeInfo n
+    n.kind = cast( ubyte, k )
+    n.flags = TF_COMPLETE
+    n.name = nm
+    n.declScope = declScope
+    this.types.Push( n )
+    return cast( TypeId, this.types.Count - 1 )
+end function
+
+function TypeContext.Unqualify( byval t as TypeId ) as TypeId
+    if t = TYPE_NONE then return t
+    dim as TypeInfo ptr src = @this.types[cast( long, t )]
+    dim as ushort want = src->flags and (not TF_CONST)
+    if want = src->flags then return t
+
+    if src->kind = cast( ubyte, TK_BUILTIN ) then
+        for i as long = 1 to this.types.Count - 1
+            dim as TypeInfo ptr c = @this.types[i]
+            dim as boolean same = (c->kind = src->kind) andalso _
+                                  (c->builtin = src->builtin) andalso (c->flags = want)
+            if same then return cast( TypeId, i )
+        next
+        dim as TypeInfo n = *src
+        n.flags = want
+        this.types.Push( n )
+        return cast( TypeId, this.types.Count - 1 )
+    end if
+    return this.Find( cast( TypeKind, src->kind ), src->inner, want, src->dims )
+end function
+
+'' A procedure type: the return type in 'inner', the parameter types in the pool.
+function TypeContext.ProcType _
+    ( byval ret as TypeId, byref params as TypeIdVec2 ) as TypeId
+
+    for i as long = 1 to this.types.Count - 1
+        dim as TypeInfo ptr t = @this.types[i]
+        if t->kind <> cast( ubyte, TK_PROC ) then continue for
+        if t->inner <> ret then continue for
+        if t->count <> params.Count then continue for
+        dim as boolean same = true
+        for j as long = 0 to t->count - 1
+            if this.pool[t->first + j] <> params[j] then
+                same = false
+                exit for
+            end if
+        next
+        if same then return cast( TypeId, i )
+    next
+
+    dim as TypeInfo n
+    n.kind = cast( ubyte, TK_PROC )
+    n.flags = TF_COMPLETE
+    n.inner = ret
+    n.first = this.pool.Count
+    n.count = params.Count
+    for i as long = 0 to params.Count - 1
+        this.pool.Push( params[i] )
+    next
+    this.types.Push( n )
+    return cast( TypeId, this.types.Count - 1 )
+end function
+
+function TypeContext.NameOf( byval t as TypeId ) as InternId
+    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
+    return this.types[cast( long, t )].name
+end function
+
 function TypeContext.Kind( byval t as TypeId ) as TypeKind
     if t = TYPE_NONE then return TK_ERROR
     if cast( long, t ) >= this.types.Count then return TK_ERROR

@@ -6,9 +6,11 @@ resolved: 11 references, 0 builtins, 0 unresolved, 12 type refs, 2 calls, 2 assi
   typeref #12 -> long
   typeref #13 -> long
   stmt #21 -> function-result
+  typeref #24 -> point
   stmt #34 -> assign
   stmt #39 -> call
   typeref #42 -> long
+  typeref #45 -> point
   typeref #48 -> long
   typeref #49 -> long ptr
   stmt #54 -> call

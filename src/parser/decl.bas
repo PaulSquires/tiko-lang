@@ -16,6 +16,18 @@ end function
 
 '' A name in declaration position: an identifier, or a keyword being reused as one
 '' (which FreeBASIC allows in several places).
+'' The RAW spelling of the identifier at the cursor, case as written, or 0.
+private function RawSpelling( byref p as Fbx.ParserState ) as Fbx.InternId
+    dim as Fbx.Token t = Cur( p )
+    if Peek( p ) <> Fbx.TK_IDENT then return 0
+    if t.length <= 0 then return 0
+    dim as Fbx.DecodedLoc d = p.src->Decode( t.loc )
+    dim as Fbx.SourceFile ptr f = p.src->FileAt( d.file )
+    if f = 0 then return 0
+    if (d.offset + cast( long, t.length )) > f->text.Count then return 0
+    return p.names->Get( @f->text[d.offset], cast( long, t.length ) )
+end function
+
 private function DeclName( byref p as Fbx.ParserState, byref outName as Fbx.InternId ) as boolean
     dim as Fbx.TokenKind k = Peek( p )
     if k = Fbx.TK_IDENT then
@@ -198,6 +210,22 @@ private function ParseParam( byref p as Fbx.ParserState ) as Fbx.NodeId
     return n
 end function
 
+'' Intern the text of the string literal at the cursor, WITHOUT advancing. The
+'' literal pool records the span with the quotes already stripped, and the case is
+'' preserved: an ALIAS keeps exactly the spelling that was written.
+private function StringLitText( byref p as Fbx.ParserState ) as Fbx.InternId
+    dim as Fbx.Token t = Cur( p )
+    if p.litPool = 0 then return 0
+    if cast( long, t.literal ) >= p.litPool->Count then return 0
+    dim as Fbx.Literal ptr lit = @(*p.litPool)[cast( long, t.literal )]
+    if lit->textLength <= 0 then return 0
+    dim as Fbx.DecodedLoc d = p.src->Decode( t.loc )
+    dim as Fbx.SourceFile ptr f = p.src->FileAt( d.file )
+    if f = 0 then return 0
+    if (lit->textOffset + lit->textLength) > f->text.Count then return 0
+    return p.names->Get( @f->text[lit->textOffset], lit->textLength )
+end function
+
 sub ParseParamList( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     dim as Fbx.NodeIdVec params
     if Peek( p ) = Fbx.TK_LPAREN then
@@ -226,6 +254,21 @@ private function ParseProc _
 
     dim as Fbx.Token t = Cur( p )
     dim as Fbx.StmtPayload sp
+
+    '' 'const function T.F( )' and 'static sub T.S( )' put the modifier BEFORE the
+    '' procedure keyword. Const-ness is not cosmetic: it is what makes the mangled
+    '' name _ZNK... rather than _ZN..., so a procedure that loses it links wrong.
+    do
+        select case Peek( p )
+        case Fbx.KW_CONST    : sp.extra or= Fbx.PF_CONST
+        case Fbx.KW_STATIC   : sp.extra or= Fbx.PF_STATIC
+        case Fbx.KW_ABSTRACT : sp.extra or= Fbx.PF_ABSTRACT
+        case Fbx.KW_VIRTUAL  : sp.extra or= Fbx.PF_VIRTUAL
+        case else            : exit do
+        end select
+        Advance( p )
+    loop
+
     dim as Fbx.TokenKind kw = Peek( p )
     sp.op = cast( ushort, kw )
     Advance( p )
@@ -233,10 +276,13 @@ private function ParseProc _
     '' The name may be qualified ('Stack.Push') or absent (constructors).
     dim as boolean qualified = false
     if (Peek( p ) = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( Peek( p ) ) then
+        sp.rawName = RawSpelling( p )
         DeclName( p, sp.name )
         while Peek( p ) = Fbx.TK_DOT
             Advance( p )
             qualified = true
+            sp.ownerName = sp.name
+            sp.rawName = RawSpelling( p )
             DeclName( p, sp.name )
         wend
     end if
@@ -279,21 +325,33 @@ private function ParseProc _
     '' Leaving them unconsumed meant ParseParamList saw no '(' and the trailing-
     '' modifier loop below silently ate the ENTIRE parameter list -- so every
     '' parameter of every cdecl procedure in every header went undeclared.
+    '' OVERLOAD must precede ALIAS -- fbc rejects the other order.
     do
         dim as boolean ate = false
         while Fbx.IsCallConvKind( Peek( p ) )
             Advance( p )
             ate = true
         wend
+        if Accept( p, Fbx.KW_OVERLOAD ) then
+            '' OVERLOAD alone forces mangling, even when nothing else shares the
+            '' name: fbc mangles on the KEYWORD, not on there being a second one.
+            sp.extra or= Fbx.PF_OVERLOAD
+            ate = true
+        end if
         if Accept( p, Fbx.KW_ALIAS ) then
-            if Peek( p ) = Fbx.TK_STRING_LIT then Advance( p )
+            '' The alias replaces the IDENTIFIER and keeps its case, but the name is
+            '' still mangled around it: 'sub F overload alias "lower_case"' is
+            '' _Z10lower_casei, not 'lower_case'.
+            if Peek( p ) = Fbx.TK_STRING_LIT then
+                sp.aliasName = StringLitText( p )
+                Advance( p )
+            end if
             ate = true
         end if
         if Accept( p, Fbx.KW_LIB ) then
             if Peek( p ) = Fbx.TK_STRING_LIT then Advance( p )
             ate = true
         end if
-        if Accept( p, Fbx.KW_OVERLOAD ) then ate = true
         if ate = false then exit do
     loop
 
@@ -452,11 +510,17 @@ end function
 private function ParseNamespaceDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.Token t = Cur( p )
     Advance( p )
+    '' 'namespace a.b.c' opens THREE nested namespaces, not one called 'c'. fbcunit's
+    '' SUITE macro expands to exactly this, and keeping only the last component made
+    '' every generated procedure mangle three qualifiers short of fbc's.
+    dim as FB.Array( of ulong ) parts
     dim as Fbx.StmtPayload sp
     DeclName( p, sp.name )
+    parts.Push( cast( ulong, sp.name ) )
     while Peek( p ) = Fbx.TK_DOT
         Advance( p )
         DeclName( p, sp.name )
+        parts.Push( cast( ulong, sp.name ) )
     wend
 
     dim as Fbx.NodeIdVec members
@@ -476,15 +540,42 @@ private function ParseNamespaceDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
         p.ast->children.Push( members[i] )
     next
     ExpectEnd( p, Fbx.KW_NAMESPACE )
-    return MakeStmt( p, Fbx.N_NAMESPACE, t.loc, sp )
+
+    '' Innermost first: each outer level wraps the one below as its single member.
+    sp.name = cast( Fbx.InternId, parts[parts.Count - 1] )
+    dim as Fbx.NodeId n = MakeStmt( p, Fbx.N_NAMESPACE, t.loc, sp )
+    for i as long = parts.Count - 2 to 0 step -1
+        dim as Fbx.StmtPayload outer
+        outer.name = cast( Fbx.InternId, parts[i] )
+        outer.first = p.ast->children.Count
+        outer.count = 1
+        p.ast->children.Push( cast( ulong, n ) )
+        n = MakeStmt( p, Fbx.N_NAMESPACE, t.loc, outer )
+    next
+    return n
+end function
+
+private function MarkPrivate _
+    ( byref p as Fbx.ParserState, byval n as Fbx.NodeId, _
+      byval isPrivate as boolean ) as Fbx.NodeId
+
+    if (isPrivate = false) orelse (n = Fbx.NODE_NONE) then return n
+    if p.ast->Kind( n ) <> Fbx.N_PROC then return n
+    dim as Fbx.StmtPayload ptr sp = _
+        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+    sp->extra or= Fbx.PF_PRIVATE
+    return n
 end function
 
 function Declaration( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.Token t = Cur( p )
     dim as Fbx.TokenKind k = Peek( p )
 
-    '' 'private'/'public' only qualify what follows.
+    '' 'private'/'public' only qualify what follows -- except that PRIVATE makes a
+    '' procedure module-static, which means it has no linker-visible name at all.
+    dim as boolean isPrivate = false
     if (k = Fbx.KW_PRIVATE) orelse (k = Fbx.KW_PUBLIC) then
+        isPrivate = (k = Fbx.KW_PRIVATE)
         Advance( p )
         k = Peek( p )
     end if
@@ -499,8 +590,17 @@ function Declaration( byref p as Fbx.ParserState ) as Fbx.NodeId
         if isBlock then
             Advance( p )
             dim as Fbx.StmtPayload sp
+            '' The language decides how everything inside is NAMED: 'C' and
+            '' 'Windows' take the source spelling verbatim, case and all, and the
+            '' OVERLOAD keyword is ignored for them.
+            dim as Fbx.InternId lang = StringLitText( p )
+            sp.aliasName = lang
             sp.a = Expression( p, Fbx.PREC_POSTFIX )
             EndOfStatement( p )
+            dim as boolean foreign_ = false
+            if lang <> 0 then
+                foreign_ = (Fbx.Text.LowerAscii( p.names->Spelling( lang ) ) <> "fb")
+            end if
 
             dim as Fbx.NodeIdVec members
             do
@@ -516,10 +616,28 @@ function Declaration( byref p as Fbx.ParserState ) as Fbx.NodeId
             sp.first = p.ast->children.Count
             sp.count = members.Count
             for i as long = 0 to members.Count - 1
+                dim as Fbx.NodeId m = cast( Fbx.NodeId, members[i] )
+                if foreign_ andalso (p.ast->Kind( m ) = Fbx.N_PROC) then
+                    dim as Fbx.StmtPayload ptr mp = _
+                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                    mp->extra or= Fbx.PF_FOREIGN
+                end if
                 p.ast->children.Push( members[i] )
             next
             ExpectEnd( p, Fbx.KW_EXTERN )
             return MakeStmt( p, Fbx.N_EXTERN_BLOCK, t.loc, sp )
+        end if
+    end if
+
+    '' A leading CONST or STATIC followed by a procedure keyword modifies the
+    '' PROCEDURE; it does not start a constant or a variable declaration.
+    if (k = Fbx.KW_CONST) orelse (k = Fbx.KW_STATIC) then
+        if HasTok( p, p.pos + 1 ) then
+            select case cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )
+            case Fbx.KW_SUB, Fbx.KW_FUNCTION, Fbx.KW_PROPERTY, Fbx.KW_OPERATOR, _
+                 Fbx.KW_CONSTRUCTOR, Fbx.KW_DESTRUCTOR
+                return MarkPrivate( p, ParseProc( p, false ), isPrivate )
+            end select
         end if
     end if
 
@@ -542,11 +660,11 @@ function Declaration( byref p as Fbx.ParserState ) as Fbx.NodeId
 
     case Fbx.KW_DECLARE
         Advance( p )
-        return ParseProc( p, true )
+        return MarkPrivate( p, ParseProc( p, true ), isPrivate )
 
     case Fbx.KW_SUB, Fbx.KW_FUNCTION, Fbx.KW_PROPERTY, Fbx.KW_CONSTRUCTOR, _
          Fbx.KW_DESTRUCTOR, Fbx.KW_OPERATOR
-        return ParseProc( p, false )
+        return MarkPrivate( p, ParseProc( p, false ), isPrivate )
 
     case Fbx.KW_USING
         Advance( p )

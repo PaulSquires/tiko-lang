@@ -19,7 +19,8 @@ namespace Fbx.Collect
     declare function Run _
         ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
           byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-          byref diags as Fbx.DiagnosticEngine, byref info as Fbx.SemanticInfo ) as long
+          byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
+          byref info as Fbx.SemanticInfo ) as long
 
     '' --dump-symbols. Byte-stable; lists each scope in declaration order.
     declare function Dump _

@@ -20,6 +20,7 @@ type Walker
     as Fbx.SymbolTable ptr  syms
     as Fbx.DiagnosticEngine ptr diags
     as Fbx.Interner ptr     names
+    as Fbx.TypeContext ptr  types
     as Fbx.SemanticInfo ptr info
     as long                 duplicates
 end type
@@ -120,7 +121,12 @@ sub WalkNode _
                                             w.ast->Loc( id ) )
         dim as Fbx.ScopeId inner = w.syms->OpenScope( Fbx.SCOPEK_TYPE, scope_, sid )
         dim as Fbx.Symbol ptr s = w.syms->SymbolAt( sid )
-        if s <> 0 then s->inner = inner
+        if s <> 0 then
+            s->inner = inner
+            '' The TypeId exists from the DECLARATION, not from the first use: a
+            '' member's signature can name its own type, so waiting would deadlock.
+            s->type_ = w.types->NamedType( Fbx.TK_UDT, sp->name, cast( ulong, scope_ ) )
+        end if
         w.info->SetScope( id, inner )
         WalkChildren( w, sp->first, sp->count, inner )
 
@@ -135,7 +141,10 @@ sub WalkNode _
         '' Enum constants land in the ENCLOSING scope, as in FreeBASIC: 'Red' is
         '' usable without qualification.
         dim as Fbx.Symbol ptr s = w.syms->SymbolAt( sid )
-        if s <> 0 then s->inner = scope_
+        if s <> 0 then
+            s->inner = scope_
+            s->type_ = w.types->NamedType( Fbx.TK_ENUM, sp->name, cast( ulong, scope_ ) )
+        end if
         WalkChildren( w, sp->first, sp->count, scope_ )
 
     case Fbx.N_ENUM_ITEM
@@ -144,7 +153,10 @@ sub WalkNode _
 
     case Fbx.N_TYPEDEF
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
-        Declare_( w, scope_, sp->name, Fbx.SYM_TYPEDEF, w.ast->Loc( id ) )
+        dim as Fbx.SymbolId tid = Declare_( w, scope_, sp->name, Fbx.SYM_TYPEDEF, _
+                                            w.ast->Loc( id ) )
+        dim as Fbx.Symbol ptr ts = w.syms->SymbolAt( tid )
+        if ts <> 0 then ts->type_ = w.types->NamedType( Fbx.TK_TYPEDEF, sp->name, cast( ulong, scope_ ) )
 
     case Fbx.N_PROC
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
@@ -170,8 +182,25 @@ sub WalkNode _
             s->payload = cast( long, id )
         end if
 
+        '' 'sub Widget.Method( )' defines a member: its scope PARENT is the type's
+        '' scope, not the module's. That is what makes 'this', the sibling fields and
+        '' the mangled name _ZN6WIDGET6METHODEi all come out right -- an unqualified
+        '' member body resolves its own fields by ordinary scope lookup.
+        dim as Fbx.ScopeId parentScope = scope_
+        if isMemberDef then
+            dim as Fbx.InternId ownerNm = sp->ownerName
+            if isCtorDtor andalso (ownerNm = 0) then ownerNm = sp->name
+            if ownerNm <> 0 then
+                dim as Fbx.SymbolId osid = w.syms->Lookup( scope_, ownerNm )
+                dim as Fbx.Symbol ptr os = w.syms->SymbolAt( osid )
+                if os <> 0 then
+                    if os->inner <> Fbx.SCOPE_NONE then parentScope = os->inner
+                end if
+            end if
+        end if
+
         '' Parameters and locals live in the procedure's own scope.
-        dim as Fbx.ScopeId inner = w.syms->OpenScope( Fbx.SCOPEK_PROC, scope_, sid )
+        dim as Fbx.ScopeId inner = w.syms->OpenScope( Fbx.SCOPEK_PROC, parentScope, sid )
         if s <> 0 then s->inner = inner
         '' A member definition body may say 'this'. The receiver is implicit -- it is
         '' never written as a parameter -- so nothing else would ever declare it.
@@ -258,9 +287,11 @@ end sub
 function Run _
     ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
       byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-      byref diags as Fbx.DiagnosticEngine, byref info as Fbx.SemanticInfo ) as long
+      byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
+      byref info as Fbx.SemanticInfo ) as long
 
     dim as Walker w
+    w.types = @types
     w.ast = @ast
     w.syms = @syms
     w.diags = @diags

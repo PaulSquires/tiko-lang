@@ -15,5 +15,6 @@ src/types/type.bas
 src/symbols/symbol.bas
 src/symbols/collect.bas
 src/symbols/resolve.bas
+src/symbols/mangle.bas
 src/driver/cmdline.bas
 src/driver/driver.bas

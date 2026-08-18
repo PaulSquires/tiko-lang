@@ -380,6 +380,7 @@ function Parse _
         case Fbx.OPT_DUMPTYPES : opts.dumpTypes = true
         case Fbx.OPT_DUMPSYMS  : opts.dumpSymbols = true
         case Fbx.OPT_RESOLVE   : opts.resolveOnly = true
+        case Fbx.OPT_MANGLE    : opts.dumpMangle = true
         case Fbx.OPT_DUMPIR    : opts.dumpIr = true
         case Fbx.OPT_EMITIR    : opts.emitIr = true
         case Fbx.OPT_EMITASM   : opts.emitAsm = true

@@ -298,6 +298,16 @@ function LowerAscii( byval s as string ) as string
     return r
 end function
 
+function UpperAscii( byval s as string ) as string
+    dim as string r = s
+    if len( r ) = 0 then return r
+    dim as ubyte ptr q = cast( ubyte ptr, strptr( r ) )
+    for i as long = 0 to len( r ) - 1
+        if (q[i] >= 97) andalso (q[i] <= 122) then q[i] -= 32
+    next
+    return r
+end function
+
 '' ------------------------------------------------------------- ustring bridges
 
 function Utf8ToUString( byval p as const ubyte ptr, byval n as long ) as ustring

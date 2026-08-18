@@ -69,6 +69,9 @@ namespace Fbx.Text
     '' ASCII-only case folding. FreeBASIC identifiers and keywords are ASCII, so this
     '' is the correct fold for symbol lookup -- deliberately not locale-aware.
     declare function LowerAscii( byval s as string ) as string
+    '' ASCII-only, deliberately: a mangled name is bytes, and folding non-ASCII here
+    '' would change identifiers the linker treats as opaque.
+    declare function UpperAscii( byval s as string ) as string
     declare sub LowerAsciiInto _
         ( byval src as const ubyte ptr, byval n as long, byval dst as ubyte ptr )
 

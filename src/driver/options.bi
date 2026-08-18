@@ -71,6 +71,7 @@ namespace Fbx
     OPT( OPT_DUMPTYPES, "--dump-types",   OPTK_FLAG, OPTCAT_DEVEL, "",        "dump the type table and its layout" )
     OPT( OPT_DUMPSYMS,  "--dump-symbols", OPTK_FLAG, OPTCAT_DEVEL, "",        "collect declarations and dump the symbol table" )
     OPT( OPT_RESOLVE,   "--resolve",      OPTK_FLAG, OPTCAT_DEVEL, "",        "collect and resolve; report reference binding" )
+    OPT( OPT_MANGLE,    "--dump-mangle",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print the emitted symbol name of each procedure" )
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
     OPT( OPT_PARSEONLY, "--parse-only",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse every input and report counts; the corpus gate" )
     OPT( OPT_DUMPIR,    "--dump-ir",      OPTK_FLAG, OPTCAT_DEVEL, "",        "dump MIR" )
@@ -136,6 +137,7 @@ namespace Fbx
         as boolean dumpTypes
         as boolean dumpSymbols
         as boolean resolveOnly
+        as boolean dumpMangle
         as boolean dumpIr
         as boolean emitIr
         as boolean emitAsm

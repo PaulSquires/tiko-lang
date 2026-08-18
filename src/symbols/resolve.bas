@@ -117,6 +117,35 @@ private function ResolveTypeRef _
         return t
     end if
 
+    '' 'as sub( ... )' / 'as function( ... ) as T'. In FreeBASIC a procedure type is
+    '' already a POINTER -- 'sub( ) ptr' is PPFvvE, one P for the type itself and one
+    '' for the written 'ptr' -- so the pointer is built in here, not by the caller.
+    if (n->flags and Fbx.NF_PROC_TYPE) <> 0 then
+        dim as Fbx.TypeId ret = Fbx.TYPE_NONE
+        if sp->a <> Fbx.NODE_NONE then
+            ret = ResolveTypeRef( c, sp->a, scope_ )
+        else
+            ret = c.types->Builtin( Fbx.TY_VOID )
+        end if
+        dim as Fbx.TypeIdVec2 ps
+        for i as long = 0 to sp->count - 1
+            dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+            dim as Fbx.StmtPayload ptr pp = StmtOf( c, prm )
+            dim as Fbx.TypeId pt = ResolveTypeRef( c, pp->a, scope_ )
+            if (c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
+                pt = c.types->Reference( pt )
+            end if
+            ps.Push( cast( ulong, pt ) )
+        next
+        dim as Fbx.TypeId pf = c.types->Pointer_( c.types->ProcType( ret, ps ) )
+        if (n->flags and Fbx.NF_CONST) <> 0 then
+            pf = c.types->Qualify( pf, Fbx.TF_CONST )
+        end if
+        c.info->SetType( id, pf )
+        return pf
+    end if
+
     dim as Fbx.TypeId base_ = Fbx.TYPE_NONE
     dim as Fbx.TokenKind k = cast( Fbx.TokenKind, sp->op )
 

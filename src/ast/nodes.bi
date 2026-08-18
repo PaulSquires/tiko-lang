@@ -138,6 +138,16 @@ namespace Fbx
     const NF_PROC_TYPE  as ushort = &h4000   '' N_TYPEREF: 'sub(...)' / 'function(...) as T'
     const NF_QUALIFIED  as ushort = &h8000   '' N_PROC: 'Stack.Push' -- a member DEFINITION
 
+    '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
+    '' fully allocated, and these are meaningful for exactly one node kind.
+    const PF_OVERLOAD   as ushort = &h0001   '' the OVERLOAD keyword was written
+    const PF_CONST      as ushort = &h0002   '' 'const function T.F( )' -- a const method
+    const PF_STATIC     as ushort = &h0004   '' 'static sub T.S( )' -- no implicit THIS
+    const PF_ABSTRACT   as ushort = &h0008
+    const PF_VIRTUAL    as ushort = &h0010
+    const PF_FOREIGN    as ushort = &h0020   '' inside EXTERN "C" / "Windows" ...
+    const PF_PRIVATE    as ushort = &h0040   '' module-static: no linker-visible name
+
     type UnaryPayload
         as ushort op                '' TokenKind
         as NodeId operand
@@ -186,7 +196,15 @@ namespace Fbx
         as long     first           '' child list, into the shared pool (signed: see ListPayload)
         as long     count
         as ushort   op              '' keyword that spelled it, for dumps
-        as ushort   extra           '' levels for EXIT/CONTINUE, intrinsic id, ...
+        as ushort   extra           '' levels for EXIT/CONTINUE, intrinsic id, PF_* ...
+        as InternId aliasName       '' N_PROC: the ALIAS spelling, CASE PRESERVED, or 0
+        as InternId ownerName       '' N_PROC: the QUALIFIER of 'Widget.Method' --
+                                    '' the last component lands in .name, and without
+                                    '' this the type a member belongs to is lost
+        as InternId rawName         '' N_PROC: the source spelling, CASE PRESERVED.
+                                    '' Identifiers intern FOLDED, so the only record
+                                    '' of how a name was written is kept here -- and
+                                    '' EXTERN "C" emits exactly what was written.
     end type
 
     type NodeVec    as FB.Array( of AstNode )
