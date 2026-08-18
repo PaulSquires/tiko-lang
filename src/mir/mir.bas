@@ -115,6 +115,11 @@ function LowerType _
     select case types.Kind( t )
     case Fbx.TK_POINTER, Fbx.TK_REFERENCE, Fbx.TK_PROC
         return MT_PTR
+    case Fbx.TK_ARRAY
+        '' A fixed array is storage, addressed by arithmetic rather than loaded whole,
+        '' so it is an aggregate however small it is. Falling through to the element's
+        '' type would reserve ONE element -- four bytes where forty were needed.
+        return MT_AGG
     case Fbx.TK_UDT, Fbx.TK_ENUM
         '' An ENUM is its underlying integer; a UDT is opaque.
         if types.Kind( t ) = Fbx.TK_ENUM then return MT_I32

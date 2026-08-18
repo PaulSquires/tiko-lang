@@ -141,16 +141,34 @@ function TypeContext.Reference( byval referent as TypeId ) as TypeId
 end function
 
 function TypeContext.ArrayOf _
-    ( byval elem as TypeId, byval rank as long, byval elems as long ) as TypeId
+    ( byval elem as TypeId, byval rank as long, byval elems as long, _
+      byval bounds as FB.Array( of longint ) ptr ) as TypeId
 
     '' The element COUNT is part of the identity: 'long a(0 to 3)' and
     '' 'long a(0 to 7)' are different types with different sizes, and Find( ) alone
     '' compares only the rank.
+    ''
+    '' So are the BOUNDS: 'a(0 to 3)' and 'a(1 to 4)' have the same rank, the same
+    '' element count and the same size, but different lbound biases, so indexing them
+    '' produces different addresses. Sharing one type between them would fold the wrong
+    '' bias into every subscript of one of the two.
     for i as long = 1 to this.types.Count - 1
         dim as TypeInfo ptr t = @this.types[i]
         if (t->kind = cast( ubyte, TK_ARRAY )) andalso (t->inner = elem) andalso _
            (t->dims = rank) andalso (t->elems = elems) then
-            return cast( TypeId, i )
+            dim as boolean same = true
+            if bounds = 0 then
+                if t->count <> 0 then same = false
+            else
+                if t->count <> bounds->Count then
+                    same = false
+                else
+                    for j as long = 0 to t->count - 1
+                        if this.boundPool[t->first + j] <> (*bounds)[j] then same = false
+                    next
+                end if
+            end if
+            if same then return cast( TypeId, i )
         end if
     next
     dim as TypeInfo n
@@ -159,8 +177,31 @@ function TypeContext.ArrayOf _
     n.inner = elem
     n.dims = rank
     n.elems = elems
+    n.first = this.boundPool.Count
+    n.count = 0
+    if bounds <> 0 then
+        for j as long = 0 to bounds->Count - 1
+            this.boundPool.Push( (*bounds)[j] )
+        next
+        n.count = bounds->Count
+    end if
     this.types.Push( n )
     return cast( TypeId, this.types.Count - 1 )
+end function
+
+function TypeContext.ArrayBound _
+    ( byval t as TypeId, byval dim_ as long, byval hi as boolean, _
+      byref known as boolean ) as longint
+
+    known = false
+    if t = TYPE_NONE then return 0
+    dim as TypeInfo ptr ti = @this.types[cast( long, t )]
+    if ti->kind <> cast( ubyte, TK_ARRAY ) then return 0
+    dim as long idx = dim_ * 2
+    if hi then idx += 1
+    if (idx < 0) orelse (idx >= ti->count) then return 0
+    known = true
+    return this.boundPool[ti->first + idx]
 end function
 
 '' 'const T' is the same type with a flag, so const-ness never changes identity of

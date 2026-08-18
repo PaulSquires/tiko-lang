@@ -277,6 +277,103 @@ end sub
 '' The parser's three-way ambiguity, decided now that the target's symbol is known
 '' (docs/plan/07 section 8). The payoff is the diagnostic: where fbc reports a syntax
 '' error, fbx can say what the name actually is.
+
+'' An array type from a declaration's bounds, or the base type unchanged when there are
+'' none.
+''
+'' THE PARSER SPELLS BOUNDS TWO DIFFERENT WAYS, which is why this takes node lists
+'' rather than a payload:
+''
+''   N_FIELD      flat (lo, hi) children          as long f(0 to 3)
+''   N_VAR_ITEM   an N_BLOCK of N_CASE_RANGE      dim as long a(0 to 9)
+''
+'' Both are collected into (lo, hi) pairs here so the arithmetic exists once. Assuming
+'' the field shape for both is what left every LOCAL array typed as its element -- four
+'' bytes where forty were needed -- and that went unnoticed only because indexing was
+'' not lowered either.
+''
+'' A missing low bound means 0: 'a(9)' is 'a(0 to 9)'. BOUNDS ARE RETAINED, not just
+'' their product, because indexing needs each dimension's stride and its lbound bias.
+'' Nothing is folded when any bound is non-constant.
+private function ArrayFromPairs _
+    ( byref c as Ctx, byval base_ as Fbx.TypeId, _
+      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ) ) as Fbx.TypeId
+
+    if los.Count = 0 then return base_
+    if base_ = Fbx.TYPE_NONE then return base_
+
+    dim as long total = 1
+    dim as boolean known = true
+    dim as FB.Array( of longint ) bounds
+    for i as long = 0 to los.Count - 1
+        dim as longint lo = 0
+        dim as Fbx.NodeId loN = cast( Fbx.NodeId, los[i] )
+        if loN <> Fbx.NODE_NONE then
+            dim as Fbx.Check.ConstVal lv = _
+                Fbx.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names )
+            if lv.known then lo = lv.value else known = false
+        end if
+        dim as longint hi = lo - 1
+        dim as Fbx.NodeId hiN = cast( Fbx.NodeId, his[i] )
+        if hiN <> Fbx.NODE_NONE then
+            dim as Fbx.Check.ConstVal hv = _
+                Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names )
+            if hv.known then hi = hv.value else known = false
+        else
+            known = false
+        end if
+        if known then total *= cast( long, hi - lo + 1 )
+        bounds.Push( lo )
+        bounds.Push( hi )
+    next
+    if (known = false) orelse (total <= 0) then return base_
+    return c.types->ArrayOf( base_, los.Count, total, @bounds )
+end function
+
+'' N_FIELD: flat (lo, hi) children.
+private function ArrayFromBounds _
+    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval first as long, _
+      byval count as long ) as Fbx.TypeId
+
+    dim as FB.Array( of ulong ) los, his
+    dim as long i = 0
+    while i + 1 < count + 1 andalso i + 1 <= count - 1
+        los.Push( c.ast->children[first + i] )
+        his.Push( c.ast->children[first + i + 1] )
+        i += 2
+    wend
+    return ArrayFromPairs( c, base_, los, his )
+end function
+
+'' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
+private function ArrayFromBoundsNode _
+    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId ) as Fbx.TypeId
+
+    if id = Fbx.NODE_NONE then return base_
+    if c.ast->Kind( id ) <> Fbx.N_BLOCK then return base_
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as FB.Array( of ulong ) los, his
+    for i as long = 0 to lp->count - 1
+        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( d ) = Fbx.N_CASE_RANGE then
+            '' 'a(0 to 9)' -- both bounds written out.
+            dim as Fbx.StmtPayload ptr dp = StmtOf( c, d )
+            los.Push( cast( ulong, dp->a ) )
+            his.Push( cast( ulong, dp->b ) )
+        else
+            '' 'a(9)' -- a bare expression, which is the UPPER bound with an implicit
+            '' lower bound of 0. It is not an N_CASE_RANGE at all, so a loop that only
+            '' accepts one silently gives the array no dimensions and drops it back to
+            '' its element type.
+            los.Push( cast( ulong, Fbx.NODE_NONE ) )
+            his.Push( cast( ulong, d ) )
+        end if
+    next
+    return ArrayFromPairs( c, base_, los, his )
+end function
+
+
 private sub ResolveAmbiguous _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
 
@@ -386,6 +483,10 @@ sub WalkStmt _
             if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
             dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
             dim as Fbx.TypeId t = ResolveTypeRef( c, ip->a, here )
+            '' 'dim as long a(0 to 9)' is an ARRAY of long, not a long. Without this a
+            '' local array reserved one ELEMENT -- four bytes where forty were needed --
+            '' which nothing noticed only because indexing was not lowered either.
+            t = ArrayFromBoundsNode( c, t, ip->c )
             BindDeclType( c, here, ip->name, t )
             WalkStmt( c, ip->b, here )
         next
@@ -408,29 +509,7 @@ sub WalkStmt _
         '' A field declared with bounds is an ARRAY of that type. The bounds are
         '' low/high pairs and the element count is their product -- which the layout
         '' needs, and which was simply lost while the bounds were being skipped.
-        if (sp->count >= 2) andalso (t <> Fbx.TYPE_NONE) then
-            dim as long total = 1
-            dim as long rank = 0
-            dim as boolean known = true
-            for i as long = 0 to sp->count - 2 step 2
-                dim as Fbx.NodeId loN = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-                dim as Fbx.NodeId hiN = cast( Fbx.NodeId, c.ast->children[sp->first + i + 1] )
-                dim as longint lo = 0
-                if loN <> Fbx.NODE_NONE then
-                    dim as Fbx.Check.ConstVal lv = _
-                        Fbx.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names )
-                    if lv.known then lo = lv.value else known = false
-                end if
-                dim as Fbx.Check.ConstVal hv = _
-                    Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names )
-                if hv.known = false then known = false
-                if known then total *= cast( long, hv.value - lo + 1 )
-                rank += 1
-            next
-            if known andalso (total > 0) then
-                t = c.types->ArrayOf( t, rank, total )
-            end if
-        end if
+        t = ArrayFromBounds( c, t, sp->first, sp->count )
         BindDeclType( c, here, sp->name, t )
         return
 

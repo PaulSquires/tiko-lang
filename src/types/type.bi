@@ -99,6 +99,7 @@ namespace Fbx
         as TypeId   inner          '' pointee / referent / element / return type
         as InternId name           '' UDT, enum, typedef
         as long     first          '' element list (tuple, proc params), into a pool
+                                   '' TK_ARRAY: (lo, hi) pairs, into boundPool
         as long     count
         as long     dims           '' array rank; -1 for a dynamic array
         as long     packing        '' UDT: the 'field = N' cap, 0 for none
@@ -131,6 +132,7 @@ namespace Fbx
     type TypeContext
         as TypeVec       types
         as TypeIdVec2    pool        '' element lists
+        as FB.Array( of longint ) boundPool   '' TK_ARRAY (lo, hi) pairs
         as Interner ptr  names
         as TargetLayout  target
 
@@ -140,9 +142,18 @@ namespace Fbx
         declare function Builtin( byval b as BuiltinType ) as TypeId
         declare function Pointer_( byval pointee as TypeId ) as TypeId
         declare function Reference( byval referent as TypeId ) as TypeId
+        '' 'bounds' is rank (lo, hi) PAIRS, in declaration order. Retaining them is
+        '' what makes indexing lowerable: the address of a(i,j) needs each dimension's
+        '' stride and the lbound bias, and the total element count alone gives neither.
         declare function ArrayOf _
             ( byval elem as TypeId, byval rank as long, _
-              byval elems as long = 0 ) as TypeId
+              byval elems as long = 0, _
+              byval bounds as FB.Array( of longint ) ptr = 0 ) as TypeId
+        '' The declared bounds of one dimension. 'known' is false for an array whose
+        '' bounds were not constant, in which case nothing may be folded.
+        declare function ArrayBound _
+            ( byval t as TypeId, byval dim_ as long, byval hi as boolean, _
+              byref known as boolean ) as longint
         declare function Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
         '' A UDT, ENUM or TYPEDEF is identified by its NAME, not structurally, so it
         '' needs its own finder: Find( ) compares inner/flags/rank and would collapse
