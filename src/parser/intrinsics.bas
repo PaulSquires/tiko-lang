@@ -69,7 +69,7 @@ end function
 '' PRINT / LPRINT / WRITE.
 ''   [#n,] [USING fmt;] expr [ ; | , ] expr ...
 '' The separators are semantically meaningful -- ';' suppresses the column advance --
-'' so they are recorded as children rather than skipped.
+'' so they are recorded as N_PRINT_SEP children rather than skipped.
 private sub IntrPrint( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     sp.a = IntrFileNum( p )
     if sp.a <> Fbx.NODE_NONE then
@@ -83,12 +83,21 @@ private sub IntrPrint( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
         sp.extra = 1                      '' marks the USING form for lowering
     end if
 
+    '' Separators are INTERLEAVED with the items as N_PRINT_SEP markers, because what
+    '' follows an item decides how it prints: fbc passes 0 for ';', 2 for ',' and 1 for
+    '' end-of-statement as the third argument to every fb_Print* call. Dropping them
+    '' would make 'print a; b', 'print a, b' and 'print a;' indistinguishable, and all
+    '' three produce different output.
     dim as Fbx.NodeIdVec items
     do
         if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
         dim as Fbx.TokenKind k = Peek( p )
         if (k = Fbx.TK_SEMICOLON) orelse (k = Fbx.TK_COMMA) then
+            dim as Fbx.Token t = Cur( p )
             Advance( p )
+            dim as Fbx.StmtPayload ssp
+            ssp.op = cast( ushort, k )
+            items.Push( cast( ulong, MakeStmt( p, Fbx.N_PRINT_SEP, t.loc, ssp ) ) )
             continue do
         end if
         dim as long before = p.pos

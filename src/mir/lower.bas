@@ -1000,6 +1000,12 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     case Fbx.N_FOR
         LowerFor( c, id )
 
+    case Fbx.N_INTRINSIC
+        dim as Fbx.StmtPayload ptr ip = StmtOf( c, id )
+        dim as boolean handled = false
+        if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
+        if handled = false then c.st->skipped += 1
+
     case Fbx.N_SELECT
         LowerSelect( c, id )
 

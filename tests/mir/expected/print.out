@@ -1,0 +1,43 @@
+global str $str0 "x"
+global str $str1 "lit"
+func void P() {
+  local agg s size 24
+  local i32 n
+  local f64 d
+  local ptr p
+  entry0:
+    %1 = alloca ptr s
+    %2 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
+    %3 = alloca ptr n
+    %4 = alloca ptr d
+    %5 = alloca ptr p
+    call.rtl void fb_PrintVoid(0, 1)
+    call.rtl void fb_PrintString(0, @s, 1)
+    %6 = load @n
+    call.rtl void fb_PrintInt(0, %6, 1)
+    %7 = load @d
+    call.rtl void fb_PrintDouble(0, %7, 1)
+    %8 = load @p
+    call.rtl void fb_PrintULongint(0, %8, 1)
+    %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    call.rtl void fb_PrintString(0, %9, 1)
+    call.rtl void fb_PrintString(0, @s, 0)
+    %10 = load @n
+    call.rtl void fb_PrintInt(0, %10, 1)
+    call.rtl void fb_PrintString(0, @s, 2)
+    %11 = load @n
+    call.rtl void fb_PrintInt(0, %11, 1)
+    call.rtl void fb_PrintString(0, @s, 0)
+    call.rtl void fb_StrDelete(@s)
+    ret
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare void fb_PrintVoid($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintDouble($0, $1, $2)
+declare void fb_PrintULongint($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance

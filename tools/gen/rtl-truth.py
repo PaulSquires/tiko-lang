@@ -66,6 +66,22 @@ sub P( )
     print s
     print 1
     print
+    print "lit"
+    print s; 1
+    print s, 1
+end sub
+''',
+    # Every scalar type has its OWN print entry point; there is no generic one. A
+    # POINTER has no entry of its own and goes through fb_PrintULongint.
+    "printtypes": '''
+sub Q( )
+    dim as byte b : dim as ubyte ub : dim as short sh : dim as ushort ush
+    dim as long l : dim as ulong ul : dim as longint li : dim as ulongint uli
+    dim as single f : dim as double d : dim as boolean bo
+    dim as any ptr pp
+    print b : print ub : print sh : print ush
+    print l : print ul : print li : print uli
+    print f : print d : print bo : print pp
 end sub
 ''',
     "array": '''

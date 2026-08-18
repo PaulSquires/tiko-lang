@@ -15,6 +15,10 @@ declare sub PushStrArg _
     ( byref args as FB.Array( of ulong ), byref addr as MirValue )
 declare sub PushStrLiteralArg _
     ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
+declare function PrintOne _
+    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long ) as boolean
+declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
+declare sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
 declare function StringLitText_ _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as string
 declare function LowerConcatViaTemp _
@@ -236,6 +240,158 @@ function LowerStringInit _
     EmitRtl( c, RTL_STR_INIT, args )
     return true
 end function
+
+
+'' PRINT.
+''
+'' MEASURED from fbc (docs/internals/phase-6-print.md). There is NO generic print entry
+'' point: every scalar type has its own, and the third argument is a SEPARATOR MASK
+'' saying what follows THAT item --
+''
+''     0   nothing        ';' between items, or a trailing ';'
+''     1   newline        end of the statement
+''     2   tab            ',' between items
+''
+''     print            -> fb_PrintVoid( 0, 1 )
+''     print s          -> fb_PrintString( 0, &S, 1 )
+''     print s; n       -> fb_PrintString( 0, &S, 0 )  fb_PrintInt( 0, N, 1 )
+''     print s, n       -> fb_PrintString( 0, &S, 2 )  fb_PrintInt( 0, N, 1 )
+''     print s;         -> fb_PrintString( 0, &S, 0 )
+''
+'' so the mask belongs to the item BEFORE the separator, and a trailing ';' suppresses
+'' the newline entirely rather than printing one.
+function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+
+    '' 'print #1, ...' and 'print using' are not lowered; both change the call shape.
+    if sp->a <> Fbx.NODE_NONE then return false
+    if sp->extra <> 0 then return false
+
+    '' No items at all is the bare 'print', a newline on its own.
+    if sp->count = 0 then
+        dim as FB.Array( of ulong ) va
+        PushConst( va, 0 )
+        PushConst( va, 1 )
+        EmitRtl( c, RTL_PRINT_VOID, va )
+        return true
+    end if
+
+    for i as long = 0 to sp->count - 1
+        dim as Fbx.NodeId it = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( it ) = Fbx.N_PRINT_SEP then continue for
+
+        '' What follows decides the mask: a ';' suppresses, a ',' tabs, and anything
+        '' else -- including running out of children -- ends the line.
+        dim as long mask = 1
+        if i + 1 < sp->count then
+            dim as Fbx.NodeId nx = cast( Fbx.NodeId, c.ast->children[sp->first + i + 1] )
+            if c.ast->Kind( nx ) = Fbx.N_PRINT_SEP then
+                dim as Fbx.StmtPayload ptr np = StmtOf( c, nx )
+                if np->op = cast( ushort, Fbx.TK_COMMA ) then
+                    mask = 2
+                else
+                    mask = 0
+                end if
+                '' A separator with nothing after it is a TRAILING one, and trailing
+                '' means no newline -- which is the 0 already chosen for ';'. A
+                '' trailing ',' still tabs, so the mask stands either way.
+            end if
+        end if
+
+        if PrintOne( c, it, mask ) = false then return false
+    next
+    return true
+end function
+
+'' One PRINT item.
+private function PrintOne _
+    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long ) as boolean
+
+    dim as Fbx.TypeId t = c.info->TypeOf_( it )
+    dim as FB.Array( of ulong ) args
+    PushConst( args, 0 )                  '' file number; only #0 is lowered
+
+    if IsStringType( c, t ) then
+        '' fb_PrintString takes an FBSTRING DESCRIPTOR, not a (pointer, length) pair
+        '' like fb_StrAssign does. A literal has no descriptor, so fbc borrows a
+        '' temporary one from the runtime and prints that:
+        ''
+        ''     FBSTRING* vr$4 = fb_StrAllocTempDescZEx( "lit", 3 );
+        ''     fb_PrintString( 0, vr$4, 1 );
+        ''
+        '' Passing the literal's BYTES here instead would have the runtime read a
+        '' descriptor out of string data.
+        dim as MirValue desc
+        if c.ast->Kind( it ) = Fbx.N_STRING_LIT then
+            dim as string litText = StringLitText_( c, it )
+            '' The length here is the literal's EXACT length, not the len+1 that
+            '' fb_StrAssign and fb_StrConcat take. Measured: fbc passes 2 for "x" to
+            '' fb_StrAssign but 3 for "lit" to fb_StrAllocTempDescZEx. The Z in the
+            '' name is the difference -- it already knows the bytes are terminated,
+            '' so it is not being told to include the terminator in the count.
+            dim as FB.Array( of ulong ) ta
+            ta.Push( cast( ulong, MV_GLOBAL ) )
+            ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
+            ta.Push( cast( ulong, MV_CONST_INT ) )
+            ta.Push( cast( ulong, len( litText ) ) )
+            desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
+        else
+            desc = LowerAddr( c, it )
+        end if
+        if desc.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_STRING, args )
+        return true
+    end if
+
+    dim as RtlId which = PrintRtlFor( c, t )
+    if which = RTL_NONE then return false
+    dim as MirValue v = LowerExpr( c, it )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    v = Coerce( c, v, LowerType( t, *c.types ) )
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    PushConst( args, mask )
+    EmitRtl( c, which, args )
+    return true
+end function
+
+'' The print entry point for a type. There is no generic one, and a POINTER has none of
+'' its own -- fbc sends it through fb_PrintULongint.
+private function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
+    if t = Fbx.TYPE_NONE then return RTL_NONE
+    select case c.types->Kind( t )
+    case Fbx.TK_POINTER, Fbx.TK_PROC : return RTL_PRINT_ULONGINT
+    case Fbx.TK_ENUM                 : return RTL_PRINT_INT
+    case Fbx.TK_BUILTIN
+        select case c.types->BuiltinOf( t )
+        case Fbx.TY_BYTE      : return RTL_PRINT_BYTE
+        case Fbx.TY_UBYTE     : return RTL_PRINT_UBYTE
+        case Fbx.TY_SHORT     : return RTL_PRINT_SHORT
+        case Fbx.TY_USHORT    : return RTL_PRINT_USHORT
+        case Fbx.TY_LONG      : return RTL_PRINT_INT
+        case Fbx.TY_ULONG     : return RTL_PRINT_UINT
+        case Fbx.TY_LONGINT   : return RTL_PRINT_LONGINT
+        case Fbx.TY_ULONGINT  : return RTL_PRINT_ULONGINT
+        case Fbx.TY_SINGLE    : return RTL_PRINT_SINGLE
+        case Fbx.TY_DOUBLE    : return RTL_PRINT_DOUBLE
+        case Fbx.TY_BOOLEAN   : return RTL_PRINT_BOOL
+        case Fbx.TY_INTEGER
+            if c.types->target.pointerBits = 32 then return RTL_PRINT_INT
+            return RTL_PRINT_LONGINT
+        case Fbx.TY_UINTEGER
+            if c.types->target.pointerBits = 32 then return RTL_PRINT_UINT
+            return RTL_PRINT_ULONGINT
+        end select
+    end select
+    return RTL_NONE
+end function
+
+'' An i32 constant argument, which every print call needs twice.
+private sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, v ) )
+end sub
 
 function LowerStringAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean

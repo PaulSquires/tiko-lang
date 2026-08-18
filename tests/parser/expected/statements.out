@@ -46,6 +46,7 @@ N_MODULE (1) <1:1>
               N_BLOCK (1) <19:13>
                 N_INTRINSIC [PRINT] <20:13>
                   N_STRING_LIT len=3 kind=0 <20:19>
+                  N_PRINT_SEP [,] <20:24>
                   N_IDENT 'i' <20:26>
           N_INT_LIT 0 radix=10 <14:13>
           N_BINARY - <14:20>

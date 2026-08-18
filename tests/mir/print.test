@@ -1,0 +1,38 @@
+'' PRINT, measured from fbc -- see docs/internals/phase-6-print.md.
+''
+'' There is NO generic print entry point: every scalar type has its own, and the third
+'' argument is a SEPARATOR MASK saying what follows THAT item: 0 nothing, 1 newline,
+'' 2 tab.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/print.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: 0 scope imbalance
+
+'' A bare PRINT is a newline on its own.
+'' EXPECT-OUT: call.rtl void fb_PrintVoid(0, 1)
+
+'' One entry point per type. A POINTER has none of its own and goes through
+'' fb_PrintULongint -- measured, not inferred from it being pointer-sized.
+'' EXPECT-OUT: call.rtl void fb_PrintInt(0
+'' EXPECT-OUT: call.rtl void fb_PrintDouble(0
+'' EXPECT-OUT: call.rtl void fb_PrintULongint(0
+
+'' A LITERAL has no descriptor, and fb_PrintString takes a descriptor rather than the
+'' (pointer, length) pair fb_StrAssign takes. fbc borrows a temporary one; passing the
+'' literal's bytes instead would have the runtime read a descriptor out of string data.
+''
+'' The length is the literal's EXACT length -- 3 for "lit" -- not the len+1 that
+'' fb_StrAssign takes. The Z in the name is the difference.
+'' EXPECT-OUT: fb_StrAllocTempDescZEx(@@$str1, 3)
+
+'' The three separator forms, which the AST could not previously tell apart:
+''   print s; n  -> the ';' suppresses, so s carries 0 and n ends the line
+'' EXPECT-OUT: call.rtl void fb_PrintString(0, @s, 0)
+''   print s, n  -> the ',' tabs
+'' EXPECT-OUT: call.rtl void fb_PrintString(0, @s, 2)
+''   print s     -> nothing follows, so the newline
+'' EXPECT-OUT: call.rtl void fb_PrintString(0, @s, 1)
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/print.out

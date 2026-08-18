@@ -50,9 +50,23 @@ namespace Fbx.Mir
         RTL( RTL_STR_LEFT,          "fb_LEFT",             MT_PTR,  "pq"    )
         RTL( RTL_STR_TEMPZ,         "fb_StrAllocTempDescZEx", MT_PTR, "pq"  )
         RTL( RTL_VALINT,            "fb_VALINT",           MT_I32,  "p"     )
+        '' PRINT has NO generic entry point: every scalar type has its own, and the
+        '' third argument is a SEPARATOR MASK -- 0 nothing, 1 newline, 2 tab --
+        '' describing what follows that item. A POINTER has no entry of its own and
+        '' goes through fb_PrintULongint.
         RTL( RTL_PRINT_STRING,      "fb_PrintString",      MT_VOID, "lpl"   )
-        RTL( RTL_PRINT_LONGINT,     "fb_PrintLongint",     MT_VOID, "lql"   )
         RTL( RTL_PRINT_VOID,        "fb_PrintVoid",        MT_VOID, "ll"    )
+        RTL( RTL_PRINT_BYTE,        "fb_PrintByte",        MT_VOID, "lbl"   )
+        RTL( RTL_PRINT_UBYTE,       "fb_PrintUByte",       MT_VOID, "lbl"   )
+        RTL( RTL_PRINT_SHORT,       "fb_PrintShort",       MT_VOID, "lsl"   )
+        RTL( RTL_PRINT_USHORT,      "fb_PrintUShort",      MT_VOID, "lsl"   )
+        RTL( RTL_PRINT_INT,         "fb_PrintInt",         MT_VOID, "lll"   )
+        RTL( RTL_PRINT_UINT,        "fb_PrintUInt",        MT_VOID, "lll"   )
+        RTL( RTL_PRINT_LONGINT,     "fb_PrintLongint",     MT_VOID, "lql"   )
+        RTL( RTL_PRINT_ULONGINT,    "fb_PrintULongint",    MT_VOID, "lql"   )
+        RTL( RTL_PRINT_SINGLE,      "fb_PrintSingle",      MT_VOID, "lfl"   )
+        RTL( RTL_PRINT_DOUBLE,      "fb_PrintDouble",      MT_VOID, "ldl"   )
+        RTL( RTL_PRINT_BOOL,        "fb_PrintBool",        MT_VOID, "lbl"   )
         RTL( RTL_ARRAY_ERASE,       "fb_ArrayErase",       MT_I32,  "p"     )
         RTL( RTL_ARRAY_REDIM,       "fb_ArrayRedimEx",     MT_I32,  "pqllq." )
         RTL( RTL_ARRAY_REDIM_PRESV, "fb_ArrayRedimPresvEx", MT_I32, "pqllq." )

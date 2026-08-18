@@ -11,9 +11,12 @@ N_MODULE (21) <1:1>
     N_INT_LIT 1 radix=10 <3:8>
     N_STRING_LIT len=5 kind=0 <3:17>
     N_FLOAT_LIT 3.14159 <3:26>
+    N_PRINT_SEP [;] <3:33>
   N_INTRINSIC [PRINT] <4:1>
     N_STRING_LIT len=1 kind=0 <4:7>
+    N_PRINT_SEP [;] <4:10>
     N_STRING_LIT len=1 kind=0 <4:12>
+    N_PRINT_SEP [,] <4:15>
     N_STRING_LIT len=1 kind=0 <4:17>
   N_INTRINSIC [OPEN] <5:1>
     N_STRING_LIT len=5 kind=0 <5:6>

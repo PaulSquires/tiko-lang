@@ -7,9 +7,18 @@ fb_FileLineInput	int32	int32, void*, int64, int32	lib
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib
 fb_Init	void	int32, char**, int32	lib
 fb_LEFT	FBSTRING*	FBSTRING*, int64	lib
+fb_PrintBool	void	int32, boolean, int32	lib
+fb_PrintByte	void	int32, int8, int32	lib
+fb_PrintDouble	void	int32, double, int32	lib
 fb_PrintInt	void	int32, int32, int32	lib
 fb_PrintLongint	void	int32, int64, int32	lib
+fb_PrintShort	void	int32, int16, int32	lib
+fb_PrintSingle	void	int32, float, int32	lib
 fb_PrintString	void	int32, FBSTRING*, int32	lib
+fb_PrintUByte	void	int32, uint8, int32	lib
+fb_PrintUInt	void	int32, uint32, int32	lib
+fb_PrintULongint	void	int32, uint64, int32	lib
+fb_PrintUShort	void	int32, uint16, int32	lib
 fb_PrintVoid	void	int32, int32	lib
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int64	lib
 fb_StrAssign	FBSTRING*	void*, int64, void*, int64, int32	lib

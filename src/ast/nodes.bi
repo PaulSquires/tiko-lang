@@ -61,6 +61,7 @@ namespace Fbx
         NODE( N_SELECT,       NCAT_STMT )
         NODE( N_CASE,         NCAT_STMT )
         NODE( N_CASE_RANGE,   NCAT_STMT )   '' 'a TO b' or 'IS < a'
+        NODE( N_PRINT_SEP,    NCAT_STMT )   '' ';' or ',' between PRINT items
         NODE( N_FOR,          NCAT_STMT )
         NODE( N_FOREACH,      NCAT_STMT )
         NODE( N_DO,           NCAT_STMT )

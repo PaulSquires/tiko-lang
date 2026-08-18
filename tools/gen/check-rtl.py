@@ -21,10 +21,15 @@ TRUTH = ROOT / "tests/expected/fbc-rtl.txt"
 FBX = ROOT / "bin/fbx.exe"
 
 # fbc's C spelling -> the MIR type fbx names it by.
+#
+# SIGNED AND UNSIGNED COLLAPSE, deliberately. MIR has no unsigned types: signedness lives
+# in the OPCODE (icmp.ult against icmp.slt, udiv against sdiv), not in the operand type,
+# so uint8 and int8 are both i8 here. A mismatch this map hides would be a wrong opcode,
+# which is not what this gate is checking -- it checks that argument WIDTHS agree.
 CMAP = {
     "void": "void", "int32": "i32", "int64": "i64", "uint32": "i32",
     "uint64": "i64", "int8": "i8", "int16": "i16", "float": "f32",
-    "double": "f64",
+    "double": "f64", "uint8": "i8", "uint16": "i16", "boolean": "i8",
 }
 
 
