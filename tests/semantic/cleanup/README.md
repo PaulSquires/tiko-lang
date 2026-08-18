@@ -15,6 +15,11 @@ implicit copy is BITWISE and calls nothing, so a copy that happens leaves **no
 constructor call** -- only an extra destructor. Counting constructors to detect one
 finds nothing.
 
+`trace-goto` covers the scope-crossing jump: it shows the cleanups running
+**innermost-first and before the branch**, and that the scope the label sits in is not
+cleaned because control stays inside it. See
+`docs/internals/phase-6-control.md`.
+
 Regenerate with fbc, never by hand:
 
 ```

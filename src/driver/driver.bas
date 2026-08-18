@@ -227,10 +227,19 @@ function Run( byref args as Fbx.StrVec ) as long
                 else
                     print "verify: ok"
                 end if
-                print "lowered: " & str( lst.functions ) & " functions, " & _
-                      str( lst.blocks ) & " blocks, " & str( lst.insts ) & _
-                      " insts, " & str( lst.skipped ) & " statements not lowered, " & _
-                      str( lst.scopeImbalance ) & " scope imbalance"
+                dim as string sum_ = "lowered: " & str( lst.functions ) & _
+                      " functions, " & str( lst.blocks ) & " blocks, " & _
+                      str( lst.insts ) & " insts, " & str( lst.skipped ) & _
+                      " statements not lowered, " & str( lst.scopeImbalance ) & _
+                      " scope imbalance"
+                '' Only ever printed when non-zero: it means the label pre-scan and
+                '' the lowering disagree about scope depth, which would make a goto
+                '' emit the wrong cleanups. Silence here is the assertion holding.
+                if lst.labelDepthMismatch > 0 then
+                    sum_ += ", " & str( lst.labelDepthMismatch ) & _
+                            " LABEL DEPTH MISMATCH"
+                end if
+                print sum_
             elseif ctx.options.checkOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _

@@ -15,7 +15,7 @@ end function
 
 '' -------------------------------------------------------------- construction
 
-private function NewBlock( byref c as Ctx, byref label as string ) as long
+function NewBlock( byref c as Ctx, byref label as string ) as long
     dim as MirBlock b
     b.label = c.names->GetString( label & str( c.f->blocks.Count ) )
     b.term = cast( ubyte, MTERM_NONE )
@@ -68,7 +68,7 @@ function NoVal( ) as MirValue
     return v
 end function
 
-private sub Terminate _
+sub Terminate _
     ( byref c as Ctx, byval k as MirTermKind, byval t1 as long, _
       byval t2 as long, byref cond as MirValue )
 
@@ -119,7 +119,7 @@ end function
 '' type differs from the one an instruction needs gets an explicit one. Without this
 '' an integer literal -- which FreeBASIC types as INTEGER, so i64 -- is compared
 '' against an i32 counter, and the IR states something the backend cannot honour.
-private function Coerce _
+function Coerce _
     ( byref c as Ctx, byref v as MirValue, byval want as MirType ) as MirValue
 
     if v.kind = cast( ubyte, MV_NONE ) then return v
@@ -224,10 +224,8 @@ declare sub LowerIf _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr )
 declare sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
 declare sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
-declare function LowerExprLoad _
-    ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
 
-private function BinOpFor _
+function BinOpFor _
     ( byval tk as Fbx.TokenKind, byval t as MirType, _
       byval isUnsigned as boolean ) as MirOp
 
@@ -256,7 +254,7 @@ private function BinOpFor _
     return M_NONE
 end function
 
-private function IsUnsignedType _
+function IsUnsignedType _
     ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
     if t = Fbx.TYPE_NONE then return false
     if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return false
@@ -587,7 +585,7 @@ end sub
 
 '' -------------------------------------------------------------- cleanup model
 
-private sub PushScope( byref c as Ctx )
+sub PushScope( byref c as Ctx )
     c.scopeMark.Push( c.cleanupNode.Count )
 end sub
 
@@ -622,7 +620,7 @@ end sub
 '' Every action of every scope from the innermost out to 'outermost', in that order.
 '' This is what a RETURN through three scopes needs, and rule 5 of docs/plan/08: a
 '' GOTO out of N scopes runs N scopes' cleanups, innermost first.
-private sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
+sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
     for d as long = c.scopeMark.Count - 1 to outermost step -1
         EmitScopeCleanup( c, d )
     next
@@ -640,7 +638,7 @@ end sub
 
 '' A scope that ends by falling out of the bottom runs its own actions and nothing
 '' else; the enclosing scopes have not ended.
-private sub CloseScope( byref c as Ctx )
+sub CloseScope( byref c as Ctx )
     EmitScopeCleanup( c, c.scopeMark.Count - 1 )
     PopScope( c )
 end sub
@@ -803,9 +801,10 @@ private function LowerCtorInit _
     return true
 end function
 
+
 '' -------------------------------------------------------------- statements
 
-private sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
+sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
     if id = Fbx.NODE_NONE then return
     if c.ast->Kind( id ) <> Fbx.N_BLOCK then
         LowerStmt( c, id )
@@ -986,6 +985,15 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
 
     case Fbx.N_FOR
         LowerFor( c, id )
+
+    case Fbx.N_SELECT
+        LowerSelect( c, id )
+
+    case Fbx.N_LABEL
+        LowerLabel( c, id )
+
+    case Fbx.N_GOTO
+        LowerGoto( c, id )
 
     case Fbx.N_RETURN
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
@@ -1196,7 +1204,7 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = exitB
 end sub
 
-private function LowerExprLoad _
+function LowerExprLoad _
     ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
     dim as MirInst ins
     ins.op = cast( ushort, M_LOAD )
@@ -1267,8 +1275,16 @@ private sub LowerProc _
         pidx += 1
     next
 
+    '' Labels are per-function: the same name in two procedures is two labels.
+    while c.labelName.Count > 0
+        c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
+    wend
+
     dim as long scopeDepthIn = c.scopeMark.Count
     PushScope( c )
+    '' Depths are recorded relative to the scope just opened for the body, which is the
+    '' depth a label written directly in the procedure sees.
+    ScanLabels( c, sp->b, scopeDepthIn + 1 )
     LowerBlock( c, sp->b )
     CloseScope( c )
     '' Every scope opened must have been closed. An imbalance means some exit path

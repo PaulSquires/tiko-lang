@@ -1,0 +1,124 @@
+func void SEL($0) {
+  local i32 n
+  local i32 r
+  local i32 $tmp2
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = alloca ptr r
+    %3 = load @n
+    %4 = alloca ptr $tmp2
+    store @$tmp2, %3
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = load @$tmp2
+    %8 = icmp.eq %7, %6
+    condbr %8, sel.body2, sel.next3
+  sel.join1:
+    ret
+  sel.body2:
+    %9 = const i64 1
+    %10 = trunc %9
+    store @r, %10
+    br sel.join1
+  sel.next3:
+    %11 = const i64 2
+    %12 = trunc %11
+    %13 = load @$tmp2
+    %14 = icmp.eq %13, %12
+    condbr %14, sel.body4, sel.alt6
+  sel.body4:
+    %19 = const i64 2
+    %20 = trunc %19
+    store @r, %20
+    br sel.join1
+  sel.next5:
+    %21 = const i64 4
+    %22 = trunc %21
+    %23 = load @$tmp2
+    %24 = icmp.sge %23, %22
+    %25 = const i64 6
+    %26 = trunc %25
+    %27 = load @$tmp2
+    %28 = icmp.sle %27, %26
+    %29 = and %24, %28
+    condbr %29, sel.body7, sel.next8
+  sel.alt6:
+    %15 = const i64 3
+    %16 = trunc %15
+    %17 = load @$tmp2
+    %18 = icmp.eq %17, %16
+    condbr %18, sel.body4, sel.next5
+  sel.body7:
+    %30 = const i64 3
+    %31 = trunc %30
+    store @r, %31
+    br sel.join1
+  sel.next8:
+    %32 = load @$tmp2
+    %33 = const i64 10
+    %34 = trunc %33
+    %35 = icmp.sgt %32, %34
+    condbr %35, sel.body9, sel.next10
+  sel.body9:
+    %36 = const i64 4
+    %37 = trunc %36
+    store @r, %37
+    br sel.join1
+  sel.next10:
+    %38 = const i64 5
+    %39 = trunc %38
+    store @r, %39
+    br sel.join1
+}
+func void JUMP($0) {
+  local i32 n
+  local i32 r
+  local agg s size 24
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = alloca ptr r
+    %3 = load @n
+    %4 = const i64 1
+    %5 = sext %3
+    %6 = icmp.eq %5, %4
+    %7 = alloca ptr s
+    condbr %6, if.then2, if.else3
+  if.join1:
+    %8 = load @n
+    %9 = const i64 2
+    %10 = sext %8
+    %11 = icmp.eq %10, %9
+    condbr %11, if.then7, if.else8
+  if.then2:
+    br lbl.done4
+  if.else3:
+    br if.join1
+  lbl.done4:
+    %16 = const i64 3
+    %17 = trunc %16
+    store @r, %17
+    ret
+  goto.after5:
+    br if.join1
+  if.join6:
+    %12 = const i64 1
+    %13 = trunc %12
+    store @r, %13
+    call.rtl void fb_StrDelete(@s)
+    %14 = const i64 2
+    %15 = trunc %14
+    store @r, %15
+    br lbl.done4
+  if.then7:
+    call.rtl void fb_StrDelete(@s)
+    br lbl.done4
+  if.else8:
+    br if.join6
+  goto.after9:
+    br if.join6
+}
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 2 functions, 21 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

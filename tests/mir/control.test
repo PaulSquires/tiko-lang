@@ -1,0 +1,36 @@
+'' Control flow: SELECT CASE and GOTO.
+''
+'' SELECT CASE lowers to a COMPARISON CHAIN rather than a switch. docs/plan/09 section 4
+'' also describes a dense-switch and a jump-table form; the chain is the one that is
+'' correct for every shape, including the ranged and relational cases a switch cannot
+'' express, so it is what exists and the denser forms are an optimisation over it.
+''
+'' The GOTO rule was MEASURED, not assumed: tests/semantic/cleanup/trace-goto.fbc-trace
+'' is fbc's own output for the same shape and shows a scope-crossing jump running the
+'' cleanups of every scope it leaves, innermost first, BEFORE the branch.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/control.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: 0 scope imbalance
+
+'' The subject is evaluated ONCE into a slot. Re-reading it per case would call a
+'' function once per branch tested, which is observable whenever it has side effects.
+'' EXPECT-OUT: store @$tmp2, %3
+
+'' 'case 4 to 6' is inclusive at both ends, so it is two comparisons and an and.
+'' EXPECT-OUT: icmp.sge
+'' EXPECT-OUT: icmp.sle
+'' 'case is > 10' keeps its own relation rather than becoming an equality.
+'' EXPECT-OUT: icmp.sgt
+
+'' The jump out of the scope releases the scope's string first. If this line is absent
+'' the string leaks on that path only, which no other assertion here would catch.
+'' EXPECT-OUT: call.rtl void fb_StrDelete(@s)
+
+'' The pre-scan that gives a forward goto its target depth must agree with the depth
+'' actually open at the label; this is what says it did.
+'' EXPECT-NOT: LABEL DEPTH MISMATCH
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/control.out

@@ -47,6 +47,13 @@ type Ctx
     '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
     '' scopes they are leaving.
     as FB.Array( of long )  loopScope
+
+    '' Labels, three parallel arrays. The DEPTH is filled by a pre-scan before the body
+    '' is lowered, because a forward 'goto' has to know how many scopes it leaves before
+    '' the label itself has been reached.
+    as FB.Array( of ulong ) labelName
+    as FB.Array( of long )  labelBlock     '' -1 until the block is created
+    as FB.Array( of long )  labelDepth     '' -1 when the pre-scan never saw it
 end type
 
 declare function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
@@ -65,6 +72,34 @@ declare function NewTempLocal _
     ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
 declare function EmitRtl _
     ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
+
+
+    '' lowerctl.bas -- control flow.
+    declare sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
+    declare sub LowerLabel( byref c as Ctx, byval id as Fbx.NodeId )
+    declare sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
+    declare sub ScanLabels _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval depth as long )
+
+
+    '' lower.bas -- shared by the other lowering files.
+    declare function NewBlock( byref c as Ctx, byref label as string ) as long
+    declare sub Terminate _
+        ( byref c as Ctx, byval k as MirTermKind, byval t1 as long, _
+          byval t2 as long, byref cond as MirValue )
+    declare function IsUnsignedType _
+        ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare sub PushScope( byref c as Ctx )
+    declare sub CloseScope( byref c as Ctx )
+    declare sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
+    declare function LowerExprLoad _
+        ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
+    declare function Coerce _
+        ( byref c as Ctx, byref v as MirValue, byval want as MirType ) as MirValue
+    declare function BinOpFor _
+        ( byval tk as Fbx.TokenKind, byval t as MirType, _
+          byval isUnsigned as boolean ) as MirOp
+    declare sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
 
 end namespace
 
