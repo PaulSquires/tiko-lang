@@ -1,0 +1,25 @@
+-- goto
+ctor a
+ctor b
+ctor c
+dtor c
+dtor b
+at label
+dtor a
+-- exitfor
+ctor l1
+dtor l1
+ctor l2
+dtor l2
+-- temp
+before
+ctor m
+dtor m
+after
+dtor m
+-- defer
+ctor a
+body
+deferred-2
+deferred-1
+dtor a

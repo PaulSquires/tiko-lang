@@ -20,6 +20,18 @@ type Ctx
     as FB.Array( of long )  breakTo
     as FB.Array( of long )  contTo
     as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
+    '' THE CLEANUP MODEL (docs/plan/08 section 6).
+    ''
+    '' One flat list of actions, plus a stack of marks giving where each open scope's
+    '' actions begin. Actions run in REVERSE REGISTRATION ORDER, and locals and
+    '' DEFERs share the one list -- which is what makes the measured fbc order fall
+    '' out rather than needing to be arranged. Measured: a local 'a' declared before
+    '' two defers is destroyed AFTER both of them run, newest defer first.
+    as FB.Array( of ulong ) cleanupNode    '' the statement a RunDefer action runs
+    as FB.Array( of long )  scopeMark      '' index into cleanupNode per open scope
+    '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
+    '' scopes they are leaving.
+    as FB.Array( of long )  loopScope
 end type
 
 private function StmtOf _
@@ -439,9 +451,53 @@ private function LowerCall _
     return Emit( c, ins )
 end function
 
-'' -------------------------------------------------------------- statements
 
 declare sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
+
+'' -------------------------------------------------------------- cleanup model
+
+private sub PushScope( byref c as Ctx )
+    c.scopeMark.Push( c.cleanupNode.Count )
+end sub
+
+'' Emit one scope's actions, innermost registration LAST, without popping: an EXIT or
+'' RETURN leaving several scopes needs to run them all and then keep going.
+private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
+    if (depth < 0) orelse (depth >= c.scopeMark.Count) then return
+    dim as long from_ = c.scopeMark[depth]
+    dim as long upto = c.cleanupNode.Count
+    if depth + 1 < c.scopeMark.Count then upto = c.scopeMark[depth + 1]
+    for i as long = upto - 1 to from_ step -1
+        LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+    next
+end sub
+
+'' Every action of every scope from the innermost out to 'outermost', in that order.
+'' This is what a RETURN through three scopes needs, and rule 5 of docs/plan/08: a
+'' GOTO out of N scopes runs N scopes' cleanups, innermost first.
+private sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
+    for d as long = c.scopeMark.Count - 1 to outermost step -1
+        EmitScopeCleanup( c, d )
+    next
+end sub
+
+private sub PopScope( byref c as Ctx )
+    if c.scopeMark.Count = 0 then return
+    dim as long mark = c.scopeMark[c.scopeMark.Count - 1]
+    c.scopeMark.Pop( )
+    while c.cleanupNode.Count > mark
+        c.cleanupNode.Pop( )
+    wend
+end sub
+
+'' A scope that ends by falling out of the bottom runs its own actions and nothing
+'' else; the enclosing scopes have not ended.
+private sub CloseScope( byref c as Ctx )
+    EmitScopeCleanup( c, c.scopeMark.Count - 1 )
+    PopScope( c )
+end sub
+
+'' -------------------------------------------------------------- statements
 
 private sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
     if id = Fbx.NODE_NONE then return
@@ -489,7 +545,15 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         '' LowerBlock recursed forever: LowerBlock forwards anything that is not an
         '' N_BLOCK to LowerStmt, which forwarded it straight back. A guard that does
         '' not narrow is not a guard.
+        PushScope( c )
         LowerBlock( c, StmtOf( c, id )->b )
+        CloseScope( c )
+
+    case Fbx.N_DEFER
+        '' Registered, not run. It fires at the end of the ENCLOSING scope, in
+        '' reverse registration order -- which is the FBC-Modern behaviour to
+        '' reproduce, not to improve on.
+        c.cleanupNode.Push( cast( ulong, StmtOf( c, id )->b ) )
 
     case Fbx.N_VAR
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
@@ -552,7 +616,13 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         c.curBlock = bodyB
         c.breakTo.Push( exitB )
         c.contTo.Push( headB )
+        c.loopScope.Push( c.scopeMark.Count )
+        '' A loop BODY is a scope: its locals and defers run on every iteration
+        '' (docs/plan/08 rule 4), which the measurement confirms.
+        PushScope( c )
         LowerBlock( c, sp->b )
+        CloseScope( c )
+        c.loopScope.Pop( )
         c.breakTo.Pop( )
         c.contTo.Pop( )
         Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
@@ -568,6 +638,9 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         dim as MirValue rv
         if sp->a <> Fbx.NODE_NONE then rv = LowerExpr( c, sp->a )
+        '' A RETURN leaves every open scope, so every open scope's actions run,
+        '' innermost first, BEFORE the terminator.
+        EmitCleanupsTo( c, 0 )
         Terminate( c, MTERM_RET, -1, -1, rv )
         '' The cursor goes DEAD rather than opening a block nothing branches to.
         '' Statements after a RETURN are unreachable, and creating a block for them
@@ -576,6 +649,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
 
     case Fbx.N_EXIT
         if c.breakTo.Count > 0 then
+            EmitCleanupsTo( c, c.loopScope[c.loopScope.Count - 1] )
             Terminate( c, MTERM_BR, c.breakTo[c.breakTo.Count - 1], -1, NoVal( ) )
             c.curBlock = -1
         else
@@ -584,6 +658,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
 
     case Fbx.N_CONTINUE
         if c.contTo.Count > 0 then
+            EmitCleanupsTo( c, c.loopScope[c.loopScope.Count - 1] )
             Terminate( c, MTERM_BR, c.contTo[c.contTo.Count - 1], -1, NoVal( ) )
             c.curBlock = -1
         else
@@ -660,7 +735,11 @@ private sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = bodyB
     c.breakTo.Push( exitB )
     c.contTo.Push( headB )
+    c.loopScope.Push( c.scopeMark.Count )
+    PushScope( c )
     LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
     c.breakTo.Pop( )
     c.contTo.Pop( )
     Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
@@ -730,7 +809,11 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = bodyB
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
+    c.loopScope.Push( c.scopeMark.Count )
+    PushScope( c )
     LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
     c.breakTo.Pop( )
     c.contTo.Pop( )
     Terminate( c, MTERM_BR, stepB, -1, NoVal( ) )
@@ -831,7 +914,16 @@ private sub LowerProc _
         pidx += 1
     next
 
+    dim as long scopeDepthIn = c.scopeMark.Count
+    PushScope( c )
     LowerBlock( c, sp->b )
+    CloseScope( c )
+    '' Every scope opened must have been closed. An imbalance means some exit path
+    '' skipped a scope's cleanup, which is the bug class this whole model exists to
+    '' prevent, so it is checked rather than assumed.
+    if c.scopeMark.Count <> scopeDepthIn then
+        c.st->scopeImbalance += 1
+    end if
     '' A function whose last block has no terminator falls off the end; FreeBASIC
     '' allows that and returns the result variable, so an explicit RET closes it.
     Terminate( c, MTERM_RET, -1, -1, NoVal( ) )

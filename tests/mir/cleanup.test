@@ -1,0 +1,14 @@
+'' The cleanup model (docs/plan/08 section 6). Every rule asserted here was MEASURED
+'' by running a trace program under fbc -- tests/semantic/cleanup/ holds the programs
+'' and fbc's actual output.
+''
+'' The three shapes that matter, because each is a path where an action could be
+'' skipped: reverse registration order at a normal scope end, per-iteration for a loop
+'' body, and innermost-first through EVERY open scope on an early RETURN.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cleanup.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 scope imbalance
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/cleanup.out

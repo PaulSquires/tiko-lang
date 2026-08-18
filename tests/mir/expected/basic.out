@@ -126,4 +126,4 @@ func void LOOPING($0) {
     ret
 }
 verify: ok
-lowered: 4 functions, 20 blocks, 70 insts, 0 statements not lowered
+lowered: 4 functions, 20 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance

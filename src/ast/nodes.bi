@@ -67,6 +67,7 @@ namespace Fbx
         NODE( N_WHILE,        NCAT_STMT )
         NODE( N_WITH,         NCAT_STMT )
         NODE( N_SCOPE,        NCAT_STMT )
+        NODE( N_DEFER,        NCAT_STMT )   '' 'defer <stmt>' -- FBC-Modern, CONTEXTUAL
         NODE( N_RETURN,       NCAT_STMT )
         NODE( N_EXIT,         NCAT_STMT )
         NODE( N_CONTINUE,     NCAT_STMT )

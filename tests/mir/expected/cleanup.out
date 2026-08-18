@@ -1,0 +1,79 @@
+func void ORDERING() {
+  local i32 x
+  entry0:
+    %1 = alloca ptr x
+    %2 = const i64 3
+    %3 = trunc %2
+    store @x, %3
+    %4 = const i64 2
+    %5 = trunc %4
+    store @x, %5
+    %6 = const i64 1
+    %7 = trunc %6
+    store @x, %7
+    ret
+}
+func void PERITERATION() {
+  local i32 x
+  local i64 i
+  entry0:
+    %1 = alloca ptr x
+    %2 = alloca ptr i
+    %3 = const i64 1
+    store @i, %3
+    br for.head1
+  for.head1:
+    %4 = load @i
+    %5 = const i64 2
+    %6 = icmp.sle %4, %5
+    condbr %6, for.body2, for.exit4
+  for.body2:
+    %7 = const i64 9
+    %8 = trunc %7
+    store @x, %8
+    %9 = const i64 8
+    %10 = trunc %9
+    store @x, %10
+    br for.step3
+  for.step3:
+    %11 = load @i
+    %12 = const i64 1
+    %13 = add %11, %12
+    store @i, %13
+    br for.head1
+  for.exit4:
+    ret
+}
+func void THROUGHSCOPES($0) {
+  local i32 f
+  local i32 x
+  entry0:
+    %1 = alloca ptr f
+    store @f, $0
+    %2 = alloca ptr x
+    %3 = load @f
+    condbr %3, if.then2, if.else3
+  if.join1:
+    %8 = const i64 5
+    %9 = trunc %8
+    store @x, %9
+    %10 = const i64 6
+    %11 = trunc %10
+    store @x, %11
+    %12 = const i64 4
+    %13 = trunc %12
+    store @x, %13
+    ret
+  if.then2:
+    %4 = const i64 5
+    %5 = trunc %4
+    store @x, %5
+    %6 = const i64 4
+    %7 = trunc %6
+    store @x, %7
+    ret
+  if.else3:
+    br if.join1
+}
+verify: ok
+lowered: 3 functions, 10 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

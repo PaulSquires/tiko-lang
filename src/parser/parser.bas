@@ -554,6 +554,17 @@ end namespace
 
 namespace Fbx.Parse
 
+'' True when the identifier at the cursor is the given contextual word. FBC-Modern's
+'' additions -- defer, each, in, of, spawn -- are NOT reserved, so they can only be
+'' recognised by spelling and only where the grammar expects them.
+private function IsContextual _
+    ( byref p as Fbx.ParserState, byref word as string ) as boolean
+
+    if Peek( p ) <> Fbx.TK_IDENT then return false
+    dim as Fbx.InternId nm = cast( Fbx.InternId, Cur( p ).literal )
+    return p.names->Spelling( nm ) = word
+end function
+
 function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
     SkipEols( p )
     if AtEnd( p ) then return Fbx.NODE_NONE
@@ -652,6 +663,16 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             n = Declaration( p )
         elseif Fbx.IsStatementIntrinsic( k ) then
             n = ParseIntrinsic( p )
+        elseif (k = Fbx.TK_IDENT) andalso IsContextual( p, "defer" ) then
+            '' 'defer' is CONTEXTUAL in FBC-Modern -- not reserved, so it arrives as
+            '' an identifier and is recognised by spelling, exactly as 'each' and
+            '' 'in' are. Without this it parsed as a CALL to something named defer.
+            dim as Fbx.Token dt = Cur( p )
+            Advance( p )
+            dim as Fbx.StmtPayload sp
+            sp.b = Statement( p )
+            n = MakeStmt( p, Fbx.N_DEFER, dt.loc, sp )
+            consumesLine = false
         elseif k = Fbx.TK_IDENT then
             '' 'name:' is a label; anything else is the call-or-assign ambiguity.
             dim as boolean isLabel = false

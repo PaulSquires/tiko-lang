@@ -213,7 +213,8 @@ function Run( byref args as Fbx.StrVec ) as long
                 end if
                 print "lowered: " & str( lst.functions ) & " functions, " & _
                       str( lst.blocks ) & " blocks, " & str( lst.insts ) & _
-                      " insts, " & str( lst.skipped ) & " statements not lowered"
+                      " insts, " & str( lst.skipped ) & " statements not lowered, " & _
+                      str( lst.scopeImbalance ) & " scope imbalance"
             elseif ctx.options.checkOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _

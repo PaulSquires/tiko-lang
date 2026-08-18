@@ -29,6 +29,7 @@ namespace Fbx.Mir
         as long blocks
         as long insts
         as long skipped        '' statements this slice does not lower yet
+        as long scopeImbalance '' scopes opened and not closed -- always an ICE
     end type
 
     declare function Lower _

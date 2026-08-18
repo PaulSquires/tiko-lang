@@ -391,6 +391,27 @@ sub WalkStmt _
         BindDeclType( c, here, sp->name, t )
         return
 
+    case Fbx.N_FOR, Fbx.N_FOREACH
+        '' 'for i as integer' DECLARES i, and Collect named it -- but nothing bound
+        '' its TYPE, so every use of the counter came out untyped. The 'as' clause
+        '' is in 'c', which is also what told Collect it was a declaration.
+        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        if sp->c <> Fbx.NODE_NONE then
+            dim as Fbx.TypeId t = ResolveTypeRef( c, sp->c, here )
+            if (sp->a <> Fbx.NODE_NONE) andalso _
+               (c.ast->Kind( sp->a ) = Fbx.N_IDENT) then
+                dim as Fbx.IdentPayload ptr ip = _
+                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+                BindDeclType( c, here, ip->name, t )
+            end if
+        end if
+        WalkExpr( c, sp->a, here )
+        for i as long = 0 to sp->count - 1
+            WalkStmt( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ), here )
+        next
+        WalkStmt( c, sp->b, here )
+        return
+
     case Fbx.N_PROC
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         dim as Fbx.SymbolId saved = c.currentProc
