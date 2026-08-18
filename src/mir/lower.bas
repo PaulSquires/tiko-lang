@@ -20,6 +20,7 @@ type Ctx
     as FB.Array( of long )  breakTo
     as FB.Array( of long )  contTo
     as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
+    as Fbx.UdtLayouts ptr   udts      '' field offsets, for member access
     '' THE CLEANUP MODEL (docs/plan/08 section 6).
     ''
     '' One flat list of actions, plus a stack of marks giving where each open scope's
@@ -189,6 +190,14 @@ private function LocalFor _
     l.name = s->name
     l.frontendType = s->type_
     l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
+    '' An aggregate slot needs its SIZE: 'agg' says nothing about how many bytes to
+    '' reserve, and the layout pass is the only thing that knows.
+    dim as long ui = c.udts->Find( s->type_ )
+    if ui >= 0 then
+        l.size = c.udts->udts[ui].size
+    else
+        l.size = c.types->Layout( s->type_ ).size
+    end if
     c.f->locals.Push( l )
 
     '' The alloca goes in the ENTRY block, which is a verifier rule and also what
@@ -267,6 +276,37 @@ private function LowerAddr _
 
     dim as MirValue v
     if id = Fbx.NODE_NONE then return v
+
+    '' 'x.f' is the base's address plus a CONSTANT offset. The offset comes from the
+    '' measured layout, and Check already bound the member to its field symbol, so
+    '' nothing is looked up twice.
+    if c.ast->Kind( id ) = Fbx.N_MEMBER then
+        dim as Fbx.BinaryPayload ptr mp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Fbx.TypeId bt = c.info->TypeOf_( mp->lhs )
+        dim as MirValue base_
+        if (bt <> Fbx.TYPE_NONE) andalso (c.types->Kind( bt ) = Fbx.TK_POINTER) then
+            '' Through a pointer the base is the VALUE, not its slot.
+            base_ = LowerExpr( c, mp->lhs )
+            bt = c.types->Inner( bt )
+        else
+            base_ = LowerAddr( c, mp->lhs )
+        end if
+        if base_.kind = cast( ubyte, MV_NONE ) then return v
+        dim as Fbx.SymbolId fsym = c.info->RefOf( id )
+        dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsym )
+        if fs = 0 then return v
+        dim as boolean found = false
+        dim as long off = c.udts->FieldOffset( bt, fs->name, found )
+        if found = false then return v
+        dim as MirInst ins
+        ins.op = cast( ushort, M_FIELD_ADDR )
+        ins.ty = cast( ubyte, MT_PTR )
+        ins.a = base_
+        ins.imm = off
+        return Emit( c, ins )
+    end if
+
     if c.ast->Kind( id ) <> Fbx.N_IDENT then return v
     dim as Fbx.SymbolId sid = c.info->RefOf( id )
     if sid = Fbx.SYMBOL_NONE then return v
@@ -306,7 +346,7 @@ function LowerExpr _
         if pp->count <> 1 then return v
         return LowerExpr( c, cast( Fbx.NodeId, c.ast->children[pp->first] ) )
 
-    case Fbx.N_IDENT
+    case Fbx.N_IDENT, Fbx.N_MEMBER
         dim as MirValue addr = LowerAddr( c, id )
         if addr.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins
@@ -521,9 +561,11 @@ private sub LowerAssign _
         c.st->skipped += 1
         return
     end if
-    '' The stored value must match the slot's type exactly -- MIR has no implicit
+    '' The stored value must match the TARGET's type exactly -- MIR has no implicit
     '' conversions, so the narrowing FreeBASIC allows on assignment is explicit here.
-    val = Coerce( c, val, cast( MirType, c.f->locals[cast( long, addr.id )].ty ) )
+    '' The type comes from the target EXPRESSION, not from the local slot: a member
+    '' store's address is a temp from field.addr, and there is no slot to ask.
+    val = Coerce( c, val, LowerType( c.info->TypeOf_( target ), *c.types ) )
     dim as MirInst ins
     ins.op = cast( ushort, M_STORE )
     ins.ty = cast( ubyte, MT_VOID )
@@ -955,11 +997,12 @@ function Lower _
     ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
       byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
       byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
-      byref src as Fbx.SourceManager, byref m as MirModule, _
-      byref st as LowerStats ) as long
+      byref src as Fbx.SourceManager, byref udts as Fbx.UdtLayouts, _
+      byref m as MirModule, byref st as LowerStats ) as long
 
     dim as Ctx c
     c.srcMgr = @src
+    c.udts = @udts
     c.ast = @ast
     c.syms = @syms
     c.types = @types

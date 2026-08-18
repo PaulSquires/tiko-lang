@@ -207,8 +207,10 @@ function Run( byref args as Fbx.StrVec ) as long
                                info, cst )
                 dim as Fbx.Mir.MirModule mm
                 dim as Fbx.Mir.LowerStats lst
+                dim as Fbx.UdtLayouts udts
+                Fbx.ComputeUdtLayouts( syms, ctx.types, udts )
                 Fbx.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
-                               ctx.sources, mm, lst )
+                               ctx.sources, udts, mm, lst )
                 print Fbx.Mir.DumpModule( mm, ctx.names );
                 '' The verifier is an ICE check, not a diagnostic: a failure means
                 '' the compiler built something malformed.

@@ -23,3 +23,15 @@ sub ThroughScopes( byval f as long )
     end scope
     x = 6
 end sub
+
+'' Member access through the measured field offsets.
+type Rec
+    as long   n
+    as double d
+end type
+
+sub Members( )
+    dim as Rec r
+    r.n = 1
+    r.d = 2.5
+end sub

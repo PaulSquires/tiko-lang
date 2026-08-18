@@ -623,6 +623,29 @@ end function
 
 '' --------------------------------------------------------------------- typing
 
+'' The symbol of a field of a UDT, by name. The UDT's members live in the scope its
+'' declaring symbol opened, which is reached from the type through the scope the type
+'' was declared in -- the same pair that makes two namespaces' 'Vec' distinct types.
+private function FieldOf_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byval nm as Fbx.InternId ) as Fbx.SymbolId
+
+    if (t = Fbx.TYPE_NONE) orelse (nm = 0) then return Fbx.SYMBOL_NONE
+    select case c.types->Kind( t )
+    case Fbx.TK_UDT, Fbx.TK_FORWARD
+    case else
+        return Fbx.SYMBOL_NONE
+    end select
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocal( ds, tn )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->Lookup( ds, tn )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Fbx.SYMBOL_NONE
+    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( s->inner, nm )
+end function
+
 private function StmtOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
     return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -795,6 +818,34 @@ function TypeOf_ _
             end if
         end if
 
+    case Fbx.N_MEMBER
+        '' 'x.f' needs the BASE's type before the field means anything, which is why
+        '' Resolve deliberately left member names alone: it runs before any expression
+        '' has a type. With the base typed, the field is an ordinary lookup in the
+        '' UDT's own scope.
+        dim as Fbx.BinaryPayload ptr mp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Fbx.TypeId bt = TypeOf_( c, mp->lhs )
+        '' 'p->f' and 'p.f' on a pointer both reach through it.
+        if bt <> Fbx.TYPE_NONE then
+            if c.types->Kind( bt ) = Fbx.TK_POINTER then bt = c.types->Inner( bt )
+        end if
+        if (bt <> Fbx.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Fbx.N_IDENT) then
+            dim as Fbx.IdentPayload ptr ip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+            dim as Fbx.SymbolId fs = FieldOf_( c, bt, ip->name )
+            if fs <> Fbx.SYMBOL_NONE then
+                dim as Fbx.Symbol ptr f = c.syms->SymbolAt( fs )
+                if f <> 0 then
+                    '' Recorded on the MEMBER node so lowering can find the field
+                    '' without repeating the lookup.
+                    c.info->SetRef( id, fs )
+                    c.info->SetRef( mp->rhs, fs )
+                    t = f->type_
+                end if
+            end if
+        end if
+
     case Fbx.N_CALL
         '' The callee's symbol was bound by Resolve; the overloads hang off it in a
         '' chain. Score every candidate against the arguments and take the unique
@@ -842,7 +893,7 @@ private sub WalkAll( byref c as Ctx )
         select case c.ast->Kind( n )
         case Fbx.N_INT_LIT, Fbx.N_FLOAT_LIT, Fbx.N_STRING_LIT, Fbx.N_STRCAT, _
              Fbx.N_IDENT, Fbx.N_PAREN, Fbx.N_UNARY, Fbx.N_BINARY, _
-             Fbx.N_DEREF, Fbx.N_ADDROF, Fbx.N_CALL
+             Fbx.N_DEREF, Fbx.N_ADDROF, Fbx.N_CALL, Fbx.N_MEMBER
             TypeOf_( c, n )
         end select
     next

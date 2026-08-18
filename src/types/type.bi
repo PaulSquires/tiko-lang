@@ -153,6 +153,7 @@ namespace Fbx
         declare function NameOf( byval t as TypeId ) as InternId
         declare function ElemCount( byval t as TypeId ) as long
         declare function Packing( byval t as TypeId ) as long
+        declare function DeclScopeOf( byval t as TypeId ) as ulong
         declare sub SetPacking( byval t as TypeId, byval n as long )
         '' Qualify( ) can only ADD flags. Removing const needs its own operation --
         '' 'Qualify( t, 0 )' silently returns t unchanged.

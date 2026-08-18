@@ -56,6 +56,9 @@ private function InstStr _
             s += str( ins.imm )
         end if
 
+    case M_FIELD_ADDR
+        s += " " & ValStr( f, ins.a, names ) & ", " & str( ins.imm )
+
     case M_ALLOCA
         dim as long li = cast( long, ins.imm )
         s += " " & TypeName( cast( MirType, ins.ty ) )
@@ -117,7 +120,11 @@ function DumpModule _
         '' by a slot being added.
         for i as long = 0 to f->locals.Count - 1
             outp += "  local " & TypeName( cast( MirType, f->locals[i].ty ) ) & " " & _
-                    names.Spelling( f->locals[i].name ) & chr( 10 )
+                    names.Spelling( f->locals[i].name )
+            if f->locals[i].ty = cast( ubyte, MT_AGG ) then
+                outp += " size " & str( f->locals[i].size )
+            end if
+            outp += chr( 10 )
         next
 
         for bi as long = 0 to f->blocks.Count - 1

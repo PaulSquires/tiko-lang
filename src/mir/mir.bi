@@ -46,6 +46,7 @@ namespace Fbx.Mir
         OP( M_CONST,      "const",      0, true  )
         OP( M_ALLOCA,     "alloca",     0, true  )
         OP( M_LOAD,       "load",       1, true  )
+        OP( M_FIELD_ADDR, "field.addr", 1, true  )   '' base + a CONSTANT offset
         OP( M_STORE,      "store",      2, false )
         OP( M_ADD,        "add",        2, true  )
         OP( M_SUB,        "sub",        2, true  )

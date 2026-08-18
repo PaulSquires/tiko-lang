@@ -263,6 +263,11 @@ function TypeContext.ProcType _
     return cast( TypeId, this.types.Count - 1 )
 end function
 
+function TypeContext.DeclScopeOf( byval t as TypeId ) as ulong
+    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
+    return this.types[cast( long, t )].declScope
+end function
+
 function TypeContext.Packing( byval t as TypeId ) as long
     if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
     return this.types[cast( long, t )].packing
