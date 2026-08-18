@@ -1,4 +1,4 @@
-N_MODULE (25) <1:1>
+N_MODULE (29) <1:1>
   N_NAMESPACE 'demo' <1:1>
     N_CONST <2:1>
       N_VAR_ITEM 'max' <2:7>
@@ -226,3 +226,18 @@ N_MODULE (25) <1:1>
       N_DEREF * <98:2>
         N_IDENT 'dpp' <98:3>
     N_INT_LIT 6 radix=10 <98:9>
+  N_TYPE 'vbase' <105:1>
+    N_TYPEREF 'object' <105:20>
+    N_PROC 'vs' [SUB] <106:13>
+  N_PROC 'vs' [SUB] <108:1>
+    N_BLOCK (0) <108:24>
+  N_TYPE 'vder' <113:1>
+    N_TYPEREF 'vbase' <113:19>
+    N_PROC 'go' [SUB] <114:13>
+  N_PROC 'go' [SUB] <116:1>
+    N_BLOCK (1) <116:15>
+      N_AMBIGUOUS <117:5>
+        N_CALL <117:12>
+          N_MEMBER . <117:9>
+            N_IDENT 'base' <117:5>
+            N_IDENT 'vs' <117:10>

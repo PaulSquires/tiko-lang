@@ -800,6 +800,11 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
                 ep.a = Expression( p )
             end if
             n = MakeStmt( p, Fbx.N_END_STMT, t.loc, ep )
+        elseif k = Fbx.KW_BASE then
+            '' 'base.vs( )' -- a call on the BASE-class receiver. Like '.field' inside a
+            '' WITH, the base is implicit and what follows is an ordinary member
+            '' expression, so it is the same call-or-assign ambiguity.
+            n = ParseAmbiguous( p )
         elseif k = Fbx.TK_STAR then
             '' Assignment THROUGH A POINTER: '*p = 5', '**pp = 5'. A statement may begin
             '' with the dereference operator, and the target is an ordinary lvalue

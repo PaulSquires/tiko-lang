@@ -96,3 +96,23 @@ dim dp as long ptr = @dtgt
 dim dpp as long ptr ptr = @dp
 *dp = 5
 **dpp = 6
+
+'' A member DEFINITION carrying VIRTUAL. The modifier loop inside the procedure parser
+'' already handled it; what was missing was the routing, so 'virtual' at statement level
+'' never reached the declaration parser at all. ABSTRACT routes the same way -- fbc
+'' rejects a body for one SEMANTICALLY (error 224), having parsed it first, so refusing
+'' it here would report a syntax error for something that is not one.
+type VBase extends Object
+    declare virtual sub vs( )
+end type
+virtual sub VBase.vs( )
+end sub
+
+'' 'base.vs( )' -- a call on the BASE-class receiver. Like '.field' inside a WITH the
+'' receiver is implicit, so it is the same call-or-assign ambiguity as a bare name.
+type VDer extends VBase
+    declare sub go( )
+end type
+sub VDer.go( )
+    base.vs( )
+end sub

@@ -8,7 +8,16 @@ function IsDeclarationStart( byval k as Fbx.TokenKind ) as boolean
          Fbx.KW_SHARED, Fbx.KW_COMMON, Fbx.KW_EXTERN, Fbx.KW_TYPE, Fbx.KW_UNION, _
          Fbx.KW_ENUM, Fbx.KW_DECLARE, Fbx.KW_SUB, Fbx.KW_FUNCTION, Fbx.KW_PROPERTY, _
          Fbx.KW_CONSTRUCTOR, Fbx.KW_DESTRUCTOR, Fbx.KW_OPERATOR, Fbx.KW_NAMESPACE, _
-         Fbx.KW_USING, Fbx.KW_OPTION, Fbx.KW_PRIVATE, Fbx.KW_PUBLIC
+         Fbx.KW_USING, Fbx.KW_OPTION, Fbx.KW_PRIVATE, Fbx.KW_PUBLIC, _
+         Fbx.KW_VIRTUAL, Fbx.KW_ABSTRACT
+        '' VIRTUAL and ABSTRACT were missing, so a member DEFINITION carrying one --
+        '' 'virtual sub Base.vs( )' at module level -- never reached the declaration
+        '' parser at all, even though the modifier loop inside it already handled both.
+        ''
+        '' ABSTRACT is included deliberately although fbc rejects a body for one: it does
+        '' so SEMANTICALLY (error 224, "Implemented body for an ABSTRACT method"), having
+        '' parsed the definition first. Refusing it here would report a syntax error for
+        '' something that is not one. The real diagnostic is owed from the checker.
         return true
     end select
     return false
@@ -705,9 +714,13 @@ function Declaration( byref p as Fbx.ParserState ) as Fbx.NodeId
         end if
     end if
 
-    '' A leading CONST or STATIC followed by a procedure keyword modifies the
-    '' PROCEDURE; it does not start a constant or a variable declaration.
-    if (k = Fbx.KW_CONST) orelse (k = Fbx.KW_STATIC) then
+    '' A leading CONST, STATIC, VIRTUAL or ABSTRACT followed by a procedure keyword
+    '' modifies the PROCEDURE; it does not start a constant or a variable declaration.
+    '' The keyword is deliberately NOT consumed here -- ParseProc's own modifier loop
+    '' reads it, which is why this only has to route.
+    dim as boolean procQual = (k = Fbx.KW_CONST) orelse (k = Fbx.KW_STATIC) orelse _
+                              (k = Fbx.KW_VIRTUAL) orelse (k = Fbx.KW_ABSTRACT)
+    if procQual then
         if HasTok( p, p.pos + 1 ) then
             select case cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )
             case Fbx.KW_SUB, Fbx.KW_FUNCTION, Fbx.KW_PROPERTY, Fbx.KW_OPERATOR, _
