@@ -730,9 +730,13 @@ sub Run _
         end if
 
         '' ---- ':' separates statements and is treated as an end of line
+        ''
+        '' Flagged, because the parser has to tell it from a real newline: 'name:' is a
+        '' label and 'name' on its own is a call.
         if c = 58 then
             dim as long first = s.i
             s.i += 1
+            s.pendingFlags or= Fbx.TF_COLON
             Emit( s, Fbx.TK_EOL, first )
             continue while
         end if

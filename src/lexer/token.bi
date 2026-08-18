@@ -104,6 +104,11 @@ namespace Fbx
     const TF_SPACE_BEFORE  as ushort = &h0002
     const TF_FROM_MACRO    as ushort = &h0004
     const TF_HAS_SUFFIX    as ushort = &h0008   '' identifier carried a $ % & ! # suffix
+    '' A ':' statement separator, as opposed to a real end of line. Both are TK_EOL --
+    '' ':' separates statements exactly as a newline does -- but 'name:' is a LABEL and
+    '' 'name' alone is a CALL, so the two have to be tellable apart. Length cannot do it:
+    '' ':' and a bare LF are both one byte.
+    const TF_COLON         as ushort = &h0010
 
     type Token                      '' 16 bytes
         as ushort    kind

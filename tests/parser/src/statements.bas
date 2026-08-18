@@ -30,3 +30,12 @@ sub Run( byval n as long, byref s as string = "hi" )
     end select
 end sub
 end namespace
+
+'' A LABEL needs the colon. A bare identifier on a line of its own is a CALL with the
+'' parentheses left off, not a label -- ':' and a newline are both TK_EOL and both one
+'' byte, so telling them apart by length made every zero-argument bare call a label on
+'' LF input, and looked correct only on CRLF.
+sub Bare( )
+end sub
+Bare
+theLabel:

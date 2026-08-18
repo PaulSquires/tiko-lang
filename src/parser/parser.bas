@@ -675,10 +675,16 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             consumesLine = false
         elseif k = Fbx.TK_IDENT then
             '' 'name:' is a label; anything else is the call-or-assign ambiguity.
+            ''
+            '' The test is the COLON FLAG, not the token's length. Both ':' and a
+            '' newline are TK_EOL, and a length of 1 matches a bare LF as well as a
+            '' colon -- so on an LF file every parenthesis-less zero-argument call,
+            '' 'Bar' on a line of its own, was parsed as a LABEL named bar. It only
+            '' looked correct on CRLF input, where the newline is two bytes.
             dim as boolean isLabel = false
             if HasTok( p, p.pos + 1 ) then
                 isLabel = (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EOL) andalso _
-                          (p.toks->At( p.pos + 1 ).length = 1)
+                          ((p.toks->At( p.pos + 1 ).flags and Fbx.TF_COLON) <> 0)
             end if
             if isLabel then
                 dim as Fbx.StmtPayload sp

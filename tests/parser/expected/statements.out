@@ -1,4 +1,4 @@
-N_MODULE (1) <1:1>
+N_MODULE (4) <1:1>
   N_NAMESPACE 'demo' <1:1>
     N_CONST <2:1>
       N_VAR_ITEM 'max' <2:7>
@@ -85,3 +85,8 @@ N_MODULE (1) <1:1>
       N_PARAM 's' byref <12:27>
         N_TYPEREF 'string' [STRING] <12:38>
         N_STRING_LIT len=2 kind=0 <12:47>
+  N_PROC 'bare' [SUB] <38:1>
+    N_BLOCK (0) <38:12>
+  N_AMBIGUOUS <40:1>
+    N_IDENT 'bare' <40:1>
+  N_LABEL 'thelabel' <41:1>
