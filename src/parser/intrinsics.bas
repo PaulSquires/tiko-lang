@@ -113,12 +113,22 @@ private sub IntrPrint( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
 end sub
 
 '' INPUT / WINPUT / LINE INPUT.
-''   [#n,] [prompt ( ; | , )] var [, var]
+''   [#n,] [;] [prompt ( ; | , )] var [, var]
 '' The prompt is a string literal followed by ';' or ',', which is the only thing that
 '' distinguishes it from the first variable.
 private sub IntrInput( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     sp.a = IntrFileNum( p )
     if sp.a <> Fbx.NODE_NONE then Accept( p, Fbx.TK_COMMA )
+
+    '' A LEADING ';' -- 'input ; a' -- suppresses the newline the runtime would echo
+    '' after the user presses return. It comes before the prompt, so it cannot be folded
+    '' into the prompt handling below, and without it the ';' is read as the start of an
+    '' expression and the whole statement fails to parse.
+    ''
+    '' Worth the note: this one missing token produced 9,568 of the corpus's 11,719
+    '' error nodes, because four machine-generated syntax tests exercise every INPUT
+    '' variation about 1,200 times each.
+    if Accept( p, Fbx.TK_SEMICOLON ) then sp.extra = 1
 
     if Peek( p ) = Fbx.TK_STRING_LIT then
         dim as long save = p.pos
