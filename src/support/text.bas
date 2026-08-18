@@ -13,6 +13,17 @@ function DetectEncoding _
         dim as boolean utf8bom = (p[0] = &hEF) andalso (p[1] = &hBB) andalso (p[2] = &hBF)
         if utf8bom then return ENC_UTF8_BOM
     end if
+    '' UTF-32 BEFORE UTF-16, because 'FF FE 00 00' begins with the UTF-16LE BOM. Tested
+    '' the other way round, every UTF-32LE file reads as UTF-16LE followed by a stream of
+    '' NUL characters -- which does not fail, it produces nonsense.
+    if n >= 4 then
+        if p[0] = &hFF andalso p[1] = &hFE andalso p[2] = 0 andalso p[3] = 0 then
+            return ENC_UTF32LE
+        end if
+        if p[0] = 0 andalso p[1] = 0 andalso p[2] = &hFE andalso p[3] = &hFF then
+            return ENC_UTF32BE
+        end if
+    end if
     if n >= 2 then
         if p[0] = &hFF andalso p[1] = &hFE then return ENC_UTF16LE
         if p[0] = &hFE andalso p[1] = &hFF then return ENC_UTF16BE
@@ -27,6 +38,8 @@ function EncodingName( byval e as Encoding ) as string
     case ENC_UTF8_BOM  : return "utf-8 (bom)"
     case ENC_UTF16LE   : return "utf-16le"
     case ENC_UTF16BE   : return "utf-16be"
+    case ENC_UTF32LE   : return "utf-32le"
+    case ENC_UTF32BE   : return "utf-32be"
     case else          : return "bytes"
     end select
 end function
@@ -212,6 +225,41 @@ private sub CopyFrom( byref src as ByteBuf, byref dst as ByteBuf, byval first as
     next
 end sub
 
+
+'' UTF-32 to UTF-8. Simpler than UTF-16: a code unit IS a code point, so there are no
+'' surrogate pairs to reassemble. The BOM is one unit and is dropped.
+''
+'' A value above U+10FFFF or in the surrogate range is not a code point at all. Those are
+'' replaced rather than encoded, because AppendUtf8 would otherwise emit a sequence no
+'' decoder will accept and the error would surface much later as mangled text.
+private sub Utf32ToUtf8 _
+    ( byref src as ByteBuf, byref dst as ByteBuf, byval bigEndian as boolean )
+
+    dim as long i = 0
+    dim as long n = src.Count( )
+    while i + 3 < n
+        dim as ulong cp
+        if bigEndian then
+            cp = (cast( ulong, src.At( i ) ) shl 24) or _
+                 (cast( ulong, src.At( i + 1 ) ) shl 16) or _
+                 (cast( ulong, src.At( i + 2 ) ) shl 8) or _
+                  cast( ulong, src.At( i + 3 ) )
+        else
+            cp = (cast( ulong, src.At( i + 3 ) ) shl 24) or _
+                 (cast( ulong, src.At( i + 2 ) ) shl 16) or _
+                 (cast( ulong, src.At( i + 1 ) ) shl 8) or _
+                  cast( ulong, src.At( i ) )
+        end if
+        i += 4
+        '' The BOM, only at the very start.
+        if (i = 4) andalso (cp = &hFEFF) then continue while
+        dim as boolean bad = (cp > &h10FFFF)
+        if (cp >= &hD800) andalso (cp <= &hDFFF) then bad = true
+        if bad then cp = &hFFFD
+        AppendUtf8( dst, cp )
+    wend
+end sub
+
 sub NormalizeToUtf8 _
     ( byref src as ByteBuf, byref dst as ByteBuf, byval enc as Encoding )
 
@@ -221,6 +269,10 @@ sub NormalizeToUtf8 _
         Utf16ToUtf8( src, dst, false )
     case ENC_UTF16BE
         Utf16ToUtf8( src, dst, true )
+    case ENC_UTF32LE
+        Utf32ToUtf8( src, dst, false )
+    case ENC_UTF32BE
+        Utf32ToUtf8( src, dst, true )
     case ENC_UTF8_BOM
         CopyFrom( src, dst, 3 )
     case else

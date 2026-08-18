@@ -1,5 +1,15 @@
-'' All four accepted encodings normalise to UTF-8 and report correct byte counts.
+'' Every accepted encoding normalises to UTF-8 and reports correct byte counts.
+''
+'' UTF-32LE is the one that needs asserting rather than assuming: its BOM 'FF FE 00 00'
+'' BEGINS WITH the UTF-16LE BOM, so a detector that tests UTF-16 first reads the whole
+'' file as UTF-16LE followed by a stream of NULs -- which does not fail, it produces
+'' nonsense. The two must therefore both appear here, and both decode to the same text.
 '' TEST: cli
-'' ARGS: --dump-source tests/source/plain.bas tests/source/utf16le.bas tests/source/utf8bom.bas
+'' ARGS: --dump-source tests/source/plain.bas tests/source/utf16le.bas tests/source/utf8bom.bas tests/source/utf32le.bas tests/source/utf32be.bas
 '' EXPECT-EXIT: 0
+'' The two UTF-32 fixtures hold the SAME TEXT, so their content hashes must match -- a
+'' stronger assertion than either decoding alone, since it fails if one endianness is
+'' byte-swapped, truncated, or read as UTF-16.
+'' EXPECT-OUT: encoding=utf-32le
+'' EXPECT-OUT: encoding=utf-32be
 '' GOLDEN: expected/encodings.out

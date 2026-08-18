@@ -26,6 +26,10 @@ namespace Fbx.Text
         ENC_UTF8_BOM        '' EF BB BF
         ENC_UTF16LE         '' FF FE
         ENC_UTF16BE         '' FE FF
+        '' UTF-32LE's BOM BEGINS WITH UTF-16LE's, so it must be tested first or every
+        '' UTF-32LE file is read as UTF-16LE followed by a stream of NULs.
+        ENC_UTF32LE         '' FF FE 00 00
+        ENC_UTF32BE         '' 00 00 FE FF
         ENC_BYTES           '' no BOM, not valid UTF-8 -- preserved verbatim
     end enum
 
