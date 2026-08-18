@@ -239,15 +239,33 @@ sub WalkNode _
         '' type's scope, so a call site finds one symbol with a body rather than two
         '' halves of one.
         if isCtorDtor andalso (sid = Fbx.SYMBOL_NONE) then
-            sid = w.syms->LookupLocal( parentScope, declName )
-            if sid = Fbx.SYMBOL_NONE then
+            '' A DECLARATION always creates a link, so the overloads chain and each
+            '' keeps its own signature. Looking one up first made every 'declare
+            '' constructor( ... )' reuse the first symbol, leaving a chain of one and
+            '' every constructor call resolving to whichever came first.
+            ''
+            '' A DEFINITION attaches to what is already there instead, so a call site
+            '' finds one symbol rather than two halves of one.
+            if sp->b = Fbx.NODE_NONE then
                 sid = Declare_( w, parentScope, declName, Fbx.SYM_PROC, _
                                 w.ast->Loc( id ) )
+            else
+                sid = w.syms->LookupLocal( parentScope, declName )
+                if sid = Fbx.SYMBOL_NONE then
+                    sid = Declare_( w, parentScope, declName, Fbx.SYM_PROC, _
+                                    w.ast->Loc( id ) )
+                end if
             end if
             s = w.syms->SymbolAt( sid )
             if s <> 0 then
                 s->flags or= Fbx.SYMF_DEFINED
-                s->payload = cast( long, id )
+                '' The payload is NOT overwritten. Every 'constructor T( ... )'
+                '' definition looks up the same head-of-chain symbol, so writing the
+                '' node here made all three overloads point at whichever was defined
+                '' last -- and every constructor call resolved to that one. The
+                '' DECLARATIONS carry the signatures, and a declaration node mangles
+                '' identically to its definition, so they are what call sites use.
+                if s->payload = 0 then s->payload = cast( long, id )
             end if
         end if
 

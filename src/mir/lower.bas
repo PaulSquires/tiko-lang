@@ -523,6 +523,31 @@ private function StructorOf _
         c.names->Fold( c.names->GetString( which ) ) )
 end function
 
+'' The overload in a chain that takes exactly 'want' parameters. A default
+'' constructor and a destructor are the zero-parameter ones -- taking the head of the
+'' chain instead picked whichever overload happened to be first.
+private function StructorWithArity _
+    ( byref c as Ctx, byval first_ as Fbx.SymbolId, byval want as long ) as Fbx.SymbolId
+
+    dim as Fbx.SymbolId cur = first_
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+            dim as long np = 0
+            for i as long = 0 to pp->count - 1
+                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+            next
+            if np = want then return cur
+        end if
+        cur = s->nextOverload
+    wend
+    return Fbx.SYMBOL_NONE
+end function
+
 '' A call to a structor with the slot's address as the implicit THIS. The receiver is
 '' the first argument, per the ABI, which is also how the mangled name reads.
 private sub EmitStructorCall _
@@ -621,6 +646,164 @@ private sub CloseScope( byref c as Ctx )
     PopScope( c )
 end sub
 
+
+'' Pick the constructor overload for a set of argument types, using the same cost
+'' model overload resolution uses -- the one fitted to 1,274 measured fbc choices.
+'' Constructors chain like any other overload set precisely because they were given a
+'' synthetic name, so nothing here is special-cased.
+private function PickCtor _
+    ( byref c as Ctx, byval first_ as Fbx.SymbolId, _
+      byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId
+
+    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
+    dim as long bestCost = Fbx.Check.CONV_NONE
+    dim as long ties = 0
+    dim as Fbx.SymbolId cur = first_
+
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+            dim as long np = 0
+            for i as long = 0 to pp->count - 1
+                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+            next
+            if np = argT.Count then
+                dim as long total = 0
+                dim as long ai = 0
+                dim as boolean viable = true
+                for i as long = 0 to pp->count - 1
+                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                    dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
+                    dim as long cost = Fbx.Check.ConversionCost( _
+                        cast( Fbx.TypeId, argT[ai] ), c.info->TypeOf_( sp2->a ), *c.types )
+                    ai += 1
+                    if cost >= Fbx.Check.CONV_NONE then
+                        viable = false
+                        exit for
+                    end if
+                    total += cost
+                next
+                if viable then
+                    if total < bestCost then
+                        bestCost = total
+                        best = cur
+                        ties = 0
+                    elseif total = bestCost then
+                        ties += 1
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+
+    '' A tie is an ambiguous call, not a silent pick.
+    if ties > 0 then return Fbx.SYMBOL_NONE
+    return best
+end function
+
+'' 'dim as T x = T( 5 )'. The initialiser parses as a CALL on the type's name, so it
+'' is recognised by the callee naming the variable's own UDT rather than by any
+'' special syntax. Returns false when this is not a constructor call.
+private function LowerCtorInit _
+    ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
+      byval init_ as Fbx.NodeId ) as boolean
+
+    if init_ = Fbx.NODE_NONE then return false
+    if c.ast->Kind( init_ ) <> Fbx.N_CALL then return false
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init_ )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if ip->name <> c.types->NameOf( t ) then return false
+
+    dim as Fbx.SymbolId ctors = StructorOf( c, t, "__ctor" )
+    if ctors = Fbx.SYMBOL_NONE then return false
+
+    '' Argument VALUES first, then the pick: the types are needed to choose, and the
+    '' values must be evaluated in source order regardless of which overload wins.
+    dim as FB.Array( of ulong ) argT
+    dim as FB.Array( of ulong ) argKind
+    dim as FB.Array( of ulong ) argId
+    for i as long = 0 to cp->count - 1
+        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+        dim as MirValue av = LowerExpr( c, a )
+        argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
+        argKind.Push( cast( ulong, av.kind ) )
+        argId.Push( cast( ulong, av.id ) )
+    next
+
+    dim as Fbx.SymbolId pick = PickCtor( c, ctors, argT )
+    if pick = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( pick )
+    if ps = 0 then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, ps->payload )
+    if pn = Fbx.NODE_NONE then return false
+
+    '' Arguments are coerced to the chosen overload's PARAMETER types: MIR has no
+    '' implicit conversions, and the overload was selected knowing a conversion would
+    '' be needed, so it has to be written down.
+    dim as Fbx.StmtPayload ptr cpp = StmtOf( c, pn )
+    dim as long ai2 = 0
+    for i as long = 0 to cpp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[cpp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        if ai2 >= argT.Count then exit for
+        dim as MirValue av
+        av.kind = cast( ubyte, argKind[ai2] )
+        av.ty = cast( ubyte, LowerType( cast( Fbx.TypeId, argT[ai2] ), *c.types ) )
+        av.id = argId[ai2]
+        dim as Fbx.StmtPayload ptr sp3 = StmtOf( c, prm )
+        dim as MirValue cv = Coerce( c, av, _
+            LowerType( c.info->TypeOf_( sp3->a ), *c.types ) )
+        argKind[ai2] = cv.kind
+        argId[ai2] = cv.id
+        ai2 += 1
+    next
+
+    dim as long first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( ulong, MV_LOCAL ) )
+    c.m->argPool.Push( cast( ulong, slot ) )
+    for i as long = 0 to argT.Count - 1
+        c.m->argPool.Push( argKind[i] )
+        c.m->argPool.Push( argId[i] )
+    next
+
+    dim as Fbx.InternId nm = c.names->GetString( _
+        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
+        decl->isDefinition = false
+        decl->paramCount = argT.Count + 1
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as MirInst ins
+    ins.op = cast( ushort, M_CALL )
+    ins.ty = cast( ubyte, MT_VOID )
+    ins.first = first
+    ins.count = argT.Count + 1
+    ins.callee = fidx
+    Emit( c, ins )
+    return true
+end function
+
 '' -------------------------------------------------------------- statements
 
 private sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
@@ -705,17 +888,31 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
             '' interleaved with defers, innermost scope first on an early exit --
             '' applies to it without any extra arrangement.
             dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( sid )
+            dim as boolean constructed = false
             if (slot >= 0) andalso (vs <> 0) then
-                dim as Fbx.SymbolId ctor = StructorOf( c, vs->type_, "__ctor" )
+                '' 'dim as T x = T( 5 )' selects a constructor by its arguments; a
+                '' bare 'dim as T x' takes the no-argument one.
+                constructed = LowerCtorInit( c, slot, vs->type_, ip->b )
+                dim as Fbx.SymbolId ctor = Fbx.SYMBOL_NONE
+                if constructed = false then
+                    ctor = StructorWithArity( c, _
+                        StructorOf( c, vs->type_, "__ctor" ), 0 )
+                end if
                 if ctor <> Fbx.SYMBOL_NONE then EmitStructorCall( c, ctor, slot )
-                dim as Fbx.SymbolId dtor = StructorOf( c, vs->type_, "__dtor" )
+                dim as Fbx.SymbolId dtor = StructorWithArity( c, _
+                    StructorOf( c, vs->type_, "__dtor" ), 0 )
                 if dtor <> Fbx.SYMBOL_NONE then
                     c.cleanupNode.Push( cast( ulong, dtor ) )
                     c.cleanupSlot.Push( slot )
                 end if
             end if
 
-            if (slot >= 0) andalso (ip->b <> Fbx.NODE_NONE) then
+            '' Hoisted: FreeBASIC warns 38 on a mixed boolean/non-boolean chain, and
+            '' the house rule is to name the condition rather than silence it.
+            dim as boolean needsStore = (slot >= 0)
+            if ip->b = Fbx.NODE_NONE then needsStore = false
+            if constructed then needsStore = false
+            if needsStore then
                 dim as MirValue val = LowerExpr( c, ip->b )
                 if val.kind <> cast( ubyte, MV_NONE ) then
                     val = Coerce( c, val, cast( MirType, c.f->locals[slot].ty ) )

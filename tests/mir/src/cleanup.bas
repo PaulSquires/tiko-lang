@@ -57,3 +57,27 @@ sub Structors( byval f as long )
     end scope
     dim as Res b
 end sub
+
+'' Constructor selection by argument type, using the same cost model as ordinary
+'' overload resolution -- constructors chain like any other overload set.
+type Val
+    as long n
+    declare constructor( )
+    declare constructor( byval a as long )
+    declare constructor( byval d as double )
+end type
+constructor Val( )
+    n = 0
+end constructor
+constructor Val( byval a as long )
+    n = a
+end constructor
+constructor Val( byval d as double )
+    n = 1
+end constructor
+
+sub Selected( )
+    dim as Val p
+    dim as Val q = Val( 5 )
+    dim as Val r = Val( 2.5 )
+end sub

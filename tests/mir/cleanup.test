@@ -15,5 +15,8 @@
 '' normal scope end, and innermost-scope-first on an early RETURN.
 '' EXPECT-OUT: call void _ZN3RESC1Ev
 '' EXPECT-OUT: call void _ZN3RESD1Ev
+'' EXPECT-OUT: call void _ZN3VALC1Ev
+'' EXPECT-OUT: call void _ZN3VALC1Ei
+'' EXPECT-OUT: call void _ZN3VALC1Ed
 '' EXPECT-NOT: <NO TERMINATOR>
 '' GOLDEN: expected/cleanup.out

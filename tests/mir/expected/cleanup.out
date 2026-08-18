@@ -134,5 +134,53 @@ func void STRUCTORS($0) {
   if.else3:
     br if.join1
 }
+func void _ZN3VALC1Ev() {
+  local i32 n
+  entry0:
+    %1 = alloca ptr n
+    %2 = const i64 0
+    %3 = trunc %2
+    store @n, %3
+    ret
+}
+func void _ZN3VALC1Ei($0) {
+  local i32 a
+  local i32 n
+  entry0:
+    %1 = alloca ptr a
+    store @a, $0
+    %2 = alloca ptr n
+    %3 = load @a
+    store @n, %3
+    ret
+}
+func void _ZN3VALC1Ed($0) {
+  local f64 d
+  local i32 n
+  entry0:
+    %1 = alloca ptr d
+    store @d, $0
+    %2 = alloca ptr n
+    %3 = const i64 1
+    %4 = trunc %3
+    store @n, %4
+    ret
+}
+func void SELECTED() {
+  local agg p size 4
+  local agg q size 4
+  local agg r size 4
+  entry0:
+    %1 = alloca ptr p
+    call void _ZN3VALC1Ev(@p)
+    %2 = alloca ptr q
+    %3 = const i64 5
+    %4 = trunc %3
+    call void _ZN3VALC1Ei(@q, %4)
+    %5 = alloca ptr r
+    %6 = const f64 2.5
+    call void _ZN3VALC1Ed(@r, %6)
+    ret
+}
 verify: ok
-lowered: 7 functions, 17 blocks, 76 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 21 blocks, 100 insts, 0 statements not lowered, 0 scope imbalance
