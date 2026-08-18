@@ -1,0 +1,29 @@
+'' verify.bi -- the MIR verifier.
+''
+'' Runs after lowering in Debug and RelWithDebInfo builds (docs/plan/09 section 5).
+'' A verifier failure is an INTERNAL COMPILER ERROR, never a user diagnostic: it means
+'' the compiler built something malformed, which is never the user's fault.
+
+#ifndef __FBX_MIR_VERIFY_BI__
+#define __FBX_MIR_VERIFY_BI__
+
+#include once "mir/mir.bi"
+
+namespace Fbx.Mir
+
+    type VerifyResult
+        as long    failures
+        as string  report
+    end type
+
+    '' 'strict' turns on the checks docs/plan/09 rule 9 says hold only after
+    '' simplifycfg. Before it, an unreachable block is allowed -- dead code after a
+    '' RETURN is legal FreeBASIC -- so reporting it by default would be reporting the
+    '' user's program rather than a compiler fault.
+    declare function Verify _
+        ( byref m as MirModule, byref names as Fbx.Interner, _
+          byval strict as boolean = false ) as VerifyResult
+
+end namespace
+
+#endif

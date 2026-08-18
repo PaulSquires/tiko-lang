@@ -10,6 +10,9 @@
 #include once "symbols/resolve.bi"
 #include once "symbols/mangle.bi"
 #include once "symbols/check.bi"
+#include once "mir/lower.bi"
+#include once "mir/dump.bi"
+#include once "mir/verify.bi"
 
 namespace Fbx
 
@@ -157,7 +160,8 @@ function Run( byref args as Fbx.StrVec ) as long
             print using "  lex   ##.### s  (##.# MB/s)"; tLex; mb / iif( tLex > 0, tLex, 1 )
         end if
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
-           ctx.options.dumpMangle orelse ctx.options.checkOnly then
+           ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
+           ctx.options.dumpIr then
         for i as long = 1 to ctx.sources.Count( )
             dim as Fbx.FileId id = cast( Fbx.FileId, i )
             dim as Fbx.PpResult pr
@@ -184,7 +188,33 @@ function Run( byref args as Fbx.StrVec ) as long
             dim as Fbx.SemanticInfo info
             Fbx.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info )
 
-            if ctx.options.checkOnly then
+            if ctx.options.dumpIr then
+                '' MIR needs the full frontend in front of it: resolve binds names,
+                '' check gives every expression a type, and lowering reads both.
+                dim as Fbx.Resolve.Stats rst
+                Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                                 info, rst )
+                dim as Fbx.Check.Stats cst
+                Fbx.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                               info, cst )
+                dim as Fbx.Mir.MirModule mm
+                dim as Fbx.Mir.LowerStats lst
+                Fbx.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
+                               ctx.sources, mm, lst )
+                print Fbx.Mir.DumpModule( mm, ctx.names );
+                '' The verifier is an ICE check, not a diagnostic: a failure means
+                '' the compiler built something malformed.
+                dim as Fbx.Mir.VerifyResult vr = Fbx.Mir.Verify( mm, ctx.names )
+                if vr.failures > 0 then
+                    print "verify: " & str( vr.failures ) & " FAILURES"
+                    print vr.report;
+                else
+                    print "verify: ok"
+                end if
+                print "lowered: " & str( lst.functions ) & " functions, " & _
+                      str( lst.blocks ) & " blocks, " & str( lst.insts ) & _
+                      " insts, " & str( lst.skipped ) & " statements not lowered"
+            elseif ctx.options.checkOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                  info, rst )

@@ -1,0 +1,164 @@
+'' verify.bas -- the structural rules MIR must satisfy.
+''
+'' The rules implemented here are the ones this slice of phase 6 can check. The two
+'' that matter most and are NOT here yet are dominance ("every value is defined before
+'' use, in a dominating block") and cleanup-edge coverage ("every scope-exit edge
+'' passes through its cleanup block") -- the second is the rule docs/plan/09 calls the
+'' one that pays for the whole verifier, and it cannot be checked before the cleanup
+'' model exists. Claiming a verifier is complete when it is not would be worse than
+'' having none, so the gaps are listed rather than glossed.
+
+#include once "mir/verify.bi"
+
+namespace Fbx.Mir
+
+private sub Fail _
+    ( byref r as VerifyResult, byref where_ as string, byref why as string )
+
+    r.failures += 1
+    r.report += "  " & where_ & ": " & why & chr( 10 )
+end sub
+
+function Verify _
+    ( byref m as MirModule, byref names as Fbx.Interner, _
+      byval strict as boolean = false ) as VerifyResult
+
+    dim as VerifyResult r
+
+    for fi as long = 0 to m.functions.Count - 1
+        dim as MirFunction ptr f = m.functions[fi]
+        if f = 0 then continue for
+        if f->isDefinition = false then continue for
+        dim as string fn = names.Spelling( f->name )
+
+        if f->blocks.Count = 0 then
+            Fail( r, fn, "a definition with no blocks" )
+            continue for
+        end if
+
+        '' Which temps have been defined. Not dominance -- that needs a CFG walk --
+        '' but it does catch a use of a temp that was never produced at all.
+        dim as FB.Array( of ubyte ) defined_
+        for i as long = 0 to f->nextTemp
+            defined_.Push( 0 )
+        next
+
+        for bi as long = 0 to f->blocks.Count - 1
+            dim as MirBlock ptr b = @f->blocks[bi]
+            dim as string bn = fn & ":" & str( bi )
+
+            '' Rule 1: every block ends in exactly one terminator.
+            if b->term = cast( ubyte, MTERM_NONE ) then
+                Fail( r, bn, "block has no terminator" )
+            end if
+
+            '' Rule 2: every referenced block exists and belongs to this function.
+            dim as MirTermKind tk = cast( MirTermKind, b->term )
+            if (tk = MTERM_BR) orelse (tk = MTERM_CONDBR) then
+                if (b->target < 0) orelse (b->target >= f->blocks.Count) then
+                    Fail( r, bn, "branch target " & str( b->target ) & " does not exist" )
+                end if
+            end if
+            if tk = MTERM_CONDBR then
+                if (b->target2 < 0) orelse (b->target2 >= f->blocks.Count) then
+                    Fail( r, bn, "false target " & str( b->target2 ) & " does not exist" )
+                end if
+            end if
+
+            for i as long = 0 to b->insts.Count - 1
+                dim as MirInst ptr ins = @b->insts[i]
+                dim as MirOp op = cast( MirOp, ins->op )
+                dim as string iw = bn & ":" & str( i ) & " " & OpName( op )
+
+                '' Rule 6: alloca appears only in the entry block.
+                if (op = M_ALLOCA) andalso (bi <> 0) then
+                    Fail( r, iw, "alloca outside the entry block" )
+                end if
+
+                '' Rule 4, in the form available without a full signature table: an
+                '' opcode that produces a value must have a result temp, and one that
+                '' does not must not.
+                if OpHasResult( op ) then
+                    if ins->result = 0 then
+                        Fail( r, iw, "result-producing opcode with no result temp" )
+                    elseif cast( long, ins->result ) < defined_.Count then
+                        if defined_[cast( long, ins->result )] <> 0 then
+                            Fail( r, iw, "temp %" & str( ins->result ) & " defined twice" )
+                        end if
+                        defined_[cast( long, ins->result )] = 1
+                    end if
+                elseif ins->result <> 0 then
+                    Fail( r, iw, "opcode with no result carries a result temp" )
+                end if
+
+                '' Operands that name a temp must name one that exists.
+                dim as long n = OpArity( op )
+                if n >= 1 then
+                    if ins->a.kind = cast( ubyte, MV_TEMP ) then
+                        if defined_[cast( long, ins->a.id )] = 0 then
+                            Fail( r, iw, "uses %" & str( ins->a.id ) & " before it is defined" )
+                        end if
+                    end if
+                end if
+                if n >= 2 then
+                    if ins->b.kind = cast( ubyte, MV_TEMP ) then
+                        if defined_[cast( long, ins->b.id )] = 0 then
+                            Fail( r, iw, "uses %" & str( ins->b.id ) & " before it is defined" )
+                        end if
+                    end if
+                end if
+
+                '' A void value can be produced but never consumed.
+                if OpHasResult( op ) andalso (ins->ty = cast( ubyte, MT_VOID )) then
+                    if (op <> M_CALL) andalso (op <> M_CALL_RTL) then
+                        Fail( r, iw, "non-call opcode produces void" )
+                    end if
+                end if
+            next
+        next
+
+        '' Rule 9: no block is unreachable from entry -- but only under STRICT.
+        '' Reachability is a fixed point over the terminators, cheap here because a
+        '' block has at most two successors.
+        if strict = false then continue for
+        dim as FB.Array( of ubyte ) seen
+        for i as long = 0 to f->blocks.Count - 1
+            seen.Push( 0 )
+        next
+        seen[0] = 1
+        dim as boolean changed = true
+        while changed
+            changed = false
+            for bi as long = 0 to f->blocks.Count - 1
+                if seen[bi] = 0 then continue for
+                dim as MirBlock ptr b = @f->blocks[bi]
+                dim as MirTermKind tk = cast( MirTermKind, b->term )
+                if (tk = MTERM_BR) orelse (tk = MTERM_CONDBR) then
+                    if (b->target >= 0) andalso (b->target < f->blocks.Count) then
+                        if seen[b->target] = 0 then
+                            seen[b->target] = 1
+                            changed = true
+                        end if
+                    end if
+                end if
+                if tk = MTERM_CONDBR then
+                    if (b->target2 >= 0) andalso (b->target2 < f->blocks.Count) then
+                        if seen[b->target2] = 0 then
+                            seen[b->target2] = 1
+                            changed = true
+                        end if
+                    end if
+                end if
+            next
+        wend
+        for bi as long = 0 to f->blocks.Count - 1
+            if seen[bi] = 0 then
+                Fail( r, fn & ":" & str( bi ), "block is unreachable from entry" )
+            end if
+        next
+    next
+
+    return r
+end function
+
+end namespace

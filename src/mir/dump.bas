@@ -1,0 +1,155 @@
+'' dump.bas -- the textual form of MIR.
+''
+'' This is not a debugging convenience: docs/plan/13 makes emitted IR a GOLDEN TEST
+'' surface, so the text is the thing being asserted on. It is written to be diffable --
+'' one instruction per line, fixed order, no addresses or ids that shift when
+'' unrelated code changes.
+
+#include once "mir/dump.bi"
+
+namespace Fbx.Mir
+
+private function ValStr _
+    ( byref f as MirFunction, byref v as MirValue, byref names as Fbx.Interner ) as string
+
+    select case v.kind
+    case MV_TEMP        : return "%" & str( v.id )
+    case MV_CONST_INT   : return str( cast( longint, v.id ) )
+    case MV_LOCAL
+        if cast( long, v.id ) < f.locals.Count then
+            return "@" & names.Spelling( f.locals[cast( long, v.id )].name )
+        end if
+        return "@?" & str( v.id )
+    case MV_PARAM       : return "$" & str( v.id )
+    case MV_GLOBAL      : return "g" & str( v.id )
+    case MV_UNDEF       : return "undef"
+    end select
+    return "_"
+end function
+
+private function BlockName _
+    ( byref f as MirFunction, byval idx as long, byref names as Fbx.Interner ) as string
+
+    if (idx < 0) orelse (idx >= f.blocks.Count) then return "bb?"
+    dim as Fbx.InternId l = f.blocks[idx].label
+    if l = 0 then return "bb" & str( idx )
+    return names.Spelling( l )
+end function
+
+private function InstStr _
+    ( byref f as MirFunction, byref ins as MirInst, byref m as MirModule, _
+      byref names as Fbx.Interner ) as string
+
+    dim as MirOp op = cast( MirOp, ins.op )
+    dim as string s = "    "
+    if OpHasResult( op ) andalso (ins.result <> 0) then
+        s += "%" & str( ins.result ) & " = "
+    end if
+    s += OpName( op )
+
+    select case op
+    case M_CONST
+        s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
+        if (ins.ty = cast( ubyte, MT_F32 )) orelse (ins.ty = cast( ubyte, MT_F64 )) then
+            s += str( ins.fimm )
+        else
+            s += str( ins.imm )
+        end if
+
+    case M_ALLOCA
+        dim as long li = cast( long, ins.imm )
+        s += " " & TypeName( cast( MirType, ins.ty ) )
+        if (li >= 0) andalso (li < f.locals.Count) then
+            s += " " & names.Spelling( f.locals[li].name )
+        end if
+
+    case M_CALL, M_CALL_RTL
+        s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
+        if cast( long, ins.callee ) < m.functions.Count then
+            s += names.Spelling( m.functions[cast( long, ins.callee )]->name )
+        else
+            s += "?" & str( ins.callee )
+        end if
+        s += "("
+        for i as long = 0 to ins.count - 1
+            if i > 0 then s += ", "
+            dim as MirValue av
+            dim as long slot = (ins.first + i) * 2
+            if (slot + 1) < m.argPool.Count then
+                av.kind = cast( ubyte, m.argPool[slot] )
+                av.id = m.argPool[slot + 1]
+            end if
+            s += ValStr( f, av, names )
+        next
+        s += ")"
+
+    case else
+        dim as long n = OpArity( op )
+        if n >= 1 then s += " " & ValStr( f, ins.a, names )
+        if n >= 2 then s += ", " & ValStr( f, ins.b, names )
+    end select
+    return s
+end function
+
+function DumpModule _
+    ( byref m as MirModule, byref names as Fbx.Interner ) as string
+
+    dim as string outp = ""
+    for fi as long = 0 to m.functions.Count - 1
+        dim as MirFunction ptr f = m.functions[fi]
+        if f = 0 then continue for
+
+        outp += iif( f->isDefinition, "func ", "declare " )
+        outp += TypeName( cast( MirType, f->retTy ) ) & " " & _
+                names.Spelling( f->name ) & "("
+        for i as long = 0 to f->paramCount - 1
+            if i > 0 then outp += ", "
+            outp += "$" & str( i )
+        next
+        outp += ")"
+        if f->isDefinition = false then
+            outp += chr( 10 )
+            continue for
+        end if
+        outp += " {" & chr( 10 )
+
+        '' Locals are listed before the blocks so a diff of the body is not disturbed
+        '' by a slot being added.
+        for i as long = 0 to f->locals.Count - 1
+            outp += "  local " & TypeName( cast( MirType, f->locals[i].ty ) ) & " " & _
+                    names.Spelling( f->locals[i].name ) & chr( 10 )
+        next
+
+        for bi as long = 0 to f->blocks.Count - 1
+            dim as MirBlock ptr b = @f->blocks[bi]
+            outp += "  " & BlockName( *f, bi, names ) & ":" & chr( 10 )
+            for i as long = 0 to b->insts.Count - 1
+                outp += InstStr( *f, b->insts[i], m, names ) & chr( 10 )
+            next
+            select case cast( MirTermKind, b->term )
+            case MTERM_RET
+                if b->cond.kind = cast( ubyte, MV_NONE ) then
+                    outp += "    ret" & chr( 10 )
+                else
+                    outp += "    ret " & ValStr( *f, b->cond, names ) & chr( 10 )
+                end if
+            case MTERM_BR
+                outp += "    br " & BlockName( *f, b->target, names ) & chr( 10 )
+            case MTERM_CONDBR
+                outp += "    condbr " & ValStr( *f, b->cond, names ) & ", " & _
+                        BlockName( *f, b->target, names ) & ", " & _
+                        BlockName( *f, b->target2, names ) & chr( 10 )
+            case MTERM_UNREACHABLE
+                outp += "    unreachable" & chr( 10 )
+            case else
+                '' Printed rather than hidden: a block with no terminator is exactly
+                '' what the verifier exists to catch, and the dump should show it.
+                outp += "    <NO TERMINATOR>" & chr( 10 )
+            end select
+        next
+        outp += "}" & chr( 10 )
+    next
+    return outp
+end function
+
+end namespace

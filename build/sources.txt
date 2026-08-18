@@ -17,5 +17,9 @@ src/symbols/collect.bas
 src/symbols/resolve.bas
 src/symbols/mangle.bas
 src/symbols/check.bas
+src/mir/mir.bas
+src/mir/dump.bas
+src/mir/verify.bas
+src/mir/lower.bas
 src/driver/cmdline.bas
 src/driver/driver.bas

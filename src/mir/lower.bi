@@ -1,0 +1,43 @@
+'' lower.bi -- AST to MIR.
+''
+'' Lowering is the ONE place FreeBASIC's semantics are eliminated (docs/plan/09
+'' section 1). Everything downstream sees a small closed instruction set.
+''
+'' THIS SLICE COVERS: procedures, scalar locals, integer and floating-point
+'' expressions, assignment, IF / WHILE / DO / FOR, RETURN, and direct calls.
+''
+'' IT DOES NOT COVER, and these are the bulk of docs/plan/09 section 4: strings and
+'' their runtime calls, arrays and descriptors, UDTs, constructors and destructors,
+'' the cleanup model, SELECT CASE, GOTO and labels, error handling, properties,
+'' virtual dispatch, and the whole ABI layer. Each of those needs either the runtime
+'' declarations or the cleanup model, and neither exists yet.
+
+#ifndef __FBX_MIR_LOWER_BI__
+#define __FBX_MIR_LOWER_BI__
+
+#include once "mir/mir.bi"
+#include once "ast/nodes.bi"
+#include once "symbols/symbol.bi"
+#include once "symbols/resolve.bi"
+#include once "symbols/check.bi"
+#include once "diag/engine.bi"
+
+namespace Fbx.Mir
+
+    type LowerStats
+        as long functions
+        as long blocks
+        as long insts
+        as long skipped        '' statements this slice does not lower yet
+    end type
+
+    declare function Lower _
+        ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
+          byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
+          byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
+          byref src as Fbx.SourceManager, byref m as MirModule, _
+          byref st as LowerStats ) as long
+
+end namespace
+
+#endif

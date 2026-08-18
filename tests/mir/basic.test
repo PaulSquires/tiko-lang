@@ -1,0 +1,14 @@
+'' MIR lowering for procedures, scalar locals, arithmetic, IF, FOR, WHILE, DO and
+'' EXIT. The golden file is the point: docs/plan/13 makes emitted IR a test surface,
+'' so the text is asserted on directly and any change to it has to be deliberate.
+''
+'' Two structural properties are worth naming because they are easy to lose:
+'' every alloca is in the entry block, and every block ends in exactly one
+'' terminator -- both are verifier rules, and the verifier runs here.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/basic.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: <NO TERMINATOR>
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/basic.out
