@@ -1003,6 +1003,9 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
         if handled = false then SkipStmt( c, id )
 
+    case Fbx.N_END_STMT
+        LowerEndStmt( c, id )
+
     case Fbx.N_SELECT
         LowerSelect( c, id )
 

@@ -142,5 +142,46 @@ func void DUP($0) {
     store @r, %6
     ret
 }
+func void ENDING($0) {
+  local i32 n
+  local agg s size 24
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = alloca ptr s
+    %3 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
+    %4 = load @n
+    %5 = const i64 1
+    %6 = sext %4
+    %7 = icmp.eq %6, %5
+    condbr %7, if.then2, if.else3
+  if.join1:
+    %10 = load @n
+    %11 = const i64 2
+    %12 = sext %10
+    %13 = icmp.eq %12, %11
+    condbr %13, if.then6, if.else7
+  if.then2:
+    %8 = const i64 3
+    %9 = trunc %8
+    call.rtl void fb_End(%9)
+    unreachable
+  if.else3:
+    br if.join1
+  end.after4:
+    br if.join1
+  if.join5:
+    call.rtl void fb_StrDelete(@s)
+    ret
+  if.then6:
+    %14 = const i32 0
+    call.rtl void fb_End(%14)
+    unreachable
+  if.else7:
+    br if.join5
+  end.after8:
+    br if.join5
+}
+declare void fb_End($0)
 verify: ok
-lowered: 3 functions, 24 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 33 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance

@@ -82,6 +82,7 @@ declare function EmitRtl _
 
     '' lowerctl.bas -- control flow.
     declare sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
+    declare sub LowerEndStmt( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub LowerLabel( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub ScanLabels _

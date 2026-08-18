@@ -40,3 +40,11 @@
 '' that merely looks plausible. This was found by the depth assertion firing on
 '' tests/vendor/fbc-tests/scopes/branch-cross-select-case.bas, which has two 'label1's.
 '' EXPECT-OUT: lbl.dup
+
+'' END is a direct fb_End call. The exit code is the argument; a bare END passes 0.
+'' EXPECT-OUT: call.rtl void fb_End
+'' The block cannot fall through -- fb_End does not return.
+'' EXPECT-OUT: unreachable
+'' And NO cleanup precedes it: the fb_StrDelete belongs to the normal scope exit, which
+'' END is not. If END ran cleanups this would be a jump to the exit path instead.
+'' EXPECT-OUT: end.after

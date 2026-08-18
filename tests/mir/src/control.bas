@@ -43,3 +43,12 @@ sub Dup( byval n as long )
         r = 2
     end scope
 end sub
+
+'' 'END [exitcode]' terminates the program. Two things are measured rather than assumed:
+'' it is a DIRECT fb_End call, not a jump to the function's exit, and it runs NO CLEANUPS
+'' at all -- a trace holding a live destructor and a live string prints neither.
+sub Ending( byval n as long )
+    dim as string s = "x"
+    if n = 1 then end 3
+    if n = 2 then end
+end sub

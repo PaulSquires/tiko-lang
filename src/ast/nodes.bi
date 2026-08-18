@@ -71,6 +71,7 @@ namespace Fbx
         NODE( N_DEFER,        NCAT_STMT )   '' 'defer <stmt>' -- FBC-Modern, CONTEXTUAL
         NODE( N_RETURN,       NCAT_STMT )
         NODE( N_EXIT,         NCAT_STMT )
+        NODE( N_END_STMT,     NCAT_STMT )   '' END [exitcode] -- terminates the program
         NODE( N_CONTINUE,     NCAT_STMT )
         NODE( N_GOTO,         NCAT_STMT )
         NODE( N_LABEL,        NCAT_STMT )

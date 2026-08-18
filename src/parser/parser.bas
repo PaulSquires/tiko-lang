@@ -72,11 +72,43 @@ private sub Sync( byref p as Fbx.ParserState )
     if p.pos = before then Advance( p )
 end sub
 
-private function IsBlockEnder( byval k as Fbx.TokenKind ) as boolean
+'' The keywords that may follow END to close a block. Taken from the ExpectEnd call
+'' sites, so the two cannot drift: anything ExpectEnd is asked to close must appear here.
+private function ClosesABlock( byval k as Fbx.TokenKind ) as boolean
     select case k
-    case Fbx.KW_END, Fbx.KW_ELSE, Fbx.KW_ELSEIF, Fbx.KW_NEXT, Fbx.KW_LOOP, _
+    case Fbx.KW_IF, Fbx.KW_SELECT, Fbx.KW_WHILE, Fbx.KW_WITH, Fbx.KW_SCOPE, _
+         Fbx.KW_ASM, Fbx.KW_ENUM, Fbx.KW_NAMESPACE, Fbx.KW_EXTERN, Fbx.KW_TYPE, _
+         Fbx.KW_UNION, Fbx.KW_SUB, Fbx.KW_FUNCTION, Fbx.KW_CONSTRUCTOR, _
+         Fbx.KW_DESTRUCTOR, Fbx.KW_PROPERTY, Fbx.KW_OPERATOR
+        return true
+    end select
+    return false
+end function
+
+'' Whether the statement list should stop here.
+''
+'' END IS NOT UNCONDITIONAL. 'END' also TERMINATES THE PROGRAM, with an optional exit
+'' code -- 'end', 'end 3' -- so it closes a block only when a block keyword follows.
+''
+'' This predicate is where a mistake propagates furthest: the comment above the
+'' single-line-IF handling records an 'end if' taken from an enclosing block, which then
+'' swallowed an 'end function' and left a namespace unclosed hundreds of lines later. So
+'' the test is a WHITELIST of what may follow, not a guess about what may not: an
+'' unrecognised word after END leaves it a block ender, which is the old behaviour and
+'' the safe direction to be wrong in.
+private function IsBlockEnderAt( byref p as Fbx.ParserState ) as boolean
+    dim as Fbx.TokenKind k = Peek( p )
+    select case k
+    case Fbx.KW_ELSE, Fbx.KW_ELSEIF, Fbx.KW_NEXT, Fbx.KW_LOOP, _
          Fbx.KW_WEND, Fbx.KW_CASE, Fbx.TK_EOF
         return true
+    case Fbx.KW_END
+        if HasTok( p, p.pos + 1 ) = false then return true
+        dim as Fbx.TokenKind nk = cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )
+        '' 'end' alone on its line, or 'end <expr>', is the STATEMENT.
+        if nk = Fbx.TK_EOL then return false
+        if ClosesABlock( nk ) then return true
+        return false
     end select
     return false
 end function
@@ -88,7 +120,7 @@ function Block( byref p as Fbx.ParserState ) as Fbx.NodeId
     do
         SkipEols( p )
         if AtEnd( p ) then exit do
-        if IsBlockEnder( Peek( p ) ) then exit do
+        if IsBlockEnderAt( p ) then exit do
         dim as Fbx.NodeId s = Statement( p )
         if s <> Fbx.NODE_NONE then items.Push( cast( ulong, s ) )
     loop
@@ -759,6 +791,15 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' The parentheses are permitted around an lvalue and change nothing, so the
             '' statement is the same call-or-assign ambiguity as a bare name.
             n = ParseAmbiguous( p )
+        elseif k = Fbx.KW_END then
+            '' 'END [exitcode]' TERMINATES THE PROGRAM. Reaching here at all means
+            '' IsBlockEnderAt already decided this END does not close a block.
+            Advance( p )
+            dim as Fbx.StmtPayload ep
+            if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+                ep.a = Expression( p )
+            end if
+            n = MakeStmt( p, Fbx.N_END_STMT, t.loc, ep )
         elseif k = Fbx.TK_STAR then
             '' Assignment THROUGH A POINTER: '*p = 5', '**pp = 5'. A statement may begin
             '' with the dereference operator, and the target is an ordinary lvalue

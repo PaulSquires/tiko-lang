@@ -27,6 +27,30 @@ declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 ''
 '' The SUBJECT IS EVALUATED ONCE, into a slot. Re-evaluating it per case would call a
 '' function once per branch tested -- observable whenever it has side effects.
+
+'' 'END [exitcode]' terminates the program: a direct fb_End call, measured from fbc.
+''
+'' IT RUNS NO CLEANUPS, and that is measured too rather than assumed by analogy with
+'' RETURN. A trace program holding a live destructor and a live string prints neither
+'' before exiting -- END bypasses every open scope, where RETURN runs them all
+'' innermost-first. So there is deliberately no EmitCleanupsTo here, and the scope's
+'' cleanup ends up in the unreachable block after the call, which is exactly right: it is
+'' the normal exit path, and END is not one.
+sub LowerEndStmt( byref c as Ctx, byval id as Fbx.NodeId )
+    dim as Fbx.StmtPayload ptr esp = StmtOf( c, id )
+    dim as MirValue code
+    if esp->a <> Fbx.NODE_NONE then
+        code = Coerce( c, LowerExpr( c, esp->a ), MT_I32 )
+    end if
+    if code.kind = cast( ubyte, MV_NONE ) then code = ConstInt( c, 0, MT_I32 )
+    dim as FB.Array( of ulong ) ea
+    ea.Push( cast( ulong, code.kind ) ) : ea.Push( cast( ulong, code.id ) )
+    EmitRtl( c, RTL_END, ea )
+    '' fb_End does not return, so nothing follows it in the same block.
+    Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
+    c.curBlock = NewBlock( c, "end.after" )
+end sub
+
 sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if sp->b = Fbx.NODE_NONE then
