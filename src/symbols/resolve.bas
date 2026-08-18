@@ -100,6 +100,27 @@ end function
 
 '' A syntactic TypeRef becomes a semantic TypeId. Builtin spellings map straight to
 '' the fixed builtin ids; a named type is looked up.
+
+'' The unsigned counterpart of an integer type, or TYPE_NONE when there is not one.
+''
+'' TYPE_NONE rather than the original: 'unsigned' applied to something with no unsigned
+'' form is an error, and returning the signed type would compile a declaration whose type
+'' is not what was written.
+private function UnsignedCounterpart _
+    ( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.TypeId
+
+    if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
+    select case c.types->BuiltinOf( t )
+    case Fbx.TY_BYTE, Fbx.TY_UBYTE         : return c.types->Builtin( Fbx.TY_UBYTE )
+    case Fbx.TY_SHORT, Fbx.TY_USHORT       : return c.types->Builtin( Fbx.TY_USHORT )
+    case Fbx.TY_LONG, Fbx.TY_ULONG         : return c.types->Builtin( Fbx.TY_ULONG )
+    case Fbx.TY_INTEGER, Fbx.TY_UINTEGER   : return c.types->Builtin( Fbx.TY_UINTEGER )
+    case Fbx.TY_LONGINT, Fbx.TY_ULONGINT   : return c.types->Builtin( Fbx.TY_ULONGINT )
+    end select
+    return Fbx.TYPE_NONE
+end function
+
 private function ResolveTypeRef _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.TypeId
 
@@ -170,6 +191,23 @@ private function ResolveTypeRef _
     case Fbx.KW_WSTRING  : base_ = c.types->Builtin( Fbx.TY_WSTRING )
     case Fbx.KW_USTRING  : base_ = c.types->Builtin( Fbx.TY_USTRING )
     case Fbx.KW_ANY      : base_ = c.types->Builtin( Fbx.TY_ANY )
+    case Fbx.KW_UNSIGNED
+        '' 'unsigned <typedef>'. The parser put the typedef's name here and left the
+        '' keyword in 'op'; the type is whatever that name resolves to, made unsigned.
+        ''
+        '' If it cannot be made unsigned -- a UDT, a pointer, something not integral --
+        '' the result is left as TYPE_NONE rather than falling back to the SIGNED type.
+        '' A wrong type that compiles is worse than a type error: the parse failure this
+        '' replaces was at least visible.
+        dim as Fbx.SymbolId usid = c.syms->Lookup( scope_, sp->name )
+        if usid <> Fbx.SYMBOL_NONE then
+            c.info->SetRef( id, usid )
+            dim as Fbx.Symbol ptr us = c.syms->SymbolAt( usid )
+            if us->type_ <> Fbx.TYPE_NONE then
+                base_ = UnsignedCounterpart( c, us->type_ )
+            end if
+        end if
+
     case else
         '' A named type. Not finding it is NOT reported here: a type may come from a
         '' header this build did not parse, and drowning the output in those would
@@ -501,6 +539,31 @@ sub WalkStmt _
         end if
         BindDeclType( c, here, sp->name, t )
         WalkStmt( c, sp->b, here )
+        return
+
+    case Fbx.N_TYPEDEF
+        '' 'type myint as long'. Collect gave the symbol a NAMED type of its own, with
+        '' nothing behind it, so every 'dim as myint' resolved to nothing and lowered to
+        '' void -- silently, since an unknown type name is deliberately not reported
+        '' (it may come from a header this build did not read).
+        ''
+        '' A TYPEDEF IS TRANSPARENT. Measured from fbc: 'sub F( byval a as myint )' and
+        '' 'sub G( byval a as long )' mangle to _Z1Fi and _Z1Gi -- the same encoding, so
+        '' the alias leaves no trace in the ABI. Binding the symbol straight to the
+        '' aliased type therefore gives the right answer for type checking, for layout
+        '' and for mangling at once, rather than needing each to unwrap it.
+        '' Set DIRECTLY rather than through BindDeclType, which only fills a type that
+        '' is still TYPE_NONE. Collect has already put a placeholder named type here, so
+        '' the ordinary bind is a silent no-op -- which is exactly what it did.
+        dim as Fbx.StmtPayload ptr tsp = StmtOf( c, id )
+        dim as Fbx.TypeId aliased = ResolveTypeRef( c, tsp->a, here )
+        if (aliased <> Fbx.TYPE_NONE) andalso (tsp->name <> 0) then
+            dim as Fbx.SymbolId tsid = c.syms->LookupLocal( here, tsp->name )
+            dim as Fbx.Symbol ptr tsym = c.syms->SymbolAt( tsid )
+            if tsym <> 0 then
+                if tsym->kind = cast( ubyte, Fbx.SYM_TYPEDEF ) then tsym->type_ = aliased
+            end if
+        end if
         return
 
     case Fbx.N_FIELD

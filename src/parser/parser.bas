@@ -176,6 +176,14 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             sp.op = cast( ushort, mapped )
             sp.name = p.names->GetString( _
                 Fbx.Text.LowerAscii( Fbx.TokenKindText( mapped ) ) )
+        elseif u = Fbx.TK_IDENT then
+            '' 'unsigned cxxlongint' -- UNSIGNED before a TYPEDEF rather than a builtin
+            '' keyword. The name is carried here and 'op' is left as KW_UNSIGNED, which
+            '' is what tells Resolve to take the unsigned counterpart of whatever the
+            '' name turns out to be. No new node flag is needed: the two facts fit in
+            '' the two fields already there.
+            sp.name = cast( Fbx.InternId, Cur( p ).literal )
+            Advance( p )
         end if
     end if
 

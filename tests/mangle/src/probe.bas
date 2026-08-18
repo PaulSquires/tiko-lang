@@ -181,3 +181,17 @@ end sub
 const function W.CF( ) as long
     return 0
 end function
+
+'' A TYPEDEF IS TRANSPARENT in the ABI: 'as tdLong' must mangle exactly as 'as long'.
+'' Measured -- fbc gives _Z1Fi for both -- so the alias leaves no trace at all, and a
+'' compiler that encoded it as a named type would emit a symbol nothing links against.
+type tdLong as long
+type tdPtr as long ptr
+sub TdA overload( byval tdx as tdLong )
+end sub
+sub TdB overload( byval tdx as long )
+end sub
+sub TdC overload( byval tdx as tdPtr )
+end sub
+sub TdD overload( byval tdx as unsigned tdLong )
+end sub
