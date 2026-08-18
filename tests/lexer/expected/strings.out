@@ -1,0 +1,19 @@
+file tests/lexer/src/strings.bas, 14 tokens
+    0    1:1    KW_PRINT            'PRINT'
+    1    1:7    STRING              kind=0 <plain>
+    2    1:14   TK_COMMA            ','
+    3    1:16   STRING              kind=1 <esc\n>
+    4    1:24   TK_COMMA            ','
+    5    1:26   STRING              kind=2 <raw\n>
+    6    1:34   EOL
+    7    2:1    KW_PRINT            'PRINT'
+    8    2:7    STRING              kind=0 <embedded ""quote"">
+    9    2:27   EOL
+   10    3:1    KW_PRINT            'PRINT'
+   11    3:7    STRING              kind=0 <unterminated>
+   12    3:20   EOL
+   13    4:1    EOF
+tests/lexer/src/strings.bas(3,7): warning FBX0201: missing closing quote in string literal
+     |
+   3 | print "unterminated
+     |       ^~~~~~~~~~~~~~

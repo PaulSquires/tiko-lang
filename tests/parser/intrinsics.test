@@ -1,0 +1,9 @@
+'' Every bespoke intrinsic grammar in the registry: PRINT with a file number, USING
+'' and both separators; OPEN with FOR/ACCESS/AS/LEN; LINE INPUT; INPUT with a prompt;
+'' the file and graphics forms of GET and PUT; CLOSE and SEEK; DATA; both forms of ON;
+'' SWAP; NAME ... AS; DEFINT ranges; and the generic and graphics forms.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/intrinsics.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: FBX04
+'' GOLDEN: expected/intrinsics.out

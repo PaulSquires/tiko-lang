@@ -1,0 +1,6 @@
+'' Probe L1: '&' is a literal prefix or the concat operator, decided by the very next
+'' byte. "x" & 10 concatenates; &5 is octal. Whitespace is significant.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/lexer/src/ampersand.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/ampersand.out

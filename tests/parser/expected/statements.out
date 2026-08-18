@@ -1,0 +1,86 @@
+N_MODULE (1) <1:1>
+  N_NAMESPACE 'demo' <1:1>
+    N_CONST <2:1>
+      N_VAR_ITEM 'max' <2:7>
+        N_INT_LIT 10 radix=10 <2:13>
+    N_TYPE 'point' <3:1>
+      N_FIELD 'x' <4:13>
+        N_TYPEREF 'long' [LONG] <4:8>
+      N_FIELD 'y' <4:16>
+        N_TYPEREF 'long' [LONG] <4:8>
+      N_PROC 'norm' [FUNCTION] <5:13>
+        N_TYPEREF 'double' [DOUBLE] <5:33>
+    N_ENUM 'colour' <7:1>
+      N_ENUM_ITEM 'red' <8:5>
+        N_INT_LIT 1 radix=10 <8:11>
+      N_ENUM_ITEM 'green' <9:5>
+    N_VAR [DIM] shared <11:1>
+      N_VAR_ITEM 'total' <11:20>
+        N_TYPEREF 'long' [LONG] <11:15>
+    N_PROC 'run' [SUB] <12:1>
+      N_BLOCK (4) <12:53>
+        N_VAR [DIM] <13:5>
+          N_VAR_ITEM 'i' <13:17>
+            N_TYPEREF 'long' [LONG] <13:12>
+        N_FOR <14:5>
+          N_IDENT 'i' <14:9>
+          N_BLOCK (1) <14:30>
+            N_IF <15:9>
+              N_BLOCK (2) <15:9>
+                N_IF_BRANCH <15:9>
+                  N_BINARY = <15:20>
+                    N_BINARY MOD <15:14>
+                      N_IDENT 'i' <15:12>
+                      N_INT_LIT 2 radix=10 <15:18>
+                    N_INT_LIT 0 radix=10 <15:22>
+                  N_BLOCK (1) <15:28>
+                    N_AMBIGUOUS [+=] <16:13>
+                      N_IDENT 'total' <16:13>
+                      N_IDENT 'i' <16:22>
+                N_IF_BRANCH <17:9>
+                  N_BINARY > <17:18>
+                    N_IDENT 'i' <17:16>
+                    N_INT_LIT 5 radix=10 <17:20>
+                  N_BLOCK (1) <17:26>
+                    N_EXIT [FOR] <18:13>
+              N_BLOCK (1) <19:13>
+                N_INTRINSIC [PRINT] <20:13>
+                  N_STRING_LIT len=3 kind=0 <20:19>
+                  N_IDENT 'i' <20:26>
+          N_INT_LIT 0 radix=10 <14:13>
+          N_BINARY - <14:20>
+            N_IDENT 'n' <14:18>
+            N_INT_LIT 1 radix=10 <14:22>
+          N_INT_LIT 2 radix=10 <14:29>
+        N_DO <23:5>
+          N_BINARY < <23:20>
+            N_IDENT 'total' <23:14>
+            N_INT_LIT 100 radix=10 <23:22>
+          N_BLOCK (1) <23:25>
+            N_AMBIGUOUS [*=] <24:9>
+              N_IDENT 'total' <24:9>
+              N_INT_LIT 2 radix=10 <24:18>
+        N_SELECT <26:5>
+          N_IDENT 'total' <26:17>
+          N_BLOCK (2) <26:5>
+            N_CASE <27:9>
+              N_BLOCK (1) <27:19>
+                N_INTRINSIC [PRINT] <27:21>
+                  N_STRING_LIT len=5 kind=0 <27:27>
+              N_INT_LIT 0 radix=10 <27:14>
+              N_INT_LIT 1 radix=10 <27:17>
+            N_CASE <28:9>
+              N_BLOCK (1) <28:21>
+                N_INTRINSIC [PRINT] <28:23>
+                  N_STRING_LIT len=3 kind=0 <28:29>
+              N_CASE_RANGE <28:14>
+                N_INT_LIT 2 radix=10 <28:14>
+                N_INT_LIT 9 radix=10 <28:19>
+          N_BLOCK (1) <29:19>
+            N_INTRINSIC [PRINT] <29:21>
+              N_STRING_LIT len=3 kind=0 <29:27>
+      N_PARAM 'n' <12:10>
+        N_TYPEREF 'long' [LONG] <12:21>
+      N_PARAM 's' byref <12:27>
+        N_TYPEREF 'string' [STRING] <12:38>
+        N_STRING_LIT len=2 kind=0 <12:47>

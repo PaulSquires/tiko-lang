@@ -1,0 +1,10 @@
+'' Declaration collection: scope nesting, declaration ORDER (which destruction will
+'' later reverse), and the FreeBASIC-specific rule that enum constants land in the
+'' ENCLOSING scope rather than inside the enum.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/scopes.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: enumconst 'red'
+'' EXPECT-OUT: scope 4 type of 'point'
+'' EXPECT-NOT: FBX0600
+'' GOLDEN: expected/scopes.out

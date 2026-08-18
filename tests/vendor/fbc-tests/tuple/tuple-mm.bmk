@@ -1,0 +1,16 @@
+# TEST_MODE : MULTI_MODULE_OK
+
+# Tuple types across SEPARATELY COMPILED modules.
+#
+# A tuple is interned per module -- nothing is written down and nothing is
+# shared. Both modules independently re-derive the type from its element types,
+# and the mangled name has to come out identical or the link fails:
+#
+#     undefined reference to `TakePair(FBTUPLE2<int, int>)'
+#
+# The two modules deliberately spell the SAME tuple with DIFFERENT element
+# names, because element names must not reach the type. Nothing in the
+# single-module suite can catch either failure, which is why this is a .bmk.
+
+MAIN := tuple-mm-main.bas
+SRCS := tuple-mm-a.bas

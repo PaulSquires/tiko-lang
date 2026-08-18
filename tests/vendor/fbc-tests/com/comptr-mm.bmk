@@ -1,0 +1,17 @@
+# TEST_MODE : MULTI_MODULE_OK
+
+# ComPtr( of T ) across SEPARATELY COMPILED modules.
+#
+# Instantiations are module-private -- there is no working COMDAT on PE/COFF by
+# either route tried, so each module keeps its own copy of ComPtr( of IFake )
+# and its members. That costs size, not correctness, and this test is what
+# says so: both modules instantiate the same type, the link succeeds without a
+# duplicate-symbol error, and a reference DETACHED in one module is ATTACHED
+# and released in the other with the count intact.
+#
+# The private helpers in comptr.bi -- hAsUnk, hIidUnknown, hCanonical -- are
+# the other half of the claim. A header that defined them non-privately would
+# fail to link here, which is the reason they are private.
+
+MAIN := comptr-mm-main.bas
+SRCS := comptr-mm-b.bas

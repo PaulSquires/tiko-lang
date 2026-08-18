@@ -1,0 +1,5 @@
+'' All four accepted encodings normalise to UTF-8 and report correct byte counts.
+'' TEST: cli
+'' ARGS: --dump-source tests/source/plain.bas tests/source/utf16le.bas tests/source/utf8bom.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/encodings.out

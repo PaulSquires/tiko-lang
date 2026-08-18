@@ -1,0 +1,7 @@
+'' The Phase 3 gate in miniature: a slice of fbc's own corpus must lex with no
+'' INVALID tokens and no diagnostics. The full 2,709-file sweep is build/sweep.sh.
+'' TEST: cli
+'' ARGS: --lex-only tests/vendor/fbc-tests/compound/continue_mult.bas tests/vendor/fbc-tests/functions/array_param.bas tests/vendor/fbc-tests/const/any_const.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 invalid
+'' EXPECT-NOT: FBX

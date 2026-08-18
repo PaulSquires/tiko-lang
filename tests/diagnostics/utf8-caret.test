@@ -1,0 +1,6 @@
+'' A located diagnostic renders a gutter, the source line and a caret under the
+'' offending byte. This is the whole rendering path in one test.
+'' TEST: cli
+'' ARGS: --dump-source tests/source/latin1.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/utf8-caret.out

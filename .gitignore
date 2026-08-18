@@ -1,0 +1,15 @@
+# build products
+/bin/
+/build/obj/
+# scratch from sweeps, lint and corpus runs -- every build/ dotfile is an output
+/build/.*
+
+# stray objects from a manual fbc invocation
+*.o
+*.a
+*.exe
+
+# editor and OS noise
+*.swp
+.DS_Store
+Thumbs.db

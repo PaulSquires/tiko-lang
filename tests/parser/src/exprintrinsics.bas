@@ -1,0 +1,5 @@
+len(s)
+asc("a")
+varptr(x)
+mid(s, 1, 2)
+lbound(a)

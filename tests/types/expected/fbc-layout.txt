@@ -1,0 +1,14 @@
+byte 1 1
+ubyte 1 1
+short 2 2
+ushort 2 2
+long 4 4
+ulong 4 4
+integer 8 8
+uinteger 8 8
+longint 8 8
+ulongint 8 8
+single 4 4
+double 8 8
+boolean 1 1
+string 24 8

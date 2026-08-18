@@ -1,0 +1,35 @@
+pStdcall = @fWindows
+pStdcall = @fWindowsMs
+pStdcall = @fStdcall
+pCdecl = @fCdecl
+pDefault = @fDefault
+pCdecl = @fWindows
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+pCdecl = @fWindowsMs
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+pCdecl = @fStdcall
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+pStdcall = @fCdecl
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+p1 = p2
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+p1 = p3
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+p2 = p1
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+p2 = p3
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+p3 = p1
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer
+p3 = p2
+	Suspicious pointer assignment
+	Calling convention mismatch in function pointer

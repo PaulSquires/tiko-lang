@@ -1,0 +1,5 @@
+'' TEST: cli
+'' ARGS: --help=target
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: -target <name>
+'' EXPECT-NOT: Diagnostics:

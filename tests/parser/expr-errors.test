@@ -1,0 +1,5 @@
+'' A broken expression yields ONE diagnostic, not a cascade (docs/plan/04 section 8).
+'' TEST: cli
+'' ARGS: --parse-expr tests/parser/src/broken.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: FBX0400

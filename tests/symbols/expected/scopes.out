@@ -1,0 +1,24 @@
+scopes: 14  symbols: 18
+scope 1 global parent=0 (4)
+    const     'true'
+    const     'false'
+    const     '__function__'
+    const     '__function_nq__'
+scope 2 module parent=1 (1)
+    namespace 'demo'
+scope 3 namespace of 'demo' parent=2 (7)
+    const     'max' const
+    type      'point'
+    enum      'colour'
+    enumconst 'red'
+    enumconst 'green'
+    var       'total' shared
+    proc      'run' defined
+scope 4 type of 'point' parent=3 (3)
+    field     'x'
+    field     'y'
+    proc      'norm' declared
+scope 6 proc of 'run' parent=3 (3)
+    param     'n'
+    param     's'
+    var       'i'

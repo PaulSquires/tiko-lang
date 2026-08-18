@@ -1,0 +1,11 @@
+'' The four things that made up 71% of the corpus's unresolved references, and each
+'' one is declared by something OTHER than a 'dim': fbc predeclares TRUE, FALSE and
+'' __FUNCTION__ in the global scope (fbc calls 'dim as integer true' a DUPLICATED
+'' DEFINITION, so they are symbols and not keywords); 'this' is the implicit receiver
+'' of a member definition, never written as a parameter; and a FOR counter with an
+'' 'as' clause is a declaration rather than a use.
+'' TEST: cli
+'' ARGS: --resolve tests/symbols/src/predeclared.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 unresolved
+'' EXPECT-NOT: unresolved:

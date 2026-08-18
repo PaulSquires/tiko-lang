@@ -1,0 +1,44 @@
+=== no matching file: dynamic, every candidate listed ===
+	error 377: #foreignlib found no matching library file: NOPE dynamic "vendor/nope"
+  tried:
+	.../nope_windows_x86_64.dll.a
+	.../nope_windows_x86_64.lib
+	.../nope_windows_x86_64.dll
+	.../nope_windows.dll.a
+	.../nope_windows.lib
+	.../nope_windows.dll
+	.../nope_x86_64.dll.a
+	.../nope_x86_64.lib
+	.../nope_x86_64.dll
+	.../nope.dll.a
+	.../nope.lib
+	.../nope.dll
+
+=== no matching file: static uses a different extension set ===
+	error 377: #foreignlib found no matching library file: NOPE static "vendor/nope"
+  tried:
+	.../nope_windows_x86_64.a
+	.../nope_windows_x86_64.lib
+	.../nope_windows.a
+	.../nope_windows.lib
+	.../nope_x86_64.a
+	.../nope_x86_64.lib
+	.../nope.a
+	.../nope.lib
+
+=== kind is mandatory, never inferred ===
+	error 376: expected STATIC or DYNAMIC after the #foreignlib name, MISSINGKIND
+=== kind must be STATIC or DYNAMIC, not something else ===
+	error 376: expected STATIC or DYNAMIC after the #foreignlib name, BADKIND
+=== the name must be an identifier ===
+	error 17: Syntax error, found 'notanidentifier'
+=== a spec must be a string ===
+	error 17: Syntax error, found 'vendor'
+=== an empty spec is not a library ===
+	error 305: LIB name string is empty
+=== LIB naming a binding that was never declared ===
+	error 379: LIB names a #foreignlib that has not been declared, NEVERDECLARED
+=== rebinding a name to a different set ===
+	error 378: #foreignlib name already bound to a different library set, DUP
+=== rebinding a name to the SAME set is not an error ===
+=== declared bindings are usable, and need no file to resolve ===

@@ -1,0 +1,58 @@
+preprocessed: 57 tokens, 1 includes, 8 expansions, depth 3
+    0    1:28   EOL
+    1    2:17   EOL
+    2    3:25   EOL
+    3    7:10   EOL
+    4    8:7    EOL
+    5    1:25   EOL
+    6    2:25   EOL
+    7    3:32   EOL
+    8    4:24   EOL
+    9    5:26   EOL
+   10    6:23   EOL
+   11    7:1    KW_PRINT            'PRINT'
+   12    3:18   STRING               [macro]
+   13    7:15   TK_COMMA            ','
+   14    3:21   TK_LPAREN           '(' [macro]
+   15    3:22   TK_LPAREN           '(' [macro]
+   16    7:22   INT                  [macro]
+   17    3:24   TK_RPAREN           ')' [macro]
+   18    3:26   TK_PLUS             '+' [macro]
+   19    3:28   TK_LPAREN           '(' [macro]
+   20    7:25   INT                  [macro]
+   21    3:30   TK_RPAREN           ')' [macro]
+   22    3:31   TK_RPAREN           ')' [macro]
+   23    7:28   EOL
+   24    8:7    EOL
+   25    9:16   EOL
+   26   10:1    KW_PRINT            'PRINT'
+   27   10:7    STRING               [macro]
+   28   10:21   TK_COMMA            ','
+   29   10:23   STRING               [macro]
+   30   10:44   EOL
+   31   11:7    EOL
+   32   14:18   EOL
+   33   15:1    KW_PRINT            'PRINT'
+   34   15:7    STRING
+   35   15:21   EOL
+   36   16:7    EOL
+   37   17:1    KW_DIM              'DIM'
+   38   17:5    KW_AS               'AS'
+   39   17:8    KW_LONG             'LONG'
+   40   17:13   IDENT               'foobar' [macro]
+   41   17:30   TK_EQ               '='
+   42   17:32   INT
+   43   17:33   EOL
+   44    4:18   EOL                  [macro]
+   45   18:8    KW_PRINT            'PRINT' [macro]
+   46   18:14   STRING               [macro]
+   47    5:6    EOL                  [macro]
+   48   18:8    KW_PRINT            'PRINT' [macro]
+   49   18:14   STRING               [macro]
+   50    6:6    EOL                  [macro]
+   51   18:23   EOL
+   52   19:1    KW_PRINT            'PRINT'
+   53   19:7    INT                  [macro]
+   54   19:34   EOL
+   55   20:1    EOF
+   56    1:1    EOF

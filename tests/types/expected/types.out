@@ -1,0 +1,21 @@
+target: pointer=64 bits, wchar=2 bytes, string=24 bytes align 8
+types: 19
+   1 void                   size=  0 align= 1
+   2 byte                   size=  1 align= 1
+   3 ubyte                  size=  1 align= 1
+   4 short                  size=  2 align= 2
+   5 ushort                 size=  2 align= 2
+   6 long                   size=  4 align= 4
+   7 ulong                  size=  4 align= 4
+   8 integer                size=  8 align= 8
+   9 uinteger               size=  8 align= 8
+  10 longint                size=  8 align= 8
+  11 ulongint               size=  8 align= 8
+  12 single                 size=  4 align= 4
+  13 double                 size=  8 align= 8
+  14 boolean                size=  1 align= 1
+  15 string                 size= 24 align= 8
+  16 zstring                size=  1 align= 1
+  17 wstring                size=  2 align= 2
+  18 ustring                size= 24 align= 8
+  19 any                    size=  0 align= 1

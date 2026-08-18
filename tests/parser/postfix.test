@@ -1,0 +1,5 @@
+'' Postfix chains, tuple vs parenthesised expression, initialisers, address-of/deref.
+'' TEST: cli
+'' ARGS: --parse-expr tests/parser/src/postfix.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/postfix.out

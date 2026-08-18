@@ -1,0 +1,6 @@
+'' 32-bit is out of scope by decision, and must be a clear refusal rather than a
+'' silently ignored flag.
+'' TEST: cli
+'' ARGS: -m32 tests/source/plain.bas
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: FBX0104: 32-bit targets are not supported

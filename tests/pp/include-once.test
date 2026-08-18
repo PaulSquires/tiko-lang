@@ -1,0 +1,5 @@
+'' Two '#include once' of the same header must load it once.
+'' TEST: cli
+'' ARGS: --pp-only -i tests/pp/src tests/pp/src/main.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 1 includes

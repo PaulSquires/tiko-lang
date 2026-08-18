@@ -1,0 +1,68 @@
+file tests/lexer/src/basics.bas, 67 tokens
+    0    1:18   EOL
+    1    2:1    KW_DIM              'DIM'
+    2    2:5    KW_SHARED           'SHARED'
+    3    2:12   KW_AS               'AS'
+    4    2:15   KW_LONG             'LONG'
+    5    2:20   IDENT               'total'
+    6    2:26   TK_EQ               '='
+    7    2:28   INT                 255 radix=16 suffix=0
+    8    2:32   EOL
+    9    3:1    KW_SUB              'SUB'
+   10    3:5    IDENT               'demo'
+   11    3:9    TK_LPAREN           '('
+   12    3:11   KW_BYREF            'BYREF'
+   13    3:17   IDENT               's'
+   14    3:19   KW_AS               'AS'
+   15    3:22   KW_STRING           'STRING'
+   16    3:29   TK_EQ               '='
+   17    3:31   STRING              kind=0 <hi>
+   18    3:36   TK_RPAREN           ')'
+   19    3:37   EOL
+   20    4:48   EOL
+   21    5:5    KW_DIM              'DIM'
+   22    5:9    IDENT               'x' [suffix]
+   23    5:12   TK_EQ               '='
+   24    5:14   STRING              kind=1 <tab\there>
+   25    5:26   EOL
+   26    6:5    IDENT               'total'
+   27    6:11   TK_PLUSEQ           '+='
+   28    6:14   INT                 1 radix=10 suffix=0
+   29    6:16   EOL
+   30    6:18   KW_PRINT            'PRINT'
+   31    6:24   STRING              kind=0 <x>
+   32    6:28   TK_AMP              '&'
+   33    6:30   INT                 10 radix=10 suffix=0
+   34    6:32   TK_COMMA            ','
+   35    6:34   INT                 15 radix=8 suffix=0
+   36    6:38   TK_COMMA            ','
+   37    6:40   INT                 10 radix=2 suffix=0
+   38    6:46   TK_COMMA            ','
+   39    6:48   FLOAT               0.015 suffix=0
+   40    6:54   TK_COMMA            ','
+   41    6:56   INT                 100 radix=10 suffix=6
+   42    6:62   TK_COMMA            ','
+   43    6:64   FLOAT               0.5 suffix=0
+   44    6:66   EOL
+   45    7:5    KW_IF               'IF'
+   46    7:8    IDENT               'total'
+   47    7:14   TK_GE               '>='
+   48    7:17   INT                 3 radix=10 suffix=0
+   49    7:19   KW_ANDALSO          'ANDALSO'
+   50    7:27   IDENT               'x' [suffix]
+   51    7:30   TK_NE               '<>'
+   52    7:33   STRING              kind=0 <>
+   53    7:36   KW_THEN             'THEN'
+   54    7:41   IDENT               'total'
+   55    7:47   TK_MINUSEQ          '-='
+   56    7:50   INT                 1 radix=10 suffix=0
+   57    7:51   EOL
+   58    8:1    KW_END              'END'
+   59    8:5    KW_SUB              'SUB'
+   60    8:8    EOL
+   61    9:1    TK_QUESTION         '?'
+   62    9:3    STRING              kind=0 <done>
+   63   10:5    TK_COMMA            ','
+   64   10:7    IDENT               'total'
+   65   10:12   EOL
+   66   11:1    EOF

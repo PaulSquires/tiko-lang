@@ -1,0 +1,17 @@
+file tests/lexer/src/ampersand.bas, 16 tokens
+    0    1:1    KW_PRINT            'PRINT'
+    1    1:7    STRING              kind=0 <x>
+    2    1:11   TK_AMP              '&'
+    3    1:13   INT                 10 radix=10 suffix=0
+    4    1:15   EOL
+    5    2:1    KW_PRINT            'PRINT'
+    6    2:7    INT                 5 radix=8 suffix=0
+    7    2:9    EOL
+    8    3:1    KW_PRINT            'PRINT'
+    9    3:7    INT                 255 radix=16 suffix=0
+   10    3:11   TK_COMMA            ','
+   11    3:13   INT                 15 radix=8 suffix=0
+   12    3:17   TK_COMMA            ','
+   13    3:19   INT                 3 radix=2 suffix=0
+   14    3:23   EOL
+   15    4:1    EOF

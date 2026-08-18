@@ -1,0 +1,7 @@
+'' Every grouping here was MEASURED against fbc (docs/language/precedence.md), not
+'' taken from the manual. The plan's first draft got six of these wrong, so this
+'' golden is the guard that keeps the table honest.
+'' TEST: cli
+'' ARGS: --parse-expr tests/parser/src/precedence.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/precedence.out

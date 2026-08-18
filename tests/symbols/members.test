@@ -1,0 +1,8 @@
+'' Out-of-line MEMBER DEFINITIONS declare nothing in the enclosing scope, and REDIM
+'' re-dimensions rather than declares. Getting either wrong reported a duplicate for
+'' every constructor, destructor, qualified method and redim in the corpus -- 132 of
+'' the 272 false positives the first version produced.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/members.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: FBX0600

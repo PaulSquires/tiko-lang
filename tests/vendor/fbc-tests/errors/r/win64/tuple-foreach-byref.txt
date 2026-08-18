@@ -1,0 +1,2 @@
+=== no BYREF on the list form ===
+	error 17: Syntax error, found '('

@@ -1,0 +1,6 @@
+'' Includes with guards, object- and function-like macros, '#' stringise, '##' paste,
+'' #macro blocks, #if/#elseif with 'defined', and the token-manipulating builtins.
+'' TEST: cli
+'' ARGS: --dump-tokens=pp -i tests/pp/src tests/pp/src/main.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/expansion.out

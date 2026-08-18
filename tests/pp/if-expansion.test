@@ -1,0 +1,8 @@
+'' Function-like macros and token builtins must expand inside a '#if' condition.
+'' They did not, so '#if TWO( a, b ) = 2' silently took the FALSE branch -- a wrong
+'' answer with no diagnostic, which is the worst kind.
+'' TEST: cli
+'' ARGS: --dump-tokens=pp tests/pp/src/ifexpand.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: FBX0308
+'' GOLDEN: expected/ifexpand.out

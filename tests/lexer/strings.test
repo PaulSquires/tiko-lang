@@ -1,0 +1,7 @@
+'' Probe L3/L4: the three literal forms, '""' doubling, and an unterminated literal
+'' which fbc treats as a WARNING -- so the file must still be accepted.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/lexer/src/strings.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: FBX0201
+'' GOLDEN: expected/strings.out

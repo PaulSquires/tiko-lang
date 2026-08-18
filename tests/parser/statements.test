@@ -1,0 +1,7 @@
+'' The statement and declaration layer end to end: namespace, const, type with fields
+'' and a method, enum, dim shared, sub with parameters and defaults, for/step,
+'' if/elseif/else, do-while, select case with ranges and case else.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/statements.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/statements.out

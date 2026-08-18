@@ -1,0 +1,6 @@
+=== the element is not a tuple ===
+	error 371: Expected a tuple
+=== arity does not match the element ===
+	error 370: Tuple element count does not match
+=== the list form needs at least two names ===
+	error 367: A tuple needs at least two elements, found 'in'

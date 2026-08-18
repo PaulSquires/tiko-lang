@@ -1,0 +1,88 @@
+'' diagnostic.bas -- see diagnostic.bi
+
+#include once "diag/diagnostic.bi"
+#include once "support/text.bi"
+
+namespace Fbx
+
+dim shared as DiagInfo diagTable( 0 to DIAG_COUNT - 1 )
+dim shared as boolean diagTableReady = false
+
+sub InitDiagTable( )
+    if diagTableReady then return
+
+    diagTable(DIAG_NONE).idName = @"FBX0000"
+    diagTable(DIAG_NONE).defaultSev = SEV_NOTE
+    diagTable(DIAG_NONE).format = @""
+
+    #macro DIAG( d_id, d_sev, d_fmt )
+        diagTable(d_id).idName = @#d_id
+        diagTable(d_id).defaultSev = d_sev
+        diagTable(d_id).format = @d_fmt
+    #endmacro
+    FBX_DIAG_LIST( DIAG )
+    #undef DIAG
+
+    diagTableReady = true
+end sub
+
+function DiagInfoOf( byval id as DiagId ) as DiagInfo ptr
+    InitDiagTable( )
+    dim as boolean bad = (id < 0) orelse (id >= DIAG_COUNT)
+    if bad then return @diagTable(DIAG_NONE)
+    return @diagTable(id)
+end function
+
+function DiagIdName( byval id as DiagId ) as string
+    return *DiagInfoOf( id )->idName
+end function
+
+function DiagIdFromName( byval spelling as string ) as DiagId
+    InitDiagTable( )
+    dim as string want = ucase( trim( spelling ) )
+    for i as long = 1 to DIAG_COUNT - 1
+        if *diagTable(i).idName = want then return cast( DiagId, i )
+    next
+    return DIAG_NONE
+end function
+
+function SeverityName( byval s as Severity ) as string
+    select case s
+    case SEV_ERROR   : return "error"
+    case SEV_WARNING : return "warning"
+    case SEV_NOTE    : return "note"
+    case else        : return "remark"
+    end select
+end function
+
+function FormatDiag _
+    ( byval fmt as string, byval a0 as string, byval a1 as string, _
+      byval a2 as string ) as string
+
+    dim as string outp = ""
+    dim as long n = len( fmt )
+    dim as long i = 0
+    while i < n
+        dim as ubyte c = fmt[i]
+        dim as boolean isPlaceholder = false
+        if c = asc( "%" ) andalso (i + 1 < n) then
+            dim as ubyte d = fmt[i + 1]
+            isPlaceholder = (d >= asc( "0" )) andalso (d <= asc( "2" ))
+        end if
+
+        if isPlaceholder then
+            select case fmt[i + 1]
+            case asc( "0" ) : outp += a0
+            case asc( "1" ) : outp += a1
+            case else       : outp += a2
+            end select
+            i += 2
+        else
+            outp += chr( c )
+            i += 1
+        end if
+    wend
+    return outp
+end function
+
+end namespace

@@ -1,0 +1,7 @@
+'' The registry's whole point: LEN, ASC and ACCESS are "intrinsic" keywords but are
+'' NOT statements. Treating them as statement starters made 'x = len(s)' parse as a
+'' LEN statement.
+'' TEST: cli
+'' ARGS: --parse-expr tests/parser/src/exprintrinsics.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: FBX04

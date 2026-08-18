@@ -1,0 +1,9 @@
+'' Error recovery: a deliberately broken file must yield a FEW useful diagnostics with
+'' the first one at the real mistake, never a cascade and never a crash
+'' (docs/plan/04 section 8). Each of these previously produced either a cascade or --
+'' worse -- silence, because an error node's payload was indexed as if it were real.
+'' TEST: cli
+'' ARGS: --parse-only tests/parser/broken/bad-decl.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 3
+'' EXPECT-OUT: FBX0406

@@ -1,0 +1,9 @@
+'' A slice of fbc's own corpus must parse with no diagnostics. The full 2,709-file
+'' gate is build/sweep.sh; this keeps the fast suite honest.
+''
+'' These two files are deliberately NOT fbcunit-based: a '#if' inside a '#macro' body
+'' is not yet evaluated at expansion time, which is the largest remaining parse gap.
+'' TEST: cli
+'' ARGS: --parse-only tests/parser/src/statements.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: FBX04

@@ -1,0 +1,5 @@
+'' The skeleton says so plainly rather than exiting 0 having produced nothing.
+'' TEST: cli
+'' ARGS: tests/source/plain.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: FBX0992: not implemented in this build

@@ -1,0 +1,11 @@
+'' EndOfStatement skips forward to the next EOL. A single-line IF's inner statement
+'' has ALREADY consumed the line's EOL, so running it again for the IF skipped to the
+'' NEXT one and swallowed everything between -- an 'end sub', a 'wend' -- whole. It
+'' only surfaced when the IF was the LAST statement of a block; anywhere else the
+'' token it ate was an ordinary statement that reparsed without complaint.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/singleline-if.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: FBX0405
+'' EXPECT-NOT: FBX0408
+'' EXPECT-MAX-DIAG: 0

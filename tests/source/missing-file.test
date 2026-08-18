@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-source tests/source/nosuch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: FBX0001: cannot open source file

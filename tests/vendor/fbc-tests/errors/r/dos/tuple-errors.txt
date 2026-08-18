@@ -1,0 +1,40 @@
+=== a tuple needs at least two elements ===
+	error 367: A tuple needs at least two elements
+=== duplicated element name ===
+	error 368: Duplicated tuple element name, before 'long'
+=== ANY is not a storable element ===
+	error 369: Invalid tuple element type, before ','
+=== a fixed-length string is not a storable element ===
+	error 369: Invalid tuple element type, before ','
+=== only the FIRST bad element is reported ===
+	error 369: Invalid tuple element type, before ','
+=== a tuple is not a base class ===
+	error 14: Expected identifier, found '('
+=== unterminated element list ===
+	error 7: Expected ')'
+=== SIZEOF cannot take a tuple type ===
+	error 9: Expected expression, found 'long'
+=== TYPEOF cannot take a tuple type ===
+	error 9: Expected expression, found 'long'
+=== a tuple constant is not accepted ===
+	error 14: Expected identifier, found '('
+=== a nested tuple literal is not context-typed ===
+	error 24: Invalid data types
+=== destructuring: too FEW targets ===
+	error 370: Tuple element count does not match
+=== destructuring: too MANY targets ===
+	error 266: Too many elements
+=== destructuring a non-tuple with the tuple form ===
+	error 371: Expected a tuple
+=== destructuring a scalar ===
+	error 371: Expected a tuple
+=== var (a, b) needs at least two names ===
+	error 367: A tuple needs at least two elements, found '='
+=== var (a, b) takes identifiers, not lvalues ===
+	error 7: Expected ')', found '('
+=== var (a, b) arity must match ===
+	error 370: Tuple element count does not match
+=== ordering operators are not defined on tuples ===
+	error 20: Type mismatch, found ')'
+=== two DIFFERENT tuple types do not compare ===
+	error 20: Type mismatch, found ')'

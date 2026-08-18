@@ -1,0 +1,89 @@
+--- expression  1
+N_BINARY ^ <1:7>
+  N_BINARY ^ <1:3>
+    N_INT_LIT 2 radix=10 <1:1>
+    N_INT_LIT 3 radix=10 <1:5>
+  N_INT_LIT 2 radix=10 <1:9>
+--- expression  2
+N_BINARY + <2:9>
+  N_BINARY SHL <2:3>
+    N_INT_LIT 1 radix=10 <2:1>
+    N_INT_LIT 2 radix=10 <2:7>
+  N_INT_LIT 1 radix=10 <2:11>
+--- expression  3
+N_BINARY ORELSE <3:13>
+  N_BINARY ANDALSO <3:3>
+    N_INT_LIT 0 radix=10 <3:1>
+    N_INT_LIT 1 radix=10 <3:11>
+  N_INT_LIT 1 radix=10 <3:20>
+--- expression  4
+N_BINARY \ <4:3>
+  N_INT_LIT 8 radix=10 <4:1>
+  N_BINARY * <4:7>
+    N_INT_LIT 4 radix=10 <4:5>
+    N_INT_LIT 2 radix=10 <4:9>
+--- expression  5
+N_BINARY MOD <5:7>
+  N_BINARY * <5:3>
+    N_INT_LIT 2 radix=10 <5:1>
+    N_INT_LIT 3 radix=10 <5:5>
+  N_INT_LIT 4 radix=10 <5:11>
+--- expression  6
+N_BINARY & <6:5>
+  N_STRING_LIT len=1 kind=0 <6:1>
+  N_BINARY + <6:9>
+    N_INT_LIT 1 radix=10 <6:7>
+    N_INT_LIT 2 radix=10 <6:11>
+--- expression  7
+N_BINARY = <7:11>
+  N_BINARY & <7:5>
+    N_STRING_LIT len=1 kind=0 <7:1>
+    N_STRING_LIT len=1 kind=0 <7:7>
+  N_STRING_LIT len=2 kind=0 <7:13>
+--- expression  8
+N_UNARY NOT <8:1>
+  N_BINARY = <8:7>
+    N_INT_LIT 1 radix=10 <8:5>
+    N_INT_LIT 0 radix=10 <8:9>
+--- expression  9
+N_BINARY AND <9:7>
+  N_UNARY NOT <9:1>
+    N_INT_LIT 0 radix=10 <9:5>
+  N_INT_LIT 3 radix=10 <9:11>
+--- expression  10
+N_BINARY OR <10:3>
+  N_INT_LIT 1 radix=10 <10:1>
+  N_BINARY AND <10:8>
+    N_INT_LIT 2 radix=10 <10:6>
+    N_INT_LIT 0 radix=10 <10:12>
+--- expression  11
+N_BINARY XOR <11:10>
+  N_BINARY OR <11:4>
+    N_INT_LIT 12 radix=10 <11:1>
+    N_INT_LIT 10 radix=10 <11:7>
+  N_INT_LIT 6 radix=10 <11:14>
+--- expression  12
+N_BINARY IMP <12:11>
+  N_BINARY EQV <12:4>
+    N_INT_LIT 12 radix=10 <12:1>
+    N_INT_LIT 10 radix=10 <12:8>
+  N_INT_LIT 6 radix=10 <12:15>
+--- expression  13
+N_UNARY - <13:1>
+  N_BINARY ^ <13:4>
+    N_INT_LIT 2 radix=10 <13:2>
+    N_INT_LIT 2 radix=10 <13:6>
+--- expression  14
+N_BINARY AND <14:7>
+  N_BINARY = <14:3>
+    N_INT_LIT 2 radix=10 <14:1>
+    N_INT_LIT 2 radix=10 <14:5>
+  N_INT_LIT 4 radix=10 <14:11>
+--- expression  15
+N_BINARY = <15:7>
+  N_BINARY < <15:3>
+    N_INT_LIT 1 radix=10 <15:1>
+    N_INT_LIT 2 radix=10 <15:5>
+  N_UNARY - <15:9>
+    N_INT_LIT 1 radix=10 <15:10>
+nodes:  73

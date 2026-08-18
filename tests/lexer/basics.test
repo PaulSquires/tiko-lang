@@ -1,0 +1,6 @@
+'' Every lexer feature in one file: comments (line, block, nested), continuations,
+'' the ':' separator, identifier folding and suffixes, all literal forms.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/lexer/src/basics.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/basics.out

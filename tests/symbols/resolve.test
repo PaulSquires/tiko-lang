@@ -1,0 +1,15 @@
+'' Name resolution: references bound to symbols, type references turned into TypeIds,
+'' and the parser's deliberately ambiguous call-or-assign node decided.
+''
+'' The interesting row is 'Add = sum' INSIDE function Add: that is BASIC's result
+'' assignment, not an assignment to a variable and not a comparison. The parser cannot
+'' know which; the resolver can, because it knows the enclosing procedure.
+'' TEST: cli
+'' ARGS: --resolve tests/symbols/src/resolve.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 unresolved
+'' EXPECT-OUT: -> function-result
+'' EXPECT-OUT: -> assign
+'' EXPECT-OUT: -> call
+'' EXPECT-OUT: -> long ptr
+'' GOLDEN: expected/resolve.out

@@ -1,0 +1,17 @@
+'' The builtin layout table, checked against fbc.
+''
+'' expected/fbc-layout.txt is DERIVED by tools/gen/layout-truth.sh, which compiles a
+'' generated program with fbc and reads back sizeof() and a measured field offset.
+'' The golden below is fbx's own --dump-types; the two are compared by
+'' tools/gen/check-layout.sh. A diff here is a compatibility event.
+''
+'' These are the numbers a wrong assumption would silently corrupt: 'integer' is
+'' POINTER-SIZED (8) while 'long' is always 4, and a var-len string is a 24-byte
+'' descriptor, not a pointer.
+'' TEST: cli
+'' ARGS: --dump-types tests/lexer/src/basics.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: integer                size=  8 align= 8
+'' EXPECT-OUT: long                   size=  4 align= 4
+'' EXPECT-OUT: string                 size= 24 align= 8
+'' GOLDEN: expected/types.out

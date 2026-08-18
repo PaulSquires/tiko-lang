@@ -1,0 +1,9 @@
+'' 'sub F cdecl( ... )' puts the calling convention between the name and the '('.
+'' Unconsumed, ParseParamList saw no '(' and the trailing-modifier loop ate the whole
+'' parameter list, so every parameter of every cdecl procedure in every header went
+'' undeclared -- silently, with no diagnostic.
+'' TEST: cli
+'' ARGS: --resolve tests/parser/src/callconv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 unresolved
+'' EXPECT-NOT: unresolved:

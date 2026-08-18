@@ -1,0 +1,4 @@
+loaded  3 file(s)
+  [1] tests/source/plain.bas bytes=45 lines=3 encoding=utf-8 hash=8CE459F0
+  [2] tests/source/utf16le.bas bytes=35 lines=2 encoding=utf-16le hash=E3C3B4DD
+  [3] tests/source/utf8bom.bas bytes=27 lines=1 encoding=utf-8 (bom) hash=34ED071C

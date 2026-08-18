@@ -1,0 +1,6 @@
+loaded  1 file(s)
+  [1] tests/source/latin1.bas bytes=13 lines=1 encoding=bytes hash=86DCB357
+tests/source/latin1.bas(1,11): warning FBX0003: source file 'tests/source/latin1.bas' is not valid UTF-8; bytes preserved verbatim
+     |
+   1 | print "caf�"
+     |           ^

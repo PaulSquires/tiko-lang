@@ -1,0 +1,7 @@
+'' A missing 'end if' must be reported once, at the point the block could not be
+'' closed -- not once per following statement.
+'' TEST: cli
+'' ARGS: --parse-only tests/parser/broken/missing-end.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 3
+'' EXPECT-OUT: FBX0405

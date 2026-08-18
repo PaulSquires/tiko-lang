@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: -target vax tests/source/plain.bas
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: FBX0103: unknown target 'vax'
