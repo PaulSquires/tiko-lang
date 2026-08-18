@@ -81,12 +81,27 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     end if
     Advance( e )
 
+    '' A '?' directly after the name marks the macro as callable WITHOUT parentheses.
+    '' It must be consumed before the parameter list, or the '(' that follows is never
+    '' seen and the macro is defined as object-like with its parameters left as body
+    '' tokens -- which is what happened: 'NAME x' failed and 'NAME( x )' expanded without
+    '' substituting anything.
+    dim as boolean optParens = false
+    dim as Token qt
+    if PeekOnLine( e, qt ) then
+        if Tk( qt ) = TK_QUESTION then
+            optParens = true
+            Advance( e )
+        end if
+    end if
+
     dim as PpMacro ptr m = PpFindOrAddMacro( e, id )
     if m->isDefined then Report( e, FBX0305, at, e.names->Spelling( id ) )
 
     m->isDefined = true
     m->isFunc = false
     m->isVariadic = false
+    m->optParens = optParens
     m->builtin = PPB_NONE
     m->loc = at
     m->params.Clear( )
@@ -161,14 +176,20 @@ end type
 '' Read '( a, b )' from the input, honouring nesting and string literals. Returns
 '' false when the invocation is unterminated, which is an error, not a silent stop.
 private function PpReadArgs _
-    ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList ) as boolean
+    ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
+      byval bare as boolean = false ) as boolean
 
+    '' 'bare' is the parenthesis-less form a '#macro NAME?( a )' allows: the arguments
+    '' run to the END OF LINE instead of to a closing paren, and a comma separates them
+    '' at nesting depth zero rather than one.
     dim as Token t
-    if PeekTok( e, t ) = false then return false
-    if Tk( t ) <> TK_LPAREN then return false
-    Advance( e )
+    if bare = false then
+        if PeekTok( e, t ) = false then return false
+        if Tk( t ) <> TK_LPAREN then return false
+        Advance( e )
+    end if
 
-    dim as long depth = 1
+    dim as long depth = iif( bare, 0, 1 )
     dim as long first = 0
     dim as long count = 0
     dim as boolean started = false
@@ -181,9 +202,13 @@ private function PpReadArgs _
 
         dim as TokenKind k = Tk( t )
         if k = TK_EOF then
+            '' Running out of tokens is only an error for the parenthesised form; the
+            '' bare form is simply finished.
+            if bare then exit do
             Report( e, FBX0307, m->loc, e.names->Spelling( m->name ) )
             return false
         end if
+        if bare andalso (k = TK_EOL) then exit do
 
         if k = TK_LPAREN then
             depth += 1
@@ -193,7 +218,7 @@ private function PpReadArgs _
                 Advance( e )
                 exit do
             end if
-        elseif (k = TK_COMMA) andalso (depth = 1) then
+        elseif (k = TK_COMMA) andalso (depth = iif( bare, 0, 1 )) then
             '' A variadic macro's last parameter swallows the remaining commas.
             dim as boolean lastIsVariadic = m->isVariadic andalso _
                                             (args.firsts.Count >= m->params.Count)
@@ -373,13 +398,20 @@ private function PpExpand _
 
         dim as Token nxt
         dim as boolean haveParen = PeekTok( e, nxt ) andalso (Tk( nxt ) = TK_LPAREN)
+        '' '#macro NAME?( a )' may be written without parentheses -- 'NAME x'. Only with
+        '' the '?': a plain function-like macro used bare is not an invocation at all,
+        '' and fbc reports the name as an undeclared variable rather than expanding it.
+        dim as boolean bare = false
         if haveParen = false then
-            f->pos = save
-            return false
+            if m->optParens = false then
+                f->pos = save
+                return false
+            end if
+            bare = true
         end if
 
         dim as ArgList args
-        if PpReadArgs( e, m, args ) = false then return true
+        if PpReadArgs( e, m, args, bare ) = false then return true
 
         dim as long want = m->params.Count
         dim as long got = args.firsts.Count

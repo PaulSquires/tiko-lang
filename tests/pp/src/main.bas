@@ -26,3 +26,12 @@ print __FB_ARG_COUNT__( a, b, c )
 #endmacro
 VTAIL( vt1 )
 VTAIL( vt2, 9 )
+
+'' '#macro NAME?( a )' is callable WITH OR WITHOUT parentheses. The '?' is the opt-in: a
+'' plain function-like macro used bare is not an invocation at all, and fbc reports the
+'' name as an undeclared variable rather than expanding it.
+#macro OPTP?( a )
+    dim as long a
+#endmacro
+OPTP opt_bare
+OPTP( opt_paren )

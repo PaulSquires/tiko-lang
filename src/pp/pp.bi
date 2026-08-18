@@ -55,6 +55,10 @@ namespace Fbx
         as InternId  name
         as boolean   isFunc          '' NAME( a, b ) rather than plain NAME
         as boolean   isVariadic      '' last parameter is '...'
+        '' '#macro NAME?( a )' -- callable WITH OR WITHOUT parentheses, so 'NAME x' is an
+        '' invocation. Opt-in: a plain '#macro NAME( a )' called as 'NAME x' is not a
+        '' macro use at all, and fbc reports NAME as an undeclared variable.
+        as boolean   optParens
         as boolean   isDefined       '' cleared by #undef rather than removed
         as ubyte     builtin         '' PpBuiltin; 0 for an ordinary macro
         as IdVec     params
