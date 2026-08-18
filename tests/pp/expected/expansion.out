@@ -1,4 +1,4 @@
-preprocessed: 57 tokens, 1 includes, 8 expansions, depth 3
+preprocessed: 76 tokens, 1 includes, 10 expansions, depth 3
     0    1:28   EOL
     1    2:17   EOL
     2    3:25   EOL
@@ -54,5 +54,24 @@ preprocessed: 57 tokens, 1 includes, 8 expansions, depth 3
    52   19:1    KW_PRINT            'PRINT'
    53   19:7    INT                  [macro]
    54   19:34   EOL
-   55   20:1    EOF
-   56    1:1    EOF
+   55   20:1    EOL
+   56   21:89   EOL
+   57   22:91   EOL
+   58   23:89   EOL
+   59   26:10   EOL
+   60   24:24   EOL                  [macro]
+   61   25:5    KW_DIM              'DIM' [macro]
+   62   25:9    KW_AS               'AS' [macro]
+   63   25:12   KW_LONG             'LONG' [macro]
+   64   27:8    IDENT               'vt1' [macro]
+   65   25:18   EOL                  [macro]
+   66   27:13   EOL
+   67   24:24   EOL                  [macro]
+   68   25:5    KW_DIM              'DIM' [macro]
+   69   25:9    KW_AS               'AS' [macro]
+   70   25:12   KW_LONG             'LONG' [macro]
+   71   28:8    IDENT               'vt2' [macro]
+   72   25:18   EOL                  [macro]
+   73   28:16   EOL
+   74   29:1    EOF
+   75    1:1    EOF

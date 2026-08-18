@@ -383,7 +383,13 @@ private function PpExpand _
 
         dim as long want = m->params.Count
         dim as long got = args.firsts.Count
-        dim as boolean countOk = (got = want) orelse (m->isVariadic andalso (got >= want))
+        '' A VARIADIC TAIL MAY BE EMPTY: '#macro m( a, c... )' invoked as 'm( 1 )' is
+        '' legal, and the test for it -- '#if #c = ""' -- is the usual way a macro asks
+        '' whether it got any. Requiring got >= want made the empty case, which is the
+        '' one worth testing for, the one that could not be written.
+        dim as long need = want
+        if m->isVariadic then need = want - 1
+        dim as boolean countOk = (got = want) orelse (m->isVariadic andalso (got >= need))
         if countOk = false then
             Report( e, FBX0306, use.loc, e.names->Spelling( m->name ), str( want ) )
             return true
