@@ -90,9 +90,20 @@ end function
 '' This exists because LocalFor matches by NAME WITHIN THE CURRENT FUNCTION, so a shared
 '' variable used by two procedures got two unrelated frame slots, and a SUB assigning it
 '' updated nothing anyone else could see. Storage has to be per MODULE, not per frame.
+declare function UniqueGlobalName _
+    ( byref c as Ctx, byval nm as Fbx.InternId ) as Fbx.InternId
+
 function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return -1
+
+    '' Keyed by SYMBOL, not by spelling. Two statics called 'n' in sibling scopes of one
+    '' procedure are two declarations and therefore two symbols; keying on the name
+    '' merged them into a single variable that both scopes incremented.
+    for i as long = 0 to c.gvarSym.Count - 1
+        if c.gvarSym[i] = cast( ulong, sid ) then return c.gvarSlot[i]
+    next
+
     dim as Fbx.InternId nm = s->name
     if IsStaticLocal( c, sid ) then nm = StaticName( c, sid )
     dim as long sz
@@ -102,7 +113,37 @@ function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
     else
         sz = c.types->Layout( s->type_ ).size
     end if
-    return c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
+    '' The storage NAME must still be unique, because it is what a linker and a golden
+    '' diff see. A collision here means two distinct symbols wanted the same spelling,
+    '' so the later one is suffixed rather than silently sharing.
+    nm = UniqueGlobalName( c, nm )
+
+    dim as long g = c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
+    c.gvarSym.Push( cast( ulong, sid ) )
+    c.gvarSlot.Push( g )
+    return g
+end function
+
+'' A module-global name not already taken by a DIFFERENT symbol.
+private function UniqueGlobalName _
+    ( byref c as Ctx, byval nm as Fbx.InternId ) as Fbx.InternId
+
+    dim as boolean taken = false
+    for i as long = 0 to c.m->globals.Count - 1
+        if c.m->globals[i].isVar andalso (c.m->globals[i].name = nm) then taken = true
+    next
+    if taken = false then return nm
+
+    dim as string base_ = c.names->Spelling( nm )
+    for n as long = 2 to 1000
+        dim as Fbx.InternId cand = c.names->GetString( base_ & "$" & str( n ) )
+        dim as boolean used = false
+        for i as long = 0 to c.m->globals.Count - 1
+            if c.m->globals[i].isVar andalso (c.m->globals[i].name = cand) then used = true
+        next
+        if used = false then return cand
+    next
+    return nm
 end function
 
 '' The ADDRESS of a variable, wherever its storage lives.

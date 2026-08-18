@@ -48,6 +48,12 @@ type Ctx
     '' scopes they are leaving.
     as FB.Array( of long )  loopScope
 
+    '' DIM SHARED / STATIC storage, keyed by SYMBOL rather than by name. Two statics
+    '' called 'n' in sibling scopes are two declarations and so two symbols; keying on
+    '' the spelling merged them into one variable.
+    as FB.Array( of ulong ) gvarSym
+    as FB.Array( of long )  gvarSlot
+
     '' Labels, three parallel arrays. The DEPTH is filled by a pre-scan before the body
     '' is lowered, because a forward 'goto' has to know how many scopes it leaves before
     '' the label itself has been reached.

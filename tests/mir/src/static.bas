@@ -16,3 +16,18 @@ end sub
 
 P( )
 Q( )
+
+'' Two statics of the same name in SIBLING SCOPES of one procedure. fbc names both N$2
+'' and separates them by emitting each scope as a nested C block; MIR has no such
+'' nesting, so keying storage by spelling merged them into one variable that both scopes
+'' incremented.
+sub Siblings( )
+    scope
+        static as long k
+        k = k + 1
+    end scope
+    scope
+        static as long k
+        k = k + 2
+    end scope
+end sub

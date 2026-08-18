@@ -27,3 +27,10 @@
 '' EXPECT-NOT: fb_StrDelete(@@P$s
 '' EXPECT-NOT: <NO TERMINATOR>
 '' GOLDEN: expected/static.out
+
+'' Storage is keyed by SYMBOL, not by spelling: two declarations are two symbols even
+'' when they share a name, so these must be two variables.
+'' EXPECT-OUT: global var i32 SIBLINGS$k
+'' EXPECT-OUT: global var i32 SIBLINGS$k$2
+'' EXPECT-OUT: store @@SIBLINGS$k,
+'' EXPECT-OUT: store @@SIBLINGS$k$2,
