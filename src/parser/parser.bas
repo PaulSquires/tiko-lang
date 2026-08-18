@@ -700,6 +700,11 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' '.field = 1' inside a WITH. It is the same call-or-assign ambiguity as
             '' a bare name, just with the base left to the enclosing WITH.
             n = ParseAmbiguous( p )
+        elseif k = Fbx.TK_LPAREN then
+            '' A PARENTHESISED assignment target: '(a) = 5', '(*p) = 5', '(arr(1)) = 5'.
+            '' The parentheses are permitted around an lvalue and change nothing, so the
+            '' statement is the same call-or-assign ambiguity as a bare name.
+            n = ParseAmbiguous( p )
         elseif k = Fbx.TK_QUESTION then
             n = ParseIntrinsic( p )       '' '?' is PRINT
         else

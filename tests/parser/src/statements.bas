@@ -39,3 +39,21 @@ sub Bare( )
 end sub
 Bare
 theLabel:
+
+'' UNNAMED parameters, which is how a procedure POINTER type is normally written -- the
+'' names would be meaningless there. fbc accepts these in a DECLARE and in a type, and
+'' rejects them in a definition (error 59), which is a semantic rule rather than a
+'' syntactic one.
+dim pf1 as sub( byref as long )
+dim pf2 as sub( as long )
+dim pf3 as sub( byval as long, as double )
+dim pf4 as function( as long ) as long
+
+'' A PARENTHESISED assignment target. The parentheses are permitted around an lvalue and
+'' change nothing, so this is the same call-or-assign ambiguity as a bare name -- but a
+'' statement starting with '(' was not reaching that path at all.
+dim as long pv, parr(1 to 2)
+dim pp as long ptr = @pv
+(pv) = 5
+(*pp) = 6
+(parr(1)) = 7

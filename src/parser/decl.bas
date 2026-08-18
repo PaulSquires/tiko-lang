@@ -191,7 +191,18 @@ private function ParseParam( byref p as Fbx.ParserState ) as Fbx.NodeId
         return v
     end if
 
-    if DeclName( p, sp.name ) = false then return ErrorNode( p, Fbx.FBX0406 )
+    '' An UNNAMED parameter -- 'sub( byref as long )' -- which is how a procedure
+    '' POINTER type is normally written, the names being meaningless there. The name is
+    '' simply absent and 'as' follows straight away.
+    ''
+    '' Measured: fbc accepts this in a DECLARE and in a procedure type, but REJECTS it
+    '' in a definition ("error 59: Illegal specification, at parameter 1"). That is a
+    '' semantic rule rather than a syntactic one -- the shape parses either way -- so it
+    '' is accepted here and the diagnostic is owed from the checker, which does not
+    '' emit it yet.
+    if Peek( p ) <> Fbx.KW_AS then
+        if DeclName( p, sp.name ) = false then return ErrorNode( p, Fbx.FBX0406 )
+    end if
 
     if Peek( p ) = Fbx.TK_LPAREN then
         Advance( p )

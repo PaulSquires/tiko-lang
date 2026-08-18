@@ -1,4 +1,4 @@
-N_MODULE (4) <1:1>
+N_MODULE (13) <1:1>
   N_NAMESPACE 'demo' <1:1>
     N_CONST <2:1>
       N_VAR_ITEM 'max' <2:7>
@@ -90,3 +90,56 @@ N_MODULE (4) <1:1>
   N_AMBIGUOUS <40:1>
     N_IDENT 'bare' <40:1>
   N_LABEL 'thelabel' <41:1>
+  N_VAR [DIM] <47:1>
+    N_VAR_ITEM 'pf1' <47:5>
+      N_TYPEREF [SUB] <47:12>
+        N_PARAM byref <47:17>
+          N_TYPEREF 'long' [LONG] <47:26>
+  N_VAR [DIM] <48:1>
+    N_VAR_ITEM 'pf2' <48:5>
+      N_TYPEREF [SUB] <48:12>
+        N_PARAM <48:17>
+          N_TYPEREF 'long' [LONG] <48:20>
+  N_VAR [DIM] <49:1>
+    N_VAR_ITEM 'pf3' <49:5>
+      N_TYPEREF [SUB] <49:12>
+        N_PARAM <49:17>
+          N_TYPEREF 'long' [LONG] <49:26>
+        N_PARAM <49:32>
+          N_TYPEREF 'double' [DOUBLE] <49:35>
+  N_VAR [DIM] <50:1>
+    N_VAR_ITEM 'pf4' <50:5>
+      N_TYPEREF [FUNCTION] <50:12>
+        N_TYPEREF 'long' [LONG] <50:35>
+        N_PARAM <50:22>
+          N_TYPEREF 'long' [LONG] <50:25>
+  N_VAR [DIM] <55:1>
+    N_VAR_ITEM 'pv' <55:13>
+      N_TYPEREF 'long' [LONG] <55:8>
+    N_VAR_ITEM 'parr' array <55:17>
+      N_TYPEREF 'long' [LONG] <55:8>
+      N_BLOCK (1) <55:17>
+        N_CASE_RANGE <55:27>
+          N_INT_LIT 1 radix=10 <55:22>
+          N_INT_LIT 2 radix=10 <55:27>
+  N_VAR [DIM] <56:1>
+    N_VAR_ITEM 'pp' <56:5>
+      N_TYPEREF ptr <56:11>
+        N_TYPEREF 'long' [LONG] <56:11>
+      N_ADDROF @ <56:22>
+        N_IDENT 'pv' <56:23>
+  N_AMBIGUOUS [=] <57:1>
+    N_PAREN <57:1>
+      N_IDENT 'pv' <57:2>
+    N_INT_LIT 5 radix=10 <57:8>
+  N_AMBIGUOUS [=] <58:1>
+    N_PAREN <58:1>
+      N_DEREF * <58:2>
+        N_IDENT 'pp' <58:3>
+    N_INT_LIT 6 radix=10 <58:9>
+  N_AMBIGUOUS [=] <59:1>
+    N_PAREN <59:1>
+      N_CALL <59:6>
+        N_IDENT 'parr' <59:2>
+        N_INT_LIT 1 radix=10 <59:7>
+    N_INT_LIT 7 radix=10 <59:13>
