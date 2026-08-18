@@ -35,6 +35,16 @@ namespace Fbx.Mir
         '' the label. Always zero unless ScanLabels has drifted from the lowering.
         as long labelDepthMismatch
         as long scopeImbalance '' scopes opened and not closed -- always an ICE
+
+        '' WHERE the unlowered statements are, by node kind, and for N_INTRINSIC by the
+        '' keyword -- PRINT, INPUT, OPEN and the rest share one node kind, so a count
+        '' against N_INTRINSIC alone says nothing about which to implement next.
+        ''
+        '' A single total invites guessing at what to do next; this makes the answer
+        '' something to read off rather than argue about.
+        as FB.Array( of long ) skippedKind
+        as FB.Array( of ulong ) skippedIntrOp
+        as FB.Array( of long ) skippedIntrN
     end type
 
     declare function Lower _

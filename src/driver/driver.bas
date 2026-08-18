@@ -240,6 +240,20 @@ function Run( byref args as Fbx.StrVec ) as long
                             " LABEL DEPTH MISMATCH"
                 end if
                 print sum_
+                '' The breakdown of what did NOT lower, printed only when there is
+                '' something to say. One 'skipped' total invites guessing at the next
+                '' thing to implement; this is read off instead.
+                for i as long = 0 to lst.skippedKind.Count - 1
+                    if lst.skippedKind[i] = 0 then continue for
+                    print "  unlowered " & _
+                          Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
+                          str( lst.skippedKind[i] )
+                next
+                for i as long = 0 to lst.skippedIntrOp.Count - 1
+                    print "  unlowered intrinsic " & _
+                          Fbx.TokenKindName( cast( Fbx.TokenKind, lst.skippedIntrOp[i] ) ) & _
+                          " " & str( lst.skippedIntrN[i] )
+                next
             elseif ctx.options.checkOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _

@@ -797,6 +797,30 @@ private sub LowerAssign _
     Emit( c, ins )
 end sub
 
+
+'' Records an unlowered STATEMENT, by kind, so the next thing to implement is something
+'' to read off rather than guess at.
+private sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )
+    c.st->skipped += 1
+    dim as long k = cast( long, c.ast->Kind( id ) )
+    while c.st->skippedKind.Count <= k
+        c.st->skippedKind.Push( 0 )
+    wend
+    c.st->skippedKind[k] += 1
+
+    if c.ast->Kind( id ) <> Fbx.N_INTRINSIC then return
+    '' Every intrinsic shares one node kind, so the keyword is counted separately.
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    for i as long = 0 to c.st->skippedIntrOp.Count - 1
+        if c.st->skippedIntrOp[i] = cast( ulong, sp->op ) then
+            c.st->skippedIntrN[i] += 1
+            return
+        end if
+    next
+    c.st->skippedIntrOp.Push( cast( ulong, sp->op ) )
+    c.st->skippedIntrN.Push( 1 )
+end sub
+
 sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     if id = Fbx.NODE_NONE then return
     if c.curBlock < 0 then return
@@ -977,7 +1001,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         dim as Fbx.StmtPayload ptr ip = StmtOf( c, id )
         dim as boolean handled = false
         if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
-        if handled = false then c.st->skipped += 1
+        if handled = false then SkipStmt( c, id )
 
     case Fbx.N_SELECT
         LowerSelect( c, id )
@@ -1024,7 +1048,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         '' Declarations: handled by the module walk, not inside a body.
 
     case else
-        c.st->skipped += 1
+        SkipStmt( c, id )
     end select
 end sub
 
