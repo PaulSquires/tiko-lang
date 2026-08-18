@@ -191,7 +191,7 @@ function Run( byref args as Fbx.StrVec ) as long
                 dim as Fbx.Check.Stats cst
                 Fbx.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
-                print Fbx.Check.Dump( ast, ctx.sources, ctx.types, info, cst );
+                print Fbx.Check.Dump( ast, ctx.sources, ctx.types, ctx.names, info, cst );
             elseif ctx.options.dumpMangle then
                 '' Mangling needs the parameter TYPES, so it runs after Resolve --
                 '' but the reference-binding report is not wanted here.

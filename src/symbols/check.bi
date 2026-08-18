@@ -74,6 +74,20 @@ namespace Fbx.Check
         ASSIGN_REJECT
     end enum
 
+    '' A folded constant. 'known' is false for anything this pass cannot evaluate --
+    '' which is not an error, only an absence.
+    type ConstVal
+        as boolean  known
+        as longint  value
+    end type
+
+    '' Fold an expression to an integer constant, matching fbc bit for bit. The
+    '' source manager is needed for LEN and ASC, whose argument is a string literal
+    '' recorded as a span rather than as text.
+    declare function ConstOf _
+        ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
+          byref src as Fbx.SourceManager, byref names as Fbx.Interner ) as ConstVal
+
     declare function AssignableTo _
         ( byval src as Fbx.TypeId, byval dst as Fbx.TypeId, _
           byref types as Fbx.TypeContext ) as AssignKind
@@ -94,8 +108,8 @@ namespace Fbx.Check
     '' fbc's for the same 3,920 combinations.
     declare function Dump _
         ( byref ast as Fbx.AstArena, byref src as Fbx.SourceManager, _
-          byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo, _
-          byref st as Stats ) as string
+          byref types as Fbx.TypeContext, byref names as Fbx.Interner, _
+          byref info as Fbx.SemanticInfo, byref st as Stats ) as string
 
 end namespace
 

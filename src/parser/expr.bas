@@ -188,6 +188,14 @@ end function
 function MakeIdent( byref p as Fbx.ParserState, byref t as Fbx.Token ) as Fbx.NodeId
     dim as Fbx.IdentPayload ip
     ip.name = cast( Fbx.InternId, t.literal )
+    '' A KEYWORD token carries no interned spelling in 'literal', so an identifier
+    '' built from one -- 'abs( x )', 'len( s )', a member called '.type' -- had an
+    '' EMPTY name. It showed in the AST dump as N_IDENT '' and made every such callee
+    '' unrecognisable to anything that matches on the name.
+    if Fbx.IsKeywordKind( cast( Fbx.TokenKind, t.kind ) ) then
+        ip.name = p.names->GetString( _
+            Fbx.Text.LowerAscii( Fbx.TokenKindText( cast( Fbx.TokenKind, t.kind ) ) ) )
+    end if
     dim as Fbx.DecodedLoc d = p.src->Decode( t.loc )
     ip.spellOffset = d.offset
     ip.spellLength = cast( long, t.length )

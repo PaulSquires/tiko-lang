@@ -1,0 +1,23 @@
+'' Constant folding has to be EXACT -- close is simply wrong, and every way to be
+'' wrong here is quiet. The values came out of fbc one bit at a time through
+'' '#assert', because '#print' does not fold: it echoes its tokens.
+'' TEST: cli
+'' ARGS: --check tests/types/src/constfold.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: const 2 1
+'' EXPECT-OUT: const 3 -3
+'' EXPECT-OUT: const 4 -1
+'' EXPECT-OUT: const 5 1
+'' EXPECT-OUT: const 6 -1
+'' EXPECT-OUT: const 7 4294967296
+'' EXPECT-OUT: const 8 -1
+'' EXPECT-OUT: const 9 -1
+'' EXPECT-OUT: const 10 -4
+'' EXPECT-OUT: const 11 2
+'' EXPECT-OUT: const 12 4
+'' EXPECT-OUT: const 13 -3
+'' EXPECT-OUT: const 14 -2
+'' EXPECT-OUT: const 15 -2147483648
+'' EXPECT-OUT: const 16 5
+'' EXPECT-OUT: const 17 65
+'' EXPECT-OUT: const 18 20

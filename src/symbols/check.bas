@@ -321,6 +321,243 @@ function ConversionCost _
 end function
 
 
+
+'' -------------------------------------------------------- constant evaluation
+
+'' Everything below matches fbc exactly, and most of it would be wrong if guessed:
+''
+''   - A true comparison is -1, not 1.
+''   - '\' truncates TOWARD ZERO, so -7 \ 2 is -3, and MOD takes the sign of the
+''     DIVIDEND: -7 mod 2 is -1 while 7 mod -2 is 1.
+''   - SHR on a signed value is ARITHMETIC: -1 shr 1 stays -1.
+''   - Shifts are done at 64 bits: 1 shl 32 is 4294967296, not 0.
+''   - NOT is a bitwise complement, so 'not 0' is -1.
+
+private function CV_( byval v as longint ) as ConstVal
+    dim as ConstVal r
+    r.known = true
+    r.value = v
+    return r
+end function
+
+private function CVNone_( ) as ConstVal
+    dim as ConstVal r
+    return r
+end function
+
+'' A FreeBASIC truth value is -1, never 1.
+private function CVBool_( byval b as boolean ) as ConstVal
+    return CV_( iif( b, cast( longint, -1 ), cast( longint, 0 ) ) )
+end function
+
+private function IPow_( byval b as longint, byval e as longint ) as longint
+    if e < 0 then return 0
+    dim as longint r = 1
+    for i as longint = 1 to e
+        r *= b
+    next
+    return r
+end function
+
+
+'' The numeric value of a literal argument, as a double, so the rounding intrinsics
+'' can see 2.5 rather than an integer. Returns false when it is not a literal.
+private function LitNum_ _
+    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byref d as double ) as boolean
+
+    if id = Fbx.NODE_NONE then return false
+    dim as Fbx.NodeKind k = ast.Kind( id )
+    if k = Fbx.N_PAREN then
+        dim as Fbx.ListPayload ptr pp = _
+            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if pp->count <> 1 then return false
+        return LitNum_( ast, cast( Fbx.NodeId, ast.children[pp->first] ), d )
+    end if
+    if k = Fbx.N_UNARY then
+        dim as Fbx.UnaryPayload ptr up = _
+            @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
+        if LitNum_( ast, up->operand, d ) = false then return false
+        if cast( Fbx.TokenKind, up->op ) = Fbx.TK_MINUS then d = -d
+        return true
+    end if
+    dim as Fbx.LiteralPayload ptr lp = 0
+    if (k = Fbx.N_FLOAT_LIT) orelse (k = Fbx.N_INT_LIT) then
+        lp = @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
+    end if
+    if lp = 0 then return false
+    if k = Fbx.N_FLOAT_LIT then
+        d = lp->fltValue
+    else
+        d = cast( double, cast( longint, lp->intValue ) )
+    end if
+    return true
+end function
+
+'' CINT rounds HALF TO EVEN -- cint(2.5) is 2 and cint(3.5) is 4 -- which is the one
+'' rule here nobody guesses right. INT floors, FIX truncates toward zero.
+private function RoundHalfEven_( byval d as double ) as longint
+    dim as double f = int( d )
+    dim as double diff = d - f
+    if diff > 0.5 then return cast( longint, f ) + 1
+    if diff < 0.5 then return cast( longint, f )
+    dim as longint fi = cast( longint, f )
+    if (fi mod 2) = 0 then return fi
+    return fi + 1
+end function
+
+'' The intrinsics fbc folds at compile time. Anything not listed simply does not fold,
+'' which is an absence rather than an error.
+private function ConstCall_ _
+    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
+      byref src as Fbx.SourceManager, byref names as Fbx.Interner ) as ConstVal
+
+    dim as Fbx.ListPayload ptr cp = _
+        @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return CVNone_( )
+    if ast.Kind( cp->target ) <> Fbx.N_IDENT then return CVNone_( )
+    dim as Fbx.IdentPayload ptr ip = _
+        @ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( names.Spelling( ip->name ) )
+
+    if (nm = "iif") andalso (cp->count = 3) then
+        dim as ConstVal c = ConstOf( ast, cast( Fbx.NodeId, ast.children[cp->first] ), _
+                                     src, names )
+        if c.known = false then return CVNone_( )
+        dim as long pick = iif( c.value <> 0, 1, 2 )
+        return ConstOf( ast, cast( Fbx.NodeId, ast.children[cp->first + pick] ), _
+                        src, names )
+    end if
+
+    if cp->count <> 1 then return CVNone_( )
+    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, ast.children[cp->first] )
+
+    '' LEN and ASC read the literal's SPAN out of the source buffer: the parser keeps
+    '' the extent, not the decoded text.
+    if (nm = "len") orelse (nm = "asc") then
+        if ast.Kind( a0 ) <> Fbx.N_STRING_LIT then return CVNone_( )
+        dim as Fbx.LiteralPayload ptr lp = _
+            @ast.literals[cast( long, ast.nodes[cast( long, a0 )].data )]
+        if nm = "len" then return CV_( lp->strLength )
+        if lp->strLength <= 0 then return CVNone_( )
+        dim as Fbx.DecodedLoc dl = src.Decode( ast.Loc( a0 ) )
+        dim as Fbx.SourceFile ptr f = src.FileAt( dl.file )
+        if f = 0 then return CVNone_( )
+        if lp->strOffset >= f->text.Count then return CVNone_( )
+        return CV_( f->text[lp->strOffset] )
+    end if
+
+    dim as double d = 0
+    dim as boolean isNum = LitNum_( ast, a0, d )
+    dim as ConstVal iv = ConstOf( ast, a0, src, names )
+
+    select case nm
+    case "abs"
+        if iv.known then return CV_( abs( iv.value ) )
+    case "sgn"
+        if iv.known then return CV_( sgn( iv.value ) )
+    case "cint", "clngint"
+        if isNum then
+            dim as longint r = RoundHalfEven_( d )
+            if nm = "cint" then return CV_( r )
+            return CV_( r )
+        end if
+    case "clng"
+        '' CLNG targets 32 bits, and an out-of-range float does NOT wrap: fbc yields
+        '' the x86 "indefinite" value, &h80000000, and warns about the overflow.
+        '' Wrapping instead gives 1410065408 for clng(1e10) -- a plausible number and
+        '' the wrong one. CINT is exempt because it targets 64-bit INTEGER, so
+        '' cint(1e10) does not overflow at all.
+        if isNum then
+            dim as longint r = RoundHalfEven_( d )
+            if (r > 2147483647ll) orelse (r < -2147483648ll) then
+                return CV_( -2147483648ll )
+            end if
+            return CV_( r )
+        end if
+    case "int"
+        if isNum then return CV_( cast( longint, int( d ) ) )
+    case "fix"
+        if isNum then return CV_( cast( longint, fix( d ) ) )
+    end select
+    return CVNone_( )
+end function
+
+function ConstOf _
+    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
+      byref src as Fbx.SourceManager, byref names as Fbx.Interner ) as ConstVal
+
+    if id = Fbx.NODE_NONE then return CVNone_( )
+
+    select case ast.Kind( id )
+    case Fbx.N_INT_LIT
+        dim as Fbx.LiteralPayload ptr lp = _
+            @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
+        return CV_( cast( longint, lp->intValue ) )
+
+    case Fbx.N_PAREN
+        dim as Fbx.ListPayload ptr pp = _
+            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if pp->count <> 1 then return CVNone_( )
+        return ConstOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), src, names )
+
+    case Fbx.N_UNARY
+        dim as Fbx.UnaryPayload ptr up = _
+            @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
+        dim as ConstVal v = ConstOf( ast, up->operand, src, names )
+        if v.known = false then return CVNone_( )
+        select case cast( Fbx.TokenKind, up->op )
+        case Fbx.TK_MINUS : return CV_( -v.value )
+        case Fbx.TK_PLUS  : return CV_( v.value )
+        case Fbx.KW_NOT   : return CV_( not v.value )
+        end select
+        return CVNone_( )
+
+    case Fbx.N_BINARY
+        dim as Fbx.BinaryPayload ptr bp = _
+            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+        dim as ConstVal l = ConstOf( ast, bp->lhs, src, names )
+        if l.known = false then return CVNone_( )
+        dim as ConstVal r = ConstOf( ast, bp->rhs, src, names )
+        if r.known = false then return CVNone_( )
+        dim as longint a = l.value
+        dim as longint b = r.value
+
+        select case cast( Fbx.TokenKind, bp->op )
+        case Fbx.TK_PLUS      : return CV_( a + b )
+        case Fbx.TK_MINUS     : return CV_( a - b )
+        case Fbx.TK_STAR      : return CV_( a * b )
+        case Fbx.TK_BACKSLASH
+            if b = 0 then return CVNone_( )
+            return CV_( a \ b )
+        case Fbx.KW_MOD
+            if b = 0 then return CVNone_( )
+            return CV_( a mod b )
+        case Fbx.TK_CARET     : return CV_( IPow_( a, b ) )
+        case Fbx.KW_SHL       : return CV_( a shl b )
+        case Fbx.KW_SHR       : return CV_( a shr b )
+        case Fbx.KW_AND       : return CV_( a and b )
+        case Fbx.KW_OR        : return CV_( a or b )
+        case Fbx.KW_XOR       : return CV_( a xor b )
+        case Fbx.KW_EQV       : return CV_( a eqv b )
+        case Fbx.KW_IMP       : return CV_( a imp b )
+        case Fbx.TK_EQ        : return CVBool_( a = b )
+        case Fbx.TK_NE        : return CVBool_( a <> b )
+        case Fbx.TK_LT        : return CVBool_( a < b )
+        case Fbx.TK_GT        : return CVBool_( a > b )
+        case Fbx.TK_LE        : return CVBool_( a <= b )
+        case Fbx.TK_GE        : return CVBool_( a >= b )
+        case Fbx.KW_ANDALSO   : return CVBool_( (a <> 0) andalso (b <> 0) )
+        case Fbx.KW_ORELSE    : return CVBool_( (a <> 0) orelse (b <> 0) )
+        end select
+        return CVNone_( )
+
+    case Fbx.N_CALL
+        return ConstCall_( ast, id, src, names )
+    end select
+
+    return CVNone_( )
+end function
+
 '' ------------------------------------------------------------------ assignment
 
 '' A pointer converts to and from an integer of POINTER WIDTH, with a warning, and to
@@ -633,8 +870,8 @@ end function
 
 function Dump _
     ( byref ast as Fbx.AstArena, byref src as Fbx.SourceManager, _
-      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo, _
-      byref st as Stats ) as string
+      byref types as Fbx.TypeContext, byref names as Fbx.Interner, _
+      byref info as Fbx.SemanticInfo, byref st as Stats ) as string
 
     dim as string outp = ""
     for i as long = 1 to ast.Count( )
@@ -676,6 +913,13 @@ function Dump _
         dim as string nm = "?"
         if t <> Fbx.TYPE_NONE then nm = types.Name( t )
         outp += str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & nm & chr( 10 )
+        '' Constants get their own line with a NON-numeric prefix, so the promotion
+        '' and overload gates -- which key on 'line type' -- cannot collide with it.
+        dim as ConstVal cv = ConstOf( ast, arg, src, names )
+        if cv.known then
+            outp += "const " & str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & _
+                    str( cv.value ) & chr( 10 )
+        end if
     next
     outp += "checked: " & st.typed & " typed, " & st.untyped & " untyped, " & _
             st.badOperands & " bad operand pairs, " & st.callsResolved & _
