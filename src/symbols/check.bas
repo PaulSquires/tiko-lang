@@ -320,6 +320,70 @@ function ConversionCost _
     return cost + dr
 end function
 
+
+'' ------------------------------------------------------------------ assignment
+
+'' A pointer converts to and from an integer of POINTER WIDTH, with a warning, and to
+'' nothing narrower. Written against the target layout rather than against 64, so it
+'' stays right on a target where a pointer is not 8 bytes.
+private function IsPointerSized_ _
+    ( byval b as Fbx.BuiltinType, byref types as Fbx.TypeContext ) as boolean
+
+    if IsInt_( b ) = false then return false
+    return types.Layout( types.Builtin( b ) ).size = (types.target.pointerBits \ 8)
+end function
+
+function AssignableTo _
+    ( byval src as Fbx.TypeId, byval dst as Fbx.TypeId, _
+      byref types as Fbx.TypeContext ) as AssignKind
+
+    if (src = Fbx.TYPE_NONE) orelse (dst = Fbx.TYPE_NONE) then return ASSIGN_OK
+    if src = dst then return ASSIGN_OK
+
+    dim as boolean srcPtr = (types.Kind( src ) = Fbx.TK_POINTER)
+    dim as boolean dstPtr = (types.Kind( dst ) = Fbx.TK_POINTER)
+
+    '' Pointer to pointer: silent when the pointees agree, or when either side is
+    '' ANY PTR, which is the universal one. Between two DIFFERENT concrete pointees
+    '' fbc allows it but warns -- 'long ptr = zstring ptr' is accepted with a
+    '' complaint, and treating that as clean would hide a real behaviour difference.
+    if srcPtr andalso dstPtr then
+        dim as Fbx.TypeId sp2 = types.Inner( src )
+        dim as Fbx.TypeId dp2 = types.Inner( dst )
+        if sp2 = dp2 then return ASSIGN_OK
+        if (types.Kind( sp2 ) = Fbx.TK_BUILTIN) andalso _
+           (types.BuiltinOf( sp2 ) = Fbx.TY_ANY) then return ASSIGN_OK
+        if (types.Kind( dp2 ) = Fbx.TK_BUILTIN) andalso _
+           (types.BuiltinOf( dp2 ) = Fbx.TY_ANY) then return ASSIGN_OK
+        return ASSIGN_WARN
+    end if
+
+    if srcPtr orelse dstPtr then
+        dim as Fbx.TypeId other = iif( srcPtr, dst, src )
+        if types.Kind( other ) <> Fbx.TK_BUILTIN then return ASSIGN_REJECT
+        if IsPointerSized_( types.BuiltinOf( other ), types ) then return ASSIGN_WARN
+        return ASSIGN_REJECT
+    end if
+
+    if (types.Kind( src ) <> Fbx.TK_BUILTIN) orelse _
+       (types.Kind( dst ) <> Fbx.TK_BUILTIN) then
+        return ASSIGN_OK        '' UDTs need overloaded LET; not decided here
+    end if
+
+    dim as Fbx.BuiltinType sb = types.BuiltinOf( src )
+    dim as Fbx.BuiltinType db = types.BuiltinOf( dst )
+
+    '' A string assigns to a string and to nothing else, in either direction.
+    if IsStringy_( sb ) orelse IsStringy_( db ) then
+        if IsStringy_( sb ) andalso IsStringy_( db ) then return ASSIGN_OK
+        return ASSIGN_REJECT
+    end if
+
+    '' Everything numeric, BOOLEAN included, assigns to everything numeric. Narrowing
+    '' is accepted silently -- there is no truncation warning to reproduce.
+    return ASSIGN_OK
+end function
+
 '' --------------------------------------------------------------------- typing
 
 private function StmtOf _
@@ -575,6 +639,33 @@ function Dump _
     dim as string outp = ""
     for i as long = 1 to ast.Count( )
         dim as Fbx.NodeId n = cast( Fbx.NodeId, i )
+
+        '' An assignment reports its LEGALITY rather than a type, so
+        '' tools/gen/check-assign.py can put the verdict beside fbc's.
+        if ast.Kind( n ) = Fbx.N_AMBIGUOUS then
+            if info.AmbiguousOf( n ) = Fbx.AMB_ASSIGN then
+                '' N_AMBIGUOUS is a STATEMENT payload -- 'a' is the target and 'b'
+                '' the value -- not a binary. Reading it as a binary indexes a
+                '' different arena, which is the exact mistake phase-5-check.md warns
+                '' about, made again while writing this.
+                dim as Fbx.StmtPayload ptr ap = _
+                    @ast.stmts[cast( long, ast.nodes[cast( long, n )].data )]
+                dim as Fbx.TypeId dt = info.TypeOf_( ap->a )
+                dim as Fbx.TypeId st2 = info.TypeOf_( ap->b )
+                dim as string verdict = "assign:unknown"
+                if (dt <> Fbx.TYPE_NONE) andalso (st2 <> Fbx.TYPE_NONE) then
+                    select case AssignableTo( st2, dt, types )
+                    case ASSIGN_OK     : verdict = "assign:ok"
+                    case ASSIGN_WARN   : verdict = "assign:warn"
+                    case else          : verdict = "assign:reject"
+                    end select
+                end if
+                outp += str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & _
+                        verdict & chr( 10 )
+            end if
+            continue for
+        end if
+
         if ast.Kind( n ) <> Fbx.N_INTRINSIC then continue for
         dim as Fbx.StmtPayload ptr sp = _
             @ast.stmts[cast( long, ast.nodes[cast( long, n )].data )]

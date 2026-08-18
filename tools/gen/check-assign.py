@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Compare fbx's assignment legality with fbc's, over every measured pair.
+
+    python tools/gen/check-assign.py
+
+Reads tests/types/expected/fbc-assign.txt -- produced by assign-truth.py from fbc
+itself -- rebuilds the same assignments as fbx source, and compares the verdicts.
+'warn' is kept distinct from 'ok': fbc accepts a pointer/integer assignment but says
+something about it, and collapsing the two would hide a real difference in behaviour.
+"""
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+TRUTH = ROOT / "tests/types/expected/fbc-assign.txt"
+WORK = ROOT / "build/.as"
+FBX = ROOT / "bin/fbx.exe"
+
+TYPES = ["byte", "ubyte", "short", "ushort", "long", "ulong", "integer",
+         "uinteger", "longint", "ulongint", "single", "double", "boolean",
+         "string", "any ptr", "long ptr", "zstring ptr", "wstring ptr"]
+
+
+def main() -> int:
+    if not TRUTH.exists():
+        print("check-assign: no truth file; run tools/gen/assign-truth.py",
+              file=sys.stderr)
+        return 3
+    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
+    if not fbx.exists():
+        print("check-assign: fbx not built", file=sys.stderr)
+        return 3
+
+    rows = [line.split("\t")
+            for line in TRUTH.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+    WORK.mkdir(parents=True, exist_ok=True)
+    src, line_of = [], {}
+    for i, t in enumerate(TYPES):
+        src.append(f"dim as {t} v{i}")
+    idx = 0
+    for di in range(len(TYPES)):
+        for si in range(len(TYPES)):
+            src.append(f"v{di} = v{si}")
+            line_of[len(src)] = idx
+            idx += 1
+
+    probe = WORK / "assign-fbx.bas"
+    probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
+
+    proc = subprocess.run([str(fbx), "--check", str(probe)],
+                          capture_output=True, text=True)
+    got = {}
+    for line in (proc.stdout or "").splitlines():
+        m = re.fullmatch(r"(\d+) assign:(\w+)", line.strip())
+        if m and int(m.group(1)) in line_of:
+            got[line_of[int(m.group(1))]] = m.group(2)
+
+    ok = bad = missing = 0
+    diffs = []
+    for i, (dt, st, want) in enumerate(rows):
+        if i not in got:
+            missing += 1
+            continue
+        mine = got[i]
+        if mine == want:
+            ok += 1
+        else:
+            bad += 1
+            diffs.append(f"{dt} = {st}: fbc={want} fbx={mine}")
+
+    print(f"check-assign: {ok}/{len(rows)} match")
+    if missing:
+        print(f"check-assign: {missing} rows produced no output")
+    if diffs:
+        print(f"check-assign: {len(diffs)} disagreements, first 20:")
+        for d in diffs[:20]:
+            print("   ", d)
+    return 0 if (not diffs and not missing) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

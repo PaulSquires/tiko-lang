@@ -1,0 +1,17 @@
+'' Assignment is a different question from promotion and the answers do not follow
+'' from each other: 'long + string' and 'long = string' are both refused, but every
+'' numeric-to-numeric assignment is accepted -- narrowing and all -- without so much
+'' as a warning. The pointer rules are the interesting part: a pointer converts to and
+'' from an integer of POINTER WIDTH with a warning and to nothing narrower, and two
+'' different concrete pointees warn while ANY PTR is silent.
+'' TEST: cli
+'' ARGS: --check tests/types/src/assign.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 12 assign:ok
+'' EXPECT-OUT: 17 assign:ok
+'' EXPECT-OUT: 19 assign:warn
+'' EXPECT-OUT: 20 assign:warn
+'' EXPECT-OUT: 21 assign:warn
+'' EXPECT-OUT: 22 assign:reject
+'' EXPECT-OUT: 23 assign:reject
+'' EXPECT-OUT: 24 assign:reject

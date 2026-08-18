@@ -63,6 +63,21 @@ namespace Fbx.Check
         ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
           byref types as Fbx.TypeContext ) as long
 
+    '' Whether 'target = source' is allowed, and whether fbc warns about it.
+    '' Assignment legality is a DIFFERENT question from binary promotion and does not
+    '' follow from it: every numeric-to-numeric assignment is accepted, narrowing and
+    '' all, without so much as a warning -- while 'long + string' and 'long = string'
+    '' are both refused.
+    enum AssignKind
+        ASSIGN_OK = 0
+        ASSIGN_WARN         '' allowed, but fbc warns -- pointer <-> pointer-sized int
+        ASSIGN_REJECT
+    end enum
+
+    declare function AssignableTo _
+        ( byval src as Fbx.TypeId, byval dst as Fbx.TypeId, _
+          byref types as Fbx.TypeContext ) as AssignKind
+
     '' The type of 'lhs op rhs', or TYPE_NONE if the combination is not allowed.
     declare function BinaryResult _
         ( byval op as Fbx.TokenKind, byval lhs as Fbx.TypeId, byval rhs as Fbx.TypeId, _
