@@ -154,6 +154,31 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     sp.op = cast( ushort, k )
     Advance( p )
 
+    '' 'UNSIGNED <int type>' is a TWO-WORD type name, and it is the only one FreeBASIC
+    '' has: measured, 'unsigned byte/short/long/integer/longint' give sizes 1/2/4/8/8,
+    '' and 'SIGNED' is not a prefix at all -- fbc rejects 'as signed byte' outright.
+    ''
+    '' Without this the second word was simply left behind: 'dim as unsigned byte a'
+    '' produced a TYPEREF of 'unsigned' and the declaration silently had the wrong type,
+    '' which no diagnostic would ever mention.
+    if k = Fbx.KW_UNSIGNED then
+        dim as Fbx.TokenKind u = Peek( p )
+        dim as Fbx.TokenKind mapped = cast( Fbx.TokenKind, 0 )
+        select case u
+        case Fbx.KW_BYTE    : mapped = Fbx.KW_UBYTE
+        case Fbx.KW_SHORT   : mapped = Fbx.KW_USHORT
+        case Fbx.KW_LONG    : mapped = Fbx.KW_ULONG
+        case Fbx.KW_INTEGER : mapped = Fbx.KW_UINTEGER
+        case Fbx.KW_LONGINT : mapped = Fbx.KW_ULONGINT
+        end select
+        if mapped <> cast( Fbx.TokenKind, 0 ) then
+            Advance( p )
+            sp.op = cast( ushort, mapped )
+            sp.name = p.names->GetString( _
+                Fbx.Text.LowerAscii( Fbx.TokenKindText( mapped ) ) )
+        end if
+    end if
+
     '' Qualified names: ns.Type
     while Peek( p ) = Fbx.TK_DOT
         Advance( p )
@@ -182,6 +207,27 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             wend
         else
             p.pos = save
+        end if
+    end if
+
+    '' A TYPE ALIAS: 'as byte alias "char"'.
+    ''
+    '' This is a C++ mangling control, not a rename. C++ has THREE distinct char types --
+    '' char, signed char, unsigned char -- while FreeBASIC's BYTE and UBYTE map to the
+    '' latter two, so there is no way to spell plain 'char' without it. The alias says
+    '' which C++ type name to mangle against.
+    ''
+    '' Measured: fbc allows it on BYTE, UBYTE and UNSIGNED BYTE only, and rejects
+    '' 'as long alias "int"' with a syntax error. That restriction is not applied here --
+    '' the shape parses for any type and the diagnostic is owed from the checker, which
+    '' does not emit it yet. Recorded rather than silently permitted.
+    if Peek( p ) = Fbx.KW_ALIAS then
+        dim as long saveAlias = p.pos
+        Advance( p )
+        if Peek( p ) = Fbx.TK_STRING_LIT then
+            sp.b = Expression( p, Fbx.PREC_POSTFIX )
+        else
+            p.pos = saveAlias
         end if
     end if
 

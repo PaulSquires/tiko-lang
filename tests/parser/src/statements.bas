@@ -57,3 +57,20 @@ dim pp as long ptr = @pv
 (pv) = 5
 (*pp) = 6
 (parr(1)) = 7
+
+'' 'UNSIGNED <int type>' is the only TWO-WORD type name FreeBASIC has -- measured sizes
+'' 1/2/4/8/8, and 'SIGNED' is not a prefix at all. Without handling it the second word was
+'' left behind and the declaration silently had the type 'unsigned', which no diagnostic
+'' would ever mention.
+dim as unsigned byte ub1
+dim as unsigned short ub2
+dim as unsigned long ub3
+dim as unsigned integer ub4
+dim as unsigned longint ub5
+
+'' A TYPE ALIAS controls C++ mangling: C++ has three distinct char types where FreeBASIC
+'' has BYTE and UBYTE, so plain 'char' cannot otherwise be spelled. fbc allows it on the
+'' byte types only.
+extern "c++"
+    declare function cppchar( byval a as byte alias "char" ) as byte alias "char"
+end extern
