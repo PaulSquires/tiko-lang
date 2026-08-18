@@ -192,6 +192,20 @@ end function
 declare sub WalkStmt _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
 
+'' Give a just-declared name its type. The symbol is found by NAME in the scope
+'' Collect recorded, rather than by threading a SymbolId through the AST: the
+'' declaration and its symbol are in the same scope by construction.
+private sub BindDeclType _
+    ( byref c as Ctx, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
+      byval t as Fbx.TypeId )
+
+    if (nm = 0) orelse (t = Fbx.TYPE_NONE) then return
+    dim as Fbx.SymbolId sid = c.syms->LookupLocal( scope_, nm )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return
+    if s->type_ = Fbx.TYPE_NONE then s->type_ = t
+end sub
+
 '' Bind identifiers inside an expression. A member name after a dot is NOT resolved
 '' here: it needs the base's type, which is Check's business.
 private sub WalkExpr _
@@ -341,6 +355,40 @@ sub WalkStmt _
 
     case Fbx.N_TYPEREF
         ResolveTypeRef( c, id, here )
+        return
+
+    case Fbx.N_VAR, Fbx.N_CONST
+        '' Resolving a declaration's TypeRef is not enough: the SYMBOL has to carry
+        '' the result, or every later use of the name is untyped. Collect could not
+        '' do this -- a type may be declared after the variable that uses it, which
+        '' is exactly why type references are resolved in this pass and not that one.
+        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        if sp->op = cast( ushort, Fbx.KW_REDIM ) then return
+        for i as long = 0 to sp->count - 1
+            dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
+            dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+            dim as Fbx.TypeId t = ResolveTypeRef( c, ip->a, here )
+            BindDeclType( c, here, ip->name, t )
+            WalkStmt( c, ip->b, here )
+        next
+        return
+
+    case Fbx.N_PARAM
+        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        dim as Fbx.TypeId t = ResolveTypeRef( c, sp->a, here )
+        if (t <> Fbx.TYPE_NONE) andalso _
+           ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_BYREF) <> 0) then
+            t = c.types->Reference( t )
+        end if
+        BindDeclType( c, here, sp->name, t )
+        WalkStmt( c, sp->b, here )
+        return
+
+    case Fbx.N_FIELD
+        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        dim as Fbx.TypeId t = ResolveTypeRef( c, sp->a, here )
+        BindDeclType( c, here, sp->name, t )
         return
 
     case Fbx.N_PROC

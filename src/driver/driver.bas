@@ -9,6 +9,7 @@
 #include once "symbols/collect.bi"
 #include once "symbols/resolve.bi"
 #include once "symbols/mangle.bi"
+#include once "symbols/check.bi"
 
 namespace Fbx
 
@@ -156,7 +157,7 @@ function Run( byref args as Fbx.StrVec ) as long
             print using "  lex   ##.### s  (##.# MB/s)"; tLex; mb / iif( tLex > 0, tLex, 1 )
         end if
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
-           ctx.options.dumpMangle then
+           ctx.options.dumpMangle orelse ctx.options.checkOnly then
         for i as long = 1 to ctx.sources.Count( )
             dim as Fbx.FileId id = cast( Fbx.FileId, i )
             dim as Fbx.PpResult pr
@@ -183,7 +184,15 @@ function Run( byref args as Fbx.StrVec ) as long
             dim as Fbx.SemanticInfo info
             Fbx.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info )
 
-            if ctx.options.dumpMangle then
+            if ctx.options.checkOnly then
+                dim as Fbx.Resolve.Stats rst
+                Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                                 info, rst )
+                dim as Fbx.Check.Stats cst
+                Fbx.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                               info, cst )
+                print Fbx.Check.Dump( ast, ctx.sources, ctx.types, info, cst );
+            elseif ctx.options.dumpMangle then
                 '' Mangling needs the parameter TYPES, so it runs after Resolve --
                 '' but the reference-binding report is not wanted here.
                 dim as Fbx.Resolve.Stats rst

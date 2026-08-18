@@ -1,0 +1,28 @@
+'' Expression typing, on the cases where guessing goes wrong. FreeBASIC promotes
+'' integers to INTEGER, which is POINTER-SIZED, rather than to the 32-bit LONG that
+'' C's integer promotions would give; '/' is always floating point and is a different
+'' operator from '\'; and comparisons yield INTEGER, not BOOLEAN -- except '=' and
+'' '<>' between two booleans. ANDALSO is not AND with short-circuiting bolted on --
+'' it never yields UINTEGER -- and '&' is a string whatever it is handed.
+'' TEST: cli
+'' ARGS: --check tests/types/src/promotion.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 12 integer
+'' EXPECT-OUT: 13 integer
+'' EXPECT-OUT: 16 double
+'' EXPECT-OUT: 15 single
+'' EXPECT-OUT: 14 double
+'' EXPECT-OUT: 17 double
+'' EXPECT-OUT: 20 integer
+'' EXPECT-OUT: 19 boolean
+'' EXPECT-OUT: 18 integer
+'' EXPECT-OUT: 21 uinteger
+'' EXPECT-OUT: 22 string
+'' EXPECT-OUT: 23 integer
+'' EXPECT-OUT: 24 integer
+'' EXPECT-OUT: 25 integer
+'' EXPECT-OUT: 26 integer
+'' EXPECT-OUT: 27 boolean
+'' EXPECT-OUT: 28 string
+'' EXPECT-OUT: 29 string
+'' EXPECT-OUT: 0 untyped
