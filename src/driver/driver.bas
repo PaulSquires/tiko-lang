@@ -13,6 +13,7 @@
 #include once "mir/lower.bi"
 #include once "mir/dump.bi"
 #include once "mir/verify.bi"
+#include once "mir/rtl.bi"
 #include once "types/udtlayout.bi"
 
 namespace Fbx
@@ -160,6 +161,11 @@ function Run( byref args as Fbx.StrVec ) as long
             print using "  load  ##.### s  (##.# MB/s)"; tLoad; mb / iif( tLoad > 0, tLoad, 1 )
             print using "  lex   ##.### s  (##.# MB/s)"; tLex; mb / iif( tLex > 0, tLex, 1 )
         end if
+    elseif ctx.options.dumpRtl then
+        '' The inventory does not depend on any input, so it is answered before the
+        '' sources are even looked at.
+        print Fbx.Mir.DumpRtl( );
+
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
            ctx.options.dumpIr orelse ctx.options.dumpUdt then

@@ -19,6 +19,7 @@ src/symbols/mangle.bas
 src/symbols/check.bas
 src/types/udtlayout.bas
 src/mir/mir.bas
+src/mir/rtl.bas
 src/mir/dump.bas
 src/mir/verify.bas
 src/mir/lower.bas

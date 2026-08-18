@@ -74,6 +74,7 @@ namespace Fbx
     OPT( OPT_MANGLE,    "--dump-mangle",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print the emitted symbol name of each procedure" )
     OPT( OPT_CHECK,     "--check",        OPTK_FLAG, OPTCAT_DEVEL, "",        "type expressions; report the type of each PRINT argument" )
     OPT( OPT_UDT,       "--dump-udt",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's size, alignment and field offsets" )
+    OPT( OPT_RTL,       "--dump-rtl",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print the runtime inventory and stop" )
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
     OPT( OPT_PARSEONLY, "--parse-only",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse every input and report counts; the corpus gate" )
     OPT( OPT_DUMPIR,    "--dump-ir",      OPTK_FLAG, OPTCAT_DEVEL, "",        "dump MIR" )
@@ -142,6 +143,7 @@ namespace Fbx
         as boolean dumpMangle
         as boolean checkOnly
         as boolean dumpUdt
+        as boolean dumpRtl
         as boolean dumpIr
         as boolean emitIr
         as boolean emitAsm
