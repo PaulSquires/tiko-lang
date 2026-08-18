@@ -117,6 +117,13 @@ sub WalkNode _
 
     case Fbx.N_TYPE
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
+        '' An ANONYMOUS union or type declares nothing and opens no scope: its
+        '' members are members of the ENCLOSING aggregate, which is the whole point
+        '' of writing one.
+        if sp->name = 0 then
+            WalkChildren( w, sp->first, sp->count, scope_ )
+            return
+        end if
         dim as Fbx.SymbolId sid = Declare_( w, scope_, sp->name, Fbx.SYM_UDT, _
                                             w.ast->Loc( id ) )
         dim as Fbx.ScopeId inner = w.syms->OpenScope( Fbx.SCOPEK_TYPE, scope_, sid )

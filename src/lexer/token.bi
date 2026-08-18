@@ -173,6 +173,7 @@ namespace Fbx
     declare function IsKeywordKind( byval k as TokenKind ) as boolean
     declare function KeywordClassOf( byval k as TokenKind ) as KeywordClass
     declare function IsCallConvKind( byval k as TokenKind ) as boolean
+    declare function IsTypeKeyword( byval k as TokenKind ) as boolean
     declare function IsPunctKind( byval k as TokenKind ) as boolean
 
 end namespace

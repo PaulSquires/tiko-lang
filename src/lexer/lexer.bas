@@ -80,6 +80,19 @@ function IsCallConvKind( byval k as TokenKind ) as boolean
     return false
 end function
 
+'' The keywords that can OPEN a type reference. Used to tell 'sizeof( long ptr )'
+'' from 'sizeof( someVariable )' without needing the symbol table.
+function IsTypeKeyword( byval k as TokenKind ) as boolean
+    select case k
+    case KW_BYTE, KW_UBYTE, KW_SHORT, KW_USHORT, KW_LONG, KW_ULONG, _
+         KW_INTEGER, KW_UINTEGER, KW_LONGINT, KW_ULONGINT, KW_SINGLE, _
+         KW_DOUBLE, KW_BOOLEAN, KW_STRING, KW_ZSTRING, KW_WSTRING, _
+         KW_USTRING, KW_ANY, KW_CONST, KW_SUB, KW_FUNCTION
+        return true
+    end select
+    return false
+end function
+
 function IsPunctKind( byval k as TokenKind ) as boolean
     return (k > TK_PUNCT_FIRST) andalso (k < TK_PUNCT_LAST)
 end function

@@ -1,0 +1,10 @@
+'' Two things that only fail together. '.i' inside WITH did not parse, and the
+'' resulting FBX0400 made 'if 0 = len( .i ) then' followed by 'end if' look like a
+'' SINGLE-LINE if rather than a block if with an empty body -- so the 'end if' was
+'' consumed by the wrong construct, and a namespace closed early. The compensating
+'' bug hid the real one: fixing the IF alone made the symbol names worse, not better.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/with-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0
+'' EXPECT-NOT: FBX0400

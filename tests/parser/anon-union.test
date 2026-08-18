@@ -1,0 +1,14 @@
+'' 'union' used to require a name, so an anonymous one reported FBX0406 and lost every
+'' member of the enclosing type. Anonymity is legal only INSIDE another aggregate --
+'' a bare 'type' at module level is still an error, which is why the parser tracks
+'' how many aggregate bodies enclose the cursor rather than accepting both.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/parser/src/anon-union.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0
+'' The count is the assertion: all FOUR fields -- b0, b1 from the anonymous inner
+'' type, w from the anonymous union, and tail -- land in T's own scope. Merely
+'' appearing somewhere in the dump would also be true if each opened its own scope,
+'' which is exactly the wrong answer.
+'' EXPECT-OUT: scope 3 type of 't' parent=2 (4)
+'' EXPECT-OUT: field     'tail'

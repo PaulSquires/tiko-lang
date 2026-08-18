@@ -240,14 +240,24 @@ private function ParseIf( byref p as Fbx.ParserState ) as Fbx.NodeId
         if s <> Fbx.NODE_NONE then one.Push( cast( ulong, s ) )
         first_.b = MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, one )
         branches.Push( cast( ulong, MakeStmt( p, Fbx.N_IF_BRANCH, t.loc, first_ ) ) )
-        '' 'if c then s : end if' terminates explicitly -- ':' lexes as an EOL, so
-        '' the inner statement stopped there. Only 'end IF' may be taken: a bare
-        '' 'end' here is the 'end sub' of the enclosing procedure on the next line,
-        '' whose EOL that inner statement has already consumed.
+        '' 'if c then s : end if' terminates explicitly. ':' and a newline both lex
+        '' as an EOL, so the token kinds cannot tell them apart -- only the LINE can:
+        ''
+        ''     if ( a mod b ) <> 0 then        <- a block IF
+        ''         if negA <> negB then q -= 1 <- a single-line IF
+        ''     end if                          <- belongs to the BLOCK if
+        ''
+        '' Taking that 'end if' because it merely came next left the block IF open,
+        '' which then consumed the enclosing 'end function', which left a namespace
+        '' unclosed hundreds of lines later. The 'end' is this IF's only if it is on
+        '' this IF's own line.
         if (Peek( p ) = Fbx.KW_END) andalso HasTok( p, p.pos + 1 ) then
             if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Fbx.KW_IF ) then
-                Advance( p )
-                Advance( p )
+                if p.src->Decode( Cur( p ).loc ).lineNo = _
+                   p.src->Decode( t.loc ).lineNo then
+                    Advance( p )
+                    Advance( p )
+                end if
             end if
         end if
 
@@ -659,6 +669,10 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             else
                 n = ParseAmbiguous( p )
             end if
+        elseif k = Fbx.TK_DOT then
+            '' '.field = 1' inside a WITH. It is the same call-or-assign ambiguity as
+            '' a bare name, just with the base left to the enclosing WITH.
+            n = ParseAmbiguous( p )
         elseif k = Fbx.TK_QUESTION then
             n = ParseIntrinsic( p )       '' '?' is PRINT
         else

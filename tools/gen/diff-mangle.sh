@@ -23,6 +23,7 @@ LIMIT=${1:-400}
 [ -x "$FBC" ]  || { echo "diff-mangle: fbc not found at $FBC" >&2; exit 3; }
 [ -f "$LIST" ] || { echo "diff-mangle: no corpus list; run build/sweep.sh" >&2; exit 3; }
 
+rm -rf "$WORK"
 mkdir -p "$WORK"
 : > "$WORK/miss.txt"
 # fbc knows its own inc/ directory implicitly; fbx has to be told, or the comparison
@@ -31,14 +32,18 @@ FBCINC=$(dirname "$FBC")/inc
 INC="-i $ROOT/tests/vendor/fbc-tests -i $ROOT/tests/vendor/fbc-tests/fbcunit/inc"
 FBXINC="$INC -i $FBCINC"
 
-ok=0; skip=0; exact=0; partial=0; tot=0; hit=0
+# A UNIQUE object per file, never a reused one. Sharing a single t.o means a
+# lingering lock on Windows makes 'rm' fail, and under 'set -e' that aborted the run
+# mid-sweep -- which showed up as a plausible but wrong score, not as an error.
+ok=0; skip=0; exact=0; partial=0; tot=0; hit=0; idx=0
 for f in $(head -"$LIMIT" "$LIST"); do
-    rm -f "$WORK/t.o"
-    if ! timeout 25 "$FBC" -c $INC "$f" -o "$WORK/t.o" >/dev/null 2>&1; then
+    idx=$((idx + 1))
+    OBJ="$WORK/o$idx.o"
+    if ! timeout 25 "$FBC" -c $INC "$f" -o "$OBJ" >/dev/null 2>&1; then
         skip=$((skip + 1)); continue
     fi
-    [ -f "$WORK/t.o" ] || { skip=$((skip + 1)); continue; }
-    python "$ROOT/tools/gen/coffsyms.py" "$WORK/t.o" --functions 2>/dev/null \
+    [ -f "$OBJ" ] || { skip=$((skip + 1)); continue; }
+    python "$ROOT/tools/gen/coffsyms.py" "$OBJ" --functions 2>/dev/null \
         | tr -d '\r' | sort -u > "$WORK/a.txt" || { skip=$((skip + 1)); continue; }
     n=$(wc -l < "$WORK/a.txt" | tr -d ' ')
     [ "$n" -eq 0 ] && { skip=$((skip + 1)); continue; }

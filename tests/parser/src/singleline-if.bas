@@ -15,3 +15,20 @@ sub H( )
 end sub
 
 if 0 then print 1
+
+'' A single-line IF nested inside a BLOCK if. The 'end if' closes the outer one --
+'' taking it for the inner one leaves the block open, which then eats the enclosing
+'' 'end function'.
+function K( byval a as long, byval b as long ) as long
+    dim as long q = a \ b
+    if ( a mod b ) <> 0 then
+        dim as boolean negA = ( a < 0 )
+        dim as boolean negB = ( b < 0 )
+        if negA <> negB then q -= 1
+    end if
+    return q
+end function
+
+sub L( )
+    print 1
+end sub

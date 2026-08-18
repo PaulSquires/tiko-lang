@@ -1,0 +1,10 @@
+'' 'cptr( double ptr, @u )' stops dead at 'ptr' if the argument is parsed as an
+'' expression, and the resulting FBX0401 desynchronises the parse badly enough to
+'' swallow an 'end namespace' several hundred lines later. Which four intrinsics
+'' accept a type was measured against fbc; TYPEOF is deliberately not among them,
+'' because fbc does not accept it in expression position at all.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/type-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0
+'' EXPECT-NOT: FBX0401

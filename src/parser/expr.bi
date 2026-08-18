@@ -37,6 +37,11 @@ namespace Fbx
         as Interner ptr         names
         as DiagnosticEngine ptr diags
         as long                 depth
+        '' How many TYPE/UNION bodies enclose the cursor. An anonymous 'union' or
+        '' 'type' is legal ONLY inside one; at module level a bare 'type' is an error
+        '' worth keeping, so the two cases are told apart by this rather than by
+        '' silently accepting both.
+        as long                 aggDepth
         as long                 errors
         as boolean              silent      '' suppress cascades after an error
     end type

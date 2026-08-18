@@ -253,9 +253,55 @@ end function
 '' ------------------------------------------------------------------- the parser
 
 declare function Primary( byref p as Fbx.ParserState ) as Fbx.NodeId
+declare function PostfixChain _
+    ( byref p as Fbx.ParserState, byval base_ as Fbx.NodeId ) as Fbx.NodeId
+'' Declared rather than included: TypeRef lives in parser.bi, which sits ABOVE this
+'' file. Including it here would make the dependency circular and would be caught by
+'' build/lint.sh; the declaration keeps the edge one-way.
+declare function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
+
+'' 'cast( T, e )', 'cptr( T, e )', 'sizeof( T )', 'len( T )'.
+''
+'' CAST and CPTR always name a type first. SIZEOF and LEN accept EITHER a type or an
+'' expression -- 'len( s )' is the common case -- so the type is taken only when the
+'' argument unambiguously opens one: a type keyword, or a name followed by PTR. That
+'' keeps every existing 'len( someString )' parsing exactly as it did, without
+'' consulting the symbol table, which this layer may not do.
+private function TypeArgCall _
+    ( byref p as Fbx.ParserState, byref t as Fbx.Token, _
+      byval k as Fbx.TokenKind ) as Fbx.NodeId
+
+    dim as Fbx.NodeId callee = MakeIdent( p, t )
+    Advance( p )                                  '' the intrinsic name
+    Advance( p )                                  '' '('
+
+    dim as Fbx.NodeIdVec items
+    if Peek( p ) <> Fbx.TK_RPAREN then
+        dim as boolean always = (k = Fbx.KW_CAST) orelse (k = Fbx.KW_CPTR)
+        dim as boolean looksLikeType = Fbx.IsTypeKeyword( Peek( p ) )
+        if (looksLikeType = false) andalso (Peek( p ) = Fbx.TK_IDENT) then
+            if HasTok( p, p.pos + 1 ) then
+                dim as Fbx.TokenKind n = cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                looksLikeType = (n = Fbx.KW_PTR) orelse (n = Fbx.KW_POINTER)
+            end if
+        end if
+
+        if always orelse looksLikeType then
+            items.Push( cast( ulong, TypeRef( p ) ) )
+        else
+            items.Push( cast( ulong, Expression( p ) ) )
+        end if
+
+        while Accept( p, Fbx.TK_COMMA )
+            items.Push( cast( ulong, Expression( p ) ) )
+        wend
+    end if
+    Expect( p, Fbx.TK_RPAREN, ")" )
+    return PostfixChain( p, MakeList( p, Fbx.N_CALL, t.loc, callee, items ) )
+end function
 
 '' Postfix chain: calls, indexing and member access, all tighter than any operator.
-private function PostfixChain _
+function PostfixChain _
     ( byref p as Fbx.ParserState, byval base_ as Fbx.NodeId ) as Fbx.NodeId
 
     dim as Fbx.NodeId result = base_
@@ -409,6 +455,41 @@ function Primary( byref p as Fbx.ParserState ) as Fbx.NodeId
         Expect( p, Fbx.TK_RBRACE, "}" )
         return MakeList( p, Fbx.N_INITIALIZER, t.loc, Fbx.NODE_NONE, items )
     end select
+
+    '' CAST, CPTR, SIZEOF and LEN take a TYPE where an expression would otherwise
+    '' go, and a type is not an expression: 'cptr( double ptr, @u )' stops dead at
+    '' 'ptr'. The resulting FBX0401 then desynchronises the parse badly enough to
+    '' swallow an 'end namespace' several hundred lines later, so this is not a
+    '' cosmetic gap. Which four accept a type was measured against fbc -- TYPEOF is
+    '' deliberately absent, because fbc does not accept it in expression position.
+    if (k = Fbx.KW_CAST) orelse (k = Fbx.KW_CPTR) orelse _
+       (k = Fbx.KW_SIZEOF) orelse (k = Fbx.KW_LEN) then
+        if HasTok( p, p.pos + 1 ) then
+            if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_LPAREN then
+                return TypeArgCall( p, t, k )
+            end if
+        end if
+    end if
+
+    '' '.field' with nothing before it is the WITH shorthand: inside 'with expr' it
+    '' means 'expr.field'. The base is supplied by the enclosing WITH, which this
+    '' layer does not track -- it records a member access with NO base and leaves
+    '' binding to the phase that knows which WITH is open.
+    if k = Fbx.TK_DOT then
+        if HasTok( p, p.pos + 1 ) then
+            dim as Fbx.TokenKind nk = cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )
+            if (nk = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( nk ) then
+                Advance( p )
+                dim as Fbx.Token nameTok = Cur( p )
+                Advance( p )
+                dim as Fbx.NodeId member = MakeIdent( p, nameTok )
+                dim as Fbx.NodeId n = MakeBinary( p, Fbx.TK_DOT, t.loc, _
+                                                  Fbx.NODE_NONE, member )
+                p.ast->nodes[cast( long, n )].kind = cast( ushort, Fbx.N_MEMBER )
+                return PostfixChain( p, n )
+            end if
+        end if
+    end if
 
     '' A keyword in primary position is usually an intrinsic function call; the
     '' statement layer will route those. Anything else is a real syntax error.

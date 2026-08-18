@@ -377,40 +377,13 @@ private function ParseProc _
     return pn
 end function
 
-private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
-    dim as boolean isUnion = (Peek( p ) = Fbx.KW_UNION)
-    Advance( p )
+'' The member list of a TYPE or UNION, its 'end', and the node. Shared by the named
+'' and the ANONYMOUS forms, which differ only in whether a name was read.
+private function ParseAggregateBody _
+    ( byref p as Fbx.ParserState, byref t as Fbx.Token, _
+      byref sp as Fbx.StmtPayload, byval isUnion as boolean ) as Fbx.NodeId
 
-    dim as Fbx.StmtPayload sp
-    if DeclName( p, sp.name ) = false then
-        '' 'type as long ptr Foo' is a typedef. But 'type' with nothing after it is
-        '' malformed, and silently returning a node would swallow the error.
-        if Peek( p ) <> Fbx.KW_AS then
-            ErrorNode( p, Fbx.FBX0406 )
-            return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
-        end if
-        Advance( p )
-        sp.a = TypeRef( p )
-        DeclName( p, sp.name )
-        return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
-    end if
-
-    '' 'type Foo as long' -- also a typedef.
-    if Peek( p ) = Fbx.KW_AS then
-        Advance( p )
-        sp.a = TypeRef( p )
-        return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
-    end if
-
-    if Peek( p ) = Fbx.TK_LPAREN then          '' generic parameter list
-        while (Peek( p ) <> Fbx.TK_RPAREN) andalso (AtEnd( p ) = false)
-            Advance( p )
-        wend
-        Expect( p, Fbx.TK_RPAREN, ")" )
-    end if
-    if Accept( p, Fbx.KW_EXTENDS ) then sp.c = TypeRef( p )
-
+    p.aggDepth += 1
     dim as Fbx.NodeIdVec members
     do
         SkipEols( p )
@@ -473,6 +446,54 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.NodeId n = MakeStmt( p, Fbx.N_TYPE, t.loc, sp )
     if isUnion then p.ast->nodes[cast( long, n )].flags or= Fbx.NF_IS_UNION
     return n
+    p.aggDepth -= 1
+    return n
+end function
+
+private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
+    dim as Fbx.Token t = Cur( p )
+    dim as boolean isUnion = (Peek( p ) = Fbx.KW_UNION)
+    Advance( p )
+
+    dim as Fbx.StmtPayload sp
+    if DeclName( p, sp.name ) = false then
+        '' An ANONYMOUS union or type, which is legal inside another aggregate and
+        '' nowhere else. Its members belong to the enclosing type, so it carries no
+        '' name and Collect splices it rather than opening a scope.
+        if (p.aggDepth > 0) andalso _
+           ((Peek( p ) = Fbx.TK_EOL) orelse (Peek( p ) = Fbx.KW_FIELD)) then
+            sp.name = 0
+            dim as Fbx.NodeId anon = ParseAggregateBody( p, t, sp, isUnion )
+            return anon
+        end if
+        '' 'type as long ptr Foo' is a typedef. But 'type' with nothing after it is
+        '' malformed, and silently returning a node would swallow the error.
+        if Peek( p ) <> Fbx.KW_AS then
+            ErrorNode( p, Fbx.FBX0406 )
+            return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
+        end if
+        Advance( p )
+        sp.a = TypeRef( p )
+        DeclName( p, sp.name )
+        return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
+    end if
+
+    '' 'type Foo as long' -- also a typedef.
+    if Peek( p ) = Fbx.KW_AS then
+        Advance( p )
+        sp.a = TypeRef( p )
+        return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
+    end if
+
+    if Peek( p ) = Fbx.TK_LPAREN then          '' generic parameter list
+        while (Peek( p ) <> Fbx.TK_RPAREN) andalso (AtEnd( p ) = false)
+            Advance( p )
+        wend
+        Expect( p, Fbx.TK_RPAREN, ")" )
+    end if
+    if Accept( p, Fbx.KW_EXTENDS ) then sp.c = TypeRef( p )
+
+    return ParseAggregateBody( p, t, sp, isUnion )
 end function
 
 private function ParseEnumDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
