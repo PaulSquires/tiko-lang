@@ -1,9 +1,11 @@
 '' String lowering against the ABI measured in docs/internals/phase-6-rtl.md: a
 '' var-length string is passed as a POINTER TO ITS DESCRIPTOR with a length of -1.
 ''
-'' 'a = a + b' is a CONCAT-ASSIGN rather than a concat plus a store, which is what fbc
-'' emits: the destination is also the left operand, so no temporary is needed. A
-'' general 'a = b + c' does need one and is deliberately not lowered yet.
+'' A '+' chain flattens into ONE assign followed by concat-assigns, which is what fbc
+'' emits -- 'a = b + c' needs no temporary at all. One is needed only when the
+'' DESTINATION appears on the right ('a = b + a'), because building in place would
+'' overwrite the source before it is read; that shape is skipped rather than lowered
+'' into a store over 24-byte descriptors, which would be wrong rather than partial.
 ''
 '' fb_StrDelete goes through the cleanup list, so it inherits the order measured from
 '' fbc: reverse declaration, and every open scope on an early RETURN.
@@ -14,5 +16,7 @@
 '' EXPECT-OUT: call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
 '' EXPECT-OUT: call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
 '' EXPECT-OUT: call.rtl void fb_StrDelete(@a)
+'' EXPECT-OUT: global str $str0 "x"
+'' EXPECT-OUT: call.rtl ptr fb_StrAssign(@a, -1, @@0, 2, 0)
 '' EXPECT-OUT: verify: ok
 '' GOLDEN: expected/strings.out

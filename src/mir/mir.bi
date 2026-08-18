@@ -182,15 +182,30 @@ namespace Fbx.Mir
 
     type MirFunctionVec as FB.Array( of MirFunction ptr )
 
+    '' A module-level constant. Only string-literal bytes for now: a literal has to
+    '' live somewhere before a pointer to it can be passed to the runtime.
+    type MirGlobal
+        as InternId name
+        as string   bytes          '' the literal's contents, NUL not included
+        as boolean  isString
+    end type
+
+    type MirGlobalVec as FB.Array( of MirGlobal )
+
     type MirModule
         as InternId ptr names
         as MirFunctionVec functions
+        as MirGlobalVec globals
         as FB.Array( of ulong ) argPool     '' call arguments, as MirValue ids
 
         declare constructor( )
         declare destructor( )
         declare function AddFunction _
             ( byval nm as InternId, byval retTy as MirType ) as MirFunction ptr
+        '' Identical literals share one global, which is smaller and is what fbc
+        '' does -- two occurrences of the same text are one datum.
+        declare function AddStringLiteral _
+            ( byref text as string, byref names as Interner ) as long
     end type
 
     declare function TypeName( byval t as MirType ) as string

@@ -37,6 +37,8 @@ sub P( )
     a = "x"
     a = b
     a = a + b
+    a = "abc" + b
+    a = b + a
     if a = b then
     end if
     a = left(b, 1)

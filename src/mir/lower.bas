@@ -1,48 +1,14 @@
 '' lower.bas -- AST to MIR. See lower.bi for what this slice does and does not cover.
 
 #include once "mir/lower.bi"
-#include once "symbols/mangle.bi"
+#include once "mir/lowerctx.bi"
 
 namespace Fbx.Mir
 
-type Ctx
-    as Fbx.AstArena ptr     ast
-    as Fbx.SymbolTable ptr  syms
-    as Fbx.TypeContext ptr  types
-    as Fbx.Interner ptr     names
-    as Fbx.SemanticInfo ptr info
-    as MirModule ptr        m
-    as MirFunction ptr      f
-    as LowerStats ptr       st
-    as long                 curBlock
-    '' The innermost loop's exit and continue targets, for EXIT and CONTINUE. A stack
-    '' rather than a pair, because the statements take a level count.
-    as FB.Array( of long )  breakTo
-    as FB.Array( of long )  contTo
-    as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
-    as Fbx.UdtLayouts ptr   udts      '' field offsets, for member access
-    '' THE CLEANUP MODEL (docs/plan/08 section 6).
-    ''
-    '' One flat list of actions, plus a stack of marks giving where each open scope's
-    '' actions begin. Actions run in REVERSE REGISTRATION ORDER, and locals and
-    '' DEFERs share the one list -- which is what makes the measured fbc order fall
-    '' out rather than needing to be arranged. Measured: a local 'a' declared before
-    '' two defers is destroyed AFTER both of them run, newest defer first.
-    '' Two action kinds share ONE list, because the ORDER is one order: a local
-    '' declared before two defers is destroyed after both run (measured), which only
-    '' falls out if they are interleaved rather than kept apart.
-    ''   RunDefer      cleanupNode = the statement,   cleanupSlot = -1
-    ''   DestroyLocal  cleanupNode = the dtor symbol,  cleanupSlot = the slot
-    ''   DeleteString  cleanupNode = 0,                cleanupSlot = the slot
-    as FB.Array( of ulong ) cleanupNode
-    as FB.Array( of long )  cleanupSlot
-    as FB.Array( of long )  scopeMark      '' index into cleanupNode per open scope
-    '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
-    '' scopes they are leaving.
-    as FB.Array( of long )  loopScope
-end type
+'' Ctx and the shared helpers live in lowerctx.bi: lowering is now two files.
 
-private function StmtOf _
+
+function StmtOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
     return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
 end function
@@ -63,7 +29,7 @@ end function
 '' Instructions are appended to the FUNCTION's list and the current block's extent is
 '' widened. That only works while blocks are built in order, which is why lowering
 '' never returns to a finished block -- it opens a new one instead.
-private function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
+function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     dim as MirValue v
     if c.curBlock < 0 then return v
     dim as MirOp op = cast( MirOp, ins.op )
@@ -97,7 +63,7 @@ end function
 
 '' An empty value, for the terminators that carry none. FreeBASIC will not take a
 '' constructed default argument, so it is spelled once here rather than at every call.
-private function NoVal( ) as MirValue
+function NoVal( ) as MirValue
     dim as MirValue v
     return v
 end function
@@ -227,8 +193,6 @@ end function
 
 '' ------------------------------------------------------------- expressions
 
-declare function LowerExpr _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 declare function LowerShortCircuit _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
       byval mt as MirType ) as MirValue
@@ -283,7 +247,7 @@ end function
 
 '' The ADDRESS of an assignable expression, or an undef value when this slice cannot
 '' produce one (a member, an index, a dereference).
-private function LowerAddr _
+function LowerAddr _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 
     dim as MirValue v
@@ -504,9 +468,6 @@ private function LowerCall _
 end function
 
 
-declare sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
-declare function SameLValue _
-    ( byref c as Ctx, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
 
 '' The ctor or dtor of a type, or SYMBOL_NONE. They live in the type's scope under a
 '' synthetic name, because neither has a name of its own in the source.
@@ -601,117 +562,6 @@ private sub EmitDtorCall _
     EmitStructorCall( c, sym, slot )
 end sub
 
-'' ------------------------------------------------------------------ runtime
-
-'' A call to a runtime function, by table id. Nothing here spells a runtime name: the
-'' inventory is the only place that does (docs/plan/11 section 3).
-private function EmitRtl _
-    ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
-
-    dim as MirValue v
-    dim as Fbx.InternId nm = c.names->GetString( RtlSymbol( r ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r ) )
-        decl->isDefinition = false
-        decl->paramCount = RtlArity( r )
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as long first = c.m->argPool.Count \ 2
-    for i as long = 0 to args.Count - 1
-        c.m->argPool.Push( args[i] )
-    next
-
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CALL_RTL )
-    ins.ty = cast( ubyte, RtlReturn( r ) )
-    ins.first = first
-    ins.count = args.Count \ 2
-    ins.callee = fidx
-    return Emit( c, ins )
-end function
-
-'' The (pointer, length) pair the string runtime takes. A var-length string is its
-'' DESCRIPTOR's address with a length of -1; the runtime reads the length from the
-'' descriptor itself.
-private sub PushStrArg _
-    ( byref args as FB.Array( of ulong ), byref addr as MirValue )
-    args.Push( cast( ulong, addr.kind ) )
-    args.Push( cast( ulong, addr.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, cast( ulongint, -1 ) ) )
-end sub
-
-
-private function IsStringType _
-    ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return false
-    dim as Fbx.BuiltinType b = c.types->BuiltinOf( t )
-    return (b = Fbx.TY_STRING) orelse (b = Fbx.TY_USTRING)
-end function
-
-'' 'a = b' and 'a = a + b' between var-length strings. Returns false when this is not
-'' a string assignment, so the caller falls back to an ordinary store.
-private function LowerStringAssign _
-    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
-
-    if IsStringType( c, c.info->TypeOf_( target ) ) = false then return false
-    dim as MirValue dst = LowerAddr( c, target )
-    if dst.kind = cast( ubyte, MV_NONE ) then return false
-
-    '' 'a = a + b' is a CONCAT-ASSIGN, which is what fbc emits: the destination is
-    '' also the left operand, so no temporary is needed.
-    dim as Fbx.NodeId rhs = value
-    dim as boolean concat = false
-    if c.ast->Kind( value ) = Fbx.N_BINARY then
-        dim as Fbx.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
-        if cast( Fbx.TokenKind, bp->op ) = Fbx.TK_PLUS then
-            '' Only the self-concatenation shape is handled here; a general
-            '' 'a = b + c' needs a temporary, which is not lowered yet.
-            if SameLValue( c, target, bp->lhs ) then
-                concat = true
-                rhs = bp->rhs
-            else
-                return false
-            end if
-        end if
-    end if
-
-    if IsStringType( c, c.info->TypeOf_( rhs ) ) = false then return false
-    dim as MirValue src = LowerAddr( c, rhs )
-    if src.kind = cast( ubyte, MV_NONE ) then return false
-
-    dim as FB.Array( of ulong ) args
-    PushStrArg( args, dst )
-    PushStrArg( args, src )
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( 0 )
-    if concat then
-        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, args )
-    else
-        EmitRtl( c, RTL_STR_ASSIGN, args )
-    end if
-    return true
-end function
-
-'' Whether two expressions name the same storage. Only the simple cases are needed:
-'' anything else falls back to the general path rather than guessing.
-private function SameLValue _
-    ( byref c as Ctx, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
-    if (a = Fbx.NODE_NONE) orelse (b = Fbx.NODE_NONE) then return false
-    if c.ast->Kind( a ) <> c.ast->Kind( b ) then return false
-    if c.ast->Kind( a ) <> Fbx.N_IDENT then return false
-    return c.info->RefOf( a ) = c.info->RefOf( b )
-end function
 
 '' -------------------------------------------------------------- cleanup model
 
@@ -949,8 +799,14 @@ end sub
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId )
 
-    '' A string assignment is a runtime call, not a store.
-    if LowerStringAssign( c, target, value ) then return
+    '' A string assignment is a runtime call, not a store. When it cannot be lowered
+    '' -- 'a = b + a' needs a temporary -- it is SKIPPED, never allowed to fall
+    '' through: an ordinary store would emit load/add/store over 24-byte descriptors,
+    '' which is not a partial answer but a wrong one.
+    if IsStringType( c, c.info->TypeOf_( target ) ) then
+        if LowerStringAssign( c, target, value ) = false then c.st->skipped += 1
+        return
+    end if
 
     dim as MirValue addr = LowerAddr( c, target )
     dim as MirValue val = LowerExpr( c, value )

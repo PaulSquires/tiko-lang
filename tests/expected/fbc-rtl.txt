@@ -11,6 +11,7 @@ fb_PrintVoid	void	int32, int32	lib
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int64	lib
 fb_StrAssign	FBSTRING*	void*, int64, void*, int64, int32	lib
 fb_StrCompare	int32	void*, int64, void*, int64	lib
+fb_StrConcat	FBSTRING*	FBSTRING*, void*, int64, void*, int64	lib
 fb_StrConcatAssign	FBSTRING*	void*, int64, void*, int64, int32	lib
 fb_StrDelete	void	FBSTRING*	lib
 fb_StrLen	int64	void*, int64	lib

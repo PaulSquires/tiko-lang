@@ -26,7 +26,7 @@ private function ValStr _
         end if
         return "@?" & str( v.id )
     case MV_PARAM       : return "$" & str( v.id )
-    case MV_GLOBAL      : return "g" & str( v.id )
+    case MV_GLOBAL      : return "@@" & str( v.id )
     case MV_UNDEF       : return "undef"
     end select
     return "_"
@@ -103,6 +103,14 @@ function DumpModule _
     ( byref m as MirModule, byref names as Fbx.Interner ) as string
 
     dim as string outp = ""
+    '' Globals come first so a function body's diff is not disturbed by one being
+    '' added.
+    for i as long = 0 to m.globals.Count - 1
+        if m.globals[i].isString then
+            outp += "global str " & names.Spelling( m.globals[i].name ) & " " & _
+                    chr( 34 ) & m.globals[i].bytes & chr( 34 ) & chr( 10 )
+        end if
+    next
     for fi as long = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for

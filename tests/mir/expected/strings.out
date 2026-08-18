@@ -1,3 +1,4 @@
+global str $str0 "x"
 func void ASSIGN() {
   local agg a size 24
   local agg b size 24
@@ -35,5 +36,24 @@ func void SCOPED($0) {
   if.else3:
     br if.join1
 }
+func void CONCAT() {
+  local agg a size 24
+  local agg b size 24
+  local agg c size 24
+  entry0:
+    %1 = alloca ptr a
+    %2 = alloca ptr b
+    %3 = alloca ptr c
+    %4 = call.rtl ptr fb_StrAssign(@a, -1, @@0, 2, 0)
+    %5 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %6 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
+    %7 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %8 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
+    %9 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
+    call.rtl void fb_StrDelete(@c)
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@a)
+    ret
+}
 verify: ok
-lowered: 2 functions, 5 blocks, 15 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 6 blocks, 27 insts, 0 statements not lowered, 0 scope imbalance

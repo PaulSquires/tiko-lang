@@ -34,6 +34,7 @@ namespace Fbx.Mir
     #macro FBX_RTL_LIST( RTL )
         RTL( RTL_STR_ASSIGN,        "fb_StrAssign",        MT_PTR,  "pqpql" )
         RTL( RTL_STR_CONCAT_ASSIGN, "fb_StrConcatAssign",  MT_PTR,  "pqpql" )
+        RTL( RTL_STR_CONCAT,        "fb_StrConcat",        MT_PTR,  "ppqpq"  )
         RTL( RTL_STR_COMPARE,       "fb_StrCompare",       MT_I32,  "pqpq"  )
         RTL( RTL_STR_DELETE,        "fb_StrDelete",        MT_VOID, "p"     )
         RTL( RTL_STR_LEN,           "fb_StrLen",           MT_I64,  "pq"    )

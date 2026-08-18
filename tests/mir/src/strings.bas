@@ -16,3 +16,12 @@ sub Scoped( byval f as long )
         if f then return
     end scope
 end sub
+
+'' A '+' chain flattens into one assign and N concat-assigns -- no temporary, which
+'' is what fbc emits. A literal is passed as its own bytes with length strlen+1.
+sub Concat( )
+    dim as string a, b, c
+    a = "x"
+    a = b + c
+    a = b + c + b
+end sub

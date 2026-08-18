@@ -24,6 +24,22 @@ function MirModule.AddFunction _
     return f
 end function
 
+function MirModule.AddStringLiteral _
+    ( byref text as string, byref names as Interner ) as long
+
+    for i as long = 0 to this.globals.Count - 1
+        if this.globals[i].isString andalso (this.globals[i].bytes = text) then
+            return i
+        end if
+    next
+    dim as MirGlobal g
+    g.bytes = text
+    g.isString = true
+    g.name = names.GetString( "$str" & str( this.globals.Count ) )
+    this.globals.Push( g )
+    return this.globals.Count - 1
+end function
+
 '' ------------------------------------------------------------------ metadata
 
 function TypeName( byval t as MirType ) as string

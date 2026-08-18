@@ -23,5 +23,6 @@ src/mir/rtl.bas
 src/mir/dump.bas
 src/mir/verify.bas
 src/mir/lower.bas
+src/mir/lowerstr.bas
 src/driver/cmdline.bas
 src/driver/driver.bas
