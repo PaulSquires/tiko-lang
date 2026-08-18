@@ -190,9 +190,23 @@ sub WalkNode _
         dim as boolean isCtorDtor = (sp->op = cast( ushort, Fbx.KW_CONSTRUCTOR )) orelse _
                                     (sp->op = cast( ushort, Fbx.KW_DESTRUCTOR ))
         dim as boolean isMemberDef = ((n->flags and Fbx.NF_QUALIFIED) <> 0) orelse isCtorDtor
+        '' A constructor or destructor has no name of its own -- 'declare
+        '' constructor( )' names nothing and 'constructor T( )' names the TYPE -- so
+        '' neither was ever declared as a symbol, and nothing could find them. They
+        '' get a synthetic name in the type's scope, which also makes overloaded
+        '' constructors chain like any other overload set.
+        dim as Fbx.InternId declName = sp->name
+        if isCtorDtor then
+            if sp->op = cast( ushort, Fbx.KW_CONSTRUCTOR ) then
+                declName = w.names->Fold( w.names->GetString( "__ctor" ) )
+            else
+                declName = w.names->Fold( w.names->GetString( "__dtor" ) )
+            end if
+        end if
+
         dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
         if isMemberDef = false then
-            sid = Declare_( w, scope_, sp->name, Fbx.SYM_PROC, w.ast->Loc( id ) )
+            sid = Declare_( w, scope_, declName, Fbx.SYM_PROC, w.ast->Loc( id ) )
         end if
         dim as Fbx.Symbol ptr s = w.syms->SymbolAt( sid )
         if s <> 0 then
@@ -218,6 +232,22 @@ sub WalkNode _
                 if os <> 0 then
                     if os->inner <> Fbx.SCOPE_NONE then parentScope = os->inner
                 end if
+            end if
+        end if
+
+        '' A ctor/dtor DEFINITION joins the declaration that is already in the
+        '' type's scope, so a call site finds one symbol with a body rather than two
+        '' halves of one.
+        if isCtorDtor andalso (sid = Fbx.SYMBOL_NONE) then
+            sid = w.syms->LookupLocal( parentScope, declName )
+            if sid = Fbx.SYMBOL_NONE then
+                sid = Declare_( w, parentScope, declName, Fbx.SYM_PROC, _
+                                w.ast->Loc( id ) )
+            end if
+            s = w.syms->SymbolAt( sid )
+            if s <> 0 then
+                s->flags or= Fbx.SYMF_DEFINED
+                s->payload = cast( long, id )
             end if
         end if
 

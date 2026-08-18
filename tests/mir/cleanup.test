@@ -10,5 +10,10 @@
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: verify: ok
 '' EXPECT-OUT: 0 scope imbalance
+'' Constructors and destructors register into the SAME list as the defers, so the
+'' measured order applies to them with no extra arrangement: reverse declaration at a
+'' normal scope end, and innermost-scope-first on an early RETURN.
+'' EXPECT-OUT: call void _ZN3RESC1Ev
+'' EXPECT-OUT: call void _ZN3RESD1Ev
 '' EXPECT-NOT: <NO TERMINATOR>
 '' GOLDEN: expected/cleanup.out

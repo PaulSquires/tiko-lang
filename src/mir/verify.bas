@@ -78,7 +78,11 @@ function Verify _
                 '' Rule 4, in the form available without a full signature table: an
                 '' opcode that produces a value must have a result temp, and one that
                 '' does not must not.
-                if OpHasResult( op ) then
+                '' A void call is the one result-producing opcode that legitimately
+                '' has no result: there is no value to name.
+                dim as boolean wantsResult = OpHasResult( op )
+                if ins->ty = cast( ubyte, MT_VOID ) then wantsResult = false
+                if wantsResult then
                     if ins->result = 0 then
                         Fail( r, iw, "result-producing opcode with no result temp" )
                     elseif cast( long, ins->result ) < defined_.Count then

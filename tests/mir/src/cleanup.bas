@@ -35,3 +35,25 @@ sub Members( )
     r.n = 1
     r.d = 2.5
 end sub
+
+'' Constructors and destructors, registered into the same cleanup list the defers use.
+type Res
+    as long h
+    declare constructor( )
+    declare destructor( )
+end type
+constructor Res( )
+    h = 1
+end constructor
+destructor Res( )
+    h = 0
+end destructor
+
+sub Structors( byval f as long )
+    dim as Res a
+    scope
+        dim as Res inner
+        if f then return
+    end scope
+    dim as Res b
+end sub

@@ -28,7 +28,13 @@ type Ctx
     '' DEFERs share the one list -- which is what makes the measured fbc order fall
     '' out rather than needing to be arranged. Measured: a local 'a' declared before
     '' two defers is destroyed AFTER both of them run, newest defer first.
-    as FB.Array( of ulong ) cleanupNode    '' the statement a RunDefer action runs
+    '' Two action kinds share ONE list, because the ORDER is one order: a local
+    '' declared before two defers is destroyed after both run (measured), which only
+    '' falls out if they are interleaved rather than kept apart.
+    ''   RunDefer      cleanupNode = the statement,  cleanupSlot = -1
+    ''   DestroyLocal  cleanupNode = the dtor symbol, cleanupSlot = the slot
+    as FB.Array( of ulong ) cleanupNode
+    as FB.Array( of long )  cleanupSlot
     as FB.Array( of long )  scopeMark      '' index into cleanupNode per open scope
     '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
     '' scopes they are leaving.
@@ -69,13 +75,18 @@ private function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
             return v
         end if
     end if
-    if OpHasResult( op ) then
+    '' A call returning void produces no value, so it gets no result temp. Giving it
+    '' one made every constructor call read as '%2 = call void', which is noise in a
+    '' listing the golden tests assert on.
+    dim as boolean makesValue = OpHasResult( op )
+    if ins.ty = cast( ubyte, MT_VOID ) then makesValue = false
+    if makesValue then
         ins.result = c.f->nextTemp
         c.f->nextTemp += 1
     end if
     c.f->blocks[c.curBlock].insts.Push( ins )
     c.st->insts += 1
-    if OpHasResult( op ) then
+    if makesValue then
         v.kind = cast( ubyte, MV_TEMP )
         v.ty = ins.ty
         v.id = ins.result
@@ -494,6 +505,74 @@ end function
 
 declare sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
 
+'' The ctor or dtor of a type, or SYMBOL_NONE. They live in the type's scope under a
+'' synthetic name, because neither has a name of its own in the source.
+private function StructorOf _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref which as string ) as Fbx.SymbolId
+
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->Lookup( ds, tn )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Fbx.SYMBOL_NONE
+    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( s->inner, _
+        c.names->Fold( c.names->GetString( which ) ) )
+end function
+
+'' A call to a structor with the slot's address as the implicit THIS. The receiver is
+'' the first argument, per the ABI, which is also how the mangled name reads.
+private sub EmitStructorCall _
+    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    if s = 0 then return
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+    if pn = Fbx.NODE_NONE then return
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return
+
+    dim as MirValue self_
+    self_.kind = cast( ubyte, MV_LOCAL )
+    self_.ty = cast( ubyte, MT_PTR )
+    self_.id = slot
+
+    dim as long first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( ulong, self_.kind ) )
+    c.m->argPool.Push( cast( ulong, self_.id ) )
+
+    dim as Fbx.InternId nm = c.names->GetString( _
+        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
+        decl->isDefinition = false
+        decl->paramCount = 1
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as MirInst ins
+    ins.op = cast( ushort, M_CALL )
+    ins.ty = cast( ubyte, MT_VOID )
+    ins.first = first
+    ins.count = 1
+    ins.callee = fidx
+    Emit( c, ins )
+end sub
+
+private sub EmitDtorCall _
+    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+    EmitStructorCall( c, sym, slot )
+end sub
+
 '' -------------------------------------------------------------- cleanup model
 
 private sub PushScope( byref c as Ctx )
@@ -508,7 +587,11 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     dim as long upto = c.cleanupNode.Count
     if depth + 1 < c.scopeMark.Count then upto = c.scopeMark[depth + 1]
     for i as long = upto - 1 to from_ step -1
-        LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+        if c.cleanupSlot[i] < 0 then
+            LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+        else
+            EmitDtorCall( c, cast( Fbx.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
+        end if
     next
 end sub
 
@@ -527,6 +610,7 @@ private sub PopScope( byref c as Ctx )
     c.scopeMark.Pop( )
     while c.cleanupNode.Count > mark
         c.cleanupNode.Pop( )
+        c.cleanupSlot.Pop( )
     wend
 end sub
 
@@ -596,6 +680,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         '' reverse registration order -- which is the FBC-Modern behaviour to
         '' reproduce, not to improve on.
         c.cleanupNode.Push( cast( ulong, StmtOf( c, id )->b ) )
+        c.cleanupSlot.Push( -1 )
 
     case Fbx.N_VAR
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
@@ -613,6 +698,23 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
                 continue for
             end if
             dim as long slot = LocalFor( c, sid )
+
+            '' A UDT local is CONSTRUCTED where it is declared and DESTROYED at the
+            '' end of its scope. The destructor is registered into the same cleanup
+            '' list the defers use, so the measured order -- reverse registration,
+            '' interleaved with defers, innermost scope first on an early exit --
+            '' applies to it without any extra arrangement.
+            dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( sid )
+            if (slot >= 0) andalso (vs <> 0) then
+                dim as Fbx.SymbolId ctor = StructorOf( c, vs->type_, "__ctor" )
+                if ctor <> Fbx.SYMBOL_NONE then EmitStructorCall( c, ctor, slot )
+                dim as Fbx.SymbolId dtor = StructorOf( c, vs->type_, "__dtor" )
+                if dtor <> Fbx.SYMBOL_NONE then
+                    c.cleanupNode.Push( cast( ulong, dtor ) )
+                    c.cleanupSlot.Push( slot )
+                end if
+            end if
+
             if (slot >= 0) andalso (ip->b <> Fbx.NODE_NONE) then
                 dim as MirValue val = LowerExpr( c, ip->b )
                 if val.kind <> cast( ubyte, MV_NONE ) then
