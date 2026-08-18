@@ -197,6 +197,129 @@ function BinaryResult _
     return IntResult_( lb, rb, types )
 end function
 
+
+'' ----------------------------------------------------------- overload resolution
+
+'' fbc's own preference order among the builtin types, which is NOT size order:
+'' INTEGER sits before LONGINT even though both are 64-bit, and an argument of type
+'' LONG offered 'integer' and 'longint' picks INTEGER. Rank is used only to break
+'' ties within a conversion class, and to tell widening from narrowing.
+private function Rank_( byval b as Fbx.BuiltinType ) as long
+    select case b
+    case Fbx.TY_BYTE     : return 1
+    case Fbx.TY_UBYTE    : return 2
+    case Fbx.TY_SHORT    : return 3
+    case Fbx.TY_USHORT   : return 4
+    case Fbx.TY_LONG     : return 5
+    case Fbx.TY_ULONG    : return 6
+    case Fbx.TY_INTEGER  : return 7
+    case Fbx.TY_UINTEGER : return 8
+    case Fbx.TY_LONGINT  : return 9
+    case Fbx.TY_ULONGINT : return 10
+    case Fbx.TY_SINGLE   : return 11
+    case Fbx.TY_DOUBLE   : return 12
+    end select
+    return 0
+end function
+
+private function IsUnsignedInt_( byval b as Fbx.BuiltinType ) as boolean
+    select case b
+    case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG, Fbx.TY_UINTEGER, Fbx.TY_ULONGINT
+        return true
+    end select
+    return false
+end function
+
+function ConversionCost _
+    ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
+      byref types as Fbx.TypeContext ) as long
+
+    if (from_ = Fbx.TYPE_NONE) orelse (to_ = Fbx.TYPE_NONE) then return CONV_NONE
+    if from_ = to_ then return CONV_EXACT
+    if types.Kind( from_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
+    if types.Kind( to_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
+
+    '' Named srcB / dstB, not fb / tb: 'fb' is the FB namespace, and FreeBASIC is
+    '' case-insensitive, so a local called fb shadows it.
+    dim as Fbx.BuiltinType srcB = types.BuiltinOf( from_ )
+    dim as Fbx.BuiltinType dstB = types.BuiltinOf( to_ )
+    if srcB = dstB then return CONV_EXACT
+
+    '' A string converts to a string and to nothing else, in either direction.
+    if IsStringy_( srcB ) orelse IsStringy_( dstB ) then
+        if IsStringy_( srcB ) andalso IsStringy_( dstB ) then return CONV_WIDEN
+        return CONV_NONE
+    end if
+
+    dim as long sr = Rank_( srcB )
+    dim as long dr = Rank_( dstB )
+
+    '' BOOLEAN on either side is its own tier, dearer than any numeric conversion
+    '' however lossy: offered 'byte' and 'boolean' for a DOUBLE argument, fbc takes
+    '' byte. Within the tier a SIGNED parameter is preferred, then the lower rank --
+    '' a boolean argument offered 'uinteger' and 'longint' takes longint.
+    if (srcB = Fbx.TY_BOOLEAN) orelse (dstB = Fbx.TY_BOOLEAN) then
+        dim as long b = CONV_BOOL
+        if dr = 0 then return b + 1
+        '' Within the tier, in order: the integer class beats the float class, then
+        '' the nearest WIDTH, then SIGNED before unsigned, then rank. That last pair
+        '' is what makes a boolean argument offered 'uinteger' and 'longint' take
+        '' longint -- the only case in the table where the higher rank wins.
+        if IsFloat_( dstB ) then b += 1000
+        dim as long bs = types.Layout( to_ ).size - 1
+        if bs < 0 then bs = -bs
+        b += bs * 16
+        if IsUnsignedInt_( dstB ) then b += 8
+        return b + dr
+    end if
+    if (sr = 0) orelse (dr = 0) then return CONV_NONE
+
+    '' Staying in the class beats changing it OUTRIGHT, even when staying means
+    '' narrowing: offered 'short' and 'double' for a LONG argument, fbc takes short.
+    dim as long cost = 0
+    if IsFloat_( srcB ) <> IsFloat_( dstB ) then cost += CONV_CLASS
+
+    '' Then SIZE: the same width beats a widening, and a widening beats a narrowing.
+    '' 'byte' beats 'short' for a UBYTE argument (same width), while 'longint' beats
+    '' 'short' for a LONG argument (widening rather than narrowing).
+    dim as long ss = types.Layout( from_ ).size
+    dim as long ds = types.Layout( to_ ).size
+    '' Width dominates every later tiebreak: a LONG argument offered 'byte' and
+    '' 'ushort' takes ushort, the nearer width, even though byte matches its
+    '' signedness and ushort does not.
+    if ds > ss then
+        cost += CONV_WIDEN + (ds - ss) * 64
+    elseif ds < ss then
+        cost += CONV_NARROW + (ss - ds) * 64
+    end if
+
+    '' The remaining tiebreaks, strongest first.
+    ''
+    '' FAMILY: byte/ubyte, short/ushort, long/ulong, integer/uinteger and
+    '' longint/ulongint are signed/unsigned partners. An argument prefers a candidate
+    '' from its own pair -- which is the only thing that explains a LONGINT argument
+    '' offered 'uinteger' and 'ulongint' taking ulongint, since both are unsigned,
+    '' 8 bytes wide, and one rank step away.
+    if (sr + 1) \ 2 <> (dr + 1) \ 2 then cost += 16
+
+    '' SIGNEDNESS, which outranks BOTH family and rank distance. The four 8-byte
+    '' cross pairs are what pin this down: a UINTEGER argument offered 'integer' and
+    '' 'ulongint' takes ulongint -- matching signedness -- although integer is its
+    '' own family partner and one rank step away.
+    if IsUnsignedInt_( srcB ) <> IsUnsignedInt_( dstB ) then cost += 32
+
+    '' Rank distance, but only WITHIN a class. Across the integer/float boundary it
+    '' does not apply: a SINGLE argument offered 'integer' and 'longint' takes
+    '' integer, though longint is nearer in rank.
+    if IsFloat_( srcB ) = IsFloat_( dstB ) then
+        dim as long rd = dr - sr
+        if rd < 0 then rd = -rd
+        cost += rd * 2
+    end if
+
+    return cost + dr
+end function
+
 '' --------------------------------------------------------------------- typing
 
 private function StmtOf _
@@ -221,6 +344,86 @@ private function LiteralType_ _
         return c.types->Builtin( Fbx.TY_STRING )
     end select
     return Fbx.TYPE_NONE
+end function
+
+
+'' Pick the overload for one call. Returns the chosen procedure's RETURN type, or
+'' TYPE_NONE when nothing is viable or two candidates tie.
+private function ResolveCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval callee as Fbx.SymbolId, _
+      byval cp as Fbx.ListPayload ptr ) as Fbx.TypeId
+
+    '' Argument types first; an untyped argument makes the whole call undecidable
+    '' rather than wrong.
+    dim as FB.Array( of ulong ) argT
+    for i as long = 0 to cp->count - 1
+        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+        dim as Fbx.TypeId at = TypeOf_( c, a )
+        if at = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+        argT.Push( cast( ulong, at ) )
+    next
+
+    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
+    dim as long bestCost = CONV_NONE
+    dim as long ties = 0
+    dim as Fbx.SymbolId cur = callee
+
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
+        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+            '' Only same-arity candidates are viable. Optional and variadic
+            '' parameters are not modelled yet, so those procedures simply never win.
+            dim as long np = 0
+            for i as long = 0 to pp->count - 1
+                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+            next
+            if np = argT.Count then
+                dim as long total = 0
+                dim as long ai = 0
+                dim as boolean viable = true
+                for i as long = 0 to pp->count - 1
+                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                    dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
+                    dim as Fbx.TypeId pt = c.info->TypeOf_( sp2->a )
+                    dim as long cost = ConversionCost( cast( Fbx.TypeId, argT[ai] ), _
+                                                       pt, *c.types )
+                    ai += 1
+                    if cost >= CONV_NONE then
+                        viable = false
+                        exit for
+                    end if
+                    total += cost
+                next
+                if viable then
+                    if total < bestCost then
+                        bestCost = total
+                        best = cur
+                        ties = 0
+                    elseif total = bestCost then
+                        ties += 1
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+
+    if best = Fbx.SYMBOL_NONE then return Fbx.TYPE_NONE
+    if ties > 0 then
+        c.st->callsAmbiguous += 1
+        return Fbx.TYPE_NONE
+    end if
+    c.st->callsResolved += 1
+    c.info->SetRef( id, best )
+    dim as Fbx.Symbol ptr bs = c.syms->SymbolAt( best )
+    if bs = 0 then return Fbx.TYPE_NONE
+    return bs->type_
 end function
 
 function TypeOf_ _
@@ -291,6 +494,17 @@ function TypeOf_ _
             end if
         end if
 
+    case Fbx.N_CALL
+        '' The callee's symbol was bound by Resolve; the overloads hang off it in a
+        '' chain. Score every candidate against the arguments and take the unique
+        '' cheapest -- a tie is an ambiguous call, not a silent pick.
+        dim as Fbx.ListPayload ptr cp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Fbx.SymbolId callee = c.info->RefOf( cp->target )
+        if callee <> Fbx.SYMBOL_NONE then
+            t = ResolveCall_( c, id, callee, cp )
+        end if
+
     case Fbx.N_DEREF
         '' Built by MakeUnary, so the payload is a UNARY, not a statement.
         dim as Fbx.UnaryPayload ptr dp = _
@@ -327,7 +541,7 @@ private sub WalkAll( byref c as Ctx )
         select case c.ast->Kind( n )
         case Fbx.N_INT_LIT, Fbx.N_FLOAT_LIT, Fbx.N_STRING_LIT, Fbx.N_STRCAT, _
              Fbx.N_IDENT, Fbx.N_PAREN, Fbx.N_UNARY, Fbx.N_BINARY, _
-             Fbx.N_DEREF, Fbx.N_ADDROF
+             Fbx.N_DEREF, Fbx.N_ADDROF, Fbx.N_CALL
             TypeOf_( c, n )
         end select
     next
@@ -373,7 +587,8 @@ function Dump _
         outp += str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & nm & chr( 10 )
     next
     outp += "checked: " & st.typed & " typed, " & st.untyped & " untyped, " & _
-            st.badOperands & " bad operand pairs" & chr( 10 )
+            st.badOperands & " bad operand pairs, " & st.callsResolved & _
+            " calls resolved, " & st.callsAmbiguous & " ambiguous" & chr( 10 )
     return outp
 end function
 

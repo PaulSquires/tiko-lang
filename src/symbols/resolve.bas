@@ -395,7 +395,14 @@ sub WalkStmt _
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         dim as Fbx.SymbolId saved = c.currentProc
         c.currentProc = c.info->RefOf( id )
-        ResolveTypeRef( c, sp->a, here )
+        '' The RETURN type belongs on the procedure's symbol, or a call to it can
+        '' never be typed. Parameters are bound by the N_PARAM case below.
+        dim as Fbx.TypeId ret = ResolveTypeRef( c, sp->a, here )
+        dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( c.currentProc )
+        if (ps <> 0) andalso (ret <> Fbx.TYPE_NONE) andalso _
+           (ps->type_ = Fbx.TYPE_NONE) then
+            ps->type_ = ret
+        end if
         for i as long = 0 to sp->count - 1
             WalkStmt( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ), here )
         next

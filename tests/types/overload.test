@@ -1,0 +1,14 @@
+'' Overload resolution. The ranking is, strongest first: exact match, then staying in
+'' the class, then widening over narrowing, then the nearest WIDTH, then matching
+'' SIGNEDNESS, then the signed/unsigned family partner, then rank. Every one of those
+'' orderings was forced by a measured row -- the full 1,274-choice differential is
+'' tools/gen/check-overload.py, and it is a FITTED model, not fbc's algorithm.
+'' TEST: cli
+'' ARGS: --check tests/types/src/overload.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 22 byte
+'' EXPECT-OUT: 23 short
+'' EXPECT-OUT: 24 short
+'' EXPECT-OUT: 25 short
+'' EXPECT-OUT: 26 short
+'' EXPECT-OUT: 0 ambiguous

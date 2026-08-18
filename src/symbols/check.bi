@@ -36,7 +36,32 @@ namespace Fbx.Check
         as long typed          '' expressions given a type
         as long untyped        '' reached, but no type could be determined
         as long badOperands    '' operand combinations fbc would reject
+        as long callsResolved  '' calls bound to one overload
+        as long callsAmbiguous '' calls with no single best candidate
     end type
+
+    '' What one argument costs to pass to one parameter. Lower is better; CONV_NONE
+    '' means the conversion does not exist and the candidate is not viable.
+    ''
+    '' The ordering was FITTED to tests/types/expected/fbc-overload.txt rather than
+    '' derived: fbc's own ranking is not published, so the honest description is that
+    '' this model reproduces every one of the 1,274 measured choices, not that it is
+    '' the algorithm fbc runs.
+    '' The tiers are separated by more than any within-tier distance can make up, so
+    '' the ORDER is absolute: staying in the class beats changing it, widening beats
+    '' narrowing, and only then does width distance decide. Each of those was forced
+    '' by a measured row that a gentler separation got wrong.
+    const CONV_EXACT    as long = 0
+    const CONV_WIDEN    as long = 100      '' same class, no loss
+    const CONV_NARROW   as long = 1000     '' same class, lossy -- always dearer than
+                                           '' any widening, however far
+    const CONV_CLASS    as long = 5000     '' integer <-> float
+    const CONV_BOOL     as long = 20000    '' anything <-> boolean
+    const CONV_NONE     as long = 999999
+
+    declare function ConversionCost _
+        ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
+          byref types as Fbx.TypeContext ) as long
 
     '' The type of 'lhs op rhs', or TYPE_NONE if the combination is not allowed.
     declare function BinaryResult _
