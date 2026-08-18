@@ -165,7 +165,9 @@ namespace Fbx
     type LiteralPayload
         as ulongint intValue
         as double   fltValue
-        as long     strOffset       '' raw span in the source buffer
+        as long     strFile         '' FileId the span indexes -- NOT the node's loc,
+                                    '' which macro expansion is free to rewrite
+        as long     strOffset       '' raw span in that buffer
         as long     strLength
         as ubyte    strKind
         as ubyte    suffix

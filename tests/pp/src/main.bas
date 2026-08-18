@@ -35,3 +35,23 @@ VTAIL( vt2, 9 )
 #endmacro
 OPTP opt_bare
 OPTP( opt_paren )
+
+'' '#param' STRINGIZE. Its text must come from the ARGUMENT, not from the macro
+'' invocation: RelexInto repoints synthesised tokens at the use site so diagnostics land
+'' somewhere visible, and reading the span at that loc returned the call's own source
+'' text -- '#a' for 's3(hello)' produced 's3(hell', the right LENGTH from the wrong file.
+#macro STRZ( a )
+    dim as long a
+#endmacro
+STRZ( strz_ok )
+
+'' The empty case is the one the bug hid, and the one macros actually test for.
+#macro STRTEST( a, c... )
+    #if #c = ""
+        dim as long strtest_empty
+    #else
+        dim as long strtest_hasargs
+    #endif
+#endmacro
+STRTEST( 1 )
+STRTEST( 1, 2 )

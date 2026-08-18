@@ -205,7 +205,32 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
     dim as string spellText = TokenKindText( k )
     if len( spellText ) > 0 then return spellText
 
-    '' Literals and anything else: take the exact source span.
+    '' A LITERAL's text comes from ITS OWN recorded file and span, never from the token's
+    '' loc. RelexInto repoints synthesised tokens at the use site so diagnostics land
+    '' somewhere visible, and reading the span at that loc then returned the INVOCATION's
+    '' source text -- which is what made '#param' echo the macro call instead of the
+    '' argument.
+    dim as boolean isLit = (k = TK_INT_LIT) orelse (k = TK_FLOAT_LIT) orelse _
+                           (k = TK_STRING_LIT)
+    if isLit then
+        dim as long li = cast( long, t.literal )
+        if (li >= 0) andalso (li < e.outp->literals.Count) then
+            dim as Literal ptr lp = @e.outp->literals[li]
+            dim as SourceFile ptr lf = e.src->FileAt( cast( FileId, lp->textFile ) )
+            if (lf <> 0) andalso (lp->textLength > 0) then
+                if (lp->textOffset + lp->textLength) <= lf->text.Count then
+                    dim as string ls = space( lp->textLength )
+                    memcpy( strptr( ls ), @lf->text[lp->textOffset], lp->textLength )
+                    '' The span excludes the quotes, which the spelling must carry.
+                    if k = TK_STRING_LIT then return """" & ls & """"
+                    return ls
+                end if
+            end if
+            if k = TK_STRING_LIT then return """"""
+        end if
+    end if
+
+    '' Anything else: the exact source span at the token's location.
     dim as DecodedLoc d = e.src->Decode( t.loc )
     dim as SourceFile ptr f = e.src->FileAt( d.file )
     if (f = 0) orelse (t.length = 0) then return ""

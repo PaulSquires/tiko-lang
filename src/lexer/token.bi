@@ -152,8 +152,17 @@ namespace Fbx
         as ubyte      radix         '' 10, 16, 8 or 2 -- for diagnostics and dumps
         as ulongint   intValue
         as double     fltValue
-        as long       textOffset    '' string payload: raw span in the source buffer,
-        as long       textLength    '' undecoded -- OPTION ESCAPE is not known yet
+        '' The string payload is a RAW SPAN, undecoded -- OPTION ESCAPE is not known
+        '' yet -- and it carries THE FILE IT BELONGS TO.
+        ''
+        '' The file used to be taken from the token's loc, which coupled two unrelated
+        '' things: where a diagnostic should POINT and where the text LIVES. Macro
+        '' expansion rewrites the first (RelexInto repoints synthesised tokens at the use
+        '' site so errors land somewhere the user can see), and that silently moved the
+        '' second, so '#param' returned the invocation's own source text.
+        as long       textFile      '' FileId of the buffer the span indexes
+        as long       textOffset
+        as long       textLength
     end type
 
     type LiteralVec as FB.Array( of Literal )

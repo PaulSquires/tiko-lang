@@ -81,8 +81,9 @@ function StringLitText_ _
     dim as Fbx.LiteralPayload ptr lp = _
         @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->strLength <= 0 then return ""
-    dim as Fbx.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
-    dim as Fbx.SourceFile ptr f = c.srcMgr->FileAt( d.file )
+    '' The literal's OWN file, not the node's loc: a literal built by macro expansion is
+    '' repointed at the use site for diagnostics, and its text does not live there.
+    dim as Fbx.SourceFile ptr f = c.srcMgr->FileAt( cast( Fbx.FileId, lp->strFile ) )
     if f = 0 then return ""
     if (lp->strOffset + lp->strLength) > f->text.Count then return ""
     dim as string r = space( lp->strLength )

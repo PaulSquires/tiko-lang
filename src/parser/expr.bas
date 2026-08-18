@@ -175,6 +175,7 @@ private function MakeLiteral _
         dim as Fbx.Literal ptr src = @pool[cast( long, t.literal )]
         lp.intValue = src->intValue
         lp.fltValue = src->fltValue
+        lp.strFile = src->textFile
         lp.strOffset = src->textOffset
         lp.strLength = src->textLength
         lp.strKind = src->strKind

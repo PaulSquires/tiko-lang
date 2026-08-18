@@ -520,6 +520,7 @@ private sub ScanString( byref s as Scanner, byval kind as Fbx.StringKind, byval 
     dim as Fbx.Literal lit
     lit.kind = cast( ubyte, Fbx.TK_STRING_LIT )
     lit.strKind = cast( ubyte, kind )
+    lit.textFile = cast( long, s.file )
     lit.textOffset = textFirst
     lit.textLength = textLast - textFirst
     PushLiteral( s, lit, first )
@@ -835,9 +836,11 @@ function Dump _
             row += str( lit->fltValue ) & " suffix=" & lit->suffix
         case Fbx.TK_STRING_LIT
             dim as Fbx.Literal ptr lit = @r.literals[cast( long, t.literal )]
-            dim as Fbx.SourceFile ptr f = src.FileAt( file )
+            '' The literal's OWN file, not the dump's: they differ once a token has
+            '' come through macro expansion.
+            dim as Fbx.SourceFile ptr f = src.FileAt( cast( Fbx.FileId, lit->textFile ) )
             dim as string payload = ""
-            if lit->textLength > 0 then
+            if (lit->textLength > 0) andalso (f <> 0) then
                 payload = space( lit->textLength )
                 memcpy( strptr( payload ), @f->text[lit->textOffset], lit->textLength )
             end if

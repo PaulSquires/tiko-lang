@@ -1,4 +1,4 @@
-preprocessed: 95 tokens, 1 includes, 12 expansions, depth 3
+preprocessed: 129 tokens, 1 includes, 15 expansions, depth 3
     0    1:28   EOL
     1    2:17   EOL
     2    3:25   EOL
@@ -92,5 +92,39 @@ preprocessed: 95 tokens, 1 includes, 12 expansions, depth 3
    90   37:7    IDENT               'opt_paren' [macro]
    91   34:18   EOL                  [macro]
    92   37:18   EOL
-   93   38:1    EOF
-   94    1:1    EOF
+   93   38:1    EOL
+   94   39:80   EOL
+   95   40:89   EOL
+   96   41:86   EOL
+   97   42:90   EOL
+   98   45:10   EOL
+   99   43:17   EOL                  [macro]
+  100   44:5    KW_DIM              'DIM' [macro]
+  101   44:9    KW_AS               'AS' [macro]
+  102   44:12   KW_LONG             'LONG' [macro]
+  103   46:7    IDENT               'strz_ok' [macro]
+  104   44:18   EOL                  [macro]
+  105   46:16   EOL
+  106   47:1    EOL
+  107   48:80   EOL
+  108   55:10   EOL
+  109   49:26   EOL                  [macro]
+  110   50:16   EOL                  [macro]
+  111   51:9    KW_DIM              'DIM' [macro]
+  112   51:13   KW_AS               'AS' [macro]
+  113   51:16   KW_LONG             'LONG' [macro]
+  114   51:21   IDENT               'strtest_empty' [macro]
+  115   51:34   EOL                  [macro]
+  116   54:11   EOL                  [macro]
+  117   56:13   EOL
+  118   49:26   EOL                  [macro]
+  119   52:10   EOL                  [macro]
+  120   53:9    KW_DIM              'DIM' [macro]
+  121   53:13   KW_AS               'AS' [macro]
+  122   53:16   KW_LONG             'LONG' [macro]
+  123   53:21   IDENT               'strtest_hasargs' [macro]
+  124   53:36   EOL                  [macro]
+  125   54:11   EOL                  [macro]
+  126   57:16   EOL
+  127   58:1    EOF
+  128    1:1    EOF

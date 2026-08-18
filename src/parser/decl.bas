@@ -273,8 +273,9 @@ private function StringLitText( byref p as Fbx.ParserState ) as Fbx.InternId
     if cast( long, t.literal ) >= p.litPool->Count then return 0
     dim as Fbx.Literal ptr lit = @(*p.litPool)[cast( long, t.literal )]
     if lit->textLength <= 0 then return 0
-    dim as Fbx.DecodedLoc d = p.src->Decode( t.loc )
-    dim as Fbx.SourceFile ptr f = p.src->FileAt( d.file )
+    '' The literal's OWN file. Taking it from t.loc breaks for any token produced by
+    '' macro expansion, whose loc points at the use site rather than at the text.
+    dim as Fbx.SourceFile ptr f = p.src->FileAt( cast( Fbx.FileId, lit->textFile ) )
     if f = 0 then return 0
     if (lit->textOffset + lit->textLength) > f->text.Count then return 0
     return p.names->Get( @f->text[lit->textOffset], lit->textLength )
