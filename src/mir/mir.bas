@@ -97,6 +97,11 @@ function LowerType _
             '' than from a constant.
             if types.target.pointerBits = 32 then return MT_I32
             return MT_I64
+        case Fbx.TY_STRING, Fbx.TY_USTRING
+            '' A var-length string is a DESCRIPTOR -- 24 bytes on x86-64 -- not a
+            '' pointer. Lowering it as MT_PTR would reserve 8 bytes and corrupt the
+            '' neighbouring slot the moment the runtime wrote to it.
+            return MT_AGG
         case Fbx.TY_SINGLE   : return MT_F32
         case Fbx.TY_DOUBLE   : return MT_F64
         case Fbx.TY_ANY      : return MT_VOID

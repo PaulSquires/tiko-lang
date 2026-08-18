@@ -1,0 +1,39 @@
+func void ASSIGN() {
+  local agg a size 24
+  local agg b size 24
+  entry0:
+    %1 = alloca ptr a
+    %2 = alloca ptr b
+    %3 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %4 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@a)
+    ret
+}
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+func void SCOPED($0) {
+  local i32 f
+  local agg outer_ size 24
+  local agg inner_ size 24
+  entry0:
+    %1 = alloca ptr f
+    store @f, $0
+    %2 = alloca ptr outer_
+    %3 = alloca ptr inner_
+    %4 = load @f
+    condbr %4, if.then2, if.else3
+  if.join1:
+    call.rtl void fb_StrDelete(@inner_)
+    call.rtl void fb_StrDelete(@outer_)
+    ret
+  if.then2:
+    call.rtl void fb_StrDelete(@inner_)
+    call.rtl void fb_StrDelete(@outer_)
+    ret
+  if.else3:
+    br if.join1
+}
+verify: ok
+lowered: 2 functions, 5 blocks, 15 insts, 0 statements not lowered, 0 scope imbalance

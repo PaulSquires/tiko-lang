@@ -21,6 +21,7 @@
 #include once "symbols/resolve.bi"
 #include once "symbols/check.bi"
 #include once "types/udtlayout.bi"
+#include once "mir/rtl.bi"
 #include once "diag/engine.bi"
 
 namespace Fbx.Mir

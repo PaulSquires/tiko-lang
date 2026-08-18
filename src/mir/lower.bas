@@ -31,8 +31,9 @@ type Ctx
     '' Two action kinds share ONE list, because the ORDER is one order: a local
     '' declared before two defers is destroyed after both run (measured), which only
     '' falls out if they are interleaved rather than kept apart.
-    ''   RunDefer      cleanupNode = the statement,  cleanupSlot = -1
-    ''   DestroyLocal  cleanupNode = the dtor symbol, cleanupSlot = the slot
+    ''   RunDefer      cleanupNode = the statement,   cleanupSlot = -1
+    ''   DestroyLocal  cleanupNode = the dtor symbol,  cleanupSlot = the slot
+    ''   DeleteString  cleanupNode = 0,                cleanupSlot = the slot
     as FB.Array( of ulong ) cleanupNode
     as FB.Array( of long )  cleanupSlot
     as FB.Array( of long )  scopeMark      '' index into cleanupNode per open scope
@@ -504,6 +505,8 @@ end function
 
 
 declare sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
+declare function SameLValue _
+    ( byref c as Ctx, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
 
 '' The ctor or dtor of a type, or SYMBOL_NONE. They live in the type's scope under a
 '' synthetic name, because neither has a name of its own in the source.
@@ -598,6 +601,118 @@ private sub EmitDtorCall _
     EmitStructorCall( c, sym, slot )
 end sub
 
+'' ------------------------------------------------------------------ runtime
+
+'' A call to a runtime function, by table id. Nothing here spells a runtime name: the
+'' inventory is the only place that does (docs/plan/11 section 3).
+private function EmitRtl _
+    ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
+
+    dim as MirValue v
+    dim as Fbx.InternId nm = c.names->GetString( RtlSymbol( r ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r ) )
+        decl->isDefinition = false
+        decl->paramCount = RtlArity( r )
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as long first = c.m->argPool.Count \ 2
+    for i as long = 0 to args.Count - 1
+        c.m->argPool.Push( args[i] )
+    next
+
+    dim as MirInst ins
+    ins.op = cast( ushort, M_CALL_RTL )
+    ins.ty = cast( ubyte, RtlReturn( r ) )
+    ins.first = first
+    ins.count = args.Count \ 2
+    ins.callee = fidx
+    return Emit( c, ins )
+end function
+
+'' The (pointer, length) pair the string runtime takes. A var-length string is its
+'' DESCRIPTOR's address with a length of -1; the runtime reads the length from the
+'' descriptor itself.
+private sub PushStrArg _
+    ( byref args as FB.Array( of ulong ), byref addr as MirValue )
+    args.Push( cast( ulong, addr.kind ) )
+    args.Push( cast( ulong, addr.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+end sub
+
+
+private function IsStringType _
+    ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return false
+    dim as Fbx.BuiltinType b = c.types->BuiltinOf( t )
+    return (b = Fbx.TY_STRING) orelse (b = Fbx.TY_USTRING)
+end function
+
+'' 'a = b' and 'a = a + b' between var-length strings. Returns false when this is not
+'' a string assignment, so the caller falls back to an ordinary store.
+private function LowerStringAssign _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+
+    if IsStringType( c, c.info->TypeOf_( target ) ) = false then return false
+    dim as MirValue dst = LowerAddr( c, target )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' 'a = a + b' is a CONCAT-ASSIGN, which is what fbc emits: the destination is
+    '' also the left operand, so no temporary is needed.
+    dim as Fbx.NodeId rhs = value
+    dim as boolean concat = false
+    if c.ast->Kind( value ) = Fbx.N_BINARY then
+        dim as Fbx.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
+        if cast( Fbx.TokenKind, bp->op ) = Fbx.TK_PLUS then
+            '' Only the self-concatenation shape is handled here; a general
+            '' 'a = b + c' needs a temporary, which is not lowered yet.
+            if SameLValue( c, target, bp->lhs ) then
+                concat = true
+                rhs = bp->rhs
+            else
+                return false
+            end if
+        end if
+    end if
+
+    if IsStringType( c, c.info->TypeOf_( rhs ) ) = false then return false
+    dim as MirValue src = LowerAddr( c, rhs )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    PushStrArg( args, dst )
+    PushStrArg( args, src )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( 0 )
+    if concat then
+        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, args )
+    else
+        EmitRtl( c, RTL_STR_ASSIGN, args )
+    end if
+    return true
+end function
+
+'' Whether two expressions name the same storage. Only the simple cases are needed:
+'' anything else falls back to the general path rather than guessing.
+private function SameLValue _
+    ( byref c as Ctx, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+    if (a = Fbx.NODE_NONE) orelse (b = Fbx.NODE_NONE) then return false
+    if c.ast->Kind( a ) <> c.ast->Kind( b ) then return false
+    if c.ast->Kind( a ) <> Fbx.N_IDENT then return false
+    return c.info->RefOf( a ) = c.info->RefOf( b )
+end function
+
 '' -------------------------------------------------------------- cleanup model
 
 private sub PushScope( byref c as Ctx )
@@ -614,6 +729,18 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     for i as long = upto - 1 to from_ step -1
         if c.cleanupSlot[i] < 0 then
             LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+        elseif c.cleanupNode[i] = 0 then
+            '' A string local is released with fb_StrDelete. This is the
+            '' DestroyLocal action the cleanup model was built for and has had
+            '' nothing to register until now.
+            dim as MirValue addr
+            addr.kind = cast( ubyte, MV_LOCAL )
+            addr.ty = cast( ubyte, MT_PTR )
+            addr.id = c.cleanupSlot[i]
+            dim as FB.Array( of ulong ) args
+            args.Push( cast( ulong, addr.kind ) )
+            args.Push( cast( ulong, addr.id ) )
+            EmitRtl( c, RTL_STR_DELETE, args )
         else
             EmitDtorCall( c, cast( Fbx.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
         end if
@@ -822,6 +949,9 @@ end sub
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId )
 
+    '' A string assignment is a runtime call, not a store.
+    if LowerStringAssign( c, target, value ) then return
+
     dim as MirValue addr = LowerAddr( c, target )
     dim as MirValue val = LowerExpr( c, value )
     if (addr.kind = cast( ubyte, MV_NONE )) orelse (val.kind = cast( ubyte, MV_NONE )) then
@@ -903,6 +1033,10 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
                     StructorOf( c, vs->type_, "__dtor" ), 0 )
                 if dtor <> Fbx.SYMBOL_NONE then
                     c.cleanupNode.Push( cast( ulong, dtor ) )
+                    c.cleanupSlot.Push( slot )
+                end if
+                if IsStringType( c, vs->type_ ) then
+                    c.cleanupNode.Push( 0 )
                     c.cleanupSlot.Push( slot )
                 end if
             end if

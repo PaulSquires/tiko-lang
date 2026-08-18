@@ -14,7 +14,12 @@ private function ValStr _
 
     select case v.kind
     case MV_TEMP        : return "%" & str( v.id )
-    case MV_CONST_INT   : return str( cast( longint, v.id ) )
+    case MV_CONST_INT
+        '' The id field is 32 bits, so a negative constant is read back SIGNED --
+        '' otherwise the -1 that means "a var-length string descriptor" prints as
+        '' 4294967295. Constants carried inline are limited to 32 bits by that field;
+        '' a wider one needs a const instruction, which is what LowerExpr emits.
+        return str( cast( longint, cast( long, v.id ) ) )
     case MV_LOCAL
         if cast( long, v.id ) < f.locals.Count then
             return "@" & names.Spelling( f.locals[cast( long, v.id )].name )
