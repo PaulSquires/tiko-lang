@@ -1,4 +1,5 @@
 global str $str0 "x"
+global str $str1 "lit"
 func void ASSIGN() {
   local agg a size 24
   local agg b size 24
@@ -124,5 +125,74 @@ func void VIATEMP() {
     ret
 }
 declare ptr fb_StrConcat($0, $1, $2, $3, $4)
+func void COMPARE_() {
+  local agg a size 24
+  local agg b size 24
+  local i32 r
+  entry0:
+    %1 = alloca ptr a
+    %2 = field.addr @a, 0
+    store %2, 0
+    %3 = field.addr @a, 8
+    store %3, 0
+    %4 = field.addr @a, 16
+    store %4, 0
+    %5 = alloca ptr b
+    %6 = field.addr @b, 0
+    store %6, 0
+    %7 = field.addr @b, 8
+    store %7, 0
+    %8 = field.addr @b, 16
+    store %8, 0
+    %9 = alloca ptr r
+    %10 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
+    %11 = icmp.eq %10, 0
+    condbr %11, if.then2, if.else3
+  if.join1:
+    %14 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
+    %15 = icmp.slt %14, 0
+    condbr %15, if.then5, if.else6
+  if.then2:
+    %12 = const i64 1
+    %13 = trunc %12
+    store @r, %13
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %18 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
+    %19 = icmp.sge %18, 0
+    condbr %19, if.then8, if.else9
+  if.then5:
+    %16 = const i64 2
+    %17 = trunc %16
+    store @r, %17
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %22 = call.rtl i32 fb_StrCompare(@a, -1, @@$str1, 4)
+    %23 = icmp.eq %22, 0
+    condbr %23, if.then11, if.else12
+  if.then8:
+    %20 = const i64 3
+    %21 = trunc %20
+    store @r, %21
+    br if.join7
+  if.else9:
+    br if.join7
+  if.join10:
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@a)
+    ret
+  if.then11:
+    %24 = const i64 4
+    %25 = trunc %24
+    store @r, %25
+    br if.join10
+  if.else12:
+    br if.join10
+}
+declare i32 fb_StrCompare($0, $1, $2, $3)
 verify: ok
-lowered: 4 functions, 7 blocks, 88 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 20 blocks, 125 insts, 0 statements not lowered, 0 scope imbalance

@@ -340,6 +340,15 @@ function LowerExpr _
             return LowerShortCircuit( c, id, bp, mt )
         end if
 
+        '' A STRING comparison is a runtime call, not an opcode. Without this the
+        '' operands are loaded as 24-byte descriptors and compared as if they were
+        '' integers -- which verifies, lowers, and means nothing.
+        if IsStringType( c, c.info->TypeOf_( bp->lhs ) ) then
+            dim as MirValue sc = LowerStrCompare( c, bp, tk )
+            if sc.kind <> cast( ubyte, MV_NONE ) then return sc
+            return v
+        end if
+
         dim as MirValue l = LowerExpr( c, bp->lhs )
         dim as MirValue r = LowerExpr( c, bp->rhs )
         if (l.kind = cast( ubyte, MV_NONE )) orelse (r.kind = cast( ubyte, MV_NONE )) then

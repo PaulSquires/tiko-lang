@@ -115,6 +115,10 @@ declare function EmitRtl _
 
     declare function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 
+    declare function LowerStrCompare _
+        ( byref c as Ctx, byval bp as Fbx.BinaryPayload ptr, _
+          byval tk as Fbx.TokenKind ) as MirValue
+
 end namespace
 
 #endif

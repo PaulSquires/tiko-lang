@@ -21,3 +21,15 @@
 '' EXPECT-OUT: call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
 '' EXPECT-OUT: verify: ok
 '' GOLDEN: expected/strings.out
+
+'' fb_StrCompare, then the operator applied against ZERO -- measured from fbc:
+''     int32 vr$5 = fb_StrCompare( &A$1, -1ll, &B$1, -1ll );
+'' EXPECT-OUT: call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
+'' EXPECT-OUT: icmp.eq %10, 0
+'' EXPECT-OUT: icmp.slt
+'' EXPECT-OUT: icmp.sge
+
+'' The literal length INCLUDES the terminator here -- 4 for "lit" -- because this call
+'' follows the fb_StrAssign convention, not the exact-length one fb_StrAllocTempDescZEx
+'' takes. The two conventions sit one function apart.
+'' EXPECT-OUT: fb_StrCompare(@a, -1, @@$str1, 4)

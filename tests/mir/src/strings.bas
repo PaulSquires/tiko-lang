@@ -34,3 +34,14 @@ sub ViaTemp( )
     dim as string a, b
     a = b + a
 end sub
+
+'' A string comparison is a RUNTIME CALL, not an opcode. Lowered as an icmp on the
+'' loaded descriptors it verifies, lowers, and compares 24-byte aggregates as integers.
+sub Compare_( )
+    dim as string a, b
+    dim as long r
+    if a = b then r = 1
+    if a < b then r = 2
+    if a >= b then r = 3
+    if a = "lit" then r = 4
+end sub
