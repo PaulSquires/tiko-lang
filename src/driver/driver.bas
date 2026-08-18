@@ -13,6 +13,7 @@
 #include once "mir/lower.bi"
 #include once "mir/dump.bi"
 #include once "mir/verify.bi"
+#include once "types/udtlayout.bi"
 
 namespace Fbx
 
@@ -161,7 +162,7 @@ function Run( byref args as Fbx.StrVec ) as long
         end if
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
-           ctx.options.dumpIr then
+           ctx.options.dumpIr orelse ctx.options.dumpUdt then
         for i as long = 1 to ctx.sources.Count( )
             dim as Fbx.FileId id = cast( Fbx.FileId, i )
             dim as Fbx.PpResult pr
@@ -188,7 +189,14 @@ function Run( byref args as Fbx.StrVec ) as long
             dim as Fbx.SemanticInfo info
             Fbx.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info )
 
-            if ctx.options.dumpIr then
+            if ctx.options.dumpUdt then
+                dim as Fbx.Resolve.Stats rst
+                Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                                 info, rst )
+                dim as Fbx.UdtLayouts store
+                Fbx.ComputeUdtLayouts( syms, ctx.types, store )
+                print Fbx.DumpUdtLayouts( store, ctx.types, ctx.names );
+            elseif ctx.options.dumpIr then
                 '' MIR needs the full frontend in front of it: resolve binds names,
                 '' check gives every expression a type, and lowering reads both.
                 dim as Fbx.Resolve.Stats rst

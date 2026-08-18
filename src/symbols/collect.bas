@@ -22,6 +22,7 @@ type Walker
     as Fbx.Interner ptr     names
     as Fbx.TypeContext ptr  types
     as Fbx.SemanticInfo ptr info
+    as boolean              inUnion
     as long                 duplicates
 end type
 
@@ -121,7 +122,13 @@ sub WalkNode _
         '' members are members of the ENCLOSING aggregate, which is the whole point
         '' of writing one.
         if sp->name = 0 then
+            '' An anonymous UNION's members overlap; an anonymous TYPE's are
+            '' sequential. The distinction has to survive the splice, or the layout
+            '' pass cannot tell them apart afterwards.
+            dim as boolean saved = w.inUnion
+            if (n->flags and Fbx.NF_IS_UNION) <> 0 then w.inUnion = true
             WalkChildren( w, sp->first, sp->count, scope_ )
+            w.inUnion = saved
             return
         end if
         dim as Fbx.SymbolId sid = Declare_( w, scope_, sp->name, Fbx.SYM_UDT, _
@@ -139,7 +146,12 @@ sub WalkNode _
 
     case Fbx.N_FIELD
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
-        Declare_( w, scope_, sp->name, Fbx.SYM_FIELD, w.ast->Loc( id ) )
+        dim as Fbx.SymbolId fid = Declare_( w, scope_, sp->name, Fbx.SYM_FIELD, _
+                                            w.ast->Loc( id ) )
+        if w.inUnion then
+            dim as Fbx.Symbol ptr fs = w.syms->SymbolAt( fid )
+            if fs <> 0 then fs->flags or= Fbx.SYMF_UNION
+        end if
 
     case Fbx.N_ENUM
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )

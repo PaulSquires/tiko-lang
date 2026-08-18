@@ -70,6 +70,9 @@ namespace Fbx
     const SYMF_DEFINED  as ushort = &h0020
     const SYMF_OVERLOAD as ushort = &h0040
     const SYMF_PRIVATE  as ushort = &h0080
+    '' A field spliced out of an anonymous UNION. Its run of consecutive siblings
+    '' all share one offset -- they overlap, which is the whole point of a union.
+    const SYMF_UNION    as ushort = &h0100
 
     type Symbol
         as ubyte     kind

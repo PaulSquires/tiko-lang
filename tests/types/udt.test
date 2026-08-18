@@ -1,0 +1,16 @@
+'' UDT layout. Every number here was measured by compiling and RUNNING a probe under
+'' fbc (tools/gen/udt-truth.py); the full 18-shape differential is
+'' tools/gen/check-udt.sh.
+''
+'' The union is the one to watch. fbc puts BOTH members at offset 8 -- the run is
+'' aligned to its WIDEST member, not its first -- and laying them sequentially still
+'' produced the right size and the right offsets on either side. The shape passed the
+'' gate until the probe was strengthened to ask where the union's own members were.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: ordered size 12 align 4
+'' EXPECT-OUT: reordered size 8 align 4
+'' EXPECT-OUT: nested size 16 align 4
+'' EXPECT-OUT: withunion size 24 align 8
+'' GOLDEN: expected/udt.out

@@ -1,0 +1,21 @@
+ordered size 12 align 4
+  ordered off b 0
+  ordered off l 4
+  ordered off s 8
+reordered size 8 align 4
+  reordered off l 0
+  reordered off s 4
+  reordered off b 6
+inner1 size 8 align 4
+  inner1 off a 0
+  inner1 off b 4
+nested size 16 align 4
+  nested off x 0
+  nested off i 4
+  nested off y 12
+withunion size 24 align 8
+  withunion off b 0
+  withunion off l 8
+  withunion off d 8
+  withunion off c 16
+udts: 5
