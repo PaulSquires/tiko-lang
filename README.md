@@ -3,13 +3,22 @@
 **A FreeBASIC-compatible compiler.** Clean-sheet frontend, LLVM backend, targeting Windows x86-64
 and Linux x86-64. Written in FreeBASIC, built with [FBC-Modern](https://github.com/PaulSquires).
 
-> **Status: Phase 5 of 12 — semantic frontend.** fbx does not compile FreeBASIC yet. It tokenises,
-> preprocesses and **parses** it: **98.6% of the 2,709 files in fbc's own test suite** parse clean,
-> producing 8.06M AST nodes — against a precedence table *measured* from fbc rather than read from
-> the manual, and with all 114 intrinsic statements classified and dispatched from one table. The
-> type system's builtin layout is verified field-by-field against fbc.
+> **Status: Phase 5 of 12 — semantic frontend.** fbx does not compile FreeBASIC yet, and there is
+> no backend. It tokenises, preprocesses, **parses**, and now **resolves names and mangles
+> symbols**. Over the 3,230 vendored files of fbc's own test suite it binds **695,942 references
+> (92.8%)** and resolves 1.4M type references with no crashes. Its emitted symbol names are
+> **byte-identical to fbc's** on the 60-case gate corpus — decision D3, checked against the object
+> file fbc produces, not against documentation.
+>
+> Everything compatibility-related here was *measured* from fbc rather than read from a manual: the
+> precedence table (484 operator pairs), the builtin type layouts (field by field), and every
+> mangling rule. Several of those measurements contradicted the plan, and the plan was corrected.
+> Still owed in this phase: type checking, overload resolution and constant evaluation.
 > The full plan is in [`docs/plan/`](docs/plan/README.md), and every phase's exit criterion is
 > written down before the phase begins.
+
+**Picking this up cold? Start with [HANDOFF.md](HANDOFF.md)** — current state, the
+open bugs with reproducers, and what to do next.
 
 ## What it will be
 
