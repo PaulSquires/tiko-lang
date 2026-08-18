@@ -7,10 +7,10 @@
 # The numbers that matter are the ones that must be ZERO: verifier failures, scope
 # imbalance, and label-depth mismatches.
 #
-# READ THE "not lowered" COUNT CAREFULLY. Lowering runs per PROCEDURE, and there is no
-# implicit main yet, so a file of module-level code lowers nothing and contributes
-# nothing to that count -- which is most of this corpus. It measures coverage inside
-# procedures, not coverage of the corpus.
+# READ THE "not lowered" COUNT CAREFULLY. It counts statements that REACHED lowering and
+# were declined; a statement dropped before that never reaches the counter at all.
+# Adding the implicit main took it from 3,002 to 33,817 without lowering getting worse --
+# module-level code had simply not been reaching the count before.
 #
 # Do not rebuild while this runs: the link will fail on a locked bin/fbx.exe, and a
 # half-replaced binary mid-sweep would report numbers from two different compilers.
@@ -37,10 +37,8 @@ awk '
 /^verify: fail/ { vf++ }
 END {
   printf "mirsweep: %d files, %d blocks, %d insts\n", n, blk, ins
-  printf "mirsweep: %d files have a procedure, %d lower NOTHING (module-level only)\n", withfn+0, empty+0
-  printf "mirsweep: %d statements not lowered -- WITHIN PROCEDURES ONLY\n", sk+0
-  printf "mirsweep: module-level code has no implicit main and is not lowered at all,\n"
-  printf "mirsweep: so that count is not a measure of coverage over the corpus.\n"
+  printf "mirsweep: %d files emit code, %d emit nothing\n", withfn+0, empty+0
+  printf "mirsweep: %d statements not lowered, of those that reached lowering\n", sk+0
   printf "mirsweep: %d scope imbalance, %d verify failures, %d label depth mismatches\n", si+0, vf+0, mm+0
 }
 ' build/.mir.out

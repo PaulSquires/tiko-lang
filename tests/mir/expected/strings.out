@@ -4,9 +4,21 @@ func void ASSIGN() {
   local agg b size 24
   entry0:
     %1 = alloca ptr a
-    %2 = alloca ptr b
-    %3 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
-    %4 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
+    %2 = field.addr @a, 0
+    store %2, 0
+    %3 = field.addr @a, 8
+    store %3, 0
+    %4 = field.addr @a, 16
+    store %4, 0
+    %5 = alloca ptr b
+    %6 = field.addr @b, 0
+    store %6, 0
+    %7 = field.addr @b, 8
+    store %7, 0
+    %8 = field.addr @b, 16
+    store %8, 0
+    %9 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %10 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
     ret
@@ -22,9 +34,21 @@ func void SCOPED($0) {
     %1 = alloca ptr f
     store @f, $0
     %2 = alloca ptr outer_
-    %3 = alloca ptr inner_
-    %4 = load @f
-    condbr %4, if.then2, if.else3
+    %3 = field.addr @outer_, 0
+    store %3, 0
+    %4 = field.addr @outer_, 8
+    store %4, 0
+    %5 = field.addr @outer_, 16
+    store %5, 0
+    %6 = alloca ptr inner_
+    %7 = field.addr @inner_, 0
+    store %7, 0
+    %8 = field.addr @inner_, 8
+    store %8, 0
+    %9 = field.addr @inner_, 16
+    store %9, 0
+    %10 = load @f
+    condbr %10, if.then2, if.else3
   if.join1:
     call.rtl void fb_StrDelete(@inner_)
     call.rtl void fb_StrDelete(@outer_)
@@ -42,14 +66,32 @@ func void CONCAT() {
   local agg c size 24
   entry0:
     %1 = alloca ptr a
-    %2 = alloca ptr b
-    %3 = alloca ptr c
-    %4 = call.rtl ptr fb_StrAssign(@a, -1, @@0, 2, 0)
-    %5 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
-    %6 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
-    %7 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
-    %8 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
-    %9 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
+    %2 = field.addr @a, 0
+    store %2, 0
+    %3 = field.addr @a, 8
+    store %3, 0
+    %4 = field.addr @a, 16
+    store %4, 0
+    %5 = alloca ptr b
+    %6 = field.addr @b, 0
+    store %6, 0
+    %7 = field.addr @b, 8
+    store %7, 0
+    %8 = field.addr @b, 16
+    store %8, 0
+    %9 = alloca ptr c
+    %10 = field.addr @c, 0
+    store %10, 0
+    %11 = field.addr @c, 8
+    store %11, 0
+    %12 = field.addr @c, 16
+    store %12, 0
+    %13 = call.rtl ptr fb_StrAssign(@a, -1, @@0, 2, 0)
+    %14 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %15 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
+    %16 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %17 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
+    %18 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
@@ -61,14 +103,26 @@ func void VIATEMP() {
   local agg $tmp2 size 24
   entry0:
     %1 = alloca ptr a
-    %2 = alloca ptr b
-    %3 = alloca ptr $tmp2
-    %4 = call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
-    %5 = call.rtl ptr fb_StrAssign(@a, -1, @$tmp2, -1, 0)
+    %2 = field.addr @a, 0
+    store %2, 0
+    %3 = field.addr @a, 8
+    store %3, 0
+    %4 = field.addr @a, 16
+    store %4, 0
+    %5 = alloca ptr b
+    %6 = field.addr @b, 0
+    store %6, 0
+    %7 = field.addr @b, 8
+    store %7, 0
+    %8 = field.addr @b, 16
+    store %8, 0
+    %9 = alloca ptr $tmp2
+    %10 = call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
+    %11 = call.rtl ptr fb_StrAssign(@a, -1, @$tmp2, -1, 0)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
     ret
 }
 declare ptr fb_StrConcat($0, $1, $2, $3, $4)
 verify: ok
-lowered: 4 functions, 7 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 7 blocks, 88 insts, 0 statements not lowered, 0 scope imbalance

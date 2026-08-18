@@ -101,6 +101,11 @@ declare function EmitRtl _
           byval isUnsigned as boolean ) as MirOp
     declare sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
 
+    declare sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
+    declare function LowerStringInit _
+        ( byref c as Ctx, byval slot as long, byval target as Fbx.NodeId, _
+          byval value as Fbx.NodeId ) as boolean
+
 end namespace
 
 #endif

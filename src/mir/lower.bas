@@ -463,17 +463,31 @@ private function LowerCall _
         n += 1
     next
 
-    '' The callee is named by its MANGLED name, which is what MIR carries. Finding
-    '' the function object is a linear scan for now; it is a map when it matters.
+    '' The callee is named by its MANGLED name, which is what MIR carries.
+    ''
+    '' It must be mangled the SAME WAY the definition was. Symbol.name is the FOLDED
+    '' spelling -- lowercased, because FreeBASIC lookup is case-insensitive -- so using
+    '' it here produced 'call void a()' against a definition named 'A', which matched
+    '' nothing and silently added an extern declaration instead. The result was a
+    '' module that referenced a symbol it also defined, under two spellings.
+    dim as Fbx.InternId cnm = cs->name
+    if cs->payload <> 0 then
+        cnm = c.names->GetString( Fbx.Mangle.ProcName( _
+            *c.ast, cast( Fbx.NodeId, cs->payload ), *c.syms, *c.names, _
+            *c.types, *c.info ) )
+    end if
+
+    '' Finding the function object is a linear scan for now; it is a map when it
+    '' matters.
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = cs->name then
+        if c.m->functions[i]->name = cnm then
             fidx = i
             exit for
         end if
     next
     if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( cs->name, mt )
+        dim as MirFunction ptr decl = c.m->AddFunction( cnm, mt )
         decl->isDefinition = false
         fidx = c.m->functions.Count - 1
     end if
@@ -896,6 +910,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
             '' applies to it without any extra arrangement.
             dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( sid )
             dim as boolean constructed = false
+            dim as boolean strInited = false
             if (slot >= 0) andalso (vs <> 0) then
                 '' 'dim as T x = T( 5 )' selects a constructor by its arguments; a
                 '' bare 'dim as T x' takes the no-argument one.
@@ -913,6 +928,11 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
                     c.cleanupSlot.Push( slot )
                 end if
                 if IsStringType( c, vs->type_ ) then
+                    '' Order matters: the descriptor is made valid BEFORE its release
+                    '' is registered, so no path can reach the fb_StrDelete with a
+                    '' descriptor that was never written.
+                    LowerStringInit( c, slot, item, ip->b )
+                    strInited = true
                     c.cleanupNode.Push( 0 )
                     c.cleanupSlot.Push( slot )
                 end if
@@ -923,6 +943,10 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
             dim as boolean needsStore = (slot >= 0)
             if ip->b = Fbx.NODE_NONE then needsStore = false
             if constructed then needsStore = false
+            '' A string initialiser went through fb_StrInit, which is a call and not a
+            '' store; storing over it as well would overwrite the descriptor the
+            '' runtime just filled in.
+            if strInited then needsStore = false
             if needsStore then
                 dim as MirValue val = LowerExpr( c, ip->b )
                 if val.kind <> cast( ubyte, MV_NONE ) then
@@ -1301,6 +1325,131 @@ private sub LowerProc _
     c.curBlock = savedB
 end sub
 
+
+'' The implicit main, into which module-level code is lowered.
+''
+'' MEASURED from fbc's own C intermediate for the main translation unit ('fbc -r -m'),
+'' not assumed:
+''
+''     int32 main( int32 argc, char** argv ) {
+''         int32 fb$result$0;
+''         __builtin_memset( &fb$result$0, 0, 4 );
+''         fb_Init( argc, argv, 0 );
+''         ... module-level body ...
+''         fb_StrDelete( &S$0 );          <- cleanups, BEFORE fb_End
+''         fb_End( 0 );
+''         return fb$result$0;
+''     }
+''
+'' Two things that shape the lowering and would be easy to get wrong the other way:
+''
+'' The result slot is ZERO-INITIALISED and returned. It is the process exit code, which
+'' 'END n' writes; falling off the end must yield 0, so the store is unconditional.
+''
+'' Module-level 'dim' becomes a LOCAL of main, not a global. That looks surprising for
+'' a variable declared at file scope, but a module-level DIM without SHARED is visible
+'' only at module level, so a local is exactly right -- and it is what makes the string
+'' cleanup above run at all.
+declare function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+
+private sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
+    if root = Fbx.NODE_NONE then return
+    if c.ast->Kind( root ) <> Fbx.N_MODULE then return
+
+    '' Nothing to run means no main at all, rather than an empty one: a module compiled
+    '' as a library has no entry point and emitting one would collide at link time.
+    if ModuleHasCode( c, root ) = false then return
+
+    dim as MirFunction ptr f = c.m->AddFunction( c.names->GetString( "main" ), MT_I32 )
+    f->isDefinition = true
+    f->paramCount = 2                     '' argc, argv
+    dim as MirFunction ptr savedF = c.f
+    dim as long savedB = c.curBlock
+    c.f = f
+    c.st->functions += 1
+    c.curBlock = NewBlock( c, "entry" )
+
+    dim as long resSlot = NewTempLocal( c, MT_I32, 4 )
+    dim as MirValue resAddr
+    resAddr.kind = cast( ubyte, MV_LOCAL )
+    resAddr.ty = cast( ubyte, MT_PTR )
+    resAddr.id = resSlot
+    dim as MirInst z
+    z.op = cast( ushort, M_STORE )
+    z.ty = cast( ubyte, MT_VOID )
+    z.a = resAddr
+    z.b = ConstInt( c, 0, MT_I32 )
+    Emit( c, z )
+
+    dim as MirValue argcv, argvv
+    argcv.kind = cast( ubyte, MV_PARAM )
+    argcv.ty = cast( ubyte, MT_I32 )
+    argcv.id = 0
+    argvv.kind = cast( ubyte, MV_PARAM )
+    argvv.ty = cast( ubyte, MT_PTR )
+    argvv.id = 1
+    dim as FB.Array( of ulong ) ia
+    ia.Push( cast( ulong, argcv.kind ) ) : ia.Push( cast( ulong, argcv.id ) )
+    ia.Push( cast( ulong, argvv.kind ) ) : ia.Push( cast( ulong, argvv.id ) )
+    dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
+    ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
+    EmitRtl( c, RTL_INIT, ia )
+
+    while c.labelName.Count > 0
+        c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
+    wend
+
+    dim as long scopeDepthIn = c.scopeMark.Count
+    PushScope( c )
+    '' The children are walked directly rather than through LowerBlock. N_MODULE is a
+    '' LIST node, so handing it to a routine that reads a statement payload would read
+    '' the wrong pool -- the mistake this file has made three times already.
+    dim as Fbx.ListPayload ptr mp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
+    for i as long = 0 to mp->count - 1
+        ScanLabels( c, cast( Fbx.NodeId, c.ast->children[mp->first + i] ), _
+                    scopeDepthIn + 1 )
+    next
+    for i as long = 0 to mp->count - 1
+        LowerStmt( c, cast( Fbx.NodeId, c.ast->children[mp->first + i] ) )
+    next
+    CloseScope( c )
+    if c.scopeMark.Count <> scopeDepthIn then
+        c.st->scopeImbalance += 1
+    end if
+
+    '' fb_End comes AFTER the scope's cleanups: the measurement shows fb_StrDelete
+    '' preceding it, so shutting the runtime down before releasing its strings would
+    '' invert the order fbc actually emits.
+    dim as FB.Array( of ulong ) ea
+    dim as MirValue zend = ConstInt( c, 0, MT_I32 )
+    ea.Push( cast( ulong, zend.kind ) ) : ea.Push( cast( ulong, zend.id ) )
+    EmitRtl( c, RTL_END, ea )
+
+    dim as MirValue rv = LowerExprLoad( c, resAddr, MT_I32 )
+    Terminate( c, MTERM_RET, -1, -1, rv )
+
+    c.f = savedF
+    c.curBlock = savedB
+end sub
+
+'' Whether a module has anything to run, as opposed to only declarations.
+private function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    if id = Fbx.NODE_NONE then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for i as long = 0 to lp->count - 1
+        select case c.ast->Kind( cast( Fbx.NodeId, c.ast->children[lp->first + i] ) )
+        case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
+             Fbx.N_EXTERN_BLOCK, Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM
+            '' A declaration; it does not put anything in main.
+        case else
+            return true
+        end select
+    next
+    return false
+end function
+
 private sub WalkTop( byref c as Ctx, byval id as Fbx.NodeId )
     if id = Fbx.NODE_NONE then return
     select case c.ast->Kind( id )
@@ -1339,6 +1488,7 @@ function Lower _
     c.st = @st
     c.curBlock = -1
     WalkTop( c, root )
+    LowerMainModule( c, root )
     return st.functions
 end function
 

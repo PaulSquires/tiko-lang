@@ -8,6 +8,9 @@
 
 namespace Fbx.Mir
 
+'' A label name declared more than once in one procedure -- see ScanLabels.
+const LABEL_AMBIGUOUS = -2
+
 '' Local to this file.
 declare function LowerCaseTest _
     ( byref c as Ctx, byref slotAddr as MirValue, byval mt as MirType, _
@@ -210,7 +213,18 @@ sub ScanLabels _
     select case k
     case Fbx.N_LABEL
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-        c.labelDepth[LabelSlot( c, cast( Fbx.InternId, sp->name ) )] = depth
+        dim as long slot = LabelSlot( c, cast( Fbx.InternId, sp->name ) )
+        '' The SAME NAME twice in one procedure. Labels are scoped in FreeBASIC, so
+        '' sibling scopes may each declare 'label1' -- fbcunit's TEST macro produces
+        '' exactly that. Slots are keyed by name alone, which cannot tell them apart,
+        '' so the name is marked AMBIGUOUS rather than resolved to whichever came last.
+        '' A goto naming it then declines to lower instead of branching somewhere that
+        '' merely looks plausible.
+        if c.labelDepth[slot] <> -1 then
+            c.labelDepth[slot] = LABEL_AMBIGUOUS
+        else
+            c.labelDepth[slot] = depth
+        end if
         return
 
     case Fbx.N_BLOCK
@@ -264,14 +278,21 @@ sub LowerLabel( byref c as Ctx, byval id as Fbx.NodeId )
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     dim as long slot = LabelSlot( c, cast( Fbx.InternId, sp->name ) )
 
-    '' The pre-scan's depth against the depth actually open. They must agree: a goto
-    '' has already emitted cleanups based on the recorded number.
-    if c.labelDepth[slot] <> c.scopeMark.Count then
-        c.st->labelDepthMismatch += 1
-        c.labelDepth[slot] = c.scopeMark.Count
+    '' An ambiguous name gets a FRESH block per occurrence. Sharing one block between
+    '' two same-named labels would splice unrelated code together; nothing branches to
+    '' these, since LowerGoto declines them.
+    dim as long b
+    if c.labelDepth[slot] = LABEL_AMBIGUOUS then
+        b = NewBlock( c, "lbl.dup" )
+    else
+        '' The pre-scan's depth against the depth actually open. They must agree: a
+        '' goto has already emitted cleanups based on the recorded number.
+        if c.labelDepth[slot] <> c.scopeMark.Count then
+            c.st->labelDepthMismatch += 1
+            c.labelDepth[slot] = c.scopeMark.Count
+        end if
+        b = LabelBlockOf( c, slot )
     end if
-
-    dim as long b = LabelBlockOf( c, slot )
     Terminate( c, MTERM_BR, b, -1, NoVal( ) )
     c.curBlock = b
 end sub
@@ -284,6 +305,12 @@ sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
     end if
     dim as long slot = LabelSlot( c, cast( Fbx.InternId, sp->name ) )
     dim as long d = c.labelDepth[slot]
+    if d = LABEL_AMBIGUOUS then
+        '' Two labels of this name in one procedure; which one is meant depends on
+        '' scope, which these slots do not record.
+        c.st->skipped += 1
+        return
+    end if
     if d < 0 then
         '' A label the pre-scan never saw, so the jump is to somewhere outside this
         '' body. Emitting a branch to a block that will never exist is worse than

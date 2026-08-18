@@ -1,3 +1,4 @@
+global str $str0 "x"
 func void SEL($0) {
   local i32 n
   local i32 r
@@ -86,30 +87,31 @@ func void JUMP($0) {
     %7 = alloca ptr s
     condbr %6, if.then2, if.else3
   if.join1:
-    %8 = load @n
-    %9 = const i64 2
-    %10 = sext %8
-    %11 = icmp.eq %10, %9
-    condbr %11, if.then7, if.else8
+    %8 = call.rtl ptr fb_StrInit(@s, -1, @@0, 2, 0)
+    %9 = load @n
+    %10 = const i64 2
+    %11 = sext %9
+    %12 = icmp.eq %11, %10
+    condbr %12, if.then7, if.else8
   if.then2:
     br lbl.done4
   if.else3:
     br if.join1
   lbl.done4:
-    %16 = const i64 3
-    %17 = trunc %16
-    store @r, %17
+    %17 = const i64 3
+    %18 = trunc %17
+    store @r, %18
     ret
   goto.after5:
     br if.join1
   if.join6:
-    %12 = const i64 1
-    %13 = trunc %12
-    store @r, %13
+    %13 = const i64 1
+    %14 = trunc %13
+    store @r, %14
     call.rtl void fb_StrDelete(@s)
-    %14 = const i64 2
-    %15 = trunc %14
-    store @r, %15
+    %15 = const i64 2
+    %16 = trunc %15
+    store @r, %16
     br lbl.done4
   if.then7:
     call.rtl void fb_StrDelete(@s)
@@ -119,6 +121,26 @@ func void JUMP($0) {
   goto.after9:
     br if.join6
 }
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
 declare void fb_StrDelete($0)
+func void DUP($0) {
+  local i32 n
+  local i32 r
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = alloca ptr r
+    br lbl.dup1
+  lbl.dup1:
+    %3 = const i64 1
+    %4 = trunc %3
+    store @r, %4
+    br lbl.dup2
+  lbl.dup2:
+    %5 = const i64 2
+    %6 = trunc %5
+    store @r, %6
+    ret
+}
 verify: ok
-lowered: 2 functions, 21 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 24 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance

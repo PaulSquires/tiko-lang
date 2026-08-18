@@ -30,7 +30,19 @@ WORK = ROOT / "build/.rt"
 # Each probe is a fragment whose lowering pulls in a family of runtime calls. They are
 # deliberately small: the point is to make fbc declare the functions, not to exercise
 # them.
+# Probes that must be compiled as the MAIN module. fb_Init/fb_End are emitted only for
+# the entry translation unit, so without -m they never appear and the inventory cannot
+# be checked against them.
+MAIN_MODULE = {"module"}
+
 PROBES = {
+    # Module-level code, which fbc wraps in main(): fb_Init before the body, fb_End
+    # after the cleanups.
+    "module": '''
+dim as long g = 7
+dim as string s = "hi"
+print g
+''',
     "string": '''
 sub P( )
     dim as string a, b
@@ -94,8 +106,10 @@ def main() -> int:
     for name, body in PROBES.items():
         src = WORK / (name + ".bas")
         src.write_text(body.lstrip(), encoding="utf-8")
-        proc = subprocess.run([str(FBC), "-c", "-r", str(src), "-o", str(WORK / (name + ".o"))],
-                              capture_output=True, text=True, cwd=str(WORK))
+        cmd = [str(FBC), "-c", "-r", str(src), "-o", str(WORK / (name + ".o"))]
+        if name in MAIN_MODULE:
+            cmd += ["-m", name]
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(WORK))
         c = WORK / (name + ".c")
         if not c.exists():
             print(f"rtl-truth: {name}: no C intermediate\n"

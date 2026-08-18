@@ -28,3 +28,18 @@ sub Jump( byval n as long )
 done:
     r = 3
 end sub
+
+'' Two labels of the SAME NAME in one procedure. Labels are scoped in FreeBASIC, so
+'' sibling scopes may each declare 'again' -- fbcunit's TEST macro produces exactly this
+'' shape. Slots are keyed by name alone and cannot tell them apart.
+sub Dup( byval n as long )
+    dim as long r
+    scope
+        again:
+        r = 1
+    end scope
+    scope
+        again:
+        r = 2
+    end scope
+end sub

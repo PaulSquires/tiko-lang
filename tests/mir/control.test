@@ -34,3 +34,9 @@
 '' EXPECT-NOT: LABEL DEPTH MISMATCH
 '' EXPECT-NOT: <NO TERMINATOR>
 '' GOLDEN: expected/control.out
+
+'' A duplicate label name must NOT resolve to whichever occurrence came last. Each gets
+'' its own block, and a goto naming it declines to lower rather than branching somewhere
+'' that merely looks plausible. This was found by the depth assertion firing on
+'' tests/vendor/fbc-tests/scopes/branch-cross-select-case.bas, which has two 'label1's.
+'' EXPECT-OUT: lbl.dup

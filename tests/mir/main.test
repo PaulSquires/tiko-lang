@@ -1,0 +1,42 @@
+'' The implicit main.
+''
+'' The shape was MEASURED from fbc's own C intermediate for the main translation unit
+'' ('fbc -r -m'), not assumed -- see docs/internals/phase-6-main.md:
+''
+''     int32 main( int32 argc, char** argv ) {
+''         int32 fb$result$0;  memset( &fb$result$0, 0, 4 );
+''         fb_Init( argc, argv, 0 );
+''         ... body ...  fb_StrDelete( &S$0 );  fb_End( 0 );
+''         return fb$result$0;
+''     }
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/main.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: 0 scope imbalance
+
+'' Two parameters, argc and argv, and an i32 return -- the process exit code.
+'' EXPECT-OUT: func i32 main($0, $1)
+'' EXPECT-OUT: call.rtl void fb_Init($0, $1
+
+'' Module-level DIM is a LOCAL of main, not a global: a module-level DIM without SHARED
+'' is visible only at module level.
+'' EXPECT-OUT: local i32 g
+
+'' A string WITH an initialiser goes through fb_StrInit, not fb_StrAssign. Assign would
+'' release what the destination already held, and at a declaration that is garbage.
+'' EXPECT-OUT: call.rtl ptr fb_StrInit(@s, -1
+'' EXPECT-NOT: fb_StrAssign(@s
+
+'' A string WITHOUT one has its 24-byte descriptor zeroed. This is not cosmetic: the
+'' fb_StrDelete below is registered either way, so an unwritten descriptor would hand
+'' the runtime a wild pointer to free.
+'' EXPECT-OUT: field.addr @t, 16
+'' EXPECT-OUT: call.rtl void fb_StrDelete(@t)
+
+'' Cleanups run BEFORE fb_End, which is the order fbc emits; shutting the runtime down
+'' first would invert it.
+'' EXPECT-OUT: call.rtl void fb_End
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/main.out

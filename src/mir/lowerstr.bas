@@ -158,6 +158,85 @@ end function
 
 '' 'a = b' and 'a = a + b' between var-length strings. Returns false when this is not
 '' a string assignment, so the caller falls back to an ordinary store.
+
+'' Zeroes a 24-byte string descriptor.
+''
+'' fbc emits '__builtin_memset( &A, 0, 24 )' for a string local with no initialiser.
+'' MIR has no memset, so this is three i64 stores -- which mem2reg folds away for a
+'' local that is written before it is read anyway.
+''
+'' This is NOT cosmetic. A string local always registers an fb_StrDelete for its scope
+'' exit, so a descriptor that was never written would hand the runtime a wild pointer
+'' to free.
+sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
+    for off as long = 0 to 16 step 8
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = dst
+        fa.imm = off
+        dim as MirValue p = Emit( c, fa )
+        dim as MirValue z
+        z.kind = cast( ubyte, MV_CONST_INT )
+        z.ty = cast( ubyte, MT_I64 )
+        z.id = 0
+        dim as MirInst st_
+        st_.op = cast( ushort, M_STORE )
+        st_.ty = cast( ubyte, MT_VOID )
+        st_.a = p
+        st_.b = z
+        Emit( c, st_ )
+    next
+end sub
+
+'' A string local at its DECLARATION, which is not the same as an assignment to it.
+''
+'' Measured from fbc:
+''   dim as string a           ->  memset( &A, 0, 24 )
+''   dim as string b = "hi"    ->  fb_StrInit( &B, -1, "hi", 3, 0 )
+''   a = "x"                   ->  fb_StrAssign( &A, -1, "x", 2, 0 )
+''
+'' Init and Assign differ because Assign releases whatever the destination already
+'' held; at a declaration there is nothing to release and the descriptor is garbage,
+'' so calling Assign on it would free that garbage.
+function LowerStringInit _
+    ( byref c as Ctx, byval slot as long, byval target as Fbx.NodeId, _
+      byval value as Fbx.NodeId ) as boolean
+
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+
+    if value = Fbx.NODE_NONE then
+        ZeroStrDescriptor( c, dst )
+        return true
+    end if
+
+    '' A concatenation cannot go through fb_StrInit, which takes one source. Zero the
+    '' descriptor so it is a valid empty string, then build into it the ordinary way.
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, value, terms )
+    if terms.Count <> 1 then
+        ZeroStrDescriptor( c, dst )
+        if target = Fbx.NODE_NONE then return true
+        return LowerStringAssign( c, target, value )
+    end if
+
+    dim as FB.Array( of ulong ) args
+    PushStrArg( args, dst )
+    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[0] ) ) = false then
+        '' The source did not lower, so the descriptor must still be made valid --
+        '' its fb_StrDelete is registered either way.
+        ZeroStrDescriptor( c, dst )
+        return false
+    end if
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( 0 )
+    EmitRtl( c, RTL_STR_INIT, args )
+    return true
+end function
+
 function LowerStringAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
 
@@ -167,9 +246,7 @@ function LowerStringAssign _
 
     '' A '+' chain is flattened and emitted as ONE assign followed by concat-assigns,
     '' which is exactly what fbc does: 'a = b + c' is fb_StrAssign(a,b) then
-    '' fb_StrConcatAssign(a,c), with no temporary at all. A temporary is needed only
-    '' when the DESTINATION appears on the right -- 'a = b + a' -- because building in
-    '' place would overwrite the source before it is read. That shape is not lowered.
+    '' fb_StrConcatAssign(a,c), with no temporary at all.
     dim as FB.Array( of ulong ) terms
     FlattenConcat( c, value, terms )
 

@@ -32,6 +32,14 @@ namespace Fbx.Mir
     '' -1; a literal is passed as its bytes with the real length. That convention is
     '' why every string entry takes (ptr, i64) pairs rather than one argument.
     #macro FBX_RTL_LIST( RTL )
+        '' The program entry pair. fbc emits these ONLY for the main translation unit:
+        '' fb_Init before the module-level body, fb_End after its cleanups.
+        RTL( RTL_INIT,              "fb_Init",             MT_VOID, "lpl"   )
+        RTL( RTL_END,               "fb_End",              MT_VOID, "l"     )
+        '' Same argument shape as fb_StrAssign, but for a DECLARATION with an
+        '' initialiser. fbc uses Init there and Assign only for a later store; a local
+        '' with no initialiser instead gets its 24-byte descriptor zeroed.
+        RTL( RTL_STR_INIT,          "fb_StrInit",          MT_PTR,  "pqpql" )
         RTL( RTL_STR_ASSIGN,        "fb_StrAssign",        MT_PTR,  "pqpql" )
         RTL( RTL_STR_CONCAT_ASSIGN, "fb_StrConcatAssign",  MT_PTR,  "pqpql" )
         RTL( RTL_STR_CONCAT,        "fb_StrConcat",        MT_PTR,  "ppqpq"  )
