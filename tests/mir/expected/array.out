@@ -1,0 +1,55 @@
+func void P() {
+  local agg a size 40
+  local agg b size 48
+  local i32 i
+  local i32 v
+  entry0:
+    %1 = alloca ptr a
+    %2 = alloca ptr b
+    %3 = alloca ptr i
+    %4 = alloca ptr v
+    %5 = const i64 2
+    %6 = const i64 4
+    %7 = mul %5, %6
+    %8 = ptr.add @a, %7
+    %9 = const i64 7
+    %10 = trunc %9
+    store %8, %10
+    %11 = load @i
+    %12 = sext %11
+    %13 = const i64 4
+    %14 = mul %12, %13
+    %15 = ptr.add @a, %14
+    %16 = load %15
+    store @v, %16
+    %17 = const i64 1
+    %18 = const i64 16
+    %19 = mul %17, %18
+    %20 = const i64 2
+    %21 = const i64 4
+    %22 = mul %20, %21
+    %23 = add %19, %22
+    %24 = const i64 20
+    %25 = sub %23, %24
+    %26 = ptr.add @b, %25
+    %27 = const i64 5
+    %28 = trunc %27
+    store %26, %28
+    %29 = load @i
+    %30 = sext %29
+    %31 = const i64 16
+    %32 = mul %30, %31
+    %33 = load @i
+    %34 = sext %33
+    %35 = const i64 4
+    %36 = mul %34, %35
+    %37 = add %32, %36
+    %38 = const i64 20
+    %39 = sub %37, %38
+    %40 = ptr.add @b, %39
+    %41 = load %40
+    store @v, %41
+    ret
+}
+verify: ok
+lowered: 1 functions, 1 blocks, 45 insts, 0 statements not lowered, 0 scope imbalance

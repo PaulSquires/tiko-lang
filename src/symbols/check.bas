@@ -852,9 +852,17 @@ function TypeOf_ _
         '' cheapest -- a tie is an ambiguous call, not a silent pick.
         dim as Fbx.ListPayload ptr cp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Fbx.SymbolId callee = c.info->RefOf( cp->target )
-        if callee <> Fbx.SYMBOL_NONE then
-            t = ResolveCall_( c, id, callee, cp )
+        '' Indexing and calling share a spelling, so the callee's TYPE decides which
+        '' this is. An array subscript yields the ELEMENT type; without this the whole
+        '' expression is untyped and every use of a(i) falls back to nothing.
+        dim as Fbx.TypeId ct = TypeOf_( c, cp->target )
+        if (ct <> Fbx.TYPE_NONE) andalso (c.types->Kind( ct ) = Fbx.TK_ARRAY) then
+            t = c.types->Inner( ct )
+        else
+            dim as Fbx.SymbolId callee = c.info->RefOf( cp->target )
+            if callee <> Fbx.SYMBOL_NONE then
+                t = ResolveCall_( c, id, callee, cp )
+            end if
         end if
 
     case Fbx.N_DEREF

@@ -83,7 +83,7 @@ sub Terminate _
     b->cond = cond
 end sub
 
-private function ConstInt _
+function ConstInt _
     ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
     dim as MirInst ins
     ins.op = cast( ushort, M_CONST )
@@ -232,49 +232,6 @@ function IsUnsignedType _
     return false
 end function
 
-'' The ADDRESS of an assignable expression, or an undef value when this slice cannot
-'' produce one (a member, an index, a dereference).
-function LowerAddr _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
-
-    dim as MirValue v
-    if id = Fbx.NODE_NONE then return v
-
-    '' 'x.f' is the base's address plus a CONSTANT offset. The offset comes from the
-    '' measured layout, and Check already bound the member to its field symbol, so
-    '' nothing is looked up twice.
-    if c.ast->Kind( id ) = Fbx.N_MEMBER then
-        dim as Fbx.BinaryPayload ptr mp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Fbx.TypeId bt = c.info->TypeOf_( mp->lhs )
-        dim as MirValue base_
-        if (bt <> Fbx.TYPE_NONE) andalso (c.types->Kind( bt ) = Fbx.TK_POINTER) then
-            '' Through a pointer the base is the VALUE, not its slot.
-            base_ = LowerExpr( c, mp->lhs )
-            bt = c.types->Inner( bt )
-        else
-            base_ = LowerAddr( c, mp->lhs )
-        end if
-        if base_.kind = cast( ubyte, MV_NONE ) then return v
-        dim as Fbx.SymbolId fsym = c.info->RefOf( id )
-        dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsym )
-        if fs = 0 then return v
-        dim as boolean found = false
-        dim as long off = c.udts->FieldOffset( bt, fs->name, found )
-        if found = false then return v
-        dim as MirInst ins
-        ins.op = cast( ushort, M_FIELD_ADDR )
-        ins.ty = cast( ubyte, MT_PTR )
-        ins.a = base_
-        ins.imm = off
-        return Emit( c, ins )
-    end if
-
-    if c.ast->Kind( id ) <> Fbx.N_IDENT then return v
-    dim as Fbx.SymbolId sid = c.info->RefOf( id )
-    if sid = Fbx.SYMBOL_NONE then return v
-    return AddrOfVar( c, sid )
-end function
 
 function LowerExpr _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
@@ -376,6 +333,13 @@ function LowerExpr _
         return Emit( c, ins )
 
     case Fbx.N_CALL
+        '' Indexing and calling share a spelling; an array subscript is an address to
+        '' load from, not a call to make.
+        if IsArrayIndex( c, id ) then
+            dim as MirValue addr = LowerArrayIndex( c, id )
+            if addr.kind = cast( ubyte, MV_NONE ) then return v
+            return LowerExprLoad( c, addr, LowerType( c.info->TypeOf_( id ), *c.types ) )
+        end if
         return LowerCall( c, id, mt )
     end select
 

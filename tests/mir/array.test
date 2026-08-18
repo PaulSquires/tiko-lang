@@ -1,0 +1,35 @@
+'' Array indexing, measured against fbc -- see docs/internals/phase-6-arrays.md.
+''
+''     address = base + SUM( index_k * stride_k ) - SUM( lbound_k * stride_k )
+''
+'' row-major, so the LAST dimension has stride elemSize and each earlier one is scaled by
+'' the element counts of every dimension after it. fbc lowers b(i,i) for
+'' b(1 to 3, 1 to 4) to base + 20i - 20.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/array.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: 0 scope imbalance
+
+'' Storage, not one element. This was 'local i32 a' -- four bytes for forty -- and went
+'' unnoticed because indexing was not lowered to write through it.
+'' EXPECT-OUT: local agg a size 40
+'' EXPECT-OUT: local agg b size 48
+
+'' The assertions name VALUES, not temp numbers: the golden already pins the exact text,
+'' and a %N here breaks whenever an unrelated instruction is added ahead of it.
+''
+'' One dimension, lbound 0: stride 4, and no bias to subtract.
+'' EXPECT-OUT: ptr.add @a,
+
+'' Two dimensions, lbound 1 on both: strides 16 and 4, and a bias of 1*16 + 1*4 = 20
+'' subtracted ONCE for the whole subscript rather than per dimension.
+'' EXPECT-OUT: const i64 16
+'' EXPECT-OUT: const i64 20
+'' EXPECT-OUT: ptr.add @b,
+
+'' ptr.add is its OWN opcode rather than add, so nothing downstream can read the offset
+'' as an integer to be scaled again by an element size.
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/array.out

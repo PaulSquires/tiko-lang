@@ -125,6 +125,12 @@ declare function EmitRtl _
         ( byref c as Ctx, byval bp as Fbx.BinaryPayload ptr, _
           byval tk as Fbx.TokenKind ) as MirValue
 
+    '' lowerarr.bas -- array indexing.
+    declare function IsArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+    declare function ConstInt _
+        ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
+
 end namespace
 
 #endif

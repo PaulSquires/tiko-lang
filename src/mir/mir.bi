@@ -47,6 +47,10 @@ namespace Fbx.Mir
         OP( M_ALLOCA,     "alloca",     0, true  )
         OP( M_LOAD,       "load",       1, true  )
         OP( M_FIELD_ADDR, "field.addr", 1, true  )   '' base + a CONSTANT offset
+        '' base + a COMPUTED BYTE offset. Distinct from M_ADD so nothing downstream can
+        '' read it as integer arithmetic: the offset is already in bytes and must not be
+        '' scaled again by an element size.
+        OP( M_PTR_ADD,    "ptr.add",    2, true  )
         OP( M_STORE,      "store",      2, false )
         OP( M_ADD,        "add",        2, true  )
         OP( M_SUB,        "sub",        2, true  )
