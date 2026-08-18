@@ -87,3 +87,12 @@ sub Varia cdecl( byval n as long, ... )
     cva_end( vl2 )
     cva_end( vl )
 end sub
+
+'' Assignment THROUGH A POINTER. A statement may begin with the dereference operator, and
+'' the target is an ordinary lvalue from there -- the same call-or-assign ambiguity as a
+'' bare name, which a statement starting with '*' was not reaching.
+dim as long dtgt
+dim dp as long ptr = @dtgt
+dim dpp as long ptr ptr = @dp
+*dp = 5
+**dpp = 6

@@ -759,6 +759,11 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' The parentheses are permitted around an lvalue and change nothing, so the
             '' statement is the same call-or-assign ambiguity as a bare name.
             n = ParseAmbiguous( p )
+        elseif k = Fbx.TK_STAR then
+            '' Assignment THROUGH A POINTER: '*p = 5', '**pp = 5'. A statement may begin
+            '' with the dereference operator, and the target is an ordinary lvalue
+            '' expression from there -- the same call-or-assign ambiguity again.
+            n = ParseAmbiguous( p )
         elseif k = Fbx.TK_QUESTION then
             n = ParseIntrinsic( p )       '' '?' is PRINT
         else
