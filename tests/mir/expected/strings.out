@@ -55,5 +55,20 @@ func void CONCAT() {
     call.rtl void fb_StrDelete(@a)
     ret
 }
+func void VIATEMP() {
+  local agg a size 24
+  local agg b size 24
+  local agg $tmp2 size 24
+  entry0:
+    %1 = alloca ptr a
+    %2 = alloca ptr b
+    %3 = alloca ptr $tmp2
+    %4 = call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
+    %5 = call.rtl ptr fb_StrAssign(@a, -1, @$tmp2, -1, 0)
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@a)
+    ret
+}
+declare ptr fb_StrConcat($0, $1, $2, $3, $4)
 verify: ok
-lowered: 3 functions, 6 blocks, 27 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 7 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance

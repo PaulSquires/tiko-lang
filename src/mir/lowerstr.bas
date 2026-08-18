@@ -11,8 +11,62 @@ namespace Fbx.Mir
 declare function EmitStrTerm _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
       byval term as Fbx.NodeId ) as boolean
+declare sub PushStrArg _
+    ( byref args as FB.Array( of ulong ), byref addr as MirValue )
+declare sub PushStrLiteralArg _
+    ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
+declare function StringLitText_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as string
+declare function LowerConcatViaTemp _
+    ( byref c as Ctx, byref dst as MirValue, _
+      byref terms as FB.Array( of ulong ) ) as boolean
 declare sub FlattenConcat _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outp as FB.Array( of ulong ) )
+
+
+'' 'a = b + a'. The chain is built in an anonymous FBSTRING slot and then assigned.
+''
+'' The temporary is NEVER deleted here, and that is measured rather than assumed: fbc
+'' emits a plain 'FBSTRING TMP;' local and no fb_StrDelete for it. The runtime frees
+'' the temp descriptor when it is handed to fb_StrAssign, so deleting it as well would
+'' be a double free.
+private function LowerConcatViaTemp _
+    ( byref c as Ctx, byref dst as MirValue, _
+      byref terms as FB.Array( of ulong ) ) as boolean
+
+    if terms.Count < 2 then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+
+    '' fb_StrConcat takes the destination descriptor first, then the two operands.
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, tmp.kind ) )
+    args.Push( cast( ulong, tmp.id ) )
+    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[0] ) ) = false then return false
+    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[1] ) ) = false then return false
+    dim as MirValue acc = EmitRtl( c, RTL_STR_CONCAT, args )
+
+    '' Any further terms concatenate onto the temporary in place.
+    for i as long = 2 to terms.Count - 1
+        dim as FB.Array( of ulong ) more
+        PushStrArg( more, tmp )
+        if EmitStrTerm( c, more, cast( Fbx.NodeId, terms[i] ) ) = false then return false
+        more.Push( cast( ulong, MV_CONST_INT ) )
+        more.Push( 0 )
+        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, more )
+    next
+
+    dim as FB.Array( of ulong ) fin
+    PushStrArg( fin, dst )
+    PushStrArg( fin, tmp )
+    fin.Push( cast( ulong, MV_CONST_INT ) )
+    fin.Push( 0 )
+    EmitRtl( c, RTL_STR_ASSIGN, fin )
+    return true
+end function
 
 '' The text of a string literal. The parser records the span rather than the decoded
 '' bytes, so it is read back out of the source buffer here.
@@ -118,11 +172,15 @@ function LowerStringAssign _
     '' place would overwrite the source before it is read. That shape is not lowered.
     dim as FB.Array( of ulong ) terms
     FlattenConcat( c, value, terms )
-    for i as long = 0 to terms.Count - 1
-        if SameLValue( c, target, cast( Fbx.NodeId, terms[i] ) ) then
-            if i > 0 then return false        '' destination read after being written
-        end if
+
+    '' If the destination is read AFTER it would be written, the chain cannot be built
+    '' in place: 'a = b + a' would overwrite a before reading it. fbc builds such a
+    '' chain in a temporary and assigns from that.
+    dim as boolean needsTemp = false
+    for i as long = 1 to terms.Count - 1
+        if SameLValue( c, target, cast( Fbx.NodeId, terms[i] ) ) then needsTemp = true
     next
+    if needsTemp then return LowerConcatViaTemp( c, dst, terms )
 
     '' The first term is assigned, every later one concatenated onto it. When the
     '' destination IS the first term, the assign is a self-assignment and is skipped.

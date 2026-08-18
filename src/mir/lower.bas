@@ -191,6 +191,28 @@ private function LocalFor _
     return c.f->locals.Count - 1
 end function
 
+'' An anonymous slot, for a value with no name in the source. The alloca goes in the
+'' entry block like any other local, so nothing downstream has to treat it specially.
+function NewTempLocal _
+    ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
+
+    dim as MirLocal l
+    l.name = c.names->GetString( "$tmp" & str( c.f->locals.Count ) )
+    l.ty = cast( ubyte, ty )
+    l.size = sizeBytes
+    c.f->locals.Push( l )
+
+    dim as long saved = c.curBlock
+    c.curBlock = 0
+    dim as MirInst ins
+    ins.op = cast( ushort, M_ALLOCA )
+    ins.ty = cast( ubyte, MT_PTR )
+    ins.imm = c.f->locals.Count - 1
+    Emit( c, ins )
+    c.curBlock = saved
+    return c.f->locals.Count - 1
+end function
+
 '' ------------------------------------------------------------- expressions
 
 declare function LowerShortCircuit _

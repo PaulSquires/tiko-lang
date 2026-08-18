@@ -61,6 +61,8 @@ declare function SameLValue _
 declare function IsStringType( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
 declare function LowerStringAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+declare function NewTempLocal _
+    ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
 declare function EmitRtl _
     ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
 

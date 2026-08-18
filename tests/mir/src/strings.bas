@@ -25,3 +25,12 @@ sub Concat( )
     a = b + c
     a = b + c + b
 end sub
+
+'' 'a = b + a' cannot build in place -- the destination is read after it would be
+'' written -- so the chain goes through an anonymous temporary. The temporary is NOT
+'' deleted: fbc emits none either, because the runtime frees the temp descriptor when
+'' fb_StrAssign is handed it.
+sub ViaTemp( )
+    dim as string a, b
+    a = b + a
+end sub
