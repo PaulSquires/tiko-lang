@@ -1,0 +1,11 @@
+-- dim  (plan says the copy is ELIDED here)
+  ctor 1
+  dtor 1
+  (body)
+  dtor 1
+-- static (plan says NOT elided)
+  ctor 2
+  dtor 2
+  dtor 2
+  (body)
+  dtor 2

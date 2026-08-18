@@ -1,0 +1,21 @@
+-- dim from function
+  ctor 1
+  COPYctor 101 from 1
+  dtor 1
+  (body)
+  dtor 101
+-- assign from function
+  ctor 2
+  ctor 3
+  COPYctor 103 from 3
+  dtor 3
+  dtor 103
+  (body)
+  dtor 103
+-- pass byval
+  ctor 4
+  COPYctor 104 from 4
+  (in Take)
+  dtor 104
+  (after call)
+  dtor 4

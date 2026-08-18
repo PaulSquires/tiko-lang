@@ -10,6 +10,11 @@ They are the specification. When fbx can emit code, its output must match these 
 for byte; until then they pin the rules that lowering has to reproduce, and every rule
 in `docs/internals/phase-6-cleanup.md` is derived from a line in one of them.
 
+`trace-copies` and `trace-rvo` cover the copy rules. Note what to count there: the
+implicit copy is BITWISE and calls nothing, so a copy that happens leaves **no
+constructor call** -- only an extra destructor. Counting constructors to detect one
+finds nothing.
+
 Regenerate with fbc, never by hand:
 
 ```
