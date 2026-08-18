@@ -52,6 +52,39 @@ function IsSharedVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
     return ((s->flags and Fbx.SYMF_SHARED) <> 0)
 end function
 
+'' A STATIC local: procedure scope, but MODULE lifetime.
+''
+'' fbc emits it as a function-scoped C static, so it keeps its value across calls and is
+'' initialised once rather than on entry:
+''
+''     void P( void ) { static int32 N$1 = 5;  N$1 = N$1 + 1; }
+''
+'' As a frame slot it would be reinitialised every call, which is the entire behaviour
+'' the keyword exists to provide.
+function IsStaticLocal( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    if (s->flags and Fbx.SYMF_SHARED) <> 0 then return false
+    return ((s->flags and Fbx.SYMF_STATIC) <> 0)
+end function
+
+'' The storage name for a static local, which must be unique PER PROCEDURE.
+''
+'' fbc names both of these N$1 and relies on C function scoping to keep them apart:
+''
+''     void P( void ) { static int32 N$1; ... }
+''     void Q( void ) { static int32 N$1; ... }
+''
+'' MIR globals are one flat table with no such scoping, so the two would silently merge
+'' into one variable -- P and Q sharing a counter, which is exactly the class of bug
+'' DIM SHARED had in reverse. The procedure name is therefore part of the storage name.
+private function StaticName( byref c as Ctx, byval sid as Fbx.SymbolId ) as Fbx.InternId
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    dim as string owner = "?"
+    if c.f <> 0 then owner = c.names->Spelling( c.f->name )
+    return c.names->GetString( owner & "$" & c.names->Spelling( s->name ) )
+end function
+
 '' The global slot for a DIM SHARED variable, created on first reference.
 ''
 '' This exists because LocalFor matches by NAME WITHIN THE CURRENT FUNCTION, so a shared
@@ -60,6 +93,8 @@ end function
 function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return -1
+    dim as Fbx.InternId nm = s->name
+    if IsStaticLocal( c, sid ) then nm = StaticName( c, sid )
     dim as long sz
     dim as long ui = c.udts->Find( s->type_ )
     if ui >= 0 then
@@ -67,13 +102,15 @@ function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
     else
         sz = c.types->Layout( s->type_ ).size
     end if
-    return c.m->AddVarGlobal( s->name, LowerType( s->type_, *c.types ), s->type_, sz )
+    return c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
 end function
 
 '' The ADDRESS of a variable, wherever its storage lives.
 function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as MirValue v
-    if IsSharedVar( c, sid ) then
+    dim as boolean inModule = IsSharedVar( c, sid )
+    if IsStaticLocal( c, sid ) then inModule = true
+    if inModule then
         dim as long g = GlobalFor( c, sid )
         if g < 0 then return v
         v.kind = cast( ubyte, MV_GLOBAL )

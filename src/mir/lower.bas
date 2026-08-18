@@ -871,7 +871,11 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
             '' A shared string also gets NO cleanup: fbc emits no fb_StrDelete for one,
             '' anywhere. Registering one here would release module storage at the end of
             '' whichever scope happened to declare it.
-            if IsSharedVar( c, sid ) then
+            '' A STATIC local takes the same route: module lifetime, a compile-time
+            '' initialiser rather than a store on entry, and no cleanup registered.
+            dim as boolean inModule = IsSharedVar( c, sid )
+            if IsStaticLocal( c, sid ) then inModule = true
+            if inModule then
                 dim as long g = GlobalFor( c, sid )
                 if (g >= 0) andalso (ip->b <> Fbx.NODE_NONE) then
                     dim as Fbx.Check.ConstVal cv = Fbx.Check.ConstOf( _

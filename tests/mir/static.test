@@ -1,0 +1,29 @@
+'' STATIC locals. Measured from fbc (docs/internals/phase-6-shared.md):
+''
+''     void P( void ) { static int32 N$1 = 5;  N$1 = N$1 + 1; }
+''
+'' A frame slot would be reinitialised on every call, which is the entire behaviour the
+'' keyword exists to provide.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 scope imbalance
+
+'' Module storage with a compile-time initialiser, not a store executed on entry.
+'' EXPECT-OUT: global var i32 P$n = 5
+'' EXPECT-OUT: global var agg P$s size 24
+
+'' THE POINT OF THIS TEST. fbc names P's and Q's counters both N$1 and relies on C
+'' function scoping; MIR has one flat global table, so without the procedure in the name
+'' these two silently become ONE variable and P and Q share a counter.
+'' EXPECT-OUT: global var i32 Q$n
+'' EXPECT-OUT: store @@P$n
+'' EXPECT-OUT: store @@Q$n
+
+'' No frame slot, and no cleanup for the static string -- releasing module storage at a
+'' scope end would free it while later calls still use it.
+'' EXPECT-NOT: alloca ptr n
+'' EXPECT-NOT: fb_StrDelete(@@P$s
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/static.out
