@@ -10,7 +10,8 @@
 namespace Fbx.Mir
 
 private function ValStr _
-    ( byref f as MirFunction, byref v as MirValue, byref names as Fbx.Interner ) as string
+    ( byref f as MirFunction, byref v as MirValue, byref names as Fbx.Interner, _
+      byval m as MirModule ptr = 0 ) as string
 
     select case v.kind
     case MV_TEMP        : return "%" & str( v.id )
@@ -26,7 +27,15 @@ private function ValStr _
         end if
         return "@?" & str( v.id )
     case MV_PARAM       : return "$" & str( v.id )
-    case MV_GLOBAL      : return "@@" & str( v.id )
+    case MV_GLOBAL
+        '' Named, not numbered: a golden diff should not churn because an unrelated
+        '' literal was added ahead of this one in the table.
+        if m <> 0 then
+            if cast( long, v.id ) < m->globals.Count then
+                return "@@" & names.Spelling( m->globals[cast( long, v.id )].name )
+            end if
+        end if
+        return "@@?" & str( v.id )
     case MV_UNDEF       : return "undef"
     end select
     return "_"
@@ -62,7 +71,7 @@ private function InstStr _
         end if
 
     case M_FIELD_ADDR
-        s += " " & ValStr( f, ins.a, names ) & ", " & str( ins.imm )
+        s += " " & ValStr( f, ins.a, names, @m ) & ", " & str( ins.imm )
 
     case M_ALLOCA
         dim as long li = cast( long, ins.imm )
@@ -87,14 +96,14 @@ private function InstStr _
                 av.kind = cast( ubyte, m.argPool[slot] )
                 av.id = m.argPool[slot + 1]
             end if
-            s += ValStr( f, av, names )
+            s += ValStr( f, av, names, @m )
         next
         s += ")"
 
     case else
         dim as long n = OpArity( op )
-        if n >= 1 then s += " " & ValStr( f, ins.a, names )
-        if n >= 2 then s += ", " & ValStr( f, ins.b, names )
+        if n >= 1 then s += " " & ValStr( f, ins.a, names, @m )
+        if n >= 2 then s += ", " & ValStr( f, ins.b, names, @m )
     end select
     return s
 end function
@@ -109,6 +118,19 @@ function DumpModule _
         if m.globals[i].isString then
             outp += "global str " & names.Spelling( m.globals[i].name ) & " " & _
                     chr( 34 ) & m.globals[i].bytes & chr( 34 ) & chr( 10 )
+        elseif m.globals[i].isVar then
+            '' A DIM SHARED variable. The initialiser is part of the definition, the
+            '' way fbc emits 'static int32 H$ = 5;', so it is printed here and not as
+            '' a store somewhere.
+            outp += "global var " & TypeName( cast( MirType, m.globals[i].ty ) ) & _
+                    " " & names.Spelling( m.globals[i].name )
+            if m.globals[i].ty = cast( ubyte, MT_AGG ) then
+                outp += " size " & str( m.globals[i].size )
+            end if
+            if m.globals[i].hasInit then
+                outp += " = " & str( m.globals[i].initInt )
+            end if
+            outp += chr( 10 )
         end if
     next
     for fi as long = 0 to m.functions.Count - 1
@@ -151,12 +173,12 @@ function DumpModule _
                 if b->cond.kind = cast( ubyte, MV_NONE ) then
                     outp += "    ret" & chr( 10 )
                 else
-                    outp += "    ret " & ValStr( *f, b->cond, names ) & chr( 10 )
+                    outp += "    ret " & ValStr( *f, b->cond, names, @m ) & chr( 10 )
                 end if
             case MTERM_BR
                 outp += "    br " & BlockName( *f, b->target, names ) & chr( 10 )
             case MTERM_CONDBR
-                outp += "    condbr " & ValStr( *f, b->cond, names ) & ", " & _
+                outp += "    condbr " & ValStr( *f, b->cond, names, @m ) & ", " & _
                         BlockName( *f, b->target, names ) & ", " & _
                         BlockName( *f, b->target2, names ) & chr( 10 )
             case MTERM_UNREACHABLE

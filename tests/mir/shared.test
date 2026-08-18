@@ -1,0 +1,34 @@
+'' DIM SHARED lives in MODULE storage, and the point of the test is that two procedures
+'' see ONE variable. Before this, LocalFor matched by name within the current function,
+'' so every procedure allocated its own private copy and a SUB assigning a shared
+'' variable updated nothing anyone else could see -- silently, with no diagnostic.
+''
+'' Measured from fbc (docs/internals/phase-6-shared.md):
+''   dim shared as long H = 5   ->  static int32 H$ = 5;      (a static INITIALISER)
+''   dim shared as string T     ->  static FBSTRING T$;       (no memset, no fb_StrInit)
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/shared.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 scope imbalance
+
+'' The initialiser is part of the DEFINITION, the way fbc emits 'static int32 H$ = 5'.
+'' It is not a store executed in main.
+'' EXPECT-OUT: global var i32 counter = 5
+'' EXPECT-OUT: global var agg name_ size 24
+
+'' Both procedures address the SAME storage. If these were frame slots each would say
+'' @counter instead, and the test would still look reasonable -- which is exactly how
+'' the bug survived.
+'' EXPECT-OUT: store @@counter
+'' EXPECT-OUT: call.rtl ptr fb_StrConcatAssign(@@name_
+
+'' No procedure allocates a local for either of them.
+'' EXPECT-NOT: local i32 counter
+'' EXPECT-NOT: alloca ptr counter
+
+'' A shared string gets NO cleanup: fbc emits no fb_StrDelete for one anywhere, and
+'' registering one would release module storage at the end of a scope.
+'' EXPECT-NOT: fb_StrDelete(@@name_
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/shared.out

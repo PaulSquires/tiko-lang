@@ -182,12 +182,22 @@ namespace Fbx.Mir
 
     type MirFunctionVec as FB.Array( of MirFunction ptr )
 
-    '' A module-level constant. Only string-literal bytes for now: a literal has to
-    '' live somewhere before a pointer to it can be passed to the runtime.
+    '' A module-level datum: either a string literal's bytes, or a DIM SHARED variable.
+    ''
+    '' A shared variable is storage, not code. fbc emits 'static int32 H$ = 5;' -- the
+    '' initialiser is part of the definition, not a store executed in main -- so the
+    '' initial value is carried here rather than lowered into an instruction.
     type MirGlobal
         as InternId name
         as string   bytes          '' the literal's contents, NUL not included
         as boolean  isString
+        as boolean  isVar
+        as ubyte    ty             '' MirType, isVar only
+        as Fbx.TypeId frontendType
+        as long     size
+        as longint  initInt        '' compile-time initial value
+        as double   initFlt
+        as boolean  hasInit
     end type
 
     type MirGlobalVec as FB.Array( of MirGlobal )
@@ -206,6 +216,11 @@ namespace Fbx.Mir
         '' does -- two occurrences of the same text are one datum.
         declare function AddStringLiteral _
             ( byref text as string, byref names as Interner ) as long
+        '' A DIM SHARED variable. Unlike a literal these are never merged: two
+        '' variables of the same value are still two variables.
+        declare function AddVarGlobal _
+            ( byval nm as InternId, byval ty as MirType, byval ft as Fbx.TypeId, _
+              byval sizeBytes as long ) as long
     end type
 
     declare function TypeName( byval t as MirType ) as string

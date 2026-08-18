@@ -17,7 +17,7 @@
 '' EXPECT-OUT: call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
 '' EXPECT-OUT: call.rtl void fb_StrDelete(@a)
 '' EXPECT-OUT: global str $str0 "x"
-'' EXPECT-OUT: call.rtl ptr fb_StrAssign(@a, -1, @@0, 2, 0)
+'' EXPECT-OUT: call.rtl ptr fb_StrAssign(@a, -1, @@$str0, 2, 0)
 '' EXPECT-OUT: call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
 '' EXPECT-OUT: verify: ok
 '' GOLDEN: expected/strings.out

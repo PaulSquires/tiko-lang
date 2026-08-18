@@ -40,6 +40,23 @@ function MirModule.AddStringLiteral _
     return this.globals.Count - 1
 end function
 
+function MirModule.AddVarGlobal _
+    ( byval nm as InternId, byval ty as MirType, byval ft as Fbx.TypeId, _
+      byval sizeBytes as long ) as long
+
+    for i as long = 0 to this.globals.Count - 1
+        if this.globals[i].isVar andalso (this.globals[i].name = nm) then return i
+    next
+    dim as MirGlobal g
+    g.name = nm
+    g.isVar = true
+    g.ty = cast( ubyte, ty )
+    g.frontendType = ft
+    g.size = sizeBytes
+    this.globals.Push( g )
+    return this.globals.Count - 1
+end function
+
 '' ------------------------------------------------------------------ metadata
 
 function TypeName( byval t as MirType ) as string

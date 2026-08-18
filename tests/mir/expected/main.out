@@ -15,7 +15,7 @@ func i32 main($0, $1) {
     %6 = trunc %5
     store @g, %6
     %7 = alloca ptr s
-    %8 = call.rtl ptr fb_StrInit(@s, -1, @@0, 3, 0)
+    %8 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 3, 0)
     %9 = alloca ptr t
     %10 = field.addr @t, 0
     store %10, 0

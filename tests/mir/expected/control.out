@@ -87,7 +87,7 @@ func void JUMP($0) {
     %7 = alloca ptr s
     condbr %6, if.then2, if.else3
   if.join1:
-    %8 = call.rtl ptr fb_StrInit(@s, -1, @@0, 2, 0)
+    %8 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
     %9 = load @n
     %10 = const i64 2
     %11 = sext %9

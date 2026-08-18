@@ -155,41 +155,8 @@ end function
 
 '' A local is a slot, addressed by an alloca in the entry block. Locals are found by
 '' SYMBOL, so the same name in two scopes gets two slots.
-private function LocalFor _
-    ( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
 
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return -1
-    '' payload doubles as the slot index once assigned; -1 means not yet.
-    for i as long = 0 to c.f->locals.Count - 1
-        if c.f->locals[i].name = s->name then return i
-    next
-    dim as MirLocal l
-    l.name = s->name
-    l.frontendType = s->type_
-    l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
-    '' An aggregate slot needs its SIZE: 'agg' says nothing about how many bytes to
-    '' reserve, and the layout pass is the only thing that knows.
-    dim as long ui = c.udts->Find( s->type_ )
-    if ui >= 0 then
-        l.size = c.udts->udts[ui].size
-    else
-        l.size = c.types->Layout( s->type_ ).size
-    end if
-    c.f->locals.Push( l )
 
-    '' The alloca goes in the ENTRY block, which is a verifier rule and also what
-    '' lets LLVM's mem2reg promote the slot.
-    dim as long saved = c.curBlock
-    c.curBlock = 0
-    dim as MirInst ins
-    ins.op = cast( ushort, M_ALLOCA )
-    ins.ty = cast( ubyte, MT_PTR )
-    ins.imm = c.f->locals.Count - 1
-    Emit( c, ins )
-    c.curBlock = saved
-    return c.f->locals.Count - 1
-end function
 
 '' An anonymous slot, for a value with no name in the source. The alloca goes in the
 '' entry block like any other local, so nothing downstream has to treat it specially.
@@ -306,12 +273,7 @@ function LowerAddr _
     if c.ast->Kind( id ) <> Fbx.N_IDENT then return v
     dim as Fbx.SymbolId sid = c.info->RefOf( id )
     if sid = Fbx.SYMBOL_NONE then return v
-    dim as long slot = LocalFor( c, sid )
-    if slot < 0 then return v
-    v.kind = cast( ubyte, MV_LOCAL )
-    v.ty = cast( ubyte, MT_PTR )
-    v.id = slot
-    return v
+    return AddrOfVar( c, sid )
 end function
 
 function LowerExpr _
@@ -901,6 +863,30 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
                 c.st->skipped += 1
                 continue for
             end if
+            '' DIM SHARED is STORAGE, not code. fbc emits 'static int32 H$ = 5;' --
+            '' the initialiser belongs to the definition and is not a store executed
+            '' anywhere -- so the declaration records the initial value and emits
+            '' nothing.
+            ''
+            '' A shared string also gets NO cleanup: fbc emits no fb_StrDelete for one,
+            '' anywhere. Registering one here would release module storage at the end of
+            '' whichever scope happened to declare it.
+            if IsSharedVar( c, sid ) then
+                dim as long g = GlobalFor( c, sid )
+                if (g >= 0) andalso (ip->b <> Fbx.NODE_NONE) then
+                    dim as Fbx.Check.ConstVal cv = Fbx.Check.ConstOf( _
+                        *c.ast, ip->b, *c.srcMgr, *c.names )
+                    if cv.known then
+                        c.m->globals[g].initInt = cv.value
+                        c.m->globals[g].hasInit = true
+                    else
+                        '' A non-constant initialiser cannot become a static one.
+                        c.st->skipped += 1
+                    end if
+                end if
+                continue for
+            end if
+
             dim as long slot = LocalFor( c, sid )
 
             '' A UDT local is CONSTRUCTED where it is declared and DESTROYED at the

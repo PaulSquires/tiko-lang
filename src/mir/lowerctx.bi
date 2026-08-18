@@ -106,6 +106,12 @@ declare function EmitRtl _
         ( byref c as Ctx, byval slot as long, byval target as Fbx.NodeId, _
           byval value as Fbx.NodeId ) as boolean
 
+    '' lowerstore.bas -- frame slot vs module storage.
+    declare function LocalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
+    declare function IsSharedVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
+    declare function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
+    declare function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
+
 end namespace
 
 #endif
