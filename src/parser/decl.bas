@@ -210,6 +210,40 @@ private function ParseParam( byref p as Fbx.ParserState ) as Fbx.NodeId
     return n
 end function
 
+'' The bounds of an array declarator: '(0 to 3)', '(3)', '(0 to 1, 0 to 2)'. Stored
+'' as LOW/HIGH PAIRS in the child list, with an omitted low bound written as 0 --
+'' 'a(3)' means 0 to 3 in FreeBASIC, four elements, not three.
+''
+'' They used to be skipped token by token, which cost the element count and made
+'' every array field lay out as a single element.
+private sub ParseArrayBounds _
+    ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
+
+    dim as Fbx.NodeIdVec bounds
+    if Accept( p, Fbx.TK_LPAREN ) = false then return
+    if Peek( p ) <> Fbx.TK_RPAREN then
+        do
+            dim as long before = p.pos
+            dim as Fbx.NodeId first_ = Expression( p )
+            if Accept( p, Fbx.KW_TO ) then
+                bounds.Push( cast( ulong, first_ ) )
+                bounds.Push( cast( ulong, Expression( p ) ) )
+            else
+                bounds.Push( cast( ulong, Fbx.NODE_NONE ) )
+                bounds.Push( cast( ulong, first_ ) )
+            end if
+            if p.pos = before then exit do
+            if Accept( p, Fbx.TK_COMMA ) = false then exit do
+        loop
+    end if
+    Expect( p, Fbx.TK_RPAREN, ")" )
+    sp.first = p.ast->children.Count
+    sp.count = bounds.Count
+    for i as long = 0 to bounds.Count - 1
+        p.ast->children.Push( bounds[i] )
+    next
+end sub
+
 '' Intern the text of the string literal at the cursor, WITHOUT advancing. The
 '' literal pool records the span with the quotes already stripped, and the case is
 '' preserved: an ALIAS keeps exactly the spelling that was written.
@@ -401,13 +435,8 @@ private function ParseAggregateBody _
                 dim as Fbx.Token ft = Cur( p )
                 dim as Fbx.StmtPayload fp
                 if DeclName( p, fp.name ) = false then exit do
-                if Peek( p ) = Fbx.TK_LPAREN then
-                    Advance( p )
-                    while (Peek( p ) <> Fbx.TK_RPAREN) andalso (AtEnd( p ) = false)
-                        Advance( p )
-                    wend
-                    Expect( p, Fbx.TK_RPAREN, ")" )
-                end if
+                ParseArrayBounds( p, fp )
+                if fp.count > 0 then fp.op = cast( ushort, Fbx.KW_DIM )
                 fp.a = shared_
                 members.Push( cast( ulong, MakeStmt( p, Fbx.N_FIELD, ft.loc, fp ) ) )
                 if Accept( p, Fbx.TK_COMMA ) = false then exit do
@@ -419,12 +448,9 @@ private function ParseAggregateBody _
             dim as Fbx.Token ft = Cur( p )
             dim as Fbx.StmtPayload fp
             if DeclName( p, fp.name ) then
-                if Peek( p ) = Fbx.TK_LPAREN then
-                    Advance( p )
-                    while (Peek( p ) <> Fbx.TK_RPAREN) andalso (AtEnd( p ) = false)
-                        Advance( p )
-                    wend
-                    Expect( p, Fbx.TK_RPAREN, ")" )
+                ParseArrayBounds( p, fp )
+                if fp.count > 0 then
+                    fp.op = cast( ushort, Fbx.KW_DIM )   '' marks 'has bounds'
                 end if
                 if Accept( p, Fbx.KW_AS ) then fp.a = TypeRef( p )
                 if Accept( p, Fbx.TK_COLON ) then fp.b = Expression( p )
@@ -491,6 +517,24 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
         wend
         Expect( p, Fbx.TK_RPAREN, ")" )
     end if
+    '' 'type T field = 1' caps how far each member is aligned. It does NOT reduce the
+    '' type's own alignment when embedded -- measured -- so it is kept separately
+    '' rather than folded into the alignment.
+    if Peek( p ) = Fbx.KW_FIELD then
+        Advance( p )
+        if Accept( p, Fbx.TK_EQ ) then
+            dim as Fbx.NodeId nExpr = Expression( p )
+            sp.extra = 0
+            if nExpr <> Fbx.NODE_NONE then
+                if p.ast->Kind( nExpr ) = Fbx.N_INT_LIT then
+                    sp.extra = cast( ushort, _
+                        p.ast->literals[cast( long, _
+                            p.ast->nodes[cast( long, nExpr )].data )].intValue )
+                end if
+            end if
+        end if
+    end if
+
     if Accept( p, Fbx.KW_EXTENDS ) then sp.c = TypeRef( p )
 
     return ParseAggregateBody( p, t, sp, isUnion )

@@ -101,6 +101,10 @@ namespace Fbx
         as long     first          '' element list (tuple, proc params), into a pool
         as long     count
         as long     dims           '' array rank; -1 for a dynamic array
+        as long     packing        '' UDT: the 'field = N' cap, 0 for none
+        as long     elems          '' TK_ARRAY: TOTAL element count across all
+                                   '' dimensions, which is what a layout needs;
+                                   '' 0 when the count is not known
         as ulong    declScope      '' UDT/ENUM/TYPEDEF: the scope it was declared in.
                                    '' Part of the IDENTITY -- two namespaces may each
                                    '' hold a 'Vec' -- and part of the mangled name,
@@ -137,7 +141,8 @@ namespace Fbx
         declare function Pointer_( byval pointee as TypeId ) as TypeId
         declare function Reference( byval referent as TypeId ) as TypeId
         declare function ArrayOf _
-            ( byval elem as TypeId, byval rank as long ) as TypeId
+            ( byval elem as TypeId, byval rank as long, _
+              byval elems as long = 0 ) as TypeId
         declare function Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
         '' A UDT, ENUM or TYPEDEF is identified by its NAME, not structurally, so it
         '' needs its own finder: Find( ) compares inner/flags/rank and would collapse
@@ -146,6 +151,9 @@ namespace Fbx
             ( byval k as TypeKind, byval nm as InternId, _
               byval declScope as ulong = 0 ) as TypeId
         declare function NameOf( byval t as TypeId ) as InternId
+        declare function ElemCount( byval t as TypeId ) as long
+        declare function Packing( byval t as TypeId ) as long
+        declare sub SetPacking( byval t as TypeId, byval n as long )
         '' Qualify( ) can only ADD flags. Removing const needs its own operation --
         '' 'Qualify( t, 0 )' silently returns t unchanged.
         declare function Unqualify( byval t as TypeId ) as TypeId

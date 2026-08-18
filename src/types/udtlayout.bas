@@ -39,6 +39,11 @@ private function MemberAlign _
 
     dim as long ui = store.Find( t )
     if ui >= 0 then return store.udts[ui].align
+    '' An array is aligned as its ELEMENT, and the element may itself be a UDT whose
+    '' layout only this store knows -- TypeContext.Layout cannot see it.
+    if types.Kind( t ) = TK_ARRAY then
+        return MemberAlign( types.Inner( t ), types, store )
+    end if
     dim as TypeLayout l = types.Layout( t )
     if l.align <= 0 then return 1
     return l.align
@@ -49,6 +54,11 @@ private function MemberSize _
 
     dim as long ui = store.Find( t )
     if ui >= 0 then return store.udts[ui].size
+    if types.Kind( t ) = TK_ARRAY then
+        dim as long n = types.ElemCount( t )
+        if n <= 0 then n = 1
+        return MemberSize( types.Inner( t ), types, store ) * n
+    end if
     dim as TypeLayout l = types.Layout( t )
     if l.size < 0 then return 0
     return l.size
@@ -75,6 +85,10 @@ private function LayOutOne _
 
     dim as long offset = 0
     dim as long maxAlign = 1
+    '' 'field = N' caps how far each MEMBER is aligned. The type's own alignment stays
+    '' the maximum of its members' NATURAL alignments, which is why Field1 packs to
+    '' offsets 0/1/5 and size 7 yet still embeds 4-aligned.
+    dim as long pack = types.Packing( s->type_ )
     dim as boolean inUnionRun = false
     dim as long unionStart = 0
     dim as long unionSize = 0
@@ -94,9 +108,11 @@ private function LayOutOne _
                 wend
                 return false
             end if
-            dim as long fa = MemberAlign( f->type_, types, store )
+            dim as long natural = MemberAlign( f->type_, types, store )
+            dim as long fa = natural
+            if (pack > 0) andalso (fa > pack) then fa = pack
             dim as long fs = MemberSize( f->type_, types, store )
-            if fa > maxAlign then maxAlign = fa
+            if natural > maxAlign then maxAlign = natural
             dim as boolean isUnion = ((f->flags and SYMF_UNION) <> 0)
 
             '' A run of consecutive union members shares ONE offset -- they overlap --
@@ -153,7 +169,9 @@ private function LayOutOne _
     '' to that -- which is where the trailing padding of 'byte, long, short' (offsets
     '' 0, 4, 8; size 12, not 10) comes from.
     u.align = maxAlign
-    u.size = AlignUp( offset, maxAlign )
+    dim as long sizeAlign = maxAlign
+    if (pack > 0) andalso (sizeAlign > pack) then sizeAlign = pack
+    u.size = AlignUp( offset, sizeAlign )
     if u.size = 0 then u.size = 1
     store.udts.Push( u )
     return true

@@ -77,6 +77,7 @@ namespace Fbx.Resolve
         ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
           byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
           byref names as Fbx.Interner, byref diags as Fbx.DiagnosticEngine, _
+          byref src as Fbx.SourceManager, _
           byref info as Fbx.SemanticInfo, byref st as Stats )
 
     declare function Dump _

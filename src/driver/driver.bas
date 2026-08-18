@@ -192,7 +192,7 @@ function Run( byref args as Fbx.StrVec ) as long
             if ctx.options.dumpUdt then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 info, rst )
+                                 ctx.sources, info, rst )
                 dim as Fbx.UdtLayouts store
                 Fbx.ComputeUdtLayouts( syms, ctx.types, store )
                 print Fbx.DumpUdtLayouts( store, ctx.types, ctx.names );
@@ -201,7 +201,7 @@ function Run( byref args as Fbx.StrVec ) as long
                 '' check gives every expression a type, and lowering reads both.
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 info, rst )
+                                 ctx.sources, info, rst )
                 dim as Fbx.Check.Stats cst
                 Fbx.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
@@ -226,7 +226,7 @@ function Run( byref args as Fbx.StrVec ) as long
             elseif ctx.options.checkOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 info, rst )
+                                 ctx.sources, info, rst )
                 dim as Fbx.Check.Stats cst
                 Fbx.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
@@ -236,12 +236,12 @@ function Run( byref args as Fbx.StrVec ) as long
                 '' but the reference-binding report is not wanted here.
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 info, rst )
+                                 ctx.sources, info, rst )
                 print Fbx.Mangle.Dump( ast, root, syms, ctx.names, ctx.types, info );
             elseif ctx.options.resolveOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 info, rst )
+                                 ctx.sources, info, rst )
                 print Fbx.Resolve.Dump( ast, syms, ctx.types, ctx.names, info, rst );
             else
                 print Fbx.Collect.Dump( syms, ctx.names, ctx.types );

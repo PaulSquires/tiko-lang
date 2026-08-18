@@ -140,8 +140,27 @@ function TypeContext.Reference( byval referent as TypeId ) as TypeId
     return this.Find( TK_REFERENCE, referent, TF_COMPLETE, 0 )
 end function
 
-function TypeContext.ArrayOf( byval elem as TypeId, byval rank as long ) as TypeId
-    return this.Find( TK_ARRAY, elem, TF_COMPLETE, rank )
+function TypeContext.ArrayOf _
+    ( byval elem as TypeId, byval rank as long, byval elems as long ) as TypeId
+
+    '' The element COUNT is part of the identity: 'long a(0 to 3)' and
+    '' 'long a(0 to 7)' are different types with different sizes, and Find( ) alone
+    '' compares only the rank.
+    for i as long = 1 to this.types.Count - 1
+        dim as TypeInfo ptr t = @this.types[i]
+        if (t->kind = cast( ubyte, TK_ARRAY )) andalso (t->inner = elem) andalso _
+           (t->dims = rank) andalso (t->elems = elems) then
+            return cast( TypeId, i )
+        end if
+    next
+    dim as TypeInfo n
+    n.kind = cast( ubyte, TK_ARRAY )
+    n.flags = TF_COMPLETE
+    n.inner = elem
+    n.dims = rank
+    n.elems = elems
+    this.types.Push( n )
+    return cast( TypeId, this.types.Count - 1 )
 end function
 
 '' 'const T' is the same type with a flag, so const-ness never changes identity of
@@ -244,6 +263,21 @@ function TypeContext.ProcType _
     return cast( TypeId, this.types.Count - 1 )
 end function
 
+function TypeContext.Packing( byval t as TypeId ) as long
+    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
+    return this.types[cast( long, t )].packing
+end function
+
+sub TypeContext.SetPacking( byval t as TypeId, byval n as long )
+    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
+    this.types[cast( long, t )].packing = n
+end sub
+
+function TypeContext.ElemCount( byval t as TypeId ) as long
+    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
+    return this.types[cast( long, t )].elems
+end function
+
 function TypeContext.NameOf( byval t as TypeId ) as InternId
     if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
     return this.types[cast( long, t )].name
@@ -314,9 +348,12 @@ function TypeContext.Layout( byval t as TypeId ) as TypeLayout
         end select
 
     case TK_ARRAY
-        '' A fixed array's total size needs its bounds, which live on the
-        '' declaration rather than the type; the element layout is what is known here.
+        '' A fixed array is elemSize * elemCount, aligned as its ELEMENT. The count is
+        '' on the type now: it is part of the type's identity, because two arrays of
+        '' different lengths are different types with different sizes.
         r = this.Layout( this.Inner( t ) )
+        dim as long n = this.types[cast( long, t )].elems
+        if n > 0 then r.size *= n
 
     case else
         r.size = 0

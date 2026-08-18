@@ -140,6 +140,9 @@ sub WalkNode _
             '' The TypeId exists from the DECLARATION, not from the first use: a
             '' member's signature can name its own type, so waiting would deadlock.
             s->type_ = w.types->NamedType( Fbx.TK_UDT, sp->name, cast( ulong, scope_ ) )
+            if sp->extra > 0 then
+                w.types->SetPacking( s->type_, cast( long, sp->extra ) )
+            end if
         end if
         w.info->SetScope( id, inner )
         WalkChildren( w, sp->first, sp->count, inner )

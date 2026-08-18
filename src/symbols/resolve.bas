@@ -1,6 +1,7 @@
 '' resolve.bas -- see resolve.bi
 
 #include once "symbols/resolve.bi"
+#include once "symbols/check.bi"
 #include once "lexer/keywords.bi"
 
 namespace Fbx
@@ -70,6 +71,7 @@ type Ctx
     as Fbx.SymbolTable ptr  syms
     as Fbx.TypeContext ptr  types
     as Fbx.Interner ptr     names
+    as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
     as Fbx.DiagnosticEngine ptr diags
     as Fbx.SemanticInfo ptr info
     as Stats ptr            st
@@ -179,6 +181,21 @@ private function ResolveTypeRef _
             if s->type_ <> Fbx.TYPE_NONE then base_ = s->type_
         end if
     end select
+
+    '' 'zstring * 5' is FIVE BYTES, and 'wstring * 4' is four code units -- eight
+    '' bytes on Windows, sixteen on Linux. Both are modelled as an ARRAY of the
+    '' element, which is exactly what they are, so the layout falls out of the array
+    '' rule instead of needing its own.
+    if (sp->c <> Fbx.NODE_NONE) andalso (base_ <> Fbx.TYPE_NONE) then
+        select case k
+        case Fbx.KW_ZSTRING, Fbx.KW_WSTRING, Fbx.KW_USTRING
+            dim as Fbx.Check.ConstVal lv = _
+                Fbx.Check.ConstOf( *c.ast, sp->c, *c.srcMgr, *c.names )
+            if lv.known andalso (lv.value > 0) then
+                base_ = c.types->ArrayOf( base_, 1, cast( long, lv.value ) )
+            end if
+        end select
+    end if
 
     if (n->flags and Fbx.NF_CONST) <> 0 then
         base_ = c.types->Qualify( base_, Fbx.TF_CONST )
@@ -388,6 +405,32 @@ sub WalkStmt _
     case Fbx.N_FIELD
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         dim as Fbx.TypeId t = ResolveTypeRef( c, sp->a, here )
+        '' A field declared with bounds is an ARRAY of that type. The bounds are
+        '' low/high pairs and the element count is their product -- which the layout
+        '' needs, and which was simply lost while the bounds were being skipped.
+        if (sp->count >= 2) andalso (t <> Fbx.TYPE_NONE) then
+            dim as long total = 1
+            dim as long rank = 0
+            dim as boolean known = true
+            for i as long = 0 to sp->count - 2 step 2
+                dim as Fbx.NodeId loN = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+                dim as Fbx.NodeId hiN = cast( Fbx.NodeId, c.ast->children[sp->first + i + 1] )
+                dim as longint lo = 0
+                if loN <> Fbx.NODE_NONE then
+                    dim as Fbx.Check.ConstVal lv = _
+                        Fbx.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names )
+                    if lv.known then lo = lv.value else known = false
+                end if
+                dim as Fbx.Check.ConstVal hv = _
+                    Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names )
+                if hv.known = false then known = false
+                if known then total *= cast( long, hv.value - lo + 1 )
+                rank += 1
+            next
+            if known andalso (total > 0) then
+                t = c.types->ArrayOf( t, rank, total )
+            end if
+        end if
         BindDeclType( c, here, sp->name, t )
         return
 
@@ -447,9 +490,11 @@ sub Run _
     ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
       byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
       byref names as Fbx.Interner, byref diags as Fbx.DiagnosticEngine, _
+      byref src as Fbx.SourceManager, _
       byref info as Fbx.SemanticInfo, byref st as Stats )
 
     dim as Ctx c
+    c.srcMgr = @src
     c.ast = @ast
     c.syms = @syms
     c.types = @types

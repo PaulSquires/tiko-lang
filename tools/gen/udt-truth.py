@@ -44,6 +44,12 @@ CASES = [
     ("Empty1",    "type Empty1\n as long dummy\nend type", ["dummy"]),
     ("FloatMix",  "type FloatMix\n as single f\n as double d\n as single g\nend type", ["f", "d", "g"]),
     ("Bools",     "type Bools\n as boolean p\n as long l\n as boolean q\nend type", ["p", "l", "q"]),
+    ("Arr2D", "type Arr2D\n as byte b\n as long a(0 to 1, 0 to 2)\n as byte c\nend type", ["b", "a(0,0)", "c"]),
+    ("ArrShort", "type ArrShort\n as short s(1 to 3)\n as byte c\nend type", ["s(1)", "c"]),
+    ("ZStrOdd", "type ZStrOdd\n as zstring * 3 z\n as long l\nend type", ["z", "l"]),
+    ("WStrField", "type WStrField\n as byte b\n as wstring * 4 w\n as byte c\nend type", ["b", "w", "c"]),
+    ("Field8", "type Field8 field = 8\n as byte b\n as double d\nend type", ["b", "d"]),
+    ("ArrOfUdt", "type ElemU\n as long a\n as byte b\nend type\ntype ArrOfUdt\n as byte x\n as ElemU e(0 to 1)\n as byte y\nend type", ["x", "e(0)", "y"]),
     ("ZStrField", "type ZStrField\n as byte b\n as zstring * 5 z\n as byte c\nend type", ["b", "z", "c"]),
 ]
 
