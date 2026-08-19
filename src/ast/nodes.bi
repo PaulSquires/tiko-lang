@@ -164,6 +164,14 @@ namespace Fbx
     const PF_STDCALL    as ushort = &h0100
     const PF_PASCAL     as ushort = &h0200
 
+    '' Member visibility, from a 'private:' / 'protected:' / 'public:' label in a TYPE
+    '' body. Neither bit set is PUBLIC, which is the default fbc gives an unlabelled
+    '' member. Carried in StmtPayload.extra on N_FIELD as well as N_PROC, so the name
+    '' says member rather than proc -- and note PF_PRIVATE above is a DIFFERENT thing,
+    '' module-static linkage, which is why these are not called PF_PRIVATE.
+    const PF_MEMB_PRIVATE   as ushort = &h0400
+    const PF_MEMB_PROTECTED as ushort = &h0800
+
     type UnaryPayload
         as ushort op                '' TokenKind
         as NodeId operand

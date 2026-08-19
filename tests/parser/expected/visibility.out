@@ -1,0 +1,21 @@
+N_MODULE (3) <1:83>
+  N_TYPE 't' <12:1>
+    N_FIELD 'pub0' <13:20>
+      N_TYPEREF 'integer' [INTEGER] <13:12>
+    N_FIELD 'priv1' private <15:20>
+      N_TYPEREF 'integer' [INTEGER] <15:12>
+    N_PROC 'privmethod' [SUB] private <16:17>
+    N_FIELD 'prot1' protected <18:20>
+      N_TYPEREF 'integer' [INTEGER] <18:12>
+    N_TYPE union <19:9>
+      N_FIELD 'inunion' protected <20:28>
+        N_TYPEREF 'integer' [INTEGER] <20:20>
+    N_FIELD 'pub1' <23:20>
+      N_TYPEREF 'integer' [INTEGER] <23:12>
+    N_PROC 'pubmethod' [FUNCTION] <24:17>
+      N_TYPEREF 'integer' [INTEGER] <24:42>
+  N_PROC 'modulestatic' [SUB] <28:9>
+    N_BLOCK (0) <28:28>
+  N_TYPE 'u' union <33:1>
+    N_FIELD 'only1' <34:20>
+      N_TYPEREF 'integer' [INTEGER] <34:12>

@@ -1,0 +1,5 @@
+'' Access-section labels in a TYPE body, and the three ways they do NOT apply.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/visibility.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/visibility.out

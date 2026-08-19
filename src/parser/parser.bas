@@ -906,6 +906,14 @@ private sub DumpAny _
     if (n->flags and Fbx.NF_POST_COND) <> 0 then row += " post"
     if (n->flags and Fbx.NF_IS_UNION) <> 0 then row += " union"
     if (n->flags and Fbx.NF_SINGLE_LINE) <> 0 then row += " single-line"
+
+    '' Member visibility lives in 'extra', not in the node flags, so it needs its own
+    '' line here -- and without one a 'private:' label is invisible in the dump, which
+    '' is exactly how a parsed-but-discarded label would look.
+    if (n->kind = Fbx.N_FIELD) orelse (n->kind = Fbx.N_PROC) then
+        if (sp->extra and Fbx.PF_MEMB_PRIVATE) <> 0 then row += " private"
+        if (sp->extra and Fbx.PF_MEMB_PROTECTED) <> 0 then row += " protected"
+    end if
     outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
 
     DumpAny( ast, src, names, sp->a, indent + 1, outp )

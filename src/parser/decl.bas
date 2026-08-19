@@ -440,6 +440,35 @@ private function ParseProc _
     return pn
 end function
 
+'' An access section reaches into a nested anonymous TYPE or UNION -- measured: a
+'' field of a union written under 'private:' is an illegal member access from outside.
+'' The nested body parses with its own section state, so the label is applied here
+'' instead, and only to members that carry none of their own.
+private sub ApplyVisibility _
+    ( byref p as Fbx.ParserState, byval n as Fbx.NodeId, byval vis as ushort )
+
+    if (vis = 0) orelse (n = Fbx.NODE_NONE) then return
+    if p.ast->nodes[cast( long, n )].kind <> Fbx.N_TYPE then return
+
+    dim as Fbx.StmtPayload ptr tp = _
+        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+
+    for i as long = 0 to tp->count - 1
+        dim as Fbx.NodeId m = cast( Fbx.NodeId, p.ast->children[tp->first + i] )
+        if m = Fbx.NODE_NONE then continue for
+        dim as Fbx.NodeKind mk = p.ast->nodes[cast( long, m )].kind
+        if mk = Fbx.N_TYPE then
+            ApplyVisibility( p, m, vis )
+        elseif (mk = Fbx.N_FIELD) orelse (mk = Fbx.N_PROC) then
+            dim as Fbx.StmtPayload ptr mp = _
+                @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+            dim as ushort had = mp->extra and _
+                                (Fbx.PF_MEMB_PRIVATE or Fbx.PF_MEMB_PROTECTED)
+            if had = 0 then mp->extra or= vis
+        end if
+    next
+end sub
+
 '' The member list of a TYPE or UNION, its 'end', and the node. Shared by the named
 '' and the ANONYMOUS forms, which differ only in whether a name was read.
 private function ParseAggregateBody _
@@ -448,6 +477,19 @@ private function ParseAggregateBody _
 
     p.aggDepth += 1
     dim as Fbx.NodeIdVec members
+
+    '' The access section in force. Measured against fbc rather than assumed:
+    ''
+    ''   default             PUBLIC
+    ''   private:            own members yes, DERIVED no, outside no
+    ''   protected:          own members yes, derived YES, outside no
+    ''   in a UNION          a syntax error, not a label -- which symmetry would
+    ''                       have got wrong, so the label is only read for a TYPE
+    ''
+    '' A label reaches into a nested anonymous union too, which falls out of keeping
+    '' one variable across the whole member loop.
+    dim as ushort vis = 0
+
     do
         SkipEols( p )
         if AtEnd( p ) then exit do
@@ -455,6 +497,36 @@ private function ParseAggregateBody _
 
         dim as long before = p.pos
         dim as Fbx.TokenKind k = Peek( p )
+
+        '' 'private:' and friends. The colon is what tells a LABEL from the PRIVATE
+        '' that modifies a procedure, so both tokens are required before either is
+        '' consumed -- and 4 corpus files reach the keyword through a macro parameter,
+        '' which is why this tests the token and not the source text.
+        dim as boolean isVisKw = (k = Fbx.KW_PRIVATE) orelse _
+                                 (k = Fbx.KW_PUBLIC) orelse (k = Fbx.KW_PROTECTED)
+        if (isUnion = false) andalso isVisKw then
+            '' There is no TK_COLON to look for: the lexer turns a ':' statement
+            '' separator into a TK_EOL and marks it TF_COLON, because ':' separates
+            '' statements exactly as a newline does. So the label is a visibility
+            '' keyword followed by an EOL THAT CAME FROM A COLON, and a bare
+            '' 'private' on its own line is not one -- fbc says so too, error 203.
+            dim as boolean labelled = false
+            if HasTok( p, p.pos + 1 ) then
+                dim as Fbx.Token nx = p.toks->At( p.pos + 1 )
+                labelled = (cast( Fbx.TokenKind, nx.kind ) = Fbx.TK_EOL) andalso _
+                           ((nx.flags and Fbx.TF_COLON) <> 0)
+            end if
+            if labelled then
+                select case as const k
+                case Fbx.KW_PRIVATE   : vis = Fbx.PF_MEMB_PRIVATE
+                case Fbx.KW_PROTECTED : vis = Fbx.PF_MEMB_PROTECTED
+                case else             : vis = 0
+                end select
+                Advance( p )
+                Advance( p )
+                continue do
+            end if
+        end if
 
         if k = Fbx.KW_AS then
             '' 'as long x, y' -- the type comes first and is shared by the names.
@@ -467,11 +539,27 @@ private function ParseAggregateBody _
                 ParseArrayBounds( p, fp )
                 if fp.count > 0 then fp.op = cast( ushort, Fbx.KW_DIM )
                 fp.a = shared_
+                fp.extra or= vis
                 members.Push( cast( ulong, MakeStmt( p, Fbx.N_FIELD, ft.loc, fp ) ) )
                 if Accept( p, Fbx.TK_COMMA ) = false then exit do
             loop
         elseif IsDeclarationStart( k ) then
-            members.Push( cast( ulong, Declaration( p ) ) )
+            dim as Fbx.NodeId mn = Declaration( p )
+            '' Only an N_PROC carries a StmtPayload whose 'extra' is the modifier set;
+            '' reaching into stmts[] for any other kind would land on another node's
+            '' payload and corrupt it silently.
+            dim as boolean tagIt = (vis <> 0) andalso (mn <> Fbx.NODE_NONE)
+            if tagIt then
+                select case p.ast->nodes[cast( long, mn )].kind
+                case Fbx.N_PROC
+                    dim as Fbx.StmtPayload ptr mp = _
+                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, mn )].data )]
+                    mp->extra or= vis
+                case Fbx.N_TYPE
+                    ApplyVisibility( p, mn, vis )
+                end select
+            end if
+            members.Push( cast( ulong, mn ) )
         elseif (k = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( k ) then
             '' A field: 'name as T' or 'as T name' (the latter via ParseVarDecl).
             dim as Fbx.Token ft = Cur( p )
@@ -483,6 +571,7 @@ private function ParseAggregateBody _
                 end if
                 if Accept( p, Fbx.KW_AS ) then fp.a = TypeRef( p )
                 if Accept( p, Fbx.TK_COLON ) then fp.b = Expression( p )
+                fp.extra or= vis
                 members.Push( cast( ulong, MakeStmt( p, Fbx.N_FIELD, ft.loc, fp ) ) )
             end if
         end if
