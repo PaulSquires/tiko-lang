@@ -86,6 +86,25 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
         c.st->ambUnboundShape.Push( 0 )
     wend
     c.st->ambUnboundShape[tk] += 1
+    '' A MEMBER callee: record the member's own name, and whether the base typed. The
+    '' base is what decides which question this is -- "no such member on that type" or
+    '' "no type to look in".
+    if c.ast->Kind( cp->target ) = Fbx.N_MEMBER then
+        dim as Fbx.BinaryPayload ptr mb = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        if c.info->TypeOf_( mb->lhs ) = Fbx.TYPE_NONE then
+            c.st->ambMemberBaseUntyped += 1
+        else
+            c.st->ambMemberBaseTyped += 1
+        end if
+        if c.ast->Kind( mb->rhs ) <> Fbx.N_IDENT then return
+        if c.st->ambMemberNames.Count >= 200000 then return
+        dim as Fbx.IdentPayload ptr mp = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, mb->rhs )].data )]
+        c.st->ambMemberNames.Push( cast( ulong, mp->name ) )
+        return
+    end if
+
     if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return
     if c.st->ambUnboundNames.Count >= 200000 then return
     '' An N_IDENT's payload is an IDENT, not a statement. Reading it through StmtOf

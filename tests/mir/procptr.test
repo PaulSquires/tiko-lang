@@ -1,0 +1,12 @@
+'' PROCPTR( F ) is the procedure's own type, which in FreeBASIC is already a pointer --
+'' measured, 'typeof( procptr( F ) )' is 'SUB CDECL(AS LONG)'.
+''
+'' It matters far past printing a type: ResolveCall_ treats an untyped ARGUMENT as making
+'' the whole call undecidable, so one of these left fbcunit's
+'' 'fbcu.add_test( ..., procptr( test_name ), ... )' unbound -- and an unbound callee is a
+'' declined statement, 2,444 of them across the corpus from this one gap.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call void G(
+'' EXPECT-OUT: 0 statements not lowered

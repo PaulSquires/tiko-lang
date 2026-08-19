@@ -1076,6 +1076,38 @@ private function SignedFlip_ _
     return t
 end function
 
+'' The TYPE of a procedure symbol -- 'sub cdecl ( byval x as long )' -- as opposed to its
+'' return type, which is what Symbol.type_ holds. A procedure type is already a pointer in
+'' FreeBASIC, so this wraps one: 'sub( ) ptr' is PPFvvE, two Ps for that reason.
+private function ProcTypeOfSymbol_ _
+    ( byref c as Ctx, byval sid as Fbx.SymbolId ) as Fbx.TypeId
+
+    if sid = Fbx.SYMBOL_NONE then return Fbx.TYPE_NONE
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return Fbx.TYPE_NONE
+    if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then return Fbx.TYPE_NONE
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+    if pn = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return Fbx.TYPE_NONE
+
+    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as Fbx.TypeId ret = s->type_
+    if ret = Fbx.TYPE_NONE then ret = c.types->Builtin( Fbx.TY_VOID )
+    dim as Fbx.TypeIdVec2 ps
+    for i as long = 0 to pp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
+        dim as Fbx.TypeId pt = c.info->TypeOf_( sp2->a )
+        if pt = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+        if (c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
+            pt = c.types->Reference( pt )
+        end if
+        ps.Push( cast( ulong, pt ) )
+    next
+    return c.types->Pointer_( c.types->ProcType( ret, ps ) )
+end function
+
 '' The result type of a conversion intrinsic, or TYPE_NONE when this is not one.
 ''
 '' These are KEYWORDS in expression position, so no symbol is ever bound and the callee
@@ -1134,6 +1166,20 @@ private function IntrinsicCallType_ _
     end if
 
     if cp->count <> 1 then return Fbx.TYPE_NONE
+
+    '' PROCPTR( F ) is the procedure's own type, which in FreeBASIC is already a pointer.
+    '' Measured: 'typeof( procptr( F ) )' is 'SUB CDECL(AS LONG)'.
+    ''
+    '' It matters far past printing a type. ResolveCall_ treats an untyped ARGUMENT as
+    '' making the whole call undecidable, so one of these left fbcunit's
+    '' 'fbcu.add_test( ..., procptr( test_name ), ... )' unbound -- and an unbound callee
+    '' is a declined statement. 2,444 of them across the corpus, from this one gap.
+    if nm = "procptr" then
+        dim as Fbx.NodeId pa = cast( Fbx.NodeId, c.ast->children[cp->first] )
+        if c.ast->Kind( pa ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
+        return ProcTypeOfSymbol_( c, c.info->RefOf( pa ) )
+    end if
+
     dim as Fbx.BuiltinType b = Fbx.TY_NONE
     select case nm
     case "cbyte"    : b = Fbx.TY_BYTE

@@ -292,6 +292,16 @@ function Run( byref args as Fbx.StrVec ) as long
                           Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
                           str( lst.ambUnboundShape[i] )
                 next
+                if lst.ambMemberBaseTyped > 0 then
+                    print "  amb member-base-typed " & str( lst.ambMemberBaseTyped )
+                end if
+                if lst.ambMemberBaseUntyped > 0 then
+                    print "  amb member-base-untyped " & str( lst.ambMemberBaseUntyped )
+                end if
+                for i as long = 0 to lst.ambMemberNames.Count - 1
+                    print "  amb-member-name " & _
+                          ctx.names.Spelling( cast( Fbx.InternId, lst.ambMemberNames[i] ) )
+                next
                 for i as long = 0 to lst.ambUnboundNames.Count - 1
                     print "  amb-unbound-name " & _
                           ctx.names.Spelling( cast( Fbx.InternId, lst.ambUnboundNames[i] ) )

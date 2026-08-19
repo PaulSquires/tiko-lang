@@ -497,6 +497,20 @@ function TypeContext.Name( byval t as TypeId ) as string
             next
         end if
         return prefix & this.Name( this.Inner( t ) ) & "(" & dims & ")"
+    case TK_PROC
+        '' 'sub( as long )' / 'function( as double ) as long'. A procedure type reads as
+        '' its own declaration, which is what a diagnostic about one needs to say.
+        dim as long pn = this.types[cast( long, t )].count
+        dim as string ps = ""
+        for i as long = 0 to pn - 1
+            if i > 0 then ps += ", "
+            ps += "as " & this.Name( cast( TypeId, this.pool[this.types[cast( long, t )].first + i] ) )
+        next
+        dim as TypeId rt = this.Inner( t )
+        dim as boolean isSub = (this.Kind( rt ) = TK_BUILTIN)
+        if isSub then isSub = (this.BuiltinOf( rt ) = TY_VOID)
+        if isSub then return prefix & "sub( " & ps & " )"
+        return prefix & "function( " & ps & " ) as " & this.Name( rt )
     case TK_UDT, TK_ENUM, TK_TYPEDEF, TK_FORWARD
         dim as InternId nm = this.types[cast( long, t )].name
         if (this.names <> 0) andalso (nm <> INTERN_NONE) then

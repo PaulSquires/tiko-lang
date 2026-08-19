@@ -64,6 +64,13 @@ namespace Fbx.Mir
         '' ... and by the SHAPE of the callee, because only a plain identifier has a
         '' name to collect and most of them are not one.
         as FB.Array( of long ) ambUnboundShape
+        '' For a member callee: the MEMBER's own name, and whether the BASE had a type
+        '' at all. The two are different problems -- a member that could not be found on
+        '' a type it was looked up in, against a base that was never typed so nothing
+        '' could be looked up -- and one list cannot tell them apart.
+        as FB.Array( of ulong ) ambMemberNames
+        as long ambMemberBaseTyped
+        as long ambMemberBaseUntyped
 
         '' Every decline, by the SITE that recorded it. The bucket breakdown says which
         '' STATEMENT a decline was inside; this says which line of the lowering gave up,
