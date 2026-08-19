@@ -38,6 +38,14 @@ namespace Fbx.Check
         as long badOperands    '' operand combinations fbc would reject
         as long callsResolved  '' calls bound to one overload
         as long callsAmbiguous '' calls with no single best candidate
+        '' ONE UNTYPED ARGUMENT DECLINES THE WHOLE STATEMENT: the call is undecidable,
+        '' so the callee never binds, so lowering has nothing to emit. Counting the
+        '' argument's node KIND turns "some expression is missing" into a list of
+        '' expression forms to implement, which is how PROCPTR was found.
+        as FB.Array( of long ) argUntypedKind
+        '' ... and the NAME at that leaf, when it has one. A kind says which shape is
+        '' missing; the name says which one to write.
+        as FB.Array( of ulong ) argUntypedNames
     end type
 
     '' What one argument costs to pass to one parameter. Lower is better; CONV_NONE

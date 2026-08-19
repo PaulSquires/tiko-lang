@@ -3,6 +3,7 @@
 
 #include once "symbols/check.bi"
 
+
 namespace Fbx.Check
 
 type Ctx
@@ -23,6 +24,11 @@ const CONST_DEPTH_MAX as long = 64
 
 '' ------------------------------------------------------------------- classes
 
+declare function ExprIntrinsicType_ _
+    ( byref c as Ctx, byref nm as string, byval cp as Fbx.ListPayload ptr ) as Fbx.TypeId
+declare sub NoteUntypedName_( byref c as Ctx, byval id as Fbx.NodeId )
+declare function UntypedLeaf_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.NodeId
 declare function IsUnsignedInt_( byval b as Fbx.BuiltinType ) as boolean
 declare function IsPointerSized_ _
     ( byval b as Fbx.BuiltinType, byref types as Fbx.TypeContext ) as boolean
@@ -938,7 +944,16 @@ private function ResolveCall_ _
     for i as long = 0 to cp->count - 1
         dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
         dim as Fbx.TypeId at = TypeOf_( c, a )
-        if at = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+        if at = Fbx.TYPE_NONE then
+            dim as Fbx.NodeId leaf = UntypedLeaf_( c, a )
+            NoteUntypedName_( c, leaf )
+            dim as long ak = cast( long, c.ast->Kind( leaf ) )
+            while c.st->argUntypedKind.Count <= ak
+                c.st->argUntypedKind.Push( 0 )
+            wend
+            c.st->argUntypedKind[ak] += 1
+            return Fbx.TYPE_NONE
+        end if
         argT.Push( cast( ulong, at ) )
     next
 
@@ -1022,196 +1037,12 @@ private function ResolveCall_ _
 end function
 
 
-'' ------------------------------------------------- the conversion intrinsics
 
-'' CSIGN / CUNSG. Measured in tests/types/expected/fbc-conv.txt, and not guessable: the
-'' result is the argument's signed or unsigned COUNTERPART, and the argument itself
-'' where there is none -- with a fixed-length string an asymmetric case, since 'cunsg'
-'' of a ZSTRING * n is that same type while 'csign' of it is BYTE.
-private function SignedFlip_ _
-    ( byval t as Fbx.TypeId, byval wantUnsigned as boolean, _
-      byref types as Fbx.TypeContext ) as Fbx.TypeId
 
-    if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-
-    '' A POINTER becomes the FIXED-WIDTH integer of the pointer's size, with the
-    '' requested signedness -- LONGINT on win64 and LONG on win32, not INTEGER either
-    '' time, although INTEGER is the same width as both.
-    if types.Kind( t ) = Fbx.TK_POINTER then
-        if types.target.pointerBits = 32 then
-            return types.Builtin( iif( wantUnsigned, Fbx.TY_ULONG, Fbx.TY_LONG ) )
-        end if
-        return types.Builtin( iif( wantUnsigned, Fbx.TY_ULONGINT, Fbx.TY_LONGINT ) )
-    end if
-
-    dim as Fbx.TypeId fs = FixedStringElem( t, types )
-    if fs <> Fbx.TYPE_NONE then
-        if wantUnsigned then return t
-        select case types.BuiltinOf( fs )
-        case Fbx.TY_ZSTRING : return types.Builtin( Fbx.TY_BYTE )
-        case Fbx.TY_WSTRING : return types.Builtin( Fbx.TY_SHORT )
-        end select
-        return t
-    end if
-
-    if types.Kind( t ) <> Fbx.TK_BUILTIN then return t
-    dim as Fbx.BuiltinType b = types.BuiltinOf( t )
-    if wantUnsigned then
-        select case b
-        case Fbx.TY_BYTE,    Fbx.TY_UBYTE    : return types.Builtin( Fbx.TY_UBYTE )
-        case Fbx.TY_SHORT,   Fbx.TY_USHORT   : return types.Builtin( Fbx.TY_USHORT )
-        case Fbx.TY_LONG,    Fbx.TY_ULONG    : return types.Builtin( Fbx.TY_ULONG )
-        case Fbx.TY_INTEGER, Fbx.TY_UINTEGER : return types.Builtin( Fbx.TY_UINTEGER )
-        case Fbx.TY_LONGINT, Fbx.TY_ULONGINT : return types.Builtin( Fbx.TY_ULONGINT )
-        end select
-        return t
-    end if
-    select case b
-    case Fbx.TY_BYTE,    Fbx.TY_UBYTE    : return types.Builtin( Fbx.TY_BYTE )
-    case Fbx.TY_SHORT,   Fbx.TY_USHORT   : return types.Builtin( Fbx.TY_SHORT )
-    case Fbx.TY_LONG,    Fbx.TY_ULONG    : return types.Builtin( Fbx.TY_LONG )
-    case Fbx.TY_INTEGER, Fbx.TY_UINTEGER : return types.Builtin( Fbx.TY_INTEGER )
-    case Fbx.TY_LONGINT, Fbx.TY_ULONGINT : return types.Builtin( Fbx.TY_LONGINT )
-    end select
-    return t
-end function
-
-'' The TYPE of a procedure symbol -- 'sub cdecl ( byval x as long )' -- as opposed to its
-'' return type, which is what Symbol.type_ holds. A procedure type is already a pointer in
-'' FreeBASIC, so this wraps one: 'sub( ) ptr' is PPFvvE, two Ps for that reason.
-private function ProcTypeOfSymbol_ _
-    ( byref c as Ctx, byval sid as Fbx.SymbolId ) as Fbx.TypeId
-
-    if sid = Fbx.SYMBOL_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return Fbx.TYPE_NONE
-    if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then return Fbx.TYPE_NONE
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-    if pn = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return Fbx.TYPE_NONE
-
-    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-    dim as Fbx.TypeId ret = s->type_
-    if ret = Fbx.TYPE_NONE then ret = c.types->Builtin( Fbx.TY_VOID )
-    dim as Fbx.TypeIdVec2 ps
-    for i as long = 0 to pp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-        dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
-        dim as Fbx.TypeId pt = c.info->TypeOf_( sp2->a )
-        if pt = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-        if (c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
-            pt = c.types->Reference( pt )
-        end if
-        ps.Push( cast( ulong, pt ) )
-    next
-    return c.types->Pointer_( c.types->ProcType( ret, ps ) )
-end function
-
-'' The result type of a conversion intrinsic, or TYPE_NONE when this is not one.
-''
-'' These are KEYWORDS in expression position, so no symbol is ever bound and the callee
-'' lookup finds nothing: the whole answer is a table, measured in
-'' tests/types/expected/fbc-conv.txt. Their acceptance is WIDER than assignment's --
-'' 'cbyte( a_string )' is a BYTE to fbc while 'dim as byte b = a_string' is refused --
-'' so ConversionCost is not the viability test here and is not used as one.
-private function IntrinsicCallType_ _
-    ( byref c as Ctx, byval cp as Fbx.ListPayload ptr ) as Fbx.TypeId
-
-    if cp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
-    dim as Fbx.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
-
-    '' CAST and CPTR name their result outright, as a TYPE argument.
-    if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
-        dim as Fbx.NodeId ta = cast( Fbx.NodeId, c.ast->children[cp->first] )
-        if c.ast->Kind( ta ) <> Fbx.N_TYPEREF then return Fbx.TYPE_NONE
-        dim as Fbx.TypeId rt = c.info->TypeOf_( ta )
-        if rt = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-        dim as Fbx.TypeId st = TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first + 1] ) )
-        if st = Fbx.TYPE_NONE then return rt
-        '' Measured acceptance. CPTR reaches a pointer only FROM one, or from a
-        '' pointer-width integer; CAST follows the destination's class -- a pointer
-        '' destination takes the same two, a numeric one takes anything but a pointer,
-        '' and a STRING destination takes a var-length string and nothing else, not even
-        '' a ZSTRING * n.
-        dim as boolean srcPtr = (c.types->Kind( st ) = Fbx.TK_POINTER)
-        dim as boolean srcPtrInt = false
-        if c.types->Kind( st ) = Fbx.TK_BUILTIN then
-            srcPtrInt = IsPointerSized_( c.types->BuiltinOf( st ), *c.types )
-        end if
-        if c.types->Kind( rt ) = Fbx.TK_POINTER then
-            if (srcPtr orelse srcPtrInt) = false then return Fbx.TYPE_NONE
-            return rt
-        end if
-        if nm = "cptr" then return Fbx.TYPE_NONE
-        if c.types->Kind( rt ) = Fbx.TK_BUILTIN then
-            if IsStringy_( c.types->BuiltinOf( rt ) ) then
-                if st <> rt then return Fbx.TYPE_NONE
-                return rt
-            end if
-        end if
-        '' A pointer reaches a numeric destination only when that destination is
-        '' POINTER-WIDTH: 'cast( long, p )' is refused on win64 and accepted on win32,
-        '' where a long is four bytes like the pointer.
-        if srcPtr then
-            if c.types->Kind( rt ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
-            if IsPointerSized_( c.types->BuiltinOf( rt ), *c.types ) = false then
-                return Fbx.TYPE_NONE
-            end if
-        end if
-        return rt
-    end if
-
-    if cp->count <> 1 then return Fbx.TYPE_NONE
-
-    '' PROCPTR( F ) is the procedure's own type, which in FreeBASIC is already a pointer.
-    '' Measured: 'typeof( procptr( F ) )' is 'SUB CDECL(AS LONG)'.
-    ''
-    '' It matters far past printing a type. ResolveCall_ treats an untyped ARGUMENT as
-    '' making the whole call undecidable, so one of these left fbcunit's
-    '' 'fbcu.add_test( ..., procptr( test_name ), ... )' unbound -- and an unbound callee
-    '' is a declined statement. 2,444 of them across the corpus, from this one gap.
-    if nm = "procptr" then
-        dim as Fbx.NodeId pa = cast( Fbx.NodeId, c.ast->children[cp->first] )
-        if c.ast->Kind( pa ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
-        return ProcTypeOfSymbol_( c, c.info->RefOf( pa ) )
-    end if
-
-    dim as Fbx.BuiltinType b = Fbx.TY_NONE
-    select case nm
-    case "cbyte"    : b = Fbx.TY_BYTE
-    case "cubyte"   : b = Fbx.TY_UBYTE
-    case "cshort"   : b = Fbx.TY_SHORT
-    case "cushort"  : b = Fbx.TY_USHORT
-    case "clng"     : b = Fbx.TY_LONG
-    case "culng"    : b = Fbx.TY_ULONG
-    case "cint"     : b = Fbx.TY_INTEGER
-    case "cuint"    : b = Fbx.TY_UINTEGER
-    case "clngint"  : b = Fbx.TY_LONGINT
-    case "culngint" : b = Fbx.TY_ULONGINT
-    case "csng"     : b = Fbx.TY_SINGLE
-    case "cdbl"     : b = Fbx.TY_DOUBLE
-    case "cbool"    : b = Fbx.TY_BOOLEAN
-    case "csign", "cunsg"
-        return SignedFlip_( TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ) ), _
-                            (nm = "cunsg"), *c.types )
-    end select
-    if b = Fbx.TY_NONE then return Fbx.TYPE_NONE
-
-    '' A POINTER argument reaches only the pointer-width conversions. For every other
-    '' one -- cbyte, csng, cbool -- fbc refuses a pointer outright.
-    dim as Fbx.TypeId at = TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ) )
-    if at <> Fbx.TYPE_NONE then
-        if c.types->Kind( at ) = Fbx.TK_POINTER then
-            if IsPointerSized_( b, *c.types ) = false then return Fbx.TYPE_NONE
-        end if
-    end if
-    return c.types->Builtin( b )
-end function
-
+'' The intrinsic tables live in their own file: one subject, and a long one. It is
+'' included HERE rather than at the top because it reads Ctx and calls TypeOf_, both
+'' of which have to exist first.
+#include once "symbols/intrinsics.bas"
 
 function TypeOf_ _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
@@ -1469,6 +1300,17 @@ function Dump _
             outp += "const " & str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & _
                     str( cv.value ) & chr( 10 )
         end if
+    next
+    for i as long = 0 to st.argUntypedNames.Count - 1
+        outp += "arg-untyped-name " & _
+                names.Spelling( cast( Fbx.InternId, st.argUntypedNames[i] ) ) & chr( 10 )
+    next
+    '' The expression forms that came back untyped in ARGUMENT position, which is the
+    '' list of things to implement next: one of these declines its whole statement.
+    for i as long = 0 to st.argUntypedKind.Count - 1
+        if st.argUntypedKind[i] = 0 then continue for
+        outp += "arg-untyped " & Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
+                str( st.argUntypedKind[i] ) & chr( 10 )
     next
     outp += "checked: " & st.typed & " typed, " & st.untyped & " untyped, " & _
             st.badOperands & " bad operand pairs, " & st.callsResolved & _
