@@ -27,5 +27,6 @@ src/mir/lowerstr.bas
 src/mir/lowerctl.bas
 src/mir/lowerstore.bas
 src/mir/lowerarr.bas
+src/mir/lowerconv.bas
 src/driver/cmdline.bas
 src/driver/driver.bas

@@ -139,6 +139,15 @@ declare function EmitRtl _
     '' lowerarr.bas -- array indexing.
     declare function IsArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+    declare function ConstFloat _
+        ( byref c as Ctx, byval v as double, byval t as MirType ) as MirValue
+    declare function IsFloatTy( byval t as MirType ) as boolean
+    '' The conversion intrinsics -- CBYTE, CBOOL, CAST, CPTR and the rest.
+    declare function IsConvIntrinsic _
+        ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerConvIntrinsic _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+
     declare function ConstInt _
         ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
 

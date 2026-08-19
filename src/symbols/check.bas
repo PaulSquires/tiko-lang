@@ -898,6 +898,140 @@ private function ResolveCall_ _
     return bs->type_
 end function
 
+
+'' ------------------------------------------------- the conversion intrinsics
+
+'' CSIGN / CUNSG. Measured in tests/types/expected/fbc-conv.txt, and not guessable: the
+'' result is the argument's signed or unsigned COUNTERPART, and the argument itself
+'' where there is none -- with a fixed-length string an asymmetric case, since 'cunsg'
+'' of a ZSTRING * n is that same type while 'csign' of it is BYTE.
+private function SignedFlip_ _
+    ( byval t as Fbx.TypeId, byval wantUnsigned as boolean, _
+      byref types as Fbx.TypeContext ) as Fbx.TypeId
+
+    if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+
+    '' A POINTER becomes a pointer-width integer of the requested signedness.
+    if types.Kind( t ) = Fbx.TK_POINTER then
+        if wantUnsigned then return types.Builtin( Fbx.TY_ULONGINT )
+        return types.Builtin( Fbx.TY_LONGINT )
+    end if
+
+    dim as Fbx.TypeId fs = FixedStringElem( t, types )
+    if fs <> Fbx.TYPE_NONE then
+        if wantUnsigned then return t
+        select case types.BuiltinOf( fs )
+        case Fbx.TY_ZSTRING : return types.Builtin( Fbx.TY_BYTE )
+        case Fbx.TY_WSTRING : return types.Builtin( Fbx.TY_SHORT )
+        end select
+        return t
+    end if
+
+    if types.Kind( t ) <> Fbx.TK_BUILTIN then return t
+    dim as Fbx.BuiltinType b = types.BuiltinOf( t )
+    if wantUnsigned then
+        select case b
+        case Fbx.TY_BYTE,    Fbx.TY_UBYTE    : return types.Builtin( Fbx.TY_UBYTE )
+        case Fbx.TY_SHORT,   Fbx.TY_USHORT   : return types.Builtin( Fbx.TY_USHORT )
+        case Fbx.TY_LONG,    Fbx.TY_ULONG    : return types.Builtin( Fbx.TY_ULONG )
+        case Fbx.TY_INTEGER, Fbx.TY_UINTEGER : return types.Builtin( Fbx.TY_UINTEGER )
+        case Fbx.TY_LONGINT, Fbx.TY_ULONGINT : return types.Builtin( Fbx.TY_ULONGINT )
+        end select
+        return t
+    end if
+    select case b
+    case Fbx.TY_BYTE,    Fbx.TY_UBYTE    : return types.Builtin( Fbx.TY_BYTE )
+    case Fbx.TY_SHORT,   Fbx.TY_USHORT   : return types.Builtin( Fbx.TY_SHORT )
+    case Fbx.TY_LONG,    Fbx.TY_ULONG    : return types.Builtin( Fbx.TY_LONG )
+    case Fbx.TY_INTEGER, Fbx.TY_UINTEGER : return types.Builtin( Fbx.TY_INTEGER )
+    case Fbx.TY_LONGINT, Fbx.TY_ULONGINT : return types.Builtin( Fbx.TY_LONGINT )
+    end select
+    return t
+end function
+
+'' The result type of a conversion intrinsic, or TYPE_NONE when this is not one.
+''
+'' These are KEYWORDS in expression position, so no symbol is ever bound and the callee
+'' lookup finds nothing: the whole answer is a table, measured in
+'' tests/types/expected/fbc-conv.txt. Their acceptance is WIDER than assignment's --
+'' 'cbyte( a_string )' is a BYTE to fbc while 'dim as byte b = a_string' is refused --
+'' so ConversionCost is not the viability test here and is not used as one.
+private function IntrinsicCallType_ _
+    ( byref c as Ctx, byval cp as Fbx.ListPayload ptr ) as Fbx.TypeId
+
+    if cp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    '' CAST and CPTR name their result outright, as a TYPE argument.
+    if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
+        dim as Fbx.NodeId ta = cast( Fbx.NodeId, c.ast->children[cp->first] )
+        if c.ast->Kind( ta ) <> Fbx.N_TYPEREF then return Fbx.TYPE_NONE
+        dim as Fbx.TypeId rt = c.info->TypeOf_( ta )
+        if rt = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+        dim as Fbx.TypeId st = TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first + 1] ) )
+        if st = Fbx.TYPE_NONE then return rt
+        '' Measured acceptance. CPTR reaches a pointer only FROM one, or from a
+        '' pointer-width integer; CAST follows the destination's class -- a pointer
+        '' destination takes the same two, a numeric one takes anything but a pointer,
+        '' and a STRING destination takes a var-length string and nothing else, not even
+        '' a ZSTRING * n.
+        dim as boolean srcPtr = (c.types->Kind( st ) = Fbx.TK_POINTER)
+        dim as boolean srcPtrInt = false
+        if c.types->Kind( st ) = Fbx.TK_BUILTIN then
+            srcPtrInt = IsPointerSized_( c.types->BuiltinOf( st ), *c.types )
+        end if
+        if c.types->Kind( rt ) = Fbx.TK_POINTER then
+            if (srcPtr orelse srcPtrInt) = false then return Fbx.TYPE_NONE
+            return rt
+        end if
+        if nm = "cptr" then return Fbx.TYPE_NONE
+        if c.types->Kind( rt ) = Fbx.TK_BUILTIN then
+            if IsStringy_( c.types->BuiltinOf( rt ) ) then
+                if st <> rt then return Fbx.TYPE_NONE
+                return rt
+            end if
+        end if
+        if srcPtr then return Fbx.TYPE_NONE
+        return rt
+    end if
+
+    if cp->count <> 1 then return Fbx.TYPE_NONE
+    dim as Fbx.BuiltinType b = Fbx.TY_NONE
+    select case nm
+    case "cbyte"    : b = Fbx.TY_BYTE
+    case "cubyte"   : b = Fbx.TY_UBYTE
+    case "cshort"   : b = Fbx.TY_SHORT
+    case "cushort"  : b = Fbx.TY_USHORT
+    case "clng"     : b = Fbx.TY_LONG
+    case "culng"    : b = Fbx.TY_ULONG
+    case "cint"     : b = Fbx.TY_INTEGER
+    case "cuint"    : b = Fbx.TY_UINTEGER
+    case "clngint"  : b = Fbx.TY_LONGINT
+    case "culngint" : b = Fbx.TY_ULONGINT
+    case "csng"     : b = Fbx.TY_SINGLE
+    case "cdbl"     : b = Fbx.TY_DOUBLE
+    case "cbool"    : b = Fbx.TY_BOOLEAN
+    case "csign", "cunsg"
+        return SignedFlip_( TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ) ), _
+                            (nm = "cunsg"), *c.types )
+    end select
+    if b = Fbx.TY_NONE then return Fbx.TYPE_NONE
+
+    '' A POINTER argument reaches only the pointer-width conversions. For every other
+    '' one -- cbyte, csng, cbool -- fbc refuses a pointer outright.
+    dim as Fbx.TypeId at = TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ) )
+    if at <> Fbx.TYPE_NONE then
+        if c.types->Kind( at ) = Fbx.TK_POINTER then
+            if IsPointerSized_( b, *c.types ) = false then return Fbx.TYPE_NONE
+        end if
+    end if
+    return c.types->Builtin( b )
+end function
+
+
 function TypeOf_ _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
 
@@ -1007,9 +1141,14 @@ function TypeOf_ _
         if (ct <> Fbx.TYPE_NONE) andalso (c.types->Kind( ct ) = Fbx.TK_ARRAY) then
             t = c.types->Inner( ct )
         else
-            dim as Fbx.SymbolId callee = c.info->RefOf( cp->target )
-            if callee <> Fbx.SYMBOL_NONE then
-                t = ResolveCall_( c, id, callee, cp )
+            '' A conversion intrinsic is a KEYWORD, so nothing was ever bound and the
+            '' callee lookup below finds nothing. Its result is a measured table.
+            t = IntrinsicCallType_( c, cp )
+            if t = Fbx.TYPE_NONE then
+                dim as Fbx.SymbolId callee = c.info->RefOf( cp->target )
+                if callee <> Fbx.SYMBOL_NONE then
+                    t = ResolveCall_( c, id, callee, cp )
+                end if
             end if
         end if
 

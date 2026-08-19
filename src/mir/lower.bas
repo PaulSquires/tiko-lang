@@ -92,7 +92,7 @@ function ConstInt _
     return Emit( c, ins )
 end function
 
-private function ConstFloat _
+function ConstFloat _
     ( byref c as Ctx, byval v as double, byval t as MirType ) as MirValue
     dim as MirInst ins
     ins.op = cast( ushort, M_CONST )
@@ -101,7 +101,7 @@ private function ConstFloat _
     return Emit( c, ins )
 end function
 
-private function IsFloatTy( byval t as MirType ) as boolean
+function IsFloatTy( byval t as MirType ) as boolean
     return (t = MT_F32) orelse (t = MT_F64)
 end function
 
@@ -338,6 +338,9 @@ function LowerExpr _
         return Emit( c, ins )
 
     case Fbx.N_CALL
+        '' A conversion intrinsic is a KEYWORD, so there is no callee to find and
+        '' nothing to call: it lowers to the coercion its result type asks for.
+        if IsConvIntrinsic( c, id ) then return LowerConvIntrinsic( c, id, mt )
         '' Indexing and calling share a spelling; an array subscript is an address to
         '' load from, not a call to make.
         if IsArrayIndex( c, id ) then

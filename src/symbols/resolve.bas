@@ -351,7 +351,15 @@ private sub WalkExpr _
         dim as Fbx.ListPayload ptr lp = ListOf( c, id )
         WalkExpr( c, lp->target, scope_ )
         for i as long = 0 to lp->count - 1
-            WalkExpr( c, cast( Fbx.NodeId, c.ast->children[lp->first + i] ), scope_ )
+            dim as Fbx.NodeId arg = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+            '' 'cast( long, x )' and 'cptr( any ptr, x )' put a TYPE in argument
+            '' position. WalkExpr has nothing to say about one, and leaving it
+            '' unresolved left every cast untyped -- the type argument IS the result.
+            if c.ast->Kind( arg ) = Fbx.N_TYPEREF then
+                ResolveTypeRef( c, arg, scope_ )
+            else
+                WalkExpr( c, arg, scope_ )
+            end if
         next
     end select
 end sub
