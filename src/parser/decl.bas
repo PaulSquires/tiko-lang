@@ -2,6 +2,23 @@
 
 namespace Fbx.Parse
 
+'' One array bound. '...' is legal HERE and nowhere else, so it is read here rather
+'' than in Primary -- loosening the expression grammar to carry it would let '...'
+'' through in places FreeBASIC does not have it.
+''
+'' Measured: 'dim a(0 to ...)' and 'dim a(...)' both work, any dimension may use it and
+'' several may, but 'redim a(0 to ...)' is fbc error 76, a TYPE FIELD is error 77, and
+'' one with no initializer is error 281. The size comes from the initializer, so there
+'' has to be one.
+private function BoundExpr( byref p as Fbx.ParserState ) as Fbx.NodeId
+    if Peek( p ) = Fbx.TK_ELLIPSIS then
+        dim as Fbx.Token et = Cur( p )
+        Advance( p )
+        return NewNodeAt( p, Fbx.N_ELLIPSIS, et.loc, 0 )
+    end if
+    return Expression( p )
+end function
+
 function IsDeclarationStart( byval k as Fbx.TokenKind ) as boolean
     select case k
     case Fbx.KW_DIM, Fbx.KW_REDIM, Fbx.KW_VAR, Fbx.KW_CONST, Fbx.KW_STATIC, _
@@ -74,12 +91,12 @@ private function VarItem( byref p as Fbx.ParserState ) as Fbx.NodeId
         dim as Fbx.NodeIdVec dims
         if Peek( p ) <> Fbx.TK_RPAREN then
             do
-                dim as Fbx.NodeId lo = Expression( p )
+                dim as Fbx.NodeId lo = BoundExpr( p )
                 if Accept( p, Fbx.KW_TO ) then
                     dim as Fbx.Token rt = Cur( p )
                     dim as Fbx.StmtPayload rp
                     rp.a = lo
-                    rp.b = Expression( p )
+                    rp.b = BoundExpr( p )
                     dims.Push( cast( ulong, MakeStmt( p, Fbx.N_CASE_RANGE, rt.loc, rp ) ) )
                 else
                     dims.Push( cast( ulong, lo ) )
@@ -244,10 +261,10 @@ private sub ParseArrayBounds _
     if Peek( p ) <> Fbx.TK_RPAREN then
         do
             dim as long before = p.pos
-            dim as Fbx.NodeId first_ = Expression( p )
+            dim as Fbx.NodeId first_ = BoundExpr( p )
             if Accept( p, Fbx.KW_TO ) then
                 bounds.Push( cast( ulong, first_ ) )
-                bounds.Push( cast( ulong, Expression( p ) ) )
+                bounds.Push( cast( ulong, BoundExpr( p ) ) )
             else
                 bounds.Push( cast( ulong, Fbx.NODE_NONE ) )
                 bounds.Push( cast( ulong, first_ ) )

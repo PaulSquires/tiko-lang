@@ -422,9 +422,37 @@ end sub
 '' A missing low bound means 0: 'a(9)' is 'a(0 to 9)'. BOUNDS ARE RETAINED, not just
 '' their product, because indexing needs each dimension's stride and its lbound bias.
 '' Nothing is folded when any bound is non-constant.
+'' How many elements the initializer has at nesting level 'depth'. N_INITIALIZER is a
+'' LIST node, so its children come from the list pool -- reading a statement payload
+'' here would land on an unrelated node, which is the mistake this codebase has made
+'' six times.
+private function InitCountAt _
+    ( byref c as Ctx, byval init as Fbx.NodeId, byval depth as long ) as long
+
+    dim as Fbx.NodeId n = init
+    for level as long = 0 to depth
+        if n = Fbx.NODE_NONE then return -1
+        if c.ast->Kind( n ) <> Fbx.N_INITIALIZER then return -1
+        dim as Fbx.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if level = depth then return lp->count
+        if lp->count = 0 then return -1
+        n = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    next
+    return -1
+end function
+
+'' 'init' is the declaration's initializer, or NODE_NONE. It is needed because an
+'' ellipsis bound takes its size from there and from nowhere else -- fbc refuses
+'' 'dim a(0 to ...)' with no initializer outright (error 281).
+''
+'' Getting this wrong would not be a decline. An unknown bound makes this return the
+'' ELEMENT type, so the array becomes eight bytes where twenty-four were needed and
+'' nothing says so -- which is exactly what parsing '...' without inferring it did.
 private function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, _
-      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ) ) as Fbx.TypeId
+      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
+      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
 
     if los.Count = 0 then return base_
     if base_ = Fbx.TYPE_NONE then return base_
@@ -443,7 +471,11 @@ private function ArrayFromPairs _
         end if
         dim as longint hi = lo - 1
         dim as Fbx.NodeId hiN = cast( Fbx.NodeId, his[i] )
-        if hiN <> Fbx.NODE_NONE then
+        if (hiN <> Fbx.NODE_NONE) andalso (c.ast->Kind( hiN ) = Fbx.N_ELLIPSIS) then
+            '' The bound the initializer implies: lbound + count - 1, per dimension.
+            dim as long got = InitCountAt( c, init, i )
+            if got > 0 then hi = lo + got - 1 else known = false
+        elseif hiN <> Fbx.NODE_NONE then
             dim as Fbx.Check.ConstVal hv = _
                 Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
                                    c.types->target.pointerBits )
@@ -476,7 +508,8 @@ end function
 
 '' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
 private function ArrayFromBoundsNode _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId ) as Fbx.TypeId
+    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
+      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
 
     if id = Fbx.NODE_NONE then return base_
     if c.ast->Kind( id ) <> Fbx.N_BLOCK then return base_
@@ -499,7 +532,7 @@ private function ArrayFromBoundsNode _
             his.Push( cast( ulong, d ) )
         end if
     next
-    return ArrayFromPairs( c, base_, los, his )
+    return ArrayFromPairs( c, base_, los, his, init )
 end function
 
 
@@ -638,7 +671,7 @@ sub WalkStmt _
             '' 'dim as long a(0 to 9)' is an ARRAY of long, not a long. Without this a
             '' local array reserved one ELEMENT -- four bytes where forty were needed --
             '' which nothing noticed only because indexing was not lowered either.
-            t = ArrayFromBoundsNode( c, t, ip->c )
+            t = ArrayFromBoundsNode( c, t, ip->c, ip->b )
             BindDeclType( c, here, ip->name, t )
             WalkStmt( c, ip->b, here )
         next

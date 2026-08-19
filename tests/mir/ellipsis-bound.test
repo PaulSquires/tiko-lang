@@ -1,0 +1,5 @@
+'' An ellipsis array bound takes its size from the initializer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ellipsis-bound.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/ellipsis-bound.out

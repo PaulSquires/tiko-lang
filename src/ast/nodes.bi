@@ -49,7 +49,10 @@ namespace Fbx
         NODE( N_INITIALIZER,  NCAT_EXPR )   '' { ... }
         NODE( N_NEW,          NCAT_EXPR )
         NODE( N_DELETE,       NCAT_EXPR )
-        NODE( N_FUNCRESULT,   NCAT_EXPR )   '' the FUNCTION/OPERATOR/PROPERTY keyword
+        NODE( N_FUNCRESULT,   NCAT_EXPR )
+        NODE( N_ELLIPSIS,     NCAT_EXPR )   '' '...' as an ARRAY BOUND, where the size
+                                            '' comes from the initializer. Legal nowhere
+                                            '' else, so it is read only in a bound.   '' the FUNCTION/OPERATOR/PROPERTY keyword
                                             '' as an assignment TARGET. Assignable and
                                             '' not readable: fbc rejects 'print function'.
 
