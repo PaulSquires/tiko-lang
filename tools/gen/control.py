@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Control the cross-version comparison the win32 expectations rest on.
+"""Does a different fbc RELEASE change any expectation?
 
     python tools/gen/control.py
 
-fbc-modern has no 32-bit build, so every win32 truth file is measured with fbc 1.10.1
-while the win64 half comes from fbc-modern 1.20.0. That is only sound where the two
-RELEASES agree, and this measures whether they do: it regenerates each gate's win64 half
-with the 1.10.1 compiler and diffs it against the committed fbc-modern file.
+Regenerates every gate's truth file with another fbc install and diffs the result
+against what is committed, then puts the committed file back. Nothing is left changed.
 
-A gate that comes back identical is one where 1.10.1 win32 is usable ground truth. A gate
-that does not is one whose win32 expectations mix a target difference with a release
-difference, and it says so rather than being quietly trusted.
+It exists because the win32 expectations were once measured with fbc 1.10.1, fbc-modern
+having had no 32-bit build at the time. This is what said that substitution was sound
+before it could be proved: 9 of 9 gates gave identical win64 answers on both releases.
+It has since been proved directly -- fbc-modern's own fbc32 reproduces all twelve win32
+files byte-for-byte -- and the tool stays for the next toolchain rebuild, when "did
+anything change?" is otherwise answered by a gate failing much later.
 """
 import filecmp
+import os
 import shutil
 import subprocess
 import sys
@@ -23,7 +25,8 @@ import fbxtargets
 ROOT = Path(__file__).resolve().parents[2]
 GEN = ROOT / "tools/gen"
 
-# The generators whose win64 half can be re-measured by pointing FBC elsewhere.
+# (generator stem, committed win64 expectations). The win32 file sits beside it and is
+# compared too, so one entry covers both targets.
 GATES = [
     ("promo", "tests/types/expected/fbc-promotion.txt"),
     ("overload", "tests/types/expected/fbc-overload.txt"),
@@ -37,45 +40,55 @@ GATES = [
 ]
 
 
+def win32_of(p: Path) -> Path:
+    return p.with_name(p.stem + "-win32" + p.suffix)
+
+
 def main() -> int:
-    if not fbxtargets.FBC64_OLD.exists():
-        print(f"control: no old fbc at {fbxtargets.FBC64_OLD}", file=sys.stderr)
+    env = dict(os.environ)
+    used = []
+    if fbxtargets.FBC64_OLD.exists():
+        env["FBX_CONTROL_FBC64"] = str(fbxtargets.FBC64_OLD)
+        used.append("win64")
+    if fbxtargets.FBC32_OLD.exists():
+        env["FBX_CONTROL_FBC32"] = str(fbxtargets.FBC32_OLD)
+        used.append("win32")
+    if not used:
+        print(f"control: no other fbc at {fbxtargets.TC_OLD}", file=sys.stderr)
         return 3
+    print(f"control: comparing against {fbxtargets.TC_OLD.name} on " + ", ".join(used))
 
     same, differ = [], []
     for gate, rel in GATES:
-        committed = ROOT / rel
-        if not committed.exists():
+        files = [ROOT / rel, win32_of(ROOT / rel)]
+        files = [f for f in files if f.exists()]
+        if not files:
             print(f"control: {gate}: no committed expectations", file=sys.stderr)
             continue
-        keep = committed.with_suffix(".committed")
-        shutil.copyfile(committed, keep)
+        saved = []
+        for f in files:
+            keep = f.with_suffix(".committed")
+            shutil.copyfile(f, keep)
+            saved.append((f, keep))
         try:
-            # FBX_CONTROL makes the generator use the OLD 64-bit compiler for win64.
-            env = {"FBX_CONTROL_FBC64": str(fbxtargets.FBC64_OLD)}
-            proc = subprocess.run(
-                [sys.executable, str(GEN / f"{gate}-truth.py")],
-                capture_output=True, text=True, cwd=str(ROOT),
-                env={**__import__("os").environ, **env})
-            if proc.returncode not in (0,):
+            proc = subprocess.run([sys.executable, str(GEN / f"{gate}-truth.py")],
+                                  capture_output=True, text=True, cwd=str(ROOT), env=env)
+            if proc.returncode != 0:
                 print(f"control: {gate}: generator failed\n" + (proc.stderr or ""),
                       file=sys.stderr)
-            if filecmp.cmp(committed, keep, shallow=False):
-                same.append(gate)
-            else:
-                differ.append(gate)
+            for f, keep in saved:
+                label = f"{gate}/win32" if f.name.endswith("-win32.txt") else f"{gate}/win64"
+                (same if filecmp.cmp(f, keep, shallow=False) else differ).append(label)
         finally:
-            shutil.copyfile(keep, committed)
-            keep.unlink()
+            for f, keep in saved:
+                shutil.copyfile(keep, f)
+                keep.unlink()
 
-    print(f"control: {len(same)}/{len(same) + len(differ)} gates give the SAME win64 "
-          f"answers on fbc 1.10.1 and fbc-modern")
-    if same:
-        print("control: agree  -> " + ", ".join(same))
+    total = len(same) + len(differ)
+    print(f"control: {len(same)}/{total} expectation files are IDENTICAL across releases")
     if differ:
         print("control: DIFFER -> " + ", ".join(differ))
-        print("control: those gates' win32 expectations mix a target difference with a")
-        print("control: release difference; a 32-bit fbc-modern would separate them.")
+        print("control: a release changed an answer; read the diff before regenerating.")
     return 0
 
 

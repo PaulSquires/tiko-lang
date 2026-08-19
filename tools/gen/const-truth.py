@@ -18,16 +18,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+import fbxtargets
+
 ROOT = Path(__file__).resolve().parents[2]
 
-# One entry per target. win32 comes from a different fbc -- fbc-modern has no 32-bit
-# build -- with the caveat recorded in docs/internals/phase-5-const-width.md.
-TC64 = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows")
-TC32 = Path(r"C:\dev\tiko_editor\toolchains\FreeBASIC-1.10.1-winlibs-gcc-9.3.0")
+# The toolchains live in fbxtargets, so control.py can point a half elsewhere.
 TARGETS = [
-    ("win64", TC64 / "fbc64.exe", ROOT / "tests/types/expected/fbc-const.txt",
+    ("win64", fbxtargets.FBC64, ROOT / "tests/types/expected/fbc-const.txt",
      ROOT / "build/.ce"),
-    ("win32", TC32 / "fbc32.exe", ROOT / "tests/types/expected/fbc-const-win32.txt",
+    ("win32", fbxtargets.FBC32, ROOT / "tests/types/expected/fbc-const-win32.txt",
      ROOT / "build/.ce32"),
 ]
 

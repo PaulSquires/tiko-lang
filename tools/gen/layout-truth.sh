@@ -14,7 +14,7 @@
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 FBC64=${FBX_STAGE0:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
-FBC32=${FBX_FBC32:-/c/dev/tiko_editor/toolchains/FreeBASIC-1.10.1-winlibs-gcc-9.3.0/fbc32.exe}
+FBC32=${FBX_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 

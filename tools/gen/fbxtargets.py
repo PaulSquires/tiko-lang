@@ -3,25 +3,31 @@
 Imported by the tools/gen truth generators and checkers. They run as scripts from this
 directory, so a plain 'import fbxtargets' finds it.
 
-win32 comes from a DIFFERENT fbc, because fbc-modern has no 32-bit build. That is a
-cross-version comparison and it is controlled rather than assumed: 'control.py' runs
-each generator's win64 half through the 1.10.1 compiler and diffs it against the
-fbc-modern file. Where the two agree, 1.10.1 win32 is usable ground truth; where they do
-not, the win32 expectations say so.
+Both targets now come from ONE fbc release, which they did not always: fbc-modern had no
+32-bit build for a while and the win32 expectations were measured with fbc 1.10.1
+instead. Re-measuring them against fbc-modern's own fbc32 changed nothing -- all twelve
+files came back byte-identical -- so that substitution was sound. It is recorded because
+it was believed on evidence before it was proved.
+
+'control.py' produced that evidence and stays as a release-difference detector: it
+regenerates every expectation with a DIFFERENT fbc and reports what moved. Worth running
+after a toolchain rebuild, when "did anything change?" is otherwise answered by a gate
+failing much later.
 """
 import os
 from pathlib import Path
 
-TC64 = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows")
-TC32 = Path(r"C:\dev\tiko_editor\toolchains\FreeBASIC-1.10.1-winlibs-gcc-9.3.0")
+TC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows")
 
-# FBX_CONTROL_FBC64 points the win64 half at a different compiler, which is how
-# control.py measures whether the two releases agree. Nothing else sets it.
-FBC64 = Path(os.environ.get("FBX_CONTROL_FBC64", str(TC64 / "fbc64.exe")))
-FBC32 = TC32 / "fbc32.exe"
+# FBX_CONTROL_FBC64 / _FBC32 point one half at a different compiler, which is how
+# control.py measures whether two releases agree. Nothing else sets them.
+FBC64 = Path(os.environ.get("FBX_CONTROL_FBC64", str(TC / "fbc64.exe")))
+FBC32 = Path(os.environ.get("FBX_CONTROL_FBC32", str(TC / "fbc32.exe")))
 
-# The 1.10.1 64-bit compiler, used only to CONTROL the cross-version comparison.
-FBC64_OLD = TC32 / "fbc64.exe"
+# The previous release, for control.py to compare against. Any fbc install would serve.
+TC_OLD = Path(r"C:\dev\tiko_editor\toolchains\FreeBASIC-1.10.1-winlibs-gcc-9.3.0")
+FBC64_OLD = TC_OLD / "fbc64.exe"
+FBC32_OLD = TC_OLD / "fbc32.exe"
 
 
 def truth_targets(out, work):

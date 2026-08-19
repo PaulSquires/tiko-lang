@@ -27,7 +27,7 @@ fi
 # That is a cross-version comparison, so it is controlled rather than assumed: running
 # 1.10.1 win64 over the same probe gives a file BYTE-IDENTICAL to fbc-modern's, which is
 # what makes 1.10.1 win32 usable as ground truth for mangling.
-FBC32=${FBX_FBC32:-/c/dev/tiko_editor/toolchains/FreeBASIC-1.10.1-winlibs-gcc-9.3.0/fbc32.exe}
+FBC32=${FBX_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
 OUT32="$ROOT/tests/mangle/expected/fbc-mangle-win32.txt"
 
 mkdir -p "$WORK"
