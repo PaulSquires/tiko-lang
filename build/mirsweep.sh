@@ -28,11 +28,21 @@ FBCUNIT=""
 [ -d "$CORPUS/fbcunit/inc" ] && FBCUNIT="-i $CORPUS/fbcunit/inc"
 
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
-: > build/.mir.out
-while IFS= read -r f; do
-    ./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null \
-        | grep -E '^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb' >> build/.mir.out || true
-done < build/.corpus.lst
+
+# One fbx per file, N at a time. Each writes its OWN part file rather than appending to
+# a shared one: concurrent appends interleave once a file's output passes the pipe
+# buffer, and a torn 'lowered:' line would be counted as something else rather than
+# reported as an error. The parts are concatenated afterwards, so the aggregate is
+# identical to the serial run -- and that equality was verified, not assumed.
+JOBS=${MIRSWEEP_JOBS:-$(nproc 2>/dev/null || echo 4)}
+rm -rf build/.mirparts
+mkdir -p build/.mirparts
+xargs -a build/.corpus.lst -d '\n' -P "$JOBS" -I{} sh -c '
+    out=build/.mirparts/$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
+    ./bin/fbx.exe --dump-ir '"$FBCUNIT"' "$1" 2>/dev/null \
+        | grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb" > "$out" || true
+' _ {}
+cat build/.mirparts/* > build/.mir.out
 awk '
 /^lowered:/ {
   files++
