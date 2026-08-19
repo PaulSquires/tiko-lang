@@ -246,6 +246,42 @@ end function
 
 '' ------------------------------------------------------------------- walking
 
+'' THIS, inside a method body. Collect declares the parameter -- it is never written, so
+'' nothing else would -- and this gives it the owning type. Without it 'this.v' was
+'' untyped, 'this.M( )' lowered with no receiver at all, and every unqualified reference
+'' to a sibling member had nothing to resolve against.
+''
+'' The type comes from the enclosing scope chain rather than from the procedure's name:
+'' a member DEFINITION opens its scope inside the TYPE's, which is what makes 'this', the
+'' sibling fields and the mangled name all come out of one arrangement.
+private sub BindThis( byref c as Ctx, byval procScope as Fbx.ScopeId )
+    dim as Fbx.SymbolId tsid = _
+        c.syms->LookupLocal( procScope, c.names->Fold( c.names->GetString( "this" ) ) )
+    if tsid = Fbx.SYMBOL_NONE then return
+    dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return
+    if ts->type_ <> Fbx.TYPE_NONE then return
+
+    dim as Fbx.ScopeId cur = procScope
+    while cur <> Fbx.SCOPE_NONE
+        dim as Fbx.SymScope ptr s = c.syms->ScopeAt( cur )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Fbx.SCOPEK_TYPE ) then
+            '' A POINTER to the type, not the type: the ABI passes an address, fbc's
+            '' own C spells the parameter 'struct $1T*', and every member access
+            '' already reaches through a pointer base.
+            dim as Fbx.Symbol ptr owner = c.syms->SymbolAt( s->owner )
+            if owner <> 0 then
+                if owner->type_ <> Fbx.TYPE_NONE then
+                    ts->type_ = c.types->Pointer_( owner->type_ )
+                end if
+            end if
+            exit while
+        end if
+        cur = s->parent
+    wend
+end sub
+
 declare sub WalkStmt _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
 
@@ -677,6 +713,7 @@ sub WalkStmt _
            (ps->type_ = Fbx.TYPE_NONE) then
             ps->type_ = ret
         end if
+        BindThis( c, here )
         for i as long = 0 to sp->count - 1
             WalkStmt( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ), here )
         next

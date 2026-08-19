@@ -311,7 +311,16 @@ sub WalkNode _
         end if
         dim as Fbx.ScopeId inner = w.syms->OpenScope( Fbx.SCOPEK_PROC, parentScope, _
                                                       scopeOwner )
-        if s <> 0 then s->inner = inner
+        '' The DEFINITION's scope is the one that owns THIS and the locals, so it is the
+        '' one the symbol points at. A member definition declares no symbol of its own,
+        '' so 's' is null there and only 'scopeOwner' names it -- and without this the
+        '' body's scope was reachable from nothing and 'this' could not be found.
+        if s <> 0 then
+            s->inner = inner
+        elseif scopeOwner <> Fbx.SYMBOL_NONE then
+            dim as Fbx.Symbol ptr os = w.syms->SymbolAt( scopeOwner )
+            if os <> 0 then os->inner = inner
+        end if
         '' A member definition body may say 'this'. The receiver is implicit -- it is
         '' never written as a parameter -- so nothing else would ever declare it.
         '' Giving it the OWNING type is Resolve's job; existing is Collect's.

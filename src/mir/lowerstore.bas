@@ -252,7 +252,6 @@ function ReceiverOf _
 
     dim as MirValue v
     if target = Fbx.NODE_NONE then return v
-    if c.ast->Kind( target ) <> Fbx.N_MEMBER then return v
 
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return v
@@ -264,10 +263,33 @@ function ReceiverOf _
         if (StmtOf( c, pn )->extra and Fbx.PF_STATIC) <> 0 then return v
     end if
 
+    '' An UNQUALIFIED call to a sibling member -- 'M( )' inside another method of the
+    '' same type -- has no base written, and its receiver is the enclosing method's own
+    '' THIS. Without this it lowered to 'call void _ZN1T1MEv()': a member call with no
+    '' member, and no decline to say so.
+    if c.ast->Kind( target ) <> Fbx.N_MEMBER then
+        if c.curProcSym = Fbx.SYMBOL_NONE then return v
+        dim as Fbx.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
+        if me = 0 then return v
+        if me->inner = Fbx.SCOPE_NONE then return v
+        dim as Fbx.SymbolId tsid = c.syms->LookupLocal( me->inner, _
+            c.names->Fold( c.names->GetString( "this" ) ) )
+        if tsid = Fbx.SYMBOL_NONE then return v
+        '' THIS holds a pointer, so the receiver is its VALUE. Passing the slot's own
+        '' address would hand the callee a pointer to a pointer.
+        dim as MirValue ta = AddrOfVar( c, tsid )
+        if ta.kind = cast( ubyte, MV_NONE ) then return v
+        return LowerExprLoad( c, ta, MT_PTR )
+    end if
+
+    '' Decided by the base's TYPE, not by whether '->' was written: FreeBASIC accepts a
+    '' dot on a pointer too, and '(*p).M( )' is a value whose address is the pointer.
+    '' A pointer base is ALREADY an address; anything else needs one taking.
     dim as Fbx.BinaryPayload ptr mb = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
-    if (c.ast->nodes[cast( long, target )].flags and Fbx.NF_ARROW) <> 0 then
-        return LowerExpr( c, mb->lhs )
+    dim as Fbx.TypeId bt = c.info->TypeOf_( mb->lhs )
+    if bt <> Fbx.TYPE_NONE then
+        if c.types->Kind( bt ) = Fbx.TK_POINTER then return LowerExpr( c, mb->lhs )
     end if
     return LowerAddr( c, mb->lhs )
 end function

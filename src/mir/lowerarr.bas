@@ -76,6 +76,27 @@ function LowerAddr _
         return Emit( c, ins )
     end if
 
+    '' Parentheses are kept in the tree for diagnostics, so an address has to see through
+    '' them: '(*p).M( )' is a PAREN around a deref, and stopping at the paren lost the
+    '' receiver.
+    if c.ast->Kind( id ) = Fbx.N_PAREN then
+        dim as Fbx.ListPayload ptr pp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if pp->count = 1 then
+            return LowerAddr( c, cast( Fbx.NodeId, c.ast->children[pp->first] ) )
+        end if
+        return v
+    end if
+
+    '' The address of '*p' IS p. Without this '(*p).M( )' had no receiver to pass, and
+    '' 'sub P( byref x as T )' -- which lowering sees as a dereference -- had no address
+    '' to store through.
+    if c.ast->Kind( id ) = Fbx.N_DEREF then
+        dim as Fbx.UnaryPayload ptr dp = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        return LowerExpr( c, dp->operand )
+    end if
+
     '' A subscript is spelled as a call, so it is recognised by the callee's TYPE.
     if IsArrayIndex( c, id ) then return LowerArrayIndex( c, id )
 

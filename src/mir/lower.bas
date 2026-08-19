@@ -396,9 +396,12 @@ private function LowerCall _
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return v
 
-    '' Arguments go into the module's shared pool as (kind, id) pairs.
-    dim as long first = c.m->argPool.Count \ 2
-    dim as long n = 0
+    '' Arguments are collected LOCALLY and pushed to the shared pool in one run at the
+    '' end. Lowering them straight into the pool interleaved a nested call's arguments
+    '' with this one's, because the callee's extent was opened before its arguments were
+    '' lowered: 'F( G( 7 ), 9 )' emitted 'call void F(%4, %5)' -- F( 7, G(7) ) -- and
+    '' dropped the 9 entirely. No decline, no diagnostic, wrong arguments.
+    dim as FB.Array( of ulong ) argv
 
     '' THE RECEIVER IS THE FIRST ARGUMENT of an instance method, and it was missing.
     '' fbc declares 'void _ZN1T1MEi( struct $1T*, int32 )'; fbx emitted
@@ -407,16 +410,20 @@ private function LowerCall _
     '' does not pass one is the worst shape a bug can have here.
     dim as MirValue self_ = ReceiverOf( c, cp->target, callee )
     if self_.kind <> cast( ubyte, MV_NONE ) then
-        c.m->argPool.Push( cast( ulong, self_.kind ) )
-        c.m->argPool.Push( cast( ulong, self_.id ) )
-        n += 1
+        argv.Push( cast( ulong, self_.kind ) )
+        argv.Push( cast( ulong, self_.id ) )
     end if
 
     for i as long = 0 to cp->count - 1
         dim as MirValue a = LowerExpr( c, cast( Fbx.NodeId, c.ast->children[cp->first + i] ) )
-        c.m->argPool.Push( cast( ulong, a.kind ) )
-        c.m->argPool.Push( cast( ulong, a.id ) )
-        n += 1
+        argv.Push( cast( ulong, a.kind ) )
+        argv.Push( cast( ulong, a.id ) )
+    next
+
+    dim as long first = c.m->argPool.Count \ 2
+    dim as long n = argv.Count \ 2
+    for i as long = 0 to argv.Count - 1
+        c.m->argPool.Push( argv[i] )
     next
 
     '' The callee is named by its MANGLED name, which is what MIR carries.
@@ -1183,6 +1190,19 @@ private sub LowerProc _
     c.curProcSym = sid
     c.st->functions += 1
 
+    '' An instance method takes THIS as parameter ZERO. It is never written in the
+    '' source, so nothing else would count it -- and without it '@this' named a fresh
+    '' uninitialised local while every CALL site dutifully passed a receiver into
+    '' nothing.
+    dim as Fbx.SymbolId thisSym = Fbx.SYMBOL_NONE
+    if s <> 0 then
+        if s->inner <> Fbx.SCOPE_NONE then
+            thisSym = c.syms->LookupLocal( s->inner, _
+                c.names->Fold( c.names->GetString( "this" ) ) )
+        end if
+    end if
+    if thisSym <> Fbx.SYMBOL_NONE then f->paramCount += 1
+
     for i as long = 0 to sp->count - 1
         if c.ast->Kind( cast( Fbx.NodeId, c.ast->children[sp->first + i] ) ) = Fbx.N_PARAM then
             f->paramCount += 1
@@ -1195,6 +1215,28 @@ private sub LowerProc _
     '' what makes 'byval' parameters assignable, which FreeBASIC allows, and it is
     '' the shape mem2reg expects.
     dim as long pidx = 0
+    if thisSym <> Fbx.SYMBOL_NONE then
+        '' THIS is a POINTER TO the object -- the symbol carries that type, so the slot
+        '' comes out a pointer and 'this.field' reaches through it like any other
+        '' pointer base. It is what fbc's own C says: 'struct $1T* THIS$1'.
+        dim as long tslot = LocalFor( c, thisSym )
+        if tslot < 0 then tslot = 0
+        dim as MirValue taddr
+        taddr.kind = cast( ubyte, MV_LOCAL )
+        taddr.ty = cast( ubyte, MT_PTR )
+        taddr.id = tslot
+        dim as MirValue tpv
+        tpv.kind = cast( ubyte, MV_PARAM )
+        tpv.ty = cast( ubyte, MT_PTR )
+        tpv.id = 0
+        dim as MirInst tins
+        tins.op = cast( ushort, M_STORE )
+        tins.ty = cast( ubyte, MT_VOID )
+        tins.a = taddr
+        tins.b = tpv
+        Emit( c, tins )
+        pidx = 1
+    end if
     for i as long = 0 to sp->count - 1
         dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
