@@ -243,6 +243,9 @@ function LowerExpr _
     dim as MirType mt = LowerType( ft, *c.types )
 
     select case c.ast->Kind( id )
+    case Fbx.N_STRING_LIT
+        return LowerStringLitAddr( c, id )
+
     case Fbx.N_INT_LIT
         dim as Fbx.LiteralPayload ptr lp = _
             @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]

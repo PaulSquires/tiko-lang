@@ -17,6 +17,13 @@ end type
 
 '' ------------------------------------------------------------------- classes
 
+declare function IsPointerSized_ _
+    ( byval b as Fbx.BuiltinType, byref types as Fbx.TypeContext ) as boolean
+declare function PointerCost_ _
+    ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
+      byval srcP as boolean, byval dstP as boolean, _
+      byref types as Fbx.TypeContext, byval overloaded as boolean ) as long
+
 private function IsFloat_( byval b as Fbx.BuiltinType ) as boolean
     return (b = Fbx.TY_SINGLE) orelse (b = Fbx.TY_DOUBLE)
 end function
@@ -230,12 +237,106 @@ private function IsUnsignedInt_( byval b as Fbx.BuiltinType ) as boolean
     return false
 end function
 
+'' What a pointer costs on one side of a conversion or the other. Split out of
+'' ConversionCost only because the pointer rules share none of its machinery: no rank,
+'' no width distance, no signedness of the POINTER -- only of what it points at.
+private function PointeeNear_ _
+    ( byval a as Fbx.TypeId, byval b as Fbx.TypeId, _
+      byref types as Fbx.TypeContext ) as boolean
+
+    '' Two pointees are near enough that fbc passes one for the other in silence when
+    '' they are the same WIDTH and the same CLASS. Both halves are needed: 'ulong ptr'
+    '' passes for 'long ptr' without a word, while 'single ptr' -- the same four bytes
+    '' -- warns. WSTRING counts as an integer of its target width, which is what makes
+    '' 'wstring ptr' and 'short ptr' interchangeable on Windows and not on Linux.
+    if types.Kind( a ) <> Fbx.TK_BUILTIN then return false
+    if types.Kind( b ) <> Fbx.TK_BUILTIN then return false
+    dim as Fbx.BuiltinType ab = types.BuiltinOf( a )
+    dim as Fbx.BuiltinType bb = types.BuiltinOf( b )
+    if (ab = Fbx.TY_ANY) orelse (bb = Fbx.TY_ANY) then return false
+    if IsFloat_( ab ) <> IsFloat_( bb ) then return false
+    if types.Layout( a ).size <> types.Layout( b ).size then return false
+    return types.Layout( a ).size > 0
+end function
+
+private function PointerCost_ _
+    ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
+      byval srcP as boolean, byval dstP as boolean, _
+      byref types as Fbx.TypeContext, byval overloaded as boolean ) as long
+
+    if srcP andalso dstP then
+        '' Identical pointer types were already answered CONV_EXACT by the caller, so
+        '' what is left is a mismatch.
+        dim as Fbx.TypeId di = types.Inner( to_ )
+        if types.Kind( di ) = Fbx.TK_BUILTIN then
+            if types.BuiltinOf( di ) = Fbx.TY_ANY then return CONV_PTR_ANY
+        end if
+        dim as Fbx.TypeId si = types.Inner( from_ )
+        if types.Kind( si ) = Fbx.TK_BUILTIN then
+            if types.BuiltinOf( si ) = Fbx.TY_ANY then return CONV_PTR_NEAR
+        end if
+        if PointeeNear_( si, di, types ) then return CONV_PTR_NEAR
+        '' The warning-3 tier. Accepted on its own; gone the moment there is a choice.
+        if overloaded then return CONV_NONE
+        return CONV_PTR_OTHER
+    end if
+
+    if srcP then
+        '' A pointer reaches an integer of POINTER WIDTH and nothing else -- not
+        '' 'long', not 'double', not 'boolean', and not 'string'. It reaches none of
+        '' them at all once the procedure is overloaded: offered 'string' and
+        '' 'integer', a pointer argument makes fbc refuse rather than take integer.
+        if overloaded then return CONV_NONE
+        if types.Kind( to_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
+        if IsPointerSized_( types.BuiltinOf( to_ ), types ) = false then return CONV_NONE
+        return CONV_PTR_CLASS
+    end if
+
+    '' A non-pointer reaching a pointer. The string family reaches ONLY a pointer to a
+    '' string, which is the conversion fbcunit's CU_ASSERT_ is built out of.
+    if types.Kind( from_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
+    dim as Fbx.BuiltinType srcB = types.BuiltinOf( from_ )
+    dim as Fbx.TypeId pointee = types.Inner( to_ )
+    dim as Fbx.BuiltinType dstB = Fbx.TY_NONE
+    if types.Kind( pointee ) = Fbx.TK_BUILTIN then dstB = types.BuiltinOf( pointee )
+
+    if IsStringy_( srcB ) then
+        if (dstB <> Fbx.TY_ZSTRING) andalso (dstB <> Fbx.TY_WSTRING) then return CONV_NONE
+        '' A ZSTRING * n -- which is what a string LITERAL is -- prefers 'zstring ptr';
+        '' a WSTRING * n prefers 'wstring ptr'. A var-len STRING is neither, and takes
+        '' zstring before wstring.
+        if srcB = dstB then return CONV_STRPTR_SAME
+        if srcB = Fbx.TY_STRING then
+            if dstB = Fbx.TY_ZSTRING then return CONV_STRPTR_OTHER
+            return CONV_STRPTR_OTHER + 10
+        end if
+        return CONV_STRPTR_OTHER
+    end if
+
+    '' An integer of pointer width. This one stays viable when overloaded -- it is
+    '' warning 1, 'Passing scalar as pointer', and fbc treats the two warnings
+    '' differently: offered 'any ptr' and 'string', the argument 1 takes any ptr.
+    if IsPointerSized_( srcB, types ) = false then return CONV_NONE
+    return CONV_PTR_CLASS
+end function
+
 function ConversionCost _
     ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
-      byref types as Fbx.TypeContext ) as long
+      byref types as Fbx.TypeContext, _
+      byval overloaded as boolean = false ) as long
 
     if (from_ = Fbx.TYPE_NONE) orelse (to_ = Fbx.TYPE_NONE) then return CONV_NONE
     if from_ = to_ then return CONV_EXACT
+
+    '' POINTERS, before the builtin-only tiers below. Everything here is measured in
+    '' tests/types/expected/fbc-ptr.txt; the shape a cost model would guess -- pointee
+    '' compatibility, a distance between pointee types -- is not the shape fbc has.
+    dim as boolean srcP = (types.Kind( from_ ) = Fbx.TK_POINTER)
+    dim as boolean dstP = (types.Kind( to_ ) = Fbx.TK_POINTER)
+    if srcP orelse dstP then
+        return PointerCost_( from_, to_, srcP, dstP, types, overloaded )
+    end if
+
     if types.Kind( from_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
     if types.Kind( to_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
 
@@ -690,6 +791,22 @@ private function ResolveCall_ _
     dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
     dim as long bestCost = CONV_NONE
     dim as long ties = 0
+
+    '' How many candidates there are CHANGES WHAT IS VIABLE, so it has to be known
+    '' before any of them is costed. fbc accepts a warning-3 pointer conversion for a
+    '' procedure called on its own and refuses the identical conversion the moment a
+    '' second overload exists, however unviable that second one is.
+    dim as long ncand = 0
+    dim as Fbx.SymbolId walk = callee
+    while walk <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr ws = c.syms->SymbolAt( walk )
+        if ws = 0 then exit while
+        if ws->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
+        ncand += 1
+        walk = ws->nextOverload
+    wend
+    dim as boolean overloaded = (ncand > 1)
+
     dim as Fbx.SymbolId cur = callee
 
     while cur <> Fbx.SYMBOL_NONE
@@ -716,7 +833,7 @@ private function ResolveCall_ _
                     dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
                     dim as Fbx.TypeId pt = c.info->TypeOf_( sp2->a )
                     dim as long cost = ConversionCost( cast( Fbx.TypeId, argT[ai] ), _
-                                                       pt, *c.types )
+                                                       pt, *c.types, overloaded )
                     ai += 1
                     if cost >= CONV_NONE then
                         viable = false

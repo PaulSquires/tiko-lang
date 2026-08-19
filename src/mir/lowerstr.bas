@@ -21,8 +21,6 @@ declare function PrintOne _
     ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long ) as boolean
 declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
 declare sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
-declare function StringLitText_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as string
 declare function LowerConcatViaTemp _
     ( byref c as Ctx, byref dst as MirValue, _
       byref terms as FB.Array( of ulong ) ) as boolean
@@ -138,6 +136,26 @@ end function
 '' A LITERAL is passed as its own bytes with a real length -- strlen PLUS ONE, for
 '' the terminator: fbc emits 2 for "x" and 6 for "hello". Getting that off by one
 '' truncates or overruns, and neither shows up near the cause.
+'' A bare string literal in VALUE position: the ADDRESS of its bytes.
+''
+'' That is what a 'zstring ptr' parameter wants, and a parameter is the only context a
+'' bare literal reaches here in -- PRINT and concatenation take their own paths, which
+'' call AddStringLiteral directly because they need the length alongside the pointer.
+''
+'' Without this the literal lowered to NOTHING while the call around it still emitted:
+'' 'call void P(%1, _, %2)', an undef where a pointer belonged, and the statement
+'' counted as lowered.
+function LowerStringLitAddr _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+
+    dim as MirValue g
+    g.kind = cast( ubyte, MV_GLOBAL )
+    g.ty = cast( ubyte, MT_PTR )
+    g.id = cast( ulong, c.m->AddStringLiteral( StringLitText_( c, id ), *c.names ) )
+    return g
+end function
+
+
 sub PushStrLiteralArg _
     ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
     args.Push( cast( ulong, MV_GLOBAL ) )

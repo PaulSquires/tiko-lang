@@ -138,6 +138,14 @@ declare function EmitRtl _
     declare function ConstInt _
         ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
 
+    '' The address of a string literal's bytes, as a module global.
+    declare function LowerStringLitAddr _
+        ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+
+    '' A string literal's text, with the escapes already resolved.
+    declare function StringLitText_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId ) as string
+
     '' Records a decline part-way through the statement being lowered.
     declare sub SkipHere( byref c as Ctx )
     declare sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )

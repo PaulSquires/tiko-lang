@@ -59,9 +59,40 @@ namespace Fbx.Check
     const CONV_BOOL     as long = 20000    '' anything <-> boolean
     const CONV_NONE     as long = 999999
 
+    '' The POINTER tiers, measured in tests/types/expected/fbc-ptr.txt.
+    ''
+    '' An exact pointer type wins, 'any ptr' comes next, then a pointer whose POINTEE
+    '' is the same width and class ('ulong ptr' for a LONG PTR argument, 'wstring ptr'
+    '' for a SHORT PTR one), then everything else. That last tier is the one fbc warns
+    '' about -- warning 3, 'Passing different pointer types' -- and warning 3 is also
+    '' what makes a candidate unviable once the procedure is overloaded, which is the
+    '' whole reason ConversionCost has to be told which question it is answering.
+    const CONV_PTR_ANY   as long = 200
+    const CONV_PTR_NEAR  as long = 250
+    const CONV_PTR_OTHER as long = 400
+
+    '' A string converts to a pointer of its OWN string kind more cheaply than to
+    '' 'string' itself, and to the other kind more dearly: a literal (which is
+    '' ZSTRING * n) offered 'zstring ptr' and 'string' takes the pointer, while a
+    '' STRING variable offered the same pair takes string.
+    const CONV_STRPTR_SAME  as long = 50
+    const CONV_STRPTR_OTHER as long = 150
+
+    '' pointer <-> a pointer-sized integer. Dearer than the BOOLEAN tier because it
+    '' loses to it: an INTEGER argument offered 'any ptr' and 'boolean' takes boolean,
+    '' and a pointer argument offered 'any ptr' and 'integer' takes any ptr. Staying
+    '' in the class wins on both sides.
+    const CONV_PTR_CLASS as long = 50000
+
+    '' 'overloaded' says whether more than one candidate is in play, because fbc asks
+    '' two DIFFERENT questions and the answers differ. Called on its own, a procedure
+    '' taking 'byte ptr' accepts a SHORT PTR argument with warning 3; add any second
+    '' overload -- even a plainly unviable 'double' one -- and the same call is
+    '' refused outright. Measured, not inferred: tests/types/expected/fbc-ptr.txt.
     declare function ConversionCost _
         ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
-          byref types as Fbx.TypeContext ) as long
+          byref types as Fbx.TypeContext, _
+          byval overloaded as boolean = false ) as long
 
     '' Whether 'target = source' is allowed, and whether fbc warns about it.
     '' Assignment legality is a DIFFERENT question from binary promotion and does not
