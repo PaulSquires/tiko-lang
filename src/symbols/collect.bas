@@ -345,13 +345,31 @@ sub WalkNode _
     end select
 end sub
 
-private sub DeclareGlobal _
+private function DeclareGlobal _
     ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-      byref diags as Fbx.DiagnosticEngine, byval spelling as string )
+      byref diags as Fbx.DiagnosticEngine, byval spelling as string ) as Fbx.SymbolId
 
     dim as boolean dup = false
-    syms.DeclareSym( Fbx.SCOPE_GLOBAL, names.Fold( names.GetString( spelling ) ), _
-                     Fbx.SYM_CONSTANT, Fbx.LOC_NONE, dup )
+    return syms.DeclareSym( Fbx.SCOPE_GLOBAL, _
+                            names.Fold( names.GetString( spelling ) ), _
+                            Fbx.SYM_CONSTANT, Fbx.LOC_NONE, dup )
+end function
+
+'' 'true' and 'false' are predeclared CONSTANTS carrying a built-in value: BOOLEAN,
+'' and -1 and 0. Every part of that is measured -- 'typeof( true )' is BOOLEAN,
+'' 'cint( true )' is -1 and 'sizeof( true )' is 1 -- because a language where a true
+'' comparison is -1 is not one where 'true' can be assumed to be 1.
+private sub DeclareBuiltinConst _
+    ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+      byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
+      byval spelling as string, byval value as long )
+
+    dim as Fbx.SymbolId sid = DeclareGlobal( syms, names, diags, spelling )
+    dim as Fbx.Symbol ptr s = syms.SymbolAt( sid )
+    if s = 0 then return
+    s->flags or= Fbx.SYMF_BUILTIN
+    s->type_ = types.Builtin( Fbx.TY_BOOLEAN )
+    s->payload = value
 end sub
 
 function Run _
@@ -375,8 +393,8 @@ function Run _
     '' keywords. typeof(true) is BOOLEAN, measured. __FUNCTION__ is fbc's
     '' compile-time procedure name; giving it the enclosing proc's name is Check's
     '' job, being declared at all is this one's.
-    DeclareGlobal( syms, names, diags, "true" )
-    DeclareGlobal( syms, names, diags, "false" )
+    DeclareBuiltinConst( syms, names, types, diags, "true", -1 )
+    DeclareBuiltinConst( syms, names, types, diags, "false", 0 )
     DeclareGlobal( syms, names, diags, "__function__" )
     DeclareGlobal( syms, names, diags, "__function_nq__" )
 
@@ -418,6 +436,7 @@ function Dump _
             if (s->flags and Fbx.SYMF_CONST) <> 0 then row += " const"
             if (s->flags and Fbx.SYMF_DECLARED) <> 0 then row += " declared"
             if (s->flags and Fbx.SYMF_DEFINED) <> 0 then row += " defined"
+            if (s->flags and Fbx.SYMF_BUILTIN) <> 0 then row += " builtin"
             if s->nextOverload <> Fbx.SYMBOL_NONE then row += " +overloads"
             outp += row & chr( 10 )
             cur = s->nextInScope

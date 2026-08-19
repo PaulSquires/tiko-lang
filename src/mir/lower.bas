@@ -265,6 +265,14 @@ function LowerExpr _
         return LowerExpr( c, cast( Fbx.NodeId, c.ast->children[pp->first] ) )
 
     case Fbx.N_IDENT, Fbx.N_MEMBER
+        '' TRUE and FALSE are predeclared constants with no storage to load from, so
+        '' they are folded here rather than addressed. -1 and 0, one byte, measured.
+        dim as Fbx.Symbol ptr ks = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if ks <> 0 then
+            if (ks->flags and Fbx.SYMF_BUILTIN) <> 0 then
+                return ConstInt( c, cast( longint, ks->payload ), MT_I8 )
+            end if
+        end if
         dim as MirValue addr = LowerAddr( c, id )
         if addr.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins

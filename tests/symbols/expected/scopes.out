@@ -1,7 +1,7 @@
 scopes: 14  symbols: 18
 scope 1 global parent=0 (4)
-    const     'true'
-    const     'false'
+    const     'true' builtin
+    const     'false' builtin
     const     '__function__'
     const     '__function_nq__'
 scope 2 module parent=1 (1)

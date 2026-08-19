@@ -74,6 +74,12 @@ namespace Fbx
     '' all share one offset -- they overlap, which is the whole point of a union.
     const SYMF_UNION    as ushort = &h0100
 
+    '' A PREDECLARED constant whose value fbc builds in rather than reading from
+    '' source: 'true' and 'false'. 'payload' carries the value itself, not an AST node,
+    '' which is why it needs a flag to say so -- every other SYM_CONSTANT's payload is
+    '' a node id and reading one as the other is silent nonsense.
+    const SYMF_BUILTIN  as ushort = &h0200
+
     type Symbol
         as ubyte     kind
         as ushort    flags
