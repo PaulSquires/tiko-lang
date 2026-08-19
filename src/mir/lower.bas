@@ -38,7 +38,7 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     '' gap in it is far more useful than a complete one that is malformed.
     if OpHasResult( op ) andalso (ins.ty = cast( ubyte, MT_VOID )) then
         if (op <> M_CALL) andalso (op <> M_CALL_RTL) then
-            c.st->skipped += 1
+            SkipHere( c )
             return v
         end if
     end if
@@ -781,7 +781,7 @@ private sub LowerAssign _
     dim as MirValue addr = LowerAddr( c, target )
     dim as MirValue val = LowerExpr( c, value )
     if (addr.kind = cast( ubyte, MV_NONE )) orelse (val.kind = cast( ubyte, MV_NONE )) then
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
     '' The stored value must match the TARGET's type exactly -- MIR has no implicit
@@ -798,32 +798,19 @@ private sub LowerAssign _
 end sub
 
 
-'' Records an unlowered STATEMENT, by kind, so the next thing to implement is something
-'' to read off rather than guess at.
-private sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )
-    c.st->skipped += 1
-    dim as long k = cast( long, c.ast->Kind( id ) )
-    while c.st->skippedKind.Count <= k
-        c.st->skippedKind.Push( 0 )
-    wend
-    c.st->skippedKind[k] += 1
-
-    if c.ast->Kind( id ) <> Fbx.N_INTRINSIC then return
-    '' Every intrinsic shares one node kind, so the keyword is counted separately.
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    for i as long = 0 to c.st->skippedIntrOp.Count - 1
-        if c.st->skippedIntrOp[i] = cast( ulong, sp->op ) then
-            c.st->skippedIntrN[i] += 1
-            return
-        end if
-    next
-    c.st->skippedIntrOp.Push( cast( ulong, sp->op ) )
-    c.st->skippedIntrN.Push( 1 )
-end sub
+declare sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
 
 sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     if id = Fbx.NODE_NONE then return
     if c.curBlock < 0 then return
+    '' Saved and restored: statements nest, and a decline belongs to the INNERMOST one.
+    dim as ushort savedKind = c.curStmtKind
+    c.curStmtKind = cast( ushort, c.ast->Kind( id ) )
+    LowerStmtInner( c, id )
+    c.curStmtKind = savedKind
+end sub
+
+private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
 
     select case c.ast->Kind( id )
     case Fbx.N_BLOCK
@@ -848,7 +835,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     case Fbx.N_VAR
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         if sp->op = cast( ushort, Fbx.KW_REDIM ) then
-            c.st->skipped += 1
+            SkipHere( c )
             return
         end if
         for i as long = 0 to sp->count - 1
@@ -857,7 +844,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
             dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
             dim as Fbx.SymbolId sid = c.syms->LookupLocal( c.info->ScopeOf( id ), ip->name )
             if sid = Fbx.SYMBOL_NONE then
-                c.st->skipped += 1
+                SkipHere( c )
                 continue for
             end if
             '' DIM SHARED is STORAGE, not code. fbc emits 'static int32 H$ = 5;' --
@@ -882,7 +869,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
                         c.m->globals[g].hasInit = true
                     else
                         '' A non-constant initialiser cannot become a static one.
-                        c.st->skipped += 1
+                        SkipHere( c )
                     end if
                 end if
                 continue for
@@ -960,7 +947,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         case Fbx.AMB_CALL
             LowerExpr( c, sp->a )
         case else
-            c.st->skipped += 1
+            SkipHere( c )
         end select
 
     case Fbx.N_IF
@@ -1035,7 +1022,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
             Terminate( c, MTERM_BR, c.breakTo[c.breakTo.Count - 1], -1, NoVal( ) )
             c.curBlock = -1
         else
-            c.st->skipped += 1
+            SkipHere( c )
         end if
 
     case Fbx.N_CONTINUE
@@ -1044,7 +1031,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
             Terminate( c, MTERM_BR, c.contTo[c.contTo.Count - 1], -1, NoVal( ) )
             c.curBlock = -1
         else
-            c.st->skipped += 1
+            SkipHere( c )
         end if
 
     case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
@@ -1063,7 +1050,7 @@ private sub LowerIf _
     '' ELSE body is 'c'.
     dim as Fbx.NodeId branches = sp->b
     if branches = Fbx.NODE_NONE then
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
     dim as Fbx.ListPayload ptr lp = _
@@ -1140,7 +1127,7 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
 
     dim as MirValue addr = LowerAddr( c, sp->a )
     if addr.kind = cast( ubyte, MV_NONE ) then
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
     dim as MirType ity = cast( MirType, c.f->locals[cast( long, addr.id )].ty )
@@ -1175,7 +1162,7 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
         if sv.known then
             negStep = (sv.value < 0)
         else
-            c.st->skipped += 1
+            SkipHere( c )
         end if
     end if
     dim as MirInst cmp

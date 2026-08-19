@@ -249,6 +249,13 @@ function Run( byref args as Fbx.StrVec ) as long
                           Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
                           str( lst.skippedKind[i] )
                 next
+                '' Declines part-way THROUGH a statement, by what they were inside.
+                for i as long = 0 to lst.innerKind.Count - 1
+                    if lst.innerKind[i] = 0 then continue for
+                    print "  inside " & _
+                          Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
+                          str( lst.innerKind[i] )
+                next
                 for i as long = 0 to lst.skippedIntrOp.Count - 1
                     print "  unlowered intrinsic " & _
                           Fbx.TokenKindName( cast( Fbx.TokenKind, lst.skippedIntrOp[i] ) ) & _

@@ -48,6 +48,11 @@ type Ctx
     '' scopes they are leaving.
     as FB.Array( of long )  loopScope
 
+    '' The statement kind currently being lowered, so a decline INSIDE one can say which.
+    '' The statement-dispatch breakdown accounts for about 3,700 of ~98,700 declines; the
+    '' rest happen part-way through a statement and had no attribution at all.
+    as ushort               curStmtKind
+
     '' DIM SHARED / STATIC storage, keyed by SYMBOL rather than by name. Two statics
     '' called 'n' in sibling scopes are two declarations and so two symbols; keying on
     '' the spelling merged them into one variable.
@@ -132,6 +137,10 @@ declare function EmitRtl _
     declare function LowerArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     declare function ConstInt _
         ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
+
+    '' Records a decline part-way through the statement being lowered.
+    declare sub SkipHere( byref c as Ctx )
+    declare sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )
 
 end namespace
 

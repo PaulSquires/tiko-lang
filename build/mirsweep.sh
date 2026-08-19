@@ -7,12 +7,10 @@
 # The numbers that matter are the ones that must be ZERO: verifier failures, scope
 # imbalance, and label-depth mismatches.
 #
-# READ THE "not lowered" COUNT CAREFULLY. It counts statements that REACHED lowering and
-# were declined; a statement dropped before that never reaches the counter at all.
-#
-# The breakdown at the end is what says WHICH thing to implement next. A single total
-# invites guessing. Note it accounts for only about half the count: the rest is work
-# declined INSIDE a statement, at a skip site other than the statement dispatch.
+# The two breakdowns say WHICH thing to implement next; a single total invites guessing.
+# They divide the declines into statements never STARTED (the dispatch) and statements
+# started and not FINISHED (inside), and the second is larger by more than an order of
+# magnitude.
 #
 # Do not rebuild while this runs: the link will fail on a locked bin/fbx.exe, and a
 # half-replaced binary mid-sweep would report numbers from two different compilers.
@@ -23,15 +21,17 @@ CORPUS=tests/vendor/fbc-tests
 [ -d "$CORPUS" ] || { echo "mirsweep: corpus not vendored" >&2; exit 3; }
 
 # 761 of the 2,709 corpus files -- 28% -- '#include "fbcunit.bi"', the suite's own test
-# framework, and it lives in a subdirectory none of them name. Without this the whole
-# quarter of the corpus fails at its first line, and every number measured over it was
-# measured against files that could not resolve their own harness.
+# framework, which lives in a subdirectory none of them name. Without this a quarter of
+# the corpus fails at its first line, and every number is measured against files that
+# cannot resolve their own harness. See docs/internals/corpus-include-path.md.
 FBCUNIT=""
 [ -d "$CORPUS/fbcunit/inc" ] && FBCUNIT="-i $CORPUS/fbcunit/inc"
+
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 : > build/.mir.out
 while IFS= read -r f; do
-    ./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null | grep -E '^(lowered|verify):|^  unlowered ' >> build/.mir.out || true
+    ./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null \
+        | grep -E '^(lowered|verify):|^  unlowered |^  inside ' >> build/.mir.out || true
 done < build/.corpus.lst
 awk '
 /^lowered:/ {
@@ -46,15 +46,19 @@ awk '
 /^verify: fail/          { vf++ }
 /^  unlowered N_/        { kind[$2] += $3 }
 /^  unlowered intrinsic/ { intr[$3] += $4 }
+/^  inside N_/           { inner[$2] += $3 }
 END {
   printf "mirsweep: %d files, %d blocks, %d insts\n", n, blk, ins
   printf "mirsweep: %d files emit code, %d emit nothing\n", withfn+0, empty+0
   printf "mirsweep: %d statements not lowered, of those that reached lowering\n", sk+0
   printf "mirsweep: %d scope imbalance, %d verify failures, %d label depth mismatches\n", si+0, vf+0, mm+0
-  printf "mirsweep: --- what did not lower (statement dispatch only) ---\n"
+  printf "mirsweep: --- never STARTED (statement dispatch) ---\n"
   n1 = asorti(kind, ks, "@val_num_desc")
-  for (i = 1; i <= n1 && i <= 8; i++) printf "mirsweep:  %8d  %s\n", kind[ks[i]], ks[i]
+  for (i = 1; i <= n1 && i <= 6; i++) printf "mirsweep:  %8d  %s\n", kind[ks[i]], ks[i]
   n2 = asorti(intr, is2, "@val_num_desc")
-  for (i = 1; i <= n2 && i <= 8; i++) printf "mirsweep:  %8d  intrinsic %s\n", intr[is2[i]], is2[i]
+  for (i = 1; i <= n2 && i <= 6; i++) printf "mirsweep:  %8d  intrinsic %s\n", intr[is2[i]], is2[i]
+  printf "mirsweep: --- started and not FINISHED, by the statement it was inside ---\n"
+  n3 = asorti(inner, is3, "@val_num_desc")
+  for (i = 1; i <= n3 && i <= 8; i++) printf "mirsweep:  %8d  inside %s\n", inner[is3[i]], is3[i]
 }
 ' build/.mir.out

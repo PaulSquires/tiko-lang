@@ -28,6 +28,42 @@ declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 '' The SUBJECT IS EVALUATED ONCE, into a slot. Re-evaluating it per case would call a
 '' function once per branch tested -- observable whenever it has side effects.
 
+'' A decline part-way THROUGH a statement, attributed to the kind of statement it was
+'' inside. The statement-dispatch counter says which statements were never started; this
+'' says which ones were started and could not be finished, and that is the larger number
+'' by more than an order of magnitude.
+sub SkipHere( byref c as Ctx )
+    c.st->skipped += 1
+    dim as long k = cast( long, c.curStmtKind )
+    while c.st->innerKind.Count <= k
+        c.st->innerKind.Push( 0 )
+    wend
+    c.st->innerKind[k] += 1
+end sub
+
+'' Records an unlowered STATEMENT, by kind, so the next thing to implement is something
+'' to read off rather than guess at.
+sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )
+    SkipHere( c )
+    dim as long k = cast( long, c.ast->Kind( id ) )
+    while c.st->skippedKind.Count <= k
+        c.st->skippedKind.Push( 0 )
+    wend
+    c.st->skippedKind[k] += 1
+
+    if c.ast->Kind( id ) <> Fbx.N_INTRINSIC then return
+    '' Every intrinsic shares one node kind, so the keyword is counted separately.
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    for i as long = 0 to c.st->skippedIntrOp.Count - 1
+        if c.st->skippedIntrOp[i] = cast( ulong, sp->op ) then
+            c.st->skippedIntrN[i] += 1
+            return
+        end if
+    next
+    c.st->skippedIntrOp.Push( cast( ulong, sp->op ) )
+    c.st->skippedIntrN.Push( 1 )
+end sub
+
 '' 'END [exitcode]' terminates the program: a direct fb_End call, measured from fbc.
 ''
 '' IT RUNS NO CLEANUPS, and that is measured too rather than assumed by analogy with
@@ -54,19 +90,19 @@ end sub
 sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if sp->b = Fbx.NODE_NONE then
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
 
     dim as Fbx.TypeId subjT = c.info->TypeOf_( sp->a )
     dim as MirType mt = LowerType( subjT, *c.types )
     if mt = MT_VOID then
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
     dim as MirValue subj = LowerExpr( c, sp->a )
     if subj.kind = cast( ubyte, MV_NONE ) then
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
     dim as long slot = NewTempLocal( c, mt, c.types->Layout( subjT ).size )
@@ -101,7 +137,7 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
             if v < cp->count - 1 then moreB = NewBlock( c, "sel.alt" )
             dim as MirValue cond = LowerCaseTest( c, slotAddr, mt, isUns, val )
             if cond.kind = cast( ubyte, MV_NONE ) then
-                c.st->skipped += 1
+                SkipHere( c )
                 Terminate( c, MTERM_BR, moreB, -1, NoVal( ) )
             else
                 Terminate( c, MTERM_CONDBR, bodyB, moreB, cond )
@@ -324,7 +360,7 @@ end sub
 sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if sp->name = 0 then
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
     dim as long slot = LabelSlot( c, cast( Fbx.InternId, sp->name ) )
@@ -332,14 +368,14 @@ sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
     if d = LABEL_AMBIGUOUS then
         '' Two labels of this name in one procedure; which one is meant depends on
         '' scope, which these slots do not record.
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
     if d < 0 then
         '' A label the pre-scan never saw, so the jump is to somewhere outside this
         '' body. Emitting a branch to a block that will never exist is worse than
         '' declining to lower it.
-        c.st->skipped += 1
+        SkipHere( c )
         return
     end if
 

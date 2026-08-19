@@ -45,6 +45,11 @@ namespace Fbx.Mir
         as FB.Array( of long ) skippedKind
         as FB.Array( of ulong ) skippedIntrOp
         as FB.Array( of long ) skippedIntrN
+
+        '' Declines that happened INSIDE a statement rather than at the dispatch, by the
+        '' kind of statement they were inside. This is where the mass is: the dispatch
+        '' breakdown accounts for about 3,700 of ~98,700.
+        as FB.Array( of long ) innerKind
     end type
 
     declare function Lower _
