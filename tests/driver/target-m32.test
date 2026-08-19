@@ -1,0 +1,6 @@
+'' -m32 selects win32 rather than being refused. It is resolved AFTER the whole line
+'' is read, so it does not matter whether it comes before or after -target.
+'' TEST: cli
+'' ARGS: --dump-types -m32 tests/source/plain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: pointer=32 bits

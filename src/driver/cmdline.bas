@@ -51,6 +51,8 @@ end function
 constructor DriverOptions( )
     this.outputPath = ""
     this.targetName = ""
+    this.target = Fbx.HostTarget( )
+    this.widthOverride = 0
     this.compileOnly = false
     this.debugInfo = false
     this.threadSafe = false
@@ -306,19 +308,20 @@ function Parse _
             end if
 
         case Fbx.OPT_TARGET
-            dim as string t = Fbx.Text.LowerAscii( value )
-            dim as boolean known = (t = "win64") orelse (t = "linux-x86_64")
+            dim as boolean known = false
+            dim as Fbx.TargetId t = Fbx.TargetFromName( value, known )
             if known = false then
                 diags.ReportGlobal( Fbx.FBX0103, value )
                 ok = false
             else
-                opts.targetName = t
+                opts.target = t
+                opts.targetName = Fbx.TargetName( t )
             end if
 
-        case Fbx.OPT_M64      : '' the only supported width; accepted and ignored
-        case Fbx.OPT_M32
-            diags.ReportGlobal( Fbx.FBX0104 )
-            ok = false
+        '' -m32 and -m64 pick the WIDTH of the target family, and are resolved after
+        '' the whole line is read so that they do not depend on where they appear.
+        case Fbx.OPT_M64      : opts.widthOverride = 64
+        case Fbx.OPT_M32      : opts.widthOverride = 32
 
         case Fbx.OPT_WERROR   : opts.warningsAsErrors = true
         case Fbx.OPT_WNO
@@ -395,6 +398,20 @@ function Parse _
 
         i += 1
     wend
+
+    '' The width override, now that the whole line is known. Linux is 64-bit only by
+    '' decision, so -m32 there is an error rather than a silent win32.
+    if opts.widthOverride = 32 then
+        if Fbx.TargetIsWindows( opts.target ) then
+            opts.target = Fbx.TARGET_WIN32
+        else
+            diags.ReportGlobal( Fbx.FBX0104 )
+            ok = false
+        end if
+    elseif opts.widthOverride = 64 then
+        if Fbx.TargetIsWindows( opts.target ) then opts.target = Fbx.TARGET_WIN64
+    end if
+    opts.targetName = Fbx.TargetName( opts.target )
 
     return ok
 end function

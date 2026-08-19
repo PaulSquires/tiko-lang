@@ -296,7 +296,7 @@ private sub IntrData( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
             continue do
         end if
         dim as Fbx.Token t = Cur( p )
-        items.Push( cast( ulong, MakeIdent( p, t ) ) )
+        items.Push( cast( ulong, MakeTokenNode( p, t ) ) )
         Advance( p )
     loop
     sp.first = p.ast->children.Count

@@ -54,8 +54,8 @@ N_MODULE (24) <1:1>
     N_INT_LIT 1 radix=10 <17:7>
     N_INT_LIT 100 radix=10 <17:10>
   N_INTRINSIC [DATA] <18:1>
-    N_IDENT 'cushort' <18:6>
-    N_IDENT 'cva_arg' <18:9>
+    N_INT_LIT 1 radix=10 <18:6>
+    N_STRING_LIT len=3 kind=0 <18:9>
     N_IDENT 'three' <18:16>
   N_INTRINSIC 'handler' [ON] <19:1>
   N_INTRINSIC [ON] <20:1>

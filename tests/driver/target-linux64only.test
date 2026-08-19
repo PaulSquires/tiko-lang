@@ -1,0 +1,7 @@
+'' Linux is 64-bit only by decision: x86-32 Linux is a third set of layout numbers
+'' (wchar is 4 bytes there) and nobody has asked for it. The refusal must be a clear
+'' error rather than a silently ignored flag, in EITHER argument order.
+'' TEST: cli
+'' ARGS: -m32 -target linux-x86_64 tests/source/plain.bas
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: FBX0104: 32-bit is supported on Windows only

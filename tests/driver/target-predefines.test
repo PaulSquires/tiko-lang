@@ -1,0 +1,12 @@
+'' __FB_64BIT__ came from an '#ifdef' at fbx's OWN compile time, so it was true even
+'' for '-target linux-x86_64'. Getting it wrong does not fail -- it silently selects
+'' the other half of every header, and the corpus branches on it 214 times.
+''
+'' It is DEFINED AND EMPTY on a 64-bit target and NOT DEFINED on a 32-bit one, which is
+'' measured: fbc errors on '#if __FB_64BIT__' because the macro has no body.
+'' TEST: cli
+'' ARGS: --pp-only -target win32 tests/driver/src/predefines.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: NO64
+'' EXPECT-OUT: WIN
+'' EXPECT-NOT: HAS64

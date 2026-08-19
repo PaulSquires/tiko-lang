@@ -112,6 +112,15 @@ namespace Fbx
                                    '' which spells a namespaced UDT as N<prefix>3VECE.
     end type
 
+    '' The targets fbx can compile for. Windows comes in both widths; Linux is 64-bit
+    '' only, deliberately -- x86-32 Linux is a THIRD set of layout numbers (wchar is 4
+    '' bytes there, and 8-byte alignment differs) and nobody has asked for it.
+    enum TargetId
+        TARGET_WIN64 = 0
+        TARGET_WIN32
+        TARGET_LINUX_X86_64
+    end enum
+
     '' Target facts, injected. The frontend never hard-codes a size.
     type TargetLayout
         as long pointerBits        '' 64
@@ -192,6 +201,15 @@ namespace Fbx
     declare function BuiltinName( byval b as BuiltinType ) as string
     declare function BuiltinClass( byval b as BuiltinType ) as TypeClass
     declare function DefaultTargetLayout( ) as TargetLayout
+    '' The layout of one target. Every number in it is measured from fbc for that
+    '' target, not derived from the width.
+    declare function TargetLayoutFor( byval t as TargetId ) as TargetLayout
+    '' The target fbx defaults to when none is named: the one it is running on.
+    declare function HostTarget( ) as TargetId
+    declare function TargetName( byval t as TargetId ) as string
+    declare function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
+    declare function TargetIs64( byval t as TargetId ) as boolean
+    declare function TargetIsWindows( byval t as TargetId ) as boolean
 
     '' --dump-types. Byte-stable: a golden artefact, and the thing the layout
     '' differential compares against fbc.

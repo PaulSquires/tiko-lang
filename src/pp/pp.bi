@@ -72,6 +72,14 @@ namespace Fbx
         as StrVec ptr includePaths   '' -i, searched after the including file's dir
         as StrVec ptr defines        '' -d name[=value]
         as boolean    reportUnsupported
+        '' The target, as the two FACTS the preprocessor needs rather than as a target
+        '' id: it has no business knowing the type model, and handing it one invites it
+        '' to grow more target knowledge than seeding predefines requires.
+        ''
+        '' Getting these wrong does not fail -- it silently selects the other half of
+        '' every header. The corpus branches on __FB_64BIT__ alone 214 times.
+        as boolean    targetIsWindows
+        as boolean    targetIs64
         as any ptr    queryCtx       '' passed back to queryFn
         as any ptr    queryFn        '' PpQueryFn; NULL until Phase 5
     end type

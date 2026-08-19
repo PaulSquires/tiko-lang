@@ -71,6 +71,9 @@ namespace Fbx.Parse
         ( byref p as Fbx.ParserState, byval k as Fbx.TokenKind, _
           byval what as string ) as boolean
     declare function MakeIdent( byref p as Fbx.ParserState, byref t as Fbx.Token ) as Fbx.NodeId
+    '' A token as the node it is: literals stay literals. See the comment on it.
+    declare function MakeTokenNode _
+        ( byref p as Fbx.ParserState, byref t as Fbx.Token ) as Fbx.NodeId
     declare function MakeList _
         ( byref p as Fbx.ParserState, byval kind as Fbx.NodeKind, byval loc as Fbx.SourceLoc, _
           byval target as Fbx.NodeId, byref items as Fbx.NodeIdVec ) as Fbx.NodeId

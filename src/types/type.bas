@@ -1,6 +1,7 @@
 '' type.bas -- see type.bi
 
 #include once "types/type.bi"
+#include once "support/text.bi"
 
 namespace Fbx
 
@@ -55,18 +56,70 @@ end function
 ''     byte/ubyte/boolean  1     integer/uinteger  8     string   24, align 8
 ''     short/ushort        2     longint/ulongint  8     ustring  24, align 8
 ''     long/ulong/single   4     double            8     pointers 8
-function DefaultTargetLayout( ) as TargetLayout
-    dim as TargetLayout t
-    t.pointerBits = 64
+function HostTarget( ) as TargetId
     #ifdef __FB_WIN32__
-        t.wcharBytes = 2
+        return TARGET_WIN64
     #else
-        t.wcharBytes = 4
+        return TARGET_LINUX_X86_64
     #endif
-    t.stringBytes = 24          '' FBSTRING: data ptr + len + size
-    t.stringAlign = 8
-    t.maxAlign = 8
-    return t
+end function
+
+function TargetName( byval t as TargetId ) as string
+    select case t
+    case TARGET_WIN32           : return "win32"
+    case TARGET_LINUX_X86_64    : return "linux-x86_64"
+    end select
+    return "win64"
+end function
+
+function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
+    ok = true
+    dim as string s = Text.LowerAscii( nm )
+    if s = "win64" then return TARGET_WIN64
+    if s = "win32" then return TARGET_WIN32
+    if s = "linux-x86_64" then return TARGET_LINUX_X86_64
+    ok = false
+    return HostTarget( )
+end function
+
+function TargetIs64( byval t as TargetId ) as boolean
+    return t <> TARGET_WIN32
+end function
+
+function TargetIsWindows( byval t as TargetId ) as boolean
+    return t <> TARGET_LINUX_X86_64
+end function
+
+'' Measured, per target, rather than derived from the pointer width -- because two of
+'' these numbers do not follow from it. The FBSTRING descriptor is 12 bytes on win32
+'' and 24 on win64, but its ALIGNMENT is 4 there and 8 here; and maxAlign stays 8 on
+'' win32, where an 8-byte field still aligns to 8. 'type W { byte; string }' is 16
+'' bytes with the string at offset 4 on win32, which is what pins both.
+function TargetLayoutFor( byval t as TargetId ) as TargetLayout
+    dim as TargetLayout r
+    r.maxAlign = 8
+    select case t
+    case TARGET_WIN32
+        r.pointerBits = 32
+        r.wcharBytes = 2
+        r.stringBytes = 12
+        r.stringAlign = 4
+    case TARGET_LINUX_X86_64
+        r.pointerBits = 64
+        r.wcharBytes = 4
+        r.stringBytes = 24
+        r.stringAlign = 8
+    case else                   '' TARGET_WIN64
+        r.pointerBits = 64
+        r.wcharBytes = 2
+        r.stringBytes = 24      '' FBSTRING: data ptr + len + size
+        r.stringAlign = 8
+    end select
+    return r
+end function
+
+function DefaultTargetLayout( ) as TargetLayout
+    return TargetLayoutFor( HostTarget( ) )
 end function
 
 '' ------------------------------------------------------------------- lifetime

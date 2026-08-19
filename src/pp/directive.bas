@@ -439,14 +439,28 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__FB_LANG__", """fb""" )
     PpDefineValue( e, "__FB_BACKEND__", """llvm""" )
 
-    '' Target. Only the two supported targets can be true here.
-    #ifdef __FB_WIN32__
+    '' Target. From the TARGET, not from an '#ifdef' at fbx's own compile time, which
+    '' is what made '-target linux-x86_64' produce a Windows environment.
+    dim as boolean onWindows = true
+    dim as boolean on64 = true
+    if e.cfg <> 0 then
+        onWindows = e.cfg->targetIsWindows
+        on64 = e.cfg->targetIs64
+    end if
+    if onWindows then
         PpDefineValue( e, "__FB_WIN32__", "-1" )
-    #else
+    else
         PpDefineValue( e, "__FB_LINUX__", "-1" )
         PpDefineValue( e, "__FB_UNIX__", "-1" )
-    #endif
-    PpDefineValue( e, "__FB_64BIT__", "-1" )
+    end if
+
+    '' DEFINED AND EMPTY on a 64-bit target, and NOT DEFINED AT ALL on a 32-bit one.
+    '' Measured: fbc errors on '#if __FB_64BIT__' -- "Expected expression" -- because
+    '' the macro has no body, and the corpus agrees, testing it with #ifdef, #ifndef or
+    '' defined() in all 208 places it appears and never with #if.
+    if on64 then
+        PpDefineValue( e, "__FB_64BIT__", "" )
+    end if
     PpDefineValue( e, "__FB_PCOS__", """" & _
         iif( 0, "", "" ) & """" )
 

@@ -186,6 +186,25 @@ private function MakeLiteral _
     return Fbx.NewNode( *p.ast, kind, t.loc, p.ast->literals.Count - 1 )
 end function
 
+'' One token as the node it IS -- a literal for a literal, an identifier otherwise.
+''
+'' DATA's items were built with MakeIdent unconditionally, and MakeIdent reads
+'' 't.literal' as an INTERN ID. On a literal token that field is an index into the
+'' LITERAL POOL, so 'data 1, "two", three' dumped as N_IDENT 'cushort', N_IDENT
+'' 'cva_arg' -- whichever keywords happened to sit at those interner slots. It was
+'' invisible because nothing lowers DATA yet, and it shifted the moment an unrelated
+'' change altered how many literals the preprocessor interns first.
+function MakeTokenNode _
+    ( byref p as Fbx.ParserState, byref t as Fbx.Token ) as Fbx.NodeId
+
+    select case cast( Fbx.TokenKind, t.kind )
+    case Fbx.TK_INT_LIT    : return MakeLiteral( p, t, Fbx.N_INT_LIT, *p.litPool )
+    case Fbx.TK_FLOAT_LIT  : return MakeLiteral( p, t, Fbx.N_FLOAT_LIT, *p.litPool )
+    case Fbx.TK_STRING_LIT : return MakeLiteral( p, t, Fbx.N_STRING_LIT, *p.litPool )
+    end select
+    return MakeIdent( p, t )
+end function
+
 function MakeIdent( byref p as Fbx.ParserState, byref t as Fbx.Token ) as Fbx.NodeId
     dim as Fbx.IdentPayload ip
     ip.name = cast( Fbx.InternId, t.literal )

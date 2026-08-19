@@ -15,6 +15,7 @@
 #define __FBX_OPTIONS_BI__
 
 #include once "fbx.bi"
+#include once "types/type.bi"
 #include once "diag/diagnostic.bi"
 
 namespace Fbx
@@ -55,7 +56,7 @@ namespace Fbx
 
     OPT( OPT_TARGET,    "-target",    OPTK_VALUE, OPTCAT_TARGET,  "name",     "win64 or linux-x86_64" )
     OPT( OPT_M64,       "-m64",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "64-bit target (the only supported width)" )
-    OPT( OPT_M32,       "-m32",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "32-bit target (rejected; see docs)" )
+    OPT( OPT_M32,       "-m32",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "32-bit target; win32 only" )
 
     OPT( OPT_WERROR,    "-Werror",    OPTK_FLAG,  OPTCAT_DIAG,    "",         "treat warnings as errors" )
     OPT( OPT_WNO,       "-Wno-",      OPTK_JOINED,OPTCAT_DIAG,    "id",       "suppress one diagnostic id" )
@@ -112,6 +113,15 @@ namespace Fbx
 
         as string  outputPath
         as string  targetName
+        '' The parsed form of targetName. Everything downstream reads THIS: layout,
+        '' the preprocessor's predefines, and eventually the ABI. targetName was
+        '' written and read by nothing, which is how '-target linux-x86_64' came to be
+        '' accepted and then ignored.
+        as Fbx.TargetId target
+        '' -m32 / -m64, held until the whole line is read. Applied as it is SEEN, the
+        '' answer would depend on the order: '-m32 -target linux-x86_64' would quietly
+        '' end up on Linux, while the reverse order errors.
+        as long    widthOverride
 
         as boolean compileOnly
         as boolean debugInfo

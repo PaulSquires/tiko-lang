@@ -39,6 +39,8 @@ private function MakePpConfig( byref ctx as Fbx.CompilerContext ) as Fbx.PpConfi
     dim as Fbx.PpConfig cfg
     cfg.includePaths = @ctx.options.includePaths
     cfg.defines = @ctx.options.defines
+    cfg.targetIsWindows = Fbx.TargetIsWindows( ctx.options.target )
+    cfg.targetIs64 = Fbx.TargetIs64( ctx.options.target )
     cfg.reportUnsupported = true
     return cfg
 end function
@@ -83,6 +85,13 @@ function Run( byref args as Fbx.StrVec ) as long
 
     dim as boolean cmdOk = Fbx.Cmdline.Parse( args, ctx.options, ctx.diags )
     ApplyDiagPolicy( ctx )
+
+    '' THE TARGET DECIDES THE LAYOUT, and it is only known now. The context is built
+    '' before the command line is parsed -- the source manager needs the interner's
+    '' address, and the diagnostic engine the manager's -- so the constructor takes the
+    '' HOST's layout and this replaces it. Nothing has been laid out yet: builtin sizes
+    '' are computed on demand from 'target' and no layout is cached.
+    ctx.types.Attach( @ctx.names, Fbx.TargetLayoutFor( ctx.options.target ) )
 
     if cmdOk = false then
         ctx.diags.Flush( )

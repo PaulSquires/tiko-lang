@@ -45,7 +45,7 @@
     DIAG( FBX0101, SEV_ERROR,   "option '%0' requires an argument" )
     DIAG( FBX0102, SEV_ERROR,   "no input files" )
     DIAG( FBX0103, SEV_ERROR,   "unknown target '%0'" )
-    DIAG( FBX0104, SEV_ERROR,   "32-bit targets are not supported" )
+    DIAG( FBX0104, SEV_ERROR,   "32-bit is supported on Windows only" )
     DIAG( FBX0105, SEV_WARNING, "unknown diagnostic id '%0'" )
     DIAG( FBX0106, SEV_ERROR,   "'%0' is not a recognised value for '%1'" )
     DIAG( FBX0107, SEV_WARNING, "ignoring unsupported option '%0'" )

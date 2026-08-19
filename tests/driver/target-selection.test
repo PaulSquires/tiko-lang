@@ -1,0 +1,8 @@
+'' The TARGET decides the layout, and -target must actually reach it. It did not:
+'' the type context is built before the command line is parsed, so 'targetName' was
+'' written and read by nothing, and every compilation used the host's layout.
+'' Every number here is measured from fbc for that target.
+'' TEST: cli
+'' ARGS: --dump-types -target win32 tests/source/plain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: pointer=32 bits, wchar=2 bytes, string=12 bytes align 4
