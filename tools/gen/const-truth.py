@@ -19,9 +19,17 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe")
-OUT = ROOT / "tests/types/expected/fbc-const.txt"
-WORK = ROOT / "build/.ce"
+
+# One entry per target. win32 comes from a different fbc -- fbc-modern has no 32-bit
+# build -- with the caveat recorded in docs/internals/phase-5-const-width.md.
+TC64 = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows")
+TC32 = Path(r"C:\dev\tiko_editor\toolchains\FreeBASIC-1.10.1-winlibs-gcc-9.3.0")
+TARGETS = [
+    ("win64", TC64 / "fbc64.exe", ROOT / "tests/types/expected/fbc-const.txt",
+     ROOT / "build/.ce"),
+    ("win32", TC32 / "fbc32.exe", ROOT / "tests/types/expected/fbc-const-win32.txt",
+     ROOT / "build/.ce32"),
+]
 
 # The expressions where a constant evaluator is most likely to be quietly wrong:
 # sign rules for truncating division, shift widths and counts, overflow, and the
@@ -50,30 +58,34 @@ EXPRS = [
 BITS = 64
 
 
-def main() -> int:
-    if not FBC.exists():
-        print(f"const-truth: fbc not found at {FBC}", file=sys.stderr)
+def one_target(label, fbc, out, work) -> int:
+    if not fbc.exists():
+        print(f"const-truth: {label}: no fbc at {fbc}", file=sys.stderr)
         return 3
-    WORK.mkdir(parents=True, exist_ok=True)
+    work.mkdir(parents=True, exist_ok=True)
 
     lines, line_of = [], {}
     for ei, e in enumerate(EXPRS):
         for k in range(BITS):
-            lines.append(f"#assert (( ({e}) shr {k} ) and 1) = 1")
+            # CLNGINT first, so the bit probe's own shifts happen at 64 bits. Without
+            # it a 32-bit expression on win32 would be shifted past its own width, and
+            # the top half of every value would read back as noise -- the measurement
+            # broken by exactly the thing it is measuring.
+            lines.append(f"#assert (( clngint({e}) shr {k} ) and 1) = 1")
             line_of[len(lines)] = (ei, k)
 
-    src = WORK / "const.bas"
+    src = work / "const.bas"
     src.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     proc = subprocess.run(
-        [str(FBC), "-c", str(src), "-o", str(WORK / "const.o"),
+        [str(fbc), "-c", str(src), "-o", str(work / "const.o"),
          "-maxerr", str(len(lines) + 100)],
         capture_output=True, text=True)
-    out = (proc.stdout or "") + (proc.stderr or "")
+    diag = (proc.stdout or "") + (proc.stderr or "")
 
     zero = set()
     unusable = set()
-    for m in re.finditer(r"\((\d+)\)\s+error\s+(\d+)", out):
+    for m in re.finditer(r"\((\d+)\)\s+error\s+(\d+)", diag):
         n, code = int(m.group(1)), int(m.group(2))
         if n not in line_of:
             continue
@@ -94,11 +106,19 @@ def main() -> int:
         if v >= 1 << 63:                  # render as signed 64-bit
             v -= 1 << 64
         rows.append(f"{e}\t{v}")
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
-    print(f"const-truth: {len(rows)} expressions, {len(unusable)} not foldable "
-          f"-> tests/types/expected/fbc-const.txt")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
+    print(f"const-truth: {label}: {len(rows)} expressions, {len(unusable)} not "
+          f"foldable -> {out.name}")
     return 0
+
+
+def main() -> int:
+    rc = 0
+    for label, fbc, out, work in TARGETS:
+        if one_target(label, fbc, out, work) != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

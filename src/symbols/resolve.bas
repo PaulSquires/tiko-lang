@@ -229,7 +229,8 @@ private function ResolveTypeRef _
         select case k
         case Fbx.KW_ZSTRING, Fbx.KW_WSTRING, Fbx.KW_USTRING
             dim as Fbx.Check.ConstVal lv = _
-                Fbx.Check.ConstOf( *c.ast, sp->c, *c.srcMgr, *c.names )
+                Fbx.Check.ConstOf( *c.ast, sp->c, *c.srcMgr, *c.names, _
+                                   c.types->target.pointerBits )
             if lv.known andalso (lv.value > 0) then
                 base_ = c.types->ArrayOf( base_, 1, cast( long, lv.value ) )
             end if
@@ -400,14 +401,16 @@ private function ArrayFromPairs _
         dim as Fbx.NodeId loN = cast( Fbx.NodeId, los[i] )
         if loN <> Fbx.NODE_NONE then
             dim as Fbx.Check.ConstVal lv = _
-                Fbx.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names )
+                Fbx.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names, _
+                                   c.types->target.pointerBits )
             if lv.known then lo = lv.value else known = false
         end if
         dim as longint hi = lo - 1
         dim as Fbx.NodeId hiN = cast( Fbx.NodeId, his[i] )
         if hiN <> Fbx.NODE_NONE then
             dim as Fbx.Check.ConstVal hv = _
-                Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names )
+                Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
+                                   c.types->target.pointerBits )
             if hv.known then hi = hv.value else known = false
         else
             known = false

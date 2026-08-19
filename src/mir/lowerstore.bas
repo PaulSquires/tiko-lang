@@ -147,6 +147,23 @@ private function UniqueGlobalName _
 end function
 
 '' The ADDRESS of a variable, wherever its storage lives.
+'' A DIM SHARED or STATIC initialiser, which is a compile-time value rather than a store
+'' on entry. A non-constant one cannot become a static one and declines.
+sub InitSharedGlobal _
+    ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init as Fbx.NodeId )
+
+    dim as long g = GlobalFor( c, sid )
+    if (g < 0) orelse (init = Fbx.NODE_NONE) then return
+    dim as Fbx.Check.ConstVal cv = Fbx.Check.ConstOf( _
+        *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits )
+    if cv.known = false then
+        SkipHere( c )
+        return
+    end if
+    c.m->globals[g].initInt = cv.value
+    c.m->globals[g].hasInit = true
+end sub
+
 function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as MirValue v
 

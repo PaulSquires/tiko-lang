@@ -868,18 +868,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             dim as boolean inModule = IsSharedVar( c, sid )
             if IsStaticLocal( c, sid ) then inModule = true
             if inModule then
-                dim as long g = GlobalFor( c, sid )
-                if (g >= 0) andalso (ip->b <> Fbx.NODE_NONE) then
-                    dim as Fbx.Check.ConstVal cv = Fbx.Check.ConstOf( _
-                        *c.ast, ip->b, *c.srcMgr, *c.names )
-                    if cv.known then
-                        c.m->globals[g].initInt = cv.value
-                        c.m->globals[g].hasInit = true
-                    else
-                        '' A non-constant initialiser cannot become a static one.
-                        SkipHere( c )
-                    end if
-                end if
+                InitSharedGlobal( c, sid, ip->b )
                 continue for
             end if
 
@@ -1176,7 +1165,8 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     dim as MirValue lim = Coerce( c, LowerExpr( c, toE ), ity )
     dim as boolean negStep = false
     if stepE <> Fbx.NODE_NONE then
-        dim as Fbx.Check.ConstVal sv = Fbx.Check.ConstOf( *c.ast, stepE, *c.srcMgr, *c.names )
+        dim as Fbx.Check.ConstVal sv = Fbx.Check.ConstOf( *c.ast, stepE, *c.srcMgr, *c.names, _
+                                   c.types->target.pointerBits )
         if sv.known then
             negStep = (sv.value < 0)
         else

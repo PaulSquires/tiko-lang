@@ -180,7 +180,8 @@ function LowerPredeclared _
         if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then return v
         dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
         dim as Fbx.Check.ConstVal cv = _
-            Fbx.Check.ConstOf( *c.ast, ip->b, *c.srcMgr, *c.names )
+            Fbx.Check.ConstOf( *c.ast, ip->b, *c.srcMgr, *c.names, _
+                               c.types->target.pointerBits )
         if cv.known = false then return v
         dim as MirType mt = LowerType( c.info->TypeOf_( id ), *c.types )
         if mt = MT_VOID then mt = MT_I64

@@ -475,7 +475,53 @@ private function CV_( byval v as longint ) as ConstVal
     dim as ConstVal r
     r.known = true
     r.value = v
+    r.bits = 64
     return r
+end function
+
+'' A value folded at a WIDTH. Anything narrower than 64 bits is sign-extended back, so
+'' the stored value is always the one a 64-bit register would hold -- '1 shl 31' at 32
+'' bits is -2147483648, not 2147483648.
+private function CVW_( byval v as longint, byval bits as long ) as ConstVal
+    dim as ConstVal r
+    r.known = true
+    r.bits = iif( bits <= 32, 32, 64 )
+    if r.bits = 32 then
+        r.value = cast( longint, cast( long, v ) )
+    else
+        r.value = v
+    end if
+    return r
+end function
+
+'' The width a binary operator folds at: the WIDER of its operands.
+private function WiderOf_( byref a as ConstVal, byref b as ConstVal ) as long
+    dim as long wa = iif( a.bits = 0, 64, a.bits )
+    dim as long wb = iif( b.bits = 0, 64, b.bits )
+    return iif( wa > wb, wa, wb )
+end function
+
+'' The width an INTEGER LITERAL has. Its suffix decides when it has one; otherwise it is
+'' INTEGER -- pointer-width -- unless the value does not fit, when fbc promotes it to
+'' LONGINT. Measured: on win32 'typeof( 5000000000 )' is LONGINT while
+'' 'typeof( &hFFFFFFFF )' is INTEGER, and the second folds to -1.
+private function LitBits_ _
+    ( byval suffix as ubyte, byval v as longint, byval intBits as long ) as long
+
+    select case cast( Fbx.NumSuffix, suffix )
+    case Fbx.NSUF_LONG, Fbx.NSUF_ULONG, Fbx.NSUF_INTEGER, Fbx.NSUF_UINTEGER
+        '' '%' and 'U' are INTEGER and UINTEGER, which are pointer-width; 'L' and 'UL'
+        '' are LONG and ULONG, which are 32 everywhere.
+        select case cast( Fbx.NumSuffix, suffix )
+        case Fbx.NSUF_LONG, Fbx.NSUF_ULONG : return 32
+        end select
+        return intBits
+    case Fbx.NSUF_LONGINT, Fbx.NSUF_ULONGINT
+        return 64
+    end select
+    if intBits >= 64 then return 64
+    if (v >= -2147483648ll) andalso (v <= 4294967295ll) then return 32
+    return 64
 end function
 
 private function CVNone_( ) as ConstVal
@@ -622,7 +668,8 @@ end function
 
 function ConstOf _
     ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
-      byref src as Fbx.SourceManager, byref names as Fbx.Interner ) as ConstVal
+      byref src as Fbx.SourceManager, byref names as Fbx.Interner, _
+      byval intBits as long = 64 ) as ConstVal
 
     if id = Fbx.NODE_NONE then return CVNone_( )
 
@@ -630,54 +677,71 @@ function ConstOf _
     case Fbx.N_INT_LIT
         dim as Fbx.LiteralPayload ptr lp = _
             @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
-        return CV_( cast( longint, lp->intValue ) )
+        dim as longint iv = cast( longint, lp->intValue )
+        return CVW_( iv, LitBits_( lp->suffix, iv, intBits ) )
 
     case Fbx.N_PAREN
         dim as Fbx.ListPayload ptr pp = _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return CVNone_( )
-        return ConstOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), src, names )
+        return ConstOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), src, names, intBits )
 
     case Fbx.N_UNARY
         dim as Fbx.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as ConstVal v = ConstOf( ast, up->operand, src, names )
+        dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits )
         if v.known = false then return CVNone_( )
+        '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
+        '' '-(1 shl 31)' at 32 bits is 2147483648 rather than -2147483648.
         select case cast( Fbx.TokenKind, up->op )
-        case Fbx.TK_MINUS : return CV_( -v.value )
-        case Fbx.TK_PLUS  : return CV_( v.value )
-        case Fbx.KW_NOT   : return CV_( not v.value )
+        case Fbx.TK_MINUS : return CVW_( -v.value, v.bits )
+        case Fbx.TK_PLUS  : return CVW_( v.value, v.bits )
+        case Fbx.KW_NOT   : return CVW_( not v.value, v.bits )
         end select
         return CVNone_( )
 
     case Fbx.N_BINARY
         dim as Fbx.BinaryPayload ptr bp = _
             @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as ConstVal l = ConstOf( ast, bp->lhs, src, names )
+        dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits )
         if l.known = false then return CVNone_( )
-        dim as ConstVal r = ConstOf( ast, bp->rhs, src, names )
+        dim as ConstVal r = ConstOf( ast, bp->rhs, src, names, intBits )
         if r.known = false then return CVNone_( )
         dim as longint a = l.value
         dim as longint b = r.value
+        '' The operator folds at the WIDER operand's width, and the result is narrowed
+        '' back to it. A COMPARISON is not arithmetic: its result is INTEGER, so it takes
+        '' the target's width whatever the operands were.
+        dim as long w = WiderOf_( l, r )
+
+        '' SHIFTS are done at the operand width, so '1 shl 31' is -2147483648 on win32
+        '' and 2147483648 on win64, and '1 shl 32' is 1 there and 4294967296 here. That
+        '' is a wrap, not an error: fbc warns and carries on.
+        dim as longint sb = b
+        if (w = 32) andalso (sb >= 0) then sb = sb and 31
 
         select case cast( Fbx.TokenKind, bp->op )
-        case Fbx.TK_PLUS      : return CV_( a + b )
-        case Fbx.TK_MINUS     : return CV_( a - b )
-        case Fbx.TK_STAR      : return CV_( a * b )
+        case Fbx.TK_PLUS      : return CVW_( a + b, w )
+        case Fbx.TK_MINUS     : return CVW_( a - b, w )
+        case Fbx.TK_STAR      : return CVW_( a * b, w )
         case Fbx.TK_BACKSLASH
             if b = 0 then return CVNone_( )
-            return CV_( a \ b )
+            return CVW_( a \ b, w )
         case Fbx.KW_MOD
             if b = 0 then return CVNone_( )
-            return CV_( a mod b )
-        case Fbx.TK_CARET     : return CV_( IPow_( a, b ) )
-        case Fbx.KW_SHL       : return CV_( a shl b )
-        case Fbx.KW_SHR       : return CV_( a shr b )
-        case Fbx.KW_AND       : return CV_( a and b )
-        case Fbx.KW_OR        : return CV_( a or b )
-        case Fbx.KW_XOR       : return CV_( a xor b )
-        case Fbx.KW_EQV       : return CV_( a eqv b )
-        case Fbx.KW_IMP       : return CV_( a imp b )
+            return CVW_( a mod b, w )
+        case Fbx.TK_CARET     : return CVW_( IPow_( a, b ), w )
+        case Fbx.KW_SHL       : return CVW_( a shl sb, w )
+        case Fbx.KW_SHR
+            '' SHR is ARITHMETIC, and at 32 bits it must shift the 32-bit value rather
+            '' than the sign-extended one: '&hFFFFFFFF shr 4' is -1 shr 4 = -1.
+            if w = 32 then return CVW_( cast( longint, cast( long, a ) ) shr sb, w )
+            return CVW_( a shr sb, w )
+        case Fbx.KW_AND       : return CVW_( a and b, w )
+        case Fbx.KW_OR        : return CVW_( a or b, w )
+        case Fbx.KW_XOR       : return CVW_( a xor b, w )
+        case Fbx.KW_EQV       : return CVW_( a eqv b, w )
+        case Fbx.KW_IMP       : return CVW_( a imp b, w )
         case Fbx.TK_EQ        : return CVBool_( a = b )
         case Fbx.TK_NE        : return CVBool_( a <> b )
         case Fbx.TK_LT        : return CVBool_( a < b )
@@ -1289,7 +1353,7 @@ function Dump _
         outp += str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & nm & chr( 10 )
         '' Constants get their own line with a NON-numeric prefix, so the promotion
         '' and overload gates -- which key on 'line type' -- cannot collide with it.
-        dim as ConstVal cv = ConstOf( ast, arg, src, names )
+        dim as ConstVal cv = ConstOf( ast, arg, src, names, types.target.pointerBits )
         if cv.known then
             outp += "const " & str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & _
                     str( cv.value ) & chr( 10 )

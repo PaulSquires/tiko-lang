@@ -14,23 +14,24 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-TRUTH = ROOT / "tests/types/expected/fbc-const.txt"
 WORK = ROOT / "build/.ce"
 FBX = ROOT / "bin/fbx.exe"
 
+TARGETS = [
+    ("win64", ROOT / "tests/types/expected/fbc-const.txt", []),
+    ("win32", ROOT / "tests/types/expected/fbc-const-win32.txt",
+     ["-target", "win32"]),
+]
 
-def main() -> int:
-    if not TRUTH.exists():
-        print("check-const: no truth file; run tools/gen/const-truth.py",
+
+def one_target(fbx, label, truth, tgtargs) -> int:
+    if not truth.exists():
+        print(f"check-const: {label}: no truth file; run tools/gen/const-truth.py",
               file=sys.stderr)
-        return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print("check-const: fbx not built", file=sys.stderr)
         return 3
 
     rows = [line.split("\t")
-            for line in TRUTH.read_text(encoding="utf-8").splitlines() if line.strip()]
+            for line in truth.read_text(encoding="utf-8").splitlines() if line.strip()]
 
     WORK.mkdir(parents=True, exist_ok=True)
     src, line_of = [], {}
@@ -41,7 +42,7 @@ def main() -> int:
     probe = WORK / "const-fbx.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check", str(probe)],
+    proc = subprocess.run([str(fbx), "--check"] + tgtargs + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -65,16 +66,29 @@ def main() -> int:
             diffs.append(f"{e}: fbc={want} fbx={got[i]}")
 
     total = sum(1 for r in rows if r[1] != "reject")
-    print(f"check-const: {ok}/{total} exact")
+    print(f"check-const: {label} {ok}/{total} exact")
     if diffs:
-        print(f"check-const: {len(diffs)} WRONG:")
+        print(f"check-const: {label} {len(diffs)} WRONG:")
         for d in diffs[:20]:
             print("   ", d)
     if nofold:
-        print(f"check-const: {nofold} not folded by fbx (not wrong, just absent):")
+        print(f"check-const: {label} {nofold} not folded by fbx "
+              f"(not wrong, just absent):")
         for m in missing[:20]:
             print("   ", m)
     return 0 if not diffs else 1
+
+
+def main() -> int:
+    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
+    if not fbx.exists():
+        print("check-const: fbx not built", file=sys.stderr)
+        return 3
+    rc = 0
+    for label, truth, tgtargs in TARGETS:
+        if one_target(fbx, label, truth, tgtargs) != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

@@ -156,6 +156,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     declare function LowerTextAddr _
         ( byref c as Ctx, byref text as string ) as MirValue
+    '' A DIM SHARED / STATIC initialiser: a compile-time value, not a store on entry.
+    declare sub InitSharedGlobal _
+        ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init as Fbx.NodeId )
+
     '' TRUE, FALSE and __FUNCTION__: predeclared names that are values, not storage.
     declare function LowerPredeclared _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue

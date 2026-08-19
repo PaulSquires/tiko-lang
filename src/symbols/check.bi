@@ -114,14 +114,24 @@ namespace Fbx.Check
     type ConstVal
         as boolean  known
         as longint  value
+        '' The WIDTH the value was folded at, 32 or 64. Not decoration: on win32
+        '' 'integer' is four bytes, so '1 shl 31' is -2147483648 there and 2147483648
+        '' here, and '&hFFFFFFFF' is -1 rather than 4294967295. Carried per sub-
+        '' expression because a binary operator folds at the WIDER of its operands.
+        as long     bits
     end type
 
     '' Fold an expression to an integer constant, matching fbc bit for bit. The
     '' source manager is needed for LEN and ASC, whose argument is a string literal
     '' recorded as a span rather than as text.
+    '' 'intBits' is the width of INTEGER on the target -- 32 on win32, 64 elsewhere.
+    '' It is the ONLY thing the evaluator needs from the target, and passing it keeps
+    '' ConstOf independent of the symbol table, which is what matters: Resolve calls it
+    '' before anything has been typed, for array bounds and 'zstring * N'.
     declare function ConstOf _
         ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
-          byref src as Fbx.SourceManager, byref names as Fbx.Interner ) as ConstVal
+          byref src as Fbx.SourceManager, byref names as Fbx.Interner, _
+          byval intBits as long = 64 ) as ConstVal
 
     declare function AssignableTo _
         ( byval src as Fbx.TypeId, byval dst as Fbx.TypeId, _
