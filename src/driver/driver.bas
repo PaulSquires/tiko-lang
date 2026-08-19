@@ -279,6 +279,9 @@ function Run( byref args as Fbx.StrVec ) as long
                     print "  amb call-nocode " & str( lst.ambCallNoCode )
                 end if
                 if lst.ambAssign > 0 then print "  amb assign " & str( lst.ambAssign )
+                if lst.ambResultNoSlot > 0 then
+                    print "  amb result-noslot " & str( lst.ambResultNoSlot )
+                end if
                 if lst.ambOther > 0 then print "  amb other " & str( lst.ambOther )
                 '' Which LINE of the lowering gave up, which is the thing to go and read.
                 for i as long = 0 to lst.skipSiteN.Count - 1

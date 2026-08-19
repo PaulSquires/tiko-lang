@@ -52,6 +52,22 @@ type Ctx
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
     as Fbx.SymbolId         curProcSym
 
+    '' The result slot of the procedure being lowered, or -1 for a SUB and for any
+    '' result type this does not handle. Measured from fbc's own C:
+    ''
+    ''     int64 F( int64 N$1 ) {
+    ''         int64 fb$result$1;
+    ''         __builtin_memset( &fb$result$1, 0, 8ll );
+    ''         fb$result$1 = 7ll;             <- 'function = 7'
+    ''         return fb$result$1;            <- falling off the end
+    ''     }
+    ''
+    '' Zero-initialised and returned unconditionally, so a function that assigns
+    '' nothing returns zero rather than whatever the stack held.
+    as long                 resultSlot
+    as ubyte                resultTy
+    as Fbx.TypeId           resultType
+
     '' The statement kind currently being lowered, so a decline INSIDE one can say which.
     '' The statement-dispatch breakdown accounts for about 3,700 of ~98,700 declines; the
     '' rest happen part-way through a statement and had no attribution at all.
@@ -110,6 +126,11 @@ declare function EmitRtl _
     declare sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
     declare function LowerExprLoad _
         ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
+    declare function LoadResult( byref c as Ctx ) as MirValue
+    '' lowerproc.bas -- the two procedure lowerings.
+    declare sub LowerProc( byref c as Ctx, byval id as Fbx.NodeId )
+    declare sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
+    declare function ZeroOf( byref c as Ctx, byval t as MirType ) as MirValue
     declare function Coerce _
         ( byref c as Ctx, byref v as MirValue, byval want as MirType ) as MirValue
     declare function BinOpFor _

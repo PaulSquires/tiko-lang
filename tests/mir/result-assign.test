@@ -1,0 +1,5 @@
+'' 'function = expr' and 'f = expr' both store to a zero-initialised result slot.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/result-assign.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/result-assign.out

@@ -101,6 +101,14 @@ function ConstFloat _
     return Emit( c, ins )
 end function
 
+'' A typed zero. A float result slot must be zeroed with a FLOAT constant: an integer
+'' zero stored into an f64 slot is a type mismatch the verifier catches, and would be a
+'' reinterpreted bit pattern if it did not.
+function ZeroOf( byref c as Ctx, byval t as MirType ) as MirValue
+    if IsFloatTy( t ) then return ConstFloat( c, 0.0, t )
+    return ConstInt( c, 0, t )
+end function
+
 function IsFloatTy( byval t as MirType ) as boolean
     return (t = MT_F32) orelse (t = MT_F64)
 end function
@@ -875,6 +883,36 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
     case Fbx.N_AMBIGUOUS
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         select case c.info->AmbiguousOf( id )
+        case Fbx.AMB_RESULT
+            '' BASIC's result assignment, both spellings: 'function = expr' and
+            '' 'f = expr' inside f. It stores and CARRIES ON -- it is not a return, so
+            '' no terminator and no cleanups.
+            if c.resultSlot < 0 then
+                '' A result type with no slot: STRING and UDT returns go through a
+                '' hidden pointer fbx does not model. Declining is the honest answer;
+                '' storing into an invented slot would compile and be wrong.
+                SkipHere( c )
+                c.st->ambResultNoSlot += 1
+            else
+                dim as MirValue rval = LowerExpr( c, sp->b )
+                if rval.kind = cast( ubyte, MV_NONE ) then
+                    SkipHere( c )
+                else
+                    dim as MirValue raddr
+                    raddr.kind = cast( ubyte, MV_LOCAL )
+                    raddr.ty = cast( ubyte, MT_PTR )
+                    raddr.id = c.resultSlot
+                    dim as MirInst rs
+                    rs.op = cast( ushort, M_STORE )
+                    rs.ty = cast( ubyte, MT_VOID )
+                    rs.a = raddr
+                    '' MIR has no implicit conversions, so the narrowing FreeBASIC
+                    '' allows on a result assignment is explicit here, exactly as it
+                    '' is for an ordinary assignment.
+                    rs.b = Coerce( c, rval, cast( MirType, c.resultTy ) )
+                    Emit( c, rs )
+                end if
+            end if
         case Fbx.AMB_ASSIGN
             dim as long beforeA = c.f->blocks[c.curBlock].insts.Count
             LowerAssign( c, sp->a, sp->b )
@@ -970,8 +1008,16 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
 
     case Fbx.N_RETURN
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        '' 'return' with no expression yields the result variable, not nothing --
+        '' 'function = 7 : return' is 7. Loaded only in that case: reading the slot
+        '' unconditionally emitted a load every explicit 'return expr' then discarded,
+        '' which the golden caught as four dead instructions.
         dim as MirValue rv
-        if sp->a <> Fbx.NODE_NONE then rv = LowerExpr( c, sp->a )
+        if sp->a <> Fbx.NODE_NONE then
+            rv = LowerExpr( c, sp->a )
+        else
+            rv = LoadResult( c )
+        end if
         '' A RETURN leaves every open scope, so every open scope's actions run,
         '' innermost first, BEFORE the terminator.
         EmitCleanupsTo( c, 0 )
@@ -1178,6 +1224,18 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = exitB
 end sub
 
+'' The result variable's value, or nothing when the procedure has no slot -- a SUB, or
+'' a result type the slot does not cover. Callers pass it straight to Terminate, which
+'' treats MV_NONE as 'return no value'.
+function LoadResult( byref c as Ctx ) as MirValue
+    if c.resultSlot < 0 then return NoVal( )
+    dim as MirValue addr
+    addr.kind = cast( ubyte, MV_LOCAL )
+    addr.ty = cast( ubyte, MT_PTR )
+    addr.id = c.resultSlot
+    return LowerExprLoad( c, addr, cast( MirType, c.resultTy ) )
+end function
+
 function LowerExprLoad _
     ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
     dim as MirInst ins
@@ -1187,242 +1245,9 @@ function LowerExprLoad _
     return Emit( c, ins )
 end function
 
-'' ------------------------------------------------------------------ the walk
-
-private sub LowerProc _
-    ( byref c as Ctx, byval id as Fbx.NodeId )
-
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->b = Fbx.NODE_NONE then return       '' a declaration, not a definition
-
-    dim as Fbx.SymbolId sid = c.info->RefOf( id )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
-    dim as Fbx.TypeId rt = iif( s <> 0, s->type_, Fbx.TYPE_NONE )
-
-    '' MIR carries the MANGLED name and never a source one.
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, id, *c.syms, *c.names, *c.types, *c.info ) )
-
-    dim as MirFunction ptr f = c.m->AddFunction( nm, LowerType( rt, *c.types ) )
-    f->isDefinition = true
-    dim as MirFunction ptr savedF = c.f
-    dim as long savedB = c.curBlock
-    dim as Fbx.SymbolId savedSym = c.curProcSym
-    c.f = f
-    c.curProcSym = sid
-    c.st->functions += 1
-
-    '' An instance method takes THIS as parameter ZERO. It is never written in the
-    '' source, so nothing else would count it -- and without it '@this' named a fresh
-    '' uninitialised local while every CALL site dutifully passed a receiver into
-    '' nothing.
-    dim as Fbx.SymbolId thisSym = Fbx.SYMBOL_NONE
-    if s <> 0 then
-        if s->inner <> Fbx.SCOPE_NONE then
-            thisSym = c.syms->LookupLocal( s->inner, _
-                c.names->Fold( c.names->GetString( "this" ) ) )
-        end if
-    end if
-    if thisSym <> Fbx.SYMBOL_NONE then f->paramCount += 1
-
-    for i as long = 0 to sp->count - 1
-        if c.ast->Kind( cast( Fbx.NodeId, c.ast->children[sp->first + i] ) ) = Fbx.N_PARAM then
-            f->paramCount += 1
-        end if
-    next
-
-    c.curBlock = NewBlock( c, "entry" )
-
-    '' A parameter is a slot like any other local, written once on entry. That is
-    '' what makes 'byval' parameters assignable, which FreeBASIC allows, and it is
-    '' the shape mem2reg expects.
-    dim as long pidx = 0
-    if thisSym <> Fbx.SYMBOL_NONE then
-        '' THIS is a POINTER TO the object -- the symbol carries that type, so the slot
-        '' comes out a pointer and 'this.field' reaches through it like any other
-        '' pointer base. It is what fbc's own C says: 'struct $1T* THIS$1'.
-        dim as long tslot = LocalFor( c, thisSym )
-        if tslot < 0 then tslot = 0
-        dim as MirValue taddr
-        taddr.kind = cast( ubyte, MV_LOCAL )
-        taddr.ty = cast( ubyte, MT_PTR )
-        taddr.id = tslot
-        dim as MirValue tpv
-        tpv.kind = cast( ubyte, MV_PARAM )
-        tpv.ty = cast( ubyte, MT_PTR )
-        tpv.id = 0
-        dim as MirInst tins
-        tins.op = cast( ushort, M_STORE )
-        tins.ty = cast( ubyte, MT_VOID )
-        tins.a = taddr
-        tins.b = tpv
-        Emit( c, tins )
-        pidx = 1
-    end if
-    for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-        dim as Fbx.StmtPayload ptr pp = StmtOf( c, prm )
-        dim as Fbx.SymbolId psid = c.syms->LookupLocal( c.info->ScopeOf( id ), pp->name )
-        if psid <> Fbx.SYMBOL_NONE then
-            dim as long slot = LocalFor( c, psid )
-            if slot >= 0 then
-                dim as MirValue addr
-                addr.kind = cast( ubyte, MV_LOCAL )
-                addr.ty = cast( ubyte, MT_PTR )
-                addr.id = slot
-                dim as MirValue pv
-                pv.kind = cast( ubyte, MV_PARAM )
-                pv.ty = c.f->locals[slot].ty
-                pv.id = pidx
-                dim as MirInst ins
-                ins.op = cast( ushort, M_STORE )
-                ins.ty = cast( ubyte, MT_VOID )
-                ins.a = addr
-                ins.b = pv
-                Emit( c, ins )
-            end if
-        end if
-        pidx += 1
-    next
-
-    '' Labels are per-function: the same name in two procedures is two labels.
-    while c.labelName.Count > 0
-        c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
-    wend
-
-    dim as long scopeDepthIn = c.scopeMark.Count
-    PushScope( c )
-    '' Depths are recorded relative to the scope just opened for the body, which is the
-    '' depth a label written directly in the procedure sees.
-    ScanLabels( c, sp->b, scopeDepthIn + 1 )
-    LowerBlock( c, sp->b )
-    CloseScope( c )
-    '' Every scope opened must have been closed. An imbalance means some exit path
-    '' skipped a scope's cleanup, which is the bug class this whole model exists to
-    '' prevent, so it is checked rather than assumed.
-    if c.scopeMark.Count <> scopeDepthIn then
-        c.st->scopeImbalance += 1
-    end if
-    '' A function whose last block has no terminator falls off the end; FreeBASIC
-    '' allows that and returns the result variable, so an explicit RET closes it.
-    Terminate( c, MTERM_RET, -1, -1, NoVal( ) )
-
-    c.f = savedF
-    c.curProcSym = savedSym
-    c.curBlock = savedB
-end sub
-
-
-'' The implicit main, into which module-level code is lowered.
-''
-'' MEASURED from fbc's own C intermediate for the main translation unit ('fbc -r -m'),
-'' not assumed:
-''
-''     int32 main( int32 argc, char** argv ) {
-''         int32 fb$result$0;
-''         __builtin_memset( &fb$result$0, 0, 4 );
-''         fb_Init( argc, argv, 0 );
-''         ... module-level body ...
-''         fb_StrDelete( &S$0 );          <- cleanups, BEFORE fb_End
-''         fb_End( 0 );
-''         return fb$result$0;
-''     }
-''
-'' Two things that shape the lowering and would be easy to get wrong the other way:
-''
-'' The result slot is ZERO-INITIALISED and returned. It is the process exit code, which
-'' 'END n' writes; falling off the end must yield 0, so the store is unconditional.
-''
-'' Module-level 'dim' becomes a LOCAL of main, not a global. That looks surprising for
-'' a variable declared at file scope, but a module-level DIM without SHARED is visible
-'' only at module level, so a local is exactly right -- and it is what makes the string
-'' cleanup above run at all.
-declare function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-
-private sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
-    if root = Fbx.NODE_NONE then return
-    if c.ast->Kind( root ) <> Fbx.N_MODULE then return
-
-    '' Nothing to run means no main at all, rather than an empty one: a module compiled
-    '' as a library has no entry point and emitting one would collide at link time.
-    if ModuleHasCode( c, root ) = false then return
-
-    dim as MirFunction ptr f = c.m->AddFunction( c.names->GetString( "main" ), MT_I32 )
-    f->isDefinition = true
-    f->paramCount = 2                     '' argc, argv
-    dim as MirFunction ptr savedF = c.f
-    dim as long savedB = c.curBlock
-    c.f = f
-    c.st->functions += 1
-    c.curBlock = NewBlock( c, "entry" )
-
-    dim as long resSlot = NewTempLocal( c, MT_I32, 4 )
-    dim as MirValue resAddr
-    resAddr.kind = cast( ubyte, MV_LOCAL )
-    resAddr.ty = cast( ubyte, MT_PTR )
-    resAddr.id = resSlot
-    dim as MirInst z
-    z.op = cast( ushort, M_STORE )
-    z.ty = cast( ubyte, MT_VOID )
-    z.a = resAddr
-    z.b = ConstInt( c, 0, MT_I32 )
-    Emit( c, z )
-
-    dim as MirValue argcv, argvv
-    argcv.kind = cast( ubyte, MV_PARAM )
-    argcv.ty = cast( ubyte, MT_I32 )
-    argcv.id = 0
-    argvv.kind = cast( ubyte, MV_PARAM )
-    argvv.ty = cast( ubyte, MT_PTR )
-    argvv.id = 1
-    dim as FB.Array( of ulong ) ia
-    ia.Push( cast( ulong, argcv.kind ) ) : ia.Push( cast( ulong, argcv.id ) )
-    ia.Push( cast( ulong, argvv.kind ) ) : ia.Push( cast( ulong, argvv.id ) )
-    dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
-    ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
-    EmitRtl( c, RTL_INIT, ia )
-
-    while c.labelName.Count > 0
-        c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
-    wend
-
-    dim as long scopeDepthIn = c.scopeMark.Count
-    PushScope( c )
-    '' The children are walked directly rather than through LowerBlock. N_MODULE is a
-    '' LIST node, so handing it to a routine that reads a statement payload would read
-    '' the wrong pool -- the mistake this file has made three times already.
-    dim as Fbx.ListPayload ptr mp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
-    for i as long = 0 to mp->count - 1
-        ScanLabels( c, cast( Fbx.NodeId, c.ast->children[mp->first + i] ), _
-                    scopeDepthIn + 1 )
-    next
-    for i as long = 0 to mp->count - 1
-        LowerStmt( c, cast( Fbx.NodeId, c.ast->children[mp->first + i] ) )
-    next
-    CloseScope( c )
-    if c.scopeMark.Count <> scopeDepthIn then
-        c.st->scopeImbalance += 1
-    end if
-
-    '' fb_End comes AFTER the scope's cleanups: the measurement shows fb_StrDelete
-    '' preceding it, so shutting the runtime down before releasing its strings would
-    '' invert the order fbc actually emits.
-    dim as FB.Array( of ulong ) ea
-    dim as MirValue zend = ConstInt( c, 0, MT_I32 )
-    ea.Push( cast( ulong, zend.kind ) ) : ea.Push( cast( ulong, zend.id ) )
-    EmitRtl( c, RTL_END, ea )
-
-    dim as MirValue rv = LowerExprLoad( c, resAddr, MT_I32 )
-    Terminate( c, MTERM_RET, -1, -1, rv )
-
-    c.f = savedF
-    c.curBlock = savedB
-end sub
 
 '' Whether a module has anything to run, as opposed to only declarations.
-private function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     if id = Fbx.NODE_NONE then return false
     dim as Fbx.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]

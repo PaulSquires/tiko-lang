@@ -59,6 +59,7 @@ namespace Fbx.Mir
         as long ambCallUnbound      '' a call whose callee bound to no symbol
         as long ambCallNoCode       '' callee bound, and still nothing was emitted
         as long ambAssign           '' an assignment that did not lower
+        as long ambResultNoSlot     '' 'function = expr' whose result type has no slot
         as long ambOther            '' property-set, result-assign, unclassified
         '' ... by the SHAPE of the thing that was not a call, and by the AmbiguousOf
         '' classification when there was no expression to look at. 'other' has been the

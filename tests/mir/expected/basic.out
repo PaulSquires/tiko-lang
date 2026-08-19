@@ -1,20 +1,24 @@
 func i32 ADD($0, $1) {
+  local i32 $tmp0
   local i32 a
   local i32 b
   local i32 r
   entry0:
-    %1 = alloca ptr a
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr a
     store @a, $0
-    %2 = alloca ptr b
+    %4 = alloca ptr b
     store @b, $1
-    %3 = alloca ptr r
-    %4 = load @a
-    %5 = load @b
-    %6 = add %4, %5
-    %7 = trunc %6
-    store @r, %7
-    %8 = load @r
-    ret %8
+    %5 = alloca ptr r
+    %6 = load @a
+    %7 = load @b
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @r, %9
+    %10 = load @r
+    ret %10
 }
 func void COUNTED() {
   local i32 i
@@ -126,4 +130,4 @@ func void LOOPING($0) {
     ret
 }
 verify: ok
-lowered: 4 functions, 20 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 20 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance
