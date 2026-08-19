@@ -86,11 +86,28 @@ function StringLitText_ _
     dim as Fbx.SourceFile ptr f = c.srcMgr->FileAt( cast( Fbx.FileId, lp->strFile ) )
     if f = 0 then return ""
     if (lp->strOffset + lp->strLength) > f->text.Count then return ""
+    '' '""' inside a literal is ONE quote -- measured: len( $"q""q" ) is 3. The lexer
+    '' already refuses to end the literal there, but the span it records is the RAW
+    '' source, so the collapse has to happen on the way out. Without it every
+    '' stringised argument containing a quote would carry an extra byte, which is the
+    '' silent half of the bug the '$"..."' spelling fixes the loud half of.
+    ''
+    '' ESCAPED literals are NOT decoded here either, and that is a separate
+    '' pre-existing gap: a backslash-n inside a bang-quoted literal still reaches
+    '' MIR as two bytes rather than one. It needs its own measured table and is
+    '' untouched by this.
     dim as string r = space( lp->strLength )
-    for i as long = 0 to lp->strLength - 1
-        r[i] = f->text[lp->strOffset + i]
-    next
-    return r
+    dim as long n = 0
+    dim as long i = 0
+    while i < lp->strLength
+        dim as ubyte ch = f->text[lp->strOffset + i]
+        r[n] = ch
+        n += 1
+        dim as boolean doubledQuote = (ch = 34) andalso (i + 1 < lp->strLength) andalso _
+                                      (f->text[lp->strOffset + i + 1] = 34)
+        i += iif( doubledQuote, 2, 1 )
+    wend
+    return left( r, n )
 end function
 
 '' ------------------------------------------------------------------ runtime

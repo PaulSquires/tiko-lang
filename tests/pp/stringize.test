@@ -1,0 +1,5 @@
+'' '#a' doubles an embedded quote, and a doubled quote decodes back to one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/stringize.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/stringize.out

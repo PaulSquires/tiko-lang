@@ -265,6 +265,27 @@ private function ArgIndexOf( byval m as PpMacro ptr, byval id as InternId ) as l
     return -1
 end function
 
+'' The stringised form of an argument, as fbc spells it. MEASURED:
+''
+''     #define S(a) #a
+''     S( x = "5" )      ->   $"x = ""5"""
+''
+'' Two things, and the first was missing. A quote INSIDE the argument is DOUBLED, or
+'' it closes the literal early -- 'x = "5"' re-lexed as three tokens, "x = " then 5
+'' then "", which is why 113 corpus files reported 'expected )' at a fbcunit assert.
+''
+'' And the literal is '$'-prefixed, i.e. NON-escaped, so a backslash in the argument
+'' stays a backslash rather than becoming an escape. That costs nothing today (fbx does
+'' not decode escapes yet) and is free to get right now rather than later.
+private function Stringised_( byref t as string ) as string
+    dim as string r = "$"""
+    for i as long = 0 to len( t ) - 1
+        if t[i] = 34 then r += """"
+        r += chr( t[i] )
+    next
+    return r + """"
+end function
+
 private function ArgText _
     ( byref e as PpEngine, byref args as ArgList, byval idx as long ) as string
 
@@ -327,7 +348,7 @@ private sub PpSubstitute _
                 if Tk( nt ) = TK_IDENT then
                     dim as long ai = ArgIndexOf( m, cast( InternId, nt.literal ) )
                     if ai >= 0 then
-                        RelexInto( e, """" & ArgText( e, args, ai ) & """", useLoc, outv )
+                        RelexInto( e, Stringised_( ArgText( e, args, ai ) ), useLoc, outv )
                         i += 2
                         continue while
                     end if
