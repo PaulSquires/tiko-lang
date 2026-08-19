@@ -48,3 +48,10 @@
 '' And NO cleanup precedes it: the fb_StrDelete belongs to the normal scope exit, which
 '' END is not. If END ran cleanups this would be a jump to the exit path instead.
 '' EXPECT-OUT: end.after
+
+'' The qualified CALL must emit, mangled through the namespace.
+'' EXPECT-OUT: call void _ZN3NSQ5GREETEi
+'' And the qualified ASSIGNMENT must emit a STORE. Resolving the name without giving it
+'' an address made this statement silently emit nothing, which is worse than the decline
+'' it replaced: it stopped being counted while still not being done.
+'' EXPECT-OUT: store @@counter

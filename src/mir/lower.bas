@@ -945,7 +945,17 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         case Fbx.AMB_ASSIGN
             LowerAssign( c, sp->a, sp->b )
         case Fbx.AMB_CALL
+            '' A CALL STATEMENT THAT PRODUCES NOTHING IS A DECLINE, and has to be counted
+            '' as one. LowerCall returns MV_NONE for an unresolved callee without
+            '' recording anything, so when the classification changed from error to call
+            '' these statements stopped being counted while still emitting no code --
+            '' the count fell by 78,000 and the work was not being done.
+            ''
+            '' A call whose result is void legitimately yields MV_NONE too, so the test
+            '' is whether the statement emitted ANY instruction, not what it returned.
+            dim as long beforeN = c.f->blocks[c.curBlock].insts.Count
             LowerExpr( c, sp->a )
+            if c.f->blocks[c.curBlock].insts.Count = beforeN then SkipHere( c )
         case else
             SkipHere( c )
         end select

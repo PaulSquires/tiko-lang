@@ -29,6 +29,23 @@ function LowerAddr _
     dim as MirValue v
     if id = Fbx.NODE_NONE then return v
 
+    '' A QUALIFIED NAME -- 'ns.counter' -- is bound by Resolve to the symbol inside the
+    '' namespace, so its address is that symbol's storage. It is NOT a member access on
+    '' a value and has no base to compute from.
+    ''
+    '' Without this the resolve fix made 'ns.counter = 2' stop being counted as declined
+    '' while still emitting no store: the statement silently did nothing, which is worse
+    '' than the honest decline it replaced.
+    if c.ast->Kind( id ) = Fbx.N_MEMBER then
+        dim as Fbx.SymbolId qsid = c.info->RefOf( id )
+        if qsid <> Fbx.SYMBOL_NONE then
+            dim as Fbx.Symbol ptr qs = c.syms->SymbolAt( qsid )
+            if qs <> 0 then
+                if qs->kind = cast( ubyte, Fbx.SYM_VARIABLE ) then return AddrOfVar( c, qsid )
+            end if
+        end if
+    end if
+
     '' 'x.f' is the base's address plus a CONSTANT offset. The offset comes from the
     '' measured layout, and Check already bound the member to its field symbol, so
     '' nothing is looked up twice.

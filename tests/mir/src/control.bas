@@ -52,3 +52,18 @@ sub Ending( byval n as long )
     if n = 1 then end 3
     if n = 2 then end
 end sub
+
+'' A NAMESPACE-QUALIFIED name. 'ns.Greet( 1 )' is a qualified NAME, not a member access
+'' on a value, so the member resolves inside the namespace's own scope. Before this the
+'' head of the statement was a namespace and it was rejected as "not a procedure" --
+'' which was the single largest cause of unlowered statements in the corpus.
+namespace nsq
+    sub Greet( byval n as long )
+    end sub
+    dim shared as long counter
+end namespace
+
+sub UseNs( )
+    nsq.Greet( 1 )
+    nsq.counter = 2
+end sub

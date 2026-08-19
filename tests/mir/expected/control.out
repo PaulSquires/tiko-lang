@@ -1,4 +1,5 @@
 global str $str0 "x"
+global var i32 counter
 func void SEL($0) {
   local i32 n
   local i32 r
@@ -183,5 +184,20 @@ func void ENDING($0) {
     br if.join5
 }
 declare void fb_End($0)
+func void _ZN3NSQ5GREETEi($0) {
+  local i32 n
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    ret
+}
+func void USENS() {
+  entry0:
+    %1 = const i64 1
+    call void _ZN3NSQ5GREETEi(%1)
+    %2 = const i64 2
+    store @@counter, %2
+    ret
+}
 verify: ok
-lowered: 4 functions, 33 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 35 blocks, 103 insts, 0 statements not lowered, 0 scope imbalance

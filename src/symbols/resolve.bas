@@ -300,7 +300,34 @@ private sub WalkExpr _
 
     case Fbx.N_MEMBER
         '' Only the base: the member name needs the base's type.
-        WalkExpr( c, c.ast->binaries[cast( long, n->data )].lhs, scope_ )
+        dim as Fbx.BinaryPayload ptr mb = @c.ast->binaries[cast( long, n->data )]
+        WalkExpr( c, mb->lhs, scope_ )
+
+        '' EXCEPT when the base is a NAMESPACE. 'ns.Greet' is a QUALIFIED NAME, not a
+        '' member access on a value, so the member is looked up in the namespace's own
+        '' scope and bound here -- there is no base type to wait for.
+        ''
+        '' Without this the head of 'ns.Greet( 1 )' was a namespace and the call was
+        '' reported as "'ns' is a namespace, not a procedure". fbcunit's CU_ASSERT
+        '' expands to exactly that shape, which is why it accounted for the bulk of
+        '' every unlowered count in the corpus.
+        dim as Fbx.SymbolId bsid = c.info->RefOf( mb->lhs )
+        dim as Fbx.Symbol ptr bs = c.syms->SymbolAt( bsid )
+        if bs <> 0 then
+            if bs->kind = cast( ubyte, Fbx.SYM_NAMESPACE ) then
+                if c.ast->Kind( mb->rhs ) = Fbx.N_IDENT then
+                    '' IdentNameOf, not StmtOf: an N_IDENT is not a statement payload,
+                    '' and reading it as one is the pool mistake this codebase keeps
+                    '' making.
+                    dim as Fbx.SymbolId msid = _
+                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
+                    if msid <> Fbx.SYMBOL_NONE then
+                        c.info->SetRef( mb->rhs, msid )
+                        c.info->SetRef( id, msid )
+                    end if
+                end if
+            end if
+        end if
 
     case Fbx.N_CALL, Fbx.N_INDEX, Fbx.N_PAREN, Fbx.N_TUPLE, Fbx.N_INITIALIZER, _
          Fbx.N_STRCAT
@@ -439,7 +466,20 @@ private sub ResolveAmbiguous _
         end if
     wend
 
+    '' A QUALIFIED name binds on the MEMBER node itself, so prefer that over the head:
+    '' for 'ns.Greet( 1 )' the head is the namespace and tells us nothing useful, while
+    '' the member resolved to the procedure.
     dim as Fbx.SymbolId sid = c.info->RefOf( head )
+    if c.ast->Kind( sp->a ) = Fbx.N_MEMBER then
+        dim as Fbx.SymbolId qsid = c.info->RefOf( sp->a )
+        if qsid <> Fbx.SYMBOL_NONE then sid = qsid
+    elseif c.ast->Kind( sp->a ) = Fbx.N_CALL then
+        dim as Fbx.NodeId callee = ListOf( c, sp->a )->target
+        if c.ast->Kind( callee ) = Fbx.N_MEMBER then
+            dim as Fbx.SymbolId qsid = c.info->RefOf( callee )
+            if qsid <> Fbx.SYMBOL_NONE then sid = qsid
+        end if
+    end if
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
 
     if isAssign then
