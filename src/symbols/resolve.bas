@@ -515,6 +515,16 @@ private sub ResolveAmbiguous _
 
     dim as boolean isAssign = (sp->op <> 0)
 
+    '' 'function = expr' names no symbol, so it cannot reach the lookup below -- but it
+    '' is the SAME statement as 'f = expr' inside f, and both belong in one bucket. The
+    '' keyword form used to decline at a different line from the name form, which is
+    '' the shape that made 'amb other' mislead for four commits.
+    if c.ast->Kind( sp->a ) = Fbx.N_FUNCRESULT then
+        c.info->SetAmbiguous( id, Fbx.AMB_RESULT )
+        c.st->assigns += 1
+        return
+    end if
+
     '' The target's head symbol: for a.b.c the head is a.
     dim as Fbx.NodeId head = sp->a
     dim as long guard = 0

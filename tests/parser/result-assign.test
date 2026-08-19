@@ -1,0 +1,5 @@
+'' 'function = expr' and its OPERATOR and PROPERTY spellings, plus the name form.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/result-assign.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/result-assign.out

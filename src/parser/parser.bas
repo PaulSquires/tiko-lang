@@ -596,6 +596,20 @@ private function ParseExitLike _
     return MakeStmt( p, kind, t.loc, sp )
 end function
 
+'' 'function =' / 'operator =' / 'property =', and nothing else that starts with one
+'' of those keywords. The cross-kind rules fbc enforces -- 'function =' is a syntax
+'' error inside a SUB -- are deliberately NOT checked here: accepting a little more
+'' than fbc never loses a file, and rejecting a little more would.
+private function IsResultAssign _
+    ( byref p as Fbx.ParserState, byval k as Fbx.TokenKind ) as boolean
+
+    dim as boolean isResultKw = (k = Fbx.KW_FUNCTION) orelse _
+                                (k = Fbx.KW_OPERATOR) orelse (k = Fbx.KW_PROPERTY)
+    if isResultKw = false then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EQ)
+end function
+
 '' The three-way ambiguity of docs/plan/04 section 6: a leading expression is a call,
 '' an assignment, or a paren-less call with arguments. The parser does not decide.
 private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
@@ -745,7 +759,28 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
         ExpectEnd( p, Fbx.KW_ASM )
 
     case else
-        if IsDeclarationStart( k ) then
+        '' 'function = expr' -- BASIC's result assignment written with the KEYWORD
+        '' rather than the procedure's name. It has to be tested before the
+        '' declaration dispatch, which would otherwise read FUNCTION as the start of
+        '' a nested procedure and consume the enclosing 'end function' looking for a
+        '' body. That is why 158 corpus files reported 'expected end FUNCTION' at EOF.
+        ''
+        '' The '=' is the whole disambiguator, and it is enough: at module level
+        '' 'operator = ( ... )' is a global operator DEFINITION, but that spelling has
+        '' a '(' after the '=' rather than an expression -- and a definition cannot
+        '' appear where a statement is being parsed inside a body.
+        ''
+        '' Measured against fbc: assignment only. 'function += 1' is error 61 and
+        '' 'print function' is error 6, so the keyword is a WRITE-ONLY target.
+        if IsResultAssign( p, k ) then
+            dim as Fbx.StmtPayload sp
+            sp.a = NewNodeAt( p, Fbx.N_FUNCRESULT, t.loc, 0 )
+            Advance( p )                       '' the keyword
+            sp.op = cast( ushort, Fbx.TK_EQ )
+            Advance( p )                       '' the '='
+            sp.b = Expression( p )
+            n = MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
+        elseif IsDeclarationStart( k ) then
             n = Declaration( p )
         elseif Fbx.IsStatementIntrinsic( k ) then
             n = ParseIntrinsic( p )

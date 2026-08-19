@@ -49,6 +49,9 @@ namespace Fbx
         NODE( N_INITIALIZER,  NCAT_EXPR )   '' { ... }
         NODE( N_NEW,          NCAT_EXPR )
         NODE( N_DELETE,       NCAT_EXPR )
+        NODE( N_FUNCRESULT,   NCAT_EXPR )   '' the FUNCTION/OPERATOR/PROPERTY keyword
+                                            '' as an assignment TARGET. Assignable and
+                                            '' not readable: fbc rejects 'print function'.
 
         '' ---- type references (syntactic, not semantic types)
         NODE( N_TYPEREF,      NCAT_TYPE )   '' builtin or named, with ptr/array suffixes
