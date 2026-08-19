@@ -17,13 +17,23 @@ FBC=${FBX_FBC:-/c/dev/tiko_editor/toolchains/FreeBASIC-1.10.1-winlibs-gcc-9.3.0/
 CORPUS=tests/vendor/fbc-tests
 [ -d "$CORPUS" ] || { echo "parse-gap: corpus not vendored" >&2; exit 3; }
 
+# The corpus's own test framework lives in a subdirectory the files do not name; a
+# quarter of them include it. Both compilers get the same path, or the comparison is
+# between one that can read the harness and one that cannot.
+FBCUNIT=""
+FBCUNIT_FBC=""
+if [ -d "$CORPUS/fbcunit/inc" ]; then
+    FBCUNIT="-i $CORPUS/fbcunit/inc"
+    FBCUNIT_FBC="-i $CORPUS/fbcunit/inc"
+fi
+
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 mkdir -p build/.rt
 : > build/.parsegap.out
 while IFS= read -r f; do
-    n=$(./bin/fbx.exe --dump-ir "$f" 2>/dev/null | awk '/^  unlowered N_ERROR/{print $3}')
+    n=$(./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null | awk '/^  unlowered N_ERROR/{print $3}')
     [ -n "$n" ] || continue
-    e=$("$FBC" -c "$f" -o build/.rt/pg.o 2>&1 | grep -c 'error [0-9]' || true)
+    e=$("$FBC" -c $FBCUNIT_FBC "$f" -o build/.rt/pg.o 2>&1 | grep -c 'error [0-9]' || true)
     [ "$e" = "0" ] && echo "$n $f" >> build/.parsegap.out
 done < build/.corpus.lst
 

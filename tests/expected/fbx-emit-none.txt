@@ -2,6 +2,8 @@ tests/vendor/fbc-tests/comments/singleline.bas
 tests/vendor/fbc-tests/concurrency/channel.bas
 tests/vendor/fbc-tests/concurrency/sched.bas
 tests/vendor/fbc-tests/concurrency/sync.bas
+tests/vendor/fbc-tests/const/assign-ubyte-ptr-ptr-from-ubyte-const-ptr-ptr.bas
+tests/vendor/fbc-tests/const/assign-ubyte-ptr-ptr-from-ubyte-ptr-ptr.bas
 tests/vendor/fbc-tests/const/const-decl-illegal-type-any.bas
 tests/vendor/fbc-tests/const/const-decl-illegal-type-fixstr.bas
 tests/vendor/fbc-tests/const/const-decl-illegal-type-fwdref.bas
@@ -118,6 +120,8 @@ tests/vendor/fbc-tests/pp/macro-arg-extract-fail2.bas
 tests/vendor/fbc-tests/pp/macro-arg-extract-fail3.bas
 tests/vendor/fbc-tests/pp/macro-arg-extract-fail4.bas
 tests/vendor/fbc-tests/pp/macro-eval-fail.bas
+tests/vendor/fbc-tests/pp/macro_nested1.bas
+tests/vendor/fbc-tests/pp/macro_nested2.bas
 tests/vendor/fbc-tests/pp/pragma-reserve-0.bas
 tests/vendor/fbc-tests/pp/pragma-reserve-16.bas
 tests/vendor/fbc-tests/pp/pragma-reserve-17.bas

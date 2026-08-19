@@ -477,20 +477,32 @@ function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
         return true
     end if
 
-    dim as MirType mt = LowerType( t, *c.types )
-    if mt = MT_VOID then return false
-    '' An aggregate has no single load/store, so it is declined rather than half-swapped.
-    if mt = MT_AGG then return false
+    '' THE OPERANDS MAY DIFFER IN TYPE. fbc allows 'swap' between a long and a double
+    '' and CONVERTS across the assignments -- the temporary is typed to the LEFT operand
+    '' and each store converts into its destination:
+    ''
+    ''     int32 TMP = A;   A = fb_D2I( B );   B = (double)TMP;
+    ''
+    '' Loading both sides through one type instead reinterprets the bits, which lowers
+    '' cleanly, verifies, and is wrong. This was exactly that bug for one commit.
+    dim as Fbx.TypeId rt = c.info->TypeOf_( sp->b )
+    if rt = Fbx.TYPE_NONE then return false
+    dim as MirType mtl = LowerType( t, *c.types )
+    dim as MirType mtr = LowerType( rt, *c.types )
+    if (mtl = MT_VOID) orelse (mtr = MT_VOID) then return false
+    '' An aggregate has no single load/store, so it is declined rather than
+    '' half-swapped. Strings are the aggregate that matters and took the path above.
+    if (mtl = MT_AGG) orelse (mtr = MT_AGG) then return false
 
-    dim as long slot = NewTempLocal( c, mt, c.types->Layout( t ).size )
+    dim as long slot = NewTempLocal( c, mtl, c.types->Layout( t ).size )
     dim as MirValue tmp
     tmp.kind = cast( ubyte, MV_LOCAL )
     tmp.ty = cast( ubyte, MT_PTR )
     tmp.id = slot
 
-    StoreThrough( c, tmp, LowerExprLoad( c, la, mt ) )
-    StoreThrough( c, la, LowerExprLoad( c, lb, mt ) )
-    StoreThrough( c, lb, LowerExprLoad( c, tmp, mt ) )
+    StoreThrough( c, tmp, LowerExprLoad( c, la, mtl ) )
+    StoreThrough( c, la, Coerce( c, LowerExprLoad( c, lb, mtr ), mtl ) )
+    StoreThrough( c, lb, Coerce( c, LowerExprLoad( c, tmp, mtl ), mtr ) )
     return true
 end function
 

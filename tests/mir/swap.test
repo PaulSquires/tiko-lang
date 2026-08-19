@@ -16,5 +16,10 @@
 '' through the wrong register class, so an f64 pair must produce an f64 temp.
 '' EXPECT-OUT: local i32 $tmp6
 '' EXPECT-OUT: local f64 $tmp7
+'' A MIXED-TYPE swap must CONVERT, not reinterpret. fbc emits 'A = fb_D2I( B )' and
+'' 'B = (double)TMP', so an fptosi and a sitofp must both appear -- their absence is a
+'' silent miscompile that verifies clean.
+'' EXPECT-OUT: fptosi
+'' EXPECT-OUT: sitofp
 '' EXPECT-NOT: <NO TERMINATOR>
 '' GOLDEN: expected/swap.out

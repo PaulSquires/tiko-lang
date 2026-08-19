@@ -18,10 +18,15 @@ CORPUS=tests/vendor/fbc-tests
 OUT=tests/expected/fbx-emit-none.txt
 [ -d "$CORPUS" ] || { echo "emit-baseline: corpus not vendored" >&2; exit 3; }
 
+# A quarter of the corpus includes its own test framework from a directory it does not
+# name; without the path they fail at line one and emit nothing for the wrong reason.
+FBCUNIT=""
+[ -d "$CORPUS/fbcunit/inc" ] && FBCUNIT="-i $CORPUS/fbcunit/inc"
+
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 : > build/.emitnone.txt
 while IFS= read -r f; do
-    n=$(./bin/fbx.exe --dump-ir "$f" 2>/dev/null | awk '/^lowered:/{print $2}')
+    n=$(./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null | awk '/^lowered:/{print $2}')
     [ "${n:-0}" = "0" ] && echo "$f" >> build/.emitnone.txt
 done < build/.corpus.lst
 

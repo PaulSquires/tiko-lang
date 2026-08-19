@@ -21,10 +21,17 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 CORPUS=tests/vendor/fbc-tests
 [ -d "$CORPUS" ] || { echo "mirsweep: corpus not vendored" >&2; exit 3; }
+
+# 761 of the 2,709 corpus files -- 28% -- '#include "fbcunit.bi"', the suite's own test
+# framework, and it lives in a subdirectory none of them name. Without this the whole
+# quarter of the corpus fails at its first line, and every number measured over it was
+# measured against files that could not resolve their own harness.
+FBCUNIT=""
+[ -d "$CORPUS/fbcunit/inc" ] && FBCUNIT="-i $CORPUS/fbcunit/inc"
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 : > build/.mir.out
 while IFS= read -r f; do
-    ./bin/fbx.exe --dump-ir "$f" 2>/dev/null | grep -E '^(lowered|verify):|^  unlowered ' >> build/.mir.out || true
+    ./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null | grep -E '^(lowered|verify):|^  unlowered ' >> build/.mir.out || true
 done < build/.corpus.lst
 awk '
 /^lowered:/ {
