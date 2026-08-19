@@ -1,0 +1,5 @@
+'' OPEN as an expression, in every clause spelling fbc accepts.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/open-expr.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/open-expr.out

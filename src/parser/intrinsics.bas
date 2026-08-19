@@ -155,12 +155,21 @@ end sub
 '' OPEN f FOR mode [ACCESS a] [LOCK l] AS [#]n [LEN = x]
 '' The modifiers are context keywords, which is why they are in the registry as
 '' IFORM_CONTEXT: they are only meaningful here.
-private sub IntrOpen( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
+'' OPEN, in both spellings. As a STATEMENT the clauses run to end of line; as an
+'' EXPRESSION -- 'if open( "x", for output, as #1 ) <> 0' -- they run to the closing
+'' paren and the whole thing yields the error code. Measured: fbc accepts the
+'' expression form with every clause the statement takes, the comma-less QB spelling
+'' 'open( f for input as #1 )', ACCESS, ENCODING, and 'open pipe( ... )'.
+private sub IntrOpen _
+    ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload, _
+      byval stopParen as boolean = false )
+
     sp.a = Expression( p )
 
     dim as Fbx.NodeIdVec items
     do
         if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
+        if stopParen andalso (Peek( p ) = Fbx.TK_RPAREN) then exit do
         dim as Fbx.TokenKind k = Peek( p )
 
         if k = Fbx.KW_FOR then
@@ -180,6 +189,16 @@ private sub IntrOpen( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
             Advance( p )
             if Peek( p ) = Fbx.TK_HASH then Advance( p )
             sp.b = Expression( p, Fbx.PREC_POSTFIX )
+            continue do
+        end if
+        '' ENCODING takes a string that is not one of the clause keywords, so without
+        '' this it would fall through to the trailing-expression case and be collected
+        '' as a filename.
+        if k = Fbx.KW_ENCODING then
+            Advance( p )
+            if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+                items.Push( cast( ulong, Expression( p ) ) )
+            end if
             continue do
         end if
         if k = Fbx.KW_LEN then
@@ -206,6 +225,23 @@ private sub IntrOpen( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
 end sub
 
 '' CLOSE / SEEK / LOCK / UNLOCK: '#n [, expr ...]', and CLOSE takes a list of them.
+'' 'open( ... )' / 'open pipe( ... )' in EXPRESSION position. The cursor is on OPEN.
+function OpenExprCall( byref p as Fbx.ParserState ) as Fbx.NodeId
+    dim as Fbx.Token t = Cur( p )
+    Advance( p )                                    '' OPEN
+    '' 'pipe' is not a keyword -- it arrives as an identifier, the same way the
+    '' statement form sees it.
+    if Peek( p ) = Fbx.TK_IDENT then Advance( p )
+    if Accept( p, Fbx.TK_LPAREN ) = false then
+        return ErrorNode( p, Fbx.FBX0401, "(" )
+    end if
+    dim as Fbx.StmtPayload sp
+    sp.op = cast( ushort, Fbx.KW_OPEN )
+    IntrOpen( p, sp, true )
+    Expect( p, Fbx.TK_RPAREN, ")" )
+    return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
+end function
+
 private sub IntrFileNumList( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     dim as Fbx.NodeIdVec items
     do

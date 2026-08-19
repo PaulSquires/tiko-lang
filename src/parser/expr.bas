@@ -506,6 +506,14 @@ function Primary( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' swallow an 'end namespace' several hundred lines later, so this is not a
     '' cosmetic gap. Which four accept a type was measured against fbc -- TYPEOF is
     '' deliberately absent, because fbc does not accept it in expression position.
+    '' 'if open( "x", for output, as #1 ) <> 0' -- OPEN yields its error code. The
+    '' clause keywords ('for output', 'as #1') are not expressions, so a generic call
+    '' parse chokes on the first one; it needs the statement's own clause reader,
+    '' stopped at the closing paren instead of at end of line.
+    if k = Fbx.KW_OPEN then
+        return OpenExprCall( p )
+    end if
+
     if (k = Fbx.KW_CAST) orelse (k = Fbx.KW_CPTR) orelse _
        (k = Fbx.KW_SIZEOF) orelse (k = Fbx.KW_LEN) then
         if HasTok( p, p.pos + 1 ) then
@@ -623,6 +631,13 @@ private sub DumpNode _
     case Fbx.N_BINARY, Fbx.N_MEMBER
         dim as Fbx.BinaryPayload ptr bp = @ast.binaries[cast( long, n->data )]
         row += " " & Fbx.TokenKindText( cast( Fbx.TokenKind, bp->op ) )
+    case Fbx.N_INTRINSIC
+        dim as Fbx.StmtPayload ptr ip = @ast.stmts[cast( long, n->data )]
+        '' TokenKindText, matching the statement dumper: one shape printed one way.
+        if ip->op <> 0 then
+            dim as string ot = Fbx.TokenKindText( cast( Fbx.TokenKind, ip->op ) )
+            if len( ot ) > 0 then row += " [" & ot & "]"
+        end if
     end select
 
     row += " <" & d.lineNo & ":" & d.column & ">"
@@ -636,6 +651,20 @@ private sub DumpNode _
         dim as Fbx.BinaryPayload ptr bp = @ast.binaries[cast( long, n->data )]
         DumpNode( ast, src, names, bp->lhs, indent + 1, outp )
         DumpNode( ast, src, names, bp->rhs, indent + 1, outp )
+    case Fbx.N_INTRINSIC
+        '' An intrinsic can appear INSIDE an expression -- 'open( ... )' yields its
+        '' error code. It carries a statement payload, so without this the expression
+        '' printer stops at the bare row and every child is invisible to a golden,
+        '' which is precisely how a construct that parsed but dropped its arguments
+        '' would look.
+        dim as Fbx.StmtPayload ptr ip = @ast.stmts[cast( long, n->data )]
+        DumpNode( ast, src, names, ip->a, indent + 1, outp )
+        DumpNode( ast, src, names, ip->b, indent + 1, outp )
+        DumpNode( ast, src, names, ip->c, indent + 1, outp )
+        for i as long = 0 to ip->count - 1
+            DumpNode( ast, src, names, _
+                      cast( Fbx.NodeId, ast.children[ip->first + i] ), indent + 1, outp )
+        next
     case Fbx.N_CALL, Fbx.N_INDEX, Fbx.N_PAREN, Fbx.N_TUPLE, Fbx.N_INITIALIZER, Fbx.N_STRCAT
         dim as Fbx.ListPayload ptr lp = @ast.lists[cast( long, n->data )]
         if lp->target <> Fbx.NODE_NONE then
