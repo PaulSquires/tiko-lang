@@ -19,14 +19,28 @@ if [ ! -f "$EXPECTED" ]; then
     exit 3
 fi
 
+EXPECTED32="$ROOT/tests/mangle/expected/fbc-mangle-win32.txt"
+
 mkdir -p "$WORK"
-"$FBX" --dump-mangle "$ROOT/tests/mangle/src/probe.bas" 2>/dev/null | tr -d "\r" | sort > "$WORK/fbx.txt"
+rc=0
 
-if diff -u "$EXPECTED" "$WORK/fbx.txt" > "$WORK/diff.txt"; then
-    echo "check-mangle: ok -- $(wc -l < "$EXPECTED" | tr -d ' ')/$(wc -l < "$EXPECTED" | tr -d ' ') names match fbc"
-    exit 0
-fi
+one( ) {
+    want=$1; tgt=$2; label=$3
+    if [ ! -f "$want" ]; then
+        echo "check-mangle: no $label expectations" >&2
+        return 3
+    fi
+    "$FBX" --dump-mangle $tgt "$ROOT/tests/mangle/src/probe.bas" 2>/dev/null         | tr -d "\r" | sort > "$WORK/fbx-$label.txt"
+    if diff -u "$want" "$WORK/fbx-$label.txt" > "$WORK/diff-$label.txt"; then
+        n=$(wc -l < "$want" | tr -d ' ')
+        echo "check-mangle: $label ok -- $n/$n names match fbc"
+        return 0
+    fi
+    echo "check-mangle: $label MISMATCH"
+    cat "$WORK/diff-$label.txt"
+    return 1
+}
 
-echo "check-mangle: MISMATCH"
-cat "$WORK/diff.txt"
-exit 1
+one "$EXPECTED"   ""              win64 || rc=1
+one "$EXPECTED32" "-target win32" win32 || rc=1
+exit $rc

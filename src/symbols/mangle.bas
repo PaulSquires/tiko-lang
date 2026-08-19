@@ -137,7 +137,24 @@ end function
 '' Measured against fbc, tests/mangle. 'integer' and 'uinteger' are VENDOR EXTENDED
 '' types rather than 'x'/'y': they are pointer-sized, so they stay distinct from
 '' longint even on a target where both happen to be 64 bits wide.
-private function BuiltinCode( byval b as Fbx.BuiltinType ) as string
+'' 'is32' is win32: Linux is 64-bit only by decision, so a 32-bit pointer means Windows.
+'' INTEGER and UINTEGER are the only codes that move. They are VENDOR EXTENDED on win64
+'' because they are pointer-sized and so distinct from every C type; on win32 they are
+'' four bytes and coincide with C's long, and fbc spells them 'l' and 'm'.
+''
+'' That also silently changes the SUBSTITUTION table, which is the part worth watching:
+'' a single-letter code is never a substitution candidate, so 'sub S6( a as integer,
+'' b as integer )' ends 'Eu7INTEGERS0_' on win64 and plainly 'Ell' on win32. It falls
+'' out of IsSubstitutable rather than needing a rule.
+private function BuiltinCode _
+    ( byval b as Fbx.BuiltinType, byval is32 as boolean ) as string
+
+    if is32 then
+        select case b
+        case Fbx.TY_INTEGER  : return "l"
+        case Fbx.TY_UINTEGER : return "m"
+        end select
+    end if
     select case b
     case Fbx.TY_BYTE     : return "a"
     case Fbx.TY_UBYTE    : return "h"
@@ -266,7 +283,7 @@ function TypeCode _
         enc = body & "E"
 
     case Fbx.TK_BUILTIN
-        enc = BuiltinCode( types.BuiltinOf( t ) )
+        enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32) )
 
     case else
         enc = "v"
@@ -327,7 +344,90 @@ private function OperatorCode _
     return "v" & trim( str( arity ) ) & SrcName( nm )
 end function
 
-function ProcName _
+
+'' ------------------------------------------------------- win32 decoration
+
+'' The stack a stdcall callee pops, which is the '@N' suffix. Every argument is rounded
+'' up to four bytes INDIVIDUALLY and then summed -- two BYTE parameters are @8, not @4 --
+'' and a by-value aggregate contributes its OWN size rather than a hidden pointer: a
+'' 12-byte UDT is @12, a 5-byte one @8, and a byval STRING @12, the descriptor on the
+'' stack. All measured.
+private function StdcallBytes _
+    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
+      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo, _
+      byval hasThis as boolean ) as long
+
+    dim as long total = 0
+    if hasThis then total += 4
+    dim as Fbx.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    for i as long = 0 to sp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) <> Fbx.N_PARAM then continue for
+        '' BYREF is a pointer whatever it refers to.
+        if (ast.nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
+            total += 4
+            continue for
+        end if
+        dim as Fbx.StmtPayload ptr pp = StmtOf( ast, prm )
+        dim as long sz = types.Layout( info.TypeOf_( pp->a ) ).size
+        if sz < 4 then sz = 4
+        total += ((sz + 3) \ 4) * 4
+    next
+    return total
+end function
+
+'' The linker-visible name on win32: a leading underscore on EVERYTHING, and '@N' on
+'' stdcall only.
+''
+'' CONSTRUCTORS AND DESTRUCTORS CARRY NO SUFFIX -- measured, '__ZN1WC1Ei' where the
+'' rule would predict @8 -- so they are cdecl whatever the surrounding declaration says.
+'' An ALIAS does not remove the suffix either: 'my_alias' with no parameters is
+'' '_my_alias@0'.
+private function DecorateWin32 _
+    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
+      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo, _
+      byref nm as string ) as string
+
+    dim as Fbx.StmtPayload ptr sp = StmtOf( ast, proc_ )
+
+    '' An instance method's implicit THIS is four more bytes. It is one only when the
+    '' INNERMOST qualifier is a TYPE and the procedure is not STATIC: 'W.G( )' is @4 with
+    '' no parameters at all, while the static 'W.ST( )' is @0 and a namespace's
+    '' 'TB.B30( )' is @0 too.
+    dim as FB.Array( of string ) q
+    dim as FB.Array( of ulong ) qt
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, q, qt )
+    dim as boolean hasThis = false
+    if qt.Count > 0 then
+        hasThis = (qt[qt.Count - 1] <> 0) andalso _
+                  ((sp->extra and Fbx.PF_STATIC) = 0)
+    end if
+    dim as ushort kw = sp->op
+    if (kw = cast( ushort, Fbx.KW_CONSTRUCTOR )) orelse _
+       (kw = cast( ushort, Fbx.KW_DESTRUCTOR )) then
+        return "_" & nm
+    end if
+
+    '' The convention lives on the SYMBOL, not the node: a definition inherits its
+    '' DECLARE's, and reading the node alone would decorate the two halves differently.
+    dim as Fbx.CallConv cc = Fbx.CallConvOf( sp->extra )
+    dim as Fbx.Symbol ptr s = syms.SymbolAt( info.RefOf( proc_ ) )
+    if s <> 0 then
+        if s->callConv <> cast( ubyte, Fbx.CC_NONE ) then
+            cc = cast( Fbx.CallConv, s->callConv )
+        end if
+    end if
+    if cc = Fbx.CC_NONE then cc = Fbx.CC_STDCALL
+    if cc <> Fbx.CC_STDCALL then return "_" & nm
+
+    return "_" & nm & "@" & StdcallBytes( ast, proc_, types, info, hasThis )
+end function
+
+'' The name before any target decoration. Split out so the win32 underscore and '@N'
+'' apply to EVERY path -- the foreign one, the unmangled one and the Itanium one alike --
+'' rather than to whichever return the change happened to be written next to.
+private function ProcNameCore _
     ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
       byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
       byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
@@ -416,6 +516,18 @@ function ProcName _
     if emitted = 0 then outp += "v"
     return outp
 end function
+
+function ProcName _
+    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
+      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
+
+    dim as string nm = ProcNameCore( ast, proc_, syms, names, types, info )
+    '' A 32-bit pointer means win32: Linux is 64-bit only by decision.
+    if types.target.pointerBits <> 32 then return nm
+    return DecorateWin32( ast, proc_, syms, names, types, info, nm )
+end function
+
 
 '' ------------------------------------------------------------------------ dump
 
