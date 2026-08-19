@@ -18,7 +18,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+import fbxtargets
+
 TRUTH = ROOT / "tests/types/expected/fbc-promotion.txt"
+TGT = []
+LABEL = "win64"
 WORK = ROOT / "build/.ck"
 FBX = ROOT / "bin/fbx.exe"
 
@@ -26,13 +30,13 @@ TYPES = ["byte", "ubyte", "short", "ushort", "long", "ulong", "integer",
          "uinteger", "longint", "ulongint", "single", "double", "boolean", "string"]
 
 
-def main() -> int:
+def one_target() -> int:
     if not TRUTH.exists():
-        print("check-promo: no truth file; run tools/gen/promo-truth.py", file=sys.stderr)
+        print(f"check-promo: {LABEL} no truth file; run tools/gen/promo-truth.py", file=sys.stderr)
         return 3
     fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
     if not fbx.exists():
-        print("check-promo: fbx not built", file=sys.stderr)
+        print(f"check-promo: {LABEL} fbx not built", file=sys.stderr)
         return 3
 
     rows = []
@@ -53,7 +57,7 @@ def main() -> int:
     probe = WORK / "promo-fbx.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check", str(probe)],
+    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -83,15 +87,25 @@ def main() -> int:
 
     total_ok = sum(1 for r in rows if r[3] == "ok")
     total_rj = len(rows) - total_ok
-    print(f"check-promo: result   {res_ok}/{total_ok} match")
-    print(f"check-promo: legality {leg_ok}/{total_rj} match")
+    print(f"check-promo: {LABEL} result   {res_ok}/{total_ok} match")
+    print(f"check-promo: {LABEL} legality {leg_ok}/{total_rj} match")
     if missing:
-        print(f"check-promo: {missing} rows produced no output")
+        print(f"check-promo: {LABEL} {missing} rows produced no output")
     if bad:
-        print(f"check-promo: {len(bad)} disagreements, first 25:")
+        print(f"check-promo: {LABEL} {len(bad)} disagreements, first 25:")
         for b in bad[:25]:
             print("   ", b)
     return 0 if (not bad and not missing) else 1
+
+
+def main() -> int:
+    """Every target, against its own expectations file."""
+    global TRUTH, TGT, LABEL
+    rc = 0
+    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

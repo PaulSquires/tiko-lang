@@ -13,7 +13,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+import fbxtargets
+
 TRUTH = ROOT / "tests/types/expected/fbc-conv.txt"
+TGT = []
+LABEL = "win64"
 WORK = ROOT / "build/.conv"
 FBX = ROOT / "bin/fbx.exe"
 
@@ -30,13 +34,13 @@ DECLS = [
 ]
 
 
-def main() -> int:
+def one_target() -> int:
     if not TRUTH.exists():
-        print("check-conv: no truth file; run tools/gen/conv-truth.py", file=sys.stderr)
+        print(f"check-conv: {LABEL} no truth file; run tools/gen/conv-truth.py", file=sys.stderr)
         return 3
     fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
     if not fbx.exists():
-        print("check-conv: fbx not built", file=sys.stderr)
+        print(f"check-conv: {LABEL} fbx not built", file=sys.stderr)
         return 3
 
     rows = [l.split("\t") for l in TRUTH.read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -53,7 +57,7 @@ def main() -> int:
     probe = WORK / "conv-fbx.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check", str(probe)],
+    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -74,12 +78,22 @@ def main() -> int:
         else:
             bad.append(f"{fn}( {an} ): fbc={want} fbx={mine}")
 
-    print(f"check-conv: {ok}/{len(rows)} match")
+    print(f"check-conv: {LABEL} {ok}/{len(rows)} match")
     if bad:
-        print(f"check-conv: {len(bad)} disagreements, first 20:")
+        print(f"check-conv: {LABEL} {len(bad)} disagreements, first 20:")
         for b in bad[:20]:
             print("   ", b)
     return 0 if not bad else 1
+
+
+def main() -> int:
+    """Every target, against its own expectations file."""
+    global TRUTH, TGT, LABEL
+    rc = 0
+    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

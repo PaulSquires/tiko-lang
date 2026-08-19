@@ -3,7 +3,7 @@
 
     python tools/gen/udt-truth.py
 
-Writes tests/types/expected/fbc-udt.txt. A struct's layout is ABI, so it is
+Writes tests/types/expected/fbc-udt.txt and fbc-udt-win32.txt. A struct's layout is ABI, so it is
 compatibility surface in the strictest sense: a field at the wrong offset does not
 fail, it reads the neighbouring field's bytes.
 
@@ -17,7 +17,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe")
+import fbxtargets
+
+FBC = fbxtargets.FBC64
+LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-udt.txt"
 WORK = ROOT / "build/.ud"
 
@@ -54,9 +57,9 @@ CASES = [
 ]
 
 
-def main() -> int:
+def one_target() -> int:
     if not FBC.exists():
-        print(f"udt-truth: fbc not found at {FBC}", file=sys.stderr)
+        print(f"udt-truth: {LABEL}: fbc not found at {FBC}", file=sys.stderr)
         return 3
     WORK.mkdir(parents=True, exist_ok=True)
 
@@ -106,9 +109,19 @@ def main() -> int:
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
-    print(f"udt-truth: {len(rows)} facts over {len(CASES)} shapes "
-          f"-> tests/types/expected/fbc-udt.txt")
+    print(f"udt-truth: {LABEL}: {len(rows)} facts over {len(CASES)} shapes "
+          f"-> {OUT.name}")
     return 0
+
+
+def main() -> int:
+    """Every target, into its own expectations file."""
+    global FBC, OUT, WORK, LABEL
+    rc = 0
+    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

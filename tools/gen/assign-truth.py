@@ -3,7 +3,7 @@
 
     python tools/gen/assign-truth.py
 
-Writes tests/types/expected/fbc-assign.txt: one row per (target, source) pair saying
+Writes tests/types/expected/fbc-assign.txt and fbc-assign-win32.txt: one row per (target, source) pair saying
 whether 'target = source' compiles, and whether fbc warns.
 
 Assignment legality is a DIFFERENT question from binary promotion, and the answers do
@@ -18,7 +18,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe")
+import fbxtargets
+
+FBC = fbxtargets.FBC64
+LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-assign.txt"
 WORK = ROOT / "build/.as"
 
@@ -31,9 +34,9 @@ def slug(t):
     return t.replace(" ", "_")
 
 
-def main() -> int:
+def one_target() -> int:
     if not FBC.exists():
-        print(f"assign-truth: fbc not found at {FBC}", file=sys.stderr)
+        print(f"assign-truth: {LABEL}: fbc not found at {FBC}", file=sys.stderr)
         return 3
     WORK.mkdir(parents=True, exist_ok=True)
 
@@ -72,9 +75,19 @@ def main() -> int:
         rows.append(f"{dt}\t{st}\t{verdict}")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
-    print(f"assign-truth: {len(rows)} rows, {len(bad)} rejected, {len(warned)} warned "
-          f"-> tests/types/expected/fbc-assign.txt")
+    print(f"assign-truth: {LABEL}: {len(rows)} rows, {len(bad)} rejected, {len(warned)} warned "
+          f"-> {OUT.name}")
     return 0
+
+
+def main() -> int:
+    """Every target, into its own expectations file."""
+    global FBC, OUT, WORK, LABEL
+    rc = 0
+    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

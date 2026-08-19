@@ -3,7 +3,7 @@
 
     python tools/gen/array-truth.py
 
-Writes tests/types/expected/fbc-array.txt.
+Writes tests/types/expected/fbc-array.txt and fbc-array-win32.txt.
 
 NOTE ON THE ORACLE. 'sizeof' is NOT usable here: applied to an array FreeBASIC returns
 the ELEMENT size, not the total -- sizeof(a) is 4 for 'dim as long a(0 to 9)'. So the
@@ -16,7 +16,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe")
+import fbxtargets
+
+FBC = fbxtargets.FBC64
+LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-array.txt"
 WORK = ROOT / "build/.ar"
 
@@ -34,15 +37,18 @@ CASES = [
 ]
 
 
-def main() -> int:
+def one_target() -> int:
     if not FBC.exists():
-        print(f"array-truth: fbc not found at {FBC}", file=sys.stderr)
+        print(f"array-truth: {LABEL}: fbc not found at {FBC}", file=sys.stderr)
         return 3
     WORK.mkdir(parents=True, exist_ok=True)
     src = WORK / "arr.bas"
     body = "sub P( )\n" + "".join(f"    {d}\n" for _, d in CASES) + "end sub\n"
     src.write_text(body, encoding="utf-8")
-    proc = subprocess.run([str(FBC), "-c", "-r", str(src), "-o", str(WORK / "arr.o")],
+    # The 32-bit fbc needs the gcc backend to leave a C intermediate at all; without
+    # it there is no file to read the __builtin_memset sizes out of.
+    gen = ["-gen", "gcc"] if LABEL == "win32" else []
+    proc = subprocess.run([str(FBC), "-c", "-r", str(src), "-o", str(WORK / "arr.o")] + gen,
                           capture_output=True, text=True, cwd=str(WORK))
     c = WORK / "arr.c"
     if not c.exists():
@@ -53,18 +59,30 @@ def main() -> int:
     text = c.read_text(encoding="utf-8", errors="replace")
     lines = []
     for name, _ in CASES:
-        # __builtin_memset( (int32*)A$1, 0, 40ll );  -- the storage, not the descriptor
+        # __builtin_memset( (int32*)A$1, 0, 40ll );  -- the storage, not the descriptor.
+        # The 'll' suffix is win64's: on win32 the size is a plain int and fbc writes
+        # '40'. Requiring it made every win32 case report "no memset found".
         m = re.search(r"__builtin_memset\(\s*\(?[^)]*\)?\s*&?"
-                      + name.upper() + r"\$\d+,\s*0,\s*(\d+)ll\s*\)", text)
+                      + name.upper() + r"\$\d+,\s*0,\s*(\d+)(?:ll)?\s*\)", text)
         if not m:
-            print(f"array-truth: no memset found for {name}", file=sys.stderr)
+            print(f"array-truth: {LABEL}: no memset found for {name}", file=sys.stderr)
             return 1
         lines.append(f"{name}\t{m.group(1)}")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"array-truth: {len(lines)} array sizes -> {OUT.relative_to(ROOT)}")
+    print(f"array-truth: {LABEL}: {len(lines)} array sizes -> {OUT.name}")
     return 0
+
+
+def main() -> int:
+    """Every target, into its own expectations file."""
+    global FBC, OUT, WORK, LABEL
+    rc = 0
+    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

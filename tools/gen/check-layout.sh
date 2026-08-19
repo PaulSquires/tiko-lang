@@ -5,24 +5,34 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXT=".exe" ;; *) EXT="" ;; esac
 
-TRUTH=tests/types/expected/fbc-layout.txt
-[ -f "$TRUTH" ] || { echo "check-layout: run tools/gen/layout-truth.sh first" >&2; exit 3; }
+rc=0
 
-./bin/fbx$EXT --dump-types tests/lexer/src/basics.bas 2>/dev/null > build/.types.out
-bad=0
-while read -r name size align; do
-    [ -z "$name" ] && continue
-    line=$(grep -E "^ *[0-9]+ $name +size=" build/.types.out || true)
-    got_size=$(echo "$line" | sed -n 's/.*size= *\([0-9]*\).*/\1/p')
-    got_align=$(echo "$line" | sed -n 's/.*align= *\([0-9]*\).*/\1/p')
-    if [ "$got_size" != "$size" ] || [ "$got_align" != "$align" ]; then
-        echo "check-layout: $name fbc=$size/$align fbx=$got_size/$got_align" >&2
-        bad=$((bad + 1))
+one( ) {
+    TRUTH=$1; tgt=$2; label=$3
+    if [ ! -f "$TRUTH" ]; then
+        echo "check-layout: no $label expectations; run tools/gen/layout-truth.sh" >&2
+        return 3
     fi
-done < "$TRUTH"
+    ./bin/fbx$EXT --dump-types $tgt tests/lexer/src/basics.bas 2>/dev/null \
+        > "build/.types-$label.out"
+    bad=0
+    while read -r name size align; do
+        [ -z "$name" ] && continue
+        line=$(grep -E "^ *[0-9]+ $name +size=" "build/.types-$label.out" || true)
+        got_size=$(echo "$line" | sed -n 's/.*size= *\([0-9]*\).*/\1/p')
+        got_align=$(echo "$line" | sed -n 's/.*align= *\([0-9]*\).*/\1/p')
+        if [ "$got_size" != "$size" ] || [ "$got_align" != "$align" ]; then
+            echo "check-layout: $label $name fbc=$size/$align fbx=$got_size/$got_align" >&2
+            bad=$((bad + 1))
+        fi
+    done < "$TRUTH"
+    if [ "$bad" -gt 0 ]; then
+        echo "check-layout: $label $bad mismatch(es)" >&2
+        return 1
+    fi
+    echo "check-layout: $label ok ($(grep -c . "$TRUTH") builtin types agree with fbc)"
+}
 
-if [ "$bad" -gt 0 ]; then
-    echo "check-layout: $bad mismatch(es)" >&2
-    exit 1
-fi
-echo "check-layout: ok ($(grep -c . "$TRUTH") builtin types agree with fbc)"
+one tests/types/expected/fbc-layout.txt       ""              win64 || rc=1
+one tests/types/expected/fbc-layout-win32.txt "-target win32" win32 || rc=1
+exit $rc

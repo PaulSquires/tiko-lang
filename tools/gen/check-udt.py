@@ -17,7 +17,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+import fbxtargets
+
 TRUTH = ROOT / "tests/types/expected/fbc-udt.txt"
+TGT = []
+LABEL = "win64"
 WORK = ROOT / "build/.ud"
 FBX = ROOT / "bin/fbx.exe"
 
@@ -32,13 +36,13 @@ m = _re.search(r"CASES = \[(.*?)\n\]", SRC, _re.S)
 CASES = eval("[" + m.group(1) + "\n]")
 
 
-def main() -> int:
+def one_target() -> int:
     if not TRUTH.exists():
-        print("check-udt: no truth file; run tools/gen/udt-truth.py", file=sys.stderr)
+        print(f"check-udt: {LABEL} no truth file; run tools/gen/udt-truth.py", file=sys.stderr)
         return 3
     fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
     if not fbx.exists():
-        print("check-udt: fbx not built", file=sys.stderr)
+        print(f"check-udt: {LABEL} fbx not built", file=sys.stderr)
         return 3
 
     want = {}
@@ -60,7 +64,7 @@ def main() -> int:
     probe = WORK / "udt-fbx.bas"
     probe.write_text("\n".join(decls) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--dump-udt", str(probe)],
+    proc = subprocess.run([str(fbx), "--dump-udt"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     cur = None
@@ -104,15 +108,25 @@ def main() -> int:
         else:
             bad += 1
 
-    print(f"check-udt: {ok}/{len(CASES)} shapes match exactly")
+    print(f"check-udt: {LABEL} {ok}/{len(CASES)} shapes match exactly")
     if absent:
-        print(f"check-udt: {absent} shapes fbx does not lay out at all: "
+        print(f"check-udt: {LABEL} {absent} shapes fbx does not lay out at all: "
               + ", ".join(missing))
     if diffs:
-        print(f"check-udt: {len(diffs)} disagreements:")
+        print(f"check-udt: {LABEL} {len(diffs)} disagreements:")
         for d in diffs[:25]:
             print("   ", d)
     return 0 if (not diffs and not absent) else 1
+
+
+def main() -> int:
+    """Every target, against its own expectations file."""
+    global TRUTH, TGT, LABEL
+    rc = 0
+    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

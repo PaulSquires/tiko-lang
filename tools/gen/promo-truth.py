@@ -3,7 +3,7 @@
 
     python tools/gen/promo-truth.py
 
-Writes tests/types/expected/fbc-promotion.txt: one row per (lhs, op, rhs) giving the
+Writes tests/types/expected/fbc-promotion.txt and fbc-promotion-win32.txt: one row per (lhs, op, rhs) giving the
 result type fbc computes, and whether fbc accepts the combination at all. Those are
 two different questions -- fbc reports a type mismatch and STILL prints a fallback
 type -- and the checker needs both: one drives promotion, the other drives the
@@ -20,7 +20,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe")
+import fbxtargets
+
+FBC = fbxtargets.FBC64
+LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-promotion.txt"
 WORK = ROOT / "build/.ck"
 
@@ -33,9 +36,9 @@ OPS = ["+", "-", "*", "/", "\\", "mod", "^", "shl", "shr", "&",
        "=", "<>", "<", ">", "<=", ">="]
 
 
-def main() -> int:
+def one_target() -> int:
     if not FBC.exists():
-        print(f"promo-truth: fbc not found at {FBC}", file=sys.stderr)
+        print(f"promo-truth: {LABEL}: fbc not found at {FBC}", file=sys.stderr)
         return 3
     WORK.mkdir(parents=True, exist_ok=True)
 
@@ -89,9 +92,19 @@ def main() -> int:
         ok = "reject" if i in bad else "ok"
         rows.append(f"{lt}\t{op}\t{rt}\t{ok}\t{res}")
     OUT.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
-    print(f"promo-truth: {len(rows)} rows, {len(bad)} rejected -> "
-          f"tests/types/expected/fbc-promotion.txt")
+    print(f"promo-truth: {LABEL}: {len(rows)} rows, {len(bad)} rejected -> "
+          f"{OUT.name}")
     return 0
+
+
+def main() -> int:
+    """Every target, into its own expectations file."""
+    global FBC, OUT, WORK, LABEL
+    rc = 0
+    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

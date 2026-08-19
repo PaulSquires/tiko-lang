@@ -1,0 +1,378 @@
+cbyte	byte	BYTE
+cbyte	ubyte	BYTE
+cbyte	short	BYTE
+cbyte	ushort	BYTE
+cbyte	long	BYTE
+cbyte	ulong	BYTE
+cbyte	integer	BYTE
+cbyte	uinteger	BYTE
+cbyte	longint	BYTE
+cbyte	ulongint	BYTE
+cbyte	single	BYTE
+cbyte	double	BYTE
+cbyte	boolean	BYTE
+cbyte	string	BYTE
+cbyte	zstring	BYTE
+cbyte	wstring	BYTE
+cbyte	anyptr	reject
+cbyte	longptr	reject
+cubyte	byte	UBYTE
+cubyte	ubyte	UBYTE
+cubyte	short	UBYTE
+cubyte	ushort	UBYTE
+cubyte	long	UBYTE
+cubyte	ulong	UBYTE
+cubyte	integer	UBYTE
+cubyte	uinteger	UBYTE
+cubyte	longint	UBYTE
+cubyte	ulongint	UBYTE
+cubyte	single	UBYTE
+cubyte	double	UBYTE
+cubyte	boolean	UBYTE
+cubyte	string	UBYTE
+cubyte	zstring	UBYTE
+cubyte	wstring	UBYTE
+cubyte	anyptr	reject
+cubyte	longptr	reject
+cshort	byte	SHORT
+cshort	ubyte	SHORT
+cshort	short	SHORT
+cshort	ushort	SHORT
+cshort	long	SHORT
+cshort	ulong	SHORT
+cshort	integer	SHORT
+cshort	uinteger	SHORT
+cshort	longint	SHORT
+cshort	ulongint	SHORT
+cshort	single	SHORT
+cshort	double	SHORT
+cshort	boolean	SHORT
+cshort	string	SHORT
+cshort	zstring	SHORT
+cshort	wstring	SHORT
+cshort	anyptr	reject
+cshort	longptr	reject
+cushort	byte	USHORT
+cushort	ubyte	USHORT
+cushort	short	USHORT
+cushort	ushort	USHORT
+cushort	long	USHORT
+cushort	ulong	USHORT
+cushort	integer	USHORT
+cushort	uinteger	USHORT
+cushort	longint	USHORT
+cushort	ulongint	USHORT
+cushort	single	USHORT
+cushort	double	USHORT
+cushort	boolean	USHORT
+cushort	string	USHORT
+cushort	zstring	USHORT
+cushort	wstring	USHORT
+cushort	anyptr	reject
+cushort	longptr	reject
+clng	byte	LONG
+clng	ubyte	LONG
+clng	short	LONG
+clng	ushort	LONG
+clng	long	LONG
+clng	ulong	LONG
+clng	integer	LONG
+clng	uinteger	LONG
+clng	longint	LONG
+clng	ulongint	LONG
+clng	single	LONG
+clng	double	LONG
+clng	boolean	LONG
+clng	string	LONG
+clng	zstring	LONG
+clng	wstring	LONG
+clng	anyptr	LONG
+clng	longptr	LONG
+culng	byte	ULONG
+culng	ubyte	ULONG
+culng	short	ULONG
+culng	ushort	ULONG
+culng	long	ULONG
+culng	ulong	ULONG
+culng	integer	ULONG
+culng	uinteger	ULONG
+culng	longint	ULONG
+culng	ulongint	ULONG
+culng	single	ULONG
+culng	double	ULONG
+culng	boolean	ULONG
+culng	string	ULONG
+culng	zstring	ULONG
+culng	wstring	ULONG
+culng	anyptr	ULONG
+culng	longptr	ULONG
+cint	byte	INTEGER
+cint	ubyte	INTEGER
+cint	short	INTEGER
+cint	ushort	INTEGER
+cint	long	INTEGER
+cint	ulong	INTEGER
+cint	integer	INTEGER
+cint	uinteger	INTEGER
+cint	longint	INTEGER
+cint	ulongint	INTEGER
+cint	single	INTEGER
+cint	double	INTEGER
+cint	boolean	INTEGER
+cint	string	INTEGER
+cint	zstring	INTEGER
+cint	wstring	INTEGER
+cint	anyptr	INTEGER
+cint	longptr	INTEGER
+cuint	byte	UINTEGER
+cuint	ubyte	UINTEGER
+cuint	short	UINTEGER
+cuint	ushort	UINTEGER
+cuint	long	UINTEGER
+cuint	ulong	UINTEGER
+cuint	integer	UINTEGER
+cuint	uinteger	UINTEGER
+cuint	longint	UINTEGER
+cuint	ulongint	UINTEGER
+cuint	single	UINTEGER
+cuint	double	UINTEGER
+cuint	boolean	UINTEGER
+cuint	string	UINTEGER
+cuint	zstring	UINTEGER
+cuint	wstring	UINTEGER
+cuint	anyptr	UINTEGER
+cuint	longptr	UINTEGER
+clngint	byte	LONGINT
+clngint	ubyte	LONGINT
+clngint	short	LONGINT
+clngint	ushort	LONGINT
+clngint	long	LONGINT
+clngint	ulong	LONGINT
+clngint	integer	LONGINT
+clngint	uinteger	LONGINT
+clngint	longint	LONGINT
+clngint	ulongint	LONGINT
+clngint	single	LONGINT
+clngint	double	LONGINT
+clngint	boolean	LONGINT
+clngint	string	LONGINT
+clngint	zstring	LONGINT
+clngint	wstring	LONGINT
+clngint	anyptr	reject
+clngint	longptr	reject
+culngint	byte	ULONGINT
+culngint	ubyte	ULONGINT
+culngint	short	ULONGINT
+culngint	ushort	ULONGINT
+culngint	long	ULONGINT
+culngint	ulong	ULONGINT
+culngint	integer	ULONGINT
+culngint	uinteger	ULONGINT
+culngint	longint	ULONGINT
+culngint	ulongint	ULONGINT
+culngint	single	ULONGINT
+culngint	double	ULONGINT
+culngint	boolean	ULONGINT
+culngint	string	ULONGINT
+culngint	zstring	ULONGINT
+culngint	wstring	ULONGINT
+culngint	anyptr	reject
+culngint	longptr	reject
+csng	byte	SINGLE
+csng	ubyte	SINGLE
+csng	short	SINGLE
+csng	ushort	SINGLE
+csng	long	SINGLE
+csng	ulong	SINGLE
+csng	integer	SINGLE
+csng	uinteger	SINGLE
+csng	longint	SINGLE
+csng	ulongint	SINGLE
+csng	single	SINGLE
+csng	double	SINGLE
+csng	boolean	SINGLE
+csng	string	SINGLE
+csng	zstring	SINGLE
+csng	wstring	SINGLE
+csng	anyptr	reject
+csng	longptr	reject
+cdbl	byte	DOUBLE
+cdbl	ubyte	DOUBLE
+cdbl	short	DOUBLE
+cdbl	ushort	DOUBLE
+cdbl	long	DOUBLE
+cdbl	ulong	DOUBLE
+cdbl	integer	DOUBLE
+cdbl	uinteger	DOUBLE
+cdbl	longint	DOUBLE
+cdbl	ulongint	DOUBLE
+cdbl	single	DOUBLE
+cdbl	double	DOUBLE
+cdbl	boolean	DOUBLE
+cdbl	string	DOUBLE
+cdbl	zstring	DOUBLE
+cdbl	wstring	DOUBLE
+cdbl	anyptr	reject
+cdbl	longptr	reject
+cbool	byte	BOOLEAN
+cbool	ubyte	BOOLEAN
+cbool	short	BOOLEAN
+cbool	ushort	BOOLEAN
+cbool	long	BOOLEAN
+cbool	ulong	BOOLEAN
+cbool	integer	BOOLEAN
+cbool	uinteger	BOOLEAN
+cbool	longint	BOOLEAN
+cbool	ulongint	BOOLEAN
+cbool	single	BOOLEAN
+cbool	double	BOOLEAN
+cbool	boolean	BOOLEAN
+cbool	string	BOOLEAN
+cbool	zstring	BOOLEAN
+cbool	wstring	BOOLEAN
+cbool	anyptr	reject
+cbool	longptr	reject
+csign	byte	BYTE
+csign	ubyte	BYTE
+csign	short	SHORT
+csign	ushort	SHORT
+csign	long	LONG
+csign	ulong	LONG
+csign	integer	INTEGER
+csign	uinteger	INTEGER
+csign	longint	LONGINT
+csign	ulongint	LONGINT
+csign	single	SINGLE
+csign	double	DOUBLE
+csign	boolean	BOOLEAN
+csign	string	STRING
+csign	zstring	BYTE
+csign	wstring	SHORT
+csign	anyptr	LONG
+csign	longptr	LONG
+cunsg	byte	UBYTE
+cunsg	ubyte	UBYTE
+cunsg	short	USHORT
+cunsg	ushort	USHORT
+cunsg	long	ULONG
+cunsg	ulong	ULONG
+cunsg	integer	UINTEGER
+cunsg	uinteger	UINTEGER
+cunsg	longint	ULONGINT
+cunsg	ulongint	ULONGINT
+cunsg	single	SINGLE
+cunsg	double	DOUBLE
+cunsg	boolean	BOOLEAN
+cunsg	string	STRING
+cunsg	zstring	ZSTRING * 8
+cunsg	wstring	WSTRING * 8
+cunsg	anyptr	ULONG
+cunsg	longptr	ULONG
+cptr(any ptr)	byte	reject
+cptr(any ptr)	ubyte	reject
+cptr(any ptr)	short	reject
+cptr(any ptr)	ushort	reject
+cptr(any ptr)	long	ANY PTR
+cptr(any ptr)	ulong	ANY PTR
+cptr(any ptr)	integer	ANY PTR
+cptr(any ptr)	uinteger	ANY PTR
+cptr(any ptr)	longint	reject
+cptr(any ptr)	ulongint	reject
+cptr(any ptr)	single	reject
+cptr(any ptr)	double	reject
+cptr(any ptr)	boolean	reject
+cptr(any ptr)	string	reject
+cptr(any ptr)	zstring	reject
+cptr(any ptr)	wstring	reject
+cptr(any ptr)	anyptr	ANY PTR
+cptr(any ptr)	longptr	ANY PTR
+cptr(long ptr)	byte	reject
+cptr(long ptr)	ubyte	reject
+cptr(long ptr)	short	reject
+cptr(long ptr)	ushort	reject
+cptr(long ptr)	long	LONG PTR
+cptr(long ptr)	ulong	LONG PTR
+cptr(long ptr)	integer	LONG PTR
+cptr(long ptr)	uinteger	LONG PTR
+cptr(long ptr)	longint	reject
+cptr(long ptr)	ulongint	reject
+cptr(long ptr)	single	reject
+cptr(long ptr)	double	reject
+cptr(long ptr)	boolean	reject
+cptr(long ptr)	string	reject
+cptr(long ptr)	zstring	reject
+cptr(long ptr)	wstring	reject
+cptr(long ptr)	anyptr	LONG PTR
+cptr(long ptr)	longptr	LONG PTR
+cast(long)	byte	LONG
+cast(long)	ubyte	LONG
+cast(long)	short	LONG
+cast(long)	ushort	LONG
+cast(long)	long	LONG
+cast(long)	ulong	LONG
+cast(long)	integer	LONG
+cast(long)	uinteger	LONG
+cast(long)	longint	LONG
+cast(long)	ulongint	LONG
+cast(long)	single	LONG
+cast(long)	double	LONG
+cast(long)	boolean	LONG
+cast(long)	string	LONG
+cast(long)	zstring	LONG
+cast(long)	wstring	LONG
+cast(long)	anyptr	LONG
+cast(long)	longptr	LONG
+cast(double)	byte	DOUBLE
+cast(double)	ubyte	DOUBLE
+cast(double)	short	DOUBLE
+cast(double)	ushort	DOUBLE
+cast(double)	long	DOUBLE
+cast(double)	ulong	DOUBLE
+cast(double)	integer	DOUBLE
+cast(double)	uinteger	DOUBLE
+cast(double)	longint	DOUBLE
+cast(double)	ulongint	DOUBLE
+cast(double)	single	DOUBLE
+cast(double)	double	DOUBLE
+cast(double)	boolean	DOUBLE
+cast(double)	string	DOUBLE
+cast(double)	zstring	DOUBLE
+cast(double)	wstring	DOUBLE
+cast(double)	anyptr	reject
+cast(double)	longptr	reject
+cast(string)	byte	reject
+cast(string)	ubyte	reject
+cast(string)	short	reject
+cast(string)	ushort	reject
+cast(string)	long	reject
+cast(string)	ulong	reject
+cast(string)	integer	reject
+cast(string)	uinteger	reject
+cast(string)	longint	reject
+cast(string)	ulongint	reject
+cast(string)	single	reject
+cast(string)	double	reject
+cast(string)	boolean	reject
+cast(string)	string	STRING
+cast(string)	zstring	reject
+cast(string)	wstring	reject
+cast(string)	anyptr	reject
+cast(string)	longptr	reject
+cast(any ptr)	byte	reject
+cast(any ptr)	ubyte	reject
+cast(any ptr)	short	reject
+cast(any ptr)	ushort	reject
+cast(any ptr)	long	ANY PTR
+cast(any ptr)	ulong	ANY PTR
+cast(any ptr)	integer	ANY PTR
+cast(any ptr)	uinteger	ANY PTR
+cast(any ptr)	longint	reject
+cast(any ptr)	ulongint	reject
+cast(any ptr)	single	reject
+cast(any ptr)	double	reject
+cast(any ptr)	boolean	reject
+cast(any ptr)	string	reject
+cast(any ptr)	zstring	reject
+cast(any ptr)	wstring	reject
+cast(any ptr)	anyptr	ANY PTR
+cast(any ptr)	longptr	ANY PTR

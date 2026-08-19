@@ -3,7 +3,7 @@
 
     python tools/gen/const-truth.py
 
-Writes tests/types/expected/fbc-const.txt: one row per expression with the 64-bit
+Writes tests/types/expected/fbc-const.txt and fbc-const-win32.txt: one row per expression with the 64-bit
 value fbc computes.
 
 '#print' does NOT fold -- it echoes its tokens -- so there is no way to simply ask.

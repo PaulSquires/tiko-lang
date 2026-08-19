@@ -13,17 +13,21 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+import fbxtargets
+
 TRUTH = ROOT / "tests/types/expected/fbc-array.txt"
+TGT = []
+LABEL = "win64"
 FBX = ROOT / "bin/fbx.exe"
 SRC = ROOT / "build/.ar/arr.bas"
 
 
-def main() -> int:
+def one_target() -> int:
     if not TRUTH.exists():
-        print("check-array: no truth file; run tools/gen/array-truth.py", file=sys.stderr)
+        print(f"check-array: {LABEL} no truth file; run tools/gen/array-truth.py", file=sys.stderr)
         return 3
     if not SRC.exists():
-        print("check-array: no probe source; run tools/gen/array-truth.py", file=sys.stderr)
+        print(f"check-array: {LABEL} no probe source; run tools/gen/array-truth.py", file=sys.stderr)
         return 3
 
     want = {}
@@ -33,7 +37,7 @@ def main() -> int:
         name, size = line.split("\t")
         want[name] = int(size)
 
-    proc = subprocess.run([str(FBX), "--dump-ir", str(SRC)],
+    proc = subprocess.run([str(FBX), "--dump-ir"] + TGT + [str(SRC)],
                           capture_output=True, text=True, cwd=str(ROOT))
     got = {}
     for m in re.finditer(r"^\s*local agg (\w+) size (\d+)", proc.stdout, re.M):
@@ -46,10 +50,20 @@ def main() -> int:
             bad += 1
             print(f"    {name}: fbc={size} fbx={have if have is not None else 'ABSENT'}")
     if bad:
-        print(f"check-array: {bad}/{len(want)} array sizes DISAGREE with fbc")
+        print(f"check-array: {LABEL} {bad}/{len(want)} array sizes DISAGREE with fbc")
         return 1
-    print(f"check-array: {len(want)}/{len(want)} array sizes match fbc")
+    print(f"check-array: {LABEL} {len(want)}/{len(want)} array sizes match fbc")
     return 0
+
+
+def main() -> int:
+    """Every target, against its own expectations file."""
+    global TRUTH, TGT, LABEL
+    rc = 0
+    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

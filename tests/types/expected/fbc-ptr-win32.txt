@@ -1,0 +1,3825 @@
+accept	0	any ptr	yes
+accept	1	any ptr	yes
+accept	-1	any ptr	yes
+accept	"lit"	any ptr	no
+accept	v_string	any ptr	no
+accept	v_zfixed	any ptr	no
+accept	v_wfixed	any ptr	no
+accept	v_long	any ptr	yes
+accept	v_integer	any ptr	yes
+accept	v_uinteger	any ptr	yes
+accept	v_longint	any ptr	no
+accept	v_ulongint	any ptr	no
+accept	v_ulong	any ptr	yes
+accept	v_double	any ptr	no
+accept	v_boolean	any ptr	no
+accept	v_anyptr	any ptr	yes
+accept	v_byteptr	any ptr	yes
+accept	v_ubyteptr	any ptr	yes
+accept	v_shortptr	any ptr	yes
+accept	v_longptr	any ptr	yes
+accept	v_longptrptr	any ptr	yes
+accept	v_zptr	any ptr	yes
+accept	v_wptr	any ptr	yes
+accept	@v_long	any ptr	yes
+accept	strptr(v_string)	any ptr	yes
+accept	0	byte ptr	yes
+accept	1	byte ptr	yes
+accept	-1	byte ptr	yes
+accept	"lit"	byte ptr	no
+accept	v_string	byte ptr	no
+accept	v_zfixed	byte ptr	no
+accept	v_wfixed	byte ptr	no
+accept	v_long	byte ptr	yes
+accept	v_integer	byte ptr	yes
+accept	v_uinteger	byte ptr	yes
+accept	v_longint	byte ptr	no
+accept	v_ulongint	byte ptr	no
+accept	v_ulong	byte ptr	yes
+accept	v_double	byte ptr	no
+accept	v_boolean	byte ptr	no
+accept	v_anyptr	byte ptr	yes
+accept	v_byteptr	byte ptr	yes
+accept	v_ubyteptr	byte ptr	yes
+accept	v_shortptr	byte ptr	warn
+accept	v_longptr	byte ptr	warn
+accept	v_longptrptr	byte ptr	warn
+accept	v_zptr	byte ptr	yes
+accept	v_wptr	byte ptr	warn
+accept	@v_long	byte ptr	warn
+accept	strptr(v_string)	byte ptr	yes
+accept	0	ubyte ptr	yes
+accept	1	ubyte ptr	yes
+accept	-1	ubyte ptr	yes
+accept	"lit"	ubyte ptr	no
+accept	v_string	ubyte ptr	no
+accept	v_zfixed	ubyte ptr	no
+accept	v_wfixed	ubyte ptr	no
+accept	v_long	ubyte ptr	yes
+accept	v_integer	ubyte ptr	yes
+accept	v_uinteger	ubyte ptr	yes
+accept	v_longint	ubyte ptr	no
+accept	v_ulongint	ubyte ptr	no
+accept	v_ulong	ubyte ptr	yes
+accept	v_double	ubyte ptr	no
+accept	v_boolean	ubyte ptr	no
+accept	v_anyptr	ubyte ptr	yes
+accept	v_byteptr	ubyte ptr	yes
+accept	v_ubyteptr	ubyte ptr	yes
+accept	v_shortptr	ubyte ptr	warn
+accept	v_longptr	ubyte ptr	warn
+accept	v_longptrptr	ubyte ptr	warn
+accept	v_zptr	ubyte ptr	yes
+accept	v_wptr	ubyte ptr	warn
+accept	@v_long	ubyte ptr	warn
+accept	strptr(v_string)	ubyte ptr	yes
+accept	0	short ptr	yes
+accept	1	short ptr	yes
+accept	-1	short ptr	yes
+accept	"lit"	short ptr	no
+accept	v_string	short ptr	no
+accept	v_zfixed	short ptr	no
+accept	v_wfixed	short ptr	no
+accept	v_long	short ptr	yes
+accept	v_integer	short ptr	yes
+accept	v_uinteger	short ptr	yes
+accept	v_longint	short ptr	no
+accept	v_ulongint	short ptr	no
+accept	v_ulong	short ptr	yes
+accept	v_double	short ptr	no
+accept	v_boolean	short ptr	no
+accept	v_anyptr	short ptr	yes
+accept	v_byteptr	short ptr	warn
+accept	v_ubyteptr	short ptr	warn
+accept	v_shortptr	short ptr	yes
+accept	v_longptr	short ptr	warn
+accept	v_longptrptr	short ptr	warn
+accept	v_zptr	short ptr	warn
+accept	v_wptr	short ptr	yes
+accept	@v_long	short ptr	warn
+accept	strptr(v_string)	short ptr	warn
+accept	0	long ptr	yes
+accept	1	long ptr	yes
+accept	-1	long ptr	yes
+accept	"lit"	long ptr	no
+accept	v_string	long ptr	no
+accept	v_zfixed	long ptr	no
+accept	v_wfixed	long ptr	no
+accept	v_long	long ptr	yes
+accept	v_integer	long ptr	yes
+accept	v_uinteger	long ptr	yes
+accept	v_longint	long ptr	no
+accept	v_ulongint	long ptr	no
+accept	v_ulong	long ptr	yes
+accept	v_double	long ptr	no
+accept	v_boolean	long ptr	no
+accept	v_anyptr	long ptr	yes
+accept	v_byteptr	long ptr	warn
+accept	v_ubyteptr	long ptr	warn
+accept	v_shortptr	long ptr	warn
+accept	v_longptr	long ptr	yes
+accept	v_longptrptr	long ptr	warn
+accept	v_zptr	long ptr	warn
+accept	v_wptr	long ptr	warn
+accept	@v_long	long ptr	yes
+accept	strptr(v_string)	long ptr	warn
+accept	0	long ptr ptr	yes
+accept	1	long ptr ptr	yes
+accept	-1	long ptr ptr	yes
+accept	"lit"	long ptr ptr	no
+accept	v_string	long ptr ptr	no
+accept	v_zfixed	long ptr ptr	no
+accept	v_wfixed	long ptr ptr	no
+accept	v_long	long ptr ptr	yes
+accept	v_integer	long ptr ptr	yes
+accept	v_uinteger	long ptr ptr	yes
+accept	v_longint	long ptr ptr	no
+accept	v_ulongint	long ptr ptr	no
+accept	v_ulong	long ptr ptr	yes
+accept	v_double	long ptr ptr	no
+accept	v_boolean	long ptr ptr	no
+accept	v_anyptr	long ptr ptr	yes
+accept	v_byteptr	long ptr ptr	warn
+accept	v_ubyteptr	long ptr ptr	warn
+accept	v_shortptr	long ptr ptr	warn
+accept	v_longptr	long ptr ptr	warn
+accept	v_longptrptr	long ptr ptr	yes
+accept	v_zptr	long ptr ptr	warn
+accept	v_wptr	long ptr ptr	warn
+accept	@v_long	long ptr ptr	warn
+accept	strptr(v_string)	long ptr ptr	warn
+accept	0	zstring ptr	yes
+accept	1	zstring ptr	yes
+accept	-1	zstring ptr	yes
+accept	"lit"	zstring ptr	yes
+accept	v_string	zstring ptr	yes
+accept	v_zfixed	zstring ptr	yes
+accept	v_wfixed	zstring ptr	yes
+accept	v_long	zstring ptr	yes
+accept	v_integer	zstring ptr	yes
+accept	v_uinteger	zstring ptr	yes
+accept	v_longint	zstring ptr	no
+accept	v_ulongint	zstring ptr	no
+accept	v_ulong	zstring ptr	yes
+accept	v_double	zstring ptr	no
+accept	v_boolean	zstring ptr	no
+accept	v_anyptr	zstring ptr	yes
+accept	v_byteptr	zstring ptr	yes
+accept	v_ubyteptr	zstring ptr	yes
+accept	v_shortptr	zstring ptr	warn
+accept	v_longptr	zstring ptr	warn
+accept	v_longptrptr	zstring ptr	warn
+accept	v_zptr	zstring ptr	yes
+accept	v_wptr	zstring ptr	warn
+accept	@v_long	zstring ptr	warn
+accept	strptr(v_string)	zstring ptr	yes
+accept	0	wstring ptr	yes
+accept	1	wstring ptr	yes
+accept	-1	wstring ptr	yes
+accept	"lit"	wstring ptr	yes
+accept	v_string	wstring ptr	yes
+accept	v_zfixed	wstring ptr	yes
+accept	v_wfixed	wstring ptr	yes
+accept	v_long	wstring ptr	yes
+accept	v_integer	wstring ptr	yes
+accept	v_uinteger	wstring ptr	yes
+accept	v_longint	wstring ptr	no
+accept	v_ulongint	wstring ptr	no
+accept	v_ulong	wstring ptr	yes
+accept	v_double	wstring ptr	no
+accept	v_boolean	wstring ptr	no
+accept	v_anyptr	wstring ptr	yes
+accept	v_byteptr	wstring ptr	warn
+accept	v_ubyteptr	wstring ptr	warn
+accept	v_shortptr	wstring ptr	yes
+accept	v_longptr	wstring ptr	warn
+accept	v_longptrptr	wstring ptr	warn
+accept	v_zptr	wstring ptr	warn
+accept	v_wptr	wstring ptr	yes
+accept	@v_long	wstring ptr	warn
+accept	strptr(v_string)	wstring ptr	warn
+accept	0	string	no
+accept	1	string	no
+accept	-1	string	no
+accept	"lit"	string	yes
+accept	v_string	string	yes
+accept	v_zfixed	string	yes
+accept	v_wfixed	string	yes
+accept	v_long	string	no
+accept	v_integer	string	no
+accept	v_uinteger	string	no
+accept	v_longint	string	no
+accept	v_ulongint	string	no
+accept	v_ulong	string	no
+accept	v_double	string	no
+accept	v_boolean	string	no
+accept	v_anyptr	string	no
+accept	v_byteptr	string	no
+accept	v_ubyteptr	string	no
+accept	v_shortptr	string	no
+accept	v_longptr	string	no
+accept	v_longptrptr	string	no
+accept	v_zptr	string	no
+accept	v_wptr	string	no
+accept	@v_long	string	no
+accept	strptr(v_string)	string	no
+accept	0	long	yes
+accept	1	long	yes
+accept	-1	long	yes
+accept	"lit"	long	no
+accept	v_string	long	no
+accept	v_zfixed	long	no
+accept	v_wfixed	long	no
+accept	v_long	long	yes
+accept	v_integer	long	yes
+accept	v_uinteger	long	yes
+accept	v_longint	long	yes
+accept	v_ulongint	long	yes
+accept	v_ulong	long	yes
+accept	v_double	long	yes
+accept	v_boolean	long	yes
+accept	v_anyptr	long	yes
+accept	v_byteptr	long	yes
+accept	v_ubyteptr	long	yes
+accept	v_shortptr	long	yes
+accept	v_longptr	long	yes
+accept	v_longptrptr	long	yes
+accept	v_zptr	long	yes
+accept	v_wptr	long	yes
+accept	@v_long	long	yes
+accept	strptr(v_string)	long	yes
+accept	0	ulong	yes
+accept	1	ulong	yes
+accept	-1	ulong	yes
+accept	"lit"	ulong	no
+accept	v_string	ulong	no
+accept	v_zfixed	ulong	no
+accept	v_wfixed	ulong	no
+accept	v_long	ulong	yes
+accept	v_integer	ulong	yes
+accept	v_uinteger	ulong	yes
+accept	v_longint	ulong	yes
+accept	v_ulongint	ulong	yes
+accept	v_ulong	ulong	yes
+accept	v_double	ulong	yes
+accept	v_boolean	ulong	yes
+accept	v_anyptr	ulong	yes
+accept	v_byteptr	ulong	yes
+accept	v_ubyteptr	ulong	yes
+accept	v_shortptr	ulong	yes
+accept	v_longptr	ulong	yes
+accept	v_longptrptr	ulong	yes
+accept	v_zptr	ulong	yes
+accept	v_wptr	ulong	yes
+accept	@v_long	ulong	yes
+accept	strptr(v_string)	ulong	yes
+accept	0	integer	yes
+accept	1	integer	yes
+accept	-1	integer	yes
+accept	"lit"	integer	no
+accept	v_string	integer	no
+accept	v_zfixed	integer	no
+accept	v_wfixed	integer	no
+accept	v_long	integer	yes
+accept	v_integer	integer	yes
+accept	v_uinteger	integer	yes
+accept	v_longint	integer	yes
+accept	v_ulongint	integer	yes
+accept	v_ulong	integer	yes
+accept	v_double	integer	yes
+accept	v_boolean	integer	yes
+accept	v_anyptr	integer	yes
+accept	v_byteptr	integer	yes
+accept	v_ubyteptr	integer	yes
+accept	v_shortptr	integer	yes
+accept	v_longptr	integer	yes
+accept	v_longptrptr	integer	yes
+accept	v_zptr	integer	yes
+accept	v_wptr	integer	yes
+accept	@v_long	integer	yes
+accept	strptr(v_string)	integer	yes
+accept	0	uinteger	yes
+accept	1	uinteger	yes
+accept	-1	uinteger	yes
+accept	"lit"	uinteger	no
+accept	v_string	uinteger	no
+accept	v_zfixed	uinteger	no
+accept	v_wfixed	uinteger	no
+accept	v_long	uinteger	yes
+accept	v_integer	uinteger	yes
+accept	v_uinteger	uinteger	yes
+accept	v_longint	uinteger	yes
+accept	v_ulongint	uinteger	yes
+accept	v_ulong	uinteger	yes
+accept	v_double	uinteger	yes
+accept	v_boolean	uinteger	yes
+accept	v_anyptr	uinteger	yes
+accept	v_byteptr	uinteger	yes
+accept	v_ubyteptr	uinteger	yes
+accept	v_shortptr	uinteger	yes
+accept	v_longptr	uinteger	yes
+accept	v_longptrptr	uinteger	yes
+accept	v_zptr	uinteger	yes
+accept	v_wptr	uinteger	yes
+accept	@v_long	uinteger	yes
+accept	strptr(v_string)	uinteger	yes
+accept	0	longint	yes
+accept	1	longint	yes
+accept	-1	longint	yes
+accept	"lit"	longint	no
+accept	v_string	longint	no
+accept	v_zfixed	longint	no
+accept	v_wfixed	longint	no
+accept	v_long	longint	yes
+accept	v_integer	longint	yes
+accept	v_uinteger	longint	yes
+accept	v_longint	longint	yes
+accept	v_ulongint	longint	yes
+accept	v_ulong	longint	yes
+accept	v_double	longint	yes
+accept	v_boolean	longint	yes
+accept	v_anyptr	longint	no
+accept	v_byteptr	longint	no
+accept	v_ubyteptr	longint	no
+accept	v_shortptr	longint	no
+accept	v_longptr	longint	no
+accept	v_longptrptr	longint	no
+accept	v_zptr	longint	no
+accept	v_wptr	longint	no
+accept	@v_long	longint	no
+accept	strptr(v_string)	longint	no
+accept	0	ulongint	yes
+accept	1	ulongint	yes
+accept	-1	ulongint	yes
+accept	"lit"	ulongint	no
+accept	v_string	ulongint	no
+accept	v_zfixed	ulongint	no
+accept	v_wfixed	ulongint	no
+accept	v_long	ulongint	yes
+accept	v_integer	ulongint	yes
+accept	v_uinteger	ulongint	yes
+accept	v_longint	ulongint	yes
+accept	v_ulongint	ulongint	yes
+accept	v_ulong	ulongint	yes
+accept	v_double	ulongint	yes
+accept	v_boolean	ulongint	yes
+accept	v_anyptr	ulongint	no
+accept	v_byteptr	ulongint	no
+accept	v_ubyteptr	ulongint	no
+accept	v_shortptr	ulongint	no
+accept	v_longptr	ulongint	no
+accept	v_longptrptr	ulongint	no
+accept	v_zptr	ulongint	no
+accept	v_wptr	ulongint	no
+accept	@v_long	ulongint	no
+accept	strptr(v_string)	ulongint	no
+accept	0	double	yes
+accept	1	double	yes
+accept	-1	double	yes
+accept	"lit"	double	no
+accept	v_string	double	no
+accept	v_zfixed	double	no
+accept	v_wfixed	double	no
+accept	v_long	double	yes
+accept	v_integer	double	yes
+accept	v_uinteger	double	yes
+accept	v_longint	double	yes
+accept	v_ulongint	double	yes
+accept	v_ulong	double	yes
+accept	v_double	double	yes
+accept	v_boolean	double	yes
+accept	v_anyptr	double	no
+accept	v_byteptr	double	no
+accept	v_ubyteptr	double	no
+accept	v_shortptr	double	no
+accept	v_longptr	double	no
+accept	v_longptrptr	double	no
+accept	v_zptr	double	no
+accept	v_wptr	double	no
+accept	@v_long	double	no
+accept	strptr(v_string)	double	no
+accept	0	boolean	yes
+accept	1	boolean	yes
+accept	-1	boolean	yes
+accept	"lit"	boolean	no
+accept	v_string	boolean	no
+accept	v_zfixed	boolean	no
+accept	v_wfixed	boolean	no
+accept	v_long	boolean	yes
+accept	v_integer	boolean	yes
+accept	v_uinteger	boolean	yes
+accept	v_longint	boolean	yes
+accept	v_ulongint	boolean	yes
+accept	v_ulong	boolean	yes
+accept	v_double	boolean	yes
+accept	v_boolean	boolean	yes
+accept	v_anyptr	boolean	no
+accept	v_byteptr	boolean	no
+accept	v_ubyteptr	boolean	no
+accept	v_shortptr	boolean	no
+accept	v_longptr	boolean	no
+accept	v_longptrptr	boolean	no
+accept	v_zptr	boolean	no
+accept	v_wptr	boolean	no
+accept	@v_long	boolean	no
+accept	strptr(v_string)	boolean	no
+pick	any ptr	byte ptr	0	reject
+pick	any ptr	byte ptr	1	reject
+pick	any ptr	byte ptr	-1	reject
+pick	any ptr	byte ptr	"lit"	reject
+pick	any ptr	byte ptr	v_string	reject
+pick	any ptr	byte ptr	v_zfixed	reject
+pick	any ptr	byte ptr	v_wfixed	reject
+pick	any ptr	byte ptr	v_long	reject
+pick	any ptr	byte ptr	v_integer	reject
+pick	any ptr	byte ptr	v_uinteger	reject
+pick	any ptr	byte ptr	v_longint	reject
+pick	any ptr	byte ptr	v_ulongint	reject
+pick	any ptr	byte ptr	v_ulong	reject
+pick	any ptr	byte ptr	v_double	reject
+pick	any ptr	byte ptr	v_boolean	reject
+pick	any ptr	byte ptr	v_anyptr	any ptr
+pick	any ptr	byte ptr	v_byteptr	byte ptr
+pick	any ptr	byte ptr	v_ubyteptr	any ptr
+pick	any ptr	byte ptr	v_shortptr	any ptr
+pick	any ptr	byte ptr	v_longptr	any ptr
+pick	any ptr	byte ptr	v_longptrptr	any ptr
+pick	any ptr	byte ptr	v_zptr	any ptr
+pick	any ptr	byte ptr	v_wptr	any ptr
+pick	any ptr	byte ptr	@v_long	any ptr
+pick	any ptr	byte ptr	strptr(v_string)	any ptr
+pick	any ptr	ubyte ptr	0	reject
+pick	any ptr	ubyte ptr	1	reject
+pick	any ptr	ubyte ptr	-1	reject
+pick	any ptr	ubyte ptr	"lit"	reject
+pick	any ptr	ubyte ptr	v_string	reject
+pick	any ptr	ubyte ptr	v_zfixed	reject
+pick	any ptr	ubyte ptr	v_wfixed	reject
+pick	any ptr	ubyte ptr	v_long	reject
+pick	any ptr	ubyte ptr	v_integer	reject
+pick	any ptr	ubyte ptr	v_uinteger	reject
+pick	any ptr	ubyte ptr	v_longint	reject
+pick	any ptr	ubyte ptr	v_ulongint	reject
+pick	any ptr	ubyte ptr	v_ulong	reject
+pick	any ptr	ubyte ptr	v_double	reject
+pick	any ptr	ubyte ptr	v_boolean	reject
+pick	any ptr	ubyte ptr	v_anyptr	any ptr
+pick	any ptr	ubyte ptr	v_byteptr	any ptr
+pick	any ptr	ubyte ptr	v_ubyteptr	ubyte ptr
+pick	any ptr	ubyte ptr	v_shortptr	any ptr
+pick	any ptr	ubyte ptr	v_longptr	any ptr
+pick	any ptr	ubyte ptr	v_longptrptr	any ptr
+pick	any ptr	ubyte ptr	v_zptr	any ptr
+pick	any ptr	ubyte ptr	v_wptr	any ptr
+pick	any ptr	ubyte ptr	@v_long	any ptr
+pick	any ptr	ubyte ptr	strptr(v_string)	any ptr
+pick	any ptr	short ptr	0	reject
+pick	any ptr	short ptr	1	reject
+pick	any ptr	short ptr	-1	reject
+pick	any ptr	short ptr	"lit"	reject
+pick	any ptr	short ptr	v_string	reject
+pick	any ptr	short ptr	v_zfixed	reject
+pick	any ptr	short ptr	v_wfixed	reject
+pick	any ptr	short ptr	v_long	reject
+pick	any ptr	short ptr	v_integer	reject
+pick	any ptr	short ptr	v_uinteger	reject
+pick	any ptr	short ptr	v_longint	reject
+pick	any ptr	short ptr	v_ulongint	reject
+pick	any ptr	short ptr	v_ulong	reject
+pick	any ptr	short ptr	v_double	reject
+pick	any ptr	short ptr	v_boolean	reject
+pick	any ptr	short ptr	v_anyptr	any ptr
+pick	any ptr	short ptr	v_byteptr	any ptr
+pick	any ptr	short ptr	v_ubyteptr	any ptr
+pick	any ptr	short ptr	v_shortptr	short ptr
+pick	any ptr	short ptr	v_longptr	any ptr
+pick	any ptr	short ptr	v_longptrptr	any ptr
+pick	any ptr	short ptr	v_zptr	any ptr
+pick	any ptr	short ptr	v_wptr	any ptr
+pick	any ptr	short ptr	@v_long	any ptr
+pick	any ptr	short ptr	strptr(v_string)	any ptr
+pick	any ptr	long ptr	0	reject
+pick	any ptr	long ptr	1	reject
+pick	any ptr	long ptr	-1	reject
+pick	any ptr	long ptr	"lit"	reject
+pick	any ptr	long ptr	v_string	reject
+pick	any ptr	long ptr	v_zfixed	reject
+pick	any ptr	long ptr	v_wfixed	reject
+pick	any ptr	long ptr	v_long	reject
+pick	any ptr	long ptr	v_integer	reject
+pick	any ptr	long ptr	v_uinteger	reject
+pick	any ptr	long ptr	v_longint	reject
+pick	any ptr	long ptr	v_ulongint	reject
+pick	any ptr	long ptr	v_ulong	reject
+pick	any ptr	long ptr	v_double	reject
+pick	any ptr	long ptr	v_boolean	reject
+pick	any ptr	long ptr	v_anyptr	any ptr
+pick	any ptr	long ptr	v_byteptr	any ptr
+pick	any ptr	long ptr	v_ubyteptr	any ptr
+pick	any ptr	long ptr	v_shortptr	any ptr
+pick	any ptr	long ptr	v_longptr	long ptr
+pick	any ptr	long ptr	v_longptrptr	any ptr
+pick	any ptr	long ptr	v_zptr	any ptr
+pick	any ptr	long ptr	v_wptr	any ptr
+pick	any ptr	long ptr	@v_long	long ptr
+pick	any ptr	long ptr	strptr(v_string)	any ptr
+pick	any ptr	long ptr ptr	0	reject
+pick	any ptr	long ptr ptr	1	reject
+pick	any ptr	long ptr ptr	-1	reject
+pick	any ptr	long ptr ptr	"lit"	reject
+pick	any ptr	long ptr ptr	v_string	reject
+pick	any ptr	long ptr ptr	v_zfixed	reject
+pick	any ptr	long ptr ptr	v_wfixed	reject
+pick	any ptr	long ptr ptr	v_long	reject
+pick	any ptr	long ptr ptr	v_integer	reject
+pick	any ptr	long ptr ptr	v_uinteger	reject
+pick	any ptr	long ptr ptr	v_longint	reject
+pick	any ptr	long ptr ptr	v_ulongint	reject
+pick	any ptr	long ptr ptr	v_ulong	reject
+pick	any ptr	long ptr ptr	v_double	reject
+pick	any ptr	long ptr ptr	v_boolean	reject
+pick	any ptr	long ptr ptr	v_anyptr	any ptr
+pick	any ptr	long ptr ptr	v_byteptr	any ptr
+pick	any ptr	long ptr ptr	v_ubyteptr	any ptr
+pick	any ptr	long ptr ptr	v_shortptr	any ptr
+pick	any ptr	long ptr ptr	v_longptr	any ptr
+pick	any ptr	long ptr ptr	v_longptrptr	long ptr ptr
+pick	any ptr	long ptr ptr	v_zptr	any ptr
+pick	any ptr	long ptr ptr	v_wptr	any ptr
+pick	any ptr	long ptr ptr	@v_long	any ptr
+pick	any ptr	long ptr ptr	strptr(v_string)	any ptr
+pick	any ptr	zstring ptr	0	reject
+pick	any ptr	zstring ptr	1	reject
+pick	any ptr	zstring ptr	-1	reject
+pick	any ptr	zstring ptr	"lit"	zstring ptr
+pick	any ptr	zstring ptr	v_string	zstring ptr
+pick	any ptr	zstring ptr	v_zfixed	zstring ptr
+pick	any ptr	zstring ptr	v_wfixed	zstring ptr
+pick	any ptr	zstring ptr	v_long	reject
+pick	any ptr	zstring ptr	v_integer	reject
+pick	any ptr	zstring ptr	v_uinteger	reject
+pick	any ptr	zstring ptr	v_longint	reject
+pick	any ptr	zstring ptr	v_ulongint	reject
+pick	any ptr	zstring ptr	v_ulong	reject
+pick	any ptr	zstring ptr	v_double	reject
+pick	any ptr	zstring ptr	v_boolean	reject
+pick	any ptr	zstring ptr	v_anyptr	any ptr
+pick	any ptr	zstring ptr	v_byteptr	any ptr
+pick	any ptr	zstring ptr	v_ubyteptr	reject
+pick	any ptr	zstring ptr	v_shortptr	any ptr
+pick	any ptr	zstring ptr	v_longptr	any ptr
+pick	any ptr	zstring ptr	v_longptrptr	any ptr
+pick	any ptr	zstring ptr	v_zptr	zstring ptr
+pick	any ptr	zstring ptr	v_wptr	any ptr
+pick	any ptr	zstring ptr	@v_long	any ptr
+pick	any ptr	zstring ptr	strptr(v_string)	zstring ptr
+pick	any ptr	wstring ptr	0	reject
+pick	any ptr	wstring ptr	1	reject
+pick	any ptr	wstring ptr	-1	reject
+pick	any ptr	wstring ptr	"lit"	wstring ptr
+pick	any ptr	wstring ptr	v_string	wstring ptr
+pick	any ptr	wstring ptr	v_zfixed	wstring ptr
+pick	any ptr	wstring ptr	v_wfixed	wstring ptr
+pick	any ptr	wstring ptr	v_long	reject
+pick	any ptr	wstring ptr	v_integer	reject
+pick	any ptr	wstring ptr	v_uinteger	reject
+pick	any ptr	wstring ptr	v_longint	reject
+pick	any ptr	wstring ptr	v_ulongint	reject
+pick	any ptr	wstring ptr	v_ulong	reject
+pick	any ptr	wstring ptr	v_double	reject
+pick	any ptr	wstring ptr	v_boolean	reject
+pick	any ptr	wstring ptr	v_anyptr	any ptr
+pick	any ptr	wstring ptr	v_byteptr	any ptr
+pick	any ptr	wstring ptr	v_ubyteptr	any ptr
+pick	any ptr	wstring ptr	v_shortptr	any ptr
+pick	any ptr	wstring ptr	v_longptr	any ptr
+pick	any ptr	wstring ptr	v_longptrptr	any ptr
+pick	any ptr	wstring ptr	v_zptr	any ptr
+pick	any ptr	wstring ptr	v_wptr	wstring ptr
+pick	any ptr	wstring ptr	@v_long	any ptr
+pick	any ptr	wstring ptr	strptr(v_string)	any ptr
+pick	any ptr	string	0	any ptr
+pick	any ptr	string	1	any ptr
+pick	any ptr	string	-1	any ptr
+pick	any ptr	string	"lit"	string
+pick	any ptr	string	v_string	string
+pick	any ptr	string	v_zfixed	string
+pick	any ptr	string	v_wfixed	string
+pick	any ptr	string	v_long	any ptr
+pick	any ptr	string	v_integer	any ptr
+pick	any ptr	string	v_uinteger	any ptr
+pick	any ptr	string	v_longint	reject
+pick	any ptr	string	v_ulongint	reject
+pick	any ptr	string	v_ulong	any ptr
+pick	any ptr	string	v_double	reject
+pick	any ptr	string	v_boolean	reject
+pick	any ptr	string	v_anyptr	any ptr
+pick	any ptr	string	v_byteptr	any ptr
+pick	any ptr	string	v_ubyteptr	any ptr
+pick	any ptr	string	v_shortptr	any ptr
+pick	any ptr	string	v_longptr	any ptr
+pick	any ptr	string	v_longptrptr	any ptr
+pick	any ptr	string	v_zptr	any ptr
+pick	any ptr	string	v_wptr	any ptr
+pick	any ptr	string	@v_long	any ptr
+pick	any ptr	string	strptr(v_string)	any ptr
+pick	any ptr	long	0	long
+pick	any ptr	long	1	long
+pick	any ptr	long	-1	long
+pick	any ptr	long	"lit"	reject
+pick	any ptr	long	v_string	reject
+pick	any ptr	long	v_zfixed	reject
+pick	any ptr	long	v_wfixed	reject
+pick	any ptr	long	v_long	long
+pick	any ptr	long	v_integer	long
+pick	any ptr	long	v_uinteger	long
+pick	any ptr	long	v_longint	long
+pick	any ptr	long	v_ulongint	long
+pick	any ptr	long	v_ulong	long
+pick	any ptr	long	v_double	long
+pick	any ptr	long	v_boolean	long
+pick	any ptr	long	v_anyptr	any ptr
+pick	any ptr	long	v_byteptr	any ptr
+pick	any ptr	long	v_ubyteptr	any ptr
+pick	any ptr	long	v_shortptr	any ptr
+pick	any ptr	long	v_longptr	any ptr
+pick	any ptr	long	v_longptrptr	any ptr
+pick	any ptr	long	v_zptr	any ptr
+pick	any ptr	long	v_wptr	any ptr
+pick	any ptr	long	@v_long	any ptr
+pick	any ptr	long	strptr(v_string)	any ptr
+pick	any ptr	ulong	0	ulong
+pick	any ptr	ulong	1	ulong
+pick	any ptr	ulong	-1	ulong
+pick	any ptr	ulong	"lit"	reject
+pick	any ptr	ulong	v_string	reject
+pick	any ptr	ulong	v_zfixed	reject
+pick	any ptr	ulong	v_wfixed	reject
+pick	any ptr	ulong	v_long	ulong
+pick	any ptr	ulong	v_integer	ulong
+pick	any ptr	ulong	v_uinteger	ulong
+pick	any ptr	ulong	v_longint	ulong
+pick	any ptr	ulong	v_ulongint	ulong
+pick	any ptr	ulong	v_ulong	ulong
+pick	any ptr	ulong	v_double	ulong
+pick	any ptr	ulong	v_boolean	ulong
+pick	any ptr	ulong	v_anyptr	any ptr
+pick	any ptr	ulong	v_byteptr	any ptr
+pick	any ptr	ulong	v_ubyteptr	any ptr
+pick	any ptr	ulong	v_shortptr	any ptr
+pick	any ptr	ulong	v_longptr	any ptr
+pick	any ptr	ulong	v_longptrptr	any ptr
+pick	any ptr	ulong	v_zptr	any ptr
+pick	any ptr	ulong	v_wptr	any ptr
+pick	any ptr	ulong	@v_long	any ptr
+pick	any ptr	ulong	strptr(v_string)	any ptr
+pick	any ptr	integer	0	integer
+pick	any ptr	integer	1	integer
+pick	any ptr	integer	-1	integer
+pick	any ptr	integer	"lit"	reject
+pick	any ptr	integer	v_string	reject
+pick	any ptr	integer	v_zfixed	reject
+pick	any ptr	integer	v_wfixed	reject
+pick	any ptr	integer	v_long	integer
+pick	any ptr	integer	v_integer	integer
+pick	any ptr	integer	v_uinteger	integer
+pick	any ptr	integer	v_longint	integer
+pick	any ptr	integer	v_ulongint	integer
+pick	any ptr	integer	v_ulong	integer
+pick	any ptr	integer	v_double	integer
+pick	any ptr	integer	v_boolean	integer
+pick	any ptr	integer	v_anyptr	any ptr
+pick	any ptr	integer	v_byteptr	any ptr
+pick	any ptr	integer	v_ubyteptr	any ptr
+pick	any ptr	integer	v_shortptr	any ptr
+pick	any ptr	integer	v_longptr	any ptr
+pick	any ptr	integer	v_longptrptr	any ptr
+pick	any ptr	integer	v_zptr	any ptr
+pick	any ptr	integer	v_wptr	any ptr
+pick	any ptr	integer	@v_long	any ptr
+pick	any ptr	integer	strptr(v_string)	any ptr
+pick	any ptr	uinteger	0	uinteger
+pick	any ptr	uinteger	1	uinteger
+pick	any ptr	uinteger	-1	uinteger
+pick	any ptr	uinteger	"lit"	reject
+pick	any ptr	uinteger	v_string	reject
+pick	any ptr	uinteger	v_zfixed	reject
+pick	any ptr	uinteger	v_wfixed	reject
+pick	any ptr	uinteger	v_long	uinteger
+pick	any ptr	uinteger	v_integer	uinteger
+pick	any ptr	uinteger	v_uinteger	uinteger
+pick	any ptr	uinteger	v_longint	uinteger
+pick	any ptr	uinteger	v_ulongint	uinteger
+pick	any ptr	uinteger	v_ulong	uinteger
+pick	any ptr	uinteger	v_double	uinteger
+pick	any ptr	uinteger	v_boolean	uinteger
+pick	any ptr	uinteger	v_anyptr	any ptr
+pick	any ptr	uinteger	v_byteptr	any ptr
+pick	any ptr	uinteger	v_ubyteptr	any ptr
+pick	any ptr	uinteger	v_shortptr	any ptr
+pick	any ptr	uinteger	v_longptr	any ptr
+pick	any ptr	uinteger	v_longptrptr	any ptr
+pick	any ptr	uinteger	v_zptr	any ptr
+pick	any ptr	uinteger	v_wptr	any ptr
+pick	any ptr	uinteger	@v_long	any ptr
+pick	any ptr	uinteger	strptr(v_string)	any ptr
+pick	any ptr	longint	0	longint
+pick	any ptr	longint	1	longint
+pick	any ptr	longint	-1	longint
+pick	any ptr	longint	"lit"	reject
+pick	any ptr	longint	v_string	reject
+pick	any ptr	longint	v_zfixed	reject
+pick	any ptr	longint	v_wfixed	reject
+pick	any ptr	longint	v_long	longint
+pick	any ptr	longint	v_integer	longint
+pick	any ptr	longint	v_uinteger	longint
+pick	any ptr	longint	v_longint	longint
+pick	any ptr	longint	v_ulongint	longint
+pick	any ptr	longint	v_ulong	longint
+pick	any ptr	longint	v_double	longint
+pick	any ptr	longint	v_boolean	longint
+pick	any ptr	longint	v_anyptr	any ptr
+pick	any ptr	longint	v_byteptr	any ptr
+pick	any ptr	longint	v_ubyteptr	any ptr
+pick	any ptr	longint	v_shortptr	any ptr
+pick	any ptr	longint	v_longptr	any ptr
+pick	any ptr	longint	v_longptrptr	any ptr
+pick	any ptr	longint	v_zptr	any ptr
+pick	any ptr	longint	v_wptr	any ptr
+pick	any ptr	longint	@v_long	any ptr
+pick	any ptr	longint	strptr(v_string)	any ptr
+pick	any ptr	ulongint	0	ulongint
+pick	any ptr	ulongint	1	ulongint
+pick	any ptr	ulongint	-1	ulongint
+pick	any ptr	ulongint	"lit"	reject
+pick	any ptr	ulongint	v_string	reject
+pick	any ptr	ulongint	v_zfixed	reject
+pick	any ptr	ulongint	v_wfixed	reject
+pick	any ptr	ulongint	v_long	ulongint
+pick	any ptr	ulongint	v_integer	ulongint
+pick	any ptr	ulongint	v_uinteger	ulongint
+pick	any ptr	ulongint	v_longint	ulongint
+pick	any ptr	ulongint	v_ulongint	ulongint
+pick	any ptr	ulongint	v_ulong	ulongint
+pick	any ptr	ulongint	v_double	ulongint
+pick	any ptr	ulongint	v_boolean	ulongint
+pick	any ptr	ulongint	v_anyptr	any ptr
+pick	any ptr	ulongint	v_byteptr	any ptr
+pick	any ptr	ulongint	v_ubyteptr	any ptr
+pick	any ptr	ulongint	v_shortptr	any ptr
+pick	any ptr	ulongint	v_longptr	any ptr
+pick	any ptr	ulongint	v_longptrptr	any ptr
+pick	any ptr	ulongint	v_zptr	any ptr
+pick	any ptr	ulongint	v_wptr	any ptr
+pick	any ptr	ulongint	@v_long	any ptr
+pick	any ptr	ulongint	strptr(v_string)	any ptr
+pick	any ptr	double	0	double
+pick	any ptr	double	1	double
+pick	any ptr	double	-1	double
+pick	any ptr	double	"lit"	reject
+pick	any ptr	double	v_string	reject
+pick	any ptr	double	v_zfixed	reject
+pick	any ptr	double	v_wfixed	reject
+pick	any ptr	double	v_long	double
+pick	any ptr	double	v_integer	double
+pick	any ptr	double	v_uinteger	double
+pick	any ptr	double	v_longint	double
+pick	any ptr	double	v_ulongint	double
+pick	any ptr	double	v_ulong	double
+pick	any ptr	double	v_double	double
+pick	any ptr	double	v_boolean	double
+pick	any ptr	double	v_anyptr	any ptr
+pick	any ptr	double	v_byteptr	any ptr
+pick	any ptr	double	v_ubyteptr	any ptr
+pick	any ptr	double	v_shortptr	any ptr
+pick	any ptr	double	v_longptr	any ptr
+pick	any ptr	double	v_longptrptr	any ptr
+pick	any ptr	double	v_zptr	any ptr
+pick	any ptr	double	v_wptr	any ptr
+pick	any ptr	double	@v_long	any ptr
+pick	any ptr	double	strptr(v_string)	any ptr
+pick	any ptr	boolean	0	boolean
+pick	any ptr	boolean	1	boolean
+pick	any ptr	boolean	-1	boolean
+pick	any ptr	boolean	"lit"	reject
+pick	any ptr	boolean	v_string	reject
+pick	any ptr	boolean	v_zfixed	reject
+pick	any ptr	boolean	v_wfixed	reject
+pick	any ptr	boolean	v_long	boolean
+pick	any ptr	boolean	v_integer	boolean
+pick	any ptr	boolean	v_uinteger	boolean
+pick	any ptr	boolean	v_longint	boolean
+pick	any ptr	boolean	v_ulongint	boolean
+pick	any ptr	boolean	v_ulong	boolean
+pick	any ptr	boolean	v_double	boolean
+pick	any ptr	boolean	v_boolean	boolean
+pick	any ptr	boolean	v_anyptr	any ptr
+pick	any ptr	boolean	v_byteptr	any ptr
+pick	any ptr	boolean	v_ubyteptr	any ptr
+pick	any ptr	boolean	v_shortptr	any ptr
+pick	any ptr	boolean	v_longptr	any ptr
+pick	any ptr	boolean	v_longptrptr	any ptr
+pick	any ptr	boolean	v_zptr	any ptr
+pick	any ptr	boolean	v_wptr	any ptr
+pick	any ptr	boolean	@v_long	any ptr
+pick	any ptr	boolean	strptr(v_string)	any ptr
+pick	byte ptr	ubyte ptr	0	reject
+pick	byte ptr	ubyte ptr	1	reject
+pick	byte ptr	ubyte ptr	-1	reject
+pick	byte ptr	ubyte ptr	"lit"	reject
+pick	byte ptr	ubyte ptr	v_string	reject
+pick	byte ptr	ubyte ptr	v_zfixed	reject
+pick	byte ptr	ubyte ptr	v_wfixed	reject
+pick	byte ptr	ubyte ptr	v_long	reject
+pick	byte ptr	ubyte ptr	v_integer	reject
+pick	byte ptr	ubyte ptr	v_uinteger	reject
+pick	byte ptr	ubyte ptr	v_longint	reject
+pick	byte ptr	ubyte ptr	v_ulongint	reject
+pick	byte ptr	ubyte ptr	v_ulong	reject
+pick	byte ptr	ubyte ptr	v_double	reject
+pick	byte ptr	ubyte ptr	v_boolean	reject
+pick	byte ptr	ubyte ptr	v_anyptr	reject
+pick	byte ptr	ubyte ptr	v_byteptr	byte ptr
+pick	byte ptr	ubyte ptr	v_ubyteptr	ubyte ptr
+pick	byte ptr	ubyte ptr	v_shortptr	reject
+pick	byte ptr	ubyte ptr	v_longptr	reject
+pick	byte ptr	ubyte ptr	v_longptrptr	reject
+pick	byte ptr	ubyte ptr	v_zptr	reject
+pick	byte ptr	ubyte ptr	v_wptr	reject
+pick	byte ptr	ubyte ptr	@v_long	reject
+pick	byte ptr	ubyte ptr	strptr(v_string)	reject
+pick	byte ptr	short ptr	0	reject
+pick	byte ptr	short ptr	1	reject
+pick	byte ptr	short ptr	-1	reject
+pick	byte ptr	short ptr	"lit"	reject
+pick	byte ptr	short ptr	v_string	reject
+pick	byte ptr	short ptr	v_zfixed	reject
+pick	byte ptr	short ptr	v_wfixed	reject
+pick	byte ptr	short ptr	v_long	reject
+pick	byte ptr	short ptr	v_integer	reject
+pick	byte ptr	short ptr	v_uinteger	reject
+pick	byte ptr	short ptr	v_longint	reject
+pick	byte ptr	short ptr	v_ulongint	reject
+pick	byte ptr	short ptr	v_ulong	reject
+pick	byte ptr	short ptr	v_double	reject
+pick	byte ptr	short ptr	v_boolean	reject
+pick	byte ptr	short ptr	v_anyptr	reject
+pick	byte ptr	short ptr	v_byteptr	byte ptr
+pick	byte ptr	short ptr	v_ubyteptr	byte ptr
+pick	byte ptr	short ptr	v_shortptr	short ptr
+pick	byte ptr	short ptr	v_longptr	reject
+pick	byte ptr	short ptr	v_longptrptr	reject
+pick	byte ptr	short ptr	v_zptr	byte ptr
+pick	byte ptr	short ptr	v_wptr	short ptr
+pick	byte ptr	short ptr	@v_long	reject
+pick	byte ptr	short ptr	strptr(v_string)	byte ptr
+pick	byte ptr	long ptr	0	reject
+pick	byte ptr	long ptr	1	reject
+pick	byte ptr	long ptr	-1	reject
+pick	byte ptr	long ptr	"lit"	reject
+pick	byte ptr	long ptr	v_string	reject
+pick	byte ptr	long ptr	v_zfixed	reject
+pick	byte ptr	long ptr	v_wfixed	reject
+pick	byte ptr	long ptr	v_long	reject
+pick	byte ptr	long ptr	v_integer	reject
+pick	byte ptr	long ptr	v_uinteger	reject
+pick	byte ptr	long ptr	v_longint	reject
+pick	byte ptr	long ptr	v_ulongint	reject
+pick	byte ptr	long ptr	v_ulong	reject
+pick	byte ptr	long ptr	v_double	reject
+pick	byte ptr	long ptr	v_boolean	reject
+pick	byte ptr	long ptr	v_anyptr	reject
+pick	byte ptr	long ptr	v_byteptr	byte ptr
+pick	byte ptr	long ptr	v_ubyteptr	byte ptr
+pick	byte ptr	long ptr	v_shortptr	reject
+pick	byte ptr	long ptr	v_longptr	long ptr
+pick	byte ptr	long ptr	v_longptrptr	reject
+pick	byte ptr	long ptr	v_zptr	byte ptr
+pick	byte ptr	long ptr	v_wptr	reject
+pick	byte ptr	long ptr	@v_long	long ptr
+pick	byte ptr	long ptr	strptr(v_string)	byte ptr
+pick	byte ptr	long ptr ptr	0	reject
+pick	byte ptr	long ptr ptr	1	reject
+pick	byte ptr	long ptr ptr	-1	reject
+pick	byte ptr	long ptr ptr	"lit"	reject
+pick	byte ptr	long ptr ptr	v_string	reject
+pick	byte ptr	long ptr ptr	v_zfixed	reject
+pick	byte ptr	long ptr ptr	v_wfixed	reject
+pick	byte ptr	long ptr ptr	v_long	reject
+pick	byte ptr	long ptr ptr	v_integer	reject
+pick	byte ptr	long ptr ptr	v_uinteger	reject
+pick	byte ptr	long ptr ptr	v_longint	reject
+pick	byte ptr	long ptr ptr	v_ulongint	reject
+pick	byte ptr	long ptr ptr	v_ulong	reject
+pick	byte ptr	long ptr ptr	v_double	reject
+pick	byte ptr	long ptr ptr	v_boolean	reject
+pick	byte ptr	long ptr ptr	v_anyptr	reject
+pick	byte ptr	long ptr ptr	v_byteptr	byte ptr
+pick	byte ptr	long ptr ptr	v_ubyteptr	byte ptr
+pick	byte ptr	long ptr ptr	v_shortptr	reject
+pick	byte ptr	long ptr ptr	v_longptr	reject
+pick	byte ptr	long ptr ptr	v_longptrptr	long ptr ptr
+pick	byte ptr	long ptr ptr	v_zptr	byte ptr
+pick	byte ptr	long ptr ptr	v_wptr	reject
+pick	byte ptr	long ptr ptr	@v_long	reject
+pick	byte ptr	long ptr ptr	strptr(v_string)	byte ptr
+pick	byte ptr	zstring ptr	0	reject
+pick	byte ptr	zstring ptr	1	reject
+pick	byte ptr	zstring ptr	-1	reject
+pick	byte ptr	zstring ptr	"lit"	zstring ptr
+pick	byte ptr	zstring ptr	v_string	zstring ptr
+pick	byte ptr	zstring ptr	v_zfixed	zstring ptr
+pick	byte ptr	zstring ptr	v_wfixed	zstring ptr
+pick	byte ptr	zstring ptr	v_long	reject
+pick	byte ptr	zstring ptr	v_integer	reject
+pick	byte ptr	zstring ptr	v_uinteger	reject
+pick	byte ptr	zstring ptr	v_longint	reject
+pick	byte ptr	zstring ptr	v_ulongint	reject
+pick	byte ptr	zstring ptr	v_ulong	reject
+pick	byte ptr	zstring ptr	v_double	reject
+pick	byte ptr	zstring ptr	v_boolean	reject
+pick	byte ptr	zstring ptr	v_anyptr	reject
+pick	byte ptr	zstring ptr	v_byteptr	byte ptr
+pick	byte ptr	zstring ptr	v_ubyteptr	zstring ptr
+pick	byte ptr	zstring ptr	v_shortptr	reject
+pick	byte ptr	zstring ptr	v_longptr	reject
+pick	byte ptr	zstring ptr	v_longptrptr	reject
+pick	byte ptr	zstring ptr	v_zptr	zstring ptr
+pick	byte ptr	zstring ptr	v_wptr	reject
+pick	byte ptr	zstring ptr	@v_long	reject
+pick	byte ptr	zstring ptr	strptr(v_string)	zstring ptr
+pick	byte ptr	wstring ptr	0	reject
+pick	byte ptr	wstring ptr	1	reject
+pick	byte ptr	wstring ptr	-1	reject
+pick	byte ptr	wstring ptr	"lit"	wstring ptr
+pick	byte ptr	wstring ptr	v_string	wstring ptr
+pick	byte ptr	wstring ptr	v_zfixed	wstring ptr
+pick	byte ptr	wstring ptr	v_wfixed	wstring ptr
+pick	byte ptr	wstring ptr	v_long	reject
+pick	byte ptr	wstring ptr	v_integer	reject
+pick	byte ptr	wstring ptr	v_uinteger	reject
+pick	byte ptr	wstring ptr	v_longint	reject
+pick	byte ptr	wstring ptr	v_ulongint	reject
+pick	byte ptr	wstring ptr	v_ulong	reject
+pick	byte ptr	wstring ptr	v_double	reject
+pick	byte ptr	wstring ptr	v_boolean	reject
+pick	byte ptr	wstring ptr	v_anyptr	reject
+pick	byte ptr	wstring ptr	v_byteptr	byte ptr
+pick	byte ptr	wstring ptr	v_ubyteptr	byte ptr
+pick	byte ptr	wstring ptr	v_shortptr	wstring ptr
+pick	byte ptr	wstring ptr	v_longptr	reject
+pick	byte ptr	wstring ptr	v_longptrptr	reject
+pick	byte ptr	wstring ptr	v_zptr	byte ptr
+pick	byte ptr	wstring ptr	v_wptr	wstring ptr
+pick	byte ptr	wstring ptr	@v_long	reject
+pick	byte ptr	wstring ptr	strptr(v_string)	byte ptr
+pick	byte ptr	string	0	byte ptr
+pick	byte ptr	string	1	byte ptr
+pick	byte ptr	string	-1	byte ptr
+pick	byte ptr	string	"lit"	string
+pick	byte ptr	string	v_string	string
+pick	byte ptr	string	v_zfixed	string
+pick	byte ptr	string	v_wfixed	string
+pick	byte ptr	string	v_long	byte ptr
+pick	byte ptr	string	v_integer	byte ptr
+pick	byte ptr	string	v_uinteger	byte ptr
+pick	byte ptr	string	v_longint	reject
+pick	byte ptr	string	v_ulongint	reject
+pick	byte ptr	string	v_ulong	byte ptr
+pick	byte ptr	string	v_double	reject
+pick	byte ptr	string	v_boolean	reject
+pick	byte ptr	string	v_anyptr	byte ptr
+pick	byte ptr	string	v_byteptr	byte ptr
+pick	byte ptr	string	v_ubyteptr	byte ptr
+pick	byte ptr	string	v_shortptr	reject
+pick	byte ptr	string	v_longptr	reject
+pick	byte ptr	string	v_longptrptr	reject
+pick	byte ptr	string	v_zptr	byte ptr
+pick	byte ptr	string	v_wptr	reject
+pick	byte ptr	string	@v_long	reject
+pick	byte ptr	string	strptr(v_string)	byte ptr
+pick	byte ptr	long	0	long
+pick	byte ptr	long	1	long
+pick	byte ptr	long	-1	long
+pick	byte ptr	long	"lit"	reject
+pick	byte ptr	long	v_string	reject
+pick	byte ptr	long	v_zfixed	reject
+pick	byte ptr	long	v_wfixed	reject
+pick	byte ptr	long	v_long	long
+pick	byte ptr	long	v_integer	long
+pick	byte ptr	long	v_uinteger	long
+pick	byte ptr	long	v_longint	long
+pick	byte ptr	long	v_ulongint	long
+pick	byte ptr	long	v_ulong	long
+pick	byte ptr	long	v_double	long
+pick	byte ptr	long	v_boolean	long
+pick	byte ptr	long	v_anyptr	byte ptr
+pick	byte ptr	long	v_byteptr	byte ptr
+pick	byte ptr	long	v_ubyteptr	byte ptr
+pick	byte ptr	long	v_shortptr	reject
+pick	byte ptr	long	v_longptr	reject
+pick	byte ptr	long	v_longptrptr	reject
+pick	byte ptr	long	v_zptr	byte ptr
+pick	byte ptr	long	v_wptr	reject
+pick	byte ptr	long	@v_long	reject
+pick	byte ptr	long	strptr(v_string)	byte ptr
+pick	byte ptr	ulong	0	ulong
+pick	byte ptr	ulong	1	ulong
+pick	byte ptr	ulong	-1	ulong
+pick	byte ptr	ulong	"lit"	reject
+pick	byte ptr	ulong	v_string	reject
+pick	byte ptr	ulong	v_zfixed	reject
+pick	byte ptr	ulong	v_wfixed	reject
+pick	byte ptr	ulong	v_long	ulong
+pick	byte ptr	ulong	v_integer	ulong
+pick	byte ptr	ulong	v_uinteger	ulong
+pick	byte ptr	ulong	v_longint	ulong
+pick	byte ptr	ulong	v_ulongint	ulong
+pick	byte ptr	ulong	v_ulong	ulong
+pick	byte ptr	ulong	v_double	ulong
+pick	byte ptr	ulong	v_boolean	ulong
+pick	byte ptr	ulong	v_anyptr	byte ptr
+pick	byte ptr	ulong	v_byteptr	byte ptr
+pick	byte ptr	ulong	v_ubyteptr	byte ptr
+pick	byte ptr	ulong	v_shortptr	reject
+pick	byte ptr	ulong	v_longptr	reject
+pick	byte ptr	ulong	v_longptrptr	reject
+pick	byte ptr	ulong	v_zptr	byte ptr
+pick	byte ptr	ulong	v_wptr	reject
+pick	byte ptr	ulong	@v_long	reject
+pick	byte ptr	ulong	strptr(v_string)	byte ptr
+pick	byte ptr	integer	0	integer
+pick	byte ptr	integer	1	integer
+pick	byte ptr	integer	-1	integer
+pick	byte ptr	integer	"lit"	reject
+pick	byte ptr	integer	v_string	reject
+pick	byte ptr	integer	v_zfixed	reject
+pick	byte ptr	integer	v_wfixed	reject
+pick	byte ptr	integer	v_long	integer
+pick	byte ptr	integer	v_integer	integer
+pick	byte ptr	integer	v_uinteger	integer
+pick	byte ptr	integer	v_longint	integer
+pick	byte ptr	integer	v_ulongint	integer
+pick	byte ptr	integer	v_ulong	integer
+pick	byte ptr	integer	v_double	integer
+pick	byte ptr	integer	v_boolean	integer
+pick	byte ptr	integer	v_anyptr	byte ptr
+pick	byte ptr	integer	v_byteptr	byte ptr
+pick	byte ptr	integer	v_ubyteptr	byte ptr
+pick	byte ptr	integer	v_shortptr	reject
+pick	byte ptr	integer	v_longptr	reject
+pick	byte ptr	integer	v_longptrptr	reject
+pick	byte ptr	integer	v_zptr	byte ptr
+pick	byte ptr	integer	v_wptr	reject
+pick	byte ptr	integer	@v_long	reject
+pick	byte ptr	integer	strptr(v_string)	byte ptr
+pick	byte ptr	uinteger	0	uinteger
+pick	byte ptr	uinteger	1	uinteger
+pick	byte ptr	uinteger	-1	uinteger
+pick	byte ptr	uinteger	"lit"	reject
+pick	byte ptr	uinteger	v_string	reject
+pick	byte ptr	uinteger	v_zfixed	reject
+pick	byte ptr	uinteger	v_wfixed	reject
+pick	byte ptr	uinteger	v_long	uinteger
+pick	byte ptr	uinteger	v_integer	uinteger
+pick	byte ptr	uinteger	v_uinteger	uinteger
+pick	byte ptr	uinteger	v_longint	uinteger
+pick	byte ptr	uinteger	v_ulongint	uinteger
+pick	byte ptr	uinteger	v_ulong	uinteger
+pick	byte ptr	uinteger	v_double	uinteger
+pick	byte ptr	uinteger	v_boolean	uinteger
+pick	byte ptr	uinteger	v_anyptr	byte ptr
+pick	byte ptr	uinteger	v_byteptr	byte ptr
+pick	byte ptr	uinteger	v_ubyteptr	byte ptr
+pick	byte ptr	uinteger	v_shortptr	reject
+pick	byte ptr	uinteger	v_longptr	reject
+pick	byte ptr	uinteger	v_longptrptr	reject
+pick	byte ptr	uinteger	v_zptr	byte ptr
+pick	byte ptr	uinteger	v_wptr	reject
+pick	byte ptr	uinteger	@v_long	reject
+pick	byte ptr	uinteger	strptr(v_string)	byte ptr
+pick	byte ptr	longint	0	longint
+pick	byte ptr	longint	1	longint
+pick	byte ptr	longint	-1	longint
+pick	byte ptr	longint	"lit"	reject
+pick	byte ptr	longint	v_string	reject
+pick	byte ptr	longint	v_zfixed	reject
+pick	byte ptr	longint	v_wfixed	reject
+pick	byte ptr	longint	v_long	longint
+pick	byte ptr	longint	v_integer	longint
+pick	byte ptr	longint	v_uinteger	longint
+pick	byte ptr	longint	v_longint	longint
+pick	byte ptr	longint	v_ulongint	longint
+pick	byte ptr	longint	v_ulong	longint
+pick	byte ptr	longint	v_double	longint
+pick	byte ptr	longint	v_boolean	longint
+pick	byte ptr	longint	v_anyptr	byte ptr
+pick	byte ptr	longint	v_byteptr	byte ptr
+pick	byte ptr	longint	v_ubyteptr	byte ptr
+pick	byte ptr	longint	v_shortptr	reject
+pick	byte ptr	longint	v_longptr	reject
+pick	byte ptr	longint	v_longptrptr	reject
+pick	byte ptr	longint	v_zptr	byte ptr
+pick	byte ptr	longint	v_wptr	reject
+pick	byte ptr	longint	@v_long	reject
+pick	byte ptr	longint	strptr(v_string)	byte ptr
+pick	byte ptr	ulongint	0	ulongint
+pick	byte ptr	ulongint	1	ulongint
+pick	byte ptr	ulongint	-1	ulongint
+pick	byte ptr	ulongint	"lit"	reject
+pick	byte ptr	ulongint	v_string	reject
+pick	byte ptr	ulongint	v_zfixed	reject
+pick	byte ptr	ulongint	v_wfixed	reject
+pick	byte ptr	ulongint	v_long	ulongint
+pick	byte ptr	ulongint	v_integer	ulongint
+pick	byte ptr	ulongint	v_uinteger	ulongint
+pick	byte ptr	ulongint	v_longint	ulongint
+pick	byte ptr	ulongint	v_ulongint	ulongint
+pick	byte ptr	ulongint	v_ulong	ulongint
+pick	byte ptr	ulongint	v_double	ulongint
+pick	byte ptr	ulongint	v_boolean	ulongint
+pick	byte ptr	ulongint	v_anyptr	byte ptr
+pick	byte ptr	ulongint	v_byteptr	byte ptr
+pick	byte ptr	ulongint	v_ubyteptr	byte ptr
+pick	byte ptr	ulongint	v_shortptr	reject
+pick	byte ptr	ulongint	v_longptr	reject
+pick	byte ptr	ulongint	v_longptrptr	reject
+pick	byte ptr	ulongint	v_zptr	byte ptr
+pick	byte ptr	ulongint	v_wptr	reject
+pick	byte ptr	ulongint	@v_long	reject
+pick	byte ptr	ulongint	strptr(v_string)	byte ptr
+pick	byte ptr	double	0	double
+pick	byte ptr	double	1	double
+pick	byte ptr	double	-1	double
+pick	byte ptr	double	"lit"	reject
+pick	byte ptr	double	v_string	reject
+pick	byte ptr	double	v_zfixed	reject
+pick	byte ptr	double	v_wfixed	reject
+pick	byte ptr	double	v_long	double
+pick	byte ptr	double	v_integer	double
+pick	byte ptr	double	v_uinteger	double
+pick	byte ptr	double	v_longint	double
+pick	byte ptr	double	v_ulongint	double
+pick	byte ptr	double	v_ulong	double
+pick	byte ptr	double	v_double	double
+pick	byte ptr	double	v_boolean	double
+pick	byte ptr	double	v_anyptr	byte ptr
+pick	byte ptr	double	v_byteptr	byte ptr
+pick	byte ptr	double	v_ubyteptr	byte ptr
+pick	byte ptr	double	v_shortptr	reject
+pick	byte ptr	double	v_longptr	reject
+pick	byte ptr	double	v_longptrptr	reject
+pick	byte ptr	double	v_zptr	byte ptr
+pick	byte ptr	double	v_wptr	reject
+pick	byte ptr	double	@v_long	reject
+pick	byte ptr	double	strptr(v_string)	byte ptr
+pick	byte ptr	boolean	0	boolean
+pick	byte ptr	boolean	1	boolean
+pick	byte ptr	boolean	-1	boolean
+pick	byte ptr	boolean	"lit"	reject
+pick	byte ptr	boolean	v_string	reject
+pick	byte ptr	boolean	v_zfixed	reject
+pick	byte ptr	boolean	v_wfixed	reject
+pick	byte ptr	boolean	v_long	boolean
+pick	byte ptr	boolean	v_integer	boolean
+pick	byte ptr	boolean	v_uinteger	boolean
+pick	byte ptr	boolean	v_longint	boolean
+pick	byte ptr	boolean	v_ulongint	boolean
+pick	byte ptr	boolean	v_ulong	boolean
+pick	byte ptr	boolean	v_double	boolean
+pick	byte ptr	boolean	v_boolean	boolean
+pick	byte ptr	boolean	v_anyptr	byte ptr
+pick	byte ptr	boolean	v_byteptr	byte ptr
+pick	byte ptr	boolean	v_ubyteptr	byte ptr
+pick	byte ptr	boolean	v_shortptr	reject
+pick	byte ptr	boolean	v_longptr	reject
+pick	byte ptr	boolean	v_longptrptr	reject
+pick	byte ptr	boolean	v_zptr	byte ptr
+pick	byte ptr	boolean	v_wptr	reject
+pick	byte ptr	boolean	@v_long	reject
+pick	byte ptr	boolean	strptr(v_string)	byte ptr
+pick	ubyte ptr	short ptr	0	reject
+pick	ubyte ptr	short ptr	1	reject
+pick	ubyte ptr	short ptr	-1	reject
+pick	ubyte ptr	short ptr	"lit"	reject
+pick	ubyte ptr	short ptr	v_string	reject
+pick	ubyte ptr	short ptr	v_zfixed	reject
+pick	ubyte ptr	short ptr	v_wfixed	reject
+pick	ubyte ptr	short ptr	v_long	reject
+pick	ubyte ptr	short ptr	v_integer	reject
+pick	ubyte ptr	short ptr	v_uinteger	reject
+pick	ubyte ptr	short ptr	v_longint	reject
+pick	ubyte ptr	short ptr	v_ulongint	reject
+pick	ubyte ptr	short ptr	v_ulong	reject
+pick	ubyte ptr	short ptr	v_double	reject
+pick	ubyte ptr	short ptr	v_boolean	reject
+pick	ubyte ptr	short ptr	v_anyptr	reject
+pick	ubyte ptr	short ptr	v_byteptr	ubyte ptr
+pick	ubyte ptr	short ptr	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	short ptr	v_shortptr	short ptr
+pick	ubyte ptr	short ptr	v_longptr	reject
+pick	ubyte ptr	short ptr	v_longptrptr	reject
+pick	ubyte ptr	short ptr	v_zptr	ubyte ptr
+pick	ubyte ptr	short ptr	v_wptr	short ptr
+pick	ubyte ptr	short ptr	@v_long	reject
+pick	ubyte ptr	short ptr	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	long ptr	0	reject
+pick	ubyte ptr	long ptr	1	reject
+pick	ubyte ptr	long ptr	-1	reject
+pick	ubyte ptr	long ptr	"lit"	reject
+pick	ubyte ptr	long ptr	v_string	reject
+pick	ubyte ptr	long ptr	v_zfixed	reject
+pick	ubyte ptr	long ptr	v_wfixed	reject
+pick	ubyte ptr	long ptr	v_long	reject
+pick	ubyte ptr	long ptr	v_integer	reject
+pick	ubyte ptr	long ptr	v_uinteger	reject
+pick	ubyte ptr	long ptr	v_longint	reject
+pick	ubyte ptr	long ptr	v_ulongint	reject
+pick	ubyte ptr	long ptr	v_ulong	reject
+pick	ubyte ptr	long ptr	v_double	reject
+pick	ubyte ptr	long ptr	v_boolean	reject
+pick	ubyte ptr	long ptr	v_anyptr	reject
+pick	ubyte ptr	long ptr	v_byteptr	ubyte ptr
+pick	ubyte ptr	long ptr	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	long ptr	v_shortptr	reject
+pick	ubyte ptr	long ptr	v_longptr	long ptr
+pick	ubyte ptr	long ptr	v_longptrptr	reject
+pick	ubyte ptr	long ptr	v_zptr	ubyte ptr
+pick	ubyte ptr	long ptr	v_wptr	reject
+pick	ubyte ptr	long ptr	@v_long	long ptr
+pick	ubyte ptr	long ptr	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	long ptr ptr	0	reject
+pick	ubyte ptr	long ptr ptr	1	reject
+pick	ubyte ptr	long ptr ptr	-1	reject
+pick	ubyte ptr	long ptr ptr	"lit"	reject
+pick	ubyte ptr	long ptr ptr	v_string	reject
+pick	ubyte ptr	long ptr ptr	v_zfixed	reject
+pick	ubyte ptr	long ptr ptr	v_wfixed	reject
+pick	ubyte ptr	long ptr ptr	v_long	reject
+pick	ubyte ptr	long ptr ptr	v_integer	reject
+pick	ubyte ptr	long ptr ptr	v_uinteger	reject
+pick	ubyte ptr	long ptr ptr	v_longint	reject
+pick	ubyte ptr	long ptr ptr	v_ulongint	reject
+pick	ubyte ptr	long ptr ptr	v_ulong	reject
+pick	ubyte ptr	long ptr ptr	v_double	reject
+pick	ubyte ptr	long ptr ptr	v_boolean	reject
+pick	ubyte ptr	long ptr ptr	v_anyptr	reject
+pick	ubyte ptr	long ptr ptr	v_byteptr	ubyte ptr
+pick	ubyte ptr	long ptr ptr	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	long ptr ptr	v_shortptr	reject
+pick	ubyte ptr	long ptr ptr	v_longptr	reject
+pick	ubyte ptr	long ptr ptr	v_longptrptr	long ptr ptr
+pick	ubyte ptr	long ptr ptr	v_zptr	ubyte ptr
+pick	ubyte ptr	long ptr ptr	v_wptr	reject
+pick	ubyte ptr	long ptr ptr	@v_long	reject
+pick	ubyte ptr	long ptr ptr	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	zstring ptr	0	reject
+pick	ubyte ptr	zstring ptr	1	reject
+pick	ubyte ptr	zstring ptr	-1	reject
+pick	ubyte ptr	zstring ptr	"lit"	zstring ptr
+pick	ubyte ptr	zstring ptr	v_string	zstring ptr
+pick	ubyte ptr	zstring ptr	v_zfixed	zstring ptr
+pick	ubyte ptr	zstring ptr	v_wfixed	zstring ptr
+pick	ubyte ptr	zstring ptr	v_long	reject
+pick	ubyte ptr	zstring ptr	v_integer	reject
+pick	ubyte ptr	zstring ptr	v_uinteger	reject
+pick	ubyte ptr	zstring ptr	v_longint	reject
+pick	ubyte ptr	zstring ptr	v_ulongint	reject
+pick	ubyte ptr	zstring ptr	v_ulong	reject
+pick	ubyte ptr	zstring ptr	v_double	reject
+pick	ubyte ptr	zstring ptr	v_boolean	reject
+pick	ubyte ptr	zstring ptr	v_anyptr	reject
+pick	ubyte ptr	zstring ptr	v_byteptr	reject
+pick	ubyte ptr	zstring ptr	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	zstring ptr	v_shortptr	reject
+pick	ubyte ptr	zstring ptr	v_longptr	reject
+pick	ubyte ptr	zstring ptr	v_longptrptr	reject
+pick	ubyte ptr	zstring ptr	v_zptr	zstring ptr
+pick	ubyte ptr	zstring ptr	v_wptr	reject
+pick	ubyte ptr	zstring ptr	@v_long	reject
+pick	ubyte ptr	zstring ptr	strptr(v_string)	zstring ptr
+pick	ubyte ptr	wstring ptr	0	reject
+pick	ubyte ptr	wstring ptr	1	reject
+pick	ubyte ptr	wstring ptr	-1	reject
+pick	ubyte ptr	wstring ptr	"lit"	wstring ptr
+pick	ubyte ptr	wstring ptr	v_string	wstring ptr
+pick	ubyte ptr	wstring ptr	v_zfixed	wstring ptr
+pick	ubyte ptr	wstring ptr	v_wfixed	wstring ptr
+pick	ubyte ptr	wstring ptr	v_long	reject
+pick	ubyte ptr	wstring ptr	v_integer	reject
+pick	ubyte ptr	wstring ptr	v_uinteger	reject
+pick	ubyte ptr	wstring ptr	v_longint	reject
+pick	ubyte ptr	wstring ptr	v_ulongint	reject
+pick	ubyte ptr	wstring ptr	v_ulong	reject
+pick	ubyte ptr	wstring ptr	v_double	reject
+pick	ubyte ptr	wstring ptr	v_boolean	reject
+pick	ubyte ptr	wstring ptr	v_anyptr	reject
+pick	ubyte ptr	wstring ptr	v_byteptr	ubyte ptr
+pick	ubyte ptr	wstring ptr	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	wstring ptr	v_shortptr	wstring ptr
+pick	ubyte ptr	wstring ptr	v_longptr	reject
+pick	ubyte ptr	wstring ptr	v_longptrptr	reject
+pick	ubyte ptr	wstring ptr	v_zptr	ubyte ptr
+pick	ubyte ptr	wstring ptr	v_wptr	wstring ptr
+pick	ubyte ptr	wstring ptr	@v_long	reject
+pick	ubyte ptr	wstring ptr	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	string	0	ubyte ptr
+pick	ubyte ptr	string	1	ubyte ptr
+pick	ubyte ptr	string	-1	ubyte ptr
+pick	ubyte ptr	string	"lit"	string
+pick	ubyte ptr	string	v_string	string
+pick	ubyte ptr	string	v_zfixed	string
+pick	ubyte ptr	string	v_wfixed	string
+pick	ubyte ptr	string	v_long	ubyte ptr
+pick	ubyte ptr	string	v_integer	ubyte ptr
+pick	ubyte ptr	string	v_uinteger	ubyte ptr
+pick	ubyte ptr	string	v_longint	reject
+pick	ubyte ptr	string	v_ulongint	reject
+pick	ubyte ptr	string	v_ulong	ubyte ptr
+pick	ubyte ptr	string	v_double	reject
+pick	ubyte ptr	string	v_boolean	reject
+pick	ubyte ptr	string	v_anyptr	ubyte ptr
+pick	ubyte ptr	string	v_byteptr	ubyte ptr
+pick	ubyte ptr	string	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	string	v_shortptr	reject
+pick	ubyte ptr	string	v_longptr	reject
+pick	ubyte ptr	string	v_longptrptr	reject
+pick	ubyte ptr	string	v_zptr	ubyte ptr
+pick	ubyte ptr	string	v_wptr	reject
+pick	ubyte ptr	string	@v_long	reject
+pick	ubyte ptr	string	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	long	0	long
+pick	ubyte ptr	long	1	long
+pick	ubyte ptr	long	-1	long
+pick	ubyte ptr	long	"lit"	reject
+pick	ubyte ptr	long	v_string	reject
+pick	ubyte ptr	long	v_zfixed	reject
+pick	ubyte ptr	long	v_wfixed	reject
+pick	ubyte ptr	long	v_long	long
+pick	ubyte ptr	long	v_integer	long
+pick	ubyte ptr	long	v_uinteger	long
+pick	ubyte ptr	long	v_longint	long
+pick	ubyte ptr	long	v_ulongint	long
+pick	ubyte ptr	long	v_ulong	long
+pick	ubyte ptr	long	v_double	long
+pick	ubyte ptr	long	v_boolean	long
+pick	ubyte ptr	long	v_anyptr	ubyte ptr
+pick	ubyte ptr	long	v_byteptr	ubyte ptr
+pick	ubyte ptr	long	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	long	v_shortptr	reject
+pick	ubyte ptr	long	v_longptr	reject
+pick	ubyte ptr	long	v_longptrptr	reject
+pick	ubyte ptr	long	v_zptr	ubyte ptr
+pick	ubyte ptr	long	v_wptr	reject
+pick	ubyte ptr	long	@v_long	reject
+pick	ubyte ptr	long	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	ulong	0	ulong
+pick	ubyte ptr	ulong	1	ulong
+pick	ubyte ptr	ulong	-1	ulong
+pick	ubyte ptr	ulong	"lit"	reject
+pick	ubyte ptr	ulong	v_string	reject
+pick	ubyte ptr	ulong	v_zfixed	reject
+pick	ubyte ptr	ulong	v_wfixed	reject
+pick	ubyte ptr	ulong	v_long	ulong
+pick	ubyte ptr	ulong	v_integer	ulong
+pick	ubyte ptr	ulong	v_uinteger	ulong
+pick	ubyte ptr	ulong	v_longint	ulong
+pick	ubyte ptr	ulong	v_ulongint	ulong
+pick	ubyte ptr	ulong	v_ulong	ulong
+pick	ubyte ptr	ulong	v_double	ulong
+pick	ubyte ptr	ulong	v_boolean	ulong
+pick	ubyte ptr	ulong	v_anyptr	ubyte ptr
+pick	ubyte ptr	ulong	v_byteptr	ubyte ptr
+pick	ubyte ptr	ulong	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	ulong	v_shortptr	reject
+pick	ubyte ptr	ulong	v_longptr	reject
+pick	ubyte ptr	ulong	v_longptrptr	reject
+pick	ubyte ptr	ulong	v_zptr	ubyte ptr
+pick	ubyte ptr	ulong	v_wptr	reject
+pick	ubyte ptr	ulong	@v_long	reject
+pick	ubyte ptr	ulong	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	integer	0	integer
+pick	ubyte ptr	integer	1	integer
+pick	ubyte ptr	integer	-1	integer
+pick	ubyte ptr	integer	"lit"	reject
+pick	ubyte ptr	integer	v_string	reject
+pick	ubyte ptr	integer	v_zfixed	reject
+pick	ubyte ptr	integer	v_wfixed	reject
+pick	ubyte ptr	integer	v_long	integer
+pick	ubyte ptr	integer	v_integer	integer
+pick	ubyte ptr	integer	v_uinteger	integer
+pick	ubyte ptr	integer	v_longint	integer
+pick	ubyte ptr	integer	v_ulongint	integer
+pick	ubyte ptr	integer	v_ulong	integer
+pick	ubyte ptr	integer	v_double	integer
+pick	ubyte ptr	integer	v_boolean	integer
+pick	ubyte ptr	integer	v_anyptr	ubyte ptr
+pick	ubyte ptr	integer	v_byteptr	ubyte ptr
+pick	ubyte ptr	integer	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	integer	v_shortptr	reject
+pick	ubyte ptr	integer	v_longptr	reject
+pick	ubyte ptr	integer	v_longptrptr	reject
+pick	ubyte ptr	integer	v_zptr	ubyte ptr
+pick	ubyte ptr	integer	v_wptr	reject
+pick	ubyte ptr	integer	@v_long	reject
+pick	ubyte ptr	integer	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	uinteger	0	uinteger
+pick	ubyte ptr	uinteger	1	uinteger
+pick	ubyte ptr	uinteger	-1	uinteger
+pick	ubyte ptr	uinteger	"lit"	reject
+pick	ubyte ptr	uinteger	v_string	reject
+pick	ubyte ptr	uinteger	v_zfixed	reject
+pick	ubyte ptr	uinteger	v_wfixed	reject
+pick	ubyte ptr	uinteger	v_long	uinteger
+pick	ubyte ptr	uinteger	v_integer	uinteger
+pick	ubyte ptr	uinteger	v_uinteger	uinteger
+pick	ubyte ptr	uinteger	v_longint	uinteger
+pick	ubyte ptr	uinteger	v_ulongint	uinteger
+pick	ubyte ptr	uinteger	v_ulong	uinteger
+pick	ubyte ptr	uinteger	v_double	uinteger
+pick	ubyte ptr	uinteger	v_boolean	uinteger
+pick	ubyte ptr	uinteger	v_anyptr	ubyte ptr
+pick	ubyte ptr	uinteger	v_byteptr	ubyte ptr
+pick	ubyte ptr	uinteger	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	uinteger	v_shortptr	reject
+pick	ubyte ptr	uinteger	v_longptr	reject
+pick	ubyte ptr	uinteger	v_longptrptr	reject
+pick	ubyte ptr	uinteger	v_zptr	ubyte ptr
+pick	ubyte ptr	uinteger	v_wptr	reject
+pick	ubyte ptr	uinteger	@v_long	reject
+pick	ubyte ptr	uinteger	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	longint	0	longint
+pick	ubyte ptr	longint	1	longint
+pick	ubyte ptr	longint	-1	longint
+pick	ubyte ptr	longint	"lit"	reject
+pick	ubyte ptr	longint	v_string	reject
+pick	ubyte ptr	longint	v_zfixed	reject
+pick	ubyte ptr	longint	v_wfixed	reject
+pick	ubyte ptr	longint	v_long	longint
+pick	ubyte ptr	longint	v_integer	longint
+pick	ubyte ptr	longint	v_uinteger	longint
+pick	ubyte ptr	longint	v_longint	longint
+pick	ubyte ptr	longint	v_ulongint	longint
+pick	ubyte ptr	longint	v_ulong	longint
+pick	ubyte ptr	longint	v_double	longint
+pick	ubyte ptr	longint	v_boolean	longint
+pick	ubyte ptr	longint	v_anyptr	ubyte ptr
+pick	ubyte ptr	longint	v_byteptr	ubyte ptr
+pick	ubyte ptr	longint	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	longint	v_shortptr	reject
+pick	ubyte ptr	longint	v_longptr	reject
+pick	ubyte ptr	longint	v_longptrptr	reject
+pick	ubyte ptr	longint	v_zptr	ubyte ptr
+pick	ubyte ptr	longint	v_wptr	reject
+pick	ubyte ptr	longint	@v_long	reject
+pick	ubyte ptr	longint	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	ulongint	0	ulongint
+pick	ubyte ptr	ulongint	1	ulongint
+pick	ubyte ptr	ulongint	-1	ulongint
+pick	ubyte ptr	ulongint	"lit"	reject
+pick	ubyte ptr	ulongint	v_string	reject
+pick	ubyte ptr	ulongint	v_zfixed	reject
+pick	ubyte ptr	ulongint	v_wfixed	reject
+pick	ubyte ptr	ulongint	v_long	ulongint
+pick	ubyte ptr	ulongint	v_integer	ulongint
+pick	ubyte ptr	ulongint	v_uinteger	ulongint
+pick	ubyte ptr	ulongint	v_longint	ulongint
+pick	ubyte ptr	ulongint	v_ulongint	ulongint
+pick	ubyte ptr	ulongint	v_ulong	ulongint
+pick	ubyte ptr	ulongint	v_double	ulongint
+pick	ubyte ptr	ulongint	v_boolean	ulongint
+pick	ubyte ptr	ulongint	v_anyptr	ubyte ptr
+pick	ubyte ptr	ulongint	v_byteptr	ubyte ptr
+pick	ubyte ptr	ulongint	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	ulongint	v_shortptr	reject
+pick	ubyte ptr	ulongint	v_longptr	reject
+pick	ubyte ptr	ulongint	v_longptrptr	reject
+pick	ubyte ptr	ulongint	v_zptr	ubyte ptr
+pick	ubyte ptr	ulongint	v_wptr	reject
+pick	ubyte ptr	ulongint	@v_long	reject
+pick	ubyte ptr	ulongint	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	double	0	double
+pick	ubyte ptr	double	1	double
+pick	ubyte ptr	double	-1	double
+pick	ubyte ptr	double	"lit"	reject
+pick	ubyte ptr	double	v_string	reject
+pick	ubyte ptr	double	v_zfixed	reject
+pick	ubyte ptr	double	v_wfixed	reject
+pick	ubyte ptr	double	v_long	double
+pick	ubyte ptr	double	v_integer	double
+pick	ubyte ptr	double	v_uinteger	double
+pick	ubyte ptr	double	v_longint	double
+pick	ubyte ptr	double	v_ulongint	double
+pick	ubyte ptr	double	v_ulong	double
+pick	ubyte ptr	double	v_double	double
+pick	ubyte ptr	double	v_boolean	double
+pick	ubyte ptr	double	v_anyptr	ubyte ptr
+pick	ubyte ptr	double	v_byteptr	ubyte ptr
+pick	ubyte ptr	double	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	double	v_shortptr	reject
+pick	ubyte ptr	double	v_longptr	reject
+pick	ubyte ptr	double	v_longptrptr	reject
+pick	ubyte ptr	double	v_zptr	ubyte ptr
+pick	ubyte ptr	double	v_wptr	reject
+pick	ubyte ptr	double	@v_long	reject
+pick	ubyte ptr	double	strptr(v_string)	ubyte ptr
+pick	ubyte ptr	boolean	0	boolean
+pick	ubyte ptr	boolean	1	boolean
+pick	ubyte ptr	boolean	-1	boolean
+pick	ubyte ptr	boolean	"lit"	reject
+pick	ubyte ptr	boolean	v_string	reject
+pick	ubyte ptr	boolean	v_zfixed	reject
+pick	ubyte ptr	boolean	v_wfixed	reject
+pick	ubyte ptr	boolean	v_long	boolean
+pick	ubyte ptr	boolean	v_integer	boolean
+pick	ubyte ptr	boolean	v_uinteger	boolean
+pick	ubyte ptr	boolean	v_longint	boolean
+pick	ubyte ptr	boolean	v_ulongint	boolean
+pick	ubyte ptr	boolean	v_ulong	boolean
+pick	ubyte ptr	boolean	v_double	boolean
+pick	ubyte ptr	boolean	v_boolean	boolean
+pick	ubyte ptr	boolean	v_anyptr	ubyte ptr
+pick	ubyte ptr	boolean	v_byteptr	ubyte ptr
+pick	ubyte ptr	boolean	v_ubyteptr	ubyte ptr
+pick	ubyte ptr	boolean	v_shortptr	reject
+pick	ubyte ptr	boolean	v_longptr	reject
+pick	ubyte ptr	boolean	v_longptrptr	reject
+pick	ubyte ptr	boolean	v_zptr	ubyte ptr
+pick	ubyte ptr	boolean	v_wptr	reject
+pick	ubyte ptr	boolean	@v_long	reject
+pick	ubyte ptr	boolean	strptr(v_string)	ubyte ptr
+pick	short ptr	long ptr	0	reject
+pick	short ptr	long ptr	1	reject
+pick	short ptr	long ptr	-1	reject
+pick	short ptr	long ptr	"lit"	reject
+pick	short ptr	long ptr	v_string	reject
+pick	short ptr	long ptr	v_zfixed	reject
+pick	short ptr	long ptr	v_wfixed	reject
+pick	short ptr	long ptr	v_long	reject
+pick	short ptr	long ptr	v_integer	reject
+pick	short ptr	long ptr	v_uinteger	reject
+pick	short ptr	long ptr	v_longint	reject
+pick	short ptr	long ptr	v_ulongint	reject
+pick	short ptr	long ptr	v_ulong	reject
+pick	short ptr	long ptr	v_double	reject
+pick	short ptr	long ptr	v_boolean	reject
+pick	short ptr	long ptr	v_anyptr	reject
+pick	short ptr	long ptr	v_byteptr	reject
+pick	short ptr	long ptr	v_ubyteptr	reject
+pick	short ptr	long ptr	v_shortptr	short ptr
+pick	short ptr	long ptr	v_longptr	long ptr
+pick	short ptr	long ptr	v_longptrptr	reject
+pick	short ptr	long ptr	v_zptr	reject
+pick	short ptr	long ptr	v_wptr	short ptr
+pick	short ptr	long ptr	@v_long	long ptr
+pick	short ptr	long ptr	strptr(v_string)	reject
+pick	short ptr	long ptr ptr	0	reject
+pick	short ptr	long ptr ptr	1	reject
+pick	short ptr	long ptr ptr	-1	reject
+pick	short ptr	long ptr ptr	"lit"	reject
+pick	short ptr	long ptr ptr	v_string	reject
+pick	short ptr	long ptr ptr	v_zfixed	reject
+pick	short ptr	long ptr ptr	v_wfixed	reject
+pick	short ptr	long ptr ptr	v_long	reject
+pick	short ptr	long ptr ptr	v_integer	reject
+pick	short ptr	long ptr ptr	v_uinteger	reject
+pick	short ptr	long ptr ptr	v_longint	reject
+pick	short ptr	long ptr ptr	v_ulongint	reject
+pick	short ptr	long ptr ptr	v_ulong	reject
+pick	short ptr	long ptr ptr	v_double	reject
+pick	short ptr	long ptr ptr	v_boolean	reject
+pick	short ptr	long ptr ptr	v_anyptr	reject
+pick	short ptr	long ptr ptr	v_byteptr	reject
+pick	short ptr	long ptr ptr	v_ubyteptr	reject
+pick	short ptr	long ptr ptr	v_shortptr	short ptr
+pick	short ptr	long ptr ptr	v_longptr	reject
+pick	short ptr	long ptr ptr	v_longptrptr	long ptr ptr
+pick	short ptr	long ptr ptr	v_zptr	reject
+pick	short ptr	long ptr ptr	v_wptr	short ptr
+pick	short ptr	long ptr ptr	@v_long	reject
+pick	short ptr	long ptr ptr	strptr(v_string)	reject
+pick	short ptr	zstring ptr	0	reject
+pick	short ptr	zstring ptr	1	reject
+pick	short ptr	zstring ptr	-1	reject
+pick	short ptr	zstring ptr	"lit"	zstring ptr
+pick	short ptr	zstring ptr	v_string	zstring ptr
+pick	short ptr	zstring ptr	v_zfixed	zstring ptr
+pick	short ptr	zstring ptr	v_wfixed	zstring ptr
+pick	short ptr	zstring ptr	v_long	reject
+pick	short ptr	zstring ptr	v_integer	reject
+pick	short ptr	zstring ptr	v_uinteger	reject
+pick	short ptr	zstring ptr	v_longint	reject
+pick	short ptr	zstring ptr	v_ulongint	reject
+pick	short ptr	zstring ptr	v_ulong	reject
+pick	short ptr	zstring ptr	v_double	reject
+pick	short ptr	zstring ptr	v_boolean	reject
+pick	short ptr	zstring ptr	v_anyptr	reject
+pick	short ptr	zstring ptr	v_byteptr	zstring ptr
+pick	short ptr	zstring ptr	v_ubyteptr	zstring ptr
+pick	short ptr	zstring ptr	v_shortptr	short ptr
+pick	short ptr	zstring ptr	v_longptr	reject
+pick	short ptr	zstring ptr	v_longptrptr	reject
+pick	short ptr	zstring ptr	v_zptr	zstring ptr
+pick	short ptr	zstring ptr	v_wptr	short ptr
+pick	short ptr	zstring ptr	@v_long	reject
+pick	short ptr	zstring ptr	strptr(v_string)	zstring ptr
+pick	short ptr	wstring ptr	0	reject
+pick	short ptr	wstring ptr	1	reject
+pick	short ptr	wstring ptr	-1	reject
+pick	short ptr	wstring ptr	"lit"	wstring ptr
+pick	short ptr	wstring ptr	v_string	wstring ptr
+pick	short ptr	wstring ptr	v_zfixed	wstring ptr
+pick	short ptr	wstring ptr	v_wfixed	wstring ptr
+pick	short ptr	wstring ptr	v_long	reject
+pick	short ptr	wstring ptr	v_integer	reject
+pick	short ptr	wstring ptr	v_uinteger	reject
+pick	short ptr	wstring ptr	v_longint	reject
+pick	short ptr	wstring ptr	v_ulongint	reject
+pick	short ptr	wstring ptr	v_ulong	reject
+pick	short ptr	wstring ptr	v_double	reject
+pick	short ptr	wstring ptr	v_boolean	reject
+pick	short ptr	wstring ptr	v_anyptr	reject
+pick	short ptr	wstring ptr	v_byteptr	reject
+pick	short ptr	wstring ptr	v_ubyteptr	reject
+pick	short ptr	wstring ptr	v_shortptr	short ptr
+pick	short ptr	wstring ptr	v_longptr	reject
+pick	short ptr	wstring ptr	v_longptrptr	reject
+pick	short ptr	wstring ptr	v_zptr	reject
+pick	short ptr	wstring ptr	v_wptr	wstring ptr
+pick	short ptr	wstring ptr	@v_long	reject
+pick	short ptr	wstring ptr	strptr(v_string)	reject
+pick	short ptr	string	0	short ptr
+pick	short ptr	string	1	short ptr
+pick	short ptr	string	-1	short ptr
+pick	short ptr	string	"lit"	string
+pick	short ptr	string	v_string	string
+pick	short ptr	string	v_zfixed	string
+pick	short ptr	string	v_wfixed	string
+pick	short ptr	string	v_long	short ptr
+pick	short ptr	string	v_integer	short ptr
+pick	short ptr	string	v_uinteger	short ptr
+pick	short ptr	string	v_longint	reject
+pick	short ptr	string	v_ulongint	reject
+pick	short ptr	string	v_ulong	short ptr
+pick	short ptr	string	v_double	reject
+pick	short ptr	string	v_boolean	reject
+pick	short ptr	string	v_anyptr	short ptr
+pick	short ptr	string	v_byteptr	reject
+pick	short ptr	string	v_ubyteptr	reject
+pick	short ptr	string	v_shortptr	short ptr
+pick	short ptr	string	v_longptr	reject
+pick	short ptr	string	v_longptrptr	reject
+pick	short ptr	string	v_zptr	reject
+pick	short ptr	string	v_wptr	short ptr
+pick	short ptr	string	@v_long	reject
+pick	short ptr	string	strptr(v_string)	reject
+pick	short ptr	long	0	long
+pick	short ptr	long	1	long
+pick	short ptr	long	-1	long
+pick	short ptr	long	"lit"	reject
+pick	short ptr	long	v_string	reject
+pick	short ptr	long	v_zfixed	reject
+pick	short ptr	long	v_wfixed	reject
+pick	short ptr	long	v_long	long
+pick	short ptr	long	v_integer	long
+pick	short ptr	long	v_uinteger	long
+pick	short ptr	long	v_longint	long
+pick	short ptr	long	v_ulongint	long
+pick	short ptr	long	v_ulong	long
+pick	short ptr	long	v_double	long
+pick	short ptr	long	v_boolean	long
+pick	short ptr	long	v_anyptr	short ptr
+pick	short ptr	long	v_byteptr	reject
+pick	short ptr	long	v_ubyteptr	reject
+pick	short ptr	long	v_shortptr	short ptr
+pick	short ptr	long	v_longptr	reject
+pick	short ptr	long	v_longptrptr	reject
+pick	short ptr	long	v_zptr	reject
+pick	short ptr	long	v_wptr	short ptr
+pick	short ptr	long	@v_long	reject
+pick	short ptr	long	strptr(v_string)	reject
+pick	short ptr	ulong	0	ulong
+pick	short ptr	ulong	1	ulong
+pick	short ptr	ulong	-1	ulong
+pick	short ptr	ulong	"lit"	reject
+pick	short ptr	ulong	v_string	reject
+pick	short ptr	ulong	v_zfixed	reject
+pick	short ptr	ulong	v_wfixed	reject
+pick	short ptr	ulong	v_long	ulong
+pick	short ptr	ulong	v_integer	ulong
+pick	short ptr	ulong	v_uinteger	ulong
+pick	short ptr	ulong	v_longint	ulong
+pick	short ptr	ulong	v_ulongint	ulong
+pick	short ptr	ulong	v_ulong	ulong
+pick	short ptr	ulong	v_double	ulong
+pick	short ptr	ulong	v_boolean	ulong
+pick	short ptr	ulong	v_anyptr	short ptr
+pick	short ptr	ulong	v_byteptr	reject
+pick	short ptr	ulong	v_ubyteptr	reject
+pick	short ptr	ulong	v_shortptr	short ptr
+pick	short ptr	ulong	v_longptr	reject
+pick	short ptr	ulong	v_longptrptr	reject
+pick	short ptr	ulong	v_zptr	reject
+pick	short ptr	ulong	v_wptr	short ptr
+pick	short ptr	ulong	@v_long	reject
+pick	short ptr	ulong	strptr(v_string)	reject
+pick	short ptr	integer	0	integer
+pick	short ptr	integer	1	integer
+pick	short ptr	integer	-1	integer
+pick	short ptr	integer	"lit"	reject
+pick	short ptr	integer	v_string	reject
+pick	short ptr	integer	v_zfixed	reject
+pick	short ptr	integer	v_wfixed	reject
+pick	short ptr	integer	v_long	integer
+pick	short ptr	integer	v_integer	integer
+pick	short ptr	integer	v_uinteger	integer
+pick	short ptr	integer	v_longint	integer
+pick	short ptr	integer	v_ulongint	integer
+pick	short ptr	integer	v_ulong	integer
+pick	short ptr	integer	v_double	integer
+pick	short ptr	integer	v_boolean	integer
+pick	short ptr	integer	v_anyptr	short ptr
+pick	short ptr	integer	v_byteptr	reject
+pick	short ptr	integer	v_ubyteptr	reject
+pick	short ptr	integer	v_shortptr	short ptr
+pick	short ptr	integer	v_longptr	reject
+pick	short ptr	integer	v_longptrptr	reject
+pick	short ptr	integer	v_zptr	reject
+pick	short ptr	integer	v_wptr	short ptr
+pick	short ptr	integer	@v_long	reject
+pick	short ptr	integer	strptr(v_string)	reject
+pick	short ptr	uinteger	0	uinteger
+pick	short ptr	uinteger	1	uinteger
+pick	short ptr	uinteger	-1	uinteger
+pick	short ptr	uinteger	"lit"	reject
+pick	short ptr	uinteger	v_string	reject
+pick	short ptr	uinteger	v_zfixed	reject
+pick	short ptr	uinteger	v_wfixed	reject
+pick	short ptr	uinteger	v_long	uinteger
+pick	short ptr	uinteger	v_integer	uinteger
+pick	short ptr	uinteger	v_uinteger	uinteger
+pick	short ptr	uinteger	v_longint	uinteger
+pick	short ptr	uinteger	v_ulongint	uinteger
+pick	short ptr	uinteger	v_ulong	uinteger
+pick	short ptr	uinteger	v_double	uinteger
+pick	short ptr	uinteger	v_boolean	uinteger
+pick	short ptr	uinteger	v_anyptr	short ptr
+pick	short ptr	uinteger	v_byteptr	reject
+pick	short ptr	uinteger	v_ubyteptr	reject
+pick	short ptr	uinteger	v_shortptr	short ptr
+pick	short ptr	uinteger	v_longptr	reject
+pick	short ptr	uinteger	v_longptrptr	reject
+pick	short ptr	uinteger	v_zptr	reject
+pick	short ptr	uinteger	v_wptr	short ptr
+pick	short ptr	uinteger	@v_long	reject
+pick	short ptr	uinteger	strptr(v_string)	reject
+pick	short ptr	longint	0	longint
+pick	short ptr	longint	1	longint
+pick	short ptr	longint	-1	longint
+pick	short ptr	longint	"lit"	reject
+pick	short ptr	longint	v_string	reject
+pick	short ptr	longint	v_zfixed	reject
+pick	short ptr	longint	v_wfixed	reject
+pick	short ptr	longint	v_long	longint
+pick	short ptr	longint	v_integer	longint
+pick	short ptr	longint	v_uinteger	longint
+pick	short ptr	longint	v_longint	longint
+pick	short ptr	longint	v_ulongint	longint
+pick	short ptr	longint	v_ulong	longint
+pick	short ptr	longint	v_double	longint
+pick	short ptr	longint	v_boolean	longint
+pick	short ptr	longint	v_anyptr	short ptr
+pick	short ptr	longint	v_byteptr	reject
+pick	short ptr	longint	v_ubyteptr	reject
+pick	short ptr	longint	v_shortptr	short ptr
+pick	short ptr	longint	v_longptr	reject
+pick	short ptr	longint	v_longptrptr	reject
+pick	short ptr	longint	v_zptr	reject
+pick	short ptr	longint	v_wptr	short ptr
+pick	short ptr	longint	@v_long	reject
+pick	short ptr	longint	strptr(v_string)	reject
+pick	short ptr	ulongint	0	ulongint
+pick	short ptr	ulongint	1	ulongint
+pick	short ptr	ulongint	-1	ulongint
+pick	short ptr	ulongint	"lit"	reject
+pick	short ptr	ulongint	v_string	reject
+pick	short ptr	ulongint	v_zfixed	reject
+pick	short ptr	ulongint	v_wfixed	reject
+pick	short ptr	ulongint	v_long	ulongint
+pick	short ptr	ulongint	v_integer	ulongint
+pick	short ptr	ulongint	v_uinteger	ulongint
+pick	short ptr	ulongint	v_longint	ulongint
+pick	short ptr	ulongint	v_ulongint	ulongint
+pick	short ptr	ulongint	v_ulong	ulongint
+pick	short ptr	ulongint	v_double	ulongint
+pick	short ptr	ulongint	v_boolean	ulongint
+pick	short ptr	ulongint	v_anyptr	short ptr
+pick	short ptr	ulongint	v_byteptr	reject
+pick	short ptr	ulongint	v_ubyteptr	reject
+pick	short ptr	ulongint	v_shortptr	short ptr
+pick	short ptr	ulongint	v_longptr	reject
+pick	short ptr	ulongint	v_longptrptr	reject
+pick	short ptr	ulongint	v_zptr	reject
+pick	short ptr	ulongint	v_wptr	short ptr
+pick	short ptr	ulongint	@v_long	reject
+pick	short ptr	ulongint	strptr(v_string)	reject
+pick	short ptr	double	0	double
+pick	short ptr	double	1	double
+pick	short ptr	double	-1	double
+pick	short ptr	double	"lit"	reject
+pick	short ptr	double	v_string	reject
+pick	short ptr	double	v_zfixed	reject
+pick	short ptr	double	v_wfixed	reject
+pick	short ptr	double	v_long	double
+pick	short ptr	double	v_integer	double
+pick	short ptr	double	v_uinteger	double
+pick	short ptr	double	v_longint	double
+pick	short ptr	double	v_ulongint	double
+pick	short ptr	double	v_ulong	double
+pick	short ptr	double	v_double	double
+pick	short ptr	double	v_boolean	double
+pick	short ptr	double	v_anyptr	short ptr
+pick	short ptr	double	v_byteptr	reject
+pick	short ptr	double	v_ubyteptr	reject
+pick	short ptr	double	v_shortptr	short ptr
+pick	short ptr	double	v_longptr	reject
+pick	short ptr	double	v_longptrptr	reject
+pick	short ptr	double	v_zptr	reject
+pick	short ptr	double	v_wptr	short ptr
+pick	short ptr	double	@v_long	reject
+pick	short ptr	double	strptr(v_string)	reject
+pick	short ptr	boolean	0	boolean
+pick	short ptr	boolean	1	boolean
+pick	short ptr	boolean	-1	boolean
+pick	short ptr	boolean	"lit"	reject
+pick	short ptr	boolean	v_string	reject
+pick	short ptr	boolean	v_zfixed	reject
+pick	short ptr	boolean	v_wfixed	reject
+pick	short ptr	boolean	v_long	boolean
+pick	short ptr	boolean	v_integer	boolean
+pick	short ptr	boolean	v_uinteger	boolean
+pick	short ptr	boolean	v_longint	boolean
+pick	short ptr	boolean	v_ulongint	boolean
+pick	short ptr	boolean	v_ulong	boolean
+pick	short ptr	boolean	v_double	boolean
+pick	short ptr	boolean	v_boolean	boolean
+pick	short ptr	boolean	v_anyptr	short ptr
+pick	short ptr	boolean	v_byteptr	reject
+pick	short ptr	boolean	v_ubyteptr	reject
+pick	short ptr	boolean	v_shortptr	short ptr
+pick	short ptr	boolean	v_longptr	reject
+pick	short ptr	boolean	v_longptrptr	reject
+pick	short ptr	boolean	v_zptr	reject
+pick	short ptr	boolean	v_wptr	short ptr
+pick	short ptr	boolean	@v_long	reject
+pick	short ptr	boolean	strptr(v_string)	reject
+pick	long ptr	long ptr ptr	0	reject
+pick	long ptr	long ptr ptr	1	reject
+pick	long ptr	long ptr ptr	-1	reject
+pick	long ptr	long ptr ptr	"lit"	reject
+pick	long ptr	long ptr ptr	v_string	reject
+pick	long ptr	long ptr ptr	v_zfixed	reject
+pick	long ptr	long ptr ptr	v_wfixed	reject
+pick	long ptr	long ptr ptr	v_long	reject
+pick	long ptr	long ptr ptr	v_integer	reject
+pick	long ptr	long ptr ptr	v_uinteger	reject
+pick	long ptr	long ptr ptr	v_longint	reject
+pick	long ptr	long ptr ptr	v_ulongint	reject
+pick	long ptr	long ptr ptr	v_ulong	reject
+pick	long ptr	long ptr ptr	v_double	reject
+pick	long ptr	long ptr ptr	v_boolean	reject
+pick	long ptr	long ptr ptr	v_anyptr	reject
+pick	long ptr	long ptr ptr	v_byteptr	reject
+pick	long ptr	long ptr ptr	v_ubyteptr	reject
+pick	long ptr	long ptr ptr	v_shortptr	reject
+pick	long ptr	long ptr ptr	v_longptr	long ptr
+pick	long ptr	long ptr ptr	v_longptrptr	long ptr ptr
+pick	long ptr	long ptr ptr	v_zptr	reject
+pick	long ptr	long ptr ptr	v_wptr	reject
+pick	long ptr	long ptr ptr	@v_long	long ptr
+pick	long ptr	long ptr ptr	strptr(v_string)	reject
+pick	long ptr	zstring ptr	0	reject
+pick	long ptr	zstring ptr	1	reject
+pick	long ptr	zstring ptr	-1	reject
+pick	long ptr	zstring ptr	"lit"	zstring ptr
+pick	long ptr	zstring ptr	v_string	zstring ptr
+pick	long ptr	zstring ptr	v_zfixed	zstring ptr
+pick	long ptr	zstring ptr	v_wfixed	zstring ptr
+pick	long ptr	zstring ptr	v_long	reject
+pick	long ptr	zstring ptr	v_integer	reject
+pick	long ptr	zstring ptr	v_uinteger	reject
+pick	long ptr	zstring ptr	v_longint	reject
+pick	long ptr	zstring ptr	v_ulongint	reject
+pick	long ptr	zstring ptr	v_ulong	reject
+pick	long ptr	zstring ptr	v_double	reject
+pick	long ptr	zstring ptr	v_boolean	reject
+pick	long ptr	zstring ptr	v_anyptr	reject
+pick	long ptr	zstring ptr	v_byteptr	zstring ptr
+pick	long ptr	zstring ptr	v_ubyteptr	zstring ptr
+pick	long ptr	zstring ptr	v_shortptr	reject
+pick	long ptr	zstring ptr	v_longptr	long ptr
+pick	long ptr	zstring ptr	v_longptrptr	reject
+pick	long ptr	zstring ptr	v_zptr	zstring ptr
+pick	long ptr	zstring ptr	v_wptr	reject
+pick	long ptr	zstring ptr	@v_long	long ptr
+pick	long ptr	zstring ptr	strptr(v_string)	zstring ptr
+pick	long ptr	wstring ptr	0	reject
+pick	long ptr	wstring ptr	1	reject
+pick	long ptr	wstring ptr	-1	reject
+pick	long ptr	wstring ptr	"lit"	wstring ptr
+pick	long ptr	wstring ptr	v_string	wstring ptr
+pick	long ptr	wstring ptr	v_zfixed	wstring ptr
+pick	long ptr	wstring ptr	v_wfixed	wstring ptr
+pick	long ptr	wstring ptr	v_long	reject
+pick	long ptr	wstring ptr	v_integer	reject
+pick	long ptr	wstring ptr	v_uinteger	reject
+pick	long ptr	wstring ptr	v_longint	reject
+pick	long ptr	wstring ptr	v_ulongint	reject
+pick	long ptr	wstring ptr	v_ulong	reject
+pick	long ptr	wstring ptr	v_double	reject
+pick	long ptr	wstring ptr	v_boolean	reject
+pick	long ptr	wstring ptr	v_anyptr	reject
+pick	long ptr	wstring ptr	v_byteptr	reject
+pick	long ptr	wstring ptr	v_ubyteptr	reject
+pick	long ptr	wstring ptr	v_shortptr	wstring ptr
+pick	long ptr	wstring ptr	v_longptr	long ptr
+pick	long ptr	wstring ptr	v_longptrptr	reject
+pick	long ptr	wstring ptr	v_zptr	reject
+pick	long ptr	wstring ptr	v_wptr	wstring ptr
+pick	long ptr	wstring ptr	@v_long	long ptr
+pick	long ptr	wstring ptr	strptr(v_string)	reject
+pick	long ptr	string	0	long ptr
+pick	long ptr	string	1	long ptr
+pick	long ptr	string	-1	long ptr
+pick	long ptr	string	"lit"	string
+pick	long ptr	string	v_string	string
+pick	long ptr	string	v_zfixed	string
+pick	long ptr	string	v_wfixed	string
+pick	long ptr	string	v_long	long ptr
+pick	long ptr	string	v_integer	long ptr
+pick	long ptr	string	v_uinteger	long ptr
+pick	long ptr	string	v_longint	reject
+pick	long ptr	string	v_ulongint	reject
+pick	long ptr	string	v_ulong	long ptr
+pick	long ptr	string	v_double	reject
+pick	long ptr	string	v_boolean	reject
+pick	long ptr	string	v_anyptr	long ptr
+pick	long ptr	string	v_byteptr	reject
+pick	long ptr	string	v_ubyteptr	reject
+pick	long ptr	string	v_shortptr	reject
+pick	long ptr	string	v_longptr	long ptr
+pick	long ptr	string	v_longptrptr	reject
+pick	long ptr	string	v_zptr	reject
+pick	long ptr	string	v_wptr	reject
+pick	long ptr	string	@v_long	long ptr
+pick	long ptr	string	strptr(v_string)	reject
+pick	long ptr	long	0	long
+pick	long ptr	long	1	long
+pick	long ptr	long	-1	long
+pick	long ptr	long	"lit"	reject
+pick	long ptr	long	v_string	reject
+pick	long ptr	long	v_zfixed	reject
+pick	long ptr	long	v_wfixed	reject
+pick	long ptr	long	v_long	long
+pick	long ptr	long	v_integer	long
+pick	long ptr	long	v_uinteger	long
+pick	long ptr	long	v_longint	long
+pick	long ptr	long	v_ulongint	long
+pick	long ptr	long	v_ulong	long
+pick	long ptr	long	v_double	long
+pick	long ptr	long	v_boolean	long
+pick	long ptr	long	v_anyptr	long ptr
+pick	long ptr	long	v_byteptr	reject
+pick	long ptr	long	v_ubyteptr	reject
+pick	long ptr	long	v_shortptr	reject
+pick	long ptr	long	v_longptr	long ptr
+pick	long ptr	long	v_longptrptr	reject
+pick	long ptr	long	v_zptr	reject
+pick	long ptr	long	v_wptr	reject
+pick	long ptr	long	@v_long	long ptr
+pick	long ptr	long	strptr(v_string)	reject
+pick	long ptr	ulong	0	ulong
+pick	long ptr	ulong	1	ulong
+pick	long ptr	ulong	-1	ulong
+pick	long ptr	ulong	"lit"	reject
+pick	long ptr	ulong	v_string	reject
+pick	long ptr	ulong	v_zfixed	reject
+pick	long ptr	ulong	v_wfixed	reject
+pick	long ptr	ulong	v_long	ulong
+pick	long ptr	ulong	v_integer	ulong
+pick	long ptr	ulong	v_uinteger	ulong
+pick	long ptr	ulong	v_longint	ulong
+pick	long ptr	ulong	v_ulongint	ulong
+pick	long ptr	ulong	v_ulong	ulong
+pick	long ptr	ulong	v_double	ulong
+pick	long ptr	ulong	v_boolean	ulong
+pick	long ptr	ulong	v_anyptr	long ptr
+pick	long ptr	ulong	v_byteptr	reject
+pick	long ptr	ulong	v_ubyteptr	reject
+pick	long ptr	ulong	v_shortptr	reject
+pick	long ptr	ulong	v_longptr	long ptr
+pick	long ptr	ulong	v_longptrptr	reject
+pick	long ptr	ulong	v_zptr	reject
+pick	long ptr	ulong	v_wptr	reject
+pick	long ptr	ulong	@v_long	long ptr
+pick	long ptr	ulong	strptr(v_string)	reject
+pick	long ptr	integer	0	integer
+pick	long ptr	integer	1	integer
+pick	long ptr	integer	-1	integer
+pick	long ptr	integer	"lit"	reject
+pick	long ptr	integer	v_string	reject
+pick	long ptr	integer	v_zfixed	reject
+pick	long ptr	integer	v_wfixed	reject
+pick	long ptr	integer	v_long	integer
+pick	long ptr	integer	v_integer	integer
+pick	long ptr	integer	v_uinteger	integer
+pick	long ptr	integer	v_longint	integer
+pick	long ptr	integer	v_ulongint	integer
+pick	long ptr	integer	v_ulong	integer
+pick	long ptr	integer	v_double	integer
+pick	long ptr	integer	v_boolean	integer
+pick	long ptr	integer	v_anyptr	long ptr
+pick	long ptr	integer	v_byteptr	reject
+pick	long ptr	integer	v_ubyteptr	reject
+pick	long ptr	integer	v_shortptr	reject
+pick	long ptr	integer	v_longptr	long ptr
+pick	long ptr	integer	v_longptrptr	reject
+pick	long ptr	integer	v_zptr	reject
+pick	long ptr	integer	v_wptr	reject
+pick	long ptr	integer	@v_long	long ptr
+pick	long ptr	integer	strptr(v_string)	reject
+pick	long ptr	uinteger	0	uinteger
+pick	long ptr	uinteger	1	uinteger
+pick	long ptr	uinteger	-1	uinteger
+pick	long ptr	uinteger	"lit"	reject
+pick	long ptr	uinteger	v_string	reject
+pick	long ptr	uinteger	v_zfixed	reject
+pick	long ptr	uinteger	v_wfixed	reject
+pick	long ptr	uinteger	v_long	uinteger
+pick	long ptr	uinteger	v_integer	uinteger
+pick	long ptr	uinteger	v_uinteger	uinteger
+pick	long ptr	uinteger	v_longint	uinteger
+pick	long ptr	uinteger	v_ulongint	uinteger
+pick	long ptr	uinteger	v_ulong	uinteger
+pick	long ptr	uinteger	v_double	uinteger
+pick	long ptr	uinteger	v_boolean	uinteger
+pick	long ptr	uinteger	v_anyptr	long ptr
+pick	long ptr	uinteger	v_byteptr	reject
+pick	long ptr	uinteger	v_ubyteptr	reject
+pick	long ptr	uinteger	v_shortptr	reject
+pick	long ptr	uinteger	v_longptr	long ptr
+pick	long ptr	uinteger	v_longptrptr	reject
+pick	long ptr	uinteger	v_zptr	reject
+pick	long ptr	uinteger	v_wptr	reject
+pick	long ptr	uinteger	@v_long	long ptr
+pick	long ptr	uinteger	strptr(v_string)	reject
+pick	long ptr	longint	0	longint
+pick	long ptr	longint	1	longint
+pick	long ptr	longint	-1	longint
+pick	long ptr	longint	"lit"	reject
+pick	long ptr	longint	v_string	reject
+pick	long ptr	longint	v_zfixed	reject
+pick	long ptr	longint	v_wfixed	reject
+pick	long ptr	longint	v_long	longint
+pick	long ptr	longint	v_integer	longint
+pick	long ptr	longint	v_uinteger	longint
+pick	long ptr	longint	v_longint	longint
+pick	long ptr	longint	v_ulongint	longint
+pick	long ptr	longint	v_ulong	longint
+pick	long ptr	longint	v_double	longint
+pick	long ptr	longint	v_boolean	longint
+pick	long ptr	longint	v_anyptr	long ptr
+pick	long ptr	longint	v_byteptr	reject
+pick	long ptr	longint	v_ubyteptr	reject
+pick	long ptr	longint	v_shortptr	reject
+pick	long ptr	longint	v_longptr	long ptr
+pick	long ptr	longint	v_longptrptr	reject
+pick	long ptr	longint	v_zptr	reject
+pick	long ptr	longint	v_wptr	reject
+pick	long ptr	longint	@v_long	long ptr
+pick	long ptr	longint	strptr(v_string)	reject
+pick	long ptr	ulongint	0	ulongint
+pick	long ptr	ulongint	1	ulongint
+pick	long ptr	ulongint	-1	ulongint
+pick	long ptr	ulongint	"lit"	reject
+pick	long ptr	ulongint	v_string	reject
+pick	long ptr	ulongint	v_zfixed	reject
+pick	long ptr	ulongint	v_wfixed	reject
+pick	long ptr	ulongint	v_long	ulongint
+pick	long ptr	ulongint	v_integer	ulongint
+pick	long ptr	ulongint	v_uinteger	ulongint
+pick	long ptr	ulongint	v_longint	ulongint
+pick	long ptr	ulongint	v_ulongint	ulongint
+pick	long ptr	ulongint	v_ulong	ulongint
+pick	long ptr	ulongint	v_double	ulongint
+pick	long ptr	ulongint	v_boolean	ulongint
+pick	long ptr	ulongint	v_anyptr	long ptr
+pick	long ptr	ulongint	v_byteptr	reject
+pick	long ptr	ulongint	v_ubyteptr	reject
+pick	long ptr	ulongint	v_shortptr	reject
+pick	long ptr	ulongint	v_longptr	long ptr
+pick	long ptr	ulongint	v_longptrptr	reject
+pick	long ptr	ulongint	v_zptr	reject
+pick	long ptr	ulongint	v_wptr	reject
+pick	long ptr	ulongint	@v_long	long ptr
+pick	long ptr	ulongint	strptr(v_string)	reject
+pick	long ptr	double	0	double
+pick	long ptr	double	1	double
+pick	long ptr	double	-1	double
+pick	long ptr	double	"lit"	reject
+pick	long ptr	double	v_string	reject
+pick	long ptr	double	v_zfixed	reject
+pick	long ptr	double	v_wfixed	reject
+pick	long ptr	double	v_long	double
+pick	long ptr	double	v_integer	double
+pick	long ptr	double	v_uinteger	double
+pick	long ptr	double	v_longint	double
+pick	long ptr	double	v_ulongint	double
+pick	long ptr	double	v_ulong	double
+pick	long ptr	double	v_double	double
+pick	long ptr	double	v_boolean	double
+pick	long ptr	double	v_anyptr	long ptr
+pick	long ptr	double	v_byteptr	reject
+pick	long ptr	double	v_ubyteptr	reject
+pick	long ptr	double	v_shortptr	reject
+pick	long ptr	double	v_longptr	long ptr
+pick	long ptr	double	v_longptrptr	reject
+pick	long ptr	double	v_zptr	reject
+pick	long ptr	double	v_wptr	reject
+pick	long ptr	double	@v_long	long ptr
+pick	long ptr	double	strptr(v_string)	reject
+pick	long ptr	boolean	0	boolean
+pick	long ptr	boolean	1	boolean
+pick	long ptr	boolean	-1	boolean
+pick	long ptr	boolean	"lit"	reject
+pick	long ptr	boolean	v_string	reject
+pick	long ptr	boolean	v_zfixed	reject
+pick	long ptr	boolean	v_wfixed	reject
+pick	long ptr	boolean	v_long	boolean
+pick	long ptr	boolean	v_integer	boolean
+pick	long ptr	boolean	v_uinteger	boolean
+pick	long ptr	boolean	v_longint	boolean
+pick	long ptr	boolean	v_ulongint	boolean
+pick	long ptr	boolean	v_ulong	boolean
+pick	long ptr	boolean	v_double	boolean
+pick	long ptr	boolean	v_boolean	boolean
+pick	long ptr	boolean	v_anyptr	long ptr
+pick	long ptr	boolean	v_byteptr	reject
+pick	long ptr	boolean	v_ubyteptr	reject
+pick	long ptr	boolean	v_shortptr	reject
+pick	long ptr	boolean	v_longptr	long ptr
+pick	long ptr	boolean	v_longptrptr	reject
+pick	long ptr	boolean	v_zptr	reject
+pick	long ptr	boolean	v_wptr	reject
+pick	long ptr	boolean	@v_long	long ptr
+pick	long ptr	boolean	strptr(v_string)	reject
+pick	long ptr ptr	zstring ptr	0	reject
+pick	long ptr ptr	zstring ptr	1	reject
+pick	long ptr ptr	zstring ptr	-1	reject
+pick	long ptr ptr	zstring ptr	"lit"	zstring ptr
+pick	long ptr ptr	zstring ptr	v_string	zstring ptr
+pick	long ptr ptr	zstring ptr	v_zfixed	zstring ptr
+pick	long ptr ptr	zstring ptr	v_wfixed	zstring ptr
+pick	long ptr ptr	zstring ptr	v_long	reject
+pick	long ptr ptr	zstring ptr	v_integer	reject
+pick	long ptr ptr	zstring ptr	v_uinteger	reject
+pick	long ptr ptr	zstring ptr	v_longint	reject
+pick	long ptr ptr	zstring ptr	v_ulongint	reject
+pick	long ptr ptr	zstring ptr	v_ulong	reject
+pick	long ptr ptr	zstring ptr	v_double	reject
+pick	long ptr ptr	zstring ptr	v_boolean	reject
+pick	long ptr ptr	zstring ptr	v_anyptr	reject
+pick	long ptr ptr	zstring ptr	v_byteptr	zstring ptr
+pick	long ptr ptr	zstring ptr	v_ubyteptr	zstring ptr
+pick	long ptr ptr	zstring ptr	v_shortptr	reject
+pick	long ptr ptr	zstring ptr	v_longptr	reject
+pick	long ptr ptr	zstring ptr	v_longptrptr	long ptr ptr
+pick	long ptr ptr	zstring ptr	v_zptr	zstring ptr
+pick	long ptr ptr	zstring ptr	v_wptr	reject
+pick	long ptr ptr	zstring ptr	@v_long	reject
+pick	long ptr ptr	zstring ptr	strptr(v_string)	zstring ptr
+pick	long ptr ptr	wstring ptr	0	reject
+pick	long ptr ptr	wstring ptr	1	reject
+pick	long ptr ptr	wstring ptr	-1	reject
+pick	long ptr ptr	wstring ptr	"lit"	wstring ptr
+pick	long ptr ptr	wstring ptr	v_string	wstring ptr
+pick	long ptr ptr	wstring ptr	v_zfixed	wstring ptr
+pick	long ptr ptr	wstring ptr	v_wfixed	wstring ptr
+pick	long ptr ptr	wstring ptr	v_long	reject
+pick	long ptr ptr	wstring ptr	v_integer	reject
+pick	long ptr ptr	wstring ptr	v_uinteger	reject
+pick	long ptr ptr	wstring ptr	v_longint	reject
+pick	long ptr ptr	wstring ptr	v_ulongint	reject
+pick	long ptr ptr	wstring ptr	v_ulong	reject
+pick	long ptr ptr	wstring ptr	v_double	reject
+pick	long ptr ptr	wstring ptr	v_boolean	reject
+pick	long ptr ptr	wstring ptr	v_anyptr	reject
+pick	long ptr ptr	wstring ptr	v_byteptr	reject
+pick	long ptr ptr	wstring ptr	v_ubyteptr	reject
+pick	long ptr ptr	wstring ptr	v_shortptr	wstring ptr
+pick	long ptr ptr	wstring ptr	v_longptr	reject
+pick	long ptr ptr	wstring ptr	v_longptrptr	long ptr ptr
+pick	long ptr ptr	wstring ptr	v_zptr	reject
+pick	long ptr ptr	wstring ptr	v_wptr	wstring ptr
+pick	long ptr ptr	wstring ptr	@v_long	reject
+pick	long ptr ptr	wstring ptr	strptr(v_string)	reject
+pick	long ptr ptr	string	0	long ptr ptr
+pick	long ptr ptr	string	1	long ptr ptr
+pick	long ptr ptr	string	-1	long ptr ptr
+pick	long ptr ptr	string	"lit"	string
+pick	long ptr ptr	string	v_string	string
+pick	long ptr ptr	string	v_zfixed	string
+pick	long ptr ptr	string	v_wfixed	string
+pick	long ptr ptr	string	v_long	long ptr ptr
+pick	long ptr ptr	string	v_integer	long ptr ptr
+pick	long ptr ptr	string	v_uinteger	long ptr ptr
+pick	long ptr ptr	string	v_longint	reject
+pick	long ptr ptr	string	v_ulongint	reject
+pick	long ptr ptr	string	v_ulong	long ptr ptr
+pick	long ptr ptr	string	v_double	reject
+pick	long ptr ptr	string	v_boolean	reject
+pick	long ptr ptr	string	v_anyptr	long ptr ptr
+pick	long ptr ptr	string	v_byteptr	reject
+pick	long ptr ptr	string	v_ubyteptr	reject
+pick	long ptr ptr	string	v_shortptr	reject
+pick	long ptr ptr	string	v_longptr	reject
+pick	long ptr ptr	string	v_longptrptr	long ptr ptr
+pick	long ptr ptr	string	v_zptr	reject
+pick	long ptr ptr	string	v_wptr	reject
+pick	long ptr ptr	string	@v_long	reject
+pick	long ptr ptr	string	strptr(v_string)	reject
+pick	long ptr ptr	long	0	long
+pick	long ptr ptr	long	1	long
+pick	long ptr ptr	long	-1	long
+pick	long ptr ptr	long	"lit"	reject
+pick	long ptr ptr	long	v_string	reject
+pick	long ptr ptr	long	v_zfixed	reject
+pick	long ptr ptr	long	v_wfixed	reject
+pick	long ptr ptr	long	v_long	long
+pick	long ptr ptr	long	v_integer	long
+pick	long ptr ptr	long	v_uinteger	long
+pick	long ptr ptr	long	v_longint	long
+pick	long ptr ptr	long	v_ulongint	long
+pick	long ptr ptr	long	v_ulong	long
+pick	long ptr ptr	long	v_double	long
+pick	long ptr ptr	long	v_boolean	long
+pick	long ptr ptr	long	v_anyptr	long ptr ptr
+pick	long ptr ptr	long	v_byteptr	reject
+pick	long ptr ptr	long	v_ubyteptr	reject
+pick	long ptr ptr	long	v_shortptr	reject
+pick	long ptr ptr	long	v_longptr	reject
+pick	long ptr ptr	long	v_longptrptr	long ptr ptr
+pick	long ptr ptr	long	v_zptr	reject
+pick	long ptr ptr	long	v_wptr	reject
+pick	long ptr ptr	long	@v_long	reject
+pick	long ptr ptr	long	strptr(v_string)	reject
+pick	long ptr ptr	ulong	0	ulong
+pick	long ptr ptr	ulong	1	ulong
+pick	long ptr ptr	ulong	-1	ulong
+pick	long ptr ptr	ulong	"lit"	reject
+pick	long ptr ptr	ulong	v_string	reject
+pick	long ptr ptr	ulong	v_zfixed	reject
+pick	long ptr ptr	ulong	v_wfixed	reject
+pick	long ptr ptr	ulong	v_long	ulong
+pick	long ptr ptr	ulong	v_integer	ulong
+pick	long ptr ptr	ulong	v_uinteger	ulong
+pick	long ptr ptr	ulong	v_longint	ulong
+pick	long ptr ptr	ulong	v_ulongint	ulong
+pick	long ptr ptr	ulong	v_ulong	ulong
+pick	long ptr ptr	ulong	v_double	ulong
+pick	long ptr ptr	ulong	v_boolean	ulong
+pick	long ptr ptr	ulong	v_anyptr	long ptr ptr
+pick	long ptr ptr	ulong	v_byteptr	reject
+pick	long ptr ptr	ulong	v_ubyteptr	reject
+pick	long ptr ptr	ulong	v_shortptr	reject
+pick	long ptr ptr	ulong	v_longptr	reject
+pick	long ptr ptr	ulong	v_longptrptr	long ptr ptr
+pick	long ptr ptr	ulong	v_zptr	reject
+pick	long ptr ptr	ulong	v_wptr	reject
+pick	long ptr ptr	ulong	@v_long	reject
+pick	long ptr ptr	ulong	strptr(v_string)	reject
+pick	long ptr ptr	integer	0	integer
+pick	long ptr ptr	integer	1	integer
+pick	long ptr ptr	integer	-1	integer
+pick	long ptr ptr	integer	"lit"	reject
+pick	long ptr ptr	integer	v_string	reject
+pick	long ptr ptr	integer	v_zfixed	reject
+pick	long ptr ptr	integer	v_wfixed	reject
+pick	long ptr ptr	integer	v_long	integer
+pick	long ptr ptr	integer	v_integer	integer
+pick	long ptr ptr	integer	v_uinteger	integer
+pick	long ptr ptr	integer	v_longint	integer
+pick	long ptr ptr	integer	v_ulongint	integer
+pick	long ptr ptr	integer	v_ulong	integer
+pick	long ptr ptr	integer	v_double	integer
+pick	long ptr ptr	integer	v_boolean	integer
+pick	long ptr ptr	integer	v_anyptr	long ptr ptr
+pick	long ptr ptr	integer	v_byteptr	reject
+pick	long ptr ptr	integer	v_ubyteptr	reject
+pick	long ptr ptr	integer	v_shortptr	reject
+pick	long ptr ptr	integer	v_longptr	reject
+pick	long ptr ptr	integer	v_longptrptr	long ptr ptr
+pick	long ptr ptr	integer	v_zptr	reject
+pick	long ptr ptr	integer	v_wptr	reject
+pick	long ptr ptr	integer	@v_long	reject
+pick	long ptr ptr	integer	strptr(v_string)	reject
+pick	long ptr ptr	uinteger	0	uinteger
+pick	long ptr ptr	uinteger	1	uinteger
+pick	long ptr ptr	uinteger	-1	uinteger
+pick	long ptr ptr	uinteger	"lit"	reject
+pick	long ptr ptr	uinteger	v_string	reject
+pick	long ptr ptr	uinteger	v_zfixed	reject
+pick	long ptr ptr	uinteger	v_wfixed	reject
+pick	long ptr ptr	uinteger	v_long	uinteger
+pick	long ptr ptr	uinteger	v_integer	uinteger
+pick	long ptr ptr	uinteger	v_uinteger	uinteger
+pick	long ptr ptr	uinteger	v_longint	uinteger
+pick	long ptr ptr	uinteger	v_ulongint	uinteger
+pick	long ptr ptr	uinteger	v_ulong	uinteger
+pick	long ptr ptr	uinteger	v_double	uinteger
+pick	long ptr ptr	uinteger	v_boolean	uinteger
+pick	long ptr ptr	uinteger	v_anyptr	long ptr ptr
+pick	long ptr ptr	uinteger	v_byteptr	reject
+pick	long ptr ptr	uinteger	v_ubyteptr	reject
+pick	long ptr ptr	uinteger	v_shortptr	reject
+pick	long ptr ptr	uinteger	v_longptr	reject
+pick	long ptr ptr	uinteger	v_longptrptr	long ptr ptr
+pick	long ptr ptr	uinteger	v_zptr	reject
+pick	long ptr ptr	uinteger	v_wptr	reject
+pick	long ptr ptr	uinteger	@v_long	reject
+pick	long ptr ptr	uinteger	strptr(v_string)	reject
+pick	long ptr ptr	longint	0	longint
+pick	long ptr ptr	longint	1	longint
+pick	long ptr ptr	longint	-1	longint
+pick	long ptr ptr	longint	"lit"	reject
+pick	long ptr ptr	longint	v_string	reject
+pick	long ptr ptr	longint	v_zfixed	reject
+pick	long ptr ptr	longint	v_wfixed	reject
+pick	long ptr ptr	longint	v_long	longint
+pick	long ptr ptr	longint	v_integer	longint
+pick	long ptr ptr	longint	v_uinteger	longint
+pick	long ptr ptr	longint	v_longint	longint
+pick	long ptr ptr	longint	v_ulongint	longint
+pick	long ptr ptr	longint	v_ulong	longint
+pick	long ptr ptr	longint	v_double	longint
+pick	long ptr ptr	longint	v_boolean	longint
+pick	long ptr ptr	longint	v_anyptr	long ptr ptr
+pick	long ptr ptr	longint	v_byteptr	reject
+pick	long ptr ptr	longint	v_ubyteptr	reject
+pick	long ptr ptr	longint	v_shortptr	reject
+pick	long ptr ptr	longint	v_longptr	reject
+pick	long ptr ptr	longint	v_longptrptr	long ptr ptr
+pick	long ptr ptr	longint	v_zptr	reject
+pick	long ptr ptr	longint	v_wptr	reject
+pick	long ptr ptr	longint	@v_long	reject
+pick	long ptr ptr	longint	strptr(v_string)	reject
+pick	long ptr ptr	ulongint	0	ulongint
+pick	long ptr ptr	ulongint	1	ulongint
+pick	long ptr ptr	ulongint	-1	ulongint
+pick	long ptr ptr	ulongint	"lit"	reject
+pick	long ptr ptr	ulongint	v_string	reject
+pick	long ptr ptr	ulongint	v_zfixed	reject
+pick	long ptr ptr	ulongint	v_wfixed	reject
+pick	long ptr ptr	ulongint	v_long	ulongint
+pick	long ptr ptr	ulongint	v_integer	ulongint
+pick	long ptr ptr	ulongint	v_uinteger	ulongint
+pick	long ptr ptr	ulongint	v_longint	ulongint
+pick	long ptr ptr	ulongint	v_ulongint	ulongint
+pick	long ptr ptr	ulongint	v_ulong	ulongint
+pick	long ptr ptr	ulongint	v_double	ulongint
+pick	long ptr ptr	ulongint	v_boolean	ulongint
+pick	long ptr ptr	ulongint	v_anyptr	long ptr ptr
+pick	long ptr ptr	ulongint	v_byteptr	reject
+pick	long ptr ptr	ulongint	v_ubyteptr	reject
+pick	long ptr ptr	ulongint	v_shortptr	reject
+pick	long ptr ptr	ulongint	v_longptr	reject
+pick	long ptr ptr	ulongint	v_longptrptr	long ptr ptr
+pick	long ptr ptr	ulongint	v_zptr	reject
+pick	long ptr ptr	ulongint	v_wptr	reject
+pick	long ptr ptr	ulongint	@v_long	reject
+pick	long ptr ptr	ulongint	strptr(v_string)	reject
+pick	long ptr ptr	double	0	double
+pick	long ptr ptr	double	1	double
+pick	long ptr ptr	double	-1	double
+pick	long ptr ptr	double	"lit"	reject
+pick	long ptr ptr	double	v_string	reject
+pick	long ptr ptr	double	v_zfixed	reject
+pick	long ptr ptr	double	v_wfixed	reject
+pick	long ptr ptr	double	v_long	double
+pick	long ptr ptr	double	v_integer	double
+pick	long ptr ptr	double	v_uinteger	double
+pick	long ptr ptr	double	v_longint	double
+pick	long ptr ptr	double	v_ulongint	double
+pick	long ptr ptr	double	v_ulong	double
+pick	long ptr ptr	double	v_double	double
+pick	long ptr ptr	double	v_boolean	double
+pick	long ptr ptr	double	v_anyptr	long ptr ptr
+pick	long ptr ptr	double	v_byteptr	reject
+pick	long ptr ptr	double	v_ubyteptr	reject
+pick	long ptr ptr	double	v_shortptr	reject
+pick	long ptr ptr	double	v_longptr	reject
+pick	long ptr ptr	double	v_longptrptr	long ptr ptr
+pick	long ptr ptr	double	v_zptr	reject
+pick	long ptr ptr	double	v_wptr	reject
+pick	long ptr ptr	double	@v_long	reject
+pick	long ptr ptr	double	strptr(v_string)	reject
+pick	long ptr ptr	boolean	0	boolean
+pick	long ptr ptr	boolean	1	boolean
+pick	long ptr ptr	boolean	-1	boolean
+pick	long ptr ptr	boolean	"lit"	reject
+pick	long ptr ptr	boolean	v_string	reject
+pick	long ptr ptr	boolean	v_zfixed	reject
+pick	long ptr ptr	boolean	v_wfixed	reject
+pick	long ptr ptr	boolean	v_long	boolean
+pick	long ptr ptr	boolean	v_integer	boolean
+pick	long ptr ptr	boolean	v_uinteger	boolean
+pick	long ptr ptr	boolean	v_longint	boolean
+pick	long ptr ptr	boolean	v_ulongint	boolean
+pick	long ptr ptr	boolean	v_ulong	boolean
+pick	long ptr ptr	boolean	v_double	boolean
+pick	long ptr ptr	boolean	v_boolean	boolean
+pick	long ptr ptr	boolean	v_anyptr	long ptr ptr
+pick	long ptr ptr	boolean	v_byteptr	reject
+pick	long ptr ptr	boolean	v_ubyteptr	reject
+pick	long ptr ptr	boolean	v_shortptr	reject
+pick	long ptr ptr	boolean	v_longptr	reject
+pick	long ptr ptr	boolean	v_longptrptr	long ptr ptr
+pick	long ptr ptr	boolean	v_zptr	reject
+pick	long ptr ptr	boolean	v_wptr	reject
+pick	long ptr ptr	boolean	@v_long	reject
+pick	long ptr ptr	boolean	strptr(v_string)	reject
+pick	zstring ptr	wstring ptr	0	reject
+pick	zstring ptr	wstring ptr	1	reject
+pick	zstring ptr	wstring ptr	-1	reject
+pick	zstring ptr	wstring ptr	"lit"	zstring ptr
+pick	zstring ptr	wstring ptr	v_string	zstring ptr
+pick	zstring ptr	wstring ptr	v_zfixed	zstring ptr
+pick	zstring ptr	wstring ptr	v_wfixed	wstring ptr
+pick	zstring ptr	wstring ptr	v_long	reject
+pick	zstring ptr	wstring ptr	v_integer	reject
+pick	zstring ptr	wstring ptr	v_uinteger	reject
+pick	zstring ptr	wstring ptr	v_longint	reject
+pick	zstring ptr	wstring ptr	v_ulongint	reject
+pick	zstring ptr	wstring ptr	v_ulong	reject
+pick	zstring ptr	wstring ptr	v_double	reject
+pick	zstring ptr	wstring ptr	v_boolean	reject
+pick	zstring ptr	wstring ptr	v_anyptr	reject
+pick	zstring ptr	wstring ptr	v_byteptr	zstring ptr
+pick	zstring ptr	wstring ptr	v_ubyteptr	zstring ptr
+pick	zstring ptr	wstring ptr	v_shortptr	wstring ptr
+pick	zstring ptr	wstring ptr	v_longptr	reject
+pick	zstring ptr	wstring ptr	v_longptrptr	reject
+pick	zstring ptr	wstring ptr	v_zptr	zstring ptr
+pick	zstring ptr	wstring ptr	v_wptr	wstring ptr
+pick	zstring ptr	wstring ptr	@v_long	reject
+pick	zstring ptr	wstring ptr	strptr(v_string)	zstring ptr
+pick	zstring ptr	string	0	zstring ptr
+pick	zstring ptr	string	1	zstring ptr
+pick	zstring ptr	string	-1	zstring ptr
+pick	zstring ptr	string	"lit"	zstring ptr
+pick	zstring ptr	string	v_string	string
+pick	zstring ptr	string	v_zfixed	zstring ptr
+pick	zstring ptr	string	v_wfixed	string
+pick	zstring ptr	string	v_long	zstring ptr
+pick	zstring ptr	string	v_integer	zstring ptr
+pick	zstring ptr	string	v_uinteger	zstring ptr
+pick	zstring ptr	string	v_longint	reject
+pick	zstring ptr	string	v_ulongint	reject
+pick	zstring ptr	string	v_ulong	zstring ptr
+pick	zstring ptr	string	v_double	reject
+pick	zstring ptr	string	v_boolean	reject
+pick	zstring ptr	string	v_anyptr	zstring ptr
+pick	zstring ptr	string	v_byteptr	zstring ptr
+pick	zstring ptr	string	v_ubyteptr	zstring ptr
+pick	zstring ptr	string	v_shortptr	reject
+pick	zstring ptr	string	v_longptr	reject
+pick	zstring ptr	string	v_longptrptr	reject
+pick	zstring ptr	string	v_zptr	zstring ptr
+pick	zstring ptr	string	v_wptr	reject
+pick	zstring ptr	string	@v_long	reject
+pick	zstring ptr	string	strptr(v_string)	zstring ptr
+pick	zstring ptr	long	0	long
+pick	zstring ptr	long	1	long
+pick	zstring ptr	long	-1	long
+pick	zstring ptr	long	"lit"	zstring ptr
+pick	zstring ptr	long	v_string	zstring ptr
+pick	zstring ptr	long	v_zfixed	zstring ptr
+pick	zstring ptr	long	v_wfixed	zstring ptr
+pick	zstring ptr	long	v_long	long
+pick	zstring ptr	long	v_integer	long
+pick	zstring ptr	long	v_uinteger	long
+pick	zstring ptr	long	v_longint	long
+pick	zstring ptr	long	v_ulongint	long
+pick	zstring ptr	long	v_ulong	long
+pick	zstring ptr	long	v_double	long
+pick	zstring ptr	long	v_boolean	long
+pick	zstring ptr	long	v_anyptr	zstring ptr
+pick	zstring ptr	long	v_byteptr	zstring ptr
+pick	zstring ptr	long	v_ubyteptr	zstring ptr
+pick	zstring ptr	long	v_shortptr	reject
+pick	zstring ptr	long	v_longptr	reject
+pick	zstring ptr	long	v_longptrptr	reject
+pick	zstring ptr	long	v_zptr	zstring ptr
+pick	zstring ptr	long	v_wptr	reject
+pick	zstring ptr	long	@v_long	reject
+pick	zstring ptr	long	strptr(v_string)	zstring ptr
+pick	zstring ptr	ulong	0	ulong
+pick	zstring ptr	ulong	1	ulong
+pick	zstring ptr	ulong	-1	ulong
+pick	zstring ptr	ulong	"lit"	zstring ptr
+pick	zstring ptr	ulong	v_string	zstring ptr
+pick	zstring ptr	ulong	v_zfixed	zstring ptr
+pick	zstring ptr	ulong	v_wfixed	zstring ptr
+pick	zstring ptr	ulong	v_long	ulong
+pick	zstring ptr	ulong	v_integer	ulong
+pick	zstring ptr	ulong	v_uinteger	ulong
+pick	zstring ptr	ulong	v_longint	ulong
+pick	zstring ptr	ulong	v_ulongint	ulong
+pick	zstring ptr	ulong	v_ulong	ulong
+pick	zstring ptr	ulong	v_double	ulong
+pick	zstring ptr	ulong	v_boolean	ulong
+pick	zstring ptr	ulong	v_anyptr	zstring ptr
+pick	zstring ptr	ulong	v_byteptr	zstring ptr
+pick	zstring ptr	ulong	v_ubyteptr	zstring ptr
+pick	zstring ptr	ulong	v_shortptr	reject
+pick	zstring ptr	ulong	v_longptr	reject
+pick	zstring ptr	ulong	v_longptrptr	reject
+pick	zstring ptr	ulong	v_zptr	zstring ptr
+pick	zstring ptr	ulong	v_wptr	reject
+pick	zstring ptr	ulong	@v_long	reject
+pick	zstring ptr	ulong	strptr(v_string)	zstring ptr
+pick	zstring ptr	integer	0	integer
+pick	zstring ptr	integer	1	integer
+pick	zstring ptr	integer	-1	integer
+pick	zstring ptr	integer	"lit"	zstring ptr
+pick	zstring ptr	integer	v_string	zstring ptr
+pick	zstring ptr	integer	v_zfixed	zstring ptr
+pick	zstring ptr	integer	v_wfixed	zstring ptr
+pick	zstring ptr	integer	v_long	integer
+pick	zstring ptr	integer	v_integer	integer
+pick	zstring ptr	integer	v_uinteger	integer
+pick	zstring ptr	integer	v_longint	integer
+pick	zstring ptr	integer	v_ulongint	integer
+pick	zstring ptr	integer	v_ulong	integer
+pick	zstring ptr	integer	v_double	integer
+pick	zstring ptr	integer	v_boolean	integer
+pick	zstring ptr	integer	v_anyptr	zstring ptr
+pick	zstring ptr	integer	v_byteptr	zstring ptr
+pick	zstring ptr	integer	v_ubyteptr	zstring ptr
+pick	zstring ptr	integer	v_shortptr	reject
+pick	zstring ptr	integer	v_longptr	reject
+pick	zstring ptr	integer	v_longptrptr	reject
+pick	zstring ptr	integer	v_zptr	zstring ptr
+pick	zstring ptr	integer	v_wptr	reject
+pick	zstring ptr	integer	@v_long	reject
+pick	zstring ptr	integer	strptr(v_string)	zstring ptr
+pick	zstring ptr	uinteger	0	uinteger
+pick	zstring ptr	uinteger	1	uinteger
+pick	zstring ptr	uinteger	-1	uinteger
+pick	zstring ptr	uinteger	"lit"	zstring ptr
+pick	zstring ptr	uinteger	v_string	zstring ptr
+pick	zstring ptr	uinteger	v_zfixed	zstring ptr
+pick	zstring ptr	uinteger	v_wfixed	zstring ptr
+pick	zstring ptr	uinteger	v_long	uinteger
+pick	zstring ptr	uinteger	v_integer	uinteger
+pick	zstring ptr	uinteger	v_uinteger	uinteger
+pick	zstring ptr	uinteger	v_longint	uinteger
+pick	zstring ptr	uinteger	v_ulongint	uinteger
+pick	zstring ptr	uinteger	v_ulong	uinteger
+pick	zstring ptr	uinteger	v_double	uinteger
+pick	zstring ptr	uinteger	v_boolean	uinteger
+pick	zstring ptr	uinteger	v_anyptr	zstring ptr
+pick	zstring ptr	uinteger	v_byteptr	zstring ptr
+pick	zstring ptr	uinteger	v_ubyteptr	zstring ptr
+pick	zstring ptr	uinteger	v_shortptr	reject
+pick	zstring ptr	uinteger	v_longptr	reject
+pick	zstring ptr	uinteger	v_longptrptr	reject
+pick	zstring ptr	uinteger	v_zptr	zstring ptr
+pick	zstring ptr	uinteger	v_wptr	reject
+pick	zstring ptr	uinteger	@v_long	reject
+pick	zstring ptr	uinteger	strptr(v_string)	zstring ptr
+pick	zstring ptr	longint	0	longint
+pick	zstring ptr	longint	1	longint
+pick	zstring ptr	longint	-1	longint
+pick	zstring ptr	longint	"lit"	zstring ptr
+pick	zstring ptr	longint	v_string	zstring ptr
+pick	zstring ptr	longint	v_zfixed	zstring ptr
+pick	zstring ptr	longint	v_wfixed	zstring ptr
+pick	zstring ptr	longint	v_long	longint
+pick	zstring ptr	longint	v_integer	longint
+pick	zstring ptr	longint	v_uinteger	longint
+pick	zstring ptr	longint	v_longint	longint
+pick	zstring ptr	longint	v_ulongint	longint
+pick	zstring ptr	longint	v_ulong	longint
+pick	zstring ptr	longint	v_double	longint
+pick	zstring ptr	longint	v_boolean	longint
+pick	zstring ptr	longint	v_anyptr	zstring ptr
+pick	zstring ptr	longint	v_byteptr	zstring ptr
+pick	zstring ptr	longint	v_ubyteptr	zstring ptr
+pick	zstring ptr	longint	v_shortptr	reject
+pick	zstring ptr	longint	v_longptr	reject
+pick	zstring ptr	longint	v_longptrptr	reject
+pick	zstring ptr	longint	v_zptr	zstring ptr
+pick	zstring ptr	longint	v_wptr	reject
+pick	zstring ptr	longint	@v_long	reject
+pick	zstring ptr	longint	strptr(v_string)	zstring ptr
+pick	zstring ptr	ulongint	0	ulongint
+pick	zstring ptr	ulongint	1	ulongint
+pick	zstring ptr	ulongint	-1	ulongint
+pick	zstring ptr	ulongint	"lit"	zstring ptr
+pick	zstring ptr	ulongint	v_string	zstring ptr
+pick	zstring ptr	ulongint	v_zfixed	zstring ptr
+pick	zstring ptr	ulongint	v_wfixed	zstring ptr
+pick	zstring ptr	ulongint	v_long	ulongint
+pick	zstring ptr	ulongint	v_integer	ulongint
+pick	zstring ptr	ulongint	v_uinteger	ulongint
+pick	zstring ptr	ulongint	v_longint	ulongint
+pick	zstring ptr	ulongint	v_ulongint	ulongint
+pick	zstring ptr	ulongint	v_ulong	ulongint
+pick	zstring ptr	ulongint	v_double	ulongint
+pick	zstring ptr	ulongint	v_boolean	ulongint
+pick	zstring ptr	ulongint	v_anyptr	zstring ptr
+pick	zstring ptr	ulongint	v_byteptr	zstring ptr
+pick	zstring ptr	ulongint	v_ubyteptr	zstring ptr
+pick	zstring ptr	ulongint	v_shortptr	reject
+pick	zstring ptr	ulongint	v_longptr	reject
+pick	zstring ptr	ulongint	v_longptrptr	reject
+pick	zstring ptr	ulongint	v_zptr	zstring ptr
+pick	zstring ptr	ulongint	v_wptr	reject
+pick	zstring ptr	ulongint	@v_long	reject
+pick	zstring ptr	ulongint	strptr(v_string)	zstring ptr
+pick	zstring ptr	double	0	double
+pick	zstring ptr	double	1	double
+pick	zstring ptr	double	-1	double
+pick	zstring ptr	double	"lit"	zstring ptr
+pick	zstring ptr	double	v_string	zstring ptr
+pick	zstring ptr	double	v_zfixed	zstring ptr
+pick	zstring ptr	double	v_wfixed	zstring ptr
+pick	zstring ptr	double	v_long	double
+pick	zstring ptr	double	v_integer	double
+pick	zstring ptr	double	v_uinteger	double
+pick	zstring ptr	double	v_longint	double
+pick	zstring ptr	double	v_ulongint	double
+pick	zstring ptr	double	v_ulong	double
+pick	zstring ptr	double	v_double	double
+pick	zstring ptr	double	v_boolean	double
+pick	zstring ptr	double	v_anyptr	zstring ptr
+pick	zstring ptr	double	v_byteptr	zstring ptr
+pick	zstring ptr	double	v_ubyteptr	zstring ptr
+pick	zstring ptr	double	v_shortptr	reject
+pick	zstring ptr	double	v_longptr	reject
+pick	zstring ptr	double	v_longptrptr	reject
+pick	zstring ptr	double	v_zptr	zstring ptr
+pick	zstring ptr	double	v_wptr	reject
+pick	zstring ptr	double	@v_long	reject
+pick	zstring ptr	double	strptr(v_string)	zstring ptr
+pick	zstring ptr	boolean	0	boolean
+pick	zstring ptr	boolean	1	boolean
+pick	zstring ptr	boolean	-1	boolean
+pick	zstring ptr	boolean	"lit"	zstring ptr
+pick	zstring ptr	boolean	v_string	zstring ptr
+pick	zstring ptr	boolean	v_zfixed	zstring ptr
+pick	zstring ptr	boolean	v_wfixed	zstring ptr
+pick	zstring ptr	boolean	v_long	boolean
+pick	zstring ptr	boolean	v_integer	boolean
+pick	zstring ptr	boolean	v_uinteger	boolean
+pick	zstring ptr	boolean	v_longint	boolean
+pick	zstring ptr	boolean	v_ulongint	boolean
+pick	zstring ptr	boolean	v_ulong	boolean
+pick	zstring ptr	boolean	v_double	boolean
+pick	zstring ptr	boolean	v_boolean	boolean
+pick	zstring ptr	boolean	v_anyptr	zstring ptr
+pick	zstring ptr	boolean	v_byteptr	zstring ptr
+pick	zstring ptr	boolean	v_ubyteptr	zstring ptr
+pick	zstring ptr	boolean	v_shortptr	reject
+pick	zstring ptr	boolean	v_longptr	reject
+pick	zstring ptr	boolean	v_longptrptr	reject
+pick	zstring ptr	boolean	v_zptr	zstring ptr
+pick	zstring ptr	boolean	v_wptr	reject
+pick	zstring ptr	boolean	@v_long	reject
+pick	zstring ptr	boolean	strptr(v_string)	zstring ptr
+pick	wstring ptr	string	0	wstring ptr
+pick	wstring ptr	string	1	wstring ptr
+pick	wstring ptr	string	-1	wstring ptr
+pick	wstring ptr	string	"lit"	string
+pick	wstring ptr	string	v_string	string
+pick	wstring ptr	string	v_zfixed	string
+pick	wstring ptr	string	v_wfixed	wstring ptr
+pick	wstring ptr	string	v_long	wstring ptr
+pick	wstring ptr	string	v_integer	wstring ptr
+pick	wstring ptr	string	v_uinteger	wstring ptr
+pick	wstring ptr	string	v_longint	reject
+pick	wstring ptr	string	v_ulongint	reject
+pick	wstring ptr	string	v_ulong	wstring ptr
+pick	wstring ptr	string	v_double	reject
+pick	wstring ptr	string	v_boolean	reject
+pick	wstring ptr	string	v_anyptr	wstring ptr
+pick	wstring ptr	string	v_byteptr	reject
+pick	wstring ptr	string	v_ubyteptr	reject
+pick	wstring ptr	string	v_shortptr	wstring ptr
+pick	wstring ptr	string	v_longptr	reject
+pick	wstring ptr	string	v_longptrptr	reject
+pick	wstring ptr	string	v_zptr	reject
+pick	wstring ptr	string	v_wptr	wstring ptr
+pick	wstring ptr	string	@v_long	reject
+pick	wstring ptr	string	strptr(v_string)	reject
+pick	wstring ptr	long	0	long
+pick	wstring ptr	long	1	long
+pick	wstring ptr	long	-1	long
+pick	wstring ptr	long	"lit"	wstring ptr
+pick	wstring ptr	long	v_string	wstring ptr
+pick	wstring ptr	long	v_zfixed	wstring ptr
+pick	wstring ptr	long	v_wfixed	wstring ptr
+pick	wstring ptr	long	v_long	long
+pick	wstring ptr	long	v_integer	long
+pick	wstring ptr	long	v_uinteger	long
+pick	wstring ptr	long	v_longint	long
+pick	wstring ptr	long	v_ulongint	long
+pick	wstring ptr	long	v_ulong	long
+pick	wstring ptr	long	v_double	long
+pick	wstring ptr	long	v_boolean	long
+pick	wstring ptr	long	v_anyptr	wstring ptr
+pick	wstring ptr	long	v_byteptr	reject
+pick	wstring ptr	long	v_ubyteptr	reject
+pick	wstring ptr	long	v_shortptr	wstring ptr
+pick	wstring ptr	long	v_longptr	reject
+pick	wstring ptr	long	v_longptrptr	reject
+pick	wstring ptr	long	v_zptr	reject
+pick	wstring ptr	long	v_wptr	wstring ptr
+pick	wstring ptr	long	@v_long	reject
+pick	wstring ptr	long	strptr(v_string)	reject
+pick	wstring ptr	ulong	0	ulong
+pick	wstring ptr	ulong	1	ulong
+pick	wstring ptr	ulong	-1	ulong
+pick	wstring ptr	ulong	"lit"	wstring ptr
+pick	wstring ptr	ulong	v_string	wstring ptr
+pick	wstring ptr	ulong	v_zfixed	wstring ptr
+pick	wstring ptr	ulong	v_wfixed	wstring ptr
+pick	wstring ptr	ulong	v_long	ulong
+pick	wstring ptr	ulong	v_integer	ulong
+pick	wstring ptr	ulong	v_uinteger	ulong
+pick	wstring ptr	ulong	v_longint	ulong
+pick	wstring ptr	ulong	v_ulongint	ulong
+pick	wstring ptr	ulong	v_ulong	ulong
+pick	wstring ptr	ulong	v_double	ulong
+pick	wstring ptr	ulong	v_boolean	ulong
+pick	wstring ptr	ulong	v_anyptr	wstring ptr
+pick	wstring ptr	ulong	v_byteptr	reject
+pick	wstring ptr	ulong	v_ubyteptr	reject
+pick	wstring ptr	ulong	v_shortptr	wstring ptr
+pick	wstring ptr	ulong	v_longptr	reject
+pick	wstring ptr	ulong	v_longptrptr	reject
+pick	wstring ptr	ulong	v_zptr	reject
+pick	wstring ptr	ulong	v_wptr	wstring ptr
+pick	wstring ptr	ulong	@v_long	reject
+pick	wstring ptr	ulong	strptr(v_string)	reject
+pick	wstring ptr	integer	0	integer
+pick	wstring ptr	integer	1	integer
+pick	wstring ptr	integer	-1	integer
+pick	wstring ptr	integer	"lit"	wstring ptr
+pick	wstring ptr	integer	v_string	wstring ptr
+pick	wstring ptr	integer	v_zfixed	wstring ptr
+pick	wstring ptr	integer	v_wfixed	wstring ptr
+pick	wstring ptr	integer	v_long	integer
+pick	wstring ptr	integer	v_integer	integer
+pick	wstring ptr	integer	v_uinteger	integer
+pick	wstring ptr	integer	v_longint	integer
+pick	wstring ptr	integer	v_ulongint	integer
+pick	wstring ptr	integer	v_ulong	integer
+pick	wstring ptr	integer	v_double	integer
+pick	wstring ptr	integer	v_boolean	integer
+pick	wstring ptr	integer	v_anyptr	wstring ptr
+pick	wstring ptr	integer	v_byteptr	reject
+pick	wstring ptr	integer	v_ubyteptr	reject
+pick	wstring ptr	integer	v_shortptr	wstring ptr
+pick	wstring ptr	integer	v_longptr	reject
+pick	wstring ptr	integer	v_longptrptr	reject
+pick	wstring ptr	integer	v_zptr	reject
+pick	wstring ptr	integer	v_wptr	wstring ptr
+pick	wstring ptr	integer	@v_long	reject
+pick	wstring ptr	integer	strptr(v_string)	reject
+pick	wstring ptr	uinteger	0	uinteger
+pick	wstring ptr	uinteger	1	uinteger
+pick	wstring ptr	uinteger	-1	uinteger
+pick	wstring ptr	uinteger	"lit"	wstring ptr
+pick	wstring ptr	uinteger	v_string	wstring ptr
+pick	wstring ptr	uinteger	v_zfixed	wstring ptr
+pick	wstring ptr	uinteger	v_wfixed	wstring ptr
+pick	wstring ptr	uinteger	v_long	uinteger
+pick	wstring ptr	uinteger	v_integer	uinteger
+pick	wstring ptr	uinteger	v_uinteger	uinteger
+pick	wstring ptr	uinteger	v_longint	uinteger
+pick	wstring ptr	uinteger	v_ulongint	uinteger
+pick	wstring ptr	uinteger	v_ulong	uinteger
+pick	wstring ptr	uinteger	v_double	uinteger
+pick	wstring ptr	uinteger	v_boolean	uinteger
+pick	wstring ptr	uinteger	v_anyptr	wstring ptr
+pick	wstring ptr	uinteger	v_byteptr	reject
+pick	wstring ptr	uinteger	v_ubyteptr	reject
+pick	wstring ptr	uinteger	v_shortptr	wstring ptr
+pick	wstring ptr	uinteger	v_longptr	reject
+pick	wstring ptr	uinteger	v_longptrptr	reject
+pick	wstring ptr	uinteger	v_zptr	reject
+pick	wstring ptr	uinteger	v_wptr	wstring ptr
+pick	wstring ptr	uinteger	@v_long	reject
+pick	wstring ptr	uinteger	strptr(v_string)	reject
+pick	wstring ptr	longint	0	longint
+pick	wstring ptr	longint	1	longint
+pick	wstring ptr	longint	-1	longint
+pick	wstring ptr	longint	"lit"	wstring ptr
+pick	wstring ptr	longint	v_string	wstring ptr
+pick	wstring ptr	longint	v_zfixed	wstring ptr
+pick	wstring ptr	longint	v_wfixed	wstring ptr
+pick	wstring ptr	longint	v_long	longint
+pick	wstring ptr	longint	v_integer	longint
+pick	wstring ptr	longint	v_uinteger	longint
+pick	wstring ptr	longint	v_longint	longint
+pick	wstring ptr	longint	v_ulongint	longint
+pick	wstring ptr	longint	v_ulong	longint
+pick	wstring ptr	longint	v_double	longint
+pick	wstring ptr	longint	v_boolean	longint
+pick	wstring ptr	longint	v_anyptr	wstring ptr
+pick	wstring ptr	longint	v_byteptr	reject
+pick	wstring ptr	longint	v_ubyteptr	reject
+pick	wstring ptr	longint	v_shortptr	wstring ptr
+pick	wstring ptr	longint	v_longptr	reject
+pick	wstring ptr	longint	v_longptrptr	reject
+pick	wstring ptr	longint	v_zptr	reject
+pick	wstring ptr	longint	v_wptr	wstring ptr
+pick	wstring ptr	longint	@v_long	reject
+pick	wstring ptr	longint	strptr(v_string)	reject
+pick	wstring ptr	ulongint	0	ulongint
+pick	wstring ptr	ulongint	1	ulongint
+pick	wstring ptr	ulongint	-1	ulongint
+pick	wstring ptr	ulongint	"lit"	wstring ptr
+pick	wstring ptr	ulongint	v_string	wstring ptr
+pick	wstring ptr	ulongint	v_zfixed	wstring ptr
+pick	wstring ptr	ulongint	v_wfixed	wstring ptr
+pick	wstring ptr	ulongint	v_long	ulongint
+pick	wstring ptr	ulongint	v_integer	ulongint
+pick	wstring ptr	ulongint	v_uinteger	ulongint
+pick	wstring ptr	ulongint	v_longint	ulongint
+pick	wstring ptr	ulongint	v_ulongint	ulongint
+pick	wstring ptr	ulongint	v_ulong	ulongint
+pick	wstring ptr	ulongint	v_double	ulongint
+pick	wstring ptr	ulongint	v_boolean	ulongint
+pick	wstring ptr	ulongint	v_anyptr	wstring ptr
+pick	wstring ptr	ulongint	v_byteptr	reject
+pick	wstring ptr	ulongint	v_ubyteptr	reject
+pick	wstring ptr	ulongint	v_shortptr	wstring ptr
+pick	wstring ptr	ulongint	v_longptr	reject
+pick	wstring ptr	ulongint	v_longptrptr	reject
+pick	wstring ptr	ulongint	v_zptr	reject
+pick	wstring ptr	ulongint	v_wptr	wstring ptr
+pick	wstring ptr	ulongint	@v_long	reject
+pick	wstring ptr	ulongint	strptr(v_string)	reject
+pick	wstring ptr	double	0	double
+pick	wstring ptr	double	1	double
+pick	wstring ptr	double	-1	double
+pick	wstring ptr	double	"lit"	wstring ptr
+pick	wstring ptr	double	v_string	wstring ptr
+pick	wstring ptr	double	v_zfixed	wstring ptr
+pick	wstring ptr	double	v_wfixed	wstring ptr
+pick	wstring ptr	double	v_long	double
+pick	wstring ptr	double	v_integer	double
+pick	wstring ptr	double	v_uinteger	double
+pick	wstring ptr	double	v_longint	double
+pick	wstring ptr	double	v_ulongint	double
+pick	wstring ptr	double	v_ulong	double
+pick	wstring ptr	double	v_double	double
+pick	wstring ptr	double	v_boolean	double
+pick	wstring ptr	double	v_anyptr	wstring ptr
+pick	wstring ptr	double	v_byteptr	reject
+pick	wstring ptr	double	v_ubyteptr	reject
+pick	wstring ptr	double	v_shortptr	wstring ptr
+pick	wstring ptr	double	v_longptr	reject
+pick	wstring ptr	double	v_longptrptr	reject
+pick	wstring ptr	double	v_zptr	reject
+pick	wstring ptr	double	v_wptr	wstring ptr
+pick	wstring ptr	double	@v_long	reject
+pick	wstring ptr	double	strptr(v_string)	reject
+pick	wstring ptr	boolean	0	boolean
+pick	wstring ptr	boolean	1	boolean
+pick	wstring ptr	boolean	-1	boolean
+pick	wstring ptr	boolean	"lit"	wstring ptr
+pick	wstring ptr	boolean	v_string	wstring ptr
+pick	wstring ptr	boolean	v_zfixed	wstring ptr
+pick	wstring ptr	boolean	v_wfixed	wstring ptr
+pick	wstring ptr	boolean	v_long	boolean
+pick	wstring ptr	boolean	v_integer	boolean
+pick	wstring ptr	boolean	v_uinteger	boolean
+pick	wstring ptr	boolean	v_longint	boolean
+pick	wstring ptr	boolean	v_ulongint	boolean
+pick	wstring ptr	boolean	v_ulong	boolean
+pick	wstring ptr	boolean	v_double	boolean
+pick	wstring ptr	boolean	v_boolean	boolean
+pick	wstring ptr	boolean	v_anyptr	wstring ptr
+pick	wstring ptr	boolean	v_byteptr	reject
+pick	wstring ptr	boolean	v_ubyteptr	reject
+pick	wstring ptr	boolean	v_shortptr	wstring ptr
+pick	wstring ptr	boolean	v_longptr	reject
+pick	wstring ptr	boolean	v_longptrptr	reject
+pick	wstring ptr	boolean	v_zptr	reject
+pick	wstring ptr	boolean	v_wptr	wstring ptr
+pick	wstring ptr	boolean	@v_long	reject
+pick	wstring ptr	boolean	strptr(v_string)	reject
+pick	string	long	0	long
+pick	string	long	1	long
+pick	string	long	-1	long
+pick	string	long	"lit"	string
+pick	string	long	v_string	string
+pick	string	long	v_zfixed	string
+pick	string	long	v_wfixed	string
+pick	string	long	v_long	long
+pick	string	long	v_integer	long
+pick	string	long	v_uinteger	long
+pick	string	long	v_longint	long
+pick	string	long	v_ulongint	long
+pick	string	long	v_ulong	long
+pick	string	long	v_double	long
+pick	string	long	v_boolean	long
+pick	string	long	v_anyptr	reject
+pick	string	long	v_byteptr	reject
+pick	string	long	v_ubyteptr	reject
+pick	string	long	v_shortptr	reject
+pick	string	long	v_longptr	reject
+pick	string	long	v_longptrptr	reject
+pick	string	long	v_zptr	reject
+pick	string	long	v_wptr	reject
+pick	string	long	@v_long	reject
+pick	string	long	strptr(v_string)	reject
+pick	string	ulong	0	ulong
+pick	string	ulong	1	ulong
+pick	string	ulong	-1	ulong
+pick	string	ulong	"lit"	string
+pick	string	ulong	v_string	string
+pick	string	ulong	v_zfixed	string
+pick	string	ulong	v_wfixed	string
+pick	string	ulong	v_long	ulong
+pick	string	ulong	v_integer	ulong
+pick	string	ulong	v_uinteger	ulong
+pick	string	ulong	v_longint	ulong
+pick	string	ulong	v_ulongint	ulong
+pick	string	ulong	v_ulong	ulong
+pick	string	ulong	v_double	ulong
+pick	string	ulong	v_boolean	ulong
+pick	string	ulong	v_anyptr	reject
+pick	string	ulong	v_byteptr	reject
+pick	string	ulong	v_ubyteptr	reject
+pick	string	ulong	v_shortptr	reject
+pick	string	ulong	v_longptr	reject
+pick	string	ulong	v_longptrptr	reject
+pick	string	ulong	v_zptr	reject
+pick	string	ulong	v_wptr	reject
+pick	string	ulong	@v_long	reject
+pick	string	ulong	strptr(v_string)	reject
+pick	string	integer	0	integer
+pick	string	integer	1	integer
+pick	string	integer	-1	integer
+pick	string	integer	"lit"	string
+pick	string	integer	v_string	string
+pick	string	integer	v_zfixed	string
+pick	string	integer	v_wfixed	string
+pick	string	integer	v_long	integer
+pick	string	integer	v_integer	integer
+pick	string	integer	v_uinteger	integer
+pick	string	integer	v_longint	integer
+pick	string	integer	v_ulongint	integer
+pick	string	integer	v_ulong	integer
+pick	string	integer	v_double	integer
+pick	string	integer	v_boolean	integer
+pick	string	integer	v_anyptr	reject
+pick	string	integer	v_byteptr	reject
+pick	string	integer	v_ubyteptr	reject
+pick	string	integer	v_shortptr	reject
+pick	string	integer	v_longptr	reject
+pick	string	integer	v_longptrptr	reject
+pick	string	integer	v_zptr	reject
+pick	string	integer	v_wptr	reject
+pick	string	integer	@v_long	reject
+pick	string	integer	strptr(v_string)	reject
+pick	string	uinteger	0	uinteger
+pick	string	uinteger	1	uinteger
+pick	string	uinteger	-1	uinteger
+pick	string	uinteger	"lit"	string
+pick	string	uinteger	v_string	string
+pick	string	uinteger	v_zfixed	string
+pick	string	uinteger	v_wfixed	string
+pick	string	uinteger	v_long	uinteger
+pick	string	uinteger	v_integer	uinteger
+pick	string	uinteger	v_uinteger	uinteger
+pick	string	uinteger	v_longint	uinteger
+pick	string	uinteger	v_ulongint	uinteger
+pick	string	uinteger	v_ulong	uinteger
+pick	string	uinteger	v_double	uinteger
+pick	string	uinteger	v_boolean	uinteger
+pick	string	uinteger	v_anyptr	reject
+pick	string	uinteger	v_byteptr	reject
+pick	string	uinteger	v_ubyteptr	reject
+pick	string	uinteger	v_shortptr	reject
+pick	string	uinteger	v_longptr	reject
+pick	string	uinteger	v_longptrptr	reject
+pick	string	uinteger	v_zptr	reject
+pick	string	uinteger	v_wptr	reject
+pick	string	uinteger	@v_long	reject
+pick	string	uinteger	strptr(v_string)	reject
+pick	string	longint	0	longint
+pick	string	longint	1	longint
+pick	string	longint	-1	longint
+pick	string	longint	"lit"	string
+pick	string	longint	v_string	string
+pick	string	longint	v_zfixed	string
+pick	string	longint	v_wfixed	string
+pick	string	longint	v_long	longint
+pick	string	longint	v_integer	longint
+pick	string	longint	v_uinteger	longint
+pick	string	longint	v_longint	longint
+pick	string	longint	v_ulongint	longint
+pick	string	longint	v_ulong	longint
+pick	string	longint	v_double	longint
+pick	string	longint	v_boolean	longint
+pick	string	longint	v_anyptr	reject
+pick	string	longint	v_byteptr	reject
+pick	string	longint	v_ubyteptr	reject
+pick	string	longint	v_shortptr	reject
+pick	string	longint	v_longptr	reject
+pick	string	longint	v_longptrptr	reject
+pick	string	longint	v_zptr	reject
+pick	string	longint	v_wptr	reject
+pick	string	longint	@v_long	reject
+pick	string	longint	strptr(v_string)	reject
+pick	string	ulongint	0	ulongint
+pick	string	ulongint	1	ulongint
+pick	string	ulongint	-1	ulongint
+pick	string	ulongint	"lit"	string
+pick	string	ulongint	v_string	string
+pick	string	ulongint	v_zfixed	string
+pick	string	ulongint	v_wfixed	string
+pick	string	ulongint	v_long	ulongint
+pick	string	ulongint	v_integer	ulongint
+pick	string	ulongint	v_uinteger	ulongint
+pick	string	ulongint	v_longint	ulongint
+pick	string	ulongint	v_ulongint	ulongint
+pick	string	ulongint	v_ulong	ulongint
+pick	string	ulongint	v_double	ulongint
+pick	string	ulongint	v_boolean	ulongint
+pick	string	ulongint	v_anyptr	reject
+pick	string	ulongint	v_byteptr	reject
+pick	string	ulongint	v_ubyteptr	reject
+pick	string	ulongint	v_shortptr	reject
+pick	string	ulongint	v_longptr	reject
+pick	string	ulongint	v_longptrptr	reject
+pick	string	ulongint	v_zptr	reject
+pick	string	ulongint	v_wptr	reject
+pick	string	ulongint	@v_long	reject
+pick	string	ulongint	strptr(v_string)	reject
+pick	string	double	0	double
+pick	string	double	1	double
+pick	string	double	-1	double
+pick	string	double	"lit"	string
+pick	string	double	v_string	string
+pick	string	double	v_zfixed	string
+pick	string	double	v_wfixed	string
+pick	string	double	v_long	double
+pick	string	double	v_integer	double
+pick	string	double	v_uinteger	double
+pick	string	double	v_longint	double
+pick	string	double	v_ulongint	double
+pick	string	double	v_ulong	double
+pick	string	double	v_double	double
+pick	string	double	v_boolean	double
+pick	string	double	v_anyptr	reject
+pick	string	double	v_byteptr	reject
+pick	string	double	v_ubyteptr	reject
+pick	string	double	v_shortptr	reject
+pick	string	double	v_longptr	reject
+pick	string	double	v_longptrptr	reject
+pick	string	double	v_zptr	reject
+pick	string	double	v_wptr	reject
+pick	string	double	@v_long	reject
+pick	string	double	strptr(v_string)	reject
+pick	string	boolean	0	boolean
+pick	string	boolean	1	boolean
+pick	string	boolean	-1	boolean
+pick	string	boolean	"lit"	string
+pick	string	boolean	v_string	string
+pick	string	boolean	v_zfixed	string
+pick	string	boolean	v_wfixed	string
+pick	string	boolean	v_long	boolean
+pick	string	boolean	v_integer	boolean
+pick	string	boolean	v_uinteger	boolean
+pick	string	boolean	v_longint	boolean
+pick	string	boolean	v_ulongint	boolean
+pick	string	boolean	v_ulong	boolean
+pick	string	boolean	v_double	boolean
+pick	string	boolean	v_boolean	boolean
+pick	string	boolean	v_anyptr	reject
+pick	string	boolean	v_byteptr	reject
+pick	string	boolean	v_ubyteptr	reject
+pick	string	boolean	v_shortptr	reject
+pick	string	boolean	v_longptr	reject
+pick	string	boolean	v_longptrptr	reject
+pick	string	boolean	v_zptr	reject
+pick	string	boolean	v_wptr	reject
+pick	string	boolean	@v_long	reject
+pick	string	boolean	strptr(v_string)	reject
+pick	long	ulong	0	long
+pick	long	ulong	1	long
+pick	long	ulong	-1	long
+pick	long	ulong	"lit"	reject
+pick	long	ulong	v_string	reject
+pick	long	ulong	v_zfixed	reject
+pick	long	ulong	v_wfixed	reject
+pick	long	ulong	v_long	long
+pick	long	ulong	v_integer	long
+pick	long	ulong	v_uinteger	ulong
+pick	long	ulong	v_longint	long
+pick	long	ulong	v_ulongint	ulong
+pick	long	ulong	v_ulong	ulong
+pick	long	ulong	v_double	long
+pick	long	ulong	v_boolean	long
+pick	long	ulong	v_anyptr	reject
+pick	long	ulong	v_byteptr	reject
+pick	long	ulong	v_ubyteptr	reject
+pick	long	ulong	v_shortptr	reject
+pick	long	ulong	v_longptr	reject
+pick	long	ulong	v_longptrptr	reject
+pick	long	ulong	v_zptr	reject
+pick	long	ulong	v_wptr	reject
+pick	long	ulong	@v_long	reject
+pick	long	ulong	strptr(v_string)	reject
+pick	long	integer	0	integer
+pick	long	integer	1	integer
+pick	long	integer	-1	integer
+pick	long	integer	"lit"	reject
+pick	long	integer	v_string	reject
+pick	long	integer	v_zfixed	reject
+pick	long	integer	v_wfixed	reject
+pick	long	integer	v_long	long
+pick	long	integer	v_integer	integer
+pick	long	integer	v_uinteger	integer
+pick	long	integer	v_longint	integer
+pick	long	integer	v_ulongint	integer
+pick	long	integer	v_ulong	long
+pick	long	integer	v_double	integer
+pick	long	integer	v_boolean	integer
+pick	long	integer	v_anyptr	reject
+pick	long	integer	v_byteptr	reject
+pick	long	integer	v_ubyteptr	reject
+pick	long	integer	v_shortptr	reject
+pick	long	integer	v_longptr	reject
+pick	long	integer	v_longptrptr	reject
+pick	long	integer	v_zptr	reject
+pick	long	integer	v_wptr	reject
+pick	long	integer	@v_long	reject
+pick	long	integer	strptr(v_string)	reject
+pick	long	uinteger	0	long
+pick	long	uinteger	1	long
+pick	long	uinteger	-1	long
+pick	long	uinteger	"lit"	reject
+pick	long	uinteger	v_string	reject
+pick	long	uinteger	v_zfixed	reject
+pick	long	uinteger	v_wfixed	reject
+pick	long	uinteger	v_long	long
+pick	long	uinteger	v_integer	long
+pick	long	uinteger	v_uinteger	uinteger
+pick	long	uinteger	v_longint	long
+pick	long	uinteger	v_ulongint	uinteger
+pick	long	uinteger	v_ulong	uinteger
+pick	long	uinteger	v_double	long
+pick	long	uinteger	v_boolean	long
+pick	long	uinteger	v_anyptr	reject
+pick	long	uinteger	v_byteptr	reject
+pick	long	uinteger	v_ubyteptr	reject
+pick	long	uinteger	v_shortptr	reject
+pick	long	uinteger	v_longptr	reject
+pick	long	uinteger	v_longptrptr	reject
+pick	long	uinteger	v_zptr	reject
+pick	long	uinteger	v_wptr	reject
+pick	long	uinteger	@v_long	reject
+pick	long	uinteger	strptr(v_string)	reject
+pick	long	longint	0	long
+pick	long	longint	1	long
+pick	long	longint	-1	long
+pick	long	longint	"lit"	reject
+pick	long	longint	v_string	reject
+pick	long	longint	v_zfixed	reject
+pick	long	longint	v_wfixed	reject
+pick	long	longint	v_long	long
+pick	long	longint	v_integer	long
+pick	long	longint	v_uinteger	long
+pick	long	longint	v_longint	longint
+pick	long	longint	v_ulongint	longint
+pick	long	longint	v_ulong	long
+pick	long	longint	v_double	longint
+pick	long	longint	v_boolean	long
+pick	long	longint	v_anyptr	reject
+pick	long	longint	v_byteptr	reject
+pick	long	longint	v_ubyteptr	reject
+pick	long	longint	v_shortptr	reject
+pick	long	longint	v_longptr	reject
+pick	long	longint	v_longptrptr	reject
+pick	long	longint	v_zptr	reject
+pick	long	longint	v_wptr	reject
+pick	long	longint	@v_long	reject
+pick	long	longint	strptr(v_string)	reject
+pick	long	ulongint	0	long
+pick	long	ulongint	1	long
+pick	long	ulongint	-1	long
+pick	long	ulongint	"lit"	reject
+pick	long	ulongint	v_string	reject
+pick	long	ulongint	v_zfixed	reject
+pick	long	ulongint	v_wfixed	reject
+pick	long	ulongint	v_long	long
+pick	long	ulongint	v_integer	long
+pick	long	ulongint	v_uinteger	long
+pick	long	ulongint	v_longint	ulongint
+pick	long	ulongint	v_ulongint	ulongint
+pick	long	ulongint	v_ulong	long
+pick	long	ulongint	v_double	ulongint
+pick	long	ulongint	v_boolean	long
+pick	long	ulongint	v_anyptr	reject
+pick	long	ulongint	v_byteptr	reject
+pick	long	ulongint	v_ubyteptr	reject
+pick	long	ulongint	v_shortptr	reject
+pick	long	ulongint	v_longptr	reject
+pick	long	ulongint	v_longptrptr	reject
+pick	long	ulongint	v_zptr	reject
+pick	long	ulongint	v_wptr	reject
+pick	long	ulongint	@v_long	reject
+pick	long	ulongint	strptr(v_string)	reject
+pick	long	double	0	long
+pick	long	double	1	long
+pick	long	double	-1	long
+pick	long	double	"lit"	reject
+pick	long	double	v_string	reject
+pick	long	double	v_zfixed	reject
+pick	long	double	v_wfixed	reject
+pick	long	double	v_long	long
+pick	long	double	v_integer	long
+pick	long	double	v_uinteger	long
+pick	long	double	v_longint	long
+pick	long	double	v_ulongint	long
+pick	long	double	v_ulong	long
+pick	long	double	v_double	double
+pick	long	double	v_boolean	long
+pick	long	double	v_anyptr	reject
+pick	long	double	v_byteptr	reject
+pick	long	double	v_ubyteptr	reject
+pick	long	double	v_shortptr	reject
+pick	long	double	v_longptr	reject
+pick	long	double	v_longptrptr	reject
+pick	long	double	v_zptr	reject
+pick	long	double	v_wptr	reject
+pick	long	double	@v_long	reject
+pick	long	double	strptr(v_string)	reject
+pick	long	boolean	0	long
+pick	long	boolean	1	long
+pick	long	boolean	-1	long
+pick	long	boolean	"lit"	reject
+pick	long	boolean	v_string	reject
+pick	long	boolean	v_zfixed	reject
+pick	long	boolean	v_wfixed	reject
+pick	long	boolean	v_long	long
+pick	long	boolean	v_integer	long
+pick	long	boolean	v_uinteger	long
+pick	long	boolean	v_longint	long
+pick	long	boolean	v_ulongint	long
+pick	long	boolean	v_ulong	long
+pick	long	boolean	v_double	long
+pick	long	boolean	v_boolean	boolean
+pick	long	boolean	v_anyptr	reject
+pick	long	boolean	v_byteptr	reject
+pick	long	boolean	v_ubyteptr	reject
+pick	long	boolean	v_shortptr	reject
+pick	long	boolean	v_longptr	reject
+pick	long	boolean	v_longptrptr	reject
+pick	long	boolean	v_zptr	reject
+pick	long	boolean	v_wptr	reject
+pick	long	boolean	@v_long	reject
+pick	long	boolean	strptr(v_string)	reject
+pick	ulong	integer	0	integer
+pick	ulong	integer	1	integer
+pick	ulong	integer	-1	integer
+pick	ulong	integer	"lit"	reject
+pick	ulong	integer	v_string	reject
+pick	ulong	integer	v_zfixed	reject
+pick	ulong	integer	v_wfixed	reject
+pick	ulong	integer	v_long	integer
+pick	ulong	integer	v_integer	integer
+pick	ulong	integer	v_uinteger	ulong
+pick	ulong	integer	v_longint	integer
+pick	ulong	integer	v_ulongint	ulong
+pick	ulong	integer	v_ulong	ulong
+pick	ulong	integer	v_double	integer
+pick	ulong	integer	v_boolean	integer
+pick	ulong	integer	v_anyptr	reject
+pick	ulong	integer	v_byteptr	reject
+pick	ulong	integer	v_ubyteptr	reject
+pick	ulong	integer	v_shortptr	reject
+pick	ulong	integer	v_longptr	reject
+pick	ulong	integer	v_longptrptr	reject
+pick	ulong	integer	v_zptr	reject
+pick	ulong	integer	v_wptr	reject
+pick	ulong	integer	@v_long	reject
+pick	ulong	integer	strptr(v_string)	reject
+pick	ulong	uinteger	0	uinteger
+pick	ulong	uinteger	1	uinteger
+pick	ulong	uinteger	-1	uinteger
+pick	ulong	uinteger	"lit"	reject
+pick	ulong	uinteger	v_string	reject
+pick	ulong	uinteger	v_zfixed	reject
+pick	ulong	uinteger	v_wfixed	reject
+pick	ulong	uinteger	v_long	ulong
+pick	ulong	uinteger	v_integer	uinteger
+pick	ulong	uinteger	v_uinteger	uinteger
+pick	ulong	uinteger	v_longint	uinteger
+pick	ulong	uinteger	v_ulongint	uinteger
+pick	ulong	uinteger	v_ulong	ulong
+pick	ulong	uinteger	v_double	uinteger
+pick	ulong	uinteger	v_boolean	uinteger
+pick	ulong	uinteger	v_anyptr	reject
+pick	ulong	uinteger	v_byteptr	reject
+pick	ulong	uinteger	v_ubyteptr	reject
+pick	ulong	uinteger	v_shortptr	reject
+pick	ulong	uinteger	v_longptr	reject
+pick	ulong	uinteger	v_longptrptr	reject
+pick	ulong	uinteger	v_zptr	reject
+pick	ulong	uinteger	v_wptr	reject
+pick	ulong	uinteger	@v_long	reject
+pick	ulong	uinteger	strptr(v_string)	reject
+pick	ulong	longint	0	ulong
+pick	ulong	longint	1	ulong
+pick	ulong	longint	-1	ulong
+pick	ulong	longint	"lit"	reject
+pick	ulong	longint	v_string	reject
+pick	ulong	longint	v_zfixed	reject
+pick	ulong	longint	v_wfixed	reject
+pick	ulong	longint	v_long	ulong
+pick	ulong	longint	v_integer	ulong
+pick	ulong	longint	v_uinteger	ulong
+pick	ulong	longint	v_longint	longint
+pick	ulong	longint	v_ulongint	longint
+pick	ulong	longint	v_ulong	ulong
+pick	ulong	longint	v_double	longint
+pick	ulong	longint	v_boolean	ulong
+pick	ulong	longint	v_anyptr	reject
+pick	ulong	longint	v_byteptr	reject
+pick	ulong	longint	v_ubyteptr	reject
+pick	ulong	longint	v_shortptr	reject
+pick	ulong	longint	v_longptr	reject
+pick	ulong	longint	v_longptrptr	reject
+pick	ulong	longint	v_zptr	reject
+pick	ulong	longint	v_wptr	reject
+pick	ulong	longint	@v_long	reject
+pick	ulong	longint	strptr(v_string)	reject
+pick	ulong	ulongint	0	ulong
+pick	ulong	ulongint	1	ulong
+pick	ulong	ulongint	-1	ulong
+pick	ulong	ulongint	"lit"	reject
+pick	ulong	ulongint	v_string	reject
+pick	ulong	ulongint	v_zfixed	reject
+pick	ulong	ulongint	v_wfixed	reject
+pick	ulong	ulongint	v_long	ulong
+pick	ulong	ulongint	v_integer	ulong
+pick	ulong	ulongint	v_uinteger	ulong
+pick	ulong	ulongint	v_longint	ulongint
+pick	ulong	ulongint	v_ulongint	ulongint
+pick	ulong	ulongint	v_ulong	ulong
+pick	ulong	ulongint	v_double	ulongint
+pick	ulong	ulongint	v_boolean	ulong
+pick	ulong	ulongint	v_anyptr	reject
+pick	ulong	ulongint	v_byteptr	reject
+pick	ulong	ulongint	v_ubyteptr	reject
+pick	ulong	ulongint	v_shortptr	reject
+pick	ulong	ulongint	v_longptr	reject
+pick	ulong	ulongint	v_longptrptr	reject
+pick	ulong	ulongint	v_zptr	reject
+pick	ulong	ulongint	v_wptr	reject
+pick	ulong	ulongint	@v_long	reject
+pick	ulong	ulongint	strptr(v_string)	reject
+pick	ulong	double	0	ulong
+pick	ulong	double	1	ulong
+pick	ulong	double	-1	ulong
+pick	ulong	double	"lit"	reject
+pick	ulong	double	v_string	reject
+pick	ulong	double	v_zfixed	reject
+pick	ulong	double	v_wfixed	reject
+pick	ulong	double	v_long	ulong
+pick	ulong	double	v_integer	ulong
+pick	ulong	double	v_uinteger	ulong
+pick	ulong	double	v_longint	ulong
+pick	ulong	double	v_ulongint	ulong
+pick	ulong	double	v_ulong	ulong
+pick	ulong	double	v_double	double
+pick	ulong	double	v_boolean	ulong
+pick	ulong	double	v_anyptr	reject
+pick	ulong	double	v_byteptr	reject
+pick	ulong	double	v_ubyteptr	reject
+pick	ulong	double	v_shortptr	reject
+pick	ulong	double	v_longptr	reject
+pick	ulong	double	v_longptrptr	reject
+pick	ulong	double	v_zptr	reject
+pick	ulong	double	v_wptr	reject
+pick	ulong	double	@v_long	reject
+pick	ulong	double	strptr(v_string)	reject
+pick	ulong	boolean	0	ulong
+pick	ulong	boolean	1	ulong
+pick	ulong	boolean	-1	ulong
+pick	ulong	boolean	"lit"	reject
+pick	ulong	boolean	v_string	reject
+pick	ulong	boolean	v_zfixed	reject
+pick	ulong	boolean	v_wfixed	reject
+pick	ulong	boolean	v_long	ulong
+pick	ulong	boolean	v_integer	ulong
+pick	ulong	boolean	v_uinteger	ulong
+pick	ulong	boolean	v_longint	ulong
+pick	ulong	boolean	v_ulongint	ulong
+pick	ulong	boolean	v_ulong	ulong
+pick	ulong	boolean	v_double	ulong
+pick	ulong	boolean	v_boolean	boolean
+pick	ulong	boolean	v_anyptr	reject
+pick	ulong	boolean	v_byteptr	reject
+pick	ulong	boolean	v_ubyteptr	reject
+pick	ulong	boolean	v_shortptr	reject
+pick	ulong	boolean	v_longptr	reject
+pick	ulong	boolean	v_longptrptr	reject
+pick	ulong	boolean	v_zptr	reject
+pick	ulong	boolean	v_wptr	reject
+pick	ulong	boolean	@v_long	reject
+pick	ulong	boolean	strptr(v_string)	reject
+pick	integer	uinteger	0	integer
+pick	integer	uinteger	1	integer
+pick	integer	uinteger	-1	integer
+pick	integer	uinteger	"lit"	reject
+pick	integer	uinteger	v_string	reject
+pick	integer	uinteger	v_zfixed	reject
+pick	integer	uinteger	v_wfixed	reject
+pick	integer	uinteger	v_long	integer
+pick	integer	uinteger	v_integer	integer
+pick	integer	uinteger	v_uinteger	uinteger
+pick	integer	uinteger	v_longint	integer
+pick	integer	uinteger	v_ulongint	uinteger
+pick	integer	uinteger	v_ulong	uinteger
+pick	integer	uinteger	v_double	integer
+pick	integer	uinteger	v_boolean	integer
+pick	integer	uinteger	v_anyptr	reject
+pick	integer	uinteger	v_byteptr	reject
+pick	integer	uinteger	v_ubyteptr	reject
+pick	integer	uinteger	v_shortptr	reject
+pick	integer	uinteger	v_longptr	reject
+pick	integer	uinteger	v_longptrptr	reject
+pick	integer	uinteger	v_zptr	reject
+pick	integer	uinteger	v_wptr	reject
+pick	integer	uinteger	@v_long	reject
+pick	integer	uinteger	strptr(v_string)	reject
+pick	integer	longint	0	integer
+pick	integer	longint	1	integer
+pick	integer	longint	-1	integer
+pick	integer	longint	"lit"	reject
+pick	integer	longint	v_string	reject
+pick	integer	longint	v_zfixed	reject
+pick	integer	longint	v_wfixed	reject
+pick	integer	longint	v_long	integer
+pick	integer	longint	v_integer	integer
+pick	integer	longint	v_uinteger	integer
+pick	integer	longint	v_longint	longint
+pick	integer	longint	v_ulongint	longint
+pick	integer	longint	v_ulong	integer
+pick	integer	longint	v_double	longint
+pick	integer	longint	v_boolean	integer
+pick	integer	longint	v_anyptr	reject
+pick	integer	longint	v_byteptr	reject
+pick	integer	longint	v_ubyteptr	reject
+pick	integer	longint	v_shortptr	reject
+pick	integer	longint	v_longptr	reject
+pick	integer	longint	v_longptrptr	reject
+pick	integer	longint	v_zptr	reject
+pick	integer	longint	v_wptr	reject
+pick	integer	longint	@v_long	reject
+pick	integer	longint	strptr(v_string)	reject
+pick	integer	ulongint	0	integer
+pick	integer	ulongint	1	integer
+pick	integer	ulongint	-1	integer
+pick	integer	ulongint	"lit"	reject
+pick	integer	ulongint	v_string	reject
+pick	integer	ulongint	v_zfixed	reject
+pick	integer	ulongint	v_wfixed	reject
+pick	integer	ulongint	v_long	integer
+pick	integer	ulongint	v_integer	integer
+pick	integer	ulongint	v_uinteger	integer
+pick	integer	ulongint	v_longint	ulongint
+pick	integer	ulongint	v_ulongint	ulongint
+pick	integer	ulongint	v_ulong	integer
+pick	integer	ulongint	v_double	ulongint
+pick	integer	ulongint	v_boolean	integer
+pick	integer	ulongint	v_anyptr	reject
+pick	integer	ulongint	v_byteptr	reject
+pick	integer	ulongint	v_ubyteptr	reject
+pick	integer	ulongint	v_shortptr	reject
+pick	integer	ulongint	v_longptr	reject
+pick	integer	ulongint	v_longptrptr	reject
+pick	integer	ulongint	v_zptr	reject
+pick	integer	ulongint	v_wptr	reject
+pick	integer	ulongint	@v_long	reject
+pick	integer	ulongint	strptr(v_string)	reject
+pick	integer	double	0	integer
+pick	integer	double	1	integer
+pick	integer	double	-1	integer
+pick	integer	double	"lit"	reject
+pick	integer	double	v_string	reject
+pick	integer	double	v_zfixed	reject
+pick	integer	double	v_wfixed	reject
+pick	integer	double	v_long	integer
+pick	integer	double	v_integer	integer
+pick	integer	double	v_uinteger	integer
+pick	integer	double	v_longint	integer
+pick	integer	double	v_ulongint	integer
+pick	integer	double	v_ulong	integer
+pick	integer	double	v_double	double
+pick	integer	double	v_boolean	integer
+pick	integer	double	v_anyptr	reject
+pick	integer	double	v_byteptr	reject
+pick	integer	double	v_ubyteptr	reject
+pick	integer	double	v_shortptr	reject
+pick	integer	double	v_longptr	reject
+pick	integer	double	v_longptrptr	reject
+pick	integer	double	v_zptr	reject
+pick	integer	double	v_wptr	reject
+pick	integer	double	@v_long	reject
+pick	integer	double	strptr(v_string)	reject
+pick	integer	boolean	0	integer
+pick	integer	boolean	1	integer
+pick	integer	boolean	-1	integer
+pick	integer	boolean	"lit"	reject
+pick	integer	boolean	v_string	reject
+pick	integer	boolean	v_zfixed	reject
+pick	integer	boolean	v_wfixed	reject
+pick	integer	boolean	v_long	integer
+pick	integer	boolean	v_integer	integer
+pick	integer	boolean	v_uinteger	integer
+pick	integer	boolean	v_longint	integer
+pick	integer	boolean	v_ulongint	integer
+pick	integer	boolean	v_ulong	integer
+pick	integer	boolean	v_double	integer
+pick	integer	boolean	v_boolean	boolean
+pick	integer	boolean	v_anyptr	reject
+pick	integer	boolean	v_byteptr	reject
+pick	integer	boolean	v_ubyteptr	reject
+pick	integer	boolean	v_shortptr	reject
+pick	integer	boolean	v_longptr	reject
+pick	integer	boolean	v_longptrptr	reject
+pick	integer	boolean	v_zptr	reject
+pick	integer	boolean	v_wptr	reject
+pick	integer	boolean	@v_long	reject
+pick	integer	boolean	strptr(v_string)	reject
+pick	uinteger	longint	0	uinteger
+pick	uinteger	longint	1	uinteger
+pick	uinteger	longint	-1	uinteger
+pick	uinteger	longint	"lit"	reject
+pick	uinteger	longint	v_string	reject
+pick	uinteger	longint	v_zfixed	reject
+pick	uinteger	longint	v_wfixed	reject
+pick	uinteger	longint	v_long	uinteger
+pick	uinteger	longint	v_integer	uinteger
+pick	uinteger	longint	v_uinteger	uinteger
+pick	uinteger	longint	v_longint	longint
+pick	uinteger	longint	v_ulongint	longint
+pick	uinteger	longint	v_ulong	uinteger
+pick	uinteger	longint	v_double	longint
+pick	uinteger	longint	v_boolean	uinteger
+pick	uinteger	longint	v_anyptr	reject
+pick	uinteger	longint	v_byteptr	reject
+pick	uinteger	longint	v_ubyteptr	reject
+pick	uinteger	longint	v_shortptr	reject
+pick	uinteger	longint	v_longptr	reject
+pick	uinteger	longint	v_longptrptr	reject
+pick	uinteger	longint	v_zptr	reject
+pick	uinteger	longint	v_wptr	reject
+pick	uinteger	longint	@v_long	reject
+pick	uinteger	longint	strptr(v_string)	reject
+pick	uinteger	ulongint	0	uinteger
+pick	uinteger	ulongint	1	uinteger
+pick	uinteger	ulongint	-1	uinteger
+pick	uinteger	ulongint	"lit"	reject
+pick	uinteger	ulongint	v_string	reject
+pick	uinteger	ulongint	v_zfixed	reject
+pick	uinteger	ulongint	v_wfixed	reject
+pick	uinteger	ulongint	v_long	uinteger
+pick	uinteger	ulongint	v_integer	uinteger
+pick	uinteger	ulongint	v_uinteger	uinteger
+pick	uinteger	ulongint	v_longint	ulongint
+pick	uinteger	ulongint	v_ulongint	ulongint
+pick	uinteger	ulongint	v_ulong	uinteger
+pick	uinteger	ulongint	v_double	ulongint
+pick	uinteger	ulongint	v_boolean	uinteger
+pick	uinteger	ulongint	v_anyptr	reject
+pick	uinteger	ulongint	v_byteptr	reject
+pick	uinteger	ulongint	v_ubyteptr	reject
+pick	uinteger	ulongint	v_shortptr	reject
+pick	uinteger	ulongint	v_longptr	reject
+pick	uinteger	ulongint	v_longptrptr	reject
+pick	uinteger	ulongint	v_zptr	reject
+pick	uinteger	ulongint	v_wptr	reject
+pick	uinteger	ulongint	@v_long	reject
+pick	uinteger	ulongint	strptr(v_string)	reject
+pick	uinteger	double	0	uinteger
+pick	uinteger	double	1	uinteger
+pick	uinteger	double	-1	uinteger
+pick	uinteger	double	"lit"	reject
+pick	uinteger	double	v_string	reject
+pick	uinteger	double	v_zfixed	reject
+pick	uinteger	double	v_wfixed	reject
+pick	uinteger	double	v_long	uinteger
+pick	uinteger	double	v_integer	uinteger
+pick	uinteger	double	v_uinteger	uinteger
+pick	uinteger	double	v_longint	uinteger
+pick	uinteger	double	v_ulongint	uinteger
+pick	uinteger	double	v_ulong	uinteger
+pick	uinteger	double	v_double	double
+pick	uinteger	double	v_boolean	uinteger
+pick	uinteger	double	v_anyptr	reject
+pick	uinteger	double	v_byteptr	reject
+pick	uinteger	double	v_ubyteptr	reject
+pick	uinteger	double	v_shortptr	reject
+pick	uinteger	double	v_longptr	reject
+pick	uinteger	double	v_longptrptr	reject
+pick	uinteger	double	v_zptr	reject
+pick	uinteger	double	v_wptr	reject
+pick	uinteger	double	@v_long	reject
+pick	uinteger	double	strptr(v_string)	reject
+pick	uinteger	boolean	0	uinteger
+pick	uinteger	boolean	1	uinteger
+pick	uinteger	boolean	-1	uinteger
+pick	uinteger	boolean	"lit"	reject
+pick	uinteger	boolean	v_string	reject
+pick	uinteger	boolean	v_zfixed	reject
+pick	uinteger	boolean	v_wfixed	reject
+pick	uinteger	boolean	v_long	uinteger
+pick	uinteger	boolean	v_integer	uinteger
+pick	uinteger	boolean	v_uinteger	uinteger
+pick	uinteger	boolean	v_longint	uinteger
+pick	uinteger	boolean	v_ulongint	uinteger
+pick	uinteger	boolean	v_ulong	uinteger
+pick	uinteger	boolean	v_double	uinteger
+pick	uinteger	boolean	v_boolean	boolean
+pick	uinteger	boolean	v_anyptr	reject
+pick	uinteger	boolean	v_byteptr	reject
+pick	uinteger	boolean	v_ubyteptr	reject
+pick	uinteger	boolean	v_shortptr	reject
+pick	uinteger	boolean	v_longptr	reject
+pick	uinteger	boolean	v_longptrptr	reject
+pick	uinteger	boolean	v_zptr	reject
+pick	uinteger	boolean	v_wptr	reject
+pick	uinteger	boolean	@v_long	reject
+pick	uinteger	boolean	strptr(v_string)	reject
+pick	longint	ulongint	0	longint
+pick	longint	ulongint	1	longint
+pick	longint	ulongint	-1	longint
+pick	longint	ulongint	"lit"	reject
+pick	longint	ulongint	v_string	reject
+pick	longint	ulongint	v_zfixed	reject
+pick	longint	ulongint	v_wfixed	reject
+pick	longint	ulongint	v_long	longint
+pick	longint	ulongint	v_integer	longint
+pick	longint	ulongint	v_uinteger	ulongint
+pick	longint	ulongint	v_longint	longint
+pick	longint	ulongint	v_ulongint	ulongint
+pick	longint	ulongint	v_ulong	ulongint
+pick	longint	ulongint	v_double	longint
+pick	longint	ulongint	v_boolean	longint
+pick	longint	ulongint	v_anyptr	reject
+pick	longint	ulongint	v_byteptr	reject
+pick	longint	ulongint	v_ubyteptr	reject
+pick	longint	ulongint	v_shortptr	reject
+pick	longint	ulongint	v_longptr	reject
+pick	longint	ulongint	v_longptrptr	reject
+pick	longint	ulongint	v_zptr	reject
+pick	longint	ulongint	v_wptr	reject
+pick	longint	ulongint	@v_long	reject
+pick	longint	ulongint	strptr(v_string)	reject
+pick	longint	double	0	longint
+pick	longint	double	1	longint
+pick	longint	double	-1	longint
+pick	longint	double	"lit"	reject
+pick	longint	double	v_string	reject
+pick	longint	double	v_zfixed	reject
+pick	longint	double	v_wfixed	reject
+pick	longint	double	v_long	longint
+pick	longint	double	v_integer	longint
+pick	longint	double	v_uinteger	longint
+pick	longint	double	v_longint	longint
+pick	longint	double	v_ulongint	longint
+pick	longint	double	v_ulong	longint
+pick	longint	double	v_double	double
+pick	longint	double	v_boolean	longint
+pick	longint	double	v_anyptr	reject
+pick	longint	double	v_byteptr	reject
+pick	longint	double	v_ubyteptr	reject
+pick	longint	double	v_shortptr	reject
+pick	longint	double	v_longptr	reject
+pick	longint	double	v_longptrptr	reject
+pick	longint	double	v_zptr	reject
+pick	longint	double	v_wptr	reject
+pick	longint	double	@v_long	reject
+pick	longint	double	strptr(v_string)	reject
+pick	longint	boolean	0	longint
+pick	longint	boolean	1	longint
+pick	longint	boolean	-1	longint
+pick	longint	boolean	"lit"	reject
+pick	longint	boolean	v_string	reject
+pick	longint	boolean	v_zfixed	reject
+pick	longint	boolean	v_wfixed	reject
+pick	longint	boolean	v_long	longint
+pick	longint	boolean	v_integer	longint
+pick	longint	boolean	v_uinteger	longint
+pick	longint	boolean	v_longint	longint
+pick	longint	boolean	v_ulongint	longint
+pick	longint	boolean	v_ulong	longint
+pick	longint	boolean	v_double	longint
+pick	longint	boolean	v_boolean	boolean
+pick	longint	boolean	v_anyptr	reject
+pick	longint	boolean	v_byteptr	reject
+pick	longint	boolean	v_ubyteptr	reject
+pick	longint	boolean	v_shortptr	reject
+pick	longint	boolean	v_longptr	reject
+pick	longint	boolean	v_longptrptr	reject
+pick	longint	boolean	v_zptr	reject
+pick	longint	boolean	v_wptr	reject
+pick	longint	boolean	@v_long	reject
+pick	longint	boolean	strptr(v_string)	reject
+pick	ulongint	double	0	ulongint
+pick	ulongint	double	1	ulongint
+pick	ulongint	double	-1	ulongint
+pick	ulongint	double	"lit"	reject
+pick	ulongint	double	v_string	reject
+pick	ulongint	double	v_zfixed	reject
+pick	ulongint	double	v_wfixed	reject
+pick	ulongint	double	v_long	ulongint
+pick	ulongint	double	v_integer	ulongint
+pick	ulongint	double	v_uinteger	ulongint
+pick	ulongint	double	v_longint	ulongint
+pick	ulongint	double	v_ulongint	ulongint
+pick	ulongint	double	v_ulong	ulongint
+pick	ulongint	double	v_double	double
+pick	ulongint	double	v_boolean	ulongint
+pick	ulongint	double	v_anyptr	reject
+pick	ulongint	double	v_byteptr	reject
+pick	ulongint	double	v_ubyteptr	reject
+pick	ulongint	double	v_shortptr	reject
+pick	ulongint	double	v_longptr	reject
+pick	ulongint	double	v_longptrptr	reject
+pick	ulongint	double	v_zptr	reject
+pick	ulongint	double	v_wptr	reject
+pick	ulongint	double	@v_long	reject
+pick	ulongint	double	strptr(v_string)	reject
+pick	ulongint	boolean	0	ulongint
+pick	ulongint	boolean	1	ulongint
+pick	ulongint	boolean	-1	ulongint
+pick	ulongint	boolean	"lit"	reject
+pick	ulongint	boolean	v_string	reject
+pick	ulongint	boolean	v_zfixed	reject
+pick	ulongint	boolean	v_wfixed	reject
+pick	ulongint	boolean	v_long	ulongint
+pick	ulongint	boolean	v_integer	ulongint
+pick	ulongint	boolean	v_uinteger	ulongint
+pick	ulongint	boolean	v_longint	ulongint
+pick	ulongint	boolean	v_ulongint	ulongint
+pick	ulongint	boolean	v_ulong	ulongint
+pick	ulongint	boolean	v_double	ulongint
+pick	ulongint	boolean	v_boolean	boolean
+pick	ulongint	boolean	v_anyptr	reject
+pick	ulongint	boolean	v_byteptr	reject
+pick	ulongint	boolean	v_ubyteptr	reject
+pick	ulongint	boolean	v_shortptr	reject
+pick	ulongint	boolean	v_longptr	reject
+pick	ulongint	boolean	v_longptrptr	reject
+pick	ulongint	boolean	v_zptr	reject
+pick	ulongint	boolean	v_wptr	reject
+pick	ulongint	boolean	@v_long	reject
+pick	ulongint	boolean	strptr(v_string)	reject
+pick	double	boolean	0	double
+pick	double	boolean	1	double
+pick	double	boolean	-1	double
+pick	double	boolean	"lit"	reject
+pick	double	boolean	v_string	reject
+pick	double	boolean	v_zfixed	reject
+pick	double	boolean	v_wfixed	reject
+pick	double	boolean	v_long	double
+pick	double	boolean	v_integer	double
+pick	double	boolean	v_uinteger	double
+pick	double	boolean	v_longint	double
+pick	double	boolean	v_ulongint	double
+pick	double	boolean	v_ulong	double
+pick	double	boolean	v_double	double
+pick	double	boolean	v_boolean	boolean
+pick	double	boolean	v_anyptr	reject
+pick	double	boolean	v_byteptr	reject
+pick	double	boolean	v_ubyteptr	reject
+pick	double	boolean	v_shortptr	reject
+pick	double	boolean	v_longptr	reject
+pick	double	boolean	v_longptrptr	reject
+pick	double	boolean	v_zptr	reject
+pick	double	boolean	v_wptr	reject
+pick	double	boolean	@v_long	reject
+pick	double	boolean	strptr(v_string)	reject

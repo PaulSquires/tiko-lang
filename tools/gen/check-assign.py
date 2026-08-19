@@ -14,7 +14,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+import fbxtargets
+
 TRUTH = ROOT / "tests/types/expected/fbc-assign.txt"
+TGT = []
+LABEL = "win64"
 WORK = ROOT / "build/.as"
 FBX = ROOT / "bin/fbx.exe"
 
@@ -23,14 +27,14 @@ TYPES = ["byte", "ubyte", "short", "ushort", "long", "ulong", "integer",
          "string", "any ptr", "long ptr", "zstring ptr", "wstring ptr"]
 
 
-def main() -> int:
+def one_target() -> int:
     if not TRUTH.exists():
-        print("check-assign: no truth file; run tools/gen/assign-truth.py",
+        print(f"check-assign: {LABEL} no truth file; run tools/gen/assign-truth.py",
               file=sys.stderr)
         return 3
     fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
     if not fbx.exists():
-        print("check-assign: fbx not built", file=sys.stderr)
+        print(f"check-assign: {LABEL} fbx not built", file=sys.stderr)
         return 3
 
     rows = [line.split("\t")
@@ -50,7 +54,7 @@ def main() -> int:
     probe = WORK / "assign-fbx.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check", str(probe)],
+    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -71,14 +75,24 @@ def main() -> int:
             bad += 1
             diffs.append(f"{dt} = {st}: fbc={want} fbx={mine}")
 
-    print(f"check-assign: {ok}/{len(rows)} match")
+    print(f"check-assign: {LABEL} {ok}/{len(rows)} match")
     if missing:
-        print(f"check-assign: {missing} rows produced no output")
+        print(f"check-assign: {LABEL} {missing} rows produced no output")
     if diffs:
-        print(f"check-assign: {len(diffs)} disagreements, first 20:")
+        print(f"check-assign: {LABEL} {len(diffs)} disagreements, first 20:")
         for d in diffs[:20]:
             print("   ", d)
     return 0 if (not diffs and not missing) else 1
+
+
+def main() -> int:
+    """Every target, against its own expectations file."""
+    global TRUTH, TGT, LABEL
+    rc = 0
+    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

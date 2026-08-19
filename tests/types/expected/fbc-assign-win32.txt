@@ -1,0 +1,324 @@
+byte	byte	ok
+byte	ubyte	ok
+byte	short	ok
+byte	ushort	ok
+byte	long	ok
+byte	ulong	ok
+byte	integer	ok
+byte	uinteger	ok
+byte	longint	ok
+byte	ulongint	ok
+byte	single	ok
+byte	double	ok
+byte	boolean	ok
+byte	string	reject
+byte	any ptr	reject
+byte	long ptr	reject
+byte	zstring ptr	reject
+byte	wstring ptr	reject
+ubyte	byte	ok
+ubyte	ubyte	ok
+ubyte	short	ok
+ubyte	ushort	ok
+ubyte	long	ok
+ubyte	ulong	ok
+ubyte	integer	ok
+ubyte	uinteger	ok
+ubyte	longint	ok
+ubyte	ulongint	ok
+ubyte	single	ok
+ubyte	double	ok
+ubyte	boolean	ok
+ubyte	string	reject
+ubyte	any ptr	reject
+ubyte	long ptr	reject
+ubyte	zstring ptr	reject
+ubyte	wstring ptr	reject
+short	byte	ok
+short	ubyte	ok
+short	short	ok
+short	ushort	ok
+short	long	ok
+short	ulong	ok
+short	integer	ok
+short	uinteger	ok
+short	longint	ok
+short	ulongint	ok
+short	single	ok
+short	double	ok
+short	boolean	ok
+short	string	reject
+short	any ptr	reject
+short	long ptr	reject
+short	zstring ptr	reject
+short	wstring ptr	reject
+ushort	byte	ok
+ushort	ubyte	ok
+ushort	short	ok
+ushort	ushort	ok
+ushort	long	ok
+ushort	ulong	ok
+ushort	integer	ok
+ushort	uinteger	ok
+ushort	longint	ok
+ushort	ulongint	ok
+ushort	single	ok
+ushort	double	ok
+ushort	boolean	ok
+ushort	string	reject
+ushort	any ptr	reject
+ushort	long ptr	reject
+ushort	zstring ptr	reject
+ushort	wstring ptr	reject
+long	byte	ok
+long	ubyte	ok
+long	short	ok
+long	ushort	ok
+long	long	ok
+long	ulong	ok
+long	integer	ok
+long	uinteger	ok
+long	longint	ok
+long	ulongint	ok
+long	single	ok
+long	double	ok
+long	boolean	ok
+long	string	reject
+long	any ptr	warn
+long	long ptr	warn
+long	zstring ptr	warn
+long	wstring ptr	warn
+ulong	byte	ok
+ulong	ubyte	ok
+ulong	short	ok
+ulong	ushort	ok
+ulong	long	ok
+ulong	ulong	ok
+ulong	integer	ok
+ulong	uinteger	ok
+ulong	longint	ok
+ulong	ulongint	ok
+ulong	single	ok
+ulong	double	ok
+ulong	boolean	ok
+ulong	string	reject
+ulong	any ptr	warn
+ulong	long ptr	warn
+ulong	zstring ptr	warn
+ulong	wstring ptr	warn
+integer	byte	ok
+integer	ubyte	ok
+integer	short	ok
+integer	ushort	ok
+integer	long	ok
+integer	ulong	ok
+integer	integer	ok
+integer	uinteger	ok
+integer	longint	ok
+integer	ulongint	ok
+integer	single	ok
+integer	double	ok
+integer	boolean	ok
+integer	string	reject
+integer	any ptr	warn
+integer	long ptr	warn
+integer	zstring ptr	warn
+integer	wstring ptr	warn
+uinteger	byte	ok
+uinteger	ubyte	ok
+uinteger	short	ok
+uinteger	ushort	ok
+uinteger	long	ok
+uinteger	ulong	ok
+uinteger	integer	ok
+uinteger	uinteger	ok
+uinteger	longint	ok
+uinteger	ulongint	ok
+uinteger	single	ok
+uinteger	double	ok
+uinteger	boolean	ok
+uinteger	string	reject
+uinteger	any ptr	warn
+uinteger	long ptr	warn
+uinteger	zstring ptr	warn
+uinteger	wstring ptr	warn
+longint	byte	ok
+longint	ubyte	ok
+longint	short	ok
+longint	ushort	ok
+longint	long	ok
+longint	ulong	ok
+longint	integer	ok
+longint	uinteger	ok
+longint	longint	ok
+longint	ulongint	ok
+longint	single	ok
+longint	double	ok
+longint	boolean	ok
+longint	string	reject
+longint	any ptr	reject
+longint	long ptr	reject
+longint	zstring ptr	reject
+longint	wstring ptr	reject
+ulongint	byte	ok
+ulongint	ubyte	ok
+ulongint	short	ok
+ulongint	ushort	ok
+ulongint	long	ok
+ulongint	ulong	ok
+ulongint	integer	ok
+ulongint	uinteger	ok
+ulongint	longint	ok
+ulongint	ulongint	ok
+ulongint	single	ok
+ulongint	double	ok
+ulongint	boolean	ok
+ulongint	string	reject
+ulongint	any ptr	reject
+ulongint	long ptr	reject
+ulongint	zstring ptr	reject
+ulongint	wstring ptr	reject
+single	byte	ok
+single	ubyte	ok
+single	short	ok
+single	ushort	ok
+single	long	ok
+single	ulong	ok
+single	integer	ok
+single	uinteger	ok
+single	longint	ok
+single	ulongint	ok
+single	single	ok
+single	double	ok
+single	boolean	ok
+single	string	reject
+single	any ptr	reject
+single	long ptr	reject
+single	zstring ptr	reject
+single	wstring ptr	reject
+double	byte	ok
+double	ubyte	ok
+double	short	ok
+double	ushort	ok
+double	long	ok
+double	ulong	ok
+double	integer	ok
+double	uinteger	ok
+double	longint	ok
+double	ulongint	ok
+double	single	ok
+double	double	ok
+double	boolean	ok
+double	string	reject
+double	any ptr	reject
+double	long ptr	reject
+double	zstring ptr	reject
+double	wstring ptr	reject
+boolean	byte	ok
+boolean	ubyte	ok
+boolean	short	ok
+boolean	ushort	ok
+boolean	long	ok
+boolean	ulong	ok
+boolean	integer	ok
+boolean	uinteger	ok
+boolean	longint	ok
+boolean	ulongint	ok
+boolean	single	ok
+boolean	double	ok
+boolean	boolean	ok
+boolean	string	reject
+boolean	any ptr	reject
+boolean	long ptr	reject
+boolean	zstring ptr	reject
+boolean	wstring ptr	reject
+string	byte	reject
+string	ubyte	reject
+string	short	reject
+string	ushort	reject
+string	long	reject
+string	ulong	reject
+string	integer	reject
+string	uinteger	reject
+string	longint	reject
+string	ulongint	reject
+string	single	reject
+string	double	reject
+string	boolean	reject
+string	string	ok
+string	any ptr	reject
+string	long ptr	reject
+string	zstring ptr	reject
+string	wstring ptr	reject
+any ptr	byte	reject
+any ptr	ubyte	reject
+any ptr	short	reject
+any ptr	ushort	reject
+any ptr	long	warn
+any ptr	ulong	warn
+any ptr	integer	warn
+any ptr	uinteger	warn
+any ptr	longint	reject
+any ptr	ulongint	reject
+any ptr	single	reject
+any ptr	double	reject
+any ptr	boolean	reject
+any ptr	string	reject
+any ptr	any ptr	ok
+any ptr	long ptr	ok
+any ptr	zstring ptr	ok
+any ptr	wstring ptr	ok
+long ptr	byte	reject
+long ptr	ubyte	reject
+long ptr	short	reject
+long ptr	ushort	reject
+long ptr	long	warn
+long ptr	ulong	warn
+long ptr	integer	warn
+long ptr	uinteger	warn
+long ptr	longint	reject
+long ptr	ulongint	reject
+long ptr	single	reject
+long ptr	double	reject
+long ptr	boolean	reject
+long ptr	string	reject
+long ptr	any ptr	ok
+long ptr	long ptr	ok
+long ptr	zstring ptr	warn
+long ptr	wstring ptr	warn
+zstring ptr	byte	reject
+zstring ptr	ubyte	reject
+zstring ptr	short	reject
+zstring ptr	ushort	reject
+zstring ptr	long	warn
+zstring ptr	ulong	warn
+zstring ptr	integer	warn
+zstring ptr	uinteger	warn
+zstring ptr	longint	reject
+zstring ptr	ulongint	reject
+zstring ptr	single	reject
+zstring ptr	double	reject
+zstring ptr	boolean	reject
+zstring ptr	string	reject
+zstring ptr	any ptr	ok
+zstring ptr	long ptr	warn
+zstring ptr	zstring ptr	ok
+zstring ptr	wstring ptr	warn
+wstring ptr	byte	reject
+wstring ptr	ubyte	reject
+wstring ptr	short	reject
+wstring ptr	ushort	reject
+wstring ptr	long	warn
+wstring ptr	ulong	warn
+wstring ptr	integer	warn
+wstring ptr	uinteger	warn
+wstring ptr	longint	reject
+wstring ptr	ulongint	reject
+wstring ptr	single	reject
+wstring ptr	double	reject
+wstring ptr	boolean	reject
+wstring ptr	string	reject
+wstring ptr	any ptr	ok
+wstring ptr	long ptr	warn
+wstring ptr	zstring ptr	warn
+wstring ptr	wstring ptr	ok

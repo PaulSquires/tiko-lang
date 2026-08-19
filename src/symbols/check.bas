@@ -23,6 +23,7 @@ const CONST_DEPTH_MAX as long = 64
 
 '' ------------------------------------------------------------------- classes
 
+declare function IsUnsignedInt_( byval b as Fbx.BuiltinType ) as boolean
 declare function IsPointerSized_ _
     ( byval b as Fbx.BuiltinType, byref types as Fbx.TypeContext ) as boolean
 declare function PointerCost_ _
@@ -108,14 +109,43 @@ end function
 
 '' The integer result of a numeric pair: UINTEGER when either side is 64-bit
 '' unsigned, INTEGER otherwise. Nothing narrower is ever produced.
+'' Integer arithmetic promotes to at least INTEGER and then takes the WIDEST operand,
+'' with the result unsigned only when an operand OF THAT WIDTH is unsigned.
+''
+'' On win64 that collapses to "INTEGER, or UINTEGER if either side is an 8-byte
+'' unsigned", because INTEGER is already the widest integer there -- which is why the
+'' rule read that way for as long as win64 was the only target. On win32 INTEGER is four
+'' bytes and the difference shows in 726 of the gate's 3,596 rows: 'byte + longint' is
+'' LONGINT there and INTEGER here.
+'' The width an operand contributes. A FLOAT contributes nothing: '\' and 'mod' convert
+'' it to the default integer type rather than to one its size suggests, so
+'' 'byte \ double' is INTEGER and not LONGINT -- measured, and the difference only
+'' shows on win32 where those two are not the same type.
+private function IntWidth_ _
+    ( byval b as Fbx.BuiltinType, byref types as Fbx.TypeContext ) as long
+    if IsInt_( b ) = false then return 0
+    return types.Layout( types.Builtin( b ) ).size
+end function
+
 private function IntResult_ _
     ( byval lb as Fbx.BuiltinType, byval rb as Fbx.BuiltinType, _
       byref types as Fbx.TypeContext ) as Fbx.TypeId
 
-    if IsUnsigned64_( lb ) orelse IsUnsigned64_( rb ) then
-        return types.Builtin( Fbx.TY_UINTEGER )
+    dim as long iw = IntWidth_( Fbx.TY_INTEGER, types )
+    dim as long lw = IntWidth_( lb, types )
+    dim as long rw = IntWidth_( rb, types )
+    dim as long w = iw
+    if lw > w then w = lw
+    if rw > w then w = rw
+
+    dim as boolean uns = false
+    if (lw = w) andalso IsUnsignedInt_( lb ) then uns = true
+    if (rw = w) andalso IsUnsignedInt_( rb ) then uns = true
+
+    if w = iw then
+        return types.Builtin( iif( uns, Fbx.TY_UINTEGER, Fbx.TY_INTEGER ) )
     end if
-    return types.Builtin( Fbx.TY_INTEGER )
+    return types.Builtin( iif( uns, Fbx.TY_ULONGINT, Fbx.TY_LONGINT ) )
 end function
 
 function BinaryResult _
@@ -408,6 +438,15 @@ function ConversionCost _
         if bs < 0 then bs = -bs
         b += bs * 16
         if IsUnsignedInt_( dstB ) then b += 8
+        '' The same pointer-sized preference as the integer path below, but bounded by
+        '' the SIGNEDNESS step of 8 rather than by the width step of 16 -- and that bound
+        '' is load-bearing. A boolean offered 'uinteger' and 'longint' takes longint on
+        '' win64, the one row in the whole table where a higher rank wins, and it wins
+        '' only because uinteger pays the unsigned penalty. A bonus of 8 here erased that
+        '' and broke the win64 gate; 3 clears the rank gap of 2 and nothing else.
+        if (dstB = Fbx.TY_INTEGER) orelse (dstB = Fbx.TY_UINTEGER) then
+            return b + dr - 3
+        end if
         return b + dr
     end if
     if (sr = 0) orelse (dr = 0) then return CONV_NONE
@@ -455,6 +494,20 @@ function ConversionCost _
         cost += rd * 2
     end if
 
+    '' The LAST tiebreak, and it only ever fires when two candidates are otherwise
+    '' identical: prefer INTEGER / UINTEGER, the pointer-sized pair. On win64 nothing
+    '' reaches this -- 'long' and 'integer' are four and eight bytes, so the width tier
+    '' has already decided. On win32 they are the same width, the same signedness and one
+    '' rank apart, and fbc takes integer: 14 rows of the overload gate say so.
+    ''
+    '' EIGHT is fitted, not derived, and the bound it sits inside is: bigger than the two
+    '' rank tiers it has to beat -- rank DISTANCE contributes 4 here and rank itself 2 --
+    '' and smaller than the family tier at 16, so it can never override family or
+    '' signedness. Read it as "the type an operand would promote to wins a tie", which is
+    '' what INTEGER is.
+    if (dstB = Fbx.TY_INTEGER) orelse (dstB = Fbx.TY_UINTEGER) then
+        return cost + dr - 8
+    end if
     return cost + dr
 end function
 
@@ -981,10 +1034,14 @@ private function SignedFlip_ _
 
     if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
 
-    '' A POINTER becomes a pointer-width integer of the requested signedness.
+    '' A POINTER becomes the FIXED-WIDTH integer of the pointer's size, with the
+    '' requested signedness -- LONGINT on win64 and LONG on win32, not INTEGER either
+    '' time, although INTEGER is the same width as both.
     if types.Kind( t ) = Fbx.TK_POINTER then
-        if wantUnsigned then return types.Builtin( Fbx.TY_ULONGINT )
-        return types.Builtin( Fbx.TY_LONGINT )
+        if types.target.pointerBits = 32 then
+            return types.Builtin( iif( wantUnsigned, Fbx.TY_ULONG, Fbx.TY_LONG ) )
+        end if
+        return types.Builtin( iif( wantUnsigned, Fbx.TY_ULONGINT, Fbx.TY_LONGINT ) )
     end if
 
     dim as Fbx.TypeId fs = FixedStringElem( t, types )
@@ -1064,7 +1121,15 @@ private function IntrinsicCallType_ _
                 return rt
             end if
         end if
-        if srcPtr then return Fbx.TYPE_NONE
+        '' A pointer reaches a numeric destination only when that destination is
+        '' POINTER-WIDTH: 'cast( long, p )' is refused on win64 and accepted on win32,
+        '' where a long is four bytes like the pointer.
+        if srcPtr then
+            if c.types->Kind( rt ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
+            if IsPointerSized_( c.types->BuiltinOf( rt ), *c.types ) = false then
+                return Fbx.TYPE_NONE
+            end if
+        end if
         return rt
     end if
 

@@ -3,7 +3,7 @@
 
     python tools/gen/conv-truth.py
 
-Writes tests/types/expected/fbc-conv.txt: one row per (intrinsic, argument type) giving
+Writes tests/types/expected/fbc-conv.txt and fbc-conv-win32.txt: one row per (intrinsic, argument type) giving
 the result type fbc computes, or 'reject'.
 
 These are keywords in expression position, not procedures, so overload resolution has
@@ -17,7 +17,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe")
+import fbxtargets
+
+FBC = fbxtargets.FBC64
+LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-conv.txt"
 WORK = ROOT / "build/.conv"
 
@@ -51,9 +54,9 @@ TYPED = [("cptr", "any ptr"), ("cptr", "long ptr"), ("cast", "long"),
          ("cast", "double"), ("cast", "string"), ("cast", "any ptr")]
 
 
-def main() -> int:
+def one_target() -> int:
     if not FBC.exists():
-        print(f"conv-truth: fbc not found at {FBC}", file=sys.stderr)
+        print(f"conv-truth: {LABEL}: fbc not found at {FBC}", file=sys.stderr)
         return 3
     WORK.mkdir(parents=True, exist_ok=True)
 
@@ -112,9 +115,19 @@ def main() -> int:
         rows.append(f"{fn}\t{an}\t{got}")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
-    print(f"conv-truth: {len(rows)} rows, {len(rejected)} rejected -> "
-          f"tests/types/expected/fbc-conv.txt")
+    print(f"conv-truth: {LABEL}: {len(rows)} rows, {len(rejected)} rejected -> "
+          f"{OUT.name}")
     return 0
+
+
+def main() -> int:
+    """Every target, into its own expectations file."""
+    global FBC, OUT, WORK, LABEL
+    rc = 0
+    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

@@ -18,7 +18,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+import fbxtargets
+
 TRUTH = ROOT / "tests/types/expected/fbc-ptr.txt"
+TGT = []
+LABEL = "win64"
 WORK = ROOT / "build/.ptr"
 FBX = ROOT / "bin/fbx.exe"
 
@@ -46,13 +50,13 @@ DECLS = [
 ]
 
 
-def main() -> int:
+def one_target() -> int:
     if not TRUTH.exists():
-        print("check-ptr: no truth file; run tools/gen/ptr-truth.py", file=sys.stderr)
+        print(f"check-ptr: {LABEL} no truth file; run tools/gen/ptr-truth.py", file=sys.stderr)
         return 3
     fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
     if not fbx.exists():
-        print("check-ptr: fbx not built", file=sys.stderr)
+        print(f"check-ptr: {LABEL} fbx not built", file=sys.stderr)
         return 3
 
     rows = [line.split("\t")
@@ -80,7 +84,7 @@ def main() -> int:
     probe = WORK / "ptr-fbx.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check", str(probe)],
+    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -116,18 +120,28 @@ def main() -> int:
             else:
                 bad.append(f"pick {a} vs {b}, arg {arg}: fbc={want} fbx={chose}")
 
-    print(f"check-ptr: {ok}/{len(rows)} match")
+    print(f"check-ptr: {LABEL} {ok}/{len(rows)} match")
     if warn_rows:
-        print(f"check-ptr: {warn_rows} of those are conversions fbc WARNS about "
+        print(f"check-ptr: {LABEL} {warn_rows} of those are conversions fbc WARNS about "
               f"(warning 3); fbx accepts them silently -- the warning is not "
               f"implemented")
     if missing:
-        print(f"check-ptr: {missing} rows produced no output")
+        print(f"check-ptr: {LABEL} {missing} rows produced no output")
     if bad:
-        print(f"check-ptr: {len(bad)} disagreements, first 20:")
+        print(f"check-ptr: {LABEL} {len(bad)} disagreements, first 20:")
         for b in bad[:20]:
             print("   ", b)
     return 0 if (not bad and not missing) else 1
+
+
+def main() -> int:
+    """Every target, against its own expectations file."""
+    global TRUTH, TGT, LABEL
+    rc = 0
+    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+        if one_target() != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":
