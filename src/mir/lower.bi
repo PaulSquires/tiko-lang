@@ -60,6 +60,11 @@ namespace Fbx.Mir
         as long ambCallNoCode       '' callee bound, and still nothing was emitted
         as long ambAssign           '' an assignment that did not lower
         as long ambOther            '' property-set, result-assign, unclassified
+        '' ... by the SHAPE of the thing that was not a call, and by the AmbiguousOf
+        '' classification when there was no expression to look at. 'other' has been the
+        '' second-largest bucket for four commits without anyone knowing what is in it.
+        as FB.Array( of long ) ambOtherShape
+        as FB.Array( of long ) ambOtherClass
         as FB.Array( of ulong ) ambUnboundNames
         '' ... and by the SHAPE of the callee, because only a plain identifier has a
         '' name to collect and most of them are not one.

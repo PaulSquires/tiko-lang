@@ -385,15 +385,17 @@ private function LowerShortCircuit _
     return r
 end function
 
-private function LowerCall _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+'' A call, given its PIECES rather than a node: FreeBASIC spells one two ways and both
+'' have to reach the same code. 'W( 1, 2 )' is an N_CALL with its arguments in a list;
+'' 'W 1, 2' is a STATEMENT whose 'a' is the callee and whose children are the arguments.
+function LowerCallParts _
+    ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval callee as Fbx.SymbolId, _
+      byval argFirst as long, byval argCount as long, _
+      byval mt as MirType ) as MirValue
 
     dim as MirValue v
-    dim as Fbx.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as Fbx.SymbolId callee = c.info->RefOf( id )
-    if callee = Fbx.SYMBOL_NONE then return v
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if callee = Fbx.SYMBOL_NONE then return v
     if cs = 0 then return v
 
     '' Arguments are collected LOCALLY and pushed to the shared pool in one run at the
@@ -408,14 +410,14 @@ private function LowerCall _
     '' 'call void _ZN1T1MEi(%5)' -- the right name, the wrong arguments, and no decline,
     '' so it counted as fully lowered. A mangled name that says member and a call that
     '' does not pass one is the worst shape a bug can have here.
-    dim as MirValue self_ = ReceiverOf( c, cp->target, callee )
+    dim as MirValue self_ = ReceiverOf( c, calleeNode, callee )
     if self_.kind <> cast( ubyte, MV_NONE ) then
         argv.Push( cast( ulong, self_.kind ) )
         argv.Push( cast( ulong, self_.id ) )
     end if
 
-    for i as long = 0 to cp->count - 1
-        dim as MirValue a = LowerExpr( c, cast( Fbx.NodeId, c.ast->children[cp->first + i] ) )
+    for i as long = 0 to argCount - 1
+        dim as MirValue a = LowerExpr( c, cast( Fbx.NodeId, c.ast->children[argFirst + i] ) )
         argv.Push( cast( ulong, a.kind ) )
         argv.Push( cast( ulong, a.id ) )
     next
@@ -465,8 +467,14 @@ private function LowerCall _
 end function
 
 
+private function LowerCall _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
 
-
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return LowerCallParts( c, cp->target, c.info->RefOf( id ), _
+                           cp->first, cp->count, mt )
+end function
 
 '' -------------------------------------------------------------- cleanup model
 
@@ -883,14 +891,28 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' A call whose result is void legitimately yields MV_NONE too, so the test
             '' is whether the statement emitted ANY instruction, not what it returned.
             dim as long beforeN = c.f->blocks[c.curBlock].insts.Count
-            LowerExpr( c, sp->a )
+            '' 'W( 1, 2 )' is an expression; 'W 1, 2' is this statement's own callee
+            '' and children, and looks nothing like a call node.
+            if c.ast->Kind( sp->a ) = Fbx.N_CALL then
+                LowerExpr( c, sp->a )
+            else
+                LowerStmtCall( c, id )
+            end if
             if c.f->blocks[c.curBlock].insts.Count = beforeN then
                 SkipHere( c )
                 CountUnlowredCall( c, sp->a )
             end if
         case else
+            '' No expression to look at: the statement was classified as something other
+            '' than a call or an assignment -- a property setter, BASIC's result
+            '' assignment, or nothing at all.
             SkipHere( c )
             c.st->ambOther += 1
+            dim as long ac = cast( long, c.info->AmbiguousOf( id ) )
+            while c.st->ambOtherClass.Count <= ac
+                c.st->ambOtherClass.Push( 0 )
+            wend
+            c.st->ambOtherClass[ac] += 1
         end select
 
     case Fbx.N_IF

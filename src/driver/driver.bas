@@ -292,6 +292,16 @@ function Run( byref args as Fbx.StrVec ) as long
                           Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
                           str( lst.ambUnboundShape[i] )
                 next
+                for i as long = 0 to lst.ambOtherShape.Count - 1
+                    if lst.ambOtherShape[i] = 0 then continue for
+                    print "  amb-other-shape " & _
+                          Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
+                          str( lst.ambOtherShape[i] )
+                next
+                for i as long = 0 to lst.ambOtherClass.Count - 1
+                    if lst.ambOtherClass[i] = 0 then continue for
+                    print "  amb-other-class " & str( i ) & " " & str( lst.ambOtherClass[i] )
+                next
                 if lst.ambMemberBaseTyped > 0 then
                     print "  amb member-base-typed " & str( lst.ambMemberBaseTyped )
                 end if

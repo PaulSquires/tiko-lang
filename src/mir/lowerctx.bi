@@ -168,6 +168,16 @@ declare function EmitRtl _
     declare sub EmitDtorCall _
         ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
 
+    '' A call from its PIECES, so both of FreeBASIC's spellings reach one place.
+    declare function LowerCallParts _
+        ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval callee as Fbx.SymbolId, _
+          byval argFirst as long, byval argCount as long, _
+          byval mt as MirType ) as MirValue
+
+    '' The paren-less call statement: 'W 1, 2'.
+    declare function LowerStmtCall _
+        ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+
     '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
     declare function ReceiverOf _
         ( byref c as Ctx, byval target as Fbx.NodeId, _

@@ -1,0 +1,12 @@
+'' FreeBASIC spells a call two ways and both have to lower. 'W( 1, 2 )' is an N_CALL with
+'' its arguments in a list; 'W 1, 2' is a STATEMENT whose 'a' is the callee and whose
+'' children are the arguments, and nothing about it looks like a call node.
+''
+'' That second form was 19,629 declines -- nearly a third of everything left at the time
+'' -- while reading as ordinary FreeBASIC. It was also being COUNTED as "other" rather
+'' than as a call, which hid it in a bucket named for something else for four commits.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/parenless.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call void _ZN1T1MEi(@@obj,
+'' EXPECT-OUT: 0 statements not lowered

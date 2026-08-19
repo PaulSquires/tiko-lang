@@ -69,19 +69,27 @@ end sub
 '' has been a short list of names rather than a feature.
 sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
     if call_ = Fbx.NODE_NONE then return
-    if c.ast->Kind( call_ ) <> Fbx.N_CALL then
-        c.st->ambOther += 1
-        return
+    '' The CALLEE, whichever spelling was used: an N_CALL keeps it in the list payload,
+    '' while the paren-less statement form IS the callee. Counting the second as 'other'
+    '' hid 19,629 unbound calls in a bucket named for something else, and made a shape
+    '' histogram of callees look like a histogram of statements.
+    dim as Fbx.NodeId target = call_
+    dim as boolean bound = false
+    if c.ast->Kind( call_ ) = Fbx.N_CALL then
+        dim as Fbx.ListPayload ptr cp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, call_ )].data )]
+        target = cp->target
+        bound = (c.info->RefOf( call_ ) <> Fbx.SYMBOL_NONE)
+    else
+        bound = (c.info->RefOf( call_ ) <> Fbx.SYMBOL_NONE)
     end if
-    dim as Fbx.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, call_ )].data )]
-    if c.info->RefOf( call_ ) <> Fbx.SYMBOL_NONE then
+    if bound then
         c.st->ambCallNoCode += 1
         return
     end if
     c.st->ambCallUnbound += 1
-    if cp->target = Fbx.NODE_NONE then return
-    dim as long tk = cast( long, c.ast->Kind( cp->target ) )
+    if target = Fbx.NODE_NONE then return
+    dim as long tk = cast( long, c.ast->Kind( target ) )
     while c.st->ambUnboundShape.Count <= tk
         c.st->ambUnboundShape.Push( 0 )
     wend
@@ -89,9 +97,9 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
     '' A MEMBER callee: record the member's own name, and whether the base typed. The
     '' base is what decides which question this is -- "no such member on that type" or
     '' "no type to look in".
-    if c.ast->Kind( cp->target ) = Fbx.N_MEMBER then
+    if c.ast->Kind( target ) = Fbx.N_MEMBER then
         dim as Fbx.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
         if c.info->TypeOf_( mb->lhs ) = Fbx.TYPE_NONE then
             c.st->ambMemberBaseUntyped += 1
         else
@@ -105,12 +113,12 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
         return
     end if
 
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return
+    if c.ast->Kind( target ) <> Fbx.N_IDENT then return
     if c.st->ambUnboundNames.Count >= 200000 then return
     '' An N_IDENT's payload is an IDENT, not a statement. Reading it through StmtOf
     '' indexes a different pool -- the mistake this project has made six times.
     dim as Fbx.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
     c.st->ambUnboundNames.Push( cast( ulong, ip->name ) )
 end sub
 

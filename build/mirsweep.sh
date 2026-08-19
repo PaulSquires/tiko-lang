@@ -31,9 +31,8 @@ find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 : > build/.mir.out
 while IFS= read -r f; do
     ./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null \
-        | grep -E '^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb ' >> build/.mir.out || true
+        | grep -E '^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb' >> build/.mir.out || true
 done < build/.corpus.lst
-
 awk '
 /^lowered:/ {
   files++
@@ -52,6 +51,7 @@ awk '
 /^  inside N_/           { inner[$2] += $3 }
 /^  skip-site /          { site[$2] += $3 }
 /^  amb /                { amb[$2] += $3 }
+/^  amb-other-/          { oth[$1 " " $2] += $3 }
 END {
   printf "mirsweep: %d files, %d blocks, %d insts\n", files, blk, ins
   printf "mirsweep: %d files emit code, %d emit nothing\n", files - empty, empty
@@ -71,5 +71,7 @@ END {
   printf "mirsweep: --- why an N_AMBIGUOUS statement emitted NOTHING ---\n"
   n5 = asorti(amb, is5, "@val_num_desc")
   for (i = 1; i <= n5; i++) printf "mirsweep:  %8d  amb %s\n", amb[is5[i]], is5[i]
+  n6 = asorti(oth, is6, "@val_num_desc")
+  for (i = 1; i <= n6 && i <= 8; i++) printf "mirsweep:  %8d  %s\n", oth[is6[i]], is6[i]
 }
 ' build/.mir.out

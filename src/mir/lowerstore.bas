@@ -240,6 +240,20 @@ sub EmitDtorCall _
     EmitStructorCall( c, sym, slot )
 end sub
 
+'' The paren-less STATEMENT form: 'W 1, 2'. The callee is the statement's own 'a' and
+'' the arguments are its children, so nothing about it looks like a call node -- which
+'' is why it was 19,629 declines, nearly a third of everything left, while reading as
+'' ordinary FreeBASIC.
+function LowerStmtCall _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+
+    dim as MirValue v
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Fbx.NODE_NONE then return v
+    return LowerCallParts( c, sp->a, c.info->RefOf( sp->a ), _
+                           sp->first, sp->count, MT_VOID )
+end function
+
 '' The implicit THIS for a call through 'obj.M( )' or 'p->M( )', or MV_NONE when the
 '' callee is not an instance method.
 ''
