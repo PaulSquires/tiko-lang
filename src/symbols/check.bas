@@ -320,12 +320,43 @@ private function PointerCost_ _
     return CONV_PTR_CLASS
 end function
 
+'' 'zstring * 8' as the string type it IS, or TYPE_NONE.
+''
+'' A fixed-length string is modelled as an ARRAY of the string element, which is what
+'' it is and which makes its layout fall out of the array rule. Nothing else is: fbc
+'' REFUSES a bare 'zstring' array -- "Expected pointer" -- so an array whose element is
+'' the zstring or wstring builtin can only be a fixed-length string, never an array of
+'' them. 'zstring * 4 z(0 to 7)' nests, and it is the INNER array that is the string.
+function FixedStringElem _
+    ( byval t as Fbx.TypeId, byref types as Fbx.TypeContext ) as Fbx.TypeId
+
+    if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+    if types.Kind( t ) <> Fbx.TK_ARRAY then return Fbx.TYPE_NONE
+    dim as Fbx.TypeId e = types.Inner( t )
+    if types.Kind( e ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
+    select case types.BuiltinOf( e )
+    case Fbx.TY_ZSTRING, Fbx.TY_WSTRING, Fbx.TY_USTRING
+        return e
+    end select
+    return Fbx.TYPE_NONE
+end function
+
 function ConversionCost _
     ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
       byref types as Fbx.TypeContext, _
       byval overloaded as boolean = false ) as long
 
     if (from_ = Fbx.TYPE_NONE) orelse (to_ = Fbx.TYPE_NONE) then return CONV_NONE
+    if from_ = to_ then return CONV_EXACT
+
+    '' A fixed-length string converts as the string type it is. Its LENGTH plays no
+    '' part, and cannot: fbc refuses 'byval x as zstring * 4' outright -- error 59,
+    '' "Illegal specification" -- so no parameter ever has one of these types and no
+    '' length-to-length question arises.
+    dim as Fbx.TypeId fsrc = FixedStringElem( from_, types )
+    if fsrc <> Fbx.TYPE_NONE then from_ = fsrc
+    dim as Fbx.TypeId fdst = FixedStringElem( to_, types )
+    if fdst <> Fbx.TYPE_NONE then to_ = fdst
     if from_ = to_ then return CONV_EXACT
 
     '' POINTERS, before the builtin-only tiers below. Everything here is measured in

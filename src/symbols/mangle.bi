@@ -55,6 +55,29 @@ namespace Fbx.Mangle
           byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
           byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
 
+    '' What __FUNCTION__ expands to: the procedure's own name, UPPERCASED and qualified
+    '' by its enclosing namespaces and types -- 'NS.INNER', 'T.M'. It does not
+    '' distinguish overloads, so it is not a mangled name and shares only the qualifier
+    '' walk with one. Measured, docs/internals/phase-6-pointers.md.
+    declare function SourceQualifiedName _
+        ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
+          byref names as Fbx.Interner ) as string
+
+    '' __FUNCTION__'s value at a use site in scope 'sc'. At MODULE level the answer is
+    '' the implicit main procedure's name, '__FB_MAINPROC__' -- measured from the C fbc
+    '' emits, not assumed. (Writing it into a CONCATENATION at module level is a
+    '' separate matter: fbc then looks __FB_MAINPROC__ up as an identifier and reports
+    '' error 42. As a plain value it is the string.)
+    declare function EnclosingProcName _
+        ( byref syms as Fbx.SymbolTable, byval sc as Fbx.ScopeId, _
+          byref names as Fbx.Interner ) as string
+
+    '' The same answer from the procedure SYMBOL rather than from a scope, for lowering,
+    '' which tracks the procedure it is in and not the scope chain around a node.
+    declare function ProcNameOrMain _
+        ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
+          byref names as Fbx.Interner ) as string
+
     '' Encode one type as an Itanium type component, updating the substitution table.
     '' 'syms' is needed because a UDT declared in a namespace encodes as a NESTED
     '' NAME -- N<prefix>3VECE, not 3VEC -- so the type's declaring scope has to be

@@ -425,6 +425,17 @@ function TypeContext.Name( byval t as TypeId ) as string
     case TK_REFERENCE
         return prefix & "byref " & this.Name( this.Inner( t ) )
     case TK_ARRAY
+        '' A fixed-length string is an array of the string element -- see
+        '' Check.FixedStringElem -- so it must SPELL like one, or every diagnostic
+        '' about a 'zstring * 8' calls it 'zstring()' and reads like an array bug.
+        dim as TypeId el = this.Inner( t )
+        if this.Kind( el ) = TK_BUILTIN then
+            select case this.BuiltinOf( el )
+            case TY_ZSTRING, TY_WSTRING, TY_USTRING
+                return prefix & BuiltinName( this.BuiltinOf( el ) ) & " * " & _
+                       this.types[cast( long, t )].elems
+            end select
+        end if
         dim as long d = this.types[cast( long, t )].dims
         dim as string dims = ""
         if d > 0 then

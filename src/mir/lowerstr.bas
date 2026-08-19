@@ -145,14 +145,41 @@ end function
 '' Without this the literal lowered to NOTHING while the call around it still emitted:
 '' 'call void P(%1, _, %2)', an undef where a pointer belonged, and the statement
 '' counted as lowered.
-function LowerStringLitAddr _
+'' The predeclared names that are VALUES rather than storage, or MV_NONE.
+''
+'' TRUE and FALSE have no slot to load from -- -1 and 0, one byte, measured -- and
+'' __FUNCTION__ is a literal by the time it reaches lowering: the address of the
+'' enclosing procedure's SOURCE name, which MirFunction cannot answer because it carries
+'' the mangled one. Resolve has already typed it 'zstring * n'.
+function LowerPredeclared _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+
+    dim as MirValue v
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if s = 0 then return v
+    if (s->flags and Fbx.SYMF_BUILTIN) <> 0 then
+        return ConstInt( c, cast( longint, s->payload ), MT_I8 )
+    end if
+    if (s->flags and Fbx.SYMF_FUNCNAME) <> 0 then
+        return LowerTextAddr( c, Fbx.Mangle.ProcNameOrMain( _
+            *c.syms, c.curProcSym, *c.names ) )
+    end if
+    return v
+end function
+
+function LowerTextAddr _
+    ( byref c as Ctx, byref text as string ) as MirValue
 
     dim as MirValue g
     g.kind = cast( ubyte, MV_GLOBAL )
     g.ty = cast( ubyte, MT_PTR )
-    g.id = cast( ulong, c.m->AddStringLiteral( StringLitText_( c, id ), *c.names ) )
+    g.id = cast( ulong, c.m->AddStringLiteral( text, *c.names ) )
     return g
+end function
+
+function LowerStringLitAddr _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+    return LowerTextAddr( c, StringLitText_( c, id ) )
 end function
 
 

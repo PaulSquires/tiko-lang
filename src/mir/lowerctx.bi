@@ -48,6 +48,10 @@ type Ctx
     '' scopes they are leaving.
     as FB.Array( of long )  loopScope
 
+    '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
+    '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
+    as Fbx.SymbolId         curProcSym
+
     '' The statement kind currently being lowered, so a decline INSIDE one can say which.
     '' The statement-dispatch breakdown accounts for about 3,700 of ~98,700 declines; the
     '' rest happen part-way through a statement and had no attribution at all.
@@ -140,6 +144,11 @@ declare function EmitRtl _
 
     '' The address of a string literal's bytes, as a module global.
     declare function LowerStringLitAddr _
+        ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+    declare function LowerTextAddr _
+        ( byref c as Ctx, byref text as string ) as MirValue
+    '' TRUE, FALSE and __FUNCTION__: predeclared names that are values, not storage.
+    declare function LowerPredeclared _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 
     '' A string literal's text, with the escapes already resolved.

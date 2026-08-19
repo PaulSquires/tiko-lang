@@ -270,7 +270,18 @@ sub WalkNode _
         end if
 
         '' Parameters and locals live in the procedure's own scope.
-        dim as Fbx.ScopeId inner = w.syms->OpenScope( Fbx.SCOPEK_PROC, parentScope, sid )
+        ''
+        '' A member DEFINITION -- 'sub T.M( )' -- declares nothing: the declaration
+        '' inside the type already carries the symbol, its flags and its payload. But
+        '' the scope still needs an OWNER, or it is a proc scope belonging to no
+        '' procedure, and anything walking outward to ask "which procedure am I in"
+        '' gets no answer. __FUNCTION__ inside a method is what found this.
+        dim as Fbx.SymbolId scopeOwner = sid
+        if (scopeOwner = Fbx.SYMBOL_NONE) andalso (declName <> 0) then
+            scopeOwner = w.syms->LookupLocal( parentScope, declName )
+        end if
+        dim as Fbx.ScopeId inner = w.syms->OpenScope( Fbx.SCOPEK_PROC, parentScope, _
+                                                      scopeOwner )
         if s <> 0 then s->inner = inner
         '' A member definition body may say 'this'. The receiver is implicit -- it is
         '' never written as a parameter -- so nothing else would ever declare it.
@@ -280,7 +291,11 @@ sub WalkNode _
                       Fbx.SYM_PARAMETER, w.ast->Loc( id ) )
         end if
         w.info->SetScope( id, inner )
-        if sid <> Fbx.SYMBOL_NONE then w.info->SetRef( id, sid )
+        '' 'scopeOwner', not 'sid': a member DEFINITION declares no symbol of its own,
+        '' so sid is NONE there and the node would carry no reference at all. Lowering
+        '' reads this to find the procedure it is in, and without it __FUNCTION__ inside
+        '' a method lowered to an UNDEF that the call around it happily passed.
+        if scopeOwner <> Fbx.SYMBOL_NONE then w.info->SetRef( id, scopeOwner )
         WalkChildren( w, sp->first, sp->count, inner )
         if sp->b <> Fbx.NODE_NONE then WalkNode( w, sp->b, inner )
 
@@ -359,6 +374,17 @@ end function
 '' and -1 and 0. Every part of that is measured -- 'typeof( true )' is BOOLEAN,
 '' 'cint( true )' is -1 and 'sizeof( true )' is 1 -- because a language where a true
 '' comparison is -1 is not one where 'true' can be assumed to be 1.
+'' __FUNCTION__, whose value depends on WHERE it is used. Collect cannot know that, so
+'' it only plants the marker; Check fills in the name and the type.
+private sub DeclareFuncName _
+    ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+      byref diags as Fbx.DiagnosticEngine, byval spelling as string )
+
+    dim as Fbx.SymbolId sid = DeclareGlobal( syms, names, diags, spelling )
+    dim as Fbx.Symbol ptr s = syms.SymbolAt( sid )
+    if s <> 0 then s->flags or= Fbx.SYMF_FUNCNAME
+end sub
+
 private sub DeclareBuiltinConst _
     ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
       byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
@@ -395,7 +421,9 @@ function Run _
     '' job, being declared at all is this one's.
     DeclareBuiltinConst( syms, names, types, diags, "true", -1 )
     DeclareBuiltinConst( syms, names, types, diags, "false", 0 )
-    DeclareGlobal( syms, names, diags, "__function__" )
+    DeclareFuncName( syms, names, diags, "__function__" )
+    '' __FUNCTION_NQ__ does NOT exist in -lang fb -- fbc reports a syntax error for it
+    '' -- so it is declared and left untyped rather than given a value it cannot have.
     DeclareGlobal( syms, names, diags, "__function_nq__" )
 
     dim as Fbx.ScopeId moduleScope = syms.OpenScope( Fbx.SCOPEK_MODULE, _
@@ -437,6 +465,7 @@ function Dump _
             if (s->flags and Fbx.SYMF_DECLARED) <> 0 then row += " declared"
             if (s->flags and Fbx.SYMF_DEFINED) <> 0 then row += " defined"
             if (s->flags and Fbx.SYMF_BUILTIN) <> 0 then row += " builtin"
+            if (s->flags and Fbx.SYMF_FUNCNAME) <> 0 then row += " funcname"
             if s->nextOverload <> Fbx.SYMBOL_NONE then row += " +overloads"
             outp += row & chr( 10 )
             cur = s->nextInScope

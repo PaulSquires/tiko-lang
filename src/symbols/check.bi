@@ -89,6 +89,10 @@ namespace Fbx.Check
     '' taking 'byte ptr' accepts a SHORT PTR argument with warning 3; add any second
     '' overload -- even a plainly unviable 'double' one -- and the same call is
     '' refused outright. Measured, not inferred: tests/types/expected/fbc-ptr.txt.
+    '' The string element of a 'zstring * n' / 'wstring * n', or TYPE_NONE.
+    declare function FixedStringElem _
+        ( byval t as Fbx.TypeId, byref types as Fbx.TypeContext ) as Fbx.TypeId
+
     declare function ConversionCost _
         ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
           byref types as Fbx.TypeContext, _

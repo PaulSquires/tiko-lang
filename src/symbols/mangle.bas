@@ -81,6 +81,59 @@ end sub
 
 
 
+'' __FUNCTION__'s value. Shares the qualifier walk with mangling and nothing else:
+'' the result is 'NS.INNER', not '_ZN2NS5INNEREv', and two overloads of one name give
+'' the SAME answer because fbc does not distinguish them here.
+'' The implicit module-level procedure. fbc emits P( (char*)"__FB_MAINPROC__" ) for a
+'' module-level __FUNCTION__, so this is a measured spelling and not a placeholder.
+const MAIN_PROC_NAME as string = "__FB_MAINPROC__"
+
+function SourceQualifiedName _
+    ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
+      byref names as Fbx.Interner ) as string
+
+    dim as Fbx.Symbol ptr s = syms.SymbolAt( sid )
+    if s = 0 then return ""
+    dim as FB.Array( of string ) q
+    dim as FB.Array( of ulong ) qt
+    QualifierChain( syms, s->parent, names, q, qt )
+    dim as string r = ""
+    for i as long = 0 to q.Count - 1
+        r += q[i] & "."
+    next
+    return r & Fbx.Text.UpperAscii( names.Spelling( s->name ) )
+end function
+
+
+function ProcNameOrMain _
+    ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
+      byref names as Fbx.Interner ) as string
+
+    if sid = Fbx.SYMBOL_NONE then return MAIN_PROC_NAME
+    dim as string r = SourceQualifiedName( syms, sid, names )
+    if len( r ) = 0 then return MAIN_PROC_NAME
+    return r
+end function
+
+function EnclosingProcName _
+    ( byref syms as Fbx.SymbolTable, byval sc as Fbx.ScopeId, _
+      byref names as Fbx.Interner ) as string
+
+    dim as Fbx.ScopeId cur = sc
+    while cur <> Fbx.SCOPE_NONE
+        dim as Fbx.SymScope ptr s = syms.ScopeAt( cur )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Fbx.SCOPEK_PROC ) then
+            dim as string r = SourceQualifiedName( syms, s->owner, names )
+            if len( r ) > 0 then return r
+            exit while
+        end if
+        cur = s->parent
+    wend
+    return MAIN_PROC_NAME
+end function
+
+
 '' Measured against fbc, tests/mangle. 'integer' and 'uinteger' are VENDOR EXTENDED
 '' types rather than 'x'/'y': they are pointer-sized, so they stay distinct from
 '' longint even on a target where both happen to be 64 bits wide.

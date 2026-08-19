@@ -1,6 +1,7 @@
 '' resolve.bas -- see resolve.bi
 
 #include once "symbols/resolve.bi"
+#include once "symbols/mangle.bi"
 #include once "symbols/check.bi"
 #include once "lexer/keywords.bi"
 
@@ -277,6 +278,22 @@ private sub WalkExpr _
         if sid <> Fbx.SYMBOL_NONE then
             c.info->SetRef( id, sid )
             c.st->references += 1
+            '' __FUNCTION__ types PER USE -- 'zstring * n' where n is the length of the
+            '' enclosing procedure's name -- so it is settled here, where the scope is
+            '' in hand. Check cannot: Collect records scopes and never walks a
+            '' procedure BODY, so ScopeOf on an expression node inside one is
+            '' SCOPE_NONE. At module level there is no enclosing procedure and the node
+            '' stays untyped, which is fbc's answer too: it expands __FUNCTION__ to the
+            '' undeclared __FB_MAINPROC__ and reports error 42.
+            dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( sid )
+            if fs <> 0 then
+                if (fs->flags and Fbx.SYMF_FUNCNAME) <> 0 then
+                    dim as string fn = Fbx.Mangle.EnclosingProcName( _
+                        *c.syms, scope_, *c.names )
+                    c.info->SetType( id, c.types->ArrayOf( _
+                        c.types->Builtin( Fbx.TY_ZSTRING ), 1, len( fn ) + 1 ) )
+                end if
+            end if
         elseif cast( long, nm ) <= FBX_KEYWORD_COUNT then
             '' A keyword used in expression position -- LEN, ASC, SIN. It is a
             '' BUILTIN, not an undefined name. This is free to detect because the

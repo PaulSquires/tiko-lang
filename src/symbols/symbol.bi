@@ -80,6 +80,10 @@ namespace Fbx
     '' a node id and reading one as the other is silent nonsense.
     const SYMF_BUILTIN  as ushort = &h0200
 
+    '' __FUNCTION__. Not a value at all until Check knows which procedure encloses the
+    '' use, so it needs its own marker rather than a payload.
+    const SYMF_FUNCNAME as ushort = &h0400
+
     type Symbol
         as ubyte     kind
         as ushort    flags
