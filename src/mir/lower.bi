@@ -50,6 +50,28 @@ namespace Fbx.Mir
         '' kind of statement they were inside. This is where the mass is: the dispatch
         '' breakdown accounts for about 3,700 of ~98,700.
         as FB.Array( of long ) innerKind
+
+        '' WHY an N_AMBIGUOUS statement declined. That one bucket is 90% of the total, so
+        '' a count against it says only "look here"; this says what to look at. The
+        '' callee NAMES are collected for the unresolved case, because the answer to
+        '' "what is missing" has twice turned out to be a short list of names rather than
+        '' a missing feature.
+        as long ambCallUnbound      '' a call whose callee bound to no symbol
+        as long ambCallNoCode       '' callee bound, and still nothing was emitted
+        as long ambAssign           '' an assignment that did not lower
+        as long ambOther            '' property-set, result-assign, unclassified
+        as FB.Array( of ulong ) ambUnboundNames
+        '' ... and by the SHAPE of the callee, because only a plain identifier has a
+        '' name to collect and most of them are not one.
+        as FB.Array( of long ) ambUnboundShape
+
+        '' Every decline, by the SITE that recorded it. The bucket breakdown says which
+        '' STATEMENT a decline was inside; this says which line of the lowering gave up,
+        '' which is the thing you can actually go and implement. Roughly twenty sites, so
+        '' a linear scan is cheaper than a map and keeps the order stable.
+        as FB.Array( of ulong ) skipSiteFile   '' InternId of the file name
+        as FB.Array( of long )  skipSiteLine
+        as FB.Array( of long )  skipSiteN
     end type
 
     declare function Lower _

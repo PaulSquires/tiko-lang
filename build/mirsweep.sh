@@ -31,27 +31,32 @@ find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 : > build/.mir.out
 while IFS= read -r f; do
     ./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null \
-        | grep -E '^(lowered|verify):|^  unlowered |^  inside ' >> build/.mir.out || true
+        | grep -E '^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb ' >> build/.mir.out || true
 done < build/.corpus.lst
+
 awk '
 /^lowered:/ {
-  n++
-  if (match($0,/ ([0-9]+) functions/,m))               { if (m[1]==0) empty++; else withfn++ }
+  files++
+  if (match($0,/ ([0-9]+) functions/,m))               fn  += m[1]
   if (match($0,/ ([0-9]+) blocks/,m))                  blk += m[1]
   if (match($0,/ ([0-9]+) insts/,m))                   ins += m[1]
   if (match($0,/ ([0-9]+) statements not lowered/,m))  sk  += m[1]
   if (match($0,/ ([0-9]+) scope imbalance/,m))         si  += m[1]
-  if (/LABEL DEPTH MISMATCH/)                          mm++
+  if (match($0,/ ([0-9]+) label depth/,m))             ld  += m[1]
+  if (ins_prev == ins) empty++
+  ins_prev = ins
 }
-/^verify: fail/          { vf++ }
+/^verify: FAIL/          { vf++ }
 /^  unlowered N_/        { kind[$2] += $3 }
 /^  unlowered intrinsic/ { intr[$3] += $4 }
 /^  inside N_/           { inner[$2] += $3 }
+/^  skip-site /          { site[$2] += $3 }
+/^  amb /                { amb[$2] += $3 }
 END {
-  printf "mirsweep: %d files, %d blocks, %d insts\n", n, blk, ins
-  printf "mirsweep: %d files emit code, %d emit nothing\n", withfn+0, empty+0
-  printf "mirsweep: %d statements not lowered, of those that reached lowering\n", sk+0
-  printf "mirsweep: %d scope imbalance, %d verify failures, %d label depth mismatches\n", si+0, vf+0, mm+0
+  printf "mirsweep: %d files, %d blocks, %d insts\n", files, blk, ins
+  printf "mirsweep: %d files emit code, %d emit nothing\n", files - empty, empty
+  printf "mirsweep: %d statements not lowered, of those that reached lowering\n", sk
+  printf "mirsweep: %d scope imbalance, %d verify failures, %d label depth mismatches\n", si, vf, ld
   printf "mirsweep: --- never STARTED (statement dispatch) ---\n"
   n1 = asorti(kind, ks, "@val_num_desc")
   for (i = 1; i <= n1 && i <= 6; i++) printf "mirsweep:  %8d  %s\n", kind[ks[i]], ks[i]
@@ -60,5 +65,11 @@ END {
   printf "mirsweep: --- started and not FINISHED, by the statement it was inside ---\n"
   n3 = asorti(inner, is3, "@val_num_desc")
   for (i = 1; i <= n3 && i <= 8; i++) printf "mirsweep:  %8d  inside %s\n", inner[is3[i]], is3[i]
+  printf "mirsweep: --- the LINE that gave up ---\n"
+  n4 = asorti(site, is4, "@val_num_desc")
+  for (i = 1; i <= n4 && i <= 12; i++) printf "mirsweep:  %8d  %s\n", site[is4[i]], is4[i]
+  printf "mirsweep: --- why an N_AMBIGUOUS statement emitted NOTHING ---\n"
+  n5 = asorti(amb, is5, "@val_num_desc")
+  for (i = 1; i <= n5; i++) printf "mirsweep:  %8d  amb %s\n", amb[is5[i]], is5[i]
 }
 ' build/.mir.out

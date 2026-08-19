@@ -156,6 +156,23 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     declare function LowerTextAddr _
         ( byref c as Ctx, byref text as string ) as MirValue
+    '' Constructors and destructors: finding them, and calling one on a slot.
+    declare function StructorOf _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref which as string ) as Fbx.SymbolId
+    declare function StructorWithArity _
+        ( byref c as Ctx, byval first_ as Fbx.SymbolId, byval want as long ) as Fbx.SymbolId
+    declare sub EmitStructorCall _
+        ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+    declare sub EmitCtorCall _
+        ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+    declare sub EmitDtorCall _
+        ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+
+    '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
+    declare function ReceiverOf _
+        ( byref c as Ctx, byval target as Fbx.NodeId, _
+          byval callee as Fbx.SymbolId ) as MirValue
+
     '' A DIM SHARED / STATIC initialiser: a compile-time value, not a store on entry.
     declare sub InitSharedGlobal _
         ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init as Fbx.NodeId )
@@ -168,8 +185,17 @@ declare function EmitRtl _
     declare function StringLitText_ _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as string
 
+    '' Which half of a declined call statement is at fault, and the callee's name.
+    declare sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
+
     '' Records a decline part-way through the statement being lowered.
-    declare sub SkipHere( byref c as Ctx )
+    ''
+    '' A MACRO, so the call SITE is captured rather than this file's own line. Twenty
+    '' places give up on a statement and the totals alone cannot tell them apart; with
+    '' the site, "what is not lowered" is a list of lines to go and read.
+    declare sub SkipAt _
+        ( byref c as Ctx, byref fileName as string, byval lineNo as long )
+    #define SkipHere( c__ ) SkipAt( (c__), __FILE__, __LINE__ )
     declare sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )
 
 end namespace

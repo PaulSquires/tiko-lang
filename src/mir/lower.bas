@@ -399,6 +399,19 @@ private function LowerCall _
     '' Arguments go into the module's shared pool as (kind, id) pairs.
     dim as long first = c.m->argPool.Count \ 2
     dim as long n = 0
+
+    '' THE RECEIVER IS THE FIRST ARGUMENT of an instance method, and it was missing.
+    '' fbc declares 'void _ZN1T1MEi( struct $1T*, int32 )'; fbx emitted
+    '' 'call void _ZN1T1MEi(%5)' -- the right name, the wrong arguments, and no decline,
+    '' so it counted as fully lowered. A mangled name that says member and a call that
+    '' does not pass one is the worst shape a bug can have here.
+    dim as MirValue self_ = ReceiverOf( c, cp->target, callee )
+    if self_.kind <> cast( ubyte, MV_NONE ) then
+        c.m->argPool.Push( cast( ulong, self_.kind ) )
+        c.m->argPool.Push( cast( ulong, self_.id ) )
+        n += 1
+    end if
+
     for i as long = 0 to cp->count - 1
         dim as MirValue a = LowerExpr( c, cast( Fbx.NodeId, c.ast->children[cp->first + i] ) )
         c.m->argPool.Push( cast( ulong, a.kind ) )
@@ -446,98 +459,6 @@ end function
 
 
 
-'' The ctor or dtor of a type, or SYMBOL_NONE. They live in the type's scope under a
-'' synthetic name, because neither has a name of its own in the source.
-private function StructorOf _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref which as string ) as Fbx.SymbolId
-
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( t )
-    if tn = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->Lookup( ds, tn )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Fbx.SYMBOL_NONE
-    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
-    return c.syms->LookupLocal( s->inner, _
-        c.names->Fold( c.names->GetString( which ) ) )
-end function
-
-'' The overload in a chain that takes exactly 'want' parameters. A default
-'' constructor and a destructor are the zero-parameter ones -- taking the head of the
-'' chain instead picked whichever overload happened to be first.
-private function StructorWithArity _
-    ( byref c as Ctx, byval first_ as Fbx.SymbolId, byval want as long ) as Fbx.SymbolId
-
-    dim as Fbx.SymbolId cur = first_
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
-        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-            dim as long np = 0
-            for i as long = 0 to pp->count - 1
-                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
-            next
-            if np = want then return cur
-        end if
-        cur = s->nextOverload
-    wend
-    return Fbx.SYMBOL_NONE
-end function
-
-'' A call to a structor with the slot's address as the implicit THIS. The receiver is
-'' the first argument, per the ABI, which is also how the mangled name reads.
-private sub EmitStructorCall _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
-
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-    if pn = Fbx.NODE_NONE then return
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return
-
-    dim as MirValue self_
-    self_.kind = cast( ubyte, MV_LOCAL )
-    self_.ty = cast( ubyte, MT_PTR )
-    self_.id = slot
-
-    dim as long first = c.m->argPool.Count \ 2
-    c.m->argPool.Push( cast( ulong, self_.kind ) )
-    c.m->argPool.Push( cast( ulong, self_.id ) )
-
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
-        decl->isDefinition = false
-        decl->paramCount = 1
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, MT_VOID )
-    ins.first = first
-    ins.count = 1
-    ins.callee = fidx
-    Emit( c, ins )
-end sub
-
-private sub EmitDtorCall _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
-    EmitStructorCall( c, sym, slot )
-end sub
 
 
 '' -------------------------------------------------------------- cleanup model
@@ -940,7 +861,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         select case c.info->AmbiguousOf( id )
         case Fbx.AMB_ASSIGN
+            dim as long beforeA = c.f->blocks[c.curBlock].insts.Count
             LowerAssign( c, sp->a, sp->b )
+            if c.f->blocks[c.curBlock].insts.Count = beforeA then
+                c.st->ambAssign += 1
+            end if
         case Fbx.AMB_CALL
             '' A CALL STATEMENT THAT PRODUCES NOTHING IS A DECLINE, and has to be counted
             '' as one. LowerCall returns MV_NONE for an unresolved callee without
@@ -952,9 +877,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' is whether the statement emitted ANY instruction, not what it returned.
             dim as long beforeN = c.f->blocks[c.curBlock].insts.Count
             LowerExpr( c, sp->a )
-            if c.f->blocks[c.curBlock].insts.Count = beforeN then SkipHere( c )
+            if c.f->blocks[c.curBlock].insts.Count = beforeN then
+                SkipHere( c )
+                CountUnlowredCall( c, sp->a )
+            end if
         case else
             SkipHere( c )
+            c.st->ambOther += 1
         end select
 
     case Fbx.N_IF

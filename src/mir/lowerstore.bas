@@ -147,6 +147,131 @@ private function UniqueGlobalName _
 end function
 
 '' The ADDRESS of a variable, wherever its storage lives.
+'' The ctor or dtor of a type, or SYMBOL_NONE. They live in the type's scope under a
+'' synthetic name, because neither has a name of its own in the source.
+function StructorOf _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref which as string ) as Fbx.SymbolId
+
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->Lookup( ds, tn )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Fbx.SYMBOL_NONE
+    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( s->inner, _
+        c.names->Fold( c.names->GetString( which ) ) )
+end function
+
+'' The overload in a chain that takes exactly 'want' parameters. A default
+'' constructor and a destructor are the zero-parameter ones -- taking the head of the
+'' chain instead picked whichever overload happened to be first.
+function StructorWithArity _
+    ( byref c as Ctx, byval first_ as Fbx.SymbolId, byval want as long ) as Fbx.SymbolId
+
+    dim as Fbx.SymbolId cur = first_
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+            dim as long np = 0
+            for i as long = 0 to pp->count - 1
+                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+            next
+            if np = want then return cur
+        end if
+        cur = s->nextOverload
+    wend
+    return Fbx.SYMBOL_NONE
+end function
+
+'' A call to a structor with the slot's address as the implicit THIS. The receiver is
+'' the first argument, per the ABI, which is also how the mangled name reads.
+sub EmitStructorCall _
+    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    if s = 0 then return
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+    if pn = Fbx.NODE_NONE then return
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return
+
+    dim as MirValue self_
+    self_.kind = cast( ubyte, MV_LOCAL )
+    self_.ty = cast( ubyte, MT_PTR )
+    self_.id = slot
+
+    dim as long first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( ulong, self_.kind ) )
+    c.m->argPool.Push( cast( ulong, self_.id ) )
+
+    dim as Fbx.InternId nm = c.names->GetString( _
+        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
+        decl->isDefinition = false
+        decl->paramCount = 1
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as MirInst ins
+    ins.op = cast( ushort, M_CALL )
+    ins.ty = cast( ubyte, MT_VOID )
+    ins.first = first
+    ins.count = 1
+    ins.callee = fidx
+    Emit( c, ins )
+end sub
+
+sub EmitDtorCall _
+    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+    EmitStructorCall( c, sym, slot )
+end sub
+
+'' The implicit THIS for a call through 'obj.M( )' or 'p->M( )', or MV_NONE when the
+'' callee is not an instance method.
+''
+'' 'obj.M' passes the receiver's ADDRESS; 'p->M' passes the pointer itself, which is
+'' already an address. A STATIC member takes no receiver, and neither does anything
+'' declared outside a type.
+function ReceiverOf _
+    ( byref c as Ctx, byval target as Fbx.NodeId, _
+      byval callee as Fbx.SymbolId ) as MirValue
+
+    dim as MirValue v
+    if target = Fbx.NODE_NONE then return v
+    if c.ast->Kind( target ) <> Fbx.N_MEMBER then return v
+
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return v
+    dim as Fbx.SymScope ptr owner = c.syms->ScopeAt( cs->parent )
+    if owner = 0 then return v
+    if owner->kind <> cast( ubyte, Fbx.SCOPEK_TYPE ) then return v
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
+    if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+        if (StmtOf( c, pn )->extra and Fbx.PF_STATIC) <> 0 then return v
+    end if
+
+    dim as Fbx.BinaryPayload ptr mb = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
+    if (c.ast->nodes[cast( long, target )].flags and Fbx.NF_ARROW) <> 0 then
+        return LowerExpr( c, mb->lhs )
+    end if
+    return LowerAddr( c, mb->lhs )
+end function
+
 '' A DIM SHARED or STATIC initialiser, which is a compile-time value rather than a store
 '' on entry. A non-constant one cannot become a static one and declines.
 sub InitSharedGlobal _

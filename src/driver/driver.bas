@@ -270,6 +270,32 @@ function Run( byref args as Fbx.StrVec ) as long
                           Fbx.TokenKindName( cast( Fbx.TokenKind, lst.skippedIntrOp[i] ) ) & _
                           " " & str( lst.skippedIntrN[i] )
                 next
+                '' WHY the N_AMBIGUOUS statements declined -- the bucket that is 90% of
+                '' the total, split into the halves that need different work.
+                if lst.ambCallUnbound > 0 then
+                    print "  amb call-unbound " & str( lst.ambCallUnbound )
+                end if
+                if lst.ambCallNoCode > 0 then
+                    print "  amb call-nocode " & str( lst.ambCallNoCode )
+                end if
+                if lst.ambAssign > 0 then print "  amb assign " & str( lst.ambAssign )
+                if lst.ambOther > 0 then print "  amb other " & str( lst.ambOther )
+                '' Which LINE of the lowering gave up, which is the thing to go and read.
+                for i as long = 0 to lst.skipSiteN.Count - 1
+                    print "  skip-site " & _
+                          ctx.names.Spelling( cast( Fbx.InternId, lst.skipSiteFile[i] ) ) & _
+                          ":" & str( lst.skipSiteLine[i] ) & " " & str( lst.skipSiteN[i] )
+                next
+                for i as long = 0 to lst.ambUnboundShape.Count - 1
+                    if lst.ambUnboundShape[i] = 0 then continue for
+                    print "  amb-unbound-shape " & _
+                          Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
+                          str( lst.ambUnboundShape[i] )
+                next
+                for i as long = 0 to lst.ambUnboundNames.Count - 1
+                    print "  amb-unbound-name " & _
+                          ctx.names.Spelling( cast( Fbx.InternId, lst.ambUnboundNames[i] ) )
+                next
             elseif ctx.options.checkOnly then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _

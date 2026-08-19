@@ -1,0 +1,13 @@
+'' THE RECEIVER IS THE FIRST ARGUMENT of an instance method. fbc declares
+'' 'void _ZN1T1MEi( struct $1T*, int32 )'; fbx emitted 'call void _ZN1T1MEi(%5)' -- the
+'' right mangled name, the wrong arguments, and no decline, so it counted as fully
+'' lowered. A mangled name that says member and a call that does not pass one is the
+'' worst shape this kind of bug can have.
+''
+'' 'obj.M' passes the receiver's ADDRESS; 'p->M' passes the pointer, which is already one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/receiver.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call void _ZN1T1MEi(@obj,
+'' EXPECT-OUT: call i32 _ZN1T1GEv(@obj)
+'' EXPECT-OUT: 0 statements not lowered

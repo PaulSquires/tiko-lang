@@ -32,13 +32,67 @@ declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 '' inside. The statement-dispatch counter says which statements were never started; this
 '' says which ones were started and could not be finished, and that is the larger number
 '' by more than an order of magnitude.
-sub SkipHere( byref c as Ctx )
+sub SkipAt _
+    ( byref c as Ctx, byref fileName as string, byval lineNo as long )
+
     c.st->skipped += 1
+    '' The site, found by linear scan: about twenty of them, so a map would cost more
+    '' than it saved and would not keep the order stable across runs.
+    dim as Fbx.InternId fid = c.names->GetString( fileName )
+    dim as boolean seen = false
+    for i as long = 0 to c.st->skipSiteN.Count - 1
+        if (c.st->skipSiteFile[i] = cast( ulong, fid )) andalso _
+           (c.st->skipSiteLine[i] = lineNo) then
+            c.st->skipSiteN[i] += 1
+            seen = true
+            exit for
+        end if
+    next
+    if seen = false then
+        c.st->skipSiteFile.Push( cast( ulong, fid ) )
+        c.st->skipSiteLine.Push( lineNo )
+        c.st->skipSiteN.Push( 1 )
+    end if
     dim as long k = cast( long, c.curStmtKind )
     while c.st->innerKind.Count <= k
         c.st->innerKind.Push( 0 )
     wend
     c.st->innerKind[k] += 1
+end sub
+
+'' Which HALF of a declined call statement is at fault: a callee that bound to nothing,
+'' or a callee that bound and still emitted nothing. The two need completely different
+'' work -- a missing declaration against a missing lowering -- and the count against
+'' N_AMBIGUOUS alone cannot tell them apart.
+''
+'' The unbound callee's NAME is recorded too. Twice now the answer to "what is missing"
+'' has been a short list of names rather than a feature.
+sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
+    if call_ = Fbx.NODE_NONE then return
+    if c.ast->Kind( call_ ) <> Fbx.N_CALL then
+        c.st->ambOther += 1
+        return
+    end if
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, call_ )].data )]
+    if c.info->RefOf( call_ ) <> Fbx.SYMBOL_NONE then
+        c.st->ambCallNoCode += 1
+        return
+    end if
+    c.st->ambCallUnbound += 1
+    if cp->target = Fbx.NODE_NONE then return
+    dim as long tk = cast( long, c.ast->Kind( cp->target ) )
+    while c.st->ambUnboundShape.Count <= tk
+        c.st->ambUnboundShape.Push( 0 )
+    wend
+    c.st->ambUnboundShape[tk] += 1
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return
+    if c.st->ambUnboundNames.Count >= 200000 then return
+    '' An N_IDENT's payload is an IDENT, not a statement. Reading it through StmtOf
+    '' indexes a different pool -- the mistake this project has made six times.
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    c.st->ambUnboundNames.Push( cast( ulong, ip->name ) )
 end sub
 
 '' Records an unlowered STATEMENT, by kind, so the next thing to implement is something
