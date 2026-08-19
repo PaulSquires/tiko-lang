@@ -173,7 +173,7 @@ function Run( byref args as Fbx.StrVec ) as long
     elseif ctx.options.dumpRtl then
         '' The inventory does not depend on any input, so it is answered before the
         '' sources are even looked at.
-        print Fbx.Mir.DumpRtl( );
+        print Fbx.Mir.DumpRtl( ctx.options.target = Fbx.TARGET_WIN32 );
 
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _

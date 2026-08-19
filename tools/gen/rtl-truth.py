@@ -22,10 +22,19 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe")
-LIB = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows\lib\win64\libfb.a")
-OUT = ROOT / "tests/expected/fbc-rtl.txt"
-WORK = ROOT / "build/.rt"
+
+# One entry per target. win32 comes from a DIFFERENT fbc, because fbc-modern has no
+# 32-bit build; what was compared before trusting that is recorded in
+# docs/internals/phase-5-rtl-win32.md.
+TC64 = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows")
+TC32 = Path(r"C:\dev\tiko_editor\toolchains\FreeBASIC-1.10.1-winlibs-gcc-9.3.0")
+TARGETS = {
+    "win64": (TC64 / "fbc64.exe", TC64 / "lib/win64/libfb.a",
+              ROOT / "tests/expected/fbc-rtl.txt", ROOT / "build/.rt", []),
+    "win32": (TC32 / "fbc32.exe", TC32 / "lib/win32/libfb.a",
+              ROOT / "tests/expected/fbc-rtl-win32.txt", ROOT / "build/.rt32",
+              ["-gen", "gcc"]),
+}
 
 # Each probe is a fragment whose lowering pulls in a family of runtime calls. They are
 # deliberately small: the point is to make fbc declare the functions, not to exercise
@@ -119,29 +128,35 @@ end sub
 }
 
 
-def main() -> int:
-    if not FBC.exists():
-        print(f"rtl-truth: fbc not found at {FBC}", file=sys.stderr)
+# A declaration, not a call: ends in ');' and has no assignment or body. win32 adds
+# '__stdcall' and an asm() alias carrying the DECORATED name -- '_fb_StrAssign@20' --
+# which is exactly what fbx has to emit there, so it is captured rather than stripped.
+DECL = re.compile(
+    r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?(fb_\w+)\s*\(([^;{]*?)\)"
+    r"(?:\s*asm\(\"([^\"]*)\"\))?\s*;")
+
+
+def one_target(label, fbc, lib, out, work, extra) -> int:
+    if not fbc.exists():
+        print(f"rtl-truth: {label}: no fbc at {fbc}", file=sys.stderr)
         return 3
-    WORK.mkdir(parents=True, exist_ok=True)
+    work.mkdir(parents=True, exist_ok=True)
 
     sigs = {}
     for name, body in PROBES.items():
-        src = WORK / (name + ".bas")
+        src = work / (name + ".bas")
         src.write_text(body.lstrip(), encoding="utf-8")
-        cmd = [str(FBC), "-c", "-r", str(src), "-o", str(WORK / (name + ".o"))]
+        cmd = [str(fbc), "-c", "-r", str(src), "-o", str(work / (name + ".o"))] + extra
         if name in MAIN_MODULE:
             cmd += ["-m", name]
-        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(WORK))
-        c = WORK / (name + ".c")
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(work))
+        c = work / (name + ".c")
         if not c.exists():
-            print(f"rtl-truth: {name}: no C intermediate\n"
+            print(f"rtl-truth: {label}: {name}: no C intermediate\n"
                   + (proc.stdout or "") + (proc.stderr or ""), file=sys.stderr)
             continue
         for line in c.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            # A declaration, not a call: ends in ');' and has no assignment or body.
-            m = re.fullmatch(r"([A-Za-z_][\w \*]*?)\s+(fb_\w+)\s*\(([^;{]*)\)\s*;", line)
+            m = DECL.fullmatch(line.strip())
             if m:
                 ret, fn, args = m.group(1).strip(), m.group(2), m.group(3).strip()
                 # 'fb_ctor__<module>' is the per-translation-unit constructor fbc
@@ -150,29 +165,45 @@ def main() -> int:
                 if fn.startswith("fb_ctor__") or ret.startswith("static"):
                     continue
                 args = " ".join(args.split())
-                sigs.setdefault(fn, (ret, args))
+                # No asm() clause means fbc did not decorate it, which on win32 is the
+                # VARIADIC functions -- cdecl, because varargs need caller cleanup. They
+                # still take the leading underscore: the archive holds '_fb_ArrayRedimEx'
+                # with no '@N'. The C intermediate never spells that, so it is supplied
+                # here rather than left looking like an undecorated symbol.
+                sym = m.group(4)
+                if sym is None:
+                    sym = ("_" + fn) if label == "win32" else fn
+                sigs.setdefault(fn, (ret, args, sym))
 
     if not sigs:
-        print("rtl-truth: no runtime declarations found", file=sys.stderr)
+        print(f"rtl-truth: {label}: no runtime declarations found", file=sys.stderr)
         return 1
 
     # Cross-check every name against the runtime archive. A name absent from libfb is
     # a signature fbx would emit and the linker would then reject.
-    libdata = LIB.read_bytes() if LIB.exists() else b""
+    libdata = lib.read_bytes() if lib.exists() else b""
     rows, missing = [], []
     for fn in sorted(sigs):
-        ret, args = sigs[fn]
-        present = fn.encode("ascii") in libdata
+        ret, args, sym = sigs[fn]
+        present = sym.encode("ascii") in libdata
         if not present:
             missing.append(fn)
-        rows.append(f"{fn}\t{ret}\t{args}\t{'lib' if present else 'ABSENT'}")
+        rows.append(f"{fn}\t{ret}\t{args}\t{'lib' if present else 'ABSENT'}\t{sym}")
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
-    print(f"rtl-truth: {len(rows)} runtime functions -> tests/expected/fbc-rtl.txt")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
+    print(f"rtl-truth: {label}: {len(rows)} runtime functions -> {out.name}")
     if missing:
-        print(f"rtl-truth: {len(missing)} NOT found in libfb.a: " + ", ".join(missing))
+        print(f"rtl-truth: {label}: {len(missing)} NOT in libfb.a: " + ", ".join(missing))
     return 0
+
+
+def main() -> int:
+    rc = 0
+    for label, (fbc, lib, out, work, extra) in TARGETS.items():
+        if one_target(label, fbc, lib, out, work, extra) not in (0,):
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

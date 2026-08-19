@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Compare fbx's runtime inventory with the signatures FBC emits.
+"""Compare fbx's runtime inventory with the signatures FBC emits, on BOTH targets.
 
     python tools/gen/check-rtl.py
 
-Reads tests/expected/fbc-rtl.txt -- produced by rtl-truth.py from the C intermediate
-fbc leaves behind, and cross-checked against libfb.a -- and compares it with
-'fbx --dump-rtl'.
+Reads tests/expected/fbc-rtl.txt and fbc-rtl-win32.txt -- produced by rtl-truth.py from
+the C intermediate fbc leaves behind, and cross-checked against libfb.a -- and compares
+each with 'fbx --dump-rtl' for that target.
 
 Passing three arguments to a two-argument runtime function is a link error at best and
 a silent stack mismatch at worst, so the arity and every parameter type are compared,
-not just the names.
+not just the names. On win32 the NAME is compared too, decoration included: the runtime
+is stdcall there and its symbols carry '_fb_StrAssign@20' rather than 'fb_StrAssign'.
 """
 import re
 import subprocess
@@ -17,8 +18,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-TRUTH = ROOT / "tests/expected/fbc-rtl.txt"
 FBX = ROOT / "bin/fbx.exe"
+
+TARGETS = [
+    ("win64", ROOT / "tests/expected/fbc-rtl.txt", []),
+    ("win32", ROOT / "tests/expected/fbc-rtl-win32.txt", ["-target", "win32"]),
+]
 
 # fbc's C spelling -> the MIR type fbx names it by.
 #
@@ -44,45 +49,43 @@ def c_to_mir(t: str) -> str:
     return CMAP.get(t, "?" + t)
 
 
-def main() -> int:
-    if not TRUTH.exists():
-        print("check-rtl: no truth file; run tools/gen/rtl-truth.py", file=sys.stderr)
-        return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print("check-rtl: fbx not built", file=sys.stderr)
+def one_target(fbx, label, truth, tgtargs):
+    if not truth.exists():
+        print(f"check-rtl: {label}: no truth file; run tools/gen/rtl-truth.py",
+              file=sys.stderr)
         return 3
 
+    # The win32 file carries a fifth column: the DECORATED symbol, which is the name
+    # fbx has to emit. On win64 it is the plain name and the column agrees with it.
     want = {}
-    for line in TRUTH.read_text(encoding="utf-8").splitlines():
+    for line in truth.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        fn, ret, args, present = line.split("\t")
+        cols = line.split("\t")
+        fn, ret, args, present = cols[0], cols[1], cols[2], cols[3]
+        sym = cols[4] if len(cols) > 4 else fn
         arglist = [a.strip() for a in args.split(",")] if args and args != "void" else []
-        want[fn] = (c_to_mir(ret), [c_to_mir(a) for a in arglist], present)
+        want[sym] = (fn, c_to_mir(ret), [c_to_mir(a) for a in arglist], present)
 
     probe = ROOT / "build/.rt/e.bas"
     probe.parent.mkdir(parents=True, exist_ok=True)
     probe.write_text("sub F( )\nend sub\n", encoding="utf-8", newline="\n")
-    proc = subprocess.run([str(fbx), "--dump-rtl", str(probe)],
+    proc = subprocess.run([str(fbx), "--dump-rtl"] + tgtargs + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
-        m = re.fullmatch(r"(fb_\w+) (\w+) \((.*)\)", line.strip())
+        m = re.fullmatch(r"(\S+) (\w+) \((.*)\)", line.strip())
         if m:
             args = [a.strip() for a in m.group(3).split(",")] if m.group(3) else []
             got[m.group(1)] = (m.group(2), args)
 
-    ok = bad = 0
-    diffs = []
-    for fn, (gret, gargs) in sorted(got.items()):
-        if fn not in want:
-            bad += 1
-            diffs.append(f"{fn}: in fbx's table, not in anything fbc emitted")
+    ok, diffs = 0, []
+    for sym, (gret, gargs) in sorted(got.items()):
+        if sym not in want:
+            diffs.append(f"{sym}: in fbx's table, not in anything fbc emitted")
             continue
-        wret, wargs, present = want[fn]
+        fn, wret, wargs, present = want[sym]
         if present != "lib":
-            bad += 1
             diffs.append(f"{fn}: not an exported symbol of libfb.a")
             continue
         # A variadic tail is not modelled yet; compare the fixed prefix.
@@ -90,30 +93,36 @@ def main() -> int:
         cmp_w = [a for a in wargs if a != "..."]
         gargs = [a for a in gargs if a != "..."]
         if gret != wret:
-            bad += 1
             diffs.append(f"{fn}: return fbc={wret} fbx={gret}")
             continue
-        if variadic:
-            if gargs != cmp_w:
-                bad += 1
-                diffs.append(f"{fn}: fixed args fbc={cmp_w} fbx={gargs}")
-                continue
-        elif gargs != cmp_w:
-            bad += 1
-            diffs.append(f"{fn}: args fbc={cmp_w} fbx={gargs}")
+        if gargs != cmp_w:
+            kind = "fixed args" if variadic else "args"
+            diffs.append(f"{fn}: {kind} fbc={cmp_w} fbx={gargs}")
             continue
         ok += 1
 
-    print(f"check-rtl: {ok}/{len(got)} entries match the signatures fbc emits")
+    print(f"check-rtl: {label} {ok}/{len(got)} entries match the signatures fbc emits")
     unused = sorted(set(want) - set(got))
     if unused:
-        print(f"check-rtl: {len(unused)} measured but not yet in fbx's table: "
+        print(f"check-rtl: {label} {len(unused)} measured but not yet in fbx's table: "
               + ", ".join(unused))
     if diffs:
-        print(f"check-rtl: {len(diffs)} disagreements:")
+        print(f"check-rtl: {label} {len(diffs)} disagreements:")
         for d in diffs[:20]:
             print("   ", d)
     return 0 if not diffs else 1
+
+
+def main() -> int:
+    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
+    if not fbx.exists():
+        print("check-rtl: fbx not built", file=sys.stderr)
+        return 3
+    rc = 0
+    for label, truth, tgtargs in TARGETS:
+        if one_target(fbx, label, truth, tgtargs) != 0:
+            rc = 1
+    return rc
 
 
 if __name__ == "__main__":

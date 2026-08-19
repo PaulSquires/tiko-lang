@@ -101,7 +101,10 @@ function EmitRtl _
     ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
 
     dim as MirValue v
-    dim as Fbx.InternId nm = c.names->GetString( RtlSymbol( r ) )
+    '' The LINKER-VISIBLE name, which on win32 carries the underscore and the stdcall
+    '' '@N'. A 32-bit pointer means win32: Linux is 64-bit only by decision.
+    dim as boolean is32 = (c.types->target.pointerBits = 32)
+    dim as Fbx.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
@@ -110,7 +113,7 @@ function EmitRtl _
         end if
     next
     if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r ) )
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
         decl->isDefinition = false
         decl->paramCount = RtlArity( r )
         fidx = c.m->functions.Count - 1
@@ -123,7 +126,7 @@ function EmitRtl _
 
     dim as MirInst ins
     ins.op = cast( ushort, M_CALL_RTL )
-    ins.ty = cast( ubyte, RtlReturn( r ) )
+    ins.ty = cast( ubyte, RtlReturn( r, is32 ) )
     ins.first = first
     ins.count = args.Count \ 2
     ins.callee = fidx
