@@ -2,6 +2,7 @@
 
 #include once "driver/cmdline.bi"
 #include once "support/text.bi"
+#include once "fb/filesystem.bi"
 
 namespace Fbx
 
@@ -164,6 +165,40 @@ private function SplitEq _
     rhs = mid( arg, at + 1 )
     return true
 end function
+
+'' fbx ships no headers of its own, and until this it searched no directory it had
+'' not been given: '#include "vbcompat.bi"' failed where fbc compiles it clean. fbc's
+'' search ends at <exe-dir>/inc, and 144 of the corpus's 145 include failures are that
+'' one missing rule -- 17 of them parse completely clean once it is there.
+''
+'' Appended LAST, so every -i the user gave still wins, and only if the directory
+'' actually exists: a search path that is not there costs a stat per include for
+'' nothing. Both layouts are tried, because fbx lives in bin/ and fbc does not:
+''
+''     <exe-dir>/inc        fbc's shape
+''     <exe-dir>/../inc     fbx's, with the exe in bin/
+''
+'' FBX_INCLUDE overrides both, which is how a build with no bundled headers -- the
+'' corpus runs, today -- points at a header set without every caller repeating -i.
+private sub AppendDefaultIncludeDir( byref opts as Fbx.DriverOptions )
+    dim as ustring env_ = environ( "FBX_INCLUDE" )
+    if len( env_ ) > 0 then
+        opts.includePaths.Push( env_ )
+        return
+    end if
+
+    dim as ustring exeDir = exepath( )
+    if len( exeDir ) = 0 then return
+
+    dim as ustring cand = FB.PathJoin( exeDir, "inc" )
+    if FB.IsDir( cand ) then
+        opts.includePaths.Push( cand )
+        return
+    end if
+
+    cand = FB.PathJoin( FB.PathParent( exeDir ), "inc" )
+    if FB.IsDir( cand ) then opts.includePaths.Push( cand )
+end sub
 
 private function MatchExact( byval arg as string ) as Fbx.OptId
     Fbx.InitOptTable( )
@@ -412,6 +447,8 @@ function Parse _
         if Fbx.TargetIsWindows( opts.target ) then opts.target = Fbx.TARGET_WIN64
     end if
     opts.targetName = Fbx.TargetName( opts.target )
+
+    AppendDefaultIncludeDir( opts )
 
     return ok
 end function

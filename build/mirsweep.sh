@@ -27,6 +27,19 @@ CORPUS=tests/vendor/fbc-tests
 FBCUNIT=""
 [ -d "$CORPUS/fbcunit/inc" ] && FBCUNIT="-i $CORPUS/fbcunit/inc"
 
+# fbx ships no headers, so its default include directory does not exist in a source
+# tree. 144 corpus files include a real FreeBASIC runtime header; without a header set
+# they fail at their first line and every number after that is measured against files
+# that could not open their own dependencies. FBX_INCLUDE is the driver's own override,
+# so this is the same shape as the -i above: a HARNESS fact, not a compiler one.
+FBXINC=${FBX_INCLUDE:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/inc}
+if [ -d "$FBXINC" ]; then
+    FBX_INCLUDE="$FBXINC"
+    export FBX_INCLUDE
+else
+    echo "mirsweep: no runtime headers at $FBXINC -- 144 files will fail on #include" >&2
+fi
+
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 
 # One fbx per file, N at a time. Each writes its OWN part file rather than appending to

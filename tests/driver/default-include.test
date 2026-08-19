@@ -1,0 +1,8 @@
+'' The default include directory: fbx searches one it was not given, the way fbc
+'' searches <exe-dir>/inc. FBX_INCLUDE overrides it, which is what this exercises --
+'' the <exe-dir>/inc form needs a bundled header set the repo does not carry.
+'' TEST: cli
+'' ENV: FBX_INCLUDE=tests/driver/src/definc
+'' ARGS: --dump-ast tests/driver/src/definc-main.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/default-include.out

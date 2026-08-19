@@ -41,6 +41,7 @@ type TestCase
     as boolean haveMaxDiag
     as Array( of string ) expectOut
     as Array( of string ) expectNot
+    as Array( of string ) env      '' NAME=value, set for this test's run only
 end type
 
 type Options
@@ -109,6 +110,7 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
     tc.golden = ""
     tc.maxDiag = 0
     tc.haveMaxDiag = false
+    tc.env.Clear( )
 
     dim as long slash = 0
     for i as long = len( path ) to 1 step -1
@@ -154,6 +156,8 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.haveMaxDiag = true
         elseif StartsWith( ln, "EXPECT-NOT:" ) then
             tc.expectNot.Push( Trim_( mid( ln, 12 ) ) )
+        elseif StartsWith( ln, "ENV:" ) then
+            tc.env.Push( Trim_( mid( ln, 5 ) ) )
         end if
     wend
 
@@ -218,8 +222,21 @@ function RunOne _
         at = instr( args, "%s" )
     wend
 
+    '' The variable is set for this run and cleared straight after, so a test that
+    '' needs an environment cannot leak it into the next one. Order matters: fbx reads
+    '' it at startup, so it must be in place before the shell( ) and gone before the
+    '' following test builds its own command.
+    for each e_ as string in tc.env
+        setenviron e_
+    next
+
     dim as string outText = ""
     dim as long rc = RunFbx( opts.fbxPath, args, outText )
+
+    for each e_ as string in tc.env
+        dim as long eq = instr( e_, "=" )
+        if eq > 0 then setenviron left( e_, eq )
+    next
 
     if tc.haveExpectExit andalso (rc <> tc.expectExit) then
         why = "exit code " & rc & ", expected " & tc.expectExit
