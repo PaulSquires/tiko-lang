@@ -365,6 +365,21 @@ private sub WalkExpr _
         '' reported as "'ns' is a namespace, not a procedure". fbcunit's CU_ASSERT
         '' expands to exactly that shape, which is why it accounted for the bulk of
         '' every unlowered count in the corpus.
+        '' '..x' -- the base is the GLOBAL SCOPE itself, so the member is looked up
+        '' there. A chain '..a.b.v' needs nothing more: '..a' binds to the namespace
+        '' here, and the enclosing member access then takes the namespace path below.
+        if c.ast->Kind( mb->lhs ) = Fbx.N_GLOBALSCOPE then
+            if c.ast->Kind( mb->rhs ) = Fbx.N_IDENT then
+                dim as Fbx.SymbolId gsid = _
+                    c.syms->LookupLocal( Fbx.SCOPE_GLOBAL, IdentNameOf( c, mb->rhs ) )
+                if gsid <> Fbx.SYMBOL_NONE then
+                    c.info->SetRef( mb->rhs, gsid )
+                    c.info->SetRef( id, gsid )
+                end if
+            end if
+            return
+        end if
+
         dim as Fbx.SymbolId bsid = c.info->RefOf( mb->lhs )
         dim as Fbx.Symbol ptr bs = c.syms->SymbolAt( bsid )
         if bs <> 0 then

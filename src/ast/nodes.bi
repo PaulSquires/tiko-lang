@@ -50,7 +50,10 @@ namespace Fbx
         NODE( N_NEW,          NCAT_EXPR )
         NODE( N_DELETE,       NCAT_EXPR )
         NODE( N_FUNCRESULT,   NCAT_EXPR )
-        NODE( N_ELLIPSIS,     NCAT_EXPR )   '' '...' as an ARRAY BOUND, where the size
+        NODE( N_ELLIPSIS,     NCAT_EXPR )
+        NODE( N_GLOBALSCOPE,  NCAT_EXPR )   '' the '..' of '..x' -- the base of a member
+                                            '' access that names the GLOBAL scope, as
+                                            '' against '.x', whose base is the open WITH.   '' '...' as an ARRAY BOUND, where the size
                                             '' comes from the initializer. Legal nowhere
                                             '' else, so it is read only in a bound.   '' the FUNCTION/OPERATOR/PROPERTY keyword
                                             '' as an assignment TARGET. Assignable and

@@ -527,6 +527,34 @@ function Primary( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' means 'expr.field'. The base is supplied by the enclosing WITH, which this
     '' layer does not track -- it records a member access with NO base and leaves
     '' binding to the phase that knows which WITH is open.
+    '' '..x' is the GLOBAL-SCOPE prefix -- inside a namespace it names the x at file
+    '' scope rather than the one in view. It lexes as two separate TK_DOTs, so the
+    '' WITH-shorthand branch below saw a dot followed by a dot, found no identifier,
+    '' and reported 'expected an expression'.
+    ''
+    '' Measured: fbc accepts '..x', '..f( )', a chain '..a.b.v', an assignment target,
+    '' and the prefix at module level where it means nothing extra.
+    if k = Fbx.TK_DOT then
+        dim as boolean twoDots = false
+        if HasTok( p, p.pos + 1 ) then
+            twoDots = (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_DOT)
+        end if
+        if twoDots then
+            Advance( p )
+            Advance( p )
+            dim as Fbx.NodeId base_ = NewNodeAt( p, Fbx.N_GLOBALSCOPE, t.loc, 0 )
+            if (Peek( p ) = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( Peek( p ) ) then
+                dim as Fbx.Token nameTok = Cur( p )
+                Advance( p )
+                dim as Fbx.NodeId member = MakeIdent( p, nameTok )
+                dim as Fbx.NodeId n = MakeBinary( p, Fbx.TK_DOT, t.loc, base_, member )
+                p.ast->nodes[cast( long, n )].kind = cast( ushort, Fbx.N_MEMBER )
+                return PostfixChain( p, n )
+            end if
+            return base_
+        end if
+    end if
+
     if k = Fbx.TK_DOT then
         if HasTok( p, p.pos + 1 ) then
             dim as Fbx.TokenKind nk = cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )

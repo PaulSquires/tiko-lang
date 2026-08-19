@@ -1,0 +1,5 @@
+'' The '..' global-scope prefix, told apart from the '.' WITH shorthand.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/global-scope.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/global-scope.out

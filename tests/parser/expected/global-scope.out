@@ -1,0 +1,39 @@
+N_MODULE (4) <1:85>
+  N_VAR [DIM] shared <11:1>
+    N_VAR_ITEM 'x' <11:23>
+      N_TYPEREF 'integer' [INTEGER] <11:15>
+      N_INT_LIT 7 radix=10 <11:27>
+  N_NAMESPACE 'a' <13:1>
+    N_NAMESPACE 'b' <14:9>
+      N_VAR [DIM] shared <15:17>
+        N_VAR_ITEM 'v' <15:39>
+          N_TYPEREF 'integer' [INTEGER] <15:31>
+          N_INT_LIT 3 radix=10 <15:43>
+  N_NAMESPACE 'ns' <19:1>
+    N_VAR [DIM] shared <20:9>
+      N_VAR_ITEM 'x' <20:31>
+        N_TYPEREF 'integer' [INTEGER] <20:23>
+        N_INT_LIT 9 radix=10 <20:35>
+    N_PROC 'f' [SUB] <21:9>
+      N_BLOCK (3) <21:17>
+        N_INTRINSIC [PRINT] <22:17>
+          N_MEMBER . <22:23>
+            N_GLOBALSCOPE <22:23>
+            N_IDENT 'x' <22:25>
+        N_AMBIGUOUS [=] <23:17>
+          N_MEMBER . <23:17>
+            N_GLOBALSCOPE <23:17>
+            N_IDENT 'x' <23:19>
+          N_INT_LIT 5 radix=10 <23:23>
+        N_INTRINSIC [PRINT] <24:17>
+          N_MEMBER . <24:28>
+            N_MEMBER . <24:26>
+              N_MEMBER . <24:23>
+                N_GLOBALSCOPE <24:23>
+                N_IDENT 'a' <24:25>
+              N_IDENT 'b' <24:27>
+            N_IDENT 'v' <24:29>
+  N_INTRINSIC [PRINT] <29:1>
+    N_MEMBER . <29:7>
+      N_GLOBALSCOPE <29:7>
+      N_IDENT 'x' <29:9>
