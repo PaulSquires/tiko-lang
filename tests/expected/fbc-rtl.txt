@@ -29,4 +29,5 @@ fb_StrDelete	void	FBSTRING*	lib
 fb_StrInit	FBSTRING*	void*, int64, void*, int64, int32	lib
 fb_StrLen	int64	void*, int64	lib
 fb_StrMid	FBSTRING*	FBSTRING*, int64, int64	lib
+fb_StrSwap	void	void*, int64, int32, void*, int64, int32	lib
 fb_VALINT	int32	FBSTRING*	lib

@@ -121,6 +121,7 @@ declare function EmitRtl _
     declare function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
 
     declare function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 
     declare function LowerStrCompare _
         ( byref c as Ctx, byval bp as Fbx.BinaryPayload ptr, _

@@ -45,6 +45,10 @@ namespace Fbx.Mir
         RTL( RTL_STR_CONCAT,        "fb_StrConcat",        MT_PTR,  "ppqpq"  )
         RTL( RTL_STR_COMPARE,       "fb_StrCompare",       MT_I32,  "pqpq"  )
         RTL( RTL_STR_DELETE,        "fb_StrDelete",        MT_VOID, "p"     )
+        '' SWAP of two strings. Six arguments, not four: each side is (ptr, length,
+        '' flag) where the flag is 0 -- the same shape fb_StrAssign uses plus a trailing
+        '' word per operand.
+        RTL( RTL_STR_SWAP,          "fb_StrSwap",          MT_VOID, "pqlpql" )
         RTL( RTL_STR_LEN,           "fb_StrLen",           MT_I64,  "pq"    )
         RTL( RTL_STR_MID,           "fb_StrMid",           MT_PTR,  "pqq"   )
         RTL( RTL_STR_LEFT,          "fb_LEFT",             MT_PTR,  "pq"    )

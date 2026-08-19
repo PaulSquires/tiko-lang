@@ -1001,6 +1001,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
         dim as Fbx.StmtPayload ptr ip = StmtOf( c, id )
         dim as boolean handled = false
         if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
+        if ip->op = cast( ushort, Fbx.KW_SWAP ) then handled = LowerSwap( c, id )
         if handled = false then SkipStmt( c, id )
 
     case Fbx.N_END_STMT

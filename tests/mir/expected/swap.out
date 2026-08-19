@@ -1,0 +1,51 @@
+func void P() {
+  local i32 a
+  local i32 b
+  local agg s size 24
+  local agg t size 24
+  local f64 d
+  local f64 e
+  local i32 $tmp6
+  local f64 $tmp7
+  entry0:
+    %1 = alloca ptr a
+    %2 = alloca ptr b
+    %3 = alloca ptr s
+    %4 = field.addr @s, 0
+    store %4, 0
+    %5 = field.addr @s, 8
+    store %5, 0
+    %6 = field.addr @s, 16
+    store %6, 0
+    %7 = alloca ptr t
+    %8 = field.addr @t, 0
+    store %8, 0
+    %9 = field.addr @t, 8
+    store %9, 0
+    %10 = field.addr @t, 16
+    store %10, 0
+    %11 = alloca ptr d
+    %12 = alloca ptr e
+    %13 = alloca ptr $tmp6
+    %14 = load @a
+    store @$tmp6, %14
+    %15 = load @b
+    store @a, %15
+    %16 = load @$tmp6
+    store @b, %16
+    call.rtl void fb_StrSwap(@s, -1, 0, @t, -1, 0)
+    %17 = alloca ptr $tmp7
+    %18 = load @d
+    store @$tmp7, %18
+    %19 = load @e
+    store @d, %19
+    %20 = load @$tmp7
+    store @e, %20
+    call.rtl void fb_StrDelete(@t)
+    call.rtl void fb_StrDelete(@s)
+    ret
+}
+declare void fb_StrSwap($0, $1, $2, $3, $4, $5)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance

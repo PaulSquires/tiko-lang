@@ -1,0 +1,20 @@
+'' SWAP, measured from fbc. The most common unlowered intrinsic in the corpus at 841
+'' occurrences -- picked by measurement rather than by what looked next in the catalogue.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/swap.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: 0 scope imbalance
+
+'' A STRING pair goes through the runtime, and takes SIX arguments rather than four:
+'' each side is (pointer, length, flag) with the flag 0.
+'' EXPECT-OUT: call.rtl void fb_StrSwap(@s, -1, 0, @t, -1, 0)
+
+'' Anything else is a temporary and three assignments. THE TEMPORARY IS TYPED TO THE
+'' OPERAND: swapping two doubles through an integer slot would round-trip the bits
+'' through the wrong register class, so an f64 pair must produce an f64 temp.
+'' EXPECT-OUT: local i32 $tmp6
+'' EXPECT-OUT: local f64 $tmp7
+'' EXPECT-NOT: <NO TERMINATOR>
+'' GOLDEN: expected/swap.out

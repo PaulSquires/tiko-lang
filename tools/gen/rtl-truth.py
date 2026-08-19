@@ -60,6 +60,13 @@ sub P( )
     dim as long v = valint(a)
 end sub
 ''',
+    # SWAP: strings go through the runtime, scalars are a temporary and three stores.
+    "swap": '''
+sub S( )
+    dim as string a, b
+    swap a, b
+end sub
+''',
     "print": '''
 sub P( )
     dim as string s

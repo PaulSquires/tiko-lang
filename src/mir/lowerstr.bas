@@ -15,6 +15,8 @@ declare sub PushStrArg _
     ( byref args as FB.Array( of ulong ), byref addr as MirValue )
 declare sub PushStrLiteralArg _
     ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
+declare sub StoreThrough _
+    ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
 declare function PrintOne _
     ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long ) as boolean
 declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
@@ -436,6 +438,72 @@ function LowerStrCompare _
     if ins.op = cast( ushort, M_NONE ) then return none_
     return Emit( c, ins )
 end function
+
+
+'' SWAP a, b -- measured from fbc, and it is TWO different lowerings.
+''
+'' A STRING pair goes through the runtime, six arguments rather than four: each side is
+'' (pointer, length, flag) with the flag 0.
+''
+''     fb_StrSwap( &S$1, -1ll, 0, &T$1, -1ll, 0 )
+''
+'' Anything else is a TEMPORARY OF THE OPERAND'S OWN TYPE and three assignments:
+''
+''     { double TMP;  TMP = D$1;  D$1 = E$1;  E$1 = TMP; }
+''
+'' Note the temporary is typed to the operand, not to a fixed width: swapping two
+'' doubles through an integer slot would round-trip the bits through the wrong register
+'' class, and swapping two aggregates would not fit at all.
+function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if (sp->a = Fbx.NODE_NONE) orelse (sp->b = Fbx.NODE_NONE) then return false
+
+    dim as Fbx.TypeId t = c.info->TypeOf_( sp->a )
+    if t = Fbx.TYPE_NONE then return false
+
+    dim as MirValue la = LowerAddr( c, sp->a )
+    dim as MirValue lb = LowerAddr( c, sp->b )
+    if (la.kind = cast( ubyte, MV_NONE )) orelse (lb.kind = cast( ubyte, MV_NONE )) then
+        return false
+    end if
+
+    if IsStringType( c, t ) then
+        dim as FB.Array( of ulong ) args
+        PushStrArg( args, la )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        PushStrArg( args, lb )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        EmitRtl( c, RTL_STR_SWAP, args )
+        return true
+    end if
+
+    dim as MirType mt = LowerType( t, *c.types )
+    if mt = MT_VOID then return false
+    '' An aggregate has no single load/store, so it is declined rather than half-swapped.
+    if mt = MT_AGG then return false
+
+    dim as long slot = NewTempLocal( c, mt, c.types->Layout( t ).size )
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+
+    StoreThrough( c, tmp, LowerExprLoad( c, la, mt ) )
+    StoreThrough( c, la, LowerExprLoad( c, lb, mt ) )
+    StoreThrough( c, lb, LowerExprLoad( c, tmp, mt ) )
+    return true
+end function
+
+'' One store, which SWAP needs three of.
+private sub StoreThrough _
+    ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
+    dim as MirInst ins
+    ins.op = cast( ushort, M_STORE )
+    ins.ty = cast( ubyte, MT_VOID )
+    ins.a = addr
+    ins.b = val
+    Emit( c, ins )
+end sub
 
 function LowerStringAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
