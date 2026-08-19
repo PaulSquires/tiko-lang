@@ -1,0 +1,6 @@
+'' A '#macro' parameter list is found whatever the whitespace, and 'rest...' keeps
+'' the commas it is handed.
+'' TEST: cli
+'' ARGS: --dump-ast tests/pp/src/variadic.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/variadic.out

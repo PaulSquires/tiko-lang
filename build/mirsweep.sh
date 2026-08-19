@@ -45,13 +45,16 @@ awk '
   if (ins_prev == ins) empty++
   ins_prev = ins
 }
-/^verify: FAIL/          { vf++ }
-/^  unlowered N_/        { kind[$2] += $3 }
-/^  unlowered intrinsic/ { intr[$3] += $4 }
-/^  inside N_/           { inner[$2] += $3 }
-/^  skip-site /          { site[$2] += $3 }
-/^  amb /                { amb[$2] += $3 }
-/^  amb-other-/          { oth[$1 " " $2] += $3 }
+/^verify: FAIL/            { vf++ }
+/^  unlowered N_/          { kind[$2] += $3 }
+/^  unlowered intrinsic/   { intr[$3] += $4 }
+/^  inside N_/             { inner[$2] += $3 }
+/^  skip-site /            { site[$2] += $3 }
+/^  amb /                  { amb[$2] += $3 }
+/^  amb-other-/            { oth[$1 " " $2] += $3 }
+/^  amb-unbound-shape /    { ushape[$2] += $3 }
+/^  amb-unbound-name /     { uname[$2]++ }
+/^  amb-member-name /      { mname[$2]++ }
 END {
   printf "mirsweep: %d files, %d blocks, %d insts\n", files, blk, ins
   printf "mirsweep: %d files emit code, %d emit nothing\n", files - empty, empty
@@ -64,14 +67,21 @@ END {
   for (i = 1; i <= n2 && i <= 6; i++) printf "mirsweep:  %8d  intrinsic %s\n", intr[is2[i]], is2[i]
   printf "mirsweep: --- started and not FINISHED, by the statement it was inside ---\n"
   n3 = asorti(inner, is3, "@val_num_desc")
-  for (i = 1; i <= n3 && i <= 8; i++) printf "mirsweep:  %8d  inside %s\n", inner[is3[i]], is3[i]
+  for (i = 1; i <= n3 && i <= 6; i++) printf "mirsweep:  %8d  inside %s\n", inner[is3[i]], is3[i]
   printf "mirsweep: --- the LINE that gave up ---\n"
   n4 = asorti(site, is4, "@val_num_desc")
-  for (i = 1; i <= n4 && i <= 12; i++) printf "mirsweep:  %8d  %s\n", site[is4[i]], is4[i]
+  for (i = 1; i <= n4 && i <= 8; i++) printf "mirsweep:  %8d  %s\n", site[is4[i]], is4[i]
   printf "mirsweep: --- why an N_AMBIGUOUS statement emitted NOTHING ---\n"
   n5 = asorti(amb, is5, "@val_num_desc")
   for (i = 1; i <= n5; i++) printf "mirsweep:  %8d  amb %s\n", amb[is5[i]], is5[i]
   n6 = asorti(oth, is6, "@val_num_desc")
-  for (i = 1; i <= n6 && i <= 8; i++) printf "mirsweep:  %8d  %s\n", oth[is6[i]], is6[i]
+  for (i = 1; i <= n6 && i <= 4; i++) printf "mirsweep:  %8d  %s\n", oth[is6[i]], is6[i]
+  printf "mirsweep: --- the UNBOUND callee, by shape then by name ---\n"
+  n7 = asorti(ushape, is7, "@val_num_desc")
+  for (i = 1; i <= n7 && i <= 5; i++) printf "mirsweep:  %8d  callee %s\n", ushape[is7[i]], is7[i]
+  n8 = asorti(uname, is8, "@val_num_desc")
+  for (i = 1; i <= n8 && i <= 10; i++) printf "mirsweep:  %8d  name %s\n", uname[is8[i]], is8[i]
+  n9 = asorti(mname, is9, "@val_num_desc")
+  for (i = 1; i <= n9 && i <= 6; i++) printf "mirsweep:  %8d  member %s\n", mname[is9[i]], is9[i]
 }
 ' build/.mir.out

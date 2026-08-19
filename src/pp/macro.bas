@@ -25,14 +25,20 @@ private function PpFindOrAddMacro _
     return @e.macros[e.macros.Count - 1]
 end function
 
-'' Shared by #define and #macro: read '( a, b, ... )' if it is glued to the name.
-private sub PpReadParams( byref e as PpEngine, byval m as PpMacro ptr )
+'' Shared by #define and #macro: read '( a, b, ... )'.
+''
+'' The whitespace rule is NOT shared, which is measured rather than assumed:
+''
+''     #define m (a) a+1      object-like, body '(a) a+1'   -- the C rule
+''     #macro m ( a )         a PARAMETER list, space and all
+''
+'' so '#macro t ? ( n, stmt... )' -- which the corpus writes -- takes two arguments.
+private sub PpReadParams( byref e as PpEngine, byval m as PpMacro ptr, byval isBlock as boolean )
     dim as Token t
     if PeekOnLine( e, t ) = false then return
 
-    '' A '(' separated by whitespace introduces an expression, not a parameter list.
-    dim as boolean glued = (Tk( t ) = TK_LPAREN) andalso ((t.flags and TF_SPACE_BEFORE) = 0)
-    if glued = false then return
+    if Tk( t ) <> TK_LPAREN then return
+    if (isBlock = false) andalso ((t.flags and TF_SPACE_BEFORE) <> 0) then return
 
     m->isFunc = true
     Advance( e )
@@ -107,7 +113,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     m->params.Clear( )
     m->body.Clear( )
 
-    PpReadParams( e, m )
+    PpReadParams( e, m, isBlock )
 
     if isBlock = false then
         CollectLine( e, m->body )
@@ -220,8 +226,11 @@ private function PpReadArgs _
             end if
         elseif (k = TK_COMMA) andalso (depth = iif( bare, 0, 1 )) then
             '' A variadic macro's last parameter swallows the remaining commas.
+            '' 'a, rest...' is two parameters, so the swallow starts once the
+            '' argument being collected IS the last one -- one earlier than the
+            '' count of parameters.
             dim as boolean lastIsVariadic = m->isVariadic andalso _
-                                            (args.firsts.Count >= m->params.Count)
+                                            (args.firsts.Count >= m->params.Count - 1)
             if lastIsVariadic = false then
                 args.firsts.Push( first )
                 args.counts.Push( count )
