@@ -70,10 +70,65 @@ private function DeclName( byref p as Fbx.ParserState, byref outName as Fbx.Inte
     return false
 end function
 
+'' Array bounds into 'c'. 'dim x()' is a dynamic array with no bounds given. Shared by
+'' the named form and by a REDIM's parenthesised target, which reads its bounds the
+'' same way after a different head.
+private sub ParseArrayBoundsInto _
+    ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload, byref t as Fbx.Token )
+
+    if Peek( p ) <> Fbx.TK_LPAREN then return
+    Advance( p )
+    dim as Fbx.NodeIdVec dims
+    if Peek( p ) <> Fbx.TK_RPAREN then
+        do
+            dim as Fbx.NodeId lo = BoundExpr( p )
+            if Accept( p, Fbx.KW_TO ) then
+                dim as Fbx.Token rt = Cur( p )
+                dim as Fbx.StmtPayload rp
+                rp.a = lo
+                rp.b = BoundExpr( p )
+                dims.Push( cast( ulong, MakeStmt( p, Fbx.N_CASE_RANGE, rt.loc, rp ) ) )
+            else
+                dims.Push( cast( ulong, lo ) )
+            end if
+            if Accept( p, Fbx.TK_COMMA ) = false then exit do
+        loop
+    end if
+    Expect( p, Fbx.TK_RPAREN, ")" )
+    sp.c = MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, dims )
+end sub
+
 '' 'dim x(0 to 9, 3) as long = 5' -- one item of a declaration list.
-private function VarItem( byref p as Fbx.ParserState ) as Fbx.NodeId
+''
+'' A REDIM target may be PARENTHESISED: 'redim (a)(0 to 1)' is legal on a var-len
+'' array, and 'redim (1+1)(0 to 1)' PARSES and is then fbc error 54. Both have to get
+'' through the parser or the corpus's COMPILE_ONLY_FAIL files fail for the wrong
+'' reason. A dotted target -- 'redim ns.arr(0 to 2)' -- already worked.
+private function VarItem _
+    ( byref p as Fbx.ParserState, byval isRedim as boolean = false ) as Fbx.NodeId
+
     dim as Fbx.Token t = Cur( p )
     dim as Fbx.StmtPayload sp
+
+    if isRedim andalso (Peek( p ) = Fbx.TK_LPAREN) then
+        '' The parenthesised group is read EXPLICITLY rather than through the postfix
+        '' chain, which would take '(a)(0 to 1)' as a CALL of '(a)' and swallow the
+        '' bounds -- the target parsed, the dimensions vanished, and the only sign was
+        '' one leftover diagnostic.
+        ''
+        '' The target goes in 'b', the initializer slot, which a REDIM never uses --
+        '' and Resolve returns immediately for a REDIM item, so nothing reads it yet.
+        '' 'extra' records that it is a target rather than a value, so a later reader
+        '' cannot mistake one for the other.
+        Advance( p )                          '' '('
+        sp.b = Expression( p )
+        Expect( p, Fbx.TK_RPAREN, ")" )
+        sp.extra = cast( ushort, Fbx.KW_REDIM )
+        ParseArrayBoundsInto( p, sp, t )
+        dim as Fbx.NodeId rn = MakeStmt( p, Fbx.N_VAR_ITEM, t.loc, sp )
+        if sp.c <> Fbx.NODE_NONE then p.ast->nodes[cast( long, rn )].flags or= Fbx.NF_ARRAY
+        return rn
+    end if
 
     if DeclName( p, sp.name ) = false then return ErrorNode( p, Fbx.FBX0406 )
 
@@ -85,28 +140,7 @@ private function VarItem( byref p as Fbx.ParserState ) as Fbx.NodeId
         DeclName( p, sp.name )
     wend
 
-    '' Array bounds. 'dim x()' is a dynamic array with no bounds given.
-    if Peek( p ) = Fbx.TK_LPAREN then
-        Advance( p )
-        dim as Fbx.NodeIdVec dims
-        if Peek( p ) <> Fbx.TK_RPAREN then
-            do
-                dim as Fbx.NodeId lo = BoundExpr( p )
-                if Accept( p, Fbx.KW_TO ) then
-                    dim as Fbx.Token rt = Cur( p )
-                    dim as Fbx.StmtPayload rp
-                    rp.a = lo
-                    rp.b = BoundExpr( p )
-                    dims.Push( cast( ulong, MakeStmt( p, Fbx.N_CASE_RANGE, rt.loc, rp ) ) )
-                else
-                    dims.Push( cast( ulong, lo ) )
-                end if
-                if Accept( p, Fbx.TK_COMMA ) = false then exit do
-            loop
-        end if
-        Expect( p, Fbx.TK_RPAREN, ")" )
-        sp.c = MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, dims )
-    end if
+    ParseArrayBoundsInto( p, sp, t )
 
     if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
 
@@ -156,7 +190,7 @@ private function ParseVarDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.NodeIdVec items
     do
         dim as long before = p.pos
-        dim as Fbx.NodeId item = VarItem( p )
+        dim as Fbx.NodeId item = VarItem( p, sp.op = cast( ushort, Fbx.KW_REDIM ) )
         items.Push( cast( ulong, item ) )
         '' The item may be an ERROR node, which has no StmtPayload -- indexing its
         '' 'data' as one is a segfault. Error nodes must be checked for, never
@@ -188,7 +222,7 @@ private function ParseConstDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.StmtPayload sp
     dim as Fbx.NodeIdVec items
     do
-        items.Push( cast( ulong, VarItem( p ) ) )
+        items.Push( cast( ulong, VarItem( p, sp.op = cast( ushort, Fbx.KW_REDIM ) ) ) )
         if Accept( p, Fbx.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count

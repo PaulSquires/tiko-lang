@@ -1,0 +1,38 @@
+N_MODULE (6) <1:62>
+  N_NAMESPACE 'ns' <14:1>
+    N_VAR [DIM] shared <15:9>
+      N_VAR_ITEM 'arr' array <15:20>
+        N_TYPEREF 'integer' [INTEGER] <15:30>
+        N_BLOCK (0) <15:20>
+  N_VAR [DIM] <18:1>
+    N_VAR_ITEM 'a' array <18:5>
+      N_TYPEREF 'integer' [INTEGER] <18:13>
+      N_BLOCK (0) <18:5>
+  N_VAR [REDIM] <20:1>
+    N_VAR_ITEM array <20:7>
+      N_IDENT 'a' <20:8>
+      N_BLOCK (1) <20:7>
+        N_CASE_RANGE <20:16>
+          N_INT_LIT 0 radix=10 <20:11>
+          N_INT_LIT 1 radix=10 <20:16>
+  N_VAR [REDIM] <21:1>
+    N_VAR_ITEM array <21:7>
+      N_BINARY + <21:9>
+        N_INT_LIT 1 radix=10 <21:8>
+        N_INT_LIT 1 radix=10 <21:10>
+      N_BLOCK (1) <21:7>
+        N_CASE_RANGE <21:18>
+          N_INT_LIT 0 radix=10 <21:13>
+          N_INT_LIT 1 radix=10 <21:18>
+  N_VAR [REDIM] <22:1>
+    N_VAR_ITEM 'arr' array <22:7>
+      N_BLOCK (1) <22:7>
+        N_CASE_RANGE <22:19>
+          N_INT_LIT 0 radix=10 <22:14>
+          N_INT_LIT 2 radix=10 <22:19>
+  N_VAR [REDIM] <23:1>
+    N_VAR_ITEM 'a' array <23:7>
+      N_BLOCK (1) <23:7>
+        N_CASE_RANGE <23:14>
+          N_INT_LIT 0 radix=10 <23:9>
+          N_INT_LIT 3 radix=10 <23:14>
