@@ -1,0 +1,5 @@
+'' LET, CAST, CPTR, MID and STRPTR as the head of a statement.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/stmt-heads.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/stmt-heads.out

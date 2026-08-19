@@ -1,0 +1,91 @@
+N_MODULE (15) <1:80>
+  N_TYPE 'u' <19:1>
+    N_FIELD 'i' <20:9>
+      N_TYPEREF 'long' [LONG] <20:14>
+  N_TYPE 'p' <23:1>
+    N_FIELD 'x' <24:9>
+      N_TYPEREF 'long' [LONG] <24:14>
+    N_FIELD 'y' <25:9>
+      N_TYPEREF 'long' [LONG] <25:14>
+  N_PROC 'getp' [FUNCTION] <28:1>
+    N_TYPEREF 'p' <28:21>
+    N_BLOCK (4) <28:22>
+      N_VAR [DIM] <29:9>
+        N_VAR_ITEM 'r' <29:13>
+          N_TYPEREF 'p' <29:18>
+      N_AMBIGUOUS [=] <30:9>
+        N_MEMBER . <30:10>
+          N_IDENT 'r' <30:9>
+          N_IDENT 'x' <30:11>
+        N_INT_LIT 1 radix=10 <30:15>
+      N_AMBIGUOUS [=] <31:9>
+        N_MEMBER . <31:10>
+          N_IDENT 'r' <31:9>
+          N_IDENT 'y' <31:11>
+        N_INT_LIT 2 radix=10 <31:15>
+      N_RETURN <32:9>
+        N_IDENT 'r' <32:16>
+  N_PROC 'one' [FUNCTION] <35:1>
+    N_TYPEREF 'long' [LONG] <35:20>
+    N_BLOCK (1) <35:24>
+      N_RETURN <36:9>
+        N_INT_LIT 1 radix=10 <36:16>
+  N_VAR [DIM] <39:1>
+    N_VAR_ITEM 'a' <39:13>
+      N_TYPEREF 'long' [LONG] <39:8>
+    N_VAR_ITEM 'b' <39:16>
+      N_TYPEREF 'long' [LONG] <39:8>
+  N_VAR [DIM] <40:1>
+    N_VAR_ITEM 'x' <40:5>
+      N_TYPEREF 'u' <40:10>
+  N_VAR [DIM] <41:1>
+    N_VAR_ITEM 's' <41:5>
+      N_TYPEREF 'string' [STRING] <41:10>
+      N_STRING_LIT len=3 kind=0 <41:19>
+  N_VAR [DIM] <42:1>
+    N_VAR_ITEM 'p' <42:5>
+      N_TYPEREF ptr <42:10>
+        N_TYPEREF 'short' [SHORT] <42:10>
+  N_AMBIGUOUS [=] <44:5>
+    N_TUPLE <44:5>
+      N_IDENT 'a' <44:6>
+      N_IDENT 'b' <44:9>
+    N_CALL <44:18>
+      N_IDENT 'getp' <44:14>
+  N_AMBIGUOUS [=] <45:1>
+    N_MEMBER . <45:13>
+      N_CALL <45:1>
+        N_IDENT 'cast' <45:1>
+        N_TYPEREF <45:7>
+        N_IDENT 'x' <45:10>
+      N_IDENT 'i' <45:14>
+    N_INT_LIT 5 radix=10 <45:18>
+  N_AMBIGUOUS [+=] <46:1>
+    N_CALL <46:1>
+      N_IDENT 'cptr' <46:1>
+      N_TYPEREF <46:7>
+      N_IDENT 'p' <46:18>
+    N_INT_LIT 1 radix=10 <46:25>
+  N_AMBIGUOUS <47:1>
+    N_CALL <47:6>
+      N_IDENT 'cuint' <47:1>
+      N_CALL <47:11>
+        N_IDENT 'one' <47:8>
+  N_AMBIGUOUS [=] <48:1>
+    N_CALL <48:4>
+      N_IDENT 'mid' <48:1>
+      N_IDENT 's' <48:6>
+      N_INT_LIT 1 radix=10 <48:9>
+      N_INT_LIT 1 radix=10 <48:12>
+    N_STRING_LIT len=1 kind=0 <48:18>
+  N_AMBIGUOUS [=] <49:1>
+    N_CALL <49:4>
+      N_IDENT 'mid' <49:1>
+      N_IDENT 's' <49:6>
+      N_INT_LIT 2 radix=10 <49:9>
+    N_STRING_LIT len=2 kind=0 <49:15>
+  N_AMBIGUOUS [=] <50:1>
+    N_CALL <50:7>
+      N_IDENT 'strptr' <50:1>
+      N_IDENT 's' <50:9>
+    N_INT_LIT 0 radix=10 <50:15>

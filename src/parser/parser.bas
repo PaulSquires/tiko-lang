@@ -596,6 +596,23 @@ private function ParseExitLike _
     return MakeStmt( p, kind, t.loc, sp )
 end function
 
+'' A KEYWORD directly followed by '(' is an expression, not a statement -- 'cast(...)',
+'' 'mid(...)', 'cuint(...)', 'strptr(...)'. It is safe to say so this late in the
+'' dispatch: every keyword that BEGINS a statement has already been matched by the
+'' cases above, by IsDeclarationStart, or by IsStatementIntrinsic, which deliberately
+'' excludes the IFORM_EXPR family for exactly this reason -- 'x = len(s)' must not
+'' parse as a LEN statement.
+''
+'' Testing the '(' rather than enumerating the keywords is what makes this cover the
+'' whole conversion family without a list that would go stale.
+private function KeywordLedExpression _
+    ( byref p as Fbx.ParserState, byval k as Fbx.TokenKind ) as boolean
+
+    if Fbx.IsKeywordKind( k ) = false then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_LPAREN)
+end function
+
 '' 'function =' / 'operator =' / 'property =', and nothing else that starts with one
 '' of those keywords. The cross-kind rules fbc enforces -- 'function =' is a syntax
 '' error inside a SUB -- are deliberately NOT checked here: accepting a little more
@@ -825,6 +842,32 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' A PARENTHESISED assignment target: '(a) = 5', '(*p) = 5', '(arr(1)) = 5'.
             '' The parentheses are permitted around an lvalue and change nothing, so the
             '' statement is the same call-or-assign ambiguity as a bare name.
+            n = ParseAmbiguous( p )
+        elseif k = Fbx.KW_LET then
+            '' 'let (a, b) = f( )' -- the multiple assignment. Measured: in the fb
+            '' dialect ONLY the parenthesised form exists; plain 'let a = 5' is fbc
+            '' error 146, valid in deprecated/fblite/qb alone. The keyword is consumed
+            '' and what follows is the ordinary call-or-assign ambiguity, so the target
+            '' being a tuple needs nothing special here.
+            Advance( p )
+            n = ParseAmbiguous( p )
+        elseif KeywordLedExpression( p, k ) then
+            '' A statement whose head is a KEYWORD-led expression rather than a name:
+            ''
+            ''     cast( U, x ).i = 5        mid( s, 1, 1 ) = "H"
+            ''     cptr( short ptr, p ) += 1  cuint( g( ) )        strptr( s ) = 0
+            ''
+            '' fbc parses all of these; two of them it then REJECTS -- 'strptr(s) = 0'
+            '' is error 119 and a literal on the left is error 24 -- but it rejects
+            '' them in the semantic pass, having parsed the statement. fbx died in the
+            '' parser, so those files failed for the wrong reason and their goldens
+            '' could never match.
+            n = ParseAmbiguous( p )
+        elseif (k = Fbx.TK_INT_LIT) orelse (k = Fbx.TK_FLOAT_LIT) orelse _
+               (k = Fbx.TK_STRING_LIT) then
+            '' '0 = 1' and '"" = "a"'. fbc parses these and rejects them semantically,
+            '' and the corpus tests exactly that. Accepting the parse is what lets the
+            '' rejection happen in the right pass.
             n = ParseAmbiguous( p )
         elseif k = Fbx.KW_END then
             '' 'END [exitcode]' TERMINATES THE PROGRAM. Reaching here at all means
