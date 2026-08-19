@@ -149,6 +149,15 @@ end function
 '' The ADDRESS of a variable, wherever its storage lives.
 function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as MirValue v
+
+    '' A CONSTANT HAS NO ADDRESS. 'const PI = 3.5' emits no variable, so asking for one
+    '' invented a slot and loaded it uninitialised -- 'd = PI' stored garbage, silently
+    '' and without declining. Constants fold in LowerPredeclared; one that will not fold
+    '' has to decline here rather than be given storage it never had.
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( sid )
+    if cs <> 0 then
+        if cs->kind = cast( ubyte, Fbx.SYM_CONSTANT ) then return v
+    end if
     dim as boolean inModule = IsSharedVar( c, sid )
     if IsStaticLocal( c, sid ) then inModule = true
     if inModule then

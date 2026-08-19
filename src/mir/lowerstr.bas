@@ -164,6 +164,29 @@ function LowerPredeclared _
         return LowerTextAddr( c, Fbx.Mangle.ProcNameOrMain( _
             *c.syms, c.curProcSym, *c.names ) )
     end if
+
+    '' A user CONST has no storage either -- 'const K = 7' emits no variable -- so it
+    '' folds to its value. The payload is the declaration ITEM, and its initialiser is
+    '' what the constant evaluator reads.
+    ''
+    '' A STRING constant folds to nothing here and falls through to decline, which is
+    '' honest: ConstOf answers numbers, and a string constant needs a literal global.
+    if s->kind = cast( ubyte, Fbx.SYM_CONSTANT ) then
+        if s->payload = 0 then return v
+        dim as Fbx.NodeId item = cast( Fbx.NodeId, s->payload )
+        if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then return v
+        dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+        dim as Fbx.Check.ConstVal cv = _
+            Fbx.Check.ConstOf( *c.ast, ip->b, *c.srcMgr, *c.names )
+        if cv.known = false then return v
+        dim as MirType mt = LowerType( c.info->TypeOf_( id ), *c.types )
+        if mt = MT_VOID then mt = MT_I64
+        '' ConstOf answers INTEGERS only, so a float constant never reaches here with a
+        '' known value -- and must not be given one by casting an integer field to a
+        '' double, which would make 'const PI = 3.5' into 3 without a word.
+        if IsFloatTy( mt ) then return v
+        return ConstInt( c, cv.value, mt )
+    end if
     return v
 end function
 

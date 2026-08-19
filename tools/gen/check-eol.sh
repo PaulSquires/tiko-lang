@@ -11,7 +11,10 @@
 # never exercised. fbx targets Linux, where source is LF, and it has never been built
 # there -- so this class of bug had nothing at all standing in its way.
 #
-# A sample rather than the whole corpus: the point is a cheap invariant that runs often.
+# BATCHED, and that is the whole reason it is usable. Run file-by-file it took 5m16s for
+# 400 files -- four processes each, and process launch under Git Bash on Windows costs far
+# more than the 24ms fbx itself needs. fbx takes many inputs per run and prints one
+# 'lowered:' summary per file, so the same 400 files are two invocations.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
@@ -22,22 +25,34 @@ N=${FBX_EOL_SAMPLE:-400}
 find "$CORPUS" -name '*.bas' | sort | head -"$N" > build/.eol.lst
 rm -rf build/.eolwork && mkdir -p build/.eolwork
 
-i=0
-bad=0
-while IFS= read -r f; do
-    i=$((i + 1))
-    d="build/.eolwork/$(printf '%05d' $i).bas"
-    tr -d '\r' < "$f" > "$d"
-    a=$(./bin/fbx.exe --dump-ir "$f" 2>/dev/null | awk '/unlowered N_ERROR/{print $3}')
-    b=$(./bin/fbx.exe --dump-ir "$d" 2>/dev/null | awk '/unlowered N_ERROR/{print $3}')
-    if [ "${a:-0}" != "${b:-0}" ]; then
-        bad=$((bad + 1))
-        echo "  $f: CRLF=${a:-0} LF=${b:-0}"
-    fi
-done < build/.eol.lst
+# One awk pass strips the CR from every file at once, writing each to its own numbered
+# copy. The numbering keeps the two runs in the same order so results pair by ordinal.
+awk 'FNR==1{ n++; out=sprintf("build/.eolwork/%05d.bas", n) }
+     { sub(/\r$/, ""); print > out }' $(cat build/.eol.lst)
 
+# The N_ERROR count per file, in input order: fbx prints the breakdown before each
+# file's 'lowered:' line, and omits the line entirely when the count is zero.
+counts() {
+    ./bin/fbx.exe --dump-ir "$@" 2>/dev/null | awk '
+        /unlowered N_ERROR/ { cur = $3 }
+        /^lowered:/         { print cur + 0; cur = 0 }'
+}
+
+counts $(cat build/.eol.lst) > build/.eol.crlf
+counts $(ls build/.eolwork/*.bas) > build/.eol.lf
+
+i=$(wc -l < build/.eol.crlf)
+j=$(wc -l < build/.eol.lf)
+if [ "$i" != "$j" ]; then
+    echo "check-eol: $i CRLF results against $j LF -- the runs did not pair up" >&2
+    exit 1
+fi
+
+bad=$(paste build/.eol.crlf build/.eol.lf | awk '$1 != $2 { n++ } END { print n + 0 }')
 if [ "$bad" != "0" ]; then
     echo "check-eol: $bad/$i files parse DIFFERENTLY as LF and CRLF"
+    paste build/.eol.lst build/.eol.crlf build/.eol.lf |
+        awk '$2 != $3 { print "  " $1 ": CRLF=" $2 " LF=" $3 }'
     exit 1
 fi
 echo "check-eol: $i/$i files parse identically as LF and CRLF"

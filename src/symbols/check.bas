@@ -13,7 +13,13 @@ type Ctx
     as Fbx.DiagnosticEngine ptr diags
     as Fbx.SemanticInfo ptr     info
     as Stats ptr                st
+    '' How deep the CONST-initialiser chain is. 'const A = B' takes its type from B,
+    '' so a circular pair would recurse until the stack ran out; a compiler must not
+    '' fall over on input fbc merely rejects.
+    as long                     constDepth
 end type
+
+const CONST_DEPTH_MAX as long = 64
 
 '' ------------------------------------------------------------------- classes
 
@@ -1050,6 +1056,28 @@ function TypeOf_ _
         dim as Fbx.SymbolId sid = c.info->RefOf( id )
         dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
         if s <> 0 then t = s->type_
+        '' 'const K = 7' declares no type of its own, so the symbol carries none and
+        '' every use of K was untyped -- which made the whole enclosing statement
+        '' decline. Its type is its INITIALISER's, measured: K is INTEGER, 'const D =
+        '' 2.5' is DOUBLE, and 'const S = "hi"' is ZSTRING * 3.
+        ''
+        '' Computed on DEMAND rather than when the declaration is walked, because a use
+        '' can be typed before the declaration is reached and TypeOf_ memoises: an
+        '' early use would cache TYPE_NONE and never look again.
+        if (t = Fbx.TYPE_NONE) andalso (s <> 0) then
+            if (s->kind = cast( ubyte, Fbx.SYM_CONSTANT )) andalso (s->payload <> 0) then
+                dim as Fbx.NodeId item = cast( Fbx.NodeId, s->payload )
+                if c.ast->Kind( item ) = Fbx.N_VAR_ITEM then
+                    if c.constDepth < CONST_DEPTH_MAX then
+                        c.constDepth += 1
+                        dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+                        t = TypeOf_( c, ip->b )
+                        c.constDepth -= 1
+                        if t <> Fbx.TYPE_NONE then s->type_ = t
+                    end if
+                end if
+            end if
+        end if
 
     case Fbx.N_PAREN
         '' A parenthesised expression is a LIST node, not a statement node: its
