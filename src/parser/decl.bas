@@ -616,7 +616,39 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as boolean isUnion = (Peek( p ) = Fbx.KW_UNION)
     Advance( p )
 
+    '' 'type as integer myint' -- the REVERSED typedef, and it has to be tested before
+    '' DeclName, which happily takes 'as' as the name. That is what happened: the type
+    '' was called 'as', the next token was not AS, and the parser fell through to the
+    '' aggregate body and hunted for an 'end type' that was never coming.
+    ''
+    '' Measured: fbc accepts 'type as integer myint', 'type as const u ptr t', the
+    '' procedure form 'type as function( as integer ) as integer PFunc', and a COMMA
+    '' LIST -- 'type as integer a, b' declares both, and three corpus files use it.
     dim as Fbx.StmtPayload sp
+    if Peek( p ) = Fbx.KW_AS then
+        Advance( p )
+        dim as Fbx.NodeId aliased = TypeRef( p )
+        sp.a = aliased
+        DeclName( p, sp.name )
+        '' Every name after the first becomes its own N_TYPEDEF child sharing the same
+        '' type reference. One node per name is what Collect and Resolve already know
+        '' how to handle; a payload with a name LIST would need a new shape in both.
+        dim as Fbx.NodeIdVec extra
+        while Accept( p, Fbx.TK_COMMA )
+            dim as Fbx.Token nt = Cur( p )
+            dim as Fbx.StmtPayload ep
+            ep.a = aliased
+            if DeclName( p, ep.name ) = false then exit while
+            extra.Push( cast( ulong, MakeStmt( p, Fbx.N_TYPEDEF, nt.loc, ep ) ) )
+        wend
+        sp.first = p.ast->children.Count
+        sp.count = extra.Count
+        for i as long = 0 to extra.Count - 1
+            p.ast->children.Push( extra[i] )
+        next
+        return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
+    end if
+
     if DeclName( p, sp.name ) = false then
         '' An ANONYMOUS union or type, which is legal inside another aggregate and
         '' nowhere else. Its members belong to the enclosing type, so it carries no

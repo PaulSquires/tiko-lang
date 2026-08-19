@@ -711,6 +711,10 @@ sub WalkStmt _
                 if tsym->kind = cast( ubyte, Fbx.SYM_TYPEDEF ) then tsym->type_ = aliased
             end if
         end if
+        '' The extra names of 'type as integer a, b'.
+        for i as long = 0 to tsp->count - 1
+            WalkStmt( c, cast( Fbx.NodeId, c.ast->children[tsp->first + i] ), here )
+        next
         return
 
     case Fbx.N_FIELD

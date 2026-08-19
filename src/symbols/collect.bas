@@ -189,6 +189,11 @@ sub WalkNode _
                                             w.ast->Loc( id ) )
         dim as Fbx.Symbol ptr ts = w.syms->SymbolAt( tid )
         if ts <> 0 then ts->type_ = w.types->NamedType( Fbx.TK_TYPEDEF, sp->name, cast( ulong, scope_ ) )
+        '' 'type as integer a, b' -- every name after the first is a child N_TYPEDEF
+        '' sharing the same type reference.
+        for i as long = 0 to sp->count - 1
+            WalkNode( w, cast( Fbx.NodeId, w.ast->children[sp->first + i] ), scope_ )
+        next
 
     case Fbx.N_PROC
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
@@ -332,7 +337,7 @@ sub WalkNode _
         '' 'scopeOwner', not 'sid': a member DEFINITION declares no symbol of its own,
         '' so sid is NONE there and the node would carry no reference at all. Lowering
         '' reads this to find the procedure it is in, and without it __FUNCTION__ inside
-        '' a method lowered to an UNDEF that the call around it happily passed.
+        '' a method lowered to an UNDEF that the call around it happily passed.
         if scopeOwner <> Fbx.SYMBOL_NONE then w.info->SetRef( id, scopeOwner )
         WalkChildren( w, sp->first, sp->count, inner )
         if sp->b <> Fbx.NODE_NONE then WalkNode( w, sp->b, inner )

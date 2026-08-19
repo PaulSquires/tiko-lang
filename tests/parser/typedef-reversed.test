@@ -1,0 +1,5 @@
+'' The reversed typedef, including the comma list, with the sizes it implies.
+'' TEST: cli
+'' ARGS: --dump-ir tests/parser/src/typedef-reversed.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/typedef-reversed.out
