@@ -63,6 +63,16 @@ end function
 
 declare sub WalkNode _
     ( byref w as Walker, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
+declare function Effective_( byval c as Fbx.CallConv ) as Fbx.CallConv
+declare sub BindCallConv _
+    ( byref w as Walker, byval s as Fbx.Symbol ptr, _
+      byval sp as Fbx.StmtPayload ptr, byval id as Fbx.NodeId, _
+      byval firstSighting as boolean )
+declare function ProcArity _
+    ( byref w as Walker, byval sp as Fbx.StmtPayload ptr ) as long
+declare function UndefinedProcWithArity _
+    ( byref w as Walker, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
+      byval want as long ) as Fbx.SymbolId
 
 private sub WalkChildren _
     ( byref w as Walker, byval first as long, byval count as long, _
@@ -206,7 +216,18 @@ sub WalkNode _
 
         dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
         if isMemberDef = false then
-            sid = Declare_( w, scope_, declName, Fbx.SYM_PROC, w.ast->Loc( id ) )
+            '' A DEFINITION joins its DECLARE rather than chaining beside it. Without
+            '' this, 'declare sub F( byval x as long )' followed by 'sub F( byval x as
+            '' long )' produced TWO symbols with identical signatures, so every call to
+            '' F was AMBIGUOUS and resolved to nothing -- which is most real programs,
+            '' and went unnoticed because the corpus's procedures are declared in a
+            '' header and defined in a library it never compiles.
+            if sp->b <> Fbx.NODE_NONE then
+                sid = UndefinedProcWithArity( w, scope_, declName, ProcArity( w, sp ) )
+            end if
+            if sid = Fbx.SYMBOL_NONE then
+                sid = Declare_( w, scope_, declName, Fbx.SYM_PROC, w.ast->Loc( id ) )
+            end if
         end if
         dim as Fbx.Symbol ptr s = w.syms->SymbolAt( sid )
         if s <> 0 then
@@ -215,7 +236,14 @@ sub WalkNode _
             else
                 s->flags or= Fbx.SYMF_DEFINED
             end if
-            s->payload = cast( long, id )
+            '' The DECLARATION's node stays the payload: it carries the signature every
+            '' call site mangles against, and a declaration mangles identically to its
+            '' definition. Its absence is also how the FIRST sighting is recognised,
+            '' which is what BindCallConv needs -- the first one records, later ones
+            '' must agree.
+            dim as boolean firstSighting = (s->payload = 0)
+            if firstSighting then s->payload = cast( long, id )
+            BindCallConv( w, s, sp, id, firstSighting )
         end if
 
         '' 'sub Widget.Method( )' defines a member: its scope PARENT is the type's
@@ -258,6 +286,7 @@ sub WalkNode _
             end if
             s = w.syms->SymbolAt( sid )
             if s <> 0 then
+                BindCallConv( w, s, sp, id, (s->payload = 0) )
                 s->flags or= Fbx.SYMF_DEFINED
                 '' The payload is NOT overwritten. Every 'constructor T( ... )'
                 '' definition looks up the same head-of-chain symbol, so writing the
@@ -358,6 +387,89 @@ sub WalkNode _
         WalkNode( w, sp->c, inner )
         WalkChildren( w, sp->first, sp->count, inner )
     end select
+end sub
+
+'' How many parameters a procedure declaration writes.
+private function ProcArity _
+    ( byref w as Walker, byval sp as Fbx.StmtPayload ptr ) as long
+
+    dim as long n = 0
+    for i as long = 0 to sp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, w.ast->children[sp->first + i] )
+        if w.ast->Kind( prm ) = Fbx.N_PARAM then n += 1
+    next
+    return n
+end function
+
+'' The one DECLARED-but-not-yet-defined overload of this name taking 'want' parameters,
+'' or SYMBOL_NONE when there is not exactly one.
+''
+'' Arity, not the full signature: Collect runs before any type is resolved, so it cannot
+'' compare parameter TYPES. Requiring exactly one candidate is what keeps that
+'' approximation safe -- two same-arity overloads leave the definition to declare itself,
+'' which is the behaviour this replaces rather than a new way to be wrong.
+private function UndefinedProcWithArity _
+    ( byref w as Walker, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
+      byval want as long ) as Fbx.SymbolId
+
+    dim as Fbx.SymbolId found = Fbx.SYMBOL_NONE
+    dim as long hits = 0
+    dim as Fbx.SymbolId cur = w.syms->LookupLocal( scope_, nm )
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = w.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
+        if (s->flags and Fbx.SYMF_DEFINED) = 0 then
+            dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+            if (pn <> Fbx.NODE_NONE) andalso (w.ast->Kind( pn ) = Fbx.N_PROC) then
+                if ProcArity( w, StmtOf( w, pn ) ) = want then
+                    found = cur
+                    hits += 1
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    if hits = 1 then return found
+    return Fbx.SYMBOL_NONE
+end function
+
+'' The calling convention across a DECLARE and its definition. The rule is ASYMMETRIC,
+'' and measured on both targets rather than reasoned about:
+''
+''   declare cdecl  + definition (none)     inherits cdecl, emits '_A' on win32
+''   declare (none) + definition stdcall    accepted -- ABSENT MEANS STDCALL
+''   declare (none) + definition cdecl      error 41
+''   declare (none) + definition pascal     error 41
+''
+'' So absence on the DEFINITION inherits, while absence on the DECLARATION is stdcall
+'' and anything else contradicts it. fbc reports the same error on win64, where the
+'' convention has no effect on any emitted name at all, so this is a syntactic rule and
+'' not a target one.
+private function Effective_( byval c as Fbx.CallConv ) as Fbx.CallConv
+    if c = Fbx.CC_NONE then return Fbx.CC_STDCALL
+    return c
+end function
+
+private sub BindCallConv _
+    ( byref w as Walker, byval s as Fbx.Symbol ptr, _
+      byval sp as Fbx.StmtPayload ptr, byval id as Fbx.NodeId, _
+      byval firstSighting as boolean )
+
+    dim as Fbx.CallConv here = Fbx.CallConvOf( sp->extra )
+    if here = Fbx.CC_NONE then return
+    if firstSighting then
+        s->callConv = cast( ubyte, here )
+        return
+    end if
+    dim as Fbx.CallConv had = cast( Fbx.CallConv, s->callConv )
+    if Effective_( had ) = here then
+        s->callConv = cast( ubyte, here )
+        return
+    end if
+    dim as Fbx.SourceRange r = Fbx.PointRange( w.ast->Loc( id ) )
+    w.diags->Report( Fbx.FBX0603, r, w.names->Spelling( s->name ) )
+    w.diags->AddNote( Fbx.FBX0901, Fbx.PointRange( s->loc ) )
 end sub
 
 private function DeclareGlobal _
@@ -465,6 +577,9 @@ function Dump _
             if (s->flags and Fbx.SYMF_DECLARED) <> 0 then row += " declared"
             if (s->flags and Fbx.SYMF_DEFINED) <> 0 then row += " defined"
             if (s->flags and Fbx.SYMF_BUILTIN) <> 0 then row += " builtin"
+            if s->callConv <> cast( ubyte, Fbx.CC_NONE ) then
+                row += " " & Fbx.CallConvName( cast( Fbx.CallConv, s->callConv ) )
+            end if
             if (s->flags and Fbx.SYMF_FUNCNAME) <> 0 then row += " funcname"
             if s->nextOverload <> Fbx.SYMBOL_NONE then row += " +overloads"
             outp += row & chr( 10 )

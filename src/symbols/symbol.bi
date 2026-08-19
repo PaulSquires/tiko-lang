@@ -95,6 +95,10 @@ namespace Fbx
         as SymbolId  nextInScope   '' declaration order within the parent scope
         as ScopeId   inner         '' the scope this symbol opens, if any
         as long      payload       '' AST node, enum value, parameter index ...
+        '' SYM_PROC: the calling convention, resolved across the declaration and the
+        '' definition. CC_NONE means neither wrote one, and the TARGET decides what
+        '' that means -- stdcall on win32, nothing at all on win64.
+        as ubyte     callConv
     end type
 
     '' Declaration order is a per-scope LINKED LIST, not a range: an inner scope can

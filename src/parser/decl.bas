@@ -383,7 +383,15 @@ private function ParseProc _
     '' OVERLOAD must precede ALIAS -- fbc rejects the other order.
     do
         dim as boolean ate = false
+        '' The convention is RECORDED, not merely eaten. It decides the emitted name on
+        '' win32 -- '_H@4' for stdcall against '_G' for cdecl -- and it is checked
+        '' against the DECLARE prototype, which fbc refuses to contradict.
         while Fbx.IsCallConvKind( Peek( p ) )
+            select case Peek( p )
+            case Fbx.KW_CDECL   : sp.extra or= Fbx.PF_CDECL
+            case Fbx.KW_STDCALL : sp.extra or= Fbx.PF_STDCALL
+            case Fbx.KW_PASCAL  : sp.extra or= Fbx.PF_PASCAL
+            end select
             Advance( p )
             ate = true
         wend
@@ -707,6 +715,16 @@ function Declaration( byref p as Fbx.ParserState ) as Fbx.NodeId
                     dim as Fbx.StmtPayload ptr mp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
                     mp->extra or= Fbx.PF_FOREIGN
+                    '' The BLOCK supplies a convention to members that wrote none:
+                    '' measured, 'extern "C"' gives _EC and 'extern "Windows"' _EW@4.
+                    if Fbx.CallConvOf( mp->extra ) = Fbx.CC_NONE then
+                        dim as string lg = Fbx.Text.LowerAscii( p.names->Spelling( lang ) )
+                        if lg = "c" then
+                            mp->extra or= Fbx.PF_CDECL
+                        elseif left( lg, 7 ) = "windows" then
+                            mp->extra or= Fbx.PF_STDCALL
+                        end if
+                    end if
                 end if
                 p.ast->children.Push( members[i] )
             next

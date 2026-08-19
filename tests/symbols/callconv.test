@@ -1,0 +1,11 @@
+'' The calling convention is RECORDED, not merely eaten. It decides the emitted name on
+'' win32 -- '_H@4' for stdcall against '_G' for cdecl -- and a definition INHERITS its
+'' declaration's, which is why the two must be one symbol.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/callconv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 'cd' defined cdecl
+'' EXPECT-OUT: 'pa' defined pascal
+'' EXPECT-OUT: 'inh' declared defined cdecl
+'' EXPECT-OUT: 'ec' declared cdecl
+'' EXPECT-OUT: 'ew' declared stdcall

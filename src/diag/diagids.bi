@@ -93,6 +93,7 @@
     DIAG( FBX0600, SEV_ERROR,   "'%0' is already declared in this scope" )
     DIAG( FBX0601, SEV_ERROR,   "'%0' is undefined" )
     DIAG( FBX0602, SEV_ERROR,   "'%0' is a %1, not a procedure" )
+    DIAG( FBX0603, SEV_ERROR,   "calling convention does not match the declaration of '%0'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( FBX0900, SEV_NOTE,    "%0" )

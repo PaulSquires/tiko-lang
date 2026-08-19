@@ -1,0 +1,11 @@
+'' A DEFINITION joins its DECLARE rather than chaining beside it. Without that they were
+'' two symbols with identical signatures, so every call to a procedure that was declared
+'' and then defined -- most real programs -- was AMBIGUOUS and resolved to nothing.
+''
+'' It went unnoticed because of what the corpus looks like: fbcunit declares its
+'' procedures in a header and defines them in a library fbx never compiles, and the
+'' overload gate's probes are all bodiless declarations.
+'' TEST: cli
+'' ARGS: --check tests/symbols/src/declare-define.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 1 calls resolved, 0 ambiguous

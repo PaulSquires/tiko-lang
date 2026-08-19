@@ -27,6 +27,22 @@ private sub InitNodeTables( )
     nodeTablesReady = true
 end sub
 
+function CallConvOf( byval procFlags as ushort ) as CallConv
+    if (procFlags and PF_CDECL) <> 0 then return CC_CDECL
+    if (procFlags and PF_STDCALL) <> 0 then return CC_STDCALL
+    if (procFlags and PF_PASCAL) <> 0 then return CC_PASCAL
+    return CC_NONE
+end function
+
+function CallConvName( byval c as CallConv ) as string
+    select case c
+    case CC_CDECL   : return "cdecl"
+    case CC_STDCALL : return "stdcall"
+    case CC_PASCAL  : return "pascal"
+    end select
+    return ""
+end function
+
 function NodeKindName( byval k as NodeKind ) as string
     InitNodeTables( )
     dim as boolean bad = (k < 0) orelse (k >= N_KIND_COUNT)

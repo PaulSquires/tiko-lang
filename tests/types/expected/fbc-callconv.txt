@@ -1,0 +1,16 @@
+none	none	accept
+none	cdecl	reject
+none	stdcall	accept
+none	pascal	reject
+cdecl	none	accept
+cdecl	cdecl	accept
+cdecl	stdcall	reject
+cdecl	pascal	reject
+stdcall	none	accept
+stdcall	cdecl	reject
+stdcall	stdcall	accept
+stdcall	pascal	reject
+pascal	none	accept
+pascal	cdecl	reject
+pascal	stdcall	reject
+pascal	pascal	accept

@@ -151,6 +151,19 @@ namespace Fbx
     const PF_FOREIGN    as ushort = &h0020   '' inside EXTERN "C" / "Windows" ...
     const PF_PRIVATE    as ushort = &h0040   '' module-static: no linker-visible name
 
+    '' The calling convention AS WRITTEN. Mutually exclusive, and all three absent means
+    '' NONE WAS WRITTEN -- which is not the same as the default: a definition with no
+    '' convention inherits its DECLARE's, and fbc refuses one that contradicts it
+    '' ("Calling convention does not match DECLARE prototype").
+    ''
+    '' On win64 the convention has no effect on the emitted name at all -- cdecl,
+    '' stdcall and pascal all give plain 'CD', 'ST', 'PA'. On win32 it decides the
+    '' decoration, and PASCAL decorates like CDECL rather than like STDCALL, which is
+    '' the one part of this a reader will get wrong from first principles.
+    const PF_CDECL      as ushort = &h0080
+    const PF_STDCALL    as ushort = &h0100
+    const PF_PASCAL     as ushort = &h0200
+
     type UnaryPayload
         as ushort op                '' TokenKind
         as NodeId operand
@@ -193,6 +206,17 @@ namespace Fbx
     '' The general statement/declaration payload. Slots are named by role rather than
     '' by construct so one record serves every node kind; which slots are meaningful
     '' is documented per kind in parser/stmt.bas.
+    '' A calling convention, resolved. CC_NONE is 'none written'.
+    enum CallConv
+        CC_NONE = 0
+        CC_CDECL
+        CC_STDCALL
+        CC_PASCAL
+    end enum
+
+    declare function CallConvOf( byval procFlags as ushort ) as CallConv
+    declare function CallConvName( byval c as CallConv ) as string
+
     type StmtPayload
         as InternId name            '' declared or referenced name, 0 if none
         as NodeId   a               '' cond / target / typeref / iterator
