@@ -344,6 +344,30 @@ private function TypeArgCall _
     return PostfixChain( p, MakeList( p, Fbx.N_CALL, t.loc, callee, items ) )
 end function
 
+'' Is the '(' at the cursor the start of '( of T, U )'?
+private function IsGenericArgs( byref p as Fbx.ParserState ) as boolean
+    if Peek( p ) <> Fbx.TK_LPAREN then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    dim as Fbx.Token nx = p.toks->At( p.pos + 1 )
+    if cast( Fbx.TokenKind, nx.kind ) <> Fbx.TK_IDENT then return false
+    return (p.names->Spelling( cast( Fbx.InternId, nx.literal ) ) = "of")
+end function
+
+'' Consume a balanced parenthesised group, cursor on the '('.
+private sub SkipBalanced( byref p as Fbx.ParserState )
+    dim as long depth = 0
+    do
+        dim as Fbx.TokenKind k = Peek( p )
+        if k = Fbx.TK_LPAREN then depth += 1
+        if k = Fbx.TK_RPAREN then depth -= 1
+        Advance( p )
+        if depth <= 0 then exit do
+        '' AtEnd lives in parser.bas, ABOVE this file, so the guard is the token kind
+        '' itself rather than a call that would make the dependency circular.
+        if Peek( p ) = Fbx.TK_EOF then exit do
+    loop
+end sub
+
 '' Postfix chain: calls, indexing and member access, all tighter than any operator.
 function PostfixChain _
     ( byref p as Fbx.ParserState, byval base_ as Fbx.NodeId ) as Fbx.NodeId
@@ -355,6 +379,25 @@ function PostfixChain _
 
         select case k
         case Fbx.TK_LPAREN, Fbx.TK_LBRACKET
+            '' 'Box( of long )' is a GENERIC INSTANTIATION, not a call with two
+            '' arguments named 'of' and 'long'. Taking it as a call parsed 'of' as an
+            '' expression and then wanted a ')' where the type argument was -- 37 corpus
+            '' files failed there, three of them RUNTIME HEADERS, so everything that
+            '' includes fb/currency.bi, fb/fserror.bi or fb/mathtext.bi failed too.
+            ''
+            '' 'of' is CONTEXTUAL -- not a keyword -- so it is recognised by spelling,
+            '' exactly as 'each' and 'defer' are.
+            ''
+            '' The arguments are CONSUMED AND DISCARDED, which is what TypeRef already
+            '' does with the same construct: every instantiation of one generic is the
+            '' same type to fbx. That is a real limitation and it is PRE-EXISTING --
+            '' this makes the expression side agree with the type side, it does not
+            '' introduce the gap.
+            if (k = Fbx.TK_LPAREN) andalso IsGenericArgs( p ) then
+                SkipBalanced( p )
+                continue do
+            end if
+
             dim as Fbx.TokenKind closer = Fbx.TK_RPAREN
             dim as Fbx.NodeKind kind = Fbx.N_CALL
             if k = Fbx.TK_LBRACKET then

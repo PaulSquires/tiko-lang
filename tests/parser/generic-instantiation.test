@@ -1,0 +1,5 @@
+'' A generic instantiation in EXPRESSION position, not just in a type.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/generic-instantiation.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/generic-instantiation.out
