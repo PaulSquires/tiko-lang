@@ -1,0 +1,5 @@
+'' Array-descriptor parameters, named and unnamed.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/bydesc-param.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/bydesc-param.out

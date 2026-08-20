@@ -260,7 +260,13 @@ private function ParseParam( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' semantic rule rather than a syntactic one -- the shape parses either way -- so it
     '' is accepted here and the diagnostic is owed from the checker, which does not
     '' emit it yet.
-    if Peek( p ) <> Fbx.KW_AS then
+    '' ... or an unnamed ARRAY-DESCRIPTOR parameter: 'declare sub f( ( ) as integer )'
+    '' and 'dim p as sub cdecl( byval as integer, ( ) as integer )'. The bounds follow
+    '' where the name would be, so '(' means the name is absent just as 'as' does. The
+    '' NAMED forms -- 'a( )', 'a( any )', 'a( any, any )' -- already worked, which is
+    '' why only two of the eight files in this bucket failed on the descriptor itself.
+    dim as Fbx.TokenKind pk = Peek( p )
+    if (pk <> Fbx.KW_AS) andalso (pk <> Fbx.TK_LPAREN) then
         if DeclName( p, sp.name ) = false then return ErrorNode( p, Fbx.FBX0406 )
     end if
 
