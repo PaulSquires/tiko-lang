@@ -1,0 +1,5 @@
+'' typeof( ) in type position, including inside a parameter list.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/typeof-type.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/typeof-type.out

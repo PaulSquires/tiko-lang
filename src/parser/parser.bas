@@ -186,6 +186,30 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     sp.op = cast( ushort, k )
     Advance( p )
 
+    '' 'typeof( X )' as a TYPE. Without this it was read as a NAMED TYPE called
+    '' 'typeof' and the parenthesised group left behind -- silent in a DIM, where
+    '' nothing follows, and a broken parameter list in
+    ''
+    ''     declare sub f( byval c as typeof( sub( ) ) ptr, byval d as long )
+    ''
+    '' which is how it surfaced: 20 corpus files, all of them including rpcndr.bi.
+    ''
+    '' The group is CONSUMED AND DISCARDED, so the type is left unresolved rather than
+    '' wrong -- the inner may be a type OR an expression, and telling which needs
+    '' Check. That is no worse than the named type it used to produce, which resolved
+    '' to nothing either, and it stops the leftover tokens breaking what follows.
+    if (k = Fbx.KW_TYPEOF) andalso (Peek( p ) = Fbx.TK_LPAREN) then
+        dim as long depth = 0
+        do
+            dim as Fbx.TokenKind tk = Peek( p )
+            if tk = Fbx.TK_LPAREN then depth += 1
+            if tk = Fbx.TK_RPAREN then depth -= 1
+            Advance( p )
+            if depth <= 0 then exit do
+            if AtEnd( p ) then exit do
+        loop
+    end if
+
     '' 'UNSIGNED <int type>' is a TWO-WORD type name, and it is the only one FreeBASIC
     '' has: measured, 'unsigned byte/short/long/integer/longint' give sizes 1/2/4/8/8,
     '' and 'SIGNED' is not a prefix at all -- fbc rejects 'as signed byte' outright.

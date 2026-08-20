@@ -1,0 +1,30 @@
+N_MODULE (4) <1:86>
+  N_VAR [DIM] <14:1>
+    N_VAR_ITEM 'a' <14:5>
+      N_TYPEREF ptr <14:10>
+        N_TYPEREF 'typeof' [TYPEOF] <14:10>
+  N_VAR [DIM] <15:1>
+    N_VAR_ITEM 'b' <15:5>
+      N_TYPEREF ptr <15:10>
+        N_TYPEREF 'typeof' [TYPEOF] <15:10>
+  N_PROC 'f' [SUB] <17:9>
+    N_PARAM 'c' <17:16>
+      N_TYPEREF ptr <17:27>
+        N_TYPEREF 'typeof' [TYPEOF] <17:27>
+    N_PARAM 'd' <17:49>
+      N_TYPEREF 'long' [LONG] <17:60>
+  N_PROC 'g' [SUB] <20:9>
+    N_PARAM 'a' <20:16>
+      N_TYPEREF [FUNCTION] <20:27>
+        N_TYPEREF ptr <20:62>
+          N_TYPEREF 'any' [ANY] <20:62>
+        N_PARAM 'n' <20:37>
+          N_TYPEREF 'uinteger' [UINTEGER] <20:48>
+    N_PARAM 'b' <21:16>
+      N_TYPEREF [SUB] <21:27>
+        N_PARAM 'p' <21:32>
+          N_TYPEREF ptr <21:43>
+            N_TYPEREF 'any' [ANY] <21:43>
+    N_PARAM 'c' <22:16>
+      N_TYPEREF ptr <22:27>
+        N_TYPEREF 'typeof' [TYPEOF] <22:27>
