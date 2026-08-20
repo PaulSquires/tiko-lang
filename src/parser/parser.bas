@@ -72,6 +72,14 @@ private sub Sync( byref p as Fbx.ParserState )
     if p.pos = before then Advance( p )
 end sub
 
+''  Does an '=' follow the token at the cursor? Used to tell a statement intrinsic
+'' from a variable or field of the same name. '==' is not an operator in FreeBASIC, so
+'' a single TK_EQ is unambiguous.
+private function FollowedByAssign( byref p as Fbx.ParserState ) as boolean
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EQ)
+end function
+
 '' The keywords that may follow END to close a block. Taken from the ExpectEnd call
 '' sites, so the two cannot drift: anything ExpectEnd is asked to close must appear here.
 private function ClosesABlock( byval k as Fbx.TokenKind ) as boolean
@@ -834,6 +842,22 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             n = MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
         elseif IsDeclarationStart( k ) then
             n = Declaration( p )
+        elseif Fbx.IsStatementIntrinsic( k ) andalso FollowedByAssign( p ) then
+            '' A statement intrinsic whose name is being ASSIGNED to is not the
+            '' statement -- it is a variable or a field that happens to share the
+            '' spelling. fb/tuibuffer.bi has a field called 'width' and assigns it
+            '' unqualified from inside a method:
+            ''
+            ''     width = cast( ubyte, TuiCharWidth( cp ) )
+            ''
+            '' which fbx routed to the WIDTH statement and then failed on the '='.
+            '' Measured: fbc accepts a FIELD named 'width' and rejects a VARIABLE of
+            '' that name outright, so the field case is the one that matters.
+            ''
+            '' No statement intrinsic takes an '=' where its first argument goes, so
+            '' the token settles it without the symbol table -- and what comes out is
+            '' the ordinary call-or-assign ambiguity, which Resolve decides.
+            n = ParseAmbiguous( p )
         elseif Fbx.IsStatementIntrinsic( k ) then
             n = ParseIntrinsic( p )
         elseif (k = Fbx.TK_IDENT) andalso IsContextual( p, "defer" ) then

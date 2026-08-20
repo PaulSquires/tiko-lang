@@ -1,0 +1,26 @@
+N_MODULE (5) <1:89>
+  N_TYPE 'tuicell' <19:1>
+    N_FIELD 'width' <20:18>
+      N_TYPEREF 'ubyte' [UBYTE] <20:12>
+    N_PROC 'setchar' [SUB] <21:17>
+      N_PARAM 'n' <21:30>
+        N_TYPEREF 'ubyte' [UBYTE] <21:41>
+  N_PROC 'setchar' [SUB] <24:1>
+    N_BLOCK (1) <24:40>
+      N_AMBIGUOUS [=] <25:9>
+        N_IDENT 'width' <25:9>
+        N_IDENT 'n' <25:17>
+    N_PARAM 'n' <24:22>
+      N_TYPEREF 'ubyte' [UBYTE] <24:33>
+  N_VAR [DIM] <28:1>
+    N_VAR_ITEM 'c' <28:5>
+      N_TYPEREF 'tuicell' <28:10>
+  N_AMBIGUOUS <29:1>
+    N_CALL <29:10>
+      N_MEMBER . <29:2>
+        N_IDENT 'c' <29:1>
+        N_IDENT 'setchar' <29:3>
+      N_INT_LIT 3 radix=10 <29:12>
+  N_INTRINSIC [WIDTH] <32:1>
+    N_INT_LIT 80 radix=10 <32:7>
+    N_INT_LIT 25 radix=10 <32:11>

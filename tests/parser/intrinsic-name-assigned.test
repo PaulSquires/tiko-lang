@@ -1,0 +1,5 @@
+'' A field named for a statement intrinsic, assigned unqualified inside a method.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/intrinsic-name-assigned.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/intrinsic-name-assigned.out
