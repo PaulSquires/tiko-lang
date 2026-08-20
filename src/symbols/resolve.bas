@@ -85,6 +85,26 @@ end type
 ''
 '' Walking outward rather than caching an id keeps this correct if a file ever opens
 '' more than one module scope.
+declare function StmtOf _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
+
+'' A procedure symbol declared STATIC. Static-ness lives on the AST payload, not on the
+'' symbol, so it is read back through 'payload' -- which for a proc is its N_PROC node.
+private function IsStaticProc_ _
+    ( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
+
+    if sid = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
+    dim as Fbx.NodeId n = cast( Fbx.NodeId, s->payload )
+    if n = Fbx.NODE_NONE then return false
+    if cast( long, n ) >= c.ast->nodes.Count then return false
+    if c.ast->Kind( n ) <> Fbx.N_PROC then return false
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, n )
+    return ((sp->extra and Fbx.PF_STATIC) <> 0)
+end function
+
 private function FileScopeOf_ _
     ( byref c as Ctx, byval from_ as Fbx.ScopeId ) as Fbx.ScopeId
 
@@ -417,6 +437,25 @@ private sub WalkExpr _
                     dim as Fbx.SymbolId msid = _
                         c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
                     if msid <> Fbx.SYMBOL_NONE then
+                        c.info->SetRef( mb->rhs, msid )
+                        c.info->SetRef( id, msid )
+                    end if
+                end if
+            elseif bs->kind = cast( ubyte, Fbx.SYM_UDT ) then
+                '' 'T.foo( )' where T is the TYPE, not a variable of it: a STATIC
+                '' member, qualified by its type exactly as a namespace member is by
+                '' its namespace. The base being the UDT SYMBOL is what tells this from
+                '' 'obj.foo( )', whose base is a VARIABLE.
+                ''
+                '' Bound ONLY when the member is actually static. fbc rejects a
+                '' non-static one -- error 214, 'Member isn't static' -- and binding it
+                '' here would lower a member call with NO RECEIVER, silently. Leaving
+                '' it unbound keeps the existing diagnostic: the wrong message for the
+                '' right outcome, which is the safe half to be wrong on.
+                if c.ast->Kind( mb->rhs ) = Fbx.N_IDENT then
+                    dim as Fbx.SymbolId msid = _
+                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
+                    if IsStaticProc_( c, msid ) then
                         c.info->SetRef( mb->rhs, msid )
                         c.info->SetRef( id, msid )
                     end if
