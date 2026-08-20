@@ -336,6 +336,11 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( sid )
     if cs <> 0 then
         if cs->kind = cast( ubyte, Fbx.SYM_CONSTANT ) then return v
+        '' A REFERENCE has no storage of its own -- it aliases something else, through
+        '' an indirection that is not implemented. Its DECLARATION already declines;
+        '' without this every USE still resolved to a slot aliasing nothing, so
+        '' 'rb = 5 : print a' gave 1 where fbc gives 5.
+        if (cs->flags and Fbx.SYMF_BYREF) <> 0 then return v
     end if
     dim as boolean inModule = IsSharedVar( c, sid )
     if IsStaticLocal( c, sid ) then inModule = true

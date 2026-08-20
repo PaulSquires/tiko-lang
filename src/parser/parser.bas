@@ -992,6 +992,9 @@ private sub DumpAny _
         if (sp->extra and Fbx.PF_MEMB_PRIVATE) <> 0 then row += " private"
         if (sp->extra and Fbx.PF_MEMB_PROTECTED) <> 0 then row += " protected"
     end if
+    '' EXPLICIT is invisible in the dump otherwise, and an unparsed EXPLICIT looked
+    '' exactly like a parsed one -- as an extra member nobody wrote.
+    if (n->kind = Fbx.N_ENUM) andalso (sp->extra <> 0) then row += " explicit"
     outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
 
     DumpAny( ast, src, names, sp->a, indent + 1, outp )

@@ -1,0 +1,6 @@
+'' DIM BYREF and ENUM EXPLICIT: parsed, and the reference declines rather than aliasing
+'' nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/silent-parse-gaps.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/silent-parse-gaps.out

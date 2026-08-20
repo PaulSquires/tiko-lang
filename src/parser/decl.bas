@@ -178,6 +178,17 @@ private function ParseVarDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
         case Fbx.KW_PRESERVE
             flags or= Fbx.NF_PRESERVE
             Advance( p )
+        case Fbx.KW_BYREF
+            '' 'dim byref rb as string = a' -- a REFERENCE variable. Without this the
+            '' name was read as 'byref' and the rest of the statement discarded: no
+            '' type, no initializer, no 'rb', and NO DIAGNOSTIC. It only surfaced on the
+            '' second occurrence, as a redeclaration of 'byref'.
+            ''
+            '' Measured: fbc accepts it with and without SHARED, and refuses one with no
+            '' initializer (error 320, 'Reference not initialized') -- a semantic rule
+            '' fbx does not implement yet.
+            flags or= Fbx.NF_BYREF
+            Advance( p )
         case else
             exit do
         end select
@@ -753,6 +764,17 @@ private function ParseEnumDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.StmtPayload sp
     DeclName( p, sp.name )
 
+    '' 'enum E explicit' -- the members are reachable ONLY as 'E.A'. Without this
+    '' EXPLICIT was consumed as the enum's FIRST MEMBER: a constant nobody wrote, which
+    '' collides with anything actually named 'explicit' and shifts every real member's
+    '' implicit value by one. No diagnostic either way.
+    ''
+    '' The keyword is recorded and the SCOPING it implies is NOT implemented: fbc says
+    '' a bare 'A' is error 42 for an explicit enum, and fbx still resolves it, because
+    '' the members would need a scope of their own and 'E.A' a path to reach into it.
+    '' Accepting more than fbc never loses a file; the diagnostic is owed.
+    dim as boolean isExplicit = Accept( p, Fbx.KW_EXPLICIT )
+
     dim as Fbx.NodeIdVec items
     do
         SkipEols( p )
@@ -776,6 +798,9 @@ private function ParseEnumDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
         p.ast->children.Push( items[i] )
     next
     ExpectEnd( p, Fbx.KW_ENUM )
+    '' Recorded in 'extra' rather than a node flag: the ushort NF_ set is fully
+    '' allocated, and N_ENUM uses 'extra' for nothing else.
+    if isExplicit then sp.extra = 1
     return MakeStmt( p, Fbx.N_ENUM, t.loc, sp )
 end function
 

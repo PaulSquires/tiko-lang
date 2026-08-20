@@ -282,6 +282,7 @@ function Run( byref args as Fbx.StrVec ) as long
                 if lst.ambResultNoSlot > 0 then
                     print "  amb result-noslot " & str( lst.ambResultNoSlot )
                 end if
+                if lst.varByref > 0 then print "  var byref " & str( lst.varByref )
                 if lst.ambOther > 0 then print "  amb other " & str( lst.ambOther )
                 '' Which LINE of the lowering gave up, which is the thing to go and read.
                 for i as long = 0 to lst.skipSiteN.Count - 1

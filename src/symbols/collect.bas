@@ -121,6 +121,7 @@ sub WalkNode _
             if s <> 0 then
                 if (n->flags and Fbx.NF_SHARED) <> 0 then s->flags or= Fbx.SYMF_SHARED
                 if (n->flags and Fbx.NF_STATIC) <> 0 then s->flags or= Fbx.SYMF_STATIC
+                if (n->flags and Fbx.NF_BYREF) <> 0 then s->flags or= Fbx.SYMF_BYREF
                 if k = Fbx.N_CONST then s->flags or= Fbx.SYMF_CONST
                 s->payload = cast( long, item )
             end if

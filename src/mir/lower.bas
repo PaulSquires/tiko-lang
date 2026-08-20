@@ -790,6 +790,20 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             SkipHere( c )
             return
         end if
+        '' 'dim byref rb as integer = a' ALIASES a. The slot would have to hold a
+        '' pointer and every read and write go through it, which is not implemented --
+        '' so this DECLINES rather than lowering the initializer as a copy.
+        ''
+        '' It matters that this landed with the parse fix and not after it. Parsing
+        '' BYREF turned a statement that silently vanished into one that silently
+        '' ALIASED NOTHING: measured, 'rb = 5' then 'print a' gives 5 under fbc and
+        '' would have given 1 here. A decline is the honest answer until the
+        '' indirection exists.
+        if (c.ast->nodes[cast( long, id )].flags and Fbx.NF_BYREF) <> 0 then
+            SkipHere( c )
+            c.st->varByref += 1
+            return
+        end if
         for i as long = 0 to sp->count - 1
             dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for

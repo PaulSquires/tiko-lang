@@ -84,6 +84,13 @@ namespace Fbx
     '' use, so it needs its own marker rather than a payload.
     const SYMF_FUNCNAME as ushort = &h0400
 
+    '' 'dim byref rb as integer = a' -- a REFERENCE. The slot would have to hold a
+    '' pointer and every read and write go through it, which is not implemented, so
+    '' lowering declines the declaration AND every use. Without the second half the
+    '' declaration declined while 'rb = 5' still stored into a slot aliasing nothing:
+    '' fbc prints 5 for that program, fbx would have printed 1.
+    const SYMF_BYREF    as ushort = &h0800
+
     type Symbol
         as ubyte     kind
         as ushort    flags

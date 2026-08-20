@@ -67,7 +67,7 @@ xargs -a build/.corpus.lst -d '
     key=$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
     raw=build/.mirparts/$key.raw
     ./bin/fbx.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
-    grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb" \
+    grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb|^  var " \
         "$raw" > "build/.mirparts/$key" || true
     grep -E ": (error|fatal) FBX" "$raw" > "build/.diagparts/$key" || true
     rm -f "$raw"
@@ -100,6 +100,7 @@ awk '
 /^  inside N_/             { inner[$2] += $3 }
 /^  skip-site /            { site[$2] += $3 }
 /^  amb /                  { amb[$2] += $3 }
+/^  var /                  { amb["var " $2] += $3 }
 /^  amb-other-/            { oth[$1 " " $2] += $3 }
 /^  amb-unbound-shape /    { ushape[$2] += $3 }
 /^  amb-unbound-name /     { uname[$2]++ }
