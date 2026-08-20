@@ -23,6 +23,7 @@ type Walker
     as Fbx.TypeContext ptr  types
     as Fbx.SemanticInfo ptr info
     as boolean              inUnion
+    as boolean              unionFirst   '' the next field starts a NEW anonymous union
     as long                 duplicates
 end type
 
@@ -376,9 +377,16 @@ sub WalkNode _
             '' sequential. The distinction has to survive the splice, or the layout
             '' pass cannot tell them apart afterwards.
             dim as boolean saved = w.inUnion
-            if (n->flags and Fbx.NF_IS_UNION) <> 0 then w.inUnion = true
+            dim as boolean savedFirst = w.unionFirst
+            if (n->flags and Fbx.NF_IS_UNION) <> 0 then
+                w.inUnion = true
+                '' Each anonymous union marks its OWN first field, so the layout pass
+                '' can tell two adjacent ones apart.
+                w.unionFirst = true
+            end if
             WalkChildren( w, sp->first, sp->count, scope_ )
             w.inUnion = saved
+            w.unionFirst = savedFirst
             return
         end if
         dim as Fbx.SymbolId sid = Declare_( w, scope_, sp->name, Fbx.SYM_UDT, _
@@ -403,7 +411,11 @@ sub WalkNode _
                                             w.ast->Loc( id ) )
         if w.inUnion then
             dim as Fbx.Symbol ptr fs = w.syms->SymbolAt( fid )
-            if fs <> 0 then fs->flags or= Fbx.SYMF_UNION
+            if fs <> 0 then
+                fs->flags or= Fbx.SYMF_UNION
+                if w.unionFirst then fs->flags or= Fbx.SYMF_UNION_FIRST
+            end if
+            w.unionFirst = false
         end if
 
     case Fbx.N_ENUM

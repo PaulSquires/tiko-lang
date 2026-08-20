@@ -1,0 +1,5 @@
+'' Two anonymous unions do not merge into one overlapping run.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/anon-union-runs.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/anon-union-runs.out

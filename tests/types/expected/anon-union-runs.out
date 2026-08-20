@@ -1,0 +1,13 @@
+twounions size 16 align 8
+  twounions off a 0
+  twounions off b 8
+twoaligned size 16 align 8
+  twoaligned off c 0
+  twoaligned off d 8
+oneunion size 8 align 8
+  oneunion off e 0
+  oneunion off f 0
+packed size 12 align 8
+  packed off g 0
+  packed off h 4
+udts: 4

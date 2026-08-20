@@ -120,15 +120,32 @@ private function LayOutOne _
             '' first one. So the run is scanned ahead before anything is placed:
             '' 'union : as long l : as double d' puts BOTH at 8, and reacting member
             '' by member put l at 4 and d at 8, which is a union that is not a union.
+            '' A second anonymous union starting while a run is open CLOSES that run
+            '' first. The end-of-run test below only fires on a NON-union field, so
+            '' without this two adjacent unions stayed one run however the scan was
+            '' bounded, and their fields overlapped.
+            if isUnion andalso inUnionRun andalso _
+               ((f->flags and SYMF_UNION_FIRST) <> 0) then
+                offset = unionStart + unionSize
+                inUnionRun = false
+            end if
+
             if isUnion andalso (inUnionRun = false) then
                 dim as long runAlign = 1
                 dim as long runSize = 0
                 dim as SymbolId scan = cur
+                dim as boolean firstOfRun = true
                 while scan <> SYMBOL_NONE
                     dim as Symbol ptr g = syms.SymbolAt( scan )
                     if g = 0 then exit while
                     if g->kind <> cast( ubyte, SYM_FIELD ) then exit while
                     if (g->flags and SYMF_UNION) = 0 then exit while
+                    '' A SECOND anonymous union starts here, so this run ends. Without
+                    '' this the two merged and their fields overlapped: measured, two
+                    '' anonymous unions of one INTEGER each is 16 bytes, not 8.
+                    if (firstOfRun = false) andalso _
+                       ((g->flags and SYMF_UNION_FIRST) <> 0) then exit while
+                    firstOfRun = false
                     dim as long ga = MemberAlign( g->type_, types, store )
                     dim as long gs = MemberSize( g->type_, types, store )
                     if ga > runAlign then runAlign = ga

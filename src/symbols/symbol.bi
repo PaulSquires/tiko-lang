@@ -91,6 +91,13 @@ namespace Fbx
     '' fbc prints 5 for that program, fbx would have printed 1.
     const SYMF_BYREF    as ushort = &h0800
 
+    '' The FIRST field spliced out of one anonymous UNION. Two adjacent anonymous
+    '' unions produce one continuous run of SYMF_UNION fields, and the layout pass
+    '' scans a run to find its widest member -- so without a marker for where each
+    '' union STARTS it merged them and overlapped fields that should follow one
+    '' another. Measured: two anonymous unions of one INTEGER each is 16 bytes, not 8.
+    const SYMF_UNION_FIRST as ushort = &h1000
+
     type Symbol
         as ubyte     kind
         as ushort    flags

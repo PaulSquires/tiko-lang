@@ -681,6 +681,25 @@ private function ParseAggregateBody _
     return n
 end function
 
+'' 'type T field = 1' caps how far each member is aligned. It does NOT reduce the type's
+'' own alignment when embedded -- measured -- so it is kept separately rather than
+'' folded into the alignment.
+''
+'' Shared by the named and the ANONYMOUS forms: 'union field = 4' with no name at all is
+'' what winnt.bi writes, and reading the clause in only one of the two places left
+'' 'field' behind as a MEMBER of the anonymous union.
+private sub ParseFieldClause( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
+    if Peek( p ) <> Fbx.KW_FIELD then return
+    Advance( p )
+    if Accept( p, Fbx.TK_EQ ) = false then return
+    dim as Fbx.NodeId nExpr = Expression( p )
+    sp.extra = 0
+    if nExpr = Fbx.NODE_NONE then return
+    if p.ast->Kind( nExpr ) <> Fbx.N_INT_LIT then return
+    sp.extra = cast( ushort, _
+        p.ast->literals[cast( long, p.ast->nodes[cast( long, nExpr )].data )].intValue )
+end sub
+
 private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.Token t = Cur( p )
     dim as boolean isUnion = (Peek( p ) = Fbx.KW_UNION)
@@ -719,13 +738,30 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
         return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
     end if
 
-    if DeclName( p, sp.name ) = false then
+    '' 'union field = 4' -- an ANONYMOUS aggregate carrying the alignment clause. The
+    '' branch below already anticipates a FIELD after the name, but it never ran,
+    '' because DeclName happily takes 'field' AS the name: the union was called 'field',
+    '' and a TYPE containing two of them reported a duplicate. 14 corpus files, all
+    '' through winnt.bi.
+    ''
+    '' The '=' is what tells the clause from a genuine name -- 'union field' with
+    '' nothing after it really is a union called 'field'.
+    dim as boolean fieldClause = false
+    if Peek( p ) = Fbx.KW_FIELD then
+        if HasTok( p, p.pos + 1 ) then
+            fieldClause = _
+                (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EQ)
+        end if
+    end if
+
+    if fieldClause orelse (DeclName( p, sp.name ) = false) then
         '' An ANONYMOUS union or type, which is legal inside another aggregate and
         '' nowhere else. Its members belong to the enclosing type, so it carries no
         '' name and Collect splices it rather than opening a scope.
         if (p.aggDepth > 0) andalso _
            ((Peek( p ) = Fbx.TK_EOL) orelse (Peek( p ) = Fbx.KW_FIELD)) then
             sp.name = 0
+            ParseFieldClause( p, sp )
             dim as Fbx.NodeId anon = ParseAggregateBody( p, t, sp, isUnion )
             return anon
         end if
@@ -754,23 +790,7 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
         wend
         Expect( p, Fbx.TK_RPAREN, ")" )
     end if
-    '' 'type T field = 1' caps how far each member is aligned. It does NOT reduce the
-    '' type's own alignment when embedded -- measured -- so it is kept separately
-    '' rather than folded into the alignment.
-    if Peek( p ) = Fbx.KW_FIELD then
-        Advance( p )
-        if Accept( p, Fbx.TK_EQ ) then
-            dim as Fbx.NodeId nExpr = Expression( p )
-            sp.extra = 0
-            if nExpr <> Fbx.NODE_NONE then
-                if p.ast->Kind( nExpr ) = Fbx.N_INT_LIT then
-                    sp.extra = cast( ushort, _
-                        p.ast->literals[cast( long, _
-                            p.ast->nodes[cast( long, nExpr )].data )].intValue )
-                end if
-            end if
-        end if
-    end if
+    ParseFieldClause( p, sp )
 
     if Accept( p, Fbx.KW_EXTENDS ) then sp.c = TypeRef( p )
 
