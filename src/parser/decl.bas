@@ -232,8 +232,27 @@ private function ParseConstDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     Advance( p )
     dim as Fbx.StmtPayload sp
     dim as Fbx.NodeIdVec items
+
+    '' 'const as ulongint u = 1' -- the TYPE-FIRST form, which DIM has always had and
+    '' CONST did not. Without it 'as' was read as the constant's NAME and everything
+    '' after it discarded: no type, no value, no 'u', and NO DIAGNOSTIC. It surfaced
+    '' only on the second such declaration, as a redeclaration of 'as' -- twenty corpus
+    '' files, the largest single line-shape in the largest remaining bucket.
+    ''
+    '' Measured: fbc accepts 'const as ubyte a = 1, b = 2' too, so the type is shared
+    '' across a comma list exactly as it is for DIM.
+    dim as Fbx.NodeId sharedType = Fbx.NODE_NONE
+    if Accept( p, Fbx.KW_AS ) then sharedType = TypeRef( p )
+
     do
-        items.Push( cast( ulong, VarItem( p, sp.op = cast( ushort, Fbx.KW_REDIM ) ) ) )
+        dim as Fbx.NodeId item = VarItem( p, false )
+        items.Push( cast( ulong, item ) )
+        '' An ERROR node has no StmtPayload; indexing its 'data' as one is a segfault.
+        if p.ast->Kind( item ) <> Fbx.N_VAR_ITEM then exit do
+        if sharedType <> Fbx.NODE_NONE then
+            dim as long si = cast( long, p.ast->nodes[cast( long, item )].data )
+            if p.ast->stmts[si].a = Fbx.NODE_NONE then p.ast->stmts[si].a = sharedType
+        end if
         if Accept( p, Fbx.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count

@@ -1,0 +1,5 @@
+'' CONST with the type written before the names, including a comma list.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/const-type-first.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/const-type-first.out

@@ -1,0 +1,29 @@
+N_MODULE (5) <1:86>
+  N_CONST <11:1>
+    N_VAR_ITEM 'u' <11:19>
+      N_TYPEREF 'ulongint' [ULONGINT] <11:10>
+      N_INT_LIT 1 radix=10 <11:23>
+  N_CONST <12:1>
+    N_VAR_ITEM 'a' <12:16>
+      N_TYPEREF 'ubyte' [UBYTE] <12:10>
+      N_INT_LIT 1 radix=10 <12:20>
+    N_VAR_ITEM 'b' <12:23>
+      N_TYPEREF 'ubyte' [UBYTE] <12:10>
+      N_INT_LIT 2 radix=10 <12:27>
+  N_CONST <13:1>
+    N_VAR_ITEM 'v' <13:7>
+      N_TYPEREF 'ulongint' [ULONGINT] <13:12>
+      N_INT_LIT 2 radix=10 <13:23>
+  N_CONST <14:1>
+    N_VAR_ITEM 'w' <14:7>
+      N_INT_LIT 3 radix=10 <14:11>
+  N_INTRINSIC [PRINT] <16:1>
+    N_IDENT 'u' <16:7>
+    N_PRINT_SEP [,] <16:8>
+    N_IDENT 'a' <16:10>
+    N_PRINT_SEP [,] <16:11>
+    N_IDENT 'b' <16:13>
+    N_PRINT_SEP [,] <16:14>
+    N_IDENT 'v' <16:16>
+    N_PRINT_SEP [,] <16:17>
+    N_IDENT 'w' <16:19>
