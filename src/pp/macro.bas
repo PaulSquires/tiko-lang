@@ -345,6 +345,19 @@ private function ArgText _
     return s
 end function
 
+'' One operand of a '##', as text: a PARAMETER contributes its argument's spelling, and
+'' anything else its own.
+private function PasteSpelling_ _
+    ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
+      byref t as Token ) as string
+
+    if Tk( t ) = TK_IDENT then
+        dim as long ai = ArgIndexOf( m, cast( InternId, t.literal ) )
+        if ai >= 0 then return ArgText( e, args, ai )
+    end if
+    return SpellOf( e, t )
+end function
+
 '' Substitute parameters into the body, handling '#' stringise and '##' paste.
 private sub PpSubstitute _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
@@ -408,27 +421,27 @@ private sub PpSubstitute _
                         (Tk( m->body[i + 2] ) = TK_HASH)
         end if
         if pasteNext then
-            dim as string lhs = ""
-            if bk = TK_IDENT then
-                dim as long ai = ArgIndexOf( m, cast( InternId, bt.literal ) )
-                if ai >= 0 then lhs = ArgText( e, args, ai ) else lhs = SpellOf( e, bt )
-            else
-                lhs = SpellOf( e, bt )
-            end if
-
-            dim as string rhs = ""
+            dim as string acc = PasteSpelling_( e, m, args, bt )
             if i + 3 < m->body.Count then
-                dim as Token rt = m->body[i + 3]
-                if Tk( rt ) = TK_IDENT then
-                    dim as long ai = ArgIndexOf( m, cast( InternId, rt.literal ) )
-                    if ai >= 0 then rhs = ArgText( e, args, ai ) else rhs = SpellOf( e, rt )
-                else
-                    rhs = SpellOf( e, rt )
-                end if
+                acc += PasteSpelling_( e, m, args, m->body[i + 3] )
             end if
-
-            RelexInto( e, lhs & rhs, useLoc, outv )
             i += 4
+
+            '' 'a##b##c' pastes LEFT TO RIGHT, and '##' is TWO tokens, so after the
+            '' first paste the cursor lands ON the second '##' rather than on the
+            '' result -- where nothing recognises it and both hashes are emitted
+            '' literally. fbcunit writes 'tests.##suite_name##.init' and got
+            '' 'tests.mysuite##.init'.
+            ''
+            '' The spellings accumulate and are re-lexed ONCE at the end, which is what
+            '' fbc does: it cannot make '.mysuite' one token either, and does not try.
+            while (i + 2 < m->body.Count) andalso _
+                  (Tk( m->body[i] ) = TK_HASH) andalso (Tk( m->body[i + 1] ) = TK_HASH)
+                acc += PasteSpelling_( e, m, args, m->body[i + 2] )
+                i += 3
+            wend
+
+            RelexInto( e, acc, useLoc, outv )
             continue while
         end if
 

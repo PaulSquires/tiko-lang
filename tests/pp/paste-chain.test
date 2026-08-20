@@ -1,0 +1,5 @@
+'' Several '##' in one body paste left to right, not just the first.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/paste-chain.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/paste-chain.out
