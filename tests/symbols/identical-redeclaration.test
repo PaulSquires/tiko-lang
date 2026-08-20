@@ -1,0 +1,5 @@
+'' An identical typedef or constant may be restated; a definition may not.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/identical-redeclaration.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/identical-redeclaration.out

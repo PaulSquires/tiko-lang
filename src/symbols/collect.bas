@@ -71,6 +71,8 @@ declare function SameBounds_ _
 declare function SameLiteral_ _
     ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
 declare function IsAnyBound_( byref w as Walker, byval id as Fbx.NodeId ) as boolean
+declare function SameConstValue_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
 
 '' Do two declarations of one name describe the SAME thing? Used only to decide whether
 '' an EXTERN and its later definition are a redeclaration or a duplicate.
@@ -154,6 +156,19 @@ private function SameBounds_ _
         end if
     next
     return true
+end function
+
+'' Two constants' initialisers. Compared only when both are integer literals; anything
+'' else counts as agreeing, the same permissive rule the shape comparison uses. That
+'' can accept a pair fbc would reject -- 'const X = f( 1 )' written twice with different
+'' f -- and accepting is the direction that does not lose a working file.
+private function SameConstValue_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+
+    if (a = Fbx.NODE_NONE) orelse (b = Fbx.NODE_NONE) then return true
+    dim as Fbx.StmtPayload ptr ap = StmtOf( w, a )
+    dim as Fbx.StmtPayload ptr bp = StmtOf( w, b )
+    return SameLiteral_( w, ap->b, bp->b )
 end function
 
 '' The 'any' of 'a( any )', which arrives as an ordinary identifier.
@@ -286,6 +301,24 @@ sub WalkNode _
             '' The 29 corpus files that exist to check those three disagreements were
             '' passing by ACCIDENT, because fbx rejected the whole construct; they have
             '' to keep failing, for the right reason now.
+            '' An IDENTICAL constant is not a duplicate either -- same type AND same
+            '' value. Measured: 'const I1 = 0' twice is accepted, a different VALUE is
+            '' fbc error 4, and so is the same value at a different type. A VARIABLE is
+            '' never redeclarable, which is why this is the CONST branch alone.
+            if sk = Fbx.SYM_CONSTANT then
+                dim as Fbx.SymbolId prevC = _
+                    w.syms->LookupLocalTyped( scope_, ip->name, false )
+                dim as Fbx.Symbol ptr pcs = w.syms->SymbolAt( prevC )
+                if pcs <> 0 then
+                    if pcs->kind = cast( ubyte, Fbx.SYM_CONSTANT ) then
+                        dim as Fbx.NodeId prevItem = cast( Fbx.NodeId, pcs->payload )
+                        if SameDeclShape_( w, prevItem, item ) then
+                            if SameConstValue_( w, prevItem, item ) then continue for
+                        end if
+                    end if
+                end if
+            end if
+
             dim as boolean isExtern = (sp->op = cast( ushort, Fbx.KW_EXTERN ))
             if sk = Fbx.SYM_VARIABLE then
                 dim as Fbx.SymbolId prev = _
@@ -392,10 +425,38 @@ sub WalkNode _
 
     case Fbx.N_TYPEDEF
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
+
+        '' An IDENTICAL typedef is not a duplicate. Measured:
+        ''
+        ''     type INT_ as long   twice          accepted
+        ''     type INT_ as long / as double      fbc error 4
+        ''     an identical UDT BODY twice        fbc error 4
+        ''
+        '' The Windows headers rely on it: 'type INT_ as long' appears in ntdef.bi,
+        '' windef.bi AND winnt.bi, and 14 corpus files include more than one of them.
+        '' Same rule family as the identical '#define' -- an ALIAS may be restated, a
+        '' DEFINITION may not.
+        dim as Fbx.SymbolId prevT = w.syms->LookupLocalTyped( scope_, sp->name, true )
+        dim as Fbx.Symbol ptr pts = w.syms->SymbolAt( prevT )
+        if pts <> 0 then
+            if pts->kind = cast( ubyte, Fbx.SYM_TYPEDEF ) then
+                if SameTypeRef_( w, cast( Fbx.NodeId, pts->payload ), sp->a ) then
+                    for i as long = 0 to sp->count - 1
+                        WalkNode( w, cast( Fbx.NodeId, w.ast->children[sp->first + i] ), scope_ )
+                    next
+                    return
+                end if
+            end if
+        end if
+
         dim as Fbx.SymbolId tid = Declare_( w, scope_, sp->name, Fbx.SYM_TYPEDEF, _
                                             w.ast->Loc( id ) )
         dim as Fbx.Symbol ptr ts = w.syms->SymbolAt( tid )
-        if ts <> 0 then ts->type_ = w.types->NamedType( Fbx.TK_TYPEDEF, sp->name, cast( ulong, scope_ ) )
+        if ts <> 0 then
+            ts->type_ = w.types->NamedType( Fbx.TK_TYPEDEF, sp->name, cast( ulong, scope_ ) )
+            '' The type reference, so a later identical typedef can be compared to it.
+            ts->payload = cast( long, sp->a )
+        end if
         '' 'type as integer a, b' -- every name after the first is a child N_TYPEDEF
         '' sharing the same type reference.
         for i as long = 0 to sp->count - 1
