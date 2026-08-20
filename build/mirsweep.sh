@@ -47,14 +47,40 @@ find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 # buffer, and a torn 'lowered:' line would be counted as something else rather than
 # reported as an error. The parts are concatenated afterwards, so the aggregate is
 # identical to the serial run -- and that equality was verified, not assumed.
-JOBS=${MIRSWEEP_JOBS:-$(nproc 2>/dev/null || echo 4)}
-rm -rf build/.mirparts
-mkdir -p build/.mirparts
-xargs -a build/.corpus.lst -d '\n' -P "$JOBS" -I{} sh -c '
-    out=build/.mirparts/$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
-    ./bin/fbx.exe --dump-ir '"$FBCUNIT"' "$1" 2>/dev/null \
-        | grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb" > "$out" || true
+# JOBS was one per core, and that cost two runs: once the fork table was exhausted and
+# a worker died with its output redirected at a directory, once a run hung for an hour.
+# Six leaves headroom for the shell's own processes. Raise it with MIRSWEEP_JOBS.
+JOBS=${MIRSWEEP_JOBS:-6}
+rm -rf build/.mirparts build/.diagparts
+mkdir -p build/.mirparts build/.diagparts
+
+# ONE fbx per file, producing BOTH outputs. The diagnostics used to be collected by a
+# SECOND sweep running the identical command, which doubled the wall time and the fork
+# pressure for nothing -- and left two measurements that could disagree with each other
+# if the binary changed between them.
+#
+# stderr is merged now, because diagnostics go there. The statistics greps are anchored,
+# so they match what they did when stderr was discarded -- checked against the previous
+# run rather than assumed.
+xargs -a build/.corpus.lst -d '
+' -P "$JOBS" -I{} sh -c '
+    key=$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
+    raw=build/.mirparts/$key.raw
+    ./bin/fbx.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
+    grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb" \
+        "$raw" > "build/.mirparts/$key" || true
+    grep -E ": (error|fatal) FBX" "$raw" > "build/.diagparts/$key" || true
+    rm -f "$raw"
 ' _ {}
+
+# A part per corpus file, or the run was short and every total below is understated.
+# A partial sweep says nothing about being partial, so it is checked, not read.
+want=$(wc -l < build/.corpus.lst)
+got=$(ls build/.mirparts | wc -l)
+if [ "$got" -ne "$want" ]; then
+    echo "mirsweep: INCOMPLETE -- $got parts for $want files; totals below are wrong" >&2
+    exit 4
+fi
 cat build/.mirparts/* > build/.mir.out
 awk '
 /^lowered:/ {
@@ -108,3 +134,12 @@ END {
   for (i = 1; i <= n9 && i <= 6; i++) printf "mirsweep:  %8d  member %s\n", mname[is9[i]], is9[i]
 }
 ' build/.mir.out
+
+# The parse gap, from the same pass: how many files report a diagnostic at all, and the
+# first one of each bucketed by shape. Keyed on the FIRST diagnostic per file -- keyed on
+# all of them, one lost parser repeating itself dominates the table.
+dirty=$(grep -l . build/.diagparts/* 2>/dev/null | wc -l)
+echo "mirsweep: $dirty files report a diagnostic, of $want"
+for f in build/.diagparts/*; do head -1 "$f"; done 2>/dev/null \
+    | grep -oE 'FBX[0-9]+: .*' | sed -E "s/'[^']*'/'X'/g; s/[0-9]+/N/g" \
+    | sort | uniq -c | sort -rn | head -8 | sed 's/^/mirsweep:  /'
