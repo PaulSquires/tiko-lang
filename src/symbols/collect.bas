@@ -205,12 +205,31 @@ private function SameTypeRef_ _
     dim as Fbx.StmtPayload ptr bp = StmtOf( w, b )
 
     '' The builtin keyword, or 0 for a named type. A different builtin is fbc error 4.
-    if ap->op <> bp->op then return false
-    '' A named type: the spelling. Two different names may still be the same type
-    '' through typedefs, so this only rejects when BOTH are named and differ.
-    if (ap->name <> 0) andalso (bp->name <> 0) andalso (ap->name <> bp->name) then
-        return false
+    '' The builtin keyword -- but only when BOTH sides wrote one. A named type has
+    '' op = TK_IDENT and may be a TYPEDEF for the builtin on the other side, which is
+    '' exactly the ULONG / CULONG pair below, so comparing across the two kinds
+    '' rejects a legal restatement.
+    dim as boolean aNamed = (ap->op = cast( ushort, Fbx.TK_IDENT ))
+    dim as boolean bNamed = (bp->op = cast( ushort, Fbx.TK_IDENT ))
+    if (aNamed = false) andalso (bNamed = false) then
+        if ap->op <> bp->op then return false
     end if
+    '' A NAMED type is NOT compared, even when both sides name something and the
+    '' spellings differ. Two names can be one type through a typedef, and Collect has
+    '' no types to ask -- crt/io.bi and crt/win32/wchar.bi both declare
+    ''
+    ''     #ifndef _fsize_t
+    ''     type _fsize_t as ulong        (io.bi)
+    ''     type _fsize_t as culong       (wchar.bi)
+    ''     #endif
+    ''
+    '' with NOTHING ever defining _fsize_t, so both guards fire and both declarations
+    '' happen. fbc accepts them because CULONG is a typedef for ULONG on Windows; a
+    '' comparison on spellings cannot see that and rejected four corpus files.
+    ''
+    '' Nothing is lost that the corpus checks: its duplicate tests differ by BUILTIN
+    '' type, which the 'op' comparison above catches, and by array shape and string
+    '' length, which are compared below.
 
     '' 'zstring * 4' against 'zstring * 8' -- fbc error 20. Only comparable when both
     '' lengths are integer literals; anything else is left alone.

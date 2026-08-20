@@ -1,11 +1,14 @@
-scopes: 2  symbols: 8
+scopes: 2  symbols: 11
 scope 1 global parent=0 (4)
     const     'true' builtin
     const     'false' builtin
     const     '__function__' funcname
     const     '__function_nq__'
-scope 2 module parent=1 (4)
+scope 2 module parent=1 (7)
     typedef   'int_'
     const     'i1' const
     const     'l1' const
     var       'x' shared
+    typedef   'culong_'
+    typedef   'alias1'
+    var       'au' shared
