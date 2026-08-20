@@ -55,14 +55,28 @@ declare function PxOrElse( byref x as PpExprState ) as PpValue
 '' The size of a BUILTIN type is target data, which the preprocessor legitimately
 '' knows -- '#if sizeof( integer ) = 8' needs no symbol table. A user type does, and
 '' returns -1 so the caller can mark the condition unevaluable.
-private function BuiltinSizeOf( byval k as TokenKind ) as long
+'' MEASURED on both targets, because two of these rows differ and the table had them
+'' hardcoded at their win64 values:
+''
+''              win64   win32
+''   integer      8       4
+''   string      24      12
+''   wstring      2       2
+''   zstring      1       1
+''   boolean      1       1
+''
+'' '#if sizeof( integer ) = 8' would have taken the wrong branch of every header on
+'' win32 -- silently, since a wrong branch is not an error. WSTRING and ZSTRING were
+'' simply absent, which is what '#if sizeof( wstring ) = 4' failed on.
+private function BuiltinSizeOf( byval k as TokenKind, byval is64 as boolean ) as long
     select case k
     case KW_BYTE, KW_UBYTE, KW_BOOLEAN            : return 1
-    case KW_SHORT, KW_USHORT                      : return 2
+    case KW_ZSTRING                               : return 1
+    case KW_SHORT, KW_USHORT, KW_WSTRING          : return 2
     case KW_LONG, KW_ULONG, KW_SINGLE             : return 4
-    case KW_INTEGER, KW_UINTEGER                  : return 8
+    case KW_INTEGER, KW_UINTEGER                  : return iif( is64, 8, 4 )
     case KW_LONGINT, KW_ULONGINT, KW_DOUBLE       : return 8
-    case KW_STRING                                : return 24
+    case KW_STRING                                : return iif( is64, 24, 12 )
     end select
     return -1
 end function
@@ -71,7 +85,9 @@ end function
 '' type directly: 'typeof( long ) = typeof( long )'. The token kind is the identity.
 '' 'typeof( someVariable )' needs the type system and is not evaluable here.
 private function TypeIdentityOf( byval k as TokenKind ) as long
-    if BuiltinSizeOf( k ) >= 0 then return cast( long, k )
+    '' The IDENTITY of a builtin is its token kind, so the size argument is irrelevant
+    '' here -- any target that gives it a size gives it an identity.
+    if BuiltinSizeOf( k, true ) >= 0 then return cast( long, k )
     select case k
     case KW_ANY, KW_ZSTRING, KW_WSTRING, KW_USTRING : return cast( long, k )
     end select
@@ -159,7 +175,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         dim as TokenKind inner = PxPeek( x )
         dim as long v = -1
         if k = KW_SIZEOF then
-            v = BuiltinSizeOf( inner )
+            v = BuiltinSizeOf( inner, x.e->cfg->targetIs64 )
         else
             v = TypeIdentityOf( inner )
         end if

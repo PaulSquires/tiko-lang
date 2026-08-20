@@ -1,0 +1,5 @@
+'' sizeof and typeof inside #if, for the builtins the preprocessor can know.
+'' TEST: cli
+'' ARGS: --pp-only tests/pp/src/if-sizeof.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/if-sizeof.out
