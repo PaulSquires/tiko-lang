@@ -53,8 +53,14 @@ private sub IntrArgList( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVe
     do
         if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
         dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
-        if p.pos = before then exit do
+        '' 'locate ,,0' -- an intrinsic's arguments may be elided too.
+        dim as Fbx.NodeId arg = ArgOrElided( p, Fbx.TK_EOL )
+        items.Push( cast( ulong, arg ) )
+        '' The no-progress guard exists to stop a loop that cannot consume anything.
+        '' An ELIDED argument consumes nothing BY DEFINITION, so it has to be exempt --
+        '' the comma after it is what advances, and without this 'locate ,,0' bailed
+        '' out on its first argument.
+        if (p.ast->Kind( arg ) <> Fbx.N_ELIDED) andalso (p.pos = before) then exit do
         if Accept( p, Fbx.TK_COMMA ) = false then exit do
     loop
 end sub

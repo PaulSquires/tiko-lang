@@ -51,6 +51,10 @@ namespace Fbx
         NODE( N_DELETE,       NCAT_EXPR )
         NODE( N_FUNCRESULT,   NCAT_EXPR )
         NODE( N_ELLIPSIS,     NCAT_EXPR )
+        NODE( N_ELIDED,       NCAT_EXPR )   '' an ARGUMENT that was left out: 'f( 1, , 3 )'
+                                            '' and 'locate ,,0'. A node rather than a
+                                            '' gap, because the ARITY has to survive --
+                                            '' that call passes three arguments.
         NODE( N_GLOBALSCOPE,  NCAT_EXPR )   '' the '..' of '..x' -- the base of a member
                                             '' access that names the GLOBAL scope, as
                                             '' against '.x', whose base is the open WITH.   '' '...' as an ARRAY BOUND, where the size

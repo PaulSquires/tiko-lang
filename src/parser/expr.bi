@@ -53,6 +53,8 @@ namespace Fbx.Parse
 '' Defined in intrinsics.bas: 'open( ... )' used as an EXPRESSION. Declared here
 '' because Primary needs it and expr.bas is compiled before that file.
 declare function OpenExprCall( byref p as Fbx.ParserState ) as Fbx.NodeId
+declare function ArgOrElided _
+    ( byref p as Fbx.ParserState, byval closer as Fbx.TokenKind ) as Fbx.NodeId
 
     declare function Expression _
         ( byref p as Fbx.ParserState, byval minPrec as long = 1 ) as Fbx.NodeId

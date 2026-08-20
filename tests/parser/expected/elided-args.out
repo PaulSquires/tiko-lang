@@ -1,0 +1,44 @@
+N_MODULE (6) <1:86>
+  N_PROC 'f' [SUB] <25:9>
+    N_PARAM 'a' <25:16>
+      N_TYPEREF 'long' [LONG] <25:27>
+      N_INT_LIT 1 radix=10 <25:34>
+    N_PARAM 'b' <25:37>
+      N_TYPEREF 'long' [LONG] <25:48>
+      N_INT_LIT 2 radix=10 <25:55>
+    N_PARAM 'c' <25:58>
+      N_TYPEREF 'long' [LONG] <25:69>
+      N_INT_LIT 3 radix=10 <25:76>
+  N_PROC 'f' [SUB] <27:1>
+    N_BLOCK (0) <27:71>
+    N_PARAM 'a' <27:8>
+      N_TYPEREF 'long' [LONG] <27:19>
+      N_INT_LIT 1 radix=10 <27:26>
+    N_PARAM 'b' <27:29>
+      N_TYPEREF 'long' [LONG] <27:40>
+      N_INT_LIT 2 radix=10 <27:47>
+    N_PARAM 'c' <27:50>
+      N_TYPEREF 'long' [LONG] <27:61>
+      N_INT_LIT 3 radix=10 <27:68>
+  N_AMBIGUOUS <30:1>
+    N_CALL <30:2>
+      N_IDENT 'f' <30:1>
+      N_INT_LIT 1 radix=10 <30:4>
+      N_ELIDED <30:7>
+      N_INT_LIT 3 radix=10 <30:9>
+  N_AMBIGUOUS <31:1>
+    N_CALL <31:2>
+      N_IDENT 'f' <31:1>
+      N_INT_LIT 1 radix=10 <31:4>
+      N_ELIDED <31:7>
+  N_AMBIGUOUS <32:1>
+    N_CALL <32:2>
+      N_IDENT 'f' <32:1>
+      N_ELIDED <32:4>
+      N_ELIDED <32:6>
+      N_INT_LIT 3 radix=10 <32:8>
+  N_AMBIGUOUS <34:1>
+    N_IDENT 'locate' <34:1>
+    N_ELIDED <34:8>
+    N_ELIDED <34:9>
+    N_INT_LIT 0 radix=10 <34:10>

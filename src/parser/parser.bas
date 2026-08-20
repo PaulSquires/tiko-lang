@@ -743,7 +743,10 @@ private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as boolean more = (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
     if more then
         do
-            args.Push( cast( ulong, Expression( p ) ) )
+            '' 'locate ,,0' -- a PAREN-LESS call may elide arguments too, and the
+            '' empty slots still count. LOCATE is not in the intrinsic registry, so
+            '' this is the list it actually goes through.
+            args.Push( cast( ulong, ArgOrElided( p, Fbx.TK_EOL ) ) )
             if Accept( p, Fbx.TK_COMMA ) = false then exit do
         loop
     end if

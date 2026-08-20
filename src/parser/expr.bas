@@ -344,6 +344,20 @@ private function TypeArgCall _
     return PostfixChain( p, MakeList( p, Fbx.N_CALL, t.loc, callee, items ) )
 end function
 
+'' One argument, or the ABSENCE of one. FreeBASIC lets a call leave an argument out and
+'' take the parameter's default -- 'f( 1, , 3 )', 'locate ,,0', 'screenres( w, h, 32, ,
+'' fb.GFX_NULL )' -- and the empty slot still COUNTS, so it is a node rather than a gap
+'' in the list.
+function ArgOrElided _
+    ( byref p as Fbx.ParserState, byval closer as Fbx.TokenKind ) as Fbx.NodeId
+
+    dim as Fbx.TokenKind k = Peek( p )
+    if (k = Fbx.TK_COMMA) orelse (k = closer) orelse (k = Fbx.TK_EOL) then
+        return NewNodeAt( p, Fbx.N_ELIDED, Cur( p ).loc, 0 )
+    end if
+    return Expression( p )
+end function
+
 '' Is the '(' at the cursor the start of '( of T, U )'?
 private function IsGenericArgs( byref p as Fbx.ParserState ) as boolean
     if Peek( p ) <> Fbx.TK_LPAREN then return false
@@ -409,7 +423,7 @@ function PostfixChain _
             dim as Fbx.NodeIdVec items
             if Peek( p ) <> closer then
                 do
-                    items.Push( cast( ulong, Expression( p ) ) )
+                    items.Push( cast( ulong, ArgOrElided( p, closer ) ) )
                     if Accept( p, Fbx.TK_COMMA ) = false then exit do
                 loop
             end if

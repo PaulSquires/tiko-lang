@@ -76,6 +76,17 @@ while IFS= read -r f; do
 done < build/.corpus.lst
 
 gaps=$(grep -c . build/.parsegap.out || true)
+
+# The three buckets must ACCOUNT FOR the total, or something wrote into the output that
+# this run did not put there. That is not hypothetical: a previous invocation killed on a
+# timeout kept running and kept appending, and the next run reported 207 real gaps where
+# 172 were found -- a believable number, over by exactly the orphan's contribution.
+if [ $((agree + lang + gaps)) -ne "$dirty" ]; then
+    echo "parse-gap: INCONSISTENT -- $agree + $lang + $gaps <> $dirty." >&2
+    echo "parse-gap: another process is probably writing build/.parsegap.out." >&2
+    exit 4
+fi
+
 echo "parse-gap: $dirty files report a diagnostic"
 echo "parse-gap:   $agree  fbc rejects them too -- an AGREEMENT, not a gap"
 echo "parse-gap:   $lang  '#lang' other than \"fb\" -- deliberate"

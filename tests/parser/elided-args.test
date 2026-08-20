@@ -1,0 +1,5 @@
+'' An elided call argument is a node, so the arity survives.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/elided-args.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/elided-args.out
