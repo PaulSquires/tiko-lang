@@ -1,0 +1,5 @@
+'' ENDIF as one word, and a NAMESPACE alias reaching the mangled name.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/parser/src/endif-and-nsalias.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/endif-and-nsalias.out

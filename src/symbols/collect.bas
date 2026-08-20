@@ -686,6 +686,12 @@ sub WalkNode _
             end if
         end if
         if s <> 0 then
+            '' 'namespace aaa alias "zzz"' REPLACES the namespace's name in every
+            '' mangled symbol under it, and keeps the alias's CASE -- measured,
+            '' '_ZN3zzz1FEv' where the plain form gives '_ZN3AAA1FEv'. Parsing the
+            '' clause without carrying it here would have emitted the wrong name for
+            '' every procedure in the namespace, silently.
+            if sp->aliasName <> 0 then s->payload = cast( long, sp->aliasName )
             w.info->SetScope( id, s->inner )
             WalkChildren( w, sp->first, sp->count, s->inner )
         end if

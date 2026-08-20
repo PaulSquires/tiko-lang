@@ -63,7 +63,16 @@ private sub QualifierChain _
            (s->kind = cast( ubyte, Fbx.SCOPEK_TYPE )) then
             dim as Fbx.Symbol ptr owner = syms.SymbolAt( s->owner )
             if owner <> 0 then
-                rev.Push( Fbx.Text.UpperAscii( names.Spelling( owner->name ) ) )
+                '' A NAMESPACE ALIAS replaces the name and keeps its CASE, where a
+                '' plain namespace is uppercased. Measured: 'namespace aaa alias "zzz"'
+                '' gives _ZN3zzz1FEv, not _ZN3AAA1FEv.
+                dim as string qual = Fbx.Text.UpperAscii( names.Spelling( owner->name ) )
+                if owner->kind = cast( ubyte, Fbx.SYM_NAMESPACE ) then
+                    if owner->payload <> 0 then
+                        qual = names.Spelling( cast( Fbx.InternId, owner->payload ) )
+                    end if
+                end if
+                rev.Push( qual )
                 if s->kind = cast( ubyte, Fbx.SCOPEK_TYPE ) then
                     revT.Push( cast( ulong, owner->type_ ) )
                 else

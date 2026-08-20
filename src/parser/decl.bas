@@ -898,6 +898,17 @@ private function ParseNamespaceDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as FB.Array( of ulong ) parts
     dim as Fbx.StmtPayload sp
     DeclName( p, sp.name )
+
+    '' 'namespace aaa alias "aaa"' -- a MANGLING control, exactly as it is on a
+    '' procedure. Measured: fbc accepts it, and REJECTS an empty one with error 304,
+    '' "ALIAS name string is empty" -- which the corpus tests, so the string is kept
+    '' rather than skipped and the diagnostic is owed from the checker.
+    if Accept( p, Fbx.KW_ALIAS ) then
+        if Peek( p ) = Fbx.TK_STRING_LIT then
+            sp.aliasName = StringLitText( p )
+            Advance( p )
+        end if
+    end if
     parts.Push( cast( ulong, sp.name ) )
     while Peek( p ) = Fbx.TK_DOT
         Advance( p )

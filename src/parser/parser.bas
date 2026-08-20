@@ -107,8 +107,11 @@ end function
 private function IsBlockEnderAt( byref p as Fbx.ParserState ) as boolean
     dim as Fbx.TokenKind k = Peek( p )
     select case k
+    '' ENDIF is 'END IF' written as ONE WORD, and it closes a block exactly as the
+    '' two-word form does. Measured: fbc accepts it, with and without ELSEIF/ELSE
+    '' branches before it.
     case Fbx.KW_ELSE, Fbx.KW_ELSEIF, Fbx.KW_NEXT, Fbx.KW_LOOP, _
-         Fbx.KW_WEND, Fbx.KW_CASE, Fbx.TK_EOF
+         Fbx.KW_WEND, Fbx.KW_CASE, Fbx.KW_ENDIF, Fbx.TK_EOF
         return true
     case Fbx.KW_END
         if HasTok( p, p.pos + 1 ) = false then return true
@@ -145,6 +148,11 @@ private sub ExpectEnd _
     ( byref p as Fbx.ParserState, byval what as Fbx.TokenKind, _
       byval openedAt as Fbx.SourceLoc = 0 )
 
+    '' 'endif' is one token and closes an IF on its own.
+    if (what = Fbx.KW_IF) andalso (Peek( p ) = Fbx.KW_ENDIF) then
+        Advance( p )
+        return
+    end if
     if Accept( p, Fbx.KW_END ) then
         if Peek( p ) = what then Advance( p )
         return
