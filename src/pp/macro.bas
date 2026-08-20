@@ -66,6 +66,22 @@ private sub PpReadParams( byref e as PpEngine, byval m as PpMacro ptr, byval isB
     loop
 end sub
 
+'' Is this redefinition the same as the one before it? Only an OBJECT-LIKE macro may
+'' be redefined at all, and only with the same tokens. Whitespace is not compared --
+'' 'X   _Y' and 'X _Y' are the same macro, measured.
+private function IdenticalRedefinition_ _
+    ( byval m as PpMacro ptr, byval oldIsFunc as boolean, _
+      byref oldBody as TokenVec ) as boolean
+
+    if m->isFunc orelse oldIsFunc then return false
+    if m->body.Count <> oldBody.Count then return false
+    for i as long = 0 to m->body.Count - 1
+        if m->body[i].kind <> oldBody[i].kind then return false
+        if m->body[i].literal <> oldBody[i].literal then return false
+    next
+    return true
+end function
+
 private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock as boolean )
     dim as Token t
     if PeekOnLine( e, t ) = false then
@@ -102,7 +118,30 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     end if
 
     dim as PpMacro ptr m = PpFindOrAddMacro( e, id )
-    if m->isDefined then Report( e, FBX0305, at, e.names->Spelling( id ) )
+
+    '' An OBJECT-LIKE macro may be redefined with an IDENTICAL token sequence; a
+    '' FUNCTION-LIKE one may not be redefined at all. Measured, and neither half is
+    '' obvious -- C allows the identical redefinition for both:
+    ''
+    ''     #define X _Y   twice           accepted
+    ''     #define X _Y then #define X _Z  error 4
+    ''     #define F(a) a twice           error 4
+    ''     #define X   _Y then #define X _Y  accepted -- TOKENS, not text
+    ''
+    '' 29 corpus files failed on this one rule: windows.bi defines
+    '' InterlockedIncrement in winnt.bi and again in winbase.bi, both under
+    '' '#ifdef __FB_64BIT__', both genuinely active on win64. It looked for a long
+    '' time like a conditional-stack bug -- the two definitions sit under mutually
+    '' exclusive-LOOKING guards 1,500 lines apart -- and it was not one. A probe
+    '' inserted at the first definition proved fbx knew the target was 64-bit there.
+    dim as boolean wasDefined = m->isDefined
+    dim as boolean oldIsFunc = m->isFunc
+    dim as TokenVec oldBody
+    if wasDefined then
+        for i as long = 0 to m->body.Count - 1
+            oldBody.Push( m->body[i] )
+        next
+    end if
 
     m->isDefined = true
     m->isFunc = false
@@ -117,6 +156,11 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
 
     if isBlock = false then
         CollectLine( e, m->body )
+        if wasDefined then
+            if IdenticalRedefinition_( m, oldIsFunc, oldBody ) = false then
+                Report( e, FBX0305, at, e.names->Spelling( id ) )
+            end if
+        end if
         return
     end if
 

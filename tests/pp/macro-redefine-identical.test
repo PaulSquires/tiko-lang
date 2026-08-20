@@ -1,0 +1,5 @@
+'' An identical object-like #define is a redefinition fbc accepts.
+'' TEST: cli
+'' ARGS: --dump-ast tests/pp/src/macro-redefine-identical.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/macro-redefine-identical.out
