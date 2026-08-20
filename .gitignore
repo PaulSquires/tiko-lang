@@ -13,3 +13,10 @@
 *.swp
 .DS_Store
 Thumbs.db
+
+# Scratch probes at the ROOT. Every real source lives under src/, tests/ or tools/,
+# and a probe lands here only when a 'cd build/.mc' failed -- which has happened
+# three times and been cleaned up three times.
+/*.bas
+/*.c
+/*.exe
