@@ -403,7 +403,19 @@ sub WalkNode _
             end if
         end if
         w.info->SetScope( id, inner )
+
+        '' A NAMED union overlaps its members exactly as an anonymous one does. Only
+        '' the anonymous SPLICE was marking them, so 'union U : a as ulongint : b as
+        '' ulongint : c as ulongint : end union' came out 24 bytes where fbc says 8 --
+        '' laid out sequentially, silently, with no diagnostic and no gate to catch it.
+        '' check-udt's 24 shapes did not include a named union.
+        dim as boolean savedU = w.inUnion
+        dim as boolean savedUF = w.unionFirst
+        w.inUnion = ((n->flags and Fbx.NF_IS_UNION) <> 0)
+        w.unionFirst = w.inUnion
         WalkChildren( w, sp->first, sp->count, inner )
+        w.inUnion = savedU
+        w.unionFirst = savedUF
 
     case Fbx.N_FIELD
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )

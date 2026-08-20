@@ -10,4 +10,12 @@ oneunion size 8 align 8
 packed size 12 align 8
   packed off g 0
   packed off h 4
-udts: 4
+namedu size 8 align 8
+  namedu off a 0
+  namedu off b 0
+  namedu off c 0
+typeinunion size 16 align 8
+  typeinunion off f 0
+  typeinunion off g 0
+  typeinunion off h 8
+udts: 6

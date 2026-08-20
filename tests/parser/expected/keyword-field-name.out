@@ -5,8 +5,8 @@ t size 56 align 8
   t off type 24
   t off union 32
   t off arr 40
-u size 24 align 8
+u size 8 align 8
   u off forwarderstring 0
-  u off function 8
-  u off ordinal 16
+  u off function 0
+  u off ordinal 0
 udts: 2

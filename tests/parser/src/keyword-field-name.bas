@@ -31,14 +31,7 @@ dim a as T
 dim b as U
 print sizeof( T ), sizeof( U )
 
-'' A WARNING ABOUT THE GOLDEN THIS FILE PINS:
-''
-'' 'u size 24' is WRONG. A union of three ULONGINTs is 8 bytes to fbc, and fbx lays a
-'' NAMED union out sequentially -- the overlap marker is only applied to the members of
-'' an ANONYMOUS union spliced into an enclosing type. That bug is PRE-EXISTING and
-'' unrelated to keyword field names: the same 24 comes out of the binary from before
-'' this change.
-''
-'' It is pinned rather than removed because the shape is winnt.bi's and belongs in the
-'' test. When the named-union layout is fixed this golden must move to 8, and a reader
-'' who takes 24 as correct because it is in a golden has been warned here.
+'' The union's size was WRONG here for one commit -- 24 for three ULONGINTs, where
+'' fbc says 8 -- because fbx laid a NAMED union out sequentially. It was pinned
+'' deliberately, flagged in this comment, and fixed in the very next change. It is 8
+'' now, and the golden says so.
