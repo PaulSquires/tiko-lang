@@ -129,12 +129,23 @@ end function
 
 '' 'END IF', 'END SUB' ... -- accepted with or without the trailing keyword, because
 '' fbc accepts both and a missing one is diagnosed by the caller, not here.
-private sub ExpectEnd( byref p as Fbx.ParserState, byval what as Fbx.TokenKind )
+'' 'expected end X' WITHOUT saying where X opened is a poor diagnostic, and it cost a
+'' long session: the parser runs to EOF, the error lands on the last line of the file,
+'' and nothing points at the construct that was never closed. The opener's location is
+'' in hand at every call site, so it is carried and reported as a note.
+private sub ExpectEnd _
+    ( byref p as Fbx.ParserState, byval what as Fbx.TokenKind, _
+      byval openedAt as Fbx.SourceLoc = 0 )
+
     if Accept( p, Fbx.KW_END ) then
         if Peek( p ) = what then Advance( p )
         return
     end if
     ErrorNode( p, Fbx.FBX0405, Fbx.TokenKindText( what ) )
+    if openedAt <> 0 then
+        p.diags->AddNote( Fbx.FBX0905, Fbx.PointRange( openedAt ), _
+                          Fbx.TokenKindText( what ) )
+    end if
 end sub
 
 '' ---------------------------------------------------------------- type references

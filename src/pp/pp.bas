@@ -173,9 +173,18 @@ private sub SkipToEol( byref e as PpEngine )
 end sub
 
 '' Collect the rest of the directive line, unexpanded.
-private sub CollectLine( byref e as PpEngine, byref outv as TokenVec )
-    dim as Token t
-    while PeekOnLine( e, t )
+private sub CollectLine _
+    ( byref e as PpEngine, byref outv as TokenVec, _
+      byval throughColon as boolean = false )
+    while e.frames.IsEmpty( ) = false
+        dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
+        if f->pos > f->toks->Count - 1 then exit while
+        dim as Token t = f->toks->At( f->pos )
+        if Tk( t ) = TK_EOF then exit while
+        if Tk( t ) = TK_EOL then
+            if throughColon = false then exit while
+            if (t.flags and TF_COLON) = 0 then exit while
+        end if
         outv.Push( t )
         Advance( e )
     wend

@@ -1,0 +1,5 @@
+'' Keywords that are legal field names, and the union they were eating.
+'' TEST: cli
+'' ARGS: --dump-udt tests/parser/src/keyword-field-name.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/keyword-field-name.out

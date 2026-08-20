@@ -556,6 +556,29 @@ private sub ApplyVisibility _
     next
 end sub
 
+'' A FIELD whose NAME is a keyword that also starts a declaration. MEASURED against fbc,
+'' because the accepted set is not guessable -- TYPE and UNION are in it and ENUM and
+'' DECLARE are not:
+''
+''   Function Sub Property Type Union     accepted as a field name
+''   Enum Declare Const Static Dim        fbc rejects
+''
+'' What follows decides it: a field is 'name as T', 'name( bounds ) as T' or
+'' 'as T name' -- the last handled elsewhere. A DECLARATION never has 'as' or '(' in
+'' that position.
+private function IsFieldNamedByKeyword _
+    ( byref p as Fbx.ParserState, byval k as Fbx.TokenKind ) as boolean
+
+    select case k
+    case Fbx.KW_FUNCTION, Fbx.KW_SUB, Fbx.KW_PROPERTY, Fbx.KW_TYPE, Fbx.KW_UNION
+    case else
+        return false
+    end select
+    if HasTok( p, p.pos + 1 ) = false then return false
+    dim as Fbx.TokenKind nx = cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )
+    return (nx = Fbx.KW_AS) orelse (nx = Fbx.TK_LPAREN)
+end function
+
 '' The member list of a TYPE or UNION, its 'end', and the node. Shared by the named
 '' and the ANONYMOUS forms, which differ only in whether a name was read.
 private function ParseAggregateBody _
@@ -630,6 +653,29 @@ private function ParseAggregateBody _
                 members.Push( cast( ulong, MakeStmt( p, Fbx.N_FIELD, ft.loc, fp ) ) )
                 if Accept( p, Fbx.TK_COMMA ) = false then exit do
             loop
+        elseif IsFieldNamedByKeyword( p, k ) then
+            '' A FIELD whose name is a keyword that also starts a declaration:
+            '' winnt.bi writes 'Function as ULONGLONG' inside two unions, and fbx read
+            '' it as a nested FUNCTION declaration, which ran off looking for an
+            '' 'end function' and ate the 'end union'.
+            ''
+            '' Measured, and the accepted set is not guessable -- TYPE and UNION are in
+            '' it, ENUM and DECLARE are not:
+            ''
+            ''   Function Sub Property Type Union   accepted as a field name
+            ''   Enum Declare Const Static Dim      fbc rejects
+            ''
+            '' The '(' and 'as' forms are both accepted by fbc, so both are read here.
+            dim as Fbx.Token ft = Cur( p )
+            dim as Fbx.StmtPayload fp
+            fp.name = p.names->GetString( _
+                Fbx.Text.LowerAscii( Fbx.TokenKindText( k ) ) )
+            Advance( p )
+            ParseArrayBoundsInto( p, fp, ft )
+            if fp.c <> Fbx.NODE_NONE then fp.op = cast( ushort, Fbx.KW_DIM )
+            if Accept( p, Fbx.KW_AS ) then fp.a = TypeRef( p )
+            fp.extra or= vis
+            members.Push( cast( ulong, MakeStmt( p, Fbx.N_FIELD, ft.loc, fp ) ) )
         elseif IsDeclarationStart( k ) then
             dim as Fbx.NodeId mn = Declaration( p )
             '' Only an N_PROC carries a StmtPayload whose 'extra' is the modifier set;
@@ -673,7 +719,7 @@ private function ParseAggregateBody _
         p.ast->children.Push( members[i] )
     next
 
-    ExpectEnd( p, iif( isUnion, Fbx.KW_UNION, Fbx.KW_TYPE ) )
+    ExpectEnd( p, iif( isUnion, Fbx.KW_UNION, Fbx.KW_TYPE ), t.loc )
     dim as Fbx.NodeId n = MakeStmt( p, Fbx.N_TYPE, t.loc, sp )
     if isUnion then p.ast->nodes[cast( long, n )].flags or= Fbx.NF_IS_UNION
     return n

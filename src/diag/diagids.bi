@@ -101,6 +101,7 @@
     DIAG( FBX0902, SEV_NOTE,    "expanded from macro '%0'" )
     DIAG( FBX0903, SEV_NOTE,    "in instantiation of '%0'" )
     DIAG( FBX0904, SEV_NOTE,    "required from here" )
+    DIAG( FBX0905, SEV_NOTE,    "unclosed '%0' opened here" )
 
     '' ---------------------------------------------------------- compiler / limits
     DIAG( FBX0990, SEV_ERROR,   "too many errors; stopping" )

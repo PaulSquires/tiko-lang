@@ -155,7 +155,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     PpReadParams( e, m, isBlock )
 
     if isBlock = false then
-        CollectLine( e, m->body )
+        CollectLine( e, m->body, true )
         if wasDefined then
             if IdenticalRedefinition_( m, oldIsFunc, oldBody ) = false then
                 Report( e, FBX0305, at, e.names->Spelling( id ) )
