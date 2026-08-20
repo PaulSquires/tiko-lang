@@ -358,6 +358,31 @@ function ArgOrElided _
     return Expression( p )
 end function
 
+'' Five string intrinsics take a SET of characters rather than a substring, and mark
+'' it with ANY: 'instr( s, any "ab" )' finds the first a-or-b. It is not an operator
+'' and not a keyword argument -- it is a marker on ONE argument of ONE of five names.
+''
+'' Measured against fbc: INSTR, INSTRREV, TRIM, LTRIM and RTRIM accept it, MID does
+'' not; it may sit on a variable or a parenthesised expression as readily as a literal;
+'' and it is rejected in FIRST position -- 'instr( any "ab", "b" )' is error 9, as is
+'' 'trim( any "b" )'. So the rule is 'the last argument, and not the only one'.
+''
+'' 14 corpus files, the largest single parse-gap cluster, and every one of them said
+'' 'expected )' -- invisible in a table keyed on the diagnostic.
+private function AllowsAnyArg _
+    ( byref p as Fbx.ParserState, byval callee as Fbx.NodeId ) as boolean
+
+    if callee = Fbx.NODE_NONE then return false
+    dim as Fbx.AstNode ptr n = @p.ast->nodes[cast( long, callee )]
+    if cast( Fbx.NodeKind, n->kind ) <> Fbx.N_IDENT then return false
+    dim as string nm = p.names->Spelling( p.ast->idents[cast( long, n->data )].name )
+    select case nm
+    case "instr", "instrrev", "trim", "ltrim", "rtrim"
+        return true
+    end select
+    return false
+end function
+
 '' Is the '(' at the cursor the start of '( of T, U )'?
 private function IsGenericArgs( byref p as Fbx.ParserState ) as boolean
     if Peek( p ) <> Fbx.TK_LPAREN then return false
@@ -420,10 +445,23 @@ function PostfixChain _
             end if
             Advance( p )
 
+            dim as boolean anyOk = (kind = Fbx.N_CALL) andalso AllowsAnyArg( p, result )
+
             dim as Fbx.NodeIdVec items
             if Peek( p ) <> closer then
                 do
-                    items.Push( cast( ulong, ArgOrElided( p, closer ) ) )
+                    '' 'any' only on the LAST argument and never on the first, so the
+                    '' marker is taken only when something precedes it -- and what
+                    '' follows the argument has to be the closer, which the loop's own
+                    '' exit already enforces for the last one.
+                    if anyOk andalso (items.Count > 0) andalso (Peek( p ) = Fbx.KW_ANY) then
+                        dim as Fbx.Token anyTok = Cur( p )
+                        Advance( p )
+                        items.Push( cast( ulong, MakeUnary( p, Fbx.KW_ANY, anyTok.loc, _
+                                                            Expression( p ) ) ) )
+                    else
+                        items.Push( cast( ulong, ArgOrElided( p, closer ) ) )
+                    end if
                     if Accept( p, Fbx.TK_COMMA ) = false then exit do
                 loop
             end if
