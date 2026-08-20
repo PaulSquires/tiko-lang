@@ -73,6 +73,7 @@ declare function SameBounds_ _
 declare function SameLiteral_ _
     ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
 declare function IsAnyBound_( byref w as Walker, byval id as Fbx.NodeId ) as boolean
+declare function IsVarLenBounds_( byref w as Walker, byval id as Fbx.NodeId ) as boolean
 declare function SameConstValue_ _
     ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
 
@@ -125,8 +126,27 @@ private function SameBounds_ _
 
     dim as long na = DimCount_( w, a )
     dim as long nb = DimCount_( w, b )
+
+    '' VAR-LEN against FIXED is the distinction, not the dimension count. Measured, and
+    '' it took two passes to get right because the obvious rule fits three rows and not
+    '' the fourth:
+    ''
+    ''   ()        vs (any)        accepted, either order
+    ''   ()        vs (any,any)    accepted
+    ''   (any)     vs (any,any)    fbc error 36, wrong number of dimensions
+    ''   ()        vs (0 to 1)     fbc error 54, EXPECTED VAR-LEN ARRAY
+    ''
+    '' So: a bounds list with no dimensions written, or with every dimension 'any', is
+    '' VAR-LEN. One with a real bound is FIXED. The two never agree; two var-len forms
+    '' agree unless both wrote a count and the counts differ.
+    dim as boolean aVar = IsVarLenBounds_( w, a )
+    dim as boolean bVar = IsVarLenBounds_( w, b )
+    if aVar <> bVar then return false
+    if aVar then
+        if (na = 0) orelse (nb = 0) then return true
+        return (na = nb)
+    end if
     if na <> nb then return false
-    if na = 0 then return true
 
     dim as Fbx.ListPayload ptr la = _
         @w.ast->lists[cast( long, w.ast->nodes[cast( long, a )].data )]
@@ -171,6 +191,21 @@ private function SameConstValue_ _
     dim as Fbx.StmtPayload ptr ap = StmtOf( w, a )
     dim as Fbx.StmtPayload ptr bp = StmtOf( w, b )
     return SameLiteral_( w, ap->b, bp->b )
+end function
+
+'' A VAR-LEN bounds list: none written at all, or every dimension 'any'. Anything with
+'' a real bound in it is FIXED, and the two are never the same shape.
+private function IsVarLenBounds_( byref w as Walker, byval id as Fbx.NodeId ) as boolean
+    dim as long n = DimCount_( w, id )
+    if n = 0 then return true
+    dim as Fbx.ListPayload ptr lp = _
+        @w.ast->lists[cast( long, w.ast->nodes[cast( long, id )].data )]
+    for i as long = 0 to n - 1
+        if IsAnyBound_( w, cast( Fbx.NodeId, w.ast->children[lp->first + i] ) ) = false then
+            return false
+        end if
+    next
+    return true
 end function
 
 '' The 'any' of 'a( any )', which arrives as an ordinary identifier.

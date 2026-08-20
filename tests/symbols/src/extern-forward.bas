@@ -43,3 +43,24 @@ extern f( 0 to 2 ) as integer
 dim shared f( 0 to 2 ) as integer
 
 print a
+
+'' VAR-LEN against FIXED is the distinction between two array shapes, not the dimension
+'' count. Measured, and it took two passes because the obvious rule fits three rows and
+'' not the fourth:
+''
+''   ()        vs (any)        accepted, either order
+''   ()        vs (any,any)    accepted
+''   (any)     vs (any,any)    fbc error 36, wrong number of dimensions
+''   ()        vs (0 to 1)     fbc error 54, EXPECTED VAR-LEN ARRAY
+''
+'' A bounds list with nothing written, or with every dimension 'any', is VAR-LEN. One
+'' with a real bound is FIXED. The two never agree; two var-len forms agree unless both
+'' wrote a count and the counts differ.
+
+extern g( ) as integer
+extern g( any ) as integer
+
+extern h( any, any ) as integer
+extern h( ) as integer
+
+print a

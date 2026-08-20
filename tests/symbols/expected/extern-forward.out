@@ -1,13 +1,15 @@
-scopes: 2  symbols: 10
+scopes: 2  symbols: 12
 scope 1 global parent=0 (4)
     const     'true' builtin
     const     'false' builtin
     const     '__function__' funcname
     const     '__function_nq__'
-scope 2 module parent=1 (6)
+scope 2 module parent=1 (8)
     var       'a' shared
     var       'b'
     var       'c'
     var       'd'
     var       'e' shared
     var       'f' shared
+    var       'g'
+    var       'h'
