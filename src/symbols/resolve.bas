@@ -412,7 +412,15 @@ private sub WalkExpr _
     select case k
     case Fbx.N_IDENT
         dim as Fbx.InternId nm = IdentNameOf( c, id )
-        dim as Fbx.SymbolId sid = c.syms->Lookup( scope_, nm )
+        '' A name in EXPRESSION position wants the VALUE, not a type of the same
+        '' spelling. 'sub UDT1( )' beside 'type UDT1' is legal -- the two live in
+        '' different classes -- and the slot holds whichever came first, so a plain
+        '' lookup found the TYPE and reported "'udt1' is a type, not a procedure" for
+        '' a call to the SUB.
+        ''
+        '' LookupTyped falls back to the plain lookup when no value of that name
+        '' exists, so a type reference that does reach here still resolves.
+        dim as Fbx.SymbolId sid = c.syms->LookupTyped( scope_, nm, false )
         if sid <> Fbx.SYMBOL_NONE then
             c.info->SetRef( id, sid )
             c.st->references += 1
