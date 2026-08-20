@@ -67,6 +67,15 @@ CASES = [
     # overlaps its siblings. winnt.bi's _SLIST_HEADER is this shape.
     ("TypeInU", "union TypeInU\n type\n  as long f\n  as long g\n end type\n as double h\nend union", ['f', 'g', 'h']),
     ("UnionFieldClause", "union UnionFieldClause field = 4\n as long a\n as double b\nend union", ['a', 'b']),
+
+    # TUPLE types. fbc says a tuple IS the equivalent hand-written TYPE -- same size,
+    # same field offsets -- and its fields are _1.._N whatever the elements are called.
+    ("Tup2", "type Tup2 as (long, string)", ['_1', '_2']),
+    ("Tup3B", "type Tup3B as (byte, byte, byte)", ['_1', '_2', '_3']),
+    ("TupMixed", "type TupMixed as (long, double)", ['_1', '_2']),
+    # Element names are DOCUMENTATION: the fields are still _1 and _2.
+    ("TupNamed", "type TupNamed as (count as long, name as string)", ['_1', '_2']),
+    ("TupNested", "type TupNested as (long, (long, long))", ['_1', '_2']),
 ]
 
 

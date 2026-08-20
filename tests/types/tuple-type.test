@@ -1,0 +1,5 @@
+'' A tuple type is the equivalent hand-written TYPE, with fields _1.._N.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/tuple-type.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/tuple-type.out

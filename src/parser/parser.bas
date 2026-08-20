@@ -194,6 +194,55 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     end if
 
     dim as Fbx.TokenKind k = Peek( p )
+
+    '' A TUPLE type: 'as (long, string)'. Measured against fbc -- it is accepted in
+    '' every type position, its fields are '_1'.._N, and its layout is EXACTLY the
+    '' equivalent hand-written TYPE. Element names are DOCUMENTATION:
+    '' '(count as long, name as string)' still has fields _1 and _2.
+    ''
+    '' The elements are the typeref's children; the type itself is built in Resolve,
+    '' where two identical tuples can be unified.
+    if k = Fbx.TK_LPAREN then
+        Advance( p )
+        dim as Fbx.NodeIdVec elems
+        if Peek( p ) <> Fbx.TK_RPAREN then
+            do
+                '' 'name as T' -- the name is read and discarded, which is what makes
+                '' it documentation rather than a field name.
+                '' A KEYWORD is a legal element name too -- '(count as long, name as
+                '' string)' is in the corpus, and NAME is the NAME statement. The
+                '' following AS is what tells a name from a type: an element that IS a
+                '' type is followed by ',' or ')'.
+                dim as Fbx.TokenKind ek = Peek( p )
+                if (ek = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( ek ) then
+                    if HasTok( p, p.pos + 1 ) then
+                        if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.KW_AS then
+                            Advance( p )
+                            Advance( p )
+                        end if
+                    end if
+                end if
+                dim as long before = p.pos
+                elems.Push( cast( ulong, TypeRef( p ) ) )
+                if p.pos = before then exit do
+                if Accept( p, Fbx.TK_COMMA ) = false then exit do
+            loop
+        end if
+        Expect( p, Fbx.TK_RPAREN, ")" )
+        '' Marked by 'op', not by a node flag and not by a different payload kind. The
+        '' ushort NF_ set is fully allocated, and giving one N_TYPEREF a LIST payload
+        '' where every other has a STMT payload is the pool mistake this codebase has
+        '' made six times. No builtin type is spelled '(' , so the op is free.
+        dim as Fbx.StmtPayload tp
+        tp.op = cast( ushort, Fbx.TK_LPAREN )
+        tp.first = p.ast->children.Count
+        tp.count = elems.Count
+        for i as long = 0 to elems.Count - 1
+            p.ast->children.Push( elems[i] )
+        next
+        return MakeStmt( p, Fbx.N_TYPEREF, t.loc, tp )
+    end if
+
     dim as boolean named = (k = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( k )
     if named = false then return ErrorNode( p, Fbx.FBX0406 )
 

@@ -210,7 +210,7 @@ function Run( byref args as Fbx.StrVec ) as long
                                  ctx.sources, info, rst )
                 dim as Fbx.UdtLayouts store
                 Fbx.ComputeUdtLayouts( syms, ctx.types, store )
-                print Fbx.DumpUdtLayouts( store, ctx.types, ctx.names );
+                print Fbx.DumpUdtLayouts( store, ctx.types, ctx.names, syms );
             elseif ctx.options.dumpIr then
                 '' MIR needs the full frontend in front of it: resolve binds names,
                 '' check gives every expression a type, and lowering reads both.

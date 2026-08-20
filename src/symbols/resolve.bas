@@ -211,6 +211,61 @@ private function ResolveTypeRef _
         return pf
     end if
 
+    '' A TUPLE type: 'as (long, string)'. DESUGARED into a synthetic UDT with fields
+    '' '_1'.._N, because that is exactly what fbc says it is -- the corpus test asserts
+    '' the layout equals the equivalent hand-written TYPE, field for field.
+    ''
+    '' Building a symbol rather than a bare type is what makes the layout free: this
+    '' runs BEFORE ComputeUdtLayouts, which walks symbols, so the tuple goes through
+    '' the same offset and alignment code as everything else.
+    ''
+    '' Identity is STRUCTURAL, through a name built from the element type ids: two
+    '' '(long, string)' written apart are one type, which is what makes them assignable
+    '' to each other.
+    if cast( Fbx.TokenKind, sp->op ) = Fbx.TK_LPAREN then
+        dim as string key = "$tup"
+        dim as FB.Array( of ulong ) elemTypes
+        for i as long = 0 to sp->count - 1
+            dim as Fbx.NodeId e = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+            dim as Fbx.TypeId et = ResolveTypeRef( c, e, scope_ )
+            if et = Fbx.TYPE_NONE then
+                '' An element that does not resolve yet: no type rather than a wrong
+                '' one. Every use declines, which is the honest outcome.
+                return Fbx.TYPE_NONE
+            end if
+            elemTypes.Push( cast( ulong, et ) )
+            key += ":" & str( cast( long, et ) )
+        next
+        if elemTypes.Count = 0 then return Fbx.TYPE_NONE
+
+        dim as Fbx.InternId tnm = c.names->Fold( c.names->GetString( key ) )
+        dim as Fbx.SymbolId prev = c.syms->LookupLocalTyped( Fbx.SCOPE_GLOBAL, tnm, true )
+        dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( prev )
+        if ps <> 0 then
+            c.info->SetType( id, ps->type_ )
+            return ps->type_
+        end if
+
+        dim as boolean dup = false
+        dim as Fbx.SymbolId tsid = c.syms->DeclareSym( Fbx.SCOPE_GLOBAL, tnm, _
+            Fbx.SYM_UDT, c.ast->Loc( id ), dup )
+        dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( tsid )
+        if ts = 0 then return Fbx.TYPE_NONE
+        dim as Fbx.ScopeId tin = c.syms->OpenScope( Fbx.SCOPEK_TYPE, Fbx.SCOPE_GLOBAL, tsid )
+        ts->inner = tin
+        ts->type_ = c.types->NamedType( Fbx.TK_UDT, tnm, cast( ulong, Fbx.SCOPE_GLOBAL ) )
+        for i as long = 0 to elemTypes.Count - 1
+            dim as Fbx.InternId fnm = c.names->Fold( c.names->GetString( "_" & str( i + 1 ) ) )
+            dim as boolean fdup = false
+            dim as Fbx.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Fbx.SYM_FIELD, _
+                c.ast->Loc( id ), fdup )
+            dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+            if fs <> 0 then fs->type_ = cast( Fbx.TypeId, elemTypes[i] )
+        next
+        c.info->SetType( id, ts->type_ )
+        return ts->type_
+    end if
+
     dim as Fbx.TypeId base_ = Fbx.TYPE_NONE
     dim as Fbx.TokenKind k = cast( Fbx.TokenKind, sp->op )
 

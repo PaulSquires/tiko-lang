@@ -57,7 +57,7 @@ namespace Fbx
 
     declare function DumpUdtLayouts _
         ( byref store as UdtLayouts, byref types as TypeContext, _
-          byref names as Interner ) as string
+          byref names as Interner, byref syms as SymbolTable ) as string
 
 end namespace
 

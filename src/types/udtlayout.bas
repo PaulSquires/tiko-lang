@@ -253,20 +253,43 @@ function ComputeUdtLayouts _
     return store.udts.Count
 end function
 
+'' One UDT's rows, under a given NAME. A layout has one shape and may have several
+'' names: a TYPEDEF aliasing a UDT is that layout, and a TUPLE has no name of its own
+'' that anyone wrote -- 'type Tup2 as (long, string)' desugars to a synthetic UDT called
+'' '$tup:6:15', so the only spelling a reader or a gate can look up is the alias.
+private function RowsFor _
+    ( byref store as UdtLayouts, byref names as Interner, _
+      byval idx as long, byref nm as string ) as string
+
+    dim as UdtInfo ptr u = @store.udts[idx]
+    dim as string outp = nm & " size " & str( u->size ) & _
+                         " align " & str( u->align ) & chr( 10 )
+    for j as long = 0 to u->count - 1
+        dim as UdtField ptr f = @store.fields[u->first + j]
+        outp += "  " & nm & " off " & names.Spelling( f->name ) & " " & _
+                str( f->offset ) & chr( 10 )
+    next
+    return outp
+end function
+
 function DumpUdtLayouts _
     ( byref store as UdtLayouts, byref types as TypeContext, _
-      byref names as Interner ) as string
+      byref names as Interner, byref syms as SymbolTable ) as string
 
     dim as string outp = ""
     for i as long = 0 to store.udts.Count - 1
-        dim as UdtInfo ptr u = @store.udts[i]
-        outp += types.Name( u->type_ ) & " size " & str( u->size ) & _
-                " align " & str( u->align ) & chr( 10 )
-        for j as long = 0 to u->count - 1
-            dim as UdtField ptr f = @store.fields[u->first + j]
-            outp += "  " & types.Name( u->type_ ) & " off " & _
-                    names.Spelling( f->name ) & " " & str( f->offset ) & chr( 10 )
-        next
+        outp += RowsFor( store, names, i, types.Name( store.udts[i].type_ ) )
+    next
+
+    '' Every TYPEDEF that names a UDT, under its own spelling.
+    for i as long = 1 to syms.Count( )
+        dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, SYM_TYPEDEF ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as long at = store.Find( s->type_ )
+        if at < 0 then continue for
+        outp += RowsFor( store, names, at, names.Spelling( s->name ) )
     next
     outp += "udts: " & str( store.udts.Count ) & chr( 10 )
     return outp
