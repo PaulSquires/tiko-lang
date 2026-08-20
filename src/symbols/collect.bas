@@ -22,8 +22,9 @@ type Walker
     as Fbx.Interner ptr     names
     as Fbx.TypeContext ptr  types
     as Fbx.SemanticInfo ptr info
-    as boolean              inUnion
-    as boolean              unionFirst   '' the next field starts a NEW anonymous union
+    as boolean              inUnion      '' the immediate enclosing aggregate is a union
+    as boolean              unionFirst   '' the next field starts a NEW anonymous group
+    as long                 anonDepth    '' anonymous aggregates enclosing the cursor
     as long                 duplicates
 end type
 
@@ -376,17 +377,22 @@ sub WalkNode _
             '' An anonymous UNION's members overlap; an anonymous TYPE's are
             '' sequential. The distinction has to survive the splice, or the layout
             '' pass cannot tell them apart afterwards.
+            '' An anonymous aggregate is SPLICED into the enclosing type, so its
+            '' members become siblings of the enclosing type's own. The nesting they
+            '' lose is recorded on each field instead: one more level of anonymity,
+            '' and whether THIS level overlaps.
             dim as boolean saved = w.inUnion
             dim as boolean savedFirst = w.unionFirst
-            if (n->flags and Fbx.NF_IS_UNION) <> 0 then
-                w.inUnion = true
-                '' Each anonymous union marks its OWN first field, so the layout pass
-                '' can tell two adjacent ones apart.
-                w.unionFirst = true
-            end if
+            dim as long savedDepth = w.anonDepth
+            w.inUnion = ((n->flags and Fbx.NF_IS_UNION) <> 0)
+            w.anonDepth = savedDepth + 1
+            '' Every anonymous group marks its OWN first field -- union or type alike --
+            '' so the layout can tell two adjacent groups apart.
+            w.unionFirst = true
             WalkChildren( w, sp->first, sp->count, scope_ )
             w.inUnion = saved
             w.unionFirst = savedFirst
+            w.anonDepth = savedDepth
             return
         end if
         dim as Fbx.SymbolId sid = Declare_( w, scope_, sp->name, Fbx.SYM_UDT, _
@@ -395,6 +401,8 @@ sub WalkNode _
         dim as Fbx.Symbol ptr s = w.syms->SymbolAt( sid )
         if s <> 0 then
             s->inner = inner
+            '' The layout needs the aggregate's KIND, and nothing else recorded it.
+            if (n->flags and Fbx.NF_IS_UNION) <> 0 then s->flags or= Fbx.SYMF_UNION_KIND
             '' The TypeId exists from the DECLARATION, not from the first use: a
             '' member's signature can name its own type, so waiting would deadlock.
             s->type_ = w.types->NamedType( Fbx.TK_UDT, sp->name, cast( ulong, scope_ ) )
@@ -411,24 +419,28 @@ sub WalkNode _
         '' check-udt's 24 shapes did not include a named union.
         dim as boolean savedU = w.inUnion
         dim as boolean savedUF = w.unionFirst
+        dim as long savedD = w.anonDepth
         w.inUnion = ((n->flags and Fbx.NF_IS_UNION) <> 0)
-        w.unionFirst = w.inUnion
+        w.unionFirst = false
+        w.anonDepth = 0
         WalkChildren( w, sp->first, sp->count, inner )
         w.inUnion = savedU
         w.unionFirst = savedUF
+        w.anonDepth = savedD
 
     case Fbx.N_FIELD
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
         dim as Fbx.SymbolId fid = Declare_( w, scope_, sp->name, Fbx.SYM_FIELD, _
                                             w.ast->Loc( id ) )
-        if w.inUnion then
-            dim as Fbx.Symbol ptr fs = w.syms->SymbolAt( fid )
-            if fs <> 0 then
-                fs->flags or= Fbx.SYMF_UNION
-                if w.unionFirst then fs->flags or= Fbx.SYMF_UNION_FIRST
-            end if
-            w.unionFirst = false
+        '' Recorded for EVERY field, not only a union's: the layout needs the depth
+        '' of a sequential anonymous group as much as an overlapping one.
+        dim as Fbx.Symbol ptr fs = w.syms->SymbolAt( fid )
+        if fs <> 0 then
+            fs->anonDepth = cast( ubyte, w.anonDepth )
+            if w.inUnion then fs->flags or= Fbx.SYMF_UNION
+            if w.unionFirst then fs->flags or= Fbx.SYMF_UNION_FIRST
         end if
+        w.unionFirst = false
 
     case Fbx.N_ENUM
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )

@@ -51,15 +51,14 @@ union NamedU
 	c as ulongint
 end union
 
-'' STILL WRONG, and pinned here so it is visible: an anonymous TYPE inside a NAMED union
-'' should lay its own members out SEQUENTIALLY and overlap that group with its siblings.
-'' fbc gives 8 for this -- f at 0, g at 4, h at 0. fbx gives 16, with f and g wrongly
-'' overlapping and h wrongly after them.
+'' An anonymous TYPE inside a NAMED union lays its own members out SEQUENTIALLY and
+'' overlaps that group with its siblings: f at 0, g at 4, h at 0, size 8.
 ''
-'' The flag model cannot express it: SYMF_UNION means 'overlap with the run', and there
-'' is no way to say 'this group is sequential but the group overlaps'. That needs a
-'' per-field group id in the layout pass rather than a boolean, which is its own change.
-'' winnt.bi's _SLIST_HEADER is exactly this shape.
+'' This was WRONG for one commit -- 16, with f and g overlapping and h after them -- and
+'' pinned here with that explanation, because the flag model could not say 'this group
+'' is sequential but the group overlaps'. The layout pass takes a per-field anonymous
+'' DEPTH now and places groups recursively, so it can. winnt.bi's _SLIST_HEADER is this
+'' shape.
 union TypeInUnion
 	type
 		f as long

@@ -91,12 +91,17 @@ namespace Fbx
     '' fbc prints 5 for that program, fbx would have printed 1.
     const SYMF_BYREF    as ushort = &h0800
 
-    '' The FIRST field spliced out of one anonymous UNION. Two adjacent anonymous
+    '' The FIRST field spliced out of one anonymous aggregate -- union OR type. Two adjacent anonymous
     '' unions produce one continuous run of SYMF_UNION fields, and the layout pass
     '' scans a run to find its widest member -- so without a marker for where each
     '' union STARTS it merged them and overlapped fields that should follow one
     '' another. Measured: two anonymous unions of one INTEGER each is 16 bytes, not 8.
     const SYMF_UNION_FIRST as ushort = &h1000
+
+    '' On a SYM_UDT: the aggregate was written as a UNION rather than a TYPE. The
+    '' layout needs it because a named union's own members overlap, and nothing else
+    '' recorded the kind on the symbol.
+    const SYMF_UNION_KIND as ushort = &h2000
 
     type Symbol
         as ubyte     kind
@@ -122,6 +127,15 @@ namespace Fbx
         '' SYM_PROC: the calling convention, resolved across the declaration and the
         '' definition. CC_NONE means neither wrote one, and the TARGET decides what
         '' that means -- stdcall on win32, nothing at all on win64.
+        '' How many ANONYMOUS aggregates enclose this field, 0 for one written
+        '' directly in the named TYPE or UNION. With SYMF_UNION -- "my immediate
+        '' enclosing aggregate is a union" -- it is everything the layout needs: a
+        '' group is sequential or overlapping according to its own kind, and nests.
+        ''
+        '' The flag alone could not express 'this group is SEQUENTIAL but the group
+        '' OVERLAPS its siblings', which is what an anonymous TYPE inside a UNION is,
+        '' and what winnt.bi's _SLIST_HEADER writes.
+        as ubyte     anonDepth
         as ubyte     callConv
     end type
 

@@ -14,8 +14,8 @@ namedu size 8 align 8
   namedu off a 0
   namedu off b 0
   namedu off c 0
-typeinunion size 16 align 8
+typeinunion size 8 align 8
   typeinunion off f 0
-  typeinunion off g 0
-  typeinunion off h 8
+  typeinunion off g 4
+  typeinunion off h 0
 udts: 6

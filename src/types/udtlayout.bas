@@ -64,6 +64,106 @@ private function MemberSize _
     return l.size
 end function
 
+'' One GROUP of fields: the members of a named aggregate, or of one anonymous aggregate
+'' spliced into it. Recursive, because an anonymous group nests and its KIND -- union or
+'' type -- is independent of its parent's.
+''
+'' This replaced a single forward pass that scanned ahead for a "run of consecutive union
+'' members". A run cannot express an anonymous TYPE inside a UNION: its members are
+'' SEQUENTIAL and the group as a whole OVERLAPS its siblings. winnt.bi's _SLIST_HEADER
+'' is that shape, and it laid out wrongly for as long as the run model lasted.
+''
+'' 'emit' is false on the measuring pass. A nested group's alignment decides where it
+'' starts, and its size is not known until its members are placed, so it is measured
+'' first and then placed -- the same two-pass shape the old run-scan used, one level up.
+private sub PlaceGroup _
+    ( byref flds as FB.Array( of ulong ), byref idx as long, byval depth as long, _
+      byval isUnion as boolean, byval pack as long, byval baseOff as long, _
+      byval emit as boolean, byref syms as SymbolTable, byref types as TypeContext, _
+      byref store as UdtLayouts, byref u as UdtInfo, _
+      byref outSize as long, byref outAlign as long )
+
+    dim as long off = 0
+    dim as long grpAlign = 1
+    dim as long grpSize = 0
+    dim as boolean first = true
+
+    while idx < flds.Count
+        dim as SymbolId sid = cast( SymbolId, flds[idx] )
+        dim as Symbol ptr f = syms.SymbolAt( sid )
+        if f = 0 then exit while
+        dim as long fd = cast( long, f->anonDepth )
+        if fd < depth then exit while
+
+        if fd > depth then
+            '' A nested anonymous group. Measure it, place it as ONE member, then walk
+            '' it again for real.
+            dim as long probe = idx
+            dim as long gs = 0
+            dim as long ga = 1
+            dim as boolean nestedIsUnion = ((f->flags and SYMF_UNION) <> 0)
+            PlaceGroup( flds, probe, depth + 1, nestedIsUnion, pack, 0, false, _
+                        syms, types, store, u, gs, ga )
+            dim as long ea = ga
+            if (pack > 0) andalso (ea > pack) then ea = pack
+            dim as long at = 0
+            if isUnion then
+                at = 0
+                if gs > grpSize then grpSize = gs
+            else
+                off = AlignUp( off, ea )
+                at = off
+                off += gs
+                grpSize = off
+            end if
+            if ga > grpAlign then grpAlign = ga
+            PlaceGroup( flds, idx, depth + 1, nestedIsUnion, pack, baseOff + at, emit, _
+                        syms, types, store, u, gs, ga )
+            first = false
+            continue while
+        end if
+
+        '' A field written at THIS level. A second anonymous group at the same depth
+        '' ends this one.
+        if (first = false) andalso (depth > 0) andalso _
+           ((f->flags and SYMF_UNION_FIRST) <> 0) then
+            exit while
+        end if
+
+        dim as long natural = MemberAlign( f->type_, types, store )
+        dim as long fa = natural
+        if (pack > 0) andalso (fa > pack) then fa = pack
+        dim as long fs = MemberSize( f->type_, types, store )
+        if natural > grpAlign then grpAlign = natural
+
+        dim as long at2 = 0
+        if isUnion then
+            at2 = 0
+            if fs > grpSize then grpSize = fs
+        else
+            off = AlignUp( off, fa )
+            at2 = off
+            off += fs
+            grpSize = off
+        end if
+
+        if emit then
+            dim as UdtField uf
+            uf.name = f->name
+            uf.type_ = f->type_
+            uf.offset = baseOff + at2
+            store.fields.Push( uf )
+            u.count += 1
+        end if
+
+        first = false
+        idx += 1
+    wend
+
+    outSize = grpSize
+    outAlign = grpAlign
+end sub
+
 '' One UDT, given its scope. Returns false when a member's type is not yet known, so
 '' the caller can try again after the types it depends on have been laid out.
 private function LayOutOne _
@@ -83,18 +183,15 @@ private function LayOutOne _
     u.first = store.fields.Count
     u.count = 0
 
-    dim as long offset = 0
-    dim as long maxAlign = 1
     '' 'field = N' caps how far each MEMBER is aligned. The type's own alignment stays
     '' the maximum of its members' NATURAL alignments, which is why Field1 packs to
     '' offsets 0/1/5 and size 7 yet still embeds 4-aligned.
     dim as long pack = types.Packing( s->type_ )
-    dim as boolean inUnionRun = false
-    dim as long unionStart = 0
-    dim as long unionSize = 0
-    dim as long unionAlign = 1
 
-    '' Declaration order, through the per-scope linked list.
+    '' The fields in declaration order, so the placement below can look ahead. The
+    '' per-scope list is a linked list and a group needs its whole extent before its
+    '' first member can be placed, which a single forward pass cannot give.
+    dim as FB.Array( of ulong ) flds
     dim as SymbolId cur = sc->firstSym
     while cur <> SYMBOL_NONE
         dim as Symbol ptr f = syms.SymbolAt( cur )
@@ -108,79 +205,17 @@ private function LayOutOne _
                 wend
                 return false
             end if
-            dim as long natural = MemberAlign( f->type_, types, store )
-            dim as long fa = natural
-            if (pack > 0) andalso (fa > pack) then fa = pack
-            dim as long fs = MemberSize( f->type_, types, store )
-            if natural > maxAlign then maxAlign = natural
-            dim as boolean isUnion = ((f->flags and SYMF_UNION) <> 0)
-
-            '' A run of consecutive union members shares ONE offset -- they overlap --
-            '' and that offset is aligned to the WIDEST member of the run, not to the
-            '' first one. So the run is scanned ahead before anything is placed:
-            '' 'union : as long l : as double d' puts BOTH at 8, and reacting member
-            '' by member put l at 4 and d at 8, which is a union that is not a union.
-            '' A second anonymous union starting while a run is open CLOSES that run
-            '' first. The end-of-run test below only fires on a NON-union field, so
-            '' without this two adjacent unions stayed one run however the scan was
-            '' bounded, and their fields overlapped.
-            if isUnion andalso inUnionRun andalso _
-               ((f->flags and SYMF_UNION_FIRST) <> 0) then
-                offset = unionStart + unionSize
-                inUnionRun = false
-            end if
-
-            if isUnion andalso (inUnionRun = false) then
-                dim as long runAlign = 1
-                dim as long runSize = 0
-                dim as SymbolId scan = cur
-                dim as boolean firstOfRun = true
-                while scan <> SYMBOL_NONE
-                    dim as Symbol ptr g = syms.SymbolAt( scan )
-                    if g = 0 then exit while
-                    if g->kind <> cast( ubyte, SYM_FIELD ) then exit while
-                    if (g->flags and SYMF_UNION) = 0 then exit while
-                    '' A SECOND anonymous union starts here, so this run ends. Without
-                    '' this the two merged and their fields overlapped: measured, two
-                    '' anonymous unions of one INTEGER each is 16 bytes, not 8.
-                    if (firstOfRun = false) andalso _
-                       ((g->flags and SYMF_UNION_FIRST) <> 0) then exit while
-                    firstOfRun = false
-                    dim as long ga = MemberAlign( g->type_, types, store )
-                    dim as long gs = MemberSize( g->type_, types, store )
-                    if ga > runAlign then runAlign = ga
-                    if gs > runSize then runSize = gs
-                    scan = g->nextInScope
-                wend
-                inUnionRun = true
-                unionAlign = runAlign
-                unionSize = runSize
-                unionStart = AlignUp( offset, runAlign )
-                offset = unionStart
-                if runAlign > maxAlign then maxAlign = runAlign
-            elseif (isUnion = false) andalso inUnionRun then
-                offset = unionStart + unionSize
-                inUnionRun = false
-            end if
-
-            if isUnion = false then
-                offset = AlignUp( offset, fa )
-            else
-                offset = unionStart
-            end if
-
-            dim as UdtField uf
-            uf.name = f->name
-            uf.type_ = f->type_
-            uf.offset = offset
-            store.fields.Push( uf )
-            u.count += 1
-            if isUnion = false then offset += fs
+            flds.Push( cast( ulong, cur ) )
         end if
         cur = f->nextInScope
     wend
 
-    if inUnionRun then offset = unionStart + unionSize
+    dim as long idx = 0
+    dim as long maxAlign = 1
+    dim as long total = 0
+    PlaceGroup( flds, idx, 0, ((s->flags and SYMF_UNION_KIND) <> 0), pack, 0, true, _
+                syms, types, store, u, total, maxAlign )
+    dim as long offset = total
 
     '' A type's alignment is the maximum of its members', and its size is rounded up
     '' to that -- which is where the trailing padding of 'byte, long, short' (offsets

@@ -54,6 +54,19 @@ CASES = [
     ("Field8", "type Field8 field = 8\n as byte b\n as double d\nend type", ["b", "d"]),
     ("ArrOfUdt", "type ElemU\n as long a\n as byte b\nend type\ntype ArrOfUdt\n as byte x\n as ElemU e(0 to 1)\n as byte y\nend type", ["x", "e(0)", "y"]),
     ("ZStrField", "type ZStrField\n as byte b\n as zstring * 5 z\n as byte c\nend type", ["b", "z", "c"]),
+
+    # UNION shapes. The gate had exactly ONE union case among its first 24, and it was
+    # an ANONYMOUS union inside a type -- so a NAMED union laid out sequentially (24
+    # bytes for three ULONGINTs, where fbc says 8) sat behind a green 24/24 for as long
+    # as it existed. These are the shapes that were wrong, plus neighbours that were not.
+    ("NamedU", "union NamedU\n as ulongint a\n as ulongint b\n as ulongint c\nend union", ['a', 'b', 'c']),
+    ("NamedUMix", "union NamedUMix\n as long l\n as double d\n as short s\nend union", ['l', 'd', 's']),
+    ("TypeHasNamedU", "union InnerU\n as long a\n as double b\nend union\ntype TypeHasNamedU\n as byte x\n as InnerU u\n as byte y\nend type", ['x', 'u', 'y']),
+    ("TwoAnonU", "type TwoAnonU\n union\n  as long a\n end union\n union\n  as long b\n end union\nend type", ['a', 'b']),
+    # An anonymous TYPE inside a UNION: its members are SEQUENTIAL and the group
+    # overlaps its siblings. winnt.bi's _SLIST_HEADER is this shape.
+    ("TypeInU", "union TypeInU\n type\n  as long f\n  as long g\n end type\n as double h\nend union", ['f', 'g', 'h']),
+    ("UnionFieldClause", "union UnionFieldClause field = 4\n as long a\n as double b\nend union", ['a', 'b']),
 ]
 
 
