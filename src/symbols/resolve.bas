@@ -79,6 +79,27 @@ type Ctx
     as Fbx.SymbolId         currentProc
 end type
 
+'' The scope '..' names. NOT SCOPE_GLOBAL, which holds only the builtins -- a module's
+'' own declarations live in a SCOPEK_MODULE scope one level inside it, so looking in
+'' the global scope found nothing and '..x' bound to no symbol at all.
+''
+'' Walking outward rather than caching an id keeps this correct if a file ever opens
+'' more than one module scope.
+private function FileScopeOf_ _
+    ( byref c as Ctx, byval from_ as Fbx.ScopeId ) as Fbx.ScopeId
+
+    dim as Fbx.ScopeId sc = from_
+    dim as long guard = 0
+    while (sc <> Fbx.SCOPE_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Fbx.SymScope ptr s_ = c.syms->ScopeAt( sc )
+        if s_ = 0 then exit while
+        if s_->kind = cast( ubyte, Fbx.SCOPEK_MODULE ) then return sc
+        sc = s_->parent
+    wend
+    return Fbx.SCOPE_GLOBAL
+end function
+
 private function StmtOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
     if id = Fbx.NODE_NONE then return 0
@@ -371,7 +392,7 @@ private sub WalkExpr _
         if c.ast->Kind( mb->lhs ) = Fbx.N_GLOBALSCOPE then
             if c.ast->Kind( mb->rhs ) = Fbx.N_IDENT then
                 dim as Fbx.SymbolId gsid = _
-                    c.syms->LookupLocal( Fbx.SCOPE_GLOBAL, IdentNameOf( c, mb->rhs ) )
+                    c.syms->LookupLocal( FileScopeOf_( c, scope_ ), IdentNameOf( c, mb->rhs ) )
                 if gsid <> Fbx.SYMBOL_NONE then
                     c.info->SetRef( mb->rhs, gsid )
                     c.info->SetRef( id, gsid )
@@ -549,6 +570,7 @@ private function ArrayFromBoundsNode _
     next
     return ArrayFromPairs( c, base_, los, his, init )
 end function
+
 
 
 private sub ResolveAmbiguous _

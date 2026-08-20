@@ -1139,6 +1139,23 @@ function TypeOf_ _
         '' Resolve deliberately left member names alone: it runs before any expression
         '' has a type. With the base typed, the field is an ordinary lookup in the
         '' UDT's own scope.
+        '' EXCEPT a QUALIFIED NAME -- 'ns.counter', '..x'. Resolve bound those to the
+        '' symbol itself, because a namespace is not a value and has no type to wait
+        '' for. Its type is the symbol's, and without this the member came back
+        '' untyped: LowerAddr already had the same shortcut, so 'ns.v = 3' STORED
+        '' correctly while 'print ns.v' declined -- a write that worked and a read
+        '' that did not, from one missing case.
+        dim as Fbx.SymbolId qsid = c.info->RefOf( id )
+        if qsid <> Fbx.SYMBOL_NONE then
+            dim as Fbx.Symbol ptr qs = c.syms->SymbolAt( qsid )
+            if qs <> 0 then
+                if qs->kind = cast( ubyte, Fbx.SYM_VARIABLE ) then
+                    t = qs->type_
+                    exit select
+                end if
+            end if
+        end if
+
         dim as Fbx.BinaryPayload ptr mp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Fbx.TypeId bt = TypeOf_( c, mp->lhs )

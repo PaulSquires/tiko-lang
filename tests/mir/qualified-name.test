@@ -1,0 +1,5 @@
+'' Reading a namespace-qualified name, and the truncation its type implies.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/qualified-name.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/qualified-name.out

@@ -196,8 +196,9 @@ func void USENS() {
     %1 = const i64 1
     call void _ZN3NSQ5GREETEi(%1)
     %2 = const i64 2
-    store @@counter, %2
+    %3 = trunc %2
+    store @@counter, %3
     ret
 }
 verify: ok
-lowered: 6 functions, 35 blocks, 103 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 35 blocks, 104 insts, 0 statements not lowered, 0 scope imbalance
