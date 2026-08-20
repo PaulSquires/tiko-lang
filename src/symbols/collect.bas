@@ -61,6 +61,166 @@ private function Declare_ _
     return id
 end function
 
+declare function SameTypeRef_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+declare function LiteralLen_ _
+    ( byref w as Walker, byval id as Fbx.NodeId, byref outv as longint ) as boolean
+declare function DimCount_( byref w as Walker, byval id as Fbx.NodeId ) as long
+declare function SameBounds_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+declare function SameLiteral_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+declare function IsAnyBound_( byref w as Walker, byval id as Fbx.NodeId ) as boolean
+
+'' Do two declarations of one name describe the SAME thing? Used only to decide whether
+'' an EXTERN and its later definition are a redeclaration or a duplicate.
+''
+'' Compared SYNTACTICALLY, on the written type reference, because Collect runs before
+'' any type exists -- and PERMISSIVELY: anything this cannot compare is treated as
+'' agreeing. Rejecting is the direction that loses a file, and 'extern a as MyInt'
+'' against 'dim shared a as integer' is legal when MyInt is a typedef for integer.
+''
+'' What it does catch is exactly what the corpus's 29 negative tests differ by --
+'' measured: a different builtin (fbc error 4), a different array shape (error 54), a
+'' different fixed-string length (error 20).
+private function SameDeclShape_ _
+    ( byref w as Walker, byval aItem as Fbx.NodeId, byval bItem as Fbx.NodeId ) as boolean
+
+    if (aItem = Fbx.NODE_NONE) orelse (bItem = Fbx.NODE_NONE) then return true
+    if (cast( long, aItem ) >= w.ast->nodes.Count) orelse _
+       (cast( long, bItem ) >= w.ast->nodes.Count) then return true
+
+    dim as Fbx.AstNode ptr an = @w.ast->nodes[cast( long, aItem )]
+    dim as Fbx.AstNode ptr bn = @w.ast->nodes[cast( long, bItem )]
+
+    '' 'extern a as integer' against 'extern a( ) as integer' -- one is an array and
+    '' the other is not. fbc error 54.
+    dim as boolean aArr = ((an->flags and Fbx.NF_ARRAY) <> 0)
+    dim as boolean bArr = ((bn->flags and Fbx.NF_ARRAY) <> 0)
+    if aArr <> bArr then return false
+
+    dim as Fbx.StmtPayload ptr ap = StmtOf( w, aItem )
+    dim as Fbx.StmtPayload ptr bp = StmtOf( w, bItem )
+    if SameBounds_( w, ap->c, bp->c ) = false then return false
+    return SameTypeRef_( w, ap->a, bp->a )
+end function
+
+'' How many dimensions a bounds block declares. NODE_NONE is none.
+private function DimCount_( byref w as Walker, byval id as Fbx.NodeId ) as long
+    if id = Fbx.NODE_NONE then return 0
+    if w.ast->Kind( id ) <> Fbx.N_BLOCK then return 0
+    return w.ast->lists[cast( long, w.ast->nodes[cast( long, id )].data )].count
+end function
+
+'' Two bounds blocks: the same number of dimensions, and where both sides wrote an
+'' integer LITERAL, the same value. 'extern array(0 to 1)' against 'dim array(0 to 0)'
+'' is fbc error 37 -- the dimension count agrees and the bounds do not, so comparing
+'' the count alone let seven corpus files through.
+private function SameBounds_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+
+    dim as long na = DimCount_( w, a )
+    dim as long nb = DimCount_( w, b )
+    if na <> nb then return false
+    if na = 0 then return true
+
+    dim as Fbx.ListPayload ptr la = _
+        @w.ast->lists[cast( long, w.ast->nodes[cast( long, a )].data )]
+    dim as Fbx.ListPayload ptr lb = _
+        @w.ast->lists[cast( long, w.ast->nodes[cast( long, b )].data )]
+    for i as long = 0 to na - 1
+        dim as Fbx.NodeId da = cast( Fbx.NodeId, w.ast->children[la->first + i] )
+        dim as Fbx.NodeId db = cast( Fbx.NodeId, w.ast->children[lb->first + i] )
+        '' 'a(9)' is a bare expression -- the upper bound -- and 'a(0 to 9)' is an
+        '' N_CASE_RANGE. A mix of the two spellings is left alone rather than guessed at.
+        '' 'any' marks a VAR-LEN dimension. Measured: 'extern a(any)' against
+        '' 'dim a(0 to 2)' is fbc error 54, so ANY on one side and a bound on the other
+        '' is a difference -- while ANY on both is agreement.
+        dim as boolean aa = IsAnyBound_( w, da )
+        dim as boolean ab = IsAnyBound_( w, db )
+        if aa <> ab then return false
+        if aa then continue for
+
+        dim as boolean ra = (w.ast->Kind( da ) = Fbx.N_CASE_RANGE)
+        dim as boolean rb = (w.ast->Kind( db ) = Fbx.N_CASE_RANGE)
+        if ra <> rb then continue for
+        if ra then
+            dim as Fbx.StmtPayload ptr sa = StmtOf( w, da )
+            dim as Fbx.StmtPayload ptr sb = StmtOf( w, db )
+            if SameLiteral_( w, sa->a, sb->a ) = false then return false
+            if SameLiteral_( w, sa->b, sb->b ) = false then return false
+        else
+            if SameLiteral_( w, da, db ) = false then return false
+        end if
+    next
+    return true
+end function
+
+'' The 'any' of 'a( any )', which arrives as an ordinary identifier.
+private function IsAnyBound_( byref w as Walker, byval id as Fbx.NodeId ) as boolean
+    if id = Fbx.NODE_NONE then return false
+    if w.ast->Kind( id ) <> Fbx.N_IDENT then return false
+    dim as Fbx.InternId nm = _
+        w.ast->idents[cast( long, w.ast->nodes[cast( long, id )].data )].name
+    return (w.names->Spelling( nm ) = "any")
+end function
+
+'' Equal when BOTH are integer literals and differ; otherwise "cannot tell", which
+'' counts as agreeing.
+private function SameLiteral_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+
+    dim as longint av = 0, bv = 0
+    if LiteralLen_( w, a, av ) = false then return true
+    if LiteralLen_( w, b, bv ) = false then return true
+    return (av = bv)
+end function
+
+'' Two written type references, compared as far as syntax allows.
+private function SameTypeRef_ _
+    ( byref w as Walker, byval a as Fbx.NodeId, byval b as Fbx.NodeId ) as boolean
+
+    if (a = Fbx.NODE_NONE) orelse (b = Fbx.NODE_NONE) then return true
+    if (w.ast->Kind( a ) <> Fbx.N_TYPEREF) orelse (w.ast->Kind( b ) <> Fbx.N_TYPEREF) then
+        return true
+    end if
+    dim as Fbx.StmtPayload ptr ap = StmtOf( w, a )
+    dim as Fbx.StmtPayload ptr bp = StmtOf( w, b )
+
+    '' The builtin keyword, or 0 for a named type. A different builtin is fbc error 4.
+    if ap->op <> bp->op then return false
+    '' A named type: the spelling. Two different names may still be the same type
+    '' through typedefs, so this only rejects when BOTH are named and differ.
+    if (ap->name <> 0) andalso (bp->name <> 0) andalso (ap->name <> bp->name) then
+        return false
+    end if
+
+    '' 'zstring * 4' against 'zstring * 8' -- fbc error 20. Only comparable when both
+    '' lengths are integer literals; anything else is left alone.
+    '' The fixed length is in 'c', NOT 'a' -- 'a' is the ELEMENT type reference, and
+    '' reading one for the other compared a length against a type and found them equal.
+    dim as longint alen = 0, blen = 0
+    dim as boolean aHas = LiteralLen_( w, ap->c, alen )
+    dim as boolean bHas = LiteralLen_( w, bp->c, blen )
+    if aHas andalso bHas andalso (alen <> blen) then return false
+    '' One written and one not is a difference too: 'zstring * 4' is not 'zstring'.
+    if aHas <> bHas then return false
+
+    '' PTR nests another N_TYPEREF in 'a'; recursing compares the pointed-to type and,
+    '' by arriving at different depths, the pointer depth too.
+    return SameTypeRef_( w, ap->a, bp->a )
+end function
+
+'' The integer literal a fixed-length string's size was written as, if it was one.
+private function LiteralLen_ _
+    ( byref w as Walker, byval id as Fbx.NodeId, byref outv as longint ) as boolean
+
+    if id = Fbx.NODE_NONE then return false
+    if w.ast->Kind( id ) <> Fbx.N_INT_LIT then return false
+    outv = w.ast->literals[cast( long, w.ast->nodes[cast( long, id )].data )].intValue
+    return true
+end function
+
 declare sub WalkNode _
     ( byref w as Walker, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
 declare function Effective_( byval c as Fbx.CallConv ) as Fbx.CallConv
@@ -115,6 +275,51 @@ sub WalkNode _
             dim as Fbx.StmtPayload ptr ip = StmtOf( w, item )
             dim as Fbx.SymbolKind sk = Fbx.SYM_VARIABLE
             if k = Fbx.N_CONST then sk = Fbx.SYM_CONSTANT
+
+            '' An EXTERN is a FORWARD DECLARATION, not a definition: 'extern a as
+            '' integer' followed by 'dim shared a as integer' is one variable, and so
+            '' is the same EXTERN written twice. Measured -- fbc accepts both, and
+            '' rejects only when the two disagree about the TYPE (error 4), the array
+            '' shape (error 54) or a fixed string's length (error 20).
+            ''
+            '' So the redeclaration is allowed exactly when the written shapes agree.
+            '' The 29 corpus files that exist to check those three disagreements were
+            '' passing by ACCIDENT, because fbx rejected the whole construct; they have
+            '' to keep failing, for the right reason now.
+            dim as boolean isExtern = (sp->op = cast( ushort, Fbx.KW_EXTERN ))
+            if sk = Fbx.SYM_VARIABLE then
+                dim as Fbx.SymbolId prev = _
+                    w.syms->LookupLocalTyped( scope_, ip->name, false )
+                dim as Fbx.Symbol ptr ps = w.syms->SymbolAt( prev )
+                if ps <> 0 then
+                    dim as boolean prevExtern = ((ps->flags and Fbx.SYMF_EXTERN) <> 0)
+                    dim as boolean mergeable = _
+                        (ps->kind = cast( ubyte, Fbx.SYM_VARIABLE )) andalso _
+                        (isExtern orelse prevExtern)
+                    '' BYREF is on the DECLARATION, not the item: 'extern byref ri as
+                    '' integer' against 'dim shared ri as integer' is fbc error 20, and
+                    '' the two items look identical. The flag is carried on the symbol,
+                    '' which is the only place both declarations can be compared from.
+                    dim as boolean prevByref = ((ps->flags and Fbx.SYMF_BYREF) <> 0)
+                    dim as boolean thisByref = ((n->flags and Fbx.NF_BYREF) <> 0)
+                    if prevByref <> thisByref then mergeable = false
+                    if mergeable then
+                        if SameDeclShape_( w, cast( Fbx.NodeId, ps->payload ), item ) then
+                            if (n->flags and Fbx.NF_SHARED) <> 0 then
+                                ps->flags or= Fbx.SYMF_SHARED
+                            end if
+                            '' The DEFINITION owns the symbol from here: its item is
+                            '' what carries the initializer, and it is no longer extern.
+                            if isExtern = false then
+                                ps->flags and= not Fbx.SYMF_EXTERN
+                                ps->payload = cast( long, item )
+                            end if
+                            continue for
+                        end if
+                    end if
+                end if
+            end if
+
             dim as Fbx.SymbolId sid = Declare_( w, scope_, ip->name, sk, _
                                                 w.ast->Loc( item ) )
             dim as Fbx.Symbol ptr s = w.syms->SymbolAt( sid )
@@ -122,6 +327,7 @@ sub WalkNode _
                 if (n->flags and Fbx.NF_SHARED) <> 0 then s->flags or= Fbx.SYMF_SHARED
                 if (n->flags and Fbx.NF_STATIC) <> 0 then s->flags or= Fbx.SYMF_STATIC
                 if (n->flags and Fbx.NF_BYREF) <> 0 then s->flags or= Fbx.SYMF_BYREF
+                if isExtern then s->flags or= Fbx.SYMF_EXTERN
                 if k = Fbx.N_CONST then s->flags or= Fbx.SYMF_CONST
                 s->payload = cast( long, item )
             end if

@@ -1,0 +1,11 @@
+'' An EXTERN is a FORWARD DECLARATION, not a definition, so it does not collide with the
+'' definition that follows -- nor with a second EXTERN of the same shape.
+''
+'' The comparison is SYNTACTIC (Collect runs before any type exists) and PERMISSIVE:
+'' anything it cannot compare counts as agreeing, because rejecting is the direction that
+'' loses a working file. The rejections fbc makes are checked against the corpus, where
+'' 29 files exist for exactly that and were passing by accident.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/extern-forward.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/extern-forward.out
