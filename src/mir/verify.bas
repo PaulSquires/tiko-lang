@@ -112,6 +112,44 @@ function Verify _
                     end if
                 end if
 
+                '' Rule 10: a STORE's value must have the destination slot's type.
+                ''
+                '' MIR has no implicit conversions, so a mismatch is a WRONG STORE --
+                '' 64 bits into a 32-bit slot, emitted and never complained about. One
+                '' was found by accident when a member finally got a type and a 'trunc'
+                '' appeared beside a store that had never had one; nothing in the
+                '' verifier had objected to it, which is what this rule is for.
+                ''
+                '' A LOCAL or a GLOBAL destination, which are the two that write their
+                '' slot's type down. A computed field address has none to compare
+                '' against, and guessing would make the rule lie. MT_AGG is excluded on
+                '' both sides: an aggregate is copied rather than loaded and stored
+                '' whole, so its 'type' is not a width.
+                if op = M_STORE then
+                    dim as long slotTy = -1
+                    if ins->a.kind = cast( ubyte, MV_LOCAL ) then
+                        if (ins->a.id >= 0) andalso (ins->a.id < f->locals.Count) then
+                            slotTy = cast( long, f->locals[ins->a.id].ty )
+                        end if
+                    elseif ins->a.kind = cast( ubyte, MV_GLOBAL ) then
+                        if (ins->a.id >= 0) andalso (ins->a.id < m.globals.Count) then
+                            if m.globals[ins->a.id].isVar then
+                                slotTy = cast( long, m.globals[ins->a.id].ty )
+                            end if
+                        end if
+                    end if
+                    dim as long valTy = cast( long, ins->b.ty )
+                    dim as boolean checkable = (slotTy >= 0) andalso _
+                        (slotTy <> cast( long, MT_AGG )) andalso _
+                        (valTy <> cast( long, MT_AGG )) andalso _
+                        (valTy <> cast( long, MT_VOID ))
+                    if checkable andalso (slotTy <> valTy) then
+                        Fail( r, iw, "stores " & TypeName( cast( MirType, valTy ) ) & _
+                                     " into a " & TypeName( cast( MirType, slotTy ) ) & _
+                                     " slot" )
+                    end if
+                end if
+
                 '' A void value can be produced but never consumed.
                 if OpHasResult( op ) andalso (ins->ty = cast( ubyte, MT_VOID )) then
                     if (op <> M_CALL) andalso (op <> M_CALL_RTL) then
