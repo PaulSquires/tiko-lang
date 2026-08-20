@@ -260,7 +260,9 @@ sub WalkNode _
             dim as Fbx.InternId ownerNm = sp->ownerName
             if isCtorDtor andalso (ownerNm = 0) then ownerNm = sp->name
             if ownerNm <> 0 then
-                dim as Fbx.SymbolId osid = w.syms->Lookup( scope_, ownerNm )
+                '' The owner is a TYPE name -- 'sub Widget.Draw( )' -- so a variable
+                '' sharing the spelling must not be picked up instead.
+                dim as Fbx.SymbolId osid = w.syms->LookupTyped( scope_, ownerNm, true )
                 dim as Fbx.Symbol ptr os = w.syms->SymbolAt( osid )
                 if os <> 0 then
                     if os->inner <> Fbx.SCOPE_NONE then parentScope = os->inner

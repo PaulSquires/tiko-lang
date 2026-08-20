@@ -92,6 +92,16 @@ namespace Fbx
         as TypeId    type_
         as SourceLoc loc
         as SymbolId  nextOverload
+        '' A TYPE NAME and a VALUE name may share a spelling in one scope. Measured:
+        '' 'type T ... end type' beside 'dim as integer T' is accepted by fbc, and T
+        '' still works as a type afterwards; so is a typedef beside a variable, and a
+        '' UDT beside a SUB or a CONST of the same name. Only the ENUM is different --
+        '' once 'enum E' exists, a bare E is an enum reference and fbc wants a period.
+        ''
+        '' The slot table is keyed on (scope, name) alone, so the two are chained here
+        '' rather than given separate tables: one extra field against rekeying every
+        '' lookup in the compiler.
+        as SymbolId  altClass      '' the same name in the OTHER class, or SYMBOL_NONE
         as SymbolId  nextInScope   '' declaration order within the parent scope
         as ScopeId   inner         '' the scope this symbol opens, if any
         as long      payload       '' AST node, enum value, parameter index ...
@@ -142,6 +152,14 @@ namespace Fbx
         '' Innermost-first through the enclosing scope chain.
         declare function Lookup _
             ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
+        '' A name in a particular CLASS. The slot holds whichever was declared first,
+        '' so a caller that knows which it wants has to walk the pair.
+        declare function LookupLocalTyped _
+            ( byval scope_ as ScopeId, byval nm as InternId, _
+              byval wantType as boolean ) as SymbolId
+        declare function LookupTyped _
+            ( byval scope_ as ScopeId, byval nm as InternId, _
+              byval wantType as boolean ) as SymbolId
         declare function LookupLocal _
             ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
 

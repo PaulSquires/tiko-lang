@@ -221,7 +221,10 @@ private function ResolveTypeRef _
         '' the result is left as TYPE_NONE rather than falling back to the SIGNED type.
         '' A wrong type that compiles is worse than a type error: the parse failure this
         '' replaces was at least visible.
-        dim as Fbx.SymbolId usid = c.syms->Lookup( scope_, sp->name )
+        '' A TYPE name, so the lookup asks for the type-name class: 'dim as ubyte ptr pb'
+        '' followed by 'type pb as ubyte' puts the VARIABLE in the slot, and a plain
+        '' lookup then typed 'dim as pb v' as a POINTER where fbc gives one byte.
+        dim as Fbx.SymbolId usid = c.syms->LookupTyped( scope_, sp->name, true )
         if usid <> Fbx.SYMBOL_NONE then
             c.info->SetRef( id, usid )
             dim as Fbx.Symbol ptr us = c.syms->SymbolAt( usid )
@@ -234,7 +237,7 @@ private function ResolveTypeRef _
         '' A named type. Not finding it is NOT reported here: a type may come from a
         '' header this build did not parse, and drowning the output in those would
         '' hide the real signal. Check reports what it can prove.
-        dim as Fbx.SymbolId sid = c.syms->Lookup( scope_, sp->name )
+        dim as Fbx.SymbolId sid = c.syms->LookupTyped( scope_, sp->name, true )
         if sid <> Fbx.SYMBOL_NONE then
             c.info->SetRef( id, sid )
             dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
@@ -314,7 +317,9 @@ private sub BindDeclType _
       byval t as Fbx.TypeId )
 
     if (nm = 0) orelse (t = Fbx.TYPE_NONE) then return
-    dim as Fbx.SymbolId sid = c.syms->LookupLocal( scope_, nm )
+    '' A VALUE's type. If a type name shares the spelling, the slot may hold either
+    '' one, so the class is asked for rather than assumed.
+    dim as Fbx.SymbolId sid = c.syms->LookupLocalTyped( scope_, nm, false )
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return
     if s->type_ = Fbx.TYPE_NONE then s->type_ = t
@@ -742,7 +747,9 @@ sub WalkStmt _
         dim as Fbx.StmtPayload ptr tsp = StmtOf( c, id )
         dim as Fbx.TypeId aliased = ResolveTypeRef( c, tsp->a, here )
         if (aliased <> Fbx.TYPE_NONE) andalso (tsp->name <> 0) then
-            dim as Fbx.SymbolId tsid = c.syms->LookupLocal( here, tsp->name )
+            '' The TYPEDEF, not a variable of the same name -- when the variable was
+            '' declared first it holds the slot, and the typedef never got its type.
+            dim as Fbx.SymbolId tsid = c.syms->LookupLocalTyped( here, tsp->name, true )
             dim as Fbx.Symbol ptr tsym = c.syms->SymbolAt( tsid )
             if tsym <> 0 then
                 if tsym->kind = cast( ubyte, Fbx.SYM_TYPEDEF ) then tsym->type_ = aliased

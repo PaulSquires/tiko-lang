@@ -135,6 +135,13 @@ sub SymbolTable.Rehash( byval newSlots as long )
     this.mask = newMask
 end sub
 
+'' UDT and TYPEDEF are the type-name class. ENUM is deliberately NOT: measured, once
+'' 'enum E' exists a bare E is an enum reference and fbc asks for a period, so an enum
+'' name does NOT coexist with a value of the same name.
+function IsTypeNameKind( byval k as SymbolKind ) as boolean
+    return (k = SYM_UDT) orelse (k = SYM_TYPEDEF)
+end function
+
 function SymbolTable.SlotFor _
     ( byval scope_ as ScopeId, byval nm as InternId ) as long
 
@@ -153,6 +160,38 @@ function SymbolTable.LookupLocal _
     if scope_ = SCOPE_NONE then return SYMBOL_NONE
     dim as long slot = this.SlotFor( scope_, nm )
     return cast( SymbolId, this.slots[slot] )
+end function
+
+function SymbolTable.LookupLocalTyped _
+    ( byval scope_ as ScopeId, byval nm as InternId, _
+      byval wantType as boolean ) as SymbolId
+
+    dim as SymbolId head = this.LookupLocal( scope_, nm )
+    if head = SYMBOL_NONE then return SYMBOL_NONE
+    dim as Symbol ptr h = @this.symbols[cast( long, head )]
+    if IsTypeNameKind( cast( SymbolKind, h->kind ) ) = wantType then return head
+    if h->altClass = SYMBOL_NONE then return head
+    return h->altClass
+end function
+
+function SymbolTable.LookupTyped _
+    ( byval scope_ as ScopeId, byval nm as InternId, _
+      byval wantType as boolean ) as SymbolId
+
+    dim as ScopeId sc = scope_
+    dim as long guard = 0
+    while (sc <> SCOPE_NONE) andalso (guard < 256)
+        guard += 1
+        dim as SymbolId got = this.LookupLocalTyped( sc, nm, wantType )
+        if got <> SYMBOL_NONE then
+            dim as Symbol ptr g = @this.symbols[cast( long, got )]
+            if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return got
+        end if
+        dim as SymScope ptr s_ = this.ScopeAt( sc )
+        if s_ = 0 then exit while
+        sc = s_->parent
+    wend
+    return this.Lookup( scope_, nm )
 end function
 
 function SymbolTable.Lookup _
@@ -199,11 +238,19 @@ function SymbolTable.DeclareSym _
     dim as long slot = this.SlotFor( scope_, nm )
     dim as SymbolId existing = cast( SymbolId, this.slots[slot] )
 
+    dim as SymbolId chainTo = SYMBOL_NONE
     if existing <> SYMBOL_NONE then
         dim as Symbol ptr e = @this.symbols[cast( long, existing )]
         dim as boolean bothProcs = (e->kind = cast( ubyte, SYM_PROC )) andalso _
                                    (k = SYM_PROC)
-        if bothProcs = false then
+        '' A TYPE NAME and a VALUE name may share a spelling. The pair is chained
+        '' through altClass; the slot keeps whichever came first, so a caller that
+        '' knows which class it wants walks the pair rather than the table.
+        dim as boolean split = (IsTypeNameKind( cast( SymbolKind, e->kind ) ) <> _
+                                IsTypeNameKind( k ))
+        if split andalso (e->altClass = SYMBOL_NONE) then
+            chainTo = existing
+        elseif bothProcs = false then
             duplicate = true
             return existing
         end if
@@ -220,8 +267,15 @@ function SymbolTable.DeclareSym _
     s.nextInScope = SYMBOL_NONE
     s.inner = SCOPE_NONE
     s.payload = 0
+    s.altClass = SYMBOL_NONE
     this.symbols.Push( s )
     dim as SymbolId id = cast( SymbolId, this.symbols.Count - 1 )
+    if chainTo <> SYMBOL_NONE then
+        '' Linked BOTH ways, so either end of the pair finds the other however the
+        '' lookup arrived.
+        this.symbols[cast( long, id )].altClass = chainTo
+        this.symbols[cast( long, chainTo )].altClass = id
+    end if
 
     if existing <> SYMBOL_NONE then
         '' Chain onto the end of the overload list; the head stays indexed.

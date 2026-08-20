@@ -1,0 +1,5 @@
+'' A type name beside a value name of the same spelling, and the types each still gives.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/type-value-names.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/type-value-names.out

@@ -157,7 +157,8 @@ function StructorOf _
     dim as Fbx.InternId tn = c.types->NameOf( t )
     if tn = 0 then return Fbx.SYMBOL_NONE
     dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->Lookup( ds, tn )
+    '' The UDT, so the TYPE-name class.
+    dim as Fbx.SymbolId ts = c.syms->LookupTyped( ds, tn, true )
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return Fbx.SYMBOL_NONE
     if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE

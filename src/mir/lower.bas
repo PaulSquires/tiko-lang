@@ -794,7 +794,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
             dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
-            dim as Fbx.SymbolId sid = c.syms->LookupLocal( c.info->ScopeOf( id ), ip->name )
+            '' The VARIABLE, not a type name that happens to share the spelling.
+            dim as Fbx.SymbolId sid = _
+                c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
             if sid = Fbx.SYMBOL_NONE then
                 SkipHere( c )
                 continue for

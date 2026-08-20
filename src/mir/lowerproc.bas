@@ -116,7 +116,8 @@ sub LowerProc _
         dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
         dim as Fbx.StmtPayload ptr pp = StmtOf( c, prm )
-        dim as Fbx.SymbolId psid = c.syms->LookupLocal( c.info->ScopeOf( id ), pp->name )
+        dim as Fbx.SymbolId psid = _
+            c.syms->LookupLocalTyped( c.info->ScopeOf( id ), pp->name, false )
         if psid <> Fbx.SYMBOL_NONE then
             dim as long slot = LocalFor( c, psid )
             if slot >= 0 then

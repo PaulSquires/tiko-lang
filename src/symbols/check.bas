@@ -899,8 +899,9 @@ private function FieldOf_ _
     dim as Fbx.InternId tn = c.types->NameOf( t )
     if tn = 0 then return Fbx.SYMBOL_NONE
     dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocal( ds, tn )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->Lookup( ds, tn )
+    '' The UDT whose scope holds the field, so the TYPE-name class.
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return Fbx.SYMBOL_NONE
     if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
