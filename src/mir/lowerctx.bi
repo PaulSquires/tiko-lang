@@ -240,6 +240,8 @@ declare function EmitRtl _
     declare function LowerWideToNarrow _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function IsStringIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare sub StoreThrough _
+        ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
     declare function LowerStrRvalue _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function StrDescriptorOf_ _
