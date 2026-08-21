@@ -826,7 +826,37 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     '' Saved and restored: statements nest, and a decline belongs to the INNERMOST one.
     dim as ushort savedKind = c.curStmtKind
     c.curStmtKind = cast( ushort, c.ast->Kind( id ) )
+
+    '' STATEMENT-LIFETIME STRING TEMPORARIES. A string 'iif' builds its result in a
+    '' temporary descriptor that must be released once the statement that consumes it
+    '' has finished -- measured; fbc emits the fb_StrDelete on the very next line.
+    '' That is a shorter life than any scope, so it cannot use the scope cleanup list.
+    ''
+    '' The mark is saved and restored because statements NEST: an 'if' releases only
+    '' the temporaries its own condition made, not the ones its body made, and those
+    '' have already been released by the inner LowerStmt.
+    dim as long tmpMark = c.strTemps.Count
+
     LowerStmtInner( c, id )
+
+    while c.strTemps.Count > tmpMark
+        dim as long slot = cast( long, c.strTemps[c.strTemps.Count - 1] )
+        c.strTemps.Pop( )
+        '' A dead cursor means the statement ended in a terminator -- a RETURN or a
+        '' GOTO -- and anything emitted here would land in no block at all. fbc has
+        '' the same hole and leaks the temporary; matching it beats emitting an
+        '' instruction with nowhere to go.
+        if c.curBlock >= 0 then
+            dim as MirValue addr
+            addr.kind = cast( ubyte, MV_LOCAL )
+            addr.ty = cast( ubyte, MT_PTR )
+            addr.id = slot
+            dim as FB.Array( of ulong ) args
+            args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
+            EmitRtl( c, RTL_STR_DELETE, args )
+        end if
+    wend
+
     c.curStmtKind = savedKind
 end sub
 

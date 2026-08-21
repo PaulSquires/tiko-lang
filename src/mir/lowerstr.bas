@@ -637,6 +637,29 @@ private function PrintOne _
         return true
     end if
 
+    '' A STRING 'iif' has no type on the call node, so it falls past the test above,
+    '' and its temporary DESCRIPTOR is what fb_PrintString wants.
+    ''
+    '' Only the STRING form is taken here. A scalar iif must fall through to the
+    '' general path below -- and must NOT have been lowered on the way, because
+    '' LowerIif emits an entire branch sequence and doing it twice would evaluate the
+    '' arms twice. So the shape is decided from the ARM's type before anything is
+    '' emitted, not from what LowerIif hands back afterwards.
+    if IsStringIif_( c, it ) then
+        dim as MirValue iv
+        if LowerIif( c, it, MT_VOID, iv ) = false then return false
+        if iv.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, iv.kind ) ) : args.Push( cast( ulong, iv.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_STRING, args )
+        return true
+    end if
+
+    '' Check computes no type for an 'iif' call, so a SCALAR iif reached here with
+    '' TYPE_NONE and no entry point could be chosen -- 'print iif( c, 1, 2 )'
+    '' declined while 'n = iif( c, 1, 2 )' worked. The arms carry the type.
+    if t = Fbx.TYPE_NONE then t = IifArmType_( c, it )
+
     dim as RtlId which = PrintRtlFor( c, t )
     if which = RTL_NONE then return false
     dim as MirValue v = LowerExpr( c, it )
@@ -895,6 +918,55 @@ function LowerLen _
     outv = ConstInt( c, sz, MT_I64 )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
+
+'' The type of an 'iif' from its ARMS, or TYPE_NONE when the node is not one. Check
+'' computes nothing for the call itself.
+function IifArmType_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return Fbx.TYPE_NONE
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 3 then return Fbx.TYPE_NONE
+    if lp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then
+        return Fbx.TYPE_NONE
+    end if
+    for k as long = 1 to 2
+        dim as Fbx.TypeId at = _
+            c.info->TypeOf_( cast( Fbx.NodeId, c.ast->children[lp->first + k] ) )
+        if at <> Fbx.TYPE_NONE then return at
+    next
+    return Fbx.TYPE_NONE
+end function
+
+
+'' Whether a node is an 'iif' whose ARMS are strings.
+''
+'' Decided from an arm's type rather than from the call's, because Check computes no
+'' type for an iif call at all. Asked BEFORE anything is lowered: LowerIif emits a
+'' whole branch sequence, so a caller that tried it speculatively and then fell
+'' through to another path would evaluate both arms twice.
+function IsStringIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 3 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+
+    for k as long = 1 to 2
+        dim as Fbx.NodeId arm = cast( Fbx.NodeId, c.ast->children[lp->first + k] )
+        if c.ast->Kind( arm ) = Fbx.N_STRING_LIT then return true
+        if IsStringType( c, c.info->TypeOf_( arm ) ) then return true
+    next
+    return false
+end function
+
 
 '' 'wstr( x )' -- a scalar or a narrow string widened into a fresh wide TEMPORARY.
 '' Returns false when the node is not one.
@@ -1350,6 +1422,17 @@ function EmitStrTerm _
                            len( litText ) )
         return true
     end if
+    '' A STRING 'iif' produces a temporary DESCRIPTOR, whose address is exactly what
+    '' this needs. Tried before the type test because Check computes no type for an
+    '' iif call, so a type-first test would never reach it.
+    if IsStringIif_( c, term ) then
+        dim as MirValue iv
+        if LowerIif( c, term, MT_VOID, iv ) = false then return false
+        if iv.kind = cast( ubyte, MV_NONE ) then return false
+        PushStrArg( args, iv )
+        return true
+    end if
+
     if IsStringType( c, c.info->TypeOf_( term ) ) = false then return false
     dim as MirValue src = LowerAddr( c, term )
     if src.kind = cast( ubyte, MV_NONE ) then return false

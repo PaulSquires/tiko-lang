@@ -1,0 +1,5 @@
+'' A string iif builds a statement-lifetime temporary descriptor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/iif-string.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/iif-string.out

@@ -10,6 +10,12 @@
 
 namespace Fbx.Mir
 
+declare function LowerStringIif_ _
+    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
+      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+declare function StrInitFrom_ _
+    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+
 '' CLOSE. Every corpus form is the same shape: a list of file numbers, each closed in
 '' turn, and an EMPTY list closing all of them.
 ''
@@ -424,6 +430,86 @@ function LowerBitfieldStore _
     return true
 end function
 
+'' A STRING 'iif'. Measured from fbc:
+''
+''     if( C == 0 ) goto label$2;
+''     fb_StrInit( &TMP$4, -1, &A, -1, 0 );
+''     goto label$4;
+''   label$2:
+''     fb_StrInit( &TMP$4, -1, &B, -1, 0 );
+''   label$4:
+''     fb_StrAssign( &R, -1, &TMP$4, -1, 0 );
+''     fb_StrDelete( &TMP$4 );
+''
+'' The temporary is INITIALISED in each arm, not assigned: it has no prior contents,
+'' and fb_StrAssign on uninitialised descriptor bytes would free whatever pointer
+'' happened to be there. Its life ends with the STATEMENT, which is shorter than any
+'' scope, so it is registered on the statement-temporary list rather than the scope
+'' cleanup list.
+private function LowerStringIif_ _
+    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
+      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as MirValue cond = LowerExpr( c, condE )
+    if cond.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue taddr
+    taddr.kind = cast( ubyte, MV_LOCAL )
+    taddr.ty = cast( ubyte, MT_PTR )
+    taddr.id = slot
+
+    dim as long thenB = NewBlock( c, "iif.then" )
+    dim as long elseB = NewBlock( c, "iif.else" )
+    dim as long joinB = NewBlock( c, "iif.join" )
+    Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
+
+    c.curBlock = thenB
+    if StrInitFrom_( c, taddr, thenE ) = false then return false
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = elseB
+    if StrInitFrom_( c, taddr, elseE ) = false then return false
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = joinB
+    c.strTemps.Push( cast( ulong, slot ) )
+    outv = taddr
+    return true
+end function
+
+'' fb_StrInit( dst, -1, src, srcLen, 0 ) for one arm. A literal passes its own bytes
+'' and a length that INCLUDES the terminator, which is the fb_StrInit convention and
+'' not the fb_StrAllocTempDescZEx one.
+private function StrInitFrom_ _
+    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+
+    if c.ast->Kind( e ) = Fbx.N_STRING_LIT then
+        dim as string lit = StringLitText_( c, e )
+        args.Push( cast( ulong, MV_GLOBAL ) )
+        args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, len( lit ) + 1 ) )
+    else
+        if IsStringType( c, c.info->TypeOf_( e ) ) = false then return false
+        dim as MirValue sv = LowerAddr( c, e )
+        if sv.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    end if
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_STR_INIT, args )
+    return true
+end function
+
+
 '' 'iif( cond, a, b )' as a RUNTIME expression. Returns false when the node is not one,
 '' so the caller carries on.
 ''
@@ -467,6 +553,14 @@ function LowerIif _
     if ft = Fbx.TYPE_NONE then ft = c.info->TypeOf_( elseE )
     dim as MirType rt = mt
     if (rt = MT_VOID) andalso (ft <> Fbx.TYPE_NONE) then rt = LowerType( ft, *c.types )
+
+    '' A STRING iif builds a DESCRIPTOR, not a value, so it takes a different shape:
+    '' fb_StrInit into a temporary in each arm, and an fb_StrDelete once the
+    '' consuming statement is done with it.
+    if IsStringType( c, ft ) then
+        return LowerStringIif_( c, condE, thenE, elseE, outv )
+    end if
+
     if (rt = MT_VOID) orelse (rt = MT_AGG) then return false
 
     dim as MirValue cond = LowerExpr( c, condE )

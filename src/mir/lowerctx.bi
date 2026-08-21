@@ -51,6 +51,8 @@ type Ctx
     '' KW_SELECT or KW_SCOPE. Without it 'exit for, for' broke ONE level instead of
     '' two, silently, and 'exit select' had nothing to match against.
     as FB.Array( of long )  loopKind
+    '' Slots holding string temporaries whose life ends with the current STATEMENT.
+    as FB.Array( of ulong ) strTemps
 
     '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
@@ -226,6 +228,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function LowerWideToNarrow _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    declare function IsStringIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function IifArmType_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
     declare function WideOperand_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideRvalue _

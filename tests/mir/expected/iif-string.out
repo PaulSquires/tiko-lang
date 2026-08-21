@@ -1,0 +1,143 @@
+global str $str0 "x"
+global str $str1 "y"
+global str $str2 "z"
+global str $str3 "n="
+global str $str4 "!"
+global str $str5 "lit"
+func void P($0) {
+  local i64 c
+  local agg a size 24
+  local agg b size 24
+  local agg r size 24
+  local agg $tmp4 size 24
+  local agg $tmp5 size 24
+  local agg $tmp6 size 24
+  local agg $tmp7 size 24
+  local agg $tmp8 size 24
+  local i64 n
+  local i64 $tmp10
+  local i64 $tmp11
+  entry0:
+    %1 = alloca ptr c
+    store @c, $0
+    %2 = alloca ptr a
+    %3 = call.rtl ptr fb_StrInit(@a, -1, @@$str0, 2, 0)
+    %4 = alloca ptr b
+    %5 = call.rtl ptr fb_StrInit(@b, -1, @@$str1, 2, 0)
+    %6 = alloca ptr r
+    %7 = field.addr @r, 0
+    store %7, 0
+    %8 = field.addr @r, 8
+    store %8, 0
+    %9 = field.addr @r, 16
+    store %9, 0
+    %10 = load @c
+    %11 = alloca ptr $tmp4
+    %17 = alloca ptr $tmp5
+    %23 = alloca ptr $tmp6
+    %28 = alloca ptr $tmp7
+    %33 = alloca ptr $tmp8
+    %37 = alloca ptr n
+    %39 = alloca ptr $tmp10
+    %44 = alloca ptr $tmp11
+    condbr %10, iif.then1, iif.else2
+  iif.then1:
+    %12 = call.rtl ptr fb_StrInit(@$tmp4, -1, @a, -1, 0)
+    br iif.join3
+  iif.else2:
+    %13 = call.rtl ptr fb_StrInit(@$tmp4, -1, @b, -1, 0)
+    br iif.join3
+  iif.join3:
+    %14 = call.rtl ptr fb_StrAssign(@r, -1, @$tmp4, -1, 0)
+    call.rtl void fb_StrDelete(@$tmp4)
+    %15 = call.rtl ptr fb_StrAssign(@r, -1, @a, -1, 0)
+    %16 = load @c
+    condbr %16, iif.then4, iif.else5
+  iif.then4:
+    %18 = call.rtl ptr fb_StrInit(@$tmp5, -1, @a, -1, 0)
+    br iif.join6
+  iif.else5:
+    %19 = call.rtl ptr fb_StrInit(@$tmp5, -1, @b, -1, 0)
+    br iif.join6
+  iif.join6:
+    %20 = call.rtl ptr fb_StrConcatAssign(@r, -1, @$tmp5, -1, 0)
+    %21 = call.rtl ptr fb_StrConcatAssign(@r, -1, @@$str2, 2, 0)
+    call.rtl void fb_StrDelete(@$tmp5)
+    %22 = load @c
+    condbr %22, iif.then7, iif.else8
+  iif.then7:
+    %24 = call.rtl ptr fb_StrInit(@$tmp6, -1, @a, -1, 0)
+    br iif.join9
+  iif.else8:
+    %25 = call.rtl ptr fb_StrInit(@$tmp6, -1, @b, -1, 0)
+    br iif.join9
+  iif.join9:
+    call.rtl void fb_PrintString(0, @$tmp6, 1)
+    call.rtl void fb_StrDelete(@$tmp6)
+    %26 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
+    call.rtl void fb_PrintString(0, %26, 0)
+    %27 = load @c
+    condbr %27, iif.then10, iif.else11
+  iif.then10:
+    %29 = call.rtl ptr fb_StrInit(@$tmp7, -1, @a, -1, 0)
+    br iif.join12
+  iif.else11:
+    %30 = call.rtl ptr fb_StrInit(@$tmp7, -1, @b, -1, 0)
+    br iif.join12
+  iif.join12:
+    call.rtl void fb_PrintString(0, @$tmp7, 0)
+    %31 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    call.rtl void fb_PrintString(0, %31, 1)
+    call.rtl void fb_StrDelete(@$tmp7)
+    %32 = load @c
+    condbr %32, iif.then13, iif.else14
+  iif.then13:
+    %34 = call.rtl ptr fb_StrInit(@$tmp8, -1, @@$str5, 4, 0)
+    br iif.join15
+  iif.else14:
+    %35 = call.rtl ptr fb_StrInit(@$tmp8, -1, @b, -1, 0)
+    br iif.join15
+  iif.join15:
+    %36 = call.rtl ptr fb_StrAssign(@r, -1, @$tmp8, -1, 0)
+    call.rtl void fb_StrDelete(@$tmp8)
+    %38 = load @c
+    condbr %38, iif.then16, iif.else17
+  iif.then16:
+    %40 = const i64 1
+    store @$tmp10, %40
+    br iif.join18
+  iif.else17:
+    %41 = const i64 2
+    store @$tmp10, %41
+    br iif.join18
+  iif.join18:
+    %42 = load @$tmp10
+    store @n, %42
+    %43 = load @c
+    condbr %43, iif.then19, iif.else20
+  iif.then19:
+    %45 = const i64 1
+    store @$tmp11, %45
+    br iif.join21
+  iif.else20:
+    %46 = const i64 2
+    store @$tmp11, %46
+    br iif.join21
+  iif.join21:
+    %47 = load @$tmp11
+    call.rtl void fb_PrintLongint(0, %47, 1)
+    call.rtl void fb_StrDelete(@r)
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@a)
+    ret
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
+declare void fb_PrintString($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintLongint($0, $1, $2)
+verify: ok
+lowered: 1 functions, 22 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+  amb assign 2
