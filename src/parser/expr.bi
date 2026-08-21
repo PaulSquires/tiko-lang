@@ -53,6 +53,14 @@ namespace Fbx.Parse
 '' Defined in intrinsics.bas: 'open( ... )' used as an EXPRESSION. Declared here
 '' because Primary needs it and expr.bas is compiled before that file.
 declare function OpenExprCall( byref p as Fbx.ParserState ) as Fbx.NodeId
+
+'' Defined in decl.bas: an ANONYMOUS procedure used as a value --
+''   dim as function( byref as T, byref as T ) as boolean less = _
+''       function( byref x as T, byref y as T ) as boolean
+''           return x < y
+''       end function
+'' Same routing reason as OpenExprCall: Primary needs it, decl.bas is compiled later.
+declare function TryLambdaExpr( byref p as Fbx.ParserState ) as Fbx.NodeId
 declare function ArgOrElided _
     ( byref p as Fbx.ParserState, byval closer as Fbx.TokenKind ) as Fbx.NodeId
 

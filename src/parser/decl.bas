@@ -527,6 +527,95 @@ private function ParseProc _
     return pn
 end function
 
+'' An ANONYMOUS procedure used as a VALUE -- a lambda.
+''
+''   dim as function( byref as T, byref as T ) as boolean less = _
+''       function( byref x as T, byref y as T ) as boolean
+''           return x < y
+''       end function
+''
+'' fb/sort.bi writes exactly that, so this was not an exotic corner: four corpus
+'' files failed inside a RUNTIME HEADER, at a construct none of them wrote.
+''
+'' Deliberately NOT ParseProc. That routine reads a name, a qualifier and a run of
+'' trailing modifiers terminated by end of line, and a lambda has none of the first
+'' two and cannot afford the third -- 'g( function( ) as long ... end function )'
+'' has a ')' after the header's own line in some spellings, and the modifier loop
+'' would swallow whatever followed. This reads exactly the header a lambda has.
+''
+'' The body is parsed and kept but NOT collected: an N_PROC reached through an
+'' expression payload is never visited by the statement walker, so nothing declares
+'' it and lowering declines the value. That is the honest position -- the file
+'' parses, and nothing pretends the lambda was compiled.
+'' 'sub( )' is not always a lambda. In 'procptr( T.constructor, sub( ) )' and in
+'' 'type<sub( )>( 0 )' the very same tokens are a SIGNATURE -- an argument that names
+'' a procedure's shape -- and both are accepted by fbc. Taking them as lambdas cost
+'' 81 and 12 instructions in two corpus files that had been quietly correct.
+''
+'' fbc's own disambiguator is the BODY, and it says so: 'function( ) as long return 1
+'' end function' on one line is error 351, "Unterminated lambda body, expected END SUB
+'' or END FUNCTION". So a lambda's header is followed by end of line (a ':' counts --
+'' it lexes as TK_EOL) and a signature's is followed by ')' or ',' or '>'.
+''
+'' That cannot be decided by lookahead: the header contains a parameter list and an
+'' arbitrary type reference. So the header is parsed SPECULATIVELY and the cursor put
+'' back if the answer is no. Diagnostics are suppressed across the attempt and the
+'' error count restored with the position, or a signature would leave the count raised
+'' for a parse that never happened. Nodes built during the attempt are abandoned in
+'' the arena -- the arena is bump-allocated and never freed, so that is a few bytes,
+'' not a leak.
+declare function LambdaExpr( byref p as Fbx.ParserState ) as Fbx.NodeId
+
+function TryLambdaExpr( byref p as Fbx.ParserState ) as Fbx.NodeId
+    dim as long savedPos = p.pos
+    dim as long savedErrors = p.errors
+    dim as boolean savedSilent = p.silent
+    p.silent = true
+
+    dim as Fbx.StmtPayload probe
+    dim as Fbx.TokenKind kw = Peek( p )
+    Advance( p )
+    select case Peek( p )
+    case Fbx.KW_CDECL, Fbx.KW_STDCALL, Fbx.KW_PASCAL
+        Advance( p )
+    end select
+    dim as boolean isLambda = false
+    if Peek( p ) = Fbx.TK_LPAREN then
+        ParseParamList( p, probe )
+        if Accept( p, Fbx.KW_AS ) then probe.a = TypeRef( p )
+        isLambda = (Peek( p ) = Fbx.TK_EOL)
+    end if
+
+    p.pos = savedPos
+    p.errors = savedErrors
+    p.silent = savedSilent
+    if isLambda = false then return Fbx.NODE_NONE
+    return LambdaExpr( p )
+end function
+
+private function LambdaExpr( byref p as Fbx.ParserState ) as Fbx.NodeId
+    dim as Fbx.Token t = Cur( p )
+    dim as Fbx.StmtPayload sp
+    dim as Fbx.TokenKind kw = Peek( p )
+    sp.op = cast( ushort, kw )
+    Advance( p )
+
+    '' A calling convention may sit between the keyword and the '(' -- measured:
+    '' cdecl, stdcall and pascal are accepted there, EXPORT is not, and there are no
+    '' trailing modifiers at all ('function( ) as long static' is error 3).
+    select case Peek( p )
+    case Fbx.KW_CDECL, Fbx.KW_STDCALL, Fbx.KW_PASCAL
+        Advance( p )
+    end select
+
+    ParseParamList( p, sp )
+    if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
+
+    sp.b = Block( p )
+    ExpectEnd( p, kw )
+    return MakeStmt( p, Fbx.N_PROC, t.loc, sp )
+end function
+
 '' An access section reaches into a nested anonymous TYPE or UNION -- measured: a
 '' field of a union written under 'private:' is an illegal member access from outside.
 '' The nested body parses with its own section state, so the label is applied here

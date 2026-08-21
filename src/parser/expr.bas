@@ -609,6 +609,20 @@ function Primary( byref p as Fbx.ParserState ) as Fbx.NodeId
         return OpenExprCall( p )
     end if
 
+    '' An ANONYMOUS procedure is a VALUE: 'f = function( byval x as long ) as long
+    '' ... end function'. fb/sort.bi writes one, so every corpus file that includes
+    '' it failed at the header rather than at anything of its own -- four of them.
+    ''
+    '' Measured against fbc: the FUNCTION and the SUB form are both accepted, in an
+    '' initialiser, as a call argument, and all on one line separated by colons; the
+    '' body may reference an enclosing local's TYPE but fbc does not capture values.
+    '' Distinguished from a call to something named 'function' by the '(' that must
+    '' follow immediately -- a lambda always has a parameter list, even an empty one.
+    if (k = Fbx.KW_FUNCTION) orelse (k = Fbx.KW_SUB) then
+        dim as Fbx.NodeId lam = TryLambdaExpr( p )
+        if lam <> Fbx.NODE_NONE then return PostfixChain( p, lam )
+    end if
+
     if (k = Fbx.KW_CAST) orelse (k = Fbx.KW_CPTR) orelse _
        (k = Fbx.KW_SIZEOF) orelse (k = Fbx.KW_LEN) then
         if HasTok( p, p.pos + 1 ) then
