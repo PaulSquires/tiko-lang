@@ -578,7 +578,29 @@ private sub WalkExpr _
                 if c.ast->Kind( mb->rhs ) = Fbx.N_IDENT then
                     dim as Fbx.SymbolId msid = _
                         c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
-                    if IsStaticProc_( c, msid ) then
+
+                    '' A CONSTANT declared inside a TYPE is reached the same way and
+                    '' takes no receiver at all: 'type T : const c0 = 7 : end type'
+                    '' then 'T.c0' is 7 to fbc, and 'var w = T.c0' is an INTEGER.
+                    '' Only procedures were bound here, so every such reference was
+                    '' untyped -- 270 of the corpus's remaining verifier failures are
+                    '' one file doing exactly this, 'var i00 = T0.c0'.
+                    '' A NESTED TYPE is bound for the same reason: 'T0.T1.c1' is
+                    '' one member access on another, and the inner one has to resolve
+                    '' to the nested UDT before the outer can look inside it. Neither
+                    '' takes a receiver, which is what separates both from an
+                    '' instance member.
+                    dim as Fbx.Symbol ptr ms = c.syms->SymbolAt( msid )
+                    dim as boolean isConstMember = false
+                    if ms <> 0 then
+                        select case cast( Fbx.SymbolKind, ms->kind )
+                        case Fbx.SYM_CONSTANT, Fbx.SYM_ENUMCONST, Fbx.SYM_UDT, _
+                             Fbx.SYM_ENUM, Fbx.SYM_TYPEDEF
+                            isConstMember = true
+                        end select
+                    end if
+
+                    if IsStaticProc_( c, msid ) orelse isConstMember then
                         c.info->SetRef( mb->rhs, msid )
                         c.info->SetRef( id, msid )
                     end if
