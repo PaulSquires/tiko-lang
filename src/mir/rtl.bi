@@ -55,6 +55,39 @@ namespace Fbx.Mir
         '' word per operand.
         RTL( RTL_STR_SWAP,          "fb_StrSwap",          "v",   "pzlpzl" )
         RTL( RTL_WSTR_SWAP,         "fb_WstrSwap",         "v",   "pzpz"  )
+        '' WIDE STRINGS. A wstring VALUE is always a bare uint16* -- there is no
+        '' descriptor type, and no var-length wstring exists at all ('dim as wstring w'
+        '' is fbc error 28). So none of this needs a wide analogue of fb_StrInit or of
+        '' scope cleanup; only the temporaries these return need fb_WstrDelete.
+        ''
+        '' The (dst, dstlen) pair takes the declared ELEMENT COUNT, not bytes. Where a
+        '' NARROW operand appears it uses the ordinary (void*, len) convention: a
+        '' literal passes its byte length INCLUDING the NUL, a descriptor passes -1.
+        RTL( RTL_WSTR_ASSIGN,       "fb_WstrAssign",       "p",   "pzp"   )
+        RTL( RTL_WSTR_ASSIGN_FROMA, "fb_WstrAssignFromA",  "p",   "pzpz"  )
+        RTL( RTL_WSTR_ASSIGN_TOA,   "fb_WstrAssignToA",    "p",   "pzpl"  )
+        RTL( RTL_WSTR_DELETE,       "fb_WstrDelete",       "v",   "p"     )
+        RTL( RTL_WSTR_LEN,          "fb_WstrLen",          "z",   "p"     )
+        '' No lengths, unlike the narrow fb_StrCompare, and an int32 result that fbc
+        '' widens before testing. One function covers all six operators.
+        RTL( RTL_WSTR_COMPARE,      "fb_WstrCompare",      "l",   "pp"    )
+        RTL( RTL_WSTR_CONCAT,       "fb_WstrConcat",       "p",   "pp"    )
+        RTL( RTL_WSTR_CONCAT_WA,    "fb_WstrConcatWA",     "p",   "ppz"   )
+        RTL( RTL_WSTR_CONCAT_AW,    "fb_WstrConcatAW",     "p",   "pzp"   )
+        RTL( RTL_WSTR_CONCAT_ASSIGN,"fb_WstrConcatAssign", "p",   "pzp"   )
+        RTL( RTL_PRINT_WSTR,        "fb_PrintWstr",        "v",   "lpl"   )
+        '' byte/short widen to int32 and ubyte/ushort to uint32; there are no
+        '' per-width entries.
+        RTL( RTL_INT_TO_WSTR,       "fb_IntToWstr",        "p",   "l"     )
+        RTL( RTL_UINT_TO_WSTR,      "fb_UIntToWstr",       "p",   "l"     )
+        RTL( RTL_LONGINT_TO_WSTR,   "fb_LongintToWstr",    "p",   "q"     )
+        RTL( RTL_ULONGINT_TO_WSTR,  "fb_ULongintToWstr",   "p",   "q"     )
+        RTL( RTL_FLOAT_TO_WSTR,     "fb_FloatToWstr",      "p",   "f"     )
+        RTL( RTL_DOUBLE_TO_WSTR,    "fb_DoubleToWstr",     "p",   "d"     )
+        '' Takes a RAW char*, not a descriptor: fbc dereferences the descriptor's data
+        '' field at the call site.
+        RTL( RTL_STR_TO_WSTR,       "fb_StrToWstr",        "p",   "p"     )
+        RTL( RTL_WSTR_TO_STR,       "fb_WstrToStr",        "p",   "p"     )
         RTL( RTL_MEM_SWAP,          "fb_MemSwap",          "v",   "ppz"   )
         RTL( RTL_STR_LEN,           "fb_StrLen",           "z",   "pz"    )
         RTL( RTL_STR_MID,           "fb_StrMid",           "p",   "pzz"   )

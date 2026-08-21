@@ -410,7 +410,13 @@ function LowerExpr _
         '' A STRING comparison is a runtime call, not an opcode. Without this the
         '' operands are loaded as 24-byte descriptors and compared as if they were
         '' integers -- which verifies, lowers, and means nothing.
-        if IsStringType( c, c.info->TypeOf_( bp->lhs ) ) then
+        '' A WIDE string is not IsStringType -- it is an ARRAY of the wstring builtin
+        '' -- so it fell straight past this guard and its operands were loaded as
+        '' aggregates and compared as integers. Exactly the failure the comment above
+        '' describes, one type along.
+        dim as boolean cmpStr = IsStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
+                                (WideStringElems( c, c.info->TypeOf_( bp->lhs ) ) > 0)
+        if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, bp, tk )
             if sc.kind <> cast( ubyte, MV_NONE ) then return sc
             return v
@@ -453,6 +459,12 @@ function LowerExpr _
         '' 'procptr( f )' is a function's ADDRESS, not a call to it.
         dim as MirValue ppv
         if LowerProcPtr( c, id, ppv ) then return ppv
+        '' 'len( x )' is a runtime call for a string and a constant for anything else.
+        dim as MirValue lnv
+        if LowerLen( c, id, lnv ) then return lnv
+        '' 'wstr( x )' widens a scalar or a narrow string into a wide temporary.
+        dim as MirValue wcv
+        if LowerWstrOf( c, id, wcv ) then return wcv
         '' Indexing and calling share a spelling; an array subscript is an address to
         '' load from, not a call to make.
         if IsArrayIndex( c, id ) then
@@ -847,6 +859,12 @@ private sub LowerAssign _
     '' -- 'a = b + a' needs a temporary -- it is SKIPPED, never allowed to fall
     '' through: an ordinary store would emit load/add/store over 24-byte descriptors,
     '' which is not a partial answer but a wrong one.
+    '' A WIDE STRING is neither a store nor the narrow string runtime: 'wstring * N'
+    '' is a bare uint16* with its own family of entry points, and which one depends on
+    '' whether the SOURCE is wide or narrow.
+    if LowerWideAssign( c, target, value ) then return
+    if LowerWideToNarrow( c, target, value ) then return
+
     if IsStringType( c, c.info->TypeOf_( target ) ) then
         if LowerStringAssign( c, target, value ) = false then c.st->skipped += 1
         return

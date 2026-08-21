@@ -3,14 +3,18 @@ fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	fb_ArrayErase
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimEx
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimPresvEx
 fb_Assert	void	char*, int64, char*, char*	lib	fb_Assert
+fb_DoubleToWstr	uint16*	double	lib	fb_DoubleToWstr
 fb_End	void	int32	lib	fb_End
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	fb_ErrorThrowEx
 fb_FileClose	int32	int32	lib	fb_FileClose
 fb_FileCloseAll	int32	void	lib	fb_FileCloseAll
 fb_FileLineInput	int32	int32, void*, int64, int32	lib	fb_FileLineInput
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	fb_FileOpen
+fb_FloatToWstr	uint16*	float	lib	fb_FloatToWstr
 fb_Init	void	int32, char**, int32	lib	fb_Init
+fb_IntToWstr	uint16*	int32	lib	fb_IntToWstr
 fb_LEFT	FBSTRING*	FBSTRING*, int64	lib	fb_LEFT
+fb_LongintToWstr	uint16*	int64	lib	fb_LongintToWstr
 fb_MemSwap	void	void*, void*, int64	lib	fb_MemSwap
 fb_MutexCreate	void*	void	lib	fb_MutexCreate
 fb_MutexDestroy	void	void*	lib	fb_MutexDestroy
@@ -29,6 +33,7 @@ fb_PrintUInt	void	int32, uint32, int32	lib	fb_PrintUInt
 fb_PrintULongint	void	int32, uint64, int32	lib	fb_PrintULongint
 fb_PrintUShort	void	int32, uint16, int32	lib	fb_PrintUShort
 fb_PrintVoid	void	int32, int32	lib	fb_PrintVoid
+fb_PrintWstr	void	int32, uint16*, int32	lib	fb_PrintWstr
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int64	lib	fb_StrAllocTempDescZEx
 fb_StrAssign	FBSTRING*	void*, int64, void*, int64, int32	lib	fb_StrAssign
 fb_StrCompare	int32	void*, int64, void*, int64	lib	fb_StrCompare
@@ -39,8 +44,22 @@ fb_StrInit	FBSTRING*	void*, int64, void*, int64, int32	lib	fb_StrInit
 fb_StrLen	int64	void*, int64	lib	fb_StrLen
 fb_StrMid	FBSTRING*	FBSTRING*, int64, int64	lib	fb_StrMid
 fb_StrSwap	void	void*, int64, int32, void*, int64, int32	lib	fb_StrSwap
+fb_StrToWstr	uint16*	char*	lib	fb_StrToWstr
+fb_UIntToWstr	uint16*	uint32	lib	fb_UIntToWstr
+fb_ULongintToWstr	uint16*	uint64	lib	fb_ULongintToWstr
 fb_VALINT	int32	FBSTRING*	lib	fb_VALINT
+fb_WstrAssign	uint16*	uint16*, int64, uint16*	lib	fb_WstrAssign
+fb_WstrAssignFromA	uint16*	uint16*, int64, void*, int64	lib	fb_WstrAssignFromA
+fb_WstrAssignToA	FBSTRING*	void*, int64, uint16*, int32	lib	fb_WstrAssignToA
+fb_WstrCompare	int32	uint16*, uint16*	lib	fb_WstrCompare
+fb_WstrConcat	uint16*	uint16*, uint16*	lib	fb_WstrConcat
+fb_WstrConcatAW	uint16*	void*, int64, uint16*	lib	fb_WstrConcatAW
+fb_WstrConcatAssign	uint16*	uint16*, int64, uint16*	lib	fb_WstrConcatAssign
+fb_WstrConcatWA	uint16*	uint16*, void*, int64	lib	fb_WstrConcatWA
+fb_WstrDelete	void	uint16*	lib	fb_WstrDelete
+fb_WstrLen	int64	uint16*	lib	fb_WstrLen
 fb_WstrSwap	void	uint16*, int64, uint16*, int64	lib	fb_WstrSwap
+fb_WstrToStr	FBSTRING*	uint16*	lib	fb_WstrToStr
 free	void	void*	lib	free
 malloc	void*	uint64	lib	malloc
 realloc	void*	void*, uint64	lib	realloc

@@ -100,6 +100,43 @@ sub D( )
     delete p
 end sub
 ''',
+    # WIDE STRINGS. A wstring value is a bare uint16*; there is no descriptor and no
+    # var-length form. The probe has to touch each shape separately because fbc picks a
+    # different entry for wide-to-wide, wide-from-narrow and wide-to-narrow.
+    "wstring": '''
+declare sub WTake( byref x as const wstring )
+sub WProbe( )
+    dim as wstring * 50 w, w2
+    dim as string s
+    dim as long n
+    w = "abc"
+    w = w2
+    s = w
+    n = len( w )
+    if w = w2 then
+    end if
+    w = w & w2
+    w &= w2
+    print w
+    w = wstr( n )
+    dim as ulong u : w = wstr( u )
+    dim as longint q : w = wstr( q )
+    dim as ulongint uq : w = wstr( uq )
+    dim as single f : w = wstr( f )
+    dim as double d : w = wstr( d )
+    w = wstr( s )
+    s = str( w )
+    dim as wstring ptr p = @w
+    dim as wstring * 8 w3
+    w3 = w & s
+    w3 = s & w
+    '' fb_WstrConcat proper is emitted only where the result is a genuine RVALUE:
+    '' assigning into a fixed wstring is optimised into assign + concat-assign.
+    WTake( w & w2 )
+end sub
+sub WTake( byref x as const wstring )
+end sub
+''',
     # FreeBASIC's BUILT-IN PROCEDURES. fbc predeclares these and lowers each straight
     # to a runtime call -- 'allocate' is libc malloc, the mutex four are fb_Mutex*, and
     # fb_Assert is reachable with nothing declaring it at all.

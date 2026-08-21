@@ -7,6 +7,10 @@
 
 namespace Fbx.Mir
 
+'' Defined below; the wide-string helpers above it classify a narrow operand.
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+
 '' Local to this file: the two halves of concatenation lowering call each other.
 declare function EmitStrTerm _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
@@ -575,6 +579,18 @@ private function PrintOne _
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
 
+    '' A WIDE STRING has its own entry point, and the same (channel, value, mask)
+    '' shape as the narrow one -- fbc emits 'fb_PrintWstr( 0, (uint16*)W, 1 )'. It
+    '' takes the POINTER, not a descriptor, because a wide string has none.
+    if WideStringElems( c, t ) > 0 then
+        dim as MirValue wa = LowerAddr( c, it )
+        if wa.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_WSTR, args )
+        return true
+    end if
+
     if IsStringType( c, t ) then
         '' fb_PrintString takes an FBSTRING DESCRIPTOR, not a (pointer, length) pair
         '' like fb_StrAssign does. A literal has no descriptor, so fbc borrows a
@@ -682,9 +698,25 @@ function LowerStrCompare _
     end select
 
     dim as FB.Array( of ulong ) args
-    if EmitStrTerm( c, args, bp->lhs ) = false then return none_
-    if EmitStrTerm( c, args, bp->rhs ) = false then return none_
-    dim as MirValue cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+    dim as MirValue cmp
+
+    '' A WIDE COMPARISON is a DIFFERENT function with a different shape: two bare
+    '' pointers, no lengths at all, where the narrow one takes (ptr, len) per side.
+    '' One entry point covers all six operators, exactly as the narrow one does.
+    if WideStringElems( c, c.info->TypeOf_( bp->lhs ) ) > 0 then
+        if WideStringElems( c, c.info->TypeOf_( bp->rhs ) ) = 0 then return none_
+        dim as MirValue la = LowerAddr( c, bp->lhs )
+        dim as MirValue ra = LowerAddr( c, bp->rhs )
+        if (la.kind = cast( ubyte, MV_NONE )) orelse _
+           (ra.kind = cast( ubyte, MV_NONE )) then return none_
+        args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
+        args.Push( cast( ulong, ra.kind ) ) : args.Push( cast( ulong, ra.id ) )
+        cmp = EmitRtl( c, RTL_WSTR_COMPARE, args )
+    else
+        if EmitStrTerm( c, args, bp->lhs ) = false then return none_
+        if EmitStrTerm( c, args, bp->rhs ) = false then return none_
+        cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+    end if
     if cmp.kind = cast( ubyte, MV_NONE ) then return none_
 
     dim as MirValue zero_
@@ -723,7 +755,7 @@ end function
 ''
 '' A fixed-length string is modelled as an ARRAY of the element builtin, which is what
 '' it is, so the count comes off the array rather than out of a byte size.
-private function StrSwapKind_ _
+function StrSwapKind_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
 
     if t = Fbx.TYPE_NONE then return -1
@@ -780,6 +812,333 @@ function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     EmitRtl( c, RTL_FILE_LINEINPUT, args )
     return true
+end function
+
+'' A WIDE STRING, and how many elements it holds. Returns 0 when the type is not one.
+''
+'' A 'wstring * N' is modelled as an ARRAY of the WSTRING builtin -- which is what it
+'' is -- so the count comes off the array. There is no var-length wide string to
+'' consider: 'dim as wstring w' is fbc error 28, so a wide value is always a bare
+'' pointer to N elements and never a descriptor.
+function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    if t = Fbx.TYPE_NONE then return 0
+    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return 0
+    dim as Fbx.TypeId el = c.types->Inner( t )
+    if el = Fbx.TYPE_NONE then return 0
+    if c.types->Kind( el ) <> Fbx.TK_BUILTIN then return 0
+    if c.types->BuiltinOf( el ) <> Fbx.TY_WSTRING then return 0
+    dim as long n = c.types->ElemCount( t )
+    if n <= 0 then return 0
+    return n
+end function
+
+'' Assignment INTO a wide string. Returns false when the target is not one.
+''
+'' Measured from fbc's own C, and the entry point depends on what the SOURCE is:
+''
+''     w = w2       fb_WstrAssign( (uint16*)W, 50ll, (uint16*)W2 )
+''     w = "abc"    fb_WstrAssignFromA( (uint16*)W, 50ll, (void*)"abc", 4ll )
+''     w = s        fb_WstrAssignFromA( (uint16*)W, 50ll, (void*)&S, -1ll )
+''
+'' The length is the declared ELEMENT COUNT, not bytes, and a narrow literal passes its
+'' byte length INCLUDING the NUL while a descriptor passes -1. A plain "abc" is NOT
+'' widened at compile time in a bare assignment -- that only happens where the target is
+'' already a uint16*.
+function LowerWideAssign _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+
+    dim as long n = WideStringElems( c, c.info->TypeOf_( target ) )
+    if n = 0 then return false
+
+    dim as MirValue dst = LowerAddr( c, target )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
+
+    '' 'w = w1 & w2' INTO A FIXED WSTRING is not one call: fbc assigns the first term
+    '' and CONCAT-ASSIGNS the rest, because the destination already has storage.
+    ''
+    ''     fb_WstrAssign( W, 64ll, W1 )
+    ''     fb_WstrConcatAssign( W, 64ll, W2 )
+    ''
+    '' fb_WstrConcat proper is only for a genuine rvalue, which needs a temporary
+    '' whose lifetime fbx does not model yet.
+    if c.ast->Kind( value ) = Fbx.N_BINARY then
+        dim as Fbx.BinaryPayload ptr vb = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
+        dim as Fbx.TokenKind vop = cast( Fbx.TokenKind, vb->op )
+        if (vop = Fbx.TK_AMP) orelse (vop = Fbx.TK_PLUS) then
+            if LowerWideAssign( c, target, vb->lhs ) then
+                if LowerWideConcatAssign( c, target, n, vb->rhs ) then return true
+                '' The first half is already emitted; declining now would leave the
+                '' target holding only the left term, which is worse than saying so.
+                SkipHere( c )
+                return true
+            end if
+        end if
+    end if
+
+    '' A WIDE source goes through fb_WstrAssign; anything narrow through FromA.
+    dim as Fbx.TypeId st = c.info->TypeOf_( value )
+    if WideStringElems( c, st ) > 0 then
+        dim as MirValue src = LowerAddr( c, value )
+        if src.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+        EmitRtl( c, RTL_WSTR_ASSIGN, args )
+        return true
+    end if
+
+    if c.ast->Kind( value ) = Fbx.N_STRING_LIT then
+        dim as string lit = StringLitText_( c, value )
+        args.Push( cast( ulong, MV_GLOBAL ) )
+        args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
+        '' The literal's byte length INCLUDING its NUL, which is what fbc passes.
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, len( lit ) + 1 ) )
+        EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
+        return true
+    end if
+
+    if IsStringType( c, st ) then
+        dim as MirValue src = LowerAddr( c, value )
+        if src.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
+        return true
+    end if
+
+    '' A ZSTRING * N source passes its own element count rather than -1.
+    dim as longint zn
+    if StrSwapKind_( c, st, zn ) = 1 then
+        dim as MirValue src = LowerAddr( c, value )
+        if src.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, zn ) )
+        EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
+        return true
+    end if
+
+    return false
+end function
+
+'' 'w &= x' -- append to a fixed wide string in place. The entry point depends on
+'' whether the source is wide or narrow, exactly as assignment does:
+''
+''     w &= w2      fb_WstrConcatAssign( W, 64ll, W2 )
+''     w &= "lit"   fb_WstrConcatWA( W, (void*)"lit", 4ll ) then assign the temp
+''
+'' Only the WIDE source is lowered here; a narrow one needs the temporary's lifetime.
+function LowerWideConcatAssign _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval n as long, _
+      byval value as Fbx.NodeId ) as boolean
+
+    if WideStringElems( c, c.info->TypeOf_( value ) ) = 0 then return false
+    dim as MirValue dst = LowerAddr( c, target )
+    dim as MirValue src = LowerAddr( c, value )
+    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
+        return false
+    end if
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
+    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    EmitRtl( c, RTL_WSTR_CONCAT_ASSIGN, args )
+    return true
+end function
+
+'' Assignment FROM a wide string into a narrow one: 's = w' and 'z = w'.
+''
+''     fb_WstrAssignToA( (void*)&S, -1ll, (uint16*)W, 0 )
+''     fb_WstrAssignToA( (void*)Z, 64ll, (uint16*)W, 0 )
+''
+'' The trailing int32 was 0 in every probe.
+function LowerWideToNarrow _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+
+    if WideStringElems( c, c.info->TypeOf_( value ) ) = 0 then return false
+
+    dim as Fbx.TypeId dt = c.info->TypeOf_( target )
+    dim as longint dn = -1
+    if IsStringType( c, dt ) = false then
+        if StrSwapKind_( c, dt, dn ) <> 1 then return false
+    end if
+
+    dim as MirValue dst = LowerAddr( c, target )
+    dim as MirValue src = LowerAddr( c, value )
+    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
+        return false
+    end if
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
+    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_WSTR_ASSIGN_TOA, args )
+    return true
+end function
+
+'' LEN. Returns false when the node is not one, so the caller carries on.
+''
+'' Measured from fbc's own C:
+''
+''     len( s )   fb_StrLen( (void*)&S, -1ll )      a var-length STRING descriptor
+''     len( z )   fb_StrLen( (void*)Z, 8ll )        a ZSTRING * 8, its own count
+''     len( w )   fb_WstrLen( (uint16*)W )          no length argument at all
+''     len( t )   8ll                               anything else FOLDS to its size
+''
+'' It was lowered NOWHERE -- not even for a narrow string -- so every 'n = len( s )'
+'' declined, and inside a DIM initialiser did so silently until the initialiser path
+'' started counting.
+function LowerLen _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 1 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "len" then return false
+
+    dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    dim as Fbx.TypeId at = c.info->TypeOf_( a )
+    if at = Fbx.TYPE_NONE then return false
+
+    '' WIDE: one argument, no length.
+    if WideStringElems( c, at ) > 0 then
+        dim as MirValue wa = LowerAddr( c, a )
+        if wa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) wargs
+        wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
+        outv = EmitRtl( c, RTL_WSTR_LEN, wargs )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' NARROW: a descriptor passes -1, a fixed ZSTRING its element count.
+    dim as longint zn = -1
+    dim as boolean narrow = IsStringType( c, at )
+    if narrow = false then
+        if StrSwapKind_( c, at, zn ) = 1 then narrow = true
+    end if
+    if narrow then
+        '' A LITERAL has no descriptor and folds: fbc knows its length outright.
+        if c.ast->Kind( a ) = Fbx.N_STRING_LIT then
+            outv = ConstInt( c, len( StringLitText_( c, a ) ), MT_I64 )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+        dim as MirValue sa = LowerAddr( c, a )
+        if sa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) sargs
+        sargs.Push( cast( ulong, sa.kind ) ) : sargs.Push( cast( ulong, sa.id ) )
+        sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, zn ) )
+        outv = EmitRtl( c, RTL_STR_LEN, sargs )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' ANYTHING ELSE folds to the type's SIZE -- 'len( t )' over a UDT and 'len( i )'
+    '' over an integer are both compile-time constants to fbc.
+    dim as long sz = c.types->Layout( at ).size
+    dim as long ui = c.udts->Find( at )
+    if ui >= 0 then sz = c.udts->udts[ui].size
+    if sz <= 0 then return false
+    outv = ConstInt( c, sz, MT_I64 )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'wstr( x )' -- a scalar or a narrow string widened into a fresh wide TEMPORARY.
+'' Returns false when the node is not one.
+''
+'' Measured: byte and short widen to int32 and go through fb_IntToWstr, ubyte and
+'' ushort to uint32 and fb_UIntToWstr -- there are NO per-width entries. A narrow
+'' string goes through fb_StrToWstr, which takes a RAW char*, so fbc dereferences the
+'' descriptor's data field at the call site rather than passing the descriptor.
+''
+'' The result is a temporary the caller must release with fb_WstrDelete. fbx does not
+'' model that lifetime yet, so this LEAKS one wide temporary per conversion -- stated
+'' rather than hidden, and no worse than not compiling the program at all.
+function LowerWstrOf _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 1 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "wstr" then return false
+
+    dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    dim as Fbx.TypeId at = c.info->TypeOf_( a )
+    if at = Fbx.TYPE_NONE then return false
+
+    '' A NARROW STRING: the raw data pointer, not the descriptor.
+    dim as longint zn
+    dim as long sk = StrSwapKind_( c, at, zn )
+    if sk = 0 then
+        dim as MirValue d = LowerAddr( c, a )
+        if d.kind = cast( ubyte, MV_NONE ) then return false
+        '' Field 0 of the descriptor is its data pointer.
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = d
+        fa.imm = 0
+        dim as MirValue pa = Emit( c, fa )
+        if pa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue raw = LowerExprLoad( c, pa, MT_PTR )
+        if raw.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) sargs
+        sargs.Push( cast( ulong, raw.kind ) ) : sargs.Push( cast( ulong, raw.id ) )
+        outv = EmitRtl( c, RTL_STR_TO_WSTR, sargs )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    elseif sk = 1 then
+        '' A ZSTRING * N IS already a char array: its address is the char*.
+        dim as MirValue za = LowerAddr( c, a )
+        if za.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) zargs
+        zargs.Push( cast( ulong, za.kind ) ) : zargs.Push( cast( ulong, za.id ) )
+        outv = EmitRtl( c, RTL_STR_TO_WSTR, zargs )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' A SCALAR. Which entry point, and what the argument widens to, both come from the
+    '' operand's own type.
+    if c.types->Kind( at ) <> Fbx.TK_BUILTIN then return false
+    dim as RtlId r = RTL_NONE
+    dim as MirType want = MT_I32
+    select case c.types->BuiltinOf( at )
+    case Fbx.TY_BYTE, Fbx.TY_SHORT, Fbx.TY_LONG, Fbx.TY_BOOLEAN
+        r = RTL_INT_TO_WSTR
+    case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG
+        r = RTL_UINT_TO_WSTR
+    case Fbx.TY_INTEGER, Fbx.TY_LONGINT
+        r = RTL_LONGINT_TO_WSTR : want = MT_I64
+    case Fbx.TY_UINTEGER, Fbx.TY_ULONGINT
+        r = RTL_ULONGINT_TO_WSTR : want = MT_I64
+    case Fbx.TY_SINGLE
+        r = RTL_FLOAT_TO_WSTR : want = MT_F32
+    case Fbx.TY_DOUBLE
+        r = RTL_DOUBLE_TO_WSTR : want = MT_F64
+    case else
+        return false
+    end select
+
+    dim as MirValue av = LowerExpr( c, a )
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+    av = Coerce( c, av, want, IsUnsignedType( c, at ) )
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    outv = EmitRtl( c, r, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
