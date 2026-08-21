@@ -56,6 +56,12 @@ type Ctx
     '' DATA. The head of the module's block chain (-1 when it has none), and the
     '' label -> block map a 'restore lbl' resolves through. Both are built by a
     '' PRE-PASS, because 'restore lbl' may name a label that appears later.
+    '' The current procedure's HIDDEN RESULT POINTER, when it has one: parameter 0,
+    '' holding the caller's storage. -1 when the result is not returned that way.
+    '' Whether the current procedure returns a TRIVIAL UDT by value, in which case the
+    '' result slot holds the object itself and 'ret' carries its VALUE.
+    as boolean              udtResult
+    as long                 sretParam
     as long                 dataHead
     as FB.Array( of ulong ) dataLabelName
     as FB.Array( of ulong ) dataLabelBlock
@@ -179,6 +185,9 @@ declare function EmitRtl _
     declare function SynthFixedArrayDesc _
         ( byref c as Ctx, byref arrAddr as MirValue, byval t as Fbx.TypeId, _
           byref outv as MirValue ) as boolean
+    '' Whether a UDT return travels through an explicit hidden pointer. Measured:
+    '' the type has a DESTRUCTOR or a COPY CONSTRUCTOR. Size plays no part.
+    declare function UsesSretReturn( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
     declare function LowerErase( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function SizeOfType( byref c as Ctx, byval t as Fbx.TypeId ) as long
     '' A cleanup entry that is neither a symbol nor the string-delete 0: erase the
@@ -223,6 +232,8 @@ declare function EmitRtl _
     declare function LowerForEachArray( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
     declare function LowerStringReturn( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
+    declare function LowerSretResult _
+        ( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
     declare function LowerStringAssignToSlot _
         ( byref c as Ctx, byval slot as long, byval value as Fbx.NodeId ) as boolean
     declare function LowerStringAssignTo _

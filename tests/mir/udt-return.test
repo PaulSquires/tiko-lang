@@ -1,0 +1,5 @@
+'' UDT returns: by value, and through the hidden pointer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-return.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/udt-return.out

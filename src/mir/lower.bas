@@ -481,136 +481,6 @@ function LowerExpr _
     return v
 end function
 
-function LowerCallParts _
-    ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval callee as Fbx.SymbolId, _
-      byval argFirst as long, byval argCount as long, _
-      byval mt as MirType ) as MirValue
-
-    dim as MirValue v
-
-    '' A BUILT-IN PROCEDURE binds to nothing because nothing declares it -- fbc
-    '' predeclares 'allocate', 'deallocate', the mutex four and 'fb_Assert' and lowers
-    '' each straight to a runtime call. Checked BEFORE the symbol, which is exactly
-    '' what these do not have.
-    dim as MirValue bv
-    if LowerBuiltinProc( c, calleeNode, argFirst, argCount, bv ) then return bv
-
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if callee = Fbx.SYMBOL_NONE then return v
-    if cs = 0 then return v
-
-    '' A CALL THROUGH A PROCEDURE POINTER. 'dim as sub( ) p = procptr( f ) : p( )'
-    '' names a VARIABLE, not a procedure, so there is no function to look up and
-    '' mangling its name would invent one. docs/plan/09 lists 'call_indirect' for
-    '' exactly this; the callee is the pointer's VALUE.
-    dim as boolean viaPointer = false
-    if cs->kind <> cast( ubyte, Fbx.SYM_PROC ) then
-        dim as Fbx.TypeId ct = cs->type_
-        if ct <> Fbx.TYPE_NONE then
-            if c.types->Kind( ct ) = Fbx.TK_REFERENCE then ct = c.types->Inner( ct )
-            if c.types->Kind( ct ) = Fbx.TK_POINTER then ct = c.types->Inner( ct )
-            viaPointer = (c.types->Kind( ct ) = Fbx.TK_PROC)
-        end if
-        '' Anything else that is not a procedure is not callable, and was already
-        '' declining here.
-        if viaPointer = false then return v
-    end if
-
-    '' Arguments are collected LOCALLY and pushed to the shared pool in one run at the
-    '' end. Lowering them straight into the pool interleaved a nested call's arguments
-    '' with this one's, because the callee's extent was opened before its arguments were
-    '' lowered: 'F( G( 7 ), 9 )' emitted 'call void F(%4, %5)' -- F( 7, G(7) ) -- and
-    '' dropped the 9 entirely. No decline, no diagnostic, wrong arguments.
-    dim as FB.Array( of ulong ) argv
-
-    '' THE RECEIVER IS THE FIRST ARGUMENT of an instance method, and it was missing.
-    '' fbc declares 'void _ZN1T1MEi( struct $1T*, int32 )'; fbx emitted
-    '' 'call void _ZN1T1MEi(%5)' -- the right name, the wrong arguments, and no decline,
-    '' so it counted as fully lowered. A mangled name that says member and a call that
-    '' does not pass one is the worst shape a bug can have here.
-    dim as MirValue self_ = ReceiverOf( c, calleeNode, callee )
-    if self_.kind <> cast( ubyte, MV_NONE ) then
-        argv.Push( cast( ulong, self_.kind ) )
-        argv.Push( cast( ulong, self_.id ) )
-    end if
-
-    for i as long = 0 to argCount - 1
-        dim as Fbx.NodeId argNode = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
-        dim as boolean wantsRef = ParamIsByref( c, callee, i )
-
-        dim as MirValue a
-        if wantsRef then
-            a = LowerAddr( c, argNode )
-            '' An argument with no address -- a literal or a computed value -- cannot
-            '' be passed by reference as it stands. fbc materialises a temporary for
-            '' one; fbx declines rather than passing something that is not the
-            '' variable the callee will write through.
-            if a.kind = cast( ubyte, MV_NONE ) then a = LowerExpr( c, argNode )
-        else
-            a = LowerExpr( c, argNode )
-        end if
-        argv.Push( cast( ulong, a.kind ) )
-        argv.Push( cast( ulong, a.id ) )
-    next
-
-    dim as long first = c.m->argPool.Count \ 2
-    dim as long n = argv.Count \ 2
-    for i as long = 0 to argv.Count - 1
-        c.m->argPool.Push( argv[i] )
-    next
-
-    '' The callee is named by its MANGLED name, which is what MIR carries.
-    ''
-    '' It must be mangled the SAME WAY the definition was. Symbol.name is the FOLDED
-    '' spelling -- lowercased, because FreeBASIC lookup is case-insensitive -- so using
-    '' it here produced 'call void a()' against a definition named 'A', which matched
-    '' nothing and silently added an extern declaration instead. The result was a
-    '' module that referenced a symbol it also defined, under two spellings.
-    dim as Fbx.InternId cnm = cs->name
-    if cs->payload <> 0 then
-        cnm = c.names->GetString( Fbx.Mangle.ProcName( _
-            *c.ast, cast( Fbx.NodeId, cs->payload ), *c.syms, *c.names, _
-            *c.types, *c.info ) )
-    end if
-
-    '' THE INDIRECT CALL. The callee is the pointer's VALUE, loaded from wherever the
-    '' variable lives; there is no function table entry and no name.
-    if viaPointer then
-        dim as MirValue fp = LowerExpr( c, calleeNode )
-        if fp.kind = cast( ubyte, MV_NONE ) then return v
-        dim as MirInst ic
-        ic.op = cast( ushort, M_CALL_IND )
-        ic.ty = cast( ubyte, mt )
-        ic.a = Coerce( c, fp, MT_PTR )
-        ic.first = first
-        ic.count = n
-        return Emit( c, ic )
-    end if
-
-    '' Finding the function object is a linear scan for now; it is a map when it
-    '' matters.
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = cnm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( cnm, mt )
-        decl->isDefinition = false
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, mt )
-    ins.first = first
-    ins.count = n
-    ins.callee = fidx
-    return Emit( c, ins )
-end function
-
 
 private function LowerCall _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
@@ -1067,10 +937,21 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' BASIC's result assignment, both spellings: 'function = expr' and
             '' 'f = expr' inside f. It stores and CARRIES ON -- it is not a return, so
             '' no terminator and no cleanups.
-            if c.resultSlot < 0 then
-                '' A result type with no slot: STRING and UDT returns go through a
-                '' hidden pointer fbx does not model. Declining is the honest answer;
-                '' storing into an invented slot would compile and be wrong.
+            '' A UDT RESULT travelling through the HIDDEN POINTER has no result slot
+            '' at all: the pointer IS the result object, so 'function = expr' copies
+            '' the value straight through it. Measured -- fbc emits
+            '' '__builtin_memcpy( tmp$2$1, &T$1, 4 )', or the type's 'operator let'
+            '' where it has one.
+            if (c.resultSlot < 0) andalso (c.sretParam >= 0) then
+                if LowerSretResult( c, sp->b ) = false then
+                    SkipHere( c )
+                    c.st->ambResultNoSlot += 1
+                end if
+            elseif c.resultSlot < 0 then
+                '' A result type with no slot: a UDT return that is NOT sret, which is
+                '' returned BY VALUE and has no address to write through. Declining is
+                '' the honest answer; storing into an invented slot would compile and
+                '' be wrong.
                 SkipHere( c )
                 c.st->ambResultNoSlot += 1
             else
@@ -1269,9 +1150,76 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         '' back a pointer to static text where the caller expects a descriptor.
         if LowerStringReturn( c, sp->a ) then return
 
+        '' A TRIVIAL UDT RESULT is returned BY VALUE out of its result slot. The value
+        '' has to be copied into that slot first, exactly as 'function = expr' does --
+        '' the ordinary path below would try to Coerce an aggregate to an aggregate,
+        '' which is not a conversion MIR has.
+        if c.udtResult andalso (c.resultSlot >= 0) then
+            if sp->a <> Fbx.NODE_NONE then
+                '' THE VALUE FIRST, the address only as a fallback. 'return F( )'
+                '' and 'return Vec3d_( x, y, z )' have no address to take -- a call
+                '' result is a value -- and requiring one declined 10,387 statements,
+                '' which is most of what a UDT-returning function actually returns.
+                dim as MirValue uval = LowerExpr( c, sp->a )
+                dim as boolean copied = false
+                if uval.kind = cast( ubyte, MV_NONE ) then
+                    dim as MirValue usrc = LowerAddr( c, sp->a )
+                    if usrc.kind <> cast( ubyte, MV_NONE ) then
+                        uval = LowerExprLoad( c, usrc, MT_AGG )
+                    end if
+                end if
+                if uval.kind <> cast( ubyte, MV_NONE ) then
+                    if true then
+                        dim as MirValue uda
+                        uda.kind = cast( ubyte, MV_LOCAL )
+                        uda.ty = cast( ubyte, MT_PTR )
+                        uda.id = c.resultSlot
+                        dim as MirInst us
+                        us.op = cast( ushort, M_STORE )
+                        us.ty = cast( ubyte, MT_VOID )
+                        us.a = uda
+                        us.b = uval
+                        Emit( c, us )
+                        copied = true
+                    end if
+                end if
+                if copied = false then SkipHere( c )
+            end if
+            EmitCleanupsTo( c, 0 )
+            dim as MirValue ura2
+            ura2.kind = cast( ubyte, MV_LOCAL )
+            ura2.ty = cast( ubyte, MT_PTR )
+            ura2.id = c.resultSlot
+            Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, ura2, MT_AGG ) )
+            c.curBlock = -1
+            return
+        end if
+
+        '' A UDT RETURN through the hidden pointer: copy into the caller's storage if
+        '' there is a value, then return THAT POINTER -- which is what fbc's own C
+        '' does, 'return tmp$2$1'.
+        if c.sretParam >= 0 then
+            if sp->a <> Fbx.NODE_NONE then
+                if LowerSretResult( c, sp->a ) = false then SkipHere( c )
+            end if
+            EmitCleanupsTo( c, 0 )
+            dim as MirValue spa
+            spa.kind = cast( ubyte, MV_LOCAL )
+            spa.ty = cast( ubyte, MT_PTR )
+            spa.id = c.sretParam
+            Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, spa, MT_PTR ) )
+            c.curBlock = -1
+            return
+        end if
+
         dim as MirValue rv
         if sp->a <> Fbx.NODE_NONE then
             rv = LowerExpr( c, sp->a )
+            '' 'return expr' WHOSE VALUE WOULD NOT LOWER was silent: the terminator
+            '' went out with nothing in it and the statement counted as fully lowered,
+            '' so a function returned whatever the ABI happened to leave behind. Every
+            '' other decline in this file is counted; this one was not.
+            if rv.kind = cast( ubyte, MV_NONE ) then SkipHere( c )
         else
             rv = LoadResult( c )
         end if

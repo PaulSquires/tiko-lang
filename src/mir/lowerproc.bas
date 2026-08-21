@@ -33,6 +33,10 @@ sub LowerProc _
     dim as MirType declRet = LowerType( rt, *c.types )
     if rt <> Fbx.TYPE_NONE then
         if IsStringType( c, rt ) then declRet = MT_PTR
+        '' A UDT RETURNED THROUGH THE HIDDEN POINTER returns THAT POINTER, which is
+        '' what fbc's own C says: 'struct T* F( struct T* tmp )'. Declaring it 'agg'
+        '' would put a type on the function that its own 'ret' contradicts.
+        if UsesSretReturn( c, rt ) then declRet = MT_PTR
     end if
     dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
     f->isDefinition = true
@@ -102,6 +106,11 @@ sub LowerProc _
             if inType = false then thisSym = Fbx.SYMBOL_NONE
         end if
     end if
+    '' THE HIDDEN RESULT POINTER IS A PARAMETER. Counted here so the declaration and
+    '' every call site agree on the arity -- on win32 fbc EXCLUDES it from the stdcall
+    '' '@N' but the callee still pops it, so the two numbers are genuinely different
+    '' things and only this one is the argument count.
+    if UsesSretReturn( c, rt ) then f->paramCount += 1
     if thisSym <> Fbx.SYMBOL_NONE then f->paramCount += 1
 
     for i as long = 0 to sp->count - 1
@@ -119,13 +128,30 @@ sub LowerProc _
     dim as long savedRes = c.resultSlot
     dim as ubyte savedResTy = c.resultTy
     dim as Fbx.TypeId savedResType = c.resultType
+    dim as long savedSret = c.sretParam
+    dim as boolean savedUdtRes = c.udtResult
+    c.udtResult = false
     c.resultSlot = -1
     c.resultTy = cast( ubyte, MT_VOID )
     c.resultType = Fbx.TYPE_NONE
+    c.sretParam = -1
 
     dim as MirType rmt = LowerType( rt, *c.types )
     dim as boolean scalarResult = (rt <> Fbx.TYPE_NONE) andalso (rmt <> MT_VOID) andalso _
                                   (rmt <> MT_AGG)
+
+    '' A UDT RESULT WITH A DESTRUCTOR OR A COPY CONSTRUCTOR travels through an
+    '' EXPLICIT HIDDEN POINTER: parameter 0, holding the caller's storage, and the
+    '' function returns that same pointer. Measured, and the rule is about TRIVIALITY,
+    '' not size -- a one-byte type with a destructor is sret and a sixteen-byte POD is
+    '' not. See docs/internals/phase-6-udt-return.md.
+    ''
+    '' There is NO result local in this case: the hidden pointer IS the result object,
+    '' so 'function = expr' writes straight through it.
+    dim as boolean sretResult = false
+    if (rt <> Fbx.TYPE_NONE) andalso (scalarResult = false) then
+        sretResult = UsesSretReturn( c, rt )
+    end if
 
     '' A STRING RESULT is an aggregate, but not one that needs a hidden pointer: fbc
     '' builds it in a LOCAL DESCRIPTOR and returns what fb_StrAllocTempResult gives
@@ -155,6 +181,53 @@ sub LowerProc _
         ZeroStrDescriptor( c, sa )
     end if
 
+    if sretResult then
+        '' The hidden pointer is parameter 0, BEFORE 'this'. Its slot is an ordinary
+        '' local holding the pointer, exactly as 'this' is.
+        c.sretParam = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultType = rt
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL )
+        sa.ty = cast( ubyte, MT_PTR )
+        sa.id = c.sretParam
+        dim as MirValue spv
+        spv.kind = cast( ubyte, MV_PARAM )
+        spv.ty = cast( ubyte, MT_PTR )
+        spv.id = 0
+        dim as MirInst sins
+        sins.op = cast( ushort, M_STORE )
+        sins.ty = cast( ubyte, MT_VOID )
+        sins.a = sa
+        sins.b = spv
+        Emit( c, sins )
+    end if
+
+    '' A TRIVIAL UDT RESULT -- no destructor, no copy constructor -- is returned BY
+    '' VALUE. fbc emits a named 'fb$result' local, zeroed at entry, and returns it:
+    ''
+    ''     struct BIG MKB1( void ) { struct BIG fb$result$1; memset(...); ...
+    ''                               return fb$result$1; }
+    ''
+    '' MIR says the same thing. An aggregate VALUE is already a first-class thing in
+    '' this IR -- 'y = x' over a UDT is a whole-aggregate load and store -- so
+    '' returning one needs no new shape, and WHICH REGISTER OR MEMORY it travels in is
+    '' the backend's decision. That is the same division of labour fbc has with gcc:
+    '' fbc's frontend never names a register either.
+    '' Hoisted to a boolean local: FreeBASIC warns 38 on a mixed boolean/non-boolean
+    '' chain, and the house rule is to name the condition rather than silence it.
+    dim as boolean haveRet = (rt <> Fbx.TYPE_NONE)
+    dim as boolean udtByValue = false
+    if haveRet andalso (scalarResult = false) andalso (sretResult = false) then
+        udtByValue = (c.types->Kind( rt ) = Fbx.TK_UDT)
+    end if
+    if udtByValue then
+        c.resultSlot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
+        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultType = rt
+        c.udtResult = true
+    end if
+
     if scalarResult then
         c.resultSlot = NewTempLocal( c, rmt, c.types->Layout( rt ).size )
         c.resultTy = cast( ubyte, rmt )
@@ -174,7 +247,12 @@ sub LowerProc _
     '' A parameter is a slot like any other local, written once on entry. That is
     '' what makes 'byval' parameters assignable, which FreeBASIC allows, and it is
     '' the shape mem2reg expects.
+    '' THE HIDDEN POINTER CONSUMES ARGUMENT SLOT 0, so 'this' and every visible
+    '' parameter shift up by one. Measured in fbc's own assembly: for a method with a
+    '' hidden pointer, RCX is the pointer and RDX is 'this', and a later double lands
+    '' in XMM3 rather than XMM1.
     dim as long pidx = 0
+    if c.sretParam >= 0 then pidx = 1
     if thisSym <> Fbx.SYMBOL_NONE then
         '' THIS is a POINTER TO the object -- the symbol carries that type, so the slot
         '' comes out a pointer and 'this.field' reaches through it like any other
@@ -188,14 +266,14 @@ sub LowerProc _
         dim as MirValue tpv
         tpv.kind = cast( ubyte, MV_PARAM )
         tpv.ty = cast( ubyte, MT_PTR )
-        tpv.id = 0
+        tpv.id = pidx
         dim as MirInst tins
         tins.op = cast( ushort, M_STORE )
         tins.ty = cast( ubyte, MT_VOID )
         tins.a = taddr
         tins.b = tpv
         Emit( c, tins )
-        pidx = 1
+        pidx += 1
     end if
     for i as long = 0 to sp->count - 1
         dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
@@ -246,7 +324,23 @@ sub LowerProc _
     '' A function whose last block has no terminator falls off the end; FreeBASIC
     '' allows that and returns the result variable, so an explicit RET closes it.
     '' A STRING result leaves through the runtime, not as a load of the slot.
-    if (c.resultSlot >= 0) andalso (c.resultTy = cast( ubyte, MT_AGG )) then
+    if c.udtResult andalso (c.resultSlot >= 0) then
+        '' By value: the result local's VALUE, exactly as fbc returns fb$result.
+        dim as MirValue ura
+        ura.kind = cast( ubyte, MV_LOCAL )
+        ura.ty = cast( ubyte, MT_PTR )
+        ura.id = c.resultSlot
+        Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, ura, MT_AGG ) )
+    elseif c.sretParam >= 0 then
+        '' A UDT returned through the hidden pointer returns THAT POINTER, whether the
+        '' function fell off the end or not: fbc emits 'return tmp$2$1' at the exit
+        '' label either way.
+        dim as MirValue spa2
+        spa2.kind = cast( ubyte, MV_LOCAL )
+        spa2.ty = cast( ubyte, MT_PTR )
+        spa2.id = c.sretParam
+        Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, spa2, MT_PTR ) )
+    elseif (c.resultSlot >= 0) andalso (c.resultTy = cast( ubyte, MT_AGG )) then
         dim as MirValue ra2
         ra2.kind = cast( ubyte, MV_LOCAL )
         ra2.ty = cast( ubyte, MT_PTR )
@@ -286,6 +380,8 @@ sub LowerProc _
     c.f = savedF
     c.curProcSym = savedSym
     c.curBlock = savedB
+    c.udtResult = savedUdtRes
+    c.sretParam = savedSret
     c.resultSlot = savedRes
     c.resultTy = savedResTy
     c.resultType = savedResType
@@ -317,6 +413,45 @@ end sub
 '' only at module level, so a local is exactly right -- and it is what makes the string
 '' cleanup above run at all.
 declare function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+
+'' 'function = expr' inside a UDT function that returns through the HIDDEN POINTER.
+''
+'' There is no result local: the pointer IS the result object, so the value is copied
+'' straight through it. Measured -- fbc emits '__builtin_memcpy( tmp$2$1, &T$1, 4 )'.
+''
+'' fbc uses the type's 'operator let' where it has one. fbx does not, here or in an
+'' ordinary UDT assignment: both are a whole-aggregate load and store. That is one
+'' behaviour, consistently wrong for a type with a user LET, rather than two.
+function LowerSretResult( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
+    if c.sretParam < 0 then return false
+    if valueE = Fbx.NODE_NONE then return false
+
+    '' The VALUE first, the address only as a fallback: 'function = F( )' has no
+    '' address to take, and a call result is already an aggregate value here.
+    dim as MirValue val = LowerExpr( c, valueE )
+    if val.kind = cast( ubyte, MV_NONE ) then
+        dim as MirValue src = LowerAddr( c, valueE )
+        if src.kind = cast( ubyte, MV_NONE ) then return false
+        val = LowerExprLoad( c, src, MT_AGG )
+    end if
+    if val.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue sa
+    sa.kind = cast( ubyte, MV_LOCAL )
+    sa.ty = cast( ubyte, MT_PTR )
+    sa.id = c.sretParam
+    dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = dst
+    st.b = val
+    Emit( c, st )
+    return true
+end function
+
 
 sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
     if root = Fbx.NODE_NONE then return
@@ -493,6 +628,12 @@ end function
 function LowerStringReturn( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
     if c.resultSlot < 0 then return false
     if c.resultTy <> cast( ubyte, MT_AGG ) then return false
+    '' AND THE RESULT MUST ACTUALLY BE A STRING. MT_AGG alone stopped being enough the
+    '' moment a by-value UDT result got an aggregate slot too: every 'return <udt>'
+    '' came through here, tried a string assignment into it, and then emitted
+    '' fb_StrAllocTempResult ON A UDT. Not a decline -- a string runtime call on an
+    '' object, which lowers cleanly and verifies.
+    if IsStringType( c, c.resultType ) = false then return false
 
     if valueE <> Fbx.NODE_NONE then
         if LowerStringAssignToSlot( c, c.resultSlot, valueE ) = false then SkipHere( c )

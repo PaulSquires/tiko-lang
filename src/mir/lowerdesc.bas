@@ -158,6 +158,59 @@ function SynthFixedArrayDesc _
 end function
 
 
+'' WHETHER A UDT RETURN TRAVELS THROUGH AN EXPLICIT HIDDEN POINTER.
+''
+'' Measured, and it is not the rule the name suggests:
+''
+''     explicit sret  <==>  the type has a DESTRUCTOR or a COPY CONSTRUCTOR
+''
+'' declared, or implicit through a member or a base that has one. SIZE PLAYS NO PART:
+'' a one-byte type with a destructor is sret, and a sixteen-byte POD is not.
+'' 'operator let' does NOT force it -- only a destructor or a copy constructor does.
+''
+'' See docs/internals/phase-6-udt-return.md. The same rule on both targets: fbc makes a
+'' TWO-valued frontend decision and leaves register-versus-memory to the C compiler,
+'' which is the same division of labour fbx has with whatever consumes MIR.
+function UsesSretReturn( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    if StructorOf( c, t, "__dtor" ) <> Fbx.SYMBOL_NONE then return true
+    '' A COPY CONSTRUCTOR is a constructor taking one argument of its own type. Any
+    '' other one-argument constructor is a conversion, not a copy.
+    dim as Fbx.SymbolId ctors = StructorOf( c, t, "__ctor" )
+    dim as Fbx.SymbolId cur = ctors
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+        if pn <> Fbx.NODE_NONE then
+            if c.ast->Kind( pn ) = Fbx.N_PROC then
+                dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+                dim as long np = 0
+                dim as Fbx.TypeId only = Fbx.TYPE_NONE
+                for i as long = 0 to psp->count - 1
+                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
+                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                    np += 1
+                    only = c.info->TypeOf_( prm )
+                next
+                if np = 1 then
+                    dim as Fbx.TypeId bare = only
+                    if bare <> Fbx.TYPE_NONE then
+                        if c.types->Kind( bare ) = Fbx.TK_REFERENCE then
+                            bare = c.types->Inner( bare )
+                        end if
+                        bare = c.types->Unqualify( bare )
+                        if bare = t then return true
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    return false
+end function
+
 '' ERASE.
 ''
 '' Five-way, measured, and the fixed-string row is the one that would have been got
