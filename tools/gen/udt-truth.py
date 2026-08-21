@@ -55,6 +55,30 @@ CASES = [
     ("ArrOfUdt", "type ElemU\n as long a\n as byte b\nend type\ntype ArrOfUdt\n as byte x\n as ElemU e(0 to 1)\n as byte y\nend type", ["x", "e(0)", "y"]),
     ("ZStrField", "type ZStrField\n as byte b\n as zstring * 5 z\n as byte c\nend type", ["b", "z", "c"]),
 
+    # BITFIELDS. THE RULE, measured over eleven shapes by running fbc, and written
+    # down here because working it out cost more than implementing it will:
+    #
+    #   1. A bitfield's ALLOCATION UNIT is as wide as its DECLARED TYPE and sits at
+    #      an offset aligned to that width. It is placed at the next free BIT if the
+    #      field still fits inside that unit, and at the start of the next unit if it
+    #      does not.  'ubyte:3, ubyte:6' is 2 bytes -- 3 + 6 crosses the byte.
+    #   2. A bitfield may pack into a unit an ORDINARY field has already partly used.
+    #      'x as ubyte' then 'a : 3 as ulong' is FOUR bytes, with a at bits 8..10 of
+    #      the unit anchored at 0 -- not a new unit after x.
+    #   3. A later bitfield packs into the CURRENT unit whatever its own type says,
+    #      as long as the bits fit: 'ubyte:3 then ulong:3' is ONE byte, while
+    #      'ulong:3 then ubyte:3' is four. The unit's width comes from the field that
+    #      STARTED the run.
+    #   4. An ORDINARY field after a bitfield run starts at the END OF THE UNIT, not
+    #      at the next free byte: 'a : 3 as ulong' then 'y as ubyte' puts y at 4.
+    #   5. ALIGNMENT comes from the field that STARTED the run and from ordinary
+    #      fields; a bitfield joining a narrower run contributes none. Three ULONG
+    #      bitfields are align 4; 'ubyte:3 then ulong:3' is align 1.
+    #
+    # NOT IMPLEMENTED. fbx marks a bitfield and DECLINES its access -- see
+    # SYMF_BITFIELD -- because a full-width read or write of one clobbers everything
+    # packed beside it. These six shapes are what will say when the layout is right.
+    #
     # BITFIELDS. The gate had none, and a UDT of three bitfields laid out as three
     # SEPARATE fields -- 12 bytes where fbc says 4 -- behind a green result, because
     # nothing in the table had a ':' in it. Only the offsets of ORDINARY fields are
