@@ -708,7 +708,26 @@ sub WalkNode _
 
     case Fbx.N_NAMESPACE
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
-        '' A namespace REOPENS rather than redeclares: if the name is already a
+
+        '' AN ANONYMOUS NAMESPACE is a real, CLOSED scope with no symbol of its own --
+        '' C++'s rule, and fbc's: measured, a sub declared in one is 'Variable not
+        '' declared' from outside, and TWO of them in a file do not collide, so each
+        '' opens a FRESH scope rather than reopening.
+        ''
+        '' Declare_ refuses a nameless symbol, so 's' came back null, no scope was
+        '' opened, and THE CHILDREN WERE NEVER WALKED AT ALL: everything inside was
+        '' undeclared, and a recursive call within it bound to nothing. 1,016 unlowered
+        '' calls in one corpus file are that, all of them 'f( N )' inside
+        '' 'namespace : private sub f( ... )'.
+        if sp->name = 0 then
+            dim as Fbx.ScopeId anon = _
+                w.syms->OpenScope( Fbx.SCOPEK_NAMESPACE, scope_, Fbx.SYMBOL_NONE )
+            w.info->SetScope( id, anon )
+            WalkChildren( w, sp->first, sp->count, anon )
+            return
+        end if
+
+        '' A NAMED namespace REOPENS rather than redeclares: if the name is already a
         '' namespace in this scope, keep collecting into its existing scope.
         dim as Fbx.SymbolId sid = w.syms->LookupLocal( scope_, sp->name )
         dim as Fbx.Symbol ptr s = w.syms->SymbolAt( sid )
