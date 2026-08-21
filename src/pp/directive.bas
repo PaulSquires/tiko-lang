@@ -203,6 +203,76 @@ private function PpEvalRestOfLine _
     return result
 end function
 
+'' Defined further down this file; the option pragmas redefine a predefined macro.
+declare sub PpDefineValue _
+    ( byref e as PpEngine, byval spelling as string, byval body as string )
+
+'' The OPTION pragmas -- '#pragma private' and '#pragma profile' -- and their stacks.
+''
+'' Each is a boolean that a predefined macro reports, so setting one is redefining
+'' __FB_OPTION_PRIVATE__ or __FB_OPTION_PROFILE__. Measured by running fbc's #print:
+''
+''     (start)                       0
+''     #pragma private              -1     bare form means TRUE
+''     #pragma private = false       0
+''     #pragma push( private, true )-1     push SETS as well as saves
+''     #pragma pop( private )        0     restores what push saved
+''     #pragma pop( private )              error 101, "Cannot pop stack, underflow"
+''
+'' Ignoring them left __FB_OPTION_PRIVATE__ at 0 for ever, and the two corpus files
+'' that test these pragmas assert their way through all six states -- 21 '#assert'
+'' lines that fbc passes and fbx would have called failures.
+private sub PragmaOption _
+    ( byref e as PpEngine, byval at as SourceLoc, byval which as string, _
+      byval isPush as boolean, byval isPop as boolean )
+
+    dim as string nm = "__FB_OPTION_" & Text.UpperAscii( which ) & "__"
+    dim as long idx = iif( which = "private", 0, 1 )
+
+    if isPop then
+        if e.optionDepth( idx ) <= 0 then
+            Report( e, FBX0318, at, which )
+            return
+        end if
+        e.optionDepth( idx ) -= 1
+        dim as long v = e.optionStack( idx * PP_OPTION_STACK_MAX + e.optionDepth( idx ) )
+        e.optionValue( idx ) = v
+        PpDefineValue( e, nm, str( v ) )
+        return
+    end if
+
+    '' The VALUE, if one is written: 'private = false', 'push( private, false )'.
+    '' Absent means TRUE, which is what the bare form does.
+    dim as long v = -1
+    dim as Token t
+    while PeekOnLine( e, t )
+        '' 'true' and 'false' are PREDECLARED CONSTANTS, not keywords -- 'dim as
+        '' integer true' is a duplicate definition to fbc, not a syntax error -- so
+        '' they arrive as identifiers and are recognised by spelling.
+        dim as TokenKind k = Tk( t )
+        if k = TK_IDENT then
+            select case Text.LowerAscii( e.names->Spelling( cast( InternId, t.literal ) ) )
+            case "false" : v = 0
+            case "true"  : v = -1
+            end select
+        end if
+        if k = TK_INT_LIT then
+            if t.literal = 0 then v = 0 else v = -1
+        end if
+        Advance( e )
+    wend
+
+    if isPush then
+        if e.optionDepth( idx ) < PP_OPTION_STACK_MAX then
+            e.optionStack( idx * PP_OPTION_STACK_MAX + e.optionDepth( idx ) ) = _
+                e.optionValue( idx )
+            e.optionDepth( idx ) += 1
+        end if
+    end if
+    e.optionValue( idx ) = v
+    PpDefineValue( e, nm, str( v ) )
+end sub
+
 '' ------------------------------------------------------------------- dispatch
 
 private function PpDirectiveWord( byref e as PpEngine, byref outTok as Token ) as string
@@ -381,11 +451,37 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         dim as Token t
         dim as string which = ""
         if PeekOnLine( e, t ) then which = PpDirectiveWord( e, t )
-        SkipToEol( e )
-        select case which
-        case "once", "push", "pop", "msg", "reserve"
+        if len( which ) > 0 then Advance( e )
+
+        '' 'push( private )' and 'pop( private )' name the option INSIDE the parens,
+        '' so the word after the pragma is the verb and the one after '(' the option.
+        dim as boolean isPush = (which = "push")
+        dim as boolean isPop = (which = "pop")
+        dim as string opt = which
+        if isPush orelse isPop then
+            if PeekOnLine( e, t ) then
+                if Tk( t ) = TK_LPAREN then
+                    Advance( e )
+                    opt = PpDirectiveWord( e, t )
+                    if len( opt ) > 0 then Advance( e )
+                    if PeekOnLine( e, t ) then
+                        if Tk( t ) = TK_COMMA then Advance( e )
+                    end if
+                end if
+            end if
+        end if
+
+        select case opt
+        case "private", "profile"
+            PragmaOption( e, at, opt, isPush, isPop )
+            SkipToEol( e )
         case else
-            if len( which ) > 0 then Report( e, FBX0312, at, which )
+            SkipToEol( e )
+            select case which
+            case "once", "push", "pop", "msg", "reserve"
+            case else
+                if len( which ) > 0 then Report( e, FBX0312, at, which )
+            end select
         end select
 
     case "inclib", "libpath", "cmdline"
@@ -493,10 +589,15 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__FB_OPTION_BYVAL__", "0" )
     PpDefineValue( e, "__FB_OPTION_DYNAMIC__", "0" )
     PpDefineValue( e, "__FB_OPTION_ESCAPE__", "0" )
-    PpDefineValue( e, "__FB_OPTION_EXPLICIT__", "0" )
+    '' -1, NOT 0. Measured with fbc's own '#print': both of these are TRUE by default
+    '' on this toolchain, and the two corpus files that walk '#pragma profile' through
+    '' its states assert exactly that on their first line. The pragma stack below
+    '' starts from the same value, or the first pop would restore the wrong one.
+    PpDefineValue( e, "__FB_OPTION_EXPLICIT__", "-1" )
     PpDefineValue( e, "__FB_OPTION_GOSUB__", "0" )
     PpDefineValue( e, "__FB_OPTION_PRIVATE__", "0" )
-    PpDefineValue( e, "__FB_OPTION_PROFILE__", "0" )
+    PpDefineValue( e, "__FB_OPTION_PROFILE__", "-1" )
+    e.optionValue( 1 ) = -1
     PpDefineValue( e, "__FB_OUT_EXE__", "-1" )
     PpDefineValue( e, "__FB_OUT_LIB__", "0" )
     PpDefineValue( e, "__FB_OUT_DLL__", "0" )

@@ -76,6 +76,7 @@
     DIAG( FBX0315, SEV_NOTE,    "#print %0" )
     DIAG( FBX0316, SEV_ERROR,   "expected an identifier after '#%0'" )
     DIAG( FBX0317, SEV_ERROR,   "unsupported language mode '%0'; fbx implements ""fb"" only" )
+    DIAG( FBX0318, SEV_ERROR,   "cannot pop '#pragma %0': the stack is empty" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( FBX0400, SEV_ERROR,   "expected an expression" )
@@ -94,6 +95,8 @@
     DIAG( FBX0601, SEV_ERROR,   "'%0' is undefined" )
     DIAG( FBX0602, SEV_ERROR,   "'%0' is a %1, not a procedure" )
     DIAG( FBX0603, SEV_ERROR,   "calling convention does not match the declaration of '%0'" )
+    DIAG( FBX0604, SEV_ERROR,   "#assert condition failed" )
+    DIAG( FBX0605, SEV_ERROR,   "expected a constant expression" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( FBX0900, SEV_NOTE,    "%0" )

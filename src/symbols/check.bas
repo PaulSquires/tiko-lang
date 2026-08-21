@@ -589,6 +589,25 @@ private function CVNone_( ) as ConstVal
 end function
 
 '' A FreeBASIC truth value is -1, never 1.
+'' The same as CVW_, carrying the UNSIGNEDNESS through. Separate rather than a default
+'' argument so every existing call keeps folding as signed, which is what it was.
+private function CVWU_ _
+    ( byval v as longint, byval bits as long, byval uns as boolean ) as ConstVal
+    dim as ConstVal r = CVW_( v, bits )
+    r.uns = uns
+    return r
+end function
+
+'' Is a numeric suffix an UNSIGNED one? 'u', 'ul' and 'ull'. A bare hex literal is NOT
+'' unsigned -- measured, '&hFFFFFFFF' at 32 bits is -1 to fbc.
+private function SuffixUnsigned_( byval suffix as ubyte ) as boolean
+    select case cast( Fbx.NumSuffix, suffix )
+    case Fbx.NSUF_UINTEGER, Fbx.NSUF_ULONG, Fbx.NSUF_ULONGINT
+        return true
+    end select
+    return false
+end function
+
 private function CVBool_( byval b as boolean ) as ConstVal
     return CV_( iif( b, cast( longint, -1 ), cast( longint, 0 ) ) )
 end function
@@ -738,7 +757,8 @@ function ConstOf _
         dim as Fbx.LiteralPayload ptr lp = _
             @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
         dim as longint iv = cast( longint, lp->intValue )
-        return CVW_( iv, LitBits_( lp->suffix, iv, intBits ) )
+        return CVWU_( iv, LitBits_( lp->suffix, iv, intBits ), _
+                      SuffixUnsigned_( lp->suffix ) )
 
     case Fbx.N_IDENT
         '' A NAMED CONSTANT in a constant expression. 'const MAX = 9' followed by
@@ -766,6 +786,17 @@ function ConstOf _
             return CVW_( cast( longint, cs->payload ), 32 )
         end if
         if cs->kind <> cast( ubyte, Fbx.SYM_CONSTANT ) then return CVNone_( )
+
+        '' A PREDECLARED constant -- 'true' and 'false' -- keeps THE VALUE in 'payload'
+        '' where a user constant keeps a node id, which is what SYMF_BUILTIN exists to
+        '' say. Reading one as the other indexed the node arena at -1 and ABORTED THE
+        '' COMPILER: '#assert( X = true )' crashed fbx outright, in two corpus files.
+        '' The same payload-pool mistake this codebase has now made seven times, made
+        '' here by the code that added this case.
+        if (cs->flags and Fbx.SYMF_BUILTIN) <> 0 then
+            return CVW_( cast( longint, cs->payload ), 32 )
+        end if
+
         if cs->payload = 0 then return CVNone_( )
         dim as Fbx.NodeId citem = cast( Fbx.NodeId, cs->payload )
         if ast.Kind( citem ) <> Fbx.N_VAR_ITEM then return CVNone_( )
@@ -788,9 +819,9 @@ function ConstOf _
         '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
         '' '-(1 shl 31)' at 32 bits is 2147483648 rather than -2147483648.
         select case cast( Fbx.TokenKind, up->op )
-        case Fbx.TK_MINUS : return CVW_( -v.value, v.bits )
-        case Fbx.TK_PLUS  : return CVW_( v.value, v.bits )
-        case Fbx.KW_NOT   : return CVW_( not v.value, v.bits )
+        case Fbx.TK_MINUS : return CVWU_( -v.value, v.bits, v.uns )
+        case Fbx.TK_PLUS  : return CVWU_( v.value, v.bits, v.uns )
+        case Fbx.KW_NOT   : return CVWU_( not v.value, v.bits, v.uns )
         end select
         return CVNone_( )
 
@@ -807,6 +838,19 @@ function ConstOf _
         '' back to it. A COMPARISON is not arithmetic: its result is INTEGER, so it takes
         '' the target's width whatever the operands were.
         dim as long w = WiderOf_( l, r )
+        '' FreeBASIC's promotion: an operator with ONE unsigned operand is unsigned.
+        dim as boolean uw = l.uns orelse r.uns
+
+        '' Compared as UNSIGNED when either side is. At 32 bits only the low half
+        '' counts, because that is the value's real width -- comparing the
+        '' sign-extended 64-bit form would make every negative-looking 32-bit constant
+        '' larger than it is.
+        dim as ulongint ua = cast( ulongint, a )
+        dim as ulongint ub = cast( ulongint, b )
+        if w = 32 then
+            ua = cast( ulongint, cast( ulong, a ) )
+            ub = cast( ulongint, cast( ulong, b ) )
+        end if
 
         '' SHIFTS are done at the operand width, so '1 shl 31' is -2147483648 on win32
         '' and 2147483648 on win64, and '1 shl 32' is 1 there and 4294967296 here. That
@@ -815,9 +859,9 @@ function ConstOf _
         if (w = 32) andalso (sb >= 0) then sb = sb and 31
 
         select case cast( Fbx.TokenKind, bp->op )
-        case Fbx.TK_PLUS      : return CVW_( a + b, w )
-        case Fbx.TK_MINUS     : return CVW_( a - b, w )
-        case Fbx.TK_STAR      : return CVW_( a * b, w )
+        case Fbx.TK_PLUS      : return CVWU_( a + b, w, uw )
+        case Fbx.TK_MINUS     : return CVWU_( a - b, w, uw )
+        case Fbx.TK_STAR      : return CVWU_( a * b, w, uw )
         case Fbx.TK_BACKSLASH
             if b = 0 then return CVNone_( )
             return CVW_( a \ b, w )
@@ -838,10 +882,18 @@ function ConstOf _
         case Fbx.KW_IMP       : return CVW_( a imp b, w )
         case Fbx.TK_EQ        : return CVBool_( a = b )
         case Fbx.TK_NE        : return CVBool_( a <> b )
-        case Fbx.TK_LT        : return CVBool_( a < b )
-        case Fbx.TK_GT        : return CVBool_( a > b )
-        case Fbx.TK_LE        : return CVBool_( a <= b )
-        case Fbx.TK_GE        : return CVBool_( a >= b )
+        case Fbx.TK_LT
+            if uw then return CVBool_( ua < ub )
+            return CVBool_( a < b )
+        case Fbx.TK_GT
+            if uw then return CVBool_( ua > ub )
+            return CVBool_( a > b )
+        case Fbx.TK_LE
+            if uw then return CVBool_( ua <= ub )
+            return CVBool_( a <= b )
+        case Fbx.TK_GE
+            if uw then return CVBool_( ua >= ub )
+            return CVBool_( a >= b )
         case Fbx.KW_ANDALSO   : return CVBool_( (a <> 0) andalso (b <> 0) )
         case Fbx.KW_ORELSE    : return CVBool_( (a <> 0) orelse (b <> 0) )
         end select

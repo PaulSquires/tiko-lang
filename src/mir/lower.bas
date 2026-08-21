@@ -1219,7 +1219,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
 
     case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
          Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM, Fbx.N_EXTERN_BLOCK, _
-         Fbx.N_USING
+         Fbx.N_USING, Fbx.N_ASSERT
         '' Declarations: handled by the module walk, not inside a body.
         ''
         '' N_EXTERN_BLOCK belongs here and was declining instead -- 1,238 of them, the

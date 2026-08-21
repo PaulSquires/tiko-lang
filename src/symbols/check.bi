@@ -127,6 +127,12 @@ namespace Fbx.Check
         '' here, and '&hFFFFFFFF' is -1 rather than 4294967295. Carried per sub-
         '' expression because a binary operator folds at the WIDER of its operands.
         as long     bits
+        '' UNSIGNED, from a 'u', 'ul' or 'ull' suffix and inherited by any operator
+        '' with an unsigned operand. It changes COMPARISONS and nothing else: without
+        '' it '&hFFFFFFFFFFFFFFFFull > 0' folded as -1 > 0 and came out FALSE, which
+        '' turned three passing '#assert' lines in the corpus into errors fbc does not
+        '' have.
+        as boolean  uns
     end type
 
     '' Fold an expression to an integer constant, matching fbc bit for bit. The

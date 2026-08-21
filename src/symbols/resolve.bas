@@ -812,6 +812,38 @@ sub WalkStmt _
         next
         return
 
+    case Fbx.N_ASSERT
+        '' '#assert expr' -- a COMPILE-TIME check, not a runtime one, and not a
+        '' preprocessor directive either: its expression is ordinary FreeBASIC and may
+        '' name constants, enum members and sizeof, which the preprocessor cannot see.
+        ''
+        '' Measured against fbc: '#assert 1 = 2' is error 308, "#ASSERT condition
+        '' failed"; '#assert sizeof(integer) = 8' and '#assert B = 1' over an enum
+        '' member pass; and a condition that is NOT constant -- '#assert i = 1' over a
+        '' variable -- is error 11, "Expected constant". So an unfoldable condition is
+        '' a diagnostic in its own right, not something to pass over quietly.
+        ''
+        '' 720 of these stood unlowered, which said nothing about them being unchecked:
+        '' they emit no code either way, so the decline was the only trace that the
+        '' check itself was missing.
+        dim as Fbx.StmtPayload ptr asp = StmtOf( c, id )
+        WalkExpr( c, asp->a, here )
+        dim as Fbx.Check.ConstVal av = Fbx.Check.ConstOf( _
+            *c.ast, asp->a, *c.srcMgr, *c.names, _
+            c.types->target.pointerBits, c.syms, here )
+        '' REPORTED ONLY WHEN THE ANSWER IS KNOWN AND FALSE. fbc also rejects a
+        '' condition that is not constant at all -- '#assert i = 1' over a variable is
+        '' its error 11 -- but fbx's constant evaluator cannot fold 'sizeof( T )', and
+        '' '#assert sizeof( integer ) = 8' appears in seventeen corpus files. Reporting
+        '' every unfoldable condition would turn all of them into errors fbc does not
+        '' have, so the check stays SILENT where it cannot tell. A missing diagnostic
+        '' is a gap; a false one is a wrong compiler. FBX0605 is spelled and left for
+        '' when sizeof folds.
+        if av.known andalso (av.value = 0) then
+            c.diags->Report( Fbx.FBX0604, Fbx.PointRange( c.ast->Loc( id ) ) )
+        end if
+        return
+
     case Fbx.N_USING
         '' 'using FB' makes a namespace's names visible unqualified from here on. It
         '' was PARSED and then dropped -- 175 statements that did nothing -- which is

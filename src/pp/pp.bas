@@ -29,6 +29,9 @@ type PpCond
     as SourceLoc loc
 end type
 
+'' How deep '#pragma push' may nest per option before it is refused.
+const PP_OPTION_STACK_MAX = 32
+
 type PpEngine
     as SourceManager ptr src
     as Interner ptr      names
@@ -46,6 +49,14 @@ type PpEngine
     as FileId                 rootFile
     as long                   uniqueCounter
     as boolean                stopped
+
+    '' '#pragma private' / '#pragma profile' and their push/pop stacks. Two options,
+    '' each a boolean reported through a predefined macro; index 0 is private, 1 is
+    '' profile. Fixed-size because the pragma is a nesting marker in a header, not a
+    '' data structure -- and fbc itself errors on underflow rather than growing.
+    as long                   optionValue( 0 to 1 )
+    as long                   optionDepth( 0 to 1 )
+    as long                   optionStack( 0 to (2 * PP_OPTION_STACK_MAX) - 1 )
 end type
 
 '' --------------------------------------------------------------- small helpers
