@@ -14,12 +14,29 @@ function LocalFor _
 
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return -1
-    '' payload doubles as the slot index once assigned; -1 means not yet.
+    '' By SYMBOL. Keying on the spelling merged two sibling-scope declarations of one
+    '' name into a single slot, which then kept the FIRST declaration's MIR type --
+    '' 974 of the corpus's verifier failures, and behind them a larger number of
+    '' SILENT ones, because a 'dim as T x = e' initialiser coerces to the slot's type
+    '' and so stores the wrong width cleanly, with nothing to report.
+    ''
+    '' GlobalFor below has carried a comment describing exactly this bug, fixed on its
+    '' own table, since before this one existed.
     for i as long = 0 to c.f->locals.Count - 1
-        if c.f->locals[i].name = s->name then return i
+        if c.f->locals[i].sym = cast( ulong, sid ) then return i
     next
     dim as MirLocal l
+    l.sym = cast( ulong, sid )
+    '' The DUMP addresses a slot by name, so two slots of one spelling need telling
+    '' apart there as well, exactly as a static local does.
     l.name = s->name
+    for i as long = 0 to c.f->locals.Count - 1
+        if c.f->locals[i].name = s->name then
+            l.name = c.names->GetString( _
+                c.names->Spelling( s->name ) & "$" & str( c.f->locals.Count ) )
+            exit for
+        end if
+    next
     l.frontendType = s->type_
     l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
     '' An aggregate slot needs its SIZE: 'agg' says nothing about how many bytes to

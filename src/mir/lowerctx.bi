@@ -131,8 +131,14 @@ declare function EmitRtl _
     declare sub LowerProc( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
     declare function ZeroOf( byref c as Ctx, byval t as MirType ) as MirValue
+    '' 'srcUnsigned' is the SOURCE's signedness, which a MirType cannot carry: MT_I32
+    '' says 32 bits and nothing about how to widen them. Without it a ULONG widened to
+    '' a LONGINT sign-extended -- 4,000,000,000 became -294,967,296 -- and a ULONGINT
+    '' converted to a DOUBLE went through sitofp and came out -1. Both measured by
+    '' running fbc, which prints 4000000000 and 1.844674407370955e+019.
     declare function Coerce _
-        ( byref c as Ctx, byref v as MirValue, byval want as MirType ) as MirValue
+        ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
+          byval srcUnsigned as boolean = false ) as MirValue
     declare function BinOpFor _
         ( byval tk as Fbx.TokenKind, byval t as MirType, _
           byval isUnsigned as boolean ) as MirOp

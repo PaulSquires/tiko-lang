@@ -94,7 +94,12 @@ awk '
   if (ins_prev == ins) empty++
   ins_prev = ins
 }
-/^verify: FAIL/            { vf++ }
+# The line fbx actually prints is "verify: N FAILURES". The pattern here was
+# "^verify: FAIL", which matches NONE of them -- so this sweep reported "0 verify
+# failures" on every run while 3,035 of them stood in 406 files. A gate can be
+# green because it does not cover the thing; this one was green because it could
+# not see it.
+/^verify: [0-9]+ FAILURES/ { vf += $2; vfiles++ }
 /^  unlowered N_/          { kind[$2] += $3 }
 /^  unlowered intrinsic/   { intr[$3] += $4 }
 /^  inside N_/             { inner[$2] += $3 }
@@ -109,7 +114,7 @@ END {
   printf "mirsweep: %d files, %d blocks, %d insts\n", files, blk, ins
   printf "mirsweep: %d files emit code, %d emit nothing\n", files - empty, empty
   printf "mirsweep: %d statements not lowered, of those that reached lowering\n", sk
-  printf "mirsweep: %d scope imbalance, %d verify failures, %d label depth mismatches\n", si, vf, ld
+  printf "mirsweep: %d scope imbalance, %d verify failures in %d files, %d label depth mismatches\n", si, vf, vfiles, ld
   printf "mirsweep: --- never STARTED (statement dispatch) ---\n"
   n1 = asorti(kind, ks, "@val_num_desc")
   for (i = 1; i <= n1 && i <= 6; i++) printf "mirsweep:  %8d  %s\n", kind[ks[i]], ks[i]

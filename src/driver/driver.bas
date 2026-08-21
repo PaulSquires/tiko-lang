@@ -248,6 +248,12 @@ function Run( byref args as Fbx.StrVec ) as long
                     sum_ += ", " & str( lst.labelDepthMismatch ) & _
                             " LABEL DEPTH MISMATCH"
                 end if
+                '' Also only when non-zero. A repaired block is well-formed IR
+                '' standing in for a statement that did not lower, so the number is
+                '' worth reading even though it is not itself a failure.
+                if lst.blocksRepaired > 0 then
+                    sum_ += ", " & str( lst.blocksRepaired ) & " blocks repaired"
+                end if
                 print sum_
                 '' The breakdown of what did NOT lower, printed only when there is
                 '' something to say. One 'skipped' total invites guessing at the next

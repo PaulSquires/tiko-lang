@@ -162,6 +162,30 @@ sub LowerProc _
     '' allows that and returns the result variable, so an explicit RET closes it.
     Terminate( c, MTERM_RET, -1, -1, LoadResult( c ) )
 
+    '' EVERY block must have a terminator, not just the last one. A block created for
+    '' a label the lowering never reached -- a forward GOTO into a statement that was
+    '' DECLINED -- is left open and nothing else closes it, and a block with no
+    '' terminator is not IR at all.
+    ''
+    '' Measured: 9 such blocks across the corpus, in files whose GOTO jumps into a WITH
+    '' or a SELECT CASE over a string. The repair is a fallthrough to the next block in
+    '' order, which is what an EMPTY label body degenerates to, rather than a RET, which
+    '' would invent an early exit from a procedure that has none.
+    ''
+    '' Counted, not silent: a repair here always means something above declined, and a
+    '' number that only ever goes down is worth being able to read.
+    for bi as long = 0 to c.f->blocks.Count - 1
+        if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
+        c.st->blocksRepaired += 1
+        if bi + 1 < c.f->blocks.Count then
+            c.f->blocks[bi].term = cast( ubyte, MTERM_BR )
+            c.f->blocks[bi].target = bi + 1
+        else
+            c.f->blocks[bi].term = cast( ubyte, MTERM_RET )
+        end if
+    next
+
+
     c.f = savedF
     c.curProcSym = savedSym
     c.curBlock = savedB
@@ -273,6 +297,19 @@ sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
 
     dim as MirValue rv = LowerExprLoad( c, resAddr, MT_I32 )
     Terminate( c, MTERM_RET, -1, -1, rv )
+
+    '' The same repair the procedure path makes, for the same reason: module-level
+    '' code is where the GOTO-into-a-declined-WITH files put their broken block.
+    for bi as long = 0 to c.f->blocks.Count - 1
+        if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
+        c.st->blocksRepaired += 1
+        if bi + 1 < c.f->blocks.Count then
+            c.f->blocks[bi].term = cast( ubyte, MTERM_BR )
+            c.f->blocks[bi].target = bi + 1
+        else
+            c.f->blocks[bi].term = cast( ubyte, MTERM_RET )
+        end if
+    next
 
     c.f = savedF
     c.curBlock = savedB

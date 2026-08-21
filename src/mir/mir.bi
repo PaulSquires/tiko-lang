@@ -89,6 +89,15 @@ namespace Fbx.Mir
         OP( M_FPEXT,      "fpext",      1, true  )
         OP( M_FPTOSI,     "fptosi",     1, true  )
         OP( M_SITOFP,     "sitofp",     1, true  )
+        '' FLOAT to FLOAT, rounding to the nearest integral value, halves to EVEN.
+        '' FreeBASIC does NOT truncate a float on the way to an integer: measured by
+        '' running fbc, 1.4 -> 1, 1.6 -> 2, 2.5 -> 2, 3.5 -> 4, -2.5 -> -2. A bare
+        '' fptosi truncates toward zero and gives 1, 1, 2, 3, -2 -- wrong in three of
+        '' those five. fbc emits __builtin_nearbyint before its cast and so does this.
+        OP( M_NEARBYINT,  "nearbyint",  1, true  )
+        '' An UNSIGNED source converted to floating point. sitofp on a ulongint of
+        '' 1.8e19 yields -1; fbc casts from the unsigned type and gets 1.8e19.
+        OP( M_UITOFP,     "uitofp",     1, true  )
         OP( M_BITCAST,    "bitcast",    1, true  )
         OP( M_CALL,       "call",      -1, true  )
         OP( M_CALL_RTL,   "call.rtl",  -1, true  )
@@ -170,6 +179,14 @@ namespace Fbx.Mir
         as ubyte    ty
         as Fbx.TypeId frontendType   '' kept for aggregate layout and for the dump
         as long     size
+        '' The SYMBOL this slot belongs to, 0 for a compiler temporary. Slots are found
+        '' by symbol and not by spelling: two variables called 'x' in sibling scopes of
+        '' one procedure are two declarations, two symbols and two slots, and merging
+        '' them on the name gave the second one the FIRST one's type. That is the same
+        '' bug MirGlobal's table already carries a comment about, left unfixed here.
+        '' A ulong, not a SymbolId: MIR does not include the symbol table, and
+        '' should not start to for one field. SymbolId IS a ulong.
+        as ulong    sym
     end type
 
     type MirLocalVec as FB.Array( of MirLocal )

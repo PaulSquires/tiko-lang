@@ -58,12 +58,13 @@ func void MIXED() {
     %4 = load @m
     store @$tmp2, %4
     %5 = load @n
-    %6 = fptosi %5
-    store @m, %6
-    %7 = load @$tmp2
-    %8 = sitofp %7
-    store @n, %8
+    %6 = nearbyint %5
+    %7 = fptosi %6
+    store @m, %7
+    %8 = load @$tmp2
+    %9 = sitofp %8
+    store @n, %9
     ret
 }
 verify: ok
-lowered: 2 functions, 2 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 47 insts, 0 statements not lowered, 0 scope imbalance

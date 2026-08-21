@@ -35,6 +35,9 @@ namespace Fbx.Mir
         '' the label. Always zero unless ScanLabels has drifted from the lowering.
         as long labelDepthMismatch
         as long scopeImbalance '' scopes opened and not closed -- always an ICE
+        '' Blocks that had NO TERMINATOR and were given a fallthrough. Always the
+        '' downstream mark of a decline: a label block whose statement never lowered.
+        as long blocksRepaired
 
         '' WHERE the unlowered statements are, by node kind, and for N_INTRINSIC by the
         '' keyword -- PRINT, INPUT, OPEN and the rest share one node kind, so a count

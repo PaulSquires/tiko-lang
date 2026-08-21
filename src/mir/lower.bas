@@ -128,12 +128,46 @@ end function
 '' an integer literal -- which FreeBASIC types as INTEGER, so i64 -- is compared
 '' against an i32 counter, and the IR states something the backend cannot honour.
 function Coerce _
-    ( byref c as Ctx, byref v as MirValue, byval want as MirType ) as MirValue
+    ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
+      byval srcUnsigned as boolean = false ) as MirValue
 
     if v.kind = cast( ubyte, MV_NONE ) then return v
     dim as MirType have = cast( MirType, v.ty )
     if have = want then return v
     if (have = MT_VOID) orelse (want = MT_VOID) then return v
+
+    '' A POINTER IS NOT AN INTEGER, even where the two are the same width. TyWidth
+    '' gives MT_PTR and MT_I64 both 64, so the integer branch below saw "same width"
+    '' and returned the value UNCHANGED -- 700 corpus stores of an i64 straight into a
+    '' ptr slot, and the verifier was right about every one of them.
+    ''
+    '' 'dim p as integer ptr : p = 0' is the commonest shape by far. fbc accepts it
+    '' silently, and warns only on a non-zero integer (warning 4, "Suspicious pointer
+    '' assignment") -- so a conversion is the correct thing to emit here, not a refusal.
+    ''
+    '' Width FIRST, then the cast. A 32-bit value bitcast straight to a pointer would
+    '' state a 32-bit quantity in a 64-bit slot; going through the pointer-sized
+    '' integer makes the widening explicit and leaves the bitcast width-preserving.
+    if (have = MT_PTR) orelse (want = MT_PTR) then
+        dim as MirType intPtrTy = MT_I64
+        if c.types->target.pointerBits = 32 then intPtrTy = MT_I32
+        if want = MT_PTR then
+            dim as MirValue w = Coerce( c, v, intPtrTy, srcUnsigned )
+            if w.kind = cast( ubyte, MV_NONE ) then return w
+            dim as MirInst bc
+            bc.op = cast( ushort, M_BITCAST )
+            bc.ty = cast( ubyte, MT_PTR )
+            bc.a = w
+            return Emit( c, bc )
+        end if
+        dim as MirInst bc
+        bc.op = cast( ushort, M_BITCAST )
+        bc.ty = cast( ubyte, intPtrTy )
+        bc.a = v
+        dim as MirValue w = Emit( c, bc )
+        if w.kind = cast( ubyte, MV_NONE ) then return w
+        return Coerce( c, w, want )
+    end if
 
     dim as MirInst ins
     ins.ty = cast( ubyte, want )
@@ -144,14 +178,30 @@ function Coerce _
     if hf andalso wf then
         ins.op = cast( ushort, iif( TyWidth( want ) < TyWidth( have ), M_FPTRUNC, M_FPEXT ) )
     elseif hf then
+        '' ROUND FIRST. FreeBASIC converts a float to an integer by rounding to the
+        '' nearest, halves to even -- measured by running fbc: 1.4 -> 1, 1.6 -> 2,
+        '' 2.5 -> 2, 3.5 -> 4, -2.5 -> -2. A bare fptosi truncates toward zero and is
+        '' wrong for three of those five, silently, in every conversion in the tree.
+        '' fbc's own C says the same thing: 'fb_D2I( v )' is '(int32)nearbyint( v )'.
+        dim as MirInst rn
+        rn.op = cast( ushort, M_NEARBYINT )
+        rn.ty = cast( ubyte, have )
+        rn.a = v
+        dim as MirValue rv = Emit( c, rn )
+        if rv.kind <> cast( ubyte, MV_NONE ) then ins.a = rv
         ins.op = cast( ushort, M_FPTOSI )
     elseif wf then
-        ins.op = cast( ushort, M_SITOFP )
+        '' An UNSIGNED source goes through uitofp. sitofp reads the top bit as a sign,
+        '' so a ULONGINT near its maximum came out as -1 instead of 1.8e19.
+        ins.op = cast( ushort, iif( srcUnsigned, M_UITOFP, M_SITOFP ) )
     else
         if TyWidth( want ) < TyWidth( have ) then
             ins.op = cast( ushort, M_TRUNC )
         elseif TyWidth( want ) > TyWidth( have ) then
-            ins.op = cast( ushort, M_SEXT )
+            '' ZERO-extend an unsigned source. Sign-extending one turns every value
+            '' with its top bit set negative: a UBYTE of 200 widened to a LONG gave
+            '' -56, and fbc prints 200.
+            ins.op = cast( ushort, iif( srcUnsigned, M_ZEXT, M_SEXT ) )
         else
             return v
         end if
@@ -327,6 +377,7 @@ function LowerExpr _
         '' The operand type decides signed versus unsigned, and it is the OPERANDS'
         '' type, not the result's: a comparison yields an integer either way.
         dim as Fbx.TypeId lt = c.info->TypeOf_( bp->lhs )
+        dim as Fbx.TypeId rt = c.info->TypeOf_( bp->rhs )
         dim as MirType opTy = LowerType( lt, *c.types )
         '' Both operands are brought to the WIDER of the two; the frontend's measured
         '' promotion rules already decided what the result type is.
@@ -334,8 +385,8 @@ function LowerExpr _
             opTy = cast( MirType, r.ty )
         end if
         if IsFloatTy( cast( MirType, r.ty ) ) then opTy = cast( MirType, r.ty )
-        l = Coerce( c, l, opTy )
-        r = Coerce( c, r, opTy )
+        l = Coerce( c, l, opTy, IsUnsignedType( c, lt ) )
+        r = Coerce( c, r, opTy, IsUnsignedType( c, rt ) )
         dim as MirOp op = BinOpFor( tk, opTy, IsUnsignedType( c, lt ) )
         if op = M_NONE then return v
         dim as MirInst ins
@@ -718,6 +769,77 @@ sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
     next
 end sub
 
+'' 'a += b' and its six siblings. The operator was READ BY THE PARSER, recorded on the
+'' statement, and then IGNORED: every compound assignment lowered to a plain store of
+'' the right-hand side, so 'q += w' compiled as 'q = w'. Verifier-clean, no decline, no
+'' diagnostic -- a silent miscompile of one of the commonest statements in the language.
+''
+'' The target's address is taken ONCE and the read, the operation and the write all go
+'' through it, so an lvalue with a side effect -- 'arr( f( ) ) += 1' -- calls f once, as
+'' fbc does.
+''
+'' The computation type is the TARGET's, with one exception measured against fbc:
+'' '/' is FLOATING division whatever the operands are. 'dim as integer a = 1 : a /= 2'
+'' prints 0 and 'a = 5 : a /= 2' prints 2 -- 0.5 and 2.5 rounded to even, not truncated
+'' -- so the division happens in double and the result converts back on the way in.
+''
+'' '^=' is absent on purpose: power needs a runtime call fbx's inventory does not carry
+'' yet, and declining is the honest answer where inventing a shift would not be.
+private function LowerCompoundAssign _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
+      byval op as Fbx.TokenKind ) as boolean
+
+    dim as Fbx.TokenKind bop = Fbx.TK_EOF
+    select case op
+    case Fbx.TK_PLUSEQ   : bop = Fbx.TK_PLUS
+    case Fbx.TK_MINUSEQ  : bop = Fbx.TK_MINUS
+    case Fbx.TK_STAREQ   : bop = Fbx.TK_STAR
+    case Fbx.TK_SLASHEQ  : bop = Fbx.TK_SLASH
+    case Fbx.TK_BSLASHEQ : bop = Fbx.TK_BACKSLASH
+    case else            : return false
+    end select
+
+    dim as Fbx.TypeId tt = c.info->TypeOf_( target )
+    if tt = Fbx.TYPE_NONE then return false
+    dim as MirType mt = LowerType( tt, *c.types )
+    if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
+
+    '' The type the arithmetic happens in. Every operator but '/' works in the
+    '' target's own type; '/' is float division, in single when the target already is
+    '' one and in double otherwise -- 'dim as single h = 1 : h /= 2' prints 0.5.
+    dim as MirType wt = mt
+    if bop = Fbx.TK_SLASH then
+        wt = iif( mt = MT_F32, MT_F32, MT_F64 )
+    end if
+
+    dim as MirValue addr = LowerAddr( c, target )
+    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue cur = LowerExprLoad( c, addr, mt )
+    if cur.kind = cast( ubyte, MV_NONE ) then return false
+    cur = Coerce( c, cur, wt, IsUnsignedType( c, tt ) )
+    dim as MirValue rhs = LowerExpr( c, value )
+    if rhs.kind = cast( ubyte, MV_NONE ) then return false
+    rhs = Coerce( c, rhs, wt, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
+
+    dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, tt ) )
+    if mop = M_NONE then return false
+    dim as MirInst bi
+    bi.op = cast( ushort, mop )
+    bi.ty = cast( ubyte, wt )
+    bi.a = cur
+    bi.b = rhs
+    dim as MirValue res = Emit( c, bi )
+    if res.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = addr
+    st.b = Coerce( c, res, mt )
+    Emit( c, st )
+    return true
+end function
+
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId )
 
@@ -740,7 +862,8 @@ private sub LowerAssign _
     '' conversions, so the narrowing FreeBASIC allows on assignment is explicit here.
     '' The type comes from the target EXPRESSION, not from the local slot: a member
     '' store's address is a temp from field.addr, and there is no slot to ask.
-    val = Coerce( c, val, LowerType( c.info->TypeOf_( target ), *c.types ) )
+    val = Coerce( c, val, LowerType( c.info->TypeOf_( target ), *c.types ), _
+                  IsUnsignedType( c, c.info->TypeOf_( value ) ) )
     dim as MirInst ins
     ins.op = cast( ushort, M_STORE )
     ins.ty = cast( ubyte, MT_VOID )
@@ -881,7 +1004,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             if needsStore then
                 dim as MirValue val = LowerExpr( c, ip->b )
                 if val.kind <> cast( ubyte, MV_NONE ) then
-                    val = Coerce( c, val, cast( MirType, c.f->locals[slot].ty ) )
+                    val = Coerce( c, val, cast( MirType, c.f->locals[slot].ty ), _
+                                  IsUnsignedType( c, c.info->TypeOf_( ip->b ) ) )
                     dim as MirValue addr
                     addr.kind = cast( ubyte, MV_LOCAL )
                     addr.ty = cast( ubyte, MT_PTR )
@@ -925,13 +1049,22 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                     '' MIR has no implicit conversions, so the narrowing FreeBASIC
                     '' allows on a result assignment is explicit here, exactly as it
                     '' is for an ordinary assignment.
-                    rs.b = Coerce( c, rval, cast( MirType, c.resultTy ) )
+                    rs.b = Coerce( c, rval, cast( MirType, c.resultTy ), _
+                                   IsUnsignedType( c, c.info->TypeOf_( sp->b ) ) )
                     Emit( c, rs )
                 end if
             end if
         case Fbx.AMB_ASSIGN
             dim as long beforeA = c.f->blocks[c.curBlock].insts.Count
-            LowerAssign( c, sp->a, sp->b )
+            dim as Fbx.TokenKind aop = cast( Fbx.TokenKind, sp->op )
+            dim as boolean plain = (aop = Fbx.TK_EQ) orelse (aop = Fbx.TK_AMPEQ)
+            '' '&=' is string concatenation and already has its own path through
+            '' LowerAssign; everything else with an operator is a read-modify-write.
+            if plain then
+                LowerAssign( c, sp->a, sp->b )
+            elseif LowerCompoundAssign( c, sp->a, sp->b, aop ) = false then
+                SkipHere( c )
+            end if
             if c.f->blocks[c.curBlock].insts.Count = beforeA then
                 c.st->ambAssign += 1
             end if
@@ -1062,8 +1195,17 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         end if
 
     case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
-         Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM
+         Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM, Fbx.N_EXTERN_BLOCK
         '' Declarations: handled by the module walk, not inside a body.
+        ''
+        '' N_EXTERN_BLOCK belongs here and was declining instead -- 1,238 of them, the
+        '' second largest never-started kind. An 'extern "C" ... end extern' can hold
+        '' NOTHING EXECUTABLE: measured, both 'print 1' and an assignment inside one are
+        '' fbc error 96, "Illegal inside a compound statement or scoped block". What it
+        '' may hold is DECLARE, a procedure body, and 'dim shared as T x = 5' -- and a
+        '' shared initialiser is part of the global's definition, not a store in main.
+        '' So there is nothing for the statement layer to emit, and saying so is not
+        '' the same as failing to.
 
     case else
         SkipStmt( c, id )
@@ -1160,7 +1302,8 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     dim as MirType ity = cast( MirType, c.f->locals[cast( long, addr.id )].ty )
 
     '' init
-    dim as MirValue init_ = Coerce( c, LowerExpr( c, fromE ), ity )
+    dim as MirValue init_ = Coerce( c, LowerExpr( c, fromE ), ity, _
+                                    IsUnsignedType( c, c.info->TypeOf_( fromE ) ) )
     if init_.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst st0
         st0.op = cast( ushort, M_STORE )
@@ -1182,7 +1325,8 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     '' emitting a loop that runs the wrong number of times.
     c.curBlock = headB
     dim as MirValue cur = LowerExprLoad( c, addr, ity )
-    dim as MirValue lim = Coerce( c, LowerExpr( c, toE ), ity )
+    dim as MirValue lim = Coerce( c, LowerExpr( c, toE ), ity, _
+                                  IsUnsignedType( c, c.info->TypeOf_( toE ) ) )
     dim as boolean negStep = false
     if stepE <> Fbx.NODE_NONE then
         dim as Fbx.Check.ConstVal sv = Fbx.Check.ConstOf( *c.ast, stepE, *c.srcMgr, *c.names, _
@@ -1219,7 +1363,8 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     dim as MirValue cur2 = LowerExprLoad( c, addr, ity )
     dim as MirValue inc
     if stepE <> Fbx.NODE_NONE then
-        inc = Coerce( c, LowerExpr( c, stepE ), ity )
+        inc = Coerce( c, LowerExpr( c, stepE ), ity, _
+                      IsUnsignedType( c, c.info->TypeOf_( stepE ) ) )
     else
         inc = ConstInt( c, 1, ity )
     end if

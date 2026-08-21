@@ -1086,6 +1086,47 @@ function TypeOf_ _
             end if
         end if
 
+        '' 'var v = expr' -- an INFERRED variable, and its type is its INITIALISER's.
+        '' There was no inference path at all: ResolveTypeRef on a 'var' item sees
+        '' NODE_NONE, returns TYPE_NONE, and BindDeclType bails, so the symbol stayed
+        '' untyped for ever. 937 corpus stores landed in a slot MIR could only type as
+        '' 'void', which is the largest single verifier failure in the tree.
+        ''
+        '' Measured against fbc, the rule is exactly "the expression's type", with no
+        '' decay of its own: 5 is INTEGER, 1.5 DOUBLE, false BOOLEAN, '@i' INTEGER PTR,
+        '' a UDT value its UDT, and 'var v = ci' over a CONST INTEGER keeps the CONST.
+        '' The one exception is a string LITERAL, whose own type is ZSTRING * N and
+        '' which makes a STRING here.
+        ''
+        '' Lazily and on demand, for the same reason the constant above is: a use can
+        '' be typed before the declaration is walked, and TypeOf_ memoises, so binding
+        '' this eagerly would cache TYPE_NONE against the early use and never revisit.
+        if (t = Fbx.TYPE_NONE) andalso (s <> 0) then
+            if (s->kind = cast( ubyte, Fbx.SYM_VARIABLE )) andalso (s->payload <> 0) then
+                dim as Fbx.NodeId item = cast( Fbx.NodeId, s->payload )
+                if c.ast->Kind( item ) = Fbx.N_VAR_ITEM then
+                    dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+                    '' ONLY an inferred one. A 'dim as T x' whose T did not resolve
+                    '' must stay untyped: taking the initialiser's type there would
+                    '' paper over an unresolved type name with a plausible answer.
+                    if (ip->a = Fbx.NODE_NONE) andalso (ip->b <> Fbx.NODE_NONE) then
+                        if c.constDepth < CONST_DEPTH_MAX then
+                            c.constDepth += 1
+                            dim as Fbx.TypeId vt = TypeOf_( c, ip->b )
+                            c.constDepth -= 1
+                            if c.ast->Kind( ip->b ) = Fbx.N_STRING_LIT then
+                                vt = c.types->Builtin( Fbx.TY_STRING )
+                            end if
+                            if vt <> Fbx.TYPE_NONE then
+                                t = vt
+                                s->type_ = vt
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+
     case Fbx.N_PAREN
         '' A parenthesised expression is a LIST node, not a statement node: its
         '' single child is in the shared child pool. Reading it through the stmt
@@ -1231,6 +1272,34 @@ end function
 
 '' ---------------------------------------------------------------- the walk
 
+'' A 'var' whose variable is never USED afterwards still needs a type: the lazy path
+'' in TypeOf_ above fires on a use, and an unused one has none. The slot is allocated
+'' regardless, and an untyped slot is 'void' in MIR.
+''
+'' A pass over the SYMBOLS rather than the nodes, and after every expression has been
+'' typed, so the initialiser's type is already known whatever order the declaration
+'' appeared in.
+private sub InferUnusedVarTypes_( byref c as Ctx )
+    for sid as long = 1 to c.syms->Count( ) - 1
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cast( Fbx.SymbolId, sid ) )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, Fbx.SYM_VARIABLE ) then continue for
+        if s->type_ <> Fbx.TYPE_NONE then continue for
+        if s->payload = 0 then continue for
+        dim as Fbx.NodeId item = cast( Fbx.NodeId, s->payload )
+        if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
+        dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+        '' Inferred only. A 'dim as T x' whose T did not resolve stays untyped.
+        if ip->a <> Fbx.NODE_NONE then continue for
+        if ip->b = Fbx.NODE_NONE then continue for
+        dim as Fbx.TypeId vt = TypeOf_( c, ip->b )
+        if c.ast->Kind( ip->b ) = Fbx.N_STRING_LIT then
+            vt = c.types->Builtin( Fbx.TY_STRING )
+        end if
+        if vt <> Fbx.TYPE_NONE then s->type_ = vt
+    next
+end sub
+
 private sub WalkAll( byref c as Ctx )
     '' Every expression node in the arena, in id order. Expressions are created
     '' bottom-up by the parser, so a child always has a LOWER id than its parent and
@@ -1261,6 +1330,7 @@ function Run _
     c.info = @info
     c.st = @st
     WalkAll( c )
+    InferUnusedVarTypes_( c )
     return st.badOperands
 end function
 
