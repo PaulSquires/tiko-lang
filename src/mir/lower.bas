@@ -1215,6 +1215,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
         if handled = false then SkipStmt( c, id )
 
+    case Fbx.N_FOREACH
+        if LowerForEachArray( c, id ) = false then SkipStmt( c, id )
+
     case Fbx.N_DELETE_STMT
         if LowerDelete( c, id ) = false then SkipStmt( c, id )
 

@@ -755,9 +755,20 @@ sub WalkNode _
         '' clause is the whole difference, and it is what 'c' holds here. The
         '' counter arrives as an expression, not a declaration node, so Collect
         '' names it directly rather than waiting for a shape that never comes.
-        if ((k = Fbx.N_FOR) orelse (k = Fbx.N_FOREACH)) andalso _
-           (sp->c <> Fbx.NODE_NONE) andalso (sp->a <> Fbx.NODE_NONE) andalso _
-           (w.ast->Kind( sp->a ) = Fbx.N_IDENT) then
+        '' FOR EACH ALWAYS DECLARES ITS VARIABLE, with or without an 'as' clause:
+        '' the type is inferred from the sequence's ELEMENT. Measured -- 'for each v
+        '' in a' then 'print v' after the loop is fbc error 42, "Variable not
+        '' declared", and an outer 'v' is not disturbed. Requiring the 'as' clause
+        '' here, as the counted FOR must, left the commoner spelling undeclared and
+        '' the whole statement unlowerable.
+        dim as boolean declaresVar = (sp->c <> Fbx.NODE_NONE)
+        if k = Fbx.N_FOREACH then declaresVar = true
+        '' Hoisted to a boolean local: warning 38 fires on a mixed chain, and the
+        '' house rule is to name the condition rather than silence it.
+        dim as boolean isLoopDecl = ((k = Fbx.N_FOR) orelse (k = Fbx.N_FOREACH))
+        dim as boolean hasIdent = (sp->a <> Fbx.NODE_NONE)
+        if hasIdent then hasIdent = (w.ast->Kind( sp->a ) = Fbx.N_IDENT)
+        if isLoopDecl andalso declaresVar andalso hasIdent then
             dim as Fbx.IdentPayload ptr ip = _
                 @w.ast->idents[cast( long, w.ast->nodes[cast( long, sp->a )].data )]
             Declare_( w, inner, ip->name, Fbx.SYM_VARIABLE, w.ast->Loc( sp->a ) )

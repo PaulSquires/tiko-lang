@@ -471,4 +471,158 @@ sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = NewBlock( c, "goto.after" )
 end sub
 
+'' FOR EACH over a FIXED ARRAY.
+''
+'' Measured from fbc: it is an ordinary counted loop over the array's own bounds, with
+'' three hidden temps hoisted BEFORE the loop -- an lbound snapshot, a ubound snapshot
+'' and the induction variable -- then 'goto test' first so a zero-length array runs the
+'' body no times, and the element loaded at the top of the body.
+''
+''     TMP_lo = 0; TMP_hi = 5; TMP_i = TMP_lo; goto test
+''   body:  V = *(A + TMP_i*4);  <user body>
+''   cont:  TMP_i = TMP_i + 1
+''   test:  if TMP_i <= TMP_hi goto body
+''
+'' A NONZERO lbound keeps the counter in the array's own range and lets the ADDRESS
+'' carry the bias, which is what the ordinary subscript path already does.
+''
+'' The DYNAMIC-array form needs fb_ArrayLBound/fb_ArrayUBound and an array descriptor,
+'' which fbx does not build at all yet; it declines. So does the iterator-protocol form
+'' over a user type, which needs GetIterator/IsValid/Value/MoveNext resolved as members.
+function LowerForEachArray _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count <> 1 then return false
+    if sp->a = Fbx.NODE_NONE then return false
+    dim as Fbx.NodeId seqE = cast( Fbx.NodeId, c.ast->children[sp->first] )
+
+    dim as Fbx.TypeId at = c.info->TypeOf_( seqE )
+    if at = Fbx.TYPE_NONE then return false
+    if c.types->Kind( at ) <> Fbx.TK_ARRAY then return false
+    '' ONE DIMENSION only, and the rank comes from the RETAINED BOUNDS rather than
+    '' from a field -- the same rule ArrayStrides uses, so a type whose bounds were
+    '' dropped cannot produce a plausible loop over the wrong extent. A dynamic array
+    '' has no compile-time bounds at all and falls out here.
+    dim as boolean known0 = false
+    c.types->ArrayBound( at, 0, false, known0 )
+    if known0 = false then return false
+    dim as boolean known1 = false
+    c.types->ArrayBound( at, 1, false, known1 )
+    if known1 then return false
+    dim as long total = c.types->ElemCount( at )
+    if total <= 0 then return false
+
+    dim as Fbx.TypeId el = c.types->Inner( at )
+    dim as MirType emt = LowerType( el, *c.types )
+    if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
+    dim as long esz = c.types->Layout( el ).size
+    if esz <= 0 then return false
+
+    '' The loop VARIABLE. Its type is the element's, which Resolve bound when the
+    '' 'as T' clause was written and which the element type supplies when it was not.
+    dim as Fbx.SymbolId vs = c.info->RefOf( sp->a )
+    if vs = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr vsym = c.syms->SymbolAt( vs )
+    if vsym = 0 then return false
+    if vsym->type_ = Fbx.TYPE_NONE then vsym->type_ = el
+    dim as MirValue vaddr = LowerAddr( c, sp->a )
+    if vaddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue base_ = LowerAddr( c, seqE )
+    if base_.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirType offTy = MT_I64
+    if c.types->target.pointerBits = 32 then offTy = MT_I32
+
+    '' The induction variable, in a temporary of its own -- the loop VARIABLE holds the
+    '' element, not the index.
+    dim as long islot = NewTempLocal( c, offTy, iif( offTy = MT_I32, 4, 8 ) )
+    if islot < 0 then return false
+    dim as MirValue iaddr
+    iaddr.kind = cast( ubyte, MV_LOCAL )
+    iaddr.ty = cast( ubyte, MT_PTR )
+    iaddr.id = islot
+    dim as MirInst st0
+    st0.op = cast( ushort, M_STORE )
+    st0.ty = cast( ubyte, MT_VOID )
+    st0.a = iaddr
+    st0.b = ConstInt( c, 0, offTy )
+    Emit( c, st0 )
+
+    dim as long headB = NewBlock( c, "each.head" )
+    dim as long bodyB = NewBlock( c, "each.body" )
+    dim as long stepB = NewBlock( c, "each.step" )
+    dim as long exitB = NewBlock( c, "each.exit" )
+    Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
+
+    '' TEST FIRST, so an empty array runs the body no times.
+    c.curBlock = headB
+    dim as MirValue ix = LowerExprLoad( c, iaddr, offTy )
+    dim as MirInst cmp
+    cmp.op = cast( ushort, M_ICMP_SLT )
+    cmp.ty = cast( ubyte, MT_I8 )
+    cmp.a = ix
+    cmp.b = ConstInt( c, total, offTy )
+    dim as MirValue cond = Emit( c, cmp )
+    Terminate( c, MTERM_CONDBR, bodyB, exitB, cond )
+
+    '' The element, loaded into the loop variable at the top of the body.
+    c.curBlock = bodyB
+    dim as MirValue ix2 = LowerExprLoad( c, iaddr, offTy )
+    dim as MirValue off = ix2
+    if esz <> 1 then
+        dim as MirInst mul
+        mul.op = cast( ushort, M_MUL )
+        mul.ty = cast( ubyte, offTy )
+        mul.a = ix2
+        mul.b = ConstInt( c, esz, offTy )
+        off = Emit( c, mul )
+    end if
+    dim as MirInst pa
+    pa.op = cast( ushort, M_PTR_ADD )
+    pa.ty = cast( ubyte, MT_PTR )
+    pa.a = base_
+    pa.b = off
+    dim as MirValue ea = Emit( c, pa )
+    if ea.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue ev = LowerExprLoad( c, ea, emt )
+    dim as MirInst stv
+    stv.op = cast( ushort, M_STORE )
+    stv.ty = cast( ubyte, MT_VOID )
+    stv.a = vaddr
+    stv.b = ev
+    Emit( c, stv )
+
+    c.breakTo.Push( exitB )
+    c.contTo.Push( stepB )
+    c.loopScope.Push( c.scopeMark.Count )
+    PushScope( c )
+    LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
+    c.breakTo.Pop( )
+    c.contTo.Pop( )
+    Terminate( c, MTERM_BR, stepB, -1, NoVal( ) )
+
+    c.curBlock = stepB
+    dim as MirValue ix3 = LowerExprLoad( c, iaddr, offTy )
+    dim as MirInst add_
+    add_.op = cast( ushort, M_ADD )
+    add_.ty = cast( ubyte, offTy )
+    add_.a = ix3
+    add_.b = ConstInt( c, 1, offTy )
+    dim as MirValue nxt = Emit( c, add_ )
+    dim as MirInst st1
+    st1.op = cast( ushort, M_STORE )
+    st1.ty = cast( ubyte, MT_VOID )
+    st1.a = iaddr
+    st1.b = nxt
+    Emit( c, st1 )
+    Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
+
+    c.curBlock = exitB
+    return true
+end function
+
 end namespace

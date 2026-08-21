@@ -1142,10 +1142,44 @@ sub WalkStmt _
                 BindDeclType( c, here, ip->name, t )
             end if
         end if
-        WalkExpr( c, sp->a, here )
+        '' The SEQUENCE first, so its type is known before the variable is bound.
         for i as long = 0 to sp->count - 1
             WalkStmt( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ), here )
         next
+
+        '' FOR EACH WITH NO 'as' CLAUSE takes the sequence's ELEMENT type. Without
+        '' this the loop variable was declared and untyped, and the whole statement
+        '' declined for want of a slot to load the element into.
+        WalkExpr( c, sp->a, here )
+
+        '' Bound through the RESOLVED REFERENCE, not by looking the name up again:
+        '' the variable lives in the loop's OWN scope, which is not the scope this
+        '' walk is carrying, so a name lookup here binds nothing and the loop
+        '' variable stays untyped -- which is what it did.
+        if (k = Fbx.N_FOREACH) andalso (sp->c = Fbx.NODE_NONE) andalso _
+           (sp->count = 1) andalso (sp->a <> Fbx.NODE_NONE) then
+            dim as Fbx.SymbolId vsid = c.info->RefOf( sp->a )
+            dim as Fbx.Symbol ptr vsym = c.syms->SymbolAt( vsid )
+            if vsym <> 0 then
+                if vsym->type_ = Fbx.TYPE_NONE then
+                    '' From the sequence's SYMBOL, not from TypeOf_: an
+                    '' expression's type is CHECK's to record and Check has not run,
+                    '' so asking here returns nothing for every sequence there is.
+                    '' That is what left the variable untyped even once it was
+                    '' correctly declared.
+                    dim as Fbx.NodeId seqE = cast( Fbx.NodeId, c.ast->children[sp->first] )
+                    dim as Fbx.TypeId seqT = Fbx.TYPE_NONE
+                    dim as Fbx.Symbol ptr ssym = c.syms->SymbolAt( c.info->RefOf( seqE ) )
+                    if ssym <> 0 then seqT = ssym->type_
+                    if seqT <> Fbx.TYPE_NONE then
+                        if c.types->Kind( seqT ) = Fbx.TK_ARRAY then
+                            vsym->type_ = c.types->Inner( seqT )
+                        end if
+                    end if
+                end if
+            end if
+        end if
+
         WalkStmt( c, sp->b, here )
         return
 
