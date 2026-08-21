@@ -92,6 +92,20 @@ namespace Fbx.Mir
         '' 'free( p )' for DELETE rather than routing it through fb_*. It is cdecl on
         '' every target, so RtlLinkName must not decorate it either.
         RTL( RTL_FREE,              "free",                "v",   "p"     )
+        '' The rest of libc's allocator, reached through FreeBASIC's own built-in
+        '' procedures: 'allocate' is malloc, 'callocate' calloc, 'reallocate' realloc.
+        '' 'callocate( n )' with one argument passes an element size of 1.
+        RTL( RTL_MALLOC,            "malloc",              "p",   "z"     )
+        RTL( RTL_CALLOC,            "calloc",              "p",   "zz"    )
+        RTL( RTL_REALLOC,           "realloc",             "p",   "pz"    )
+        '' Mutexes. All four are ordinary stdcall entries on win32.
+        RTL( RTL_MUTEX_CREATE,      "fb_MutexCreate",      "p",   ""      )
+        RTL( RTL_MUTEX_DESTROY,     "fb_MutexDestroy",     "v",   "p"     )
+        RTL( RTL_MUTEX_LOCK,        "fb_MutexLock",        "v",   "p"     )
+        RTL( RTL_MUTEX_UNLOCK,      "fb_MutexUnlock",      "v",   "p"     )
+        '' fbc PREDECLARES this one -- a program may call it with no declaration in
+        '' sight, which is how the COM tests reach it through their own assert_ macro.
+        RTL( RTL_ASSERT,            "fb_Assert",           "v",   "pzpp"  )
         RTL( RTL_FILE_LINEINPUT,    "fb_FileLineInput",    "l",   "lpzl"  )
     #endmacro
 

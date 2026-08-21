@@ -472,6 +472,14 @@ function LowerCallParts _
       byval mt as MirType ) as MirValue
 
     dim as MirValue v
+
+    '' A BUILT-IN PROCEDURE binds to nothing because nothing declares it -- fbc
+    '' predeclares 'allocate', 'deallocate', the mutex four and 'fb_Assert' and lowers
+    '' each straight to a runtime call. Checked BEFORE the symbol, which is exactly
+    '' what these do not have.
+    dim as MirValue bv
+    if LowerBuiltinProc( c, calleeNode, argFirst, argCount, bv ) then return bv
+
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
     if callee = Fbx.SYMBOL_NONE then return v
     if cs = 0 then return v
@@ -1095,7 +1103,32 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             else
                 LowerStmtCall( c, id )
             end if
-            if c.f->blocks[c.curBlock].insts.Count = beforeN then
+
+            '' ASSERT AND ASSERTWARN EMIT NOTHING ON PURPOSE. Measured: without -g,
+            '' fbc evaluates neither the condition nor anything else, and its C
+            '' contains no trace of the statement. Emitting nothing is the WHOLE
+            '' lowering, so the emitted-nothing test below has to know that -- and it
+            '' is the only construct in the language for which that is true.
+            dim as boolean deliberateNoOp = false
+            if c.ast->Kind( sp->a ) = Fbx.N_CALL then
+                dim as Fbx.ListPayload ptr np = _
+                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+                if np->target <> Fbx.NODE_NONE then
+                    if c.ast->Kind( np->target ) = Fbx.N_IDENT then
+                        dim as Fbx.IdentPayload ptr nip = _
+                            @c.ast->idents[cast( long, _
+                                c.ast->nodes[cast( long, np->target )].data )]
+                        select case Fbx.Text.LowerAscii( c.names->Spelling( nip->name ) )
+                        case "assert", "assertwarn"
+                            deliberateNoOp = true
+                        end select
+                    end if
+                end if
+            end if
+
+            if deliberateNoOp then
+                '' nothing to emit, and nothing to count
+            elseif c.f->blocks[c.curBlock].insts.Count = beforeN then
                 SkipHere( c )
                 CountUnlowredCall( c, sp->a )
             end if

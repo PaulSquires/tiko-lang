@@ -418,6 +418,32 @@ private sub ScanNumber( byref s as Scanner )
     '' on a numeric-looking name are not mis-scanned.
     if (s.i < s.n) andalso (s.p[s.i] = 46) then
         dim as boolean digitNext = (s.i + 1 < s.n) andalso IsDigit( s.p[s.i + 1] )
+
+        '' '1.e+7' HAS NO DIGIT AFTER THE POINT and is still one number: measured,
+        '' fbc accepts it, and '#if 1.e+7 <> 10000000' does not fire. Requiring a digit
+        '' left '1.' as an integer and 'e' as a MEMBER ACCESS on it -- 26 corpus
+        '' statements in the two print_using tests, every one of them reported as a
+        '' member call on an untyped base, which is a long way from where the mistake
+        '' was.
+        ''
+        '' Only an exponent is accepted here, not fbc's full rule: fbc also reads
+        '' '1.f' as a SINGLE-suffixed literal ('1.foo' is error 3, "found 'oo'"), and
+        '' widening this that far without measuring the suffix set would put the
+        '' lexer's most delicate decision on a guess.
+        if digitNext = false then
+            dim as long k = s.i + 1
+            if k < s.n then
+                dim as ubyte ec = s.p[k]
+                if (ec = 69) orelse (ec = 101) orelse (ec = 68) orelse (ec = 100) then
+                    dim as long m = k + 1
+                    if m < s.n then
+                        if (s.p[m] = 43) orelse (s.p[m] = 45) then m += 1
+                    end if
+                    if (m < s.n) andalso IsDigit( s.p[m] ) then digitNext = true
+                end if
+            end if
+        end if
+
         if digitNext then
             isFloat = true
             s.i += 1

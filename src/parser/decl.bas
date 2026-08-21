@@ -465,9 +465,18 @@ private function ParseProc _
 
     '' The qualification can follow the generic arguments:
     '' 'sub SetIterator( of T ).MoveNext( )'. Check again after them.
+    ''
+    '' AND IT MUST RECORD THE OWNER, exactly as the loop above does. Without that
+    '' line 'sub Array( of T ).Push( )' had no ownerName, so Collect opened the body's
+    '' scope under the MODULE instead of under the type, BindThis found no enclosing
+    '' SCOPEK_TYPE, and 'this' stayed untyped -- every 'this.Reserve( ... )' inside a
+    '' generic method was an unlowered call with an untyped base. Two of them per file
+    '' for anything that merely includes fb/array.bi.
     while Peek( p ) = Fbx.TK_DOT
         Advance( p )
         qualified = true
+        sp.ownerName = sp.name
+        sp.rawName = RawSpelling( p )
         DeclName( p, sp.name )
     wend
 

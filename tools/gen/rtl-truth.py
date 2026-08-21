@@ -100,6 +100,22 @@ sub D( )
     delete p
 end sub
 ''',
+    # FreeBASIC's BUILT-IN PROCEDURES. fbc predeclares these and lowers each straight
+    # to a runtime call -- 'allocate' is libc malloc, the mutex four are fb_Mutex*, and
+    # fb_Assert is reachable with nothing declaring it at all.
+    "builtins": '''
+sub B( )
+    dim as any ptr p = allocate( 16 )
+    dim as any ptr q = callocate( 4, 8 )
+    dim as any ptr r = reallocate( p, 32 )
+    deallocate( q )
+    dim as any ptr m = mutexcreate( )
+    mutexlock( m )
+    mutexunlock( m )
+    mutexdestroy( m )
+    fb_Assert( __FILE__, __LINE__, __FUNCTION__, "e" )
+end sub
+''',
     # CLOSE with no operand closes every open file, which is its own entry point.
     # ERROR raises a runtime error; its return value is the address of the installed
     # handler, so its signature is only visible where fbc emits the call.

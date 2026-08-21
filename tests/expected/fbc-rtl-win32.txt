@@ -2,6 +2,7 @@ calloc	void*	uint32, uint32	lib	_calloc
 fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	_fb_ArrayErase@4
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimEx
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimPresvEx
+fb_Assert	void	char*, int32, char*, char*	lib	_fb_Assert@16
 fb_End	void	int32	lib	_fb_End@4
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	_fb_ErrorThrowEx
 fb_FileClose	int32	int32	lib	_fb_FileClose@4
@@ -11,6 +12,10 @@ fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	_fb_FileOp
 fb_Init	void	int32, char**, int32	lib	_fb_Init@12
 fb_LEFT	FBSTRING*	FBSTRING*, int32	lib	_fb_LEFT@8
 fb_MemSwap	void	void*, void*, int32	lib	_fb_MemSwap@12
+fb_MutexCreate	void*	void	lib	_fb_MutexCreate@0
+fb_MutexDestroy	void	void*	lib	_fb_MutexDestroy@4
+fb_MutexLock	void	void*	lib	_fb_MutexLock@4
+fb_MutexUnlock	void	void*	lib	_fb_MutexUnlock@4
 fb_PrintBool	void	int32, boolean, int32	lib	_fb_PrintBool@12
 fb_PrintByte	void	int32, int8, int32	lib	_fb_PrintByte@12
 fb_PrintDouble	void	int32, double, int32	lib	_fb_PrintDouble@16
@@ -37,3 +42,5 @@ fb_StrSwap	void	void*, int32, int32, void*, int32, int32	lib	_fb_StrSwap@24
 fb_VALINT	int32	FBSTRING*	lib	_fb_VALINT@4
 fb_WstrSwap	void	uint16*, int32, uint16*, int32	lib	_fb_WstrSwap@16
 free	void	void*	lib	_free
+malloc	void*	uint32	lib	_malloc
+realloc	void*	void*, uint32	lib	_realloc

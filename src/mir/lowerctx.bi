@@ -163,6 +163,9 @@ declare function EmitRtl _
     declare function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerBuiltinProc _
+        ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval argFirst as long, _
+          byval argCount as long, byref outv as MirValue ) as boolean
     declare function LowerProcPtr _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerArrayInit _

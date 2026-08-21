@@ -604,4 +604,92 @@ end function
 '' have to reach the same code. 'W( 1, 2 )' is an N_CALL with its arguments in a list;
 '' 'W 1, 2' is a STATEMENT whose 'a' is the callee and whose children are the arguments.
 
+'' FreeBASIC's BUILT-IN PROCEDURES -- the ones fbc predeclares and lowers straight to a
+'' runtime call. They are not keywords and not in the intrinsic registry: a program
+'' names them like any other procedure, nothing declares them, and fbx counted every
+'' one as an unbound callee.
+''
+'' Measured from fbc's own C:
+''
+''     allocate( 16 )        -> malloc( 16ull )
+''     callocate( 4, 8 )     -> calloc( 4ull, 8ull )
+''     callocate( 16 )       -> calloc( 16ull, 1ull )     one argument means size 1
+''     reallocate( p, 32 )   -> realloc( p, 32ull )
+''     deallocate( p )       -> free( p )
+''     mutexcreate( )        -> fb_MutexCreate( )
+''     mutexlock( m )        -> fb_MutexLock( m )
+''     fb_Assert( f, l, p, e ) -> fb_Assert( char*, int64, char*, char* )
+''
+'' fb_Assert is in the list because fbc predeclares it too: the COM tests write their
+'' own 'assert_' macro around it with nothing declaring it anywhere, and fbc compiles
+'' them. 2,054 unlowered calls came from that one macro.
+private function BuiltinProcRtl _
+    ( byref nm as string, byref argc as long, byref retTy as MirType ) as RtlId
+
+    select case nm
+    case "allocate"     : retTy = MT_PTR  : return RTL_MALLOC
+    case "callocate"    : retTy = MT_PTR  : return RTL_CALLOC
+    case "reallocate"   : retTy = MT_PTR  : return RTL_REALLOC
+    case "deallocate"   : retTy = MT_VOID : return RTL_FREE
+    case "mutexcreate"  : retTy = MT_PTR  : return RTL_MUTEX_CREATE
+    case "mutexdestroy" : retTy = MT_VOID : return RTL_MUTEX_DESTROY
+    case "mutexlock"    : retTy = MT_VOID : return RTL_MUTEX_LOCK
+    case "mutexunlock"  : retTy = MT_VOID : return RTL_MUTEX_UNLOCK
+    case "fb_assert"    : retTy = MT_VOID : return RTL_ASSERT
+    end select
+    return RTL_NONE
+end function
+
+'' Lower a call to one of them. Returns false when the callee is not a built-in, so an
+'' ordinary unbound callee still declines as it did.
+function LowerBuiltinProc _
+    ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval argFirst as long, _
+      byval argCount as long, byref outv as MirValue ) as boolean
+
+    if calleeNode = Fbx.NODE_NONE then return false
+    if c.ast->Kind( calleeNode ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    '' ASSERT AND ASSERTWARN EMIT NOTHING, and their argument is NOT EVALUATED.
+    '' Measured by running fbc's output: without -g, 'assert( f( ) = 1 )' where f
+    '' prints does not print, and no fb_Assert appears in the generated C at all. fbx
+    '' has no -g equivalent and defines __FB_DEBUG__ as 0, so this is fbc's behaviour
+    '' for every build fbx can produce. Declining instead was 1,346 statements.
+    if (nm = "assert") orelse (nm = "assertwarn") then
+        outv = NoVal( )
+        return true
+    end if
+
+    dim as long argc = argCount
+    dim as MirType retTy = MT_VOID
+    dim as RtlId r = BuiltinProcRtl( nm, argc, retTy )
+    if r = RTL_NONE then return false
+
+    '' The declared arity, so a wrong-arity call is left to decline rather than being
+    '' handed to the runtime with a short stack.
+    dim as long want = RtlArity( r )
+    dim as boolean callocOneArg = (r = RTL_CALLOC) andalso (argCount = 1)
+    if (argCount <> want) andalso (callocOneArg = false) then return false
+
+    dim as FB.Array( of ulong ) args
+    for i as long = 0 to argCount - 1
+        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
+        dim as MirValue av = LowerExpr( c, a )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        av = Coerce( c, av, RtlParamType( r, i, (c.types->target.pointerBits = 32) ), _
+                     IsUnsignedType( c, c.info->TypeOf_( a ) ) )
+        args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    next
+    '' 'callocate( n )' -- fbc supplies the element size itself.
+    if callocOneArg then
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )
+    end if
+
+    outv = EmitRtl( c, r, args )
+    if retTy = MT_VOID then return true
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 end namespace
