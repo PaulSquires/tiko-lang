@@ -28,5 +28,5 @@ lowered: 2 functions, 2 blocks, 11 insts, 2 statements not lowered, 0 scope imba
   inside N_INTRINSIC 1
   inside N_VAR 1
   unlowered intrinsic KW_PRINT 1
-  skip-site src\mir\lower.bas:992 1
+  skip-site src\mir\lower.bas:1014 1
   skip-site src\mir\lowerctl.bas:128 1

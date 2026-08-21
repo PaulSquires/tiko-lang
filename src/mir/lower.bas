@@ -350,6 +350,28 @@ function LowerExpr _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         return LowerAddr( c, ap->operand )
 
+    case Fbx.N_INDEX
+        '' 'p[i]' reads through the computed element address. Check does not type an
+        '' N_INDEX, so the load's type comes from the POINTEE when the caller has not
+        '' asked for one -- without it the load carried MT_VOID, was refused by Emit
+        '' and declined, which is how 'dim as integer v = p[1]' still emitted nothing
+        '' after the address itself was lowering correctly.
+        dim as MirType imt = mt
+        if imt = MT_VOID then
+            dim as Fbx.ListPayload ptr xp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            dim as Fbx.TypeId xt = c.info->TypeOf_( xp->target )
+            if xt <> Fbx.TYPE_NONE then
+                if c.types->Kind( xt ) = Fbx.TK_POINTER then
+                    imt = LowerType( c.types->Inner( xt ), *c.types )
+                end if
+            end if
+        end if
+        if imt = MT_VOID then return v
+        dim as MirValue ia = LowerAddr( c, id )
+        if ia.kind = cast( ubyte, MV_NONE ) then return v
+        return LowerExprLoad( c, ia, imt )
+
     case Fbx.N_DEREF
         '' '*p' is a LOAD THROUGH the pointer. LowerAddr already knows the shape --
         '' the address is the pointer's VALUE -- so this is the load around it.

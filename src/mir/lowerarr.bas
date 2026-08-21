@@ -17,6 +17,9 @@
 
 namespace Fbx.Mir
 
+'' Defined below; LowerAddr above it needs the name.
+declare function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+
 declare function ArrayStrides _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref strides as FB.Array( of longint ), _
       byref bias as longint ) as boolean
@@ -109,10 +112,70 @@ function LowerAddr _
     '' A subscript is spelled as a call, so it is recognised by the callee's TYPE.
     if IsArrayIndex( c, id ) then return LowerArrayIndex( c, id )
 
+    '' '[ ]' is a separate node and only ever pointer indexing in -lang fb.
+    if c.ast->Kind( id ) = Fbx.N_INDEX then return LowerPtrIndex( c, id )
+
     if c.ast->Kind( id ) <> Fbx.N_IDENT then return v
     dim as Fbx.SymbolId sid = c.info->RefOf( id )
     if sid = Fbx.SYMBOL_NONE then return v
     return AddrOfVar( c, sid )
+end function
+
+'' 'p[i]' -- POINTER INDEXING, which is '*(p + i)' scaled by the pointee's size. There
+'' was no N_INDEX case in lowering at all, so every one of these produced nothing: a
+'' read declined, and a write through 'p[i] = x' stored nowhere.
+''
+'' It is the same shape as an array subscript, minus the bounds: the base is the
+'' pointer's VALUE rather than its address, there is one index, and the stride is the
+'' pointee's size. fbc computes it the same way.
+function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+    dim as MirValue none_
+    if c.ast->Kind( id ) <> Fbx.N_INDEX then return none_
+    dim as Fbx.ListPayload ptr sp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->count <> 1 then return none_
+    if sp->target = Fbx.NODE_NONE then return none_
+
+    dim as Fbx.TypeId pt = c.info->TypeOf_( sp->target )
+    if pt = Fbx.TYPE_NONE then return none_
+    if c.types->Kind( pt ) <> Fbx.TK_POINTER then return none_
+    dim as Fbx.TypeId el = c.types->Inner( pt )
+    if el = Fbx.TYPE_NONE then return none_
+    dim as long esz = c.types->Layout( el ).size
+    dim as long ui = c.udts->Find( el )
+    if ui >= 0 then esz = c.udts->udts[ui].size
+    if esz <= 0 then return none_
+
+    '' The POINTER'S VALUE is the base -- not its address, which is where the pointer
+    '' variable lives.
+    dim as MirValue base_ = LowerExpr( c, sp->target )
+    if base_.kind = cast( ubyte, MV_NONE ) then return none_
+
+    dim as MirType offTy = MT_I64
+    if c.types->target.pointerBits = 32 then offTy = MT_I32
+
+    dim as Fbx.NodeId ix = cast( Fbx.NodeId, c.ast->children[sp->first] )
+    dim as MirValue iv = LowerExpr( c, ix )
+    if iv.kind = cast( ubyte, MV_NONE ) then return none_
+    iv = Coerce( c, iv, offTy, IsUnsignedType( c, c.info->TypeOf_( ix ) ) )
+
+    dim as MirValue term = iv
+    if esz <> 1 then
+        dim as MirInst mul
+        mul.op = cast( ushort, M_MUL )
+        mul.ty = cast( ubyte, offTy )
+        mul.a = iv
+        mul.b = ConstInt( c, esz, offTy )
+        term = Emit( c, mul )
+        if term.kind = cast( ubyte, MV_NONE ) then return none_
+    end if
+
+    dim as MirInst pa
+    pa.op = cast( ushort, M_PTR_ADD )
+    pa.ty = cast( ubyte, MT_PTR )
+    pa.a = base_
+    pa.b = term
+    return Emit( c, pa )
 end function
 
 '' Whether an N_CALL is really a subscript: FreeBASIC spells indexing and calling the
