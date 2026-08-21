@@ -129,7 +129,12 @@ function DumpModule _
     '' added.
     for i as long = 0 to m.globals.Count - 1
         if m.globals[i].isString then
-            outp += "global str " & names.Spelling( m.globals[i].name ) & " " & _
+            '' A wide literal prints its SOURCE text with an L prefix, the way the
+            '' source spells it. Printing the widened bytes would put embedded NULs
+            '' in the dump.
+            dim as string pfx = "global str "
+            if m.globals[i].isWide then pfx = "global wstr "
+            outp += pfx & names.Spelling( m.globals[i].name ) & " " & _
                     chr( 34 ) & m.globals[i].bytes & chr( 34 ) & chr( 10 )
         elseif m.globals[i].isVar then
             '' A DIM SHARED variable. The initialiser is part of the definition, the

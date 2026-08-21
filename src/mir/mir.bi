@@ -221,6 +221,10 @@ namespace Fbx.Mir
         as InternId name
         as string   bytes          '' the literal's contents, NUL not included
         as boolean  isString
+        '' A WIDE literal. 'bytes' still holds the SOURCE text; the width is applied
+        '' when the bytes are emitted, because wchar is 2 bytes on Windows and 4 on
+        '' Linux and baking one in here would make the IR target-specific.
+        as boolean  isWide
         as boolean  isVar
         as ubyte    ty             '' MirType, isVar only
         as Fbx.TypeId frontendType
@@ -244,6 +248,8 @@ namespace Fbx.Mir
             ( byval nm as InternId, byval retTy as MirType ) as MirFunction ptr
         '' Identical literals share one global, which is smaller and is what fbc
         '' does -- two occurrences of the same text are one datum.
+        declare function AddWideStringLiteral _
+            ( byref text as string, byref names as Interner ) as long
         declare function AddStringLiteral _
             ( byref text as string, byref names as Interner ) as long
         '' A DIM SHARED variable. Unlike a literal these are never merged: two

@@ -921,6 +921,20 @@ function LowerWstrOf _
     if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "wstr" then return false
 
     dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[lp->first] )
+
+    '' A STRING LITERAL is FOLDED, not converted. Measured: fbc emits L"abc" and no
+    '' call at all -- 'wstr( "  ab  " )' becomes '(uint16*)L"  ab  "'. Sending it
+    '' through fb_StrToWstr would have needed a descriptor the literal does not have,
+    '' which is why this declined: 2,496 corpus statements, all of them
+    '' 'dim w as wstring * 50 = trim( wstr( "..." ) )' and its relatives.
+    if c.ast->Kind( a ) = Fbx.N_STRING_LIT then
+        dim as string wlit = StringLitText_( c, a )
+        outv.kind = cast( ubyte, MV_GLOBAL )
+        outv.ty = cast( ubyte, MT_PTR )
+        outv.id = c.m->AddWideStringLiteral( wlit, *c.names )
+        return true
+    end if
+
     dim as Fbx.TypeId at = c.info->TypeOf_( a )
     if at = Fbx.TYPE_NONE then return false
 

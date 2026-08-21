@@ -98,22 +98,18 @@ function LowerWideAssignTo _
     '' than inside it: these callees are unbound, so TypeOf_ on the call is empty and a
     '' type-first test would never reach them. The recogniser keys off the shape and
     '' the FIRST ARGUMENT's type instead.
+    '' A WIDE source goes through fb_WstrAssign, whether it is a variable, a
+    '' 'wstr( x )' temporary or a 'trim( ... )' result. This is tried BEFORE the type
+    '' tests: those callees are unbound, so TypeOf_ on the call is empty and a
+    '' type-first test would never reach them.
     dim as MirValue rv
-    if LowerWideRvalue( c, value, rv ) then
+    if WideOperand_( c, value, rv ) then
         args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
         EmitRtl( c, RTL_WSTR_ASSIGN, args )
         return true
     end if
 
-    '' A WIDE source goes through fb_WstrAssign; anything narrow through FromA.
     dim as Fbx.TypeId st = c.info->TypeOf_( value )
-    if WideStringElems( c, st ) > 0 then
-        dim as MirValue src = LowerAddr( c, value )
-        if src.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-        EmitRtl( c, RTL_WSTR_ASSIGN, args )
-        return true
-    end if
 
     if c.ast->Kind( value ) = Fbx.N_STRING_LIT then
         dim as string lit = StringLitText_( c, value )
@@ -216,6 +212,30 @@ end function
 
 
 
+'' A WIDE OPERAND as a bare uint16* value, however it is spelled.
+''
+'' Three shapes, tried in order, because a wide string has no descriptor and every one
+'' of them ends as the same kind of pointer:
+''
+''     an addressable wide variable      @w
+''     'wstr( x )'                       the temporary it builds
+''     'trim( ... )' and its family      the temporary the runtime returns
+''
+'' Only the first was accepted before, so 'dim wr as wstring * 50 = trim( wstr(t) )'
+'' declined -- 2,496 statements across four corpus files, all of them this one shape.
+function WideOperand_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if WideStringElems( c, c.info->TypeOf_( id ) ) > 0 then
+        outv = LowerAddr( c, id )
+        if outv.kind <> cast( ubyte, MV_NONE ) then return true
+    end if
+    if LowerWstrOf( c, id, outv ) then return true
+    if LowerWideRvalue( c, id, outv ) then return true
+    return false
+end function
+
+
 '' THE WIDE SUBSTRING AND TRIM FAMILY, as an RVALUE.
 ''
 '' Each of these returns a bare uint16* -- there is no descriptor, which is what makes
@@ -250,9 +270,8 @@ function LowerWideRvalue _
     '' The FIRST argument decides: these names are all overloaded on narrow strings
     '' too, and only the wide overload is lowered here.
     dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
-    if WideStringElems( c, c.info->TypeOf_( a0 ) ) = 0 then return false
-    dim as MirValue s0 = LowerAddr( c, a0 )
-    if s0.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue s0
+    if WideOperand_( c, a0, s0 ) = false then return false
 
     '' The second argument, unwrapped from 'any' if it carries one.
     dim as Fbx.NodeId a1 = Fbx.NODE_NONE
@@ -322,9 +341,8 @@ function LowerWideRvalue _
 
     if a1 <> Fbx.NODE_NONE then
         if secondIsWide then
-            if WideStringElems( c, c.info->TypeOf_( a1 ) ) = 0 then return false
-            dim as MirValue s1 = LowerAddr( c, a1 )
-            if s1.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue s1
+            if WideOperand_( c, a1, s1 ) = false then return false
             args.Push( cast( ulong, s1.kind ) ) : args.Push( cast( ulong, s1.id ) )
         else
             '' left/right/mid take a 64-bit COUNT; the source expression is whatever

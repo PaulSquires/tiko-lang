@@ -226,6 +226,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function LowerWideToNarrow _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    declare function WideOperand_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideRvalue _
         ( byref c as Ctx, byval value as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideAssignTo _

@@ -24,11 +24,35 @@ function MirModule.AddFunction _
     return f
 end function
 
+'' A WIDE string literal.
+''
+'' Measured: fbc folds 'wstr( "abc" )' at COMPILE TIME into L"abc" and emits no call
+'' at all -- not fb_StrToWstr on the literal's bytes. Kept separate from the narrow
+'' pool because a narrow and a wide literal of the same text are different objects.
+function MirModule.AddWideStringLiteral _
+    ( byref text as string, byref names as Interner ) as long
+
+    for i as long = 0 to this.globals.Count - 1
+        if this.globals[i].isString andalso this.globals[i].isWide andalso _
+           (this.globals[i].bytes = text) then
+            return i
+        end if
+    next
+    dim as MirGlobal g
+    g.bytes = text
+    g.isString = true
+    g.isWide = true
+    g.name = names.GetString( "$wstr" & str( this.globals.Count ) )
+    this.globals.Push( g )
+    return this.globals.Count - 1
+end function
+
 function MirModule.AddStringLiteral _
     ( byref text as string, byref names as Interner ) as long
 
     for i as long = 0 to this.globals.Count - 1
-        if this.globals[i].isString andalso (this.globals[i].bytes = text) then
+        if this.globals[i].isString andalso (this.globals[i].isWide = false) andalso _
+           (this.globals[i].bytes = text) then
             return i
         end if
     next
