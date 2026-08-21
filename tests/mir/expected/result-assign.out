@@ -1,3 +1,4 @@
+global str $str0 "s"
 func i64 A() {
   local i64 $tmp0
   entry0:
@@ -44,10 +45,23 @@ func void E() {
   entry0:
     ret
 }
-func agg G() {
+func ptr G() {
+  local agg $tmp0 size 24
   entry0:
-    ret
+    %1 = alloca ptr $tmp0
+    %2 = field.addr @$tmp0, 0
+    store %2, 0
+    %3 = field.addr @$tmp0, 8
+    store %3, 0
+    %4 = field.addr @$tmp0, 16
+    store %4, 0
+    %5 = bitcast @@$str0
+    %6 = trunc %5
+    store @$tmp0, %6
+    %7 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
+    ret %7
 }
+declare ptr fb_StrAllocTempResult($0)
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -74,11 +88,8 @@ declare void fb_PrintLongint($0, $1, $2)
 declare void fb_PrintDouble($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 7 functions, 7 blocks, 38 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 49 insts, 1 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 1
-  inside N_AMBIGUOUS 1
   inside N_INTRINSIC 1
   unlowered intrinsic KW_PRINT 1
-  amb result-noslot 1
-  skip-site src\mir\lower.bas:1070 1
   skip-site src\mir\lowerctl.bas:128 1

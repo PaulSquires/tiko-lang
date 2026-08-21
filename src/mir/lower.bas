@@ -248,7 +248,6 @@ declare function LowerCall _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
 declare sub LowerIf _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr )
-declare sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
 declare sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
 
 function BinOpFor _
@@ -1250,6 +1249,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         '' 'function = 7 : return' is 7. Loaded only in that case: reading the slot
         '' unconditionally emitted a load every explicit 'return expr' then discarded,
         '' which the golden caught as four dead instructions.
+        '' A STRING RESULT does not leave as a value: it is BUILT in the result
+        '' descriptor and handed to fb_StrAllocTempResult on the way out, which is
+        '' what fbc emits. 'return "hi"' is therefore an ASSIGNMENT into the result
+        '' slot followed by that call -- returning the literal directly would hand
+        '' back a pointer to static text where the caller expects a descriptor.
+        if LowerStringReturn( c, sp->a ) then return
+
         dim as MirValue rv
         if sp->a <> Fbx.NODE_NONE then
             rv = LowerExpr( c, sp->a )
@@ -1333,45 +1339,6 @@ private sub LowerIf _
     if sp->c <> Fbx.NODE_NONE then LowerBlock( c, sp->c )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
     c.curBlock = joinB
-end sub
-
-private sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    dim as ushort flags = c.ast->nodes[cast( long, id )].flags
-    dim as boolean postCond = ((flags and Fbx.NF_POST_COND) <> 0)
-    dim as boolean isUntil = ((flags and Fbx.NF_UNTIL) <> 0)
-
-    dim as long headB = NewBlock( c, "do.head" )
-    dim as long bodyB = NewBlock( c, "do.body" )
-    dim as long exitB = NewBlock( c, "do.exit" )
-    Terminate( c, MTERM_BR, iif( postCond, bodyB, headB ), -1, NoVal( ) )
-
-    c.curBlock = headB
-    if sp->a <> Fbx.NODE_NONE then
-        dim as MirValue cond = LowerExpr( c, sp->a )
-        '' UNTIL is the same test with the arms swapped, which is cheaper than
-        '' emitting a negation and is exactly what fbc's own lowering does.
-        if isUntil then
-            Terminate( c, MTERM_CONDBR, exitB, bodyB, cond )
-        else
-            Terminate( c, MTERM_CONDBR, bodyB, exitB, cond )
-        end if
-    else
-        Terminate( c, MTERM_BR, bodyB, -1, NoVal( ) )
-    end if
-
-    c.curBlock = bodyB
-    c.breakTo.Push( exitB )
-    c.contTo.Push( headB )
-    c.loopScope.Push( c.scopeMark.Count )
-    PushScope( c )
-    LowerBlock( c, sp->b )
-    CloseScope( c )
-    c.loopScope.Pop( )
-    c.breakTo.Pop( )
-    c.contTo.Pop( )
-    Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
-    c.curBlock = exitB
 end sub
 
 private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )

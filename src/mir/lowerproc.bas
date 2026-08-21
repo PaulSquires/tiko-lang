@@ -26,7 +26,15 @@ sub LowerProc _
     dim as Fbx.InternId nm = c.names->GetString( _
         Fbx.Mangle.ProcName( *c.ast, id, *c.syms, *c.names, *c.types, *c.info ) )
 
-    dim as MirFunction ptr f = c.m->AddFunction( nm, LowerType( rt, *c.types ) )
+    '' A STRING-RETURNING FUNCTION RETURNS A POINTER. fbc's own C says so --
+    '' 'FBSTRING* F( void )' -- because the value leaves through
+    '' fb_StrAllocTempResult, not as the descriptor itself. Declaring it 'agg' would
+    '' put a type on the function that its own 'ret' contradicts.
+    dim as MirType declRet = LowerType( rt, *c.types )
+    if rt <> Fbx.TYPE_NONE then
+        if IsStringType( c, rt ) then declRet = MT_PTR
+    end if
+    dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
     f->isDefinition = true
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
@@ -118,6 +126,35 @@ sub LowerProc _
     dim as MirType rmt = LowerType( rt, *c.types )
     dim as boolean scalarResult = (rt <> Fbx.TYPE_NONE) andalso (rmt <> MT_VOID) andalso _
                                   (rmt <> MT_AGG)
+
+    '' A STRING RESULT is an aggregate, but not one that needs a hidden pointer: fbc
+    '' builds it in a LOCAL DESCRIPTOR and returns what fb_StrAllocTempResult gives
+    '' back for it.
+    ''
+    ''     FBSTRING fb$result;  memset( &fb$result, 0, 24 );
+    ''     fb_StrInit( &fb$result, -1, "hi", 3, 0 );
+    ''     return fb_StrAllocTempResult( &fb$result );
+    ''
+    '' So the slot IS a descriptor and 'function = expr' is an ordinary string
+    '' assignment into it -- which is why this one can be modelled where the UDT
+    '' return, whose value really does come back through a hidden pointer, cannot.
+    dim as boolean stringResult = false
+    if (rt <> Fbx.TYPE_NONE) andalso (scalarResult = false) then
+        stringResult = IsStringType( c, rt )
+    end if
+    if stringResult then
+        c.resultSlot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultType = rt
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL )
+        sa.ty = cast( ubyte, MT_PTR )
+        sa.id = c.resultSlot
+        '' The descriptor must be ZEROED before anything registers a delete for it,
+        '' exactly as a string local is.
+        ZeroStrDescriptor( c, sa )
+    end if
+
     if scalarResult then
         c.resultSlot = NewTempLocal( c, rmt, c.types->Layout( rt ).size )
         c.resultTy = cast( ubyte, rmt )
@@ -208,7 +245,19 @@ sub LowerProc _
     end if
     '' A function whose last block has no terminator falls off the end; FreeBASIC
     '' allows that and returns the result variable, so an explicit RET closes it.
-    Terminate( c, MTERM_RET, -1, -1, LoadResult( c ) )
+    '' A STRING result leaves through the runtime, not as a load of the slot.
+    if (c.resultSlot >= 0) andalso (c.resultTy = cast( ubyte, MT_AGG )) then
+        dim as MirValue ra2
+        ra2.kind = cast( ubyte, MV_LOCAL )
+        ra2.ty = cast( ubyte, MT_PTR )
+        ra2.id = c.resultSlot
+        dim as FB.Array( of ulong ) rargs
+        rargs.Push( cast( ulong, ra2.kind ) ) : rargs.Push( cast( ulong, ra2.id ) )
+        dim as MirValue rv2 = EmitRtl( c, RTL_STR_TEMP_RESULT, rargs )
+        Terminate( c, MTERM_RET, -1, -1, rv2 )
+    else
+        Terminate( c, MTERM_RET, -1, -1, LoadResult( c ) )
+    end if
 
     '' EVERY block must have a terminator, not just the last one. A block created for
     '' a label the lowering never reached -- a forward GOTO into a statement that was
@@ -420,6 +469,34 @@ function Lower _
     WalkTop( c, root )
     LowerMainModule( c, root )
     return st.functions
+end function
+
+'' 'return expr' out of a STRING-RETURNING function. Returns false when this is not
+'' one, so the ordinary RETURN carries on.
+''
+'' The value does not leave as a value: it is BUILT in the result descriptor and handed
+'' to fb_StrAllocTempResult on the way out, which is what fbc emits. Returning the
+'' expression directly would hand back a pointer to static text where the caller expects
+'' a descriptor.
+function LowerStringReturn( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
+    if c.resultSlot < 0 then return false
+    if c.resultTy <> cast( ubyte, MT_AGG ) then return false
+
+    if valueE <> Fbx.NODE_NONE then
+        if LowerStringAssignToSlot( c, c.resultSlot, valueE ) = false then SkipHere( c )
+    end if
+    '' A RETURN leaves every open scope, so their actions run before the terminator.
+    EmitCleanupsTo( c, 0 )
+
+    dim as MirValue rsa
+    rsa.kind = cast( ubyte, MV_LOCAL )
+    rsa.ty = cast( ubyte, MT_PTR )
+    rsa.id = c.resultSlot
+    dim as FB.Array( of ulong ) rr
+    rr.Push( cast( ulong, rsa.kind ) ) : rr.Push( cast( ulong, rsa.id ) )
+    Terminate( c, MTERM_RET, -1, -1, EmitRtl( c, RTL_STR_TEMP_RESULT, rr ) )
+    c.curBlock = -1
+    return true
 end function
 
 end namespace

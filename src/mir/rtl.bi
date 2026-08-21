@@ -93,6 +93,10 @@ namespace Fbx.Mir
         RTL( RTL_STR_MID,           "fb_StrMid",           "p",   "pzz"   )
         RTL( RTL_STR_LEFT,          "fb_LEFT",             "p",   "pz"    )
         RTL( RTL_STR_TEMPZ,         "fb_StrAllocTempDescZEx", "p",  "pz"  )
+        '' A STRING RESULT. fbc builds the value in a local descriptor and hands the
+        '' runtime that descriptor on the way out; what the function actually returns
+        '' is the POINTER this gives back, not the descriptor itself.
+        RTL( RTL_STR_TEMP_RESULT,   "fb_StrAllocTempResult", "p",   "p"     )
         RTL( RTL_VALINT,            "fb_VALINT",           "l",   "p"     )
         '' PRINT has NO generic entry point: every scalar type has its own, and the
         '' third argument is a SEPARATOR MASK -- 0 nothing, 1 newline, 2 tab --

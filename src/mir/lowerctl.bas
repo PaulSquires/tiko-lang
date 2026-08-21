@@ -625,4 +625,44 @@ function LowerForEachArray _
     return true
 end function
 
+sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as ushort flags = c.ast->nodes[cast( long, id )].flags
+    dim as boolean postCond = ((flags and Fbx.NF_POST_COND) <> 0)
+    dim as boolean isUntil = ((flags and Fbx.NF_UNTIL) <> 0)
+
+    dim as long headB = NewBlock( c, "do.head" )
+    dim as long bodyB = NewBlock( c, "do.body" )
+    dim as long exitB = NewBlock( c, "do.exit" )
+    Terminate( c, MTERM_BR, iif( postCond, bodyB, headB ), -1, NoVal( ) )
+
+    c.curBlock = headB
+    if sp->a <> Fbx.NODE_NONE then
+        dim as MirValue cond = LowerExpr( c, sp->a )
+        '' UNTIL is the same test with the arms swapped, which is cheaper than
+        '' emitting a negation and is exactly what fbc's own lowering does.
+        if isUntil then
+            Terminate( c, MTERM_CONDBR, exitB, bodyB, cond )
+        else
+            Terminate( c, MTERM_CONDBR, bodyB, exitB, cond )
+        end if
+    else
+        Terminate( c, MTERM_BR, bodyB, -1, NoVal( ) )
+    end if
+
+    c.curBlock = bodyB
+    c.breakTo.Push( exitB )
+    c.contTo.Push( headB )
+    c.loopScope.Push( c.scopeMark.Count )
+    PushScope( c )
+    LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
+    c.breakTo.Pop( )
+    c.contTo.Pop( )
+    Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
+    c.curBlock = exitB
+end sub
+
+
 end namespace

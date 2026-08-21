@@ -1244,12 +1244,32 @@ private sub StoreThrough _
     Emit( c, ins )
 end sub
 
+'' A string assignment whose destination is a SLOT rather than an expression: the
+'' result descriptor of a string-returning function, which no source node names.
+function LowerStringAssignToSlot _
+    ( byref c as Ctx, byval slot as long, byval value as Fbx.NodeId ) as boolean
+    if slot < 0 then return false
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+    return LowerStringAssignTo( c, dst, Fbx.NODE_NONE, value )
+end function
+
 function LowerStringAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
 
     if IsStringType( c, c.info->TypeOf_( target ) ) = false then return false
     dim as MirValue dst = LowerAddr( c, target )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
+    return LowerStringAssignTo( c, dst, target, value )
+end function
+
+'' The body of both: 'target' is only needed to spot a self-reference in the chain and
+'' may be NODE_NONE when the destination is a slot with no node of its own.
+function LowerStringAssignTo _
+    ( byref c as Ctx, byref dst as MirValue, byval target as Fbx.NodeId, _
+      byval value as Fbx.NodeId ) as boolean
 
     '' A '+' chain is flattened and emitted as ONE assign followed by concat-assigns,
     '' which is exactly what fbc does: 'a = b + c' is fb_StrAssign(a,b) then
@@ -1261,16 +1281,22 @@ function LowerStringAssign _
     '' in place: 'a = b + a' would overwrite a before reading it. fbc builds such a
     '' chain in a temporary and assigns from that.
     dim as boolean needsTemp = false
-    for i as long = 1 to terms.Count - 1
-        if SameLValue( c, target, cast( Fbx.NodeId, terms[i] ) ) then needsTemp = true
-    next
+    if target <> Fbx.NODE_NONE then
+        for i as long = 1 to terms.Count - 1
+            if SameLValue( c, target, cast( Fbx.NodeId, terms[i] ) ) then needsTemp = true
+        next
+    end if
     if needsTemp then return LowerConcatViaTemp( c, dst, terms )
 
     '' The first term is assigned, every later one concatenated onto it. When the
     '' destination IS the first term, the assign is a self-assignment and is skipped.
     for i as long = 0 to terms.Count - 1
         dim as Fbx.NodeId term = cast( Fbx.NodeId, terms[i] )
-        if (i = 0) andalso SameLValue( c, target, term ) then continue for
+        if i = 0 then
+            if target <> Fbx.NODE_NONE then
+                if SameLValue( c, target, term ) then continue for
+            end if
+        end if
         dim as FB.Array( of ulong ) args
         PushStrArg( args, dst )
         if EmitStrTerm( c, args, term ) = false then return false

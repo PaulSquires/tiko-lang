@@ -161,6 +161,13 @@ declare function EmitRtl _
     declare function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
     declare function LowerForEachArray( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
+    declare function LowerStringReturn( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
+    declare function LowerStringAssignToSlot _
+        ( byref c as Ctx, byval slot as long, byval value as Fbx.NodeId ) as boolean
+    declare function LowerStringAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval target as Fbx.NodeId, _
+          byval value as Fbx.NodeId ) as boolean
     declare function LowerInput _
         ( byref c as Ctx, byval id as Fbx.NodeId, byval isLine as boolean ) as boolean
     declare function LowerWideConcatAssign _

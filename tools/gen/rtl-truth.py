@@ -137,6 +137,13 @@ end sub
 sub WTake( byref x as const wstring )
 end sub
 ''',
+    # A STRING-RETURNING FUNCTION builds its value in a local descriptor and hands the
+    # runtime that descriptor on the way out; what it returns is the pointer.
+    "strresult": '''
+function SR( ) as string
+    return "hi"
+end function
+''',
     # INPUT: a start call, then one per destination. LINE INPUT is one call with the
     # destination inside it.
     "inputstmt": '''

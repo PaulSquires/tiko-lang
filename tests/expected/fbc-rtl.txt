@@ -50,6 +50,7 @@ fb_PrintUShort	void	int32, uint16, int32	lib	fb_PrintUShort
 fb_PrintVoid	void	int32, int32	lib	fb_PrintVoid
 fb_PrintWstr	void	int32, uint16*, int32	lib	fb_PrintWstr
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int64	lib	fb_StrAllocTempDescZEx
+fb_StrAllocTempResult	FBSTRING*	FBSTRING*	lib	fb_StrAllocTempResult
 fb_StrAssign	FBSTRING*	void*, int64, void*, int64, int32	lib	fb_StrAssign
 fb_StrCompare	int32	void*, int64, void*, int64	lib	fb_StrCompare
 fb_StrConcat	FBSTRING*	FBSTRING*, void*, int64, void*, int64	lib	fb_StrConcat
