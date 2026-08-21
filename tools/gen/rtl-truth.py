@@ -215,6 +215,29 @@ sub ADProbe( byval n as long )
     erase u
 end sub
 ''',
+    # The NARROW substring and trim family. The spellings are not consistent --
+    # fb_TRIM but fb_TrimEx, fb_LEFT but fb_StrMid -- so every one is probed.
+    "strsub": '''
+sub SSubProbe( )
+    dim as string a, p, b
+    dim as long n = 2
+    b = trim( a )
+    b = trim( a, p )
+    b = trim( a, any p )
+    b = ltrim( a )
+    b = ltrim( a, p )
+    b = ltrim( a, any p )
+    b = rtrim( a )
+    b = rtrim( a, p )
+    b = rtrim( a, any p )
+    b = left( a, n )
+    b = right( a, n )
+    b = mid( a, n )
+    b = mid( a, n, n )
+    b = ucase( a )
+    b = lcase( a )
+end sub
+''',
     "wstrsub": '''
 sub WSubProbe( )
     dim as wstring * 50 w, w2, r

@@ -3,6 +3,7 @@ src/support/text.bas
 src/support/arena.bas
 src/support/intern.bas
 src/support/platform.bas
+src/support/fbstr.bas
 src/diag/diagnostic.bas
 src/diag/render.bas
 src/diag/engine.bas
@@ -25,6 +26,7 @@ src/mir/dump.bas
 src/mir/verify.bas
 src/mir/lower.bas
 src/mir/lowerstr.bas
+src/mir/lowersub.bas
 src/mir/lowerwstr.bas
 src/mir/lowerctl.bas
 src/mir/lowerstore.bas

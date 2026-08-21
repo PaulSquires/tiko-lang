@@ -1,0 +1,5 @@
+'' The narrow substring and trim family, in every position.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/str-substr.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/str-substr.out

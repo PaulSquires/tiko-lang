@@ -38,6 +38,9 @@ fb_InputUshort	int32	uint16*	lib	fb_InputUshort
 fb_InputWstr	int32	uint16*, int64	lib	fb_InputWstr
 fb_IntToWstr	uint16*	int32	lib	fb_IntToWstr
 fb_LEFT	FBSTRING*	FBSTRING*, int64	lib	fb_LEFT
+fb_LTRIM	FBSTRING*	FBSTRING*	lib	fb_LTRIM
+fb_LTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_LTrimAny
+fb_LTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_LTrimEx
 fb_LineInput	int32	FBSTRING*, void*, int64, int32, int32, int32	lib	fb_LineInput
 fb_LongintToWstr	uint16*	int64	lib	fb_LongintToWstr
 fb_MemSwap	void	void*, void*, int64	lib	fb_MemSwap
@@ -70,6 +73,10 @@ fb_PrintUsingULongint	int32	int32, uint64, int32	lib	fb_PrintUsingULongint
 fb_PrintUsingWstr	int32	int32, uint16*, int32	lib	fb_PrintUsingWstr
 fb_PrintVoid	void	int32, int32	lib	fb_PrintVoid
 fb_PrintWstr	void	int32, uint16*, int32	lib	fb_PrintWstr
+fb_RIGHT	FBSTRING*	FBSTRING*, int64	lib	fb_RIGHT
+fb_RTRIM	FBSTRING*	FBSTRING*	lib	fb_RTRIM
+fb_RTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_RTrimAny
+fb_RTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_RTrimEx
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int64	lib	fb_StrAllocTempDescZEx
 fb_StrAllocTempResult	FBSTRING*	FBSTRING*	lib	fb_StrAllocTempResult
 fb_StrAssign	FBSTRING*	void*, int64, void*, int64, int32	lib	fb_StrAssign
@@ -78,10 +85,15 @@ fb_StrConcat	FBSTRING*	FBSTRING*, void*, int64, void*, int64	lib	fb_StrConcat
 fb_StrConcatAssign	FBSTRING*	void*, int64, void*, int64, int32	lib	fb_StrConcatAssign
 fb_StrDelete	void	FBSTRING*	lib	fb_StrDelete
 fb_StrInit	FBSTRING*	void*, int64, void*, int64, int32	lib	fb_StrInit
+fb_StrLcase2	FBSTRING*	FBSTRING*, int32	lib	fb_StrLcase2
 fb_StrLen	int64	void*, int64	lib	fb_StrLen
 fb_StrMid	FBSTRING*	FBSTRING*, int64, int64	lib	fb_StrMid
 fb_StrSwap	void	void*, int64, int32, void*, int64, int32	lib	fb_StrSwap
 fb_StrToWstr	uint16*	char*	lib	fb_StrToWstr
+fb_StrUcase2	FBSTRING*	FBSTRING*, int32	lib	fb_StrUcase2
+fb_TRIM	FBSTRING*	FBSTRING*	lib	fb_TRIM
+fb_TrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_TrimAny
+fb_TrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_TrimEx
 fb_UIntToWstr	uint16*	uint32	lib	fb_UIntToWstr
 fb_ULongintToWstr	uint16*	uint64	lib	fb_ULongintToWstr
 fb_VALINT	int32	FBSTRING*	lib	fb_VALINT

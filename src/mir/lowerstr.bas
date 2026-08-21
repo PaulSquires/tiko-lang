@@ -603,6 +603,19 @@ private function PrintOne _
         return true
     end if
 
+    '' 'print trim( s )'. This must come BEFORE the IsStringType test, not after it:
+    '' Check DOES type these calls as STRING, so the test above catches them, and
+    '' LowerAddr on a call then fails and the whole print declines. That is exactly
+    '' what happened -- 'b = trim( a )' lowered while 'print trim( a )' beside it did
+    '' not, because the assignment path had the same branch in the right order.
+    dim as MirValue srv
+    if LowerStrRvalue( c, it, srv ) then
+        args.Push( cast( ulong, srv.kind ) ) : args.Push( cast( ulong, srv.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_STRING, args )
+        return true
+    end if
+
     if IsStringType( c, t ) then
         '' fb_PrintString takes an FBSTRING DESCRIPTOR, not a (pointer, length) pair
         '' like fb_StrAssign does. A literal has no descriptor, so fbc borrows a
@@ -918,6 +931,7 @@ function LowerLen _
     outv = ConstInt( c, sz, MT_I64 )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
+
 
 '' The type of an 'iif' from its ARMS, or TYPE_NONE when the node is not one. Check
 '' computes nothing for the call itself.
@@ -1433,6 +1447,15 @@ function EmitStrTerm _
         return true
     end if
 
+    '' 'trim( s )', 'left( s, n )' and the rest hand back a descriptor pointer, which
+    '' is exactly what a term is. Tried before the type test: Check computes no type
+    '' for these calls either.
+    dim as MirValue rvv
+    if LowerStrRvalue( c, term, rvv ) then
+        PushStrArg( args, rvv )
+        return true
+    end if
+
     if IsStringType( c, c.info->TypeOf_( term ) ) = false then return false
     dim as MirValue src = LowerAddr( c, term )
     if src.kind = cast( ubyte, MV_NONE ) then return false
@@ -1448,7 +1471,13 @@ sub FlattenConcat _
     if c.ast->Kind( id ) = Fbx.N_BINARY then
         dim as Fbx.BinaryPayload ptr bp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if cast( Fbx.TokenKind, bp->op ) = Fbx.TK_PLUS then
+        '' '&' AND '+' ARE THE SAME OPERATION on strings -- measured: fbc emits
+        '' fb_StrAssign followed by fb_StrConcatAssign for both, instruction for
+        '' instruction. Only '+' was flattened, so 'b = a & p' declined outright while
+        '' 'b = a + p' beside it lowered. ('and' is FreeBASIC's bitwise operator, so
+        '' '&' is never ambiguous here.)
+        dim as Fbx.TokenKind bop = cast( Fbx.TokenKind, bp->op )
+        if (bop = Fbx.TK_PLUS) orelse (bop = Fbx.TK_AMP) then
             FlattenConcat( c, bp->lhs, outp )
             FlattenConcat( c, bp->rhs, outp )
             return

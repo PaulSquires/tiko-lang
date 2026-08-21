@@ -113,6 +113,25 @@ namespace Fbx.Mir
         RTL( RTL_STR_LEN,           "fb_StrLen",           "z",   "pz"    )
         RTL( RTL_STR_MID,           "fb_StrMid",           "p",   "pzz"   )
         RTL( RTL_STR_LEFT,          "fb_LEFT",             "p",   "pz"    )
+        '' The NARROW substring and trim family. Each returns an FBSTRING* the runtime
+        '' owns and that fbc NEVER deletes -- unlike the wide family, there is no
+        '' lifetime to model here at all.
+        ''
+        '' The spellings are NOT consistent and were read off fbc one by one: the four
+        '' bare forms and LEFT/RIGHT are SHOUTED, while the Ex/Any variants, mid and
+        '' the two case entries are mixed-case with a different prefix.
+        RTL( RTL_STR_RIGHT,         "fb_RIGHT",            "p",   "pz"    )
+        RTL( RTL_STR_TRIM,          "fb_TRIM",             "p",   "p"     )
+        RTL( RTL_STR_TRIM_EX,       "fb_TrimEx",           "p",   "pp"    )
+        RTL( RTL_STR_TRIM_ANY,      "fb_TrimAny",          "p",   "pp"    )
+        RTL( RTL_STR_LTRIM,         "fb_LTRIM",            "p",   "p"     )
+        RTL( RTL_STR_LTRIM_EX,      "fb_LTrimEx",          "p",   "pp"    )
+        RTL( RTL_STR_LTRIM_ANY,     "fb_LTrimAny",         "p",   "pp"    )
+        RTL( RTL_STR_RTRIM,         "fb_RTRIM",            "p",   "p"     )
+        RTL( RTL_STR_RTRIM_EX,      "fb_RTrimEx",          "p",   "pp"    )
+        RTL( RTL_STR_RTRIM_ANY,     "fb_RTrimAny",         "p",   "pp"    )
+        RTL( RTL_STR_UCASE,         "fb_StrUcase2",        "p",   "pl"    )
+        RTL( RTL_STR_LCASE,         "fb_StrLcase2",        "p",   "pl"    )
         RTL( RTL_STR_TEMPZ,         "fb_StrAllocTempDescZEx", "p",  "pz"  )
         '' A STRING RESULT. fbc builds the value in a local descriptor and hands the
         '' runtime that descriptor on the way out; what the function actually returns

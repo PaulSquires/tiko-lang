@@ -1,0 +1,89 @@
+global str $str0 "  ab  "
+global str $str1 "x"
+global str $str2 "!"
+func void P($0) {
+  local i32 n
+  local agg a size 24
+  local agg p size 24
+  local agg b size 24
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = alloca ptr a
+    %3 = call.rtl ptr fb_StrInit(@a, -1, @@$str0, 7, 0)
+    %4 = alloca ptr p
+    %5 = call.rtl ptr fb_StrInit(@p, -1, @@$str1, 2, 0)
+    %6 = alloca ptr b
+    %7 = field.addr @b, 0
+    store %7, 0
+    %8 = field.addr @b, 8
+    store %8, 0
+    %9 = field.addr @b, 16
+    store %9, 0
+    %10 = call.rtl ptr fb_TRIM(@a)
+    %11 = call.rtl ptr fb_StrAssign(@b, -1, %10, -1, 0)
+    %12 = call.rtl ptr fb_TrimEx(@a, @p)
+    %13 = call.rtl ptr fb_StrAssign(@b, -1, %12, -1, 0)
+    %14 = call.rtl ptr fb_TrimAny(@a, @p)
+    %15 = call.rtl ptr fb_StrAssign(@b, -1, %14, -1, 0)
+    %16 = call.rtl ptr fb_LTRIM(@a)
+    %17 = call.rtl ptr fb_StrAssign(@b, -1, %16, -1, 0)
+    %18 = call.rtl ptr fb_RTRIM(@a)
+    %19 = call.rtl ptr fb_StrAssign(@b, -1, %18, -1, 0)
+    %20 = load @n
+    %21 = sext %20
+    %22 = call.rtl ptr fb_LEFT(@a, %21)
+    %23 = call.rtl ptr fb_StrAssign(@b, -1, %22, -1, 0)
+    %24 = load @n
+    %25 = sext %24
+    %26 = call.rtl ptr fb_RIGHT(@a, %25)
+    %27 = call.rtl ptr fb_StrAssign(@b, -1, %26, -1, 0)
+    %28 = load @n
+    %29 = sext %28
+    %30 = call.rtl ptr fb_StrMid(@a, %29, -1)
+    %31 = call.rtl ptr fb_StrAssign(@b, -1, %30, -1, 0)
+    %32 = load @n
+    %33 = sext %32
+    %34 = load @n
+    %35 = sext %34
+    %36 = call.rtl ptr fb_StrMid(@a, %33, %35)
+    %37 = call.rtl ptr fb_StrAssign(@b, -1, %36, -1, 0)
+    %38 = call.rtl ptr fb_StrUcase2(@a, 0)
+    %39 = call.rtl ptr fb_StrAssign(@b, -1, %38, -1, 0)
+    %40 = call.rtl ptr fb_StrLcase2(@a, 0)
+    %41 = call.rtl ptr fb_StrAssign(@b, -1, %40, -1, 0)
+    %42 = call.rtl ptr fb_TRIM(@a)
+    %43 = call.rtl ptr fb_StrUcase2(%42, 0)
+    %44 = call.rtl ptr fb_StrAssign(@b, -1, %43, -1, 0)
+    %45 = call.rtl ptr fb_StrConcatAssign(@b, -1, @@$str2, 2, 0)
+    %46 = call.rtl ptr fb_StrAssign(@b, -1, @a, -1, 0)
+    %47 = call.rtl ptr fb_StrConcatAssign(@b, -1, @p, -1, 0)
+    %48 = call.rtl ptr fb_TRIM(@a)
+    %49 = call.rtl ptr fb_StrAssign(@b, -1, %48, -1, 0)
+    %50 = call.rtl ptr fb_StrConcatAssign(@b, -1, @p, -1, 0)
+    %51 = call.rtl ptr fb_TRIM(@a)
+    call.rtl void fb_PrintString(0, %51, 1)
+    %52 = call.rtl ptr fb_StrUcase2(@a, 0)
+    call.rtl void fb_PrintString(0, %52, 1)
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@p)
+    call.rtl void fb_StrDelete(@a)
+    ret
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_TRIM($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_TrimEx($0, $1)
+declare ptr fb_TrimAny($0, $1)
+declare ptr fb_LTRIM($0)
+declare ptr fb_RTRIM($0)
+declare ptr fb_LEFT($0, $1)
+declare ptr fb_RIGHT($0, $1)
+declare ptr fb_StrMid($0, $1, $2)
+declare ptr fb_StrUcase2($0, $1)
+declare ptr fb_StrLcase2($0, $1)
+declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance

@@ -229,6 +229,10 @@ declare function EmitRtl _
     declare function LowerWideToNarrow _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function IsStringIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerStrRvalue _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function StrDescriptorOf_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function IifArmType_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
     declare function WideOperand_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
