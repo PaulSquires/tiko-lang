@@ -613,8 +613,14 @@ private function LowerCall _
 
     dim as Fbx.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    return LowerCallParts( c, cp->target, c.info->RefOf( id ), _
-                           cp->first, cp->count, mt )
+
+    '' The callee is recorded on the CALL node, and for a member call it is recorded
+    '' on the MEMBER instead -- Check binds 'b.Push' when it types it, which is after
+    '' Resolve has finished copying references onto call nodes. Falling back to the
+    '' callee's own reference is what makes 'b.Push( 1 )' find its procedure.
+    dim as Fbx.SymbolId callee = c.info->RefOf( id )
+    if callee = Fbx.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
+    return LowerCallParts( c, cp->target, callee, cp->first, cp->count, mt )
 end function
 
 '' -------------------------------------------------------------- cleanup model
