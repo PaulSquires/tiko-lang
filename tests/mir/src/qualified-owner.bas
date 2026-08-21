@@ -38,3 +38,21 @@ end sub
 '' the variable's slot lowered to VOID.
 dim as a.b.c.Deep d
 dim as ns.UDT u
+
+'' AN UNQUALIFIED FIELD inside a method is 'this->field'. It used to get a LOCAL SLOT
+'' -- a fresh variable shadowing the field for the whole procedure -- so the two
+'' assignments below wrote to DIFFERENT PLACES and the read came back uninitialised.
+type Two
+    v as integer
+    declare sub Both( )
+    declare function Get( ) as integer
+end type
+
+sub Two.Both( )
+    v = 1
+    this.v = 2
+end sub
+
+function Two.Get( ) as integer
+    return v
+end function

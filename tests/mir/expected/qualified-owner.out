@@ -16,6 +16,35 @@ func void TOUCH() {
   entry0:
     ret
 }
+func void _ZN3TWO4BOTHEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const i64 1
+    store %3, %4
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 2
+    store %6, %7
+    ret
+}
+func i64 _ZN3TWO3GETEv($0) {
+  local i64 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
+}
 func i32 main($0, $1) {
   local i32 $tmp0
   local agg d size 8
@@ -38,4 +67,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 4 functions, 4 blocks, 16 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance

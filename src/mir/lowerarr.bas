@@ -118,7 +118,68 @@ function LowerAddr _
     if c.ast->Kind( id ) <> Fbx.N_IDENT then return v
     dim as Fbx.SymbolId sid = c.info->RefOf( id )
     if sid = Fbx.SYMBOL_NONE then return v
+
+    '' AN UNQUALIFIED FIELD, inside a method of its own type. 'v = 1' where v is a
+    '' field is 'this->v = 1', and there is no base written to say so.
+    ''
+    '' AddrOfVar gave it a LOCAL SLOT instead -- a fresh variable that shadowed the
+    '' field for the whole procedure. So 'v = 1' wrote to the stack, 'this.v = 2' beside
+    '' it wrote to the object, and 'return v' read the local back UNINITIALISED. No
+    '' diagnostic, no verify failure, correct-looking MIR, and this is the idiomatic
+    '' spelling: most FreeBASIC methods never write 'this.'.
+    ''
+    '' The sibling-CALL case already had this handled; the sibling-FIELD case did not.
+    dim as Fbx.Symbol ptr fsy = c.syms->SymbolAt( sid )
+    if fsy <> 0 then
+        if fsy->kind = cast( ubyte, Fbx.SYM_FIELD ) then return AddrOfThisField( c, sid )
+    end if
+
     return AddrOfVar( c, sid )
+end function
+
+'' 'this->field', for a field named without a base.
+''
+'' The owning type comes from THIS's own type -- a pointer to it -- rather than from
+'' the field symbol, because that is the pointer the offset is applied to and the two
+'' must agree. Returns nothing when there is no 'this' in scope, which is a field
+'' referenced from outside any method: an error the checker owes, not something to
+'' invent an address for.
+function AddrOfThisField( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
+    dim as MirValue v
+    if c.curProcSym = Fbx.SYMBOL_NONE then return v
+    dim as Fbx.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
+    if me = 0 then return v
+    if me->inner = Fbx.SCOPE_NONE then return v
+
+    dim as Fbx.SymbolId tsid = c.syms->LookupLocal( me->inner, _
+        c.names->Fold( c.names->GetString( "this" ) ) )
+    if tsid = Fbx.SYMBOL_NONE then return v
+    dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return v
+    if ts->type_ = Fbx.TYPE_NONE then return v
+    if c.types->Kind( ts->type_ ) <> Fbx.TK_POINTER then return v
+    dim as Fbx.TypeId bt = c.types->Inner( ts->type_ )
+    if bt = Fbx.TYPE_NONE then return v
+
+    dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+    if fs = 0 then return v
+    dim as boolean found = false
+    dim as long off = c.udts->FieldOffset( bt, fs->name, found )
+    if found = false then return v
+
+    '' THIS holds a pointer, so the base is its VALUE. Its own address would be a
+    '' pointer to a pointer.
+    dim as MirValue ta = AddrOfVar( c, tsid )
+    if ta.kind = cast( ubyte, MV_NONE ) then return v
+    dim as MirValue base_ = LowerExprLoad( c, ta, MT_PTR )
+    if base_.kind = cast( ubyte, MV_NONE ) then return v
+
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = base_
+    fa.imm = off
+    return Emit( c, fa )
 end function
 
 '' 'p[i]' -- POINTER INDEXING, which is '*(p + i)' scaled by the pointee's size. There

@@ -169,6 +169,8 @@ declare function EmitRtl _
     declare function IsStaticLocal( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
     declare function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
     declare function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
+    declare function AddrOfThisField _
+        ( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
 
     declare function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     '' lowerusing.bas
