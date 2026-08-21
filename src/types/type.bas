@@ -193,6 +193,38 @@ function TypeContext.Reference( byval referent as TypeId ) as TypeId
     return this.Find( TK_REFERENCE, referent, TF_COMPLETE, 0 )
 end function
 
+'' A DYNAMIC array: no bounds, no element count, and its storage is a DESCRIPTOR
+'' rather than the elements themselves.
+''
+'' 'dims' encodes both facts at once. It is NEGATIVE for a dynamic array, and its
+'' magnitude is rank + 1, so:
+''
+''     dim a( )            rank 0, unspecified   dims = -1    8 dimtb slots
+''     dim a( any )        rank 1                dims = -2    1 dimtb slot
+''     dim a( any, any )   rank 2                dims = -3    2 dimtb slots
+''
+'' -1 keeps its existing meaning -- every 'dims < 1' test already read it as dynamic --
+'' and the rest are new. Rank 0 is genuinely unspecified rather than zero-dimensional;
+'' fbc gives that descriptor the full eight slots because it does not know either.
+function TypeContext.DynArrayOf _
+    ( byval elem as TypeId, byval rank as long ) as TypeId
+
+    return this.ArrayOf( elem, -(rank + 1), 0, 0 )
+end function
+
+'' Whether a type is a dynamic array, and how many dimensions it was written with
+'' (0 when the declaration left it open).
+function TypeContext.IsDynArray( byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    if this.Kind( t ) <> TK_ARRAY then return false
+    return (this.types[cast( long, t )].dims < 0)
+end function
+
+function TypeContext.DynRank( byval t as TypeId ) as long
+    if this.IsDynArray( t ) = false then return 0
+    return (-this.types[cast( long, t )].dims) - 1
+end function
+
 function TypeContext.ArrayOf _
     ( byval elem as TypeId, byval rank as long, byval elems as long, _
       byval bounds as FB.Array( of longint ) ptr ) as TypeId

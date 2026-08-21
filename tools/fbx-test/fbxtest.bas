@@ -83,6 +83,42 @@ function NormalizeEol( byval s as string ) as string
     return outp
 end function
 
+'' Normalise a 'skip-site <file>:<line>' to 'skip-site <file>:LINE'.
+''
+'' Those lines name a source position INSIDE THE COMPILER, so every golden that
+'' contains one breaks whenever the file above it grows by a line. That cost four
+'' unrelated commits before anyone counted it. What the golden is actually asserting is
+'' WHICH FILE gave up and HOW OFTEN -- the line number is a navigation aid in a sweep,
+'' not a fact worth pinning.
+''
+'' Applied to both sides, so a golden written before this still matches.
+function NormalizeSkipSites( byval s as string ) as string
+    dim as string outp = ""
+    dim as long n = len( s )
+    dim as long i = 0
+    while i < n
+        '' '.bas:' followed by digits is the only shape this touches.
+        if (i + 4 < n) andalso (s[i] = 46) then            '' '.'
+            if mid( s, i + 1, 5 ) = ".bas:" then
+                dim as long j = i + 5
+                dim as long d = 0
+                while (j < n) andalso (s[j] >= 48) andalso (s[j] <= 57)
+                    j += 1
+                    d += 1
+                wend
+                if d > 0 then
+                    outp += ".bas:LINE"
+                    i = j
+                    continue while
+                end if
+            end if
+        end if
+        outp += chr( s[i] )
+        i += 1
+    wend
+    return outp
+end function
+
 '' ------------------------------------------------------------------- discovery
 
 sub CollectTests( byval root as string, byref found as Array( of string ) )
@@ -278,7 +314,7 @@ function RunOne _
             WriteTextFile( gpath, outText )
         else
             dim as string want = NormalizeEol( ReadTextFile( gpath ) )
-            if want <> outText then
+            if NormalizeSkipSites( want ) <> NormalizeSkipSites( outText ) then
                 why = "golden mismatch against " & gpath
                 return false
             end if

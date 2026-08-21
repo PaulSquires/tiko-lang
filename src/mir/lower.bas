@@ -461,6 +461,10 @@ function LowerExpr _
         '' 'len( x )' is a runtime call for a string and a constant for anything else.
         dim as MirValue lnv
         if LowerLen( c, id, lnv ) then return lnv
+        '' 'lbound(a)' / 'ubound(a)' over a DYNAMIC array is a runtime call; over a
+        '' fixed one both fold at compile time and never reach here.
+        dim as MirValue abv
+        if LowerArrayBoundCall( c, id, abv ) then return abv
         '' 'wstr( x )' widens a scalar or a narrow string into a wide temporary.
         dim as MirValue wcv
         if LowerWstrOf( c, id, wcv ) then return wcv
@@ -639,6 +643,17 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     for i as long = upto - 1 to from_ step -1
         if c.cleanupSlot[i] < 0 then
             LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+        elseif c.cleanupNode[i] = CLEANUP_ERASE_ARRAY then
+            '' A local DYNAMIC array is erased at scope exit whatever its element
+            '' type -- measured; fbc emits fb_ArrayErase / fb_ArrayStrErase /
+            '' fb_ArrayEraseObj for every one of them.
+            ''
+            '' The marker is an IMPOSSIBLE SymbolId rather than a small number.
+            '' Cleanup entries are otherwise symbol ids, and 1 is a perfectly valid
+            '' one -- using it as a sentinel would have destructed whatever symbol 1
+            '' happened to be. That is the pool-confusion mistake this project has
+            '' made seven times; not an eighth.
+            EmitEraseDynLocal( c, c.cleanupSlot[i] )
         elseif c.cleanupNode[i] = 0 then
             '' A string local is released with fb_StrDelete. This is the
             '' DestroyLocal action the cleanup model was built for and has had
@@ -688,7 +703,7 @@ end sub
 '' model overload resolution uses -- the one fitted to 1,274 measured fbc choices.
 '' Constructors chain like any other overload set precisely because they were given a
 '' synthetic name, so nothing here is special-cased.
-private function PickCtor _
+function PickCtor _
     ( byref c as Ctx, byval first_ as Fbx.SymbolId, _
       byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId
 
@@ -742,103 +757,6 @@ private function PickCtor _
     '' A tie is an ambiguous call, not a silent pick.
     if ties > 0 then return Fbx.SYMBOL_NONE
     return best
-end function
-
-'' 'dim as T x = T( 5 )'. The initialiser parses as a CALL on the type's name, so it
-'' is recognised by the callee naming the variable's own UDT rather than by any
-'' special syntax. Returns false when this is not a constructor call.
-private function LowerCtorInit _
-    ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
-      byval init_ as Fbx.NodeId ) as boolean
-
-    if init_ = Fbx.NODE_NONE then return false
-    if c.ast->Kind( init_ ) <> Fbx.N_CALL then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
-
-    dim as Fbx.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init_ )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    if ip->name <> c.types->NameOf( t ) then return false
-
-    dim as Fbx.SymbolId ctors = StructorOf( c, t, "__ctor" )
-    if ctors = Fbx.SYMBOL_NONE then return false
-
-    '' Argument VALUES first, then the pick: the types are needed to choose, and the
-    '' values must be evaluated in source order regardless of which overload wins.
-    dim as FB.Array( of ulong ) argT
-    dim as FB.Array( of ulong ) argKind
-    dim as FB.Array( of ulong ) argId
-    for i as long = 0 to cp->count - 1
-        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
-        dim as MirValue av = LowerExpr( c, a )
-        argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
-        argKind.Push( cast( ulong, av.kind ) )
-        argId.Push( cast( ulong, av.id ) )
-    next
-
-    dim as Fbx.SymbolId pick = PickCtor( c, ctors, argT )
-    if pick = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return false
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, ps->payload )
-    if pn = Fbx.NODE_NONE then return false
-
-    '' Arguments are coerced to the chosen overload's PARAMETER types: MIR has no
-    '' implicit conversions, and the overload was selected knowing a conversion would
-    '' be needed, so it has to be written down.
-    dim as Fbx.StmtPayload ptr cpp = StmtOf( c, pn )
-    dim as long ai2 = 0
-    for i as long = 0 to cpp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[cpp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-        if ai2 >= argT.Count then exit for
-        dim as MirValue av
-        av.kind = cast( ubyte, argKind[ai2] )
-        av.ty = cast( ubyte, LowerType( cast( Fbx.TypeId, argT[ai2] ), *c.types ) )
-        av.id = argId[ai2]
-        dim as Fbx.StmtPayload ptr sp3 = StmtOf( c, prm )
-        dim as MirValue cv = Coerce( c, av, _
-            LowerType( c.info->TypeOf_( sp3->a ), *c.types ) )
-        argKind[ai2] = cv.kind
-        argId[ai2] = cv.id
-        ai2 += 1
-    next
-
-    dim as long first = c.m->argPool.Count \ 2
-    c.m->argPool.Push( cast( ulong, MV_LOCAL ) )
-    c.m->argPool.Push( cast( ulong, slot ) )
-    for i as long = 0 to argT.Count - 1
-        c.m->argPool.Push( argKind[i] )
-        c.m->argPool.Push( argId[i] )
-    next
-
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
-        decl->isDefinition = false
-        decl->paramCount = argT.Count + 1
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, MT_VOID )
-    ins.first = first
-    ins.count = argT.Count + 1
-    ins.callee = fidx
-    Emit( c, ins )
-    return true
 end function
 
 
@@ -956,7 +874,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
     case Fbx.N_VAR
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         if sp->op = cast( ushort, Fbx.KW_REDIM ) then
-            SkipHere( c )
+            if LowerRedim( c, id, sp ) = false then SkipHere( c )
             return
         end if
         '' 'dim byref rb as integer = a' ALIASES a. The slot would have to hold a
@@ -1011,6 +929,24 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( sid )
             dim as boolean constructed = false
             dim as boolean strInited = false
+
+            '' A DYNAMIC array's slot holds a DESCRIPTOR, which has to be filled in
+            '' before anything can redim or erase it, and erased on the way out --
+            '' fbc erases every local dynamic array at scope exit whatever its element
+            '' type. Registered as cleanup node 1, which the cleanup emitter reads as
+            '' 'erase this array slot'.
+            if (slot >= 0) andalso (vs <> 0) then
+                if c.types->IsDynArray( vs->type_ ) then
+                    dim as MirValue dd
+                    dd.kind = cast( ubyte, MV_LOCAL )
+                    dd.ty = cast( ubyte, MT_PTR )
+                    dd.id = slot
+                    InitDynArrayDesc( c, dd, vs->type_ )
+                    c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
+                    c.cleanupSlot.Push( slot )
+                end if
+            end if
+
             if (slot >= 0) andalso (vs <> 0) then
                 '' 'dim as T x = T( 5 )' selects a constructor by its arguments; a
                 '' bare 'dim as T x' takes the no-argument one.

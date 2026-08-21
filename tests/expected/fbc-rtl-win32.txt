@@ -4,8 +4,14 @@ fb_ArrayClearObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	_fb_ArrayClearObj@
 fb_ArrayDestructObj	void	struct $7FBARRAYIvE*, void*	lib	_fb_ArrayDestructObj@8
 fb_ArrayDestructStr	void	struct $7FBARRAYIvE*	lib	_fb_ArrayDestructStr@4
 fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	_fb_ArrayErase@4
+fb_ArrayEraseObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	_fb_ArrayEraseObj@12
+fb_ArrayLBound	int32	struct $7FBARRAYIKvE*, int32	lib	_fb_ArrayLBound@8
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimEx
+fb_ArrayRedimObj	int32	struct $7FBARRAYIvE*, uint32, void*, void*, uint32, ...	lib	_fb_ArrayRedimObj
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimPresvEx
+fb_ArrayRedimPresvObj	int32	struct $7FBARRAYIvE*, uint32, void*, void*, uint32, ...	lib	_fb_ArrayRedimPresvObj
+fb_ArrayStrErase	void	struct $7FBARRAYIvE*	lib	_fb_ArrayStrErase@4
+fb_ArrayUBound	int32	struct $7FBARRAYIKvE*, int32	lib	_fb_ArrayUBound@8
 fb_Assert	void	char*, int32, char*, char*	lib	_fb_Assert@16
 fb_ConsoleInput	int32	FBSTRING*, int32, int32	lib	_fb_ConsoleInput@12
 fb_DoubleToWstr	uint16*	double	lib	_fb_DoubleToWstr@8

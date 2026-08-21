@@ -183,6 +183,10 @@ namespace Fbx
 
         declare function Kind( byval t as TypeId ) as TypeKind
         declare function BuiltinOf( byval t as TypeId ) as BuiltinType
+        declare function DynArrayOf _
+            ( byval elem as TypeId, byval rank as long ) as TypeId
+        declare function IsDynArray( byval t as TypeId ) as boolean
+        declare function DynRank( byval t as TypeId ) as long
         declare function Inner( byval t as TypeId ) as TypeId
         declare function IsConst( byval t as TypeId ) as boolean
 

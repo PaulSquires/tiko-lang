@@ -30,6 +30,9 @@ function SizeOfType( byref c as Ctx, byval t as Fbx.TypeId ) as long
     dim as long ui = c.udts->Find( t )
     if ui >= 0 then return c.udts->udts[ui].size
     if c.types->Kind( t ) = Fbx.TK_ARRAY then
+        '' A DYNAMIC array's storage is its DESCRIPTOR, not its elements -- the
+        '' elements live wherever the runtime put them.
+        if c.types->IsDynArray( t ) then return DescBytesFor( c, c.types->DynRank( t ) )
         dim as long es = SizeOfType( c, c.types->Inner( t ) )
         dim as long n = c.types->types[cast( long, t )].elems
         if n > 0 then return es * n

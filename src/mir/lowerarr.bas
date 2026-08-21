@@ -201,6 +201,10 @@ function LowerArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     dim as Fbx.TypeId at = c.info->TypeOf_( sp->target )
 
+    '' A DYNAMIC array has no compile-time strides: its base and its per-dimension
+    '' element counts live in the descriptor and are read from it.
+    if c.types->IsDynArray( at ) then return LowerDynArrayIndex( c, id, sp, at )
+
     dim as FB.Array( of longint ) strides
     dim as longint bias
     if ArrayStrides( c, at, strides, bias ) = false then return none_

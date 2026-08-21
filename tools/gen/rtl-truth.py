@@ -184,6 +184,37 @@ sub AEProbe( )
     erase m
 end sub
 ''',
+    # DYNAMIC arrays: redim in both preserve and Obj forms, the three erase entries,
+    # and the two bound queries. The Obj forms need an element type with a structor,
+    # and the four Redim* entries are the only array routines that are CDECL on win32.
+    "arraydyn": '''
+type DU
+    declare constructor( )
+    declare destructor( )
+    x as long
+end type
+constructor DU( )
+end constructor
+destructor DU( )
+end destructor
+sub ADProbe( byval n as long )
+    dim as long a( )
+    dim as string s( )
+    dim as DU u( )
+    dim as long m( any, any )
+    redim a( 0 to n )
+    redim preserve a( 0 to n )
+    redim s( 0 to n )
+    redim u( 0 to n )
+    redim preserve u( 0 to n )
+    redim m( 1 to n, 3 to n )
+    print lbound( a ), ubound( a )
+    print lbound( m, 2 ), ubound( m, 2 )
+    erase a
+    erase s
+    erase u
+end sub
+''',
     "wstrsub": '''
 sub WSubProbe( )
     dim as wstring * 50 w, w2, r

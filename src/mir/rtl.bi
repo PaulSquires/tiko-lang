@@ -143,6 +143,10 @@ namespace Fbx.Mir
         RTL( RTL_ARRAY_CLEAR_OBJ,   "fb_ArrayClearObj",    "l",   "ppp"   )
         RTL( RTL_ARRAY_DESTRUCT_STR,"fb_ArrayDestructStr", "v",   "p"     )
         RTL( RTL_ARRAY_DESTRUCT_OBJ,"fb_ArrayDestructObj", "v",   "pp"    )
+        RTL( RTL_ARRAY_ERASE_OBJ,   "fb_ArrayEraseObj",    "l",   "ppp"   )
+        RTL( RTL_ARRAY_STR_ERASE,   "fb_ArrayStrErase",    "v",   "p"     )
+        RTL( RTL_ARRAY_LBOUND,      "fb_ArrayLBound",      "z",   "pz"    )
+        RTL( RTL_ARRAY_UBOUND,      "fb_ArrayUBound",      "z",   "pz"    )
         '' SPC and TAB take NO MASK, so 'print spc(n);' emits one call and nothing
         '' else -- no newline, no fb_PrintVoid. Note the argument widths: SPC's count
         '' is ssize (64-bit on win64, 32 on win32) and TAB's is int32 on BOTH. That
@@ -165,6 +169,12 @@ namespace Fbx.Mir
         RTL( RTL_ARRAY_ERASE,       "fb_ArrayErase",       "l",   "p"     )
         RTL( RTL_ARRAY_REDIM,       "fb_ArrayRedimEx",     "l",   "pzllz." )
         RTL( RTL_ARRAY_REDIM_PRESV, "fb_ArrayRedimPresvEx", "l",  "pzllz." )
+        '' The Obj forms take a CONSTRUCTOR and a DESTRUCTOR pointer where the Ex
+        '' forms take two integers. Which pair fbc uses is decided by whether the
+        '' element type has either -- IMPLICIT ONES INCLUDED, so a POD UDT takes Ex
+        '' and a UDT holding a string takes Obj.
+        RTL( RTL_ARRAY_REDIM_OBJ,   "fb_ArrayRedimObj",    "l",   "pzppz." )
+        RTL( RTL_ARRAY_REDIM_PRESV_OBJ, "fb_ArrayRedimPresvObj", "l", "pzppz." )
         RTL( RTL_FILE_OPEN,         "fb_FileOpen",         "l",   "pllllL" )
         RTL( RTL_FILE_CLOSE,        "fb_FileClose",        "l",   "l"     )
         RTL( RTL_FILE_CLOSEALL,     "fb_FileCloseAll",     "l",   ""      )

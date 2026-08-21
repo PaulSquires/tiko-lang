@@ -700,10 +700,24 @@ end function
 private function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
-      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
+      byval init as Fbx.NodeId = Fbx.NODE_NONE, _
+      byval emptyIsDynamic as boolean = false ) as Fbx.TypeId
 
-    if los.Count = 0 then return base_
     if base_ = Fbx.TYPE_NONE then return base_
+
+    '' EMPTY PARENS -- 'dim as long a()' -- is a DYNAMIC array with its dimension count
+    '' left open. It is not 'no array at all', which is what returning the element type
+    '' here used to make it: 'a' became a plain LONG, so its declaration reserved four
+    '' bytes instead of a descriptor and every later 'redim a(...)' had nothing to
+    '' redim. Rank 0 means unspecified; fbc gives such a descriptor eight dimtb slots.
+    '' 'emptyIsDynamic' is what tells the two callers apart. A DECLARATION with empty
+    '' parens is a dynamic array; a plain TYPE FIELD reaches here with no bound pairs
+    '' either, and is not an array at all. Without the distinction 'as long h' inside a
+    '' TYPE became a 240-byte descriptor -- caught by the cleanup golden.
+    if los.Count = 0 then
+        if emptyIsDynamic then return c.types->DynArrayOf( base_, 0 )
+        return base_
+    end if
 
     dim as long total = 1
     dim as boolean known = true
@@ -735,7 +749,10 @@ private function ArrayFromPairs _
         bounds.Push( lo )
         bounds.Push( hi )
     next
-    if (known = false) orelse (total <= 0) then return base_
+    '' A BOUND THAT IS NOT A COMPILE-TIME CONSTANT makes the array DYNAMIC -- 'dim
+    '' a(any)', 'dim a(0 to n)'. The rank is still written down, and it is what decides
+    '' how many dimtb slots the descriptor carries, so it is kept.
+    if (known = false) orelse (total <= 0) then return c.types->DynArrayOf( base_, los.Count )
     return c.types->ArrayOf( base_, los.Count, total, @bounds )
 end function
 
@@ -780,7 +797,7 @@ private function ArrayFromBoundsNode _
             his.Push( cast( ulong, d ) )
         end if
     next
-    return ArrayFromPairs( c, base_, los, his, init )
+    return ArrayFromPairs( c, base_, los, his, init, true )
 end function
 
 
@@ -1040,7 +1057,27 @@ sub WalkStmt _
         '' do this -- a type may be declared after the variable that uses it, which
         '' is exactly why type references are resolved in this pass and not that one.
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-        if sp->op = cast( ushort, Fbx.KW_REDIM ) then return
+        if sp->op = cast( ushort, Fbx.KW_REDIM ) then
+            '' A REDIM declares nothing -- the array already exists -- but its BOUNDS
+            '' are ordinary runtime expressions and have to be resolved like any
+            '' other. Returning here without walking them left 'redim a(0 to n)' with
+            '' an unbound 'n', so lowering could not produce a value for it and the
+            '' whole statement declined. Only a redim to CONSTANT bounds worked, which
+            '' is the least interesting kind.
+            for i as long = 0 to sp->count - 1
+                dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+                if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
+                dim as Fbx.StmtPayload ptr rp = StmtOf( c, item )
+                if rp->c = Fbx.NODE_NONE then continue for
+                if c.ast->Kind( rp->c ) <> Fbx.N_BLOCK then continue for
+                dim as Fbx.ListPayload ptr rl = _
+                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, rp->c )].data )]
+                for d as long = 0 to rl->count - 1
+                    WalkStmt( c, cast( Fbx.NodeId, c.ast->children[rl->first + d] ), here )
+                next
+            next
+            return
+        end if
         for i as long = 0 to sp->count - 1
             dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for

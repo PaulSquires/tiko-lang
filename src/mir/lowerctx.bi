@@ -171,6 +171,31 @@ declare function EmitRtl _
           byref outv as MirValue ) as boolean
     declare function LowerErase( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function SizeOfType( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    '' A cleanup entry that is neither a symbol nor the string-delete 0: erase the
+    '' dynamic array in this slot. Deliberately an impossible SymbolId.
+    const CLEANUP_ERASE_ARRAY as ulong = &hFFFFFFFF
+
+    declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
+    declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
+    declare function PickCtor _
+        ( byref c as Ctx, byval ctors as Fbx.SymbolId, _
+          byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId
+    '' lowerctor.bas
+    declare function LowerCtorInit _
+        ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
+          byval init_ as Fbx.NodeId ) as boolean
+    declare function LowerDynArrayIndex _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.ListPayload ptr, _
+          byval at as Fbx.TypeId ) as MirValue
+    declare function LowerArrayBoundCall _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerRedim _
+        ( byref c as Ctx, byval id as Fbx.NodeId, _
+          byval sp as Fbx.StmtPayload ptr ) as boolean
+    declare sub InitDynArrayDesc _
+        ( byref c as Ctx, byref desc as MirValue, byval t as Fbx.TypeId )
+    declare function DynArrayDataPtr _
+        ( byref c as Ctx, byref desc as MirValue ) as MirValue
     declare function FuncAddrOf( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
     declare function UsingEndsLine_ _
         ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr ) as boolean
