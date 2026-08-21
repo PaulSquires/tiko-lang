@@ -262,4 +262,63 @@ private function ArrayStrides _
     return true
 end function
 
+'' A BRACE INITIALISER over a fixed-size array: 'dim a(0 to 2) as integer = { 1, 2, 3 }'.
+'' Returns false when this is not one, so the caller falls back to an ordinary store.
+''
+'' fbc emits the element stores directly -- '*A = 1', '*(A+8) = 2', '*(A+16) = 3' --
+'' and that is all this does. It produced NOTHING before, and the DIM path skipped its
+'' store without counting it, so the array was allocated and left holding whatever the
+'' stack did.
+''
+'' A brace list SHORTER than the array leaves the rest alone, which is what fbc's own
+'' output does; a longer one stops at the array's length rather than writing past it.
+function LowerArrayInit _
+    ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
+      byval init as Fbx.NodeId ) as boolean
+
+    if init = Fbx.NODE_NONE then return false
+    if c.ast->Kind( init ) <> Fbx.N_INITIALIZER then return false
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+
+    dim as Fbx.TypeId el = c.types->Inner( t )
+    if el = Fbx.TYPE_NONE then return false
+    dim as MirType emt = LowerType( el, *c.types )
+    if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
+    dim as long esz = c.types->Layout( el ).size
+    if esz <= 0 then return false
+
+    dim as long total = c.types->ElemCount( t )
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+
+    dim as MirValue base_
+    base_.kind = cast( ubyte, MV_LOCAL )
+    base_.ty = cast( ubyte, MT_PTR )
+    base_.id = slot
+
+    for i as long = 0 to lp->count - 1
+        if (total > 0) andalso (i >= total) then exit for
+        dim as Fbx.NodeId e = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        dim as MirValue ev = LowerExpr( c, e )
+        if ev.kind = cast( ubyte, MV_NONE ) then return false
+
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = base_
+        fa.imm = i * esz
+        dim as MirValue ea = Emit( c, fa )
+        if ea.kind = cast( ubyte, MV_NONE ) then return false
+
+        dim as MirInst st
+        st.op = cast( ushort, M_STORE )
+        st.ty = cast( ubyte, MT_VOID )
+        st.a = ea
+        st.b = Coerce( c, ev, emt, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+        Emit( c, st )
+    next
+    return true
+end function
+
 end namespace

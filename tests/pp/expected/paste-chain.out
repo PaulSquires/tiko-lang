@@ -23,8 +23,10 @@ declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 11 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 11 insts, 2 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 1
   inside N_INTRINSIC 1
+  inside N_VAR 1
   unlowered intrinsic KW_PRINT 1
+  skip-site src\mir\lower.bas:992 1
   skip-site src\mir\lowerctl.bas:128 1

@@ -424,4 +424,93 @@ function LowerBitfieldStore _
     return true
 end function
 
+'' 'iif( cond, a, b )' as a RUNTIME expression. Returns false when the node is not one,
+'' so the caller carries on.
+''
+'' MIR has no phi, so the value comes out of a TEMPORARY SLOT written on both arms --
+'' which is exactly the shape fbc emits:
+''
+''     if( C == 0ll) goto label$2;
+''     TMP = 10ll;  goto label$3;
+''     label$2:;  TMP = 20ll;
+''     label$3:;  R = TMP;
+''
+'' It produced NOTHING before, and did not decline: 'dim as integer r = iif( c, 10,
+'' 20 )' allocated r, stored nothing and printed whatever the stack held. The DIM
+'' initialiser skipped its store whenever the value would not lower, silently.
+function LowerIif _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType, _
+      byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 3 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+
+    '' The result type is the one the surrounding expression asked for; an aggregate
+    '' or an untyped one has no temporary to write, so it declines.
+    dim as Fbx.NodeId condE = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    dim as Fbx.NodeId thenE = cast( Fbx.NodeId, c.ast->children[lp->first + 1] )
+    dim as Fbx.NodeId elseE = cast( Fbx.NodeId, c.ast->children[lp->first + 2] )
+
+    '' The result type is the one the surrounding expression asked for; failing that,
+    '' the CALL's own -- which Check does not compute for iif -- and failing that, an
+    '' ARM's. An aggregate or a type nothing can name has no temporary to write, so it
+    '' declines rather than inventing a slot.
+    dim as Fbx.TypeId ft = c.info->TypeOf_( id )
+    if ft = Fbx.TYPE_NONE then ft = c.info->TypeOf_( thenE )
+    if ft = Fbx.TYPE_NONE then ft = c.info->TypeOf_( elseE )
+    dim as MirType rt = mt
+    if (rt = MT_VOID) andalso (ft <> Fbx.TYPE_NONE) then rt = LowerType( ft, *c.types )
+    if (rt = MT_VOID) orelse (rt = MT_AGG) then return false
+
+    dim as MirValue cond = LowerExpr( c, condE )
+    if cond.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long slot = NewTempLocal( c, rt, c.types->Layout( ft ).size )
+    if slot < 0 then return false
+    dim as MirValue taddr
+    taddr.kind = cast( ubyte, MV_LOCAL )
+    taddr.ty = cast( ubyte, MT_PTR )
+    taddr.id = slot
+
+    dim as long thenB = NewBlock( c, "iif.then" )
+    dim as long elseB = NewBlock( c, "iif.else" )
+    dim as long joinB = NewBlock( c, "iif.join" )
+    Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
+
+    c.curBlock = thenB
+    dim as MirValue tv = LowerExpr( c, thenE )
+    if tv.kind <> cast( ubyte, MV_NONE ) then
+        dim as MirInst ts
+        ts.op = cast( ushort, M_STORE )
+        ts.ty = cast( ubyte, MT_VOID )
+        ts.a = taddr
+        ts.b = Coerce( c, tv, rt, IsUnsignedType( c, c.info->TypeOf_( thenE ) ) )
+        Emit( c, ts )
+    end if
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = elseB
+    dim as MirValue ev = LowerExpr( c, elseE )
+    if ev.kind <> cast( ubyte, MV_NONE ) then
+        dim as MirInst es
+        es.op = cast( ushort, M_STORE )
+        es.ty = cast( ubyte, MT_VOID )
+        es.a = taddr
+        es.b = Coerce( c, ev, rt, IsUnsignedType( c, c.info->TypeOf_( elseE ) ) )
+        Emit( c, es )
+    end if
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = joinB
+    outv = LowerExprLoad( c, taddr, rt )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 end namespace

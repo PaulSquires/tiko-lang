@@ -339,6 +339,24 @@ function LowerExpr _
         ins.a = addr
         return Emit( c, ins )
 
+    case Fbx.N_ADDROF
+        '' '@x' IS THE ADDRESS, which is what LowerAddr already computes for every
+        '' lvalue -- a local, a global, a field, an array element, a byref parameter.
+        '' There was no case for it at all, so every '@' in the tree produced NOTHING:
+        '' 'dim as T ptr p = @obj' allocated p, stored nothing, and 'p->v = 1' then
+        '' wrote through whatever the stack held. Silent, because a DIM initialiser
+        '' that would not lower skipped its store without counting it.
+        dim as Fbx.UnaryPayload ptr ap = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        return LowerAddr( c, ap->operand )
+
+    case Fbx.N_DEREF
+        '' '*p' is a LOAD THROUGH the pointer. LowerAddr already knows the shape --
+        '' the address is the pointer's VALUE -- so this is the load around it.
+        dim as MirValue da = LowerAddr( c, id )
+        if da.kind = cast( ubyte, MV_NONE ) then return v
+        return LowerExprLoad( c, da, mt )
+
     case Fbx.N_UNARY
         dim as Fbx.UnaryPayload ptr up = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -406,6 +424,9 @@ function LowerExpr _
         '' A conversion intrinsic is a KEYWORD, so there is no callee to find and
         '' nothing to call: it lowers to the coercion its result type asks for.
         if IsConvIntrinsic( c, id ) then return LowerConvIntrinsic( c, id, mt )
+        '' 'iif( c, a, b )' is a CONDITIONAL, not a call: only one arm may run.
+        dim as MirValue iifv
+        if LowerIif( c, id, mt, iifv ) then return iifv
         '' Indexing and calling share a spelling; an array subscript is an address to
         '' load from, not a call to make.
         if IsArrayIndex( c, id ) then
@@ -953,8 +974,22 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' store; storing over it as well would overwrite the descriptor the
             '' runtime just filled in.
             if strInited then needsStore = false
+            '' A BRACE INITIALISER over an array is element stores, not one store of
+            '' a value there is no way to name.
+            if needsStore andalso (slot >= 0) then
+                if LowerArrayInit( c, slot, c.syms->SymbolAt( sid )->type_, ip->b ) then
+                    needsStore = false
+                end if
+            end if
+
             if needsStore then
                 dim as MirValue val = LowerExpr( c, ip->b )
+                '' AN INITIALISER THAT WOULD NOT LOWER IS A DECLINE, and was silent:
+                '' the store was simply skipped, so 'dim as integer r = iif( c, 10,
+                '' 20 )' allocated r, stored nothing, and printed whatever the stack
+                '' held -- with "0 statements not lowered" beside it. Every other
+                '' decline in this file is counted; this one was not.
+                if val.kind = cast( ubyte, MV_NONE ) then SkipHere( c )
                 if val.kind <> cast( ubyte, MV_NONE ) then
                     val = Coerce( c, val, cast( MirType, c.f->locals[slot].ty ), _
                                   IsUnsignedType( c, c.info->TypeOf_( ip->b ) ) )
