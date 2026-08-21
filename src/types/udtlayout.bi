@@ -27,6 +27,11 @@ namespace Fbx
         as InternId name
         as TypeId   type_
         as long     offset
+        '' A BITFIELD's position INSIDE the byte at 'offset', and how many bits it
+        '' owns. bitWidth 0 means an ordinary field -- every other member leaves both
+        '' at zero, so nothing that ignores them changes meaning.
+        as long     bitOffset
+        as long     bitWidth
     end type
 
     type UdtInfo

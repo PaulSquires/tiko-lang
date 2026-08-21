@@ -325,6 +325,12 @@ function LowerExpr _
     case Fbx.N_IDENT, Fbx.N_MEMBER
         dim as MirValue pre = LowerPredeclared( c, id )
         if pre.kind <> cast( ubyte, MV_NONE ) then return pre
+
+        '' A BITFIELD HAS NO ADDRESS OF ITS OWN: it is bits inside a unit its
+        '' neighbours share, so it is read by masking rather than by loading.
+        dim as MirValue bfv
+        if LowerBitfieldRead( c, id, bfv ) then return bfv
+
         dim as MirValue addr = LowerAddr( c, id )
         if addr.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins
@@ -793,6 +799,10 @@ private sub LowerAssign _
         if LowerStringAssign( c, target, value ) = false then c.st->skipped += 1
         return
     end if
+
+    '' Same reason as the read: a full-width store into a bitfield's unit would
+    '' overwrite every field packed beside it, so it is a read-modify-write.
+    if LowerBitfieldStore( c, target, value ) then return
 
     dim as MirValue addr = LowerAddr( c, target )
     dim as MirValue val = LowerExpr( c, value )

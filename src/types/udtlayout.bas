@@ -88,6 +88,17 @@ private sub PlaceGroup _
     dim as long grpSize = 0
     dim as boolean first = true
 
+    '' THE OPEN BITFIELD UNIT. 'bitRunSize' is the unit's width in BYTES, 0 when no
+    '' run is open; 'bitNext' is the next free bit measured from the START OF THE
+    '' GROUP, so a bitfield can pack into space an ordinary field has already partly
+    '' used -- 'x as ubyte' then 'a : 3 as ulong' is FOUR bytes with a at bits 8..10,
+    '' not a fresh unit after x.
+    ''
+    '' The whole rule is written down in tools/gen/udt-truth.py, measured over eleven
+    '' shapes by running fbc, and check-udt.sh holds six of them.
+    dim as long bitRunSize = 0
+    dim as long bitNext = 0
+
     while idx < flds.Count
         dim as SymbolId sid = cast( SymbolId, flds[idx] )
         dim as Symbol ptr f = syms.SymbolAt( sid )
@@ -134,17 +145,79 @@ private sub PlaceGroup _
         dim as long fa = natural
         if (pack > 0) andalso (fa > pack) then fa = pack
         dim as long fs = MemberSize( f->type_, types, store )
-        if natural > grpAlign then grpAlign = natural
+
+        dim as long bw = 0
+        if (f->flags and SYMF_BITFIELD) <> 0 then bw = f->payload
 
         dim as long at2 = 0
-        if isUnion then
-            at2 = 0
-            if fs > grpSize then grpSize = fs
+        dim as long bitAt = 0
+
+        if bw > 0 then
+            '' A BITFIELD. Its unit is as wide as its declared type and aligned to it,
+            '' UNLESS a run is already open and the field still fits inside it -- a
+            '' later bitfield packs into the current unit whatever its own type says.
+            '' 'ubyte:3 then ulong:3' is ONE byte; 'ulong:3 then ubyte:3' is four.
+            '' The unit is the aligned region CONTAINING the cursor, not the next
+            '' one along. That distinction is the whole of BitAfterFld: 'x as ubyte'
+            '' then 'a : 3 as ulong' puts a at bits 8..10 of the unit anchored at 0 --
+            '' aligning the cursor UP to 32 instead pushed a into a second unit and
+            '' made the type 12 bytes where fbc says 8.
+            dim as long unitBits = fs * 8
+            if bitRunSize > 0 then
+                '' A run is open: its width governs, whatever this field's type says.
+                unitBits = bitRunSize * 8
+            else
+                '' A NEW run. Its width, and its alignment, come from THIS field --
+                '' the only bitfield in the run that contributes any alignment at all.
+                bitRunSize = fs
+                if natural > grpAlign then grpAlign = natural
+            end if
+            dim as long unitStart = (bitNext \ unitBits) * unitBits
+            if (bitNext - unitStart) + bw > unitBits then
+                bitNext = unitStart + unitBits
+            end if
+
+            at2 = bitNext \ 8
+            bitAt = bitNext mod 8
+            bitNext += bw
+
+            if isUnion then
+                dim as long ub = (bw + 7) \ 8
+                if ub > grpSize then grpSize = ub
+                at2 = 0
+                bitAt = 0
+                bitNext = 0
+                bitRunSize = 0
+            else
+                '' The extent is the bits actually used, rounded up to a byte. The
+                '' UNIT is not reserved: 'ubyte:3 then ulong:3' is one byte, not four.
+                dim as long used = (bitNext + 7) \ 8
+                if used > grpSize then grpSize = used
+                off = used
+            end if
         else
-            off = AlignUp( off, fa )
-            at2 = off
-            off += fs
-            grpSize = off
+            if natural > grpAlign then grpAlign = natural
+
+            '' AN ORDINARY FIELD AFTER A BITFIELD RUN starts at the END OF THE UNIT,
+            '' not at the next free byte: 'a : 3 as ulong' then 'y as ubyte' puts y at
+            '' 4. Closing the run here is what makes that happen.
+            if bitRunSize > 0 then
+                off = AlignUp( bitNext, bitRunSize * 8 ) \ 8
+                if off > grpSize then grpSize = off
+                bitRunSize = 0
+                bitNext = 0
+            end if
+
+            if isUnion then
+                at2 = 0
+                if fs > grpSize then grpSize = fs
+            else
+                off = AlignUp( off, fa )
+                at2 = off
+                off += fs
+                grpSize = off
+                bitNext = off * 8
+            end if
         end if
 
         if emit then
@@ -152,6 +225,8 @@ private sub PlaceGroup _
             uf.name = f->name
             uf.type_ = f->type_
             uf.offset = baseOff + at2
+            uf.bitOffset = bitAt
+            uf.bitWidth = bw
             store.fields.Push( uf )
             u.count += 1
         end if

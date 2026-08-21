@@ -163,6 +163,10 @@ declare function EmitRtl _
     declare function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerBitfieldRead _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerBitfieldStore _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function LowerCompoundAssign _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
           byval op as Fbx.TokenKind ) as boolean

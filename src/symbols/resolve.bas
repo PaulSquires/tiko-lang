@@ -1046,7 +1046,17 @@ sub WalkStmt _
         if sp->b <> Fbx.NODE_NONE then
             dim as Fbx.SymbolId fsid = c.syms->LookupLocal( here, sp->name )
             dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
-            if fs <> 0 then fs->flags or= Fbx.SYMF_BITFIELD
+            if fs <> 0 then
+                '' On a SYM_FIELD carrying SYMF_BITFIELD, 'payload' is THE WIDTH IN
+                '' BITS. Nothing else uses a field's payload, and the layout needs a
+                '' number rather than an expression to place the field at all.
+                dim as Fbx.Check.ConstVal wv = Fbx.Check.ConstOf( _
+                    *c.ast, sp->b, *c.srcMgr, *c.names, 64, c.syms, here )
+                if wv.known andalso (wv.value > 0) andalso (wv.value <= 64) then
+                    fs->flags or= Fbx.SYMF_BITFIELD
+                    fs->payload = cast( long, wv.value )
+                end if
+            end if
         end if
         return
 
