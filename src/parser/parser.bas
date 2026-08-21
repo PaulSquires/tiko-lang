@@ -293,6 +293,31 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' Check. That is no worse than the named type it used to produce, which resolved
     '' to nothing either, and it stops the leftover tokens breaking what follows.
     if (k = Fbx.KW_TYPEOF) andalso (Peek( p ) = Fbx.TK_LPAREN) then
+        '' THE OPERAND IS KEPT when it is a bare NAME, which is what the corpus almost
+        '' always writes -- 'typeof( s )', 'typeof( a )', 'typeof( T )'. Resolve takes
+        '' the type of whatever that name turns out to be, a variable's or a type's.
+        '' Discarding it left the declaration untyped and its slot 'void': 63 verifier
+        '' failures, most of them one file's 'dim aa as typeof( a ) = a'.
+        ''
+        '' Anything more than a name -- 'typeof( sub( ) )', 'typeof( 1 + 1 )' -- is
+        '' still consumed and DISCARDED. Telling a type from an expression there needs
+        '' Check, and an unresolved type is no worse than the named type this used to
+        '' produce, while leftover tokens break the parameter list that follows.
+        dim as long save2 = p.pos
+        dim as boolean tookName = false
+        if HasTok( p, p.pos + 1 ) andalso HasTok( p, p.pos + 2 ) then
+            dim as Fbx.Token inner = p.toks->At( p.pos + 1 )
+            dim as Fbx.TokenKind after = cast( Fbx.TokenKind, p.toks->At( p.pos + 2 ).kind )
+            if (cast( Fbx.TokenKind, inner.kind ) = Fbx.TK_IDENT) andalso _
+               (after = Fbx.TK_RPAREN) then
+                '' 'rawName' is an InternId and unused on a TYPEREF; 'b' is a NodeId
+                '' and putting a name in it would be a pun on the wrong pool.
+                sp.rawName = cast( Fbx.InternId, inner.literal )
+                tookName = true
+            end if
+        end if
+        p.pos = save2
+
         dim as long depth = 0
         do
             dim as Fbx.TokenKind tk = Peek( p )

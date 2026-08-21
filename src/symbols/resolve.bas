@@ -311,6 +311,29 @@ private function ResolveTypeRef _
             end if
         end if
 
+    case Fbx.KW_TYPEOF
+        '' 'typeof( x )' AS A TYPE. The parser keeps the operand when it is a bare
+        '' name, which is what the corpus writes; the type is whatever that name has,
+        '' a variable's or a type's alike. fbc agrees on both: '#print typeof( s )'
+        '' over 'dim s as double' is DOUBLE, and over a UDT name it is the UDT.
+        ''
+        '' A more complicated operand was discarded by the parser and stays unresolved
+        '' here, which is what it was before.
+        if sp->rawName <> 0 then
+            dim as Fbx.SymbolId tsid2 = c.syms->Lookup( scope_, sp->rawName )
+            dim as Fbx.Symbol ptr ts2 = c.syms->SymbolAt( tsid2 )
+            if ts2 <> 0 then
+                if ts2->type_ <> Fbx.TYPE_NONE then
+                    base_ = ts2->type_
+                    '' A REFERENCE is transparent: 'typeof( n )' over a byref
+                    '' parameter is the referent's type, as it is in an expression.
+                    if c.types->Kind( base_ ) = Fbx.TK_REFERENCE then
+                        base_ = c.types->Inner( base_ )
+                    end if
+                end if
+            end if
+        end if
+
     case else
         '' A named type. Not finding it is NOT reported here: a type may come from a
         '' header this build did not parse, and drowning the output in those would

@@ -46,6 +46,54 @@ sub LowerProc _
                 c.names->Fold( c.names->GetString( "this" ) ) )
         end if
     end if
+
+    '' A NAMESPACE-QUALIFIED PROCEDURE HAS NO RECEIVER. 'private function
+    '' procA.f1( ) as integer' defines a free function in a namespace, not a method,
+    '' and fbc gives it no 'this' at all -- but Collect declares one for every
+    '' qualified definition, because at that point it cannot tell a namespace from a
+    '' type. So the function took a parameter nothing passed, spilled it into an
+    '' untyped local, and 17 stores in one corpus file went into a 'void' slot.
+    ''
+    '' Decided here rather than in Collect: only by now is the owner's KIND known.
+    if thisSym <> Fbx.SYMBOL_NONE then
+        '' A CONSTRUCTOR, DESTRUCTOR, OPERATOR or PROPERTY is a member by construction
+        '' and always has one. 'constructor ns.UDT( )' is qualified by a NAMESPACE and
+        '' owned by a TYPE, so nothing about the qualifier decides it -- testing the
+        '' enclosing scope's parent got that wrong and silently emptied ten corpus
+        '' files' worth of constructors.
+        dim as boolean isStructor = false
+        select case cast( Fbx.TokenKind, sp->op )
+        case Fbx.KW_CONSTRUCTOR, Fbx.KW_DESTRUCTOR, Fbx.KW_OPERATOR, Fbx.KW_PROPERTY
+            isStructor = true
+        end select
+
+        if isStructor = false then
+            '' Otherwise: a receiver exists only if a TYPE scope encloses the
+            '' procedure. 'private function procA.f1( ) as integer' inside 'namespace
+            '' procA' is a FREE FUNCTION, and fbc gives it no 'this' -- but Collect
+            '' declares one for every qualified definition, because at that point it
+            '' cannot tell a namespace from a type. The function then took a parameter
+            '' nothing passed and spilled it into an untyped local: 17 stores into a
+            '' 'void' slot in one file.
+            dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( thisSym )
+            dim as boolean inType = false
+            if ts <> 0 then
+                dim as Fbx.ScopeId walk = ts->parent
+                dim as long guard = 0
+                while (walk <> Fbx.SCOPE_NONE) andalso (guard < 64)
+                    dim as Fbx.SymScope ptr sc2 = c.syms->ScopeAt( walk )
+                    if sc2 = 0 then exit while
+                    if sc2->kind = cast( ubyte, Fbx.SCOPEK_TYPE ) then
+                        inType = true
+                        exit while
+                    end if
+                    walk = sc2->parent
+                    guard += 1
+                wend
+            end if
+            if inType = false then thisSym = Fbx.SYMBOL_NONE
+        end if
+    end if
     if thisSym <> Fbx.SYMBOL_NONE then f->paramCount += 1
 
     for i as long = 0 to sp->count - 1
