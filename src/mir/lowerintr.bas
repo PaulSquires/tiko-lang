@@ -166,4 +166,77 @@ function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     return true
 end function
 
+'' 'a += b' and its six siblings. The operator was READ BY THE PARSER, recorded on the
+'' statement, and then IGNORED: every compound assignment lowered to a plain store of
+'' the right-hand side, so 'q += w' compiled as 'q = w'. Verifier-clean, no decline, no
+'' diagnostic -- a silent miscompile of one of the commonest statements in the language.
+''
+'' The target's address is taken ONCE and the read, the operation and the write all go
+'' through it, so an lvalue with a side effect -- 'arr( f( ) ) += 1' -- calls f once, as
+'' fbc does.
+''
+'' The computation type is the TARGET's, with one exception measured against fbc:
+'' '/' is FLOATING division whatever the operands are. 'dim as integer a = 1 : a /= 2'
+'' prints 0 and 'a = 5 : a /= 2' prints 2 -- 0.5 and 2.5 rounded to even, not truncated
+'' -- so the division happens in double and the result converts back on the way in.
+''
+'' '^=' is absent on purpose: power needs a runtime call fbx's inventory does not carry
+'' yet, and declining is the honest answer where inventing a shift would not be.
+function LowerCompoundAssign _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
+      byval op as Fbx.TokenKind ) as boolean
+
+    dim as Fbx.TokenKind bop = Fbx.TK_EOF
+    select case op
+    case Fbx.TK_PLUSEQ   : bop = Fbx.TK_PLUS
+    case Fbx.TK_MINUSEQ  : bop = Fbx.TK_MINUS
+    case Fbx.TK_STAREQ   : bop = Fbx.TK_STAR
+    case Fbx.TK_SLASHEQ  : bop = Fbx.TK_SLASH
+    case Fbx.TK_BSLASHEQ : bop = Fbx.TK_BACKSLASH
+    case else            : return false
+    end select
+
+    dim as Fbx.TypeId tt = c.info->TypeOf_( target )
+    if tt = Fbx.TYPE_NONE then return false
+    dim as MirType mt = LowerType( tt, *c.types )
+    if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
+
+    '' The type the arithmetic happens in. Every operator but '/' works in the
+    '' target's own type; '/' is float division, in single when the target already is
+    '' one and in double otherwise -- 'dim as single h = 1 : h /= 2' prints 0.5.
+    dim as MirType wt = mt
+    if bop = Fbx.TK_SLASH then
+        wt = iif( mt = MT_F32, MT_F32, MT_F64 )
+    end if
+
+    dim as MirValue addr = LowerAddr( c, target )
+    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue cur = LowerExprLoad( c, addr, mt )
+    if cur.kind = cast( ubyte, MV_NONE ) then return false
+    cur = Coerce( c, cur, wt, IsUnsignedType( c, tt ) )
+    dim as MirValue rhs = LowerExpr( c, value )
+    if rhs.kind = cast( ubyte, MV_NONE ) then return false
+    rhs = Coerce( c, rhs, wt, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
+
+    dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, tt ) )
+    if mop = M_NONE then return false
+    dim as MirInst bi
+    bi.op = cast( ushort, mop )
+    bi.ty = cast( ubyte, wt )
+    bi.a = cur
+    bi.b = rhs
+    dim as MirValue res = Emit( c, bi )
+    if res.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = addr
+    st.b = Coerce( c, res, mt )
+    Emit( c, st )
+    return true
+end function
+
+
+
 end namespace

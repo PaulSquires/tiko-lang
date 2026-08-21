@@ -80,5 +80,5 @@ lowered: 7 functions, 7 blocks, 38 insts, 2 statements not lowered, 0 scope imba
   inside N_INTRINSIC 1
   unlowered intrinsic KW_PRINT 1
   amb result-noslot 1
-  skip-site src\mir\lower.bas:1036 1
+  skip-site src\mir\lower.bas:976 1
   skip-site src\mir\lowerctl.bas:128 1

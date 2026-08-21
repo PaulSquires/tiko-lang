@@ -351,6 +351,28 @@ sub InitSharedGlobal _
     c.m->globals[g].hasInit = true
 end sub
 
+'' IS PARAMETER 'idx' OF 'callee' DECLARED BYREF? The argument is then its ADDRESS,
+'' not its value: the callee's slot holds an address and every read goes through it.
+''
+'' Passing the value instead is what made the byref model incoherent from both ends. It
+'' "worked" for a parameter only read and written inside the callee, because both
+'' halves agreed about the local copy -- and could never propagate an out-parameter,
+'' which is the entire point of byref.
+function ParamIsByref _
+    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
+
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
+    if pn = Fbx.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    if idx >= psp->count then return false
+    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + idx] )
+    if c.ast->Kind( prm ) <> Fbx.N_PARAM then return false
+    return ((c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0)
+end function
+
 function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as MirValue v
 
@@ -382,6 +404,27 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     v.kind = cast( ubyte, MV_LOCAL )
     v.ty = cast( ubyte, MT_PTR )
     v.id = lslot
+
+    '' A BYREF PARAMETER'S SLOT HOLDS AN ADDRESS, NOT THE VALUE. Its address as a
+    '' variable is therefore what the slot CONTAINS, not where the slot is -- one load,
+    '' here, and every read, every write and every '@' of the parameter is right,
+    '' because all of them go through this function.
+    ''
+    '' Without it the model was incoherent in three of its four halves: a read of the
+    '' parameter yielded the ADDRESS, a write CLOBBERED the address, and only the
+    '' declared slot type said 'reference' at all. It verified, because a store of a
+    '' pointer into a ptr slot is well-typed; it just meant something else.
+    ''
+    '' Measured cost of the incoherence: 21,806 of the corpus's unlowered statements
+    '' were one macro -- fbcunit's CU_ASSERT_ -- called with a BYREF argument, and the
+    '' identical call with a byval one lowered.
+    if cs <> 0 then
+        if cs->type_ <> Fbx.TYPE_NONE then
+            if c.types->Kind( cs->type_ ) = Fbx.TK_REFERENCE then
+                return LowerExprLoad( c, v, MT_PTR )
+            end if
+        end if
+    end if
     return v
 end function
 

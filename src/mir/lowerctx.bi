@@ -163,6 +163,11 @@ declare function EmitRtl _
     declare function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerCompoundAssign _
+        ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
+          byval op as Fbx.TokenKind ) as boolean
+    declare function ParamIsByref _
+        ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
 
     declare function LowerStrCompare _
         ( byref c as Ctx, byval bp as Fbx.BinaryPayload ptr, _
