@@ -165,6 +165,13 @@ declare function EmitRtl _
     declare function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     '' lowerusing.bas
     declare function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    '' lowerdesc.bas
+    declare function SynthFixedArrayDesc _
+        ( byref c as Ctx, byref arrAddr as MirValue, byval t as Fbx.TypeId, _
+          byref outv as MirValue ) as boolean
+    declare function LowerErase( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function SizeOfType( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    declare function FuncAddrOf( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
     declare function UsingEndsLine_ _
         ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr ) as boolean
     declare function LowerPrintPos _

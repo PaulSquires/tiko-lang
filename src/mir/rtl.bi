@@ -136,6 +136,13 @@ namespace Fbx.Mir
         RTL( RTL_PRINT_SINGLE,      "fb_PrintSingle",      "v",   "lfl"   )
         RTL( RTL_PRINT_DOUBLE,      "fb_PrintDouble",      "v",   "ldl"   )
         RTL( RTL_PRINT_BOOL,        "fb_PrintBool",        "v",   "lbl"   )
+        '' ARRAY DESCRIPTOR routines. Only the ones a FIXED array needs are here; the
+        '' four variadic Redim* entries wait until dynamic arrays are modelled, and
+        '' they are the only array routines that are CDECL on win32.
+        RTL( RTL_ARRAY_CLEAR,       "fb_ArrayClear",       "l",   "p"     )
+        RTL( RTL_ARRAY_CLEAR_OBJ,   "fb_ArrayClearObj",    "l",   "ppp"   )
+        RTL( RTL_ARRAY_DESTRUCT_STR,"fb_ArrayDestructStr", "v",   "p"     )
+        RTL( RTL_ARRAY_DESTRUCT_OBJ,"fb_ArrayDestructObj", "v",   "pp"    )
         '' SPC and TAB take NO MASK, so 'print spc(n);' emits one call and nothing
         '' else -- no newline, no fb_PrintVoid. Note the argument widths: SPC's count
         '' is ssize (64-bit on win64, 32 on win32) and TAB's is int32 on BOTH. That

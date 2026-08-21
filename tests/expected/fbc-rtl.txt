@@ -1,4 +1,8 @@
 calloc	void*	uint64, uint64	lib	calloc
+fb_ArrayClear	int32	struct $7FBARRAYIvE*	lib	fb_ArrayClear
+fb_ArrayClearObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	fb_ArrayClearObj
+fb_ArrayDestructObj	void	struct $7FBARRAYIvE*, void*	lib	fb_ArrayDestructObj
+fb_ArrayDestructStr	void	struct $7FBARRAYIvE*	lib	fb_ArrayDestructStr
 fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	fb_ArrayErase
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimEx
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimPresvEx

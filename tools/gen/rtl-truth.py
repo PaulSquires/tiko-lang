@@ -160,6 +160,30 @@ sub PUProbe( )
     print "a"; tab( n ); "b"; spc( n ); "c"
 end sub
 ''',
+    # ERASE over a FIXED array. Each of the four shapes has to be a separate array:
+    # what erase emits depends on the ELEMENT type, and the fixed-string row is
+    # fb_ArrayDestructStr rather than the fb_ArrayClear the name would suggest.
+    "arrayerase": '''
+type EU
+    declare constructor( )
+    declare destructor( )
+    x as long
+end type
+constructor EU( )
+end constructor
+destructor EU( )
+end destructor
+sub AEProbe( )
+    dim as long a(0 to 4)
+    dim as string sa(0 to 4)
+    dim as EU ua(0 to 2)
+    dim as long m(1 to 2, 3 to 5)
+    erase a
+    erase sa
+    erase ua
+    erase m
+end sub
+''',
     "wstrsub": '''
 sub WSubProbe( )
     dim as wstring * 50 w, w2, r

@@ -9,6 +9,36 @@
 
 namespace Fbx.Mir
 
+'' THE BYTE SIZE OF A TYPE, for anything that has to reserve storage.
+''
+'' TypeContext.Layout does not know about UDTs -- their sizes live in the separate
+'' layout table -- so it returns 0 for a UDT and, worse, 0 for an ARRAY OF UDT, because
+'' its array case multiplies the element's Layout by the element count.
+''
+'' Both places that reserve storage worked around the first half by asking the UDT
+'' table directly, and neither handled the second. So
+''
+''     dim as P pa(0 to 2)
+''
+'' reserved ZERO BYTES and then indexed into it: 'pa(1).x = 5' emitted a store at
+'' offset 8 of a 0-byte slot. No diagnostic, no verify failure, correct-looking MIR,
+'' and stack corruption at run time for every UDT array in the corpus.
+''
+'' One function now, recursive so an array of arrays of UDT works too.
+function SizeOfType( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    if t = Fbx.TYPE_NONE then return 0
+    dim as long ui = c.udts->Find( t )
+    if ui >= 0 then return c.udts->udts[ui].size
+    if c.types->Kind( t ) = Fbx.TK_ARRAY then
+        dim as long es = SizeOfType( c, c.types->Inner( t ) )
+        dim as long n = c.types->types[cast( long, t )].elems
+        if n > 0 then return es * n
+        return es
+    end if
+    return c.types->Layout( t ).size
+end function
+
+
 function LocalFor _
     ( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
 
@@ -41,12 +71,7 @@ function LocalFor _
     l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
     '' An aggregate slot needs its SIZE: 'agg' says nothing about how many bytes to
     '' reserve, and the layout pass is the only thing that knows.
-    dim as long ui = c.udts->Find( s->type_ )
-    if ui >= 0 then
-        l.size = c.udts->udts[ui].size
-    else
-        l.size = c.types->Layout( s->type_ ).size
-    end if
+    l.size = SizeOfType( c, s->type_ )
     c.f->locals.Push( l )
 
     '' The alloca goes in the ENTRY block, which is a verifier rule and also what
@@ -123,13 +148,7 @@ function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
 
     dim as Fbx.InternId nm = s->name
     if IsStaticLocal( c, sid ) then nm = StaticName( c, sid )
-    dim as long sz
-    dim as long ui = c.udts->Find( s->type_ )
-    if ui >= 0 then
-        sz = c.udts->udts[ui].size
-    else
-        sz = c.types->Layout( s->type_ ).size
-    end if
+    dim as long sz = SizeOfType( c, s->type_ )
     '' The storage NAME must still be unique, because it is what a linker and a golden
     '' diff see. A collision here means two distinct symbols wanted the same spelling,
     '' so the later one is suffixed rather than silently sharing.

@@ -572,13 +572,21 @@ function LowerProcPtr _
         end if
     end if
 
-    dim as Fbx.SymbolId fsid = c.info->RefOf( fnE )
+    outv = FuncAddrOf( c, c.info->RefOf( fnE ) )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' The ADDRESS of a procedure symbol, as an M_FUNC_ADDR over the function table index.
+'' Split out of LowerProcPtr because ERASE over a UDT array needs the same thing for a
+'' constructor and a destructor that no source expression names.
+function FuncAddrOf( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
+    dim as MirValue none_
     dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
-    if fs = 0 then return false
-    if fs->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
+    if fs = 0 then return none_
+    if fs->kind <> cast( ubyte, Fbx.SYM_PROC ) then return none_
     dim as Fbx.NodeId pn = cast( Fbx.NodeId, fs->payload )
-    if pn = Fbx.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+    if pn = Fbx.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return none_
 
     dim as Fbx.InternId nm = c.names->GetString( _
         Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
@@ -599,8 +607,7 @@ function LowerProcPtr _
     fa.op = cast( ushort, M_FUNC_ADDR )
     fa.ty = cast( ubyte, MT_PTR )
     fa.callee = cast( ulong, fidx )
-    outv = Emit( c, fa )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return Emit( c, fa )
 end function
 
 '' ANDALSO / ORELSE: the right operand is evaluated only when the left does not
