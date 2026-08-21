@@ -47,6 +47,10 @@ type Ctx
     '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
     '' scopes they are leaving.
     as FB.Array( of long )  loopScope
+    '' The CONSTRUCT KIND behind each breakTo entry -- KW_FOR, KW_DO, KW_WHILE,
+    '' KW_SELECT or KW_SCOPE. Without it 'exit for, for' broke ONE level instead of
+    '' two, silently, and 'exit select' had nothing to match against.
+    as FB.Array( of long )  loopKind
 
     '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
@@ -107,6 +111,8 @@ declare function EmitRtl _
 
     '' lowerctl.bas -- control flow.
     declare sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
+    declare sub LowerExitLike _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval isExit as boolean )
     declare sub LowerEndStmt( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub LowerLabel( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )

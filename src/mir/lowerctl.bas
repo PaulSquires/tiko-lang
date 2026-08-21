@@ -168,6 +168,91 @@ sub LowerEndStmt( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = NewBlock( c, "end.after" )
 end sub
 
+'' 'exit X' and 'continue X'.
+''
+'' The parser records the TARGET KEYWORD and a LEVEL COUNT -- 'exit for, for' names
+'' 'for' twice and leaves the SECOND-innermost for loop. Both were being ignored: every
+'' exit broke the innermost breakTo entry whatever it was, so
+''
+''     for i as long = 1 to 3
+''       for j as long = 1 to 3
+''         exit for, for          <-- left the INNER loop, silently
+''
+'' and 'exit sub' declined outright, which is 1,594 corpus statements.
+''
+'' The five procedure keywords are a RETURN, not a break: EXIT SUB and EXIT FUNCTION
+'' leave the procedure, running every open scope's cleanups on the way, exactly as a
+'' bare RETURN does. A function's result comes from its result slot.
+sub LowerExitLike _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval isExit as boolean )
+
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Fbx.TokenKind want = cast( Fbx.TokenKind, sp->op )
+    dim as long levels = sp->extra
+    if levels < 1 then levels = 1
+
+    '' EXIT SUB / FUNCTION / PROPERTY / CONSTRUCTOR / DESTRUCTOR / OPERATOR.
+    dim as boolean isProcExit = _
+        (want = Fbx.KW_SUB) orelse (want = Fbx.KW_FUNCTION) orelse _
+        (want = Fbx.KW_PROPERTY) orelse (want = Fbx.KW_CONSTRUCTOR) orelse _
+        (want = Fbx.KW_DESTRUCTOR) orelse (want = Fbx.KW_OPERATOR)
+    if isExit andalso isProcExit then
+        dim as MirValue rv = LoadResult( c )
+        EmitCleanupsTo( c, 0 )
+        Terminate( c, MTERM_RET, -1, -1, rv )
+        c.curBlock = -1
+        return
+    end if
+    '' 'continue sub' does not exist, and neither does 'continue select/scope'.
+    if (isExit = false) andalso isProcExit then
+        SkipHere( c )
+        return
+    end if
+
+    '' Walk outwards counting only frames of the requested KIND. 'exit any' and an
+    '' unnamed target take whatever is innermost.
+    dim as boolean anyKind = (want = 0) orelse (want = Fbx.KW_ANY)
+    dim as long at = -1
+    dim as long seen = 0
+    for i as long = c.loopKind.Count - 1 to 0 step -1
+        dim as boolean match = anyKind
+        if match = false then match = (c.loopKind[i] = cast( long, want ))
+        '' CONTINUE only ever targets a loop: a select or scope frame has no
+        '' continue target, and stepping over it would branch to -1.
+        if (isExit = false) andalso (c.contTo[i] < 0) then match = false
+        if match then
+            seen += 1
+            if seen = levels then
+                at = i
+                exit for
+            end if
+        end if
+    next
+
+    if at < 0 then
+        SkipHere( c )
+        return
+    end if
+
+    dim as long dest = c.breakTo[at]
+    if isExit = false then dest = c.contTo[at]
+    '' A SCOPE frame carries -1 until the first 'exit scope' asks for a block. The
+    '' id is written back so the scope itself branches there on the way out.
+    if isExit andalso (dest < 0) andalso (c.loopKind[at] = cast( long, Fbx.KW_SCOPE )) then
+        dest = NewBlock( c, "scope.exit" )
+        c.breakTo[at] = dest
+    end if
+    if dest < 0 then
+        SkipHere( c )
+        return
+    end if
+
+    EmitCleanupsTo( c, c.loopScope[at] )
+    Terminate( c, MTERM_BR, dest, -1, NoVal( ) )
+    c.curBlock = -1
+end sub
+
+
 sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if sp->b = Fbx.NODE_NONE then
@@ -201,6 +286,13 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     dim as Fbx.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
     dim as long joinB = NewBlock( c, "sel.join" )
+    '' A SELECT is a break TARGET: 'exit select' leaves it. It pushes no continue
+    '' target -- 'continue select' does not exist -- so -1 marks the slot as one that
+    '' must never be branched to.
+    c.breakTo.Push( joinB )
+    c.contTo.Push( -1 )
+    c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Fbx.KW_SELECT ) )
     dim as boolean isUns = IsUnsignedType( c, subjT )
 
     for i as long = 0 to lp->count - 1
@@ -243,6 +335,10 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
         CloseScope( c )
     end if
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    c.breakTo.Pop( )
+    c.contTo.Pop( )
+    c.loopScope.Pop( )
+    c.loopKind.Pop( )
     c.curBlock = joinB
 end sub
 
@@ -597,10 +693,12 @@ function LowerForEachArray _
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Fbx.KW_FOR ) )
     PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
+    c.loopKind.Pop( )
     c.breakTo.Pop( )
     c.contTo.Pop( )
     Terminate( c, MTERM_BR, stepB, -1, NoVal( ) )
@@ -654,10 +752,12 @@ sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
     c.breakTo.Push( exitB )
     c.contTo.Push( headB )
     c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Fbx.KW_DO ) )
     PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
+    c.loopKind.Pop( )
     c.breakTo.Pop( )
     c.contTo.Pop( )
     Terminate( c, MTERM_BR, headB, -1, NoVal( ) )

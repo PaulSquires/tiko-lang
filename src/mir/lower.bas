@@ -923,9 +923,28 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         '' LowerBlock recursed forever: LowerBlock forwards anything that is not an
         '' N_BLOCK to LowerStmt, which forwarded it straight back. A guard that does
         '' not narrow is not a guard.
+        '' A SCOPE is a break TARGET too: 'exit scope' leaves it. Its exit block is
+        '' opened LAZILY -- the frame is pushed with -1 and LowerExitLike allocates
+        '' the block the first time something actually needs it. Allocating it up
+        '' front gave every scope in the corpus a dead block and renumbered the rest,
+        '' which the goldens caught.
+        c.breakTo.Push( -1 )
+        c.contTo.Push( -1 )
+        c.loopScope.Push( c.scopeMark.Count )
+        c.loopKind.Push( cast( long, Fbx.KW_SCOPE ) )
+        dim as long scAt = c.breakTo.Count - 1
         PushScope( c )
         LowerBlock( c, StmtOf( c, id )->b )
         CloseScope( c )
+        dim as long scExit = c.breakTo[scAt]
+        c.breakTo.Pop( )
+        c.contTo.Pop( )
+        c.loopScope.Pop( )
+        c.loopKind.Pop( )
+        if scExit >= 0 then
+            Terminate( c, MTERM_BR, scExit, -1, NoVal( ) )
+            c.curBlock = scExit
+        end if
 
     case Fbx.N_DEFER
         '' Registered, not run. It fires at the end of the ENCLOSING scope, in
@@ -1199,12 +1218,14 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         c.breakTo.Push( exitB )
         c.contTo.Push( headB )
         c.loopScope.Push( c.scopeMark.Count )
+        c.loopKind.Push( cast( long, Fbx.KW_WHILE ) )
         '' A loop BODY is a scope: its locals and defers run on every iteration
         '' (docs/plan/08 rule 4), which the measurement confirms.
         PushScope( c )
         LowerBlock( c, sp->b )
         CloseScope( c )
         c.loopScope.Pop( )
+        c.loopKind.Pop( )
         c.breakTo.Pop( )
         c.contTo.Pop( )
         Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
@@ -1292,22 +1313,10 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         c.curBlock = -1
 
     case Fbx.N_EXIT
-        if c.breakTo.Count > 0 then
-            EmitCleanupsTo( c, c.loopScope[c.loopScope.Count - 1] )
-            Terminate( c, MTERM_BR, c.breakTo[c.breakTo.Count - 1], -1, NoVal( ) )
-            c.curBlock = -1
-        else
-            SkipHere( c )
-        end if
+        LowerExitLike( c, id, true )
 
     case Fbx.N_CONTINUE
-        if c.contTo.Count > 0 then
-            EmitCleanupsTo( c, c.loopScope[c.loopScope.Count - 1] )
-            Terminate( c, MTERM_BR, c.contTo[c.contTo.Count - 1], -1, NoVal( ) )
-            c.curBlock = -1
-        else
-            SkipHere( c )
-        end if
+        LowerExitLike( c, id, false )
 
     case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
          Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM, Fbx.N_EXTERN_BLOCK, _
@@ -1428,10 +1437,12 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Fbx.KW_FOR ) )
     PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
+    c.loopKind.Pop( )
     c.breakTo.Pop( )
     c.contTo.Pop( )
     Terminate( c, MTERM_BR, stepB, -1, NoVal( ) )
