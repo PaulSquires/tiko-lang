@@ -670,6 +670,9 @@ private function BuiltinProcRtl _
     case "mutexlock"    : retTy = MT_VOID : return RTL_MUTEX_LOCK
     case "mutexunlock"  : retTy = MT_VOID : return RTL_MUTEX_UNLOCK
     case "fb_assert"    : retTy = MT_VOID : return RTL_ASSERT
+    '' 'clear dst, value, bytes' -- libc memset, and the DESTINATION is passed by
+    '' ADDRESS: fbc writes 'memset( (void*)A, 0, 16ull )' for 'clear a(0), 0, 16'.
+    case "clear"        : retTy = MT_VOID : return RTL_MEMSET
     end select
     return RTL_NONE
 end function
@@ -710,6 +713,13 @@ function LowerBuiltinProc _
     dim as FB.Array( of ulong ) args
     for i as long = 0 to argCount - 1
         dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
+        '' CLEAR's first argument is an LVALUE whose ADDRESS is passed, not its value.
+        if (r = RTL_MEMSET) andalso (i = 0) then
+            dim as MirValue da = LowerAddr( c, a )
+            if da.kind = cast( ubyte, MV_NONE ) then return false
+            args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+            continue for
+        end if
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
         av = Coerce( c, av, RtlParamType( r, i, (c.types->target.pointerBits = 32) ), _

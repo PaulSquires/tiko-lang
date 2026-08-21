@@ -78,4 +78,5 @@ fb_WstrSwap	void	uint16*, int64, uint16*, int64	lib	fb_WstrSwap
 fb_WstrToStr	FBSTRING*	uint16*	lib	fb_WstrToStr
 free	void	void*	lib	free
 malloc	void*	uint64	lib	malloc
+memset	void*	void*, int32, uint64	lib	memset
 realloc	void*	void*, uint64	lib	realloc

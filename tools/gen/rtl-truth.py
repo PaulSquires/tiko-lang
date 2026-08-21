@@ -171,6 +171,11 @@ sub B( )
     dim as any ptr q = callocate( 4, 8 )
     dim as any ptr r = reallocate( p, 32 )
     deallocate( q )
+    '' A NON-CONSTANT size: with a constant one fbc folds to __builtin_memset and
+    '' never declares the libc prototype at all.
+    dim as long ca(0 to 3)
+    dim as long cn = 16
+    clear ca(0), 0, cn
     dim as any ptr m = mutexcreate( )
     mutexlock( m )
     mutexunlock( m )
@@ -249,7 +254,7 @@ end sub
 # with no prefix at all -- so the pattern names the extra functions explicitly rather
 # than assuming every runtime entry point is prefixed.
 DECL = re.compile(
-    r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?((?:fb_\w+|free|malloc|calloc|realloc))"
+    r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?((?:fb_\w+|free|malloc|calloc|realloc|memset))"
     r"\s*\(([^;{]*?)\)"
     r"(?:\s*asm\(\"([^\"]*)\"\))?\s*;")
 

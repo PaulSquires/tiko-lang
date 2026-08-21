@@ -135,6 +135,9 @@ namespace Fbx.Mir
         RTL( RTL_MALLOC,            "malloc",              "p",   "z"     )
         RTL( RTL_CALLOC,            "calloc",              "p",   "zz"    )
         RTL( RTL_REALLOC,           "realloc",             "p",   "pz"    )
+        '' 'clear dst, value, bytes' is libc memset. Measured: fbc emits
+        '' 'memset( (void*)A, 0, 16ull )' for the general form.
+        RTL( RTL_MEMSET,            "memset",              "p",   "plz"   )
         '' Mutexes. All four are ordinary stdcall entries on win32.
         RTL( RTL_MUTEX_CREATE,      "fb_MutexCreate",      "p",   ""      )
         RTL( RTL_MUTEX_DESTROY,     "fb_MutexDestroy",     "v",   "p"     )
