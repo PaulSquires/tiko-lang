@@ -25,6 +25,7 @@ src/mir/dump.bas
 src/mir/verify.bas
 src/mir/lower.bas
 src/mir/lowerstr.bas
+src/mir/lowerwstr.bas
 src/mir/lowerctl.bas
 src/mir/lowerstore.bas
 src/mir/lowerarr.bas

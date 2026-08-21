@@ -140,6 +140,31 @@ namespace Fbx.Mir
         '' sight, which is how the COM tests reach it through their own assert_ macro.
         RTL( RTL_ASSERT,            "fb_Assert",           "v",   "pzpp"  )
         RTL( RTL_FILE_LINEINPUT,    "fb_FileLineInput",    "l",   "lpzl"  )
+        '' INPUT. One "start" call, then one call per destination, each passed BY
+        '' ADDRESS. The start is fb_ConsoleInput( promptDesc, addQuestion, echoNewline )
+        '' -- the prompt is always passed, as a temp descriptor, empty when absent --
+        '' or fb_FileInput( n ) for the '#n' form.
+        ''
+        '' LINE INPUT is different again: ONE call with the destination inside it.
+        ''
+        '' NOTE THE CASING. The runtime spells these Ubyte/Ushort/Uint/Ulongint with a
+        '' lowercase second letter, where the fb_Print family above uses UByte and
+        '' ULongint. Copying the Print casing produces a link error.
+        RTL( RTL_CONSOLE_INPUT,     "fb_ConsoleInput",     "l",   "pll"   )
+        RTL( RTL_FILE_INPUT,        "fb_FileInput",        "l",   "l"     )
+        RTL( RTL_LINEINPUT,         "fb_LineInput",        "l",   "ppzlll" )
+        RTL( RTL_INPUT_BYTE,        "fb_InputByte",        "l",   "p"     )
+        RTL( RTL_INPUT_UBYTE,       "fb_InputUbyte",       "l",   "p"     )
+        RTL( RTL_INPUT_SHORT,       "fb_InputShort",       "l",   "p"     )
+        RTL( RTL_INPUT_USHORT,      "fb_InputUshort",      "l",   "p"     )
+        RTL( RTL_INPUT_INT,         "fb_InputInt",         "l",   "p"     )
+        RTL( RTL_INPUT_UINT,        "fb_InputUint",        "l",   "p"     )
+        RTL( RTL_INPUT_LONGINT,     "fb_InputLongint",     "l",   "p"     )
+        RTL( RTL_INPUT_ULONGINT,    "fb_InputUlongint",    "l",   "p"     )
+        RTL( RTL_INPUT_SINGLE,      "fb_InputSingle",      "l",   "p"     )
+        RTL( RTL_INPUT_DOUBLE,      "fb_InputDouble",      "l",   "p"     )
+        RTL( RTL_INPUT_STRING,      "fb_InputString",      "l",   "pzl"   )
+        RTL( RTL_INPUT_WSTR,        "fb_InputWstr",        "l",   "pz"    )
     #endmacro
 
     enum RtlId

@@ -160,6 +160,8 @@ declare function EmitRtl _
     declare function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    declare function LowerInput _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval isLine as boolean ) as boolean
     declare function LowerWideConcatAssign _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval n as long, _
           byval value as Fbx.NodeId ) as boolean

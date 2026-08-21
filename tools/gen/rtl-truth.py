@@ -137,6 +137,24 @@ end sub
 sub WTake( byref x as const wstring )
 end sub
 ''',
+    # INPUT: a start call, then one per destination. LINE INPUT is one call with the
+    # destination inside it.
+    "inputstmt": '''
+sub I( )
+    dim as byte b : dim as ubyte ub : dim as short sh : dim as ushort ush
+    dim as long l : dim as ulong ul : dim as longint li : dim as ulongint uli
+    dim as single f : dim as double d
+    dim as string s : dim as wstring * 8 w
+    input b : input ub : input sh : input ush
+    input l : input ul : input li : input uli
+    input f : input d : input s : input w
+    input "prompt"; l
+    input ; l
+    input #1, l
+    line input s
+    line input "p"; s
+end sub
+''',
     # FreeBASIC's BUILT-IN PROCEDURES. fbc predeclares these and lowers each straight
     # to a runtime call -- 'allocate' is libc malloc, the mutex four are fb_Mutex*, and
     # fb_Assert is reachable with nothing declaring it at all.

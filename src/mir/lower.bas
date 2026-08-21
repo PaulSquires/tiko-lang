@@ -1207,8 +1207,12 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         '' LINE is two unrelated statements sharing a keyword: bit 1 of 'extra' is
         '' LINE INPUT, bit 2 the graphics form, which needs libfbgfx and declines.
         if ip->op = cast( ushort, Fbx.KW_LINE ) then
-            if (ip->extra and 1) <> 0 then handled = LowerLineInput( c, id )
+            if (ip->extra and 1) <> 0 then
+                handled = LowerLineInput( c, id )
+                if handled = false then handled = LowerInput( c, id, true )
+            end if
         end if
+        if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
         if handled = false then SkipStmt( c, id )
 
     case Fbx.N_DELETE_STMT

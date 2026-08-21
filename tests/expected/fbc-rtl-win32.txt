@@ -3,17 +3,32 @@ fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	_fb_ArrayErase@4
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimEx
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimPresvEx
 fb_Assert	void	char*, int32, char*, char*	lib	_fb_Assert@16
+fb_ConsoleInput	int32	FBSTRING*, int32, int32	lib	_fb_ConsoleInput@12
 fb_DoubleToWstr	uint16*	double	lib	_fb_DoubleToWstr@8
 fb_End	void	int32	lib	_fb_End@4
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	_fb_ErrorThrowEx
 fb_FileClose	int32	int32	lib	_fb_FileClose@4
 fb_FileCloseAll	int32	void	lib	_fb_FileCloseAll@0
+fb_FileInput	int32	int32	lib	_fb_FileInput@4
 fb_FileLineInput	int32	int32, void*, int32, int32	lib	_fb_FileLineInput@16
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	_fb_FileOpen@24
 fb_FloatToWstr	uint16*	float	lib	_fb_FloatToWstr@4
 fb_Init	void	int32, char**, int32	lib	_fb_Init@12
+fb_InputByte	int32	int8*	lib	_fb_InputByte@4
+fb_InputDouble	int32	double*	lib	_fb_InputDouble@4
+fb_InputInt	int32	int32*	lib	_fb_InputInt@4
+fb_InputLongint	int32	int64*	lib	_fb_InputLongint@4
+fb_InputShort	int32	int16*	lib	_fb_InputShort@4
+fb_InputSingle	int32	float*	lib	_fb_InputSingle@4
+fb_InputString	int32	void*, int32, int32	lib	_fb_InputString@12
+fb_InputUbyte	int32	uint8*	lib	_fb_InputUbyte@4
+fb_InputUint	int32	uint32*	lib	_fb_InputUint@4
+fb_InputUlongint	int32	uint64*	lib	_fb_InputUlongint@4
+fb_InputUshort	int32	uint16*	lib	_fb_InputUshort@4
+fb_InputWstr	int32	uint16*, int32	lib	_fb_InputWstr@8
 fb_IntToWstr	uint16*	int32	lib	_fb_IntToWstr@4
 fb_LEFT	FBSTRING*	FBSTRING*, int32	lib	_fb_LEFT@8
+fb_LineInput	int32	FBSTRING*, void*, int32, int32, int32, int32	lib	_fb_LineInput@24
 fb_LongintToWstr	uint16*	int64	lib	_fb_LongintToWstr@8
 fb_MemSwap	void	void*, void*, int32	lib	_fb_MemSwap@12
 fb_MutexCreate	void*	void	lib	_fb_MutexCreate@0
