@@ -363,4 +363,63 @@ sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
     c.curBlock = savedB
 end sub
 
+'' Whether a module has anything to run, as opposed to only declarations.
+function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    if id = Fbx.NODE_NONE then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for i as long = 0 to lp->count - 1
+        select case c.ast->Kind( cast( Fbx.NodeId, c.ast->children[lp->first + i] ) )
+        case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
+             Fbx.N_EXTERN_BLOCK, Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM
+            '' A declaration; it does not put anything in main.
+        case else
+            return true
+        end select
+    next
+    return false
+end function
+
+private sub WalkTop( byref c as Ctx, byval id as Fbx.NodeId )
+    if id = Fbx.NODE_NONE then return
+    select case c.ast->Kind( id )
+    case Fbx.N_MODULE, Fbx.N_BLOCK
+        dim as Fbx.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            WalkTop( c, cast( Fbx.NodeId, c.ast->children[lp->first + i] ) )
+        next
+    case Fbx.N_NAMESPACE, Fbx.N_EXTERN_BLOCK
+        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        for i as long = 0 to sp->count - 1
+            WalkTop( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ) )
+        next
+    case Fbx.N_PROC
+        LowerProc( c, id )
+    end select
+end sub
+
+function Lower _
+    ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
+      byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
+      byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
+      byref src as Fbx.SourceManager, byref udts as Fbx.UdtLayouts, _
+      byref m as MirModule, byref st as LowerStats ) as long
+
+    dim as Ctx c
+    c.srcMgr = @src
+    c.udts = @udts
+    c.ast = @ast
+    c.syms = @syms
+    c.types = @types
+    c.names = @names
+    c.info = @info
+    c.m = @m
+    c.st = @st
+    c.curBlock = -1
+    WalkTop( c, root )
+    LowerMainModule( c, root )
+    return st.functions
+end function
+
 end namespace

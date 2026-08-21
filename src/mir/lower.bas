@@ -37,7 +37,8 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     '' means the frontend could not type the expression, and a well-formed IR with a
     '' gap in it is far more useful than a complete one that is malformed.
     if OpHasResult( op ) andalso (ins.ty = cast( ubyte, MT_VOID )) then
-        if (op <> M_CALL) andalso (op <> M_CALL_RTL) then
+        if (op <> M_CALL) andalso (op <> M_CALL_RTL) andalso _
+           (op <> M_CALL_IND) then
             SkipHere( c )
             return v
         end if
@@ -449,6 +450,9 @@ function LowerExpr _
         '' 'iif( c, a, b )' is a CONDITIONAL, not a call: only one arm may run.
         dim as MirValue iifv
         if LowerIif( c, id, mt, iifv ) then return iifv
+        '' 'procptr( f )' is a function's ADDRESS, not a call to it.
+        dim as MirValue ppv
+        if LowerProcPtr( c, id, ppv ) then return ppv
         '' Indexing and calling share a spelling; an array subscript is an address to
         '' load from, not a call to make.
         if IsArrayIndex( c, id ) then
@@ -462,40 +466,6 @@ function LowerExpr _
     return v
 end function
 
-'' ANDALSO / ORELSE: the right operand is evaluated only when the left does not
-'' already decide the answer. The result is materialised through a slot rather than a
-'' phi, which is what keeps this IR phi-free.
-private function LowerShortCircuit _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
-      byval mt as MirType ) as MirValue
-
-    dim as MirValue v
-    dim as MirValue l = LowerExpr( c, bp->lhs )
-    if l.kind = cast( ubyte, MV_NONE ) then return v
-
-    dim as long rhsB = NewBlock( c, "sc.rhs" )
-    dim as long joinB = NewBlock( c, "sc.join" )
-    if cast( Fbx.TokenKind, bp->op ) = Fbx.KW_ANDALSO then
-        Terminate( c, MTERM_CONDBR, rhsB, joinB, l )
-    else
-        Terminate( c, MTERM_CONDBR, joinB, rhsB, l )
-    end if
-
-    c.curBlock = rhsB
-    dim as MirValue r = LowerExpr( c, bp->rhs )
-    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
-
-    c.curBlock = joinB
-    '' Without phis the join cannot name "whichever side ran". Producing the RIGHT
-    '' operand's value here is correct only when it ran, so this is marked as the
-    '' known gap it is rather than pretended to be complete.
-    if r.kind = cast( ubyte, MV_NONE ) then return l
-    return r
-end function
-
-'' A call, given its PIECES rather than a node: FreeBASIC spells one two ways and both
-'' have to reach the same code. 'W( 1, 2 )' is an N_CALL with its arguments in a list;
-'' 'W 1, 2' is a STATEMENT whose 'a' is the callee and whose children are the arguments.
 function LowerCallParts _
     ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval callee as Fbx.SymbolId, _
       byval argFirst as long, byval argCount as long, _
@@ -505,6 +475,23 @@ function LowerCallParts _
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
     if callee = Fbx.SYMBOL_NONE then return v
     if cs = 0 then return v
+
+    '' A CALL THROUGH A PROCEDURE POINTER. 'dim as sub( ) p = procptr( f ) : p( )'
+    '' names a VARIABLE, not a procedure, so there is no function to look up and
+    '' mangling its name would invent one. docs/plan/09 lists 'call_indirect' for
+    '' exactly this; the callee is the pointer's VALUE.
+    dim as boolean viaPointer = false
+    if cs->kind <> cast( ubyte, Fbx.SYM_PROC ) then
+        dim as Fbx.TypeId ct = cs->type_
+        if ct <> Fbx.TYPE_NONE then
+            if c.types->Kind( ct ) = Fbx.TK_REFERENCE then ct = c.types->Inner( ct )
+            if c.types->Kind( ct ) = Fbx.TK_POINTER then ct = c.types->Inner( ct )
+            viaPointer = (c.types->Kind( ct ) = Fbx.TK_PROC)
+        end if
+        '' Anything else that is not a procedure is not callable, and was already
+        '' declining here.
+        if viaPointer = false then return v
+    end if
 
     '' Arguments are collected LOCALLY and pushed to the shared pool in one run at the
     '' end. Lowering them straight into the pool interleaved a nested call's arguments
@@ -561,6 +548,20 @@ function LowerCallParts _
         cnm = c.names->GetString( Fbx.Mangle.ProcName( _
             *c.ast, cast( Fbx.NodeId, cs->payload ), *c.syms, *c.names, _
             *c.types, *c.info ) )
+    end if
+
+    '' THE INDIRECT CALL. The callee is the pointer's VALUE, loaded from wherever the
+    '' variable lives; there is no function table entry and no name.
+    if viaPointer then
+        dim as MirValue fp = LowerExpr( c, calleeNode )
+        if fp.kind = cast( ubyte, MV_NONE ) then return v
+        dim as MirInst ic
+        ic.op = cast( ushort, M_CALL_IND )
+        ic.ty = cast( ubyte, mt )
+        ic.a = Coerce( c, fp, MT_PTR )
+        ic.first = first
+        ic.count = n
+        return Emit( c, ic )
     end if
 
     '' Finding the function object is a linear scan for now; it is a map when it
@@ -1437,64 +1438,5 @@ function LowerExprLoad _
     return Emit( c, ins )
 end function
 
-
-'' Whether a module has anything to run, as opposed to only declarations.
-function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    if id = Fbx.NODE_NONE then return false
-    dim as Fbx.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    for i as long = 0 to lp->count - 1
-        select case c.ast->Kind( cast( Fbx.NodeId, c.ast->children[lp->first + i] ) )
-        case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
-             Fbx.N_EXTERN_BLOCK, Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM
-            '' A declaration; it does not put anything in main.
-        case else
-            return true
-        end select
-    next
-    return false
-end function
-
-private sub WalkTop( byref c as Ctx, byval id as Fbx.NodeId )
-    if id = Fbx.NODE_NONE then return
-    select case c.ast->Kind( id )
-    case Fbx.N_MODULE, Fbx.N_BLOCK
-        dim as Fbx.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        for i as long = 0 to lp->count - 1
-            WalkTop( c, cast( Fbx.NodeId, c.ast->children[lp->first + i] ) )
-        next
-    case Fbx.N_NAMESPACE, Fbx.N_EXTERN_BLOCK
-        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-        for i as long = 0 to sp->count - 1
-            WalkTop( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ) )
-        next
-    case Fbx.N_PROC
-        LowerProc( c, id )
-    end select
-end sub
-
-function Lower _
-    ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-      byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
-      byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
-      byref src as Fbx.SourceManager, byref udts as Fbx.UdtLayouts, _
-      byref m as MirModule, byref st as LowerStats ) as long
-
-    dim as Ctx c
-    c.srcMgr = @src
-    c.udts = @udts
-    c.ast = @ast
-    c.syms = @syms
-    c.types = @types
-    c.names = @names
-    c.info = @info
-    c.m = @m
-    c.st = @st
-    c.curBlock = -1
-    WalkTop( c, root )
-    LowerMainModule( c, root )
-    return st.functions
-end function
 
 end namespace

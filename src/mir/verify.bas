@@ -152,7 +152,8 @@ function Verify _
 
                 '' A void value can be produced but never consumed.
                 if OpHasResult( op ) andalso (ins->ty = cast( ubyte, MT_VOID )) then
-                    if (op <> M_CALL) andalso (op <> M_CALL_RTL) then
+                    if (op <> M_CALL) andalso (op <> M_CALL_RTL) andalso _
+                       (op <> M_CALL_IND) then
                         Fail( r, iw, "non-call opcode produces void" )
                     end if
                 end if

@@ -612,6 +612,18 @@ private sub WalkExpr _
          Fbx.N_STRCAT
         dim as Fbx.ListPayload ptr lp = ListOf( c, id )
         WalkExpr( c, lp->target, scope_ )
+
+        '' THE CALL NODE CARRIES ITS CALLEE, which lowering reads off it. A direct
+        '' call gets one because the target's own binding is copied up elsewhere; a
+        '' call THROUGH A PROCEDURE POINTER did not, so 'dim as sub( ) p = procptr( f )
+        '' : p( )' reached lowering with no callee at all and was counted as unbound.
+        '' The target is a VARIABLE here, and that is exactly what says the call is
+        '' indirect.
+        if c.ast->Kind( id ) = Fbx.N_CALL then
+            if c.info->RefOf( id ) = Fbx.SYMBOL_NONE then
+                c.info->SetRef( id, c.info->RefOf( lp->target ) )
+            end if
+        end if
         for i as long = 0 to lp->count - 1
             dim as Fbx.NodeId arg = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
             '' 'cast( long, x )' and 'cptr( any ptr, x )' put a TYPE in argument

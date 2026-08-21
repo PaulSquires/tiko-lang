@@ -80,9 +80,22 @@ private function InstStr _
             s += " " & names.Spelling( f.locals[li].name )
         end if
 
-    case M_CALL, M_CALL_RTL
+    case M_FUNC_ADDR
+        '' The function's NAME, which is what makes the dump readable; the index it
+        '' actually carries would say nothing.
         s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
         if cast( long, ins.callee ) < m.functions.Count then
+            s += names.Spelling( m.functions[cast( long, ins.callee )]->name )
+        else
+            s += "?" & str( ins.callee )
+        end if
+
+    case M_CALL, M_CALL_RTL, M_CALL_IND
+        s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
+        if op = M_CALL_IND then
+            '' The callee is a VALUE here, not a table index.
+            s += ValStr( f, ins.a, names, @m )
+        elseif cast( long, ins.callee ) < m.functions.Count then
             s += names.Spelling( m.functions[cast( long, ins.callee )]->name )
         else
             s += "?" & str( ins.callee )

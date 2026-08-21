@@ -100,6 +100,15 @@ namespace Fbx.Mir
         OP( M_UITOFP,     "uitofp",     1, true  )
         OP( M_BITCAST,    "bitcast",    1, true  )
         OP( M_CALL,       "call",      -1, true  )
+        '' A CALL THROUGH A VALUE. docs/plan/09 lists 'call_indirect' in the opcode
+        '' table; this is it. The callee is in 'a' rather than in the 'callee' index,
+        '' and everything else -- the argument pool extent, the result type -- is a
+        '' direct call's.
+        OP( M_CALL_IND,   "call.ind",  -1, true  )
+        '' THE ADDRESS OF A FUNCTION, by index into the module's function table. What
+        '' 'procptr( f )' produces, and what a lambda's value would be. fbc spells it
+        '' '(tmp$2)&F'.
+        OP( M_FUNC_ADDR,  "func.addr",  0, true  )
         OP( M_CALL_RTL,   "call.rtl",  -1, true  )
     #endmacro
 

@@ -513,4 +513,95 @@ function LowerIif _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' 'procptr( f )' -- THE ADDRESS OF A PROCEDURE. Returns false when the node is not one.
+''
+'' fbc spells it '(tmp$2)&F', a plain function address, and stores it in an ordinary
+'' pointer. MIR carries it as M_FUNC_ADDR over the function's table index, because a
+'' MirValue has no kind for a function and the index is what the dump and the backend
+'' both need.
+''
+'' It produced NOTHING before, which the DIM initialiser then dropped silently:
+'' 'dim as sub( ) p = procptr( tests.x.init )' left p uninitialised.
+function LowerProcPtr _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 1 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "procptr" then return false
+
+    '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
+    '' between, a name that did not resolve -- has no single address to take.
+    dim as Fbx.NodeId fnE = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    dim as Fbx.SymbolId fsid = c.info->RefOf( fnE )
+    dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+    if fs = 0 then return false
+    if fs->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, fs->payload )
+    if pn = Fbx.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+
+    dim as Fbx.InternId nm = c.names->GetString( _
+        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
+        decl->isDefinition = false
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FUNC_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.callee = cast( ulong, fidx )
+    outv = Emit( c, fa )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' ANDALSO / ORELSE: the right operand is evaluated only when the left does not
+'' already decide the answer. The result is materialised through a slot rather than a
+'' phi, which is what keeps this IR phi-free.
+function LowerShortCircuit _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
+      byval mt as MirType ) as MirValue
+
+    dim as MirValue v
+    dim as MirValue l = LowerExpr( c, bp->lhs )
+    if l.kind = cast( ubyte, MV_NONE ) then return v
+
+    dim as long rhsB = NewBlock( c, "sc.rhs" )
+    dim as long joinB = NewBlock( c, "sc.join" )
+    if cast( Fbx.TokenKind, bp->op ) = Fbx.KW_ANDALSO then
+        Terminate( c, MTERM_CONDBR, rhsB, joinB, l )
+    else
+        Terminate( c, MTERM_CONDBR, joinB, rhsB, l )
+    end if
+
+    c.curBlock = rhsB
+    dim as MirValue r = LowerExpr( c, bp->rhs )
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = joinB
+    '' Without phis the join cannot name "whichever side ran". Producing the RIGHT
+    '' operand's value here is correct only when it ran, so this is marked as the
+    '' known gap it is rather than pretended to be complete.
+    if r.kind = cast( ubyte, MV_NONE ) then return l
+    return r
+end function
+
+'' A call, given its PIECES rather than a node: FreeBASIC spells one two ways and both
+'' have to reach the same code. 'W( 1, 2 )' is an N_CALL with its arguments in a list;
+'' 'W 1, 2' is a STATEMENT whose 'a' is the callee and whose children are the arguments.
+
 end namespace
