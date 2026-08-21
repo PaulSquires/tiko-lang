@@ -172,7 +172,7 @@ private function ExprIntrinsicType_ _
     case "str"
         if (isNum orelse isStr) = false then return Fbx.TYPE_NONE
         return c.types->Builtin( Fbx.TY_STRING )
-    case "trim", "ltrim", "rtrim", "ucase", "lcase", "mid"
+    case "trim", "ltrim", "rtrim", "ucase", "lcase", "mid", "left", "right"
         if isStr = false then return Fbx.TYPE_NONE
         if ab = Fbx.TY_WSTRING then return c.types->Builtin( Fbx.TY_WSTRING )
         return c.types->Builtin( Fbx.TY_STRING )
