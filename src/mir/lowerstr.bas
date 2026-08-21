@@ -352,14 +352,23 @@ function LowerPredeclared _
         dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
         dim as Fbx.Check.ConstVal cv = _
             Fbx.Check.ConstOf( *c.ast, ip->b, *c.srcMgr, *c.names, _
-                               c.types->target.pointerBits )
-        if cv.known = false then return v
+                               c.types->target.pointerBits, c.syms, s->parent )
         dim as MirType mt = LowerType( c.info->TypeOf_( id ), *c.types )
         if mt = MT_VOID then mt = MT_I64
-        '' ConstOf answers INTEGERS only, so a float constant never reaches here with a
-        '' known value -- and must not be given one by casting an integer field to a
+        if (cv.known = false) andalso (IsFloatTy( mt ) = false) then return v
+        '' ConstOf answers INTEGERS only, so a float constant never reaches here with
+        '' a known value -- and must not be given one by casting an integer field to a
         '' double, which would make 'const PI = 3.5' into 3 without a word.
-        if IsFloatTy( mt ) then return v
+        ''
+        '' It is lowered from its INITIALISER instead. A constant's initialiser is a
+        '' constant expression, so lowering it emits the value directly, and no
+        '' evaluator has to learn about floats to get there. Declining was 862 of one
+        '' corpus file's statements -- every 'iif( c, T1, 0.0 )' over a
+        '' 'const T1 as double', where BOTH arms came out empty.
+        if IsFloatTy( mt ) then
+            if cv.known then return v
+            return LowerExpr( c, ip->b )
+        end if
         return ConstInt( c, cv.value, mt )
     end if
     return v
