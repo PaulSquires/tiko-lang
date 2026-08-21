@@ -163,6 +163,13 @@ namespace Fbx
         as long       occupied
         as Interner ptr names
 
+        '' 'using ns' -- the namespaces IMPORTED into a scope, as parallel arrays of
+        '' (the scope the USING was written in, the namespace's own scope). A list
+        '' rather than a field on SymScope because almost no scope has one, and a scope
+        '' may import several.
+        as FB.Array( of ulong ) usingAt
+        as FB.Array( of ulong ) usingInner
+
         declare constructor( )
         declare sub Attach( byval it as Interner ptr )
 
@@ -190,6 +197,10 @@ namespace Fbx
               byval wantType as boolean ) as SymbolId
         declare function LookupLocal _
             ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
+
+        '' Register 'using ns' in a scope. Repeats are ignored, so a header included
+        '' twice does not grow the list.
+        declare sub AddUsing( byval scope_ as ScopeId, byval nsScope as ScopeId )
 
         declare function SymbolAt( byval id as SymbolId ) as Symbol ptr
         declare function ScopeAt( byval id as ScopeId ) as SymScope ptr

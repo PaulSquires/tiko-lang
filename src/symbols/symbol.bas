@@ -204,12 +204,34 @@ function SymbolTable.Lookup _
         if guard > 1024 then exit while          '' a cycle would be a table bug
         dim as SymbolId got = this.LookupLocal( s, nm )
         if got <> SYMBOL_NONE then return got
+
+        '' 'using ns' makes the namespace's names visible UNQUALIFIED from here on.
+        '' Searched AFTER the scope's own names and BEFORE its parent's, which is the
+        '' order that makes a local declaration win over an import and an import win
+        '' over an outer name.
+        for i as long = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( ulong, s ) then continue for
+            got = this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm )
+            if got <> SYMBOL_NONE then return got
+        next
+
         dim as SymScope ptr sc = this.ScopeAt( s )
         if sc = 0 then exit while
         s = sc->parent
     wend
     return SYMBOL_NONE
 end function
+
+sub SymbolTable.AddUsing _
+    ( byval scope_ as ScopeId, byval nsScope as ScopeId )
+    if (scope_ = SCOPE_NONE) orelse (nsScope = SCOPE_NONE) then return
+    for i as long = 0 to this.usingAt.Count - 1
+        if (this.usingAt[i] = cast( ulong, scope_ )) andalso _
+           (this.usingInner[i] = cast( ulong, nsScope )) then return
+    next
+    this.usingAt.Push( cast( ulong, scope_ ) )
+    this.usingInner.Push( cast( ulong, nsScope ) )
+end sub
 
 '' -------------------------------------------------------------- construction
 

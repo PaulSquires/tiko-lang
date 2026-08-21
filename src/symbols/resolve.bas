@@ -812,6 +812,32 @@ sub WalkStmt _
         next
         return
 
+    case Fbx.N_USING
+        '' 'using FB' makes a namespace's names visible unqualified from here on. It
+        '' was PARSED and then dropped -- 175 statements that did nothing -- which is
+        '' why the runtime headers have to write 'FB.FB_RTERROR_ILLEGALFUNCTIONCALL' in
+        '' full and say so in their own comments.
+        ''
+        '' Registered against the scope the USING appears in, so it applies for the
+        '' rest of that scope and no further, and searched after the scope's own names
+        '' and before its parent's -- a local declaration beats an import, an import
+        '' beats an outer name.
+        ''
+        '' A DOTTED path 'using a.b' only reaches here as its LAST component, because
+        '' the parser overwrites the name per component. Single-name imports, which is
+        '' every one in the corpus and the headers, are exact.
+        dim as Fbx.StmtPayload ptr usp = StmtOf( c, id )
+        if usp->name <> 0 then
+            dim as Fbx.SymbolId nsid = c.syms->Lookup( here, usp->name )
+            dim as Fbx.Symbol ptr nss = c.syms->SymbolAt( nsid )
+            if nss <> 0 then
+                if nss->kind = cast( ubyte, Fbx.SYM_NAMESPACE ) then
+                    c.syms->AddUsing( here, nss->inner )
+                end if
+            end if
+        end if
+        return
+
     case Fbx.N_WITH
         '' 'with expr' ... '.field' ... 'end with'. The subject is resolved once, then
         '' pushed so every baseless member inside takes it as a base.
