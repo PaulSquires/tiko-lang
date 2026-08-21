@@ -72,6 +72,112 @@ private function LowerConcatViaTemp _
     return true
 end function
 
+'' Up to 'maxDigits' digits in 'radix', greedy, value clamped to a byte. Shared by
+'' the hex escape and the three '&' forms, which differ only in radix and digit count.
+private function ReadRadix_ _
+    ( byref f as Fbx.SourceFile, byval base_ as long, byval limit as long, _
+      byref i as long, byval radix as long, byval maxDigits as long ) as long
+
+    dim as long v = 0
+    dim as long d = 0
+    while (d < maxDigits) andalso (i < limit)
+        dim as ubyte k = f.text[base_ + i]
+        dim as long dv = -1
+        if (k >= 48) andalso (k <= 57) then
+            dv = k - 48
+        elseif (k >= 97) andalso (k <= 122) then
+            dv = k - 97 + 10
+        elseif (k >= 65) andalso (k <= 90) then
+            dv = k - 65 + 10
+        end if
+        if (dv < 0) orelse (dv >= radix) then exit while
+        v = v * radix + dv
+        i += 1
+        d += 1
+    wend
+    if v > 255 then v = 255
+    return v
+end function
+
+'' One escape, 'i' indexing the BACKSLASH. Returns the byte, or -1 for an escape that
+'' produces NOTHING, and advances 'i' past everything consumed.
+''
+'' Every rule here was measured by RUNNING a program fbc compiled --
+'' tools/gen/escape-truth.py holds the probe, tests/types/expected/fbc-escape.txt the
+'' answers, and tools/gen/check-escape.sh replays all 47 of them.
+private function DecodeEscape_ _
+    ( byref f as Fbx.SourceFile, byval base_ as long, byval limit as long, _
+      byref i as long ) as long
+
+    i += 1                                  '' past the backslash
+    if i >= limit then return 92             '' a trailing backslash is itself
+
+    dim as ubyte c = f.text[base_ + i]
+
+    '' The ten NAMED escapes, CASE-SENSITIVELY. An uppercase N is the letter N, not a
+    '' newline. Nothing else is named: there is no ESC escape and no NUL escape, and
+    '' the corpus depends on it -- logger_sinks.bas writes what looks like an ANSI
+    '' colour sequence and fbc emits a plain letter e.
+    select case c
+    case asc( "a" ) : i += 1 : return 7
+    case asc( "b" ) : i += 1 : return 8
+    case asc( "f" ) : i += 1 : return 12
+    case asc( "n" ) : i += 1 : return 10
+    case asc( "r" ) : i += 1 : return 13
+    case asc( "t" ) : i += 1 : return 9
+    case asc( "v" ) : i += 1 : return 11
+    case 92         : i += 1 : return 92
+    case 34         : i += 1 : return 34
+    case 39         : i += 1 : return 39
+    end select
+
+    '' DECIMAL, not octal -- three digits reading 101 is byte 101, not 65. One to three
+    '' digits, greedy, and the value CLAMPS at 255 rather than wrapping.
+    if (c >= 48) andalso (c <= 57) then
+        dim as long v = 0
+        dim as long d = 0
+        while (d < 3) andalso (i < limit)
+            dim as ubyte k = f.text[base_ + i]
+            if (k < 48) orelse (k > 57) then exit while
+            v = v * 10 + (k - 48)
+            i += 1
+            d += 1
+        wend
+        if v > 255 then v = 255
+        return v
+    end if
+
+    '' HEX, at most TWO digits: four hex characters after it are one byte and then two
+    '' letters of ordinary text. Zero digits is allowed and yields 0.
+    if (c = asc( "x" )) orelse (c = asc( "X" )) then
+        i += 1
+        return ReadRadix_( f, base_, limit, i, 16, 2 )
+    end if
+
+    '' The radix forms: h hex (2 digits), o octal (3), b binary (8). An unknown radix
+    '' letter makes the marker VANISH and leaves the rest as text, which is why this
+    '' returns -1 rather than a byte.
+    if c = 38 then
+        if i + 1 < limit then
+            dim as ubyte r = f.text[base_ + i + 1]
+            select case r
+            case asc( "h" ), asc( "H" )
+                i += 2 : return ReadRadix_( f, base_, limit, i, 16, 2 )
+            case asc( "o" ), asc( "O" )
+                i += 2 : return ReadRadix_( f, base_, limit, i, 8, 3 )
+            case asc( "b" ), asc( "B" )
+                i += 2 : return ReadRadix_( f, base_, limit, i, 2, 8 )
+            end select
+        end if
+        i += 1
+        return -1
+    end if
+
+    '' ANYTHING ELSE is the character itself, and is NEVER an error.
+    i += 1
+    return c
+end function
+
 '' The text of a string literal. The parser records the span rather than the decoded
 '' bytes, so it is read back out of the source buffer here.
 function StringLitText_ _
@@ -92,15 +198,44 @@ function StringLitText_ _
     '' stringised argument containing a quote would carry an extra byte, which is the
     '' silent half of the bug the '$"..."' spelling fixes the loud half of.
     ''
-    '' ESCAPED literals are NOT decoded here either, and that is a separate
-    '' pre-existing gap: a backslash-n inside a bang-quoted literal still reaches
-    '' MIR as two bytes rather than one. It needs its own measured table and is
-    '' untouched by this.
     dim as string r = space( lp->strLength )
     dim as long n = 0
     dim as long i = 0
+
+    '' An ESCAPED literal containing a unicode escape is left ALONE. Those promote the
+    '' whole literal to a WSTRING -- measured, the type of one is WSTRING against
+    '' ZSTRING for a literal holding only byte escapes -- and fbx does not model a wide
+    '' literal. Decoding the byte escapes around it and dropping the wide ones would
+    '' produce a literal that is neither compiler's answer. 2120 occurrences in the
+    '' corpus, and they stay an OPEN GAP rather than a wrong one.
+    dim as boolean decode = (lp->strKind = cast( ubyte, Fbx.STRK_ESCAPED ))
+    if decode then
+        for k as long = 0 to lp->strLength - 2
+            if f->text[lp->strOffset + k] = 92 then
+                dim as ubyte nx = f->text[lp->strOffset + k + 1]
+                if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
+                    decode = false
+                    exit for
+                end if
+            end if
+        next
+    end if
+
     while i < lp->strLength
         dim as ubyte ch = f->text[lp->strOffset + i]
+
+        if decode andalso (ch = 92) then
+            dim as long b = DecodeEscape_( *f, lp->strOffset, lp->strLength, i )
+            '' A NUL from a numeric escape ENDS the literal, at compile time: fbc puts
+            '' the bytes before it into the target and the rest never exists.
+            if b = 0 then exit while
+            if b > 0 then
+                r[n] = cast( ubyte, b )
+                n += 1
+            end if
+            continue while
+        end if
+
         r[n] = ch
         n += 1
         dim as boolean doubledQuote = (ch = 34) andalso (i + 1 < lp->strLength) andalso _
