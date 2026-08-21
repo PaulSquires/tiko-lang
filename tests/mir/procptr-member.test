@@ -1,0 +1,5 @@
+'' procptr of a member, and its two-argument form.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-member.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/procptr-member.out

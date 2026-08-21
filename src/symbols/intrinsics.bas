@@ -338,7 +338,12 @@ private function IntrinsicCallType_ _
     dim as Fbx.TypeId et = ExprIntrinsicType_( c, nm, cp )
     if et <> Fbx.TYPE_NONE then return et
 
-    if cp->count <> 1 then return Fbx.TYPE_NONE
+    '' 'procptr( T.m, virtual )' takes a SECOND argument naming which override to
+    '' point at. It does not change the result type, so one or two are both accepted
+    '' here and everything else is not one of these intrinsics.
+    if cp->count < 1 then return Fbx.TYPE_NONE
+    if (cp->count > 1) andalso (nm <> "procptr") then return Fbx.TYPE_NONE
+    if cp->count > 2 then return Fbx.TYPE_NONE
 
     '' PROCPTR( F ) is the procedure's own type, which in FreeBASIC is already a pointer.
     '' Measured: 'typeof( procptr( F ) )' is 'SUB CDECL(AS LONG)'.
@@ -348,8 +353,14 @@ private function IntrinsicCallType_ _
     '' 'fbcu.add_test( ..., procptr( test_name ), ... )' unbound -- and an unbound callee
     '' is a declined statement. 2,444 of them across the corpus, from this one gap.
     if nm = "procptr" then
+        '' A MEMBER, not just a bare name: 'procptr( T.proc1 )' is an N_MEMBER, and
+        '' rejecting it left the whole expression untyped -- so 'var fp = procptr(
+        '' T.proc1 )' gave fp a VOID slot and the store into it was malformed. Both
+        '' shapes are bound to their procedure symbol by then, so the type comes from
+        '' the same place.
         dim as Fbx.NodeId pa = cast( Fbx.NodeId, c.ast->children[cp->first] )
-        if c.ast->Kind( pa ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
+        dim as Fbx.NodeKind pk = c.ast->Kind( pa )
+        if (pk <> Fbx.N_IDENT) andalso (pk <> Fbx.N_MEMBER) then return Fbx.TYPE_NONE
         return ProcTypeOfSymbol_( c, c.info->RefOf( pa ) )
     end if
 
