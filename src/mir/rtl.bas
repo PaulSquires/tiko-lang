@@ -59,6 +59,8 @@ function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
     '' emits a name the linker cannot resolve. Found by check-rtl the moment the entry
     '' was added, which is the whole reason that gate compares the DECORATED name.
     if r = RTL_ERROR_THROW then return "_" & nm
+    '' 'free' is libc and cdecl; the leading underscore is all win32 adds.
+    if r = RTL_FREE then return "_" & nm
 
     dim as long total = 0
     for i as long = 0 to len( ps ) - 1

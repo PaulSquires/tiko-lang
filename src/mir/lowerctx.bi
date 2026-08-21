@@ -162,6 +162,7 @@ declare function EmitRtl _
     '' lowerintr.bas
     declare function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 
     declare function LowerStrCompare _
         ( byref c as Ctx, byval bp as Fbx.BinaryPayload ptr, _
@@ -192,8 +193,12 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Fbx.TypeId, byref which as string ) as Fbx.SymbolId
     declare function StructorWithArity _
         ( byref c as Ctx, byval first_ as Fbx.SymbolId, byval want as long ) as Fbx.SymbolId
+    '' 'slot' is a LOCAL whose address is the receiver. A NEGATIVE slot means the
+    '' receiver is already a value and comes through 'selfVal' -- which is what DELETE
+    '' has: a pointer, not a local.
     declare sub EmitStructorCall _
-        ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+        ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long, _
+          byval selfVal as MirValue ptr = 0 )
     declare sub EmitCtorCall _
         ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
     declare sub EmitDtorCall _

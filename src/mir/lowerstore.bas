@@ -211,7 +211,8 @@ end function
 '' A call to a structor with the slot's address as the implicit THIS. The receiver is
 '' the first argument, per the ABI, which is also how the mangled name reads.
 sub EmitStructorCall _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long, _
+      byval selfVal as MirValue ptr = 0 )
 
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = 0 then return
@@ -219,10 +220,17 @@ sub EmitStructorCall _
     if pn = Fbx.NODE_NONE then return
     if c.ast->Kind( pn ) <> Fbx.N_PROC then return
 
+    '' A NEGATIVE slot means 'the receiver is already a value' -- DELETE has a POINTER
+    '' in hand, not a local whose address is the receiver. Passed through 'selfVal'
+    '' rather than by widening every caller.
     dim as MirValue self_
-    self_.kind = cast( ubyte, MV_LOCAL )
-    self_.ty = cast( ubyte, MT_PTR )
-    self_.id = slot
+    if selfVal <> 0 then self_ = *selfVal
+    if slot >= 0 then
+        self_.kind = cast( ubyte, MV_LOCAL )
+        self_.ty = cast( ubyte, MT_PTR )
+        self_.id = slot
+    end if
+    if self_.kind = cast( ubyte, MV_NONE ) then return
 
     dim as long first = c.m->argPool.Count \ 2
     c.m->argPool.Push( cast( ulong, self_.kind ) )

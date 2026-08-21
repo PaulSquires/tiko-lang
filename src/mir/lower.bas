@@ -1152,6 +1152,20 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         end if
         if handled = false then SkipStmt( c, id )
 
+    case Fbx.N_DELETE_STMT
+        if LowerDelete( c, id ) = false then SkipStmt( c, id )
+
+    case Fbx.N_WITH
+        '' 'with expr' declares nothing and emits nothing of its own -- it is a NAMING
+        '' construct. Resolve has already pointed every '.field' inside it at the
+        '' subject's own node, so the body lowers as ordinary statements and the member
+        '' accesses find their base the usual way.
+        ''
+        '' A subject Resolve would not accept -- anything but an lvalue, because the
+        '' base is SHARED rather than evaluated into a temporary -- leaves its members
+        '' baseless, and they decline inside the body instead of here.
+        LowerBlock( c, StmtOf( c, id )->b )
+
     case Fbx.N_END_STMT
         LowerEndStmt( c, id )
 

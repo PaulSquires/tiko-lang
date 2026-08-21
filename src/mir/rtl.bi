@@ -88,6 +88,10 @@ namespace Fbx.Mir
         '' return type is a pointer and not void. fbx installs none -- ON ERROR is not
         '' implemented -- so the call never returns and the block ends unreachable.
         RTL( RTL_ERROR_THROW,       "fb_ErrorThrowEx",     "p",   "llppp" )
+        '' LIBC, not the FB runtime, and named exactly that: fbc emits a plain
+        '' 'free( p )' for DELETE rather than routing it through fb_*. It is cdecl on
+        '' every target, so RtlLinkName must not decorate it either.
+        RTL( RTL_FREE,              "free",                "v",   "p"     )
         RTL( RTL_FILE_LINEINPUT,    "fb_FileLineInput",    "l",   "lpzl"  )
     #endmacro
 

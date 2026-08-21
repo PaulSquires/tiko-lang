@@ -87,4 +87,83 @@ function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     return true
 end function
 
+'' The DESTRUCTOR of a UDT, or SYMBOL_NONE. Named 'destructor' in its own scope.
+private function DtorOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    '' By SCANNING for the UDT's symbol rather than looking its name up: a TypeId does
+    '' not carry the scope it was declared in in a form Lookup can take, and the same
+    '' spelling may name a UDT in two namespaces. The identity being matched is the
+    '' TYPE, which is unique.
+    for i as long = 1 to c.syms->Count( ) - 1
+        dim as Fbx.Symbol ptr us = c.syms->SymbolAt( cast( Fbx.SymbolId, i ) )
+        if us = 0 then continue for
+        if us->kind <> cast( ubyte, Fbx.SYM_UDT ) then continue for
+        if us->type_ <> t then continue for
+        if us->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+        return c.syms->LookupLocal( us->inner, c.names->Fold( c.names->GetString( "__dtor" ) ) )
+    next
+    return Fbx.SYMBOL_NONE
+end function
+
+'' DELETE p -- run the destructor, then release the storage.
+''
+'' Measured from fbc's own C, which is smaller than the keyword suggests:
+''
+''     if( P$0 == (struct $1T*)0ull) goto label$5;
+''     _ZN1TD1Ev( P$0 );
+''     free( (void*)P$0 );
+''     label$5:;
+''
+'' A NULL CHECK, the destructor called with the pointer itself as the receiver, and
+'' libc's free -- not an fb_* entry point. 'delete[] q' over a scalar array is the same
+'' without the destructor call.
+''
+'' DECLINED for an ARRAY of a type that HAS a destructor: fbc has to run one per
+'' element and needs the count to do it, which is not in the pointer. Getting that wrong
+'' would leak or double-free, so it declines rather than guesses.
+function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Fbx.NODE_NONE then return false
+
+    dim as Fbx.TypeId pt = c.info->TypeOf_( sp->a )
+    if pt = Fbx.TYPE_NONE then return false
+    if c.types->Kind( pt ) <> Fbx.TK_POINTER then return false
+    dim as Fbx.TypeId el = c.types->Inner( pt )
+
+    dim as Fbx.SymbolId dtor = DtorOf_( c, el )
+    dim as boolean isArray = ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_ARRAY) <> 0)
+    if isArray andalso (dtor <> Fbx.SYMBOL_NONE) then return false
+
+    dim as MirValue p = LowerExpr( c, sp->a )
+    if p.kind = cast( ubyte, MV_NONE ) then return false
+    p = Coerce( c, p, MT_PTR )
+
+    '' 'if p <> 0 then ... end if', in the shape fbc emits: a compare, a conditional
+    '' branch, the body, and a join.
+    dim as MirValue zero = ConstInt( c, 0, MT_PTR )
+    dim as MirInst cmp
+    cmp.op = cast( ushort, M_ICMP_NE )
+    cmp.ty = cast( ubyte, MT_I32 )
+    cmp.a = p
+    cmp.b = zero
+    dim as MirValue cond = Emit( c, cmp )
+    if cond.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long bodyB = NewBlock( c, "del.body" )
+    dim as long joinB = NewBlock( c, "del.join" )
+    Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
+    c.curBlock = bodyB
+
+    if dtor <> Fbx.SYMBOL_NONE then EmitStructorCall( c, dtor, -1, @p )
+
+    dim as FB.Array( of ulong ) fargs
+    fargs.Push( cast( ulong, p.kind ) ) : fargs.Push( cast( ulong, p.id ) )
+    EmitRtl( c, RTL_FREE, fargs )
+
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    c.curBlock = joinB
+    return true
+end function
+
 end namespace

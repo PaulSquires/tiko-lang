@@ -1,3 +1,4 @@
+calloc	void*	uint64, uint64	lib	calloc
 fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	fb_ArrayErase
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimEx
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimPresvEx
@@ -35,3 +36,4 @@ fb_StrMid	FBSTRING*	FBSTRING*, int64, int64	lib	fb_StrMid
 fb_StrSwap	void	void*, int64, int32, void*, int64, int32	lib	fb_StrSwap
 fb_VALINT	int32	FBSTRING*	lib	fb_VALINT
 fb_WstrSwap	void	uint16*, int64, uint16*, int64	lib	fb_WstrSwap
+free	void	void*	lib	free

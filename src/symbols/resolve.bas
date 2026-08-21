@@ -77,6 +77,9 @@ type Ctx
     as Fbx.SemanticInfo ptr info
     as Stats ptr            st
     as Fbx.SymbolId         currentProc
+    '' The open WITH subjects, innermost last. A '.field' written inside one has no
+    '' base in the AST and takes the innermost of these.
+    as FB.Array( of ulong )  withSubject
 end type
 
 '' The scope '..' names. NOT SCOPE_GLOBAL, which holds only the builtins -- a module's
@@ -464,6 +467,23 @@ private sub WalkExpr _
     case Fbx.N_MEMBER
         '' Only the base: the member name needs the base's type.
         dim as Fbx.BinaryPayload ptr mb = @c.ast->binaries[cast( long, n->data )]
+
+        '' '.field' WITH NO BASE is the WITH shorthand, and the base it wants is the
+        '' subject of the innermost open WITH. The parser cannot supply it -- it does
+        '' not track which WITH is open -- so it is filled in here, by pointing the
+        '' member at the subject's own node.
+        ''
+        '' That makes the tree a DAG: one expression node reached from two places, and
+        '' lowered once per use. Which is why only an LVALUE is accepted as a subject
+        '' (see WalkStmt's N_WITH) -- re-evaluating 'p' or '*q' is free and gives the
+        '' same answer, while re-evaluating a CALL would run it once per '.field', and
+        '' fbc runs it once.
+        if mb->lhs = Fbx.NODE_NONE then
+            if c.withSubject.Count > 0 then
+                mb->lhs = cast( Fbx.NodeId, _
+                                c.withSubject[c.withSubject.Count - 1] )
+            end if
+        end if
         WalkExpr( c, mb->lhs, scope_ )
 
         '' EXCEPT when the base is a NAMESPACE. 'ns.Greet' is a QUALIFIED NAME, not a
@@ -790,6 +810,30 @@ sub WalkStmt _
         for i as long = 0 to lp->count - 1
             WalkStmt( c, cast( Fbx.NodeId, c.ast->children[lp->first + i] ), here )
         next
+        return
+
+    case Fbx.N_WITH
+        '' 'with expr' ... '.field' ... 'end with'. The subject is resolved once, then
+        '' pushed so every baseless member inside takes it as a base.
+        ''
+        '' ONLY AN LVALUE. The base is shared by pointing at the subject's node, so the
+        '' subject is lowered once per use inside the body; that is free for a variable
+        '' or a dereference and WRONG for anything with a side effect. A subject that
+        '' is not an lvalue leaves the stack alone, the members stay baseless, and the
+        '' body declines exactly as it did before -- which is the honest outcome, not a
+        '' silently doubled call.
+        dim as Fbx.StmtPayload ptr wsp = StmtOf( c, id )
+        WalkExpr( c, wsp->a, here )
+        dim as boolean pushed = false
+        if wsp->a <> Fbx.NODE_NONE then
+            select case c.ast->Kind( wsp->a )
+            case Fbx.N_IDENT, Fbx.N_MEMBER, Fbx.N_DEREF, Fbx.N_INDEX
+                c.withSubject.Push( cast( ulong, wsp->a ) )
+                pushed = true
+            end select
+        end if
+        WalkStmt( c, wsp->b, here )
+        if pushed then c.withSubject.Pop( )
         return
 
     case Fbx.N_AMBIGUOUS

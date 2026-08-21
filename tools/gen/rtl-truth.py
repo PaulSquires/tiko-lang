@@ -86,6 +86,20 @@ sub S( )
     swap u1, u2
 end sub
 ''',
+    # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a
+    # null check, with the destructor called first.
+    "deletestmt": '''
+type DelU
+    as integer a
+    declare destructor( )
+end type
+destructor DelU( )
+end destructor
+sub D( )
+    dim as DelU ptr p = new DelU
+    delete p
+end sub
+''',
     # CLOSE with no operand closes every open file, which is its own entry point.
     # ERROR raises a runtime error; its return value is the address of the installed
     # handler, so its signature is only visible where fbc emits the call.
@@ -153,8 +167,12 @@ end sub
 # A declaration, not a call: ends in ');' and has no assignment or body. win32 adds
 # '__stdcall' and an asm() alias carrying the DECORATED name -- '_fb_StrAssign@20' --
 # which is exactly what fbx has to emit there, so it is captured rather than stripped.
+# NOT ONLY 'fb_*'. DELETE lowers to libc's 'free' -- fbc emits 'void free( void* );'
+# with no prefix at all -- so the pattern names the extra functions explicitly rather
+# than assuming every runtime entry point is prefixed.
 DECL = re.compile(
-    r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?(fb_\w+)\s*\(([^;{]*?)\)"
+    r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?((?:fb_\w+|free|malloc|calloc|realloc))"
+    r"\s*\(([^;{]*?)\)"
     r"(?:\s*asm\(\"([^\"]*)\"\))?\s*;")
 
 
