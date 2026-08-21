@@ -1,6 +1,7 @@
 '' rtl.bas -- the runtime inventory. See rtl.bi for why it is measured, not copied.
 
 #include once "mir/rtl.bi"
+#include once "support/text.bi"
 
 namespace Fbx.Mir
 
@@ -48,6 +49,26 @@ end function
 '' underscore, and everything but the VARIADIC entries carries a stdcall '@N' as well:
 '' varargs need caller cleanup, so fb_ArrayRedimEx is '_fb_ArrayRedimEx' with no
 '' suffix while fb_StrAssign is '_fb_StrAssign@20'. Both measured from libfb.a.
+'' The inventory entry with this SYMBOL NAME, or RTL_NONE. Case-insensitive, because
+'' FreeBASIC identifiers are: a program may write 'fb_arrayredimex'.
+''
+'' fbc PREDECLARES the whole runtime, so a program may name any of these with nothing
+'' declaring it -- 'chk = procptr( fb_ArrayRedimEx )' is 510 statements in one corpus
+'' file testing exactly that.
+private function LowerName_( byref nm as string ) as string
+    return Fbx.Text.LowerAscii( nm )
+end function
+
+function RtlByName( byref nm as string ) as RtlId
+    '' Compared through a helper rather than inline: the macro expands its body once
+    '' per row, and a qualified call inside that expansion does not parse.
+    dim as string want = LowerName_( nm )
+    #define RTL( r_id, r_sym, r_ret, r_args ) if LowerName_( r_sym ) = want then return r_id
+    FBX_RTL_LIST( RTL )
+    #undef RTL
+    return RTL_NONE
+end function
+
 function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
     dim as string nm = RtlSymbol( r )
     if is32 = false then return nm

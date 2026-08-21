@@ -538,6 +538,40 @@ function LowerProcPtr _
     '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
     '' between, a name that did not resolve -- has no single address to take.
     dim as Fbx.NodeId fnE = cast( Fbx.NodeId, c.ast->children[lp->first] )
+
+    '' A RUNTIME ENTRY POINT, which fbc predeclares and nothing in the source declares:
+    '' 'procptr( fb_ArrayRedimEx )'. Its address is the same M_FUNC_ADDR over the
+    '' inventory's own linker name.
+    if c.ast->Kind( fnE ) = Fbx.N_IDENT then
+        dim as Fbx.IdentPayload ptr rip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, fnE )].data )]
+        dim as RtlId rr = RtlByName( c.names->Spelling( rip->name ) )
+        if rr <> RTL_NONE then
+            dim as boolean is32 = (c.types->target.pointerBits = 32)
+            dim as Fbx.InternId rnm = c.names->GetString( RtlLinkName( rr, is32 ) )
+            dim as long ridx = -1
+            for i as long = 0 to c.m->functions.Count - 1
+                if c.m->functions[i]->name = rnm then
+                    ridx = i
+                    exit for
+                end if
+            next
+            if ridx < 0 then
+                dim as MirFunction ptr rdecl = _
+                    c.m->AddFunction( rnm, RtlReturn( rr, is32 ) )
+                rdecl->isDefinition = false
+                rdecl->paramCount = RtlArity( rr )
+                ridx = c.m->functions.Count - 1
+            end if
+            dim as MirInst rfa
+            rfa.op = cast( ushort, M_FUNC_ADDR )
+            rfa.ty = cast( ubyte, MT_PTR )
+            rfa.callee = cast( ulong, ridx )
+            outv = Emit( c, rfa )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
+
     dim as Fbx.SymbolId fsid = c.info->RefOf( fnE )
     dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
     if fs = 0 then return false

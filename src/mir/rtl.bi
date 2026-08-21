@@ -189,6 +189,7 @@ namespace Fbx.Mir
     '' 'is32' is win32: Linux is 64-bit only by decision.
     declare function RtlReturn( byval r as RtlId, byval is32 as boolean ) as MirType
     declare function RtlParams( byval r as RtlId ) as string
+    declare function RtlByName( byref nm as string ) as RtlId
     declare function RtlArity( byval r as RtlId ) as long
     declare function RtlParamType _
         ( byval r as RtlId, byval i as long, byval is32 as boolean ) as MirType
