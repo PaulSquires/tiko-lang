@@ -318,15 +318,71 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
         end if
         p.pos = save2
 
-        dim as long depth = 0
-        do
-            dim as Fbx.TokenKind tk = Peek( p )
-            if tk = Fbx.TK_LPAREN then depth += 1
-            if tk = Fbx.TK_RPAREN then depth -= 1
-            Advance( p )
-            if depth <= 0 then exit do
-            if AtEnd( p ) then exit do
-        loop
+        '' AN EXPRESSION OPERAND -- 'typeof( cuint( 1 ) )', 'typeof( a + b )'. Parsed
+        '' SPECULATIVELY, because the operand may equally be a TYPE ('typeof( sub( ) )',
+        '' 'typeof( integer ptr )') which no expression parser can read. It counts only
+        '' when the parse lands exactly on the closing ')'; otherwise the cursor goes
+        '' back and the group is consumed and discarded as before.
+        ''
+        '' Kept for CHECK rather than Resolve: the type of an expression is Check's to
+        '' say, and it says it lazily -- the same arrangement 'var' uses.
+        if tookName = false then
+            dim as long saveE = p.pos
+            dim as boolean savedSilent = p.silent
+            dim as long savedErrors = p.errors
+            p.silent = true
+            Advance( p )                       '' past '('
+            dim as Fbx.NodeId opnd = Expression( p )
+            dim as boolean landed = (Peek( p ) = Fbx.TK_RPAREN)
+            p.silent = savedSilent
+            p.errors = savedErrors
+            '' 'typeof( sub( ) )' AND 'typeof( function( ) as long )' ARE TYPES, and
+            '' an expression parser reads them happily: 'sub' is a keyword usable as a
+            '' name, so 'sub( )' comes out as a call with no arguments. Landing on the
+            '' ')' therefore proves nothing on its own, and the operand has to be
+            '' rejected by SHAPE. A procedure signature is the only type that survives
+            '' the expression parse at all -- everything else, 'integer', 'const T',
+            '' 'T ptr', stops short of the ')' and is rejected by the landing test.
+            dim as boolean isSignature = false
+            if (opnd <> Fbx.NODE_NONE) andalso landed then
+                if p.ast->Kind( opnd ) = Fbx.N_CALL then
+                    dim as Fbx.ListPayload ptr olp = _
+                        @p.ast->lists[cast( long, p.ast->nodes[cast( long, opnd )].data )]
+                    if olp->target <> Fbx.NODE_NONE then
+                        if p.ast->Kind( olp->target ) = Fbx.N_IDENT then
+                            dim as Fbx.IdentPayload ptr oip = _
+                                @p.ast->idents[cast( long, _
+                                    p.ast->nodes[cast( long, olp->target )].data )]
+                            select case p.names->Spelling( oip->name )
+                            case "sub", "function"
+                                isSignature = true
+                            end select
+                        end if
+                    end if
+                end if
+            end if
+            if isSignature then landed = false
+
+            if landed andalso (opnd <> Fbx.NODE_NONE) then
+                sp.b = opnd
+                Advance( p )                   '' past ')'
+                tookName = true                '' nothing left to skip
+            else
+                p.pos = saveE
+            end if
+        end if
+
+        if tookName = false orelse (sp.b = Fbx.NODE_NONE) then
+            dim as long depth = 0
+            do
+                dim as Fbx.TokenKind tk = Peek( p )
+                if tk = Fbx.TK_LPAREN then depth += 1
+                if tk = Fbx.TK_RPAREN then depth -= 1
+                Advance( p )
+                if depth <= 0 then exit do
+                if AtEnd( p ) then exit do
+            loop
+        end if
     end if
 
     '' 'UNSIGNED <int type>' is a TWO-WORD type name, and it is the only one FreeBASIC

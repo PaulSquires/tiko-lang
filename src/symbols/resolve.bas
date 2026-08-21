@@ -88,6 +88,10 @@ end type
 ''
 '' Walking outward rather than caching an id keeps this correct if a file ever opens
 '' more than one module scope.
+'' Defined below; ResolveTypeRef above it resolves a 'typeof' operand expression.
+declare sub WalkExpr _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
+
 declare function StmtOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
 
@@ -312,6 +316,13 @@ private function ResolveTypeRef _
         end if
 
     case Fbx.KW_TYPEOF
+        '' AN EXPRESSION OPERAND IS STILL AN EXPRESSION and has to be resolved, or the
+        '' names in it bind to nothing and Check can say nothing about its type.
+        '' 'typeof( n + n )' came out untyped for exactly that reason while
+        '' 'typeof( cuint( n ) )' worked -- a conversion intrinsic's result type does
+        '' not depend on its operand, so it hid the gap.
+        if sp->b <> Fbx.NODE_NONE then WalkExpr( c, sp->b, scope_ )
+
         '' 'typeof( x )' AS A TYPE. The parser keeps the operand when it is a bare
         '' name, which is what the corpus writes; the type is whatever that name has,
         '' a variable's or a type's alike. fbc agrees on both: '#print typeof( s )'

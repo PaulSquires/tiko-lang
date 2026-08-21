@@ -990,14 +990,44 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
     for sid as long = 1 to c.syms->Count( ) - 1
         dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cast( Fbx.SymbolId, sid ) )
         if s = 0 then continue for
-        if s->kind <> cast( ubyte, Fbx.SYM_VARIABLE ) then continue for
+        '' A CONSTANT too: 'const n1c as typeof( n1 ) = ( n1 )' is the shape the
+        '' corpus writes, and a constant's type is bound the same way.
+        dim as boolean inferrable = _
+            (s->kind = cast( ubyte, Fbx.SYM_VARIABLE )) orelse _
+            (s->kind = cast( ubyte, Fbx.SYM_CONSTANT ))
+        if inferrable = false then continue for
         if s->type_ <> Fbx.TYPE_NONE then continue for
         if s->payload = 0 then continue for
         dim as Fbx.NodeId item = cast( Fbx.NodeId, s->payload )
         if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
         dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+
+        '' 'dim x as typeof( EXPR )'. The declared type IS an expression's type, which
+        '' only Check can say -- Resolve handles the bare-name form and leaves this
+        '' one, so the symbol arrives here untyped and its slot lowered to 'void'.
+        '' 44 of the corpus's remaining verifier failures are one file writing
+        '' 'const n1c as typeof( n1 ) = ( n1 )' inside a macro, where n1 expands to a
+        '' conversion call.
+        if ip->a <> Fbx.NODE_NONE then
+            if c.ast->Kind( ip->a ) = Fbx.N_TYPEREF then
+                dim as Fbx.StmtPayload ptr tp = StmtOf( c, ip->a )
+                if cast( Fbx.TokenKind, tp->op ) = Fbx.KW_TYPEOF then
+                    if tp->b <> Fbx.NODE_NONE then
+                        dim as Fbx.TypeId tt = TypeOf_( c, tp->b )
+                        '' A REFERENCE is transparent, as it is in an expression.
+                        if tt <> Fbx.TYPE_NONE then
+                            if c.types->Kind( tt ) = Fbx.TK_REFERENCE then
+                                tt = c.types->Inner( tt )
+                            end if
+                            s->type_ = tt
+                        end if
+                    end if
+                end if
+            end if
+            continue for
+        end if
+
         '' Inferred only. A 'dim as T x' whose T did not resolve stays untyped.
-        if ip->a <> Fbx.NODE_NONE then continue for
         if ip->b = Fbx.NODE_NONE then continue for
         dim as Fbx.TypeId vt = TypeOf_( c, ip->b )
         if c.ast->Kind( ip->b ) = Fbx.N_STRING_LIT then
