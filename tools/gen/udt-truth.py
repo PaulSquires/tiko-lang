@@ -55,6 +55,18 @@ CASES = [
     ("ArrOfUdt", "type ElemU\n as long a\n as byte b\nend type\ntype ArrOfUdt\n as byte x\n as ElemU e(0 to 1)\n as byte y\nend type", ["x", "e(0)", "y"]),
     ("ZStrField", "type ZStrField\n as byte b\n as zstring * 5 z\n as byte c\nend type", ["b", "z", "c"]),
 
+    # BITFIELDS. The gate had none, and a UDT of three bitfields laid out as three
+    # SEPARATE fields -- 12 bytes where fbc says 4 -- behind a green result, because
+    # nothing in the table had a ':' in it. Only the offsets of ORDINARY fields are
+    # probed: a bitfield's own offsetof is its allocation unit's, which says nothing
+    # about where in the unit it sits.
+    ("BitPack", "type BitPack\n a : 1 as ulong\n b : 1 as ulong\n c : 30 as ulong\nend type", []),
+    ("BitSpill", "type BitSpill\n a : 3 as ubyte\n b : 6 as ubyte\nend type", []),
+    ("BitThenFld", "type BitThenFld\n a : 3 as ulong\n b as ubyte\nend type", ["b"]),
+    ("BitAfterFld", "type BitAfterFld\n x as ubyte\n a : 3 as ulong\n y as ubyte\nend type", ["x", "y"]),
+    ("BitFull", "type BitFull\n a : 32 as ulong\n b : 1 as ulong\nend type", []),
+    ("BitMixTy", "type BitMixTy\n a : 3 as ubyte\n b : 3 as ulong\nend type", []),
+
     # UNION shapes. The gate had exactly ONE union case among its first 24, and it was
     # an ANONYMOUS union inside a type -- so a NAMED union laid out sequentially (24
     # bytes for three ULONGINTs, where fbc says 8) sat behind a green 24/24 for as long

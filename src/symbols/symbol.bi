@@ -103,6 +103,13 @@ namespace Fbx
     '' recorded the kind on the symbol.
     const SYMF_UNION_KIND as ushort = &h2000
 
+    '' A BITFIELD -- 'xb0 : 1 as ulong'. Its declared type says how wide the storage
+    '' UNIT is, not how many bits the field owns, so nothing may read or write it as an
+    '' ordinary field of that type: that would touch the whole unit and clobber its
+    '' neighbours. Marked here and DECLINED in lowering until the masked access and the
+    '' packed layout are implemented; tools/gen/check-udt.sh measures the layout gap.
+    const SYMF_BITFIELD  as ushort = &h4000
+
     type Symbol
         as ubyte     kind
         as ushort    flags

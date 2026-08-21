@@ -315,7 +315,24 @@ private function ResolveTypeRef _
         '' A named type. Not finding it is NOT reported here: a type may come from a
         '' header this build did not parse, and drowning the output in those would
         '' hide the real signal. Check reports what it can prove.
-        dim as Fbx.SymbolId sid = c.syms->LookupTyped( scope_, sp->name, true )
+        ''
+        '' QUALIFIED first: 'dim as nsab.T1 v' names a type in a namespace, and an
+        '' ordinary lookup walks only PARENT scopes -- it never descends into one. The
+        '' qualifier is what the parser now keeps in 'ownerName'.
+        dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
+        if sp->ownerName <> 0 then
+            dim as Fbx.SymbolId qsid = c.syms->Lookup( scope_, sp->ownerName )
+            dim as Fbx.Symbol ptr qs = c.syms->SymbolAt( qsid )
+            if qs <> 0 then
+                dim as boolean qualifies = _
+                    (qs->kind = cast( ubyte, Fbx.SYM_NAMESPACE )) orelse _
+                    (qs->kind = cast( ubyte, Fbx.SYM_UDT ))
+                if qualifies andalso (qs->inner <> Fbx.SCOPE_NONE) then
+                    sid = c.syms->LookupLocalTyped( qs->inner, sp->name, true )
+                end if
+            end if
+        end if
+        if sid = Fbx.SYMBOL_NONE then sid = c.syms->LookupTyped( scope_, sp->name, true )
         if sid <> Fbx.SYMBOL_NONE then
             c.info->SetRef( id, sid )
             dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
@@ -1020,6 +1037,17 @@ sub WalkStmt _
         '' needs, and which was simply lost while the bounds were being skipped.
         t = ArrayFromBounds( c, t, sp->first, sp->count )
         BindDeclType( c, here, sp->name, t )
+
+        '' A BITFIELD is marked, not modelled. 'b' holds the width expression; the
+        '' declared type is the storage UNIT's, not the field's, so reading or writing
+        '' it as an ordinary field of that type would touch the whole unit and clobber
+        '' the fields packed beside it. Until the packed layout and the masked access
+        '' exist, the mark is what makes lowering decline instead.
+        if sp->b <> Fbx.NODE_NONE then
+            dim as Fbx.SymbolId fsid = c.syms->LookupLocal( here, sp->name )
+            dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+            if fs <> 0 then fs->flags or= Fbx.SYMF_BITFIELD
+        end if
         return
 
     case Fbx.N_FOR, Fbx.N_FOREACH

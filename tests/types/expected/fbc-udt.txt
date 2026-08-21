@@ -86,6 +86,15 @@ ZStrField	size	7	1
 ZStrField	off	b	0
 ZStrField	off	z	1
 ZStrField	off	c	6
+BitPack	size	4	4
+BitSpill	size	2	1
+BitThenFld	size	8	4
+BitThenFld	off	b	4
+BitAfterFld	size	8	4
+BitAfterFld	off	x	0
+BitAfterFld	off	y	4
+BitFull	size	8	4
+BitMixTy	size	1	1
 NamedU	size	8	8
 NamedU	off	a	0
 NamedU	off	b	0

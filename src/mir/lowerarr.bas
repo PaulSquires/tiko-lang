@@ -65,6 +65,15 @@ function LowerAddr _
         dim as Fbx.SymbolId fsym = c.info->RefOf( id )
         dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsym )
         if fs = 0 then return v
+
+        '' A BITFIELD HAS NO ADDRESS OF ITS OWN. Its declared type sizes the storage
+        '' UNIT, not the field, so handing back the unit's address would let an
+        '' ordinary load or store read and write every field packed beside it. The
+        '' layout is not packed yet either -- tools/gen/check-udt.sh measures that gap
+        '' on three shapes -- so this declines rather than emitting an access that
+        '' would be wrong twice over.
+        if (fs->flags and Fbx.SYMF_BITFIELD) <> 0 then return v
+
         dim as boolean found = false
         dim as long off = c.udts->FieldOffset( bt, fs->name, found )
         if found = false then return v

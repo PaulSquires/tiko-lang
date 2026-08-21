@@ -337,10 +337,18 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
         end if
     end if
 
-    '' Qualified names: ns.Type
+    '' Qualified names: 'ns.Type'. The QUALIFIER IS KEPT, in 'ownerName' -- the field
+    '' N_PROC already uses for the 'Widget' of 'Widget.Method'. Overwriting 'name' per
+    '' component and keeping only the last left 'nsab.T1' to resolve as a bare 'T1',
+    '' looked up from the current scope, which never descends into a namespace: the
+    '' type came out unknown and its variable's slot lowered to 'void'.
+    ''
+    '' A path deeper than one level keeps only its LAST qualifier, the same limitation
+    '' 'using a.b' has, and for the same reason -- one field, not a list.
     while Peek( p ) = Fbx.TK_DOT
         Advance( p )
         if (Peek( p ) = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( Peek( p ) ) then
+            sp.ownerName = sp.name
             sp.name = cast( Fbx.InternId, Cur( p ).literal )
             Advance( p )
         else

@@ -391,6 +391,15 @@ end sub
 
 '' sub / function / property / constructor / destructor / operator, declaration or
 '' definition. 'declare' prefixes the declaration-only form.
+'' Is the cursor on a ':' ? There is no TK_COLON in the token stream: the lexer turns
+'' every ':' into a TK_EOL marked TF_COLON, because it separates statements exactly as
+'' a newline does. Anything looking for a literal colon has to ask this instead, and
+'' the field reader's bitfield width did not -- so it never fired.
+private function IsColonHere( byref p as Fbx.ParserState ) as boolean
+    if Peek( p ) <> Fbx.TK_EOL then return false
+    return ((Cur( p ).flags and Fbx.TF_COLON) <> 0)
+end function
+
 private function ParseProc _
     ( byref p as Fbx.ParserState, byval declareOnly as boolean ) as Fbx.NodeId
 
@@ -791,8 +800,26 @@ private function ParseAggregateBody _
                 if fp.count > 0 then
                     fp.op = cast( ushort, Fbx.KW_DIM )   '' marks 'has bounds'
                 end if
+
+                '' A BITFIELD: 'xb0 : 1 as ulong'. The width comes BEFORE the type --
+                '' measured, 'a as ulong : 3' is fbc error 14 and only 'a : 3 as ulong'
+                '' and the type-first 'as ulong a : 3' are accepted.
+                ''
+                '' And there is NO TK_COLON TO LOOK FOR. The lexer turns every ':' into
+                '' a TK_EOL marked TF_COLON, so the 'Accept( p, TK_COLON )' this
+                '' replaces could never fire: the width was never read, the 'as ulong'
+                '' after it was never reached, and the field came out with no type at
+                '' all -- which is why a UDT of three bitfields laid out as SIZE ZERO.
+                if IsColonHere( p ) then
+                    Advance( p )
+                    fp.b = Expression( p )
+                end if
                 if Accept( p, Fbx.KW_AS ) then fp.a = TypeRef( p )
-                if Accept( p, Fbx.TK_COLON ) then fp.b = Expression( p )
+                '' NO TRAILING WIDTH. 'a as ulong : 3' is fbc error 14, and a ':' after
+                '' a field's type is a STATEMENT SEPARATOR -- 'x as integer : y as
+                '' integer' is two fields on one line. Reading a width there consumed
+                '' the next field as the expression and ran off the end of the TYPE:
+                '' three corpus files that fbc accepts reported "expected 'end TYPE'".
                 fp.extra or= vis
                 members.Push( cast( ulong, MakeStmt( p, Fbx.N_FIELD, ft.loc, fp ) ) )
             end if
