@@ -181,6 +181,14 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function LowerWideToNarrow _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    declare function LowerWideRvalue _
+        ( byref c as Ctx, byval value as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+          byval value as Fbx.NodeId ) as boolean
+    declare function LowerWideConcatAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+          byval value as Fbx.NodeId ) as boolean
     '' lowerintr.bas
     declare function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean

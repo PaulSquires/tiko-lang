@@ -73,9 +73,23 @@ fb_WstrConcatAW	uint16*	void*, int32, uint16*	lib	_fb_WstrConcatAW@12
 fb_WstrConcatAssign	uint16*	uint16*, int32, uint16*	lib	_fb_WstrConcatAssign@12
 fb_WstrConcatWA	uint16*	uint16*, void*, int32	lib	_fb_WstrConcatWA@12
 fb_WstrDelete	void	uint16*	lib	_fb_WstrDelete@4
+fb_WstrLTrim	uint16*	uint16*	lib	_fb_WstrLTrim@4
+fb_WstrLTrimAny	uint16*	uint16*, uint16*	lib	_fb_WstrLTrimAny@8
+fb_WstrLTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrLTrimEx@8
+fb_WstrLcase2	uint16*	uint16*, int32	lib	_fb_WstrLcase2@8
+fb_WstrLeft	uint16*	uint16*, int32	lib	_fb_WstrLeft@8
 fb_WstrLen	int32	uint16*	lib	_fb_WstrLen@4
+fb_WstrMid	uint16*	uint16*, int32, int32	lib	_fb_WstrMid@12
+fb_WstrRTrim	uint16*	uint16*	lib	_fb_WstrRTrim@4
+fb_WstrRTrimAny	uint16*	uint16*, uint16*	lib	_fb_WstrRTrimAny@8
+fb_WstrRTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrRTrimEx@8
+fb_WstrRight	uint16*	uint16*, int32	lib	_fb_WstrRight@8
 fb_WstrSwap	void	uint16*, int32, uint16*, int32	lib	_fb_WstrSwap@16
 fb_WstrToStr	FBSTRING*	uint16*	lib	_fb_WstrToStr@4
+fb_WstrTrim	uint16*	uint16*	lib	_fb_WstrTrim@4
+fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	_fb_WstrTrimAny@8
+fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrTrimEx@8
+fb_WstrUcase2	uint16*	uint16*, int32	lib	_fb_WstrUcase2@8
 free	void	void*	lib	_free
 malloc	void*	uint32	lib	_malloc
 memset	void*	void*, int32, uint32	lib	_memset

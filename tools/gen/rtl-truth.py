@@ -137,6 +137,31 @@ end sub
 sub WTake( byref x as const wstring )
 end sub
 ''',
+    # THE WIDE SUBSTRING AND TRIM FAMILY. The argument orders are NOT uniform:
+    # instr takes its start first, instrrev takes it last, and a 'mid' with no
+    # length passes -1 rather than 0. Each one is probed separately rather than
+    # assumed from its narrow counterpart.
+    "wstrsub": '''
+sub WSubProbe( )
+    dim as wstring * 50 w, w2, r
+    dim as long n = 3
+    r = trim( w )
+    r = trim( w, w2 )
+    r = trim( w, any w2 )
+    r = ltrim( w )
+    r = ltrim( w, w2 )
+    r = ltrim( w, any w2 )
+    r = rtrim( w )
+    r = rtrim( w, w2 )
+    r = rtrim( w, any w2 )
+    r = left( w, n )
+    r = right( w, n )
+    r = mid( w, n )
+    r = mid( w, n, n )
+    r = ucase( w )
+    r = lcase( w )
+end sub
+''',
     # A STRING-RETURNING FUNCTION builds its value in a local descriptor and hands the
     # runtime that descriptor on the way out; what it returns is the pointer.
     "strresult": '''

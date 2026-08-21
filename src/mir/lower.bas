@@ -1036,6 +1036,20 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                 end if
             end if
 
+            '' A FIXED WSTRING initialiser is a runtime call, not a store: the slot
+            '' holds the buffer itself, so 'dim w as wstring * 50 = trim( t )' has to
+            '' go through fb_WstrAssign exactly as an assignment does.
+            if needsStore andalso (slot >= 0) then
+                dim as long wn = _
+                    WideStringElems( c, c.syms->SymbolAt( sid )->type_ )
+                if wn > 0 then
+                    dim as MirValue wdst
+                    wdst.kind = cast( ubyte, MV_LOCAL )
+                    wdst.id = slot
+                    if LowerWideAssignTo( c, wdst, wn, ip->b ) then needsStore = false
+                end if
+            end if
+
             if needsStore then
                 dim as MirValue val = LowerExpr( c, ip->b )
                 '' AN INITIALISER THAT WOULD NOT LOWER IS A DECLINE, and was silent:

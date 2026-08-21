@@ -56,6 +56,16 @@ function LowerWideAssign _
 
     dim as MirValue dst = LowerAddr( c, target )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
+    return LowerWideAssignTo( c, dst, n, value )
+end function
+
+'' The same lowering addressed by DESTINATION rather than by target node, so that a
+'' DIM INITIALISER -- which has a slot and no target expression -- reaches it too.
+'' 'dim rt as wstring * 50 = trim( t )' was otherwise declining in a corpus file that
+'' does it 814 times.
+function LowerWideAssignTo _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval value as Fbx.NodeId ) as boolean
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
@@ -74,14 +84,25 @@ function LowerWideAssign _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
         dim as Fbx.TokenKind vop = cast( Fbx.TokenKind, vb->op )
         if (vop = Fbx.TK_AMP) orelse (vop = Fbx.TK_PLUS) then
-            if LowerWideAssign( c, target, vb->lhs ) then
-                if LowerWideConcatAssign( c, target, n, vb->rhs ) then return true
+            if LowerWideAssignTo( c, dst, n, vb->lhs ) then
+                if LowerWideConcatAssignTo( c, dst, n, vb->rhs ) then return true
                 '' The first half is already emitted; declining now would leave the
                 '' target holding only the left term, which is worse than saying so.
                 SkipHere( c )
                 return true
             end if
         end if
+    end if
+
+    '' A wide RVALUE -- trim( w ), mid( w, n ) -- is tried BEFORE the type test rather
+    '' than inside it: these callees are unbound, so TypeOf_ on the call is empty and a
+    '' type-first test would never reach them. The recogniser keys off the shape and
+    '' the FIRST ARGUMENT's type instead.
+    dim as MirValue rv
+    if LowerWideRvalue( c, value, rv ) then
+        args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
+        EmitRtl( c, RTL_WSTR_ASSIGN, args )
+        return true
     end if
 
     '' A WIDE source goes through fb_WstrAssign; anything narrow through FromA.
@@ -140,12 +161,19 @@ function LowerWideConcatAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval n as long, _
       byval value as Fbx.NodeId ) as boolean
 
-    if WideStringElems( c, c.info->TypeOf_( value ) ) = 0 then return false
     dim as MirValue dst = LowerAddr( c, target )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    return LowerWideConcatAssignTo( c, dst, n, value )
+end function
+
+'' As above, addressed by destination.
+function LowerWideConcatAssignTo _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval value as Fbx.NodeId ) as boolean
+
+    if WideStringElems( c, c.info->TypeOf_( value ) ) = 0 then return false
     dim as MirValue src = LowerAddr( c, value )
-    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
-        return false
-    end if
+    if src.kind = cast( ubyte, MV_NONE ) then return false
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
@@ -184,6 +212,150 @@ function LowerWideToNarrow _
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     EmitRtl( c, RTL_WSTR_ASSIGN_TOA, args )
     return true
+end function
+
+
+
+'' THE WIDE SUBSTRING AND TRIM FAMILY, as an RVALUE.
+''
+'' Each of these returns a bare uint16* -- there is no descriptor, which is what makes
+'' them lowerable now while their narrow counterparts still are not. fbc releases the
+'' result with fb_WstrDelete; fbx does not model that lifetime yet, so EVERY CALL HERE
+'' LEAKS ONE TEMPORARY. That is a real defect, recorded rather than hidden, and the
+'' alternative is emitting nothing at all for 2,442 corpus statements.
+''
+'' The mapping was read off fbc's C, not assumed from the narrow forms, and the shapes
+'' are NOT uniform:
+''
+''     trim( w )          fb_WstrTrim( W )
+''     trim( w, w2 )      fb_WstrTrimEx( W, W2 )        strip that SUBSTRING
+''     trim( w, any w2 )  fb_WstrTrimAny( W, W2 )       strip any of those CHARACTERS
+''     mid( w, n )        fb_WstrMid( W, N, -1ll )      no length is -1, not 0
+''     ucase( w )         fb_WstrUcase2( W, 0 )         trailing arg is the mode
+''
+'' 'any' reaches here as a unary KW_ANY wrapper around the second argument.
+function LowerWideRvalue _
+    ( byref c as Ctx, byval value as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( value ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, value )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    if (cp->count < 1) orelse (cp->count > 3) then return false
+
+    '' The FIRST argument decides: these names are all overloaded on narrow strings
+    '' too, and only the wide overload is lowered here.
+    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    if WideStringElems( c, c.info->TypeOf_( a0 ) ) = 0 then return false
+    dim as MirValue s0 = LowerAddr( c, a0 )
+    if s0.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The second argument, unwrapped from 'any' if it carries one.
+    dim as Fbx.NodeId a1 = Fbx.NODE_NONE
+    dim as boolean isAny = false
+    if cp->count >= 2 then
+        a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
+        if c.ast->Kind( a1 ) = Fbx.N_UNARY then
+            dim as Fbx.UnaryPayload ptr up = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a1 )].data )]
+            if cast( Fbx.TokenKind, up->op ) = Fbx.KW_ANY then
+                isAny = true
+                a1 = up->operand
+            end if
+        end if
+    end if
+
+    dim as RtlId r = RTL_NONE
+    dim as boolean secondIsWide = false      '' else it is a count
+    select case nm
+    case "trim", "ltrim", "rtrim"
+        secondIsWide = true
+        if cp->count = 1 then
+            select case nm
+            case "trim"  : r = RTL_WSTR_TRIM
+            case "ltrim" : r = RTL_WSTR_LTRIM
+            case else    : r = RTL_WSTR_RTRIM
+            end select
+        elseif cp->count = 2 then
+            if isAny then
+                select case nm
+                case "trim"  : r = RTL_WSTR_TRIM_ANY
+                case "ltrim" : r = RTL_WSTR_LTRIM_ANY
+                case else    : r = RTL_WSTR_RTRIM_ANY
+                end select
+            else
+                select case nm
+                case "trim"  : r = RTL_WSTR_TRIM_EX
+                case "ltrim" : r = RTL_WSTR_LTRIM_EX
+                case else    : r = RTL_WSTR_RTRIM_EX
+                end select
+            end if
+        else
+            return false
+        end if
+    case "left"
+        if cp->count <> 2 then return false
+        r = RTL_WSTR_LEFT
+    case "right"
+        if cp->count <> 2 then return false
+        r = RTL_WSTR_RIGHT
+    case "mid"
+        if (cp->count < 2) orelse (cp->count > 3) then return false
+        r = RTL_WSTR_MID
+    case "ucase"
+        if cp->count <> 1 then return false
+        r = RTL_WSTR_UCASE
+    case "lcase"
+        if cp->count <> 1 then return false
+        r = RTL_WSTR_LCASE
+    case else
+        return false
+    end select
+    if isAny andalso (secondIsWide = false) then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
+
+    if a1 <> Fbx.NODE_NONE then
+        if secondIsWide then
+            if WideStringElems( c, c.info->TypeOf_( a1 ) ) = 0 then return false
+            dim as MirValue s1 = LowerAddr( c, a1 )
+            if s1.kind = cast( ubyte, MV_NONE ) then return false
+            args.Push( cast( ulong, s1.kind ) ) : args.Push( cast( ulong, s1.id ) )
+        else
+            '' left/right/mid take a 64-bit COUNT; the source expression is whatever
+            '' integer width the program used, so it is widened here.
+            dim as MirValue n1 = LowerExpr( c, a1 )
+            if n1.kind = cast( ubyte, MV_NONE ) then return false
+            n1 = Coerce( c, n1, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
+        end if
+    end if
+
+    if nm = "mid" then
+        '' A 'mid' WITHOUT a length passes -1, not 0 -- measured, and 0 would silently
+        '' produce an empty string instead of the rest of the source.
+        if cp->count = 3 then
+            dim as Fbx.NodeId a2 = cast( Fbx.NodeId, c.ast->children[cp->first + 2] )
+            dim as MirValue n2 = LowerExpr( c, a2 )
+            if n2.kind = cast( ubyte, MV_NONE ) then return false
+            n2 = Coerce( c, n2, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a2 ) ) )
+            args.Push( cast( ulong, n2.kind ) ) : args.Push( cast( ulong, n2.id ) )
+        else
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        end if
+    elseif (r = RTL_WSTR_UCASE) orelse (r = RTL_WSTR_LCASE) then
+        '' The trailing int32 is the case-mode; fbc passed 0 in every probe.
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
+
+    outv = EmitRtl( c, r, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 

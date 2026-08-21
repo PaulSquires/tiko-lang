@@ -88,6 +88,27 @@ namespace Fbx.Mir
         '' field at the call site.
         RTL( RTL_STR_TO_WSTR,       "fb_StrToWstr",        "p",   "p"     )
         RTL( RTL_WSTR_TO_STR,       "fb_WstrToStr",        "p",   "p"     )
+        '' The wide substring and trim families. Every one RETURNS A TEMPORARY that
+        '' fbc releases with fb_WstrDelete; fbx does not model that lifetime yet, so
+        '' each call leaks one -- stated rather than hidden.
+        ''
+        '' Note the ARGUMENT ORDERS ARE NOT UNIFORM and were measured one by one:
+        '' instr takes its start FIRST, instrrev takes it LAST, and 'mid' with no
+        '' length passes -1 rather than 0.
+        RTL( RTL_WSTR_TRIM,         "fb_WstrTrim",         "p",   "p"     )
+        RTL( RTL_WSTR_TRIM_ANY,     "fb_WstrTrimAny",      "p",   "pp"    )
+        RTL( RTL_WSTR_TRIM_EX,      "fb_WstrTrimEx",       "p",   "pp"    )
+        RTL( RTL_WSTR_LTRIM,        "fb_WstrLTrim",        "p",   "p"     )
+        RTL( RTL_WSTR_LTRIM_ANY,    "fb_WstrLTrimAny",     "p",   "pp"    )
+        RTL( RTL_WSTR_LTRIM_EX,     "fb_WstrLTrimEx",      "p",   "pp"    )
+        RTL( RTL_WSTR_RTRIM,        "fb_WstrRTrim",        "p",   "p"     )
+        RTL( RTL_WSTR_RTRIM_ANY,    "fb_WstrRTrimAny",     "p",   "pp"    )
+        RTL( RTL_WSTR_RTRIM_EX,     "fb_WstrRTrimEx",      "p",   "pp"    )
+        RTL( RTL_WSTR_LEFT,         "fb_WstrLeft",         "p",   "pz"    )
+        RTL( RTL_WSTR_RIGHT,        "fb_WstrRight",        "p",   "pz"    )
+        RTL( RTL_WSTR_MID,          "fb_WstrMid",          "p",   "pzz"   )
+        RTL( RTL_WSTR_UCASE,        "fb_WstrUcase2",       "p",   "pl"    )
+        RTL( RTL_WSTR_LCASE,        "fb_WstrLcase2",       "p",   "pl"    )
         RTL( RTL_MEM_SWAP,          "fb_MemSwap",          "v",   "ppz"   )
         RTL( RTL_STR_LEN,           "fb_StrLen",           "z",   "pz"    )
         RTL( RTL_STR_MID,           "fb_StrMid",           "p",   "pzz"   )

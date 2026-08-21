@@ -73,9 +73,23 @@ fb_WstrConcatAW	uint16*	void*, int64, uint16*	lib	fb_WstrConcatAW
 fb_WstrConcatAssign	uint16*	uint16*, int64, uint16*	lib	fb_WstrConcatAssign
 fb_WstrConcatWA	uint16*	uint16*, void*, int64	lib	fb_WstrConcatWA
 fb_WstrDelete	void	uint16*	lib	fb_WstrDelete
+fb_WstrLTrim	uint16*	uint16*	lib	fb_WstrLTrim
+fb_WstrLTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrLTrimAny
+fb_WstrLTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrLTrimEx
+fb_WstrLcase2	uint16*	uint16*, int32	lib	fb_WstrLcase2
+fb_WstrLeft	uint16*	uint16*, int64	lib	fb_WstrLeft
 fb_WstrLen	int64	uint16*	lib	fb_WstrLen
+fb_WstrMid	uint16*	uint16*, int64, int64	lib	fb_WstrMid
+fb_WstrRTrim	uint16*	uint16*	lib	fb_WstrRTrim
+fb_WstrRTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrRTrimAny
+fb_WstrRTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrRTrimEx
+fb_WstrRight	uint16*	uint16*, int64	lib	fb_WstrRight
 fb_WstrSwap	void	uint16*, int64, uint16*, int64	lib	fb_WstrSwap
 fb_WstrToStr	FBSTRING*	uint16*	lib	fb_WstrToStr
+fb_WstrTrim	uint16*	uint16*	lib	fb_WstrTrim
+fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrTrimAny
+fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrTrimEx
+fb_WstrUcase2	uint16*	uint16*, int32	lib	fb_WstrUcase2
 free	void	void*	lib	free
 malloc	void*	uint64	lib	malloc
 memset	void*	void*, int32, uint64	lib	memset
