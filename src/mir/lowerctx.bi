@@ -230,6 +230,8 @@ declare function EmitRtl _
     declare function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
     declare function LowerForEachArray( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    '' lowerfor.bas
+    declare sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
     declare function LowerStringReturn( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
     declare function LowerSretResult _

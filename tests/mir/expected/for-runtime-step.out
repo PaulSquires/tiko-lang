@@ -1,0 +1,142 @@
+func void P($0) {
+  local i32 s
+  local i32 n
+  local i32 i
+  local i32 $tmp3
+  local i8 $tmp4
+  local i32 j
+  local i32 $tmp6
+  local i32 k
+  local i32 $tmp8
+  local i32 m
+  entry0:
+    %1 = alloca ptr s
+    store @s, $0
+    %2 = alloca ptr n
+    %3 = alloca ptr i
+    %4 = const i64 1
+    %5 = trunc %4
+    store @i, %5
+    %6 = alloca ptr $tmp3
+    %7 = load @s
+    store @$tmp3, %7
+    %8 = alloca ptr $tmp4
+    %9 = load @$tmp3
+    %10 = const i32 0
+    %11 = icmp.sge %9, %10
+    store @$tmp4, %11
+    %25 = alloca ptr j
+    %28 = alloca ptr $tmp6
+    %42 = alloca ptr k
+    %45 = alloca ptr $tmp8
+    %60 = alloca ptr m
+    br for.head1
+  for.head1:
+    %12 = load @i
+    %13 = const i64 10
+    %14 = trunc %13
+    %15 = load @$tmp4
+    condbr %15, for.up5, for.down6
+  for.body2:
+    %18 = load @n
+    %19 = const i64 1
+    %20 = trunc %19
+    %21 = add %18, %20
+    store @n, %21
+    br for.step3
+  for.step3:
+    %22 = load @i
+    %23 = load @$tmp3
+    %24 = add %22, %23
+    store @i, %24
+    br for.head1
+  for.exit4:
+    %26 = const i64 1
+    %27 = trunc %26
+    store @j, %27
+    %29 = const i64 2
+    %30 = trunc %29
+    store @$tmp6, %30
+    br for.head7
+  for.up5:
+    %16 = icmp.sle %12, %14
+    condbr %16, for.body2, for.exit4
+  for.down6:
+    %17 = icmp.sge %12, %14
+    condbr %17, for.body2, for.exit4
+  for.head7:
+    %31 = load @j
+    %32 = const i64 10
+    %33 = trunc %32
+    %34 = icmp.sle %31, %33
+    condbr %34, for.body8, for.exit10
+  for.body8:
+    %35 = load @n
+    %36 = const i64 1
+    %37 = trunc %36
+    %38 = add %35, %37
+    store @n, %38
+    br for.step9
+  for.step9:
+    %39 = load @j
+    %40 = load @$tmp6
+    %41 = add %39, %40
+    store @j, %41
+    br for.head7
+  for.exit10:
+    %43 = const i64 10
+    %44 = trunc %43
+    store @k, %44
+    %46 = const i64 1
+    %47 = neg %46
+    %48 = trunc %47
+    store @$tmp8, %48
+    br for.head11
+  for.head11:
+    %49 = load @k
+    %50 = const i64 1
+    %51 = trunc %50
+    %52 = icmp.sge %49, %51
+    condbr %52, for.body12, for.exit14
+  for.body12:
+    %53 = load @n
+    %54 = const i64 1
+    %55 = trunc %54
+    %56 = add %53, %55
+    store @n, %56
+    br for.step13
+  for.step13:
+    %57 = load @k
+    %58 = load @$tmp8
+    %59 = add %57, %58
+    store @k, %59
+    br for.head11
+  for.exit14:
+    %61 = const i64 1
+    %62 = trunc %61
+    store @m, %62
+    br for.head15
+  for.head15:
+    %63 = load @m
+    %64 = const i64 10
+    %65 = trunc %64
+    %66 = icmp.sle %63, %65
+    condbr %66, for.body16, for.exit18
+  for.body16:
+    %67 = load @n
+    %68 = const i64 1
+    %69 = trunc %68
+    %70 = add %67, %69
+    store @n, %70
+    br for.step17
+  for.step17:
+    %71 = load @m
+    %72 = const i32 1
+    %73 = add %71, %72
+    store @m, %73
+    br for.head15
+  for.exit18:
+    ret
+}
+verify: ok
+lowered: 1 functions, 19 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance

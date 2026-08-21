@@ -1,0 +1,5 @@
+'' A FOR loop whose STEP is only known at run time.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/for-runtime-step.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/for-runtime-step.out
