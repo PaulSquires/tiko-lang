@@ -3,6 +3,10 @@ func i32 main($0, $1) {
   local i64 i
   local f64 z
   local i32 k
+  local i64 r1
+  local i64 r2
+  local i64 f1
+  local f64 f2
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -19,12 +23,24 @@ func i32 main($0, $1) {
     %9 = const i64 5
     %10 = trunc %9
     store @k, %10
-    %11 = const i32 0
-    call.rtl void fb_End(%11)
-    %12 = load @$tmp0
-    ret %12
+    %11 = alloca ptr r1
+    %12 = alloca ptr r2
+    %13 = alloca ptr f1
+    %14 = alloca ptr f2
+    %15 = const i64 1
+    store @r1, %15
+    %16 = const i64 2
+    store @r2, %16
+    %17 = const i64 3
+    store @f1, %17
+    %18 = const f64 4.5
+    store @f2, %18
+    %19 = const i32 0
+    call.rtl void fb_End(%19)
+    %20 = load @$tmp0
+    ret %20
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 18 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance

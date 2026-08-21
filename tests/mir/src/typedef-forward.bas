@@ -27,3 +27,16 @@ z = 1.5
 type myint as long
 dim as myint k
 k = 5
+
+'' A COMMA LIST, in both spellings. The reversed form shares one type across every
+'' name; the forward form gives each declarator its OWN. Only the first declarator of
+'' the forward one was parsed, so the rest of the line was silently dropped and
+'' 'dim as fwd2' had no type at all.
+type as integer rev1, rev2
+type fwd1 as integer, fwd2 as double
+
+dim as rev1 r1
+dim as rev2 r2
+dim as fwd1 f1
+dim as fwd2 f2
+r1 = 1 : r2 = 2 : f1 = 3 : f2 = 4.5

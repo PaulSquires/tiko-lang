@@ -952,6 +952,26 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     if Peek( p ) = Fbx.KW_AS then
         Advance( p )
         sp.a = TypeRef( p )
+
+        '' A COMMA LIST, and unlike the reversed 'type as integer a, b' form each
+        '' declarator carries its OWN type: 'type a as integer, b as double' declares
+        '' a as integer and b as double. Only the first was parsed, so the rest of the
+        '' line was silently dropped -- 'dim x2 as b' then had no type at all and its
+        '' slot lowered to VOID. Measured: fbc accepts it and gives x2 a double.
+        dim as Fbx.NodeIdVec extra2
+        while Accept( p, Fbx.TK_COMMA )
+            dim as Fbx.Token nt2 = Cur( p )
+            dim as Fbx.StmtPayload ep2
+            if DeclName( p, ep2.name ) = false then exit while
+            if Accept( p, Fbx.KW_AS ) = false then exit while
+            ep2.a = TypeRef( p )
+            extra2.Push( cast( ulong, MakeStmt( p, Fbx.N_TYPEDEF, nt2.loc, ep2 ) ) )
+        wend
+        sp.first = p.ast->children.Count
+        sp.count = extra2.Count
+        for i as long = 0 to extra2.Count - 1
+            p.ast->children.Push( extra2[i] )
+        next
         return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
     end if
 
