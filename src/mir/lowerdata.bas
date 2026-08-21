@@ -1,0 +1,336 @@
+'' lowerdata.bas -- DATA, READ and RESTORE.
+''
+'' See docs/internals/phase-6-print-using-and-data.md for the measurements. The short
+'' version, and none of it is what the names suggest:
+''
+''     struct __FB_DATADESC { int16 TYPE packed aligned(1); void* NODE packed aligned(1); }
+''
+'' sizeof 10 on win64 and 6 on win32, with NODE at offset 2 -- DELIBERATELY MISALIGNED,
+'' and the packing attributes are load-bearing.
+''
+'' TYPE IS NOT A DATATYPE. It is the CHARACTER LENGTH of the datum, with bit 15 set for
+'' a wide one, and -1 marking the terminator:
+''
+''     TYPE = len            narrow datum, NODE is char*
+''     TYPE = len or &h8000  wide datum,   NODE is uint16*
+''     TYPE = -1             terminator,   NODE is the NEXT block, or NULL
+''
+'' Every item is CONSTANT-FOLDED and re-rendered as decimal TEXT, so 'data &hFF' and
+'' 'data "255"' produce byte-identical entries. That is why this needs Fbx.Text's
+'' StrOfDouble: fbc renders a float with its own STR(), and rendering it differently
+'' would make a 'read' of that datum return a different number.
+''
+'' One array per DATA STATEMENT, in source order, chained through the terminator.
+'' 'data 1 : data 2' on one line makes two.
+
+#include once "lowerctx.bi"
+#include once "support/fbstr.bi"
+
+namespace Fbx.Mir
+
+using Fbx
+
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+declare function BuildDataBlock_( byref c as Ctx, byval id as Fbx.NodeId ) as long
+declare function DataItemText_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byref isWide as boolean, _
+      byref outp as string ) as boolean
+declare function DataReadRtlFor_( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
+
+
+'' Collect every module-level DATA block, in source order, and build the chain.
+''
+'' A PRE-PASS, before any statement is lowered, because 'restore lbl' may name a label
+'' that appears later in the file -- fbc accepts the forward reference.
+''
+'' Returns the global index of the FIRST block, or -1 when the module has no DATA. A
+'' block whose items cannot all be folded is skipped ENTIRELY rather than emitted half
+'' full: a short block would silently shift every later READ onto the wrong datum.
+function CollectDataBlocks( byref c as Ctx, byval root as Fbx.NodeId ) as long
+    if root = Fbx.NODE_NONE then return -1
+    if c.ast->Kind( root ) <> Fbx.N_MODULE then return -1
+    dim as Fbx.ListPayload ptr mp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
+
+    '' Two passes over the children: the blocks are built first so that the label map
+    '' can point at them, and chained afterwards so each terminator knows its successor.
+    dim as FB.Array( of ulong ) blockOf         '' global index per DATA statement
+    dim as FB.Array( of ulong ) pendingLabels   '' labels seen since the last block
+
+    for i as long = 0 to mp->count - 1
+        dim as Fbx.NodeId n = cast( Fbx.NodeId, c.ast->children[mp->first + i] )
+        if c.ast->Kind( n ) = Fbx.N_LABEL then
+            pendingLabels.Push( cast( ulong, StmtOf( c, n )->name ) )
+            continue for
+        end if
+        if c.ast->Kind( n ) <> Fbx.N_INTRINSIC then continue for
+        if StmtOf( c, n )->op <> cast( ushort, Fbx.KW_DATA ) then continue for
+
+        dim as long g = BuildDataBlock_( c, n )
+        if g < 0 then
+            '' The block declined. Its labels stay pending so a 'restore' naming one
+            '' lands on the next block that DID build, which is what fbc's own
+            '' at-or-after rule does.
+            SkipStmt( c, n )
+            continue for
+        end if
+        blockOf.Push( cast( ulong, g ) )
+        '' Every label at or before this block now names it.
+        while pendingLabels.Count > 0
+            c.dataLabelName.Push( pendingLabels[0] )
+            c.dataLabelBlock.Push( cast( ulong, g ) )
+            for k as long = 0 to pendingLabels.Count - 2
+                pendingLabels[k] = pendingLabels[k + 1]
+            next
+            pendingLabels.Pop( )
+        wend
+    next
+
+    if blockOf.Count = 0 then return -1
+
+    '' Chain: each block's terminator points at the next, and the last one at NULL.
+    for i as long = 0 to blockOf.Count - 2
+        dim as long g = cast( long, blockOf[i] )
+        dim as long last = c.m->globals[g].dataFirst + c.m->globals[g].dataCount - 1
+        c.m->dataRefs[last] = cast( long, blockOf[i + 1] )
+    next
+    return cast( long, blockOf[0] )
+end function
+
+'' One DATA statement's descriptor array. Returns its global index, or -1.
+private function BuildDataBlock_( byref c as Ctx, byval id as Fbx.NodeId ) as long
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+
+    '' Folded FIRST, into scratch, so a block with one unfoldable item emits nothing
+    '' rather than a short one.
+    dim as FB.Array( of long ) types
+    dim as FB.Array( of long ) refs
+    for i as long = 0 to sp->count - 1
+        dim as Fbx.NodeId e = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+        dim as boolean isWide = false
+        dim as string txt
+        if DataItemText_( c, e, isWide, txt ) = false then return -1
+        if len( txt ) > 32766 then return -1        '' would collide with the terminator
+        dim as long ty = len( txt )
+        if isWide then ty = ty or &h8000
+        types.Push( ty )
+        if isWide then
+            refs.Push( c.m->AddWideStringLiteral( txt, *c.names ) )
+        else
+            refs.Push( c.m->AddStringLiteral( txt, *c.names ) )
+        end if
+    next
+
+    dim as long g = c.m->AddDataBlock( *c.names )
+    for i as long = 0 to types.Count - 1
+        c.m->PushDataEntry( g, types[i], refs[i] )
+    next
+    '' The terminator. Its NODE is filled in by the chaining pass, or left NULL.
+    c.m->PushDataEntry( g, -1, -1 )
+    return g
+end function
+
+'' One DATA item as the TEXT fbc would store, and whether it is wide.
+''
+'' fbc folds every item to a compile-time constant and renders it as decimal, so the
+'' source spelling is gone: 'data &hFF' and 'data "255"' produce byte-identical
+'' entries. Anything that will not fold declines the whole block.
+private function DataItemText_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byref isWide as boolean, _
+      byref outp as string ) as boolean
+
+    isWide = false
+    if e = Fbx.NODE_NONE then return false
+
+    if c.ast->Kind( e ) = Fbx.N_STRING_LIT then
+        '' Source has no wide string literal syntax -- a wide datum comes from a
+        '' WSTRING constant, which does not fold here -- so TYPE's bit 15 is never
+        '' set by this path.
+        outp = StringLitText_( c, e )
+        return true
+    end if
+
+    '' A FLOAT LITERAL, rendered with fbc's own STR() digit for digit -- see
+    '' tools/gen/check-str.sh. Rendering it any other way would make a 'read' of the
+    '' datum return a DIFFERENT NUMBER, with nothing to say so.
+    ''
+    '' Handled before ConstOf because ConstOf folds INTEGERS ONLY: it has no float
+    '' field at all, so '1.234e+4' is simply not constant to it. A folded float
+    '' EXPRESSION -- 'data 1.0 / 3.0' -- therefore still declines, and that is stated
+    '' rather than approximated.
+    if c.ast->Kind( e ) = Fbx.N_FLOAT_LIT then
+        dim as Fbx.LiteralPayload ptr flp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
+        outp = Fbx.Text.StrOfDouble( flp->fltValue )
+        return true
+    end if
+
+    '' A UNARY MINUS over a float literal: '-0.0' and '-1.5e-3' are that shape, and
+    '' the sign matters -- fbc renders -0.0 as "-0", not "0".
+    if c.ast->Kind( e ) = Fbx.N_UNARY then
+        dim as Fbx.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if c.ast->Kind( up->operand ) = Fbx.N_FLOAT_LIT then
+            dim as Fbx.LiteralPayload ptr flp2 = _
+                @c.ast->literals[cast( long, c.ast->nodes[cast( long, up->operand )].data )]
+            dim as double fv = flp2->fltValue
+            select case cast( Fbx.TokenKind, up->op )
+            case Fbx.TK_MINUS : outp = Fbx.Text.StrOfDouble( -fv )
+            case Fbx.TK_PLUS  : outp = Fbx.Text.StrOfDouble( fv )
+            case else         : return false
+            end select
+            return true
+        end if
+    end if
+
+    dim as Fbx.Check.ConstVal v = _
+        Fbx.Check.ConstOf( *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits )
+    if v.known = false then return false
+
+    if v.uns then
+        outp = str( cast( ulongint, v.value ) )
+    else
+        outp = str( v.value )
+    end if
+    return true
+end function
+
+
+'' READ.
+''
+'' The DESTINATION TYPE alone picks the entry point -- no mask, no channel -- and
+'' 'read a, b' is two consecutive calls.
+function LowerRead( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count < 1 then return false
+
+    for i as long = 0 to sp->count - 1
+        dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+        dim as Fbx.TypeId t = c.info->TypeOf_( dst )
+        dim as RtlId r = DataReadRtlFor_( c, t )
+        if r = RTL_NONE then return false
+        dim as MirValue a = LowerAddr( c, dst )
+        if a.kind = cast( ubyte, MV_NONE ) then return false
+
+        dim as FB.Array( of ulong ) args
+        args.Push( cast( ulong, a.kind ) ) : args.Push( cast( ulong, a.id ) )
+
+        if r = RTL_DATA_READ_STR then
+            '' (pointer, length, isFixed). A var-len string passes -1 and 0; a
+            '' 'zstring * n' passes n and 0; an FB 'string * n' passes n or SSIZE_MIN
+            '' and -1. fbx cannot tell the last two apart -- both are an array of
+            '' TY_ZSTRING -- so only the first two are lowered.
+            dim as longint zn
+            dim as long sk = StrSwapKind_( c, t, zn )
+            if sk = 0 then
+                args.Push( cast( ulong, MV_CONST_INT ) )
+                args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+            elseif sk = 1 then
+                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, zn ) )
+            else
+                return false
+            end if
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        elseif r = RTL_DATA_READ_WSTR then
+            dim as long wn = WideStringElems( c, t )
+            if wn <= 0 then return false
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, wn ) )
+        end if
+
+        EmitRtl( c, r, args )
+    next
+    return true
+end function
+
+'' The READ entry point for a destination type. INTEGER and UINTEGER are
+'' TARGET-DEPENDENT: Longint/ULongint on win64, Int/UInt on win32.
+private function DataReadRtlFor_( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
+    if t = Fbx.TYPE_NONE then return RTL_NONE
+    if WideStringElems( c, t ) > 0 then return RTL_DATA_READ_WSTR
+    if IsStringType( c, t ) then return RTL_DATA_READ_STR
+    dim as longint zn
+    if StrSwapKind_( c, t, zn ) = 1 then return RTL_DATA_READ_STR
+
+    select case c.types->Kind( t )
+    case Fbx.TK_ENUM : return RTL_DATA_READ_INT
+    case Fbx.TK_BUILTIN
+        select case c.types->BuiltinOf( t )
+        case Fbx.TY_BYTE      : return RTL_DATA_READ_BYTE
+        case Fbx.TY_UBYTE     : return RTL_DATA_READ_UBYTE
+        case Fbx.TY_SHORT     : return RTL_DATA_READ_SHORT
+        case Fbx.TY_USHORT    : return RTL_DATA_READ_USHORT
+        case Fbx.TY_LONG      : return RTL_DATA_READ_INT
+        case Fbx.TY_ULONG     : return RTL_DATA_READ_UINT
+        case Fbx.TY_LONGINT   : return RTL_DATA_READ_LONGINT
+        case Fbx.TY_ULONGINT  : return RTL_DATA_READ_ULONGINT
+        case Fbx.TY_SINGLE    : return RTL_DATA_READ_SINGLE
+        case Fbx.TY_DOUBLE    : return RTL_DATA_READ_DOUBLE
+        case Fbx.TY_BOOLEAN   : return RTL_DATA_READ_BOOL
+        case Fbx.TY_INTEGER
+            if c.types->target.pointerBits = 32 then return RTL_DATA_READ_INT
+            return RTL_DATA_READ_LONGINT
+        case Fbx.TY_UINTEGER
+            if c.types->target.pointerBits = 32 then return RTL_DATA_READ_UINT
+            return RTL_DATA_READ_ULONGINT
+        end select
+    end select
+    return RTL_NONE
+end function
+
+
+'' RESTORE.
+''
+'' A bare 'restore' targets the head of the module's chain. 'restore lbl' targets the
+'' first DATA at or after lbl, and a forward reference is legal -- which is why the
+'' blocks are collected before any statement is lowered.
+function LowerRestore( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as long target = c.dataHead
+
+    if sp->count >= 1 then
+        dim as Fbx.NodeId lbl = cast( Fbx.NodeId, c.ast->children[sp->first] )
+        if c.ast->Kind( lbl ) <> Fbx.N_IDENT then return false
+        dim as Fbx.IdentPayload ptr ip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, lbl )].data )]
+        target = -1
+        for i as long = 0 to c.dataLabelName.Count - 1
+            if cast( Fbx.InternId, c.dataLabelName[i] ) = ip->name then
+                target = cast( long, c.dataLabelBlock[i] )
+                exit for
+            end if
+        next
+        '' A LABEL WITH NO DATA AFTER IT. fbc emits a reference to a label it never
+        '' defines and its own C backend then refuses the program -- a defect, not a
+        '' contract. fbx declines instead of reproducing it.
+        if target < 0 then return false
+    end if
+
+    if target < 0 then return false
+    dim as MirValue g
+    g.kind = cast( ubyte, MV_GLOBAL )
+    g.ty = cast( ubyte, MT_PTR )
+    g.id = target
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, g.kind ) ) : args.Push( cast( ulong, g.id ) )
+    EmitRtl( c, RTL_DATA_RESTORE, args )
+    return true
+end function
+
+'' The implicit restore fbc emits at module start.
+''
+'' Measured, and BOTH conditions matter: it appears only in the MAIN translation unit,
+'' and only when that module itself contains at least one DATA. A main module with READ
+'' but no DATA gets none at all, and the runtime pointer is simply never initialised.
+sub EmitImplicitRestore( byref c as Ctx )
+    if c.dataHead < 0 then return
+    dim as MirValue g
+    g.kind = cast( ubyte, MV_GLOBAL )
+    g.ty = cast( ubyte, MT_PTR )
+    g.id = c.dataHead
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, g.kind ) ) : args.Push( cast( ulong, g.id ) )
+    EmitRtl( c, RTL_DATA_RESTORE, args )
+end sub
+
+end namespace

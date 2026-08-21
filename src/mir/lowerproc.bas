@@ -365,6 +365,11 @@ sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
         c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
     wend
 
+    '' The implicit restore, immediately after fb_Init and before the module body --
+    '' which is where fbc puts it. Emitted only when this module actually has a DATA
+    '' statement; a main module with READ but no DATA gets none at all.
+    EmitImplicitRestore( c )
+
     dim as long scopeDepthIn = c.scopeMark.Count
     PushScope( c )
     '' The children are walked directly rather than through LowerBlock. N_MODULE is a
@@ -466,6 +471,13 @@ function Lower _
     c.m = @m
     c.st = @st
     c.curBlock = -1
+
+    '' DATA FIRST, before anything is lowered. Two reasons, and both are measured:
+    '' 'restore lbl' may name a label that appears LATER in the file, and the block
+    '' chain has to exist before the implicit restore at the top of main can point at
+    '' its head.
+    c.dataHead = CollectDataBlocks( c, root )
+
     WalkTop( c, root )
     LowerMainModule( c, root )
     return st.functions

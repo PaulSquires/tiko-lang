@@ -35,6 +35,7 @@ src/mir/lowerconv.bas
 src/mir/lowerintr.bas
 src/mir/lowerusing.bas
 src/mir/lowerdesc.bas
+src/mir/lowerdata.bas
 src/mir/lowerctor.bas
 src/mir/lowerproc.bas
 src/driver/cmdline.bas

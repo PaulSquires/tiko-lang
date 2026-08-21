@@ -14,6 +14,20 @@ fb_ArrayStrErase	void	struct $7FBARRAYIvE*	lib	_fb_ArrayStrErase@4
 fb_ArrayUBound	int32	struct $7FBARRAYIKvE*, int32	lib	_fb_ArrayUBound@8
 fb_Assert	void	char*, int32, char*, char*	lib	_fb_Assert@16
 fb_ConsoleInput	int32	FBSTRING*, int32, int32	lib	_fb_ConsoleInput@12
+fb_DataReadBool	void	boolean*	lib	_fb_DataReadBool@4
+fb_DataReadByte	void	int8*	lib	_fb_DataReadByte@4
+fb_DataReadDouble	void	double*	lib	_fb_DataReadDouble@4
+fb_DataReadInt	void	int32*	lib	_fb_DataReadInt@4
+fb_DataReadLongint	void	int64*	lib	_fb_DataReadLongint@4
+fb_DataReadShort	void	int16*	lib	_fb_DataReadShort@4
+fb_DataReadSingle	void	float*	lib	_fb_DataReadSingle@4
+fb_DataReadStr	void	void*, int32, int32	lib	_fb_DataReadStr@12
+fb_DataReadUByte	void	uint8*	lib	_fb_DataReadUByte@4
+fb_DataReadUInt	void	uint32*	lib	_fb_DataReadUInt@4
+fb_DataReadULongint	void	uint64*	lib	_fb_DataReadULongint@4
+fb_DataReadUShort	void	uint16*	lib	_fb_DataReadUShort@4
+fb_DataReadWstr	void	uint16*, int32	lib	_fb_DataReadWstr@8
+fb_DataRestore	void	void*	lib	_fb_DataRestore@4
 fb_DoubleToWstr	uint16*	double	lib	_fb_DoubleToWstr@8
 fb_End	void	int32	lib	_fb_End@4
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	_fb_ErrorThrowEx

@@ -53,6 +53,12 @@ type Ctx
     as FB.Array( of long )  loopKind
     '' Slots holding string temporaries whose life ends with the current STATEMENT.
     as FB.Array( of ulong ) strTemps
+    '' DATA. The head of the module's block chain (-1 when it has none), and the
+    '' label -> block map a 'restore lbl' resolves through. Both are built by a
+    '' PRE-PASS, because 'restore lbl' may name a label that appears later.
+    as long                 dataHead
+    as FB.Array( of ulong ) dataLabelName
+    as FB.Array( of ulong ) dataLabelBlock
 
     '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
@@ -191,6 +197,11 @@ declare function EmitRtl _
           byval at as Fbx.TypeId ) as MirValue
     declare function LowerArrayBoundCall _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    '' lowerdata.bas
+    declare function CollectDataBlocks( byref c as Ctx, byval root as Fbx.NodeId ) as long
+    declare function LowerRead( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerRestore( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare sub EmitImplicitRestore( byref c as Ctx )
     declare function LowerRedim _
         ( byref c as Ctx, byval id as Fbx.NodeId, _
           byval sp as Fbx.StmtPayload ptr ) as boolean

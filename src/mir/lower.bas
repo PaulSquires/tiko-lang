@@ -1211,6 +1211,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         if ip->op = cast( ushort, Fbx.KW_CLOSE ) then handled = LowerClose( c, id )
         if ip->op = cast( ushort, Fbx.KW_ERROR ) then handled = LowerError( c, id )
         if ip->op = cast( ushort, Fbx.KW_ERASE ) then handled = LowerErase( c, id )
+        if ip->op = cast( ushort, Fbx.KW_READ ) then handled = LowerRead( c, id )
+        if ip->op = cast( ushort, Fbx.KW_RESTORE ) then handled = LowerRestore( c, id )
+        '' A DATA statement emits no code: its descriptor array was built by the
+        '' pre-pass, before anything else was lowered.
+        if ip->op = cast( ushort, Fbx.KW_DATA ) then handled = (c.dataHead >= 0)
         '' LINE is two unrelated statements sharing a keyword: bit 1 of 'extra' is
         '' LINE INPUT, bit 2 the graphics form, which needs libfbgfx and declines.
         if ip->op = cast( ushort, Fbx.KW_LINE ) then

@@ -132,6 +132,24 @@ namespace Fbx.Mir
         RTL( RTL_STR_RTRIM_ANY,     "fb_RTrimAny",         "p",   "pp"    )
         RTL( RTL_STR_UCASE,         "fb_StrUcase2",        "p",   "pl"    )
         RTL( RTL_STR_LCASE,         "fb_StrLcase2",        "p",   "pl"    )
+
+        '' DATA / READ / RESTORE. The DESTINATION TYPE alone picks the entry point;
+        '' there is no mask and no channel. INTEGER and UINTEGER are target-dependent
+        '' and the inventory cannot say so, so lowering picks between Int and Longint.
+        RTL( RTL_DATA_RESTORE,      "fb_DataRestore",      "v",   "p"     )
+        RTL( RTL_DATA_READ_STR,     "fb_DataReadStr",      "v",   "pzl"   )
+        RTL( RTL_DATA_READ_WSTR,    "fb_DataReadWstr",     "v",   "pz"    )
+        RTL( RTL_DATA_READ_BOOL,    "fb_DataReadBool",     "v",   "p"     )
+        RTL( RTL_DATA_READ_BYTE,    "fb_DataReadByte",     "v",   "p"     )
+        RTL( RTL_DATA_READ_UBYTE,   "fb_DataReadUByte",    "v",   "p"     )
+        RTL( RTL_DATA_READ_SHORT,   "fb_DataReadShort",    "v",   "p"     )
+        RTL( RTL_DATA_READ_USHORT,  "fb_DataReadUShort",   "v",   "p"     )
+        RTL( RTL_DATA_READ_INT,     "fb_DataReadInt",      "v",   "p"     )
+        RTL( RTL_DATA_READ_UINT,    "fb_DataReadUInt",     "v",   "p"     )
+        RTL( RTL_DATA_READ_LONGINT, "fb_DataReadLongint",  "v",   "p"     )
+        RTL( RTL_DATA_READ_ULONGINT,"fb_DataReadULongint", "v",   "p"     )
+        RTL( RTL_DATA_READ_SINGLE,  "fb_DataReadSingle",   "v",   "p"     )
+        RTL( RTL_DATA_READ_DOUBLE,  "fb_DataReadDouble",   "v",   "p"     )
         RTL( RTL_STR_TEMPZ,         "fb_StrAllocTempDescZEx", "p",  "pz"  )
         '' A STRING RESULT. fbc builds the value in a local descriptor and hands the
         '' runtime that descriptor on the way out; what the function actually returns

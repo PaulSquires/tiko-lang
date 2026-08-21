@@ -225,6 +225,13 @@ namespace Fbx.Mir
         '' when the bytes are emitted, because wchar is 2 bytes on Windows and 4 on
         '' Linux and baking one in here would make the IR target-specific.
         as boolean  isWide
+        '' A DATA BLOCK: a packed array of { int16 TYPE; ptr NODE }, indexing the
+        '' module's dataTypes / dataRefs pools. A ref of -1 is a null pointer; any
+        '' other value is the index of the global whose ADDRESS goes in that slot,
+        '' which is what makes the chain a relocation rather than a number.
+        as boolean  isData
+        as long     dataFirst
+        as long     dataCount
         as boolean  isVar
         as ubyte    ty             '' MirType, isVar only
         as Fbx.TypeId frontendType
@@ -240,6 +247,11 @@ namespace Fbx.Mir
         as InternId ptr names
         as MirFunctionVec functions
         as MirGlobalVec globals
+        '' The DATA blocks' entries, pooled: FB.Array by value inside a struct that
+        '' itself lives in an FB.Array is a copy hazard, and there is nothing here
+        '' that a flat pool does not express.
+        as FB.Array( of long ) dataTypes
+        as FB.Array( of long ) dataRefs
         as FB.Array( of ulong ) argPool     '' call arguments, as MirValue ids
 
         declare constructor( )
@@ -248,6 +260,9 @@ namespace Fbx.Mir
             ( byval nm as InternId, byval retTy as MirType ) as MirFunction ptr
         '' Identical literals share one global, which is smaller and is what fbc
         '' does -- two occurrences of the same text are one datum.
+        declare function AddDataBlock( byref names as Interner ) as long
+        declare sub PushDataEntry _
+            ( byval g as long, byval ty as long, byval ref as long )
         declare function AddWideStringLiteral _
             ( byref text as string, byref names as Interner ) as long
         declare function AddStringLiteral _

@@ -335,17 +335,22 @@ end sub
 
 '' DATA holds literals, not expressions: unquoted words are data, not identifiers.
 '' They are kept as raw tokens because only the DATA table cares what they say.
+'' Each item is a full constant EXPRESSION, not a token.
+''
+'' This used to push ONE NODE PER TOKEN, so 'data -1.5e-3' became two items -- a bare
+'' '-' recorded as an empty identifier, then the float -- and 'data 1+2' became three.
+'' fbc parses an expression and FOLDS it: 'data &hFF' and 'data 1+2' are stored as the
+'' text "255" and "3". A bare undeclared word is fbc error 42, so there is no
+'' QB-style unquoted-string case that an expression parse would break.
 private sub IntrData( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     dim as Fbx.NodeIdVec items
     do
         if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
-        if Peek( p ) = Fbx.TK_COMMA then
-            Advance( p )
-            continue do
-        end if
-        dim as Fbx.Token t = Cur( p )
-        items.Push( cast( ulong, MakeTokenNode( p, t ) ) )
-        Advance( p )
+        dim as long before = p.pos
+        items.Push( cast( ulong, Expression( p ) ) )
+        '' The no-progress guard: an item that consumed nothing would loop forever.
+        if p.pos = before then exit do
+        if Accept( p, Fbx.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count

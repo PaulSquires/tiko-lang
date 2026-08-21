@@ -238,6 +238,23 @@ sub SSubProbe( )
     b = lcase( a )
 end sub
 ''',
+    # DATA / READ / RESTORE. Every destination width is probed because the
+    # DESTINATION TYPE alone picks the entry point, and INTEGER differs by target.
+    "datastmt": '''
+data 1, 2, "three"
+dim as byte b : dim as ubyte ub
+dim as short sh : dim as ushort ush
+dim as long l : dim as ulong ul
+dim as longint q : dim as ulongint uq
+dim as integer i : dim as uinteger ui
+dim as single f : dim as double d
+dim as boolean bo
+dim as string s
+dim as zstring * 8 z
+dim as wstring * 8 w
+read b, ub, sh, ush, l, ul, q, uq, i, ui, f, d, bo, s, z, w
+restore
+''',
     "wstrsub": '''
 sub WSubProbe( )
     dim as wstring * 50 w, w2, r

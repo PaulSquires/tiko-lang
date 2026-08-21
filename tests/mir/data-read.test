@@ -1,0 +1,5 @@
+'' DATA descriptors, their chain, READ and RESTORE.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/data-read.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/data-read.out

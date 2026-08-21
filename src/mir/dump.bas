@@ -128,7 +128,23 @@ function DumpModule _
     '' Globals come first so a function body's diff is not disturbed by one being
     '' added.
     for i as long = 0 to m.globals.Count - 1
-        if m.globals[i].isString then
+        if m.globals[i].isData then
+            '' A DATA block prints as its entries. TYPE is the datum's CHARACTER
+            '' LENGTH, not a datatype, and -1 marks the terminator -- whose NODE is
+            '' the next block, or nothing.
+            outp += "global data " & names.Spelling( m.globals[i].name ) & " ["
+            for k as long = 0 to m.globals[i].dataCount - 1
+                dim as long e = m.globals[i].dataFirst + k
+                if k > 0 then outp += ","
+                outp += " " & m.dataTypes[e] & " -> "
+                if m.dataRefs[e] < 0 then
+                    outp += "null"
+                else
+                    outp += names.Spelling( m.globals[m.dataRefs[e]].name )
+                end if
+            next
+            outp += " ]" & chr( 10 )
+        elseif m.globals[i].isString then
             '' A wide literal prints its SOURCE text with an L prefix, the way the
             '' source spells it. Printing the widened bytes would put embedded NULs
             '' in the dump.

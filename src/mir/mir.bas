@@ -29,6 +29,27 @@ end function
 '' Measured: fbc folds 'wstr( "abc" )' at COMPILE TIME into L"abc" and emits no call
 '' at all -- not fb_StrToWstr on the literal's bytes. Kept separate from the narrow
 '' pool because a narrow and a wide literal of the same text are different objects.
+'' A DATA block. Never shared: two identical blocks are still two blocks, because
+'' the chain threads through their terminators and sharing one would make it a cycle.
+function MirModule.AddDataBlock( byref names as Interner ) as long
+    dim as MirGlobal g
+    g.isData = true
+    g.dataFirst = this.dataTypes.Count
+    g.dataCount = 0
+    g.name = names.GetString( "$data" & str( this.globals.Count ) )
+    this.globals.Push( g )
+    return this.globals.Count - 1
+end function
+
+sub MirModule.PushDataEntry _
+    ( byval g as long, byval ty as long, byval ref as long )
+
+    if (g < 0) orelse (g >= this.globals.Count) then return
+    this.dataTypes.Push( ty )
+    this.dataRefs.Push( ref )
+    this.globals[g].dataCount += 1
+end sub
+
 function MirModule.AddWideStringLiteral _
     ( byref text as string, byref names as Interner ) as long
 
