@@ -447,11 +447,13 @@ private sub PpDefineBuiltins( byref e as PpEngine )
         onWindows = e.cfg->targetIsWindows
         on64 = e.cfg->targetIs64
     end if
+    '' EMPTY-BODIED, like __FB_64BIT__ below and for the same measured reason:
+    '' '#if __FB_WIN32__' is error 9 "Expected expression" in fbc, not a true branch.
     if onWindows then
-        PpDefineValue( e, "__FB_WIN32__", "-1" )
+        PpDefineValue( e, "__FB_WIN32__", "" )
     else
-        PpDefineValue( e, "__FB_LINUX__", "-1" )
-        PpDefineValue( e, "__FB_UNIX__", "-1" )
+        PpDefineValue( e, "__FB_LINUX__", "" )
+        PpDefineValue( e, "__FB_UNIX__", "" )
     end if
 
     '' DEFINED AND EMPTY on a 64-bit target, and NOT DEFINED AT ALL on a 32-bit one.
@@ -461,22 +463,33 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     if on64 then
         PpDefineValue( e, "__FB_64BIT__", "" )
     end if
-    PpDefineValue( e, "__FB_PCOS__", """" & _
-        iif( 0, "", "" ) & """" )
+    PpDefineValue( e, "__FB_PCOS__", "" )
 
-    '' Everything fbx is not. These must be DEFINED and false, because the corpus
-    '' writes '#if __FB_DOS__' rather than '#ifdef'.
-    PpDefineValue( e, "__FB_DOS__", "0" )
-    PpDefineValue( e, "__FB_ARM__", "0" )
-    PpDefineValue( e, "__FB_XBOX__", "0" )
-    PpDefineValue( e, "__FB_JS__", "0" )
+    '' The instruction set, empty-bodied like the rest of this group. fbc defines it
+    '' on x86 and x86-64 alike; 11 corpus references, every one an '#ifdef' or a
+    '' 'defined( )', and fbx defined it NOWHERE -- so all eleven took the wrong branch.
+    PpDefineValue( e, "__FB_X86__", "" )
+
+    '' Everything fbx is not is NOT DEFINED AT ALL.
+    ''
+    '' They used to be defined and zero, on the reasoning that the corpus writes
+    '' '#if __FB_DOS__' rather than '#ifdef'. That reasoning was never true and is
+    '' now measured false: of the 43 references to __FB_DOS__, __FB_ARM__, __FB_JS__,
+    '' __FB_XBOX__ and __FB_SSE__ in the corpus, the number written as a bare '#if'
+    '' is ZERO -- every one is '#ifdef', '#ifndef' or 'defined( )'. Defining them at
+    '' all inverted all 43, silently, in the direction that compiles the wrong half
+    '' of a platform test. fbc defines none of them on this target.
     PpDefineValue( e, "__FB_MT__", "0" )
     PpDefineValue( e, "__FB_DEBUG__", "0" )
     PpDefineValue( e, "__FB_ERR__", "0" )
     PpDefineValue( e, "__FB_GCC__", "0" )
-    PpDefineValue( e, "__FB_FPU__", "0" )
-    PpDefineValue( e, "__FB_FPMODE__", "0" )
-    PpDefineValue( e, "__FB_SSE__", "-1" )
+    '' STRINGS, not numbers. The corpus writes '#if __FB_FPMODE__ = "fast"' and
+    '' '#if __FB_FPMODE__ <> "fast"' -- comparing those against 0 is not false, it is
+    '' meaningless, and six files depend on the answer. Measured from fbc on this
+    '' target: FPMODE "precise", FPU "x87", ASM "intel".
+    PpDefineValue( e, "__FB_FPU__", """x87""" )
+    PpDefineValue( e, "__FB_FPMODE__", """precise""" )
+    PpDefineValue( e, "__FB_ASM__", """intel""" )
     PpDefineValue( e, "__FB_OPTION_BYVAL__", "0" )
     PpDefineValue( e, "__FB_OPTION_DYNAMIC__", "0" )
     PpDefineValue( e, "__FB_OPTION_ESCAPE__", "0" )
