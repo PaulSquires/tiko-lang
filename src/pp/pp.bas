@@ -48,6 +48,17 @@ type PpEngine
     as IdVec                  onceFiles     '' FileId values marked #include once
     as FileId                 rootFile
     as long                   uniqueCounter
+    '' __FB_UNIQUEID__ IS A STACK PER NAME, not a fresh id per use. Measured:
+    ''
+    ''     __fb_uniqueid_push__( k )   a NEW id becomes k's current one
+    ''     __fb_uniqueid__( k )        THE SAME id every time until a push or pop
+    ''     __fb_uniqueid_pop__( k )    k's previous id is current again
+    ''
+    '' Two parallel arrays used as one stack: names are interned, so the top entry
+    '' for a name is found by scanning backwards. The stacks are shallow (the
+    '' fbcunit headers nest two deep) so a linear scan is the right shape.
+    as IdVec                  uidNames      '' InternId, innermost last
+    as IdVec                  uidValues     '' the counter value that name maps to
     as boolean                stopped
 
     '' '#pragma private' / '#pragma profile' and their push/pop stacks. Two options,

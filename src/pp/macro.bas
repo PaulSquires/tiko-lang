@@ -556,12 +556,70 @@ function PpExpandBuiltin _
     case PPB_TIME
         RelexInto( e, """" & time( ) & """", use.loc, *buf )
 
-    case PPB_UNIQUEID
-        '' A fresh identifier per use. Deterministic: it counts uses, nothing else.
-        dim as ArgList args
-        PpReadArgs( e, m, args )
-        e.uniqueCounter += 1
-        RelexInto( e, "__fbx_uid_" & e.uniqueCounter, use.loc, *buf )
+    case PPB_UNIQUEID, PPB_UNIQUEID_PUSH, PPB_UNIQUEID_POP
+        '' A STACK PER NAME. The previous version handed back a fresh identifier on
+        '' every use, so two references to __FB_UNIQUEID__( k ) in one scope named two
+        '' different variables -- which is what the fbcunit callstack macros do, and
+        '' the reason 1,633 corpus statements arrived at lowering as calls to an
+        '' undefined '__fb_uniqueid_push__'. Measured from fbc:
+        ''
+        ''     __fb_uniqueid_push__( k )   a NEW id becomes k's current one
+        ''     __fb_uniqueid__( k )        THE SAME id until the next push or pop
+        ''     __fb_uniqueid_pop__( k )    k's previous id is current again
+        ''
+        '' Push and pop expand to NOTHING. They fall through to the common tail with
+        '' an empty buffer rather than returning early: the buffer is heap-allocated
+        '' and the tail is what releases it.
+        dim as ArgList uargs
+        PpReadArgs( e, m, uargs )
+        dim as InternId ukey = _
+            e.names->GetString( Text.LowerAscii( ArgText( e, uargs, 0 ) ) )
+
+        if m->builtin = PPB_UNIQUEID_PUSH then
+            e.uniqueCounter += 1
+            e.uidNames.Push( cast( ulong, ukey ) )
+            e.uidValues.Push( cast( ulong, e.uniqueCounter ) )
+        else
+            '' The innermost entry for this name, found by scanning backwards.
+            dim as long utop = -1
+            for i as long = e.uidNames.Count - 1 to 0 step -1
+                if cast( InternId, e.uidNames[i] ) = ukey then
+                    utop = i
+                    exit for
+                end if
+            next
+
+            if m->builtin = PPB_UNIQUEID_POP then
+                '' AN UNMATCHED POP IS AN ERROR, not a no-op. Measured -- and two corpus
+                '' files exist to assert exactly that:
+                ''
+                ''     a.bas(1) error 17: Syntax error, expanding: __FB_UNIQUEID_POP__
+                ''
+                '' Shifted down rather than popped, because the entry to drop is not
+                '' always the array's top -- two names can interleave.
+                if utop < 0 then
+                    Report( e, FBX0319, use.loc, ArgText( e, uargs, 0 ) )
+                end if
+                if utop >= 0 then
+                    for i as long = utop to e.uidNames.Count - 2
+                        e.uidNames[i] = e.uidNames[i + 1]
+                        e.uidValues[i] = e.uidValues[i + 1]
+                    next
+                    e.uidNames.Pop( )
+                    e.uidValues.Pop( )
+                end if
+            else
+                '' A bare __FB_UNIQUEID__ with no push in front of it still has to
+                '' name something, so it opens the stack itself.
+                if utop < 0 then
+                    e.uniqueCounter += 1
+                    e.uidNames.Push( cast( ulong, ukey ) )
+                    e.uidValues.Push( cast( ulong, e.uniqueCounter ) )
+                    utop = e.uidNames.Count - 1
+                end if
+                RelexInto( e, "__fbx_uid_" & e.uidValues[utop], use.loc, *buf )
+            end if
+        end if
 
     case PPB_QUOTE
         '' The whole point of the lexer keeping (loc, length) on every token: the

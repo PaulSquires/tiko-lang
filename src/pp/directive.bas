@@ -615,6 +615,8 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineBuiltinMacro( e, "__FB_ARG_COUNT__", PPB_ARG_COUNT, true )
     PpDefineBuiltinMacro( e, "__FB_JOIN__", PPB_JOIN, true )
     PpDefineBuiltinMacro( e, "__FB_UNIQUEID__", PPB_UNIQUEID, true )
+    PpDefineBuiltinMacro( e, "__FB_UNIQUEID_PUSH__", PPB_UNIQUEID_PUSH, true )
+    PpDefineBuiltinMacro( e, "__FB_UNIQUEID_POP__", PPB_UNIQUEID_POP, true )
 end sub
 
 private sub PpDefineFromCommandLine( byref e as PpEngine )
