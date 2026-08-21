@@ -80,6 +80,13 @@ type Ctx
     '' The open WITH subjects, innermost last. A '.field' written inside one has no
     '' base in the AST and takes the innermost of these.
     as FB.Array( of ulong )  withSubject
+    '' For the BACKPATCH pass: this walk is in source order, and a typedef may name a
+    '' type declared later. The typedefs, and the declarations that could not be typed
+    '' because of one.
+    as FB.Array( of ulong )  typedefNode
+    as FB.Array( of ulong )  typedefScope
+    as FB.Array( of ulong )  pendingItem
+    as FB.Array( of ulong )  pendingScope
 end type
 
 '' The scope '..' names. NOT SCOPE_GLOBAL, which holds only the builtins -- a module's
@@ -405,7 +412,14 @@ private function ResolveTypeRef _
         if sid <> Fbx.SYMBOL_NONE then
             c.info->SetRef( id, sid )
             dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
-            if s->type_ <> Fbx.TYPE_NONE then base_ = s->type_
+            '' A TYPEDEF STILL HOLDING ITS PLACEHOLDER is not resolved. Collect gives
+            '' every typedef a TK_TYPEDEF named type with nothing behind it. Taking that
+            '' here made 'dim as t i', where t aliases a type declared LATER, bind to
+            '' something that lowers to VOID -- and the declaration never looked
+            '' unresolved, so nothing came back to it.
+            dim as boolean ready = (s->type_ <> Fbx.TYPE_NONE)
+            if ready then ready = (c.types->Kind( s->type_ ) <> Fbx.TK_TYPEDEF)
+            if ready then base_ = s->type_
         end if
     end select
 
@@ -543,6 +557,7 @@ private sub BindThis _
     end if
 end sub
 
+declare sub BackpatchTypedefs( byref c as Ctx )
 declare sub WalkStmt _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
 
@@ -1195,6 +1210,10 @@ sub WalkStmt _
             '' local array reserved one ELEMENT -- four bytes where forty were needed --
             '' which nothing noticed only because indexing was not lowered either.
             t = ArrayFromBoundsNode( c, t, ip->c, ip->b )
+            if t = Fbx.TYPE_NONE then
+                c.pendingItem.Push( cast( ulong, item ) )
+                c.pendingScope.Push( cast( ulong, here ) )
+            end if
             BindDeclType( c, here, ip->name, t )
             WalkStmt( c, ip->b, here )
         next
@@ -1226,6 +1245,8 @@ sub WalkStmt _
         '' is still TYPE_NONE. Collect has already put a placeholder named type here, so
         '' the ordinary bind is a silent no-op -- which is exactly what it did.
         dim as Fbx.StmtPayload ptr tsp = StmtOf( c, id )
+        c.typedefNode.Push( cast( ulong, id ) )
+        c.typedefScope.Push( cast( ulong, here ) )
         dim as Fbx.TypeId aliased = ResolveTypeRef( c, tsp->a, here )
         if (aliased <> Fbx.TYPE_NONE) andalso (tsp->name <> 0) then
             '' The TYPEDEF, not a variable of the same name -- when the variable was
@@ -1380,6 +1401,45 @@ sub Run _
 
     info.Resize( ast.Count( ) )
     WalkStmt( c, root, Fbx.SCOPE_GLOBAL )
+    BackpatchTypedefs( c )
+end sub
+
+'' TYPEDEFS THAT NAME A TYPE DECLARED LATER, and the declarations waiting on them.
+''
+''     type t as u : type u as integer : dim as t i
+''
+'' A FIXPOINT, not one extra pass: 'a as b / b as c / c as integer' needs one round per
+'' link. Bounded, because a round that binds nothing stops. Then the declarations that
+'' could not be typed the first time -- only those, because a second full walk would
+'' report every diagnostic twice.
+private sub BackpatchTypedefs( byref c as Ctx )
+    for r as long = 1 to c.typedefNode.Count
+        dim as boolean progress = false
+        for i as long = 0 to c.typedefNode.Count - 1
+            dim as Fbx.NodeId id = cast( Fbx.NodeId, c.typedefNode[i] )
+            dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.typedefScope[i] )
+            dim as Fbx.StmtPayload ptr tsp = StmtOf( c, id )
+            if tsp->name = 0 then continue for
+            dim as Fbx.Symbol ptr ts = _
+                c.syms->SymbolAt( c.syms->LookupLocalTyped( here, tsp->name, true ) )
+            if ts = 0 then continue for
+            if ts->kind <> cast( ubyte, Fbx.SYM_TYPEDEF ) then continue for
+            dim as Fbx.TypeId al = ResolveTypeRef( c, tsp->a, here )
+            if (al = Fbx.TYPE_NONE) orelse (al = ts->type_) then continue for
+            ts->type_ = al
+            progress = true
+        next
+        if progress = false then exit for
+    next
+
+    for i as long = 0 to c.pendingItem.Count - 1
+        dim as Fbx.NodeId item = cast( Fbx.NodeId, c.pendingItem[i] )
+        dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.pendingScope[i] )
+        dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+        dim as Fbx.TypeId t = ResolveTypeRef( c, ip->a, here )
+        if t = Fbx.TYPE_NONE then continue for
+        BindDeclType( c, here, ip->name, ArrayFromBoundsNode( c, t, ip->c, ip->b ) )
+    next
 end sub
 
 function Dump _

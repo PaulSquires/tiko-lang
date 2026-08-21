@@ -1,0 +1,5 @@
+'' Forward typedefs, and a chain of them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typedef-forward.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/typedef-forward.out
