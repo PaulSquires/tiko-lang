@@ -305,6 +305,49 @@ declare function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
       byval want as long ) as Fbx.SymbolId
 
+
+'' A possibly-dotted owner name -- 'Widget', 'ns.UDT', 'a.b.UDT' -- resolved to its
+'' symbol. Only the FIRST component is visible from the starting scope; each later one
+'' is looked up INSIDE what the previous opened.
+private function LookupDottedOwner_ _
+    ( byref w as Walker, byval scope_ as Fbx.ScopeId, _
+      byval path as Fbx.InternId ) as Fbx.SymbolId
+
+    dim as string qpath = w.names->Spelling( path )
+    if instr( qpath, "." ) = 0 then
+        return w.syms->LookupTyped( scope_, path, true )
+    end if
+
+    dim as Fbx.ScopeId sc = scope_
+    dim as boolean first_ = true
+    dim as long at = 0
+    dim as Fbx.SymbolId found = Fbx.SYMBOL_NONE
+    while at <= len( qpath )
+        dim as long dot = instr( at + 1, qpath, "." )
+        dim as long stop_ = dot
+        if stop_ = 0 then stop_ = len( qpath ) + 1
+        dim as string comp = mid( qpath, at + 1, stop_ - at - 1 )
+        if len( comp ) = 0 then return Fbx.SYMBOL_NONE
+        dim as Fbx.InternId cid = w.names->Fold( w.names->GetString( comp ) )
+
+        dim as Fbx.SymbolId sid
+        if first_ then
+            sid = w.syms->LookupTyped( sc, cid, true )
+        else
+            sid = w.syms->LookupLocalTyped( sc, cid, true )
+        end if
+        dim as Fbx.Symbol ptr sym = w.syms->SymbolAt( sid )
+        if sym = 0 then return Fbx.SYMBOL_NONE
+        found = sid
+        first_ = false
+        if dot = 0 then exit while
+        if sym->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+        sc = sym->inner
+        at = dot
+    wend
+    return found
+end function
+
 private sub WalkChildren _
     ( byref w as Walker, byval first as long, byval count as long, _
       byval scope_ as Fbx.ScopeId )
@@ -615,12 +658,30 @@ sub WalkNode _
         '' member body resolves its own fields by ordinary scope lookup.
         dim as Fbx.ScopeId parentScope = scope_
         if isMemberDef then
+            '' A CONSTRUCTOR'S OWNER IS ITS LAST COMPONENT, not the one before it.
+            '' 'constructor ns.UDT( )' has ownerName 'ns' and name 'UDT': the type is
+            '' UDT and the namespace is only how to reach it. Taking ownerName here
+            '' opened the body under the NAMESPACE, so BindThis found no enclosing type
+            '' scope, 'this' stayed untyped, and its receiver store went into a VOID
+            '' slot -- which the MIR verifier reported for twelve corpus files.
+            ''
+            '' An ordinary member is the other way round: 'sub Widget.Draw( )' has
+            '' owner Widget and name Draw.
             dim as Fbx.InternId ownerNm = sp->ownerName
-            if isCtorDtor andalso (ownerNm = 0) then ownerNm = sp->name
+            if isCtorDtor then
+                if sp->ownerName = 0 then
+                    ownerNm = sp->name
+                else
+                    ownerNm = w.names->GetString( _
+                        w.names->Spelling( sp->ownerName ) & "." & _
+                        w.names->Spelling( sp->name ) )
+                end if
+            end if
             if ownerNm <> 0 then
                 '' The owner is a TYPE name -- 'sub Widget.Draw( )' -- so a variable
-                '' sharing the spelling must not be picked up instead.
-                dim as Fbx.SymbolId osid = w.syms->LookupTyped( scope_, ownerNm, true )
+                '' sharing the spelling must not be picked up instead. The name may be
+                '' a PATH, which is walked a component at a time.
+                dim as Fbx.SymbolId osid = LookupDottedOwner_( w, scope_, ownerNm )
                 dim as Fbx.Symbol ptr os = w.syms->SymbolAt( osid )
                 if os <> 0 then
                     if os->inner <> Fbx.SCOPE_NONE then parentScope = os->inner

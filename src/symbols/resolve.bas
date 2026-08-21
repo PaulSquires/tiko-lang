@@ -355,15 +355,50 @@ private function ResolveTypeRef _
         '' qualifier is what the parser now keeps in 'ownerName'.
         dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
         if sp->ownerName <> 0 then
-            dim as Fbx.SymbolId qsid = c.syms->Lookup( scope_, sp->ownerName )
-            dim as Fbx.Symbol ptr qs = c.syms->SymbolAt( qsid )
-            if qs <> 0 then
+            '' The qualifier may be a PATH -- 'a.b.c' -- which the parser keeps dotted
+            '' in one field. Walk it a component at a time: only the FIRST component is
+            '' visible from the current scope, and each later one is looked up INSIDE
+            '' what the previous one opened.
+            dim as string qpath = c.names->Spelling( sp->ownerName )
+            dim as Fbx.ScopeId sc = scope_
+            dim as boolean first_ = true
+            dim as boolean ok = true
+            dim as long at = 0
+            while at <= len( qpath )
+                dim as long dot = instr( at + 1, qpath, "." )
+                dim as long stop_ = dot
+                if stop_ = 0 then stop_ = len( qpath ) + 1
+                dim as string comp = mid( qpath, at + 1, stop_ - at - 1 )
+                if len( comp ) = 0 then
+                    ok = false
+                    exit while
+                end if
+                dim as Fbx.InternId cid = c.names->GetString( comp )
+                dim as Fbx.SymbolId qsid
+                if first_ then
+                    qsid = c.syms->Lookup( sc, cid )
+                else
+                    qsid = c.syms->LookupLocalTyped( sc, cid, true )
+                end if
+                dim as Fbx.Symbol ptr qs = c.syms->SymbolAt( qsid )
+                if qs = 0 then
+                    ok = false
+                    exit while
+                end if
                 dim as boolean qualifies = _
                     (qs->kind = cast( ubyte, Fbx.SYM_NAMESPACE )) orelse _
                     (qs->kind = cast( ubyte, Fbx.SYM_UDT ))
-                if qualifies andalso (qs->inner <> Fbx.SCOPE_NONE) then
-                    sid = c.syms->LookupLocalTyped( qs->inner, sp->name, true )
+                if (qualifies = false) orelse (qs->inner = Fbx.SCOPE_NONE) then
+                    ok = false
+                    exit while
                 end if
+                sc = qs->inner
+                first_ = false
+                if dot = 0 then exit while
+                at = dot
+            wend
+            if ok andalso (first_ = false) then
+                sid = c.syms->LookupLocalTyped( sc, sp->name, true )
             end if
         end if
         if sid = Fbx.SYMBOL_NONE then sid = c.syms->LookupTyped( scope_, sp->name, true )
@@ -399,6 +434,55 @@ end function
 
 '' ------------------------------------------------------------------- walking
 
+
+'' A possibly-dotted name -- 'UDT', 'ns.UDT', 'a.b.UDT' -- resolved to its symbol.
+''
+'' Only the FIRST component is visible from the starting scope; each later one is looked
+'' up INSIDE what the previous opened. Shared by qualified type references and by
+'' BindThis, which needs the same walk for a structor defined outside its namespace.
+private function LookupDottedType_ _
+    ( byref c as Ctx, byval scope_ as Fbx.ScopeId, _
+      byval path as Fbx.InternId ) as Fbx.SymbolId
+
+    dim as string qpath = c.names->Spelling( path )
+    dim as Fbx.ScopeId sc = scope_
+    dim as boolean first_ = true
+    dim as long at = 0
+    dim as Fbx.SymbolId found = Fbx.SYMBOL_NONE
+
+    while at <= len( qpath )
+        dim as long dot = instr( at + 1, qpath, "." )
+        dim as long stop_ = dot
+        if stop_ = 0 then stop_ = len( qpath ) + 1
+        dim as string comp = mid( qpath, at + 1, stop_ - at - 1 )
+        if len( comp ) = 0 then return Fbx.SYMBOL_NONE
+        dim as Fbx.InternId cid = c.names->GetString( comp )
+
+        dim as Fbx.SymbolId sid
+        if first_ then
+            sid = c.syms->Lookup( sc, cid )
+        else
+            sid = c.syms->LookupLocalTyped( sc, cid, true )
+        end if
+        dim as Fbx.Symbol ptr sym = c.syms->SymbolAt( sid )
+        if sym = 0 then return Fbx.SYMBOL_NONE
+        found = sid
+        first_ = false
+
+        if dot = 0 then exit while
+        '' Only a NAMESPACE or a UDT opens a scope to descend into.
+        dim as boolean opens = _
+            (sym->kind = cast( ubyte, Fbx.SYM_NAMESPACE )) orelse _
+            (sym->kind = cast( ubyte, Fbx.SYM_UDT ))
+        if (opens = false) orelse (sym->inner = Fbx.SCOPE_NONE) then
+            return Fbx.SYMBOL_NONE
+        end if
+        sc = sym->inner
+        at = dot
+    wend
+    return found
+end function
+
 '' THIS, inside a method body. Collect declares the parameter -- it is never written, so
 '' nothing else would -- and this gives it the owning type. Without it 'this.v' was
 '' untyped, 'this.M( )' lowered with no receiver at all, and every unqualified reference
@@ -407,7 +491,9 @@ end function
 '' The type comes from the enclosing scope chain rather than from the procedure's name:
 '' a member DEFINITION opens its scope inside the TYPE's, which is what makes 'this', the
 '' sibling fields and the mangled name all come out of one arrangement.
-private sub BindThis( byref c as Ctx, byval procScope as Fbx.ScopeId )
+private sub BindThis _
+    ( byref c as Ctx, byval procScope as Fbx.ScopeId, _
+      byval ownerName as Fbx.InternId = 0 )
     dim as Fbx.SymbolId tsid = _
         c.syms->LookupLocal( procScope, c.names->Fold( c.names->GetString( "this" ) ) )
     if tsid = Fbx.SYMBOL_NONE then return
@@ -433,6 +519,28 @@ private sub BindThis( byref c as Ctx, byval procScope as Fbx.ScopeId )
         end if
         cur = s->parent
     wend
+
+    '' NO TYPE SCOPE ANYWHERE UP THE CHAIN. A member DEFINED OUTSIDE its namespace --
+    ''
+    ''     namespace ns : type UDT : ... : end type : end namespace
+    ''     constructor ns.UDT( ) : ... : end constructor
+    ''
+    '' -- opens its body at MODULE scope, so the walk above finds nothing and 'this'
+    '' stays untyped. It then gets a VOID slot, and the receiver store into it is what
+    '' the MIR verifier had been reporting for twelve corpus files.
+    ''
+    '' The procedure's own qualified name is what says which type it belongs to. It may
+    '' be a PATH -- 'a.b.UDT' -- so it walks the same way a qualified TYPE REFERENCE
+    '' does.
+    if (ts->type_ = Fbx.TYPE_NONE) andalso (ownerName <> 0) then
+        dim as Fbx.SymbolId osid = LookupDottedType_( c, procScope, ownerName )
+        dim as Fbx.Symbol ptr os = c.syms->SymbolAt( osid )
+        if os <> 0 then
+            if os->type_ <> Fbx.TYPE_NONE then
+                ts->type_ = c.types->Pointer_( os->type_ )
+            end if
+        end if
+    end if
 end sub
 
 declare sub WalkStmt _
@@ -1232,7 +1340,7 @@ sub WalkStmt _
            (ps->type_ = Fbx.TYPE_NONE) then
             ps->type_ = ret
         end if
-        BindThis( c, here )
+        BindThis( c, here, sp->ownerName )
         for i as long = 0 to sp->count - 1
             WalkStmt( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ), here )
         next

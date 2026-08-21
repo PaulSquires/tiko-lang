@@ -1,0 +1,5 @@
+'' Qualified owners: a structor outside its namespace, and a dotted type path.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/qualified-owner.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/qualified-owner.out

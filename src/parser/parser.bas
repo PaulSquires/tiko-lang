@@ -424,12 +424,24 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' looked up from the current scope, which never descends into a namespace: the
     '' type came out unknown and its variable's slot lowered to 'void'.
     ''
-    '' A path deeper than one level keeps only its LAST qualifier, the same limitation
-    '' 'using a.b' has, and for the same reason -- one field, not a list.
+    '' A path DEEPER THAN ONE LEVEL keeps the whole thing, dotted, in that one field.
+    '' Keeping only the last component made 'a.b.c.foo' resolve as if it were 'c.foo',
+    '' and 'c' is not visible from the current scope -- it lives inside 'b' inside 'a'
+    '' -- so the type came out unknown and its variable's slot lowered to VOID. Resolve
+    '' splits the path back apart and walks it a component at a time.
+    ''
+    '' A dotted InternId rather than a list because the payload has one field for this
+    '' and a name with a dot in it cannot collide with a real identifier.
     while Peek( p ) = Fbx.TK_DOT
         Advance( p )
         if (Peek( p ) = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( Peek( p ) ) then
-            sp.ownerName = sp.name
+            if sp.ownerName = 0 then
+                sp.ownerName = sp.name
+            else
+                sp.ownerName = p.names->GetString( _
+                    p.names->Spelling( sp.ownerName ) & "." & _
+                    p.names->Spelling( sp.name ) )
+            end if
             sp.name = cast( Fbx.InternId, Cur( p ).literal )
             Advance( p )
         else
