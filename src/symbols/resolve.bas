@@ -329,7 +329,7 @@ private function ResolveTypeRef _
         case Fbx.KW_ZSTRING, Fbx.KW_WSTRING, Fbx.KW_USTRING
             dim as Fbx.Check.ConstVal lv = _
                 Fbx.Check.ConstOf( *c.ast, sp->c, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits )
+                                   c.types->target.pointerBits, c.syms, scope_ )
             if lv.known andalso (lv.value > 0) then
                 base_ = c.types->ArrayOf( base_, 1, cast( long, lv.value ) )
             end if
@@ -798,6 +798,53 @@ sub WalkStmt _
 
     case Fbx.N_TYPEREF
         ResolveTypeRef( c, id, here )
+        return
+
+    case Fbx.N_ENUM
+        '' THE MEMBERS' VALUES. Nothing computed them: every enum constant in the tree
+        '' was ZERO. 'error( FB.FB_RTERROR_ILLEGALFUNCTIONCALL )' raised error 0, and
+        '' every SELECT CASE over an enum compared against 0 -- lowered, verified, and
+        '' wrong, with nothing to report.
+        ''
+        '' The rule, measured by RUNNING fbc: numbering starts at 0, an explicit
+        '' '= expr' sets the running value, and each later member is the previous plus
+        '' one. 'A, B, C = 10, D, F = K + 1, G' with 'const K = 7' prints 0 1 10 11 8 9.
+        '' The initialiser is a constant EXPRESSION and may name another constant, which
+        '' is why this is here and not in Collect: folding it needs the symbol table
+        '' populated and a SourceManager, and Collect has neither at that point.
+        dim as Fbx.StmtPayload ptr esp = StmtOf( c, id )
+        dim as longint enumNext = 0
+        for i as long = 0 to esp->count - 1
+            dim as Fbx.NodeId it = cast( Fbx.NodeId, c.ast->children[esp->first + i] )
+            if c.ast->Kind( it ) <> Fbx.N_ENUM_ITEM then continue for
+            dim as Fbx.StmtPayload ptr ip = StmtOf( c, it )
+            if ip->b <> Fbx.NODE_NONE then
+                dim as Fbx.Check.ConstVal ev = Fbx.Check.ConstOf( _
+                    *c.ast, ip->b, *c.srcMgr, *c.names, 64, c.syms, here )
+                '' An initialiser that will not fold leaves the running value alone:
+                '' wrong by ONE member rather than by all of them.
+                if ev.known then enumNext = ev.value
+            end if
+            dim as Fbx.SymbolId esid = c.syms->LookupLocal( here, ip->name )
+            dim as Fbx.Symbol ptr es = c.syms->SymbolAt( esid )
+            if es <> 0 then
+                if es->kind = cast( ubyte, Fbx.SYM_ENUMCONST ) then
+                    '' On a SYM_ENUMCONST 'payload' is THE VALUE ITSELF, not a node id.
+                    es->payload = cast( long, enumNext )
+                    '' And its TYPE is the enum, which is what fbc says: '#print
+                    '' typeof( B )' for a member of 'enum E2' prints E2. Without it the
+                    '' member was untyped and anything reading it -- a PRINT item, a
+                    '' comparison -- had nothing to work from. An ANONYMOUS enum has no
+                    '' name to make a type from and keeps its members untyped; fbc gives
+                    '' them a generated one, which fbx has no equivalent of.
+                    if esp->name <> 0 then
+                        es->type_ = c.types->NamedType( Fbx.TK_ENUM, esp->name, _
+                                                        cast( ulong, here ) )
+                    end if
+                end if
+            end if
+            enumNext += 1
+        next
         return
 
     case Fbx.N_VAR, Fbx.N_CONST

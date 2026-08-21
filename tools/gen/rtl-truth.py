@@ -68,10 +68,34 @@ sub P( )
 end sub
 ''',
     # SWAP: strings go through the runtime, scalars are a temporary and three stores.
+    # The FIXED-LENGTH and aggregate forms are different entry points again --
+    # fb_WstrSwap for wide, fb_MemSwap for a UDT by size -- and a probe that swaps only
+    # two var-length strings never makes fbc emit them.
     "swap": '''
+type SwapU
+    as integer a, b
+end type
 sub S( )
     dim as string a, b
+    dim as zstring * 5 z1, z2
+    dim as wstring * 5 w1, w2
+    dim as SwapU u1, u2
     swap a, b
+    swap z1, z2
+    swap w1, w2
+    swap u1, u2
+end sub
+''',
+    # CLOSE with no operand closes every open file, which is its own entry point.
+    # ERROR raises a runtime error; its return value is the address of the installed
+    # handler, so its signature is only visible where fbc emits the call.
+    "fileerr": '''
+sub F( )
+    dim as string ln
+    close #1
+    close
+    line input #1, ln
+    error( 5 )
 end sub
 ''',
     "print": '''

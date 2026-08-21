@@ -136,10 +136,14 @@ namespace Fbx.Check
     '' It is the ONLY thing the evaluator needs from the target, and passing it keeps
     '' ConstOf independent of the symbol table, which is what matters: Resolve calls it
     '' before anything has been typed, for array bounds and 'zstring * N'.
+    '' 'syms' and 'scope_' are OPTIONAL and enable one thing: folding a NAMED
+    '' constant. Without them an identifier is simply not constant, which is the
+    '' honest answer for a caller with no scope to look a name up in.
     declare function ConstOf _
         ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
           byref src as Fbx.SourceManager, byref names as Fbx.Interner, _
-          byval intBits as long = 64 ) as ConstVal
+          byval intBits as long = 64, byval syms as Fbx.SymbolTable ptr = 0, _
+          byval scope_ as Fbx.ScopeId = 0, byval depth as long = 0 ) as ConstVal
 
     declare function AssignableTo _
         ( byval src as Fbx.TypeId, byval dst as Fbx.TypeId, _

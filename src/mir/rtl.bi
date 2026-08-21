@@ -54,6 +54,8 @@ namespace Fbx.Mir
         '' flag) where the flag is 0 -- the same shape fb_StrAssign uses plus a trailing
         '' word per operand.
         RTL( RTL_STR_SWAP,          "fb_StrSwap",          "v",   "pzlpzl" )
+        RTL( RTL_WSTR_SWAP,         "fb_WstrSwap",         "v",   "pzpz"  )
+        RTL( RTL_MEM_SWAP,          "fb_MemSwap",          "v",   "ppz"   )
         RTL( RTL_STR_LEN,           "fb_StrLen",           "z",   "pz"    )
         RTL( RTL_STR_MID,           "fb_StrMid",           "p",   "pzz"   )
         RTL( RTL_STR_LEFT,          "fb_LEFT",             "p",   "pz"    )
@@ -81,6 +83,11 @@ namespace Fbx.Mir
         RTL( RTL_ARRAY_REDIM_PRESV, "fb_ArrayRedimPresvEx", "l",  "pzllz." )
         RTL( RTL_FILE_OPEN,         "fb_FileOpen",         "l",   "pllllL" )
         RTL( RTL_FILE_CLOSE,        "fb_FileClose",        "l",   "l"     )
+        RTL( RTL_FILE_CLOSEALL,     "fb_FileCloseAll",     "l",   ""      )
+        '' Returns the ADDRESS to jump to when a handler is installed, which is why its
+        '' return type is a pointer and not void. fbx installs none -- ON ERROR is not
+        '' implemented -- so the call never returns and the block ends unreachable.
+        RTL( RTL_ERROR_THROW,       "fb_ErrorThrowEx",     "p",   "llppp" )
         RTL( RTL_FILE_LINEINPUT,    "fb_FileLineInput",    "l",   "lpzl"  )
     #endmacro
 

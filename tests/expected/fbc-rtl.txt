@@ -2,11 +2,14 @@ fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	fb_ArrayErase
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimEx
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint64, int32, int32, uint64, ...	lib	fb_ArrayRedimPresvEx
 fb_End	void	int32	lib	fb_End
+fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	fb_ErrorThrowEx
 fb_FileClose	int32	int32	lib	fb_FileClose
+fb_FileCloseAll	int32	void	lib	fb_FileCloseAll
 fb_FileLineInput	int32	int32, void*, int64, int32	lib	fb_FileLineInput
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	fb_FileOpen
 fb_Init	void	int32, char**, int32	lib	fb_Init
 fb_LEFT	FBSTRING*	FBSTRING*, int64	lib	fb_LEFT
+fb_MemSwap	void	void*, void*, int64	lib	fb_MemSwap
 fb_PrintBool	void	int32, boolean, int32	lib	fb_PrintBool
 fb_PrintByte	void	int32, int8, int32	lib	fb_PrintByte
 fb_PrintDouble	void	int32, double, int32	lib	fb_PrintDouble
@@ -31,3 +34,4 @@ fb_StrLen	int64	void*, int64	lib	fb_StrLen
 fb_StrMid	FBSTRING*	FBSTRING*, int64, int64	lib	fb_StrMid
 fb_StrSwap	void	void*, int64, int32, void*, int64, int32	lib	fb_StrSwap
 fb_VALINT	int32	FBSTRING*	lib	fb_VALINT
+fb_WstrSwap	void	uint16*, int64, uint16*, int64	lib	fb_WstrSwap

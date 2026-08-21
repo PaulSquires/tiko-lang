@@ -18,7 +18,8 @@ declare sub PushStrLiteralArg _
 declare sub StoreThrough _
     ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
 declare function PrintOne _
-    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long ) as boolean
+    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
+      byref chan as MirValue ) as boolean
 declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
 declare sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
 declare function LowerConcatViaTemp _
@@ -326,6 +327,20 @@ function LowerPredeclared _
     ''
     '' A STRING constant folds to nothing here and falls through to decline, which is
     '' honest: ConstOf answers numbers, and a string constant needs a literal global.
+    '' An ENUM MEMBER is a constant too, and its 'payload' is THE VALUE ITSELF rather
+    '' than a declaration node -- the numbering is worked out once, in Resolve, because
+    '' it depends on the members before it. Reading it as a node id here would index the
+    '' statement pool with an integer that means something else entirely, which is the
+    '' payload-pool mistake this codebase keeps making; the flag that says which is the
+    '' SYMBOL KIND.
+    if s->kind = cast( ubyte, Fbx.SYM_ENUMCONST ) then
+        dim as MirType emt = LowerType( c.info->TypeOf_( id ), *c.types )
+        '' An enum is a 32-bit integer to fbc, and that is what an unrecognised type
+        '' falls back to here rather than the i64 a plain constant would take.
+        if (emt = MT_VOID) orelse (emt = MT_AGG) then emt = MT_I32
+        return ConstInt( c, cast( longint, s->payload ), emt )
+    end if
+
     if s->kind = cast( ubyte, Fbx.SYM_CONSTANT ) then
         if s->payload = 0 then return v
         dim as Fbx.NodeId item = cast( Fbx.NodeId, s->payload )
@@ -490,14 +505,32 @@ end function
 function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
 
-    '' 'print #1, ...' and 'print using' are not lowered; both change the call shape.
-    if sp->a <> Fbx.NODE_NONE then return false
+    '' 'print using' still declines: it brackets the items with fb_PrintUsingInit and
+    '' fb_PrintUsingEnd and calls a different entry point per item type.
     if sp->extra <> 0 then return false
+
+    '' THE FILE NUMBER. It is not a different statement, it is the first argument that
+    '' was being hard-coded to 0 -- 219 corpus statements declined for it. Lowered ONCE
+    '' here and reused for every item, which is what fbc does: 'print #h, a, b' puts h
+    '' in a temporary and passes that temporary twice, so a channel expression with a
+    '' side effect runs once.
+    '' The console channel is the IMMEDIATE 0, not an instruction producing 0. fbc
+    '' writes 'fb_PrintInt( 0, ... )' and so did fbx before this; materialising a
+    '' const would add an instruction to every print in the tree for nothing.
+    dim as MirValue chan
+    chan.kind = cast( ubyte, MV_CONST_INT )
+    chan.ty = cast( ubyte, MT_I32 )
+    chan.id = 0
+    if sp->a <> Fbx.NODE_NONE then
+        dim as MirValue ch = LowerExpr( c, sp->a )
+        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+    end if
 
     '' No items at all is the bare 'print', a newline on its own.
     if sp->count = 0 then
         dim as FB.Array( of ulong ) va
-        PushConst( va, 0 )
+        va.Push( cast( ulong, chan.kind ) ) : va.Push( cast( ulong, chan.id ) )
         PushConst( va, 1 )
         EmitRtl( c, RTL_PRINT_VOID, va )
         return true
@@ -525,18 +558,22 @@ function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
             end if
         end if
 
-        if PrintOne( c, it, mask ) = false then return false
+        if PrintOne( c, it, mask, chan ) = false then return false
     next
     return true
 end function
 
-'' One PRINT item.
+'' One PRINT item. 'chan' is the file number, already lowered to a value by the caller
+'' -- the console is 0 and 'print #n' passes n. It is the SAME argument slot either way:
+'' measured from fbc's C, 'print #1, x' is 'fb_PrintInt( 1, x, 1 )' against
+'' 'fb_PrintInt( 0, x, 1 )' for the console, and no other call and no other shape.
 private function PrintOne _
-    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long ) as boolean
+    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
+      byref chan as MirValue ) as boolean
 
     dim as Fbx.TypeId t = c.info->TypeOf_( it )
     dim as FB.Array( of ulong ) args
-    PushConst( args, 0 )                  '' file number; only #0 is lowered
+    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
 
     if IsStringType( c, t ) then
         '' fb_PrintString takes an FBSTRING DESCRIPTOR, not a (pointer, length) pair
@@ -678,6 +715,73 @@ end function
 '' Note the temporary is typed to the operand, not to a fixed width: swapping two
 '' doubles through an integer slot would round-trip the bits through the wrong register
 '' class, and swapping two aggregates would not fit at all.
+'' What kind of string a type is, for the SWAP runtime's argument shape. Returns
+''   0 = var-length STRING, and 'n' is set to -1
+''   1 = ZSTRING * N,       and 'n' is N
+''   2 = WSTRING * N,       and 'n' is N
+''  -1 = not a string
+''
+'' A fixed-length string is modelled as an ARRAY of the element builtin, which is what
+'' it is, so the count comes off the array rather than out of a byte size.
+private function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+
+    if t = Fbx.TYPE_NONE then return -1
+    if IsStringType( c, t ) then
+        n = -1
+        return 0
+    end if
+    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return -1
+    dim as Fbx.TypeId el = c.types->Inner( t )
+    if el = Fbx.TYPE_NONE then return -1
+    if c.types->Kind( el ) <> Fbx.TK_BUILTIN then return -1
+    n = c.types->ElemCount( t )
+    if n <= 0 then return -1
+    select case c.types->BuiltinOf( el )
+    case Fbx.TY_ZSTRING : return 1
+    case Fbx.TY_WSTRING : return 2
+    end select
+    return -1
+end function
+
+'' LINE INPUT #n, dst -- read a whole line from a file into a string.
+''
+'' Measured from fbc's C:
+''
+''     fb_FileLineInput( 1, (void*)&S$0, -1ll, 0 );      dst is a STRING
+''     fb_FileLineInput( 1, (void*)Z$0,   8ll, 0 );      dst is a ZSTRING * 8
+''
+'' Same (pointer, length) convention as the swap runtime: -1 for a var-length string
+'' and the element count for a fixed one. The fourth argument is 0 in every form fbc
+'' emits here.
+''
+'' The CONSOLE form -- 'line input s', with or without a prompt -- is a different entry
+'' point (fb_LineInput, six arguments including a prompt descriptor) and still declines.
+function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Fbx.NODE_NONE then return false      '' console form
+    if sp->c <> Fbx.NODE_NONE then return false     '' a prompt: console form only
+    if sp->count <> 1 then return false
+
+    dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first] )
+    dim as longint dlen
+    if StrSwapKind_( c, c.info->TypeOf_( dst ), dlen ) < 0 then return false
+
+    dim as MirValue fn = LowerExpr( c, sp->a )
+    if fn.kind = cast( ubyte, MV_NONE ) then return false
+    fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+    dim as MirValue da = LowerAddr( c, dst )
+    if da.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
+    args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dlen ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_FILE_LINEINPUT, args )
+    return true
+end function
+
 function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if (sp->a = Fbx.NODE_NONE) orelse (sp->b = Fbx.NODE_NONE) then return false
@@ -691,11 +795,36 @@ function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
         return false
     end if
 
-    if IsStringType( c, t ) then
+    '' THE LENGTH ARGUMENT IS NOT ALWAYS -1. Measured from fbc's own C:
+    ''
+    ''     fb_StrSwap( &S1, -1, 0, &S2, -1, 0 )        string  x string
+    ''     fb_StrSwap( Z1,   5, 0, Z2,   5, 0 )        zstring * 5, both sides
+    ''     fb_StrSwap( &S1, -1, 0, Z1,   5, 0 )        MIXED -- each side its own
+    ''     fb_WstrSwap( W1, 5, W2, 5 )                 wstring, a DIFFERENT function
+    ''
+    '' Passing -1 for a fixed-length operand tells the runtime to read a descriptor out
+    '' of character data. That was live for the mixed case: a var-length left operand
+    '' took this branch and both sides went out as -1.
+    dim as longint na, nb_
+    dim as long ka = StrSwapKind_( c, t, na )
+    dim as long kb = StrSwapKind_( c, c.info->TypeOf_( sp->b ), nb_ )
+    if (ka >= 0) andalso (kb >= 0) then
+        '' WSTRING has its own entry point and does not mix with the byte forms; fbc
+        '' emits something else again for that pairing, so it is declined rather than
+        '' guessed at.
+        if (ka = 2) <> (kb = 2) then return false
         dim as FB.Array( of ulong ) args
-        PushStrArg( args, la )
+        args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, na ) )
+        if ka = 2 then
+            args.Push( cast( ulong, lb.kind ) ) : args.Push( cast( ulong, lb.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, nb_ ) )
+            EmitRtl( c, RTL_WSTR_SWAP, args )
+            return true
+        end if
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-        PushStrArg( args, lb )
+        args.Push( cast( ulong, lb.kind ) ) : args.Push( cast( ulong, lb.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, nb_ ) )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
         EmitRtl( c, RTL_STR_SWAP, args )
         return true
@@ -716,6 +845,28 @@ function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     if (mtl = MT_VOID) orelse (mtr = MT_VOID) then return false
     '' An aggregate has no single load/store, so it is declined rather than
     '' half-swapped. Strings are the aggregate that matters and took the path above.
+    '' TWO AGGREGATES of the same size swap as BYTES: fbc emits
+    '' 'fb_MemSwap( &U1, &U2, 16 )' for a pair of 16-byte UDTs. Different sizes are
+    '' not a swap fbc accepts, so they still decline.
+    if (mtl = MT_AGG) andalso (mtr = MT_AGG) then
+        '' A UDT's size lives in the LAYOUT TABLE, not in TypeContext.Layout -- the
+        '' same two-step LocalFor makes when it sizes an aggregate slot. Asking the
+        '' type alone gives 0 and the swap silently declined.
+        dim as long sza = c.types->Layout( t ).size
+        dim as long szb = c.types->Layout( rt ).size
+        dim as long uia = c.udts->Find( t )
+        if uia >= 0 then sza = c.udts->udts[uia].size
+        dim as long uib = c.udts->Find( rt )
+        if uib >= 0 then szb = c.udts->udts[uib].size
+        if (sza > 0) andalso (sza = szb) then
+            dim as FB.Array( of ulong ) margs
+            margs.Push( cast( ulong, la.kind ) ) : margs.Push( cast( ulong, la.id ) )
+            margs.Push( cast( ulong, lb.kind ) ) : margs.Push( cast( ulong, lb.id ) )
+            margs.Push( cast( ulong, MV_CONST_INT ) ) : margs.Push( cast( ulong, sza ) )
+            EmitRtl( c, RTL_MEM_SWAP, margs )
+            return true
+        end if
+    end if
     if (mtl = MT_AGG) orelse (mtr = MT_AGG) then return false
 
     dim as long slot = NewTempLocal( c, mtl, c.types->Layout( t ).size )

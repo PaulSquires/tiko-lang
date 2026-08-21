@@ -104,6 +104,24 @@ end function
 '' the test is a WHITELIST of what may follow, not a guess about what may not: an
 '' unrecognised word after END leaves it a block ender, which is the old behaviour and
 '' the safe direction to be wrong in.
+'' Does the token at the cursor END a statement written on ONE line, rather than being
+'' part of it? Inside 'if c then print i end if' the print item list runs to end of
+'' line, so 'end' and 'if' were consumed as two more print items -- a plausible AST
+'' with two bogus N_IDENTs in it, no diagnostic, and 47 corpus PRINT statements that
+'' could not lower because those items have no type.
+''
+'' Measured both ways against fbc: 'if i then print i end if', '... endif' and
+'' '... else print 2' are all accepted, and a bare 'print end' is error 3, "Expected
+'' End-of-Line, found 'end'". So END, ENDIF, ELSE and ELSEIF can never be an item, and
+'' stopping at them costs nothing that was legal.
+function EndsSingleLineStmt( byref p as Fbx.ParserState ) as boolean
+    select case Peek( p )
+    case Fbx.KW_END, Fbx.KW_ENDIF, Fbx.KW_ELSE, Fbx.KW_ELSEIF
+        return true
+    end select
+    return false
+end function
+
 private function IsBlockEnderAt( byref p as Fbx.ParserState ) as boolean
     dim as Fbx.TokenKind k = Peek( p )
     select case k
@@ -372,11 +390,29 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     end if
 
     '' 'zstring * 32' and friends: a fixed length.
+    ''
+    '' The length is a FULL CONSTANT EXPRESSION, not one token. Measured against fbc:
+    '' 'zstring * (MAX+1)', 'zstring * ((MAX+1))' and 'zstring * iif( MAX>0, MAX+1, 1 )'
+    '' are all accepted, and 'zstring * MAX+1' is FIVE bytes with MAX = 4 -- fbc keeps
+    '' consuming past the first token rather than stopping at it. Accepting only an
+    '' integer literal or a bare identifier, at multiplicative precedence, rejected the
+    '' parenthesised spellings outright and silently mis-sized the unparenthesised one.
+    ''
+    '' It stops at PREC_CONCAT, and the boundary is measured, not chosen. '&' and 'shl'
+    '' DO bind into the length -- 'zstring * MAX shl 1' is 4 bytes with MAX = 2 -- while
+    '' '=' does NOT, because 'dim t as wstring * 50 = "x"' is a declaration with an
+    '' INITIALISER and fbc accepts it. Parsing the length at full precedence ate the
+    '' '= "x"' as a comparison: 5,089 corpus statements stopped lowering, every one of
+    '' them in a wstring or zstring test, for a change that was meant to widen what
+    '' parses.
     if Peek( p ) = Fbx.TK_STAR then
         dim as long save = p.pos
         Advance( p )
-        if (Peek( p ) = Fbx.TK_INT_LIT) orelse (Peek( p ) = Fbx.TK_IDENT) then
-            sp.c = Expression( p, Fbx.PREC_MUL )
+        dim as Fbx.TokenKind lk = Peek( p )
+        dim as boolean startsLen = (lk = Fbx.TK_INT_LIT) orelse (lk = Fbx.TK_IDENT) orelse _
+                                   (lk = Fbx.TK_LPAREN)
+        if startsLen then
+            sp.c = Expression( p, Fbx.PREC_CONCAT )
         else
             p.pos = save
         end if
@@ -749,8 +785,12 @@ private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' Anything else on the line is a paren-less argument list.
     dim as Fbx.NodeIdVec args
     dim as boolean more = (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
+    if EndsSingleLineStmt( p ) then more = false
     if more then
         do
+            '' Same rule as the PRINT list: 'if c then f 1, 2 end if' must not take
+            '' 'end' and 'if' as two more arguments.
+            if EndsSingleLineStmt( p ) then exit do
             '' 'locate ,,0' -- a PAREN-LESS call may elide arguments too, and the
             '' empty slots still count. LOCATE is not in the intrinsic registry, so
             '' this is the list it actually goes through.

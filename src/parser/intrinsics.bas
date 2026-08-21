@@ -97,6 +97,9 @@ private sub IntrPrint( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     dim as Fbx.NodeIdVec items
     do
         if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
+        '' 'if c then print i end if' -- the item list must stop at what closes the
+        '' enclosing single-line statement, or it eats it.
+        if EndsSingleLineStmt( p ) then exit do
         dim as Fbx.TokenKind k = Peek( p )
         if (k = Fbx.TK_SEMICOLON) orelse (k = Fbx.TK_COMMA) then
             dim as Fbx.Token t = Cur( p )
@@ -134,7 +137,10 @@ private sub IntrInput( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     '' Worth the note: this one missing token produced 9,568 of the corpus's 11,719
     '' error nodes, because four machine-generated syntax tests exercise every INPUT
     '' variation about 1,200 times each.
-    if Accept( p, Fbx.TK_SEMICOLON ) then sp.extra = 1
+    '' BIT 4, not 1. LINE INPUT arrives here with 'extra' already set to 1 to say so,
+    '' and overwriting it made a LINE INPUT and a semicolon-suppressed INPUT
+    '' indistinguishable -- the flags are a SET, and each needs its own bit.
+    if Accept( p, Fbx.TK_SEMICOLON ) then sp.extra or= 4
 
     if Peek( p ) = Fbx.TK_STRING_LIT then
         dim as long save = p.pos

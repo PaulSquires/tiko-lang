@@ -840,6 +840,8 @@ private function LowerCompoundAssign _
     return true
 end function
 
+
+
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId )
 
@@ -1141,6 +1143,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         dim as boolean handled = false
         if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
         if ip->op = cast( ushort, Fbx.KW_SWAP ) then handled = LowerSwap( c, id )
+        if ip->op = cast( ushort, Fbx.KW_CLOSE ) then handled = LowerClose( c, id )
+        if ip->op = cast( ushort, Fbx.KW_ERROR ) then handled = LowerError( c, id )
+        '' LINE is two unrelated statements sharing a keyword: bit 1 of 'extra' is
+        '' LINE INPUT, bit 2 the graphics form, which needs libfbgfx and declines.
+        if ip->op = cast( ushort, Fbx.KW_LINE ) then
+            if (ip->extra and 1) <> 0 then handled = LowerLineInput( c, id )
+        end if
         if handled = false then SkipStmt( c, id )
 
     case Fbx.N_END_STMT

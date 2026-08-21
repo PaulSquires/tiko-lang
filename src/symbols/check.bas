@@ -728,7 +728,8 @@ end function
 function ConstOf _
     ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
       byref src as Fbx.SourceManager, byref names as Fbx.Interner, _
-      byval intBits as long = 64 ) as ConstVal
+      byval intBits as long = 64, byval syms as Fbx.SymbolTable ptr = 0, _
+      byval scope_ as Fbx.ScopeId = 0, byval depth as long = 0 ) as ConstVal
 
     if id = Fbx.NODE_NONE then return CVNone_( )
 
@@ -739,16 +740,50 @@ function ConstOf _
         dim as longint iv = cast( longint, lp->intValue )
         return CVW_( iv, LitBits_( lp->suffix, iv, intBits ) )
 
+    case Fbx.N_IDENT
+        '' A NAMED CONSTANT in a constant expression. 'const MAX = 9' followed by
+        '' 'dim as zstring * (MAX+1) z' is 10 bytes to fbc, and folding stopped dead
+        '' here: with no N_IDENT case at all, every length written with a name was
+        '' unknown, the ZSTRING stayed a bare builtin, and MIR could only type the
+        '' slot 'void'.
+        ''
+        '' Needs the symbol table, which this routine did not take. It is OPTIONAL --
+        '' callers that have no scope to look in pass nothing and get the old answer,
+        '' which is the honest one for them.
+        if syms = 0 then return CVNone_( )
+        if depth >= 16 then return CVNone_( )
+        dim as Fbx.InternId inm = _
+            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+        dim as Fbx.SymbolId csid = syms->Lookup( scope_, inm )
+        if csid = Fbx.SYMBOL_NONE then return CVNone_( )
+        dim as Fbx.Symbol ptr cs = syms->SymbolAt( csid )
+        if cs = 0 then return CVNone_( )
+        '' An ENUM MEMBER folds to its number directly: Resolve worked the numbering
+        '' out once and put THE VALUE in 'payload', where a plain constant keeps a node
+        '' id. The symbol kind is what says which, and reading one as the other indexes
+        '' the wrong pool.
+        if cs->kind = cast( ubyte, Fbx.SYM_ENUMCONST ) then
+            return CVW_( cast( longint, cs->payload ), 32 )
+        end if
+        if cs->kind <> cast( ubyte, Fbx.SYM_CONSTANT ) then return CVNone_( )
+        if cs->payload = 0 then return CVNone_( )
+        dim as Fbx.NodeId citem = cast( Fbx.NodeId, cs->payload )
+        if ast.Kind( citem ) <> Fbx.N_VAR_ITEM then return CVNone_( )
+        dim as Fbx.StmtPayload ptr cip = _
+            @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
+        return ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1 )
+
     case Fbx.N_PAREN
         dim as Fbx.ListPayload ptr pp = _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return CVNone_( )
-        return ConstOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), src, names, intBits )
+        return ConstOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), src, names, _
+                        intBits, syms, scope_, depth )
 
     case Fbx.N_UNARY
         dim as Fbx.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits )
+        dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits, syms, scope_, depth )
         if v.known = false then return CVNone_( )
         '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
         '' '-(1 shl 31)' at 32 bits is 2147483648 rather than -2147483648.
@@ -762,9 +797,9 @@ function ConstOf _
     case Fbx.N_BINARY
         dim as Fbx.BinaryPayload ptr bp = _
             @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits )
+        dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits, syms, scope_, depth )
         if l.known = false then return CVNone_( )
-        dim as ConstVal r = ConstOf( ast, bp->rhs, src, names, intBits )
+        dim as ConstVal r = ConstOf( ast, bp->rhs, src, names, intBits, syms, scope_, depth )
         if r.known = false then return CVNone_( )
         dim as longint a = l.value
         dim as longint b = r.value

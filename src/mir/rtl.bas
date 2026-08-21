@@ -54,6 +54,12 @@ function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
     dim as string ps = RtlParams( r )
     if instr( ps, "." ) > 0 then return "_" & nm
 
+    '' NOT EVERYTHING IN THE RUNTIME IS STDCALL ON WIN32. fb_ErrorThrowEx is cdecl --
+    '' measured, libfb.a carries '_fb_ErrorThrowEx' with no '@20' -- and decorating it
+    '' emits a name the linker cannot resolve. Found by check-rtl the moment the entry
+    '' was added, which is the whole reason that gate compares the DECORATED name.
+    if r = RTL_ERROR_THROW then return "_" & nm
+
     dim as long total = 0
     for i as long = 0 to len( ps ) - 1
         dim as MirType t = RtlTypeOfLetter( mid( ps, i + 1, 1 ), true )
