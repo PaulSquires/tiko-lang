@@ -596,23 +596,34 @@ function LowerForEachArray _
     dim as Fbx.TypeId at = c.info->TypeOf_( seqE )
     if at = Fbx.TYPE_NONE then return false
     if c.types->Kind( at ) <> Fbx.TK_ARRAY then return false
-    '' ONE DIMENSION only, and the rank comes from the RETAINED BOUNDS rather than
-    '' from a field -- the same rule ArrayStrides uses, so a type whose bounds were
-    '' dropped cannot produce a plausible loop over the wrong extent. A dynamic array
-    '' has no compile-time bounds at all and falls out here.
-    dim as boolean known0 = false
-    c.types->ArrayBound( at, 0, false, known0 )
-    if known0 = false then return false
-    dim as boolean known1 = false
-    c.types->ArrayBound( at, 1, false, known1 )
-    if known1 then return false
-    dim as long total = c.types->ElemCount( at )
-    if total <= 0 then return false
+
+    '' A DYNAMIC array has no compile-time bounds at all: they are read from its
+    '' descriptor, ONCE before the loop, which is what fbc does. Everything after this
+    '' differs only in where the base and the two bounds come from.
+    dim as boolean isDyn = c.types->IsDynArray( at )
+    dim as long total = 0
+    if isDyn then
+        '' fbc rejects FOR EACH over a multi-dimensional array outright (error 344),
+        '' so a written rank above one is not something to lower.
+        if c.types->DynRank( at ) > 1 then return false
+    else
+        '' ONE DIMENSION only, and the rank comes from the RETAINED BOUNDS rather than
+        '' from a field -- the same rule ArrayStrides uses, so a type whose bounds were
+        '' dropped cannot produce a plausible loop over the wrong extent.
+        dim as boolean known0 = false
+        c.types->ArrayBound( at, 0, false, known0 )
+        if known0 = false then return false
+        dim as boolean known1 = false
+        c.types->ArrayBound( at, 1, false, known1 )
+        if known1 then return false
+        total = c.types->ElemCount( at )
+        if total <= 0 then return false
+    end if
 
     dim as Fbx.TypeId el = c.types->Inner( at )
     dim as MirType emt = LowerType( el, *c.types )
     if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
-    dim as long esz = c.types->Layout( el ).size
+    dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return false
 
     '' The loop VARIABLE. Its type is the element's, which Resolve bound when the
@@ -625,11 +636,39 @@ function LowerForEachArray _
     dim as MirValue vaddr = LowerAddr( c, sp->a )
     if vaddr.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as MirValue base_ = LowerAddr( c, seqE )
-    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue seqAddr = LowerAddr( c, seqE )
+    if seqAddr.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirType offTy = MT_I64
     if c.types->target.pointerBits = 32 then offTy = MT_I32
+
+    '' THE BASE, THE START AND THE LIMIT.
+    ''
+    '' A fixed array is addressed from its own storage and counts 0 .. total - 1. A
+    '' dynamic one is addressed through DATA -- which the runtime has already biased by
+    '' the lbounds, so no lbound is subtracted here -- and counts LBOUND .. UBOUND,
+    '' both read once, before the loop, exactly as fbc reads them.
+    dim as MirValue base_ = seqAddr
+    dim as MirValue startV = ConstInt( c, 0, offTy )
+    dim as MirValue limitV = ConstInt( c, total, offTy )
+    dim as MirOp cmpOp = M_ICMP_SLT
+    if isDyn then
+        dim as FB.Array( of ulong ) la
+        la.Push( cast( ulong, seqAddr.kind ) ) : la.Push( cast( ulong, seqAddr.id ) )
+        la.Push( cast( ulong, MV_CONST_INT ) ) : la.Push( 1 )
+        startV = EmitRtl( c, RTL_ARRAY_LBOUND, la )
+        dim as FB.Array( of ulong ) ua
+        ua.Push( cast( ulong, seqAddr.kind ) ) : ua.Push( cast( ulong, seqAddr.id ) )
+        ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( 1 )
+        limitV = EmitRtl( c, RTL_ARRAY_UBOUND, ua )
+        if (startV.kind = cast( ubyte, MV_NONE )) orelse _
+           (limitV.kind = cast( ubyte, MV_NONE )) then
+            return false
+        end if
+        base_ = DynArrayDataPtr( c, seqAddr )
+        if base_.kind = cast( ubyte, MV_NONE ) then return false
+        cmpOp = M_ICMP_SLE
+    end if
 
     '' The induction variable, in a temporary of its own -- the loop VARIABLE holds the
     '' element, not the index.
@@ -643,7 +682,7 @@ function LowerForEachArray _
     st0.op = cast( ushort, M_STORE )
     st0.ty = cast( ubyte, MT_VOID )
     st0.a = iaddr
-    st0.b = ConstInt( c, 0, offTy )
+    st0.b = startV
     Emit( c, st0 )
 
     dim as long headB = NewBlock( c, "each.head" )
@@ -656,10 +695,10 @@ function LowerForEachArray _
     c.curBlock = headB
     dim as MirValue ix = LowerExprLoad( c, iaddr, offTy )
     dim as MirInst cmp
-    cmp.op = cast( ushort, M_ICMP_SLT )
+    cmp.op = cast( ushort, cmpOp )
     cmp.ty = cast( ubyte, MT_I8 )
     cmp.a = ix
-    cmp.b = ConstInt( c, total, offTy )
+    cmp.b = limitV
     dim as MirValue cond = Emit( c, cmp )
     Terminate( c, MTERM_CONDBR, bodyB, exitB, cond )
 

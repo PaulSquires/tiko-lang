@@ -25,16 +25,16 @@ func i32 main($0, $1) {
     %13 = trunc %11
     store %12, %13
     %14 = alloca ptr v
-    %15 = alloca ptr $tmp3
-    %16 = const i64 0
-    store @$tmp3, %16
+    %15 = const i64 0
+    %16 = const i64 3
+    %17 = alloca ptr $tmp3
+    store @$tmp3, %15
     %29 = alloca ptr w
-    %30 = alloca ptr $tmp5
+    %32 = alloca ptr $tmp5
     br each.head1
   each.head1:
-    %17 = load @$tmp3
-    %18 = const i64 3
-    %19 = icmp.slt %17, %18
+    %18 = load @$tmp3
+    %19 = icmp.slt %18, %16
     condbr %19, each.body2, each.exit4
   each.body2:
     %20 = load @$tmp3
@@ -52,13 +52,13 @@ func i32 main($0, $1) {
     store @$tmp3, %28
     br each.head1
   each.exit4:
-    %31 = const i64 0
-    store @$tmp5, %31
+    %30 = const i64 0
+    %31 = const i64 3
+    store @$tmp5, %30
     br each.head5
   each.head5:
-    %32 = load @$tmp5
-    %33 = const i64 3
-    %34 = icmp.slt %32, %33
+    %33 = load @$tmp5
+    %34 = icmp.slt %33, %31
     condbr %34, each.body6, each.exit8
   each.body6:
     %35 = load @$tmp5
