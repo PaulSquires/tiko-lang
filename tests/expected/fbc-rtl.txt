@@ -40,13 +40,24 @@ fb_PrintByte	void	int32, int8, int32	lib	fb_PrintByte
 fb_PrintDouble	void	int32, double, int32	lib	fb_PrintDouble
 fb_PrintInt	void	int32, int32, int32	lib	fb_PrintInt
 fb_PrintLongint	void	int32, int64, int32	lib	fb_PrintLongint
+fb_PrintSPC	void	int32, int64	lib	fb_PrintSPC
 fb_PrintShort	void	int32, int16, int32	lib	fb_PrintShort
 fb_PrintSingle	void	int32, float, int32	lib	fb_PrintSingle
 fb_PrintString	void	int32, FBSTRING*, int32	lib	fb_PrintString
+fb_PrintTab	void	int32, int32	lib	fb_PrintTab
 fb_PrintUByte	void	int32, uint8, int32	lib	fb_PrintUByte
 fb_PrintUInt	void	int32, uint32, int32	lib	fb_PrintUInt
 fb_PrintULongint	void	int32, uint64, int32	lib	fb_PrintULongint
 fb_PrintUShort	void	int32, uint16, int32	lib	fb_PrintUShort
+fb_PrintUsingBoolean	int32	int32, boolean, int32	lib	fb_PrintUsingBoolean
+fb_PrintUsingDouble	int32	int32, double, int32	lib	fb_PrintUsingDouble
+fb_PrintUsingEnd	int32	int32	lib	fb_PrintUsingEnd
+fb_PrintUsingInit	int32	FBSTRING*	lib	fb_PrintUsingInit
+fb_PrintUsingLongint	int32	int32, int64, int32	lib	fb_PrintUsingLongint
+fb_PrintUsingSingle	int32	int32, float, int32	lib	fb_PrintUsingSingle
+fb_PrintUsingStr	int32	int32, FBSTRING*, int32	lib	fb_PrintUsingStr
+fb_PrintUsingULongint	int32	int32, uint64, int32	lib	fb_PrintUsingULongint
+fb_PrintUsingWstr	int32	int32, uint16*, int32	lib	fb_PrintUsingWstr
 fb_PrintVoid	void	int32, int32	lib	fb_PrintVoid
 fb_PrintWstr	void	int32, uint16*, int32	lib	fb_PrintWstr
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int64	lib	fb_StrAllocTempDescZEx

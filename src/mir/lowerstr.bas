@@ -25,7 +25,6 @@ declare function PrintOne _
     ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean
 declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
-declare sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
 declare function LowerConcatViaTemp _
     ( byref c as Ctx, byref dst as MirValue, _
       byref terms as FB.Array( of ulong ) ) as boolean
@@ -518,9 +517,9 @@ end function
 function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
 
-    '' 'print using' still declines: it brackets the items with fb_PrintUsingInit and
-    '' fb_PrintUsingEnd and calls a different entry point per item type.
-    if sp->extra <> 0 then return false
+    '' 'print using' is a different statement shape -- bracketed by Init and End, with
+    '' its own flatter set of entry points -- and lives in lowerusing.bas.
+    if sp->extra <> 0 then return LowerPrintUsing( c, id )
 
     '' THE FILE NUMBER. It is not a different statement, it is the first argument that
     '' was being hard-coded to 0 -- 219 corpus statements declined for it. Lowered ONCE
@@ -583,6 +582,10 @@ end function
 private function PrintOne _
     ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean
+
+    '' SPC and TAB are POSITIONING items, not values: they take no mask and print
+    '' nothing themselves, so they are recognised before anything asks for a type.
+    if LowerPrintPos( c, it, chan ) then return true
 
     dim as Fbx.TypeId t = c.info->TypeOf_( it )
     dim as FB.Array( of ulong ) args
@@ -677,7 +680,7 @@ private function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
 end function
 
 '' An i32 constant argument, which every print call needs twice.
-private sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
+sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, v ) )
 end sub

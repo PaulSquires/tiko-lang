@@ -136,6 +136,25 @@ namespace Fbx.Mir
         RTL( RTL_PRINT_SINGLE,      "fb_PrintSingle",      "v",   "lfl"   )
         RTL( RTL_PRINT_DOUBLE,      "fb_PrintDouble",      "v",   "ldl"   )
         RTL( RTL_PRINT_BOOL,        "fb_PrintBool",        "v",   "lbl"   )
+        '' SPC and TAB take NO MASK, so 'print spc(n);' emits one call and nothing
+        '' else -- no newline, no fb_PrintVoid. Note the argument widths: SPC's count
+        '' is ssize (64-bit on win64, 32 on win32) and TAB's is int32 on BOTH. That
+        '' asymmetry is measured, not a transcription slip.
+        RTL( RTL_PRINT_SPC,         "fb_PrintSPC",         "v",   "lz"    )
+        RTL( RTL_PRINT_TAB,         "fb_PrintTab",         "v",   "ll"    )
+
+        '' PRINT USING. Init takes ONLY the format descriptor -- no channel -- while
+        '' every item call and End take the channel first. Unlike PRINT there is no
+        '' per-width entry point: every integral type widens to 64 bits.
+        RTL( RTL_USING_INIT,        "fb_PrintUsingInit",   "l",   "p"     )
+        RTL( RTL_USING_STR,         "fb_PrintUsingStr",    "l",   "lpl"   )
+        RTL( RTL_USING_WSTR,        "fb_PrintUsingWstr",   "l",   "lpl"   )
+        RTL( RTL_USING_SINGLE,      "fb_PrintUsingSingle", "l",   "lfl"   )
+        RTL( RTL_USING_DOUBLE,      "fb_PrintUsingDouble", "l",   "ldl"   )
+        RTL( RTL_USING_LONGINT,     "fb_PrintUsingLongint","l",   "lql"   )
+        RTL( RTL_USING_ULONGINT,    "fb_PrintUsingULongint","l",  "lql"   )
+        RTL( RTL_USING_BOOLEAN,     "fb_PrintUsingBoolean","l",   "lbl"   )
+        RTL( RTL_USING_END,         "fb_PrintUsingEnd",    "l",   "l"     )
         RTL( RTL_ARRAY_ERASE,       "fb_ArrayErase",       "l",   "p"     )
         RTL( RTL_ARRAY_REDIM,       "fb_ArrayRedimEx",     "l",   "pzllz." )
         RTL( RTL_ARRAY_REDIM_PRESV, "fb_ArrayRedimPresvEx", "l",  "pzllz." )

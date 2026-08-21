@@ -141,6 +141,25 @@ end sub
     # instr takes its start first, instrrev takes it last, and a 'mid' with no
     # length passes -1 rather than 0. Each one is probed separately rather than
     # assumed from its narrow counterpart.
+    # PRINT USING, SPC and TAB. Every integral type is probed separately even though
+    # they all widen to 64 bits, because "they all widen" is the thing being checked.
+    "printusing": '''
+sub PUProbe( )
+    dim as string s
+    dim as wstring * 8 w
+    dim as long l : dim as ulong ul
+    dim as longint q : dim as ulongint uq
+    dim as single f : dim as double d
+    dim as boolean bo
+    dim as long n = 2
+    print using "###.##"; d; f
+    print using "#"; l; ul; q; uq
+    print using "&"; s
+    print using "&"; w
+    print using "#"; bo
+    print "a"; tab( n ); "b"; spc( n ); "c"
+end sub
+''',
     "wstrsub": '''
 sub WSubProbe( )
     dim as wstring * 50 w, w2, r

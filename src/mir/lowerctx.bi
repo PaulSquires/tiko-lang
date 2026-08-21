@@ -163,6 +163,13 @@ declare function EmitRtl _
     declare function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
 
     declare function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    '' lowerusing.bas
+    declare function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function UsingEndsLine_ _
+        ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr ) as boolean
+    declare function LowerPrintPos _
+        ( byref c as Ctx, byval it as Fbx.NodeId, byref chan as MirValue ) as boolean
+    declare sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
     declare function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
