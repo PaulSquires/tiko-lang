@@ -1322,7 +1322,36 @@ private sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
         SkipHere( c )
         return
     end if
-    dim as MirType ity = cast( MirType, c.f->locals[cast( long, addr.id )].ty )
+    '' THE COUNTER'S TYPE, from whichever table its address actually names.
+    ''
+    '' This indexed c.f->locals by addr.id WITHOUT LOOKING AT addr.kind. A SHARED
+    '' counter -- 'dim shared idx as integer : for idx = 1 to n' -- puts a GLOBALS
+    '' index in addr.id, so the type came off an unrelated local: in practice $tmp0,
+    '' the result slot, which means the loop counter took THE ENCLOSING FUNCTION'S
+    '' RETURN TYPE. Demonstrated three ways: in a function returning DOUBLE the
+    '' counter coerced to f64, and in one returning BOOLEAN it truncated an INTEGER
+    '' counter to eight bits. That last one is fbcunit's own suite loop.
+    ''
+    '' And in a SUB there is no result slot at all, so 'locals' is empty and fbx
+    '' SEGFAULTED. The corpus sweep was not reporting that as anything.
+    dim as MirType ity = MT_VOID
+    if addr.kind = cast( ubyte, MV_GLOBAL ) then
+        if (addr.id < 0) orelse (addr.id >= c.m->globals.Count) then
+            SkipHere( c )
+            return
+        end if
+        ity = cast( MirType, c.m->globals[cast( long, addr.id )].ty )
+    else
+        if (addr.id < 0) orelse (addr.id >= c.f->locals.Count) then
+            SkipHere( c )
+            return
+        end if
+        ity = cast( MirType, c.f->locals[cast( long, addr.id )].ty )
+    end if
+    if ity = MT_VOID then
+        SkipHere( c )
+        return
+    end if
 
     '' init
     dim as MirValue init_ = Coerce( c, LowerExpr( c, fromE ), ity, _

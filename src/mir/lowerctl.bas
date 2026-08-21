@@ -683,6 +683,16 @@ function LowerForEachArray _
     dim as MirValue ea = Emit( c, pa )
     if ea.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue ev = LowerExprLoad( c, ea, emt )
+    '' 'for each v as double in b' where b holds LONGs: the element is loaded at the
+    '' ARRAY's width and has to be converted to the LOOP VARIABLE's before it is
+    '' stored. The store went out un-coerced, so an i32 landed in an f64 slot -- which
+    '' the verifier caught, and which would have been a wrong VALUE, not just a wrong
+    '' width, had it reached a backend.
+    dim as MirType vmt = LowerType( c.info->TypeOf_( sp->a ), *c.types )
+    if (vmt <> MT_VOID) andalso (vmt <> emt) then
+        ev = Coerce( c, ev, vmt, IsUnsignedType( c, el ) )
+        if ev.kind = cast( ubyte, MV_NONE ) then return false
+    end if
     dim as MirInst stv
     stv.op = cast( ushort, M_STORE )
     stv.ty = cast( ubyte, MT_VOID )

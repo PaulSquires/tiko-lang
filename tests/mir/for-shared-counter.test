@@ -1,0 +1,5 @@
+'' A shared FOR counter reads its width from the globals table.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/for-shared-counter.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/for-shared-counter.out

@@ -1,0 +1,92 @@
+global var i64 idx
+global var i64 cnt = 3
+func void G() {
+  entry0:
+    %1 = const i64 1
+    store @@idx, %1
+    br for.head1
+  for.head1:
+    %2 = load @@idx
+    %3 = load @@cnt
+    %4 = icmp.sle %2, %3
+    condbr %4, for.body2, for.exit4
+  for.body2:
+    br for.step3
+  for.step3:
+    %5 = load @@idx
+    %6 = const i64 1
+    %7 = add %5, %6
+    store @@idx, %7
+    br for.head1
+  for.exit4:
+    ret
+}
+func i8 F() {
+  local i8 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = const i64 1
+    store @@idx, %3
+    br for.head1
+  for.head1:
+    %4 = load @@idx
+    %5 = load @@cnt
+    %6 = icmp.sle %4, %5
+    condbr %6, for.body2, for.exit4
+  for.body2:
+    br for.step3
+  for.step3:
+    %7 = load @@idx
+    %8 = const i64 1
+    %9 = add %7, %8
+    store @@idx, %9
+    br for.head1
+  for.exit4:
+    %10 = const i8 0
+    ret %10
+}
+func void H() {
+  local i16 k
+  entry0:
+    %1 = alloca ptr k
+    %2 = const i64 1
+    %3 = trunc %2
+    store @k, %3
+    br for.head1
+  for.head1:
+    %4 = load @k
+    %5 = const i64 3
+    %6 = trunc %5
+    %7 = icmp.sle %4, %6
+    condbr %7, for.body2, for.exit4
+  for.body2:
+    br for.step3
+  for.step3:
+    %8 = load @k
+    %9 = const i16 1
+    %10 = add %8, %9
+    store @k, %10
+    br for.head1
+  for.exit4:
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void G()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 4 functions, 16 blocks, 43 insts, 0 statements not lowered, 0 scope imbalance

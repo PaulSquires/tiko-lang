@@ -1,0 +1,5 @@
+'' FOR EACH converts the element to the loop variable's type.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/foreach-widen.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/foreach-widen.out

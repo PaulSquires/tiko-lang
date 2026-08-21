@@ -1,0 +1,86 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg b size 12
+  local f64 v
+  local i64 $tmp3
+  local i32 w
+  local i64 $tmp5
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr b
+    %5 = const i64 7
+    %6 = field.addr @b, 0
+    %7 = trunc %5
+    store %6, %7
+    %8 = const i64 8
+    %9 = field.addr @b, 4
+    %10 = trunc %8
+    store %9, %10
+    %11 = const i64 9
+    %12 = field.addr @b, 8
+    %13 = trunc %11
+    store %12, %13
+    %14 = alloca ptr v
+    %15 = alloca ptr $tmp3
+    %16 = const i64 0
+    store @$tmp3, %16
+    %29 = alloca ptr w
+    %30 = alloca ptr $tmp5
+    br each.head1
+  each.head1:
+    %17 = load @$tmp3
+    %18 = const i64 3
+    %19 = icmp.slt %17, %18
+    condbr %19, each.body2, each.exit4
+  each.body2:
+    %20 = load @$tmp3
+    %21 = const i64 4
+    %22 = mul %20, %21
+    %23 = ptr.add @b, %22
+    %24 = load %23
+    %25 = sitofp %24
+    store @v, %25
+    br each.step3
+  each.step3:
+    %26 = load @$tmp3
+    %27 = const i64 1
+    %28 = add %26, %27
+    store @$tmp3, %28
+    br each.head1
+  each.exit4:
+    %31 = const i64 0
+    store @$tmp5, %31
+    br each.head5
+  each.head5:
+    %32 = load @$tmp5
+    %33 = const i64 3
+    %34 = icmp.slt %32, %33
+    condbr %34, each.body6, each.exit8
+  each.body6:
+    %35 = load @$tmp5
+    %36 = const i64 4
+    %37 = mul %35, %36
+    %38 = ptr.add @b, %37
+    %39 = load %38
+    store @w, %39
+    br each.step7
+  each.step7:
+    %40 = load @$tmp5
+    %41 = const i64 1
+    %42 = add %40, %41
+    store @$tmp5, %42
+    br each.head5
+  each.exit8:
+    %43 = const i32 0
+    call.rtl void fb_End(%43)
+    %44 = load @$tmp0
+    ret %44
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 9 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
