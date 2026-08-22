@@ -760,6 +760,18 @@ sub EmitArrayElems_ _
     ( byref c as Ctx, byval slot as long, byval at as Fbx.TypeId, byval isCtor as boolean )
 
     if slot < 0 then return
+    dim as MirValue sbase
+    sbase.kind = cast( ubyte, MV_LOCAL )
+    sbase.ty = cast( ubyte, MT_PTR )
+    sbase.id = slot
+    EmitArrayElemsAt_( c, sbase, at, isCtor )
+end sub
+
+'' The same, from an ADDRESS rather than a slot: a module-lifetime array is a global.
+sub EmitArrayElemsAt_ _
+    ( byref c as Ctx, byref base_ as MirValue, byval at as Fbx.TypeId, byval isCtor as boolean )
+
+    if base_.kind = cast( ubyte, MV_NONE ) then return
     if c.types->Kind( at ) <> Fbx.TK_ARRAY then return
     if c.types->IsDynArray( at ) then return
     dim as Fbx.TypeId el = c.types->Inner( at )
@@ -768,11 +780,6 @@ sub EmitArrayElems_ _
     if (n <= 0) orelse (n > 4096) then return
     dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return
-
-    dim as MirValue base_
-    base_.kind = cast( ubyte, MV_LOCAL )
-    base_.ty = cast( ubyte, MT_PTR )
-    base_.id = slot
 
     for k as long = 0 to n - 1
         dim as long idx = iif( isCtor, k, n - 1 - k )
@@ -800,6 +807,79 @@ sub EmitArrayElems_ _
                 CallImplicitDtor_( c, el, ea )
             end if
         end if
+    next
+end sub
+
+'' THE MODULE INITIALISER AND FINALISER.
+''
+'' fbc emits '_GLOBAL__I' and '_GLOBAL__D' carrying GCC's constructor and destructor
+'' attributes, runs the globals in DECLARATION order in the first and in EXACT REVERSE
+'' in the second -- measured, including the reversal within an array.
+''
+'' Without them 'dim shared as T g' over a type holding a string left the descriptor
+'' uninitialised for the whole program, and the first assignment through it freed
+'' whatever was in the image at that address.
+sub EmitModuleInit_( byref c as Ctx )
+    if c.modInitGlobal.Count = 0 then return
+
+    for pass as long = 0 to 1
+        dim as boolean isCtor = (pass = 0)
+        dim as Fbx.InternId nm = c.names->GetString( iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" ) )
+        dim as MirFunction ptr f = c.m->AddFunction( nm, MT_VOID )
+        f->isDefinition = true
+        f->paramCount = 0
+        f->isModuleCtor = isCtor
+        f->isModuleDtor = (isCtor = false)
+
+        dim as MirFunction ptr savedF = c.f
+        dim as long savedB = c.curBlock
+        c.f = f
+        c.st->functions += 1
+        c.curBlock = NewBlock( c, "entry" )
+
+        dim as long n = c.modInitGlobal.Count
+        for k as long = 0 to n - 1
+            dim as long i = iif( isCtor, k, n - 1 - k )
+            dim as Fbx.TypeId gt = cast( Fbx.TypeId, c.modInitType[i] )
+            dim as MirValue ga
+            ga.kind = cast( ubyte, MV_GLOBAL )
+            ga.ty = cast( ubyte, MT_PTR )
+            ga.id = c.modInitGlobal[i]
+
+            if c.types->Kind( gt ) = Fbx.TK_UDT then
+                if isCtor then
+                    dim as Fbx.SymbolId ct = StructorWithArity( c, StructorOf( c, gt, "__ctor" ), 0 )
+                    if ct <> Fbx.SYMBOL_NONE then
+                        dim as FB.Array( of ulong ) none1
+                        EmitStructorCall( c, ct, -1, @ga, @none1 )
+                    elseif TypeNeedsInit_( c, gt ) then
+                        CallImplicitCtor_( c, gt, ga )
+                    end if
+                else
+                    dim as Fbx.SymbolId dt = StructorWithArity( c, StructorOf( c, gt, "__dtor" ), 0 )
+                    if dt <> Fbx.SYMBOL_NONE then
+                        dim as FB.Array( of ulong ) none2
+                        EmitStructorCall( c, dt, -1, @ga, @none2 )
+                    elseif TypeNeedsDtor_( c, gt ) then
+                        CallImplicitDtor_( c, gt, ga )
+                    end if
+                end if
+            else
+                '' AN ARRAY OF THEM, element by element -- and the reversal applies
+                '' WITHIN the array too, which is what fbc's own _GLOBAL__D does.
+                dim as boolean wants = false
+                if isCtor then
+                    wants = ArrayElemNeedsInit_( c, gt )
+                else
+                    wants = ArrayElemNeedsDtor_( c, gt )
+                end if
+                if wants then EmitArrayElemsAt_( c, ga, gt, isCtor )
+            end if
+        next
+
+        Terminate( c, MTERM_RET, -1, -1, NoVal( ) )
+        c.f = savedF
+        c.curBlock = savedB
     next
 end sub
 

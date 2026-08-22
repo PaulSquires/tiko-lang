@@ -61,6 +61,21 @@ sub copies( )
 end sub
 copies( )
 
+'' A MODULE-LIFETIME OBJECT IS STILL CONSTRUCTED. fbc emits a '_GLOBAL__I' and a
+'' '_GLOBAL__D' carrying GCC's constructor and destructor attributes, runs the globals
+'' in DECLARATION order in the first and in EXACT REVERSE in the second -- including
+'' the reversal within an array.
+''
+'' Without them the descriptor was uninitialised for the whole program, and the first
+'' assignment through it freed whatever was in the image at that address.
+dim shared as HasStr sh1
+dim shared as HasStr sh2
+dim shared as HasStr shArr( 0 to 1 )
+
+'' NOT DONE: a STATIC local. fbc constructs one LAZILY -- a guard flag and an atexit
+'' thunk, measured -- and putting one in the module initialiser would run it before the
+'' procedure it belongs to was ever called.
+
 '' AN ARRAY OF T IS N OBJECTS, and 'new T' is one more. Both were allocated and
 '' constructed NOTHING: three uninitialised descriptors, and the first assignment
 '' through one freed whatever the stack held.
@@ -68,9 +83,6 @@ copies( )
 '' Elements are constructed forward and destroyed in REVERSE, which is what 'delete[]'
 '' was measured doing.
 ''
-'' NOT DONE: 'dim shared as T g' and 'static as T s' are still constructed nowhere.
-'' fbc gives them a _GLOBAL__I / _GLOBAL__D pair and a guard flag with an atexit thunk
-'' respectively, and fbx has no module-init mechanism to put either in.
 sub allocs( )
     dim as HasStr arr( 0 to 2 )
     arr( 1 ).s = "x"

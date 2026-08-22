@@ -190,6 +190,8 @@ function DumpModule _
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for
 
+        if f->isModuleCtor then outp += "attribute constructor" & chr( 10 )
+        if f->isModuleDtor then outp += "attribute destructor" & chr( 10 )
         outp += iif( f->isDefinition, "func ", "declare " )
         outp += TypeName( cast( MirType, f->retTy ) ) & " " & _
                 names.Spelling( f->name ) & "("

@@ -761,6 +761,8 @@ function Lower _
     LowerMainModule( c, root )
     '' THE SYNTHESISED STRUCTORS, after every written one exists to be called by them
     '' and before the tables, whose destructor slot may name one.
+    '' THE MODULE INITIALISER, before the structors it calls are written.
+    EmitModuleInit_( c )
     EmitImplicitStructors( c )
     '' THE TABLES LAST. A slot names a FUNCTION, and naming one that was never lowered
     '' would put a reference to a symbol with no code in the module.

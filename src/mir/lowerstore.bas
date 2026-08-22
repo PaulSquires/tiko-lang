@@ -539,6 +539,36 @@ sub InitSharedGlobal _
     ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init as Fbx.NodeId )
 
     dim as long g = GlobalFor( c, sid )
+
+    '' A MODULE-LIFETIME OBJECT IS STILL CONSTRUCTED. 'dim shared as T g' over a type
+    '' holding a string left the descriptor uninitialised for the whole program, and
+    '' the first assignment through it freed whatever was in the image at that address.
+    ''
+    '' ONLY SHARED. A STATIC local is constructed LAZILY by fbc -- a guard flag and an
+    '' atexit thunk, measured -- and putting one in the module initialiser would run it
+    '' before the procedure it belongs to was ever called.
+    if (g >= 0) andalso IsSharedVar( c, sid ) then
+        dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( sid )
+        if gs <> 0 then
+            dim as boolean wants = false
+            if c.types->Kind( gs->type_ ) = Fbx.TK_UDT then
+                wants = TypeNeedsInit_( c, gs->type_ ) orelse TypeNeedsDtor_( c, gs->type_ )
+            else
+                wants = ArrayElemNeedsInit_( c, gs->type_ ) orelse _
+                        ArrayElemNeedsDtor_( c, gs->type_ )
+            end if
+            if wants then
+                dim as boolean already = false
+                for i as long = 0 to c.modInitGlobal.Count - 1
+                    if c.modInitGlobal[i] = g then already = true
+                next
+                if already = false then
+                    c.modInitGlobal.Push( g )
+                    c.modInitType.Push( cast( ulong, gs->type_ ) )
+                end if
+            end if
+        end if
+    end if
     if (g < 0) orelse (init = Fbx.NODE_NONE) then return
     dim as Fbx.Check.ConstVal cv = Fbx.Check.ConstOf( _
         *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits )

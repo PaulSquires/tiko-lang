@@ -231,6 +231,12 @@ namespace Fbx.Mir
         as MirLocalVec locals
         as MirBlockVec blocks
         as long     nextTemp
+        '' GCC's constructor / destructor attribute. fbc emits '_GLOBAL__I' and
+        '' '_GLOBAL__D' with these, so module-lifetime objects are constructed before
+        '' main and destroyed after it. A backend has to know which is which; the name
+        '' alone is a convention, and this is not.
+        as boolean  isModuleCtor
+        as boolean  isModuleDtor
         as boolean  isDefinition    '' false for a declaration with no body
     end type
 

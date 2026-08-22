@@ -34,6 +34,12 @@ type Ctx
     '' the bodies follow, rather than one per type whether used or not.
     as FB.Array( of ulong ) implWantedType
     as FB.Array( of long )  implWantedKind    '' 1 constructor, 0 destructor
+    '' MODULE-LIFETIME OBJECTS THAT NEED CONSTRUCTING. fbc emits a _GLOBAL__I and a
+    '' _GLOBAL__D carrying GCC's constructor/destructor attributes, and runs the
+    '' globals in DECLARATION order in the first and in exact reverse in the second.
+    '' Recorded as declarations are seen, so the order is the source's.
+    as FB.Array( of long )  modInitGlobal
+    as FB.Array( of ulong ) modInitType
     '' The virtual method tables, for emitting them and for dispatching through one.
     as Fbx.VTables ptr      vts
     '' THE CLEANUP MODEL (docs/plan/08 section 6).
@@ -508,6 +514,10 @@ declare function EmitRtl _
     declare function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
     declare sub EmitArrayElems_ _
         ( byref c as Ctx, byval slot as long, byval at as Fbx.TypeId, byval isCtor as boolean )
+    declare sub EmitArrayElemsAt_ _
+        ( byref c as Ctx, byref base_ as MirValue, byval at as Fbx.TypeId, _
+          byval isCtor as boolean )
+    declare sub EmitModuleInit_( byref c as Ctx )
     declare sub EmitImplicitStructors( byref c as Ctx )
 
     '' lowervtab.bas -- virtual method tables.

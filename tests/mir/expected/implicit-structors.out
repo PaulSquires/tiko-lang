@@ -1,5 +1,8 @@
 global str $str0 "hi"
 global str $str1 "x"
+global var agg sh1 size 32
+global var agg sh2 size 32
+global var agg sharr size 64
 func void _ZN5BASEWC1Ev($0) {
   local ptr this
   entry0:
@@ -153,6 +156,28 @@ func i32 main($0, $1) {
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
+attribute constructor
+func void _GLOBAL__I() {
+  entry0:
+    call void _ZN6HASSTRC1Ev(@@sh1)
+    call void _ZN6HASSTRC1Ev(@@sh2)
+    %1 = field.addr @@sharr, 0
+    call void _ZN6HASSTRC1Ev(%1)
+    %2 = field.addr @@sharr, 32
+    call void _ZN6HASSTRC1Ev(%2)
+    ret
+}
+attribute destructor
+func void _GLOBAL__D() {
+  entry0:
+    %1 = field.addr @@sharr, 32
+    call void _ZN6HASSTRD1Ev(%1)
+    %2 = field.addr @@sharr, 0
+    call void _ZN6HASSTRD1Ev(%2)
+    call void _ZN6HASSTRD1Ev(@@sh2)
+    call void _ZN6HASSTRD1Ev(@@sh1)
+    ret
+}
 func void _ZN6HASSTRC1Ev($0) {
   entry0:
     %1 = field.addr $0, 8
@@ -225,4 +250,4 @@ func void _ZN6HASARRC1Ev($0) {
     ret
 }
 verify: ok
-lowered: 13 functions, 17 blocks, 139 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 15 functions, 19 blocks, 151 insts, 0 statements not lowered, 0 scope imbalance
