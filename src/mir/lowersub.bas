@@ -10,6 +10,9 @@ namespace Fbx.Mir
 
 using Fbx
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+
 '' THE NARROW SUBSTRING AND TRIM FAMILY, as an rvalue.
 ''
 '' Each returns an FBSTRING* the runtime owns, and fbc emits NO fb_StrDelete for it --
@@ -170,8 +173,89 @@ function StrDescriptorOf_ _
         outv = LowerAddr( c, id )
         if outv.kind <> cast( ubyte, MV_NONE ) then return true
     end if
+
+    '' A ZSTRING * N has no descriptor -- it is a char array -- so it borrows a
+    '' temporary one over its own bytes, from the NO-LENGTH variant that works the
+    '' length out from the terminator. That is what fbc emits for 'trim( z )':
+    '' 'vr = fb_StrAllocTempDescZ( Z )' and then the trim on vr.
+    dim as longint zn
+    if StrSwapKind_( c, c.info->TypeOf_( id ), zn ) = 1 then
+        dim as MirValue za = LowerAddr( c, id )
+        if za.kind <> cast( ubyte, MV_NONE ) then
+            dim as FB.Array( of ulong ) ta
+            ta.Push( cast( ulong, za.kind ) ) : ta.Push( cast( ulong, za.id ) )
+            outv = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
+            if outv.kind <> cast( ubyte, MV_NONE ) then return true
+        end if
+    end if
     if IsStringIif_( c, id ) then return LowerIif( c, id, MT_VOID, outv )
     return LowerStrRvalue( c, id, outv )
 end function
+
+
+'' Assigning INTO a fixed-length narrow string -- 'dim t as zstring * 50 = <expr>'.
+''
+'' A ZSTRING * N has no descriptor: it is a char array. Measured, and the LENGTH
+'' ARGUMENTS are the whole story --
+''
+''     dim t  as zstring * 50 = "  ab  "   fb_StrAssign( T,  50, "  ab  ", 7, 0 )
+''     dim r2 as zstring * 50 = t          fb_StrAssign( R2, 50, T,       50, 0 )
+''     dim rt as zstring * 50 = trim( t )  vr = fb_StrAllocTempDescZ( T )
+''                                         vr2 = fb_TRIM( vr )
+''                                         fb_StrInit( RT, 50, vr2, -1, 0 )
+''
+'' The destination passes its ELEMENT COUNT, never -1 -- passing -1 for a fixed-length
+'' operand tells the runtime to read a descriptor out of character data. The source
+'' passes its own: a literal's byte length INCLUDING the terminator, a zstring's element
+'' count, and -1 for anything that is a descriptor.
+''
+'' StrINIT rather than StrAssign for a descriptor source, which is what fbc emits and
+'' is not guessable from the other two rows.
+function LowerZstrAssignTo _
+    ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
+      byval value as Fbx.NodeId ) as boolean
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
+
+    if c.ast->Kind( value ) = Fbx.N_STRING_LIT then
+        dim as string lit = StringLitText_( c, value )
+        args.Push( cast( ulong, MV_GLOBAL ) )
+        args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, len( lit ) + 1 ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        EmitRtl( c, RTL_STR_ASSIGN, args )
+        return true
+    end if
+
+    '' A ZSTRING or a var-len STRING source, both addressable.
+    dim as Fbx.TypeId st = c.info->TypeOf_( value )
+    dim as longint zn
+    dim as long sk = StrSwapKind_( c, st, zn )
+    if (sk = 0) orelse (sk = 1) then
+        dim as MirValue src = LowerAddr( c, value )
+        if src.kind <> cast( ubyte, MV_NONE ) then
+            args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, zn ) )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            EmitRtl( c, RTL_STR_ASSIGN, args )
+            return true
+        end if
+    end if
+
+    '' Anything that yields a DESCRIPTOR -- 'trim( t )', a string iif, a literal-backed
+    '' temporary. fbc uses fb_StrInit here, not fb_StrAssign.
+    dim as MirValue rv
+    if StrDescriptorOf_( c, value, rv ) = false then return false
+    args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_STR_INIT, args )
+    return true
+end function
+
 
 end namespace

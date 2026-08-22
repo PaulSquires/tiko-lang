@@ -5,6 +5,9 @@
 
 namespace Fbx.Mir
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+
 '' Ctx and the shared helpers live in lowerctx.bi: lowering is now two files.
 
 
@@ -905,6 +908,19 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' A FIXED WSTRING initialiser is a runtime call, not a store: the slot
             '' holds the buffer itself, so 'dim w as wstring * 50 = trim( t )' has to
             '' go through fb_WstrAssign exactly as an assignment does.
+            '' A FIXED-LENGTH NARROW string initialiser is a runtime call too, and its
+            '' length arguments are its own element count rather than -1.
+            if needsStore andalso (slot >= 0) then
+                dim as longint zn2
+                if StrSwapKind_( c, c.syms->SymbolAt( sid )->type_, zn2 ) = 1 then
+                    dim as MirValue zdst
+                    zdst.kind = cast( ubyte, MV_LOCAL )
+                    zdst.ty = cast( ubyte, MT_PTR )
+                    zdst.id = slot
+                    if LowerZstrAssignTo( c, zdst, zn2, ip->b ) then needsStore = false
+                end if
+            end if
+
             if needsStore andalso (slot >= 0) then
                 dim as long wn = _
                     WideStringElems( c, c.syms->SymbolAt( sid )->type_ )

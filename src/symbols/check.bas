@@ -991,6 +991,22 @@ function TypeOf_ _
             end if
         end if
 
+    case Fbx.N_INDEX
+        '' 'p[i]' -- A POINTER SUBSCRIPT, which had no case at all, so it was untyped
+        '' and everything built on it was too. LowerSwap grew a private workaround for
+        '' exactly this; with assignment now declining rather than storing into a void
+        '' slot, 'p[i] = 5' declined outright -- 432 statements in one corpus file.
+        ''
+        '' In -lang fb '[ ]' is only ever pointer indexing, so the type is the pointee.
+        dim as Fbx.ListPayload ptr xp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if xp->target <> Fbx.NODE_NONE then
+            dim as Fbx.TypeId pt = TypeOf_( c, xp->target )
+            if pt <> Fbx.TYPE_NONE then
+                if c.types->Kind( pt ) = Fbx.TK_POINTER then t = c.types->Inner( pt )
+            end if
+        end if
+
     case Fbx.N_DEREF
         '' Built by MakeUnary, so the payload is a UNARY, not a statement.
         dim as Fbx.UnaryPayload ptr dp = _
@@ -1106,7 +1122,12 @@ private sub WalkAll( byref c as Ctx )
         select case c.ast->Kind( n )
         case Fbx.N_INT_LIT, Fbx.N_FLOAT_LIT, Fbx.N_STRING_LIT, Fbx.N_STRCAT, _
              Fbx.N_IDENT, Fbx.N_PAREN, Fbx.N_UNARY, Fbx.N_BINARY, _
-             Fbx.N_DEREF, Fbx.N_ADDROF, Fbx.N_CALL, Fbx.N_MEMBER
+             Fbx.N_DEREF, Fbx.N_ADDROF, Fbx.N_CALL, Fbx.N_MEMBER, _
+             Fbx.N_INDEX
+            '' N_INDEX was missing from this list, so 'p[i]' was never typed however
+            '' well the case for it was written -- the cache is what lowering reads,
+            '' and nothing ever filled it. A missing case here is invisible: the type
+            '' function has the answer and no one asks it.
             TypeOf_( c, n )
         end select
     next

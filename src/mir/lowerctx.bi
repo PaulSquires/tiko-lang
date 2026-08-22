@@ -272,6 +272,9 @@ declare function EmitRtl _
           byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare sub StoreThrough _
         ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
+    declare function LowerZstrAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
+          byval value as Fbx.NodeId ) as boolean
     declare function LowerStrRvalue _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function StrDescriptorOf_ _

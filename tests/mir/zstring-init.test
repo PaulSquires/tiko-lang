@@ -1,0 +1,5 @@
+'' Pointer subscripts get a type; fixed-length narrow strings get an initialiser.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/zstring-init.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/zstring-init.out
