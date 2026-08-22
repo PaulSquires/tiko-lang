@@ -491,6 +491,18 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
     declare sub CallImplicitDtor_ _
         ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
+    declare function NeedsLetBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare function HasDynArrayMember_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare function ImplicitLetName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+    declare function ImplicitCopyName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+    declare sub EmitLetBody_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub CallImplicitLet_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub CallImplicitCopy_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub WantImplicit_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byval k as long )
     declare sub EmitImplicitStructors( byref c as Ctx )
 
     '' lowervtab.bas -- virtual method tables.

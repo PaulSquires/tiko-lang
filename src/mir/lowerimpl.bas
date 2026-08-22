@@ -375,6 +375,117 @@ sub EmitDtorEpilogue_ _
     end if
 end sub
 
+'' Does this type need a synthesised ASSIGNMENT -- 'operator let' -- and the COPY
+'' CONSTRUCTOR that is built on it?
+''
+'' The same trigger set as the constructor, in every measured row. Without one,
+'' 'dim as T y = x' and 'x = y' over a type holding a string copy the DESCRIPTOR
+'' bitwise, and the two objects then own one buffer: a double free at scope exit, not a
+'' leak.
+''
+'' A DYNAMIC ARRAY MEMBER STOPS IT. fbc copies one with fb_ArrayRedimTo and an element
+'' loop; emitting an assignment that skipped the array would be worse than the bitwise
+'' copy that happens today, because it would look like the field had been handled.
+function NeedsLetBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if NeedsCtorBody_( c, t ) = false then return false
+    return (HasDynArrayMember_( c, t ) = false)
+end function
+
+function HasDynArrayMember_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->IsDynArray( t ) then return true
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    dim as Fbx.SymbolId ts = UdtSymOf_( c, t )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return false
+    if s->inner = Fbx.SCOPE_NONE then return false
+    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return false
+    dim as Fbx.SymbolId cur = sc->firstSym
+    dim as long guard = 0
+    while (cur <> Fbx.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit while
+        if (f->kind = cast( ubyte, Fbx.SYM_FIELD )) andalso (f->type_ <> t) then
+            if HasDynArrayMember_( c, f->type_ ) then return true
+        end if
+        cur = f->nextInScope
+    wend
+    return false
+end function
+
+'' One member copied from another object of the same type.
+private sub CopyMember_ _
+    ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, byval ft as Fbx.TypeId )
+
+    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
+        return
+    end if
+
+    '' A VAR-LENGTH STRING IS ASSIGNED, not copied: the descriptor owns a buffer, and
+    '' fb_StrAssign is what releases the old one and takes a copy of the new.
+    dim as longint sn = 0
+    if IsStringType( c, ft ) andalso (StrSwapKind_( c, ft, sn ) = 0) then
+        dim as FB.Array( of ulong ) args
+        args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
+        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, 0 ) )
+        EmitRtl( c, RTL_STR_ASSIGN, args )
+        return
+    end if
+
+    if c.types->Kind( ft ) = Fbx.TK_UDT then
+        dim as Fbx.SymbolId lt = StructorOf( c, ft, "let" )
+        if lt <> Fbx.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) args
+            args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+            EmitStructorCall( c, lt, -1, @dst, @args )
+            return
+        end if
+        if NeedsLetBody_( c, ft ) then
+            CallImplicitLet_( c, ft, dst, src )
+            return
+        end if
+    end if
+
+    '' EVERYTHING ELSE IS BITWISE -- a scalar, a fixed-length string, a fixed array, or
+    '' a UDT with nothing to say about assignment. fbc writes a memcpy; here the whole
+    '' value is loaded and stored, which is what an aggregate assignment is in this IR.
+    dim as MirType mt = LowerType( ft, *c.types )
+    if mt = MT_VOID then mt = MT_AGG
+    dim as MirValue v = LowerExprLoad( c, src, mt )
+    if v.kind = cast( ubyte, MV_NONE ) then return
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = dst
+    st.b = v
+    Emit( c, st )
+end sub
+
+'' The base, then every field in DECLARATION order. Measured; the reverse belongs to
+'' the destructor and nowhere else.
+sub EmitLetBody_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+
+    dim as Fbx.TypeId bt = ImplBaseOf_( c, t )
+    if (bt <> Fbx.TYPE_NONE) andalso (bt <> t) then
+        CopyMember_( c, FieldAddr_( c, dst, t, c.vts->baseName ), _
+                     FieldAddr_( c, src, t, c.vts->baseName ), bt )
+    end if
+    dim as FB.Array( of ulong ) flds
+    FieldsInOrder_( c, t, flds )
+    for i as long = 0 to flds.Count - 1
+        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cast( Fbx.SymbolId, flds[i] ) )
+        if f = 0 then continue for
+        CopyMember_( c, FieldAddr_( c, dst, t, f->name ), _
+                     FieldAddr_( c, src, t, f->name ), f->type_ )
+    next
+end sub
+
 '' The emitted name of a synthesised structor, spelled the way fbc spells a written
 '' one: '_ZN1TC1Ev' and '_ZN1TD1Ev'. A type already in a namespace encodes as
 '' 'N2NS1TE' and is not wrapped twice.
@@ -405,6 +516,27 @@ function ImplicitCtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
     '' position.
     if IsObjectT_( c, t ) then return "_ZN10fb_Object$C1Ev"
     return ImplStructorName_( c, t, "C1" )
+end function
+
+'' 'operator let' and the COPY CONSTRUCTOR, as fbc spells them: '_ZN1TaSERKS_' and
+'' '_ZN1TC1ERKS_'. 'RKS_' is the Itanium substitution for 'const T&', which is what
+'' both take -- so neither ends in the plain 'Ev' the other two do.
+function ImplicitLetName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+    if IsObjectT_( c, t ) then return ""
+    dim as Fbx.Mangle.Substitutions subs
+    dim as string code = Fbx.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+    if len( code ) = 0 then return ""
+    if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "aSERKS_"
+    return "_ZN" + code + "aSERKS_"
+end function
+
+function ImplicitCopyName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+    if IsObjectT_( c, t ) then return "_ZN10fb_Object$C1ERKS_"
+    dim as Fbx.Mangle.Substitutions subs
+    dim as string code = Fbx.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+    if len( code ) = 0 then return ""
+    if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "C1ERKS_"
+    return "_ZN" + code + "C1ERKS_"
 end function
 
 function ImplicitDtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
@@ -446,10 +578,10 @@ private sub CallImplByName_ _
     Emit( c, ins )
 end sub
 
+'' Kind: 0 destructor, 1 constructor, 2 'operator let', 3 copy constructor.
 sub WantImplicit_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval isCtor as boolean )
+    ( byref c as Ctx, byval t as Fbx.TypeId, byval k as long )
 
-    dim as long k = iif( isCtor, 1, 0 )
     for i as long = 0 to c.implWantedType.Count - 1
         if (c.implWantedType[i] = cast( ulong, t )) andalso (c.implWantedKind[i] = k) then
             return
@@ -459,15 +591,62 @@ sub WantImplicit_ _
     c.implWantedKind.Push( k )
 end sub
 
+private sub CallImplTwo_ _
+    ( byref c as Ctx, byref nm as string, byref dst as MirValue, byref src as MirValue )
+
+    if len( nm ) = 0 then return
+    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
+        return
+    end if
+    dim as Fbx.InternId id = c.names->GetString( nm )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = id then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
+        decl->isDefinition = false
+        decl->paramCount = 2
+        fidx = c.m->functions.Count - 1
+    end if
+    dim as long first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( ulong, dst.kind ) )
+    c.m->argPool.Push( cast( ulong, dst.id ) )
+    c.m->argPool.Push( cast( ulong, src.kind ) )
+    c.m->argPool.Push( cast( ulong, src.id ) )
+    dim as MirInst ins
+    ins.op = cast( ushort, M_CALL )
+    ins.ty = cast( ubyte, MT_VOID )
+    ins.first = first
+    ins.count = 2
+    ins.callee = fidx
+    Emit( c, ins )
+end sub
+
+sub CallImplicitLet_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    WantImplicit_( c, t, 2 )
+    CallImplTwo_( c, ImplicitLetName_( c, t ), dst, src )
+end sub
+
+sub CallImplicitCopy_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    WantImplicit_( c, t, 3 )
+    CallImplTwo_( c, ImplicitCopyName_( c, t ), dst, src )
+end sub
+
 sub CallImplicitCtor_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
-    WantImplicit_( c, t, true )
+    WantImplicit_( c, t, 1 )
     CallImplByName_( c, ImplicitCtorName_( c, t ), selfv )
 end sub
 
 sub CallImplicitDtor_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
-    WantImplicit_( c, t, false )
+    WantImplicit_( c, t, 0 )
     CallImplByName_( c, ImplicitDtorName_( c, t ), selfv )
 end sub
 
@@ -476,18 +655,25 @@ end sub
 '' one in a loop, and 'new T' calls one; giving it a body in one place is what lets all
 '' of those refer to it.
 private sub EmitOneImplicit_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval isCtor as boolean )
+    ( byref c as Ctx, byval t as Fbx.TypeId, byval kind_ as long )
 
-    dim as string nm = iif( isCtor, ImplicitCtorName_( c, t ), ImplicitDtorName_( c, t ) )
+    dim as string nm = ""
+    select case kind_
+    case 0 : nm = ImplicitDtorName_( c, t )
+    case 1 : nm = ImplicitCtorName_( c, t )
+    case 2 : nm = ImplicitLetName_( c, t )
+    case else : nm = ImplicitCopyName_( c, t )
+    end select
     if len( nm ) = 0 then return
     dim as Fbx.InternId id = c.names->GetString( nm )
     for i as long = 0 to c.m->functions.Count - 1
         if (c.m->functions[i]->name = id) andalso c.m->functions[i]->isDefinition then return
     next
 
+    dim as boolean twoArgs = (kind_ >= 2)
     dim as MirFunction ptr f = c.m->AddFunction( id, MT_VOID )
     f->isDefinition = true
-    f->paramCount = 1
+    f->paramCount = iif( twoArgs, 2, 1 )
 
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
@@ -495,44 +681,63 @@ private sub EmitOneImplicit_ _
     c.st->functions += 1
     c.curBlock = NewBlock( c, "entry" )
 
-    '' THIS arrives as parameter zero, exactly as it does for a written structor.
+    '' THIS arrives as parameter zero, exactly as it does for a written structor, and
+    '' the right-hand side as parameter one.
     dim as MirValue selfv
     selfv.kind = cast( ubyte, MV_PARAM )
     selfv.ty = cast( ubyte, MT_PTR )
     selfv.id = 0
+    dim as MirValue rhs
+    rhs.kind = cast( ubyte, MV_PARAM )
+    rhs.ty = cast( ubyte, MT_PTR )
+    rhs.id = 1
 
-    if isCtor then
+    select case kind_
+    case 1
         EmitCtorPrologue_( c, t, selfv )
-    else
+    case 0
         '' THE VPTR FIRST, so the rest of this destructor -- and anything it calls --
         '' sees this type's own table rather than the derived one that was there.
         StoreVptr_( c, t, selfv )
         EmitDtorEpilogue_( c, t, selfv )
-    end if
+    case 2
+        EmitLetBody_( c, t, selfv, rhs )
+    case else
+        '' THE COPY CONSTRUCTOR IS THE DEFAULT ONE FOLLOWED BY THE ASSIGNMENT, exactly
+        '' as fbc writes it -- not a field-by-field copy of its own. So a string field
+        '' is zeroed and then assigned rather than assigned over a descriptor that was
+        '' never initialised.
+        EmitCtorPrologue_( c, t, selfv )
+        dim as Fbx.SymbolId lt = StructorOf( c, t, "let" )
+        if lt <> Fbx.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) args
+            args.Push( cast( ulong, rhs.kind ) ) : args.Push( cast( ulong, rhs.id ) )
+            EmitStructorCall( c, lt, -1, @selfv, @args )
+        else
+            CallImplicitLet_( c, t, selfv, rhs )
+        end if
+    end select
 
     Terminate( c, MTERM_RET, -1, -1, NoVal( ) )
     c.f = savedF
     c.curBlock = savedB
 end sub
 
-'' Every implicit structor this unit needs. Called once, after the written procedures
-'' are lowered, so a written structor of a base is already there to be called.
+'' Every implicit structor this unit needs.
 ''
-'' Repeated until nothing new appears: emitting one may call another that did not exist
-'' when the walk started -- a field's, or a base's.
+'' ON DEMAND, and the demand grows as the bodies are written: a constructor emitted here
+'' may call a field's or a base's, which was not wanted when the walk started. The list
+'' is append-only and the index carries over, so each entry is visited once however many
+'' rounds it takes.
 sub EmitImplicitStructors( byref c as Ctx )
     if (c.vts = 0) orelse (c.udts = 0) then return
 
-    '' ON DEMAND, and the demand grows as the bodies are written: a constructor emitted
-    '' here may call a field's or a base's, which was not wanted when the walk started.
-    '' The list is append-only and the index carries over, so each entry is visited once
-    '' however many rounds it takes.
     dim as long at = 0
     dim as long guard = 0
     while (at < c.implWantedType.Count) andalso (guard < 100000)
         guard += 1
         dim as Fbx.TypeId t = cast( Fbx.TypeId, c.implWantedType[at] )
-        dim as boolean isCtor = (c.implWantedKind[at] = 1)
+        dim as long kind_ = c.implWantedKind[at]
         at += 1
         if t = Fbx.TYPE_NONE then continue while
         if c.udts->Find( t ) < 0 then continue while
@@ -540,16 +745,19 @@ sub EmitImplicitStructors( byref c as Ctx )
         if IsObjectT_( c, t ) then continue while
         '' A WRITTEN ONE WINS. fbc prepends the same body to it rather than emitting a
         '' second function, and that is done where it is lowered.
-        if isCtor then
-            if StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Fbx.SYMBOL_NONE then
-                continue while
-            end if
-        else
-            if StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Fbx.SYMBOL_NONE then
-                continue while
-            end if
-        end if
-        EmitOneImplicit_( c, t, isCtor )
+        dim as boolean written = false
+        select case kind_
+        case 0
+            written = (StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Fbx.SYMBOL_NONE)
+        case 1
+            written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Fbx.SYMBOL_NONE)
+        case 2
+            written = (StructorOf( c, t, "let" ) <> Fbx.SYMBOL_NONE)
+        case else
+            written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 ) <> Fbx.SYMBOL_NONE)
+        end select
+        if written then continue while
+        EmitOneImplicit_( c, t, kind_ )
     wend
 end sub
 

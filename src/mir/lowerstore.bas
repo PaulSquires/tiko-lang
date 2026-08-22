@@ -196,6 +196,66 @@ end function
 '' The ADDRESS of a variable, wherever its storage lives.
 '' The ctor or dtor of a type, or SYMBOL_NONE. They live in the type's scope under a
 '' synthetic name, because neither has a name of its own in the source.
+'' Pick the constructor overload for a set of argument types, using the same cost
+'' model overload resolution uses -- the one fitted to 1,274 measured fbc choices.
+'' Constructors chain like any other overload set precisely because they were given a
+'' synthetic name, so nothing here is special-cased.
+function PickCtor _
+    ( byref c as Ctx, byval first_ as Fbx.SymbolId, _
+      byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId
+
+    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
+    dim as long bestCost = Fbx.Check.CONV_NONE
+    dim as long ties = 0
+    dim as Fbx.SymbolId cur = first_
+
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+            dim as long np = 0
+            for i as long = 0 to pp->count - 1
+                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+            next
+            if np = argT.Count then
+                dim as long total = 0
+                dim as long ai = 0
+                dim as boolean viable = true
+                for i as long = 0 to pp->count - 1
+                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                    dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
+                    dim as long cost = Fbx.Check.ConversionCost( _
+                        cast( Fbx.TypeId, argT[ai] ), c.info->TypeOf_( sp2->a ), *c.types )
+                    ai += 1
+                    if cost >= Fbx.Check.CONV_NONE then
+                        viable = false
+                        exit for
+                    end if
+                    total += cost
+                next
+                if viable then
+                    if total < bestCost then
+                        bestCost = total
+                        best = cur
+                        ties = 0
+                    elseif total = bestCost then
+                        ties += 1
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+
+    '' A tie is an ambiguous call, not a silent pick.
+    if ties > 0 then return Fbx.SYMBOL_NONE
+    return best
+end function
+
 function StructorOf _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref which as string ) as Fbx.SymbolId
 

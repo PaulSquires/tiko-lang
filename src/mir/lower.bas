@@ -579,65 +579,6 @@ end function
 
 
 
-'' Pick the constructor overload for a set of argument types, using the same cost
-'' model overload resolution uses -- the one fitted to 1,274 measured fbc choices.
-'' Constructors chain like any other overload set precisely because they were given a
-'' synthetic name, so nothing here is special-cased.
-function PickCtor _
-    ( byref c as Ctx, byval first_ as Fbx.SymbolId, _
-      byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId
-
-    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
-    dim as long bestCost = Fbx.Check.CONV_NONE
-    dim as long ties = 0
-    dim as Fbx.SymbolId cur = first_
-
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
-        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-            dim as long np = 0
-            for i as long = 0 to pp->count - 1
-                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
-            next
-            if np = argT.Count then
-                dim as long total = 0
-                dim as long ai = 0
-                dim as boolean viable = true
-                for i as long = 0 to pp->count - 1
-                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-                    dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
-                    dim as long cost = Fbx.Check.ConversionCost( _
-                        cast( Fbx.TypeId, argT[ai] ), c.info->TypeOf_( sp2->a ), *c.types )
-                    ai += 1
-                    if cost >= Fbx.Check.CONV_NONE then
-                        viable = false
-                        exit for
-                    end if
-                    total += cost
-                next
-                if viable then
-                    if total < bestCost then
-                        bestCost = total
-                        best = cur
-                        ties = 0
-                    elseif total = bestCost then
-                        ties += 1
-                    end if
-                end if
-            end if
-        end if
-        cur = s->nextOverload
-    wend
-
-    '' A tie is an ambiguous call, not a silent pick.
-    if ties > 0 then return Fbx.SYMBOL_NONE
-    return best
-end function
 
 
 '' -------------------------------------------------------------- statements
@@ -691,6 +632,38 @@ private sub LowerAssign _
         end if
         SkipHere( c )
         return
+    end if
+
+    '' A UDT WITH AN ASSIGNMENT OPERATOR IS A CALL, not a store. 'x = y' over a type
+    '' holding a string copied the DESCRIPTOR bitwise and left two objects owning one
+    '' buffer -- a double free at scope exit, not a leak. fbc emits
+    '' '_ZN1TaSERKS_( &X, &Y )'.
+    ''
+    '' Both sides must be the SAME type: 'x = someOtherThing' is a conversion, and the
+    '' assignment operator takes its own type by reference.
+    dim as Fbx.TypeId atl = c.info->TypeOf_( target )
+    if (atl <> Fbx.TYPE_NONE) andalso (atl = c.info->TypeOf_( value )) then
+        if c.types->Kind( atl ) = Fbx.TK_UDT then
+            dim as boolean handled = false
+            dim as Fbx.SymbolId ulet = StructorOf( c, atl, "let" )
+            if (ulet <> Fbx.SYMBOL_NONE) orelse NeedsLetBody_( c, atl ) then
+                dim as MirValue da = LowerAddr( c, target )
+                dim as MirValue sa = LowerAddr( c, value )
+                if (da.kind <> cast( ubyte, MV_NONE )) andalso _
+                   (sa.kind <> cast( ubyte, MV_NONE )) then
+                    if ulet <> Fbx.SYMBOL_NONE then
+                        dim as FB.Array( of ulong ) largs
+                        largs.Push( cast( ulong, sa.kind ) )
+                        largs.Push( cast( ulong, sa.id ) )
+                        EmitStructorCall( c, ulet, -1, @da, @largs )
+                    else
+                        CallImplicitLet_( c, atl, da, sa )
+                    end if
+                    handled = true
+                end if
+            end if
+            if handled then return
+        end if
     end if
 
     '' Same reason as the read: a full-width store into a bitfield's unit would
@@ -920,7 +893,41 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             if (slot >= 0) andalso (vs <> 0) then
                 '' 'dim as T x = T( 5 )' selects a constructor by its arguments; a
                 '' bare 'dim as T x' takes the no-argument one.
-                constructed = LowerCtorInit( c, slot, vs->type_, ip->b )
+                '' 'dim as T y = x' OVER THE SAME TYPE IS THE COPY CONSTRUCTOR.
+                '' Without it the initialiser was a whole-aggregate load and store, so
+                '' a type holding a string ended with two objects owning one buffer --
+                '' and both were released at scope exit. fbc emits
+                '' '_ZN1TC1ERKS_( &Y, &X )' and nothing else: no default constructor
+                '' call and no copy of the bytes.
+                if ip->b <> Fbx.NODE_NONE then
+                    dim as Fbx.TypeId ivt = c.info->TypeOf_( ip->b )
+                    if (ivt <> Fbx.TYPE_NONE) andalso (ivt = vs->type_) andalso _
+                       (c.types->Kind( ivt ) = Fbx.TK_UDT) then
+                        dim as Fbx.SymbolId ucp = StructorWithArity( c, _
+                            StructorOf( c, ivt, "__ctor" ), 1 )
+                        if (ucp <> Fbx.SYMBOL_NONE) orelse NeedsLetBody_( c, ivt ) then
+                            dim as MirValue dsa
+                            dsa.kind = cast( ubyte, MV_LOCAL )
+                            dsa.ty = cast( ubyte, MT_PTR )
+                            dsa.id = slot
+                            dim as MirValue ssa = LowerAddr( c, ip->b )
+                            if ssa.kind <> cast( ubyte, MV_NONE ) then
+                                if ucp <> Fbx.SYMBOL_NONE then
+                                    dim as FB.Array( of ulong ) cargs
+                                    cargs.Push( cast( ulong, ssa.kind ) )
+                                    cargs.Push( cast( ulong, ssa.id ) )
+                                    EmitStructorCall( c, ucp, slot, 0, @cargs )
+                                else
+                                    CallImplicitCopy_( c, ivt, dsa, ssa )
+                                end if
+                                constructed = true
+                            end if
+                        end if
+                    end if
+                end if
+                if constructed = false then
+                    constructed = LowerCtorInit( c, slot, vs->type_, ip->b )
+                end if
                 dim as Fbx.SymbolId ctor = Fbx.SYMBOL_NONE
                 if constructed = false then
                     ctor = StructorWithArity( c, _

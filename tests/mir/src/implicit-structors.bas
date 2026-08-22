@@ -46,6 +46,21 @@ constructor DerivedW( )
 end constructor
 destructor DerivedW( ) : end destructor
 
+'' A dynamic array member stops the ASSIGNMENT from being synthesised, and nothing
+'' else: fbc copies one with fb_ArrayRedimTo and an element loop, and an assignment
+'' that skipped the array would look like the field had been handled.
+sub copies( )
+    dim as HasStr a
+    '' The COPY CONSTRUCTOR: the default one's body followed by the assignment, which
+    '' is how fbc writes it -- so the descriptor is zeroed and then assigned rather
+    '' than assigned over one that was never initialised.
+    dim as HasStr b = a
+    '' ...and the ASSIGNMENT. A whole-aggregate store here left two objects owning one
+    '' buffer, and both were released at scope exit: a double free, not a leak.
+    a = b
+end sub
+copies( )
+
 sub use( )
     dim as HasStr h
     h.s = "x"
