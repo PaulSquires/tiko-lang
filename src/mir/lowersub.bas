@@ -53,7 +53,7 @@ function LowerStrRvalue _
     '' The FIRST argument decides. These names are overloaded on wide strings too, and
     '' the wide overload belongs to LowerWideRvalue.
     dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
-    if WideStringElems( c, c.info->TypeOf_( a0 ) ) > 0 then return false
+    if IsWideString_( c, c.info->TypeOf_( a0 ) ) then return false
 
     '' The second argument, unwrapped from 'any' if it carries one.
     dim as Fbx.NodeId a1 = Fbx.NODE_NONE
@@ -1028,8 +1028,8 @@ function LowerStrCompare _
     '' WIDE if EITHER side is, for the same reason the caller's guard asks both: an
     '' intrinsic call has no type of its own, so 'trim( w ) = b' looks wide only from
     '' the right.
-    dim as boolean isWide = (WideStringElems( c, c.info->TypeOf_( bp->lhs ) ) > 0) orelse _
-                            (WideStringElems( c, c.info->TypeOf_( bp->rhs ) ) > 0)
+    dim as boolean isWide = (IsWideString_( c, c.info->TypeOf_( bp->lhs ) )) orelse _
+                            (IsWideString_( c, c.info->TypeOf_( bp->rhs ) ))
     if isWide then
         '' EITHER SIDE MAY BE AN RVALUE. LowerAddr alone accepted only an addressable
         '' wide variable, so 'trim( a ) = b' and 'a = wstr( 1 )' produced no comparison

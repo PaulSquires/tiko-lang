@@ -51,3 +51,14 @@ sub Q( )
     c = iif( ct, a, b )
     c = iif( ct, wstr( 1 ), wstr( 2 ) )
 end sub
+
+'' A 'byref as wstring' PARAMETER IS A WIDE STRING WITH NO DECLARED LENGTH. Its element
+'' count is 0 -- which is exactly the length fbc passes for one,
+'' 'fb_WstrAssign( C$1, 0ll, ... )' -- and reading that 0 as "not a wide string" is what
+'' made every operation on one decline. "Is it wide" and "how many characters" are
+'' different questions and now have different functions.
+sub R( byref a as wstring, byref b as wstring, byref c as wstring )
+    c = a
+    c = iif( ct, a, b )
+    c = a + b
+end sub

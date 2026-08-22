@@ -327,6 +327,7 @@ declare function EmitRtl _
     declare function LowerArrayInit _
         ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
           byval init as Fbx.NodeId ) as boolean
+    declare function IsWideString_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
     declare function LowerWideIif_ _
         ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
           byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean

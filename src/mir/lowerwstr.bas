@@ -24,6 +24,25 @@ declare function StrSwapKind_ _
 '' is -- so the count comes off the array. There is no var-length wide string to
 '' consider: 'dim as wstring w' is fbc error 28, so a wide value is always a bare
 '' pointer to N elements and never a descriptor.
+'' IS THIS A WIDE STRING? Not the same question as "how many characters", and keeping
+'' them apart is the point: a 'byref as wstring' parameter is a wide string with NO
+'' DECLARED LENGTH, so WideStringElems answers 0 for it -- which is exactly the length
+'' fbc passes ('fb_WstrAssign( C$1, 0ll, ... )') and exactly the wrong answer to
+'' "is it wide". Every 'WideStringElems( ... ) > 0' guard was therefore saying no to
+'' byref wstring parameters, and every operation on one declined.
+function IsWideString_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) = Fbx.TK_BUILTIN then
+        return (c.types->BuiltinOf( t ) = Fbx.TY_WSTRING)
+    end if
+    '' NOT IsWideString_: the SIZED form is an ARRAY of the builtin, and asking this
+    '' function again is the infinite recursion that a blind rewrite of every
+    '' 'WideStringElems( ... ) > 0' in the tree introduced here once already -- it
+    '' caught this line, which was the new function's own body.
+    return (WideStringElems( c, t ) > 0)
+end function
+
+
 function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
     if t = Fbx.TYPE_NONE then return 0
     if c.types->Kind( t ) <> Fbx.TK_ARRAY then return 0
@@ -51,8 +70,11 @@ end function
 function LowerWideAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
 
+    '' THE COUNT IS 0 FOR A 'byref as wstring' PARAMETER, and that is the length fbc
+    '' passes for one -- 'fb_WstrAssign( C$1, 0ll, ... )'. Reading 0 as "not a wide
+    '' string" is what made every operation on a byref wstring parameter decline.
+    if IsWideString_( c, c.info->TypeOf_( target ) ) = false then return false
     dim as long n = WideStringElems( c, c.info->TypeOf_( target ) )
-    if n = 0 then return false
 
     dim as MirValue dst = LowerAddr( c, target )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
@@ -167,7 +189,7 @@ function LowerWideConcatAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as long, _
       byval value as Fbx.NodeId ) as boolean
 
-    if WideStringElems( c, c.info->TypeOf_( value ) ) = 0 then return false
+    if IsWideString_( c, c.info->TypeOf_( value ) ) = false then return false
     dim as MirValue src = LowerAddr( c, value )
     if src.kind = cast( ubyte, MV_NONE ) then return false
     dim as FB.Array( of ulong ) args
@@ -195,7 +217,7 @@ function LowerWideToNarrow _
     '' THE SOURCE NEED NOT BE A WIDE VARIABLE. A UDT with 'operator cast' to a wstring
     '' is one too, and 'r = wv' over one is 'fb_WstrAssignToA( &R, -1ll, vr, 0 )' with
     '' vr the operator's result. Testing the TYPE alone said no to it.
-    dim as boolean wideSrc = (WideStringElems( c, c.info->TypeOf_( value ) ) > 0)
+    dim as boolean wideSrc = (IsWideString_( c, c.info->TypeOf_( value ) ))
     dim as MirValue castv
     dim as boolean viaCast = false
     if wideSrc = false then
@@ -348,7 +370,7 @@ function WideOperand_ _
         return true
     end if
 
-    if WideStringElems( c, c.info->TypeOf_( id ) ) > 0 then
+    if IsWideString_( c, c.info->TypeOf_( id ) ) then
         outv = LowerAddr( c, id )
         if outv.kind <> cast( ubyte, MV_NONE ) then return true
     end if
@@ -402,7 +424,7 @@ private function UserCastToWide_ _
             if c.types->Kind( inner ) = Fbx.TK_POINTER then
                 inner = c.types->Inner( inner )
             end if
-            if WideStringElems( c, inner ) > 0 then
+            if IsWideString_( c, inner ) then
                 want = cur
                 exit while
             end if

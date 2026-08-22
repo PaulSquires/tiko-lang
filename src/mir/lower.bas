@@ -434,10 +434,10 @@ function LowerExpr _
         '' compared as integers. The same file's comment says exactly that about the
         '' wide case; this is the same mistake one operand along.
         dim as boolean cmpStr = IsStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
-                                (WideStringElems( c, c.info->TypeOf_( bp->lhs ) ) > 0)
+                                (IsWideString_( c, c.info->TypeOf_( bp->lhs ) ))
         if cmpStr = false then
             cmpStr = IsStringType( c, c.info->TypeOf_( bp->rhs ) ) orelse _
-                     (WideStringElems( c, c.info->TypeOf_( bp->rhs ) ) > 0)
+                     (IsWideString_( c, c.info->TypeOf_( bp->rhs ) ))
         end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, bp, tk )

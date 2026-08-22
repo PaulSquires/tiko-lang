@@ -79,7 +79,7 @@ private function WriteOne_ _
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
 
-    if WideStringElems( c, t ) > 0 then
+    if IsWideString_( c, t ) then
         dim as MirValue wa = LowerAddr( c, it )
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
@@ -296,8 +296,8 @@ function LowerLrset( byref c as Ctx, byval id as Fbx.NodeId, byval isRight as bo
     dim as FB.Array( of ulong ) args
 
     '' A WIDE destination takes the wide pair, and only a wide source.
-    if WideStringElems( c, dt ) > 0 then
-        if WideStringElems( c, c.info->TypeOf_( srcE ) ) = 0 then return false
+    if IsWideString_( c, dt ) then
+        if IsWideString_( c, c.info->TypeOf_( srcE ) ) = false then return false
         dim as MirValue wsrc = LowerAddr( c, srcE )
         if wsrc.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )

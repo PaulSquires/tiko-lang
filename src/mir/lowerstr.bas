@@ -587,7 +587,7 @@ private function PrintOne _
     '' A WIDE STRING has its own entry point, and the same (channel, value, mask)
     '' shape as the narrow one -- fbc emits 'fb_PrintWstr( 0, (uint16*)W, 1 )'. It
     '' takes the POINTER, not a descriptor, because a wide string has none.
-    if WideStringElems( c, t ) > 0 then
+    if IsWideString_( c, t ) then
         dim as MirValue wa = LowerAddr( c, it )
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
@@ -842,7 +842,7 @@ function LowerLen _
     if at = Fbx.TYPE_NONE then return false
 
     '' WIDE: one argument, no length.
-    if (WideStringElems( c, at ) > 0) andalso (isSizeof = false) then
+    if (IsWideString_( c, at )) andalso (isSizeof = false) then
         dim as MirValue wa = LowerAddr( c, a )
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) wargs
@@ -1071,7 +1071,7 @@ private function InputRtlFor _
 
     n = -1
     if t = Fbx.TYPE_NONE then return RTL_NONE
-    if WideStringElems( c, t ) > 0 then
+    if IsWideString_( c, t ) then
         n = WideStringElems( c, t )
         return RTL_INPUT_WSTR
     end if
