@@ -857,6 +857,21 @@ function StrDescriptorOf_ _
         if outv.kind <> cast( ubyte, MV_NONE ) then return true
     end if
 
+    '' A 'string * N' BORROWS A DESCRIPTOR FROM ITS OWN ENTRY POINT, taking the TAGGED
+    '' length -- 'fb_StrAllocTempDescF( A, -9223372036854775776ll )'. It is not the Z
+    '' form, which strlen's a NUL-terminated buffer a fixed string does not have.
+    dim as longint fdn
+    if StrSwapKind_( c, c.info->TypeOf_( id ), fdn ) = 3 then
+        dim as MirValue fa = LowerAddr( c, id )
+        if fa.kind <> cast( ubyte, MV_NONE ) then
+            dim as FB.Array( of ulong ) fta
+            fta.Push( cast( ulong, fa.kind ) ) : fta.Push( cast( ulong, fa.id ) )
+            PushStrLen_( c, fta, fdn )
+            outv = EmitRtl( c, RTL_STR_TEMPF, fta )
+            if outv.kind <> cast( ubyte, MV_NONE ) then return true
+        end if
+    end if
+
     '' A ZSTRING * N has no descriptor -- it is a char array -- so it borrows a
     '' temporary one over its own bytes, from the NO-LENGTH variant that works the
     '' length out from the terminator. That is what fbc emits for 'trim( z )':
@@ -1116,9 +1131,15 @@ function LowerZstrAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
       byval value as Fbx.NodeId, byval isInit as boolean ) as boolean
 
+    '' THE TRAILING ARGUMENT DEPENDS ONLY ON THE DESTINATION, and it is -1 for a
+    '' FIXED-LENGTH string and 0 for everything else -- measured across all three
+    '' flavours, and it is the source that never affects it. A negative 'n' is what
+    '' says the destination is a fixed one: the sign bit IS the tag.
+    dim as long tail = iif( n < 0, -1, 0 )
+
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
+    PushStrLen_( c, args, n )
 
     if c.ast->Kind( value ) = Fbx.N_STRING_LIT then
         dim as string lit = StringLitText_( c, value )
@@ -1126,7 +1147,8 @@ function LowerZstrAssignTo _
         args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, len( lit ) + 1 ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, tail ) )
         EmitRtl( c, RTL_STR_ASSIGN, args )
         return true
     end if
@@ -1135,12 +1157,16 @@ function LowerZstrAssignTo _
     dim as Fbx.TypeId st = c.info->TypeOf_( value )
     dim as longint zn
     dim as long sk = StrSwapKind_( c, st, zn )
-    if (sk = 0) orelse (sk = 1) then
+    '' A FIXED-LENGTH SOURCE is addressable like the other two and carries its own
+    '' encoded length -- kind 3, which this test used to exclude, so 'a = b' over two
+    '' 'string * 32's fell through to the descriptor path and then declined.
+    if (sk = 0) orelse (sk = 1) orelse (sk = 3) then
         dim as MirValue src = LowerAddr( c, value )
         if src.kind <> cast( ubyte, MV_NONE ) then
             args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, zn ) )
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            PushStrLen_( c, args, zn )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, tail ) )
             EmitRtl( c, RTL_STR_ASSIGN, args )
             return true
         end if
@@ -1156,7 +1182,8 @@ function LowerZstrAssignTo _
         args.Push( cast( ulong, ucv.kind ) ) : args.Push( cast( ulong, ucv.id ) )
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, iif( ucRaw, 0, cast( longint, -1 ) ) ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, tail ) )
         EmitRtl( c, iif( isInit, RTL_STR_INIT, RTL_STR_ASSIGN ), args )
         return true
     end if
@@ -1174,7 +1201,8 @@ function LowerZstrAssignTo _
     args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, cast( ulongint, -1 ) ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, tail ) )
     EmitRtl( c, iif( isInit, RTL_STR_INIT, RTL_STR_ASSIGN ), args )
     return true
 end function

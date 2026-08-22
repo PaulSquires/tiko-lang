@@ -135,4 +135,34 @@ function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     return true
 end function
 
+'' Zeroes a 24-byte string descriptor.
+''
+'' fbc emits '__builtin_memset( &A, 0, 24 )' for a string local with no initialiser.
+'' MIR has no memset, so this is three i64 stores -- which mem2reg folds away for a
+'' local that is written before it is read anyway.
+''
+'' This is NOT cosmetic. A string local always registers an fb_StrDelete for its scope
+'' exit, so a descriptor that was never written would hand the runtime a wild pointer
+'' to free.
+sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
+    for off as long = 0 to 16 step 8
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = dst
+        fa.imm = off
+        dim as MirValue p = Emit( c, fa )
+        dim as MirValue z
+        z.kind = cast( ubyte, MV_CONST_INT )
+        z.ty = cast( ubyte, MT_I64 )
+        z.id = 0
+        dim as MirInst st_
+        st_.op = cast( ushort, M_STORE )
+        st_.ty = cast( ubyte, MT_VOID )
+        st_.a = p
+        st_.b = z
+        Emit( c, st_ )
+    next
+end sub
+
 end namespace

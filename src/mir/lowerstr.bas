@@ -410,35 +410,6 @@ end function
 '' 'a = b' and 'a = a + b' between var-length strings. Returns false when this is not
 '' a string assignment, so the caller falls back to an ordinary store.
 
-'' Zeroes a 24-byte string descriptor.
-''
-'' fbc emits '__builtin_memset( &A, 0, 24 )' for a string local with no initialiser.
-'' MIR has no memset, so this is three i64 stores -- which mem2reg folds away for a
-'' local that is written before it is read anyway.
-''
-'' This is NOT cosmetic. A string local always registers an fb_StrDelete for its scope
-'' exit, so a descriptor that was never written would hand the runtime a wild pointer
-'' to free.
-sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
-    for off as long = 0 to 16 step 8
-        dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
-        fa.a = dst
-        fa.imm = off
-        dim as MirValue p = Emit( c, fa )
-        dim as MirValue z
-        z.kind = cast( ubyte, MV_CONST_INT )
-        z.ty = cast( ubyte, MT_I64 )
-        z.id = 0
-        dim as MirInst st_
-        st_.op = cast( ushort, M_STORE )
-        st_.ty = cast( ubyte, MT_VOID )
-        st_.a = p
-        st_.b = z
-        Emit( c, st_ )
-    next
-end sub
 
 '' A string local at its DECLARATION, which is not the same as an assignment to it.
 ''
@@ -593,6 +564,20 @@ private function PrintOne _
         args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_WSTR, args )
+        return true
+    end if
+
+    '' A 'string * N' borrows a descriptor from its OWN entry point and prints through
+    '' fb_PrintString like any other narrow string -- measured, fbc wraps it in
+    '' fb_StrAllocTempDescF first. StrDescriptorOf_ already knows how; PRINT simply had
+    '' no branch that reached it for this flavour.
+    dim as longint fpn
+    if StrSwapKind_( c, t, fpn ) = 3 then
+        dim as MirValue fd
+        if StrDescriptorOf_( c, it, fd ) = false then return false
+        args.Push( cast( ulong, fd.kind ) ) : args.Push( cast( ulong, fd.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_STRING, args )
         return true
     end if
 
@@ -759,8 +744,47 @@ function StrSwapKind_ _
     select case c.types->BuiltinOf( el )
     case Fbx.TY_ZSTRING : return 1
     case Fbx.TY_WSTRING : return 2
+    case Fbx.TY_FIXSTR
+        '' 'string * N' -- the FIXED-LENGTH, space-padded flavour. 'n' comes back
+        '' ENCODED, because that is the only form any runtime call wants it in, and
+        '' encoding it here means every '(pointer, length)' push site emits fbc's
+        '' constant without knowing this type exists.
+        n = FixedStrLenArg_( c, n )
+        return 3
     end select
     return -1
+end function
+
+'' THE LENGTH ARGUMENT for a 'string * N', which is not N.
+''
+'' Measured: fbc passes '&h8000000000000000 or N' on win64 and '&h80000000 or N' on
+'' win32 -- POINTER-SIZED, with the SIGN BIT as the tag that says "this operand is N
+'' space-padded bytes, not a descriptor and not a NUL-terminated buffer". A plain
+'' 'string' passes -1 and a 'zstring * N' passes N unsigned, so all three flavours are
+'' told apart by this one argument rather than by separate entry points.
+'' Push a string operand's LENGTH argument.
+''
+'' MV_CONST_INT'S PAYLOAD IS 32 BITS. Every other string length fits -- -1, or a
+'' declared count -- but a 'string * N' passes '&h8000000000000000 or N', which
+'' truncates to plain N in that field and silently turns the fixed-length tag into an
+'' ordinary zstring count. A value that wide needs a CONST INSTRUCTION, which is what
+'' ConstInt emits, so it is pushed as a temp rather than inline.
+sub PushStrLen_( byref c as Ctx, byref args as FB.Array( of ulong ), byval n as longint )
+    if (n >= -2147483648ll) andalso (n <= 2147483647ll) then
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( long, n ) ) )
+        return
+    end if
+    dim as MirValue lv = ConstInt( c, n, MT_I64 )
+    args.Push( cast( ulong, lv.kind ) )
+    args.Push( cast( ulong, lv.id ) )
+end sub
+
+function FixedStrLenArg_( byref c as Ctx, byval n as longint ) as longint
+    if c.types->target.pointerBits = 32 then
+        return cast( longint, cast( long, (&h80000000ul or cast( ulong, n )) ) )
+    end if
+    return cast( longint, (&h8000000000000000ull or cast( ulongint, n )) )
 end function
 
 '' LINE INPUT #n, dst -- read a whole line from a file into a string.
@@ -858,6 +882,19 @@ function LowerLen _
         narrow = IsStringType( c, at )
         if narrow = false then
             if StrSwapKind_( c, at, zn ) = 1 then narrow = true
+        end if
+    end if
+
+    '' 'len( a )' OVER A 'string * N' IS THE CONSTANT N -- measured, fbc emits
+    '' 'GI$ = 32ll;' with no call at all, because a fixed string's length is its
+    '' declared size and never its contents. That is the opposite of 'zstring * N',
+    '' whose len IS a runtime strlen. Every 'if len( a ) = 0' over a fixed string is
+    '' therefore dead code, in fbc as here.
+    if isSizeof = false then
+        dim as longint fn2
+        if StrSwapKind_( c, at, fn2 ) = 3 then
+            outv = ConstInt( c, c.types->ElemCount( at ), MT_I64 )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
         end if
     end if
     if narrow then
@@ -1377,15 +1414,17 @@ function EmitStrTerm _
         return true
     end if
 
+    '' A FIXED-LENGTH STRING passes its address and its ENCODED length -- kind 3 comes
+    '' back with the sign-tagged constant already in 'zn', so this is the same push as
+    '' the zstring case and the two share a branch.
     dim as longint zn
     dim as long zk = StrSwapKind_( c, c.info->TypeOf_( term ), zn )
-    if zk = 1 then
+    if (zk = 1) orelse (zk = 3) then
         dim as MirValue za = LowerAddr( c, term )
         if za.kind <> cast( ubyte, MV_NONE ) then
             args.Push( cast( ulong, za.kind ) )
             args.Push( cast( ulong, za.id ) )
-            args.Push( cast( ulong, MV_CONST_INT ) )
-            args.Push( cast( ulong, zn ) )
+            PushStrLen_( c, args, zn )
             return true
         end if
     end if

@@ -183,4 +183,33 @@ function LowerCallParts _
     return cv
 end function
 
+function BinOpFor _
+    ( byval tk as Fbx.TokenKind, byval t as MirType, _
+      byval isUnsigned as boolean ) as MirOp
+
+    dim as boolean f = IsFloatTy( t )
+    select case tk
+    case Fbx.TK_PLUS      : return M_ADD
+    case Fbx.TK_MINUS     : return M_SUB
+    case Fbx.TK_STAR      : return M_MUL
+    case Fbx.TK_SLASH     : return M_FDIV
+    case Fbx.TK_BACKSLASH : return iif( isUnsigned, M_UDIV, M_SDIV )
+    case Fbx.KW_MOD       : return iif( isUnsigned, M_UREM, M_SREM )
+    case Fbx.KW_AND       : return M_AND
+    case Fbx.KW_OR        : return M_OR
+    case Fbx.KW_XOR       : return M_XOR
+    case Fbx.KW_SHL       : return M_SHL
+    '' SHR is ARITHMETIC on a signed value -- '-1 shr 1' is -1, measured in
+    '' docs/internals/phase-5-const.md -- so it is ashr unless the type is unsigned.
+    case Fbx.KW_SHR       : return iif( isUnsigned, M_LSHR, M_ASHR )
+    case Fbx.TK_EQ        : return iif( f, M_FCMP_EQ, M_ICMP_EQ )
+    case Fbx.TK_NE        : return iif( f, M_FCMP_NE, M_ICMP_NE )
+    case Fbx.TK_LT        : return iif( f, M_FCMP_LT, iif( isUnsigned, M_ICMP_ULT, M_ICMP_SLT ) )
+    case Fbx.TK_GT        : return iif( f, M_FCMP_GT, iif( isUnsigned, M_ICMP_UGT, M_ICMP_SGT ) )
+    case Fbx.TK_LE        : return iif( f, M_FCMP_LE, M_ICMP_SLE )
+    case Fbx.TK_GE        : return iif( f, M_FCMP_GE, M_ICMP_SGE )
+    end select
+    return M_NONE
+end function
+
 end namespace

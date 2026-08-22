@@ -283,6 +283,20 @@ sub WideIifProbe( )
     c = iif( wiifCt, a, b )
 end sub
 ''',
+    # 'string * N' -- the FIXED-LENGTH, space-padded flavour. A third string type, not
+    # a spelling of either of the others: N raw bytes, no terminator, and a length
+    # argument tagged with the SIGN BIT. Its descriptor wrapper is its own entry point.
+    "fixstr": '''
+sub FixStrProbe( )
+    dim as string * 32 a, b
+    dim as string s
+    dim as long n
+    a = b : a = s : s = a
+    n = instr( a, s )
+    s = trim( a )
+    print a
+end sub
+''',
     # The NARROW substring and trim family. The spellings are not consistent --
     # fb_TRIM but fb_TrimEx, fb_LEFT but fb_StrMid -- so every one is probed.
     "strsub": '''

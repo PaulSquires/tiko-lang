@@ -245,7 +245,7 @@ function CharElemSize_( byref c as Ctx, byval t as Fbx.TypeId ) as long
     if el = Fbx.TYPE_NONE then return 0
     if c.types->Kind( el ) <> Fbx.TK_BUILTIN then return 0
     select case c.types->BuiltinOf( el )
-    case Fbx.TY_ZSTRING : return 1
+    case Fbx.TY_ZSTRING, Fbx.TY_FIXSTR : return 1
     case Fbx.TY_WSTRING : return 2
     end select
     return 0

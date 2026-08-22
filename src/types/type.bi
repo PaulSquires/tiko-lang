@@ -51,6 +51,22 @@ namespace Fbx
         BUILTIN( TY_ZSTRING,  "zstring",  8,   false, TC_ZSTRING )
         BUILTIN( TY_WSTRING,  "wstring",  0,   false, TC_WSTRING )
         BUILTIN( TY_USTRING,  "ustring",  0,   false, TC_USTRING )
+        '' 'string * N' -- THE FIXED-LENGTH, SPACE-PADDED STRING, and a THIRD string
+        '' flavour rather than a spelling of either of the two above it. Measured:
+        ''
+        ''   storage        exactly N bytes, no terminator and no room for one
+        ''   initial value  N SPACES (memset value 32), where a zstring gets NULs
+        ''   capacity       N usable characters, where 'zstring * N' holds N-1
+        ''   runtime length passed as '&h8000000000000000 or N' -- the SIGN BIT is the
+        ''                  tag that says "fixed-length", and the low bits carry N
+        ''   len()          a COMPILE-TIME CONSTANT N, never a call, never content
+        ''
+        '' Modelled as an ARRAY of this one-byte element, exactly as zstring and wstring
+        '' are, so the size and alignment fall out of the array rule. It was previously
+        '' resolved to the plain 'string' builtin -- a 24-byte DESCRIPTOR where fbc has
+        '' N raw bytes -- so every one was the wrong size and every access read the
+        '' wrong thing.
+        BUILTIN( TY_FIXSTR,   "fixstr",   8,   false, TC_ZSTRING )
         BUILTIN( TY_ANY,      "any",      0,   false, TC_ANY   )
     #endmacro
 

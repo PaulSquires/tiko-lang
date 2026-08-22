@@ -614,4 +614,33 @@ sub BackpatchTypedefs( byref c as Ctx )
     next
 end sub
 
+'' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
+function ArrayFromBoundsNode _
+    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
+      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
+
+    if id = Fbx.NODE_NONE then return base_
+    if c.ast->Kind( id ) <> Fbx.N_BLOCK then return base_
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as FB.Array( of ulong ) los, his
+    for i as long = 0 to lp->count - 1
+        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( d ) = Fbx.N_CASE_RANGE then
+            '' 'a(0 to 9)' -- both bounds written out.
+            dim as Fbx.StmtPayload ptr dp = StmtOf( c, d )
+            los.Push( cast( ulong, dp->a ) )
+            his.Push( cast( ulong, dp->b ) )
+        else
+            '' 'a(9)' -- a bare expression, which is the UPPER bound with an implicit
+            '' lower bound of 0. It is not an N_CASE_RANGE at all, so a loop that only
+            '' accepts one silently gives the array no dimensions and drops it back to
+            '' its element type.
+            los.Push( cast( ulong, Fbx.NODE_NONE ) )
+            his.Push( cast( ulong, d ) )
+        end if
+    next
+    return ArrayFromPairs( c, base_, los, his, init, true )
+end function
+
 end namespace

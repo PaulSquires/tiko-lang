@@ -1,0 +1,5 @@
+'' 'string * N': N space-padded bytes with a sign-tagged length, not a descriptor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixed-string.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/fixed-string.out

@@ -131,6 +131,7 @@ fb_SGNDouble	int32	double	lib	fb_SGNDouble
 fb_SGNSingle	int32	float	lib	fb_SGNSingle
 fb_SGNl	int32	int64	lib	fb_SGNl
 fb_SPACE	FBSTRING*	int64	lib	fb_SPACE
+fb_StrAllocTempDescF	FBSTRING*	void*, int64	lib	fb_StrAllocTempDescF
 fb_StrAllocTempDescZ	FBSTRING*	char*	lib	fb_StrAllocTempDescZ
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int64	lib	fb_StrAllocTempDescZEx
 fb_StrAllocTempResult	FBSTRING*	FBSTRING*	lib	fb_StrAllocTempResult

@@ -252,34 +252,6 @@ declare function LowerCall _
 declare sub LowerIf _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr )
 
-function BinOpFor _
-    ( byval tk as Fbx.TokenKind, byval t as MirType, _
-      byval isUnsigned as boolean ) as MirOp
-
-    dim as boolean f = IsFloatTy( t )
-    select case tk
-    case Fbx.TK_PLUS      : return M_ADD
-    case Fbx.TK_MINUS     : return M_SUB
-    case Fbx.TK_STAR      : return M_MUL
-    case Fbx.TK_SLASH     : return M_FDIV
-    case Fbx.TK_BACKSLASH : return iif( isUnsigned, M_UDIV, M_SDIV )
-    case Fbx.KW_MOD       : return iif( isUnsigned, M_UREM, M_SREM )
-    case Fbx.KW_AND       : return M_AND
-    case Fbx.KW_OR        : return M_OR
-    case Fbx.KW_XOR       : return M_XOR
-    case Fbx.KW_SHL       : return M_SHL
-    '' SHR is ARITHMETIC on a signed value -- '-1 shr 1' is -1, measured in
-    '' docs/internals/phase-5-const.md -- so it is ashr unless the type is unsigned.
-    case Fbx.KW_SHR       : return iif( isUnsigned, M_LSHR, M_ASHR )
-    case Fbx.TK_EQ        : return iif( f, M_FCMP_EQ, M_ICMP_EQ )
-    case Fbx.TK_NE        : return iif( f, M_FCMP_NE, M_ICMP_NE )
-    case Fbx.TK_LT        : return iif( f, M_FCMP_LT, iif( isUnsigned, M_ICMP_ULT, M_ICMP_SLT ) )
-    case Fbx.TK_GT        : return iif( f, M_FCMP_GT, iif( isUnsigned, M_ICMP_UGT, M_ICMP_SGT ) )
-    case Fbx.TK_LE        : return iif( f, M_FCMP_LE, M_ICMP_SLE )
-    case Fbx.TK_GE        : return iif( f, M_FCMP_GE, M_ICMP_SGE )
-    end select
-    return M_NONE
-end function
 
 function IsUnsignedType _
     ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
@@ -449,6 +421,13 @@ function LowerExpr _
         if cmpStr = false then
             cmpStr = IsStringType( c, c.info->TypeOf_( bp->rhs ) ) orelse _
                      (IsWideString_( c, c.info->TypeOf_( bp->rhs ) ))
+        end if
+        '' A FIXED-LENGTH string is neither IsStringType nor wide, so 'a = b' over two
+        '' of them fell to the NUMERIC path and compared 32-byte objects as integers.
+        if cmpStr = false then
+            dim as longint fcn
+            cmpStr = (StrSwapKind_( c, c.info->TypeOf_( bp->lhs ), fcn ) = 3) orelse _
+                     (StrSwapKind_( c, c.info->TypeOf_( bp->rhs ), fcn ) = 3)
         end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, bp, tk )
@@ -739,7 +718,8 @@ private sub LowerAssign _
     '' The runtime call is the one the DIM INITIALISER already used, and fbc emits the
     '' same thing for both: fb_StrAssign( FA, 8, &C, -1, 0 ).
     dim as longint zdn
-    if StrSwapKind_( c, c.info->TypeOf_( target ), zdn ) = 1 then
+    dim as long zdk = StrSwapKind_( c, c.info->TypeOf_( target ), zdn )
+    if (zdk = 1) orelse (zdk = 3) then
         dim as MirValue zdst = LowerAddr( c, target )
         if zdst.kind <> cast( ubyte, MV_NONE ) then
             if LowerZstrAssignTo( c, zdst, zdn, value, false ) then return
@@ -990,6 +970,26 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                     c.cleanupNode.Push( 0 )
                     c.cleanupSlot.Push( slot )
                 end if
+
+                '' A 'string * N' IS PREFILLED WITH SPACES, not zeros, and not
+                '' incidentally: it has no terminator, so its N bytes ARE its value and
+                '' an unwritten one must read back as N blanks. Measured --
+                '' '__builtin_memset( (uint8*)A$1, 32, 32ll )' -- and the one thing here
+                '' that a zstring's zero-fill would get wrong rather than merely leave
+                '' untidy. Emitted before any initialiser, which then overwrites it.
+                dim as longint fsn3
+                if StrSwapKind_( c, vs->type_, fsn3 ) = 3 then
+                    dim as MirValue fsa
+                    fsa.kind = cast( ubyte, MV_LOCAL )
+                    fsa.ty = cast( ubyte, MT_PTR )
+                    fsa.id = slot
+                    dim as FB.Array( of ulong ) fma
+                    fma.Push( cast( ulong, fsa.kind ) ) : fma.Push( cast( ulong, fsa.id ) )
+                    fma.Push( cast( ulong, MV_CONST_INT ) ) : fma.Push( 32 )
+                    fma.Push( cast( ulong, MV_CONST_INT ) )
+                    fma.Push( cast( ulong, c.types->ElemCount( vs->type_ ) ) )
+                    EmitRtl( c, RTL_MEMSET, fma )
+                end if
             end if
 
             '' Hoisted: FreeBASIC warns 38 on a mixed boolean/non-boolean chain, and
@@ -1016,7 +1016,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' length arguments are its own element count rather than -1.
             if needsStore andalso (slot >= 0) then
                 dim as longint zn2
-                if StrSwapKind_( c, c.syms->SymbolAt( sid )->type_, zn2 ) = 1 then
+                dim as long zk2 = StrSwapKind_( c, c.syms->SymbolAt( sid )->type_, zn2 )
+                if (zk2 = 1) orelse (zk2 = 3) then
                     dim as MirValue zdst
                     zdst.kind = cast( ubyte, MV_LOCAL )
                     zdst.ty = cast( ubyte, MT_PTR )

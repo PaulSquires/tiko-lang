@@ -386,7 +386,7 @@ function FixedStringElem _
     dim as Fbx.TypeId e = types.Inner( t )
     if types.Kind( e ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
     select case types.BuiltinOf( e )
-    case Fbx.TY_ZSTRING, Fbx.TY_WSTRING, Fbx.TY_USTRING
+    case Fbx.TY_ZSTRING, Fbx.TY_WSTRING, Fbx.TY_USTRING, Fbx.TY_FIXSTR
         return e
     end select
     return Fbx.TYPE_NONE

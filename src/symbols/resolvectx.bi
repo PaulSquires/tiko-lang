@@ -82,6 +82,11 @@ declare function IterElemType_ _
 declare sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
       byval t as Fbx.TypeId )
+declare function ArrayFromPairs _
+    ( byref c as Ctx, byval base_ as Fbx.TypeId, _
+      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
+      byval init as Fbx.NodeId = Fbx.NODE_NONE, _
+      byval emptyIsDynamic as boolean = false ) as Fbx.TypeId
 declare function ArrayFromBoundsNode _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
       byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId

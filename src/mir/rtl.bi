@@ -256,6 +256,11 @@ namespace Fbx.Mir
         RTL( RTL_STR_FILL1,         "fb_StrFill1",         "p",   "zl"    )
         RTL( RTL_STR_FILL2,         "fb_StrFill2",         "p",   "zp"    )
 
+        '' A FIXED-LENGTH string borrowed as a descriptor. Its own entry point, taking
+        '' the TAGGED length -- 'fb_StrAllocTempDescF( A, -9223372036854775776ll )' --
+        '' where a zstring uses the Z form and strlen's, and a var-length string needs
+        '' no wrapper at all. Three flavours, three answers.
+        RTL( RTL_STR_TEMPF,         "fb_StrAllocTempDescF", "p",   "pz"    )
         RTL( RTL_STR_TEMPZ,         "fb_StrAllocTempDescZEx", "p",  "pz"  )
         '' The same thing without a length: a NUL-terminated char* whose length the
         '' runtime works out. That is what a ZSTRING destination borrows for LSET.

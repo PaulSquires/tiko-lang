@@ -340,6 +340,15 @@ declare function EmitRtl _
     '' SIZED spelling ('zstring * 8', an array of the builtin) and the UNSIZED one
     '' (the bare builtin, which a 'zstring ptr' points at) count.
     declare function CharElemSize_( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    '' The LENGTH ARGUMENT a 'string * N' is passed as, which is not N: measured,
+    '' '&h8000000000000000 or N' on win64 and '&h80000000 or N' on win32, the SIGN BIT
+    '' being the tag that says "N space-padded bytes".
+    declare function FixedStrLenArg_( byref c as Ctx, byval n as longint ) as longint
+    '' Push a string operand's LENGTH, as a const instruction when it will not fit the
+    '' 32-bit inline constant field -- which a fixed-length string's tagged length
+    '' never does.
+    declare sub PushStrLen_ _
+        ( byref c as Ctx, byref args as FB.Array( of ulong ), byval n as longint )
     declare function LowerWideIif_ _
         ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
           byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean

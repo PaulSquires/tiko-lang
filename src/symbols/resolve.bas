@@ -426,11 +426,16 @@ function ResolveTypeRef _
     '' rule instead of needing its own.
     if (sp->c <> Fbx.NODE_NONE) andalso (base_ <> Fbx.TYPE_NONE) then
         select case k
-        case Fbx.KW_ZSTRING, Fbx.KW_WSTRING, Fbx.KW_USTRING
+        case Fbx.KW_ZSTRING, Fbx.KW_WSTRING, Fbx.KW_USTRING, Fbx.KW_STRING
+            '' 'string * N' IS NOT 'string'. It is the FIXED-LENGTH, space-padded
+            '' flavour -- N raw bytes, no descriptor -- and resolving it to the plain
+            '' string builtin gave it a 24-byte descriptor where fbc has N bytes, so
+            '' every one was the wrong size and every access read the wrong thing.
             dim as Fbx.Check.ConstVal lv = _
                 Fbx.Check.ConstOf( *c.ast, sp->c, *c.srcMgr, *c.names, _
                                    c.types->target.pointerBits, c.syms, scope_ )
             if lv.known andalso (lv.value > 0) then
+                if k = Fbx.KW_STRING then base_ = c.types->Builtin( Fbx.TY_FIXSTR )
                 base_ = c.types->ArrayOf( base_, 1, cast( long, lv.value ) )
             end if
         end select
@@ -836,7 +841,7 @@ end function
 '' Getting this wrong would not be a decline. An unknown bound makes this return the
 '' ELEMENT type, so the array becomes eight bytes where twenty-four were needed and
 '' nothing says so -- which is exactly what parsing '...' without inferring it did.
-private function ArrayFromPairs _
+function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
       byval init as Fbx.NodeId = Fbx.NODE_NONE, _
@@ -910,34 +915,6 @@ function ArrayFromBounds _
     return ArrayFromPairs( c, base_, los, his )
 end function
 
-'' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
-function ArrayFromBoundsNode _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
-      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
-
-    if id = Fbx.NODE_NONE then return base_
-    if c.ast->Kind( id ) <> Fbx.N_BLOCK then return base_
-    dim as Fbx.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as FB.Array( of ulong ) los, his
-    for i as long = 0 to lp->count - 1
-        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
-        if c.ast->Kind( d ) = Fbx.N_CASE_RANGE then
-            '' 'a(0 to 9)' -- both bounds written out.
-            dim as Fbx.StmtPayload ptr dp = StmtOf( c, d )
-            los.Push( cast( ulong, dp->a ) )
-            his.Push( cast( ulong, dp->b ) )
-        else
-            '' 'a(9)' -- a bare expression, which is the UPPER bound with an implicit
-            '' lower bound of 0. It is not an N_CASE_RANGE at all, so a loop that only
-            '' accepts one silently gives the array no dimensions and drops it back to
-            '' its element type.
-            los.Push( cast( ulong, Fbx.NODE_NONE ) )
-            his.Push( cast( ulong, d ) )
-        end if
-    next
-    return ArrayFromPairs( c, base_, los, his, init, true )
-end function
 
 
 

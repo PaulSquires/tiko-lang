@@ -1,0 +1,121 @@
+global str $str0 "literal"
+global str $str1 "x"
+func void P() {
+  local agg a size 32
+  local agg b size 32
+  local agg c7 size 7
+  local agg s size 24
+  local agg z size 32
+  local i32 n
+  local agg $tmp6 size 24
+  entry0:
+    %1 = alloca ptr a
+    %2 = call.rtl ptr memset(@a, 32, 32)
+    %3 = alloca ptr b
+    %4 = call.rtl ptr memset(@b, 32, 32)
+    %5 = alloca ptr c7
+    %6 = call.rtl ptr memset(@c7, 32, 7)
+    %7 = alloca ptr s
+    %8 = field.addr @s, 0
+    store %8, 0
+    %9 = field.addr @s, 8
+    store %9, 0
+    %10 = field.addr @s, 16
+    store %10, 0
+    %11 = alloca ptr z
+    %12 = alloca ptr n
+    %13 = const i64 -9223372036854775776
+    %14 = const i64 -9223372036854775776
+    %15 = call.rtl ptr fb_StrAssign(@a, %13, @b, %14, -1)
+    %16 = const i64 -9223372036854775776
+    %17 = call.rtl ptr fb_StrAssign(@a, %16, @s, -1, -1)
+    %18 = const i64 -9223372036854775776
+    %19 = call.rtl ptr fb_StrAssign(@a, %18, @z, 32, -1)
+    %20 = const i64 -9223372036854775776
+    %21 = call.rtl ptr fb_StrAssign(@a, %20, @@$str0, 8, -1)
+    %22 = const i64 -9223372036854775776
+    %23 = call.rtl ptr fb_StrAssign(@s, -1, @a, %22, 0)
+    %24 = const i64 -9223372036854775776
+    %25 = call.rtl ptr fb_StrAssign(@z, 32, @a, %24, 0)
+    %26 = const i64 -9223372036854775776
+    %27 = const i64 -9223372036854775776
+    %28 = call.rtl i32 fb_StrCompare(@a, %26, @b, %27)
+    %29 = icmp.eq %28, 0
+    %43 = alloca ptr $tmp6
+    condbr %29, if.then2, if.else3
+  if.join1:
+    %32 = const i64 -9223372036854775776
+    %33 = call.rtl i32 fb_StrCompare(@a, %32, @@$str1, 2)
+    %34 = icmp.eq %33, 0
+    condbr %34, if.then5, if.else6
+  if.then2:
+    %30 = const i64 1
+    %31 = trunc %30
+    store @n, %31
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %37 = const i64 -9223372036854775776
+    %38 = call.rtl i32 fb_StrCompare(@a, %37, @s, -1)
+    %39 = icmp.eq %38, 0
+    condbr %39, if.then8, if.else9
+  if.then5:
+    %35 = const i64 2
+    %36 = trunc %35
+    store @n, %36
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %42 = const i64 -9223372036854775801
+    %44 = const i64 -9223372036854775776
+    %45 = const i64 -9223372036854775776
+    %46 = call.rtl ptr fb_StrConcat(@$tmp6, @a, %44, @b, %45)
+    %47 = call.rtl ptr fb_StrAssign(@c7, %42, %46, -1, -1)
+    %48 = const i64 -9223372036854775776
+    %49 = call.rtl ptr fb_StrAssign(@s, -1, @a, %48, 0)
+    %50 = const i64 -9223372036854775776
+    %51 = call.rtl ptr fb_StrConcatAssign(@s, -1, @b, %50, 0)
+    %52 = const i64 32
+    %53 = trunc %52
+    store @n, %53
+    %54 = const i64 1
+    %55 = ptr.add @a, %54
+    %56 = load %55
+    %57 = sext %56
+    store @n, %57
+    %58 = const i64 -9223372036854775776
+    %59 = call.rtl ptr fb_StrAllocTempDescF(@a, %58)
+    %60 = call.rtl i64 fb_StrInstr(1, %59, @s)
+    %61 = trunc %60
+    store @n, %61
+    %62 = const i64 -9223372036854775776
+    %63 = call.rtl ptr fb_StrAllocTempDescF(@a, %62)
+    %64 = call.rtl ptr fb_TRIM(%63)
+    %65 = call.rtl ptr fb_StrAssign(@s, -1, %64, -1, 0)
+    %66 = const i64 -9223372036854775776
+    %67 = call.rtl ptr fb_StrAllocTempDescF(@a, %66)
+    call.rtl void fb_PrintString(0, %67, 1)
+    call.rtl void fb_StrDelete(@s)
+    ret
+  if.then8:
+    %40 = const i64 3
+    %41 = trunc %40
+    store @n, %41
+    br if.join7
+  if.else9:
+    br if.join7
+}
+declare ptr memset($0, $1, $2)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare ptr fb_StrConcat($0, $1, $2, $3, $4)
+declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
+declare ptr fb_StrAllocTempDescF($0, $1)
+declare i64 fb_StrInstr($0, $1, $2)
+declare ptr fb_TRIM($0)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 1 functions, 10 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance
