@@ -185,6 +185,14 @@ namespace Fbx
     const PF_MEMB_PRIVATE   as ushort = &h0400
     const PF_MEMB_PROTECTED as ushort = &h0800
 
+    '' A GENERIC PROCEDURE -- 'function Ok( of T, E )( byval v as T ) as ...'. The
+    '' parameter list is currently SKIPPED by the parser, so nothing downstream can
+    '' tell the declaration from an ordinary one, and its body lowered as if T were a
+    '' real type: aggregates of SIZE ZERO, stores into void slots, a function emitted
+    '' under a name no call site will ever use. Recording it is what lets lowering
+    '' decline instead of producing that.
+    const PF_GENERIC_PROC   as ushort = &h1000
+
     type UnaryPayload
         as ushort op                '' TokenKind
         as NodeId operand

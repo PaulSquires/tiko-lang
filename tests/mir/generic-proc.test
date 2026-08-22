@@ -1,0 +1,5 @@
+'' A generic procedure is not code, and is no longer lowered as if it were.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-proc.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/generic-proc.out

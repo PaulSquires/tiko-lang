@@ -53,6 +53,20 @@ sub LowerProc _
     '' its output not at all. The INSTANTIATIONS are separate nodes and are lowered.
     if IsGenericMemberBody_( c, id ) then return
 
+    '' A GENERIC PROCEDURE is not code either, for the same reason and one step worse:
+    '' fbx does not even keep its type parameters, so nothing can instantiate it. Its
+    '' body used to lower with every 'as T' standing for nothing -- 'local agg r size 0'
+    '' beside stores into void slots -- and it counted as fully lowered. Declining says
+    '' what is actually true.
+    if (sp->extra and Fbx.PF_GENERIC_PROC) <> 0 then
+        '' The 'inside' kind is set too: nothing else has run at this point, so it
+        '' would otherwise carry whatever the PREVIOUS procedure left there, and the
+        '' histogram that says what to implement next would be reading a stale value.
+        c.curStmtKind = Fbx.N_PROC
+        SkipStmt( c, id )
+        return
+    end if
+
     dim as Fbx.SymbolId sid = c.info->RefOf( id )
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
     dim as Fbx.TypeId rt = iif( s <> 0, s->type_, Fbx.TYPE_NONE )

@@ -470,6 +470,12 @@ private function ParseProc _
                 Advance( p )
             wend
             Expect( p, Fbx.TK_RPAREN, ")" )
+            '' RECORDED, even though the parameters themselves are still discarded.
+            '' Without it nothing downstream could tell 'function Ok( of T, E )( ... )'
+            '' from an ordinary procedure, and its body was lowered with T standing for
+            '' nothing: aggregates of size zero and a function under a name no call site
+            '' will ever use. See PF_GENERIC_PROC.
+            sp.extra or= Fbx.PF_GENERIC_PROC
         else
             p.pos = save
         end if
