@@ -886,14 +886,25 @@ function LowerLen _
     if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
     dim as Fbx.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "len" then return false
+    dim as string lenNm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    '' SIZEOF IS NOT LEN. It is ALWAYS the type's size and never a runtime call:
+    '' measured, 'sizeof( s )' over a var-length string is 24 and 'sizeof( z )' over a
+    '' 'zstring * 8' is 8, where 'len' of either is fb_StrLen. Sharing this function is
+    '' right -- everything after the string branches is identical -- but sharing the
+    '' string branches would have made sizeof measure the TEXT.
+    ''
+    '' It was typed and never lowered at all, so every 'sizeof' declined silently
+    '' inside a DIM initialiser -- including 'callocate( sizeof( long ) * 3 )', which
+    '' is how the corpus writes an allocation.
+    dim as boolean isSizeof = (lenNm = "sizeof")
+    if (lenNm <> "len") andalso (isSizeof = false) then return false
 
     dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[lp->first] )
     dim as Fbx.TypeId at = c.info->TypeOf_( a )
     if at = Fbx.TYPE_NONE then return false
 
     '' WIDE: one argument, no length.
-    if WideStringElems( c, at ) > 0 then
+    if (WideStringElems( c, at ) > 0) andalso (isSizeof = false) then
         dim as MirValue wa = LowerAddr( c, a )
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) wargs
@@ -904,9 +915,12 @@ function LowerLen _
 
     '' NARROW: a descriptor passes -1, a fixed ZSTRING its element count.
     dim as longint zn = -1
-    dim as boolean narrow = IsStringType( c, at )
-    if narrow = false then
-        if StrSwapKind_( c, at, zn ) = 1 then narrow = true
+    dim as boolean narrow = false
+    if isSizeof = false then
+        narrow = IsStringType( c, at )
+        if narrow = false then
+            if StrSwapKind_( c, at, zn ) = 1 then narrow = true
+        end if
     end if
     if narrow then
         '' A LITERAL has no descriptor and folds: fbc knows its length outright.

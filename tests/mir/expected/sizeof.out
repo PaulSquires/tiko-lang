@@ -1,0 +1,53 @@
+func void P() {
+  local agg s size 24
+  local agg z size 8
+  local agg t size 16
+  local i32 n
+  entry0:
+    %1 = alloca ptr s
+    %2 = field.addr @s, 0
+    store %2, 0
+    %3 = field.addr @s, 8
+    store %3, 0
+    %4 = field.addr @s, 16
+    store %4, 0
+    %5 = alloca ptr z
+    %6 = alloca ptr t
+    %7 = alloca ptr n
+    %8 = const i64 4
+    %9 = trunc %8
+    store @n, %9
+    %10 = const i64 24
+    %11 = trunc %10
+    store @n, %11
+    %12 = const i64 8
+    %13 = trunc %12
+    store @n, %13
+    %14 = const i64 16
+    %15 = trunc %14
+    store @n, %15
+    %16 = const i64 16
+    %17 = trunc %16
+    store @n, %17
+    %18 = const i64 8
+    %19 = trunc %18
+    store @n, %19
+    %20 = const i64 8
+    %21 = trunc %20
+    store @n, %21
+    %22 = call.rtl i64 fb_StrLen(@s, -1)
+    %23 = trunc %22
+    store @n, %23
+    %24 = call.rtl i64 fb_StrLen(@z, 8)
+    %25 = trunc %24
+    store @n, %25
+    %26 = const i64 16
+    %27 = trunc %26
+    store @n, %27
+    call.rtl void fb_StrDelete(@s)
+    ret
+}
+declare i64 fb_StrLen($0, $1)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

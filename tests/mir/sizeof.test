@@ -1,0 +1,5 @@
+'' sizeof folds to the type's size; len does not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sizeof.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/sizeof.out
