@@ -297,6 +297,14 @@ declare function EmitRtl _
         ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerMathCall_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare sub LowerIf _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr )
+    declare function LowerTypeCtorExpr_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function TypeCtorTypeOf_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
+    declare function EmitTypeCtorInto_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byval slot as long, _
+          byval cp as Fbx.ListPayload ptr ) as boolean
     declare function LowerPropertyGet_ _
         ( byref c as Ctx, byval node as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerPropertySet_ _

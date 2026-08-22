@@ -1,0 +1,5 @@
+'' 'T( args )' as an expression: a temporary, constructed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/type-ctor-expr.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/type-ctor-expr.out

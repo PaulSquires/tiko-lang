@@ -165,6 +165,54 @@ sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
     next
 end sub
 
+'' 'T( args )' -- A TYPE CONSTRUCTOR USED AS AN EXPRESSION.
+''
+'' 'return TimeSpan( this.m_ticks )' is how the chrono and finance headers build almost
+'' every value they return, and there was no case for it: the callee is a TYPE, not a
+'' procedure, so the ordinary call path found nothing to call.
+''
+'' A temporary is built and constructed, and its VALUE is what comes back -- an
+'' aggregate value is first class in this IR, so nothing new is needed to carry it.
+''
+'' fbc constructs STRAIGHT INTO THE RESULT SLOT when the expression is the whole of a
+'' 'return' -- '_ZN1TC1Ex( &fb$result$1, N$1 ); return fb$result$1;' -- which is one
+'' copy fewer. Same value; the copy is recorded here rather than hidden.
+function LowerTypeCtorExpr_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Fbx.TypeId t = TypeCtorTypeOf_( c, id )
+    if t = Fbx.TYPE_NONE then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+
+    dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
+    if slot < 0 then return false
+    if EmitTypeCtorInto_( c, t, slot, cp ) = false then return false
+
+    dim as MirValue addr
+    addr.kind = cast( ubyte, MV_LOCAL )
+    addr.ty = cast( ubyte, MT_PTR )
+    addr.id = slot
+    outv = LowerExprLoad( c, addr, MT_AGG )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' The TYPE a 'T( args )' expression builds, or nothing when this is not one. A call
+'' whose callee is bound to a UDT SYMBOL rather than to a procedure.
+function TypeCtorTypeOf_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return Fbx.TYPE_NONE
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+    if s = 0 then return Fbx.TYPE_NONE
+    if s->kind <> cast( ubyte, Fbx.SYM_UDT ) then return Fbx.TYPE_NONE
+    if s->type_ = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+    if c.types->Kind( s->type_ ) <> Fbx.TK_UDT then return Fbx.TYPE_NONE
+    return s->type_
+end function
+
+
 '' A PROPERTY ACCESS -- 't.V' with no parentheses, and 't.V = x'.
 ''
 '' Both are CALLS. fbc emits '_ZN1T8V__get__Ev( &T )' and '_ZN1T8V__set__Ei( &T, 5 )',

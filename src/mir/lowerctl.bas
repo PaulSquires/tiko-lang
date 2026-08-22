@@ -969,4 +969,52 @@ sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
 end sub
 
 
+sub LowerIf _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr )
+
+    '' The branches hang off a list of N_IF_BRANCH, each with its own condition; the
+    '' ELSE body is 'c'.
+    dim as Fbx.NodeId branches = sp->b
+    if branches = Fbx.NODE_NONE then
+        SkipHere( c )
+        return
+    end if
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, branches )].data )]
+
+    dim as long joinB = NewBlock( c, "if.join" )
+    for i as long = 0 to lp->count - 1
+        dim as Fbx.NodeId br = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( br ) <> Fbx.N_IF_BRANCH then continue for
+        dim as Fbx.StmtPayload ptr bp = StmtOf( c, br )
+        dim as long thenB = NewBlock( c, "if.then" )
+        dim as long elseB = NewBlock( c, "if.else" )
+        '' A CONDITION THAT WOULD NOT LOWER IS A DECLINE. It used to go out as
+        '' 'condbr _, then, else' -- a conditional branch with NO CONDITION -- which
+        '' the verifier passes and a backend cannot mean anything by. The IF counted as
+        '' fully lowered while its test had vanished, which is the worst of the three
+        '' outcomes and is how 'if a + b = c' looked for as long as a concatenation
+        '' could not be compared.
+        ''
+        '' The branch still goes out, to the THEN side: an unconditional entry is no
+        '' more wrong than a missing condition and keeps the block graph well formed,
+        '' and the decline beside it is what says the test is missing.
+        dim as MirValue cond = LowerExpr( c, bp->a )
+        if cond.kind = cast( ubyte, MV_NONE ) then
+            SkipHere( c )
+            Terminate( c, MTERM_BR, thenB, -1, NoVal( ) )
+        else
+            Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
+        end if
+        c.curBlock = thenB
+        LowerBlock( c, bp->b )
+        Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+        c.curBlock = elseB
+    next
+
+    if sp->c <> Fbx.NODE_NONE then LowerBlock( c, sp->c )
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    c.curBlock = joinB
+end sub
+
 end namespace

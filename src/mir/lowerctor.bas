@@ -106,4 +106,54 @@ function LowerCtorInit _
     return true
 end function
 
+'' Construct a 'T( args )' into a slot that already exists. Shared by the expression
+'' form above and by 'return T( ... )', which constructs into the RESULT slot and needs
+'' no temporary at all.
+function EmitTypeCtorInto_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byval slot as long, _
+      byval cp as Fbx.ListPayload ptr ) as boolean
+
+    dim as Fbx.SymbolId ctor = StructorWithArity( c, StructorOf( c, t, "__ctor" ), _
+                                                  cp->count )
+    if ctor = Fbx.SYMBOL_NONE then return false
+
+    '' THE ARGUMENTS, coerced to the constructor's own parameter types: 'TimeSpan( 0 )'
+    '' passes an INTEGER literal to a 'byval as longint', and handing the runtime the
+    '' narrow value would put half a quantity in a 64-bit slot.
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( ctor )
+    if cs = 0 then return false
+    dim as Fbx.NodeId cn = cast( Fbx.NodeId, cs->payload )
+    if cn = Fbx.NODE_NONE then return false
+    dim as Fbx.StmtPayload ptr pp = StmtOf( c, cn )
+
+    dim as FB.Array( of ulong ) args
+    dim as long pi = 0
+    for i as long = 0 to cp->count - 1
+        dim as Fbx.NodeId ae = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+        dim as MirValue av = LowerExpr( c, ae )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        '' The matching parameter, counted over N_PARAM children only.
+        dim as Fbx.TypeId pt = Fbx.TYPE_NONE
+        dim as long seen = 0
+        for k as long = 0 to pp->count - 1
+            dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + k] )
+            if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+            if seen = pi then
+                pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+                exit for
+            end if
+            seen += 1
+        next
+        pi += 1
+        if pt <> Fbx.TYPE_NONE then
+            av = Coerce( c, av, LowerType( pt, *c.types ), IsUnsignedType( c, pt ) )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+        args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    next
+
+    EmitStructorCall( c, ctor, slot, 0, @args )
+    return true
+end function
+
 end namespace
