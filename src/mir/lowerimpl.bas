@@ -723,6 +723,86 @@ private sub EmitOneImplicit_ _
     c.curBlock = savedB
 end sub
 
+'' Is this a FIXED array whose element type needs a constructor -- or a destructor?
+function ArrayElemNeedsInit_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+    if c.types->IsDynArray( t ) then return false
+    dim as Fbx.TypeId el = c.types->Inner( t )
+    if c.types->Kind( el ) <> Fbx.TK_UDT then return false
+    return TypeNeedsInit_( c, el )
+end function
+
+function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+    if c.types->IsDynArray( t ) then return false
+    dim as Fbx.TypeId el = c.types->Inner( t )
+    if c.types->Kind( el ) <> Fbx.TK_UDT then return false
+    return TypeNeedsDtor_( c, el )
+end function
+
+'' AN ARRAY OF T IS N OBJECTS, and each one is constructed and destroyed. 'dim as T
+'' a( 0 to 2 )' with a string in T left three uninitialised descriptors, and the first
+'' assignment through one freed whatever the stack held.
+''
+'' fbc emits a COUNTED LOOP forward for construction and hands destruction to
+'' fb_ArrayDestructObj with the destructor as a function pointer. The loop here goes
+'' BACKWARDS for destruction, which is what 'delete[]' was measured doing and what the
+'' reverse-declaration-order rule says for fields; whether the runtime helper agrees
+'' was NOT determined -- it is inside the runtime, which was not read.
+''
+'' Unrolled rather than looped. A loop needs a counter slot and three blocks in the
+'' CLEANUP path, which runs at every exit of every enclosing scope; the arrays this
+'' reaches are small and the instruction count is bounded by the element count, which
+'' is a compile-time constant or this is not a fixed array at all.
+sub EmitArrayElems_ _
+    ( byref c as Ctx, byval slot as long, byval at as Fbx.TypeId, byval isCtor as boolean )
+
+    if slot < 0 then return
+    if c.types->Kind( at ) <> Fbx.TK_ARRAY then return
+    if c.types->IsDynArray( at ) then return
+    dim as Fbx.TypeId el = c.types->Inner( at )
+    if c.types->Kind( el ) <> Fbx.TK_UDT then return
+    dim as long n = c.types->ElemCount( at )
+    if (n <= 0) orelse (n > 4096) then return
+    dim as long esz = SizeOfType( c, el )
+    if esz <= 0 then return
+
+    dim as MirValue base_
+    base_.kind = cast( ubyte, MV_LOCAL )
+    base_.ty = cast( ubyte, MT_PTR )
+    base_.id = slot
+
+    for k as long = 0 to n - 1
+        dim as long idx = iif( isCtor, k, n - 1 - k )
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = base_
+        fa.imm = idx * esz
+        dim as MirValue ea = Emit( c, fa )
+        if ea.kind = cast( ubyte, MV_NONE ) then return
+        if isCtor then
+            dim as Fbx.SymbolId ct = StructorWithArity( c, StructorOf( c, el, "__ctor" ), 0 )
+            if ct <> Fbx.SYMBOL_NONE then
+                dim as FB.Array( of ulong ) none_
+                EmitStructorCall( c, ct, -1, @ea, @none_ )
+            else
+                CallImplicitCtor_( c, el, ea )
+            end if
+        else
+            dim as Fbx.SymbolId dt = StructorWithArity( c, StructorOf( c, el, "__dtor" ), 0 )
+            if dt <> Fbx.SYMBOL_NONE then
+                dim as FB.Array( of ulong ) none_
+                EmitStructorCall( c, dt, -1, @ea, @none_ )
+            else
+                CallImplicitDtor_( c, el, ea )
+            end if
+        end if
+    next
+end sub
+
 '' Every implicit structor this unit needs.
 ''
 '' ON DEMAND, and the demand grows as the bodies are written: a constructor emitted here

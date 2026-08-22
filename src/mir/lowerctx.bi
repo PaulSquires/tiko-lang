@@ -224,6 +224,7 @@ declare function EmitRtl _
     '' dynamic array in this slot. Deliberately an impossible SymbolId.
     const CLEANUP_ERASE_ARRAY as ulong = &hFFFFFFFF
     const CLEANUP_IMPLICIT_DTOR as ulong = &hFFFFFFFE
+    const CLEANUP_DESTROY_ARRAY as ulong = &hFFFFFFFD
 
     declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
     declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
@@ -503,6 +504,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
     declare sub WantImplicit_ _
         ( byref c as Ctx, byval t as Fbx.TypeId, byval k as long )
+    declare function ArrayElemNeedsInit_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare sub EmitArrayElems_ _
+        ( byref c as Ctx, byval slot as long, byval at as Fbx.TypeId, byval isCtor as boolean )
     declare sub EmitImplicitStructors( byref c as Ctx )
 
     '' lowervtab.bas -- virtual method tables.

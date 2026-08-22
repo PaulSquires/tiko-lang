@@ -65,6 +65,51 @@ declare void _ZN6HASSTRC1Ev($0)
 declare void _ZN6HASSTRC1ERKS_($0, $1)
 declare void _ZN6HASSTRaSERKS_($0, $1)
 declare void _ZN6HASSTRD1Ev($0)
+func void ALLOCS() {
+  local agg arr size 96
+  local ptr p
+  local ptr $tmp2
+  entry0:
+    %1 = alloca ptr arr
+    %2 = field.addr @arr, 0
+    call void _ZN6HASSTRC1Ev(%2)
+    %3 = field.addr @arr, 32
+    call void _ZN6HASSTRC1Ev(%3)
+    %4 = field.addr @arr, 64
+    call void _ZN6HASSTRC1Ev(%4)
+    %5 = const i64 1
+    %6 = const i64 32
+    %7 = mul %5, %6
+    %8 = ptr.add @arr, %7
+    %9 = field.addr %8, 8
+    %10 = call.rtl ptr fb_StrAssign(%9, -1, @@$str1, 2, 0)
+    %11 = alloca ptr p
+    %12 = call.rtl ptr calloc(32, 1)
+    %13 = alloca ptr $tmp2
+    store @$tmp2, %12
+    %14 = load @$tmp2
+    %15 = const ptr 0
+    %16 = icmp.ne %14, %15
+    condbr %16, new.ctor1, new.join2
+  new.ctor1:
+    call void _ZN6HASSTRC1Ev(%14)
+    br new.join2
+  new.join2:
+    %17 = load @$tmp2
+    store @p, %17
+    %18 = load @p
+    %19 = const ptr 0
+    %20 = icmp.ne %18, %19
+    condbr %20, del.body3, del.join4
+  del.body3:
+    call void _ZN6HASSTRD1Ev(%18)
+    call.rtl void free(%18)
+    br del.join4
+  del.join4:
+    ret
+}
+declare ptr calloc($0, $1)
+declare void free($0)
 func void USE() {
   local agg h size 32
   local agg q size 72
@@ -99,6 +144,7 @@ func i32 main($0, $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     call void COPIES()
+    call void ALLOCS()
     call void USE()
     %4 = const i32 0
     call.rtl void fb_End(%4)
@@ -179,4 +225,4 @@ func void _ZN6HASARRC1Ev($0) {
     ret
 }
 verify: ok
-lowered: 12 functions, 12 blocks, 110 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 13 functions, 17 blocks, 139 insts, 0 statements not lowered, 0 scope imbalance

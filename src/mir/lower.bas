@@ -963,6 +963,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                         if TypeNeedsInit_( c, vs->type_ ) then
                             CallImplicitCtor_( c, vs->type_, va )
                         end if
+                    elseif ArrayElemNeedsInit_( c, vs->type_ ) then
+                        EmitArrayElems_( c, slot, vs->type_, true )
                     end if
                 end if
                 dim as Fbx.SymbolId dtor = StructorWithArity( c, _
@@ -971,6 +973,12 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                     c.cleanupNode.Push( cast( ulong, dtor ) )
                     c.cleanupSlot.Push( slot )
                     c.cleanupType.Push( 0 )
+                elseif ArrayElemNeedsDtor_( c, vs->type_ ) then
+                    '' AN ARRAY OF T IS N OBJECTS, each destroyed in turn -- in reverse,
+                    '' which is what 'delete[]' was measured doing.
+                    c.cleanupNode.Push( CLEANUP_DESTROY_ARRAY )
+                    c.cleanupSlot.Push( slot )
+                    c.cleanupType.Push( cast( ulong, vs->type_ ) )
                 elseif (c.types->Kind( vs->type_ ) = Fbx.TK_UDT) andalso _
                        TypeNeedsDtor_( c, vs->type_ ) then
                     '' ...and the destructor fbc synthesises, for the same reasons.

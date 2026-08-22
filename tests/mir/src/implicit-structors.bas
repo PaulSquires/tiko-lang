@@ -61,6 +61,24 @@ sub copies( )
 end sub
 copies( )
 
+'' AN ARRAY OF T IS N OBJECTS, and 'new T' is one more. Both were allocated and
+'' constructed NOTHING: three uninitialised descriptors, and the first assignment
+'' through one freed whatever the stack held.
+''
+'' Elements are constructed forward and destroyed in REVERSE, which is what 'delete[]'
+'' was measured doing.
+''
+'' NOT DONE: 'dim shared as T g' and 'static as T s' are still constructed nowhere.
+'' fbc gives them a _GLOBAL__I / _GLOBAL__D pair and a guard flag with an atexit thunk
+'' respectively, and fbx has no module-init mechanism to put either in.
+sub allocs( )
+    dim as HasStr arr( 0 to 2 )
+    arr( 1 ).s = "x"
+    dim as HasStr ptr p = new HasStr
+    delete p
+end sub
+allocs( )
+
 sub use( )
     dim as HasStr h
     h.s = "x"

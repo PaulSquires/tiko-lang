@@ -23,6 +23,11 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     for i as long = upto - 1 to from_ step -1
         if c.cleanupSlot[i] < 0 then
             LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+        elseif c.cleanupNode[i] = CLEANUP_DESTROY_ARRAY then
+            '' AN ARRAY OF T IS N OBJECTS. The entry names the ARRAY type, which is
+            '' where both the element type and the count come from.
+            EmitArrayElems_( c, c.cleanupSlot[i], _
+                             cast( Fbx.TypeId, c.cleanupType[i] ), false )
         elseif c.cleanupNode[i] = CLEANUP_IMPLICIT_DTOR then
             '' THE DESTRUCTOR FBC WRITES FOR YOU. It has no symbol -- there is no
             '' declaration anywhere -- so the entry names the TYPE and the emitted name

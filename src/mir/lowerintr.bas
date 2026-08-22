@@ -185,10 +185,17 @@ function LowerNew_ _
     st0.b = raw
     Emit( c, st0 )
 
-    '' A CONSTRUCTOR, guarded by the null check fbc emits inline. Nothing to do for a
-    '' type without one: calloc has already zeroed the object, and for 'new string'
-    '' that zeroing is the whole initialisation.
+    '' A CONSTRUCTOR, guarded by the null check fbc emits inline.
+    ''
+    '' INCLUDING THE ONE FBC WRITES FOR YOU. 'new T' over a type with a string field
+    '' allocated the object and constructed nothing -- calloc's zeroing happens to
+    '' leave a valid empty descriptor, so it survived, but a type with a base, a vptr
+    '' or a nested constructor got none of them and the vptr in particular stayed null.
     dim as Fbx.SymbolId ctor = CtorOf_( c, el, np->count )
+    dim as boolean implCtor = false
+    if (ctor = Fbx.SYMBOL_NONE) andalso (np->count = 0) then
+        implCtor = (c.types->Kind( el ) = Fbx.TK_UDT) andalso TypeNeedsInit_( c, el )
+    end if
     dim as FB.Array( of ulong ) cargs
     if ctor <> Fbx.SYMBOL_NONE then
         '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
@@ -202,7 +209,7 @@ function LowerNew_ _
             cargs.Push( cast( ulong, av.id ) )
         next
     end if
-    if ctor <> Fbx.SYMBOL_NONE then
+    if (ctor <> Fbx.SYMBOL_NONE) orelse implCtor then
         dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
         if pv.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue zero = ConstInt( c, 0, MT_PTR )
@@ -218,7 +225,11 @@ function LowerNew_ _
         dim as long joinB = NewBlock( c, "new.join" )
         Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
         c.curBlock = bodyB
-        EmitStructorCall( c, ctor, -1, @pv, @cargs )
+        if ctor <> Fbx.SYMBOL_NONE then
+            EmitStructorCall( c, ctor, -1, @pv, @cargs )
+        else
+            CallImplicitCtor_( c, el, pv )
+        end if
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
         c.curBlock = joinB
     end if
@@ -249,8 +260,18 @@ function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.TypeId el = c.types->Inner( pt )
 
     dim as Fbx.SymbolId dtor = DtorOf_( c, el )
+    '' ...and the destructor fbc writes for you, for the same reason: 'delete p' over a
+    '' type holding a string freed the object with the string's buffer still attached.
+    dim as boolean implDtor = false
+    if dtor = Fbx.SYMBOL_NONE then
+        implDtor = (c.types->Kind( el ) = Fbx.TK_UDT) andalso TypeNeedsDtor_( c, el )
+    end if
     dim as boolean isArray = ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_ARRAY) <> 0)
-    if isArray andalso (dtor <> Fbx.SYMBOL_NONE) then return false
+    '' Hoisted to a boolean local: 'x <> y orelse b' mixes a comparison with a boolean
+    '' and fbc warns 38 on it.
+    dim as boolean anyDtor = (dtor <> Fbx.SYMBOL_NONE)
+    if anyDtor = false then anyDtor = implDtor
+    if isArray andalso anyDtor then return false
 
     dim as MirValue p = LowerExpr( c, sp->a )
     if p.kind = cast( ubyte, MV_NONE ) then return false
@@ -272,7 +293,11 @@ function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
     c.curBlock = bodyB
 
-    if dtor <> Fbx.SYMBOL_NONE then EmitStructorCall( c, dtor, -1, @p )
+    if dtor <> Fbx.SYMBOL_NONE then
+        EmitStructorCall( c, dtor, -1, @p )
+    elseif implDtor then
+        CallImplicitDtor_( c, el, p )
+    end if
 
     '' A STRING HAS NO UDT DESTRUCTOR AND STILL NEEDS RELEASING. 'delete ps' over a
     '' 'string ptr' is 'fb_StrDelete( PS ); free( PS )' -- measured -- and without the
