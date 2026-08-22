@@ -117,5 +117,88 @@ declare i64 fb_StrInstr($0, $1, $2)
 declare ptr fb_TRIM($0)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_StrDelete($0)
+func void Q() {
+  local agg aa size 33
+  local agg bb size 33
+  local agg cc size 33
+  local ptr pa
+  local ptr pb
+  local ptr pc
+  local agg s size 24
+  local i32 n
+  local agg $tmp8 size 24
+  entry0:
+    %1 = alloca ptr aa
+    %2 = alloca ptr bb
+    %3 = alloca ptr cc
+    %4 = alloca ptr pa
+    store @pa, @aa
+    %5 = alloca ptr pb
+    store @pb, @bb
+    %6 = alloca ptr pc
+    store @pc, @cc
+    %7 = alloca ptr s
+    %8 = field.addr @s, 0
+    store %8, 0
+    %9 = field.addr @s, 8
+    store %9, 0
+    %10 = field.addr @s, 16
+    store %10, 0
+    %11 = alloca ptr n
+    %12 = load @pc
+    %13 = load @pa
+    %14 = call.rtl ptr fb_StrAssign(%12, 0, %13, 0, 0)
+    %15 = load @pc
+    %16 = call.rtl ptr fb_StrAssign(%15, 0, @s, -1, 0)
+    %17 = load @pa
+    %18 = call.rtl ptr fb_StrAssign(@s, -1, %17, 0, 0)
+    %19 = load @pc
+    %20 = alloca ptr $tmp8
+    %21 = load @pa
+    %22 = load @pb
+    %23 = call.rtl ptr fb_StrConcat(@$tmp8, %21, 0, %22, 0)
+    %24 = call.rtl ptr fb_StrAssign(%19, 0, %23, -1, 0)
+    %25 = load @pa
+    %26 = load @pb
+    %27 = call.rtl i32 fb_StrCompare(%25, 0, %26, 0)
+    %28 = icmp.eq %27, 0
+    condbr %28, if.then2, if.else3
+  if.join1:
+    %31 = load @pa
+    %32 = call.rtl i64 fb_StrLen(%31, 0)
+    %33 = trunc %32
+    store @n, %33
+    call.rtl void fb_StrDelete(@s)
+    ret
+  if.then2:
+    %29 = const i64 1
+    %30 = trunc %29
+    store @n, %30
+    br if.join1
+  if.else3:
+    br if.join1
+}
+declare i64 fb_StrLen($0, $1)
+func void R() {
+  local agg z1 size 8
+  local agg z2 size 8
+  local i32 n
+  entry0:
+    %1 = alloca ptr z1
+    %2 = alloca ptr z2
+    %3 = alloca ptr n
+    %4 = call.rtl i32 fb_StrCompare(@z1, 8, @z2, 8)
+    %5 = icmp.eq %4, 0
+    condbr %5, if.then2, if.else3
+  if.join1:
+    ret
+  if.then2:
+    %6 = const i64 1
+    %7 = trunc %6
+    store @n, %7
+    br if.join1
+  if.else3:
+    br if.join1
+}
 verify: ok
-lowered: 1 functions, 10 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 18 blocks, 128 insts, 0 statements not lowered, 0 scope imbalance

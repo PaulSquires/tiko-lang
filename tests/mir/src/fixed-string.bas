@@ -54,3 +54,32 @@ sub P( )
     s = trim( a )
     print a
 end sub
+
+'' AN UNSIZED ZSTRING -- what a 'zstring ptr' points at, and what '*pz' is. It has no
+'' declared count, and fbc passes LENGTH 0 for one: 'fb_StrAssign( PC, 0ll, PA, 0ll, 0 )',
+'' 0 meaning "NUL-terminated, work it out". It matched neither the array test nor
+'' IsStringType, so every operation through a zstring pointer declined -- and
+'' 'hStringChecks( *pa, *pb, *pc )' is how the corpus exercises the whole string surface
+'' a second time.
+sub Q( )
+    dim as zstring * 33 aa, bb, cc
+    dim as zstring ptr pa = @aa, pb = @bb, pc = @cc
+    dim as string s
+    dim as long n
+    *pc = *pa
+    *pc = s
+    s = *pa
+    *pc = *pa + *pb
+    if *pa = *pb then n = 1
+    n = len( *pa )
+end sub
+
+'' AND A COMPARISON OVER TWO FIXED STRINGS WAS A SILENT MISCOMPILE. Neither operand is
+'' IsStringType, so this fell to the NUMERIC path and compared the 8-byte objects as
+'' INTEGERS -- it lowered, it verified, and it was wrong. fbc calls
+'' 'fb_StrCompare( Z1, 8ll, Z2, 8ll )'.
+sub R( )
+    dim as zstring * 8 z1, z2
+    dim as long n
+    if z1 = z2 then n = 1
+end sub

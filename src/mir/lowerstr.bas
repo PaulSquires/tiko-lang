@@ -735,6 +735,19 @@ function StrSwapKind_ _
         n = -1
         return 0
     end if
+    '' AN UNSIZED ZSTRING -- what a 'zstring ptr' points at, and what '*pz' is. It has
+    '' no declared count, and fbc passes LENGTH 0 for one: 'fb_StrAssign( PC, 0ll, PA,
+    '' 0ll, 0 )', 0 meaning "NUL-terminated, work it out". It matched neither the array
+    '' test below nor IsStringType above, so every operation through a zstring pointer
+    '' declined -- and 'hStringChecks( *pa, *pb, *pc )' is how the corpus exercises the
+    '' whole string surface a second time.
+    if c.types->Kind( t ) = Fbx.TK_BUILTIN then
+        if c.types->BuiltinOf( t ) = Fbx.TY_ZSTRING then
+            n = 0
+            return 1
+        end if
+    end if
+
     if c.types->Kind( t ) <> Fbx.TK_ARRAY then return -1
     dim as Fbx.TypeId el = c.types->Inner( t )
     if el = Fbx.TYPE_NONE then return -1

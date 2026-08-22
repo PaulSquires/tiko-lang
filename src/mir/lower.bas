@@ -422,12 +422,17 @@ function LowerExpr _
             cmpStr = IsStringType( c, c.info->TypeOf_( bp->rhs ) ) orelse _
                      (IsWideString_( c, c.info->TypeOf_( bp->rhs ) ))
         end if
-        '' A FIXED-LENGTH string is neither IsStringType nor wide, so 'a = b' over two
-        '' of them fell to the NUMERIC path and compared 32-byte objects as integers.
+        '' EVERY NARROW FLAVOUR, not just the var-length one. A 'zstring * 8', a
+        '' 'string * 32' and an unsized zstring through a pointer are none of them
+        '' IsStringType, so 'if z1 = z2' fell to the NUMERIC path and compared the
+        '' objects as INTEGERS -- silently, with no decline, where fbc calls
+        '' 'fb_StrCompare( Z1, 8ll, Z2, 8ll )'. It lowered, it verified, and it was
+        '' wrong.
         if cmpStr = false then
             dim as longint fcn
-            cmpStr = (StrSwapKind_( c, c.info->TypeOf_( bp->lhs ), fcn ) = 3) orelse _
-                     (StrSwapKind_( c, c.info->TypeOf_( bp->rhs ), fcn ) = 3)
+            dim as long lk = StrSwapKind_( c, c.info->TypeOf_( bp->lhs ), fcn )
+            dim as long rk = StrSwapKind_( c, c.info->TypeOf_( bp->rhs ), fcn )
+            cmpStr = (lk = 1) orelse (lk = 3) orelse (rk = 1) orelse (rk = 3)
         end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, bp, tk )
