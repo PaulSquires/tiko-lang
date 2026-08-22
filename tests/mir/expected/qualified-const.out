@@ -1,0 +1,28 @@
+global str $str0 "tests/mir/src/qualified-const.bas"
+func void P() {
+  local i32 n
+  local i32 m
+  local agg f size 8
+  local i32 g
+  entry0:
+    %1 = alloca ptr n
+    %2 = const i32 1
+    store @n, %2
+    %3 = alloca ptr m
+    %4 = const i64 7
+    %5 = trunc %4
+    store @m, %5
+    %6 = const i32 1
+    %7 = call.rtl ptr fb_ErrorThrowEx(%6, 33, @@$str0, 0, 0)
+    %8 = alloca ptr f
+    %9 = alloca ptr g
+    unreachable
+  error.after1:
+    %10 = field.addr @f, 4
+    %11 = load %10
+    store @g, %11
+    ret
+}
+declare ptr fb_ErrorThrowEx($0, $1, $2, $3, $4)
+verify: ok
+lowered: 1 functions, 2 blocks, 14 insts, 0 statements not lowered, 0 scope imbalance

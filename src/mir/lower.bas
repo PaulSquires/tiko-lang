@@ -284,18 +284,13 @@ function LowerExpr _
         if pp->count <> 1 then return v
         return LowerExpr( c, cast( Fbx.NodeId, c.ast->children[pp->first] ) )
 
-    case Fbx.N_MEMBER
-        '' 't.V' WITH NO PARENTHESES over a property is a call to its GETTER. With them
-        '' it is an ordinary call and never reaches here, which is why only the spelling
-        '' properties are actually used in was missing.
-        dim as MirValue pgv
-        if LowerPropertyGet_( c, id, pgv ) then return pgv
-        dim as MirValue mv = LowerAddr( c, id )
-        if mv.kind = cast( ubyte, MV_NONE ) then return v
-        return LowerExprLoad( c, mv, iif( mt <> MT_VOID, mt, _
-                              LowerType( c.info->TypeOf_( id ), *c.types ) ) )
-
-    case Fbx.N_IDENT
+    case Fbx.N_IDENT, Fbx.N_MEMBER
+        '' 'NS.K' AND 'NS.SOME_ENUM_MEMBER' FOLD TO THEIR VALUES, exactly as the
+        '' unqualified spellings do. Splitting this case for the property branch below
+        '' dropped that -- and the bitfield read with it -- so a qualified constant lost
+        '' its fold and 'x.f' over a bitfield went back to loading the whole packed unit.
+        '' The two kinds share every step but one; only the property call is
+        '' member-specific.
         dim as MirValue pre = LowerPredeclared( c, id )
         if pre.kind <> cast( ubyte, MV_NONE ) then return pre
 
@@ -303,6 +298,14 @@ function LowerExpr _
         '' neighbours share, so it is read by masking rather than by loading.
         dim as MirValue bfv
         if LowerBitfieldRead( c, id, bfv ) then return bfv
+
+        '' 't.V' WITH NO PARENTHESES over a property is a call to its GETTER. With them
+        '' it is an ordinary call and never reaches here -- so the only spelling that
+        '' was missing is the one properties are actually used in.
+        if c.ast->Kind( id ) = Fbx.N_MEMBER then
+            dim as MirValue pgv
+            if LowerPropertyGet_( c, id, pgv ) then return pgv
+        end if
 
         dim as MirValue addr = LowerAddr( c, id )
         if addr.kind = cast( ubyte, MV_NONE ) then return v

@@ -1,0 +1,5 @@
+'' A constant or enum member reached through a namespace folds to its value.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/qualified-const.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/qualified-const.out

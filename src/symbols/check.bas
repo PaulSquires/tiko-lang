@@ -948,10 +948,23 @@ function TypeOf_ _
         if qsid <> Fbx.SYMBOL_NONE then
             dim as Fbx.Symbol ptr qs = c.syms->SymbolAt( qsid )
             if qs <> 0 then
-                if qs->kind = cast( ubyte, Fbx.SYM_VARIABLE ) then
+                '' A CONSTANT OR ENUM MEMBER counts too, and only the VARIABLE case
+                '' was here. 'NS.SOME_ENUM_MEMBER' got a REFERENCE and no TYPE, so
+                '' every use of one was untyped -- 'error( FB.FB_RTERROR_... )' and
+                '' 'dim as long n = FB.X' alike, which is how the runtime headers name
+                '' every constant they export.
+                select case cast( Fbx.SymbolKind, qs->kind )
+                case Fbx.SYM_VARIABLE, Fbx.SYM_CONSTANT, Fbx.SYM_ENUMCONST
                     t = qs->type_
+                    '' AN ENUM MEMBER WITH NO TYPE OF ITS OWN is an INTEGER, which is
+                    '' what fbc gives one: the members carry values, and only the enum
+                    '' TYPE carries a name.
+                    if (t = Fbx.TYPE_NONE) andalso _
+                       (qs->kind = cast( ubyte, Fbx.SYM_ENUMCONST )) then
+                        t = c.types->Builtin( Fbx.TY_INTEGER )
+                    end if
                     exit select
-                end if
+                end select
             end if
         end if
 
