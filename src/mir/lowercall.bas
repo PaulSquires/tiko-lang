@@ -135,6 +135,24 @@ function LowerCallParts _
     if sretTmp.kind <> cast( ubyte, MV_NONE ) then callTy = MT_PTR
 
     if viaPointer then
+        '' THE RESULT TYPE COMES OFF THE PROCEDURE TYPE when the caller asked for none.
+        '' 'dim as double a = f( x, ctx )' through a function-pointer parameter reached
+        '' here with mt VOID -- a DIM initialiser names no type for its right-hand side
+        '' -- so the call went out as 'call.ind void' and the initialiser declined with
+        '' the call sitting right there. A DIRECT call gets its type from the callee's
+        '' symbol; an indirect one has no symbol, and the pointee is where it lives.
+        if callTy = MT_VOID then
+            dim as Fbx.TypeId ft = c.info->TypeOf_( calleeNode )
+            if ft <> Fbx.TYPE_NONE then
+                if c.types->Kind( ft ) = Fbx.TK_POINTER then ft = c.types->Inner( ft )
+                if ft <> Fbx.TYPE_NONE then
+                    if c.types->Kind( ft ) = Fbx.TK_PROC then
+                        callTy = LowerType( c.types->Inner( ft ), *c.types )
+                    end if
+                end if
+            end if
+        end if
+
         dim as MirValue fp = LowerExpr( c, calleeNode )
         if fp.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ic
