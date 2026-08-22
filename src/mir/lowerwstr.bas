@@ -238,6 +238,103 @@ end function
 ''
 '' Only the first was accepted before, so 'dim wr as wstring * 50 = trim( wstr(t) )'
 '' declined -- 2,496 statements across four corpus files, all of them this one shape.
+declare function WideIifArm_ _
+    ( byref c as Ctx, byref slotAddr as MirValue, byval e as Fbx.NodeId ) as boolean
+
+'' A WIDE 'iif'. Measured from fbc, and it is NOT the narrow shape with wide entry
+'' points substituted:
+''
+''     if( CT == 0 ) goto label$4;
+''     int64  vr$4 = fb_WstrLen( (uint16*)A );
+''     uint16* vr$5 = fb_WstrAlloc( vr$4 );
+''     TMP$2 = vr$5;
+''     fb_WstrAssign( TMP$2, 0ll, (uint16*)A );
+''     goto label$6;
+''   label$4:
+''     ... the same three calls for B ...
+''   label$6:
+''     fb_WstrAssign( (uint16*)C, 32ll, (uint16*)TMP$2 );
+''     fb_WstrDelete( (uint16*)TMP$2 );
+''
+'' THE TEMPORARY IS A POINTER, not storage: each arm MEASURES its operand, ALLOCATES
+'' that many characters and assigns into what it got back. A wide string has no
+'' descriptor, so there is nothing to init in place the way the narrow form does -- and
+'' the destination length in the arm's assign is 0, not -1 and not a count, because the
+'' target was just allocated to fit.
+''
+'' The allocation is released with fb_WstrDelete once the consuming statement is done,
+'' which is the same statement-temporary list the narrow form uses.
+function LowerWideIif_ _
+    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
+      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as MirValue cond = LowerExpr( c, condE )
+    if cond.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' A POINTER slot, not an aggregate one: what the arms produce is an allocation.
+    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+    if slot < 0 then return false
+    dim as MirValue taddr
+    taddr.kind = cast( ubyte, MV_LOCAL )
+    taddr.ty = cast( ubyte, MT_PTR )
+    taddr.id = slot
+
+    dim as long thenB = NewBlock( c, "wiif.then" )
+    dim as long elseB = NewBlock( c, "wiif.else" )
+    dim as long joinB = NewBlock( c, "wiif.join" )
+    Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
+
+    c.curBlock = thenB
+    if WideIifArm_( c, taddr, thenE ) = false then return false
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = elseB
+    if WideIifArm_( c, taddr, elseE ) = false then return false
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = joinB
+    c.wstrTemps.Push( cast( ulong, slot ) )
+    outv = LowerExprLoad( c, taddr, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' One arm: measure, allocate, assign. The slot holds the allocation's ADDRESS, so the
+'' store is into it and every later use loads through it.
+private function WideIifArm_ _
+    ( byref c as Ctx, byref slotAddr as MirValue, byval e as Fbx.NodeId ) as boolean
+
+    dim as MirValue src
+    if WideOperand_( c, e, src ) = false then return false
+
+    dim as FB.Array( of ulong ) la
+    la.Push( cast( ulong, src.kind ) ) : la.Push( cast( ulong, src.id ) )
+    dim as MirValue n = EmitRtl( c, RTL_WSTR_LEN, la )
+    if n.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) aa
+    aa.Push( cast( ulong, n.kind ) ) : aa.Push( cast( ulong, n.id ) )
+    dim as MirValue buf = EmitRtl( c, RTL_WSTR_ALLOC, aa )
+    if buf.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = slotAddr
+    st.b = buf
+    Emit( c, st )
+
+    '' THE DESTINATION LENGTH IS 0 here, not -1 and not a count: the target was just
+    '' allocated to fit, and fbc passes 0 to say so.
+    dim as MirValue dst = LowerExprLoad( c, slotAddr, MT_PTR )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) wa
+    wa.Push( cast( ulong, dst.kind ) ) : wa.Push( cast( ulong, dst.id ) )
+    wa.Push( cast( ulong, MV_CONST_INT ) ) : wa.Push( 0 )
+    wa.Push( cast( ulong, src.kind ) ) : wa.Push( cast( ulong, src.id ) )
+    EmitRtl( c, RTL_WSTR_ASSIGN, wa )
+    return true
+end function
+
 function WideOperand_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
 
@@ -257,6 +354,14 @@ function WideOperand_ _
     end if
     if LowerWstrOf( c, id, outv ) then return true
     if LowerWideRvalue( c, id, outv ) then return true
+
+    '' A WIDE 'iif'. Structural, like the narrow one: an iif reached from a WIDE
+    '' context is a wide iif whatever its arms look like, because Check computes no
+    '' type for an iif call and an arm may be an intrinsic with no type either.
+    dim as Fbx.NodeId iC, iT, iE
+    if IsIifCall_( c, id, iC, iT, iE ) then
+        if LowerWideIif_( c, iC, iT, iE, outv ) then return true
+    end if
 
     '' A UDT WITH 'operator cast' TO A WSTRING, converted implicitly -- the wide half of
     '' what UserCastToStr_ does for narrow strings. A byref wstring result is a bare

@@ -37,3 +37,17 @@ sub P( )
         if a[i] <> b[i] then n = 5
     next
 end sub
+
+'' A WIDE 'iif' is NOT the narrow shape with wide entry points substituted. Each arm
+'' MEASURES its operand, ALLOCATES that many characters and assigns into what it got
+'' back -- fb_WstrAlloc is the only wide entry point that allocates -- so the temporary
+'' is a POINTER rather than storage, and the destination length in the arm's assign is
+'' 0, not -1 and not a count, because the target was just allocated to fit. It is
+'' released with fb_WstrDelete on the pointer LOADED from the slot.
+dim shared as integer ct
+
+sub Q( )
+    dim as wstring * 32 a, b, c
+    c = iif( ct, a, b )
+    c = iif( ct, wstr( 1 ), wstr( 2 ) )
+end sub

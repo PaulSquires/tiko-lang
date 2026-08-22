@@ -273,6 +273,16 @@ sub MathProbe( )
     y = x ^ y
 end sub
 ''',
+    # A WIDE 'iif'. Its arms ALLOCATE -- fb_WstrAlloc is the only wide entry point that
+    # does -- which is why it needs a pointer temporary where the narrow form needs a
+    # descriptor. The condition has to be NON-CONSTANT or fbc folds the whole thing.
+    "wideiif": '''
+dim shared as integer wiifCt
+sub WideIifProbe( )
+    dim as wstring * 32 a, b, c
+    c = iif( wiifCt, a, b )
+end sub
+''',
     # The NARROW substring and trim family. The spellings are not consistent --
     # fb_TRIM but fb_TrimEx, fb_LEFT but fb_StrMid -- so every one is probed.
     "strsub": '''

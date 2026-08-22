@@ -53,6 +53,11 @@ type Ctx
     as FB.Array( of long )  loopKind
     '' Slots holding string temporaries whose life ends with the current STATEMENT.
     as FB.Array( of ulong ) strTemps
+    '' The same, for WIDE temporaries -- a separate list because they are released
+    '' differently: a wide temporary slot holds a POINTER to an allocation, so its
+    '' release is fb_WstrDelete on the pointer LOADED from the slot, where a narrow one
+    '' is fb_StrDelete on the descriptor's own address.
+    as FB.Array( of ulong ) wstrTemps
     '' DATA. The head of the module's block chain (-1 when it has none), and the
     '' label -> block map a 'restore lbl' resolves through. Both are built by a
     '' PRE-PASS, because 'restore lbl' may name a label that appears later.
@@ -322,6 +327,9 @@ declare function EmitRtl _
     declare function LowerArrayInit _
         ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
           byval init as Fbx.NodeId ) as boolean
+    declare function LowerWideIif_ _
+        ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
+          byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerStringIif_ _
         ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
           byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean

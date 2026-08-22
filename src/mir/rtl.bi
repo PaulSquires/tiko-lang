@@ -68,6 +68,11 @@ namespace Fbx.Mir
         RTL( RTL_WSTR_ASSIGN_TOA,   "fb_WstrAssignToA",    "p",   "pzpl"  )
         RTL( RTL_WSTR_DELETE,       "fb_WstrDelete",       "v",   "p"     )
         RTL( RTL_WSTR_LEN,          "fb_WstrLen",          "z",   "p"     )
+        '' A WIDE TEMPORARY, allocated to hold a given number of CHARACTERS. Its result
+        '' is a bare uint16* the caller owns and must release with fb_WstrDelete -- the
+        '' only wide entry point that allocates, and the reason a wide 'iif' needs a
+        '' pointer local where the narrow one needs a descriptor.
+        RTL( RTL_WSTR_ALLOC,        "fb_WstrAlloc",        "p",   "z"     )
         '' No lengths, unlike the narrow fb_StrCompare, and an int32 result that fbc
         '' widens before testing. One function covers all six operators.
         RTL( RTL_WSTR_COMPARE,      "fb_WstrCompare",      "l",   "pp"    )
