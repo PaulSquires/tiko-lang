@@ -548,6 +548,43 @@ end function
 declare function UdtMemberNamed_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
 
+'' A CONCATENATION as a string OPERAND -- 'left( a + b, 4 )', 'len( a + b )',
+'' 'a + b = c', an arm of an iif. fbc builds it into a temporary descriptor and uses
+'' what fb_StrConcat gives back:
+''
+''     FBSTRING* vr$8 = fb_StrConcat( &TMP$4, (void*)&A, -1ll, (void*)&B, -1ll );
+''     FBSTRING* vr$9 = fb_LEFT( (FBSTRING*)vr$8, 4ll );
+''
+'' THE TEMPORARY IS NEITHER ZEROED NOR DELETED -- measured: fbc declares it and does
+'' nothing else to it, in every one of these shapes. Registering it for cleanup, which
+'' is what an iif's own temporary needs, would emit a delete fbc does not.
+''
+'' Only the TWO-TERM form, because fb_StrConcat takes exactly two operands. A longer
+'' chain declines rather than being nested into something fbc does not emit.
+function ConcatToTemp_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if e = Fbx.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, e, terms )
+    if terms.Count <> 2 then return false
+
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue ta
+    ta.kind = cast( ubyte, MV_LOCAL )
+    ta.ty = cast( ubyte, MT_PTR )
+    ta.id = slot
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, ta.kind ) ) : args.Push( cast( ulong, ta.id ) )
+    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[0] ) ) = false then return false
+    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[1] ) ) = false then return false
+    outv = EmitRtl( c, RTL_STR_CONCAT, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 '' THE MATH INTRINSICS -- int, fix, frac, abs, sgn, sqr and the transcendentals.
 ''
 '' None of them were lowered, so every one declined. 'ctr1 = 1 + int( (b - a) / s )' is
@@ -834,6 +871,14 @@ function StrDescriptorOf_ _
             if outv.kind <> cast( ubyte, MV_NONE ) then return true
         end if
     end if
+    '' A CONCATENATION, before any type test: a concat IS string-typed, so the
+    '' IsStringType branch above would claim it and ask for an address it has not got.
+    dim as MirValue ccv
+    if ConcatToTemp_( c, id, ccv ) then
+        outv = ccv
+        return true
+    end if
+
     '' A UDT WITH 'operator cast' TO A STRING. Tried before the general fallback: the
     '' conversion is what makes the operand a string at all, and without it 'trim( u )'
     '' declined outright.

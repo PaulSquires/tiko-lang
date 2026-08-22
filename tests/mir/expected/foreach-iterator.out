@@ -80,46 +80,58 @@ func void P() {
     %4 = alloca ptr $tmp3
     %5 = call agg _ZN4COLL11GETITERATOREv(@c)
     store @$tmp3, %5
-    %9 = alloca ptr y
-    %10 = alloca ptr $tmp5
+    %11 = alloca ptr y
+    %12 = alloca ptr $tmp5
     br each.test3
   each.body1:
     %6 = call i32 _ZN4ITER5VALUEEv(@$tmp3)
     store @x, %6
     %7 = load @total
+    %8 = load @x
+    %9 = add %7, %8
+    store @total, %9
     br each.cont2
   each.cont2:
     call void _ZN4ITER8MOVENEXTEv(@$tmp3)
     br each.test3
   each.test3:
-    %8 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
-    condbr %8, each.body1, each.exit4
+    %10 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
+    condbr %10, each.body1, each.exit4
   each.exit4:
-    %11 = call agg _ZN4COLL11GETITERATOREv(@c)
-    store @$tmp5, %11
+    %13 = call agg _ZN4COLL11GETITERATOREv(@c)
+    store @$tmp5, %13
     br each.test7
   each.body5:
-    %12 = call i32 _ZN4ITER5VALUEEv(@$tmp5)
-    store @y, %12
-    %13 = const i64 20
-    condbr _, if.then10, if.else11
+    %14 = call i32 _ZN4ITER5VALUEEv(@$tmp5)
+    store @y, %14
+    %15 = load @y
+    %16 = const i64 20
+    %17 = sext %15
+    %18 = icmp.eq %17, %16
+    condbr %18, if.then10, if.else11
   each.cont6:
     call void _ZN4ITER8MOVENEXTEv(@$tmp5)
     br each.test7
   each.test7:
-    %16 = call i8 _ZN4ITER7ISVALIDEv(@$tmp5)
-    condbr %16, each.body5, each.exit8
+    %26 = call i8 _ZN4ITER7ISVALIDEv(@$tmp5)
+    condbr %26, each.body5, each.exit8
   each.exit8:
     ret
   if.join9:
-    %14 = const i64 40
-    condbr _, if.then13, if.else14
+    %19 = load @y
+    %20 = const i64 40
+    %21 = sext %19
+    %22 = icmp.eq %21, %20
+    condbr %22, if.then13, if.else14
   if.then10:
     br each.cont6
   if.else11:
     br if.join9
   if.join12:
-    %15 = load @total
+    %23 = load @total
+    %24 = load @y
+    %25 = add %23, %24
+    store @total, %25
     br each.cont6
   if.then13:
     br each.exit8
@@ -127,8 +139,4 @@ func void P() {
     br if.join12
 }
 verify: ok
-lowered: 5 functions, 19 blocks, 66 insts, 6 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 4
-  inside N_IF 2
-  skip-site src\mir\lower.bas:42 4
-  skip-site src\mir\lower.bas:998 2
+lowered: 5 functions, 19 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance

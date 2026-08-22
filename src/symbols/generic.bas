@@ -316,6 +316,50 @@ sub InstantiatePendingProcs_( byref c as Ctx )
     wend
 end sub
 
+declare function TypeMemberNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
+'' THE ELEMENT TYPE OF A USER COLLECTION -- the RFC-0002 iterator protocol.
+''
+'' STRUCTURAL, not nominal: a collection is anything with GetIterator( ), and its
+'' element type is the return type of the iterator's Value( ). Two lookups, and nothing
+'' is declared to implement anything.
+''
+'' Answered in RESOLVE rather than in lowering, which is where the loop variable used to
+'' get its type. Check runs in between, so a variable typed during lowering is untyped
+'' for the whole of Check -- and 'if y = 20' inside the loop body produced NO CONDITION,
+'' which went out as a conditional branch with nothing to branch on and counted as
+'' fully lowered.
+function IterElemType_ _
+    ( byref c as Ctx, byval seqT as Fbx.TypeId ) as Fbx.TypeId
+
+    dim as Fbx.SymbolId gi = TypeMemberNamed_( c, seqT, "getiterator" )
+    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( gi )
+    if gs = 0 then return Fbx.TYPE_NONE
+    if gs->type_ = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+    dim as Fbx.SymbolId vo = TypeMemberNamed_( c, gs->type_, "value" )
+    dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( vo )
+    if vs = 0 then return Fbx.TYPE_NONE
+    return vs->type_
+end function
+
+'' A member of a UDT by name, folded.
+private function TypeMemberNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Fbx.SYMBOL_NONE
+    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
+end function
+
 '' The statements of a block.
 ''
 '' FIRST AND COUNT ARE SNAPSHOTTED because instantiating a generic member RE-PARSES it,

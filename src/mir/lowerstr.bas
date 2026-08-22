@@ -923,7 +923,15 @@ function LowerLen _
             outv = ConstInt( c, len( StringLitText_( c, a ) ), MT_I64 )
             return (outv.kind <> cast( ubyte, MV_NONE ))
         end if
+        '' NOT NECESSARILY ADDRESSABLE. 'len( a + b )' has no address to take, and fbc
+        '' builds the concatenation into a temporary and measures that:
+        '' 'fb_StrLen( (void*)fb_StrConcat( &TMP, &A, -1, &B, -1 ), -1ll )'. Anything
+        '' else that hands back a descriptor works the same way.
         dim as MirValue sa = LowerAddr( c, a )
+        if sa.kind = cast( ubyte, MV_NONE ) then
+            if StrDescriptorOf_( c, a, sa ) = false then return false
+            zn = -1
+        end if
         if sa.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) sargs
         sargs.Push( cast( ulong, sa.kind ) ) : sargs.Push( cast( ulong, sa.id ) )
@@ -1403,6 +1411,17 @@ function EmitStrTerm _
     '' of the text. The reverse direction -- a fixed destination -- was already handled;
     '' this is the same fact on the other side, and it declined outright: 'c = fa' is
     '' one of the commonest shapes in the corpus and produced nothing at all.
+    '' A CONCATENATION, before the type test below claims it. Reached from the string
+    '' COMPARISON path -- 'if a + b = c' -- where the operands are not flattened; the
+    '' assignment path flattens first, so a term is never a concat there.
+    dim as MirValue tcc
+    if ConcatToTemp_( c, term, tcc ) then
+        args.Push( cast( ulong, tcc.kind ) ) : args.Push( cast( ulong, tcc.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        return true
+    end if
+
     '' A UDT CONVERTED BY 'operator cast'. A bare char* passes LENGTH 0 here, not -1
     '' and not a declared count: measured, 'r = u' is
     '' 'fb_StrAssign( &R, -1ll, vr, 0ll, 0 )'. 0 means NUL-terminated, work it out.

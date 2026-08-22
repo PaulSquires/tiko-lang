@@ -1355,8 +1355,23 @@ private sub LowerIf _
         dim as Fbx.StmtPayload ptr bp = StmtOf( c, br )
         dim as long thenB = NewBlock( c, "if.then" )
         dim as long elseB = NewBlock( c, "if.else" )
+        '' A CONDITION THAT WOULD NOT LOWER IS A DECLINE. It used to go out as
+        '' 'condbr _, then, else' -- a conditional branch with NO CONDITION -- which
+        '' the verifier passes and a backend cannot mean anything by. The IF counted as
+        '' fully lowered while its test had vanished, which is the worst of the three
+        '' outcomes and is how 'if a + b = c' looked for as long as a concatenation
+        '' could not be compared.
+        ''
+        '' The branch still goes out, to the THEN side: an unconditional entry is no
+        '' more wrong than a missing condition and keeps the block graph well formed,
+        '' and the decline beside it is what says the test is missing.
         dim as MirValue cond = LowerExpr( c, bp->a )
-        Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
+        if cond.kind = cast( ubyte, MV_NONE ) then
+            SkipHere( c )
+            Terminate( c, MTERM_BR, thenB, -1, NoVal( ) )
+        else
+            Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
+        end if
         c.curBlock = thenB
         LowerBlock( c, bp->b )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )

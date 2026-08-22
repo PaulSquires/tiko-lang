@@ -489,38 +489,13 @@ function StrInitFrom_ _
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, cast( ulongint, -1 ) ) )
 
-    '' A CONCATENATION ARM -- 'iif( c, a + b, "" )' -- FIRST, before the type tests.
-    '' A concat IS string-typed, so IsStringType below claims it and then asks for its
+    '' A CONCATENATION ARM -- 'iif( c, a + b, "" )' -- FIRST, before the type tests. A
+    '' concat IS string-typed, so IsStringType below claims it and then asks for its
     '' ADDRESS, which it has not got. Same ordering trap as everywhere else in this
     '' file: a recogniser has to run before the test that would swallow it.
-    ''
-    '' fbc builds it with fb_StrConcat
-    '' into a SECOND temporary and inits from that:
-    ''
-    ''     FBSTRING* vr$7 = fb_StrConcat( &TMP$5, &A, -1ll, &B, -1ll );
-    ''     fb_StrInit( &TMP$4, -1ll, vr$7, -1ll, 0 );
-    ''
-    '' Only the TWO-TERM form is built this way, because fb_StrConcat takes exactly
-    '' two operands. A longer chain still declines rather than being nested into
-    '' something fbc does not emit.
-    dim as FB.Array( of ulong ) cterms
-    FlattenConcat( c, e, cterms )
-    if cterms.Count = 2 then
-        dim as long cslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-        if cslot < 0 then return false
-        dim as MirValue ca
-        ca.kind = cast( ubyte, MV_LOCAL )
-        ca.ty = cast( ubyte, MT_PTR )
-        ca.id = cslot
-        ZeroStrDescriptor( c, ca )
-        dim as FB.Array( of ulong ) cargs
-        cargs.Push( cast( ulong, ca.kind ) ) : cargs.Push( cast( ulong, ca.id ) )
-        if EmitStrTerm( c, cargs, cast( Fbx.NodeId, cterms[0] ) ) = false then return false
-        if EmitStrTerm( c, cargs, cast( Fbx.NodeId, cterms[1] ) ) = false then return false
-        dim as MirValue cv = EmitRtl( c, RTL_STR_CONCAT, cargs )
-        if cv.kind = cast( ubyte, MV_NONE ) then return false
-        c.strTemps.Push( cast( ulong, cslot ) )
-        args.Push( cast( ulong, cv.kind ) ) : args.Push( cast( ulong, cv.id ) )
+    dim as MirValue ccv
+    if ConcatToTemp_( c, e, ccv ) then
+        args.Push( cast( ulong, ccv.kind ) ) : args.Push( cast( ulong, ccv.id ) )
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, cast( ulongint, -1 ) ) )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )

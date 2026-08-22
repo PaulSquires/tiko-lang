@@ -77,6 +77,8 @@ declare sub WalkStmt _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
 declare function ListOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.ListPayload ptr
+declare function IterElemType_ _
+    ( byref c as Ctx, byval seqT as Fbx.TypeId ) as Fbx.TypeId
 declare sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
       byval t as Fbx.TypeId )

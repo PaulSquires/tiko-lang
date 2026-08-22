@@ -1358,6 +1358,19 @@ sub WalkStmt _
                     if seqT <> Fbx.TYPE_NONE then
                         if c.types->Kind( seqT ) = Fbx.TK_ARRAY then
                             vsym->type_ = c.types->Inner( seqT )
+                        elseif c.types->Kind( seqT ) = Fbx.TK_UDT then
+                            '' A USER COLLECTION -- the RFC-0002 iterator protocol.
+                            '' Its element type is the return type of the ITERATOR's
+                            '' Value( ), two lookups away: GetIterator gives the
+                            '' iterator's type and Value gives the element's.
+                            ''
+                            '' Typed HERE and not in lowering, which is where it used
+                            '' to happen. Check runs in between, so a variable typed
+                            '' during lowering is untyped for the whole of Check --
+                            '' and 'if y = 20' inside the loop body then produced NO
+                            '' CONDITION at all, which went out as a conditional
+                            '' branch with nothing to branch on.
+                            vsym->type_ = IterElemType_( c, seqT )
                         end if
                     end if
                 end if

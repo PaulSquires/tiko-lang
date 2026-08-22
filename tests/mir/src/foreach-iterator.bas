@@ -59,6 +59,12 @@ sub P( )
     '' CONTINUE lands on the MoveNext block rather than the test, so it advances the
     '' iterator instead of spinning on the same element.
     for each y in c
+        '' THE LOOP VARIABLE'S TYPE IS RESOLVE'S TO SET, not lowering's. It used to be
+        '' assigned while the loop was being lowered -- after Check had already run --
+        '' so 'y' was untyped for the whole of Check and the two comparisons below
+        '' produced NO CONDITION AT ALL. They went out as 'condbr _, then, else': a
+        '' conditional branch with nothing to branch on, which the verifier passes, and
+        '' the statement counted as fully lowered. This golden pinned that.
         if y = 20 then continue for
         if y = 40 then exit for
         total += y
