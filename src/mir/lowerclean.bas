@@ -23,6 +23,23 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     for i as long = upto - 1 to from_ step -1
         if c.cleanupSlot[i] < 0 then
             LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+        elseif c.cleanupNode[i] = CLEANUP_DTOR_EPILOGUE then
+            '' A DESTRUCTOR'S OWN EPILOGUE -- the fields in reverse, then the base.
+            '' Registered as a cleanup action rather than appended after the body,
+            '' because a 'return' inside a destructor leaves through here and would
+            '' otherwise release nothing. It is registered FIRST, so reverse order runs
+            '' it LAST: after every local the body declared.
+            ''
+            '' The slot holds THIS, which is a POINTER, so it is loaded rather than
+            '' having its address taken.
+            dim as MirValue ta
+            ta.kind = cast( ubyte, MV_LOCAL )
+            ta.ty = cast( ubyte, MT_PTR )
+            ta.id = c.cleanupSlot[i]
+            dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
+            if tv.kind <> cast( ubyte, MV_NONE ) then
+                EmitDtorEpilogue_( c, cast( Fbx.TypeId, c.cleanupType[i] ), tv )
+            end if
         elseif c.cleanupNode[i] = CLEANUP_DESTROY_ARRAY then
             '' AN ARRAY OF T IS N OBJECTS. The entry names the ARRAY type, which is
             '' where both the element type and the count come from.
@@ -79,9 +96,14 @@ private sub PopScope( byref c as Ctx )
     if c.scopeMark.Count = 0 then return
     dim as long mark = c.scopeMark[c.scopeMark.Count - 1]
     c.scopeMark.Pop( )
+    '' ALL THREE COLUMNS. The type column was added later and was not popped here, so
+    '' it grew for the life of the compilation while the other two shrank -- and every
+    '' entry after the first scope read a type belonging to some earlier, unrelated
+    '' variable. A local of one type was destroyed by another type's destructor.
     while c.cleanupNode.Count > mark
         c.cleanupNode.Pop( )
         c.cleanupSlot.Pop( )
+        if c.cleanupType.Count > mark then c.cleanupType.Pop( )
     wend
 end sub
 

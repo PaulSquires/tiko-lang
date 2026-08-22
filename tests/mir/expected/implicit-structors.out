@@ -109,6 +109,12 @@ func void ALLOCS() {
     call.rtl void free(%18)
     br del.join4
   del.join4:
+    %21 = field.addr @arr, 64
+    call void _ZN6HASSTRD1Ev(%21)
+    %22 = field.addr @arr, 32
+    call void _ZN6HASSTRD1Ev(%22)
+    %23 = field.addr @arr, 0
+    call void _ZN6HASSTRD1Ev(%23)
     ret
 }
 declare ptr calloc($0, $1)
@@ -133,11 +139,12 @@ func void USE() {
     %9 = alloca ptr d
     call void _ZN8DERIVEDWC1Ev(@d)
     call void _ZN8DERIVEDWD1Ev(@d)
-    call void _ZN6HASSTRD1Ev(@q)
+    call void _ZN6HASARRD1Ev(@q)
     call void _ZN6HASSTRD1Ev(@h)
     ret
 }
 declare void _ZN6HASARRC1Ev($0)
+declare void _ZN6HASARRD1Ev($0)
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -249,5 +256,12 @@ func void _ZN6HASARRC1Ev($0) {
     store %18, %17
     ret
 }
+func void _ZN6HASARRD1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    ret
+}
+declare i32 fb_ArrayErase($0)
 verify: ok
-lowered: 15 functions, 19 blocks, 151 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 20 blocks, 159 insts, 0 statements not lowered, 0 scope imbalance

@@ -231,6 +231,7 @@ declare function EmitRtl _
     const CLEANUP_ERASE_ARRAY as ulong = &hFFFFFFFF
     const CLEANUP_IMPLICIT_DTOR as ulong = &hFFFFFFFE
     const CLEANUP_DESTROY_ARRAY as ulong = &hFFFFFFFD
+    const CLEANUP_DTOR_EPILOGUE as ulong = &hFFFFFFFC
 
     declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
     declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )

@@ -424,31 +424,34 @@ sub LowerProc _
 
     dim as long scopeDepthIn = c.scopeMark.Count
     PushScope( c )
-    '' Depths are recorded relative to the scope just opened for the body, which is the
-    '' depth a label written directly in the procedure sees.
-    ScanLabels( c, sp->b, scopeDepthIn + 1 )
-    LowerBlock( c, sp->b )
 
-    '' THE IMPLICIT EPILOGUE OF A DESTRUCTOR: the fields in REVERSE declaration order,
-    '' then the base's destructor. Measured, and appended after the written body the
-    '' same way the prologue is prepended to a written constructor.
+    '' THE IMPLICIT EPILOGUE OF A DESTRUCTOR -- the fields in REVERSE declaration order,
+    '' then the base's destructor -- IS A CLEANUP ACTION, not something appended after
+    '' the body.
     ''
-    '' NOT RUN ON AN EARLY RETURN. A 'return' inside a destructor body leaves through
-    '' the cleanup path, which knows nothing about this -- so a destructor that returns
-    '' early releases nothing. Stated rather than hidden; the fix is registering these
-    '' as cleanup actions, which needs an action kind that names a TYPE and a receiver
-    '' that is not a slot.
+    '' A 'return' inside a destructor leaves through the cleanup path, so appending it
+    '' meant such a destructor released NOTHING. Registered FIRST, so reverse
+    '' registration order runs it LAST: after every local the body declares, which is
+    '' the order fbc emits.
     dim as boolean wantsEpilogue = false
     if (structorType <> Fbx.TYPE_NONE) andalso (inCtor = false) then
         wantsEpilogue = NeedsDtorBody_( c, structorType )
     end if
     if wantsEpilogue then
-        dim as MirValue ta2 = AddrOfVar( c, thisSym )
-        if ta2.kind <> cast( ubyte, MV_NONE ) then
-            dim as MirValue tv2 = LowerExprLoad( c, ta2, MT_PTR )
-            EmitDtorEpilogue_( c, structorType, tv2 )
+        '' The slot holds THIS, which is a pointer, so the action LOADS it rather than
+        '' taking its address.
+        dim as long tslot = LocalFor( c, thisSym )
+        if tslot >= 0 then
+            c.cleanupNode.Push( CLEANUP_DTOR_EPILOGUE )
+            c.cleanupSlot.Push( tslot )
+            c.cleanupType.Push( cast( ulong, structorType ) )
         end if
     end if
+
+    '' Depths are recorded relative to the scope just opened for the body, which is the
+    '' depth a label written directly in the procedure sees.
+    ScanLabels( c, sp->b, scopeDepthIn + 1 )
+    LowerBlock( c, sp->b )
     CloseScope( c )
     '' Every scope opened must have been closed. An imbalance means some exit path
     '' skipped a scope's cleanup, which is the bug class this whole model exists to
