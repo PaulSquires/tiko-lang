@@ -40,6 +40,10 @@ namespace nsx
     end operator
 
     sub all_( )
+        '' THE PAREN INITIALISER IS A FIELD STORE, not a value coerced into the slot.
+        '' This golden used to pin 'trunc' followed by a store into the AGGREGATE --
+        '' an i32 written over an 'as integer' field, silently narrowing it. fbc emits
+        '' '*(int64*)&A$1 = 1;': one store, at the field's offset, no truncation.
         dim as mytype a = ( 1 ), b = ( 2 )
     end sub
 end namespace

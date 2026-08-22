@@ -928,6 +928,190 @@ end function
 ''
 '' StrINIT rather than StrAssign for a descriptor source, which is what fbc emits and
 '' is not guessable from the other two rows.
+'' 'dim as UDT x = ( 1, 2, 3 )' -- THE PAREN INITIALISER LIST.
+''
+'' Measured, and none of the shape is what symmetry would suggest:
+''
+''   - A LOCAL NEVER GETS A STATIC AGGREGATE INITIALISER. fbc declares the struct
+''     uninitialised and emits one store per supplied value. The static form
+''     ('static T X = { 1, 2, 3 }') comes from the STORAGE CLASS -- 'dim shared' or
+''     'static' -- and never from the initialiser syntax. A module-level 'dim' is a
+''     local of the module constructor and behaves exactly like one in a SUB.
+''   - THE VALUES ARE FLATTENED. A nested 'dim as Outer x = ( ( 1, 2 ), 3 )' emits the
+''     same three stores at offsets 0, 4, 8 as a flat type would: nesting exists in the
+''     parser and nowhere else.
+''   - A PARTIAL LIST ZEROES THE TAIL, AFTER THE STORES, not the whole struct before
+''     them: '__builtin_memset( (void*)((uint8*)&X + 4ll), 0, 8ll )' -- addressed at
+''     the first field with no value and sized to the remainder.
+''   - A UNION GETS NO MEMSET AT ALL. Asymmetric with the struct case above.
+''
+'' Two forms the parser hands over: N_TUPLE when a comma was written and N_PAREN when
+'' one value was. Both are list nodes and both mean the same thing here.
+''
+'' NOT HANDLED, because fbc REJECTS it: a UDT with a 'string' or 'string * N' field
+'' cannot be initialised this way at all -- 'error 24: Invalid data types', or 'error 7'
+'' at the first comma. A 'zstring * N' field IS allowed and goes through the string
+'' path, so it is the one field type here that is not a plain store.
+declare function FlattenUdtFields_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byval base_ as long, _
+      byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
+      byval depth as long ) as boolean
+function LowerUdtParenInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
+      byval init as Fbx.NodeId ) as boolean
+
+    if slot < 0 then return false
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    select case c.ast->Kind( init )
+    case Fbx.N_TUPLE, Fbx.N_PAREN
+    case else
+        return false
+    end select
+
+    dim as long ui = c.udts->Find( t )
+    if ui < 0 then return false
+
+    '' THE FIELDS, FLATTENED. 'dim as Outer x = ( ( 1, 2 ), 3 )' emits the same three
+    '' stores at 0, 4 and 8 that a flat type would: nesting exists in the parser and
+    '' nowhere else, so a nested UDT field contributes its OWN leaves here rather than
+    '' one aggregate slot.
+    dim as FB.Array( of ulong ) fOff
+    dim as FB.Array( of ulong ) fTy
+    if FlattenUdtFields_( c, t, 0, fOff, fTy, 0 ) = false then return false
+    dim as long fCount = fOff.Count
+    if fCount <= 0 then return false
+
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    if lp->count <= 0 then return false
+    '' MORE VALUES THAN FIELDS is not this construct -- it declines rather than
+    '' writing past the last one.
+    if lp->count > fCount then return false
+
+    dim as MirValue base_
+    base_.kind = cast( ubyte, MV_LOCAL )
+    base_.ty = cast( ubyte, MT_PTR )
+    base_.id = slot
+
+    '' EVERY VALUE LOWERED BEFORE ANYTHING IS STORED. A value that will not lower means
+    '' the whole initialiser declines, and emitting the earlier stores first would leave
+    '' a half-initialised object behind with a decline beside it.
+    dim as FB.Array( of ulong ) vals
+    for i as long = 0 to lp->count - 1
+        dim as Fbx.NodeId e = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        dim as MirType fmt = cast( MirType, fTy[i] )
+        dim as MirValue v = LowerExpr( c, e )
+        if v.kind = cast( ubyte, MV_NONE ) then return false
+        v = Coerce( c, v, fmt, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+        if v.kind = cast( ubyte, MV_NONE ) then return false
+        vals.Push( cast( ulong, v.kind ) )
+        vals.Push( cast( ulong, v.id ) )
+        vals.Push( cast( ulong, v.ty ) )
+    next
+
+    for i as long = 0 to lp->count - 1
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = base_
+        fa.imm = cast( long, fOff[i] )
+        dim as MirValue addr = Emit( c, fa )
+        if addr.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue v
+        v.kind = cast( ubyte, vals[i * 3] )
+        v.id = cast( long, vals[i * 3 + 1] )
+        v.ty = cast( ubyte, vals[i * 3 + 2] )
+        dim as MirInst st
+        st.op = cast( ushort, M_STORE )
+        st.ty = cast( ubyte, MT_VOID )
+        st.a = addr
+        st.b = v
+        Emit( c, st )
+    next
+
+    '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first
+    '' field with no value to the end of the object. A UNION gets none: measured, and
+    '' the one place the two shapes disagree.
+    if lp->count < fCount then
+        if IsUnionType_( c, t ) = false then
+            dim as long tailOff = cast( long, fOff[lp->count] )
+            dim as long tailLen = c.udts->udts[ui].size - tailOff
+            if tailLen > 0 then
+                dim as MirInst ta
+                ta.op = cast( ushort, M_FIELD_ADDR )
+                ta.ty = cast( ubyte, MT_PTR )
+                ta.a = base_
+                ta.imm = tailOff
+                dim as MirValue taddr = Emit( c, ta )
+                if taddr.kind <> cast( ubyte, MV_NONE ) then
+                    dim as FB.Array( of ulong ) ma
+                    ma.Push( cast( ulong, taddr.kind ) ) : ma.Push( cast( ulong, taddr.id ) )
+                    ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( 0 )
+                    ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, tailLen ) )
+                    EmitRtl( c, RTL_MEMSET, ma )
+                end if
+            end if
+        end if
+    end if
+    return true
+end function
+
+'' Every LEAF field of a UDT, in declaration order, as (byte offset, MIR type).
+''
+'' A nested UDT contributes its own leaves rather than one aggregate slot, which is what
+'' makes 'dim as Outer x = ( ( 1, 2 ), 3 )' three stores at 0, 4 and 8 -- fbc flattens
+'' the initialiser completely and the parens are decoration.
+''
+'' Returns false rather than a partial list for anything that has no plain store: a
+'' BITFIELD, whose address would be the whole packed unit, or a field type that lowers
+'' to no MIR type at all.
+function FlattenUdtFields_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byval base_ as long, _
+      byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
+      byval depth as long ) as boolean
+
+    if depth > 8 then return false
+    dim as long ui = c.udts->Find( t )
+    if ui < 0 then return false
+    dim as long f0 = c.udts->udts[ui].first
+    dim as long n = c.udts->udts[ui].count
+    if n <= 0 then return false
+    for i as long = 0 to n - 1
+        dim as Fbx.UdtField ptr fld = @c.udts->fields[f0 + i]
+        if fld->bitWidth <> 0 then return false
+        dim as MirType fmt = LowerType( fld->type_, *c.types )
+        if fmt = MT_AGG then
+            if c.types->Kind( fld->type_ ) <> Fbx.TK_UDT then return false
+            if FlattenUdtFields_( c, fld->type_, base_ + fld->offset, offs, tys, _
+                                  depth + 1 ) = false then return false
+        else
+            if fmt = MT_VOID then return false
+            offs.Push( cast( ulong, base_ + fld->offset ) )
+            tys.Push( cast( ulong, fmt ) )
+        end if
+    next
+    return true
+end function
+
+'' Whether a UDT was declared as a UNION. The flag lives on the declaring N_TYPE node,
+'' which the type's symbol points at -- there is nothing in the layout that says so,
+'' because a union's fields all sit at offset 0 and a one-field struct looks the same.
+function IsUnionType_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return false
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return false
+    dim as Fbx.NodeId n = cast( Fbx.NodeId, s->payload )
+    if n = Fbx.NODE_NONE then return false
+    if c.ast->Kind( n ) <> Fbx.N_TYPE then return false
+    return ((c.ast->nodes[cast( long, n )].flags and Fbx.NF_IS_UNION) <> 0)
+end function
+
 function LowerZstrAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
       byval value as Fbx.NodeId, byval isInit as boolean ) as boolean

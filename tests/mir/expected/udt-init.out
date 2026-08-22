@@ -1,0 +1,49 @@
+func void P() {
+  local agg x size 12
+  local agg y size 12
+  local agg o size 12
+  local agg u size 4
+  entry0:
+    %1 = alloca ptr x
+    %2 = const i64 1
+    %3 = trunc %2
+    %4 = const i64 2
+    %5 = trunc %4
+    %6 = const i64 3
+    %7 = trunc %6
+    %8 = field.addr @x, 0
+    store %8, %3
+    %9 = field.addr @x, 4
+    store %9, %5
+    %10 = field.addr @x, 8
+    store %10, %7
+    %11 = alloca ptr y
+    %12 = const i64 1
+    %13 = trunc %12
+    %14 = field.addr @y, 0
+    store %14, %13
+    %15 = field.addr @y, 4
+    %16 = call.rtl ptr memset(%15, 0, 8)
+    %17 = alloca ptr o
+    %18 = const i64 1
+    %19 = trunc %18
+    %20 = const i64 2
+    %21 = trunc %20
+    %22 = const i64 3
+    %23 = trunc %22
+    %24 = field.addr @o, 0
+    store %24, %19
+    %25 = field.addr @o, 4
+    store %25, %21
+    %26 = field.addr @o, 8
+    store %26, %23
+    %27 = alloca ptr u
+    %28 = const i64 1
+    %29 = trunc %28
+    %30 = field.addr @u, 0
+    store %30, %29
+    ret
+}
+declare ptr memset($0, $1, $2)
+verify: ok
+lowered: 1 functions, 1 blocks, 38 insts, 0 statements not lowered, 0 scope imbalance

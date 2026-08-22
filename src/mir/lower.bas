@@ -1026,6 +1026,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                 end if
             end if
 
+            '' 'dim as UDT x = ( 1, 2, 3 )' -- a PAREN INITIALISER LIST, which is a
+            '' sequence of field stores and not a value to coerce into the slot.
+            if needsStore andalso (slot >= 0) then
+                if LowerUdtParenInit_( c, slot, c.syms->SymbolAt( sid )->type_, _
+                                       ip->b ) then needsStore = false
+            end if
+
             if needsStore then
                 dim as MirValue val = LowerExpr( c, ip->b )
                 '' AN INITIALISER THAT WOULD NOT LOWER IS A DECLINE, and was silent:

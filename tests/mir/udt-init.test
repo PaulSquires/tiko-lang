@@ -1,0 +1,5 @@
+'' The paren initialiser list: flattened stores and a trailing partial memset.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-init.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/udt-init.out

@@ -37,12 +37,12 @@ func void _ZN3NSX4ALL_Ev() {
   entry0:
     %1 = alloca ptr a
     %2 = const i64 1
-    %3 = trunc %2
-    store @a, %3
+    %3 = field.addr @a, 0
+    store %3, %2
     %4 = alloca ptr b
     %5 = const i64 2
-    %6 = trunc %5
-    store @b, %6
+    %6 = field.addr @b, 0
+    store %6, %5
     ret
 }
 func i32 main($0, $1) {

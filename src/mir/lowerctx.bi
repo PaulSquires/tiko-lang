@@ -284,6 +284,10 @@ declare function EmitRtl _
           byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare sub StoreThrough _
         ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
+    declare function LowerUdtParenInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
+          byval init as Fbx.NodeId ) as boolean
+    declare function IsUnionType_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
     declare function LowerZstrAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
           byval value as Fbx.NodeId, byval isInit as boolean ) as boolean
