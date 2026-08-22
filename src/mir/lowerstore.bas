@@ -72,6 +72,14 @@ function LocalFor _
     next
     l.frontendType = s->type_
     l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
+    '' A BYDESC ARRAY PARAMETER'S SLOT HOLDS A POINTER, not a descriptor. fbc's own
+    '' signature says so -- 'void P( struct $7FBARRAYI1RE* ROWS$1 )' -- and giving it
+    '' the descriptor's own 72 bytes described a local the caller never passed.
+    if s->kind = cast( ubyte, Fbx.SYM_PARAMETER ) then
+        if c.types->IsDynArray( s->type_ ) then
+            l.ty = cast( ubyte, MT_PTR )
+        end if
+    end if
     '' An aggregate slot needs its SIZE: 'agg' says nothing about how many bytes to
     '' reserve, and the layout pass is the only thing that knows.
     l.size = SizeOfType( c, s->type_ )
@@ -570,6 +578,22 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
         if cs->type_ <> Fbx.TYPE_NONE then
             if c.types->Kind( cs->type_ ) = Fbx.TK_REFERENCE then
                 return LowerExprLoad( c, v, MT_PTR )
+            end if
+
+            '' A BYDESC ARRAY PARAMETER'S SLOT HOLDS THE DESCRIPTOR'S ADDRESS, exactly
+            '' as a byref parameter's holds its referent's -- fbc's own signature says
+            '' so: 'void P( struct $7FBARRAYI1RE* ROWS$1 )'. One load, here, and
+            '' indexing, REDIM and ERASE are all right at once, because every one of
+            '' them asks this function for the descriptor.
+            ''
+            '' Without it the slot was a 72-byte descriptor BY VALUE with the incoming
+            '' pointer stored over its first field -- so 'a( 0 ) = 1' loaded the
+            '' descriptor's own address where the DATA pointer belongs and wrote through
+            '' it, corrupting the descriptor. It lowered and it verified.
+            if cs->kind = cast( ubyte, Fbx.SYM_PARAMETER ) then
+                if c.types->IsDynArray( cs->type_ ) then
+                    return LowerExprLoad( c, v, MT_PTR )
+                end if
             end if
         end if
     end if

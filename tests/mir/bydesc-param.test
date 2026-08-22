@@ -1,0 +1,5 @@
+'' A bydesc array parameter: a dynamic array whose slot holds the descriptor's address.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bydesc-param.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/bydesc-param.out

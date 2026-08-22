@@ -1199,6 +1199,16 @@ sub WalkStmt _
     case Fbx.N_PARAM
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         dim as Fbx.TypeId t = ResolveTypeRef( c, sp->a, here )
+        '' 'sub Q( a( ) as long )' TAKES AN ARRAY, not a long. The parser records the
+        '' empty subscript as NF_ARRAY and nothing read it, so the parameter was typed
+        '' as its ELEMENT: 'redim a( ... )' inside the body found no array to
+        '' re-dimension and 'a( 0 ) = 1' had no descriptor to index through. A DYNAMIC
+        '' array, because bounds set by the caller are exactly what a bydesc parameter
+        '' does not know.
+        if (t <> Fbx.TYPE_NONE) andalso _
+           ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_ARRAY) <> 0) then
+            t = c.types->DynArrayOf( t, 1 )
+        end if
         if (t <> Fbx.TYPE_NONE) andalso _
            ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_BYREF) <> 0) then
             t = c.types->Reference( t )
