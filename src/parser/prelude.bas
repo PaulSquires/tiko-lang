@@ -1,0 +1,129 @@
+'' prelude.bas -- the declarations fbc makes that are in no header and no source.
+''
+'' Split out of parser.bas when that file passed the 1500-line lint cap: the prelude is
+'' TEXT, and text grows. Nothing moved with it changed.
+''
+'' #included rather than compiled separately, so PreludeText stays private to the parser
+'' and there is no second translation unit for a string constant.
+
+'' THE BUILTIN PRELUDE: what fbc declares that is in no header and no source.
+''
+'' 'object' is the type every UDT with a virtual method extends, and it is nowhere --
+'' fbc predeclares it. Measured, it is exactly one pointer:
+''
+''     struct $10fb_Object$ { void* VPTR$; };
+''     __FB_STATIC_ASSERT( sizeof( struct $10fb_Object$ ) == 8 );   // win32: 4
+''
+'' The rest is the runtime procedures fbc predeclares in the GLOBAL SCOPE. They are not
+'' reserved words -- 'dim as long kill' is fbc error 4, DUPLICATED DEFINITION, not a
+'' syntax error -- so the lexer must keep treating them as identifiers and only the
+'' declaration makes them mean anything.
+''
+'' WRITTEN AS SOURCE AND LEXED, rather than built as AST by hand. The 'object' type was
+'' built by hand first and it was already at the limit of what is readable; a procedure
+'' with parameters and an ALIAS is well past it.
+''
+'' See docs/language/object-abi.md for the rest of the OBJECT shape.
+private function PreludeText( ) as string
+    dim as string t = ""
+    t += "type object" & chr( 10 )
+    t += "    vptr as any ptr" & chr( 10 )
+    t += "end type" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "'' The runtime procedures fbc predeclares in the global scope. EXTERN ""C"" because the" & chr( 10 )
+    t += "'' name a linker sees is the ALIAS, verbatim, and foreign linkage is what stops the" & chr( 10 )
+    t += "'' mangler wrapping it -- 'sub F overload alias ""lower""' is _Z5loweri, which is not" & chr( 10 )
+    t += "'' the symbol the runtime exports." & chr( 10 )
+    t += "extern ""C""" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "'' Every omitted argument's value was MEASURED from what fbc emits, and not one of" & chr( 10 )
+    t += "'' them is guessable:" & chr( 10 )
+    t += "''   SLEEP with no argument is fb_Sleep( -1 ), a DIFFERENT entry point from the" & chr( 10 )
+    t += "''     two-argument form -- fbc never calls fb_SleepEx with a defaulted second one." & chr( 10 )
+    t += "''   LOCATE takes FIVE parameters, not three; row and col default to 0 because FB" & chr( 10 )
+    t += "''     rows are 1-based, and the cursor defaults to -1, distinct from the legal 0." & chr( 10 )
+    t += "''   CLS with no argument is fb_Cls( -65536 ), which is &hFFFF0000 read as signed." & chr( 10 )
+    t += "''   RANDOMIZE's seed is a DOUBLE and defaults to -1.0." & chr( 10 )
+    t += "''   COMMAND defaults to -1, and 0 is a legal distinct value (the program name)." & chr( 10 )
+    t += "''   SHELL with no argument passes a temp descriptor over the EMPTY STRING, never a" & chr( 10 )
+    t += "''     null pointer." & chr( 10 )
+    t += "declare function kill alias ""fb_FileKill"" ( byref f as const string ) as long" & chr( 10 )
+    t += "declare function mkdir alias ""fb_MkDir"" ( byref d as const string ) as long" & chr( 10 )
+    t += "declare function rmdir alias ""fb_RmDir"" ( byref d as const string ) as long" & chr( 10 )
+    t += "declare function chdir alias ""fb_ChDir"" ( byref d as const string ) as long" & chr( 10 )
+    t += "declare function curdir alias ""fb_CurDir"" ( ) as string" & chr( 10 )
+    t += "declare function shell alias ""fb_Shell"" ( byref cmd as const string = """" ) as long" & chr( 10 )
+    t += "declare function exepath alias ""fb_ExePath"" ( ) as string" & chr( 10 )
+    t += "declare function exec alias ""fb_Exec"" _" & chr( 10 )
+    t += "    ( byref f as const string, byref args as const string ) as long" & chr( 10 )
+    t += "declare function environ alias ""fb_GetEnviron"" ( byref n as const string ) as string" & chr( 10 )
+    t += "declare function setenviron alias ""fb_SetEnviron"" ( byref s as const string ) as long" & chr( 10 )
+    t += "declare function command alias ""fb_Command"" ( byval n as long = -1 ) as string" & chr( 10 )
+    t += "declare function timer alias ""fb_Timer"" ( ) as double" & chr( 10 )
+    t += "declare sub beep alias ""fb_Beep"" ( )" & chr( 10 )
+    t += "declare sub cls alias ""fb_Cls"" ( byval mode as long = -65536 )" & chr( 10 )
+    t += "declare sub randomize alias ""fb_Randomize"" _" & chr( 10 )
+    t += "    ( byval seed as double = -1.0, byval algorithm as long = 0 )" & chr( 10 )
+    t += "declare function locate alias ""fb_Locate"" _" & chr( 10 )
+    t += "    ( byval row as long = 0, byval col as long = 0, byval cursor as long = -1, _" & chr( 10 )
+    t += "      byval a4 as long = 0, byval a5 as long = 0 ) as long" & chr( 10 )
+    t += "declare sub sleep alias ""fb_Sleep"" ( byval ms as long = -1 )" & chr( 10 )
+    t += "declare function threadcreate alias ""fb_ThreadCreate"" _" & chr( 10 )
+    t += "    ( byval proc_ as any ptr, byval param as any ptr = 0, _" & chr( 10 )
+    t += "      byval stacksize as integer = 0 ) as any ptr" & chr( 10 )
+    t += "declare sub threadwait alias ""fb_ThreadWait"" ( byval h as any ptr )" & chr( 10 )
+    t += "declare function mutexcreate alias ""fb_MutexCreate"" ( ) as any ptr" & chr( 10 )
+    t += "declare sub mutexdestroy alias ""fb_MutexDestroy"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub mutexlock alias ""fb_MutexLock"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub mutexunlock alias ""fb_MutexUnlock"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare function condcreate alias ""fb_CondCreate"" ( ) as any ptr" & chr( 10 )
+    t += "declare sub conddestroy alias ""fb_CondDestroy"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub condsignal alias ""fb_CondSignal"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub condbroadcast alias ""fb_CondBroadcast"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub condwait alias ""fb_CondWait"" ( byval m as any ptr, byval x as any ptr )" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "'' THE GRAPHICS ENTRY POINTS THAT ARE ORDINARY CALLS. The statements with their own" & chr( 10 )
+    t += "'' coordinate syntax -- LINE, PSET, CIRCLE, PAINT, GET, PUT -- are not here; these are" & chr( 10 )
+    t += "'' the ones that are a name and a plain argument list, so a declaration is all they" & chr( 10 )
+    t += "'' need. Measured defaults, and see docs/language/graphics-abi.md for the rest." & chr( 10 )
+    t += "''" & chr( 10 )
+    t += "'' SCREEN, IMAGECREATE and POINT are KEYWORDS in this lexer and cannot be declared;" & chr( 10 )
+    t += "'' they keep their intrinsic path. The ones with BYREF OUTPUTS -- screeninfo," & chr( 10 )
+    t += "'' imageinfo, getmouse, getjoystick -- are not here either: fbc materialises a" & chr( 10 )
+    t += "'' temporary for each omitted output, which a default value cannot express." & chr( 10 )
+    t += "declare function screenres alias ""fb_GfxScreenRes"" _" & chr( 10 )
+    t += "    ( byval w as long, byval h as long, byval depth as long = 8, _" & chr( 10 )
+    t += "      byval pages as long = 1, byval flags as long = 0, _" & chr( 10 )
+    t += "      byval refresh as long = 0 ) as long" & chr( 10 )
+    t += "declare function screenset alias ""fb_GfxPageSet"" _" & chr( 10 )
+    t += "    ( byval work as long = -1, byval visible as long = -1 ) as long" & chr( 10 )
+    t += "'' SCREENCOPY and FLIP are the same runtime call. Measured." & chr( 10 )
+    t += "declare function screencopy alias ""fb_GfxFlip"" _" & chr( 10 )
+    t += "    ( byval src as long = -1, byval dst as long = -1 ) as long" & chr( 10 )
+    t += "declare function flip alias ""fb_GfxFlip"" _" & chr( 10 )
+    t += "    ( byval src as long = -1, byval dst as long = -1 ) as long" & chr( 10 )
+    t += "declare sub screenlock alias ""fb_GfxLock"" ( )" & chr( 10 )
+    t += "declare sub screenunlock alias ""fb_GfxUnlock"" _" & chr( 10 )
+    t += "    ( byval start as long = -1, byval finish as long = -1 )" & chr( 10 )
+    t += "declare function screensync alias ""fb_GfxWaitVSync"" ( ) as long" & chr( 10 )
+    t += "declare function screenptr alias ""fb_GfxScreenPtr"" ( ) as any ptr" & chr( 10 )
+    t += "declare function screenevent alias ""fb_GfxEvent"" ( byval e as any ptr ) as long" & chr( 10 )
+    t += "declare function screenglproc alias ""fb_GfxGetGLProcAddress"" _" & chr( 10 )
+    t += "    ( byval nm as zstring ptr ) as any ptr" & chr( 10 )
+    t += "declare sub windowtitle alias ""fb_GfxSetWindowTitle"" ( byref t as const string )" & chr( 10 )
+    t += "declare sub imagedestroy alias ""fb_GfxImageDestroy"" ( byval img as any ptr )" & chr( 10 )
+    t += "declare sub imageconvertrow alias ""fb_GfxImageConvertRow"" _" & chr( 10 )
+    t += "    ( byval src as any ptr, byval srcbpp as long, byval dst as any ptr, _" & chr( 10 )
+    t += "      byval dstbpp as long, byval w as long, byval isrgba as long = 1 )" & chr( 10 )
+    t += "declare function multikey alias ""fb_Multikey"" ( byval sc as long ) as long" & chr( 10 )
+    t += "'' SETMOUSE's sentinels are INCONSISTENT, and that is measured: an omitted y is" & chr( 10 )
+    t += "'' &h80000000 while an omitted cursor or clip is -1." & chr( 10 )
+    t += "declare function setmouse alias ""fb_SetMouse"" _" & chr( 10 )
+    t += "    ( byval x as long = &h80000000, byval y as long = &h80000000, _" & chr( 10 )
+    t += "      byval cursor as long = -1, byval clip as long = -1 ) as long" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "end extern" & chr( 10 )
+    return t
+end function
+

@@ -40,3 +40,18 @@ s = curdir
 '' COMMAND defaults to -1, and 0 is a legal distinct value: the program name.
 s = command
 s = command( 0 )
+
+'' The graphics entry points that are ORDINARY CALLS. The statements with their own
+'' coordinate syntax -- LINE, PSET, CIRCLE, PAINT, GET, PUT -- are not among them.
+''
+'' SCREENRES's pages default to 1 and its depth to 8. SCREENCOPY and FLIP are the SAME
+'' runtime call. SETMOUSE's sentinels are inconsistent and that is measured: an omitted
+'' y is &h80000000 while an omitted cursor or clip is -1.
+screenres 640, 480, 32
+dim as any ptr im
+imagedestroy im
+flip
+screenlock
+screenunlock
+r = multikey( 1 )
+windowtitle "hi"
