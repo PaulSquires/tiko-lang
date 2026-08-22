@@ -99,6 +99,7 @@ declare sub InstantiatePendingProcs_( byref c as Ctx )
 declare sub DiscoverInstantiations_ _
     ( byref c as Ctx, byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
       byref diags as Fbx.DiagnosticEngine, byref info as Fbx.SemanticInfo )
+declare function QualifierPrefix_( byref c as Ctx, byval sc as Fbx.ScopeId ) as string
 declare function HasGenericDecl_( byref c as Ctx ) as boolean
 declare sub WalkBlock_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval here as Fbx.ScopeId )
@@ -106,6 +107,6 @@ declare sub WalkBlock_ _
 declare sub InstantiatePending_( byref c as Ctx )
 declare function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
-      byval scope_ as Fbx.ScopeId ) as Fbx.TypeId
+      byval scope_ as Fbx.ScopeId, byval gsid as Fbx.SymbolId ) as Fbx.TypeId
 
 end namespace

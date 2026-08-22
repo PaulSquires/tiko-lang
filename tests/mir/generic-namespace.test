@@ -1,0 +1,5 @@
+'' A generic in a namespace, instantiated once however its use sites spell it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-namespace.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/generic-namespace.out

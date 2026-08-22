@@ -1,0 +1,95 @@
+func void P() {
+  local agg c size 4
+  local agg i size 4
+  local agg p size 4
+  entry0:
+    %1 = alloca ptr c
+    %2 = alloca ptr i
+    %3 = call agg _ZN1N7COLL<6>11GETITERATOREv(@c)
+    store @i, %3
+    %4 = alloca ptr p
+    %5 = call agg _ZN1N7COLL<6>1AEv(@c)
+    store @p, %5
+    ret
+}
+declare agg _ZN1N7COLL<6>11GETITERATOREv()
+declare agg _ZN1N7COLL<6>1AEv()
+func agg _ZN1N7COLL<6>11GETITERATOREv($0) {
+  local agg $tmp0 size 4
+  local ptr this
+  local agg it size 4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr it
+    %4 = field.addr @it, 0
+    %5 = const i64 0
+    %6 = trunc %5
+    store %4, %6
+    %7 = load @it
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    ret %8
+}
+func agg _ZN1N7COLL<6>1AEv($0) {
+  local agg $tmp0 size 4
+  local ptr this
+  local agg p size 4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr p
+    %4 = load @p
+    store @$tmp0, %4
+    %5 = load @$tmp0
+    ret %5
+}
+func i8 _ZN1N5IT<6>7ISVALIDEv($0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = const i64 4
+    %8 = sext %6
+    %9 = icmp.slt %8, %7
+    ret %9
+}
+func i32 _ZN1N5IT<6>5VALUEEv($0) {
+  local i32 $tmp0
+  local ptr this
+  local i32 z
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr z
+    %5 = load @z
+    ret %5
+}
+func void _ZN1N5IT<6>8MOVENEXTEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = add %4, %6
+    store %3, %7
+    ret
+}
+verify: ok
+lowered: 6 functions, 6 blocks, 52 insts, 0 statements not lowered, 0 scope imbalance

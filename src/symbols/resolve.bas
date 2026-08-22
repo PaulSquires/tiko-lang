@@ -347,16 +347,6 @@ function ResolveTypeRef _
             end if
         next
 
-        '' AN INSTANTIATION -- 'Box( of long )'. One type per (generic, arguments),
-        '' cached, built in the GLOBAL scope. See InstantiateGeneric_.
-        if sp->count > 0 then
-            dim as Fbx.TypeId inst = InstantiateGeneric_( c, id, sp, scope_ )
-            if inst <> Fbx.TYPE_NONE then
-                c.info->SetType( id, inst )
-                return inst
-            end if
-        end if
-
         dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
         if sp->ownerName <> 0 then
             '' The qualifier may be a PATH -- 'a.b.c' -- which the parser keeps dotted
@@ -406,6 +396,23 @@ function ResolveTypeRef _
             end if
         end if
         if sid = Fbx.SYMBOL_NONE then sid = c.syms->LookupTyped( scope_, sp->name, true )
+
+        '' AN INSTANTIATION -- 'Box( of long )'. One type per (generic, arguments),
+        '' cached, built in the GLOBAL scope. See InstantiateGeneric_.
+        ''
+        '' TRIED AFTER THE LOOKUP, and given the symbol it found. It used to look the
+        '' generic up itself, unqualified, from the use site's scope -- so
+        '' 'FB.Array( of long )' found nothing, instantiated nothing, and bound to the
+        '' GENERIC instead. Every container in the runtime headers lives in a namespace,
+        '' so that was all of them.
+        if sp->count > 0 then
+            dim as Fbx.TypeId inst = InstantiateGeneric_( c, id, sp, scope_, sid )
+            if inst <> Fbx.TYPE_NONE then
+                c.info->SetType( id, inst )
+                return inst
+            end if
+        end if
+
         if sid <> Fbx.SYMBOL_NONE then
             c.info->SetRef( id, sid )
             dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )

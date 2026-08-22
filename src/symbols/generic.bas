@@ -33,12 +33,15 @@ declare sub InstantiateMembers_ _
 '' structurally rather than by a declaration of its own.
 function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
-      byval scope_ as Fbx.ScopeId ) as Fbx.TypeId
+      byval scope_ as Fbx.ScopeId, byval gsid as Fbx.SymbolId ) as Fbx.TypeId
 
-    '' The generic itself. Not through LookupTyped's type filter alone: it has to be a
-    '' UDT whose declaration carries a parameter list, or 'Foo( 3 )' on an ordinary
-    '' type would be read as an instantiation.
-    dim as Fbx.SymbolId gsid = c.syms->LookupTyped( scope_, sp->name, true )
+    '' THE GENERIC IS PASSED IN, already resolved -- including through a namespace
+    '' qualifier, which is where every container in the runtime headers lives. Looking
+    '' it up here, unqualified from the use site, found nothing for 'FB.Array( of long )'
+    '' and quietly left the reference bound to the GENERIC.
+    ''
+    '' It still has to be a UDT whose declaration carries a parameter list, or 'Foo( 3 )'
+    '' on an ordinary type would be read as an instantiation.
     dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return Fbx.TYPE_NONE
     if gs->kind <> cast( ubyte, Fbx.SYM_UDT ) then return Fbx.TYPE_NONE
@@ -55,7 +58,19 @@ function InstantiateGeneric_ _
     '' The ARGUMENTS, resolved in the scope that wrote them. One that does not resolve
     '' means no instantiation rather than a wrong one -- every use then declines, which
     '' is the honest outcome and the same rule the tuple path uses.
-    dim as string key = c.names->Spelling( sp->name ) & "<"
+    '' THE KEY COMES FROM THE RESOLVED SYMBOL, NOT FROM THE SPELLING. Instantiations
+    '' live in SCOPE_GLOBAL, so the qualifier has to be in the name or two generics of
+    '' one spelling in different namespaces would share an instantiation -- but taking
+    '' it from what was WRITTEN is worse: 'N.It( of long )' at a use site and
+    '' 'It( of long )' inside N are the same type and produced two, so a member
+    '' returning its own sibling returned something no caller could name.
+    ''
+    '' '#', not '.', joins the parts: this name becomes the OWNER of every instantiated
+    '' member, and Collect resolves an owner by splitting it on DOTS -- a dotted key
+    '' sent it looking for a namespace that does not exist and opened every member body
+    '' at module scope instead, so the mangled names came out as the bare source
+    '' spelling and every call site linked to nothing.
+    dim as string key = c.names->Spelling( gs->name ) & "<"
     dim as FB.Array( of ulong ) argTypes
     for i as long = 0 to sp->count - 1
         dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
@@ -67,21 +82,35 @@ function InstantiateGeneric_ _
     next
     key += ">"
 
+    '' THE INSTANTIATION LIVES IN THE GENERIC'S OWN SCOPE, not in SCOPE_GLOBAL.
+    ''
+    '' Three things follow from that and all three were wrong before. Its member bodies
+    '' can SEE THE GENERIC'S SIBLINGS -- 'function Coll( of T ).A( ) as Plain' names a
+    '' plain type declared beside Coll, and from a global scope that resolved to
+    '' nothing, so the member came out with NO RETURN TYPE and every call to it was
+    '' 'call void'. Its mangled name picks the namespace up from the SCOPE CHAIN like
+    '' any other member's. And two generics of one spelling in different namespaces get
+    '' separate symbols without the name having to carry a qualifier -- which is what a
+    '' spelling-derived key got wrong in the other direction: 'N.It( of long )' at a use
+    '' site and 'It( of long )' inside N are the same type and produced two.
+    dim as Fbx.ScopeId ghome = gs->parent
+    if ghome = Fbx.SCOPE_NONE then ghome = Fbx.SCOPE_GLOBAL
+
     '' CACHED. 'b2 = b' over two spellings of one instantiation has to be the same
     '' type, so a miss here would break assignment as well as duplicate the work.
     dim as Fbx.InternId inm = c.names->Fold( c.names->GetString( key ) )
-    dim as Fbx.SymbolId prev = c.syms->LookupLocalTyped( Fbx.SCOPE_GLOBAL, inm, true )
+    dim as Fbx.SymbolId prev = c.syms->LookupLocalTyped( ghome, inm, true )
     dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( prev )
     if ps <> 0 then return ps->type_
 
     dim as boolean dup = false
-    dim as Fbx.SymbolId isid = c.syms->DeclareSym( Fbx.SCOPE_GLOBAL, inm, _
+    dim as Fbx.SymbolId isid = c.syms->DeclareSym( ghome, inm, _
         Fbx.SYM_UDT, c.ast->Loc( id ), dup )
     dim as Fbx.Symbol ptr isym = c.syms->SymbolAt( isid )
     if isym = 0 then return Fbx.TYPE_NONE
-    dim as Fbx.ScopeId iin = c.syms->OpenScope( Fbx.SCOPEK_TYPE, Fbx.SCOPE_GLOBAL, isid )
+    dim as Fbx.ScopeId iin = c.syms->OpenScope( Fbx.SCOPEK_TYPE, ghome, isid )
     isym->inner = iin
-    isym->type_ = c.types->NamedType( Fbx.TK_UDT, inm, cast( ulong, Fbx.SCOPE_GLOBAL ) )
+    isym->type_ = c.types->NamedType( Fbx.TK_UDT, inm, cast( ulong, ghome ) )
     '' The symbol is published BEFORE the fields are walked, so a generic that refers
     '' to itself behind a pointer -- 'as Node( of T ) ptr nxt' -- finds the cache
     '' rather than recursing for ever.
@@ -121,7 +150,15 @@ function InstantiateGeneric_ _
     c.pendInst.Push( cast( ulong, gs->name ) )
     c.pendInst.Push( cast( ulong, inm ) )
     c.pendInst.Push( cast( ulong, iin ) )
-    c.pendInst.Push( cast( ulong, scope_ ) )
+    '' THE GENERIC'S OWN SCOPE, not the use site's. An instantiated member body is the
+    '' generic's source re-read, so its names have to resolve where they were WRITTEN:
+    '' 'function Array( of T ).GetIterator( ) as ArrayIterator( of T )' names its
+    '' sibling unqualified from inside 'namespace FB', and resolving that from the
+    '' caller's module scope found nothing -- so GetIterator came out with no return
+    '' type at all and 'for each' over any container declined.
+    dim as Fbx.ScopeId gscope = gs->parent
+    if gscope = Fbx.SCOPE_NONE then gscope = scope_
+    c.pendInst.Push( cast( ulong, gscope ) )
     c.pendInst.Push( cast( ulong, argFirst ) )
     c.pendInst.Push( cast( ulong, sp->count ) )
 
@@ -360,6 +397,28 @@ private function TypeMemberNamed_ _
     return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
 
+'' The enclosing NAMESPACE and TYPE names of a scope, outermost first, each followed by
+'' '#'. Empty at global or module scope.
+''
+'' Built from the SCOPE CHAIN rather than from any spelling, which is the whole point:
+'' one generic has one qualifier however a use site chose to write it.
+function QualifierPrefix_( byref c as Ctx, byval sc as Fbx.ScopeId ) as string
+    dim as string parts
+    dim as Fbx.ScopeId cur = sc
+    dim as long guard = 0
+    while (cur <> Fbx.SCOPE_NONE) andalso (guard < 32)
+        guard += 1
+        dim as Fbx.SymScope ptr s = c.syms->ScopeAt( cur )
+        if s = 0 then exit while
+        dim as Fbx.Symbol ptr o = c.syms->SymbolAt( s->owner )
+        if o <> 0 then
+            if o->name <> 0 then parts = c.names->Spelling( o->name ) & "#" & parts
+        end if
+        cur = s->parent
+    wend
+    return parts
+end function
+
 '' The statements of a block.
 ''
 '' FIRST AND COUNT ARE SNAPSHOTTED because instantiating a generic member RE-PARSES it,
@@ -525,6 +584,12 @@ private sub InstantiateMembers_ _
 
         dim as Fbx.StmtPayload ptr fp2 = StmtOf( c, fresh )
         fp2->ownerName = inm
+        '' THE GENERIC-PROCEDURE FLAG COMES OFF. Every out-of-line member of a generic
+        '' is spelled 'function Array( of T ).Count( )', so the parser's '( of ... )'
+        '' branch marks it PF_GENERIC_PROC -- and lowering skips anything carrying that
+        '' as a template. The instantiated body is a concrete procedure; leaving the
+        '' flag on meant every one was declared, called, and never emitted.
+        fp2->extra and= not Fbx.PF_GENERIC_PROC
         dim as Fbx.InternId mname = fp2->name
         dim as ushort mop = fp2->op
 
