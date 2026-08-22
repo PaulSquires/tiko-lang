@@ -24,7 +24,7 @@ N_MODULE (6) <1:89>
   N_INTRINSIC [WIDTH] <32:1>
     N_INT_LIT 80 radix=10 <32:7>
     N_INT_LIT 25 radix=10 <32:11>
-  N_TYPE 'object' <0:0>
-    N_FIELD 'vptr' <0:0>
-      N_TYPEREF ptr <0:0>
-        N_TYPEREF 'any' [ANY] <0:0>
+  N_TYPE 'object' <1:1>
+    N_FIELD 'vptr' <2:5>
+      N_TYPEREF ptr <2:13>
+        N_TYPEREF 'any' [ANY] <2:13>

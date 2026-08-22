@@ -1238,45 +1238,66 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
     return n
 end function
 
-'' 'object' -- THE ONE TYPE THAT IS NOT DECLARED ANYWHERE.
+'' THE BUILTIN PRELUDE: what fbc declares that is in no header and no source.
 ''
-'' fbc predeclares it; it is in no header, and 'extends object' is how every UDT with a
-'' virtual method is written. Measured, it is exactly one pointer:
+'' 'object' is the type every UDT with a virtual method extends, and it is nowhere --
+'' fbc predeclares it. Measured, it is exactly one pointer:
 ''
 ''     struct $10fb_Object$ { void* VPTR$; };
 ''     __FB_STATIC_ASSERT( sizeof( struct $10fb_Object$ ) == 8 );   // win32: 4
 ''
-'' Built as ORDINARY AST rather than as a special case in the symbol table, so Collect,
-'' Resolve and the layout pass all see a type like any other and nothing downstream has
-'' to know it was synthesised. That also keeps the size right on both targets for free:
-'' the pointer's width is the target's, not a constant written here.
+'' The rest is the runtime procedures fbc predeclares in the GLOBAL SCOPE. They are not
+'' reserved words -- 'dim as long kill' is fbc error 4, DUPLICATED DEFINITION, not a
+'' syntax error -- so the lexer must keep treating them as identifiers and only the
+'' declaration makes them mean anything.
 ''
-'' See docs/language/object-abi.md for the rest of the shape -- the vtable, the RTTI
-'' record, and where the vptr is written -- none of which exists yet.
-private function BuiltinObject( byref p as Fbx.ParserState ) as Fbx.NodeId
-    '' 'any ptr': the inner names ANY, and a wrapping typeref carries the pointer.
-    dim as Fbx.StmtPayload anyp
-    anyp.op = cast( ushort, Fbx.KW_ANY )
-    anyp.name = p.names->GetString( "any" )
-    dim as Fbx.NodeId inner = MakeStmt( p, Fbx.N_TYPEREF, Fbx.LOC_NONE, anyp )
-
-    dim as Fbx.StmtPayload ptrp
-    ptrp.a = inner
-    dim as Fbx.NodeId pty = MakeStmt( p, Fbx.N_TYPEREF, Fbx.LOC_NONE, ptrp )
-    p.ast->nodes[cast( long, pty )].flags or= Fbx.NF_PTR
-
-    dim as Fbx.StmtPayload fp
-    fp.name = p.names->GetString( "vptr" )
-    fp.a = pty
-    dim as Fbx.NodeId fld = MakeStmt( p, Fbx.N_FIELD, Fbx.LOC_NONE, fp )
-
-    dim as Fbx.StmtPayload tp
-    tp.name = p.names->GetString( "object" )
-    tp.first = p.ast->children.Count
-    tp.count = 1
-    p.ast->children.Push( cast( ulong, fld ) )
-    return MakeStmt( p, Fbx.N_TYPE, Fbx.LOC_NONE, tp )
+'' WRITTEN AS SOURCE AND LEXED, rather than built as AST by hand. The 'object' type was
+'' built by hand first and it was already at the limit of what is readable; a procedure
+'' with parameters and an ALIAS is well past it.
+''
+'' See docs/language/object-abi.md for the rest of the OBJECT shape.
+private function PreludeText( ) as string
+    return "type object" & chr( 10 ) & _
+           "    vptr as any ptr" & chr( 10 ) & _
+           "end type" & chr( 10 )
 end function
+
+'' The prelude, parsed. Returns nothing when there is no keyword table to lex with,
+'' which is the case for a ParserState built by a test harness rather than the driver.
+private sub ParsePrelude( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVec )
+    if p.kw = 0 then return
+    if p.src = 0 then return
+
+    dim as Fbx.FileId vf = p.src->AddVirtual( "<builtin>", PreludeText( ) )
+    dim as Fbx.Lex.Result r
+    Fbx.Lex.Run( *p.src, vf, *p.names, *cast( Fbx.KeywordMap ptr, p.kw ), *p.diags, r )
+
+    '' A SEPARATE ParserState over a FIXED token vector: no preprocessor, so 'stream'
+    '' is zero and HasTok reads the vector directly. The AST, the interner and the
+    '' diagnostics are shared, because the nodes it builds belong to this unit.
+    dim as Fbx.ParserState q
+    q.toks = @r.tokens
+    q.stream = 0
+    q.litPool = @r.literals
+    q.ast = p.ast
+    q.src = p.src
+    q.names = p.names
+    q.diags = p.diags
+    q.kw = 0
+    q.pos = 0
+
+    dim as long guard = 0
+    do
+        guard += 1
+        if guard > 10000 then exit do
+        SkipEols( q )
+        if AtEnd( q ) then exit do
+        dim as long before = q.pos
+        dim as Fbx.NodeId s = Statement( q )
+        if s <> Fbx.NODE_NONE then items.Push( cast( ulong, s ) )
+        if q.pos = before then Advance( q )
+    loop
+end sub
 
 function Unit( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.Token t = Cur( p )
@@ -1289,11 +1310,11 @@ function Unit( byref p as Fbx.ParserState ) as Fbx.NodeId
         if s <> Fbx.NODE_NONE then items.Push( cast( ulong, s ) )
         if p.pos = before then Advance( p )        '' guaranteed progress
     loop
-    '' LAST, not first. Collect is a whole pass before anything looks a type up, so
-    '' declaring it after the unit's own statements changes nothing -- and it keeps
-    '' every NodeId in the file the number it already had, which is what the dumps and
-    '' their goldens are written in.
-    items.Push( cast( ulong, BuiltinObject( p ) ) )
+    '' LAST, not first. Collect is a whole pass before anything looks a name up, so
+    '' declaring the prelude after the unit's own statements changes nothing -- and it
+    '' keeps every NodeId in the file the number it already had, which is what the dumps
+    '' and their goldens are written in.
+    ParsePrelude( p, items )
     return MakeList( p, Fbx.N_MODULE, t.loc, Fbx.NODE_NONE, items )
 end function
 

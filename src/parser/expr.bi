@@ -16,6 +16,7 @@
 #include once "ast/nodes.bi"
 #include once "parser/prectable.bi"
 #include once "lexer/token.bi"
+#include once "lexer/lexer.bi"
 #include once "source/manager.bi"
 #include once "diag/engine.bi"
 #include once "support/intern.bi"
@@ -36,6 +37,12 @@ namespace Fbx
         as SourceManager ptr    src
         as Interner ptr         names
         as DiagnosticEngine ptr diags
+        '' The keyword table, so the parser can LEX a prelude of its own. fbc predeclares
+        '' a set of runtime procedures -- 'kill', 'sleep', 'locate' -- that are in no
+        '' header and are not reserved words either: 'dim as long kill' is a DUPLICATED
+        '' DEFINITION, not a syntax error. Writing them as source and lexing it is what
+        '' lets them be declared the way everything else is.
+        as any ptr              kw          '' KeywordTable ptr, or 0 for no prelude
         as long                 depth
         '' How many TYPE/UNION bodies enclose the cursor. An anonymous 'union' or
         '' 'type' is legal ONLY inside one; at module level a bare 'type' is an error

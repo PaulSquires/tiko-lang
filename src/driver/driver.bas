@@ -194,6 +194,7 @@ function Run( byref args as Fbx.StrVec ) as long
             p.litPool = @pr.literals
             p.ast = @ast
             p.src = @ctx.sources
+            p.kw = @ctx.keywords
             p.names = @ctx.names
             p.diags = @ctx.diags
             p.pos = 0
@@ -404,6 +405,7 @@ function Run( byref args as Fbx.StrVec ) as long
             p.litPool = @pr.literals
             p.ast = @ast
             p.src = @ctx.sources
+            p.kw = @ctx.keywords
             p.names = @ctx.names
             p.diags = @ctx.diags
             p.pos = 0
@@ -439,6 +441,7 @@ function Run( byref args as Fbx.StrVec ) as long
             p.litPool = @lr.literals
             p.ast = @ast
             p.src = @ctx.sources
+            p.kw = @ctx.keywords
             p.names = @ctx.names
             p.diags = @ctx.diags
             p.pos = 0

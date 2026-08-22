@@ -42,7 +42,7 @@ N_MODULE (7) <1:86>
     N_ELIDED <34:8>
     N_ELIDED <34:9>
     N_INT_LIT 0 radix=10 <34:10>
-  N_TYPE 'object' <0:0>
-    N_FIELD 'vptr' <0:0>
-      N_TYPEREF ptr <0:0>
-        N_TYPEREF 'any' [ANY] <0:0>
+  N_TYPE 'object' <1:1>
+    N_FIELD 'vptr' <2:5>
+      N_TYPEREF ptr <2:13>
+        N_TYPEREF 'any' [ANY] <2:13>

@@ -29,7 +29,7 @@ N_MODULE (7) <1:84>
     N_CALL <29:7>
       N_IDENT 'sizeof' <29:7>
       N_IDENT 'pair' <29:15>
-  N_TYPE 'object' <0:0>
-    N_FIELD 'vptr' <0:0>
-      N_TYPEREF ptr <0:0>
-        N_TYPEREF 'any' [ANY] <0:0>
+  N_TYPE 'object' <1:1>
+    N_FIELD 'vptr' <2:5>
+      N_TYPEREF ptr <2:13>
+        N_TYPEREF 'any' [ANY] <2:13>

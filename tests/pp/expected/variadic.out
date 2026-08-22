@@ -7,7 +7,7 @@ N_MODULE (3) <1:84>
     N_INT_LIT 3 radix=10 <14:15>
   N_INTRINSIC [PRINT] <22:13>
     N_INT_LIT 4 radix=10 <22:19>
-  N_TYPE 'object' <0:0>
-    N_FIELD 'vptr' <0:0>
-      N_TYPEREF ptr <0:0>
-        N_TYPEREF 'any' [ANY] <0:0>
+  N_TYPE 'object' <1:1>
+    N_FIELD 'vptr' <2:5>
+      N_TYPEREF ptr <2:13>
+        N_TYPEREF 'any' [ANY] <2:13>

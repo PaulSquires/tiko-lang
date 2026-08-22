@@ -50,7 +50,7 @@ N_MODULE (7) <1:77>
     N_PRINT_SEP [,] <41:11>
     N_CALL <41:14>
       N_IDENT 'g' <41:13>
-  N_TYPE 'object' <0:0>
-    N_FIELD 'vptr' <0:0>
-      N_TYPEREF ptr <0:0>
-        N_TYPEREF 'any' [ANY] <0:0>
+  N_TYPE 'object' <1:1>
+    N_FIELD 'vptr' <2:5>
+      N_TYPEREF ptr <2:13>
+        N_TYPEREF 'any' [ANY] <2:13>

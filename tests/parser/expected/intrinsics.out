@@ -85,7 +85,7 @@ N_MODULE (25) <1:1>
     N_IDENT 's' <26:11>
   N_INTRINSIC [ERASE] <27:1>
     N_IDENT 's' <27:7>
-  N_TYPE 'object' <0:0>
-    N_FIELD 'vptr' <0:0>
-      N_TYPEREF ptr <0:0>
-        N_TYPEREF 'any' [ANY] <0:0>
+  N_TYPE 'object' <1:1>
+    N_FIELD 'vptr' <2:5>
+      N_TYPEREF ptr <2:13>
+        N_TYPEREF 'any' [ANY] <2:13>
