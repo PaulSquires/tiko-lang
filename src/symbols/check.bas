@@ -711,6 +711,14 @@ private function ResolveCall_ _
     dim as FB.Array( of ulong ) argT
     for i as long = 0 to cp->count - 1
         dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+        '' AN ELIDED ARGUMENT -- 'locate , 10' -- has no type and needs none: it takes
+        '' the parameter's default, so it is recorded as TYPE_NONE and costed as a
+        '' parameter that was not written at all. Treating it as an untyped argument
+        '' made every call with a hole in it undecidable.
+        if c.ast->Kind( a ) = Fbx.N_ELIDED then
+            argT.Push( cast( ulong, Fbx.TYPE_NONE ) )
+            continue for
+        end if
         dim as Fbx.TypeId at = TypeOf_( c, a )
         if at = Fbx.TYPE_NONE then
             dim as Fbx.NodeId leaf = UntypedLeaf_( c, a )
@@ -753,14 +761,49 @@ private function ResolveCall_ _
         dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
         if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
             dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-            '' Only same-arity candidates are viable. Optional and variadic
-            '' parameters are not modelled yet, so those procedures simply never win.
+            '' A CANDIDATE IS VIABLE ON FEWER ARGUMENTS THAN PARAMETERS when every
+            '' parameter past the last written one has a DEFAULT. This read 'np =
+            '' argT.Count' and nothing else, so a procedure with an optional parameter
+            '' was viable only when every one of them was written -- and the effect was
+            '' not a diagnostic but a SILENTLY UNTYPED CALL: 'r = screenres( 320, 200 )'
+            '' bound to nothing, so the assignment had no value and declined, while the
+            '' same call as a STATEMENT lowered fine because nothing asked its type.
+            ''
+            '' fbc's rule was measured, not assumed: with 'F( a )' and 'F( a, b = 0 )'
+            '' both declared, 'F 1' is its error 98, AMBIGUOUS -- so a defaulted
+            '' candidate really is viable and ties with the exact-arity one rather than
+            '' losing to it. Ties already return TYPE_NONE here.
             dim as long np = 0
+            dim as boolean variadic = false
             for i as long = 0 to pp->count - 1
                 dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+                if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                if StmtOf( c, prm )->op = cast( ushort, Fbx.TK_ELLIPSIS ) then
+                    variadic = true
+                else
+                    np += 1
+                end if
             next
-            if np = argT.Count then
+            dim as boolean arityOk = (np = argT.Count)
+            if variadic then
+                if argT.Count >= np then arityOk = true
+            elseif argT.Count < np then
+                '' Every parameter the call did not reach must have a default.
+                arityOk = true
+                dim as long seen = 0
+                for i as long = 0 to pp->count - 1
+                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                    if seen >= argT.Count then
+                        if StmtOf( c, prm )->b = Fbx.NODE_NONE then
+                            arityOk = false
+                            exit for
+                        end if
+                    end if
+                    seen += 1
+                next
+            end if
+            if arityOk then
                 dim as long total = 0
                 dim as long ai = 0
                 dim as boolean viable = true
@@ -768,9 +811,23 @@ private function ResolveCall_ _
                     dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
                     dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
+                    if sp2->op = cast( ushort, Fbx.TK_ELLIPSIS ) then continue for
+                    '' Past the written arguments, or an elided one: the default
+                    '' stands and there is nothing to convert. An elided argument
+                    '' whose parameter has NO default is not viable -- 'locate , 10'
+                    '' against a parameter that must be written.
+                    if ai >= argT.Count then exit for
+                    dim as Fbx.TypeId at2 = cast( Fbx.TypeId, argT[ai] )
+                    if at2 = Fbx.TYPE_NONE then
+                        if sp2->b = Fbx.NODE_NONE then
+                            viable = false
+                            exit for
+                        end if
+                        ai += 1
+                        continue for
+                    end if
                     dim as Fbx.TypeId pt = c.info->TypeOf_( sp2->a )
-                    dim as long cost = ConversionCost( cast( Fbx.TypeId, argT[ai] ), _
-                                                       pt, *c.types, overloaded )
+                    dim as long cost = ConversionCost( at2, pt, *c.types, overloaded )
                     ai += 1
                     if cost >= CONV_NONE then
                         viable = false

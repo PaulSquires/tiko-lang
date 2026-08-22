@@ -1,0 +1,227 @@
+global str $str0 ""
+global wstr $wstr1 "a"
+global wstr $wstr2 "lit"
+global str $str3 "lit"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i32 a
+  local i32 b
+  local i32 r
+  local i32 $tmp4
+  local i32 $tmp5
+  local i32 $tmp6
+  local i32 $tmp7
+  local i32 $tmp8
+  local i32 $tmp9
+  local i32 $tmp10
+  local i32 $tmp11
+  local i32 $tmp12
+  local i32 $tmp13
+  local i32 $tmp14
+  local i32 $tmp15
+  local i32 $tmp16
+  local i32 $tmp17
+  local i32 $tmp18
+  local ptr $tmp19
+  local i32 $tmp20
+  local i64 btns
+  local f32 $tmp22
+  local f32 $tmp23
+  local f32 $tmp24
+  local f32 $tmp25
+  local f32 $tmp26
+  local f32 $tmp27
+  local f32 $tmp28
+  local f32 $tmp29
+  local i32 $tmp30
+  local agg pt size 4
+  local agg s size 24
+  local agg zs size 8
+  local i32 i
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = alloca ptr b
+    %6 = alloca ptr r
+    %7 = const i64 0
+    %8 = trunc %7
+    %9 = alloca ptr $tmp4
+    store @$tmp4, %8
+    %10 = const i64 0
+    %11 = trunc %10
+    %12 = alloca ptr $tmp5
+    store @$tmp5, %11
+    %13 = const i64 0
+    %14 = trunc %13
+    %15 = alloca ptr $tmp6
+    store @$tmp6, %14
+    %16 = const i64 0
+    %17 = trunc %16
+    %18 = alloca ptr $tmp7
+    store @$tmp7, %17
+    %19 = const i64 0
+    %20 = trunc %19
+    %21 = alloca ptr $tmp8
+    store @$tmp8, %20
+    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    call void fb_GfxScreenInfo32(@a, @$tmp4, @$tmp5, @$tmp6, @$tmp7, @$tmp8, %22)
+    %23 = const i64 0
+    %24 = trunc %23
+    %25 = alloca ptr $tmp9
+    store @$tmp9, %24
+    %26 = const i64 0
+    %27 = trunc %26
+    %28 = alloca ptr $tmp10
+    store @$tmp10, %27
+    %29 = const i64 0
+    %30 = trunc %29
+    %31 = alloca ptr $tmp11
+    store @$tmp11, %30
+    %32 = const i64 0
+    %33 = trunc %32
+    %34 = alloca ptr $tmp12
+    store @$tmp12, %33
+    %35 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    call void fb_GfxScreenInfo32(@a, @b, @$tmp9, @$tmp10, @$tmp11, @$tmp12, %35)
+    %36 = const i64 0
+    %37 = trunc %36
+    %38 = alloca ptr $tmp13
+    store @$tmp13, %37
+    %39 = const i64 0
+    %40 = trunc %39
+    %41 = alloca ptr $tmp14
+    store @$tmp14, %40
+    %42 = const i64 0
+    %43 = trunc %42
+    %44 = alloca ptr $tmp15
+    store @$tmp15, %43
+    %45 = call i32 fb_GetMouse(@a, @b, @$tmp13, @$tmp14, @$tmp15)
+    store @r, %45
+    %46 = const i64 0
+    %47 = bitcast %46
+    %48 = const i64 0
+    %49 = trunc %48
+    %50 = alloca ptr $tmp16
+    store @$tmp16, %49
+    %51 = const i64 0
+    %52 = trunc %51
+    %53 = alloca ptr $tmp17
+    store @$tmp17, %52
+    %54 = const i64 0
+    %55 = trunc %54
+    %56 = alloca ptr $tmp18
+    store @$tmp18, %55
+    %57 = const i64 0
+    %58 = bitcast %57
+    %59 = alloca ptr $tmp19
+    store @$tmp19, %58
+    %60 = const i64 0
+    %61 = trunc %60
+    %62 = alloca ptr $tmp20
+    store @$tmp20, %61
+    %63 = call i32 fb_GfxImageInfo32(%47, @a, @$tmp16, @$tmp17, @$tmp18, @$tmp19, @$tmp20)
+    store @r, %63
+    %64 = alloca ptr btns
+    %65 = const i64 0
+    %66 = trunc %65
+    %67 = const i64 0
+    %68 = sitofp %67
+    %69 = alloca ptr $tmp22
+    store @$tmp22, %68
+    %70 = const i64 0
+    %71 = sitofp %70
+    %72 = alloca ptr $tmp23
+    store @$tmp23, %71
+    %73 = const i64 0
+    %74 = sitofp %73
+    %75 = alloca ptr $tmp24
+    store @$tmp24, %74
+    %76 = const i64 0
+    %77 = sitofp %76
+    %78 = alloca ptr $tmp25
+    store @$tmp25, %77
+    %79 = const i64 0
+    %80 = sitofp %79
+    %81 = alloca ptr $tmp26
+    store @$tmp26, %80
+    %82 = const i64 0
+    %83 = sitofp %82
+    %84 = alloca ptr $tmp27
+    store @$tmp27, %83
+    %85 = const i64 0
+    %86 = sitofp %85
+    %87 = alloca ptr $tmp28
+    store @$tmp28, %86
+    %88 = const i64 0
+    %89 = sitofp %88
+    %90 = alloca ptr $tmp29
+    store @$tmp29, %89
+    %91 = call i32 fb_GfxGetJoystick(%66, @btns, @$tmp22, @$tmp23, @$tmp24, @$tmp25, @$tmp26, @$tmp27, @$tmp28, @$tmp29)
+    store @r, %91
+    %92 = const i64 320
+    %93 = trunc %92
+    %94 = const i64 200
+    %95 = trunc %94
+    %96 = const i64 8
+    %97 = trunc %96
+    %98 = const i64 1
+    %99 = trunc %98
+    %100 = const i64 0
+    %101 = trunc %100
+    %102 = const i64 0
+    %103 = trunc %102
+    %104 = call i32 fb_GfxScreenRes(%93, %95, %97, %99, %101, %103)
+    store @r, %104
+    %105 = const i64 5
+    %106 = trunc %105
+    %107 = alloca ptr $tmp30
+    store @$tmp30, %106
+    call void TAKESREF(@$tmp30)
+    %108 = alloca ptr pt
+    %109 = load @pt
+    %110 = const i64 7
+    %111 = alloca ptr s
+    %112 = field.addr @s, 0
+    store %112, 0
+    %113 = field.addr @s, 8
+    store %113, 0
+    %114 = field.addr @s, 16
+    store %114, 0
+    %115 = alloca ptr zs
+    call void TAKESW(@@$wstr1)
+    call void TAKESW(@@$wstr2)
+    call void TAKESZ(@@$str3)
+    call void TAKESZ(@zs)
+    %116 = load @s
+    call void TAKESZ(%116)
+    %117 = alloca ptr i
+    call void TAKESANY(@i)
+    call void TAKESANY(@i)
+    %118 = const i64 0
+    %119 = bitcast %118
+    call void TAKESANY(%119)
+    call.rtl void fb_StrDelete(@s)
+    %120 = const i32 0
+    call.rtl void fb_End(%120)
+    %121 = load @$tmp0
+    ret %121
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_GfxScreenInfo32()
+declare i32 fb_GetMouse()
+declare i32 fb_GfxImageInfo32()
+declare i32 fb_GfxGetJoystick()
+declare i32 fb_GfxScreenRes()
+declare void TAKESREF()
+declare void TAKESW()
+declare void TAKESZ()
+declare void TAKESANY()
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 169 insts, 0 statements not lowered, 0 scope imbalance

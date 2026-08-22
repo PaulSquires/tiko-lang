@@ -401,6 +401,19 @@ function ArgOrElided _
     if (k = Fbx.TK_COMMA) orelse (k = closer) orelse (k = Fbx.TK_EOL) then
         return NewNodeAt( p, Fbx.N_ELIDED, Cur( p ).loc, 0 )
     end if
+
+    '' 'f( byval x )' OVERRIDES A BYREF PARAMETER for this one argument: the value goes
+    '' where the address would have. It is the marker-keyword shape again -- the word
+    '' was read as an ordinary identifier and the expression after it then had nowhere
+    '' to go, so 'u( byval @i )' was 'expected )' pointing at the '@'.
+    ''
+    '' Only BYVAL. Measured: 'u( byref i )' is fbc's error 1, argument count mismatch,
+    '' which is what reading 'byref' as a name looks like from inside fbc too.
+    if k = Fbx.KW_BYVAL then
+        dim as Fbx.Token bt = Cur( p )
+        Advance( p )
+        return MakeUnary( p, Fbx.KW_BYVAL, bt.loc, Expression( p ) )
+    end if
     return Expression( p )
 end function
 

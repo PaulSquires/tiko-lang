@@ -1,0 +1,8 @@
+'' Byref arguments with no address: defaulted outputs, rvalue temporaries, the wide and
+'' zstring data pointers, and the 'byval' call-site marker.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_GfxScreenInfo32
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byref-args.out

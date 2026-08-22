@@ -11,6 +11,115 @@ namespace Fbx.Mir
 using Fbx
 
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+
+
+'' A byref ZSTRING parameter takes the DATA POINTER, not a descriptor and not the
+'' address of one. Measured, all three spellings:
+''
+''     P2( (char*)"lit" )     a literal: the bytes themselves
+''     P2( (char*)ZS )        a 'zstring * N': its own address
+''     P2( *(char**)&S )      a STRING: the pointer LOADED out of the descriptor
+''
+'' The wide half of this is WideOperand_, which already existed for the same reason.
+private function ZstrDataOf_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if id = Fbx.NODE_NONE then return false
+    if c.ast->Kind( id ) = Fbx.N_STRING_LIT then
+        outv.kind = cast( ubyte, MV_GLOBAL )
+        outv.ty = cast( ubyte, MT_PTR )
+        outv.id = c.m->AddStringLiteral( StringLitText_( c, id ), *c.names )
+        return true
+    end if
+
+    dim as longint n
+    dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
+    if k = 1 then
+        outv = LowerAddr( c, id )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if k = 0 then
+        dim as MirValue da = LowerAddr( c, id )
+        if da.kind = cast( ubyte, MV_NONE ) then return false
+        '' The data pointer is the descriptor's FIRST field, which is why this is a
+        '' plain load and not a field address.
+        outv = LowerExprLoad( c, da, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
+
+'' A temporary holding an argument that must be passed BYREF and has no address of its
+'' own. Returns the temporary's ADDRESS, or nothing when the value would not lower or
+'' the parameter's type is one a scalar slot cannot hold.
+''
+'' AN AGGREGATE GOES THE SAME WAY, and it has to: 'sub tester( byref x as UDT =
+'' type<UDT>( 123 ) )' called as 'tester( )' is 329 statements in one corpus file
+'' alone. A UDT rvalue lowers to a LOADED aggregate -- a value, not an address -- so
+'' passing it where a pointer belongs was the same bug in a wider slot. The store is
+'' the plain M_STORE of an aggregate that a UDT return already uses.
+private function ByrefTemp_ _
+    ( byref c as Ctx, byval argNode as Fbx.NodeId, byval pt as Fbx.TypeId ) as MirValue
+
+    dim as MirValue none_
+    if (argNode = Fbx.NODE_NONE) orelse (pt = Fbx.TYPE_NONE) then return none_
+
+    '' UNQUALIFIED, because 'byref r as const any' is the same parameter as 'byref r
+    '' as any' for this purpose and a const ANY would otherwise miss the test below.
+    dim as MirType pmt = LowerType( c.types->Unqualify( pt ), *c.types )
+
+    dim as MirValue rv = LowerExpr( c, argNode )
+    if rv.kind = cast( ubyte, MV_NONE ) then
+        '' A value that would not lower may still have an address -- and if it has
+        '' one, LowerAddr would have found it before this was ever called.
+        return none_
+    end if
+
+    dim as long sz = 0
+    if pmt = MT_VOID then
+        '' 'byref r as any' HAS NO TYPE TO MAKE A TEMPORARY OF, so the ARGUMENT's own
+        '' type is what fbc uses -- and a CONSTANT is not given a temporary at all, it
+        '' goes by VALUE cast to a pointer. Measured, and the comment in the corpus
+        '' file that exercises it says the same thing:
+        ''
+        ''     u( 0 )       U( (void*)0ll )        no temp
+        ''     u( i )       U( (void*)&I )         the variable's own address
+        ''     u( i + 1 )   U( (void*)&TMP )       a temp of the ARGUMENT's type
+        '' CONSTNESS IS THE SOURCE EXPRESSION'S QUESTION, not the lowered value's:
+        '' a literal 0 comes out of LowerExpr as an instruction result, so testing the
+        '' MirValue's kind answered "not constant" for the one case fbc singles out.
+        dim as Fbx.Check.ConstVal acv = Fbx.Check.ConstOf( _
+            *c.ast, argNode, *c.srcMgr, *c.names, c.types->target.pointerBits )
+        if acv.known then return Coerce( c, rv, MT_PTR, false )
+        pmt = cast( MirType, rv.ty )
+        if (pmt = MT_VOID) orelse (pmt = MT_AGG) then return none_
+        select case pmt
+        case MT_I8            : sz = 1
+        case MT_I16           : sz = 2
+        case MT_I32, MT_F32   : sz = 4
+        case else             : sz = 8
+        end select
+    else
+        if pmt <> MT_AGG then rv = Coerce( c, rv, pmt, IsUnsignedType( c, pt ) )
+        sz = c.types->Layout( pt ).size
+        if pmt = MT_AGG then sz = SizeOfType( c, pt )
+    end if
+
+    dim as long slot = NewTempLocal( c, pmt, sz )
+    if slot < 0 then return none_
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+    StoreThrough( c, tmp, rv )
+    return tmp
+end function
+
+
+
 function LowerCallParts _
     ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval callee as Fbx.SymbolId, _
       byval argFirst as long, byval argCount as long, _
@@ -109,12 +218,26 @@ function LowerCallParts _
             if c.ast->Kind( argNode ) = Fbx.N_ELIDED then argNode = Fbx.NODE_NONE
         end if
         if argNode = Fbx.NODE_NONE then argNode = ParamDefaultAt( c, callee, i )
+        '' 'f( byval x )' AGAINST A BYREF PARAMETER: the value itself is the reference.
+        '' The marker is unwrapped here and remembered, so everything below sees the
+        '' expression it wraps.
+        dim as boolean forcedByval = false
+        if argNode <> Fbx.NODE_NONE then
+            if c.ast->Kind( argNode ) = Fbx.N_UNARY then
+                dim as Fbx.UnaryPayload ptr bup = _
+                    @c.ast->unaries[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+                if cast( Fbx.TokenKind, bup->op ) = Fbx.KW_BYVAL then
+                    forcedByval = true
+                    argNode = bup->operand
+                end if
+            end if
+        end if
         if argNode = Fbx.NODE_NONE then
             '' Nothing written and no default: the call is short and the callee would
             '' read the stack. Declining says so.
             if i >= argCount then return v
         end if
-        dim as boolean wantsRef = ParamIsByref( c, callee, i )
+        dim as boolean wantsRef = ParamIsByref( c, callee, i ) andalso (forcedByval = false)
 
         dim as MirValue a
         '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none.
@@ -126,18 +249,58 @@ function LowerCallParts _
         '' StrDescriptorOf_ already knows all four shapes: a descriptor variable, a
         '' literal, a fixed-length string and a concatenation.
         dim as boolean wantsDesc = false
+        dim as boolean wantsWide = false
+        dim as boolean wantsZ = false
         if wantsRef then
-            wantsDesc = IsStringType( c, ParamTypeAt( c, callee, i ) )
+            dim as Fbx.TypeId prt = ParamTypeAt( c, callee, i )
+            wantsDesc = IsStringType( c, prt )
+            '' A BYREF WSTRING IS A uint16*, A BYREF ZSTRING A char*, and neither is a
+            '' descriptor or the address of one. Asked for either as an ordinary byref
+            '' argument, 'p( wstr( "a" ) )' and 'p( "lit" )' had no address at all.
+            '' IsWideString_ rather than StrSwapKind_ for the wide half: an UNSIZED
+            '' 'wstring' -- which is what a byref parameter declares -- is a plain
+            '' builtin, and StrSwapKind_ recognises only the SIZED form, so every
+            '' 'byref w as wstring' fell through to the ordinary byref path.
+            if wantsDesc = false then
+                dim as longint pn
+                if IsWideString_( c, prt ) then
+                    wantsWide = true
+                elseif StrSwapKind_( c, prt, pn ) = 1 then
+                    wantsZ = true
+                end if
+            end if
         end if
         if wantsDesc then
             if StrDescriptorOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+        elseif wantsWide then
+            if WideOperand_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+            if a.kind = cast( ubyte, MV_NONE ) then return v
+        elseif wantsZ then
+            if ZstrDataOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+            if a.kind = cast( ubyte, MV_NONE ) then return v
         elseif wantsRef then
             a = LowerAddr( c, argNode )
-            '' An argument with no address -- a literal or a computed value -- cannot
-            '' be passed by reference as it stands. fbc materialises a temporary for
-            '' one; fbx declines rather than passing something that is not the
+            '' AN ARGUMENT WITH NO ADDRESS -- a literal, a computed value, or the
+            '' DEFAULT of an omitted one -- still has to be passed by reference, and a
+            '' value is not a pointer. fbc materialises a temporary, stores the value
+            '' into it and passes ITS address. Measured, for a written rvalue and for
+            '' a defaulted parameter alike:
+            ''
+            ''   screencontrol 100, 5   TMP = 5;  fb_GfxControl_i64( 100, &TMP, ... )
+            ''   screeninfo a           TMP = 0;  fb_GfxScreenInfo32( &A, &TMP, ... )
+            ''
+            '' That one rule is the whole of SCREENINFO, IMAGEINFO, GETMOUSE and
+            '' GETJOYSTICK: their omitted outputs are byref parameters with defaults,
+            '' and each family's sentinel is nothing but the default it declares.
+            ''
+            '' Passing the VALUE -- which is what this did -- handed the callee a
+            '' number where it expected a pointer, and it then wrote through it.
+            if a.kind = cast( ubyte, MV_NONE ) then
+                a = ByrefTemp_( c, argNode, ParamTypeAt( c, callee, i ) )
+            end if
+            '' Still nothing: decline, rather than pass something that is not the
             '' variable the callee will write through.
-            if a.kind = cast( ubyte, MV_NONE ) then a = LowerExpr( c, argNode )
+            if a.kind = cast( ubyte, MV_NONE ) then return v
         else
             a = LowerExpr( c, argNode )
             '' TO THE PARAMETER'S TYPE, not the argument's. 'randomize 42' passes an
@@ -147,7 +310,11 @@ function LowerCallParts _
             ''
             '' An AGGREGATE is passed whole and has nothing to convert.
             dim as Fbx.TypeId pt = ParamTypeAt( c, callee, i )
-            if (pt <> Fbx.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
+            if forcedByval andalso ParamIsByref( c, callee, i ) then
+                '' The parameter is a REFERENCE and the value is standing in for one,
+                '' so the width is the pointer's, not the parameter's declared type.
+                if a.kind <> cast( ubyte, MV_NONE ) then a = Coerce( c, a, MT_PTR, false )
+            elseif (pt <> Fbx.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
                 dim as MirType pmt = LowerType( pt, *c.types )
                 if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
                     a = Coerce( c, a, pmt, IsUnsignedType( c, pt ) )
