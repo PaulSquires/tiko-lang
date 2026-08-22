@@ -40,13 +40,13 @@ constructor C( byval x as long )
 end constructor
 destructor C( )
 end destructor
-dim shared as T ptr p
+dim shared as T ptr tp
 dim shared as C ptr q
 dim shared as string ptr s
 dim shared as long g
-sub P( )
-    p = new T
-    delete p
+sub Main_( )
+    tp = new T
+    delete tp
     q = new C
     delete q
     q = new C( g )
