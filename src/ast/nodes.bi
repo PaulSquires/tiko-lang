@@ -306,12 +306,26 @@ namespace Fbx
         '' separately or they are typed and never emitted.
         as ChildPool   extraTopLevel
 
+        '' THE TYPE ARGUMENTS AT A CALL SITE -- 'Ok( of Decimal, FinanceError )( v )'.
+        ''
+        '' A side table rather than a field on the call, because every reader of an
+        '' N_CALL expects its target to be an N_IDENT and its children to be arguments;
+        '' putting the type list in either place would change a shape a dozen files
+        '' already depend on. Triples (call node, first, count) into the shared child
+        '' pool, scanned linearly -- explicit type arguments are rare.
+        as ChildPool   callTypeArgs
+
         declare constructor( )
         declare sub RecordTokens _
             ( byval id as NodeId, byval firstTok as long, byval lastTok as long )
         '' False when nothing was recorded for this node, which is the normal case.
         declare function TokensOf _
             ( byval id as NodeId, byref firstTok as long, byref lastTok as long ) as boolean
+        declare sub RecordCallTypeArgs _
+            ( byval id as NodeId, byval firstArg as long, byval argCount as long )
+        '' False when the call carried none, which is the normal case.
+        declare function CallTypeArgsOf _
+            ( byval id as NodeId, byref firstArg as long, byref argCount as long ) as boolean
         declare function Kind( byval id as NodeId ) as NodeKind
         declare function Loc( byval id as NodeId ) as SourceLoc
         declare function Count( ) as long

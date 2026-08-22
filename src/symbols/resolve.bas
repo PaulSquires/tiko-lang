@@ -122,7 +122,7 @@ function ListOf _
     return @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
 end function
 
-private function IdentNameOf _
+function IdentNameOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.InternId
     if c.ast->Kind( id ) <> Fbx.N_IDENT then return Fbx.INTERN_NONE
     return c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )].name
@@ -554,11 +554,10 @@ private sub BindThis _
     end if
 end sub
 
-declare sub BackpatchTypedefs( byref c as Ctx )
 '' Give a just-declared name its type. The symbol is found by NAME in the scope
 '' Collect recorded, rather than by threading a SymbolId through the AST: the
 '' declaration and its symbol are in the same scope by construction.
-private sub BindDeclType _
+sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
       byval t as Fbx.TypeId )
 
@@ -748,7 +747,15 @@ private sub WalkExpr _
         '' The target is a VARIABLE here, and that is exactly what says the call is
         '' indirect.
         if c.ast->Kind( id ) = Fbx.N_CALL then
-            if c.info->RefOf( id ) = Fbx.SYMBOL_NONE then
+            '' 'Ok( of Decimal, FinanceError )( v )' -- A GENERIC PROCEDURE, whose type
+            '' arguments the parser recorded against this node. Tried BEFORE the
+            '' ordinary binding below: the target names the GENERIC, and copying that
+            '' binding up would point the call at a procedure with no code.
+            dim as Fbx.SymbolId gpi = InstantiateGenericProc_( c, id, scope_ )
+            if gpi <> Fbx.SYMBOL_NONE then
+                c.info->SetRef( id, gpi )
+                c.info->SetRef( lp->target, gpi )
+            elseif c.info->RefOf( id ) = Fbx.SYMBOL_NONE then
                 c.info->SetRef( id, c.info->RefOf( lp->target ) )
             end if
         end if
@@ -891,7 +898,7 @@ function ArrayFromBounds _
 end function
 
 '' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
-private function ArrayFromBoundsNode _
+function ArrayFromBoundsNode _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
       byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
 
@@ -1417,46 +1424,10 @@ sub Run _
     DiscoverInstantiations_( c, ast, root, diags, info )
     WalkStmt( c, root, Fbx.SCOPE_GLOBAL )
     InstantiatePending_( c )
+    InstantiatePendingProcs_( c )
     BackpatchTypedefs( c )
 end sub
 
-'' TYPEDEFS THAT NAME A TYPE DECLARED LATER, and the declarations waiting on them.
-''
-''     type t as u : type u as integer : dim as t i
-''
-'' A FIXPOINT, not one extra pass: 'a as b / b as c / c as integer' needs one round per
-'' link. Bounded, because a round that binds nothing stops. Then the declarations that
-'' could not be typed the first time -- only those, because a second full walk would
-'' report every diagnostic twice.
-private sub BackpatchTypedefs( byref c as Ctx )
-    for r as long = 1 to c.typedefNode.Count
-        dim as boolean progress = false
-        for i as long = 0 to c.typedefNode.Count - 1
-            dim as Fbx.NodeId id = cast( Fbx.NodeId, c.typedefNode[i] )
-            dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.typedefScope[i] )
-            dim as Fbx.StmtPayload ptr tsp = StmtOf( c, id )
-            if tsp->name = 0 then continue for
-            dim as Fbx.Symbol ptr ts = _
-                c.syms->SymbolAt( c.syms->LookupLocalTyped( here, tsp->name, true ) )
-            if ts = 0 then continue for
-            if ts->kind <> cast( ubyte, Fbx.SYM_TYPEDEF ) then continue for
-            dim as Fbx.TypeId al = ResolveTypeRef( c, tsp->a, here )
-            if (al = Fbx.TYPE_NONE) orelse (al = ts->type_) then continue for
-            ts->type_ = al
-            progress = true
-        next
-        if progress = false then exit for
-    next
-
-    for i as long = 0 to c.pendingItem.Count - 1
-        dim as Fbx.NodeId item = cast( Fbx.NodeId, c.pendingItem[i] )
-        dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.pendingScope[i] )
-        dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
-        dim as Fbx.TypeId t = ResolveTypeRef( c, ip->a, here )
-        if t = Fbx.TYPE_NONE then continue for
-        BindDeclType( c, here, ip->name, ArrayFromBoundsNode( c, t, ip->c, ip->b ) )
-    next
-end sub
 
 function Dump _
     ( byref ast as Fbx.AstArena, byref syms as Fbx.SymbolTable, _

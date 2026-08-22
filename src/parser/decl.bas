@@ -400,6 +400,10 @@ private function IsColonHere( byref p as Fbx.ParserState ) as boolean
     return ((Cur( p ).flags and Fbx.TF_COLON) <> 0)
 end function
 
+'' The '( of T, U )' parameter list. Defined below; both the TYPE and the PROCEDURE
+'' forms need it, and the procedure one is parsed first.
+declare function ParseTypeParams( byref p as Fbx.ParserState ) as Fbx.NodeId
+
 private function ParseProc _
     ( byref p as Fbx.ParserState, byval declareOnly as boolean ) as Fbx.NodeId
 
@@ -466,15 +470,13 @@ private function ParseProc _
             isGeneric = (p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) = "of")
         end if
         if isGeneric then
-            while (Peek( p ) <> Fbx.TK_RPAREN) andalso (AtEnd( p ) = false)
-                Advance( p )
-            wend
-            Expect( p, Fbx.TK_RPAREN, ")" )
-            '' RECORDED, even though the parameters themselves are still discarded.
-            '' Without it nothing downstream could tell 'function Ok( of T, E )( ... )'
-            '' from an ordinary procedure, and its body was lowered with T standing for
-            '' nothing: aggregates of size zero and a function under a name no call site
-            '' will ever use. See PF_GENERIC_PROC.
+            '' THE PARAMETER NAMES ARE KEPT, in 'c' -- the same field N_TYPE uses in 'b'
+            '' for exactly this. They used to be skipped, and with them went any chance
+            '' of instantiating the procedure: its body lowered with every 'as T'
+            '' standing for nothing, and produced a function under a name no call site
+            '' would ever use. See PF_GENERIC_PROC.
+            Advance( p )                  '' past 'of'
+            sp.c = ParseTypeParams( p )
             sp.extra or= Fbx.PF_GENERIC_PROC
         else
             p.pos = save
@@ -567,10 +569,11 @@ private function ParseProc _
     dim as Fbx.NodeId pn = MakeStmt( p, Fbx.N_PROC, t.loc, sp )
     if qualified then p.ast->nodes[cast( long, pn )].flags or= Fbx.NF_QUALIFIED
     '' A QUALIFIED DEFINITION -- 'function Box.Get( ) as T' -- may belong to a generic,
-    '' and instantiating that generic has to parse this body again to get nodes of its
-    '' own. Only qualified definitions are recorded: an ordinary procedure is never
-    '' re-parsed, and the table is scanned linearly.
-    if qualified then p.ast->RecordTokens( pn, procTok0, p.pos )
+    '' and a GENERIC PROCEDURE is one in its own right. Either way instantiating it has
+    '' to parse this body again to get nodes of its own. Nothing else is recorded: an
+    '' ordinary procedure is never re-parsed and the table is scanned linearly.
+    dim as boolean genProc = ((sp.extra and Fbx.PF_GENERIC_PROC) <> 0)
+    if qualified orelse genProc then p.ast->RecordTokens( pn, procTok0, p.pos )
     return pn
 end function
 

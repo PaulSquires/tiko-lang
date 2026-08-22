@@ -56,6 +56,12 @@ type Ctx
     '' drain is RE-ENTERED: instantiating one member walks its body, which reaches the
     '' same statement boundary and drains again. Each entry is still done once.
     as long                  pendDone
+    '' GENERIC PROCEDURES waiting to be instantiated. Six entries each -- the generic's
+    '' node, the symbol the call site was already given, its structural name, the scope
+    '' it lives in, and the (first, count) of its arguments in pendProcArgs.
+    as FB.Array( of ulong )  pendProc
+    as FB.Array( of ulong )  pendProcArgs
+    as long                  pendProcDone
 end type
 
 '' The helpers the split shares. Their definitions stay in resolve.bas -- only the
@@ -71,6 +77,18 @@ declare sub WalkStmt _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
 declare function ListOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.ListPayload ptr
+declare sub BindDeclType _
+    ( byref c as Ctx, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
+      byval t as Fbx.TypeId )
+declare function ArrayFromBoundsNode _
+    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
+      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
+declare sub BackpatchTypedefs( byref c as Ctx )
+declare function IdentNameOf _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.InternId
+declare function InstantiateGenericProc_ _
+    ( byref c as Ctx, byval callId as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.SymbolId
+declare sub InstantiatePendingProcs_( byref c as Ctx )
 declare sub DiscoverInstantiations_ _
     ( byref c as Ctx, byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
       byref diags as Fbx.DiagnosticEngine, byref info as Fbx.SemanticInfo )

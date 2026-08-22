@@ -1,30 +1,35 @@
-'' A GENERIC PROCEDURE IS NOT CODE.
+'' INSTANTIATING A GENERIC PROCEDURE.
 ''
-'' 'function Ok( of T, E )( ... )' has type parameters the parser still DISCARDS, so
+'' 'function Ok( of T, E )( ... )' had its type parameters DISCARDED by the parser, so
 '' nothing downstream could tell it from an ordinary procedure -- and its body lowered
 '' with every 'as T' standing for nothing: aggregates of SIZE ZERO, stores into void
-'' slots, and a whole function emitted under a name no call site will ever use. It
-'' counted as fully lowered while it did that.
+'' slots, and a whole function emitted under a name no call site would ever use, all of
+'' it counting as fully lowered. Two hundred thousand instructions of the corpus were
+'' that.
 ''
-'' ~200,000 instructions of the corpus were exactly this. Declining says what is true.
+'' NO INFERENCE IS NEEDED. Every call site writes the arguments out --
+'' 'Ok( of Decimal, FinanceError )( v )' is how every runtime header spells it -- so the
+'' instantiation's whole input is on the call, and the parser now keeps it.
 ''
-'' NOTE ON THE COUNT: a whole procedure now declines as ONE statement where its body
-'' used to decline several. The decline number therefore UNDER-states what is owed here
-'' -- the instantiation of generic procedures is still entirely missing, and one number
-'' per procedure is all that says so.
+'' What to read below: MK appears ONCE, as MK<n>, with a concrete parameter type and a
+'' concrete aggregate return -- and the TEMPLATE itself appears not at all, which is
+'' also what fbc emits. It still shows as one decline, and that is the honest count:
+'' the template is not code.
 
 type Box( of T )
     v as T
 end type
 
-function MakeBox( of T )( byval x as T ) as Box( of T )
+function Mk( of T )( byval x as T ) as Box( of T )
     dim as Box( of T ) b
     b.v = x
     return b
 end function
 
 sub P( )
-    '' The call site is not instantiated either, so it declines as well. The point of
-    '' this test is what is NOT in the output: no 'func' for MAKEBOX at all.
-    dim as long n = 1
+    dim as Box( of long ) a = Mk( of long )( 7 )
+    dim as Box( of double ) d = Mk( of double )( 2.5 )
+    '' THE SAME INSTANTIATION TWICE must reach ONE function, or the module would carry
+    '' two definitions under one mangled name.
+    dim as Box( of long ) a2 = Mk( of long )( 9 )
 end sub

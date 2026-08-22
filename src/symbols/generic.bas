@@ -133,28 +133,189 @@ function InstantiateGeneric_ _
     return isym->type_
 end function
 
-'' INSTANTIATE THE MEMBERS of a generic, by parsing their definitions a SECOND time.
+'' INSTANTIATE A GENERIC PROCEDURE -- 'Ok( of Decimal, FinanceError )( v )'.
 ''
-'' The bodies cannot be shared. SemanticInfo is keyed by NodeId, so two instantiations
-'' walking one body would write two different types onto the same node and the second
-'' would win everywhere -- which is why the two earlier attempts at giving instantiations
-'' their own member SYMBOLS pointing at the generic's own nodes moved the corpus
-'' backwards and then not at all. Fresh nodes are the only answer.
+'' NO INFERENCE IS NEEDED. Every call site in the runtime headers writes the type
+'' arguments out, which is also the only form fbx's parser keeps, so the instantiation's
+'' whole input is right there on the call.
 ''
-'' A re-parse gets them, and it needs no token substitution: the ordinary declaration
-'' parser runs over the range the definition was first read from, and the type parameters
-'' are substituted later, by ResolveTypeRef, off the stack this is called under. The
-'' token buffer only ever grows, so an index recorded during the first parse is still
-'' valid now.
+'' Same machinery as the TYPE half and for the same reason: SemanticInfo is keyed by
+'' NodeId, so the body is RE-PARSED from the token range the parser recorded and the
+'' fresh nodes are resolved with the parameters bound. What is patched is the NAME --
+'' to a structural key over the argument list -- so two instantiations are two symbols
+'' with two mangled names, and the call binds to the one it asked for.
 ''
-'' What is patched is one field. 'function Box.Get( ) as T' re-parses with ownerName
-'' 'Box'; setting it to the instantiation's structural name is what makes Collect open
-'' the body under the INSTANTIATION's scope rather than the generic's -- and with it the
-'' mangled name, which comes off the scope chain, differs per instantiation for free.
-''
-'' The generic's own 'declare' lines are not instantiated at all. The DEFINITION carries
-'' the whole signature, and Collect declares a member it finds no declaration for, so
-'' one pass over the definitions is the complete job.
+'' Returns the instantiated symbol, or SYMBOL_NONE when this is not a generic call at
+'' all -- which is every ordinary call, so it must be cheap to say no.
+function InstantiateGenericProc_ _
+    ( byref c as Ctx, byval callId as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.SymbolId
+
+    if c.parser = 0 then return Fbx.SYMBOL_NONE
+    dim as long taFirst, taCount
+    if c.ast->CallTypeArgsOf( callId, taFirst, taCount ) = false then return Fbx.SYMBOL_NONE
+    if c.ast->Kind( callId ) <> Fbx.N_CALL then return Fbx.SYMBOL_NONE
+
+    dim as Fbx.ListPayload ptr lp = ListOf( c, callId )
+    dim as Fbx.NodeId tgt = lp->target
+    if tgt = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE
+    if c.ast->Kind( tgt ) <> Fbx.N_IDENT then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId gname = IdentNameOf( c, tgt )
+    if gname = 0 then return Fbx.SYMBOL_NONE
+
+    '' THE GENERIC'S OWN NODE, through its symbol. A name that resolves to something
+    '' that is not a generic procedure is left alone -- 'Box( of long )' in expression
+    '' position is a TYPE and takes the other path.
+    dim as Fbx.SymbolId gsid = c.syms->Lookup( scope_, gname )
+    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( gsid )
+    if gs = 0 then return Fbx.SYMBOL_NONE
+    if gs->kind <> cast( ubyte, Fbx.SYM_PROC ) then return Fbx.SYMBOL_NONE
+    dim as Fbx.NodeId gn = cast( Fbx.NodeId, gs->payload )
+    if gn = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE
+    if c.ast->Kind( gn ) <> Fbx.N_PROC then return Fbx.SYMBOL_NONE
+    dim as Fbx.StmtPayload ptr gp = StmtOf( c, gn )
+    if (gp->extra and Fbx.PF_GENERIC_PROC) = 0 then return Fbx.SYMBOL_NONE
+    if gp->c = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE
+    if c.ast->Kind( gp->c ) <> Fbx.N_BLOCK then return Fbx.SYMBOL_NONE
+    dim as Fbx.ListPayload ptr pl = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
+    if pl->count <> taCount then return Fbx.SYMBOL_NONE
+
+    '' THE ARGUMENTS, resolved where they were written. One that does not resolve means
+    '' no instantiation rather than a wrong one -- the call then declines, which is the
+    '' honest outcome and the same rule the type half uses.
+    dim as string key = c.names->Spelling( gname ) & "<"
+    dim as FB.Array( of ulong ) argTypes
+    for i as long = 0 to taCount - 1
+        dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[taFirst + i] )
+        dim as Fbx.TypeId at = ResolveTypeRef( c, an, scope_ )
+        if at = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+        argTypes.Push( cast( ulong, at ) )
+        if i > 0 then key += ","
+        key += str( cast( long, at ) )
+    next
+    key += ">"
+
+    '' CACHED, in the scope the generic itself lives in. Two call sites naming the same
+    '' instantiation must reach ONE function, or the module would carry two definitions
+    '' of it under one mangled name.
+    dim as Fbx.InternId inm = c.names->Fold( c.names->GetString( key ) )
+    dim as Fbx.ScopeId home = gs->parent
+    if home = Fbx.SCOPE_NONE then home = Fbx.SCOPE_GLOBAL
+    dim as Fbx.SymbolId prev = c.syms->LookupLocal( home, inm )
+    if prev <> Fbx.SYMBOL_NONE then return prev
+
+    '' The symbol is DECLARED NOW and its body filled in by the deferred pass, so a
+    '' recursive generic -- one whose body calls itself at the same arguments -- finds
+    '' this rather than instantiating for ever.
+    dim as boolean idup = false
+    dim as Fbx.SymbolId isid = c.syms->DeclareSym( home, inm, Fbx.SYM_PROC, _
+        c.ast->Loc( gn ), idup )
+    if isid = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+
+    dim as long argFirst = c.pendProcArgs.Count
+    for i as long = 0 to taCount - 1
+        c.pendProcArgs.Push( argTypes[i] )
+    next
+    c.pendProc.Push( cast( ulong, gn ) )
+    c.pendProc.Push( cast( ulong, isid ) )
+    c.pendProc.Push( cast( ulong, inm ) )
+    c.pendProc.Push( cast( ulong, home ) )
+    c.pendProc.Push( cast( ulong, argFirst ) )
+    c.pendProc.Push( cast( ulong, taCount ) )
+    return isid
+end function
+
+'' The deferred half: parse each pending generic procedure again and resolve the fresh
+'' nodes with its parameters bound. Separated from the discovery above for the reason
+'' every re-parse in this file is -- parsing grows the arena, and a payload pointer held
+'' anywhere up the stack dangles the moment it does.
+sub InstantiatePendingProcs_( byref c as Ctx )
+    if c.parser = 0 then return
+    dim as Fbx.ParserState ptr p0 = cast( Fbx.ParserState ptr, c.parser )
+    if p0->toks = 0 then return
+
+    while c.pendProcDone < c.pendProc.Count
+        dim as long i = c.pendProcDone
+        c.pendProcDone += 6
+        dim as Fbx.NodeId gn = cast( Fbx.NodeId, c.pendProc[i] )
+        dim as Fbx.SymbolId isid = cast( Fbx.SymbolId, c.pendProc[i + 1] )
+        dim as Fbx.InternId inm = cast( Fbx.InternId, c.pendProc[i + 2] )
+        dim as Fbx.ScopeId home = cast( Fbx.ScopeId, c.pendProc[i + 3] )
+        dim as long argFirst = cast( long, c.pendProc[i + 4] )
+        dim as long argCount = cast( long, c.pendProc[i + 5] )
+
+        dim as long t0, t1
+        if c.ast->TokensOf( gn, t0, t1 ) = false then continue while
+
+        '' The parameters bind for as long as the fresh nodes are being resolved.
+        dim as long gmark = c.gparamName.Count
+        dim as Fbx.StmtPayload ptr gp = StmtOf( c, gn )
+        if gp->c <> Fbx.NODE_NONE then
+            if c.ast->Kind( gp->c ) = Fbx.N_BLOCK then
+                dim as Fbx.ListPayload ptr pl = _
+                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
+                for k as long = 0 to argCount - 1
+                    if k >= pl->count then exit for
+                    dim as Fbx.NodeId pn = cast( Fbx.NodeId, c.ast->children[pl->first + k] )
+                    if c.ast->Kind( pn ) <> Fbx.N_IDENT then continue for
+                    dim as Fbx.IdentPayload ptr pip = _
+                        @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
+                    c.gparamName.Push( cast( ulong, pip->name ) )
+                    c.gparamType.Push( c.pendProcArgs[argFirst + k] )
+                next
+            end if
+        end if
+
+        dim as Fbx.ParserState q
+        q.toks = p0->toks
+        q.stream = 0
+        q.litPool = p0->litPool
+        q.ast = c.ast
+        q.src = c.srcMgr
+        q.names = c.names
+        q.diags = c.diags
+        q.pos = t0
+        q.silent = true
+
+        dim as Fbx.NodeId fresh = Fbx.Parse.Statement( q )
+        if (fresh <> Fbx.NODE_NONE) andalso (c.ast->Kind( fresh ) = Fbx.N_PROC) then
+            dim as Fbx.StmtPayload ptr fp = StmtOf( c, fresh )
+            '' THE NAME IS THE STRUCTURAL KEY, and the generic flag comes OFF -- this
+            '' one is a concrete procedure now, and leaving the flag on would make
+            '' lowering decline the very body that was just built for it.
+            fp->name = inm
+            fp->rawName = inm
+            fp->extra and= not Fbx.PF_GENERIC_PROC
+            fp->c = Fbx.NODE_NONE
+
+            c.ast->extraTopLevel.Push( cast( ulong, fresh ) )
+            c.info->Resize( c.ast->Count( ) )
+            Fbx.Collect.One( *c.ast, fresh, home, *c.syms, *c.names, *c.types, _
+                             *c.diags, *c.info )
+            WalkStmt( c, fresh, home )
+            '' Collect declares its own symbol for a fresh unqualified definition, and
+            '' that one carries the node. The symbol the CALL SITE was given is the one
+            '' declared before the body existed, so it is pointed at the same node here
+            '' -- without this the call mangles against a symbol with no payload and
+            '' comes out as the bare source spelling.
+            dim as Fbx.Symbol ptr isym = c.syms->SymbolAt( isid )
+            dim as Fbx.SymbolId made = c.syms->LookupLocal( home, inm )
+            dim as Fbx.Symbol ptr msym = c.syms->SymbolAt( made )
+            if (isym <> 0) andalso (msym <> 0) then
+                if isym->payload = 0 then isym->payload = msym->payload
+                if isym->type_ = Fbx.TYPE_NONE then isym->type_ = msym->type_
+                isym->inner = msym->inner
+                isym->flags or= Fbx.SYMF_DEFINED
+            end if
+        end if
+
+        while c.gparamName.Count > gmark
+            c.gparamName.Pop( )
+            c.gparamType.Pop( )
+        wend
+    wend
+end sub
+
 '' The statements of a block.
 ''
 '' FIRST AND COUNT ARE SNAPSHOTTED because instantiating a generic member RE-PARSES it,
@@ -204,13 +365,19 @@ sub DiscoverInstantiations_ _
     diags.warnings = dwarn
     diags.suppressedCount = dsupp
     InstantiatePending_( c )
+    InstantiatePendingProcs_( c )
     info.Resize( ast.Count( ) )
 end sub
 
 function HasGenericDecl_( byref c as Ctx ) as boolean
     for i as long = 0 to c.ast->tokenRanges.Count - 3 step 3
-        if c.ast->Kind( cast( Fbx.NodeId, c.ast->tokenRanges[i] ) ) = Fbx.N_TYPE then
-            return true
+        dim as Fbx.NodeId n = cast( Fbx.NodeId, c.ast->tokenRanges[i] )
+        if c.ast->Kind( n ) = Fbx.N_TYPE then return true
+        '' A GENERIC PROCEDURE counts too, and it need not be inside a generic type --
+        '' 'function Ok( of T, E )( ... )' is one on its own, and fb/result.bi is
+        '' nothing but those.
+        if c.ast->Kind( n ) = Fbx.N_PROC then
+            if (StmtOf( c, n )->extra and Fbx.PF_GENERIC_PROC) <> 0 then return true
         end if
     next
     return false
@@ -232,6 +399,28 @@ sub InstantiatePending_( byref c as Ctx )
     wend
 end sub
 
+'' INSTANTIATE THE MEMBERS of a generic, by parsing their definitions a SECOND time.
+''
+'' The bodies cannot be shared. SemanticInfo is keyed by NodeId, so two instantiations
+'' walking one body would write two different types onto the same node and the second
+'' would win everywhere -- which is why the two earlier attempts at giving instantiations
+'' their own member SYMBOLS pointing at the generic's own nodes moved the corpus
+'' backwards and then not at all. Fresh nodes are the only answer.
+''
+'' A re-parse gets them, and it needs no token substitution: the ordinary declaration
+'' parser runs over the range the definition was first read from, and the type parameters
+'' are substituted later, by ResolveTypeRef, off the stack this is called under. The
+'' token buffer only ever grows, so an index recorded during the first parse is still
+'' valid now.
+''
+'' What is patched is one field. 'function Box.Get( ) as T' re-parses with ownerName
+'' 'Box'; setting it to the instantiation's structural name is what makes Collect open
+'' the body under the INSTANTIATION's scope rather than the generic's -- and with it the
+'' mangled name, which comes off the scope chain, differs per instantiation for free.
+''
+'' The generic's own 'declare' lines are not instantiated at all. The DEFINITION carries
+'' the whole signature, and Collect declares a member it finds no declaration for, so
+'' one pass over the definitions is the complete job.
 private sub InstantiateMembers_ _
     ( byref c as Ctx, byval gnode as Fbx.NodeId, byval gname as Fbx.InternId, _
       byval inm as Fbx.InternId, byval iin as Fbx.ScopeId, byval scope_ as Fbx.ScopeId, _
@@ -341,6 +530,44 @@ private sub InstantiateMembers_ _
         c.gparamName.Pop( )
         c.gparamType.Pop( )
     wend
+end sub
+
+'' TYPEDEFS THAT NAME A TYPE DECLARED LATER, and the declarations waiting on them.
+''
+''     type t as u : type u as integer : dim as t i
+''
+'' A FIXPOINT, not one extra pass: 'a as b / b as c / c as integer' needs one round per
+'' link. Bounded, because a round that binds nothing stops. Then the declarations that
+'' could not be typed the first time -- only those, because a second full walk would
+'' report every diagnostic twice.
+sub BackpatchTypedefs( byref c as Ctx )
+    for r as long = 1 to c.typedefNode.Count
+        dim as boolean progress = false
+        for i as long = 0 to c.typedefNode.Count - 1
+            dim as Fbx.NodeId id = cast( Fbx.NodeId, c.typedefNode[i] )
+            dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.typedefScope[i] )
+            dim as Fbx.StmtPayload ptr tsp = StmtOf( c, id )
+            if tsp->name = 0 then continue for
+            dim as Fbx.Symbol ptr ts = _
+                c.syms->SymbolAt( c.syms->LookupLocalTyped( here, tsp->name, true ) )
+            if ts = 0 then continue for
+            if ts->kind <> cast( ubyte, Fbx.SYM_TYPEDEF ) then continue for
+            dim as Fbx.TypeId al = ResolveTypeRef( c, tsp->a, here )
+            if (al = Fbx.TYPE_NONE) orelse (al = ts->type_) then continue for
+            ts->type_ = al
+            progress = true
+        next
+        if progress = false then exit for
+    next
+
+    for i as long = 0 to c.pendingItem.Count - 1
+        dim as Fbx.NodeId item = cast( Fbx.NodeId, c.pendingItem[i] )
+        dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.pendingScope[i] )
+        dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+        dim as Fbx.TypeId t = ResolveTypeRef( c, ip->a, here )
+        if t = Fbx.TYPE_NONE then continue for
+        BindDeclType( c, here, ip->name, ArrayFromBoundsNode( c, t, ip->c, ip->b ) )
+    next
 end sub
 
 end namespace

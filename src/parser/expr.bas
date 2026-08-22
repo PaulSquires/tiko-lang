@@ -96,6 +96,28 @@ end sub
 
 '' Scanned BACKWARDS, so a node recorded twice reads as its most recent range. That
 '' does not happen today; it is the safe direction if it ever does.
+sub AstArena.RecordCallTypeArgs _
+    ( byval id as NodeId, byval firstArg as long, byval argCount as long )
+    if id = NODE_NONE then return
+    if argCount <= 0 then return
+    this.callTypeArgs.Push( cast( ulong, id ) )
+    this.callTypeArgs.Push( cast( ulong, firstArg ) )
+    this.callTypeArgs.Push( cast( ulong, argCount ) )
+end sub
+
+function AstArena.CallTypeArgsOf _
+    ( byval id as NodeId, byref firstArg as long, byref argCount as long ) as boolean
+    if id = NODE_NONE then return false
+    for i as long = this.callTypeArgs.Count - 3 to 0 step -3
+        if cast( NodeId, this.callTypeArgs[i] ) = id then
+            firstArg = cast( long, this.callTypeArgs[i + 1] )
+            argCount = cast( long, this.callTypeArgs[i + 2] )
+            return true
+        end if
+    next
+    return false
+end function
+
 function AstArena.TokensOf _
     ( byval id as NodeId, byref firstTok as long, byref lastTok as long ) as boolean
     if id = NODE_NONE then return false
@@ -436,6 +458,8 @@ function PostfixChain _
     ( byref p as Fbx.ParserState, byval base_ as Fbx.NodeId ) as Fbx.NodeId
 
     dim as Fbx.NodeId result = base_
+    '' The type arguments of a pending '( of ... )', waiting for the call they belong to.
+    dim as Fbx.NodeIdVec typeArgs
     do
         dim as Fbx.TokenKind k = Peek( p )
         dim as Fbx.Token t = Cur( p )
@@ -451,13 +475,22 @@ function PostfixChain _
             '' 'of' is CONTEXTUAL -- not a keyword -- so it is recognised by spelling,
             '' exactly as 'each' and 'defer' are.
             ''
-            '' The arguments are CONSUMED AND DISCARDED, which is what TypeRef already
-            '' does with the same construct: every instantiation of one generic is the
-            '' same type to fbx. That is a real limitation and it is PRE-EXISTING --
-            '' this makes the expression side agree with the type side, it does not
-            '' introduce the gap.
+            '' THE ARGUMENTS ARE KEPT. They used to be consumed and discarded, which was
+            '' fine while nothing could instantiate anything -- but a GENERIC PROCEDURE
+            '' is always called with them written out ('Ok( of Decimal, FinanceError )
+            '' ( v )' is how every runtime header spells it), so they are the whole of
+            '' the instantiation's input and throwing them away threw the call away.
+            ''
+            '' They are recorded against the CALL NODE, which is built on the next turn
+            '' of this loop -- so 'typeArgs' is carried across rather than attached here.
             if (k = Fbx.TK_LPAREN) andalso IsGenericArgs( p ) then
-                SkipBalanced( p )
+                Advance( p )
+                Advance( p )              '' past '(' and 'of'
+                do
+                    typeArgs.Push( cast( ulong, TypeRef( p ) ) )
+                    if Accept( p, Fbx.TK_COMMA ) = false then exit do
+                loop
+                Expect( p, Fbx.TK_RPAREN, ")" )
                 continue do
             end if
 
@@ -491,6 +524,20 @@ function PostfixChain _
             end if
             Expect( p, closer, iif( closer = Fbx.TK_RPAREN, ")", "]" ) )
             result = MakeList( p, kind, t.loc, result, items )
+
+            '' THE PENDING TYPE ARGUMENTS BELONG TO THIS CALL. Cleared afterwards, so a
+            '' second call in the same postfix chain does not inherit them.
+            if typeArgs.Count > 0 then
+                dim as long taFirst = p.ast->children.Count
+                dim as long taCount = typeArgs.Count
+                for i as long = 0 to taCount - 1
+                    p.ast->children.Push( typeArgs[i] )
+                next
+                p.ast->RecordCallTypeArgs( result, taFirst, taCount )
+                while typeArgs.Count > 0
+                    typeArgs.Pop( )
+                wend
+            end if
 
         case Fbx.TK_DOT, Fbx.TK_ARROW
             Advance( p )
