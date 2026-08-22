@@ -20,8 +20,18 @@
 '' and every conversion operator declared that way. Nothing said so: an untyped result is
 '' not a diagnostic.
 ''
-'' Only the STRING direction of the conversion is implemented. Implicit user conversion
-'' to a NUMBER is the same idea at a different set of call sites and is still missing.
+'' The WIDE half is below. A byref wstring result is a bare uint16*, which is exactly
+'' what every wide entry point already wants, so unlike the narrow case there is no
+'' descriptor to borrow. It is hooked into WideOperand_ rather than into each call site,
+'' because everything wide comes through that one function.
+''
+'' ONE DIVERGENCE, and it is fbc's OVERLOAD RESOLUTION rather than lowering: for
+'' 'trim( wv )' fbc picks the NARROW trim and converts around it --
+'' fb_WstrAssignToA into a temporary, fb_TRIM, fb_WstrAssignFromA back -- where fbx
+'' calls fb_WstrTrim on the converted pointer directly. Same value, three calls fewer.
+''
+'' Implicit user conversion to a NUMBER is the same idea at a different set of call
+'' sites and is still missing.
 
 type U
     s as zstring * 50
@@ -37,4 +47,22 @@ sub P( )
     r = trim( uv )
     r = uv
     z = uv
+end sub
+
+type W
+    s as wstring * 50
+    declare operator cast( ) byref as wstring
+end type
+
+operator W.cast( ) byref as wstring
+    return this.s
+end operator
+
+sub Q( )
+    dim as W wv
+    dim as wstring * 50 z
+    dim as string r
+    z = trim( wv )     '' fb_WstrTrim on the converted pointer
+    z = wv             '' fb_WstrAssign( Z, 50, vr )
+    r = wv             '' fb_WstrAssignToA( &R, -1, vr, 0 )
 end sub

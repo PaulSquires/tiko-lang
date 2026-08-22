@@ -821,7 +821,7 @@ function UserCastToStr_ _
 end function
 
 '' A member of a UDT by name, folded. Nothing when the type has no such member.
-private function UdtMemberNamed_ _
+function UdtMemberNamed_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
 
     if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE

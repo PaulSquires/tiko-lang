@@ -184,10 +184,24 @@ end function
 ''     fb_WstrAssignToA( (void*)Z, 64ll, (uint16*)W, 0 )
 ''
 '' The trailing int32 was 0 in every probe.
+declare function UserCastToWide_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+declare function UdtMemberNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
 function LowerWideToNarrow _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
 
-    if WideStringElems( c, c.info->TypeOf_( value ) ) = 0 then return false
+    '' THE SOURCE NEED NOT BE A WIDE VARIABLE. A UDT with 'operator cast' to a wstring
+    '' is one too, and 'r = wv' over one is 'fb_WstrAssignToA( &R, -1ll, vr, 0 )' with
+    '' vr the operator's result. Testing the TYPE alone said no to it.
+    dim as boolean wideSrc = (WideStringElems( c, c.info->TypeOf_( value ) ) > 0)
+    dim as MirValue castv
+    dim as boolean viaCast = false
+    if wideSrc = false then
+        viaCast = UserCastToWide_( c, value, castv )
+        if viaCast = false then return false
+    end if
 
     dim as Fbx.TypeId dt = c.info->TypeOf_( target )
     dim as longint dn = -1
@@ -196,7 +210,8 @@ function LowerWideToNarrow _
     end if
 
     dim as MirValue dst = LowerAddr( c, target )
-    dim as MirValue src = LowerAddr( c, value )
+    dim as MirValue src = castv
+    if viaCast = false then src = LowerAddr( c, value )
     if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
         return false
     end if
@@ -242,7 +257,67 @@ function WideOperand_ _
     end if
     if LowerWstrOf( c, id, outv ) then return true
     if LowerWideRvalue( c, id, outv ) then return true
+
+    '' A UDT WITH 'operator cast' TO A WSTRING, converted implicitly -- the wide half of
+    '' what UserCastToStr_ does for narrow strings. A byref wstring result is a bare
+    '' uint16*, which is exactly what every wide entry point wants, so unlike the narrow
+    '' case there is no descriptor to borrow: 'fb_WstrAssign( Z, 50ll, vr )' takes the
+    '' operator's result directly.
+    ''
+    '' Hooked in HERE rather than at each call site, because everything wide already
+    '' comes through this function: assignment both ways, comparison, and the trim
+    '' family all follow from the one hook.
+    if UserCastToWide_( c, id, outv ) then return true
     return false
+end function
+
+'' The 'operator cast' overload that yields a WSTRING, called on 'id'. Returns the
+'' uint16* it gives back.
+private function UserCastToWide_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Fbx.TypeId t = c.info->TypeOf_( id )
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+
+    dim as Fbx.SymbolId cs = UdtMemberNamed_( c, t, "cast" )
+    if cs = Fbx.SYMBOL_NONE then return false
+
+    '' THE OVERLOAD THAT YIELDS A WSTRING. 'operator cast' may be declared several
+    '' times over different targets, so the chain is walked rather than its head taken.
+    dim as Fbx.SymbolId cur = cs
+    dim as Fbx.SymbolId want = Fbx.SYMBOL_NONE
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        dim as Fbx.TypeId rt = cse->type_
+        if rt <> Fbx.TYPE_NONE then
+            '' BYREF makes it a POINTER to the wstring, so both spellings count.
+            dim as Fbx.TypeId inner = rt
+            if c.types->Kind( inner ) = Fbx.TK_POINTER then
+                inner = c.types->Inner( inner )
+            end if
+            if WideStringElems( c, inner ) > 0 then
+                want = cur
+                exit while
+            end if
+            if inner <> Fbx.TYPE_NONE then
+                if c.types->Kind( inner ) = Fbx.TK_BUILTIN then
+                    if c.types->BuiltinOf( inner ) = Fbx.TY_WSTRING then
+                        want = cur
+                        exit while
+                    end if
+                end if
+            end if
+        end if
+        cur = cse->nextOverload
+    wend
+    if want = Fbx.SYMBOL_NONE then return false
+
+    dim as MirValue self_ = LowerAddr( c, id )
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    outv = EmitMemberCall( c, want, self_, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 
