@@ -16,10 +16,6 @@ declare sub PushStrArg _
     ( byref args as FB.Array( of ulong ), byref addr as MirValue )
 declare sub PushStrLiteralArg _
     ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
-declare function PrintOne _
-    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
-      byref chan as MirValue ) as boolean
-declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
 declare function LowerConcatViaTemp _
     ( byref c as Ctx, byref dst as MirValue, _
       byref terms as FB.Array( of ulong ) ) as boolean
@@ -539,135 +535,10 @@ function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     return true
 end function
 
-'' One PRINT item. 'chan' is the file number, already lowered to a value by the caller
-'' -- the console is 0 and 'print #n' passes n. It is the SAME argument slot either way:
-'' measured from fbc's C, 'print #1, x' is 'fb_PrintInt( 1, x, 1 )' against
-'' 'fb_PrintInt( 0, x, 1 )' for the console, and no other call and no other shape.
-private function PrintOne _
-    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
-      byref chan as MirValue ) as boolean
-
-    '' SPC and TAB are POSITIONING items, not values: they take no mask and print
-    '' nothing themselves, so they are recognised before anything asks for a type.
-    if LowerPrintPos( c, it, chan ) then return true
-
-    dim as Fbx.TypeId t = c.info->TypeOf_( it )
-    dim as FB.Array( of ulong ) args
-    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
-
-    '' A WIDE STRING has its own entry point, and the same (channel, value, mask)
-    '' shape as the narrow one -- fbc emits 'fb_PrintWstr( 0, (uint16*)W, 1 )'. It
-    '' takes the POINTER, not a descriptor, because a wide string has none.
-    if IsWideString_( c, t ) then
-        dim as MirValue wa = LowerAddr( c, it )
-        if wa.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
-        PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_WSTR, args )
-        return true
-    end if
-
-    '' A 'string * N' borrows a descriptor from its OWN entry point and prints through
-    '' fb_PrintString like any other narrow string -- measured, fbc wraps it in
-    '' fb_StrAllocTempDescF first. StrDescriptorOf_ already knows how; PRINT simply had
-    '' no branch that reached it for this flavour.
-    dim as longint fpn
-    if StrSwapKind_( c, t, fpn ) = 3 then
-        dim as MirValue fd
-        if StrDescriptorOf_( c, it, fd ) = false then return false
-        args.Push( cast( ulong, fd.kind ) ) : args.Push( cast( ulong, fd.id ) )
-        PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
-        return true
-    end if
-
-    '' A STRING 'iif'. Like the trim family below, this must come BEFORE the
-    '' IsStringType test: Check DOES type an iif call now, so the test above catches
-    '' it, LowerAddr on a call then fails, and the whole print declines. That is the
-    '' SECOND time this exact ordering has bitten -- typing an expression correctly
-    '' is what moves it into the type test's path.
-    ''
-    '' Only the STRING form is taken here. A scalar iif must fall through to the
-    '' general path below -- and must NOT have been lowered on the way, because
-    '' LowerIif emits an entire branch sequence and doing it twice would evaluate the
-    '' arms twice. So the shape is decided from the ARM's type before anything is
-    '' emitted, not from what LowerIif hands back afterwards.
-    if IsStringIif_( c, it ) then
-        dim as MirValue iv
-        if LowerIif( c, it, MT_VOID, iv ) = false then return false
-        if iv.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, iv.kind ) ) : args.Push( cast( ulong, iv.id ) )
-        PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
-        return true
-    end if
-
-    '' 'print trim( s )'. This must come BEFORE the IsStringType test, not after it:
-    '' Check DOES type these calls as STRING, so the test above catches them, and
-    '' LowerAddr on a call then fails and the whole print declines. That is exactly
-    '' what happened -- 'b = trim( a )' lowered while 'print trim( a )' beside it did
-    '' not, because the assignment path had the same branch in the right order.
-    dim as MirValue srv
-    if LowerStrRvalue( c, it, srv ) then
-        args.Push( cast( ulong, srv.kind ) ) : args.Push( cast( ulong, srv.id ) )
-        PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
-        return true
-    end if
-
-    if IsStringType( c, t ) then
-        '' fb_PrintString takes an FBSTRING DESCRIPTOR, not a (pointer, length) pair
-        '' like fb_StrAssign does. A literal has no descriptor, so fbc borrows a
-        '' temporary one from the runtime and prints that:
-        ''
-        ''     FBSTRING* vr$4 = fb_StrAllocTempDescZEx( "lit", 3 );
-        ''     fb_PrintString( 0, vr$4, 1 );
-        ''
-        '' Passing the literal's BYTES here instead would have the runtime read a
-        '' descriptor out of string data.
-        dim as MirValue desc
-        if c.ast->Kind( it ) = Fbx.N_STRING_LIT then
-            dim as string litText = StringLitText_( c, it )
-            '' The length here is the literal's EXACT length, not the len+1 that
-            '' fb_StrAssign and fb_StrConcat take. Measured: fbc passes 2 for "x" to
-            '' fb_StrAssign but 3 for "lit" to fb_StrAllocTempDescZEx. The Z in the
-            '' name is the difference -- it already knows the bytes are terminated,
-            '' so it is not being told to include the terminator in the count.
-            dim as FB.Array( of ulong ) ta
-            ta.Push( cast( ulong, MV_GLOBAL ) )
-            ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
-            ta.Push( cast( ulong, MV_CONST_INT ) )
-            ta.Push( cast( ulong, len( litText ) ) )
-            desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
-        else
-            desc = LowerAddr( c, it )
-        end if
-        if desc.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
-        PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
-        return true
-    end if
-
-    '' Check computes no type for an 'iif' call, so a SCALAR iif reached here with
-    '' TYPE_NONE and no entry point could be chosen -- 'print iif( c, 1, 2 )'
-    '' declined while 'n = iif( c, 1, 2 )' worked. The arms carry the type.
-    if t = Fbx.TYPE_NONE then t = IifArmType_( c, it )
-
-    dim as RtlId which = PrintRtlFor( c, t )
-    if which = RTL_NONE then return false
-    dim as MirValue v = LowerExpr( c, it )
-    if v.kind = cast( ubyte, MV_NONE ) then return false
-    v = Coerce( c, v, LowerType( t, *c.types ) )
-    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
-    PushConst( args, mask )
-    EmitRtl( c, which, args )
-    return true
-end function
 
 '' The print entry point for a type. There is no generic one, and a POINTER has none of
 '' its own -- fbc sends it through fb_PrintULongint.
-private function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
+function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
     if t = Fbx.TYPE_NONE then return RTL_NONE
     select case c.types->Kind( t )
     case Fbx.TK_POINTER, Fbx.TK_PROC : return RTL_PRINT_ULONGINT

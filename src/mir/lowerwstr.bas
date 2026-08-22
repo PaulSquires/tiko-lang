@@ -369,35 +369,45 @@ function WideConcatToTemp_ _
     if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
     dim as FB.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
-    if terms.Count <> 2 then return false
+    if terms.Count < 2 then return false
 
-    dim as MirValue l, r
-    if WideOperand_( c, cast( Fbx.NodeId, terms[0] ), l ) = false then return false
-    if WideOperand_( c, cast( Fbx.NodeId, terms[1] ), r ) = false then return false
+    '' LEFT-FOLDED, because fb_WstrConcat takes exactly TWO operands: 'a & b & c' is
+    '' 'fb_WstrConcat( fb_WstrConcat( A, B ), C )', with a temporary per step and a
+    '' delete for each. Measured; that is what fbc emits.
+    dim as MirValue acc
+    if WideOperand_( c, cast( Fbx.NodeId, terms[0] ), acc ) = false then return false
 
-    dim as FB.Array( of ulong ) args
-    args.Push( cast( ulong, l.kind ) ) : args.Push( cast( ulong, l.id ) )
-    args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
-    dim as MirValue got = EmitRtl( c, RTL_WSTR_CONCAT, args )
-    if got.kind = cast( ubyte, MV_NONE ) then return false
+    for k as long = 1 to terms.Count - 1
+        dim as MirValue r
+        if WideOperand_( c, cast( Fbx.NodeId, terms[k] ), r ) = false then return false
 
-    '' The result is an allocation the caller owns, so it goes in a slot and on the
-    '' statement-temporary list -- exactly as a wide iif's own temporary does.
-    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
-    if slot < 0 then return false
-    dim as MirValue saddr
-    saddr.kind = cast( ubyte, MV_LOCAL )
-    saddr.ty = cast( ubyte, MT_PTR )
-    saddr.id = slot
-    dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
-    st.a = saddr
-    st.b = got
-    Emit( c, st )
-    c.wstrTemps.Push( cast( ulong, slot ) )
+        dim as FB.Array( of ulong ) args
+        args.Push( cast( ulong, acc.kind ) ) : args.Push( cast( ulong, acc.id ) )
+        args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
+        dim as MirValue got = EmitRtl( c, RTL_WSTR_CONCAT, args )
+        if got.kind = cast( ubyte, MV_NONE ) then return false
 
-    outv = LowerExprLoad( c, saddr, MT_PTR )
+        '' Each result is an allocation the caller owns, so it goes in a slot and on
+        '' the statement-temporary list -- exactly as a wide iif's own temporary does.
+        dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        if slot < 0 then return false
+        dim as MirValue saddr
+        saddr.kind = cast( ubyte, MV_LOCAL )
+        saddr.ty = cast( ubyte, MT_PTR )
+        saddr.id = slot
+        dim as MirInst st
+        st.op = cast( ushort, M_STORE )
+        st.ty = cast( ubyte, MT_VOID )
+        st.a = saddr
+        st.b = got
+        Emit( c, st )
+        c.wstrTemps.Push( cast( ulong, slot ) )
+
+        acc = LowerExprLoad( c, saddr, MT_PTR )
+        if acc.kind = cast( ubyte, MV_NONE ) then return false
+    next
+
+    outv = acc
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 

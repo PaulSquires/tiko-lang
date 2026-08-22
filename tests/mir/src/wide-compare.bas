@@ -79,3 +79,19 @@ sub S( )
     dim as wstring * 33 a, b, c, w0
     c = iif( ct, a + b, w0 )
 end sub
+
+'' PRINTING A WIDE CONCATENATION, and the chain rule behind it.
+''
+'' 'print w & c' declined while 'print w' beside it worked: Check gives a '&' chain NO
+'' TYPE OF ITS OWN, so PRINT's wide branch -- which asks the node's type -- saw nothing
+'' and fell through to the numeric one. Recognised by SHAPE instead.
+''
+'' And fb_WstrConcat takes exactly TWO operands, so a longer chain is LEFT-FOLDED with a
+'' temporary per step and a delete for each: 'a & b & c' is
+'' 'fb_WstrConcat( fb_WstrConcat( A, B ), C )'. Measured; that is what fbc emits.
+sub T( )
+    dim as wstring * 50 a, b, w
+    print a & b
+    print a & b & w
+    print #(1), a & ", " & b
+end sub

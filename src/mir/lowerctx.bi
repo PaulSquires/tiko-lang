@@ -356,7 +356,15 @@ declare function EmitRtl _
     declare function LowerArrayInit _
         ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
           byval init as Fbx.NodeId ) as boolean
+    declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
+    declare function PrintOne _
+        ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
+          byref chan as MirValue ) as boolean
     declare function IsWideString_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    '' A WIDE CONCATENATION built into a temporary the caller owns. fb_WstrConcat gives
+    '' back an allocation released with fb_WstrDelete at the end of the statement.
+    declare function WideConcatToTemp_ _
+        ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
     '' 1 for a narrow string type, 2 for a wide one, 0 for anything else. Both the
     '' SIZED spelling ('zstring * 8', an array of the builtin) and the UNSIZED one
     '' (the bare builtin, which a 'zstring ptr' points at) count.

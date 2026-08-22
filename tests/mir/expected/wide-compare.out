@@ -1,5 +1,6 @@
 global wstr $wstr0 "x"
 global var i64 ct
+global wstr $wstr2 ", "
 func void P() {
   local agg a size 16
   local agg b size 16
@@ -285,6 +286,57 @@ func void S() {
     ret
 }
 declare ptr fb_WstrConcat($0, $1)
+func void T() {
+  local agg a size 100
+  local agg b size 100
+  local agg w size 100
+  local ptr $tmp3
+  local ptr $tmp4
+  local ptr $tmp5
+  local ptr $tmp6
+  local ptr $tmp7
+  entry0:
+    %1 = alloca ptr a
+    %2 = alloca ptr b
+    %3 = alloca ptr w
+    %4 = call.rtl ptr fb_WstrConcat(@a, @b)
+    %5 = alloca ptr $tmp3
+    store @$tmp3, %4
+    %6 = load @$tmp3
+    call.rtl void fb_PrintWstr(0, %6, 1)
+    %7 = load @$tmp3
+    call.rtl void fb_WstrDelete(%7)
+    %8 = call.rtl ptr fb_WstrConcat(@a, @b)
+    %9 = alloca ptr $tmp4
+    store @$tmp4, %8
+    %10 = load @$tmp4
+    %11 = call.rtl ptr fb_WstrConcat(%10, @w)
+    %12 = alloca ptr $tmp5
+    store @$tmp5, %11
+    %13 = load @$tmp5
+    call.rtl void fb_PrintWstr(0, %13, 1)
+    %14 = load @$tmp5
+    call.rtl void fb_WstrDelete(%14)
+    %15 = load @$tmp4
+    call.rtl void fb_WstrDelete(%15)
+    %16 = const i64 1
+    %17 = trunc %16
+    %18 = call.rtl ptr fb_WstrConcat(@a, @@$wstr2)
+    %19 = alloca ptr $tmp6
+    store @$tmp6, %18
+    %20 = load @$tmp6
+    %21 = call.rtl ptr fb_WstrConcat(%20, @b)
+    %22 = alloca ptr $tmp7
+    store @$tmp7, %21
+    %23 = load @$tmp7
+    call.rtl void fb_PrintWstr(%17, %23, 1)
+    %24 = load @$tmp7
+    call.rtl void fb_WstrDelete(%24)
+    %25 = load @$tmp6
+    call.rtl void fb_WstrDelete(%25)
+    ret
+}
+declare void fb_PrintWstr($0, $1, $2)
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -301,4 +353,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 36 blocks, 185 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 37 blocks, 223 insts, 0 statements not lowered, 0 scope imbalance
