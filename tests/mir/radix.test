@@ -1,0 +1,5 @@
+'' The number-to-string family: four widths each, and the digit-count entry points.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/radix.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/radix.out

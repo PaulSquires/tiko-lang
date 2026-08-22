@@ -277,6 +277,8 @@ declare function EmitRtl _
           byval value as Fbx.NodeId, byval isInit as boolean ) as boolean
     declare function LowerStrRvalue _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerRadixCall_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function StrDescriptorOf_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function IifArmType_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId

@@ -33,6 +33,12 @@ declare function StrSwapKind_ _
 function LowerStrRvalue _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
 
+    '' THE RADIX FAMILY shares this entry point: every caller that wants a descriptor
+    '' reaches LowerStrRvalue, and putting the test only in StrDescriptorOf_ missed
+    '' EmitStrTerm, which calls this one directly -- so 's = hex( n )' still declined
+    '' with the implementation sitting right beside it.
+    if LowerRadixCall_( c, id, outv ) then return true
+
     if c.ast->Kind( id ) <> Fbx.N_CALL then return false
     dim as Fbx.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -147,6 +153,160 @@ function LowerStrRvalue _
         end if
     elseif (r = RTL_STR_UCASE) orelse (r = RTL_STR_LCASE) then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
+
+    outv = EmitRtl( c, r, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' hex / oct / bin / space / string -- the NUMBER-TO-STRING family.
+''
+'' None of these existed, and their absence was SILENT: 'dim as string h = hex( 123 )'
+'' allocated h, called nothing, and reported "0 statements not lowered". Most of
+'' iif.bas's remaining declines were waiting on this one name.
+''
+'' Measured from fbc, and none of it is guessable:
+''
+''   hex( b )          fb_HEX_b( (uint8)B )        FOUR WIDTHS, by the argument's SIZE
+''   hex( sh )         fb_HEX_s( (uint16)SH )
+''   hex( l )          fb_HEX_i( (uint32)L )       LONG is 32-bit, so _i and not _l
+''   hex( q )          fb_HEX_l( (uint64)Q )
+''   hex( l, 4 )       fb_HEXEx_i( (uint32)L, 4 )  a DIFFERENT ENTRY POINT, mixed case
+''   space( n )        fb_SPACE( n )
+''   string( n, 65 )   fb_StrFill1( n, 65 )        a CHARACTER CODE
+''   string( n, "x" )  fb_StrFill2( n, vr )        a DESCRIPTOR -- two entry points
+''
+'' The SIGNED-TO-UNSIGNED CAST is not cosmetic: it is what makes 'hex( -1 )' on a LONG
+'' come out FFFFFFFF rather than sign-extending to sixteen digits. INTEGER is 64-bit on
+'' win64 and 32-bit on win32, so the width is decided from the type's own SIZE here
+'' rather than from its spelling.
+function LowerRadixCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if (cp->count < 1) orelse (cp->count > 2) then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Fbx.NodeId a1 = Fbx.NODE_NONE
+    if cp->count = 2 then a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
+
+    '' SPACE and STRING first: their argument is a COUNT, not a value to render, and
+    '' neither takes a width.
+    if nm = "space" then
+        if cp->count <> 1 then return false
+        dim as MirValue n0 = LowerExpr( c, a0 )
+        if n0.kind = cast( ubyte, MV_NONE ) then return false
+        n0 = Coerce( c, n0, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a0 ) ) )
+        dim as FB.Array( of ulong ) sa
+        sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
+        outv = EmitRtl( c, RTL_STR_SPACE, sa )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    if nm = "string" then
+        if cp->count <> 2 then return false
+        dim as MirValue n0 = LowerExpr( c, a0 )
+        if n0.kind = cast( ubyte, MV_NONE ) then return false
+        n0 = Coerce( c, n0, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a0 ) ) )
+        dim as FB.Array( of ulong ) sa
+        sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
+
+        '' A STRING SECOND ARGUMENT is a descriptor and a NUMERIC one a character
+        '' code -- two entry points, not one with a converted argument.
+        dim as boolean isStr = (c.ast->Kind( a1 ) = Fbx.N_STRING_LIT)
+        if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a1 ) )
+        if isStr then
+            dim as MirValue dv
+            if StrDescriptorOf_( c, a1, dv ) = false then return false
+            sa.Push( cast( ulong, dv.kind ) ) : sa.Push( cast( ulong, dv.id ) )
+            outv = EmitRtl( c, RTL_STR_FILL2, sa )
+        else
+            dim as MirValue cv = LowerExpr( c, a1 )
+            if cv.kind = cast( ubyte, MV_NONE ) then return false
+            cv = Coerce( c, cv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            sa.Push( cast( ulong, cv.kind ) ) : sa.Push( cast( ulong, cv.id ) )
+            outv = EmitRtl( c, RTL_STR_FILL1, sa )
+        end if
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    dim as long fam = -1
+    select case nm
+    case "hex" : fam = 0
+    case "oct" : fam = 1
+    case "bin" : fam = 2
+    case else  : return false
+    end select
+
+    '' THE WIDTH, from the argument's own size. A type fbx cannot size at all would
+    '' otherwise silently become a 64-bit render.
+    dim as Fbx.TypeId at = c.info->TypeOf_( a0 )
+    if at = Fbx.TYPE_NONE then return false
+    dim as MirType amt = LowerType( at, *c.types )
+    dim as long w = -1
+    select case amt
+    case MT_I8  : w = 0
+    case MT_I16 : w = 1
+    case MT_I32 : w = 2
+    case MT_I64 : w = 3
+    case else   : return false
+    end select
+
+    dim as RtlId r = RTL_NONE
+    if a1 = Fbx.NODE_NONE then
+        select case fam * 4 + w
+        case 0 : r = RTL_HEX_B
+        case 1 : r = RTL_HEX_S
+        case 2 : r = RTL_HEX_I
+        case 3 : r = RTL_HEX_L
+        case 4 : r = RTL_OCT_B
+        case 5 : r = RTL_OCT_S
+        case 6 : r = RTL_OCT_I
+        case 7 : r = RTL_OCT_L
+        case 8 : r = RTL_BIN_B
+        case 9 : r = RTL_BIN_S
+        case 10 : r = RTL_BIN_I
+        case else : r = RTL_BIN_L
+        end select
+    else
+        select case fam * 4 + w
+        case 0 : r = RTL_HEXEX_B
+        case 1 : r = RTL_HEXEX_S
+        case 2 : r = RTL_HEXEX_I
+        case 3 : r = RTL_HEXEX_L
+        case 4 : r = RTL_OCTEX_B
+        case 5 : r = RTL_OCTEX_S
+        case 6 : r = RTL_OCTEX_I
+        case 7 : r = RTL_OCTEX_L
+        case 8 : r = RTL_BINEX_B
+        case 9 : r = RTL_BINEX_S
+        case 10 : r = RTL_BINEX_I
+        case else : r = RTL_BINEX_L
+        end select
+    end if
+
+    dim as MirValue v0 = LowerExpr( c, a0 )
+    if v0.kind = cast( ubyte, MV_NONE ) then return false
+    '' UNSIGNED OF THE SAME WIDTH. Coercing to the SAME MIR type with the unsigned flag
+    '' set is the reinterpretation fbc's '(uint32)L' is; widening it would change the
+    '' answer, which is the whole reason the width was worked out first.
+    v0 = Coerce( c, v0, amt, true )
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
+
+    if a1 <> Fbx.NODE_NONE then
+        dim as MirValue n1 = LowerExpr( c, a1 )
+        if n1.kind = cast( ubyte, MV_NONE ) then return false
+        n1 = Coerce( c, n1, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+        args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
     end if
 
     outv = EmitRtl( c, r, args )

@@ -215,6 +215,26 @@ sub ADProbe( byval n as long )
     erase u
 end sub
 ''',
+    # hex / oct / bin and the two fill entries. FOUR WIDTHS EACH, and the digit-count
+    # form is a separate entry point with a different capitalisation -- fb_HEX_i beside
+    # fb_HEXEx_i -- so every one of the twenty-four is probed. The argument must be
+    # NON-CONSTANT: fbc folds 'hex( 123 )' to a literal and calls nothing.
+    "radix": '''
+sub RadixProbe( )
+    dim as string s
+    dim as byte b : dim as short sh : dim as long l : dim as longint q
+    dim as long n = 2
+    s = hex( b )   : s = hex( sh )   : s = hex( l )   : s = hex( q )
+    s = hex( b, n ): s = hex( sh, n ): s = hex( l, n ): s = hex( q, n )
+    s = oct( b )   : s = oct( sh )   : s = oct( l )   : s = oct( q )
+    s = oct( b, n ): s = oct( sh, n ): s = oct( l, n ): s = oct( q, n )
+    s = bin( b )   : s = bin( sh )   : s = bin( l )   : s = bin( q )
+    s = bin( b, n ): s = bin( sh, n ): s = bin( l, n ): s = bin( q, n )
+    s = space( n )
+    s = string( n, l )
+    s = string( n, s )
+end sub
+''',
     # The NARROW substring and trim family. The spellings are not consistent --
     # fb_TRIM but fb_TrimEx, fb_LEFT but fb_StrMid -- so every one is probed.
     "strsub": '''

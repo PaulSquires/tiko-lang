@@ -1,0 +1,113 @@
+global str $str0 "x"
+func void P() {
+  local agg s size 24
+  local i8 b
+  local i8 ub
+  local i16 sh
+  local i16 ush
+  local i32 l
+  local i32 ul
+  local i64 q
+  local i64 uq
+  entry0:
+    %1 = alloca ptr s
+    %2 = field.addr @s, 0
+    store %2, 0
+    %3 = field.addr @s, 8
+    store %3, 0
+    %4 = field.addr @s, 16
+    store %4, 0
+    %5 = alloca ptr b
+    %6 = alloca ptr ub
+    %7 = alloca ptr sh
+    %8 = alloca ptr ush
+    %9 = alloca ptr l
+    %10 = alloca ptr ul
+    %11 = alloca ptr q
+    %12 = alloca ptr uq
+    %13 = load @b
+    %14 = call.rtl ptr fb_HEX_b(%13)
+    %15 = call.rtl ptr fb_StrAssign(@s, -1, %14, -1, 0)
+    %16 = load @ub
+    %17 = call.rtl ptr fb_HEX_b(%16)
+    %18 = call.rtl ptr fb_StrAssign(@s, -1, %17, -1, 0)
+    %19 = load @sh
+    %20 = call.rtl ptr fb_HEX_s(%19)
+    %21 = call.rtl ptr fb_StrAssign(@s, -1, %20, -1, 0)
+    %22 = load @ush
+    %23 = call.rtl ptr fb_HEX_s(%22)
+    %24 = call.rtl ptr fb_StrAssign(@s, -1, %23, -1, 0)
+    %25 = load @l
+    %26 = call.rtl ptr fb_HEX_i(%25)
+    %27 = call.rtl ptr fb_StrAssign(@s, -1, %26, -1, 0)
+    %28 = load @ul
+    %29 = call.rtl ptr fb_HEX_i(%28)
+    %30 = call.rtl ptr fb_StrAssign(@s, -1, %29, -1, 0)
+    %31 = load @q
+    %32 = call.rtl ptr fb_HEX_l(%31)
+    %33 = call.rtl ptr fb_StrAssign(@s, -1, %32, -1, 0)
+    %34 = load @uq
+    %35 = call.rtl ptr fb_HEX_l(%34)
+    %36 = call.rtl ptr fb_StrAssign(@s, -1, %35, -1, 0)
+    %37 = load @l
+    %38 = const i64 4
+    %39 = trunc %38
+    %40 = call.rtl ptr fb_HEXEx_i(%37, %39)
+    %41 = call.rtl ptr fb_StrAssign(@s, -1, %40, -1, 0)
+    %42 = load @l
+    %43 = call.rtl ptr fb_OCT_i(%42)
+    %44 = call.rtl ptr fb_StrAssign(@s, -1, %43, -1, 0)
+    %45 = load @uq
+    %46 = call.rtl ptr fb_OCT_l(%45)
+    %47 = call.rtl ptr fb_StrAssign(@s, -1, %46, -1, 0)
+    %48 = load @l
+    %49 = const i64 4
+    %50 = trunc %49
+    %51 = call.rtl ptr fb_OCTEx_i(%48, %50)
+    %52 = call.rtl ptr fb_StrAssign(@s, -1, %51, -1, 0)
+    %53 = load @l
+    %54 = call.rtl ptr fb_BIN_i(%53)
+    %55 = call.rtl ptr fb_StrAssign(@s, -1, %54, -1, 0)
+    %56 = load @uq
+    %57 = call.rtl ptr fb_BIN_l(%56)
+    %58 = call.rtl ptr fb_StrAssign(@s, -1, %57, -1, 0)
+    %59 = load @l
+    %60 = const i64 4
+    %61 = trunc %60
+    %62 = call.rtl ptr fb_BINEx_i(%59, %61)
+    %63 = call.rtl ptr fb_StrAssign(@s, -1, %62, -1, 0)
+    %64 = const i64 4
+    %65 = call.rtl ptr fb_SPACE(%64)
+    %66 = call.rtl ptr fb_StrAssign(@s, -1, %65, -1, 0)
+    %67 = const i64 4
+    %68 = const i64 65
+    %69 = trunc %68
+    %70 = call.rtl ptr fb_StrFill1(%67, %69)
+    %71 = call.rtl ptr fb_StrAssign(@s, -1, %70, -1, 0)
+    %72 = const i64 4
+    %73 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    %74 = call.rtl ptr fb_StrFill2(%72, %73)
+    %75 = call.rtl ptr fb_StrAssign(@s, -1, %74, -1, 0)
+    call.rtl void fb_StrDelete(@s)
+    ret
+}
+declare ptr fb_HEX_b($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_HEX_s($0)
+declare ptr fb_HEX_i($0)
+declare ptr fb_HEX_l($0)
+declare ptr fb_HEXEx_i($0, $1)
+declare ptr fb_OCT_i($0)
+declare ptr fb_OCT_l($0)
+declare ptr fb_OCTEx_i($0, $1)
+declare ptr fb_BIN_i($0)
+declare ptr fb_BIN_l($0)
+declare ptr fb_BINEx_i($0, $1)
+declare ptr fb_SPACE($0)
+declare ptr fb_StrFill1($0, $1)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare ptr fb_StrFill2($0, $1)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 79 insts, 2 statements not lowered, 0 scope imbalance
+  amb assign 2

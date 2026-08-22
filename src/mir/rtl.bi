@@ -150,6 +150,49 @@ namespace Fbx.Mir
         RTL( RTL_DATA_READ_ULONGINT,"fb_DataReadULongint", "v",   "p"     )
         RTL( RTL_DATA_READ_SINGLE,  "fb_DataReadSingle",   "v",   "p"     )
         RTL( RTL_DATA_READ_DOUBLE,  "fb_DataReadDouble",   "v",   "p"     )
+
+        '' THE RADIX FAMILY -- hex, oct and bin -- and the two fill entries.
+        ''
+        '' FOUR WIDTHS EACH, picked by the SIZE of the argument and not by its name:
+        '' _b _s _i _l over uint8 uint16 uint32 uint64. A signed argument is CAST to
+        '' the unsigned of the same width first, which is why 'hex( -1 )' on a LONG is
+        '' FFFFFFFF and not FFFFFFFFFFFFFFFF. INTEGER is 64-bit on win64 and 32-bit on
+        '' win32, so the choice is target-dependent and lowering makes it.
+        ''
+        '' The digit-count form is a DIFFERENT ENTRY POINT, not a defaulted argument,
+        '' and its name is mixed-case where the bare one is shouted: fb_HEX_i beside
+        '' fb_HEXEx_i. Guessing either spelling from the other would have been wrong.
+        RTL( RTL_HEX_B,           "fb_HEX_b",         "p",   "b"     )
+        RTL( RTL_HEX_S,           "fb_HEX_s",         "p",   "s"     )
+        RTL( RTL_HEX_I,           "fb_HEX_i",         "p",   "l"     )
+        RTL( RTL_HEX_L,           "fb_HEX_l",         "p",   "q"     )
+        RTL( RTL_HEXEX_B,         "fb_HEXEx_b",       "p",   "bl"    )
+        RTL( RTL_HEXEX_S,         "fb_HEXEx_s",       "p",   "sl"    )
+        RTL( RTL_HEXEX_I,         "fb_HEXEx_i",       "p",   "ll"    )
+        RTL( RTL_HEXEX_L,         "fb_HEXEx_l",       "p",   "ql"    )
+        RTL( RTL_OCT_B,           "fb_OCT_b",         "p",   "b"     )
+        RTL( RTL_OCT_S,           "fb_OCT_s",         "p",   "s"     )
+        RTL( RTL_OCT_I,           "fb_OCT_i",         "p",   "l"     )
+        RTL( RTL_OCT_L,           "fb_OCT_l",         "p",   "q"     )
+        RTL( RTL_OCTEX_B,         "fb_OCTEx_b",       "p",   "bl"    )
+        RTL( RTL_OCTEX_S,         "fb_OCTEx_s",       "p",   "sl"    )
+        RTL( RTL_OCTEX_I,         "fb_OCTEx_i",       "p",   "ll"    )
+        RTL( RTL_OCTEX_L,         "fb_OCTEx_l",       "p",   "ql"    )
+        RTL( RTL_BIN_B,           "fb_BIN_b",         "p",   "b"     )
+        RTL( RTL_BIN_S,           "fb_BIN_s",         "p",   "s"     )
+        RTL( RTL_BIN_I,           "fb_BIN_i",         "p",   "l"     )
+        RTL( RTL_BIN_L,           "fb_BIN_l",         "p",   "q"     )
+        RTL( RTL_BINEX_B,         "fb_BINEx_b",       "p",   "bl"    )
+        RTL( RTL_BINEX_S,         "fb_BINEx_s",       "p",   "sl"    )
+        RTL( RTL_BINEX_I,         "fb_BINEx_i",       "p",   "ll"    )
+        RTL( RTL_BINEX_L,         "fb_BINEx_l",       "p",   "ql"    )
+        '' SPACE and STRING. fb_StrFill1 takes a CHARACTER CODE, fb_StrFill2 a
+        '' descriptor -- 'string( 4, 65 )' and 'string( 4, "x" )' are two entry
+        '' points, and the second wraps its literal in fb_StrAllocTempDescZEx first.
+        RTL( RTL_STR_SPACE,         "fb_SPACE",            "p",   "z"     )
+        RTL( RTL_STR_FILL1,         "fb_StrFill1",         "p",   "zl"    )
+        RTL( RTL_STR_FILL2,         "fb_StrFill2",         "p",   "zp"    )
+
         RTL( RTL_STR_TEMPZ,         "fb_StrAllocTempDescZEx", "p",  "pz"  )
         '' The same thing without a length: a NUL-terminated char* whose length the
         '' runtime works out. That is what a ZSTRING destination borrows for LSET.
