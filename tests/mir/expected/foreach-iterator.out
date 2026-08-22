@@ -1,0 +1,134 @@
+func i8 _ZN4ITER7ISVALIDEv($0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = load @this
+    %8 = field.addr %7, 4
+    %9 = load %8
+    %10 = icmp.slt %6, %9
+    ret %10
+}
+func i32 _ZN4ITER5VALUEEv($0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = const i64 10
+    %8 = sext %6
+    %9 = mul %8, %7
+    ret %9
+}
+func void _ZN4ITER8MOVENEXTEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = add %4, %6
+    store %3, %7
+    ret
+}
+func agg _ZN4COLL11GETITERATOREv($0) {
+  local agg $tmp0 size 8
+  local ptr this
+  local agg t size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr t
+    %4 = field.addr @t, 4
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load %6
+    store %4, %7
+    %8 = load @t
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    ret %9
+}
+func void P() {
+  local agg c size 4
+  local i32 total
+  local i32 x
+  local agg $tmp3 size 8
+  local i32 y
+  local agg $tmp5 size 8
+  entry0:
+    %1 = alloca ptr c
+    %2 = alloca ptr total
+    %3 = alloca ptr x
+    %4 = alloca ptr $tmp3
+    %5 = call agg _ZN4COLL11GETITERATOREv(@c)
+    store @$tmp3, %5
+    %9 = alloca ptr y
+    %10 = alloca ptr $tmp5
+    br each.test3
+  each.body1:
+    %6 = call i32 _ZN4ITER5VALUEEv(@$tmp3)
+    store @x, %6
+    %7 = load @total
+    br each.cont2
+  each.cont2:
+    call void _ZN4ITER8MOVENEXTEv(@$tmp3)
+    br each.test3
+  each.test3:
+    %8 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
+    condbr %8, each.body1, each.exit4
+  each.exit4:
+    %11 = call agg _ZN4COLL11GETITERATOREv(@c)
+    store @$tmp5, %11
+    br each.test7
+  each.body5:
+    %12 = call i32 _ZN4ITER5VALUEEv(@$tmp5)
+    store @y, %12
+    %13 = const i64 20
+    condbr _, if.then10, if.else11
+  each.cont6:
+    call void _ZN4ITER8MOVENEXTEv(@$tmp5)
+    br each.test7
+  each.test7:
+    %16 = call i8 _ZN4ITER7ISVALIDEv(@$tmp5)
+    condbr %16, each.body5, each.exit8
+  each.exit8:
+    ret
+  if.join9:
+    %14 = const i64 40
+    condbr _, if.then13, if.else14
+  if.then10:
+    br each.cont6
+  if.else11:
+    br if.join9
+  if.join12:
+    %15 = load @total
+    br each.cont6
+  if.then13:
+    br each.exit8
+  if.else14:
+    br if.join12
+}
+verify: ok
+lowered: 5 functions, 19 blocks, 66 insts, 6 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 4
+  inside N_IF 2
+  skip-site src\mir\lower.bas:42 4
+  skip-site src\mir\lower.bas:998 2

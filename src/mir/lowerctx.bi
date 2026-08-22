@@ -235,6 +235,12 @@ declare function EmitRtl _
     declare function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
     declare function LowerForEachArray( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerForEachIter _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
+          byval seqE as Fbx.NodeId, byval at as Fbx.TypeId ) as boolean
+    declare function EmitMemberCall _
+        ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
+          byval rt as MirType ) as MirValue
     '' lowerfor.bas
     declare sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     declare sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )

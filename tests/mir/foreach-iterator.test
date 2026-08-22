@@ -1,0 +1,5 @@
+'' FOR EACH over a user collection, via the iterator protocol.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/foreach-iterator.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/foreach-iterator.out

@@ -8,6 +8,9 @@
 
 namespace Fbx.Mir
 
+declare function MemberNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
 '' A label name declared more than once in one procedure -- see ScanLabels.
 const LABEL_AMBIGUOUS = -2
 
@@ -567,6 +570,144 @@ sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = NewBlock( c, "goto.after" )
 end sub
 
+'' FOR EACH over a USER COLLECTION -- the RFC-0002 iterator protocol.
+''
+'' STRUCTURAL, not nominal: a collection is anything with GetIterator( ), and an
+'' iterator is anything with IsValid( ), Value( ) and MoveNext( ). Nothing is declared
+'' to implement anything.
+''
+'' The desugaring is measured, and it is the one the corpus test writes out:
+''
+''     __it = c.GetIterator( )
+''     goto test
+''   body:  x = __it.Value( ) : BODY
+''   cont:  __it.MoveNext( )              <-- CONTINUE FOR lands here
+''   test:  if __it.IsValid( ) goto body
+''   exit:
+''
+'' TEST LAST, reached by a jump over the body, so an empty collection runs the body no
+'' times and MoveNext is not called before the first element.
+function LowerForEachIter _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
+      byval seqE as Fbx.NodeId, byval at as Fbx.TypeId ) as boolean
+
+    dim as Fbx.SymbolId getIt = MemberNamed_( c, at, "getiterator" )
+    if getIt = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( getIt )
+    if gs = 0 then return false
+    dim as Fbx.TypeId itT = gs->type_
+    if itT = Fbx.TYPE_NONE then return false
+    if c.types->Kind( itT ) <> Fbx.TK_UDT then return false
+
+    '' All three, before anything is emitted. A collection that satisfies only part of
+    '' the protocol is not iterable, and finding that out half way through would leave
+    '' a call and a block behind.
+    dim as Fbx.SymbolId isValid = MemberNamed_( c, itT, "isvalid" )
+    dim as Fbx.SymbolId valueOf = MemberNamed_( c, itT, "value" )
+    dim as Fbx.SymbolId moveNext = MemberNamed_( c, itT, "movenext" )
+    if isValid = Fbx.SYMBOL_NONE then return false
+    if valueOf = Fbx.SYMBOL_NONE then return false
+    if moveNext = Fbx.SYMBOL_NONE then return false
+
+    dim as Fbx.Symbol ptr vs2 = c.syms->SymbolAt( valueOf )
+    if vs2 = 0 then return false
+    dim as Fbx.TypeId elT = vs2->type_
+    dim as MirType emt = LowerType( elT, *c.types )
+    if emt = MT_VOID then return false
+
+    '' The LOOP VARIABLE takes the element type when its own was not written.
+    dim as Fbx.SymbolId vsid = c.info->RefOf( sp->a )
+    if vsid = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr vsym = c.syms->SymbolAt( vsid )
+    if vsym = 0 then return false
+    if vsym->type_ = Fbx.TYPE_NONE then vsym->type_ = elT
+    dim as MirValue vaddr = LowerAddr( c, sp->a )
+    if vaddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue cAddr = LowerAddr( c, seqE )
+    if cAddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The ITERATOR, in a temporary of its own. GetIterator returns it by value, so the
+    '' call's result is stored into that temporary and every later call takes its
+    '' address as the receiver.
+    dim as long islot = NewTempLocal( c, MT_AGG, SizeOfType( c, itT ) )
+    if islot < 0 then return false
+    dim as MirValue iaddr
+    iaddr.kind = cast( ubyte, MV_LOCAL )
+    iaddr.ty = cast( ubyte, MT_PTR )
+    iaddr.id = islot
+
+    dim as MirValue got = EmitMemberCall( c, getIt, cAddr, MT_AGG )
+    if got.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst st0
+    st0.op = cast( ushort, M_STORE )
+    st0.ty = cast( ubyte, MT_VOID )
+    st0.a = iaddr
+    st0.b = got
+    Emit( c, st0 )
+
+    dim as long bodyB = NewBlock( c, "each.body" )
+    dim as long contB = NewBlock( c, "each.cont" )
+    dim as long testB = NewBlock( c, "each.test" )
+    dim as long exitB = NewBlock( c, "each.exit" )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    c.curBlock = bodyB
+    dim as MirValue ev = EmitMemberCall( c, valueOf, iaddr, emt )
+    if ev.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst stv
+    stv.op = cast( ushort, M_STORE )
+    stv.ty = cast( ubyte, MT_VOID )
+    stv.a = vaddr
+    stv.b = ev
+    Emit( c, stv )
+
+    '' CONTINUE FOR lands on the MoveNext block, not on the test, which is what makes
+    '' 'continue for' advance the iterator instead of spinning on the same element.
+    c.breakTo.Push( exitB )
+    c.contTo.Push( contB )
+    c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Fbx.KW_FOR ) )
+    PushScope( c )
+    LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
+    c.loopKind.Pop( )
+    c.breakTo.Pop( )
+    c.contTo.Pop( )
+    Terminate( c, MTERM_BR, contB, -1, NoVal( ) )
+
+    c.curBlock = contB
+    EmitMemberCall( c, moveNext, iaddr, MT_VOID )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    c.curBlock = testB
+    dim as MirValue ok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
+    if ok.kind = cast( ubyte, MV_NONE ) then return false
+    Terminate( c, MTERM_CONDBR, bodyB, exitB, ok )
+
+    c.curBlock = exitB
+    return true
+end function
+
+'' A member of a UDT by name, folded. Returns nothing when the type has no such member,
+'' which is how the protocol is tested: structurally, one name at a time.
+private function MemberNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Fbx.SYMBOL_NONE
+    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
+end function
+
+
 '' FOR EACH over a FIXED ARRAY.
 ''
 '' Measured from fbc: it is an ordinary counted loop over the array's own bounds, with
@@ -595,6 +736,13 @@ function LowerForEachArray _
 
     dim as Fbx.TypeId at = c.info->TypeOf_( seqE )
     if at = Fbx.TYPE_NONE then return false
+
+    '' A USER COLLECTION, not an array: the RFC-0002 iterator protocol. Tried first
+    '' because a UDT can never be the array form, so there is nothing to fall back to.
+    if c.types->Kind( at ) = Fbx.TK_UDT then
+        return LowerForEachIter( c, id, sp, seqE, at )
+    end if
+
     if c.types->Kind( at ) <> Fbx.TK_ARRAY then return false
 
     '' A DYNAMIC array has no compile-time bounds at all: they are read from its
