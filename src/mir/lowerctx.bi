@@ -492,6 +492,9 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 
     '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
+    '' lowergfx.bas -- the graphics statements.
+    declare function LowerGfxStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+
     '' lowerimpl.bas -- the structors fbc writes for you.
     declare function UdtSymOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
     declare function TypeNeedsInit_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean

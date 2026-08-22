@@ -360,23 +360,11 @@ private sub IntrLine( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
         IntrInput( p, sp )
         return
     end if
+    '' THE GRAPHICS LINE, which has its own coordinate grammar -- see gfx.bas. Bit 1
+    '' says which of the two statements this is; the graphics flags start above it.
     sp.extra = 2
-    dim as Fbx.NodeIdVec items
-    do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
-        if Peek( p ) = Fbx.TK_COMMA then
-            Advance( p )
-            continue do
-        end if
-        dim as long before = p.pos
-        items.Push( cast( ulong, Expression( p ) ) )
-        if p.pos = before then exit do
-    loop
-    sp.first = p.ast->children.Count
-    sp.count = items.Count
-    for i as long = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
-    next
+    dim as Fbx.Token lt = Cur( p )
+    ParseGfxStmt( p, lt, Fbx.KW_LINE, sp )
 end sub
 
 '' DATA holds literals, not expressions: unquoted words are data, not identifiers.
@@ -504,9 +492,18 @@ function ParseIntrinsic( byref p as Fbx.ParserState ) as Fbx.NodeId
         EndOfStatement( p )
 
     case else
-        '' IFORM_GENERIC and IFORM_GFX. The graphics coordinate syntax
-        '' '(x,y)-(x,y)' parses as ordinary expressions, which is faithful enough
-        '' for the tree; gfxlib2 lowering will interpret it.
+        '' THE COORDINATE-SYNTAX STATEMENTS have a grammar of their own -- see gfx.bas.
+        '' '(x,y)-(x,y)' was parsed as an expression, which made it a BINARY MINUS of
+        '' two tuples, and 'step(1,2)' a CALL to a procedure named 'step'. Faithful to
+        '' nothing: the tree said subtract where the source said "from here to there".
+        select case k
+        case Fbx.KW_LINE, Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
+             Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW
+            if ParseGfxStmt( p, t, k, sp ) then
+                return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
+            end if
+        end select
+
         dim as Fbx.NodeIdVec items
         IntrArgList( p, items )
         sp.first = p.ast->children.Count

@@ -1,0 +1,5 @@
+'' The coordinate-syntax graphics statements and their measured defaults.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/graphics.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/graphics.out

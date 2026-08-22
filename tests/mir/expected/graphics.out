@@ -1,0 +1,270 @@
+global str $str0 ""
+global str $str1 "U10"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr buf
+  local i32 c
+  local agg pat size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr buf
+    %5 = alloca ptr c
+    %6 = alloca ptr pat
+    %7 = field.addr @pat, 0
+    store %7, 0
+    %8 = field.addr @pat, 8
+    store %8, 0
+    %9 = field.addr @pat, 16
+    store %9, 0
+    %10 = const i64 320
+    %11 = trunc %10
+    %12 = const i64 200
+    %13 = trunc %12
+    %14 = const i64 8
+    %15 = trunc %14
+    %16 = const i64 1
+    %17 = trunc %16
+    %18 = const i64 0
+    %19 = trunc %18
+    %20 = const i64 0
+    %21 = trunc %20
+    call void fb_GfxScreenRes(%11, %13, %15, %17, %19, %21)
+    %22 = const ptr 0
+    %23 = const i64 10
+    %24 = sitofp %23
+    %25 = const i64 10
+    %26 = sitofp %25
+    %27 = const i64 20
+    %28 = sitofp %27
+    %29 = const i64 20
+    %30 = sitofp %29
+    %31 = const i32 0
+    %32 = const i32 65535
+    call.rtl void fb_GfxLine(%22, %24, %26, %28, %30, %31, 0, %32, -2147483648)
+    %33 = const ptr 0
+    %34 = const i64 10
+    %35 = sitofp %34
+    %36 = const i64 10
+    %37 = sitofp %36
+    %38 = const i64 20
+    %39 = sitofp %38
+    %40 = const i64 20
+    %41 = sitofp %40
+    %42 = load @c
+    %43 = const i32 65535
+    call.rtl void fb_GfxLine(%33, %35, %37, %39, %41, %42, 0, %43, 0)
+    %44 = const ptr 0
+    %45 = const i64 10
+    %46 = sitofp %45
+    %47 = const i64 10
+    %48 = sitofp %47
+    %49 = const i64 20
+    %50 = sitofp %49
+    %51 = const i64 20
+    %52 = sitofp %51
+    %53 = load @c
+    %54 = const i32 65535
+    call.rtl void fb_GfxLine(%44, %46, %48, %50, %52, %53, 1, %54, 0)
+    %55 = const ptr 0
+    %56 = const i64 10
+    %57 = sitofp %56
+    %58 = const i64 10
+    %59 = sitofp %58
+    %60 = const i64 20
+    %61 = sitofp %60
+    %62 = const i64 20
+    %63 = sitofp %62
+    %64 = load @c
+    %65 = const i32 65535
+    call.rtl void fb_GfxLine(%55, %57, %59, %61, %63, %64, 2, %65, 0)
+    %66 = const ptr 0
+    %67 = const i64 10
+    %68 = sitofp %67
+    %69 = const i64 10
+    %70 = sitofp %69
+    %71 = const i64 5
+    %72 = sitofp %71
+    %73 = const i64 5
+    %74 = sitofp %73
+    %75 = load @c
+    %76 = const i32 65535
+    call.rtl void fb_GfxLine(%66, %68, %70, %72, %74, %75, 0, %76, 1)
+    %77 = const ptr 0
+    %78 = const i64 1
+    %79 = sitofp %78
+    %80 = const i64 1
+    %81 = sitofp %80
+    %82 = const i64 2
+    %83 = sitofp %82
+    %84 = const i64 2
+    %85 = sitofp %84
+    %86 = load @c
+    %87 = const i32 65535
+    call.rtl void fb_GfxLine(%77, %79, %81, %83, %85, %86, 0, %87, 2)
+    %88 = const ptr 0
+    %89 = const f32 0
+    %90 = const f32 0
+    %91 = const i64 20
+    %92 = sitofp %91
+    %93 = const i64 20
+    %94 = sitofp %93
+    %95 = const i32 0
+    %96 = const i32 65535
+    call.rtl void fb_GfxLine(%88, %89, %90, %92, %94, %95, 0, %96, -2147483646)
+    %97 = const ptr 0
+    %98 = const i64 10
+    %99 = sitofp %98
+    %100 = const i64 10
+    %101 = sitofp %100
+    %102 = const i64 20
+    %103 = sitofp %102
+    %104 = const i64 20
+    %105 = sitofp %104
+    %106 = load @c
+    %107 = const i64 65280
+    %108 = trunc %107
+    call.rtl void fb_GfxLine(%97, %99, %101, %103, %105, %106, 0, %108, 0)
+    %109 = load @buf
+    %110 = const i64 10
+    %111 = sitofp %110
+    %112 = const i64 10
+    %113 = sitofp %112
+    %114 = const i64 20
+    %115 = sitofp %114
+    %116 = const i64 20
+    %117 = sitofp %116
+    %118 = load @c
+    %119 = const i32 65535
+    call.rtl void fb_GfxLine(%109, %111, %113, %115, %117, %118, 0, %119, 0)
+    %120 = const ptr 0
+    %121 = const i64 1
+    %122 = sitofp %121
+    %123 = const i64 2
+    %124 = sitofp %123
+    %125 = const i32 0
+    call.rtl void fb_GfxPset(%120, %122, %124, %125, -2147483644, 0)
+    %126 = const ptr 0
+    %127 = const i64 1
+    %128 = sitofp %127
+    %129 = const i64 2
+    %130 = sitofp %129
+    %131 = load @c
+    call.rtl void fb_GfxPset(%126, %128, %130, %131, 5, 0)
+    %132 = const ptr 0
+    %133 = const i64 1
+    %134 = sitofp %133
+    %135 = const i64 2
+    %136 = sitofp %135
+    %137 = load @c
+    call.rtl void fb_GfxPset(%132, %134, %136, %137, 4, -1)
+    %138 = const ptr 0
+    %139 = const i64 1
+    %140 = sitofp %139
+    %141 = const i64 2
+    %142 = sitofp %141
+    %143 = const i64 3
+    %144 = sitofp %143
+    %145 = const i32 0
+    %146 = const f32 0
+    %147 = const f32 6.283185482025146
+    %148 = const f32 0
+    call.rtl void fb_GfxEllipse(%138, %140, %142, %144, %145, %148, %146, %147, 0, -2147483644)
+    %149 = const ptr 0
+    %150 = const i64 1
+    %151 = sitofp %150
+    %152 = const i64 2
+    %153 = sitofp %152
+    %154 = const i64 3
+    %155 = sitofp %154
+    %156 = load @c
+    %157 = const f64 0.5
+    %158 = fptrunc %157
+    %159 = const f64 1.5
+    %160 = fptrunc %159
+    %161 = const f64 2
+    %162 = fptrunc %161
+    call.rtl void fb_GfxEllipse(%149, %151, %153, %155, %156, %162, %158, %160, -1, 4)
+    %163 = const ptr 0
+    %164 = const i64 1
+    %165 = sitofp %164
+    %166 = const i64 2
+    %167 = sitofp %166
+    %168 = const i32 0
+    %169 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    %170 = const i32 0
+    call.rtl void fb_GfxPaint(%163, %165, %167, %168, %170, %169, 0, -1073741820)
+    %171 = const ptr 0
+    %172 = const i64 1
+    %173 = sitofp %172
+    %174 = const i64 2
+    %175 = sitofp %174
+    %176 = load @c
+    %177 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    %178 = load @c
+    call.rtl void fb_GfxPaint(%171, %173, %175, %176, %178, %177, 0, 4)
+    %179 = const ptr 0
+    %180 = const i64 1
+    %181 = sitofp %180
+    %182 = const i64 2
+    %183 = sitofp %182
+    %184 = const i32 4294901760
+    %185 = load @c
+    call.rtl void fb_GfxPaint(%179, %181, %183, %184, %185, @pat, 1, 4)
+    %186 = const i64 0
+    %187 = trunc %186
+    %188 = const i64 0
+    %189 = trunc %188
+    %190 = const i64 1
+    %191 = trunc %190
+    %192 = const i64 1
+    %193 = trunc %192
+    %194 = load @c
+    %195 = load @c
+    call.rtl void fb_GfxView(%187, %189, %191, %193, %194, %195, 0)
+    %196 = const i64 0
+    %197 = trunc %196
+    %198 = const i64 0
+    %199 = trunc %198
+    %200 = const i64 1
+    %201 = trunc %200
+    %202 = const i64 1
+    %203 = trunc %202
+    %204 = load @c
+    %205 = load @c
+    call.rtl void fb_GfxView(%197, %199, %201, %203, %204, %205, 1)
+    %206 = const i64 0
+    %207 = sitofp %206
+    %208 = const i64 0
+    %209 = sitofp %208
+    %210 = const i64 1
+    %211 = sitofp %210
+    %212 = const i64 1
+    %213 = sitofp %212
+    call.rtl void fb_GfxWindow(%207, %209, %211, %213, 0)
+    %214 = const ptr 0
+    %215 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    call.rtl void fb_GfxDraw(%214, %215)
+    call.rtl void fb_StrDelete(@pat)
+    %216 = const i32 0
+    call.rtl void fb_End(%216)
+    %217 = load @$tmp0
+    ret %217
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_GfxScreenRes()
+declare void fb_GfxLine($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare void fb_GfxPset($0, $1, $2, $3, $4, $5)
+declare void fb_GfxEllipse($0, $1, $2, $3, $4, $5, $6, $7, $8, $9)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_GfxPaint($0, $1, $2, $3, $4, $5, $6, $7)
+declare void fb_GfxView($0, $1, $2, $3, $4, $5, $6)
+declare void fb_GfxWindow($0, $1, $2, $3, $4)
+declare void fb_GfxDraw($0, $1)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 246 insts, 0 statements not lowered, 0 scope imbalance

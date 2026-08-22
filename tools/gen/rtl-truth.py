@@ -26,10 +26,16 @@ import fbxtargets
 ROOT = Path(__file__).resolve().parents[2]
 
 # The toolchains live in fbxtargets, so control.py can point a half elsewhere.
+# THE GRAPHICS ENTRY POINTS ARE IN A DIFFERENT ARCHIVE. libfbgfx.a, not libfb.a, and
+# looking in only the first made every one of them read as ABSENT -- which is a
+# perfectly good way to describe a symbol that is simply somewhere else, and says
+# nothing about whether the signature is right.
 TARGETS = {
-    "win64": (fbxtargets.FBC64, fbxtargets.TC / "lib/win64/libfb.a",
+    "win64": (fbxtargets.FBC64,
+              [fbxtargets.TC / "lib/win64/libfb.a", fbxtargets.TC / "lib/win64/libfbgfx.a"],
               ROOT / "tests/expected/fbc-rtl.txt", ROOT / "build/.rt", []),
-    "win32": (fbxtargets.FBC32, fbxtargets.TC / "lib/win32/libfb.a",
+    "win32": (fbxtargets.FBC32,
+              [fbxtargets.TC / "lib/win32/libfb.a", fbxtargets.TC / "lib/win32/libfbgfx.a"],
               ROOT / "tests/expected/fbc-rtl-win32.txt", ROOT / "build/.rt32",
               ["-gen", "gcc"]),
 }
@@ -487,6 +493,34 @@ sub P( )
     close #1
 end sub
 ''',
+    # THE GRAPHICS FAMILY. Coordinates are SINGLES throughout -- fbc passes each one
+    # as a separate 'float', never a struct -- and that is the fact a table of
+    # integer-looking arguments would get wrong on both targets at once.
+    #
+    # A graphics mode has to be OPEN for these to lower, hence the screenres. The
+    # probe is never run; only the declarations fbc emits are read.
+    "gfx": '''
+sub P( )
+    dim as any ptr buf
+    dim as long c
+    dim as string pat
+    screenres 320, 200, 8
+    line (1,2)-(3,4), c, BF
+    pset (1,2), c
+    preset (1,2), c
+    circle (1,2), 3, c, 0.5, 1.5, 2.0, F
+    paint (1,2), pat, c
+    get (1,2)-(3,4), buf
+    put (1,2), buf, XOR
+    view (0,0)-(1,1), c, c
+    window (0,0)-(1,1)
+    draw "U10"
+    palette 1, 2, 3, 4
+    palette get 1, c
+    dim as long arr(0 to 3)
+    palette using arr
+end sub
+''',
 }
 
 
@@ -551,7 +585,10 @@ def one_target(label, fbc, lib, out, work, extra) -> int:
     #
     # EXCEPT THE LIBC ONES. malloc, free, pow and atan2 come from the C runtime, not
     # from libfb, so their absence there is expected and is not a missing symbol.
-    libdata = lib.read_bytes() if lib.exists() else b""
+    # ONE OR SEVERAL ARCHIVES. The graphics entry points are in libfbgfx.a rather than
+    # libfb.a, and looking in only the first made every one of them read as ABSENT.
+    libs = lib if isinstance(lib, list) else [lib]
+    libdata = b"".join(x.read_bytes() for x in libs if x.exists())
     rows, missing = [], []
     for fn in sorted(sigs):
         ret, args, sym = sigs[fn]

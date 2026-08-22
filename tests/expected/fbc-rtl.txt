@@ -55,6 +55,19 @@ fb_FileLineInput	int32	int32, void*, int64, int32	lib	fb_FileLineInput
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	fb_FileOpen
 fb_FloatToStr	FBSTRING*	float	lib	fb_FloatToStr
 fb_FloatToWstr	uint16*	float	lib	fb_FloatToWstr
+fb_GfxDraw	void	void*, FBSTRING*	lib	fb_GfxDraw
+fb_GfxEllipse	void	void*, float, float, float, uint32, float, float, float, int32, int32	lib	fb_GfxEllipse
+fb_GfxGet	int32	void*, float, float, float, float, void*, int32, struct $7FBARRAYIKvE*	lib	fb_GfxGet
+fb_GfxLine	void	void*, float, float, float, float, uint32, int32, uint32, int32	lib	fb_GfxLine
+fb_GfxPaint	void	void*, float, float, uint32, uint32, FBSTRING*, int32, int32	lib	fb_GfxPaint
+fb_GfxPalette	void	int32, int32, int32, int32	lib	fb_GfxPalette
+fb_GfxPaletteGet	void	int32, int32*, int32*, int32*	lib	fb_GfxPaletteGet
+fb_GfxPaletteUsing	void	int32*	lib	fb_GfxPaletteUsing
+fb_GfxPset	void	void*, float, float, uint32, int32, int32	lib	fb_GfxPset
+fb_GfxPut	int32	void*, float, float, void*, int32, int32, int32, int32, int32, int32, void*, int32, void*, void*	lib	fb_GfxPut
+fb_GfxScreenRes	int32	int32, int32, int32, int32, int32, int32	lib	fb_GfxScreenRes
+fb_GfxView	void	int32, int32, int32, int32, uint32, uint32, int32	lib	fb_GfxView
+fb_GfxWindow	void	float, float, float, float, int32	lib	fb_GfxWindow
 fb_HEXEx_b	FBSTRING*	uint8, int32	lib	fb_HEXEx_b
 fb_HEXEx_i	FBSTRING*	uint32, int32	lib	fb_HEXEx_i
 fb_HEXEx_l	FBSTRING*	uint64, int32	lib	fb_HEXEx_l
@@ -209,6 +222,7 @@ fb_WstrTrim	uint16*	uint16*	lib	fb_WstrTrim
 fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrTrimAny
 fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrTrimEx
 fb_WstrUcase2	uint16*	uint16*, int32	lib	fb_WstrUcase2
+fb_hPutXor	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutXor
 free	void	void*	lib	free
 malloc	void*	uint64	lib	malloc
 memset	void*	void*, int32, uint64	lib	memset

@@ -1325,8 +1325,18 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             if (ip->extra and 1) <> 0 then
                 handled = LowerLineInput( c, id )
                 if handled = false then handled = LowerInput( c, id, true )
+            elseif (ip->extra and 2) <> 0 then
+                '' The GRAPHICS line. Bit 1 is what tells the two statements apart.
+                handled = LowerGfxStmt( c, id )
             end if
         end if
+        '' THE GRAPHICS FAMILY, which has its own coordinate grammar and its own
+        '' measured defaults -- see lowergfx.bas.
+        select case cast( Fbx.TokenKind, ip->op )
+        case Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
+             Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW
+            handled = LowerGfxStmt( c, id )
+        end select
         if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
         if handled = false then SkipStmt( c, id )
 

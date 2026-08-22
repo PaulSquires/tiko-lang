@@ -76,9 +76,8 @@ N_MODULE (26) <1:1>
     N_INT_LIT 15 radix=10 <24:7>
     N_INT_LIT 0 radix=10 <24:11>
   N_INTRINSIC [PSET] <25:1>
-    N_TUPLE <25:6>
-      N_INT_LIT 1 radix=10 <25:7>
-      N_INT_LIT 2 radix=10 <25:10>
+    N_INT_LIT 1 radix=10 <25:7>
+    N_INT_LIT 2 radix=10 <25:10>
     N_INT_LIT 4 radix=10 <25:14>
   N_INTRINSIC [WRITE] <26:1>
     N_INT_LIT 1 radix=10 <26:8>

@@ -41,6 +41,7 @@ src/mir/lowerio.bas
 src/mir/lowerdesc.bas
 src/mir/lowervtab.bas
 src/mir/lowerimpl.bas
+src/mir/lowergfx.bas
 src/mir/lowerclean.bas
 src/mir/lowerdata.bas
 src/mir/lowerctor.bas

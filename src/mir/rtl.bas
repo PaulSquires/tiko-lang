@@ -85,6 +85,11 @@ function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
     case RTL_FREE, RTL_MALLOC, RTL_CALLOC, RTL_REALLOC, RTL_MEMSET, _
          RTL_POW, RTL_ATAN2
         return "_" & nm
+    '' ...AND SO ARE THE PUT BLENDERS, alone among the graphics family. Measured: every
+    '' fb_Gfx* entry point is __stdcall with an asm name on win32 and every fb_hPut* is
+    '' plain cdecl with none. Not a rule anyone would guess from the family they are in.
+    case RTL_GFX_PUT_XOR
+        return "_" & nm
     end select
 
     dim as long total = 0

@@ -988,6 +988,7 @@ end function
 end namespace
 
 #include once "parser/decl.bas"
+#include once "parser/gfx.bas"
 #include once "parser/intrinsics.bas"
 
 namespace Fbx.Parse

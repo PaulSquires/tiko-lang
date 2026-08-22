@@ -252,6 +252,32 @@ namespace Fbx.Mir
         '' '^'. Also a plain libc call, and BOTH OPERANDS BECOME DOUBLES whatever they
         '' were -- 'n ^ n' over two LONGs is 'pow( (double)(int64)N, (double)(int64)N )'.
         RTL( RTL_POW,               "pow",                 "d",   "dd"    )
+        '' THE GRAPHICS FAMILY. Coordinates are SINGLES throughout -- fbc passes each
+        '' one as a separate 'float', never a struct -- which is the fact a table of
+        '' integer-looking arguments would get wrong on both targets at once.
+        ''
+        '' The measured shape of every call, and every omitted argument's value, is in
+        '' docs/language/graphics-abi.md. What matters here is only the signature.
+        RTL( RTL_GFX_LINE,          "fb_GfxLine",          "v",   "pffffllll" )
+        '' SIX parameters, not five: the trailing one is PRESET-ness, and PRESET is the
+        '' same function with -1 there instead of 0.
+        RTL( RTL_GFX_PSET,          "fb_GfxPset",          "v",   "pfflll" )
+        RTL( RTL_GFX_ELLIPSE,       "fb_GfxEllipse",       "v",   "pffflfffll" )
+        RTL( RTL_GFX_PAINT,         "fb_GfxPaint",         "v",   "pffllpll" )
+        RTL( RTL_GFX_GET,           "fb_GfxGet",           "l",   "pffffplp" )
+        RTL( RTL_GFX_PUT,           "fb_GfxPut",           "l",   "pffpllllllplpp" )
+        RTL( RTL_GFX_VIEW,          "fb_GfxView",          "v",   "lllllll" )
+        RTL( RTL_GFX_WINDOW,        "fb_GfxWindow",        "v",   "ffffl" )
+        RTL( RTL_GFX_DRAW,          "fb_GfxDraw",          "v",   "pp"    )
+        RTL( RTL_GFX_PALETTE,       "fb_GfxPalette",       "v",   "llll"  )
+        RTL( RTL_GFX_PALETTE_GET,   "fb_GfxPaletteGet",    "v",   "lppp"  )
+        RTL( RTL_GFX_PALETTE_USING, "fb_GfxPaletteUsing",  "v",   "p"     )
+        '' Named by the PRELUDE rather than by a lowering, and by PUT's default blender.
+        '' Both are in the inventory so the gate compares their signatures like any
+        '' other -- an entry point fbx emits and does not check is the shape check-rtl
+        '' exists to prevent.
+        RTL( RTL_GFX_SCREENRES,     "fb_GfxScreenRes",     "l",   "llllll" )
+        RTL( RTL_GFX_PUT_XOR,       "fb_hPutXor",          "v",   "pplllllpp" )
         RTL( RTL_STR_SPACE,         "fb_SPACE",            "p",   "z"     )
         RTL( RTL_STR_FILL1,         "fb_StrFill1",         "p",   "zl"    )
         RTL( RTL_STR_FILL2,         "fb_StrFill2",         "p",   "zp"    )
