@@ -165,13 +165,22 @@ function BinaryResult _
     '' is decided before any of the numeric rules and before the builtin-only guard:
     '' concatenating a UDT with a CAST operator is still a string.
     if op = Fbx.TK_AMP then return types.Builtin( Fbx.TY_STRING )
+    '' AN ENUM DECAYS TO ITS UNDERLYING INTEGER for arithmetic. Measured:
+    '' 'typeof( e + 69 )' is INTEGER. Without this an enum operand fell out at the
+    '' builtin-only guard below, so 'var res = a_thing + 69' inferred nothing and got
+    '' a VOID slot -- and the enum itself typed fine, which is what made it puzzling.
+    dim as Fbx.TypeId lhs2 = lhs
+    dim as Fbx.TypeId rhs2 = rhs
+    if types.Kind( lhs2 ) = Fbx.TK_ENUM then lhs2 = types.Builtin( Fbx.TY_INTEGER )
+    if types.Kind( rhs2 ) = Fbx.TK_ENUM then rhs2 = types.Builtin( Fbx.TY_INTEGER )
+
     '' Only builtin operands are decided here. A UDT operand means an overloaded
     '' operator, which is overload resolution's business, not this table's.
-    if types.Kind( lhs ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
-    if types.Kind( rhs ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
+    if types.Kind( lhs2 ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
+    if types.Kind( rhs2 ) <> Fbx.TK_BUILTIN then return Fbx.TYPE_NONE
 
-    dim as Fbx.BuiltinType lb = types.BuiltinOf( lhs )
-    dim as Fbx.BuiltinType rb = types.BuiltinOf( rhs )
+    dim as Fbx.BuiltinType lb = types.BuiltinOf( lhs2 )
+    dim as Fbx.BuiltinType rb = types.BuiltinOf( rhs2 )
     dim as boolean lStr = IsStringy_( lb )
     dim as boolean rStr = IsStringy_( rb )
     dim as boolean lNum = IsInt_( lb ) orelse IsFloat_( lb )
@@ -995,7 +1004,22 @@ function TypeOf_ _
         dim as Fbx.UnaryPayload ptr ap = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Fbx.TypeId inner = TypeOf_( c, ap->operand )
-        if inner <> Fbx.TYPE_NONE then t = c.types->Pointer_( inner )
+        if inner <> Fbx.TYPE_NONE then
+            t = c.types->Pointer_( inner )
+        else
+            '' '@mysub' -- A PROCEDURE has no type of its own on its symbol (that slot
+            '' holds its RETURN type), so the operand came back untyped and 'var f =
+            '' @mysub' inferred nothing. Measured: fbc says 'typeof( @mysub )' is
+            '' 'SUB()' -- the procedure type itself, which is already a pointer in
+            '' FreeBASIC and so is NOT wrapped again.
+            dim as Fbx.SymbolId psid = c.info->RefOf( ap->operand )
+            dim as Fbx.Symbol ptr psym = c.syms->SymbolAt( psid )
+            if psym <> 0 then
+                if psym->kind = cast( ubyte, Fbx.SYM_PROC ) then
+                    t = ProcTypeOfSymbol_( c, psid )
+                end if
+            end if
+        end if
     end select
 
     if t <> Fbx.TYPE_NONE then

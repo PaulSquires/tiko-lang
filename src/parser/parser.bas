@@ -442,7 +442,17 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
                     p.names->Spelling( sp.ownerName ) & "." & _
                     p.names->Spelling( sp.name ) )
             end if
-            sp.name = cast( Fbx.InternId, Cur( p ).literal )
+            '' A KEYWORD component takes its SPELLING, not its literal: a keyword
+            '' token's 'literal' is not the name, so 'dim as ns_a.line l' over a type
+            '' called 'line' produced a TYPEREF WITH NO NAME AT ALL and the variable's
+            '' slot lowered to void. Unqualified 'dim as line m' worked, because the
+            '' base-name path above already made this distinction.
+            if Peek( p ) = Fbx.TK_IDENT then
+                sp.name = cast( Fbx.InternId, Cur( p ).literal )
+            else
+                sp.name = p.names->GetString( _
+                    Fbx.Text.LowerAscii( Fbx.TokenKindText( Peek( p ) ) ) )
+            end if
             Advance( p )
         else
             exit while

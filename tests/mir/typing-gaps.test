@@ -1,0 +1,5 @@
+'' An enum in arithmetic, the address of a procedure, a keyword-named qualified type.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typing-gaps.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/typing-gaps.out
