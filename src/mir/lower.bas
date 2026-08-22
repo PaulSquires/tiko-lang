@@ -344,6 +344,12 @@ function LowerExpr _
         '' that would not lower skipped its store without counting it.
         dim as Fbx.UnaryPayload ptr ap = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' '@"lit"' IS THE ADDRESS OF THE BYTES, which is what a 'zstring ptr'
+        '' parameter wants. A literal has no lvalue, so LowerAddr answered NOTHING and
+        '' every 'printf( @"%d", n )' passed an unresolved value as its format.
+        if c.ast->Kind( ap->operand ) = Fbx.N_STRING_LIT then
+            return LowerStringLitAddr( c, ap->operand )
+        end if
         return LowerAddr( c, ap->operand )
 
     case Fbx.N_NEW
@@ -1475,26 +1481,6 @@ end sub
 
 
 
-'' The result variable's value, or nothing when the procedure has no slot -- a SUB, or
-'' a result type the slot does not cover. Callers pass it straight to Terminate, which
-'' treats MV_NONE as 'return no value'.
-function LoadResult( byref c as Ctx ) as MirValue
-    if c.resultSlot < 0 then return NoVal( )
-    dim as MirValue addr
-    addr.kind = cast( ubyte, MV_LOCAL )
-    addr.ty = cast( ubyte, MT_PTR )
-    addr.id = c.resultSlot
-    return LowerExprLoad( c, addr, cast( MirType, c.resultTy ) )
-end function
-
-function LowerExprLoad _
-    ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
-    dim as MirInst ins
-    ins.op = cast( ushort, M_LOAD )
-    ins.ty = cast( ubyte, t )
-    ins.a = addr
-    return Emit( c, ins )
-end function
 
 
 end namespace

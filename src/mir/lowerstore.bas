@@ -593,6 +593,27 @@ end sub
 '' How many parameters the callee declares. A call may write fewer -- every one after
 '' the last written must take its DEFAULT, and a call that writes none at all to a
 '' procedure with five is still a five-argument call.
+'' The result variable's value, or nothing when the procedure has no slot -- a SUB, or
+'' a result type the slot does not cover. Callers pass it straight to Terminate, which
+'' treats MV_NONE as 'return no value'.
+function LoadResult( byref c as Ctx ) as MirValue
+    if c.resultSlot < 0 then return NoVal( )
+    dim as MirValue addr
+    addr.kind = cast( ubyte, MV_LOCAL )
+    addr.ty = cast( ubyte, MT_PTR )
+    addr.id = c.resultSlot
+    return LowerExprLoad( c, addr, cast( MirType, c.resultTy ) )
+end function
+
+function LowerExprLoad _
+    ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
+    dim as MirInst ins
+    ins.op = cast( ushort, M_LOAD )
+    ins.ty = cast( ubyte, t )
+    ins.a = addr
+    return Emit( c, ins )
+end function
+
 function ParamCountOf( byref c as Ctx, byval callee as Fbx.SymbolId ) as long
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return 0
@@ -616,17 +637,15 @@ function IsVariadicProc( byref c as Ctx, byval callee as Fbx.SymbolId ) as boole
     dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
     if pn = Fbx.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
-    '' There is no variadic FLAG: the ellipsis is a PARAMETER, N_ELLIPSIS, and the last
-    '' one. Reading it off the list is what there is to read.
+    '' The ellipsis is an N_PARAM the parser MARKED with TK_ELLIPSIS in 'op'. It has no
+    '' name and no typeref, which is the only other thing that would tell it from an
+    '' unnamed parameter -- and relying on an absence is how this was missed the first
+    '' time.
     dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
     for i as long = 0 to psp->count - 1
         dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) = Fbx.N_ELLIPSIS then return true
-        if c.ast->Kind( prm ) = Fbx.N_PARAM then
-            if StmtOf( c, prm )->a <> Fbx.NODE_NONE then
-                if c.ast->Kind( StmtOf( c, prm )->a ) = Fbx.N_ELLIPSIS then return true
-            end if
-        end if
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        if StmtOf( c, prm )->op = cast( ushort, Fbx.TK_ELLIPSIS ) then return true
     next
     return false
 end function

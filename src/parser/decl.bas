@@ -277,6 +277,14 @@ private function ParseParam( byref p as Fbx.ParserState ) as Fbx.NodeId
 
     if Peek( p ) = Fbx.TK_ELLIPSIS then
         Advance( p )
+        '' MARKED, because an ellipsis parameter is otherwise indistinguishable from an
+        '' unnamed one by anything but the ABSENCE of a typeref -- and lowering has to
+        '' know: a variadic procedure has no parameter list to run past, so nothing
+        '' after the written arguments is defaulted. Without the mark, 'printf( @s )'
+        '' looked like a one-argument call to a two-parameter procedure and declined.
+        ''
+        '' 'op' is the keyword that spelled a node, which is free on an N_PARAM.
+        sp.op = cast( ushort, Fbx.TK_ELLIPSIS )
         dim as Fbx.NodeId v = MakeStmt( p, Fbx.N_PARAM, t.loc, sp )
         return v
     end if
