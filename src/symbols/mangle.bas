@@ -342,14 +342,50 @@ private function OperatorCode _
         return "cv" & TypeCode( info.TypeOf_( sp->a ), types, syms, names, subs )
     end if
 
-    '' FreeBASIC's own operators -- FOR, STEP, NEXT, the custom loop protocol -- have
-    '' no C++ counterpart, so fbc uses Itanium's VENDOR EXTENDED operator: 'v',
-    '' the arity, then the name. The name keeps its lowercase keyword spelling.
     dim as long arity = 0
     for i as long = 0 to sp->count - 1
         dim as Fbx.NodeId prm = cast( Fbx.NodeId, ast.children[sp->first + i] )
         if ast.Kind( prm ) = Fbx.N_PARAM then arity += 1
     next
+
+    '' THE ITANIUM OPERATOR CODES, for the operators C++ also has. Measured against
+    '' fbc, and the two-character codes are not derivable from the spelling:
+    ''
+    ''   =  eq    <> ne    <  lt    <= le    >  gt    >= ge
+    ''   +  pl    -  mi    *  ml    /  dv    mod rm
+    ''   shl ls   shr rs   and an   or or    xor eo   not co
+    ''
+    '' '+' AND '-' DEPEND ON ARITY: binary is pl/mi, UNARY is ps/ng. Nothing in the
+    '' name says which, so the parameter count decides.
+    select case nm
+    case "="   : return "eq"
+    case "<>"  : return "ne"
+    case "<"   : return "lt"
+    case "<="  : return "le"
+    case ">"   : return "gt"
+    case ">="  : return "ge"
+    case "*"   : return "ml"
+    case "/"   : return "dv"
+    case "mod" : return "rm"
+    case "shl" : return "ls"
+    case "shr" : return "rs"
+    case "and" : return "an"
+    case "or"  : return "or"
+    case "xor" : return "eo"
+    case "not" : return "co"
+    case "+"   : return iif( arity = 1, "ps", "pl" )
+    case "-"   : return iif( arity = 1, "ng", "mi" )
+    end select
+
+    '' FreeBASIC's OWN operators -- integer divide, power, FOR/STEP/NEXT, the custom
+    '' loop protocol -- have no C++ counterpart, so fbc uses Itanium's VENDOR EXTENDED
+    '' operator: 'v', the arity, then the name. Note that the two SYMBOLS in this group
+    '' are spelled by their KEYWORD name and not by their punctuation: '\' is v24idiv
+    '' and '^' is v23pow.
+    select case nm
+    case "\"  : return "v" & trim( str( arity ) ) & SrcName( "idiv" )
+    case "^"  : return "v" & trim( str( arity ) ) & SrcName( "pow" )
+    end select
     return "v" & trim( str( arity ) ) & SrcName( nm )
 end function
 

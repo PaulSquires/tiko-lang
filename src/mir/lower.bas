@@ -1098,6 +1098,18 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                 '' be wrong.
                 SkipHere( c )
                 c.st->ambResultNoSlot += 1
+                '' WHICH TYPE, so the next reader has a name rather than a count. The
+                '' scalar, string, sret and by-value-UDT cases all have slots; what
+                '' reaches here is whatever none of those recognised.
+                if c.st->resultNoSlotKinds.Count = 0 then
+                    for i as long = 0 to 15
+                        c.st->resultNoSlotKinds.Push( 0 )
+                    next
+                end if
+                dim as long rk = cast( long, c.types->Kind( c.resultType ) )
+                if (rk >= 0) andalso (rk < 16) then
+                    c.st->resultNoSlotKinds[rk] += 1
+                end if
             else
                 dim as MirValue rval = LowerExpr( c, sp->b )
                 if rval.kind = cast( ubyte, MV_NONE ) then

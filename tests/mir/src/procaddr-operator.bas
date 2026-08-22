@@ -31,6 +31,11 @@ namespace nsx
         declare operator cast( ) as integer
     end type
 
+    '' A FREE OPERATOR NAMED BY PUNCTUATION had its name SKIPPED rather than recorded,
+    '' so it reached Collect with none: nothing was declared for it, Resolve set no
+    '' return type, and it went out under an EMPTY mangled name with 'func void'. This
+    '' golden pinned that. Its name is now '=' and its Itanium code 'eq', which is what
+    '' fbc emits.
     operator = ( byref a as mytype, byref b as mytype ) as string
         return "eq"
     end operator

@@ -195,3 +195,34 @@ sub TdC overload( byval tdx as tdPtr )
 end sub
 sub TdD overload( byval tdx as unsigned tdLong )
 end sub
+
+'' OPERATORS. The Itanium two-character codes are not derivable from the spelling, and
+'' '+' and '-' depend on ARITY -- binary is pl/mi, unary ps/ng. The two FreeBASIC has
+'' that C++ does not are spelled by their KEYWORD name in the vendor-extended form:
+'' '' is v24idiv and '^' is v23pow, not by their punctuation.
+namespace mgops
+    type OpD
+        a as long
+    end type
+    operator =  ( byref a as OpD, byref b as OpD ) as boolean : operator = 0 : end operator
+    operator <> ( byref a as OpD, byref b as OpD ) as boolean : operator = 0 : end operator
+    operator <  ( byref a as OpD, byref b as OpD ) as boolean : operator = 0 : end operator
+    operator <= ( byref a as OpD, byref b as OpD ) as boolean : operator = 0 : end operator
+    operator >  ( byref a as OpD, byref b as OpD ) as boolean : operator = 0 : end operator
+    operator >= ( byref a as OpD, byref b as OpD ) as boolean : operator = 0 : end operator
+    operator +  ( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator -  ( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator *  ( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator /  ( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator \  ( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator mod( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator shl( byref a as OpD, byval n as long ) as OpD : dim as OpD r : operator = r : end operator
+    operator shr( byref a as OpD, byval n as long ) as OpD : dim as OpD r : operator = r : end operator
+    operator and( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator or ( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator xor( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator ^  ( byref a as OpD, byref b as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator -  ( byref a as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator +  ( byref a as OpD ) as OpD : dim as OpD r : operator = r : end operator
+    operator not( byref a as OpD ) as OpD : dim as OpD r : operator = r : end operator
+end namespace

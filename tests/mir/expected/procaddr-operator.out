@@ -3,16 +3,28 @@ func void MYSUB() {
   entry0:
     ret
 }
-func void _ZN3NSXv20ERNS_6MYTYPEES1_($0, $1) {
+func ptr _ZN3NSXeqERNS_6MYTYPEES1_($0, $1) {
+  local agg $tmp0 size 24
   local ptr a
   local ptr b
   entry0:
-    %1 = alloca ptr a
+    %1 = alloca ptr $tmp0
+    %2 = field.addr @$tmp0, 0
+    store %2, 0
+    %3 = field.addr @$tmp0, 8
+    store %3, 0
+    %4 = field.addr @$tmp0, 16
+    store %4, 0
+    %5 = alloca ptr a
     store @a, $0
-    %2 = alloca ptr b
+    %6 = alloca ptr b
     store @b, $1
-    ret @@$str0
+    %7 = call.rtl ptr fb_StrAssign(@$tmp0, -1, @@$str0, 3, 0)
+    %8 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
+    ret %8
 }
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_StrAllocTempResult($0)
 func i64 _ZN3NSX6MYTYPEcvu7INTEGEREv($0) {
   local i64 $tmp0
   local ptr this
@@ -71,4 +83,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 5 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance

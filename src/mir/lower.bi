@@ -63,6 +63,9 @@ namespace Fbx.Mir
         as long ambCallNoCode       '' callee bound, and still nothing was emitted
         as long ambAssign           '' an assignment that did not lower
         as long ambResultNoSlot     '' 'function = expr' whose result type has no slot
+        '' WHICH TYPE KIND, indexed by TypeKind. A count alone says how much is owed
+        '' and nothing about what to write.
+        as FB.Array( of ulong ) resultNoSlotKinds
         as long varByref            '' 'dim byref' -- a reference variable, not lowered
         as long ambOther            '' property-set, result-assign, unclassified
         '' ... by the SHAPE of the thing that was not a call, and by the AmbiguousOf

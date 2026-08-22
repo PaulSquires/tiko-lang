@@ -287,6 +287,11 @@ function Run( byref args as Fbx.StrVec ) as long
                 if lst.ambAssign > 0 then print "  amb assign " & str( lst.ambAssign )
                 if lst.ambResultNoSlot > 0 then
                     print "  amb result-noslot " & str( lst.ambResultNoSlot )
+                    for i as long = 0 to lst.resultNoSlotKinds.Count - 1
+                        if lst.resultNoSlotKinds[i] = 0 then continue for
+                        print "  result-noslot-kind " & str( i ) & " " & _
+                              str( lst.resultNoSlotKinds[i] )
+                    next
                 end if
                 if lst.varByref > 0 then print "  var byref " & str( lst.varByref )
                 if lst.ambOther > 0 then print "  amb other " & str( lst.ambOther )

@@ -140,7 +140,7 @@ private function VarItem _
         DeclName( p, sp.name )
     wend
 
-    ParseArrayBoundsInto( p, sp, t )
+    ParseArrayBoundsInto( p, sp, t )
 
     if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
 
@@ -466,9 +466,28 @@ private function ParseProc _
     end if
 
     '' An operator's name can be a token rather than a word: 'operator +'.
+    ''
+    '' IT WAS SKIPPED, NOT RECORDED. 'private operator = ( byref a as D, byref b as D )
+    '' as boolean' reached Collect with NO NAME AT ALL, so nothing was declared for it,
+    '' Resolve set no return type, and the body's 'operator = ( ... )' result assignment
+    '' declined for want of a result slot -- while the function itself went out under an
+    '' EMPTY mangled name. Every comparison operator in the runtime headers is spelled
+    '' this way; fb/decimal.bi alone has six.
+    ''
+    '' The spelling comes from the token table's TEXT column -- '=' -- rather than from
+    '' the source, because RawSpelling only reads identifiers and these are punctuation.
     if kw = Fbx.KW_OPERATOR then
         if (Peek( p ) <> Fbx.TK_LPAREN) andalso (AtEnd( p ) = false) then
-            if Peek( p ) <> Fbx.TK_EOL then Advance( p )
+            if Peek( p ) <> Fbx.TK_EOL then
+                if sp.name = 0 then
+                    dim as string opNm = Fbx.TokenKindText( Peek( p ) )
+                    if len( opNm ) > 0 then
+                        sp.name = p.names->Fold( p.names->GetString( opNm ) )
+                        sp.rawName = p.names->GetString( opNm )
+                    end if
+                end if
+                Advance( p )
+            end if
         end if
     end if
 
