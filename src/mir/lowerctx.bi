@@ -328,6 +328,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
           byval init as Fbx.NodeId ) as boolean
     declare function IsWideString_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    '' 1 for a narrow string type, 2 for a wide one, 0 for anything else. Both the
+    '' SIZED spelling ('zstring * 8', an array of the builtin) and the UNSIZED one
+    '' (the bare builtin, which a 'zstring ptr' points at) count.
+    declare function CharElemSize_( byref c as Ctx, byval t as Fbx.TypeId ) as long
     declare function LowerWideIif_ _
         ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
           byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean

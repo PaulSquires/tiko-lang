@@ -31,8 +31,14 @@ sub P( )
     if a = wstr( 1 ) then n = 3
     if trim( a ) = b then n = 4
 
+    '' THREE SPELLINGS, one meaning. The third derefs to the UNSIZED builtin and used to
+    '' match neither the array test nor the pointer one, so it declined between two
+    '' forms that worked.
     n = a[1]
     n = z[1]
+    dim as zstring ptr pz = cast( zstring ptr, @z )
+    n = pz[1]
+    n = (*pz)[1]
     for i as integer = 0 to len( a ) - 1
         if a[i] <> b[i] then n = 5
     next

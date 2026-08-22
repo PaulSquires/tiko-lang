@@ -231,8 +231,25 @@ end function
 '' It is the same shape as an array subscript, minus the bounds: the base is the
 '' pointer's VALUE rather than its address, there is one index, and the stride is the
 '' pointee's size. fbc computes it the same way.
-declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+'' THE CHARACTER SIZE of a string type, or 0 for anything else: 1 narrow, 2 wide.
+''
+'' BOTH SPELLINGS COUNT. The SIZED form is an ARRAY of the builtin ('zstring * 8'); the
+'' UNSIZED one is the BARE builtin, which is what a 'zstring ptr' points at and what
+'' '*pz' derefs to. Keeping them apart is what made '(*pz)[i]' match neither the array
+'' test nor the pointer one, so it declined while the two spellings either side of it
+'' worked.
+function CharElemSize_( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    if t = Fbx.TYPE_NONE then return 0
+    dim as Fbx.TypeId el = t
+    if c.types->Kind( el ) = Fbx.TK_ARRAY then el = c.types->Inner( el )
+    if el = Fbx.TYPE_NONE then return 0
+    if c.types->Kind( el ) <> Fbx.TK_BUILTIN then return 0
+    select case c.types->BuiltinOf( el )
+    case Fbx.TY_ZSTRING : return 1
+    case Fbx.TY_WSTRING : return 2
+    end select
+    return 0
+end function
 
 function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     dim as MirValue none_
@@ -245,22 +262,21 @@ function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     dim as Fbx.TypeId pt = c.info->TypeOf_( sp->target )
     if pt = Fbx.TYPE_NONE then return none_
 
-    '' A FIXED-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER -- one byte for a zstring,
-    '' TWO for a wstring -- and the base is the string's ADDRESS rather than a value
-    '' loaded from it, because a char array has no pointer to load. Measured:
+    '' A STRING SUBSCRIPTED IS ITS CHARACTER -- one byte narrow, TWO wide -- and the
+    '' base is the string's ADDRESS rather than a value loaded from it, because a char
+    '' array has no pointer to load. Measured:
     ''
     ''     n = a[1]   over 'wstring * 8'   *(uint16*)((int64)(uint16*)A + 2ll)
     ''     n = z[1]   over 'zstring * 8'   *(uint8*)((int64)(char*)Z + 1ll)
     ''
-    '' There was no case for it, so every one declined -- and the byte-by-byte loop
-    '' that fbcunit's own CU_ASSERT_WSTRING_EQUAL writes is exactly this shape, which
-    '' is most of what the wstring and zstring families still owe.
-    dim as long esz = 0
+    '' THREE SPELLINGS mean the same thing and all three arrive here: 'z[i]' over a
+    '' fixed string, 'pz[i]' over a 'zstring ptr', and '(*pz)[i]', whose target is the
+    '' UNSIZED builtin and matched neither the array test nor the pointer one. The
+    '' byte-by-byte loop fbcunit's own CU_ASSERT_WSTRING_EQUAL writes is exactly this
+    '' shape, so all three appear in the corpus.
+    dim as long esz = CharElemSize_( c, pt )
     dim as MirValue base_
-    dim as longint fsn
-    dim as long fsk = StrSwapKind_( c, pt, fsn )
-    if (fsk = 1) orelse (fsk = 2) then
-        esz = iif( fsk = 2, 2, 1 )
+    if esz > 0 then
         base_ = LowerAddr( c, sp->target )
         if base_.kind = cast( ubyte, MV_NONE ) then return none_
     else
@@ -270,6 +286,9 @@ function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
         esz = c.types->Layout( el ).size
         dim as long ui = c.udts->Find( el )
         if ui >= 0 then esz = c.udts->udts[ui].size
+        '' A 'zstring ptr' POINTS AT CHARACTERS. The pointee is the unsized builtin,
+        '' which has no layout size of its own, so the stride came out 0.
+        if esz <= 0 then esz = CharElemSize_( c, el )
         if esz <= 0 then return none_
 
         '' The POINTER'S VALUE is the base -- not its address, which is where the

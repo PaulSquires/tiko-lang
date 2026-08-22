@@ -364,19 +364,23 @@ function LowerExpr _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
             dim as Fbx.TypeId xt = c.info->TypeOf_( xp->target )
             if xt <> Fbx.TYPE_NONE then
-                if c.types->Kind( xt ) = Fbx.TK_POINTER then
+                '' A STRING SUBSCRIPTED IS ITS CHARACTER -- one byte narrow, TWO wide,
+                '' and UNSIGNED, because fbc writes '(int32)*(uint16*)(...)' and a sign
+                '' extension would turn a character above 0x7FFF negative. Asked FIRST,
+                '' because a 'zstring ptr' is a pointer too and its POINTEE is the
+                '' unsized builtin, which lowers to no MIR type at all: the load then
+                '' carried MT_VOID and Emit refused it.
+                dim as long cesz = CharElemSize_( c, xt )
+                if cesz = 1 then
+                    imt = MT_I8
+                elseif cesz = 2 then
+                    imt = MT_I16
+                elseif c.types->Kind( xt ) = Fbx.TK_POINTER then
                     imt = LowerType( c.types->Inner( xt ), *c.types )
-                else
-                    '' A FIXED-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER: one byte for
-                    '' a zstring, TWO for a wstring. It is not a pointer, so the branch
-                    '' above said nothing about it, the load carried MT_VOID and Emit
-                    '' refused it -- and the whole statement declined with the address
-                    '' computation right there and working.
-                    dim as longint xn
-                    dim as long xk = StrSwapKind_( c, xt, xn )
-                    if xk = 1 then
+                    dim as long pesz = CharElemSize_( c, c.types->Inner( xt ) )
+                    if pesz = 1 then
                         imt = MT_I8
-                    elseif xk = 2 then
+                    elseif pesz = 2 then
                         imt = MT_I16
                     end if
                 end if
