@@ -38,6 +38,7 @@ function LowerStrRvalue _
     '' EmitStrTerm, which calls this one directly -- so 's = hex( n )' still declined
     '' with the implementation sitting right beside it.
     if LowerRadixCall_( c, id, outv ) then return true
+    if LowerStrOf_( c, id, outv ) then return true
 
     if c.ast->Kind( id ) <> Fbx.N_CALL then return false
     dim as Fbx.ListPayload ptr cp = _
@@ -310,6 +311,237 @@ function LowerRadixCall_ _
     end if
 
     outv = EmitRtl( c, r, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'str( x )' -- a number rendered as a string.
+''
+'' NARROW TYPES DO NOT GET THEIR OWN ENTRY POINT the way the radix family does, which is
+'' the one thing about this that cannot be guessed from hex/oct/bin sitting beside it:
+''
+''   str( b )   fb_IntToStr( (int32)B )       byte, short and long ALL widen to int32
+''   str( ub )  fb_UIntToStr( (uint32)UB )    and the unsigned three to uint32
+''   str( q )   fb_LongintToStr( Q )          only 64-bit has its own
+''   str( f )   fb_FloatToStr( F )
+''   str( bo )  fb_BoolToStr( BO )            BOOLEAN is its own type here, not a byte
+''
+'' INTEGER is 64-bit on win64, so 'str( i )' is fb_LongintToStr there and fb_IntToStr on
+'' win32. Decided from the type's own size rather than its spelling, as everywhere else.
+function LowerStrOf_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    '' CHR first: same family, but variadic and with a COUNT in front.
+    if nm = "chr" then
+        if cp->count < 1 then return false
+        dim as FB.Array( of ulong ) ca
+        ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cp->count ) )
+        for i as long = 0 to cp->count - 1
+            dim as Fbx.NodeId ai = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+            dim as MirValue av = LowerExpr( c, ai )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+            av = Coerce( c, av, MT_I64, IsUnsignedType( c, c.info->TypeOf_( ai ) ) )
+            ca.Push( cast( ulong, av.kind ) ) : ca.Push( cast( ulong, av.id ) )
+        next
+        outv = EmitRtl( c, RTL_STR_CHR, ca )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    if nm <> "str" then return false
+    if cp->count <> 1 then return false
+    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Fbx.TypeId at = c.info->TypeOf_( a0 )
+    if at = Fbx.TYPE_NONE then return false
+
+    '' A STRING ARGUMENT is the identity and fbc emits no call for it at all.
+    if IsStringType( c, at ) then return false
+
+    '' THE ENTRY POINT COMES OFF THE BUILTIN, not off the MIR type: BOOLEAN and BYTE
+    '' are both i8 in MIR and take different renderers -- fb_BoolToStr writes
+    '' 'true'/'false' where fb_IntToStr would write -1 and 0.
+    dim as boolean uns = IsUnsignedType( c, at )
+    dim as RtlId r = RTL_NONE
+    dim as MirType want = MT_I32
+    select case c.types->Kind( at )
+    case Fbx.TK_ENUM
+        r = RTL_STR_INTTOSTR
+    case Fbx.TK_BUILTIN
+        select case c.types->BuiltinOf( at )
+        case Fbx.TY_BYTE, Fbx.TY_SHORT, Fbx.TY_LONG    : r = RTL_STR_INTTOSTR
+        case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG : r = RTL_STR_UINTTOSTR
+        case Fbx.TY_LONGINT  : r = RTL_STR_LONGTOSTR  : want = MT_I64
+        case Fbx.TY_ULONGINT : r = RTL_STR_ULONGTOSTR : want = MT_I64
+        case Fbx.TY_SINGLE   : r = RTL_STR_FLOATTOSTR : want = MT_F32
+        case Fbx.TY_DOUBLE   : r = RTL_STR_DBLTOSTR   : want = MT_F64
+        case Fbx.TY_BOOLEAN  : r = RTL_STR_BOOLTOSTR  : want = MT_I8
+        '' INTEGER is 64-bit on win64 and 32-bit on win32, so it is the one type whose
+        '' entry point is target-dependent.
+        case Fbx.TY_INTEGER
+            if c.types->target.pointerBits = 32 then
+                r = RTL_STR_INTTOSTR
+            else
+                r = RTL_STR_LONGTOSTR : want = MT_I64
+            end if
+        case Fbx.TY_UINTEGER
+            if c.types->target.pointerBits = 32 then
+                r = RTL_STR_UINTTOSTR
+            else
+                r = RTL_STR_ULONGTOSTR : want = MT_I64
+            end if
+        case else : return false
+        end select
+    case else
+        return false
+    end select
+    if r = RTL_NONE then return false
+
+    dim as MirValue v0 = LowerExpr( c, a0 )
+    if v0.kind = cast( ubyte, MV_NONE ) then return false
+    v0 = Coerce( c, v0, want, uns )
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
+    outv = EmitRtl( c, r, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' asc / instr / instrrev / val and its four typed siblings -- the string intrinsics
+'' whose result is a NUMBER, so they reach lowering through the expression path rather
+'' than the descriptor one.
+''
+''   asc( s )          fb_ASC( &S, 1ll )              the default position is PASSED
+''   asc( s, n )       fb_ASC( &S, (int64)N )
+''   instr( s, t )     fb_StrInstr( 1ll, &S, &T )     the start comes FIRST
+''   instr( n, s, t )  fb_StrInstr( (int64)N, &S, &T )
+''   instr( s, any t ) fb_StrInstrAny( 1ll, &S, &T )
+''   instrrev( s, t )  fb_StrInstrRev( &S, &T, -1ll ) the start comes LAST, and is -1
+''   val( s )          fb_VAL( &S )                   a DOUBLE, whatever it is assigned
+''   vallng/valulng/valint/valuint                    the four typed entry points
+''
+'' The argument ORDER is not consistent between instr and instrrev, and the default
+'' start is 1 for one and -1 for the other. Both were read off fbc, not inferred.
+function LowerStrNumCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if (cp->count < 1) orelse (cp->count > 3) then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    dim as RtlId vr = RTL_NONE
+    select case nm
+    case "val"     : vr = RTL_VAL
+    case "vallng"  : vr = RTL_VALLNG
+    case "valulng" : vr = RTL_VALULNG
+    case "valint"  : vr = RTL_VALINT
+    case "valuint" : vr = RTL_VALUINT
+    end select
+    if vr <> RTL_NONE then
+        if cp->count <> 1 then return false
+        dim as MirValue sd
+        if StrDescriptorOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ), sd ) = false then
+            return false
+        end if
+        dim as FB.Array( of ulong ) va
+        va.Push( cast( ulong, sd.kind ) ) : va.Push( cast( ulong, sd.id ) )
+        outv = EmitRtl( c, vr, va )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    if nm = "asc" then
+        if (cp->count < 1) orelse (cp->count > 2) then return false
+        dim as MirValue sd
+        if StrDescriptorOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ), sd ) = false then
+            return false
+        end if
+        dim as FB.Array( of ulong ) aa
+        aa.Push( cast( ulong, sd.kind ) ) : aa.Push( cast( ulong, sd.id ) )
+        if cp->count = 2 then
+            dim as Fbx.NodeId a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
+            dim as MirValue nv = LowerExpr( c, a1 )
+            if nv.kind = cast( ubyte, MV_NONE ) then return false
+            nv = Coerce( c, nv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            aa.Push( cast( ulong, nv.kind ) ) : aa.Push( cast( ulong, nv.id ) )
+        else
+            aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+        end if
+        outv = EmitRtl( c, RTL_STR_ASC, aa )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    dim as boolean isRev = (nm = "instrrev")
+    if (nm <> "instr") andalso (isRev = false) then return false
+    if cp->count < 2 then return false
+
+    '' THE START POSITION IS THE FIRST ARGUMENT WHEN THERE ARE THREE, and the two
+    '' strings follow. With two arguments there is no start and the default is used.
+    dim as Fbx.NodeId startE = Fbx.NODE_NONE
+    dim as long si = cp->first
+    if cp->count = 3 then
+        startE = cast( Fbx.NodeId, c.ast->children[cp->first] )
+        si += 1
+    end if
+    dim as Fbx.NodeId sE = cast( Fbx.NodeId, c.ast->children[si] )
+    dim as Fbx.NodeId tE = cast( Fbx.NodeId, c.ast->children[si + 1] )
+
+    '' 'instr( s, any t )' strips any of those CHARACTERS and is a different entry
+    '' point. The ANY sits on the SECOND string, not on the start.
+    dim as boolean isAny = false
+    if c.ast->Kind( tE ) = Fbx.N_UNARY then
+        dim as Fbx.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, tE )].data )]
+        if cast( Fbx.TokenKind, up->op ) = Fbx.KW_ANY then
+            isAny = true
+            tE = up->operand
+        end if
+    end if
+    if isAny andalso isRev then return false
+
+    '' EVERY OPERAND BEFORE ANYTHING IS EMITTED. StrDescriptorOf_ may emit a call of
+    '' its own, and declining afterwards would leave it behind with nothing using it.
+    dim as MirValue sd, td
+    if StrDescriptorOf_( c, sE, sd ) = false then return false
+    if StrDescriptorOf_( c, tE, td ) = false then return false
+    dim as MirValue stv
+    if startE <> Fbx.NODE_NONE then
+        stv = LowerExpr( c, startE )
+        if stv.kind = cast( ubyte, MV_NONE ) then return false
+        stv = Coerce( c, stv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( startE ) ) )
+    end if
+
+    dim as FB.Array( of ulong ) args
+    if isRev then
+        args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
+        args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
+        if startE <> Fbx.NODE_NONE then
+            args.Push( cast( ulong, stv.kind ) ) : args.Push( cast( ulong, stv.id ) )
+        else
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        end if
+        outv = EmitRtl( c, RTL_STR_INSTR_REV, args )
+    else
+        if startE <> Fbx.NODE_NONE then
+            args.Push( cast( ulong, stv.kind ) ) : args.Push( cast( ulong, stv.id ) )
+        else
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )
+        end if
+        args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
+        args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
+        outv = EmitRtl( c, iif( isAny, RTL_STR_INSTR_ANY, RTL_STR_INSTR ), args )
+    end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 

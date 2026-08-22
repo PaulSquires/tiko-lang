@@ -463,6 +463,11 @@ function LowerExpr _
         '' 'len( x )' is a runtime call for a string and a constant for anything else.
         dim as MirValue lnv
         if LowerLen( c, id, lnv ) then return lnv
+        '' 'asc', 'instr', 'instrrev' and the val family: string intrinsics whose
+        '' RESULT IS A NUMBER, so they arrive here rather than through the descriptor
+        '' path that hex and trim take.
+        dim as MirValue snv
+        if LowerStrNumCall_( c, id, snv ) then return snv
         '' 'lbound(a)' / 'ubound(a)' over a DYNAMIC array is a runtime call; over a
         '' fixed one both fold at compile time and never reach here.
         dim as MirValue abv

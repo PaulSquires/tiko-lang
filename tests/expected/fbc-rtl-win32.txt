@@ -1,4 +1,5 @@
 calloc	void*	uint32, uint32	lib	_calloc
+fb_ASC	uint32	FBSTRING*, int32	lib	_fb_ASC@8
 fb_ArrayClear	int32	struct $7FBARRAYIvE*	lib	_fb_ArrayClear@4
 fb_ArrayClearObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	_fb_ArrayClearObj@12
 fb_ArrayDestructObj	void	struct $7FBARRAYIvE*, void*	lib	_fb_ArrayDestructObj@8
@@ -21,6 +22,8 @@ fb_BIN_b	FBSTRING*	uint8	lib	_fb_BIN_b@4
 fb_BIN_i	FBSTRING*	uint32	lib	_fb_BIN_i@4
 fb_BIN_l	FBSTRING*	uint64	lib	_fb_BIN_l@8
 fb_BIN_s	FBSTRING*	uint16	lib	_fb_BIN_s@4
+fb_BoolToStr	FBSTRING*	boolean	lib	_fb_BoolToStr@4
+fb_CHR	FBSTRING*	int32, ...	lib	_fb_CHR
 fb_ConsoleInput	int32	FBSTRING*, int32, int32	lib	_fb_ConsoleInput@12
 fb_DataReadBool	void	boolean*	lib	_fb_DataReadBool@4
 fb_DataReadByte	void	int8*	lib	_fb_DataReadByte@4
@@ -36,6 +39,7 @@ fb_DataReadULongint	void	uint64*	lib	_fb_DataReadULongint@4
 fb_DataReadUShort	void	uint16*	lib	_fb_DataReadUShort@4
 fb_DataReadWstr	void	uint16*, int32	lib	_fb_DataReadWstr@8
 fb_DataRestore	void	void*	lib	_fb_DataRestore@4
+fb_DoubleToStr	FBSTRING*	double	lib	_fb_DoubleToStr@8
 fb_DoubleToWstr	uint16*	double	lib	_fb_DoubleToWstr@8
 fb_End	void	int32	lib	_fb_End@4
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	_fb_ErrorThrowEx
@@ -44,6 +48,7 @@ fb_FileCloseAll	int32	void	lib	_fb_FileCloseAll@0
 fb_FileInput	int32	int32	lib	_fb_FileInput@4
 fb_FileLineInput	int32	int32, void*, int32, int32	lib	_fb_FileLineInput@16
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	_fb_FileOpen@24
+fb_FloatToStr	FBSTRING*	float	lib	_fb_FloatToStr@4
 fb_FloatToWstr	uint16*	float	lib	_fb_FloatToWstr@4
 fb_HEXEx_b	FBSTRING*	uint8, int32	lib	_fb_HEXEx_b@8
 fb_HEXEx_i	FBSTRING*	uint32, int32	lib	_fb_HEXEx_i@8
@@ -66,12 +71,14 @@ fb_InputUint	int32	uint32*	lib	_fb_InputUint@4
 fb_InputUlongint	int32	uint64*	lib	_fb_InputUlongint@4
 fb_InputUshort	int32	uint16*	lib	_fb_InputUshort@4
 fb_InputWstr	int32	uint16*, int32	lib	_fb_InputWstr@8
+fb_IntToStr	FBSTRING*	int32	lib	_fb_IntToStr@4
 fb_IntToWstr	uint16*	int32	lib	_fb_IntToWstr@4
 fb_LEFT	FBSTRING*	FBSTRING*, int32	lib	_fb_LEFT@8
 fb_LTRIM	FBSTRING*	FBSTRING*	lib	_fb_LTRIM@4
 fb_LTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_LTrimAny@8
 fb_LTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_LTrimEx@8
 fb_LineInput	int32	FBSTRING*, void*, int32, int32, int32, int32	lib	_fb_LineInput@24
+fb_LongintToStr	FBSTRING*	int64	lib	_fb_LongintToStr@8
 fb_LongintToWstr	uint16*	int64	lib	_fb_LongintToWstr@8
 fb_MemSwap	void	void*, void*, int32	lib	_fb_MemSwap@12
 fb_MutexCreate	void*	void	lib	_fb_MutexCreate@0
@@ -127,6 +134,9 @@ fb_StrDelete	void	FBSTRING*	lib	_fb_StrDelete@4
 fb_StrFill1	FBSTRING*	int32, int32	lib	_fb_StrFill1@8
 fb_StrFill2	FBSTRING*	int32, FBSTRING*	lib	_fb_StrFill2@8
 fb_StrInit	FBSTRING*	void*, int32, void*, int32, int32	lib	_fb_StrInit@20
+fb_StrInstr	int32	int32, FBSTRING*, FBSTRING*	lib	_fb_StrInstr@12
+fb_StrInstrAny	int32	int32, FBSTRING*, FBSTRING*	lib	_fb_StrInstrAny@12
+fb_StrInstrRev	int32	FBSTRING*, FBSTRING*, int32	lib	_fb_StrInstrRev@12
 fb_StrLcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrLcase2@8
 fb_StrLen	int32	void*, int32	lib	_fb_StrLen@8
 fb_StrLset	void	FBSTRING*, FBSTRING*	lib	_fb_StrLset@8
@@ -138,9 +148,15 @@ fb_StrUcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrUcase2@8
 fb_TRIM	FBSTRING*	FBSTRING*	lib	_fb_TRIM@4
 fb_TrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_TrimAny@8
 fb_TrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_TrimEx@8
+fb_UIntToStr	FBSTRING*	uint32	lib	_fb_UIntToStr@4
 fb_UIntToWstr	uint16*	uint32	lib	_fb_UIntToWstr@4
+fb_ULongintToStr	FBSTRING*	uint64	lib	_fb_ULongintToStr@8
 fb_ULongintToWstr	uint16*	uint64	lib	_fb_ULongintToWstr@8
+fb_VAL	double	FBSTRING*	lib	_fb_VAL@4
 fb_VALINT	int32	FBSTRING*	lib	_fb_VALINT@4
+fb_VALLNG	int64	FBSTRING*	lib	_fb_VALLNG@4
+fb_VALUINT	uint32	FBSTRING*	lib	_fb_VALUINT@4
+fb_VALULNG	uint64	FBSTRING*	lib	_fb_VALULNG@4
 fb_WriteBool	void	int32, boolean, int32	lib	_fb_WriteBool@12
 fb_WriteByte	void	int32, int8, int32	lib	_fb_WriteByte@12
 fb_WriteDouble	void	int32, double, int32	lib	_fb_WriteDouble@16

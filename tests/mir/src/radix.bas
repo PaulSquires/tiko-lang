@@ -11,8 +11,10 @@
 '' The signed-to-unsigned coercion is not cosmetic: it is what makes 'hex( -1 )' on a
 '' LONG come out FFFFFFFF instead of sign-extending to sixteen digits.
 ''
-'' 'chr( 65 )' is at the end and still declines: fbc CONSTANT-FOLDS it to a literal and
-'' calls nothing, which is a different job from this one.
+'' 'chr( n )' is fb_CHR, which is VARIADIC and whose first argument is the COUNT:
+'' 'chr( a, b )' is fb_CHR( 2, a, b ). ONE DIVERGENCE IS DELIBERATE AND RECORDED HERE:
+'' fbc CONSTANT-FOLDS 'chr( 65 )' to the literal "A" and calls nothing at all, while
+'' fbx emits the call. Same value, different code; folding it is a separate job.
 
 sub P( )
     dim as string s

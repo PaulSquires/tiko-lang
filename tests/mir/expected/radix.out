@@ -76,18 +76,25 @@ func void P() {
     %61 = trunc %60
     %62 = call.rtl ptr fb_BINEx_i(%59, %61)
     %63 = call.rtl ptr fb_StrAssign(@s, -1, %62, -1, 0)
-    %64 = const i64 4
-    %65 = call.rtl ptr fb_SPACE(%64)
+    %64 = const i64 65
+    %65 = call.rtl ptr fb_CHR(1, %64)
     %66 = call.rtl ptr fb_StrAssign(@s, -1, %65, -1, 0)
-    %67 = const i64 4
-    %68 = const i64 65
-    %69 = trunc %68
-    %70 = call.rtl ptr fb_StrFill1(%67, %69)
-    %71 = call.rtl ptr fb_StrAssign(@s, -1, %70, -1, 0)
-    %72 = const i64 4
-    %73 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
-    %74 = call.rtl ptr fb_StrFill2(%72, %73)
-    %75 = call.rtl ptr fb_StrAssign(@s, -1, %74, -1, 0)
+    %67 = const i64 65
+    %68 = const i64 66
+    %69 = call.rtl ptr fb_CHR(2, %67, %68)
+    %70 = call.rtl ptr fb_StrAssign(@s, -1, %69, -1, 0)
+    %71 = const i64 4
+    %72 = call.rtl ptr fb_SPACE(%71)
+    %73 = call.rtl ptr fb_StrAssign(@s, -1, %72, -1, 0)
+    %74 = const i64 4
+    %75 = const i64 65
+    %76 = trunc %75
+    %77 = call.rtl ptr fb_StrFill1(%74, %76)
+    %78 = call.rtl ptr fb_StrAssign(@s, -1, %77, -1, 0)
+    %79 = const i64 4
+    %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    %81 = call.rtl ptr fb_StrFill2(%79, %80)
+    %82 = call.rtl ptr fb_StrAssign(@s, -1, %81, -1, 0)
     call.rtl void fb_StrDelete(@s)
     ret
 }
@@ -103,11 +110,11 @@ declare ptr fb_OCTEx_i($0, $1)
 declare ptr fb_BIN_i($0)
 declare ptr fb_BIN_l($0)
 declare ptr fb_BINEx_i($0, $1)
+declare ptr fb_CHR($0, $1)
 declare ptr fb_SPACE($0)
 declare ptr fb_StrFill1($0, $1)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare ptr fb_StrFill2($0, $1)
 declare void fb_StrDelete($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 79 insts, 2 statements not lowered, 0 scope imbalance
-  amb assign 2
+lowered: 1 functions, 1 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance

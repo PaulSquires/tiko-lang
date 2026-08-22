@@ -189,6 +189,41 @@ namespace Fbx.Mir
         '' SPACE and STRING. fb_StrFill1 takes a CHARACTER CODE, fb_StrFill2 a
         '' descriptor -- 'string( 4, 65 )' and 'string( 4, "x" )' are two entry
         '' points, and the second wraps its literal in fb_StrAllocTempDescZEx first.
+        '' STR -- a number rendered as a string. NARROW TYPES DO NOT GET THEIR OWN
+        '' ENTRY POINT the way the radix family does: byte, short and long all widen to
+        '' int32 and go through fb_IntToStr, and their unsigned counterparts through
+        '' fb_UIntToStr. Only 64-bit, the two floats and BOOLEAN have their own.
+        RTL( RTL_STR_BOOLTOSTR,     "fb_BoolToStr",        "p",   "b"     )
+        RTL( RTL_STR_INTTOSTR,      "fb_IntToStr",         "p",   "l"     )
+        RTL( RTL_STR_UINTTOSTR,     "fb_UIntToStr",        "p",   "l"     )
+        RTL( RTL_STR_LONGTOSTR,     "fb_LongintToStr",     "p",   "q"     )
+        RTL( RTL_STR_ULONGTOSTR,    "fb_ULongintToStr",    "p",   "q"     )
+        RTL( RTL_STR_FLOATTOSTR,    "fb_FloatToStr",       "p",   "f"     )
+        RTL( RTL_STR_DBLTOSTR,      "fb_DoubleToStr",      "p",   "d"     )
+        '' CHR is VARIADIC and its first argument is the COUNT, not a character:
+        '' 'chr( a, b )' is fb_CHR( 2, a, b ). Every character widens to int64.
+        RTL( RTL_STR_CHR,           "fb_CHR",              "p",   "l."    )
+        '' ASC / INSTR / INSTRREV. The default start position is 1 and is passed
+        '' EXPLICITLY -- there is no defaulted-argument entry point -- while INSTRREV's
+        '' default is -1 and sits at the END of its list rather than the front.
+        RTL( RTL_STR_ASC,           "fb_ASC",              "l",   "pz"    )
+        RTL( RTL_STR_INSTR,         "fb_StrInstr",         "z",   "zpp"   )
+        RTL( RTL_STR_INSTR_ANY,     "fb_StrInstrAny",      "z",   "zpp"   )
+        RTL( RTL_STR_INSTR_REV,     "fb_StrInstrRev",      "z",   "ppz"   )
+        '' VAL and its four typed siblings. Plain VAL returns a DOUBLE whatever it is
+        '' assigned to: 'dim as long n = val( s )' is fb_D2I( fb_VAL( &S ) ), and
+        '' fb_D2I is a MACRO over __builtin_nearbyint, so the conversion ROUNDS TO
+        '' NEAREST and does not truncate. M_NEARBYINT is what Coerce already emits for
+        '' a float-to-integer narrowing, so that falls out.
+        '' A GENUINE 'q', not a 'z': these four are 64-bit on BOTH targets, where
+        '' fb_StrLen and the instr family follow the pointer. Using 'z' put a 32-bit
+        '' argument on fb_LongintToStr on win32 -- '_fb_LongintToStr@4' where fbc
+        '' decorates it @8 -- and a 32-bit return on fb_VALLNG, which would have
+        '' truncated every value it was asked for.
+        RTL( RTL_VAL,               "fb_VAL",              "d",   "p"     )
+        RTL( RTL_VALLNG,            "fb_VALLNG",           "q",   "p"     )
+        RTL( RTL_VALULNG,           "fb_VALULNG",          "q",   "p"     )
+        RTL( RTL_VALUINT,           "fb_VALUINT",          "l",   "p"     )
         RTL( RTL_STR_SPACE,         "fb_SPACE",            "p",   "z"     )
         RTL( RTL_STR_FILL1,         "fb_StrFill1",         "p",   "zl"    )
         RTL( RTL_STR_FILL2,         "fb_StrFill2",         "p",   "zp"    )

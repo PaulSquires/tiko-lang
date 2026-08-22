@@ -1,4 +1,5 @@
 calloc	void*	uint64, uint64	lib	calloc
+fb_ASC	uint32	FBSTRING*, int64	lib	fb_ASC
 fb_ArrayClear	int32	struct $7FBARRAYIvE*	lib	fb_ArrayClear
 fb_ArrayClearObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	fb_ArrayClearObj
 fb_ArrayDestructObj	void	struct $7FBARRAYIvE*, void*	lib	fb_ArrayDestructObj
@@ -21,6 +22,8 @@ fb_BIN_b	FBSTRING*	uint8	lib	fb_BIN_b
 fb_BIN_i	FBSTRING*	uint32	lib	fb_BIN_i
 fb_BIN_l	FBSTRING*	uint64	lib	fb_BIN_l
 fb_BIN_s	FBSTRING*	uint16	lib	fb_BIN_s
+fb_BoolToStr	FBSTRING*	boolean	lib	fb_BoolToStr
+fb_CHR	FBSTRING*	int32, ...	lib	fb_CHR
 fb_ConsoleInput	int32	FBSTRING*, int32, int32	lib	fb_ConsoleInput
 fb_DataReadBool	void	boolean*	lib	fb_DataReadBool
 fb_DataReadByte	void	int8*	lib	fb_DataReadByte
@@ -36,6 +39,7 @@ fb_DataReadULongint	void	uint64*	lib	fb_DataReadULongint
 fb_DataReadUShort	void	uint16*	lib	fb_DataReadUShort
 fb_DataReadWstr	void	uint16*, int64	lib	fb_DataReadWstr
 fb_DataRestore	void	void*	lib	fb_DataRestore
+fb_DoubleToStr	FBSTRING*	double	lib	fb_DoubleToStr
 fb_DoubleToWstr	uint16*	double	lib	fb_DoubleToWstr
 fb_End	void	int32	lib	fb_End
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	fb_ErrorThrowEx
@@ -44,6 +48,7 @@ fb_FileCloseAll	int32	void	lib	fb_FileCloseAll
 fb_FileInput	int32	int32	lib	fb_FileInput
 fb_FileLineInput	int32	int32, void*, int64, int32	lib	fb_FileLineInput
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	fb_FileOpen
+fb_FloatToStr	FBSTRING*	float	lib	fb_FloatToStr
 fb_FloatToWstr	uint16*	float	lib	fb_FloatToWstr
 fb_HEXEx_b	FBSTRING*	uint8, int32	lib	fb_HEXEx_b
 fb_HEXEx_i	FBSTRING*	uint32, int32	lib	fb_HEXEx_i
@@ -66,12 +71,14 @@ fb_InputUint	int32	uint32*	lib	fb_InputUint
 fb_InputUlongint	int32	uint64*	lib	fb_InputUlongint
 fb_InputUshort	int32	uint16*	lib	fb_InputUshort
 fb_InputWstr	int32	uint16*, int64	lib	fb_InputWstr
+fb_IntToStr	FBSTRING*	int32	lib	fb_IntToStr
 fb_IntToWstr	uint16*	int32	lib	fb_IntToWstr
 fb_LEFT	FBSTRING*	FBSTRING*, int64	lib	fb_LEFT
 fb_LTRIM	FBSTRING*	FBSTRING*	lib	fb_LTRIM
 fb_LTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_LTrimAny
 fb_LTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_LTrimEx
 fb_LineInput	int32	FBSTRING*, void*, int64, int32, int32, int32	lib	fb_LineInput
+fb_LongintToStr	FBSTRING*	int64	lib	fb_LongintToStr
 fb_LongintToWstr	uint16*	int64	lib	fb_LongintToWstr
 fb_MemSwap	void	void*, void*, int64	lib	fb_MemSwap
 fb_MutexCreate	void*	void	lib	fb_MutexCreate
@@ -127,6 +134,9 @@ fb_StrDelete	void	FBSTRING*	lib	fb_StrDelete
 fb_StrFill1	FBSTRING*	int64, int32	lib	fb_StrFill1
 fb_StrFill2	FBSTRING*	int64, FBSTRING*	lib	fb_StrFill2
 fb_StrInit	FBSTRING*	void*, int64, void*, int64, int32	lib	fb_StrInit
+fb_StrInstr	int64	int64, FBSTRING*, FBSTRING*	lib	fb_StrInstr
+fb_StrInstrAny	int64	int64, FBSTRING*, FBSTRING*	lib	fb_StrInstrAny
+fb_StrInstrRev	int64	FBSTRING*, FBSTRING*, int64	lib	fb_StrInstrRev
 fb_StrLcase2	FBSTRING*	FBSTRING*, int32	lib	fb_StrLcase2
 fb_StrLen	int64	void*, int64	lib	fb_StrLen
 fb_StrLset	void	FBSTRING*, FBSTRING*	lib	fb_StrLset
@@ -138,9 +148,15 @@ fb_StrUcase2	FBSTRING*	FBSTRING*, int32	lib	fb_StrUcase2
 fb_TRIM	FBSTRING*	FBSTRING*	lib	fb_TRIM
 fb_TrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_TrimAny
 fb_TrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_TrimEx
+fb_UIntToStr	FBSTRING*	uint32	lib	fb_UIntToStr
 fb_UIntToWstr	uint16*	uint32	lib	fb_UIntToWstr
+fb_ULongintToStr	FBSTRING*	uint64	lib	fb_ULongintToStr
 fb_ULongintToWstr	uint16*	uint64	lib	fb_ULongintToWstr
+fb_VAL	double	FBSTRING*	lib	fb_VAL
 fb_VALINT	int32	FBSTRING*	lib	fb_VALINT
+fb_VALLNG	int64	FBSTRING*	lib	fb_VALLNG
+fb_VALUINT	uint32	FBSTRING*	lib	fb_VALUINT
+fb_VALULNG	uint64	FBSTRING*	lib	fb_VALULNG
 fb_WriteBool	void	int32, boolean, int32	lib	fb_WriteBool
 fb_WriteByte	void	int32, int8, int32	lib	fb_WriteByte
 fb_WriteDouble	void	int32, double, int32	lib	fb_WriteDouble

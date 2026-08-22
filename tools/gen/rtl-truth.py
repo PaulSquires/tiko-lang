@@ -235,6 +235,28 @@ sub RadixProbe( )
     s = string( n, s )
 end sub
 ''',
+    # STR and CHR, and the string intrinsics whose RESULT IS A NUMBER. str's narrow
+    # types do NOT get their own entry points -- byte, short and long all widen to
+    # int32 -- which is the one thing about it that hex/oct/bin sitting beside it would
+    # have led you to guess wrong.
+    "strconv": '''
+sub StrConvProbe( )
+    dim as string s, t
+    dim as byte b : dim as ubyte ub : dim as short sh : dim as ushort ush
+    dim as long l : dim as ulong ul : dim as longint q : dim as ulongint uq
+    dim as single f : dim as double dd : dim as boolean bo
+    dim as long n = 3
+    s = str( b ) : s = str( ub ) : s = str( sh ) : s = str( ush )
+    s = str( l ) : s = str( ul ) : s = str( q ) : s = str( uq )
+    s = str( f ) : s = str( dd ) : s = str( bo )
+    s = chr( n ) : s = chr( n, n )
+    n = asc( s ) : n = asc( s, n )
+    n = instr( s, t ) : n = instr( n, s, t ) : n = instr( s, any t )
+    n = instrrev( s, t )
+    dd = val( s ) : q = vallng( s ) : uq = valulng( s )
+    n = valint( s ) : ul = valuint( s )
+end sub
+''',
     # The NARROW substring and trim family. The spellings are not consistent --
     # fb_TRIM but fb_TrimEx, fb_LEFT but fb_StrMid -- so every one is probed.
     "strsub": '''

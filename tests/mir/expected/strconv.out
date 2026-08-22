@@ -1,0 +1,148 @@
+func void P() {
+  local agg s size 24
+  local agg t size 24
+  local i8 b
+  local i8 ub
+  local i16 sh
+  local i16 ush
+  local i32 l
+  local i32 ul
+  local i64 q
+  local i64 uq
+  local f32 f
+  local f64 dd
+  local i8 bo
+  local i32 n
+  entry0:
+    %1 = alloca ptr s
+    %2 = field.addr @s, 0
+    store %2, 0
+    %3 = field.addr @s, 8
+    store %3, 0
+    %4 = field.addr @s, 16
+    store %4, 0
+    %5 = alloca ptr t
+    %6 = field.addr @t, 0
+    store %6, 0
+    %7 = field.addr @t, 8
+    store %7, 0
+    %8 = field.addr @t, 16
+    store %8, 0
+    %9 = alloca ptr b
+    %10 = alloca ptr ub
+    %11 = alloca ptr sh
+    %12 = alloca ptr ush
+    %13 = alloca ptr l
+    %14 = alloca ptr ul
+    %15 = alloca ptr q
+    %16 = alloca ptr uq
+    %17 = alloca ptr f
+    %18 = alloca ptr dd
+    %19 = alloca ptr bo
+    %20 = alloca ptr n
+    %21 = const i64 3
+    %22 = trunc %21
+    store @n, %22
+    %23 = load @b
+    %24 = sext %23
+    %25 = call.rtl ptr fb_IntToStr(%24)
+    %26 = call.rtl ptr fb_StrAssign(@s, -1, %25, -1, 0)
+    %27 = load @ub
+    %28 = zext %27
+    %29 = call.rtl ptr fb_UIntToStr(%28)
+    %30 = call.rtl ptr fb_StrAssign(@s, -1, %29, -1, 0)
+    %31 = load @sh
+    %32 = sext %31
+    %33 = call.rtl ptr fb_IntToStr(%32)
+    %34 = call.rtl ptr fb_StrAssign(@s, -1, %33, -1, 0)
+    %35 = load @ush
+    %36 = zext %35
+    %37 = call.rtl ptr fb_UIntToStr(%36)
+    %38 = call.rtl ptr fb_StrAssign(@s, -1, %37, -1, 0)
+    %39 = load @l
+    %40 = call.rtl ptr fb_IntToStr(%39)
+    %41 = call.rtl ptr fb_StrAssign(@s, -1, %40, -1, 0)
+    %42 = load @ul
+    %43 = call.rtl ptr fb_UIntToStr(%42)
+    %44 = call.rtl ptr fb_StrAssign(@s, -1, %43, -1, 0)
+    %45 = load @q
+    %46 = call.rtl ptr fb_LongintToStr(%45)
+    %47 = call.rtl ptr fb_StrAssign(@s, -1, %46, -1, 0)
+    %48 = load @uq
+    %49 = call.rtl ptr fb_ULongintToStr(%48)
+    %50 = call.rtl ptr fb_StrAssign(@s, -1, %49, -1, 0)
+    %51 = load @f
+    %52 = call.rtl ptr fb_FloatToStr(%51)
+    %53 = call.rtl ptr fb_StrAssign(@s, -1, %52, -1, 0)
+    %54 = load @dd
+    %55 = call.rtl ptr fb_DoubleToStr(%54)
+    %56 = call.rtl ptr fb_StrAssign(@s, -1, %55, -1, 0)
+    %57 = load @bo
+    %58 = call.rtl ptr fb_BoolToStr(%57)
+    %59 = call.rtl ptr fb_StrAssign(@s, -1, %58, -1, 0)
+    %60 = call.rtl i32 fb_ASC(@s, 1)
+    store @n, %60
+    %61 = load @n
+    %62 = sext %61
+    %63 = call.rtl i32 fb_ASC(@s, %62)
+    store @n, %63
+    %64 = call.rtl i64 fb_StrInstr(1, @s, @t)
+    %65 = trunc %64
+    store @n, %65
+    %66 = load @n
+    %67 = sext %66
+    %68 = call.rtl i64 fb_StrInstr(%67, @s, @t)
+    %69 = trunc %68
+    store @n, %69
+    %70 = call.rtl i64 fb_StrInstrAny(1, @s, @t)
+    %71 = trunc %70
+    store @n, %71
+    %72 = call.rtl i64 fb_StrInstrRev(@s, @t, -1)
+    %73 = trunc %72
+    store @n, %73
+    %74 = call.rtl f64 fb_VAL(@s)
+    %75 = nearbyint %74
+    %76 = fptosi %75
+    store @b, %76
+    %77 = call.rtl f64 fb_VAL(@s)
+    %78 = nearbyint %77
+    %79 = fptosi %78
+    store @l, %79
+    %80 = call.rtl i64 fb_VALLNG(@s)
+    store @q, %80
+    %81 = call.rtl i64 fb_VALULNG(@s)
+    store @uq, %81
+    %82 = call.rtl f64 fb_VAL(@s)
+    store @dd, %82
+    %83 = call.rtl f64 fb_VAL(@s)
+    %84 = fptrunc %83
+    store @f, %84
+    %85 = call.rtl i32 fb_VALINT(@s)
+    store @n, %85
+    %86 = call.rtl i32 fb_VALUINT(@s)
+    %87 = sext %86
+    store @uq, %87
+    call.rtl void fb_StrDelete(@t)
+    call.rtl void fb_StrDelete(@s)
+    ret
+}
+declare ptr fb_IntToStr($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_UIntToStr($0)
+declare ptr fb_LongintToStr($0)
+declare ptr fb_ULongintToStr($0)
+declare ptr fb_FloatToStr($0)
+declare ptr fb_DoubleToStr($0)
+declare ptr fb_BoolToStr($0)
+declare i32 fb_ASC($0, $1)
+declare i64 fb_StrInstr($0, $1, $2)
+declare i64 fb_StrInstrAny($0, $1, $2)
+declare i64 fb_StrInstrRev($0, $1, $2)
+declare f64 fb_VAL($0)
+declare i64 fb_VALLNG($0)
+declare i64 fb_VALULNG($0)
+declare i32 fb_VALINT($0)
+declare i32 fb_VALUINT($0)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 110 insts, 0 statements not lowered, 0 scope imbalance
