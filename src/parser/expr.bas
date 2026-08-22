@@ -629,6 +629,41 @@ function Primary( byref p as Fbx.ParserState ) as Fbx.NodeId
         Advance( p )
         return PostfixChain( p, MakeIdent( p, t ) )
 
+    case Fbx.KW_NEW
+        '' 'new T', 'new T( args )', 'new T[ n ]'.
+        ''
+        '' NEW is classed as an OPERATOR in the keyword table, so Primary had no case
+        '' for it and it fell through to the identifier path: 'p = new T' parsed as the
+        '' plain identifier 'new' with the TYPE DROPPED ENTIRELY, and every allocation
+        '' in the corpus lowered to nothing.
+        ''
+        '' The node is a LIST whose target is the TYPE and whose children are the
+        '' constructor arguments. The ARRAY form marks the node NF_ARRAY and puts the
+        '' element count in child 0 -- fbc accepts no constructor arguments there, so
+        '' the two uses of the child list never collide.
+        Advance( p )
+        dim as Fbx.NodeId nty = TypeRef( p )
+        dim as Fbx.NodeIdVec nargs
+        dim as boolean nIsArray = false
+        if Peek( p ) = Fbx.TK_LBRACKET then
+            Advance( p )
+            nIsArray = true
+            nargs.Push( cast( ulong, Expression( p ) ) )
+            Expect( p, Fbx.TK_RBRACKET, "]" )
+        elseif Peek( p ) = Fbx.TK_LPAREN then
+            Advance( p )
+            if Peek( p ) <> Fbx.TK_RPAREN then
+                do
+                    nargs.Push( cast( ulong, Expression( p ) ) )
+                    if Accept( p, Fbx.TK_COMMA ) = false then exit do
+                loop
+            end if
+            Expect( p, Fbx.TK_RPAREN, ")" )
+        end if
+        dim as Fbx.NodeId nn = MakeList( p, Fbx.N_NEW, t.loc, nty, nargs )
+        if nIsArray then p.ast->nodes[cast( long, nn )].flags or= Fbx.NF_ARRAY
+        return nn
+
     case Fbx.TK_LPAREN
         '' '(a)' is a parenthesised expression; '(a, b)' is a tuple. Purely
         '' syntactic, so the parser decides (docs/plan/04 section 3.3).

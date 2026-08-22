@@ -1002,6 +1002,16 @@ function TypeOf_ _
             end if
         end if
 
+    case Fbx.N_NEW
+        '' 'new T' IS A POINTER TO T, whatever else it is. Resolve typed the target as
+        '' a type reference; this turns it into the pointer the expression yields.
+        dim as Fbx.ListPayload ptr np = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if np->target <> Fbx.NODE_NONE then
+            dim as Fbx.TypeId nt = c.info->TypeOf_( np->target )
+            if nt <> Fbx.TYPE_NONE then t = c.types->Pointer_( nt )
+        end if
+
     case Fbx.N_INDEX
         '' 'p[i]' -- A POINTER SUBSCRIPT, which had no case at all, so it was untyped
         '' and everything built on it was too. LowerSwap grew a private workaround for
@@ -1154,7 +1164,7 @@ private sub WalkAll( byref c as Ctx )
         case Fbx.N_INT_LIT, Fbx.N_FLOAT_LIT, Fbx.N_STRING_LIT, Fbx.N_STRCAT, _
              Fbx.N_IDENT, Fbx.N_PAREN, Fbx.N_UNARY, Fbx.N_BINARY, _
              Fbx.N_DEREF, Fbx.N_ADDROF, Fbx.N_CALL, Fbx.N_MEMBER, _
-             Fbx.N_INDEX
+             Fbx.N_INDEX, Fbx.N_NEW
             '' N_INDEX was missing from this list, so 'p[i]' was never typed however
             '' well the case for it was written -- the cache is what lowering reads,
             '' and nothing ever filled it. A missing case here is invisible: the type

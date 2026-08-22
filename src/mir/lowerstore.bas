@@ -234,7 +234,7 @@ end function
 '' the first argument, per the ABI, which is also how the mangled name reads.
 sub EmitStructorCall _
     ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long, _
-      byval selfVal as MirValue ptr = 0 )
+      byval selfVal as MirValue ptr = 0, byval args as FB.Array( of ulong ) ptr = 0 )
 
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = 0 then return
@@ -257,6 +257,18 @@ sub EmitStructorCall _
     dim as long first = c.m->argPool.Count \ 2
     c.m->argPool.Push( cast( ulong, self_.kind ) )
     c.m->argPool.Push( cast( ulong, self_.id ) )
+    '' CONSTRUCTOR ARGUMENTS, after the receiver: 'new C( x )' is
+    '' '_ZN1CC1Ei( TMP, X )'. Every existing caller passes none, and a structor
+    '' with none is the overwhelming majority -- which is why they were not
+    '' modelled at all, and 'new C( g )' emitted the call with its argument
+    '' simply MISSING.
+    dim as long nargs = 1
+    if args <> 0 then
+        for i as long = 0 to args->Count - 1
+            c.m->argPool.Push( (*args)[i] )
+        next
+        nargs += args->Count \ 2
+    end if
 
     dim as Fbx.InternId nm = c.names->GetString( _
         Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
@@ -270,7 +282,7 @@ sub EmitStructorCall _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
         decl->isDefinition = false
-        decl->paramCount = 1
+        decl->paramCount = nargs
         fidx = c.m->functions.Count - 1
     end if
 
@@ -278,7 +290,7 @@ sub EmitStructorCall _
     ins.op = cast( ushort, M_CALL )
     ins.ty = cast( ubyte, MT_VOID )
     ins.first = first
-    ins.count = 1
+    ins.count = nargs
     ins.callee = fidx
     Emit( c, ins )
 end sub

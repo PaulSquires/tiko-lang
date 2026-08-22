@@ -352,6 +352,13 @@ function LowerExpr _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         return LowerAddr( c, ap->operand )
 
+    case Fbx.N_NEW
+        '' 'new T' -- an ALLOCATION, not a call. It arrives here rather than at the
+        '' N_CALL case because it is its own node kind.
+        dim as MirValue nwv2
+        if LowerNew_( c, id, nwv2 ) then return nwv2
+        return v
+
     case Fbx.N_INDEX
         '' 'p[i]' reads through the computed element address. Check does not type an
         '' N_INDEX, so the load's type comes from the POINTEE when the caller has not
@@ -502,6 +509,9 @@ function LowerExpr _
         '' 'iif( c, a, b )' is a CONDITIONAL, not a call: only one arm may run.
         dim as MirValue iifv
         if LowerIif( c, id, mt, iifv ) then return iifv
+        '' 'new T' allocates and constructs; it is not a call to anything named 'new'.
+        dim as MirValue nwv
+        if LowerNew_( c, id, nwv ) then return nwv
         '' 'procptr( f )' is a function's ADDRESS, not a call to it.
         dim as MirValue ppv
         if LowerProcPtr( c, id, ppv ) then return ppv

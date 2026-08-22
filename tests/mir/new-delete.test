@@ -1,0 +1,5 @@
+'' new and delete: calloc, an inline null guard, and fb_StrDelete for a string.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/new-delete.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/new-delete.out

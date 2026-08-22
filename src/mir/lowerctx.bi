@@ -322,6 +322,10 @@ declare function EmitRtl _
     '' lowerintr.bas
     declare function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerNew_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function CtorOf_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byval want as long ) as Fbx.SymbolId
     declare function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerBuiltinProc _
         ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval argFirst as long, _
@@ -399,7 +403,7 @@ declare function EmitRtl _
     '' has: a pointer, not a local.
     declare sub EmitStructorCall _
         ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long, _
-          byval selfVal as MirValue ptr = 0 )
+          byval selfVal as MirValue ptr = 0, byval args as FB.Array( of ulong ) ptr = 0 )
     declare sub EmitCtorCall _
         ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
     declare sub EmitDtorCall _

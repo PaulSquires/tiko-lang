@@ -735,6 +735,19 @@ private sub WalkExpr _
             end if
         end if
 
+    case Fbx.N_NEW
+        '' 'new T' -- the TARGET IS A TYPE, not a value, so it is resolved as a type
+        '' reference and the ordinary WalkExpr below would find nothing to bind.
+        dim as Fbx.ListPayload ptr np = ListOf( c, id )
+        if np->target <> Fbx.NODE_NONE then
+            dim as Fbx.TypeId nt = ResolveTypeRef( c, np->target, scope_ )
+            if nt <> Fbx.TYPE_NONE then c.info->SetType( np->target, nt )
+        end if
+        for i as long = 0 to np->count - 1
+            WalkExpr( c, cast( Fbx.NodeId, c.ast->children[np->first + i] ), scope_ )
+        next
+        return
+
     case Fbx.N_CALL, Fbx.N_INDEX, Fbx.N_PAREN, Fbx.N_TUPLE, Fbx.N_INITIALIZER, _
          Fbx.N_STRCAT
         dim as Fbx.ListPayload ptr lp = ListOf( c, id )

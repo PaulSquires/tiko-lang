@@ -127,6 +127,118 @@ end function
 '' DECLINED for an ARRAY of a type that HAS a destructor: fbc has to run one per
 '' element and needs the count to do it, which is not in the pointer. Getting that wrong
 '' would leak or double-free, so it declines rather than guesses.
+'' 'new T', 'new T( args )', 'new T[ n ]'.
+''
+'' Measured, and the surprises are worth stating because none of them is guessable:
+''
+''   - THE ALLOCATOR IS ALWAYS libc calloc( bytes, 1 ) -- never malloc, never a runtime
+''     helper. Every allocation is therefore ZERO-FILLED BY CONSTRUCTION, which is what
+''     lets 'new string' work with no constructor call at all: the zeroing IS the
+''     FBSTRING's initialisation.
+''   - THE NULL GUARD IS INLINE, AT THE CALL SITE, around the construction. The runtime
+''     never sees a null.
+''   - THE COOKIE IS KEYED ON "THE TYPE HAS A DESTRUCTOR", NOT ON "THIS IS AN ARRAY".
+''     'new C[n]' where C has a constructor but no destructor allocates no cookie at
+''     all. Where there IS one it is 8 bytes holding the ELEMENT COUNT -- not a byte
+''     size -- written at offset 0, with the returned pointer bumped past it.
+''   - The temp is assigned to the user's variable only AFTER construction.
+''
+'' Implemented here: the SCALAR forms, with and without a constructor. The ARRAY form
+'' declines: it needs a construction loop and a cookie whose presence depends on a
+'' property of T that is invisible at the delete site, and getting that half-right is
+'' worse than declining it.
+function LowerNew_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_NEW then return false
+    dim as Fbx.ListPayload ptr np = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if np->target = Fbx.NODE_NONE then return false
+    '' THE ARRAY FORM IS NOT DONE. See the note above.
+    if (c.ast->nodes[cast( long, id )].flags and Fbx.NF_ARRAY) <> 0 then return false
+
+    dim as Fbx.TypeId el = c.info->TypeOf_( np->target )
+    if el = Fbx.TYPE_NONE then return false
+    dim as long esz = SizeOfType( c, el )
+    if esz <= 0 then return false
+
+    '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
+    '' passes 1, folding the whole size into the first -- not the other way round.
+    dim as FB.Array( of ulong ) aa
+    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
+    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+    dim as MirValue raw = EmitRtl( c, RTL_CALLOC, aa )
+    if raw.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The allocation lives in a slot, because the construction below is a BRANCH and
+    '' the value has to survive the join.
+    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+    if slot < 0 then return false
+    dim as MirValue saddr
+    saddr.kind = cast( ubyte, MV_LOCAL )
+    saddr.ty = cast( ubyte, MT_PTR )
+    saddr.id = slot
+    dim as MirInst st0
+    st0.op = cast( ushort, M_STORE )
+    st0.ty = cast( ubyte, MT_VOID )
+    st0.a = saddr
+    st0.b = raw
+    Emit( c, st0 )
+
+    '' A CONSTRUCTOR, guarded by the null check fbc emits inline. Nothing to do for a
+    '' type without one: calloc has already zeroed the object, and for 'new string'
+    '' that zeroing is the whole initialisation.
+    dim as Fbx.SymbolId ctor = CtorOf_( c, el, np->count )
+    dim as FB.Array( of ulong ) cargs
+    if ctor <> Fbx.SYMBOL_NONE then
+        '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
+        '' written, not inside the null-guarded arm -- which matters the moment one has
+        '' a side effect.
+        for i as long = 0 to np->count - 1
+            dim as Fbx.NodeId ae = cast( Fbx.NodeId, c.ast->children[np->first + i] )
+            dim as MirValue av = LowerExpr( c, ae )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+            cargs.Push( cast( ulong, av.kind ) )
+            cargs.Push( cast( ulong, av.id ) )
+        next
+    end if
+    if ctor <> Fbx.SYMBOL_NONE then
+        dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
+        if pv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue zero = ConstInt( c, 0, MT_PTR )
+        dim as MirInst cmp
+        cmp.op = cast( ushort, M_ICMP_NE )
+        cmp.ty = cast( ubyte, MT_I32 )
+        cmp.a = pv
+        cmp.b = zero
+        dim as MirValue cond = Emit( c, cmp )
+        if cond.kind = cast( ubyte, MV_NONE ) then return false
+
+        dim as long bodyB = NewBlock( c, "new.ctor" )
+        dim as long joinB = NewBlock( c, "new.join" )
+        Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
+        c.curBlock = bodyB
+        EmitStructorCall( c, ctor, -1, @pv, @cargs )
+        Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+        c.curBlock = joinB
+    end if
+
+    outv = LowerExprLoad( c, saddr, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' The constructor of a type taking 'want' arguments, or nothing. Structors live in the
+'' type's scope under a synthetic name, because neither has a name of its own in the
+'' source.
+function CtorOf_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byval want as long ) as Fbx.SymbolId
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    dim as Fbx.SymbolId head = StructorOf( c, t, "__ctor" )
+    if head = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+    return StructorWithArity( c, head, want )
+end function
+
 function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if sp->a = Fbx.NODE_NONE then return false
@@ -161,6 +273,15 @@ function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     c.curBlock = bodyB
 
     if dtor <> Fbx.SYMBOL_NONE then EmitStructorCall( c, dtor, -1, @p )
+
+    '' A STRING HAS NO UDT DESTRUCTOR AND STILL NEEDS RELEASING. 'delete ps' over a
+    '' 'string ptr' is 'fb_StrDelete( PS ); free( PS )' -- measured -- and without the
+    '' first the descriptor's own allocation leaked on every one.
+    if IsStringType( c, el ) then
+        dim as FB.Array( of ulong ) sda
+        sda.Push( cast( ulong, p.kind ) ) : sda.Push( cast( ulong, p.id ) )
+        EmitRtl( c, RTL_STR_DELETE, sda )
+    end if
 
     dim as FB.Array( of ulong ) fargs
     fargs.Push( cast( ulong, p.kind ) ) : fargs.Push( cast( ulong, p.id ) )
