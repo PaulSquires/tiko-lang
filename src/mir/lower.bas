@@ -263,6 +263,15 @@ function LowerExpr _
     dim as MirType mt = LowerType( ft, *c.types )
 
     select case c.ast->Kind( id )
+    '' 'open( f for input as #1 )' IN EXPRESSION POSITION yields the error code. The
+    '' parser builds the same N_INTRINSIC node either way, so the statement form's own
+    '' lowering serves -- it was only the expression path that had no case, and a DIM
+    '' initialised from one allocated its slot and stored nothing.
+    case Fbx.N_INTRINSIC
+        dim as MirValue ov
+        if LowerOpenCall_( c, id, ov ) then return ov
+        return v
+
     case Fbx.N_STRING_LIT
         return LowerStringLitAddr( c, id )
 
@@ -1272,6 +1281,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
         if ip->op = cast( ushort, Fbx.KW_SWAP ) then handled = LowerSwap( c, id )
         if ip->op = cast( ushort, Fbx.KW_CLOSE ) then handled = LowerClose( c, id )
+        if ip->op = cast( ushort, Fbx.KW_OPEN ) then handled = LowerOpen_( c, id )
         if ip->op = cast( ushort, Fbx.KW_ERROR ) then handled = LowerError( c, id )
         if ip->op = cast( ushort, Fbx.KW_ERASE ) then handled = LowerErase( c, id )
         if ip->op = cast( ushort, Fbx.KW_WRITE ) then handled = LowerWrite( c, id )

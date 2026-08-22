@@ -176,6 +176,10 @@ private sub IntrOpen _
     ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload, _
       byval stopParen as boolean = false )
 
+    '' THE DEFAULT MODE IS RANDOM, NOT ZERO. Leaving 'extra' at 0 would say BINARY, and
+    '' an OPEN with no FOR clause would silently be opened in the wrong mode.
+    sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 1
+
     sp.a = Expression( p )
 
     dim as Fbx.NodeIdVec items
@@ -184,17 +188,55 @@ private sub IntrOpen _
         if stopParen andalso (Peek( p ) = Fbx.TK_RPAREN) then exit do
         dim as Fbx.TokenKind k = Peek( p )
 
+        '' THE MODE, ACCESS AND LOCK WORDS ARE SMALL INTEGERS, and they were consumed
+        '' and DISCARDED -- so every OPEN reached lowering with no idea what it was
+        '' opening the file for. Measured from fbc, and none of the numbering is
+        '' guessable:
+        ''
+        ''   mode    BINARY 0  RANDOM 1  INPUT 2  OUTPUT 3  APPEND 4
+        ''   access  (none) 0  READ 1    WRITE 2  READ WRITE 3
+        ''   lock    (none) 0  READ 1    WRITE 2  READ WRITE 3
+        ''
+        '' OMITTING 'FOR' IS NOT MODE 0. It is RANDOM, mode 1 -- the same code the word
+        '' RANDOM gives -- so a missing clause and a written one are indistinguishable
+        '' by design. And 'SHARED' compiles to lock 0, indistinguishable from writing no
+        '' LOCK at all.
         if k = Fbx.KW_FOR then
             Advance( p )
-            if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then Advance( p )
+            if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+                select case Peek( p )
+                case Fbx.KW_BINARY : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 0
+                case Fbx.KW_RANDOM : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 1
+                case Fbx.KW_INPUT  : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 2
+                case Fbx.KW_OUTPUT : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 3
+                case Fbx.KW_APPEND : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 4
+                end select
+                Advance( p )
+            end if
             continue do
         end if
         if (k = Fbx.KW_ACCESS) orelse (k = Fbx.KW_LOCK) then
             Advance( p )
-            '' 'access read write' is two words; consume while they are keywords.
-            while Fbx.IsKeywordKind( Peek( p ) ) andalso (Peek( p ) <> Fbx.KW_AS)
+            '' 'access read write' is two words -- but ONLY those two. Consuming every
+            '' keyword until AS swallowed the LOCK clause that follows: 'access write
+            '' lock read write' read as one four-word access list and gave access 3,
+            '' lock 0, where fbc gives access 2, lock 3.
+            dim as long rw_ = 0
+            do
+                select case Peek( p )
+                case Fbx.KW_READ  : rw_ or= 1
+                case Fbx.KW_WRITE : rw_ or= 2
+                case else : exit do
+                end select
                 Advance( p )
-            wend
+            loop
+            if k = Fbx.KW_ACCESS then
+                sp.extra = (sp.extra and not Fbx.OPEN_ACCESS_MASK) or _
+                           cast( ushort, rw_ shl Fbx.OPEN_ACCESS_SHIFT )
+            else
+                sp.extra = (sp.extra and not Fbx.OPEN_LOCK_MASK) or _
+                           cast( ushort, rw_ shl Fbx.OPEN_LOCK_SHIFT )
+            end if
             continue do
         end if
         if k = Fbx.KW_AS then
@@ -209,6 +251,10 @@ private sub IntrOpen _
         if k = Fbx.KW_ENCODING then
             Advance( p )
             if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+                '' RECORDED, so lowering knows to use the Encod entry point. The
+                '' encoding is the ONE clause fbc does not reduce to an integer -- it
+                '' passes the string through raw and unvalidated, so "bogus" compiles.
+                sp.extra or= Fbx.OPEN_HAS_ENCODING
                 items.Push( cast( ulong, Expression( p ) ) )
             end if
             continue do

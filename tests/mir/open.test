@@ -1,0 +1,5 @@
+'' OPEN in every clause spelling, statement and expression form.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/open.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/open.out

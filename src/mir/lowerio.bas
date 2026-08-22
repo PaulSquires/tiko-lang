@@ -484,4 +484,82 @@ function PrintOne _
     return true
 end function
 
+'' OPEN.
+''
+'' Its clause words were consumed and DISCARDED by the parser, so every OPEN reached
+'' lowering with no idea what it was opening the file for -- and none of them lowered.
+'' Measured from fbc's own C output:
+''
+''     fb_FileOpen( filename, mode, access, lock, filenum, reclen )
+''
+'' The codes are in nodes.bi beside the field that carries them. What matters here is
+'' that the clause words are ARGUMENTS, not separate entry points, so one call shape
+'' covers every spelling -- and that a missing FOR is RANDOM rather than zero, which
+'' the parser has already applied.
+''
+'' NOT DONE, and DECLINED rather than approximated:
+''   ENCODING, which switches to fb_FileOpenEncod with a trailing raw char* -- a
+''     different entry point, and one this inventory does not carry.
+''   The DEVICE forms (CONS, ERR, SCRN, PIPE, LPT, COM), which are separate functions
+''     rather than a device code.
+'' As a STATEMENT the error code is discarded; as an EXPRESSION -- 'if open( f for
+'' input as #1 ) <> 0' -- it is the value. One body, because they are the same call.
+function LowerOpen_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as MirValue ignored
+    return LowerOpenCall_( c, id, ignored )
+end function
+
+function LowerOpenCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_INTRINSIC then return false
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->op <> cast( ushort, Fbx.KW_OPEN ) then return false
+    if sp->a = Fbx.NODE_NONE then return false
+    if sp->b = Fbx.NODE_NONE then return false
+    '' The ENCODING form is a DIFFERENT ENTRY POINT taking a trailing char*, not an
+    '' extra integer, so there is nothing to approximate: it declines.
+    if (sp->extra and Fbx.OPEN_HAS_ENCODING) <> 0 then return false
+
+    '' THE FILENAME IS A DESCRIPTOR POINTER whatever it was spelled as -- a variable, a
+    '' literal, a concatenation. fb_FileOpen takes FBSTRING*, not the (ptr, len) pair
+    '' most of the string runtime wants.
+    dim as MirValue fn
+    if StrDescriptorOf_( c, sp->a, fn ) = false then return false
+
+    dim as MirValue num = LowerExpr( c, sp->b )
+    if num.kind = cast( ubyte, MV_NONE ) then return false
+    num = Coerce( c, num, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->b ) ) )
+    if num.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The record length, or 0 -- NOT 128. Lowered before the argument list is built so
+    '' a failure declines rather than leaving half a call behind.
+    dim as MirValue rl
+    if sp->c <> Fbx.NODE_NONE then
+        rl = LowerExpr( c, sp->c )
+        if rl.kind = cast( ubyte, MV_NONE ) then return false
+        rl = Coerce( c, rl, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->c ) ) )
+        if rl.kind = cast( ubyte, MV_NONE ) then return false
+    else
+        rl = ConstInt( c, 0, MT_I32 )
+    end if
+
+    dim as MirValue md = ConstInt( c, cast( longint, sp->extra and Fbx.OPEN_MODE_MASK ), MT_I32 )
+    dim as MirValue ac = ConstInt( c, cast( longint, _
+        (sp->extra and Fbx.OPEN_ACCESS_MASK) shr Fbx.OPEN_ACCESS_SHIFT ), MT_I32 )
+    dim as MirValue lk = ConstInt( c, cast( longint, _
+        (sp->extra and Fbx.OPEN_LOCK_MASK) shr Fbx.OPEN_LOCK_SHIFT ), MT_I32 )
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
+    args.Push( cast( ulong, md.kind ) ) : args.Push( cast( ulong, md.id ) )
+    args.Push( cast( ulong, ac.kind ) ) : args.Push( cast( ulong, ac.id ) )
+    args.Push( cast( ulong, lk.kind ) ) : args.Push( cast( ulong, lk.id ) )
+    args.Push( cast( ulong, num.kind ) ) : args.Push( cast( ulong, num.id ) )
+    args.Push( cast( ulong, rl.kind ) ) : args.Push( cast( ulong, rl.id ) )
+    outv = EmitRtl( c, RTL_FILE_OPEN, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+
 end namespace

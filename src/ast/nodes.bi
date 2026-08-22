@@ -255,6 +255,8 @@ namespace Fbx
         as long     count
         as ushort   op              '' keyword that spelled it, for dumps
         as ushort   extra           '' levels for EXIT/CONTINUE, intrinsic id, PF_* ...
+                                    '' -- and, on an OPEN, its CLAUSE WORDS: see
+                                    '' the OPEN_* codes below.
         as InternId aliasName       '' N_PROC: the ALIAS spelling, CASE PRESERVED, or 0
         as InternId ownerName       '' N_PROC: the QUALIFIER of 'Widget.Method' --
                                     '' the last component lands in .name, and without
@@ -333,6 +335,30 @@ namespace Fbx
 
     declare function NodeKindName( byval k as NodeKind ) as string
     declare function NodeKindCategory( byval k as NodeKind ) as NodeCategory
+
+    '' OPEN's clause words, packed into StmtPayload.extra on the N_INTRINSIC node.
+    ''
+    '' EVERY ONE IS A SMALL INTEGER TO FBC rather than a separate entry point -- mode,
+    '' access and lock all ride in the fb_FileOpen argument list -- and the numbering was
+    '' MEASURED from fbc's own C output, not guessed:
+    ''
+    ''   mode    BINARY 0  RANDOM 1  INPUT 2  OUTPUT 3  APPEND 4
+    ''   access  (none) 0  READ 1    WRITE 2  READ WRITE 3
+    ''   lock    (none) 0  READ 1    WRITE 2  READ WRITE 3
+    ''
+    '' OMITTING 'FOR' IS NOT MODE 0. It is RANDOM, mode 1 -- the same code the word
+    '' RANDOM gives -- so a missing clause and a written one are indistinguishable by
+    '' design. 'SHARED' likewise compiles to lock 0, indistinguishable from writing no
+    '' LOCK at all, and the default record length is 0 rather than 128.
+    ''
+    '' Here rather than beside either user because the parser packs these bits and
+    '' lowering unpacks them, and two spellings of the same field would drift.
+    const OPEN_MODE_MASK     as ushort = &h0007
+    const OPEN_ACCESS_SHIFT  as long   = 3
+    const OPEN_ACCESS_MASK   as ushort = &h0018
+    const OPEN_LOCK_SHIFT    as long   = 5
+    const OPEN_LOCK_MASK     as ushort = &h0060
+    const OPEN_HAS_ENCODING  as ushort = &h0080
 
 end namespace
 
