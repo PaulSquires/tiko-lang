@@ -21,10 +21,22 @@ destructor A( ) : end destructor
 '' for a derived type that owns something needing release.
 type B extends A
     declare function f( ) as long override
+    declare sub callsBase( )
     declare constructor( )
 end type
 function B.f( ) as long : return 2 : end function
 constructor B( ) : end constructor
+
+'' 'base.f( )' IS NEVER VIRTUAL. It is the one spelling that means "the base's version
+'' of this, whatever I am", and dispatching it through the vptr makes this method call
+'' ITSELF, forever. fbc emits a direct '_ZN1A1FEv( (struct $1A*)THIS$1 )'.
+''
+'' An UNQUALIFIED call to a sibling virtual -- a bare 'f( )' here -- is the opposite: it
+'' goes through this's own vptr, so in a C extends B it would reach C's f. Both measured.
+sub B.callsBase( )
+    dim as long r = base.f( )
+    r = f( )
+end sub
 
 '' A type with a table and NO constructor: the vptr store goes at the DIM instead,
 '' because fbx synthesises no constructors.

@@ -207,11 +207,46 @@ function VirtualSlotOf_ _
 
     if c.vts = 0 then return -1
     if callee = Fbx.SYMBOL_NONE then return -1
+
+    '' THE CALL SITE IS DECIDED BY THE 'virtual' KEYWORD ON THE BOUND DECLARATION, and
+    '' that is NOT the same rule as slot occupancy. Measured, and neither half is
+    '' guessable from the other:
+    ''
+    ''   declare function f( ) as long override            -- fills A's slot, and a
+    ''                                                        call to it is DIRECT
+    ''   declare virtual function f( ) as long override    -- fills A's slot, and a
+    ''                                                        call to it is INDIRECT
+    ''
+    '' So an override that does not repeat 'virtual' still overrides -- a call through a
+    '' base pointer reaches it -- while a call that BINDS to it goes straight there.
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return -1
+    dim as Fbx.NodeId cd = cast( Fbx.NodeId, cs->payload )
+    if cd = Fbx.NODE_NONE then return -1
+    if c.ast->Kind( cd ) <> Fbx.N_PROC then return -1
+    dim as ushort cmods = StmtOf( c, cd )->extra
+    if (cmods and (Fbx.PF_VIRTUAL or Fbx.PF_ABSTRACT)) = 0 then return -1
+
     dim as Fbx.TypeId rt = Fbx.TYPE_NONE
 
     if c.ast->Kind( target ) = Fbx.N_MEMBER then
         dim as Fbx.BinaryPayload ptr mb = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
+
+        '' 'base.v( )' IS NEVER VIRTUAL. It is the one spelling that means "the base's
+        '' version of this, whatever I am" -- fbc emits a direct '_ZN1A1VEv( (struct
+        '' $1A*)THIS$1 )' -- and dispatching it through the vptr makes an override that
+        '' calls 'base.v( )' CALL ITSELF, forever.
+        ''
+        '' The receiver arrives as an ordinary identifier named 'base', because that is
+        '' also the field an EXTENDS becomes, which is what makes the member lookup work
+        '' at all. BASE is a keyword, so no user identifier can reach here.
+        if c.ast->Kind( mb->lhs ) = Fbx.N_IDENT then
+            dim as Fbx.IdentPayload ptr ip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, mb->lhs )].data )]
+            if ip->name = c.vts->baseName then return -1
+        end if
+
         rt = c.info->TypeOf_( mb->lhs )
         if rt <> Fbx.TYPE_NONE then
             if c.types->Kind( rt ) = Fbx.TK_POINTER then rt = c.types->Inner( rt )

@@ -62,6 +62,22 @@ func void _ZN1BC1Ev($0) {
     store %2, %3
     ret
 }
+func void _ZN1B9CALLSBASEEv($0) {
+  local ptr this
+  local i32 r
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr r
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call i32 _ZN1A1FEv(%4)
+    store @r, %5
+    %6 = load @this
+    %7 = call i32 _ZN1B1FEv(%6)
+    store @r, %7
+    ret
+}
 func void _ZN1C1GEv($0) {
   local ptr this
   entry0:
@@ -106,4 +122,4 @@ declare void fb_Init($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 7 functions, 7 blocks, 54 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance
