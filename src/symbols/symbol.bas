@@ -187,6 +187,21 @@ function SymbolTable.LookupTyped _
             dim as Symbol ptr g = @this.symbols[cast( long, got )]
             if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return got
         end if
+
+        '' 'using ns' MAKES ITS TYPE NAMES VISIBLE TOO. Lookup( ) walks the using
+        '' scopes and this did not, so 'using ns1 : dim b as B' found nothing and the
+        '' variable's slot lowered to void -- while 'ns1.B' and an unqualified VALUE
+        '' from the same namespace both worked. Searched after the scope's own names
+        '' and before its parent's, which is the order Lookup( ) already uses.
+        for i as long = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( ulong, sc ) then continue for
+            got = this.LookupLocalTyped( cast( ScopeId, this.usingInner[i] ), nm, wantType )
+            if got <> SYMBOL_NONE then
+                dim as Symbol ptr gu = @this.symbols[cast( long, got )]
+                if IsTypeNameKind( cast( SymbolKind, gu->kind ) ) = wantType then return got
+            end if
+        next
+
         dim as SymScope ptr s_ = this.ScopeAt( sc )
         if s_ = 0 then exit while
         sc = s_->parent

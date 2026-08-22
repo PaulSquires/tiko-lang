@@ -36,3 +36,17 @@ dim as ns_a.line l
 res = 1
 f = 0
 l.x = 2
+
+'' 4. 'using ns' MAKES ITS TYPE NAMES VISIBLE TOO. The untyped lookup walked the using
+'' scopes and the type-name lookup did not, so this found nothing -- while 'ns1.B' and
+'' an unqualified VALUE from the same namespace both worked.
+namespace ns1
+    type B
+        v as integer
+    end type
+end namespace
+
+using ns1
+
+dim bb as B
+bb.v = 3
