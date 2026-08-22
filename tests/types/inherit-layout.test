@@ -1,0 +1,5 @@
+'' 'extends' as an embedded first field, and the predeclared 'object'.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/inherit-layout.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/inherit-layout.out

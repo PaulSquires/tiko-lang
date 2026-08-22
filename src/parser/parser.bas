@@ -1238,6 +1238,46 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
     return n
 end function
 
+'' 'object' -- THE ONE TYPE THAT IS NOT DECLARED ANYWHERE.
+''
+'' fbc predeclares it; it is in no header, and 'extends object' is how every UDT with a
+'' virtual method is written. Measured, it is exactly one pointer:
+''
+''     struct $10fb_Object$ { void* VPTR$; };
+''     __FB_STATIC_ASSERT( sizeof( struct $10fb_Object$ ) == 8 );   // win32: 4
+''
+'' Built as ORDINARY AST rather than as a special case in the symbol table, so Collect,
+'' Resolve and the layout pass all see a type like any other and nothing downstream has
+'' to know it was synthesised. That also keeps the size right on both targets for free:
+'' the pointer's width is the target's, not a constant written here.
+''
+'' See docs/language/object-abi.md for the rest of the shape -- the vtable, the RTTI
+'' record, and where the vptr is written -- none of which exists yet.
+private function BuiltinObject( byref p as Fbx.ParserState ) as Fbx.NodeId
+    '' 'any ptr': the inner names ANY, and a wrapping typeref carries the pointer.
+    dim as Fbx.StmtPayload anyp
+    anyp.op = cast( ushort, Fbx.KW_ANY )
+    anyp.name = p.names->GetString( "any" )
+    dim as Fbx.NodeId inner = MakeStmt( p, Fbx.N_TYPEREF, Fbx.LOC_NONE, anyp )
+
+    dim as Fbx.StmtPayload ptrp
+    ptrp.a = inner
+    dim as Fbx.NodeId pty = MakeStmt( p, Fbx.N_TYPEREF, Fbx.LOC_NONE, ptrp )
+    p.ast->nodes[cast( long, pty )].flags or= Fbx.NF_PTR
+
+    dim as Fbx.StmtPayload fp
+    fp.name = p.names->GetString( "vptr" )
+    fp.a = pty
+    dim as Fbx.NodeId fld = MakeStmt( p, Fbx.N_FIELD, Fbx.LOC_NONE, fp )
+
+    dim as Fbx.StmtPayload tp
+    tp.name = p.names->GetString( "object" )
+    tp.first = p.ast->children.Count
+    tp.count = 1
+    p.ast->children.Push( cast( ulong, fld ) )
+    return MakeStmt( p, Fbx.N_TYPE, Fbx.LOC_NONE, tp )
+end function
+
 function Unit( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.Token t = Cur( p )
     dim as Fbx.NodeIdVec items
@@ -1249,6 +1289,11 @@ function Unit( byref p as Fbx.ParserState ) as Fbx.NodeId
         if s <> Fbx.NODE_NONE then items.Push( cast( ulong, s ) )
         if p.pos = before then Advance( p )        '' guaranteed progress
     loop
+    '' LAST, not first. Collect is a whole pass before anything looks a type up, so
+    '' declaring it after the unit's own statements changes nothing -- and it keeps
+    '' every NodeId in the file the number it already had, which is what the dumps and
+    '' their goldens are written in.
+    items.Push( cast( ulong, BuiltinObject( p ) ) )
     return MakeList( p, Fbx.N_MODULE, t.loc, Fbx.NODE_NONE, items )
 end function
 

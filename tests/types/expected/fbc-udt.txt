@@ -133,3 +133,14 @@ TupNamed	off	_2	8
 TupNested	size	12	4
 TupNested	off	_1	0
 TupNested	off	_2	4
+ExtObj	size	16	8
+ExtObj	off	f1	8
+ExtTwo	size	24	8
+ExtTwo	off	f1	8
+ExtTwo	off	g1	16
+ExtWide	size	24	8
+ExtWide	off	d	8
+ExtWide	off	b	16
+ExtPlain	size	8	4
+ExtPlain	off	a	0
+ExtPlain	off	b	4

@@ -1,4 +1,4 @@
-N_MODULE (3) <1:83>
+N_MODULE (4) <1:83>
   N_TYPE 't' <12:1>
     N_FIELD 'pub0' <13:20>
       N_TYPEREF 'integer' [INTEGER] <13:12>
@@ -19,3 +19,7 @@ N_MODULE (3) <1:83>
   N_TYPE 'u' union <33:1>
     N_FIELD 'only1' <34:20>
       N_TYPEREF 'integer' [INTEGER] <34:12>
+  N_TYPE 'object' <0:0>
+    N_FIELD 'vptr' <0:0>
+      N_TYPEREF ptr <0:0>
+        N_TYPEREF 'any' [ANY] <0:0>

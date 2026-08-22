@@ -1,4 +1,4 @@
-N_MODULE (15) <1:80>
+N_MODULE (16) <1:80>
   N_TYPE 'u' <19:1>
     N_FIELD 'i' <20:9>
       N_TYPEREF 'long' [LONG] <20:14>
@@ -89,3 +89,7 @@ N_MODULE (15) <1:80>
       N_IDENT 'strptr' <50:1>
       N_IDENT 's' <50:9>
     N_INT_LIT 0 radix=10 <50:15>
+  N_TYPE 'object' <0:0>
+    N_FIELD 'vptr' <0:0>
+      N_TYPEREF ptr <0:0>
+        N_TYPEREF 'any' [ANY] <0:0>

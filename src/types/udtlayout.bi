@@ -47,6 +47,10 @@ namespace Fbx
     type UdtLayouts
         as FB.Array( of UdtInfo )  udts
         as FB.Array( of UdtField ) fields
+        '' The interned 'base' -- the field an 'extends' becomes. Held here rather than
+        '' looked up per call: FieldOffset has no interner and is on the hot path of
+        '' every member access.
+        as InternId                baseName
 
         declare function Find( byval t as TypeId ) as long
         declare function FieldOffset _

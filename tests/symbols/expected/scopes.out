@@ -1,11 +1,12 @@
-scopes: 14  symbols: 18
+scopes: 15  symbols: 20
 scope 1 global parent=0 (4)
     const     'true' builtin
     const     'false' builtin
     const     '__function__' funcname
     const     '__function_nq__'
-scope 2 module parent=1 (1)
+scope 2 module parent=1 (2)
     namespace 'demo'
+    type      'object'
 scope 3 namespace of 'demo' parent=2 (7)
     const     'max' const
     type      'point'
@@ -22,3 +23,5 @@ scope 6 proc of 'run' parent=3 (3)
     param     'n'
     param     's'
     var       'i'
+scope 15 type of 'object' parent=2 (1)
+    field     'vptr'

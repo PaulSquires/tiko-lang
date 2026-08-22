@@ -1,0 +1,15 @@
+plain size 8 align 4
+  plain off x 0
+  plain off y 4
+object size 8 align 8
+  object off vptr 0
+a size 16 align 8
+  a off base 0
+  a off f1 8
+  a inherited vptr 0
+b size 24 align 8
+  b off base 0
+  b off g1 16
+  b inherited f1 8
+  b inherited vptr 0
+udts: 4

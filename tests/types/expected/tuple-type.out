@@ -1,6 +1,8 @@
 reftup2 size 32 align 8
   reftup2 off a 0
   reftup2 off b 8
+object size 8 align 8
+  object off vptr 0
 $tup:6:15 size 32 align 8
   $tup:6:15 off _1 0
   $tup:6:15 off _2 8
@@ -11,9 +13,9 @@ $tup:2:2:2 size 3 align 1
 $tup:6:6 size 8 align 4
   $tup:6:6 off _1 0
   $tup:6:6 off _2 4
-$tup:6:28 size 12 align 4
-  $tup:6:28 off _1 0
-  $tup:6:28 off _2 4
+$tup:6:29 size 12 align 4
+  $tup:6:29 off _1 0
+  $tup:6:29 off _2 4
 tup2 size 32 align 8
   tup2 off _1 0
   tup2 off _2 8
@@ -27,4 +29,4 @@ tupnamed size 32 align 8
 tupnested size 12 align 4
   tupnested off _1 0
   tupnested off _2 4
-udts: 5
+udts: 6

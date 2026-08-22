@@ -1,4 +1,4 @@
-N_MODULE (6) <1:84>
+N_MODULE (7) <1:84>
   N_TYPE 'box' <16:1>
     N_BLOCK (1) <16:14>
       N_IDENT 'u' <16:14>
@@ -29,3 +29,7 @@ N_MODULE (6) <1:84>
     N_CALL <29:7>
       N_IDENT 'sizeof' <29:7>
       N_IDENT 'pair' <29:15>
+  N_TYPE 'object' <0:0>
+    N_FIELD 'vptr' <0:0>
+      N_TYPEREF ptr <0:0>
+        N_TYPEREF 'any' [ANY] <0:0>

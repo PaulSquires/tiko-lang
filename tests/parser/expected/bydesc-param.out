@@ -1,4 +1,4 @@
-N_MODULE (7) <1:54>
+N_MODULE (8) <1:54>
   N_PROC 'f1' [SUB] <14:9>
     N_PARAM array <14:17>
       N_TYPEREF 'integer' [INTEGER] <14:24>
@@ -35,3 +35,7 @@ N_MODULE (7) <1:54>
       N_IDENT 'f2' <25:1>
       N_CALL <25:6>
         N_IDENT 'x' <25:5>
+  N_TYPE 'object' <0:0>
+    N_FIELD 'vptr' <0:0>
+      N_TYPEREF ptr <0:0>
+        N_TYPEREF 'any' [ANY] <0:0>

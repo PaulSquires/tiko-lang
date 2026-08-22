@@ -18,12 +18,30 @@ function UdtLayouts.FieldOffset _
     dim as long ui = this.Find( t )
     if ui < 0 then return 0
     dim as UdtInfo ptr u = @this.udts[ui]
+    dim as long baseAt = -1
     for i as long = 0 to u->count - 1
         if this.fields[u->first + i].name = nm then
             found = true
             return this.fields[u->first + i].offset
         end if
+        if this.fields[u->first + i].name = this.baseName then baseAt = u->first + i
     next
+
+    '' AN INHERITED FIELD. 'extends T' is a field named 'base', so a name this type does
+    '' not hold is looked for in that field's type, and its offset is added -- which is
+    '' zero today, because the base is always the first member, but adding it is what
+    '' makes the walk state the rule rather than rely on it.
+    if (baseAt >= 0) andalso (nm <> this.baseName) then
+        dim as TypeId bt = this.fields[baseAt].type_
+        if (bt <> TYPE_NONE) andalso (bt <> t) then
+            dim as boolean up = false
+            dim as long off = this.FieldOffset( bt, nm, up )
+            if up then
+                found = true
+                return this.fields[baseAt].offset + off
+            end if
+        end if
+    end if
     return 0
 end function
 
@@ -272,9 +290,24 @@ private function LayOutOne _
         dim as Symbol ptr f = syms.SymbolAt( cur )
         if f = 0 then exit while
         if f->kind = cast( ubyte, SYM_FIELD ) then
-            if f->type_ = TYPE_NONE then
-                '' A member whose type is not resolved yet. Abandon rather than lay
-                '' the type out wrongly -- a half-computed offset is worse than none.
+            dim as boolean notReady = (f->type_ = TYPE_NONE)
+            '' A MEMBER WHOSE OWN TYPE IS A UDT THAT IS NOT LAID OUT YET. The rounds
+            '' above exist for exactly this, but only an UNRESOLVED type stopped a
+            '' round -- a resolved one whose layout was still missing was measured as
+            '' SIZE ZERO and the enclosing type came out too small, silently.
+            ''
+            '' It could not happen while every type was declared before its use. The
+            '' builtin 'object' is declared at the END of the unit, so 'extends object'
+            '' reaches this before its base exists, and 'a size 16' became 'a size 4'
+            '' with no diagnostic anywhere.
+            if notReady = false then
+                if types.Kind( f->type_ ) = TK_UDT then
+                    if store.Find( f->type_ ) < 0 then notReady = true
+                end if
+            end if
+            if notReady then
+                '' Abandon rather than lay the type out wrongly -- a half-computed
+                '' offset is worse than none.
                 while store.fields.Count > u.first
                     store.fields.Pop( )
                 wend
@@ -308,6 +341,10 @@ function ComputeUdtLayouts _
     ( byref syms as SymbolTable, byref types as TypeContext, _
       byref store as UdtLayouts ) as long
 
+    '' The name an 'extends' becomes a field under. Interned once here so FieldOffset,
+    '' which has no interner and runs on every member access, can compare against it.
+    if syms.names <> 0 then store.baseName = syms.names->GetString( "base" )
+
     '' A UDT can contain another, so the order matters. Rather than sort the
     '' dependency graph, this repeats until nothing new is laid out: the number of
     '' rounds is the nesting depth, which is small, and a cycle simply stops making
@@ -339,11 +376,42 @@ private function RowsFor _
     dim as UdtInfo ptr u = @store.udts[idx]
     dim as string outp = nm & " size " & str( u->size ) & _
                          " align " & str( u->align ) & chr( 10 )
+    dim as TypeId baseTy = TYPE_NONE
+    dim as long baseOff = 0
     for j as long = 0 to u->count - 1
         dim as UdtField ptr f = @store.fields[u->first + j]
         outp += "  " & nm & " off " & names.Spelling( f->name ) & " " & _
                 str( f->offset ) & chr( 10 )
+        if f->name = store.baseName then
+            baseTy = f->type_
+            baseOff = f->offset
+        end if
     next
+
+    '' INHERITED FIELDS, under the derived type's name and at their offset within it.
+    '' They are not in this type's own field list -- 'extends' is one field holding the
+    '' whole base -- so without this the dump shows a type that has an 'f1' as a type
+    '' that has no 'f1', and the layout gate could not check a single inherited offset.
+    while baseTy <> TYPE_NONE
+        dim as long bi = store.Find( baseTy )
+        if bi < 0 then exit while
+        dim as UdtInfo ptr b = @store.udts[bi]
+        dim as TypeId nextTy = TYPE_NONE
+        dim as long nextOff = 0
+        for j as long = 0 to b->count - 1
+            dim as UdtField ptr f = @store.fields[b->first + j]
+            if f->name = store.baseName then
+                nextTy = f->type_
+                nextOff = baseOff + f->offset
+                continue for
+            end if
+            outp += "  " & nm & " inherited " & names.Spelling( f->name ) & " " & _
+                    str( baseOff + f->offset ) & chr( 10 )
+        next
+        if nextTy = baseTy then exit while
+        baseTy = nextTy
+        baseOff = nextOff
+    wend
     return outp
 end function
 

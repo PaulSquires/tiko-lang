@@ -18,4 +18,6 @@ withunion size 24 align 8
   withunion off l 8
   withunion off d 8
   withunion off c 16
-udts: 5
+object size 8 align 8
+  object off vptr 0
+udts: 6

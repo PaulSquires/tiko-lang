@@ -112,6 +112,22 @@ CASES = [
     # Element names are DOCUMENTATION: the fields are still _1 and _2.
     ("TupNamed", "type TupNamed as (count as long, name as string)", ['_1', '_2']),
     ("TupNested", "type TupNested as (long, (long, long))", ['_1', '_2']),
+
+    # INHERITANCE. 'extends T' embeds the base as the FIRST member at offset 0 -- fbc
+    # writes it as 'struct $10fb_Object$ BASE$;' -- so every inherited field's offset
+    # is the base's size plus its own, and 'object' contributes a pointer whose width
+    # is the target's. Nothing in the table exercised any of it, so a type that
+    # inherited nothing at all laid out to the size of its own fields alone and passed.
+    ("ExtObj", "type ExtObj extends object\n f1 as long\nend type", ["f1"]),
+    ("ExtTwo", "type ExtBase1 extends object\n f1 as long\nend type\n"
+               "type ExtTwo extends ExtBase1\n g1 as long\nend type", ["f1", "g1"]),
+    # A base whose own alignment is wider than the derived type's fields: the derived
+    # type inherits the ALIGNMENT too, which is where its tail padding comes from.
+    ("ExtWide", "type ExtWideB extends object\n d as double\nend type\n"
+                "type ExtWide extends ExtWideB\n b as byte\nend type", ["d", "b"]),
+    # A plain UDT as a base: 'object' is not special to the layout, and this says so.
+    ("ExtPlain", "type ExtPlainB\n a as short\nend type\n"
+                 "type ExtPlain extends ExtPlainB\n b as long\nend type", ["a", "b"]),
 ]
 
 

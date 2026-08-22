@@ -18,4 +18,6 @@ typeinunion size 8 align 8
   typeinunion off f 0
   typeinunion off g 4
   typeinunion off h 0
-udts: 6
+object size 8 align 8
+  object off vptr 0
+udts: 7

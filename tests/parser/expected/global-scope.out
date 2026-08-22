@@ -1,4 +1,4 @@
-N_MODULE (4) <1:85>
+N_MODULE (5) <1:85>
   N_VAR [DIM] shared <11:1>
     N_VAR_ITEM 'x' <11:23>
       N_TYPEREF 'integer' [INTEGER] <11:15>
@@ -37,3 +37,7 @@ N_MODULE (4) <1:85>
     N_MEMBER . <29:7>
       N_GLOBALSCOPE <29:7>
       N_IDENT 'x' <29:9>
+  N_TYPE 'object' <0:0>
+    N_FIELD 'vptr' <0:0>
+      N_TYPEREF ptr <0:0>
+        N_TYPEREF 'any' [ANY] <0:0>

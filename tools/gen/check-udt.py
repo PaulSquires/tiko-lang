@@ -74,7 +74,10 @@ def one_target() -> int:
         if m:
             got[(m.group(1), "size")] = (int(m.group(2)), int(m.group(3)))
             continue
-        m = re.fullmatch(r"(\w+) off (\S+) (\d+)", line)
+        # 'inherited' is a field the type gets from its base -- 'extends' is one
+        # field holding the whole base, so an inherited name is not in the type's own
+        # list and every inheritance shape read as "fbx has no offset" without this.
+        m = re.fullmatch(r"(\w+) (?:off|inherited) (\S+) (\d+)", line)
         if m:
             got[(m.group(1), "off", m.group(2))] = int(m.group(3))
 

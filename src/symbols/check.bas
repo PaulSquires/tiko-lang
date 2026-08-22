@@ -626,6 +626,25 @@ private function FieldOf_ _
     dim as Fbx.SymbolId found = c.syms->LookupLocal( s->inner, nm )
     if found <> Fbx.SYMBOL_NONE then return found
 
+    '' AN INHERITED MEMBER. 'extends T' is a field named 'base' at offset 0 -- see the
+    '' parser -- so a name this type does not hold is looked for in that field's type,
+    '' and so on up the chain. Single inheritance, so there is one chain and no
+    '' ambiguity to resolve.
+    ''
+    '' 'base' itself is not looked through, or a type would find its own base field by
+    '' searching for it, which terminates but says the wrong thing.
+    dim as Fbx.InternId baseNm = c.names->GetString( "base" )
+    if nm <> baseNm then
+        dim as Fbx.SymbolId bf = c.syms->LookupLocal( s->inner, baseNm )
+        if bf <> Fbx.SYMBOL_NONE then
+            dim as Fbx.Symbol ptr b = c.syms->SymbolAt( bf )
+            if (b <> 0) andalso (b->type_ <> Fbx.TYPE_NONE) andalso (b->type_ <> t) then
+                dim as Fbx.SymbolId up = FieldOf_( c, b->type_, nm )
+                if up <> Fbx.SYMBOL_NONE then return up
+            end if
+        end if
+    end if
+
     '' AN INSTANTIATION FALLS BACK TO ITS GENERIC for anything its own scope does not
     '' hold. Instantiating a generic gives each argument list its own type with its own
     '' FIELDS -- which is the whole point, and what makes 'a.value' work at all -- but

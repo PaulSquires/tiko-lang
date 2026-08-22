@@ -775,6 +775,27 @@ private function ParseAggregateBody _
     p.aggDepth += 1
     dim as Fbx.NodeIdVec members
 
+    '' 'EXTENDS T' IS A FIELD, not a flag. fbc embeds the base as the first member --
+    ''
+    ''     struct $1A { struct $10fb_Object$ BASE$; int32 F1; };
+    ''
+    '' -- at offset 0, before everything declared here, and every consequence of
+    '' inheritance follows from that one fact: the layout is right without a special
+    '' case, an upcast is the identity on the address, and the vptr of a type that
+    '' extends 'object' lands at offset 0 because 'object' puts it there.
+    ''
+    '' The name is 'base', which no user field can collide with -- BASE is a keyword, so
+    '' the lexer never produces it as an identifier.
+    ''
+    '' The typeref is still on the TYPE node as well, because a later pass wanting the
+    '' base type should not have to recognise a field by its name.
+    if sp.c <> Fbx.NODE_NONE then
+        dim as Fbx.StmtPayload bp
+        bp.name = p.names->GetString( "base" )
+        bp.a = sp.c
+        members.Push( cast( ulong, MakeStmt( p, Fbx.N_FIELD, t.loc, bp ) ) )
+    end if
+
     '' The access section in force. Measured against fbc rather than assumed:
     ''
     ''   default             PUBLIC

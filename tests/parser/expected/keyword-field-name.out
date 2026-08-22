@@ -9,4 +9,6 @@ u size 8 align 8
   u off forwarderstring 0
   u off function 0
   u off ordinal 0
-udts: 2
+object size 8 align 8
+  object off vptr 0
+udts: 3
