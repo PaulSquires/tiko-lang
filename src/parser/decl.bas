@@ -479,14 +479,20 @@ private function ParseProc _
     if kw = Fbx.KW_OPERATOR then
         if (Peek( p ) <> Fbx.TK_LPAREN) andalso (AtEnd( p ) = false) then
             if Peek( p ) <> Fbx.TK_EOL then
-                if sp.name = 0 then
-                    dim as string opNm = Fbx.TokenKindText( Peek( p ) )
-                    if len( opNm ) > 0 then
-                        sp.name = p.names->Fold( p.names->GetString( opNm ) )
-                        sp.rawName = p.names->GetString( opNm )
-                    end if
-                end if
+                dim as string opNm = Fbx.TokenKindText( Peek( p ) )
                 Advance( p )
+                '' 'operator []' IS TWO TOKENS AND ONE NAME. Taking only the '[' left
+                '' the ']' where the parameter list was expected, so the whole list was
+                '' lost and the subscript operator reached lowering with nothing but a
+                '' receiver.
+                if (opNm = "[") andalso (Peek( p ) = Fbx.TK_RBRACKET) then
+                    opNm = "[]"
+                    Advance( p )
+                end if
+                if (sp.name = 0) andalso (len( opNm ) > 0) then
+                    sp.name = p.names->Fold( p.names->GetString( opNm ) )
+                    sp.rawName = p.names->GetString( opNm )
+                end if
             end if
         end if
     end if

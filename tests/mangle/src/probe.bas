@@ -225,4 +225,15 @@ namespace mgops
     operator -  ( byref a as OpD ) as OpD : dim as OpD r : operator = r : end operator
     operator +  ( byref a as OpD ) as OpD : dim as OpD r : operator = r : end operator
     operator not( byref a as OpD ) as OpD : dim as OpD r : operator = r : end operator
+
+    '' 'operator []' IS TWO TOKENS AND ONE NAME, and its code is 'ix'. Taking only the
+    '' '[' left the ']' where the parameter list was expected, so the list was lost too
+    '' and the operator reached lowering with nothing but a receiver.
+    type OpIx
+        v as long
+        declare operator [] ( byval i as long ) byref as long
+    end type
+    operator OpIx.[] ( byval i as long ) byref as long
+        return this.v
+    end operator
 end namespace

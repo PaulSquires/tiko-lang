@@ -306,6 +306,56 @@ end sub
 '' EmitStructorCall does this for constructors and destructors and hard-codes a VOID
 '' result; the iterator protocol needs the same thing for functions that return
 '' something. Same shape, one more parameter.
+'' The same, with ARGUMENTS after the receiver. EmitMemberCall takes none, which is
+'' right for the iterator protocol it was written for and wrong for 'operator []'.
+function EmitMemberCallArgs_ _
+    ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
+      byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
+
+    dim as MirValue none_
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    if s = 0 then return none_
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+    if pn = Fbx.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return none_
+    if self_.kind = cast( ubyte, MV_NONE ) then return none_
+
+    dim as long first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( ulong, self_.kind ) )
+    c.m->argPool.Push( cast( ulong, self_.id ) )
+    dim as long nargs = 1
+    if args <> 0 then
+        for i as long = 0 to args->Count - 1
+            c.m->argPool.Push( (*args)[i] )
+        next
+        nargs += args->Count \ 2
+    end if
+
+    dim as Fbx.InternId nm = c.names->GetString( _
+        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, rt )
+        decl->isDefinition = false
+        decl->paramCount = nargs
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as MirInst ins
+    ins.op = cast( ushort, M_CALL )
+    ins.ty = cast( ubyte, rt )
+    ins.first = first
+    ins.count = nargs
+    ins.callee = fidx
+    return Emit( c, ins )
+end function
+
 function EmitMemberCall _
     ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
       byval rt as MirType ) as MirValue

@@ -373,6 +373,7 @@ private function OperatorCode _
     case "or"  : return "or"
     case "xor" : return "eo"
     case "not" : return "co"
+    case "[]"  : return "ix"
     case "+"   : return iif( arity = 1, "ps", "pl" )
     case "-"   : return iif( arity = 1, "ng", "mi" )
     end select

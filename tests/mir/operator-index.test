@@ -1,0 +1,5 @@
+'' An overloaded subscript: one name from two tokens, code 'ix', lowered as a call.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/operator-index.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/operator-index.out

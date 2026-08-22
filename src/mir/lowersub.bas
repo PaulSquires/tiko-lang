@@ -545,9 +545,6 @@ function LowerStrNumCall_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
-declare function UdtMemberNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
-
 '' A CONCATENATION as a string OPERAND -- 'left( a + b, 4 )', 'len( a + b )',
 '' 'a + b = c', an arm of an iif. fbc builds it into a temporary descriptor and uses
 '' what fb_StrConcat gives back:

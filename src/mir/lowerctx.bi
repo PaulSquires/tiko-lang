@@ -250,6 +250,11 @@ declare function EmitRtl _
     declare function LowerForEachIter _
         ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
           byval seqE as Fbx.NodeId, byval at as Fbx.TypeId ) as boolean
+    declare function EmitMemberCallArgs_ _
+        ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
+          byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
+    declare function UdtMemberNamed_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
     declare function EmitMemberCall _
         ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
           byval rt as MirType ) as MirValue

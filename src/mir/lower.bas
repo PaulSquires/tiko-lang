@@ -348,6 +348,20 @@ function LowerExpr _
                 '' because a 'zstring ptr' is a pointer too and its POINTEE is the
                 '' unsized builtin, which lowers to no MIR type at all: the load then
                 '' carried MT_VOID and Emit refused it.
+                '' A UDT WITH 'operator []' -- the load's type is what the operator
+                '' returns. LowerAddr already emits the call; without a type here the
+                '' load carried MT_VOID and Emit refused it, so every 'a[ i ]' over a
+                '' container declined with the call sitting right there.
+                if c.types->Kind( xt ) = Fbx.TK_UDT then
+                    dim as Fbx.SymbolId ixs2 = UdtMemberNamed_( c, xt, "[]" )
+                    if ixs2 <> Fbx.SYMBOL_NONE then
+                        dim as Fbx.Symbol ptr ixsym = c.syms->SymbolAt( ixs2 )
+                        if ixsym <> 0 then
+                            imt = LowerType( ixsym->type_, *c.types )
+                        end if
+                    end if
+                end if
+
                 dim as long cesz = CharElemSize_( c, xt )
                 if cesz = 1 then
                     imt = MT_I8

@@ -262,6 +262,26 @@ function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     dim as Fbx.TypeId pt = c.info->TypeOf_( sp->target )
     if pt = Fbx.TYPE_NONE then return none_
 
+    '' A UDT WITH 'operator []' -- every container in the runtime headers has one, and
+    '' 'a[ 0 ]' over one is a CALL, not an address computation. What comes back is a
+    '' BYREF result, so it is a pointer to the element and the caller loads through it
+    '' exactly as it would through any other address this function returns.
+    if c.types->Kind( pt ) = Fbx.TK_UDT then
+        dim as Fbx.SymbolId ixs = UdtMemberNamed_( c, pt, "[]" )
+        if ixs <> Fbx.SYMBOL_NONE then
+            if sp->count <> 1 then return none_
+            dim as MirValue self_ = LowerAddr( c, sp->target )
+            if self_.kind = cast( ubyte, MV_NONE ) then return none_
+            dim as Fbx.NodeId ie = cast( Fbx.NodeId, c.ast->children[sp->first] )
+            dim as MirValue iv = LowerExpr( c, ie )
+            if iv.kind = cast( ubyte, MV_NONE ) then return none_
+            iv = Coerce( c, iv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( ie ) ) )
+            dim as FB.Array( of ulong ) ia
+            ia.Push( cast( ulong, iv.kind ) ) : ia.Push( cast( ulong, iv.id ) )
+            return EmitMemberCallArgs_( c, ixs, self_, MT_PTR, @ia )
+        end if
+    end if
+
     '' A STRING SUBSCRIPTED IS ITS CHARACTER -- one byte narrow, TWO wide -- and the
     '' base is the string's ADDRESS rather than a value loaded from it, because a char
     '' array has no pointer to load. Measured:

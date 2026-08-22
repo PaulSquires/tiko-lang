@@ -208,8 +208,6 @@ end function
 '' The trailing int32 was 0 in every probe.
 declare function UserCastToWide_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
-declare function UdtMemberNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
 
 function LowerWideToNarrow _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
