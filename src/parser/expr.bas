@@ -85,6 +85,30 @@ function AstArena.Count( ) as long
     return this.nodes.Count - 1
 end function
 
+sub AstArena.RecordTokens _
+    ( byval id as NodeId, byval firstTok as long, byval lastTok as long )
+    if id = NODE_NONE then return
+    if lastTok < firstTok then return
+    this.tokenRanges.Push( cast( ulong, id ) )
+    this.tokenRanges.Push( cast( ulong, firstTok ) )
+    this.tokenRanges.Push( cast( ulong, lastTok ) )
+end sub
+
+'' Scanned BACKWARDS, so a node recorded twice reads as its most recent range. That
+'' does not happen today; it is the safe direction if it ever does.
+function AstArena.TokensOf _
+    ( byval id as NodeId, byref firstTok as long, byref lastTok as long ) as boolean
+    if id = NODE_NONE then return false
+    for i as long = this.tokenRanges.Count - 3 to 0 step -3
+        if cast( NodeId, this.tokenRanges[i] ) = id then
+            firstTok = cast( long, this.tokenRanges[i + 1] )
+            lastTok = cast( long, this.tokenRanges[i + 2] )
+            return true
+        end if
+    next
+    return false
+end function
+
 private function NewNode _
     ( byref a as AstArena, byval kind as NodeKind, byval loc as SourceLoc, _
       byval payload as ulong ) as NodeId

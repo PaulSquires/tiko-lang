@@ -404,6 +404,7 @@ private function ParseProc _
     ( byref p as Fbx.ParserState, byval declareOnly as boolean ) as Fbx.NodeId
 
     dim as Fbx.Token t = Cur( p )
+    dim as long procTok0 = p.pos
     dim as Fbx.StmtPayload sp
 
     '' 'const function T.F( )' and 'static sub T.S( )' put the modifier BEFORE the
@@ -559,6 +560,11 @@ private function ParseProc _
     ExpectEnd( p, kw )
     dim as Fbx.NodeId pn = MakeStmt( p, Fbx.N_PROC, t.loc, sp )
     if qualified then p.ast->nodes[cast( long, pn )].flags or= Fbx.NF_QUALIFIED
+    '' A QUALIFIED DEFINITION -- 'function Box.Get( ) as T' -- may belong to a generic,
+    '' and instantiating that generic has to parse this body again to get nodes of its
+    '' own. Only qualified definitions are recorded: an ordinary procedure is never
+    '' re-parsed, and the table is scanned linearly.
+    if qualified then p.ast->RecordTokens( pn, procTok0, p.pos )
     return pn
 end function
 
@@ -864,7 +870,9 @@ private function ParseAggregateBody _
     ExpectEnd( p, iif( isUnion, Fbx.KW_UNION, Fbx.KW_TYPE ), t.loc )
     dim as Fbx.NodeId n = MakeStmt( p, Fbx.N_TYPE, t.loc, sp )
     if isUnion then p.ast->nodes[cast( long, n )].flags or= Fbx.NF_IS_UNION
-    return n
+    '' THE DECREMENT USED TO SIT AFTER THE RETURN, so aggDepth only ever grew: once one
+    '' TYPE had been seen anywhere in the unit, a bare anonymous 'union' at module level
+    '' was accepted for the rest of the file rather than being the error fbc calls it.
     p.aggDepth -= 1
     return n
 end function
@@ -926,6 +934,7 @@ end function
 
 private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.Token t = Cur( p )
+    dim as long typeTok0 = p.pos
     dim as boolean isUnion = (Peek( p ) = Fbx.KW_UNION)
     Advance( p )
 
@@ -1058,7 +1067,12 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
 
     if Accept( p, Fbx.KW_EXTENDS ) then sp.c = TypeRef( p )
 
-    return ParseAggregateBody( p, t, sp, isUnion )
+    dim as boolean isGeneric = (sp.b <> Fbx.NODE_NONE)
+    dim as Fbx.NodeId tn = ParseAggregateBody( p, t, sp, isUnion )
+    '' Only a GENERIC is recorded. An ordinary TYPE is never re-parsed, and the table
+    '' is scanned linearly, so keeping every type in it would cost for nothing.
+    if isGeneric then p.ast->RecordTokens( tn, typeTok0, p.pos )
+    return tn
 end function
 
 private function ParseEnumDecl( byref p as Fbx.ParserState ) as Fbx.NodeId

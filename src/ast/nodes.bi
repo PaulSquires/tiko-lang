@@ -277,7 +277,27 @@ namespace Fbx
         as StmtVec     stmts
         as ChildPool   children
 
+        '' THE TOKEN RANGE a declaration was parsed from, for the declarations that
+        '' may have to be parsed a SECOND time: a generic's TYPE body and the
+        '' out-of-line definitions of its members.
+        ''
+        '' Instantiating a generic member cannot share the generic's nodes, because
+        '' SemanticInfo is keyed by NodeId and two instantiations would write two
+        '' different types onto one node. Fresh nodes are the only answer, and a
+        '' re-parse is how they are got -- the token buffer only ever grows, so an
+        '' index recorded during the first parse stays valid.
+        ''
+        '' Triples (node, firstTok, lastTok), appended in parse order and scanned
+        '' linearly. Only N_TYPE and out-of-line N_PROC definitions are recorded, and
+        '' the scan happens once per member per instantiation, so it is not hot.
+        as ChildPool   tokenRanges
+
         declare constructor( )
+        declare sub RecordTokens _
+            ( byval id as NodeId, byval firstTok as long, byval lastTok as long )
+        '' False when nothing was recorded for this node, which is the normal case.
+        declare function TokensOf _
+            ( byval id as NodeId, byref firstTok as long, byref lastTok as long ) as boolean
         declare function Kind( byval id as NodeId ) as NodeKind
         declare function Loc( byval id as NodeId ) as SourceLoc
         declare function Count( ) as long
