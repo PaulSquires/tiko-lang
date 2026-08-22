@@ -231,6 +231,9 @@ end function
 '' It is the same shape as an array subscript, minus the bounds: the base is the
 '' pointer's VALUE rather than its address, there is one index, and the stride is the
 '' pointee's size. fbc computes it the same way.
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+
 function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     dim as MirValue none_
     if c.ast->Kind( id ) <> Fbx.N_INDEX then return none_
@@ -241,18 +244,39 @@ function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 
     dim as Fbx.TypeId pt = c.info->TypeOf_( sp->target )
     if pt = Fbx.TYPE_NONE then return none_
-    if c.types->Kind( pt ) <> Fbx.TK_POINTER then return none_
-    dim as Fbx.TypeId el = c.types->Inner( pt )
-    if el = Fbx.TYPE_NONE then return none_
-    dim as long esz = c.types->Layout( el ).size
-    dim as long ui = c.udts->Find( el )
-    if ui >= 0 then esz = c.udts->udts[ui].size
-    if esz <= 0 then return none_
 
-    '' The POINTER'S VALUE is the base -- not its address, which is where the pointer
-    '' variable lives.
-    dim as MirValue base_ = LowerExpr( c, sp->target )
-    if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    '' A FIXED-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER -- one byte for a zstring,
+    '' TWO for a wstring -- and the base is the string's ADDRESS rather than a value
+    '' loaded from it, because a char array has no pointer to load. Measured:
+    ''
+    ''     n = a[1]   over 'wstring * 8'   *(uint16*)((int64)(uint16*)A + 2ll)
+    ''     n = z[1]   over 'zstring * 8'   *(uint8*)((int64)(char*)Z + 1ll)
+    ''
+    '' There was no case for it, so every one declined -- and the byte-by-byte loop
+    '' that fbcunit's own CU_ASSERT_WSTRING_EQUAL writes is exactly this shape, which
+    '' is most of what the wstring and zstring families still owe.
+    dim as long esz = 0
+    dim as MirValue base_
+    dim as longint fsn
+    dim as long fsk = StrSwapKind_( c, pt, fsn )
+    if (fsk = 1) orelse (fsk = 2) then
+        esz = iif( fsk = 2, 2, 1 )
+        base_ = LowerAddr( c, sp->target )
+        if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    else
+        if c.types->Kind( pt ) <> Fbx.TK_POINTER then return none_
+        dim as Fbx.TypeId el = c.types->Inner( pt )
+        if el = Fbx.TYPE_NONE then return none_
+        esz = c.types->Layout( el ).size
+        dim as long ui = c.udts->Find( el )
+        if ui >= 0 then esz = c.udts->udts[ui].size
+        if esz <= 0 then return none_
+
+        '' The POINTER'S VALUE is the base -- not its address, which is where the
+        '' pointer variable lives.
+        base_ = LowerExpr( c, sp->target )
+        if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    end if
 
     dim as MirType offTy = MT_I64
     if c.types->target.pointerBits = 32 then offTy = MT_I32

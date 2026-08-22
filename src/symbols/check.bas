@@ -1003,7 +1003,27 @@ function TypeOf_ _
         if xp->target <> Fbx.NODE_NONE then
             dim as Fbx.TypeId pt = TypeOf_( c, xp->target )
             if pt <> Fbx.TYPE_NONE then
-                if c.types->Kind( pt ) = Fbx.TK_POINTER then t = c.types->Inner( pt )
+                if c.types->Kind( pt ) = Fbx.TK_POINTER then
+                    t = c.types->Inner( pt )
+                elseif c.types->Kind( pt ) = Fbx.TK_ARRAY then
+                    '' A FIXED-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER, and an
+                    '' UNSIGNED one: fbc writes '(int32)*(uint16*)(...)' for a wstring
+                    '' and '(int32)*(uint8*)(...)' for a zstring. Signedness is the
+                    '' point -- a sign extension would turn a wide character above
+                    '' 0x7FFF negative.
+                    dim as Fbx.TypeId el = c.types->Inner( pt )
+                    if el <> Fbx.TYPE_NONE then
+                        if c.types->Kind( el ) = Fbx.TK_BUILTIN then
+                            select case c.types->BuiltinOf( el )
+                            case Fbx.TY_ZSTRING : t = c.types->Builtin( Fbx.TY_UBYTE )
+                            case Fbx.TY_WSTRING : t = c.types->Builtin( Fbx.TY_USHORT )
+                            case else           : t = el
+                            end select
+                        else
+                            t = el
+                        end if
+                    end if
+                end if
             end if
         end if
 

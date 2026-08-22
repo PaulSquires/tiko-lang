@@ -366,6 +366,19 @@ function LowerExpr _
             if xt <> Fbx.TYPE_NONE then
                 if c.types->Kind( xt ) = Fbx.TK_POINTER then
                     imt = LowerType( c.types->Inner( xt ), *c.types )
+                else
+                    '' A FIXED-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER: one byte for
+                    '' a zstring, TWO for a wstring. It is not a pointer, so the branch
+                    '' above said nothing about it, the load carried MT_VOID and Emit
+                    '' refused it -- and the whole statement declined with the address
+                    '' computation right there and working.
+                    dim as longint xn
+                    dim as long xk = StrSwapKind_( c, xt, xn )
+                    if xk = 1 then
+                        imt = MT_I8
+                    elseif xk = 2 then
+                        imt = MT_I16
+                    end if
                 end if
             end if
         end if
@@ -415,8 +428,17 @@ function LowerExpr _
         '' -- so it fell straight past this guard and its operands were loaded as
         '' aggregates and compared as integers. Exactly the failure the comment above
         '' describes, one type along.
+        '' EITHER SIDE DECIDES. Asking only the LHS meant 'trim( w ) = b' fell to the
+        '' numeric path -- Check computes no type for an intrinsic call, so the left
+        '' side looks like nothing -- and its operands were loaded as aggregates and
+        '' compared as integers. The same file's comment says exactly that about the
+        '' wide case; this is the same mistake one operand along.
         dim as boolean cmpStr = IsStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
                                 (WideStringElems( c, c.info->TypeOf_( bp->lhs ) ) > 0)
+        if cmpStr = false then
+            cmpStr = IsStringType( c, c.info->TypeOf_( bp->rhs ) ) orelse _
+                     (WideStringElems( c, c.info->TypeOf_( bp->rhs ) ) > 0)
+        end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, bp, tk )
             if sc.kind <> cast( ubyte, MV_NONE ) then return sc

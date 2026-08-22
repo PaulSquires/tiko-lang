@@ -1,0 +1,5 @@
+'' Wide string comparison against every operand shape, and fixed-string subscripts.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-compare.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/wide-compare.out

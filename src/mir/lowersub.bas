@@ -996,4 +996,72 @@ function LowerZstrAssignTo _
 end function
 
 
+'' A string relational operator.
+''
+'' MEASURED from fbc: one fb_StrCompare, then the operator applied against ZERO.
+''
+''     int32 vr$5 = fb_StrCompare( &A$1, -1ll, &B$1, -1ll );
+''     if( (int64)vr$5 != 0ll ) goto ...          ' for 'a = b'
+''
+'' so '=' becomes 'cmp == 0', '<' becomes 'cmp < 0', and so on -- the same operator,
+'' with the second operand replaced by 0. The (pointer, length) pairs follow the
+'' fb_StrAssign convention, where a literal's length INCLUDES the terminator: fbc passes
+'' 4 for "lit" here, not the 3 fb_StrAllocTempDescZEx takes.
+function LowerStrCompare _
+    ( byref c as Ctx, byval bp as Fbx.BinaryPayload ptr, _
+      byval tk as Fbx.TokenKind ) as MirValue
+
+    dim as MirValue none_
+    select case tk
+    case Fbx.TK_EQ, Fbx.TK_NE, Fbx.TK_LT, Fbx.TK_GT, Fbx.TK_LE, Fbx.TK_GE
+    case else
+        '' Concatenation and the rest are not comparisons and do not belong here.
+        return none_
+    end select
+
+    dim as FB.Array( of ulong ) args
+    dim as MirValue cmp
+
+    '' A WIDE COMPARISON is a DIFFERENT function with a different shape: two bare
+    '' pointers, no lengths at all, where the narrow one takes (ptr, len) per side.
+    '' One entry point covers all six operators, exactly as the narrow one does.
+    '' WIDE if EITHER side is, for the same reason the caller's guard asks both: an
+    '' intrinsic call has no type of its own, so 'trim( w ) = b' looks wide only from
+    '' the right.
+    dim as boolean isWide = (WideStringElems( c, c.info->TypeOf_( bp->lhs ) ) > 0) orelse _
+                            (WideStringElems( c, c.info->TypeOf_( bp->rhs ) ) > 0)
+    if isWide then
+        '' EITHER SIDE MAY BE AN RVALUE. LowerAddr alone accepted only an addressable
+        '' wide variable, so 'trim( a ) = b' and 'a = wstr( 1 )' produced no comparison
+        '' -- and the IF around them went out as a conditional branch with NOTHING to
+        '' branch on, silently, for as long as that was tolerated. WideOperand_ already
+        '' knows all three spellings; it was simply not asked.
+        dim as MirValue la, ra
+        if WideOperand_( c, bp->lhs, la ) = false then return none_
+        if WideOperand_( c, bp->rhs, ra ) = false then return none_
+        if (la.kind = cast( ubyte, MV_NONE )) orelse _
+           (ra.kind = cast( ubyte, MV_NONE )) then return none_
+        args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
+        args.Push( cast( ulong, ra.kind ) ) : args.Push( cast( ulong, ra.id ) )
+        cmp = EmitRtl( c, RTL_WSTR_COMPARE, args )
+    else
+        if EmitStrTerm( c, args, bp->lhs ) = false then return none_
+        if EmitStrTerm( c, args, bp->rhs ) = false then return none_
+        cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+    end if
+    if cmp.kind = cast( ubyte, MV_NONE ) then return none_
+
+    dim as MirValue zero_
+    zero_.kind = cast( ubyte, MV_CONST_INT )
+    zero_.ty = cast( ubyte, MT_I32 )
+    zero_.id = 0
+    dim as MirInst ins
+    ins.op = cast( ushort, BinOpFor( tk, MT_I32, false ) )
+    ins.ty = cast( ubyte, MT_I8 )
+    ins.a = cmp
+    ins.b = zero_
+    if ins.op = cast( ushort, M_NONE ) then return none_
+    return Emit( c, ins )
+end function
+
 end namespace

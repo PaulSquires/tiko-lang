@@ -1,0 +1,119 @@
+global wstr $wstr0 "x"
+func void P() {
+  local agg a size 16
+  local agg b size 16
+  local agg z size 8
+  local i32 n
+  local i64 i
+  entry0:
+    %1 = alloca ptr a
+    %2 = alloca ptr b
+    %3 = alloca ptr z
+    %4 = alloca ptr n
+    %5 = call.rtl i32 fb_WstrCompare(@a, @b)
+    %6 = icmp.eq %5, 0
+    %34 = alloca ptr i
+    condbr %6, if.then2, if.else3
+  if.join1:
+    %9 = call.rtl i32 fb_WstrCompare(@a, @@$wstr0)
+    %10 = icmp.eq %9, 0
+    condbr %10, if.then5, if.else6
+  if.then2:
+    %7 = const i64 1
+    %8 = trunc %7
+    store @n, %8
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %13 = const i64 1
+    %14 = call.rtl ptr fb_LongintToWstr(%13)
+    %15 = call.rtl i32 fb_WstrCompare(@a, %14)
+    %16 = icmp.eq %15, 0
+    condbr %16, if.then8, if.else9
+  if.then5:
+    %11 = const i64 2
+    %12 = trunc %11
+    store @n, %12
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %19 = call.rtl ptr fb_WstrTrim(@a)
+    %20 = call.rtl i32 fb_WstrCompare(%19, @b)
+    %21 = icmp.eq %20, 0
+    condbr %21, if.then11, if.else12
+  if.then8:
+    %17 = const i64 3
+    %18 = trunc %17
+    store @n, %18
+    br if.join7
+  if.else9:
+    br if.join7
+  if.join10:
+    %24 = const i64 1
+    %25 = const i64 2
+    %26 = mul %24, %25
+    %27 = ptr.add @a, %26
+    %28 = load %27
+    %29 = zext %28
+    store @n, %29
+    %30 = const i64 1
+    %31 = ptr.add @z, %30
+    %32 = load %31
+    %33 = zext %32
+    store @n, %33
+    %35 = const i64 0
+    store @i, %35
+    br for.head13
+  if.then11:
+    %22 = const i64 4
+    %23 = trunc %22
+    store @n, %23
+    br if.join10
+  if.else12:
+    br if.join10
+  for.head13:
+    %36 = load @i
+    %37 = call.rtl i64 fb_WstrLen(@a)
+    %38 = const i64 1
+    %39 = sub %37, %38
+    %40 = icmp.sle %36, %39
+    condbr %40, for.body14, for.exit16
+  for.body14:
+    %41 = load @i
+    %42 = const i64 2
+    %43 = mul %41, %42
+    %44 = ptr.add @a, %43
+    %45 = load %44
+    %46 = load @i
+    %47 = const i64 2
+    %48 = mul %46, %47
+    %49 = ptr.add @b, %48
+    %50 = load %49
+    %51 = icmp.ne %45, %50
+    condbr %51, if.then18, if.else19
+  for.step15:
+    %54 = load @i
+    %55 = const i64 1
+    %56 = add %54, %55
+    store @i, %56
+    br for.head13
+  for.exit16:
+    ret
+  if.join17:
+    br for.step15
+  if.then18:
+    %52 = const i64 5
+    %53 = trunc %52
+    store @n, %53
+    br if.join17
+  if.else19:
+    br if.join17
+}
+declare i32 fb_WstrCompare($0, $1)
+declare ptr fb_LongintToWstr($0)
+declare ptr fb_WstrTrim($0)
+declare i64 fb_WstrLen($0)
+verify: ok
+lowered: 1 functions, 20 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance

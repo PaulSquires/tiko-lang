@@ -226,6 +226,16 @@ end function
 function WideOperand_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
 
+    '' A LITERAL IS A WIDE ONE HERE. fbc writes '(uint16*)L"x"' for a literal compared
+    '' against a wstring -- a genuinely wide global, not a narrow one widened at
+    '' runtime -- so it takes the wide literal pool the DATA statement already uses.
+    if c.ast->Kind( id ) = Fbx.N_STRING_LIT then
+        outv.kind = cast( ubyte, MV_GLOBAL )
+        outv.ty = cast( ubyte, MT_PTR )
+        outv.id = c.m->AddWideStringLiteral( StringLitText_( c, id ), *c.names )
+        return true
+    end if
+
     if WideStringElems( c, c.info->TypeOf_( id ) ) > 0 then
         outv = LowerAddr( c, id )
         if outv.kind <> cast( ubyte, MV_NONE ) then return true
