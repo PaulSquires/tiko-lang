@@ -577,76 +577,6 @@ private function LowerCall _
     return LowerCallParts( c, cp->target, callee, cp->first, cp->count, mt )
 end function
 
-'' -------------------------------------------------------------- cleanup model
-
-sub PushScope( byref c as Ctx )
-    c.scopeMark.Push( c.cleanupNode.Count )
-end sub
-
-'' Emit one scope's actions, innermost registration LAST, without popping: an EXIT or
-'' RETURN leaving several scopes needs to run them all and then keep going.
-private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
-    if (depth < 0) orelse (depth >= c.scopeMark.Count) then return
-    dim as long from_ = c.scopeMark[depth]
-    dim as long upto = c.cleanupNode.Count
-    if depth + 1 < c.scopeMark.Count then upto = c.scopeMark[depth + 1]
-    for i as long = upto - 1 to from_ step -1
-        if c.cleanupSlot[i] < 0 then
-            LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
-        elseif c.cleanupNode[i] = CLEANUP_ERASE_ARRAY then
-            '' A local DYNAMIC array is erased at scope exit whatever its element
-            '' type -- measured; fbc emits fb_ArrayErase / fb_ArrayStrErase /
-            '' fb_ArrayEraseObj for every one of them.
-            ''
-            '' The marker is an IMPOSSIBLE SymbolId rather than a small number.
-            '' Cleanup entries are otherwise symbol ids, and 1 is a perfectly valid
-            '' one -- using it as a sentinel would have destructed whatever symbol 1
-            '' happened to be. That is the pool-confusion mistake this project has
-            '' made seven times; not an eighth.
-            EmitEraseDynLocal( c, c.cleanupSlot[i] )
-        elseif c.cleanupNode[i] = 0 then
-            '' A string local is released with fb_StrDelete. This is the
-            '' DestroyLocal action the cleanup model was built for and has had
-            '' nothing to register until now.
-            dim as MirValue addr
-            addr.kind = cast( ubyte, MV_LOCAL )
-            addr.ty = cast( ubyte, MT_PTR )
-            addr.id = c.cleanupSlot[i]
-            dim as FB.Array( of ulong ) args
-            args.Push( cast( ulong, addr.kind ) )
-            args.Push( cast( ulong, addr.id ) )
-            EmitRtl( c, RTL_STR_DELETE, args )
-        else
-            EmitDtorCall( c, cast( Fbx.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
-        end if
-    next
-end sub
-
-'' Every action of every scope from the innermost out to 'outermost', in that order.
-'' This is what a RETURN through three scopes needs, and rule 5 of docs/plan/08: a
-'' GOTO out of N scopes runs N scopes' cleanups, innermost first.
-sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
-    for d as long = c.scopeMark.Count - 1 to outermost step -1
-        EmitScopeCleanup( c, d )
-    next
-end sub
-
-private sub PopScope( byref c as Ctx )
-    if c.scopeMark.Count = 0 then return
-    dim as long mark = c.scopeMark[c.scopeMark.Count - 1]
-    c.scopeMark.Pop( )
-    while c.cleanupNode.Count > mark
-        c.cleanupNode.Pop( )
-        c.cleanupSlot.Pop( )
-    wend
-end sub
-
-'' A scope that ends by falling out of the bottom runs its own actions and nothing
-'' else; the enclosing scopes have not ended.
-sub CloseScope( byref c as Ctx )
-    EmitScopeCleanup( c, c.scopeMark.Count - 1 )
-    PopScope( c )
-end sub
 
 
 '' Pick the constructor overload for a set of argument types, using the same cost
@@ -908,6 +838,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         '' reproduce, not to improve on.
         c.cleanupNode.Push( cast( ulong, StmtOf( c, id )->b ) )
         c.cleanupSlot.Push( -1 )
+        c.cleanupType.Push( 0 )
 
     case Fbx.N_VAR
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
@@ -982,6 +913,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                     InitDynArrayDesc( c, dd, vs->type_ )
                     c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
                     c.cleanupSlot.Push( slot )
+                    c.cleanupType.Push( 0 )
                 end if
             end if
 
@@ -1006,18 +938,40 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                 '' class type, an element of an array of one, and 'new T'. Each of
                 '' those is constructed somewhere fbx models no construction at all,
                 '' and inventing one here would be inventing implicit structors.
-                if ctor = Fbx.SYMBOL_NONE then
+                '' NO WRITTEN CONSTRUCTOR, but the type may still need one: a
+                '' string field's descriptor has to be zeroed before anything assigns
+                '' through it, a dynamic array's descriptor has to be built, and a
+                '' type with a table needs its vptr. fbc synthesises a constructor for
+                '' exactly those cases; this calls the one fbx synthesises.
+                if (ctor = Fbx.SYMBOL_NONE) andalso (constructed = false) then
                     dim as MirValue va
                     va.kind = cast( ubyte, MV_LOCAL )
                     va.ty = cast( ubyte, MT_PTR )
                     va.id = slot
-                    StoreVptr_( c, vs->type_, va )
+                    '' A UDT ONLY. A bare 'dim as string s' and a bare dynamic
+                    '' array have their own initialisation at this site already, and
+                    '' routing them through here asked for a constructor of a type
+                    '' called FBSTRING that nothing defines.
+                    if c.types->Kind( vs->type_ ) = Fbx.TK_UDT then
+                        if TypeNeedsInit_( c, vs->type_ ) then
+                            CallImplicitCtor_( c, vs->type_, va )
+                        end if
+                    end if
                 end if
                 dim as Fbx.SymbolId dtor = StructorWithArity( c, _
                     StructorOf( c, vs->type_, "__dtor" ), 0 )
                 if dtor <> Fbx.SYMBOL_NONE then
                     c.cleanupNode.Push( cast( ulong, dtor ) )
                     c.cleanupSlot.Push( slot )
+                    c.cleanupType.Push( 0 )
+                elseif (c.types->Kind( vs->type_ ) = Fbx.TK_UDT) andalso _
+                       TypeNeedsDtor_( c, vs->type_ ) then
+                    '' ...and the destructor fbc synthesises, for the same reasons.
+                    '' Without it a UDT holding a string leaked its buffer at every
+                    '' scope exit, silently.
+                    c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
+                    c.cleanupSlot.Push( slot )
+                    c.cleanupType.Push( cast( ulong, vs->type_ ) )
                 end if
                 if IsStringType( c, vs->type_ ) then
                     '' Order matters: the descriptor is made valid BEFORE its release
@@ -1027,6 +981,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                     strInited = true
                     c.cleanupNode.Push( 0 )
                     c.cleanupSlot.Push( slot )
+                    c.cleanupType.Push( 0 )
                 end if
 
                 '' A 'string * N' IS PREFILLED WITH SPACES, not zeros, and not

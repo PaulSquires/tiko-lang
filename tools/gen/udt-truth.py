@@ -128,6 +128,19 @@ CASES = [
     # A plain UDT as a base: 'object' is not special to the layout, and this says so.
     ("ExtPlain", "type ExtPlainB\n a as short\nend type\n"
                  "type ExtPlain extends ExtPlainB\n b as long\nend type", ["a", "b"]),
+    # A DYNAMIC ARRAY MEMBER IS ITS DESCRIPTOR, not its elements. It measured FOUR
+    # bytes -- the element size -- where fbc says seventy-two, so a type holding one
+    # was the wrong size and every field after it sat at the wrong offset. Nothing in
+    # the table had a dynamic array in it, and 'sizeof' being wrong is silent until
+    # something writes through the descriptor.
+    ("DynMem", "type DynMem\n d( any ) as long\nend type", []),
+    ("DynMem2", "type DynMem2\n d( any, any ) as long\nend type", []),
+    # ...and the fields AROUND one, which is where a wrong descriptor size shows up as
+    # a wrong offset rather than only a wrong sizeof. A dynamic array's own offsetof
+    # is not probed: fbc rejects 'offsetof(T, d)' for one, index expected.
+    ("DynMemMix", "type DynMemMix\n b as byte\n d( any ) as long\n c as byte\nend type",
+     ["b", "c"]),
+
 ]
 
 

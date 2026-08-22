@@ -372,37 +372,52 @@ sub LowerProc _
         c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
     wend
 
-    '' THE VPTR, IN A CONSTRUCTOR OR A DESTRUCTOR, before the body runs.
+    '' THE IMPLICIT PROLOGUE OF A CONSTRUCTOR, and the vptr of a destructor.
     ''
-    '' Measured: every constructor stores its OWN type's table -- so a derived one
-    '' overwrites what the base constructor just stored, and during a base constructor
-    '' body a virtual call resolves to the BASE override, the same rule as C++. A
-    '' DESTRUCTOR re-stamps it as its first act, for the mirror reason.
+    '' Measured: fbc PREPENDS the whole synthesised prologue to a written constructor
+    '' rather than using one instead of the other -- the base call, then the fields in
+    '' declaration order, then the vptr -- and prepends the vptr store to a written
+    '' destructor. Whose epilogue is appended after the body, below.
     ''
-    '' Not conditional on the type declaring any virtual of its own: a type that
-    '' extends object and declares none still has a table, and its RTTI record is what
-    '' tells it from its base at run time.
+    '' So a written 'constructor B( )' still constructs A, and still zeroes its own
+    '' string fields before its first statement can assign through one.
+    dim as Fbx.TypeId structorType = Fbx.TYPE_NONE
+    dim as boolean inCtor = false
     if (thisSym <> Fbx.SYMBOL_NONE) andalso (s <> 0) then
         dim as Fbx.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
         dim as Fbx.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
         if (s->name = ctorNm) orelse (s->name = dtorNm) then
+            inCtor = (s->name = ctorNm)
             dim as Fbx.SymScope ptr ownerSc = c.syms->ScopeAt( s->parent )
             if ownerSc <> 0 then
                 dim as Fbx.Symbol ptr ownerSym = c.syms->SymbolAt( ownerSc->owner )
-                '' ASKED BEFORE ANYTHING IS EMITTED. Loading 'this' first and then
-                '' finding there is no table left a dead load in the prologue of every
-                '' constructor of every ordinary UDT.
-                dim as boolean hasTable = false
-                if (ownerSym <> 0) andalso (c.vts <> 0) then
-                    hasTable = (c.vts->Find( ownerSym->type_ ) >= 0)
-                end if
-                if hasTable then
-                    dim as MirValue ta = AddrOfVar( c, thisSym )
-                    if ta.kind <> cast( ubyte, MV_NONE ) then
-                        dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
-                        StoreVptr_( c, ownerSym->type_, tv )
-                    end if
-                end if
+                if ownerSym <> 0 then structorType = ownerSym->type_
+            end if
+        end if
+    end if
+
+    '' ASKED BEFORE ANYTHING IS EMITTED. Loading 'this' and then finding there is
+    '' nothing to do left a dead load in the prologue of every structor of every
+    '' ordinary UDT -- the same mistake, twice, in the same function.
+    dim as boolean wantsPrologue = false
+    if structorType <> Fbx.TYPE_NONE then
+        if inCtor then
+            wantsPrologue = NeedsCtorBody_( c, structorType )
+        elseif c.vts <> 0 then
+            wantsPrologue = (c.vts->Find( structorType ) >= 0)
+        end if
+    end if
+
+    if wantsPrologue then
+        dim as MirValue ta = AddrOfVar( c, thisSym )
+        if ta.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
+            if inCtor then
+                EmitCtorPrologue_( c, structorType, tv )
+            else
+                '' THE VPTR FIRST in a destructor, so its body -- and anything it calls
+                '' -- sees this type's own table rather than the derived one.
+                StoreVptr_( c, structorType, tv )
             end if
         end if
     end if
@@ -413,6 +428,27 @@ sub LowerProc _
     '' depth a label written directly in the procedure sees.
     ScanLabels( c, sp->b, scopeDepthIn + 1 )
     LowerBlock( c, sp->b )
+
+    '' THE IMPLICIT EPILOGUE OF A DESTRUCTOR: the fields in REVERSE declaration order,
+    '' then the base's destructor. Measured, and appended after the written body the
+    '' same way the prologue is prepended to a written constructor.
+    ''
+    '' NOT RUN ON AN EARLY RETURN. A 'return' inside a destructor body leaves through
+    '' the cleanup path, which knows nothing about this -- so a destructor that returns
+    '' early releases nothing. Stated rather than hidden; the fix is registering these
+    '' as cleanup actions, which needs an action kind that names a TYPE and a receiver
+    '' that is not a slot.
+    dim as boolean wantsEpilogue = false
+    if (structorType <> Fbx.TYPE_NONE) andalso (inCtor = false) then
+        wantsEpilogue = NeedsDtorBody_( c, structorType )
+    end if
+    if wantsEpilogue then
+        dim as MirValue ta2 = AddrOfVar( c, thisSym )
+        if ta2.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirValue tv2 = LowerExprLoad( c, ta2, MT_PTR )
+            EmitDtorEpilogue_( c, structorType, tv2 )
+        end if
+    end if
     CloseScope( c )
     '' Every scope opened must have been closed. An imbalance means some exit path
     '' skipped a scope's cleanup, which is the bug class this whole model exists to
@@ -723,6 +759,9 @@ function Lower _
         WalkTop( c, cast( Fbx.NodeId, ast.extraTopLevel[i] ) )
     next
     LowerMainModule( c, root )
+    '' THE SYNTHESISED STRUCTORS, after every written one exists to be called by them
+    '' and before the tables, whose destructor slot may name one.
+    EmitImplicitStructors( c )
     '' THE TABLES LAST. A slot names a FUNCTION, and naming one that was never lowered
     '' would put a reference to a symbol with no code in the module.
     EmitVTableGlobals( c )

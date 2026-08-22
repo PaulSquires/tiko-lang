@@ -1,0 +1,5 @@
+'' The structors fbc synthesises, and the prologue it prepends to a written one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/implicit-structors.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/implicit-structors.out

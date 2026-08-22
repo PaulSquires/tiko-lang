@@ -28,6 +28,12 @@ type Ctx
     as FB.Array( of long )  contTo
     as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
     as Fbx.UdtLayouts ptr   udts      '' field offsets, for member access
+    '' THE SYNTHESISED STRUCTORS THIS UNIT ACTUALLY ASKED FOR. fbc emits one only
+    '' where something calls it -- a file declaring a type and never a variable of it
+    '' gets no constructor at all -- so the demand is recorded as calls are emitted and
+    '' the bodies follow, rather than one per type whether used or not.
+    as FB.Array( of ulong ) implWantedType
+    as FB.Array( of long )  implWantedKind    '' 1 constructor, 0 destructor
     '' The virtual method tables, for emitting them and for dispatching through one.
     as Fbx.VTables ptr      vts
     '' THE CLEANUP MODEL (docs/plan/08 section 6).
@@ -45,6 +51,11 @@ type Ctx
     ''   DeleteString  cleanupNode = 0,                cleanupSlot = the slot
     as FB.Array( of ulong ) cleanupNode
     as FB.Array( of long )  cleanupSlot
+    ''   ImplicitDtor  cleanupNode = CLEANUP_IMPLICIT_DTOR, cleanupType = the type
+    '' A fourth action, and the only one that needs a THIRD column: the structor it
+    '' runs has no symbol -- fbc synthesised it and so does fbx -- so the entry names
+    '' the TYPE and the name is derived from that.
+    as FB.Array( of ulong ) cleanupType
     as FB.Array( of long )  scopeMark      '' index into cleanupNode per open scope
     '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
     '' scopes they are leaving.
@@ -212,6 +223,7 @@ declare function EmitRtl _
     '' A cleanup entry that is neither a symbol nor the string-delete 0: erase the
     '' dynamic array in this slot. Deliberately an impossible SymbolId.
     const CLEANUP_ERASE_ARRAY as ulong = &hFFFFFFFF
+    const CLEANUP_IMPLICIT_DTOR as ulong = &hFFFFFFFE
 
     declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
     declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
@@ -463,6 +475,24 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 
     '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
+    '' lowerimpl.bas -- the structors fbc writes for you.
+    declare function UdtSymOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
+    declare function TypeNeedsInit_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare function TypeNeedsDtor_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare function NeedsCtorBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare function NeedsDtorBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    declare sub EmitCtorPrologue_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue )
+    declare sub EmitDtorEpilogue_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue )
+    declare function ImplicitCtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+    declare function ImplicitDtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+    declare sub CallImplicitCtor_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
+    declare sub CallImplicitDtor_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
+    declare sub EmitImplicitStructors( byref c as Ctx )
+
     '' lowervtab.bas -- virtual method tables.
     declare sub EmitVTableGlobals( byref c as Ctx )
     declare function VtableGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long

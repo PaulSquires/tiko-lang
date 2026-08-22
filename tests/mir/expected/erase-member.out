@@ -7,7 +7,7 @@ func void _ZN1T5CLEAREv($0) {
     %3 = field.addr %2, 0
     %4 = call.rtl i32 fb_ArrayErase(%3)
     %5 = load @this
-    %6 = field.addr %5, 8
+    %6 = field.addr %5, 72
     call.rtl void fb_ArrayStrErase(%6)
     ret
 }

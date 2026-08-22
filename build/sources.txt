@@ -40,6 +40,8 @@ src/mir/lowerusing.bas
 src/mir/lowerio.bas
 src/mir/lowerdesc.bas
 src/mir/lowervtab.bas
+src/mir/lowerimpl.bas
+src/mir/lowerclean.bas
 src/mir/lowerdata.bas
 src/mir/lowerctor.bas
 src/mir/lowercall.bas

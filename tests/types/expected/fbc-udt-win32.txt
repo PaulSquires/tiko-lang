@@ -144,3 +144,8 @@ ExtWide	off	b	16
 ExtPlain	size	8	4
 ExtPlain	off	a	0
 ExtPlain	off	b	4
+DynMem	size	36	4
+DynMem2	size	48	4
+DynMemMix	size	44	4
+DynMemMix	off	b	0
+DynMemMix	off	c	40

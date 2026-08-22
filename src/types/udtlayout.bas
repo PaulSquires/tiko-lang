@@ -59,6 +59,9 @@ private function MemberAlign _
     if ui >= 0 then return store.udts[ui].align
     '' An array is aligned as its ELEMENT, and the element may itself be a UDT whose
     '' layout only this store knows -- TypeContext.Layout cannot see it.
+    '' A DYNAMIC array is a descriptor of POINTERS, so it aligns as one -- not as its
+    '' element, which is what the array rule below would say.
+    if types.IsDynArray( t ) then return types.target.pointerBits \ 8
     if types.Kind( t ) = TK_ARRAY then
         return MemberAlign( types.Inner( t ), types, store )
     end if
@@ -67,11 +70,29 @@ private function MemberAlign _
     return l.align
 end function
 
+'' A DYNAMIC ARRAY IS ITS DESCRIPTOR, not its elements. 'd( any ) as long' as a member
+'' measured FOUR bytes -- the element size -- where fbc says seventy-two, so a UDT
+'' holding one was the wrong size and every field after it was at the wrong offset.
+''
+'' Silent for as long as nothing wrote through the descriptor: 'sizeof' was wrong and
+'' nothing read it. The moment a constructor initialised the descriptor it became a
+'' write past the end of the object.
+''
+'' The shape is measured in mir/lowerdesc.bas: six pointer-sized fields and three more
+'' per dimension. Rank 0 is an unspecified dimension count, which fbc gives the full
+'' eight slots because it does not know either.
+private function DescBytes_( byval t as TypeId, byref types as TypeContext ) as long
+    dim as long n = types.DynRank( t )
+    if n <= 0 then n = 8
+    return (types.target.pointerBits \ 8) * (6 + n * 3)
+end function
+
 private function MemberSize _
     ( byval t as TypeId, byref types as TypeContext, byref store as UdtLayouts ) as long
 
     dim as long ui = store.Find( t )
     if ui >= 0 then return store.udts[ui].size
+    if types.IsDynArray( t ) then return DescBytes_( t, types )
     if types.Kind( t ) = TK_ARRAY then
         dim as long n = types.ElemCount( t )
         if n <= 0 then n = 1
