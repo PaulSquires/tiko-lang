@@ -68,3 +68,14 @@ sub R( byref a as wstring, byref b as wstring, byref c as wstring )
     c = iif( ct, a, b )
     c = a + b
 end sub
+
+'' A WIDE CONCATENATION AS AN OPERAND. fb_WstrConcat takes the two POINTERS and gives
+'' back a temporary of its own, released with fb_WstrDelete once the consuming statement
+'' is done -- the same lifetime a wide iif's own temporary has, so it goes on the same
+'' list. Recognised BEFORE the type test, because a wide concat IS wide-typed and the
+'' addressable branch would claim it and then ask for an address it has not got. That is
+'' the same ordering trap the narrow paths set four times.
+sub S( )
+    dim as wstring * 33 a, b, c, w0
+    c = iif( ct, a + b, w0 )
+end sub

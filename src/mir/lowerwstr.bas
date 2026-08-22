@@ -355,6 +355,52 @@ private function WideIifArm_ _
     return true
 end function
 
+'' A WIDE CONCATENATION as an operand -- 'iif( c, a + b, w )'.
+''
+'' fb_WstrConcat takes the two POINTERS and gives back a temporary of its own, released
+'' with fb_WstrDelete once the consuming statement is done. That is the same lifetime a
+'' wide iif's own temporary has, so it goes on the same list.
+''
+'' Only the TWO-TERM form, because fb_WstrConcat takes exactly two operands.
+function WideConcatToTemp_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if e = Fbx.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, e, terms )
+    if terms.Count <> 2 then return false
+
+    dim as MirValue l, r
+    if WideOperand_( c, cast( Fbx.NodeId, terms[0] ), l ) = false then return false
+    if WideOperand_( c, cast( Fbx.NodeId, terms[1] ), r ) = false then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, l.kind ) ) : args.Push( cast( ulong, l.id ) )
+    args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
+    dim as MirValue got = EmitRtl( c, RTL_WSTR_CONCAT, args )
+    if got.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The result is an allocation the caller owns, so it goes in a slot and on the
+    '' statement-temporary list -- exactly as a wide iif's own temporary does.
+    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+    if slot < 0 then return false
+    dim as MirValue saddr
+    saddr.kind = cast( ubyte, MV_LOCAL )
+    saddr.ty = cast( ubyte, MT_PTR )
+    saddr.id = slot
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = saddr
+    st.b = got
+    Emit( c, st )
+    c.wstrTemps.Push( cast( ulong, slot ) )
+
+    outv = LowerExprLoad( c, saddr, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 function WideOperand_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
 
@@ -367,6 +413,11 @@ function WideOperand_ _
         outv.id = c.m->AddWideStringLiteral( StringLitText_( c, id ), *c.names )
         return true
     end if
+
+    '' A CONCATENATION BEFORE THE TYPE TEST: a wide concat IS wide-typed, so the
+    '' branch below would claim it and then ask for its ADDRESS, which it has not
+    '' got. The same ordering trap the narrow paths set four times.
+    if WideConcatToTemp_( c, id, outv ) then return true
 
     if IsWideString_( c, c.info->TypeOf_( id ) ) then
         outv = LowerAddr( c, id )
