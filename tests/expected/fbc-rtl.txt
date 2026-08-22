@@ -222,6 +222,14 @@ fb_WstrTrim	uint16*	uint16*	lib	fb_WstrTrim
 fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrTrimAny
 fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrTrimEx
 fb_WstrUcase2	uint16*	uint16*, int32	lib	fb_WstrUcase2
+fb_hPutAlpha	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutAlpha
+fb_hPutAnd	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutAnd
+fb_hPutBlend	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutBlend
+fb_hPutCustom	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutCustom
+fb_hPutOr	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutOr
+fb_hPutPReset	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutPReset
+fb_hPutPSet	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutPSet
+fb_hPutTrans	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutTrans
 fb_hPutXor	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutXor
 free	void	void*	lib	free
 malloc	void*	uint64	lib	malloc

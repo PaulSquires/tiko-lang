@@ -39,14 +39,10 @@ N_MODULE (26) <1:1>
     N_INT_LIT 1 radix=10 <14:6>
     N_IDENT 'n' <14:11>
   N_INTRINSIC [PUT] <15:1>
-    N_BINARY - <15:13>
-      N_TUPLE <15:5>
-        N_INT_LIT 10 radix=10 <15:6>
-        N_INT_LIT 20 radix=10 <15:10>
-      N_TUPLE <15:14>
-        N_INT_LIT 30 radix=10 <15:15>
-        N_INT_LIT 40 radix=10 <15:19>
-    N_IDENT 's' <15:24>
+    N_INT_LIT 10 radix=10 <15:6>
+    N_INT_LIT 20 radix=10 <15:10>
+    N_ELIDED <15:13>
+    N_ELIDED <15:13>
   N_INTRINSIC [CLOSE] <16:1>
     N_INT_LIT 1 radix=10 <16:8>
     N_INT_LIT 2 radix=10 <16:12>

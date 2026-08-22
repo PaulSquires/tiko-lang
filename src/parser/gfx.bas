@@ -30,6 +30,16 @@ declare sub GfxFinish _
     ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload, _
       byref items as Fbx.NodeIdVec )
 declare function GfxBoxWord( byref p as Fbx.ParserState ) as ushort
+declare function GfxPutMode( byref p as Fbx.ParserState ) as ushort
+declare function GfxPoint _
+    ( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVec, _
+      byref stepped as boolean ) as boolean
+declare function GfxTarget( byref p as Fbx.ParserState ) as Fbx.NodeId
+declare function GfxNone( byref p as Fbx.ParserState ) as Fbx.NodeId
+declare function GfxOption _
+    ( byref p as Fbx.ParserState, byref outv as Fbx.NodeId ) as boolean
+declare sub GfxPad _
+    ( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVec, byval want as long )
 declare function GfxWordIs( byref p as Fbx.ParserState, byref want as string ) as boolean
 
 '' 'extra' on a graphics N_INTRINSIC.
@@ -50,10 +60,15 @@ const GFX_FILL      as ushort = &h0040   '' CIRCLE ... , F
 const GFX_SCREEN    as ushort = &h0080   '' VIEW SCREEN / WINDOW SCREEN
 const GFX_NOSTART   as ushort = &h0100   '' 'line -(x,y)': the start point was omitted
 const GFX_HASTARGET as ushort = &h0200
+const GFX_PAL_GET   as ushort = &h0400   '' PALETTE GET
+const GFX_PAL_USING as ushort = &h0800   '' PALETTE USING
+'' PUT's mode occupies bits 12..15: the code itself plus a bit saying one was written,
+'' because 0 is TRANS and cannot double as "absent".
+const GFX_PUTMODE_SHIFT as long = 12
 
 '' One '(x, y)', with an optional STEP in front of it. Returns false when there is no
 '' coordinate here at all.
-private function GfxPoint _
+function GfxPoint _
     ( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVec, _
       byref stepped as boolean ) as boolean
 
@@ -101,7 +116,7 @@ end function
 
 '' The next comma-separated option, or NOTHING when it was elided or the line ended.
 '' Returns false once there are no more commas to read.
-private function GfxOption _
+function GfxOption _
     ( byref p as Fbx.ParserState, byref outv as Fbx.NodeId ) as boolean
 
     outv = Fbx.NODE_NONE
@@ -116,7 +131,7 @@ private function GfxOption _
 end function
 
 '' Fill 'items' up to 'want' entries with elided slots.
-private sub GfxPad _
+sub GfxPad _
     ( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVec, byval want as long )
     while items.Count < want
         items.Push( cast( ulong, GfxNone( p ) ) )
@@ -255,6 +270,118 @@ sub GfxTrailing _
     end select
 end sub
 
+'' The graphics GET and PUT, which share a keyword with the FILE statements. The caller
+'' has already decided which this is.
+''
+''   GET [target,] [STEP](x1,y1)-[STEP](x2,y2), destination
+''   PUT [target,] [STEP](x,y), source [, mode [, alpha]]
+function ParseGfxGetPut _
+    ( byref p as Fbx.ParserState, byval isPut as boolean, _
+      byref sp as Fbx.StmtPayload ) as boolean
+
+    dim as Fbx.NodeIdVec items
+    sp.a = GfxTarget( p )
+    if sp.a <> Fbx.NODE_NONE then sp.extra or= GFX_HASTARGET
+
+    dim as boolean s1 = false, s2 = false
+    if GfxPoint( p, items, s1 ) = false then return false
+    if s1 then sp.extra or= GFX_STEP1
+
+    if isPut = false then
+        Expect( p, Fbx.TK_MINUS, "-" )
+        if GfxPoint( p, items, s2 ) then
+            if s2 then sp.extra or= GFX_STEP2
+        else
+            GfxPad( p, items, 4 )
+        end if
+    end if
+
+    '' The buffer: GET's destination, PUT's source.
+    dim as Fbx.NodeId o = Fbx.NODE_NONE
+    if GfxOption( p, o ) then
+        items.Push( cast( ulong, iif( o = Fbx.NODE_NONE, GfxNone( p ), o ) ) )
+    end if
+    GfxPad( p, items, iif( isPut, 3, 5 ) )
+
+    if isPut then
+        '' THE MODE IS A WORD, not a number: fbc rejects 'put ..., 1'. Some of them are
+        '' keywords and some are not, so it is read either way and matched by spelling.
+        if Accept( p, Fbx.TK_COMMA ) then
+            sp.extra or= GfxPutMode( p ) shl 12
+            '' ALPHA and CUSTOM each take one more argument -- a blend level and a
+            '' procedure pointer -- and they go in the same slot because no form has
+            '' both.
+            if GfxOption( p, o ) then
+                items.Push( cast( ulong, iif( o = Fbx.NODE_NONE, GfxNone( p ), o ) ) )
+            end if
+        end if
+        GfxPad( p, items, 4 )
+    end if
+
+    GfxFinish( p, sp, items )
+    return true
+end function
+
+'' PUT's blend mode, as the number fbc passes. Measured, and it is NOT dense: ALPHA
+'' WITH A VALUE is mode 9 rather than 6, and 7 is unused.
+''
+'' Bit 15 of the returned value says a mode word was actually written, so an omitted
+'' one can default to XOR without 0 -- TRANS -- meaning "nothing here".
+function GfxPutMode( byref p as Fbx.ParserState ) as ushort
+    dim as string w = ""
+    if Peek( p ) = Fbx.TK_IDENT then
+        w = Fbx.Text.LowerAscii( _
+            p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) )
+    elseif Fbx.IsKeywordKind( Peek( p ) ) then
+        w = Fbx.Text.LowerAscii( Fbx.TokenKindText( Peek( p ) ) )
+    else
+        return 0
+    end if
+    dim as long m = -1
+    select case w
+    case "trans"  : m = 0
+    case "pset"   : m = 1
+    case "preset" : m = 2
+    case "and"    : m = 3
+    case "or"     : m = 4
+    case "xor"    : m = 5
+    case "alpha"  : m = 6
+    case "custom" : m = 8
+    end select
+    if m < 0 then return 0
+    Advance( p )
+    return cast( ushort, m ) or &h8
+end function
+
+'' PALETTE, in its three forms:
+''   PALETTE [n [, r [, g [, b]]]]
+''   PALETTE GET n, r [, g [, b]]      -- the outputs are BYREF
+''   PALETTE USING array
+function ParseGfxPalette _
+    ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload ) as boolean
+
+    dim as Fbx.NodeIdVec items
+    if GfxWordIs( p, "get" ) then
+        sp.extra or= GFX_PAL_GET
+    elseif Peek( p ) = Fbx.KW_USING then
+        Advance( p )
+        sp.extra or= GFX_PAL_USING
+    end if
+
+    dim as long want = iif( (sp.extra and GFX_PAL_USING) <> 0, 1, 4 )
+    if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+        items.Push( cast( ulong, Expression( p ) ) )
+        dim as Fbx.NodeId o = Fbx.NODE_NONE
+        while items.Count < want
+            if GfxOption( p, o ) = false then exit while
+            items.Push( cast( ulong, iif( o = Fbx.NODE_NONE, GfxNone( p ), o ) ) )
+        wend
+    end if
+    GfxPad( p, items, want )
+    GfxFinish( p, sp, items )
+    return true
+end function
+
 '' 'B' or 'BF' after a LINE's colour. Neither is a keyword, so this reads the identifier
 '' and compares its spelling; anything else is left where it is.
 function GfxBoxWord( byref p as Fbx.ParserState ) as ushort
@@ -274,9 +401,17 @@ end function
 
 '' The identifier at the cursor, compared case-insensitively and consumed on a match.
 function GfxWordIs( byref p as Fbx.ParserState, byref want as string ) as boolean
-    if Peek( p ) <> Fbx.TK_IDENT then return false
-    dim as string w = Fbx.Text.LowerAscii( _
-        p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) )
+    dim as string w = ""
+    if Peek( p ) = Fbx.TK_IDENT then
+        w = Fbx.Text.LowerAscii( _
+            p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) )
+    elseif Fbx.IsKeywordKind( Peek( p ) ) then
+        '' A KEYWORD TOO. 'palette get' is the one that needed it: GET is a keyword, so
+        '' an identifier-only test never saw it and every PALETTE GET declined.
+        w = Fbx.Text.LowerAscii( Fbx.TokenKindText( Peek( p ) ) )
+    else
+        return false
+    end if
     if w <> want then return false
     Advance( p )
     return true

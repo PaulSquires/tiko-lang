@@ -1334,8 +1334,12 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         '' measured defaults -- see lowergfx.bas.
         select case cast( Fbx.TokenKind, ip->op )
         case Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
-             Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW
+             Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW, Fbx.KW_PALETTE
             handled = LowerGfxStmt( c, id )
+        case Fbx.KW_GET, Fbx.KW_PUT
+            '' GET and PUT share a keyword with the FILE statements, exactly as LINE
+            '' does. Bit 1 of 'extra' is the graphics form.
+            if (ip->extra and 2) <> 0 then handled = LowerGfxStmt( c, id )
         end select
         if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
         if handled = false then SkipStmt( c, id )

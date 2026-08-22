@@ -52,3 +52,32 @@ view (0,0)-(1,1), c, c
 view screen (0,0)-(1,1), c, c
 window (0,0)-(1,1)
 draw "U10"
+
+'' GET and PUT share a keyword with the FILE statements, exactly as LINE does.
+''
+'' PUT'S DEFAULT MODE IS XOR, not TRANS -- the opposite of DRAW STRING's -- and ALPHA
+'' WITH A VALUE is a DIFFERENT MODE from ALPHA without: 9 rather than 6, with a
+'' different blender again. The four source-rectangle integers are -65536 each, a
+'' sentinel for "the whole image".
+dim as any ptr buf2
+get (1,2)-(3,4), buf
+get step(1,2)-(3,4), buf
+get buf2, (1,2)-(3,4), buf
+put (1,2), buf
+put (1,2), buf, TRANS
+put (1,2), buf, PSET
+put (1,2), buf, ALPHA
+put (1,2), buf, ALPHA, 128
+put buf2, step(1,2), buf, XOR
+
+'' PALETTE's three forms do not agree on their omitted arguments: the plain form pads
+'' with -1 and PALETTE GET pads with a NULL POINTER, which is the opposite of what
+'' SCREENINFO does.
+dim as long r, g, b
+dim as long arr( 0 to 3 )
+palette
+palette 1, 2, 3, 4
+palette 1, 2
+palette get 1, r, g, b
+palette get 1, r
+palette using arr

@@ -277,7 +277,18 @@ namespace Fbx.Mir
         '' other -- an entry point fbx emits and does not check is the shape check-rtl
         '' exists to prevent.
         RTL( RTL_GFX_SCREENRES,     "fb_GfxScreenRes",     "l",   "llllll" )
+        '' THE PUT BLENDERS. One per mode, all the same shape, and each one is the
+        '' pointer fbc passes in the eleventh argument of fb_GfxPut. They are the only
+        '' members of the graphics family that are CDECL on win32 -- see rtl.bas.
+        RTL( RTL_GFX_PUT_TRANS,     "fb_hPutTrans",        "v",   "pplllllpp" )
+        RTL( RTL_GFX_PUT_PSET,      "fb_hPutPSet",         "v",   "pplllllpp" )
+        RTL( RTL_GFX_PUT_PRESET,    "fb_hPutPReset",       "v",   "pplllllpp" )
+        RTL( RTL_GFX_PUT_AND,       "fb_hPutAnd",          "v",   "pplllllpp" )
+        RTL( RTL_GFX_PUT_OR,        "fb_hPutOr",           "v",   "pplllllpp" )
         RTL( RTL_GFX_PUT_XOR,       "fb_hPutXor",          "v",   "pplllllpp" )
+        RTL( RTL_GFX_PUT_ALPHA,     "fb_hPutAlpha",        "v",   "pplllllpp" )
+        RTL( RTL_GFX_PUT_BLEND,     "fb_hPutBlend",        "v",   "pplllllpp" )
+        RTL( RTL_GFX_PUT_CUSTOM,    "fb_hPutCustom",       "v",   "pplllllpp" )
         RTL( RTL_STR_SPACE,         "fb_SPACE",            "p",   "z"     )
         RTL( RTL_STR_FILL1,         "fb_StrFill1",         "p",   "zl"    )
         RTL( RTL_STR_FILL2,         "fb_StrFill2",         "p",   "zp"    )

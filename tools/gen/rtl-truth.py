@@ -500,6 +500,9 @@ end sub
     # A graphics mode has to be OPEN for these to lower, hence the screenres. The
     # probe is never run; only the declarations fbc emits are read.
     "gfx": '''
+function cb cdecl( byval a as ulong, byval b as ulong, byval p as any ptr ) as ulong
+    return a
+end function
 sub P( )
     dim as any ptr buf
     dim as long c
@@ -512,6 +515,14 @@ sub P( )
     paint (1,2), pat, c
     get (1,2)-(3,4), buf
     put (1,2), buf, XOR
+    put (1,2), buf, TRANS
+    put (1,2), buf, PSET
+    put (1,2), buf, PRESET
+    put (1,2), buf, AND
+    put (1,2), buf, OR
+    put (1,2), buf, ALPHA
+    put (1,2), buf, ALPHA, 128
+    put (1,2), buf, CUSTOM, @cb
     view (0,0)-(1,1), c, c
     window (0,0)-(1,1)
     draw "U10"

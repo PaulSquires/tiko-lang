@@ -926,6 +926,35 @@ function LowerProcPtr _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' The ADDRESS OF A RUNTIME ENTRY POINT, as an M_FUNC_ADDR over the function table.
+''
+'' PUT passes one -- the blender for its blend mode -- and no source expression names
+'' it, so it is reached the way ERASE reaches a destructor: by asking the inventory
+'' rather than the symbol table.
+function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
+    dim as MirValue none_
+    dim as boolean is32 = (c.types->target.pointerBits = 32)
+    dim as Fbx.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
+    dim as long idx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            idx = i
+            exit for
+        end if
+    next
+    if idx < 0 then
+        dim as MirFunction ptr d = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
+        d->isDefinition = false
+        d->paramCount = RtlArity( r )
+        idx = c.m->functions.Count - 1
+    end if
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FUNC_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.callee = cast( ulong, idx )
+    return Emit( c, fa )
+end function
+
 '' The ADDRESS of a procedure symbol, as an M_FUNC_ADDR over the function table index.
 '' Split out of LowerProcPtr because ERASE over a UDT array needs the same thing for a
 '' constructor and a destructor that no source expression names.

@@ -38,6 +38,8 @@ const PGFX_FILL      as ushort = &h0040
 const PGFX_SCREEN    as ushort = &h0080
 const PGFX_NOSTART   as ushort = &h0100
 const PGFX_HASTARGET as ushort = &h0200
+const PGFX_PAL_GET   as ushort = &h0400
+const PGFX_PAL_USING as ushort = &h0800
 
 '' The n'th child of a graphics statement, or NOTHING when it was elided.
 private function GfxArg _
@@ -356,6 +358,171 @@ function LowerGfxDraw( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     return true
 end function
 
+'' GET [target,] (x1,y1)-(x2,y2), destination
+''
+'' The eighth argument is an ARRAY DESCRIPTOR when the destination is an array element
+'' and NULL when it is a plain pointer. fbx passes null always: it has no way to
+'' materialise a descriptor over an arbitrary element expression here, and passing a
+'' wrong one would be worse than passing none.
+function LowerGfxGet( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as boolean ok = true
+    dim as MirValue tgt = GfxTargetVal( c, sp, ok )
+    dim as MirValue x1 = GfxCoord( c, sp, 0, ok )
+    dim as MirValue y1 = GfxCoord( c, sp, 1, ok )
+    dim as MirValue x2 = GfxCoord( c, sp, 2, ok )
+    dim as MirValue y2 = GfxCoord( c, sp, 3, ok )
+    if ok = false then return false
+
+    dim as Fbx.NodeId dn = GfxArg( c, sp, 4 )
+    if dn = Fbx.NODE_NONE then return false
+    dim as MirValue dst = LowerAddr( c, dn )
+    if dst.kind = cast( ubyte, MV_NONE ) then dst = LowerExpr( c, dn )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    dst = Coerce( c, dst, MT_PTR )
+
+    dim as FB.Array( of ulong ) args
+    PushV( args, tgt )
+    PushV( args, x1 ) : PushV( args, y1 ) : PushV( args, x2 ) : PushV( args, y2 )
+    PushV( args, dst )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, GfxFlags2( sp->extra ) ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_GFX_GET, args )
+    return true
+end function
+
+'' The blender each PUT mode carries. Measured: every mode has one, and ALPHA WITH A
+'' VALUE is a different mode from ALPHA without -- 9 rather than 6 -- with a different
+'' blender again.
+private function PutBlender( byval mode as long ) as RtlId
+    select case mode
+    case 0 : return RTL_GFX_PUT_TRANS
+    case 1 : return RTL_GFX_PUT_PSET
+    case 2 : return RTL_GFX_PUT_PRESET
+    case 3 : return RTL_GFX_PUT_AND
+    case 4 : return RTL_GFX_PUT_OR
+    case 5 : return RTL_GFX_PUT_XOR
+    case 6 : return RTL_GFX_PUT_ALPHA
+    case 8 : return RTL_GFX_PUT_CUSTOM
+    case 9 : return RTL_GFX_PUT_BLEND
+    end select
+    return RTL_GFX_PUT_XOR
+end function
+
+'' PUT [target,] (x,y), source [, mode [, alpha]]
+''
+'' THE DEFAULT MODE IS XOR, not TRANS -- measured, and the opposite of DRAW STRING's.
+'' The four source-rectangle integers are -65536 each, a sentinel for "the whole
+'' image"; no 1.10.1 syntax was found that sets them.
+function LowerGfxPut( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as boolean ok = true
+    dim as MirValue tgt = GfxTargetVal( c, sp, ok )
+    dim as MirValue x = GfxCoord( c, sp, 0, ok )
+    dim as MirValue y = GfxCoord( c, sp, 1, ok )
+    if ok = false then return false
+
+    dim as Fbx.NodeId sn = GfxArg( c, sp, 2 )
+    if sn = Fbx.NODE_NONE then return false
+    dim as MirValue src = LowerExpr( c, sn )
+    if src.kind = cast( ubyte, MV_NONE ) then src = LowerAddr( c, sn )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+    src = Coerce( c, src, MT_PTR )
+
+    dim as long mode = 5
+    dim as long mbits = cast( long, (sp->extra shr 12) and &hF )
+    if (mbits and 8) <> 0 then mode = (mbits and 7)
+
+    '' ALPHA with a level is mode 9; CUSTOM takes a procedure pointer instead. They
+    '' share the slot because no form has both.
+    dim as Fbx.NodeId extraN = GfxArg( c, sp, 3 )
+    dim as MirValue alpha = ConstInt( c, -1, MT_I32 )
+    dim as MirValue custom = ConstInt( c, 0, MT_PTR )
+    if extraN <> Fbx.NODE_NONE then
+        if mode = 8 then
+            dim as MirValue cv = LowerExpr( c, extraN )
+            if cv.kind = cast( ubyte, MV_NONE ) then return false
+            custom = Coerce( c, cv, MT_PTR )
+        else
+            dim as MirValue av = LowerExpr( c, extraN )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+            alpha = Coerce( c, av, MT_I32 )
+            if mode = 6 then mode = 9
+        end if
+    end if
+
+    dim as MirValue bl = FuncAddrOfRtl( c, PutBlender( mode ) )
+    if bl.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    PushV( args, tgt )
+    PushV( args, x ) : PushV( args, y )
+    PushV( args, src )
+    for i as long = 0 to 3
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -65536 ) )
+    next
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, GfxFlags2( sp->extra ) ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, mode ) )
+    PushV( args, bl )
+    PushV( args, alpha )
+    PushV( args, custom )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_GFX_PUT, args )
+    return true
+end function
+
+'' PALETTE, in its three forms. Their omitted arguments do NOT agree with each other:
+'' the plain form pads with -1, and PALETTE GET pads with a NULL POINTER rather than a
+'' temporary -- the opposite of what SCREENINFO does.
+function LowerGfxPalette( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as boolean ok = true
+
+    if (sp->extra and PGFX_PAL_USING) <> 0 then
+        dim as Fbx.NodeId an = GfxArg( c, sp, 0 )
+        if an = Fbx.NODE_NONE then return false
+        dim as MirValue av = LowerAddr( c, an )
+        if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, an )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) ua
+        PushV( ua, Coerce( c, av, MT_PTR ) )
+        EmitRtl( c, RTL_GFX_PALETTE_USING, ua )
+        return true
+    end if
+
+    if (sp->extra and PGFX_PAL_GET) <> 0 then
+        dim as boolean w = false
+        dim as MirValue n = GfxInt( c, sp, 0, 0, w, ok )
+        if ok = false then return false
+        dim as FB.Array( of ulong ) ga
+        PushV( ga, n )
+        for i as long = 1 to 3
+            dim as Fbx.NodeId on_ = GfxArg( c, sp, i )
+            if on_ = Fbx.NODE_NONE then
+                ga.Push( cast( ulong, MV_CONST_INT ) ) : ga.Push( 0 )
+            else
+                dim as MirValue oa = LowerAddr( c, on_ )
+                if oa.kind = cast( ubyte, MV_NONE ) then return false
+                PushV( ga, oa )
+            end if
+        next
+        EmitRtl( c, RTL_GFX_PALETTE_GET, ga )
+        return true
+    end if
+
+    dim as FB.Array( of ulong ) pa
+    for i as long = 0 to 3
+        dim as boolean w = false
+        dim as MirValue v = GfxInt( c, sp, i, -1, w, ok )
+        if ok = false then return false
+        PushV( pa, v )
+    next
+    EmitRtl( c, RTL_GFX_PALETTE, pa )
+    return true
+end function
+
 '' The dispatcher: which of them this N_INTRINSIC is.
 function LowerGfxStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
@@ -368,6 +535,9 @@ function LowerGfxStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     case Fbx.KW_VIEW   : return LowerGfxView( c, id )
     case Fbx.KW_WINDOW : return LowerGfxWindow( c, id )
     case Fbx.KW_DRAW   : return LowerGfxDraw( c, id )
+    case Fbx.KW_GET    : return LowerGfxGet( c, id )
+    case Fbx.KW_PUT    : return LowerGfxPut( c, id )
+    case Fbx.KW_PALETTE : return LowerGfxPalette( c, id )
     end select
     return false
 end function

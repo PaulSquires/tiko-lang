@@ -264,6 +264,7 @@ declare function EmitRtl _
     declare function DynArrayDataPtr _
         ( byref c as Ctx, byref desc as MirValue ) as MirValue
     declare function FuncAddrOf( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
+    declare function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     declare function UsingEndsLine_ _
         ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr ) as boolean
     declare function LowerPrintPos _

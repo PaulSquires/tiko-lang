@@ -5,6 +5,11 @@ func i32 main($0, $1) {
   local ptr buf
   local i32 c
   local agg pat size 24
+  local ptr buf2
+  local i32 r
+  local i32 g
+  local i32 b
+  local agg arr size 16
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -248,11 +253,136 @@ func i32 main($0, $1) {
     %214 = const ptr 0
     %215 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
     call.rtl void fb_GfxDraw(%214, %215)
+    %216 = alloca ptr buf2
+    %217 = const ptr 0
+    %218 = const i64 1
+    %219 = sitofp %218
+    %220 = const i64 2
+    %221 = sitofp %220
+    %222 = const i64 3
+    %223 = sitofp %222
+    %224 = const i64 4
+    %225 = sitofp %224
+    %226 = call.rtl i32 fb_GfxGet(%217, %219, %221, %223, %225, @buf, 0, 0)
+    %227 = const ptr 0
+    %228 = const i64 1
+    %229 = sitofp %228
+    %230 = const i64 2
+    %231 = sitofp %230
+    %232 = const i64 3
+    %233 = sitofp %232
+    %234 = const i64 4
+    %235 = sitofp %234
+    %236 = call.rtl i32 fb_GfxGet(%227, %229, %231, %233, %235, @buf, 2, 0)
+    %237 = load @buf2
+    %238 = const i64 1
+    %239 = sitofp %238
+    %240 = const i64 2
+    %241 = sitofp %240
+    %242 = const i64 3
+    %243 = sitofp %242
+    %244 = const i64 4
+    %245 = sitofp %244
+    %246 = call.rtl i32 fb_GfxGet(%237, %239, %241, %243, %245, @buf, 0, 0)
+    %247 = const ptr 0
+    %248 = const i64 1
+    %249 = sitofp %248
+    %250 = const i64 2
+    %251 = sitofp %250
+    %252 = load @buf
+    %253 = const i32 -1
+    %254 = const ptr 0
+    %255 = func.addr ptr fb_hPutXor
+    %256 = call.rtl i32 fb_GfxPut(%247, %249, %251, %252, -65536, -65536, -65536, -65536, 0, 5, %255, %253, %254, 0)
+    %257 = const ptr 0
+    %258 = const i64 1
+    %259 = sitofp %258
+    %260 = const i64 2
+    %261 = sitofp %260
+    %262 = load @buf
+    %263 = const i32 -1
+    %264 = const ptr 0
+    %265 = func.addr ptr fb_hPutTrans
+    %266 = call.rtl i32 fb_GfxPut(%257, %259, %261, %262, -65536, -65536, -65536, -65536, 0, 0, %265, %263, %264, 0)
+    %267 = const ptr 0
+    %268 = const i64 1
+    %269 = sitofp %268
+    %270 = const i64 2
+    %271 = sitofp %270
+    %272 = load @buf
+    %273 = const i32 -1
+    %274 = const ptr 0
+    %275 = func.addr ptr fb_hPutPSet
+    %276 = call.rtl i32 fb_GfxPut(%267, %269, %271, %272, -65536, -65536, -65536, -65536, 0, 1, %275, %273, %274, 0)
+    %277 = const ptr 0
+    %278 = const i64 1
+    %279 = sitofp %278
+    %280 = const i64 2
+    %281 = sitofp %280
+    %282 = load @buf
+    %283 = const i32 -1
+    %284 = const ptr 0
+    %285 = func.addr ptr fb_hPutAlpha
+    %286 = call.rtl i32 fb_GfxPut(%277, %279, %281, %282, -65536, -65536, -65536, -65536, 0, 6, %285, %283, %284, 0)
+    %287 = const ptr 0
+    %288 = const i64 1
+    %289 = sitofp %288
+    %290 = const i64 2
+    %291 = sitofp %290
+    %292 = load @buf
+    %293 = const i32 -1
+    %294 = const ptr 0
+    %295 = const i64 128
+    %296 = trunc %295
+    %297 = func.addr ptr fb_hPutBlend
+    %298 = call.rtl i32 fb_GfxPut(%287, %289, %291, %292, -65536, -65536, -65536, -65536, 0, 9, %297, %296, %294, 0)
+    %299 = load @buf2
+    %300 = const i64 1
+    %301 = sitofp %300
+    %302 = const i64 2
+    %303 = sitofp %302
+    %304 = load @buf
+    %305 = const i32 -1
+    %306 = const ptr 0
+    %307 = func.addr ptr fb_hPutXor
+    %308 = call.rtl i32 fb_GfxPut(%299, %301, %303, %304, -65536, -65536, -65536, -65536, 2, 5, %307, %305, %306, 0)
+    %309 = alloca ptr r
+    %310 = alloca ptr g
+    %311 = alloca ptr b
+    %312 = alloca ptr arr
+    %313 = const i32 -1
+    %314 = const i32 -1
+    %315 = const i32 -1
+    %316 = const i32 -1
+    call.rtl void fb_GfxPalette(%313, %314, %315, %316)
+    %317 = const i64 1
+    %318 = trunc %317
+    %319 = const i64 2
+    %320 = trunc %319
+    %321 = const i64 3
+    %322 = trunc %321
+    %323 = const i64 4
+    %324 = trunc %323
+    call.rtl void fb_GfxPalette(%318, %320, %322, %324)
+    %325 = const i64 1
+    %326 = trunc %325
+    %327 = const i64 2
+    %328 = trunc %327
+    %329 = const i32 -1
+    %330 = const i32 -1
+    call.rtl void fb_GfxPalette(%326, %328, %329, %330)
+    %331 = const i64 1
+    %332 = trunc %331
+    call.rtl void fb_GfxPaletteGet(%332, @r, @g, @b)
+    %333 = const i64 1
+    %334 = trunc %333
+    call.rtl void fb_GfxPaletteGet(%334, @r, 0, 0)
+    call.rtl void fb_GfxPaletteUsing(@arr)
     call.rtl void fb_StrDelete(@pat)
-    %216 = const i32 0
-    call.rtl void fb_End(%216)
-    %217 = load @$tmp0
-    ret %217
+    %335 = const i32 0
+    call.rtl void fb_End(%335)
+    %336 = load @$tmp0
+    ret %336
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_GfxScreenRes()
@@ -264,7 +394,17 @@ declare void fb_GfxPaint($0, $1, $2, $3, $4, $5, $6, $7)
 declare void fb_GfxView($0, $1, $2, $3, $4, $5, $6)
 declare void fb_GfxWindow($0, $1, $2, $3, $4)
 declare void fb_GfxDraw($0, $1)
+declare i32 fb_GfxGet($0, $1, $2, $3, $4, $5, $6, $7)
+declare void fb_hPutXor($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare i32 fb_GfxPut($0, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+declare void fb_hPutTrans($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare void fb_hPutPSet($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare void fb_hPutAlpha($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare void fb_hPutBlend($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare void fb_GfxPalette($0, $1, $2, $3)
+declare void fb_GfxPaletteGet($0, $1, $2, $3)
+declare void fb_GfxPaletteUsing($0)
 declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 246 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 371 insts, 0 statements not lowered, 0 scope imbalance

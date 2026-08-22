@@ -331,6 +331,13 @@ private sub IntrGetPut( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload 
         Accept( p, Fbx.TK_COMMA )
     end if
 
+    '' THE GRAPHICS FORM HAS ITS OWN COORDINATE GRAMMAR -- see gfx.bas. Bit 1 of
+    '' 'extra' is what says which of the two statements this is, so the graphics flags
+    '' start above it.
+    if isFile = false then
+        if ParseGfxGetPut( p, sp.op = cast( ushort, Fbx.KW_PUT ), sp ) then return
+    end if
+
     dim as Fbx.NodeIdVec items
     do
         if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
@@ -338,8 +345,6 @@ private sub IntrGetPut( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload 
             Advance( p )
             continue do
         end if
-        '' The graphics form writes '(x,y)-(x,y)'; the '-' parses as a binary minus
-        '' between two parenthesised expressions, which is structurally faithful.
         dim as long before = p.pos
         items.Push( cast( ulong, Expression( p ) ) )
         if p.pos = before then exit do
@@ -500,6 +505,10 @@ function ParseIntrinsic( byref p as Fbx.ParserState ) as Fbx.NodeId
         case Fbx.KW_LINE, Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
              Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW
             if ParseGfxStmt( p, t, k, sp ) then
+                return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
+            end if
+        case Fbx.KW_PALETTE
+            if ParseGfxPalette( p, sp ) then
                 return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
             end if
         end select
