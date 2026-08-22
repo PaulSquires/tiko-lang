@@ -404,6 +404,17 @@ end function
 '' forms need it, and the procedure one is parsed first.
 declare function ParseTypeParams( byref p as Fbx.ParserState ) as Fbx.NodeId
 
+'' A 'BYREF' that introduces a RESULT TYPE, consumed if so. It is only that when an AS
+'' follows: 'function F( ) byref as T'. A bare BYREF anywhere else is somebody's trailing
+'' modifier and is left alone.
+private function ByrefResult_( byref p as Fbx.ParserState ) as boolean
+    if Peek( p ) <> Fbx.KW_BYREF then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Fbx.KW_AS then return false
+    Advance( p )
+    return true
+end function
+
 private function ParseProc _
     ( byref p as Fbx.ParserState, byval declareOnly as boolean ) as Fbx.NodeId
 
@@ -551,6 +562,13 @@ private function ParseProc _
 
     ParseParamList( p, sp )
 
+    '' 'function F( ) BYREF as T' -- A BYREF RESULT. The BYREF sits between the
+    '' parameter list and the AS, so Accept( KW_AS ) failed on it and the trailing-
+    '' modifier loop below ate the whole return type: EVERY byref-returning function in
+    '' the corpus reached Collect with NO RESULT TYPE AT ALL, which is most of
+    '' fb/result.bi, fb/optional.bi and every conversion operator declared that way.
+    '' Nothing said so -- an untyped result is not a diagnostic.
+    dim as boolean byrefRet = ByrefResult_( p )
     if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
 
     '' Trailing modifiers: static, const, export, alias "x", lib "y", cdecl ...
@@ -561,6 +579,7 @@ private function ParseProc _
     if declareOnly then
         dim as Fbx.NodeId dn = MakeStmt( p, Fbx.N_PROC, t.loc, sp )
         if qualified then p.ast->nodes[cast( long, dn )].flags or= Fbx.NF_QUALIFIED
+        if byrefRet then p.ast->nodes[cast( long, dn )].flags or= Fbx.NF_BYREF
         return dn
     end if
 
@@ -568,6 +587,7 @@ private function ParseProc _
     ExpectEnd( p, kw )
     dim as Fbx.NodeId pn = MakeStmt( p, Fbx.N_PROC, t.loc, sp )
     if qualified then p.ast->nodes[cast( long, pn )].flags or= Fbx.NF_QUALIFIED
+    if byrefRet then p.ast->nodes[cast( long, pn )].flags or= Fbx.NF_BYREF
     '' A QUALIFIED DEFINITION -- 'function Box.Get( ) as T' -- may belong to a generic,
     '' and a GENERIC PROCEDURE is one in its own right. Either way instantiating it has
     '' to parse this body again to get nodes of its own. Nothing else is recorded: an
@@ -659,11 +679,14 @@ private function LambdaExpr( byref p as Fbx.ParserState ) as Fbx.NodeId
     end select
 
     ParseParamList( p, sp )
+    dim as boolean byrefRet = ByrefResult_( p )
     if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
 
     sp.b = Block( p )
     ExpectEnd( p, kw )
-    return MakeStmt( p, Fbx.N_PROC, t.loc, sp )
+    dim as Fbx.NodeId ln = MakeStmt( p, Fbx.N_PROC, t.loc, sp )
+    if byrefRet then p.ast->nodes[cast( long, ln )].flags or= Fbx.NF_BYREF
+    return ln
 end function
 
 '' An access section reaches into a nested anonymous TYPE or UNION -- measured: a

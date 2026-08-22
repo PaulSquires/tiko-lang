@@ -1,0 +1,41 @@
+func void _ZN1UcvcEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    ret %4
+}
+func void P() {
+  local agg uv size 50
+  local agg r size 24
+  local agg z size 50
+  entry0:
+    %1 = alloca ptr uv
+    %2 = alloca ptr r
+    %3 = field.addr @r, 0
+    store %3, 0
+    %4 = field.addr @r, 8
+    store %4, 0
+    %5 = field.addr @r, 16
+    store %5, 0
+    %6 = alloca ptr z
+    %7 = call ptr _ZN1UcvcEv(@uv)
+    %8 = call.rtl ptr fb_StrAllocTempDescZ(%7)
+    %9 = call.rtl ptr fb_TRIM(%8)
+    %10 = call.rtl ptr fb_StrAssign(@r, -1, %9, -1, 0)
+    %11 = call ptr _ZN1UcvcEv(@uv)
+    %12 = call.rtl ptr fb_StrAssign(@r, -1, %11, 0, 0)
+    %13 = call ptr _ZN1UcvcEv(@uv)
+    %14 = call.rtl ptr fb_StrAssign(@z, 50, %13, 0, 0)
+    call.rtl void fb_StrDelete(@r)
+    ret
+}
+declare ptr fb_StrAllocTempDescZ($0)
+declare ptr fb_TRIM($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance

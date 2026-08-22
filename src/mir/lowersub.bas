@@ -545,6 +545,120 @@ function LowerStrNumCall_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+declare function UdtMemberNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
+'' A UDT WITH 'operator cast' TO A STRING, converted implicitly.
+''
+'' 'trim( u )' where u is a UDT is not an error and not a decline: fbc calls the
+'' conversion operator and passes what it gives back. Measured, for
+'' 'declare operator cast( ) byref as zstring':
+''
+''     char* vr$4 = _ZN1UcvcEv( &UV$1 );
+''     FBSTRING* vr$5 = fb_StrAllocTempDescZ( (char*)vr$4 );
+''     FBSTRING* vr$6 = fb_TRIM( (FBSTRING*)vr$5 );
+''
+'' A BYREF ZSTRING RESULT IS A BARE char*, not a descriptor, so it borrows a temporary
+'' one from the no-length entry point -- the same thing a 'zstring * N' variable does.
+'' An operator returning a real STRING gives a descriptor and needs no wrapper.
+''
+'' Only the STRING direction is done here. Implicit user conversion to a NUMBER is the
+'' same idea and a different set of call sites, and is still missing.
+''
+'' Returns the character-data pointer in 'raw' when the operator's result was a bare
+'' char*, so a caller that wants (pointer, length) rather than a descriptor -- an
+'' assignment, where fbc passes length 0 -- can use it directly.
+function UserCastToStr_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue, _
+      byref raw as boolean ) as boolean
+
+    raw = false
+    dim as Fbx.TypeId t = c.info->TypeOf_( id )
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+
+    dim as Fbx.SymbolId cs = UdtMemberNamed_( c, t, "cast" )
+    if cs = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cs )
+    if s = 0 then return false
+
+    '' THE OVERLOAD THAT YIELDS A STRING. 'operator cast' can be declared several
+    '' times over different targets -- as long, as string, as zstring -- and they hang
+    '' off one symbol as a chain, so the first is not necessarily the right one.
+    dim as Fbx.SymbolId cur = cs
+    dim as Fbx.SymbolId want = Fbx.SYMBOL_NONE
+    dim as boolean wantRaw = false
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        dim as Fbx.TypeId rt = cse->type_
+        if rt <> Fbx.TYPE_NONE then
+            dim as longint zn
+            if IsStringType( c, rt ) then
+                want = cur
+                wantRaw = false
+                exit while
+            elseif StrSwapKind_( c, rt, zn ) = 1 then
+                want = cur
+                wantRaw = true
+                exit while
+            else
+                '' A BARE 'zstring' -- no length -- which is what a BYREF conversion
+                '' operator returns: 'operator cast( ) byref as zstring', and fbc's own
+                '' C says the result is a plain 'char*'. It is neither the TK_ARRAY a
+                '' 'zstring * N' variable is nor IsStringType, so both tests above miss
+                '' it, and byref makes it a POINTER to that -- which is why both
+                '' spellings are accepted here.
+                dim as Fbx.TypeId inner = rt
+                if c.types->Kind( inner ) = Fbx.TK_POINTER then
+                    inner = c.types->Inner( inner )
+                end if
+                if inner <> Fbx.TYPE_NONE then
+                    if c.types->Kind( inner ) = Fbx.TK_BUILTIN then
+                        if c.types->BuiltinOf( inner ) = Fbx.TY_ZSTRING then
+                            want = cur
+                            wantRaw = true
+                            exit while
+                        end if
+                    end if
+                end if
+            end if
+        end if
+        cur = cse->nextOverload
+    wend
+    if want = Fbx.SYMBOL_NONE then return false
+
+    dim as MirValue self_ = LowerAddr( c, id )
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue r = EmitMemberCall( c, want, self_, MT_PTR )
+    if r.kind = cast( ubyte, MV_NONE ) then return false
+
+    if wantRaw = false then
+        outv = r
+        return true
+    end if
+
+    raw = true
+    outv = r
+    return true
+end function
+
+'' A member of a UDT by name, folded. Nothing when the type has no such member.
+private function UdtMemberNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Fbx.SYMBOL_NONE
+    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
+end function
+
 '' A narrow string operand as an FBSTRING DESCRIPTOR pointer, however it is spelled:
 '' an addressable string, a literal (which borrows a temporary descriptor from the
 '' runtime), a string 'iif', or another member of this family.
@@ -580,6 +694,25 @@ function StrDescriptorOf_ _
             if outv.kind <> cast( ubyte, MV_NONE ) then return true
         end if
     end if
+    '' A UDT WITH 'operator cast' TO A STRING. Tried before the general fallback: the
+    '' conversion is what makes the operand a string at all, and without it 'trim( u )'
+    '' declined outright.
+    dim as boolean ucRaw = false
+    dim as MirValue ucv
+    if UserCastToStr_( c, id, ucv, ucRaw ) then
+        if ucRaw = false then
+            outv = ucv
+            return true
+        end if
+        '' A BARE char* borrows a temporary descriptor, exactly as a 'zstring * N'
+        '' variable does -- and from the NO-LENGTH entry point, because a converted
+        '' result carries no declared length to pass.
+        dim as FB.Array( of ulong ) ta
+        ta.Push( cast( ulong, ucv.kind ) ) : ta.Push( cast( ulong, ucv.id ) )
+        outv = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
     '' AN IIF, whatever its arms look like: everything that asks for a descriptor is
     '' already in a string context, and the arm types cannot answer it -- Check
     '' computes no type for an intrinsic call, so 'iif( c, hex( 1 ), hex( 2 ) )' looks
@@ -642,6 +775,21 @@ function LowerZstrAssignTo _
             EmitRtl( c, RTL_STR_ASSIGN, args )
             return true
         end if
+    end if
+
+    '' A UDT CONVERTED BY 'operator cast'. A byref-zstring result is a bare char* and
+    '' passes LENGTH 0 -- measured, 'z = u' is 'fb_StrAssign( Z, 50ll, vr, 0ll, 0 )'.
+    '' Falling through to the descriptor path below would wrap it in
+    '' fb_StrAllocTempDescZ first: the same answer at runtime, not the same code.
+    dim as boolean ucRaw = false
+    dim as MirValue ucv
+    if UserCastToStr_( c, value, ucv, ucRaw ) then
+        args.Push( cast( ulong, ucv.kind ) ) : args.Push( cast( ulong, ucv.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, iif( ucRaw, 0, cast( longint, -1 ) ) ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        EmitRtl( c, iif( isInit, RTL_STR_INIT, RTL_STR_ASSIGN ), args )
+        return true
     end if
 
     '' Anything that yields a DESCRIPTOR -- 'trim( t )', a string iif, a literal-backed

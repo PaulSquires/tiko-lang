@@ -1408,6 +1408,18 @@ function EmitStrTerm _
     '' of the text. The reverse direction -- a fixed destination -- was already handled;
     '' this is the same fact on the other side, and it declined outright: 'c = fa' is
     '' one of the commonest shapes in the corpus and produced nothing at all.
+    '' A UDT CONVERTED BY 'operator cast'. A bare char* passes LENGTH 0 here, not -1
+    '' and not a declared count: measured, 'r = u' is
+    '' 'fb_StrAssign( &R, -1ll, vr, 0ll, 0 )'. 0 means NUL-terminated, work it out.
+    dim as boolean tRaw = false
+    dim as MirValue tuc
+    if UserCastToStr_( c, term, tuc, tRaw ) then
+        args.Push( cast( ulong, tuc.kind ) ) : args.Push( cast( ulong, tuc.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, iif( tRaw, 0, cast( longint, -1 ) ) ) )
+        return true
+    end if
+
     dim as longint zn
     dim as long zk = StrSwapKind_( c, c.info->TypeOf_( term ), zn )
     if zk = 1 then
