@@ -134,6 +134,35 @@ function LowerCallParts _
     dim as MirType callTy = mt
     if sretTmp.kind <> cast( ubyte, MV_NONE ) then callTy = MT_PTR
 
+    '' A VIRTUAL CALL GOES THROUGH THE RECEIVER'S OWN VPTR, not to the name the
+    '' overload resolver bound. 'p->f( )' through an 'A ptr' binds to A's f, and if p
+    '' holds a B the call must reach B's -- so the name is right and the CALL is not.
+    '' Without this it emitted 'call _ZN1A1FEv', which links, verifies, and returns the
+    '' wrong answer.
+    ''
+    '' fbc does not devirtualise at the C level even on a known-concrete local, and
+    '' neither is done here.
+    dim as long vslot = VirtualSlotOf_( c, calleeNode, callee )
+    if (viaPointer = false) andalso (vslot >= 0) then
+        if self_.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirValue vfp = VirtualCalleeOf_( c, self_, vslot )
+            if vfp.kind <> cast( ubyte, MV_NONE ) then
+                dim as MirInst vc
+                vc.op = cast( ushort, M_CALL_IND )
+                vc.ty = cast( ubyte, callTy )
+                vc.a = vfp
+                vc.first = first
+                vc.count = n
+                dim as MirValue vr = Emit( c, vc )
+                if sretTmp.kind <> cast( ubyte, MV_NONE ) then
+                    return LowerExprLoad( c, sretTmp, MT_AGG )
+                end if
+                return vr
+            end if
+        end if
+    end if
+
+
     if viaPointer then
         '' THE RESULT TYPE COMES OFF THE PROCEDURE TYPE when the caller asked for none.
         '' 'dim as double a = f( x, ctx )' through a function-pointer parameter reached

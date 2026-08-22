@@ -21,6 +21,7 @@
 #include once "symbols/resolve.bi"
 #include once "symbols/check.bi"
 #include once "types/udtlayout.bi"
+#include once "types/vtable.bi"
 #include once "mir/rtl.bi"
 #include once "diag/engine.bi"
 
@@ -99,6 +100,7 @@ namespace Fbx.Mir
           byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
           byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
           byref src as Fbx.SourceManager, byref udts as Fbx.UdtLayouts, _
+          byref vts as Fbx.VTables, _
           byref m as MirModule, byref st as LowerStats ) as long
 
 end namespace

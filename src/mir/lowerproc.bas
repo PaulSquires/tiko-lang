@@ -372,6 +372,41 @@ sub LowerProc _
         c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
     wend
 
+    '' THE VPTR, IN A CONSTRUCTOR OR A DESTRUCTOR, before the body runs.
+    ''
+    '' Measured: every constructor stores its OWN type's table -- so a derived one
+    '' overwrites what the base constructor just stored, and during a base constructor
+    '' body a virtual call resolves to the BASE override, the same rule as C++. A
+    '' DESTRUCTOR re-stamps it as its first act, for the mirror reason.
+    ''
+    '' Not conditional on the type declaring any virtual of its own: a type that
+    '' extends object and declares none still has a table, and its RTTI record is what
+    '' tells it from its base at run time.
+    if (thisSym <> Fbx.SYMBOL_NONE) andalso (s <> 0) then
+        dim as Fbx.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
+        dim as Fbx.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
+        if (s->name = ctorNm) orelse (s->name = dtorNm) then
+            dim as Fbx.SymScope ptr ownerSc = c.syms->ScopeAt( s->parent )
+            if ownerSc <> 0 then
+                dim as Fbx.Symbol ptr ownerSym = c.syms->SymbolAt( ownerSc->owner )
+                '' ASKED BEFORE ANYTHING IS EMITTED. Loading 'this' first and then
+                '' finding there is no table left a dead load in the prologue of every
+                '' constructor of every ordinary UDT.
+                dim as boolean hasTable = false
+                if (ownerSym <> 0) andalso (c.vts <> 0) then
+                    hasTable = (c.vts->Find( ownerSym->type_ ) >= 0)
+                end if
+                if hasTable then
+                    dim as MirValue ta = AddrOfVar( c, thisSym )
+                    if ta.kind <> cast( ubyte, MV_NONE ) then
+                        dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
+                        StoreVptr_( c, ownerSym->type_, tv )
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     dim as long scopeDepthIn = c.scopeMark.Count
     PushScope( c )
     '' Depths are recorded relative to the scope just opened for the body, which is the
@@ -657,11 +692,13 @@ function Lower _
       byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
       byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
       byref src as Fbx.SourceManager, byref udts as Fbx.UdtLayouts, _
+      byref vts as Fbx.VTables, _
       byref m as MirModule, byref st as LowerStats ) as long
 
     dim as Ctx c
     c.srcMgr = @src
     c.udts = @udts
+    c.vts = @vts
     c.ast = @ast
     c.syms = @syms
     c.types = @types
@@ -686,6 +723,9 @@ function Lower _
         WalkTop( c, cast( Fbx.NodeId, ast.extraTopLevel[i] ) )
     next
     LowerMainModule( c, root )
+    '' THE TABLES LAST. A slot names a FUNCTION, and naming one that was never lowered
+    '' would put a reference to a symbol with no code in the module.
+    EmitVTableGlobals( c )
     return st.functions
 end function
 

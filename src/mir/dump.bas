@@ -144,6 +144,25 @@ function DumpModule _
                 end if
             next
             outp += " ]" & chr( 10 )
+        elseif m.globals[i].isPtrTable then
+            '' A vtable or an RTTI record: a run of pointer-sized words. '0' is a null
+            '' word, '@name' the address of another global, and a bare name a
+            '' FUNCTION's address -- which may be declared in another module, so it is
+            '' named rather than indexed.
+            dim as string pk = "global ptrs "
+            if m.globals[i].isExternal then pk = "extern ptrs "
+            outp += pk & names.Spelling( m.globals[i].name ) & " ["
+            for k as long = 0 to m.globals[i].ptrCount - 1
+                dim as long e = m.globals[i].ptrFirst + k
+                if k > 0 then outp += ","
+                select case m.ptrKinds[e]
+                case 0 : outp += " 0"
+                case 1 : outp += " @" & names.Spelling( _
+                             m.globals[cast( long, m.ptrRefs[e] )].name )
+                case else : outp += " " & names.Spelling( cast( Fbx.InternId, m.ptrRefs[e] ) )
+                end select
+            next
+            outp += " ]" & chr( 10 )
         elseif m.globals[i].isString then
             '' A wide literal prints its SOURCE text with an L prefix, the way the
             '' source spells it. Printing the widened bytes would put embedded NULs

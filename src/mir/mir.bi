@@ -256,6 +256,22 @@ namespace Fbx.Mir
         as boolean  isData
         as long     dataFirst
         as long     dataCount
+        '' A POINTER TABLE: a run of pointer-sized words, each one a NULL, the
+        '' ADDRESS OF ANOTHER GLOBAL, or the ADDRESS OF A FUNCTION. Both a vtable and
+        '' an RTTI record are exactly that and nothing else, so one kind serves both
+        '' rather than two that differ only in what they are called.
+        ''
+        '' It cannot reuse the DATA block: a data entry's ref is always a global, and
+        '' a vtable's slots are FUNCTIONS -- by name, because the function may be
+        '' declared in another module and have no index here.
+        as boolean  isPtrTable
+        as long     ptrFirst
+        as long     ptrCount
+        '' DECLARED HERE, DEFINED ELSEWHERE. 'object' has an RTTI record that fbc
+        '' references and never emits -- 'extern struct $8fb_RTTI$ __fb_ZTS6Object' --
+        '' because it lives in the runtime. Without saying so, an empty table would
+        '' read as a real one with no entries.
+        as boolean  isExternal
         as boolean  isVar
         as ubyte    ty             '' MirType, isVar only
         as Fbx.TypeId frontendType
@@ -276,6 +292,11 @@ namespace Fbx.Mir
         '' that a flat pool does not express.
         as FB.Array( of long ) dataTypes
         as FB.Array( of long ) dataRefs
+        '' A POINTER TABLE's entries, pooled beside the data blocks and for the same
+        '' reason. Kind 0 is a null word, 1 a global's address (ref is its index) and
+        '' 2 a function's address (ref is the InternId of its emitted name).
+        as FB.Array( of long )  ptrKinds
+        as FB.Array( of ulong ) ptrRefs
         as FB.Array( of ulong ) argPool     '' call arguments, as MirValue ids
 
         declare constructor( )
@@ -293,6 +314,13 @@ namespace Fbx.Mir
             ( byref text as string, byref names as Interner ) as long
         '' A DIM SHARED variable. Unlike a literal these are never merged: two
         '' variables of the same value are still two variables.
+        '' A vtable or an RTTI record. Named globals, never merged: two types with
+        '' identical tables are still two tables, because their addresses are what
+        '' tells one type from the other at run time.
+        declare function AddPtrTable( byval nm as InternId ) as long
+        declare sub PushPtrNull( byval g as long )
+        declare sub PushPtrGlobal( byval g as long, byval which as long )
+        declare sub PushPtrFunc( byval g as long, byval nm as InternId )
         declare function AddVarGlobal _
             ( byval nm as InternId, byval ty as MirType, byval ft as Fbx.TypeId, _
               byval sizeBytes as long ) as long

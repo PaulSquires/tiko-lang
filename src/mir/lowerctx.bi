@@ -28,6 +28,8 @@ type Ctx
     as FB.Array( of long )  contTo
     as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
     as Fbx.UdtLayouts ptr   udts      '' field offsets, for member access
+    '' The virtual method tables, for emitting them and for dispatching through one.
+    as Fbx.VTables ptr      vts
     '' THE CLEANUP MODEL (docs/plan/08 section 6).
     ''
     '' One flat list of actions, plus a stack of marks giving where each open scope's
@@ -461,6 +463,17 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 
     '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
+    '' lowervtab.bas -- virtual method tables.
+    declare sub EmitVTableGlobals( byref c as Ctx )
+    declare function VtableGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    declare function RttiGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    declare function StoreVptr_ _
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref thisAddr as MirValue ) as boolean
+    declare function VirtualSlotOf_ _
+        ( byref c as Ctx, byval target as Fbx.NodeId, byval callee as Fbx.SymbolId ) as long
+    declare function VirtualCalleeOf_ _
+        ( byref c as Ctx, byref self_ as MirValue, byval slot as long ) as MirValue
+
     declare function ReceiverOf _
         ( byref c as Ctx, byval target as Fbx.NodeId, _
           byval callee as Fbx.SymbolId ) as MirValue

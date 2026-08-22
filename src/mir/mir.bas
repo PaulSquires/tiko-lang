@@ -85,6 +85,41 @@ function MirModule.AddStringLiteral _
     return this.globals.Count - 1
 end function
 
+function MirModule.AddPtrTable( byval nm as InternId ) as long
+    '' By NAME, so a type's table is found again rather than built twice: the base's
+    '' RTTI is referenced by every type below it in the chain.
+    for i as long = 0 to this.globals.Count - 1
+        if this.globals[i].isPtrTable andalso (this.globals[i].name = nm) then return i
+    next
+    dim as MirGlobal g
+    g.name = nm
+    g.isPtrTable = true
+    g.ptrFirst = this.ptrKinds.Count
+    g.ptrCount = 0
+    this.globals.Push( g )
+    return this.globals.Count - 1
+end function
+
+'' The three entry kinds. Each APPENDS, so a table has to be filled before the next one
+'' is opened -- the pool is shared and the runs are contiguous.
+sub MirModule.PushPtrNull( byval g as long )
+    this.ptrKinds.Push( 0 )
+    this.ptrRefs.Push( 0 )
+    this.globals[g].ptrCount += 1
+end sub
+
+sub MirModule.PushPtrGlobal( byval g as long, byval which as long )
+    this.ptrKinds.Push( 1 )
+    this.ptrRefs.Push( cast( ulong, which ) )
+    this.globals[g].ptrCount += 1
+end sub
+
+sub MirModule.PushPtrFunc( byval g as long, byval nm as InternId )
+    this.ptrKinds.Push( 2 )
+    this.ptrRefs.Push( cast( ulong, nm ) )
+    this.globals[g].ptrCount += 1
+end sub
+
 function MirModule.AddVarGlobal _
     ( byval nm as InternId, byval ty as MirType, byval ft as Fbx.TypeId, _
       byval sizeBytes as long ) as long

@@ -1,0 +1,5 @@
+'' Vtables, RTTI records, the vptr store, and a call dispatched through one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/virtual-dispatch.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/virtual-dispatch.out

@@ -1,0 +1,264 @@
+'' lowervtab.bas -- emitting virtual method tables, and dispatching through one.
+''
+'' The shape is measured and recorded in docs/language/object-abi.md; the SLOT ORDER is
+'' computed in types/vtable.bas and gated against fbc by tools/gen/check-vtable.py. What
+'' is here is only the emission of that answer.
+''
+'' Two globals per type. fbc writes them as
+''
+''     static struct $8fb_RTTI$ _ZTSN1AE = { (void*)0, (char*)"1A", &__fb_ZTS6Object };
+''     static void* _ZTVN1AE[4] = { (void*)0, (void*)&_ZTSN1AE,
+''                                  (void*)&_ZN1A3VF1Ev, (void*)&_ZN1A3VF2Ev };
+''
+'' -- three pointer-sized words and a run of them, so both are a POINTER TABLE here and
+'' nothing more specific is needed.
+''
+'' THE STORED VPTR POINTS AT SLOT TWO, not at the table. Below it sit the null word and
+'' the RTTI pointer, and every call site indexes from there.
+
+#include once "mir/lowerctx.bi"
+
+namespace Fbx.Mir
+
+'' The Itanium encoding of a type, as fbc spells it in an RTTI record's ID: '1A' for a
+'' top-level type, 'N2NS1AE' for one in a namespace. Both measured.
+private function TypeCodeOf_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+    dim as Fbx.Mangle.Substitutions subs
+    return Fbx.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+end function
+
+'' '_ZTS' / '_ZTV' plus the type, NESTED-WRAPPED. fbc writes '_ZTSN1AE' for a top-level
+'' type -- the N...E is always there -- while the ID STRING inside the record is the
+'' bare '1A'. A type already in a namespace encodes as 'N2NS1AE' and is not wrapped
+'' twice: '_ZTSN2NS1AE', measured.
+private function TableName_ _
+    ( byref c as Ctx, byval prefix as string, byval t as Fbx.TypeId ) as string
+
+    dim as string code = TypeCodeOf_( c, t )
+    if len( code ) = 0 then return ""
+    if left( code, 1 ) = "N" then return prefix + code
+    return prefix + "N" + code + "E"
+end function
+
+'' Is this the predeclared OBJECT?
+private function IsObjectType_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    return (c.types->NameOf( t ) = c.names->GetString( "object" ))
+end function
+
+'' The type a UDT extends, or nothing. 'extends' is a field named 'base' at offset 0.
+private function BaseOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.TypeId
+    if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.TYPE_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Fbx.TYPE_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Fbx.TYPE_NONE
+    if s->inner = Fbx.SCOPE_NONE then return Fbx.TYPE_NONE
+    dim as Fbx.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
+    if bf = Fbx.SYMBOL_NONE then return Fbx.TYPE_NONE
+    dim as Fbx.Symbol ptr b = c.syms->SymbolAt( bf )
+    if b = 0 then return Fbx.TYPE_NONE
+    if b->kind <> cast( ubyte, Fbx.SYM_FIELD ) then return Fbx.TYPE_NONE
+    return b->type_
+end function
+
+'' This type's RTTI record, built if it does not exist yet.
+''
+'' OBJECT'S OWN RECORD IS THE RUNTIME'S. fbc references it as 'extern struct $8fb_RTTI$
+'' __fb_ZTS6Object' and never defines it, so it is declared here with no contents rather
+'' than invented -- an empty table is a declaration, which is what an extern is.
+function RttiGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    if t = Fbx.TYPE_NONE then return -1
+    if IsObjectType_( c, t ) then
+        dim as long g = c.m->AddPtrTable( c.names->GetString( "__fb_ZTS6Object" ) )
+        c.m->globals[g].isExternal = true
+        return g
+    end if
+
+    dim as string nm = TableName_( c, "_ZTS", t )
+    if len( nm ) = 0 then return -1
+    dim as Fbx.InternId id = c.names->GetString( nm )
+    for i as long = 0 to c.m->globals.Count - 1
+        if c.m->globals[i].isPtrTable andalso (c.m->globals[i].name = id) then return i
+    next
+
+    '' THE BASE'S RECORD FIRST: the chain is a field of this one, and building it after
+    '' would append its entries into the middle of this table's run. The pool is shared
+    '' and the runs are contiguous.
+    dim as long baseG = -1
+    dim as Fbx.TypeId bt = BaseOf_( c, t )
+    if (bt <> Fbx.TYPE_NONE) andalso (bt <> t) then baseG = RttiGlobalOf_( c, bt )
+
+    '' ...and so is the ID string, for the same reason.
+    dim as long idG = c.m->AddStringLiteral( TypeCodeOf_( c, t ), *c.names )
+
+    dim as long g = c.m->AddPtrTable( id )
+    '' 'STDLIBVTABLE' -- null in every shape measured, and nothing fbc emits fills it.
+    c.m->PushPtrNull( g )
+    c.m->PushPtrGlobal( g, idG )
+    if baseG >= 0 then
+        c.m->PushPtrGlobal( g, baseG )
+    else
+        c.m->PushPtrNull( g )
+    end if
+    return g
+end function
+
+'' This type's vtable, built if it does not exist yet.
+function VtableGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
+    if t = Fbx.TYPE_NONE then return -1
+    if IsObjectType_( c, t ) then return -1
+    dim as long vi = c.vts->Find( t )
+    if vi < 0 then return -1
+
+    dim as string nm = TableName_( c, "_ZTV", t )
+    if len( nm ) = 0 then return -1
+    dim as Fbx.InternId id = c.names->GetString( nm )
+    for i as long = 0 to c.m->globals.Count - 1
+        if c.m->globals[i].isPtrTable andalso (c.m->globals[i].name = id) then return i
+    next
+
+    '' The RTTI record before the table is opened: its entries would otherwise land in
+    '' the middle of this table's run.
+    dim as long rg = RttiGlobalOf_( c, t )
+
+    dim as long g = c.m->AddPtrTable( id )
+    '' The two leading words. INFERRED for the first: it is null in every shape
+    '' measured and nothing in the C fbc generates ever reads it.
+    c.m->PushPtrNull( g )
+    if rg >= 0 then
+        c.m->PushPtrGlobal( g, rg )
+    else
+        c.m->PushPtrNull( g )
+    end if
+
+    dim as Fbx.VtInfo ptr v = @c.vts->types_[vi]
+    for i as long = 0 to v->count - 1
+        dim as Fbx.VtSlot ptr sl = @c.vts->slots[v->first + i]
+        '' AN ABSTRACT SLOT IS A NULL WORD, not an absent one. A derived type's
+        '' override fills the same index.
+        if (sl->proc_ = Fbx.SYMBOL_NONE) orelse (sl->decl = Fbx.NODE_NONE) then
+            c.m->PushPtrNull( g )
+        else
+            c.m->PushPtrFunc( g, c.names->GetString( Fbx.Mangle.ProcName( _
+                *c.ast, sl->decl, *c.syms, *c.names, *c.types, *c.info ) ) )
+        end if
+    next
+    return g
+end function
+
+'' Every table the unit needs. Called once, after the procedures are lowered, so a
+'' slot's function has a name to be referred to by.
+sub EmitVTableGlobals( byref c as Ctx )
+    if c.vts = 0 then return
+    for i as long = 0 to c.vts->types_.Count - 1
+        VtableGlobalOf_( c, c.vts->types_[i].type_ )
+    next
+end sub
+
+'' THE STORED VPTR: the vtable's address plus TWO WORDS.
+''
+''     *(void**)THIS$1 = (void*)((uint8*)_ZTVN1AE + 16ll);     // win32: + 8
+''
+'' 'thisAddr' is the object's address, and the vptr is its first pointer-sized word --
+'' fbc writes '*(void**)this' with no offset anywhere, on any type.
+function StoreVptr_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref thisAddr as MirValue ) as boolean
+
+    if thisAddr.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long g = VtableGlobalOf_( c, t )
+    if g < 0 then return false
+
+    dim as MirValue vtabAddr
+    vtabAddr.kind = cast( ubyte, MV_GLOBAL )
+    vtabAddr.ty = cast( ubyte, MT_PTR )
+    vtabAddr.id = g
+
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = vtabAddr
+    fa.imm = 2 * (c.types->target.pointerBits \ 8)
+    dim as MirValue vp = Emit( c, fa )
+    if vp.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = thisAddr
+    st.b = vp
+    Emit( c, st )
+    return true
+end function
+
+'' Which slot a call reaches, or -1 when the call is not virtual.
+''
+'' Decided by the RECEIVER'S STATIC TYPE, not by the callee's owner: 'p->f( )' through
+'' an 'A ptr' binds to A's f, and A's table is what the index is into. A call on a
+'' known-concrete local goes through the table too -- fbc does not devirtualise at the C
+'' level, and neither is done here.
+function VirtualSlotOf_ _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval callee as Fbx.SymbolId ) as long
+
+    if c.vts = 0 then return -1
+    if callee = Fbx.SYMBOL_NONE then return -1
+    dim as Fbx.TypeId rt = Fbx.TYPE_NONE
+
+    if c.ast->Kind( target ) = Fbx.N_MEMBER then
+        dim as Fbx.BinaryPayload ptr mb = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
+        rt = c.info->TypeOf_( mb->lhs )
+        if rt <> Fbx.TYPE_NONE then
+            if c.types->Kind( rt ) = Fbx.TK_POINTER then rt = c.types->Inner( rt )
+        end if
+    else
+        '' AN UNQUALIFIED CALL TO A SIBLING METHOD dispatches virtually too --
+        '' measured: inside C.v2, a bare 'v1( )' goes through this's own vptr while
+        '' 'base.v1( )' is a direct call. The receiver is the enclosing method's THIS,
+        '' so its type is the type that method belongs to.
+        if c.curProcSym = Fbx.SYMBOL_NONE then return -1
+        dim as Fbx.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
+        if me = 0 then return -1
+        dim as Fbx.SymScope ptr owner = c.syms->ScopeAt( me->parent )
+        if owner = 0 then return -1
+        if owner->kind <> cast( ubyte, Fbx.SCOPEK_TYPE ) then return -1
+        dim as Fbx.Symbol ptr os = c.syms->SymbolAt( owner->owner )
+        if os = 0 then return -1
+        rt = os->type_
+    end if
+
+    if rt = Fbx.TYPE_NONE then return -1
+    return c.vts->SlotOf( rt, callee )
+end function
+
+'' The function pointer a virtual call goes through: the vptr, indexed.
+''
+''     (*(tmp$5*)((uint8*)*(void***)PA$ + 8ll))( PA$ )
+''
+'' -- load the first word of the object, add slot * sizeof(ptr), load that.
+function VirtualCalleeOf_ _
+    ( byref c as Ctx, byref self_ as MirValue, byval slot as long ) as MirValue
+
+    dim as MirValue none_
+    if self_.kind = cast( ubyte, MV_NONE ) then return none_
+    if slot < 0 then return none_
+
+    dim as MirValue vptr = LowerExprLoad( c, self_, MT_PTR )
+    if vptr.kind = cast( ubyte, MV_NONE ) then return none_
+
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = vptr
+    fa.imm = slot * (c.types->target.pointerBits \ 8)
+    dim as MirValue at = Emit( c, fa )
+    if at.kind = cast( ubyte, MV_NONE ) then return none_
+    return LowerExprLoad( c, at, MT_PTR )
+end function
+
+end namespace

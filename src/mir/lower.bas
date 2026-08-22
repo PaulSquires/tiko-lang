@@ -995,6 +995,24 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                         StructorOf( c, vs->type_, "__ctor" ), 0 )
                 end if
                 if ctor <> Fbx.SYMBOL_NONE then EmitStructorCall( c, ctor, slot )
+
+                '' THE VPTR, for a type that has a table. fbc stores it inside the
+                '' constructor -- implicit or written -- so a type with no constructor
+                '' at all still gets one made for it. fbx synthesises no constructors,
+                '' so the store is emitted HERE for a variable that runs none, and in
+                '' the constructor's own prologue when it does.
+                ''
+                '' NOT COVERED, and it is the honest limit of this: a UDT FIELD of a
+                '' class type, an element of an array of one, and 'new T'. Each of
+                '' those is constructed somewhere fbx models no construction at all,
+                '' and inventing one here would be inventing implicit structors.
+                if ctor = Fbx.SYMBOL_NONE then
+                    dim as MirValue va
+                    va.kind = cast( ubyte, MV_LOCAL )
+                    va.ty = cast( ubyte, MT_PTR )
+                    va.id = slot
+                    StoreVptr_( c, vs->type_, va )
+                end if
                 dim as Fbx.SymbolId dtor = StructorWithArity( c, _
                     StructorOf( c, vs->type_, "__dtor" ), 0 )
                 if dtor <> Fbx.SYMBOL_NONE then
