@@ -1,0 +1,5 @@
+'' A generic type instantiated at four argument lists.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-type.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/generic-type.out

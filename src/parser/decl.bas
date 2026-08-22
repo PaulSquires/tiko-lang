@@ -888,6 +888,42 @@ private sub ParseFieldClause( byref p as Fbx.ParserState, byref sp as Fbx.StmtPa
         p.ast->literals[cast( long, p.ast->nodes[cast( long, nExpr )].data )].intValue )
 end sub
 
+'' The names in a generic's parameter list, after the 'of', as an N_BLOCK of N_IDENT.
+'' Positional: the first name binds the first argument. One node kind per name rather
+'' than a bare InternId list, because everything downstream already walks children.
+function ParseTypeParams( byref p as Fbx.ParserState ) as Fbx.NodeId
+    dim as Fbx.Token t = Cur( p )
+    dim as Fbx.NodeIdVec names
+    dim as FB.Array( of ulong ) seen
+    do
+        if (Peek( p ) <> Fbx.TK_IDENT) andalso (Fbx.IsKeywordKind( Peek( p ) ) = false) then
+            '' 'type Empty( of )' and 'type NotId( of 42 )'. fbc reports both at the
+            '' DECLARATION, without waiting for an instantiation, and so does this --
+            '' a parameter list that names nothing usable would otherwise produce a
+            '' generic that can never be instantiated and never says why.
+            ErrorNode( p, Fbx.FBX0321 )
+            exit do
+        end if
+        dim as Fbx.Token nt = Cur( p )
+        dim as Fbx.InternId nid = cast( Fbx.InternId, nt.literal )
+        dim as boolean dup = false
+        for i as long = 0 to seen.Count - 1
+            if cast( Fbx.InternId, seen[i] ) = nid then dup = true
+        next
+        if dup then
+            ErrorNode( p, Fbx.FBX0322, p.names->Spelling( nid ) )
+        else
+            seen.Push( cast( ulong, nid ) )
+        end if
+        names.Push( cast( ulong, MakeIdent( p, nt ) ) )
+        Advance( p )
+        if Accept( p, Fbx.TK_COMMA ) = false then exit do
+    loop
+    Expect( p, Fbx.TK_RPAREN, ")" )
+    return MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, names )
+end function
+
+
 private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
     dim as Fbx.Token t = Cur( p )
     dim as boolean isUnion = (Peek( p ) = Fbx.KW_UNION)
@@ -992,11 +1028,31 @@ private function ParseTypeDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
         return MakeStmt( p, Fbx.N_TYPEDEF, t.loc, sp )
     end if
 
-    if Peek( p ) = Fbx.TK_LPAREN then          '' generic parameter list
-        while (Peek( p ) <> Fbx.TK_RPAREN) andalso (AtEnd( p ) = false)
+    '' 'type Box( of T )' -- THE TYPE PARAMETERS ARE KEPT, as an N_BLOCK of N_IDENT in
+    '' 'b'. They used to be skipped, which is why every instantiation of one generic
+    '' was the same type: 'Box( of long )' and 'Box( of double )' both resolved to one
+    '' fieldless UDT of size ZERO, and every access through one declined.
+    ''
+    '' 'of' is CONTEXTUAL in fbc-modern -- there is no KW_OF -- so it is matched by
+    '' spelling, and a paren group that does not start with it keeps the old blind
+    '' skip rather than being reinterpreted.
+    if Peek( p ) = Fbx.TK_LPAREN then
+        dim as long saveG = p.pos
+        Advance( p )
+        dim as boolean isGen = false
+        if Peek( p ) = Fbx.TK_IDENT then
+            isGen = (p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) = "of")
+        end if
+        if isGen then
             Advance( p )
-        wend
-        Expect( p, Fbx.TK_RPAREN, ")" )
+            sp.b = ParseTypeParams( p )
+        else
+            p.pos = saveG
+            while (Peek( p ) <> Fbx.TK_RPAREN) andalso (AtEnd( p ) = false)
+                Advance( p )
+            wend
+            Expect( p, Fbx.TK_RPAREN, ")" )
+        end if
     end if
     ParseFieldClause( p, sp )
 

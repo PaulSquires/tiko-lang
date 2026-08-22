@@ -458,12 +458,26 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             isGeneric = (p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) = "of")
         end if
         if isGeneric then
-            dim as long depth = 1
-            while (depth > 0) andalso (AtEnd( p ) = false)
-                if Peek( p ) = Fbx.TK_LPAREN then depth += 1
-                if Peek( p ) = Fbx.TK_RPAREN then depth -= 1
-                Advance( p )
-            wend
+            '' 'as Box( of long )' -- THE ARGUMENTS ARE KEPT, in first/count, as
+            '' ordinary type references. They used to be skipped, so every
+            '' instantiation of one generic named the same fieldless type.
+            ''
+            '' Nested arguments fall out for free: 'Box( of Box( of long ) )' recurses
+            '' through TypeRef, which handles its own generic list the same way.
+            Advance( p )
+            dim as Fbx.NodeIdVec gargs
+            do
+                dim as long beforeG = p.pos
+                gargs.Push( cast( ulong, TypeRef( p ) ) )
+                if p.pos = beforeG then exit do
+                if Accept( p, Fbx.TK_COMMA ) = false then exit do
+            loop
+            Expect( p, Fbx.TK_RPAREN, ")" )
+            sp.first = p.ast->children.Count
+            sp.count = gargs.Count
+            for i as long = 0 to gargs.Count - 1
+                p.ast->children.Push( gargs[i] )
+            next
         else
             p.pos = save
         end if

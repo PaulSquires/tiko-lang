@@ -79,6 +79,8 @@
     DIAG( FBX0318, SEV_ERROR,   "cannot pop '#pragma %0': the stack is empty" )
     DIAG( FBX0319, SEV_ERROR,   "__FB_UNIQUEID_POP__( %0 ) has no matching push" )
     DIAG( FBX0320, SEV_ERROR,   "'%0' has no type; fbx implements #lang ""fb"" only, where default types and suffixes are not valid" )
+    DIAG( FBX0321, SEV_ERROR,   "expected a type parameter name" )
+    DIAG( FBX0322, SEV_ERROR,   "duplicated type parameter '%0'" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( FBX0400, SEV_ERROR,   "expected an expression" )

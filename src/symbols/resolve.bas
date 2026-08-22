@@ -1,6 +1,6 @@
 '' resolve.bas -- see resolve.bi
 
-#include once "symbols/resolve.bi"
+#include once "symbols/resolvectx.bi"
 #include once "symbols/mangle.bi"
 #include once "symbols/check.bi"
 #include once "lexer/keywords.bi"
@@ -67,27 +67,6 @@ end namespace
 
 namespace Fbx.Resolve
 
-type Ctx
-    as Fbx.AstArena ptr     ast
-    as Fbx.SymbolTable ptr  syms
-    as Fbx.TypeContext ptr  types
-    as Fbx.Interner ptr     names
-    as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
-    as Fbx.DiagnosticEngine ptr diags
-    as Fbx.SemanticInfo ptr info
-    as Stats ptr            st
-    as Fbx.SymbolId         currentProc
-    '' The open WITH subjects, innermost last. A '.field' written inside one has no
-    '' base in the AST and takes the innermost of these.
-    as FB.Array( of ulong )  withSubject
-    '' For the BACKPATCH pass: this walk is in source order, and a typedef may name a
-    '' type declared later. The typedefs, and the declarations that could not be typed
-    '' because of one.
-    as FB.Array( of ulong )  typedefNode
-    as FB.Array( of ulong )  typedefScope
-    as FB.Array( of ulong )  pendingItem
-    as FB.Array( of ulong )  pendingScope
-end type
 
 '' The scope '..' names. NOT SCOPE_GLOBAL, which holds only the builtins -- a module's
 '' own declarations live in a SCOPEK_MODULE scope one level inside it, so looking in
@@ -98,9 +77,6 @@ end type
 '' Defined below; ResolveTypeRef above it resolves a 'typeof' operand expression.
 declare sub WalkExpr _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
-
-declare function StmtOf _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
 
 '' A procedure symbol declared STATIC. Static-ness lives on the AST payload, not on the
 '' symbol, so it is read back through 'payload' -- which for a proc is its N_PROC node.
@@ -134,7 +110,7 @@ private function FileScopeOf_ _
     return Fbx.SCOPE_GLOBAL
 end function
 
-private function StmtOf _
+function StmtOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
     if id = Fbx.NODE_NONE then return 0
     return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -177,7 +153,7 @@ private function UnsignedCounterpart _
     return Fbx.TYPE_NONE
 end function
 
-private function ResolveTypeRef _
+function ResolveTypeRef _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.TypeId
 
     if id = Fbx.NODE_NONE then return Fbx.TYPE_NONE
@@ -360,6 +336,27 @@ private function ResolveTypeRef _
         '' QUALIFIED first: 'dim as nsab.T1 v' names a type in a namespace, and an
         '' ordinary lookup walks only PARENT scopes -- it never descends into one. The
         '' qualifier is what the parser now keeps in 'ownerName'.
+        '' A TYPE PARAMETER, inside a generic being instantiated. It shadows anything
+        '' of the same spelling, which is what 'typeparam-shadowing' is about: a
+        '' variable named 't' anywhere in scope must not capture 'as T'.
+        for gi as long = c.gparamName.Count - 1 to 0 step -1
+            if cast( Fbx.InternId, c.gparamName[gi] ) = sp->name then
+                base_ = cast( Fbx.TypeId, c.gparamType[gi] )
+                c.info->SetType( id, base_ )
+                return base_
+            end if
+        next
+
+        '' AN INSTANTIATION -- 'Box( of long )'. One type per (generic, arguments),
+        '' cached, built in the GLOBAL scope. See InstantiateGeneric_.
+        if sp->count > 0 then
+            dim as Fbx.TypeId inst = InstantiateGeneric_( c, id, sp, scope_ )
+            if inst <> Fbx.TYPE_NONE then
+                c.info->SetType( id, inst )
+                return inst
+            end if
+        end if
+
         dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
         if sp->ownerName <> 0 then
             '' The qualifier may be a PATH -- 'a.b.c' -- which the parser keeps dotted
@@ -813,6 +810,8 @@ private function InitCountAt _
     return -1
 end function
 
+
+
 '' 'init' is the declaration's initializer, or NODE_NONE. It is needed because an
 '' ellipsis bound takes its size from there and from nowhere else -- fbc refuses
 '' 'dim a(0 to ...)' with no initializer outright (error 281).
@@ -880,7 +879,7 @@ private function ArrayFromPairs _
 end function
 
 '' N_FIELD: flat (lo, hi) children.
-private function ArrayFromBounds _
+function ArrayFromBounds _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, byval first as long, _
       byval count as long ) as Fbx.TypeId
 

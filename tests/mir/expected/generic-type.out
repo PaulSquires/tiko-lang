@@ -1,0 +1,37 @@
+func void P() {
+  local agg b size 4
+  local agg d size 8
+  local agg n size 4
+  local agg pr size 16
+  local agg b2 size 4
+  entry0:
+    %1 = alloca ptr b
+    %2 = alloca ptr d
+    %3 = alloca ptr n
+    %4 = alloca ptr pr
+    %5 = field.addr @b, 0
+    %6 = const i64 1
+    %7 = trunc %6
+    store %5, %7
+    %8 = field.addr @d, 0
+    %9 = const f64 2.5
+    store %8, %9
+    %10 = field.addr @n, 0
+    %11 = field.addr %10, 0
+    %12 = const i64 3
+    %13 = trunc %12
+    store %11, %13
+    %14 = field.addr @pr, 0
+    %15 = const i64 4
+    %16 = trunc %15
+    store %14, %16
+    %17 = field.addr @pr, 8
+    %18 = const f64 5.5
+    store %17, %18
+    %19 = alloca ptr b2
+    %20 = load @b
+    store @b2, %20
+    ret
+}
+verify: ok
+lowered: 1 functions, 1 blocks, 26 insts, 0 statements not lowered, 0 scope imbalance

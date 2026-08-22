@@ -503,6 +503,16 @@ sub WalkNode _
             '' The TypeId exists from the DECLARATION, not from the first use: a
             '' member's signature can name its own type, so waiting would deadlock.
             s->type_ = w.types->NamedType( Fbx.TK_UDT, sp->name, cast( ulong, scope_ ) )
+            '' The DECLARATION NODE, so a generic can be instantiated later: Resolve
+            '' needs the parameter names and the field list, and the symbol is the
+            '' only handle it has on them.
+            s->payload = cast( long, id )
+            '' And the SYMBOL on the node, so the reverse lookup does not have to go
+            '' by name. An instantiation is declared in the GLOBAL scope while its
+            '' generic sits in a module or namespace scope BELOW it, so a name lookup
+            '' from the instantiation's own scope walks the wrong way and finds
+            '' nothing.
+            w.info->SetRef( id, sid )
             if sp->extra > 0 then
                 w.types->SetPacking( s->type_, cast( long, sp->extra ) )
             end if

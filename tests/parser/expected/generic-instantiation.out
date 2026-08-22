@@ -1,8 +1,13 @@
 N_MODULE (6) <1:84>
   N_TYPE 'box' <16:1>
+    N_BLOCK (1) <16:14>
+      N_IDENT 'u' <16:14>
     N_FIELD 'v' <17:14>
       N_TYPEREF 'u' <17:12>
   N_TYPE 'pair' <20:1>
+    N_BLOCK (2) <20:15>
+      N_IDENT 'a' <20:15>
+      N_IDENT 'b' <20:18>
     N_FIELD 'x' <21:14>
       N_TYPEREF 'a' <21:12>
     N_FIELD 'y' <22:14>
@@ -10,9 +15,12 @@ N_MODULE (6) <1:84>
   N_VAR [DIM] <25:1>
     N_VAR_ITEM 'b' <25:5>
       N_TYPEREF 'box' <25:10>
+        N_TYPEREF 'long' [LONG] <25:18>
   N_VAR [DIM] <26:1>
     N_VAR_ITEM 'p' <26:5>
       N_TYPEREF 'pair' <26:10>
+        N_TYPEREF 'long' [LONG] <26:19>
+        N_TYPEREF 'string' [STRING] <26:25>
   N_INTRINSIC [PRINT] <28:1>
     N_CALL <28:7>
       N_IDENT 'sizeof' <28:7>

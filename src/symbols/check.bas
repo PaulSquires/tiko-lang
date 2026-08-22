@@ -603,7 +603,37 @@ private function FieldOf_ _
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return Fbx.SYMBOL_NONE
     if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
-    return c.syms->LookupLocal( s->inner, nm )
+    dim as Fbx.SymbolId found = c.syms->LookupLocal( s->inner, nm )
+    if found <> Fbx.SYMBOL_NONE then return found
+
+    '' AN INSTANTIATION FALLS BACK TO ITS GENERIC for anything its own scope does not
+    '' hold. Instantiating a generic gives each argument list its own type with its own
+    '' FIELDS -- which is the whole point, and what makes 'a.value' work at all -- but
+    '' the MEMBERS are not instantiated yet: a member body needs its own AST nodes per
+    '' instantiation, because SemanticInfo is keyed by NodeId and two instantiations
+    '' sharing a body would fight over the same node's type.
+    ''
+    '' Without this fallback, giving instantiations real types made 'a.Push( v )' stop
+    '' binding where it used to bind -- 72 calls in one corpus file. It bound to the
+    '' GENERIC's single member before and it binds to the same one now: no more wrong
+    '' than it was, and the fields are right where they were not. Stated plainly
+    '' because it IS wrong for two instantiations at different types, and the fix is
+    '' instantiating the bodies, not widening this.
+    dim as Fbx.NodeId gnode = cast( Fbx.NodeId, s->payload )
+    if gnode = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE
+    if c.ast->Kind( gnode ) <> Fbx.N_TYPE then return Fbx.SYMBOL_NONE
+    dim as Fbx.StmtPayload ptr gp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gnode )].data )]
+    if gp->b = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE      '' not a generic
+    if gp->name = 0 then return Fbx.SYMBOL_NONE
+    if gp->name = tn then return Fbx.SYMBOL_NONE              '' it IS the generic
+    '' By the SYMBOL recorded on the node, not by name: the instantiation lives in the
+    '' GLOBAL scope while its generic sits in a module or namespace scope below it, so
+    '' a name lookup from here walks the wrong way and finds nothing.
+    dim as Fbx.Symbol ptr gsym = c.syms->SymbolAt( c.info->RefOf( gnode ) )
+    if gsym = 0 then return Fbx.SYMBOL_NONE
+    if gsym->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( gsym->inner, nm )
 end function
 
 private function StmtOf _
