@@ -24,6 +24,30 @@ declare function ArrayStrides _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref strides as FB.Array( of longint ), _
       byref bias as longint ) as boolean
 
+'' Whether a node is an 'iif' whose ARMS are UDTs. Asked before anything is lowered:
+'' LowerAggIif_ emits a branch sequence, and a caller that tried it speculatively and
+'' then fell through would evaluate both arms twice.
+function IsAggIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 3 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    for k as long = 1 to 2
+        dim as Fbx.TypeId at = _
+            c.info->TypeOf_( cast( Fbx.NodeId, c.ast->children[lp->first + k] ) )
+        if at <> Fbx.TYPE_NONE then
+            if c.types->Kind( at ) = Fbx.TK_UDT then return true
+        end if
+    next
+    return false
+end function
+
+
 '' The ADDRESS of an assignable expression, or an undef value when this slice cannot
 '' produce one (a member, an index, a dereference).
 function LowerAddr _
@@ -107,6 +131,24 @@ function LowerAddr _
         dim as Fbx.UnaryPayload ptr dp = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         return LowerExpr( c, dp->operand )
+    end if
+
+    '' A UDT 'iif' HAS AN ADDRESS -- the temporary it builds its result in. That is
+    '' what '(iif( c, a, b )).i' needs, and without it the member access had no base
+    '' to offset from and the whole statement declined.
+    ''
+    '' Asked by SHAPE before anything is lowered, because LowerAggIif_ emits a branch
+    '' sequence and reaching it twice would evaluate both arms twice.
+    if IsAggIif_( c, id ) then
+        dim as Fbx.ListPayload ptr ip2 = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as MirValue av
+        if LowerAggIif_( c, cast( Fbx.NodeId, c.ast->children[ip2->first] ), _
+                            cast( Fbx.NodeId, c.ast->children[ip2->first + 1] ), _
+                            cast( Fbx.NodeId, c.ast->children[ip2->first + 2] ), av ) then
+            return av
+        end if
+        return v
     end if
 
     '' A subscript is spelled as a call, so it is recognised by the callee's TYPE.

@@ -10,6 +10,8 @@
 
 namespace Fbx.Mir
 
+declare function AggIifArm_ _
+    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
 declare function LowerStringIif_ _
     ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
       byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
@@ -510,6 +512,71 @@ private function StrInitFrom_ _
 end function
 
 
+'' A UDT 'iif', as an ADDRESS.
+''
+'' Same branch shape as the scalar form, but the temporary is the UDT itself and what
+'' comes back is where it lives -- so '(iif( c, a, b )).i' can take an offset off it
+'' without the call being lowered twice.
+function LowerAggIif_ _
+    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
+      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Fbx.TypeId ft = c.info->TypeOf_( thenE )
+    if ft = Fbx.TYPE_NONE then ft = c.info->TypeOf_( elseE )
+    if ft = Fbx.TYPE_NONE then return false
+    dim as long sz = SizeOfType( c, ft )
+    if sz <= 0 then return false
+
+    dim as MirValue cond = LowerExpr( c, condE )
+    if cond.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long slot = NewTempLocal( c, MT_AGG, sz )
+    if slot < 0 then return false
+    dim as MirValue taddr
+    taddr.kind = cast( ubyte, MV_LOCAL )
+    taddr.ty = cast( ubyte, MT_PTR )
+    taddr.id = slot
+
+    dim as long thenB = NewBlock( c, "iif.then" )
+    dim as long elseB = NewBlock( c, "iif.else" )
+    dim as long joinB = NewBlock( c, "iif.join" )
+    Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
+
+    c.curBlock = thenB
+    if AggIifArm_( c, taddr, thenE ) = false then return false
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = elseB
+    if AggIifArm_( c, taddr, elseE ) = false then return false
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = joinB
+    outv = taddr
+    return true
+end function
+
+'' One arm: the whole aggregate copied into the temporary. The VALUE first and the
+'' address only as a fallback, so a nested iif or a call result works.
+private function AggIifArm_ _
+    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+
+    dim as MirValue v = LowerExpr( c, e )
+    if v.kind = cast( ubyte, MV_NONE ) then
+        dim as MirValue a = LowerAddr( c, e )
+        if a.kind = cast( ubyte, MV_NONE ) then return false
+        v = LowerExprLoad( c, a, MT_AGG )
+    end if
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = dst
+    st.b = v
+    Emit( c, st )
+    return true
+end function
+
+
 '' 'iif( cond, a, b )' as a RUNTIME expression. Returns false when the node is not one,
 '' so the caller carries on.
 ''
@@ -561,7 +628,18 @@ function LowerIif _
         return LowerStringIif_( c, condE, thenE, elseE, outv )
     end if
 
-    if (rt = MT_VOID) orelse (rt = MT_AGG) then return false
+    '' A UDT iif builds its result in a TEMPORARY and yields that temporary's ADDRESS,
+    '' because a UDT result is usually read through -- '(iif( c, a, b )).i' is the
+    '' shape the corpus writes. The value path below loads it.
+    if rt = MT_AGG then
+        if c.types->Kind( ft ) <> Fbx.TK_UDT then return false
+        dim as MirValue aa
+        if LowerAggIif_( c, condE, thenE, elseE, aa ) = false then return false
+        outv = LowerExprLoad( c, aa, MT_AGG )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    if rt = MT_VOID then return false
 
     dim as MirValue cond = LowerExpr( c, condE )
     if cond.kind = cast( ubyte, MV_NONE ) then return false

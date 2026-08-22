@@ -601,6 +601,27 @@ private function PrintOne _
         return true
     end if
 
+    '' A STRING 'iif'. Like the trim family below, this must come BEFORE the
+    '' IsStringType test: Check DOES type an iif call now, so the test above catches
+    '' it, LowerAddr on a call then fails, and the whole print declines. That is the
+    '' SECOND time this exact ordering has bitten -- typing an expression correctly
+    '' is what moves it into the type test's path.
+    ''
+    '' Only the STRING form is taken here. A scalar iif must fall through to the
+    '' general path below -- and must NOT have been lowered on the way, because
+    '' LowerIif emits an entire branch sequence and doing it twice would evaluate the
+    '' arms twice. So the shape is decided from the ARM's type before anything is
+    '' emitted, not from what LowerIif hands back afterwards.
+    if IsStringIif_( c, it ) then
+        dim as MirValue iv
+        if LowerIif( c, it, MT_VOID, iv ) = false then return false
+        if iv.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, iv.kind ) ) : args.Push( cast( ulong, iv.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_STRING, args )
+        return true
+    end if
+
     '' 'print trim( s )'. This must come BEFORE the IsStringType test, not after it:
     '' Check DOES type these calls as STRING, so the test above catches them, and
     '' LowerAddr on a call then fails and the whole print declines. That is exactly
@@ -643,24 +664,6 @@ private function PrintOne _
         end if
         if desc.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
-        PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
-        return true
-    end if
-
-    '' A STRING 'iif' has no type on the call node, so it falls past the test above,
-    '' and its temporary DESCRIPTOR is what fb_PrintString wants.
-    ''
-    '' Only the STRING form is taken here. A scalar iif must fall through to the
-    '' general path below -- and must NOT have been lowered on the way, because
-    '' LowerIif emits an entire branch sequence and doing it twice would evaluate the
-    '' arms twice. So the shape is decided from the ARM's type before anything is
-    '' emitted, not from what LowerIif hands back afterwards.
-    if IsStringIif_( c, it ) then
-        dim as MirValue iv
-        if LowerIif( c, it, MT_VOID, iv ) = false then return false
-        if iv.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, iv.kind ) ) : args.Push( cast( ulong, iv.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_STRING, args )
         return true

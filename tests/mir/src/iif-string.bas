@@ -23,3 +23,25 @@ sub P( byval c as integer )
     n = iif( c, 1, 2 )
     print iif( c, 1, 2 )
 end sub
+
+'' A UDT 'iif' builds its result in a TEMPORARY and yields that temporary's ADDRESS,
+'' because a UDT result is usually read THROUGH -- '(iif( c, a, b )).i' is the shape
+'' the corpus writes, and without an address the member had no base to offset from.
+type U
+    i as integer
+    j as integer
+end type
+
+sub Q( byval c as integer )
+    dim as U a, b, r
+    r = iif( c, a, b )
+    dim as integer z = (iif( c, a, b )).i
+    dim as integer y = (iif( c, iif( c, a, b ), a )).j
+
+    '' The RESULT TYPE is the two arms' common type. Check computed nothing for an iif
+    '' call at all, which propagated: an untyped base meant the member never resolved,
+    '' and 'var v = iif( ... )' inferred nothing and got a void slot.
+    var v = iif( c, 1, 2 )
+    dim as long q2 = v
+    dim as double d = iif( c, 1, 2.5 )
+end sub

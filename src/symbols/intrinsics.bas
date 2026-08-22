@@ -338,6 +338,28 @@ private function IntrinsicCallType_ _
     dim as Fbx.TypeId et = ExprIntrinsicType_( c, nm, cp )
     if et <> Fbx.TYPE_NONE then return et
 
+    '' IIF( cond, a, b ) -- the result is the two ARMS' common type, and Check computed
+    '' NOTHING for it. That is not just a missing row: it propagates. '(iif( c, a, b
+    '' )).i' had an untyped base so the member never resolved, 'print iif( c, 1, 2 )'
+    '' could not choose an entry point, and 'var v = iif( ... )' inferred nothing and
+    '' got a VOID slot.
+    ''
+    '' Measured: 'iif( c, u1, u2 )' over a UDT is that UDT, two strings give STRING,
+    '' and 1 with 2.5 gives DOUBLE -- the ordinary binary promotion. Identical arms are
+    '' answered directly so a UDT, a string and a pointer all work without asking the
+    '' numeric table about them.
+    if nm = "iif" then
+        if cp->count <> 3 then return Fbx.TYPE_NONE
+        dim as Fbx.TypeId ta = _
+            TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first + 1] ) )
+        dim as Fbx.TypeId tb = _
+            TypeOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first + 2] ) )
+        if ta = tb then return ta
+        if ta = Fbx.TYPE_NONE then return tb
+        if tb = Fbx.TYPE_NONE then return ta
+        return BinaryResult( Fbx.TK_PLUS, ta, tb, *c.types )
+    end if
+
     '' 'procptr( T.m, virtual )' takes a SECOND argument naming which override to
     '' point at. It does not change the result type, so one or two are both accepted
     '' here and everything else is not one of these intrinsics.

@@ -138,6 +138,123 @@ declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
 declare void fb_PrintString($0, $1, $2)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare void fb_PrintLongint($0, $1, $2)
+func void Q($0) {
+  local i64 c
+  local agg a size 16
+  local agg b size 16
+  local agg r size 16
+  local agg $tmp4 size 16
+  local i64 z
+  local agg $tmp6 size 16
+  local i64 y
+  local agg $tmp8 size 16
+  local agg $tmp9 size 16
+  local i64 v
+  local i64 $tmp11
+  local i32 q2
+  local f64 d
+  local f64 $tmp14
+  entry0:
+    %1 = alloca ptr c
+    store @c, $0
+    %2 = alloca ptr a
+    %3 = alloca ptr b
+    %4 = alloca ptr r
+    %5 = load @c
+    %6 = alloca ptr $tmp4
+    %10 = alloca ptr z
+    %12 = alloca ptr $tmp6
+    %17 = alloca ptr y
+    %19 = alloca ptr $tmp8
+    %21 = alloca ptr $tmp9
+    %28 = alloca ptr v
+    %30 = alloca ptr $tmp11
+    %34 = alloca ptr q2
+    %37 = alloca ptr d
+    %39 = alloca ptr $tmp14
+    condbr %5, iif.then1, iif.else2
+  iif.then1:
+    %7 = load @a
+    store @$tmp4, %7
+    br iif.join3
+  iif.else2:
+    %8 = load @b
+    store @$tmp4, %8
+    br iif.join3
+  iif.join3:
+    %9 = load @$tmp4
+    store @r, %9
+    %11 = load @c
+    condbr %11, iif.then4, iif.else5
+  iif.then4:
+    %13 = load @a
+    store @$tmp6, %13
+    br iif.join6
+  iif.else5:
+    %14 = load @b
+    store @$tmp6, %14
+    br iif.join6
+  iif.join6:
+    %15 = field.addr @$tmp6, 0
+    %16 = load %15
+    store @z, %16
+    %18 = load @c
+    condbr %18, iif.then7, iif.else8
+  iif.then7:
+    %20 = load @c
+    condbr %20, iif.then10, iif.else11
+  iif.else8:
+    %25 = load @a
+    store @$tmp8, %25
+    br iif.join9
+  iif.join9:
+    %26 = field.addr @$tmp8, 8
+    %27 = load %26
+    store @y, %27
+    %29 = load @c
+    condbr %29, iif.then13, iif.else14
+  iif.then10:
+    %22 = load @a
+    store @$tmp9, %22
+    br iif.join12
+  iif.else11:
+    %23 = load @b
+    store @$tmp9, %23
+    br iif.join12
+  iif.join12:
+    %24 = load @$tmp9
+    store @$tmp8, %24
+    br iif.join9
+  iif.then13:
+    %31 = const i64 1
+    store @$tmp11, %31
+    br iif.join15
+  iif.else14:
+    %32 = const i64 2
+    store @$tmp11, %32
+    br iif.join15
+  iif.join15:
+    %33 = load @$tmp11
+    store @v, %33
+    %35 = load @v
+    %36 = trunc %35
+    store @q2, %36
+    %38 = load @c
+    condbr %38, iif.then16, iif.else17
+  iif.then16:
+    %40 = const i64 1
+    %41 = sitofp %40
+    store @$tmp14, %41
+    br iif.join18
+  iif.else17:
+    %42 = const f64 2.5
+    store @$tmp14, %42
+    br iif.join18
+  iif.join18:
+    %43 = load @$tmp14
+    store @d, %43
+    ret
+}
 verify: ok
-lowered: 1 functions, 22 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 41 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance
   amb assign 2
