@@ -1,0 +1,5 @@
+'' An enum argument scores as its underlying integer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/enum-arg.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/enum-arg.out

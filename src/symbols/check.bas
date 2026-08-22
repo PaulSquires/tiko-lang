@@ -419,6 +419,17 @@ function ConversionCost _
         return PointerCost_( from_, to_, srcP, dstP, types, overloaded )
     end if
 
+    '' AN ENUM CONVERTS AS ITS UNDERLYING INTEGER, which is what the binary-operator
+    '' path two hundred lines above already assumes. Without it every enum argument
+    '' scored CONV_NONE against every numeric parameter, so a call like
+    '' 'TuiAnsi( TUIC_BLACK )' matched NO overload -- and the effect was not a
+    '' diagnostic but an UNTYPED CALL: the callee still bound, so the call was emitted
+    '' with a VOID result and whatever consumed it declined. 'return TuiAnsi( ... )'
+    '' out of a UDT-returning function is how the tui headers write nearly everything.
+    if types.Kind( from_ ) = Fbx.TK_ENUM then from_ = types.Builtin( Fbx.TY_INTEGER )
+    if types.Kind( to_ ) = Fbx.TK_ENUM then to_ = types.Builtin( Fbx.TY_INTEGER )
+    if from_ = to_ then return CONV_EXACT
+
     if types.Kind( from_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
     if types.Kind( to_ ) <> Fbx.TK_BUILTIN then return CONV_NONE
 
