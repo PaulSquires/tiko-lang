@@ -15,6 +15,7 @@
 #include once "mir/verify.bi"
 #include once "mir/rtl.bi"
 #include once "types/udtlayout.bi"
+#include once "types/vtable.bi"
 
 namespace Fbx
 
@@ -177,7 +178,8 @@ function Run( byref args as Fbx.StrVec ) as long
 
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
-           ctx.options.dumpIr orelse ctx.options.dumpUdt then
+           ctx.options.dumpIr orelse ctx.options.dumpUdt orelse _
+           ctx.options.dumpVtable then
         for i as long = 1 to ctx.sources.Count( )
             dim as Fbx.FileId id = cast( Fbx.FileId, i )
             dim as Fbx.PpResult pr
@@ -204,7 +206,16 @@ function Run( byref args as Fbx.StrVec ) as long
             dim as Fbx.SemanticInfo info
             Fbx.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info )
 
-            if ctx.options.dumpUdt then
+            if ctx.options.dumpVtable then
+                '' Matching an override needs the PARAMETER TYPES, so this runs after
+                '' Resolve like the layout pass does.
+                dim as Fbx.Resolve.Stats rst
+                Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                                 ctx.sources, info, rst, @p )
+                dim as Fbx.VTables vt
+                Fbx.ComputeVTables( ast, syms, ctx.types, info, vt )
+                print Fbx.DumpVTables( ast, vt, ctx.types, ctx.names, syms, info );
+            elseif ctx.options.dumpUdt then
                 dim as Fbx.Resolve.Stats rst
                 Fbx.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                  ctx.sources, info, rst, @p )

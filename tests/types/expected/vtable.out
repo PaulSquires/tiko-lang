@@ -1,0 +1,13 @@
+object vtable 0 slot(s)
+a vtable 4 slot(s)
+  slot 0 _ZN1A3VF1Ev
+  slot 1 _ZN1A3VF2Ev
+  slot 2 <abstract>
+  slot 3 _ZN1AD1Ev
+b vtable 5 slot(s)
+  slot 0 _ZN1B3VF1Ev
+  slot 1 _ZN1A3VF2Ev
+  slot 2 _ZN1B4VABSEv
+  slot 3 _ZN1BD1Ev
+  slot 4 _ZN1B3VF4Ev
+vtables: 3

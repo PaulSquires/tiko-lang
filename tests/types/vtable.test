@@ -1,0 +1,5 @@
+'' Virtual method tables: slot order, overrides, abstract nulls, the destructor's slot.
+'' TEST: cli
+'' ARGS: --dump-vtable tests/types/src/vtable.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/vtable.out

@@ -421,6 +421,7 @@ function Parse _
         case Fbx.OPT_MANGLE    : opts.dumpMangle = true
         case Fbx.OPT_CHECK     : opts.checkOnly = true
         case Fbx.OPT_UDT       : opts.dumpUdt = true
+        case Fbx.OPT_VTABLE    : opts.dumpVtable = true
         case Fbx.OPT_RTL       : opts.dumpRtl = true
         case Fbx.OPT_DUMPIR    : opts.dumpIr = true
         case Fbx.OPT_EMITIR    : opts.emitIr = true

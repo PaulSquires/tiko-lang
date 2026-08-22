@@ -21,6 +21,7 @@ src/symbols/mangle.bas
 src/symbols/constfold.bas
 src/symbols/check.bas
 src/types/udtlayout.bas
+src/types/vtable.bas
 src/mir/mir.bas
 src/mir/rtl.bas
 src/mir/dump.bas
