@@ -13,8 +13,12 @@
 ''
 '' What to read below: MK appears ONCE, as MK<n>, with a concrete parameter type and a
 '' concrete aggregate return -- and the TEMPLATE itself appears not at all, which is
-'' also what fbc emits. It still shows as one decline, and that is the honest count:
-'' the template is not code.
+'' also what fbc emits.
+''
+'' The template is NOT counted as a decline. Not emitting it is the RIGHT answer, not a
+'' gap: a template nobody instantiates needs no instantiation, and one that is
+'' instantiated shows up as the instantiation. A MISSING instantiation looks like a CALL
+'' that bound to nothing, and that is counted where it happens.
 
 type Box( of T )
     v as T

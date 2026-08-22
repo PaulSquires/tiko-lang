@@ -54,7 +54,4 @@ func agg MK<13>($0) {
     ret %7
 }
 verify: ok
-lowered: 3 functions, 3 blocks, 32 insts, 1 statements not lowered, 0 scope imbalance
-  unlowered N_PROC 1
-  inside N_PROC 1
-  skip-site src\mir\lowerctl.bas:131 1
+lowered: 3 functions, 3 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance

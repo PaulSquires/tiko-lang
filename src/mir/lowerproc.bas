@@ -58,14 +58,13 @@ sub LowerProc _
     '' body used to lower with every 'as T' standing for nothing -- 'local agg r size 0'
     '' beside stores into void slots -- and it counted as fully lowered. Declining says
     '' what is actually true.
-    if (sp->extra and Fbx.PF_GENERIC_PROC) <> 0 then
-        '' The 'inside' kind is set too: nothing else has run at this point, so it
-        '' would otherwise carry whatever the PREVIOUS procedure left there, and the
-        '' histogram that says what to implement next would be reading a stale value.
-        c.curStmtKind = Fbx.N_PROC
-        SkipStmt( c, id )
-        return
-    end if
+    '' SILENTLY, exactly as the generic member body above. A template is NOT CODE, so
+    '' not emitting it is the RIGHT answer and not a decline -- fbc emits nothing for
+    '' one either. Counting it said 8,096 things were owed that were not: a template
+    '' nobody instantiates needs no instantiation, and one that is instantiated shows
+    '' up as the instantiation. What a MISSING instantiation looks like is a CALL that
+    '' bound to nothing, and that is counted where it happens.
+    if (sp->extra and Fbx.PF_GENERIC_PROC) <> 0 then return
 
     dim as Fbx.SymbolId sid = c.info->RefOf( id )
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
