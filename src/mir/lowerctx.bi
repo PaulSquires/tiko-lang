@@ -213,6 +213,10 @@ declare function EmitRtl _
 
     declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
     declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
+    '' The same for a descriptor whose ADDRESS is in hand -- 'erase this.items', where
+    '' the descriptor is a FIELD and has no slot of its own.
+    declare sub EmitEraseDynAt_ _
+        ( byref c as Ctx, byref d as MirValue, byval t as Fbx.TypeId )
     declare function PickCtor _
         ( byref c as Ctx, byval ctors as Fbx.SymbolId, _
           byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId

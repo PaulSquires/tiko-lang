@@ -1,0 +1,5 @@
+'' ERASE of a member array, whose descriptor has no slot of its own.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/erase-member.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/erase-member.out

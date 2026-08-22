@@ -248,8 +248,10 @@ private function EraseOne_( byref c as Ctx, byval it as Fbx.NodeId ) as boolean
     if c.types->IsDynArray( t ) then
         dim as MirValue dv = LowerAddr( c, it )
         if dv.kind = cast( ubyte, MV_NONE ) then return false
-        if dv.kind <> cast( ubyte, MV_LOCAL ) then return false
-        EmitEraseDynLocal( c, dv.id )
+        '' NOT ONLY A LOCAL. 'erase this.items' is a FIELD, so its address is a computed
+        '' value; requiring a slot declined every container that clears its own storage,
+        '' which is where ERASE actually appears.
+        EmitEraseDynAt_( c, dv, t )
         return true
     end if
     if c.types->types[cast( long, t )].dims < 1 then return false
@@ -379,12 +381,22 @@ sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
     if (slot < 0) orelse (slot >= c.f->locals.Count) then return
     dim as Fbx.TypeId t = c.f->locals[slot].frontendType
     if c.types->IsDynArray( t ) = false then return
-
     dim as MirValue d
     d.kind = cast( ubyte, MV_LOCAL )
     d.ty = cast( ubyte, MT_PTR )
     d.id = slot
+    EmitEraseDynAt_( c, d, t )
+end sub
 
+'' The same, for a descriptor whose ADDRESS is in hand rather than a local slot.
+''
+'' 'erase this.items' is a FIELD, so its address is a computed value and not a slot --
+'' and the slot-only form declined every one. A container that clears its own storage is
+'' the commonest place ERASE appears at all: fb/array.bi's own Clear does exactly this.
+sub EmitEraseDynAt_ _
+    ( byref c as Ctx, byref d as MirValue, byval t as Fbx.TypeId )
+
+    if c.types->IsDynArray( t ) = false then return
     dim as Fbx.TypeId et = c.types->Inner( t )
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, d.kind ) ) : args.Push( cast( ulong, d.id ) )
