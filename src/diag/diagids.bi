@@ -78,6 +78,7 @@
     DIAG( FBX0317, SEV_ERROR,   "unsupported language mode '%0'; fbx implements ""fb"" only" )
     DIAG( FBX0318, SEV_ERROR,   "cannot pop '#pragma %0': the stack is empty" )
     DIAG( FBX0319, SEV_ERROR,   "__FB_UNIQUEID_POP__( %0 ) has no matching push" )
+    DIAG( FBX0320, SEV_ERROR,   "'%0' has no type; fbx implements #lang ""fb"" only, where default types and suffixes are not valid" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( FBX0400, SEV_ERROR,   "expected an expression" )

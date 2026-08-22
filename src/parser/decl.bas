@@ -432,7 +432,18 @@ private function ParseProc _
         while Peek( p ) = Fbx.TK_DOT
             Advance( p )
             qualified = true
-            sp.ownerName = sp.name
+            '' THE WHOLE PATH, dotted, in the one field -- the same shape a qualified
+            '' TYPE REFERENCE keeps. Overwriting per component kept only the LAST TWO,
+            '' so 'constructor ctor.nested.UDT2( )' arrived with owner 'nested' and no
+            '' way to reach it: 'this' stayed untyped AND the procedure mangled as
+            '' plain 'UDT2', which links wrong rather than merely typing wrong.
+            if sp.ownerName = 0 then
+                sp.ownerName = sp.name
+            else
+                sp.ownerName = p.names->GetString( _
+                    p.names->Spelling( sp.ownerName ) & "." & _
+                    p.names->Spelling( sp.name ) )
+            end if
             sp.rawName = RawSpelling( p )
             DeclName( p, sp.name )
         wend
@@ -475,7 +486,13 @@ private function ParseProc _
     while Peek( p ) = Fbx.TK_DOT
         Advance( p )
         qualified = true
-        sp.ownerName = sp.name
+        if sp.ownerName = 0 then
+            sp.ownerName = sp.name
+        else
+            sp.ownerName = p.names->GetString( _
+                p.names->Spelling( sp.ownerName ) & "." & _
+                p.names->Spelling( sp.name ) )
+        end if
         sp.rawName = RawSpelling( p )
         DeclName( p, sp.name )
     wend

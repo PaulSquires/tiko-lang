@@ -1,4 +1,4 @@
-func void INIT() {
+func void _ZN5TESTS7MYSUITE4INITEv() {
   entry0:
     ret
 }
@@ -22,7 +22,6 @@ func i32 main($0, $1) {
     ret %8
 }
 declare void fb_Init($0, $1, $2)
-declare void _ZN5TESTS7MYSUITE4INITEv()
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok

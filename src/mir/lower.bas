@@ -672,6 +672,18 @@ private sub LowerAssign _
         SkipHere( c )
         return
     end if
+    '' AN UNTYPED TARGET IS A DECLINE, not a store. Every remaining MIR verify failure
+    '' in the corpus was this one shape -- 'store: stores <T> into a void slot' --
+    '' where the frontend left a variable untyped and lowering stored into it anyway.
+    ''
+    '' The verifier exists to catch that, and catching it is the right outcome; but
+    '' EMITTING the store and then reporting it is worse than not emitting it. A
+    '' decline is counted, names the site, and leaves nothing malformed behind.
+    if LowerType( c.info->TypeOf_( target ), *c.types ) = MT_VOID then
+        SkipHere( c )
+        return
+    end if
+
     '' The stored value must match the TARGET's type exactly -- MIR has no implicit
     '' conversions, so the narrowing FreeBASIC allows on assignment is explicit here.
     '' The type comes from the target EXPRESSION, not from the local slot: a member

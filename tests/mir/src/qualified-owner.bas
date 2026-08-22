@@ -56,3 +56,25 @@ end sub
 function Two.Get( ) as integer
     return v
 end function
+
+'' A THREE-COMPONENT qualified name. The proc-name loop kept only the LAST TWO
+'' components, so 'constructor a.b.UDT( )' arrived with owner 'b' and no way to reach
+'' it -- 'this' stayed untyped AND the procedure mangled as plain 'UDT', which links
+'' wrong rather than merely typing wrong.
+namespace outer
+    namespace inner
+        type Deep2
+            k as integer
+            declare constructor( )
+            declare sub Poke( )
+        end type
+    end namespace
+end namespace
+
+constructor outer.inner.Deep2( )
+    k = 4
+end constructor
+
+sub outer.inner.Deep2.Poke( )
+    k = 5
+end sub

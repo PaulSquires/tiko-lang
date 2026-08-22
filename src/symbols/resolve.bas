@@ -1211,6 +1211,22 @@ sub WalkStmt _
             '' which nothing noticed only because indexing was not lowered either.
             t = ArrayFromBoundsNode( c, t, ip->c, ip->b )
             if t = Fbx.TYPE_NONE then
+                '' A DECLARATION WITH NO TYPE AND NO INITIALISER is the DEFAULT-TYPE
+                '' feature -- 'dim a', 'dim b%', 'byval s$'. fbc refuses those outside
+                '' -lang deprecated/fblite/qb (its error 147), and fbx implements
+                '' #lang "fb" only. Reported rather than left untyped: the symbol
+                '' otherwise reaches lowering with no type, gets a VOID SLOT, and the
+                '' store into it is a verify failure three passes later with nothing
+                '' to say where it came from.
+                ''
+                '' Only when there is no TYPE REFERENCE at all. An unresolved type NAME
+                '' stays silent, deliberately -- it may come from a header this build
+                '' did not read.
+                if (ip->a = Fbx.NODE_NONE) andalso (ip->b = Fbx.NODE_NONE) then
+                    c.diags->Report( Fbx.FBX0320, _
+                        Fbx.PointRange( c.ast->Loc( item ) ), _
+                        c.names->Spelling( ip->name ) )
+                end if
                 c.pendingItem.Push( cast( ulong, item ) )
                 c.pendingScope.Push( cast( ulong, here ) )
             end if
