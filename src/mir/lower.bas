@@ -253,16 +253,6 @@ declare sub LowerIf _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr )
 
 
-function IsUnsignedType _
-    ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return false
-    select case c.types->BuiltinOf( t )
-    case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG, Fbx.TY_UINTEGER, Fbx.TY_ULONGINT
-        return true
-    end select
-    return false
-end function
 
 
 function LowerExpr _
@@ -296,7 +286,18 @@ function LowerExpr _
         if pp->count <> 1 then return v
         return LowerExpr( c, cast( Fbx.NodeId, c.ast->children[pp->first] ) )
 
-    case Fbx.N_IDENT, Fbx.N_MEMBER
+    case Fbx.N_MEMBER
+        '' 't.V' WITH NO PARENTHESES over a property is a call to its GETTER. With them
+        '' it is an ordinary call and never reaches here, which is why only the spelling
+        '' properties are actually used in was missing.
+        dim as MirValue pgv
+        if LowerPropertyGet_( c, id, pgv ) then return pgv
+        dim as MirValue mv = LowerAddr( c, id )
+        if mv.kind = cast( ubyte, MV_NONE ) then return v
+        return LowerExprLoad( c, mv, iif( mt <> MT_VOID, mt, _
+                              LowerType( c.info->TypeOf_( id ), *c.types ) ) )
+
+    case Fbx.N_IDENT
         dim as MirValue pre = LowerPredeclared( c, id )
         if pre.kind <> cast( ubyte, MV_NONE ) then return pre
 
@@ -735,6 +736,11 @@ private sub LowerAssign _
 
     '' Same reason as the read: a full-width store into a bitfield's unit would
     '' overwrite every field packed beside it, so it is a read-modify-write.
+    '' 't.V = x' OVER A PROPERTY IS A CALL, not a store. Without this it reached the
+    '' ordinary store path, which looked for a FIELD of that name, found a procedure and
+    '' declined.
+    if LowerPropertySet_( c, target, value ) then return
+
     if LowerBitfieldStore( c, target, value ) then return
 
     dim as MirValue addr = LowerAddr( c, target )

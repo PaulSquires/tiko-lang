@@ -297,6 +297,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerMathCall_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerPropertyGet_ _
+        ( byref c as Ctx, byval node as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerPropertySet_ _
+        ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function UserCastToStr_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue, _
           byref raw as boolean ) as boolean

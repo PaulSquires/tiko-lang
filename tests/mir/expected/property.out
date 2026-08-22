@@ -1,0 +1,52 @@
+func i32 _ZN1T8V__get__Ev($0) {
+  local i32 $tmp0
+  local ptr this
+  local ptr this$2
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr this$2
+    %5 = load @this$2
+    %6 = field.addr %5, 0
+    %7 = load %6
+    ret %7
+}
+func i32 _ZN1T8V__set__Ei($0, $1) {
+  local i32 $tmp0
+  local ptr this
+  local i32 n
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr n
+    store @n, $1
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load @n
+    store %6, %7
+    %8 = load @$tmp0
+    ret %8
+}
+func void P() {
+  local agg t size 4
+  local i32 n
+  entry0:
+    %1 = alloca ptr t
+    %2 = alloca ptr n
+    %3 = call i32 _ZN1T8V__get__Ev(@t)
+    store @n, %3
+    %4 = const i64 5
+    %5 = trunc %4
+    call void _ZN1T8V__set__Ei(@t, %5)
+    %6 = call i32 _ZN1T8V__get__Ev(@t)
+    store @n, %6
+    ret
+}
+verify: ok
+lowered: 3 functions, 3 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance

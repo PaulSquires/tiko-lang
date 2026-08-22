@@ -165,4 +165,116 @@ sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
     next
 end sub
 
+'' A PROPERTY ACCESS -- 't.V' with no parentheses, and 't.V = x'.
+''
+'' Both are CALLS. fbc emits '_ZN1T8V__get__Ev( &T )' and '_ZN1T8V__set__Ei( &T, 5 )',
+'' and the mangler here already knew the two suffixes -- it was lowering that had no
+'' case, so a bare property read declined and a property WRITE went to the ordinary
+'' store path, which looked for a field of that name, found a procedure and declined
+'' too.
+''
+'' 't.V( )' with parentheses already worked, because that is an ordinary call. The
+'' whole gap is the spelling without them, which is how properties are actually used --
+'' 'd1.Year', 'd1.Month', 'd1.Day' in one line of the finance headers.
+''
+'' WHICH OVERLOAD IS DECIDED BY ARITY, not by the name: the getter takes none and the
+'' setter one, they share a symbol chain, and taking the head of it picks whichever was
+'' declared first.
+function PropertyAt_ _
+    ( byref c as Ctx, byval node as Fbx.NodeId, byval want as long, _
+      byref self_ as MirValue ) as Fbx.SymbolId
+
+    if c.ast->Kind( node ) <> Fbx.N_MEMBER then return Fbx.SYMBOL_NONE
+    dim as Fbx.SymbolId sid = c.info->RefOf( node )
+    if sid = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+
+    '' The whole chain, because the getter and the setter share one symbol.
+    dim as Fbx.SymbolId cur = sid
+    dim as Fbx.SymbolId want_ = Fbx.SYMBOL_NONE
+    while cur <> Fbx.SYMBOL_NONE
+        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Fbx.SYM_PROC ) then
+            dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+            if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+                dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+                if pp->op = cast( ushort, Fbx.KW_PROPERTY ) then
+                    dim as long np = 0
+                    for i as long = 0 to pp->count - 1
+                        dim as Fbx.NodeId prm = _
+                            cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                        if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+                    next
+                    if np = want then
+                        want_ = cur
+                        exit while
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    if want_ = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+
+    '' The RECEIVER is the member's base, by address -- 'p.V' through a pointer takes
+    '' the pointer's value instead, exactly as a field access does.
+    dim as Fbx.BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, node )].data )]
+    dim as Fbx.TypeId bt = c.info->TypeOf_( mp->lhs )
+    if (bt <> Fbx.TYPE_NONE) andalso (c.types->Kind( bt ) = Fbx.TK_POINTER) then
+        self_ = LowerExpr( c, mp->lhs )
+    else
+        self_ = LowerAddr( c, mp->lhs )
+    end if
+    if self_.kind = cast( ubyte, MV_NONE ) then return Fbx.SYMBOL_NONE
+    return want_
+end function
+
+'' 't.V' as a value: the GETTER, called on the base.
+function LowerPropertyGet_ _
+    ( byref c as Ctx, byval node as Fbx.NodeId, byref outv as MirValue ) as boolean
+    dim as MirValue self_
+    dim as Fbx.SymbolId g = PropertyAt_( c, node, 0, self_ )
+    if g = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( g )
+    if gs = 0 then return false
+    outv = EmitMemberCall( c, g, self_, LowerType( gs->type_, *c.types ) )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 't.V = x': the SETTER, called with the value after the receiver.
+function LowerPropertySet_ _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    dim as MirValue self_
+    dim as Fbx.SymbolId sset = PropertyAt_( c, target, 1, self_ )
+    if sset = Fbx.SYMBOL_NONE then return false
+
+    '' The parameter's type, so the value is coerced the way the callee expects.
+    dim as Fbx.Symbol ptr ss = c.syms->SymbolAt( sset )
+    if ss = 0 then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, ss->payload )
+    if pn = Fbx.NODE_NONE then return false
+    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as Fbx.TypeId pt = Fbx.TYPE_NONE
+    for i as long = 0 to pp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) = Fbx.N_PARAM then
+            pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+            exit for
+        end if
+    next
+
+    dim as MirValue v = LowerExpr( c, value )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if pt <> Fbx.TYPE_NONE then
+        v = Coerce( c, v, LowerType( pt, *c.types ), IsUnsignedType( c, pt ) )
+        if v.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    EmitStructorCall( c, sset, -1, @self_, @args )
+    return true
+end function
+
 end namespace

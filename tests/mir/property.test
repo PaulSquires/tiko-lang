@@ -1,0 +1,5 @@
+'' Property get and set, with and without parentheses.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/property.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/property.out

@@ -725,6 +725,9 @@ function LowerMathCall_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+
+
+
 '' A UDT WITH 'operator cast' TO A STRING, converted implicitly.
 ''
 '' 'trim( u )' where u is a UDT is not an error and not a decline: fbc calls the

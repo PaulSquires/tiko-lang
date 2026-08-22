@@ -212,4 +212,15 @@ function BinOpFor _
     return M_NONE
 end function
 
+function IsUnsignedType _
+    ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    if t = Fbx.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG, Fbx.TY_UINTEGER, Fbx.TY_ULONGINT
+        return true
+    end select
+    return false
+end function
+
 end namespace
