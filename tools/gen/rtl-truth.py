@@ -257,6 +257,22 @@ sub StrConvProbe( )
     n = valint( s ) : ul = valuint( s )
 end sub
 ''',
+    # The math intrinsics that ARE runtime calls. sqr/sin/cos and the rest are gcc
+    # BUILTINS to fbc and are opcodes in fbx, so they are deliberately not here: a
+    # builtin is declared nowhere and would look like a missing entry.
+    "mathrtl": '''
+sub MathProbe( )
+    dim as single f = 1.0, g
+    dim as double x = 5.0, y
+    dim as longint q = -3
+    dim as long n = 3
+    g = fix( f )  : y = fix( x )
+    g = frac( f ) : y = frac( x )
+    n = sgn( f )  : n = sgn( x ) : n = sgn( q )
+    y = atan2( x, x )
+    y = x ^ y
+end sub
+''',
     # The NARROW substring and trim family. The spellings are not consistent --
     # fb_TRIM but fb_TrimEx, fb_LEFT but fb_StrMid -- so every one is probed.
     "strsub": '''
@@ -457,7 +473,8 @@ end sub
 # with no prefix at all -- so the pattern names the extra functions explicitly rather
 # than assuming every runtime entry point is prefixed.
 DECL = re.compile(
-    r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?((?:fb_\w+|free|malloc|calloc|realloc|memset))"
+    r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?"
+    r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2))"
     r"\s*\(([^;{]*?)\)"
     r"(?:\s*asm\(\"([^\"]*)\"\))?\s*;")
 
@@ -507,6 +524,9 @@ def one_target(label, fbc, lib, out, work, extra) -> int:
 
     # Cross-check every name against the runtime archive. A name absent from libfb is
     # a signature fbx would emit and the linker would then reject.
+    #
+    # EXCEPT THE LIBC ONES. malloc, free, pow and atan2 come from the C runtime, not
+    # from libfb, so their absence there is expected and is not a missing symbol.
     libdata = lib.read_bytes() if lib.exists() else b""
     rows, missing = [], []
     for fn in sorted(sigs):

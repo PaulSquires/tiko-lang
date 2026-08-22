@@ -98,6 +98,30 @@ namespace Fbx.Mir
         '' An UNSIGNED source converted to floating point. sitofp on a ulongint of
         '' 1.8e19 yields -1; fbc casts from the unsigned type and gets 1.8e19.
         OP( M_UITOFP,     "uitofp",     1, true  )
+        '' THE MATH INTRINSICS THAT ARE NOT RUNTIME CALLS. fbc emits gcc BUILTINS for
+        '' these -- '__builtin_sqrt( X )', not a call to anything libfb exports -- so
+        '' they are OPCODES here rather than RTL entries. Putting them in the runtime
+        '' inventory would also have broken check-rtl, which reads what fbc DECLARES,
+        '' and a builtin is declared nowhere.
+        ''
+        '' Only the ones fbc actually spells that way. 'fix', 'frac' and 'sgn' ARE
+        '' runtime calls -- fb_FIXDouble, fb_FRACd, fb_SGNl -- and 'atan2' is a plain
+        '' libc call with no builtin prefix at all. None of that is symmetrical and
+        '' none of it is guessable; each was read off fbc's own C.
+        OP( M_FLOOR,      "floor",      1, true  )
+        OP( M_SQRT,       "sqrt",       1, true  )
+        OP( M_SIN,        "sin",        1, true  )
+        OP( M_COS,        "cos",        1, true  )
+        OP( M_TAN,        "tan",        1, true  )
+        OP( M_ASIN,       "asin",       1, true  )
+        OP( M_ACOS,       "acos",       1, true  )
+        OP( M_ATAN,       "atan",       1, true  )
+        OP( M_LOG,        "log",        1, true  )
+        OP( M_EXP,        "exp",        1, true  )
+        '' ABS on a FLOAT and ABS on an INTEGER are different builtins, and the float
+        '' one differs again by width: fabs, fabsf, llabs.
+        OP( M_FABS,       "fabs",       1, true  )
+        OP( M_IABS,       "iabs",       1, true  )
         OP( M_BITCAST,    "bitcast",    1, true  )
         OP( M_CALL,       "call",      -1, true  )
         '' A CALL THROUGH A VALUE. docs/plan/09 lists 'call_indirect' in the opcode

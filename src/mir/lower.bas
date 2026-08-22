@@ -428,6 +428,25 @@ function LowerExpr _
         if (l.kind = cast( ubyte, MV_NONE )) orelse (r.kind = cast( ubyte, MV_NONE )) then
             return v
         end if
+
+        '' '^' IS A LIBC CALL, not an opcode, and BOTH OPERANDS BECOME DOUBLES whatever
+        '' they were: measured, 'n ^ n' over two LONGs is
+        '' 'pow( (double)(int64)N, (double)(int64)N )' and the result is a double the
+        '' surrounding expression narrows. It had no entry in the operator table at all,
+        '' so every '^' declined.
+        ''
+        '' ONE DIVERGENCE, deliberate: fbc folds an exponent of exactly 2 into a
+        '' MULTIPLY -- 'x ^ 2.0' is 'X * X' -- which it can only do safely for an
+        '' operand it may evaluate twice. fbx always calls pow. Same value, different
+        '' code, and no risk of evaluating a call twice.
+        if tk = Fbx.TK_CARET then
+            dim as MirValue pl = Coerce( c, l, MT_F64, IsUnsignedType( c, c.info->TypeOf_( bp->lhs ) ) )
+            dim as MirValue pr = Coerce( c, r, MT_F64, IsUnsignedType( c, c.info->TypeOf_( bp->rhs ) ) )
+            dim as FB.Array( of ulong ) pa
+            pa.Push( cast( ulong, pl.kind ) ) : pa.Push( cast( ulong, pl.id ) )
+            pa.Push( cast( ulong, pr.kind ) ) : pa.Push( cast( ulong, pr.id ) )
+            return EmitRtl( c, RTL_POW, pa )
+        end if
         '' The operand type decides signed versus unsigned, and it is the OPERANDS'
         '' type, not the result's: a comparison yields an integer either way.
         dim as Fbx.TypeId lt = c.info->TypeOf_( bp->lhs )
@@ -463,6 +482,10 @@ function LowerExpr _
         '' 'len( x )' is a runtime call for a string and a constant for anything else.
         dim as MirValue lnv
         if LowerLen( c, id, lnv ) then return lnv
+        '' int / fix / frac / abs / sgn / sqr and the transcendentals. A mix of gcc
+        '' builtins, runtime calls and a plain floor -- see LowerMathCall_.
+        dim as MirValue mtv
+        if LowerMathCall_( c, id, mtv ) then return mtv
         '' 'asc', 'instr', 'instrrev' and the val family: string intrinsics whose
         '' RESULT IS A NUMBER, so they arrive here rather than through the descriptor
         '' path that hex and trim take.

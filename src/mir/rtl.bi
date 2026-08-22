@@ -224,6 +224,29 @@ namespace Fbx.Mir
         RTL( RTL_VALLNG,            "fb_VALLNG",           "q",   "p"     )
         RTL( RTL_VALULNG,           "fb_VALULNG",          "q",   "p"     )
         RTL( RTL_VALUINT,           "fb_VALUINT",          "l",   "p"     )
+        '' THE MATH INTRINSICS THAT ARE RUNTIME CALLS, and only those: sqrt, sin, cos
+        '' and the rest are gcc BUILTINS to fbc and are opcodes here instead.
+        ''
+        '' The split is not symmetrical and not guessable. 'int( x )' looks like a third
+        '' case -- 'fb_D2L( __builtin_floor( X ) )' -- but fb_D2L is a MACRO,
+        '' '(int64)__builtin_nearbyint( value )', so it is a floor followed by the
+        '' ORDINARY float-to-integer coercion this compiler already emits. 'fix( x )'
+        '' beside it really is a runtime call, and 'atan2' is a plain libc call with no
+        '' builtin prefix at all. Each was read off fbc's own C.
+        ''
+        '' SGN RETURNS int32 FROM ALL THREE, including the longint form -- a return
+        '' width that does not follow its argument, which symmetry would get wrong.
+        RTL( RTL_FIX_DOUBLE,        "fb_FIXDouble",        "d",   "d"     )
+        RTL( RTL_FIX_SINGLE,        "fb_FIXSingle",        "f",   "f"     )
+        RTL( RTL_FRAC_DOUBLE,       "fb_FRACd",            "d",   "d"     )
+        RTL( RTL_FRAC_SINGLE,       "fb_FRACf",            "f",   "f"     )
+        RTL( RTL_SGN_LONGINT,       "fb_SGNl",             "l",   "q"     )
+        RTL( RTL_SGN_DOUBLE,        "fb_SGNDouble",        "l",   "d"     )
+        RTL( RTL_SGN_SINGLE,        "fb_SGNSingle",        "l",   "f"     )
+        RTL( RTL_ATAN2,             "atan2",               "d",   "dd"    )
+        '' '^'. Also a plain libc call, and BOTH OPERANDS BECOME DOUBLES whatever they
+        '' were -- 'n ^ n' over two LONGs is 'pow( (double)(int64)N, (double)(int64)N )'.
+        RTL( RTL_POW,               "pow",                 "d",   "dd"    )
         RTL( RTL_STR_SPACE,         "fb_SPACE",            "p",   "z"     )
         RTL( RTL_STR_FILL1,         "fb_StrFill1",         "p",   "zl"    )
         RTL( RTL_STR_FILL2,         "fb_StrFill2",         "p",   "zp"    )

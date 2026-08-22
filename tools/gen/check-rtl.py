@@ -85,7 +85,11 @@ def one_target(fbx, label, truth, tgtargs):
             diffs.append(f"{sym}: in fbx's table, not in anything fbc emitted")
             continue
         fn, wret, wargs, present = want[sym]
-        if present != "lib":
+        # LIBC, not libfb. pow and atan2 come from the C runtime -- fbc calls them
+        # directly and links libc alongside libfb -- so their absence from the archive
+        # is expected and says nothing. malloc and free are in libfb only because
+        # mingw's libfb happens to re-export them; that is not something to rely on.
+        if present != "lib" and fn not in ("pow", "atan2"):
             diffs.append(f"{fn}: not an exported symbol of libfb.a")
             continue
         # A variadic tail is not modelled yet; compare the fixed prefix.

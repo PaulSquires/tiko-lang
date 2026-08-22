@@ -1,3 +1,4 @@
+atan2	double	double, double	ABSENT	_atan2
 calloc	void*	uint32, uint32	lib	_calloc
 fb_ASC	uint32	FBSTRING*, int32	lib	_fb_ASC@8
 fb_ArrayClear	int32	struct $7FBARRAYIvE*	lib	_fb_ArrayClear@4
@@ -43,6 +44,10 @@ fb_DoubleToStr	FBSTRING*	double	lib	_fb_DoubleToStr@8
 fb_DoubleToWstr	uint16*	double	lib	_fb_DoubleToWstr@8
 fb_End	void	int32	lib	_fb_End@4
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	_fb_ErrorThrowEx
+fb_FIXDouble	double	double	lib	_fb_FIXDouble@8
+fb_FIXSingle	float	float	lib	_fb_FIXSingle@4
+fb_FRACd	double	double	lib	_fb_FRACd@8
+fb_FRACf	float	float	lib	_fb_FRACf@4
 fb_FileClose	int32	int32	lib	_fb_FileClose@4
 fb_FileCloseAll	int32	void	lib	_fb_FileCloseAll@0
 fb_FileInput	int32	int32	lib	_fb_FileInput@4
@@ -122,6 +127,9 @@ fb_RIGHT	FBSTRING*	FBSTRING*, int32	lib	_fb_RIGHT@8
 fb_RTRIM	FBSTRING*	FBSTRING*	lib	_fb_RTRIM@4
 fb_RTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_RTrimAny@8
 fb_RTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_RTrimEx@8
+fb_SGNDouble	int32	double	lib	_fb_SGNDouble@8
+fb_SGNSingle	int32	float	lib	_fb_SGNSingle@4
+fb_SGNl	int32	int64	lib	_fb_SGNl@8
 fb_SPACE	FBSTRING*	int32	lib	_fb_SPACE@4
 fb_StrAllocTempDescZ	FBSTRING*	char*	lib	_fb_StrAllocTempDescZ@4
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int32	lib	_fb_StrAllocTempDescZEx@8
@@ -202,4 +210,5 @@ fb_WstrUcase2	uint16*	uint16*, int32	lib	_fb_WstrUcase2@8
 free	void	void*	lib	_free
 malloc	void*	uint32	lib	_malloc
 memset	void*	void*, int32, uint32	lib	_memset
+pow	double	double, double	lib	_pow
 realloc	void*	void*, uint32	lib	_realloc

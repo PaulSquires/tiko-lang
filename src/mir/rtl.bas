@@ -82,7 +82,8 @@ function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
     if r = RTL_ERROR_THROW then return "_" & nm
     '' libc is CDECL: the leading underscore is all win32 adds, no '@N'.
     select case r
-    case RTL_FREE, RTL_MALLOC, RTL_CALLOC, RTL_REALLOC, RTL_MEMSET
+    case RTL_FREE, RTL_MALLOC, RTL_CALLOC, RTL_REALLOC, RTL_MEMSET, _
+         RTL_POW, RTL_ATAN2
         return "_" & nm
     end select
 
