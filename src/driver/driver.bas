@@ -382,7 +382,7 @@ function Run( byref args as Fbx.StrVec ) as long
                                  ctx.sources, info, rst, @p )
                 print Fbx.Resolve.Dump( ast, syms, ctx.types, ctx.names, info, rst );
             else
-                print Fbx.Collect.Dump( syms, ctx.names, ctx.types );
+                print Fbx.Collect.Dump( syms, ctx.names, ctx.types, ctx.sources );
             end if
         next
 

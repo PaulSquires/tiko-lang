@@ -444,6 +444,22 @@ function PrintOne _
         ''
         '' Passing the literal's BYTES here instead would have the runtime read a
         '' descriptor out of string data.
+        '' A CALL TO A STRING-RETURNING FUNCTION, and a BARE one used as a value.
+        '' Both are string-typed and neither has an address, so LowerAddr below
+        '' answered NONE and 'print f( 2 )' declined outright. StrDescriptorOf_ knows
+        '' both shapes and every other one this branch would otherwise repeat.
+        dim as boolean isCallish = (c.ast->Kind( it ) = Fbx.N_CALL) orelse _
+                                   (c.ast->Kind( it ) = Fbx.N_IDENT)
+        if isCallish then
+            dim as MirValue cd
+            if StrDescriptorOf_( c, it, cd ) then
+                args.Push( cast( ulong, cd.kind ) ) : args.Push( cast( ulong, cd.id ) )
+                PushConst( args, mask )
+                EmitRtl( c, RTL_PRINT_STRING, args )
+                return true
+            end if
+        end if
+
         dim as MirValue desc
         if c.ast->Kind( it ) = Fbx.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )

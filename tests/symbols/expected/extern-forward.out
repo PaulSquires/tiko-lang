@@ -1,10 +1,10 @@
-scopes: 3  symbols: 14
+scopes: 2  symbols: 12  (builtin: 61)
 scope 1 global parent=0 (4)
     const     'true' builtin
     const     'false' builtin
     const     '__function__' funcname
     const     '__function_nq__'
-scope 2 module parent=1 (9)
+scope 2 module parent=1 (8)
     var       'a' shared
     var       'b'
     var       'c'
@@ -13,6 +13,3 @@ scope 2 module parent=1 (9)
     var       'f' shared
     var       'g'
     var       'h'
-    type      'object'
-scope 3 type of 'object' parent=2 (1)
-    field     'vptr'

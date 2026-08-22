@@ -1257,9 +1257,65 @@ end function
 ''
 '' See docs/language/object-abi.md for the rest of the OBJECT shape.
 private function PreludeText( ) as string
-    return "type object" & chr( 10 ) & _
-           "    vptr as any ptr" & chr( 10 ) & _
-           "end type" & chr( 10 )
+    dim as string t = ""
+    t += "type object" & chr( 10 )
+    t += "    vptr as any ptr" & chr( 10 )
+    t += "end type" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "'' The runtime procedures fbc predeclares in the global scope. EXTERN ""C"" because the" & chr( 10 )
+    t += "'' name a linker sees is the ALIAS, verbatim, and foreign linkage is what stops the" & chr( 10 )
+    t += "'' mangler wrapping it -- 'sub F overload alias ""lower""' is _Z5loweri, which is not" & chr( 10 )
+    t += "'' the symbol the runtime exports." & chr( 10 )
+    t += "extern ""C""" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "'' Every omitted argument's value was MEASURED from what fbc emits, and not one of" & chr( 10 )
+    t += "'' them is guessable:" & chr( 10 )
+    t += "''   SLEEP with no argument is fb_Sleep( -1 ), a DIFFERENT entry point from the" & chr( 10 )
+    t += "''     two-argument form -- fbc never calls fb_SleepEx with a defaulted second one." & chr( 10 )
+    t += "''   LOCATE takes FIVE parameters, not three; row and col default to 0 because FB" & chr( 10 )
+    t += "''     rows are 1-based, and the cursor defaults to -1, distinct from the legal 0." & chr( 10 )
+    t += "''   CLS with no argument is fb_Cls( -65536 ), which is &hFFFF0000 read as signed." & chr( 10 )
+    t += "''   RANDOMIZE's seed is a DOUBLE and defaults to -1.0." & chr( 10 )
+    t += "''   COMMAND defaults to -1, and 0 is a legal distinct value (the program name)." & chr( 10 )
+    t += "''   SHELL with no argument passes a temp descriptor over the EMPTY STRING, never a" & chr( 10 )
+    t += "''     null pointer." & chr( 10 )
+    t += "declare function kill alias ""fb_FileKill"" ( byref f as const string ) as long" & chr( 10 )
+    t += "declare function mkdir alias ""fb_MkDir"" ( byref d as const string ) as long" & chr( 10 )
+    t += "declare function rmdir alias ""fb_RmDir"" ( byref d as const string ) as long" & chr( 10 )
+    t += "declare function chdir alias ""fb_ChDir"" ( byref d as const string ) as long" & chr( 10 )
+    t += "declare function curdir alias ""fb_CurDir"" ( ) as string" & chr( 10 )
+    t += "declare function shell alias ""fb_Shell"" ( byref cmd as const string = """" ) as long" & chr( 10 )
+    t += "declare function exepath alias ""fb_ExePath"" ( ) as string" & chr( 10 )
+    t += "declare function exec alias ""fb_Exec"" _" & chr( 10 )
+    t += "    ( byref f as const string, byref args as const string ) as long" & chr( 10 )
+    t += "declare function environ alias ""fb_GetEnviron"" ( byref n as const string ) as string" & chr( 10 )
+    t += "declare function setenviron alias ""fb_SetEnviron"" ( byref s as const string ) as long" & chr( 10 )
+    t += "declare function command alias ""fb_Command"" ( byval n as long = -1 ) as string" & chr( 10 )
+    t += "declare function timer alias ""fb_Timer"" ( ) as double" & chr( 10 )
+    t += "declare sub beep alias ""fb_Beep"" ( )" & chr( 10 )
+    t += "declare sub cls alias ""fb_Cls"" ( byval mode as long = -65536 )" & chr( 10 )
+    t += "declare sub randomize alias ""fb_Randomize"" _" & chr( 10 )
+    t += "    ( byval seed as double = -1.0, byval algorithm as long = 0 )" & chr( 10 )
+    t += "declare function locate alias ""fb_Locate"" _" & chr( 10 )
+    t += "    ( byval row as long = 0, byval col as long = 0, byval cursor as long = -1, _" & chr( 10 )
+    t += "      byval a4 as long = 0, byval a5 as long = 0 ) as long" & chr( 10 )
+    t += "declare sub sleep alias ""fb_Sleep"" ( byval ms as long = -1 )" & chr( 10 )
+    t += "declare function threadcreate alias ""fb_ThreadCreate"" _" & chr( 10 )
+    t += "    ( byval proc_ as any ptr, byval param as any ptr = 0, _" & chr( 10 )
+    t += "      byval stacksize as integer = 0 ) as any ptr" & chr( 10 )
+    t += "declare sub threadwait alias ""fb_ThreadWait"" ( byval h as any ptr )" & chr( 10 )
+    t += "declare function mutexcreate alias ""fb_MutexCreate"" ( ) as any ptr" & chr( 10 )
+    t += "declare sub mutexdestroy alias ""fb_MutexDestroy"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub mutexlock alias ""fb_MutexLock"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub mutexunlock alias ""fb_MutexUnlock"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare function condcreate alias ""fb_CondCreate"" ( ) as any ptr" & chr( 10 )
+    t += "declare sub conddestroy alias ""fb_CondDestroy"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub condsignal alias ""fb_CondSignal"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub condbroadcast alias ""fb_CondBroadcast"" ( byval m as any ptr )" & chr( 10 )
+    t += "declare sub condwait alias ""fb_CondWait"" ( byval m as any ptr, byval x as any ptr )" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "end extern" & chr( 10 )
+    return t
 end function
 
 '' The prelude, parsed. Returns nothing when there is no keyword table to lex with,
@@ -1331,6 +1387,10 @@ private sub DumpAny _
 
     if id = Fbx.NODE_NONE then return
     if cast( long, id ) >= ast.nodes.Count then return
+    '' THE BUILTIN PRELUDE IS NOT WHAT THE USER WROTE. It is real source and is parsed
+    '' like everything else, but printing its thirty declarations under every file
+    '' would bury the file.
+    if src.IsBuiltin( ast.nodes[cast( long, id )].loc ) then return
 
     dim as Fbx.AstNode ptr n = @ast.nodes[cast( long, id )]
     dim as Fbx.NodeKind k = cast( Fbx.NodeKind, n->kind )

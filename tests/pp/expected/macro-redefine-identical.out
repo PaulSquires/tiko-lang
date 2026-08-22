@@ -1,11 +1,7 @@
-N_MODULE (2) <1:77>
+N_MODULE (3) <1:77>
   N_INTRINSIC [PRINT] <25:1>
     N_IDENT '_y' <15:11>
     N_PRINT_SEP [,] <25:8>
     N_IDENT '_t' <19:11>
     N_PRINT_SEP [,] <25:11>
     N_INT_LIT 1 radix=10 <25:16>
-  N_TYPE 'object' <1:1>
-    N_FIELD 'vptr' <2:5>
-      N_TYPEREF ptr <2:13>
-        N_TYPEREF 'any' [ANY] <2:13>

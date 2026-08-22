@@ -20,71 +20,116 @@ func i32 main($0, $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = const i64 2
-    %5 = const i64 1
-    %6 = const i64 2
-    call void F(%4, %5, %6)
-    %7 = const i64 2
-    %8 = const i64 3
-    %9 = const i64 4
-    call void F(%7, %8, %9)
-    %10 = const i64 1
-    %11 = const i64 5
-    %12 = const i64 5
-    call void F(%10, %11, %12)
-    %13 = const i64 5
-    %14 = const i64 1
-    %15 = const i64 5
-    call void F(%13, %14, %15)
-    %16 = const i64 3
-    %17 = const i64 3
+    %5 = trunc %4
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = const i64 2
+    %9 = trunc %8
+    call void F(%5, %7, %9)
+    %10 = const i64 2
+    %11 = trunc %10
+    %12 = const i64 3
+    %13 = trunc %12
+    %14 = const i64 4
+    %15 = trunc %14
+    call void F(%11, %13, %15)
+    %16 = const i64 1
+    %17 = trunc %16
     %18 = const i64 5
-    call void F(%16, %17, %18)
-    %19 = const i64 1
+    %19 = trunc %18
     %20 = const i64 5
-    %21 = const i64 5
-    call void F(%19, %20, %21)
+    %21 = trunc %20
+    call void F(%17, %19, %21)
     %22 = const i64 5
-    %23 = const i64 1
-    %24 = const i64 5
-    call void F(%22, %23, %24)
-    %25 = const i64 3
-    %26 = const i64 1
-    %27 = const i64 3
-    call void F(%25, %26, %27)
-    %28 = const i64 2
-    %29 = const i64 2
+    %23 = trunc %22
+    %24 = const i64 1
+    %25 = trunc %24
+    %26 = const i64 5
+    %27 = trunc %26
+    call void F(%23, %25, %27)
+    %28 = const i64 3
+    %29 = trunc %28
     %30 = const i64 3
-    call void F(%28, %29, %30)
-    %31 = const i64 1
-    %32 = const i64 3
-    %33 = const i64 3
-    call void F(%31, %32, %33)
-    %34 = const i64 2
-    %35 = const i64 1
-    %36 = const i64 2
-    call void F(%34, %35, %36)
-    %37 = const i64 2
-    %38 = const i64 1
-    %39 = const i64 2
-    call void F(%37, %38, %39)
-    %40 = const i64 2
-    %41 = const i64 1
-    %42 = const i64 2
-    call void F(%40, %41, %42)
-    %43 = const i64 1
-    %44 = const i64 3
-    %45 = const i64 3
-    call void F(%43, %44, %45)
-    %46 = const i64 0
-    %47 = const i64 22
-    %48 = const i64 33
-    call void F(%46, %47, %48)
-    %49 = const i32 0
-    call.rtl void fb_End(%49)
-    %50 = load @$tmp0
-    ret %50
+    %31 = trunc %30
+    %32 = const i64 5
+    %33 = trunc %32
+    call void F(%29, %31, %33)
+    %34 = const i64 1
+    %35 = trunc %34
+    %36 = const i64 5
+    %37 = trunc %36
+    %38 = const i64 5
+    %39 = trunc %38
+    call void F(%35, %37, %39)
+    %40 = const i64 5
+    %41 = trunc %40
+    %42 = const i64 1
+    %43 = trunc %42
+    %44 = const i64 5
+    %45 = trunc %44
+    call void F(%41, %43, %45)
+    %46 = const i64 3
+    %47 = trunc %46
+    %48 = const i64 1
+    %49 = trunc %48
+    %50 = const i64 3
+    %51 = trunc %50
+    call void F(%47, %49, %51)
+    %52 = const i64 2
+    %53 = trunc %52
+    %54 = const i64 2
+    %55 = trunc %54
+    %56 = const i64 3
+    %57 = trunc %56
+    call void F(%53, %55, %57)
+    %58 = const i64 1
+    %59 = trunc %58
+    %60 = const i64 3
+    %61 = trunc %60
+    %62 = const i64 3
+    %63 = trunc %62
+    call void F(%59, %61, %63)
+    %64 = const i64 2
+    %65 = trunc %64
+    %66 = const i64 1
+    %67 = trunc %66
+    %68 = const i64 2
+    %69 = trunc %68
+    call void F(%65, %67, %69)
+    %70 = const i64 2
+    %71 = trunc %70
+    %72 = const i64 1
+    %73 = trunc %72
+    %74 = const i64 2
+    %75 = trunc %74
+    call void F(%71, %73, %75)
+    %76 = const i64 2
+    %77 = trunc %76
+    %78 = const i64 1
+    %79 = trunc %78
+    %80 = const i64 2
+    %81 = trunc %80
+    call void F(%77, %79, %81)
+    %82 = const i64 1
+    %83 = trunc %82
+    %84 = const i64 3
+    %85 = trunc %84
+    %86 = const i64 3
+    %87 = trunc %86
+    call void F(%83, %85, %87)
+    %88 = const i64 0
+    %89 = trunc %88
+    %90 = const i64 22
+    %91 = trunc %90
+    %92 = const i64 33
+    %93 = trunc %92
+    call void F(%89, %91, %93)
+    %94 = const i32 0
+    call.rtl void fb_End(%94)
+    %95 = load @$tmp0
+    ret %95
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 119 insts, 0 statements not lowered, 0 scope imbalance

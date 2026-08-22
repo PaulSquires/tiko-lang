@@ -78,18 +78,17 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintLongint(0, %6, 2)
     %7 = call i64 D()
     call.rtl void fb_PrintLongint(0, %7, 2)
-    %8 = const i32 0
-    call.rtl void fb_End(%8)
-    %9 = load @$tmp0
-    ret %9
+    %8 = call ptr G()
+    call.rtl void fb_PrintString(0, %8, 1)
+    %9 = const i32 0
+    call.rtl void fb_End(%9)
+    %10 = load @$tmp0
+    ret %10
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_PrintDouble($0, $1, $2)
+declare void fb_PrintString($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 7 functions, 7 blocks, 49 insts, 1 statements not lowered, 0 scope imbalance
-  unlowered N_INTRINSIC 1
-  inside N_INTRINSIC 1
-  unlowered intrinsic KW_PRINT 1
-  skip-site src\mir\lowerctl.bas:138 1
+lowered: 7 functions, 7 blocks, 51 insts, 0 statements not lowered, 0 scope imbalance

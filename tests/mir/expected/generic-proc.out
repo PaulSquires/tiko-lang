@@ -5,16 +5,18 @@ func void P() {
   entry0:
     %1 = alloca ptr a
     %2 = const i64 7
-    %3 = call agg MK<6>(%2)
-    store @a, %3
-    %4 = alloca ptr d
-    %5 = const f64 2.5
-    %6 = call agg MK<13>(%5)
-    store @d, %6
-    %7 = alloca ptr a2
-    %8 = const i64 9
-    %9 = call agg MK<6>(%8)
-    store @a2, %9
+    %3 = trunc %2
+    %4 = call agg MK<6>(%3)
+    store @a, %4
+    %5 = alloca ptr d
+    %6 = const f64 2.5
+    %7 = call agg MK<13>(%6)
+    store @d, %7
+    %8 = alloca ptr a2
+    %9 = const i64 9
+    %10 = trunc %9
+    %11 = call agg MK<6>(%10)
+    store @a2, %11
     ret
 }
 declare agg MK<6>()
@@ -54,4 +56,4 @@ func agg MK<13>($0) {
     ret %7
 }
 verify: ok
-lowered: 3 functions, 3 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance

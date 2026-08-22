@@ -194,11 +194,12 @@ func void _ZN3NSQ5GREETEi($0) {
 func void USENS() {
   entry0:
     %1 = const i64 1
-    call void _ZN3NSQ5GREETEi(%1)
-    %2 = const i64 2
-    %3 = trunc %2
-    store @@counter, %3
+    %2 = trunc %1
+    call void _ZN3NSQ5GREETEi(%2)
+    %3 = const i64 2
+    %4 = trunc %3
+    store @@counter, %4
     ret
 }
 verify: ok
-lowered: 6 functions, 35 blocks, 104 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 35 blocks, 105 insts, 0 statements not lowered, 0 scope imbalance

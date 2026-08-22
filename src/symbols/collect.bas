@@ -1080,26 +1080,75 @@ end function
 
 function Dump _
     ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-      byref types as Fbx.TypeContext ) as string
+      byref types as Fbx.TypeContext, byref src as Fbx.SourceManager ) as string
+
+    '' THE COUNTS EXCLUDE THE PRELUDE TOO, or they would contradict the rows below --
+    '' thirty declarations counted and none of them printed. The prelude's own total is
+    '' reported beside them rather than hidden.
+    dim as long nbuiltin = 0
+    for i as long = 1 to syms.Count( )
+        dim as Fbx.Symbol ptr s = syms.SymbolAt( cast( Fbx.SymbolId, i ) )
+        if s = 0 then continue for
+        if src.IsBuiltin( s->loc ) then nbuiltin += 1
+    next
+    dim as long nscopes = 0
+    for i as long = 1 to syms.ScopeCount( )
+        dim as Fbx.SymScope ptr sc = syms.ScopeAt( cast( Fbx.ScopeId, i ) )
+        if sc = 0 then continue for
+        if sc->owner <> Fbx.SYMBOL_NONE then
+            dim as Fbx.Symbol ptr os = syms.SymbolAt( sc->owner )
+            if os <> 0 then
+                if src.IsBuiltin( os->loc ) then continue for
+            end if
+        end if
+        nscopes += 1
+    next
 
     dim as string outp = ""
-    outp += "scopes: " & syms.ScopeCount( ) & "  symbols: " & syms.Count( ) & chr( 10 )
+    outp += "scopes: " & nscopes & "  symbols: " & (syms.Count( ) - nbuiltin)
+    if nbuiltin > 0 then outp += "  (builtin: " & nbuiltin & ")"
+    outp += chr( 10 )
 
     for i as long = 1 to syms.ScopeCount( )
         dim as Fbx.SymScope ptr sc = syms.ScopeAt( cast( Fbx.ScopeId, i ) )
         if sc->count = 0 then continue for
+        '' A scope the prelude opened -- the body of one of its declarations -- is not
+        '' printed at all.
+        if sc->owner <> Fbx.SYMBOL_NONE then
+            dim as Fbx.Symbol ptr os = syms.SymbolAt( sc->owner )
+            if os <> 0 then
+                if src.IsBuiltin( os->loc ) then continue for
+            end if
+        end if
+        '' How many of this scope's symbols are the user's, which is what the rows
+        '' below will actually show.
+        dim as long nvis = 0
+        dim as Fbx.SymbolId vc = sc->firstSym
+        while vc <> Fbx.SYMBOL_NONE
+            dim as Fbx.Symbol ptr vs = syms.SymbolAt( vc )
+            if vs = 0 then exit while
+            if src.IsBuiltin( vs->loc ) = false then nvis += 1
+            vc = vs->nextInScope
+        wend
+        if nvis = 0 then continue for
 
         dim as string owner = ""
         if sc->owner <> Fbx.SYMBOL_NONE then
             owner = " of '" & names.Spelling( syms.SymbolAt( sc->owner )->name ) & "'"
         end if
         outp += "scope " & i & " " & Fbx.ScopeKindName( cast( Fbx.ScopeKind, sc->kind ) ) & _
-                owner & " parent=" & sc->parent & " (" & sc->count & ")" & chr( 10 )
+                owner & " parent=" & sc->parent & " (" & nvis & ")" & chr( 10 )
 
         '' Declaration order, which is the order destruction will reverse.
         dim as Fbx.SymbolId cur = sc->firstSym
         while cur <> Fbx.SYMBOL_NONE
             dim as Fbx.Symbol ptr s = syms.SymbolAt( cur )
+            '' Same reason as the AST dump: the prelude is declared, and listing it
+            '' under every file would bury the file.
+            if src.IsBuiltin( s->loc ) then
+                cur = s->nextInScope
+                continue while
+            end if
             dim as string row = "    " & _
                 left( Fbx.SymbolKindName( cast( Fbx.SymbolKind, s->kind ) ) & "         ", 10 ) & _
                 "'" & names.Spelling( s->name ) & "'"

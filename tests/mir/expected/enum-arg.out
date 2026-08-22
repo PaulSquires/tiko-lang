@@ -41,10 +41,11 @@ func agg _ZN1N3BLKEv() {
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
-    %3 = call agg _ZN1N2MKEh(%2)
-    store @$tmp0, %3
-    %4 = load @$tmp0
-    ret %4
+    %3 = trunc %2
+    %4 = call agg _ZN1N2MKEh(%3)
+    store @$tmp0, %4
+    %5 = load @$tmp0
+    ret %5
 }
 verify: ok
-lowered: 3 functions, 3 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance

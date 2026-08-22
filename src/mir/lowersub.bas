@@ -852,6 +852,45 @@ function StrDescriptorOf_ _
         outv = EmitRtl( c, RTL_STR_TEMPZ, ta )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
+    '' A CALL TO A STRING-RETURNING FUNCTION, before the type test claims it: an N_CALL
+    '' is string-typed and has no address, so 'print f( 2 )' declined outright.
+    ''
+    '' Typed MT_PTR, not left to the expression's own type. A string is an AGGREGATE to
+    '' LowerType, so the descriptor pointer would come back sign-extended and bitcast.
+    if c.ast->Kind( id ) = Fbx.N_CALL then
+        if IsStringType( c, c.info->TypeOf_( id ) ) then
+            dim as Fbx.ListPayload ptr scp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            dim as Fbx.SymbolId scallee = c.info->RefOf( id )
+            if scallee = Fbx.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
+            if scallee <> Fbx.SYMBOL_NONE then
+                dim as MirValue scv = LowerCallParts( c, scp->target, scallee, _
+                                                      scp->first, scp->count, MT_PTR )
+                if scv.kind <> cast( ubyte, MV_NONE ) then
+                    outv = scv
+                    return true
+                end if
+            end if
+        end if
+    end if
+
+    '' A BARE STRING-RETURNING FUNCTION NAME, BEFORE THE TYPE TEST. 's = curdir' names
+    '' a function whose TYPE is string, so the branch below claims it and asks for its
+    '' ADDRESS -- and the address of a function is a well-typed pointer, so the whole
+    '' thing verified with fb_CurDir's entry point handed to fb_StrAssign as a
+    '' descriptor.
+    ''
+    '' The same ordering trap the narrow and wide concat paths set: a recogniser placed
+    '' AFTER the type test that would swallow it. Fifth occurrence.
+    ''
+    '' The call's RESULT IS the descriptor pointer -- fbc writes 'FBSTRING* vr =
+    '' fb_CurDir( ); fb_StrAssign( &S, -1, vr, -1, 0 )'.
+    dim as MirValue bpv
+    if LowerBareProcCall_( c, id, MT_PTR, bpv ) then
+        outv = bpv
+        return true
+    end if
+
     if IsStringType( c, c.info->TypeOf_( id ) ) then
         outv = LowerAddr( c, id )
         if outv.kind <> cast( ubyte, MV_NONE ) then return true

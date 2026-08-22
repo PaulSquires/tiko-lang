@@ -587,6 +587,90 @@ end sub
 '' "worked" for a parameter only read and written inside the callee, because both
 '' halves agreed about the local copy -- and could never propagate an out-parameter,
 '' which is the entire point of byref.
+'' The declared TYPE of parameter 'idx', or nothing. Needed beside ParamIsByref
+'' because a BYREF STRING parameter takes a DESCRIPTOR, which is not what taking the
+'' address of the argument expression gives for a literal.
+'' How many parameters the callee declares. A call may write fewer -- every one after
+'' the last written must take its DEFAULT, and a call that writes none at all to a
+'' procedure with five is still a five-argument call.
+function ParamCountOf( byref c as Ctx, byval callee as Fbx.SymbolId ) as long
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return 0
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
+    if pn = Fbx.NODE_NONE then return 0
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return 0
+    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as long n = 0
+    for i as long = 0 to psp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) = Fbx.N_PARAM then n += 1
+    next
+    return n
+end function
+
+'' A VARIADIC procedure has no parameter list to run past: what is written is what is
+'' passed, and there are no defaults beyond it.
+function IsVariadicProc( byref c as Ctx, byval callee as Fbx.SymbolId ) as boolean
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
+    if pn = Fbx.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+    '' There is no variadic FLAG: the ellipsis is a PARAMETER, N_ELLIPSIS, and the last
+    '' one. Reading it off the list is what there is to read.
+    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    for i as long = 0 to psp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) = Fbx.N_ELLIPSIS then return true
+        if c.ast->Kind( prm ) = Fbx.N_PARAM then
+            if StmtOf( c, prm )->a <> Fbx.NODE_NONE then
+                if c.ast->Kind( StmtOf( c, prm )->a ) = Fbx.N_ELLIPSIS then return true
+            end if
+        end if
+    next
+    return false
+end function
+
+'' The DEFAULT VALUE expression of parameter 'idx', or nothing. Parsed onto the
+'' N_PARAM as 'b' and, until now, never read.
+function ParamDefaultAt _
+    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.NodeId
+
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Fbx.NODE_NONE
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
+    if pn = Fbx.NODE_NONE then return Fbx.NODE_NONE
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return Fbx.NODE_NONE
+    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        if seen = idx then return StmtOf( c, prm )->b
+        seen += 1
+    next
+    return Fbx.NODE_NONE
+end function
+
+function ParamTypeAt _
+    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.TypeId
+
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Fbx.TYPE_NONE
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
+    if pn = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return Fbx.TYPE_NONE
+    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        if seen = idx then return c.info->TypeOf_( StmtOf( c, prm )->a )
+        seen += 1
+    next
+    return Fbx.TYPE_NONE
+end function
+
 function ParamIsByref _
     ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
 

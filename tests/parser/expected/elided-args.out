@@ -1,4 +1,4 @@
-N_MODULE (7) <1:86>
+N_MODULE (8) <1:86>
   N_PROC 'f' [SUB] <25:9>
     N_PARAM 'a' <25:16>
       N_TYPEREF 'long' [LONG] <25:27>
@@ -42,7 +42,3 @@ N_MODULE (7) <1:86>
     N_ELIDED <34:8>
     N_ELIDED <34:9>
     N_INT_LIT 0 radix=10 <34:10>
-  N_TYPE 'object' <1:1>
-    N_FIELD 'vptr' <2:5>
-      N_TYPEREF ptr <2:13>
-        N_TYPEREF 'any' [ANY] <2:13>

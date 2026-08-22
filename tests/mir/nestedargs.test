@@ -5,5 +5,5 @@
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/nestedargs.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: %5 = call i32 G(%4)
-'' EXPECT-OUT: call void F(%5, %6)
+'' EXPECT-OUT: %6 = call i32 G(%5)
+'' EXPECT-OUT: call void F(%6, %8)

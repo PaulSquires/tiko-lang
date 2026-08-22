@@ -47,6 +47,12 @@ function SourceManager.FileAt( byval id as FileId ) as SourceFile ptr
     return this.files[idx]
 end function
 
+function SourceManager.IsBuiltin( byval loc as SourceLoc ) as boolean
+    if loc = LOC_NONE then return false
+    dim as DecodedLoc d = this.Decode( loc )
+    return (this.PathOf( d.file ) = "<builtin>")
+end function
+
 function SourceManager.PathOf( byval id as FileId ) as string
     dim as SourceFile ptr f = this.FileAt( id )
     if f = 0 then return "<none>"

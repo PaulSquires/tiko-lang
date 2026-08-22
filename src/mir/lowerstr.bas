@@ -1256,6 +1256,45 @@ function EmitStrTerm _
         return true
     end if
 
+    '' A CALL TO A STRING-RETURNING FUNCTION, before the type test below claims it.
+    ''
+    '' 's = f( 1 )' and 'print f( 2 )' both produced NOTHING -- the term is string-typed,
+    '' so the type test asked for its address, an N_CALL has none, and the whole
+    '' statement declined. One of the commonest shapes there is.
+    ''
+    '' A string-returning function RETURNS THE DESCRIPTOR POINTER, which is what fbc's
+    '' own C says: 'FBSTRING* vr$1 = F( 1 ); fb_StrAssign( &S, -1, vr$1, -1, 0 )'. The
+    '' intrinsic family above reaches the same place by its own route because Check
+    '' computes no type for those calls.
+    if c.ast->Kind( term ) = Fbx.N_CALL then
+        if IsStringType( c, c.info->TypeOf_( term ) ) then
+            '' TYPED MT_PTR, not left to the expression's own type. A string is an
+            '' AGGREGATE to LowerType, so LowerExpr would type the call 'agg' and the
+            '' descriptor pointer would come back sign-extended and bitcast. The
+            '' FUNCTION returns a pointer -- that is what its own declaration says.
+            dim as Fbx.ListPayload ptr scp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, term )].data )]
+            dim as Fbx.SymbolId scallee = c.info->RefOf( term )
+            if scallee = Fbx.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
+            dim as MirValue scv = LowerCallParts( c, scp->target, scallee, _
+                                                  scp->first, scp->count, MT_PTR )
+            if scv.kind <> cast( ubyte, MV_NONE ) then
+                PushStrArg( args, scv )
+                return true
+            end if
+        end if
+    end if
+
+    '' A BARE STRING-RETURNING FUNCTION NAME, before the type test below claims it.
+    '' 's = curdir' names a function whose TYPE is string, so the type test takes its
+    '' ADDRESS -- and a function's address is a well-typed pointer, so fb_CurDir's entry
+    '' point was handed to fb_StrAssign as a descriptor and the whole thing verified.
+    dim as MirValue bpv
+    if LowerBareProcCall_( c, term, MT_PTR, bpv ) then
+        PushStrArg( args, bpv )
+        return true
+    end if
+
     '' 'trim( s )', 'left( s, n )' and the rest hand back a descriptor pointer, which
     '' is exactly what a term is. Tried before the type test: Check computes no type
     '' for these calls either.

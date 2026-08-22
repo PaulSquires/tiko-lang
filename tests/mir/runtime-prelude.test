@@ -1,0 +1,5 @@
+'' The predeclared runtime procedures, their measured defaults, and byref string args.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/runtime-prelude.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/runtime-prelude.out

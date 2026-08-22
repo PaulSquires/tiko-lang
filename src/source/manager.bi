@@ -79,6 +79,10 @@ namespace Fbx
         declare function LineText( byval id as FileId, byval lineNo as long ) as string
 
         declare function PathOf( byval id as FileId ) as string
+        '' Did this come from the BUILTIN PRELUDE? The prelude is real source and is
+        '' declared like everything else, but it is not what the user wrote, and a dump
+        '' that listed its thirty declarations under every file would bury the file.
+        declare function IsBuiltin( byval loc as SourceLoc ) as boolean
         declare function TotalBytes( ) as longint
 
         private:

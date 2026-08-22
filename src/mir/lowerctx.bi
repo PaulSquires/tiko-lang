@@ -429,6 +429,15 @@ declare function EmitRtl _
     declare function LowerCompoundAssign _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
           byval op as Fbx.TokenKind ) as boolean
+    declare function ParamCountOf( byref c as Ctx, byval callee as Fbx.SymbolId ) as long
+    declare function LowerBareProcCall_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
+    declare function IsVariadicProc( byref c as Ctx, byval callee as Fbx.SymbolId ) as boolean
+    declare function ParamDefaultAt _
+        ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.NodeId
+    declare function ParamTypeAt _
+        ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.TypeId
     declare function ParamIsByref _
         ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
 

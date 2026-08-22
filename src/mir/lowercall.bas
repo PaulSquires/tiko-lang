@@ -88,12 +88,50 @@ function LowerCallParts _
         argv.Push( cast( ulong, self_.id ) )
     end if
 
-    for i as long = 0 to argCount - 1
-        dim as Fbx.NodeId argNode = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
+    '' DEFAULTED ARGUMENTS. A parameter's default was parsed onto its N_PARAM and then
+    '' never used, so 'sleep' called fb_Sleep with NO arguments and 'locate 5, 10'
+    '' called a five-parameter entry point with two. The callee read the rest off the
+    '' stack.
+    ''
+    '' The count comes from the CALLEE, not from the call: a call with three arguments
+    '' to a five-parameter procedure emits five. A variadic tail has no parameter list
+    '' to run past, so the written count stands.
+    dim as long nparams = ParamCountOf( c, callee )
+    dim as long slots = argCount
+    if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then slots = nparams
+
+    for i as long = 0 to slots - 1
+        '' AN ELIDED ARGUMENT TAKES THE DEFAULT TOO. 'locate , 10' is the shape that
+        '' says the two are one rule and not two.
+        dim as Fbx.NodeId argNode = Fbx.NODE_NONE
+        if i < argCount then
+            argNode = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
+            if c.ast->Kind( argNode ) = Fbx.N_ELIDED then argNode = Fbx.NODE_NONE
+        end if
+        if argNode = Fbx.NODE_NONE then argNode = ParamDefaultAt( c, callee, i )
+        if argNode = Fbx.NODE_NONE then
+            '' Nothing written and no default: the call is short and the callee would
+            '' read the stack. Declining says so.
+            if i >= argCount then return v
+        end if
         dim as boolean wantsRef = ParamIsByref( c, callee, i )
 
         dim as MirValue a
+        '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none.
+        '' Measured: fbc builds one -- 'fb_StrAllocTempDescZEx( "x.txt", 5 )' -- and
+        '' passes THAT. Taking the address of the literal handed the callee the BYTES
+        '' where it expected an FBSTRING, so it read the first eight of them as a
+        '' pointer. It linked, it verified, and it was a wild read on every call.
+        ''
+        '' StrDescriptorOf_ already knows all four shapes: a descriptor variable, a
+        '' literal, a fixed-length string and a concatenation.
+        dim as boolean wantsDesc = false
         if wantsRef then
+            wantsDesc = IsStringType( c, ParamTypeAt( c, callee, i ) )
+        end if
+        if wantsDesc then
+            if StrDescriptorOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+        elseif wantsRef then
             a = LowerAddr( c, argNode )
             '' An argument with no address -- a literal or a computed value -- cannot
             '' be passed by reference as it stands. fbc materialises a temporary for
@@ -102,6 +140,19 @@ function LowerCallParts _
             if a.kind = cast( ubyte, MV_NONE ) then a = LowerExpr( c, argNode )
         else
             a = LowerExpr( c, argNode )
+            '' TO THE PARAMETER'S TYPE, not the argument's. 'randomize 42' passes an
+            '' INTEGER literal to a 'byval as double', and handing the callee the
+            '' narrow value puts half a quantity in a wide slot -- the same rule the
+            '' type-constructor path already applies to its own arguments.
+            ''
+            '' An AGGREGATE is passed whole and has nothing to convert.
+            dim as Fbx.TypeId pt = ParamTypeAt( c, callee, i )
+            if (pt <> Fbx.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
+                dim as MirType pmt = LowerType( pt, *c.types )
+                if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
+                    a = Coerce( c, a, pmt, IsUnsignedType( c, pt ) )
+                end if
+            end if
         end if
         argv.Push( cast( ulong, a.kind ) )
         argv.Push( cast( ulong, a.id ) )
@@ -228,6 +279,35 @@ function LowerCallParts _
         return LowerExprLoad( c, sretTmp, MT_AGG )
     end if
     return cv
+end function
+
+'' A bare procedure NAME used as a value: 'd = timer', 's = curdir'.
+''
+'' Only a FUNCTION, and only one whose every parameter has a default -- otherwise the
+'' call would be short and the callee would read the stack. A SUB has no value, and a
+'' name written where an address is meant reaches LowerAddr instead.
+function LowerBareProcCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType, _
+      byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_IDENT then return false
+    dim as Fbx.SymbolId sid = c.info->RefOf( id )
+    if sid = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
+    if s->type_ = Fbx.TYPE_NONE then return false          '' a SUB has no value
+
+    '' EVERY PARAMETER MUST HAVE A DEFAULT. ParamDefaultAt answers for each, and a
+    '' variadic tail is not something a bare name can fill.
+    if IsVariadicProc( c, sid ) then return false
+    dim as long np = ParamCountOf( c, sid )
+    for i as long = 0 to np - 1
+        if ParamDefaultAt( c, sid, i ) = Fbx.NODE_NONE then return false
+    next
+
+    outv = LowerCallParts( c, id, sid, 0, 0, mt )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 function BinOpFor _

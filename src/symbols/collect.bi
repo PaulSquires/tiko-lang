@@ -34,7 +34,7 @@ namespace Fbx.Collect
     '' --dump-symbols. Byte-stable; lists each scope in declaration order.
     declare function Dump _
         ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-          byref types as Fbx.TypeContext ) as string
+          byref types as Fbx.TypeContext, byref src as Fbx.SourceManager ) as string
 
 end namespace
 

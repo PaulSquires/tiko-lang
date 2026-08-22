@@ -316,6 +316,17 @@ function LowerExpr _
             if LowerPropertyGet_( c, id, pgv ) then return pgv
         end if
 
+        '' A BARE FUNCTION NAME IN VALUE POSITION IS A CALL. 'd = timer' and
+        '' 's = curdir' are how FreeBASIC spells a no-argument call, and LowerAddr
+        '' answers with the function's ADDRESS -- so the address of fb_Timer was stored
+        '' in a double and the address of fb_CurDir was handed to fb_StrInit as a
+        '' string. It verified: a pointer is a well-typed value.
+        ''
+        '' '@f' and 'procptr( f )' go through LowerAddr and are unaffected; there is no
+        '' spelling that means "the address" without one of them.
+        dim as MirValue bpc
+        if LowerBareProcCall_( c, id, mt, bpc ) then return bpc
+
         dim as MirValue addr = LowerAddr( c, id )
         if addr.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins
