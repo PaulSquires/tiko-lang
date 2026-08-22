@@ -81,6 +81,7 @@
     DIAG( FBX0320, SEV_ERROR,   "'%0' has no type; fbx implements #lang ""fb"" only, where default types and suffixes are not valid" )
     DIAG( FBX0321, SEV_ERROR,   "expected a type parameter name" )
     DIAG( FBX0322, SEV_ERROR,   "duplicated type parameter '%0'" )
+    DIAG( FBX0323, SEV_ERROR,   "'%0' does not name a type here, so it cannot own this constructor or destructor" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( FBX0400, SEV_ERROR,   "expected an expression" )

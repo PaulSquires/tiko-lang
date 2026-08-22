@@ -695,6 +695,20 @@ sub WalkNode _
                 dim as Fbx.Symbol ptr os = w.syms->SymbolAt( osid )
                 if os <> 0 then
                     if os->inner <> Fbx.SCOPE_NONE then parentScope = os->inner
+                elseif isCtorDtor then
+                    '' A STRUCTOR WHOSE OWNER IS NOT VISIBLE HERE. 'constructor UDT( )'
+                    '' written outside the namespace that declares UDT is fbc error
+                    '' 160, and eight corpus files exist to assert it. fbx accepted it
+                    '' silently, opened the body at module scope, and left 'this'
+                    '' untyped -- which surfaced as a verify failure much later with
+                    '' nothing to say where it came from.
+                    ''
+                    '' Only a STRUCTOR: an ordinary 'sub Widget.Draw( )' whose owner is
+                    '' unknown may be defining a member of a type from a header this
+                    '' build did not read, and that stays silent deliberately.
+                    w.diags->Report( Fbx.FBX0323, _
+                        Fbx.PointRange( w.ast->Loc( id ) ), _
+                        w.names->Spelling( ownerNm ) )
                 end if
             end if
         end if
