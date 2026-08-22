@@ -22,6 +22,15 @@ namespace Fbx.Collect
           byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
           byref info as Fbx.SemanticInfo ) as long
 
+    '' COLLECT ONE NODE into an existing scope, for a declaration that did not exist
+    '' when Run walked the unit: an instantiated generic member. Run itself cannot be
+    '' reused -- it opens a fresh module scope and redeclares the builtins.
+    declare function One _
+        ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId, _
+          byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+          byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
+          byref info as Fbx.SemanticInfo ) as long
+
     '' --dump-symbols. Byte-stable; lists each scope in declaration order.
     declare function Dump _
         ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _

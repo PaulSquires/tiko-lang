@@ -78,7 +78,8 @@ namespace Fbx.Resolve
           byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
           byref names as Fbx.Interner, byref diags as Fbx.DiagnosticEngine, _
           byref src as Fbx.SourceManager, _
-          byref info as Fbx.SemanticInfo, byref st as Stats )
+          byref info as Fbx.SemanticInfo, byref st as Stats, _
+          byval parser as any ptr = 0 )
 
     declare function Dump _
         ( byref ast as Fbx.AstArena, byref syms as Fbx.SymbolTable, _

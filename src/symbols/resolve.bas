@@ -116,7 +116,7 @@ function StmtOf _
     return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
 end function
 
-private function ListOf _
+function ListOf _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.ListPayload ptr
     if id = Fbx.NODE_NONE then return 0
     return @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -555,9 +555,6 @@ private sub BindThis _
 end sub
 
 declare sub BackpatchTypedefs( byref c as Ctx )
-declare sub WalkStmt _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
-
 '' Give a just-declared name its type. The symbol is found by NAME in the scope
 '' Collect recorded, rather than by threading a SymbolId through the AST: the
 '' declaration and its symbol are in the same scope by construction.
@@ -1030,10 +1027,9 @@ sub WalkStmt _
 
     select case k
     case Fbx.N_MODULE, Fbx.N_BLOCK
-        dim as Fbx.ListPayload ptr lp = ListOf( c, id )
-        for i as long = 0 to lp->count - 1
-            WalkStmt( c, cast( Fbx.NodeId, c.ast->children[lp->first + i] ), here )
-        next
+        '' FIRST AND COUNT SNAPSHOTTED, and the pending instantiations drained BETWEEN
+        '' statements -- see WalkBlock_ for why both.
+        WalkBlock_( c, id, here )
         return
 
     case Fbx.N_ASSERT
@@ -1401,9 +1397,11 @@ sub Run _
       byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
       byref names as Fbx.Interner, byref diags as Fbx.DiagnosticEngine, _
       byref src as Fbx.SourceManager, _
-      byref info as Fbx.SemanticInfo, byref st as Stats )
+      byref info as Fbx.SemanticInfo, byref st as Stats, _
+      byval parser as any ptr )
 
     dim as Ctx c
+    c.parser = parser
     c.srcMgr = @src
     c.ast = @ast
     c.syms = @syms
@@ -1415,7 +1413,10 @@ sub Run _
     c.currentProc = Fbx.SYMBOL_NONE
 
     info.Resize( ast.Count( ) )
+
+    DiscoverInstantiations_( c, ast, root, diags, info )
     WalkStmt( c, root, Fbx.SCOPE_GLOBAL )
+    InstantiatePending_( c )
     BackpatchTypedefs( c )
 end sub
 

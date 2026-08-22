@@ -12,11 +12,46 @@ namespace Fbx.Mir
 
 '' ------------------------------------------------------------------ the walk
 
+'' True for a member definition whose OWNER IS A GENERIC -- the template itself, not an
+'' instantiation of it. The owner is reached through the procedure's scope rather than
+'' through its ownerName, because an instantiation's members are qualified by the
+'' structural name and the two must not be confused.
+private function IsGenericMemberBody_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+
+    dim as Fbx.ScopeId ps = c.info->ScopeOf( id )
+    if ps = Fbx.SCOPE_NONE then return false
+    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( ps )
+    if sc = 0 then return false
+    dim as Fbx.SymScope ptr owner = c.syms->ScopeAt( sc->parent )
+    if owner = 0 then return false
+    dim as Fbx.Symbol ptr os = c.syms->SymbolAt( owner->owner )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Fbx.SYM_UDT ) then return false
+    dim as Fbx.NodeId tn = cast( Fbx.NodeId, os->payload )
+    if tn = Fbx.NODE_NONE then return false
+    if c.ast->Kind( tn ) <> Fbx.N_TYPE then return false
+    dim as Fbx.StmtPayload ptr tp = StmtOf( c, tn )
+    '' 'b' holds the type PARAMETERS. A plain UDT has none.
+    if tp->b = Fbx.NODE_NONE then return false
+    '' AN INSTANTIATION SHARES THE GENERIC'S NODE as its payload, so the node alone
+    '' does not tell them apart -- the NAME does: the generic is declared under its
+    '' source spelling, an instantiation under the structural key.
+    return (os->name = tp->name)
+end function
+
 sub LowerProc _
     ( byref c as Ctx, byval id as Fbx.NodeId )
 
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if sp->b = Fbx.NODE_NONE then return       '' a declaration, not a definition
+
+    '' A GENERIC'S OWN MEMBER BODY IS NOT CODE. 'sub Box.Put( byval x as T )' has no
+    '' meaning until T is something: its parameter is void, its fields have no offsets,
+    '' and lowering it produced a function that stored into nothing and returned
+    '' nothing. fbc emits no such function either -- an uninstantiated generic reaches
+    '' its output not at all. The INSTANTIATIONS are separate nodes and are lowered.
+    if IsGenericMemberBody_( c, id ) then return
 
     dim as Fbx.SymbolId sid = c.info->RefOf( id )
     dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
@@ -630,6 +665,13 @@ function Lower _
     c.dataHead = CollectDataBlocks( c, root )
 
     WalkTop( c, root )
+    '' THE INSTANTIATED GENERIC MEMBERS. They are procedures like any other, but they
+    '' were created after the unit's root block was closed, so nothing reaches them
+    '' from root -- they would be collected, resolved and typed, and then silently not
+    '' emitted, which reads at a call site as a call into a name with no code.
+    for i as long = 0 to ast.extraTopLevel.Count - 1
+        WalkTop( c, cast( Fbx.NodeId, ast.extraTopLevel[i] ) )
+    next
     LowerMainModule( c, root )
     return st.functions
 end function

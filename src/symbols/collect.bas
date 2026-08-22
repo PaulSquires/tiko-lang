@@ -1039,6 +1039,25 @@ function Run _
     return w.duplicates
 end function
 
+function One _
+    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId, _
+      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+      byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
+      byref info as Fbx.SemanticInfo ) as long
+
+    dim as Walker w
+    w.types = @types
+    w.ast = @ast
+    w.syms = @syms
+    w.diags = @diags
+    w.names = @names
+    w.info = @info
+    w.duplicates = 0
+    info.Resize( ast.Count( ) )
+    WalkNode( w, id, scope_ )
+    return w.duplicates
+end function
+
 '' ----------------------------------------------------------------------- dump
 
 function Dump _

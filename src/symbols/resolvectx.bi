@@ -36,6 +36,26 @@ type Ctx
     '' generic has one or two parameters and instantiation nests at most a few deep.
     as FB.Array( of ulong )  gparamName
     as FB.Array( of ulong )  gparamType
+    '' THE PARSER, still holding the token buffer the unit was parsed from. Kept as an
+    '' 'any ptr' so this header does not have to include the parser's -- generic.bas
+    '' casts it back. Zero when the caller has no parser to give, in which case a
+    '' generic's members are not instantiated and behave as they did before.
+    as any ptr               parser
+    '' INSTANTIATIONS WAITING FOR THEIR MEMBERS. Six entries each -- generic node,
+    '' instantiation name, its inner scope, the scope it was named from, and the
+    '' (first, count) of its arguments in pendInstArgs.
+    ''
+    '' Deferred rather than done on the spot because instantiating a member RE-PARSES
+    '' it, and parsing grows ast.stmts. Every StmtPayload ptr held by a caller further
+    '' up -- including the one for the very DIM whose type is being resolved -- is a
+    '' pointer INTO that vector, and dangles the moment it reallocates. The first
+    '' 'dim as Box( of long ) a' in a file came out untyped for exactly that reason.
+    as FB.Array( of ulong )  pendInst
+    as FB.Array( of ulong )  pendInstArgs
+    '' How far pendInst has been drained. A cursor rather than a clear, because the
+    '' drain is RE-ENTERED: instantiating one member walks its body, which reaches the
+    '' same statement boundary and drains again. Each entry is still done once.
+    as long                  pendDone
 end type
 
 '' The helpers the split shares. Their definitions stay in resolve.bas -- only the
@@ -47,6 +67,18 @@ declare function ResolveTypeRef _
 declare function ArrayFromBounds _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, byval first as long, _
       byval count as long ) as Fbx.TypeId
+declare sub WalkStmt _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
+declare function ListOf _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.ListPayload ptr
+declare sub DiscoverInstantiations_ _
+    ( byref c as Ctx, byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
+      byref diags as Fbx.DiagnosticEngine, byref info as Fbx.SemanticInfo )
+declare function HasGenericDecl_( byref c as Ctx ) as boolean
+declare sub WalkBlock_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval here as Fbx.ScopeId )
+'' Drain the deferred member instantiations.
+declare sub InstantiatePending_( byref c as Ctx )
 declare function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
       byval scope_ as Fbx.ScopeId ) as Fbx.TypeId

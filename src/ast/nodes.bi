@@ -292,6 +292,12 @@ namespace Fbx
         '' the scan happens once per member per instantiation, so it is not hot.
         as ChildPool   tokenRanges
 
+        '' TOP-LEVEL NODES CREATED AFTER PARSING -- today, the instantiated members of
+        '' a generic. They are not children of the unit's root block, whose child list
+        '' was closed when it was built, so every later pass has to walk them
+        '' separately or they are typed and never emitted.
+        as ChildPool   extraTopLevel
+
         declare constructor( )
         declare sub RecordTokens _
             ( byval id as NodeId, byval firstTok as long, byval lastTok as long )
