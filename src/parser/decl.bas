@@ -2,6 +2,10 @@
 
 namespace Fbx.Parse
 
+'' Defined below: the TEXT of a string literal token, interned. Declared here because
+'' VarItem needs it for a variable's ALIAS and is compiled before it.
+declare function StringLitText( byref p as Fbx.ParserState ) as Fbx.InternId
+
 '' One array bound. '...' is legal HERE and nowhere else, so it is read here rather
 '' than in Primary -- loosening the expression grammar to carry it would let '...'
 '' through in places FreeBASIC does not have it.
@@ -142,6 +146,21 @@ private function VarItem _
 
     ParseArrayBoundsInto( p, sp, t )
 
+    '' 'extern import _ctype alias "_ctype" as ushort ptr ptr' -- an ALIAS on a
+    '' VARIABLE, which is how the CRT headers declare every imported one. Without it
+    '' 'alias' was read where 'as' was expected, the declaration came out untyped, and
+    '' ctype.bi and stdlib.bi failed on eight lines between them -- taking with them
+    '' every corpus file that reaches the C runtime through either.
+    ''
+    '' Recorded in 'aliasName', which is where a PROCEDURE's alias already goes.
+    if Accept( p, Fbx.KW_ALIAS ) then
+        '' StringLitText does NOT advance -- it reads the token under the cursor -- so
+        '' the literal has to be stepped over here, or the 'as' that follows is never
+        '' seen and the declaration comes out untyped anyway.
+        sp.aliasName = StringLitText( p )
+        if Peek( p ) = Fbx.TK_STRING_LIT then Advance( p )
+    end if
+
     if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
 
     '' '=' initialiser, or '=>' for a const.
@@ -177,6 +196,17 @@ private function ParseVarDecl( byref p as Fbx.ParserState ) as Fbx.NodeId
             Advance( p )
         case Fbx.KW_PRESERVE
             flags or= Fbx.NF_PRESERVE
+            Advance( p )
+        case Fbx.KW_IMPORT, Fbx.KW_EXPORT
+            '' 'extern import _ctype alias "_ctype" as ushort ptr ptr' -- a DLL-imported
+            '' variable, which is how the CRT headers declare every one of theirs.
+            '' Without this the modifier was read as the variable's NAME and the real
+            '' name as its type, so ctype.bi and stdlib.bi each failed twice and every
+            '' corpus file that reaches the C runtime through them failed with it.
+            ''
+            '' It affects the linkage, not the declaration, and fbx emits no import
+            '' table -- so it is consumed and NOT recorded, which is honest about
+            '' producing the same declaration either way.
             Advance( p )
         case Fbx.KW_BYREF
             '' 'dim byref rb as string = a' -- a REFERENCE variable. Without this the
@@ -362,7 +392,7 @@ end sub
 '' Intern the text of the string literal at the cursor, WITHOUT advancing. The
 '' literal pool records the span with the quotes already stripped, and the case is
 '' preserved: an ALIAS keeps exactly the spelling that was written.
-private function StringLitText( byref p as Fbx.ParserState ) as Fbx.InternId
+function StringLitText( byref p as Fbx.ParserState ) as Fbx.InternId
     dim as Fbx.Token t = Cur( p )
     if p.litPool = 0 then return 0
     if cast( long, t.literal ) >= p.litPool->Count then return 0

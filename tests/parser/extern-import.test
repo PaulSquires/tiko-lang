@@ -1,0 +1,6 @@
+'' IMPORT/EXPORT and ALIAS on an EXTERN variable declaration.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/extern-import.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: FBX0320
+'' GOLDEN: expected/extern-import.out

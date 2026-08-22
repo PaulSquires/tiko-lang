@@ -1,0 +1,20 @@
+N_MODULE (7) <1:86>
+  N_VAR [EXTERN] <8:1>
+    N_VAR_ITEM '_ctype' <8:15>
+      N_TYPEREF ptr <8:40>
+        N_TYPEREF ptr <8:40>
+          N_TYPEREF 'ushort' [USHORT] <8:40>
+  N_VAR [EXTERN] <9:1>
+    N_VAR_ITEM '_pctype' <9:15>
+      N_TYPEREF ptr <9:42>
+        N_TYPEREF ptr <9:42>
+          N_TYPEREF 'ushort' [USHORT] <9:42>
+  N_VAR [EXTERN] <10:1>
+    N_VAR_ITEM 'ex1' <10:15>
+      N_TYPEREF 'long' [LONG] <10:22>
+  N_VAR [EXTERN] <12:1>
+    N_VAR_ITEM 'plain1' <12:8>
+      N_TYPEREF 'long' [LONG] <12:18>
+  N_VAR [EXTERN] <13:1>
+    N_VAR_ITEM 'plain2' <13:8>
+      N_TYPEREF 'long' [LONG] <13:32>
