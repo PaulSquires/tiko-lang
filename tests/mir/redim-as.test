@@ -1,0 +1,5 @@
+'' 'redim x( ... ) as T' declares the array; the plain form does not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/redim-as.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/redim-as.out

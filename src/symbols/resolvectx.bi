@@ -82,6 +82,8 @@ declare function IterElemType_ _
 declare sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
       byval t as Fbx.TypeId )
+declare function InitCountAt _
+    ( byref c as Ctx, byval init as Fbx.NodeId, byval depth as long ) as long
 declare function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Fbx.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _

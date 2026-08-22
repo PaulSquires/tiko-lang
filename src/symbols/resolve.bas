@@ -823,7 +823,7 @@ end sub
 '' LIST node, so its children come from the list pool -- reading a statement payload
 '' here would land on an unrelated node, which is the mistake this codebase has made
 '' six times.
-private function InitCountAt _
+function InitCountAt _
     ( byref c as Ctx, byval init as Fbx.NodeId, byval depth as long ) as long
 
     dim as Fbx.NodeId n = init
@@ -841,71 +841,6 @@ end function
 
 
 
-'' 'init' is the declaration's initializer, or NODE_NONE. It is needed because an
-'' ellipsis bound takes its size from there and from nowhere else -- fbc refuses
-'' 'dim a(0 to ...)' with no initializer outright (error 281).
-''
-'' Getting this wrong would not be a decline. An unknown bound makes this return the
-'' ELEMENT type, so the array becomes eight bytes where twenty-four were needed and
-'' nothing says so -- which is exactly what parsing '...' without inferring it did.
-function ArrayFromPairs _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, _
-      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
-      byval init as Fbx.NodeId = Fbx.NODE_NONE, _
-      byval emptyIsDynamic as boolean = false ) as Fbx.TypeId
-
-    if base_ = Fbx.TYPE_NONE then return base_
-
-    '' EMPTY PARENS -- 'dim as long a()' -- is a DYNAMIC array with its dimension count
-    '' left open. It is not 'no array at all', which is what returning the element type
-    '' here used to make it: 'a' became a plain LONG, so its declaration reserved four
-    '' bytes instead of a descriptor and every later 'redim a(...)' had nothing to
-    '' redim. Rank 0 means unspecified; fbc gives such a descriptor eight dimtb slots.
-    '' 'emptyIsDynamic' is what tells the two callers apart. A DECLARATION with empty
-    '' parens is a dynamic array; a plain TYPE FIELD reaches here with no bound pairs
-    '' either, and is not an array at all. Without the distinction 'as long h' inside a
-    '' TYPE became a 240-byte descriptor -- caught by the cleanup golden.
-    if los.Count = 0 then
-        if emptyIsDynamic then return c.types->DynArrayOf( base_, 0 )
-        return base_
-    end if
-
-    dim as long total = 1
-    dim as boolean known = true
-    dim as FB.Array( of longint ) bounds
-    for i as long = 0 to los.Count - 1
-        dim as longint lo = 0
-        dim as Fbx.NodeId loN = cast( Fbx.NodeId, los[i] )
-        if loN <> Fbx.NODE_NONE then
-            dim as Fbx.Check.ConstVal lv = _
-                Fbx.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits )
-            if lv.known then lo = lv.value else known = false
-        end if
-        dim as longint hi = lo - 1
-        dim as Fbx.NodeId hiN = cast( Fbx.NodeId, his[i] )
-        if (hiN <> Fbx.NODE_NONE) andalso (c.ast->Kind( hiN ) = Fbx.N_ELLIPSIS) then
-            '' The bound the initializer implies: lbound + count - 1, per dimension.
-            dim as long got = InitCountAt( c, init, i )
-            if got > 0 then hi = lo + got - 1 else known = false
-        elseif hiN <> Fbx.NODE_NONE then
-            dim as Fbx.Check.ConstVal hv = _
-                Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits )
-            if hv.known then hi = hv.value else known = false
-        else
-            known = false
-        end if
-        if known then total *= cast( long, hi - lo + 1 )
-        bounds.Push( lo )
-        bounds.Push( hi )
-    next
-    '' A BOUND THAT IS NOT A COMPILE-TIME CONSTANT makes the array DYNAMIC -- 'dim
-    '' a(any)', 'dim a(0 to n)'. The rank is still written down, and it is what decides
-    '' how many dimtb slots the descriptor carries, so it is kept.
-    if (known = false) orelse (total <= 0) then return c.types->DynArrayOf( base_, los.Count )
-    return c.types->ArrayOf( base_, los.Count, total, @bounds )
-end function
 
 '' N_FIELD: flat (lo, hi) children.
 function ArrayFromBounds _
@@ -1180,6 +1115,33 @@ sub WalkStmt _
         '' is exactly why type references are resolved in this pass and not that one.
         dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
         if sp->op = cast( ushort, Fbx.KW_REDIM ) then
+            '' EXCEPT WITH AN 'AS' CLAUSE, which declares the array as well as sizing
+            '' it: 'redim foo( 1 to 2 ) as integer' is how a dynamic array is brought
+            '' into existence in one line, and the corpus's own redim test writes
+            '' nothing else. Collect now declares those, and they need a TYPE here for
+            '' the same reason a DIM does -- the bounds path below only walks the
+            '' bounds. A DYNAMIC array type, whatever bounds were written: the whole
+            '' point of the form is that they are set at run time.
+            dim as boolean declares = false
+            for i as long = 0 to sp->count - 1
+                dim as Fbx.NodeId it3 = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+                if c.ast->Kind( it3 ) <> Fbx.N_VAR_ITEM then continue for
+                dim as Fbx.StmtPayload ptr ip3 = StmtOf( c, it3 )
+                if ip3->a = Fbx.NODE_NONE then continue for
+                declares = true
+                dim as Fbx.TypeId bt3 = ResolveTypeRef( c, ip3->a, here )
+                if bt3 = Fbx.TYPE_NONE then continue for
+                dim as long ndim = 1
+                if ip3->c <> Fbx.NODE_NONE then
+                    if c.ast->Kind( ip3->c ) = Fbx.N_BLOCK then
+                        ndim = c.ast->lists[cast( long, _
+                            c.ast->nodes[cast( long, ip3->c )].data )].count
+                    end if
+                end if
+                if ndim < 1 then ndim = 1
+                BindDeclType( c, here, ip3->name, c.types->DynArrayOf( bt3, ndim ) )
+            next
+
             '' A REDIM declares nothing -- the array already exists -- but its BOUNDS
             '' are ordinary runtime expressions and have to be resolved like any
             '' other. Returning here without walking them left 'redim a(0 to n)' with

@@ -376,9 +376,27 @@ sub WalkNode _
     case Fbx.N_VAR, Fbx.N_CONST
         '' The items carry the names; the declaration itself carries the storage.
         dim as Fbx.StmtPayload ptr sp = StmtOf( w, id )
-        '' REDIM re-dimensions an EXISTING array. It is not a declaration, and
-        '' treating it as one reported every 'redim a(...)' as a duplicate.
-        if sp->op = cast( ushort, Fbx.KW_REDIM ) then return
+        '' REDIM re-dimensions an EXISTING array. It is not a declaration, and treating
+        '' it as one reported every 'redim a(...)' as a duplicate.
+        ''
+        '' EXCEPT WITH AN 'AS' CLAUSE. 'redim foo( 1 to 2 ) as integer' declares foo AND
+        '' sizes it -- it is how a dynamic array is brought into existence in one line,
+        '' and the corpus's own redim test writes nothing else. Skipping those declared
+        '' nothing, so lowering had no symbol, no type and no descriptor to build, and
+        '' every one produced no code at all.
+        ''
+        '' The type clause is what tells the two apart, and it has to be read off the
+        '' ITEM rather than the statement: 'redim as long baz( 0 to 2 )' puts it there
+        '' too, and both spellings mean the same thing.
+        if sp->op = cast( ushort, Fbx.KW_REDIM ) then
+            dim as boolean declares = false
+            for i as long = 0 to sp->count - 1
+                dim as Fbx.NodeId it2 = cast( Fbx.NodeId, w.ast->children[sp->first + i] )
+                if w.ast->Kind( it2 ) <> Fbx.N_VAR_ITEM then continue for
+                if StmtOf( w, it2 )->a <> Fbx.NODE_NONE then declares = true
+            next
+            if declares = false then return
+        end if
         for i as long = 0 to sp->count - 1
             dim as Fbx.NodeId item = cast( Fbx.NodeId, w.ast->children[sp->first + i] )
             if w.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
