@@ -665,6 +665,25 @@ private sub LowerAssign _
         return
     end if
 
+    '' A FIXED-LENGTH NARROW DESTINATION -- 'zstring * N' -- is a CHAR ARRAY, not a
+    '' descriptor, so IsStringType says no and it fell through to the ordinary store
+    '' path. There it emitted NOTHING AT ALL and counted as fully lowered: 'dim as
+    '' zstring * 8 fa : fa = c' left fa untouched with "0 statements not lowered"
+    '' beside it, which is the worst of the three outcomes -- worse than declining,
+    '' because nothing said it had happened.
+    ''
+    '' The runtime call is the one the DIM INITIALISER already used, and fbc emits the
+    '' same thing for both: fb_StrAssign( FA, 8, &C, -1, 0 ).
+    dim as longint zdn
+    if StrSwapKind_( c, c.info->TypeOf_( target ), zdn ) = 1 then
+        dim as MirValue zdst = LowerAddr( c, target )
+        if zdst.kind <> cast( ubyte, MV_NONE ) then
+            if LowerZstrAssignTo( c, zdst, zdn, value, false ) then return
+        end if
+        SkipHere( c )
+        return
+    end if
+
     '' Same reason as the read: a full-width store into a bitfield's unit would
     '' overwrite every field packed beside it, so it is a read-modify-write.
     if LowerBitfieldStore( c, target, value ) then return
@@ -917,7 +936,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                     zdst.kind = cast( ubyte, MV_LOCAL )
                     zdst.ty = cast( ubyte, MT_PTR )
                     zdst.id = slot
-                    if LowerZstrAssignTo( c, zdst, zn2, ip->b ) then needsStore = false
+                    if LowerZstrAssignTo( c, zdst, zn2, ip->b, true ) then needsStore = false
                 end if
             end if
 

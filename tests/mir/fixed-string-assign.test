@@ -1,0 +1,5 @@
+'' Fixed-length strings on both sides of an assignment, and a string iif over them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixed-string-assign.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/fixed-string-assign.out

@@ -12,11 +12,8 @@ namespace Fbx.Mir
 
 declare function AggIifArm_ _
     ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
-declare function LowerStringIif_ _
-    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
-      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
-declare function StrInitFrom_ _
-    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
 
 '' CLOSE. Every corpus form is the same shape: a list of file numbers, each closed in
 '' turn, and an EMPTY list closing all of them.
@@ -448,7 +445,7 @@ end function
 '' happened to be there. Its life ends with the STATEMENT, which is shorter than any
 '' scope, so it is registered on the statement-temporary list rather than the scope
 '' cleanup list.
-private function LowerStringIif_ _
+function LowerStringIif_ _
     ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
       byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
 
@@ -484,7 +481,7 @@ end function
 '' fb_StrInit( dst, -1, src, srcLen, 0 ) for one arm. A literal passes its own bytes
 '' and a length that INCLUDES the terminator, which is the fb_StrInit convention and
 '' not the fb_StrAllocTempDescZEx one.
-private function StrInitFrom_ _
+function StrInitFrom_ _
     ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
 
     dim as FB.Array( of ulong ) args
@@ -492,17 +489,38 @@ private function StrInitFrom_ _
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, cast( ulongint, -1 ) ) )
 
+    dim as longint zn
     if c.ast->Kind( e ) = Fbx.N_STRING_LIT then
         dim as string lit = StringLitText_( c, e )
         args.Push( cast( ulong, MV_GLOBAL ) )
         args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, len( lit ) + 1 ) )
-    else
-        if IsStringType( c, c.info->TypeOf_( e ) ) = false then return false
+    elseif StrSwapKind_( c, c.info->TypeOf_( e ), zn ) = 1 then
+        '' A FIXED-LENGTH NARROW ARM passes its address and its DECLARED LENGTH, not
+        '' -1: there is no descriptor to read a length out of. Measured --
+        '' 'fb_StrInit( &TMP$5, -1ll, FA$1, 8ll, 0 )'.
+        dim as MirValue zv = LowerAddr( c, e )
+        if zv.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, zv.kind ) ) : args.Push( cast( ulong, zv.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, zn ) )
+    elseif IsStringType( c, c.info->TypeOf_( e ) ) then
         dim as MirValue sv = LowerAddr( c, e )
         if sv.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    else
+        '' ANYTHING THAT HANDS BACK A DESCRIPTOR -- 'hex( n )', 'trim( s )', a nested
+        '' string iif. fbc puts the call's result in a temporary and inits from it:
+        '' 'vr$6 = fb_HEX_l( 123 ); fb_StrInit( &TMP$4, -1ll, vr$6, -1ll, 0 )'.
+        '' Without this an arm whose type Check does not compute -- which is every
+        '' intrinsic call -- declined the whole iif.
+        dim as MirValue dv
+        if StrDescriptorOf_( c, e, dv ) = false then return false
+        if dv.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, dv.kind ) ) : args.Push( cast( ulong, dv.id ) )
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, cast( ulongint, -1 ) ) )
     end if

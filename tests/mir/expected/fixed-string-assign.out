@@ -1,0 +1,90 @@
+global str $str0 "x"
+global str $str1 "y"
+global var i64 ct
+func void P() {
+  local agg a size 24
+  local agg b size 24
+  local agg c size 24
+  local agg fa size 8
+  local agg fb2 size 8
+  local agg fc size 8
+  local agg $tmp6 size 24
+  local agg $tmp7 size 24
+  local agg z1 size 8
+  local agg z2 size 8
+  entry0:
+    %1 = alloca ptr a
+    %2 = call.rtl ptr fb_StrInit(@a, -1, @@$str0, 2, 0)
+    %3 = alloca ptr b
+    %4 = call.rtl ptr fb_StrInit(@b, -1, @@$str1, 2, 0)
+    %5 = alloca ptr c
+    %6 = field.addr @c, 0
+    store %6, 0
+    %7 = field.addr @c, 8
+    store %7, 0
+    %8 = field.addr @c, 16
+    store %8, 0
+    %9 = alloca ptr fa
+    %10 = call.rtl ptr fb_StrAssign(@fa, 8, @@$str0, 2, 0)
+    %11 = alloca ptr fb2
+    %12 = call.rtl ptr fb_StrAssign(@fb2, 8, @@$str1, 2, 0)
+    %13 = alloca ptr fc
+    %14 = call.rtl ptr fb_StrAssign(@c, -1, @fa, 8, 0)
+    %15 = call.rtl ptr fb_StrAssign(@fa, 8, @c, -1, 0)
+    %16 = load @@ct
+    %17 = alloca ptr $tmp6
+    %22 = alloca ptr $tmp7
+    %26 = alloca ptr z1
+    %29 = alloca ptr z2
+    condbr %16, iif.then1, iif.else2
+  iif.then1:
+    %18 = call.rtl ptr fb_StrInit(@$tmp6, -1, @fa, 8, 0)
+    br iif.join3
+  iif.else2:
+    %19 = call.rtl ptr fb_StrInit(@$tmp6, -1, @fb2, 8, 0)
+    br iif.join3
+  iif.join3:
+    %20 = call.rtl ptr fb_StrAssign(@c, -1, @$tmp6, -1, 0)
+    call.rtl void fb_StrDelete(@$tmp6)
+    %21 = load @@ct
+    condbr %21, iif.then4, iif.else5
+  iif.then4:
+    %23 = call.rtl ptr fb_StrInit(@$tmp7, -1, @fa, 8, 0)
+    br iif.join6
+  iif.else5:
+    %24 = call.rtl ptr fb_StrInit(@$tmp7, -1, @fb2, 8, 0)
+    br iif.join6
+  iif.join6:
+    %25 = call.rtl ptr fb_StrAssign(@fc, 8, @$tmp7, -1, 0)
+    call.rtl void fb_StrDelete(@$tmp7)
+    %27 = call.rtl ptr fb_TRIM(@a)
+    %28 = call.rtl ptr fb_StrInit(@z1, 8, %27, -1, 0)
+    %30 = call.rtl ptr fb_TRIM(@a)
+    %31 = call.rtl ptr fb_StrAssign(@z2, 8, %30, -1, 0)
+    %32 = call.rtl ptr fb_StrAssign(@c, -1, @b, -1, 0)
+    call.rtl void fb_StrDelete(@c)
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@a)
+    ret
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare ptr fb_TRIM($0)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 8 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

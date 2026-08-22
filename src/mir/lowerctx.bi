@@ -274,7 +274,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
     declare function LowerZstrAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
-          byval value as Fbx.NodeId ) as boolean
+          byval value as Fbx.NodeId, byval isInit as boolean ) as boolean
     declare function LowerStrRvalue _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function StrDescriptorOf_ _
@@ -302,6 +302,19 @@ declare function EmitRtl _
     declare function LowerArrayInit _
         ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
           byval init as Fbx.NodeId ) as boolean
+    declare function LowerStringIif_ _
+        ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
+          byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function StrInitFrom_ _
+        ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+    '' An 'iif' call and its three arms, WITHOUT asking what the arms are. Used where
+    '' the context already knows the result is a string -- a term of a string
+    '' assignment, an arm of another string iif -- because the arm types cannot answer
+    '' it: Check computes no type for an intrinsic call, so 'iif( c, hex( 1 ),
+    '' hex( 2 ) )' looks like an iif over nothing.
+    declare function IsIifCall_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref condE as Fbx.NodeId, _
+          byref thenE as Fbx.NodeId, byref elseE as Fbx.NodeId ) as boolean
     declare function LowerIif _
         ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType, _
           byref outv as MirValue ) as boolean

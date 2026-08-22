@@ -957,6 +957,25 @@ function IifArmType_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
 end function
 
 
+function IsIifCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref condE as Fbx.NodeId, _
+      byref thenE as Fbx.NodeId, byref elseE as Fbx.NodeId ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 3 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    condE = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    thenE = cast( Fbx.NodeId, c.ast->children[lp->first + 1] )
+    elseE = cast( Fbx.NodeId, c.ast->children[lp->first + 2] )
+    return true
+end function
+
 '' Whether a node is an 'iif' whose ARMS are strings.
 ''
 '' Decided from an arm's type rather than from the call's, because Check computes no
@@ -1342,9 +1361,15 @@ function EmitStrTerm _
     '' A STRING 'iif' produces a temporary DESCRIPTOR, whose address is exactly what
     '' this needs. Tried before the type test because Check computes no type for an
     '' iif call, so a type-first test would never reach it.
-    if IsStringIif_( c, term ) then
+    '' THE DESTINATION IS ALREADY KNOWN TO BE A STRING, so an iif here is a string
+    '' iif whatever its arms look like. Asking IsStringIif_ instead meant every
+    '' 'iif( c, hex( 1 ), hex( 2 ) )' declined: Check computes no type for an
+    '' intrinsic call, so neither arm looked like a string and the whole statement
+    '' produced nothing.
+    dim as Fbx.NodeId iC, iT, iE
+    if IsIifCall_( c, term, iC, iT, iE ) then
         dim as MirValue iv
-        if LowerIif( c, term, MT_VOID, iv ) = false then return false
+        if LowerStringIif_( c, iC, iT, iE, iv ) = false then return false
         if iv.kind = cast( ubyte, MV_NONE ) then return false
         PushStrArg( args, iv )
         return true
@@ -1357,6 +1382,29 @@ function EmitStrTerm _
     if LowerStrRvalue( c, term, rvv ) then
         PushStrArg( args, rvv )
         return true
+    end if
+
+    '' A FIXED-LENGTH STRING IS A CHAR ARRAY WITH NO DESCRIPTOR, so it passes its
+    '' ADDRESS and its DECLARED LENGTH where a var-length string passes -1 and lets the
+    '' descriptor say. Measured -- 'dim as string c : dim as zstring * 8 fa : c = fa':
+    ''
+    ''     fb_StrAssign( (void*)&C$1, -1ll, (void*)FA$1, 8ll, 0 );
+    ''
+    '' PushStrArg's -1 would have made the runtime read a length out of the first bytes
+    '' of the text. The reverse direction -- a fixed destination -- was already handled;
+    '' this is the same fact on the other side, and it declined outright: 'c = fa' is
+    '' one of the commonest shapes in the corpus and produced nothing at all.
+    dim as longint zn
+    dim as long zk = StrSwapKind_( c, c.info->TypeOf_( term ), zn )
+    if zk = 1 then
+        dim as MirValue za = LowerAddr( c, term )
+        if za.kind <> cast( ubyte, MV_NONE ) then
+            args.Push( cast( ulong, za.kind ) )
+            args.Push( cast( ulong, za.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, zn ) )
+            return true
+        end if
     end if
 
     if IsStringType( c, c.info->TypeOf_( term ) ) = false then return false

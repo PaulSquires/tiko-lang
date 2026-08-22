@@ -188,7 +188,14 @@ function StrDescriptorOf_ _
             if outv.kind <> cast( ubyte, MV_NONE ) then return true
         end if
     end if
-    if IsStringIif_( c, id ) then return LowerIif( c, id, MT_VOID, outv )
+    '' AN IIF, whatever its arms look like: everything that asks for a descriptor is
+    '' already in a string context, and the arm types cannot answer it -- Check
+    '' computes no type for an intrinsic call, so 'iif( c, hex( 1 ), hex( 2 ) )' looks
+    '' like an iif over nothing and declined the statement around it.
+    dim as Fbx.NodeId iC, iT, iE
+    if IsIifCall_( c, id, iC, iT, iE ) then
+        return LowerStringIif_( c, iC, iT, iE, outv )
+    end if
     return LowerStrRvalue( c, id, outv )
 end function
 
@@ -213,7 +220,7 @@ end function
 '' is not guessable from the other two rows.
 function LowerZstrAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
-      byval value as Fbx.NodeId ) as boolean
+      byval value as Fbx.NodeId, byval isInit as boolean ) as boolean
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
@@ -246,14 +253,20 @@ function LowerZstrAssignTo _
     end if
 
     '' Anything that yields a DESCRIPTOR -- 'trim( t )', a string iif, a literal-backed
-    '' temporary. fbc uses fb_StrInit here, not fb_StrAssign.
+    '' temporary. HERE ALONE the two contexts differ, and measurably:
+    ''
+    ''     dim as zstring * 8 z1 = trim( a )   fb_StrInit  ( Z1, 8, vr, -1, 0 )
+    ''     z2 = trim( a )                      fb_StrAssign( Z2, 8, vr, -1, 0 )
+    ''
+    '' The literal and addressable branches above use fb_StrAssign in BOTH contexts --
+    '' also measured, not assumed from the symmetry.
     dim as MirValue rv
     if StrDescriptorOf_( c, value, rv ) = false then return false
     args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, cast( ulongint, -1 ) ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    EmitRtl( c, RTL_STR_INIT, args )
+    EmitRtl( c, iif( isInit, RTL_STR_INIT, RTL_STR_ASSIGN ), args )
     return true
 end function
 
