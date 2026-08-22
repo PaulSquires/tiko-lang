@@ -12,9 +12,6 @@ declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
 
 '' Local to this file: the two halves of concatenation lowering call each other.
-declare function EmitStrTerm _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
-      byval term as Fbx.NodeId ) as boolean
 declare sub PushStrArg _
     ( byref args as FB.Array( of ulong ), byref addr as MirValue )
 declare sub PushStrLiteralArg _
@@ -26,8 +23,6 @@ declare function PrintRtlFor( byref c as Ctx, byval t as Fbx.TypeId ) as RtlId
 declare function LowerConcatViaTemp _
     ( byref c as Ctx, byref dst as MirValue, _
       byref terms as FB.Array( of ulong ) ) as boolean
-declare sub FlattenConcat _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outp as FB.Array( of ulong ) )
 
 
 '' 'a = b + a'. The chain is built in an anonymous FBSTRING slot and then assigned.

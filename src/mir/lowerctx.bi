@@ -165,6 +165,13 @@ declare function EmitRtl _
     declare sub LowerBlock( byref c as Ctx, byval id as Fbx.NodeId )
 
     declare sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
+    '' The (pointer, length) pair for one term of a concatenation, appended to 'args'.
+    declare function EmitStrTerm _
+        ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+          byval term as Fbx.NodeId ) as boolean
+    '' Flatten a left-leaning '+'/'&' chain into its terms, in source order.
+    declare sub FlattenConcat _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outp as FB.Array( of ulong ) )
     declare function LowerStringInit _
         ( byref c as Ctx, byval slot as long, byval target as Fbx.NodeId, _
           byval value as Fbx.NodeId ) as boolean

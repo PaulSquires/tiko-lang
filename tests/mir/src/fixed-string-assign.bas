@@ -35,4 +35,10 @@ sub P( )
     dim as zstring * 8 z2
     z2 = trim( a )
     c = b
+
+    '' A CONCATENATION ARM. It has to be recognised BEFORE the type tests: a concat IS
+    '' string-typed, so IsStringType claims it and then asks for its ADDRESS, which it
+    '' has not got. fbc builds it with fb_StrConcat into a SECOND temporary and inits
+    '' the arm's temporary from that.
+    c = iif( ct, a + b, "" )
 end sub

@@ -1,6 +1,7 @@
 global str $str0 "x"
 global str $str1 "y"
 global var i64 ct
+global str $str3 ""
 func void P() {
   local agg a size 24
   local agg b size 24
@@ -12,6 +13,8 @@ func void P() {
   local agg $tmp7 size 24
   local agg z1 size 8
   local agg z2 size 8
+  local agg $tmp10 size 24
+  local agg $tmp11 size 24
   entry0:
     %1 = alloca ptr a
     %2 = call.rtl ptr fb_StrInit(@a, -1, @@$str0, 2, 0)
@@ -36,6 +39,8 @@ func void P() {
     %22 = alloca ptr $tmp7
     %26 = alloca ptr z1
     %29 = alloca ptr z2
+    %34 = alloca ptr $tmp10
+    %35 = alloca ptr $tmp11
     condbr %16, iif.then1, iif.else2
   iif.then1:
     %18 = call.rtl ptr fb_StrInit(@$tmp6, -1, @fa, 8, 0)
@@ -62,6 +67,25 @@ func void P() {
     %30 = call.rtl ptr fb_TRIM(@a)
     %31 = call.rtl ptr fb_StrAssign(@z2, 8, %30, -1, 0)
     %32 = call.rtl ptr fb_StrAssign(@c, -1, @b, -1, 0)
+    %33 = load @@ct
+    condbr %33, iif.then7, iif.else8
+  iif.then7:
+    %36 = field.addr @$tmp11, 0
+    store %36, 0
+    %37 = field.addr @$tmp11, 8
+    store %37, 0
+    %38 = field.addr @$tmp11, 16
+    store %38, 0
+    %39 = call.rtl ptr fb_StrConcat(@$tmp11, @a, -1, @b, -1)
+    %40 = call.rtl ptr fb_StrInit(@$tmp10, -1, %39, -1, 0)
+    br iif.join9
+  iif.else8:
+    %41 = call.rtl ptr fb_StrInit(@$tmp10, -1, @@$str3, 1, 0)
+    br iif.join9
+  iif.join9:
+    %42 = call.rtl ptr fb_StrAssign(@c, -1, @$tmp10, -1, 0)
+    call.rtl void fb_StrDelete(@$tmp10)
+    call.rtl void fb_StrDelete(@$tmp11)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
@@ -71,6 +95,7 @@ declare ptr fb_StrInit($0, $1, $2, $3, $4)
 declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare void fb_StrDelete($0)
 declare ptr fb_TRIM($0)
+declare ptr fb_StrConcat($0, $1, $2, $3, $4)
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -87,4 +112,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 8 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 11 blocks, 63 insts, 0 statements not lowered, 0 scope imbalance
