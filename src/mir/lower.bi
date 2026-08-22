@@ -63,6 +63,15 @@ namespace Fbx.Mir
         as long ambCallUnbound      '' a call whose callee bound to no symbol
         as long ambCallNoCode       '' callee bound, and still nothing was emitted
         as long ambAssign           '' an assignment that did not lower
+        '' ...broken down by the TYPE KIND of its TARGET, and by whether the target
+        '' had a type at all. A count says how much is owed and nothing about what to
+        '' write, and 1,643 assignments emitting nothing was the largest single item in
+        '' the corpus with no name on it.
+        as FB.Array( of ulong ) ambAssignKinds
+        as long ambAssignUntyped
+        '' ...and by the NODE KIND of the VALUE, which is where the failure actually
+        '' is: the target being typed says the right-hand side is what would not lower.
+        as FB.Array( of ulong ) ambAssignValKinds
         as long ambResultNoSlot     '' 'function = expr' whose result type has no slot
         '' WHICH TYPE KIND, indexed by TypeKind. A count alone says how much is owed
         '' and nothing about what to write.

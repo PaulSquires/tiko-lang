@@ -297,7 +297,23 @@ function Run( byref args as Fbx.StrVec ) as long
                 if lst.ambCallNoCode > 0 then
                     print "  amb call-nocode " & str( lst.ambCallNoCode )
                 end if
-                if lst.ambAssign > 0 then print "  amb assign " & str( lst.ambAssign )
+                if lst.ambAssign > 0 then
+                    print "  amb assign " & str( lst.ambAssign )
+                    if lst.ambAssignUntyped > 0 then
+                        print "  amb-assign-untyped " & str( lst.ambAssignUntyped )
+                    end if
+                    for i as long = 0 to lst.ambAssignKinds.Count - 1
+                        if lst.ambAssignKinds[i] = 0 then continue for
+                        print "  amb-assign-kind " & str( i ) & " " & _
+                              str( lst.ambAssignKinds[i] )
+                    next
+                    for i as long = 0 to lst.ambAssignValKinds.Count - 1
+                        if lst.ambAssignValKinds[i] = 0 then continue for
+                        print "  amb-assign-val " & _
+                              Fbx.NodeKindName( cast( Fbx.NodeKind, i ) ) & " " & _
+                              str( lst.ambAssignValKinds[i] )
+                    next
+                end if
                 if lst.ambResultNoSlot > 0 then
                     print "  amb result-noslot " & str( lst.ambResultNoSlot )
                     for i as long = 0 to lst.resultNoSlotKinds.Count - 1

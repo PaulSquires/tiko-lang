@@ -258,3 +258,6 @@ func void Q($0) {
 verify: ok
 lowered: 2 functions, 41 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance
   amb assign 2
+  amb-assign-kind 1 2
+  amb-assign-val N_BINARY 1
+  amb-assign-val N_CALL 1

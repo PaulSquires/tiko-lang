@@ -1167,6 +1167,27 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             end if
             if c.f->blocks[c.curBlock].insts.Count = beforeA then
                 c.st->ambAssign += 1
+                '' WHICH KIND OF TARGET, so the next reader has something to go and
+                '' implement rather than a number.
+                if c.st->ambAssignKinds.Count = 0 then
+                    for i as long = 0 to 15
+                        c.st->ambAssignKinds.Push( 0 )
+                    next
+                end if
+                dim as Fbx.TypeId att = c.info->TypeOf_( sp->a )
+                if att = Fbx.TYPE_NONE then
+                    c.st->ambAssignUntyped += 1
+                else
+                    dim as long ak = cast( long, c.types->Kind( att ) )
+                    if (ak >= 0) andalso (ak < 16) then c.st->ambAssignKinds[ak] += 1
+                end if
+                if c.st->ambAssignValKinds.Count = 0 then
+                    for i as long = 0 to 127
+                        c.st->ambAssignValKinds.Push( 0 )
+                    next
+                end if
+                dim as long vk = cast( long, c.ast->Kind( sp->b ) )
+                if (vk >= 0) andalso (vk < 128) then c.st->ambAssignValKinds[vk] += 1
             end if
         case Fbx.AMB_CALL
             '' A CALL STATEMENT THAT PRODUCES NOTHING IS A DECLINE, and has to be counted

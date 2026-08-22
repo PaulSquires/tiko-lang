@@ -46,4 +46,4 @@ declare void fb_End($0)
 verify: ok
 lowered: 3 functions, 3 blocks, 26 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
-  skip-site src\mir\lower.bas:1067 1
+  skip-site src\mir\lower.bas:1082 1
