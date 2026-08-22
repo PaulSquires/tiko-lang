@@ -255,6 +255,28 @@ dim as wstring * 8 w
 read b, ub, sh, ush, l, ul, q, uq, i, ui, f, d, bo, s, z, w
 restore
 ''',
+    # WRITE and the LSET/RSET pair. Every WRITE width is probed because the
+    # destination type alone picks the entry point, exactly as PRINT does.
+    "writeset": '''
+sub WSProbe( )
+    dim as string s1, s2
+    dim as zstring * 8 z
+    dim as wstring * 8 w, w2
+    dim as byte b : dim as ubyte ub
+    dim as short sh : dim as ushort ush
+    dim as long l : dim as ulong ul
+    dim as longint q : dim as ulongint uq
+    dim as single f : dim as double d
+    dim as boolean bo
+    write b, ub, sh, ush, l, ul, q, uq, f, d, bo, s1, w
+    write
+    lset s1 = s2
+    rset s1 = s2
+    lset z = s2
+    lset w = w2
+    rset w = w2
+end sub
+''',
     "wstrsub": '''
 sub WSubProbe( )
     dim as wstring * 50 w, w2, r

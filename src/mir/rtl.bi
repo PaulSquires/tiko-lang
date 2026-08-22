@@ -151,6 +151,9 @@ namespace Fbx.Mir
         RTL( RTL_DATA_READ_SINGLE,  "fb_DataReadSingle",   "v",   "p"     )
         RTL( RTL_DATA_READ_DOUBLE,  "fb_DataReadDouble",   "v",   "p"     )
         RTL( RTL_STR_TEMPZ,         "fb_StrAllocTempDescZEx", "p",  "pz"  )
+        '' The same thing without a length: a NUL-terminated char* whose length the
+        '' runtime works out. That is what a ZSTRING destination borrows for LSET.
+        RTL( RTL_STR_TEMPZ_NOLEN,   "fb_StrAllocTempDescZ", "p",   "p"     )
         '' A STRING RESULT. fbc builds the value in a local descriptor and hands the
         '' runtime that descriptor on the way out; what the function actually returns
         '' is the POINTER this gives back, not the descriptor itself.
@@ -173,6 +176,31 @@ namespace Fbx.Mir
         RTL( RTL_PRINT_SINGLE,      "fb_PrintSingle",      "v",   "lfl"   )
         RTL( RTL_PRINT_DOUBLE,      "fb_PrintDouble",      "v",   "ldl"   )
         RTL( RTL_PRINT_BOOL,        "fb_PrintBool",        "v",   "lbl"   )
+
+        '' WRITE is one-to-one with PRINT minus SPC, TAB and USING. Its only separator
+        '' is ',' -- 'write s;' is fbc error 3 -- so its masks are only 2 and 1.
+        RTL( RTL_WRITE_VOID,        "fb_WriteVoid",        "v",   "ll"    )
+        RTL( RTL_WRITE_BOOL,        "fb_WriteBool",        "v",   "lbl"   )
+        RTL( RTL_WRITE_BYTE,        "fb_WriteByte",        "v",   "lbl"   )
+        RTL( RTL_WRITE_UBYTE,       "fb_WriteUByte",       "v",   "lbl"   )
+        RTL( RTL_WRITE_SHORT,       "fb_WriteShort",       "v",   "lsl"   )
+        RTL( RTL_WRITE_USHORT,      "fb_WriteUShort",      "v",   "lsl"   )
+        RTL( RTL_WRITE_INT,         "fb_WriteInt",         "v",   "lll"   )
+        RTL( RTL_WRITE_UINT,        "fb_WriteUInt",        "v",   "lll"   )
+        RTL( RTL_WRITE_LONGINT,     "fb_WriteLongint",     "v",   "lql"   )
+        RTL( RTL_WRITE_ULONGINT,    "fb_WriteULongint",    "v",   "lql"   )
+        RTL( RTL_WRITE_SINGLE,      "fb_WriteSingle",      "v",   "lfl"   )
+        RTL( RTL_WRITE_DOUBLE,      "fb_WriteDouble",      "v",   "ldl"   )
+        RTL( RTL_WRITE_STRING,      "fb_WriteString",      "v",   "lpl"   )
+        RTL( RTL_WRITE_WSTR,        "fb_WriteWstr",        "v",   "lpl"   )
+
+        '' LSET and RSET pad or truncate a string INTO a destination that already has
+        '' storage. Both take DESCRIPTORS; a zstring destination borrows a temporary
+        '' one and a wide destination has its own pair of entries.
+        RTL( RTL_STR_LSET,          "fb_StrLset",          "v",   "pp"    )
+        RTL( RTL_STR_RSET,          "fb_StrRset",          "v",   "pp"    )
+        RTL( RTL_WSTR_LSET,         "fb_WstrLset",         "v",   "pp"    )
+        RTL( RTL_WSTR_RSET,         "fb_WstrRset",         "v",   "pp"    )
         '' ARRAY DESCRIPTOR routines. Only the ones a FIXED array needs are here; the
         '' four variadic Redim* entries wait until dynamic arrays are modelled, and
         '' they are the only array routines that are CDECL on win32.

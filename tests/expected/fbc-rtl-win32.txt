@@ -91,6 +91,7 @@ fb_RIGHT	FBSTRING*	FBSTRING*, int32	lib	_fb_RIGHT@8
 fb_RTRIM	FBSTRING*	FBSTRING*	lib	_fb_RTRIM@4
 fb_RTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_RTrimAny@8
 fb_RTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_RTrimEx@8
+fb_StrAllocTempDescZ	FBSTRING*	char*	lib	_fb_StrAllocTempDescZ@4
 fb_StrAllocTempDescZEx	FBSTRING*	char*, int32	lib	_fb_StrAllocTempDescZEx@8
 fb_StrAllocTempResult	FBSTRING*	FBSTRING*	lib	_fb_StrAllocTempResult@4
 fb_StrAssign	FBSTRING*	void*, int32, void*, int32, int32	lib	_fb_StrAssign@20
@@ -101,7 +102,9 @@ fb_StrDelete	void	FBSTRING*	lib	_fb_StrDelete@4
 fb_StrInit	FBSTRING*	void*, int32, void*, int32, int32	lib	_fb_StrInit@20
 fb_StrLcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrLcase2@8
 fb_StrLen	int32	void*, int32	lib	_fb_StrLen@8
+fb_StrLset	void	FBSTRING*, FBSTRING*	lib	_fb_StrLset@8
 fb_StrMid	FBSTRING*	FBSTRING*, int32, int32	lib	_fb_StrMid@12
+fb_StrRset	void	FBSTRING*, FBSTRING*	lib	_fb_StrRset@8
 fb_StrSwap	void	void*, int32, int32, void*, int32, int32	lib	_fb_StrSwap@24
 fb_StrToWstr	uint16*	char*	lib	_fb_StrToWstr@4
 fb_StrUcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrUcase2@8
@@ -111,6 +114,20 @@ fb_TrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_TrimEx@8
 fb_UIntToWstr	uint16*	uint32	lib	_fb_UIntToWstr@4
 fb_ULongintToWstr	uint16*	uint64	lib	_fb_ULongintToWstr@8
 fb_VALINT	int32	FBSTRING*	lib	_fb_VALINT@4
+fb_WriteBool	void	int32, boolean, int32	lib	_fb_WriteBool@12
+fb_WriteByte	void	int32, int8, int32	lib	_fb_WriteByte@12
+fb_WriteDouble	void	int32, double, int32	lib	_fb_WriteDouble@16
+fb_WriteInt	void	int32, int32, int32	lib	_fb_WriteInt@12
+fb_WriteLongint	void	int32, int64, int32	lib	_fb_WriteLongint@16
+fb_WriteShort	void	int32, int16, int32	lib	_fb_WriteShort@12
+fb_WriteSingle	void	int32, float, int32	lib	_fb_WriteSingle@12
+fb_WriteString	void	int32, FBSTRING*, int32	lib	_fb_WriteString@12
+fb_WriteUByte	void	int32, uint8, int32	lib	_fb_WriteUByte@12
+fb_WriteUInt	void	int32, uint32, int32	lib	_fb_WriteUInt@12
+fb_WriteULongint	void	int32, uint64, int32	lib	_fb_WriteULongint@16
+fb_WriteUShort	void	int32, uint16, int32	lib	_fb_WriteUShort@12
+fb_WriteVoid	void	int32, int32	lib	_fb_WriteVoid@8
+fb_WriteWstr	void	int32, uint16*, int32	lib	_fb_WriteWstr@12
 fb_WstrAssign	uint16*	uint16*, int32, uint16*	lib	_fb_WstrAssign@12
 fb_WstrAssignFromA	uint16*	uint16*, int32, void*, int32	lib	_fb_WstrAssignFromA@16
 fb_WstrAssignToA	FBSTRING*	void*, int32, uint16*, int32	lib	_fb_WstrAssignToA@16
@@ -126,11 +143,13 @@ fb_WstrLTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrLTrimEx@8
 fb_WstrLcase2	uint16*	uint16*, int32	lib	_fb_WstrLcase2@8
 fb_WstrLeft	uint16*	uint16*, int32	lib	_fb_WstrLeft@8
 fb_WstrLen	int32	uint16*	lib	_fb_WstrLen@4
+fb_WstrLset	void	uint16*, uint16*	lib	_fb_WstrLset@8
 fb_WstrMid	uint16*	uint16*, int32, int32	lib	_fb_WstrMid@12
 fb_WstrRTrim	uint16*	uint16*	lib	_fb_WstrRTrim@4
 fb_WstrRTrimAny	uint16*	uint16*, uint16*	lib	_fb_WstrRTrimAny@8
 fb_WstrRTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrRTrimEx@8
 fb_WstrRight	uint16*	uint16*, int32	lib	_fb_WstrRight@8
+fb_WstrRset	void	uint16*, uint16*	lib	_fb_WstrRset@8
 fb_WstrSwap	void	uint16*, int32, uint16*, int32	lib	_fb_WstrSwap@16
 fb_WstrToStr	FBSTRING*	uint16*	lib	_fb_WstrToStr@4
 fb_WstrTrim	uint16*	uint16*	lib	_fb_WstrTrim@4

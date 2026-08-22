@@ -179,6 +179,11 @@ declare function EmitRtl _
         ( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
 
     declare function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    '' lowerio.bas
+    declare function LowerWrite( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerPoke( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function LowerLrset _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval isRight as boolean ) as boolean
     '' lowerusing.bas
     declare function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     '' lowerdesc.bas

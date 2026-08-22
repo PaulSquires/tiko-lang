@@ -1,0 +1,5 @@
+'' WRITE, POKE, LSET and RSET.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/write-poke-lrset.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/write-poke-lrset.out
