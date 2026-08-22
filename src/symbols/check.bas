@@ -987,7 +987,13 @@ end function
 '' typed, so the initialiser's type is already known whatever order the declaration
 '' appeared in.
 private sub InferUnusedVarTypes_( byref c as Ctx )
-    for sid as long = 1 to c.syms->Count( ) - 1
+    '' 'to Count( )', not 'to Count( ) - 1'. SymbolTable.Count already returns
+    '' 'symbols.Count - 1', so the valid ids are 1..Count( ) -- subtracting again
+    '' skipped THE LAST SYMBOL IN THE TABLE. If that symbol was an unused inferred
+    '' 'var' it stayed untyped and its slot lowered to void, so 'var a = 1' alone in a
+    '' file failed while the same line with any declaration after it passed. Five
+    '' corpus files, and the whole difference was where the variable happened to sit.
+    for sid as long = 1 to c.syms->Count( )
         dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cast( Fbx.SymbolId, sid ) )
         if s = 0 then continue for
         '' A CONSTANT too: 'const n1c as typeof( n1 ) = ( n1 )' is the shape the

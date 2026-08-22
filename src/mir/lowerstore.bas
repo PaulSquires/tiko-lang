@@ -410,6 +410,23 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
         '' without this every USE still resolved to a slot aliasing nothing, so
         '' 'rb = 5 : print a' gave 1 where fbc gives 5.
         if (cs->flags and Fbx.SYMF_BYREF) <> 0 then return v
+        '' A PROCEDURE HAS NO STORAGE EITHER. '@mysub' fell through to LocalFor, which
+        '' minted a FRAME SLOT named after the procedure -- so 'p = @mysub' stored the
+        '' address of a fresh stack slot and 'p()' called into stack garbage:
+        ''
+        ''     local void mysub          <-- a stack slot for a PROCEDURE
+        ''     %5 = alloca ptr mysub
+        ''     store @p, @mysub
+        ''     call.ind void %6()
+        ''
+        '' The VERIFIER WAVES THAT THROUGH, because the destination is a well-typed
+        '' pointer -- it is the source that is nonsense. Every '@proc' and every
+        '' procptr assignment in the corpus was miscompiled this way.
+        ''
+        '' A procedure's address is an M_FUNC_ADDR over the function table, which
+        '' FuncAddrOf already builds for procptr; this is the same thing reached by
+        '' the other spelling.
+        if cs->kind = cast( ubyte, Fbx.SYM_PROC ) then return FuncAddrOf( c, sid )
     end if
     dim as boolean inModule = IsSharedVar( c, sid )
     if IsStaticLocal( c, sid ) then inModule = true

@@ -850,6 +850,37 @@ private function KeywordLedExpression _
     return (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_LPAREN)
 end function
 
+'' Whether the parenthesised group starting at 'at' is a PARAMETER LIST rather than an
+'' expression. Decided by AS, BYREF or BYVAL appearing at depth one -- a parameter
+'' cannot be written without one of them, and an expression cannot contain one there.
+private function LooksLikeParamList _
+    ( byref p as Fbx.ParserState, byval at as long ) as boolean
+
+    dim as long depth = 0
+    dim as long i = at
+    '' Bounded: a runaway scan over a file with an unbalanced paren would otherwise
+    '' walk the whole token stream on every 'operator ='.
+    dim as long guard = 0
+    while HasTok( p, i ) andalso (guard < 4096)
+        dim as Fbx.TokenKind k = cast( Fbx.TokenKind, p.toks->At( i ).kind )
+        select case k
+        case Fbx.TK_LPAREN
+            depth += 1
+        case Fbx.TK_RPAREN
+            depth -= 1
+            if depth <= 0 then return false
+        case Fbx.KW_AS, Fbx.KW_BYREF, Fbx.KW_BYVAL
+            if depth = 1 then return true
+        case Fbx.TK_EOL
+            return false
+        end select
+        i += 1
+        guard += 1
+    wend
+    return false
+end function
+
+
 '' 'function =' / 'operator =' / 'property =', and nothing else that starts with one
 '' of those keywords. The cross-kind rules fbc enforces -- 'function =' is a syntax
 '' error inside a SUB -- are deliberately NOT checked here: accepting a little more
@@ -861,7 +892,29 @@ private function IsResultAssign _
                                 (k = Fbx.KW_OPERATOR) orelse (k = Fbx.KW_PROPERTY)
     if isResultKw = false then return false
     if HasTok( p, p.pos + 1 ) = false then return false
-    return (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EQ)
+    if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Fbx.TK_EQ then return false
+
+    '' 'operator = ( a, b ) as string' IS A DEFINITION, not a result assignment, and
+    '' the comment on the caller has always said the two are told apart by what
+    '' follows the '='. But a '(' ALONE IS NOT ENOUGH: inside an operator body
+    '' 'operator = ( v + 1 )' is a result assignment of a parenthesised expression,
+    '' and treating that as a definition loses the whole body. That is a real
+    '' regression this code made once -- 176,000 instructions stopped being emitted
+    '' corpus-wide, while the DECLINE count went DOWN, because a statement inside a
+    '' body that failed to parse is not a statement that declined.
+    ''
+    '' What actually separates them is a PARAMETER LIST: a definition's parentheses
+    '' hold 'byref a as T', so an AS, BYREF or BYVAL appears at paren depth one. An
+    '' expression can contain none of those at that depth -- 'cast( integer, x )'
+    '' puts its type one level deeper.
+    if k = Fbx.KW_OPERATOR then
+        if HasTok( p, p.pos + 2 ) then
+            if cast( Fbx.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Fbx.TK_LPAREN then
+                if LooksLikeParamList( p, p.pos + 2 ) then return false
+            end if
+        end if
+    end if
+    return true
 end function
 
 '' The three-way ambiguity of docs/plan/04 section 6: a leading expression is a call,

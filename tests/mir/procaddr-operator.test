@@ -1,0 +1,5 @@
+'' The address of a procedure, operator = in both senses, and the last symbol.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procaddr-operator.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/procaddr-operator.out
