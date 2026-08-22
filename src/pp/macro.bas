@@ -302,6 +302,58 @@ private function PpReadArgs _
     return true
 end function
 
+'' An argument to a builtin macro, MACRO-EXPANDED and then read as an integer.
+''
+'' The step of a __FB_ARG_LISTEXPAND__ is usually written as a literal, but fbc accepts
+'' a macro there -- '#define S 2' then '__FB_ARG_LISTEXPAND__( M, S, ... )' chunks by
+'' two. Arguments arrive here UNEXPANDED, because PpReadArgs takes raw tokens off the
+'' input, so reading the spelling directly would see 'S' and give up.
+''
+'' Only a signed integer is accepted, not an expression: every use in the corpus and in
+'' the runtime headers is a small literal, and a half-understood expression here would
+'' silently chunk the list the wrong way rather than say so.
+private function BuiltinIntArg_ _
+    ( byref e as PpEngine, byref args as ArgList, byval idx as long, _
+      byref ok as boolean ) as longint
+
+    ok = false
+    if (idx < 0) orelse (idx >= args.firsts.Count) then return 0
+
+    dim as TokenVec ptr raw = new TokenVec
+    dim as long first = args.firsts[idx]
+    for i as long = 0 to args.counts[idx] - 1
+        raw->Push( args.flat[first + i] )
+    next
+
+    dim as long baseDepth = e.frames.Count
+    PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
+
+    dim as TokenVec expanded
+    dim as long guard = 0
+    do
+        guard += 1
+        if guard > 100000 then exit do
+        if e.frames.Count <= baseDepth then exit do
+        dim as Token t
+        if PeekTok( e, t ) = false then exit do
+        if e.frames.Count <= baseDepth then exit do
+        if Tk( t ) = TK_IDENT then
+            dim as InternId id = cast( InternId, t.literal )
+            dim as PpMacro ptr mm = MacroFor( e, id )
+            if (mm <> 0) andalso (IsHidden( e, id ) = false) then
+                if PpExpand( e, mm, t ) then continue do
+            end if
+        end if
+        Advance( e )
+        expanded.Push( t )
+    loop
+    while e.frames.Count > baseDepth
+        PopFrame( e )
+    wend
+
+    return PpEvalIntTokens( e, expanded, ok )
+end function
+
 private function ArgIndexOf( byval m as PpMacro ptr, byval id as InternId ) as long
     for i as long = 0 to m->params.Count - 1
         if cast( InternId, m->params[i] ) = id then return i
@@ -341,6 +393,21 @@ private function ArgText _
         dim as boolean sep = ((t.flags and TF_SPACE_BEFORE) <> 0) andalso (i > 0)
         if sep then s += " "
         s += SpellOf( e, t )
+    next
+    return s
+end function
+
+'' The arguments from 'from' onward, comma-joined -- the tail a builtin passes on.
+private function ArgTail_ _
+    ( byref e as PpEngine, byref args as ArgList, byval from as long, _
+      byval upto as long ) as string
+
+    dim as string s = ""
+    dim as long last = upto
+    if last >= args.firsts.Count then last = args.firsts.Count - 1
+    for i as long = from to last
+        if i > from then s += ", "
+        s += ArgText( e, args, i )
     next
     return s
 end function
@@ -647,6 +714,82 @@ function PpExpandBuiltin _
             if (n = 1) andalso (args.counts[0] = 0) then n = 0
             RelexInto( e, str( n ), use.loc, *buf )
         end if
+
+    case PPB_ARG_EXTRACT
+        '' __FB_ARG_EXTRACT__( i, a, b, c ) -> the i'th of the list, ZERO-BASED.
+        ''
+        '' AN INDEX PAST THE END EXPANDS TO NOTHING rather than being an error of its
+        '' own -- measured: 'f( 0, __FB_ARG_EXTRACT__( 5, 1, 2 ) )' fails as an argument
+        '' count mismatch at the CALL, which is what an empty expansion produces. A
+        '' NEGATIVE index is rejected here, matching fbc's own syntax error.
+        dim as ArgList args
+        if PpReadArgs( e, m, args ) then
+            dim as boolean iok = false
+            dim as longint i = BuiltinIntArg_( e, args, 0, iok )
+            if (iok = false) orelse (i < 0) then
+                Report( e, FBX0324, use.loc, "1", e.names->Spelling( m->name ) )
+            elseif (i + 1) < args.firsts.Count then
+                RelexInto( e, ArgText( e, args, cast( long, i ) + 1 ), use.loc, *buf )
+            end if
+        end if
+
+    case PPB_ARG_LISTEXPAND
+        '' __FB_ARG_LISTEXPAND__( M, step, a, b, c ) -> M called over the list.
+        ''
+        '' MEASURED from fbc's own C output, because none of it is guessable:
+        ''
+        ''   step = 0    one call with the whole list.
+        ''   step = n    successive CHUNKS of n, front to back; the last is short.
+        ''               'M, 2, 1, 2, 3, 4, 5' is M(1,2) M(3,4) M(5).
+        ''   step = -n   successive TAILS, dropping n from the front each time and
+        ''               always passing everything that remains.
+        ''               'M, -2, 1, 2, 3, 4, 5' is M(1..5) M(3,4,5) M(5).
+        ''
+        '' A step wider than the list is one call with all of it, either sign.
+        ''
+        '' The calls are emitted as TEXT and re-lexed, so M expands by the ordinary
+        '' path -- there is nothing special about the macro being invoked. They are
+        '' separated by ':' rather than a newline because RelexInto drops TK_EOL, and
+        '' two statements run together would parse as one.
+        dim as ArgList args
+        if PpReadArgs( e, m, args ) then
+            dim as boolean sok = false
+            dim as longint stp = BuiltinIntArg_( e, args, 1, sok )
+            if sok = false then
+                Report( e, FBX0324, use.loc, "2", e.names->Spelling( m->name ) )
+            else
+                dim as string mname = trim( ArgText( e, args, 0 ) )
+                dim as long n = args.firsts.Count - 2      '' the list length
+                dim as string s = ""
+                dim as long calls = 0
+                if n > 0 then
+                    if stp = 0 then
+                        s = mname + "( " + ArgTail_( e, args, 2, args.firsts.Count - 1 ) + " )"
+                    elseif stp > 0 then
+                        dim as long at = 0
+                        while at < n
+                            dim as long last = at + cast( long, stp ) - 1
+                            if last > n - 1 then last = n - 1
+                            if calls > 0 then s += " : "
+                            s += mname + "( " + ArgTail_( e, args, 2 + at, 2 + last ) + " )"
+                            calls += 1
+                            at += cast( long, stp )
+                        wend
+                    else
+                        dim as long drop = cast( long, -stp )
+                        dim as long at = 0
+                        while at < n
+                            if calls > 0 then s += " : "
+                            s += mname + "( " + ArgTail_( e, args, 2 + at, args.firsts.Count - 1 ) + " )"
+                            calls += 1
+                            at += drop
+                        wend
+                    end if
+                end if
+                if len( s ) > 0 then RelexInto( e, s, use.loc, *buf )
+            end if
+        end if
+
 
     case PPB_JOIN
         dim as ArgList args

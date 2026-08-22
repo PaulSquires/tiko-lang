@@ -402,6 +402,34 @@ function PxOrElse( byref x as PpExprState ) as PpValue
 end function
 
 '' Evaluate an already-expanded token list as a '#if' condition.
+'' The same expression grammar, but for a VALUE rather than a truth.
+''
+'' __FB_ARG_EXTRACT__ and __FB_ARG_LISTEXPAND__ both take an integer argument that is
+'' an EXPRESSION in practice, not a literal: the corpus writes
+'' '__FB_ARG_EXTRACT__( __FB_ARG_COUNT__( args ) - 1, args )'. Reading digits off the
+'' spelling handled the literal cases and rejected that one, which is the shape that
+'' matters.
+function PpEvalIntTokens _
+    ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as longint
+
+    dim as PpExprState x
+    x.e = @e
+    x.toks = @toks
+    x.pos = 0
+    x.bad = false
+
+    if toks.IsEmpty( ) then
+        ok = false
+        return 0
+    end if
+
+    dim as PpValue v = PxOrElse( x )
+    if x.pos < toks.Count then x.bad = true
+    if v.isStr then x.bad = true
+    ok = (x.bad = false)
+    return v.num
+end function
+
 private function PpEvalCondition _
     ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as boolean
 

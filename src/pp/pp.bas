@@ -301,6 +301,29 @@ private sub RelexInto _
         dim as Token t = r.tokens[i]
         if Tk( t ) = TK_EOF then exit for
         if Tk( t ) = TK_EOL then continue for
+        '' A NUMERIC literal records no text span -- only strings do, because for a
+        '' file token the token's own loc and length already point at the digits. That
+        '' stops being true here: the loc is about to be repointed at the use site, and
+        '' SpellOf would then read one character of the INVOCATION and call it the
+        '' number. Recording the span into the paste buffer keeps the spelling readable
+        '' -- and it must be the SPELLING, not the value, so '&HFF' does not come back
+        '' as '255' through a stringize.
+        ''
+        '' Silent, and it made '#if __FB_ARG_COUNT__( a, b ) = 2' false: the count was
+        '' produced correctly and then read back as whatever byte sat at the use site.
+        dim as boolean isNum = (Tk( t ) = TK_INT_LIT) orelse (Tk( t ) = TK_FLOAT_LIT)
+        if isNum andalso (t.length > 0) then
+            dim as long li = cast( long, t.literal )
+            if (li >= 0) andalso (li < e.outp->literals.Count) then
+                dim as Literal ptr lp = @e.outp->literals[li]
+                if lp->textLength = 0 then
+                    dim as DecodedLoc nd = e.src->Decode( t.loc )
+                    lp->textFile = cast( long, nd.file )
+                    lp->textOffset = nd.offset
+                    lp->textLength = t.length
+                end if
+            end if
+        end if
         '' Point at the USE site, not into the throwaway <paste> buffer: that is
         '' where the user can actually see something (docs/plan/03 section 6.5).
         if at <> LOC_NONE then t.loc = at
@@ -314,6 +337,8 @@ end sub
 '' separately so the whole preprocessor is one translation unit.
 declare function PpEvalCondition _
     ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as boolean
+declare function PpEvalIntTokens _
+    ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as longint
 declare function PpExpand _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
 declare sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock as boolean )

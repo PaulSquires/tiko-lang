@@ -1,6 +1,12 @@
 '' Function-like macros and token builtins must expand inside a '#if' condition.
 '' They did not, so '#if TWO( a, b ) = 2' silently took the FALSE branch -- a wrong
 '' answer with no diagnostic, which is the worst kind.
+''
+'' The golden PINNED HALF THE BUG for a while: the '__FB_ARG_COUNT__' branch was
+'' recorded as not taken. The count was produced correctly and then read back as
+'' whatever byte sat at the invocation site, because a re-lexed NUMERIC literal
+'' recorded no text span -- only strings did -- and its loc had been repointed at the
+'' use site for diagnostics.
 '' TEST: cli
 '' ARGS: --dump-tokens=pp tests/pp/src/ifexpand.bas
 '' EXPECT-EXIT: 0

@@ -38,6 +38,8 @@ namespace Fbx
         PPB_QUOTE            '' __FB_QUOTE__( toks )    -> "toks"
         PPB_UNQUOTE          '' __FB_UNQUOTE__( "s" )   -> s
         PPB_ARG_COUNT        '' __FB_ARG_COUNT__( ... ) -> n
+        PPB_ARG_EXTRACT      '' __FB_ARG_EXTRACT__( i, ... )    -> argument i
+        PPB_ARG_LISTEXPAND   '' __FB_ARG_LISTEXPAND__( M, n, ... ) -> M( chunk ) ...
         PPB_JOIN             '' __FB_JOIN__( a, b )     -> ab
         PPB_UNIQUEID         '' __FB_UNIQUEID__( id )      -> the name's current id
         PPB_UNIQUEID_PUSH    '' __FB_UNIQUEID_PUSH__( id ) -> nothing; makes a new one

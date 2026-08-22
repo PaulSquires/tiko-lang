@@ -82,6 +82,7 @@
     DIAG( FBX0321, SEV_ERROR,   "expected a type parameter name" )
     DIAG( FBX0322, SEV_ERROR,   "duplicated type parameter '%0'" )
     DIAG( FBX0323, SEV_ERROR,   "'%0' does not name a type here, so it cannot own this constructor or destructor" )
+    DIAG( FBX0324, SEV_ERROR,   "argument %0 of '%1' must be an integer constant" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( FBX0400, SEV_ERROR,   "expected an expression" )
