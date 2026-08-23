@@ -1,0 +1,120 @@
+func i32 _ZN2FB6ARR<6>ixEi($0, $1) {
+  local i32 $tmp0
+  local ptr this
+  local i32 i
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr i
+    store @i, $1
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load @i
+    %8 = sext %7
+    %9 = const i64 4
+    %10 = mul %8, %9
+    %11 = load %6
+    %12 = ptr.add %11, %10
+    %13 = load %12
+    ret %13
+}
+func void _ZN2FB6ARR<6>7RESERVEEi($0, $1) {
+  local ptr this
+  local i32 n
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = const i64 0
+    %6 = const i64 0
+    %7 = load @n
+    %8 = const i64 1
+    %9 = sext %7
+    %10 = sub %9, %8
+    %11 = call.rtl i32 fb_ArrayRedimPresvEx(%4, 4, -1, 0, 1, %6, %10)
+    %12 = load @this
+    %13 = field.addr %12, 0
+    %14 = const i64 0
+    %15 = const i64 0
+    %16 = load @n
+    %17 = const i64 1
+    %18 = sext %16
+    %19 = sub %18, %17
+    %20 = call.rtl i32 fb_ArrayRedimEx(%13, 4, -1, 0, 1, %15, %19)
+    %21 = load @this
+    %22 = field.addr %21, 0
+    %23 = call.rtl i32 fb_ArrayErase(%22)
+    ret
+}
+declare i32 fb_ArrayRedimPresvEx($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayErase($0)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg v size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr v
+    call void _ZN2FB6ARR<6>C1Ev(@v)
+    %5 = const i64 4
+    %6 = trunc %5
+    call void _ZN2FB6ARR<6>7RESERVEEi(@v, %6)
+    call void _ZN2FB6ARR<6>D1Ev(@v)
+    %7 = const i32 0
+    call.rtl void fb_End(%7)
+    %8 = load @$tmp0
+    ret %8
+}
+declare void fb_Init($0, $1, $2)
+declare void _ZN2FB6ARR<6>C1Ev($0)
+declare void _ZN2FB6ARR<6>D1Ev($0)
+declare void fb_End($0)
+func void _ZN2FB6ARR<6>C1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const ptr 0
+    %3 = field.addr %1, 0
+    store %3, %2
+    %4 = field.addr %1, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr %1, 16
+    store %6, %5
+    %7 = const i64 4
+    %8 = field.addr %1, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr %1, 32
+    store %10, %9
+    %11 = const i64 17
+    %12 = field.addr %1, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr %1, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %1, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %1, 64
+    store %18, %17
+    ret
+}
+func void _ZN2FB6ARR<6>D1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    ret
+}
+verify: ok
+lowered: 5 functions, 5 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

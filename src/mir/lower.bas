@@ -734,7 +734,9 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     if c.curBlock < 0 then return
     '' Saved and restored: statements nest, and a decline belongs to the INNERMOST one.
     dim as ushort savedKind = c.curStmtKind
+    dim as ulong savedNode = c.curStmtNode
     c.curStmtKind = cast( ushort, c.ast->Kind( id ) )
+    c.curStmtNode = cast( ulong, id )
 
     '' STATEMENT-LIFETIME STRING TEMPORARIES. A string 'iif' builds its result in a
     '' temporary descriptor that must be released once the statement that consumes it
@@ -788,6 +790,7 @@ sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     wend
 
     c.curStmtKind = savedKind
+    c.curStmtNode = savedNode
 end sub
 
 private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )

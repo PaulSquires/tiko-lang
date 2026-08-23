@@ -453,6 +453,46 @@ private function ByrefResult_( byref p as Fbx.ParserState ) as boolean
     return true
 end function
 
+'' AN OPERATOR'S NAME CAN BE A TOKEN RATHER THAN A WORD: 'operator +'.
+''
+'' IT WAS SKIPPED, NOT RECORDED. 'private operator = ( byref a as D, byref b as D ) as
+'' boolean' reached Collect with NO NAME AT ALL, so nothing was declared for it, Resolve
+'' set no return type, and the body's result assignment declined for want of a result
+'' slot -- while the function itself went out under an EMPTY mangled name. Every
+'' comparison operator in the runtime headers is spelled this way; fb/decimal.bi alone
+'' has six.
+''
+'' The spelling comes from the token table's TEXT column -- '=' -- rather than from the
+'' source, because RawSpelling only reads identifiers and these are punctuation.
+''
+'' Called from TWO places, which is the whole reason it is a procedure: the name may
+'' follow the procedure keyword directly, or a QUALIFIER -- and in a generic the
+'' qualifier comes after the type arguments, 'operator Array( of T ).[]', which is a
+'' second dot loop further down. Only the first ran this, so the generic form lost its
+'' name, its parameter list AND its return type: fbc's own Array( of T ) subscript
+'' operator instantiated as a no-argument sub returning nothing.
+private sub ReadOperatorName _
+    ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
+
+    if (Peek( p ) = Fbx.TK_LPAREN) orelse AtEnd( p ) then return
+    if Peek( p ) = Fbx.TK_EOL then return
+    if Peek( p ) = Fbx.TK_DOT then return
+    dim as string opNm = Fbx.TokenKindText( Peek( p ) )
+    if len( opNm ) = 0 then return
+    Advance( p )
+    '' 'operator []' IS TWO TOKENS AND ONE NAME. Taking only the '[' left the ']' where
+    '' the parameter list was expected, so the whole list was lost and the subscript
+    '' operator reached lowering with nothing but a receiver.
+    if (opNm = "[") andalso (Peek( p ) = Fbx.TK_RBRACKET) then
+        opNm = "[]"
+        Advance( p )
+    end if
+    if sp.name = 0 then
+        sp.name = p.names->Fold( p.names->GetString( opNm ) )
+        sp.rawName = p.names->GetString( opNm )
+    end if
+end sub
+
 private function ParseProc _
     ( byref p as Fbx.ParserState, byval declareOnly as boolean ) as Fbx.NodeId
 
@@ -514,26 +554,7 @@ private function ParseProc _
     ''
     '' The spelling comes from the token table's TEXT column -- '=' -- rather than from
     '' the source, because RawSpelling only reads identifiers and these are punctuation.
-    if kw = Fbx.KW_OPERATOR then
-        if (Peek( p ) <> Fbx.TK_LPAREN) andalso (AtEnd( p ) = false) then
-            if Peek( p ) <> Fbx.TK_EOL then
-                dim as string opNm = Fbx.TokenKindText( Peek( p ) )
-                Advance( p )
-                '' 'operator []' IS TWO TOKENS AND ONE NAME. Taking only the '[' left
-                '' the ']' where the parameter list was expected, so the whole list was
-                '' lost and the subscript operator reached lowering with nothing but a
-                '' receiver.
-                if (opNm = "[") andalso (Peek( p ) = Fbx.TK_RBRACKET) then
-                    opNm = "[]"
-                    Advance( p )
-                end if
-                if (sp.name = 0) andalso (len( opNm ) > 0) then
-                    sp.name = p.names->Fold( p.names->GetString( opNm ) )
-                    sp.rawName = p.names->GetString( opNm )
-                end if
-            end if
-        end if
-    end if
+    if kw = Fbx.KW_OPERATOR then ReadOperatorName( p, sp )
 
     '' FBC-Modern generics: 'type Box( of T )' and 'function Max( of T )( ... )'.
     if Peek( p ) = Fbx.TK_LPAREN then
@@ -579,6 +600,9 @@ private function ParseProc _
         sp.rawName = RawSpelling( p )
         DeclName( p, sp.name )
     wend
+    '' ...and the member after that qualifier may be an OPERATOR's punctuation, which
+    '' DeclName cannot read: 'operator Array( of T ).[]'.
+    if kw = Fbx.KW_OPERATOR then ReadOperatorName( p, sp )
 
     '' 'sub F cdecl( ... )' and 'declare sub F stdcall alias "g" ( ... )' put the
     '' calling convention and the ALIAS between the name and the parameter list.

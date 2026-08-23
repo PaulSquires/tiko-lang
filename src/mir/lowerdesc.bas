@@ -462,24 +462,61 @@ function LowerRedim _
     return true
 end function
 
+'' The FIELD of the current method's receiver with this name, or nothing. The mirror of
+'' AddrOfThisField, which takes the symbol this finds.
+private function ThisFieldSym_ _
+    ( byref c as Ctx, byval nm as Fbx.InternId ) as Fbx.SymbolId
+
+    if c.curProcSym = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+    dim as Fbx.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
+    if me_ = 0 then return Fbx.SYMBOL_NONE
+    if me_->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    dim as Fbx.SymbolId tsid = c.syms->LookupLocal( me_->inner, _
+        c.names->Fold( c.names->GetString( "this" ) ) )
+    if tsid = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+    dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return Fbx.SYMBOL_NONE
+    if ts->type_ = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( ts->type_ ) <> Fbx.TK_POINTER then return Fbx.SYMBOL_NONE
+    dim as Fbx.TypeId bt = c.types->Inner( ts->type_ )
+    if bt = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    return UdtMemberNamed_( c, bt, c.names->Spelling( nm ) )
+end function
+
 private function RedimOne_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval item as Fbx.NodeId, _
       byval presv as boolean ) as boolean
 
     dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
+    dim as Fbx.TypeId aty = Fbx.TYPE_NONE
+    dim as MirValue desc
+
     dim as Fbx.SymbolId sid = _
         c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
-    if sid = Fbx.SYMBOL_NONE then return false
     dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( sid )
-    if vs = 0 then return false
-    if c.types->IsDynArray( vs->type_ ) = false then return false
-
-    dim as long slot = LocalFor( c, sid )
-    if slot < 0 then return false
-    dim as MirValue desc
-    desc.kind = cast( ubyte, MV_LOCAL )
-    desc.ty = cast( ubyte, MT_PTR )
-    desc.id = slot
+    if (vs <> 0) andalso c.types->IsDynArray( vs->type_ ) then
+        dim as long slot = LocalFor( c, sid )
+        if slot < 0 then return false
+        desc.kind = cast( ubyte, MV_LOCAL )
+        desc.ty = cast( ubyte, MT_PTR )
+        desc.id = slot
+        aty = vs->type_
+    else
+        '' NOT ONLY A LOCAL, exactly as ERASE is not. 'redim preserve this.items( 0 to
+        '' n-1 )' names a FIELD, and so does the unqualified 'redim items( ... )'
+        '' inside a method -- the parser records both as the bare name, so one lookup
+        '' covers them. Requiring a local slot declined every container that grows its
+        '' own storage, which is what a container IS: three lines of fbc's own
+        '' Array( of T ) account for 54 declines in each of the eight TUI corpus files.
+        dim as Fbx.SymbolId fsid = ThisFieldSym_( c, ip->name )
+        if fsid = Fbx.SYMBOL_NONE then return false
+        dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+        if fs = 0 then return false
+        if c.types->IsDynArray( fs->type_ ) = false then return false
+        desc = AddrOfThisField( c, fsid )
+        if desc.kind = cast( ubyte, MV_NONE ) then return false
+        aty = fs->type_
+    end if
 
     '' The bounds, one N_CASE_RANGE or bare upper bound per dimension.
     if ip->c = Fbx.NODE_NONE then return false
@@ -488,7 +525,7 @@ private function RedimOne_ _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
     if lp->count < 1 then return false
 
-    dim as Fbx.TypeId et = c.types->Inner( vs->type_ )
+    dim as Fbx.TypeId et = c.types->Inner( aty )
     dim as MirType zt = DescIntTy_( c )
 
     '' Bound VALUES first: they are ordinary expressions and must be evaluated before

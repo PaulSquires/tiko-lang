@@ -1,0 +1,8 @@
+'' A generic operator keeps its name and parameters; REDIM reaches a member array.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-operator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: ixEi
+'' EXPECT-OUT: fb_ArrayRedimPresv
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-operator.out

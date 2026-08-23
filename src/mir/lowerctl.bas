@@ -43,8 +43,17 @@ sub SkipAt _
     '' owed and nothing about what to write; twice now the answer to "what is missing"
     '' has been a short list of names rather than a feature.
     if len( environ( "FBX_TRACE_SKIP" ) ) > 0 then
+        '' ...and the SOURCE LINE the declining statement came from. A compiler line
+        '' says which branch gave up; only the source line says what it gave up on,
+        '' and the two largest parse-gap items were invisible without it.
+        dim as string where = ""
+        if (c.srcMgr <> 0) andalso (c.curStmtNode <> 0) then
+            dim as Fbx.DecodedLoc sl = _
+                c.srcMgr->Decode( c.ast->Loc( cast( Fbx.NodeId, c.curStmtNode ) ) )
+            where = " at " & c.srcMgr->PathOf( sl.file ) & ":" & str( sl.lineNo )
+        end if
         print "SKIP " & fileName & ":" & str( lineNo ) & " in " & _
-              iif( c.f <> 0, c.names->Spelling( c.f->name ), "?" )
+              iif( c.f <> 0, c.names->Spelling( c.f->name ), "?" ) & where
     end if
     '' The site, found by linear scan: about twenty of them, so a map would cost more
     '' than it saved and would not keep the order stable across runs.

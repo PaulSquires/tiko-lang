@@ -114,6 +114,9 @@ type Ctx
     '' The statement-dispatch breakdown accounts for about 3,700 of ~98,700 declines; the
     '' rest happen part-way through a statement and had no attribution at all.
     as ushort               curStmtKind
+    '' The statement being lowered, so a decline can name the SOURCE LINE it came
+    '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
+    as ulong                curStmtNode
 
     '' DIM SHARED / STATIC storage, keyed by SYMBOL rather than by name. Two statics
     '' called 'n' in sibling scopes are two declarations and so two symbols; keying on
