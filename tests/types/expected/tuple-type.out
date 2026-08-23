@@ -13,9 +13,9 @@ $tup:2:2:2 size 3 align 1
 $tup:6:6 size 8 align 4
   $tup:6:6 off _1 0
   $tup:6:6 off _2 4
-$tup:6:30 size 12 align 4
-  $tup:6:30 off _1 0
-  $tup:6:30 off _2 4
+$tup:6:31 size 12 align 4
+  $tup:6:31 off _1 0
+  $tup:6:31 off _2 4
 tup2 size 32 align 8
   tup2 off _1 0
   tup2 off _2 8

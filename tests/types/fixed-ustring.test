@@ -1,0 +1,13 @@
+'' sizeof( ustring * N ) -- N UTF-16 units, and the offsets of what follows one.
+''
+'' Checked against fbc, which spells the field 'uint16 U[2]' and asserts
+'' sizeof( Mixed ) == 12. tiko-lang gave Cell a sizeof of 96 -- four 24-byte USTRING
+'' DESCRIPTORS -- so every object holding one was twelve times too big and every field
+'' after it sat at the wrong offset. It lowered and it verified.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/fixed-ustring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: cell size 8 align 2
+'' EXPECT-OUT: mixed size 12 align 4
+'' EXPECT-OUT: mixed off u 4
+'' EXPECT-OUT: mixed off after_ 8

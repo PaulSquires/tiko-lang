@@ -227,6 +227,8 @@ function LowerType _
         '' and the four cva_* opcodes all take its ADDRESS, so nothing ever loads it
         '' whole. One shape everywhere means the lowering has no target case in it.
         case Tko.TY_CVA_LIST : return MT_AGG
+        '' The ELEMENT of a 'ustring * N'; the array around it is the aggregate.
+        case Tko.TY_FIXUSTR  : return MT_I16
         case Tko.TY_ANY      : return MT_VOID
         end select
     end select

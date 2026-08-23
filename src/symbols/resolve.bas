@@ -459,6 +459,11 @@ function ResolveTypeRef _
                                    c.types->target.pointerBits, c.syms, scope_ )
             if lv.known andalso (lv.value > 0) then
                 if k = Tko.KW_STRING then base_ = c.types->Builtin( Tko.TY_FIXSTR )
+                '' 'ustring * N' NEEDS ITS OWN ELEMENT for the same reason 'string * N'
+                '' does: the plain builtin is a 24-byte DESCRIPTOR, so an array of N of
+                '' them is N descriptors rather than N characters. Measured -- fbc gives
+                '' 'as ustring * 4' a sizeof of 8 and this gave it 96.
+                if k = Tko.KW_USTRING then base_ = c.types->Builtin( Tko.TY_FIXUSTR )
                 base_ = c.types->ArrayOf( base_, 1, cast( long, lv.value ) )
             end if
         end select

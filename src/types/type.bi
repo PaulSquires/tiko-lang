@@ -73,6 +73,19 @@ namespace Tko
         '' target in a way nothing else here does.
         BUILTIN( TY_CVA_LIST, "cva_list", 0,   false, TC_CVA   )
         BUILTIN( TY_ANY,      "any",      0,   false, TC_ANY   )
+        '' 'ustring * N' -- THE FIXED-LENGTH UTF-16 STRING, and its ELEMENT type, the
+        '' same way 'string * N' is an array of TY_FIXSTR and 'zstring * N' an array of
+        '' TY_ZSTRING.
+        ''
+        '' Without it 'ustring * N' was an array of N USTRING DESCRIPTORS: measured,
+        '' fbc gives 'type Cell : as ustring * 4 text : end type' a sizeof of 8 and
+        '' tiko-lang gave it 96. Every object holding one was twelve times too big,
+        '' every field after it sat at the wrong offset, and it lowered and verified.
+        ''
+        '' TWO BYTES ON EVERY TARGET. A ustring is UTF-16 code units everywhere, unlike
+        '' a wstring, whose unit is 2 bytes on Windows and 4 on Linux -- so its size
+        '' cannot come from wcharBytes and does not follow the wstring rule.
+        BUILTIN( TY_FIXUSTR,  "fixustr",  16,  false, TC_USTRING )
     #endmacro
 
     enum TypeClass

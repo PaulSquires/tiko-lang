@@ -1,5 +1,5 @@
 target: pointer=64 bits, wchar=2 bytes, string=24 bytes align 8
-types: 21
+types: 22
    1 void                   size=  0 align= 1
    2 byte                   size=  1 align= 1
    3 ubyte                  size=  1 align= 1
@@ -19,5 +19,6 @@ types: 21
   17 wstring                size=  2 align= 2
   18 ustring                size= 24 align= 8
   19 fixstr                 size=  1 align= 1
-  20 cva_list               size=  8 align= 8
-  21 any                    size=  0 align= 1
+  20 fixustr                size=  2 align= 2
+  21 cva_list               size=  8 align= 8
+  22 any                    size=  0 align= 1

@@ -464,6 +464,14 @@ function TypeContext.Layout( byval t as TypeId ) as TypeLayout
 
     case TK_BUILTIN
         dim as BuiltinType b = this.BuiltinOf( t )
+        '' THE FIXED-USTRING ELEMENT IS TWO BYTES, not the 24-byte descriptor its class
+        '' otherwise means. Asked before the class, because the class is what puts it in
+        '' the ustring family for conversions and that part is right.
+        if b = TY_FIXUSTR then
+            r.size = 2
+            r.align = 2
+            return r
+        end if
         select case BuiltinClass( b )
         case TC_INTPTR
             r.size = ptrBytes
