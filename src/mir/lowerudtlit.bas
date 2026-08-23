@@ -13,6 +13,30 @@ namespace Tko.Mir
 
 using Tko
 
+'' THE LEAF VALUES of an initialiser, in order, with nested lists opened out. fbc
+'' accepts a field list written either way -- 'type<Outer>( type<P>( 1, 2 ), 3 )' and
+'' 'type<Outer>( 1, 2, 3 )' both give stores at 0, 4 and 8 -- so a nested list is
+'' punctuation here, exactly as it is on the field side.
+private function FlattenInitValues_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as FB.Array( of ulong ), _
+      byval depth as long ) as boolean
+
+    if depth > 8 then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for i as long = 0 to lp->count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        select case c.ast->Kind( e )
+        case Tko.N_TUPLE, Tko.N_INITIALIZER
+            '' A nested field list, or the '{ ... }' an ARRAY FIELD takes.
+            if FlattenInitValues_( c, e, outv, depth + 1 ) = false then return false
+        case else
+            outv.Push( cast( ulong, e ) )
+        end select
+    next
+    return true
+end function
+
 '' Defined below, and used above it: FreeBASIC needs the forward declaration.
 declare function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
@@ -115,12 +139,13 @@ function LowerUdtParenInit_ _
     dim as long fCount = fOff.Count
     if fCount <= 0 then return false
 
-    dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-    if lp->count <= 0 then return false
+    dim as FB.Array( of ulong ) vNode
+    if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
+    dim as long vCount = vNode.Count
+    if vCount <= 0 then return false
     '' MORE VALUES THAN FIELDS is not this construct -- it declines rather than
     '' writing past the last one.
-    if lp->count > fCount then return false
+    if vCount > fCount then return false
 
     dim as MirValue base_
     base_.kind = cast( ubyte, MV_LOCAL )
@@ -130,25 +155,55 @@ function LowerUdtParenInit_ _
     '' EVERY VALUE LOWERED BEFORE ANYTHING IS STORED. A value that will not lower means
     '' the whole initialiser declines, and emitting the earlier stores first would leave
     '' a half-initialised object behind with a decline beside it.
+    '' A LEAF CURSOR, NOT AN INDEX, because ONE VALUE CAN COVER SEVERAL LEAVES.
+    '' Measured: 'dim y1 as T3 = ( x1, 31, 301 )' over a T3 that EXTENDS T1 is
+    '' '__builtin_memcpy( &Y1, &X1, 4 )' for the base and scalar stores for the rest.
+    '' Pairing value i with leaf i instead coerced a whole object into an i32 slot -- a
+    '' SIGN-EXTENDED AGGREGATE -- and wrote every field after it one place early.
     dim as FB.Array( of ulong ) vals
-    for i as long = 0 to lp->count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
-        dim as MirType fmt = cast( MirType, fTy[i] )
+    dim as FB.Array( of ulong ) vOff
+    dim as long cur = 0
+    for i as long = 0 to vCount - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
+        if cur >= fCount then return false
+        dim as MirType fmt = cast( MirType, fTy[cur] )
         dim as MirValue v = LowerExpr( c, e )
         if v.kind = cast( ubyte, MV_NONE ) then return false
-        v = Coerce( c, v, fmt, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
-        if v.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long span = 1
+        if v.ty = cast( ubyte, MT_AGG ) then
+            '' THE RUN OF LEAVES THIS OBJECT COVERS, measured by its own size. A value
+            '' that does not span a whole number of leaves declines rather than being
+            '' written across a field boundary.
+            dim as Tko.TypeId vt = c.info->TypeOf_( e )
+            if vt = Tko.TYPE_NONE then return false
+            '' SizeOfType, not TypeContext.Layout: a UDT's size lives in the UDT
+            '' store, and Layout answers 0 for one. That zero made every aggregate
+            '' value decline here, which looked exactly like the guard working.
+            dim as long vsz = SizeOfType( c, vt )
+            if vsz <= 0 then return false
+            dim as long stop_ = cast( long, fOff[cur] ) + vsz
+            span = 0
+            while (cur + span < fCount) andalso (cast( long, fOff[cur + span] ) < stop_)
+                span += 1
+            wend
+            if span < 1 then return false
+        else
+            v = Coerce( c, v, fmt, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+        vOff.Push( cast( ulong, fOff[cur] ) )
         vals.Push( cast( ulong, v.kind ) )
         vals.Push( cast( ulong, v.id ) )
         vals.Push( cast( ulong, v.ty ) )
+        cur += span
     next
 
-    for i as long = 0 to lp->count - 1
+    for i as long = 0 to vCount - 1
         dim as MirInst fa
         fa.op = cast( ushort, M_FIELD_ADDR )
         fa.ty = cast( ubyte, MT_PTR )
         fa.a = base_
-        fa.imm = cast( long, fOff[i] )
+        fa.imm = cast( long, vOff[i] )
         dim as MirValue addr = Emit( c, fa )
         if addr.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue v
@@ -166,9 +221,9 @@ function LowerUdtParenInit_ _
     '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first
     '' field with no value to the end of the object. A UNION gets none: measured, and
     '' the one place the two shapes disagree.
-    if lp->count < fCount then
+    if cur < fCount then
         if IsUnionType_( c, t ) = false then
-            dim as long tailOff = cast( long, fOff[lp->count] )
+            dim as long tailOff = cast( long, fOff[cur] )
             dim as long tailLen = c.udts->udts[ui].size - tailOff
             if tailLen > 0 then
                 dim as MirInst ta
@@ -215,6 +270,28 @@ function FlattenUdtFields_ _
         if fld->bitWidth <> 0 then return false
         dim as MirType fmt = LowerType( fld->type_, *c.types )
         if fmt = MT_AGG then
+            '' A FIXED ARRAY FIELD CONTRIBUTES ITS ELEMENTS, one leaf each. Measured:
+            '' 'as ubyte d4( 0 to 7 )' initialised from '{ &hC0, 0, ... }' is eight byte
+            '' stores at offsets 8..15, not one aggregate store. Refusing it declined
+            '' every GUID in fb/comptr.bi, which is how COM declares every IID.
+            ''
+            '' A DYNAMIC array is a descriptor rather than storage and has no elements
+            '' to write here.
+            if c.types->Kind( fld->type_ ) = Tko.TK_ARRAY then
+                if c.types->IsDynArray( fld->type_ ) then return false
+                dim as Tko.TypeId et = c.types->Inner( fld->type_ )
+                dim as MirType emt = LowerType( et, *c.types )
+                if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
+                dim as long esz = c.types->Layout( et ).size
+                if esz <= 0 then return false
+                dim as long total = c.types->Layout( fld->type_ ).size \ esz
+                if total <= 0 then return false
+                for k as long = 0 to total - 1
+                    offs.Push( cast( ulong, base_ + fld->offset + k * esz ) )
+                    tys.Push( cast( ulong, emt ) )
+                next
+                continue for
+            end if
             if c.types->Kind( fld->type_ ) <> Tko.TK_UDT then return false
             if FlattenUdtFields_( c, fld->type_, base_ + fld->offset, offs, tys, _
                                   depth + 1 ) = false then return false
