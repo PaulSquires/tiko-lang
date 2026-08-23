@@ -482,6 +482,20 @@ end sub
 
 declare sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
+'' THE COPY CONSTRUCTOR of a UDT: the one-argument constructor whose parameter is that
+'' same type. StructorWithArity answers any one-argument constructor at all, which is
+'' not the same question -- a type whose only constructor takes a long had that one
+'' chosen to copy it with.
+private function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    dim as Tko.SymbolId s = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
+    if s = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId pt = ParamTypeAt( c, s, 0 )
+    if pt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
+    if c.types->Unqualify( pt ) <> c.types->Unqualify( t ) then return Tko.SYMBOL_NONE
+    return s
+end function
+
 '' A FIELD LIST ASSIGNED TO THE RESULT -- 'function = ( 1, 2 )' and 'function =
 '' type( 1, 2 )'. The result slot IS the object, so this is the declaration
 '' initialiser with the result's type standing in for the declared one.
@@ -729,12 +743,29 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' and both were released at scope exit. fbc emits
                 '' '_ZN1TC1ERKS_( &Y, &X )' and nothing else: no default constructor
                 '' call and no copy of the bytes.
+                '' A TYPE LITERAL IS A CONSTRUCTOR CALL, NOT A COPY SOURCE.
+                '' 'dim as T x = type<T>( 123 )' has T's own type, so it reached the
+                '' copy path, which took its ADDRESS and passed that as the argument:
+                '' '_ZN7CTORUDTC1Ei( @a, @$tmp2 )' where 123 belonged. Its children are
+                '' the constructor's arguments and LowerCtorInit below takes them.
+                dim as boolean initIsLiteral = false
                 if ip->b <> Tko.NODE_NONE then
+                    if c.ast->Kind( ip->b ) = Tko.N_TUPLE then
+                        initIsLiteral = _
+                            ((c.ast->nodes[cast( long, ip->b )].flags and _
+                              Tko.NF_TYPE_LITERAL) <> 0)
+                    end if
+                end if
+                if (ip->b <> Tko.NODE_NONE) andalso (initIsLiteral = false) then
                     dim as Tko.TypeId ivt = c.info->TypeOf_( ip->b )
                     if (ivt <> Tko.TYPE_NONE) andalso (ivt = vs->type_) andalso _
                        (c.types->Kind( ivt ) = Tko.TK_UDT) then
-                        dim as Tko.SymbolId ucp = StructorWithArity( c, _
-                            StructorOf( c, ivt, "__ctor" ), 1 )
+                        '' AND ITS PARAMETER MUST BE THE TYPE ITSELF. StructorWithArity
+                        '' answers ANY one-argument constructor, so a type declaring
+                        '' 'constructor( byval n as long )' and nothing else had that
+                        '' one picked as its copy constructor -- and was handed an
+                        '' ADDRESS where a long belonged.
+                        dim as Tko.SymbolId ucp = CopyCtorOf_( c, ivt )
                         if (ucp <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, ivt ) then
                             dim as MirValue dsa
                             dsa.kind = cast( ubyte, MV_LOCAL )

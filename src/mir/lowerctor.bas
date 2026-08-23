@@ -109,16 +109,35 @@ function LowerCtorInit _
       byval init_ as Tko.NodeId ) as boolean
 
     if init_ = Tko.NODE_NONE then return false
-    if c.ast->Kind( init_ ) <> Tko.N_CALL then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
+
+    '' TWO SPELLINGS, one meaning. 'dim as T x = T( 123 )' is an N_CALL naming the type;
+    '' 'dim as T x = type<T>( 123 )' is the anonymous literal, an N_TUPLE. When the type
+    '' HAS A CONSTRUCTOR both are a constructor call -- measured, fbc emits
+    '' '_ZN7CTORUDTC1Ei( &A$0, 123 )' for either.
+    ''
+    '' Without the second shape here the literal fell through to the field-list path,
+    '' which built a temporary and passed ITS ADDRESS as the constructor's argument:
+    '' '_ZN7CTORUDTC1Ei( @a, @$tmp2 )' where 123 belonged. It lowered and it verified.
+    dim as boolean isLiteral = false
+    if c.ast->Kind( init_ ) = Tko.N_TUPLE then
+        if (c.ast->nodes[cast( long, init_ )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+            return false
+        end if
+        isLiteral = true
+    elseif c.ast->Kind( init_ ) <> Tko.N_CALL then
+        return false
+    end if
 
     dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init_ )].data )]
-    if cp->target = Tko.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    if ip->name <> c.types->NameOf( t ) then return false
+    if isLiteral = false then
+        if cp->target = Tko.NODE_NONE then return false
+        if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+        dim as Tko.IdentPayload ptr ip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        if ip->name <> c.types->NameOf( t ) then return false
+    end if
 
     dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )
     if ctors = Tko.SYMBOL_NONE then return false

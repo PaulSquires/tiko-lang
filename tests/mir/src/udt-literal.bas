@@ -100,3 +100,27 @@ end function
 function MakePTyped( ) as P
     function = type<P>( 3, 4 )
 end function
+
+'' A TYPE LITERAL OVER A UDT WITH CONSTRUCTORS IS A CONSTRUCTOR CALL, not a field list.
+'' Measured: fbc emits '_ZN7CTORUDTC1Ei( &A$0, 123 )' for both 'T( 123 )' and
+'' 'type<T>( 123 )', and '_ZN7CTORUDTC1Ev( &B$0 )' for the empty one.
+''
+'' The literal has the type's OWN type, so it reached the copy-construction path, which
+'' took its ADDRESS and passed that as the argument -- '( @a, @$tmp2 )' where 123
+'' belonged. And that path picked its "copy constructor" by ARITY ALONE, so a type
+'' whose only one-argument constructor takes a long had that one chosen to copy it
+'' with. Both lowered and both verified.
+type CtorUdt
+    as long v
+    declare constructor( )
+    declare constructor( byval n as long )
+end type
+constructor CtorUdt( )
+    this.v = -1
+end constructor
+constructor CtorUdt( byval n as long )
+    this.v = n
+end constructor
+dim withArg as CtorUdt = type<CtorUdt>( 123 )
+dim withNone as CtorUdt = type<CtorUdt>( )
+dim viaCall as CtorUdt = CtorUdt( 456 )
