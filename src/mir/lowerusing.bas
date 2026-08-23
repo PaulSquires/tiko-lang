@@ -74,7 +74,17 @@ function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
         '' better than copying a defect whose behaviour was never measured.
         if WideStringElems( c, c.info->TypeOf_( sp->c ) ) > 0 then return false
         if IsStringType( c, c.info->TypeOf_( sp->c ) ) = false then return false
-        fmt = LowerAddr( c, sp->c )
+        '' A CONCATENATION IS A STRING WITH NO ADDRESS. The corpus writes the format
+        '' as one more often than it writes a variable -- 'using ( QT(fmt) & ", " &
+        '' QT("&") )' is the whole of one file's harness -- and asking a value for an
+        '' address it has not got declined the statement. Built into a temporary
+        '' descriptor, which is what every other string argument with no lvalue does.
+        fmt = LowerAddr( c, Unparen_( c, sp->c ) )
+        if fmt.kind = cast( ubyte, MV_NONE ) then
+            if ConcatToTempDesc_( c, Unparen_( c, sp->c ), fmt ) = false then
+                return false
+            end if
+        end if
     end if
     if fmt.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -161,7 +171,15 @@ private function UsingOne_ _
             ta.Push( cast( ulong, len( litText ) ) )
             desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
         else
-            desc = LowerAddr( c, it )
+            '' Same as the FORMAT above: a concatenation is a string with no address,
+            '' and it is what the corpus passes -- 'PRINT_USING_N( fmt, num, cmp )'
+            '' expands cmp to a QT() concat at every one of its 20 call sites.
+            desc = LowerAddr( c, Unparen_( c, it ) )
+            if desc.kind = cast( ubyte, MV_NONE ) then
+                if ConcatToTempDesc_( c, Unparen_( c, it ), desc ) = false then
+                    return false
+                end if
+            end if
         end if
         if desc.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )

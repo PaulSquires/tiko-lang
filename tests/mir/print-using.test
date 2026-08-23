@@ -1,0 +1,7 @@
+'' PRINT USING -- the Init/items/End bracket, the masks, and a concatenated format.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/print-using.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/print-using.out

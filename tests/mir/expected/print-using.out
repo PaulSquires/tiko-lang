@@ -1,0 +1,121 @@
+global str $str0 "###.##"
+global str $str1 "ab"
+global str $str2 "##_ ##"
+global str $str3 ", "
+global str $str4 "!"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg f size 24
+  local agg s size 24
+  local f64 d
+  local i32 n
+  local i32 u
+  local f32 g
+  local i8 b
+  local agg $tmp8 size 24
+  local agg $tmp9 size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr f
+    %5 = call.rtl ptr fb_StrInit(@f, -1, @@$str0, 7, 0)
+    %6 = alloca ptr s
+    %7 = call.rtl ptr fb_StrInit(@s, -1, @@$str1, 3, 0)
+    %8 = alloca ptr d
+    %9 = const f64 1.5
+    store @d, %9
+    %10 = alloca ptr n
+    %11 = const i64 3
+    %12 = trunc %11
+    store @n, %12
+    %13 = alloca ptr u
+    %14 = const i64 4
+    %15 = trunc %14
+    store @u, %15
+    %16 = alloca ptr g
+    %17 = const f64 2.5
+    %18 = fptrunc %17
+    store @g, %18
+    %19 = alloca ptr b
+    %20 = const i8 -1
+    store @b, %20
+    %21 = call.rtl i32 fb_PrintUsingInit(@f)
+    %22 = load @d
+    %23 = call.rtl i32 fb_PrintUsingDouble(0, %22, -2147483647)
+    %24 = call.rtl i32 fb_PrintUsingEnd(0)
+    %25 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 6)
+    %26 = call.rtl i32 fb_PrintUsingInit(%25)
+    %27 = load @n
+    %28 = sext %27
+    %29 = call.rtl i32 fb_PrintUsingLongint(0, %28, 0)
+    %30 = call.rtl i32 fb_PrintUsingStr(0, @s, -2147483647)
+    %31 = call.rtl i32 fb_PrintUsingEnd(0)
+    %32 = call.rtl i32 fb_PrintUsingInit(@f)
+    %33 = load @d
+    %34 = call.rtl i32 fb_PrintUsingDouble(0, %33, 0)
+    %35 = call.rtl i32 fb_PrintUsingEnd(0)
+    %36 = call.rtl i32 fb_PrintUsingInit(@f)
+    %37 = load @u
+    %38 = zext %37
+    %39 = call.rtl i32 fb_PrintUsingULongint(0, %38, 0)
+    %40 = load @g
+    %41 = call.rtl i32 fb_PrintUsingSingle(0, %40, 0)
+    %42 = load @b
+    %43 = call.rtl i32 fb_PrintUsingBoolean(0, %42, -2147483647)
+    %44 = call.rtl i32 fb_PrintUsingEnd(0)
+    %45 = alloca ptr $tmp8
+    %46 = field.addr @$tmp8, 0
+    store %46, 0
+    %47 = field.addr @$tmp8, 8
+    store %47, 0
+    %48 = field.addr @$tmp8, 16
+    store %48, 0
+    %49 = call.rtl ptr fb_StrConcat(@$tmp8, @f, -1, @@$str3, 3)
+    %50 = call.rtl ptr fb_StrConcatAssign(@$tmp8, -1, @f, -1, 0)
+    %51 = call.rtl i32 fb_PrintUsingInit(@$tmp8)
+    %52 = load @n
+    %53 = sext %52
+    %54 = call.rtl i32 fb_PrintUsingLongint(0, %53, 0)
+    %55 = alloca ptr $tmp9
+    %56 = field.addr @$tmp9, 0
+    store %56, 0
+    %57 = field.addr @$tmp9, 8
+    store %57, 0
+    %58 = field.addr @$tmp9, 16
+    store %58, 0
+    %59 = call.rtl ptr fb_StrConcat(@$tmp9, @s, -1, @@$str4, 2)
+    %60 = call.rtl i32 fb_PrintUsingStr(0, @$tmp9, -2147483647)
+    %61 = call.rtl i32 fb_PrintUsingEnd(0)
+    %62 = const i64 1
+    %63 = trunc %62
+    %64 = call.rtl i32 fb_PrintUsingInit(@f)
+    %65 = load @d
+    %66 = call.rtl i32 fb_PrintUsingDouble(%63, %65, -2147483647)
+    %67 = call.rtl i32 fb_PrintUsingEnd(%63)
+    call.rtl void fb_StrDelete(@s)
+    call.rtl void fb_StrDelete(@f)
+    %68 = const i32 0
+    call.rtl void fb_End(%68)
+    %69 = load @$tmp0
+    ret %69
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare i32 fb_PrintUsingInit($0)
+declare i32 fb_PrintUsingDouble($0, $1, $2)
+declare i32 fb_PrintUsingEnd($0)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare i32 fb_PrintUsingLongint($0, $1, $2)
+declare i32 fb_PrintUsingStr($0, $1, $2)
+declare i32 fb_PrintUsingULongint($0, $1, $2)
+declare i32 fb_PrintUsingSingle($0, $1, $2)
+declare i32 fb_PrintUsingBoolean($0, $1, $2)
+declare ptr fb_StrConcat($0, $1, $2, $3, $4)
+declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance
