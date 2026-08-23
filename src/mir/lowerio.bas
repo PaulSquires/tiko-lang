@@ -510,6 +510,27 @@ function PrintOne _
         return true
     end if
 
+    '' A UDT WITH 'operator cast' TO A STRING PRINTS AS ONE. The conversion is what
+    '' makes it a string at all, and every other string path already tries it --
+    '' assignment, concatenation, the trim family -- so 's = u' worked while 'print u'
+    '' beside it declined. 270 declines in the six udt-zstring and udt-wstring corpus
+    '' files, which exist to exercise exactly this type.
+    if c.types->Kind( t ) = Fbx.TK_UDT then
+        dim as MirValue uv
+        if StrDescriptorOf_( c, it, uv ) then
+            args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
+            PushConst( args, mask )
+            EmitRtl( c, RTL_PRINT_STRING, args )
+            return true
+        end if
+        if WideOperand_( c, it, uv ) then
+            args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
+            PushConst( args, mask )
+            EmitRtl( c, RTL_PRINT_WSTR, args )
+            return true
+        end if
+    end if
+
     '' Check computes no type for an 'iif' call, so a SCALAR iif reached here with
     '' TYPE_NONE and no entry point could be chosen -- 'print iif( c, 1, 2 )'
     '' declined while 'n = iif( c, 1, 2 )' worked. The arms carry the type.

@@ -1371,6 +1371,13 @@ function Run _
     c.diags = @diags
     c.info = @info
     c.st = @st
+    '' TWICE, AND THE FIRST ONE IS THE POINT. A variable declared 'as typeof( EXPR )'
+    '' gets its type here and nowhere else -- Resolve handles only the bare-name form --
+    '' and every REFERENCE to that variable is typed by the walk, which caches. Running
+    '' this only afterwards typed the symbol correctly and left every USE of it
+    '' untyped, so 'str( n1v )' declined while 'str( n2v )' beside it worked. The
+    '' second pass stays because a typeof whose operand needs the walk resolves then.
+    InferUnusedVarTypes_( c )
     WalkAll( c )
     InferUnusedVarTypes_( c )
     return st.badOperands

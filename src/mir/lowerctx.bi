@@ -301,6 +301,7 @@ declare function EmitRtl _
           byval value as Fbx.NodeId ) as boolean
     declare function LowerInput _
         ( byref c as Ctx, byval id as Fbx.NodeId, byval isLine as boolean ) as boolean
+    declare function Unparen_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.NodeId
     declare function ConcatTermsToTempDesc_ _
         ( byref c as Ctx, byref terms as FB.Array( of ulong ), _
           byref outv as MirValue ) as boolean
@@ -374,7 +375,8 @@ declare function EmitRtl _
     declare function LowerStrNumCall_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerRadixCall_ _
-        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue, _
+          byval wantWide as boolean = false ) as boolean
     declare function LowerOpen_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerOpenCall_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
@@ -464,6 +466,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.NodeId
     declare function ParamTypeAt _
         ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.TypeId
+    declare function ParamIsArray _
+        ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
     declare function ParamIsByref _
         ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
 

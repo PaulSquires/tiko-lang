@@ -235,6 +235,24 @@ private function ConstCall_ _
         if isNum then return CV_( cast( longint, int( d ) ) )
     case "fix"
         if isNum then return CV_( cast( longint, fix( d ) ) )
+
+    '' THE REST OF THE CONVERSION FAMILY, which folds by TRUNCATING to the target's
+    '' width and carrying its signedness. Only CINT, CLNG and CLNGINT were here, so
+    '' 'const A = cuint( 1 )' had no value at all -- and a constant with no value is a
+    '' DECLINE at every use of it, which is how one corpus file lost 220 statements.
+    ''
+    '' CLNG keeps its own case above: an out-of-range float does not wrap there, it
+    '' becomes the x86 indefinite value, and that is measured rather than derived.
+    case "cbyte"   : if iv.known then return CVW_( cast( longint, cast( byte, iv.value ) ), 32 )
+    case "cubyte"  : if iv.known then return CVWU_( cast( longint, cast( ubyte, iv.value ) ), 32, true )
+    case "cshort"  : if iv.known then return CVW_( cast( longint, cast( short, iv.value ) ), 32 )
+    case "cushort" : if iv.known then return CVWU_( cast( longint, cast( ushort, iv.value ) ), 32, true )
+    case "culng"   : if iv.known then return CVWU_( cast( longint, cast( ulong, iv.value ) ), 32, true )
+    case "cuint", "culngint"
+        if iv.known then return CVWU_( iv.value, 64, true )
+    case "cbool"
+        '' A FreeBASIC truth value is -1, never 1.
+        if iv.known then return CV_( iif( iv.value <> 0, -1, 0 ) )
     end select
     return CVNone_( )
 end function

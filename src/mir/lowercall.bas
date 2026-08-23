@@ -15,6 +15,45 @@ declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
 
 
+'' AN ARRAY PASSED TO A BYDESC PARAMETER -- 'Q( v( ) )' against 'sub Q( a( ) as long )'.
+'' What crosses is a DESCRIPTOR POINTER, and which one depends on the argument:
+''
+''   a DYNAMIC array   its own descriptor's address
+''   a FIXED array     a descriptor MATERIALISED on the stack over it, which is what
+''                     fbc emits -- nine stores and then '&tmp'
+''
+'' The argument is spelled 'v( )', an empty call over the array's name, so the name is
+'' one level in. Without this the argument lowered to NOTHING and was pushed anyway:
+'' 'Q( v( ) )' went out as a call with a hole where its only operand belongs.
+private function ArrayDescArg_ _
+    ( byref c as Ctx, byval argNode as Fbx.NodeId, byval isArrayParam as boolean, _
+      byref outv as MirValue ) as boolean
+
+    if (argNode = Fbx.NODE_NONE) orelse (isArrayParam = false) then return false
+
+    dim as Fbx.NodeId nameNode = argNode
+    if c.ast->Kind( argNode ) = Fbx.N_CALL then
+        dim as Fbx.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+        if lp->count <> 0 then return false
+        if lp->target = Fbx.NODE_NONE then return false
+        nameNode = lp->target
+    end if
+
+    dim as Fbx.TypeId at = c.info->TypeOf_( nameNode )
+    if at = Fbx.TYPE_NONE then return false
+    if c.types->Kind( at ) <> Fbx.TK_ARRAY then return false
+
+    dim as MirValue base_ = LowerAddr( c, nameNode )
+    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    if c.types->IsDynArray( at ) then
+        outv = base_
+        return true
+    end if
+    return SynthFixedArrayDesc( c, base_, at, outv )
+end function
+
+
 '' A temporary holding an argument that must be passed BYREF and has no address of its
 '' own. Returns the temporary's ADDRESS, or nothing when the value would not lower or
 '' the parameter's type is one a scalar slot cannot hold.
@@ -202,6 +241,15 @@ function LowerCallParts _
         end if
         dim as boolean wantsRef = ParamIsByref( c, callee, i ) andalso (forcedByval = false)
 
+        '' A BYDESC ARRAY PARAMETER takes a descriptor pointer, whichever way the
+        '' parameter was spelled: the array-ness is the type's, not the passing mode's.
+        dim as MirValue adv
+        if ArrayDescArg_( c, argNode, ParamIsArray( c, callee, i ), adv ) then
+            argv.Push( cast( ulong, adv.kind ) )
+            argv.Push( cast( ulong, adv.id ) )
+            continue for
+        end if
+
         dim as MirValue a
         '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none.
         '' Measured: fbc builds one -- 'fb_StrAllocTempDescZEx( "x.txt", 5 )' -- and
@@ -265,7 +313,35 @@ function LowerCallParts _
             '' variable the callee will write through.
             if a.kind = cast( ubyte, MV_NONE ) then return v
         else
+            '' A STRING PASSED TO A 'zstring ptr' PARAMETER IS ITS DATA POINTER.
+            '' Measured: fbc writes 'F( (char*)*(char**)&S )', and for an rvalue it
+            '' copies into a temporary descriptor first. Without it the argument
+            '' lowered to NOTHING and went out as a malformed operand -- a call with a
+            '' hole in it that the verifier does not look at.
+            dim as Fbx.TypeId ppt = ParamTypeAt( c, callee, i )
+            dim as boolean wantsZPtr = false
+            if ppt <> Fbx.TYPE_NONE then
+                if c.types->Kind( c.types->Unqualify( ppt ) ) = Fbx.TK_POINTER then
+                    dim as Fbx.TypeId pin = _
+                        c.types->Unqualify( c.types->Inner( c.types->Unqualify( ppt ) ) )
+                    if c.types->Kind( pin ) = Fbx.TK_BUILTIN then
+                        if c.types->BuiltinOf( pin ) = Fbx.TY_ZSTRING then
+                            wantsZPtr = IsStringType( c, c.info->TypeOf_( argNode ) )
+                        end if
+                    end if
+                end if
+            end if
+            if wantsZPtr then
+                if ZstrDataOf_( c, argNode, a ) = false then return v
+                argv.Push( cast( ulong, a.kind ) )
+                argv.Push( cast( ulong, a.id ) )
+                continue for
+            end if
+
             a = LowerExpr( c, argNode )
+            '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be
+            '' pushed anyway, so the call went out with a malformed operand in it.
+            if a.kind = cast( ubyte, MV_NONE ) then return v
             '' TO THE PARAMETER'S TYPE, not the argument's. 'randomize 42' passes an
             '' INTEGER literal to a 'byval as double', and handing the callee the
             '' narrow value puts half a quantity in a wide slot -- the same rule the

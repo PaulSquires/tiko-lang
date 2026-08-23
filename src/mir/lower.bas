@@ -476,6 +476,13 @@ function LowerExpr _
             dim as long rk = StrSwapKind_( c, c.info->TypeOf_( bp->rhs ), fcn )
             cmpStr = (lk = 1) orelse (lk = 3) orelse (rk = 1) orelse (rk = 3)
         end if
+        '' AND BY SHAPE, for the calls Check gives no type at all: 'wbin( b ) =
+        '' wstr( "10000000" )' is two of them, so neither side looked like a string and
+        '' the comparison fell to the NUMERIC path -- which then declined, taking the
+        '' CU_ASSERT around it with it, 228 times in one corpus file.
+        if cmpStr = false then
+            cmpStr = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
+        end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, bp, tk )
             if sc.kind <> cast( ubyte, MV_NONE ) then return sc

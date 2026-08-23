@@ -181,8 +181,13 @@ end function
 '' come out FFFFFFFF rather than sign-extending to sixteen digits. INTEGER is 64-bit on
 '' win64 and 32-bit on win32, so the width is decided from the type's own SIZE here
 '' rather than from its spelling.
+'' 'wantWide' SELECTS WHICH HALF OF THE FAMILY THE CALLER WILL ACCEPT. The narrow
+'' names yield an FBSTRING descriptor and the wide ones a bare uint16*, so a caller in
+'' a wide context must not be handed a descriptor and vice versa -- and both halves are
+'' spelled as an ordinary call, so only the NAME says which this is.
 function LowerRadixCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue, _
+      byval wantWide as boolean = false ) as boolean
 
     if c.ast->Kind( id ) <> Fbx.N_CALL then return false
     dim as Fbx.ListPayload ptr cp = _
@@ -238,13 +243,23 @@ function LowerRadixCall_ _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
+    '' EACH OF THE THREE HAS A WIDE TWIN, and its runtime name is not the narrow one
+    '' with a letter changed: 'whex( b )' is fb_WstrHex_b, mixed case, where the narrow
+    '' one is the shouted fb_HEX_b. The result is a uint16*, so the callers that want a
+    '' descriptor cannot have one -- which is why the wide family is recognised here
+    '' and its result handed back as the bare pointer it is.
     dim as long fam = -1
+    dim as boolean wide = false
     select case nm
     case "hex" : fam = 0
     case "oct" : fam = 1
     case "bin" : fam = 2
+    case "whex" : fam = 0 : wide = true
+    case "woct" : fam = 1 : wide = true
+    case "wbin" : fam = 2 : wide = true
     case else  : return false
     end select
+    if wide <> wantWide then return false
 
     '' THE WIDTH, from the argument's own size. A type fbx cannot size at all would
     '' otherwise silently become a 64-bit render.
@@ -257,39 +272,89 @@ function LowerRadixCall_ _
     case MT_I16 : w = 1
     case MT_I32 : w = 2
     case MT_I64 : w = 3
+    '' A POINTER IS ITS OWN CASE, not a 64-bit integer that happens to be the same
+    '' size: fbc calls fb_HEX_p, which takes the pointer. Without it every
+    '' 'hex( p )' declined -- and inside a CU_ASSERT that took the whole call with it.
+    case MT_PTR : w = 4
     case else   : return false
     end select
 
+    '' FIVE widths per family, not four: the POINTER is one of them, so the stride
+    '' changed with it. Leaving it at four made 'hex( p )' collide with 'oct( byte )'.
     dim as RtlId r = RTL_NONE
-    if a1 = Fbx.NODE_NONE then
-        select case fam * 4 + w
+    if wide then
+        if a1 = Fbx.NODE_NONE then
+            select case fam * 5 + w
+            case 0 : r = RTL_WHEX_B
+            case 1 : r = RTL_WHEX_S
+            case 2 : r = RTL_WHEX_I
+            case 3 : r = RTL_WHEX_L
+            case 4 : r = RTL_WHEX_P
+            case 5 : r = RTL_WOCT_B
+            case 6 : r = RTL_WOCT_S
+            case 7 : r = RTL_WOCT_I
+            case 8 : r = RTL_WOCT_L
+            case 9 : r = RTL_WOCT_P
+            case 10 : r = RTL_WBIN_B
+            case 11 : r = RTL_WBIN_S
+            case 12 : r = RTL_WBIN_I
+            case 13 : r = RTL_WBIN_L
+            case else : r = RTL_WBIN_P
+            end select
+        else
+            select case fam * 5 + w
+            case 0 : r = RTL_WHEXEX_B
+            case 1 : r = RTL_WHEXEX_S
+            case 2 : r = RTL_WHEXEX_I
+            case 3 : r = RTL_WHEXEX_L
+            case 4 : r = RTL_WHEXEX_P
+            case 5 : r = RTL_WOCTEX_B
+            case 6 : r = RTL_WOCTEX_S
+            case 7 : r = RTL_WOCTEX_I
+            case 8 : r = RTL_WOCTEX_L
+            case 9 : r = RTL_WOCTEX_P
+            case 10 : r = RTL_WBINEX_B
+            case 11 : r = RTL_WBINEX_S
+            case 12 : r = RTL_WBINEX_I
+            case 13 : r = RTL_WBINEX_L
+            case else : r = RTL_WBINEX_P
+            end select
+        end if
+    elseif a1 = Fbx.NODE_NONE then
+        select case fam * 5 + w
         case 0 : r = RTL_HEX_B
         case 1 : r = RTL_HEX_S
         case 2 : r = RTL_HEX_I
         case 3 : r = RTL_HEX_L
-        case 4 : r = RTL_OCT_B
-        case 5 : r = RTL_OCT_S
-        case 6 : r = RTL_OCT_I
-        case 7 : r = RTL_OCT_L
-        case 8 : r = RTL_BIN_B
-        case 9 : r = RTL_BIN_S
-        case 10 : r = RTL_BIN_I
-        case else : r = RTL_BIN_L
+        case 4 : r = RTL_HEX_P
+        case 5 : r = RTL_OCT_B
+        case 6 : r = RTL_OCT_S
+        case 7 : r = RTL_OCT_I
+        case 8 : r = RTL_OCT_L
+        case 9 : r = RTL_OCT_P
+        case 10 : r = RTL_BIN_B
+        case 11 : r = RTL_BIN_S
+        case 12 : r = RTL_BIN_I
+        case 13 : r = RTL_BIN_L
+        case else : r = RTL_BIN_P
         end select
     else
-        select case fam * 4 + w
+        select case fam * 5 + w
         case 0 : r = RTL_HEXEX_B
         case 1 : r = RTL_HEXEX_S
         case 2 : r = RTL_HEXEX_I
         case 3 : r = RTL_HEXEX_L
-        case 4 : r = RTL_OCTEX_B
-        case 5 : r = RTL_OCTEX_S
-        case 6 : r = RTL_OCTEX_I
-        case 7 : r = RTL_OCTEX_L
-        case 8 : r = RTL_BINEX_B
-        case 9 : r = RTL_BINEX_S
-        case 10 : r = RTL_BINEX_I
-        case else : r = RTL_BINEX_L
+        case 4 : r = RTL_HEXEX_P
+        case 5 : r = RTL_OCTEX_B
+        case 6 : r = RTL_OCTEX_S
+        case 7 : r = RTL_OCTEX_I
+        case 8 : r = RTL_OCTEX_L
+        case 9 : r = RTL_OCTEX_P
+        case 10 : r = RTL_BINEX_B
+        case 11 : r = RTL_BINEX_S
+        case 12 : r = RTL_BINEX_I
+        case 13 : r = RTL_BINEX_L
+        case else : r = RTL_BINEX_P
         end select
     end if
 
@@ -363,9 +428,12 @@ function LowerStrOf_ _
     '' not a no-op either: 'str( z )' over a 'zstring * N' is
     '' 'fb_StrAllocTempDescZ( (char*)Z )', the descriptor that flavour has to borrow.
     '' StrDescriptorOf_ knows every spelling; without this the whole call declined.
+    '' ...and so is STR of a UDT with 'operator cast' to one, which is the same
+    '' question asked of a different type kind.
     dim as longint sn
     if IsStringType( c, c.info->TypeOf_( sa ) ) orelse _
-       (StrSwapKind_( c, c.info->TypeOf_( sa ), sn ) >= 0) then
+       (StrSwapKind_( c, c.info->TypeOf_( sa ), sn ) >= 0) orelse _
+       (c.types->Kind( c.info->TypeOf_( sa ) ) = Fbx.TK_UDT) then
         return StrDescriptorOf_( c, sa, outv )
     end if
     return NumberToStrDesc_( c, sa, outv )
@@ -866,6 +934,8 @@ end function
 function StrDescriptorOf_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
 
+    id = Unparen_( c, id )
+
     '' A STRING CONSTANT IS ITS TEXT. Recognised here rather than left to the type
     '' test below, which would claim it and then ask a constant for an address.
     dim as string constText
@@ -1318,8 +1388,11 @@ function LowerStrCompare _
     '' WIDE if EITHER side is, for the same reason the caller's guard asks both: an
     '' intrinsic call has no type of its own, so 'trim( w ) = b' looks wide only from
     '' the right.
-    dim as boolean isWide = (IsWideString_( c, c.info->TypeOf_( bp->lhs ) )) orelse _
-                            (IsWideString_( c, c.info->TypeOf_( bp->rhs ) ))
+    '' TermIsWide_ rather than the type alone: 'wbin( b ) = wstr( "10000000" )' is two
+    '' calls, neither of which Check types, so both sides looked NARROW and the whole
+    '' comparison declined -- 228 statements in one corpus file, every one of them
+    '' inside a CU_ASSERT that then declined with it.
+    dim as boolean isWide = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
     if isWide then
         '' EITHER SIDE MAY BE AN RVALUE. LowerAddr alone accepted only an addressable
         '' wide variable, so 'trim( a ) = b' and 'a = wstr( 1 )' produced no comparison

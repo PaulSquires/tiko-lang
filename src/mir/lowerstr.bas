@@ -227,6 +227,26 @@ end function
 
 '' The text of a string literal. The parser records the span rather than the decoded
 '' bytes, so it is read back out of the source buffer here.
+'' THE EXPRESSION INSIDE A REDUNDANT '( )'. The parser keeps parentheses -- diagnostics
+'' and faithful dumps both want them -- so every recogniser that matches on SHAPE has to
+'' see through one, and none of them did: '(str(a)) = (str(b))' declined where
+'' 'str(a) = str(b)' beside it lowered, which is the shape fbcunit's CU_ASSERT_EQUAL
+'' macro writes for every one of its arguments.
+''
+'' A parenthesised LIST is not a redundant paren and is left alone.
+function Unparen_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.NodeId
+    dim as Fbx.NodeId n = id
+    for guard as long = 0 to 15
+        if n = Fbx.NODE_NONE then return n
+        if c.ast->Kind( n ) <> Fbx.N_PAREN then return n
+        dim as Fbx.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if lp->count <> 1 then return n
+        n = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    next
+    return n
+end function
+
 function StringLitText_ _
     ( byref c as Ctx, byval id as Fbx.NodeId ) as string
 
@@ -983,7 +1003,13 @@ function IsWstrCall_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
     dim as Fbx.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-    return (Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "wstr")
+    '' ...and the WIDE RADIX FAMILY, which is wide by the same rule and for the same
+    '' reason: Check computes no type for the call, so only the NAME says so.
+    select case Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    case "wstr", "whex", "woct", "wbin"
+        return true
+    end select
+    return false
 end function
 
 function LowerWstrOf _
@@ -1198,7 +1224,12 @@ function ZstrDataOf_ _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
     if k = 0 then
-        dim as MirValue da = LowerAddr( c, id )
+        '' StrDescriptorOf_ RATHER THAN LowerAddr, so an rvalue works too: 'str( t )'
+        '' has no address, and fbc copies it into a temporary descriptor before taking
+        '' the pointer. Everything with an address comes back as its own address here,
+        '' so the variable case is unchanged.
+        dim as MirValue da
+        if StrDescriptorOf_( c, id, da ) = false then da = LowerAddr( c, id )
         if da.kind = cast( ubyte, MV_NONE ) then return false
         '' The data pointer is the descriptor's FIRST field, which is why this is a
         '' plain load and not a field address.
@@ -1255,6 +1286,8 @@ end function
 function EmitStrTerm _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
       byval term as Fbx.NodeId ) as boolean
+
+    term = Unparen_( c, term )
 
     '' A STRING CONSTANT IS ITS TEXT, and it has to be recognised BEFORE the type test
     '' below claims it and asks for an address a constant has not got.

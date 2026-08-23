@@ -705,6 +705,30 @@ function ParamIsByref _
     return ((c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0)
 end function
 
+'' Is parameter 'idx' declared as an ARRAY -- 'sub Q( a( ) as long )'? Its TYPE is the
+'' ELEMENT's, so the type cannot answer this; the empty subscript is a FLAG on the
+'' N_PARAM and that is the only record of it.
+function ParamIsArray _
+    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
+
+    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
+    if pn = Fbx.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        if seen = idx then
+            return ((c.ast->nodes[cast( long, prm )].flags and Fbx.NF_ARRAY) <> 0)
+        end if
+        seen += 1
+    next
+    return false
+end function
+
 function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as MirValue v
 

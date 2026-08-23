@@ -236,6 +236,19 @@ sub RadixProbe( )
     s = oct( b, n ): s = oct( sh, n ): s = oct( l, n ): s = oct( q, n )
     s = bin( b )   : s = bin( sh )   : s = bin( l )   : s = bin( q )
     s = bin( b, n ): s = bin( sh, n ): s = bin( l, n ): s = bin( q, n )
+    '' A POINTER has its own six, which is not a width the table can express.
+    dim as any ptr pz
+    s = hex( pz ) : s = hex( pz, n )
+    s = oct( pz ) : s = oct( pz, n )
+    s = bin( pz ) : s = bin( pz, n )
+    '' AND THE WIDE HALF OF ALL THIRTY, spelled fb_WstrHex rather than fb_HEX.
+    dim as wstring * 90 wz
+    wz = whex( b ) : wz = whex( sh ) : wz = whex( l ) : wz = whex( q ) : wz = whex( pz )
+    wz = whex( b, n ) : wz = whex( sh, n ) : wz = whex( l, n ) : wz = whex( q, n ) : wz = whex( pz, n )
+    wz = woct( b ) : wz = woct( sh ) : wz = woct( l ) : wz = woct( q ) : wz = woct( pz )
+    wz = woct( b, n ) : wz = woct( sh, n ) : wz = woct( l, n ) : wz = woct( q, n ) : wz = woct( pz, n )
+    wz = wbin( b ) : wz = wbin( sh ) : wz = wbin( l ) : wz = wbin( q ) : wz = wbin( pz )
+    wz = wbin( b, n ) : wz = wbin( sh, n ) : wz = wbin( l, n ) : wz = wbin( q, n ) : wz = wbin( pz, n )
     s = space( n )
     s = string( n, l )
     s = string( n, s )

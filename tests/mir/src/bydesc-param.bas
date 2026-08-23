@@ -17,6 +17,13 @@
 '' One load, in AddrOfVar, and indexing, REDIM and ERASE are all right at once, because
 '' every one of them asks that function for the descriptor -- the same shape a BYREF
 '' parameter already had, one indirection along.
+''
+'' THE CALL SITE IS THE OTHER HALF, and it used to emit 'Q( _ )' -- a call with a hole
+'' where its only operand belongs, pushed because an argument that would not lower was
+'' pushed anyway. What crosses is a DESCRIPTOR POINTER, and which one depends on the
+'' argument: a DYNAMIC array passes its own descriptor's address, while a FIXED one gets
+'' a descriptor MATERIALISED over it, which is exactly what fbc emits -- nine stores and
+'' then '&tmp'.
 
 type R
     a as long
@@ -35,4 +42,7 @@ end sub
 sub P( )
     dim as long v( 0 to 3 )
     Q( v( ) )
+    dim as long d( any )
+    redim d( 0 to 3 )
+    Q( d( ) )
 end sub

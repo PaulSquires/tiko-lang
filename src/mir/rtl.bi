@@ -191,6 +191,49 @@ namespace Fbx.Mir
         RTL( RTL_BINEX_S,         "fb_BINEx_s",       "p",   "sl"    )
         RTL( RTL_BINEX_I,         "fb_BINEx_i",       "p",   "ll"    )
         RTL( RTL_BINEX_L,         "fb_BINEx_l",       "p",   "ql"    )
+        '' AND A POINTER HAS ITS OWN SIX, which is not a width the table above can
+        '' express: 'hex( p )' is fb_HEX_p taking the pointer itself, not a 64-bit
+        '' integer that happens to be the same size. Measured.
+        RTL( RTL_HEX_P,           "fb_HEX_p",         "p",   "p"     )
+        RTL( RTL_HEXEX_P,         "fb_HEXEx_p",       "p",   "pl"    )
+        RTL( RTL_OCT_P,           "fb_OCT_p",         "p",   "p"     )
+        RTL( RTL_OCTEX_P,         "fb_OCTEx_p",       "p",   "pl"    )
+        RTL( RTL_BIN_P,           "fb_BIN_p",         "p",   "p"     )
+        RTL( RTL_BINEX_P,         "fb_BINEx_p",       "p",   "pl"    )
+        '' AND THE WIDE HALF OF ALL THIRTY. 'whex( b )' is fb_WstrHex_b, which is not
+        '' the narrow name with a letter changed: the family is spelled WstrHex, in
+        '' mixed case, where the narrow one is shouted HEX. Guessing either from the
+        '' other would have been wrong, as it was for fb_HEXEx.
+        RTL( RTL_WHEX_B,       "fb_WstrHex_b",     "p",   "b"     )
+        RTL( RTL_WHEX_S,       "fb_WstrHex_s",     "p",   "s"     )
+        RTL( RTL_WHEX_I,       "fb_WstrHex_i",     "p",   "l"     )
+        RTL( RTL_WHEX_L,       "fb_WstrHex_l",     "p",   "q"     )
+        RTL( RTL_WHEX_P,       "fb_WstrHex_p",     "p",   "p"     )
+        RTL( RTL_WHEXEX_B,     "fb_WstrHexEx_b",   "p",   "bl"    )
+        RTL( RTL_WHEXEX_S,     "fb_WstrHexEx_s",   "p",   "sl"    )
+        RTL( RTL_WHEXEX_I,     "fb_WstrHexEx_i",   "p",   "ll"    )
+        RTL( RTL_WHEXEX_L,     "fb_WstrHexEx_l",   "p",   "ql"    )
+        RTL( RTL_WHEXEX_P,     "fb_WstrHexEx_p",   "p",   "pl"    )
+        RTL( RTL_WOCT_B,       "fb_WstrOct_b",     "p",   "b"     )
+        RTL( RTL_WOCT_S,       "fb_WstrOct_s",     "p",   "s"     )
+        RTL( RTL_WOCT_I,       "fb_WstrOct_i",     "p",   "l"     )
+        RTL( RTL_WOCT_L,       "fb_WstrOct_l",     "p",   "q"     )
+        RTL( RTL_WOCT_P,       "fb_WstrOct_p",     "p",   "p"     )
+        RTL( RTL_WOCTEX_B,     "fb_WstrOctEx_b",   "p",   "bl"    )
+        RTL( RTL_WOCTEX_S,     "fb_WstrOctEx_s",   "p",   "sl"    )
+        RTL( RTL_WOCTEX_I,     "fb_WstrOctEx_i",   "p",   "ll"    )
+        RTL( RTL_WOCTEX_L,     "fb_WstrOctEx_l",   "p",   "ql"    )
+        RTL( RTL_WOCTEX_P,     "fb_WstrOctEx_p",   "p",   "pl"    )
+        RTL( RTL_WBIN_B,       "fb_WstrBin_b",     "p",   "b"     )
+        RTL( RTL_WBIN_S,       "fb_WstrBin_s",     "p",   "s"     )
+        RTL( RTL_WBIN_I,       "fb_WstrBin_i",     "p",   "l"     )
+        RTL( RTL_WBIN_L,       "fb_WstrBin_l",     "p",   "q"     )
+        RTL( RTL_WBIN_P,       "fb_WstrBin_p",     "p",   "p"     )
+        RTL( RTL_WBINEX_B,     "fb_WstrBinEx_b",   "p",   "bl"    )
+        RTL( RTL_WBINEX_S,     "fb_WstrBinEx_s",   "p",   "sl"    )
+        RTL( RTL_WBINEX_I,     "fb_WstrBinEx_i",   "p",   "ll"    )
+        RTL( RTL_WBINEX_L,     "fb_WstrBinEx_l",   "p",   "ql"    )
+        RTL( RTL_WBINEX_P,     "fb_WstrBinEx_p",   "p",   "pl"    )
         '' SPACE and STRING. fb_StrFill1 takes a CHARACTER CODE, fb_StrFill2 a
         '' descriptor -- 'string( 4, 65 )' and 'string( 4, "x" )' are two entry
         '' points, and the second wraps its literal in fb_StrAllocTempDescZEx first.

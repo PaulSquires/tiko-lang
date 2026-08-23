@@ -378,6 +378,7 @@ end function
 '' wstr( cmp )' declined outright -- 52 statements in one corpus file, all of them the
 '' same macro.
 function TermIsWide_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    e = Unparen_( c, e )
     if e = Fbx.NODE_NONE then return false
     if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
     return IsWstrCall_( c, e )
@@ -555,6 +556,8 @@ end function
 function WideOperand_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
 
+    id = Unparen_( c, id )
+
     '' A LITERAL IS A WIDE ONE HERE. fbc writes '(uint16*)L"x"' for a literal compared
     '' against a wstring -- a genuinely wide global, not a narrow one widened at
     '' runtime -- so it takes the wide literal pool the DATA statement already uses.
@@ -575,6 +578,9 @@ function WideOperand_ _
         if outv.kind <> cast( ubyte, MV_NONE ) then return true
     end if
     if LowerWstrOf( c, id, outv ) then return true
+    '' 'whex( x )', 'woct', 'wbin' -- the WIDE half of the radix family, whose result is
+    '' a bare uint16* rather than a descriptor. Only the wide half is taken here.
+    if LowerRadixCall_( c, id, outv, true ) then return true
     if LowerWideRvalue( c, id, outv ) then return true
 
     '' A WIDE 'iif'. Structural, like the narrow one: an iif reached from a WIDE

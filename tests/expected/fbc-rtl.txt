@@ -18,10 +18,12 @@ fb_Assert	void	char*, int64, char*, char*	lib	fb_Assert
 fb_BINEx_b	FBSTRING*	uint8, int32	lib	fb_BINEx_b
 fb_BINEx_i	FBSTRING*	uint32, int32	lib	fb_BINEx_i
 fb_BINEx_l	FBSTRING*	uint64, int32	lib	fb_BINEx_l
+fb_BINEx_p	FBSTRING*	void*, int32	lib	fb_BINEx_p
 fb_BINEx_s	FBSTRING*	uint16, int32	lib	fb_BINEx_s
 fb_BIN_b	FBSTRING*	uint8	lib	fb_BIN_b
 fb_BIN_i	FBSTRING*	uint32	lib	fb_BIN_i
 fb_BIN_l	FBSTRING*	uint64	lib	fb_BIN_l
+fb_BIN_p	FBSTRING*	void*	lib	fb_BIN_p
 fb_BIN_s	FBSTRING*	uint16	lib	fb_BIN_s
 fb_BoolToStr	FBSTRING*	boolean	lib	fb_BoolToStr
 fb_CHR	FBSTRING*	int32, ...	lib	fb_CHR
@@ -80,10 +82,12 @@ fb_GfxWindow	void	float, float, float, float, int32	lib	fb_GfxWindow
 fb_HEXEx_b	FBSTRING*	uint8, int32	lib	fb_HEXEx_b
 fb_HEXEx_i	FBSTRING*	uint32, int32	lib	fb_HEXEx_i
 fb_HEXEx_l	FBSTRING*	uint64, int32	lib	fb_HEXEx_l
+fb_HEXEx_p	FBSTRING*	void*, int32	lib	fb_HEXEx_p
 fb_HEXEx_s	FBSTRING*	uint16, int32	lib	fb_HEXEx_s
 fb_HEX_b	FBSTRING*	uint8	lib	fb_HEX_b
 fb_HEX_i	FBSTRING*	uint32	lib	fb_HEX_i
 fb_HEX_l	FBSTRING*	uint64	lib	fb_HEX_l
+fb_HEX_p	FBSTRING*	void*	lib	fb_HEX_p
 fb_HEX_s	FBSTRING*	uint16	lib	fb_HEX_s
 fb_Init	void	int32, char**, int32	lib	fb_Init
 fb_InputByte	int32	int8*	lib	fb_InputByte
@@ -116,10 +120,12 @@ fb_MutexUnlock	void	void*	lib	fb_MutexUnlock
 fb_OCTEx_b	FBSTRING*	uint8, int32	lib	fb_OCTEx_b
 fb_OCTEx_i	FBSTRING*	uint32, int32	lib	fb_OCTEx_i
 fb_OCTEx_l	FBSTRING*	uint64, int32	lib	fb_OCTEx_l
+fb_OCTEx_p	FBSTRING*	void*, int32	lib	fb_OCTEx_p
 fb_OCTEx_s	FBSTRING*	uint16, int32	lib	fb_OCTEx_s
 fb_OCT_b	FBSTRING*	uint8	lib	fb_OCT_b
 fb_OCT_i	FBSTRING*	uint32	lib	fb_OCT_i
 fb_OCT_l	FBSTRING*	uint64	lib	fb_OCT_l
+fb_OCT_p	FBSTRING*	void*	lib	fb_OCT_p
 fb_OCT_s	FBSTRING*	uint16	lib	fb_OCT_s
 fb_PrintBool	void	int32, boolean, int32	lib	fb_PrintBool
 fb_PrintByte	void	int32, int8, int32	lib	fb_PrintByte
@@ -207,12 +213,32 @@ fb_WstrAlloc	uint16*	int64	lib	fb_WstrAlloc
 fb_WstrAssign	uint16*	uint16*, int64, uint16*	lib	fb_WstrAssign
 fb_WstrAssignFromA	uint16*	uint16*, int64, void*, int64	lib	fb_WstrAssignFromA
 fb_WstrAssignToA	FBSTRING*	void*, int64, uint16*, int32	lib	fb_WstrAssignToA
+fb_WstrBinEx_b	uint16*	uint8, int32	lib	fb_WstrBinEx_b
+fb_WstrBinEx_i	uint16*	uint32, int32	lib	fb_WstrBinEx_i
+fb_WstrBinEx_l	uint16*	uint64, int32	lib	fb_WstrBinEx_l
+fb_WstrBinEx_p	uint16*	void*, int32	lib	fb_WstrBinEx_p
+fb_WstrBinEx_s	uint16*	uint16, int32	lib	fb_WstrBinEx_s
+fb_WstrBin_b	uint16*	uint8	lib	fb_WstrBin_b
+fb_WstrBin_i	uint16*	uint32	lib	fb_WstrBin_i
+fb_WstrBin_l	uint16*	uint64	lib	fb_WstrBin_l
+fb_WstrBin_p	uint16*	void*	lib	fb_WstrBin_p
+fb_WstrBin_s	uint16*	uint16	lib	fb_WstrBin_s
 fb_WstrCompare	int32	uint16*, uint16*	lib	fb_WstrCompare
 fb_WstrConcat	uint16*	uint16*, uint16*	lib	fb_WstrConcat
 fb_WstrConcatAW	uint16*	void*, int64, uint16*	lib	fb_WstrConcatAW
 fb_WstrConcatAssign	uint16*	uint16*, int64, uint16*	lib	fb_WstrConcatAssign
 fb_WstrConcatWA	uint16*	uint16*, void*, int64	lib	fb_WstrConcatWA
 fb_WstrDelete	void	uint16*	lib	fb_WstrDelete
+fb_WstrHexEx_b	uint16*	uint8, int32	lib	fb_WstrHexEx_b
+fb_WstrHexEx_i	uint16*	uint32, int32	lib	fb_WstrHexEx_i
+fb_WstrHexEx_l	uint16*	uint64, int32	lib	fb_WstrHexEx_l
+fb_WstrHexEx_p	uint16*	void*, int32	lib	fb_WstrHexEx_p
+fb_WstrHexEx_s	uint16*	uint16, int32	lib	fb_WstrHexEx_s
+fb_WstrHex_b	uint16*	uint8	lib	fb_WstrHex_b
+fb_WstrHex_i	uint16*	uint32	lib	fb_WstrHex_i
+fb_WstrHex_l	uint16*	uint64	lib	fb_WstrHex_l
+fb_WstrHex_p	uint16*	void*	lib	fb_WstrHex_p
+fb_WstrHex_s	uint16*	uint16	lib	fb_WstrHex_s
 fb_WstrLTrim	uint16*	uint16*	lib	fb_WstrLTrim
 fb_WstrLTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrLTrimAny
 fb_WstrLTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrLTrimEx
@@ -221,6 +247,16 @@ fb_WstrLeft	uint16*	uint16*, int64	lib	fb_WstrLeft
 fb_WstrLen	int64	uint16*	lib	fb_WstrLen
 fb_WstrLset	void	uint16*, uint16*	lib	fb_WstrLset
 fb_WstrMid	uint16*	uint16*, int64, int64	lib	fb_WstrMid
+fb_WstrOctEx_b	uint16*	uint8, int32	lib	fb_WstrOctEx_b
+fb_WstrOctEx_i	uint16*	uint32, int32	lib	fb_WstrOctEx_i
+fb_WstrOctEx_l	uint16*	uint64, int32	lib	fb_WstrOctEx_l
+fb_WstrOctEx_p	uint16*	void*, int32	lib	fb_WstrOctEx_p
+fb_WstrOctEx_s	uint16*	uint16, int32	lib	fb_WstrOctEx_s
+fb_WstrOct_b	uint16*	uint8	lib	fb_WstrOct_b
+fb_WstrOct_i	uint16*	uint32	lib	fb_WstrOct_i
+fb_WstrOct_l	uint16*	uint64	lib	fb_WstrOct_l
+fb_WstrOct_p	uint16*	void*	lib	fb_WstrOct_p
+fb_WstrOct_s	uint16*	uint16	lib	fb_WstrOct_s
 fb_WstrRTrim	uint16*	uint16*	lib	fb_WstrRTrim
 fb_WstrRTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrRTrimAny
 fb_WstrRTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrRTrimEx
