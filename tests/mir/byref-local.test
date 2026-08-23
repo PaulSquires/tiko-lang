@@ -1,0 +1,7 @@
+'' 'dim byref' -- an aliasing local, and its shared and static forms.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-local.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byref-local.out

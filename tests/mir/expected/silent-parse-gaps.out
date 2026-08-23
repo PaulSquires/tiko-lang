@@ -1,7 +1,9 @@
 global var i64 g = 2
+global var ptr rg
 func i32 main($0, $1) {
   local i32 $tmp0
   local i64 a
+  local ptr rb
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -11,19 +13,19 @@ func i32 main($0, $1) {
     %4 = alloca ptr a
     %5 = const i64 1
     store @a, %5
-    %6 = const i32 0
-    call.rtl void fb_End(%6)
-    %7 = load @$tmp0
-    ret %7
+    %6 = alloca ptr rb
+    store @rb, @a
+    store @@rg, @@g
+    %7 = const i32 0
+    call.rtl void fb_End(%7)
+    %8 = load @$tmp0
+    ret %8
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 11 insts, 3 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 14 insts, 1 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 1
   inside N_INTRINSIC 1
-  inside N_VAR 2
   unlowered intrinsic KW_PRINT 1
-  var byref 2
-  skip-site src\mir\lower.bas:849 2
-  skip-site src\mir\lowerctl.bas:138 1
+  skip-site src\mir\lowerctl.bas:194 1

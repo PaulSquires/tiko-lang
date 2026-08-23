@@ -788,6 +788,55 @@ function ParamIsArray _
     return false
 end function
 
+'' THE DECLARATION OF AN ALIAS: store the referent's ADDRESS into the alias's storage.
+''
+'' 'dim byref rb as integer = a' is 'int64* RB$0; RB$0 = &A$0;' to fbc. The alias owns
+'' nothing -- no construction, no cleanup, no initialiser store -- because the thing it
+'' names was declared somewhere else. Everything after this point falls out of the type
+'' being a REFERENCE: the slot lowers to a pointer and AddrOfVar loads it, so every
+'' read, write and '@' goes through the indirection.
+''
+'' A SHARED or STATIC alias is module storage holding an address, and fbc initialises it
+'' STATICALLY -- 'int64* RG$ = &G$;'. A MIR global carries an integer, a float or a byte
+'' image, none of which is a relocation, so the address is stored where the declaration
+'' is instead. Same value either way: the referent is module storage too, so its address
+'' does not change between passes.
+function BindAliasStorage _
+    ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init_ as Fbx.NodeId, _
+      byval inModule as boolean ) as boolean
+
+    if init_ = Fbx.NODE_NONE then return false
+    '' THE SLOT HAS TO BE A POINTER, or this stores an address into something that is
+    '' not one. Two shapes reach here without a reference type: an alias whose element
+    '' type never resolved -- 'dim byref as cva_list r = args', where the slot is VOID
+    '' -- and a REDECLARATION already reported as an error, where the first declaration
+    '' won and it is a plain integer. Both were verify failures, and both are honest
+    '' declines: there is no alias storage to bind.
+    dim as Fbx.Symbol ptr asym = c.syms->SymbolAt( sid )
+    if asym = 0 then return false
+    if asym->type_ = Fbx.TYPE_NONE then return false
+    if c.types->Kind( asym->type_ ) <> Fbx.TK_REFERENCE then return false
+    dim as MirValue dst
+    if inModule then
+        dim as long g = GlobalFor( c, sid )
+        if g < 0 then return false
+        dst.kind = cast( ubyte, MV_GLOBAL )
+        dst.ty = cast( ubyte, MT_PTR )
+        dst.id = g
+    else
+        dim as long slot = LocalFor( c, sid )
+        if slot < 0 then return false
+        dst.kind = cast( ubyte, MV_LOCAL )
+        dst.ty = cast( ubyte, MT_PTR )
+        dst.id = slot
+    end if
+
+    dim as MirValue ra = LowerAddr( c, init_ )
+    if ra.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, dst, Coerce( c, ra, MT_PTR ) )
+    return true
+end function
+
 function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as MirValue v
 
@@ -798,11 +847,10 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( sid )
     if cs <> 0 then
         if cs->kind = cast( ubyte, Fbx.SYM_CONSTANT ) then return v
-        '' A REFERENCE has no storage of its own -- it aliases something else, through
-        '' an indirection that is not implemented. Its DECLARATION already declines;
-        '' without this every USE still resolved to a slot aliasing nothing, so
-        '' 'rb = 5 : print a' gave 1 where fbc gives 5.
-        if (cs->flags and Fbx.SYMF_BYREF) <> 0 then return v
+        '' A REFERENCE DOES have storage now -- a slot holding the address it aliases,
+        '' the same shape a byref parameter has -- and the load that turns that slot
+        '' into the referent's address is at the end of this function, where every
+        '' read, write and '@' goes through it.
         '' A PROCEDURE HAS NO STORAGE EITHER. '@mysub' fell through to LocalFor, which
         '' minted a FRAME SLOT named after the procedure -- so 'p = @mysub' stored the
         '' address of a fresh stack slot and 'p()' called into stack garbage:
@@ -829,6 +877,17 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
         v.kind = cast( ubyte, MV_GLOBAL )
         v.ty = cast( ubyte, MT_PTR )
         v.id = g
+        '' A SHARED OR STATIC ALIAS holds an address like any other reference, and the
+        '' load belongs here too -- this path returns before the one at the end of the
+        '' function. Without it 'sb = 3' stored an i64 into a pointer slot, which the
+        '' verifier caught: the store was clobbering the alias rather than the referent.
+        if cs <> 0 then
+            if cs->type_ <> Fbx.TYPE_NONE then
+                if c.types->Kind( cs->type_ ) = Fbx.TK_REFERENCE then
+                    return LowerExprLoad( c, v, MT_PTR )
+                end if
+            end if
+        end if
         return v
     end if
     dim as long lslot = LocalFor( c, sid )

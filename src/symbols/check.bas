@@ -1086,6 +1086,22 @@ end function
 '' A pass over the SYMBOLS rather than the nodes, and after every expression has been
 '' typed, so the initialiser's type is already known whatever order the declaration
 '' appeared in.
+'' 'var byref ri = i' IS AN ALIAS, and its type has to come out a REFERENCE the same
+'' way 'dim byref ri as integer = i' does -- Resolve wraps that one, but an INFERRED
+'' type is not known until here. Without this the slot was an i64 while the
+'' declaration stored an ADDRESS into it: 'stores ptr into a i64 slot', thirteen of
+'' them in one corpus file, and every later read of the alias read the address as the
+'' value. A reference to a reference is still one reference, so an initialiser that is
+'' itself an alias is unwrapped first.
+private function RefWrapIfAlias_ _
+    ( byref c as Ctx, byval s as Fbx.Symbol ptr, byval t as Fbx.TypeId ) as Fbx.TypeId
+
+    if (s->flags and Fbx.SYMF_BYREF) = 0 then return t
+    if t = Fbx.TYPE_NONE then return t
+    if c.types->Kind( t ) = Fbx.TK_REFERENCE then return t
+    return c.types->Reference( t )
+end function
+
 private sub InferUnusedVarTypes_( byref c as Ctx )
     '' 'to Count( )', not 'to Count( ) - 1'. SymbolTable.Count already returns
     '' 'symbols.Count - 1', so the valid ids are 1..Count( ) -- subtracting again
@@ -1125,7 +1141,7 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
                             if c.types->Kind( tt ) = Fbx.TK_REFERENCE then
                                 tt = c.types->Inner( tt )
                             end if
-                            s->type_ = tt
+                            s->type_ = RefWrapIfAlias_( c, s, tt )
                         end if
                     end if
                 end if
@@ -1139,7 +1155,7 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
         if c.ast->Kind( ip->b ) = Fbx.N_STRING_LIT then
             vt = c.types->Builtin( Fbx.TY_STRING )
         end if
-        if vt <> Fbx.TYPE_NONE then s->type_ = vt
+        if vt <> Fbx.TYPE_NONE then s->type_ = RefWrapIfAlias_( c, s, vt )
     next
 end sub
 

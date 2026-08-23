@@ -1,0 +1,65 @@
+global var ptr P$sb
+global var i64 g = 2
+global str $str2 "x"
+global var ptr rg
+func void P() {
+  entry0:
+    store @@P$sb, @@g
+    %1 = load @@P$sb
+    %2 = const i64 3
+    store %1, %2
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 a
+  local ptr rb
+  local i64 q
+  local ptr pq
+  local agg s size 24
+  local ptr rs
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = const i64 5
+    store @a, %5
+    %6 = alloca ptr rb
+    store @rb, @a
+    %7 = load @rb
+    %8 = const i64 7
+    store %7, %8
+    %9 = alloca ptr q
+    %10 = load @rb
+    %11 = load %10
+    store @q, %11
+    %12 = alloca ptr pq
+    %13 = load @rb
+    store @pq, %13
+    %14 = alloca ptr s
+    %15 = field.addr @s, 0
+    store %15, 0
+    %16 = field.addr @s, 8
+    store %16, 0
+    %17 = field.addr @s, 16
+    store %17, 0
+    %18 = alloca ptr rs
+    store @rs, @s
+    %19 = load @rs
+    %20 = call.rtl ptr fb_StrAssign(%19, -1, @@$str2, 2, 0)
+    store @@rg, @@g
+    call.rtl void fb_StrDelete(@s)
+    %21 = const i32 0
+    call.rtl void fb_End(%21)
+    %22 = load @$tmp0
+    ret %22
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance

@@ -217,6 +217,9 @@ declare function EmitRtl _
     declare function IsSharedVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
     declare function IsStaticLocal( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
     declare function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
+    declare function BindAliasStorage _
+        ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init_ as Fbx.NodeId, _
+          byval inModule as boolean ) as boolean
     declare function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     declare function AddrOfThisField _
         ( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue

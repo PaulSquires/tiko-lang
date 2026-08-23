@@ -822,20 +822,21 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             if LowerRedim( c, id, sp ) = false then SkipHere( c )
             return
         end if
-        '' 'dim byref rb as integer = a' ALIASES a. The slot would have to hold a
-        '' pointer and every read and write go through it, which is not implemented --
-        '' so this DECLINES rather than lowering the initializer as a copy.
+        '' 'dim BYREF rb as integer = a' ALIASES a, and its slot holds a POINTER --
+        '' the same shape a byref PARAMETER has. Resolve types it as a REFERENCE, so
+        '' the slot lowers to a pointer and AddrOfVar loads it; every read, every write
+        '' and every '@' of the alias then goes through the indirection, because all of
+        '' them ask that one function.
         ''
-        '' It matters that this landed with the parse fix and not after it. Parsing
-        '' BYREF turned a statement that silently vanished into one that silently
-        '' ALIASED NOTHING: measured, 'rb = 5' then 'print a' gives 5 under fbc and
-        '' would have given 1 here. A decline is the honest answer until the
-        '' indirection exists.
-        if (c.ast->nodes[cast( long, id )].flags and Fbx.NF_BYREF) <> 0 then
-            SkipHere( c )
-            c.st->varByref += 1
-            return
-        end if
+        '' What is left here is the DECLARATION: it stores the referent's ADDRESS, not
+        '' its value. fbc writes 'int64* RB$0; RB$0 = &A$0;'.
+        ''
+        '' This used to decline, and the decline was the right answer at the time:
+        '' parsing BYREF had turned a statement that silently vanished into one that
+        '' silently ALIASED NOTHING -- 'rb = 5' then 'print a' gives 5 under fbc and
+        '' would have given 1 here.
+        dim as boolean isByrefLocal = _
+            ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_BYREF) <> 0)
         for i as long = 0 to sp->count - 1
             dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
@@ -860,11 +861,35 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             dim as boolean inModule = IsSharedVar( c, sid )
             if IsStaticLocal( c, sid ) then inModule = true
             if inModule then
+                '' A SHARED OR STATIC ALIAS is module storage holding an address, and
+                '' fbc initialises it statically -- 'int64* RG$ = &G$;'. A MIR global
+                '' carries an integer, a float or a byte image, none of which is a
+                '' RELOCATION, so the address is stored where the declaration is
+                '' instead. Same value: the referent is module storage too, so its
+                '' address is the same on every pass through this line.
+                if isByrefLocal then
+                    if BindAliasStorage( c, sid, ip->b, true ) = false then
+                        SkipHere( c )
+                        c.st->varByref += 1
+                    end if
+                    continue for
+                end if
                 InitSharedGlobal( c, sid, ip->b )
                 continue for
             end if
 
             dim as long slot = LocalFor( c, sid )
+
+            '' THE ALIAS ITSELF: store the referent's ADDRESS in the slot and stop. No
+            '' construction, no cleanup and no initialiser store -- the alias owns
+            '' nothing, and the thing it names was declared somewhere else.
+            if isByrefLocal then
+                if BindAliasStorage( c, sid, ip->b, false ) = false then
+                    SkipHere( c )
+                    c.st->varByref += 1
+                end if
+                continue for
+            end if
 
             '' A UDT local is CONSTRUCTED where it is declared and DESTROYED at the
             '' end of its scope. The destructor is registered into the same cleanup

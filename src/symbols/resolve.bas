@@ -1171,6 +1171,14 @@ sub WalkStmt _
             '' local array reserved one ELEMENT -- four bytes where forty were needed --
             '' which nothing noticed only because indexing was not lowered either.
             t = ArrayFromBoundsNode( c, t, ip->c, ip->b )
+            '' 'dim BYREF rb as integer = a' ALIASES a. Its type is a REFERENCE, which
+            '' is the same shape a byref PARAMETER has -- and every piece of the model
+            '' already follows from that one fact: the slot lowers to a pointer, and
+            '' AddrOfVar loads it, so every read, write and '@' goes through the
+            '' indirection. Only the DECLARATION had to learn to store an address.
+            if (c.ast->nodes[cast( long, id )].flags and Fbx.NF_BYREF) <> 0 then
+                if t <> Fbx.TYPE_NONE then t = c.types->Reference( t )
+            end if
             if t = Fbx.TYPE_NONE then
                 '' A DECLARATION WITH NO TYPE AND NO INITIALISER is the DEFAULT-TYPE
                 '' feature -- 'dim a', 'dim b%', 'byval s$'. fbc refuses those outside
