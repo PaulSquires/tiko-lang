@@ -1,0 +1,8 @@
+'' A static or shared aggregate initialiser, folded to the bytes of its storage.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-agg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: = bytes 00 04 02 00 00 00 00 00 C0 00 00 00 00 00 00 46
+'' GOLDEN: expected/static-agg.out

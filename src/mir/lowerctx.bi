@@ -354,6 +354,11 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideAssign _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' A static aggregate's initial value, as the bytes of its storage -- lowerudtlit.bas.
+    declare function FoldAggInit_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
+          byval size_ as long, byref outBytes as string ) as boolean
+
     '' 'type<T>( ... )' as a value or an address -- lowersub.bas.
     declare function LowerUdtLiteralValue_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean

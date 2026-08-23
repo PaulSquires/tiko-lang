@@ -629,6 +629,23 @@ sub InitSharedGlobal _
         end if
     end if
 
+    '' AN AGGREGATE IS A BYTE IMAGE, not a number. A static or shared UDT is
+    '' initialised WHERE IT IS DEFINED -- fbc emits 'static struct $4GUID G$1 = { ... }'
+    '' and no code at all -- so the field values with their offsets are exactly the
+    '' bytes of its storage. The integer folder below cannot carry one and every one of
+    '' them declined, which is how fb/comptr.bi declares every IID.
+    if gt = MT_AGG then
+        dim as string img
+        if FoldAggInit_( c, c.m->globals[g].frontendType, init, _
+                         c.m->globals[g].size, img ) then
+            c.m->globals[g].initBytes = img
+            c.m->globals[g].hasInit = true
+            return
+        end if
+        SkipHere( c )
+        return
+    end if
+
     dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
         *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits )
     if cv.known = false then

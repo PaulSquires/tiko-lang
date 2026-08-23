@@ -322,4 +322,95 @@ function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     return ((c.ast->nodes[cast( long, n )].flags and Tko.NF_IS_UNION) <> 0)
 end function
 
+
+'' ------------------------------------------------- the static byte image
+
+'' AN AGGREGATE INITIALISER FOLDED TO THE BYTES OF ITS STORAGE.
+''
+'' A STATIC or SHARED aggregate is initialised WHERE IT IS DEFINED, not by stores.
+'' Measured: 'static as GUID g = type<GUID>( &h00020400, 0, 0, { &hC0, ... } )' is
+''
+''     static struct $4GUID G$1 = { 132096u, (uint16)0u, (uint16)0u,
+''                                  { (uint8)192u, ... (uint8)70u } };
+''
+'' -- a C static with an initialiser list and no code at all. The field values with
+'' their offsets ARE a byte image of the object, which is what MirGlobal.initBytes has
+'' been for since it was added.
+''
+'' Returns false unless EVERY leaf folds. A partial image would be worse than none: the
+'' bytes that did fold would look initialised and the rest would be zero, with nothing
+'' to say which was which.
+function FoldAggInit_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
+      byval size_ as long, byref outBytes as string ) as boolean
+
+    if size_ <= 0 then return false
+    if init = Tko.NODE_NONE then return false
+    select case c.ast->Kind( init )
+    case Tko.N_TUPLE, Tko.N_PAREN, Tko.N_INITIALIZER
+    case else
+        return false
+    end select
+
+    dim as FB.Array( of ulong ) fOff
+    dim as FB.Array( of ulong ) fTy
+    if FlattenUdtFields_( c, t, 0, fOff, fTy, 0 ) = false then return false
+    dim as FB.Array( of ulong ) vNode
+    if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
+    if vNode.Count <= 0 then return false
+    if vNode.Count > fOff.Count then return false
+
+    '' Zero first: fbc's initialiser list leaves every unwritten byte zero, padding
+    '' included, and a static's storage starts that way in any case.
+    dim as string img = string( size_, chr( 0 ) )
+
+    for i as long = 0 to vNode.Count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
+        dim as MirType fmt = cast( MirType, fTy[i] )
+        dim as long off = cast( long, fOff[i] )
+        dim as longint bits = 0
+        dim as long wid = 0
+
+        select case fmt
+        case MT_I8  : wid = 1
+        case MT_I16 : wid = 2
+        case MT_I32 : wid = 4
+        case MT_I64 : wid = 8
+        case MT_PTR : wid = c.types->target.pointerBits \ 8
+        case MT_F32
+            wid = 4
+            dim as double fv
+            if Tko.Check.ConstFloatOf( *c.ast, e, fv ) = false then return false
+            dim as single sv = cast( single, fv )
+            bits = cast( longint, *cptr( ulong ptr, @sv ) )
+        case MT_F64
+            wid = 8
+            dim as double dv
+            if Tko.Check.ConstFloatOf( *c.ast, e, dv ) = false then return false
+            bits = *cptr( longint ptr, @dv )
+        case else
+            return false
+        end select
+
+        if (fmt <> MT_F32) andalso (fmt <> MT_F64) then
+            dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
+                *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits )
+            if cv.known = false then return false
+            bits = cv.value
+        end if
+
+        if (off < 0) orelse (off + wid > size_) then return false
+        '' 'wid', not 'width': WIDTH IS A KEYWORD -- the WIDTH statement -- so
+            '' 'width = 4' parses as one and the declaration never happens.
+            '' LITTLE-ENDIAN, which is the only byte order either target has.
+        for k as long = 0 to wid - 1
+            dim as ubyte bv = cast( ubyte, (bits shr (k * 8)) and &hFF )
+            img[off + k] = bv
+        next
+    next
+
+    outBytes = img
+    return true
+end function
+
 end namespace
