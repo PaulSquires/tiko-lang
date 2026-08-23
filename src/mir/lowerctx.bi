@@ -117,6 +117,12 @@ type Ctx
     '' The statement being lowered, so a decline can name the SOURCE LINE it came
     '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
     as ulong                curStmtNode
+    '' The sub-expression to BLAME for the next decline, when something narrower than
+    '' the statement is known to be at fault. A statement written inside a MACRO reports
+    '' the macro's own line, so 'CU_ASSERT( x )' attributed every failure in the corpus
+    '' to one line of fbcunit.bi; the ARGUMENT's tokens come from the INVOCATION and
+    '' point where the work actually is. Cleared as it is consumed.
+    as ulong                blameNode
 
     '' DIM SHARED / STATIC storage, keyed by SYMBOL rather than by name. Two statics
     '' called 'n' in sibling scopes are two declarations and so two symbols; keying on
@@ -246,6 +252,9 @@ declare function EmitRtl _
         ( byref c as Ctx, byval ctors as Fbx.SymbolId, _
           byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId
     '' lowerctor.bas
+    declare function LowerConvCtorInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
+          byval init_ as Fbx.NodeId ) as boolean
     declare function LowerCtorInit _
         ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
           byval init_ as Fbx.NodeId ) as boolean
@@ -309,6 +318,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
     declare function TermIsWide_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    declare function WideCastOverload_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
     declare function WideToNarrowTemp_ _
         ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function NarrowToWideTemp_ _

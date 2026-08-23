@@ -957,6 +957,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                 if constructed = false then
                     constructed = LowerCtorInit( c, slot, vs->type_, ip->b )
                 end if
+                '' ...and 'dim u as U = s', a CONVERTING constructor, which fell
+                '' through to the default one and dropped the initialiser entirely.
+                if constructed = false then
+                    constructed = LowerConvCtorInit_( c, slot, vs->type_, ip->b )
+                end if
                 dim as Fbx.SymbolId ctor = Fbx.SYMBOL_NONE
                 if constructed = false then
                     ctor = StructorWithArity( c, _

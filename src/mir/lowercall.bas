@@ -341,7 +341,14 @@ function LowerCallParts _
             a = LowerExpr( c, argNode )
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be
             '' pushed anyway, so the call went out with a malformed operand in it.
-            if a.kind = cast( ubyte, MV_NONE ) then return v
+            ''
+            '' The ARGUMENT is what gets the blame: inside a macro the statement's own
+            '' location is the macro BODY, while the argument's tokens come from the
+            '' invocation and point at the work.
+            if a.kind = cast( ubyte, MV_NONE ) then
+                c.blameNode = cast( ulong, argNode )
+                return v
+            end if
             '' TO THE PARAMETER'S TYPE, not the argument's. 'randomize 42' passes an
             '' INTEGER literal to a 'byval as double', and handing the callee the
             '' narrow value puts half a quantity in a wide slot -- the same rule the

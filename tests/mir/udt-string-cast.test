@@ -1,0 +1,9 @@
+'' A UDT with 'operator cast' to a string: PRINT, STR, converting construction, and the
+'' narrow/wide conversions around it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-string-cast.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_StrToWstr
+'' EXPECT-OUT: fb_WstrCompare
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-string-cast.out

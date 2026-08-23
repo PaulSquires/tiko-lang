@@ -653,25 +653,15 @@ end function
 function ConcatToTemp_ _
     ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
 
+    '' ANY NUMBER OF TERMS, not two. This read 'terms.Count <> 2' and gave up on the
+    '' rest, so 'r = d + t + d' declined where 'r = d + t' beside it lowered -- and a
+    '' comparison against a three-term concatenation is most of what one corpus file
+    '' does. ConcatTermsToTempDesc_ builds the chain the same way the PRINT path does.
     if e = Fbx.NODE_NONE then return false
     if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
     dim as FB.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
-    if terms.Count <> 2 then return false
-
-    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-    if slot < 0 then return false
-    dim as MirValue ta
-    ta.kind = cast( ubyte, MV_LOCAL )
-    ta.ty = cast( ubyte, MT_PTR )
-    ta.id = slot
-
-    dim as FB.Array( of ulong ) args
-    args.Push( cast( ulong, ta.kind ) ) : args.Push( cast( ulong, ta.id ) )
-    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[0] ) ) = false then return false
-    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[1] ) ) = false then return false
-    outv = EmitRtl( c, RTL_STR_CONCAT, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    return ConcatTermsToTempDesc_( c, terms, outv )
 end function
 
 '' THE MATH INTRINSICS -- int, fix, frac, abs, sgn, sqr and the transcendentals.
@@ -1003,6 +993,16 @@ function StrDescriptorOf_ _
     if IsStringType( c, c.info->TypeOf_( id ) ) then
         outv = LowerAddr( c, id )
         if outv.kind <> cast( ubyte, MV_NONE ) then return true
+    end if
+
+    '' A STRING RVALUE FROM THE INTRINSIC FAMILY -- 'mid( s, 1 )', 'trim', 'ucase',
+    '' 'hex', 'space' -- whose callee is no symbol at all, so the branch above types it
+    '' as a string and then asks a CALL for an address. Its result already IS a
+    '' descriptor pointer, which is what every caller here wants.
+    dim as MirValue srv2
+    if LowerStrRvalue( c, id, srv2 ) then
+        outv = srv2
+        return true
     end if
 
     '' A 'string * N' BORROWS A DESCRIPTOR FROM ITS OWN ENTRY POINT, taking the TAGGED
@@ -1399,9 +1399,17 @@ function LowerStrCompare _
         '' -- and the IF around them went out as a conditional branch with NOTHING to
         '' branch on, silently, for as long as that was tolerated. WideOperand_ already
         '' knows all three spellings; it was simply not asked.
+        '' A MIXED COMPARISON CONVERTS THE NARROW SIDE. Measured: 'rt = ru' over a
+        '' 'zstring * 50' and a 'wstring * 50' is 'fb_StrToWstr( RT )' into a temporary
+        '' and then fb_WstrCompare, with the temporary deleted afterwards. Requiring
+        '' both sides to be wide declined the comparison outright.
         dim as MirValue la, ra
-        if WideOperand_( c, bp->lhs, la ) = false then return none_
-        if WideOperand_( c, bp->rhs, ra ) = false then return none_
+        if WideOperand_( c, bp->lhs, la ) = false then
+            if NarrowToWideTemp_( c, bp->lhs, la ) = false then return none_
+        end if
+        if WideOperand_( c, bp->rhs, ra ) = false then
+            if NarrowToWideTemp_( c, bp->rhs, ra ) = false then return none_
+        end if
         if (la.kind = cast( ubyte, MV_NONE )) orelse _
            (ra.kind = cast( ubyte, MV_NONE )) then return none_
         args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )

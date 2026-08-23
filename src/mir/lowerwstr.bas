@@ -146,14 +146,18 @@ function LowerWideAssignTo _
         return true
     end if
 
+    '' AN ADDRESSABLE narrow string. A string-typed RVALUE -- 'mid( s, 1 )' -- has none,
+    '' and returning false here rather than falling through is what kept it from the
+    '' descriptor branch at the end: the type test claimed it and then gave up.
     if IsStringType( c, st ) then
         dim as MirValue src = LowerAddr( c, value )
-        if src.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
-        EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
-        return true
+        if src.kind <> cast( ubyte, MV_NONE ) then
+            args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+            EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
+            return true
+        end if
     end if
 
     '' A ZSTRING * N source passes its own element count rather than -1.
@@ -163,6 +167,19 @@ function LowerWideAssignTo _
         if src.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, zn ) )
+        EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
+        return true
+    end if
+
+    '' A NARROW RVALUE -- 'mid( s, 1 )', 'trim( u )', a call, a concatenation, a UDT
+    '' with 'operator cast' -- has no address, and every branch above asked for one.
+    '' StrDescriptorOf_ knows all of those spellings, and a descriptor passes -1 for
+    '' its length exactly as an addressable string does.
+    dim as MirValue dsc
+    if StrDescriptorOf_( c, value, dsc ) then
+        args.Push( cast( ulong, dsc.kind ) ) : args.Push( cast( ulong, dsc.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
         EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
         return true
     end if
@@ -381,6 +398,10 @@ function TermIsWide_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
     e = Unparen_( c, e )
     if e = Fbx.NODE_NONE then return false
     if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
+    '' A UDT WITH 'operator cast' TO A WSTRING is wide too, and asking that costs a
+    '' walk rather than an emission -- which is the whole reason this predicate exists
+    '' separately from UserCastToWide_.
+    if WideCastOverload_( c, c.info->TypeOf_( e ) ) <> Fbx.SYMBOL_NONE then return true
     return IsWstrCall_( c, e )
 end function
 
@@ -606,20 +627,15 @@ end function
 
 '' The 'operator cast' overload that yields a WSTRING, called on 'id'. Returns the
 '' uint16* it gives back.
-private function UserCastToWide_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
-
-    dim as Fbx.TypeId t = c.info->TypeOf_( id )
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
-
-    dim as Fbx.SymbolId cs = UdtMemberNamed_( c, t, "cast" )
-    if cs = Fbx.SYMBOL_NONE then return false
-
-    '' THE OVERLOAD THAT YIELDS A WSTRING. 'operator cast' may be declared several
-    '' times over different targets, so the chain is walked rather than its head taken.
-    dim as Fbx.SymbolId cur = cs
-    dim as Fbx.SymbolId want = Fbx.SYMBOL_NONE
+'' THE 'operator cast' OVERLOAD THAT YIELDS A WSTRING, or nothing. Split out because
+'' the CONCATENATION and COMPARISON paths have to know whether a term is wide BEFORE
+'' anything is emitted for it, and the only way to find out is this walk: 'operator
+'' cast' may be declared several times over different targets, so the chain is walked
+'' rather than its head taken.
+function WideCastOverload_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    dim as Fbx.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
     while cur <> Fbx.SYMBOL_NONE
         dim as Fbx.Symbol ptr cse = c.syms->SymbolAt( cur )
         if cse = 0 then exit while
@@ -630,21 +646,22 @@ private function UserCastToWide_ _
             if c.types->Kind( inner ) = Fbx.TK_POINTER then
                 inner = c.types->Inner( inner )
             end if
-            if IsWideString_( c, inner ) then
-                want = cur
-                exit while
-            end if
+            if IsWideString_( c, inner ) then return cur
             if inner <> Fbx.TYPE_NONE then
                 if c.types->Kind( inner ) = Fbx.TK_BUILTIN then
-                    if c.types->BuiltinOf( inner ) = Fbx.TY_WSTRING then
-                        want = cur
-                        exit while
-                    end if
+                    if c.types->BuiltinOf( inner ) = Fbx.TY_WSTRING then return cur
                 end if
             end if
         end if
         cur = cse->nextOverload
     wend
+    return Fbx.SYMBOL_NONE
+end function
+
+private function UserCastToWide_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Fbx.SymbolId want = WideCastOverload_( c, c.info->TypeOf_( id ) )
     if want = Fbx.SYMBOL_NONE then return false
 
     dim as MirValue self_ = LowerAddr( c, id )

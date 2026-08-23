@@ -70,14 +70,20 @@ func void P() {
     %33 = load @@ct
     condbr %33, iif.then7, iif.else8
   iif.then7:
-    %36 = call.rtl ptr fb_StrConcat(@$tmp11, @a, -1, @b, -1)
-    %37 = call.rtl ptr fb_StrInit(@$tmp10, -1, %36, -1, 0)
+    %36 = field.addr @$tmp11, 0
+    store %36, 0
+    %37 = field.addr @$tmp11, 8
+    store %37, 0
+    %38 = field.addr @$tmp11, 16
+    store %38, 0
+    %39 = call.rtl ptr fb_StrConcat(@$tmp11, @a, -1, @b, -1)
+    %40 = call.rtl ptr fb_StrInit(@$tmp10, -1, @$tmp11, -1, 0)
     br iif.join9
   iif.else8:
-    %38 = call.rtl ptr fb_StrInit(@$tmp10, -1, @@$str3, 1, 0)
+    %41 = call.rtl ptr fb_StrInit(@$tmp10, -1, @@$str3, 1, 0)
     br iif.join9
   iif.join9:
-    %39 = call.rtl ptr fb_StrAssign(@c, -1, @$tmp10, -1, 0)
+    %42 = call.rtl ptr fb_StrAssign(@c, -1, @$tmp10, -1, 0)
     call.rtl void fb_StrDelete(@$tmp10)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_StrDelete(@b)
@@ -105,4 +111,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 11 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 11 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance

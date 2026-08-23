@@ -112,6 +112,38 @@ function LowerAddr _
         return Emit( c, ins )
     end if
 
+    '' 'cast( T, x )' OVER AN AGGREGATE IS A REINTERPRETATION, so it has the operand's
+    '' address and the target type's layout. That is what an up-cast IS in FreeBASIC --
+    '' 'cast( T1, x2 ).s' reads T1's own field out of a T2 -- and without an address the
+    '' member access on it declined, 73 statements in the corpus file that exists to
+    '' test exactly this.
+    ''
+    '' Only for an aggregate target: a numeric cast produces a VALUE and has no address,
+    '' and handing back the operand's would read the wrong width from it.
+    if c.ast->Kind( id ) = Fbx.N_CALL then
+        dim as Fbx.ListPayload ptr cl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (cl->count = 2) andalso (cl->target <> Fbx.NODE_NONE) then
+            if c.ast->Kind( cl->target ) = Fbx.N_IDENT then
+                dim as Fbx.IdentPayload ptr cip = _
+                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, cl->target )].data )]
+                dim as string cnm = Fbx.Text.LowerAscii( c.names->Spelling( cip->name ) )
+                if (cnm = "cast") orelse (cnm = "ctype") then
+                    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cl->first] )
+                    if c.ast->Kind( a0 ) = Fbx.N_TYPEREF then
+                        dim as Fbx.TypeId tt = c.info->TypeOf_( id )
+                        if tt <> Fbx.TYPE_NONE then
+                            if c.types->Kind( tt ) = Fbx.TK_UDT then
+                                return LowerAddr( c, cast( Fbx.NodeId, _
+                                                  c.ast->children[cl->first + 1] ) )
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     '' Parentheses are kept in the tree for diagnostics, so an address has to see through
     '' them: '(*p).M( )' is a PAREN around a deref, and stopping at the paren lost the
     '' receiver.

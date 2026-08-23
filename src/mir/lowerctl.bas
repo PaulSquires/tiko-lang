@@ -35,6 +35,49 @@ declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 '' inside. The statement-dispatch counter says which statements were never started; this
 '' says which ones were started and could not be finished, and that is the larger number
 '' by more than an order of magnitude.
+'' A node whose location is in the SOURCE rather than in a macro body. Every node the
+'' preprocessor produced carries NF_FROM_MACRO, and its location is the '#define' line
+'' -- so a decline inside 'CU_ASSERT( x )' was reported against one line of fbcunit.bi,
+'' 1,071 times, whatever it was really about. The argument's own tokens come from the
+'' INVOCATION, so the first descendant without the flag is where the work is.
+private function NonMacroNode_( byref c as Ctx, byval n0 as ulong ) as ulong
+    dim as Fbx.NodeId n = cast( Fbx.NodeId, n0 )
+    for guard as long = 0 to 15
+        if n = Fbx.NODE_NONE then return n0
+        '' NF_FROM_MACRO is declared and never set, so the test is the LOCATION
+        '' itself: a node that came from a macro body sits in the file the '#define'
+        '' is in, and the argument the caller wrote does not. Descend while the file
+        '' MATCHES the statement's, which is the macro's when there is one.
+        if c.ast->Loc( n ) <> c.ast->Loc( cast( Fbx.NodeId, c.curStmtNode ) ) then
+            if c.srcMgr->Decode( c.ast->Loc( n ) ).file <> _
+               c.srcMgr->Decode( c.ast->Loc( cast( Fbx.NodeId, c.curStmtNode ) ) ).file then
+                return cast( ulong, n )
+            end if
+        end if
+        '' Descend into the first child that has one. The payload pool differs per
+        '' KIND, which is the mistake this codebase has made seven times, so only the
+        '' three shapes that wrap a single operand are followed.
+        select case c.ast->Kind( n )
+        case Fbx.N_PAREN, Fbx.N_CALL, Fbx.N_INDEX, Fbx.N_TUPLE
+            dim as Fbx.ListPayload ptr lp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+            if lp->count < 1 then return cast( ulong, n )
+            n = cast( Fbx.NodeId, c.ast->children[lp->first] )
+        case Fbx.N_BINARY
+            dim as Fbx.BinaryPayload ptr bp = _
+                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+            n = bp->lhs
+        case Fbx.N_UNARY
+            dim as Fbx.UnaryPayload ptr up = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+            n = up->operand
+        case else
+            return cast( ulong, n )
+        end select
+    next
+    return n0
+end function
+
 sub SkipAt _
     ( byref c as Ctx, byref fileName as string, byval lineNo as long )
 
@@ -47,9 +90,11 @@ sub SkipAt _
         '' says which branch gave up; only the source line says what it gave up on,
         '' and the two largest parse-gap items were invisible without it.
         dim as string where = ""
-        if (c.srcMgr <> 0) andalso (c.curStmtNode <> 0) then
+        dim as ulong blameAt = c.curStmtNode
+        if c.blameNode <> 0 then blameAt = NonMacroNode_( c, c.blameNode )
+        if (c.srcMgr <> 0) andalso (blameAt <> 0) then
             dim as Fbx.DecodedLoc sl = _
-                c.srcMgr->Decode( c.ast->Loc( cast( Fbx.NodeId, c.curStmtNode ) ) )
+                c.srcMgr->Decode( c.ast->Loc( cast( Fbx.NodeId, blameAt ) ) )
             where = " at " & c.srcMgr->PathOf( sl.file ) & ":" & str( sl.lineNo )
         end if
         print "SKIP " & fileName & ":" & str( lineNo ) & " in " & _
@@ -77,6 +122,8 @@ sub SkipAt _
         c.st->innerKind.Push( 0 )
     wend
     c.st->innerKind[k] += 1
+    '' CONSUMED. A blame set for one decline must not be reported for the next.
+    c.blameNode = 0
 end sub
 
 '' Which HALF of a declined call statement is at fault: a callee that bound to nothing,

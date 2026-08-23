@@ -69,34 +69,40 @@ func void P() {
     br if.join4
   if.join7:
     %42 = const i64 -9223372036854775801
-    %44 = const i64 -9223372036854775776
-    %45 = const i64 -9223372036854775776
-    %46 = call.rtl ptr fb_StrConcat(@$tmp6, @a, %44, @b, %45)
-    %47 = call.rtl ptr fb_StrAssign(@c7, %42, %46, -1, -1)
+    %44 = field.addr @$tmp6, 0
+    store %44, 0
+    %45 = field.addr @$tmp6, 8
+    store %45, 0
+    %46 = field.addr @$tmp6, 16
+    store %46, 0
+    %47 = const i64 -9223372036854775776
     %48 = const i64 -9223372036854775776
-    %49 = call.rtl ptr fb_StrAssign(@s, -1, @a, %48, 0)
-    %50 = const i64 -9223372036854775776
-    %51 = call.rtl ptr fb_StrConcatAssign(@s, -1, @b, %50, 0)
-    %52 = const i64 32
-    %53 = trunc %52
-    store @n, %53
-    %54 = const i64 1
-    %55 = ptr.add @a, %54
-    %56 = load %55
-    %57 = sext %56
-    store @n, %57
-    %58 = const i64 -9223372036854775776
-    %59 = call.rtl ptr fb_StrAllocTempDescF(@a, %58)
-    %60 = call.rtl i64 fb_StrInstr(1, %59, @s)
-    %61 = trunc %60
-    store @n, %61
-    %62 = const i64 -9223372036854775776
-    %63 = call.rtl ptr fb_StrAllocTempDescF(@a, %62)
-    %64 = call.rtl ptr fb_TRIM(%63)
-    %65 = call.rtl ptr fb_StrAssign(@s, -1, %64, -1, 0)
-    %66 = const i64 -9223372036854775776
-    %67 = call.rtl ptr fb_StrAllocTempDescF(@a, %66)
-    call.rtl void fb_PrintString(0, %67, 1)
+    %49 = call.rtl ptr fb_StrConcat(@$tmp6, @a, %47, @b, %48)
+    %50 = call.rtl ptr fb_StrAssign(@c7, %42, @$tmp6, -1, -1)
+    %51 = const i64 -9223372036854775776
+    %52 = call.rtl ptr fb_StrAssign(@s, -1, @a, %51, 0)
+    %53 = const i64 -9223372036854775776
+    %54 = call.rtl ptr fb_StrConcatAssign(@s, -1, @b, %53, 0)
+    %55 = const i64 32
+    %56 = trunc %55
+    store @n, %56
+    %57 = const i64 1
+    %58 = ptr.add @a, %57
+    %59 = load %58
+    %60 = sext %59
+    store @n, %60
+    %61 = const i64 -9223372036854775776
+    %62 = call.rtl ptr fb_StrAllocTempDescF(@a, %61)
+    %63 = call.rtl i64 fb_StrInstr(1, %62, @s)
+    %64 = trunc %63
+    store @n, %64
+    %65 = const i64 -9223372036854775776
+    %66 = call.rtl ptr fb_StrAllocTempDescF(@a, %65)
+    %67 = call.rtl ptr fb_TRIM(%66)
+    %68 = call.rtl ptr fb_StrAssign(@s, -1, %67, -1, 0)
+    %69 = const i64 -9223372036854775776
+    %70 = call.rtl ptr fb_StrAllocTempDescF(@a, %69)
+    call.rtl void fb_PrintString(0, %70, 1)
     call.rtl void fb_StrDelete(@s)
     ret
   if.then8:
@@ -154,26 +160,32 @@ func void Q() {
     %18 = call.rtl ptr fb_StrAssign(@s, -1, %17, 0, 0)
     %19 = load @pc
     %20 = alloca ptr $tmp8
-    %21 = load @pa
-    %22 = load @pb
-    %23 = call.rtl ptr fb_StrConcat(@$tmp8, %21, 0, %22, 0)
-    %24 = call.rtl ptr fb_StrAssign(%19, 0, %23, -1, 0)
-    %25 = load @pa
-    %26 = load @pb
-    %27 = call.rtl i32 fb_StrCompare(%25, 0, %26, 0)
-    %28 = icmp.eq %27, 0
-    condbr %28, if.then2, if.else3
+    %21 = field.addr @$tmp8, 0
+    store %21, 0
+    %22 = field.addr @$tmp8, 8
+    store %22, 0
+    %23 = field.addr @$tmp8, 16
+    store %23, 0
+    %24 = load @pa
+    %25 = load @pb
+    %26 = call.rtl ptr fb_StrConcat(@$tmp8, %24, 0, %25, 0)
+    %27 = call.rtl ptr fb_StrAssign(%19, 0, @$tmp8, -1, 0)
+    %28 = load @pa
+    %29 = load @pb
+    %30 = call.rtl i32 fb_StrCompare(%28, 0, %29, 0)
+    %31 = icmp.eq %30, 0
+    condbr %31, if.then2, if.else3
   if.join1:
-    %31 = load @pa
-    %32 = call.rtl i64 fb_StrLen(%31, 0)
-    %33 = trunc %32
-    store @n, %33
+    %34 = load @pa
+    %35 = call.rtl i64 fb_StrLen(%34, 0)
+    %36 = trunc %35
+    store @n, %36
     call.rtl void fb_StrDelete(@s)
     ret
   if.then2:
-    %29 = const i64 1
-    %30 = trunc %29
-    store @n, %30
+    %32 = const i64 1
+    %33 = trunc %32
+    store @n, %33
     br if.join1
   if.else3:
     br if.join1
@@ -201,4 +213,4 @@ func void R() {
     br if.join1
 }
 verify: ok
-lowered: 3 functions, 18 blocks, 128 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 18 blocks, 140 insts, 0 statements not lowered, 0 scope imbalance

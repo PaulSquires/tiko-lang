@@ -1088,6 +1088,14 @@ function LowerWstrOf _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
+    '' A UDT WITH 'operator cast'. 'wstr( u )' over one whose cast yields a WSTRING is
+    '' the identity, and over one that yields a narrow string it is the ordinary
+    '' conversion -- WideOperand_ knows the first and NarrowToWideTemp_ the second.
+    if c.types->Kind( at ) = Fbx.TK_UDT then
+        if WideOperand_( c, a, outv ) then return true
+        return NarrowToWideTemp_( c, a, outv )
+    end if
+
     '' A SCALAR. Which entry point, and what the argument widens to, both come from the
     '' operand's own type.
     if c.types->Kind( at ) <> Fbx.TK_BUILTIN then return false

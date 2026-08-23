@@ -12,6 +12,98 @@ using Fbx
 '' 'dim as T x = T( 5 )'. The initialiser parses as a CALL on the type's name, so it
 '' is recognised by the callee naming the variable's own UDT rather than by any
 '' special syntax. Returns false when this is not a constructor call.
+'' ONE CONSTRUCTOR ARGUMENT, converted the way the parameter needs rather than the way
+'' the expression came. Two of the three cases are not a Coerce:
+''
+''   byval p as zstring ptr   <- a STRING passes its DATA POINTER, '*(char**)&S'
+''   byref s as string        <- a DESCRIPTOR, which a literal or an rvalue has not got
+''
+'' Shared by both constructor paths, because 'dim u as U = str( t )' and
+'' 'dim u as U = U( str( t ) )' differ only in spelling.
+private function CtorArgValue_ _
+    ( byref c as Ctx, byval argNode as Fbx.NodeId, byval pt as Fbx.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if argNode = Fbx.NODE_NONE then return false
+    dim as Fbx.TypeId at = c.info->TypeOf_( argNode )
+
+    if pt <> Fbx.TYPE_NONE then
+        dim as Fbx.TypeId u = c.types->Unqualify( pt )
+        if c.types->Kind( u ) = Fbx.TK_POINTER then
+            dim as Fbx.TypeId pin = c.types->Unqualify( c.types->Inner( u ) )
+            if c.types->Kind( pin ) = Fbx.TK_BUILTIN then
+                if c.types->BuiltinOf( pin ) = Fbx.TY_ZSTRING then
+                    if IsStringType( c, at ) then return ZstrDataOf_( c, argNode, outv )
+                end if
+                if c.types->BuiltinOf( pin ) = Fbx.TY_WSTRING then
+                    if IsWideString_( c, at ) then return WideOperand_( c, argNode, outv )
+                end if
+            end if
+        end if
+        if IsStringType( c, u ) then
+            if StrDescriptorOf_( c, argNode, outv ) then return true
+        end if
+    end if
+
+    outv = LowerExpr( c, argNode )
+    if outv.kind = cast( ubyte, MV_NONE ) then return false
+    if pt <> Fbx.TYPE_NONE then
+        dim as MirType pmt = LowerType( pt, *c.types )
+        if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
+            outv = Coerce( c, outv, pmt, IsUnsignedType( c, pt ) )
+        end if
+    end if
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'dim u as U = s' -- A CONVERTING CONSTRUCTOR, chosen by the initialiser's type.
+''
+'' Only the explicit 'dim u as U = U( s )' spelling was handled, so this one fell
+'' through to the DEFAULT constructor and the initialiser was DROPPED: the object was
+'' built empty, no store, no decline, no diagnostic. fbc emits
+'' '_ZN1UC1EPKc( &U1, *(char**)&S )'.
+function LowerConvCtorInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
+      byval init_ as Fbx.NodeId ) as boolean
+
+    if init_ = Fbx.NODE_NONE then return false
+    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    dim as Fbx.TypeId it = c.info->TypeOf_( init_ )
+    if it = Fbx.TYPE_NONE then return false
+    '' The same type is a COPY, which the caller has already handled -- and a paren
+    '' initialiser list is field stores, not a conversion.
+    if c.types->Unqualify( it ) = c.types->Unqualify( t ) then return false
+
+    dim as Fbx.SymbolId ctors = StructorOf( c, t, "__ctor" )
+    if ctors = Fbx.SYMBOL_NONE then return false
+    dim as FB.Array( of ulong ) argT
+    argT.Push( cast( ulong, it ) )
+    dim as Fbx.SymbolId pick = PickCtor( c, ctors, argT )
+    if pick = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( pick )
+    if ps = 0 then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, ps->payload )
+    if pn = Fbx.NODE_NONE then return false
+
+    '' The parameter's type, for the conversion the argument needs.
+    dim as Fbx.TypeId pt = Fbx.TYPE_NONE
+    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+    for i as long = 0 to pp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        exit for
+    next
+
+    dim as MirValue av
+    if CtorArgValue_( c, init_, pt, av ) = false then return false
+    dim as FB.Array( of ulong ) cargs
+    cargs.Push( cast( ulong, av.kind ) )
+    cargs.Push( cast( ulong, av.id ) )
+    EmitStructorCall( c, pick, slot, 0, @cargs )
+    return true
+end function
+
 function LowerCtorInit _
     ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
       byval init_ as Fbx.NodeId ) as boolean
