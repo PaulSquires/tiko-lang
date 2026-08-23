@@ -1,0 +1,7 @@
+'' Reading a field through a const reference or a pointer-to-const.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/const-member.out

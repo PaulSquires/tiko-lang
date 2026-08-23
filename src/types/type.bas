@@ -320,6 +320,30 @@ function TypeContext.Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
         return cast( TypeId, this.types.Count - 1 )
     end if
 
+    '' A UDT, AN ENUM AND A FORWARD ARE IDENTIFIED BY NAME, and Find compares kind,
+    '' inner, flags and rank -- none of which tells two UDTs apart. So qualifying or
+    '' unqualifying one returned whichever UDT happened to sit first in the table, or
+    '' MANUFACTURED A NAMELESS ONE when none matched.
+    ''
+    '' Nothing said so. The caller got a type back, asked it for a field, found none,
+    '' and declined -- so 'byref x as const T' made every 'x.n' through it untyped
+    '' while the identical line without the const worked. That is the signature of
+    '' every copy constructor in the corpus.
+    select case cast( TypeKind, src->kind )
+    case TK_UDT, TK_ENUM, TK_FORWARD
+        dim as InternId nm = src->name
+        for i as long = 1 to this.types.Count - 1
+            dim as TypeInfo ptr c2 = @this.types[i]
+            if c2->kind <> src->kind then continue for
+            if c2->name <> nm then continue for
+            if c2->flags = want then return cast( TypeId, i )
+        next
+        dim as TypeInfo n2 = *src
+        n2.flags = want
+        this.types.Push( n2 )
+        return cast( TypeId, this.types.Count - 1 )
+    end select
+
     return this.Find( cast( TypeKind, src->kind ), src->inner, want, src->dims )
 end function
 
@@ -364,6 +388,30 @@ function TypeContext.Unqualify( byval t as TypeId ) as TypeId
         this.types.Push( n )
         return cast( TypeId, this.types.Count - 1 )
     end if
+    '' A UDT, AN ENUM AND A FORWARD ARE IDENTIFIED BY NAME, and Find compares kind,
+    '' inner, flags and rank -- none of which tells two UDTs apart. So qualifying or
+    '' unqualifying one returned whichever UDT happened to sit first in the table, or
+    '' MANUFACTURED A NAMELESS ONE when none matched.
+    ''
+    '' Nothing said so. The caller got a type back, asked it for a field, found none,
+    '' and declined -- so 'byref x as const T' made every 'x.n' through it untyped
+    '' while the identical line without the const worked. That is the signature of
+    '' every copy constructor in the corpus.
+    select case cast( TypeKind, src->kind )
+    case TK_UDT, TK_ENUM, TK_FORWARD
+        dim as InternId nm = src->name
+        for i as long = 1 to this.types.Count - 1
+            dim as TypeInfo ptr c2 = @this.types[i]
+            if c2->kind <> src->kind then continue for
+            if c2->name <> nm then continue for
+            if c2->flags = want then return cast( TypeId, i )
+        next
+        dim as TypeInfo n2 = *src
+        n2.flags = want
+        this.types.Push( n2 )
+        return cast( TypeId, this.types.Count - 1 )
+    end select
+
     return this.Find( cast( TypeKind, src->kind ), src->inner, want, src->dims )
 end function
 

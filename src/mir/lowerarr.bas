@@ -145,12 +145,17 @@ function LowerAddr _
     if c.ast->Kind( id ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
+        '' CONST IS TRANSPARENT TO A FIELD ACCESS, and the UDT store is keyed by the
+        '' UNQUALIFIED type -- so 'x.n' over a 'byref x as const T' looked its field up
+        '' under a type the store has never heard of, found nothing, and declined.
+        '' Every copy constructor in the corpus is written 'byref x as const T'.
+        dim as Tko.TypeId bt = c.types->Unqualify( c.info->TypeOf_( mp->lhs ) )
         dim as MirValue base_
         if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
-            '' Through a pointer the base is the VALUE, not its slot.
+            '' Through a pointer the base is the VALUE, not its slot. The POINTEE may
+            '' be const too -- 'byval p as const T ptr' -- so it is unqualified as well.
             base_ = LowerExpr( c, mp->lhs )
-            bt = c.types->Inner( bt )
+            bt = c.types->Unqualify( c.types->Inner( bt ) )
         else
             base_ = LowerAddr( c, mp->lhs )
         end if

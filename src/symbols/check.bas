@@ -609,6 +609,11 @@ private function FieldOf_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval nm as Tko.InternId ) as Tko.SymbolId
 
     if (t = Tko.TYPE_NONE) orelse (nm = 0) then return Tko.SYMBOL_NONE
+    '' CONST IS TRANSPARENT TO A FIELD LOOKUP. 'byref x as const T' gives x a QUALIFIED
+    '' type, which failed the kind test outright -- so 'x.n' over a const reference was
+    '' untyped and every read through one declined, while the same line without the
+    '' const worked. That is the signature of every copy constructor in the corpus.
+    t = c.types->Unqualify( t )
     select case c.types->Kind( t )
     case Tko.TK_UDT, Tko.TK_FORWARD
     case else
@@ -950,9 +955,19 @@ function TypeOf_ _
         dim as Tko.BinaryPayload ptr mp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Tko.TypeId bt = TypeOf_( c, mp->lhs )
-        '' 'p->f' and 'p.f' on a pointer both reach through it.
+        '' 'p->f' and 'p.f' on a pointer both reach through it, and CONST is
+        '' transparent on the way: 'byref x as const T' and 'byval p as const T ptr'
+        '' both wrap the UDT in a qualifier that the kind test refuses outright, so
+        '' 'x.n' over one was UNTYPED and every read through it declined. That is the
+        '' signature of every copy constructor in the corpus.
         if bt <> Tko.TYPE_NONE then
-            if c.types->Kind( bt ) = Tko.TK_POINTER then bt = c.types->Inner( bt )
+            bt = c.types->Unqualify( bt )
+            if c.types->Kind( bt ) = Tko.TK_REFERENCE then
+                bt = c.types->Unqualify( c.types->Inner( bt ) )
+            end if
+            if c.types->Kind( bt ) = Tko.TK_POINTER then
+                bt = c.types->Unqualify( c.types->Inner( bt ) )
+            end if
         end if
         if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
             dim as Tko.IdentPayload ptr ip = _
