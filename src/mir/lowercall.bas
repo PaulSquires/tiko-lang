@@ -523,6 +523,46 @@ function LowerBareProcCall_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' IMP AND EQV ARE TWO INSTRUCTIONS EACH, which is why they are not in the table
+'' below: measured from fbc, 'a imp b' is '~A | B' and 'a eqv b' is '~(A ^ B)'. Both
+'' are bitwise on integers, so this is the same shape the other bitwise operators take
+'' with a NOT in front of one of them.
+function EmitImpEqv_ _
+    ( byref c as Ctx, byval tk as Fbx.TokenKind, byval ty as MirType, _
+      byref l as MirValue, byref r as MirValue ) as MirValue
+
+    dim as MirValue none_
+    if tk = Fbx.KW_IMP then
+        dim as MirInst n1
+        n1.op = cast( ushort, M_NOT )
+        n1.ty = cast( ubyte, ty )
+        n1.a = l
+        dim as MirValue nl = Emit( c, n1 )
+        if nl.kind = cast( ubyte, MV_NONE ) then return none_
+        dim as MirInst o1
+        o1.op = cast( ushort, M_OR )
+        o1.ty = cast( ubyte, ty )
+        o1.a = nl
+        o1.b = r
+        return Emit( c, o1 )
+    end if
+    if tk = Fbx.KW_EQV then
+        dim as MirInst x1
+        x1.op = cast( ushort, M_XOR )
+        x1.ty = cast( ubyte, ty )
+        x1.a = l
+        x1.b = r
+        dim as MirValue xv = Emit( c, x1 )
+        if xv.kind = cast( ubyte, MV_NONE ) then return none_
+        dim as MirInst n2
+        n2.op = cast( ushort, M_NOT )
+        n2.ty = cast( ubyte, ty )
+        n2.a = xv
+        return Emit( c, n2 )
+    end if
+    return none_
+end function
+
 function BinOpFor _
     ( byval tk as Fbx.TokenKind, byval t as MirType, _
       byval isUnsigned as boolean ) as MirOp

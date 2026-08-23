@@ -423,7 +423,7 @@ function LowerExpr _
         dim as Fbx.UnaryPayload ptr up = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
 
-        '' A USER-DEFINED UNARY OPERATOR IS A CALL, exactly as the binary one is.
+        '' A user-defined unary operator is a call, as the binary one is.
         dim as MirValue uuv
         if LowerUserUnaryOp_( c, id, up, mt, uuv ) then return uuv
 
@@ -445,9 +445,8 @@ function LowerExpr _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Fbx.TokenKind tk = cast( Fbx.TokenKind, bp->op )
 
-        '' A USER-DEFINED OPERATOR IS A CALL. Check bound it to this node; without
-        '' the call 'x - y' over two UDTs subtracted the raw aggregates as integers --
-        '' emitted, verified, and never reaching the operator that was written.
+        '' A USER-DEFINED OPERATOR IS A CALL. Without it 'x - y' over two UDTs
+        '' subtracted the raw aggregates as integers -- emitted, verified, wrong.
         dim as MirValue uov
         if LowerUserBinaryOp_( c, id, bp, mt, uov ) then return uov
 
@@ -537,6 +536,10 @@ function LowerExpr _
         if IsFloatTy( cast( MirType, r.ty ) ) then opTy = cast( MirType, r.ty )
         l = Coerce( c, l, opTy, IsUnsignedType( c, lt ) )
         r = Coerce( c, r, opTy, IsUnsignedType( c, rt ) )
+        '' IMP and EQV are two instructions each and so have no entry in the table.
+        if (tk = Fbx.KW_IMP) orelse (tk = Fbx.KW_EQV) then
+            return EmitImpEqv_( c, tk, opTy, l, r )
+        end if
         dim as MirOp op = BinOpFor( tk, opTy, IsUnsignedType( c, lt ) )
         if op = M_NONE then return v
         dim as MirInst ins
@@ -1244,6 +1247,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             ''
             '' A call whose result is void legitimately yields MV_NONE too, so the test
             '' is whether the statement emitted ANY instruction, not what it returned.
+            '' THE BLOCK IS PART OF THE TEST. An argument containing ANDALSO is
+            '' control flow, so lowering the call moves c.curBlock -- and comparing
+            '' this block's count against a DIFFERENT block's said "emitted nothing"
+            '' for a call that had just been emitted elsewhere.
+            dim as long beforeB = c.curBlock
             dim as long beforeN = c.f->blocks[c.curBlock].insts.Count
             '' 'W( 1, 2 )' is an expression; 'W 1, 2' is this statement's own callee
             '' and children, and looks nothing like a call node.
@@ -1277,7 +1285,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
 
             if deliberateNoOp then
                 '' nothing to emit, and nothing to count
-            elseif c.f->blocks[c.curBlock].insts.Count = beforeN then
+            elseif (c.curBlock = beforeB) andalso _
+                   (c.f->blocks[c.curBlock].insts.Count = beforeN) then
                 SkipHere( c )
                 CountUnlowredCall( c, sp->a )
             end if

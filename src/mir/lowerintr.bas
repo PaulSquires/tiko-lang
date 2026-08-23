@@ -337,6 +337,12 @@ function LowerCompoundAssign _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
       byval op as Fbx.TokenKind ) as boolean
 
+    '' THE WORD-SPELLED FORMS TOO -- 'and=', 'shl=', 'mod=' and the rest. Each is the
+    '' same read-modify-write with the operator spelled as a keyword; the parser now
+    '' records the keyword itself in 'op', so the mapping is the identity for them.
+    ''
+    '' 'andalso=' and 'orelse=' are NOT here: they are control flow, and lowering them
+    '' as a plain AND would evaluate the right side unconditionally.
     dim as Fbx.TokenKind bop = Fbx.TK_EOF
     select case op
     case Fbx.TK_PLUSEQ   : bop = Fbx.TK_PLUS
@@ -344,6 +350,9 @@ function LowerCompoundAssign _
     case Fbx.TK_STAREQ   : bop = Fbx.TK_STAR
     case Fbx.TK_SLASHEQ  : bop = Fbx.TK_SLASH
     case Fbx.TK_BSLASHEQ : bop = Fbx.TK_BACKSLASH
+    case Fbx.KW_AND, Fbx.KW_OR, Fbx.KW_XOR, Fbx.KW_IMP, Fbx.KW_EQV, _
+         Fbx.KW_MOD, Fbx.KW_SHL, Fbx.KW_SHR
+        bop = op
     case else            : return false
     end select
 
@@ -369,14 +378,19 @@ function LowerCompoundAssign _
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
     rhs = Coerce( c, rhs, wt, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
 
-    dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, tt ) )
-    if mop = M_NONE then return false
-    dim as MirInst bi
-    bi.op = cast( ushort, mop )
-    bi.ty = cast( ubyte, wt )
-    bi.a = cur
-    bi.b = rhs
-    dim as MirValue res = Emit( c, bi )
+    dim as MirValue res
+    if (bop = Fbx.KW_IMP) orelse (bop = Fbx.KW_EQV) then
+        res = EmitImpEqv_( c, bop, wt, cur, rhs )
+    else
+        dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, tt ) )
+        if mop = M_NONE then return false
+        dim as MirInst bi
+        bi.op = cast( ushort, mop )
+        bi.ty = cast( ubyte, wt )
+        bi.a = cur
+        bi.b = rhs
+        res = Emit( c, bi )
+    end if
     if res.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirInst st

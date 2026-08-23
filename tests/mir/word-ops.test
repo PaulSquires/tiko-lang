@@ -1,0 +1,6 @@
+'' The word-spelled compound assignments, and IMP/EQV as the two instructions they are.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/word-ops.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/word-ops.out

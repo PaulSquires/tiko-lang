@@ -960,6 +960,21 @@ private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
         return MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
     end if
 
+    '' THE WORD-SPELLED COMPOUND ASSIGNMENTS: 'and=', 'or=', 'xor=', 'imp=', 'eqv=',
+    '' 'mod=', 'shl=', 'shr=', 'andalso=' and 'orelse='. They are TWO TOKENS, because
+    '' the operator is a keyword and the '=' is its own -- so nothing recognised them
+    '' and 't1 and= t2' parsed as the expression 't1' followed by a paren-less call to
+    '' something named 'and'. Measured: fbc emits 'T1 = T1 & T2' for the first of them.
+    if Fbx.IsWordAssignOp( k ) andalso HasTok( p, p.pos + 1 ) then
+        if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EQ then
+            sp.op = cast( ushort, k )
+            Advance( p )
+            Advance( p )
+            sp.b = Expression( p )
+            return MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
+        end if
+    end if
+
     '' Anything else on the line is a paren-less argument list.
     dim as Fbx.NodeIdVec args
     dim as boolean more = (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)

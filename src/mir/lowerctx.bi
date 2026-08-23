@@ -192,6 +192,9 @@ declare function EmitRtl _
     declare function Coerce _
         ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
           byval srcUnsigned as boolean = false ) as MirValue
+    declare function EmitImpEqv_ _
+        ( byref c as Ctx, byval tk as Fbx.TokenKind, byval ty as MirType, _
+          byref l as MirValue, byref r as MirValue ) as MirValue
     declare function BinOpFor _
         ( byval tk as Fbx.TokenKind, byval t as MirType, _
           byval isUnsigned as boolean ) as MirOp

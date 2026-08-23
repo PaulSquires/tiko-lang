@@ -80,6 +80,18 @@ function IsCallConvKind( byval k as TokenKind ) as boolean
     return false
 end function
 
+'' THE WORD-SPELLED COMPOUND ASSIGNMENT OPERATORS: 'and=', 'shl=', 'andalso=' and the
+'' rest. Each is TWO tokens -- the keyword and a separate '=' -- where '+=' is one, so
+'' the statement parser has to look ahead for the '=' rather than match a token kind.
+function IsWordAssignOp( byval k as TokenKind ) as boolean
+    select case k
+    case KW_AND, KW_OR, KW_XOR, KW_IMP, KW_EQV, KW_MOD, KW_SHL, KW_SHR, _
+         KW_ANDALSO, KW_ORELSE
+        return true
+    end select
+    return false
+end function
+
 '' The keywords that can OPEN a type reference. Used to tell 'sizeof( long ptr )'
 '' from 'sizeof( someVariable )' without needing the symbol table.
 function IsTypeKeyword( byval k as TokenKind ) as boolean
