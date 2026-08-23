@@ -355,6 +355,10 @@ declare function EmitRtl _
     declare function LowerWideAssign _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     '' USTRING -- the UTF-16 string flavour, lowerstr.bas.
+    '' 'T( args )' as an addressable temporary -- lowerswap.bas.
+    declare function LowerTypeCtorTempAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
     declare function IsUStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ConcatTermsAreU_ _
         ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean

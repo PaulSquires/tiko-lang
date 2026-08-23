@@ -1,0 +1,7 @@
+'' A field, method, property and chain on a constructor temporary.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-temporary.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ctor-temporary.out

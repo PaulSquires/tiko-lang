@@ -197,6 +197,31 @@ function LowerTypeCtorExpr_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' 'T( args )' AS AN ADDRESSABLE TEMPORARY -- what 'P( 3 ).v' and 'DateTime( y, m, d
+'' ).AddMonths( 0 )' need. The value form loads the aggregate; a member access needs the
+'' storage it was built in.
+''
+'' Without this a member on a CONSTRUCTOR temporary declined while the same member on a
+'' FUNCTION's returned temporary worked -- the call-result path above it asks for a
+'' SYM_PROC, and a type-constructor call binds to the UDT instead. fb/chrono.bi writes
+'' most of its assertions this way.
+function LowerTypeCtorTempAddr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId t = TypeCtorTypeOf_( c, id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+
+    dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
+    if slot < 0 then return false
+    if EmitTypeCtorInto_( c, t, slot, cp ) = false then return false
+    outv.kind = cast( ubyte, MV_LOCAL )
+    outv.ty = cast( ubyte, MT_PTR )
+    outv.id = slot
+    return true
+end function
+
 '' The TYPE a 'T( args )' expression builds, or nothing when this is not one. A call
 '' whose callee is bound to a UDT SYMBOL rather than to a procedure.
 function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId

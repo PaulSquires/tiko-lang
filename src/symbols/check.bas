@@ -1008,7 +1008,19 @@ function TypeOf_ _
             t = IntrinsicCallType_( c, cp )
             if t = Tko.TYPE_NONE then
                 dim as Tko.SymbolId callee = c.info->RefOf( cp->target )
-                if callee <> Tko.SYMBOL_NONE then
+                '' 'P( 3 )' IS AN OBJECT OF TYPE P. The callee is bound to the UDT
+                '' rather than to a procedure, so overload resolution had nothing to
+                '' work with and the expression came out UNTYPED -- which is what made
+                '' 'P( 3 ).v' decline while the same member on a FUNCTION's returned
+                '' temporary worked. fb/chrono.bi writes most of its assertions this
+                '' way: 'DateTime( 2025, 1, 31 ).AddMonths( 0 ).Ticks'.
+                dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( callee )
+                if cs2 <> 0 then
+                    if cs2->kind = cast( ubyte, Tko.SYM_UDT ) then
+                        t = cs2->type_
+                    end if
+                end if
+                if (t = Tko.TYPE_NONE) andalso (callee <> Tko.SYMBOL_NONE) then
                     t = ResolveCall_( c, id, callee, cp->first, cp->count )
                 end if
             end if

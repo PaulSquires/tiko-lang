@@ -751,12 +751,20 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' copy path, which took its ADDRESS and passed that as the argument:
                 '' '_ZN7CTORUDTC1Ei( @a, @$tmp2 )' where 123 belonged. Its children are
                 '' the constructor's arguments and LowerCtorInit below takes them.
+                '' A CONSTRUCTOR CALL IS NOT A COPY SOURCE EITHER. 'dim a as T = T( 3 )'
+                '' now has the type T on its initialiser -- it did not before -- so it
+                '' reached the copy path, which built a TEMPORARY, constructed into
+                '' that, and then copy-constructed 'a' from it. fbc constructs 'a'
+                '' directly, and LowerCtorInit below does the same.
                 dim as boolean initIsLiteral = false
                 if ip->b <> Tko.NODE_NONE then
                     if c.ast->Kind( ip->b ) = Tko.N_TUPLE then
                         initIsLiteral = _
                             ((c.ast->nodes[cast( long, ip->b )].flags and _
                               Tko.NF_TYPE_LITERAL) <> 0)
+                    elseif c.ast->Kind( ip->b ) = Tko.N_CALL then
+                        initIsLiteral = _
+                            (TypeCtorTypeOf_( c, ip->b ) <> Tko.TYPE_NONE)
                     end if
                 end if
                 if (ip->b <> Tko.NODE_NONE) andalso (initIsLiteral = false) then

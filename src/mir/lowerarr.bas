@@ -75,6 +75,13 @@ function LowerAddr _
     '' which knows how to find the receiver -- this one would call the operator with
     '' the subscript and NO 'this'.
     if c.ast->Kind( id ) = Tko.N_CALL then
+        '' 'P( 3 ).v' -- A MEMBER ON A CONSTRUCTOR TEMPORARY. The path below asks for a
+        '' SYM_PROC, and a type-constructor call binds to the UDT instead, so it fell
+        '' straight through while the same member on a FUNCTION's returned temporary
+        '' worked. fb/chrono.bi writes most of its assertions this way.
+        dim as MirValue ctv
+        if LowerTypeCtorTempAddr_( c, id, ctv ) then return ctv
+
         dim as Tko.ListPayload ptr bl = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Tko.SymbolId bcal = c.info->RefOf( id )
