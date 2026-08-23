@@ -892,7 +892,9 @@ function LowerProcPtr _
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if lp->count <> 1 then return false
+    '' 'procptr( T.constructor, sub( byval as integer ) )' WRITES A SECOND ARGUMENT to
+    '' pick between overloads, so one is not the only legal count.
+    if (lp->count <> 1) andalso (lp->count <> 2) then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
@@ -936,6 +938,15 @@ function LowerProcPtr _
         end if
     end if
 
+    '' CHECK DECIDES WHICH PROCEDURE, and if it could not, neither can this. A second
+    '' argument that selected nothing leaves the whole expression untyped -- and
+    '' emitting an address for it anyway put a pointer in a VOID slot, which is a
+    '' verify failure rather than a decline. 'procptr( T.m, virtual )' is exactly that
+    '' shape: it names which OVERRIDE to point at, which this path cannot answer.
+    if lp->count = 2 then
+        if c.info->TypeOf_( id ) = Tko.TYPE_NONE then return false
+    end if
+
     outv = FuncAddrOf( c, c.info->RefOf( fnE ) )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
@@ -945,6 +956,7 @@ end function
 '' PUT passes one -- the blender for its blend mode -- and no source expression names
 '' it, so it is reached the way ERASE reaches a destructor: by asking the inventory
 '' rather than the symbol table.
+
 function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     dim as MirValue none_
     dim as boolean is32 = (c.types->target.pointerBits = 32)

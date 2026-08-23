@@ -458,6 +458,22 @@ private function AllowsAnyArg _
     return false
 end function
 
+'' Is this call 'procptr( ... )'? Its SECOND argument is a PROCEDURE TYPE, written to
+'' pick between overloads -- 'procptr( T.constructor, sub( byval as integer ) )'. Read
+'' as an expression it came out as a CALL to something named 'sub', which nothing could
+'' match against a signature, so the overload was chosen by taking the first: a silently
+'' WRONG function address rather than a decline.
+private function IsProcPtrCallee_ _
+    ( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
+
+    if callee = Tko.NODE_NONE then return false
+    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( long, callee )]
+    if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
+    dim as string nm = Tko.Text.LowerAscii( _
+        p.names->Spelling( p.ast->idents[cast( long, n->data )].name ) )
+    return (nm = "procptr")
+end function
+
 '' Is the '(' at the cursor the start of '( of T, U )'?
 private function IsGenericArgs( byref p as Tko.ParserState ) as boolean
     if Peek( p ) <> Tko.TK_LPAREN then return false
@@ -532,6 +548,7 @@ function PostfixChain _
             Advance( p )
 
             dim as boolean anyOk = (kind = Tko.N_CALL) andalso AllowsAnyArg( p, result )
+            dim as boolean ppOk = (kind = Tko.N_CALL) andalso IsProcPtrCallee_( p, result )
 
             dim as Tko.NodeIdVec items
             if Peek( p ) <> closer then
@@ -540,7 +557,14 @@ function PostfixChain _
                     '' marker is taken only when something precedes it -- and what
                     '' follows the argument has to be the closer, which the loop's own
                     '' exit already enforces for the last one.
-                    if anyOk andalso (items.Count > 0) andalso (Peek( p ) = Tko.KW_ANY) then
+                    dim as boolean wantSig = false
+                    if ppOk andalso (items.Count = 1) then
+                        wantSig = (Peek( p ) = Tko.KW_SUB) orelse _
+                                  (Peek( p ) = Tko.KW_FUNCTION)
+                    end if
+                    if wantSig then
+                        items.Push( cast( ulong, TypeRef( p ) ) )
+                    elseif anyOk andalso (items.Count > 0) andalso (Peek( p ) = Tko.KW_ANY) then
                         dim as Tko.Token anyTok = Cur( p )
                         Advance( p )
                         items.Push( cast( ulong, MakeUnary( p, Tko.KW_ANY, anyTok.loc, _

@@ -267,6 +267,115 @@ end function
 '' The TYPE of a procedure symbol -- 'sub cdecl ( byval x as long )' -- as opposed to its
 '' return type, which is what Symbol.type_ holds. A procedure type is already a pointer in
 '' FreeBASIC, so this wraps one: 'sub( ) ptr' is PPFvvE, two Ps for that reason.
+'' The head of a UDT's constructor or destructor overload chain, by the internal name
+'' the mangler uses. Check's own lookup, so it does not reach into lowering's.
+private function StructorHead_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref which as string ) as Tko.SymbolId
+    return UdtMemberSym_( c, t, which )
+end function
+
+private function MemberProcPtr_ _
+    ( byref c as Ctx, byval fnE as Tko.NodeId, byval lp as Tko.ListPayload ptr ) as Tko.SymbolId
+
+    if c.ast->Kind( fnE ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+    dim as Tko.BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, fnE )].data )]
+    if c.ast->Kind( mp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
+    dim as Tko.IdentPayload ptr rip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+    dim as string mname = Tko.Text.LowerAscii( c.names->Spelling( rip->name ) )
+
+    '' The TYPE the member belongs to: the left side names it.
+    dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+    if ls = 0 then return Tko.SYMBOL_NONE
+    if ls->kind <> cast( ubyte, Tko.SYM_UDT ) then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId ut = c.types->Unqualify( ls->type_ )
+    if ut = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+
+    dim as Tko.SymbolId head = Tko.SYMBOL_NONE
+    select case mname
+    case "constructor" : head = StructorHead_( c, ut, "__ctor" )
+    case "destructor"  : head = StructorHead_( c, ut, "__dtor" )
+    case else
+        '' AN ORDINARY MEMBER TOO, because the SIGNATURE FORM has to reach it: without
+        '' this 'procptr( T.M, sub( byval as long ) )' fell back to whatever Resolve
+        '' bound, which is the FIRST overload -- a silently wrong function address.
+        head = UdtMemberSym_( c, ut, mname )
+    end select
+    if head = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.Symbol ptr hs = c.syms->SymbolAt( head )
+    if hs = 0 then return Tko.SYMBOL_NONE
+    if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+
+    '' NO SIGNATURE WRITTEN: the first overload, which is what fbc takes.
+    if lp->count < 2 then return head
+
+    '' A SIGNATURE WRITTEN AND NOT MATCHED IS A DECLINE, never a fallback to the first.
+    '' The whole point of writing one is that the first is not the one wanted, so
+    '' answering with it would be a wrong address that lowers and verifies.
+    dim as Tko.SymbolId noMatch = Tko.SYMBOL_NONE
+
+    '' A SIGNATURE: the one whose PARAMETER TYPES match it, position for position. A
+    '' destructor takes none, so this only ever discriminates constructors.
+    dim as Tko.NodeId sigN = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    if c.ast->Kind( sigN ) <> Tko.N_TYPEREF then return noMatch
+    dim as Tko.TypeId sigT = c.info->TypeOf_( sigN )
+    if sigT = Tko.TYPE_NONE then return noMatch
+    '' A procedure TYPE is already a pointer in FreeBASIC; the callable is inside it.
+    if c.types->Kind( sigT ) = Tko.TK_POINTER then sigT = c.types->Inner( sigT )
+    if c.types->Kind( sigT ) <> Tko.TK_PROC then return noMatch
+
+    '' A procedure type's parameters live in the type pool: 'count' of them from
+    '' 'first', the same way the mangler and the type printer read one.
+    dim as long want = c.types->types[cast( long, sigT )].count
+    dim as Tko.SymbolId cur = head
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+            '' THE RECEIVER IS NOT IN THE WRITTEN SIGNATURE. 'sub( byval as integer )'
+            '' describes a one-argument constructor, whose N_PROC also carries 'this'
+            '' nowhere -- the parameters counted here are the declared ones only.
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+            dim as long have = 0
+            for i as long = 0 to pp->count - 1
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Tko.N_PARAM then have += 1
+            next
+            if have = want then
+                dim as boolean same = true
+                dim as long seen = 0
+                for i as long = 0 to pp->count - 1
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                    dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+                    dim as Tko.TypeId wt = Tko.TYPE_NONE
+                    if seen < want then
+                        wt = cast( Tko.TypeId, _
+                            c.types->pool[c.types->types[cast( long, sigT )].first + seen] )
+                    end if
+                    if (pt <> Tko.TYPE_NONE) andalso (wt <> Tko.TYPE_NONE) then
+                        dim as Tko.TypeId pu = c.types->Unqualify( pt )
+                        dim as Tko.TypeId wu = c.types->Unqualify( wt )
+                        if c.types->Kind( wu ) = Tko.TK_REFERENCE then
+                            wu = c.types->Unqualify( c.types->Inner( wu ) )
+                        end if
+                        if c.types->Kind( pu ) = Tko.TK_REFERENCE then
+                            pu = c.types->Unqualify( c.types->Inner( pu ) )
+                        end if
+                        if pu <> wu then same = false
+                    end if
+                    seen += 1
+                next
+                if same then return cur
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    return noMatch
+end function
+
 private function ProcTypeOfSymbol_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.TypeId
 
@@ -413,6 +522,28 @@ private function IntrinsicCallType_ _
         dim as Tko.NodeId pa = cast( Tko.NodeId, c.ast->children[cp->first] )
         dim as Tko.NodeKind pk = c.ast->Kind( pa )
         if (pk <> Tko.N_IDENT) andalso (pk <> Tko.N_MEMBER) then return Tko.TYPE_NONE
+
+        '' A STRUCTOR HAS NO ORDINARY NAME TO BIND -- the parser leaves the keyword as
+        '' the member -- and an OVERLOAD written with a signature binds to the wrong
+        '' one. Both are decided HERE and the answer is written back onto the member
+        '' node, so lowering reads it off RefOf like any other procptr.
+        ''
+        '' Deciding it in lowering instead was tried and produced a VERIFY FAILURE:
+        '' the address lowered while 'var fp = procptr( T.constructor )' still had a
+        '' VOID slot, because nothing had typed the expression. Binding is Check's job
+        '' and typing follows from it.
+        dim as Tko.SymbolId picked = MemberProcPtr_( c, pa, cp )
+        if picked <> Tko.SYMBOL_NONE then
+            c.info->SetRef( pa, picked )
+            return ProcTypeOfSymbol_( c, picked )
+        end if
+        '' A SECOND ARGUMENT THAT SELECTED NOTHING IS NOT A PROCPTR AT ALL. Falling
+        '' back to whatever was bound would answer with the FIRST overload, and the
+        '' only reason to write a signature is that the first is not the one wanted.
+        '' 'procptr( T.v1, virtual )' lands here too -- it names which OVERRIDE to
+        '' point at, which is a different address again.
+        if cp->count = 2 then return Tko.TYPE_NONE
+
         return ProcTypeOfSymbol_( c, c.info->RefOf( pa ) )
     end if
 

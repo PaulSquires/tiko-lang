@@ -730,6 +730,11 @@ end function
 '' The intrinsic tables live in their own file: one subject, and a long one. It is
 '' included HERE rather than at the top because it reads Ctx and calls TypeOf_, both
 '' of which have to exist first.
+'' Defined below and used by the intrinsic tables included here: a UDT member by name,
+'' folded, procedures included.
+declare function UdtMemberSym_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
 #include once "symbols/intrinsics.bas"
 
 function TypeOf_ _
@@ -1217,7 +1222,7 @@ end sub
 
 '' A member of a UDT by name, folded -- procedures included, which is what tells this
 '' from FieldOf_.
-private function UdtMemberSym_ _
+function UdtMemberSym_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
     if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
