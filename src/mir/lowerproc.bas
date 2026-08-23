@@ -40,6 +40,31 @@ private function IsGenericMemberBody_ _
     return (os->name = tp->name)
 end function
 
+'' Does this constructor body WRITE 'base( ... )'? A top-level statement of the body
+'' only -- fbc rejects the call anywhere else, and looking deeper would suppress the
+'' implicit construction for a 'base( )' the language never let run there.
+private function BodyCallsBase_( byref c as Ctx, byval body as Fbx.NodeId ) as boolean
+    if body = Fbx.NODE_NONE then return false
+    if c.ast->Kind( body ) <> Fbx.N_BLOCK then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, body )].data )]
+    for i as long = 0 to lp->count - 1
+        dim as Fbx.NodeId st = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( st ) <> Fbx.N_AMBIGUOUS then continue for
+        dim as Fbx.NodeId e = StmtOf( c, st )->a
+        if e = Fbx.NODE_NONE then continue for
+        if c.ast->Kind( e ) <> Fbx.N_CALL then continue for
+        dim as Fbx.ListPayload ptr cp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if cp->target = Fbx.NODE_NONE then continue for
+        if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then continue for
+        dim as Fbx.IdentPayload ptr tip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        if Fbx.Text.LowerAscii( c.names->Spelling( tip->name ) ) = "base" then return true
+    next
+    return false
+end function
+
 sub LowerProc _
     ( byref c as Ctx, byval id as Fbx.NodeId )
 
@@ -413,7 +438,7 @@ sub LowerProc _
         if ta.kind <> cast( ubyte, MV_NONE ) then
             dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
             if inCtor then
-                EmitCtorPrologue_( c, structorType, tv )
+                EmitCtorPrologue_( c, structorType, tv, BodyCallsBase_( c, sp->b ) )
             else
                 '' THE VPTR FIRST in a destructor, so its body -- and anything it calls
                 '' -- sees this type's own table rather than the derived one.

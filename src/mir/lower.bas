@@ -1036,7 +1036,10 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' 'W( 1, 2 )' is an expression; 'W 1, 2' is this statement's own callee
             '' and children, and looks nothing like a call node.
             if c.ast->Kind( sp->a ) = Fbx.N_CALL then
-                LowerExpr( c, sp->a )
+                '' 'base( n )' IS THE BASE-CLASS CONSTRUCTOR, not a call to anything
+                '' named 'base' -- tried first, because the ordinary call path has no
+                '' callee to bind and would decline it.
+                if LowerBaseCtorCall_( c, sp->a ) = false then LowerExpr( c, sp->a )
             else
                 LowerStmtCall( c, id )
             end if

@@ -223,6 +223,8 @@ declare function EmitRtl _
     declare function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     declare function AddrOfThisField _
         ( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
+    declare function LowerBaseCtorCall_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 
     declare function LowerPrint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     '' lowerio.bas
@@ -570,7 +572,8 @@ declare function EmitRtl _
     declare function NeedsCtorBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
     declare function NeedsDtorBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
     declare sub EmitCtorPrologue_ _
-        ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue )
+        ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue, _
+          byval skipBase as boolean = false )
     declare sub EmitDtorEpilogue_ _
         ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue )
     declare function ImplicitCtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string

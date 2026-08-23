@@ -248,4 +248,107 @@ function EmitTypeCtorInto_ _
     return true
 end function
 
+'' 'base( n )' inside a constructor -- THE BASE-CLASS CONSTRUCTOR CALL.
+''
+'' Measured: 'base( n )' in C's constructor is '_ZN1PC1Eu7INTEGER( (struct P*)THIS, n )'
+'' -- a direct constructor call on the base subobject, and the implicit default base
+'' construction is NOT emitted beside it.
+''
+'' 'extends P' is modelled as a FIELD NAMED 'base' at offset 0, which is what makes
+'' this ordinary: the receiver is that field's address and the type to construct is
+'' that field's type. 'base.i' and 'base.M( )' already went through the member path
+'' for the same reason; only the constructor form had nowhere to go, and it declined
+'' in 43 corpus lines.
+''
+'' Returns false when the call is not this shape, so an ordinary call to something
+'' that happens to be spelled 'base' is unaffected.
+function LowerBaseCtorCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr tip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "base" then return false
+
+    '' The receiver's own type, through 'this'. Nothing outside a method has one, and
+    '' a method whose type does not extend anything has no 'base' field.
+    if c.curProcSym = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
+    if me_ = 0 then return false
+    if me_->inner = Fbx.SCOPE_NONE then return false
+    dim as Fbx.SymbolId tsid = c.syms->LookupLocal( me_->inner, _
+        c.names->Fold( c.names->GetString( "this" ) ) )
+    if tsid = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return false
+    if ts->type_ = Fbx.TYPE_NONE then return false
+    if c.types->Kind( ts->type_ ) <> Fbx.TK_POINTER then return false
+    dim as Fbx.TypeId ot = c.types->Inner( ts->type_ )
+    if ot = Fbx.TYPE_NONE then return false
+
+    dim as Fbx.SymbolId bsid = UdtMemberNamed_( c, ot, "base" )
+    if bsid = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr bs = c.syms->SymbolAt( bsid )
+    if bs = 0 then return false
+    if bs->kind <> cast( ubyte, Fbx.SYM_FIELD ) then return false
+    dim as Fbx.TypeId bt = bs->type_
+    if bt = Fbx.TYPE_NONE then return false
+    if c.types->Kind( bt ) <> Fbx.TK_UDT then return false
+
+    dim as Fbx.SymbolId ctors = StructorOf( c, bt, "__ctor" )
+    if ctors = Fbx.SYMBOL_NONE then return false
+
+    '' Argument VALUES first, then the pick: the types are needed to choose, and the
+    '' values must be evaluated in source order whichever overload wins.
+    dim as FB.Array( of ulong ) argT
+    dim as FB.Array( of ulong ) argKind
+    dim as FB.Array( of ulong ) argId
+    for i as long = 0 to cp->count - 1
+        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+        dim as MirValue av = LowerExpr( c, a )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
+        argKind.Push( cast( ulong, av.kind ) )
+        argId.Push( cast( ulong, av.id ) )
+    next
+
+    dim as Fbx.SymbolId pick = PickCtor( c, ctors, argT )
+    if pick = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( pick )
+    if ps = 0 then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, ps->payload )
+    if pn = Fbx.NODE_NONE then return false
+
+    '' Coerced to the chosen overload's PARAMETER types: MIR has no implicit
+    '' conversions, and the overload was picked knowing a conversion would be needed.
+    dim as Fbx.StmtPayload ptr cpp = StmtOf( c, pn )
+    dim as long ai = 0
+    dim as FB.Array( of ulong ) cargs
+    for i as long = 0 to cpp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[cpp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        if ai >= argT.Count then exit for
+        dim as MirValue av
+        av.kind = cast( ubyte, argKind[ai] )
+        av.ty = cast( ubyte, LowerType( cast( Fbx.TypeId, argT[ai] ), *c.types ) )
+        av.id = argId[ai]
+        dim as Fbx.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        dim as MirValue cv = Coerce( c, av, LowerType( pt, *c.types ), _
+                                     IsUnsignedType( c, pt ) )
+        if cv.kind = cast( ubyte, MV_NONE ) then return false
+        cargs.Push( cast( ulong, cv.kind ) ) : cargs.Push( cast( ulong, cv.id ) )
+        ai += 1
+    next
+    if ai <> cast( long, argT.Count ) then return false
+
+    dim as MirValue recv = AddrOfThisField( c, bsid )
+    if recv.kind = cast( ubyte, MV_NONE ) then return false
+    EmitStructorCall( c, pick, -1, @recv, @cargs )
+    return true
+end function
+
 end namespace

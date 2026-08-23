@@ -308,11 +308,18 @@ end sub
 '' The base call, the fields in DECLARATION order, then the vptr. Measured order, and
 '' this runs in front of a user-written constructor's own statements as well.
 sub EmitCtorPrologue_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue )
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue, _
+      byval skipBase as boolean = false )
 
     if thisPtr.kind = cast( ubyte, MV_NONE ) then return
 
+    '' AN EXPLICIT 'base( ... )' REPLACES THE IMPLICIT DEFAULT BASE CONSTRUCTION.
+    '' Measured: fbc's C for a constructor that writes one contains the chosen base
+    '' constructor and NOTHING ELSE for the base. Emitting both ran the base
+    '' constructor TWICE -- over the same storage, so a base that allocates leaked and
+    '' one that counts counted twice, with nothing to say so.
     dim as Fbx.TypeId bt = ImplBaseOf_( c, t )
+    if skipBase then bt = Fbx.TYPE_NONE
     if (bt <> Fbx.TYPE_NONE) andalso (bt <> t) then
         '' The base subobject is at offset 0, so its address is this one -- but it is
         '' taken through field.addr all the same, because fbc's cast says so and a
