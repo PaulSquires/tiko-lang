@@ -344,7 +344,9 @@ function CharElemSize_( byref c as Ctx, byval t as Tko.TypeId ) as long
     if c.types->Kind( el ) <> Tko.TK_BUILTIN then return 0
     select case c.types->BuiltinOf( el )
     case Tko.TY_ZSTRING, Tko.TY_FIXSTR : return 1
-    case Tko.TY_WSTRING : return 2
+    '' A ustring's unit is TWO BYTES on every target, where a wstring's is 2 on
+    '' Windows and 4 on Linux -- so it shares the stride here and not the rule.
+    case Tko.TY_WSTRING, Tko.TY_FIXUSTR : return 2
     end select
     return 0
 end function
@@ -392,9 +394,42 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     '' UNSIZED builtin and matched neither the array test nor the pointer one. The
     '' byte-by-byte loop fbcunit's own CU_ASSERT_WSTRING_EQUAL writes is exactly this
     '' shape, so all three appear in the corpus.
+    '' A VAR-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER TOO, but its base is the DATA
+    '' POINTER LOADED OUT OF THE DESCRIPTOR rather than the descriptor's own address --
+    '' a descriptor is not a character array. Measured:
+    ''
+    ''     s[1]   over 'string'    *(uint8*) ((uint8*)*(char**)&S$0   + 1ll)
+    ''     u[1]   over 'ustring'   *(uint16*)((uint8*)*(uint16**)&U$0 + 2ll)
+    ''
+    '' Neither flavour had a case at all: CharElemSize_ answers 0 for both descriptors,
+    '' so they fell through to the POINTER path, whose type test then refused them. A
+    '' read declined and a write stored nowhere. 's[i]' is ordinary FreeBASIC, and
+    '' fb/tuiwidth.bi builds every surrogate pair this way.
+    dim as long dsz = 0
+    if c.types->Kind( pt ) = Tko.TK_BUILTIN then
+        select case c.types->BuiltinOf( pt )
+        case Tko.TY_STRING  : dsz = 1
+        case Tko.TY_USTRING : dsz = 2
+        end select
+    end if
+
     dim as long esz = CharElemSize_( c, pt )
     dim as MirValue base_
-    if esz > 0 then
+    if dsz > 0 then
+        esz = dsz
+        dim as MirValue desc = LowerAddr( c, sp->target )
+        if desc.kind = cast( ubyte, MV_NONE ) then return none_
+        '' Field 0 of the descriptor is its data pointer.
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = desc
+        fa.imm = 0
+        dim as MirValue pa0 = Emit( c, fa )
+        if pa0.kind = cast( ubyte, MV_NONE ) then return none_
+        base_ = LowerExprLoad( c, pa0, MT_PTR )
+        if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    elseif esz > 0 then
         base_ = LowerAddr( c, sp->target )
         if base_.kind = cast( ubyte, MV_NONE ) then return none_
     else

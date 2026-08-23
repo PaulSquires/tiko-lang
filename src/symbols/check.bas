@@ -680,6 +680,18 @@ private function StmtOf _
     return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
 end function
 
+'' A var-length STRING or USTRING -- the two builtins that carry a descriptor. Not the
+'' fixed flavours, which are arrays and are handled beside them.
+private function IsVarLenStrBuiltin_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType b = c.types->BuiltinOf( u )
+    return (b = Tko.TY_STRING) orelse (b = Tko.TY_USTRING)
+end function
+
 declare function TypeOf_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
@@ -1006,6 +1018,21 @@ function TypeOf_ _
             if pt <> Tko.TYPE_NONE then
                 if c.types->Kind( pt ) = Tko.TK_POINTER then
                     t = c.types->Inner( pt )
+                elseif IsVarLenStrBuiltin_( c, pt ) then
+                    '' A VAR-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER, exactly as a
+                    '' fixed one is, and UNSIGNED for the same reason: a sign
+                    '' extension would turn a wide character above 0x7FFF negative.
+                    '' Measured, fbc writes '(int32)*(uint8*)(...)' for a string and
+                    '' '(int32)*(uint16*)(...)' for a ustring.
+                    ''
+                    '' Only the ARRAY spelling had a case, so 's[i]' over a plain
+                    '' string was UNTYPED -- and an untyped target is what makes an
+                    '' assignment decline rather than store somewhere wrong.
+                    if c.types->BuiltinOf( c.types->Unqualify( pt ) ) = Tko.TY_USTRING then
+                        t = c.types->Builtin( Tko.TY_USHORT )
+                    else
+                        t = c.types->Builtin( Tko.TY_UBYTE )
+                    end if
                 elseif c.types->Kind( pt ) = Tko.TK_ARRAY then
                     '' A FIXED-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER, and an
                     '' UNSIGNED one: fbc writes '(int32)*(uint16*)(...)' for a wstring
@@ -1017,7 +1044,8 @@ function TypeOf_ _
                         if c.types->Kind( el ) = Tko.TK_BUILTIN then
                             select case c.types->BuiltinOf( el )
                             case Tko.TY_ZSTRING : t = c.types->Builtin( Tko.TY_UBYTE )
-                            case Tko.TY_WSTRING : t = c.types->Builtin( Tko.TY_USHORT )
+                            case Tko.TY_WSTRING, Tko.TY_FIXUSTR
+                                t = c.types->Builtin( Tko.TY_USHORT )
                             case else           : t = el
                             end select
                         else

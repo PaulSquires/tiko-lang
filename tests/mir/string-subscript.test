@@ -1,0 +1,7 @@
+'' 's[i]' over a var-length string and ustring -- lvalue and rvalue.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/string-subscript.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/string-subscript.out
