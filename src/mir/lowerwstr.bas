@@ -227,6 +227,10 @@ end function
 '' The trailing int32 was 0 in every probe.
 declare function UserCastToWide_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+declare function NarrowDestWideSource_ _
+    ( byref c as Ctx, byval value as Fbx.NodeId, byref src as MirValue ) as boolean
+declare sub EmitWideToNarrow_ _
+    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue )
 
 function LowerWideToNarrow _
     ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
@@ -247,16 +251,7 @@ function LowerWideToNarrow _
     dim as boolean wideSrc = (IsWideString_( c, c.info->TypeOf_( value ) ))
     dim as MirValue src
     if wideSrc = false then
-        '' A MIXED CONCATENATION IS A WIDE SOURCE with no address and no type of its
-        '' own -- 'r = s & w' is fb_WstrConcatAW into a temporary and then
-        '' fb_WstrAssignToA from it -- so it is tried BEFORE the operator-cast case
-        '' and before anything asks the value for an address it has not got.
-        dim as boolean tryCat = ConcatHasWideTerm_( c, value )
-        dim as boolean got = false
-        if tryCat then got = WideConcatToTemp_( c, value, src )
-        if got = false then
-            if UserCastToWide_( c, value, src ) = false then return false
-        end if
+        if NarrowDestWideSource_( c, value, src ) = false then return false
     end if
 
     dim as MirValue dst = LowerAddr( c, target )
@@ -264,12 +259,62 @@ function LowerWideToNarrow _
     if wideSrc then src = LowerAddr( c, value )
     if src.kind = cast( ubyte, MV_NONE ) then return false
 
+    EmitWideToNarrow_( c, dst, dn, src )
+    return true
+end function
+
+'' A WIDE SOURCE for a narrow destination, where the source is NOT a wide variable.
+'' Split out because the RESULT-SLOT form needs it too and has no target node.
+private function NarrowDestWideSource_ _
+    ( byref c as Ctx, byval value as Fbx.NodeId, byref src as MirValue ) as boolean
+
+    '' A MIXED CONCATENATION IS A WIDE SOURCE with no address and no type of its
+    '' own -- 'r = s & w' is fb_WstrConcatAW into a temporary and then
+    '' fb_WstrAssignToA from it -- so it is tried BEFORE the operator-cast case
+    '' and before anything asks the value for an address it has not got.
+    if ConcatHasWideTerm_( c, value ) then
+        if WideConcatToTemp_( c, value, src ) then return true
+    end if
+    return UserCastToWide_( c, value, src )
+end function
+
+private sub EmitWideToNarrow_ _
+    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue )
+
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     EmitRtl( c, RTL_WSTR_ASSIGN_TOA, args )
+end sub
+
+'' THE SAME, INTO A RESULT SLOT. 'function = w' inside a STRING function has no target
+'' node to take an address from -- the destination is fb$result -- so the ordinary
+'' entry point could not be reached and every one of those declined.
+function LowerWideToNarrowSlot _
+    ( byref c as Ctx, byval slot as long, byval dt as Fbx.TypeId, _
+      byval value as Fbx.NodeId ) as boolean
+
+    if slot < 0 then return false
+    dim as longint dn = -1
+    if IsStringType( c, dt ) = false then
+        if StrSwapKind_( c, dt, dn ) <> 1 then return false
+    end if
+
+    dim as MirValue src
+    if IsWideString_( c, c.info->TypeOf_( value ) ) then
+        src = LowerAddr( c, value )
+    else
+        if NarrowDestWideSource_( c, value, src ) = false then return false
+    end if
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+    EmitWideToNarrow_( c, dst, dn, src )
     return true
 end function
 

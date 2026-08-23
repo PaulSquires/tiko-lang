@@ -1166,6 +1166,20 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
                 if (rk >= 0) andalso (rk < 16) then
                     c.st->resultNoSlotKinds[rk] += 1
                 end if
+            elseif IsStringType( c, c.resultType ) then
+                '' A STRING RESULT IS ASSIGNED, NOT STORED. The result slot holds a
+                '' DESCRIPTOR, and copying one is not the same as assigning to it:
+                '' 'function = s' was emitting a raw 24-byte aggregate copy, so the
+                '' result descriptor came out pointing at the ARGUMENT's data. Both
+                '' owners then free it. Measured -- fbc emits
+                '' 'fb_StrAssign( &fb$result, -1, S, -1, 0 )', and the same call with
+                '' a length of 0 for a ZSTRING source and fb_WstrAssignToA for a wide
+                '' one. It compiled, verified and counted as lowered the whole time.
+                '' A WIDE SOURCE goes through fb_WstrAssignToA, not fb_StrAssign.
+                if LowerWideToNarrowSlot( c, c.resultSlot, c.resultType, sp->b ) then
+                elseif LowerStringAssignToSlot( c, c.resultSlot, sp->b ) = false then
+                    SkipHere( c )
+                end if
             else
                 dim as MirValue rval = LowerExpr( c, sp->b )
                 if rval.kind = cast( ubyte, MV_NONE ) then

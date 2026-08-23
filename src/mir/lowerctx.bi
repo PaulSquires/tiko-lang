@@ -354,6 +354,9 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
     declare function LowerWideToNarrow _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    declare function LowerWideToNarrowSlot _
+        ( byref c as Ctx, byval slot as long, byval dt as Fbx.TypeId, _
+          byval value as Fbx.NodeId ) as boolean
     declare function IsStringIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function IsAggIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function LowerAggIif_ _
