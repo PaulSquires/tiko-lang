@@ -241,6 +241,21 @@ private function ConstCall_ _
                         src, names )
     end if
 
+    '' 'cast( T, expr )' AND 'cptr( T, expr )' FOLD TO THEIR OPERAND. The conversion
+    '' does not change a compile-time INTEGER value -- narrowing is the caller's
+    '' business, and every use site coerces to its own type anyway.
+    ''
+    '' inc/win/winerror.bi declares every COM result this way:
+    ''
+    ''     const S_OK = cast( HRESULT, &h00000000 )
+    ''
+    '' so the constant had NO VALUE, and it was the USES that declined -- 'return
+    '' S_OK', 'if failed( hr )', '*ppv = 0 : return E_POINTER'. The line the count
+    '' pointed at never mentioned a cast.
+    if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
+        return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), src, names )
+    end if
+
     if cp->count <> 1 then return CVNone_( )
     dim as Tko.NodeId a0 = cast( Tko.NodeId, ast.children[cp->first] )
 

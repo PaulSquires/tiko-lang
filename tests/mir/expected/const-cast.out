@@ -1,0 +1,65 @@
+func i32 OK() {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    ret %3
+}
+func i32 FAILED($0) {
+  local i32 $tmp0
+  local i32 hr
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr hr
+    store @hr, $0
+    %4 = load @hr
+    %5 = const i32 2147500037
+    %6 = icmp.eq %4, %5
+    %7 = neg %6
+    ret %7
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i32 r
+  local i32 f
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr r
+    %5 = call i32 OK()
+    store @r, %5
+    %6 = alloca ptr f
+    %7 = const i32 2147500037
+    %8 = call i32 FAILED(%7)
+    store @f, %8
+    %9 = const i32 0
+    call.rtl void fb_PrintInt(0, %9, 2)
+    %10 = const i32 2147500037
+    call.rtl void fb_PrintInt(0, %10, 2)
+    %11 = const i64 2147500037
+    call.rtl void fb_PrintLongint(0, %11, 2)
+    %12 = load @r
+    call.rtl void fb_PrintInt(0, %12, 2)
+    %13 = load @f
+    call.rtl void fb_PrintInt(0, %13, 2)
+    %14 = const ptr 0
+    call.rtl void fb_PrintULongint(0, %14, 1)
+    %15 = const i32 0
+    call.rtl void fb_End(%15)
+    %16 = load @$tmp0
+    ret %16
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintULongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance
