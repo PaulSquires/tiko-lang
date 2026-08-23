@@ -405,6 +405,27 @@ private function ResolveCall_ _
                         end if
                     end if
 
+                    '' 'a( ) as ANY' TAKES AN ARRAY OF ANY ELEMENT TYPE. That is what
+                    '' the spelling is for -- fbc's own fbc-int header declares
+                    '' 'ArrayDescriptorPtr( a( ) as any )' and passes arrays of every
+                    '' type to it -- and the argument of an array parameter arrives
+                    '' here as its ELEMENT type, so costing 'integer' against 'any'
+                    '' said not viable and the call came out UNTYPED. Not a diagnostic:
+                    '' the initialiser it fed simply had no value and declined.
+                    dim as boolean anyArrayParam = false
+                    if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
+                        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
+                            if c.types->Kind( pt ) = Tko.TK_BUILTIN then
+                                anyArrayParam = _
+                                    (c.types->BuiltinOf( pt ) = Tko.TY_ANY)
+                            end if
+                        end if
+                    end if
+                    if anyArrayParam then
+                        ai += 1
+                        continue for
+                    end if
+
                     dim as long cost = ConversionCost( at2, pt, *c.types, overloaded )
                     ai += 1
                     if cost >= CONV_NONE then

@@ -1,0 +1,7 @@
+'' 'a( ) as any' -- an array parameter that takes any element type.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/any-array-param.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/any-array-param.out
