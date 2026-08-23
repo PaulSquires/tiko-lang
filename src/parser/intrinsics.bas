@@ -300,6 +300,55 @@ function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
 
+'' 'get( #f, 1, b )' IN EXPRESSION POSITION, which yields the error code and is how the
+'' corpus writes every one of them: 'CU_ASSERT( get( #f, 1, b ) = 0 )'.
+''
+'' Same shape as OPEN above and for the same reason: the '#channel' marker is not an
+'' expression, so a generic call parse chokes on it -- it came out as a CALL to an
+'' identifier 'get' with an N_ERROR argument, and nothing downstream could recognise
+'' that as the statement it is.
+function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.TokenKind k = Peek( p )
+    Advance( p )                                    '' GET or PUT
+    if Accept( p, Tko.TK_LPAREN ) = false then
+        return ErrorNode( p, Tko.TKO0401, "(" )
+    end if
+
+    dim as Tko.StmtPayload sp
+    sp.op = cast( ushort, k )
+    '' Bit 1 is the FILE form, which is the only one that can appear here: the
+    '' graphics GET/PUT has its own coordinate grammar and no value.
+    sp.extra = 1
+    if Peek( p ) = Tko.TK_HASH then Advance( p )
+    sp.a = Expression( p, Tko.PREC_POSTFIX )
+    Accept( p, Tko.TK_COMMA )
+
+    '' The position and the destination, either of which may be written empty.
+    dim as Tko.NodeIdVec items
+    do
+        if Peek( p ) = Tko.TK_RPAREN then exit do
+        if Peek( p ) = Tko.TK_COMMA then
+            items.Push( cast( ulong, _
+                NewNodeAt( p, Tko.N_ELIDED, Cur( p ).loc, 0 ) ) )
+            Advance( p )
+            continue do
+        end if
+        dim as long before = p.pos
+        items.Push( cast( ulong, Expression( p ) ) )
+        if p.pos = before then exit do
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
+    loop
+    Expect( p, Tko.TK_RPAREN, ")" )
+
+    sp.first = p.ast->children.Count
+    sp.count = items.Count
+    for i as long = 0 to items.Count - 1
+        p.ast->children.Push( items[i] )
+    next
+    return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
+end function
+
 private sub IntrFileNumList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     dim as Tko.NodeIdVec items
     do

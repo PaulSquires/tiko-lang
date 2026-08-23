@@ -60,6 +60,7 @@ namespace Tko.Parse
 '' Defined in intrinsics.bas: 'open( ... )' used as an EXPRESSION. Declared here
 '' because Primary needs it and expr.bas is compiled before that file.
 declare function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
+declare function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
 
 '' Defined in decl.bas: an ANONYMOUS procedure used as a value --
 ''   dim as function( byref as T, byref as T ) as boolean less = _

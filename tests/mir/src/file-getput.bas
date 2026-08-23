@@ -29,3 +29,11 @@ get #f, 1, rc
 '' An ELIDED position is 0.
 get #f, , b
 put #f, , b
+
+'' THE EXPRESSION FORM, which is how the corpus writes nearly all of them: the call
+'' answers the ERROR CODE, so 'get( ... )' appears as an initialiser, on the right of
+'' an assignment and inside a condition. The parser builds the same node either way.
+dim as long r0 = get( #f, 1, b )
+r0 = get( #f, 2, b )
+r0 = put( #f, 3, b )
+if get( #f, 4, b ) = 0 then print "read"

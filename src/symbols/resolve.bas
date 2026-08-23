@@ -781,6 +781,21 @@ private sub WalkExpr _
         next
         return
 
+    case Tko.N_INTRINSIC
+        '' An INTRINSIC IN EXPRESSION POSITION -- 'r = get( #f, 1, b )', which is how
+        '' the corpus writes every file GET and PUT. It is the same node the statement
+        '' form builds, so its operands live in the STATEMENT payload rather than a
+        '' list, and without this case none of them were resolved at all: the channel
+        '' came out unbound and the whole call declined in lowering.
+        dim as Tko.StmtPayload ptr ip = StmtOf( c, id )
+        if ip->a <> Tko.NODE_NONE then WalkExpr( c, ip->a, scope_ )
+        if ip->b <> Tko.NODE_NONE then WalkExpr( c, ip->b, scope_ )
+        for i as long = 0 to ip->count - 1
+            dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[ip->first + i] )
+            if c.ast->Kind( arg ) <> Tko.N_ELIDED then WalkExpr( c, arg, scope_ )
+        next
+        return
+
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE, Tko.N_INITIALIZER, _
          Tko.N_STRCAT
         dim as Tko.ListPayload ptr lp = ListOf( c, id )
