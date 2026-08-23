@@ -19,6 +19,6 @@ types: 22
   17 wstring                size=  2 align= 2
   18 ustring                size= 24 align= 8
   19 fixstr                 size=  1 align= 1
-  20 fixustr                size=  2 align= 2
-  21 cva_list               size=  8 align= 8
-  22 any                    size=  0 align= 1
+  20 cva_list               size=  8 align= 8
+  21 any                    size=  0 align= 1
+  22 fixustr                size=  2 align= 2
