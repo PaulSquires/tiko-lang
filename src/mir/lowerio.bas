@@ -1,7 +1,10 @@
-'' lowerio.bas -- WRITE, POKE, PEEK, LSET and RSET.
+'' lowerio.bas -- the FILE and CONSOLE statements: WRITE, POKE, PEEK, LSET, RSET,
+'' PRINT's per-item lowering, OPEN, and the INPUT family.
 ''
-'' Four statements that are each one runtime call or one store, with the shape MEASURED
-'' from fbc rather than assumed from the keyword.
+'' Each is one runtime call or one store, with the shape MEASURED from fbc rather than
+'' assumed from the keyword. INPUT and LINE INPUT moved here from lowerstr.bas when
+'' that file passed the 1500-line cap: they are I/O that happens to produce a string,
+'' and nothing about them changed in the move.
 
 #include once "lowerctx.bi"
 
@@ -365,9 +368,23 @@ function PrintOne _
     '' A WIDE CONCATENATION, by SHAPE rather than by type: 'print w & c' declined
     '' while 'print w' beside it worked, because Check gives a '&' chain no type of its
     '' own and the wide test below saw nothing. WideOperand_ builds the temporary.
+    '' ...and only when the chain HAS a wide term. Without that test a concatenation
+    '' of two literals printed as a WIDE one, through fb_WstrConcat over the wide
+    '' literal pool, because a literal answers "wide" to anything that asks.
     dim as MirValue wcc
-    if WideConcatToTemp_( c, it, wcc ) then
+    if ConcatHasWideTerm_( c, it ) andalso WideConcatToTemp_( c, it, wcc ) then
         args.Push( cast( ulong, wcc.kind ) ) : args.Push( cast( ulong, wcc.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_WSTR, args )
+        return true
+    end if
+
+    '' 'print wstr( x )' -- a wide value whose TYPE is empty, because Check computes
+    '' none for the call. The type test below never saw it.
+    if IsWstrCall_( c, it ) then
+        dim as MirValue wv
+        if WideOperand_( c, it, wv ) = false then return false
+        args.Push( cast( ulong, wv.kind ) ) : args.Push( cast( ulong, wv.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_WSTR, args )
         return true
@@ -460,6 +477,15 @@ function PrintOne _
             end if
         end if
 
+        '' A NARROW CONCATENATION has no address either: it is built in a temporary
+        '' descriptor and that is what gets printed.
+        dim as MirValue cat
+        if ConcatToTempDesc_( c, it, cat ) then
+            args.Push( cast( ulong, cat.kind ) ) : args.Push( cast( ulong, cat.id ) )
+            PushConst( args, mask )
+            EmitRtl( c, RTL_PRINT_STRING, args )
+            return true
+        end if
         dim as MirValue desc
         if c.ast->Kind( it ) = Fbx.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )
@@ -533,9 +559,20 @@ function LowerOpenCall_ _
     if sp->op <> cast( ushort, Fbx.KW_OPEN ) then return false
     if sp->a = Fbx.NODE_NONE then return false
     if sp->b = Fbx.NODE_NONE then return false
-    '' The ENCODING form is a DIFFERENT ENTRY POINT taking a trailing char*, not an
-    '' extra integer, so there is nothing to approximate: it declines.
-    if (sp->extra and Fbx.OPEN_HAS_ENCODING) <> 0 then return false
+    '' THE ENCODING FORM IS A DIFFERENT ENTRY POINT taking a trailing char*, not an
+    '' extra integer: 'fb_FileOpenEncod( f, 3u, 0u, 0u, 1, 0, (char*)"utf-16" )'. The
+    '' string goes through as a DATA POINTER, by the same rule a byref zstring argument
+    '' follows -- a literal's bytes, or the pointer loaded out of a descriptor -- and
+    '' fbc does not validate it: 'encoding "bogus"' compiles.
+    ''
+    '' The encoding expression is the FIRST child: the clause loop pushes it there, and
+    '' nothing else in a well-formed OPEN pushes a child before it.
+    dim as MirValue enc
+    if (sp->extra and Fbx.OPEN_HAS_ENCODING) <> 0 then
+        if sp->count < 1 then return false
+        dim as Fbx.NodeId en = cast( Fbx.NodeId, c.ast->children[sp->first] )
+        if ZstrDataOf_( c, en, enc ) = false then return false
+    end if
 
     '' THE FILENAME IS A DESCRIPTOR POINTER whatever it was spelled as -- a variable, a
     '' literal, a concatenation. fb_FileOpen takes FBSTRING*, not the (ptr, len) pair
@@ -573,9 +610,213 @@ function LowerOpenCall_ _
     args.Push( cast( ulong, lk.kind ) ) : args.Push( cast( ulong, lk.id ) )
     args.Push( cast( ulong, num.kind ) ) : args.Push( cast( ulong, num.id ) )
     args.Push( cast( ulong, rl.kind ) ) : args.Push( cast( ulong, rl.id ) )
-    outv = EmitRtl( c, RTL_FILE_OPEN, args )
+    if enc.kind <> cast( ubyte, MV_NONE ) then
+        args.Push( cast( ulong, enc.kind ) ) : args.Push( cast( ulong, enc.id ) )
+        outv = EmitRtl( c, RTL_FILE_OPEN_ENCOD, args )
+    else
+        outv = EmitRtl( c, RTL_FILE_OPEN, args )
+    end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+
+'' LINE INPUT #n, dst -- read a whole line from a file into a string.
+''
+'' Measured from fbc's C:
+''
+''     fb_FileLineInput( 1, (void*)&S$0, -1ll, 0 );      dst is a STRING
+''     fb_FileLineInput( 1, (void*)Z$0,   8ll, 0 );      dst is a ZSTRING * 8
+''
+'' Same (pointer, length) convention as the swap runtime: -1 for a var-length string
+'' and the element count for a fixed one. The fourth argument is 0 in every form fbc
+'' emits here.
+''
+'' The CONSOLE form -- 'line input s', with or without a prompt -- is a different entry
+'' point (fb_LineInput, six arguments including a prompt descriptor) and still declines.
+function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Fbx.NODE_NONE then return false      '' console form
+    if sp->c <> Fbx.NODE_NONE then return false     '' a prompt: console form only
+    if sp->count <> 1 then return false
+
+    dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first] )
+    dim as longint dlen
+    if StrSwapKind_( c, c.info->TypeOf_( dst ), dlen ) < 0 then return false
+
+    dim as MirValue fn = LowerExpr( c, sp->a )
+    if fn.kind = cast( ubyte, MV_NONE ) then return false
+    fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+    dim as MirValue da = LowerAddr( c, dst )
+    if da.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
+    args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dlen ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_FILE_LINEINPUT, args )
+    return true
+end function
+
+'' The runtime entry point for reading ONE destination of a given type.
+private function InputRtlFor _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as RtlId
+
+    n = -1
+    if t = Fbx.TYPE_NONE then return RTL_NONE
+    if IsWideString_( c, t ) then
+        n = WideStringElems( c, t )
+        return RTL_INPUT_WSTR
+    end if
+    dim as longint zn
+    dim as long sk = StrSwapKind_( c, t, zn )
+    if sk = 0 then return RTL_INPUT_STRING
+    if sk = 1 then
+        n = zn
+        return RTL_INPUT_STRING
+    end if
+    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return RTL_NONE
+    select case c.types->BuiltinOf( t )
+    case Fbx.TY_BYTE      : return RTL_INPUT_BYTE
+    case Fbx.TY_UBYTE, Fbx.TY_BOOLEAN : return RTL_INPUT_UBYTE
+    case Fbx.TY_SHORT     : return RTL_INPUT_SHORT
+    case Fbx.TY_USHORT    : return RTL_INPUT_USHORT
+    case Fbx.TY_LONG      : return RTL_INPUT_INT
+    case Fbx.TY_ULONG     : return RTL_INPUT_UINT
+    case Fbx.TY_INTEGER, Fbx.TY_LONGINT   : return RTL_INPUT_LONGINT
+    case Fbx.TY_UINTEGER, Fbx.TY_ULONGINT : return RTL_INPUT_ULONGINT
+    case Fbx.TY_SINGLE    : return RTL_INPUT_SINGLE
+    case Fbx.TY_DOUBLE    : return RTL_INPUT_DOUBLE
+    end select
+    return RTL_NONE
+end function
+
+'' A PROMPT DESCRIPTOR. fbc always passes one, borrowed from the runtime, and an
+'' ABSENT prompt is the empty string rather than a null pointer.
+private function InputPrompt( byref c as Ctx, byval promptE as Fbx.NodeId ) as MirValue
+    '' NOT named 'text': inside namespace Fbx.Mir that resolves to the Fbx.Text
+    '' NAMESPACE, and the error it produces names a period rather than the collision.
+    dim as string ptext = ""
+    if promptE <> Fbx.NODE_NONE then
+        if c.ast->Kind( promptE ) = Fbx.N_STRING_LIT then
+            ptext = StringLitText_( c, promptE )
+        end if
+    end if
+    dim as FB.Array( of ulong ) ta
+    ta.Push( cast( ulong, MV_GLOBAL ) )
+    ta.Push( cast( ulong, c.m->AddStringLiteral( ptext, *c.names ) ) )
+    ta.Push( cast( ulong, MV_CONST_INT ) )
+    ta.Push( cast( ulong, len( ptext ) ) )
+    return EmitRtl( c, RTL_STR_TEMPZ, ta )
+end function
+
+'' INPUT and LINE INPUT.
+''
+'' Measured from fbc. INPUT is a START call and then one call per destination, each
+'' passed BY ADDRESS:
+''
+''     fb_ConsoleInput( promptDesc, -1, -1 );  fb_InputInt( addr )
+''     fb_FileInput( 1 );                      fb_InputInt( addr )
+''
+'' The two flags are addQuestionMark and echoNewline, -1 for true. A LEADING semicolon
+'' clears the second.
+''
+'' LINE INPUT is a different shape entirely -- ONE call with the destination inside it:
+''
+''     fb_LineInput( promptDesc, dst, -1ll, 0, addQuestion, echoNewline )
+''     fb_FileLineInput( 1, dst, -1ll, 0 )
+function LowerInput _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval isLine as boolean ) as boolean
+
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+
+    '' A LEADING semicolon suppresses the echoed newline. The parser marks it with
+    '' bit 4, because bit 1 already meant LINE INPUT.
+    dim as long echoNewline = -1
+    if (sp->extra and 4) <> 0 then echoNewline = 0
+    '' A comma after the prompt suppresses the question mark and a semicolon keeps it.
+    '' The parser does not record which, so it is kept -- fbc's default and the
+    '' commoner spelling.
+    dim as long addQuestion = -1
+
+    dim as boolean toFile = (sp->a <> Fbx.NODE_NONE)
+    dim as MirValue chan
+    if toFile then
+        dim as MirValue ch = LowerExpr( c, sp->a )
+        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+    end if
+
+    if isLine then
+        if sp->count <> 1 then return false
+        dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first] )
+        dim as longint dn
+        if InputRtlFor( c, c.info->TypeOf_( dst ), dn ) = RTL_NONE then return false
+        dim as MirValue da = LowerAddr( c, dst )
+        if da.kind = cast( ubyte, MV_NONE ) then return false
+
+        dim as FB.Array( of ulong ) args
+        if toFile then
+            args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
+            args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            EmitRtl( c, RTL_FILE_LINEINPUT, args )
+            return true
+        end if
+        dim as MirValue pr = InputPrompt( c, sp->c )
+        if pr.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, pr.kind ) ) : args.Push( cast( ulong, pr.id ) )
+        args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addQuestion ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, echoNewline ) )
+        EmitRtl( c, RTL_LINEINPUT, args )
+        return true
+    end if
+
+    if sp->count = 0 then return false
+
+    '' EVERY DESTINATION IS CHECKED FIRST. Emitting the start call and then declining
+    '' on the third variable would leave the program prompting for input it never
+    '' reads.
+    for i as long = 0 to sp->count - 1
+        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+        dim as longint dn2
+        if InputRtlFor( c, c.info->TypeOf_( d ), dn2 ) = RTL_NONE then return false
+    next
+
+    dim as FB.Array( of ulong ) sargs
+    if toFile then
+        sargs.Push( cast( ulong, chan.kind ) ) : sargs.Push( cast( ulong, chan.id ) )
+        EmitRtl( c, RTL_FILE_INPUT, sargs )
+    else
+        dim as MirValue pr2 = InputPrompt( c, sp->c )
+        if pr2.kind = cast( ubyte, MV_NONE ) then return false
+        sargs.Push( cast( ulong, pr2.kind ) ) : sargs.Push( cast( ulong, pr2.id ) )
+        sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, addQuestion ) )
+        sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, echoNewline ) )
+        EmitRtl( c, RTL_CONSOLE_INPUT, sargs )
+    end if
+
+    for i as long = 0 to sp->count - 1
+        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+        dim as longint dn3
+        dim as RtlId r = InputRtlFor( c, c.info->TypeOf_( d ), dn3 )
+        dim as MirValue da2 = LowerAddr( c, d )
+        if da2.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) dargs
+        dargs.Push( cast( ulong, da2.kind ) ) : dargs.Push( cast( ulong, da2.id ) )
+        if r = RTL_INPUT_STRING then
+            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( cast( ulong, dn3 ) )
+            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( 0 )
+        elseif r = RTL_INPUT_WSTR then
+            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( cast( ulong, dn3 ) )
+        end if
+        EmitRtl( c, r, dargs )
+    next
+    return true
+end function
 
 end namespace

@@ -1,0 +1,8 @@
+'' '&=' and '+=' over strings: an append, not an assignment.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/concat-assign.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_StrConcatAssign
+'' EXPECT-OUT: fb_WstrConcatAssign
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/concat-assign.out

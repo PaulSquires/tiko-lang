@@ -15,43 +15,6 @@ declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
 
 
-'' A byref ZSTRING parameter takes the DATA POINTER, not a descriptor and not the
-'' address of one. Measured, all three spellings:
-''
-''     P2( (char*)"lit" )     a literal: the bytes themselves
-''     P2( (char*)ZS )        a 'zstring * N': its own address
-''     P2( *(char**)&S )      a STRING: the pointer LOADED out of the descriptor
-''
-'' The wide half of this is WideOperand_, which already existed for the same reason.
-private function ZstrDataOf_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
-
-    if id = Fbx.NODE_NONE then return false
-    if c.ast->Kind( id ) = Fbx.N_STRING_LIT then
-        outv.kind = cast( ubyte, MV_GLOBAL )
-        outv.ty = cast( ubyte, MT_PTR )
-        outv.id = c.m->AddStringLiteral( StringLitText_( c, id ), *c.names )
-        return true
-    end if
-
-    dim as longint n
-    dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
-    if k = 1 then
-        outv = LowerAddr( c, id )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
-    end if
-    if k = 0 then
-        dim as MirValue da = LowerAddr( c, id )
-        if da.kind = cast( ubyte, MV_NONE ) then return false
-        '' The data pointer is the descriptor's FIRST field, which is why this is a
-        '' plain load and not a field address.
-        outv = LowerExprLoad( c, da, MT_PTR )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
-    end if
-    return false
-end function
-
-
 '' A temporary holding an argument that must be passed BYREF and has no address of its
 '' own. Returns the temporary's ADDRESS, or nothing when the value would not lower or
 '' the parameter's type is one a scalar slot cannot hold.

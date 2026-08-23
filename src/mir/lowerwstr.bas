@@ -15,6 +15,8 @@ namespace Fbx.Mir
 
 '' Defined in lowerstr.bas; the narrow classifier the wide code needs for a mixed
 '' operand.
+declare sub PushStrArg _
+    ( byref args as FB.Array( of ulong ), byref addr as MirValue )
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
 
@@ -215,26 +217,35 @@ function LowerWideToNarrow _
     '' THE SOURCE NEED NOT BE A WIDE VARIABLE. A UDT with 'operator cast' to a wstring
     '' is one too, and 'r = wv' over one is 'fb_WstrAssignToA( &R, -1ll, vr, 0 )' with
     '' vr the operator's result. Testing the TYPE alone said no to it.
-    dim as boolean wideSrc = (IsWideString_( c, c.info->TypeOf_( value ) ))
-    dim as MirValue castv
-    dim as boolean viaCast = false
-    if wideSrc = false then
-        viaCast = UserCastToWide_( c, value, castv )
-        if viaCast = false then return false
-    end if
-
+    '' THE DESTINATION'S TYPE IS CHECKED FIRST AND NOTHING IS EMITTED FOR IT YET.
+    '' Taking its ADDRESS here instead left a dead 'load @pc' in front of every
+    '' assignment this function then declined -- which is most of them, since it is
+    '' tried on the way past.
     dim as Fbx.TypeId dt = c.info->TypeOf_( target )
     dim as longint dn = -1
     if IsStringType( c, dt ) = false then
         if StrSwapKind_( c, dt, dn ) <> 1 then return false
     end if
 
-    dim as MirValue dst = LowerAddr( c, target )
-    dim as MirValue src = castv
-    if viaCast = false then src = LowerAddr( c, value )
-    if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
-        return false
+    dim as boolean wideSrc = (IsWideString_( c, c.info->TypeOf_( value ) ))
+    dim as MirValue src
+    if wideSrc = false then
+        '' A MIXED CONCATENATION IS A WIDE SOURCE with no address and no type of its
+        '' own -- 'r = s & w' is fb_WstrConcatAW into a temporary and then
+        '' fb_WstrAssignToA from it -- so it is tried BEFORE the operator-cast case
+        '' and before anything asks the value for an address it has not got.
+        dim as boolean tryCat = ConcatHasWideTerm_( c, value )
+        dim as boolean got = false
+        if tryCat then got = WideConcatToTemp_( c, value, src )
+        if got = false then
+            if UserCastToWide_( c, value, src ) = false then return false
+        end if
     end if
+
+    dim as MirValue dst = LowerAddr( c, target )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if wideSrc then src = LowerAddr( c, value )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
@@ -362,6 +373,56 @@ end function
 '' wide iif's own temporary has, so it goes on the same list.
 ''
 '' Only the TWO-TERM form, because fb_WstrConcat takes exactly two operands.
+'' Is this TERM wide? Its TYPE is not the whole answer: Check computes none for
+'' 'wstr( x )', so a chain containing one looked entirely narrow and 'print
+'' wstr( cmp )' declined outright -- 52 statements in one corpus file, all of them the
+'' same macro.
+function TermIsWide_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    if e = Fbx.NODE_NONE then return false
+    if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
+    return IsWstrCall_( c, e )
+end function
+
+'' Does this concatenation contain a GENUINELY WIDE term? A literal does not count:
+'' it follows its context, so 'print "a" & "b"' is a NARROW concatenation and taking
+'' it for a wide one printed two wide literals through fb_WstrConcat.
+function ConcatHasWideTerm_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    if e = Fbx.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
+    dim as FB.Array( of ulong ) vt
+    FlattenConcat( c, e, vt )
+    for k as long = 0 to vt.Count - 1
+        if TermIsWide_( c, cast( Fbx.NodeId, vt[k] ) ) then return true
+    next
+    return false
+end function
+
+'' One concatenation step: emit the call, put the result in a slot, and register that
+'' slot for deletion. Every result is an allocation the CALLER owns -- fbc emits an
+'' fb_WstrDelete for each -- so the slot goes on the statement-temporary list.
+private function WideConcatStep_ _
+    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+      byref acc as MirValue ) as boolean
+
+    dim as MirValue got = EmitRtl( c, r, args )
+    if got.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+    if slot < 0 then return false
+    dim as MirValue saddr
+    saddr.kind = cast( ubyte, MV_LOCAL )
+    saddr.ty = cast( ubyte, MT_PTR )
+    saddr.id = slot
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = saddr
+    st.b = got
+    Emit( c, st )
+    c.wstrTemps.Push( cast( ulong, slot ) )
+    acc = LowerExprLoad( c, saddr, MT_PTR )
+    return (acc.kind <> cast( ubyte, MV_NONE ))
+end function
+
 function WideConcatToTemp_ _
     ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
 
@@ -371,40 +432,69 @@ function WideConcatToTemp_ _
     FlattenConcat( c, e, terms )
     if terms.Count < 2 then return false
 
-    '' LEFT-FOLDED, because fb_WstrConcat takes exactly TWO operands: 'a & b & c' is
+    '' LEFT-FOLDED, because each entry point takes exactly TWO operands: 'a & b & c' is
     '' 'fb_WstrConcat( fb_WstrConcat( A, B ), C )', with a temporary per step and a
     '' delete for each. Measured; that is what fbc emits.
+    ''
+    '' A MIXED CONCATENATION HAS ITS OWN TWO ENTRY POINTS, and without them every
+    '' 's & w' declined -- which is most of what the wstring corpus files print:
+    ''
+    ''     s & w    fb_WstrConcatAW( (void*)&S, -1ll, (uint16*)W )
+    ''     w & s    fb_WstrConcatWA( (uint16*)W, (void*)&S, -1ll )
+    ''
+    '' ONLY A GENUINELY WIDE TERM IS WIDE HERE. A literal is not, and that is measured
+    '' rather than assumed: 'w & ", "' is 'fb_WstrConcatWA( W, (void*)", ", 3ll )', the
+    '' NARROW entry point, not a wide literal. Nor is a NUMBER -- 'x & ", " & w' folds
+    '' the narrow prefix with fb_IntToStr and fb_StrConcat first and only then goes
+    '' wide, which is what makes the wstring PRINT files what they are.
+    dim as long wi = -1
+    for k as long = 0 to terms.Count - 1
+        if TermIsWide_( c, cast( Fbx.NodeId, terms[k] ) ) then
+            wi = k
+            exit for
+        end if
+    next
+    if wi < 0 then return false
+
     dim as MirValue acc
-    if WideOperand_( c, cast( Fbx.NodeId, terms[0] ), acc ) = false then return false
-
-    for k as long = 1 to terms.Count - 1
+    dim as long start_ = 1
+    if wi > 0 then
+        '' The narrow prefix, as one (pointer, length) pair: a single term goes
+        '' straight in, several fold into a temporary descriptor first.
+        dim as FB.Array( of ulong ) args
+        if wi = 1 then
+            if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[0] ) ) = false then return false
+        else
+            dim as FB.Array( of ulong ) pre
+            for k as long = 0 to wi - 1
+                pre.Push( terms[k] )
+            next
+            dim as MirValue pd
+            if ConcatTermsToTempDesc_( c, pre, pd ) = false then return false
+            PushStrArg( args, pd )
+        end if
         dim as MirValue r
-        if WideOperand_( c, cast( Fbx.NodeId, terms[k] ), r ) = false then return false
+        if WideOperand_( c, cast( Fbx.NodeId, terms[wi] ), r ) = false then return false
+        args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
+        if WideConcatStep_( c, args, RTL_WSTR_CONCAT_AW, acc ) = false then return false
+        start_ = wi + 1
+    else
+        if WideOperand_( c, cast( Fbx.NodeId, terms[0] ), acc ) = false then return false
+    end if
 
+    for k as long = start_ to terms.Count - 1
         dim as FB.Array( of ulong ) args
         args.Push( cast( ulong, acc.kind ) ) : args.Push( cast( ulong, acc.id ) )
-        args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
-        dim as MirValue got = EmitRtl( c, RTL_WSTR_CONCAT, args )
-        if got.kind = cast( ubyte, MV_NONE ) then return false
-
-        '' Each result is an allocation the caller owns, so it goes in a slot and on
-        '' the statement-temporary list -- exactly as a wide iif's own temporary does.
-        dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
-        if slot < 0 then return false
-        dim as MirValue saddr
-        saddr.kind = cast( ubyte, MV_LOCAL )
-        saddr.ty = cast( ubyte, MT_PTR )
-        saddr.id = slot
-        dim as MirInst st
-        st.op = cast( ushort, M_STORE )
-        st.ty = cast( ubyte, MT_VOID )
-        st.a = saddr
-        st.b = got
-        Emit( c, st )
-        c.wstrTemps.Push( cast( ulong, slot ) )
-
-        acc = LowerExprLoad( c, saddr, MT_PTR )
-        if acc.kind = cast( ubyte, MV_NONE ) then return false
+        dim as RtlId which = RTL_WSTR_CONCAT
+        if TermIsWide_( c, cast( Fbx.NodeId, terms[k] ) ) then
+            dim as MirValue r
+            if WideOperand_( c, cast( Fbx.NodeId, terms[k] ), r ) = false then return false
+            args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
+        else
+            if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[k] ) ) = false then return false
+            which = RTL_WSTR_CONCAT_WA
+        end if
+        if WideConcatStep_( c, args, which, acc ) = false then return false
     next
 
     outv = acc

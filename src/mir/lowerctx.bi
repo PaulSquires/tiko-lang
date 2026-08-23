@@ -298,6 +298,24 @@ declare function EmitRtl _
           byval value as Fbx.NodeId ) as boolean
     declare function LowerInput _
         ( byref c as Ctx, byval id as Fbx.NodeId, byval isLine as boolean ) as boolean
+    declare function ConcatTermsToTempDesc_ _
+        ( byref c as Ctx, byref terms as FB.Array( of ulong ), _
+          byref outv as MirValue ) as boolean
+    declare function ConcatToTempDesc_ _
+        ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    declare function TermIsWide_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    declare function IsWstrCall_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    declare function NumberToStrDesc_ _
+        ( byref c as Ctx, byval a0 as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function ConstStringTextOf_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outText as string, _
+          byval depth as long = 0 ) as boolean
+    declare function ZstrDataOf_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerConcatAssignStmt _
+        ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
+          byval op as Fbx.TokenKind ) as boolean
     declare function LowerWideConcatAssign _
         ( byref c as Ctx, byval target as Fbx.NodeId, byval n as long, _
           byval value as Fbx.NodeId ) as boolean

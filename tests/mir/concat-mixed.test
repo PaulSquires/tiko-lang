@@ -1,0 +1,10 @@
+'' Concatenation: numbers, string constants, the narrow/wide mix, and OPEN's encoding.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/concat-mixed.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_IntToStr
+'' EXPECT-OUT: fb_WstrConcatAW
+'' EXPECT-OUT: fb_WstrConcatWA
+'' EXPECT-OUT: fb_FileOpenEncod
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/concat-mixed.out

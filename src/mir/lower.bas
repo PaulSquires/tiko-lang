@@ -1174,11 +1174,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         case Fbx.AMB_ASSIGN
             dim as long beforeA = c.f->blocks[c.curBlock].insts.Count
             dim as Fbx.TokenKind aop = cast( Fbx.TokenKind, sp->op )
-            dim as boolean plain = (aop = Fbx.TK_EQ) orelse (aop = Fbx.TK_AMPEQ)
-            '' '&=' is string concatenation and already has its own path through
-            '' LowerAssign; everything else with an operator is a read-modify-write.
-            if plain then
+            '' '&=' WAS TREATED AS PLAIN, so 's &= "b"' lowered to fb_StrAssign -- an
+            '' assignment where an append belongs. So is '+=' over a string.
+            if aop = Fbx.TK_EQ then
                 LowerAssign( c, sp->a, sp->b )
+            elseif LowerConcatAssignStmt( c, sp->a, sp->b, aop ) then
             elseif LowerCompoundAssign( c, sp->a, sp->b, aop ) = false then
                 SkipHere( c )
             end if

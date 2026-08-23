@@ -53,6 +53,7 @@ fb_FileCloseAll	int32	void	lib	fb_FileCloseAll
 fb_FileInput	int32	int32	lib	fb_FileInput
 fb_FileLineInput	int32	int32, void*, int64, int32	lib	fb_FileLineInput
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	fb_FileOpen
+fb_FileOpenEncod	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenEncod
 fb_FloatToStr	FBSTRING*	float	lib	fb_FloatToStr
 fb_FloatToWstr	uint16*	float	lib	fb_FloatToWstr
 fb_GfxDraw	void	void*, FBSTRING*	lib	fb_GfxDraw

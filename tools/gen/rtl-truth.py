@@ -491,6 +491,10 @@ sub P( )
     open "f" for input as #1
     line input #1, s
     close #1
+    '' The ENCODING clause is a DIFFERENT entry point, fb_FileOpenEncod, taking a
+    '' trailing char* rather than an extra integer.
+    open "g" for output encoding "utf-16" as #2
+    close #2
 end sub
 ''',
     # THE GRAPHICS FAMILY. Coordinates are SINGLES throughout -- fbc passes each one

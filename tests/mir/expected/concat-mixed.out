@@ -1,0 +1,187 @@
+global str $str0 ", "
+global str $str1 "./dir/f.txt"
+global str $str2 """
+global str $str3 "a"
+global str $str4 "b"
+global str $str5 "utf-16"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i8 x
+  local agg s size 24
+  local agg r size 24
+  local agg $tmp4 size 24
+  local agg z size 20
+  local agg w size 40
+  local ptr $tmp7
+  local ptr $tmp8
+  local ptr $tmp9
+  local ptr $tmp10
+  local agg $tmp11 size 24
+  local ptr $tmp12
+  local ptr $tmp13
+  local ptr $tmp14
+  local ptr $tmp15
+  local agg $tmp16 size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr x
+    %5 = const i64 5
+    %6 = trunc %5
+    store @x, %6
+    %7 = alloca ptr s
+    %8 = field.addr @s, 0
+    store %8, 0
+    %9 = field.addr @s, 8
+    store %9, 0
+    %10 = field.addr @s, 16
+    store %10, 0
+    %11 = alloca ptr r
+    %12 = field.addr @r, 0
+    store %12, 0
+    %13 = field.addr @r, 8
+    store %13, 0
+    %14 = field.addr @r, 16
+    store %14, 0
+    %15 = load @x
+    %16 = sext %15
+    %17 = call.rtl ptr fb_IntToStr(%16)
+    %18 = call.rtl ptr fb_StrAssign(@r, -1, %17, -1, 0)
+    %19 = call.rtl ptr fb_StrConcatAssign(@r, -1, @@$str0, 3, 0)
+    %20 = alloca ptr $tmp4
+    %21 = field.addr @$tmp4, 0
+    store %21, 0
+    %22 = field.addr @$tmp4, 8
+    store %22, 0
+    %23 = field.addr @$tmp4, 16
+    store %23, 0
+    %24 = load @x
+    %25 = sext %24
+    %26 = call.rtl ptr fb_IntToStr(%25)
+    %27 = call.rtl ptr fb_StrConcat(@$tmp4, %26, -1, @@$str0, 3)
+    %28 = call.rtl ptr fb_StrConcatAssign(@$tmp4, -1, @s, -1, 0)
+    call.rtl void fb_PrintString(0, @$tmp4, 1)
+    %29 = call.rtl ptr fb_StrAssign(@r, -1, @@$str1, 12, 0)
+    %30 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 11)
+    call.rtl void fb_PrintString(0, %30, 1)
+    %31 = alloca ptr z
+    %32 = call.rtl ptr fb_StrAllocTempDescZ(@z)
+    call.rtl void fb_PrintString(0, %32, 1)
+    call.rtl void fb_PrintString(0, @s, 1)
+    %33 = alloca ptr w
+    %34 = call.rtl ptr fb_WstrConcatAW(@s, -1, @w)
+    %35 = alloca ptr $tmp7
+    store @$tmp7, %34
+    %36 = load @$tmp7
+    call.rtl void fb_PrintWstr(0, %36, 1)
+    %37 = load @$tmp7
+    call.rtl void fb_WstrDelete(%37)
+    %38 = call.rtl ptr fb_WstrConcatWA(@w, @s, -1)
+    %39 = alloca ptr $tmp8
+    store @$tmp8, %38
+    %40 = load @$tmp8
+    call.rtl void fb_PrintWstr(0, %40, 1)
+    %41 = load @$tmp8
+    call.rtl void fb_WstrDelete(%41)
+    %42 = call.rtl ptr fb_WstrConcatWA(@w, @@$str0, 3)
+    %43 = alloca ptr $tmp9
+    store @$tmp9, %42
+    %44 = load @$tmp9
+    %45 = call.rtl ptr fb_WstrConcat(%44, @w)
+    %46 = alloca ptr $tmp10
+    store @$tmp10, %45
+    %47 = load @$tmp10
+    call.rtl void fb_PrintWstr(0, %47, 1)
+    %48 = load @$tmp10
+    call.rtl void fb_WstrDelete(%48)
+    %49 = load @$tmp9
+    call.rtl void fb_WstrDelete(%49)
+    %50 = alloca ptr $tmp11
+    %51 = field.addr @$tmp11, 0
+    store %51, 0
+    %52 = field.addr @$tmp11, 8
+    store %52, 0
+    %53 = field.addr @$tmp11, 16
+    store %53, 0
+    %54 = load @x
+    %55 = sext %54
+    %56 = call.rtl ptr fb_IntToStr(%55)
+    %57 = call.rtl ptr fb_StrConcat(@$tmp11, %56, -1, @@$str0, 3)
+    %58 = call.rtl ptr fb_WstrConcatAW(@$tmp11, -1, @w)
+    %59 = alloca ptr $tmp12
+    store @$tmp12, %58
+    %60 = load @$tmp12
+    call.rtl void fb_PrintWstr(0, %60, 1)
+    %61 = load @$tmp12
+    call.rtl void fb_WstrDelete(%61)
+    %62 = call.rtl ptr fb_WstrConcatAW(@s, -1, @w)
+    %63 = alloca ptr $tmp13
+    store @$tmp13, %62
+    %64 = load @$tmp13
+    %65 = call.rtl ptr fb_WstrAssignToA(@r, -1, %64, 0)
+    %66 = load @$tmp13
+    call.rtl void fb_WstrDelete(%66)
+    call.rtl void fb_PrintWstr(0, @w, 1)
+    %67 = call.rtl ptr fb_WstrConcatAW(@@$str2, 2, @w)
+    %68 = alloca ptr $tmp14
+    store @$tmp14, %67
+    %69 = load @$tmp14
+    %70 = call.rtl ptr fb_WstrConcatWA(%69, @@$str2, 2)
+    %71 = alloca ptr $tmp15
+    store @$tmp15, %70
+    %72 = load @$tmp15
+    call.rtl void fb_PrintWstr(0, %72, 1)
+    %73 = load @$tmp15
+    call.rtl void fb_WstrDelete(%73)
+    %74 = load @$tmp14
+    call.rtl void fb_WstrDelete(%74)
+    %75 = alloca ptr $tmp16
+    %76 = field.addr @$tmp16, 0
+    store %76, 0
+    %77 = field.addr @$tmp16, 8
+    store %77, 0
+    %78 = field.addr @$tmp16, 16
+    store %78, 0
+    %79 = call.rtl ptr fb_StrConcat(@$tmp16, @@$str3, 2, @@$str4, 2)
+    call.rtl void fb_PrintString(0, @$tmp16, 1)
+    %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 11)
+    %81 = const i64 1
+    %82 = trunc %81
+    %83 = const i32 0
+    %84 = const i32 3
+    %85 = const i32 0
+    %86 = const i32 0
+    %87 = call.rtl i32 fb_FileOpenEncod(%80, %84, %85, %86, %82, %83, @@$str5)
+    %88 = const i64 1
+    %89 = trunc %88
+    %90 = call.rtl i32 fb_FileClose(%89)
+    call.rtl void fb_StrDelete(@r)
+    call.rtl void fb_StrDelete(@s)
+    %91 = const i32 0
+    call.rtl void fb_End(%91)
+    %92 = load @$tmp0
+    ret %92
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_IntToStr($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
+declare ptr fb_StrConcat($0, $1, $2, $3, $4)
+declare void fb_PrintString($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare ptr fb_StrAllocTempDescZ($0)
+declare ptr fb_WstrConcatAW($0, $1, $2)
+declare void fb_PrintWstr($0, $1, $2)
+declare void fb_WstrDelete($0)
+declare ptr fb_WstrConcatWA($0, $1, $2)
+declare ptr fb_WstrConcat($0, $1)
+declare ptr fb_WstrAssignToA($0, $1, $2, $3)
+declare i32 fb_FileOpenEncod($0, $1, $2, $3, $4, $5, $6)
+declare i32 fb_FileClose($0)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 140 insts, 0 statements not lowered, 0 scope imbalance

@@ -357,7 +357,31 @@ function LowerStrOf_ _
 
     if nm <> "str" then return false
     if cp->count <> 1 then return false
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Fbx.NodeId sa = cast( Fbx.NodeId, c.ast->children[cp->first] )
+
+    '' STR OF A STRING IS THE IDENTITY and fbc emits no conversion for it -- but it is
+    '' not a no-op either: 'str( z )' over a 'zstring * N' is
+    '' 'fb_StrAllocTempDescZ( (char*)Z )', the descriptor that flavour has to borrow.
+    '' StrDescriptorOf_ knows every spelling; without this the whole call declined.
+    dim as longint sn
+    if IsStringType( c, c.info->TypeOf_( sa ) ) orelse _
+       (StrSwapKind_( c, c.info->TypeOf_( sa ), sn ) >= 0) then
+        return StrDescriptorOf_( c, sa, outv )
+    end if
+    return NumberToStrDesc_( c, sa, outv )
+end function
+
+'' A NUMBER AS A STRING DESCRIPTOR: the body of STR( ), reached from the CONCATENATION
+'' path as well. 'x & ", "' over a byte is 'fb_IntToStr( (int32)X )' and then an
+'' ordinary narrow concat of the result -- so the renderer is the same one and the only
+'' difference is who asks for it.
+''
+'' Split out when every 'number & string' in the corpus was declining: the conversion
+'' existed, and only STR( ) could reach it.
+function NumberToStrDesc_ _
+    ( byref c as Ctx, byval a0 as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if a0 = Fbx.NODE_NONE then return false
     dim as Fbx.TypeId at = c.info->TypeOf_( a0 )
     if at = Fbx.TYPE_NONE then return false
 
@@ -841,6 +865,21 @@ end function
 '' runtime), a string 'iif', or another member of this family.
 function StrDescriptorOf_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    '' A STRING CONSTANT IS ITS TEXT. Recognised here rather than left to the type
+    '' test below, which would claim it and then ask a constant for an address.
+    dim as string constText
+    if c.ast->Kind( id ) = Fbx.N_IDENT then
+        if ConstStringTextOf_( c, id, constText ) then
+            dim as FB.Array( of ulong ) ca
+            ca.Push( cast( ulong, MV_GLOBAL ) )
+            ca.Push( cast( ulong, c.m->AddStringLiteral( constText, *c.names ) ) )
+            ca.Push( cast( ulong, MV_CONST_INT ) )
+            ca.Push( cast( ulong, len( constText ) ) )
+            outv = EmitRtl( c, RTL_STR_TEMPZ, ca )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
 
     if c.ast->Kind( id ) = Fbx.N_STRING_LIT then
         dim as string litText = StringLitText_( c, id )

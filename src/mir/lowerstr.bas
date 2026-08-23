@@ -65,6 +65,60 @@ private function LowerConcatViaTemp _
     return true
 end function
 
+'' A NARROW CONCATENATION AS A TEMPORARY DESCRIPTOR, for the readers that want a value
+'' rather than a destination: PRINT, and anything else fbc hands an FBSTRING* to.
+''
+''     __builtin_memset( &TMP, 0, 24ll );
+''     fb_StrConcat( &TMP, (void*)&S, -1ll, (void*)"x", 2ll );
+''     fb_PrintString( 0, (FBSTRING*)&TMP, 1 );
+''
+'' 'print s & "x"' declined without it: the print path asked a BINARY for an address.
+function ConcatToTempDesc_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if e = Fbx.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, e, terms )
+    return ConcatTermsToTempDesc_( c, terms, outv )
+end function
+
+'' The same, over a term list that has already been flattened -- which is how the WIDE
+'' path folds the NARROW PREFIX of a mixed chain: 'x & ", " & w' is a narrow concat of
+'' the first two and only then a wide one.
+function ConcatTermsToTempDesc_ _
+    ( byref c as Ctx, byref terms as FB.Array( of ulong ), _
+      byref outv as MirValue ) as boolean
+
+    if terms.Count < 2 then return false
+
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+    ZeroStrDescriptor( c, tmp )
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
+    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[0] ) ) = false then return false
+    if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[1] ) ) = false then return false
+    EmitRtl( c, RTL_STR_CONCAT, args )
+
+    for i as long = 2 to terms.Count - 1
+        dim as FB.Array( of ulong ) more
+        PushStrArg( more, tmp )
+        if EmitStrTerm( c, more, cast( Fbx.NodeId, terms[i] ) ) = false then return false
+        more.Push( cast( ulong, MV_CONST_INT ) )
+        more.Push( 0 )
+        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, more )
+    next
+
+    outv = tmp
+    return true
+end function
+
 '' Up to 'maxDigits' digits in 'radix', greedy, value clamped to a byte. Shared by
 '' the hex escape and the three '&' forms, which differ only in radix and digit count.
 private function ReadRadix_ _
@@ -236,6 +290,59 @@ function StringLitText_ _
         i += iif( doubledQuote, 2, 1 )
     wend
     return left( r, n )
+end function
+
+
+'' THE TEXT OF A STRING CONSTANT, folded here because the constant evaluator cannot
+'' carry one: ConstVal.value is a longint, so 'const F = "f.txt"' has no value it can
+'' return and every use of F declined -- the assignment, the PRINT, and the filename of
+'' every OPEN in the corpus's file tests, which is how they all name their file.
+''
+'' Only literals and the concatenation of literals are folded, which is what a constant
+'' declaration can hold: fbc rejects a non-constant initialiser outright.
+function ConstStringTextOf_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outText as string, _
+      byval depth as long = 0 ) as boolean
+
+    if id = Fbx.NODE_NONE then return false
+    if depth > 16 then return false
+
+    select case c.ast->Kind( id )
+    case Fbx.N_STRING_LIT
+        outText = StringLitText_( c, id )
+        return true
+
+    case Fbx.N_PAREN
+        dim as Fbx.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if lp->count <> 1 then return false
+        return ConstStringTextOf_( c, cast( Fbx.NodeId, c.ast->children[lp->first] ), _
+                                   outText, depth + 1 )
+
+    case Fbx.N_BINARY
+        dim as Fbx.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Fbx.TokenKind op = cast( Fbx.TokenKind, bp->op )
+        if (op <> Fbx.TK_AMP) andalso (op <> Fbx.TK_PLUS) then return false
+        dim as string lt, rt
+        if ConstStringTextOf_( c, bp->lhs, lt, depth + 1 ) = false then return false
+        if ConstStringTextOf_( c, bp->rhs, rt, depth + 1 ) = false then return false
+        outText = lt + rt
+        return true
+
+    case Fbx.N_IDENT
+        '' The constant's payload is its N_VAR_ITEM, whose 'b' is the initialiser --
+        '' the same shape the integer folder reads, and read as the same pool.
+        dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if cs = 0 then return false
+        if cs->kind <> cast( ubyte, Fbx.SYM_CONSTANT ) then return false
+        if (cs->flags and Fbx.SYMF_BUILTIN) <> 0 then return false
+        if cs->payload = 0 then return false
+        dim as Fbx.NodeId item = cast( Fbx.NodeId, cs->payload )
+        if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then return false
+        return ConstStringTextOf_( c, StmtOf( c, item )->b, outText, depth + 1 )
+    end select
+    return false
 end function
 
 '' ------------------------------------------------------------------ runtime
@@ -671,44 +778,6 @@ function FixedStrLenArg_( byref c as Ctx, byval n as longint ) as longint
     return cast( longint, (&h8000000000000000ull or cast( ulongint, n )) )
 end function
 
-'' LINE INPUT #n, dst -- read a whole line from a file into a string.
-''
-'' Measured from fbc's C:
-''
-''     fb_FileLineInput( 1, (void*)&S$0, -1ll, 0 );      dst is a STRING
-''     fb_FileLineInput( 1, (void*)Z$0,   8ll, 0 );      dst is a ZSTRING * 8
-''
-'' Same (pointer, length) convention as the swap runtime: -1 for a var-length string
-'' and the element count for a fixed one. The fourth argument is 0 in every form fbc
-'' emits here.
-''
-'' The CONSOLE form -- 'line input s', with or without a prompt -- is a different entry
-'' point (fb_LineInput, six arguments including a prompt descriptor) and still declines.
-function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->a = Fbx.NODE_NONE then return false      '' console form
-    if sp->c <> Fbx.NODE_NONE then return false     '' a prompt: console form only
-    if sp->count <> 1 then return false
-
-    dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first] )
-    dim as longint dlen
-    if StrSwapKind_( c, c.info->TypeOf_( dst ), dlen ) < 0 then return false
-
-    dim as MirValue fn = LowerExpr( c, sp->a )
-    if fn.kind = cast( ubyte, MV_NONE ) then return false
-    fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
-    dim as MirValue da = LowerAddr( c, dst )
-    if da.kind = cast( ubyte, MV_NONE ) then return false
-
-    dim as FB.Array( of ulong ) args
-    args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
-    args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dlen ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    EmitRtl( c, RTL_FILE_LINEINPUT, args )
-    return true
-end function
-
 '' LEN. Returns false when the node is not one, so the caller carries on.
 ''
 '' Measured from fbc's own C:
@@ -894,6 +963,22 @@ end function
 '' The result is a temporary the caller must release with fb_WstrDelete. fbx does not
 '' model that lifetime yet, so this LEAKS one wide temporary per conversion -- stated
 '' rather than hidden, and no worse than not compiling the program at all.
+'' Is this the call 'wstr( x )'? Asked by the concatenation and PRINT paths, which need
+'' to know a term is WIDE before anything is emitted for it -- and its TYPE does not
+'' say so.
+function IsWstrCall_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    if id = Fbx.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 1 then return false
+    if lp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    return (Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "wstr")
+end function
+
 function LowerWstrOf _
     ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
 
@@ -922,8 +1007,23 @@ function LowerWstrOf _
         return true
     end if
 
+    '' THE ARGUMENT MAY BE A WIDE CONCATENATION, which has no type of its own -- so
+    '' asking for one and giving up is how 'wstr(  & wstr( w ) &  )' declined:
+    '' the inner conversions lowered and the wstr around them did not.
+    if ConcatHasWideTerm_( c, a ) then
+        if WideOperand_( c, a, outv ) then return true
+    end if
+
     dim as Fbx.TypeId at = c.info->TypeOf_( a )
     if at = Fbx.TYPE_NONE then return false
+
+    '' AN ALREADY-WIDE ARGUMENT IS THE IDENTITY, and fbc emits no call at all:
+    '' 'print wstr( cmp )' over a 'wstring * 20' is 'fb_PrintWstr( 0, (uint16*)CMP, 1 )'.
+    '' Falling through instead made the whole expression decline.
+    if IsWideString_( c, at ) then
+        outv = LowerAddr( c, a )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
 
     '' A NARROW STRING: the raw data pointer, not the descriptor.
     dim as longint zn
@@ -984,167 +1084,6 @@ function LowerWstrOf _
     args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     outv = EmitRtl( c, r, args )
     return (outv.kind <> cast( ubyte, MV_NONE ))
-end function
-
-'' The runtime entry point for reading ONE destination of a given type.
-private function InputRtlFor _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as RtlId
-
-    n = -1
-    if t = Fbx.TYPE_NONE then return RTL_NONE
-    if IsWideString_( c, t ) then
-        n = WideStringElems( c, t )
-        return RTL_INPUT_WSTR
-    end if
-    dim as longint zn
-    dim as long sk = StrSwapKind_( c, t, zn )
-    if sk = 0 then return RTL_INPUT_STRING
-    if sk = 1 then
-        n = zn
-        return RTL_INPUT_STRING
-    end if
-    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return RTL_NONE
-    select case c.types->BuiltinOf( t )
-    case Fbx.TY_BYTE      : return RTL_INPUT_BYTE
-    case Fbx.TY_UBYTE, Fbx.TY_BOOLEAN : return RTL_INPUT_UBYTE
-    case Fbx.TY_SHORT     : return RTL_INPUT_SHORT
-    case Fbx.TY_USHORT    : return RTL_INPUT_USHORT
-    case Fbx.TY_LONG      : return RTL_INPUT_INT
-    case Fbx.TY_ULONG     : return RTL_INPUT_UINT
-    case Fbx.TY_INTEGER, Fbx.TY_LONGINT   : return RTL_INPUT_LONGINT
-    case Fbx.TY_UINTEGER, Fbx.TY_ULONGINT : return RTL_INPUT_ULONGINT
-    case Fbx.TY_SINGLE    : return RTL_INPUT_SINGLE
-    case Fbx.TY_DOUBLE    : return RTL_INPUT_DOUBLE
-    end select
-    return RTL_NONE
-end function
-
-'' A PROMPT DESCRIPTOR. fbc always passes one, borrowed from the runtime, and an
-'' ABSENT prompt is the empty string rather than a null pointer.
-private function InputPrompt( byref c as Ctx, byval promptE as Fbx.NodeId ) as MirValue
-    '' NOT named 'text': inside namespace Fbx.Mir that resolves to the Fbx.Text
-    '' NAMESPACE, and the error it produces names a period rather than the collision.
-    dim as string ptext = ""
-    if promptE <> Fbx.NODE_NONE then
-        if c.ast->Kind( promptE ) = Fbx.N_STRING_LIT then
-            ptext = StringLitText_( c, promptE )
-        end if
-    end if
-    dim as FB.Array( of ulong ) ta
-    ta.Push( cast( ulong, MV_GLOBAL ) )
-    ta.Push( cast( ulong, c.m->AddStringLiteral( ptext, *c.names ) ) )
-    ta.Push( cast( ulong, MV_CONST_INT ) )
-    ta.Push( cast( ulong, len( ptext ) ) )
-    return EmitRtl( c, RTL_STR_TEMPZ, ta )
-end function
-
-'' INPUT and LINE INPUT.
-''
-'' Measured from fbc. INPUT is a START call and then one call per destination, each
-'' passed BY ADDRESS:
-''
-''     fb_ConsoleInput( promptDesc, -1, -1 );  fb_InputInt( addr )
-''     fb_FileInput( 1 );                      fb_InputInt( addr )
-''
-'' The two flags are addQuestionMark and echoNewline, -1 for true. A LEADING semicolon
-'' clears the second.
-''
-'' LINE INPUT is a different shape entirely -- ONE call with the destination inside it:
-''
-''     fb_LineInput( promptDesc, dst, -1ll, 0, addQuestion, echoNewline )
-''     fb_FileLineInput( 1, dst, -1ll, 0 )
-function LowerInput _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval isLine as boolean ) as boolean
-
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-
-    '' A LEADING semicolon suppresses the echoed newline. The parser marks it with
-    '' bit 4, because bit 1 already meant LINE INPUT.
-    dim as long echoNewline = -1
-    if (sp->extra and 4) <> 0 then echoNewline = 0
-    '' A comma after the prompt suppresses the question mark and a semicolon keeps it.
-    '' The parser does not record which, so it is kept -- fbc's default and the
-    '' commoner spelling.
-    dim as long addQuestion = -1
-
-    dim as boolean toFile = (sp->a <> Fbx.NODE_NONE)
-    dim as MirValue chan
-    if toFile then
-        dim as MirValue ch = LowerExpr( c, sp->a )
-        if ch.kind = cast( ubyte, MV_NONE ) then return false
-        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
-    end if
-
-    if isLine then
-        if sp->count <> 1 then return false
-        dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first] )
-        dim as longint dn
-        if InputRtlFor( c, c.info->TypeOf_( dst ), dn ) = RTL_NONE then return false
-        dim as MirValue da = LowerAddr( c, dst )
-        if da.kind = cast( ubyte, MV_NONE ) then return false
-
-        dim as FB.Array( of ulong ) args
-        if toFile then
-            args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
-            args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-            EmitRtl( c, RTL_FILE_LINEINPUT, args )
-            return true
-        end if
-        dim as MirValue pr = InputPrompt( c, sp->c )
-        if pr.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, pr.kind ) ) : args.Push( cast( ulong, pr.id ) )
-        args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addQuestion ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, echoNewline ) )
-        EmitRtl( c, RTL_LINEINPUT, args )
-        return true
-    end if
-
-    if sp->count = 0 then return false
-
-    '' EVERY DESTINATION IS CHECKED FIRST. Emitting the start call and then declining
-    '' on the third variable would leave the program prompting for input it never
-    '' reads.
-    for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-        dim as longint dn2
-        if InputRtlFor( c, c.info->TypeOf_( d ), dn2 ) = RTL_NONE then return false
-    next
-
-    dim as FB.Array( of ulong ) sargs
-    if toFile then
-        sargs.Push( cast( ulong, chan.kind ) ) : sargs.Push( cast( ulong, chan.id ) )
-        EmitRtl( c, RTL_FILE_INPUT, sargs )
-    else
-        dim as MirValue pr2 = InputPrompt( c, sp->c )
-        if pr2.kind = cast( ubyte, MV_NONE ) then return false
-        sargs.Push( cast( ulong, pr2.kind ) ) : sargs.Push( cast( ulong, pr2.id ) )
-        sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, addQuestion ) )
-        sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, echoNewline ) )
-        EmitRtl( c, RTL_CONSOLE_INPUT, sargs )
-    end if
-
-    for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-        dim as longint dn3
-        dim as RtlId r = InputRtlFor( c, c.info->TypeOf_( d ), dn3 )
-        dim as MirValue da2 = LowerAddr( c, d )
-        if da2.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) dargs
-        dargs.Push( cast( ulong, da2.kind ) ) : dargs.Push( cast( ulong, da2.id ) )
-        if r = RTL_INPUT_STRING then
-            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( cast( ulong, dn3 ) )
-            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( 0 )
-        elseif r = RTL_INPUT_WSTR then
-            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( cast( ulong, dn3 ) )
-        end if
-        EmitRtl( c, r, dargs )
-    next
-    return true
 end function
 
 
@@ -1226,10 +1165,99 @@ function LowerStringAssignTo _
     return true
 end function
 
+'' A byref ZSTRING parameter takes the DATA POINTER, not a descriptor and not the
+'' address of one. Measured, all three spellings:
+''
+''     P2( (char*)"lit" )     a literal: the bytes themselves
+''     P2( (char*)ZS )        a 'zstring * N': its own address
+''     P2( *(char**)&S )      a STRING: the pointer LOADED out of the descriptor
+''
+'' The wide half of this is WideOperand_, which already existed for the same reason.
+function ZstrDataOf_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if id = Fbx.NODE_NONE then return false
+    if c.ast->Kind( id ) = Fbx.N_STRING_LIT then
+        outv.kind = cast( ubyte, MV_GLOBAL )
+        outv.ty = cast( ubyte, MT_PTR )
+        outv.id = c.m->AddStringLiteral( StringLitText_( c, id ), *c.names )
+        return true
+    end if
+
+    dim as longint n
+    dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
+    if k = 1 then
+        outv = LowerAddr( c, id )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if k = 0 then
+        dim as MirValue da = LowerAddr( c, id )
+        if da.kind = cast( ubyte, MV_NONE ) then return false
+        '' The data pointer is the descriptor's FIRST field, which is why this is a
+        '' plain load and not a field address.
+        outv = LowerExprLoad( c, da, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
+
+'' 'a &= b' AND 'a += b' OVER A STRING, which is the same statement: measured, fbc
+'' emits 'fb_StrConcatAssign( &S, -1ll, src, len, 0 )' for both spellings.
+''
+'' The operator was recorded on the statement and then thrown away for '&=': the
+'' dispatch treated it as PLAIN, so 's &= "b"' lowered to fb_StrAssign -- an
+'' assignment, not an append. It verified, it emitted code, it counted as fully
+'' lowered, and it was wrong every time. '+=' declined instead, because the compound
+'' path works in the target's MIR type and a string is an aggregate.
+''
+'' Only the shapes fbc reaches with ONE call are lowered. A fixed 'zstring * N' or
+'' 'string * N' destination builds a temporary first -- 'fb_StrConcat( &TMP, Z, 10,
+'' "f", 2 )' then 'fb_StrAssign( Z, 10, vr, -1, 0 )' -- and a narrow source appended
+'' to a WIDE destination needs a temporary's lifetime as well. Those decline, which
+'' is the honest answer where half of the model would be a wrong one.
+function LowerConcatAssignStmt _
+    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
+      byval op as Fbx.TokenKind ) as boolean
+
+    if (op <> Fbx.TK_AMPEQ) andalso (op <> Fbx.TK_PLUSEQ) then return false
+    dim as Fbx.TypeId tt = c.info->TypeOf_( target )
+    if tt = Fbx.TYPE_NONE then return false
+
+    if IsStringType( c, tt ) then
+        dim as MirValue dst = LowerAddr( c, target )
+        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) args
+        PushStrArg( args, dst )
+        if EmitStrTerm( c, args, value ) = false then return false
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( 0 )
+        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, args )
+        return true
+    end if
+
+    '' A FIXED WIDE STRING with a wide source: 'fb_WstrConcatAssign( W, 50ll, W2 )'.
+    if IsWideString_( c, tt ) then
+        return LowerWideConcatAssign( c, target, WideStringElems( c, tt ), value )
+    end if
+    return false
+end function
+
+
 '' The (pointer, length) pair for one term of a concatenation.
 function EmitStrTerm _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
       byval term as Fbx.NodeId ) as boolean
+
+    '' A STRING CONSTANT IS ITS TEXT, and it has to be recognised BEFORE the type test
+    '' below claims it and asks for an address a constant has not got.
+    if c.ast->Kind( term ) = Fbx.N_IDENT then
+        dim as string ct
+        if ConstStringTextOf_( c, term, ct ) then
+            PushStrLiteralArg( args, c.m->AddStringLiteral( ct, *c.names ), len( ct ) )
+            return true
+        end if
+    end if
 
     if c.ast->Kind( term ) = Fbx.N_STRING_LIT then
         '' Named litText, not text: 'Text' is a namespace and FreeBASIC is
@@ -1254,6 +1282,28 @@ function EmitStrTerm _
         if iv.kind = cast( ubyte, MV_NONE ) then return false
         PushStrArg( args, iv )
         return true
+    end if
+
+    '' A NUMBER IN A CONCATENATION IS RENDERED, not refused: 'x & ", "' over a byte is
+    '' 'fb_IntToStr( (int32)X )' and then an ordinary narrow concat of the result. The
+    '' renderer already existed for STR( ) and only STR( ) could reach it, so every
+    '' 'number & string' in the corpus declined -- which is what the wstring PRINT
+    '' files are made of.
+    ''
+    '' Tried before the string tests below rather than after: a number is not
+    '' string-typed, so nothing else here would look at it.
+    dim as Fbx.TypeId termT = c.info->TypeOf_( term )
+    if termT <> Fbx.TYPE_NONE then
+        if IsStringType( c, termT ) = false then
+            dim as longint tsk
+            if StrSwapKind_( c, termT, tsk ) = -1 then
+                dim as MirValue nv
+                if NumberToStrDesc_( c, term, nv ) then
+                    PushStrArg( args, nv )
+                    return true
+                end if
+            end if
+        end if
     end if
 
     '' A CALL TO A STRING-RETURNING FUNCTION, before the type test below claims it.

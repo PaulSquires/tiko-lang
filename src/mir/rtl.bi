@@ -389,6 +389,10 @@ namespace Fbx.Mir
         RTL( RTL_ARRAY_REDIM_OBJ,   "fb_ArrayRedimObj",    "l",   "pzppz." )
         RTL( RTL_ARRAY_REDIM_PRESV_OBJ, "fb_ArrayRedimPresvObj", "l", "pzppz." )
         RTL( RTL_FILE_OPEN,         "fb_FileOpen",         "l",   "pllllL" )
+        '' The ENCODING form is a DIFFERENT ENTRY POINT, not an extra integer: the
+        '' encoding is a char* passed through raw and unvalidated -- fbc compiles
+        '' 'encoding "bogus"'.
+        RTL( RTL_FILE_OPEN_ENCOD,   "fb_FileOpenEncod",    "l",   "pllllLp" )
         RTL( RTL_FILE_CLOSE,        "fb_FileClose",        "l",   "l"     )
         RTL( RTL_FILE_CLOSEALL,     "fb_FileCloseAll",     "l",   ""      )
         '' Returns the ADDRESS to jump to when a handler is installed, which is why its
