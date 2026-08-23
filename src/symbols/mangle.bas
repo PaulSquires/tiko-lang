@@ -515,7 +515,16 @@ private function ProcNameCore _
     dim as boolean overloaded = ((sp->extra and Fbx.PF_OVERLOAD) <> 0)
 
     '' Rule 1: not nested and no OVERLOAD -- the uppercased spelling, nothing more.
-    if (nested = false) andalso (overloaded = false) then return ident
+    ''
+    '' AN OPERATOR IS NEVER THAT. A global 'operator -( byref a as D, byref b as D )'
+    '' is _ZmiR1DS0_ to fbc, measured -- the operator CODE and its parameters, with no
+    '' N...E around it because there is no qualifier. Returning the spelling gave a
+    '' function literally named '-', which no linker would accept and no call site
+    '' could name.
+    dim as boolean isOp = (kw = cast( ushort, Fbx.KW_OPERATOR ))
+    if (nested = false) andalso (overloaded = false) andalso (isOp = false) then
+        return ident
+    end if
 
     dim as Substitutions subs
     dim as string outp = "_Z"
@@ -541,6 +550,8 @@ private function ProcNameCore _
             outp += SrcName( ident )
         end if
         outp += "E"
+    elseif isOp then
+        outp += OperatorCode( ast, proc_, types, syms, names, info, subs, ident )
     else
         outp += SrcName( ident )
     end if

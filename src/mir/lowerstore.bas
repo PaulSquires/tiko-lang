@@ -376,6 +376,51 @@ end sub
 '' something. Same shape, one more parameter.
 '' The same, with ARGUMENTS after the receiver. EmitMemberCall takes none, which is
 '' right for the iterator protocol it was written for and wrong for 'operator []'.
+'' A DIRECT CALL to a known procedure with a ready argument list -- no receiver, no
+'' overload work. What a user-defined GLOBAL operator needs: Check chose the symbol and
+'' the caller has already produced the operands the way the parameters want them.
+function EmitDirectCall_ _
+    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval rt as MirType, _
+      byref args as FB.Array( of ulong ) ) as MirValue
+
+    dim as MirValue none_
+    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    if s = 0 then return none_
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+    if pn = Fbx.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return none_
+
+    dim as long first = c.m->argPool.Count \ 2
+    for i as long = 0 to args.Count - 1
+        c.m->argPool.Push( args[i] )
+    next
+    dim as long nargs = args.Count \ 2
+
+    dim as Fbx.InternId nm = c.names->GetString( _
+        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, rt )
+        decl->isDefinition = false
+        decl->paramCount = nargs
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as MirInst ins
+    ins.op = cast( ushort, M_CALL )
+    ins.ty = cast( ubyte, rt )
+    ins.first = first
+    ins.count = nargs
+    ins.callee = fidx
+    return Emit( c, ins )
+end function
+
 function EmitMemberCallArgs_ _
     ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
       byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue

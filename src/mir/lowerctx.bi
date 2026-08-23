@@ -289,6 +289,9 @@ declare function EmitRtl _
     declare function LowerForEachIter _
         ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
           byval seqE as Fbx.NodeId, byval at as Fbx.TypeId ) as boolean
+    declare function EmitDirectCall_ _
+        ( byref c as Ctx, byval sym as Fbx.SymbolId, byval rt as MirType, _
+          byref args as FB.Array( of ulong ) ) as MirValue
     declare function EmitMemberCallArgs_ _
         ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
           byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
@@ -373,6 +376,9 @@ declare function EmitRtl _
     declare function EmitTypeCtorInto_ _
         ( byref c as Ctx, byval t as Fbx.TypeId, byval slot as long, _
           byval cp as Fbx.ListPayload ptr ) as boolean
+    declare function LowerUserBinaryOp_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
     declare function LowerPropertyGet_ _
         ( byref c as Ctx, byval node as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerPropertySet_ _

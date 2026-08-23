@@ -76,10 +76,38 @@ function LowerAddr _
             if bcs->kind = cast( ubyte, Fbx.SYM_PROC ) then
                 dim as Fbx.NodeId bpn = cast( Fbx.NodeId, bcs->payload )
                 if (bpn <> Fbx.NODE_NONE) andalso (c.ast->Kind( bpn ) = Fbx.N_PROC) then
-                    if (c.ast->nodes[cast( long, bpn )].flags and Fbx.NF_BYREF) <> 0 then
+                    '' ...and a UDT RETURNED THROUGH A HIDDEN POINTER is already a
+                    '' temporary the caller owns, so the call's value is its address.
+                    '' 'this.GetD( ).W' -- a property on a call result -- asked for one
+                    '' and got nothing, which is how fb/chrono.bi writes most of its
+                    '' accessors.
+                    dim as boolean byrefRet = _
+                        ((c.ast->nodes[cast( long, bpn )].flags and Fbx.NF_BYREF) <> 0)
+                    if byrefRet orelse UsesSretReturn( c, bcs->type_ ) then
                         dim as MirValue bv = LowerCallParts( c, bl->target, bcal, _
                                                             bl->first, bl->count, MT_PTR )
                         if bv.kind <> cast( ubyte, MV_NONE ) then return bv
+                    elseif bcs->type_ <> Fbx.TYPE_NONE then
+                        '' A SMALL UDT COMES BACK IN REGISTERS, so there is no hidden
+                        '' temporary to take the address of -- but 'GetD( ).a' still
+                        '' needs one. The value is stored into a temporary of its own
+                        '' type and that is what the member reads through.
+                        if c.types->Kind( bcs->type_ ) = Fbx.TK_UDT then
+                            dim as MirValue av = LowerCallParts( c, bl->target, bcal, _
+                                                                 bl->first, bl->count, MT_AGG )
+                            if av.kind <> cast( ubyte, MV_NONE ) then
+                                dim as long aslot = NewTempLocal( c, MT_AGG, _
+                                    SizeOfType( c, bcs->type_ ) )
+                                if aslot >= 0 then
+                                    dim as MirValue at2
+                                    at2.kind = cast( ubyte, MV_LOCAL )
+                                    at2.ty = cast( ubyte, MT_PTR )
+                                    at2.id = aslot
+                                    StoreThrough( c, at2, av )
+                                    return at2
+                                end if
+                            end if
+                        end if
                     end if
                 end if
             end if

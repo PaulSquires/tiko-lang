@@ -1,0 +1,7 @@
+'' A user-defined binary operator is a call, and its global form is mangled.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/user-operator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _ZmiR1DS0_
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/user-operator.out

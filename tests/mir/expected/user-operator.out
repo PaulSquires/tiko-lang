@@ -1,0 +1,72 @@
+func i32 _ZN1DcviEv($0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
+}
+func agg _ZmiR1DS0_($0, $1) {
+  local agg $tmp0 size 4
+  local ptr a
+  local ptr b
+  local agg r size 4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr a
+    store @a, $0
+    %3 = alloca ptr b
+    store @b, $1
+    %4 = alloca ptr r
+    %5 = load @r
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func agg _ZmlR1Di($0, $1) {
+  local agg $tmp0 size 4
+  local ptr a
+  local i32 n
+  local agg r size 4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr a
+    store @a, $0
+    %3 = alloca ptr n
+    store @n, $1
+    %4 = alloca ptr r
+    %5 = load @r
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func void G() {
+  local agg x size 4
+  local agg y size 4
+  local agg a size 4
+  local agg b size 4
+  local agg $tmp4 size 4
+  entry0:
+    %1 = alloca ptr x
+    %2 = alloca ptr y
+    %3 = alloca ptr a
+    %4 = call agg _ZmiR1DS0_(@x, @y)
+    store @a, %4
+    %5 = alloca ptr b
+    %6 = call agg _ZmiR1DS0_(@x, @y)
+    %7 = alloca ptr $tmp4
+    store @$tmp4, %6
+    %8 = const i64 2
+    %9 = trunc %8
+    %10 = call agg _ZmlR1Di(@$tmp4, %9)
+    store @b, %10
+    ret
+}
+verify: ok
+lowered: 4 functions, 4 blocks, 39 insts, 0 statements not lowered, 0 scope imbalance

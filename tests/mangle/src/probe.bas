@@ -237,3 +237,23 @@ namespace mgops
         return this.v
     end operator
 end namespace
+
+'' ---- GLOBAL OPERATORS. Not nested and not overloaded, so the plain rule would take
+'' the spelling verbatim and emit a function literally named '-'. fbc mangles them:
+'' the operator CODE and the parameters, with no N...E because there is no qualifier.
+'' A MEMBER arithmetic operator is not probed because fbc refuses one -- error 153,
+'' 'Operator cannot be a member function (TODO)'.
+type OpD
+    v as long
+end type
+operator - ( byref opa as OpD, byref opb as OpD ) as OpD
+    dim r as OpD
+    return r
+end operator
+operator * ( byref opa as OpD, byval opn as long ) as OpD
+    dim r as OpD
+    return r
+end operator
+operator = ( byref opa as OpD, byref opb as OpD ) as boolean
+    return false
+end operator

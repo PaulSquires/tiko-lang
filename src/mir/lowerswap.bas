@@ -278,6 +278,106 @@ function PropertyAt_ _
     return want_
 end function
 
+'' A USER-DEFINED BINARY OPERATOR, called. Check chose the overload and recorded it on
+'' the expression node; what is left is passing the operands the way the parameters
+'' want them -- BYREF is the usual spelling for a value type, and an operand with no
+'' address of its own gets a temporary exactly as a call argument does.
+''
+'' A MEMBER operator takes the left operand as its RECEIVER and the right as its only
+'' argument; a global one takes both.
+declare function OperandValue_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byval pt as Fbx.TypeId, _
+      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
+
+function LowerUserBinaryOp_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
+      byval mt as MirType, byref outv as MirValue ) as boolean
+
+    dim as Fbx.SymbolId op = c.info->RefOf( id )
+    if op = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr os = c.syms->SymbolAt( op )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, os->payload )
+    if pn = Fbx.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Fbx.KW_OPERATOR ) then return false
+
+    '' The parameters, in order, with their byref-ness.
+    dim as FB.Array( of ulong ) ptypes
+    dim as FB.Array( of ulong ) prefs
+    for i as long = 0 to pp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        ptypes.Push( cast( ulong, c.info->TypeOf_( StmtOf( c, prm )->a ) ) )
+        dim as ulong isRef = 0
+        if (c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then isRef = 1
+        prefs.Push( isRef )
+    next
+    if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
+
+    dim as FB.Array( of ulong ) args
+    dim as long firstArg = 0
+    if ptypes.Count = 1 then
+        '' The RECEIVER is the left operand, by address.
+        dim as MirValue self_ = LowerAddr( c, bp->lhs )
+        if self_.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, self_.kind ) ) : args.Push( cast( ulong, self_.id ) )
+    else
+        if OperandValue_( c, bp->lhs, cast( Fbx.TypeId, ptypes[0] ), _
+                          (prefs[0] <> 0), args ) = false then return false
+        firstArg = 1
+    end if
+    if OperandValue_( c, bp->rhs, cast( Fbx.TypeId, ptypes[firstArg] ), _
+                      (prefs[firstArg] <> 0), args ) = false then return false
+
+    dim as MirType rmt = mt
+    if os->type_ <> Fbx.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    outv = EmitDirectCall_( c, op, rmt, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' One operator operand, pushed as the parameter wants it.
+private function OperandValue_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byval pt as Fbx.TypeId, _
+      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
+
+    dim as MirValue v
+    if byref_ then
+        v = LowerAddr( c, e )
+        if v.kind = cast( ubyte, MV_NONE ) then
+            '' An operand with no address -- another operator's result -- gets a
+            '' temporary, the same answer a byref call argument gets.
+            dim as MirValue rv = LowerExpr( c, e )
+            if rv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirType pmt = LowerType( pt, *c.types )
+            if pmt = MT_VOID then return false
+            dim as long sz = c.types->Layout( pt ).size
+            if pmt = MT_AGG then sz = SizeOfType( c, pt )
+            dim as long slot = NewTempLocal( c, pmt, sz )
+            if slot < 0 then return false
+            dim as MirValue tmp
+            tmp.kind = cast( ubyte, MV_LOCAL )
+            tmp.ty = cast( ubyte, MT_PTR )
+            tmp.id = slot
+            if pmt <> MT_AGG then rv = Coerce( c, rv, pmt, IsUnsignedType( c, pt ) )
+            StoreThrough( c, tmp, rv )
+            v = tmp
+        end if
+    else
+        v = LowerExpr( c, e )
+        if v.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirType pmt = LowerType( pt, *c.types )
+        if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
+            v = Coerce( c, v, pmt, IsUnsignedType( c, pt ) )
+        end if
+    end if
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    return true
+end function
+
 '' 't.V' as a value: the GETTER, called on the base.
 function LowerPropertyGet_ _
     ( byref c as Ctx, byval node as Fbx.NodeId, byref outv as MirValue ) as boolean

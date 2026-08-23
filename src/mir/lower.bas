@@ -440,6 +440,12 @@ function LowerExpr _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Fbx.TokenKind tk = cast( Fbx.TokenKind, bp->op )
 
+        '' A USER-DEFINED OPERATOR IS A CALL. Check bound it to this node; without
+        '' the call 'x - y' over two UDTs subtracted the raw aggregates as integers --
+        '' emitted, verified, and never reaching the operator that was written.
+        dim as MirValue uov
+        if LowerUserBinaryOp_( c, id, bp, mt, uov ) then return uov
+
         '' ANDALSO and ORELSE must not evaluate the right side unless they have to,
         '' so they are control flow, not an opcode.
         if (tk = Fbx.KW_ANDALSO) orelse (tk = Fbx.KW_ORELSE) then
