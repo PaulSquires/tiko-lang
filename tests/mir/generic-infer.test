@@ -1,0 +1,7 @@
+'' Generic procedure type arguments inferred from the call's arguments.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-infer.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-infer.out

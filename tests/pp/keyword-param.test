@@ -1,0 +1,5 @@
+'' A macro parameter named after a keyword -- declared, stringised and pasted.
+'' TEST: cli
+'' ARGS: --dump-tokens=pp tests/pp/src/keyword-param.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/keyword-param.out

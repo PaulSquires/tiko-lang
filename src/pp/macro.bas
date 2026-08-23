@@ -33,6 +33,28 @@ end function
 ''     #macro m ( a )         a PARAMETER list, space and all
 ''
 '' so '#macro t ? ( n, stmt... )' -- which the corpus writes -- takes two arguments.
+'' THE NAME A MACRO PARAMETER IS DECLARED OR REFERENCED BY, or 0 when the token is not
+'' a name at all. A KEYWORD counts: '#macro M( T, WIDTH, MASKALL )' is what fb/mathint.bi
+'' writes, and WIDTH is the WIDTH statement. Measured -- fbc accepts it and substitutes
+'' it like any other parameter.
+''
+'' Only the DECLARATION was rejected, so the macro was recorded as taking TWO parameters
+'' and every use of it reported 'takes 2 argument(s)'. That is one file's whole header
+'' failing to parse, and with it every test written against the module.
+''
+'' The keyword's own lowercase spelling is interned, which is what PpDefine already does
+'' for a macro NAMED after a keyword -- both sides have to agree or the reference in the
+'' body would not match the parameter in the list.
+private function ParamNameId_ _
+    ( byref e as PpEngine, byref t as Token ) as InternId
+
+    if Tk( t ) = TK_IDENT then return cast( InternId, t.literal )
+    if IsKeywordKind( Tk( t ) ) then
+        return e.names->GetString( Text.LowerAscii( TokenKindText( Tk( t ) ) ) )
+    end if
+    return 0
+end function
+
 private sub PpReadParams( byref e as PpEngine, byval m as PpMacro ptr, byval isBlock as boolean )
     dim as Token t
     if PeekOnLine( e, t ) = false then return
@@ -50,8 +72,9 @@ private sub PpReadParams( byref e as PpEngine, byval m as PpMacro ptr, byval isB
             exit do
         end if
 
-        if Tk( t ) = TK_IDENT then
-            m->params.Push( cast( ulong, t.literal ) )
+        dim as InternId pn = ParamNameId_( e, t )
+        if (pn <> 0) andalso (Tk( t ) <> TK_ELLIPSIS) then
+            m->params.Push( cast( ulong, pn ) )
             Advance( e )
         elseif Tk( t ) = TK_ELLIPSIS then
             m->isVariadic = true
@@ -418,8 +441,9 @@ private function PasteSpelling_ _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
       byref t as Token ) as string
 
-    if Tk( t ) = TK_IDENT then
-        dim as long ai = ArgIndexOf( m, cast( InternId, t.literal ) )
+    dim as InternId pn = ParamNameId_( e, t )
+    if pn <> 0 then
+        dim as long ai = ArgIndexOf( m, pn )
         if ai >= 0 then return ArgText( e, args, ai )
     end if
     return SpellOf( e, t )
@@ -469,8 +493,9 @@ private sub PpSubstitute _
             dim as boolean haveNext = (i + 1 < m->body.Count)
             if haveNext then
                 dim as Token nt = m->body[i + 1]
-                if Tk( nt ) = TK_IDENT then
-                    dim as long ai = ArgIndexOf( m, cast( InternId, nt.literal ) )
+                dim as InternId np = ParamNameId_( e, nt )
+                if np <> 0 then
+                    dim as long ai = ArgIndexOf( m, np )
                     if ai >= 0 then
                         RelexInto( e, Stringised_( ArgText( e, args, ai ) ), useLoc, outv )
                         i += 2
@@ -513,8 +538,9 @@ private sub PpSubstitute _
         end if
 
         '' A plain parameter reference splices the argument's tokens.
-        if bk = TK_IDENT then
-            dim as long ai = ArgIndexOf( m, cast( InternId, bt.literal ) )
+        dim as InternId bp = ParamNameId_( e, bt )
+        if bp <> 0 then
+            dim as long ai = ArgIndexOf( m, bp )
             if ai >= 0 then
                 if ai < args.firsts.Count then
                     dim as long first = args.firsts[ai]

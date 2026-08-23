@@ -170,11 +170,123 @@ function InstantiateGeneric_ _
     return isym->type_
 end function
 
+'' THE TYPE OF ONE ARGUMENT, well enough to infer a type parameter from it -- which is
+'' much less than typing an expression. Check does that, and Check has not run.
+''
+'' A NAME and a LITERAL are the two shapes worth knowing, because they are the two the
+'' runtime headers pass: 'Some( r )' over a local, and 'Some( 3 )' over a literal. A
+'' REFERENCE is transparent -- 'byval v as T' called with a byref parameter binds T to
+'' the referent, not to a reference. Anything else returns TYPE_NONE, and the call then
+'' declines rather than instantiating at a guessed type.
+private function InferArgType_ _
+    ( byref c as Ctx, byval a as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.TypeId
+
+    if a = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+    select case c.ast->Kind( a )
+    case Fbx.N_PAREN
+        dim as Fbx.ListPayload ptr lp = ListOf( c, a )
+        if lp->count <> 1 then return Fbx.TYPE_NONE
+        return InferArgType_( c, cast( Fbx.NodeId, c.ast->children[lp->first] ), scope_ )
+    case Fbx.N_IDENT
+        dim as Fbx.InternId nm = IdentNameOf( c, a )
+        if nm = 0 then return Fbx.TYPE_NONE
+        dim as Fbx.Symbol ptr sy = c.syms->SymbolAt( c.syms->Lookup( scope_, nm ) )
+        if sy = 0 then return Fbx.TYPE_NONE
+        '' A PARAMETER too. Inside a macro-expanded 'AbsChecked( byval a as T )' the
+        '' argument to 'Some( a )' IS the parameter, which is most of what the checked
+        '' arithmetic family passes.
+        if (sy->kind <> cast( ubyte, Fbx.SYM_VARIABLE )) andalso _
+           (sy->kind <> cast( ubyte, Fbx.SYM_PARAMETER )) then return Fbx.TYPE_NONE
+        dim as Fbx.TypeId t = sy->type_
+        if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+        if c.types->Kind( t ) = Fbx.TK_REFERENCE then t = c.types->Inner( t )
+        return t
+    case Fbx.N_CALL
+        '' 'Some( cast( T, a \ b ) )' -- A CONVERSION NAMES ITS OWN TYPE, which is
+        '' the whole answer and needs no expression typing at all. The corpus writes it
+        '' more often than it writes a bare name: every narrowing result in the checked
+        '' arithmetic family is a cast.
+        dim as Fbx.ListPayload ptr cp = ListOf( c, a )
+        if cp->count < 1 then return Fbx.TYPE_NONE
+        if cp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+        if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
+        dim as Fbx.InternId cn = IdentNameOf( c, cp->target )
+        if cn = 0 then return Fbx.TYPE_NONE
+        if Fbx.Text.LowerAscii( c.names->Spelling( cn ) ) <> "cast" then
+            return Fbx.TYPE_NONE
+        end if
+        dim as Fbx.NodeId tn = cast( Fbx.NodeId, c.ast->children[cp->first] )
+        if c.ast->Kind( tn ) <> Fbx.N_TYPEREF then return Fbx.TYPE_NONE
+        return ResolveTypeRef( c, tn, scope_ )
+    case Fbx.N_INT_LIT
+        return c.types->Builtin( Fbx.TY_INTEGER )
+    case Fbx.N_FLOAT_LIT
+        return c.types->Builtin( Fbx.TY_DOUBLE )
+    case Fbx.N_STRING_LIT
+        return c.types->Builtin( Fbx.TY_STRING )
+    end select
+    return Fbx.TYPE_NONE
+end function
+
+'' INFER THE TYPE ARGUMENTS from the call's own arguments, for a call that wrote none.
+''
+'' THE RULE IS POSITIONAL AND SHALLOW, which is what fbc's own headers document: a type
+'' parameter is inferred from a procedure parameter DECLARED AS THAT NAME AND NOTHING
+'' ELSE. 'byref v as T' infers T; 'byval p as T ptr' and 'byval o as Optional( of T )'
+'' do not, because unifying through a decoration is a different feature and guessing at
+'' it would instantiate at the wrong type silently.
+''
+'' Every parameter must come out with a type or this returns false and the call declines
+'' -- a partly-inferred instantiation is a miscompile, not a partial answer.
+private function InferProcTypeArgs_ _
+    ( byref c as Ctx, byval callId as Fbx.NodeId, byval gn as Fbx.NodeId, _
+      byval scope_ as Fbx.ScopeId, byref outT as FB.Array( of ulong ) ) as boolean
+
+    dim as Fbx.StmtPayload ptr gp = StmtOf( c, gn )
+    if gp->c = Fbx.NODE_NONE then return false
+    if c.ast->Kind( gp->c ) <> Fbx.N_BLOCK then return false
+    dim as Fbx.ListPayload ptr gl = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
+    if gl->count <= 0 then return false
+
+    dim as Fbx.ListPayload ptr cl = ListOf( c, callId )
+
+    for g as long = 0 to gl->count - 1
+        dim as Fbx.NodeId gnm = cast( Fbx.NodeId, c.ast->children[gl->first + g] )
+        if c.ast->Kind( gnm ) <> Fbx.N_IDENT then return false
+        dim as Fbx.InternId want = IdentNameOf( c, gnm )
+        if want = 0 then return false
+
+        dim as Fbx.TypeId got = Fbx.TYPE_NONE
+        for k as long = 0 to gp->count - 1
+            if k >= cl->count then exit for
+            dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[gp->first + k] )
+            if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+            dim as Fbx.StmtPayload ptr pp = StmtOf( c, prm )
+            if pp->a = Fbx.NODE_NONE then continue for
+            if c.ast->Kind( pp->a ) <> Fbx.N_TYPEREF then continue for
+            dim as Fbx.AstNode ptr tn = @c.ast->nodes[cast( long, pp->a )]
+            if (tn->flags and (Fbx.NF_PTR or Fbx.NF_PROC_TYPE or Fbx.NF_ARRAY)) <> 0 then
+                continue for
+            end if
+            dim as Fbx.StmtPayload ptr tp = StmtOf( c, pp->a )
+            if tp->name <> want then continue for
+            got = InferArgType_( c, cast( Fbx.NodeId, c.ast->children[cl->first + k] ), _
+                                 scope_ )
+            if got <> Fbx.TYPE_NONE then exit for
+        next
+        if got = Fbx.TYPE_NONE then return false
+        outT.Push( cast( ulong, got ) )
+    next
+    return true
+end function
+
 '' INSTANTIATE A GENERIC PROCEDURE -- 'Ok( of Decimal, FinanceError )( v )'.
 ''
-'' NO INFERENCE IS NEEDED. Every call site in the runtime headers writes the type
-'' arguments out, which is also the only form fbx's parser keeps, so the instantiation's
-'' whole input is right there on the call.
+'' The type arguments may be WRITTEN OUT or INFERRED from the call's arguments.
+'' 'Some( r )' is the shape fb/optional.bi and fb/mathint.bi use everywhere -- a free
+'' generic procedure exists precisely so T comes off the argument -- and declining it
+'' cost 88 statements in every file that includes either header.
 ''
 '' Same machinery as the TYPE half and for the same reason: SemanticInfo is keyed by
 '' NodeId, so the body is RE-PARSED from the token range the parser recorded and the
@@ -188,9 +300,9 @@ function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.SymbolId
 
     if c.parser = 0 then return Fbx.SYMBOL_NONE
-    dim as long taFirst, taCount
-    if c.ast->CallTypeArgsOf( callId, taFirst, taCount ) = false then return Fbx.SYMBOL_NONE
     if c.ast->Kind( callId ) <> Fbx.N_CALL then return Fbx.SYMBOL_NONE
+    dim as long taFirst, taCount
+    dim as boolean written = c.ast->CallTypeArgsOf( callId, taFirst, taCount )
 
     dim as Fbx.ListPayload ptr lp = ListOf( c, callId )
     dim as Fbx.NodeId tgt = lp->target
@@ -215,20 +327,32 @@ function InstantiateGenericProc_ _
     if c.ast->Kind( gp->c ) <> Fbx.N_BLOCK then return Fbx.SYMBOL_NONE
     dim as Fbx.ListPayload ptr pl = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
-    if pl->count <> taCount then return Fbx.SYMBOL_NONE
+    if written andalso (pl->count <> taCount) then return Fbx.SYMBOL_NONE
 
-    '' THE ARGUMENTS, resolved where they were written. One that does not resolve means
-    '' no instantiation rather than a wrong one -- the call then declines, which is the
+    '' THE ARGUMENTS, resolved where they were written -- or inferred from the call's
+    '' own arguments where they were not. One that does not resolve means no
+    '' instantiation rather than a wrong one -- the call then declines, which is the
     '' honest outcome and the same rule the type half uses.
-    dim as string key = c.names->Spelling( gname ) & "<"
     dim as FB.Array( of ulong ) argTypes
+    if written then
+        for i as long = 0 to taCount - 1
+            dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[taFirst + i] )
+            dim as Fbx.TypeId at = ResolveTypeRef( c, an, scope_ )
+            if at = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+            argTypes.Push( cast( ulong, at ) )
+        next
+    else
+        if InferProcTypeArgs_( c, callId, gn, scope_, argTypes ) = false then
+            return Fbx.SYMBOL_NONE
+        end if
+        taCount = cast( long, argTypes.Count )
+        if pl->count <> taCount then return Fbx.SYMBOL_NONE
+    end if
+
+    dim as string key = c.names->Spelling( gname ) & "<"
     for i as long = 0 to taCount - 1
-        dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[taFirst + i] )
-        dim as Fbx.TypeId at = ResolveTypeRef( c, an, scope_ )
-        if at = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-        argTypes.Push( cast( ulong, at ) )
         if i > 0 then key += ","
-        key += str( cast( long, at ) )
+        key += str( cast( long, argTypes[i] ) )
     next
     key += ">"
 
