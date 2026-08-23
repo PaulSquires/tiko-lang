@@ -1,12 +1,16 @@
 global wstr $wstr0 "x"
 global wstr $wstr1 "y"
 global wstr $wstr2 "z"
+global wstr $wstr3 "FreeBasic"
+global wstr $wstr4 "d"
 func i32 main($0, $1) {
   local i32 $tmp0
   local agg a size 24
   local agg b size 24
   local i32 n
   local i32 c
+  local agg uf size 32
+  local agg fromfixed size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -42,6 +46,8 @@ func i32 main($0, $1) {
     %25 = const i64 -9223372036854775807
     %26 = call.rtl i32 fb_UStrCompare(@a, -1, @@$wstr0, %25)
     %27 = icmp.eq %26, 0
+    %32 = alloca ptr uf
+    %39 = alloca ptr fromfixed
     condbr %27, if.then2, if.else3
   if.join1:
     call.rtl void fb_PrintUStr(0, @a, 2)
@@ -50,12 +56,26 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintInt(0, %30, 2)
     %31 = load @c
     call.rtl void fb_PrintInt(0, %31, 1)
+    %33 = const i64 -9223372036854775793
+    %34 = const i64 -9223372036854775799
+    %35 = call.rtl ptr fb_UStrAssign(@uf, %33, @@$wstr3, %34, -1)
+    %36 = const i64 -9223372036854775793
+    %37 = const i64 -9223372036854775807
+    %38 = call.rtl ptr fb_UStrAssign(@uf, %36, @@$wstr4, %37, -1)
+    %40 = field.addr @fromfixed, 0
+    store %40, 0
+    %41 = field.addr @fromfixed, 8
+    store %41, 0
+    %42 = field.addr @fromfixed, 16
+    store %42, 0
+    call.rtl void fb_PrintUStr(0, @fromfixed, 1)
+    call.rtl void fb_UStrDelete(@fromfixed)
     call.rtl void fb_UStrDelete(@b)
     call.rtl void fb_UStrDelete(@a)
-    %32 = const i32 0
-    call.rtl void fb_End(%32)
-    %33 = load @$tmp0
-    ret %33
+    %43 = const i32 0
+    call.rtl void fb_End(%43)
+    %44 = load @$tmp0
+    ret %44
   if.then2:
     %28 = const i64 1
     %29 = trunc %28
@@ -75,4 +95,4 @@ declare void fb_PrintInt($0, $1, $2)
 declare void fb_UStrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 4 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 4 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance

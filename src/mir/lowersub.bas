@@ -1122,7 +1122,8 @@ declare function FlattenUdtFields_ _
 
 function LowerZstrAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
-      byval value as Tko.NodeId, byval isInit as boolean ) as boolean
+      byval value as Tko.NodeId, byval isInit as boolean, _
+      byval isU as boolean = false ) as boolean
 
     '' THE TRAILING ARGUMENT DEPENDS ONLY ON THE DESTINATION, and it is -1 for a
     '' FIXED-LENGTH string and 0 for everything else -- measured across all three
@@ -1136,13 +1137,20 @@ function LowerZstrAssignTo _
 
     if c.ast->Kind( value ) = Tko.N_STRING_LIT then
         dim as string lit = StringLitText_( c, value )
-        args.Push( cast( ulong, MV_GLOBAL ) )
-        args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, len( lit ) + 1 ) )
+        '' A USTRING DESTINATION TAKES A UTF-16 LITERAL, and its length is the tagged
+        '' CHARACTER COUNT rather than the narrow family's len+1.
+        if isU then
+            PushUStrLiteralArg( c, args, _
+                c.m->AddWideStringLiteral( lit, *c.names ), len( lit ) )
+        else
+            args.Push( cast( ulong, MV_GLOBAL ) )
+            args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, len( lit ) + 1 ) )
+        end if
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, tail ) )
-        EmitRtl( c, RTL_STR_ASSIGN, args )
+        EmitRtl( c, iif( isU, RTL_USTR_ASSIGN, RTL_STR_ASSIGN ), args )
         return true
     end if
 
@@ -1153,14 +1161,15 @@ function LowerZstrAssignTo _
     '' A FIXED-LENGTH SOURCE is addressable like the other two and carries its own
     '' encoded length -- kind 3, which this test used to exclude, so 'a = b' over two
     '' 'string * 32's fell through to the descriptor path and then declined.
-    if (sk = 0) orelse (sk = 1) orelse (sk = 3) then
+    '' Kind 4 is a fixed USTRING source, addressable and encoded the same way.
+    if (sk = 0) orelse (sk = 1) orelse (sk = 3) orelse (sk = 4) then
         dim as MirValue src = LowerAddr( c, value )
         if src.kind <> cast( ubyte, MV_NONE ) then
             args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
             PushStrLen_( c, args, zn )
             args.Push( cast( ulong, MV_CONST_INT ) )
             args.Push( cast( ulong, tail ) )
-            EmitRtl( c, RTL_STR_ASSIGN, args )
+            EmitRtl( c, iif( isU, RTL_USTR_ASSIGN, RTL_STR_ASSIGN ), args )
             return true
         end if
     end if

@@ -398,7 +398,8 @@ declare function EmitRtl _
     declare function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function LowerZstrAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
-          byval value as Tko.NodeId, byval isInit as boolean ) as boolean
+          byval value as Tko.NodeId, byval isInit as boolean, _
+          byval isU as boolean = false ) as boolean
     declare function LowerStrRvalue _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function ConcatToTemp_ _

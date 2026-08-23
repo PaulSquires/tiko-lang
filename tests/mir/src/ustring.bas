@@ -34,3 +34,25 @@ if a = "x" then c = 1
 
 '' fb_PrintUStr, not fb_PrintString -- which would print the UTF-16 bytes as narrow.
 print a, b, n, c
+
+'' A FIXED 'ustring * N' DESTINATION, whose tag is N MINUS ONE where 'string * N' uses
+'' N. Measured, both on win64:
+''
+''     dim as string  * 8 s   ->  fb_StrInit ( S, &h8000000000000008, ... )
+''     dim as ustring * 8 u   ->  fb_UStrInit( U, &h8000000000000007, ... )
+''
+'' so its capacity is N-1 usable characters, exactly as 'zstring * N' is, and the fixed
+'' NARROW string is the odd one out. Nothing about the two spellings says which, and
+'' getting it wrong writes one character past the end.
+''
+'' Before this was modelled the whole declaration emitted NOTHING -- no initialisation
+'' at all -- and reported "0 statements not lowered" while doing it. A silent skip is
+'' invisible to the decline count by construction.
+'' KNOWN DIFFERENCE: fbc uses fb_UStrInit for the DECLARATION and fb_UStrAssign for a
+'' later store; the fixed path here uses Assign for both. They are equivalent for a
+'' FIXED string -- there is no descriptor to release -- and this predates the ustring
+'' work: the narrow 'string * N' path does the same.
+dim as ustring * 16 uf = "FreeBasic"
+uf = "d"
+dim as ustring fromFixed = uf
+print fromFixed

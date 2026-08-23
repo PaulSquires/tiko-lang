@@ -397,10 +397,12 @@ private sub LowerAssign _
     '' same thing for both: fb_StrAssign( FA, 8, &C, -1, 0 ).
     dim as longint zdn
     dim as long zdk = StrSwapKind_( c, c.info->TypeOf_( target ), zdn )
-    if (zdk = 1) orelse (zdk = 3) then
+    '' Kind 4 is a fixed USTRING, which takes the same shape through the UTF-16
+    '' entry points.
+    if (zdk = 1) orelse (zdk = 3) orelse (zdk = 4) then
         dim as MirValue zdst = LowerAddr( c, target )
         if zdst.kind <> cast( ubyte, MV_NONE ) then
-            if LowerZstrAssignTo( c, zdst, zdn, value, false ) then return
+            if LowerZstrAssignTo( c, zdst, zdn, value, false, (zdk = 4) ) then return
         end if
         SkipHere( c )
         return
@@ -919,12 +921,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             if needsStore andalso (slot >= 0) then
                 dim as longint zn2
                 dim as long zk2 = StrSwapKind_( c, c.syms->SymbolAt( sid )->type_, zn2 )
-                if (zk2 = 1) orelse (zk2 = 3) then
+                if (zk2 = 1) orelse (zk2 = 3) orelse (zk2 = 4) then
                     dim as MirValue zdst
                     zdst.kind = cast( ubyte, MV_LOCAL )
                     zdst.ty = cast( ubyte, MT_PTR )
                     zdst.id = slot
-                    if LowerZstrAssignTo( c, zdst, zn2, ip->b, true ) then needsStore = false
+                    if LowerZstrAssignTo( c, zdst, zn2, ip->b, true, (zk2 = 4) ) then _
+                        needsStore = false
                 end if
             end if
 

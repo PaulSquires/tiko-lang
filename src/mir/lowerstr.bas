@@ -827,6 +827,18 @@ function StrSwapKind_ _
     select case c.types->BuiltinOf( el )
     case Tko.TY_ZSTRING : return 1
     case Tko.TY_WSTRING : return 2
+    case Tko.TY_FIXUSTR
+        '' 'ustring * N' -- the FIXED-LENGTH UTF-16 flavour, and its tag is N MINUS
+        '' ONE where 'string * N' uses N. Measured, both on win64:
+        ''
+        ''     dim as string  * 8 s   ->  fb_StrInit ( S, &h8000000000000008, ... )
+        ''     dim as ustring * 8 u   ->  fb_UStrInit( U, &h8000000000000007, ... )
+        ''
+        '' so its capacity is N-1 usable characters, exactly as 'zstring * N' is, and
+        '' the fixed narrow string is the odd one out. Nothing about the two spellings
+        '' says which, and getting it wrong writes one character past the end.
+        n = FixedStrLenArg_( c, n - 1 )
+        return 4
     case Tko.TY_FIXSTR
         '' 'string * N' -- the FIXED-LENGTH, space-padded flavour. 'n' comes back
         '' ENCODED, because that is the only form any runtime call wants it in, and
