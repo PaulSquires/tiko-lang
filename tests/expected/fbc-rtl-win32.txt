@@ -184,6 +184,7 @@ fb_StrLset	void	FBSTRING*, FBSTRING*	lib	_fb_StrLset@8
 fb_StrMid	FBSTRING*	FBSTRING*, int32, int32	lib	_fb_StrMid@12
 fb_StrRset	void	FBSTRING*, FBSTRING*	lib	_fb_StrRset@8
 fb_StrSwap	void	void*, int32, int32, void*, int32, int32	lib	_fb_StrSwap@24
+fb_StrToUStr	FBUSTRING*	void*, int32	lib	_fb_StrToUStr@8
 fb_StrToWstr	uint16*	char*	lib	_fb_StrToWstr@4
 fb_StrUcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrUcase2@8
 fb_TRIM	FBSTRING*	FBSTRING*	lib	_fb_TRIM@4
@@ -194,9 +195,14 @@ fb_UIntToWstr	uint16*	uint32	lib	_fb_UIntToWstr@4
 fb_ULongintToStr	FBSTRING*	uint64	lib	_fb_ULongintToStr@8
 fb_ULongintToWstr	uint16*	uint64	lib	_fb_ULongintToWstr@8
 fb_UStrAssign	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrAssign@20
+fb_UStrAssignFromA	FBUSTRING*	void*, int32, void*, int32, int32, int32	lib	_fb_UStrAssignFromA@24
+fb_UStrAssignToA	FBSTRING*	void*, int32, void*, int32, int32, int32	lib	_fb_UStrAssignToA@24
+fb_UStrAssignToW	uint16*	uint16*, int32, void*, int32	lib	_fb_UStrAssignToW@16
 fb_UStrCompare	int32	void*, int32, void*, int32	lib	_fb_UStrCompare@16
 fb_UStrConcat	FBUSTRING*	FBUSTRING*, void*, int32, void*, int32	lib	_fb_UStrConcat@20
+fb_UStrConcatAU	FBUSTRING*	FBUSTRING*, void*, int32, void*, int32	lib	_fb_UStrConcatAU@20
 fb_UStrConcatAssign	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrConcatAssign@20
+fb_UStrConcatUA	FBUSTRING*	FBUSTRING*, void*, int32, void*, int32	lib	_fb_UStrConcatUA@20
 fb_UStrDelete	void	FBUSTRING*	lib	_fb_UStrDelete@4
 fb_UStrInit	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrInit@20
 fb_UStrLen	int32	void*, int32	lib	_fb_UStrLen@8
@@ -274,6 +280,7 @@ fb_WstrRight	uint16*	uint16*, int32	lib	_fb_WstrRight@8
 fb_WstrRset	void	uint16*, uint16*	lib	_fb_WstrRset@8
 fb_WstrSwap	void	uint16*, int32, uint16*, int32	lib	_fb_WstrSwap@16
 fb_WstrToStr	FBSTRING*	uint16*	lib	_fb_WstrToStr@4
+fb_WstrToUStr	FBUSTRING*	uint16*	lib	_fb_WstrToUStr@4
 fb_WstrTrim	uint16*	uint16*	lib	_fb_WstrTrim@4
 fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	_fb_WstrTrimAny@8
 fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrTrimEx@8

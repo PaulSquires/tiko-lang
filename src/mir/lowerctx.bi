@@ -499,6 +499,32 @@ declare function EmitRtl _
     '' never does.
     declare sub PushStrArg _
         ( byref args as FB.Array( of ulong ), byref addr as MirValue )
+    '' The FLAVOUR of one term of a string chain -- see lowerterm.bas. NEUTRAL follows
+    '' the destination: a literal, a string constant, a rendered number, an untyped
+    '' intrinsic call.
+    const STF_NEUTRAL as long = 0
+    const STF_NARROW  as long = 1
+    const STF_WIDE    as long = 2
+    const STF_UTF16   as long = 3
+    declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
+    declare function UStrCmpOperand_ _
+        ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+          byval term as Tko.NodeId ) as boolean
+    declare function WideTermAsUStr_ _
+        ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IsUStringDest_( byref c as Ctx, byref dst as MirValue ) as boolean
+    declare function LowerStrConvertTerm _
+        ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+          byval term as Tko.NodeId, byval isInit as boolean ) as boolean
+    declare function LowerNarrowChainToU_ _
+        ( byref c as Ctx, byref dst as MirValue, _
+          byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+    declare function LowerUStrChain _
+        ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+          byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+    declare function StrChainNeedsConvert _
+        ( byref c as Ctx, byval dstIsU as boolean, _
+          byref terms as FB.Array( of ulong ) ) as boolean
     declare sub PushStrLiteralArg _
         ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
     declare sub PushStrLen_ _

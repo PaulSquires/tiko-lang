@@ -184,6 +184,7 @@ fb_StrLset	void	FBSTRING*, FBSTRING*	lib	fb_StrLset
 fb_StrMid	FBSTRING*	FBSTRING*, int64, int64	lib	fb_StrMid
 fb_StrRset	void	FBSTRING*, FBSTRING*	lib	fb_StrRset
 fb_StrSwap	void	void*, int64, int32, void*, int64, int32	lib	fb_StrSwap
+fb_StrToUStr	FBUSTRING*	void*, int64	lib	fb_StrToUStr
 fb_StrToWstr	uint16*	char*	lib	fb_StrToWstr
 fb_StrUcase2	FBSTRING*	FBSTRING*, int32	lib	fb_StrUcase2
 fb_TRIM	FBSTRING*	FBSTRING*	lib	fb_TRIM
@@ -194,9 +195,14 @@ fb_UIntToWstr	uint16*	uint32	lib	fb_UIntToWstr
 fb_ULongintToStr	FBSTRING*	uint64	lib	fb_ULongintToStr
 fb_ULongintToWstr	uint16*	uint64	lib	fb_ULongintToWstr
 fb_UStrAssign	FBUSTRING*	void*, int64, void*, int64, int32	lib	fb_UStrAssign
+fb_UStrAssignFromA	FBUSTRING*	void*, int64, void*, int64, int32, int32	lib	fb_UStrAssignFromA
+fb_UStrAssignToA	FBSTRING*	void*, int64, void*, int64, int32, int32	lib	fb_UStrAssignToA
+fb_UStrAssignToW	uint16*	uint16*, int64, void*, int64	lib	fb_UStrAssignToW
 fb_UStrCompare	int32	void*, int64, void*, int64	lib	fb_UStrCompare
 fb_UStrConcat	FBUSTRING*	FBUSTRING*, void*, int64, void*, int64	lib	fb_UStrConcat
+fb_UStrConcatAU	FBUSTRING*	FBUSTRING*, void*, int64, void*, int64	lib	fb_UStrConcatAU
 fb_UStrConcatAssign	FBUSTRING*	void*, int64, void*, int64, int32	lib	fb_UStrConcatAssign
+fb_UStrConcatUA	FBUSTRING*	FBUSTRING*, void*, int64, void*, int64	lib	fb_UStrConcatUA
 fb_UStrDelete	void	FBUSTRING*	lib	fb_UStrDelete
 fb_UStrInit	FBUSTRING*	void*, int64, void*, int64, int32	lib	fb_UStrInit
 fb_UStrLen	int64	void*, int64	lib	fb_UStrLen
@@ -274,6 +280,7 @@ fb_WstrRight	uint16*	uint16*, int64	lib	fb_WstrRight
 fb_WstrRset	void	uint16*, uint16*	lib	fb_WstrRset
 fb_WstrSwap	void	uint16*, int64, uint16*, int64	lib	fb_WstrSwap
 fb_WstrToStr	FBSTRING*	uint16*	lib	fb_WstrToStr
+fb_WstrToUStr	FBUSTRING*	uint16*	lib	fb_WstrToUStr
 fb_WstrTrim	uint16*	uint16*	lib	fb_WstrTrim
 fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrTrimAny
 fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrTrimEx

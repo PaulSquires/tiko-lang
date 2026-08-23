@@ -542,8 +542,15 @@ private function StrCaseCompare_ _
                 isU = IsUStringType( c, c.f->locals[slotAddr.id].frontendType )
             end if
         end if
-        if EmitStrTerm( c, args, val, isU ) = false then return none_
-        cmp = EmitRtl( c, iif( isU, RTL_USTR_COMPARE, RTL_STR_COMPARE ), args )
+        '' A REAL STRING AS THE CASE VALUE IS CONVERTED, not reinterpreted -- the same
+        '' fact as an ordinary ustring comparison. A literal still follows the subject.
+        if isU then
+            if UStrCmpOperand_( c, args, val ) = false then return none_
+            cmp = EmitRtl( c, RTL_USTR_COMPARE, args )
+        else
+            if EmitStrTerm( c, args, val, false ) = false then return none_
+            cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+        end if
     end if
     if cmp.kind = cast( ubyte, MV_NONE ) then return none_
 

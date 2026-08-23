@@ -67,8 +67,30 @@ end function
 '' byte length INCLUDING the NUL while a descriptor passes -1. A plain "abc" is NOT
 '' widened at compile time in a bare assignment -- that only happens where the target is
 '' already a uint16*.
+'' A USTRING IS NOT A NARROW STRING, and the wide path is tried on the way past every
+'' assignment. IsStringType says yes to a ustring, so 'v = p + u' over a ustring
+'' destination was claimed here and emitted fb_WstrConcatWA over the ustring operand
+'' and then fb_WstrAssignToA into the ustring descriptor -- a wstring written where a
+'' UTF-16 descriptor lives. It lowered and it verified.
+''
+'' A ustring anywhere in the chain belongs to the conversion fold in lowerterm.bas,
+'' which transcodes through fb_WstrToUStr instead.
+private function ChainTouchesU_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, value, terms )
+    for i as long = 0 to terms.Count - 1
+        if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, terms[i] ) ) ) then
+            return true
+        end if
+    next
+    return false
+end function
+
 function LowerWideAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    if IsUStringType( c, c.info->TypeOf_( target ) ) then return false
+    if ChainTouchesU_( c, value ) then return false
 
     '' THE COUNT IS 0 FOR A 'byref as wstring' PARAMETER, and that is the length fbc
     '' passes for one -- 'fb_WstrAssign( C$1, 0ll, ... )'. Reading 0 as "not a wide
@@ -241,6 +263,8 @@ function LowerWideToNarrow _
     '' assignment this function then declined -- which is most of them, since it is
     '' tried on the way past.
     dim as Tko.TypeId dt = c.info->TypeOf_( target )
+    if IsUStringType( c, dt ) then return false
+    if ChainTouchesU_( c, value ) then return false
     dim as longint dn = -1
     if IsStringType( c, dt ) = false then
         if StrSwapKind_( c, dt, dn ) <> 1 then return false

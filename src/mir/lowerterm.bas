@@ -205,4 +205,389 @@ function EmitStrTerm _
     return true
 end function
 
+'' ------------------------------------------------------- ustring CONVERSION
+''
+'' A USTRING NEVER CONVERTS BY COPYING. It transcodes, and which entry point does it
+'' depends on the flavours of BOTH sides -- which is exactly what was missing: the
+'' flavour came from the DESTINATION alone and every term was pushed as if it shared
+'' it, so 'u = q' over a narrow string called fb_UStrAssign and put UTF-8 bytes in a
+'' UTF-16 descriptor. It lowered, it verified, and it was wrong every time.
+''
+'' Measured from what fbc emits, one statement at a time:
+''
+''     u = q            fb_UStrAssignFromA( u, -1, q, -1, 0, 0 )
+''     dim u = q        fb_UStrAssignFromA( u, -1, q, -1, 0, -1 )
+''     u = p            fb_WstrToUStr( p ) then the ordinary fb_UStrAssign
+''     s = u            fb_UStrAssignToA( s, -1, u, -1, 0, 0 )
+''     dim s = u        fb_UStrAssignToA( s, -1, u, -1, 0, -1 )
+''
+'' so the trailing int32 is -1 at a DECLARATION and 0 at a later store, the same
+'' distinction fb_StrInit and fb_StrAssign make by being separate functions.
+
+'' Which FLAVOUR one term of a chain is, which is not the same question as what the
+'' destination is.
+''
+'' NEUTRAL is the interesting one: a literal, a string CONSTANT and a rendered NUMBER
+'' all follow the destination -- measured, 'u = u & "lit"' emits the UTF-16 literal
+'' straight into fb_UStrConcatAssign and 'u = u & n' renders the number narrow and
+'' hands THAT to the same entry point. An untyped term is neutral too, because Check
+'' computes no type for an intrinsic call and following the destination is what the
+'' code did before any of this.
+function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
+
+    dim as Tko.NodeId t2 = Unparen_( c, term )
+    if c.ast->Kind( t2 ) = Tko.N_STRING_LIT then return STF_NEUTRAL
+    if c.ast->Kind( t2 ) = Tko.N_IDENT then
+        dim as string ct
+        if ConstStringTextOf_( c, t2, ct ) then return STF_NEUTRAL
+    end if
+
+    dim as Tko.TypeId tt = c.info->TypeOf_( t2 )
+    if tt = Tko.TYPE_NONE then return STF_NEUTRAL
+    if IsUStringType( c, tt ) then return STF_UTF16
+    if WideStringElems( c, tt ) > 0 then return STF_WIDE
+    if c.types->Kind( tt ) = Tko.TK_BUILTIN then
+        if c.types->BuiltinOf( tt ) = Tko.TY_WSTRING then return STF_WIDE
+    end if
+    if IsStringType( c, tt ) then return STF_NARROW
+    dim as longint sn
+    if StrSwapKind_( c, tt, sn ) >= 0 then return STF_NARROW
+    return STF_NEUTRAL
+end function
+
+'' A WIDE term as a USTRING DESCRIPTOR -- fb_WstrToUStr, which takes the bare uint16*
+'' and hands back a descriptor the ordinary ustring entry points accept.
+function WideTermAsUStr_ _
+    ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as MirValue wp
+    if WideOperand_( c, term, wp ) = false then return false
+    if wp.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) wargs
+    wargs.Push( cast( ulong, wp.kind ) ) : wargs.Push( cast( ulong, wp.id ) )
+    outv = EmitRtl( c, RTL_WSTR_TO_USTR, wargs )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' ONE term into a destination of a DIFFERENT flavour. False when the two agree, which
+'' leaves the caller's existing path to handle it, and false again for a mismatch this
+'' does not model -- a chain, or a WIDE destination -- because emitting the same-flavour
+'' call anyway is what produced the wrong bytes in the first place.
+function LowerStrConvertTerm _
+    ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+      byval term as Tko.NodeId, byval isInit as boolean ) as boolean
+
+    dim as long tf = StrTermFlavour_( c, term )
+    dim as longint flag = 0
+    if isInit then flag = -1
+
+    if dstIsU then
+        if tf = STF_NARROW then
+            dim as FB.Array( of ulong ) args
+            PushStrArg( args, dst )
+            if EmitStrTerm( c, args, term, false ) = false then return false
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, flag ) ) )
+            return (EmitRtl( c, RTL_USTR_FROM_A, args ).kind <> cast( ubyte, MV_NONE ))
+        end if
+        if tf = STF_WIDE then
+            dim as MirValue uv
+            if WideTermAsUStr_( c, term, uv ) = false then return false
+            dim as FB.Array( of ulong ) args
+            PushStrArg( args, dst )
+            PushStrArg( args, uv )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            dim as long which = RTL_USTR_ASSIGN
+            if isInit then which = RTL_USTR_INIT
+            return (EmitRtl( c, which, args ).kind <> cast( ubyte, MV_NONE ))
+        end if
+        return false
+    end if
+
+    '' A NARROW destination with a UTF-16 source is the same fact the other way round.
+    if tf = STF_UTF16 then
+        dim as FB.Array( of ulong ) args
+        PushStrArg( args, dst )
+        if EmitStrTerm( c, args, term, true ) = false then return false
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, flag ) ) )
+        return (EmitRtl( c, RTL_USTR_TO_A, args ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
+'' True when a chain cannot be built with ONE flavour's entry points -- any term of a
+'' flavour the destination is not. The caller declines rather than emitting the
+'' same-flavour call over a source that is not that flavour.
+function StrChainNeedsConvert _
+    ( byref c as Ctx, byval dstIsU as boolean, _
+      byref terms as FB.Array( of ulong ) ) as boolean
+
+    for i as long = 0 to terms.Count - 1
+        dim as long tf = StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        if tf = STF_NEUTRAL then continue for
+        if dstIsU then
+            if tf <> STF_UTF16 then return true
+        else
+            if tf = STF_UTF16 then return true
+        end if
+    next
+    return false
+end function
+
+'' The destination's flavour when there is no NODE to ask -- a string-returning
+'' function's result descriptor, or a declaration's slot. The SLOT carries the frontend
+'' type, which is the only thing that knows a ustring from a string here.
+function IsUStringDest_( byref c as Ctx, byref dst as MirValue ) as boolean
+    if dst.kind <> cast( ubyte, MV_LOCAL ) then return false
+    if dst.id < 0 then return false
+    if dst.id >= c.f->locals.Count then return false
+    return IsUStringType( c, c.f->locals[dst.id].frontendType )
+end function
+
+'' One term of a mixed chain pushed as the (pointer, length) pair the chosen entry point
+'' wants. 'wantU' is the flavour that SIDE of the call takes, which is not always the
+'' term's own: a WIDE term becomes a ustring descriptor through fb_WstrToUStr, and a
+'' neutral one follows whatever it was asked for.
+private function PushChainTerm_ _
+    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+      byval term as Tko.NodeId, byval wantU as boolean ) as boolean
+
+    if wantU then
+        if StrTermFlavour_( c, term ) = STF_WIDE then
+            dim as MirValue uv
+            if WideTermAsUStr_( c, term, uv ) = false then return false
+            PushStrArg( args, uv )
+            return true
+        end if
+    end if
+    return EmitStrTerm( c, args, term, wantU )
+end function
+
+'' A MIXED-FLAVOUR CHAIN, folded LEFT TO RIGHT with a fresh temporary per step. Every
+'' shape below was read out of what fbc emits:
+''
+''     v = q + u + r     UStrConcatAU( t1, q, u )   UStrConcatUA( t2, t1, r )
+''     v = q + r + u     StrConcat   ( t1, q, r )   UStrConcatAU( t2, t1, u )
+''     v = u + q + r     UStrConcatUA( t1, u, q )   UStrConcatUA( t2, t1, r )
+''     s = q + u + r     the same fold, then UStrAssignToA
+''     v = "lit" + q + u StrConcat   ( t1, lit, q ) UStrConcatAU( t2, t1, u )
+''     v = p + u         WstrToUStr( p ) then UStrConcat
+''
+'' so the ACCUMULATOR has a flavour of its own and the entry point names which side is
+'' the ustring: UA when the accumulator is, AU when the term is, plain UStrConcat when
+'' both are and fb_StrConcat when neither is. A NEUTRAL term -- a literal, a constant, a
+'' rendered number -- takes the accumulator's flavour, which is what makes '"lit" + q'
+'' fold narrow before the ustring arrives.
+''
+'' ONE MEASURED SHAPE IS REFUSED rather than approximated: a chain with a NARROW term, a
+'' WIDE one and a ustring folds the narrow prefix into a WIDE temporary first --
+'' 'fb_WstrConcatAW' then 'fb_WstrToUStr' -- which is the wide path's business and not
+'' this fold's. It declines.
+function LowerUStrChain _
+    ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+      byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+
+    if terms.Count < 2 then return false
+
+    dim as boolean hasN = false, hasW = false, hasU = false
+    for i as long = 0 to terms.Count - 1
+        select case StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        case STF_NARROW : hasN = true
+        case STF_WIDE   : hasW = true
+        case STF_UTF16  : hasU = true
+        end select
+    next
+    if hasU = false then return false
+    if hasW andalso hasN then return false
+
+    '' The accumulator starts as the FIRST NON-NEUTRAL term's flavour, and a wide one
+    '' becomes UTF-16 as soon as it meets a ustring -- which is every chain here.
+    dim as boolean accU = dstIsU
+    for i as long = 0 to terms.Count - 1
+        dim as long f0 = StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        if f0 = STF_NEUTRAL then continue for
+        accU = (f0 <> STF_NARROW)
+        exit for
+    next
+
+    dim as MirValue acc
+    dim as boolean haveAcc = false
+
+    for i as long = 1 to terms.Count - 1
+        dim as Tko.NodeId tn = cast( Tko.NodeId, terms[i] )
+        dim as long tf = StrTermFlavour_( c, tn )
+        dim as boolean termU = (tf = STF_UTF16) orelse (tf = STF_WIDE)
+        if tf = STF_NEUTRAL then termU = accU
+
+        dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        dim as MirValue tmp
+        tmp.kind = cast( ubyte, MV_LOCAL )
+        tmp.ty = cast( ubyte, MT_PTR )
+        tmp.id = slot
+
+        dim as FB.Array( of ulong ) args
+        args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
+
+        '' The LEFT operand: the previous step's result, or the first term.
+        if haveAcc then
+            PushStrArg( args, acc )
+        else
+            if PushChainTerm_( c, args, cast( Tko.NodeId, terms[0] ), accU ) = false then
+                return false
+            end if
+        end if
+        if PushChainTerm_( c, args, tn, termU ) = false then return false
+
+        dim as long which = RTL_STR_CONCAT
+        if accU andalso termU then
+            which = RTL_USTR_CONCAT
+        elseif accU then
+            which = RTL_USTR_CONCAT_UA
+        elseif termU then
+            which = RTL_USTR_CONCAT_AU
+        end if
+        acc = EmitRtl( c, which, args )
+        if acc.kind = cast( ubyte, MV_NONE ) then return false
+        haveAcc = true
+        accU = accU orelse termU
+    next
+
+    '' ...and the accumulator into the destination, which is the same four-way choice
+    '' one more time.
+    dim as longint flag = 0
+    if isInit then flag = -1
+    dim as FB.Array( of ulong ) fin
+    PushStrArg( fin, dst )
+    PushStrArg( fin, acc )
+    fin.Push( cast( ulong, MV_CONST_INT ) ) : fin.Push( 0 )
+    if accU andalso dstIsU then
+        dim as long w2 = RTL_USTR_ASSIGN
+        if isInit then w2 = RTL_USTR_INIT
+        return (EmitRtl( c, w2, fin ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    fin.Push( cast( ulong, MV_CONST_INT ) )
+    fin.Push( cast( ulong, cast( ulongint, flag ) ) )
+    if accU then
+        return (EmitRtl( c, RTL_USTR_TO_A, fin ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    if dstIsU then
+        return (EmitRtl( c, RTL_USTR_FROM_A, fin ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
+'' AN ALL-NARROW CHAIN INTO A USTRING DESTINATION. Measured: fbc folds the narrow part
+'' with fb_StrConcat into a temporary and transcodes ONCE at the end --
+''
+''     u = q + q     fb_StrConcat( &TMP, q, -1, q, -1 )
+''                   fb_UStrAssignFromA( &U, -1, vr, -1, 0, 0 )
+''
+'' rather than transcoding each term. The trailing flag is -1 at a declaration.
+function LowerNarrowChainToU_ _
+    ( byref c as Ctx, byref dst as MirValue, _
+      byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+
+    if terms.Count < 2 then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), false ) = false then return false
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ), false ) = false then return false
+    dim as MirValue acc = EmitRtl( c, RTL_STR_CONCAT, args )
+    if acc.kind = cast( ubyte, MV_NONE ) then return false
+
+    for i as long = 2 to terms.Count - 1
+        dim as FB.Array( of ulong ) more
+        PushStrArg( more, tmp )
+        if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ), false ) = false then return false
+        more.Push( cast( ulong, MV_CONST_INT ) ) : more.Push( 0 )
+        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, more )
+    next
+
+    dim as longint flag = 0
+    if isInit then flag = -1
+    dim as FB.Array( of ulong ) fin
+    PushStrArg( fin, dst )
+    PushStrArg( fin, acc )
+    fin.Push( cast( ulong, MV_CONST_INT ) ) : fin.Push( 0 )
+    fin.Push( cast( ulong, MV_CONST_INT ) )
+    fin.Push( cast( ulong, cast( ulongint, flag ) ) )
+    return (EmitRtl( c, RTL_USTR_FROM_A, fin ).kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' ONE OPERAND OF A USTRING COMPARISON. A ustring and a literal push as they are; a real
+'' NARROW string becomes a ustring through fb_StrToUStr first and a WIDE one through
+'' fb_WstrToUStr, which is what fbc emits and what makes the comparison compare the same
+'' encoding on both sides.
+function UStrCmpOperand_ _
+    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+      byval term as Tko.NodeId ) as boolean
+
+    select case StrTermFlavour_( c, term )
+    case STF_NARROW
+        dim as FB.Array( of ulong ) sub_
+        if EmitStrTerm( c, sub_, term, false ) = false then return false
+        dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, sub_ )
+        if uv.kind = cast( ubyte, MV_NONE ) then return false
+        PushStrArg( args, uv )
+        return true
+    case STF_WIDE
+        dim as MirValue wv
+        if WideTermAsUStr_( c, term, wv ) = false then return false
+        PushStrArg( args, wv )
+        return true
+    end select
+    return EmitStrTerm( c, args, term, true )
+end function
+
+'' Moved here from lowerstr.bas at the 1500-line cap. Nothing about it changed.
+'' A byref ZSTRING parameter takes the DATA POINTER, not a descriptor and not the
+'' address of one. Measured, all three spellings:
+''
+''     P2( (char*)"lit" )     a literal: the bytes themselves
+''     P2( (char*)ZS )        a 'zstring * N': its own address
+''     P2( *(char**)&S )      a STRING: the pointer LOADED out of the descriptor
+''
+'' The wide half of this is WideOperand_, which already existed for the same reason.
+function ZstrDataOf_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) = Tko.N_STRING_LIT then
+        outv.kind = cast( ubyte, MV_GLOBAL )
+        outv.ty = cast( ubyte, MT_PTR )
+        outv.id = c.m->AddStringLiteral( StringLitText_( c, id ), *c.names )
+        return true
+    end if
+
+    dim as longint n
+    dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
+    if k = 1 then
+        outv = LowerAddr( c, id )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if k = 0 then
+        '' StrDescriptorOf_ RATHER THAN LowerAddr, so an rvalue works too: 'str( t )'
+        '' has no address, and fbc copies it into a temporary descriptor before taking
+        '' the pointer. Everything with an address comes back as its own address here,
+        '' so the variable case is unchanged.
+        dim as MirValue da
+        if StrDescriptorOf_( c, id, da ) = false then da = LowerAddr( c, id )
+        if da.kind = cast( ubyte, MV_NONE ) then return false
+        '' The data pointer is the descriptor's FIRST field, which is why this is a
+        '' plain load and not a field address.
+        outv = LowerExprLoad( c, da, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
 end namespace

@@ -70,6 +70,28 @@ namespace Tko.Mir
         RTL( RTL_USTR_LEN,           "fb_UStrLen",          "z",   "pz"    )
         RTL( RTL_USTR_DELETE,        "fb_UStrDelete",       "v",   "p"     )
         RTL( RTL_PRINT_USTR,         "fb_PrintUStr",        "v",   "lpl"   )
+        '' A USTRING NEVER CONVERTS BY COPYING -- it TRANSCODES, and every direction has
+        '' its own entry point. Measured from what fbc emits:
+        ''
+        ''   u = narrow     fb_UStrAssignFromA( u, -1, src, srcLen, 0, FLAG )
+        ''   u = wide       fb_WstrToUStr( src ) then the ordinary fb_UStrAssign
+        ''   narrow = u     fb_UStrAssignToA( dst, -1, u, -1, 0, -1 )
+        ''   wide = u       fb_UStrAssignToW( dst, dstLen, u, -1 )
+        ''   u compared     the OTHER side becomes a ustring first, fb_StrToUStr for a
+        ''                  narrow operand and fb_WstrToUStr for a wide one
+        ''   u + narrow     fb_UStrConcatUA;  narrow + u is fb_UStrConcatAU
+        ''
+        '' The trailing int32 on the two AssignFrom/To entries is -1 at a DECLARATION and
+        '' 0 at a later store -- the same distinction fb_StrInit and fb_StrAssign make by
+        '' being different functions. Copying instead of transcoding lowered and verified
+        '' and put UTF-8 bytes in a UTF-16 descriptor.
+        RTL( RTL_USTR_FROM_A,        "fb_UStrAssignFromA",  "p",   "pzpzll" )
+        RTL( RTL_USTR_TO_A,          "fb_UStrAssignToA",    "p",   "pzpzll" )
+        RTL( RTL_USTR_TO_W,          "fb_UStrAssignToW",    "p",   "pzpz"   )
+        RTL( RTL_STR_TO_USTR,        "fb_StrToUStr",        "p",   "pz"     )
+        RTL( RTL_WSTR_TO_USTR,       "fb_WstrToUStr",       "p",   "p"      )
+        RTL( RTL_USTR_CONCAT_UA,     "fb_UStrConcatUA",     "p",   "ppzpz"  )
+        RTL( RTL_USTR_CONCAT_AU,     "fb_UStrConcatAU",     "p",   "ppzpz"  )
         '' FILE GET AND PUT -- the BINARY forms, which are the ones the corpus writes.
         '' Measured: 'get( #f, pos, v )' is 'fb_FileGetLarge( f, pos, &v, sizeof( v ) )'
         '' and returns the error code, so it is an EXPRESSION as well as a statement.

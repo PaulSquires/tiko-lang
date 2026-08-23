@@ -645,6 +645,19 @@ function LowerStringInit _
         '' The self-reference check LowerStringAssign does with 'target' has nothing to
         '' find here: the descriptor was just zeroed, so a chain naming the variable
         '' being declared reads the empty string either way.
+        dim as FB.Array( of ulong ) cterms
+        FlattenConcat( c, value, cterms )
+        dim as boolean dIsU = false
+        if slot >= 0 then dIsU = IsUStringType( c, c.f->locals[slot].frontendType )
+        if dIsU = false then dIsU = IsUStringType( c, c.info->TypeOf_( target ) )
+        if StrChainNeedsConvert( c, dIsU, cterms ) then
+            '' A DECLARATION's trailing flag is -1, so the conversion cannot go through
+            '' the assignment path: it would pass 0 and the runtime would release a
+            '' descriptor that was never written.
+            if LowerUStrChain( c, dst, dIsU, cterms, true ) then return true
+            if dIsU then return LowerNarrowChainToU_( c, dst, cterms, true )
+            return false
+        end if
         return LowerStringAssignToSlot( c, slot, value )
     end if
 
@@ -657,6 +670,21 @@ function LowerStringInit _
     dim as boolean isU = false
     if slot >= 0 then isU = IsUStringType( c, c.f->locals[slot].frontendType )
     if isU = false then isU = IsUStringType( c, c.info->TypeOf_( target ) )
+
+    '' A DECLARATION converts too, and its trailing flag is -1 where an assignment's
+    '' is 0 -- the same distinction fb_StrInit and fb_StrAssign make by being separate
+    '' functions.
+    if StrTermFlavour_( c, cast( Tko.NodeId, terms[0] ) ) <> STF_NEUTRAL then
+        dim as long tf0 = StrTermFlavour_( c, cast( Tko.NodeId, terms[0] ) )
+        dim as boolean mismatch = iif( isU, (tf0 <> STF_UTF16), (tf0 = STF_UTF16) )
+        if mismatch then
+            if LowerStrConvertTerm( c, dst, isU, cast( Tko.NodeId, terms[0] ), true ) then
+                return true
+            end if
+            ZeroStrDescriptor( c, dst )
+            return false
+        end if
+    end if
 
     dim as FB.Array( of ulong ) args
     PushStrArg( args, dst )
@@ -1289,6 +1317,29 @@ function LowerStringAssignTo _
     '' If the destination is read AFTER it would be written, the chain cannot be built
     '' in place: 'a = b + a' would overwrite a before reading it. fbc builds such a
     '' chain in a temporary and assigns from that.
+    '' THE FLAVOUR COMES FROM THE DESTINATION -- BUT THE TERMS DO NOT FOLLOW IT. A
+    '' ustring transcodes rather than copies, so a term of another flavour takes a
+    '' different entry point entirely, and pushing it as if it shared the destination's
+    '' flavour is what put UTF-8 bytes in a UTF-16 descriptor. Decided BEFORE the
+    '' temporary path below, which builds the whole chain with one flavour's calls.
+    ''
+    '' One term converts. A CHAIN needing a conversion declines: fbc folds the narrow
+    '' part first and then transcodes once, or builds the ustring temporary with
+    '' fb_UStrConcatUA and fb_UStrConcatAU depending on WHICH SIDE is the ustring, and
+    '' half of that model would be a wrong answer rather than a partial one.
+    dim as boolean isU0 = IsUStringType( c, c.info->TypeOf_( target ) )
+    if target = Tko.NODE_NONE then isU0 = IsUStringDest_( c, dst )
+    if StrChainNeedsConvert( c, isU0, terms ) then
+        if terms.Count = 1 then
+            return LowerStrConvertTerm( c, dst, isU0, cast( Tko.NodeId, terms[0] ), false )
+        end if
+        if LowerUStrChain( c, dst, isU0, terms, false ) then return true
+        '' AN ALL-NARROW CHAIN INTO A USTRING folds narrow first and transcodes ONCE:
+        '' 'u = q + q' is fb_StrConcat into a temporary and then fb_UStrAssignFromA.
+        if isU0 then return LowerNarrowChainToU_( c, dst, terms, false )
+        return false
+    end if
+
     dim as boolean needsTemp = false
     if target <> Tko.NODE_NONE then
         for i as long = 1 to terms.Count - 1
@@ -1300,6 +1351,7 @@ function LowerStringAssignTo _
     '' THE FLAVOUR COMES FROM THE DESTINATION, and the SOURCE literals follow it: a
     '' ustring takes fb_UStrAssign and a UTF-16 literal with a tagged length.
     dim as boolean isU = IsUStringType( c, c.info->TypeOf_( target ) )
+    if target = Tko.NODE_NONE then isU = IsUStringDest_( c, dst )
 
     '' The first term is assigned, every later one concatenated onto it. When the
     '' destination IS the first term, the assign is a self-assignment and is skipped.
@@ -1322,47 +1374,6 @@ function LowerStringAssignTo _
         end if
     next
     return true
-end function
-
-'' A byref ZSTRING parameter takes the DATA POINTER, not a descriptor and not the
-'' address of one. Measured, all three spellings:
-''
-''     P2( (char*)"lit" )     a literal: the bytes themselves
-''     P2( (char*)ZS )        a 'zstring * N': its own address
-''     P2( *(char**)&S )      a STRING: the pointer LOADED out of the descriptor
-''
-'' The wide half of this is WideOperand_, which already existed for the same reason.
-function ZstrDataOf_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-
-    if id = Tko.NODE_NONE then return false
-    if c.ast->Kind( id ) = Tko.N_STRING_LIT then
-        outv.kind = cast( ubyte, MV_GLOBAL )
-        outv.ty = cast( ubyte, MT_PTR )
-        outv.id = c.m->AddStringLiteral( StringLitText_( c, id ), *c.names )
-        return true
-    end if
-
-    dim as longint n
-    dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
-    if k = 1 then
-        outv = LowerAddr( c, id )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
-    end if
-    if k = 0 then
-        '' StrDescriptorOf_ RATHER THAN LowerAddr, so an rvalue works too: 'str( t )'
-        '' has no address, and fbc copies it into a temporary descriptor before taking
-        '' the pointer. Everything with an address comes back as its own address here,
-        '' so the variable case is unchanged.
-        dim as MirValue da
-        if StrDescriptorOf_( c, id, da ) = false then da = LowerAddr( c, id )
-        if da.kind = cast( ubyte, MV_NONE ) then return false
-        '' The data pointer is the descriptor's FIRST field, which is why this is a
-        '' plain load and not a field address.
-        outv = LowerExprLoad( c, da, MT_PTR )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
-    end if
-    return false
 end function
 
 
@@ -1392,6 +1403,29 @@ function LowerConcatAssignStmt _
         dim as MirValue dst = LowerAddr( c, target )
         if dst.kind = cast( ubyte, MV_NONE ) then return false
         dim as boolean isU = IsUStringType( c, tt )
+        '' 'u &= q' over a narrow source is fb_UStrConcatUA into a TEMPORARY and then an
+        '' assign, not one concat-assign -- measured. Appending the narrow bytes through
+        '' the UTF-16 entry point is what this used to do.
+        '' 'u &= q' over a narrow source is fb_UStrConcatUA into a TEMPORARY and then
+        '' an assign, not one concat-assign -- measured. It is the two-term chain
+        '' 'u = u + q', so it goes through the same fold.
+        dim as long vf = StrTermFlavour_( c, value )
+        dim as boolean mism = false
+        if vf <> STF_NEUTRAL then
+            if isU then
+                mism = (vf <> STF_UTF16)
+            else
+                mism = (vf = STF_UTF16)
+            end if
+        end if
+        if mism then
+            dim as FB.Array( of ulong ) two
+            two.Push( cast( ulong, target ) )
+            two.Push( cast( ulong, value ) )
+            if LowerUStrChain( c, dst, isU, two, false ) then return true
+            if isU then return LowerNarrowChainToU_( c, dst, two, false )
+            return false
+        end if
         dim as FB.Array( of ulong ) args
         PushStrArg( args, dst )
         if EmitStrTerm( c, args, value, isU ) = false then return false

@@ -1247,6 +1247,14 @@ function LowerStrCompare _
     '' comparison declined -- 228 statements in one corpus file, every one of them
     '' inside a CU_ASSERT that then declined with it.
     dim as boolean isWide = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
+    '' ...UNLESS THE OTHER SIDE IS A USTRING, in which case it is a UTF-16 comparison
+    '' and the WIDE operand is the one converted -- 'fb_WstrToUStr' then fb_UStrCompare,
+    '' measured. Taken as a wide comparison it converted the ustring to a wstring
+    '' instead, which reads a descriptor as a bare uint16*.
+    if IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
+       IsUStringType( c, c.info->TypeOf_( bp->rhs ) ) then
+        isWide = false
+    end if
     if isWide then
         '' EITHER SIDE MAY BE AN RVALUE. LowerAddr alone accepted only an addressable
         '' wide variable, so 'trim( a ) = b' and 'a = wstr( 1 )' produced no comparison
@@ -1275,9 +1283,20 @@ function LowerStrCompare _
         '' literal, where fb_StrCompare would read the descriptor as narrow.
         dim as boolean isU = IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
                              IsUStringType( c, c.info->TypeOf_( bp->rhs ) )
-        if EmitStrTerm( c, args, bp->lhs, isU ) = false then return none_
-        if EmitStrTerm( c, args, bp->rhs, isU ) = false then return none_
-        cmp = EmitRtl( c, iif( isU, RTL_USTR_COMPARE, RTL_STR_COMPARE ), args )
+        '' ...BUT A REAL STRING ON THE OTHER SIDE IS CONVERTED, not reinterpreted.
+        '' Measured: 'u = q' over a narrow string is 'fb_StrToUStr( q, -1 )' into a
+        '' temporary and only then fb_UStrCompare, and a wide operand goes through
+        '' fb_WstrToUStr the same way. Pushing the narrow bytes straight into the
+        '' UTF-16 comparison is what this did, and it compared UTF-8 against UTF-16.
+        if isU then
+            if UStrCmpOperand_( c, args, bp->lhs ) = false then return none_
+            if UStrCmpOperand_( c, args, bp->rhs ) = false then return none_
+            cmp = EmitRtl( c, RTL_USTR_COMPARE, args )
+        else
+            if EmitStrTerm( c, args, bp->lhs, false ) = false then return none_
+            if EmitStrTerm( c, args, bp->rhs, false ) = false then return none_
+            cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+        end if
     end if
     if cmp.kind = cast( ubyte, MV_NONE ) then return none_
 

@@ -145,6 +145,40 @@ sub UProbe( )
 end sub
 sub UTake( byref x as const ustring )
 end sub
+
+'' THE CONVERSION SURFACE, which is a different set of entry points again and was
+'' entirely absent: a ustring never converts by copying, it TRANSCODES. A narrow source
+'' is UTF-8 and takes fb_UStrAssignFromA, a wide one is UTF-16 and goes through
+'' fb_WstrToUStr first, and the two concat entries differ by WHICH SIDE is the ustring.
+sub UConv( byref p as const wstring, byref q as const string, byref z as const zstring )
+    dim as ustring u, v
+    dim as string s
+    dim as wstring * 8 w
+    dim as string * 8 fs
+    u = q
+    u = z
+    u = p
+    u = fs
+    u = w
+    dim as ustring c0 = q
+    dim as ustring c1 = q + q
+    s = u
+    w = u
+    u = u + q
+    u = q + u
+    u = u & q
+    u = q & u
+    '' A COMPARISON promotes the OTHER side to a ustring first -- fb_StrToUStr for a
+    '' narrow operand and fb_WstrToUStr for a wide one -- and only then compares. It is
+    '' the only place fb_StrToUStr appears.
+    dim as long c2 = 0
+    if u = q then c2 = 1
+    if u = p then c2 = 2
+    if u < q then c2 = 3
+    v = q + q
+    v = c2 & u
+    print u, v, s, w, c0, c1
+end sub
 ''',
     # WIDE STRINGS. A wstring value is a bare uint16*; there is no descriptor and no
     # var-length form. The probe has to touch each shape separately because fbc picks a

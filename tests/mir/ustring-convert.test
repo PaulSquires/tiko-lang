@@ -1,0 +1,9 @@
+'' The ustring conversion surface: narrow, wide and UTF-16 mixed in assignments,
+'' declarations, chains and comparisons. The 49 runtime calls this emits are the same
+'' entry points in the same order fbc emits for the same source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-convert.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ustring-convert.out
