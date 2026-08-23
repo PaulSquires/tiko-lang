@@ -724,6 +724,13 @@ function StrSwapKind_ _
             n = 0
             return 1
         end if
+        '' AND THE WIDE HALF OF THE SAME THING -- what a 'wstring ptr' points at, and
+        '' what '*pw' is. Its absence made 'line input #1, *pw, 10' answer "not a
+        '' string at all" and decline, while the zstring line beside it lowered.
+        if c.types->BuiltinOf( t ) = Fbx.TY_WSTRING then
+            n = 0
+            return 2
+        end if
     end if
 
     if c.types->Kind( t ) <> Fbx.TK_ARRAY then return -1

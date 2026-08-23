@@ -423,6 +423,57 @@ private function WideConcatStep_ _
     return (acc.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' And the other way: a WIDE value as a NARROW descriptor, in a temporary of its own.
+''
+''     fb_WstrAssignToA( (void*)&TMP, -1ll, (uint16*)PFW, 0 );
+''     fb_LineInput( (FBSTRING*)&TMP, ... );
+''
+'' The temporary is a real string descriptor, so it is zeroed first and registered for
+'' deletion the way a string local is -- not a wide temp, which is a bare pointer.
+function WideToNarrowTemp_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as MirValue src
+    if WideOperand_( c, e, src ) = false then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+    ZeroStrDescriptor( c, tmp )
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_WSTR_ASSIGN_TOA, args )
+    '' fbc DOES delete this one -- unlike the concat temporary, which it leaves to the
+    '' runtime -- so it goes on the statement's narrow temporary list.
+    c.strTemps.Push( cast( ulong, slot ) )
+    outv = tmp
+    return true
+end function
+
+'' A NARROW string value converted to a WIDE temporary, the way fbc does it where a
+'' wide entry point is handed a narrow argument:
+''
+''     uint16* vr = fb_StrToWstr( (char*)*(char**)&PS );
+''     fb_LineInputWstr( (uint16*)vr, W, 10ll, 0, -1 );
+''     fb_WstrDelete( (uint16*)vr );
+''
+'' The temporary is registered for deletion like every other wide one.
+function NarrowToWideTemp_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    dim as MirValue dp
+    if ZstrDataOf_( c, e, dp ) = false then return false
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dp.kind ) ) : args.Push( cast( ulong, dp.id ) )
+    return WideConcatStep_( c, args, RTL_STR_TO_WSTR, outv )
+end function
+
 function WideConcatToTemp_ _
     ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
 

@@ -620,41 +620,130 @@ function LowerOpenCall_ _
 end function
 
 
-'' LINE INPUT #n, dst -- read a whole line from a file into a string.
+'' LINE INPUT, in its four entry points.
 ''
-'' Measured from fbc's C:
+'' Measured, and the split is not where the keyword suggests. A WIDE destination is a
+'' DIFFERENT FUNCTION rather than a flag -- fbx was sending one through the narrow one,
+'' which reads bytes into a uint16 buffer -- and the CONSOLE form is different again,
+'' taking a prompt descriptor and two trailing flags the file form has not got:
 ''
-''     fb_FileLineInput( 1, (void*)&S$0, -1ll, 0 );      dst is a STRING
-''     fb_FileLineInput( 1, (void*)Z$0,   8ll, 0 );      dst is a ZSTRING * 8
+''   line input #1, s        fb_FileLineInput( 1, &S, -1ll, 0 )
+''   line input #1, fw       fb_FileLineInputWstr( 1, FW, 20ll )
+''   line input "", s        fb_LineInput( vr, &S, -1ll, 0, 0, -1 )
+''   line input "", fw       fb_LineInputWstr( (uint16*)L"", FW, 20ll, 0, -1 )
 ''
-'' Same (pointer, length) convention as the swap runtime: -1 for a var-length string
-'' and the element count for a fixed one. The fourth argument is 0 in every form fbc
-'' emits here.
+'' THE LENGTH IS THE WRITTEN MAXIMUM WHEN THERE IS ONE. 'line input #1, *z, 10' passes
+'' 10 -- an unsized zstring has no length of its own, so without the extra argument the
+'' runtime would be told 0.
 ''
-'' The CONSOLE form -- 'line input s', with or without a prompt -- is a different entry
-'' point (fb_LineInput, six arguments including a prompt descriptor) and still declines.
+'' A LEADING ';' -- 'line input; "", s' -- makes the last argument 0 rather than -1:
+'' the runtime does not echo the newline.
 function LowerLineInput( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->a = Fbx.NODE_NONE then return false      '' console form
-    if sp->c <> Fbx.NODE_NONE then return false     '' a prompt: console form only
-    if sp->count <> 1 then return false
+    if sp->count < 1 then return false
 
-    dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first] )
+    '' WHICH CHILD IS THE DESTINATION depends on the form. With a file number the
+    '' first one is; without, a second child means the FIRST was a prompt -- 'line
+    '' input ps, s' -- which the parser cannot tell from a second destination because
+    '' plain INPUT takes a list and LINE INPUT never does.
+    dim as long dstIdx = 0
+    dim as Fbx.NodeId prompt = sp->c
+    if sp->a = Fbx.NODE_NONE then
+        if (prompt = Fbx.NODE_NONE) andalso (sp->count >= 2) then
+            prompt = cast( Fbx.NodeId, c.ast->children[sp->first] )
+            dstIdx = 1
+        end if
+    end if
+    if dstIdx >= sp->count then return false
+
+    dim as Fbx.NodeId dst = cast( Fbx.NodeId, c.ast->children[sp->first + dstIdx] )
+    dim as Fbx.TypeId dt = c.info->TypeOf_( dst )
     dim as longint dlen
-    if StrSwapKind_( c, c.info->TypeOf_( dst ), dlen ) < 0 then return false
+    dim as long dk = StrSwapKind_( c, dt, dlen )
+    if dk < 0 then return false
+    dim as boolean wide = (dk = 2)
 
-    dim as MirValue fn = LowerExpr( c, sp->a )
-    if fn.kind = cast( ubyte, MV_NONE ) then return false
-    fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
     dim as MirValue da = LowerAddr( c, dst )
     if da.kind = cast( ubyte, MV_NONE ) then return false
 
+    '' The explicit maximum, when one was written.
+    dim as MirValue mx
+    if dstIdx + 1 < sp->count then
+        dim as Fbx.NodeId mn = cast( Fbx.NodeId, c.ast->children[sp->first + dstIdx + 1] )
+        mx = LowerExpr( c, mn )
+        if mx.kind = cast( ubyte, MV_NONE ) then return false
+        mx = Coerce( c, mx, iif( c.types->target.pointerBits = 32, MT_I32, MT_I64 ), false )
+    end if
+
     dim as FB.Array( of ulong ) args
-    args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
+    if sp->a <> Fbx.NODE_NONE then
+        dim as MirValue fn = LowerExpr( c, sp->a )
+        if fn.kind = cast( ubyte, MV_NONE ) then return false
+        fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+        args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
+    else
+        '' THE PROMPT IS A DESCRIPTOR on the narrow path and a uint16* on the wide one,
+        '' and an absent prompt is the EMPTY STRING rather than a null pointer.
+        dim as MirValue pv
+        if wide then
+            if prompt = Fbx.NODE_NONE then
+                pv.kind = cast( ubyte, MV_GLOBAL )
+                pv.ty = cast( ubyte, MT_PTR )
+                pv.id = c.m->AddWideStringLiteral( "", *c.names )
+            elseif WideOperand_( c, prompt, pv ) = false then
+                '' A NARROW prompt on the wide path is CONVERTED, not refused: fbc
+                '' emits fb_StrToWstr over its data pointer and deletes the result.
+                if NarrowToWideTemp_( c, prompt, pv ) = false then return false
+            end if
+        else
+            if prompt = Fbx.NODE_NONE then
+                dim as FB.Array( of ulong ) ea
+                ea.Push( cast( ulong, MV_GLOBAL ) )
+                ea.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
+                ea.Push( cast( ulong, MV_CONST_INT ) )
+                ea.Push( 0 )
+                pv = EmitRtl( c, RTL_STR_TEMPZ, ea )
+            elseif StrDescriptorOf_( c, prompt, pv ) = false then
+                '' A WIDE prompt with a narrow destination, which the corpus's syntax
+                '' test writes twenty times: fbc converts it into a real descriptor.
+                if WideToNarrowTemp_( c, prompt, pv ) = false then return false
+            end if
+        end if
+        if pv.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, pv.kind ) ) : args.Push( cast( ulong, pv.id ) )
+    end if
+
     args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dlen ) )
+    if mx.kind <> cast( ubyte, MV_NONE ) then
+        args.Push( cast( ulong, mx.kind ) ) : args.Push( cast( ulong, mx.id ) )
+    else
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dlen ) )
+    end if
+
+    if sp->a <> Fbx.NODE_NONE then
+        if wide then
+            EmitRtl( c, RTL_FILE_LINEINPUT_W, args )
+        else
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            EmitRtl( c, RTL_FILE_LINEINPUT, args )
+        end if
+        return true
+    end if
+
+    '' The console form's trailing flags: a reserved 0 the narrow one has twice, then
+    '' the newline flag, which the leading ';' turns off.
+    dim as long addNewline = -1
+    if (sp->extra and 4) <> 0 then addNewline = 0
+    if wide = false then
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    EmitRtl( c, RTL_FILE_LINEINPUT, args )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addNewline ) )
+    if wide then
+        EmitRtl( c, RTL_LINEINPUT_W, args )
+    else
+        EmitRtl( c, RTL_LINEINPUT, args )
+    end if
     return true
 end function
 

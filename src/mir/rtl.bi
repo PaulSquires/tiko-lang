@@ -421,6 +421,9 @@ namespace Fbx.Mir
         '' sight, which is how the COM tests reach it through their own assert_ macro.
         RTL( RTL_ASSERT,            "fb_Assert",           "v",   "pzpp"  )
         RTL( RTL_FILE_LINEINPUT,    "fb_FileLineInput",    "l",   "lpzl"  )
+        '' A WIDE destination is a DIFFERENT entry point and one argument shorter --
+        '' there is no 'add newline' flag on the file form of it.
+        RTL( RTL_FILE_LINEINPUT_W,  "fb_FileLineInputWstr","l",   "lpz"   )
         '' INPUT. One "start" call, then one call per destination, each passed BY
         '' ADDRESS. The start is fb_ConsoleInput( promptDesc, addQuestion, echoNewline )
         '' -- the prompt is always passed, as a temp descriptor, empty when absent --
@@ -434,6 +437,7 @@ namespace Fbx.Mir
         RTL( RTL_CONSOLE_INPUT,     "fb_ConsoleInput",     "l",   "pll"   )
         RTL( RTL_FILE_INPUT,        "fb_FileInput",        "l",   "l"     )
         RTL( RTL_LINEINPUT,         "fb_LineInput",        "l",   "ppzlll" )
+        RTL( RTL_LINEINPUT_W,       "fb_LineInputWstr",    "l",   "ppzll" )
         RTL( RTL_INPUT_BYTE,        "fb_InputByte",        "l",   "p"     )
         RTL( RTL_INPUT_UBYTE,       "fb_InputUbyte",       "l",   "p"     )
         RTL( RTL_INPUT_SHORT,       "fb_InputShort",       "l",   "p"     )

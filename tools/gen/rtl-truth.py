@@ -490,6 +490,11 @@ sub P( )
     dim as string s
     open "f" for input as #1
     line input #1, s
+    '' A WIDE destination and the CONSOLE form are three more entry points.
+    dim as wstring * 20 fw
+    line input #1, fw
+    line input "", s
+    line input "", fw
     close #1
     '' The ENCODING clause is a DIFFERENT entry point, fb_FileOpenEncod, taking a
     '' trailing char* rather than an extra integer.

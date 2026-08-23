@@ -52,6 +52,7 @@ fb_FileClose	int32	int32	lib	fb_FileClose
 fb_FileCloseAll	int32	void	lib	fb_FileCloseAll
 fb_FileInput	int32	int32	lib	fb_FileInput
 fb_FileLineInput	int32	int32, void*, int64, int32	lib	fb_FileLineInput
+fb_FileLineInputWstr	int32	int32, uint16*, int64	lib	fb_FileLineInputWstr
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	fb_FileOpen
 fb_FileOpenEncod	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenEncod
 fb_FloatToStr	FBSTRING*	float	lib	fb_FloatToStr
@@ -97,6 +98,7 @@ fb_LTRIM	FBSTRING*	FBSTRING*	lib	fb_LTRIM
 fb_LTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_LTrimAny
 fb_LTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_LTrimEx
 fb_LineInput	int32	FBSTRING*, void*, int64, int32, int32, int32	lib	fb_LineInput
+fb_LineInputWstr	int32	uint16*, uint16*, int64, int32, int32	lib	fb_LineInputWstr
 fb_LongintToStr	FBSTRING*	int64	lib	fb_LongintToStr
 fb_LongintToWstr	uint16*	int64	lib	fb_LongintToWstr
 fb_MemSwap	void	void*, void*, int64	lib	fb_MemSwap

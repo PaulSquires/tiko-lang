@@ -1,0 +1,9 @@
+'' LINE INPUT: the file and console forms, narrow and wide, and the written maximum.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/line-input.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_FileLineInputWstr
+'' EXPECT-OUT: fb_LineInputWstr
+'' EXPECT-OUT: fb_StrToWstr
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/line-input.out

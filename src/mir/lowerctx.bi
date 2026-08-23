@@ -305,6 +305,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
     declare function TermIsWide_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    declare function WideToNarrowTemp_ _
+        ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+    declare function NarrowToWideTemp_ _
+        ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function IsWstrCall_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     declare function NumberToStrDesc_ _
         ( byref c as Ctx, byval a0 as Fbx.NodeId, byref outv as MirValue ) as boolean
