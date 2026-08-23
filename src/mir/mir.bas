@@ -222,6 +222,11 @@ function LowerType _
             return MT_AGG
         case Tko.TY_SINGLE   : return MT_F32
         case Tko.TY_DOUBLE   : return MT_F64
+        '' AN AGGREGATE ON EVERY TARGET, even where it is pointer-sized. On Windows a
+        '' cva_list is one pointer and MT_PTR would fit, but on Linux it is 24 bytes --
+        '' and the four cva_* opcodes all take its ADDRESS, so nothing ever loads it
+        '' whole. One shape everywhere means the lowering has no target case in it.
+        case Tko.TY_CVA_LIST : return MT_AGG
         case Tko.TY_ANY      : return MT_VOID
         end select
     end select

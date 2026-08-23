@@ -329,6 +329,22 @@ function ResolveTypeRef _
         end if
 
     case else
+        '' 'cva_list' IS A PREDEFINED TYPE NAME, not a keyword. fbc treats it as an
+        '' ordinary identifier -- 'dim as long cva_list' is error 4, DUPLICATED
+        '' DEFINITION, not a syntax error -- so it is resolved here, where a named type
+        '' is, rather than in the keyword switch above. Anything the program declares
+        '' under that name is found by the lookup below and wins, which is what makes
+        '' this a PREDEFINITION rather than a reserved word.
+        ''
+        '' Its width is target-dependent and lives in TargetLayout; see TY_CVA_LIST.
+        if sp->ownerName = 0 then
+            if c.syms->LookupTyped( scope_, sp->name, true ) = Tko.SYMBOL_NONE then
+                if Tko.Text.LowerAscii( c.names->Spelling( sp->name ) ) = "cva_list" then
+                    base_ = c.types->Builtin( Tko.TY_CVA_LIST )
+                end if
+            end if
+        end if
+
         '' A named type. Not finding it is NOT reported here: a type may come from a
         '' header this build did not parse, and drowning the output in those would
         '' hide the real signal. Check reports what it can prove.

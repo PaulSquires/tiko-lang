@@ -104,16 +104,26 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
         r.wcharBytes = 2
         r.stringBytes = 12
         r.stringAlign = 4
+        r.cvaListBytes = 4
+        r.cvaListAlign = 4
+        r.isWindows = true
     case TARGET_LINUX_X86_64
         r.pointerBits = 64
         r.wcharBytes = 4
         r.stringBytes = 24
         r.stringAlign = 8
+        '' The SysV register-save record, not a pointer: 24 bytes, 8-aligned.
+        r.cvaListBytes = 24
+        r.cvaListAlign = 8
+        r.isWindows = false
     case else                   '' TARGET_WIN64
         r.pointerBits = 64
         r.wcharBytes = 2
         r.stringBytes = 24      '' FBSTRING: data ptr + len + size
         r.stringAlign = 8
+        r.cvaListBytes = 8
+        r.cvaListAlign = 8
+        r.isWindows = true
     end select
     return r
 end function
@@ -467,6 +477,9 @@ function TypeContext.Layout( byval t as TypeId ) as TypeLayout
         case TC_WSTRING
             r.size = this.target.wcharBytes
             r.align = this.target.wcharBytes
+        case TC_CVA
+            r.size = this.target.cvaListBytes
+            r.align = this.target.cvaListAlign
         case TC_ANY, TC_VOID
             r.size = 0
             r.align = 1

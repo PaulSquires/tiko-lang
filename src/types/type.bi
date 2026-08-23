@@ -67,6 +67,11 @@ namespace Tko
         '' N raw bytes -- so every one was the wrong size and every access read the
         '' wrong thing.
         BUILTIN( TY_FIXSTR,   "fixstr",   8,   false, TC_ZSTRING )
+        '' THE VARARG CURSOR, 'cva_list'. Opaque: no conversions, no arithmetic, and
+        '' the only things that read it are the four cva_* intrinsics, each of which
+        '' takes its ADDRESS. Its width comes from TargetLayout because it differs by
+        '' target in a way nothing else here does.
+        BUILTIN( TY_CVA_LIST, "cva_list", 0,   false, TC_CVA   )
         BUILTIN( TY_ANY,      "any",      0,   false, TC_ANY   )
     #endmacro
 
@@ -81,6 +86,7 @@ namespace Tko
         TC_WSTRING      '' 2 bytes/unit on Windows, 4 on Linux -- a real FB difference
         TC_USTRING      '' FBUSTRING; UTF-16 code units on EVERY target
         TC_ANY
+        TC_CVA          '' cva_list: opaque, and target-sized
     end enum
 
     enum BuiltinType
@@ -144,6 +150,16 @@ namespace Tko
         as long stringBytes        '' sizeof( FBSTRING ) -- 24 on x86-64
         as long stringAlign
         as long maxAlign
+        '' sizeof( cva_list ) and its alignment. MEASURED, and it is not derivable from
+        '' the pointer width: fbc emits '__builtin_memset( &ARGS, 0, N )' at every
+        '' 'dim as cva_list' declaration, and N is 8 on win64, 4 on win32 and 24 on
+        '' Linux x86-64 -- where a va_list is the SysV register-save record, not a
+        '' pointer. Getting it wrong is a stack overwrite, not a wrong number.
+        as long cvaListBytes
+        as long cvaListAlign
+        '' Windows or not. Only cva_list needs it so far, and only for its MANGLING,
+        '' which is target-dependent in a way no width explains -- see BuiltinCode.
+        as boolean isWindows
     end type
 
     type TypeVec  as FB.Array( of TypeInfo )

@@ -1,0 +1,15 @@
+'' sizeof( cva_list ), on every target. MEASURED from fbc, which emits the width as
+'' the length of the memset at the declaration:
+''
+''     win64   __builtin_memset( &ARGS$1, 0, 8ll )
+''     win32   __builtin_memset( &ARGS$1, 0, 4 )
+''     linux   __builtin_memset( &ARGS$1, 0, 24ll )
+''
+'' NOT derivable from the pointer width. On Linux a va_list is the SysV register-save
+'' record -- three words -- where on Windows it is one pointer. Reserving 8 bytes for
+'' a 24-byte object is a stack overwrite that lowers and verifies cleanly, which is
+'' why it is pinned here rather than left to the type table's own golden.
+'' TEST: cli
+'' ARGS: --dump-types tests/lexer/src/basics.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: cva_list               size=  8 align= 8

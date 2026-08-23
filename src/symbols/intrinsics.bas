@@ -313,6 +313,15 @@ private function IntrinsicCallType_ _
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     '' CAST and CPTR name their result outright, as a TYPE argument.
+    '' 'cva_arg( list, TYPE )' HAS THE TYPE IT IS TOLD TO HAVE. The second argument is
+    '' a type reference, resolved by the time Check runs, and it IS the result type --
+    '' there is nothing to infer and nothing to check it against.
+    if (nm = "cva_arg") andalso (cp->count = 2) then
+        dim as Tko.NodeId vt = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        if c.ast->Kind( vt ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
+        return c.info->TypeOf_( vt )
+    end if
+
     if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
         dim as Tko.NodeId ta = cast( Tko.NodeId, c.ast->children[cp->first] )
         if c.ast->Kind( ta ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE

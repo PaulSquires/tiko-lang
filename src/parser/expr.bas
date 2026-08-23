@@ -366,6 +366,22 @@ private function TypeArgCall _
     Advance( p )                                  '' '('
 
     dim as Tko.NodeIdVec items
+
+    '' 'cva_arg( list, TYPE )' PUTS THE TYPE SECOND, alone among these. The first
+    '' argument is an ordinary expression naming the cursor and the second is a type
+    '' reference, so neither the always-a-type rule nor the looks-like-a-type guess
+    '' below fits it. Without this the type came through as an N_IDENT -- 'integer'
+    '' read as a name that binds to nothing -- and the call could be neither typed nor
+    '' lowered. The statement-position form was already parsed correctly, which is why
+    '' this only ever showed up in an initialiser.
+    if k = Tko.KW_CVA_ARG then
+        items.Push( cast( ulong, Expression( p ) ) )
+        Expect( p, Tko.TK_COMMA, "," )
+        items.Push( cast( ulong, TypeRef( p ) ) )
+        Expect( p, Tko.TK_RPAREN, ")" )
+        return PostfixChain( p, MakeList( p, Tko.N_CALL, t.loc, callee, items ) )
+    end if
+
     if Peek( p ) <> Tko.TK_RPAREN then
         dim as boolean always = (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR)
         dim as boolean looksLikeType = Tko.IsTypeKeyword( Peek( p ) )
@@ -746,7 +762,8 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
     '' typeof( any ptr )' is how the corpus asserts a pointer type -- and an expression
     '' parser reads 'any ptr' as two names and fails on the second.
     if (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR) orelse _
-       (k = Tko.KW_SIZEOF) orelse (k = Tko.KW_LEN) orelse (k = Tko.KW_TYPEOF) then
+       (k = Tko.KW_SIZEOF) orelse (k = Tko.KW_LEN) orelse (k = Tko.KW_TYPEOF) orelse _
+       (k = Tko.KW_CVA_ARG) then
         if HasTok( p, p.pos + 1 ) then
             if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then
                 return TypeArgCall( p, t, k )

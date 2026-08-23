@@ -293,6 +293,22 @@ sub LowerProc _
     dim as boolean udtByValue = false
     if haveRet andalso (scalarResult = false) andalso (sretResult = false) then
         udtByValue = (c.types->Kind( rt ) = Tko.TK_UDT)
+        '' A 'cva_list' RESULT IS THE SAME SHAPE and needs the same slot. It is a
+        '' BUILTIN rather than a UDT, so the kind test alone said no to it and
+        '' 'function = args' declined in four places in one corpus file. fbc gives it
+        '' the same named result local everything else here gets:
+        ''
+        ''     __builtin_va_list fb$result$1;  __builtin_memset( &fb$result$1, 0, 8 );
+        ''     fb$result$1 = ARGS$1;  return fb$result$1;
+        ''
+        '' Only cva_list is added, not 'anything that lowers to MT_AGG': a STRING
+        '' result is also an aggregate and is handled above, by a path that zeroes the
+        '' descriptor and registers its cleanup.
+        if udtByValue = false then
+            if c.types->Kind( rt ) = Tko.TK_BUILTIN then
+                udtByValue = (c.types->BuiltinOf( rt ) = Tko.TY_CVA_LIST)
+            end if
+        end if
     end if
     if udtByValue then
         c.resultSlot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )

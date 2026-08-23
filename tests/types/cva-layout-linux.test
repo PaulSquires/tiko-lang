@@ -1,0 +1,7 @@
+'' sizeof( cva_list ) on Linux x86-64 -- 24, the SysV register-save record, and THREE
+'' TIMES the pointer width. The one target where a pointer-sized guess corrupts the
+'' stack. See cva-layout.test.
+'' TEST: cli
+'' ARGS: --dump-types -target linux-x86_64 tests/lexer/src/basics.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: cva_list               size= 24 align= 8

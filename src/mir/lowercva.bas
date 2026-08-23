@@ -1,0 +1,183 @@
+'' lowercva.bas -- the vararg cursor: cva_start, cva_arg, cva_end, cva_copy.
+''
+'' MEASURED from fbc, all three targets. For
+''
+''     sub V cdecl ( byval n as integer, ... )
+''         dim as cva_list args, copy_
+''         cva_start( args, n )
+''         dim as integer a = cva_arg( args, integer )
+''         cva_copy( copy_, args )
+''         cva_end( args )
+''     end sub
+''
+'' fbc emits gcc BUILTINS, not runtime calls:
+''
+''     __builtin_va_list ARGS$1;
+''     __builtin_memset( &ARGS$1, 0, 8ll );            <-- the DECLARATION zeroes it
+''     __builtin_va_start( *(__builtin_va_list*)&ARGS$1, N$1 );
+''     A$1 = __builtin_va_arg( *(__builtin_va_list*)&ARGS$1, int64 );
+''     __builtin_va_copy( *(__builtin_va_list*)&COPY_$1, *(__builtin_va_list*)&ARGS$1 );
+''     __builtin_va_end( *(__builtin_va_list*)&ARGS$1 );
+''
+'' EVERY ONE TAKES THE ADDRESS, never the value. That is what lets a 24-byte Linux
+'' va_list and an 8-byte Windows one share this code with no target case in it: the
+'' width is TargetLayout's business and nothing here loads the object whole.
+''
+'' Being builtins rather than runtime entry points is why they are MIR OPCODES. Putting
+'' them in the runtime inventory would also have broken check-rtl, which compares
+'' against what fbc DECLARES -- and a builtin is declared nowhere.
+
+#include once "lowerctx.bi"
+
+namespace Tko.Mir
+
+using Tko
+
+'' The ADDRESS of a cva_list operand. Anything that is not one is refused rather than
+'' lowered: these opcodes write through the pointer they are given, so handing them the
+'' address of something else is a stack overwrite that would verify cleanly.
+private function CvaAddr_ _
+    ( byref c as Ctx, byval e as NodeId, byref outv as MirValue ) as boolean
+
+    if e = NODE_NONE then return false
+    dim as TypeId t = c.info->TypeOf_( e )
+    if t = TYPE_NONE then return false
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Inner( u )
+    if c.types->Kind( u ) <> TK_BUILTIN then return false
+    if c.types->BuiltinOf( u ) <> TY_CVA_LIST then return false
+
+    outv = LowerAddr( c, e )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' THE OPERANDS OF A GENERIC-FORM INTRINSIC, unwrapped.
+''
+'' The parser stores them as a CHILD LIST, and 'cva_start( args, n )' -- parenthesised,
+'' which is how every one of these is written -- arrives as ONE child that is an
+'' N_TUPLE of the two. 'cva_end( args )' arrives as one child that is an N_PAREN of the
+'' one. Reading the statement's own child list without unwrapping finds a single tuple
+'' where two operands were expected, which is what made all three decline while
+'' cva_arg -- an ordinary call -- already worked.
+private function CvaOperands_ _
+    ( byref c as Ctx, byval id as NodeId, byref outFirst as long ) as long
+
+    dim as StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count <> 1 then
+        outFirst = sp->first
+        return sp->count
+    end if
+    dim as NodeId only_ = cast( NodeId, c.ast->children[sp->first] )
+    dim as NodeKind k = c.ast->Kind( only_ )
+    if (k <> N_TUPLE) andalso (k <> N_PAREN) then
+        outFirst = sp->first
+        return 1
+    end if
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, only_ )].data )]
+    outFirst = lp->first
+    return lp->count
+end function
+
+'' 'cva_start( list, lastNamedParam )' and 'cva_copy( dst, src )' -- two operands.
+private function CvaPair_ _
+    ( byref c as Ctx, byval id as NodeId, byref a as NodeId, byref b as NodeId ) as boolean
+
+    dim as long first_
+    if CvaOperands_( c, id, first_ ) <> 2 then return false
+    a = cast( NodeId, c.ast->children[first_] )
+    b = cast( NodeId, c.ast->children[first_ + 1] )
+    return true
+end function
+
+'' 'cva_end( list )' -- one operand.
+private function CvaSingle_( byref c as Ctx, byval id as NodeId ) as NodeId
+    dim as long first_
+    if CvaOperands_( c, id, first_ ) <> 1 then return NODE_NONE
+    return cast( NodeId, c.ast->children[first_] )
+end function
+
+private sub EmitVa2_ _
+    ( byref c as Ctx, byval op as MirOp, byref a as MirValue, byref b as MirValue )
+
+    dim as MirInst ins
+    ins.op = cast( ushort, op )
+    ins.ty = cast( ubyte, MT_VOID )
+    ins.a = a
+    ins.b = b
+    Emit( c, ins )
+end sub
+
+function LowerCvaStart( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as NodeId la, lb
+    if CvaPair_( c, id, la, lb ) = false then return false
+    dim as MirValue av
+    if CvaAddr_( c, la, av ) = false then return false
+
+    '' THE LAST NAMED PARAMETER, by VALUE -- which is what fbc passes. A backend over
+    '' LLVM ignores it (llvm.va_start takes only the list), but dropping it here would
+    '' throw away the only record of which parameter the cursor starts after.
+    dim as MirValue nv = LowerExpr( c, lb )
+    if nv.kind = cast( ubyte, MV_NONE ) then return false
+    EmitVa2_( c, M_VA_START, av, nv )
+    return true
+end function
+
+function LowerCvaCopy( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as NodeId la, lb
+    if CvaPair_( c, id, la, lb ) = false then return false
+    dim as MirValue dv, sv
+    if CvaAddr_( c, la, dv ) = false then return false
+    if CvaAddr_( c, lb, sv ) = false then return false
+    EmitVa2_( c, M_VA_COPY, dv, sv )
+    return true
+end function
+
+function LowerCvaEnd( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as NodeId l = CvaSingle_( c, id )
+    dim as MirValue av
+    if CvaAddr_( c, l, av ) = false then return false
+    dim as MirInst ins
+    ins.op = cast( ushort, M_VA_END )
+    ins.ty = cast( ubyte, MT_VOID )
+    ins.a = av
+    Emit( c, ins )
+    return true
+end function
+
+'' 'cva_arg( list, TYPE )' IS AN EXPRESSION, and the only one of the four. Returns false
+'' when the node is not one, so the ordinary call path can have it.
+function LowerCvaArg _
+    ( byref c as Ctx, byval id as NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> N_CALL then return false
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 2 then return false
+    if lp->target = NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> N_IDENT then return false
+    dim as IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "cva_arg" then return false
+
+    '' The RESULT TYPE is the second argument, read as a type. Check types the call the
+    '' same way; asking it here rather than re-reading the node keeps the two in step.
+    dim as TypeId rt = c.info->TypeOf_( id )
+    if rt = TYPE_NONE then return false
+    dim as MirType mt = LowerType( rt, *c.types )
+    if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
+
+    dim as MirValue av
+    if CvaAddr_( c, cast( NodeId, c.ast->children[lp->first] ), av ) = false then
+        return false
+    end if
+
+    dim as MirInst ins
+    ins.op = cast( ushort, M_VA_ARG )
+    ins.ty = cast( ubyte, mt )
+    ins.a = av
+    outv = Emit( c, ins )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+end namespace

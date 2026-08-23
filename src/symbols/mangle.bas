@@ -156,7 +156,23 @@ end function
 '' b as integer )' ends 'Eu7INTEGERS0_' on win64 and plainly 'Ell' on win32. It falls
 '' out of IsSubstitutable rather than needing a rule.
 private function BuiltinCode _
-    ( byval b as Tko.BuiltinType, byval is32 as boolean ) as string
+    ( byval b as Tko.BuiltinType, byval is32 as boolean, _
+      byval isWin as boolean = true ) as string
+
+    '' 'cva_list' IS NOT ONE TYPE ACROSS TARGETS, and the mangling is where that shows.
+    '' Measured, 'namespace N: sub P( byref a as cva_list )':
+    ''
+    ''     win64  _ZN1N1PERPc                   -- R + Pc: a reference to char*
+    ''     win32  _ZN1N1PERPc                   -- the same
+    ''     linux  _ZN1N1PERA1_13__va_list_tag   -- reference to __va_list_tag[1]
+    ''
+    '' So on Windows fbc's own type for it is literally 'zstring ptr', and on Linux it
+    '' is an array of one 24-byte struct. Neither is derivable from the other and
+    '' neither is guessable from the width, which is why both are written out.
+    if b = Tko.TY_CVA_LIST then
+        if isWin then return "Pc"
+        return "A1_13__va_list_tag"
+    end if
 
     if is32 then
         select case b
@@ -292,7 +308,8 @@ function TypeCode _
         enc = body & "E"
 
     case Tko.TK_BUILTIN
-        enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32) )
+        enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32), _
+                           types.target.isWindows )
 
     case else
         enc = "v"

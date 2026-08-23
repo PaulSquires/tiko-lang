@@ -134,6 +134,27 @@ namespace Tko.Mir
         '' '(tmp$2)&F'.
         OP( M_FUNC_ADDR,  "func.addr",  0, true  )
         OP( M_CALL_RTL,   "call.rtl",  -1, true  )
+        '' THE VARARG CURSOR OPCODES. fbc emits these as gcc builtins over a va_list --
+        '' '__builtin_va_start( *(__builtin_va_list*)&ARGS, N )' -- so like the math
+        '' builtins above they are opcodes here rather than runtime inventory entries,
+        '' and for the same reason: check-rtl reads what fbc DECLARES, and a builtin is
+        '' declared nowhere.
+        ''
+        '' Every one of them takes the ADDRESS of the cva_list, never its value. That is
+        '' what makes a 24-byte Linux va_list and an 8-byte Windows one the same shape
+        '' here.
+        ''
+        '' M_VA_START's SECOND operand is the last NAMED parameter, which is what fbc
+        '' passes. LLVM's own llvm.va_start takes only the list pointer and a backend
+        '' may ignore operand 2 -- it is carried because fbc emits it and because
+        '' dropping it would lose the only link between the cursor and the signature it
+        '' walks.
+        OP( M_VA_START,   "va.start",   2, false )
+        '' The result TYPE is the type being fetched; LLVM has a real 'va_arg'
+        '' instruction with exactly this shape.
+        OP( M_VA_ARG,     "va.arg",     1, true  )
+        OP( M_VA_END,     "va.end",     1, false )
+        OP( M_VA_COPY,    "va.copy",    2, false )
     #endmacro
 
     enum MirOp

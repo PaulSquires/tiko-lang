@@ -184,10 +184,10 @@ N_MODULE (31) <1:1>
           N_IDENT 'n' <84:20>
       N_AMBIGUOUS [=] <85:5>
         N_IDENT 'got' <85:5>
-        N_CALL <85:18>
+        N_CALL <85:11>
           N_IDENT 'cva_arg' <85:11>
           N_IDENT 'vl' <85:20>
-          N_IDENT 'long' <85:24>
+          N_TYPEREF <85:24>
       N_INTRINSIC [CVA_COPY] <86:5>
         N_TUPLE <86:13>
           N_IDENT 'vl2' <86:15>

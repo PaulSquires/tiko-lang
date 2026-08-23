@@ -1303,6 +1303,10 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         if (ip->extra and 2) <> 0 then handled = LowerGfxStmt( c, id )
     end select
     if ip->op = cast( ushort, Tko.KW_INPUT ) then handled = LowerInput( c, id, false )
+    '' THE VARARG CURSOR. Builtins, not runtime calls -- see lowercva.bas.
+    if ip->op = cast( ushort, Tko.KW_CVA_START ) then handled = LowerCvaStart( c, id )
+    if ip->op = cast( ushort, Tko.KW_CVA_COPY ) then handled = LowerCvaCopy( c, id )
+    if ip->op = cast( ushort, Tko.KW_CVA_END ) then handled = LowerCvaEnd( c, id )
     return handled
 end function
 
@@ -1338,6 +1342,9 @@ function LowerCallExpr_ _
     '' 'procptr( f )' is a function's ADDRESS, not a call to it.
     dim as MirValue ppv
     if LowerProcPtr( c, id, ppv ) then return ppv
+    '' 'cva_arg( list, T )' is a builtin over the vararg cursor -- see lowercva.bas.
+    dim as MirValue cav
+    if LowerCvaArg( c, id, cav ) then return cav
     '' 'len( x )' is a runtime call for a string and a constant for anything else.
     dim as MirValue lnv
     if LowerLen( c, id, lnv ) then return lnv
