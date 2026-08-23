@@ -491,10 +491,27 @@ private function RedimOne_ _
     dim as Fbx.TypeId aty = Fbx.TYPE_NONE
     dim as MirValue desc
 
-    dim as Fbx.SymbolId sid = _
-        c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
+    '' A TARGET EXPRESSION -- 'redim x.array( 0 to 9 )' and 'redim ( a )( 0 to 9 )'.
+    '' The parser records the chain rather than only its last name, which is what a
+    '' lookup by name could never get right: it declined when nothing of that name was
+    '' in scope, and would have re-dimensioned the WRONG ARRAY when something was.
+    dim as boolean viaExpr = (ip->extra = cast( ushort, Fbx.KW_REDIM ))
+    if viaExpr then
+        if ip->b = Fbx.NODE_NONE then return false
+        aty = c.info->TypeOf_( ip->b )
+        if c.types->IsDynArray( aty ) = false then return false
+        desc = LowerAddr( c, ip->b )
+        if desc.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+
+    dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
+    if viaExpr = false then
+        sid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
+    end if
     dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( sid )
-    if (vs <> 0) andalso c.types->IsDynArray( vs->type_ ) then
+    if viaExpr then
+        '' already resolved above
+    elseif (vs <> 0) andalso c.types->IsDynArray( vs->type_ ) then
         dim as long slot = LocalFor( c, sid )
         if slot < 0 then return false
         desc.kind = cast( ubyte, MV_LOCAL )

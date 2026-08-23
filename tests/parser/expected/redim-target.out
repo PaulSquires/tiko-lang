@@ -26,6 +26,9 @@ N_MODULE (8) <1:62>
           N_INT_LIT 1 radix=10 <21:18>
   N_VAR [REDIM] <22:1>
     N_VAR_ITEM 'arr' array <22:7>
+      N_MEMBER . <22:9>
+        N_IDENT 'ns' <22:7>
+        N_IDENT 'arr' <22:10>
       N_BLOCK (1) <22:7>
         N_CASE_RANGE <22:19>
           N_INT_LIT 0 radix=10 <22:14>

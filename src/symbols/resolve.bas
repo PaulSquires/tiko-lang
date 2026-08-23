@@ -1152,6 +1152,14 @@ sub WalkStmt _
                 dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
                 if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
                 dim as Fbx.StmtPayload ptr rp = StmtOf( c, item )
+                '' 'redim x.array( 0 to 9 )' and 'redim ( a )( 0 to 9 )' name their
+                '' array through an EXPRESSION, which the parser puts in the slot a
+                '' REDIM otherwise leaves empty. It is an ordinary lvalue and has to be
+                '' resolved like one, or lowering has an unbound name to take the
+                '' address of.
+                if rp->extra = cast( ushort, Fbx.KW_REDIM ) then
+                    if rp->b <> Fbx.NODE_NONE then WalkStmt( c, rp->b, here )
+                end if
                 if rp->c = Fbx.NODE_NONE then continue for
                 if c.ast->Kind( rp->c ) <> Fbx.N_BLOCK then continue for
                 dim as Fbx.ListPayload ptr rl = _
