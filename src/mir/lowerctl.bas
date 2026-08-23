@@ -319,6 +319,15 @@ sub LowerExitLike _
 end sub
 
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+declare function LowerStrCaseTest_ _
+    ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
+      byval val as Fbx.NodeId ) as MirValue
+declare function StrCaseCompare_ _
+    ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
+      byval val as Fbx.NodeId, byval op as Fbx.TokenKind ) as MirValue
+
 sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     if sp->b = Fbx.NODE_NONE then
@@ -328,26 +337,71 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
 
     dim as Fbx.TypeId subjT = c.info->TypeOf_( sp->a )
     dim as MirType mt = LowerType( subjT, *c.types )
-    if mt = MT_VOID then
-        SkipHere( c )
-        return
+
+    '' A STRING SUBJECT IS COMPARED, NOT LOADED. 'select case s : case "a"' was
+    '' loading the DESCRIPTOR'S first eight bytes and comparing them against the
+    '' literal's ADDRESS truncated to 32 bits -- verifier-clean, no decline, and wrong
+    '' every time. fbc emits one fb_StrCompare per case value and tests its result
+    '' against zero, which is what the ordinary string comparison already does.
+    ''
+    '' The subject is evaluated ONCE into a slot holding its descriptor pointer, so a
+    '' subject with a side effect runs once however many cases follow.
+    dim as long strMode = -1
+    if TermIsWide_( c, sp->a ) then
+        strMode = 1
+    else
+        dim as longint sn0
+        if IsStringType( c, subjT ) orelse (StrSwapKind_( c, subjT, sn0 ) >= 0) then
+            strMode = 0
+        elseif c.types->Kind( subjT ) = Fbx.TK_UDT then
+            dim as MirValue probe
+            if StrDescriptorOf_( c, sp->a, probe ) then strMode = 0
+        end if
     end if
-    dim as MirValue subj = LowerExpr( c, sp->a )
-    if subj.kind = cast( ubyte, MV_NONE ) then
-        SkipHere( c )
-        return
-    end if
-    dim as long slot = NewTempLocal( c, mt, c.types->Layout( subjT ).size )
+
     dim as MirValue slotAddr
-    slotAddr.kind = cast( ubyte, MV_LOCAL )
-    slotAddr.ty = cast( ubyte, MT_PTR )
-    slotAddr.id = slot
-    dim as MirInst st0
-    st0.op = cast( ushort, M_STORE )
-    st0.ty = cast( ubyte, MT_VOID )
-    st0.a = slotAddr
-    st0.b = subj
-    Emit( c, st0 )
+    if strMode >= 0 then
+        dim as MirValue sv
+        dim as boolean got = false
+        if strMode = 1 then
+            got = WideOperand_( c, sp->a, sv )
+        else
+            got = StrDescriptorOf_( c, sp->a, sv )
+        end if
+        if got = false then
+            SkipHere( c )
+            return
+        end if
+        dim as long pslot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        if pslot < 0 then
+            SkipHere( c )
+            return
+        end if
+        slotAddr.kind = cast( ubyte, MV_LOCAL )
+        slotAddr.ty = cast( ubyte, MT_PTR )
+        slotAddr.id = pslot
+        StoreThrough( c, slotAddr, sv )
+    else
+        if mt = MT_VOID then
+            SkipHere( c )
+            return
+        end if
+        dim as MirValue subj = LowerExpr( c, sp->a )
+        if subj.kind = cast( ubyte, MV_NONE ) then
+            SkipHere( c )
+            return
+        end if
+        dim as long slot = NewTempLocal( c, mt, c.types->Layout( subjT ).size )
+        slotAddr.kind = cast( ubyte, MV_LOCAL )
+        slotAddr.ty = cast( ubyte, MT_PTR )
+        slotAddr.id = slot
+        dim as MirInst st0
+        st0.op = cast( ushort, M_STORE )
+        st0.ty = cast( ubyte, MT_VOID )
+        st0.a = slotAddr
+        st0.b = subj
+        Emit( c, st0 )
+    end if
 
     dim as Fbx.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
@@ -374,7 +428,12 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
             dim as Fbx.NodeId val = cast( Fbx.NodeId, c.ast->children[cp->first + v] )
             dim as long moreB = nextB
             if v < cp->count - 1 then moreB = NewBlock( c, "sel.alt" )
-            dim as MirValue cond = LowerCaseTest( c, slotAddr, mt, isUns, val )
+            dim as MirValue cond
+            if strMode >= 0 then
+                cond = LowerStrCaseTest_( c, slotAddr, (strMode = 1), val )
+            else
+                cond = LowerCaseTest( c, slotAddr, mt, isUns, val )
+            end if
             if cond.kind = cast( ubyte, MV_NONE ) then
                 SkipHere( c )
                 Terminate( c, MTERM_BR, moreB, -1, NoVal( ) )
@@ -407,6 +466,86 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     c.loopKind.Pop( )
     c.curBlock = joinB
 end sub
+
+'' One CASE value against a STRING subject: fb_StrCompare or fb_WstrCompare, then the
+'' case's operator against ZERO -- the same shape an ordinary string comparison takes.
+''
+'' 'slotAddr' holds the subject's DESCRIPTOR POINTER (narrow) or its uint16* (wide),
+'' evaluated once before the first case.
+private function LowerStrCaseTest_ _
+    ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
+      byval val as Fbx.NodeId ) as MirValue
+
+    dim as MirValue none_
+    if val = Fbx.NODE_NONE then return none_
+
+    dim as Fbx.TokenKind op = Fbx.TK_EQ
+    dim as Fbx.NodeId lhsV = val
+    dim as Fbx.NodeId hiV = Fbx.NODE_NONE
+    if c.ast->Kind( val ) = Fbx.N_CASE_RANGE then
+        dim as Fbx.StmtPayload ptr rp = StmtOf( c, val )
+        lhsV = rp->a
+        if cast( Fbx.TokenKind, rp->op ) <> 0 then
+            '' 'case is > "d"'.
+            op = cast( Fbx.TokenKind, rp->op )
+        else
+            '' 'case "a" to "c"' -- inclusive at both ends, so two comparisons.
+            op = Fbx.TK_GE
+            hiV = rp->b
+        end if
+    end if
+
+    dim as MirValue c1 = StrCaseCompare_( c, slotAddr, wide, lhsV, op )
+    if c1.kind = cast( ubyte, MV_NONE ) then return none_
+    if hiV = Fbx.NODE_NONE then return c1
+    dim as MirValue c2 = StrCaseCompare_( c, slotAddr, wide, hiV, Fbx.TK_LE )
+    if c2.kind = cast( ubyte, MV_NONE ) then return none_
+    dim as MirInst i3
+    i3.op = cast( ushort, M_AND )
+    i3.ty = cast( ubyte, MT_I8 )
+    i3.a = c1
+    i3.b = c2
+    return Emit( c, i3 )
+end function
+
+'' One comparison of the stored subject against one case value.
+private function StrCaseCompare_ _
+    ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
+      byval val as Fbx.NodeId, byval op as Fbx.TokenKind ) as MirValue
+
+    dim as MirValue none_
+    dim as MirValue subjPtr = LowerExprLoad( c, slotAddr, MT_PTR )
+    if subjPtr.kind = cast( ubyte, MV_NONE ) then return none_
+
+    dim as FB.Array( of ulong ) args
+    dim as MirValue cmp
+    if wide then
+        dim as MirValue rv
+        if WideOperand_( c, val, rv ) = false then
+            if NarrowToWideTemp_( c, val, rv ) = false then return none_
+        end if
+        args.Push( cast( ulong, subjPtr.kind ) ) : args.Push( cast( ulong, subjPtr.id ) )
+        args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
+        cmp = EmitRtl( c, RTL_WSTR_COMPARE, args )
+    else
+        '' The subject is a descriptor, so its length is -1; the case value pushes its
+        '' own (pointer, length) pair the way every string term does.
+        args.Push( cast( ulong, subjPtr.kind ) ) : args.Push( cast( ulong, subjPtr.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        if EmitStrTerm( c, args, val ) = false then return none_
+        cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+    end if
+    if cmp.kind = cast( ubyte, MV_NONE ) then return none_
+
+    dim as MirInst ins
+    ins.op = cast( ushort, BinOpFor( op, MT_I32, false ) )
+    ins.ty = cast( ubyte, MT_I8 )
+    ins.a = cmp
+    ins.b = ConstInt( c, 0, MT_I32 )
+    if ins.op = cast( ushort, M_NONE ) then return none_
+    return Emit( c, ins )
+end function
 
 '' One CASE value against the subject: an equality, a range, or a relational test.
 private function LowerCaseTest _

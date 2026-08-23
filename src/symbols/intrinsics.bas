@@ -147,7 +147,14 @@ private function ExprIntrinsicType_ _
         end select
         return c.types->Builtin( Fbx.TY_LONGINT )
     case "strptr"
+        '' A WIDE operand gives a WIDE pointer: '#print typeof( strptr( w ) )' over a
+        '' 'wstring * 4' is 'WSTRING * 4 PTR', not a zstring ptr. Typing it narrow made
+        '' 'dim pw as wstring ptr = strptr( w )' an incompatible initialiser and
+        '' declined every use of pw after it.
         if isStr = false then return Fbx.TYPE_NONE
+        if ab = Fbx.TY_WSTRING then
+            return c.types->Pointer_( c.types->Builtin( Fbx.TY_WSTRING ) )
+        end if
         return c.types->Pointer_( c.types->Builtin( Fbx.TY_ZSTRING ) )
     case "varptr"
         if a0 = Fbx.TYPE_NONE then return Fbx.TYPE_NONE

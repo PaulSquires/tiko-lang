@@ -1,4 +1,4 @@
-resolved: 11 references, 0 builtins, 0 unresolved, 180 type refs, 2 calls, 2 assignments
+resolved: 11 references, 0 builtins, 0 unresolved, 187 type refs, 2 calls, 2 assignments
   typeref #1 -> long
   typeref #5 -> long
   typeref #8 -> long
@@ -38,147 +38,154 @@ resolved: 11 references, 0 builtins, 0 unresolved, 180 type refs, 2 calls, 2 ass
   typeref #99 -> long
   typeref #103 -> string
   typeref #105 -> double
-  typeref #108 -> long
-  typeref #113 -> double
-  typeref #117 -> long
-  typeref #121 -> long
-  typeref #124 -> long
-  typeref #127 -> long
-  typeref #131 -> long
-  typeref #134 -> long
-  typeref #137 -> long
+  typeref #107 -> zstring
+  typeref #108 -> zstring ptr
+  typeref #110 -> longint
+  typeref #112 -> zstring
+  typeref #113 -> zstring ptr
+  typeref #115 -> zstring
+  typeref #116 -> zstring ptr
+  typeref #120 -> long
+  typeref #125 -> double
+  typeref #129 -> long
+  typeref #133 -> long
+  typeref #136 -> long
   typeref #139 -> long
-  typeref #144 -> any
-  typeref #145 -> any ptr
-  typeref #147 -> any
-  typeref #148 -> any ptr
-  typeref #151 -> integer
-  typeref #154 -> any
-  typeref #155 -> any ptr
-  typeref #157 -> any
-  typeref #158 -> any ptr
-  typeref #161 -> any
-  typeref #162 -> any ptr
-  typeref #164 -> any
-  typeref #165 -> any ptr
-  typeref #168 -> any
-  typeref #169 -> any ptr
-  typeref #172 -> any
-  typeref #173 -> any ptr
+  typeref #143 -> long
+  typeref #146 -> long
+  typeref #149 -> long
+  typeref #151 -> long
+  typeref #156 -> any
+  typeref #157 -> any ptr
+  typeref #159 -> any
+  typeref #160 -> any ptr
+  typeref #163 -> integer
+  typeref #166 -> any
+  typeref #167 -> any ptr
+  typeref #169 -> any
+  typeref #170 -> any ptr
+  typeref #173 -> any
+  typeref #174 -> any ptr
   typeref #176 -> any
   typeref #177 -> any ptr
-  typeref #179 -> any
-  typeref #180 -> any ptr
-  typeref #183 -> any
-  typeref #184 -> any ptr
-  typeref #187 -> any
-  typeref #188 -> any ptr
+  typeref #180 -> any
+  typeref #181 -> any ptr
+  typeref #184 -> any
+  typeref #185 -> any ptr
+  typeref #188 -> any
+  typeref #189 -> any ptr
   typeref #191 -> any
   typeref #192 -> any ptr
-  typeref #194 -> any
-  typeref #195 -> any ptr
-  typeref #198 -> long
-  typeref #200 -> long
-  typeref #202 -> long
-  typeref #205 -> long
-  typeref #208 -> long
-  typeref #211 -> long
+  typeref #195 -> any
+  typeref #196 -> any ptr
+  typeref #199 -> any
+  typeref #200 -> any ptr
+  typeref #203 -> any
+  typeref #204 -> any ptr
+  typeref #206 -> any
+  typeref #207 -> any ptr
+  typeref #210 -> long
+  typeref #212 -> long
   typeref #214 -> long
-  typeref #216 -> long
+  typeref #217 -> long
   typeref #220 -> long
-  typeref #224 -> long
+  typeref #223 -> long
   typeref #226 -> long
-  typeref #230 -> long
-  typeref #234 -> long
+  typeref #228 -> long
+  typeref #232 -> long
   typeref #236 -> long
-  typeref #240 -> long
-  typeref #244 -> long
-  typeref #247 -> long
-  typeref #251 -> long
+  typeref #238 -> long
+  typeref #242 -> long
+  typeref #246 -> long
+  typeref #248 -> long
+  typeref #252 -> long
   typeref #256 -> long
-  typeref #258 -> any
-  typeref #259 -> any ptr
-  typeref #261 -> any
-  typeref #262 -> any ptr
-  typeref #264 -> long
-  typeref #266 -> zstring
-  typeref #267 -> zstring ptr
-  typeref #269 -> any
-  typeref #270 -> any ptr
-  typeref #272 -> const string
-  typeref #275 -> any
-  typeref #276 -> any ptr
-  typeref #279 -> any
-  typeref #280 -> any ptr
-  typeref #282 -> long
-  typeref #284 -> any
-  typeref #285 -> any ptr
-  typeref #287 -> long
-  typeref #289 -> long
-  typeref #291 -> long
-  typeref #295 -> long
-  typeref #297 -> long
+  typeref #259 -> long
+  typeref #263 -> long
+  typeref #268 -> long
+  typeref #270 -> any
+  typeref #271 -> any ptr
+  typeref #273 -> any
+  typeref #274 -> any ptr
+  typeref #276 -> long
+  typeref #278 -> zstring
+  typeref #279 -> zstring ptr
+  typeref #281 -> any
+  typeref #282 -> any ptr
+  typeref #284 -> const string
+  typeref #287 -> any
+  typeref #288 -> any ptr
+  typeref #291 -> any
+  typeref #292 -> any ptr
+  typeref #294 -> long
+  typeref #296 -> any
+  typeref #297 -> any ptr
   typeref #299 -> long
-  typeref #302 -> long
-  typeref #305 -> long
+  typeref #301 -> long
+  typeref #303 -> long
+  typeref #307 -> long
   typeref #309 -> long
-  typeref #313 -> long
-  typeref #315 -> long
-  typeref #318 -> long
+  typeref #311 -> long
+  typeref #314 -> long
+  typeref #317 -> long
   typeref #321 -> long
-  typeref #324 -> long
+  typeref #325 -> long
   typeref #327 -> long
   typeref #330 -> long
-  typeref #333 -> string
-  typeref #337 -> integer
-  typeref #340 -> integer
-  typeref #343 -> integer
-  typeref #346 -> integer
+  typeref #333 -> long
+  typeref #336 -> long
+  typeref #339 -> long
+  typeref #342 -> long
+  typeref #345 -> string
   typeref #349 -> integer
   typeref #352 -> integer
-  typeref #355 -> string
-  typeref #359 -> long
-  typeref #362 -> long
-  typeref #365 -> long
-  typeref #368 -> long
+  typeref #355 -> integer
+  typeref #358 -> integer
+  typeref #361 -> integer
+  typeref #364 -> integer
+  typeref #367 -> string
   typeref #371 -> long
   typeref #374 -> long
-  typeref #376 -> integer
-  typeref #379 -> integer
-  typeref #382 -> integer
-  typeref #385 -> integer
+  typeref #377 -> long
+  typeref #380 -> long
+  typeref #383 -> long
+  typeref #386 -> long
   typeref #388 -> integer
-  typeref #391 -> long
-  typeref #393 -> long
-  typeref #395 -> long
-  typeref #398 -> long
-  typeref #401 -> long
-  typeref #404 -> long
-  typeref #408 -> long
-  typeref #410 -> integer
-  typeref #413 -> integer
-  typeref #416 -> integer
-  typeref #419 -> integer
-  typeref #423 -> long
-  typeref #425 -> string
-  typeref #428 -> any
-  typeref #429 -> any ptr
-  typeref #431 -> long
-  typeref #434 -> long
-  typeref #437 -> long
-  typeref #440 -> long
-  typeref #443 -> any
-  typeref #444 -> any ptr
-  typeref #447 -> long
-  typeref #450 -> long
+  typeref #391 -> integer
+  typeref #394 -> integer
+  typeref #397 -> integer
+  typeref #400 -> integer
+  typeref #403 -> long
+  typeref #405 -> long
+  typeref #407 -> long
+  typeref #410 -> long
+  typeref #413 -> long
+  typeref #416 -> long
+  typeref #420 -> long
+  typeref #422 -> integer
+  typeref #425 -> integer
+  typeref #428 -> integer
+  typeref #431 -> integer
+  typeref #435 -> long
+  typeref #437 -> string
+  typeref #440 -> any
+  typeref #441 -> any ptr
+  typeref #443 -> long
+  typeref #446 -> long
+  typeref #449 -> long
   typeref #452 -> long
-  typeref #455 -> integer
-  typeref #458 -> single
-  typeref #461 -> single
-  typeref #464 -> single
-  typeref #467 -> single
+  typeref #455 -> any
+  typeref #456 -> any ptr
+  typeref #459 -> long
+  typeref #462 -> long
+  typeref #464 -> long
+  typeref #467 -> integer
   typeref #470 -> single
   typeref #473 -> single
   typeref #476 -> single
   typeref #479 -> single
-  typeref #482 -> long
+  typeref #482 -> single
+  typeref #485 -> single
+  typeref #488 -> single
+  typeref #491 -> single
+  typeref #494 -> long

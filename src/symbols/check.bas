@@ -734,6 +734,25 @@ private function IsNumericBuiltin_ _
     return false
 end function
 
+'' A UDT's operator by its SPELLING -- '[]', '+', 'cast'. Operators are declared under
+'' the punctuation itself, folded, which is what makes this a plain member lookup.
+private function UdtOperatorNamed_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    dim as Fbx.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( u )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( u ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Fbx.Symbol ptr sy = c.syms->SymbolAt( ts )
+    if sy = 0 then return Fbx.SYMBOL_NONE
+    if sy->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( nm ) ) )
+end function
+
 '' Pick the overload for one call. Returns the chosen procedure's RETURN type, or
 '' TYPE_NONE when nothing is viable or two candidates tie.
 private function ResolveCall_ _
@@ -1195,6 +1214,28 @@ function TypeOf_ _
                             end select
                         else
                             t = el
+                        end if
+                    end if
+                elseif c.types->Kind( pt ) = Fbx.TK_UDT then
+                    '' 'a[ i ]' OVER A UDT IS ITS 'operator []', which is how every
+                    '' container in the runtime headers is read and written. Untyped,
+                    '' the assignment through one declined -- 'a[ 1 ] = 99' is what a
+                    '' container is FOR -- and so did every expression built on it.
+                    ''
+                    '' A BYREF result is a REFERENCE to the element; the element's own
+                    '' type is what the expression has, exactly as a byref parameter's
+                    '' use does.
+                    dim as Fbx.SymbolId ixs = UdtOperatorNamed_( c, pt, "[]" )
+                    if ixs <> Fbx.SYMBOL_NONE then
+                        dim as Fbx.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
+                        if ixsym <> 0 then
+                            t = ixsym->type_
+                            if t <> Fbx.TYPE_NONE then
+                                if c.types->Kind( t ) = Fbx.TK_REFERENCE then
+                                    t = c.types->Inner( t )
+                                end if
+                            end if
+                            c.info->SetRef( id, ixs )
                         end if
                     end if
                 end if

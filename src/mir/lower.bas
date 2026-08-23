@@ -574,6 +574,7 @@ function LowerExpr _
         dim as MirValue wcv
         if LowerWstrOf( c, id, wcv ) then return wcv
         if LowerGfxExprCall_( c, id, wcv ) then return wcv
+        if LowerStrPtrCall_( c, id, wcv ) then return wcv
         '' Indexing and calling share a spelling; an array subscript is an address to
         '' load from, not a call to make.
         if IsArrayIndex( c, id ) then

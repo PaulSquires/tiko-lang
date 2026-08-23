@@ -1127,6 +1127,35 @@ end function
 '' recorded -- and three of those keywords are TWO statements sharing a spelling,
 '' which is what the 'extra' bits are for. Split out of lower.bas when that file
 '' reached the 1500-line cap; nothing about it changed in the move.
+'' 'strptr( x )' -- THE CHARACTER DATA POINTER, which is a different thing per flavour
+'' and was lowered for none of them:
+''
+''   strptr( s )   over a STRING        '*(char**)&S'    the descriptor's first field
+''   strptr( z )   over a 'zstring * N' '(char*)Z'       the buffer's own address
+''   strptr( w )   over a 'wstring * N' '(uint16*)W'     likewise, and WIDE
+''
+'' Its TYPE follows the operand too -- '#print typeof( strptr( w ) )' is
+'' 'WSTRING * 4 PTR' -- so a narrow answer made 'dim pw as wstring ptr = strptr( w )'
+'' an incompatible initialiser as well as an unlowered one.
+function LowerStrPtrCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->count <> 1 then return false
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "strptr" then return false
+
+    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    if TermIsWide_( c, a0 ) then return WideOperand_( c, a0, outv )
+    return ZstrDataOf_( c, a0, outv )
+end function
+
+
 function LowerIntrinsicStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr ip = StmtOf( c, id )
     dim as boolean handled = false

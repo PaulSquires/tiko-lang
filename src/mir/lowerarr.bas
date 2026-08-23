@@ -56,6 +56,36 @@ function LowerAddr _
     dim as MirValue v
     if id = Fbx.NODE_NONE then return v
 
+    '' A BYREF-RETURNING CALL YIELDS AN ADDRESS, which is the whole point of one:
+    '' fbc writes 'int32* vr = _ZN1TixEi( &A, 1 ); *vr = 99;' for 'a[ 1 ] = 99'. So
+    '' 'operator []' over a container is an LVALUE, and without this every assignment
+    '' through one declined -- which is how a container is written to.
+    ''
+    '' The call is lowered as a POINTER rather than as its declared element type: the
+    '' reference IS the pointer, and asking for the element would load through it.
+    '' N_CALL only: an N_INDEX over a UDT is the 'operator []' path further down,
+    '' which knows how to find the receiver -- this one would call the operator with
+    '' the subscript and NO 'this'.
+    if c.ast->Kind( id ) = Fbx.N_CALL then
+        dim as Fbx.ListPayload ptr bl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Fbx.SymbolId bcal = c.info->RefOf( id )
+        if bcal = Fbx.SYMBOL_NONE then bcal = c.info->RefOf( bl->target )
+        dim as Fbx.Symbol ptr bcs = c.syms->SymbolAt( bcal )
+        if bcs <> 0 then
+            if bcs->kind = cast( ubyte, Fbx.SYM_PROC ) then
+                dim as Fbx.NodeId bpn = cast( Fbx.NodeId, bcs->payload )
+                if (bpn <> Fbx.NODE_NONE) andalso (c.ast->Kind( bpn ) = Fbx.N_PROC) then
+                    if (c.ast->nodes[cast( long, bpn )].flags and Fbx.NF_BYREF) <> 0 then
+                        dim as MirValue bv = LowerCallParts( c, bl->target, bcal, _
+                                                            bl->first, bl->count, MT_PTR )
+                        if bv.kind <> cast( ubyte, MV_NONE ) then return bv
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     '' A QUALIFIED NAME -- 'ns.counter' -- is bound by Resolve to the symbol inside the
     '' namespace, so its address is that symbol's storage. It is NOT a member access on
     '' a value and has no base to compute from.

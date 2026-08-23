@@ -1,0 +1,8 @@
+'' Byref returns as lvalues, strptr per flavour, and SELECT over a string.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lvalue-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_StrCompare
+'' EXPECT-OUT: fb_WstrCompare
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/lvalue-call.out
