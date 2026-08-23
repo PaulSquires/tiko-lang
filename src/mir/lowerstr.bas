@@ -637,8 +637,15 @@ function LowerStringInit _
     FlattenConcat( c, value, terms )
     if terms.Count <> 1 then
         ZeroStrDescriptor( c, dst )
-        if target = Tko.NODE_NONE then return true
-        return LowerStringAssign( c, target, value )
+        '' THROUGH THE SLOT, not through 'target'. At a declaration 'target' is the
+        '' N_VAR_ITEM, which is not an expression and has no address: LowerStringAssign
+        '' asked it for one, got nothing and returned false -- and the caller was
+        '' discarding that answer, so 'dim as string a = b + c' emitted the zeroed
+        '' descriptor and DROPPED THE INITIALISER, silently and with nothing declined.
+        '' The self-reference check LowerStringAssign does with 'target' has nothing to
+        '' find here: the descriptor was just zeroed, so a chain naming the variable
+        '' being declared reads the empty string either way.
+        return LowerStringAssignToSlot( c, slot, value )
     end if
 
     '' THE FLAVOUR COMES FROM THE DESTINATION. A ustring takes fb_UStrInit and a

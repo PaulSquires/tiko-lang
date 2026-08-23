@@ -179,9 +179,16 @@ function EmitStrTerm _
     '' A FIXED-LENGTH STRING passes its address and its ENCODED length -- kind 3 comes
     '' back with the sign-tagged constant already in 'zn', so this is the same push as
     '' the zstring case and the two share a branch.
+    '' KIND 4 IS 'ustring * N', and it belongs here for the same reason as the other
+    '' two: it is a char array with no descriptor and its tagged length is already in
+    '' 'zn'. It is taken ONLY when the destination is UTF-16, because its bytes are --
+    '' handing them to a narrow entry point would be the wrong encoding, not a shorter
+    '' string. Without it 'dim as ustring u = uf' had no term at all and the whole
+    '' initialiser was dropped.
     dim as longint zn
     dim as long zk = StrSwapKind_( c, c.info->TypeOf_( term ), zn )
-    if (zk = 1) orelse (zk = 3) then
+    if (zk = 4) andalso (isU = false) then return false
+    if (zk = 1) orelse (zk = 3) orelse (zk = 4) then
         dim as MirValue za = LowerAddr( c, term )
         if za.kind <> cast( ubyte, MV_NONE ) then
             args.Push( cast( ulong, za.kind ) )

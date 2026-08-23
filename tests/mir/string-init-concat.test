@@ -1,0 +1,8 @@
+'' A concatenation as a declaration's initialiser, in four shapes, plus the assignment
+'' form beside it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/string-init-concat.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/string-init-concat.out

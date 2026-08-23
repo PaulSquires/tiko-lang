@@ -1,0 +1,8 @@
+'' Concatenation and comparison over 'zstring * N', 'wstring * N' and 'string * N',
+'' plus WSTR's own fixed-wstring result type.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixed-string-concat.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fixed-string-concat.out

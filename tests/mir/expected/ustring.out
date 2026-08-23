@@ -51,9 +51,9 @@ func i32 main($0, $1) {
     %27 = icmp.eq %26, 0
     %32 = alloca ptr uf
     %39 = alloca ptr fromfixed
-    %43 = alloca ptr $tmp7
-    %48 = alloca ptr catlen
-    %49 = alloca ptr $tmp9
+    %42 = alloca ptr $tmp7
+    %47 = alloca ptr catlen
+    %48 = alloca ptr $tmp9
     condbr %27, if.then2, if.else3
   if.join1:
     call.rtl void fb_PrintUStr(0, @a, 2)
@@ -68,40 +68,36 @@ func i32 main($0, $1) {
     %36 = const i64 -9223372036854775793
     %37 = const i64 -9223372036854775807
     %38 = call.rtl ptr fb_UStrAssign(@uf, %36, @@$wstr4, %37, -1)
-    %40 = field.addr @fromfixed, 0
-    store %40, 0
-    %41 = field.addr @fromfixed, 8
-    store %41, 0
-    %42 = field.addr @fromfixed, 16
-    store %42, 0
+    %40 = const i64 -9223372036854775793
+    %41 = call.rtl ptr fb_UStrInit(@fromfixed, -1, @uf, %40, 0)
     call.rtl void fb_PrintUStr(0, @fromfixed, 1)
-    %44 = field.addr @$tmp7, 0
+    %43 = field.addr @$tmp7, 0
+    store %43, 0
+    %44 = field.addr @$tmp7, 8
     store %44, 0
-    %45 = field.addr @$tmp7, 8
+    %45 = field.addr @$tmp7, 16
     store %45, 0
-    %46 = field.addr @$tmp7, 16
-    store %46, 0
-    %47 = call.rtl ptr fb_UStrConcat(@$tmp7, @a, -1, @b, -1)
+    %46 = call.rtl ptr fb_UStrConcat(@$tmp7, @a, -1, @b, -1)
     call void UTAKE(@$tmp7)
-    %50 = field.addr @$tmp9, 0
+    %49 = field.addr @$tmp9, 0
+    store %49, 0
+    %50 = field.addr @$tmp9, 8
     store %50, 0
-    %51 = field.addr @$tmp9, 8
+    %51 = field.addr @$tmp9, 16
     store %51, 0
-    %52 = field.addr @$tmp9, 16
-    store %52, 0
-    %53 = call.rtl ptr fb_UStrConcat(@$tmp9, @a, -1, @b, -1)
-    %54 = call.rtl i64 fb_UStrLen(@$tmp9, -1)
-    %55 = trunc %54
-    store @catlen, %55
-    %56 = load @catlen
-    call.rtl void fb_PrintInt(0, %56, 1)
+    %52 = call.rtl ptr fb_UStrConcat(@$tmp9, @a, -1, @b, -1)
+    %53 = call.rtl i64 fb_UStrLen(@$tmp9, -1)
+    %54 = trunc %53
+    store @catlen, %54
+    %55 = load @catlen
+    call.rtl void fb_PrintInt(0, %55, 1)
     call.rtl void fb_UStrDelete(@fromfixed)
     call.rtl void fb_UStrDelete(@b)
     call.rtl void fb_UStrDelete(@a)
-    %57 = const i32 0
-    call.rtl void fb_End(%57)
-    %58 = load @$tmp0
-    ret %58
+    %56 = const i32 0
+    call.rtl void fb_End(%56)
+    %57 = load @$tmp0
+    ret %57
   if.then2:
     %28 = const i64 1
     %29 = trunc %28
@@ -123,4 +119,4 @@ declare void UTAKE()
 declare void fb_UStrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 4 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 4 blocks, 83 insts, 0 statements not lowered, 0 scope imbalance

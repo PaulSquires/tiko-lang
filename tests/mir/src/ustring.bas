@@ -54,6 +54,10 @@ print a, b, n, c
 '' work: the narrow 'string * N' path does the same.
 dim as ustring * 16 uf = "FreeBasic"
 uf = "d"
+'' A FIXED USTRING AS A SOURCE TERM passes its address and its tagged length, exactly
+'' as the fixed narrow flavour does, and only where the destination is UTF-16 -- narrow
+'' bytes and UTF-16 ones are not a length apart. It was not a term at all until this,
+'' so the whole initialiser was DROPPED: no call, no store, and nothing declined.
 dim as ustring fromFixed = uf
 print fromFixed
 

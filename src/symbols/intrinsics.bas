@@ -179,6 +179,18 @@ private function ExprIntrinsicType_ _
     case "str"
         if (isNum orelse isStr) = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )
+    '' WSTR IS A FIXED WSTRING, not a var-length one, and the LENGTH is measured:
+    '' 'WSTRING * 1' for every argument fbc accepts except a fixed wstring, which keeps
+    '' its own. Typing it as nothing at all left every concatenation of one untyped --
+    '' 'wstr( i ) + w' as a SELECT CASE subject is 19 corpus declines by itself.
+    case "wstr"
+        if (isNum orelse isStr) = false then return Tko.TYPE_NONE
+        dim as long wn = 1
+        if ab = Tko.TY_WSTRING then
+            if c.types->Kind( a0 ) = Tko.TK_ARRAY then wn = c.types->ElemCount( a0 )
+        end if
+        if wn < 1 then wn = 1
+        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, wn )
     case "trim", "ltrim", "rtrim", "ucase", "lcase", "mid", "left", "right"
         if isStr = false then return Tko.TYPE_NONE
         if ab = Tko.TY_WSTRING then return c.types->Builtin( Tko.TY_WSTRING )

@@ -878,7 +878,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     '' Order matters: the descriptor is made valid BEFORE its release
                     '' is registered, so no path can reach the fb_StrDelete with a
                     '' descriptor that was never written.
-                    LowerStringInit( c, slot, item, ip->b )
+                    '' The answer is READ: a string initialiser that cannot be built
+                    '' is a decline, not a variable that silently starts out empty.
+                    if LowerStringInit( c, slot, item, ip->b ) = false then SkipHere( c )
                     strInited = true
                     c.cleanupNode.Push( 0 )
                     c.cleanupSlot.Push( slot )

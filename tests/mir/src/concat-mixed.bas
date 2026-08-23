@@ -33,7 +33,9 @@ print w & ", " & w
 print x & ", " & w
 r = s & w
 
-'' 'wstr( x )' HAS NO TYPE of its own, so a chain containing one looked entirely narrow.
+'' 'wstr( x )' IS A FIXED WSTRING -- 'WSTRING * 1' for every argument but a fixed
+'' wstring, which keeps its own length -- and it had no type at all until that was
+'' measured, so a chain containing one looked entirely narrow.
 print wstr( w )
 print wstr( """" & wstr( w ) & """" )
 

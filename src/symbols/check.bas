@@ -66,6 +66,42 @@ private function IsStringy_( byval b as Tko.BuiltinType ) as boolean
     return false
 end function
 
+'' 'zstring * N' IS AN ARRAY of TY_ZSTRING rather than a builtin of its own, and so are
+'' 'wstring * N', 'string * N' (TY_FIXSTR) and 'ustring * N' (TY_FIXUSTR). Every one of
+'' them fell out at BinaryResult's builtin-only guard, so 'z + z' and 'w + w' had no
+'' type at all and every use of one declined -- 36 corpus declines were a single macro
+'' putting a fixed-string concatenation in a SELECT CASE subject.
+private function StrFlavourOf_ _
+    ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as Tko.TypeId
+    dim as Tko.TypeId el = FixedStringElem( t, types )
+    if el = Tko.TYPE_NONE then return t
+    select case types.BuiltinOf( el )
+    case Tko.TY_FIXSTR  : return types.Builtin( Tko.TY_STRING )
+    case Tko.TY_FIXUSTR : return types.Builtin( Tko.TY_USTRING )
+    end select
+    return el
+end function
+
+'' THE RESULT OF A CONCATENATION IS WIDE WHEN EITHER OPERAND IS. Measured with fbc:
+'' 'z + z', 'f + f' and 'z & z' are STRING, while 'w + w', 'w & w', '*pw + *pw' and
+'' even 'w & 5' are WSTRING. The narrow answer was returned for all of them, which put
+'' a wide value through the narrow runtime.
+''
+'' Mixing the two WIDE flavours -- a wstring with a ustring -- is not measured against
+'' anything, so it has no answer here rather than a guessed one.
+private function ConcatResult_ _
+    ( byref types as Tko.TypeContext, byval lb as Tko.BuiltinType, _
+      byval rb as Tko.BuiltinType ) as Tko.TypeId
+    dim as boolean lw = (lb = Tko.TY_WSTRING)
+    dim as boolean rw = (rb = Tko.TY_WSTRING)
+    dim as boolean lu = (lb = Tko.TY_USTRING)
+    dim as boolean ru = (rb = Tko.TY_USTRING)
+    if (lu orelse ru) andalso (lw orelse rw) then return Tko.TYPE_NONE
+    if lu orelse ru then return types.Builtin( Tko.TY_USTRING )
+    if lw orelse rw then return types.Builtin( Tko.TY_WSTRING )
+    return types.Builtin( Tko.TY_STRING )
+end function
+
 '' ------------------------------------------------------------ operator classes
 
 private function IsComparison_( byval op as Tko.TokenKind ) as boolean
@@ -164,13 +200,19 @@ function BinaryResult _
     '' is handed -- 'long & long' is STRING. It converts rather than rejecting, so it
     '' is decided before any of the numeric rules and before the builtin-only guard:
     '' concatenating a UDT with a CAST operator is still a string.
+    '' '&' STAYS NARROW HERE whatever it is handed, and that is not the same answer
+    '' fbc's own 'typeof( w & w )' gives -- WSTRING. Its LOWERING decides the width
+    '' per term instead, measured shape by shape in tests/mir/concat-mixed: only a
+    '' genuinely wide term is wide, a literal and a number are not, and a narrow prefix
+    '' folds before the chain goes wide. Handing it a wide RESULT type instead made
+    '' 'r = s & w' assign narrowly and drop the wide term altogether.
     if op = Tko.TK_AMP then return types.Builtin( Tko.TY_STRING )
     '' AN ENUM DECAYS TO ITS UNDERLYING INTEGER for arithmetic. Measured:
     '' 'typeof( e + 69 )' is INTEGER. Without this an enum operand fell out at the
     '' builtin-only guard below, so 'var res = a_thing + 69' inferred nothing and got
     '' a VOID slot -- and the enum itself typed fine, which is what made it puzzling.
-    dim as Tko.TypeId lhs2 = lhs
-    dim as Tko.TypeId rhs2 = rhs
+    dim as Tko.TypeId lhs2 = StrFlavourOf_( types, lhs )
+    dim as Tko.TypeId rhs2 = StrFlavourOf_( types, rhs )
     if types.Kind( lhs2 ) = Tko.TK_ENUM then lhs2 = types.Builtin( Tko.TY_INTEGER )
     if types.Kind( rhs2 ) = Tko.TK_ENUM then rhs2 = types.Builtin( Tko.TY_INTEGER )
 
@@ -193,7 +235,7 @@ function BinaryResult _
     if lStr orelse rStr then
         if (lStr = false) orelse (rStr = false) then return Tko.TYPE_NONE
         if IsComparison_( op ) then return types.Builtin( Tko.TY_INTEGER )
-        if op = Tko.TK_PLUS then return types.Builtin( Tko.TY_STRING )
+        if op = Tko.TK_PLUS then return ConcatResult_( types, lb, rb )
         return Tko.TYPE_NONE
     end if
 
