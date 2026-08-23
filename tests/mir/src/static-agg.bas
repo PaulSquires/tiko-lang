@@ -41,3 +41,16 @@ type Fs
     as double d
 end type
 dim shared as Fs gf = type<Fs>( 1.5, 2.5 )
+
+'' A FIXED ARRAY OF SCALARS IS A BYTE IMAGE TOO. Measured: 'static as long t( 0 to 3 )
+'' = { 1, 2, 3, 4 }' is 'static int32 T$0[4] = { 1, 2, 3, 4 }' -- the same C static with
+'' an initialiser list a UDT gets. The leaf list is just the elements, and answering it
+'' only for a UDT declined every constant table in fb/tuicore.bi, fb/tuiwidthtab.bi and
+'' fb/math.bi.
+''
+'' The DIM form was already right: it stores element by element, because a local has no
+'' static storage to put an image in.
+static as long lt( 0 to 3 ) = { 1, 2, 3, 4 }
+static as double dt( 0 to 2 ) = { 1.5, 2.5, 3.5 }
+static as ubyte bt( 0 to 3 ) = { &hC0, &h00, &h00, &h46 }
+print lt( 0 ), dt( 1 ), bt( 3 )

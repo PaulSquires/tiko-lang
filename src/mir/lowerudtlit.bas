@@ -354,7 +354,26 @@ function FoldAggInit_ _
 
     dim as FB.Array( of ulong ) fOff
     dim as FB.Array( of ulong ) fTy
-    if FlattenUdtFields_( c, t, 0, fOff, fTy, 0 ) = false then return false
+    '' A FIXED ARRAY OF SCALARS IS ITS OWN LEAF LIST -- 'static as long t( 0 to 3 ) =
+    '' { 1, 2, 3, 4 }' is 'static int32 T$0[4] = { 1, 2, 3, 4 }', a byte image exactly
+    '' as a static UDT is. FlattenUdtFields_ answers only for a UDT, so every constant
+    '' table in fb/tuicore.bi, fb/tuiwidthtab.bi and fb/math.bi declined.
+    if c.types->Kind( t ) = Tko.TK_ARRAY then
+        if c.types->IsDynArray( t ) then return false
+        dim as Tko.TypeId et = c.types->Inner( t )
+        dim as MirType emt = LowerType( et, *c.types )
+        if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
+        dim as long esz = c.types->Layout( et ).size
+        if esz <= 0 then return false
+        dim as long total = size_ \ esz
+        if total <= 0 then return false
+        for k as long = 0 to total - 1
+            fOff.Push( cast( ulong, k * esz ) )
+            fTy.Push( cast( ulong, emt ) )
+        next
+    elseif FlattenUdtFields_( c, t, 0, fOff, fTy, 0 ) = false then
+        return false
+    end if
     dim as FB.Array( of ulong ) vNode
     if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
     if vNode.Count <= 0 then return false
