@@ -1,0 +1,6 @@
+'' FOR EACH over a container passed BYREF: the reference is not the container.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/foreach-byref.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/foreach-byref.out

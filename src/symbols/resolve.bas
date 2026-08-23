@@ -1324,6 +1324,17 @@ sub WalkStmt _
                     dim as Fbx.TypeId seqT = Fbx.TYPE_NONE
                     dim as Fbx.Symbol ptr ssym = c.syms->SymbolAt( c.info->RefOf( seqE ) )
                     if ssym <> 0 then seqT = ssym->type_
+                    '' A BYREF PARAMETER IS A REFERENCE TO THE CONTAINER. Testing
+                    '' the reference's own kind found neither an array nor a UDT, so
+                    '' 'for each e in a' over a 'byref a as Array( of T )' left the
+                    '' loop variable untyped -- and fbc's own stats.bi takes every
+                    '' container that way.
+                    if seqT <> Fbx.TYPE_NONE then
+                        seqT = c.types->Unqualify( seqT )
+                        if c.types->Kind( seqT ) = Fbx.TK_REFERENCE then
+                            seqT = c.types->Unqualify( c.types->Inner( seqT ) )
+                        end if
+                    end if
                     if seqT <> Fbx.TYPE_NONE then
                         if c.types->Kind( seqT ) = Fbx.TK_ARRAY then
                             vsym->type_ = c.types->Inner( seqT )

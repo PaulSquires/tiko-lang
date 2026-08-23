@@ -385,6 +385,15 @@ private function TypeMemberNamed_ _
     ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
 
     if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    '' A BYREF PARAMETER IS A REFERENCE TO THE TYPE, not the type. 'for each e in a'
+    '' over a 'byref a as Array( of T )' found no members at all, so the loop variable
+    '' stayed untyped and its every use declined -- while the same loop over a LOCAL
+    '' container lowered. fbc's own stats.bi takes its containers byref, which is what
+    '' a container-taking procedure does.
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = Fbx.TK_REFERENCE then
+        t = c.types->Unqualify( c.types->Inner( t ) )
+    end if
     if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
     dim as Fbx.InternId tn = c.types->NameOf( t )
     if tn = 0 then return Fbx.SYMBOL_NONE

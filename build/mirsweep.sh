@@ -51,8 +51,8 @@ find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 # a worker died with its output redirected at a directory, once a run hung for an hour.
 # Six leaves headroom for the shell's own processes. Raise it with MIRSWEEP_JOBS.
 JOBS=${MIRSWEEP_JOBS:-6}
-rm -rf build/.mirparts build/.diagparts
-mkdir -p build/.mirparts build/.diagparts
+rm -rf build/.mirparts build/.diagparts build/.skipparts
+mkdir -p build/.mirparts build/.diagparts build/.skipparts
 
 # ONE fbx per file, producing BOTH outputs. The diagnostics used to be collected by a
 # SECOND sweep running the identical command, which doubled the wall time and the fork
@@ -66,9 +66,10 @@ xargs -a build/.corpus.lst -d '
 ' -P "$JOBS" -I{} sh -c '
     key=$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
     raw=build/.mirparts/$key.raw
-    ./bin/fbx.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
+    FBX_TRACE_SKIP=1 ./bin/fbx.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
     grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb|^  var " \
         "$raw" > "build/.mirparts/$key" || true
+    grep -E "^SKIP " "$raw" | sed "s/.* at //" > "build/.skipparts/$key" || true
     grep -E ": (error|fatal) FBX" "$raw" > "build/.diagparts/$key" || true
     rm -f "$raw"
 ' _ {}
@@ -82,6 +83,10 @@ if [ "$got" -ne "$want" ]; then
     exit 4
 fi
 cat build/.mirparts/* > build/.mir.out
+# THE SOURCE LINES THE CORPUS DECLINES ON MOST, which is the work list. A
+# compiler line says which branch gave up; only the source line says what it gave
+# up ON, and two of the largest items ever found here were invisible without it.
+cat build/.skipparts/* 2>/dev/null | sort | uniq -c | sort -rn | head -12 | sed 's/^/mirsweep:  /' > build/.skiplines.out || true
 awk '
 /^lowered:/ {
   files++
@@ -149,3 +154,7 @@ echo "mirsweep: $dirty files report a diagnostic, of $want"
 for f in build/.diagparts/*; do head -1 "$f"; done 2>/dev/null \
     | grep -oE 'FBX[0-9]+: .*' | sed -E "s/'[^']*'/'X'/g; s/[0-9]+/N/g" \
     | sort | uniq -c | sort -rn | head -8 | sed 's/^/mirsweep:  /'
+
+
+echo "mirsweep: --- the SOURCE LINE that declined, corpus-wide ---"
+cat build/.skiplines.out 2>/dev/null
