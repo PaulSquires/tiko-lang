@@ -562,9 +562,11 @@ function LowerExpr _
         '' fixed one both fold at compile time and never reach here.
         dim as MirValue abv
         if LowerArrayBoundCall( c, id, abv ) then return abv
-        '' 'wstr( x )' widens a scalar or a narrow string into a wide temporary.
+        '' 'wstr( x )' widens into a wide temporary; 'imagecreate' and 'point' are the
+        '' two graphics EXPRESSIONS, keywords that cannot be declared in the prelude.
         dim as MirValue wcv
         if LowerWstrOf( c, id, wcv ) then return wcv
+        if LowerGfxExprCall_( c, id, wcv ) then return wcv
         '' Indexing and calling share a spelling; an array subscript is an address to
         '' load from, not a call to make.
         if IsArrayIndex( c, id ) then
@@ -1302,47 +1304,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
         LowerFor( c, id )
 
     case Fbx.N_INTRINSIC
-        dim as Fbx.StmtPayload ptr ip = StmtOf( c, id )
-        dim as boolean handled = false
-        if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
-        if ip->op = cast( ushort, Fbx.KW_SWAP ) then handled = LowerSwap( c, id )
-        if ip->op = cast( ushort, Fbx.KW_CLOSE ) then handled = LowerClose( c, id )
-        if ip->op = cast( ushort, Fbx.KW_OPEN ) then handled = LowerOpen_( c, id )
-        if ip->op = cast( ushort, Fbx.KW_ERROR ) then handled = LowerError( c, id )
-        if ip->op = cast( ushort, Fbx.KW_ERASE ) then handled = LowerErase( c, id )
-        if ip->op = cast( ushort, Fbx.KW_WRITE ) then handled = LowerWrite( c, id )
-        if ip->op = cast( ushort, Fbx.KW_POKE ) then handled = LowerPoke( c, id )
-        if ip->op = cast( ushort, Fbx.KW_LSET ) then handled = LowerLrset( c, id, false )
-        if ip->op = cast( ushort, Fbx.KW_RSET ) then handled = LowerLrset( c, id, true )
-        if ip->op = cast( ushort, Fbx.KW_READ ) then handled = LowerRead( c, id )
-        if ip->op = cast( ushort, Fbx.KW_RESTORE ) then handled = LowerRestore( c, id )
-        '' A DATA statement emits no code: its descriptor array was built by the
-        '' pre-pass, before anything else was lowered.
-        if ip->op = cast( ushort, Fbx.KW_DATA ) then handled = (c.dataHead >= 0)
-        '' LINE is two unrelated statements sharing a keyword: bit 1 of 'extra' is
-        '' LINE INPUT, bit 2 the graphics form, which needs libfbgfx and declines.
-        if ip->op = cast( ushort, Fbx.KW_LINE ) then
-            if (ip->extra and 1) <> 0 then
-                handled = LowerLineInput( c, id )
-                if handled = false then handled = LowerInput( c, id, true )
-            elseif (ip->extra and 2) <> 0 then
-                '' The GRAPHICS line. Bit 1 is what tells the two statements apart.
-                handled = LowerGfxStmt( c, id )
-            end if
-        end if
-        '' THE GRAPHICS FAMILY, which has its own coordinate grammar and its own
-        '' measured defaults -- see lowergfx.bas.
-        select case cast( Fbx.TokenKind, ip->op )
-        case Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
-             Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW, Fbx.KW_PALETTE
-            handled = LowerGfxStmt( c, id )
-        case Fbx.KW_GET, Fbx.KW_PUT
-            '' GET and PUT share a keyword with the FILE statements, exactly as LINE
-            '' does. Bit 1 of 'extra' is the graphics form.
-            if (ip->extra and 2) <> 0 then handled = LowerGfxStmt( c, id )
-        end select
-        if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
-        if handled = false then SkipStmt( c, id )
+        '' The intrinsic STATEMENTS -- one keyword each, and a dispatch long enough
+        '' to be its own subject. It lives in lowerintr.bas with the rest of them.
+        if LowerIntrinsicStmt( c, id ) = false then SkipStmt( c, id )
 
     case Fbx.N_FOREACH
         if LowerForEachArray( c, id ) = false then SkipStmt( c, id )

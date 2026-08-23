@@ -1122,4 +1122,54 @@ function LowerBuiltinProc _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+
+'' THE INTRINSIC STATEMENTS. One keyword each, dispatched on the op the parser
+'' recorded -- and three of those keywords are TWO statements sharing a spelling,
+'' which is what the 'extra' bits are for. Split out of lower.bas when that file
+'' reached the 1500-line cap; nothing about it changed in the move.
+function LowerIntrinsicStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr ip = StmtOf( c, id )
+    dim as boolean handled = false
+    if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
+    if ip->op = cast( ushort, Fbx.KW_SWAP ) then handled = LowerSwap( c, id )
+    if ip->op = cast( ushort, Fbx.KW_CLOSE ) then handled = LowerClose( c, id )
+    if ip->op = cast( ushort, Fbx.KW_OPEN ) then handled = LowerOpen_( c, id )
+    if ip->op = cast( ushort, Fbx.KW_ERROR ) then handled = LowerError( c, id )
+    if ip->op = cast( ushort, Fbx.KW_ERASE ) then handled = LowerErase( c, id )
+    if ip->op = cast( ushort, Fbx.KW_WRITE ) then handled = LowerWrite( c, id )
+    if ip->op = cast( ushort, Fbx.KW_POKE ) then handled = LowerPoke( c, id )
+    if ip->op = cast( ushort, Fbx.KW_LSET ) then handled = LowerLrset( c, id, false )
+    if ip->op = cast( ushort, Fbx.KW_RSET ) then handled = LowerLrset( c, id, true )
+    if ip->op = cast( ushort, Fbx.KW_READ ) then handled = LowerRead( c, id )
+    if ip->op = cast( ushort, Fbx.KW_RESTORE ) then handled = LowerRestore( c, id )
+    '' A DATA statement emits no code: its descriptor array was built by the
+    '' pre-pass, before anything else was lowered.
+    if ip->op = cast( ushort, Fbx.KW_DATA ) then handled = (c.dataHead >= 0)
+    '' LINE is two unrelated statements sharing a keyword: bit 1 of 'extra' is
+    '' LINE INPUT, bit 2 the graphics form, which needs libfbgfx and declines.
+    if ip->op = cast( ushort, Fbx.KW_LINE ) then
+        if (ip->extra and 1) <> 0 then
+            handled = LowerLineInput( c, id )
+            if handled = false then handled = LowerInput( c, id, true )
+        elseif (ip->extra and 2) <> 0 then
+            '' The GRAPHICS line. Bit 1 is what tells the two statements apart.
+            handled = LowerGfxStmt( c, id )
+        end if
+    end if
+    '' THE GRAPHICS FAMILY, which has its own coordinate grammar and its own
+    '' measured defaults -- see lowergfx.bas.
+    select case cast( Fbx.TokenKind, ip->op )
+    case Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
+         Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW, Fbx.KW_PALETTE, Fbx.KW_SCREEN
+        handled = LowerGfxStmt( c, id )
+    case Fbx.KW_GET, Fbx.KW_PUT
+        '' GET and PUT share a keyword with the FILE statements, exactly as LINE
+        '' does. Bit 1 of 'extra' is the graphics form.
+        if (ip->extra and 2) <> 0 then handled = LowerGfxStmt( c, id )
+    end select
+    if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
+    return handled
+end function
+
+
 end namespace

@@ -1,0 +1,117 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr a
+  local ptr b
+  local ptr d
+  local i32 c
+  local agg q size 1024
+  local agg r size 2048
+  local ptr pp
+  local i32 v
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i64 13
+    %5 = trunc %4
+    %6 = const i32 8
+    %7 = const i32 0
+    %8 = const i32 0
+    %9 = const i32 0
+    %10 = call.rtl i32 fb_GfxScreen(%5, %6, %7, %8, %9)
+    %11 = const i64 13
+    %12 = trunc %11
+    %13 = const i64 8
+    %14 = trunc %13
+    %15 = const i64 2
+    %16 = trunc %15
+    %17 = const i64 1
+    %18 = trunc %17
+    %19 = const i64 60
+    %20 = trunc %19
+    %21 = call.rtl i32 fb_GfxScreen(%12, %14, %16, %18, %20)
+    %22 = alloca ptr a
+    %23 = const i64 16
+    %24 = trunc %23
+    %25 = const i64 16
+    %26 = trunc %25
+    %27 = const i32 0
+    %28 = const i32 0
+    %29 = const i32 2147483648
+    %30 = call.rtl ptr fb_GfxImageCreate(%24, %26, %27, %28, %29)
+    store @a, %30
+    %31 = alloca ptr b
+    %32 = const i64 16
+    %33 = trunc %32
+    %34 = const i64 16
+    %35 = trunc %34
+    %36 = const i64 7
+    %37 = trunc %36
+    %38 = const i32 0
+    %39 = const i32 0
+    %40 = call.rtl ptr fb_GfxImageCreate(%33, %35, %37, %38, %39)
+    store @b, %40
+    %41 = alloca ptr d
+    %42 = const i64 16
+    %43 = trunc %42
+    %44 = const i64 16
+    %45 = trunc %44
+    %46 = const i64 7
+    %47 = trunc %46
+    %48 = const i64 32
+    %49 = trunc %48
+    %50 = const i32 0
+    %51 = call.rtl ptr fb_GfxImageCreate(%43, %45, %47, %49, %50)
+    store @d, %51
+    %52 = alloca ptr c
+    %53 = const ptr 0
+    %54 = const i64 1
+    %55 = sitofp %54
+    %56 = const i64 2
+    %57 = sitofp %56
+    %58 = call.rtl i32 fb_GfxPoint(%53, %55, %57)
+    store @c, %58
+    %59 = const ptr 0
+    %60 = const i64 0
+    %61 = sitofp %60
+    %62 = const f32 -8388607
+    %63 = call.rtl i32 fb_GfxPoint(%59, %61, %62)
+    store @c, %63
+    %64 = const ptr 0
+    %65 = load @a
+    %66 = const i64 1
+    %67 = sitofp %66
+    %68 = const i64 2
+    %69 = sitofp %68
+    %70 = call.rtl i32 fb_GfxPoint(%65, %67, %69)
+    store @c, %70
+    %71 = alloca ptr q
+    %72 = alloca ptr r
+    %73 = alloca ptr pp
+    call.rtl void fb_GfxPaletteGetUsing(@q)
+    call.rtl void fb_GfxPaletteGetUsing64(@r)
+    call.rtl void fb_GfxPaletteUsing64(@r)
+    %74 = load @pp
+    call.rtl void fb_GfxPaletteGetUsing(%74)
+    %75 = alloca ptr v
+    %76 = const i64 1
+    %77 = trunc %76
+    call.rtl void fb_GfxPaletteGet(%77, @v, 0, 0)
+    %78 = const i32 0
+    call.rtl void fb_End(%78)
+    %79 = load @$tmp0
+    ret %79
+}
+declare void fb_Init($0, $1, $2)
+declare i32 fb_GfxScreen($0, $1, $2, $3, $4)
+declare ptr fb_GfxImageCreate($0, $1, $2, $3, $4)
+declare i32 fb_GfxPoint($0, $1, $2)
+declare void fb_GfxPaletteGetUsing($0)
+declare void fb_GfxPaletteGetUsing64($0)
+declare void fb_GfxPaletteUsing64($0)
+declare void fb_GfxPaletteGet($0, $1, $2, $3)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 93 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,0 +1,9 @@
+'' SCREEN, IMAGECREATE, POINT and the PALETTE entry points that come in pairs.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/gfx-expr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_GfxImageCreate
+'' EXPECT-OUT: fb_GfxPoint
+'' EXPECT-OUT: fb_GfxPaletteGetUsing64
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/gfx-expr.out

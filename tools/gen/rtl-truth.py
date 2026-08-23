@@ -517,6 +517,12 @@ sub P( )
     dim as long c
     dim as string pat
     screenres 320, 200, 8
+    '' SCREEN, IMAGECREATE and POINT are keywords rather than declared
+    '' procedures, and each has its own entry point.
+    screen 13
+    dim as any ptr im2 = imagecreate( 8, 8 )
+    dim as ulong pc = point( 1, 2 )
+
     line (1,2)-(3,4), c, BF
     pset (1,2), c
     preset (1,2), c
@@ -539,6 +545,12 @@ sub P( )
     palette get 1, c
     dim as long arr(0 to 3)
     palette using arr
+    palette get using arr
+    '' Each of the three has a 64-bit twin, chosen by the width it writes into.
+    dim as longint arr64(0 to 3), c64
+    palette get 1, c64
+    palette using arr64
+    palette get using arr64
 end sub
 ''',
 }

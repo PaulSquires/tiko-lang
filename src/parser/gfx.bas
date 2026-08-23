@@ -363,7 +363,11 @@ function ParseGfxPalette _
     dim as Fbx.NodeIdVec items
     if GfxWordIs( p, "get" ) then
         sp.extra or= GFX_PAL_GET
-    elseif Peek( p ) = Fbx.KW_USING then
+    end if
+    '' 'PALETTE GET USING array' IS A FOURTH FORM, not a GET with a stray word: it has
+    '' its own entry point, fb_GfxPaletteGetUsing. Testing GET and USING as
+    '' alternatives left the USING unread, so the array was parsed as GET's index.
+    if Peek( p ) = Fbx.KW_USING then
         Advance( p )
         sp.extra or= GFX_PAL_USING
     end if

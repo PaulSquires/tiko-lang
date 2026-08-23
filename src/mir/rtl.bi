@@ -272,11 +272,24 @@ namespace Fbx.Mir
         RTL( RTL_GFX_PALETTE,       "fb_GfxPalette",       "v",   "llll"  )
         RTL( RTL_GFX_PALETTE_GET,   "fb_GfxPaletteGet",    "v",   "lppp"  )
         RTL( RTL_GFX_PALETTE_USING, "fb_GfxPaletteUsing",  "v",   "p"     )
+        '' 'PALETTE GET USING' is its own entry point, not a flag on either half.
+        RTL( RTL_GFX_PALETTE_GETUSING, "fb_GfxPaletteGetUsing", "v", "p"  )
+        '' AND EACH OF THE THREE HAS A 64-BIT TWIN, chosen by the WIDTH of what it
+        '' writes into -- an 'integer' output on win64 takes the 64 form. Measured;
+        '' passing an int64* to the 32-bit entry point is what fbx did before.
+        RTL( RTL_GFX_PALETTE_GET64, "fb_GfxPaletteGet64",  "v",   "lppp"  )
+        RTL( RTL_GFX_PALETTE_USING64, "fb_GfxPaletteUsing64", "v", "p"    )
+        RTL( RTL_GFX_PALETTE_GETUSING64, "fb_GfxPaletteGetUsing64", "v", "p" )
         '' Named by the PRELUDE rather than by a lowering, and by PUT's default blender.
         '' Both are in the inventory so the gate compares their signatures like any
         '' other -- an entry point fbx emits and does not check is the shape check-rtl
         '' exists to prevent.
         RTL( RTL_GFX_SCREENRES,     "fb_GfxScreenRes",     "l",   "llllll" )
+        '' SCREEN, IMAGECREATE and POINT are KEYWORDS rather than declared
+        '' procedures, so they cannot go in the prelude and take entries here.
+        RTL( RTL_GFX_SCREEN,        "fb_GfxScreen",        "l",   "lllll" )
+        RTL( RTL_GFX_IMAGECREATE,   "fb_GfxImageCreate",   "p",   "lllll" )
+        RTL( RTL_GFX_POINT,         "fb_GfxPoint",         "l",   "pff"   )
         '' THE PUT BLENDERS. One per mode, all the same shape, and each one is the
         '' pointer fbc passes in the eleventh argument of fb_GfxPut. They are the only
         '' members of the graphics family that are CDECL on win32 -- see rtl.bas.

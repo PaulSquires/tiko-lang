@@ -60,13 +60,20 @@ fb_FloatToWstr	uint16*	float	lib	fb_FloatToWstr
 fb_GfxDraw	void	void*, FBSTRING*	lib	fb_GfxDraw
 fb_GfxEllipse	void	void*, float, float, float, uint32, float, float, float, int32, int32	lib	fb_GfxEllipse
 fb_GfxGet	int32	void*, float, float, float, float, void*, int32, struct $7FBARRAYIKvE*	lib	fb_GfxGet
+fb_GfxImageCreate	void*	int32, int32, uint32, int32, int32	lib	fb_GfxImageCreate
 fb_GfxLine	void	void*, float, float, float, float, uint32, int32, uint32, int32	lib	fb_GfxLine
 fb_GfxPaint	void	void*, float, float, uint32, uint32, FBSTRING*, int32, int32	lib	fb_GfxPaint
 fb_GfxPalette	void	int32, int32, int32, int32	lib	fb_GfxPalette
 fb_GfxPaletteGet	void	int32, int32*, int32*, int32*	lib	fb_GfxPaletteGet
+fb_GfxPaletteGet64	void	int32, int64*, int64*, int64*	lib	fb_GfxPaletteGet64
+fb_GfxPaletteGetUsing	void	int32*	lib	fb_GfxPaletteGetUsing
+fb_GfxPaletteGetUsing64	void	int64*	lib	fb_GfxPaletteGetUsing64
 fb_GfxPaletteUsing	void	int32*	lib	fb_GfxPaletteUsing
+fb_GfxPaletteUsing64	void	int64*	lib	fb_GfxPaletteUsing64
+fb_GfxPoint	uint32	void*, float, float	lib	fb_GfxPoint
 fb_GfxPset	void	void*, float, float, uint32, int32, int32	lib	fb_GfxPset
 fb_GfxPut	int32	void*, float, float, void*, int32, int32, int32, int32, int32, int32, void*, int32, void*, void*	lib	fb_GfxPut
+fb_GfxScreen	int32	int32, int32, int32, int32, int32	lib	fb_GfxScreen
 fb_GfxScreenRes	int32	int32, int32, int32, int32, int32, int32	lib	fb_GfxScreenRes
 fb_GfxView	void	int32, int32, int32, int32, uint32, uint32, int32	lib	fb_GfxView
 fb_GfxWindow	void	float, float, float, float, int32	lib	fb_GfxWindow

@@ -476,6 +476,26 @@ end function
 '' PALETTE, in its three forms. Their omitted arguments do NOT agree with each other:
 '' the plain form pads with -1, and PALETTE GET pads with a NULL POINTER rather than a
 '' temporary -- the opposite of what SCREENINFO does.
+'' Does this palette output want the 64-BIT entry point? Every PALETTE that writes
+'' back has a twin -- fb_GfxPaletteGet64, fb_GfxPaletteUsing64,
+'' fb_GfxPaletteGetUsing64 -- chosen by the WIDTH of what it writes into, so an
+'' 'integer' array takes the 64 form on win64 and the 32 form on win32. That falls out
+'' of asking LowerType rather than the spelling.
+''
+'' The width is the ELEMENT's, not the argument's: an array and a pointer both stand
+'' for the thing they hold.
+private function PaletteIs64_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    if e = Fbx.NODE_NONE then return false
+    dim as Fbx.TypeId t = c.info->TypeOf_( e )
+    if t = Fbx.TYPE_NONE then return false
+    select case c.types->Kind( t )
+    case Fbx.TK_ARRAY, Fbx.TK_POINTER
+        t = c.types->Inner( t )
+    end select
+    if t = Fbx.TYPE_NONE then return false
+    return (LowerType( t, *c.types ) = MT_I64)
+end function
+
 function LowerGfxPalette( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
@@ -483,12 +503,29 @@ function LowerGfxPalette( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     if (sp->extra and PGFX_PAL_USING) <> 0 then
         dim as Fbx.NodeId an = GfxArg( c, sp, 0 )
         if an = Fbx.NODE_NONE then return false
-        dim as MirValue av = LowerAddr( c, an )
-        if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, an )
+        '' A POINTER ARGUMENT IS ITS VALUE, everything else its ADDRESS. Measured:
+        '' 'palette get using pp' over a 'ulong ptr' is 'fb_GfxPaletteGetUsing(
+        '' (int32*)PP )', where the array form passes the array's own address. Taking
+        '' the address of the pointer VARIABLE would hand the runtime a pointer to a
+        '' pointer, which it would then fill with palette entries.
+        dim as MirValue av
+        if c.types->Kind( c.info->TypeOf_( an ) ) = Fbx.TK_POINTER then
+            av = LowerExpr( c, an )
+        else
+            av = LowerAddr( c, an )
+            if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, an )
+        end if
         if av.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) ua
         PushV( ua, Coerce( c, av, MT_PTR ) )
-        EmitRtl( c, RTL_GFX_PALETTE_USING, ua )
+        '' 'PALETTE GET USING' IS A FOURTH FORM with its own entry point -- reading it
+        '' as a GET meant the array was taken for GET's colour index.
+        dim as boolean w64 = PaletteIs64_( c, an )
+        if (sp->extra and PGFX_PAL_GET) <> 0 then
+            EmitRtl( c, iif( w64, RTL_GFX_PALETTE_GETUSING64, RTL_GFX_PALETTE_GETUSING ), ua )
+        else
+            EmitRtl( c, iif( w64, RTL_GFX_PALETTE_USING64, RTL_GFX_PALETTE_USING ), ua )
+        end if
         return true
     end if
 
@@ -508,7 +545,8 @@ function LowerGfxPalette( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
                 PushV( ga, oa )
             end if
         next
-        EmitRtl( c, RTL_GFX_PALETTE_GET, ga )
+        EmitRtl( c, iif( PaletteIs64_( c, GfxArg( c, sp, 1 ) ), _
+                         RTL_GFX_PALETTE_GET64, RTL_GFX_PALETTE_GET ), ga )
         return true
     end if
 
@@ -538,7 +576,115 @@ function LowerGfxStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     case Fbx.KW_GET    : return LowerGfxGet( c, id )
     case Fbx.KW_PUT    : return LowerGfxPut( c, id )
     case Fbx.KW_PALETTE : return LowerGfxPalette( c, id )
+    case Fbx.KW_SCREEN : return LowerGfxScreen( c, id )
     end select
+    return false
+end function
+
+
+'' SCREEN mode [, depth [, pages [, flags [, refresh ]]]]
+''
+'' THE DEPTH DEFAULTS TO THE LITERAL 8 FOR EVERY MODE -- verified across modes 12, 13,
+'' 18 and 21, where a per-mode table would be the obvious guess. Everything else is 0.
+function LowerGfxScreen( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as boolean ok = true
+    dim as FB.Array( of ulong ) args
+    for i as long = 0 to 4
+        dim as boolean w = false
+        dim as longint dflt = 0
+        if i = 1 then dflt = 8
+        dim as MirValue v = GfxInt( c, sp, i, dflt, w, ok )
+        if ok = false then return false
+        PushV( args, v )
+    next
+    EmitRtl( c, RTL_GFX_SCREEN, args )
+    return true
+end function
+
+
+'' 'imagecreate( w, h [, colour [, depth ]] )' and 'point( x, y [, target ] )', the two
+'' graphics EXPRESSIONS. They are keywords rather than declared procedures, so they
+'' cannot live in the prelude with the rest of the graphics surface.
+''
+''   imagecreate( 16, 16 )        fb_GfxImageCreate( 16, 16, 0u, 0, (int32)-2147483648u )
+''   imagecreate( 16, 16, 7 )     fb_GfxImageCreate( 16, 16, 7u, 0, 0 )
+''
+'' AN OMITTED COLOUR IS THE SAME TWO-PART ANSWER THE DRAWING STATEMENTS GIVE: 0 in the
+'' colour slot plus a flag bit, here &h80000000 in the FIFTH argument.
+''
+''   point( 1, 2 )       fb_GfxPoint( (void*)0, 1.0f, 2.0f )
+''   point( 0 )          fb_GfxPoint( (void*)0, 0.0f, -8388607.0f )
+''   point( 1, 2, img )  fb_GfxPoint( img, 1.0f, 2.0f )
+''
+'' THE ONE-ARGUMENT FORM IS THE SAME FUNCTION: the axis selector goes in x and y
+'' carries a sentinel. And the TARGET, written LAST in BASIC, is passed FIRST.
+function LowerGfxExprCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    dim as Fbx.StmtPayload lp
+    lp.first = cp->first
+    lp.count = cp->count
+    dim as boolean ok = true
+
+    if nm = "imagecreate" then
+        if (cp->count < 2) orelse (cp->count > 4) then return false
+        dim as FB.Array( of ulong ) args
+        for i as long = 0 to 1
+            dim as boolean w = false
+            dim as MirValue v = GfxInt( c, @lp, i, 0, w, ok )
+            if ok = false then return false
+            PushV( args, v )
+        next
+        dim as boolean hasCol = false
+        dim as MirValue col = GfxInt( c, @lp, 2, 0, hasCol, ok )
+        if ok = false then return false
+        PushV( args, col )
+        dim as boolean w3 = false
+        dim as MirValue dep = GfxInt( c, @lp, 3, 0, w3, ok )
+        if ok = false then return false
+        PushV( args, dep )
+        dim as longint flags = 0
+        if hasCol = false then flags = &h80000000
+        PushV( args, ConstInt( c, flags, MT_I32 ) )
+        outv = EmitRtl( c, RTL_GFX_IMAGECREATE, args )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    if nm = "point" then
+        if (cp->count < 1) orelse (cp->count > 3) then return false
+        dim as MirValue tgt = ConstInt( c, 0, MT_PTR )
+        if cp->count = 3 then
+            dim as MirValue tv = LowerExpr( c, cast( Fbx.NodeId, c.ast->children[cp->first + 2] ) )
+            if tv.kind = cast( ubyte, MV_NONE ) then return false
+            tgt = Coerce( c, tv, MT_PTR )
+        end if
+        dim as MirValue x = GfxCoord( c, @lp, 0, ok )
+        if ok = false then return false
+        dim as MirValue y
+        if cp->count >= 2 then
+            y = GfxCoord( c, @lp, 1, ok )
+            if ok = false then return false
+        else
+            '' The sentinel that says "this is the one-argument form".
+            y = ConstFloat( c, -8388607.0, MT_F32 )
+        end if
+        dim as FB.Array( of ulong ) args
+        PushV( args, tgt )
+        PushV( args, x )
+        PushV( args, y )
+        outv = EmitRtl( c, RTL_GFX_POINT, args )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
     return false
 end function
 

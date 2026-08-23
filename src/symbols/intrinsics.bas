@@ -176,6 +176,15 @@ private function ExprIntrinsicType_ _
         if isStr = false then return Fbx.TYPE_NONE
         if ab = Fbx.TY_WSTRING then return c.types->Builtin( Fbx.TY_WSTRING )
         return c.types->Builtin( Fbx.TY_STRING )
+
+    '' The two GRAPHICS expressions. Their result types are measured from what fbc
+    '' declares -- 'void* fb_GfxImageCreate( ... )' and 'uint32 fb_GfxPoint( ... )' --
+    '' and neither was typed at all, so 'dim as any ptr a = imagecreate( 16, 16 )'
+    '' declined with no idea what it was declining.
+    case "imagecreate"
+        return c.types->Pointer_( c.types->Builtin( Fbx.TY_ANY ) )
+    case "point"
+        return c.types->Builtin( Fbx.TY_ULONG )
     end select
     return Fbx.TYPE_NONE
 end function
