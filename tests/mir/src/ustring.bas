@@ -56,3 +56,17 @@ dim as ustring * 16 uf = "FreeBasic"
 uf = "d"
 dim as ustring fromFixed = uf
 print fromFixed
+
+'' A CONCATENATION AS AN RVALUE goes through fb_UStrConcat into a temporary -- the form
+'' that is not being assigned into anything. Measured: fbc emits it only where the
+'' result is a genuine rvalue; assigning into a ustring is optimised into
+'' assign-then-concat-assign, which is the chain above.
+''
+'' ANY TERM BEING A USTRING MAKES THE WHOLE CHAIN UTF-16. A literal on its own says
+'' nothing, and Check types 'a & b' as a plain string whatever its operands are -- so
+'' the chain's own type said NARROW and 'len( a & b )' over two ustrings measured a
+'' UTF-16 temporary with fb_StrLen. The terms are asked one at a time instead.
+declare sub UTake( byref x as const ustring )
+UTake( a & b )
+dim as long catLen = len( a & b )
+print catLen

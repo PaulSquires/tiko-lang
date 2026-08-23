@@ -356,6 +356,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     '' USTRING -- the UTF-16 string flavour, lowerstr.bas.
     declare function IsUStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ConcatTermsAreU_ _
+        ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
     declare function UStrRtl_( byval narrow as RtlId ) as RtlId
     declare function StrRtlFor_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval narrow as RtlId ) as RtlId

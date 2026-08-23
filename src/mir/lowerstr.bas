@@ -35,22 +35,24 @@ private function LowerConcatViaTemp _
     tmp.ty = cast( ubyte, MT_PTR )
     tmp.id = slot
 
+    dim as boolean isU = ConcatTermsAreU_( c, terms )
+
     '' fb_StrConcat takes the destination descriptor first, then the two operands.
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) )
     args.Push( cast( ulong, tmp.id ) )
-    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ) ) = false then return false
-    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ) ) = false then return false
-    dim as MirValue acc = EmitRtl( c, RTL_STR_CONCAT, args )
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), isU ) = false then return false
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ), isU ) = false then return false
+    dim as MirValue acc = EmitRtl( c, iif( isU, RTL_USTR_CONCAT, RTL_STR_CONCAT ), args )
 
     '' Any further terms concatenate onto the temporary in place.
     for i as long = 2 to terms.Count - 1
         dim as FB.Array( of ulong ) more
         PushStrArg( more, tmp )
-        if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ) ) = false then return false
+        if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ), isU ) = false then return false
         more.Push( cast( ulong, MV_CONST_INT ) )
         more.Push( 0 )
-        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, more )
+        EmitRtl( c, iif( isU, RTL_USTR_CONCAT_ASSIGN, RTL_STR_CONCAT_ASSIGN ), more )
     next
 
     dim as FB.Array( of ulong ) fin
@@ -58,7 +60,7 @@ private function LowerConcatViaTemp _
     PushStrArg( fin, tmp )
     fin.Push( cast( ulong, MV_CONST_INT ) )
     fin.Push( 0 )
-    EmitRtl( c, RTL_STR_ASSIGN, fin )
+    EmitRtl( c, iif( isU, RTL_USTR_ASSIGN, RTL_STR_ASSIGN ), fin )
     return true
 end function
 
@@ -80,6 +82,20 @@ function ConcatToTempDesc_ _
     return ConcatTermsToTempDesc_( c, terms, outv )
 end function
 
+'' IS THIS CHAIN A USTRING CHAIN? Any term being one makes the whole concatenation
+'' UTF-16 -- 'a & "y"' over a ustring is fb_UStrConcat with a UTF-16 literal -- and a
+'' literal on its own says nothing, so the terms are asked one at a time.
+function ConcatTermsAreU_ _
+    ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
+
+    for i as long = 0 to terms.Count - 1
+        if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, terms[i] ) ) ) then
+            return true
+        end if
+    next
+    return false
+end function
+
 '' The same, over a term list that has already been flattened -- which is how the WIDE
 '' path folds the NARROW PREFIX of a mixed chain: 'x & ", " & w' is a narrow concat of
 '' the first two and only then a wide one.
@@ -97,19 +113,21 @@ function ConcatTermsToTempDesc_ _
     tmp.id = slot
     ZeroStrDescriptor( c, tmp )
 
+    dim as boolean isU = ConcatTermsAreU_( c, terms )
+
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
-    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ) ) = false then return false
-    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ) ) = false then return false
-    EmitRtl( c, RTL_STR_CONCAT, args )
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), isU ) = false then return false
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ), isU ) = false then return false
+    EmitRtl( c, iif( isU, RTL_USTR_CONCAT, RTL_STR_CONCAT ), args )
 
     for i as long = 2 to terms.Count - 1
         dim as FB.Array( of ulong ) more
         PushStrArg( more, tmp )
-        if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ) ) = false then return false
+        if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ), isU ) = false then return false
         more.Push( cast( ulong, MV_CONST_INT ) )
         more.Push( 0 )
-        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, more )
+        EmitRtl( c, iif( isU, RTL_USTR_CONCAT_ASSIGN, RTL_STR_CONCAT_ASSIGN ), more )
     next
 
     outv = tmp
@@ -975,7 +993,17 @@ function LowerLen _
         sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, zn ) )
         '' fb_UStrLen for a UTF-16 descriptor: it counts CODE UNITS, and fb_StrLen
         '' would read the same 24 bytes as a narrow descriptor.
-        outv = EmitRtl( c, StrRtlFor_( c, at, RTL_STR_LEN ), sargs )
+        ''
+        '' A CONCATENATION IS ASKED TERM BY TERM. Check types 'a & b' as a plain
+        '' string whatever its operands are, so the type alone said narrow and
+        '' 'len( a & b )' over two ustrings measured a UTF-16 temporary with fb_StrLen.
+        dim as boolean lenU = IsUStringType( c, at )
+        if (lenU = false) andalso (c.ast->Kind( a ) = Tko.N_BINARY) then
+            dim as FB.Array( of ulong ) lterms
+            FlattenConcat( c, a, lterms )
+            if lterms.Count > 1 then lenU = ConcatTermsAreU_( c, lterms )
+        end if
+        outv = EmitRtl( c, iif( lenU, RTL_USTR_LEN, RTL_STR_LEN ), sargs )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
