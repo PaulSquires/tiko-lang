@@ -182,9 +182,15 @@ function DumpModule _
             end if
             if m.globals[i].hasInit then
                 '' A FLOAT initialiser prints as a float: printing initInt for one
-                '' would show 0 beside a global that has a value.
-                if (m.globals[i].ty = cast( ubyte, MT_F32 )) orelse _
-                   (m.globals[i].ty = cast( ubyte, MT_F64 )) then
+                '' would show 0 beside a global that has a value. An AGGREGATE prints
+                '' its bytes in hex, which is what it is.
+                if len( m.globals[i].initBytes ) > 0 then
+                    outp += " = bytes"
+                    for bi as long = 0 to len( m.globals[i].initBytes ) - 1
+                        outp += " " & hex( asc( mid( m.globals[i].initBytes, bi + 1, 1 ) ), 2 )
+                    next
+                elseif (m.globals[i].ty = cast( ubyte, MT_F32 )) orelse _
+                       (m.globals[i].ty = cast( ubyte, MT_F64 )) then
                     outp += " = " & str( m.globals[i].initFlt )
                 else
                     outp += " = " & str( m.globals[i].initInt )

@@ -742,8 +742,11 @@ function Primary( byref p as Fbx.ParserState ) as Fbx.NodeId
         if lam <> Fbx.NODE_NONE then return PostfixChain( p, lam )
     end if
 
+    '' TYPEOF belongs with them: its operand may be a TYPE -- '#assert typeof( p ) =
+    '' typeof( any ptr )' is how the corpus asserts a pointer type -- and an expression
+    '' parser reads 'any ptr' as two names and fails on the second.
     if (k = Fbx.KW_CAST) orelse (k = Fbx.KW_CPTR) orelse _
-       (k = Fbx.KW_SIZEOF) orelse (k = Fbx.KW_LEN) then
+       (k = Fbx.KW_SIZEOF) orelse (k = Fbx.KW_LEN) orelse (k = Fbx.KW_TYPEOF) then
         if HasTok( p, p.pos + 1 ) then
             if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_LPAREN then
                 return TypeArgCall( p, t, k )

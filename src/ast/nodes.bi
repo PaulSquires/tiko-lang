@@ -192,6 +192,10 @@ namespace Fbx
     '' under a name no call site will ever use. Recording it is what lets lowering
     '' decline instead of producing that.
     const PF_GENERIC_PROC   as ushort = &h1000
+    '' A procedure TYPE that returns BYREF: 'as function( ) byref as zstring'. The
+    '' modifier sits before the AS, which is what made it a parse error rather than
+    '' a flag -- the same shape the byref-returning DECLARATION had.
+    const PF_BYREF_RESULT   as ushort = &h2000
 
     type UnaryPayload
         as ushort op                '' TokenKind

@@ -206,7 +206,13 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             Advance( p )
         wend
         ParseParamList( p, sp )
+        '' 'function( ) BYREF as zstring' -- a byref-returning procedure TYPE. The
+        '' modifier sits before the AS, so 'Accept( KW_AS )' failed and the return type
+        '' was left for the caller to trip over: 'expected )'. The same shape as the
+        '' byref-returning procedure DECLARATION, which cost a run of its own.
+        dim as boolean byrefRet = Accept( p, Fbx.KW_BYREF )
         if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
+        if byrefRet then sp.extra or= Fbx.PF_BYREF_RESULT
         dim as Fbx.NodeId pn = MakeStmt( p, Fbx.N_TYPEREF, t.loc, sp )
         p.ast->nodes[cast( long, pn )].flags or= flags or Fbx.NF_PROC_TYPE
         while (Peek( p ) = Fbx.KW_PTR) orelse (Peek( p ) = Fbx.KW_POINTER)

@@ -284,6 +284,11 @@ namespace Fbx.Mir
         as long     size
         as longint  initInt        '' compile-time initial value
         as double   initFlt
+        '' AN AGGREGATE'S initial value, as the raw bytes of its storage. fbc emits
+        '' 'static struct $1G G$1 = { 1u, 2, 3 };' -- a static UDT is initialised where
+        '' it is DEFINED, not by a store somewhere -- and the field values with their
+        '' offsets are exactly a byte image of the object.
+        as string   initBytes
         as boolean  hasInit
     end type
 
