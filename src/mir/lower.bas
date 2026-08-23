@@ -11,244 +11,8 @@ declare function StrSwapKind_ _
 '' Ctx and the shared helpers live in lowerctx.bi: lowering is now two files.
 
 
-function StmtOf _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
-    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-end function
+#include once "mir/lowerutil.bas"
 
-'' -------------------------------------------------------------- construction
-
-function NewBlock( byref c as Ctx, byref label as string ) as long
-    dim as MirBlock b
-    b.label = c.names->GetString( label & str( c.f->blocks.Count ) )
-    b.term = cast( ubyte, MTERM_NONE )
-    b.target = -1
-    b.target2 = -1
-    c.f->blocks.Push( b )
-    c.st->blocks += 1
-    return c.f->blocks.Count - 1
-end function
-
-'' Instructions are appended to the FUNCTION's list and the current block's extent is
-'' widened. That only works while blocks are built in order, which is why lowering
-'' never returns to a finished block -- it opens a new one instead.
-function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
-    dim as MirValue v
-    if c.curBlock < 0 then return v
-    dim as MirOp op = cast( MirOp, ins.op )
-    '' An instruction that would produce a VOID result is not emitted at all. It
-    '' means the frontend could not type the expression, and a well-formed IR with a
-    '' gap in it is far more useful than a complete one that is malformed.
-    if OpHasResult( op ) andalso (ins.ty = cast( ubyte, MT_VOID )) then
-        if (op <> M_CALL) andalso (op <> M_CALL_RTL) andalso _
-           (op <> M_CALL_IND) then
-            SkipHere( c )
-            return v
-        end if
-    end if
-    '' A call returning void produces no value, so it gets no result temp. Giving it
-    '' one made every constructor call read as '%2 = call void', which is noise in a
-    '' listing the golden tests assert on.
-    dim as boolean makesValue = OpHasResult( op )
-    if ins.ty = cast( ubyte, MT_VOID ) then makesValue = false
-    if makesValue then
-        ins.result = c.f->nextTemp
-        c.f->nextTemp += 1
-    end if
-    c.f->blocks[c.curBlock].insts.Push( ins )
-    c.st->insts += 1
-    if makesValue then
-        v.kind = cast( ubyte, MV_TEMP )
-        v.ty = ins.ty
-        v.id = ins.result
-    end if
-    return v
-end function
-
-'' An empty value, for the terminators that carry none. FreeBASIC will not take a
-'' constructed default argument, so it is spelled once here rather than at every call.
-function NoVal( ) as MirValue
-    dim as MirValue v
-    return v
-end function
-
-sub Terminate _
-    ( byref c as Ctx, byval k as MirTermKind, byval t1 as long, _
-      byval t2 as long, byref cond as MirValue )
-
-    if c.curBlock < 0 then return
-    dim as MirBlock ptr b = @c.f->blocks[c.curBlock]
-    '' A block already terminated is left alone: the second terminator would be
-    '' unreachable, and silently dropping it is what 'return' inside an IF needs.
-    if b->term <> cast( ubyte, MTERM_NONE ) then return
-    b->term = cast( ubyte, k )
-    b->target = t1
-    b->target2 = t2
-    b->cond = cond
-end sub
-
-function ConstInt _
-    ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CONST )
-    ins.ty = cast( ubyte, t )
-    ins.imm = v
-    return Emit( c, ins )
-end function
-
-function ConstFloat _
-    ( byref c as Ctx, byval v as double, byval t as MirType ) as MirValue
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CONST )
-    ins.ty = cast( ubyte, t )
-    ins.fimm = v
-    return Emit( c, ins )
-end function
-
-'' A typed zero. A float result slot must be zeroed with a FLOAT constant: an integer
-'' zero stored into an f64 slot is a type mismatch the verifier catches, and would be a
-'' reinterpreted bit pattern if it did not.
-function ZeroOf( byref c as Ctx, byval t as MirType ) as MirValue
-    if IsFloatTy( t ) then return ConstFloat( c, 0.0, t )
-    return ConstInt( c, 0, t )
-end function
-
-function IsFloatTy( byval t as MirType ) as boolean
-    return (t = MT_F32) orelse (t = MT_F64)
-end function
-
-private function TyWidth( byval t as MirType ) as long
-    select case t
-    case MT_I8  : return 8
-    case MT_I16 : return 16
-    case MT_I32, MT_F32 : return 32
-    case MT_I64, MT_F64, MT_PTR : return 64
-    end select
-    return 0
-end function
-
-'' MIR has NO implicit conversions (docs/plan/09 section 5, rule 4), so a value whose
-'' type differs from the one an instruction needs gets an explicit one. Without this
-'' an integer literal -- which FreeBASIC types as INTEGER, so i64 -- is compared
-'' against an i32 counter, and the IR states something the backend cannot honour.
-function Coerce _
-    ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
-      byval srcUnsigned as boolean = false ) as MirValue
-
-    if v.kind = cast( ubyte, MV_NONE ) then return v
-    dim as MirType have = cast( MirType, v.ty )
-    if have = want then return v
-    if (have = MT_VOID) orelse (want = MT_VOID) then return v
-
-    '' A POINTER IS NOT AN INTEGER, even where the two are the same width. TyWidth
-    '' gives MT_PTR and MT_I64 both 64, so the integer branch below saw "same width"
-    '' and returned the value UNCHANGED -- 700 corpus stores of an i64 straight into a
-    '' ptr slot, and the verifier was right about every one of them.
-    ''
-    '' 'dim p as integer ptr : p = 0' is the commonest shape by far. fbc accepts it
-    '' silently, and warns only on a non-zero integer (warning 4, "Suspicious pointer
-    '' assignment") -- so a conversion is the correct thing to emit here, not a refusal.
-    ''
-    '' Width FIRST, then the cast. A 32-bit value bitcast straight to a pointer would
-    '' state a 32-bit quantity in a 64-bit slot; going through the pointer-sized
-    '' integer makes the widening explicit and leaves the bitcast width-preserving.
-    if (have = MT_PTR) orelse (want = MT_PTR) then
-        dim as MirType intPtrTy = MT_I64
-        if c.types->target.pointerBits = 32 then intPtrTy = MT_I32
-        if want = MT_PTR then
-            dim as MirValue w = Coerce( c, v, intPtrTy, srcUnsigned )
-            if w.kind = cast( ubyte, MV_NONE ) then return w
-            dim as MirInst bc
-            bc.op = cast( ushort, M_BITCAST )
-            bc.ty = cast( ubyte, MT_PTR )
-            bc.a = w
-            return Emit( c, bc )
-        end if
-        dim as MirInst bc
-        bc.op = cast( ushort, M_BITCAST )
-        bc.ty = cast( ubyte, intPtrTy )
-        bc.a = v
-        dim as MirValue w = Emit( c, bc )
-        if w.kind = cast( ubyte, MV_NONE ) then return w
-        return Coerce( c, w, want )
-    end if
-
-    dim as MirInst ins
-    ins.ty = cast( ubyte, want )
-    ins.a = v
-    dim as boolean hf = IsFloatTy( have )
-    dim as boolean wf = IsFloatTy( want )
-
-    if hf andalso wf then
-        ins.op = cast( ushort, iif( TyWidth( want ) < TyWidth( have ), M_FPTRUNC, M_FPEXT ) )
-    elseif hf then
-        '' ROUND FIRST. FreeBASIC converts a float to an integer by rounding to the
-        '' nearest, halves to even -- measured by running fbc: 1.4 -> 1, 1.6 -> 2,
-        '' 2.5 -> 2, 3.5 -> 4, -2.5 -> -2. A bare fptosi truncates toward zero and is
-        '' wrong for three of those five, silently, in every conversion in the tree.
-        '' fbc's own C says the same thing: 'fb_D2I( v )' is '(int32)nearbyint( v )'.
-        dim as MirInst rn
-        rn.op = cast( ushort, M_NEARBYINT )
-        rn.ty = cast( ubyte, have )
-        rn.a = v
-        dim as MirValue rv = Emit( c, rn )
-        if rv.kind <> cast( ubyte, MV_NONE ) then ins.a = rv
-        ins.op = cast( ushort, M_FPTOSI )
-    elseif wf then
-        '' An UNSIGNED source goes through uitofp. sitofp reads the top bit as a sign,
-        '' so a ULONGINT near its maximum came out as -1 instead of 1.8e19.
-        ins.op = cast( ushort, iif( srcUnsigned, M_UITOFP, M_SITOFP ) )
-    else
-        if TyWidth( want ) < TyWidth( have ) then
-            ins.op = cast( ushort, M_TRUNC )
-        elseif TyWidth( want ) > TyWidth( have ) then
-            '' ZERO-extend an unsigned source. Sign-extending one turns every value
-            '' with its top bit set negative: a UBYTE of 200 widened to a LONG gave
-            '' -56, and fbc prints 200.
-            ins.op = cast( ushort, iif( srcUnsigned, M_ZEXT, M_SEXT ) )
-        else
-            return v
-        end if
-    end if
-    return Emit( c, ins )
-end function
-
-'' ------------------------------------------------------------------- locals
-
-'' A local is a slot, addressed by an alloca in the entry block. Locals are found by
-'' SYMBOL, so the same name in two scopes gets two slots.
-
-
-
-'' An anonymous slot, for a value with no name in the source. The alloca goes in the
-'' entry block like any other local, so nothing downstream has to treat it specially.
-function NewTempLocal _
-    ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
-
-    dim as MirLocal l
-    l.name = c.names->GetString( "$tmp" & str( c.f->locals.Count ) )
-    l.ty = cast( ubyte, ty )
-    l.size = sizeBytes
-    c.f->locals.Push( l )
-
-    dim as long saved = c.curBlock
-    c.curBlock = 0
-    dim as MirInst ins
-    ins.op = cast( ushort, M_ALLOCA )
-    ins.ty = cast( ubyte, MT_PTR )
-    ins.imm = c.f->locals.Count - 1
-    Emit( c, ins )
-    c.curBlock = saved
-    return c.f->locals.Count - 1
-end function
-
-'' ------------------------------------------------------------- expressions
-
-declare function LowerShortCircuit _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
-      byval mt as MirType ) as MirValue
-declare function LowerCall _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
 
 
 
@@ -710,6 +474,17 @@ end sub
 
 declare sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
 
+'' 'dim x as T = ANY' -- the explicit request for an UNINITIALISED variable, which
+'' emits no store. 'any' is a keyword, so no variable can be spelled that way and
+'' matching the name alone is safe.
+private function IsAnyInit_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    if id = Fbx.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return (Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "any")
+end function
+
 sub LowerStmt( byref c as Ctx, byval id as Fbx.NodeId )
     if id = Fbx.NODE_NONE then return
     if c.curBlock < 0 then return
@@ -1057,6 +832,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Fbx.NodeId )
             '' the house rule is to name the condition rather than silence it.
             dim as boolean needsStore = (slot >= 0)
             if ip->b = Fbx.NODE_NONE then needsStore = false
+            '' 'dim d as double = any' INITIALISES NOTHING. It is the explicit request
+            '' for an uninitialised variable, and fbc emits the declaration and no
+            '' store at all -- measured. Treating 'any' as an ordinary initialiser
+            '' expression left it with no value to store, so the declaration DECLINED:
+            '' 32 corpus lines, every one of them a statement that is meant to produce
+            '' no code. 'any' is a keyword, so nothing else can be spelled that way.
+            if IsAnyInit_( c, ip->b ) then needsStore = false
             if constructed then needsStore = false
             '' A string initialiser went through fb_StrInit, which is a call and not a
             '' store; storing over it as well would overwrite the descriptor the
