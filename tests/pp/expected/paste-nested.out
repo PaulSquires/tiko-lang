@@ -1,0 +1,75 @@
+preprocessed: 74 tokens, 0 includes, 6 expansions, depth 4
+    0    1:66   EOL
+    1    2:3    EOL
+    2    3:52   EOL
+    3    4:54   EOL
+    4    5:54   EOL
+    5    6:3    EOL
+    6    7:50   EOL
+    7    8:3    EOL
+    8    9:88   EOL
+    9   10:89   EOL
+   10   11:84   EOL
+   11   12:86   EOL
+   12   13:88   EOL
+   13   14:61   EOL
+   14   15:3    EOL
+   15   16:87   EOL
+   16   17:89   EOL
+   17   18:88   EOL
+   18   19:46   EOL
+   19   20:1    KW_DIM              'DIM'
+   20   20:5    IDENT               'ps'
+   21   20:8    KW_AS               'AS'
+   22   20:11   KW_LONG             'LONG'
+   23   20:16   TK_EQ               '='
+   24   20:18   INT
+   25   20:19   EOL
+   26   21:1    KW_DIM              'DIM'
+   27   21:5    IDENT               'pcs'
+   28   21:9    KW_AS               'AS'
+   29   21:12   KW_LONG             'LONG'
+   30   21:17   TK_EQ               '='
+   31   21:19   INT
+   32   21:20   EOL
+   33   22:1    EOL
+   34   25:10   EOL
+   35   26:1    EOL
+   36   30:10   EOL
+   37   31:1    EOL
+   38   27:18   EOL                  [macro]
+   39   23:19   EOL                  [macro]
+   40   24:9    KW_PRINT            'PRINT' [macro]
+   41   28:9    IDENT               'ps' [macro]
+   42   24:20   EOL                  [macro]
+   43   28:19   EOL                  [macro]
+   44   23:19   EOL                  [macro]
+   45   24:9    KW_PRINT            'PRINT' [macro]
+   46   29:9    IDENT               'pcs' [macro]
+   47   24:20   EOL                  [macro]
+   48   29:22   EOL                  [macro]
+   49   32:11   EOL
+   50   33:1    EOL
+   51   34:77   EOL
+   52   35:1    KW_DIM              'DIM'
+   53   35:5    IDENT               'abc'
+   54   35:9    KW_AS               'AS'
+   55   35:12   KW_LONG             'LONG'
+   56   35:17   TK_EQ               '='
+   57   35:19   INT
+   58   35:20   EOL
+   59   36:1    EOL
+   60   39:10   EOL
+   61   42:10   EOL
+   62   45:10   EOL
+   63   43:15   EOL                  [macro]
+   64   40:15   EOL                  [macro]
+   65   37:15   EOL                  [macro]
+   66   38:9    KW_PRINT            'PRINT' [macro]
+   67   41:9    IDENT               'abc' [macro]
+   68   38:20   EOL                  [macro]
+   69   41:19   EOL                  [macro]
+   70   44:16   EOL                  [macro]
+   71   46:6    EOL
+   72   47:1    EOF
+   73    1:1    EOF

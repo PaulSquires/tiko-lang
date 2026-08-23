@@ -32,6 +32,7 @@ declare function StrSwapKind_ _
 '' byref wstring parameters, and every operation on one declined.
 function IsWideString_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
+    t = c.types->Unqualify( t )
     if c.types->Kind( t ) = Tko.TK_BUILTIN then
         return (c.types->BuiltinOf( t ) = Tko.TY_WSTRING)
     end if
@@ -45,6 +46,11 @@ end function
 
 function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as long
     if t = Tko.TYPE_NONE then return 0
+    '' CONST IS NOT A DIFFERENT STRING -- see StrSwapKind_. 'dim cw as const wstring *
+    '' 10' is the same uint16 array as a mutable one, and the qualified type is a
+    '' distinct entry whose kind test said "not a wide string", so every chain spelled
+    '' with one dropped its initialiser.
+    t = c.types->Unqualify( t )
     if c.types->Kind( t ) <> Tko.TK_ARRAY then return 0
     dim as Tko.TypeId el = c.types->Inner( t )
     if el = Tko.TYPE_NONE then return 0
@@ -250,7 +256,8 @@ declare function UserCastToWide_ _
 declare function NarrowDestWideSource_ _
     ( byref c as Ctx, byval value as Tko.NodeId, byref src as MirValue ) as boolean
 declare sub EmitWideToNarrow_ _
-    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue )
+    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue, _
+      byval isInit as boolean = false )
 
 function LowerWideToNarrow _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
@@ -270,6 +277,9 @@ function LowerWideToNarrow _
         if StrSwapKind_( c, dt, dn ) <> 1 then return false
     end if
 
+    '' A CONCATENATION IS WIDE-TYPED TOO now that 'w + s' answers WSTRING, and it has no
+    '' address. The address is TRIED and anything without one falls through to the
+    '' temporary; treating a wide TYPE as "addressable" declined every mixed chain.
     dim as boolean wideSrc = (IsWideString_( c, c.info->TypeOf_( value ) ))
     dim as MirValue src
     if wideSrc = false then
@@ -279,6 +289,9 @@ function LowerWideToNarrow _
     dim as MirValue dst = LowerAddr( c, target )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
     if wideSrc then src = LowerAddr( c, value )
+    if src.kind = cast( ubyte, MV_NONE ) then
+        if NarrowDestWideSource_( c, value, src ) = false then return false
+    end if
     if src.kind = cast( ubyte, MV_NONE ) then return false
 
     EmitWideToNarrow_( c, dst, dn, src )
@@ -301,14 +314,19 @@ private function NarrowDestWideSource_ _
 end function
 
 private sub EmitWideToNarrow_ _
-    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue )
+    ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue, _
+      byval isInit as boolean )
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    EmitRtl( c, RTL_WSTR_ASSIGN_TOA, args )
+    '' THE DECLARATION FORM IS A DIFFERENT FUNCTION, not a flag: fb_WstrAssignToA_Init
+    '' where a later store takes fb_WstrAssignToA. Measured.
+    dim as long which = RTL_WSTR_ASSIGN_TOA
+    if isInit then which = RTL_WSTR_TOA_INIT
+    EmitRtl( c, which, args )
 end sub
 
 '' THE SAME, INTO A RESULT SLOT. 'function = w' inside a STRING function has no target
@@ -316,18 +334,22 @@ end sub
 '' entry point could not be reached and every one of those declined.
 function LowerWideToNarrowSlot _
     ( byref c as Ctx, byval slot as long, byval dt as Tko.TypeId, _
-      byval value as Tko.NodeId ) as boolean
+      byval value as Tko.NodeId, byval isInit as boolean = false ) as boolean
 
     if slot < 0 then return false
+    if IsUStringType( c, dt ) then return false
+    if ChainTouchesU_( c, value ) then return false
     dim as longint dn = -1
     if IsStringType( c, dt ) = false then
         if StrSwapKind_( c, dt, dn ) <> 1 then return false
     end if
 
+    '' A CONCATENATION IS WIDE-TYPED TOO now that 's + w' answers WSTRING, and it has no
+    '' address: asking LowerAddr for one gave nothing and the whole shape declined.
+    '' The address is TRIED, and anything without one falls through to the temporary.
     dim as MirValue src
-    if IsWideString_( c, c.info->TypeOf_( value ) ) then
-        src = LowerAddr( c, value )
-    else
+    if IsWideString_( c, c.info->TypeOf_( value ) ) then src = LowerAddr( c, value )
+    if src.kind = cast( ubyte, MV_NONE ) then
         if NarrowDestWideSource_( c, value, src ) = false then return false
     end if
     if src.kind = cast( ubyte, MV_NONE ) then return false
@@ -336,7 +358,7 @@ function LowerWideToNarrowSlot _
     dst.kind = cast( ubyte, MV_LOCAL )
     dst.ty = cast( ubyte, MT_PTR )
     dst.id = slot
-    EmitWideToNarrow_( c, dst, dn, src )
+    EmitWideToNarrow_( c, dst, dn, src, isInit )
     return true
 end function
 

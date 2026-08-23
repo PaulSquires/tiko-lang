@@ -395,7 +395,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     declare function LowerWideToNarrowSlot _
         ( byref c as Ctx, byval slot as long, byval dt as Tko.TypeId, _
-          byval value as Tko.NodeId ) as boolean
+          byval value as Tko.NodeId, byval isInit as boolean = false ) as boolean
     declare function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerAggIif_ _

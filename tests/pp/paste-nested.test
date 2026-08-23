@@ -1,0 +1,7 @@
+'' A paste whose operand is itself a paste, two and three macro levels deep. fbc
+'' resolves these to PS, PCS and ABC; tiko-lang read the second one's spelling out of
+'' the invocation's source text and produced 'pou'.
+'' TEST: cli
+'' ARGS: --dump-tokens=pp tests/pp/src/paste-nested.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/paste-nested.out

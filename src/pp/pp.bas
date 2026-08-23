@@ -223,14 +223,31 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
     dim as TokenKind k = Tk( t )
     if k = TK_IDENT then
         '' The FOLDED spelling is in the interner; the original is in the source.
+        dim as string folded = e.names->Spelling( cast( InternId, t.literal ) )
         dim as DecodedLoc d = e.src->Decode( t.loc )
         dim as SourceFile ptr f = e.src->FileAt( d.file )
         if (f <> 0) andalso (t.length > 0) then
-            dim as string s = space( t.length )
-            memcpy( strptr( s ), @f->text[d.offset], t.length )
-            return s
+            if (d.offset + t.length) <= f->text.Count then
+                dim as string s = space( t.length )
+                memcpy( strptr( s ), @f->text[d.offset], t.length )
+                '' ...BUT ONLY WHEN THE SPAN IS STILL THIS TOKEN. A PASTED identifier
+                '' had its loc REPOINTED AT THE USE SITE, exactly as the numeric
+                '' literals in RelexInto did, so the span read the INVOCATION's text
+                '' instead of the name: 'INNER( c##a )' inside 'OUTER( s )' pasted
+                '' 'p' with the first two characters of 'OUTER(' and produced 'pou'.
+                '' An identifier has no text span of its own to record, so the check is
+                '' that the source text FOLDS TO THE INTERNED SPELLING -- which keeps
+                '' the original CASE for every real source token and falls back to the
+                '' folded name for a synthesised one.
+                ''
+                '' It was silent: 'pou' is a perfectly good identifier, simply not one
+                '' that is declared, and an undeclared name in an expression is an
+                '' untyped node rather than an error. 63 corpus declines in
+                '' string/concat.bas were this one paste.
+                if Text.LowerAscii( s ) = Text.LowerAscii( folded ) then return s
+            end if
         end if
-        return e.names->Spelling( cast( InternId, t.literal ) )
+        return folded
     end if
 
     dim as string spellText = TokenKindText( k )

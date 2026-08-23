@@ -1,0 +1,8 @@
+'' A wide source for a narrow destination at its DECLARATION, which takes its own
+'' entry point, plus the assignment form beside it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-concat-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-concat-init.out

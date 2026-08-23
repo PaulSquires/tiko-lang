@@ -15,9 +15,10 @@ namespace Tko.Mir
 
 using Tko
 
-'' Defined in lowerstr.bas, which is compiled after this one.
+'' Defined at the foot of this file, and used above it.
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
 
 '' The (pointer, length) pair for one term of a concatenation.
 function EmitStrTerm _
@@ -588,6 +589,95 @@ function ZstrDataOf_ _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
     return false
+end function
+
+'' Moved here from lowerstr.bas at the 1500-line cap. Nothing about it changed.
+'' SWAP a, b -- measured from fbc, and it is TWO different lowerings.
+''
+'' A STRING pair goes through the runtime, six arguments rather than four: each side is
+'' (pointer, length, flag) with the flag 0.
+''
+''     fb_StrSwap( &S$1, -1ll, 0, &T$1, -1ll, 0 )
+''
+'' Anything else is a TEMPORARY OF THE OPERAND'S OWN TYPE and three assignments:
+''
+''     { double TMP;  TMP = D$1;  D$1 = E$1;  E$1 = TMP; }
+''
+'' Note the temporary is typed to the operand, not to a fixed width: swapping two
+'' doubles through an integer slot would round-trip the bits through the wrong register
+'' class, and swapping two aggregates would not fit at all.
+'' What kind of string a type is, for the SWAP runtime's argument shape. Returns
+''   0 = var-length STRING, and 'n' is set to -1
+''   1 = ZSTRING * N,       and 'n' is N
+''   2 = WSTRING * N,       and 'n' is N
+''  -1 = not a string
+''
+'' A fixed-length string is modelled as an ARRAY of the element builtin, which is what
+'' it is, so the count comes off the array rather than out of a byte size.
+function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nOut as longint ) as long
+
+    if t = Tko.TYPE_NONE then return -1
+    '' CONST IS NOT A DIFFERENT STRING. 'dim cz as const zstring * 10' is the same char
+    '' array as a mutable one and every runtime call takes it the same way, but the
+    '' QUALIFIED type is a distinct entry whose kind test fell through to "not a string
+    '' at all" -- so every term spelled with one had no (pointer, length) pair and the
+    '' whole statement produced nothing. string/concat.bas is half const by design.
+    t = c.types->Unqualify( t )
+    if IsStringType( c, t ) then
+        nOut = -1
+        return 0
+    end if
+    '' AN UNSIZED ZSTRING -- what a 'zstring ptr' points at, and what '*pz' is. It has
+    '' no declared count, and fbc passes LENGTH 0 for one: 'fb_StrAssign( PC, 0ll, PA,
+    '' 0ll, 0 )', 0 meaning "NUL-terminated, work it out". It matched neither the array
+    '' test below nor IsStringType above, so every operation through a zstring pointer
+    '' declined -- and 'hStringChecks( *pa, *pb, *pc )' is how the corpus exercises the
+    '' whole string surface a second time.
+    if c.types->Kind( t ) = Tko.TK_BUILTIN then
+        if c.types->BuiltinOf( t ) = Tko.TY_ZSTRING then
+            nOut = 0
+            return 1
+        end if
+        '' AND THE WIDE HALF OF THE SAME THING -- what a 'wstring ptr' points at, and
+        '' what '*pw' is. Its absence made 'line input #1, *pw, 10' answer "not a
+        '' string at all" and decline, while the zstring line beside it lowered.
+        if c.types->BuiltinOf( t ) = Tko.TY_WSTRING then
+            nOut = 0
+            return 2
+        end if
+    end if
+
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return -1
+    dim as Tko.TypeId el = c.types->Inner( t )
+    if el = Tko.TYPE_NONE then return -1
+    if c.types->Kind( el ) <> Tko.TK_BUILTIN then return -1
+    nOut = c.types->ElemCount( t )
+    if nOut <= 0 then return -1
+    select case c.types->BuiltinOf( el )
+    case Tko.TY_ZSTRING : return 1
+    case Tko.TY_WSTRING : return 2
+    case Tko.TY_FIXUSTR
+        '' 'ustring * N' -- the FIXED-LENGTH UTF-16 flavour, and its tag is N MINUS
+        '' ONE where 'string * N' uses N. Measured, both on win64:
+        ''
+        ''     dim as string  * 8 s   ->  fb_StrInit ( S, &h8000000000000008, ... )
+        ''     dim as ustring * 8 u   ->  fb_UStrInit( U, &h8000000000000007, ... )
+        ''
+        '' so its capacity is N-1 usable characters, exactly as 'zstring * N' is, and
+        '' the fixed narrow string is the odd one out. Nothing about the two spellings
+        '' says which, and getting it wrong writes one character past the end.
+        nOut = FixedStrLenArg_( c, nOut - 1 )
+        return 4
+    case Tko.TY_FIXSTR
+        '' 'string * N' -- the FIXED-LENGTH, space-padded flavour. 'n' comes back
+        '' ENCODED, because that is the only form any runtime call wants it in, and
+        '' encoding it here means every '(pointer, length)' push site emits fbc's
+        '' constant without knowing this type exists.
+        nOut = FixedStrLenArg_( c, nOut )
+        return 3
+    end select
+    return -1
 end function
 
 end namespace

@@ -119,6 +119,12 @@ namespace Tko.Mir
         RTL( RTL_WSTR_ASSIGN,       "fb_WstrAssign",       "p",   "pzp"   )
         RTL( RTL_WSTR_ASSIGN_FROMA, "fb_WstrAssignFromA",  "p",   "pzpz"  )
         RTL( RTL_WSTR_ASSIGN_TOA,   "fb_WstrAssignToA",    "p",   "pzpl"  )
+        '' ...AND ITS DECLARATION FORM, which is a DIFFERENT FUNCTION rather than a flag:
+        '' 'dim as string c = w & s' is fb_WstrAssignToA_Init from the wide temporary,
+        '' the same distinction fb_StrInit and fb_StrAssign make. Without it the whole
+        '' shape had nowhere to go and the initialiser was dropped -- 119 declines in
+        '' string/concat.bas alone, which is the concatenation matrix.
+        RTL( RTL_WSTR_TOA_INIT,     "fb_WstrAssignToA_Init", "p", "pzpz"  )
         RTL( RTL_WSTR_DELETE,       "fb_WstrDelete",       "v",   "p"     )
         RTL( RTL_WSTR_LEN,          "fb_WstrLen",          "z",   "p"     )
         '' A WIDE TEMPORARY, allocated to hold a given number of CHARACTERS. Its result

@@ -631,6 +631,24 @@ function LowerStringInit _
         return true
     end if
 
+    '' A WIDE SOURCE FOR A NARROW DESTINATION does not go through fb_StrInit at all:
+    '' 'dim as string c = w & s' builds the wide temporary and then transfers it with
+    '' fb_WstrAssignToA_Init. The ASSIGNMENT form of this was already here; the
+    '' DECLARATION had no route to it, so every one of them dropped its initialiser --
+    '' 119 of them in string/concat.bas, the concatenation matrix.
+    if slot >= 0 then
+        dim as Tko.TypeId dt0 = c.f->locals[slot].frontendType
+        if dt0 = Tko.TYPE_NONE then dt0 = c.info->TypeOf_( target )
+        if IsUStringType( c, dt0 ) = false then
+            if ConcatHasWideTerm_( c, value ) orelse _
+               IsWideString_( c, c.info->TypeOf_( value ) ) then
+                ZeroStrDescriptor( c, dst )
+                if LowerWideToNarrowSlot( c, slot, dt0, value, true ) then return true
+                return false
+            end if
+        end if
+    end if
+
     '' A concatenation cannot go through fb_StrInit, which takes one source. Zero the
     '' descriptor so it is a valid empty string, then build into it the ordinary way.
     dim as FB.Array( of ulong ) terms
@@ -821,87 +839,6 @@ end sub
 
 
 
-'' SWAP a, b -- measured from fbc, and it is TWO different lowerings.
-''
-'' A STRING pair goes through the runtime, six arguments rather than four: each side is
-'' (pointer, length, flag) with the flag 0.
-''
-''     fb_StrSwap( &S$1, -1ll, 0, &T$1, -1ll, 0 )
-''
-'' Anything else is a TEMPORARY OF THE OPERAND'S OWN TYPE and three assignments:
-''
-''     { double TMP;  TMP = D$1;  D$1 = E$1;  E$1 = TMP; }
-''
-'' Note the temporary is typed to the operand, not to a fixed width: swapping two
-'' doubles through an integer slot would round-trip the bits through the wrong register
-'' class, and swapping two aggregates would not fit at all.
-'' What kind of string a type is, for the SWAP runtime's argument shape. Returns
-''   0 = var-length STRING, and 'n' is set to -1
-''   1 = ZSTRING * N,       and 'n' is N
-''   2 = WSTRING * N,       and 'n' is N
-''  -1 = not a string
-''
-'' A fixed-length string is modelled as an ARRAY of the element builtin, which is what
-'' it is, so the count comes off the array rather than out of a byte size.
-function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
-
-    if t = Tko.TYPE_NONE then return -1
-    if IsStringType( c, t ) then
-        n = -1
-        return 0
-    end if
-    '' AN UNSIZED ZSTRING -- what a 'zstring ptr' points at, and what '*pz' is. It has
-    '' no declared count, and fbc passes LENGTH 0 for one: 'fb_StrAssign( PC, 0ll, PA,
-    '' 0ll, 0 )', 0 meaning "NUL-terminated, work it out". It matched neither the array
-    '' test below nor IsStringType above, so every operation through a zstring pointer
-    '' declined -- and 'hStringChecks( *pa, *pb, *pc )' is how the corpus exercises the
-    '' whole string surface a second time.
-    if c.types->Kind( t ) = Tko.TK_BUILTIN then
-        if c.types->BuiltinOf( t ) = Tko.TY_ZSTRING then
-            n = 0
-            return 1
-        end if
-        '' AND THE WIDE HALF OF THE SAME THING -- what a 'wstring ptr' points at, and
-        '' what '*pw' is. Its absence made 'line input #1, *pw, 10' answer "not a
-        '' string at all" and decline, while the zstring line beside it lowered.
-        if c.types->BuiltinOf( t ) = Tko.TY_WSTRING then
-            n = 0
-            return 2
-        end if
-    end if
-
-    if c.types->Kind( t ) <> Tko.TK_ARRAY then return -1
-    dim as Tko.TypeId el = c.types->Inner( t )
-    if el = Tko.TYPE_NONE then return -1
-    if c.types->Kind( el ) <> Tko.TK_BUILTIN then return -1
-    n = c.types->ElemCount( t )
-    if n <= 0 then return -1
-    select case c.types->BuiltinOf( el )
-    case Tko.TY_ZSTRING : return 1
-    case Tko.TY_WSTRING : return 2
-    case Tko.TY_FIXUSTR
-        '' 'ustring * N' -- the FIXED-LENGTH UTF-16 flavour, and its tag is N MINUS
-        '' ONE where 'string * N' uses N. Measured, both on win64:
-        ''
-        ''     dim as string  * 8 s   ->  fb_StrInit ( S, &h8000000000000008, ... )
-        ''     dim as ustring * 8 u   ->  fb_UStrInit( U, &h8000000000000007, ... )
-        ''
-        '' so its capacity is N-1 usable characters, exactly as 'zstring * N' is, and
-        '' the fixed narrow string is the odd one out. Nothing about the two spellings
-        '' says which, and getting it wrong writes one character past the end.
-        n = FixedStrLenArg_( c, n - 1 )
-        return 4
-    case Tko.TY_FIXSTR
-        '' 'string * N' -- the FIXED-LENGTH, space-padded flavour. 'n' comes back
-        '' ENCODED, because that is the only form any runtime call wants it in, and
-        '' encoding it here means every '(pointer, length)' push site emits fbc's
-        '' constant without knowing this type exists.
-        n = FixedStrLenArg_( c, n )
-        return 3
-    end select
-    return -1
-end function
 
 '' THE LENGTH ARGUMENT for a 'string * N', which is not N.
 ''

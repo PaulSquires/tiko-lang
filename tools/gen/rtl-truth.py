@@ -213,6 +213,12 @@ sub WProbe( )
     '' fb_WstrConcat proper is emitted only where the result is a genuine RVALUE:
     '' assigning into a fixed wstring is optimised into assign + concat-assign.
     WTake( w & w2 )
+    '' A NARROW DESTINATION AT ITS DECLARATION takes its own entry point, the '_Init'
+    '' variant -- 'fb_WstrAssignToA_Init( &C, -1, tmp, 0 )' -- where a later store takes
+    '' fb_WstrAssignToA. The same distinction fb_StrInit and fb_StrAssign make.
+    dim as string ci = w & s
+    dim as string cj = w & w2
+    print ci, cj
 end sub
 sub WTake( byref x as const wstring )
 end sub

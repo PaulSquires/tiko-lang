@@ -229,6 +229,7 @@ fb_WstrAlloc	uint16*	int32	lib	_fb_WstrAlloc@4
 fb_WstrAssign	uint16*	uint16*, int32, uint16*	lib	_fb_WstrAssign@12
 fb_WstrAssignFromA	uint16*	uint16*, int32, void*, int32	lib	_fb_WstrAssignFromA@16
 fb_WstrAssignToA	FBSTRING*	void*, int32, uint16*, int32	lib	_fb_WstrAssignToA@16
+fb_WstrAssignToA_Init	FBSTRING*	void*, int32, uint16*, int32	lib	_fb_WstrAssignToA_Init@16
 fb_WstrBinEx_b	uint16*	uint8, int32	lib	_fb_WstrBinEx_b@8
 fb_WstrBinEx_i	uint16*	uint32, int32	lib	_fb_WstrBinEx_i@8
 fb_WstrBinEx_l	uint16*	uint64, int32	lib	_fb_WstrBinEx_l@12
