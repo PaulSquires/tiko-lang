@@ -1312,7 +1312,13 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     case Tko.KW_GET, Tko.KW_PUT
         '' GET and PUT share a keyword with the FILE statements, exactly as LINE
         '' does. Bit 1 of 'extra' is the graphics form.
-        if (ip->extra and 2) <> 0 then handled = LowerGfxStmt( c, id )
+        if (ip->extra and 2) <> 0 then
+            handled = LowerGfxStmt( c, id )
+        else
+            dim as MirValue gv
+            handled = LowerFileGetPut( c, id, _
+                (ip->op = cast( ushort, Tko.KW_PUT )), gv )
+        end if
     end select
     if ip->op = cast( ushort, Tko.KW_INPUT ) then handled = LowerInput( c, id, false )
     '' THE VARARG CURSOR. Builtins, not runtime calls -- see lowercva.bas.

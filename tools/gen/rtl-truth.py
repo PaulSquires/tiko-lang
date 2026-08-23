@@ -106,6 +106,16 @@ sub D( )
     delete p
 end sub
 ''',
+    # FILE GET and PUT, the BINARY forms. Probed with a scalar so the byte count is a
+    # compile-time size rather than a descriptor's length.
+    "fileget": '''
+sub GetProbe( byval f as long )
+    dim as byte b
+    dim as long r
+    r = get( #f, 1, b )
+    put #f, 1, b
+end sub
+''',
     # USTRING -- the UTF-16 flavour, which has its OWN descriptor and its own entry
     # points. Every shape is touched separately for the same reason the narrow family
     # is: fbc picks a different entry for a declaration, a later store, a concat and a

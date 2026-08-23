@@ -70,6 +70,17 @@ namespace Tko.Mir
         RTL( RTL_USTR_LEN,           "fb_UStrLen",          "z",   "pz"    )
         RTL( RTL_USTR_DELETE,        "fb_UStrDelete",       "v",   "p"     )
         RTL( RTL_PRINT_USTR,         "fb_PrintUStr",        "v",   "lpl"   )
+        '' FILE GET AND PUT -- the BINARY forms, which are the ones the corpus writes.
+        '' Measured: 'get( #f, pos, v )' is 'fb_FileGetLarge( f, pos, &v, sizeof( v ) )'
+        '' and returns the error code, so it is an EXPRESSION as well as a statement.
+        '' The position is int64 on both targets and the byte count uint64 -- NOT
+        '' pointer-sized, which is what 'z' would have made them on win32.
+        '' THE NAME ITSELF DIFFERS BY TARGET, which nothing else in this table does:
+        '' win64 calls fb_FileGetLarge with a 64-bit position and count, win32 calls
+        '' fb_FileGet with 32-bit ones. RtlSymbol answers per target -- see the
+        '' override beside it -- and 'z' covers both widths.
+        RTL( RTL_FILE_GET,           "fb_FileGetLarge",     "l",   "lzpz"  )
+        RTL( RTL_FILE_PUT,           "fb_FilePutLarge",     "l",   "lzpz"  )
         '' SWAP of two strings. Six arguments, not four: each side is (ptr, length,
         '' flag) where the flag is 0 -- the same shape fb_StrAssign uses plus a trailing
         '' word per operand.
@@ -540,7 +551,8 @@ namespace Tko.Mir
     '' the variadic entries, a stdcall '@N' -- measured, '_fb_StrAssign@20'.
     declare function RtlTypeOfLetter _
         ( byref c as string, byval is32 as boolean ) as MirType
-    declare function RtlSymbol( byval r as RtlId ) as string
+    declare function RtlSymbol _
+        ( byval r as RtlId, byval is32 as boolean = false ) as string
     declare function RtlLinkName _
         ( byval r as RtlId, byval is32 as boolean ) as string
     '' 'is32' is win32: Linux is 64-bit only by decision.

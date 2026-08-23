@@ -52,11 +52,13 @@ fb_FRACd	double	double	lib	_fb_FRACd@8
 fb_FRACf	float	float	lib	_fb_FRACf@4
 fb_FileClose	int32	int32	lib	_fb_FileClose@4
 fb_FileCloseAll	int32	void	lib	_fb_FileCloseAll@0
+fb_FileGet	int32	int32, int32, void*, uint32	lib	_fb_FileGet@16
 fb_FileInput	int32	int32	lib	_fb_FileInput@4
 fb_FileLineInput	int32	int32, void*, int32, int32	lib	_fb_FileLineInput@16
 fb_FileLineInputWstr	int32	int32, uint16*, int32	lib	_fb_FileLineInputWstr@12
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	_fb_FileOpen@24
 fb_FileOpenEncod	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenEncod@28
+fb_FilePut	int32	int32, int32, void*, uint32	lib	_fb_FilePut@16
 fb_FloatToStr	FBSTRING*	float	lib	_fb_FloatToStr@4
 fb_FloatToWstr	uint16*	float	lib	_fb_FloatToWstr@4
 fb_GfxDraw	void	void*, FBSTRING*	lib	_fb_GfxDraw@8

@@ -34,6 +34,15 @@ function LowerExpr _
     case Tko.N_INTRINSIC
         dim as MirValue ov
         if LowerOpenCall_( c, id, ov ) then return ov
+        '' 'get( #f, 1, b )' YIELDS THE ERROR CODE, and that is how the corpus writes
+        '' every one: 'CU_ASSERT( get( #f, 1, b ) = 0 )'. Same node either way, so the
+        '' statement form's own lowering serves here too.
+        dim as Tko.StmtPayload ptr isp = StmtOf( c, id )
+        dim as Tko.TokenKind iop = cast( Tko.TokenKind, isp->op )
+        if (iop = Tko.KW_GET) orelse (iop = Tko.KW_PUT) then
+            dim as MirValue gv
+            if LowerFileGetPut( c, id, (iop = Tko.KW_PUT), gv ) then return gv
+        end if
         return v
 
     case Tko.N_STRING_LIT

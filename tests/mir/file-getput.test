@@ -1,0 +1,7 @@
+'' Binary file GET and PUT, with a scalar, a UDT and an elided position.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/file-getput.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/file-getput.out

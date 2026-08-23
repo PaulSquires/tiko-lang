@@ -575,6 +575,84 @@ end function
 ''     rather than a device code.
 '' As a STATEMENT the error code is discarded; as an EXPRESSION -- 'if open( f for
 '' input as #1 ) <> 0' -- it is the value. One body, because they are the same call.
+'' FILE GET AND PUT -- the BINARY forms. Measured:
+''
+''     get( #f, 1, b )   fb_FileGetLarge( F$0, 1ll, (void*)&B$0, 1ull )
+''     put #f, 1, b      fb_FilePutLarge( F$0, 1ll, (void*)&B$0, 1ull )
+''     get #f, , b       the position is 0 when it is elided
+''
+'' and the result is the error code, so both are EXPRESSIONS as well as statements --
+'' 'CU_ASSERT( get( #f, 1, b ) = 0 )' is how the corpus writes every one of them.
+''
+'' A STRING OPERAND TAKES A DIFFERENT ENTRY POINT, fb_FileGetStrLarge, whose last
+'' argument is a signed length rather than a byte count. Not modelled here: it declines,
+'' which is the honest answer for a shape whose argument means something else.
+function LowerFileGetPut _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval isPut as boolean, _
+      byref outv as MirValue ) as boolean
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    '' Bit 1 of 'extra' is the FILE form; bit 2 is the graphics one, which has its own
+    '' coordinate grammar and its own lowering.
+    if (sp->extra and 1) = 0 then return false
+    if sp->count < 1 then return false
+
+    '' The channel.
+    dim as MirValue chan
+    chan.kind = cast( ubyte, MV_CONST_INT )
+    chan.ty = cast( ubyte, MT_I32 )
+    chan.id = 0
+    if sp->a <> Tko.NODE_NONE then
+        dim as MirValue ch = LowerExpr( c, sp->a )
+        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+    end if
+
+    '' 'get #f, pos, v' -- the POSITION then the VARIABLE. With one item written the
+    '' position was elided and is 0.
+    dim as Tko.NodeId posN = Tko.NODE_NONE
+    dim as Tko.NodeId varN = Tko.NODE_NONE
+    if sp->count = 1 then
+        varN = cast( Tko.NodeId, c.ast->children[sp->first] )
+    else
+        posN = cast( Tko.NodeId, c.ast->children[sp->first] )
+        varN = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+    end if
+    if varN = Tko.NODE_NONE then return false
+    if c.ast->Kind( varN ) = Tko.N_ELIDED then return false
+
+    dim as MirType zt = MT_I64
+    if c.types->target.pointerBits = 32 then zt = MT_I32
+
+    dim as MirValue pv = ConstInt( c, 0, zt )
+    if posN <> Tko.NODE_NONE then
+        if c.ast->Kind( posN ) <> Tko.N_ELIDED then
+            dim as MirValue p0 = LowerExpr( c, posN )
+            if p0.kind = cast( ubyte, MV_NONE ) then return false
+            pv = Coerce( c, p0, zt, IsUnsignedType( c, c.info->TypeOf_( posN ) ) )
+        end if
+    end if
+
+    '' The DESTINATION is written through, so its address and its size in bytes. A
+    '' var-length string is a descriptor and takes the other entry point entirely.
+    dim as Tko.TypeId vt = c.info->TypeOf_( varN )
+    if vt = Tko.TYPE_NONE then return false
+    if IsStringType( c, vt ) then return false
+    dim as long vsz = SizeOfType( c, vt )
+    if vsz <= 0 then return false
+    dim as MirValue va = LowerAddr( c, varN )
+    if va.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
+    args.Push( cast( ulong, pv.kind ) ) : args.Push( cast( ulong, pv.id ) )
+    args.Push( cast( ulong, va.kind ) ) : args.Push( cast( ulong, va.id ) )
+    dim as MirValue sv = ConstInt( c, vsz, zt )
+    args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
+    outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT, RTL_FILE_GET ), args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue ignored
     return LowerOpenCall_( c, id, ignored )

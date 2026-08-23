@@ -359,6 +359,11 @@ declare function EmitRtl _
     declare function LowerTypeCtorTempAddr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
+    '' File GET and PUT -- lowerio.bas.
+    declare function LowerFileGetPut _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isPut as boolean, _
+          byref outv as MirValue ) as boolean
+
     declare function IsUStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ConcatTermsAreU_ _
         ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean

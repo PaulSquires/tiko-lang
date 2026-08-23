@@ -5,7 +5,18 @@
 
 namespace Tko.Mir
 
-function RtlSymbol( byval r as RtlId ) as string
+function RtlSymbol( byval r as RtlId, byval is32 as boolean = false ) as string
+    '' A HANDFUL OF ENTRIES ARE NAMED DIFFERENTLY ON WIN32, not merely decorated
+    '' differently. Measured: the file GET and PUT that take a 64-bit position are
+    '' fb_FileGetLarge and fb_FilePutLarge on win64 and plain fb_FileGet and fb_FilePut
+    '' on win32, where the position and count are 32-bit. Every other row here has one
+    '' name and only its DECORATION varies, which is RtlLinkName's business.
+    if is32 then
+        select case r
+        case RTL_FILE_GET : return "fb_FileGet"
+        case RTL_FILE_PUT : return "fb_FilePut"
+        end select
+    end if
     select case r
     #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : return r_sym
     TKO_RTL_LIST( RTL )
@@ -70,7 +81,7 @@ function RtlByName( byref nm as string ) as RtlId
 end function
 
 function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
-    dim as string nm = RtlSymbol( r )
+    dim as string nm = RtlSymbol( r, is32 )
     if is32 = false then return nm
     dim as string ps = RtlParams( r )
     if instr( ps, "." ) > 0 then return "_" & nm
