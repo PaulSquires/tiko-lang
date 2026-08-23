@@ -737,6 +737,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         Expect( p, Tko.TK_RPAREN, ")" )
         dim as Tko.NodeId tn = MakeList( p, Tko.N_TUPLE, t.loc, litType, titems )
         p.ast->nodes[cast( long, tn )].flags or= Tko.NF_HAS_COMMA
+        p.ast->nodes[cast( long, tn )].flags or= Tko.NF_TYPE_LITERAL
         return PostfixChain( p, tn )
 
     case Tko.TK_LPAREN

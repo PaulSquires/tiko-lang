@@ -1,3 +1,33 @@
+func agg MAKEP() {
+  local agg $tmp0 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 1
+    %3 = trunc %2
+    %4 = const i64 2
+    %5 = trunc %4
+    %6 = field.addr @$tmp0, 0
+    store %6, %3
+    %7 = field.addr @$tmp0, 4
+    store %7, %5
+    %8 = load @$tmp0
+    ret %8
+}
+func agg MAKEPTYPED() {
+  local agg $tmp0 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 3
+    %3 = trunc %2
+    %4 = const i64 4
+    %5 = trunc %4
+    %6 = field.addr @$tmp0, 0
+    store %6, %3
+    %7 = field.addr @$tmp0, 4
+    store %7, %5
+    %8 = load @$tmp0
+    ret %8
+}
 func i32 main($0, $1) {
   local i32 $tmp0
   local agg d size 8
@@ -173,4 +203,4 @@ declare void S()
 declare ptr memset($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 152 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 172 insts, 0 statements not lowered, 0 scope imbalance

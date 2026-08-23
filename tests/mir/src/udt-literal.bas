@@ -85,3 +85,18 @@ dim as T3 y = ( base1, 31, 301 )
 '' The SAME object written flat. fbc accepts both spellings and emits the same three
 '' stores, so the flattening has to be greedy on the value side too.
 dim as Outer flatOuter = ( 1, 2, 3 )
+
+'' AS A RESULT ASSIGNMENT. The result slot IS the object, so this is the declaration
+'' initialiser with the result's type standing in for the declared one.
+''
+'' ONLY THE 'type( ... )' SPELLING IS LEGAL HERE. Measured: fbc accepts
+'' 'function = type( 5, 6 )' and rejects 'function = ( 5, 6 )' with error 7, expecting
+'' ')' where the comma is. The two build the same node, so the parser marks which was
+'' written -- sharing NF_UNTIL's bit, which is N_DO's and cannot appear on a tuple.
+function MakeP( ) as P
+    function = type( 1, 2 )
+end function
+
+function MakePTyped( ) as P
+    function = type<P>( 3, 4 )
+end function

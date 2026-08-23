@@ -153,6 +153,16 @@ namespace Tko
     const NF_CONST      as ushort = &h2000
     const NF_PROC_TYPE  as ushort = &h4000   '' N_TYPEREF: 'sub(...)' / 'function(...) as T'
     const NF_QUALIFIED  as ushort = &h8000   '' N_PROC: 'Stack.Push' -- a member DEFINITION
+    '' N_TUPLE: written as 'type( ... )' rather than as a bare '( ... )'.
+    ''
+    '' THE BIT IS SHARED WITH NF_UNTIL, which is N_DO's and can never appear on an
+    '' N_TUPLE -- every bit of the ushort is spoken for, and widening the field to
+    '' carry one more would touch every node in the arena. Sharing per NODE KIND is
+    '' the same thing the payload fields already do.
+    ''
+    '' It has to be distinguishable: fbc ACCEPTS 'function = type( 5, 6 )' and REJECTS
+    '' 'function = ( 5, 6 )' with error 7, and the two build the same node otherwise.
+    const NF_TYPE_LITERAL as ushort = &h0080
 
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.

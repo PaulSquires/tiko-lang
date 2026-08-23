@@ -482,6 +482,25 @@ end sub
 
 declare sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
+'' A FIELD LIST ASSIGNED TO THE RESULT -- 'function = ( 1, 2 )' and 'function =
+'' type( 1, 2 )'. The result slot IS the object, so this is the declaration
+'' initialiser with the result's type standing in for the declared one.
+private function ResultFieldListInit_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+
+    if c.resultSlot < 0 then return false
+    if c.resultType = Tko.TYPE_NONE then return false
+    if e = Tko.NODE_NONE then return false
+    '' ONLY THE 'type( ... )' SPELLING. Measured: fbc accepts 'function = type( 5, 6 )'
+    '' and rejects 'function = ( 5, 6 )' with error 7, expecting ')' where the comma
+    '' is. The two build the same node, so the parser marks which was written.
+    if c.ast->Kind( e ) <> Tko.N_TUPLE then return false
+    if (c.ast->nodes[cast( long, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        return false
+    end if
+    return LowerUdtParenInit_( c, c.resultSlot, c.resultType, e )
+end function
+
 '' 'dim x as T = ANY' -- the explicit request for an UNINITIALISED variable, which
 '' emits no store. 'any' is a keyword, so no variable can be spelled that way and
 '' matching the name alone is safe.
@@ -970,6 +989,12 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 elseif LowerStringAssignToSlot( c, c.resultSlot, sp->b ) = false then
                     SkipHere( c )
                 end if
+            elseif ResultFieldListInit_( c, sp->b ) then
+                '' 'function = type( 1, 2 )' and 'function = ( 1, 2 )' -- A FIELD LIST
+                '' WRITTEN STRAIGHT INTO THE RESULT. Neither spelling names a type: the
+                '' RESULT's type is the context, exactly as a declaration's is for
+                '' 'dim as P x = ( 1, 2 )'. Lowering it as an expression asked the tuple
+                '' for a type it has not got, so both declined.
             else
                 dim as MirValue rval = LowerExpr( c, sp->b )
                 if rval.kind = cast( ubyte, MV_NONE ) then
