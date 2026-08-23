@@ -550,60 +550,19 @@ function LowerExpr _
         return Emit( c, ins )
 
     case Fbx.N_CALL
-        '' A conversion intrinsic is a KEYWORD, so there is no callee to find and
-        '' nothing to call: it lowers to the coercion its result type asks for.
-        if IsConvIntrinsic( c, id ) then return LowerConvIntrinsic( c, id, mt )
-        '' 'iif( c, a, b )' is a CONDITIONAL, not a call: only one arm may run.
-        dim as MirValue iifv
-        if LowerIif( c, id, mt, iifv ) then return iifv
-        '' 'T( args )' builds a VALUE of T. The callee is a TYPE, not a procedure, so
-        '' the ordinary call path below finds nothing to call.
-        dim as MirValue tcv
-        if LowerTypeCtorExpr_( c, id, tcv ) then return tcv
-
-        '' 'new T' allocates and constructs; it is not a call to anything named 'new'.
-        dim as MirValue nwv
-        if LowerNew_( c, id, nwv ) then return nwv
-        '' 'procptr( f )' is a function's ADDRESS, not a call to it.
-        dim as MirValue ppv
-        if LowerProcPtr( c, id, ppv ) then return ppv
-        '' 'len( x )' is a runtime call for a string and a constant for anything else.
-        dim as MirValue lnv
-        if LowerLen( c, id, lnv ) then return lnv
-        '' int / fix / frac / abs / sgn / sqr and the transcendentals. A mix of gcc
-        '' builtins, runtime calls and a plain floor -- see LowerMathCall_.
-        dim as MirValue mtv
-        if LowerMathCall_( c, id, mtv ) then return mtv
-        '' 'asc', 'instr', 'instrrev' and the val family: string intrinsics whose
-        '' RESULT IS A NUMBER, so they arrive here rather than through the descriptor
-        '' path that hex and trim take.
-        dim as MirValue snv
-        if LowerStrNumCall_( c, id, snv ) then return snv
-        '' 'lbound(a)' / 'ubound(a)' over a DYNAMIC array is a runtime call; over a
-        '' fixed one both fold at compile time and never reach here.
-        dim as MirValue abv
-        if LowerArrayBoundCall( c, id, abv ) then return abv
-        '' 'wstr( x )' widens into a wide temporary; 'imagecreate' and 'point' are the
-        '' two graphics EXPRESSIONS, keywords that cannot be declared in the prelude.
-        dim as MirValue wcv
-        if LowerWstrOf( c, id, wcv ) then return wcv
-        if LowerGfxExprCall_( c, id, wcv ) then return wcv
-        if LowerStrPtrCall_( c, id, wcv ) then return wcv
-        '' Indexing and calling share a spelling; an array subscript is an address to
-        '' load from, not a call to make.
-        if IsArrayIndex( c, id ) then
-            dim as MirValue addr = LowerArrayIndex( c, id )
-            if addr.kind = cast( ubyte, MV_NONE ) then return v
-            return LowerExprLoad( c, addr, LowerType( c.info->TypeOf_( id ), *c.types ) )
-        end if
-        return LowerCall( c, id, mt )
+        '' THE EXPRESSION CALL CHAIN -- a dozen constructs that are spelled like a
+        '' call and are not one. It lives in lowerintr.bas, with the intrinsics it
+        '' dispatches to, because this file is at its size limit.
+        return LowerCallExpr_( c, id, mt )
     end select
 
     return v
 end function
 
 
-private function LowerCall _
+'' NOT private any more: the expression call chain moved to lowerintr.bas when this
+'' file reached its size limit, and it ends here.
+function LowerCall _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
 
     dim as Fbx.ListPayload ptr cp = _

@@ -190,6 +190,11 @@ private function ExprIntrinsicType_ _
     '' declined with no idea what it was declining.
     case "imagecreate"
         return c.types->Pointer_( c.types->Builtin( Fbx.TY_ANY ) )
+    '' RGB and RGBA are PREDECLARED NAMES, not procedures -- 'dim as long rgb' is
+    '' fbc's error 4, duplicated definition -- and they fold to shifts rather than to
+    '' a call, so they cannot go in the prelude with the rest of the graphics surface.
+    case "rgb", "rgba"
+        return c.types->Builtin( Fbx.TY_ULONG )
     case "point"
         return c.types->Builtin( Fbx.TY_ULONG )
     end select

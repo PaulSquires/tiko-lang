@@ -1141,6 +1141,98 @@ end function
 '' recorded -- and three of those keywords are TWO statements sharing a spelling,
 '' which is what the 'extra' bits are for. Split out of lower.bas when that file
 '' reached the 1500-line cap; nothing about it changed in the move.
+'' 'rgb( r, g, b )' AND 'rgba( r, g, b, a )'. Neither is a call: fbc folds each into
+'' shifts and ors, and each component is TRUNCATED TO A BYTE first. Measured:
+''
+''   rgb( r, g, b )      ((r&255) << 16) | ((g&255) << 8) | (b&255) | 0xFF000000
+''   rgba( r, g, b, a )  the same three, with ((a&255) << 24) in place of the constant
+''
+'' The opaque alpha in the three-argument form is why they are not one function with a
+'' default: 0xFF000000 is a CONSTANT there and a shifted operand here.
+''
+'' They are PREDECLARED NAMES rather than procedures -- 'dim as long rgb' is fbc's
+'' error 4 -- so they cannot be written in the prelude either.
+function LowerRgbCall_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+    dim as Fbx.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Fbx.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    dim as Fbx.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as long want = 0
+    if nm = "rgb" then
+        want = 3
+    elseif nm = "rgba" then
+        want = 4
+    else
+        return false
+    end if
+    if cp->count <> want then return false
+
+    '' One component: masked to a byte and widened, which is what the casts in fbc's
+    '' output amount to.
+    dim as MirValue parts( 0 to 3 )
+    for i as long = 0 to want - 1
+        dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+        dim as MirValue v = LowerExpr( c, an )
+        if v.kind = cast( ubyte, MV_NONE ) then return false
+        v = Coerce( c, v, MT_I64, IsUnsignedType( c, c.info->TypeOf_( an ) ) )
+        dim as MirInst m
+        m.op = cast( ushort, M_AND )
+        m.ty = cast( ubyte, MT_I64 )
+        m.a = v
+        m.b = ConstInt( c, 255, MT_I64 )
+        parts( i ) = Emit( c, m )
+        if parts( i ).kind = cast( ubyte, MV_NONE ) then return false
+    next
+
+    '' Shift each into place, then or them together.
+    dim as long shifts( 0 to 3 ) = { 16, 8, 0, 24 }
+    dim as MirValue acc
+    for i as long = 0 to want - 1
+        dim as MirValue term = parts( i )
+        if shifts( i ) <> 0 then
+            dim as MirInst sh
+            sh.op = cast( ushort, M_SHL )
+            sh.ty = cast( ubyte, MT_I64 )
+            sh.a = term
+            sh.b = ConstInt( c, shifts( i ), MT_I64 )
+            term = Emit( c, sh )
+            if term.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+        if i = 0 then
+            acc = term
+        else
+            dim as MirInst o
+            o.op = cast( ushort, M_OR )
+            o.ty = cast( ubyte, MT_I64 )
+            o.a = acc
+            o.b = term
+            acc = Emit( c, o )
+            if acc.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+    next
+
+    if want = 3 then
+        '' The opaque alpha.
+        dim as MirInst o2
+        o2.op = cast( ushort, M_OR )
+        o2.ty = cast( ubyte, MT_I64 )
+        o2.a = acc
+        o2.b = ConstInt( c, 4278190080, MT_I64 )
+        acc = Emit( c, o2 )
+        if acc.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+
+    outv = Coerce( c, acc, MT_I32, true )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+
 '' 'strptr( x )' -- THE CHARACTER DATA POINTER, which is a different thing per flavour
 '' and was lowered for none of them:
 ''
@@ -1212,6 +1304,71 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     end select
     if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
     return handled
+end function
+
+
+'' EVERYTHING SPELLED LIKE A CALL THAT IS NOT ONE, in the order it has to be tried:
+'' a conversion intrinsic is a keyword with no callee, an 'iif' is a conditional, a
+'' type name builds a value, and the graphics and string intrinsics each have their
+'' own shape. Only what survives all of them is an actual call.
+''
+'' Split out of lower.bas when that file reached the 1500-line cap for the third
+'' time. Nothing about it changed in the move.
+declare function LowerCall _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+
+function LowerCallExpr_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+
+    dim as MirValue v
+    '' A conversion intrinsic is a KEYWORD, so there is no callee to find and
+    '' nothing to call: it lowers to the coercion its result type asks for.
+    if IsConvIntrinsic( c, id ) then return LowerConvIntrinsic( c, id, mt )
+    '' 'iif( c, a, b )' is a CONDITIONAL, not a call: only one arm may run.
+    dim as MirValue iifv
+    if LowerIif( c, id, mt, iifv ) then return iifv
+    '' 'T( args )' builds a VALUE of T. The callee is a TYPE, not a procedure, so
+    '' the ordinary call path below finds nothing to call.
+    dim as MirValue tcv
+    if LowerTypeCtorExpr_( c, id, tcv ) then return tcv
+
+    '' 'new T' allocates and constructs; it is not a call to anything named 'new'.
+    dim as MirValue nwv
+    if LowerNew_( c, id, nwv ) then return nwv
+    '' 'procptr( f )' is a function's ADDRESS, not a call to it.
+    dim as MirValue ppv
+    if LowerProcPtr( c, id, ppv ) then return ppv
+    '' 'len( x )' is a runtime call for a string and a constant for anything else.
+    dim as MirValue lnv
+    if LowerLen( c, id, lnv ) then return lnv
+    '' int / fix / frac / abs / sgn / sqr and the transcendentals. A mix of gcc
+    '' builtins, runtime calls and a plain floor -- see LowerMathCall_.
+    dim as MirValue mtv
+    if LowerMathCall_( c, id, mtv ) then return mtv
+    '' 'asc', 'instr', 'instrrev' and the val family: string intrinsics whose
+    '' RESULT IS A NUMBER, so they arrive here rather than through the descriptor
+    '' path that hex and trim take.
+    dim as MirValue snv
+    if LowerStrNumCall_( c, id, snv ) then return snv
+    '' 'lbound(a)' / 'ubound(a)' over a DYNAMIC array is a runtime call; over a
+    '' fixed one both fold at compile time and never reach here.
+    dim as MirValue abv
+    if LowerArrayBoundCall( c, id, abv ) then return abv
+    '' 'wstr( x )' widens into a wide temporary; 'imagecreate' and 'point' are the
+    '' two graphics EXPRESSIONS, keywords that cannot be declared in the prelude.
+    dim as MirValue wcv
+    if LowerWstrOf( c, id, wcv ) then return wcv
+    if LowerGfxExprCall_( c, id, wcv ) then return wcv
+    if LowerStrPtrCall_( c, id, wcv ) then return wcv
+    if LowerRgbCall_( c, id, wcv ) then return wcv
+    '' Indexing and calling share a spelling; an array subscript is an address to
+    '' load from, not a call to make.
+    if IsArrayIndex( c, id ) then
+        dim as MirValue addr = LowerArrayIndex( c, id )
+        if addr.kind = cast( ubyte, MV_NONE ) then return v
+        return LowerExprLoad( c, addr, LowerType( c.info->TypeOf_( id ), *c.types ) )
+    end if
+    return LowerCall( c, id, mt )
 end function
 
 

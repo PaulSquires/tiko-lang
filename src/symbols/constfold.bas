@@ -150,6 +150,62 @@ private function LitNum_ _
     return true
 end function
 
+'' A FLOATING constant, folded. Separate from ConstOf on purpose: ConstVal carries a
+'' longint, so a float has nowhere to go in it -- which is why 'const PI = 3.5' has
+'' never had a value and every use of one declined. Widening ConstVal would change what
+'' every integer caller sees; a second entry point changes nothing for them.
+''
+'' Only the four arithmetic operators and unary minus, which is what a floating
+'' constant expression is made of. A mixed expression folds in DOUBLE, as fbc's does.
+function ConstFloatOf _
+    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byref outd as double, _
+      byval depth as long = 0 ) as boolean
+
+    if id = Fbx.NODE_NONE then return false
+    if depth > 32 then return false
+
+    select case ast.Kind( id )
+    case Fbx.N_FLOAT_LIT, Fbx.N_INT_LIT
+        return LitNum_( ast, id, outd )
+
+    case Fbx.N_PAREN
+        dim as Fbx.ListPayload ptr pp = _
+            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if pp->count <> 1 then return false
+        return ConstFloatOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), _
+                             outd, depth + 1 )
+
+    case Fbx.N_UNARY
+        dim as Fbx.UnaryPayload ptr up = _
+            @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
+        if ConstFloatOf( ast, up->operand, outd, depth + 1 ) = false then return false
+        select case cast( Fbx.TokenKind, up->op )
+        case Fbx.TK_MINUS : outd = -outd
+        case Fbx.TK_PLUS
+        case else : return false
+        end select
+        return true
+
+    case Fbx.N_BINARY
+        dim as Fbx.BinaryPayload ptr bp = _
+            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+        dim as double l, r
+        if ConstFloatOf( ast, bp->lhs, l, depth + 1 ) = false then return false
+        if ConstFloatOf( ast, bp->rhs, r, depth + 1 ) = false then return false
+        select case cast( Fbx.TokenKind, bp->op )
+        case Fbx.TK_PLUS  : outd = l + r
+        case Fbx.TK_MINUS : outd = l - r
+        case Fbx.TK_STAR  : outd = l * r
+        case Fbx.TK_SLASH
+            if r = 0.0 then return false
+            outd = l / r
+        case else : return false
+        end select
+        return true
+    end select
+    return false
+end function
+
 '' CINT rounds HALF TO EVEN -- cint(2.5) is 2 and cint(3.5) is 4 -- which is the one
 '' rule here nobody guesses right. INT floors, FIX truncates toward zero.
 private function RoundHalfEven_( byval d as double ) as longint

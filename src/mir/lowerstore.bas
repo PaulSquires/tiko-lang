@@ -615,6 +615,20 @@ sub InitSharedGlobal _
         end if
     end if
     if (g < 0) orelse (init = Fbx.NODE_NONE) then return
+
+    '' A FLOATING initialiser first, because the integer folder cannot carry one:
+    '' ConstVal holds a longint, so 'dim shared as double d = 1.5' had no value at all
+    '' and declined. The MIR global has had a float slot all along.
+    dim as MirType gt = cast( MirType, c.m->globals[g].ty )
+    if (gt = MT_F32) orelse (gt = MT_F64) then
+        dim as double fd
+        if Fbx.Check.ConstFloatOf( *c.ast, init, fd ) then
+            c.m->globals[g].initFlt = fd
+            c.m->globals[g].hasInit = true
+            return
+        end if
+    end if
+
     dim as Fbx.Check.ConstVal cv = Fbx.Check.ConstOf( _
         *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits )
     if cv.known = false then

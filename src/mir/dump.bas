@@ -181,7 +181,14 @@ function DumpModule _
                 outp += " size " & str( m.globals[i].size )
             end if
             if m.globals[i].hasInit then
-                outp += " = " & str( m.globals[i].initInt )
+                '' A FLOAT initialiser prints as a float: printing initInt for one
+                '' would show 0 beside a global that has a value.
+                if (m.globals[i].ty = cast( ubyte, MT_F32 )) orelse _
+                   (m.globals[i].ty = cast( ubyte, MT_F64 )) then
+                    outp += " = " & str( m.globals[i].initFlt )
+                else
+                    outp += " = " & str( m.globals[i].initInt )
+                end if
             end if
             outp += chr( 10 )
         end if

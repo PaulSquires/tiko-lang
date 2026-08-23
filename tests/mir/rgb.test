@@ -1,0 +1,7 @@
+'' rgb/rgba fold to shifts, and a floating global initialiser folds at all.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/rgb.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: global var f64 gd = 1.5
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/rgb.out

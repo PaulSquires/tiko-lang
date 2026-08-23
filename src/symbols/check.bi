@@ -135,6 +135,10 @@ namespace Fbx.Check
         as boolean  uns
     end type
 
+    declare function ConstFloatOf _
+        ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byref outd as double, _
+          byval depth as long = 0 ) as boolean
+
     '' Fold an expression to an integer constant, matching fbc bit for bit. The
     '' source manager is needed for LEN and ASC, whose argument is a string literal
     '' recorded as a span rather than as text.

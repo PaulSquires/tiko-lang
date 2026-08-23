@@ -545,6 +545,10 @@ declare function EmitRtl _
 
     '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
     '' lowergfx.bas -- the graphics statements.
+    declare function LowerCallExpr_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+    declare function LowerRgbCall_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerStrPtrCall_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
     declare function LowerIntrinsicStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
