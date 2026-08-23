@@ -1,4 +1,89 @@
 global var agg narr size 240
+func void GROWSINABLOCK($0) {
+  local i32 want
+  local agg outer_ size 72
+  local i32 i
+  entry0:
+    %1 = alloca ptr want
+    store @want, $0
+    %2 = alloca ptr outer_
+    %3 = const ptr 0
+    %4 = field.addr @outer_, 0
+    store %4, %3
+    %5 = field.addr @outer_, 8
+    store %5, %3
+    %6 = const i64 0
+    %7 = field.addr @outer_, 16
+    store %7, %6
+    %8 = const i64 8
+    %9 = field.addr @outer_, 24
+    store %9, %8
+    %10 = const i64 1
+    %11 = field.addr @outer_, 32
+    store %11, %10
+    %12 = const i64 17
+    %13 = field.addr @outer_, 40
+    store %13, %12
+    %14 = const i64 0
+    %15 = field.addr @outer_, 48
+    store %15, %14
+    %16 = const i64 0
+    %17 = field.addr @outer_, 56
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr @outer_, 64
+    store %19, %18
+    %20 = load @want
+    %21 = const i64 0
+    %22 = sext %20
+    %23 = icmp.sgt %22, %21
+    %31 = alloca ptr i
+    condbr %23, if.then2, if.else3
+  if.join1:
+    %49 = call.rtl i32 fb_ArrayErase(@outer_)
+    ret
+  if.then2:
+    %24 = const i64 0
+    %25 = const i64 0
+    %26 = load @want
+    %27 = const i64 1
+    %28 = sext %26
+    %29 = sub %28, %27
+    %30 = call.rtl i32 fb_ArrayRedimEx(@outer_, 8, -1, 0, 1, %25, %29)
+    %32 = const i64 0
+    %33 = trunc %32
+    store @i, %33
+    br for.head4
+  if.else3:
+    br if.join1
+  for.head4:
+    %34 = load @i
+    %35 = load @want
+    %36 = const i64 1
+    %37 = sext %35
+    %38 = sub %37, %36
+    %39 = trunc %38
+    %40 = icmp.sle %34, %39
+    condbr %40, for.body5, for.exit7
+  for.body5:
+    %41 = const i64 0
+    %42 = const i64 0
+    %43 = load @i
+    %44 = sext %43
+    %45 = call.rtl i32 fb_ArrayRedimPresvEx(@outer_, 8, -1, 0, 1, %42, %44)
+    br for.step6
+  for.step6:
+    %46 = load @i
+    %47 = const i32 1
+    %48 = add %46, %47
+    store @i, %48
+    br for.head4
+  for.exit7:
+    br if.join1
+}
+declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayRedimPresvEx($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayErase($0)
 func i32 main($0, $1) {
   local i32 $tmp0
   local agg x size 144
@@ -232,9 +317,6 @@ func i32 main($0, $1) {
 }
 declare void fb_Init($0, $1, $2)
 declare void _ZN1TC1Ev($0)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayRedimPresvEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayErase($0)
 declare void _ZN1TD1Ev($0)
 declare void fb_End($0)
 func void _ZN1TC1Ev($0) {
@@ -304,4 +386,4 @@ func void _ZN1TD1Ev($0) {
     ret
 }
 verify: ok
-lowered: 3 functions, 3 blocks, 281 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 11 blocks, 342 insts, 0 statements not lowered, 0 scope imbalance

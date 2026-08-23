@@ -506,7 +506,30 @@ private function RedimOne_ _
 
     dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
     if viaExpr = false then
+        '' LookupLocalTyped SEARCHES ONE SCOPE. A redim inside an IF, a FOR or a SCOPE
+        '' names an array declared OUTSIDE it -- which is how fb/map.bi and fb/set.bi
+        '' grow their tables:
+        ''
+        ''     dim oldkeys( any ) as TK
+        ''     if( oldcap > 0 ) then
+        ''         redim oldkeys( 0 to oldcap-1 )
+        ''
+        '' so the array was never found and every one of them declined. The lookup
+        '' walks parent scopes now, which is what an ordinary name reference does.
         sid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
+        if sid = Tko.SYMBOL_NONE then
+            '' A VARIABLE ONLY. The walk reaches the enclosing TYPE's scope too, and
+            '' 'redim items( ... )' inside a method names the FIELD -- which the
+            '' ThisFieldSym_ path below handles. Accepting the field symbol here made
+            '' a FRESH LOCAL for it instead and re-dimensioned that: the object's own
+            '' array was left alone and the test caught it.
+            dim as Tko.SymbolId up = _
+                c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false )
+            dim as Tko.Symbol ptr us = c.syms->SymbolAt( up )
+            if us <> 0 then
+                if us->kind = cast( ubyte, Tko.SYM_VARIABLE ) then sid = up
+            end if
+        end if
     end if
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( sid )
     if viaExpr then

@@ -25,3 +25,25 @@ redim ns.narr( 0 to 2 )
 redim arr( 0 to 3 )
 
 x.arr( 1 ) = 5
+
+'' A REDIM NAMES AN ARRAY DECLARED IN AN OUTER SCOPE. The lookup searched ONE scope, so
+'' a redim inside an IF, a FOR or a SCOPE never found the array and declined -- which is
+'' how fb/map.bi and fb/set.bi grow their tables:
+''
+''     dim oldkeys( any ) as TK
+''     if( oldcap > 0 ) then
+''         redim oldkeys( 0 to oldcap-1 )
+''
+'' THE WALK TAKES ONLY VARIABLES. It reaches the enclosing TYPE's scope too, and
+'' 'redim items( ... )' inside a method names the FIELD -- accepting the field symbol
+'' here made a FRESH LOCAL for it and re-dimensioned that, leaving the object's own
+'' array alone.
+sub GrowsInABlock( byval want as long )
+    dim outer_( any ) as integer
+    if want > 0 then
+        redim outer_( 0 to want - 1 )
+        for i as long = 0 to want - 1
+            redim preserve outer_( 0 to i )
+        next
+    end if
+end sub
