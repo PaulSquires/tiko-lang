@@ -1,0 +1,6 @@
+'' Unary user operators, and the parenthesised initialiser that is not a field list.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/user-operator2.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/user-operator2.out

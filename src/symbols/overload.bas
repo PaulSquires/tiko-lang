@@ -143,10 +143,92 @@ private function UserBinaryOp_ _
                         dim as long c1 = ConversionCost( rt, p1, *c.types )
                         if (c0 < CONV_NONE) andalso (c1 < CONV_NONE) then total = c0 + c1
                     elseif np = 1 then
-                        '' The receiver is the LEFT operand and is not costed: fbc
-                        '' only considers a member operator for its own type.
-                        dim as long c1 = ConversionCost( rt, p0, *c.types )
-                        if c1 < CONV_NONE then total = c1
+                        '' ONE PARAMETER MEANS TWO DIFFERENT THINGS. Inside a TYPE it
+                        '' is a binary operator whose left operand is the receiver;
+                        '' outside one it is a UNARY operator and is not a candidate
+                        '' here at all. Costing it either way let 'operator -( byref a
+                        '' as D )' win the binary '-' and be called with one operand.
+                        dim as Fbx.SymScope ptr osc = c.syms->ScopeAt( s->parent )
+                        if osc <> 0 then
+                            if osc->kind = cast( ubyte, Fbx.SCOPEK_TYPE ) then
+                                '' The receiver is the LEFT operand and is not costed:
+                                '' fbc only considers a member operator for its own type.
+                                dim as long c1 = ConversionCost( rt, p0, *c.types )
+                                if c1 < CONV_NONE then total = c1
+                            end if
+                        end if
+                    end if
+                    if total < CONV_NONE then
+                        if total < bestCost then
+                            bestCost = total
+                            best = cur
+                            ties = 0
+                        elseif total = bestCost then
+                            ties += 1
+                        end if
+                    end if
+                end if
+            end if
+            cur = s->nextOverload
+        wend
+    next
+    if ties > 0 then return Fbx.SYMBOL_NONE
+    return best
+end function
+
+'' THE USER-DEFINED UNARY OPERATOR for 'op x', or nothing. The same lookup as the
+'' binary one, with the arity the other way round: a GLOBAL unary operator takes ONE
+'' parameter and a member takes NONE, so the two are told apart by the scope they are
+'' declared in rather than by counting.
+function UserUnaryOp_ _
+    ( byref c as Ctx, byval op as Fbx.TokenKind, byval ot as Fbx.TypeId ) as Fbx.SymbolId
+
+    if IsUdtOperand_( c, ot ) = false then return Fbx.SYMBOL_NONE
+    dim as string nm = Fbx.TokenKindText( op )
+    if len( nm ) = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId fold = c.names->Fold( c.names->GetString( nm ) )
+
+    dim as FB.Array( of ulong ) heads
+    dim as Fbx.SymbolId h1 = UdtOperatorNamed_( c, ot, nm )
+    if h1 <> Fbx.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
+    dim as Fbx.ScopeId sc = cast( Fbx.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
+    if sc <> Fbx.SCOPE_NONE then
+        dim as Fbx.SymbolId h2 = c.syms->Lookup( sc, fold )
+        if (h2 <> Fbx.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( ulong, h2 ) )
+    end if
+    if heads.Count = 0 then return Fbx.SYMBOL_NONE
+
+    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
+    dim as long bestCost = CONV_NONE
+    dim as long ties = 0
+    for hi as long = 0 to heads.Count - 1
+        dim as Fbx.SymbolId cur = cast( Fbx.SymbolId, heads[hi] )
+        while cur <> Fbx.SYMBOL_NONE
+            dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+            if s = 0 then exit while
+            if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
+            dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
+            if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
+                dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+                if pp->op = cast( ushort, Fbx.KW_OPERATOR ) then
+                    dim as long np = 0
+                    dim as Fbx.TypeId p0 = Fbx.TYPE_NONE
+                    for i as long = 0 to pp->count - 1
+                        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+                        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                        if np = 0 then p0 = c.info->TypeOf_( StmtOf( c, prm )->a )
+                        np += 1
+                    next
+                    dim as long total = CONV_NONE
+                    dim as Fbx.SymScope ptr osc = c.syms->ScopeAt( s->parent )
+                    dim as boolean member_ = false
+                    if osc <> 0 then
+                        member_ = (osc->kind = cast( ubyte, Fbx.SCOPEK_TYPE ))
+                    end if
+                    if (np = 1) andalso (member_ = false) then
+                        total = ConversionCost( ot, p0, *c.types )
+                    elseif (np = 0) andalso member_ then
+                        total = CONV_EXACT
                     end if
                     if total < CONV_NONE then
                         if total < bestCost then

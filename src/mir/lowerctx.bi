@@ -376,6 +376,9 @@ declare function EmitRtl _
     declare function EmitTypeCtorInto_ _
         ( byref c as Ctx, byval t as Fbx.TypeId, byval slot as long, _
           byval cp as Fbx.ListPayload ptr ) as boolean
+    declare function LowerUserUnaryOp_ _
+        ( byref c as Ctx, byval id as Fbx.NodeId, byval up as Fbx.UnaryPayload ptr, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
     declare function LowerUserBinaryOp_ _
         ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
           byval mt as MirType, byref outv as MirValue ) as boolean

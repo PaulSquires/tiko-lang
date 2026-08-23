@@ -1135,6 +1135,22 @@ function LowerUdtParenInit_ _
     dim as long ui = c.udts->Find( t )
     if ui < 0 then return false
 
+    '' A SINGLE ELEMENT OF THE TYPE ITSELF IS NOT A FIELD LIST. 'dim as Decimal a =
+    '' ( ( x - y ) / z )' has to be written with those outer parentheses -- fbc cannot
+    '' parse the operator otherwise, and fb/fintvm.bi says so in a comment beside every
+    '' one -- so the parens are punctuation, not an initialiser. Reading them as one
+    '' meant storing a whole Decimal into its first FIELD, which is a type error the
+    '' void-result rule then declined; before that rule it would have stored something.
+    dim as Fbx.ListPayload ptr pl0 = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    if pl0->count = 1 then
+        dim as Fbx.NodeId only_ = cast( Fbx.NodeId, c.ast->children[pl0->first] )
+        dim as Fbx.TypeId ot = c.info->TypeOf_( only_ )
+        if ot <> Fbx.TYPE_NONE then
+            if c.types->Unqualify( ot ) = c.types->Unqualify( t ) then return false
+        end if
+    end if
+
     '' THE FIELDS, FLATTENED. 'dim as Outer x = ( ( 1, 2 ), 3 )' emits the same three
     '' stores at 0, 4 and 8 that a flat type would: nesting exists in the parser and
     '' nowhere else, so a nested UDT field contributes its OWN leaves here rather than

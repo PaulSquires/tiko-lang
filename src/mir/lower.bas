@@ -422,6 +422,11 @@ function LowerExpr _
     case Fbx.N_UNARY
         dim as Fbx.UnaryPayload ptr up = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+
+        '' A USER-DEFINED UNARY OPERATOR IS A CALL, exactly as the binary one is.
+        dim as MirValue uuv
+        if LowerUserUnaryOp_( c, id, up, mt, uuv ) then return uuv
+
         dim as MirValue x = LowerExpr( c, up->operand )
         if x.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins

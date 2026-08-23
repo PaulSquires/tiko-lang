@@ -338,6 +338,53 @@ function LowerUserBinaryOp_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' A USER-DEFINED UNARY OPERATOR, called. A GLOBAL one takes the operand as its only
+'' parameter; a MEMBER one takes it as the receiver and nothing else.
+function LowerUserUnaryOp_ _
+    ( byref c as Ctx, byval id as Fbx.NodeId, byval up as Fbx.UnaryPayload ptr, _
+      byval mt as MirType, byref outv as MirValue ) as boolean
+
+    dim as Fbx.SymbolId op = c.info->RefOf( id )
+    if op = Fbx.SYMBOL_NONE then return false
+    dim as Fbx.Symbol ptr os = c.syms->SymbolAt( op )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
+    dim as Fbx.NodeId pn = cast( Fbx.NodeId, os->payload )
+    if pn = Fbx.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Fbx.KW_OPERATOR ) then return false
+
+    dim as Fbx.TypeId pt = Fbx.TYPE_NONE
+    dim as boolean isRef = false
+    dim as long np = 0
+    for i as long = 0 to pp->count - 1
+        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        if np = 0 then
+            pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+            isRef = ((c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0)
+        end if
+        np += 1
+    next
+
+    dim as MirType rmt = mt
+    if os->type_ <> Fbx.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+
+    if np = 0 then
+        dim as MirValue self_ = LowerAddr( c, up->operand )
+        if self_.kind = cast( ubyte, MV_NONE ) then return false
+        outv = EmitMemberCall( c, op, self_, rmt )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if np <> 1 then return false
+
+    dim as FB.Array( of ulong ) args
+    if OperandValue_( c, up->operand, pt, isRef, args ) = false then return false
+    outv = EmitDirectCall_( c, op, rmt, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 '' One operator operand, pushed as the parameter wants it.
 private function OperandValue_ _
     ( byref c as Ctx, byval e as Fbx.NodeId, byval pt as Fbx.TypeId, _

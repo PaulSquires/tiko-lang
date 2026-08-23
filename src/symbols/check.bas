@@ -822,6 +822,20 @@ function TypeOf_ _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Fbx.TypeId inner = TypeOf_( c, up->operand )
         dim as Fbx.TokenKind op = cast( Fbx.TokenKind, up->op )
+
+        '' A USER-DEFINED UNARY OPERATOR, for the same reason the binary one comes
+        '' first: '-d' over a UDT is a call, and the fallback below hands back the
+        '' operand's own type as if the minus were free.
+        dim as Fbx.SymbolId uuop = UserUnaryOp_( c, op, inner )
+        if uuop <> Fbx.SYMBOL_NONE then
+            dim as Fbx.Symbol ptr uus = c.syms->SymbolAt( uuop )
+            if uus <> 0 then
+                c.info->SetRef( id, uuop )
+                t = uus->type_
+                exit select
+            end if
+        end if
+
         if inner <> Fbx.TYPE_NONE then
             if op = Fbx.KW_NOT then
                 '' NOT keeps BOOLEAN boolean and widens everything else, exactly as
@@ -1129,6 +1143,78 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
     next
 end sub
 
+'' A member of a UDT by name, folded -- procedures included, which is what tells this
+'' from FieldOf_.
+private function UdtMemberSym_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+
+    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    dim as Fbx.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+    dim as Fbx.InternId tn = c.types->NameOf( u )
+    if tn = 0 then return Fbx.SYMBOL_NONE
+    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( u ) )
+    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Fbx.Symbol ptr sy = c.syms->SymbolAt( ts )
+    if sy = 0 then return Fbx.SYMBOL_NONE
+    if sy->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( nm ) ) )
+end function
+
+'' THE 'for each' LOOP VARIABLE, where Resolve could not work it out.
+''
+'' Resolve types it from the sequence's SYMBOL, which is all it can do -- an
+'' expression's type is Check's to record and Check has not run yet. That covers a
+'' variable and a parameter and nothing else: 'for each dd in d.Value( )' is a CALL,
+'' whose symbol is the procedure, and the sequence type is its RETURN type. Which
+'' Check knows and Resolve does not.
+''
+'' A PRE-PASS, before the walk, for the same reason InferUnusedVarTypes_ is: every
+'' USE of the loop variable is inside the body, and the walk types those.
+private sub InferForEachVarTypes_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Fbx.NodeId n = cast( Fbx.NodeId, i )
+        if c.ast->Kind( n ) <> Fbx.N_FOREACH then continue for
+        dim as Fbx.StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if sp->a = Fbx.NODE_NONE then continue for
+        if sp->count <> 1 then continue for
+        dim as Fbx.Symbol ptr vsym = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if vsym = 0 then continue for
+        if vsym->type_ <> Fbx.TYPE_NONE then continue for
+
+        dim as Fbx.NodeId seqE = cast( Fbx.NodeId, c.ast->children[sp->first] )
+        dim as Fbx.TypeId seqT = TypeOf_( c, seqE )
+        if seqT = Fbx.TYPE_NONE then continue for
+        seqT = c.types->Unqualify( seqT )
+        if c.types->Kind( seqT ) = Fbx.TK_REFERENCE then
+            seqT = c.types->Unqualify( c.types->Inner( seqT ) )
+        end if
+        if c.types->Kind( seqT ) = Fbx.TK_ARRAY then
+            vsym->type_ = c.types->Inner( seqT )
+        elseif c.types->Kind( seqT ) = Fbx.TK_UDT then
+            '' The RFC-0002 protocol: GetIterator gives the iterator's type and its
+            '' Value( ) gives the element's.
+            dim as Fbx.SymbolId gi = UdtMemberSym_( c, seqT, "getiterator" )
+            dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( gi )
+            if gs <> 0 then
+                dim as Fbx.SymbolId vo = UdtMemberSym_( c, gs->type_, "value" )
+                dim as Fbx.Symbol ptr vs2 = c.syms->SymbolAt( vo )
+                if vs2 <> 0 then
+                    dim as Fbx.TypeId et = vs2->type_
+                    if et <> Fbx.TYPE_NONE then
+                        if c.types->Kind( et ) = Fbx.TK_REFERENCE then
+                            et = c.types->Inner( et )
+                        end if
+                    end if
+                    vsym->type_ = et
+                end if
+            end if
+        end if
+    next
+end sub
+
 private sub WalkAll( byref c as Ctx )
     '' Every expression node in the arena, in id order. Expressions are created
     '' bottom-up by the parser, so a child always has a LOWER id than its parent and
@@ -1200,6 +1286,7 @@ function Run _
     '' untyped, so 'str( n1v )' declined while 'str( n2v )' beside it worked. The
     '' second pass stays because a typeof whose operand needs the walk resolves then.
     InferUnusedVarTypes_( c )
+    InferForEachVarTypes_( c )
     WalkAll( c )
     InferUnusedVarTypes_( c )
     return st.badOperands
