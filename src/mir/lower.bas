@@ -562,7 +562,8 @@ sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
             addr.id = slot
             dim as FB.Array( of ulong ) args
             args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
-            EmitRtl( c, RTL_STR_DELETE, args )
+            EmitRtl( c, StrRtlFor_( c, c.f->locals[slot].frontendType, _
+                                    RTL_STR_DELETE ), args )
         end if
     wend
 

@@ -1261,9 +1261,14 @@ function LowerStrCompare _
         args.Push( cast( ulong, ra.kind ) ) : args.Push( cast( ulong, ra.id ) )
         cmp = EmitRtl( c, RTL_WSTR_COMPARE, args )
     else
-        if EmitStrTerm( c, args, bp->lhs ) = false then return none_
-        if EmitStrTerm( c, args, bp->rhs ) = false then return none_
-        cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+        '' EITHER SIDE MAKES IT A USTRING COMPARISON, and the literal on the other
+        '' side follows: 'a = "x"' over a ustring is fb_UStrCompare with a UTF-16
+        '' literal, where fb_StrCompare would read the descriptor as narrow.
+        dim as boolean isU = IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
+                             IsUStringType( c, c.info->TypeOf_( bp->rhs ) )
+        if EmitStrTerm( c, args, bp->lhs, isU ) = false then return none_
+        if EmitStrTerm( c, args, bp->rhs, isU ) = false then return none_
+        cmp = EmitRtl( c, iif( isU, RTL_USTR_COMPARE, RTL_STR_COMPARE ), args )
     end if
     if cmp.kind = cast( ubyte, MV_NONE ) then return none_
 

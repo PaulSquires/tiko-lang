@@ -333,6 +333,14 @@ end function
 '' -- the console is 0 and 'print #n' passes n. It is the SAME argument slot either way:
 '' measured from fbc's C, 'print #1, x' is 'fb_PrintInt( 1, x, 1 )' against
 '' 'fb_PrintInt( 0, x, 1 )' for the console, and no other call and no other shape.
+'' THE PRINT ENTRY POINT FOR A STRING ITEM, narrow or UTF-16. fbc has a separate
+'' fb_PrintUStr, and sending a UTF-16 descriptor through fb_PrintString prints its
+'' bytes as if they were narrow -- which lowers, verifies and prints mojibake.
+private function PrintStrRtl_( byref c as Ctx, byval it as Tko.NodeId ) as RtlId
+    if IsUStringType( c, c.info->TypeOf_( it ) ) then return RTL_PRINT_USTR
+    return RTL_PRINT_STRING
+end function
+
 function PrintOne _
     ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean
@@ -413,7 +421,7 @@ function PrintOne _
         if StrDescriptorOf_( c, it, fd ) = false then return false
         args.Push( cast( ulong, fd.kind ) ) : args.Push( cast( ulong, fd.id ) )
         PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
+        EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
     end if
 
@@ -434,7 +442,7 @@ function PrintOne _
         if iv.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, iv.kind ) ) : args.Push( cast( ulong, iv.id ) )
         PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
+        EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
     end if
 
@@ -447,7 +455,7 @@ function PrintOne _
     if LowerStrRvalue( c, it, srv ) then
         args.Push( cast( ulong, srv.kind ) ) : args.Push( cast( ulong, srv.id ) )
         PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
+        EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
     end if
 
@@ -472,7 +480,7 @@ function PrintOne _
             if StrDescriptorOf_( c, it, cd ) then
                 args.Push( cast( ulong, cd.kind ) ) : args.Push( cast( ulong, cd.id ) )
                 PushConst( args, mask )
-                EmitRtl( c, RTL_PRINT_STRING, args )
+                EmitRtl( c, PrintStrRtl_( c, it ), args )
                 return true
             end if
         end if
@@ -483,7 +491,7 @@ function PrintOne _
         if ConcatToTempDesc_( c, it, cat ) then
             args.Push( cast( ulong, cat.kind ) ) : args.Push( cast( ulong, cat.id ) )
             PushConst( args, mask )
-            EmitRtl( c, RTL_PRINT_STRING, args )
+            EmitRtl( c, PrintStrRtl_( c, it ), args )
             return true
         end if
         dim as MirValue desc
@@ -506,7 +514,7 @@ function PrintOne _
         if desc.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
         PushConst( args, mask )
-        EmitRtl( c, RTL_PRINT_STRING, args )
+        EmitRtl( c, PrintStrRtl_( c, it ), args )
         return true
     end if
 
@@ -520,7 +528,7 @@ function PrintOne _
         if StrDescriptorOf_( c, it, uv ) then
             args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
             PushConst( args, mask )
-            EmitRtl( c, RTL_PRINT_STRING, args )
+            EmitRtl( c, PrintStrRtl_( c, it ), args )
             return true
         end if
         if WideOperand_( c, it, uv ) then

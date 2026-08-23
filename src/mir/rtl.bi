@@ -50,6 +50,26 @@ namespace Tko.Mir
         RTL( RTL_STR_CONCAT,        "fb_StrConcat",        "p",   "ppzpz"  )
         RTL( RTL_STR_COMPARE,       "fb_StrCompare",       "l",   "pzpz"  )
         RTL( RTL_STR_DELETE,        "fb_StrDelete",        "v",   "p"     )
+        '' USTRING -- the UTF-16 flavour, with its OWN descriptor and its own entry
+        '' points. Same shapes as the narrow family above, and that symmetry is the
+        '' trap: 'dim as ustring v = "x"' lowered to fb_StrInit with a NARROW literal,
+        '' so a UTF-16 descriptor held narrow bytes and fb_StrDelete was called on an
+        '' FBUSTRING. It compiled, it verified, and it counted as lowered.
+        ''
+        '' THE LENGTH ARGUMENT IS TAGGED and the tag is not guessable. Measured:
+        ''   var-length   -1
+        ''   literal      &h8000000000000000 or <character count>, NUL not counted
+        ''   'ustring * N'  &h8000000000000000 or (N-1) -- capacity is N-1, as with
+        ''                  'zstring * N'
+        '' and the trailing int32 is -1 for a FIXED destination, 0 for a var-length one.
+        RTL( RTL_USTR_INIT,          "fb_UStrInit",         "p",   "pzpzl" )
+        RTL( RTL_USTR_ASSIGN,        "fb_UStrAssign",       "p",   "pzpzl" )
+        RTL( RTL_USTR_CONCAT_ASSIGN, "fb_UStrConcatAssign", "p",   "pzpzl" )
+        RTL( RTL_USTR_CONCAT,        "fb_UStrConcat",       "p",   "ppzpz" )
+        RTL( RTL_USTR_COMPARE,       "fb_UStrCompare",      "l",   "pzpz"  )
+        RTL( RTL_USTR_LEN,           "fb_UStrLen",          "z",   "pz"    )
+        RTL( RTL_USTR_DELETE,        "fb_UStrDelete",       "v",   "p"     )
+        RTL( RTL_PRINT_USTR,         "fb_PrintUStr",        "v",   "lpl"   )
         '' SWAP of two strings. Six arguments, not four: each side is (ptr, length,
         '' flag) where the flag is 0 -- the same shape fb_StrAssign uses plus a trailing
         '' word per operand.

@@ -76,7 +76,11 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
             dim as FB.Array( of ulong ) args
             args.Push( cast( ulong, addr.kind ) )
             args.Push( cast( ulong, addr.id ) )
-            EmitRtl( c, RTL_STR_DELETE, args )
+            '' A USTRING IS RELEASED BY fb_UStrDelete. The two descriptors are the same
+            '' SIZE, so calling the narrow one on a UTF-16 descriptor lowered, verified
+            '' and freed the wrong thing.
+            EmitRtl( c, StrRtlFor_( c, c.f->locals[c.cleanupSlot[i]].frontendType, _
+                                    RTL_STR_DELETE ), args )
         else
             EmitDtorCall( c, cast( Tko.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
         end if

@@ -1,0 +1,14 @@
+'' USTRING -- init, assign, concat-assign, len, compare, print and delete.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrInit
+'' EXPECT-OUT: fb_UStrAssign
+'' EXPECT-OUT: fb_UStrConcatAssign
+'' EXPECT-OUT: fb_UStrLen
+'' EXPECT-OUT: fb_UStrCompare
+'' EXPECT-OUT: fb_PrintUStr
+'' EXPECT-OUT: fb_UStrDelete
+'' GOLDEN: expected/ustring.out

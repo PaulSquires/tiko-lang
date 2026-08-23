@@ -106,6 +106,36 @@ sub D( )
     delete p
 end sub
 ''',
+    # USTRING -- the UTF-16 flavour, which has its OWN descriptor and its own entry
+    # points. Every shape is touched separately for the same reason the narrow family
+    # is: fbc picks a different entry for a declaration, a later store, a concat and a
+    # concat-assign, and the LENGTH ARGUMENT IS TAGGED differently for a literal, a
+    # var-length destination and a fixed 'ustring * N'.
+    "ustring": '''
+declare sub UTake( byref x as const ustring )
+sub UProbe( )
+    dim as ustring a = "x"
+    dim as ustring b
+    dim as ustring * 8 f = "abc"
+    dim as long n
+    dim as long c = 0
+    b = a
+    b = "y"
+    f = "d"
+    b = a & "y"
+    b &= "z"
+    f &= a
+    n = len( a )
+    if a = "x" then c = 1
+    print a, b, f, n, c
+    '' fb_UStrConcat proper is emitted only where the result is a genuine RVALUE:
+    '' assigning into a ustring is optimised into assign + concat-assign, exactly as
+    '' the wide family above.
+    UTake( a & b )
+end sub
+sub UTake( byref x as const ustring )
+end sub
+''',
     # WIDE STRINGS. A wstring value is a bare uint16*; there is no descriptor and no
     # var-length form. The probe has to touch each shape separately because fbc picks a
     # different entry for wide-to-wide, wide-from-narrow and wide-to-narrow.

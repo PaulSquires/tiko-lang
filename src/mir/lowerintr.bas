@@ -305,7 +305,7 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if IsStringType( c, el ) then
         dim as FB.Array( of ulong ) sda
         sda.Push( cast( ulong, p.kind ) ) : sda.Push( cast( ulong, p.id ) )
-        EmitRtl( c, RTL_STR_DELETE, sda )
+        EmitRtl( c, StrRtlFor_( c, el, RTL_STR_DELETE ), sda )
     end if
 
     dim as FB.Array( of ulong ) fargs

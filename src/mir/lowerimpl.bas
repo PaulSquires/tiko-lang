@@ -284,7 +284,7 @@ private sub DestroyMember_ _
         if StrSwapKind_( c, ft, 0 ) = 0 then
             dim as FB.Array( of ulong ) args
             args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
-            EmitRtl( c, RTL_STR_DELETE, args )
+            EmitRtl( c, StrRtlFor_( c, ft, RTL_STR_DELETE ), args )
         end if
         return
     end if

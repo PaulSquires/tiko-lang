@@ -533,8 +533,17 @@ private function StrCaseCompare_ _
         args.Push( cast( ulong, subjPtr.kind ) ) : args.Push( cast( ulong, subjPtr.id ) )
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, cast( ulongint, -1 ) ) )
-        if EmitStrTerm( c, args, val ) = false then return none_
-        cmp = EmitRtl( c, RTL_STR_COMPARE, args )
+        '' THE SUBJECT'S FLAVOUR, taken from the slot it was stored in: there is no
+        '' subject NODE here, only its address, and the case value is usually a narrow
+        '' literal that says nothing about which comparison is wanted.
+        dim as boolean isU = false
+        if slotAddr.kind = cast( ubyte, MV_LOCAL ) then
+            if (slotAddr.id >= 0) andalso (slotAddr.id < c.f->locals.Count) then
+                isU = IsUStringType( c, c.f->locals[slotAddr.id].frontendType )
+            end if
+        end if
+        if EmitStrTerm( c, args, val, isU ) = false then return none_
+        cmp = EmitRtl( c, iif( isU, RTL_USTR_COMPARE, RTL_STR_COMPARE ), args )
     end if
     if cmp.kind = cast( ubyte, MV_NONE ) then return none_
 

@@ -204,7 +204,7 @@ declare function EmitRtl _
     '' The (pointer, length) pair for one term of a concatenation, appended to 'args'.
     declare function EmitStrTerm _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), _
-          byval term as Tko.NodeId ) as boolean
+          byval term as Tko.NodeId, byval isU as boolean = false ) as boolean
     '' Flatten a left-leaning '+'/'&' chain into its terms, in source order.
     declare sub FlattenConcat _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outp as FB.Array( of ulong ) )
@@ -354,6 +354,15 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideAssign _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' USTRING -- the UTF-16 string flavour, lowerstr.bas.
+    declare function IsUStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function UStrRtl_( byval narrow as RtlId ) as RtlId
+    declare function StrRtlFor_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval narrow as RtlId ) as RtlId
+    declare sub PushUStrLiteralArg _
+        ( byref c as Ctx, byref args as FB.Array( of ulong ), byval gidx as long, _
+          byval nchars as long )
+
     '' A static aggregate's initial value, as the bytes of its storage -- lowerudtlit.bas.
     declare function FoldAggInit_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
@@ -476,6 +485,10 @@ declare function EmitRtl _
     '' Push a string operand's LENGTH, as a const instruction when it will not fit the
     '' 32-bit inline constant field -- which a fixed-length string's tagged length
     '' never does.
+    declare sub PushStrArg _
+        ( byref args as FB.Array( of ulong ), byref addr as MirValue )
+    declare sub PushStrLiteralArg _
+        ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
     declare sub PushStrLen_ _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), byval n as longint )
     declare function LowerWideIif_ _

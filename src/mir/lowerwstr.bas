@@ -15,8 +15,6 @@ namespace Tko.Mir
 
 '' Defined in lowerstr.bas; the narrow classifier the wide code needs for a mixed
 '' operand.
-declare sub PushStrArg _
-    ( byref args as FB.Array( of ulong ), byref addr as MirValue )
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 

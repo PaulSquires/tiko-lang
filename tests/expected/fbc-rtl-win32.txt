@@ -141,6 +141,7 @@ fb_PrintUByte	void	int32, uint8, int32	lib	_fb_PrintUByte@12
 fb_PrintUInt	void	int32, uint32, int32	lib	_fb_PrintUInt@12
 fb_PrintULongint	void	int32, uint64, int32	lib	_fb_PrintULongint@16
 fb_PrintUShort	void	int32, uint16, int32	lib	_fb_PrintUShort@12
+fb_PrintUStr	void	int32, FBUSTRING*, int32	lib	_fb_PrintUStr@12
 fb_PrintUsingBoolean	int32	int32, boolean, int32	lib	_fb_PrintUsingBoolean@12
 fb_PrintUsingDouble	int32	int32, double, int32	lib	_fb_PrintUsingDouble@16
 fb_PrintUsingEnd	int32	int32	lib	_fb_PrintUsingEnd@4
@@ -190,6 +191,13 @@ fb_UIntToStr	FBSTRING*	uint32	lib	_fb_UIntToStr@4
 fb_UIntToWstr	uint16*	uint32	lib	_fb_UIntToWstr@4
 fb_ULongintToStr	FBSTRING*	uint64	lib	_fb_ULongintToStr@8
 fb_ULongintToWstr	uint16*	uint64	lib	_fb_ULongintToWstr@8
+fb_UStrAssign	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrAssign@20
+fb_UStrCompare	int32	void*, int32, void*, int32	lib	_fb_UStrCompare@16
+fb_UStrConcat	FBUSTRING*	FBUSTRING*, void*, int32, void*, int32	lib	_fb_UStrConcat@20
+fb_UStrConcatAssign	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrConcatAssign@20
+fb_UStrDelete	void	FBUSTRING*	lib	_fb_UStrDelete@4
+fb_UStrInit	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrInit@20
+fb_UStrLen	int32	void*, int32	lib	_fb_UStrLen@8
 fb_VAL	double	FBSTRING*	lib	_fb_VAL@4
 fb_VALINT	int32	FBSTRING*	lib	_fb_VALINT@4
 fb_VALLNG	int64	FBSTRING*	lib	_fb_VALLNG@4
