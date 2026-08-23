@@ -2,4 +2,4 @@
 '' ARGS: --parse-only tests/parser/broken/bad-expr.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 3
-'' EXPECT-OUT: (2,9): error FBX0400
+'' EXPECT-OUT: (2,9): error TKO0400

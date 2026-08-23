@@ -12,7 +12,7 @@
 #include once "symbols/check.bi"
 #include once "support/text.bi"
 
-namespace Fbx.Check
+namespace Tko.Check
 
 '' -------------------------------------------------------- constant evaluation
 
@@ -62,15 +62,15 @@ end function
 private function LitBits_ _
     ( byval suffix as ubyte, byval v as longint, byval intBits as long ) as long
 
-    select case cast( Fbx.NumSuffix, suffix )
-    case Fbx.NSUF_LONG, Fbx.NSUF_ULONG, Fbx.NSUF_INTEGER, Fbx.NSUF_UINTEGER
+    select case cast( Tko.NumSuffix, suffix )
+    case Tko.NSUF_LONG, Tko.NSUF_ULONG, Tko.NSUF_INTEGER, Tko.NSUF_UINTEGER
         '' '%' and 'U' are INTEGER and UINTEGER, which are pointer-width; 'L' and 'UL'
         '' are LONG and ULONG, which are 32 everywhere.
-        select case cast( Fbx.NumSuffix, suffix )
-        case Fbx.NSUF_LONG, Fbx.NSUF_ULONG : return 32
+        select case cast( Tko.NumSuffix, suffix )
+        case Tko.NSUF_LONG, Tko.NSUF_ULONG : return 32
         end select
         return intBits
-    case Fbx.NSUF_LONGINT, Fbx.NSUF_ULONGINT
+    case Tko.NSUF_LONGINT, Tko.NSUF_ULONGINT
         return 64
     end select
     if intBits >= 64 then return 64
@@ -96,8 +96,8 @@ end function
 '' Is a numeric suffix an UNSIGNED one? 'u', 'ul' and 'ull'. A bare hex literal is NOT
 '' unsigned -- measured, '&hFFFFFFFF' at 32 bits is -1 to fbc.
 private function SuffixUnsigned_( byval suffix as ubyte ) as boolean
-    select case cast( Fbx.NumSuffix, suffix )
-    case Fbx.NSUF_UINTEGER, Fbx.NSUF_ULONG, Fbx.NSUF_ULONGINT
+    select case cast( Tko.NumSuffix, suffix )
+    case Tko.NSUF_UINTEGER, Tko.NSUF_ULONG, Tko.NSUF_ULONGINT
         return true
     end select
     return false
@@ -120,29 +120,29 @@ end function
 '' The numeric value of a literal argument, as a double, so the rounding intrinsics
 '' can see 2.5 rather than an integer. Returns false when it is not a literal.
 private function LitNum_ _
-    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byref d as double ) as boolean
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref d as double ) as boolean
 
-    if id = Fbx.NODE_NONE then return false
-    dim as Fbx.NodeKind k = ast.Kind( id )
-    if k = Fbx.N_PAREN then
-        dim as Fbx.ListPayload ptr pp = _
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.NodeKind k = ast.Kind( id )
+    if k = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr pp = _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return false
-        return LitNum_( ast, cast( Fbx.NodeId, ast.children[pp->first] ), d )
+        return LitNum_( ast, cast( Tko.NodeId, ast.children[pp->first] ), d )
     end if
-    if k = Fbx.N_UNARY then
-        dim as Fbx.UnaryPayload ptr up = _
+    if k = Tko.N_UNARY then
+        dim as Tko.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
         if LitNum_( ast, up->operand, d ) = false then return false
-        if cast( Fbx.TokenKind, up->op ) = Fbx.TK_MINUS then d = -d
+        if cast( Tko.TokenKind, up->op ) = Tko.TK_MINUS then d = -d
         return true
     end if
-    dim as Fbx.LiteralPayload ptr lp = 0
-    if (k = Fbx.N_FLOAT_LIT) orelse (k = Fbx.N_INT_LIT) then
+    dim as Tko.LiteralPayload ptr lp = 0
+    if (k = Tko.N_FLOAT_LIT) orelse (k = Tko.N_INT_LIT) then
         lp = @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
     end if
     if lp = 0 then return false
-    if k = Fbx.N_FLOAT_LIT then
+    if k = Tko.N_FLOAT_LIT then
         d = lp->fltValue
     else
         d = cast( double, cast( longint, lp->intValue ) )
@@ -158,45 +158,45 @@ end function
 '' Only the four arithmetic operators and unary minus, which is what a floating
 '' constant expression is made of. A mixed expression folds in DOUBLE, as fbc's does.
 function ConstFloatOf _
-    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byref outd as double, _
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
       byval depth as long = 0 ) as boolean
 
-    if id = Fbx.NODE_NONE then return false
+    if id = Tko.NODE_NONE then return false
     if depth > 32 then return false
 
     select case ast.Kind( id )
-    case Fbx.N_FLOAT_LIT, Fbx.N_INT_LIT
+    case Tko.N_FLOAT_LIT, Tko.N_INT_LIT
         return LitNum_( ast, id, outd )
 
-    case Fbx.N_PAREN
-        dim as Fbx.ListPayload ptr pp = _
+    case Tko.N_PAREN
+        dim as Tko.ListPayload ptr pp = _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return false
-        return ConstFloatOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), _
+        return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
                              outd, depth + 1 )
 
-    case Fbx.N_UNARY
-        dim as Fbx.UnaryPayload ptr up = _
+    case Tko.N_UNARY
+        dim as Tko.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
         if ConstFloatOf( ast, up->operand, outd, depth + 1 ) = false then return false
-        select case cast( Fbx.TokenKind, up->op )
-        case Fbx.TK_MINUS : outd = -outd
-        case Fbx.TK_PLUS
+        select case cast( Tko.TokenKind, up->op )
+        case Tko.TK_MINUS : outd = -outd
+        case Tko.TK_PLUS
         case else : return false
         end select
         return true
 
-    case Fbx.N_BINARY
-        dim as Fbx.BinaryPayload ptr bp = _
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = _
             @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
         dim as double l, r
         if ConstFloatOf( ast, bp->lhs, l, depth + 1 ) = false then return false
         if ConstFloatOf( ast, bp->rhs, r, depth + 1 ) = false then return false
-        select case cast( Fbx.TokenKind, bp->op )
-        case Fbx.TK_PLUS  : outd = l + r
-        case Fbx.TK_MINUS : outd = l - r
-        case Fbx.TK_STAR  : outd = l * r
-        case Fbx.TK_SLASH
+        select case cast( Tko.TokenKind, bp->op )
+        case Tko.TK_PLUS  : outd = l + r
+        case Tko.TK_MINUS : outd = l - r
+        case Tko.TK_STAR  : outd = l * r
+        case Tko.TK_SLASH
             if r = 0.0 then return false
             outd = l / r
         case else : return false
@@ -221,39 +221,39 @@ end function
 '' The intrinsics fbc folds at compile time. Anything not listed simply does not fold,
 '' which is an absence rather than an error.
 private function ConstCall_ _
-    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
-      byref src as Fbx.SourceManager, byref names as Fbx.Interner ) as ConstVal
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
+      byref src as Tko.SourceManager, byref names as Tko.Interner ) as ConstVal
 
-    dim as Fbx.ListPayload ptr cp = _
+    dim as Tko.ListPayload ptr cp = _
         @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return CVNone_( )
-    if ast.Kind( cp->target ) <> Fbx.N_IDENT then return CVNone_( )
-    dim as Fbx.IdentPayload ptr ip = _
+    if cp->target = Tko.NODE_NONE then return CVNone_( )
+    if ast.Kind( cp->target ) <> Tko.N_IDENT then return CVNone_( )
+    dim as Tko.IdentPayload ptr ip = _
         @ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( names.Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( names.Spelling( ip->name ) )
 
     if (nm = "iif") andalso (cp->count = 3) then
-        dim as ConstVal c = ConstOf( ast, cast( Fbx.NodeId, ast.children[cp->first] ), _
+        dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
                                      src, names )
         if c.known = false then return CVNone_( )
         dim as long pick = iif( c.value <> 0, 1, 2 )
-        return ConstOf( ast, cast( Fbx.NodeId, ast.children[cp->first + pick] ), _
+        return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + pick] ), _
                         src, names )
     end if
 
     if cp->count <> 1 then return CVNone_( )
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, ast.children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, ast.children[cp->first] )
 
     '' LEN and ASC read the literal's SPAN out of the source buffer: the parser keeps
     '' the extent, not the decoded text.
     if (nm = "len") orelse (nm = "asc") then
-        if ast.Kind( a0 ) <> Fbx.N_STRING_LIT then return CVNone_( )
-        dim as Fbx.LiteralPayload ptr lp = _
+        if ast.Kind( a0 ) <> Tko.N_STRING_LIT then return CVNone_( )
+        dim as Tko.LiteralPayload ptr lp = _
             @ast.literals[cast( long, ast.nodes[cast( long, a0 )].data )]
         if nm = "len" then return CV_( lp->strLength )
         if lp->strLength <= 0 then return CVNone_( )
-        dim as Fbx.DecodedLoc dl = src.Decode( ast.Loc( a0 ) )
-        dim as Fbx.SourceFile ptr f = src.FileAt( dl.file )
+        dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( a0 ) )
+        dim as Tko.SourceFile ptr f = src.FileAt( dl.file )
         if f = 0 then return CVNone_( )
         if lp->strOffset >= f->text.Count then return CVNone_( )
         return CV_( f->text[lp->strOffset] )
@@ -314,22 +314,22 @@ private function ConstCall_ _
 end function
 
 function ConstOf _
-    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
-      byref src as Fbx.SourceManager, byref names as Fbx.Interner, _
-      byval intBits as long = 64, byval syms as Fbx.SymbolTable ptr = 0, _
-      byval scope_ as Fbx.ScopeId = 0, byval depth as long = 0 ) as ConstVal
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
+      byref src as Tko.SourceManager, byref names as Tko.Interner, _
+      byval intBits as long = 64, byval syms as Tko.SymbolTable ptr = 0, _
+      byval scope_ as Tko.ScopeId = 0, byval depth as long = 0 ) as ConstVal
 
-    if id = Fbx.NODE_NONE then return CVNone_( )
+    if id = Tko.NODE_NONE then return CVNone_( )
 
     select case ast.Kind( id )
-    case Fbx.N_INT_LIT
-        dim as Fbx.LiteralPayload ptr lp = _
+    case Tko.N_INT_LIT
+        dim as Tko.LiteralPayload ptr lp = _
             @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
         dim as longint iv = cast( longint, lp->intValue )
         return CVWU_( iv, LitBits_( lp->suffix, iv, intBits ), _
                       SuffixUnsigned_( lp->suffix ) )
 
-    case Fbx.N_IDENT
+    case Tko.N_IDENT
         '' A NAMED CONSTANT in a constant expression. 'const MAX = 9' followed by
         '' 'dim as zstring * (MAX+1) z' is 10 bytes to fbc, and folding stopped dead
         '' here: with no N_IDENT case at all, every length written with a name was
@@ -341,61 +341,61 @@ function ConstOf _
         '' which is the honest one for them.
         if syms = 0 then return CVNone_( )
         if depth >= 16 then return CVNone_( )
-        dim as Fbx.InternId inm = _
+        dim as Tko.InternId inm = _
             ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
-        dim as Fbx.SymbolId csid = syms->Lookup( scope_, inm )
-        if csid = Fbx.SYMBOL_NONE then return CVNone_( )
-        dim as Fbx.Symbol ptr cs = syms->SymbolAt( csid )
+        dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
+        if csid = Tko.SYMBOL_NONE then return CVNone_( )
+        dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
         if cs = 0 then return CVNone_( )
         '' An ENUM MEMBER folds to its number directly: Resolve worked the numbering
         '' out once and put THE VALUE in 'payload', where a plain constant keeps a node
         '' id. The symbol kind is what says which, and reading one as the other indexes
         '' the wrong pool.
-        if cs->kind = cast( ubyte, Fbx.SYM_ENUMCONST ) then
+        if cs->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
             return CVW_( cast( longint, cs->payload ), 32 )
         end if
-        if cs->kind <> cast( ubyte, Fbx.SYM_CONSTANT ) then return CVNone_( )
+        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return CVNone_( )
 
         '' A PREDECLARED constant -- 'true' and 'false' -- keeps THE VALUE in 'payload'
         '' where a user constant keeps a node id, which is what SYMF_BUILTIN exists to
         '' say. Reading one as the other indexed the node arena at -1 and ABORTED THE
-        '' COMPILER: '#assert( X = true )' crashed fbx outright, in two corpus files.
+        '' COMPILER: '#assert( X = true )' crashed tiko-lang outright, in two corpus files.
         '' The same payload-pool mistake this codebase has now made seven times, made
         '' here by the code that added this case.
-        if (cs->flags and Fbx.SYMF_BUILTIN) <> 0 then
+        if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then
             return CVW_( cast( longint, cs->payload ), 32 )
         end if
 
         if cs->payload = 0 then return CVNone_( )
-        dim as Fbx.NodeId citem = cast( Fbx.NodeId, cs->payload )
-        if ast.Kind( citem ) <> Fbx.N_VAR_ITEM then return CVNone_( )
-        dim as Fbx.StmtPayload ptr cip = _
+        dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
+        if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return CVNone_( )
+        dim as Tko.StmtPayload ptr cip = _
             @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
         return ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1 )
 
-    case Fbx.N_PAREN
-        dim as Fbx.ListPayload ptr pp = _
+    case Tko.N_PAREN
+        dim as Tko.ListPayload ptr pp = _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return CVNone_( )
-        return ConstOf( ast, cast( Fbx.NodeId, ast.children[pp->first] ), src, names, _
+        return ConstOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), src, names, _
                         intBits, syms, scope_, depth )
 
-    case Fbx.N_UNARY
-        dim as Fbx.UnaryPayload ptr up = _
+    case Tko.N_UNARY
+        dim as Tko.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
         dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits, syms, scope_, depth )
         if v.known = false then return CVNone_( )
         '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
         '' '-(1 shl 31)' at 32 bits is 2147483648 rather than -2147483648.
-        select case cast( Fbx.TokenKind, up->op )
-        case Fbx.TK_MINUS : return CVWU_( -v.value, v.bits, v.uns )
-        case Fbx.TK_PLUS  : return CVWU_( v.value, v.bits, v.uns )
-        case Fbx.KW_NOT   : return CVWU_( not v.value, v.bits, v.uns )
+        select case cast( Tko.TokenKind, up->op )
+        case Tko.TK_MINUS : return CVWU_( -v.value, v.bits, v.uns )
+        case Tko.TK_PLUS  : return CVWU_( v.value, v.bits, v.uns )
+        case Tko.KW_NOT   : return CVWU_( not v.value, v.bits, v.uns )
         end select
         return CVNone_( )
 
-    case Fbx.N_BINARY
-        dim as Fbx.BinaryPayload ptr bp = _
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = _
             @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
         dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits, syms, scope_, depth )
         if l.known = false then return CVNone_( )
@@ -427,48 +427,48 @@ function ConstOf _
         dim as longint sb = b
         if (w = 32) andalso (sb >= 0) then sb = sb and 31
 
-        select case cast( Fbx.TokenKind, bp->op )
-        case Fbx.TK_PLUS      : return CVWU_( a + b, w, uw )
-        case Fbx.TK_MINUS     : return CVWU_( a - b, w, uw )
-        case Fbx.TK_STAR      : return CVWU_( a * b, w, uw )
-        case Fbx.TK_BACKSLASH
+        select case cast( Tko.TokenKind, bp->op )
+        case Tko.TK_PLUS      : return CVWU_( a + b, w, uw )
+        case Tko.TK_MINUS     : return CVWU_( a - b, w, uw )
+        case Tko.TK_STAR      : return CVWU_( a * b, w, uw )
+        case Tko.TK_BACKSLASH
             if b = 0 then return CVNone_( )
             return CVW_( a \ b, w )
-        case Fbx.KW_MOD
+        case Tko.KW_MOD
             if b = 0 then return CVNone_( )
             return CVW_( a mod b, w )
-        case Fbx.TK_CARET     : return CVW_( IPow_( a, b ), w )
-        case Fbx.KW_SHL       : return CVW_( a shl sb, w )
-        case Fbx.KW_SHR
+        case Tko.TK_CARET     : return CVW_( IPow_( a, b ), w )
+        case Tko.KW_SHL       : return CVW_( a shl sb, w )
+        case Tko.KW_SHR
             '' SHR is ARITHMETIC, and at 32 bits it must shift the 32-bit value rather
             '' than the sign-extended one: '&hFFFFFFFF shr 4' is -1 shr 4 = -1.
             if w = 32 then return CVW_( cast( longint, cast( long, a ) ) shr sb, w )
             return CVW_( a shr sb, w )
-        case Fbx.KW_AND       : return CVW_( a and b, w )
-        case Fbx.KW_OR        : return CVW_( a or b, w )
-        case Fbx.KW_XOR       : return CVW_( a xor b, w )
-        case Fbx.KW_EQV       : return CVW_( a eqv b, w )
-        case Fbx.KW_IMP       : return CVW_( a imp b, w )
-        case Fbx.TK_EQ        : return CVBool_( a = b )
-        case Fbx.TK_NE        : return CVBool_( a <> b )
-        case Fbx.TK_LT
+        case Tko.KW_AND       : return CVW_( a and b, w )
+        case Tko.KW_OR        : return CVW_( a or b, w )
+        case Tko.KW_XOR       : return CVW_( a xor b, w )
+        case Tko.KW_EQV       : return CVW_( a eqv b, w )
+        case Tko.KW_IMP       : return CVW_( a imp b, w )
+        case Tko.TK_EQ        : return CVBool_( a = b )
+        case Tko.TK_NE        : return CVBool_( a <> b )
+        case Tko.TK_LT
             if uw then return CVBool_( ua < ub )
             return CVBool_( a < b )
-        case Fbx.TK_GT
+        case Tko.TK_GT
             if uw then return CVBool_( ua > ub )
             return CVBool_( a > b )
-        case Fbx.TK_LE
+        case Tko.TK_LE
             if uw then return CVBool_( ua <= ub )
             return CVBool_( a <= b )
-        case Fbx.TK_GE
+        case Tko.TK_GE
             if uw then return CVBool_( ua >= ub )
             return CVBool_( a >= b )
-        case Fbx.KW_ANDALSO   : return CVBool_( (a <> 0) andalso (b <> 0) )
-        case Fbx.KW_ORELSE    : return CVBool_( (a <> 0) orelse (b <> 0) )
+        case Tko.KW_ANDALSO   : return CVBool_( (a <> 0) andalso (b <> 0) )
+        case Tko.KW_ORELSE    : return CVBool_( (a <> 0) orelse (b <> 0) )
         end select
         return CVNone_( )
 
-    case Fbx.N_CALL
+    case Tko.N_CALL
         return ConstCall_( ast, id, src, names )
     end select
 

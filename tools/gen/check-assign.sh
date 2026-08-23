@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-assign.sh -- fbx's assignment legality against fbc's, over every measured pair.
+# check-assign.sh -- tiko-lang's assignment legality against fbc's, over every measured pair.
 #
 #   tools/gen/check-assign.sh
 #

@@ -4,7 +4,7 @@
 '' becomes the four bytes "1.5" and a READ of a float datum reproduces whatever the
 '' COMPILER wrote (docs/internals/phase-6-print-using-and-data.md). One digit of
 '' disagreement is a program that reads a different number, with nothing to say so.
-'' The same rendering is what fbx has to produce anywhere a float constant becomes
+'' The same rendering is what tiko-lang has to produce anywhere a float constant becomes
 '' text.
 ''
 '' The rule, measured over 1,483 bit patterns by tools/gen/str-truth.py and gated by
@@ -22,18 +22,18 @@
 ''   - the specials spell "inf", "-inf" and "nan" -- NaN carries no sign.
 ''
 '' NOT a wrapper over the host runtime's STR( ). It agrees with it today because both
-'' are built by the pinned stage0, but "the answer fbx emits" and "the answer the
-'' compiler that built fbx happens to print" are different facts, and they have already
+'' are built by the pinned stage0, but "the answer tiko-lang emits" and "the answer the
+'' compiler that built tiko-lang happens to print" are different facts, and they have already
 '' been measured apart: fbc 1.10.1 writes '1e-020' and '1.#INF' where fbc-modern writes
 '' '1e-20' and 'inf', and so does fbc-modern's own fbc32. See check-str.sh for what
 '' that costs on win32.
 
-#ifndef __FBX_FBSTR_BI__
-#define __FBX_FBSTR_BI__
+#ifndef __TKO_FBSTR_BI__
+#define __TKO_FBSTR_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 
-namespace Fbx.Text
+namespace Tko.Text
 
     '' Significant digits fbc keeps. Not a formatting width -- the exact expansion is
     '' rounded to this many digits and only then laid out.

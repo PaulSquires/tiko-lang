@@ -6,13 +6,13 @@
 
 #include once "lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
-using Fbx
+using Tko
 
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
 
 '' AN ARRAY PASSED TO A BYDESC PARAMETER -- 'Q( v( ) )' against 'sub Q( a( ) as long )'.
@@ -26,23 +26,23 @@ declare function StrSwapKind_ _
 '' one level in. Without this the argument lowered to NOTHING and was pushed anyway:
 '' 'Q( v( ) )' went out as a call with a hole where its only operand belongs.
 private function ArrayDescArg_ _
-    ( byref c as Ctx, byval argNode as Fbx.NodeId, byval isArrayParam as boolean, _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval isArrayParam as boolean, _
       byref outv as MirValue ) as boolean
 
-    if (argNode = Fbx.NODE_NONE) orelse (isArrayParam = false) then return false
+    if (argNode = Tko.NODE_NONE) orelse (isArrayParam = false) then return false
 
-    dim as Fbx.NodeId nameNode = argNode
-    if c.ast->Kind( argNode ) = Fbx.N_CALL then
-        dim as Fbx.ListPayload ptr lp = _
+    dim as Tko.NodeId nameNode = argNode
+    if c.ast->Kind( argNode ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
         if lp->count <> 0 then return false
-        if lp->target = Fbx.NODE_NONE then return false
+        if lp->target = Tko.NODE_NONE then return false
         nameNode = lp->target
     end if
 
-    dim as Fbx.TypeId at = c.info->TypeOf_( nameNode )
-    if at = Fbx.TYPE_NONE then return false
-    if c.types->Kind( at ) <> Fbx.TK_ARRAY then return false
+    dim as Tko.TypeId at = c.info->TypeOf_( nameNode )
+    if at = Tko.TYPE_NONE then return false
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
 
     dim as MirValue base_ = LowerAddr( c, nameNode )
     if base_.kind = cast( ubyte, MV_NONE ) then return false
@@ -64,10 +64,10 @@ end function
 '' passing it where a pointer belongs was the same bug in a wider slot. The store is
 '' the plain M_STORE of an aggregate that a UDT return already uses.
 private function ByrefTemp_ _
-    ( byref c as Ctx, byval argNode as Fbx.NodeId, byval pt as Fbx.TypeId ) as MirValue
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as MirValue
 
     dim as MirValue none_
-    if (argNode = Fbx.NODE_NONE) orelse (pt = Fbx.TYPE_NONE) then return none_
+    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return none_
 
     '' UNQUALIFIED, because 'byref r as const any' is the same parameter as 'byref r
     '' as any' for this purpose and a const ANY would otherwise miss the test below.
@@ -93,7 +93,7 @@ private function ByrefTemp_ _
         '' CONSTNESS IS THE SOURCE EXPRESSION'S QUESTION, not the lowered value's:
         '' a literal 0 comes out of LowerExpr as an instruction result, so testing the
         '' MirValue's kind answered "not constant" for the one case fbc singles out.
-        dim as Fbx.Check.ConstVal acv = Fbx.Check.ConstOf( _
+        dim as Tko.Check.ConstVal acv = Tko.Check.ConstOf( _
             *c.ast, argNode, *c.srcMgr, *c.names, c.types->target.pointerBits )
         if acv.known then return Coerce( c, rv, MT_PTR, false )
         pmt = cast( MirType, rv.ty )
@@ -123,7 +123,7 @@ end function
 
 
 function LowerCallParts _
-    ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval callee as Fbx.SymbolId, _
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as long, byval argCount as long, _
       byval mt as MirType ) as MirValue
 
@@ -136,8 +136,8 @@ function LowerCallParts _
     dim as MirValue bv
     if LowerBuiltinProc( c, calleeNode, argFirst, argCount, bv ) then return bv
 
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if callee = Fbx.SYMBOL_NONE then return v
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if callee = Tko.SYMBOL_NONE then return v
     if cs = 0 then return v
 
     '' A CALL THROUGH A PROCEDURE POINTER. 'dim as sub( ) p = procptr( f ) : p( )'
@@ -145,12 +145,12 @@ function LowerCallParts _
     '' mangling its name would invent one. docs/plan/09 lists 'call_indirect' for
     '' exactly this; the callee is the pointer's VALUE.
     dim as boolean viaPointer = false
-    if cs->kind <> cast( ubyte, Fbx.SYM_PROC ) then
-        dim as Fbx.TypeId ct = cs->type_
-        if ct <> Fbx.TYPE_NONE then
-            if c.types->Kind( ct ) = Fbx.TK_REFERENCE then ct = c.types->Inner( ct )
-            if c.types->Kind( ct ) = Fbx.TK_POINTER then ct = c.types->Inner( ct )
-            viaPointer = (c.types->Kind( ct ) = Fbx.TK_PROC)
+    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then
+        dim as Tko.TypeId ct = cs->type_
+        if ct <> Tko.TYPE_NONE then
+            if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
+            if c.types->Kind( ct ) = Tko.TK_POINTER then ct = c.types->Inner( ct )
+            viaPointer = (c.types->Kind( ct ) = Tko.TK_PROC)
         end if
         '' Anything else that is not a procedure is not callable, and was already
         '' declining here.
@@ -165,7 +165,7 @@ function LowerCallParts _
     dim as FB.Array( of ulong ) argv
 
     '' THE RECEIVER IS THE FIRST ARGUMENT of an instance method, and it was missing.
-    '' fbc declares 'void _ZN1T1MEi( struct $1T*, int32 )'; fbx emitted
+    '' fbc declares 'void _ZN1T1MEi( struct $1T*, int32 )'; tiko-lang emitted
     '' 'call void _ZN1T1MEi(%5)' -- the right name, the wrong arguments, and no decline,
     '' so it counted as fully lowered. A mangled name that says member and a call that
     '' does not pass one is the worst shape a bug can have here.
@@ -175,12 +175,12 @@ function LowerCallParts _
     '' pointer and RDX is 'this'.
     ''
     '' The call's VALUE is that temporary's address, so 'v = F( )' and 'F( ).field'
-    '' both read from it. fbc destroys the temp at the end of the statement; fbx does
+    '' both read from it. fbc destroys the temp at the end of the statement; tiko-lang does
     '' not model that yet, so a result whose type has a destructor LEAKS one object per
     '' call. Stated rather than hidden -- and the alternative was not lowering the
     '' statement at all.
     dim as MirValue sretTmp
-    if cs->kind = cast( ubyte, Fbx.SYM_PROC ) then
+    if cs->kind = cast( ubyte, Tko.SYM_PROC ) then
         if UsesSretReturn( c, cs->type_ ) then
             dim as long tslot = _
                 NewTempLocal( c, MT_AGG, SizeOfType( c, cs->type_ ) )
@@ -214,27 +214,27 @@ function LowerCallParts _
     for i as long = 0 to slots - 1
         '' AN ELIDED ARGUMENT TAKES THE DEFAULT TOO. 'locate , 10' is the shape that
         '' says the two are one rule and not two.
-        dim as Fbx.NodeId argNode = Fbx.NODE_NONE
+        dim as Tko.NodeId argNode = Tko.NODE_NONE
         if i < argCount then
-            argNode = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
-            if c.ast->Kind( argNode ) = Fbx.N_ELIDED then argNode = Fbx.NODE_NONE
+            argNode = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+            if c.ast->Kind( argNode ) = Tko.N_ELIDED then argNode = Tko.NODE_NONE
         end if
-        if argNode = Fbx.NODE_NONE then argNode = ParamDefaultAt( c, callee, i )
+        if argNode = Tko.NODE_NONE then argNode = ParamDefaultAt( c, callee, i )
         '' 'f( byval x )' AGAINST A BYREF PARAMETER: the value itself is the reference.
         '' The marker is unwrapped here and remembered, so everything below sees the
         '' expression it wraps.
         dim as boolean forcedByval = false
-        if argNode <> Fbx.NODE_NONE then
-            if c.ast->Kind( argNode ) = Fbx.N_UNARY then
-                dim as Fbx.UnaryPayload ptr bup = _
+        if argNode <> Tko.NODE_NONE then
+            if c.ast->Kind( argNode ) = Tko.N_UNARY then
+                dim as Tko.UnaryPayload ptr bup = _
                     @c.ast->unaries[cast( long, c.ast->nodes[cast( long, argNode )].data )]
-                if cast( Fbx.TokenKind, bup->op ) = Fbx.KW_BYVAL then
+                if cast( Tko.TokenKind, bup->op ) = Tko.KW_BYVAL then
                     forcedByval = true
                     argNode = bup->operand
                 end if
             end if
         end if
-        if argNode = Fbx.NODE_NONE then
+        if argNode = Tko.NODE_NONE then
             '' Nothing written and no default: the call is short and the callee would
             '' read the stack. Declining says so.
             if i >= argCount then return v
@@ -263,7 +263,7 @@ function LowerCallParts _
         dim as boolean wantsWide = false
         dim as boolean wantsZ = false
         if wantsRef then
-            dim as Fbx.TypeId prt = ParamTypeAt( c, callee, i )
+            dim as Tko.TypeId prt = ParamTypeAt( c, callee, i )
             wantsDesc = IsStringType( c, prt )
             '' A BYREF WSTRING IS A uint16*, A BYREF ZSTRING A char*, and neither is a
             '' descriptor or the address of one. Asked for either as an ordinary byref
@@ -318,14 +318,14 @@ function LowerCallParts _
             '' copies into a temporary descriptor first. Without it the argument
             '' lowered to NOTHING and went out as a malformed operand -- a call with a
             '' hole in it that the verifier does not look at.
-            dim as Fbx.TypeId ppt = ParamTypeAt( c, callee, i )
+            dim as Tko.TypeId ppt = ParamTypeAt( c, callee, i )
             dim as boolean wantsZPtr = false
-            if ppt <> Fbx.TYPE_NONE then
-                if c.types->Kind( c.types->Unqualify( ppt ) ) = Fbx.TK_POINTER then
-                    dim as Fbx.TypeId pin = _
+            if ppt <> Tko.TYPE_NONE then
+                if c.types->Kind( c.types->Unqualify( ppt ) ) = Tko.TK_POINTER then
+                    dim as Tko.TypeId pin = _
                         c.types->Unqualify( c.types->Inner( c.types->Unqualify( ppt ) ) )
-                    if c.types->Kind( pin ) = Fbx.TK_BUILTIN then
-                        if c.types->BuiltinOf( pin ) = Fbx.TY_ZSTRING then
+                    if c.types->Kind( pin ) = Tko.TK_BUILTIN then
+                        if c.types->BuiltinOf( pin ) = Tko.TY_ZSTRING then
                             wantsZPtr = IsStringType( c, c.info->TypeOf_( argNode ) )
                         end if
                     end if
@@ -355,12 +355,12 @@ function LowerCallParts _
             '' type-constructor path already applies to its own arguments.
             ''
             '' An AGGREGATE is passed whole and has nothing to convert.
-            dim as Fbx.TypeId pt = ParamTypeAt( c, callee, i )
+            dim as Tko.TypeId pt = ParamTypeAt( c, callee, i )
             if forcedByval andalso ParamIsByref( c, callee, i ) then
                 '' The parameter is a REFERENCE and the value is standing in for one,
                 '' so the width is the pointer's, not the parameter's declared type.
                 if a.kind <> cast( ubyte, MV_NONE ) then a = Coerce( c, a, MT_PTR, false )
-            elseif (pt <> Fbx.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
+            elseif (pt <> Tko.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
                 dim as MirType pmt = LowerType( pt, *c.types )
                 if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
                     a = Coerce( c, a, pmt, IsUnsignedType( c, pt ) )
@@ -384,10 +384,10 @@ function LowerCallParts _
     '' it here produced 'call void a()' against a definition named 'A', which matched
     '' nothing and silently added an extern declaration instead. The result was a
     '' module that referenced a symbol it also defined, under two spellings.
-    dim as Fbx.InternId cnm = cs->name
+    dim as Tko.InternId cnm = cs->name
     if cs->payload <> 0 then
-        cnm = c.names->GetString( Fbx.Mangle.ProcName( _
-            *c.ast, cast( Fbx.NodeId, cs->payload ), *c.syms, *c.names, _
+        cnm = c.names->GetString( Tko.Mangle.ProcName( _
+            *c.ast, cast( Tko.NodeId, cs->payload ), *c.syms, *c.names, _
             *c.types, *c.info ) )
     end if
 
@@ -435,11 +435,11 @@ function LowerCallParts _
         '' the call sitting right there. A DIRECT call gets its type from the callee's
         '' symbol; an indirect one has no symbol, and the pointee is where it lives.
         if callTy = MT_VOID then
-            dim as Fbx.TypeId ft = c.info->TypeOf_( calleeNode )
-            if ft <> Fbx.TYPE_NONE then
-                if c.types->Kind( ft ) = Fbx.TK_POINTER then ft = c.types->Inner( ft )
-                if ft <> Fbx.TYPE_NONE then
-                    if c.types->Kind( ft ) = Fbx.TK_PROC then
+            dim as Tko.TypeId ft = c.info->TypeOf_( calleeNode )
+            if ft <> Tko.TYPE_NONE then
+                if c.types->Kind( ft ) = Tko.TK_POINTER then ft = c.types->Inner( ft )
+                if ft <> Tko.TYPE_NONE then
+                    if c.types->Kind( ft ) = Tko.TK_PROC then
                         callTy = LowerType( c.types->Inner( ft ), *c.types )
                     end if
                 end if
@@ -500,23 +500,23 @@ end function
 '' call would be short and the callee would read the stack. A SUB has no value, and a
 '' name written where an address is meant reaches LowerAddr instead.
 function LowerBareProcCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
       byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_IDENT then return false
-    dim as Fbx.SymbolId sid = c.info->RefOf( id )
-    if sid = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    if c.ast->Kind( id ) <> Tko.N_IDENT then return false
+    dim as Tko.SymbolId sid = c.info->RefOf( id )
+    if sid = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
-    if s->type_ = Fbx.TYPE_NONE then return false          '' a SUB has no value
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->type_ = Tko.TYPE_NONE then return false          '' a SUB has no value
 
     '' EVERY PARAMETER MUST HAVE A DEFAULT. ParamDefaultAt answers for each, and a
     '' variadic tail is not something a bare name can fill.
     if IsVariadicProc( c, sid ) then return false
     dim as long np = ParamCountOf( c, sid )
     for i as long = 0 to np - 1
-        if ParamDefaultAt( c, sid, i ) = Fbx.NODE_NONE then return false
+        if ParamDefaultAt( c, sid, i ) = Tko.NODE_NONE then return false
     next
 
     outv = LowerCallParts( c, id, sid, 0, 0, mt )
@@ -528,11 +528,11 @@ end function
 '' are bitwise on integers, so this is the same shape the other bitwise operators take
 '' with a NOT in front of one of them.
 function EmitImpEqv_ _
-    ( byref c as Ctx, byval tk as Fbx.TokenKind, byval ty as MirType, _
+    ( byref c as Ctx, byval tk as Tko.TokenKind, byval ty as MirType, _
       byref l as MirValue, byref r as MirValue ) as MirValue
 
     dim as MirValue none_
-    if tk = Fbx.KW_IMP then
+    if tk = Tko.KW_IMP then
         dim as MirInst n1
         n1.op = cast( ushort, M_NOT )
         n1.ty = cast( ubyte, ty )
@@ -546,7 +546,7 @@ function EmitImpEqv_ _
         o1.b = r
         return Emit( c, o1 )
     end if
-    if tk = Fbx.KW_EQV then
+    if tk = Tko.KW_EQV then
         dim as MirInst x1
         x1.op = cast( ushort, M_XOR )
         x1.ty = cast( ubyte, ty )
@@ -564,40 +564,40 @@ function EmitImpEqv_ _
 end function
 
 function BinOpFor _
-    ( byval tk as Fbx.TokenKind, byval t as MirType, _
+    ( byval tk as Tko.TokenKind, byval t as MirType, _
       byval isUnsigned as boolean ) as MirOp
 
     dim as boolean f = IsFloatTy( t )
     select case tk
-    case Fbx.TK_PLUS      : return M_ADD
-    case Fbx.TK_MINUS     : return M_SUB
-    case Fbx.TK_STAR      : return M_MUL
-    case Fbx.TK_SLASH     : return M_FDIV
-    case Fbx.TK_BACKSLASH : return iif( isUnsigned, M_UDIV, M_SDIV )
-    case Fbx.KW_MOD       : return iif( isUnsigned, M_UREM, M_SREM )
-    case Fbx.KW_AND       : return M_AND
-    case Fbx.KW_OR        : return M_OR
-    case Fbx.KW_XOR       : return M_XOR
-    case Fbx.KW_SHL       : return M_SHL
+    case Tko.TK_PLUS      : return M_ADD
+    case Tko.TK_MINUS     : return M_SUB
+    case Tko.TK_STAR      : return M_MUL
+    case Tko.TK_SLASH     : return M_FDIV
+    case Tko.TK_BACKSLASH : return iif( isUnsigned, M_UDIV, M_SDIV )
+    case Tko.KW_MOD       : return iif( isUnsigned, M_UREM, M_SREM )
+    case Tko.KW_AND       : return M_AND
+    case Tko.KW_OR        : return M_OR
+    case Tko.KW_XOR       : return M_XOR
+    case Tko.KW_SHL       : return M_SHL
     '' SHR is ARITHMETIC on a signed value -- '-1 shr 1' is -1, measured in
     '' docs/internals/phase-5-const.md -- so it is ashr unless the type is unsigned.
-    case Fbx.KW_SHR       : return iif( isUnsigned, M_LSHR, M_ASHR )
-    case Fbx.TK_EQ        : return iif( f, M_FCMP_EQ, M_ICMP_EQ )
-    case Fbx.TK_NE        : return iif( f, M_FCMP_NE, M_ICMP_NE )
-    case Fbx.TK_LT        : return iif( f, M_FCMP_LT, iif( isUnsigned, M_ICMP_ULT, M_ICMP_SLT ) )
-    case Fbx.TK_GT        : return iif( f, M_FCMP_GT, iif( isUnsigned, M_ICMP_UGT, M_ICMP_SGT ) )
-    case Fbx.TK_LE        : return iif( f, M_FCMP_LE, M_ICMP_SLE )
-    case Fbx.TK_GE        : return iif( f, M_FCMP_GE, M_ICMP_SGE )
+    case Tko.KW_SHR       : return iif( isUnsigned, M_LSHR, M_ASHR )
+    case Tko.TK_EQ        : return iif( f, M_FCMP_EQ, M_ICMP_EQ )
+    case Tko.TK_NE        : return iif( f, M_FCMP_NE, M_ICMP_NE )
+    case Tko.TK_LT        : return iif( f, M_FCMP_LT, iif( isUnsigned, M_ICMP_ULT, M_ICMP_SLT ) )
+    case Tko.TK_GT        : return iif( f, M_FCMP_GT, iif( isUnsigned, M_ICMP_UGT, M_ICMP_SGT ) )
+    case Tko.TK_LE        : return iif( f, M_FCMP_LE, M_ICMP_SLE )
+    case Tko.TK_GE        : return iif( f, M_FCMP_GE, M_ICMP_SGE )
     end select
     return M_NONE
 end function
 
 function IsUnsignedType _
-    ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_BUILTIN then return false
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
     select case c.types->BuiltinOf( t )
-    case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG, Fbx.TY_UINTEGER, Fbx.TY_ULONGINT
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT
         return true
     end select
     return false

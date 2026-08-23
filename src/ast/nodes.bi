@@ -11,20 +11,20 @@
 ''   - The AST is a TREE. Instantiation produces new subtrees, never shared ones.
 ''   - An Error node exists only if a diagnostic was emitted for it.
 
-#ifndef __FBX_AST_NODES_BI__
-#define __FBX_AST_NODES_BI__
+#ifndef __TKO_AST_NODES_BI__
+#define __TKO_AST_NODES_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "source/location.bi"
 #include once "lexer/token.bi"
 
-namespace Fbx
+namespace Tko
 
     type NodeId as ulong
     const NODE_NONE as NodeId = 0
 
     '' NODE( name, category )
-    #macro FBX_NODE_LIST( NODE )
+    #macro TKO_NODE_LIST( NODE )
         NODE( N_ERROR,        NCAT_EXPR )
 
         '' ---- expressions
@@ -123,7 +123,7 @@ namespace Fbx
     enum NodeKind
         N_NONE = 0
         #define NODE( n_name, n_cat ) n_name,
-        FBX_NODE_LIST( NODE )
+        TKO_NODE_LIST( NODE )
         #undef NODE
         N_KIND_COUNT
     end enum

@@ -3,10 +3,10 @@
 Construction and destruction **order is observable behaviour**, so it is compatibility
 surface (docs/plan/08 §6). These programs print a trace of every constructor,
 destructor and `defer`, and the `.fbc-trace` files beside them are what **fbc actually
-printed when the program was run** — not what the manual says, and not what fbx
+printed when the program was run** — not what the manual says, and not what tiko-lang
 produces.
 
-They are the specification. When fbx can emit code, its output must match these byte
+They are the specification. When tiko-lang can emit code, its output must match these byte
 for byte; until then they pin the rules that lowering has to reproduce, and every rule
 in `docs/internals/phase-6-cleanup.md` is derived from a line in one of them.
 

@@ -5,7 +5,7 @@
 '' headers does arithmetic.
 ''
 '' The mangled name was wrong too: a global operator is _ZmiR1DS0_ to fbc -- the
-'' operator CODE and its parameters -- and fbx emitted a function literally named '-',
+'' operator CODE and its parameters -- and tiko-lang emitted a function literally named '-',
 '' because "not nested and not overloaded" took the spelling verbatim.
 type D
     v as long

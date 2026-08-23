@@ -1,6 +1,6 @@
 '' rtl.bi -- the ONE place that knows the runtime's interface.
 ''
-'' docs/plan/11 section 3: no 'fb_StrAssign' string literal anywhere else in fbx. That
+'' docs/plan/11 section 3: no 'fb_StrAssign' string literal anywhere else in tiko-lang. That
 '' buys one place to audit against the runtime, signature checking at MIR construction
 '' rather than a crash at run time, and a dumpable inventory that can be diffed
 '' against the library's actual exports.
@@ -12,13 +12,13 @@
 '' better evidence, being what fbc actually emits rather than what a table says.
 '' tools/gen/rtl-truth.py regenerates it and checks every name against libfb.a.
 
-#ifndef __FBX_RTL_BI__
-#define __FBX_RTL_BI__
+#ifndef __TKO_RTL_BI__
+#define __TKO_RTL_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "mir/mir.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
     '' RTL( id, symbol, return type, parameter types )
     ''
@@ -36,7 +36,7 @@ namespace Fbx.Mir
     '' A var-length string is passed as a POINTER TO ITS DESCRIPTOR with a length of
     '' -1; a literal is passed as its bytes with the real length. That convention is
     '' why every string entry takes (ptr, i64) pairs rather than one argument.
-    #macro FBX_RTL_LIST( RTL )
+    #macro TKO_RTL_LIST( RTL )
         '' The program entry pair. fbc emits these ONLY for the main translation unit:
         '' fb_Init before the module-level body, fb_End after its cleanups.
         RTL( RTL_INIT,              "fb_Init",             "v",   "lpl"   )
@@ -94,7 +94,7 @@ namespace Fbx.Mir
         RTL( RTL_STR_TO_WSTR,       "fb_StrToWstr",        "p",   "p"     )
         RTL( RTL_WSTR_TO_STR,       "fb_WstrToStr",        "p",   "p"     )
         '' The wide substring and trim families. Every one RETURNS A TEMPORARY that
-        '' fbc releases with fb_WstrDelete; fbx does not model that lifetime yet, so
+        '' fbc releases with fb_WstrDelete; tiko-lang does not model that lifetime yet, so
         '' each call leaks one -- stated rather than hidden.
         ''
         '' Note the ARGUMENT ORDERS ARE NOT UNIFORM and were measured one by one:
@@ -319,13 +319,13 @@ namespace Fbx.Mir
         RTL( RTL_GFX_PALETTE_GETUSING, "fb_GfxPaletteGetUsing", "v", "p"  )
         '' AND EACH OF THE THREE HAS A 64-BIT TWIN, chosen by the WIDTH of what it
         '' writes into -- an 'integer' output on win64 takes the 64 form. Measured;
-        '' passing an int64* to the 32-bit entry point is what fbx did before.
+        '' passing an int64* to the 32-bit entry point is what tiko-lang did before.
         RTL( RTL_GFX_PALETTE_GET64, "fb_GfxPaletteGet64",  "v",   "lppp"  )
         RTL( RTL_GFX_PALETTE_USING64, "fb_GfxPaletteUsing64", "v", "p"    )
         RTL( RTL_GFX_PALETTE_GETUSING64, "fb_GfxPaletteGetUsing64", "v", "p" )
         '' Named by the PRELUDE rather than by a lowering, and by PUT's default blender.
         '' Both are in the inventory so the gate compares their signatures like any
-        '' other -- an entry point fbx emits and does not check is the shape check-rtl
+        '' other -- an entry point tiko-lang emits and does not check is the shape check-rtl
         '' exists to prevent.
         RTL( RTL_GFX_SCREENRES,     "fb_GfxScreenRes",     "l",   "llllll" )
         '' SCREEN, IMAGECREATE and POINT are KEYWORDS rather than declared
@@ -452,7 +452,7 @@ namespace Fbx.Mir
         RTL( RTL_FILE_CLOSE,        "fb_FileClose",        "l",   "l"     )
         RTL( RTL_FILE_CLOSEALL,     "fb_FileCloseAll",     "l",   ""      )
         '' Returns the ADDRESS to jump to when a handler is installed, which is why its
-        '' return type is a pointer and not void. fbx installs none -- ON ERROR is not
+        '' return type is a pointer and not void. tiko-lang installs none -- ON ERROR is not
         '' implemented -- so the call never returns and the block ends unreachable.
         RTL( RTL_ERROR_THROW,       "fb_ErrorThrowEx",     "p",   "llppp" )
         '' LIBC, not the FB runtime, and named exactly that: fbc emits a plain
@@ -511,7 +511,7 @@ namespace Fbx.Mir
     enum RtlId
         RTL_NONE = 0
         #define RTL( r_id, r_sym, r_ret, r_args ) r_id,
-        FBX_RTL_LIST( RTL )
+        TKO_RTL_LIST( RTL )
         #undef RTL
         RTL_COUNT
     end enum

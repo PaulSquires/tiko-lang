@@ -1,7 +1,7 @@
 '' Two ANONYMOUS unions in one TYPE are two separate members, laid out one after the
 '' other. Measured against fbc: two unions of one INTEGER each is 16 bytes, not 8.
 ''
-'' fbx overlapped them. An anonymous union's members are SPLICED into the enclosing type
+'' tiko-lang overlapped them. An anonymous union's members are SPLICED into the enclosing type
 '' and marked, and the layout pass scans a run of marked fields to find its widest
 '' member -- so two adjacent unions produced one continuous run and merged. Each union
 '' now marks its own FIRST field, which both bounds the scan and closes the open run.
@@ -43,7 +43,7 @@ type Packed field = 4
 	h as integer
 end type
 
-'' A NAMED union overlaps its members too -- which fbx did NOT do until the same marker
+'' A NAMED union overlaps its members too -- which tiko-lang did NOT do until the same marker
 '' was applied to a named union's fields. Measured: three ULONGINTs is 8 bytes, not 24.
 union NamedU
 	a as ulongint

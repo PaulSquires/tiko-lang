@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Compare fbx's expression typing with fbc's, over every combination fbc was asked.
+"""Compare tiko-lang's expression typing with fbc's, over every combination fbc was asked.
 
     python tools/gen/check-promo.py
 
 Reads tests/types/expected/fbc-promotion.txt -- produced by promo-truth.py from fbc
-itself -- generates the SAME 3,920 combinations as fbx source, and compares row by
+itself -- generates the SAME 3,920 combinations as tiko-lang source, and compares row by
 row. Two things are checked, because they are two different claims:
 
-    result   for a pair fbc accepts, fbx must compute the same type
-    legality for a pair fbc rejects, fbx must refuse to type it
+    result   for a pair fbc accepts, tiko-lang must compute the same type
+    legality for a pair fbc rejects, tiko-lang must refuse to type it
 
 A checker that types everything scores perfectly on the first and fails the second.
 """
@@ -18,13 +18,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-promotion.txt"
 TGT = []
 LABEL = "win64"
 WORK = ROOT / "build/.ck"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 TYPES = ["byte", "ubyte", "short", "ushort", "long", "ulong", "integer",
          "uinteger", "longint", "ulongint", "single", "double", "boolean", "string"]
@@ -34,9 +34,9 @@ def one_target() -> int:
     if not TRUTH.exists():
         print(f"check-promo: {LABEL} no truth file; run tools/gen/promo-truth.py", file=sys.stderr)
         return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print(f"check-promo: {LABEL} fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print(f"check-promo: {LABEL} tiko not built", file=sys.stderr)
         return 3
 
     rows = []
@@ -54,10 +54,10 @@ def one_target() -> int:
         src.append(f"print v{TYPES.index(lt)} {op} v{TYPES.index(rt)}")
         line_of[len(src)] = idx          # 1-based source line -> row index
 
-    probe = WORK / "promo-fbx.bas"
+    probe = WORK / "promo-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
+    proc = subprocess.run([str(tiko), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -77,13 +77,13 @@ def one_target() -> int:
                 res_ok += 1
             else:
                 res_bad += 1
-                bad.append(f"{lt} {op} {rt}: fbc={res.lower()} fbx={mine}")
+                bad.append(f"{lt} {op} {rt}: fbc={res.lower()} tiko={mine}")
         else:
             if mine == "?":
                 leg_ok += 1
             else:
                 leg_bad += 1
-                bad.append(f"{lt} {op} {rt}: fbc REJECTS, fbx={mine}")
+                bad.append(f"{lt} {op} {rt}: fbc REJECTS, tiko={mine}")
 
     total_ok = sum(1 for r in rows if r[3] == "ok")
     total_rj = len(rows) - total_ok
@@ -102,7 +102,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

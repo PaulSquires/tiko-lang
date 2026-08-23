@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-vtable.sh -- fbx's virtual method tables against fbc's, slot by slot.
+# check-vtable.sh -- tiko-lang's virtual method tables against fbc's, slot by slot.
 #
 #   tools/gen/check-vtable.sh
 #

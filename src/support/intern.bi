@@ -15,13 +15,13 @@
 ''   - The stored bytes are NUL-terminated as a convenience for C interop; the NUL is
 ''     not counted in Length( ).
 
-#ifndef __FBX_INTERN_BI__
-#define __FBX_INTERN_BI__
+#ifndef __TKO_INTERN_BI__
+#define __TKO_INTERN_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "support/arena.bi"
 
-namespace Fbx
+namespace Tko
 
     type InternEntry
         as ubyte ptr bytes
@@ -45,7 +45,7 @@ namespace Fbx
         declare function Get( byval p as const ubyte ptr, byval n as long ) as InternId
         declare function GetString( byval s as string ) as InternId
 
-        '' Named Spelling, not Text, so it cannot be confused with the Fbx.Text
+        '' Named Spelling, not Text, so it cannot be confused with the Tko.Text
         '' namespace at a call site inside a member body.
         declare function Spelling( byval id as InternId ) as string
         declare function Bytes( byval id as InternId ) as const ubyte ptr

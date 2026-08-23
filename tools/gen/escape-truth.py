@@ -10,7 +10,7 @@ the compiler's own output spells it.
 
 WHAT IS NOT COVERED, and why. '\u' and '\U' promote the whole literal to a WSTRING --
 measured, '#print typeof( !"\u0041" )' is 'WSTRING * 3' against 'ZSTRING * 2' for
-'!"\n"'. fbx does not model a wide literal at all, so a probe that assigned one to a
+'!"\n"'. tiko-lang does not model a wide literal at all, so a probe that assigned one to a
 STRING would measure fbc's ANSI conversion (unmappable bytes become '?', code 63) and
 pin an answer to a question neither compiler is being asked. They are the single
 largest escape in the corpus, 2120 occurrences, and they are an OPEN GAP, not a

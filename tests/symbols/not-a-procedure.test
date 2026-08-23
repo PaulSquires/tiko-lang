@@ -1,7 +1,7 @@
 '' The payoff of the ambiguous-statement node: where fbc reports a bare syntax error,
-'' fbx can say what the name actually IS (docs/plan/04 section 6).
+'' tiko-lang can say what the name actually IS (docs/plan/04 section 6).
 '' TEST: cli
 '' ARGS: --resolve tests/symbols/src/notaproc.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: FBX0602
+'' EXPECT-OUT: TKO0602
 '' EXPECT-OUT: is a type, not a procedure

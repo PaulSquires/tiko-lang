@@ -20,7 +20,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import fbxtargets
+import tkotargets
 
 ROOT = Path(__file__).resolve().parents[2]
 GEN = ROOT / "tools/gen"
@@ -47,16 +47,16 @@ def win32_of(p: Path) -> Path:
 def main() -> int:
     env = dict(os.environ)
     used = []
-    if fbxtargets.FBC64_OLD.exists():
-        env["FBX_CONTROL_FBC64"] = str(fbxtargets.FBC64_OLD)
+    if tkotargets.FBC64_OLD.exists():
+        env["TKO_CONTROL_FBC64"] = str(tkotargets.FBC64_OLD)
         used.append("win64")
-    if fbxtargets.FBC32_OLD.exists():
-        env["FBX_CONTROL_FBC32"] = str(fbxtargets.FBC32_OLD)
+    if tkotargets.FBC32_OLD.exists():
+        env["TKO_CONTROL_FBC32"] = str(tkotargets.FBC32_OLD)
         used.append("win32")
     if not used:
-        print(f"control: no other fbc at {fbxtargets.TC_OLD}", file=sys.stderr)
+        print(f"control: no other fbc at {tkotargets.TC_OLD}", file=sys.stderr)
         return 3
-    print(f"control: comparing against {fbxtargets.TC_OLD.name} on " + ", ".join(used))
+    print(f"control: comparing against {tkotargets.TC_OLD.name} on " + ", ".join(used))
 
     same, differ = [], []
     for gate, rel in GATES:

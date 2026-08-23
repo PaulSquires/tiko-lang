@@ -10,7 +10,7 @@
 
 #include once "mir/verify.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 private sub Fail _
     ( byref r as VerifyResult, byref where_ as string, byref why as string )
@@ -20,7 +20,7 @@ private sub Fail _
 end sub
 
 function Verify _
-    ( byref m as MirModule, byref names as Fbx.Interner, _
+    ( byref m as MirModule, byref names as Tko.Interner, _
       byval strict as boolean = false ) as VerifyResult
 
     dim as VerifyResult r

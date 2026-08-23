@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import fbxtargets
+import tkotargets
 
 OUT = ROOT / "tests/types/expected/fbc-vtable.txt"
 WORK = ROOT / "build/.vt"
@@ -174,7 +174,7 @@ def one_target(label, fbc, out, work) -> int:
     #   int32 __stdcall _ZN7VSIMPLE1FEv( ... ) asm("__ZN7VSIMPLE1FEv@4");
     #
     # so the vtable initialiser names a C identifier that the assembler then spells
-    # differently. What fbx emits -- and what a linker resolves -- is the asm name, so
+    # differently. What tiko-lang emits -- and what a linker resolves -- is the asm name, so
     # the table is recorded in those terms. A function with NO asm name is cdecl and
     # takes the plain leading underscore; fbc emits DESTRUCTORS that way even where
     # every other method is stdcall, which is measured here rather than assumed.
@@ -216,7 +216,7 @@ def one_target(label, fbc, out, work) -> int:
 
 def main() -> int:
     rc = 0
-    for label, fbc, out, work in fbxtargets.truth_targets(OUT, WORK):
+    for label, fbc, out, work in tkotargets.truth_targets(OUT, WORK):
         rc |= one_target(label, fbc, out, work)
     return rc
 

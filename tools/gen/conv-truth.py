@@ -17,9 +17,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
-FBC = fbxtargets.FBC64
+FBC = tkotargets.FBC64
 LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-conv.txt"
 WORK = ROOT / "build/.conv"
@@ -124,7 +124,7 @@ def main() -> int:
     """Every target, into its own expectations file."""
     global FBC, OUT, WORK, LABEL
     rc = 0
-    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+    for LABEL, FBC, OUT, WORK in tkotargets.truth_targets(OUT, WORK):
         if one_target() != 0:
             rc = 1
     return rc

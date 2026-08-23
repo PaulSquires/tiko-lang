@@ -29,7 +29,7 @@ private sub ModuleStatic( )
 end sub
 
 '' A UNION takes no labels, so this member is named 'private' -- fbc rejects it, and
-'' what matters here is that fbx does not silently invent an access section.
+'' what matters here is that tiko-lang does not silently invent an access section.
 union U
 	as integer only1
 end union

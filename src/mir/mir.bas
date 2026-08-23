@@ -2,7 +2,7 @@
 
 #include once "mir/mir.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 constructor MirModule( )
 end constructor
@@ -121,7 +121,7 @@ sub MirModule.PushPtrFunc( byval g as long, byval nm as InternId )
 end sub
 
 function MirModule.AddVarGlobal _
-    ( byval nm as InternId, byval ty as MirType, byval ft as Fbx.TypeId, _
+    ( byval nm as InternId, byval ty as MirType, byval ft as Tko.TypeId, _
       byval sizeBytes as long ) as long
 
     for i as long = 0 to this.globals.Count - 1
@@ -157,7 +157,7 @@ end function
 function OpName( byval o as MirOp ) as string
     select case o
     #define OP( o_id, o_name, o_args, o_res ) case o_id : return o_name
-    FBX_MIR_LIST( OP )
+    TKO_MIR_LIST( OP )
     #undef OP
     end select
     return "?"
@@ -166,7 +166,7 @@ end function
 function OpArity( byval o as MirOp ) as long
     select case o
     #define OP( o_id, o_name, o_args, o_res ) case o_id : return o_args
-    FBX_MIR_LIST( OP )
+    TKO_MIR_LIST( OP )
     #undef OP
     end select
     return 0
@@ -175,7 +175,7 @@ end function
 function OpHasResult( byval o as MirOp ) as boolean
     select case o
     #define OP( o_id, o_name, o_args, o_res ) case o_id : return o_res
-    FBX_MIR_LIST( OP )
+    TKO_MIR_LIST( OP )
     #undef OP
     end select
     return false
@@ -188,41 +188,41 @@ end function
 '' it is a 24-byte descriptor whose lowering needs the runtime, which this slice of
 '' phase 6 does not have.
 function LowerType _
-    ( byval t as Fbx.TypeId, byref types as Fbx.TypeContext ) as MirType
+    ( byval t as Tko.TypeId, byref types as Tko.TypeContext ) as MirType
 
-    if t = Fbx.TYPE_NONE then return MT_VOID
+    if t = Tko.TYPE_NONE then return MT_VOID
 
     select case types.Kind( t )
-    case Fbx.TK_POINTER, Fbx.TK_REFERENCE, Fbx.TK_PROC
+    case Tko.TK_POINTER, Tko.TK_REFERENCE, Tko.TK_PROC
         return MT_PTR
-    case Fbx.TK_ARRAY
+    case Tko.TK_ARRAY
         '' A fixed array is storage, addressed by arithmetic rather than loaded whole,
         '' so it is an aggregate however small it is. Falling through to the element's
         '' type would reserve ONE element -- four bytes where forty were needed.
         return MT_AGG
-    case Fbx.TK_UDT, Fbx.TK_ENUM
+    case Tko.TK_UDT, Tko.TK_ENUM
         '' An ENUM is its underlying integer; a UDT is opaque.
-        if types.Kind( t ) = Fbx.TK_ENUM then return MT_I32
+        if types.Kind( t ) = Tko.TK_ENUM then return MT_I32
         return MT_AGG
-    case Fbx.TK_BUILTIN
+    case Tko.TK_BUILTIN
         select case types.BuiltinOf( t )
-        case Fbx.TY_VOID     : return MT_VOID
-        case Fbx.TY_BYTE, Fbx.TY_UBYTE, Fbx.TY_BOOLEAN : return MT_I8
-        case Fbx.TY_SHORT, Fbx.TY_USHORT : return MT_I16
-        case Fbx.TY_LONG, Fbx.TY_ULONG   : return MT_I32
-        case Fbx.TY_INTEGER, Fbx.TY_UINTEGER, Fbx.TY_LONGINT, Fbx.TY_ULONGINT
+        case Tko.TY_VOID     : return MT_VOID
+        case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_BOOLEAN : return MT_I8
+        case Tko.TY_SHORT, Tko.TY_USHORT : return MT_I16
+        case Tko.TY_LONG, Tko.TY_ULONG   : return MT_I32
+        case Tko.TY_INTEGER, Tko.TY_UINTEGER, Tko.TY_LONGINT, Tko.TY_ULONGINT
             '' INTEGER is pointer-sized, so its width comes from the target rather
             '' than from a constant.
             if types.target.pointerBits = 32 then return MT_I32
             return MT_I64
-        case Fbx.TY_STRING, Fbx.TY_USTRING
+        case Tko.TY_STRING, Tko.TY_USTRING
             '' A var-length string is a DESCRIPTOR -- 24 bytes on x86-64 -- not a
             '' pointer. Lowering it as MT_PTR would reserve 8 bytes and corrupt the
             '' neighbouring slot the moment the runtime wrote to it.
             return MT_AGG
-        case Fbx.TY_SINGLE   : return MT_F32
-        case Fbx.TY_DOUBLE   : return MT_F64
-        case Fbx.TY_ANY      : return MT_VOID
+        case Tko.TY_SINGLE   : return MT_F32
+        case Tko.TY_DOUBLE   : return MT_F64
+        case Tko.TY_ANY      : return MT_VOID
         end select
     end select
     return MT_VOID

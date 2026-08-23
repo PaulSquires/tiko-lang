@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""Compare fbx's DECLARE/definition calling-convention rule with fbc's.
+"""Compare tiko-lang's DECLARE/definition calling-convention rule with fbc's.
 
     python tools/gen/check-callconv.py
 
 Reads tests/types/expected/fbc-callconv.txt -- produced by callconv-truth.py from fbc
-itself -- and replays each pairing through fbx. A refusal is FBX0603.
+itself -- and replays each pairing through tiko-lang. A refusal is TKO0603.
 """
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-callconv.txt"
 TGT = []
 LABEL = "win64"
 WORK = ROOT / "build/.cc"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 
 def spell(c):
@@ -29,9 +29,9 @@ def one_target() -> int:
         print(f"check-callconv: {LABEL} no truth file; run tools/gen/callconv-truth.py",
               file=sys.stderr)
         return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print(f"check-callconv: {LABEL} fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print(f"check-callconv: {LABEL} tiko not built", file=sys.stderr)
         return 3
 
     rows = [l.split("\t") for l in TRUTH.read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -43,14 +43,14 @@ def one_target() -> int:
                f"sub B {spell(f)}( byval x as long ) : end sub\n")
         p = WORK / "chk.bas"
         p.write_text(src, encoding="utf-8", newline="\n")
-        proc = subprocess.run([str(fbx), "--check"] + TGT + [str(p)],
+        proc = subprocess.run([str(tiko), "--check"] + TGT + [str(p)],
                               capture_output=True, text=True)
         out = (proc.stdout or "") + (proc.stderr or "")
-        got = "reject" if "FBX0603" in out else "accept"
+        got = "reject" if "TKO0603" in out else "accept"
         if got == want:
             ok += 1
         else:
-            bad.append(f"declare {d} / definition {f}: fbc={want} fbx={got}")
+            bad.append(f"declare {d} / definition {f}: fbc={want} tiko={got}")
 
     print(f"check-callconv: {LABEL} {ok}/{len(rows)} match")
     if bad:
@@ -64,7 +64,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

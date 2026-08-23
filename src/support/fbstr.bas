@@ -2,7 +2,7 @@
 
 #include once "support/fbstr.bi"
 
-namespace Fbx.Text
+namespace Tko.Text
 
 '' ------------------------------------------------------------------- big decimal
 ''
@@ -52,7 +52,7 @@ private sub DecMul( byref b as DecBuf, byval k as ulongint )
         if b.n >= DEC_LIMBS then
             '' Unreachable for any IEEE double; if it ever fires, the sizing argument
             '' above is wrong and the alternative is a silently truncated number.
-            print "fbx: internal error: decimal buffer overflow in StrOf*"
+            print "tiko-lang: internal error: decimal buffer overflow in StrOf*"
             end 4
         end if
         b.d(b.n) = cast(ulong, carry mod DEC_BASE)

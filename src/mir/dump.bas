@@ -7,10 +7,10 @@
 
 #include once "mir/dump.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 private function ValStr _
-    ( byref f as MirFunction, byref v as MirValue, byref names as Fbx.Interner, _
+    ( byref f as MirFunction, byref v as MirValue, byref names as Tko.Interner, _
       byval m as MirModule ptr = 0 ) as string
 
     select case v.kind
@@ -42,17 +42,17 @@ private function ValStr _
 end function
 
 private function BlockName _
-    ( byref f as MirFunction, byval idx as long, byref names as Fbx.Interner ) as string
+    ( byref f as MirFunction, byval idx as long, byref names as Tko.Interner ) as string
 
     if (idx < 0) orelse (idx >= f.blocks.Count) then return "bb?"
-    dim as Fbx.InternId l = f.blocks[idx].label
+    dim as Tko.InternId l = f.blocks[idx].label
     if l = 0 then return "bb" & str( idx )
     return names.Spelling( l )
 end function
 
 private function InstStr _
     ( byref f as MirFunction, byref ins as MirInst, byref m as MirModule, _
-      byref names as Fbx.Interner ) as string
+      byref names as Tko.Interner ) as string
 
     dim as MirOp op = cast( MirOp, ins.op )
     dim as string s = "    "
@@ -122,7 +122,7 @@ private function InstStr _
 end function
 
 function DumpModule _
-    ( byref m as MirModule, byref names as Fbx.Interner ) as string
+    ( byref m as MirModule, byref names as Tko.Interner ) as string
 
     dim as string outp = ""
     '' Globals come first so a function body's diff is not disturbed by one being
@@ -159,7 +159,7 @@ function DumpModule _
                 case 0 : outp += " 0"
                 case 1 : outp += " @" & names.Spelling( _
                              m.globals[cast( long, m.ptrRefs[e] )].name )
-                case else : outp += " " & names.Spelling( cast( Fbx.InternId, m.ptrRefs[e] ) )
+                case else : outp += " " & names.Spelling( cast( Tko.InternId, m.ptrRefs[e] ) )
                 end select
             next
             outp += " ]" & chr( 10 )

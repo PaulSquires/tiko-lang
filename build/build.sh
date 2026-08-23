@@ -1,5 +1,5 @@
 #!/bin/sh
-# build.sh -- build fbx with the stage0 compiler (FBC-Modern).
+# build.sh -- build tiko-lang with the stage0 compiler (FBC-Modern).
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo] [--test-runner]
 #
@@ -11,25 +11,25 @@ set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CFG=${1:-Debug}
 
-# Executable suffix. Without this the script writes bin/fbx on Windows while
-# everything else looks for bin/fbx.exe, and the stale .exe keeps being tested.
+# Executable suffix. Without this the script writes bin/tiko on Windows while
+# everything else looks for bin/tiko.exe, and the stale .exe keeps being tested.
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOSTWIN=1; EXT=".exe" ;;
     *)                    HOSTWIN=0; EXT="" ;;
 esac
 
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
-if [ -z "$FBX_STAGE0" ]; then
+if [ -z "$TKO_STAGE0" ]; then
     if [ "$HOSTWIN" = "1" ]; then
-        FBX_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"
+        TKO_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"
     else
-        FBX_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-linux/bin/fbc"
+        TKO_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-linux/bin/fbc"
     fi
 fi
 
-if [ ! -x "$FBX_STAGE0" ]; then
-    echo "build: stage0 compiler not found at $FBX_STAGE0" >&2
-    echo "build: set FBX_STAGE0 to an FBC-Modern fbc" >&2
+if [ ! -x "$TKO_STAGE0" ]; then
+    echo "build: stage0 compiler not found at $TKO_STAGE0" >&2
+    echo "build: set TKO_STAGE0 to an FBC-Modern fbc" >&2
     exit 3
 fi
 
@@ -48,12 +48,12 @@ MAINMOD=$(basename "$MAIN" .bas)
 
 mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
 
-echo "build: fbx [$CFG] with $FBX_STAGE0"
-( cd "$ROOT" && "$FBX_STAGE0" $SOURCES -m "$MAINMOD" -i src $FLAGS -x "bin/fbx$EXT" )
+echo "build: tiko-lang [$CFG] with $TKO_STAGE0"
+( cd "$ROOT" && "$TKO_STAGE0" $SOURCES -m "$MAINMOD" -i src $FLAGS -x "bin/tiko$EXT" )
 
 if [ "$2" = "--test-runner" ] || [ "$1" = "--test-runner" ]; then
-    echo "build: fbx-test [$CFG]"
-    ( cd "$ROOT" && "$FBX_STAGE0" tools/fbx-test/fbxtest.bas -i src $FLAGS -x "bin/fbx-test$EXT" )
+    echo "build: tiko-test [$CFG]"
+    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $FLAGS -x "bin/tiko-test$EXT" )
 fi
 
 echo "build: ok"

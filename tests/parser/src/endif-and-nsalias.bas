@@ -14,7 +14,7 @@
 '' name for every procedure in the namespace, silently -- which is why the alias reaches
 '' the namespace SYMBOL and not just the AST.
 ''
-'' fbc REJECTS an empty alias, error 304 'ALIAS name string is empty'. fbx accepts it;
+'' fbc REJECTS an empty alias, error 304 'ALIAS name string is empty'. tiko-lang accepts it;
 '' that diagnostic is owed.
 
 dim i as long

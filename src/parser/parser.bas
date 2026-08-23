@@ -36,37 +36,37 @@
 #include once "parser/intrinsics.bi"
 #include once "support/text.bi"
 
-namespace Fbx.Parse
+namespace Tko.Parse
 
-declare function IsDeclarationStart( byval k as Fbx.TokenKind ) as boolean
-declare function Declaration( byref p as Fbx.ParserState ) as Fbx.NodeId
-declare function Block( byref p as Fbx.ParserState ) as Fbx.NodeId
-declare sub EndOfStatement( byref p as Fbx.ParserState )
-declare sub SkipEols( byref p as Fbx.ParserState )
-declare function AtEnd( byref p as Fbx.ParserState ) as boolean
-declare function ParseIntrinsic( byref p as Fbx.ParserState ) as Fbx.NodeId
-declare sub ParseParamList( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
+declare function IsDeclarationStart( byval k as Tko.TokenKind ) as boolean
+declare function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
+declare function Block( byref p as Tko.ParserState ) as Tko.NodeId
+declare sub EndOfStatement( byref p as Tko.ParserState )
+declare sub SkipEols( byref p as Tko.ParserState )
+declare function AtEnd( byref p as Tko.ParserState ) as boolean
+declare function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
+declare sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
 
-function AtEnd( byref p as Fbx.ParserState ) as boolean
-    return (Peek( p ) = Fbx.TK_EOF)
+function AtEnd( byref p as Tko.ParserState ) as boolean
+    return (Peek( p ) = Tko.TK_EOF)
 end function
 
-sub SkipEols( byref p as Fbx.ParserState )
-    while Peek( p ) = Fbx.TK_EOL
+sub SkipEols( byref p as Tko.ParserState )
+    while Peek( p ) = Tko.TK_EOL
         Advance( p )
     wend
 end sub
 
-sub EndOfStatement( byref p as Fbx.ParserState )
+sub EndOfStatement( byref p as Tko.ParserState )
     '' A statement never consumes more than its own terminator.
-    while (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
+    while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
         Advance( p )
     wend
-    if Peek( p ) = Fbx.TK_EOL then Advance( p )
+    if Peek( p ) = Tko.TK_EOL then Advance( p )
 end sub
 
 '' Recovery: consume to the next line, guaranteeing progress so no input can loop.
-private sub Sync( byref p as Fbx.ParserState )
+private sub Sync( byref p as Tko.ParserState )
     dim as long before = p.pos
     EndOfStatement( p )
     if p.pos = before then Advance( p )
@@ -75,19 +75,19 @@ end sub
 ''  Does an '=' follow the token at the cursor? Used to tell a statement intrinsic
 '' from a variable or field of the same name. '==' is not an operator in FreeBASIC, so
 '' a single TK_EQ is unambiguous.
-private function FollowedByAssign( byref p as Fbx.ParserState ) as boolean
+private function FollowedByAssign( byref p as Tko.ParserState ) as boolean
     if HasTok( p, p.pos + 1 ) = false then return false
-    return (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EQ)
+    return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ)
 end function
 
 '' The keywords that may follow END to close a block. Taken from the ExpectEnd call
 '' sites, so the two cannot drift: anything ExpectEnd is asked to close must appear here.
-private function ClosesABlock( byval k as Fbx.TokenKind ) as boolean
+private function ClosesABlock( byval k as Tko.TokenKind ) as boolean
     select case k
-    case Fbx.KW_IF, Fbx.KW_SELECT, Fbx.KW_WHILE, Fbx.KW_WITH, Fbx.KW_SCOPE, _
-         Fbx.KW_ASM, Fbx.KW_ENUM, Fbx.KW_NAMESPACE, Fbx.KW_EXTERN, Fbx.KW_TYPE, _
-         Fbx.KW_UNION, Fbx.KW_SUB, Fbx.KW_FUNCTION, Fbx.KW_CONSTRUCTOR, _
-         Fbx.KW_DESTRUCTOR, Fbx.KW_PROPERTY, Fbx.KW_OPERATOR
+    case Tko.KW_IF, Tko.KW_SELECT, Tko.KW_WHILE, Tko.KW_WITH, Tko.KW_SCOPE, _
+         Tko.KW_ASM, Tko.KW_ENUM, Tko.KW_NAMESPACE, Tko.KW_EXTERN, Tko.KW_TYPE, _
+         Tko.KW_UNION, Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_CONSTRUCTOR, _
+         Tko.KW_DESTRUCTOR, Tko.KW_PROPERTY, Tko.KW_OPERATOR
         return true
     end select
     return false
@@ -114,28 +114,28 @@ end function
 '' '... else print 2' are all accepted, and a bare 'print end' is error 3, "Expected
 '' End-of-Line, found 'end'". So END, ENDIF, ELSE and ELSEIF can never be an item, and
 '' stopping at them costs nothing that was legal.
-function EndsSingleLineStmt( byref p as Fbx.ParserState ) as boolean
+function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean
     select case Peek( p )
-    case Fbx.KW_END, Fbx.KW_ENDIF, Fbx.KW_ELSE, Fbx.KW_ELSEIF
+    case Tko.KW_END, Tko.KW_ENDIF, Tko.KW_ELSE, Tko.KW_ELSEIF
         return true
     end select
     return false
 end function
 
-private function IsBlockEnderAt( byref p as Fbx.ParserState ) as boolean
-    dim as Fbx.TokenKind k = Peek( p )
+private function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
+    dim as Tko.TokenKind k = Peek( p )
     select case k
     '' ENDIF is 'END IF' written as ONE WORD, and it closes a block exactly as the
     '' two-word form does. Measured: fbc accepts it, with and without ELSEIF/ELSE
     '' branches before it.
-    case Fbx.KW_ELSE, Fbx.KW_ELSEIF, Fbx.KW_NEXT, Fbx.KW_LOOP, _
-         Fbx.KW_WEND, Fbx.KW_CASE, Fbx.KW_ENDIF, Fbx.TK_EOF
+    case Tko.KW_ELSE, Tko.KW_ELSEIF, Tko.KW_NEXT, Tko.KW_LOOP, _
+         Tko.KW_WEND, Tko.KW_CASE, Tko.KW_ENDIF, Tko.TK_EOF
         return true
-    case Fbx.KW_END
+    case Tko.KW_END
         if HasTok( p, p.pos + 1 ) = false then return true
-        dim as Fbx.TokenKind nk = cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind )
+        dim as Tko.TokenKind nk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
         '' 'end' alone on its line, or 'end <expr>', is the STATEMENT.
-        if nk = Fbx.TK_EOL then return false
+        if nk = Tko.TK_EOL then return false
         if ClosesABlock( nk ) then return true
         return false
     end select
@@ -143,17 +143,17 @@ private function IsBlockEnderAt( byref p as Fbx.ParserState ) as boolean
 end function
 
 '' A statement list, stopping before whatever closes the enclosing construct.
-function Block( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
-    dim as Fbx.NodeIdVec items
+function Block( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.NodeIdVec items
     do
         SkipEols( p )
         if AtEnd( p ) then exit do
         if IsBlockEnderAt( p ) then exit do
-        dim as Fbx.NodeId s = Statement( p )
-        if s <> Fbx.NODE_NONE then items.Push( cast( ulong, s ) )
+        dim as Tko.NodeId s = Statement( p )
+        if s <> Tko.NODE_NONE then items.Push( cast( ulong, s ) )
     loop
-    return MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, items )
+    return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, items )
 end function
 
 '' 'END IF', 'END SUB' ... -- accepted with or without the trailing keyword, because
@@ -163,46 +163,46 @@ end function
 '' and nothing points at the construct that was never closed. The opener's location is
 '' in hand at every call site, so it is carried and reported as a note.
 private sub ExpectEnd _
-    ( byref p as Fbx.ParserState, byval what as Fbx.TokenKind, _
-      byval openedAt as Fbx.SourceLoc = 0 )
+    ( byref p as Tko.ParserState, byval what as Tko.TokenKind, _
+      byval openedAt as Tko.SourceLoc = 0 )
 
     '' 'endif' is one token and closes an IF on its own.
-    if (what = Fbx.KW_IF) andalso (Peek( p ) = Fbx.KW_ENDIF) then
+    if (what = Tko.KW_IF) andalso (Peek( p ) = Tko.KW_ENDIF) then
         Advance( p )
         return
     end if
-    if Accept( p, Fbx.KW_END ) then
+    if Accept( p, Tko.KW_END ) then
         if Peek( p ) = what then Advance( p )
         return
     end if
-    ErrorNode( p, Fbx.FBX0405, Fbx.TokenKindText( what ) )
+    ErrorNode( p, Tko.TKO0405, Tko.TokenKindText( what ) )
     if openedAt <> 0 then
-        p.diags->AddNote( Fbx.FBX0905, Fbx.PointRange( openedAt ), _
-                          Fbx.TokenKindText( what ) )
+        p.diags->AddNote( Tko.TKO0905, Tko.PointRange( openedAt ), _
+                          Tko.TokenKindText( what ) )
     end if
 end sub
 
 '' ---------------------------------------------------------------- type references
 
-function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
-    dim as Fbx.StmtPayload sp
+function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.StmtPayload sp
     dim as ushort flags = 0
 
     '' 'const T' and 'T const' are both written; the qualifier is a flag, not a level.
-    while Peek( p ) = Fbx.KW_CONST
+    while Peek( p ) = Tko.KW_CONST
         Advance( p )
-        flags or= Fbx.NF_CONST
+        flags or= Tko.NF_CONST
     wend
 
     '' A procedure type: 'sub|function [cdecl|stdcall|pascal] ( params ) [as T]'.
     '' This is what 'as function cdecl ( ) as long = NULL' needs, and it appears
     '' throughout real headers as a callback parameter.
-    dim as Fbx.TokenKind pk = Peek( p )
-    if (pk = Fbx.KW_SUB) orelse (pk = Fbx.KW_FUNCTION) then
+    dim as Tko.TokenKind pk = Peek( p )
+    if (pk = Tko.KW_SUB) orelse (pk = Tko.KW_FUNCTION) then
         Advance( p )
         sp.op = cast( ushort, pk )
-        while Fbx.IsCallConvKind( Peek( p ) )
+        while Tko.IsCallConvKind( Peek( p ) )
             Advance( p )
         wend
         ParseParamList( p, sp )
@@ -210,22 +210,22 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
         '' modifier sits before the AS, so 'Accept( KW_AS )' failed and the return type
         '' was left for the caller to trip over: 'expected )'. The same shape as the
         '' byref-returning procedure DECLARATION, which cost a run of its own.
-        dim as boolean byrefRet = Accept( p, Fbx.KW_BYREF )
-        if Accept( p, Fbx.KW_AS ) then sp.a = TypeRef( p )
-        if byrefRet then sp.extra or= Fbx.PF_BYREF_RESULT
-        dim as Fbx.NodeId pn = MakeStmt( p, Fbx.N_TYPEREF, t.loc, sp )
-        p.ast->nodes[cast( long, pn )].flags or= flags or Fbx.NF_PROC_TYPE
-        while (Peek( p ) = Fbx.KW_PTR) orelse (Peek( p ) = Fbx.KW_POINTER)
+        dim as boolean byrefRet = Accept( p, Tko.KW_BYREF )
+        if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
+        if byrefRet then sp.extra or= Tko.PF_BYREF_RESULT
+        dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
+        p.ast->nodes[cast( long, pn )].flags or= flags or Tko.NF_PROC_TYPE
+        while (Peek( p ) = Tko.KW_PTR) orelse (Peek( p ) = Tko.KW_POINTER)
             Advance( p )
-            dim as Fbx.StmtPayload up
+            dim as Tko.StmtPayload up
             up.a = pn
-            pn = MakeStmt( p, Fbx.N_TYPEREF, t.loc, up )
-            p.ast->nodes[cast( long, pn )].flags or= Fbx.NF_PTR
+            pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, up )
+            p.ast->nodes[cast( long, pn )].flags or= Tko.NF_PTR
         wend
         return pn
     end if
 
-    dim as Fbx.TokenKind k = Peek( p )
+    dim as Tko.TokenKind k = Peek( p )
 
     '' A TUPLE type: 'as (long, string)'. Measured against fbc -- it is accepted in
     '' every type position, its fields are '_1'.._N, and its layout is EXACTLY the
@@ -234,10 +234,10 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     ''
     '' The elements are the typeref's children; the type itself is built in Resolve,
     '' where two identical tuples can be unified.
-    if k = Fbx.TK_LPAREN then
+    if k = Tko.TK_LPAREN then
         Advance( p )
-        dim as Fbx.NodeIdVec elems
-        if Peek( p ) <> Fbx.TK_RPAREN then
+        dim as Tko.NodeIdVec elems
+        if Peek( p ) <> Tko.TK_RPAREN then
             do
                 '' 'name as T' -- the name is read and discarded, which is what makes
                 '' it documentation rather than a field name.
@@ -245,10 +245,10 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
                 '' string)' is in the corpus, and NAME is the NAME statement. The
                 '' following AS is what tells a name from a type: an element that IS a
                 '' type is followed by ',' or ')'.
-                dim as Fbx.TokenKind ek = Peek( p )
-                if (ek = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( ek ) then
+                dim as Tko.TokenKind ek = Peek( p )
+                if (ek = Tko.TK_IDENT) orelse Tko.IsKeywordKind( ek ) then
                     if HasTok( p, p.pos + 1 ) then
-                        if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.KW_AS then
+                        if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.KW_AS then
                             Advance( p )
                             Advance( p )
                         end if
@@ -257,31 +257,31 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
                 dim as long before = p.pos
                 elems.Push( cast( ulong, TypeRef( p ) ) )
                 if p.pos = before then exit do
-                if Accept( p, Fbx.TK_COMMA ) = false then exit do
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
         end if
-        Expect( p, Fbx.TK_RPAREN, ")" )
+        Expect( p, Tko.TK_RPAREN, ")" )
         '' Marked by 'op', not by a node flag and not by a different payload kind. The
         '' ushort NF_ set is fully allocated, and giving one N_TYPEREF a LIST payload
         '' where every other has a STMT payload is the pool mistake this codebase has
         '' made six times. No builtin type is spelled '(' , so the op is free.
-        dim as Fbx.StmtPayload tp
-        tp.op = cast( ushort, Fbx.TK_LPAREN )
+        dim as Tko.StmtPayload tp
+        tp.op = cast( ushort, Tko.TK_LPAREN )
         tp.first = p.ast->children.Count
         tp.count = elems.Count
         for i as long = 0 to elems.Count - 1
             p.ast->children.Push( elems[i] )
         next
-        return MakeStmt( p, Fbx.N_TYPEREF, t.loc, tp )
+        return MakeStmt( p, Tko.N_TYPEREF, t.loc, tp )
     end if
 
-    dim as boolean named = (k = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( k )
-    if named = false then return ErrorNode( p, Fbx.FBX0406 )
+    dim as boolean named = (k = Tko.TK_IDENT) orelse Tko.IsKeywordKind( k )
+    if named = false then return ErrorNode( p, Tko.TKO0406 )
 
-    if k = Fbx.TK_IDENT then
-        sp.name = cast( Fbx.InternId, Cur( p ).literal )
+    if k = Tko.TK_IDENT then
+        sp.name = cast( Tko.InternId, Cur( p ).literal )
     else
-        sp.name = p.names->GetString( Fbx.Text.LowerAscii( Fbx.TokenKindText( k ) ) )
+        sp.name = p.names->GetString( Tko.Text.LowerAscii( Tko.TokenKindText( k ) ) )
     end if
     sp.op = cast( ushort, k )
     Advance( p )
@@ -298,7 +298,7 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' wrong -- the inner may be a type OR an expression, and telling which needs
     '' Check. That is no worse than the named type it used to produce, which resolved
     '' to nothing either, and it stops the leftover tokens breaking what follows.
-    if (k = Fbx.KW_TYPEOF) andalso (Peek( p ) = Fbx.TK_LPAREN) then
+    if (k = Tko.KW_TYPEOF) andalso (Peek( p ) = Tko.TK_LPAREN) then
         '' THE OPERAND IS KEPT when it is a bare NAME, which is what the corpus almost
         '' always writes -- 'typeof( s )', 'typeof( a )', 'typeof( T )'. Resolve takes
         '' the type of whatever that name turns out to be, a variable's or a type's.
@@ -312,13 +312,13 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
         dim as long save2 = p.pos
         dim as boolean tookName = false
         if HasTok( p, p.pos + 1 ) andalso HasTok( p, p.pos + 2 ) then
-            dim as Fbx.Token inner = p.toks->At( p.pos + 1 )
-            dim as Fbx.TokenKind after = cast( Fbx.TokenKind, p.toks->At( p.pos + 2 ).kind )
-            if (cast( Fbx.TokenKind, inner.kind ) = Fbx.TK_IDENT) andalso _
-               (after = Fbx.TK_RPAREN) then
+            dim as Tko.Token inner = p.toks->At( p.pos + 1 )
+            dim as Tko.TokenKind after = cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind )
+            if (cast( Tko.TokenKind, inner.kind ) = Tko.TK_IDENT) andalso _
+               (after = Tko.TK_RPAREN) then
                 '' 'rawName' is an InternId and unused on a TYPEREF; 'b' is a NodeId
                 '' and putting a name in it would be a pun on the wrong pool.
-                sp.rawName = cast( Fbx.InternId, inner.literal )
+                sp.rawName = cast( Tko.InternId, inner.literal )
                 tookName = true
             end if
         end if
@@ -338,8 +338,8 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             dim as long savedErrors = p.errors
             p.silent = true
             Advance( p )                       '' past '('
-            dim as Fbx.NodeId opnd = Expression( p )
-            dim as boolean landed = (Peek( p ) = Fbx.TK_RPAREN)
+            dim as Tko.NodeId opnd = Expression( p )
+            dim as boolean landed = (Peek( p ) = Tko.TK_RPAREN)
             p.silent = savedSilent
             p.errors = savedErrors
             '' 'typeof( sub( ) )' AND 'typeof( function( ) as long )' ARE TYPES, and
@@ -350,13 +350,13 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' the expression parse at all -- everything else, 'integer', 'const T',
             '' 'T ptr', stops short of the ')' and is rejected by the landing test.
             dim as boolean isSignature = false
-            if (opnd <> Fbx.NODE_NONE) andalso landed then
-                if p.ast->Kind( opnd ) = Fbx.N_CALL then
-                    dim as Fbx.ListPayload ptr olp = _
+            if (opnd <> Tko.NODE_NONE) andalso landed then
+                if p.ast->Kind( opnd ) = Tko.N_CALL then
+                    dim as Tko.ListPayload ptr olp = _
                         @p.ast->lists[cast( long, p.ast->nodes[cast( long, opnd )].data )]
-                    if olp->target <> Fbx.NODE_NONE then
-                        if p.ast->Kind( olp->target ) = Fbx.N_IDENT then
-                            dim as Fbx.IdentPayload ptr oip = _
+                    if olp->target <> Tko.NODE_NONE then
+                        if p.ast->Kind( olp->target ) = Tko.N_IDENT then
+                            dim as Tko.IdentPayload ptr oip = _
                                 @p.ast->idents[cast( long, _
                                     p.ast->nodes[cast( long, olp->target )].data )]
                             select case p.names->Spelling( oip->name )
@@ -369,7 +369,7 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             end if
             if isSignature then landed = false
 
-            if landed andalso (opnd <> Fbx.NODE_NONE) then
+            if landed andalso (opnd <> Tko.NODE_NONE) then
                 sp.b = opnd
                 Advance( p )                   '' past ')'
                 tookName = true                '' nothing left to skip
@@ -378,12 +378,12 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             end if
         end if
 
-        if tookName = false orelse (sp.b = Fbx.NODE_NONE) then
+        if tookName = false orelse (sp.b = Tko.NODE_NONE) then
             dim as long depth = 0
             do
-                dim as Fbx.TokenKind tk = Peek( p )
-                if tk = Fbx.TK_LPAREN then depth += 1
-                if tk = Fbx.TK_RPAREN then depth -= 1
+                dim as Tko.TokenKind tk = Peek( p )
+                if tk = Tko.TK_LPAREN then depth += 1
+                if tk = Tko.TK_RPAREN then depth -= 1
                 Advance( p )
                 if depth <= 0 then exit do
                 if AtEnd( p ) then exit do
@@ -398,28 +398,28 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' Without this the second word was simply left behind: 'dim as unsigned byte a'
     '' produced a TYPEREF of 'unsigned' and the declaration silently had the wrong type,
     '' which no diagnostic would ever mention.
-    if k = Fbx.KW_UNSIGNED then
-        dim as Fbx.TokenKind u = Peek( p )
-        dim as Fbx.TokenKind mapped = cast( Fbx.TokenKind, 0 )
+    if k = Tko.KW_UNSIGNED then
+        dim as Tko.TokenKind u = Peek( p )
+        dim as Tko.TokenKind mapped = cast( Tko.TokenKind, 0 )
         select case u
-        case Fbx.KW_BYTE    : mapped = Fbx.KW_UBYTE
-        case Fbx.KW_SHORT   : mapped = Fbx.KW_USHORT
-        case Fbx.KW_LONG    : mapped = Fbx.KW_ULONG
-        case Fbx.KW_INTEGER : mapped = Fbx.KW_UINTEGER
-        case Fbx.KW_LONGINT : mapped = Fbx.KW_ULONGINT
+        case Tko.KW_BYTE    : mapped = Tko.KW_UBYTE
+        case Tko.KW_SHORT   : mapped = Tko.KW_USHORT
+        case Tko.KW_LONG    : mapped = Tko.KW_ULONG
+        case Tko.KW_INTEGER : mapped = Tko.KW_UINTEGER
+        case Tko.KW_LONGINT : mapped = Tko.KW_ULONGINT
         end select
-        if mapped <> cast( Fbx.TokenKind, 0 ) then
+        if mapped <> cast( Tko.TokenKind, 0 ) then
             Advance( p )
             sp.op = cast( ushort, mapped )
             sp.name = p.names->GetString( _
-                Fbx.Text.LowerAscii( Fbx.TokenKindText( mapped ) ) )
-        elseif u = Fbx.TK_IDENT then
+                Tko.Text.LowerAscii( Tko.TokenKindText( mapped ) ) )
+        elseif u = Tko.TK_IDENT then
             '' 'unsigned cxxlongint' -- UNSIGNED before a TYPEDEF rather than a builtin
             '' keyword. The name is carried here and 'op' is left as KW_UNSIGNED, which
             '' is what tells Resolve to take the unsigned counterpart of whatever the
             '' name turns out to be. No new node flag is needed: the two facts fit in
             '' the two fields already there.
-            sp.name = cast( Fbx.InternId, Cur( p ).literal )
+            sp.name = cast( Tko.InternId, Cur( p ).literal )
             Advance( p )
         end if
     end if
@@ -438,9 +438,9 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     ''
     '' A dotted InternId rather than a list because the payload has one field for this
     '' and a name with a dot in it cannot collide with a real identifier.
-    while Peek( p ) = Fbx.TK_DOT
+    while Peek( p ) = Tko.TK_DOT
         Advance( p )
-        if (Peek( p ) = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( Peek( p ) ) then
+        if (Peek( p ) = Tko.TK_IDENT) orelse Tko.IsKeywordKind( Peek( p ) ) then
             if sp.ownerName = 0 then
                 sp.ownerName = sp.name
             else
@@ -453,11 +453,11 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' called 'line' produced a TYPEREF WITH NO NAME AT ALL and the variable's
             '' slot lowered to void. Unqualified 'dim as line m' worked, because the
             '' base-name path above already made this distinction.
-            if Peek( p ) = Fbx.TK_IDENT then
-                sp.name = cast( Fbx.InternId, Cur( p ).literal )
+            if Peek( p ) = Tko.TK_IDENT then
+                sp.name = cast( Tko.InternId, Cur( p ).literal )
             else
                 sp.name = p.names->GetString( _
-                    Fbx.Text.LowerAscii( Fbx.TokenKindText( Peek( p ) ) ) )
+                    Tko.Text.LowerAscii( Tko.TokenKindText( Peek( p ) ) ) )
             end if
             Advance( p )
         else
@@ -466,12 +466,12 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     wend
 
     '' Generic arguments: 'Box( of long )'.
-    if Peek( p ) = Fbx.TK_LPAREN then
+    if Peek( p ) = Tko.TK_LPAREN then
         dim as long save = p.pos
         Advance( p )
         dim as boolean isGeneric = false
-        if Peek( p ) = Fbx.TK_IDENT then
-            isGeneric = (p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) = "of")
+        if Peek( p ) = Tko.TK_IDENT then
+            isGeneric = (p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) = "of")
         end if
         if isGeneric then
             '' 'as Box( of long )' -- THE ARGUMENTS ARE KEPT, in first/count, as
@@ -481,14 +481,14 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' Nested arguments fall out for free: 'Box( of Box( of long ) )' recurses
             '' through TypeRef, which handles its own generic list the same way.
             Advance( p )
-            dim as Fbx.NodeIdVec gargs
+            dim as Tko.NodeIdVec gargs
             do
                 dim as long beforeG = p.pos
                 gargs.Push( cast( ulong, TypeRef( p ) ) )
                 if p.pos = beforeG then exit do
-                if Accept( p, Fbx.TK_COMMA ) = false then exit do
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
-            Expect( p, Fbx.TK_RPAREN, ")" )
+            Expect( p, Tko.TK_RPAREN, ")" )
             sp.first = p.ast->children.Count
             sp.count = gargs.Count
             for i as long = 0 to gargs.Count - 1
@@ -510,11 +510,11 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' 'as long alias "int"' with a syntax error. That restriction is not applied here --
     '' the shape parses for any type and the diagnostic is owed from the checker, which
     '' does not emit it yet. Recorded rather than silently permitted.
-    if Peek( p ) = Fbx.KW_ALIAS then
+    if Peek( p ) = Tko.KW_ALIAS then
         dim as long saveAlias = p.pos
         Advance( p )
-        if Peek( p ) = Fbx.TK_STRING_LIT then
-            sp.b = Expression( p, Fbx.PREC_POSTFIX )
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            sp.b = Expression( p, Tko.PREC_POSTFIX )
         else
             p.pos = saveAlias
         end if
@@ -536,36 +536,36 @@ function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' '= "x"' as a comparison: 5,089 corpus statements stopped lowering, every one of
     '' them in a wstring or zstring test, for a change that was meant to widen what
     '' parses.
-    if Peek( p ) = Fbx.TK_STAR then
+    if Peek( p ) = Tko.TK_STAR then
         dim as long save = p.pos
         Advance( p )
-        dim as Fbx.TokenKind lk = Peek( p )
-        dim as boolean startsLen = (lk = Fbx.TK_INT_LIT) orelse (lk = Fbx.TK_IDENT) orelse _
-                                   (lk = Fbx.TK_LPAREN)
+        dim as Tko.TokenKind lk = Peek( p )
+        dim as boolean startsLen = (lk = Tko.TK_INT_LIT) orelse (lk = Tko.TK_IDENT) orelse _
+                                   (lk = Tko.TK_LPAREN)
         if startsLen then
-            sp.c = Expression( p, Fbx.PREC_CONCAT )
+            sp.c = Expression( p, Tko.PREC_CONCAT )
         else
             p.pos = save
         end if
     end if
 
-    dim as Fbx.NodeId n = MakeStmt( p, Fbx.N_TYPEREF, t.loc, sp )
+    dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
     p.ast->nodes[cast( long, n )].flags or= flags
 
     '' 'ptr' may repeat, and 'const' may appear between levels: 'const zstring ptr'.
     do
-        if Peek( p ) = Fbx.KW_CONST then
+        if Peek( p ) = Tko.KW_CONST then
             Advance( p )
-            p.ast->nodes[cast( long, n )].flags or= Fbx.NF_CONST
+            p.ast->nodes[cast( long, n )].flags or= Tko.NF_CONST
             continue do
         end if
-        dim as boolean isPtr = (Peek( p ) = Fbx.KW_PTR) orelse (Peek( p ) = Fbx.KW_POINTER)
+        dim as boolean isPtr = (Peek( p ) = Tko.KW_PTR) orelse (Peek( p ) = Tko.KW_POINTER)
         if isPtr = false then exit do
         Advance( p )
-        dim as Fbx.StmtPayload up
+        dim as Tko.StmtPayload up
         up.a = n
-        n = MakeStmt( p, Fbx.N_TYPEREF, t.loc, up )
-        p.ast->nodes[cast( long, n )].flags or= Fbx.NF_PTR
+        n = MakeStmt( p, Tko.N_TYPEREF, t.loc, up )
+        p.ast->nodes[cast( long, n )].flags or= Tko.NF_PTR
     loop
 
     return n
@@ -573,26 +573,26 @@ end function
 
 '' ------------------------------------------------------------------- statements
 
-private function ParseIf( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )
 
-    dim as Fbx.StmtPayload sp
-    dim as Fbx.NodeIdVec branches
+    dim as Tko.StmtPayload sp
+    dim as Tko.NodeIdVec branches
 
-    dim as Fbx.StmtPayload first_
+    dim as Tko.StmtPayload first_
     first_.a = Expression( p )
-    if Peek( p ) = Fbx.KW_THEN then Advance( p )
+    if Peek( p ) = Tko.KW_THEN then Advance( p )
 
     '' 'if c then stmt' on one line is the same node with a flag, so semantics and
     '' lowering see one shape (docs/plan/04 section 4).
-    dim as boolean singleLine = (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
+    dim as boolean singleLine = (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
     if singleLine then
-        dim as Fbx.NodeIdVec one
-        dim as Fbx.NodeId s = Statement( p )
-        if s <> Fbx.NODE_NONE then one.Push( cast( ulong, s ) )
-        first_.b = MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, one )
-        branches.Push( cast( ulong, MakeStmt( p, Fbx.N_IF_BRANCH, t.loc, first_ ) ) )
+        dim as Tko.NodeIdVec one
+        dim as Tko.NodeId s = Statement( p )
+        if s <> Tko.NODE_NONE then one.Push( cast( ulong, s ) )
+        first_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, one )
+        branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )
         '' 'if c then s : end if' terminates explicitly. ':' and a newline both lex
         '' as an EOL, so the token kinds cannot tell them apart -- only the LINE can:
         ''
@@ -604,8 +604,8 @@ private function ParseIf( byref p as Fbx.ParserState ) as Fbx.NodeId
         '' which then consumed the enclosing 'end function', which left a namespace
         '' unclosed hundreds of lines later. The 'end' is this IF's only if it is on
         '' this IF's own line.
-        if (Peek( p ) = Fbx.KW_END) andalso HasTok( p, p.pos + 1 ) then
-            if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Fbx.KW_IF ) then
+        if (Peek( p ) = Tko.KW_END) andalso HasTok( p, p.pos + 1 ) then
+            if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
                 if p.src->Decode( Cur( p ).loc ).lineNo = _
                    p.src->Decode( t.loc ).lineNo then
                     Advance( p )
@@ -614,78 +614,78 @@ private function ParseIf( byref p as Fbx.ParserState ) as Fbx.NodeId
             end if
         end if
 
-        dim as Fbx.NodeId n = MakeStmt( p, Fbx.N_IF, t.loc, sp )
-        p.ast->nodes[cast( long, n )].flags or= Fbx.NF_SINGLE_LINE
-        dim as Fbx.StmtPayload done_
-        done_.b = MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, branches )
+        dim as Tko.NodeId n = MakeStmt( p, Tko.N_IF, t.loc, sp )
+        p.ast->nodes[cast( long, n )].flags or= Tko.NF_SINGLE_LINE
+        dim as Tko.StmtPayload done_
+        done_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, branches )
         p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )] = done_
         return n
     end if
 
     first_.b = Block( p )
-    branches.Push( cast( ulong, MakeStmt( p, Fbx.N_IF_BRANCH, t.loc, first_ ) ) )
+    branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )
 
-    while Peek( p ) = Fbx.KW_ELSEIF
-        dim as Fbx.Token et = Cur( p )
+    while Peek( p ) = Tko.KW_ELSEIF
+        dim as Tko.Token et = Cur( p )
         Advance( p )
-        dim as Fbx.StmtPayload br
+        dim as Tko.StmtPayload br
         br.a = Expression( p )
-        if Peek( p ) = Fbx.KW_THEN then Advance( p )
+        if Peek( p ) = Tko.KW_THEN then Advance( p )
         br.b = Block( p )
-        branches.Push( cast( ulong, MakeStmt( p, Fbx.N_IF_BRANCH, et.loc, br ) ) )
+        branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, et.loc, br ) ) )
     wend
 
-    if Accept( p, Fbx.KW_ELSE ) then sp.c = Block( p )
+    if Accept( p, Tko.KW_ELSE ) then sp.c = Block( p )
 
-    sp.b = MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, branches )
-    ExpectEnd( p, Fbx.KW_IF )
-    return MakeStmt( p, Fbx.N_IF, t.loc, sp )
+    sp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, branches )
+    ExpectEnd( p, Tko.KW_IF )
+    return MakeStmt( p, Tko.N_IF, t.loc, sp )
 end function
 
-private function ParseSelect( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )
-    if Peek( p ) = Fbx.KW_CASE then Advance( p )
-    if Peek( p ) = Fbx.KW_AS then
+    if Peek( p ) = Tko.KW_CASE then Advance( p )
+    if Peek( p ) = Tko.KW_AS then
         Advance( p )                          '' 'select case as const'
-        if Peek( p ) = Fbx.KW_CONST then Advance( p )
+        if Peek( p ) = Tko.KW_CONST then Advance( p )
     end if
 
-    dim as Fbx.StmtPayload sp
+    dim as Tko.StmtPayload sp
     sp.a = Expression( p )
 
-    dim as Fbx.NodeIdVec cases
+    dim as Tko.NodeIdVec cases
     do
         SkipEols( p )
-        if Peek( p ) <> Fbx.KW_CASE then exit do
-        dim as Fbx.Token ct = Cur( p )
+        if Peek( p ) <> Tko.KW_CASE then exit do
+        dim as Tko.Token ct = Cur( p )
         Advance( p )
 
-        if Accept( p, Fbx.KW_ELSE ) then
+        if Accept( p, Tko.KW_ELSE ) then
             sp.c = Block( p )
             continue do
         end if
 
-        dim as Fbx.StmtPayload cs
-        dim as Fbx.NodeIdVec patterns
+        dim as Tko.StmtPayload cs
+        dim as Tko.NodeIdVec patterns
         do
-            dim as Fbx.Token pt = Cur( p )
-            dim as Fbx.StmtPayload pat
-            if Accept( p, Fbx.KW_IS ) then
+            dim as Tko.Token pt = Cur( p )
+            dim as Tko.StmtPayload pat
+            if Accept( p, Tko.KW_IS ) then
                 pat.op = cast( ushort, Peek( p ) )
                 Advance( p )
                 pat.a = Expression( p )
-                patterns.Push( cast( ulong, MakeStmt( p, Fbx.N_CASE_RANGE, pt.loc, pat ) ) )
+                patterns.Push( cast( ulong, MakeStmt( p, Tko.N_CASE_RANGE, pt.loc, pat ) ) )
             else
                 pat.a = Expression( p )
-                if Accept( p, Fbx.KW_TO ) then
+                if Accept( p, Tko.KW_TO ) then
                     pat.b = Expression( p )
-                    patterns.Push( cast( ulong, MakeStmt( p, Fbx.N_CASE_RANGE, pt.loc, pat ) ) )
+                    patterns.Push( cast( ulong, MakeStmt( p, Tko.N_CASE_RANGE, pt.loc, pat ) ) )
                 else
                     patterns.Push( cast( ulong, pat.a ) )
                 end if
             end if
-            if Accept( p, Fbx.TK_COMMA ) = false then exit do
+            if Accept( p, Tko.TK_COMMA ) = false then exit do
         loop
 
         cs.first = p.ast->children.Count
@@ -694,67 +694,67 @@ private function ParseSelect( byref p as Fbx.ParserState ) as Fbx.NodeId
             p.ast->children.Push( patterns[i] )
         next
         cs.b = Block( p )
-        cases.Push( cast( ulong, MakeStmt( p, Fbx.N_CASE, ct.loc, cs ) ) )
+        cases.Push( cast( ulong, MakeStmt( p, Tko.N_CASE, ct.loc, cs ) ) )
     loop
 
-    sp.b = MakeList( p, Fbx.N_BLOCK, t.loc, Fbx.NODE_NONE, cases )
-    ExpectEnd( p, Fbx.KW_SELECT )
-    return MakeStmt( p, Fbx.N_SELECT, t.loc, sp )
+    sp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, cases )
+    ExpectEnd( p, Tko.KW_SELECT )
+    return MakeStmt( p, Tko.N_SELECT, t.loc, sp )
 end function
 
-private function ParseFor( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )
 
     '' FOR EACH is FBC-Modern's; 'each' is CONTEXTUAL, so it arrives as an identifier
     '' and is recognised by spelling (probes V2).
     dim as boolean isEach = false
-    if Peek( p ) = Fbx.TK_IDENT then
-        dim as Fbx.InternId id = cast( Fbx.InternId, Cur( p ).literal )
+    if Peek( p ) = Tko.TK_IDENT then
+        dim as Tko.InternId id = cast( Tko.InternId, Cur( p ).literal )
         if p.names->Spelling( id ) = "each" then
             isEach = true
             Advance( p )
         end if
     end if
 
-    dim as Fbx.StmtPayload sp
+    dim as Tko.StmtPayload sp
     if isEach then
-        if Accept( p, Fbx.KW_BYREF ) then
-            sp.op = cast( ushort, Fbx.KW_BYREF )
+        if Accept( p, Tko.KW_BYREF ) then
+            sp.op = cast( ushort, Tko.KW_BYREF )
         end if
-        sp.a = Expression( p, Fbx.PREC_POSTFIX )
-        if Accept( p, Fbx.KW_AS ) then sp.c = TypeRef( p )
+        sp.a = Expression( p, Tko.PREC_POSTFIX )
+        if Accept( p, Tko.KW_AS ) then sp.c = TypeRef( p )
         '' 'in' is contextual too.
-        if Peek( p ) = Fbx.TK_IDENT then
-            dim as Fbx.InternId id = cast( Fbx.InternId, Cur( p ).literal )
+        if Peek( p ) = Tko.TK_IDENT then
+            dim as Tko.InternId id = cast( Tko.InternId, Cur( p ).literal )
             if p.names->Spelling( id ) = "in" then Advance( p )
         end if
-        dim as Fbx.NodeId seq = Expression( p )
+        dim as Tko.NodeId seq = Expression( p )
         sp.first = p.ast->children.Count
         sp.count = 1
         p.ast->children.Push( cast( ulong, seq ) )
         sp.b = Block( p )
-        if Accept( p, Fbx.KW_NEXT ) then
-            while (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
+        if Accept( p, Tko.KW_NEXT ) then
+            while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
                 Advance( p )
             wend
         end if
-        return MakeStmt( p, Fbx.N_FOREACH, t.loc, sp )
+        return MakeStmt( p, Tko.N_FOREACH, t.loc, sp )
     end if
 
-    sp.a = Expression( p, Fbx.PREC_POSTFIX )
-    if Accept( p, Fbx.KW_AS ) then sp.c = TypeRef( p )
+    sp.a = Expression( p, Tko.PREC_POSTFIX )
+    if Accept( p, Tko.KW_AS ) then sp.c = TypeRef( p )
 
     '' children are ALWAYS the three slots [from, to, step], NODE_NONE where absent.
     '' They used to be a packed list with the step in 'c', which silently overwrote
     '' the 'as T' TypeRef parsed above -- 'for i as integer' lost its type.
-    dim as Fbx.NodeIdVec bounds
-    dim as Fbx.NodeId fromExpr = Fbx.NODE_NONE
-    dim as Fbx.NodeId toExpr = Fbx.NODE_NONE
-    dim as Fbx.NodeId stepExpr = Fbx.NODE_NONE
-    if Accept( p, Fbx.TK_EQ ) then fromExpr = Expression( p )
-    if Accept( p, Fbx.KW_TO ) then toExpr = Expression( p )
-    if Accept( p, Fbx.KW_STEP ) then stepExpr = Expression( p )
+    dim as Tko.NodeIdVec bounds
+    dim as Tko.NodeId fromExpr = Tko.NODE_NONE
+    dim as Tko.NodeId toExpr = Tko.NODE_NONE
+    dim as Tko.NodeId stepExpr = Tko.NODE_NONE
+    if Accept( p, Tko.TK_EQ ) then fromExpr = Expression( p )
+    if Accept( p, Tko.KW_TO ) then toExpr = Expression( p )
+    if Accept( p, Tko.KW_STEP ) then stepExpr = Expression( p )
 
     sp.first = p.ast->children.Count
     sp.count = 3
@@ -763,102 +763,102 @@ private function ParseFor( byref p as Fbx.ParserState ) as Fbx.NodeId
     p.ast->children.Push( cast( ulong, stepExpr ) )
 
     sp.b = Block( p )
-    if Accept( p, Fbx.KW_NEXT ) then
-        while (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
+    if Accept( p, Tko.KW_NEXT ) then
+        while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
             Advance( p )
         wend
     end if
 
-    return MakeStmt( p, Fbx.N_FOR, t.loc, sp )
+    return MakeStmt( p, Tko.N_FOR, t.loc, sp )
 end function
 
-private function ParseDo( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+private function ParseDo( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )
 
-    dim as Fbx.StmtPayload sp
+    dim as Tko.StmtPayload sp
     dim as ushort flags = 0
 
-    if Peek( p ) = Fbx.KW_WHILE then
+    if Peek( p ) = Tko.KW_WHILE then
         Advance( p )
         sp.a = Expression( p )
-    elseif Peek( p ) = Fbx.KW_UNTIL then
+    elseif Peek( p ) = Tko.KW_UNTIL then
         Advance( p )
-        flags or= Fbx.NF_UNTIL
+        flags or= Tko.NF_UNTIL
         sp.a = Expression( p )
     end if
 
     sp.b = Block( p )
 
-    if Accept( p, Fbx.KW_LOOP ) then
-        if Peek( p ) = Fbx.KW_WHILE then
+    if Accept( p, Tko.KW_LOOP ) then
+        if Peek( p ) = Tko.KW_WHILE then
             Advance( p )
-            flags or= Fbx.NF_POST_COND
+            flags or= Tko.NF_POST_COND
             sp.c = Expression( p )
-        elseif Peek( p ) = Fbx.KW_UNTIL then
+        elseif Peek( p ) = Tko.KW_UNTIL then
             Advance( p )
-            flags or= Fbx.NF_POST_COND or Fbx.NF_UNTIL
+            flags or= Tko.NF_POST_COND or Tko.NF_UNTIL
             sp.c = Expression( p )
         end if
     else
-        ErrorNode( p, Fbx.FBX0405, "loop" )
+        ErrorNode( p, Tko.TKO0405, "loop" )
     end if
 
-    dim as Fbx.NodeId n = MakeStmt( p, Fbx.N_DO, t.loc, sp )
+    dim as Tko.NodeId n = MakeStmt( p, Tko.N_DO, t.loc, sp )
     p.ast->nodes[cast( long, n )].flags or= flags
     return n
 end function
 
-private function ParseWhile( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+private function ParseWhile( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )
-    dim as Fbx.StmtPayload sp
+    dim as Tko.StmtPayload sp
     sp.a = Expression( p )
     sp.b = Block( p )
-    if Accept( p, Fbx.KW_WEND ) = false then ExpectEnd( p, Fbx.KW_WHILE )
-    return MakeStmt( p, Fbx.N_WHILE, t.loc, sp )
+    if Accept( p, Tko.KW_WEND ) = false then ExpectEnd( p, Tko.KW_WHILE )
+    return MakeStmt( p, Tko.N_WHILE, t.loc, sp )
 end function
 
-private function ParseWith( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+private function ParseWith( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )
-    dim as Fbx.StmtPayload sp
+    dim as Tko.StmtPayload sp
     sp.a = Expression( p )
     sp.b = Block( p )
-    ExpectEnd( p, Fbx.KW_WITH )
-    return MakeStmt( p, Fbx.N_WITH, t.loc, sp )
+    ExpectEnd( p, Tko.KW_WITH )
+    return MakeStmt( p, Tko.N_WITH, t.loc, sp )
 end function
 
-private function ParseScope( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+private function ParseScope( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )
-    dim as Fbx.StmtPayload sp
+    dim as Tko.StmtPayload sp
     sp.b = Block( p )
-    ExpectEnd( p, Fbx.KW_SCOPE )
-    return MakeStmt( p, Fbx.N_SCOPE, t.loc, sp )
+    ExpectEnd( p, Tko.KW_SCOPE )
+    return MakeStmt( p, Tko.N_SCOPE, t.loc, sp )
 end function
 
 private function ParseExitLike _
-    ( byref p as Fbx.ParserState, byval kind as Fbx.NodeKind ) as Fbx.NodeId
+    ( byref p as Tko.ParserState, byval kind as Tko.NodeKind ) as Tko.NodeId
 
-    dim as Fbx.Token t = Cur( p )
+    dim as Tko.Token t = Cur( p )
     Advance( p )
-    dim as Fbx.StmtPayload sp
+    dim as Tko.StmtPayload sp
     sp.extra = 0
     '' 'exit for, for' names the target repeatedly; count how deep it goes.
     do
-        dim as Fbx.TokenKind k = Peek( p )
-        dim as boolean target = (k = Fbx.KW_FOR) orelse (k = Fbx.KW_DO) orelse _
-                                (k = Fbx.KW_WHILE) orelse (k = Fbx.KW_SELECT) orelse _
-                                (k = Fbx.KW_SUB) orelse (k = Fbx.KW_FUNCTION) orelse _
-                                (k = Fbx.KW_SCOPE) orelse (k = Fbx.KW_PROPERTY) orelse _
-                                (k = Fbx.KW_CONSTRUCTOR) orelse (k = Fbx.KW_DESTRUCTOR) orelse _
-                                (k = Fbx.KW_OPERATOR) orelse (k = Fbx.KW_ANY)
+        dim as Tko.TokenKind k = Peek( p )
+        dim as boolean target = (k = Tko.KW_FOR) orelse (k = Tko.KW_DO) orelse _
+                                (k = Tko.KW_WHILE) orelse (k = Tko.KW_SELECT) orelse _
+                                (k = Tko.KW_SUB) orelse (k = Tko.KW_FUNCTION) orelse _
+                                (k = Tko.KW_SCOPE) orelse (k = Tko.KW_PROPERTY) orelse _
+                                (k = Tko.KW_CONSTRUCTOR) orelse (k = Tko.KW_DESTRUCTOR) orelse _
+                                (k = Tko.KW_OPERATOR) orelse (k = Tko.KW_ANY)
         if target = false then exit do
         if sp.op = 0 then sp.op = cast( ushort, k )
         sp.extra += 1
         Advance( p )
-        if Accept( p, Fbx.TK_COMMA ) = false then exit do
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     return MakeStmt( p, kind, t.loc, sp )
 end function
@@ -873,18 +873,18 @@ end function
 '' Testing the '(' rather than enumerating the keywords is what makes this cover the
 '' whole conversion family without a list that would go stale.
 private function KeywordLedExpression _
-    ( byref p as Fbx.ParserState, byval k as Fbx.TokenKind ) as boolean
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 
-    if Fbx.IsKeywordKind( k ) = false then return false
+    if Tko.IsKeywordKind( k ) = false then return false
     if HasTok( p, p.pos + 1 ) = false then return false
-    return (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_LPAREN)
+    return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN)
 end function
 
 '' Whether the parenthesised group starting at 'at' is a PARAMETER LIST rather than an
 '' expression. Decided by AS, BYREF or BYVAL appearing at depth one -- a parameter
 '' cannot be written without one of them, and an expression cannot contain one there.
 private function LooksLikeParamList _
-    ( byref p as Fbx.ParserState, byval at as long ) as boolean
+    ( byref p as Tko.ParserState, byval at as long ) as boolean
 
     dim as long depth = 0
     dim as long i = at
@@ -892,16 +892,16 @@ private function LooksLikeParamList _
     '' walk the whole token stream on every 'operator ='.
     dim as long guard = 0
     while HasTok( p, i ) andalso (guard < 4096)
-        dim as Fbx.TokenKind k = cast( Fbx.TokenKind, p.toks->At( i ).kind )
+        dim as Tko.TokenKind k = cast( Tko.TokenKind, p.toks->At( i ).kind )
         select case k
-        case Fbx.TK_LPAREN
+        case Tko.TK_LPAREN
             depth += 1
-        case Fbx.TK_RPAREN
+        case Tko.TK_RPAREN
             depth -= 1
             if depth <= 0 then return false
-        case Fbx.KW_AS, Fbx.KW_BYREF, Fbx.KW_BYVAL
+        case Tko.KW_AS, Tko.KW_BYREF, Tko.KW_BYVAL
             if depth = 1 then return true
-        case Fbx.TK_EOL
+        case Tko.TK_EOL
             return false
         end select
         i += 1
@@ -916,13 +916,13 @@ end function
 '' error inside a SUB -- are deliberately NOT checked here: accepting a little more
 '' than fbc never loses a file, and rejecting a little more would.
 private function IsResultAssign _
-    ( byref p as Fbx.ParserState, byval k as Fbx.TokenKind ) as boolean
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 
-    dim as boolean isResultKw = (k = Fbx.KW_FUNCTION) orelse _
-                                (k = Fbx.KW_OPERATOR) orelse (k = Fbx.KW_PROPERTY)
+    dim as boolean isResultKw = (k = Tko.KW_FUNCTION) orelse _
+                                (k = Tko.KW_OPERATOR) orelse (k = Tko.KW_PROPERTY)
     if isResultKw = false then return false
     if HasTok( p, p.pos + 1 ) = false then return false
-    if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Fbx.TK_EQ then return false
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_EQ then return false
 
     '' 'operator = ( a, b ) as string' IS A DEFINITION, not a result assignment, and
     '' the comment on the caller has always said the two are told apart by what
@@ -937,9 +937,9 @@ private function IsResultAssign _
     '' hold 'byref a as T', so an AS, BYREF or BYVAL appears at paren depth one. An
     '' expression can contain none of those at that depth -- 'cast( integer, x )'
     '' puts its type one level deeper.
-    if k = Fbx.KW_OPERATOR then
+    if k = Tko.KW_OPERATOR then
         if HasTok( p, p.pos + 2 ) then
-            if cast( Fbx.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Fbx.TK_LPAREN then
+            if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_LPAREN then
                 if LooksLikeParamList( p, p.pos + 2 ) then return false
             end if
         end if
@@ -949,21 +949,21 @@ end function
 
 '' The three-way ambiguity of docs/plan/04 section 6: a leading expression is a call,
 '' an assignment, or a paren-less call with arguments. The parser does not decide.
-private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
-    dim as Fbx.StmtPayload sp
-    sp.a = Expression( p, Fbx.PREC_POSTFIX )
+private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.StmtPayload sp
+    sp.a = Expression( p, Tko.PREC_POSTFIX )
 
-    dim as Fbx.TokenKind k = Peek( p )
-    dim as boolean isAssign = (k = Fbx.TK_EQ) orelse (k = Fbx.TK_PLUSEQ) orelse _
-                              (k = Fbx.TK_MINUSEQ) orelse (k = Fbx.TK_STAREQ) orelse _
-                              (k = Fbx.TK_SLASHEQ) orelse (k = Fbx.TK_BSLASHEQ) orelse _
-                              (k = Fbx.TK_CARETEQ) orelse (k = Fbx.TK_AMPEQ)
+    dim as Tko.TokenKind k = Peek( p )
+    dim as boolean isAssign = (k = Tko.TK_EQ) orelse (k = Tko.TK_PLUSEQ) orelse _
+                              (k = Tko.TK_MINUSEQ) orelse (k = Tko.TK_STAREQ) orelse _
+                              (k = Tko.TK_SLASHEQ) orelse (k = Tko.TK_BSLASHEQ) orelse _
+                              (k = Tko.TK_CARETEQ) orelse (k = Tko.TK_AMPEQ)
     if isAssign then
         sp.op = cast( ushort, k )
         Advance( p )
         sp.b = Expression( p )
-        return MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
+        return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
     end if
 
     '' THE WORD-SPELLED COMPOUND ASSIGNMENTS: 'and=', 'or=', 'xor=', 'imp=', 'eqv=',
@@ -971,19 +971,19 @@ private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' the operator is a keyword and the '=' is its own -- so nothing recognised them
     '' and 't1 and= t2' parsed as the expression 't1' followed by a paren-less call to
     '' something named 'and'. Measured: fbc emits 'T1 = T1 & T2' for the first of them.
-    if Fbx.IsWordAssignOp( k ) andalso HasTok( p, p.pos + 1 ) then
-        if cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EQ then
+    if Tko.IsWordAssignOp( k ) andalso HasTok( p, p.pos + 1 ) then
+        if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ then
             sp.op = cast( ushort, k )
             Advance( p )
             Advance( p )
             sp.b = Expression( p )
-            return MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
+            return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
         end if
     end if
 
     '' Anything else on the line is a paren-less argument list.
-    dim as Fbx.NodeIdVec args
-    dim as boolean more = (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
+    dim as Tko.NodeIdVec args
+    dim as boolean more = (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
     if EndsSingleLineStmt( p ) then more = false
     if more then
         do
@@ -993,8 +993,8 @@ private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' 'locate ,,0' -- a PAREN-LESS call may elide arguments too, and the
             '' empty slots still count. LOCATE is not in the intrinsic registry, so
             '' this is the list it actually goes through.
-            args.Push( cast( ulong, ArgOrElided( p, Fbx.TK_EOL ) ) )
-            if Accept( p, Fbx.TK_COMMA ) = false then exit do
+            args.Push( cast( ulong, ArgOrElided( p, Tko.TK_EOL ) ) )
+            if Accept( p, Tko.TK_COMMA ) = false then exit do
         loop
     end if
     sp.first = p.ast->children.Count
@@ -1003,7 +1003,7 @@ private function ParseAmbiguous( byref p as Fbx.ParserState ) as Fbx.NodeId
         p.ast->children.Push( args[i] )
     next
 
-    return MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
+    return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
 end function
 
 end namespace
@@ -1012,111 +1012,111 @@ end namespace
 #include once "parser/gfx.bas"
 #include once "parser/intrinsics.bas"
 
-namespace Fbx.Parse
+namespace Tko.Parse
 
 '' True when the identifier at the cursor is the given contextual word. FBC-Modern's
 '' additions -- defer, each, in, of, spawn -- are NOT reserved, so they can only be
 '' recognised by spelling and only where the grammar expects them.
 private function IsContextual _
-    ( byref p as Fbx.ParserState, byref word as string ) as boolean
+    ( byref p as Tko.ParserState, byref word as string ) as boolean
 
-    if Peek( p ) <> Fbx.TK_IDENT then return false
-    dim as Fbx.InternId nm = cast( Fbx.InternId, Cur( p ).literal )
+    if Peek( p ) <> Tko.TK_IDENT then return false
+    dim as Tko.InternId nm = cast( Tko.InternId, Cur( p ).literal )
     return p.names->Spelling( nm ) = word
 end function
 
-function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
+function Statement( byref p as Tko.ParserState ) as Tko.NodeId
     SkipEols( p )
-    if AtEnd( p ) then return Fbx.NODE_NONE
+    if AtEnd( p ) then return Tko.NODE_NONE
 
     p.silent = false
-    dim as Fbx.Token t = Cur( p )
-    dim as Fbx.TokenKind k = Peek( p )
-    dim as Fbx.NodeId n = Fbx.NODE_NONE
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.TokenKind k = Peek( p )
+    dim as Tko.NodeId n = Tko.NODE_NONE
     dim as boolean consumesLine = true
 
     select case k
-    case Fbx.KW_IF
+    case Tko.KW_IF
         n = ParseIf( p )
         '' A single-line IF's inner statement already ran EndOfStatement and so ate
         '' the line's EOL. Running it again here would skip forward to the NEXT EOL
         '' and swallow whatever followed -- an 'end sub' or a 'wend' -- whole. It
         '' only showed up when the IF was the LAST statement of a block, because
         '' otherwise the token it ate was an ordinary statement that reparsed fine.
-        if (n <> Fbx.NODE_NONE) andalso _
-           ((p.ast->nodes[cast( long, n )].flags and Fbx.NF_SINGLE_LINE) <> 0) then
+        if (n <> Tko.NODE_NONE) andalso _
+           ((p.ast->nodes[cast( long, n )].flags and Tko.NF_SINGLE_LINE) <> 0) then
             consumesLine = false
         end if
-    case Fbx.KW_SELECT    : n = ParseSelect( p )
-    case Fbx.KW_FOR       : n = ParseFor( p )
-    case Fbx.KW_DO        : n = ParseDo( p )
-    case Fbx.KW_WHILE     : n = ParseWhile( p )
-    case Fbx.KW_WITH      : n = ParseWith( p )
-    case Fbx.KW_SCOPE     : n = ParseScope( p )
-    case Fbx.KW_EXIT      : n = ParseExitLike( p, Fbx.N_EXIT )
-    case Fbx.KW_CONTINUE  : n = ParseExitLike( p, Fbx.N_CONTINUE )
+    case Tko.KW_SELECT    : n = ParseSelect( p )
+    case Tko.KW_FOR       : n = ParseFor( p )
+    case Tko.KW_DO        : n = ParseDo( p )
+    case Tko.KW_WHILE     : n = ParseWhile( p )
+    case Tko.KW_WITH      : n = ParseWith( p )
+    case Tko.KW_SCOPE     : n = ParseScope( p )
+    case Tko.KW_EXIT      : n = ParseExitLike( p, Tko.N_EXIT )
+    case Tko.KW_CONTINUE  : n = ParseExitLike( p, Tko.N_CONTINUE )
 
-    case Fbx.KW_RETURN
+    case Tko.KW_RETURN
         Advance( p )
-        dim as Fbx.StmtPayload sp
-        dim as boolean hasValue = (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false)
+        dim as Tko.StmtPayload sp
+        dim as boolean hasValue = (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
         if hasValue then sp.a = Expression( p )
-        n = MakeStmt( p, Fbx.N_RETURN, t.loc, sp )
+        n = MakeStmt( p, Tko.N_RETURN, t.loc, sp )
 
-    case Fbx.KW_GOTO
+    case Tko.KW_GOTO
         Advance( p )
-        dim as Fbx.StmtPayload sp
-        if (Peek( p ) = Fbx.TK_IDENT) orelse (Peek( p ) = Fbx.TK_INT_LIT) then
-            sp.name = cast( Fbx.InternId, Cur( p ).literal )
+        dim as Tko.StmtPayload sp
+        if (Peek( p ) = Tko.TK_IDENT) orelse (Peek( p ) = Tko.TK_INT_LIT) then
+            sp.name = cast( Tko.InternId, Cur( p ).literal )
             Advance( p )
         end if
-        n = MakeStmt( p, Fbx.N_GOTO, t.loc, sp )
+        n = MakeStmt( p, Tko.N_GOTO, t.loc, sp )
 
-    case Fbx.KW_DELETE
+    case Tko.KW_DELETE
         '' DELETE is classed as an OPERATOR in the keyword table, so it never reached
         '' the statement dispatch -- 54 corpus errors from one missing case.
         Advance( p )
-        dim as Fbx.StmtPayload sp
-        if Accept( p, Fbx.TK_LBRACKET ) then
-            Expect( p, Fbx.TK_RBRACKET, "]" )
+        dim as Tko.StmtPayload sp
+        if Accept( p, Tko.TK_LBRACKET ) then
+            Expect( p, Tko.TK_RBRACKET, "]" )
             sp.extra = 1
         end if
         sp.a = Expression( p )
-        n = MakeStmt( p, Fbx.N_DELETE_STMT, t.loc, sp )
+        n = MakeStmt( p, Tko.N_DELETE_STMT, t.loc, sp )
 
-    case Fbx.TK_HASH
+    case Tko.TK_HASH
         '' '#assert' is passed through by the preprocessor because its expression is a
         '' COMPILE-TIME one that can name types ('#assert typeof( a ) = typeof( b )'),
         '' so it belongs to the parser, not the PP. See probe P2.
         dim as long save = p.pos
         Advance( p )
         dim as boolean isAssert = false
-        if Peek( p ) = Fbx.TK_IDENT then
-            isAssert = (p.names->Spelling( cast( Fbx.InternId, Cur( p ).literal ) ) = "assert")
+        if Peek( p ) = Tko.TK_IDENT then
+            isAssert = (p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) = "assert")
         end if
         if isAssert then
             Advance( p )
-            dim as Fbx.StmtPayload sp
+            dim as Tko.StmtPayload sp
             sp.a = Expression( p )
-            n = MakeStmt( p, Fbx.N_ASSERT, t.loc, sp )
+            n = MakeStmt( p, Tko.N_ASSERT, t.loc, sp )
         else
             p.pos = save
-            n = ErrorNode( p, Fbx.FBX0408 )
+            n = ErrorNode( p, Tko.TKO0408 )
             Sync( p )
             return n
         end if
 
-    case Fbx.KW_ASM
+    case Tko.KW_ASM
         '' Parsed only so it can be rejected with a real diagnostic rather than
         '' miscompiled (docs/plan/01 section 5.6).
         Advance( p )
-        dim as Fbx.StmtPayload sp
-        n = MakeStmt( p, Fbx.N_ASM, t.loc, sp )
-        ErrorNode( p, Fbx.FBX0407 )
-        while (Peek( p ) <> Fbx.KW_END) andalso (AtEnd( p ) = false)
+        dim as Tko.StmtPayload sp
+        n = MakeStmt( p, Tko.N_ASM, t.loc, sp )
+        ErrorNode( p, Tko.TKO0407 )
+        while (Peek( p ) <> Tko.KW_END) andalso (AtEnd( p ) = false)
             Advance( p )
         wend
-        ExpectEnd( p, Fbx.KW_ASM )
+        ExpectEnd( p, Tko.KW_ASM )
 
     case else
         '' 'function = expr' -- BASIC's result assignment written with the KEYWORD
@@ -1133,16 +1133,16 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
         '' Measured against fbc: assignment only. 'function += 1' is error 61 and
         '' 'print function' is error 6, so the keyword is a WRITE-ONLY target.
         if IsResultAssign( p, k ) then
-            dim as Fbx.StmtPayload sp
-            sp.a = NewNodeAt( p, Fbx.N_FUNCRESULT, t.loc, 0 )
+            dim as Tko.StmtPayload sp
+            sp.a = NewNodeAt( p, Tko.N_FUNCRESULT, t.loc, 0 )
             Advance( p )                       '' the keyword
-            sp.op = cast( ushort, Fbx.TK_EQ )
+            sp.op = cast( ushort, Tko.TK_EQ )
             Advance( p )                       '' the '='
             sp.b = Expression( p )
-            n = MakeStmt( p, Fbx.N_AMBIGUOUS, t.loc, sp )
+            n = MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
         elseif IsDeclarationStart( k ) then
             n = Declaration( p )
-        elseif Fbx.IsStatementIntrinsic( k ) andalso FollowedByAssign( p ) then
+        elseif Tko.IsStatementIntrinsic( k ) andalso FollowedByAssign( p ) then
             '' A statement intrinsic whose name is being ASSIGNED to is not the
             '' statement -- it is a variable or a field that happens to share the
             '' spelling. fb/tuibuffer.bi has a field called 'width' and assigns it
@@ -1150,7 +1150,7 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             ''
             ''     width = cast( ubyte, TuiCharWidth( cp ) )
             ''
-            '' which fbx routed to the WIDTH statement and then failed on the '='.
+            '' which tiko-lang routed to the WIDTH statement and then failed on the '='.
             '' Measured: fbc accepts a FIELD named 'width' and rejects a VARIABLE of
             '' that name outright, so the field case is the one that matters.
             ''
@@ -1158,19 +1158,19 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' the token settles it without the symbol table -- and what comes out is
             '' the ordinary call-or-assign ambiguity, which Resolve decides.
             n = ParseAmbiguous( p )
-        elseif Fbx.IsStatementIntrinsic( k ) then
+        elseif Tko.IsStatementIntrinsic( k ) then
             n = ParseIntrinsic( p )
-        elseif (k = Fbx.TK_IDENT) andalso IsContextual( p, "defer" ) then
+        elseif (k = Tko.TK_IDENT) andalso IsContextual( p, "defer" ) then
             '' 'defer' is CONTEXTUAL in FBC-Modern -- not reserved, so it arrives as
             '' an identifier and is recognised by spelling, exactly as 'each' and
             '' 'in' are. Without this it parsed as a CALL to something named defer.
-            dim as Fbx.Token dt = Cur( p )
+            dim as Tko.Token dt = Cur( p )
             Advance( p )
-            dim as Fbx.StmtPayload sp
+            dim as Tko.StmtPayload sp
             sp.b = Statement( p )
-            n = MakeStmt( p, Fbx.N_DEFER, dt.loc, sp )
+            n = MakeStmt( p, Tko.N_DEFER, dt.loc, sp )
             consumesLine = false
-        elseif k = Fbx.TK_IDENT then
+        elseif k = Tko.TK_IDENT then
             '' 'name:' is a label; anything else is the call-or-assign ambiguity.
             ''
             '' The test is the COLON FLAG, not the token's length. Both ':' and a
@@ -1180,29 +1180,29 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             '' looked correct on CRLF input, where the newline is two bytes.
             dim as boolean isLabel = false
             if HasTok( p, p.pos + 1 ) then
-                isLabel = (cast( Fbx.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Fbx.TK_EOL) andalso _
-                          ((p.toks->At( p.pos + 1 ).flags and Fbx.TF_COLON) <> 0)
+                isLabel = (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EOL) andalso _
+                          ((p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) <> 0)
             end if
             if isLabel then
-                dim as Fbx.StmtPayload sp
-                sp.name = cast( Fbx.InternId, t.literal )
+                dim as Tko.StmtPayload sp
+                sp.name = cast( Tko.InternId, t.literal )
                 Advance( p )
                 Advance( p )
-                n = MakeStmt( p, Fbx.N_LABEL, t.loc, sp )
+                n = MakeStmt( p, Tko.N_LABEL, t.loc, sp )
                 consumesLine = false
             else
                 n = ParseAmbiguous( p )
             end if
-        elseif k = Fbx.TK_DOT then
+        elseif k = Tko.TK_DOT then
             '' '.field = 1' inside a WITH. It is the same call-or-assign ambiguity as
             '' a bare name, just with the base left to the enclosing WITH.
             n = ParseAmbiguous( p )
-        elseif k = Fbx.TK_LPAREN then
+        elseif k = Tko.TK_LPAREN then
             '' A PARENTHESISED assignment target: '(a) = 5', '(*p) = 5', '(arr(1)) = 5'.
             '' The parentheses are permitted around an lvalue and change nothing, so the
             '' statement is the same call-or-assign ambiguity as a bare name.
             n = ParseAmbiguous( p )
-        elseif k = Fbx.KW_LET then
+        elseif k = Tko.KW_LET then
             '' 'let (a, b) = f( )' -- the multiple assignment. Measured: in the fb
             '' dialect ONLY the parenthesised form exists; plain 'let a = 5' is fbc
             '' error 146, valid in deprecated/fblite/qb alone. The keyword is consumed
@@ -1218,39 +1218,39 @@ function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
             ''
             '' fbc parses all of these; two of them it then REJECTS -- 'strptr(s) = 0'
             '' is error 119 and a literal on the left is error 24 -- but it rejects
-            '' them in the semantic pass, having parsed the statement. fbx died in the
+            '' them in the semantic pass, having parsed the statement. tiko-lang died in the
             '' parser, so those files failed for the wrong reason and their goldens
             '' could never match.
             n = ParseAmbiguous( p )
-        elseif (k = Fbx.TK_INT_LIT) orelse (k = Fbx.TK_FLOAT_LIT) orelse _
-               (k = Fbx.TK_STRING_LIT) then
+        elseif (k = Tko.TK_INT_LIT) orelse (k = Tko.TK_FLOAT_LIT) orelse _
+               (k = Tko.TK_STRING_LIT) then
             '' '0 = 1' and '"" = "a"'. fbc parses these and rejects them semantically,
             '' and the corpus tests exactly that. Accepting the parse is what lets the
             '' rejection happen in the right pass.
             n = ParseAmbiguous( p )
-        elseif k = Fbx.KW_END then
+        elseif k = Tko.KW_END then
             '' 'END [exitcode]' TERMINATES THE PROGRAM. Reaching here at all means
             '' IsBlockEnderAt already decided this END does not close a block.
             Advance( p )
-            dim as Fbx.StmtPayload ep
-            if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+            dim as Tko.StmtPayload ep
+            if (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false) then
                 ep.a = Expression( p )
             end if
-            n = MakeStmt( p, Fbx.N_END_STMT, t.loc, ep )
-        elseif k = Fbx.KW_BASE then
+            n = MakeStmt( p, Tko.N_END_STMT, t.loc, ep )
+        elseif k = Tko.KW_BASE then
             '' 'base.vs( )' -- a call on the BASE-class receiver. Like '.field' inside a
             '' WITH, the base is implicit and what follows is an ordinary member
             '' expression, so it is the same call-or-assign ambiguity.
             n = ParseAmbiguous( p )
-        elseif k = Fbx.TK_STAR then
+        elseif k = Tko.TK_STAR then
             '' Assignment THROUGH A POINTER: '*p = 5', '**pp = 5'. A statement may begin
             '' with the dereference operator, and the target is an ordinary lvalue
             '' expression from there -- the same call-or-assign ambiguity again.
             n = ParseAmbiguous( p )
-        elseif k = Fbx.TK_QUESTION then
+        elseif k = Tko.TK_QUESTION then
             n = ParseIntrinsic( p )       '' '?' is PRINT
         else
-            n = ErrorNode( p, Fbx.FBX0408 )
+            n = ErrorNode( p, Tko.TKO0408 )
             Sync( p )
             return n
         end if
@@ -1264,18 +1264,18 @@ end function
 
 '' The prelude, parsed. Returns nothing when there is no keyword table to lex with,
 '' which is the case for a ParserState built by a test harness rather than the driver.
-private sub ParsePrelude( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVec )
+private sub ParsePrelude( byref p as Tko.ParserState, byref items as Tko.NodeIdVec )
     if p.kw = 0 then return
     if p.src = 0 then return
 
-    dim as Fbx.FileId vf = p.src->AddVirtual( "<builtin>", PreludeText( ) )
-    dim as Fbx.Lex.Result r
-    Fbx.Lex.Run( *p.src, vf, *p.names, *cast( Fbx.KeywordMap ptr, p.kw ), *p.diags, r )
+    dim as Tko.FileId vf = p.src->AddVirtual( "<builtin>", PreludeText( ) )
+    dim as Tko.Lex.Result r
+    Tko.Lex.Run( *p.src, vf, *p.names, *cast( Tko.KeywordMap ptr, p.kw ), *p.diags, r )
 
     '' A SEPARATE ParserState over a FIXED token vector: no preprocessor, so 'stream'
     '' is zero and HasTok reads the vector directly. The AST, the interner and the
     '' diagnostics are shared, because the nodes it builds belong to this unit.
-    dim as Fbx.ParserState q
+    dim as Tko.ParserState q
     q.toks = @r.tokens
     q.stream = 0
     q.litPool = @r.literals
@@ -1293,21 +1293,21 @@ private sub ParsePrelude( byref p as Fbx.ParserState, byref items as Fbx.NodeIdV
         SkipEols( q )
         if AtEnd( q ) then exit do
         dim as long before = q.pos
-        dim as Fbx.NodeId s = Statement( q )
-        if s <> Fbx.NODE_NONE then items.Push( cast( ulong, s ) )
+        dim as Tko.NodeId s = Statement( q )
+        if s <> Tko.NODE_NONE then items.Push( cast( ulong, s ) )
         if q.pos = before then Advance( q )
     loop
 end sub
 
-function Unit( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
-    dim as Fbx.NodeIdVec items
+function Unit( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.NodeIdVec items
     do
         SkipEols( p )
         if AtEnd( p ) then exit do
         dim as long before = p.pos
-        dim as Fbx.NodeId s = Statement( p )
-        if s <> Fbx.NODE_NONE then items.Push( cast( ulong, s ) )
+        dim as Tko.NodeId s = Statement( p )
+        if s <> Tko.NODE_NONE then items.Push( cast( ulong, s ) )
         if p.pos = before then Advance( p )        '' guaranteed progress
     loop
     '' LAST, not first. Collect is a whole pass before anything looks a name up, so
@@ -1315,33 +1315,33 @@ function Unit( byref p as Fbx.ParserState ) as Fbx.NodeId
     '' keeps every NodeId in the file the number it already had, which is what the dumps
     '' and their goldens are written in.
     ParsePrelude( p, items )
-    return MakeList( p, Fbx.N_MODULE, t.loc, Fbx.NODE_NONE, items )
+    return MakeList( p, Tko.N_MODULE, t.loc, Tko.NODE_NONE, items )
 end function
 
 end namespace
 
-namespace Fbx.Parse
+namespace Tko.Parse
 
 '' ----------------------------------------------------------------------- dump
 
 private sub DumpAny _
-    ( byref ast as Fbx.AstArena, byref src as Fbx.SourceManager, _
-      byref names as Fbx.Interner, byval id as Fbx.NodeId, byval indent as long, _
+    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+      byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as long, _
       byref outp as string )
 
-    if id = Fbx.NODE_NONE then return
+    if id = Tko.NODE_NONE then return
     if cast( long, id ) >= ast.nodes.Count then return
     '' THE BUILTIN PRELUDE IS NOT WHAT THE USER WROTE. It is real source and is parsed
     '' like everything else, but printing its thirty declarations under every file
     '' would bury the file.
     if src.IsBuiltin( ast.nodes[cast( long, id )].loc ) then return
 
-    dim as Fbx.AstNode ptr n = @ast.nodes[cast( long, id )]
-    dim as Fbx.NodeKind k = cast( Fbx.NodeKind, n->kind )
-    dim as Fbx.NodeCategory cat = Fbx.NodeKindCategory( k )
+    dim as Tko.AstNode ptr n = @ast.nodes[cast( long, id )]
+    dim as Tko.NodeKind k = cast( Tko.NodeKind, n->kind )
+    dim as Tko.NodeCategory cat = Tko.NodeKindCategory( k )
 
     '' Expressions already have a printer; reuse it so one shape is printed one way.
-    if (cat = Fbx.NCAT_EXPR) andalso (k <> Fbx.N_ERROR) then
+    if (cat = Tko.NCAT_EXPR) andalso (k <> Tko.N_ERROR) then
         dim as string sub_ = Dump( ast, src, names, id )
         dim as long start = 1
         while start <= len( sub_ )
@@ -1353,19 +1353,19 @@ private sub DumpAny _
         return
     end if
 
-    dim as Fbx.DecodedLoc d = src.Decode( n->loc )
-    dim as string row = space( indent * 2 ) & Fbx.NodeKindName( k )
+    dim as Tko.DecodedLoc d = src.Decode( n->loc )
+    dim as string row = space( indent * 2 ) & Tko.NodeKindName( k )
 
-    dim as boolean hasStmt = (cat = Fbx.NCAT_STMT) orelse (cat = Fbx.NCAT_TYPE) orelse _
-                             (cat = Fbx.NCAT_DECL)
-    dim as boolean isList = (k = Fbx.N_BLOCK) orelse (k = Fbx.N_MODULE)
+    dim as boolean hasStmt = (cat = Tko.NCAT_STMT) orelse (cat = Tko.NCAT_TYPE) orelse _
+                             (cat = Tko.NCAT_DECL)
+    dim as boolean isList = (k = Tko.N_BLOCK) orelse (k = Tko.N_MODULE)
 
     if isList then
-        dim as Fbx.ListPayload ptr lp = @ast.lists[cast( long, n->data )]
+        dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, n->data )]
         row += " (" & lp->count & ")"
         outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
         for i as long = 0 to lp->count - 1
-            DumpAny( ast, src, names, cast( Fbx.NodeId, ast.children[lp->first + i] ), _
+            DumpAny( ast, src, names, cast( Tko.NodeId, ast.children[lp->first + i] ), _
                      indent + 1, outp )
         next
         return
@@ -1376,46 +1376,46 @@ private sub DumpAny _
         return
     end if
 
-    dim as Fbx.StmtPayload ptr sp = @ast.stmts[cast( long, n->data )]
-    if sp->name <> Fbx.INTERN_NONE then row += " '" & names.Spelling( sp->name ) & "'"
+    dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( long, n->data )]
+    if sp->name <> Tko.INTERN_NONE then row += " '" & names.Spelling( sp->name ) & "'"
     if sp->op <> 0 then
-        dim as string ot = Fbx.TokenKindText( cast( Fbx.TokenKind, sp->op ) )
+        dim as string ot = Tko.TokenKindText( cast( Tko.TokenKind, sp->op ) )
         if len( ot ) > 0 then row += " [" & ot & "]"
     end if
-    if (n->flags and Fbx.NF_BYREF) <> 0 then row += " byref"
-    if (n->flags and Fbx.NF_PTR) <> 0 then row += " ptr"
-    if (n->flags and Fbx.NF_ARRAY) <> 0 then row += " array"
-    if (n->flags and Fbx.NF_SHARED) <> 0 then row += " shared"
-    if (n->flags and Fbx.NF_STATIC) <> 0 then row += " static"
-    if (n->flags and Fbx.NF_UNTIL) <> 0 then row += " until"
-    if (n->flags and Fbx.NF_POST_COND) <> 0 then row += " post"
-    if (n->flags and Fbx.NF_IS_UNION) <> 0 then row += " union"
-    if (n->flags and Fbx.NF_SINGLE_LINE) <> 0 then row += " single-line"
+    if (n->flags and Tko.NF_BYREF) <> 0 then row += " byref"
+    if (n->flags and Tko.NF_PTR) <> 0 then row += " ptr"
+    if (n->flags and Tko.NF_ARRAY) <> 0 then row += " array"
+    if (n->flags and Tko.NF_SHARED) <> 0 then row += " shared"
+    if (n->flags and Tko.NF_STATIC) <> 0 then row += " static"
+    if (n->flags and Tko.NF_UNTIL) <> 0 then row += " until"
+    if (n->flags and Tko.NF_POST_COND) <> 0 then row += " post"
+    if (n->flags and Tko.NF_IS_UNION) <> 0 then row += " union"
+    if (n->flags and Tko.NF_SINGLE_LINE) <> 0 then row += " single-line"
 
     '' Member visibility lives in 'extra', not in the node flags, so it needs its own
     '' line here -- and without one a 'private:' label is invisible in the dump, which
     '' is exactly how a parsed-but-discarded label would look.
-    if (n->kind = Fbx.N_FIELD) orelse (n->kind = Fbx.N_PROC) then
-        if (sp->extra and Fbx.PF_MEMB_PRIVATE) <> 0 then row += " private"
-        if (sp->extra and Fbx.PF_MEMB_PROTECTED) <> 0 then row += " protected"
+    if (n->kind = Tko.N_FIELD) orelse (n->kind = Tko.N_PROC) then
+        if (sp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then row += " private"
+        if (sp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then row += " protected"
     end if
     '' EXPLICIT is invisible in the dump otherwise, and an unparsed EXPLICIT looked
     '' exactly like a parsed one -- as an extra member nobody wrote.
-    if (n->kind = Fbx.N_ENUM) andalso (sp->extra <> 0) then row += " explicit"
+    if (n->kind = Tko.N_ENUM) andalso (sp->extra <> 0) then row += " explicit"
     outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
 
     DumpAny( ast, src, names, sp->a, indent + 1, outp )
     DumpAny( ast, src, names, sp->b, indent + 1, outp )
     DumpAny( ast, src, names, sp->c, indent + 1, outp )
     for i as long = 0 to sp->count - 1
-        DumpAny( ast, src, names, cast( Fbx.NodeId, ast.children[sp->first + i] ), _
+        DumpAny( ast, src, names, cast( Tko.NodeId, ast.children[sp->first + i] ), _
                  indent + 1, outp )
     next
 end sub
 
 function DumpTree _
-    ( byref ast as Fbx.AstArena, byref src as Fbx.SourceManager, _
-      byref names as Fbx.Interner, byval root as Fbx.NodeId ) as string
+    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+      byref names as Tko.Interner, byval root as Tko.NodeId ) as string
 
     dim as string outp = ""
     DumpAny( ast, src, names, root, 0, outp )

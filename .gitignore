@@ -20,3 +20,5 @@ Thumbs.db
 /*.bas
 /*.c
 /*.exe
+__pycache__/
+*.pyc

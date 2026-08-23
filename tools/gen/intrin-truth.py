@@ -20,13 +20,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-import fbxtargets
+import tkotargets
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "tests/types/expected/fbc-intrin.txt"
 WORK = ROOT / "build/.in"
 LABEL = "win64"
-FBC = fbxtargets.FBC64
+FBC = tkotargets.FBC64
 
 # (spelling, declaration). The declaration is emitted once; the spelling goes in the
 # probe. '@' forms and array arguments need their own declarations.
@@ -58,7 +58,7 @@ TWO_ARG = ["instr", "instrrev", "mid"]
 
 def main() -> int:
     rc = 0
-    for label, fbc, out, work in fbxtargets.truth_targets(OUT, WORK):
+    for label, fbc, out, work in tkotargets.truth_targets(OUT, WORK):
         if one_target(label, fbc, out, work) != 0:
             rc = 1
     return rc

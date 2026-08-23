@@ -15,14 +15,14 @@
 '' a future SSA form: explicit blocks, explicit terminators, and no implicit
 '' fallthrough anywhere.
 
-#ifndef __FBX_MIR_BI__
-#define __FBX_MIR_BI__
+#ifndef __TKO_MIR_BI__
+#define __TKO_MIR_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "types/type.bi"
 #include once "support/intern.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
     '' The closed type set. 'agg' carries a frontend TypeId because an aggregate's
     '' layout is still a frontend question; nothing else about it survives.
@@ -42,7 +42,7 @@ namespace Fbx.Mir
     ''
     '' The mnemonic is the only spelling used by --dump-ir and by the golden tests, so
     '' an opcode cannot be renamed in one place and not the other.
-    #macro FBX_MIR_LIST( OP )
+    #macro TKO_MIR_LIST( OP )
         OP( M_CONST,      "const",      0, true  )
         OP( M_ALLOCA,     "alloca",     0, true  )
         OP( M_LOAD,       "load",       1, true  )
@@ -139,7 +139,7 @@ namespace Fbx.Mir
     enum MirOp
         M_NONE = 0
         #define OP( o_id, o_name, o_args, o_res ) o_id,
-        FBX_MIR_LIST( OP )
+        TKO_MIR_LIST( OP )
         #undef OP
         M_OP_COUNT
     end enum
@@ -210,7 +210,7 @@ namespace Fbx.Mir
     type MirLocal
         as InternId name
         as ubyte    ty
-        as Fbx.TypeId frontendType   '' kept for aggregate layout and for the dump
+        as Tko.TypeId frontendType   '' kept for aggregate layout and for the dump
         as long     size
         '' The SYMBOL this slot belongs to, 0 for a compiler temporary. Slots are found
         '' by symbol and not by spelling: two variables called 'x' in sibling scopes of
@@ -280,7 +280,7 @@ namespace Fbx.Mir
         as boolean  isExternal
         as boolean  isVar
         as ubyte    ty             '' MirType, isVar only
-        as Fbx.TypeId frontendType
+        as Tko.TypeId frontendType
         as long     size
         as longint  initInt        '' compile-time initial value
         as double   initFlt
@@ -333,7 +333,7 @@ namespace Fbx.Mir
         declare sub PushPtrGlobal( byval g as long, byval which as long )
         declare sub PushPtrFunc( byval g as long, byval nm as InternId )
         declare function AddVarGlobal _
-            ( byval nm as InternId, byval ty as MirType, byval ft as Fbx.TypeId, _
+            ( byval nm as InternId, byval ty as MirType, byval ft as Tko.TypeId, _
               byval sizeBytes as long ) as long
     end type
 
@@ -344,7 +344,7 @@ namespace Fbx.Mir
 
     '' The MIR type a frontend type lowers to. Aggregates keep their TypeId.
     declare function LowerType _
-        ( byval t as Fbx.TypeId, byref types as Fbx.TypeContext ) as MirType
+        ( byval t as Tko.TypeId, byref types as Tko.TypeContext ) as MirType
 
 end namespace
 

@@ -1,5 +1,5 @@
 @echo off
-rem build.bat -- build fbx with the stage0 compiler (FBC-Modern).
+rem build.bat -- build tiko-lang with the stage0 compiler (FBC-Modern).
 rem
 rem   build\build.bat [Debug^|Release^|RelWithDebInfo] [--test-runner]
 rem
@@ -13,11 +13,11 @@ set "CFG=%~1"
 if "%CFG%"=="" set "CFG=Debug"
 if "%CFG%"=="--test-runner" set "CFG=Debug"
 
-if "%FBX_STAGE0%"=="" set "FBX_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
+if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
 
-if not exist "%FBX_STAGE0%" (
-    echo build: stage0 compiler not found at %FBX_STAGE0% 1>&2
-    echo build: set FBX_STAGE0 to an FBC-Modern fbc 1>&2
+if not exist "%TKO_STAGE0%" (
+    echo build: stage0 compiler not found at %TKO_STAGE0% 1>&2
+    echo build: set TKO_STAGE0 to an FBC-Modern fbc 1>&2
     exit /b 3
 )
 
@@ -44,9 +44,9 @@ for /f "usebackq delims=" %%f in ("%ROOT%\build\sources.txt") do (
 if not exist "%ROOT%\bin" mkdir "%ROOT%\bin"
 if not exist "%ROOT%\build\obj\%CFG%" mkdir "%ROOT%\build\obj\%CFG%"
 
-echo build: fbx [%CFG%] with %FBX_STAGE0%
+echo build: tiko-lang [%CFG%] with %TKO_STAGE0%
 pushd "%ROOT%"
-"%FBX_STAGE0%" !SOURCES! -m !MAINMOD! -i src %FLAGS% -x "bin\fbx.exe"
+"%TKO_STAGE0%" !SOURCES! -m !MAINMOD! -i src %FLAGS% -x "bin\tiko.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 if /i "%~1"=="--test-runner" goto :buildrunner
@@ -54,8 +54,8 @@ if /i "%~2"=="--test-runner" goto :buildrunner
 goto :done
 
 :buildrunner
-echo build: fbx-test [%CFG%]
-"%FBX_STAGE0%" tools\fbx-test\fbxtest.bas -i src %FLAGS% -x "bin\fbx-test.exe"
+echo build: tiko-test [%CFG%]
+"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %FLAGS% -x "bin\tiko-test.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 :done

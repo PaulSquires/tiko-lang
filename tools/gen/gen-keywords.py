@@ -42,7 +42,7 @@ def main() -> int:
     for spelling, cls, opt in rows:
         opt = opt or ""
         if "QB_ONLY" in opt:
-            continue                      # -lang qb only; fbx targets -lang fb
+            continue                      # -lang qb only; tiko-lang targets -lang fb
         if spelling in seen:
             continue
         seen[spelling] = True
@@ -62,23 +62,23 @@ def main() -> int:
     out.append("''   KWCLASS_INTRINSIC   the intrinsic statements: PRINT, OPEN, DRAW, PUT ...")
     out.append("''                       -- this is the registry of docs/plan/04 section 5.")
     out.append("''")
-    out.append(f"'' {len(kept)} entries. QB-dialect-only spellings are excluded: fbx is #lang \"fb\" only.")
+    out.append(f"'' {len(kept)} entries. QB-dialect-only spellings are excluded: tiko-lang is #lang \"fb\" only.")
     out.append("''")
     out.append("'' Words FBC-Modern adds CONTEXTUALLY -- defer, each, in, of, spawn -- are deliberately")
     out.append("'' absent. They are not reserved, so the lexer must keep treating them as identifiers.")
     out.append("")
-    out.append("#ifndef __FBX_KEYWORDS_BI__")
-    out.append("#define __FBX_KEYWORDS_BI__")
+    out.append("#ifndef __TKO_KEYWORDS_BI__")
+    out.append("#define __TKO_KEYWORDS_BI__")
     out.append("")
     out.append("'' KW( enum name, spelling, class )")
-    out.append("#macro FBX_KEYWORD_LIST( KW )")
+    out.append("#macro TKO_KEYWORD_LIST( KW )")
     namew = width + 3
     for spelling, cls in kept:
         name = "KW_" + spelling
         out.append(f'    KW( {(name + ",").ljust(namew + 1)} "{spelling}",{" " * (width - len(spelling))} {cls} )')
     out.append("#endmacro")
     out.append("")
-    out.append(f"const FBX_KEYWORD_COUNT as long = {len(kept)}")
+    out.append(f"const TKO_KEYWORD_COUNT as long = {len(kept)}")
     out.append("")
     out.append("#endif")
 

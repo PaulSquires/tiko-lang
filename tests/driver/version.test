@@ -1,5 +1,5 @@
 '' TEST: cli
 '' ARGS: --version
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: fbx 0.1.0-dev
+'' EXPECT-OUT: tiko-lang 0.1.0-dev
 '' EXPECT-OUT: language compatibility fbc 1.20.0

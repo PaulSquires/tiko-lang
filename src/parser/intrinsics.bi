@@ -16,12 +16,12 @@
 '' Getting the first two groups wrong is what makes 'dim l as long = len(s)' parse as
 '' a LEN statement. The classification is the point of the table.
 
-#ifndef __FBX_INTRINSICS_BI__
-#define __FBX_INTRINSICS_BI__
+#ifndef __TKO_INTRINSICS_BI__
+#define __TKO_INTRINSICS_BI__
 
 #include once "lexer/token.bi"
 
-namespace Fbx
+namespace Tko
 
     enum IntrinsicForm
         IFORM_NONE = 0
@@ -47,7 +47,7 @@ namespace Fbx
     end enum
 
     '' INTR( token kind, form )
-    #macro FBX_INTRINSIC_LIST( INTR )
+    #macro TKO_INTRINSIC_LIST( INTR )
         '' ---- expression functions: NOT statements
         INTR( KW_ACOS,        IFORM_EXPR )
         INTR( KW_ASC,         IFORM_EXPR )

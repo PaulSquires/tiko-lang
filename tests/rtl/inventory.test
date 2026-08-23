@@ -1,5 +1,5 @@
 '' The runtime inventory. docs/plan/11 section 3: no 'fb_StrAssign' string literal
-'' anywhere else in fbx, so that there is ONE place to audit against the runtime and
+'' anywhere else in tiko-lang, so that there is ONE place to audit against the runtime and
 '' a dumpable list that can be diffed against the library's real exports.
 ''
 '' The full differential -- return type, arity and every parameter type, plus a

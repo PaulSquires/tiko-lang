@@ -1,7 +1,7 @@
 """The targets every gate measures against, in one place.
 
 Imported by the tools/gen truth generators and checkers. They run as scripts from this
-directory, so a plain 'import fbxtargets' finds it.
+directory, so a plain 'import tkotargets' finds it.
 
 Both targets now come from ONE fbc release, which they did not always: fbc-modern had no
 32-bit build for a while and the win32 expectations were measured with fbc 1.10.1
@@ -19,10 +19,10 @@ from pathlib import Path
 
 TC = Path(r"C:\dev\fbc-modern\toolchains\fbc-modern-windows")
 
-# FBX_CONTROL_FBC64 / _FBC32 point one half at a different compiler, which is how
+# TKO_CONTROL_FBC64 / _FBC32 point one half at a different compiler, which is how
 # control.py measures whether two releases agree. Nothing else sets them.
-FBC64 = Path(os.environ.get("FBX_CONTROL_FBC64", str(TC / "fbc64.exe")))
-FBC32 = Path(os.environ.get("FBX_CONTROL_FBC32", str(TC / "fbc32.exe")))
+FBC64 = Path(os.environ.get("TKO_CONTROL_FBC64", str(TC / "fbc64.exe")))
+FBC32 = Path(os.environ.get("TKO_CONTROL_FBC32", str(TC / "fbc32.exe")))
 
 # The previous release, for control.py to compare against. Any fbc install would serve.
 TC_OLD = Path(r"C:\dev\tiko_editor\toolchains\FreeBASIC-1.10.1-winlibs-gcc-9.3.0")
@@ -45,7 +45,7 @@ def truth_targets(out, work):
 
 
 def check_targets(truth):
-    """(label, truth, fbx-args) per target, given the win64 truth path."""
+    """(label, truth, tiko-lang-args) per target, given the win64 truth path."""
     return [
         ("win64", truth, []),
         ("win32", truth.with_name(truth.stem + "-win32" + truth.suffix),

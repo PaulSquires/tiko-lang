@@ -8,12 +8,12 @@
 '' Higher binds tighter. Every binary operator in FreeBASIC is LEFT-associative,
 '' including '^' -- so there is no associativity column: there is nothing to vary.
 
-#ifndef __FBX_PRECTABLE_BI__
-#define __FBX_PRECTABLE_BI__
+#ifndef __TKO_PRECTABLE_BI__
+#define __TKO_PRECTABLE_BI__
 
 #include once "lexer/token.bi"
 
-namespace Fbx
+namespace Tko
 
     '' Levels, loosest to tightest. Unary operators sit at PREC_NOT and PREC_SIGN.
     enum Precedence
@@ -38,7 +38,7 @@ namespace Fbx
     end enum
 
     '' BINOP( token kind, precedence )
-    #macro FBX_BINOP_LIST( BINOP )
+    #macro TKO_BINOP_LIST( BINOP )
         BINOP( KW_ORELSE,     PREC_ANDALSO )
         BINOP( KW_ANDALSO,    PREC_ANDALSO )
         BINOP( KW_IMP,        PREC_IMP     )

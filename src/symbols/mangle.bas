@@ -4,7 +4,7 @@
 #include once "symbols/mangle.bi"
 #include once "support/text.bi"
 
-namespace Fbx.Mangle
+namespace Tko.Mangle
 
 '' -------------------------------------------------------------- substitutions
 
@@ -15,15 +15,15 @@ function Substitutions.Find( byref enc as string ) as long
     return -1
 end function
 
-function Substitutions.FindType( byval t as Fbx.TypeId ) as long
-    if t = Fbx.TYPE_NONE then return -1
+function Substitutions.FindType( byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return -1
     for i as long = 0 to keys.Count - 1
         if keys[i] = cast( ulong, t ) then return i
     next
     return -1
 end function
 
-sub Substitutions.Add( byref enc as string, byval t as Fbx.TypeId = 0 )
+sub Substitutions.Add( byref enc as string, byval t as Tko.TypeId = 0 )
     if (t = 0) andalso (Find( enc ) >= 0) then return
     if (t <> 0) andalso (FindType( t ) >= 0) then return
     items.Push( enc )
@@ -49,31 +49,31 @@ end function
 '' parameter, so 'operator let( byref rhs as W )' inside W is _ZN1WaSERS_ -- the R
 '' refers BACK to the 1W already emitted, and keying it by name alone would miss.
 private sub QualifierChain _
-    ( byref syms as Fbx.SymbolTable, byval sc as Fbx.ScopeId, _
-      byref names as Fbx.Interner, byref outp as FB.Array( of string ), _
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner, byref outp as FB.Array( of string ), _
       byref outTypes as FB.Array( of ulong ) )
 
     dim as FB.Array( of string ) rev
     dim as FB.Array( of ulong ) revT
-    dim as Fbx.ScopeId cur = sc
-    while cur <> Fbx.SCOPE_NONE
-        dim as Fbx.SymScope ptr s = syms.ScopeAt( cur )
+    dim as Tko.ScopeId cur = sc
+    while cur <> Tko.SCOPE_NONE
+        dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
         if s = 0 then exit while
-        if (s->kind = cast( ubyte, Fbx.SCOPEK_NAMESPACE )) orelse _
-           (s->kind = cast( ubyte, Fbx.SCOPEK_TYPE )) then
-            dim as Fbx.Symbol ptr owner = syms.SymbolAt( s->owner )
+        if (s->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE )) orelse _
+           (s->kind = cast( ubyte, Tko.SCOPEK_TYPE )) then
+            dim as Tko.Symbol ptr owner = syms.SymbolAt( s->owner )
             if owner <> 0 then
                 '' A NAMESPACE ALIAS replaces the name and keeps its CASE, where a
                 '' plain namespace is uppercased. Measured: 'namespace aaa alias "zzz"'
                 '' gives _ZN3zzz1FEv, not _ZN3AAA1FEv.
-                dim as string qual = Fbx.Text.UpperAscii( names.Spelling( owner->name ) )
-                if owner->kind = cast( ubyte, Fbx.SYM_NAMESPACE ) then
+                dim as string qual = Tko.Text.UpperAscii( names.Spelling( owner->name ) )
+                if owner->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
                     if owner->payload <> 0 then
-                        qual = names.Spelling( cast( Fbx.InternId, owner->payload ) )
+                        qual = names.Spelling( cast( Tko.InternId, owner->payload ) )
                     end if
                 end if
                 rev.Push( qual )
-                if s->kind = cast( ubyte, Fbx.SCOPEK_TYPE ) then
+                if s->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
                     revT.Push( cast( ulong, owner->type_ ) )
                 else
                     revT.Push( 0 )
@@ -98,10 +98,10 @@ end sub
 const MAIN_PROC_NAME as string = "__FB_MAINPROC__"
 
 function SourceQualifiedName _
-    ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
-      byref names as Fbx.Interner ) as string
+    ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+      byref names as Tko.Interner ) as string
 
-    dim as Fbx.Symbol ptr s = syms.SymbolAt( sid )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
     if s = 0 then return ""
     dim as FB.Array( of string ) q
     dim as FB.Array( of ulong ) qt
@@ -110,29 +110,29 @@ function SourceQualifiedName _
     for i as long = 0 to q.Count - 1
         r += q[i] & "."
     next
-    return r & Fbx.Text.UpperAscii( names.Spelling( s->name ) )
+    return r & Tko.Text.UpperAscii( names.Spelling( s->name ) )
 end function
 
 
 function ProcNameOrMain _
-    ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
-      byref names as Fbx.Interner ) as string
+    ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+      byref names as Tko.Interner ) as string
 
-    if sid = Fbx.SYMBOL_NONE then return MAIN_PROC_NAME
+    if sid = Tko.SYMBOL_NONE then return MAIN_PROC_NAME
     dim as string r = SourceQualifiedName( syms, sid, names )
     if len( r ) = 0 then return MAIN_PROC_NAME
     return r
 end function
 
 function EnclosingProcName _
-    ( byref syms as Fbx.SymbolTable, byval sc as Fbx.ScopeId, _
-      byref names as Fbx.Interner ) as string
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner ) as string
 
-    dim as Fbx.ScopeId cur = sc
-    while cur <> Fbx.SCOPE_NONE
-        dim as Fbx.SymScope ptr s = syms.ScopeAt( cur )
+    dim as Tko.ScopeId cur = sc
+    while cur <> Tko.SCOPE_NONE
+        dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
         if s = 0 then exit while
-        if s->kind = cast( ubyte, Fbx.SCOPEK_PROC ) then
+        if s->kind = cast( ubyte, Tko.SCOPEK_PROC ) then
             dim as string r = SourceQualifiedName( syms, s->owner, names )
             if len( r ) > 0 then return r
             exit while
@@ -156,32 +156,32 @@ end function
 '' b as integer )' ends 'Eu7INTEGERS0_' on win64 and plainly 'Ell' on win32. It falls
 '' out of IsSubstitutable rather than needing a rule.
 private function BuiltinCode _
-    ( byval b as Fbx.BuiltinType, byval is32 as boolean ) as string
+    ( byval b as Tko.BuiltinType, byval is32 as boolean ) as string
 
     if is32 then
         select case b
-        case Fbx.TY_INTEGER  : return "l"
-        case Fbx.TY_UINTEGER : return "m"
+        case Tko.TY_INTEGER  : return "l"
+        case Tko.TY_UINTEGER : return "m"
         end select
     end if
     select case b
-    case Fbx.TY_BYTE     : return "a"
-    case Fbx.TY_UBYTE    : return "h"
-    case Fbx.TY_SHORT    : return "s"
-    case Fbx.TY_USHORT   : return "t"
-    case Fbx.TY_LONG     : return "i"
-    case Fbx.TY_ULONG    : return "j"
-    case Fbx.TY_INTEGER  : return "u7INTEGER"
-    case Fbx.TY_UINTEGER : return "u8UINTEGER"
-    case Fbx.TY_LONGINT  : return "x"
-    case Fbx.TY_ULONGINT : return "y"
-    case Fbx.TY_SINGLE   : return "f"
-    case Fbx.TY_DOUBLE   : return "d"
-    case Fbx.TY_BOOLEAN  : return "b"
-    case Fbx.TY_STRING   : return "8FBSTRING"
-    case Fbx.TY_USTRING  : return "9FBUSTRING"
-    case Fbx.TY_ZSTRING  : return "c"
-    case Fbx.TY_WSTRING  : return "w"
+    case Tko.TY_BYTE     : return "a"
+    case Tko.TY_UBYTE    : return "h"
+    case Tko.TY_SHORT    : return "s"
+    case Tko.TY_USHORT   : return "t"
+    case Tko.TY_LONG     : return "i"
+    case Tko.TY_ULONG    : return "j"
+    case Tko.TY_INTEGER  : return "u7INTEGER"
+    case Tko.TY_UINTEGER : return "u8UINTEGER"
+    case Tko.TY_LONGINT  : return "x"
+    case Tko.TY_ULONGINT : return "y"
+    case Tko.TY_SINGLE   : return "f"
+    case Tko.TY_DOUBLE   : return "d"
+    case Tko.TY_BOOLEAN  : return "b"
+    case Tko.TY_STRING   : return "8FBSTRING"
+    case Tko.TY_USTRING  : return "9FBUSTRING"
+    case Tko.TY_ZSTRING  : return "c"
+    case Tko.TY_WSTRING  : return "w"
     end select
     return "v"
 end function
@@ -206,7 +206,7 @@ private function EmitPrefix _
     for i as long = 0 to quals.Count - 1
         dim as string comp = SrcName( quals[i] )
         full += comp
-        dim as Fbx.TypeId qt = cast( Fbx.TypeId, qualTypes[i] )
+        dim as Tko.TypeId qt = cast( Tko.TypeId, qualTypes[i] )
         dim as long hit = -1
         if qt <> 0 then
             hit = subs.FindType( qt )
@@ -224,11 +224,11 @@ private function EmitPrefix _
 end function
 
 function TypeCode _
-    ( byval t as Fbx.TypeId, byref types as Fbx.TypeContext, _
-      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+    ( byval t as Tko.TypeId, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
       byref subs as Substitutions ) as string
 
-    if t = Fbx.TYPE_NONE then return "v"
+    if t = Tko.TYPE_NONE then return "v"
 
     '' Look the TYPE up before encoding it. Doing it afterwards compares an encoding
     '' whose inner components have already been substituted, which never matches.
@@ -241,7 +241,7 @@ function TypeCode _
     '' 'byref as const long' is RKi -- in both the K binds to the base type, so it is
     '' stripped here and re-applied around whatever is left.
     if types.IsConst( t ) then
-        dim as Fbx.TypeId bare = types.Unqualify( t )
+        dim as Tko.TypeId bare = types.Unqualify( t )
         if bare <> t then
             enc = "K" & TypeCode( bare, types, syms, names, subs )
             subs.Add( enc, t )
@@ -249,33 +249,33 @@ function TypeCode _
         end if
     end if
 
-    dim as Fbx.TypeInfo ptr ti = 0
+    dim as Tko.TypeInfo ptr ti = 0
     if cast( long, t ) < types.types.Count then ti = @types.types[cast( long, t )]
 
     select case types.Kind( t )
-    case Fbx.TK_POINTER
+    case Tko.TK_POINTER
         enc = "P" & TypeCode( types.Inner( t ), types, syms, names, subs )
 
-    case Fbx.TK_REFERENCE
+    case Tko.TK_REFERENCE
         enc = "R" & TypeCode( types.Inner( t ), types, syms, names, subs )
 
-    case Fbx.TK_UDT, Fbx.TK_ENUM, Fbx.TK_FORWARD, Fbx.TK_TYPEDEF
+    case Tko.TK_UDT, Tko.TK_ENUM, Tko.TK_FORWARD, Tko.TK_TYPEDEF
         dim as string nm = ""
-        if ti <> 0 then nm = Fbx.Text.UpperAscii( names.Spelling( ti->name ) )
+        if ti <> 0 then nm = Tko.Text.UpperAscii( names.Spelling( ti->name ) )
         if len( nm ) = 0 then return "v"
         '' A UDT inside a namespace is a NESTED NAME: N <prefix> <name> E, and the
         '' prefix is usually a substitution because the procedure's own qualifiers
         '' already emitted it -- 'byref as Vec' in namespace BYVAL_OK is NS2_3VECE.
         dim as FB.Array( of string ) q
         dim as FB.Array( of ulong ) qt
-        if ti <> 0 then QualifierChain( syms, cast( Fbx.ScopeId, ti->declScope ), names, q, qt )
+        if ti <> 0 then QualifierChain( syms, cast( Tko.ScopeId, ti->declScope ), names, q, qt )
         if q.Count = 0 then
             enc = SrcName( nm )
         else
             enc = "N" & EmitPrefix( q, qt, subs ) & SrcName( nm ) & "E"
         end if
 
-    case Fbx.TK_PROC
+    case Tko.TK_PROC
         '' F <return> <params...> E. A function TYPE encodes its return type, unlike
         '' a procedure NAME, which never does.
         dim as string body = "F" & TypeCode( types.Inner( t ), types, syms, names, subs )
@@ -285,13 +285,13 @@ function TypeCode _
             body += "v"
         else
             for i as long = 0 to n - 1
-                dim as Fbx.TypeId pt = cast( Fbx.TypeId, types.pool[ti->first + i] )
+                dim as Tko.TypeId pt = cast( Tko.TypeId, types.pool[ti->first + i] )
                 body += TypeCode( pt, types, syms, names, subs )
             next
         end if
         enc = body & "E"
 
-    case Fbx.TK_BUILTIN
+    case Tko.TK_BUILTIN
         enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32) )
 
     case else
@@ -308,7 +308,7 @@ end function
 '' ------------------------------------------------------------------ proc names
 
 private function StmtOf _
-    ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
     return @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
 end function
 
@@ -318,8 +318,8 @@ end function
 '' A property's emitted name carries its accessor: SIZE__get__ / SIZE__set__. Which
 '' one it is comes from the signature -- a getter takes no parameters.
 private function PropertySuffix _
-    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId ) as string
-    dim as Fbx.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId ) as string
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
     if sp->count > 0 then return "__set__"
     return "__get__"
 end function
@@ -329,14 +329,14 @@ end function
 '' and CAST is a conversion operator whose TARGET TYPE is part of the name -- which
 '' is what distinguishes 'operator cast as long' from 'operator cast as string'.
 private function OperatorCode _
-    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
-      byref types as Fbx.TypeContext, byref syms as Fbx.SymbolTable, _
-      byref names as Fbx.Interner, _
-      byref info as Fbx.SemanticInfo, byref subs as Substitutions, _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
+      byref names as Tko.Interner, _
+      byref info as Tko.SemanticInfo, byref subs as Substitutions, _
       byref ident as string ) as string
 
-    dim as Fbx.StmtPayload ptr sp = StmtOf( ast, proc_ )
-    dim as string nm = Fbx.Text.LowerAscii( names.Spelling( sp->name ) )
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    dim as string nm = Tko.Text.LowerAscii( names.Spelling( sp->name ) )
     if nm = "let" then return "aS"
     if nm = "cast" then
         return "cv" & TypeCode( info.TypeOf_( sp->a ), types, syms, names, subs )
@@ -344,8 +344,8 @@ private function OperatorCode _
 
     dim as long arity = 0
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, ast.children[sp->first + i] )
-        if ast.Kind( prm ) = Fbx.N_PARAM then arity += 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) = Tko.N_PARAM then arity += 1
     next
 
     '' THE ITANIUM OPERATOR CODES, for the operators C++ also has. Measured against
@@ -399,22 +399,22 @@ end function
 '' 12-byte UDT is @12, a 5-byte one @8, and a byval STRING @12, the descriptor on the
 '' stack. All measured.
 private function StdcallBytes _
-    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
-      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo, _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo, _
       byval hasThis as boolean ) as long
 
     dim as long total = 0
     if hasThis then total += 4
-    dim as Fbx.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, ast.children[sp->first + i] )
-        if ast.Kind( prm ) <> Fbx.N_PARAM then continue for
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         '' BYREF is a pointer whatever it refers to.
-        if (ast.nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
+        if (ast.nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
             total += 4
             continue for
         end if
-        dim as Fbx.StmtPayload ptr pp = StmtOf( ast, prm )
+        dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
         dim as long sz = types.Layout( info.TypeOf_( pp->a ) ).size
         if sz < 4 then sz = 4
         total += ((sz + 3) \ 4) * 4
@@ -430,12 +430,12 @@ end function
 '' An ALIAS does not remove the suffix either: 'my_alias' with no parameters is
 '' '_my_alias@0'.
 private function DecorateWin32 _
-    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
-      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo, _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo, _
       byref nm as string ) as string
 
-    dim as Fbx.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
 
     '' An instance method's implicit THIS is four more bytes. It is one only when the
     '' INNERMOST qualifier is a TYPE and the procedure is not STATIC: 'W.G( )' is @4 with
@@ -447,25 +447,25 @@ private function DecorateWin32 _
     dim as boolean hasThis = false
     if qt.Count > 0 then
         hasThis = (qt[qt.Count - 1] <> 0) andalso _
-                  ((sp->extra and Fbx.PF_STATIC) = 0)
+                  ((sp->extra and Tko.PF_STATIC) = 0)
     end if
     dim as ushort kw = sp->op
-    if (kw = cast( ushort, Fbx.KW_CONSTRUCTOR )) orelse _
-       (kw = cast( ushort, Fbx.KW_DESTRUCTOR )) then
+    if (kw = cast( ushort, Tko.KW_CONSTRUCTOR )) orelse _
+       (kw = cast( ushort, Tko.KW_DESTRUCTOR )) then
         return "_" & nm
     end if
 
     '' The convention lives on the SYMBOL, not the node: a definition inherits its
     '' DECLARE's, and reading the node alone would decorate the two halves differently.
-    dim as Fbx.CallConv cc = Fbx.CallConvOf( sp->extra )
-    dim as Fbx.Symbol ptr s = syms.SymbolAt( info.RefOf( proc_ ) )
+    dim as Tko.CallConv cc = Tko.CallConvOf( sp->extra )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( info.RefOf( proc_ ) )
     if s <> 0 then
-        if s->callConv <> cast( ubyte, Fbx.CC_NONE ) then
-            cc = cast( Fbx.CallConv, s->callConv )
+        if s->callConv <> cast( ubyte, Tko.CC_NONE ) then
+            cc = cast( Tko.CallConv, s->callConv )
         end if
     end if
-    if cc = Fbx.CC_NONE then cc = Fbx.CC_STDCALL
-    if cc <> Fbx.CC_STDCALL then return "_" & nm
+    if cc = Tko.CC_NONE then cc = Tko.CC_STDCALL
+    if cc <> Tko.CC_STDCALL then return "_" & nm
 
     return "_" & nm & "@" & StdcallBytes( ast, proc_, types, info, hasThis )
 end function
@@ -474,12 +474,12 @@ end function
 '' apply to EVERY path -- the foreign one, the unmangled one and the Itanium one alike --
 '' rather than to whichever return the change happened to be written next to.
 private function ProcNameCore _
-    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
-      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
-    if ast.Kind( proc_ ) <> Fbx.N_PROC then return ""
-    dim as Fbx.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    if ast.Kind( proc_ ) <> Tko.N_PROC then return ""
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
 
     dim as boolean aliased = (sp->aliasName <> 0)
     dim as string written = ""
@@ -487,7 +487,7 @@ private function ProcNameCore _
     if len( written ) = 0 then written = names.Spelling( sp->name )
 
     '' Rule 3: foreign linkage takes the spelling verbatim and ignores OVERLOAD.
-    if (sp->extra and Fbx.PF_FOREIGN) <> 0 then
+    if (sp->extra and Tko.PF_FOREIGN) <> 0 then
         if aliased then return names.Spelling( sp->aliasName )
         return written
     end if
@@ -497,13 +497,13 @@ private function ProcNameCore _
     if aliased then
         ident = names.Spelling( sp->aliasName )
     else
-        ident = Fbx.Text.UpperAscii( written )
+        ident = Tko.Text.UpperAscii( written )
     end if
 
     dim as ushort kw = sp->op
-    dim as boolean isCtor = (kw = cast( ushort, Fbx.KW_CONSTRUCTOR ))
-    dim as boolean isDtor = (kw = cast( ushort, Fbx.KW_DESTRUCTOR ))
-    if kw = cast( ushort, Fbx.KW_PROPERTY ) then
+    dim as boolean isCtor = (kw = cast( ushort, Tko.KW_CONSTRUCTOR ))
+    dim as boolean isDtor = (kw = cast( ushort, Tko.KW_DESTRUCTOR ))
+    if kw = cast( ushort, Tko.KW_PROPERTY ) then
         ident += PropertySuffix( ast, proc_ )
     end if
 
@@ -512,7 +512,7 @@ private function ProcNameCore _
     QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes )
 
     dim as boolean nested = (quals.Count > 0)
-    dim as boolean overloaded = ((sp->extra and Fbx.PF_OVERLOAD) <> 0)
+    dim as boolean overloaded = ((sp->extra and Tko.PF_OVERLOAD) <> 0)
 
     '' Rule 1: not nested and no OVERLOAD -- the uppercased spelling, nothing more.
     ''
@@ -521,7 +521,7 @@ private function ProcNameCore _
     '' N...E around it because there is no qualifier. Returning the spelling gave a
     '' function literally named '-', which no linker would accept and no call site
     '' could name.
-    dim as boolean isOp = (kw = cast( ushort, Fbx.KW_OPERATOR ))
+    dim as boolean isOp = (kw = cast( ushort, Tko.KW_OPERATOR ))
     if (nested = false) andalso (overloaded = false) andalso (isOp = false) then
         return ident
     end if
@@ -533,7 +533,7 @@ private function ProcNameCore _
         outp += "N"
         '' A const method is _ZNK..., not _ZN...: the qualifier sits before the
         '' nested name rather than with the parameters.
-        if (sp->extra and Fbx.PF_CONST) <> 0 then outp += "K"
+        if (sp->extra and Tko.PF_CONST) <> 0 then outp += "K"
         '' A prefix candidate is the CUMULATIVE prefix, not the single component.
         '' 'namespace tests.fbc_tests.boolean_.boolean_' has two components spelled
         '' the same, and fbc emits 8BOOLEAN_8BOOLEAN_ rather than substituting the
@@ -544,7 +544,7 @@ private function ProcNameCore _
             outp += "C1"
         elseif isDtor then
             outp += "D1"
-        elseif kw = cast( ushort, Fbx.KW_OPERATOR ) then
+        elseif kw = cast( ushort, Tko.KW_OPERATOR ) then
             outp += OperatorCode( ast, proc_, types, syms, names, info, subs, ident )
         else
             outp += SrcName( ident )
@@ -560,11 +560,11 @@ private function ProcNameCore _
     '' POINTER's is, and TypeCode handles that.
     dim as long emitted = 0
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, ast.children[sp->first + i] )
-        if ast.Kind( prm ) <> Fbx.N_PARAM then continue for
-        dim as Fbx.StmtPayload ptr pp = StmtOf( ast, prm )
-        dim as Fbx.TypeId pt = info.TypeOf_( pp->a )
-        if (ast.nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
+        dim as Tko.TypeId pt = info.TypeOf_( pp->a )
+        if (ast.nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
             pt = types.Reference( pt )
         end if
         outp += TypeCode( pt, types, syms, names, subs )
@@ -575,9 +575,9 @@ private function ProcNameCore _
 end function
 
 function ProcName _
-    ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
-      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
     dim as string nm = ProcNameCore( ast, proc_, syms, names, types, info )
     '' A 32-bit pointer means win32: Linux is 64-bit only by decision.
@@ -589,20 +589,20 @@ end function
 '' ------------------------------------------------------------------------ dump
 
 function Dump _
-    ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-      byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-      byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
+    ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
     dim as string outp = ""
     for i as long = 1 to ast.Count( )
-        dim as Fbx.NodeId n = cast( Fbx.NodeId, i )
-        if ast.Kind( n ) <> Fbx.N_PROC then continue for
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if ast.Kind( n ) <> Tko.N_PROC then continue for
         '' A DECLARE with no body names the same symbol its definition does; emitting
         '' both would double every entry in the dump.
-        if StmtOf( ast, n )->b = Fbx.NODE_NONE then continue for
+        if StmtOf( ast, n )->b = Tko.NODE_NONE then continue for
         '' A PRIVATE procedure is module-static: it has an internal name but no
         '' symbol the linker can see, so fbc's object file has no entry to compare.
-        if (StmtOf( ast, n )->extra and Fbx.PF_PRIVATE) <> 0 then continue for
+        if (StmtOf( ast, n )->extra and Tko.PF_PRIVATE) <> 0 then continue for
         dim as string m = ProcName( ast, n, syms, names, types, info )
         if len( m ) > 0 then outp += m & chr( 10 )
     next

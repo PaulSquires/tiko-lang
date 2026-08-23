@@ -6,12 +6,12 @@
 
 #include once "lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
-using Fbx
+using Tko
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
 '' THE NARROW SUBSTRING AND TRIM FAMILY, as an rvalue.
 ''
@@ -31,7 +31,7 @@ declare function StrSwapKind_ _
 '' Guessing 'fb_TrimEx' from 'fb_TRIM', or 'fb_Mid' from 'fb_LEFT', would have been
 '' wrong in both directions. check-rtl proves all twelve against fbc.
 function LowerStrRvalue _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     '' THE RADIX FAMILY shares this entry point: every caller that wants a descriptor
     '' reaches LowerStrRvalue, and putting the test only in StrDescriptorOf_ missed
@@ -40,30 +40,30 @@ function LowerStrRvalue _
     if LowerRadixCall_( c, id, outv ) then return true
     if LowerStrOf_( c, id, outv ) then return true
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 3) then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     '' The FIRST argument decides. These names are overloaded on wide strings too, and
     '' the wide overload belongs to LowerWideRvalue.
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     if IsWideString_( c, c.info->TypeOf_( a0 ) ) then return false
 
     '' The second argument, unwrapped from 'any' if it carries one.
-    dim as Fbx.NodeId a1 = Fbx.NODE_NONE
+    dim as Tko.NodeId a1 = Tko.NODE_NONE
     dim as boolean isAny = false
     if cp->count >= 2 then
-        a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
-        if c.ast->Kind( a1 ) = Fbx.N_UNARY then
-            dim as Fbx.UnaryPayload ptr up = _
+        a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        if c.ast->Kind( a1 ) = Tko.N_UNARY then
+            dim as Tko.UnaryPayload ptr up = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a1 )].data )]
-            if cast( Fbx.TokenKind, up->op ) = Fbx.KW_ANY then
+            if cast( Tko.TokenKind, up->op ) = Tko.KW_ANY then
                 isAny = true
                 a1 = up->operand
             end if
@@ -126,7 +126,7 @@ function LowerStrRvalue _
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
 
-    if a1 <> Fbx.NODE_NONE then
+    if a1 <> Tko.NODE_NONE then
         if secondIsStr then
             dim as MirValue s1
             if StrDescriptorOf_( c, a1, s1 ) = false then return false
@@ -143,7 +143,7 @@ function LowerStrRvalue _
         '' A 'mid' WITHOUT a length passes -1, not 0 -- 0 would silently produce an
         '' empty string instead of the rest of the source.
         if cp->count = 3 then
-            dim as Fbx.NodeId a2 = cast( Fbx.NodeId, c.ast->children[cp->first + 2] )
+            dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
             dim as MirValue n2 = LowerExpr( c, a2 )
             if n2.kind = cast( ubyte, MV_NONE ) then return false
             n2 = Coerce( c, n2, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a2 ) ) )
@@ -186,22 +186,22 @@ end function
 '' a wide context must not be handed a descriptor and vice versa -- and both halves are
 '' spelled as an ordinary call, so only the NAME says which this is.
 function LowerRadixCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
       byval wantWide as boolean = false ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 2) then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
-    dim as Fbx.NodeId a1 = Fbx.NODE_NONE
-    if cp->count = 2 then a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a1 = Tko.NODE_NONE
+    if cp->count = 2 then a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
 
     '' SPACE and STRING first: their argument is a COUNT, not a value to render, and
     '' neither takes a width.
@@ -226,7 +226,7 @@ function LowerRadixCall_ _
 
         '' A STRING SECOND ARGUMENT is a descriptor and a NUMERIC one a character
         '' code -- two entry points, not one with a converted argument.
-        dim as boolean isStr = (c.ast->Kind( a1 ) = Fbx.N_STRING_LIT)
+        dim as boolean isStr = (c.ast->Kind( a1 ) = Tko.N_STRING_LIT)
         if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a1 ) )
         if isStr then
             dim as MirValue dv
@@ -261,10 +261,10 @@ function LowerRadixCall_ _
     end select
     if wide <> wantWide then return false
 
-    '' THE WIDTH, from the argument's own size. A type fbx cannot size at all would
+    '' THE WIDTH, from the argument's own size. A type tiko-lang cannot size at all would
     '' otherwise silently become a 64-bit render.
-    dim as Fbx.TypeId at = c.info->TypeOf_( a0 )
-    if at = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId at = c.info->TypeOf_( a0 )
+    if at = Tko.TYPE_NONE then return false
     dim as MirType amt = LowerType( at, *c.types )
     dim as long w = -1
     select case amt
@@ -283,7 +283,7 @@ function LowerRadixCall_ _
     '' changed with it. Leaving it at four made 'hex( p )' collide with 'oct( byte )'.
     dim as RtlId r = RTL_NONE
     if wide then
-        if a1 = Fbx.NODE_NONE then
+        if a1 = Tko.NODE_NONE then
             select case fam * 5 + w
             case 0 : r = RTL_WHEX_B
             case 1 : r = RTL_WHEX_S
@@ -320,7 +320,7 @@ function LowerRadixCall_ _
             case else : r = RTL_WBINEX_P
             end select
         end if
-    elseif a1 = Fbx.NODE_NONE then
+    elseif a1 = Tko.NODE_NONE then
         select case fam * 5 + w
         case 0 : r = RTL_HEX_B
         case 1 : r = RTL_HEX_S
@@ -368,7 +368,7 @@ function LowerRadixCall_ _
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
 
-    if a1 <> Fbx.NODE_NONE then
+    if a1 <> Tko.NODE_NONE then
         dim as MirValue n1 = LowerExpr( c, a1 )
         if n1.kind = cast( ubyte, MV_NONE ) then return false
         n1 = Coerce( c, n1, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
@@ -393,16 +393,16 @@ end function
 '' INTEGER is 64-bit on win64, so 'str( i )' is fb_LongintToStr there and fb_IntToStr on
 '' win32. Decided from the type's own size rather than its spelling, as everywhere else.
 function LowerStrOf_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     '' CHR first: same family, but variadic and with a COUNT in front.
     if nm = "chr" then
@@ -410,7 +410,7 @@ function LowerStrOf_ _
         dim as FB.Array( of ulong ) ca
         ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cp->count ) )
         for i as long = 0 to cp->count - 1
-            dim as Fbx.NodeId ai = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+            dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
             dim as MirValue av = LowerExpr( c, ai )
             if av.kind = cast( ubyte, MV_NONE ) then return false
             av = Coerce( c, av, MT_I64, IsUnsignedType( c, c.info->TypeOf_( ai ) ) )
@@ -422,7 +422,7 @@ function LowerStrOf_ _
 
     if nm <> "str" then return false
     if cp->count <> 1 then return false
-    dim as Fbx.NodeId sa = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId sa = cast( Tko.NodeId, c.ast->children[cp->first] )
 
     '' STR OF A STRING IS THE IDENTITY and fbc emits no conversion for it -- but it is
     '' not a no-op either: 'str( z )' over a 'zstring * N' is
@@ -433,7 +433,7 @@ function LowerStrOf_ _
     dim as longint sn
     if IsStringType( c, c.info->TypeOf_( sa ) ) orelse _
        (StrSwapKind_( c, c.info->TypeOf_( sa ), sn ) >= 0) orelse _
-       (c.types->Kind( c.info->TypeOf_( sa ) ) = Fbx.TK_UDT) then
+       (c.types->Kind( c.info->TypeOf_( sa ) ) = Tko.TK_UDT) then
         return StrDescriptorOf_( c, sa, outv )
     end if
     return NumberToStrDesc_( c, sa, outv )
@@ -447,11 +447,11 @@ end function
 '' Split out when every 'number & string' in the corpus was declining: the conversion
 '' existed, and only STR( ) could reach it.
 function NumberToStrDesc_ _
-    ( byref c as Ctx, byval a0 as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval a0 as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if a0 = Fbx.NODE_NONE then return false
-    dim as Fbx.TypeId at = c.info->TypeOf_( a0 )
-    if at = Fbx.TYPE_NONE then return false
+    if a0 = Tko.NODE_NONE then return false
+    dim as Tko.TypeId at = c.info->TypeOf_( a0 )
+    if at = Tko.TYPE_NONE then return false
 
     '' A STRING ARGUMENT is the identity and fbc emits no call for it at all.
     if IsStringType( c, at ) then return false
@@ -463,26 +463,26 @@ function NumberToStrDesc_ _
     dim as RtlId r = RTL_NONE
     dim as MirType want = MT_I32
     select case c.types->Kind( at )
-    case Fbx.TK_ENUM
+    case Tko.TK_ENUM
         r = RTL_STR_INTTOSTR
-    case Fbx.TK_BUILTIN
+    case Tko.TK_BUILTIN
         select case c.types->BuiltinOf( at )
-        case Fbx.TY_BYTE, Fbx.TY_SHORT, Fbx.TY_LONG    : r = RTL_STR_INTTOSTR
-        case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG : r = RTL_STR_UINTTOSTR
-        case Fbx.TY_LONGINT  : r = RTL_STR_LONGTOSTR  : want = MT_I64
-        case Fbx.TY_ULONGINT : r = RTL_STR_ULONGTOSTR : want = MT_I64
-        case Fbx.TY_SINGLE   : r = RTL_STR_FLOATTOSTR : want = MT_F32
-        case Fbx.TY_DOUBLE   : r = RTL_STR_DBLTOSTR   : want = MT_F64
-        case Fbx.TY_BOOLEAN  : r = RTL_STR_BOOLTOSTR  : want = MT_I8
+        case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG    : r = RTL_STR_INTTOSTR
+        case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG : r = RTL_STR_UINTTOSTR
+        case Tko.TY_LONGINT  : r = RTL_STR_LONGTOSTR  : want = MT_I64
+        case Tko.TY_ULONGINT : r = RTL_STR_ULONGTOSTR : want = MT_I64
+        case Tko.TY_SINGLE   : r = RTL_STR_FLOATTOSTR : want = MT_F32
+        case Tko.TY_DOUBLE   : r = RTL_STR_DBLTOSTR   : want = MT_F64
+        case Tko.TY_BOOLEAN  : r = RTL_STR_BOOLTOSTR  : want = MT_I8
         '' INTEGER is 64-bit on win64 and 32-bit on win32, so it is the one type whose
         '' entry point is target-dependent.
-        case Fbx.TY_INTEGER
+        case Tko.TY_INTEGER
             if c.types->target.pointerBits = 32 then
                 r = RTL_STR_INTTOSTR
             else
                 r = RTL_STR_LONGTOSTR : want = MT_I64
             end if
-        case Fbx.TY_UINTEGER
+        case Tko.TY_UINTEGER
             if c.types->target.pointerBits = 32 then
                 r = RTL_STR_UINTTOSTR
             else
@@ -520,17 +520,17 @@ end function
 '' The argument ORDER is not consistent between instr and instrrev, and the default
 '' start is 1 for one and -1 for the other. Both were read off fbc, not inferred.
 function LowerStrNumCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 3) then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as RtlId vr = RTL_NONE
     select case nm
@@ -543,7 +543,7 @@ function LowerStrNumCall_ _
     if vr <> RTL_NONE then
         if cp->count <> 1 then return false
         dim as MirValue sd
-        if StrDescriptorOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ), sd ) = false then
+        if StrDescriptorOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), sd ) = false then
             return false
         end if
         dim as FB.Array( of ulong ) va
@@ -555,13 +555,13 @@ function LowerStrNumCall_ _
     if nm = "asc" then
         if (cp->count < 1) orelse (cp->count > 2) then return false
         dim as MirValue sd
-        if StrDescriptorOf_( c, cast( Fbx.NodeId, c.ast->children[cp->first] ), sd ) = false then
+        if StrDescriptorOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), sd ) = false then
             return false
         end if
         dim as FB.Array( of ulong ) aa
         aa.Push( cast( ulong, sd.kind ) ) : aa.Push( cast( ulong, sd.id ) )
         if cp->count = 2 then
-            dim as Fbx.NodeId a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             dim as MirValue nv = LowerExpr( c, a1 )
             if nv.kind = cast( ubyte, MV_NONE ) then return false
             nv = Coerce( c, nv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
@@ -579,22 +579,22 @@ function LowerStrNumCall_ _
 
     '' THE START POSITION IS THE FIRST ARGUMENT WHEN THERE ARE THREE, and the two
     '' strings follow. With two arguments there is no start and the default is used.
-    dim as Fbx.NodeId startE = Fbx.NODE_NONE
+    dim as Tko.NodeId startE = Tko.NODE_NONE
     dim as long si = cp->first
     if cp->count = 3 then
-        startE = cast( Fbx.NodeId, c.ast->children[cp->first] )
+        startE = cast( Tko.NodeId, c.ast->children[cp->first] )
         si += 1
     end if
-    dim as Fbx.NodeId sE = cast( Fbx.NodeId, c.ast->children[si] )
-    dim as Fbx.NodeId tE = cast( Fbx.NodeId, c.ast->children[si + 1] )
+    dim as Tko.NodeId sE = cast( Tko.NodeId, c.ast->children[si] )
+    dim as Tko.NodeId tE = cast( Tko.NodeId, c.ast->children[si + 1] )
 
     '' 'instr( s, any t )' strips any of those CHARACTERS and is a different entry
     '' point. The ANY sits on the SECOND string, not on the start.
     dim as boolean isAny = false
-    if c.ast->Kind( tE ) = Fbx.N_UNARY then
-        dim as Fbx.UnaryPayload ptr up = _
+    if c.ast->Kind( tE ) = Tko.N_UNARY then
+        dim as Tko.UnaryPayload ptr up = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, tE )].data )]
-        if cast( Fbx.TokenKind, up->op ) = Fbx.KW_ANY then
+        if cast( Tko.TokenKind, up->op ) = Tko.KW_ANY then
             isAny = true
             tE = up->operand
         end if
@@ -607,7 +607,7 @@ function LowerStrNumCall_ _
     if StrDescriptorOf_( c, sE, sd ) = false then return false
     if StrDescriptorOf_( c, tE, td ) = false then return false
     dim as MirValue stv
-    if startE <> Fbx.NODE_NONE then
+    if startE <> Tko.NODE_NONE then
         stv = LowerExpr( c, startE )
         if stv.kind = cast( ubyte, MV_NONE ) then return false
         stv = Coerce( c, stv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( startE ) ) )
@@ -617,7 +617,7 @@ function LowerStrNumCall_ _
     if isRev then
         args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
         args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
-        if startE <> Fbx.NODE_NONE then
+        if startE <> Tko.NODE_NONE then
             args.Push( cast( ulong, stv.kind ) ) : args.Push( cast( ulong, stv.id ) )
         else
             args.Push( cast( ulong, MV_CONST_INT ) )
@@ -625,7 +625,7 @@ function LowerStrNumCall_ _
         end if
         outv = EmitRtl( c, RTL_STR_INSTR_REV, args )
     else
-        if startE <> Fbx.NODE_NONE then
+        if startE <> Tko.NODE_NONE then
             args.Push( cast( ulong, stv.kind ) ) : args.Push( cast( ulong, stv.id ) )
         else
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )
@@ -651,14 +651,14 @@ end function
 '' Only the TWO-TERM form, because fb_StrConcat takes exactly two operands. A longer
 '' chain declines rather than being nested into something fbc does not emit.
 function ConcatToTemp_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 
     '' ANY NUMBER OF TERMS, not two. This read 'terms.Count <> 2' and gave up on the
     '' rest, so 'r = d + t + d' declined where 'r = d + t' beside it lowered -- and a
     '' comparison against a three-term concatenation is most of what one corpus file
     '' does. ConcatTermsToTempDesc_ builds the chain the same way the PRINT path does.
-    if e = Fbx.NODE_NONE then return false
-    if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return false
     dim as FB.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
     return ConcatTermsToTempDesc_( c, terms, outv )
@@ -689,21 +689,21 @@ end function
 '' nowhere -- putting them in the inventory would fail check-rtl, which reads what fbc
 '' declares.
 function LowerMathCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 2) then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
-    dim as Fbx.TypeId at = c.info->TypeOf_( a0 )
-    if at = Fbx.TYPE_NONE then return false
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.TypeId at = c.info->TypeOf_( a0 )
+    if at = Tko.TYPE_NONE then return false
     dim as MirType amt = LowerType( at, *c.types )
     dim as boolean isFlt = (amt = MT_F32) orelse (amt = MT_F64)
     dim as boolean uns = IsUnsignedType( c, at )
@@ -711,7 +711,7 @@ function LowerMathCall_ _
     '' ATAN2 takes two and is the only one that does.
     if nm = "atan2" then
         if cp->count <> 2 then return false
-        dim as Fbx.NodeId a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
+        dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         dim as MirValue v0 = LowerExpr( c, a0 )
         if v0.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue v1 = LowerExpr( c, a1 )
@@ -828,30 +828,30 @@ end function
 '' char*, so a caller that wants (pointer, length) rather than a descriptor -- an
 '' assignment, where fbc passes length 0 -- can use it directly.
 function UserCastToStr_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
       byref raw as boolean ) as boolean
 
     raw = false
-    dim as Fbx.TypeId t = c.info->TypeOf_( id )
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    dim as Tko.TypeId t = c.info->TypeOf_( id )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
 
-    dim as Fbx.SymbolId cs = UdtMemberNamed_( c, t, "cast" )
-    if cs = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cs )
+    dim as Tko.SymbolId cs = UdtMemberNamed_( c, t, "cast" )
+    if cs = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( cs )
     if s = 0 then return false
 
     '' THE OVERLOAD THAT YIELDS A STRING. 'operator cast' can be declared several
     '' times over different targets -- as long, as string, as zstring -- and they hang
     '' off one symbol as a chain, so the first is not necessarily the right one.
-    dim as Fbx.SymbolId cur = cs
-    dim as Fbx.SymbolId want = Fbx.SYMBOL_NONE
+    dim as Tko.SymbolId cur = cs
+    dim as Tko.SymbolId want = Tko.SYMBOL_NONE
     dim as boolean wantRaw = false
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr cse = c.syms->SymbolAt( cur )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
         if cse = 0 then exit while
-        dim as Fbx.TypeId rt = cse->type_
-        if rt <> Fbx.TYPE_NONE then
+        dim as Tko.TypeId rt = cse->type_
+        if rt <> Tko.TYPE_NONE then
             dim as longint zn
             if IsStringType( c, rt ) then
                 want = cur
@@ -868,13 +868,13 @@ function UserCastToStr_ _
                 '' 'zstring * N' variable is nor IsStringType, so both tests above miss
                 '' it, and byref makes it a POINTER to that -- which is why both
                 '' spellings are accepted here.
-                dim as Fbx.TypeId inner = rt
-                if c.types->Kind( inner ) = Fbx.TK_POINTER then
+                dim as Tko.TypeId inner = rt
+                if c.types->Kind( inner ) = Tko.TK_POINTER then
                     inner = c.types->Inner( inner )
                 end if
-                if inner <> Fbx.TYPE_NONE then
-                    if c.types->Kind( inner ) = Fbx.TK_BUILTIN then
-                        if c.types->BuiltinOf( inner ) = Fbx.TY_ZSTRING then
+                if inner <> Tko.TYPE_NONE then
+                    if c.types->Kind( inner ) = Tko.TK_BUILTIN then
+                        if c.types->BuiltinOf( inner ) = Tko.TY_ZSTRING then
                             want = cur
                             wantRaw = true
                             exit while
@@ -885,7 +885,7 @@ function UserCastToStr_ _
         end if
         cur = cse->nextOverload
     wend
-    if want = Fbx.SYMBOL_NONE then return false
+    if want = Tko.SYMBOL_NONE then return false
 
     dim as MirValue self_ = LowerAddr( c, id )
     if self_.kind = cast( ubyte, MV_NONE ) then return false
@@ -904,17 +904,17 @@ end function
 
 '' A member of a UDT by name, folded. Nothing when the type has no such member.
 function UdtMemberNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( t )
-    if tn = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Fbx.SYMBOL_NONE
-    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.SYMBOL_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
 
@@ -922,14 +922,14 @@ end function
 '' an addressable string, a literal (which borrows a temporary descriptor from the
 '' runtime), a string 'iif', or another member of this family.
 function StrDescriptorOf_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     id = Unparen_( c, id )
 
     '' A STRING CONSTANT IS ITS TEXT. Recognised here rather than left to the type
     '' test below, which would claim it and then ask a constant for an address.
     dim as string constText
-    if c.ast->Kind( id ) = Fbx.N_IDENT then
+    if c.ast->Kind( id ) = Tko.N_IDENT then
         if ConstStringTextOf_( c, id, constText ) then
             dim as FB.Array( of ulong ) ca
             ca.Push( cast( ulong, MV_GLOBAL ) )
@@ -941,7 +941,7 @@ function StrDescriptorOf_ _
         end if
     end if
 
-    if c.ast->Kind( id ) = Fbx.N_STRING_LIT then
+    if c.ast->Kind( id ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, id )
         dim as FB.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )
@@ -956,13 +956,13 @@ function StrDescriptorOf_ _
     ''
     '' Typed MT_PTR, not left to the expression's own type. A string is an AGGREGATE to
     '' LowerType, so the descriptor pointer would come back sign-extended and bitcast.
-    if c.ast->Kind( id ) = Fbx.N_CALL then
+    if c.ast->Kind( id ) = Tko.N_CALL then
         if IsStringType( c, c.info->TypeOf_( id ) ) then
-            dim as Fbx.ListPayload ptr scp = _
+            dim as Tko.ListPayload ptr scp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-            dim as Fbx.SymbolId scallee = c.info->RefOf( id )
-            if scallee = Fbx.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
-            if scallee <> Fbx.SYMBOL_NONE then
+            dim as Tko.SymbolId scallee = c.info->RefOf( id )
+            if scallee = Tko.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
+            if scallee <> Tko.SYMBOL_NONE then
                 dim as MirValue scv = LowerCallParts( c, scp->target, scallee, _
                                                       scp->first, scp->count, MT_PTR )
                 if scv.kind <> cast( ubyte, MV_NONE ) then
@@ -1065,7 +1065,7 @@ function StrDescriptorOf_ _
     '' already in a string context, and the arm types cannot answer it -- Check
     '' computes no type for an intrinsic call, so 'iif( c, hex( 1 ), hex( 2 ) )' looks
     '' like an iif over nothing and declined the statement around it.
-    dim as Fbx.NodeId iC, iT, iE
+    dim as Tko.NodeId iC, iT, iE
     if IsIifCall_( c, id, iC, iT, iE ) then
         return LowerStringIif_( c, iC, iT, iE, outv )
     end if
@@ -1116,18 +1116,18 @@ end function
 '' at the first comma. A 'zstring * N' field IS allowed and goes through the string
 '' path, so it is the one field type here that is not a plain store.
 declare function FlattenUdtFields_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval base_ as long, _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
       byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
       byval depth as long ) as boolean
 function LowerUdtParenInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
-      byval init as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
 
     if slot < 0 then return false
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
     select case c.ast->Kind( init )
-    case Fbx.N_TUPLE, Fbx.N_PAREN
+    case Tko.N_TUPLE, Tko.N_PAREN
     case else
         return false
     end select
@@ -1141,12 +1141,12 @@ function LowerUdtParenInit_ _
     '' one -- so the parens are punctuation, not an initialiser. Reading them as one
     '' meant storing a whole Decimal into its first FIELD, which is a type error the
     '' void-result rule then declined; before that rule it would have stored something.
-    dim as Fbx.ListPayload ptr pl0 = _
+    dim as Tko.ListPayload ptr pl0 = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
     if pl0->count = 1 then
-        dim as Fbx.NodeId only_ = cast( Fbx.NodeId, c.ast->children[pl0->first] )
-        dim as Fbx.TypeId ot = c.info->TypeOf_( only_ )
-        if ot <> Fbx.TYPE_NONE then
+        dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->children[pl0->first] )
+        dim as Tko.TypeId ot = c.info->TypeOf_( only_ )
+        if ot <> Tko.TYPE_NONE then
             if c.types->Unqualify( ot ) = c.types->Unqualify( t ) then return false
         end if
     end if
@@ -1161,7 +1161,7 @@ function LowerUdtParenInit_ _
     dim as long fCount = fOff.Count
     if fCount <= 0 then return false
 
-    dim as Fbx.ListPayload ptr lp = _
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
     if lp->count <= 0 then return false
     '' MORE VALUES THAN FIELDS is not this construct -- it declines rather than
@@ -1178,7 +1178,7 @@ function LowerUdtParenInit_ _
     '' a half-initialised object behind with a decline beside it.
     dim as FB.Array( of ulong ) vals
     for i as long = 0 to lp->count - 1
-        dim as Fbx.NodeId e = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         dim as MirType fmt = cast( MirType, fTy[i] )
         dim as MirValue v = LowerExpr( c, e )
         if v.kind = cast( ubyte, MV_NONE ) then return false
@@ -1246,7 +1246,7 @@ end function
 '' BITFIELD, whose address would be the whole packed unit, or a field type that lowers
 '' to no MIR type at all.
 function FlattenUdtFields_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval base_ as long, _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
       byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
       byval depth as long ) as boolean
 
@@ -1257,11 +1257,11 @@ function FlattenUdtFields_ _
     dim as long n = c.udts->udts[ui].count
     if n <= 0 then return false
     for i as long = 0 to n - 1
-        dim as Fbx.UdtField ptr fld = @c.udts->fields[f0 + i]
+        dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
         if fld->bitWidth <> 0 then return false
         dim as MirType fmt = LowerType( fld->type_, *c.types )
         if fmt = MT_AGG then
-            if c.types->Kind( fld->type_ ) <> Fbx.TK_UDT then return false
+            if c.types->Kind( fld->type_ ) <> Tko.TK_UDT then return false
             if FlattenUdtFields_( c, fld->type_, base_ + fld->offset, offs, tys, _
                                   depth + 1 ) = false then return false
         else
@@ -1276,24 +1276,24 @@ end function
 '' Whether a UDT was declared as a UNION. The flag lives on the declaring N_TYPE node,
 '' which the type's symbol points at -- there is nothing in the layout that says so,
 '' because a union's fields all sit at offset 0 and a one-field struct looks the same.
-function IsUnionType_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    dim as Fbx.InternId tn = c.types->NameOf( t )
+function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.InternId tn = c.types->NameOf( t )
     if tn = 0 then return false
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return false
-    dim as Fbx.NodeId n = cast( Fbx.NodeId, s->payload )
-    if n = Fbx.NODE_NONE then return false
-    if c.ast->Kind( n ) <> Fbx.N_TYPE then return false
-    return ((c.ast->nodes[cast( long, n )].flags and Fbx.NF_IS_UNION) <> 0)
+    dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
+    if n = Tko.NODE_NONE then return false
+    if c.ast->Kind( n ) <> Tko.N_TYPE then return false
+    return ((c.ast->nodes[cast( long, n )].flags and Tko.NF_IS_UNION) <> 0)
 end function
 
 function LowerZstrAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
-      byval value as Fbx.NodeId, byval isInit as boolean ) as boolean
+      byval value as Tko.NodeId, byval isInit as boolean ) as boolean
 
     '' THE TRAILING ARGUMENT DEPENDS ONLY ON THE DESTINATION, and it is -1 for a
     '' FIXED-LENGTH string and 0 for everything else -- measured across all three
@@ -1305,7 +1305,7 @@ function LowerZstrAssignTo _
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     PushStrLen_( c, args, n )
 
-    if c.ast->Kind( value ) = Fbx.N_STRING_LIT then
+    if c.ast->Kind( value ) = Tko.N_STRING_LIT then
         dim as string lit = StringLitText_( c, value )
         args.Push( cast( ulong, MV_GLOBAL ) )
         args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
@@ -1318,7 +1318,7 @@ function LowerZstrAssignTo _
     end if
 
     '' A ZSTRING or a var-len STRING source, both addressable.
-    dim as Fbx.TypeId st = c.info->TypeOf_( value )
+    dim as Tko.TypeId st = c.info->TypeOf_( value )
     dim as longint zn
     dim as long sk = StrSwapKind_( c, st, zn )
     '' A FIXED-LENGTH SOURCE is addressable like the other two and carries its own
@@ -1384,12 +1384,12 @@ end function
 '' fb_StrAssign convention, where a literal's length INCLUDES the terminator: fbc passes
 '' 4 for "lit" here, not the 3 fb_StrAllocTempDescZEx takes.
 function LowerStrCompare _
-    ( byref c as Ctx, byval bp as Fbx.BinaryPayload ptr, _
-      byval tk as Fbx.TokenKind ) as MirValue
+    ( byref c as Ctx, byval bp as Tko.BinaryPayload ptr, _
+      byval tk as Tko.TokenKind ) as MirValue
 
     dim as MirValue none_
     select case tk
-    case Fbx.TK_EQ, Fbx.TK_NE, Fbx.TK_LT, Fbx.TK_GT, Fbx.TK_LE, Fbx.TK_GE
+    case Tko.TK_EQ, Tko.TK_NE, Tko.TK_LT, Tko.TK_GT, Tko.TK_LE, Tko.TK_GE
     case else
         '' Concatenation and the rest are not comparisons and do not belong here.
         return none_

@@ -6,4 +6,4 @@
 '' ARGS: --parse-only tests/parser/broken/bad-decl.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 3
-'' EXPECT-OUT: FBX0406
+'' EXPECT-OUT: TKO0406

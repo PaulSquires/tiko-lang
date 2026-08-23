@@ -9,18 +9,18 @@
 
 #include once "symbols/resolve.bi"
 
-namespace Fbx.Resolve
+namespace Tko.Resolve
 
 type Ctx
-    as Fbx.AstArena ptr     ast
-    as Fbx.SymbolTable ptr  syms
-    as Fbx.TypeContext ptr  types
-    as Fbx.Interner ptr     names
-    as Fbx.SourceManager ptr srcMgr    '' only for the constant evaluator
-    as Fbx.DiagnosticEngine ptr diags
-    as Fbx.SemanticInfo ptr info
+    as Tko.AstArena ptr     ast
+    as Tko.SymbolTable ptr  syms
+    as Tko.TypeContext ptr  types
+    as Tko.Interner ptr     names
+    as Tko.SourceManager ptr srcMgr    '' only for the constant evaluator
+    as Tko.DiagnosticEngine ptr diags
+    as Tko.SemanticInfo ptr info
     as Stats ptr            st
-    as Fbx.SymbolId         currentProc
+    as Tko.SymbolId         currentProc
     '' The open WITH subjects, innermost last. A '.field' written inside one has no
     '' base in the AST and takes the innermost of these.
     as FB.Array( of ulong )  withSubject
@@ -67,48 +67,48 @@ end type
 '' The helpers the split shares. Their definitions stay in resolve.bas -- only the
 '' names are published here.
 declare function StmtOf _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
 declare function ResolveTypeRef _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.TypeId
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 declare function ArrayFromBounds _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval first as long, _
-      byval count as long ) as Fbx.TypeId
+    ( byref c as Ctx, byval base_ as Tko.TypeId, byval first as long, _
+      byval count as long ) as Tko.TypeId
 declare sub WalkStmt _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 declare function ListOf _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.ListPayload ptr
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.ListPayload ptr
 declare function IterElemType_ _
-    ( byref c as Ctx, byval seqT as Fbx.TypeId ) as Fbx.TypeId
+    ( byref c as Ctx, byval seqT as Tko.TypeId ) as Tko.TypeId
 declare sub BindDeclType _
-    ( byref c as Ctx, byval scope_ as Fbx.ScopeId, byval nm as Fbx.InternId, _
-      byval t as Fbx.TypeId )
+    ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval t as Tko.TypeId )
 declare function InitCountAt _
-    ( byref c as Ctx, byval init as Fbx.NodeId, byval depth as long ) as long
+    ( byref c as Ctx, byval init as Tko.NodeId, byval depth as long ) as long
 declare function ArrayFromPairs _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, _
+    ( byref c as Ctx, byval base_ as Tko.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
-      byval init as Fbx.NodeId = Fbx.NODE_NONE, _
-      byval emptyIsDynamic as boolean = false ) as Fbx.TypeId
+      byval init as Tko.NodeId = Tko.NODE_NONE, _
+      byval emptyIsDynamic as boolean = false ) as Tko.TypeId
 declare function ArrayFromBoundsNode _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
-      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
+    ( byref c as Ctx, byval base_ as Tko.TypeId, byval id as Tko.NodeId, _
+      byval init as Tko.NodeId = Tko.NODE_NONE ) as Tko.TypeId
 declare sub BackpatchTypedefs( byref c as Ctx )
 declare function IdentNameOf _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.InternId
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId
 declare function InstantiateGenericProc_ _
-    ( byref c as Ctx, byval callId as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.SymbolId
+    ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 declare sub InstantiatePendingProcs_( byref c as Ctx )
 declare sub DiscoverInstantiations_ _
-    ( byref c as Ctx, byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-      byref diags as Fbx.DiagnosticEngine, byref info as Fbx.SemanticInfo )
-declare function QualifierPrefix_( byref c as Ctx, byval sc as Fbx.ScopeId ) as string
+    ( byref c as Ctx, byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref diags as Tko.DiagnosticEngine, byref info as Tko.SemanticInfo )
+declare function QualifierPrefix_( byref c as Ctx, byval sc as Tko.ScopeId ) as string
 declare function HasGenericDecl_( byref c as Ctx ) as boolean
 declare sub WalkBlock_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval here as Fbx.ScopeId )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
 '' Drain the deferred member instantiations.
 declare sub InstantiatePending_( byref c as Ctx )
 declare function InstantiateGeneric_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
-      byval scope_ as Fbx.ScopeId, byval gsid as Fbx.SymbolId ) as Fbx.TypeId
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+      byval scope_ as Tko.ScopeId, byval gsid as Tko.SymbolId ) as Tko.TypeId
 
 end namespace

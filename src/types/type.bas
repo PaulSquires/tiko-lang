@@ -3,7 +3,7 @@
 #include once "types/type.bi"
 #include once "support/text.bi"
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------ builtin metadata
 
@@ -31,7 +31,7 @@ private sub InitBuiltins( )
         builtinTb(b_id).signed_ = b_signed
         builtinTb(b_id).class_ = cast( ubyte, b_class )
     #endmacro
-    FBX_BUILTIN_LIST( BUILTIN )
+    TKO_BUILTIN_LIST( BUILTIN )
     #undef BUILTIN
     builtinReady = true
 end sub
@@ -556,7 +556,7 @@ end function
 
 end namespace
 
-namespace Fbx
+namespace Tko
 
 function DumpTypes( byref tc as TypeContext ) as string
     dim as string outp = ""

@@ -4,4 +4,4 @@
 '' ARGS: --lex-only tests/vendor/fbc-tests/compound/continue_mult.bas tests/vendor/fbc-tests/functions/array_param.bas tests/vendor/fbc-tests/const/any_const.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: 0 invalid
-'' EXPECT-NOT: FBX
+'' EXPECT-NOT: TKO

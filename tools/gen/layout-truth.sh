@@ -7,14 +7,14 @@
 # comes from a different fbc, because fbc-modern has no 32-bit build; run
 # tools/gen/control.py for what that costs.
 #
-# The output is the REFERENCE the type system is checked against: fbx's own
+# The output is the REFERENCE the type system is checked against: tiko-lang's own
 # --dump-types must agree with it. Re-run after a toolchain change; a diff in the
 # result is a compatibility event, not a formatting one.
 
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-FBC64=${FBX_STAGE0:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
-FBC32=${FBX_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
+FBC64=${TKO_STAGE0:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+FBC32=${TKO_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 

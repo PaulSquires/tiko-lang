@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-conv.sh -- fbx's conversion-intrinsic result types against fbc's.
+# check-conv.sh -- tiko-lang's conversion-intrinsic result types against fbc's.
 #
 #   tools/gen/check-conv.sh
 #

@@ -11,7 +11,7 @@
 '' returns zero rather than whatever the stack held. Both spellings reach it -- the
 '' keyword form and the procedure's own name.
 ''
-'' G returns a STRING, whose result goes through a hidden pointer fbx does not model.
+'' G returns a STRING, whose result goes through a hidden pointer tiko-lang does not model.
 '' It DECLINES ('amb result-noslot'), which is the honest answer: storing into an
 '' invented slot would compile and be wrong.
 

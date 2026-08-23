@@ -16,7 +16,7 @@ destructor A( ) : end destructor
 
 '' KNOWN DIFFERENCE FROM FBC, stated rather than hidden: B declares no destructor, and
 '' fbc SYNTHESISES one -- so fbc's table for B holds '_ZN1BD1Ev' in the destructor slot
-'' where this one holds the inherited '_ZN1AD1Ev'. fbx synthesises no structors at all,
+'' where this one holds the inherited '_ZN1AD1Ev'. tiko-lang synthesises no structors at all,
 '' and inventing one only for this slot would be inventing half the feature. It matters
 '' for a derived type that owns something needing release.
 type B extends A
@@ -39,7 +39,7 @@ sub B.callsBase( )
 end sub
 
 '' A type with a table and NO constructor: the vptr store goes at the DIM instead,
-'' because fbx synthesises no constructors.
+'' because tiko-lang synthesises no constructors.
 type C extends object
     declare virtual sub g( )
 end type

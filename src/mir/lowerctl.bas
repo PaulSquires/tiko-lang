@@ -6,10 +6,10 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 declare function MemberNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
 '' A label name declared more than once in one procedure -- see ScanLabels.
 const LABEL_AMBIGUOUS = -2
@@ -17,8 +17,8 @@ const LABEL_AMBIGUOUS = -2
 '' Local to this file.
 declare function LowerCaseTest _
     ( byref c as Ctx, byref slotAddr as MirValue, byval mt as MirType, _
-      byval isUns as boolean, byval val as Fbx.NodeId ) as MirValue
-declare function LabelSlot( byref c as Ctx, byval nm as Fbx.InternId ) as long
+      byval isUns as boolean, byval val as Tko.NodeId ) as MirValue
+declare function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as long
 declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 
 '' SELECT CASE, lowered as a COMPARISON CHAIN.
@@ -41,16 +41,16 @@ declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 '' 1,071 times, whatever it was really about. The argument's own tokens come from the
 '' INVOCATION, so the first descendant without the flag is where the work is.
 private function NonMacroNode_( byref c as Ctx, byval n0 as ulong ) as ulong
-    dim as Fbx.NodeId n = cast( Fbx.NodeId, n0 )
+    dim as Tko.NodeId n = cast( Tko.NodeId, n0 )
     for guard as long = 0 to 15
-        if n = Fbx.NODE_NONE then return n0
+        if n = Tko.NODE_NONE then return n0
         '' NF_FROM_MACRO is declared and never set, so the test is the LOCATION
         '' itself: a node that came from a macro body sits in the file the '#define'
         '' is in, and the argument the caller wrote does not. Descend while the file
         '' MATCHES the statement's, which is the macro's when there is one.
-        if c.ast->Loc( n ) <> c.ast->Loc( cast( Fbx.NodeId, c.curStmtNode ) ) then
+        if c.ast->Loc( n ) <> c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) then
             if c.srcMgr->Decode( c.ast->Loc( n ) ).file <> _
-               c.srcMgr->Decode( c.ast->Loc( cast( Fbx.NodeId, c.curStmtNode ) ) ).file then
+               c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) ).file then
                 return cast( ulong, n )
             end if
         end if
@@ -58,17 +58,17 @@ private function NonMacroNode_( byref c as Ctx, byval n0 as ulong ) as ulong
         '' KIND, which is the mistake this codebase has made seven times, so only the
         '' three shapes that wrap a single operand are followed.
         select case c.ast->Kind( n )
-        case Fbx.N_PAREN, Fbx.N_CALL, Fbx.N_INDEX, Fbx.N_TUPLE
-            dim as Fbx.ListPayload ptr lp = _
+        case Tko.N_PAREN, Tko.N_CALL, Tko.N_INDEX, Tko.N_TUPLE
+            dim as Tko.ListPayload ptr lp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
             if lp->count < 1 then return cast( ulong, n )
-            n = cast( Fbx.NodeId, c.ast->children[lp->first] )
-        case Fbx.N_BINARY
-            dim as Fbx.BinaryPayload ptr bp = _
+            n = cast( Tko.NodeId, c.ast->children[lp->first] )
+        case Tko.N_BINARY
+            dim as Tko.BinaryPayload ptr bp = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
             n = bp->lhs
-        case Fbx.N_UNARY
-            dim as Fbx.UnaryPayload ptr up = _
+        case Tko.N_UNARY
+            dim as Tko.UnaryPayload ptr up = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
             n = up->operand
         case else
@@ -82,10 +82,10 @@ sub SkipAt _
     ( byref c as Ctx, byref fileName as string, byval lineNo as long )
 
     c.st->skipped += 1
-    '' FBX_TRACE_SKIP names the PROCEDURE each decline is in. A count says how much is
+    '' TKO_TRACE_SKIP names the PROCEDURE each decline is in. A count says how much is
     '' owed and nothing about what to write; twice now the answer to "what is missing"
     '' has been a short list of names rather than a feature.
-    if len( environ( "FBX_TRACE_SKIP" ) ) > 0 then
+    if len( environ( "TKO_TRACE_SKIP" ) ) > 0 then
         '' ...and the SOURCE LINE the declining statement came from. A compiler line
         '' says which branch gave up; only the source line says what it gave up on,
         '' and the two largest parse-gap items were invisible without it.
@@ -93,8 +93,8 @@ sub SkipAt _
         dim as ulong blameAt = c.curStmtNode
         if c.blameNode <> 0 then blameAt = NonMacroNode_( c, c.blameNode )
         if (c.srcMgr <> 0) andalso (blameAt <> 0) then
-            dim as Fbx.DecodedLoc sl = _
-                c.srcMgr->Decode( c.ast->Loc( cast( Fbx.NodeId, blameAt ) ) )
+            dim as Tko.DecodedLoc sl = _
+                c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, blameAt ) ) )
             where = " at " & c.srcMgr->PathOf( sl.file ) & ":" & str( sl.lineNo )
         end if
         print "SKIP " & fileName & ":" & str( lineNo ) & " in " & _
@@ -102,7 +102,7 @@ sub SkipAt _
     end if
     '' The site, found by linear scan: about twenty of them, so a map would cost more
     '' than it saved and would not keep the order stable across runs.
-    dim as Fbx.InternId fid = c.names->GetString( fileName )
+    dim as Tko.InternId fid = c.names->GetString( fileName )
     dim as boolean seen = false
     for i as long = 0 to c.st->skipSiteN.Count - 1
         if (c.st->skipSiteFile[i] = cast( ulong, fid )) andalso _
@@ -133,28 +133,28 @@ end sub
 ''
 '' The unbound callee's NAME is recorded too. Twice now the answer to "what is missing"
 '' has been a short list of names rather than a feature.
-sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
-    if call_ = Fbx.NODE_NONE then return
+sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
+    if call_ = Tko.NODE_NONE then return
     '' The CALLEE, whichever spelling was used: an N_CALL keeps it in the list payload,
     '' while the paren-less statement form IS the callee. Counting the second as 'other'
     '' hid 19,629 unbound calls in a bucket named for something else, and made a shape
     '' histogram of callees look like a histogram of statements.
-    dim as Fbx.NodeId target = call_
+    dim as Tko.NodeId target = call_
     dim as boolean bound = false
-    if c.ast->Kind( call_ ) = Fbx.N_CALL then
-        dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( call_ ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr cp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, call_ )].data )]
         target = cp->target
-        bound = (c.info->RefOf( call_ ) <> Fbx.SYMBOL_NONE)
+        bound = (c.info->RefOf( call_ ) <> Tko.SYMBOL_NONE)
     else
-        bound = (c.info->RefOf( call_ ) <> Fbx.SYMBOL_NONE)
+        bound = (c.info->RefOf( call_ ) <> Tko.SYMBOL_NONE)
     end if
     if bound then
         c.st->ambCallNoCode += 1
         return
     end if
     c.st->ambCallUnbound += 1
-    if target = Fbx.NODE_NONE then return
+    if target = Tko.NODE_NONE then return
     dim as long tk = cast( long, c.ast->Kind( target ) )
     while c.st->ambUnboundShape.Count <= tk
         c.st->ambUnboundShape.Push( 0 )
@@ -163,34 +163,34 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Fbx.NodeId )
     '' A MEMBER callee: record the member's own name, and whether the base typed. The
     '' base is what decides which question this is -- "no such member on that type" or
     '' "no type to look in".
-    if c.ast->Kind( target ) = Fbx.N_MEMBER then
-        dim as Fbx.BinaryPayload ptr mb = _
+    if c.ast->Kind( target ) = Tko.N_MEMBER then
+        dim as Tko.BinaryPayload ptr mb = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
-        if c.info->TypeOf_( mb->lhs ) = Fbx.TYPE_NONE then
+        if c.info->TypeOf_( mb->lhs ) = Tko.TYPE_NONE then
             c.st->ambMemberBaseUntyped += 1
         else
             c.st->ambMemberBaseTyped += 1
         end if
-        if c.ast->Kind( mb->rhs ) <> Fbx.N_IDENT then return
+        if c.ast->Kind( mb->rhs ) <> Tko.N_IDENT then return
         if c.st->ambMemberNames.Count >= 200000 then return
-        dim as Fbx.IdentPayload ptr mp = _
+        dim as Tko.IdentPayload ptr mp = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, mb->rhs )].data )]
         c.st->ambMemberNames.Push( cast( ulong, mp->name ) )
         return
     end if
 
-    if c.ast->Kind( target ) <> Fbx.N_IDENT then return
+    if c.ast->Kind( target ) <> Tko.N_IDENT then return
     if c.st->ambUnboundNames.Count >= 200000 then return
     '' An N_IDENT's payload is an IDENT, not a statement. Reading it through StmtOf
     '' indexes a different pool -- the mistake this project has made six times.
-    dim as Fbx.IdentPayload ptr ip = _
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
     c.st->ambUnboundNames.Push( cast( ulong, ip->name ) )
 end sub
 
 '' Records an unlowered STATEMENT, by kind, so the next thing to implement is something
 '' to read off rather than guess at.
-sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )
+sub SkipStmt( byref c as Ctx, byval id as Tko.NodeId )
     SkipHere( c )
     dim as long k = cast( long, c.ast->Kind( id ) )
     while c.st->skippedKind.Count <= k
@@ -198,9 +198,9 @@ sub SkipStmt( byref c as Ctx, byval id as Fbx.NodeId )
     wend
     c.st->skippedKind[k] += 1
 
-    if c.ast->Kind( id ) <> Fbx.N_INTRINSIC then return
+    if c.ast->Kind( id ) <> Tko.N_INTRINSIC then return
     '' Every intrinsic shares one node kind, so the keyword is counted separately.
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     for i as long = 0 to c.st->skippedIntrOp.Count - 1
         if c.st->skippedIntrOp[i] = cast( ulong, sp->op ) then
             c.st->skippedIntrN[i] += 1
@@ -219,10 +219,10 @@ end sub
 '' innermost-first. So there is deliberately no EmitCleanupsTo here, and the scope's
 '' cleanup ends up in the unreachable block after the call, which is exactly right: it is
 '' the normal exit path, and END is not one.
-sub LowerEndStmt( byref c as Ctx, byval id as Fbx.NodeId )
-    dim as Fbx.StmtPayload ptr esp = StmtOf( c, id )
+sub LowerEndStmt( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr esp = StmtOf( c, id )
     dim as MirValue code
-    if esp->a <> Fbx.NODE_NONE then
+    if esp->a <> Tko.NODE_NONE then
         code = Coerce( c, LowerExpr( c, esp->a ), MT_I32 )
     end if
     if code.kind = cast( ubyte, MV_NONE ) then code = ConstInt( c, 0, MT_I32 )
@@ -250,18 +250,18 @@ end sub
 '' leave the procedure, running every open scope's cleanups on the way, exactly as a
 '' bare RETURN does. A function's result comes from its result slot.
 sub LowerExitLike _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval isExit as boolean )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval isExit as boolean )
 
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    dim as Fbx.TokenKind want = cast( Fbx.TokenKind, sp->op )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Tko.TokenKind want = cast( Tko.TokenKind, sp->op )
     dim as long levels = sp->extra
     if levels < 1 then levels = 1
 
     '' EXIT SUB / FUNCTION / PROPERTY / CONSTRUCTOR / DESTRUCTOR / OPERATOR.
     dim as boolean isProcExit = _
-        (want = Fbx.KW_SUB) orelse (want = Fbx.KW_FUNCTION) orelse _
-        (want = Fbx.KW_PROPERTY) orelse (want = Fbx.KW_CONSTRUCTOR) orelse _
-        (want = Fbx.KW_DESTRUCTOR) orelse (want = Fbx.KW_OPERATOR)
+        (want = Tko.KW_SUB) orelse (want = Tko.KW_FUNCTION) orelse _
+        (want = Tko.KW_PROPERTY) orelse (want = Tko.KW_CONSTRUCTOR) orelse _
+        (want = Tko.KW_DESTRUCTOR) orelse (want = Tko.KW_OPERATOR)
     if isExit andalso isProcExit then
         dim as MirValue rv = LoadResult( c )
         EmitCleanupsTo( c, 0 )
@@ -277,7 +277,7 @@ sub LowerExitLike _
 
     '' Walk outwards counting only frames of the requested KIND. 'exit any' and an
     '' unnamed target take whatever is innermost.
-    dim as boolean anyKind = (want = 0) orelse (want = Fbx.KW_ANY)
+    dim as boolean anyKind = (want = 0) orelse (want = Tko.KW_ANY)
     dim as long at = -1
     dim as long seen = 0
     for i as long = c.loopKind.Count - 1 to 0 step -1
@@ -304,7 +304,7 @@ sub LowerExitLike _
     if isExit = false then dest = c.contTo[at]
     '' A SCOPE frame carries -1 until the first 'exit scope' asks for a block. The
     '' id is written back so the scope itself branches there on the way out.
-    if isExit andalso (dest < 0) andalso (c.loopKind[at] = cast( long, Fbx.KW_SCOPE )) then
+    if isExit andalso (dest < 0) andalso (c.loopKind[at] = cast( long, Tko.KW_SCOPE )) then
         dest = NewBlock( c, "scope.exit" )
         c.breakTo[at] = dest
     end if
@@ -320,22 +320,22 @@ end sub
 
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 declare function LowerStrCaseTest_ _
     ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
-      byval val as Fbx.NodeId ) as MirValue
+      byval val as Tko.NodeId ) as MirValue
 declare function StrCaseCompare_ _
     ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
-      byval val as Fbx.NodeId, byval op as Fbx.TokenKind ) as MirValue
+      byval val as Tko.NodeId, byval op as Tko.TokenKind ) as MirValue
 
-sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->b = Fbx.NODE_NONE then
+sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->b = Tko.NODE_NONE then
         SkipHere( c )
         return
     end if
 
-    dim as Fbx.TypeId subjT = c.info->TypeOf_( sp->a )
+    dim as Tko.TypeId subjT = c.info->TypeOf_( sp->a )
     dim as MirType mt = LowerType( subjT, *c.types )
 
     '' A STRING SUBJECT IS COMPARED, NOT LOADED. 'select case s : case "a"' was
@@ -353,7 +353,7 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
         dim as longint sn0
         if IsStringType( c, subjT ) orelse (StrSwapKind_( c, subjT, sn0 ) >= 0) then
             strMode = 0
-        elseif c.types->Kind( subjT ) = Fbx.TK_UDT then
+        elseif c.types->Kind( subjT ) = Tko.TK_UDT then
             dim as MirValue probe
             if StrDescriptorOf_( c, sp->a, probe ) then strMode = 0
         end if
@@ -403,7 +403,7 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
         Emit( c, st0 )
     end if
 
-    dim as Fbx.ListPayload ptr lp = _
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
     dim as long joinB = NewBlock( c, "sel.join" )
     '' A SELECT is a break TARGET: 'exit select' leaves it. It pushes no continue
@@ -412,20 +412,20 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     c.breakTo.Push( joinB )
     c.contTo.Push( -1 )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Fbx.KW_SELECT ) )
+    c.loopKind.Push( cast( long, Tko.KW_SELECT ) )
     dim as boolean isUns = IsUnsignedType( c, subjT )
 
     for i as long = 0 to lp->count - 1
-        dim as Fbx.NodeId cs = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
-        if c.ast->Kind( cs ) <> Fbx.N_CASE then continue for
-        dim as Fbx.StmtPayload ptr cp = StmtOf( c, cs )
+        dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
+        dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
         dim as long bodyB = NewBlock( c, "sel.body" )
         dim as long nextB = NewBlock( c, "sel.next" )
 
         '' Several values in one CASE are alternatives: any match enters the body, so
         '' each failed test falls through to the next value rather than to the body.
         for v as long = 0 to cp->count - 1
-            dim as Fbx.NodeId val = cast( Fbx.NodeId, c.ast->children[cp->first + v] )
+            dim as Tko.NodeId val = cast( Tko.NodeId, c.ast->children[cp->first + v] )
             dim as long moreB = nextB
             if v < cp->count - 1 then moreB = NewBlock( c, "sel.alt" )
             dim as MirValue cond
@@ -454,7 +454,7 @@ sub LowerSelect( byref c as Ctx, byval id as Fbx.NodeId )
     next
 
     '' CASE ELSE is the trailing block, reached when every test failed.
-    if sp->c <> Fbx.NODE_NONE then
+    if sp->c <> Tko.NODE_NONE then
         PushScope( c )
         LowerBlock( c, sp->c )
         CloseScope( c )
@@ -474,31 +474,31 @@ end sub
 '' evaluated once before the first case.
 private function LowerStrCaseTest_ _
     ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
-      byval val as Fbx.NodeId ) as MirValue
+      byval val as Tko.NodeId ) as MirValue
 
     dim as MirValue none_
-    if val = Fbx.NODE_NONE then return none_
+    if val = Tko.NODE_NONE then return none_
 
-    dim as Fbx.TokenKind op = Fbx.TK_EQ
-    dim as Fbx.NodeId lhsV = val
-    dim as Fbx.NodeId hiV = Fbx.NODE_NONE
-    if c.ast->Kind( val ) = Fbx.N_CASE_RANGE then
-        dim as Fbx.StmtPayload ptr rp = StmtOf( c, val )
+    dim as Tko.TokenKind op = Tko.TK_EQ
+    dim as Tko.NodeId lhsV = val
+    dim as Tko.NodeId hiV = Tko.NODE_NONE
+    if c.ast->Kind( val ) = Tko.N_CASE_RANGE then
+        dim as Tko.StmtPayload ptr rp = StmtOf( c, val )
         lhsV = rp->a
-        if cast( Fbx.TokenKind, rp->op ) <> 0 then
+        if cast( Tko.TokenKind, rp->op ) <> 0 then
             '' 'case is > "d"'.
-            op = cast( Fbx.TokenKind, rp->op )
+            op = cast( Tko.TokenKind, rp->op )
         else
             '' 'case "a" to "c"' -- inclusive at both ends, so two comparisons.
-            op = Fbx.TK_GE
+            op = Tko.TK_GE
             hiV = rp->b
         end if
     end if
 
     dim as MirValue c1 = StrCaseCompare_( c, slotAddr, wide, lhsV, op )
     if c1.kind = cast( ubyte, MV_NONE ) then return none_
-    if hiV = Fbx.NODE_NONE then return c1
-    dim as MirValue c2 = StrCaseCompare_( c, slotAddr, wide, hiV, Fbx.TK_LE )
+    if hiV = Tko.NODE_NONE then return c1
+    dim as MirValue c2 = StrCaseCompare_( c, slotAddr, wide, hiV, Tko.TK_LE )
     if c2.kind = cast( ubyte, MV_NONE ) then return none_
     dim as MirInst i3
     i3.op = cast( ushort, M_AND )
@@ -511,7 +511,7 @@ end function
 '' One comparison of the stored subject against one case value.
 private function StrCaseCompare_ _
     ( byref c as Ctx, byref slotAddr as MirValue, byval wide as boolean, _
-      byval val as Fbx.NodeId, byval op as Fbx.TokenKind ) as MirValue
+      byval val as Tko.NodeId, byval op as Tko.TokenKind ) as MirValue
 
     dim as MirValue none_
     dim as MirValue subjPtr = LowerExprLoad( c, slotAddr, MT_PTR )
@@ -550,14 +550,14 @@ end function
 '' One CASE value against the subject: an equality, a range, or a relational test.
 private function LowerCaseTest _
     ( byref c as Ctx, byref slotAddr as MirValue, byval mt as MirType, _
-      byval isUns as boolean, byval val as Fbx.NodeId ) as MirValue
+      byval isUns as boolean, byval val as Tko.NodeId ) as MirValue
 
     dim as MirValue none_
-    if val = Fbx.NODE_NONE then return none_
+    if val = Tko.NODE_NONE then return none_
 
-    if c.ast->Kind( val ) = Fbx.N_CASE_RANGE then
-        dim as Fbx.StmtPayload ptr rp = StmtOf( c, val )
-        dim as Fbx.TokenKind op = cast( Fbx.TokenKind, rp->op )
+    if c.ast->Kind( val ) = Tko.N_CASE_RANGE then
+        dim as Tko.StmtPayload ptr rp = StmtOf( c, val )
+        dim as Tko.TokenKind op = cast( Tko.TokenKind, rp->op )
         if op <> 0 then
             '' 'case is > 10' -- a relational test against one operand.
             dim as MirValue cur = LowerExprLoad( c, slotAddr, mt )
@@ -577,7 +577,7 @@ private function LowerCaseTest _
         dim as MirValue c1 = none_
         if lo.kind <> cast( ubyte, MV_NONE ) then
             dim as MirInst i1
-            i1.op = cast( ushort, BinOpFor( Fbx.TK_GE, mt, isUns ) )
+            i1.op = cast( ushort, BinOpFor( Tko.TK_GE, mt, isUns ) )
             i1.ty = cast( ubyte, MT_I8 )
             i1.a = LowerExprLoad( c, slotAddr, mt )
             i1.b = lo
@@ -588,7 +588,7 @@ private function LowerCaseTest _
             return none_
         end if
         dim as MirInst i2
-        i2.op = cast( ushort, BinOpFor( Fbx.TK_LE, mt, isUns ) )
+        i2.op = cast( ushort, BinOpFor( Tko.TK_LE, mt, isUns ) )
         i2.ty = cast( ubyte, MT_I8 )
         i2.a = LowerExprLoad( c, slotAddr, mt )
         i2.b = hi
@@ -604,7 +604,7 @@ private function LowerCaseTest _
     dim as MirValue rhs2 = Coerce( c, LowerExpr( c, val ), mt )
     if rhs2.kind = cast( ubyte, MV_NONE ) then return none_
     dim as MirInst ins2
-    ins2.op = cast( ushort, BinOpFor( Fbx.TK_EQ, mt, isUns ) )
+    ins2.op = cast( ushort, BinOpFor( Tko.TK_EQ, mt, isUns ) )
     ins2.ty = cast( ubyte, MT_I8 )
     ins2.a = LowerExprLoad( c, slotAddr, mt )
     ins2.b = rhs2
@@ -616,7 +616,7 @@ end function
 
 '' The label slot for a name, created on first mention. A goto may be lowered before
 '' its label exists, so both directions come through here.
-private function LabelSlot( byref c as Ctx, byval nm as Fbx.InternId ) as long
+private function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as long
     for i as long = 0 to c.labelName.Count - 1
         if c.labelName[i] = cast( ulong, nm ) then return i
     next
@@ -629,7 +629,7 @@ end function
 private function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
     if c.labelBlock[slot] < 0 then
         c.labelBlock[slot] = NewBlock( c, "lbl." & c.names->Spelling( _
-            cast( Fbx.InternId, c.labelName[slot] ) ) )
+            cast( Tko.InternId, c.labelName[slot] ) ) )
     end if
     return c.labelBlock[slot]
 end function
@@ -647,15 +647,15 @@ end function
 '' divergence is reported on the first program that shows it instead of quietly
 '' producing the wrong number of destructor calls.
 sub ScanLabels _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval depth as long )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long )
 
-    if id = Fbx.NODE_NONE then return
-    dim as Fbx.NodeKind k = c.ast->Kind( id )
+    if id = Tko.NODE_NONE then return
+    dim as Tko.NodeKind k = c.ast->Kind( id )
 
     select case k
-    case Fbx.N_LABEL
-        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-        dim as long slot = LabelSlot( c, cast( Fbx.InternId, sp->name ) )
+    case Tko.N_LABEL
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
         '' The SAME NAME twice in one procedure. Labels are scoped in FreeBASIC, so
         '' sibling scopes may each declare 'label1' -- fbcunit's TEST macro produces
         '' exactly that. Slots are keyed by name alone, which cannot tell them apart,
@@ -669,31 +669,31 @@ sub ScanLabels _
         end if
         return
 
-    case Fbx.N_BLOCK
-        dim as Fbx.ListPayload ptr lp = _
+    case Tko.N_BLOCK
+        dim as Tko.ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         for i as long = 0 to lp->count - 1
-            ScanLabels( c, cast( Fbx.NodeId, c.ast->children[lp->first + i] ), depth )
+            ScanLabels( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), depth )
         next
         return
 
-    case Fbx.N_SCOPE, Fbx.N_WHILE, Fbx.N_DO, Fbx.N_FOR, Fbx.N_FOREACH
+    case Tko.N_SCOPE, Tko.N_WHILE, Tko.N_DO, Tko.N_FOR, Tko.N_FOREACH
         '' Each of these opens exactly one scope around its body, matching the
         '' PushScope in the corresponding Lower* routine.
-        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         ScanLabels( c, sp->a, depth + 1 )
         ScanLabels( c, sp->b, depth + 1 )
         ScanLabels( c, sp->c, depth + 1 )
         return
 
-    case Fbx.N_SELECT
-        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-        if sp->b <> Fbx.NODE_NONE then
-            dim as Fbx.ListPayload ptr lp = _
+    case Tko.N_SELECT
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        if sp->b <> Tko.NODE_NONE then
+            dim as Tko.ListPayload ptr lp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
             for i as long = 0 to lp->count - 1
-                dim as Fbx.NodeId cs = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
-                if c.ast->Kind( cs ) = Fbx.N_CASE then
+                dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+                if c.ast->Kind( cs ) = Tko.N_CASE then
                     ScanLabels( c, StmtOf( c, cs )->b, depth + 1 )
                 end if
             next
@@ -701,24 +701,24 @@ sub ScanLabels _
         ScanLabels( c, sp->c, depth + 1 )
         return
 
-    case Fbx.N_IF
+    case Tko.N_IF
         '' An IF branch is NOT a scope in this lowering, so its arms stay at depth.
-        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         ScanLabels( c, sp->b, depth )
         ScanLabels( c, sp->c, depth )
         return
     end select
 
-    if Fbx.NodeKindCategory( k ) = Fbx.NCAT_STMT then
-        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    if Tko.NodeKindCategory( k ) = Tko.NCAT_STMT then
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         ScanLabels( c, sp->b, depth )
         ScanLabels( c, sp->c, depth )
     end if
 end sub
 
-sub LowerLabel( byref c as Ctx, byval id as Fbx.NodeId )
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    dim as long slot = LabelSlot( c, cast( Fbx.InternId, sp->name ) )
+sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
 
     '' An ambiguous name gets a FRESH block per occurrence. Sharing one block between
     '' two same-named labels would splice unrelated code together; nothing branches to
@@ -739,13 +739,13 @@ sub LowerLabel( byref c as Ctx, byval id as Fbx.NodeId )
     c.curBlock = b
 end sub
 
-sub LowerGoto( byref c as Ctx, byval id as Fbx.NodeId )
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->name = 0 then
         SkipHere( c )
         return
     end if
-    dim as long slot = LabelSlot( c, cast( Fbx.InternId, sp->name ) )
+    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
     dim as long d = c.labelDepth[slot]
     if d = LABEL_AMBIGUOUS then
         '' Two labels of this name in one procedure; which one is meant depends on
@@ -790,39 +790,39 @@ end sub
 '' TEST LAST, reached by a jump over the body, so an empty collection runs the body no
 '' times and MoveNext is not called before the first element.
 function LowerForEachIter _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
-      byval seqE as Fbx.NodeId, byval at as Fbx.TypeId ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+      byval seqE as Tko.NodeId, byval at as Tko.TypeId ) as boolean
 
-    dim as Fbx.SymbolId getIt = MemberNamed_( c, at, "getiterator" )
-    if getIt = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( getIt )
+    dim as Tko.SymbolId getIt = MemberNamed_( c, at, "getiterator" )
+    if getIt = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( getIt )
     if gs = 0 then return false
-    dim as Fbx.TypeId itT = gs->type_
-    if itT = Fbx.TYPE_NONE then return false
-    if c.types->Kind( itT ) <> Fbx.TK_UDT then return false
+    dim as Tko.TypeId itT = gs->type_
+    if itT = Tko.TYPE_NONE then return false
+    if c.types->Kind( itT ) <> Tko.TK_UDT then return false
 
     '' All three, before anything is emitted. A collection that satisfies only part of
     '' the protocol is not iterable, and finding that out half way through would leave
     '' a call and a block behind.
-    dim as Fbx.SymbolId isValid = MemberNamed_( c, itT, "isvalid" )
-    dim as Fbx.SymbolId valueOf = MemberNamed_( c, itT, "value" )
-    dim as Fbx.SymbolId moveNext = MemberNamed_( c, itT, "movenext" )
-    if isValid = Fbx.SYMBOL_NONE then return false
-    if valueOf = Fbx.SYMBOL_NONE then return false
-    if moveNext = Fbx.SYMBOL_NONE then return false
+    dim as Tko.SymbolId isValid = MemberNamed_( c, itT, "isvalid" )
+    dim as Tko.SymbolId valueOf = MemberNamed_( c, itT, "value" )
+    dim as Tko.SymbolId moveNext = MemberNamed_( c, itT, "movenext" )
+    if isValid = Tko.SYMBOL_NONE then return false
+    if valueOf = Tko.SYMBOL_NONE then return false
+    if moveNext = Tko.SYMBOL_NONE then return false
 
-    dim as Fbx.Symbol ptr vs2 = c.syms->SymbolAt( valueOf )
+    dim as Tko.Symbol ptr vs2 = c.syms->SymbolAt( valueOf )
     if vs2 = 0 then return false
-    dim as Fbx.TypeId elT = vs2->type_
+    dim as Tko.TypeId elT = vs2->type_
     dim as MirType emt = LowerType( elT, *c.types )
     if emt = MT_VOID then return false
 
     '' The LOOP VARIABLE takes the element type when its own was not written.
-    dim as Fbx.SymbolId vsid = c.info->RefOf( sp->a )
-    if vsid = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr vsym = c.syms->SymbolAt( vsid )
+    dim as Tko.SymbolId vsid = c.info->RefOf( sp->a )
+    if vsid = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( vsid )
     if vsym = 0 then return false
-    if vsym->type_ = Fbx.TYPE_NONE then vsym->type_ = elT
+    if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = elT
     dim as MirValue vaddr = LowerAddr( c, sp->a )
     if vaddr.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -869,7 +869,7 @@ function LowerForEachIter _
     c.breakTo.Push( exitB )
     c.contTo.Push( contB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Fbx.KW_FOR ) )
+    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
     PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )
@@ -895,17 +895,17 @@ end function
 '' A member of a UDT by name, folded. Returns nothing when the type has no such member,
 '' which is how the protocol is tested: structurally, one name at a time.
 private function MemberNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( t )
-    if tn = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Fbx.SYMBOL_NONE
-    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.SYMBOL_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
 
@@ -926,26 +926,26 @@ end function
 '' carry the bias, which is what the ordinary subscript path already does.
 ''
 '' The DYNAMIC-array form needs fb_ArrayLBound/fb_ArrayUBound and an array descriptor,
-'' which fbx does not build at all yet; it declines. So does the iterator-protocol form
+'' which tiko-lang does not build at all yet; it declines. So does the iterator-protocol form
 '' over a user type, which needs GetIterator/IsValid/Value/MoveNext resolved as members.
 function LowerForEachArray _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 1 then return false
-    if sp->a = Fbx.NODE_NONE then return false
-    dim as Fbx.NodeId seqE = cast( Fbx.NodeId, c.ast->children[sp->first] )
+    if sp->a = Tko.NODE_NONE then return false
+    dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
 
-    dim as Fbx.TypeId at = c.info->TypeOf_( seqE )
-    if at = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId at = c.info->TypeOf_( seqE )
+    if at = Tko.TYPE_NONE then return false
 
     '' A USER COLLECTION, not an array: the RFC-0002 iterator protocol. Tried first
     '' because a UDT can never be the array form, so there is nothing to fall back to.
-    if c.types->Kind( at ) = Fbx.TK_UDT then
+    if c.types->Kind( at ) = Tko.TK_UDT then
         return LowerForEachIter( c, id, sp, seqE, at )
     end if
 
-    if c.types->Kind( at ) <> Fbx.TK_ARRAY then return false
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
 
     '' A DYNAMIC array has no compile-time bounds at all: they are read from its
     '' descriptor, ONCE before the loop, which is what fbc does. Everything after this
@@ -970,7 +970,7 @@ function LowerForEachArray _
         if total <= 0 then return false
     end if
 
-    dim as Fbx.TypeId el = c.types->Inner( at )
+    dim as Tko.TypeId el = c.types->Inner( at )
     dim as MirType emt = LowerType( el, *c.types )
     if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
     dim as long esz = SizeOfType( c, el )
@@ -978,11 +978,11 @@ function LowerForEachArray _
 
     '' The loop VARIABLE. Its type is the element's, which Resolve bound when the
     '' 'as T' clause was written and which the element type supplies when it was not.
-    dim as Fbx.SymbolId vs = c.info->RefOf( sp->a )
-    if vs = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr vsym = c.syms->SymbolAt( vs )
+    dim as Tko.SymbolId vs = c.info->RefOf( sp->a )
+    if vs = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( vs )
     if vsym = 0 then return false
-    if vsym->type_ = Fbx.TYPE_NONE then vsym->type_ = el
+    if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = el
     dim as MirValue vaddr = LowerAddr( c, sp->a )
     if vaddr.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -1092,7 +1092,7 @@ function LowerForEachArray _
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Fbx.KW_FOR ) )
+    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
     PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )
@@ -1122,11 +1122,11 @@ function LowerForEachArray _
     return true
 end function
 
-sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as ushort flags = c.ast->nodes[cast( long, id )].flags
-    dim as boolean postCond = ((flags and Fbx.NF_POST_COND) <> 0)
-    dim as boolean isUntil = ((flags and Fbx.NF_UNTIL) <> 0)
+    dim as boolean postCond = ((flags and Tko.NF_POST_COND) <> 0)
+    dim as boolean isUntil = ((flags and Tko.NF_UNTIL) <> 0)
 
     dim as long headB = NewBlock( c, "do.head" )
     dim as long bodyB = NewBlock( c, "do.body" )
@@ -1134,7 +1134,7 @@ sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
     Terminate( c, MTERM_BR, iif( postCond, bodyB, headB ), -1, NoVal( ) )
 
     c.curBlock = headB
-    if sp->a <> Fbx.NODE_NONE then
+    if sp->a <> Tko.NODE_NONE then
         dim as MirValue cond = LowerExpr( c, sp->a )
         '' UNTIL is the same test with the arms swapped, which is cheaper than
         '' emitting a negation and is exactly what fbc's own lowering does.
@@ -1151,7 +1151,7 @@ sub LowerDo( byref c as Ctx, byval id as Fbx.NodeId )
     c.breakTo.Push( exitB )
     c.contTo.Push( headB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Fbx.KW_DO ) )
+    c.loopKind.Push( cast( long, Tko.KW_DO ) )
     PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )
@@ -1165,23 +1165,23 @@ end sub
 
 
 sub LowerIf _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr )
 
     '' The branches hang off a list of N_IF_BRANCH, each with its own condition; the
     '' ELSE body is 'c'.
-    dim as Fbx.NodeId branches = sp->b
-    if branches = Fbx.NODE_NONE then
+    dim as Tko.NodeId branches = sp->b
+    if branches = Tko.NODE_NONE then
         SkipHere( c )
         return
     end if
-    dim as Fbx.ListPayload ptr lp = _
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, branches )].data )]
 
     dim as long joinB = NewBlock( c, "if.join" )
     for i as long = 0 to lp->count - 1
-        dim as Fbx.NodeId br = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
-        if c.ast->Kind( br ) <> Fbx.N_IF_BRANCH then continue for
-        dim as Fbx.StmtPayload ptr bp = StmtOf( c, br )
+        dim as Tko.NodeId br = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( br ) <> Tko.N_IF_BRANCH then continue for
+        dim as Tko.StmtPayload ptr bp = StmtOf( c, br )
         dim as long thenB = NewBlock( c, "if.then" )
         dim as long elseB = NewBlock( c, "if.else" )
         '' A CONDITION THAT WOULD NOT LOWER IS A DECLINE. It used to go out as
@@ -1207,7 +1207,7 @@ sub LowerIf _
         c.curBlock = elseB
     next
 
-    if sp->c <> Fbx.NODE_NONE then LowerBlock( c, sp->c )
+    if sp->c <> Tko.NODE_NONE then LowerBlock( c, sp->c )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
     c.curBlock = joinB
 end sub

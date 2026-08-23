@@ -6,7 +6,7 @@
 '' loops below compared as i64 only by accident of the return type; the boolean one
 '' truncated an INTEGER counter to eight bits.
 ''
-'' And a SUB has no result slot at all, so locals was EMPTY and fbx segfaulted.
+'' And a SUB has no result slot at all, so locals was EMPTY and tiko-lang segfaulted.
 
 dim shared idx as integer
 dim shared cnt as integer = 3

@@ -1,9 +1,9 @@
 '' mangle.bi -- the emitted symbol name for a procedure.
 ''
-'' This is the D3 gate (docs/plan/README, decision D3): fbx must produce names that
+'' This is the D3 gate (docs/plan/README, decision D3): tiko-lang must produce names that
 '' are BYTE-IDENTICAL to fbc's, because a name that differs by one character does not
 '' fail loudly -- it fails at link time in someone else's project, against a library
-'' fbx never saw. Every rule here was measured by compiling a probe with fbc and
+'' tiko-lang never saw. Every rule here was measured by compiling a probe with fbc and
 '' reading the object file's symbol table, never read off documentation; the probe
 '' corpus and its expected output are tests/mangle/.
 ''
@@ -20,16 +20,16 @@
 ''      not 'x'/'y'. They are pointer-sized and so distinct from longint even where
 ''      both are 64 bits, and they take part in substitution like any other type.
 
-#ifndef __FBX_MANGLE_BI__
-#define __FBX_MANGLE_BI__
+#ifndef __TKO_MANGLE_BI__
+#define __TKO_MANGLE_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "ast/nodes.bi"
 #include once "symbols/symbol.bi"
 #include once "symbols/resolve.bi"
 #include once "types/type.bi"
 
-namespace Fbx.Mangle
+namespace Tko.Mangle
 
     '' The substitution table of the Itanium ABI: the encoding of each component
     '' that has already appeared, in order of first appearance. A repeat is emitted
@@ -45,23 +45,23 @@ namespace Fbx.Mangle
         as FB.Array( of ulong )  keys       '' the TypeId it came from, 0 for a name
 
         declare function Find( byref enc as string ) as long
-        declare function FindType( byval t as Fbx.TypeId ) as long
-        declare sub Add( byref enc as string, byval t as Fbx.TypeId = 0 )
+        declare function FindType( byval t as Tko.TypeId ) as long
+        declare sub Add( byref enc as string, byval t as Tko.TypeId = 0 )
     end type
 
     '' The emitted symbol name for one procedure declaration.
     declare function ProcName _
-        ( byref ast as Fbx.AstArena, byval proc_ as Fbx.NodeId, _
-          byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-          byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
+        ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+          byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+          byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
     '' What __FUNCTION__ expands to: the procedure's own name, UPPERCASED and qualified
     '' by its enclosing namespaces and types -- 'NS.INNER', 'T.M'. It does not
     '' distinguish overloads, so it is not a mangled name and shares only the qualifier
     '' walk with one. Measured, docs/internals/phase-6-pointers.md.
     declare function SourceQualifiedName _
-        ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
-          byref names as Fbx.Interner ) as string
+        ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+          byref names as Tko.Interner ) as string
 
     '' __FUNCTION__'s value at a use site in scope 'sc'. At MODULE level the answer is
     '' the implicit main procedure's name, '__FB_MAINPROC__' -- measured from the C fbc
@@ -69,28 +69,28 @@ namespace Fbx.Mangle
     '' separate matter: fbc then looks __FB_MAINPROC__ up as an identifier and reports
     '' error 42. As a plain value it is the string.)
     declare function EnclosingProcName _
-        ( byref syms as Fbx.SymbolTable, byval sc as Fbx.ScopeId, _
-          byref names as Fbx.Interner ) as string
+        ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+          byref names as Tko.Interner ) as string
 
     '' The same answer from the procedure SYMBOL rather than from a scope, for lowering,
     '' which tracks the procedure it is in and not the scope chain around a node.
     declare function ProcNameOrMain _
-        ( byref syms as Fbx.SymbolTable, byval sid as Fbx.SymbolId, _
-          byref names as Fbx.Interner ) as string
+        ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+          byref names as Tko.Interner ) as string
 
     '' Encode one type as an Itanium type component, updating the substitution table.
     '' 'syms' is needed because a UDT declared in a namespace encodes as a NESTED
     '' NAME -- N<prefix>3VECE, not 3VEC -- so the type's declaring scope has to be
     '' walked to spell it.
     declare function TypeCode _
-        ( byval t as Fbx.TypeId, byref types as Fbx.TypeContext, _
-          byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
+        ( byval t as Tko.TypeId, byref types as Tko.TypeContext, _
+          byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
           byref subs as Substitutions ) as string
 
     declare function Dump _
-        ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-          byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-          byref types as Fbx.TypeContext, byref info as Fbx.SemanticInfo ) as string
+        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+          byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+          byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
 end namespace
 

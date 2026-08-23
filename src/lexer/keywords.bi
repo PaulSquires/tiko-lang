@@ -8,16 +8,16 @@
 ''   KWCLASS_INTRINSIC   the intrinsic statements: PRINT, OPEN, DRAW, PUT ...
 ''                       -- this is the registry of docs/plan/04 section 5.
 ''
-'' 247 entries. QB-dialect-only spellings are excluded: fbx is #lang "fb" only.
+'' 247 entries. QB-dialect-only spellings are excluded: tiko-lang is #lang "fb" only.
 ''
 '' Words FBC-Modern adds CONTEXTUALLY -- defer, each, in, of, spawn -- are deliberately
 '' absent. They are not reserved, so the lexer must keep treating them as identifiers.
 
-#ifndef __FBX_KEYWORDS_BI__
-#define __FBX_KEYWORDS_BI__
+#ifndef __TKO_KEYWORDS_BI__
+#define __TKO_KEYWORDS_BI__
 
 '' KW( enum name, spelling, class )
-#macro FBX_KEYWORD_LIST( KW )
+#macro TKO_KEYWORD_LIST( KW )
     KW( KW_ABS,         "ABS",         KWCLASS_KEYWORD )
     KW( KW_ABSTRACT,    "ABSTRACT",    KWCLASS_KEYWORD )
     KW( KW_ACCESS,      "ACCESS",      KWCLASS_INTRINSIC )
@@ -267,6 +267,6 @@
     KW( KW___THISCALL,  "__THISCALL",  KWCLASS_KEYWORD )
 #endmacro
 
-const FBX_KEYWORD_COUNT as long = 247
+const TKO_KEYWORD_COUNT as long = 247
 
 #endif

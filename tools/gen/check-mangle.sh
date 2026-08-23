@@ -1,16 +1,16 @@
 #!/bin/sh
-# check-mangle.sh -- the D3 gate: fbx's mangled names against fbc's, byte for byte.
+# check-mangle.sh -- the D3 gate: tiko-lang's mangled names against fbc's, byte for byte.
 #
 #   tools/gen/check-mangle.sh
 #
-# Compares fbx --dump-mangle with the symbols tools/gen/mangle-truth.sh extracted
+# Compares tiko-lang --dump-mangle with the symbols tools/gen/mangle-truth.sh extracted
 # from fbc. A single differing character here is a link error in someone else's
-# project against a library fbx never saw, so the comparison is exact and the gate
+# project against a library tiko-lang never saw, so the comparison is exact and the gate
 # is all-or-nothing.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-FBX="$ROOT/bin/fbx.exe"
-[ -x "$FBX" ] || FBX="$ROOT/bin/fbx"
+TKO="$ROOT/bin/tiko.exe"
+[ -x "$TKO" ] || TKO="$ROOT/bin/tiko"
 EXPECTED="$ROOT/tests/mangle/expected/fbc-mangle.txt"
 WORK="$ROOT/build/.mg"
 
@@ -30,8 +30,8 @@ one( ) {
         echo "check-mangle: no $label expectations" >&2
         return 3
     fi
-    "$FBX" --dump-mangle $tgt "$ROOT/tests/mangle/src/probe.bas" 2>/dev/null         | tr -d "\r" | sort > "$WORK/fbx-$label.txt"
-    if diff -u "$want" "$WORK/fbx-$label.txt" > "$WORK/diff-$label.txt"; then
+    "$TKO" --dump-mangle $tgt "$ROOT/tests/mangle/src/probe.bas" 2>/dev/null         | tr -d "\r" | sort > "$WORK/tiko-$label.txt"
+    if diff -u "$want" "$WORK/tiko-$label.txt" > "$WORK/diff-$label.txt"; then
         n=$(wc -l < "$want" | tr -d ' ')
         echo "check-mangle: $label ok -- $n/$n names match fbc"
         return 0

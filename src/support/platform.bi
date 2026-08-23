@@ -7,12 +7,12 @@
 '' Process spawning lands here in Phase 7, and it will use a structured argument
 '' vector -- never a shell command string (docs/plan/14 section 7).
 
-#ifndef __FBX_PLATFORM_BI__
-#define __FBX_PLATFORM_BI__
+#ifndef __TKO_PLATFORM_BI__
+#define __TKO_PLATFORM_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 
-namespace Fbx.Platform
+namespace Tko.Platform
 
     enum StdStream
         STREAM_OUT = 1

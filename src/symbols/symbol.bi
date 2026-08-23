@@ -13,15 +13,15 @@
 ''     reverse declaration order (docs/plan/08 section 6).
 ''   - Overloads chain through 'nextOverload'; a name maps to the FIRST of them.
 
-#ifndef __FBX_SYMBOL_BI__
-#define __FBX_SYMBOL_BI__
+#ifndef __TKO_SYMBOL_BI__
+#define __TKO_SYMBOL_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "source/location.bi"
 #include once "types/type.bi"
 #include once "support/intern.bi"
 
-namespace Fbx
+namespace Tko
 
     type SymbolId as ulong
     type ScopeId  as ulong
@@ -31,7 +31,7 @@ namespace Fbx
     const SCOPE_GLOBAL as ScopeId = 1
 
     '' SYM( name, spelling )
-    #macro FBX_SYMKIND_LIST( SYM )
+    #macro TKO_SYMKIND_LIST( SYM )
         SYM( SYM_VARIABLE,  "var"       )
         SYM( SYM_PARAMETER, "param"     )
         SYM( SYM_CONSTANT,  "const"     )
@@ -48,7 +48,7 @@ namespace Fbx
     enum SymbolKind
         SYM_NONE = 0
         #define SYM( s_id, s_name ) s_id,
-        FBX_SYMKIND_LIST( SYM )
+        TKO_SYMKIND_LIST( SYM )
         #undef SYM
         SYM_KIND_COUNT
     end enum
@@ -88,7 +88,7 @@ namespace Fbx
     '' pointer and every read and write go through it, which is not implemented, so
     '' lowering declines the declaration AND every use. Without the second half the
     '' declaration declined while 'rb = 5' still stored into a slot aliasing nothing:
-    '' fbc prints 5 for that program, fbx would have printed 1.
+    '' fbc prints 5 for that program, tiko-lang would have printed 1.
     const SYMF_BYREF    as ushort = &h0800
 
     '' The FIRST field spliced out of one anonymous aggregate -- union OR type. Two adjacent anonymous

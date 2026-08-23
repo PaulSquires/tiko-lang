@@ -5,20 +5,20 @@
 '' processes and reads no environment, so tests/driver/cmdline can drive it directly
 '' with synthetic argument vectors.
 
-#ifndef __FBX_CMDLINE_BI__
-#define __FBX_CMDLINE_BI__
+#ifndef __TKO_CMDLINE_BI__
+#define __TKO_CMDLINE_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "driver/options.bi"
 #include once "diag/engine.bi"
 
-namespace Fbx.Cmdline
+namespace Tko.Cmdline
 
     '' Returns false when the command line was rejected. Diagnostics are reported
     '' through the engine, so the caller only needs the boolean.
     declare function Parse _
-        ( byref args as Fbx.StrVec, byref opts as Fbx.DriverOptions, _
-          byref diags as Fbx.DiagnosticEngine ) as boolean
+        ( byref args as Tko.StrVec, byref opts as Tko.DriverOptions, _
+          byref diags as Tko.DiagnosticEngine ) as boolean
 
     declare function HelpText( byval category as string = "" ) as string
     declare function VersionText( ) as string

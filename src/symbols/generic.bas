@@ -7,11 +7,11 @@
 #include once "symbols/collect.bi"
 #include once "parser/parser.bi"
 
-namespace Fbx.Resolve
+namespace Tko.Resolve
 
 declare sub InstantiateMembers_ _
-    ( byref c as Ctx, byval gnode as Fbx.NodeId, byval gname as Fbx.InternId, _
-      byval inm as Fbx.InternId, byval iin as Fbx.ScopeId, byval scope_ as Fbx.ScopeId, _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
+      byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
       byval argFirst as long, byval argCount as long )
 
 '' INSTANTIATE A GENERIC TYPE -- 'Box( of long )'.
@@ -32,8 +32,8 @@ declare sub InstantiateMembers_ _
 '' resolved types -- because it is the same problem: a type that the source names
 '' structurally rather than by a declaration of its own.
 function InstantiateGeneric_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.StmtPayload ptr, _
-      byval scope_ as Fbx.ScopeId, byval gsid as Fbx.SymbolId ) as Fbx.TypeId
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+      byval scope_ as Tko.ScopeId, byval gsid as Tko.SymbolId ) as Tko.TypeId
 
     '' THE GENERIC IS PASSED IN, already resolved -- including through a namespace
     '' qualifier, which is where every container in the runtime headers lives. Looking
@@ -42,18 +42,18 @@ function InstantiateGeneric_ _
     ''
     '' It still has to be a UDT whose declaration carries a parameter list, or 'Foo( 3 )'
     '' on an ordinary type would be read as an instantiation.
-    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( gsid )
-    if gs = 0 then return Fbx.TYPE_NONE
-    if gs->kind <> cast( ubyte, Fbx.SYM_UDT ) then return Fbx.TYPE_NONE
-    dim as Fbx.NodeId gn = cast( Fbx.NodeId, gs->payload )
-    if gn = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    if c.ast->Kind( gn ) <> Fbx.N_TYPE then return Fbx.TYPE_NONE
-    dim as Fbx.StmtPayload ptr gp = StmtOf( c, gn )
-    if gp->b = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    if c.ast->Kind( gp->b ) <> Fbx.N_BLOCK then return Fbx.TYPE_NONE
-    dim as Fbx.ListPayload ptr plist = _
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
+    if gs = 0 then return Tko.TYPE_NONE
+    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return Tko.TYPE_NONE
+    dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
+    if gn = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( gn ) <> Tko.N_TYPE then return Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
+    if gp->b = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( gp->b ) <> Tko.N_BLOCK then return Tko.TYPE_NONE
+    dim as Tko.ListPayload ptr plist = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->b )].data )]
-    if plist->count <> sp->count then return Fbx.TYPE_NONE
+    if plist->count <> sp->count then return Tko.TYPE_NONE
 
     '' The ARGUMENTS, resolved in the scope that wrote them. One that does not resolve
     '' means no instantiation rather than a wrong one -- every use then declines, which
@@ -73,9 +73,9 @@ function InstantiateGeneric_ _
     dim as string key = c.names->Spelling( gs->name ) & "<"
     dim as FB.Array( of ulong ) argTypes
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-        dim as Fbx.TypeId at = ResolveTypeRef( c, an, scope_ )
-        if at = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
+        if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
         argTypes.Push( cast( ulong, at ) )
         if i > 0 then key += ","
         key += str( cast( long, at ) )
@@ -93,24 +93,24 @@ function InstantiateGeneric_ _
     '' separate symbols without the name having to carry a qualifier -- which is what a
     '' spelling-derived key got wrong in the other direction: 'N.It( of long )' at a use
     '' site and 'It( of long )' inside N are the same type and produced two.
-    dim as Fbx.ScopeId ghome = gs->parent
-    if ghome = Fbx.SCOPE_NONE then ghome = Fbx.SCOPE_GLOBAL
+    dim as Tko.ScopeId ghome = gs->parent
+    if ghome = Tko.SCOPE_NONE then ghome = Tko.SCOPE_GLOBAL
 
     '' CACHED. 'b2 = b' over two spellings of one instantiation has to be the same
     '' type, so a miss here would break assignment as well as duplicate the work.
-    dim as Fbx.InternId inm = c.names->Fold( c.names->GetString( key ) )
-    dim as Fbx.SymbolId prev = c.syms->LookupLocalTyped( ghome, inm, true )
-    dim as Fbx.Symbol ptr ps = c.syms->SymbolAt( prev )
+    dim as Tko.InternId inm = c.names->Fold( c.names->GetString( key ) )
+    dim as Tko.SymbolId prev = c.syms->LookupLocalTyped( ghome, inm, true )
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( prev )
     if ps <> 0 then return ps->type_
 
     dim as boolean dup = false
-    dim as Fbx.SymbolId isid = c.syms->DeclareSym( ghome, inm, _
-        Fbx.SYM_UDT, c.ast->Loc( id ), dup )
-    dim as Fbx.Symbol ptr isym = c.syms->SymbolAt( isid )
-    if isym = 0 then return Fbx.TYPE_NONE
-    dim as Fbx.ScopeId iin = c.syms->OpenScope( Fbx.SCOPEK_TYPE, ghome, isid )
+    dim as Tko.SymbolId isid = c.syms->DeclareSym( ghome, inm, _
+        Tko.SYM_UDT, c.ast->Loc( id ), dup )
+    dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
+    if isym = 0 then return Tko.TYPE_NONE
+    dim as Tko.ScopeId iin = c.syms->OpenScope( Tko.SCOPEK_TYPE, ghome, isid )
     isym->inner = iin
-    isym->type_ = c.types->NamedType( Fbx.TK_UDT, inm, cast( ulong, ghome ) )
+    isym->type_ = c.types->NamedType( Tko.TK_UDT, inm, cast( ulong, ghome ) )
     '' The symbol is published BEFORE the fields are walked, so a generic that refers
     '' to itself behind a pointer -- 'as Node( of T ) ptr nxt' -- finds the cache
     '' rather than recursing for ever.
@@ -119,25 +119,25 @@ function InstantiateGeneric_ _
     '' The parameters bind for as long as the fields are being resolved.
     dim as long gmark = c.gparamName.Count
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId pn = cast( Fbx.NodeId, c.ast->children[plist->first + i] )
-        if c.ast->Kind( pn ) <> Fbx.N_IDENT then continue for
-        dim as Fbx.IdentPayload ptr pip = _
+        dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[plist->first + i] )
+        if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
+        dim as Tko.IdentPayload ptr pip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
         c.gparamName.Push( cast( ulong, pip->name ) )
         c.gparamType.Push( argTypes[i] )
     next
 
     for i as long = 0 to gp->count - 1
-        dim as Fbx.NodeId m = cast( Fbx.NodeId, c.ast->children[gp->first + i] )
-        if c.ast->Kind( m ) <> Fbx.N_FIELD then continue for
-        dim as Fbx.StmtPayload ptr fp = StmtOf( c, m )
+        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[gp->first + i] )
+        if c.ast->Kind( m ) <> Tko.N_FIELD then continue for
+        dim as Tko.StmtPayload ptr fp = StmtOf( c, m )
         if fp->name = 0 then continue for
-        dim as Fbx.TypeId ft = ResolveTypeRef( c, fp->a, iin )
+        dim as Tko.TypeId ft = ResolveTypeRef( c, fp->a, iin )
         ft = ArrayFromBounds( c, ft, fp->first, fp->count )
         dim as boolean fdup = false
-        dim as Fbx.SymbolId fsid = c.syms->DeclareSym( iin, fp->name, Fbx.SYM_FIELD, _
+        dim as Tko.SymbolId fsid = c.syms->DeclareSym( iin, fp->name, Tko.SYM_FIELD, _
             c.ast->Loc( m ), fdup )
-        dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+        dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
         if fs <> 0 then fs->type_ = ft
     next
 
@@ -156,8 +156,8 @@ function InstantiateGeneric_ _
     '' sibling unqualified from inside 'namespace FB', and resolving that from the
     '' caller's module scope found nothing -- so GetIterator came out with no return
     '' type at all and 'for each' over any container declined.
-    dim as Fbx.ScopeId gscope = gs->parent
-    if gscope = Fbx.SCOPE_NONE then gscope = scope_
+    dim as Tko.ScopeId gscope = gs->parent
+    if gscope = Tko.SCOPE_NONE then gscope = scope_
     c.pendInst.Push( cast( ulong, gscope ) )
     c.pendInst.Push( cast( ulong, argFirst ) )
     c.pendInst.Push( cast( ulong, sp->count ) )
@@ -179,53 +179,53 @@ end function
 '' the referent, not to a reference. Anything else returns TYPE_NONE, and the call then
 '' declines rather than instantiating at a guessed type.
 private function InferArgType_ _
-    ( byref c as Ctx, byval a as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.TypeId
+    ( byref c as Ctx, byval a as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
-    if a = Fbx.NODE_NONE then return Fbx.TYPE_NONE
+    if a = Tko.NODE_NONE then return Tko.TYPE_NONE
     select case c.ast->Kind( a )
-    case Fbx.N_PAREN
-        dim as Fbx.ListPayload ptr lp = ListOf( c, a )
-        if lp->count <> 1 then return Fbx.TYPE_NONE
-        return InferArgType_( c, cast( Fbx.NodeId, c.ast->children[lp->first] ), scope_ )
-    case Fbx.N_IDENT
-        dim as Fbx.InternId nm = IdentNameOf( c, a )
-        if nm = 0 then return Fbx.TYPE_NONE
-        dim as Fbx.Symbol ptr sy = c.syms->SymbolAt( c.syms->Lookup( scope_, nm ) )
-        if sy = 0 then return Fbx.TYPE_NONE
+    case Tko.N_PAREN
+        dim as Tko.ListPayload ptr lp = ListOf( c, a )
+        if lp->count <> 1 then return Tko.TYPE_NONE
+        return InferArgType_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), scope_ )
+    case Tko.N_IDENT
+        dim as Tko.InternId nm = IdentNameOf( c, a )
+        if nm = 0 then return Tko.TYPE_NONE
+        dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.syms->Lookup( scope_, nm ) )
+        if sy = 0 then return Tko.TYPE_NONE
         '' A PARAMETER too. Inside a macro-expanded 'AbsChecked( byval a as T )' the
         '' argument to 'Some( a )' IS the parameter, which is most of what the checked
         '' arithmetic family passes.
-        if (sy->kind <> cast( ubyte, Fbx.SYM_VARIABLE )) andalso _
-           (sy->kind <> cast( ubyte, Fbx.SYM_PARAMETER )) then return Fbx.TYPE_NONE
-        dim as Fbx.TypeId t = sy->type_
-        if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-        if c.types->Kind( t ) = Fbx.TK_REFERENCE then t = c.types->Inner( t )
+        if (sy->kind <> cast( ubyte, Tko.SYM_VARIABLE )) andalso _
+           (sy->kind <> cast( ubyte, Tko.SYM_PARAMETER )) then return Tko.TYPE_NONE
+        dim as Tko.TypeId t = sy->type_
+        if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )
         return t
-    case Fbx.N_CALL
+    case Tko.N_CALL
         '' 'Some( cast( T, a \ b ) )' -- A CONVERSION NAMES ITS OWN TYPE, which is
         '' the whole answer and needs no expression typing at all. The corpus writes it
         '' more often than it writes a bare name: every narrowing result in the checked
         '' arithmetic family is a cast.
-        dim as Fbx.ListPayload ptr cp = ListOf( c, a )
-        if cp->count < 1 then return Fbx.TYPE_NONE
-        if cp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-        if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return Fbx.TYPE_NONE
-        dim as Fbx.InternId cn = IdentNameOf( c, cp->target )
-        if cn = 0 then return Fbx.TYPE_NONE
-        if Fbx.Text.LowerAscii( c.names->Spelling( cn ) ) <> "cast" then
-            return Fbx.TYPE_NONE
+        dim as Tko.ListPayload ptr cp = ListOf( c, a )
+        if cp->count < 1 then return Tko.TYPE_NONE
+        if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+        if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+        dim as Tko.InternId cn = IdentNameOf( c, cp->target )
+        if cn = 0 then return Tko.TYPE_NONE
+        if Tko.Text.LowerAscii( c.names->Spelling( cn ) ) <> "cast" then
+            return Tko.TYPE_NONE
         end if
-        dim as Fbx.NodeId tn = cast( Fbx.NodeId, c.ast->children[cp->first] )
-        if c.ast->Kind( tn ) <> Fbx.N_TYPEREF then return Fbx.TYPE_NONE
+        dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[cp->first] )
+        if c.ast->Kind( tn ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
         return ResolveTypeRef( c, tn, scope_ )
-    case Fbx.N_INT_LIT
-        return c.types->Builtin( Fbx.TY_INTEGER )
-    case Fbx.N_FLOAT_LIT
-        return c.types->Builtin( Fbx.TY_DOUBLE )
-    case Fbx.N_STRING_LIT
-        return c.types->Builtin( Fbx.TY_STRING )
+    case Tko.N_INT_LIT
+        return c.types->Builtin( Tko.TY_INTEGER )
+    case Tko.N_FLOAT_LIT
+        return c.types->Builtin( Tko.TY_DOUBLE )
+    case Tko.N_STRING_LIT
+        return c.types->Builtin( Tko.TY_STRING )
     end select
-    return Fbx.TYPE_NONE
+    return Tko.TYPE_NONE
 end function
 
 '' INFER THE TYPE ARGUMENTS from the call's own arguments, for a call that wrote none.
@@ -239,43 +239,43 @@ end function
 '' Every parameter must come out with a type or this returns false and the call declines
 '' -- a partly-inferred instantiation is a miscompile, not a partial answer.
 private function InferProcTypeArgs_ _
-    ( byref c as Ctx, byval callId as Fbx.NodeId, byval gn as Fbx.NodeId, _
-      byval scope_ as Fbx.ScopeId, byref outT as FB.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval callId as Tko.NodeId, byval gn as Tko.NodeId, _
+      byval scope_ as Tko.ScopeId, byref outT as FB.Array( of ulong ) ) as boolean
 
-    dim as Fbx.StmtPayload ptr gp = StmtOf( c, gn )
-    if gp->c = Fbx.NODE_NONE then return false
-    if c.ast->Kind( gp->c ) <> Fbx.N_BLOCK then return false
-    dim as Fbx.ListPayload ptr gl = _
+    dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
+    if gp->c = Tko.NODE_NONE then return false
+    if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return false
+    dim as Tko.ListPayload ptr gl = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
     if gl->count <= 0 then return false
 
-    dim as Fbx.ListPayload ptr cl = ListOf( c, callId )
+    dim as Tko.ListPayload ptr cl = ListOf( c, callId )
 
     for g as long = 0 to gl->count - 1
-        dim as Fbx.NodeId gnm = cast( Fbx.NodeId, c.ast->children[gl->first + g] )
-        if c.ast->Kind( gnm ) <> Fbx.N_IDENT then return false
-        dim as Fbx.InternId want = IdentNameOf( c, gnm )
+        dim as Tko.NodeId gnm = cast( Tko.NodeId, c.ast->children[gl->first + g] )
+        if c.ast->Kind( gnm ) <> Tko.N_IDENT then return false
+        dim as Tko.InternId want = IdentNameOf( c, gnm )
         if want = 0 then return false
 
-        dim as Fbx.TypeId got = Fbx.TYPE_NONE
+        dim as Tko.TypeId got = Tko.TYPE_NONE
         for k as long = 0 to gp->count - 1
             if k >= cl->count then exit for
-            dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[gp->first + k] )
-            if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-            dim as Fbx.StmtPayload ptr pp = StmtOf( c, prm )
-            if pp->a = Fbx.NODE_NONE then continue for
-            if c.ast->Kind( pp->a ) <> Fbx.N_TYPEREF then continue for
-            dim as Fbx.AstNode ptr tn = @c.ast->nodes[cast( long, pp->a )]
-            if (tn->flags and (Fbx.NF_PTR or Fbx.NF_PROC_TYPE or Fbx.NF_ARRAY)) <> 0 then
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[gp->first + k] )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
+            if pp->a = Tko.NODE_NONE then continue for
+            if c.ast->Kind( pp->a ) <> Tko.N_TYPEREF then continue for
+            dim as Tko.AstNode ptr tn = @c.ast->nodes[cast( long, pp->a )]
+            if (tn->flags and (Tko.NF_PTR or Tko.NF_PROC_TYPE or Tko.NF_ARRAY)) <> 0 then
                 continue for
             end if
-            dim as Fbx.StmtPayload ptr tp = StmtOf( c, pp->a )
+            dim as Tko.StmtPayload ptr tp = StmtOf( c, pp->a )
             if tp->name <> want then continue for
-            got = InferArgType_( c, cast( Fbx.NodeId, c.ast->children[cl->first + k] ), _
+            got = InferArgType_( c, cast( Tko.NodeId, c.ast->children[cl->first + k] ), _
                                  scope_ )
-            if got <> Fbx.TYPE_NONE then exit for
+            if got <> Tko.TYPE_NONE then exit for
         next
-        if got = Fbx.TYPE_NONE then return false
+        if got = Tko.TYPE_NONE then return false
         outT.Push( cast( ulong, got ) )
     next
     return true
@@ -297,37 +297,37 @@ end function
 '' Returns the instantiated symbol, or SYMBOL_NONE when this is not a generic call at
 '' all -- which is every ordinary call, so it must be cheap to say no.
 function InstantiateGenericProc_ _
-    ( byref c as Ctx, byval callId as Fbx.NodeId, byval scope_ as Fbx.ScopeId ) as Fbx.SymbolId
+    ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 
-    if c.parser = 0 then return Fbx.SYMBOL_NONE
-    if c.ast->Kind( callId ) <> Fbx.N_CALL then return Fbx.SYMBOL_NONE
+    if c.parser = 0 then return Tko.SYMBOL_NONE
+    if c.ast->Kind( callId ) <> Tko.N_CALL then return Tko.SYMBOL_NONE
     dim as long taFirst, taCount
     dim as boolean written = c.ast->CallTypeArgsOf( callId, taFirst, taCount )
 
-    dim as Fbx.ListPayload ptr lp = ListOf( c, callId )
-    dim as Fbx.NodeId tgt = lp->target
-    if tgt = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE
-    if c.ast->Kind( tgt ) <> Fbx.N_IDENT then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId gname = IdentNameOf( c, tgt )
-    if gname = 0 then return Fbx.SYMBOL_NONE
+    dim as Tko.ListPayload ptr lp = ListOf( c, callId )
+    dim as Tko.NodeId tgt = lp->target
+    if tgt = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    if c.ast->Kind( tgt ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId gname = IdentNameOf( c, tgt )
+    if gname = 0 then return Tko.SYMBOL_NONE
 
     '' THE GENERIC'S OWN NODE, through its symbol. A name that resolves to something
     '' that is not a generic procedure is left alone -- 'Box( of long )' in expression
     '' position is a TYPE and takes the other path.
-    dim as Fbx.SymbolId gsid = c.syms->Lookup( scope_, gname )
-    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( gsid )
-    if gs = 0 then return Fbx.SYMBOL_NONE
-    if gs->kind <> cast( ubyte, Fbx.SYM_PROC ) then return Fbx.SYMBOL_NONE
-    dim as Fbx.NodeId gn = cast( Fbx.NodeId, gs->payload )
-    if gn = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE
-    if c.ast->Kind( gn ) <> Fbx.N_PROC then return Fbx.SYMBOL_NONE
-    dim as Fbx.StmtPayload ptr gp = StmtOf( c, gn )
-    if (gp->extra and Fbx.PF_GENERIC_PROC) = 0 then return Fbx.SYMBOL_NONE
-    if gp->c = Fbx.NODE_NONE then return Fbx.SYMBOL_NONE
-    if c.ast->Kind( gp->c ) <> Fbx.N_BLOCK then return Fbx.SYMBOL_NONE
-    dim as Fbx.ListPayload ptr pl = _
+    dim as Tko.SymbolId gsid = c.syms->Lookup( scope_, gname )
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
+    if gs = 0 then return Tko.SYMBOL_NONE
+    if gs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+    dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
+    if gn = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    if c.ast->Kind( gn ) <> Tko.N_PROC then return Tko.SYMBOL_NONE
+    dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
+    if (gp->extra and Tko.PF_GENERIC_PROC) = 0 then return Tko.SYMBOL_NONE
+    if gp->c = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return Tko.SYMBOL_NONE
+    dim as Tko.ListPayload ptr pl = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
-    if written andalso (pl->count <> taCount) then return Fbx.SYMBOL_NONE
+    if written andalso (pl->count <> taCount) then return Tko.SYMBOL_NONE
 
     '' THE ARGUMENTS, resolved where they were written -- or inferred from the call's
     '' own arguments where they were not. One that does not resolve means no
@@ -336,17 +336,17 @@ function InstantiateGenericProc_ _
     dim as FB.Array( of ulong ) argTypes
     if written then
         for i as long = 0 to taCount - 1
-            dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[taFirst + i] )
-            dim as Fbx.TypeId at = ResolveTypeRef( c, an, scope_ )
-            if at = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[taFirst + i] )
+            dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
+            if at = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
             argTypes.Push( cast( ulong, at ) )
         next
     else
         if InferProcTypeArgs_( c, callId, gn, scope_, argTypes ) = false then
-            return Fbx.SYMBOL_NONE
+            return Tko.SYMBOL_NONE
         end if
         taCount = cast( long, argTypes.Count )
-        if pl->count <> taCount then return Fbx.SYMBOL_NONE
+        if pl->count <> taCount then return Tko.SYMBOL_NONE
     end if
 
     dim as string key = c.names->Spelling( gname ) & "<"
@@ -359,19 +359,19 @@ function InstantiateGenericProc_ _
     '' CACHED, in the scope the generic itself lives in. Two call sites naming the same
     '' instantiation must reach ONE function, or the module would carry two definitions
     '' of it under one mangled name.
-    dim as Fbx.InternId inm = c.names->Fold( c.names->GetString( key ) )
-    dim as Fbx.ScopeId home = gs->parent
-    if home = Fbx.SCOPE_NONE then home = Fbx.SCOPE_GLOBAL
-    dim as Fbx.SymbolId prev = c.syms->LookupLocal( home, inm )
-    if prev <> Fbx.SYMBOL_NONE then return prev
+    dim as Tko.InternId inm = c.names->Fold( c.names->GetString( key ) )
+    dim as Tko.ScopeId home = gs->parent
+    if home = Tko.SCOPE_NONE then home = Tko.SCOPE_GLOBAL
+    dim as Tko.SymbolId prev = c.syms->LookupLocal( home, inm )
+    if prev <> Tko.SYMBOL_NONE then return prev
 
     '' The symbol is DECLARED NOW and its body filled in by the deferred pass, so a
     '' recursive generic -- one whose body calls itself at the same arguments -- finds
     '' this rather than instantiating for ever.
     dim as boolean idup = false
-    dim as Fbx.SymbolId isid = c.syms->DeclareSym( home, inm, Fbx.SYM_PROC, _
+    dim as Tko.SymbolId isid = c.syms->DeclareSym( home, inm, Tko.SYM_PROC, _
         c.ast->Loc( gn ), idup )
-    if isid = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+    if isid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
 
     dim as long argFirst = c.pendProcArgs.Count
     for i as long = 0 to taCount - 1
@@ -392,16 +392,16 @@ end function
 '' anywhere up the stack dangles the moment it does.
 sub InstantiatePendingProcs_( byref c as Ctx )
     if c.parser = 0 then return
-    dim as Fbx.ParserState ptr p0 = cast( Fbx.ParserState ptr, c.parser )
+    dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
     if p0->toks = 0 then return
 
     while c.pendProcDone < c.pendProc.Count
         dim as long i = c.pendProcDone
         c.pendProcDone += 6
-        dim as Fbx.NodeId gn = cast( Fbx.NodeId, c.pendProc[i] )
-        dim as Fbx.SymbolId isid = cast( Fbx.SymbolId, c.pendProc[i + 1] )
-        dim as Fbx.InternId inm = cast( Fbx.InternId, c.pendProc[i + 2] )
-        dim as Fbx.ScopeId home = cast( Fbx.ScopeId, c.pendProc[i + 3] )
+        dim as Tko.NodeId gn = cast( Tko.NodeId, c.pendProc[i] )
+        dim as Tko.SymbolId isid = cast( Tko.SymbolId, c.pendProc[i + 1] )
+        dim as Tko.InternId inm = cast( Tko.InternId, c.pendProc[i + 2] )
+        dim as Tko.ScopeId home = cast( Tko.ScopeId, c.pendProc[i + 3] )
         dim as long argFirst = cast( long, c.pendProc[i + 4] )
         dim as long argCount = cast( long, c.pendProc[i + 5] )
 
@@ -410,16 +410,16 @@ sub InstantiatePendingProcs_( byref c as Ctx )
 
         '' The parameters bind for as long as the fresh nodes are being resolved.
         dim as long gmark = c.gparamName.Count
-        dim as Fbx.StmtPayload ptr gp = StmtOf( c, gn )
-        if gp->c <> Fbx.NODE_NONE then
-            if c.ast->Kind( gp->c ) = Fbx.N_BLOCK then
-                dim as Fbx.ListPayload ptr pl = _
+        dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
+        if gp->c <> Tko.NODE_NONE then
+            if c.ast->Kind( gp->c ) = Tko.N_BLOCK then
+                dim as Tko.ListPayload ptr pl = _
                     @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
                 for k as long = 0 to argCount - 1
                     if k >= pl->count then exit for
-                    dim as Fbx.NodeId pn = cast( Fbx.NodeId, c.ast->children[pl->first + k] )
-                    if c.ast->Kind( pn ) <> Fbx.N_IDENT then continue for
-                    dim as Fbx.IdentPayload ptr pip = _
+                    dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + k] )
+                    if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
+                    dim as Tko.IdentPayload ptr pip = _
                         @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
                     c.gparamName.Push( cast( ulong, pip->name ) )
                     c.gparamType.Push( c.pendProcArgs[argFirst + k] )
@@ -427,7 +427,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             end if
         end if
 
-        dim as Fbx.ParserState q
+        dim as Tko.ParserState q
         q.toks = p0->toks
         q.stream = 0
         q.litPool = p0->litPool
@@ -438,20 +438,20 @@ sub InstantiatePendingProcs_( byref c as Ctx )
         q.pos = t0
         q.silent = true
 
-        dim as Fbx.NodeId fresh = Fbx.Parse.Statement( q )
-        if (fresh <> Fbx.NODE_NONE) andalso (c.ast->Kind( fresh ) = Fbx.N_PROC) then
-            dim as Fbx.StmtPayload ptr fp = StmtOf( c, fresh )
+        dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
+        if (fresh <> Tko.NODE_NONE) andalso (c.ast->Kind( fresh ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr fp = StmtOf( c, fresh )
             '' THE NAME IS THE STRUCTURAL KEY, and the generic flag comes OFF -- this
             '' one is a concrete procedure now, and leaving the flag on would make
             '' lowering decline the very body that was just built for it.
             fp->name = inm
             fp->rawName = inm
-            fp->extra and= not Fbx.PF_GENERIC_PROC
-            fp->c = Fbx.NODE_NONE
+            fp->extra and= not Tko.PF_GENERIC_PROC
+            fp->c = Tko.NODE_NONE
 
             c.ast->extraTopLevel.Push( cast( ulong, fresh ) )
             c.info->Resize( c.ast->Count( ) )
-            Fbx.Collect.One( *c.ast, fresh, home, *c.syms, *c.names, *c.types, _
+            Tko.Collect.One( *c.ast, fresh, home, *c.syms, *c.names, *c.types, _
                              *c.diags, *c.info )
             WalkStmt( c, fresh, home )
             '' Collect declares its own symbol for a fresh unqualified definition, and
@@ -459,14 +459,14 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             '' declared before the body existed, so it is pointed at the same node here
             '' -- without this the call mangles against a symbol with no payload and
             '' comes out as the bare source spelling.
-            dim as Fbx.Symbol ptr isym = c.syms->SymbolAt( isid )
-            dim as Fbx.SymbolId made = c.syms->LookupLocal( home, inm )
-            dim as Fbx.Symbol ptr msym = c.syms->SymbolAt( made )
+            dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
+            dim as Tko.SymbolId made = c.syms->LookupLocal( home, inm )
+            dim as Tko.Symbol ptr msym = c.syms->SymbolAt( made )
             if (isym <> 0) andalso (msym <> 0) then
                 if isym->payload = 0 then isym->payload = msym->payload
-                if isym->type_ = Fbx.TYPE_NONE then isym->type_ = msym->type_
+                if isym->type_ = Tko.TYPE_NONE then isym->type_ = msym->type_
                 isym->inner = msym->inner
-                isym->flags or= Fbx.SYMF_DEFINED
+                isym->flags or= Tko.SYMF_DEFINED
             end if
         end if
 
@@ -478,7 +478,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
 end sub
 
 declare function TypeMemberNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
 '' THE ELEMENT TYPE OF A USER COLLECTION -- the RFC-0002 iterator protocol.
 ''
@@ -492,41 +492,41 @@ declare function TypeMemberNamed_ _
 '' which went out as a conditional branch with nothing to branch on and counted as
 '' fully lowered.
 function IterElemType_ _
-    ( byref c as Ctx, byval seqT as Fbx.TypeId ) as Fbx.TypeId
+    ( byref c as Ctx, byval seqT as Tko.TypeId ) as Tko.TypeId
 
-    dim as Fbx.SymbolId gi = TypeMemberNamed_( c, seqT, "getiterator" )
-    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( gi )
-    if gs = 0 then return Fbx.TYPE_NONE
-    if gs->type_ = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.SymbolId vo = TypeMemberNamed_( c, gs->type_, "value" )
-    dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( vo )
-    if vs = 0 then return Fbx.TYPE_NONE
+    dim as Tko.SymbolId gi = TypeMemberNamed_( c, seqT, "getiterator" )
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gi )
+    if gs = 0 then return Tko.TYPE_NONE
+    if gs->type_ = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    dim as Tko.SymbolId vo = TypeMemberNamed_( c, gs->type_, "value" )
+    dim as Tko.Symbol ptr vs = c.syms->SymbolAt( vo )
+    if vs = 0 then return Tko.TYPE_NONE
     return vs->type_
 end function
 
 '' A member of a UDT by name, folded.
 private function TypeMemberNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     '' A BYREF PARAMETER IS A REFERENCE TO THE TYPE, not the type. 'for each e in a'
     '' over a 'byref a as Array( of T )' found no members at all, so the loop variable
     '' stayed untyped and its every use declined -- while the same loop over a LOCAL
     '' container lowered. fbc's own stats.bi takes its containers byref, which is what
     '' a container-taking procedure does.
     t = c.types->Unqualify( t )
-    if c.types->Kind( t ) = Fbx.TK_REFERENCE then
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then
         t = c.types->Unqualify( c.types->Inner( t ) )
     end if
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( t )
-    if tn = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Fbx.SYMBOL_NONE
-    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.SYMBOL_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
 
@@ -535,15 +535,15 @@ end function
 ''
 '' Built from the SCOPE CHAIN rather than from any spelling, which is the whole point:
 '' one generic has one qualifier however a use site chose to write it.
-function QualifierPrefix_( byref c as Ctx, byval sc as Fbx.ScopeId ) as string
+function QualifierPrefix_( byref c as Ctx, byval sc as Tko.ScopeId ) as string
     dim as string parts
-    dim as Fbx.ScopeId cur = sc
+    dim as Tko.ScopeId cur = sc
     dim as long guard = 0
-    while (cur <> Fbx.SCOPE_NONE) andalso (guard < 32)
+    while (cur <> Tko.SCOPE_NONE) andalso (guard < 32)
         guard += 1
-        dim as Fbx.SymScope ptr s = c.syms->ScopeAt( cur )
+        dim as Tko.SymScope ptr s = c.syms->ScopeAt( cur )
         if s = 0 then exit while
-        dim as Fbx.Symbol ptr o = c.syms->SymbolAt( s->owner )
+        dim as Tko.Symbol ptr o = c.syms->SymbolAt( s->owner )
         if o <> 0 then
             if o->name <> 0 then parts = c.names->Spelling( o->name ) & "#" & parts
         end if
@@ -558,12 +558,12 @@ end function
 '' and parsing appends to ast.lists -- so a ListPayload ptr held across one dangles.
 '' The child POOL only grows, so indices taken now stay valid.
 sub WalkBlock_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval here as Fbx.ScopeId )
-    dim as Fbx.ListPayload ptr lp = ListOf( c, id )
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
+    dim as Tko.ListPayload ptr lp = ListOf( c, id )
     dim as long lfirst = lp->first
     dim as long lcount = lp->count
     for i as long = 0 to lcount - 1
-        WalkStmt( c, cast( Fbx.NodeId, c.ast->children[lfirst + i] ), here )
+        WalkStmt( c, cast( Tko.NodeId, c.ast->children[lfirst + i] ), here )
     next
 end sub
 
@@ -584,8 +584,8 @@ end sub
 '' error in a file using a generic would be reported twice. Files with no generic at all
 '' pay nothing: the second walk never happens.
 sub DiscoverInstantiations_ _
-    ( byref c as Ctx, byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-      byref diags as Fbx.DiagnosticEngine, byref info as Fbx.SemanticInfo )
+    ( byref c as Ctx, byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref diags as Tko.DiagnosticEngine, byref info as Tko.SemanticInfo )
 
     if HasGenericDecl_( c ) = false then return
 
@@ -593,7 +593,7 @@ sub DiscoverInstantiations_ _
     dim as long derr = diags.errors
     dim as long dwarn = diags.warnings
     dim as long dsupp = diags.suppressedCount
-    WalkStmt( c, root, Fbx.SCOPE_GLOBAL )
+    WalkStmt( c, root, Tko.SCOPE_GLOBAL )
     while diags.pending.Count > dpend
         diags.pending.Pop( )
     wend
@@ -607,13 +607,13 @@ end sub
 
 function HasGenericDecl_( byref c as Ctx ) as boolean
     for i as long = 0 to c.ast->tokenRanges.Count - 3 step 3
-        dim as Fbx.NodeId n = cast( Fbx.NodeId, c.ast->tokenRanges[i] )
-        if c.ast->Kind( n ) = Fbx.N_TYPE then return true
+        dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->tokenRanges[i] )
+        if c.ast->Kind( n ) = Tko.N_TYPE then return true
         '' A GENERIC PROCEDURE counts too, and it need not be inside a generic type --
         '' 'function Ok( of T, E )( ... )' is one on its own, and fb/result.bi is
         '' nothing but those.
-        if c.ast->Kind( n ) = Fbx.N_PROC then
-            if (StmtOf( c, n )->extra and Fbx.PF_GENERIC_PROC) <> 0 then return true
+        if c.ast->Kind( n ) = Tko.N_PROC then
+            if (StmtOf( c, n )->extra and Tko.PF_GENERIC_PROC) <> 0 then return true
         end if
     next
     return false
@@ -625,11 +625,11 @@ sub InstantiatePending_( byref c as Ctx )
     while c.pendDone < c.pendInst.Count
         dim as long i = c.pendDone
         c.pendDone += 7
-        InstantiateMembers_( c, cast( Fbx.NodeId, c.pendInst[i] ), _
-                             cast( Fbx.InternId, c.pendInst[i + 1] ), _
-                             cast( Fbx.InternId, c.pendInst[i + 2] ), _
-                             cast( Fbx.ScopeId, c.pendInst[i + 3] ), _
-                             cast( Fbx.ScopeId, c.pendInst[i + 4] ), _
+        InstantiateMembers_( c, cast( Tko.NodeId, c.pendInst[i] ), _
+                             cast( Tko.InternId, c.pendInst[i + 1] ), _
+                             cast( Tko.InternId, c.pendInst[i + 2] ), _
+                             cast( Tko.ScopeId, c.pendInst[i + 3] ), _
+                             cast( Tko.ScopeId, c.pendInst[i + 4] ), _
                              cast( long, c.pendInst[i + 5] ), _
                              cast( long, c.pendInst[i + 6] ) )
     wend
@@ -658,12 +658,12 @@ end sub
 '' the whole signature, and Collect declares a member it finds no declaration for, so
 '' one pass over the definitions is the complete job.
 private sub InstantiateMembers_ _
-    ( byref c as Ctx, byval gnode as Fbx.NodeId, byval gname as Fbx.InternId, _
-      byval inm as Fbx.InternId, byval iin as Fbx.ScopeId, byval scope_ as Fbx.ScopeId, _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
+      byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
       byval argFirst as long, byval argCount as long )
 
     if c.parser = 0 then return
-    dim as Fbx.ParserState ptr p0 = cast( Fbx.ParserState ptr, c.parser )
+    dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
     if p0->toks = 0 then return
 
     '' The table is scanned to its length AS IT IS NOW. Resolving one member may
@@ -672,16 +672,16 @@ private sub InstantiateMembers_ _
     '' THE TYPE PARAMETERS, bound again. They were popped when the type half finished,
     '' and the member signatures -- 'byval x as T' -- are what needs them.
     dim as long gmark = c.gparamName.Count
-    dim as Fbx.StmtPayload ptr gp = StmtOf( c, gnode )
-    if gp->b <> Fbx.NODE_NONE then
-        if c.ast->Kind( gp->b ) = Fbx.N_BLOCK then
-            dim as Fbx.ListPayload ptr pl = _
+    dim as Tko.StmtPayload ptr gp = StmtOf( c, gnode )
+    if gp->b <> Tko.NODE_NONE then
+        if c.ast->Kind( gp->b ) = Tko.N_BLOCK then
+            dim as Tko.ListPayload ptr pl = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->b )].data )]
             for i as long = 0 to argCount - 1
                 if i >= pl->count then exit for
-                dim as Fbx.NodeId pn = cast( Fbx.NodeId, c.ast->children[pl->first + i] )
-                if c.ast->Kind( pn ) <> Fbx.N_IDENT then continue for
-                dim as Fbx.IdentPayload ptr pip = _
+                dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + i] )
+                if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
+                dim as Tko.IdentPayload ptr pip = _
                     @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
                 c.gparamName.Push( cast( ulong, pip->name ) )
                 c.gparamType.Push( c.pendInstArgs[argFirst + i] )
@@ -691,16 +691,16 @@ private sub InstantiateMembers_ _
 
     dim as long n0 = c.ast->tokenRanges.Count
     for i as long = 0 to n0 - 3 step 3
-        dim as Fbx.NodeId dn = cast( Fbx.NodeId, c.ast->tokenRanges[i] )
-        if c.ast->Kind( dn ) <> Fbx.N_PROC then continue for
-        dim as Fbx.StmtPayload ptr dp = StmtOf( c, dn )
+        dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->tokenRanges[i] )
+        if c.ast->Kind( dn ) <> Tko.N_PROC then continue for
+        dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
         if dp->ownerName <> gname then continue for
-        if dp->b = Fbx.NODE_NONE then continue for
+        if dp->b = Tko.NODE_NONE then continue for
 
         '' A PARSER OF ITS OWN over the same buffer. The stream is deliberately NOT
         '' carried across: the preprocessor was closed when the unit finished, and the
         '' range being re-read is already buffered, so nothing may try to pull more.
-        dim as Fbx.ParserState q
+        dim as Tko.ParserState q
         q.toks = p0->toks
         q.stream = 0
         q.litPool = p0->litPool
@@ -711,19 +711,19 @@ private sub InstantiateMembers_ _
         q.pos = cast( long, c.ast->tokenRanges[i + 1] )
         q.silent = true
 
-        dim as Fbx.NodeId fresh = Fbx.Parse.Statement( q )
-        if fresh = Fbx.NODE_NONE then continue for
-        if c.ast->Kind( fresh ) <> Fbx.N_PROC then continue for
+        dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
+        if fresh = Tko.NODE_NONE then continue for
+        if c.ast->Kind( fresh ) <> Tko.N_PROC then continue for
 
-        dim as Fbx.StmtPayload ptr fp2 = StmtOf( c, fresh )
+        dim as Tko.StmtPayload ptr fp2 = StmtOf( c, fresh )
         fp2->ownerName = inm
         '' THE GENERIC-PROCEDURE FLAG COMES OFF. Every out-of-line member of a generic
         '' is spelled 'function Array( of T ).Count( )', so the parser's '( of ... )'
         '' branch marks it PF_GENERIC_PROC -- and lowering skips anything carrying that
         '' as a template. The instantiated body is a concrete procedure; leaving the
         '' flag on meant every one was declared, called, and never emitted.
-        fp2->extra and= not Fbx.PF_GENERIC_PROC
-        dim as Fbx.InternId mname = fp2->name
+        fp2->extra and= not Tko.PF_GENERIC_PROC
+        dim as Tko.InternId mname = fp2->name
         dim as ushort mop = fp2->op
 
         '' THE MEMBER'S SYMBOL, declared here because nothing else will. Collect treats
@@ -737,14 +737,14 @@ private sub InstantiateMembers_ _
         ''
         '' Structors are left alone: Collect already declares those itself, under the
         '' synthetic __ctor / __dtor names, and doing it twice would split the chain.
-        select case cast( Fbx.TokenKind, mop )
-        case Fbx.KW_CONSTRUCTOR, Fbx.KW_DESTRUCTOR
+        select case cast( Tko.TokenKind, mop )
+        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
         case else
             if mname <> 0 then
                 dim as boolean mdup = false
-                dim as Fbx.SymbolId msid = c.syms->DeclareSym( iin, mname, _
-                    Fbx.SYM_PROC, c.ast->Loc( fresh ), mdup )
-                dim as Fbx.Symbol ptr msym = c.syms->SymbolAt( msid )
+                dim as Tko.SymbolId msid = c.syms->DeclareSym( iin, mname, _
+                    Tko.SYM_PROC, c.ast->Loc( fresh ), mdup )
+                dim as Tko.Symbol ptr msym = c.syms->SymbolAt( msid )
                 if msym <> 0 then
                     '' THE FRESH NODE IS THE PAYLOAD. Every call site mangles against
                     '' whatever node the symbol points at, and a symbol with none
@@ -753,7 +753,7 @@ private sub InstantiateMembers_ _
                     '' and this instantiation's signature is on this instantiation's
                     '' own node, not the generic's.
                     msym->payload = cast( long, fresh )
-                    msym->flags or= Fbx.SYMF_DEFINED
+                    msym->flags or= Tko.SYMF_DEFINED
                 end if
             end if
         end select
@@ -763,7 +763,7 @@ private sub InstantiateMembers_ _
         '' it would be collected, resolved, typed -- and never emitted.
         c.ast->extraTopLevel.Push( cast( ulong, fresh ) )
         c.info->Resize( c.ast->Count( ) )
-        Fbx.Collect.One( *c.ast, fresh, scope_, *c.syms, *c.names, *c.types, _
+        Tko.Collect.One( *c.ast, fresh, scope_, *c.syms, *c.names, *c.types, _
                          *c.diags, *c.info )
         WalkStmt( c, fresh, scope_ )
     next
@@ -786,16 +786,16 @@ sub BackpatchTypedefs( byref c as Ctx )
     for r as long = 1 to c.typedefNode.Count
         dim as boolean progress = false
         for i as long = 0 to c.typedefNode.Count - 1
-            dim as Fbx.NodeId id = cast( Fbx.NodeId, c.typedefNode[i] )
-            dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.typedefScope[i] )
-            dim as Fbx.StmtPayload ptr tsp = StmtOf( c, id )
+            dim as Tko.NodeId id = cast( Tko.NodeId, c.typedefNode[i] )
+            dim as Tko.ScopeId here = cast( Tko.ScopeId, c.typedefScope[i] )
+            dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
             if tsp->name = 0 then continue for
-            dim as Fbx.Symbol ptr ts = _
+            dim as Tko.Symbol ptr ts = _
                 c.syms->SymbolAt( c.syms->LookupLocalTyped( here, tsp->name, true ) )
             if ts = 0 then continue for
-            if ts->kind <> cast( ubyte, Fbx.SYM_TYPEDEF ) then continue for
-            dim as Fbx.TypeId al = ResolveTypeRef( c, tsp->a, here )
-            if (al = Fbx.TYPE_NONE) orelse (al = ts->type_) then continue for
+            if ts->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then continue for
+            dim as Tko.TypeId al = ResolveTypeRef( c, tsp->a, here )
+            if (al = Tko.TYPE_NONE) orelse (al = ts->type_) then continue for
             ts->type_ = al
             progress = true
         next
@@ -803,30 +803,30 @@ sub BackpatchTypedefs( byref c as Ctx )
     next
 
     for i as long = 0 to c.pendingItem.Count - 1
-        dim as Fbx.NodeId item = cast( Fbx.NodeId, c.pendingItem[i] )
-        dim as Fbx.ScopeId here = cast( Fbx.ScopeId, c.pendingScope[i] )
-        dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
-        dim as Fbx.TypeId t = ResolveTypeRef( c, ip->a, here )
-        if t = Fbx.TYPE_NONE then continue for
+        dim as Tko.NodeId item = cast( Tko.NodeId, c.pendingItem[i] )
+        dim as Tko.ScopeId here = cast( Tko.ScopeId, c.pendingScope[i] )
+        dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+        dim as Tko.TypeId t = ResolveTypeRef( c, ip->a, here )
+        if t = Tko.TYPE_NONE then continue for
         BindDeclType( c, here, ip->name, ArrayFromBoundsNode( c, t, ip->c, ip->b ) )
     next
 end sub
 
 '' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
 function ArrayFromBoundsNode _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, byval id as Fbx.NodeId, _
-      byval init as Fbx.NodeId = Fbx.NODE_NONE ) as Fbx.TypeId
+    ( byref c as Ctx, byval base_ as Tko.TypeId, byval id as Tko.NodeId, _
+      byval init as Tko.NodeId = Tko.NODE_NONE ) as Tko.TypeId
 
-    if id = Fbx.NODE_NONE then return base_
-    if c.ast->Kind( id ) <> Fbx.N_BLOCK then return base_
-    dim as Fbx.ListPayload ptr lp = _
+    if id = Tko.NODE_NONE then return base_
+    if c.ast->Kind( id ) <> Tko.N_BLOCK then return base_
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     dim as FB.Array( of ulong ) los, his
     for i as long = 0 to lp->count - 1
-        dim as Fbx.NodeId d = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
-        if c.ast->Kind( d ) = Fbx.N_CASE_RANGE then
+        dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( d ) = Tko.N_CASE_RANGE then
             '' 'a(0 to 9)' -- both bounds written out.
-            dim as Fbx.StmtPayload ptr dp = StmtOf( c, d )
+            dim as Tko.StmtPayload ptr dp = StmtOf( c, d )
             los.Push( cast( ulong, dp->a ) )
             his.Push( cast( ulong, dp->b ) )
         else
@@ -834,7 +834,7 @@ function ArrayFromBoundsNode _
             '' lower bound of 0. It is not an N_CASE_RANGE at all, so a loop that only
             '' accepts one silently gives the array no dimensions and drops it back to
             '' its element type.
-            los.Push( cast( ulong, Fbx.NODE_NONE ) )
+            los.Push( cast( ulong, Tko.NODE_NONE ) )
             his.Push( cast( ulong, d ) )
         end if
     next
@@ -849,12 +849,12 @@ end function
 '' ELEMENT type, so the array becomes eight bytes where twenty-four were needed and
 '' nothing says so -- which is exactly what parsing '...' without inferring it did.
 function ArrayFromPairs _
-    ( byref c as Ctx, byval base_ as Fbx.TypeId, _
+    ( byref c as Ctx, byval base_ as Tko.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
-      byval init as Fbx.NodeId = Fbx.NODE_NONE, _
-      byval emptyIsDynamic as boolean = false ) as Fbx.TypeId
+      byval init as Tko.NodeId = Tko.NODE_NONE, _
+      byval emptyIsDynamic as boolean = false ) as Tko.TypeId
 
-    if base_ = Fbx.TYPE_NONE then return base_
+    if base_ = Tko.TYPE_NONE then return base_
 
     '' EMPTY PARENS -- 'dim as long a()' -- is a DYNAMIC array with its dimension count
     '' left open. It is not 'no array at all', which is what returning the element type
@@ -875,22 +875,22 @@ function ArrayFromPairs _
     dim as FB.Array( of longint ) bounds
     for i as long = 0 to los.Count - 1
         dim as longint lo = 0
-        dim as Fbx.NodeId loN = cast( Fbx.NodeId, los[i] )
-        if loN <> Fbx.NODE_NONE then
-            dim as Fbx.Check.ConstVal lv = _
-                Fbx.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names, _
+        dim as Tko.NodeId loN = cast( Tko.NodeId, los[i] )
+        if loN <> Tko.NODE_NONE then
+            dim as Tko.Check.ConstVal lv = _
+                Tko.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names, _
                                    c.types->target.pointerBits )
             if lv.known then lo = lv.value else known = false
         end if
         dim as longint hi = lo - 1
-        dim as Fbx.NodeId hiN = cast( Fbx.NodeId, his[i] )
-        if (hiN <> Fbx.NODE_NONE) andalso (c.ast->Kind( hiN ) = Fbx.N_ELLIPSIS) then
+        dim as Tko.NodeId hiN = cast( Tko.NodeId, his[i] )
+        if (hiN <> Tko.NODE_NONE) andalso (c.ast->Kind( hiN ) = Tko.N_ELLIPSIS) then
             '' The bound the initializer implies: lbound + count - 1, per dimension.
             dim as long got = InitCountAt( c, init, i )
             if got > 0 then hi = lo + got - 1 else known = false
-        elseif hiN <> Fbx.NODE_NONE then
-            dim as Fbx.Check.ConstVal hv = _
-                Fbx.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
+        elseif hiN <> Tko.NODE_NONE then
+            dim as Tko.Check.ConstVal hv = _
+                Tko.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
                                    c.types->target.pointerBits )
             if hv.known then hi = hv.value else known = false
         else

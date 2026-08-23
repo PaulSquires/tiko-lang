@@ -1,4 +1,4 @@
-'' __FB_64BIT__ came from an '#ifdef' at fbx's OWN compile time, so it was true even
+'' __FB_64BIT__ came from an '#ifdef' at tiko-lang's OWN compile time, so it was true even
 '' for '-target linux-x86_64'. Getting it wrong does not fail -- it silently selects
 '' the other half of every header, and the corpus branches on it 214 times.
 ''

@@ -14,26 +14,26 @@
 '' with every offset halved on win32. Total = 6*ptr + dims*3*ptr.
 ''
 '' A FIXED array has no descriptor in memory: fbc synthesises one on the stack at the
-'' array's DECLARATION point and passes that. fbx synthesises it at the point of USE
+'' array's DECLARATION point and passes that. tiko-lang synthesises it at the point of USE
 '' instead. That is a deliberate difference, and it is safe because the descriptor is
 '' pure function of compile-time constants -- the bounds, the element size, and the
 '' array's own address -- none of which can change between the two points.
 
 #include once "lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
-using Fbx
+using Tko
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
-declare function EraseOne_( byref c as Ctx, byval it as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+declare function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
 declare function RedimOne_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval item as Fbx.NodeId, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval item as Tko.NodeId, _
       byval presv as boolean ) as boolean
 declare function PushStructorPtr_ _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
-      byval s as Fbx.SymbolId ) as boolean
+      byval s as Tko.SymbolId ) as boolean
 
 
 '' The natural integer width of a descriptor field, which is the pointer width.
@@ -79,15 +79,15 @@ end sub
 '' for anything that is not a fixed array with known bounds and a known element size --
 '' a DYNAMIC array already has a descriptor and must not get a second one.
 function SynthFixedArrayDesc _
-    ( byref c as Ctx, byref arrAddr as MirValue, byval t as Fbx.TypeId, _
+    ( byref c as Ctx, byref arrAddr as MirValue, byval t as Tko.TypeId, _
       byref outv as MirValue ) as boolean
 
-    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
     dim as long dims = c.types->types[cast( long, t )].dims
     if dims < 1 then return false                  '' -1 is dynamic
 
-    dim as Fbx.TypeId et = c.types->types[cast( long, t )].inner
-    if et = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId et = c.types->types[cast( long, t )].inner
+    if et = Tko.TYPE_NONE then return false
     dim as long elemLen = SizeOfType( c, et )
     if elemLen <= 0 then return false
 
@@ -170,34 +170,34 @@ end function
 ''
 '' See docs/internals/phase-6-udt-return.md. The same rule on both targets: fbc makes a
 '' TWO-valued frontend decision and leaves register-versus-memory to the C compiler,
-'' which is the same division of labour fbx has with whatever consumes MIR.
-function UsesSretReturn( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
-    if StructorOf( c, t, "__dtor" ) <> Fbx.SYMBOL_NONE then return true
+'' which is the same division of labour tiko-lang has with whatever consumes MIR.
+function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    if StructorOf( c, t, "__dtor" ) <> Tko.SYMBOL_NONE then return true
     '' A COPY CONSTRUCTOR is a constructor taking one argument of its own type. Any
     '' other one-argument constructor is a conversion, not a copy.
-    dim as Fbx.SymbolId ctors = StructorOf( c, t, "__ctor" )
-    dim as Fbx.SymbolId cur = ctors
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+    dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )
+    dim as Tko.SymbolId cur = ctors
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-        if pn <> Fbx.NODE_NONE then
-            if c.ast->Kind( pn ) = Fbx.N_PROC then
-                dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if pn <> Tko.NODE_NONE then
+            if c.ast->Kind( pn ) = Tko.N_PROC then
+                dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
                 dim as long np = 0
-                dim as Fbx.TypeId only = Fbx.TYPE_NONE
+                dim as Tko.TypeId only = Tko.TYPE_NONE
                 for i as long = 0 to psp->count - 1
-                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
-                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     np += 1
                     only = c.info->TypeOf_( prm )
                 next
                 if np = 1 then
-                    dim as Fbx.TypeId bare = only
-                    if bare <> Fbx.TYPE_NONE then
-                        if c.types->Kind( bare ) = Fbx.TK_REFERENCE then
+                    dim as Tko.TypeId bare = only
+                    if bare <> Tko.TYPE_NONE then
+                        if c.types->Kind( bare ) = Tko.TK_REFERENCE then
                             bare = c.types->Inner( bare )
                         end if
                         bare = c.types->Unqualify( bare )
@@ -225,25 +225,25 @@ end function
 ''     dynamic string           fb_ArrayStrErase( d )
 ''     dynamic UDT              fb_ArrayEraseObj( d, ctor, dtor )
 ''
-'' Only the FIXED rows are lowered. A dynamic array has no descriptor in fbx yet -- its
+'' Only the FIXED rows are lowered. A dynamic array has no descriptor in tiko-lang yet -- its
 '' declaration lowers to nothing at all -- so calling fb_ArrayErase on whatever a
 '' dynamic array's slot happens to hold would hand the runtime a wild pointer. That
 '' declines, loudly, rather than emitting something that looks right.
-function LowerErase( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count < 1 then return false
 
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId it = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if EraseOne_( c, it ) = false then return false
     next
     return true
 end function
 
-private function EraseOne_( byref c as Ctx, byval it as Fbx.NodeId ) as boolean
-    dim as Fbx.TypeId t = c.info->TypeOf_( it )
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
+    dim as Tko.TypeId t = c.info->TypeOf_( it )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
     '' A DYNAMIC array already has a descriptor; erase it directly.
     if c.types->IsDynArray( t ) then
         dim as MirValue dv = LowerAddr( c, it )
@@ -261,7 +261,7 @@ private function EraseOne_( byref c as Ctx, byval it as Fbx.NodeId ) as boolean
     dim as MirValue desc
     if SynthFixedArrayDesc( c, base_, t, desc ) = false then return false
 
-    dim as Fbx.TypeId et = c.types->types[cast( long, t )].inner
+    dim as Tko.TypeId et = c.types->types[cast( long, t )].inner
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
 
@@ -275,10 +275,10 @@ private function EraseOne_( byref c as Ctx, byval it as Fbx.NodeId ) as boolean
     '' A UDT gets ClearObj with its constructor and destructor, either of which may be
     '' null. Structors count whether they are written or implicit -- a UDT holding a
     '' string has both without either appearing in the source.
-    if c.types->Kind( et ) = Fbx.TK_UDT then
-        dim as Fbx.SymbolId ctor = StructorOf( c, et, "__ctor" )
-        dim as Fbx.SymbolId dtor = StructorOf( c, et, "__dtor" )
-        if (ctor <> Fbx.SYMBOL_NONE) orelse (dtor <> Fbx.SYMBOL_NONE) then
+    if c.types->Kind( et ) = Tko.TK_UDT then
+        dim as Tko.SymbolId ctor = StructorOf( c, et, "__ctor" )
+        dim as Tko.SymbolId dtor = StructorOf( c, et, "__dtor" )
+        if (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE) then
             if PushStructorPtr_( c, args, ctor ) = false then return false
             if PushStructorPtr_( c, args, dtor ) = false then return false
             EmitRtl( c, RTL_ARRAY_CLEAR_OBJ, args )
@@ -293,9 +293,9 @@ end function
 '' A structor's ADDRESS as an argument, or a null pointer when there is none.
 private function PushStructorPtr_ _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
-      byval s as Fbx.SymbolId ) as boolean
+      byval s as Tko.SymbolId ) as boolean
 
-    if s = Fbx.SYMBOL_NONE then
+    if s = Tko.SYMBOL_NONE then
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( 0 )
         return true
@@ -331,7 +331,7 @@ end function
 '' __builtin_memset, which its C backend inlines; MIR has no such thing, and 24 stores
 '' for the worst case is cheaper to reason about than an ABI question.
 sub InitDynArrayDesc _
-    ( byref c as Ctx, byref desc as MirValue, byval t as Fbx.TypeId )
+    ( byref c as Ctx, byref desc as MirValue, byval t as Tko.TypeId )
 
     dim as long rank = c.types->DynRank( t )
     dim as long slots = rank
@@ -374,12 +374,12 @@ end function
 ''     string          fb_ArrayStrErase( d )
 ''     UDT             fb_ArrayEraseObj( d, ctor, dtor )
 ''
-'' A UDT with only IMPLICIT structors falls to fb_ArrayErase here, because fbx does
+'' A UDT with only IMPLICIT structors falls to fb_ArrayErase here, because tiko-lang does
 '' not synthesise implicit structors yet. That is wrong for such a type -- fbc would
 '' run the destructors -- and is stated rather than hidden.
 sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
     if (slot < 0) orelse (slot >= c.f->locals.Count) then return
-    dim as Fbx.TypeId t = c.f->locals[slot].frontendType
+    dim as Tko.TypeId t = c.f->locals[slot].frontendType
     if c.types->IsDynArray( t ) = false then return
     dim as MirValue d
     d.kind = cast( ubyte, MV_LOCAL )
@@ -394,10 +394,10 @@ end sub
 '' and the slot-only form declined every one. A container that clears its own storage is
 '' the commonest place ERASE appears at all: fb/array.bi's own Clear does exactly this.
 sub EmitEraseDynAt_ _
-    ( byref c as Ctx, byref d as MirValue, byval t as Fbx.TypeId )
+    ( byref c as Ctx, byref d as MirValue, byval t as Tko.TypeId )
 
     if c.types->IsDynArray( t ) = false then return
-    dim as Fbx.TypeId et = c.types->Inner( t )
+    dim as Tko.TypeId et = c.types->Inner( t )
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, d.kind ) ) : args.Push( cast( ulong, d.id ) )
 
@@ -405,10 +405,10 @@ sub EmitEraseDynAt_ _
         EmitRtl( c, RTL_ARRAY_STR_ERASE, args )
         return
     end if
-    if c.types->Kind( et ) = Fbx.TK_UDT then
-        dim as Fbx.SymbolId ctor = StructorOf( c, et, "__ctor" )
-        dim as Fbx.SymbolId dtor = StructorOf( c, et, "__dtor" )
-        if (ctor <> Fbx.SYMBOL_NONE) orelse (dtor <> Fbx.SYMBOL_NONE) then
+    if c.types->Kind( et ) = Tko.TK_UDT then
+        dim as Tko.SymbolId ctor = StructorOf( c, et, "__ctor" )
+        dim as Tko.SymbolId dtor = StructorOf( c, et, "__dtor" )
+        if (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE) then
             if PushStructorPtr_( c, args, ctor ) then
                 if PushStructorPtr_( c, args, dtor ) then
                     EmitRtl( c, RTL_ARRAY_ERASE_OBJ, args )
@@ -448,15 +448,15 @@ end sub
 '' The bounds are 2 * dims varargs -- lo1, hi1, lo2, hi2, ... -- at the target's
 '' pointer width.
 function LowerRedim _
-    ( byref c as Ctx, byval id as Fbx.NodeId, _
-      byval sp as Fbx.StmtPayload ptr ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, _
+      byval sp as Tko.StmtPayload ptr ) as boolean
 
     dim as boolean presv = _
-        ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_PRESERVE) <> 0)
+        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_PRESERVE) <> 0)
 
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId item = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-        if c.ast->Kind( item ) <> Fbx.N_VAR_ITEM then continue for
+        dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
         if RedimOne_( c, id, item, presv ) = false then return false
     next
     return true
@@ -465,50 +465,50 @@ end function
 '' The FIELD of the current method's receiver with this name, or nothing. The mirror of
 '' AddrOfThisField, which takes the symbol this finds.
 private function ThisFieldSym_ _
-    ( byref c as Ctx, byval nm as Fbx.InternId ) as Fbx.SymbolId
+    ( byref c as Ctx, byval nm as Tko.InternId ) as Tko.SymbolId
 
-    if c.curProcSym = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
-    dim as Fbx.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
-    if me_ = 0 then return Fbx.SYMBOL_NONE
-    if me_->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
-    dim as Fbx.SymbolId tsid = c.syms->LookupLocal( me_->inner, _
+    if c.curProcSym = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
+    if me_ = 0 then return Tko.SYMBOL_NONE
+    if me_->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId tsid = c.syms->LookupLocal( me_->inner, _
         c.names->Fold( c.names->GetString( "this" ) ) )
-    if tsid = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
-    dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return Fbx.SYMBOL_NONE
-    if ts->type_ = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    if c.types->Kind( ts->type_ ) <> Fbx.TK_POINTER then return Fbx.SYMBOL_NONE
-    dim as Fbx.TypeId bt = c.types->Inner( ts->type_ )
-    if bt = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
+    if tsid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return Tko.SYMBOL_NONE
+    if ts->type_ = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( ts->type_ ) <> Tko.TK_POINTER then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId bt = c.types->Inner( ts->type_ )
+    if bt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     return UdtMemberNamed_( c, bt, c.names->Spelling( nm ) )
 end function
 
 private function RedimOne_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval item as Fbx.NodeId, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval item as Tko.NodeId, _
       byval presv as boolean ) as boolean
 
-    dim as Fbx.StmtPayload ptr ip = StmtOf( c, item )
-    dim as Fbx.TypeId aty = Fbx.TYPE_NONE
+    dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+    dim as Tko.TypeId aty = Tko.TYPE_NONE
     dim as MirValue desc
 
     '' A TARGET EXPRESSION -- 'redim x.array( 0 to 9 )' and 'redim ( a )( 0 to 9 )'.
     '' The parser records the chain rather than only its last name, which is what a
     '' lookup by name could never get right: it declined when nothing of that name was
     '' in scope, and would have re-dimensioned the WRONG ARRAY when something was.
-    dim as boolean viaExpr = (ip->extra = cast( ushort, Fbx.KW_REDIM ))
+    dim as boolean viaExpr = (ip->extra = cast( ushort, Tko.KW_REDIM ))
     if viaExpr then
-        if ip->b = Fbx.NODE_NONE then return false
+        if ip->b = Tko.NODE_NONE then return false
         aty = c.info->TypeOf_( ip->b )
         if c.types->IsDynArray( aty ) = false then return false
         desc = LowerAddr( c, ip->b )
         if desc.kind = cast( ubyte, MV_NONE ) then return false
     end if
 
-    dim as Fbx.SymbolId sid = Fbx.SYMBOL_NONE
+    dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
     if viaExpr = false then
         sid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
     end if
-    dim as Fbx.Symbol ptr vs = c.syms->SymbolAt( sid )
+    dim as Tko.Symbol ptr vs = c.syms->SymbolAt( sid )
     if viaExpr then
         '' already resolved above
     elseif (vs <> 0) andalso c.types->IsDynArray( vs->type_ ) then
@@ -525,9 +525,9 @@ private function RedimOne_ _
         '' covers them. Requiring a local slot declined every container that grows its
         '' own storage, which is what a container IS: three lines of fbc's own
         '' Array( of T ) account for 54 declines in each of the eight TUI corpus files.
-        dim as Fbx.SymbolId fsid = ThisFieldSym_( c, ip->name )
-        if fsid = Fbx.SYMBOL_NONE then return false
-        dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+        dim as Tko.SymbolId fsid = ThisFieldSym_( c, ip->name )
+        if fsid = Tko.SYMBOL_NONE then return false
+        dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
         if fs = 0 then return false
         if c.types->IsDynArray( fs->type_ ) = false then return false
         desc = AddrOfThisField( c, fsid )
@@ -536,13 +536,13 @@ private function RedimOne_ _
     end if
 
     '' The bounds, one N_CASE_RANGE or bare upper bound per dimension.
-    if ip->c = Fbx.NODE_NONE then return false
-    if c.ast->Kind( ip->c ) <> Fbx.N_BLOCK then return false
-    dim as Fbx.ListPayload ptr lp = _
+    if ip->c = Tko.NODE_NONE then return false
+    if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return false
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
     if lp->count < 1 then return false
 
-    dim as Fbx.TypeId et = c.types->Inner( aty )
+    dim as Tko.TypeId et = c.types->Inner( aty )
     dim as MirType zt = DescIntTy_( c )
 
     '' Bound VALUES first: they are ordinary expressions and must be evaluated before
@@ -550,18 +550,18 @@ private function RedimOne_ _
     dim as FB.Array( of ulong ) bk
     dim as FB.Array( of ulong ) bi
     for d as long = 0 to lp->count - 1
-        dim as Fbx.NodeId dn = cast( Fbx.NodeId, c.ast->children[lp->first + d] )
-        dim as Fbx.NodeId loN = Fbx.NODE_NONE
-        dim as Fbx.NodeId hiN = dn
-        if c.ast->Kind( dn ) = Fbx.N_CASE_RANGE then
-            dim as Fbx.StmtPayload ptr dp = StmtOf( c, dn )
+        dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
+        dim as Tko.NodeId loN = Tko.NODE_NONE
+        dim as Tko.NodeId hiN = dn
+        if c.ast->Kind( dn ) = Tko.N_CASE_RANGE then
+            dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
             loN = dp->a
             hiN = dp->b
         end if
 
         '' A bare 'a(9)' has an implicit lower bound of 0.
         dim as MirValue lv = ConstInt( c, 0, zt )
-        if loN <> Fbx.NODE_NONE then
+        if loN <> Tko.NODE_NONE then
             lv = LowerExpr( c, loN )
             if lv.kind = cast( ubyte, MV_NONE ) then return false
             lv = Coerce( c, lv, zt, IsUnsignedType( c, c.info->TypeOf_( loN ) ) )
@@ -579,13 +579,13 @@ private function RedimOne_ _
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, SizeOfType( c, et ) ) )
 
-    dim as Fbx.SymbolId ctor = Fbx.SYMBOL_NONE
-    dim as Fbx.SymbolId dtor = Fbx.SYMBOL_NONE
-    if c.types->Kind( et ) = Fbx.TK_UDT then
+    dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
+    dim as Tko.SymbolId dtor = Tko.SYMBOL_NONE
+    if c.types->Kind( et ) = Tko.TK_UDT then
         ctor = StructorOf( c, et, "__ctor" )
         dtor = StructorOf( c, et, "__dtor" )
     end if
-    dim as boolean useObj = (ctor <> Fbx.SYMBOL_NONE) orelse (dtor <> Fbx.SYMBOL_NONE)
+    dim as boolean useObj = (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE)
 
     if useObj then
         if PushStructorPtr_( c, args, ctor ) = false then return false
@@ -594,7 +594,7 @@ private function RedimOne_ _
         '' Argument 4 is -1 if and only if the element is a var-len STRING.
         ''
         '' Argument 3 is -1 for every element type measured EXCEPT an FB fixed-length
-        '' 'string * N', which gives 32 at any N. fbx cannot tell 'string * N' from
+        '' 'string * N', which gives 32 at any N. tiko-lang cannot tell 'string * N' from
         '' 'zstring * N': both are modelled as an array of TY_ZSTRING, and fbc gives
         '' -1 for the second. So a FIXED-LENGTH STRING ELEMENT DECLINES rather than
         '' guessing which of the two it is and being silently wrong half the time.
@@ -636,8 +636,8 @@ end function
 ''
 ''     addr = DATA + ((..(i0 * E1 + i1) * E2 + i2 ..) + i(n-1)) * ELEMENT_LEN
 function LowerDynArrayIndex _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval sp as Fbx.ListPayload ptr, _
-      byval at as Fbx.TypeId ) as MirValue
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.ListPayload ptr, _
+      byval at as Tko.TypeId ) as MirValue
 
     dim as MirValue none_
     dim as long rank = c.types->DynRank( at )
@@ -657,7 +657,7 @@ function LowerDynArrayIndex _
 
     dim as MirValue acc
     for k as long = 0 to rank - 1
-        dim as Fbx.NodeId ix = cast( Fbx.NodeId, c.ast->children[sp->first + k] )
+        dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         dim as MirValue iv = LowerExpr( c, ix )
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
         iv = Coerce( c, iv, offTy, IsUnsignedType( c, c.info->TypeOf_( ix ) ) )
@@ -715,17 +715,17 @@ end function
 '' descriptor cast to the const-void form and a ONE-BASED dimension; a bare
 '' 'lbound( a )' passes 1. A FIXED array folds both at compile time and never calls.
 function LowerArrayBoundCall _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 2) then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as RtlId r = RTL_NONE
     if nm = "lbound" then
@@ -736,7 +736,7 @@ function LowerArrayBoundCall _
         return false
     end if
 
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     if c.types->IsDynArray( c.info->TypeOf_( a0 ) ) = false then return false
     dim as MirValue desc = LowerAddr( c, a0 )
     if desc.kind = cast( ubyte, MV_NONE ) then return false
@@ -744,7 +744,7 @@ function LowerArrayBoundCall _
     dim as MirType zt = DescIntTy_( c )
     dim as MirValue dimV = ConstInt( c, 1, zt )
     if cp->count = 2 then
-        dim as Fbx.NodeId a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
+        dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         dim as MirValue dv = LowerExpr( c, a1 )
         if dv.kind = cast( ubyte, MV_NONE ) then return false
         dimV = Coerce( c, dv, zt, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )

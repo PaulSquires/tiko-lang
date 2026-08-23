@@ -3,7 +3,7 @@
 #include once "lexer/lexer.bi"
 #include once "support/text.bi"
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------- token metadata
 
@@ -32,7 +32,7 @@ private sub InitTokenTables( )
         punctText(p_name) = @p_text
         kindNames(p_name) = @#p_name
     #endmacro
-    FBX_PUNCT_LIST( PUNCT )
+    TKO_PUNCT_LIST( PUNCT )
     #undef PUNCT
 
     #macro KW( k_name, k_text, k_class )
@@ -40,7 +40,7 @@ private sub InitTokenTables( )
         kindNames(k_name) = @#k_name
         kindClasses(k_name) = cast( ubyte, k_class )
     #endmacro
-    FBX_KEYWORD_LIST( KW )
+    TKO_KEYWORD_LIST( KW )
     #undef KW
 
     tokenTablesReady = true
@@ -123,19 +123,19 @@ end function
 
 end namespace
 
-namespace Fbx.Lex
+namespace Tko.Lex
 
 sub InitKeywords _
-    ( byref names as Fbx.Interner, byref map as Fbx.KeywordMap )
+    ( byref names as Tko.Interner, byref map as Tko.KeywordMap )
 
     '' Interned in table order and BEFORE anything else, so ids are 1..N contiguous
     '' and the map is a plain array index. Lowercase, because the lexer folds.
     #macro KW( k_name, k_text, k_class )
         scope
-            dim as string folded = Fbx.Text.LowerAscii( k_text )
-            dim as Fbx.InternId id = names.GetString( folded )
+            dim as string folded = Tko.Text.LowerAscii( k_text )
+            dim as Tko.InternId id = names.GetString( folded )
             while map.kinds.Count <= cast( long, id )
-                map.kinds.Push( cast( ushort, Fbx.TK_IDENT ) )
+                map.kinds.Push( cast( ushort, Tko.TK_IDENT ) )
                 map.classes.Push( 0 )
             wend
             map.kinds[cast( long, id )] = cast( ushort, k_name )
@@ -143,7 +143,7 @@ sub InitKeywords _
             if cast( long, id ) > map.maxId then map.maxId = cast( long, id )
         end scope
     #endmacro
-    FBX_KEYWORD_LIST( KW )
+    TKO_KEYWORD_LIST( KW )
     #undef KW
 end sub
 
@@ -189,24 +189,24 @@ type Scanner
     as const ubyte ptr p
     as long   n
     as long   i
-    as Fbx.FileId file
-    as Fbx.SourceManager ptr src
-    as Fbx.Interner ptr names
-    as Fbx.KeywordMap ptr kwmap
-    as Fbx.DiagnosticEngine ptr diags
-    as Fbx.Lex.Result ptr outp
+    as Tko.FileId file
+    as Tko.SourceManager ptr src
+    as Tko.Interner ptr names
+    as Tko.KeywordMap ptr kwmap
+    as Tko.DiagnosticEngine ptr diags
+    as Tko.Lex.Result ptr outp
     as ushort pendingFlags
 end type
 
-private function LocAt( byref s as Scanner, byval offset as long ) as Fbx.SourceLoc
+private function LocAt( byref s as Scanner, byval offset as long ) as Tko.SourceLoc
     return s.src->LocFor( s.file, offset )
 end function
 
 private sub Emit _
-    ( byref s as Scanner, byval kind as Fbx.TokenKind, byval first as long, _
+    ( byref s as Scanner, byval kind as Tko.TokenKind, byval first as long, _
       byval payload as ulong = 0 )
 
-    dim as Fbx.Token t
+    dim as Tko.Token t
     t.kind = cast( ushort, kind )
     t.flags = s.pendingFlags
     t.loc = LocAt( s, first )
@@ -217,10 +217,10 @@ private sub Emit _
 end sub
 
 private sub Report _
-    ( byref s as Scanner, byval id as Fbx.DiagId, byval first as long, _
+    ( byref s as Scanner, byval id as Tko.DiagId, byval first as long, _
       byval a0 as string = "" )
 
-    dim as Fbx.SourceRange r
+    dim as Tko.SourceRange r
     r.first = LocAt( s, first )
     r.last = LocAt( s, s.i )
     s.diags->Report( id, r, a0 )
@@ -246,7 +246,7 @@ private sub SkipBlockComment( byref s as Scanner, byval first as long )
             s.i += 1
         end if
     wend
-    Report( s, Fbx.FBX0202, first )
+    Report( s, Tko.TKO0202, first )
 end sub
 
 private sub SkipLineComment( byref s as Scanner )
@@ -267,13 +267,13 @@ private sub ScanIdentifier( byref s as Scanner )
     '' Fold into a stack buffer; only pathological identifiers touch the heap.
     dim as long n = s.i - first
     dim as ubyte folded(0 to 255)
-    dim as Fbx.InternId id = Fbx.INTERN_NONE
+    dim as Tko.InternId id = Tko.INTERN_NONE
     if n <= 256 then
-        Fbx.Text.LowerAsciiInto( @s.p[first], n, @folded(0) )
+        Tko.Text.LowerAsciiInto( @s.p[first], n, @folded(0) )
         id = s.names->Get( @folded(0), n )
     else
         dim as ubyte ptr heap_ = allocate( n )
-        Fbx.Text.LowerAsciiInto( @s.p[first], n, heap_ )
+        Tko.Text.LowerAsciiInto( @s.p[first], n, heap_ )
         id = s.names->Get( heap_, n )
         deallocate( heap_ )
     end if
@@ -291,22 +291,22 @@ private sub ScanIdentifier( byref s as Scanner )
             if s.p[s.i + 1] = 35 then suffix = false
         end if
         if suffix then
-            extra = Fbx.TF_HAS_SUFFIX
+            extra = Tko.TF_HAS_SUFFIX
             s.i += 1
         end if
     end if
 
-    dim as Fbx.TokenKind kind = s.kwmap->KindOf( id )
+    dim as Tko.TokenKind kind = s.kwmap->KindOf( id )
     s.pendingFlags or= extra
 
     '' REM comments to end of line, and is a keyword everywhere else it appears.
-    if kind = Fbx.KW_REM then
+    if kind = Tko.KW_REM then
         SkipLineComment( s )
         return
     end if
 
-    if kind = Fbx.TK_IDENT then
-        Emit( s, Fbx.TK_IDENT, first, cast( ulong, id ) )
+    if kind = Tko.TK_IDENT then
+        Emit( s, Tko.TK_IDENT, first, cast( ulong, id ) )
     else
         Emit( s, kind, first )
     end if
@@ -314,15 +314,15 @@ end sub
 
 '' -------------------------------------------------------------------- numbers
 
-private sub PushLiteral( byref s as Scanner, byref lit as Fbx.Literal, byval first as long )
+private sub PushLiteral( byref s as Scanner, byref lit as Tko.Literal, byval first as long )
     s.outp->literals.Push( lit )
-    Emit( s, cast( Fbx.TokenKind, lit.kind ), first, cast( ulong, s.outp->literals.Count - 1 ) )
+    Emit( s, cast( Tko.TokenKind, lit.kind ), first, cast( ulong, s.outp->literals.Count - 1 ) )
 end sub
 
 '' Reads the trailing type suffix of a numeric literal. Longest match first:
 '' ULL before UL before U, LL before L.
-private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) as Fbx.NumSuffix
-    if s.i >= s.n then return Fbx.NSUF_NONE
+private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) as Tko.NumSuffix
+    if s.i >= s.n then return Tko.NSUF_NONE
 
     dim as ubyte c0 = s.p[s.i]
     dim as ubyte u0 = c0
@@ -330,18 +330,18 @@ private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) a
 
     select case u0
     case 37                                  '' %
-        s.i += 1 : return Fbx.NSUF_INTEGER
+        s.i += 1 : return Tko.NSUF_INTEGER
     case 38                                  '' &
-        s.i += 1 : return Fbx.NSUF_LONG
+        s.i += 1 : return Tko.NSUF_LONG
     case 33                                  '' !
-        s.i += 1 : return Fbx.NSUF_SINGLE
+        s.i += 1 : return Tko.NSUF_SINGLE
     case 35                                  '' #
-        s.i += 1 : return Fbx.NSUF_DOUBLE
+        s.i += 1 : return Tko.NSUF_DOUBLE
     case 70                                  '' F
-        s.i += 1 : return Fbx.NSUF_SINGLE
+        s.i += 1 : return Tko.NSUF_SINGLE
     case 68                                  '' D
-        if isFloat = false then return Fbx.NSUF_NONE   '' 'd' is the exponent marker
-        s.i += 1 : return Fbx.NSUF_DOUBLE
+        if isFloat = false then return Tko.NSUF_NONE   '' 'd' is the exponent marker
+        s.i += 1 : return Tko.NSUF_DOUBLE
     case 85                                  '' U, UL, ULL
         dim as long save = s.i
         s.i += 1
@@ -354,9 +354,9 @@ private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) a
                 exit while
             end if
         wend
-        if ells = 0 then return Fbx.NSUF_UINTEGER
-        if ells = 1 then return Fbx.NSUF_ULONG
-        return Fbx.NSUF_ULONGINT
+        if ells = 0 then return Tko.NSUF_UINTEGER
+        if ells = 1 then return Tko.NSUF_ULONG
+        return Tko.NSUF_ULONGINT
         s.i = save
     case 76                                  '' L, LL
         s.i += 1
@@ -364,13 +364,13 @@ private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) a
             dim as ubyte c = s.p[s.i]
             if (c = 76) orelse (c = 108) then
                 s.i += 1
-                return Fbx.NSUF_LONGINT
+                return Tko.NSUF_LONGINT
             end if
         end if
-        return Fbx.NSUF_LONG
+        return Tko.NSUF_LONG
     end select
 
-    return Fbx.NSUF_NONE
+    return Tko.NSUF_NONE
 end function
 
 private function DigitValue( byval c as ubyte ) as long
@@ -405,13 +405,13 @@ private sub ScanRadixLiteral( byref s as Scanner, byval first as long )
     wend
 
     if digits = 0 then
-        Report( s, Fbx.FBX0203, first, "&" )
-        Emit( s, Fbx.TK_INVALID, first )
+        Report( s, Tko.TKO0203, first, "&" )
+        Emit( s, Tko.TK_INVALID, first )
         return
     end if
 
-    dim as Fbx.Literal lit
-    lit.kind = cast( ubyte, Fbx.TK_INT_LIT )
+    dim as Tko.Literal lit
+    lit.kind = cast( ubyte, Tko.TK_INT_LIT )
     lit.radix = cast( ubyte, radix )
     lit.intValue = value
     lit.suffix = cast( ubyte, ScanNumSuffix( s, false ) )
@@ -489,11 +489,11 @@ private sub ScanNumber( byref s as Scanner )
     end if
 
     dim as long digitsEnd = s.i
-    dim as Fbx.NumSuffix suffix = ScanNumSuffix( s, isFloat )
-    dim as boolean floatSuffix = (suffix = Fbx.NSUF_SINGLE) orelse (suffix = Fbx.NSUF_DOUBLE)
+    dim as Tko.NumSuffix suffix = ScanNumSuffix( s, isFloat )
+    dim as boolean floatSuffix = (suffix = Tko.NSUF_SINGLE) orelse (suffix = Tko.NSUF_DOUBLE)
     if floatSuffix then isFloat = true
 
-    dim as Fbx.Literal lit
+    dim as Tko.Literal lit
     lit.radix = 10
     lit.suffix = cast( ubyte, suffix )
 
@@ -501,14 +501,14 @@ private sub ScanNumber( byref s as Scanner )
     memcpy( strptr( spelling ), @s.p[first], digitsEnd - first )
 
     if isFloat then
-        lit.kind = cast( ubyte, Fbx.TK_FLOAT_LIT )
+        lit.kind = cast( ubyte, Tko.TK_FLOAT_LIT )
         '' 'd' is FreeBASIC's double exponent marker; val( ) wants 'e'.
         dim as long at = instr( spelling, "d" )
         if at = 0 then at = instr( spelling, "D" )
         if at > 0 then spelling = left( spelling, at - 1 ) & "e" & mid( spelling, at + 1 )
         lit.fltValue = val( spelling )
     else
-        lit.kind = cast( ubyte, Fbx.TK_INT_LIT )
+        lit.kind = cast( ubyte, Tko.TK_INT_LIT )
         lit.intValue = cast( ulongint, vallng( spelling ) )
     end if
 
@@ -519,8 +519,8 @@ end sub
 
 '' The payload span is recorded UNDECODED: OPTION ESCAPE decides what a plain "..."
 '' means and the lexer does not know it yet (docs/plan/03 section 5.1).
-private sub ScanString( byref s as Scanner, byval kind as Fbx.StringKind, byval first as long )
-    if kind <> Fbx.STRK_PLAIN then s.i += 1     '' past the ! or $
+private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval first as long )
+    if kind <> Tko.STRK_PLAIN then s.i += 1     '' past the ! or $
     s.i += 1                                    '' past the opening quote
 
     dim as long textFirst = s.i
@@ -539,7 +539,7 @@ private sub ScanString( byref s as Scanner, byval kind as Fbx.StringKind, byval 
             exit while
         end if
         '' In an escaped literal a backslash protects the next byte, including a quote.
-        if (kind = Fbx.STRK_ESCAPED) andalso (c = 92) andalso (s.i + 1 < s.n) then
+        if (kind = Tko.STRK_ESCAPED) andalso (c = 92) andalso (s.i + 1 < s.n) then
             s.i += 2
             continue while
         end if
@@ -551,12 +551,12 @@ private sub ScanString( byref s as Scanner, byval kind as Fbx.StringKind, byval 
         s.i += 1
     else
         '' fbc closes it at the newline and warns rather than failing (probe L3), so
-        '' fbx must also accept the file.
-        Report( s, Fbx.FBX0201, first )
+        '' tiko-lang must also accept the file.
+        Report( s, Tko.TKO0201, first )
     end if
 
-    dim as Fbx.Literal lit
-    lit.kind = cast( ubyte, Fbx.TK_STRING_LIT )
+    dim as Tko.Literal lit
+    lit.kind = cast( ubyte, Tko.TK_STRING_LIT )
     lit.strKind = cast( ubyte, kind )
     lit.textFile = cast( long, s.file )
     lit.textOffset = textFirst
@@ -572,116 +572,116 @@ private sub ScanPunct( byref s as Scanner )
     dim as ubyte c1 = 0
     if s.i + 1 < s.n then c1 = s.p[s.i + 1]
 
-    dim as Fbx.TokenKind kind = Fbx.TK_INVALID
+    dim as Tko.TokenKind kind = Tko.TK_INVALID
     dim as long nchars = 1
 
     select case c
-    case 40 : kind = Fbx.TK_LPAREN
-    case 41 : kind = Fbx.TK_RPAREN
-    case 91 : kind = Fbx.TK_LBRACKET
-    case 93 : kind = Fbx.TK_RBRACKET
-    case 123 : kind = Fbx.TK_LBRACE
-    case 125 : kind = Fbx.TK_RBRACE
-    case 44 : kind = Fbx.TK_COMMA
-    case 59 : kind = Fbx.TK_SEMICOLON
-    case 64 : kind = Fbx.TK_AT
-    case 63 : kind = Fbx.TK_QUESTION
-    case 35 : kind = Fbx.TK_HASH
-    case 33 : kind = Fbx.TK_BANG        '' standalone '!' -- fbc tokenises it
-    case 36 : kind = Fbx.TK_DOLLAR
-    case 37 : kind = Fbx.TK_PERCENT
-    case 126 : kind = Fbx.TK_TILDE
+    case 40 : kind = Tko.TK_LPAREN
+    case 41 : kind = Tko.TK_RPAREN
+    case 91 : kind = Tko.TK_LBRACKET
+    case 93 : kind = Tko.TK_RBRACKET
+    case 123 : kind = Tko.TK_LBRACE
+    case 125 : kind = Tko.TK_RBRACE
+    case 44 : kind = Tko.TK_COMMA
+    case 59 : kind = Tko.TK_SEMICOLON
+    case 64 : kind = Tko.TK_AT
+    case 63 : kind = Tko.TK_QUESTION
+    case 35 : kind = Tko.TK_HASH
+    case 33 : kind = Tko.TK_BANG        '' standalone '!' -- fbc tokenises it
+    case 36 : kind = Tko.TK_DOLLAR
+    case 37 : kind = Tko.TK_PERCENT
+    case 126 : kind = Tko.TK_TILDE
 
     case 46                                     '' . or ...
         dim as boolean triple = (c1 = 46) andalso (s.i + 2 < s.n) andalso (s.p[s.i + 2] = 46)
         if triple then
-            kind = Fbx.TK_ELLIPSIS : nchars = 3
+            kind = Tko.TK_ELLIPSIS : nchars = 3
         else
-            kind = Fbx.TK_DOT
+            kind = Tko.TK_DOT
         end if
 
     case 61                                     '' = or =>
         if c1 = 62 then
-            kind = Fbx.TK_FATARROW : nchars = 2
+            kind = Tko.TK_FATARROW : nchars = 2
         else
-            kind = Fbx.TK_EQ
+            kind = Tko.TK_EQ
         end if
 
     case 60                                     '' < <= <>
         if c1 = 61 then
-            kind = Fbx.TK_LE : nchars = 2
+            kind = Tko.TK_LE : nchars = 2
         elseif c1 = 62 then
-            kind = Fbx.TK_NE : nchars = 2
+            kind = Tko.TK_NE : nchars = 2
         else
-            kind = Fbx.TK_LT
+            kind = Tko.TK_LT
         end if
 
     case 62                                     '' > >=
         if c1 = 61 then
-            kind = Fbx.TK_GE : nchars = 2
+            kind = Tko.TK_GE : nchars = 2
         else
-            kind = Fbx.TK_GT
+            kind = Tko.TK_GT
         end if
 
     case 43                                     '' + +=
         if c1 = 61 then
-            kind = Fbx.TK_PLUSEQ : nchars = 2
+            kind = Tko.TK_PLUSEQ : nchars = 2
         else
-            kind = Fbx.TK_PLUS
+            kind = Tko.TK_PLUS
         end if
 
     case 45                                     '' - -= ->
         if c1 = 61 then
-            kind = Fbx.TK_MINUSEQ : nchars = 2
+            kind = Tko.TK_MINUSEQ : nchars = 2
         elseif c1 = 62 then
-            kind = Fbx.TK_ARROW : nchars = 2
+            kind = Tko.TK_ARROW : nchars = 2
         else
-            kind = Fbx.TK_MINUS
+            kind = Tko.TK_MINUS
         end if
 
     case 42                                     '' * *=
         if c1 = 61 then
-            kind = Fbx.TK_STAREQ : nchars = 2
+            kind = Tko.TK_STAREQ : nchars = 2
         else
-            kind = Fbx.TK_STAR
+            kind = Tko.TK_STAR
         end if
 
     case 47                                     '' / /=
         if c1 = 61 then
-            kind = Fbx.TK_SLASHEQ : nchars = 2
+            kind = Tko.TK_SLASHEQ : nchars = 2
         else
-            kind = Fbx.TK_SLASH
+            kind = Tko.TK_SLASH
         end if
 
     case 92                                     '' \ \=
         if c1 = 61 then
-            kind = Fbx.TK_BSLASHEQ : nchars = 2
+            kind = Tko.TK_BSLASHEQ : nchars = 2
         else
-            kind = Fbx.TK_BACKSLASH
+            kind = Tko.TK_BACKSLASH
         end if
 
     case 94                                     '' ^ ^=
         if c1 = 61 then
-            kind = Fbx.TK_CARETEQ : nchars = 2
+            kind = Tko.TK_CARETEQ : nchars = 2
         else
-            kind = Fbx.TK_CARET
+            kind = Tko.TK_CARET
         end if
 
     case 38                                     '' & &= or a radix literal
         if c1 = 61 then
-            kind = Fbx.TK_AMPEQ : nchars = 2
+            kind = Tko.TK_AMPEQ : nchars = 2
         else
-            kind = Fbx.TK_AMP
+            kind = Tko.TK_AMP
         end if
     end select
 
-    if kind = Fbx.TK_INVALID then
+    if kind = Tko.TK_INVALID then
         '' NOT a diagnostic. fbc lexes an unrecognised byte into a token and lets the
         '' PARSER reject it -- which is what allows __FB_QUOTE__( <non-ascii> ) to
         '' stringify bytes that could never be an identifier. The token carries its
         '' span, so the parser can name the character. Probe L9.
         s.i += 1
-        Emit( s, Fbx.TK_INVALID, first )
+        Emit( s, Tko.TK_INVALID, first )
         return
     end if
 
@@ -692,13 +692,13 @@ end sub
 '' ------------------------------------------------------------------- the loop
 
 sub Run _
-    ( byref src as Fbx.SourceManager, byval file as Fbx.FileId, _
-      byref names as Fbx.Interner, byref kwmap as Fbx.KeywordMap, _
-      byref diags as Fbx.DiagnosticEngine, byref outp as Result )
+    ( byref src as Tko.SourceManager, byval file as Tko.FileId, _
+      byref names as Tko.Interner, byref kwmap as Tko.KeywordMap, _
+      byref diags as Tko.DiagnosticEngine, byref outp as Result )
 
-    Fbx.InitTokenTables( )
+    Tko.InitTokenTables( )
 
-    dim as Fbx.SourceFile ptr f = src.FileAt( file )
+    dim as Tko.SourceFile ptr f = src.FileAt( file )
     if f = 0 then return
 
     dim as Scanner s
@@ -712,7 +712,7 @@ sub Run _
     s.kwmap = @kwmap
     s.diags = @diags
     s.outp = @outp
-    s.pendingFlags = Fbx.TF_AT_LINE_START
+    s.pendingFlags = Tko.TF_AT_LINE_START
 
     while s.i < s.n
         dim as ubyte c = s.p[s.i]
@@ -720,7 +720,7 @@ sub Run _
         '' ---- whitespace, continuations and newlines
         if IsSpace( c ) then
             s.i += 1
-            s.pendingFlags or= Fbx.TF_SPACE_BEFORE
+            s.pendingFlags or= Tko.TF_SPACE_BEFORE
             continue while
         end if
 
@@ -732,8 +732,8 @@ sub Run _
         if c = 10 then
             dim as long first = s.i
             s.i += 1
-            Emit( s, Fbx.TK_EOL, first )
-            s.pendingFlags = Fbx.TF_AT_LINE_START
+            Emit( s, Tko.TK_EOL, first )
+            s.pendingFlags = Tko.TF_AT_LINE_START
             continue while
         end if
 
@@ -749,7 +749,7 @@ sub Run _
             dim as boolean atEol = (j < s.n) andalso (s.p[j] = 10)
             if atEol then
                 s.i = j + 1
-                s.pendingFlags or= Fbx.TF_SPACE_BEFORE
+                s.pendingFlags or= Tko.TF_SPACE_BEFORE
                 continue while
             end if
             '' otherwise '_' starts an identifier
@@ -775,8 +775,8 @@ sub Run _
         if c = 58 then
             dim as long first = s.i
             s.i += 1
-            s.pendingFlags or= Fbx.TF_COLON
-            Emit( s, Fbx.TK_EOL, first )
+            s.pendingFlags or= Tko.TF_COLON
+            Emit( s, Tko.TK_EOL, first )
             continue while
         end if
 
@@ -802,15 +802,15 @@ sub Run _
         end if
 
         if c = 34 then                              '' "..."
-            ScanString( s, Fbx.STRK_PLAIN, s.i )
+            ScanString( s, Tko.STRK_PLAIN, s.i )
             continue while
         end if
 
         if (c = 33) orelse (c = 36) then            '' !"..." or $"..."
             dim as boolean quoteNext = (s.i + 1 < s.n) andalso (s.p[s.i + 1] = 34)
             if quoteNext then
-                dim as Fbx.StringKind k = Fbx.STRK_ESCAPED
-                if c = 36 then k = Fbx.STRK_RAW
+                dim as Tko.StringKind k = Tko.STRK_ESCAPED
+                if c = 36 then k = Tko.STRK_RAW
                 ScanString( s, k, s.i )
                 continue while
             end if
@@ -830,53 +830,53 @@ sub Run _
     wend
 
     '' Exactly one TK_EOF, at the end-of-file location the source manager reserves.
-    dim as Fbx.Token eof
-    eof.kind = cast( ushort, Fbx.TK_EOF )
+    dim as Tko.Token eof
+    eof.kind = cast( ushort, Tko.TK_EOF )
     eof.flags = s.pendingFlags
     eof.loc = src.LocFor( file, s.n )
     eof.length = 0
     eof.literal = 0
     outp.tokens.Push( eof )
 
-    for each t as Fbx.Token in outp.tokens
-        if t.kind = cast( ushort, Fbx.TK_INVALID ) then outp.invalidCount += 1
+    for each t as Tko.Token in outp.tokens
+        if t.kind = cast( ushort, Tko.TK_INVALID ) then outp.invalidCount += 1
     next
 end sub
 
 '' ----------------------------------------------------------------------- dump
 
 function Dump _
-    ( byref src as Fbx.SourceManager, byval file as Fbx.FileId, _
-      byref names as Fbx.Interner, byref r as Result ) as string
+    ( byref src as Tko.SourceManager, byval file as Tko.FileId, _
+      byref names as Tko.Interner, byref r as Result ) as string
 
     dim as string outp = ""
     outp += "file " & src.PathOf( file ) & ", " & r.tokens.Count & " tokens" & chr( 10 )
 
     dim as long index = 0
-    for each t as Fbx.Token in r.tokens
-        dim as Fbx.DecodedLoc d = src.Decode( t.loc )
-        dim as Fbx.TokenKind k = cast( Fbx.TokenKind, t.kind )
+    for each t as Tko.Token in r.tokens
+        dim as Tko.DecodedLoc d = src.Decode( t.loc )
+        dim as Tko.TokenKind k = cast( Tko.TokenKind, t.kind )
 
         dim as string row = ""
         row += right( "     " & str( index ), 5 ) & " "
         row += right( "    " & str( d.lineNo ), 4 ) & ":"
         row += left( str( d.column ) & "    ", 4 ) & " "
-        row += left( Fbx.TokenKindName( k ) & "                    ", 20 )
+        row += left( Tko.TokenKindName( k ) & "                    ", 20 )
 
         select case k
-        case Fbx.TK_IDENT
-            row += "'" & names.Spelling( cast( Fbx.InternId, t.literal ) ) & "'"
-        case Fbx.TK_INT_LIT
-            dim as Fbx.Literal ptr lit = @r.literals[cast( long, t.literal )]
+        case Tko.TK_IDENT
+            row += "'" & names.Spelling( cast( Tko.InternId, t.literal ) ) & "'"
+        case Tko.TK_INT_LIT
+            dim as Tko.Literal ptr lit = @r.literals[cast( long, t.literal )]
             row += str( lit->intValue ) & " radix=" & lit->radix & " suffix=" & lit->suffix
-        case Fbx.TK_FLOAT_LIT
-            dim as Fbx.Literal ptr lit = @r.literals[cast( long, t.literal )]
+        case Tko.TK_FLOAT_LIT
+            dim as Tko.Literal ptr lit = @r.literals[cast( long, t.literal )]
             row += str( lit->fltValue ) & " suffix=" & lit->suffix
-        case Fbx.TK_STRING_LIT
-            dim as Fbx.Literal ptr lit = @r.literals[cast( long, t.literal )]
+        case Tko.TK_STRING_LIT
+            dim as Tko.Literal ptr lit = @r.literals[cast( long, t.literal )]
             '' The literal's OWN file, not the dump's: they differ once a token has
             '' come through macro expansion.
-            dim as Fbx.SourceFile ptr f = src.FileAt( cast( Fbx.FileId, lit->textFile ) )
+            dim as Tko.SourceFile ptr f = src.FileAt( cast( Tko.FileId, lit->textFile ) )
             dim as string payload = ""
             if (lit->textLength > 0) andalso (f <> 0) then
                 payload = space( lit->textLength )
@@ -884,11 +884,11 @@ function Dump _
             end if
             row += "kind=" & lit->strKind & " <" & payload & ">"
         case else
-            dim as string spellText = Fbx.TokenKindText( k )
+            dim as string spellText = Tko.TokenKindText( k )
             if len( spellText ) > 0 then row += "'" & spellText & "'"
         end select
 
-        if (t.flags and Fbx.TF_HAS_SUFFIX) <> 0 then row += " [suffix]"
+        if (t.flags and Tko.TF_HAS_SUFFIX) <> 0 then row += " [suffix]"
         outp += rtrim( row ) & chr( 10 )
         index += 1
     next

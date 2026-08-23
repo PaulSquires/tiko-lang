@@ -26,7 +26,7 @@
 ''
 '' ONE DIVERGENCE, deliberate: fbc folds an exponent of exactly 2 into a MULTIPLY --
 '' 'x ^ 2.0' is 'X * X' -- which is only safe for an operand it may evaluate twice.
-'' fbx always calls pow. Same value, different code, and no risk of evaluating a call
+'' tiko-lang always calls pow. Same value, different code, and no risk of evaluating a call
 '' twice.
 
 sub P( )

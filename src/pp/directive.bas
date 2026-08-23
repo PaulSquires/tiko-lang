@@ -1,7 +1,7 @@
 '' directive.bas -- directive dispatch, includes and predefined macros.
 '' Included by pp.bas.
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------------- includes
 
@@ -35,7 +35,7 @@ end function
 private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as boolean )
     dim as Token t
     if PeekOnLine( e, t ) = false then
-        Report( e, FBX0316, at, "include" )
+        Report( e, TKO0316, at, "include" )
         return
     end if
 
@@ -46,14 +46,14 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
             isOnce = true
             Advance( e )
             if PeekOnLine( e, t ) = false then
-                Report( e, FBX0316, at, "include" )
+                Report( e, TKO0316, at, "include" )
                 return
             end if
         end if
     end if
 
     if Tk( t ) <> TK_STRING_LIT then
-        Report( e, FBX0316, t.loc, "include" )
+        Report( e, TKO0316, t.loc, "include" )
         SkipToEol( e )
         return
     end if
@@ -97,7 +97,7 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     if got = FILE_NONE then got = e.src->LoadFile( rel, why )
 
     if got = FILE_NONE then
-        Report( e, FBX0301, at, rel )
+        Report( e, TKO0301, at, rel )
         return
     end if
 
@@ -115,7 +115,7 @@ private sub PushCond _
     ( byref e as PpEngine, byval taken as boolean, byval at as SourceLoc )
 
     if e.conds.Count >= PP_MAX_CONDS then
-        Report( e, FBX0304, at, str( PP_MAX_CONDS ) )
+        Report( e, TKO0304, at, str( PP_MAX_CONDS ) )
         e.stopped = true
         return
     end if
@@ -199,7 +199,7 @@ private function PpEvalRestOfLine _
 
     dim as boolean ok = false
     dim as boolean result = PpEvalCondition( e, expanded, ok )
-    if ok = false then Report( e, FBX0308, at, what )
+    if ok = false then Report( e, TKO0308, at, what )
     return result
 end function
 
@@ -221,7 +221,7 @@ declare sub PpDefineValue _
 ''
 '' Ignoring them left __FB_OPTION_PRIVATE__ at 0 for ever, and the two corpus files
 '' that test these pragmas assert their way through all six states -- 21 '#assert'
-'' lines that fbc passes and fbx would have called failures.
+'' lines that fbc passes and tiko-lang would have called failures.
 private sub PragmaOption _
     ( byref e as PpEngine, byval at as SourceLoc, byval which as string, _
       byval isPush as boolean, byval isPop as boolean )
@@ -231,7 +231,7 @@ private sub PragmaOption _
 
     if isPop then
         if e.optionDepth( idx ) <= 0 then
-            Report( e, FBX0318, at, which )
+            Report( e, TKO0318, at, which )
             return
         end if
         e.optionDepth( idx ) -= 1
@@ -334,12 +334,12 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
 
     case "elseif", "elseifdef", "elseifndef", "else"
         if e.conds.IsEmpty( ) then
-            Report( e, FBX0302, at, word )
+            Report( e, TKO0302, at, word )
             SkipToEol( e )
             return
         end if
         dim as PpCond ptr c = @e.conds[e.conds.Count - 1]
-        if c->seenElse then Report( e, FBX0302, at, word )
+        if c->seenElse then Report( e, TKO0302, at, word )
 
         dim as boolean want = false
         select case word
@@ -373,7 +373,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
     case "endif"
         SkipToEol( e )
         if e.conds.IsEmpty( ) then
-            Report( e, FBX0302, at, "endif" )
+            Report( e, TKO0302, at, "endif" )
         else
             e.conds.Pop( )
         end if
@@ -397,7 +397,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
 
     case "endmacro"
         '' Only reachable when unbalanced; PpDefine consumes the matching one.
-        Report( e, FBX0311, at )
+        Report( e, TKO0311, at )
         SkipToEol( e )
 
     case "undef"
@@ -411,7 +411,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             if i > 0 then msg += " "
             msg += SpellOf( e, rest[i] )
         next
-        Report( e, FBX0309, at, msg )
+        Report( e, TKO0309, at, msg )
 
     case "print"
         dim as TokenVec rest
@@ -421,7 +421,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             if i > 0 then msg += " "
             msg += SpellOf( e, rest[i] )
         next
-        Report( e, FBX0315, at, msg )
+        Report( e, TKO0315, at, msg )
 
     case "assert"
         '' NOT a preprocessor directive. fbc's '#assert' takes a COMPILE-TIME
@@ -443,7 +443,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         end if
         SkipToEol( e )
         if (len( mode ) > 0) andalso (Text.LowerAscii( mode ) <> "fb") then
-            Report( e, FBX0317, at, mode )
+            Report( e, TKO0317, at, mode )
         end if
 
     case "pragma"
@@ -480,7 +480,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             select case which
             case "once", "push", "pop", "msg", "reserve"
             case else
-                if len( which ) > 0 then Report( e, FBX0312, at, which )
+                if len( which ) > 0 then Report( e, TKO0312, at, which )
             end select
         end select
 
@@ -489,11 +489,11 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         SkipToEol( e )
 
     case "cinclude", "foreignlib"
-        if e.cfg->reportUnsupported then Report( e, FBX0310, at, word )
+        if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
         SkipToEol( e )
 
     case else
-        Report( e, FBX0300, at, word )
+        Report( e, TKO0300, at, word )
         SkipToEol( e )
     end select
 end sub
@@ -524,18 +524,18 @@ private sub PpDefineBuiltinMacro _
 end sub
 
 private sub PpDefineBuiltins( byref e as PpEngine )
-    '' Identity. __FB_VERSION__ deliberately reports the fbc release fbx is
+    '' Identity. __FB_VERSION__ deliberately reports the fbc release tiko-lang is
     '' compatible with, so existing '#if __FB_VERSION__ >= ...' guards keep working;
-    '' fbx's own identity is __FBX_VERSION__ (docs/plan/03 section 6.3).
-    PpDefineValue( e, "__FB_VERSION__", """" & FBX_FBC_COMPAT & """" )
-    PpDefineValue( e, "__FBX_VERSION__", """" & _
-        str( FBX_VERSION_MAJOR ) & "." & str( FBX_VERSION_MINOR ) & "." & _
-        str( FBX_VERSION_PATCH ) & FBX_VERSION_SUFFIX & """" )
-    PpDefineValue( e, "__FB_SIGNATURE__", """fbx""" )
+    '' tiko-lang's own identity is __TKO_VERSION__ (docs/plan/03 section 6.3).
+    PpDefineValue( e, "__FB_VERSION__", """" & TKO_FBC_COMPAT & """" )
+    PpDefineValue( e, "__TKO_VERSION__", """" & _
+        str( TKO_VERSION_MAJOR ) & "." & str( TKO_VERSION_MINOR ) & "." & _
+        str( TKO_VERSION_PATCH ) & TKO_VERSION_SUFFIX & """" )
+    PpDefineValue( e, "__FB_SIGNATURE__", """tiko-lang""" )
     PpDefineValue( e, "__FB_LANG__", """fb""" )
     PpDefineValue( e, "__FB_BACKEND__", """llvm""" )
 
-    '' Target. From the TARGET, not from an '#ifdef' at fbx's own compile time, which
+    '' Target. From the TARGET, not from an '#ifdef' at tiko-lang's own compile time, which
     '' is what made '-target linux-x86_64' produce a Windows environment.
     dim as boolean onWindows = true
     dim as boolean on64 = true
@@ -563,10 +563,10 @@ private sub PpDefineBuiltins( byref e as PpEngine )
 
     '' The instruction set, empty-bodied like the rest of this group. fbc defines it
     '' on x86 and x86-64 alike; 11 corpus references, every one an '#ifdef' or a
-    '' 'defined( )', and fbx defined it NOWHERE -- so all eleven took the wrong branch.
+    '' 'defined( )', and tiko-lang defined it NOWHERE -- so all eleven took the wrong branch.
     PpDefineValue( e, "__FB_X86__", "" )
 
-    '' Everything fbx is not is NOT DEFINED AT ALL.
+    '' Everything tiko-lang is not is NOT DEFINED AT ALL.
     ''
     '' They used to be defined and zero, on the reasoning that the corpus writes
     '' '#if __FB_DOS__' rather than '#ifdef'. That reasoning was never true and is

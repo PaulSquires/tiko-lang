@@ -9,7 +9,7 @@
 #include once "support/text.bi"
 #include once "fb/filesystem.bi"
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------------ the state
 
@@ -123,7 +123,7 @@ private sub PushFrame _
       byval file as FileId, byval owned as boolean )
 
     if e.frames.Count >= PP_MAX_FRAMES then
-        Report( e, FBX0304, LOC_NONE, str( PP_MAX_FRAMES ) )
+        Report( e, TKO0304, LOC_NONE, str( PP_MAX_FRAMES ) )
         e.stopped = true
         return
     end if
@@ -356,7 +356,7 @@ end namespace
 #include once "pp/macro.bas"
 #include once "pp/directive.bas"
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------------- the loop
 
@@ -369,7 +369,7 @@ namespace Fbx
 private sub PpFinish( byref e as PpEngine )
     '' Unbalanced conditionals are the user's error, reported once per open block.
     while e.conds.IsEmpty( ) = false
-        Report( e, FBX0303, e.conds[e.conds.Count - 1].loc )
+        Report( e, TKO0303, e.conds[e.conds.Count - 1].loc )
         e.conds.Pop( )
     wend
 

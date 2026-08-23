@@ -1,5 +1,5 @@
 '' A FIELD whose NAME is a keyword that also starts a declaration. winnt.bi writes
-'' 'Function as ULONGLONG' inside two unions, and fbx read it as a nested FUNCTION
+'' 'Function as ULONGLONG' inside two unions, and tiko-lang read it as a nested FUNCTION
 '' declaration -- which ran off looking for an 'end function' and ate the 'end union'.
 ''
 '' MEASURED, because the accepted set is not guessable: TYPE and UNION are in it and
@@ -32,6 +32,6 @@ dim b as U
 print sizeof( T ), sizeof( U )
 
 '' The union's size was WRONG here for one commit -- 24 for three ULONGINTs, where
-'' fbc says 8 -- because fbx laid a NAMED union out sequentially. It was pinned
+'' fbc says 8 -- because tiko-lang laid a NAMED union out sequentially. It was pinned
 '' deliberately, flagged in this comment, and fixed in the very next change. It is 8
 '' now, and the golden says so.

@@ -16,4 +16,4 @@ esac
 
 "$ROOT/build/build.sh" Debug --test-runner
 cd "$ROOT"
-exec "./bin/fbx-test$EXT" "$@"
+exec "./bin/tiko-test$EXT" "$@"

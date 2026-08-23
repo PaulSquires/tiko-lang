@@ -18,13 +18,13 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' The Itanium encoding of a type, as fbc spells it in an RTTI record's ID: '1A' for a
 '' top-level type, 'N2NS1AE' for one in a namespace. Both measured.
-private function TypeCodeOf_( byref c as Ctx, byval t as Fbx.TypeId ) as string
-    dim as Fbx.Mangle.Substitutions subs
-    return Fbx.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+private function TypeCodeOf_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    dim as Tko.Mangle.Substitutions subs
+    return Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
 end function
 
 '' '_ZTS' / '_ZTV' plus the type, NESTED-WRAPPED. fbc writes '_ZTSN1AE' for a top-level
@@ -32,7 +32,7 @@ end function
 '' bare '1A'. A type already in a namespace encodes as 'N2NS1AE' and is not wrapped
 '' twice: '_ZTSN2NS1AE', measured.
 private function TableName_ _
-    ( byref c as Ctx, byval prefix as string, byval t as Fbx.TypeId ) as string
+    ( byref c as Ctx, byval prefix as string, byval t as Tko.TypeId ) as string
 
     dim as string code = TypeCodeOf_( c, t )
     if len( code ) = 0 then return ""
@@ -41,29 +41,29 @@ private function TableName_ _
 end function
 
 '' Is this the predeclared OBJECT?
-private function IsObjectType_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+private function IsObjectType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
     return (c.types->NameOf( t ) = c.names->GetString( "object" ))
 end function
 
 '' The type a UDT extends, or nothing. 'extends' is a field named 'base' at offset 0.
-private function BaseOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.TypeId
-    if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.TYPE_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( t )
-    if tn = 0 then return Fbx.TYPE_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Fbx.TYPE_NONE
-    if s->inner = Fbx.SCOPE_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
-    if bf = Fbx.SYMBOL_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.Symbol ptr b = c.syms->SymbolAt( bf )
-    if b = 0 then return Fbx.TYPE_NONE
-    if b->kind <> cast( ubyte, Fbx.SYM_FIELD ) then return Fbx.TYPE_NONE
+private function BaseOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
+    if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.TYPE_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.TYPE_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.TYPE_NONE
+    dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
+    if bf = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
+    if b = 0 then return Tko.TYPE_NONE
+    if b->kind <> cast( ubyte, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
     return b->type_
 end function
 
@@ -72,8 +72,8 @@ end function
 '' OBJECT'S OWN RECORD IS THE RUNTIME'S. fbc references it as 'extern struct $8fb_RTTI$
 '' __fb_ZTS6Object' and never defines it, so it is declared here with no contents rather
 '' than invented -- an empty table is a declaration, which is what an extern is.
-function RttiGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
-    if t = Fbx.TYPE_NONE then return -1
+function RttiGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return -1
     if IsObjectType_( c, t ) then
         dim as long g = c.m->AddPtrTable( c.names->GetString( "__fb_ZTS6Object" ) )
         c.m->globals[g].isExternal = true
@@ -82,7 +82,7 @@ function RttiGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
 
     dim as string nm = TableName_( c, "_ZTS", t )
     if len( nm ) = 0 then return -1
-    dim as Fbx.InternId id = c.names->GetString( nm )
+    dim as Tko.InternId id = c.names->GetString( nm )
     for i as long = 0 to c.m->globals.Count - 1
         if c.m->globals[i].isPtrTable andalso (c.m->globals[i].name = id) then return i
     next
@@ -91,8 +91,8 @@ function RttiGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
     '' would append its entries into the middle of this table's run. The pool is shared
     '' and the runs are contiguous.
     dim as long baseG = -1
-    dim as Fbx.TypeId bt = BaseOf_( c, t )
-    if (bt <> Fbx.TYPE_NONE) andalso (bt <> t) then baseG = RttiGlobalOf_( c, bt )
+    dim as Tko.TypeId bt = BaseOf_( c, t )
+    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) then baseG = RttiGlobalOf_( c, bt )
 
     '' ...and so is the ID string, for the same reason.
     dim as long idG = c.m->AddStringLiteral( TypeCodeOf_( c, t ), *c.names )
@@ -110,15 +110,15 @@ function RttiGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
 end function
 
 '' This type's vtable, built if it does not exist yet.
-function VtableGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
-    if t = Fbx.TYPE_NONE then return -1
+function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return -1
     if IsObjectType_( c, t ) then return -1
     dim as long vi = c.vts->Find( t )
     if vi < 0 then return -1
 
     dim as string nm = TableName_( c, "_ZTV", t )
     if len( nm ) = 0 then return -1
-    dim as Fbx.InternId id = c.names->GetString( nm )
+    dim as Tko.InternId id = c.names->GetString( nm )
     for i as long = 0 to c.m->globals.Count - 1
         if c.m->globals[i].isPtrTable andalso (c.m->globals[i].name = id) then return i
     next
@@ -137,15 +137,15 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Fbx.TypeId ) as long
         c.m->PushPtrNull( g )
     end if
 
-    dim as Fbx.VtInfo ptr v = @c.vts->types_[vi]
+    dim as Tko.VtInfo ptr v = @c.vts->types_[vi]
     for i as long = 0 to v->count - 1
-        dim as Fbx.VtSlot ptr sl = @c.vts->slots[v->first + i]
+        dim as Tko.VtSlot ptr sl = @c.vts->slots[v->first + i]
         '' AN ABSTRACT SLOT IS A NULL WORD, not an absent one. A derived type's
         '' override fills the same index.
-        if (sl->proc_ = Fbx.SYMBOL_NONE) orelse (sl->decl = Fbx.NODE_NONE) then
+        if (sl->proc_ = Tko.SYMBOL_NONE) orelse (sl->decl = Tko.NODE_NONE) then
             c.m->PushPtrNull( g )
         else
-            c.m->PushPtrFunc( g, c.names->GetString( Fbx.Mangle.ProcName( _
+            c.m->PushPtrFunc( g, c.names->GetString( Tko.Mangle.ProcName( _
                 *c.ast, sl->decl, *c.syms, *c.names, *c.types, *c.info ) ) )
         end if
     next
@@ -168,7 +168,7 @@ end sub
 '' 'thisAddr' is the object's address, and the vptr is its first pointer-sized word --
 '' fbc writes '*(void**)this' with no offset anywhere, on any type.
 function StoreVptr_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref thisAddr as MirValue ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref thisAddr as MirValue ) as boolean
 
     if thisAddr.kind = cast( ubyte, MV_NONE ) then return false
     dim as long g = VtableGlobalOf_( c, t )
@@ -203,10 +203,10 @@ end function
 '' known-concrete local goes through the table too -- fbc does not devirtualise at the C
 '' level, and neither is done here.
 function VirtualSlotOf_ _
-    ( byref c as Ctx, byval target as Fbx.NodeId, byval callee as Fbx.SymbolId ) as long
+    ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as long
 
     if c.vts = 0 then return -1
-    if callee = Fbx.SYMBOL_NONE then return -1
+    if callee = Tko.SYMBOL_NONE then return -1
 
     '' THE CALL SITE IS DECIDED BY THE 'virtual' KEYWORD ON THE BOUND DECLARATION, and
     '' that is NOT the same rule as slot occupancy. Measured, and neither half is
@@ -219,18 +219,18 @@ function VirtualSlotOf_ _
     ''
     '' So an override that does not repeat 'virtual' still overrides -- a call through a
     '' base pointer reaches it -- while a call that BINDS to it goes straight there.
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return -1
-    dim as Fbx.NodeId cd = cast( Fbx.NodeId, cs->payload )
-    if cd = Fbx.NODE_NONE then return -1
-    if c.ast->Kind( cd ) <> Fbx.N_PROC then return -1
+    dim as Tko.NodeId cd = cast( Tko.NodeId, cs->payload )
+    if cd = Tko.NODE_NONE then return -1
+    if c.ast->Kind( cd ) <> Tko.N_PROC then return -1
     dim as ushort cmods = StmtOf( c, cd )->extra
-    if (cmods and (Fbx.PF_VIRTUAL or Fbx.PF_ABSTRACT)) = 0 then return -1
+    if (cmods and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return -1
 
-    dim as Fbx.TypeId rt = Fbx.TYPE_NONE
+    dim as Tko.TypeId rt = Tko.TYPE_NONE
 
-    if c.ast->Kind( target ) = Fbx.N_MEMBER then
-        dim as Fbx.BinaryPayload ptr mb = _
+    if c.ast->Kind( target ) = Tko.N_MEMBER then
+        dim as Tko.BinaryPayload ptr mb = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
 
         '' 'base.v( )' IS NEVER VIRTUAL. It is the one spelling that means "the base's
@@ -241,33 +241,33 @@ function VirtualSlotOf_ _
         '' The receiver arrives as an ordinary identifier named 'base', because that is
         '' also the field an EXTENDS becomes, which is what makes the member lookup work
         '' at all. BASE is a keyword, so no user identifier can reach here.
-        if c.ast->Kind( mb->lhs ) = Fbx.N_IDENT then
-            dim as Fbx.IdentPayload ptr ip = _
+        if c.ast->Kind( mb->lhs ) = Tko.N_IDENT then
+            dim as Tko.IdentPayload ptr ip = _
                 @c.ast->idents[cast( long, c.ast->nodes[cast( long, mb->lhs )].data )]
             if ip->name = c.vts->baseName then return -1
         end if
 
         rt = c.info->TypeOf_( mb->lhs )
-        if rt <> Fbx.TYPE_NONE then
-            if c.types->Kind( rt ) = Fbx.TK_POINTER then rt = c.types->Inner( rt )
+        if rt <> Tko.TYPE_NONE then
+            if c.types->Kind( rt ) = Tko.TK_POINTER then rt = c.types->Inner( rt )
         end if
     else
         '' AN UNQUALIFIED CALL TO A SIBLING METHOD dispatches virtually too --
         '' measured: inside C.v2, a bare 'v1( )' goes through this's own vptr while
         '' 'base.v1( )' is a direct call. The receiver is the enclosing method's THIS,
         '' so its type is the type that method belongs to.
-        if c.curProcSym = Fbx.SYMBOL_NONE then return -1
-        dim as Fbx.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
+        if c.curProcSym = Tko.SYMBOL_NONE then return -1
+        dim as Tko.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
         if me = 0 then return -1
-        dim as Fbx.SymScope ptr owner = c.syms->ScopeAt( me->parent )
+        dim as Tko.SymScope ptr owner = c.syms->ScopeAt( me->parent )
         if owner = 0 then return -1
-        if owner->kind <> cast( ubyte, Fbx.SCOPEK_TYPE ) then return -1
-        dim as Fbx.Symbol ptr os = c.syms->SymbolAt( owner->owner )
+        if owner->kind <> cast( ubyte, Tko.SCOPEK_TYPE ) then return -1
+        dim as Tko.Symbol ptr os = c.syms->SymbolAt( owner->owner )
         if os = 0 then return -1
         rt = os->type_
     end if
 
-    if rt = Fbx.TYPE_NONE then return -1
+    if rt = Tko.TYPE_NONE then return -1
     return c.vts->SlotOf( rt, callee )
 end function
 

@@ -10,26 +10,26 @@
 ''   - Never loops forever: every recovery path consumes at least one token.
 ''   - One diagnostic per statement; the rest of a broken statement is suppressed.
 
-#ifndef __FBX_PARSER_BI__
-#define __FBX_PARSER_BI__
+#ifndef __TKO_PARSER_BI__
+#define __TKO_PARSER_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "parser/expr.bi"
 
-namespace Fbx.Parse
+namespace Tko.Parse
 
     '' Parse a whole token vector as a module.
-    declare function Unit( byref p as Fbx.ParserState ) as Fbx.NodeId
+    declare function Unit( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' One statement, or NODE_NONE at end of input.
-    declare function Statement( byref p as Fbx.ParserState ) as Fbx.NodeId
+    declare function Statement( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' A syntactic type reference: 'integer', 'Foo ptr ptr', 'sub( byval as long )'.
-    declare function TypeRef( byref p as Fbx.ParserState ) as Fbx.NodeId
+    declare function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
 
     declare function DumpTree _
-        ( byref ast as Fbx.AstArena, byref src as Fbx.SourceManager, _
-          byref names as Fbx.Interner, byval root as Fbx.NodeId ) as string
+        ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+          byref names as Tko.Interner, byval root as Tko.NodeId ) as string
 
 end namespace
 

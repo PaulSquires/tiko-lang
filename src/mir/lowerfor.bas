@@ -5,19 +5,19 @@
 
 #include once "lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
-using Fbx
+using Tko
 
-sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     '' children are [from, to, step]; any may be absent.
-    dim as Fbx.NodeId fromE = Fbx.NODE_NONE
-    dim as Fbx.NodeId toE = Fbx.NODE_NONE
-    dim as Fbx.NodeId stepE = Fbx.NODE_NONE
-    if sp->count >= 1 then fromE = cast( Fbx.NodeId, c.ast->children[sp->first] )
-    if sp->count >= 2 then toE = cast( Fbx.NodeId, c.ast->children[sp->first + 1] )
-    if sp->count >= 3 then stepE = cast( Fbx.NodeId, c.ast->children[sp->first + 2] )
+    dim as Tko.NodeId fromE = Tko.NODE_NONE
+    dim as Tko.NodeId toE = Tko.NODE_NONE
+    dim as Tko.NodeId stepE = Tko.NODE_NONE
+    if sp->count >= 1 then fromE = cast( Tko.NodeId, c.ast->children[sp->first] )
+    if sp->count >= 2 then toE = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+    if sp->count >= 3 then stepE = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
 
     dim as MirValue addr = LowerAddr( c, sp->a )
     if addr.kind = cast( ubyte, MV_NONE ) then
@@ -34,7 +34,7 @@ sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     '' counter coerced to f64, and in one returning BOOLEAN it truncated an INTEGER
     '' counter to eight bits. That last one is fbcunit's own suite loop.
     ''
-    '' And in a SUB there is no result slot at all, so 'locals' is empty and fbx
+    '' And in a SUB there is no result slot at all, so 'locals' is empty and tiko-lang
     '' SEGFAULTED. The corpus sweep was not reporting that as anything.
     dim as MirType ity = MT_VOID
     if addr.kind = cast( ubyte, MV_GLOBAL ) then
@@ -70,13 +70,13 @@ sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     '' THE STEP IS EVALUATED ONCE, BEFORE THE LOOP, into a temporary -- which is what
     '' fbc does ('TMP$2$1 = S$0'). It used to be re-lowered inside the step block, so
     '' a step expression with a side effect ran once per iteration.
-    dim as boolean haveStep = (stepE <> Fbx.NODE_NONE)
+    dim as boolean haveStep = (stepE <> Tko.NODE_NONE)
     dim as boolean stepConst = false
     dim as boolean negStep = false
     dim as long stepSlot = -1
     dim as MirValue stepAddr
     if haveStep then
-        dim as Fbx.Check.ConstVal sv = Fbx.Check.ConstOf( *c.ast, stepE, *c.srcMgr, *c.names, _
+        dim as Tko.Check.ConstVal sv = Tko.Check.ConstOf( *c.ast, stepE, *c.srcMgr, *c.names, _
                                    c.types->target.pointerBits )
         stepConst = sv.known
         if sv.known then negStep = (sv.value < 0)
@@ -187,7 +187,7 @@ sub LowerFor( byref c as Ctx, byval id as Fbx.NodeId )
     c.breakTo.Push( exitB )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Fbx.KW_FOR ) )
+    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
     PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )

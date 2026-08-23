@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Compare fbx's conversion-intrinsic result types with fbc's.
+"""Compare tiko-lang's conversion-intrinsic result types with fbc's.
 
     python tools/gen/check-conv.py
 
 Reads tests/types/expected/fbc-conv.txt -- produced by conv-truth.py from fbc itself --
-and replays every (intrinsic, argument type) through fbx, printing the expression so
+and replays every (intrinsic, argument type) through tiko-lang, printing the expression so
 '--check' names the type it computed.
 """
 import re
@@ -13,13 +13,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-conv.txt"
 TGT = []
 LABEL = "win64"
 WORK = ROOT / "build/.conv"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 DECLS = [
     "dim shared as byte a_byte", "dim shared as ubyte a_ubyte",
@@ -38,9 +38,9 @@ def one_target() -> int:
     if not TRUTH.exists():
         print(f"check-conv: {LABEL} no truth file; run tools/gen/conv-truth.py", file=sys.stderr)
         return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print(f"check-conv: {LABEL} fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print(f"check-conv: {LABEL} tiko not built", file=sys.stderr)
         return 3
 
     rows = [l.split("\t") for l in TRUTH.read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -54,10 +54,10 @@ def one_target() -> int:
             src.append(f"print {fn}( a_{an} )")
         line_of[len(src)] = i
 
-    probe = WORK / "conv-fbx.bas"
+    probe = WORK / "conv-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
+    proc = subprocess.run([str(tiko), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -69,14 +69,14 @@ def one_target() -> int:
     bad = []
     for i, (fn, an, want) in enumerate(rows):
         mine = got.get(i, "?")
-        # fbc spells them upper-case and fbx lower; a refusal is '?' either way.
+        # fbc spells them upper-case and tiko-lang lower; a refusal is '?' either way.
         norm = "reject" if mine == "?" else mine.upper()
         w = want if want == "reject" else want.upper()
         # 'ZSTRING * 8' vs 'ZSTRING * 8' -- fbc pads differently, so squeeze spaces.
         if re.sub(r"\s+", " ", norm) == re.sub(r"\s+", " ", w):
             ok += 1
         else:
-            bad.append(f"{fn}( {an} ): fbc={want} fbx={mine}")
+            bad.append(f"{fn}( {an} ): fbc={want} tiko={mine}")
 
     print(f"check-conv: {LABEL} {ok}/{len(rows)} match")
     if bad:
@@ -90,7 +90,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

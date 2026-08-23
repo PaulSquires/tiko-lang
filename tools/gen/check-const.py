@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Compare fbx's constant folding with fbc's, bit for bit.
+"""Compare tiko-lang's constant folding with fbc's, bit for bit.
 
     python tools/gen/check-const.py
 
 Reads tests/types/expected/fbc-const.txt -- produced by const-truth.py, which pulls
 each value out of fbc one bit at a time through '#assert' -- and folds the same
-expressions with fbx. Exactness is the whole point here: a constant evaluator that is
+expressions with tiko-lang. Exactness is the whole point here: a constant evaluator that is
 close is simply wrong, and the ways to be wrong are all quiet ones.
 """
 import re
@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / "build/.ce"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 TARGETS = [
     ("win64", ROOT / "tests/types/expected/fbc-const.txt", []),
@@ -24,7 +24,7 @@ TARGETS = [
 ]
 
 
-def one_target(fbx, label, truth, tgtargs) -> int:
+def one_target(tiko, label, truth, tgtargs) -> int:
     if not truth.exists():
         print(f"check-const: {label}: no truth file; run tools/gen/const-truth.py",
               file=sys.stderr)
@@ -39,10 +39,10 @@ def one_target(fbx, label, truth, tgtargs) -> int:
         src.append(f"print {e}")
         line_of[len(src)] = i
 
-    probe = WORK / "const-fbx.bas"
+    probe = WORK / "const-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check"] + tgtargs + [str(probe)],
+    proc = subprocess.run([str(tiko), "--check"] + tgtargs + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -63,7 +63,7 @@ def one_target(fbx, label, truth, tgtargs) -> int:
             ok += 1
         else:
             bad += 1
-            diffs.append(f"{e}: fbc={want} fbx={got[i]}")
+            diffs.append(f"{e}: fbc={want} tiko={got[i]}")
 
     total = sum(1 for r in rows if r[1] != "reject")
     print(f"check-const: {label} {ok}/{total} exact")
@@ -72,7 +72,7 @@ def one_target(fbx, label, truth, tgtargs) -> int:
         for d in diffs[:20]:
             print("   ", d)
     if nofold:
-        print(f"check-const: {label} {nofold} not folded by fbx "
+        print(f"check-const: {label} {nofold} not folded by tiko-lang "
               f"(not wrong, just absent):")
         for m in missing[:20]:
             print("   ", m)
@@ -80,13 +80,13 @@ def one_target(fbx, label, truth, tgtargs) -> int:
 
 
 def main() -> int:
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print("check-const: fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print("check-const: tiko not built", file=sys.stderr)
         return 3
     rc = 0
     for label, truth, tgtargs in TARGETS:
-        if one_target(fbx, label, truth, tgtargs) != 0:
+        if one_target(tiko, label, truth, tgtargs) != 0:
             rc = 1
     return rc
 

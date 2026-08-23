@@ -147,7 +147,7 @@ private function PreludeText( ) as string
     t += "'' is what a byref parameter has to do." & chr( 10 )
     t += "''" & chr( 10 )
     t += "'' fbc passes SCREENINFO's driver string as a temp DESCRIPTOR over the empty string" & chr( 10 )
-    t += "'' where fbx builds a real temporary; neither is read after the call." & chr( 10 )
+    t += "'' where tiko-lang builds a real temporary; neither is read after the call." & chr( 10 )
     t += "'' THREE OF THEM ARE OVERLOADED ON THE WIDTH OF THEIR OUTPUTS, and that is measured:" & chr( 10 )
     t += "'' 'screeninfo w, h' over LONGs is fb_GfxScreenInfo32 and over INTEGERs is" & chr( 10 )
     t += "'' fb_GfxScreenInfo64, a different entry point taking int64*. Declaring only the 32-bit" & chr( 10 )

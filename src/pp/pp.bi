@@ -17,16 +17,16 @@
 ''     sets), and the frame stack has a hard depth cap. Neither can hang.
 ''   - A file is lexed at most once per compilation, whatever it costs to include.
 
-#ifndef __FBX_PP_BI__
-#define __FBX_PP_BI__
+#ifndef __TKO_PP_BI__
+#define __TKO_PP_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "lexer/lexer.bi"
 #include once "source/manager.bi"
 #include once "diag/engine.bi"
 #include once "support/intern.bi"
 
-namespace Fbx
+namespace Tko
 
     const PP_MAX_FRAMES     as long = 256    '' expansion + include depth
     const PP_MAX_CONDS      as long = 128    '' #if nesting

@@ -1,10 +1,10 @@
 '' lowerutil.bas -- the small MIR builders every lowering file uses: block and
 '' instruction emission, constants, the numeric COERCION rules and temporaries.
 '' Split out of lower.bas, which reached the 1500-line cap. Nothing here changed in
-'' the move. Included by lower.bas, INSIDE namespace Fbx.Mir.
+'' the move. Included by lower.bas, INSIDE namespace Tko.Mir.
 
 function StmtOf _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.StmtPayload ptr
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
     return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
 end function
 
@@ -237,7 +237,7 @@ end function
 '' ------------------------------------------------------------- expressions
 
 declare function LowerShortCircuit _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
       byval mt as MirType ) as MirValue
 declare function LowerCall _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue

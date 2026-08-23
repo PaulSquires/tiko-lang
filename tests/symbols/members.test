@@ -5,4 +5,4 @@
 '' TEST: cli
 '' ARGS: --dump-symbols tests/symbols/src/members.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-NOT: FBX0600
+'' EXPECT-NOT: TKO0600

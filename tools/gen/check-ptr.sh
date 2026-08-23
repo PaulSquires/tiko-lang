@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-ptr.sh -- fbx's POINTER conversions against fbc's.
+# check-ptr.sh -- tiko-lang's POINTER conversions against fbc's.
 #
 #   tools/gen/check-ptr.sh
 #

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare fbx's float rendering with the text fbc's STR( ) produces.
+"""Compare tiko-lang's float rendering with the text fbc's STR( ) produces.
 
     python tools/gen/check-str.py
 
@@ -9,7 +9,7 @@ folding renders a float identically to its runtime STR( ). That is the fact this
 protecting: `data 1.5` is stored as the TEXT "1.5", so a rendering difference is a READ
 that returns a different number with nothing to say so.
 
-fbx's side comes from tools/gen/strfmt.bas, compiled against src/support/fbstr.bas with
+tiko-lang's side comes from tools/gen/strfmt.bas, compiled against src/support/fbstr.bas with
 the stage0 compiler. Rows are keyed by BIT PATTERN, so neither side's literal parser can
 get into the measurement.
 
@@ -19,9 +19,9 @@ win32 IS NOT, deliberately, and the shortfall is named rather than fitted away. 
 folds DATA with the legacy msvcrt renderer: three-digit exponents, '1.#INF' / '1.#QNAN'
 / '-1.#IND' for the specials, ties rounded half-AWAY-from-zero rather than half-to-even,
 and a residue of last-digit errors that come from an internal 17-digit intermediate and
-follow no rule that could be reimplemented. fbx renders one way on both targets; the
+follow no rule that could be reimplemented. tiko-lang renders one way on both targets; the
 count below says exactly what that costs, and the breakdown says which part of it is a
-rule fbx could adopt and which part is msvcrt being wrong.
+rule tiko-lang could adopt and which part is msvcrt being wrong.
 """
 import re
 import struct
@@ -30,12 +30,12 @@ import sys
 from decimal import Context, Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP
 from pathlib import Path
 
-import fbxtargets
+import tkotargets
 
 ROOT = Path(__file__).resolve().parents[2]
 TRUTH = ROOT / "tests/expected/fbc-str.txt"
 WORK = ROOT / "build/.str"
-STAGE0 = fbxtargets.TC / "fbc64.exe"
+STAGE0 = tkotargets.TC / "fbc64.exe"
 
 
 def rows(path):
@@ -76,7 +76,7 @@ def build():
     return exe
 
 
-def fbx_rows(exe, truth):
+def tiko_rows(exe, truth):
     r = subprocess.run([str(exe), str(truth)], capture_output=True, text=True)
     if r.returncode != 0:
         print("check-str: formatter probe exited %d\n%s" % (r.returncode, r.stdout),
@@ -97,7 +97,7 @@ def half_up(bits, kind):
     """The row's exact expansion rounded half-AWAY-from-zero, or None if not a tie.
 
     Decimal(float) is the exact value, so this distinguishes 'fbc32 uses a different
-    tie rule' -- which IS a rule, and one fbx could adopt if win32 ever had to match --
+    tie rule' -- which IS a rule, and one tiko-lang could adopt if win32 ever had to match --
     from 'msvcrt got the last digit wrong', which is not.
     """
     if kind == "d":
@@ -144,19 +144,19 @@ def main() -> int:
     exe = build()
     if exe is None:
         return 3
-    got = fbx_rows(exe, TRUTH)
+    got = tiko_rows(exe, TRUTH)
     if got is None:
         return 3
 
     rc = 0
-    for label, truth, _ in fbxtargets.check_targets(TRUTH):
+    for label, truth, _ in tkotargets.check_targets(TRUTH):
         if not truth.exists():
             print("check-str: %s: no truth file; run tools/gen/str-truth.py" % label,
                   file=sys.stderr)
             return 3
         want = rows(truth)
         if len(want) != len(got):
-            print("check-str: %s: %d truth rows against %d from fbx -- the two truth "
+            print("check-str: %s: %d truth rows against %d from tiko-lang -- the two truth "
                   "files are out of step" % (label, len(want), len(got)),
                   file=sys.stderr)
             return 3
@@ -166,7 +166,7 @@ def main() -> int:
         if label == "win64":
             print("check-str: win64 %d/%d renderings identical to fbc" % (n - len(bad), n))
             for _, bits, w, g in bad[:20]:
-                print("    %s  fbc=%s  fbx=%s" % (bits, w, g))
+                print("    %s  fbc=%s  tiko-lang=%s" % (bits, w, g))
             if bad:
                 rc = 1
         else:
@@ -179,7 +179,7 @@ def main() -> int:
             for name in sorted(buckets, key=lambda k: -len(buckets[k])):
                 rowset = buckets[name]
                 bits, w, g = rowset[0]
-                print("    %5d  %s   e.g. %s fbc32=%s fbx=%s"
+                print("    %5d  %s   e.g. %s fbc32=%s tiko-lang=%s"
                       % (len(rowset), name, bits, w, g))
     return rc
 

@@ -8,12 +8,12 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 declare function AggIifArm_ _
-    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
 '' CLOSE. Every corpus form is the same shape: a list of file numbers, each closed in
 '' turn, and an EMPTY list closing all of them.
@@ -24,8 +24,8 @@ declare function StrSwapKind_ _
 '' No new shape, no state, nothing conditional.
 ''
 '' 137 corpus statements across 39 files, none of which lowered before.
-function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
 
     if sp->count = 0 then
         dim as FB.Array( of ulong ) none_
@@ -34,10 +34,10 @@ function LowerClose( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     end if
 
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId it = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         '' An ELIDED slot is 'close ,' -- the corpus reaches it through a variadic
         '' macro invoked with an empty argument. fbc closes nothing for it.
-        if c.ast->Kind( it ) = Fbx.N_ELIDED then continue for
+        if c.ast->Kind( it ) = Tko.N_ELIDED then continue for
         dim as MirValue fn = LowerExpr( c, it )
         if fn.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) args
@@ -59,23 +59,23 @@ end function
 '' resume labels that are null in -lang fb. The return value is the address of the
 '' installed handler, and fbc jumps to it.
 ''
-'' fbx does not implement ON ERROR -- there is no indirect-branch terminator in MIR and
+'' tiko-lang does not implement ON ERROR -- there is no indirect-branch terminator in MIR and
 '' no address-of-label value -- so no handler is ever installed, the runtime aborts, and
 '' the call does not return. The block therefore ends UNREACHABLE. That is exactly right
 '' for all 191 corpus sites, every one of which is an abort path in a runtime header
 '' (comptr.bi, result.bi, channel.bi, optional.bi), and it would be WRONG for a program
-'' that installed a handler -- which fbx already cannot compile, and still declines.
-function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+'' that installed a handler -- which tiko-lang already cannot compile, and still declines.
+function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 1 then return false
-    dim as Fbx.NodeId numE = cast( Fbx.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId numE = cast( Tko.NodeId, c.ast->children[sp->first] )
     dim as MirValue num = LowerExpr( c, numE )
     if num.kind = cast( ubyte, MV_NONE ) then return false
     num = Coerce( c, num, MT_I32, IsUnsignedType( c, c.info->TypeOf_( numE ) ) )
 
-    dim as Fbx.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
     dim as string fname = ""
-    dim as Fbx.SourceFile ptr sf = c.srcMgr->FileAt( d.file )
+    dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( d.file )
     if sf <> 0 then fname = c.names->Spelling( sf->displayPath )
 
     dim as FB.Array( of ulong ) args
@@ -93,22 +93,22 @@ function LowerError( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 end function
 
 '' The DESTRUCTOR of a UDT, or SYMBOL_NONE. Named 'destructor' in its own scope.
-private function DtorOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
+private function DtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
     '' By SCANNING for the UDT's symbol rather than looking its name up: a TypeId does
     '' not carry the scope it was declared in in a form Lookup can take, and the same
     '' spelling may name a UDT in two namespaces. The identity being matched is the
     '' TYPE, which is unique.
     for i as long = 1 to c.syms->Count( ) - 1
-        dim as Fbx.Symbol ptr us = c.syms->SymbolAt( cast( Fbx.SymbolId, i ) )
+        dim as Tko.Symbol ptr us = c.syms->SymbolAt( cast( Tko.SymbolId, i ) )
         if us = 0 then continue for
-        if us->kind <> cast( ubyte, Fbx.SYM_UDT ) then continue for
+        if us->kind <> cast( ubyte, Tko.SYM_UDT ) then continue for
         if us->type_ <> t then continue for
-        if us->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+        if us->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
         return c.syms->LookupLocal( us->inner, c.names->Fold( c.names->GetString( "__dtor" ) ) )
     next
-    return Fbx.SYMBOL_NONE
+    return Tko.SYMBOL_NONE
 end function
 
 '' DELETE p -- run the destructor, then release the storage.
@@ -148,17 +148,17 @@ end function
 '' property of T that is invisible at the delete site, and getting that half-right is
 '' worse than declining it.
 function LowerNew_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_NEW then return false
-    dim as Fbx.ListPayload ptr np = _
+    if c.ast->Kind( id ) <> Tko.N_NEW then return false
+    dim as Tko.ListPayload ptr np = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if np->target = Fbx.NODE_NONE then return false
+    if np->target = Tko.NODE_NONE then return false
     '' THE ARRAY FORM IS NOT DONE. See the note above.
-    if (c.ast->nodes[cast( long, id )].flags and Fbx.NF_ARRAY) <> 0 then return false
+    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0 then return false
 
-    dim as Fbx.TypeId el = c.info->TypeOf_( np->target )
-    if el = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId el = c.info->TypeOf_( np->target )
+    if el = Tko.TYPE_NONE then return false
     dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return false
 
@@ -191,25 +191,25 @@ function LowerNew_ _
     '' allocated the object and constructed nothing -- calloc's zeroing happens to
     '' leave a valid empty descriptor, so it survived, but a type with a base, a vptr
     '' or a nested constructor got none of them and the vptr in particular stayed null.
-    dim as Fbx.SymbolId ctor = CtorOf_( c, el, np->count )
+    dim as Tko.SymbolId ctor = CtorOf_( c, el, np->count )
     dim as boolean implCtor = false
-    if (ctor = Fbx.SYMBOL_NONE) andalso (np->count = 0) then
-        implCtor = (c.types->Kind( el ) = Fbx.TK_UDT) andalso TypeNeedsInit_( c, el )
+    if (ctor = Tko.SYMBOL_NONE) andalso (np->count = 0) then
+        implCtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsInit_( c, el )
     end if
     dim as FB.Array( of ulong ) cargs
-    if ctor <> Fbx.SYMBOL_NONE then
+    if ctor <> Tko.SYMBOL_NONE then
         '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
         '' written, not inside the null-guarded arm -- which matters the moment one has
         '' a side effect.
         for i as long = 0 to np->count - 1
-            dim as Fbx.NodeId ae = cast( Fbx.NodeId, c.ast->children[np->first + i] )
+            dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[np->first + i] )
             dim as MirValue av = LowerExpr( c, ae )
             if av.kind = cast( ubyte, MV_NONE ) then return false
             cargs.Push( cast( ulong, av.kind ) )
             cargs.Push( cast( ulong, av.id ) )
         next
     end if
-    if (ctor <> Fbx.SYMBOL_NONE) orelse implCtor then
+    if (ctor <> Tko.SYMBOL_NONE) orelse implCtor then
         dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
         if pv.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue zero = ConstInt( c, 0, MT_PTR )
@@ -225,7 +225,7 @@ function LowerNew_ _
         dim as long joinB = NewBlock( c, "new.join" )
         Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
         c.curBlock = bodyB
-        if ctor <> Fbx.SYMBOL_NONE then
+        if ctor <> Tko.SYMBOL_NONE then
             EmitStructorCall( c, ctor, -1, @pv, @cargs )
         else
             CallImplicitCtor_( c, el, pv )
@@ -242,34 +242,34 @@ end function
 '' type's scope under a synthetic name, because neither has a name of its own in the
 '' source.
 function CtorOf_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval want as long ) as Fbx.SymbolId
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
-    dim as Fbx.SymbolId head = StructorOf( c, t, "__ctor" )
-    if head = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+    ( byref c as Ctx, byval t as Tko.TypeId, byval want as long ) as Tko.SymbolId
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId head = StructorOf( c, t, "__ctor" )
+    if head = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     return StructorWithArity( c, head, want )
 end function
 
-function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->a = Fbx.NODE_NONE then return false
+function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Tko.NODE_NONE then return false
 
-    dim as Fbx.TypeId pt = c.info->TypeOf_( sp->a )
-    if pt = Fbx.TYPE_NONE then return false
-    if c.types->Kind( pt ) <> Fbx.TK_POINTER then return false
-    dim as Fbx.TypeId el = c.types->Inner( pt )
+    dim as Tko.TypeId pt = c.info->TypeOf_( sp->a )
+    if pt = Tko.TYPE_NONE then return false
+    if c.types->Kind( pt ) <> Tko.TK_POINTER then return false
+    dim as Tko.TypeId el = c.types->Inner( pt )
 
-    dim as Fbx.SymbolId dtor = DtorOf_( c, el )
+    dim as Tko.SymbolId dtor = DtorOf_( c, el )
     '' ...and the destructor fbc writes for you, for the same reason: 'delete p' over a
     '' type holding a string freed the object with the string's buffer still attached.
     dim as boolean implDtor = false
-    if dtor = Fbx.SYMBOL_NONE then
-        implDtor = (c.types->Kind( el ) = Fbx.TK_UDT) andalso TypeNeedsDtor_( c, el )
+    if dtor = Tko.SYMBOL_NONE then
+        implDtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsDtor_( c, el )
     end if
-    dim as boolean isArray = ((c.ast->nodes[cast( long, id )].flags and Fbx.NF_ARRAY) <> 0)
+    dim as boolean isArray = ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0)
     '' Hoisted to a boolean local: 'x <> y orelse b' mixes a comparison with a boolean
     '' and fbc warns 38 on it.
-    dim as boolean anyDtor = (dtor <> Fbx.SYMBOL_NONE)
+    dim as boolean anyDtor = (dtor <> Tko.SYMBOL_NONE)
     if anyDtor = false then anyDtor = implDtor
     if isArray andalso anyDtor then return false
 
@@ -293,7 +293,7 @@ function LowerDelete( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
     c.curBlock = bodyB
 
-    if dtor <> Fbx.SYMBOL_NONE then
+    if dtor <> Tko.SYMBOL_NONE then
         EmitStructorCall( c, dtor, -1, @p )
     elseif implDtor then
         CallImplicitDtor_( c, el, p )
@@ -331,11 +331,11 @@ end function
 '' prints 0 and 'a = 5 : a /= 2' prints 2 -- 0.5 and 2.5 rounded to even, not truncated
 '' -- so the division happens in double and the result converts back on the way in.
 ''
-'' '^=' is absent on purpose: power needs a runtime call fbx's inventory does not carry
+'' '^=' is absent on purpose: power needs a runtime call tiko-lang's inventory does not carry
 '' yet, and declining is the honest answer where inventing a shift would not be.
 function LowerCompoundAssign _
-    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId, _
-      byval op as Fbx.TokenKind ) as boolean
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+      byval op as Tko.TokenKind ) as boolean
 
     '' THE WORD-SPELLED FORMS TOO -- 'and=', 'shl=', 'mod=' and the rest. Each is the
     '' same read-modify-write with the operator spelled as a keyword; the parser now
@@ -343,21 +343,21 @@ function LowerCompoundAssign _
     ''
     '' 'andalso=' and 'orelse=' are NOT here: they are control flow, and lowering them
     '' as a plain AND would evaluate the right side unconditionally.
-    dim as Fbx.TokenKind bop = Fbx.TK_EOF
+    dim as Tko.TokenKind bop = Tko.TK_EOF
     select case op
-    case Fbx.TK_PLUSEQ   : bop = Fbx.TK_PLUS
-    case Fbx.TK_MINUSEQ  : bop = Fbx.TK_MINUS
-    case Fbx.TK_STAREQ   : bop = Fbx.TK_STAR
-    case Fbx.TK_SLASHEQ  : bop = Fbx.TK_SLASH
-    case Fbx.TK_BSLASHEQ : bop = Fbx.TK_BACKSLASH
-    case Fbx.KW_AND, Fbx.KW_OR, Fbx.KW_XOR, Fbx.KW_IMP, Fbx.KW_EQV, _
-         Fbx.KW_MOD, Fbx.KW_SHL, Fbx.KW_SHR
+    case Tko.TK_PLUSEQ   : bop = Tko.TK_PLUS
+    case Tko.TK_MINUSEQ  : bop = Tko.TK_MINUS
+    case Tko.TK_STAREQ   : bop = Tko.TK_STAR
+    case Tko.TK_SLASHEQ  : bop = Tko.TK_SLASH
+    case Tko.TK_BSLASHEQ : bop = Tko.TK_BACKSLASH
+    case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_IMP, Tko.KW_EQV, _
+         Tko.KW_MOD, Tko.KW_SHL, Tko.KW_SHR
         bop = op
     case else            : return false
     end select
 
-    dim as Fbx.TypeId tt = c.info->TypeOf_( target )
-    if tt = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId tt = c.info->TypeOf_( target )
+    if tt = Tko.TYPE_NONE then return false
     dim as MirType mt = LowerType( tt, *c.types )
     if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
 
@@ -365,7 +365,7 @@ function LowerCompoundAssign _
     '' target's own type; '/' is float division, in single when the target already is
     '' one and in double otherwise -- 'dim as single h = 1 : h /= 2' prints 0.5.
     dim as MirType wt = mt
-    if bop = Fbx.TK_SLASH then
+    if bop = Tko.TK_SLASH then
         wt = iif( mt = MT_F32, MT_F32, MT_F64 )
     end if
 
@@ -379,7 +379,7 @@ function LowerCompoundAssign _
     rhs = Coerce( c, rhs, wt, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
 
     dim as MirValue res
-    if (bop = Fbx.KW_IMP) orelse (bop = Fbx.KW_EQV) then
+    if (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
         res = EmitImpEqv_( c, bop, wt, cur, rhs )
     else
         dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, tt ) )
@@ -417,22 +417,22 @@ end function
 '' The unit is addressed at the field's byte offset and read at the field's DECLARED
 '' type -- which is what sizes the unit, not what sizes the field.
 function BitfieldParts _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref addr as MirValue, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, _
       byref bitOff as long, byref bitWidth as long, byref unitTy as MirType, _
       byref unitUnsigned as boolean ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_MEMBER then return false
-    dim as Fbx.SymbolId fsym = c.info->RefOf( id )
-    dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsym )
+    if c.ast->Kind( id ) <> Tko.N_MEMBER then return false
+    dim as Tko.SymbolId fsym = c.info->RefOf( id )
+    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsym )
     if fs = 0 then return false
-    if (fs->flags and Fbx.SYMF_BITFIELD) = 0 then return false
+    if (fs->flags and Tko.SYMF_BITFIELD) = 0 then return false
 
-    dim as Fbx.BinaryPayload ptr mp = _
+    dim as Tko.BinaryPayload ptr mp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as Fbx.TypeId bt = c.info->TypeOf_( mp->lhs )
+    dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
     dim as MirValue base_
-    if bt <> Fbx.TYPE_NONE then
-        if c.types->Kind( bt ) = Fbx.TK_POINTER then
+    if bt <> Tko.TYPE_NONE then
+        if c.types->Kind( bt ) = Tko.TK_POINTER then
             base_ = LowerExpr( c, mp->lhs )
             bt = c.types->Inner( bt )
         else
@@ -481,7 +481,7 @@ end function
 '' even for a signed declared type: fbc reads a 3-bit 'as long' holding all ones as 7,
 '' not as -1. Measured, not assumed; it is the one part of this a C habit gets wrong.
 function LowerBitfieldRead _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue addr
     dim as long bitOff, bitWidth
@@ -526,7 +526,7 @@ end function
 '' keeps the neighbours packed in the same unit intact, and is the whole reason an
 '' ordinary full-width store could not be used here.
 function LowerBitfieldStore _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
     dim as MirValue addr
     dim as long bitOff, bitWidth
@@ -606,8 +606,8 @@ end function
 '' scope, so it is registered on the statement-temporary list rather than the scope
 '' cleanup list.
 function LowerStringIif_ _
-    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
-      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+      byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue cond = LowerExpr( c, condE )
     if cond.kind = cast( ubyte, MV_NONE ) then return false
@@ -642,7 +642,7 @@ end function
 '' and a length that INCLUDES the terminator, which is the fb_StrInit convention and
 '' not the fb_StrAllocTempDescZEx one.
 function StrInitFrom_ _
-    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
@@ -664,7 +664,7 @@ function StrInitFrom_ _
     end if
 
     dim as longint zn
-    if c.ast->Kind( e ) = Fbx.N_STRING_LIT then
+    if c.ast->Kind( e ) = Tko.N_STRING_LIT then
         dim as string lit = StringLitText_( c, e )
         args.Push( cast( ulong, MV_GLOBAL ) )
         args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
@@ -710,12 +710,12 @@ end function
 '' comes back is where it lives -- so '(iif( c, a, b )).i' can take an offset off it
 '' without the call being lowered twice.
 function LowerAggIif_ _
-    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
-      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+      byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    dim as Fbx.TypeId ft = c.info->TypeOf_( thenE )
-    if ft = Fbx.TYPE_NONE then ft = c.info->TypeOf_( elseE )
-    if ft = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId ft = c.info->TypeOf_( thenE )
+    if ft = Tko.TYPE_NONE then ft = c.info->TypeOf_( elseE )
+    if ft = Tko.TYPE_NONE then return false
     dim as long sz = SizeOfType( c, ft )
     if sz <= 0 then return false
 
@@ -750,7 +750,7 @@ end function
 '' One arm: the whole aggregate copied into the temporary. The VALUE first and the
 '' address only as a fallback, so a nested iif or a call result works.
 private function AggIifArm_ _
-    ( byref c as Ctx, byref dst as MirValue, byval e as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
 
     dim as MirValue v = LowerExpr( c, e )
     if v.kind = cast( ubyte, MV_NONE ) then
@@ -784,34 +784,34 @@ end function
 '' 20 )' allocated r, stored nothing and printed whatever the stack held. The DIM
 '' initialiser skipped its store whenever the value would not lower, silently.
 function LowerIif _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
       byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr lp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->count <> 3 then return false
-    if lp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
 
     '' The result type is the one the surrounding expression asked for; an aggregate
     '' or an untyped one has no temporary to write, so it declines.
-    dim as Fbx.NodeId condE = cast( Fbx.NodeId, c.ast->children[lp->first] )
-    dim as Fbx.NodeId thenE = cast( Fbx.NodeId, c.ast->children[lp->first + 1] )
-    dim as Fbx.NodeId elseE = cast( Fbx.NodeId, c.ast->children[lp->first + 2] )
+    dim as Tko.NodeId condE = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId thenE = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    dim as Tko.NodeId elseE = cast( Tko.NodeId, c.ast->children[lp->first + 2] )
 
     '' The result type is the one the surrounding expression asked for; failing that,
     '' the CALL's own -- which Check does not compute for iif -- and failing that, an
     '' ARM's. An aggregate or a type nothing can name has no temporary to write, so it
     '' declines rather than inventing a slot.
-    dim as Fbx.TypeId ft = c.info->TypeOf_( id )
-    if ft = Fbx.TYPE_NONE then ft = c.info->TypeOf_( thenE )
-    if ft = Fbx.TYPE_NONE then ft = c.info->TypeOf_( elseE )
+    dim as Tko.TypeId ft = c.info->TypeOf_( id )
+    if ft = Tko.TYPE_NONE then ft = c.info->TypeOf_( thenE )
+    if ft = Tko.TYPE_NONE then ft = c.info->TypeOf_( elseE )
     dim as MirType rt = mt
-    if (rt = MT_VOID) andalso (ft <> Fbx.TYPE_NONE) then rt = LowerType( ft, *c.types )
+    if (rt = MT_VOID) andalso (ft <> Tko.TYPE_NONE) then rt = LowerType( ft, *c.types )
 
     '' A STRING iif builds a DESCRIPTOR, not a value, so it takes a different shape:
     '' fb_StrInit into a temporary in each arm, and an fb_StrDelete once the
@@ -824,7 +824,7 @@ function LowerIif _
     '' because a UDT result is usually read through -- '(iif( c, a, b )).i' is the
     '' shape the corpus writes. The value path below loads it.
     if rt = MT_AGG then
-        if c.types->Kind( ft ) <> Fbx.TK_UDT then return false
+        if c.types->Kind( ft ) <> Tko.TK_UDT then return false
         dim as MirValue aa
         if LowerAggIif_( c, condE, thenE, elseE, aa ) = false then return false
         outv = LowerExprLoad( c, aa, MT_AGG )
@@ -887,32 +887,32 @@ end function
 '' It produced NOTHING before, which the DIM initialiser then dropped silently:
 '' 'dim as sub( ) p = procptr( tests.x.init )' left p uninitialised.
 function LowerProcPtr _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr lp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->count <> 1 then return false
-    if lp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "procptr" then return false
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "procptr" then return false
 
     '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
     '' between, a name that did not resolve -- has no single address to take.
-    dim as Fbx.NodeId fnE = cast( Fbx.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
 
     '' A RUNTIME ENTRY POINT, which fbc predeclares and nothing in the source declares:
     '' 'procptr( fb_ArrayRedimEx )'. Its address is the same M_FUNC_ADDR over the
     '' inventory's own linker name.
-    if c.ast->Kind( fnE ) = Fbx.N_IDENT then
-        dim as Fbx.IdentPayload ptr rip = _
+    if c.ast->Kind( fnE ) = Tko.N_IDENT then
+        dim as Tko.IdentPayload ptr rip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, fnE )].data )]
         dim as RtlId rr = RtlByName( c.names->Spelling( rip->name ) )
         if rr <> RTL_NONE then
             dim as boolean is32 = (c.types->target.pointerBits = 32)
-            dim as Fbx.InternId rnm = c.names->GetString( RtlLinkName( rr, is32 ) )
+            dim as Tko.InternId rnm = c.names->GetString( RtlLinkName( rr, is32 ) )
             dim as long ridx = -1
             for i as long = 0 to c.m->functions.Count - 1
                 if c.m->functions[i]->name = rnm then
@@ -948,7 +948,7 @@ end function
 function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     dim as MirValue none_
     dim as boolean is32 = (c.types->target.pointerBits = 32)
-    dim as Fbx.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
+    dim as Tko.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
     dim as long idx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
@@ -972,17 +972,17 @@ end function
 '' The ADDRESS of a procedure symbol, as an M_FUNC_ADDR over the function table index.
 '' Split out of LowerProcPtr because ERASE over a UDT array needs the same thing for a
 '' constructor and a destructor that no source expression names.
-function FuncAddrOf( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
+function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirValue
     dim as MirValue none_
-    dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
     if fs = 0 then return none_
-    if fs->kind <> cast( ubyte, Fbx.SYM_PROC ) then return none_
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, fs->payload )
-    if pn = Fbx.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return none_
+    if fs->kind <> cast( ubyte, Tko.SYM_PROC ) then return none_
+    dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
+    if pn = Tko.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
 
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
@@ -1007,7 +1007,7 @@ end function
 '' already decide the answer. The result is materialised through a slot rather than a
 '' phi, which is what keeps this IR phi-free.
 function LowerShortCircuit _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
       byval mt as MirType ) as MirValue
 
     dim as MirValue v
@@ -1016,7 +1016,7 @@ function LowerShortCircuit _
 
     dim as long rhsB = NewBlock( c, "sc.rhs" )
     dim as long joinB = NewBlock( c, "sc.join" )
-    if cast( Fbx.TokenKind, bp->op ) = Fbx.KW_ANDALSO then
+    if cast( Tko.TokenKind, bp->op ) = Tko.KW_ANDALSO then
         Terminate( c, MTERM_CONDBR, rhsB, joinB, l )
     else
         Terminate( c, MTERM_CONDBR, joinB, rhsB, l )
@@ -1040,7 +1040,7 @@ end function
 
 '' FreeBASIC's BUILT-IN PROCEDURES -- the ones fbc predeclares and lowers straight to a
 '' runtime call. They are not keywords and not in the intrinsic registry: a program
-'' names them like any other procedure, nothing declares them, and fbx counted every
+'' names them like any other procedure, nothing declares them, and tiko-lang counted every
 '' one as an unbound callee.
 ''
 '' Measured from fbc's own C:
@@ -1080,20 +1080,20 @@ end function
 '' Lower a call to one of them. Returns false when the callee is not a built-in, so an
 '' ordinary unbound callee still declines as it did.
 function LowerBuiltinProc _
-    ( byref c as Ctx, byval calleeNode as Fbx.NodeId, byval argFirst as long, _
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
       byval argCount as long, byref outv as MirValue ) as boolean
 
-    if calleeNode = Fbx.NODE_NONE then return false
-    if c.ast->Kind( calleeNode ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if calleeNode = Tko.NODE_NONE then return false
+    if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     '' ASSERT AND ASSERTWARN EMIT NOTHING, and their argument is NOT EVALUATED.
     '' Measured by running fbc's output: without -g, 'assert( f( ) = 1 )' where f
-    '' prints does not print, and no fb_Assert appears in the generated C at all. fbx
+    '' prints does not print, and no fb_Assert appears in the generated C at all. tiko-lang
     '' has no -g equivalent and defines __FB_DEBUG__ as 0, so this is fbc's behaviour
-    '' for every build fbx can produce. Declining instead was 1,346 statements.
+    '' for every build tiko-lang can produce. Declining instead was 1,346 statements.
     if (nm = "assert") orelse (nm = "assertwarn") then
         outv = NoVal( )
         return true
@@ -1112,7 +1112,7 @@ function LowerBuiltinProc _
 
     dim as FB.Array( of ulong ) args
     for i as long = 0 to argCount - 1
-        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
         '' CLEAR's first argument is an LVALUE whose ADDRESS is passed, not its value.
         if (r = RTL_MEMSET) andalso (i = 0) then
             dim as MirValue da = LowerAddr( c, a )
@@ -1153,16 +1153,16 @@ end function
 '' They are PREDECLARED NAMES rather than procedures -- 'dim as long rgb' is fbc's
 '' error 4 -- so they cannot be written in the prelude either.
 function LowerRgbCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     dim as long want = 0
     if nm = "rgb" then
         want = 3
@@ -1177,7 +1177,7 @@ function LowerRgbCall_ _
     '' output amount to.
     dim as MirValue parts( 0 to 3 )
     for i as long = 0 to want - 1
-        dim as Fbx.NodeId an = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
         dim as MirValue v = LowerExpr( c, an )
         if v.kind = cast( ubyte, MV_NONE ) then return false
         v = Coerce( c, v, MT_I64, IsUnsignedType( c, c.info->TypeOf_( an ) ) )
@@ -1244,45 +1244,45 @@ end function
 '' 'WSTRING * 4 PTR' -- so a narrow answer made 'dim pw as wstring ptr = strptr( w )'
 '' an incompatible initialiser as well as an unlowered one.
 function LowerStrPtrCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if cp->count <> 1 then return false
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "strptr" then return false
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "strptr" then return false
 
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     if TermIsWide_( c, a0 ) then return WideOperand_( c, a0, outv )
     return ZstrDataOf_( c, a0, outv )
 end function
 
 
-function LowerIntrinsicStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr ip = StmtOf( c, id )
+function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr ip = StmtOf( c, id )
     dim as boolean handled = false
-    if ip->op = cast( ushort, Fbx.KW_PRINT ) then handled = LowerPrint( c, id )
-    if ip->op = cast( ushort, Fbx.KW_SWAP ) then handled = LowerSwap( c, id )
-    if ip->op = cast( ushort, Fbx.KW_CLOSE ) then handled = LowerClose( c, id )
-    if ip->op = cast( ushort, Fbx.KW_OPEN ) then handled = LowerOpen_( c, id )
-    if ip->op = cast( ushort, Fbx.KW_ERROR ) then handled = LowerError( c, id )
-    if ip->op = cast( ushort, Fbx.KW_ERASE ) then handled = LowerErase( c, id )
-    if ip->op = cast( ushort, Fbx.KW_WRITE ) then handled = LowerWrite( c, id )
-    if ip->op = cast( ushort, Fbx.KW_POKE ) then handled = LowerPoke( c, id )
-    if ip->op = cast( ushort, Fbx.KW_LSET ) then handled = LowerLrset( c, id, false )
-    if ip->op = cast( ushort, Fbx.KW_RSET ) then handled = LowerLrset( c, id, true )
-    if ip->op = cast( ushort, Fbx.KW_READ ) then handled = LowerRead( c, id )
-    if ip->op = cast( ushort, Fbx.KW_RESTORE ) then handled = LowerRestore( c, id )
+    if ip->op = cast( ushort, Tko.KW_PRINT ) then handled = LowerPrint( c, id )
+    if ip->op = cast( ushort, Tko.KW_SWAP ) then handled = LowerSwap( c, id )
+    if ip->op = cast( ushort, Tko.KW_CLOSE ) then handled = LowerClose( c, id )
+    if ip->op = cast( ushort, Tko.KW_OPEN ) then handled = LowerOpen_( c, id )
+    if ip->op = cast( ushort, Tko.KW_ERROR ) then handled = LowerError( c, id )
+    if ip->op = cast( ushort, Tko.KW_ERASE ) then handled = LowerErase( c, id )
+    if ip->op = cast( ushort, Tko.KW_WRITE ) then handled = LowerWrite( c, id )
+    if ip->op = cast( ushort, Tko.KW_POKE ) then handled = LowerPoke( c, id )
+    if ip->op = cast( ushort, Tko.KW_LSET ) then handled = LowerLrset( c, id, false )
+    if ip->op = cast( ushort, Tko.KW_RSET ) then handled = LowerLrset( c, id, true )
+    if ip->op = cast( ushort, Tko.KW_READ ) then handled = LowerRead( c, id )
+    if ip->op = cast( ushort, Tko.KW_RESTORE ) then handled = LowerRestore( c, id )
     '' A DATA statement emits no code: its descriptor array was built by the
     '' pre-pass, before anything else was lowered.
-    if ip->op = cast( ushort, Fbx.KW_DATA ) then handled = (c.dataHead >= 0)
+    if ip->op = cast( ushort, Tko.KW_DATA ) then handled = (c.dataHead >= 0)
     '' LINE is two unrelated statements sharing a keyword: bit 1 of 'extra' is
     '' LINE INPUT, bit 2 the graphics form, which needs libfbgfx and declines.
-    if ip->op = cast( ushort, Fbx.KW_LINE ) then
+    if ip->op = cast( ushort, Tko.KW_LINE ) then
         if (ip->extra and 1) <> 0 then
             handled = LowerLineInput( c, id )
             if handled = false then handled = LowerInput( c, id, true )
@@ -1293,16 +1293,16 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     end if
     '' THE GRAPHICS FAMILY, which has its own coordinate grammar and its own
     '' measured defaults -- see lowergfx.bas.
-    select case cast( Fbx.TokenKind, ip->op )
-    case Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
-         Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW, Fbx.KW_PALETTE, Fbx.KW_SCREEN
+    select case cast( Tko.TokenKind, ip->op )
+    case Tko.KW_PSET, Tko.KW_PRESET, Tko.KW_CIRCLE, Tko.KW_PAINT, _
+         Tko.KW_VIEW, Tko.KW_WINDOW, Tko.KW_DRAW, Tko.KW_PALETTE, Tko.KW_SCREEN
         handled = LowerGfxStmt( c, id )
-    case Fbx.KW_GET, Fbx.KW_PUT
+    case Tko.KW_GET, Tko.KW_PUT
         '' GET and PUT share a keyword with the FILE statements, exactly as LINE
         '' does. Bit 1 of 'extra' is the graphics form.
         if (ip->extra and 2) <> 0 then handled = LowerGfxStmt( c, id )
     end select
-    if ip->op = cast( ushort, Fbx.KW_INPUT ) then handled = LowerInput( c, id, false )
+    if ip->op = cast( ushort, Tko.KW_INPUT ) then handled = LowerInput( c, id, false )
     return handled
 end function
 
@@ -1315,10 +1315,10 @@ end function
 '' Split out of lower.bas when that file reached the 1500-line cap for the third
 '' time. Nothing about it changed in the move.
 declare function LowerCall _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 
 function LowerCallExpr_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 
     dim as MirValue v
     '' A conversion intrinsic is a KEYWORD, so there is no callee to find and

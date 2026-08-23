@@ -19,7 +19,7 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' fbc's own flag bits, which are NOT the parser's -- see parser/gfx.bas for those.
 const GFXF_STEP2   as long = &h00000001
@@ -43,23 +43,23 @@ const PGFX_PAL_USING as ushort = &h0800
 
 '' The n'th child of a graphics statement, or NOTHING when it was elided.
 private function GfxArg _
-    ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr, byval i as long ) as Fbx.NodeId
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as long ) as Tko.NodeId
 
-    if (i < 0) orelse (i >= sp->count) then return Fbx.NODE_NONE
-    dim as Fbx.NodeId n = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-    if n = Fbx.NODE_NONE then return Fbx.NODE_NONE
-    if c.ast->Kind( n ) = Fbx.N_ELIDED then return Fbx.NODE_NONE
+    if (i < 0) orelse (i >= sp->count) then return Tko.NODE_NONE
+    dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+    if n = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( n ) = Tko.N_ELIDED then return Tko.NODE_NONE
     return n
 end function
 
 '' One coordinate, as the SINGLE fbc passes. An omitted one is 0.0f, which is what fbc
 '' writes for 'line -(x,y)' and for a reset 'window'.
 private function GfxCoord _
-    ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr, byval i as long, _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as long, _
       byref ok as boolean ) as MirValue
 
-    dim as Fbx.NodeId n = GfxArg( c, sp, i )
-    if n = Fbx.NODE_NONE then return ConstFloat( c, 0.0, MT_F32 )
+    dim as Tko.NodeId n = GfxArg( c, sp, i )
+    if n = Tko.NODE_NONE then return ConstFloat( c, 0.0, MT_F32 )
     dim as MirValue v = LowerExpr( c, n )
     if v.kind = cast( ubyte, MV_NONE ) then
         ok = false
@@ -71,11 +71,11 @@ end function
 '' One INTEGER option -- a colour, a style, a mode. Returns the default when it was not
 '' written, and says so, because an omitted colour also sets a flag bit.
 private function GfxInt _
-    ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr, byval i as long, _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as long, _
       byval dflt as longint, byref written as boolean, byref ok as boolean ) as MirValue
 
-    dim as Fbx.NodeId n = GfxArg( c, sp, i )
-    written = (n <> Fbx.NODE_NONE)
+    dim as Tko.NodeId n = GfxArg( c, sp, i )
+    written = (n <> Tko.NODE_NONE)
     if written = false then return ConstInt( c, dflt, MT_I32 )
     dim as MirValue v = LowerExpr( c, n )
     if v.kind = cast( ubyte, MV_NONE ) then
@@ -88,9 +88,9 @@ end function
 '' The TARGET buffer, or a null pointer. Every graphics statement takes one and fbc
 '' passes '(void*)0' when it was not written.
 private function GfxTargetVal _
-    ( byref c as Ctx, byval sp as Fbx.StmtPayload ptr, byref ok as boolean ) as MirValue
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byref ok as boolean ) as MirValue
 
-    if sp->a = Fbx.NODE_NONE then return ConstInt( c, 0, MT_PTR )
+    if sp->a = Tko.NODE_NONE then return ConstInt( c, 0, MT_PTR )
     dim as MirValue v = LowerExpr( c, sp->a )
     if v.kind = cast( ubyte, MV_NONE ) then
         ok = false
@@ -124,8 +124,8 @@ private function GfxFlags1( byval extra as ushort ) as long
 end function
 
 '' LINE (x1,y1)-(x2,y2), colour, B|BF, style
-function LowerGfxLine( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxLine( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
 
     dim as MirValue tgt = GfxTargetVal( c, sp, ok )
@@ -162,9 +162,9 @@ end function
 
 '' PSET / PRESET (x,y), colour -- ONE function, told apart by a trailing -1.
 function LowerGfxPset _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval isPreset as boolean ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byval isPreset as boolean ) as boolean
 
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as MirValue tgt = GfxTargetVal( c, sp, ok )
     dim as MirValue x = GfxCoord( c, sp, 0, ok )
@@ -191,8 +191,8 @@ end function
 ''
 '' THE ASPECT COMES BEFORE START AND END IN THE CALL, the reverse of the BASIC syntax
 '' order, and an omitted end angle is 2*pi rather than 0.
-function LowerGfxCircle( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxCircle( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as MirValue tgt = GfxTargetVal( c, sp, ok )
     dim as MirValue x = GfxCoord( c, sp, 0, ok )
@@ -202,9 +202,9 @@ function LowerGfxCircle( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as MirValue col = GfxInt( c, sp, 3, 0, hasCol, ok )
 
     dim as MirValue st = GfxCoord( c, sp, 4, ok )
-    dim as Fbx.NodeId en = GfxArg( c, sp, 5 )
+    dim as Tko.NodeId en = GfxArg( c, sp, 5 )
     dim as MirValue ev
-    if en = Fbx.NODE_NONE then
+    if en = Tko.NODE_NONE then
         ev = ConstFloat( c, 6.2831854820251465, MT_F32 )
     else
         ev = GfxCoord( c, sp, 5, ok )
@@ -235,17 +235,17 @@ end function
 ''
 '' The pattern descriptor is ALWAYS passed, never null: with no pattern fbc allocates an
 '' empty temporary for it.
-function LowerGfxPaint( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxPaint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as MirValue tgt = GfxTargetVal( c, sp, ok )
     dim as MirValue x = GfxCoord( c, sp, 0, ok )
     dim as MirValue y = GfxCoord( c, sp, 1, ok )
 
-    dim as Fbx.NodeId fillNode = GfxArg( c, sp, 2 )
+    dim as Tko.NodeId fillNode = GfxArg( c, sp, 2 )
     dim as boolean isPattern = false
-    if fillNode <> Fbx.NODE_NONE then
-        if c.ast->Kind( fillNode ) = Fbx.N_STRING_LIT then
+    if fillNode <> Tko.NODE_NONE then
+        if c.ast->Kind( fillNode ) = Tko.N_STRING_LIT then
             isPattern = true
         elseif IsStringType( c, c.info->TypeOf_( fillNode ) ) then
             isPattern = true
@@ -295,8 +295,8 @@ end function
 ''
 '' VIEW'S COORDINATES ARE INTEGERS while WINDOW's are singles, which is measured and is
 '' the opposite of what the shared syntax suggests. An omitted one is -32768.
-function LowerGfxView( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxView( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as boolean w = false
     dim as MirValue x1 = GfxInt( c, sp, 0, -32768, w, ok )
@@ -323,8 +323,8 @@ function LowerGfxView( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 end function
 
 '' WINDOW [SCREEN] (x1,y1)-(x2,y2)
-function LowerGfxWindow( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxWindow( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as MirValue x1 = GfxCoord( c, sp, 0, ok )
     dim as MirValue y1 = GfxCoord( c, sp, 1, ok )
@@ -341,13 +341,13 @@ function LowerGfxWindow( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 end function
 
 '' DRAW [target,] command-string
-function LowerGfxDraw( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxDraw( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as MirValue tgt = GfxTargetVal( c, sp, ok )
     if ok = false then return false
-    dim as Fbx.NodeId sn = GfxArg( c, sp, 0 )
-    if sn = Fbx.NODE_NONE then return false
+    dim as Tko.NodeId sn = GfxArg( c, sp, 0 )
+    if sn = Tko.NODE_NONE then return false
     dim as MirValue sv
     if StrDescriptorOf_( c, sn, sv ) = false then return false
 
@@ -361,11 +361,11 @@ end function
 '' GET [target,] (x1,y1)-(x2,y2), destination
 ''
 '' The eighth argument is an ARRAY DESCRIPTOR when the destination is an array element
-'' and NULL when it is a plain pointer. fbx passes null always: it has no way to
+'' and NULL when it is a plain pointer. tiko-lang passes null always: it has no way to
 '' materialise a descriptor over an arbitrary element expression here, and passing a
 '' wrong one would be worse than passing none.
-function LowerGfxGet( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxGet( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as MirValue tgt = GfxTargetVal( c, sp, ok )
     dim as MirValue x1 = GfxCoord( c, sp, 0, ok )
@@ -374,8 +374,8 @@ function LowerGfxGet( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     dim as MirValue y2 = GfxCoord( c, sp, 3, ok )
     if ok = false then return false
 
-    dim as Fbx.NodeId dn = GfxArg( c, sp, 4 )
-    if dn = Fbx.NODE_NONE then return false
+    dim as Tko.NodeId dn = GfxArg( c, sp, 4 )
+    if dn = Tko.NODE_NONE then return false
     dim as MirValue dst = LowerAddr( c, dn )
     if dst.kind = cast( ubyte, MV_NONE ) then dst = LowerExpr( c, dn )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
@@ -415,16 +415,16 @@ end function
 '' THE DEFAULT MODE IS XOR, not TRANS -- measured, and the opposite of DRAW STRING's.
 '' The four source-rectangle integers are -65536 each, a sentinel for "the whole
 '' image"; no 1.10.1 syntax was found that sets them.
-function LowerGfxPut( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as MirValue tgt = GfxTargetVal( c, sp, ok )
     dim as MirValue x = GfxCoord( c, sp, 0, ok )
     dim as MirValue y = GfxCoord( c, sp, 1, ok )
     if ok = false then return false
 
-    dim as Fbx.NodeId sn = GfxArg( c, sp, 2 )
-    if sn = Fbx.NODE_NONE then return false
+    dim as Tko.NodeId sn = GfxArg( c, sp, 2 )
+    if sn = Tko.NODE_NONE then return false
     dim as MirValue src = LowerExpr( c, sn )
     if src.kind = cast( ubyte, MV_NONE ) then src = LowerAddr( c, sn )
     if src.kind = cast( ubyte, MV_NONE ) then return false
@@ -436,10 +436,10 @@ function LowerGfxPut( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 
     '' ALPHA with a level is mode 9; CUSTOM takes a procedure pointer instead. They
     '' share the slot because no form has both.
-    dim as Fbx.NodeId extraN = GfxArg( c, sp, 3 )
+    dim as Tko.NodeId extraN = GfxArg( c, sp, 3 )
     dim as MirValue alpha = ConstInt( c, -1, MT_I32 )
     dim as MirValue custom = ConstInt( c, 0, MT_PTR )
-    if extraN <> Fbx.NODE_NONE then
+    if extraN <> Tko.NODE_NONE then
         if mode = 8 then
             dim as MirValue cv = LowerExpr( c, extraN )
             if cv.kind = cast( ubyte, MV_NONE ) then return false
@@ -484,32 +484,32 @@ end function
 ''
 '' The width is the ELEMENT's, not the argument's: an array and a pointer both stand
 '' for the thing they hold.
-private function PaletteIs64_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
-    if e = Fbx.NODE_NONE then return false
-    dim as Fbx.TypeId t = c.info->TypeOf_( e )
-    if t = Fbx.TYPE_NONE then return false
+private function PaletteIs64_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if e = Tko.NODE_NONE then return false
+    dim as Tko.TypeId t = c.info->TypeOf_( e )
+    if t = Tko.TYPE_NONE then return false
     select case c.types->Kind( t )
-    case Fbx.TK_ARRAY, Fbx.TK_POINTER
+    case Tko.TK_ARRAY, Tko.TK_POINTER
         t = c.types->Inner( t )
     end select
-    if t = Fbx.TYPE_NONE then return false
+    if t = Tko.TYPE_NONE then return false
     return (LowerType( t, *c.types ) = MT_I64)
 end function
 
-function LowerGfxPalette( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
 
     if (sp->extra and PGFX_PAL_USING) <> 0 then
-        dim as Fbx.NodeId an = GfxArg( c, sp, 0 )
-        if an = Fbx.NODE_NONE then return false
+        dim as Tko.NodeId an = GfxArg( c, sp, 0 )
+        if an = Tko.NODE_NONE then return false
         '' A POINTER ARGUMENT IS ITS VALUE, everything else its ADDRESS. Measured:
         '' 'palette get using pp' over a 'ulong ptr' is 'fb_GfxPaletteGetUsing(
         '' (int32*)PP )', where the array form passes the array's own address. Taking
         '' the address of the pointer VARIABLE would hand the runtime a pointer to a
         '' pointer, which it would then fill with palette entries.
         dim as MirValue av
-        if c.types->Kind( c.info->TypeOf_( an ) ) = Fbx.TK_POINTER then
+        if c.types->Kind( c.info->TypeOf_( an ) ) = Tko.TK_POINTER then
             av = LowerExpr( c, an )
         else
             av = LowerAddr( c, an )
@@ -536,8 +536,8 @@ function LowerGfxPalette( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
         dim as FB.Array( of ulong ) ga
         PushV( ga, n )
         for i as long = 1 to 3
-            dim as Fbx.NodeId on_ = GfxArg( c, sp, i )
-            if on_ = Fbx.NODE_NONE then
+            dim as Tko.NodeId on_ = GfxArg( c, sp, i )
+            if on_ = Tko.NODE_NONE then
                 ga.Push( cast( ulong, MV_CONST_INT ) ) : ga.Push( 0 )
             else
                 dim as MirValue oa = LowerAddr( c, on_ )
@@ -562,21 +562,21 @@ function LowerGfxPalette( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
 end function
 
 '' The dispatcher: which of them this N_INTRINSIC is.
-function LowerGfxStmt( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    select case cast( Fbx.TokenKind, sp->op )
-    case Fbx.KW_LINE   : return LowerGfxLine( c, id )
-    case Fbx.KW_PSET   : return LowerGfxPset( c, id, false )
-    case Fbx.KW_PRESET : return LowerGfxPset( c, id, true )
-    case Fbx.KW_CIRCLE : return LowerGfxCircle( c, id )
-    case Fbx.KW_PAINT  : return LowerGfxPaint( c, id )
-    case Fbx.KW_VIEW   : return LowerGfxView( c, id )
-    case Fbx.KW_WINDOW : return LowerGfxWindow( c, id )
-    case Fbx.KW_DRAW   : return LowerGfxDraw( c, id )
-    case Fbx.KW_GET    : return LowerGfxGet( c, id )
-    case Fbx.KW_PUT    : return LowerGfxPut( c, id )
-    case Fbx.KW_PALETTE : return LowerGfxPalette( c, id )
-    case Fbx.KW_SCREEN : return LowerGfxScreen( c, id )
+function LowerGfxStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    select case cast( Tko.TokenKind, sp->op )
+    case Tko.KW_LINE   : return LowerGfxLine( c, id )
+    case Tko.KW_PSET   : return LowerGfxPset( c, id, false )
+    case Tko.KW_PRESET : return LowerGfxPset( c, id, true )
+    case Tko.KW_CIRCLE : return LowerGfxCircle( c, id )
+    case Tko.KW_PAINT  : return LowerGfxPaint( c, id )
+    case Tko.KW_VIEW   : return LowerGfxView( c, id )
+    case Tko.KW_WINDOW : return LowerGfxWindow( c, id )
+    case Tko.KW_DRAW   : return LowerGfxDraw( c, id )
+    case Tko.KW_GET    : return LowerGfxGet( c, id )
+    case Tko.KW_PUT    : return LowerGfxPut( c, id )
+    case Tko.KW_PALETTE : return LowerGfxPalette( c, id )
+    case Tko.KW_SCREEN : return LowerGfxScreen( c, id )
     end select
     return false
 end function
@@ -586,8 +586,8 @@ end function
 ''
 '' THE DEPTH DEFAULTS TO THE LITERAL 8 FOR EVERY MODE -- verified across modes 12, 13,
 '' 18 and 21, where a per-mode table would be the obvious guess. Everything else is 0.
-function LowerGfxScreen( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+function LowerGfxScreen( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as FB.Array( of ulong ) args
     for i as long = 0 to 4
@@ -620,18 +620,18 @@ end function
 '' THE ONE-ARGUMENT FORM IS THE SAME FUNCTION: the axis selector goes in x and y
 '' carries a sentinel. And the TARGET, written LAST in BASIC, is passed FIRST.
 function LowerGfxExprCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
-    dim as Fbx.StmtPayload lp
+    dim as Tko.StmtPayload lp
     lp.first = cp->first
     lp.count = cp->count
     dim as boolean ok = true
@@ -664,7 +664,7 @@ function LowerGfxExprCall_ _
         if (cp->count < 1) orelse (cp->count > 3) then return false
         dim as MirValue tgt = ConstInt( c, 0, MT_PTR )
         if cp->count = 3 then
-            dim as MirValue tv = LowerExpr( c, cast( Fbx.NodeId, c.ast->children[cp->first + 2] ) )
+            dim as MirValue tv = LowerExpr( c, cast( Tko.NodeId, c.ast->children[cp->first + 2] ) )
             if tv.kind = cast( ubyte, MV_NONE ) then return false
             tgt = Coerce( c, tv, MT_PTR )
         end if

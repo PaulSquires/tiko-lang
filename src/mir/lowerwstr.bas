@@ -11,14 +11,14 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' Defined in lowerstr.bas; the narrow classifier the wide code needs for a mixed
 '' operand.
 declare sub PushStrArg _
     ( byref args as FB.Array( of ulong ), byref addr as MirValue )
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
 '' A WIDE STRING, and how many elements it holds. Returns 0 when the type is not one.
 ''
@@ -32,10 +32,10 @@ declare function StrSwapKind_ _
 '' fbc passes ('fb_WstrAssign( C$1, 0ll, ... )') and exactly the wrong answer to
 '' "is it wide". Every 'WideStringElems( ... ) > 0' guard was therefore saying no to
 '' byref wstring parameters, and every operation on one declined.
-function IsWideString_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) = Fbx.TK_BUILTIN then
-        return (c.types->BuiltinOf( t ) = Fbx.TY_WSTRING)
+function IsWideString_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) = Tko.TK_BUILTIN then
+        return (c.types->BuiltinOf( t ) = Tko.TY_WSTRING)
     end if
     '' NOT IsWideString_: the SIZED form is an ARRAY of the builtin, and asking this
     '' function again is the infinite recursion that a blind rewrite of every
@@ -45,13 +45,13 @@ function IsWideString_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
 end function
 
 
-function WideStringElems( byref c as Ctx, byval t as Fbx.TypeId ) as long
-    if t = Fbx.TYPE_NONE then return 0
-    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return 0
-    dim as Fbx.TypeId el = c.types->Inner( t )
-    if el = Fbx.TYPE_NONE then return 0
-    if c.types->Kind( el ) <> Fbx.TK_BUILTIN then return 0
-    if c.types->BuiltinOf( el ) <> Fbx.TY_WSTRING then return 0
+function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return 0
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return 0
+    dim as Tko.TypeId el = c.types->Inner( t )
+    if el = Tko.TYPE_NONE then return 0
+    if c.types->Kind( el ) <> Tko.TK_BUILTIN then return 0
+    if c.types->BuiltinOf( el ) <> Tko.TY_WSTRING then return 0
     dim as long n = c.types->ElemCount( t )
     if n <= 0 then return 0
     return n
@@ -70,7 +70,7 @@ end function
 '' widened at compile time in a bare assignment -- that only happens where the target is
 '' already a uint16*.
 function LowerWideAssign _
-    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
     '' THE COUNT IS 0 FOR A 'byref as wstring' PARAMETER, and that is the length fbc
     '' passes for one -- 'fb_WstrAssign( C$1, 0ll, ... )'. Reading 0 as "not a wide
@@ -89,7 +89,7 @@ end function
 '' does it 814 times.
 function LowerWideAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as long, _
-      byval value as Fbx.NodeId ) as boolean
+      byval value as Tko.NodeId ) as boolean
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
@@ -102,12 +102,12 @@ function LowerWideAssignTo _
     ''     fb_WstrConcatAssign( W, 64ll, W2 )
     ''
     '' fb_WstrConcat proper is only for a genuine rvalue, which needs a temporary
-    '' whose lifetime fbx does not model yet.
-    if c.ast->Kind( value ) = Fbx.N_BINARY then
-        dim as Fbx.BinaryPayload ptr vb = _
+    '' whose lifetime tiko-lang does not model yet.
+    if c.ast->Kind( value ) = Tko.N_BINARY then
+        dim as Tko.BinaryPayload ptr vb = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
-        dim as Fbx.TokenKind vop = cast( Fbx.TokenKind, vb->op )
-        if (vop = Fbx.TK_AMP) orelse (vop = Fbx.TK_PLUS) then
+        dim as Tko.TokenKind vop = cast( Tko.TokenKind, vb->op )
+        if (vop = Tko.TK_AMP) orelse (vop = Tko.TK_PLUS) then
             if LowerWideAssignTo( c, dst, n, vb->lhs ) then
                 if LowerWideConcatAssignTo( c, dst, n, vb->rhs ) then return true
                 '' The first half is already emitted; declining now would leave the
@@ -133,9 +133,9 @@ function LowerWideAssignTo _
         return true
     end if
 
-    dim as Fbx.TypeId st = c.info->TypeOf_( value )
+    dim as Tko.TypeId st = c.info->TypeOf_( value )
 
-    if c.ast->Kind( value ) = Fbx.N_STRING_LIT then
+    if c.ast->Kind( value ) = Tko.N_STRING_LIT then
         dim as string lit = StringLitText_( c, value )
         args.Push( cast( ulong, MV_GLOBAL ) )
         args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
@@ -195,8 +195,8 @@ end function
 ''
 '' Only the WIDE source is lowered here; a narrow one needs the temporary's lifetime.
 function LowerWideConcatAssign _
-    ( byref c as Ctx, byval target as Fbx.NodeId, byval n as long, _
-      byval value as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval target as Tko.NodeId, byval n as long, _
+      byval value as Tko.NodeId ) as boolean
 
     dim as MirValue dst = LowerAddr( c, target )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
@@ -206,7 +206,7 @@ end function
 '' As above, addressed by destination.
 function LowerWideConcatAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as long, _
-      byval value as Fbx.NodeId ) as boolean
+      byval value as Tko.NodeId ) as boolean
 
     if IsWideString_( c, c.info->TypeOf_( value ) ) = false then return false
     dim as MirValue src = LowerAddr( c, value )
@@ -226,14 +226,14 @@ end function
 ''
 '' The trailing int32 was 0 in every probe.
 declare function UserCastToWide_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 declare function NarrowDestWideSource_ _
-    ( byref c as Ctx, byval value as Fbx.NodeId, byref src as MirValue ) as boolean
+    ( byref c as Ctx, byval value as Tko.NodeId, byref src as MirValue ) as boolean
 declare sub EmitWideToNarrow_ _
     ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue )
 
 function LowerWideToNarrow _
-    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
     '' THE SOURCE NEED NOT BE A WIDE VARIABLE. A UDT with 'operator cast' to a wstring
     '' is one too, and 'r = wv' over one is 'fb_WstrAssignToA( &R, -1ll, vr, 0 )' with
@@ -242,7 +242,7 @@ function LowerWideToNarrow _
     '' Taking its ADDRESS here instead left a dead 'load @pc' in front of every
     '' assignment this function then declined -- which is most of them, since it is
     '' tried on the way past.
-    dim as Fbx.TypeId dt = c.info->TypeOf_( target )
+    dim as Tko.TypeId dt = c.info->TypeOf_( target )
     dim as longint dn = -1
     if IsStringType( c, dt ) = false then
         if StrSwapKind_( c, dt, dn ) <> 1 then return false
@@ -266,7 +266,7 @@ end function
 '' A WIDE SOURCE for a narrow destination, where the source is NOT a wide variable.
 '' Split out because the RESULT-SLOT form needs it too and has no target node.
 private function NarrowDestWideSource_ _
-    ( byref c as Ctx, byval value as Fbx.NodeId, byref src as MirValue ) as boolean
+    ( byref c as Ctx, byval value as Tko.NodeId, byref src as MirValue ) as boolean
 
     '' A MIXED CONCATENATION IS A WIDE SOURCE with no address and no type of its
     '' own -- 'r = s & w' is fb_WstrConcatAW into a temporary and then
@@ -293,8 +293,8 @@ end sub
 '' node to take an address from -- the destination is fb$result -- so the ordinary
 '' entry point could not be reached and every one of those declined.
 function LowerWideToNarrowSlot _
-    ( byref c as Ctx, byval slot as long, byval dt as Fbx.TypeId, _
-      byval value as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval slot as long, byval dt as Tko.TypeId, _
+      byval value as Tko.NodeId ) as boolean
 
     if slot < 0 then return false
     dim as longint dn = -1
@@ -332,7 +332,7 @@ end function
 '' Only the first was accepted before, so 'dim wr as wstring * 50 = trim( wstr(t) )'
 '' declined -- 2,496 statements across four corpus files, all of them this one shape.
 declare function WideIifArm_ _
-    ( byref c as Ctx, byref slotAddr as MirValue, byval e as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byref slotAddr as MirValue, byval e as Tko.NodeId ) as boolean
 
 '' A WIDE 'iif'. Measured from fbc, and it is NOT the narrow shape with wide entry
 '' points substituted:
@@ -358,8 +358,8 @@ declare function WideIifArm_ _
 '' The allocation is released with fb_WstrDelete once the consuming statement is done,
 '' which is the same statement-temporary list the narrow form uses.
 function LowerWideIif_ _
-    ( byref c as Ctx, byval condE as Fbx.NodeId, byval thenE as Fbx.NodeId, _
-      byval elseE as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+      byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue cond = LowerExpr( c, condE )
     if cond.kind = cast( ubyte, MV_NONE ) then return false
@@ -394,7 +394,7 @@ end function
 '' One arm: measure, allocate, assign. The slot holds the allocation's ADDRESS, so the
 '' store is into it and every later use loads through it.
 private function WideIifArm_ _
-    ( byref c as Ctx, byref slotAddr as MirValue, byval e as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byref slotAddr as MirValue, byval e as Tko.NodeId ) as boolean
 
     dim as MirValue src
     if WideOperand_( c, e, src ) = false then return false
@@ -439,27 +439,27 @@ end function
 '' 'wstr( x )', so a chain containing one looked entirely narrow and 'print
 '' wstr( cmp )' declined outright -- 52 statements in one corpus file, all of them the
 '' same macro.
-function TermIsWide_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     e = Unparen_( c, e )
-    if e = Fbx.NODE_NONE then return false
+    if e = Tko.NODE_NONE then return false
     if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
     '' A UDT WITH 'operator cast' TO A WSTRING is wide too, and asking that costs a
     '' walk rather than an emission -- which is the whole reason this predicate exists
     '' separately from UserCastToWide_.
-    if WideCastOverload_( c, c.info->TypeOf_( e ) ) <> Fbx.SYMBOL_NONE then return true
+    if WideCastOverload_( c, c.info->TypeOf_( e ) ) <> Tko.SYMBOL_NONE then return true
     return IsWstrCall_( c, e )
 end function
 
 '' Does this concatenation contain a GENUINELY WIDE term? A literal does not count:
 '' it follows its context, so 'print "a" & "b"' is a NARROW concatenation and taking
 '' it for a wide one printed two wide literals through fb_WstrConcat.
-function ConcatHasWideTerm_( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
-    if e = Fbx.NODE_NONE then return false
-    if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
+function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return false
     dim as FB.Array( of ulong ) vt
     FlattenConcat( c, e, vt )
     for k as long = 0 to vt.Count - 1
-        if TermIsWide_( c, cast( Fbx.NodeId, vt[k] ) ) then return true
+        if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) then return true
     next
     return false
 end function
@@ -498,7 +498,7 @@ end function
 '' The temporary is a real string descriptor, so it is zeroed first and registered for
 '' deletion the way a string local is -- not a wide temp, which is a bare pointer.
 function WideToNarrowTemp_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue src
     if WideOperand_( c, e, src ) = false then return false
@@ -532,7 +532,7 @@ end function
 ''
 '' The temporary is registered for deletion like every other wide one.
 function NarrowToWideTemp_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue dp
     if ZstrDataOf_( c, e, dp ) = false then return false
@@ -542,10 +542,10 @@ function NarrowToWideTemp_ _
 end function
 
 function WideConcatToTemp_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if e = Fbx.NODE_NONE then return false
-    if c.ast->Kind( e ) <> Fbx.N_BINARY then return false
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return false
     dim as FB.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
     if terms.Count < 2 then return false
@@ -567,7 +567,7 @@ function WideConcatToTemp_ _
     '' wide, which is what makes the wstring PRINT files what they are.
     dim as long wi = -1
     for k as long = 0 to terms.Count - 1
-        if TermIsWide_( c, cast( Fbx.NodeId, terms[k] ) ) then
+        if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) then
             wi = k
             exit for
         end if
@@ -581,7 +581,7 @@ function WideConcatToTemp_ _
         '' straight in, several fold into a temporary descriptor first.
         dim as FB.Array( of ulong ) args
         if wi = 1 then
-            if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[0] ) ) = false then return false
+            if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ) ) = false then return false
         else
             dim as FB.Array( of ulong ) pre
             for k as long = 0 to wi - 1
@@ -592,24 +592,24 @@ function WideConcatToTemp_ _
             PushStrArg( args, pd )
         end if
         dim as MirValue r
-        if WideOperand_( c, cast( Fbx.NodeId, terms[wi] ), r ) = false then return false
+        if WideOperand_( c, cast( Tko.NodeId, terms[wi] ), r ) = false then return false
         args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
         if WideConcatStep_( c, args, RTL_WSTR_CONCAT_AW, acc ) = false then return false
         start_ = wi + 1
     else
-        if WideOperand_( c, cast( Fbx.NodeId, terms[0] ), acc ) = false then return false
+        if WideOperand_( c, cast( Tko.NodeId, terms[0] ), acc ) = false then return false
     end if
 
     for k as long = start_ to terms.Count - 1
         dim as FB.Array( of ulong ) args
         args.Push( cast( ulong, acc.kind ) ) : args.Push( cast( ulong, acc.id ) )
         dim as RtlId which = RTL_WSTR_CONCAT
-        if TermIsWide_( c, cast( Fbx.NodeId, terms[k] ) ) then
+        if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) then
             dim as MirValue r
-            if WideOperand_( c, cast( Fbx.NodeId, terms[k] ), r ) = false then return false
+            if WideOperand_( c, cast( Tko.NodeId, terms[k] ), r ) = false then return false
             args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )
         else
-            if EmitStrTerm( c, args, cast( Fbx.NodeId, terms[k] ) ) = false then return false
+            if EmitStrTerm( c, args, cast( Tko.NodeId, terms[k] ) ) = false then return false
             which = RTL_WSTR_CONCAT_WA
         end if
         if WideConcatStep_( c, args, which, acc ) = false then return false
@@ -620,14 +620,14 @@ function WideConcatToTemp_ _
 end function
 
 function WideOperand_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     id = Unparen_( c, id )
 
     '' A LITERAL IS A WIDE ONE HERE. fbc writes '(uint16*)L"x"' for a literal compared
     '' against a wstring -- a genuinely wide global, not a narrow one widened at
     '' runtime -- so it takes the wide literal pool the DATA statement already uses.
-    if c.ast->Kind( id ) = Fbx.N_STRING_LIT then
+    if c.ast->Kind( id ) = Tko.N_STRING_LIT then
         outv.kind = cast( ubyte, MV_GLOBAL )
         outv.ty = cast( ubyte, MT_PTR )
         outv.id = c.m->AddWideStringLiteral( StringLitText_( c, id ), *c.names )
@@ -652,7 +652,7 @@ function WideOperand_ _
     '' A WIDE 'iif'. Structural, like the narrow one: an iif reached from a WIDE
     '' context is a wide iif whatever its arms look like, because Check computes no
     '' type for an iif call and an arm may be an intrinsic with no type either.
-    dim as Fbx.NodeId iC, iT, iE
+    dim as Tko.NodeId iC, iT, iE
     if IsIifCall_( c, id, iC, iT, iE ) then
         if LowerWideIif_( c, iC, iT, iE, outv ) then return true
     end if
@@ -677,37 +677,37 @@ end function
 '' anything is emitted for it, and the only way to find out is this walk: 'operator
 '' cast' may be declared several times over different targets, so the chain is walked
 '' rather than its head taken.
-function WideCastOverload_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
-    dim as Fbx.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr cse = c.syms->SymbolAt( cur )
+function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
         if cse = 0 then exit while
-        dim as Fbx.TypeId rt = cse->type_
-        if rt <> Fbx.TYPE_NONE then
+        dim as Tko.TypeId rt = cse->type_
+        if rt <> Tko.TYPE_NONE then
             '' BYREF makes it a POINTER to the wstring, so both spellings count.
-            dim as Fbx.TypeId inner = rt
-            if c.types->Kind( inner ) = Fbx.TK_POINTER then
+            dim as Tko.TypeId inner = rt
+            if c.types->Kind( inner ) = Tko.TK_POINTER then
                 inner = c.types->Inner( inner )
             end if
             if IsWideString_( c, inner ) then return cur
-            if inner <> Fbx.TYPE_NONE then
-                if c.types->Kind( inner ) = Fbx.TK_BUILTIN then
-                    if c.types->BuiltinOf( inner ) = Fbx.TY_WSTRING then return cur
+            if inner <> Tko.TYPE_NONE then
+                if c.types->Kind( inner ) = Tko.TK_BUILTIN then
+                    if c.types->BuiltinOf( inner ) = Tko.TY_WSTRING then return cur
                 end if
             end if
         end if
         cur = cse->nextOverload
     wend
-    return Fbx.SYMBOL_NONE
+    return Tko.SYMBOL_NONE
 end function
 
 private function UserCastToWide_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    dim as Fbx.SymbolId want = WideCastOverload_( c, c.info->TypeOf_( id ) )
-    if want = Fbx.SYMBOL_NONE then return false
+    dim as Tko.SymbolId want = WideCastOverload_( c, c.info->TypeOf_( id ) )
+    if want = Tko.SYMBOL_NONE then return false
 
     dim as MirValue self_ = LowerAddr( c, id )
     if self_.kind = cast( ubyte, MV_NONE ) then return false
@@ -720,7 +720,7 @@ end function
 ''
 '' Each of these returns a bare uint16* -- there is no descriptor, which is what makes
 '' them lowerable now while their narrow counterparts still are not. fbc releases the
-'' result with fb_WstrDelete; fbx does not model that lifetime yet, so EVERY CALL HERE
+'' result with fb_WstrDelete; tiko-lang does not model that lifetime yet, so EVERY CALL HERE
 '' LEAKS ONE TEMPORARY. That is a real defect, recorded rather than hidden, and the
 '' alternative is emitting nothing at all for 2,442 corpus statements.
 ''
@@ -735,33 +735,33 @@ end function
 ''
 '' 'any' reaches here as a unary KW_ANY wrapper around the second argument.
 function LowerWideRvalue _
-    ( byref c as Ctx, byval value as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( value ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( value ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, value )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     if (cp->count < 1) orelse (cp->count > 3) then return false
 
     '' The FIRST argument decides: these names are all overloaded on narrow strings
     '' too, and only the wide overload is lowered here.
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as MirValue s0
     if WideOperand_( c, a0, s0 ) = false then return false
 
     '' The second argument, unwrapped from 'any' if it carries one.
-    dim as Fbx.NodeId a1 = Fbx.NODE_NONE
+    dim as Tko.NodeId a1 = Tko.NODE_NONE
     dim as boolean isAny = false
     if cp->count >= 2 then
-        a1 = cast( Fbx.NodeId, c.ast->children[cp->first + 1] )
-        if c.ast->Kind( a1 ) = Fbx.N_UNARY then
-            dim as Fbx.UnaryPayload ptr up = _
+        a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        if c.ast->Kind( a1 ) = Tko.N_UNARY then
+            dim as Tko.UnaryPayload ptr up = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a1 )].data )]
-            if cast( Fbx.TokenKind, up->op ) = Fbx.KW_ANY then
+            if cast( Tko.TokenKind, up->op ) = Tko.KW_ANY then
                 isAny = true
                 a1 = up->operand
             end if
@@ -819,7 +819,7 @@ function LowerWideRvalue _
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
 
-    if a1 <> Fbx.NODE_NONE then
+    if a1 <> Tko.NODE_NONE then
         if secondIsWide then
             dim as MirValue s1
             if WideOperand_( c, a1, s1 ) = false then return false
@@ -838,7 +838,7 @@ function LowerWideRvalue _
         '' A 'mid' WITHOUT a length passes -1, not 0 -- measured, and 0 would silently
         '' produce an empty string instead of the rest of the source.
         if cp->count = 3 then
-            dim as Fbx.NodeId a2 = cast( Fbx.NodeId, c.ast->children[cp->first + 2] )
+            dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
             dim as MirValue n2 = LowerExpr( c, a2 )
             if n2.kind = cast( ubyte, MV_NONE ) then return false
             n2 = Coerce( c, n2, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a2 ) ) )

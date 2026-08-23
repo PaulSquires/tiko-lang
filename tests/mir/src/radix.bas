@@ -14,7 +14,7 @@
 '' 'chr( n )' is fb_CHR, which is VARIADIC and whose first argument is the COUNT:
 '' 'chr( a, b )' is fb_CHR( 2, a, b ). ONE DIVERGENCE IS DELIBERATE AND RECORDED HERE:
 '' fbc CONSTANT-FOLDS 'chr( 65 )' to the literal "A" and calls nothing at all, while
-'' fbx emits the call. Same value, different code; folding it is a separate job.
+'' tiko-lang emits the call. Same value, different code; folding it is a separate job.
 
 sub P( )
     dim as string s

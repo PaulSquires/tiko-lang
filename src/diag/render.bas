@@ -4,13 +4,13 @@
 #include once "diag/engine.bi"
 #include once "support/text.bi"
 
-namespace Fbx.Render
+namespace Tko.Render
 
-function SeverityColor( byval s as Fbx.Severity ) as string
+function SeverityColor( byval s as Tko.Severity ) as string
     select case s
-    case Fbx.SEV_ERROR   : return ANSI_RED
-    case Fbx.SEV_WARNING : return ANSI_YELLOW
-    case Fbx.SEV_NOTE    : return ANSI_CYAN
+    case Tko.SEV_ERROR   : return ANSI_RED
+    case Tko.SEV_WARNING : return ANSI_YELLOW
+    case Tko.SEV_NOTE    : return ANSI_CYAN
     case else            : return ANSI_GREY
     end select
 end function
@@ -31,11 +31,11 @@ private function Gutter( byval n as long, byval gutterWidth as long ) as string
 end function
 
 function Snippet _
-    ( byref src as Fbx.SourceManager, byref rng as Fbx.SourceRange, _
+    ( byref src as Tko.SourceManager, byref rng as Tko.SourceRange, _
       byval useColor as boolean, byval caretColor as string ) as string
 
-    dim as Fbx.DecodedLoc a = src.Decode( rng.first )
-    if a.file = Fbx.FILE_NONE then return ""
+    dim as Tko.DecodedLoc a = src.Decode( rng.first )
+    if a.file = Tko.FILE_NONE then return ""
 
     dim as string lineText = src.LineText( a.file, a.lineNo )
     if len( lineText ) = 0 then
@@ -46,7 +46,7 @@ function Snippet _
 
     '' The underline runs to the end of the range when it stays on this line,
     '' otherwise to the end of the line.
-    dim as Fbx.DecodedLoc b = src.Decode( rng.last )
+    dim as Tko.DecodedLoc b = src.Decode( rng.last )
     dim as long lastCol = a.column
     dim as boolean sameLine = (b.file = a.file) andalso (b.lineNo = a.lineNo)
     if sameLine andalso (b.column >= a.column) then lastCol = b.column
@@ -83,18 +83,18 @@ function Snippet _
 end function
 
 function Diagnostic_ _
-    ( byref d as Fbx.Diagnostic, byref src as Fbx.SourceManager, _
-      byval fmt as Fbx.DiagOutputFormat, byval useColor as boolean ) as string
+    ( byref d as Tko.Diagnostic, byref src as Tko.SourceManager, _
+      byval fmt as Tko.DiagOutputFormat, byval useColor as boolean ) as string
 
-    dim as string sevName = Fbx.SeverityName( d.sev )
+    dim as string sevName = Tko.SeverityName( d.sev )
     dim as string sevTinted = Tint( useColor, SeverityColor( d.sev ), sevName )
-    dim as string idName = Fbx.DiagIdName( d.id )
+    dim as string idName = Tko.DiagIdName( d.id )
     dim as string outp = ""
 
     if d.hasLocation then
-        dim as Fbx.DecodedLoc loc = src.Decode( d.range.first )
+        dim as Tko.DecodedLoc loc = src.Decode( d.range.first )
         dim as string path = src.PathOf( loc.file )
-        if fmt = Fbx.DIAGFMT_GNU then
+        if fmt = Tko.DIAGFMT_GNU then
             outp += path & ":" & loc.lineNo & ":" & loc.column & ": " & _
                     sevTinted & ": " & Tint( useColor, ANSI_BOLD, d.text ) & _
                     " [" & idName & "]"
@@ -108,20 +108,20 @@ function Diagnostic_ _
     else
         '' No location: driver-level messages. Prefix with the tool name so the line
         '' is still self-identifying in a build log.
-        if fmt = Fbx.DIAGFMT_GNU then
-            outp += "fbx: " & sevTinted & ": " & d.text & " [" & idName & "]" & chr( 10 )
+        if fmt = Tko.DIAGFMT_GNU then
+            outp += "tiko-lang: " & sevTinted & ": " & d.text & " [" & idName & "]" & chr( 10 )
         else
-            outp += "fbx: " & sevTinted & " " & idName & ": " & d.text & chr( 10 )
+            outp += "tiko-lang: " & sevTinted & " " & idName & ": " & d.text & chr( 10 )
         end if
     end if
 
-    for each n as Fbx.DiagNote in d.notes
+    for each n as Tko.DiagNote in d.notes
         dim as string noteTint = Tint( useColor, ANSI_CYAN, "note" )
-        dim as boolean noteHasLoc = (n.range.first <> Fbx.LOC_NONE)
+        dim as boolean noteHasLoc = (n.range.first <> Tko.LOC_NONE)
         if noteHasLoc then
-            dim as Fbx.DecodedLoc nl = src.Decode( n.range.first )
+            dim as Tko.DecodedLoc nl = src.Decode( n.range.first )
             dim as string npath = src.PathOf( nl.file )
-            if fmt = Fbx.DIAGFMT_GNU then
+            if fmt = Tko.DIAGFMT_GNU then
                 outp += npath & ":" & nl.lineNo & ":" & nl.column & ": " & _
                         noteTint & ": " & n.text & chr( 10 )
             else

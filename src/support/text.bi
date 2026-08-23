@@ -1,6 +1,6 @@
 '' text.bi -- encoding detection, UTF-8/UTF-16 transcoding, column arithmetic.
 ''
-'' fbx normalises every source file to UTF-8 once, at load, and then works in bytes
+'' tiko-lang normalises every source file to UTF-8 once, at load, and then works in bytes
 '' (docs/plan/03 section 2 -- decision D6). USTRING appears only where a caller needs
 '' real Unicode: diagnostic rendering and wstring/ustring literal payloads.
 ''
@@ -11,12 +11,12 @@
 ''   - Lengths and buffer indices are LONG, matching FB.Array.Count( ). Codepoints
 ''     and source locations are ULONG. The two are never interchanged silently.
 
-#ifndef __FBX_TEXT_BI__
-#define __FBX_TEXT_BI__
+#ifndef __TKO_TEXT_BI__
+#define __TKO_TEXT_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 
-namespace Fbx.Text
+namespace Tko.Text
 
     const REPLACEMENT_CP as ulong = &hFFFD
     const DEFAULT_TAB_WIDTH as long = 8

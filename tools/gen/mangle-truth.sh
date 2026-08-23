@@ -5,7 +5,7 @@
 #
 # Compiles tests/mangle/src/probe.bas with fbc and reads the LINKER-VISIBLE symbols
 # out of the resulting object file. The names are never written by hand: decision D3
-# is that fbx's output must be byte-identical to fbc's, and a hand-copied expectation
+# is that tiko-lang's output must be byte-identical to fbc's, and a hand-copied expectation
 # would only ever prove that two humans agreed.
 #
 # The toolchain ships no nm or objdump, so tools/gen/coffsyms.py reads the COFF
@@ -13,7 +13,7 @@
 # names carry the C emitter's own decoration, which is not what the linker sees.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-FBC=${FBX_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+FBC=${TKO_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
 SRC="$ROOT/tests/mangle/src/probe.bas"
 OUT="$ROOT/tests/mangle/expected/fbc-mangle.txt"
 WORK="$ROOT/build/.mg"
@@ -27,7 +27,7 @@ fi
 # That is a cross-version comparison, so it is controlled rather than assumed: running
 # 1.10.1 win64 over the same probe gives a file BYTE-IDENTICAL to fbc-modern's, which is
 # what makes 1.10.1 win32 usable as ground truth for mangling.
-FBC32=${FBX_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
+FBC32=${TKO_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
 OUT32="$ROOT/tests/mangle/expected/fbc-mangle-win32.txt"
 
 mkdir -p "$WORK"

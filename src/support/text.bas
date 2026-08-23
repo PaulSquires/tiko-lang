@@ -2,7 +2,7 @@
 
 #include once "support/text.bi"
 
-namespace Fbx.Text
+namespace Tko.Text
 
 '' --------------------------------------------------------------------- detection
 
@@ -278,7 +278,7 @@ sub NormalizeToUtf8 _
     case else
         '' ENC_UTF8 and ENC_BYTES are both byte streams we keep verbatim. Invalid
         '' bytes can only legally occur inside literals and comments, where fbc
-        '' passes them through to the target encoding -- so fbx does too.
+        '' passes them through to the target encoding -- so tiko-lang does too.
         CopyFrom( src, dst, 0 )
     end select
 end sub

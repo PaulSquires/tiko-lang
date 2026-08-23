@@ -3,7 +3,7 @@
 #include once "diag/diagnostic.bi"
 #include once "support/text.bi"
 
-namespace Fbx
+namespace Tko
 
 dim shared as DiagInfo diagTable( 0 to DIAG_COUNT - 1 )
 dim shared as boolean diagTableReady = false
@@ -11,7 +11,7 @@ dim shared as boolean diagTableReady = false
 sub InitDiagTable( )
     if diagTableReady then return
 
-    diagTable(DIAG_NONE).idName = @"FBX0000"
+    diagTable(DIAG_NONE).idName = @"TKO0000"
     diagTable(DIAG_NONE).defaultSev = SEV_NOTE
     diagTable(DIAG_NONE).format = @""
 
@@ -20,7 +20,7 @@ sub InitDiagTable( )
         diagTable(d_id).defaultSev = d_sev
         diagTable(d_id).format = @d_fmt
     #endmacro
-    FBX_DIAG_LIST( DIAG )
+    TKO_DIAG_LIST( DIAG )
     #undef DIAG
 
     diagTableReady = true

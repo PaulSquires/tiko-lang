@@ -13,37 +13,37 @@
 ''   - Never aborts. A bad byte produces TK_INVALID and scanning continues.
 ''   - Every token's [loc, loc+length) lies inside the file.
 
-#ifndef __FBX_LEXER_BI__
-#define __FBX_LEXER_BI__
+#ifndef __TKO_LEXER_BI__
+#define __TKO_LEXER_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "lexer/token.bi"
 #include once "source/manager.bi"
 #include once "diag/engine.bi"
 
-namespace Fbx.Lex
+namespace Tko.Lex
 
     '' Interns every keyword spelling, in table order, into a freshly built interner.
     '' MUST be called before anything else is interned, or the contiguous-id property
     '' the keyword map depends on is lost.
     declare sub InitKeywords _
-        ( byref names as Fbx.Interner, byref map as Fbx.KeywordMap )
+        ( byref names as Tko.Interner, byref map as Tko.KeywordMap )
 
     type Result
-        as Fbx.TokenVec   tokens
-        as Fbx.LiteralVec literals
+        as Tko.TokenVec   tokens
+        as Tko.LiteralVec literals
         as long           invalidCount
     end type
 
     declare sub Run _
-        ( byref src as Fbx.SourceManager, byval file as Fbx.FileId, _
-          byref names as Fbx.Interner, byref kwmap as Fbx.KeywordMap, _
-          byref diags as Fbx.DiagnosticEngine, byref outp as Result )
+        ( byref src as Tko.SourceManager, byval file as Tko.FileId, _
+          byref names as Tko.Interner, byref kwmap as Tko.KeywordMap, _
+          byref diags as Tko.DiagnosticEngine, byref outp as Result )
 
     '' --dump-tokens. Byte-stable for identical input: it is a golden artefact.
     declare function Dump _
-        ( byref src as Fbx.SourceManager, byval file as Fbx.FileId, _
-          byref names as Fbx.Interner, byref r as Result ) as string
+        ( byref src as Tko.SourceManager, byval file as Tko.FileId, _
+          byref names as Tko.Interner, byref r as Result ) as string
 
 end namespace
 

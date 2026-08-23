@@ -13,16 +13,16 @@
 ''   - May report "undefined symbol" and "this is not callable".
 ''   - May NOT report type errors: that is Check's job.
 
-#ifndef __FBX_RESOLVE_BI__
-#define __FBX_RESOLVE_BI__
+#ifndef __TKO_RESOLVE_BI__
+#define __TKO_RESOLVE_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "ast/nodes.bi"
 #include once "symbols/symbol.bi"
 #include once "types/type.bi"
 #include once "diag/engine.bi"
 
-namespace Fbx
+namespace Tko
 
     '' What the parser could not decide and the resolver did (docs/plan/07 section 8).
     enum AmbiguousResolution
@@ -59,7 +59,7 @@ namespace Fbx
 
 end namespace
 
-namespace Fbx.Resolve
+namespace Tko.Resolve
 
     type Stats
         as long references        '' identifiers bound to a symbol
@@ -74,17 +74,17 @@ namespace Fbx.Resolve
     end type
 
     declare sub Run _
-        ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-          byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
-          byref names as Fbx.Interner, byref diags as Fbx.DiagnosticEngine, _
-          byref src as Fbx.SourceManager, _
-          byref info as Fbx.SemanticInfo, byref st as Stats, _
+        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+          byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
+          byref src as Tko.SourceManager, _
+          byref info as Tko.SemanticInfo, byref st as Stats, _
           byval parser as any ptr = 0 )
 
     declare function Dump _
-        ( byref ast as Fbx.AstArena, byref syms as Fbx.SymbolTable, _
-          byref types as Fbx.TypeContext, byref names as Fbx.Interner, _
-          byref info as Fbx.SemanticInfo, byref st as Stats ) as string
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+          byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byref info as Tko.SemanticInfo, byref st as Stats ) as string
 
 end namespace
 

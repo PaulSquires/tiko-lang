@@ -24,7 +24,7 @@
     end extern
 #endif
 
-namespace Fbx.Platform
+namespace Tko.Platform
 
 #ifdef __FB_WIN32__
 private function HandleFor( byval s as StdStream ) as any ptr

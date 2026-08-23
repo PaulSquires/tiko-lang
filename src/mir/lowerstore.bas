@@ -7,7 +7,7 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' THE BYTE SIZE OF A TYPE, for anything that has to reserve storage.
 ''
@@ -25,11 +25,11 @@ namespace Fbx.Mir
 '' and stack corruption at run time for every UDT array in the corpus.
 ''
 '' One function now, recursive so an array of arrays of UDT works too.
-function SizeOfType( byref c as Ctx, byval t as Fbx.TypeId ) as long
-    if t = Fbx.TYPE_NONE then return 0
+function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return 0
     dim as long ui = c.udts->Find( t )
     if ui >= 0 then return c.udts->udts[ui].size
-    if c.types->Kind( t ) = Fbx.TK_ARRAY then
+    if c.types->Kind( t ) = Tko.TK_ARRAY then
         '' A DYNAMIC array's storage is its DESCRIPTOR, not its elements -- the
         '' elements live wherever the runtime put them.
         if c.types->IsDynArray( t ) then return DescBytesFor( c, c.types->DynRank( t ) )
@@ -43,9 +43,9 @@ end function
 
 
 function LocalFor _
-    ( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
+    ( byref c as Ctx, byval sid as Tko.SymbolId ) as long
 
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return -1
     '' By SYMBOL. Keying on the spelling merged two sibling-scope declarations of one
     '' name into a single slot, which then kept the FIRST declaration's MIR type --
@@ -75,7 +75,7 @@ function LocalFor _
     '' A BYDESC ARRAY PARAMETER'S SLOT HOLDS A POINTER, not a descriptor. fbc's own
     '' signature says so -- 'void P( struct $7FBARRAYI1RE* ROWS$1 )' -- and giving it
     '' the descriptor's own 72 bytes described a local the caller never passed.
-    if s->kind = cast( ubyte, Fbx.SYM_PARAMETER ) then
+    if s->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
         if c.types->IsDynArray( s->type_ ) then
             l.ty = cast( ubyte, MT_PTR )
         end if
@@ -99,10 +99,10 @@ function LocalFor _
 end function
 
 '' Whether a symbol is DIM SHARED, and so lives in module storage rather than a frame.
-function IsSharedVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    return ((s->flags and Fbx.SYMF_SHARED) <> 0)
+    return ((s->flags and Tko.SYMF_SHARED) <> 0)
 end function
 
 '' A STATIC local: procedure scope, but MODULE lifetime.
@@ -114,11 +114,11 @@ end function
 ''
 '' As a frame slot it would be reinitialised every call, which is the entire behaviour
 '' the keyword exists to provide.
-function IsStaticLocal( byref c as Ctx, byval sid as Fbx.SymbolId ) as boolean
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+function IsStaticLocal( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    if (s->flags and Fbx.SYMF_SHARED) <> 0 then return false
-    return ((s->flags and Fbx.SYMF_STATIC) <> 0)
+    if (s->flags and Tko.SYMF_SHARED) <> 0 then return false
+    return ((s->flags and Tko.SYMF_STATIC) <> 0)
 end function
 
 '' The storage name for a static local, which must be unique PER PROCEDURE.
@@ -131,8 +131,8 @@ end function
 '' MIR globals are one flat table with no such scoping, so the two would silently merge
 '' into one variable -- P and Q sharing a counter, which is exactly the class of bug
 '' DIM SHARED had in reverse. The procedure name is therefore part of the storage name.
-private function StaticName( byref c as Ctx, byval sid as Fbx.SymbolId ) as Fbx.InternId
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+private function StaticName( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.InternId
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     dim as string owner = "?"
     if c.f <> 0 then owner = c.names->Spelling( c.f->name )
     return c.names->GetString( owner & "$" & c.names->Spelling( s->name ) )
@@ -144,10 +144,10 @@ end function
 '' variable used by two procedures got two unrelated frame slots, and a SUB assigning it
 '' updated nothing anyone else could see. Storage has to be per MODULE, not per frame.
 declare function UniqueGlobalName _
-    ( byref c as Ctx, byval nm as Fbx.InternId ) as Fbx.InternId
+    ( byref c as Ctx, byval nm as Tko.InternId ) as Tko.InternId
 
-function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
+function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return -1
 
     '' Keyed by SYMBOL, not by spelling. Two statics called 'n' in sibling scopes of one
@@ -157,7 +157,7 @@ function GlobalFor( byref c as Ctx, byval sid as Fbx.SymbolId ) as long
         if c.gvarSym[i] = cast( ulong, sid ) then return c.gvarSlot[i]
     next
 
-    dim as Fbx.InternId nm = s->name
+    dim as Tko.InternId nm = s->name
     if IsStaticLocal( c, sid ) then nm = StaticName( c, sid )
     dim as long sz = SizeOfType( c, s->type_ )
     '' The storage NAME must still be unique, because it is what a linker and a golden
@@ -173,7 +173,7 @@ end function
 
 '' A module-global name not already taken by a DIFFERENT symbol.
 private function UniqueGlobalName _
-    ( byref c as Ctx, byval nm as Fbx.InternId ) as Fbx.InternId
+    ( byref c as Ctx, byval nm as Tko.InternId ) as Tko.InternId
 
     dim as boolean taken = false
     for i as long = 0 to c.m->globals.Count - 1
@@ -183,7 +183,7 @@ private function UniqueGlobalName _
 
     dim as string base_ = c.names->Spelling( nm )
     for n as long = 2 to 1000
-        dim as Fbx.InternId cand = c.names->GetString( base_ & "$" & str( n ) )
+        dim as Tko.InternId cand = c.names->GetString( base_ & "$" & str( n ) )
         dim as boolean used = false
         for i as long = 0 to c.m->globals.Count - 1
             if c.m->globals[i].isVar andalso (c.m->globals[i].name = cand) then used = true
@@ -201,37 +201,37 @@ end function
 '' Constructors chain like any other overload set precisely because they were given a
 '' synthetic name, so nothing here is special-cased.
 function PickCtor _
-    ( byref c as Ctx, byval first_ as Fbx.SymbolId, _
-      byref argT as FB.Array( of ulong ) ) as Fbx.SymbolId
+    ( byref c as Ctx, byval first_ as Tko.SymbolId, _
+      byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
 
-    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
-    dim as long bestCost = Fbx.Check.CONV_NONE
+    dim as Tko.SymbolId best = Tko.SYMBOL_NONE
+    dim as long bestCost = Tko.Check.CONV_NONE
     dim as long ties = 0
-    dim as Fbx.SymbolId cur = first_
+    dim as Tko.SymbolId cur = first_
 
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
             dim as long np = 0
             for i as long = 0 to pp->count - 1
-                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
             next
             if np = argT.Count then
                 dim as long total = 0
                 dim as long ai = 0
                 dim as boolean viable = true
                 for i as long = 0 to pp->count - 1
-                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-                    dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
-                    dim as long cost = Fbx.Check.ConversionCost( _
-                        cast( Fbx.TypeId, argT[ai] ), c.info->TypeOf_( sp2->a ), *c.types )
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                    dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
+                    dim as long cost = Tko.Check.ConversionCost( _
+                        cast( Tko.TypeId, argT[ai] ), c.info->TypeOf_( sp2->a ), *c.types )
                     ai += 1
-                    if cost >= Fbx.Check.CONV_NONE then
+                    if cost >= Tko.Check.CONV_NONE then
                         viable = false
                         exit for
                     end if
@@ -252,23 +252,23 @@ function PickCtor _
     wend
 
     '' A tie is an ambiguous call, not a silent pick.
-    if ties > 0 then return Fbx.SYMBOL_NONE
+    if ties > 0 then return Tko.SYMBOL_NONE
     return best
 end function
 
 function StructorOf _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref which as string ) as Fbx.SymbolId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref which as string ) as Tko.SymbolId
 
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( t )
-    if tn = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
     '' The UDT, so the TYPE-name class.
-    dim as Fbx.SymbolId ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Fbx.SYMBOL_NONE
-    if s->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    dim as Tko.SymbolId ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.SYMBOL_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, _
         c.names->Fold( c.names->GetString( which ) ) )
 end function
@@ -277,38 +277,38 @@ end function
 '' constructor and a destructor are the zero-parameter ones -- taking the head of the
 '' chain instead picked whichever overload happened to be first.
 function StructorWithArity _
-    ( byref c as Ctx, byval first_ as Fbx.SymbolId, byval want as long ) as Fbx.SymbolId
+    ( byref c as Ctx, byval first_ as Tko.SymbolId, byval want as long ) as Tko.SymbolId
 
-    dim as Fbx.SymbolId cur = first_
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+    dim as Tko.SymbolId cur = first_
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
             dim as long np = 0
             for i as long = 0 to pp->count - 1
-                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
             next
             if np = want then return cur
         end if
         cur = s->nextOverload
     wend
-    return Fbx.SYMBOL_NONE
+    return Tko.SYMBOL_NONE
 end function
 
 '' A call to a structor with the slot's address as the implicit THIS. The receiver is
 '' the first argument, per the ABI, which is also how the mangled name reads.
 sub EmitStructorCall _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long, _
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long, _
       byval selfVal as MirValue ptr = 0, byval args as FB.Array( of ulong ) ptr = 0 )
 
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = 0 then return
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-    if pn = Fbx.NODE_NONE then return
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return
 
     '' A NEGATIVE slot means 'the receiver is already a value' -- DELETE has a POINTER
     '' in hand, not a local whose address is the receiver. Passed through 'selfVal'
@@ -338,8 +338,8 @@ sub EmitStructorCall _
         nargs += args->Count \ 2
     end if
 
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
@@ -364,7 +364,7 @@ sub EmitStructorCall _
 end sub
 
 sub EmitDtorCall _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval slot as long )
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long )
     EmitStructorCall( c, sym, slot )
 end sub
 
@@ -380,15 +380,15 @@ end sub
 '' overload work. What a user-defined GLOBAL operator needs: Check chose the symbol and
 '' the caller has already produced the operands the way the parameters want them.
 function EmitDirectCall_ _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byval rt as MirType, _
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
       byref args as FB.Array( of ulong ) ) as MirValue
 
     dim as MirValue none_
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = 0 then return none_
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-    if pn = Fbx.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return none_
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
 
     dim as long first = c.m->argPool.Count \ 2
     for i as long = 0 to args.Count - 1
@@ -396,8 +396,8 @@ function EmitDirectCall_ _
     next
     dim as long nargs = args.Count \ 2
 
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
@@ -422,15 +422,15 @@ function EmitDirectCall_ _
 end function
 
 function EmitMemberCallArgs_ _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
       byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
 
     dim as MirValue none_
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = 0 then return none_
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-    if pn = Fbx.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return none_
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
     if self_.kind = cast( ubyte, MV_NONE ) then return none_
 
     dim as long first = c.m->argPool.Count \ 2
@@ -444,8 +444,8 @@ function EmitMemberCallArgs_ _
         nargs += args->Count \ 2
     end if
 
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
@@ -470,23 +470,23 @@ function EmitMemberCallArgs_ _
 end function
 
 function EmitMemberCall _
-    ( byref c as Ctx, byval sym as Fbx.SymbolId, byref self_ as MirValue, _
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
       byval rt as MirType ) as MirValue
 
     dim as MirValue none_
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sym )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = 0 then return none_
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-    if pn = Fbx.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return none_
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
     if self_.kind = cast( ubyte, MV_NONE ) then return none_
 
     dim as long first = c.m->argPool.Count \ 2
     c.m->argPool.Push( cast( ulong, self_.kind ) )
     c.m->argPool.Push( cast( ulong, self_.id ) )
 
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = nm then
@@ -515,11 +515,11 @@ end function
 '' is why it was 19,629 declines, nearly a third of everything left, while reading as
 '' ordinary FreeBASIC.
 function LowerStmtCall _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+    ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
     dim as MirValue v
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->a = Fbx.NODE_NONE then return v
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Tko.NODE_NONE then return v
     return LowerCallParts( c, sp->a, c.info->RefOf( sp->a ), _
                            sp->first, sp->count, MT_VOID )
 end function
@@ -531,34 +531,34 @@ end function
 '' already an address. A STATIC member takes no receiver, and neither does anything
 '' declared outside a type.
 function ReceiverOf _
-    ( byref c as Ctx, byval target as Fbx.NodeId, _
-      byval callee as Fbx.SymbolId ) as MirValue
+    ( byref c as Ctx, byval target as Tko.NodeId, _
+      byval callee as Tko.SymbolId ) as MirValue
 
     dim as MirValue v
-    if target = Fbx.NODE_NONE then return v
+    if target = Tko.NODE_NONE then return v
 
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return v
-    dim as Fbx.SymScope ptr owner = c.syms->ScopeAt( cs->parent )
+    dim as Tko.SymScope ptr owner = c.syms->ScopeAt( cs->parent )
     if owner = 0 then return v
-    if owner->kind <> cast( ubyte, Fbx.SCOPEK_TYPE ) then return v
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
-    if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-        if (StmtOf( c, pn )->extra and Fbx.PF_STATIC) <> 0 then return v
+    if owner->kind <> cast( ubyte, Tko.SCOPEK_TYPE ) then return v
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+        if (StmtOf( c, pn )->extra and Tko.PF_STATIC) <> 0 then return v
     end if
 
     '' An UNQUALIFIED call to a sibling member -- 'M( )' inside another method of the
     '' same type -- has no base written, and its receiver is the enclosing method's own
     '' THIS. Without this it lowered to 'call void _ZN1T1MEv()': a member call with no
     '' member, and no decline to say so.
-    if c.ast->Kind( target ) <> Fbx.N_MEMBER then
-        if c.curProcSym = Fbx.SYMBOL_NONE then return v
-        dim as Fbx.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
+    if c.ast->Kind( target ) <> Tko.N_MEMBER then
+        if c.curProcSym = Tko.SYMBOL_NONE then return v
+        dim as Tko.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
         if me = 0 then return v
-        if me->inner = Fbx.SCOPE_NONE then return v
-        dim as Fbx.SymbolId tsid = c.syms->LookupLocal( me->inner, _
+        if me->inner = Tko.SCOPE_NONE then return v
+        dim as Tko.SymbolId tsid = c.syms->LookupLocal( me->inner, _
             c.names->Fold( c.names->GetString( "this" ) ) )
-        if tsid = Fbx.SYMBOL_NONE then return v
+        if tsid = Tko.SYMBOL_NONE then return v
         '' THIS holds a pointer, so the receiver is its VALUE. Passing the slot's own
         '' address would hand the callee a pointer to a pointer.
         dim as MirValue ta = AddrOfVar( c, tsid )
@@ -569,11 +569,11 @@ function ReceiverOf _
     '' Decided by the base's TYPE, not by whether '->' was written: FreeBASIC accepts a
     '' dot on a pointer too, and '(*p).M( )' is a value whose address is the pointer.
     '' A pointer base is ALREADY an address; anything else needs one taking.
-    dim as Fbx.BinaryPayload ptr mb = _
+    dim as Tko.BinaryPayload ptr mb = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
-    dim as Fbx.TypeId bt = c.info->TypeOf_( mb->lhs )
-    if bt <> Fbx.TYPE_NONE then
-        if c.types->Kind( bt ) = Fbx.TK_POINTER then return LowerExpr( c, mb->lhs )
+    dim as Tko.TypeId bt = c.info->TypeOf_( mb->lhs )
+    if bt <> Tko.TYPE_NONE then
+        if c.types->Kind( bt ) = Tko.TK_POINTER then return LowerExpr( c, mb->lhs )
     end if
     return LowerAddr( c, mb->lhs )
 end function
@@ -581,7 +581,7 @@ end function
 '' A DIM SHARED or STATIC initialiser, which is a compile-time value rather than a store
 '' on entry. A non-constant one cannot become a static one and declines.
 sub InitSharedGlobal _
-    ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init as Fbx.NodeId )
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval init as Tko.NodeId )
 
     dim as long g = GlobalFor( c, sid )
 
@@ -593,10 +593,10 @@ sub InitSharedGlobal _
     '' atexit thunk, measured -- and putting one in the module initialiser would run it
     '' before the procedure it belongs to was ever called.
     if (g >= 0) andalso IsSharedVar( c, sid ) then
-        dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( sid )
+        dim as Tko.Symbol ptr gs = c.syms->SymbolAt( sid )
         if gs <> 0 then
             dim as boolean wants = false
-            if c.types->Kind( gs->type_ ) = Fbx.TK_UDT then
+            if c.types->Kind( gs->type_ ) = Tko.TK_UDT then
                 wants = TypeNeedsInit_( c, gs->type_ ) orelse TypeNeedsDtor_( c, gs->type_ )
             else
                 wants = ArrayElemNeedsInit_( c, gs->type_ ) orelse _
@@ -614,7 +614,7 @@ sub InitSharedGlobal _
             end if
         end if
     end if
-    if (g < 0) orelse (init = Fbx.NODE_NONE) then return
+    if (g < 0) orelse (init = Tko.NODE_NONE) then return
 
     '' A FLOATING initialiser first, because the integer folder cannot carry one:
     '' ConstVal holds a longint, so 'dim shared as double d = 1.5' had no value at all
@@ -622,14 +622,14 @@ sub InitSharedGlobal _
     dim as MirType gt = cast( MirType, c.m->globals[g].ty )
     if (gt = MT_F32) orelse (gt = MT_F64) then
         dim as double fd
-        if Fbx.Check.ConstFloatOf( *c.ast, init, fd ) then
+        if Tko.Check.ConstFloatOf( *c.ast, init, fd ) then
             c.m->globals[g].initFlt = fd
             c.m->globals[g].hasInit = true
             return
         end if
     end if
 
-    dim as Fbx.Check.ConstVal cv = Fbx.Check.ConstOf( _
+    dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
         *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits )
     if cv.known = false then
         SkipHere( c )
@@ -673,38 +673,38 @@ function LowerExprLoad _
     return Emit( c, ins )
 end function
 
-function ParamCountOf( byref c as Ctx, byval callee as Fbx.SymbolId ) as long
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+function ParamCountOf( byref c as Ctx, byval callee as Tko.SymbolId ) as long
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return 0
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
-    if pn = Fbx.NODE_NONE then return 0
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return 0
-    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return 0
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return 0
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     dim as long n = 0
     for i as long = 0 to psp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) = Fbx.N_PARAM then n += 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) = Tko.N_PARAM then n += 1
     next
     return n
 end function
 
 '' A VARIADIC procedure has no parameter list to run past: what is written is what is
 '' passed, and there are no defaults beyond it.
-function IsVariadicProc( byref c as Ctx, byval callee as Fbx.SymbolId ) as boolean
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return false
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
-    if pn = Fbx.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     '' The ellipsis is an N_PARAM the parser MARKED with TK_ELLIPSIS in 'op'. It has no
     '' name and no typeref, which is the only other thing that would tell it from an
     '' unnamed parameter -- and relying on an absence is how this was missed the first
     '' time.
-    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     for i as long = 0 to psp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-        if StmtOf( c, prm )->op = cast( ushort, Fbx.TK_ELLIPSIS ) then return true
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then return true
     next
     return false
 end function
@@ -712,76 +712,76 @@ end function
 '' The DEFAULT VALUE expression of parameter 'idx', or nothing. Parsed onto the
 '' N_PARAM as 'b' and, until now, never read.
 function ParamDefaultAt _
-    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.NodeId
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.NodeId
 
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return Fbx.NODE_NONE
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
-    if pn = Fbx.NODE_NONE then return Fbx.NODE_NONE
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return Fbx.NODE_NONE
-    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Tko.NODE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.NODE_NONE
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     dim as long seen = 0
     for i as long = 0 to psp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then return StmtOf( c, prm )->b
         seen += 1
     next
-    return Fbx.NODE_NONE
+    return Tko.NODE_NONE
 end function
 
 function ParamTypeAt _
-    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as Fbx.TypeId
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
 
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return Fbx.TYPE_NONE
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
-    if pn = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return Fbx.TYPE_NONE
-    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     dim as long seen = 0
     for i as long = 0 to psp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then return c.info->TypeOf_( StmtOf( c, prm )->a )
         seen += 1
     next
-    return Fbx.TYPE_NONE
+    return Tko.TYPE_NONE
 end function
 
 function ParamIsByref _
-    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
 
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return false
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
-    if pn = Fbx.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
-    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     if idx >= psp->count then return false
-    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + idx] )
-    if c.ast->Kind( prm ) <> Fbx.N_PARAM then return false
-    return ((c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0)
+    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + idx] )
+    if c.ast->Kind( prm ) <> Tko.N_PARAM then return false
+    return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
 end function
 
 '' Is parameter 'idx' declared as an ARRAY -- 'sub Q( a( ) as long )'? Its TYPE is the
 '' ELEMENT's, so the type cannot answer this; the empty subscript is a FLAG on the
 '' N_PARAM and that is the only record of it.
 function ParamIsArray _
-    ( byref c as Ctx, byval callee as Fbx.SymbolId, byval idx as long ) as boolean
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
 
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( callee )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return false
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, cs->payload )
-    if pn = Fbx.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
-    dim as Fbx.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     dim as long seen = 0
     for i as long = 0 to psp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then
-            return ((c.ast->nodes[cast( long, prm )].flags and Fbx.NF_ARRAY) <> 0)
+            return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
         end if
         seen += 1
     next
@@ -802,20 +802,20 @@ end function
 '' is instead. Same value either way: the referent is module storage too, so its address
 '' does not change between passes.
 function BindAliasStorage _
-    ( byref c as Ctx, byval sid as Fbx.SymbolId, byval init_ as Fbx.NodeId, _
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval init_ as Tko.NodeId, _
       byval inModule as boolean ) as boolean
 
-    if init_ = Fbx.NODE_NONE then return false
+    if init_ = Tko.NODE_NONE then return false
     '' THE SLOT HAS TO BE A POINTER, or this stores an address into something that is
     '' not one. Two shapes reach here without a reference type: an alias whose element
     '' type never resolved -- 'dim byref as cva_list r = args', where the slot is VOID
     '' -- and a REDECLARATION already reported as an error, where the first declaration
     '' won and it is a plain integer. Both were verify failures, and both are honest
     '' declines: there is no alias storage to bind.
-    dim as Fbx.Symbol ptr asym = c.syms->SymbolAt( sid )
+    dim as Tko.Symbol ptr asym = c.syms->SymbolAt( sid )
     if asym = 0 then return false
-    if asym->type_ = Fbx.TYPE_NONE then return false
-    if c.types->Kind( asym->type_ ) <> Fbx.TK_REFERENCE then return false
+    if asym->type_ = Tko.TYPE_NONE then return false
+    if c.types->Kind( asym->type_ ) <> Tko.TK_REFERENCE then return false
     dim as MirValue dst
     if inModule then
         dim as long g = GlobalFor( c, sid )
@@ -837,16 +837,16 @@ function BindAliasStorage _
     return true
 end function
 
-function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
+function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
     dim as MirValue v
 
     '' A CONSTANT HAS NO ADDRESS. 'const PI = 3.5' emits no variable, so asking for one
     '' invented a slot and loaded it uninitialised -- 'd = PI' stored garbage, silently
     '' and without declining. Constants fold in LowerPredeclared; one that will not fold
     '' has to decline here rather than be given storage it never had.
-    dim as Fbx.Symbol ptr cs = c.syms->SymbolAt( sid )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( sid )
     if cs <> 0 then
-        if cs->kind = cast( ubyte, Fbx.SYM_CONSTANT ) then return v
+        if cs->kind = cast( ubyte, Tko.SYM_CONSTANT ) then return v
         '' A REFERENCE DOES have storage now -- a slot holding the address it aliases,
         '' the same shape a byref parameter has -- and the load that turns that slot
         '' into the referent's address is at the end of this function, where every
@@ -867,7 +867,7 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
         '' A procedure's address is an M_FUNC_ADDR over the function table, which
         '' FuncAddrOf already builds for procptr; this is the same thing reached by
         '' the other spelling.
-        if cs->kind = cast( ubyte, Fbx.SYM_PROC ) then return FuncAddrOf( c, sid )
+        if cs->kind = cast( ubyte, Tko.SYM_PROC ) then return FuncAddrOf( c, sid )
     end if
     dim as boolean inModule = IsSharedVar( c, sid )
     if IsStaticLocal( c, sid ) then inModule = true
@@ -882,8 +882,8 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
         '' function. Without it 'sb = 3' stored an i64 into a pointer slot, which the
         '' verifier caught: the store was clobbering the alias rather than the referent.
         if cs <> 0 then
-            if cs->type_ <> Fbx.TYPE_NONE then
-                if c.types->Kind( cs->type_ ) = Fbx.TK_REFERENCE then
+            if cs->type_ <> Tko.TYPE_NONE then
+                if c.types->Kind( cs->type_ ) = Tko.TK_REFERENCE then
                     return LowerExprLoad( c, v, MT_PTR )
                 end if
             end if
@@ -910,8 +910,8 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
     '' were one macro -- fbcunit's CU_ASSERT_ -- called with a BYREF argument, and the
     '' identical call with a byval one lowered.
     if cs <> 0 then
-        if cs->type_ <> Fbx.TYPE_NONE then
-            if c.types->Kind( cs->type_ ) = Fbx.TK_REFERENCE then
+        if cs->type_ <> Tko.TYPE_NONE then
+            if c.types->Kind( cs->type_ ) = Tko.TK_REFERENCE then
                 return LowerExprLoad( c, v, MT_PTR )
             end if
 
@@ -925,7 +925,7 @@ function AddrOfVar( byref c as Ctx, byval sid as Fbx.SymbolId ) as MirValue
             '' pointer stored over its first field -- so 'a( 0 ) = 1' loaded the
             '' descriptor's own address where the DATA pointer belongs and wrote through
             '' it, corrupting the descriptor. It lowered and it verified.
-            if cs->kind = cast( ubyte, Fbx.SYM_PARAMETER ) then
+            if cs->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
                 if c.types->IsDynArray( cs->type_ ) then
                     return LowerExprLoad( c, v, MT_PTR )
                 end if

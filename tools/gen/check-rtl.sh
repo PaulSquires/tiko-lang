@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-rtl.sh -- fbx's runtime inventory against the signatures fbc emits.
+# check-rtl.sh -- tiko-lang's runtime inventory against the signatures fbc emits.
 #
 #   tools/gen/check-rtl.sh
 #

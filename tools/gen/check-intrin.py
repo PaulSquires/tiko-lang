@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Compare fbx's EXPRESSION-intrinsic result types with fbc's, on both targets.
+"""Compare tiko-lang's EXPRESSION-intrinsic result types with fbc's, on both targets.
 
     python tools/gen/check-intrin.py
 
 Reads tests/types/expected/fbc-intrin.txt -- produced by intrin-truth.py from fbc itself
--- and replays every (intrinsic, argument) pair through fbx.
+-- and replays every (intrinsic, argument) pair through tiko-lang.
 
 NOT EXACT, deliberately. fbc CONSTANT-FOLDS several of these, so 'chr( 1 )' is a
 ZSTRING * 2 and 'str( 1 )' a ZSTRING * n where the same call on a variable is STRING.
@@ -15,12 +15,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-import fbxtargets
+import tkotargets
 
 ROOT = Path(__file__).resolve().parents[2]
 TRUTH = ROOT / "tests/types/expected/fbc-intrin.txt"
 WORK = ROOT / "build/.in"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 DECLS = [
     "dim shared as byte v_byte", "dim shared as long v_long",
@@ -33,7 +33,7 @@ DECLS = [
 TWO_ARG = {"instr", "instrrev", "mid"}
 
 
-def one_target(fbx, label, truth, tgtargs) -> int:
+def one_target(tiko, label, truth, tgtargs) -> int:
     if not truth.exists():
         print(f"check-intrin: {label}: no truth file; run tools/gen/intrin-truth.py",
               file=sys.stderr)
@@ -49,9 +49,9 @@ def one_target(fbx, label, truth, tgtargs) -> int:
             src.append(f"print {fn}( {arg} )")
         line_of[len(src)] = i
 
-    probe = WORK / "intrin-fbx.bas"
+    probe = WORK / "intrin-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
-    proc = subprocess.run([str(fbx), "--check"] + tgtargs + [str(probe)],
+    proc = subprocess.run([str(tiko), "--check"] + tgtargs + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -67,16 +67,16 @@ def one_target(fbx, label, truth, tgtargs) -> int:
         if norm == w:
             ok += 1
             continue
-        # fbc folded a constant argument to a fixed-length string; fbx does not fold.
+        # fbc folded a constant argument to a fixed-length string; tiko-lang does not fold.
         if w.startswith(("ZSTRING *", "WSTRING *")) and norm in ("STRING", "REJECT"):
             folded += 1
             continue
-        bad.append(f"{fn}( {arg} ): fbc={want} fbx={mine}")
+        bad.append(f"{fn}( {arg} ): fbc={want} tiko={mine}")
 
     print(f"check-intrin: {label} {ok}/{len(rows)} match")
     if folded:
         print(f"check-intrin: {label} {folded} more are rows fbc CONSTANT-FOLDS to a "
-              f"fixed-length string; fbx does not fold and says so")
+              f"fixed-length string; tiko-lang does not fold and says so")
     if bad:
         print(f"check-intrin: {label} {len(bad)} disagreements, first 20:")
         for b in bad[:20]:
@@ -85,13 +85,13 @@ def one_target(fbx, label, truth, tgtargs) -> int:
 
 
 def main() -> int:
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print("check-intrin: fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print("check-intrin: tiko not built", file=sys.stderr)
         return 3
     rc = 0
-    for label, truth, tgtargs in fbxtargets.check_targets(TRUTH):
-        if one_target(fbx, label, truth, tgtargs) != 0:
+    for label, truth, tgtargs in tkotargets.check_targets(TRUTH):
+        if one_target(tiko, label, truth, tgtargs) != 0:
             rc = 1
     return rc
 

@@ -18,15 +18,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-import fbxtargets
+import tkotargets
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# The toolchains live in fbxtargets, so control.py can point a half elsewhere.
+# The toolchains live in tkotargets, so control.py can point a half elsewhere.
 TARGETS = [
-    ("win64", fbxtargets.FBC64, ROOT / "tests/types/expected/fbc-const.txt",
+    ("win64", tkotargets.FBC64, ROOT / "tests/types/expected/fbc-const.txt",
      ROOT / "build/.ce"),
-    ("win32", fbxtargets.FBC32, ROOT / "tests/types/expected/fbc-const-win32.txt",
+    ("win32", tkotargets.FBC32, ROOT / "tests/types/expected/fbc-const-win32.txt",
      ROOT / "build/.ce32"),
 ]
 

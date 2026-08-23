@@ -20,17 +20,17 @@
 ''   - Arithmetic on BOOLEAN is rejected outright: 'boolean + boolean' is an error,
 ''     while 'boolean and long' is fine and yields INTEGER.
 
-#ifndef __FBX_CHECK_BI__
-#define __FBX_CHECK_BI__
+#ifndef __TKO_CHECK_BI__
+#define __TKO_CHECK_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "ast/nodes.bi"
 #include once "symbols/symbol.bi"
 #include once "symbols/resolve.bi"
 #include once "types/type.bi"
 #include once "diag/engine.bi"
 
-namespace Fbx.Check
+namespace Tko.Check
 
     type Stats
         as long typed          '' expressions given a type
@@ -99,11 +99,11 @@ namespace Fbx.Check
     '' refused outright. Measured, not inferred: tests/types/expected/fbc-ptr.txt.
     '' The string element of a 'zstring * n' / 'wstring * n', or TYPE_NONE.
     declare function FixedStringElem _
-        ( byval t as Fbx.TypeId, byref types as Fbx.TypeContext ) as Fbx.TypeId
+        ( byval t as Tko.TypeId, byref types as Tko.TypeContext ) as Tko.TypeId
 
     declare function ConversionCost _
-        ( byval from_ as Fbx.TypeId, byval to_ as Fbx.TypeId, _
-          byref types as Fbx.TypeContext, _
+        ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
+          byref types as Tko.TypeContext, _
           byval overloaded as boolean = false ) as long
 
     '' Whether 'target = source' is allowed, and whether fbc warns about it.
@@ -136,7 +136,7 @@ namespace Fbx.Check
     end type
 
     declare function ConstFloatOf _
-        ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byref outd as double, _
+        ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
           byval depth as long = 0 ) as boolean
 
     '' Fold an expression to an integer constant, matching fbc bit for bit. The
@@ -150,33 +150,33 @@ namespace Fbx.Check
     '' constant. Without them an identifier is simply not constant, which is the
     '' honest answer for a caller with no scope to look a name up in.
     declare function ConstOf _
-        ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, _
-          byref src as Fbx.SourceManager, byref names as Fbx.Interner, _
-          byval intBits as long = 64, byval syms as Fbx.SymbolTable ptr = 0, _
-          byval scope_ as Fbx.ScopeId = 0, byval depth as long = 0 ) as ConstVal
+        ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
+          byref src as Tko.SourceManager, byref names as Tko.Interner, _
+          byval intBits as long = 64, byval syms as Tko.SymbolTable ptr = 0, _
+          byval scope_ as Tko.ScopeId = 0, byval depth as long = 0 ) as ConstVal
 
     declare function AssignableTo _
-        ( byval src as Fbx.TypeId, byval dst as Fbx.TypeId, _
-          byref types as Fbx.TypeContext ) as AssignKind
+        ( byval src as Tko.TypeId, byval dst as Tko.TypeId, _
+          byref types as Tko.TypeContext ) as AssignKind
 
     '' The type of 'lhs op rhs', or TYPE_NONE if the combination is not allowed.
     declare function BinaryResult _
-        ( byval op as Fbx.TokenKind, byval lhs as Fbx.TypeId, byval rhs as Fbx.TypeId, _
-          byref types as Fbx.TypeContext ) as Fbx.TypeId
+        ( byval op as Tko.TokenKind, byval lhs as Tko.TypeId, byval rhs as Tko.TypeId, _
+          byref types as Tko.TypeContext ) as Tko.TypeId
 
     declare function Run _
-        ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-          byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
-          byref names as Fbx.Interner, byref diags as Fbx.DiagnosticEngine, _
-          byref info as Fbx.SemanticInfo, byref st as Stats ) as long
+        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+          byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
+          byref info as Tko.SemanticInfo, byref st as Stats ) as long
 
     '' One line per PRINT argument: the source line, and the type computed for it.
-    '' That shape exists so tools/gen/check-promo.sh can put fbx's answer next to
+    '' That shape exists so tools/gen/check-promo.sh can put tiko-lang's answer next to
     '' fbc's for the same 3,920 combinations.
     declare function Dump _
-        ( byref ast as Fbx.AstArena, byref src as Fbx.SourceManager, _
-          byref types as Fbx.TypeContext, byref names as Fbx.Interner, _
-          byref info as Fbx.SemanticInfo, byref st as Stats ) as string
+        ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+          byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byref info as Tko.SemanticInfo, byref st as Stats ) as string
 
 end namespace
 

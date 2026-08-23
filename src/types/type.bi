@@ -15,13 +15,13 @@
 ''     dump is stable across runs.
 ''   - Interning is by structural key: Pointer(Long) asked for twice is one id.
 
-#ifndef __FBX_TYPE_BI__
-#define __FBX_TYPE_BI__
+#ifndef __TKO_TYPE_BI__
+#define __TKO_TYPE_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "support/intern.bi"
 
-namespace Fbx
+namespace Tko
 
     type TypeId as ulong
     const TYPE_NONE as TypeId = 0
@@ -32,7 +32,7 @@ namespace Fbx
     '' a 64-bit one -- while 'long'/'ulong' are always 32 and 'longint'/'ulongint'
     '' always 64. That is the single most common source of ported-code bugs, so the
     '' width here is a PROPERTY resolved by the data layout, not a number.
-    #macro FBX_BUILTIN_LIST( BUILTIN )
+    #macro TKO_BUILTIN_LIST( BUILTIN )
         BUILTIN( TY_VOID,     "void",     0,   false, TC_VOID  )
         BUILTIN( TY_BYTE,     "byte",     8,   true,  TC_INT   )
         BUILTIN( TY_UBYTE,    "ubyte",    8,   false, TC_INT   )
@@ -86,7 +86,7 @@ namespace Fbx
     enum BuiltinType
         TY_NONE = 0
         #define BUILTIN( b_id, b_name, b_bits, b_signed, b_class ) b_id,
-        FBX_BUILTIN_LIST( BUILTIN )
+        TKO_BUILTIN_LIST( BUILTIN )
         #undef BUILTIN
         TY_BUILTIN_COUNT
     end enum
@@ -128,7 +128,7 @@ namespace Fbx
                                    '' which spells a namespaced UDT as N<prefix>3VECE.
     end type
 
-    '' The targets fbx can compile for. Windows comes in both widths; Linux is 64-bit
+    '' The targets tiko-lang can compile for. Windows comes in both widths; Linux is 64-bit
     '' only, deliberately -- x86-32 Linux is a THIRD set of layout numbers (wchar is 4
     '' bytes there, and 8-byte alignment differs) and nobody has asked for it.
     enum TargetId
@@ -224,7 +224,7 @@ namespace Fbx
     '' The layout of one target. Every number in it is measured from fbc for that
     '' target, not derived from the width.
     declare function TargetLayoutFor( byval t as TargetId ) as TargetLayout
-    '' The target fbx defaults to when none is named: the one it is running on.
+    '' The target tiko-lang defaults to when none is named: the one it is running on.
     declare function HostTarget( ) as TargetId
     declare function TargetName( byval t as TargetId ) as string
     declare function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId

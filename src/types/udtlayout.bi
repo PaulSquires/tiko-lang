@@ -14,14 +14,14 @@
 ''   - A UNION places every member at offset 0; its size is the largest member's,
 ''     rounded up to its own alignment.
 
-#ifndef __FBX_UDTLAYOUT_BI__
-#define __FBX_UDTLAYOUT_BI__
+#ifndef __TKO_UDTLAYOUT_BI__
+#define __TKO_UDTLAYOUT_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "types/type.bi"
 #include once "symbols/symbol.bi"
 
-namespace Fbx
+namespace Tko
 
     type UdtField
         as InternId name

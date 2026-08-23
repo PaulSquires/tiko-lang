@@ -1,4 +1,4 @@
-'' A statement whose head is a KEYWORD-led expression rather than a name. fbx's
+'' A statement whose head is a KEYWORD-led expression rather than a name. tiko-lang's
 '' dispatcher only started a statement at an identifier; fbc allows any assignable
 '' expression, and parses several it then rejects semantically.
 ''

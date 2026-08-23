@@ -7,7 +7,7 @@
 # parse with no crash and no unexplained diagnostic. Separate from build/test.sh
 # because it takes seconds rather than milliseconds; CI runs both.
 #
-# Set FBX_FB_INC to a FreeBASIC 'inc' directory so the corpus's system includes
+# Set TKO_FB_INC to a FreeBASIC 'inc' directory so the corpus's system includes
 # (fbgfx.bi, fb/*.bi, win/*.bi) resolve.
 
 set -e
@@ -30,7 +30,7 @@ run_pass( ) {
     : > "build/.$mode.out"
     : > "build/.$mode.err"
     for c in build/.chunk.*; do
-        ./bin/fbx$EXT "--$mode-only" $EXTRA "$@" $(cat "$c" | tr '\n' ' ') \
+        ./bin/tiko$EXT "--$mode-only" $EXTRA "$@" $(cat "$c" | tr '\n' ' ') \
             >> "build/.$mode.out" 2>> "build/.$mode.err" || true
     done
     rm -f build/.chunk.*
@@ -38,12 +38,12 @@ run_pass( ) {
 
 # Count files that produced at least one diagnostic in the given id range.
 files_with( ) {
-    grep -oE "^[^(]+\([0-9]+,[0-9]+\): error FBX$1" "build/.$2.err" 2>/dev/null \
+    grep -oE "^[^(]+\([0-9]+,[0-9]+\): error TKO$1" "build/.$2.err" 2>/dev/null \
         | sed 's/(.*//' | sort -u | wc -l
 }
 
 INC="-i $CORPUS -i $CORPUS/fbcunit/inc"
-[ -n "$FBX_FB_INC" ] && INC="$INC -i $FBX_FB_INC"
+[ -n "$TKO_FB_INC" ] && INC="$INC -i $TKO_FB_INC"
 
 # ---- pass 1: lexing only
 run_pass lex

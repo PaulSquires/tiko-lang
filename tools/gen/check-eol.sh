@@ -8,19 +8,19 @@
 #
 # It was invisible to every measurement in the repo: core.autocrlf=true converts the
 # vendored corpus to CRLF on checkout, so the entire sweep runs on CRLF and the LF path is
-# never exercised. fbx targets Linux, where source is LF, and it has never been built
+# never exercised. tiko-lang targets Linux, where source is LF, and it has never been built
 # there -- so this class of bug had nothing at all standing in its way.
 #
 # BATCHED, and that is the whole reason it is usable. Run file-by-file it took 5m16s for
 # 400 files -- four processes each, and process launch under Git Bash on Windows costs far
-# more than the 24ms fbx itself needs. fbx takes many inputs per run and prints one
+# more than the 24ms tiko-lang itself needs. tiko-lang takes many inputs per run and prints one
 # 'lowered:' summary per file, so the same 400 files are two invocations.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 CORPUS=tests/vendor/fbc-tests
 [ -d "$CORPUS" ] || { echo "check-eol: corpus not vendored" >&2; exit 3; }
-N=${FBX_EOL_SAMPLE:-400}
+N=${TKO_EOL_SAMPLE:-400}
 
 find "$CORPUS" -name '*.bas' | sort | head -"$N" > build/.eol.lst
 rm -rf build/.eolwork && mkdir -p build/.eolwork
@@ -30,10 +30,10 @@ rm -rf build/.eolwork && mkdir -p build/.eolwork
 awk 'FNR==1{ n++; out=sprintf("build/.eolwork/%05d.bas", n) }
      { sub(/\r$/, ""); print > out }' $(cat build/.eol.lst)
 
-# The N_ERROR count per file, in input order: fbx prints the breakdown before each
+# The N_ERROR count per file, in input order: tiko-lang prints the breakdown before each
 # file's 'lowered:' line, and omits the line entirely when the count is zero.
 counts() {
-    ./bin/fbx.exe --dump-ir "$@" 2>/dev/null | awk '
+    ./bin/tiko.exe --dump-ir "$@" 2>/dev/null | awk '
         /unlowered N_ERROR/ { cur = $3 }
         /^lowered:/         { print cur + 0; cur = 0 }'
 }

@@ -1,6 +1,6 @@
-'' fbxtest.bas -- the fbx test runner.
+'' tikotest.bas -- the tiko-lang test runner.
 ''
-''     bin/fbx-test [suite...] [--accept] [--filter <pat>] [--fbx <path>] [-v]
+''     bin/tiko-test [suite...] [--accept] [--filter <pat>] [--tiko-lang <path>] [-v]
 ''
 '' A test is a file under tests/ whose first lines carry directives in comments:
 ''
@@ -10,10 +10,10 @@
 ''     '' GOLDEN: expected/foo.out  golden output, relative to the test's directory
 ''     '' EXPECT-OUT: some text     required substring of the output (repeatable)
 ''     '' EXPECT-NOT: other text    forbidden substring (repeatable)
-''     '' EXPECT-MAX-DIAG: 3        at most N ': error FBX' lines -- the recovery gate
+''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
 ''
 '' Kinds:
-''     cli     run fbx with ARGS and check exit code, golden and substrings
+''     cli     run tiko-lang with ARGS and check exit code, golden and substrings
 ''     skip    parsed and reported as skipped -- a placeholder for a later phase
 ''
 '' --accept rewrites GOLDEN files. It is the only sanctioned way to update them, and
@@ -47,7 +47,7 @@ end type
 type Options
     as Array( of string ) suites
     as string filter
-    as string fbxPath
+    as string tikoPath
     as boolean accept
     as boolean verbose
 end type
@@ -202,7 +202,7 @@ end function
 
 '' --------------------------------------------------------------------- running
 
-'' Runs fbx and captures stdout+stderr together. This uses a shell redirection,
+'' Runs tiko-lang and captures stdout+stderr together. This uses a shell redirection,
 '' which the COMPILER itself is forbidden to do (docs/plan/14 section 7) -- the
 '' prohibition is about untrusted input reaching a command line, and here every
 '' component comes from a checked-in test file.
@@ -220,13 +220,13 @@ function NativePath( byval p as string ) as string
     return r
 end function
 
-function RunFbx _
-    ( byval fbxPath as string, byval args as string, byref outText as string ) as long
+function RunTko _
+    ( byval tikoPath as string, byval args as string, byref outText as string ) as long
 
-    dim as string tmp = "build/.fbxtest.out"
+    dim as string tmp = "build/.tikotest.out"
     '' --color=never goes FIRST: appended last, a trailing value-taking option in
     '' the test's own ARGS would swallow it as its value.
-    dim as string cmd = NativePath( fbxPath ) & " --color=never " & args & _
+    dim as string cmd = NativePath( tikoPath ) & " --color=never " & args & _
                         " > " & NativePath( tmp ) & " 2>&1"
     dim as long rc = shell( cmd )
     outText = NormalizeEol( ReadTextFile( tmp ) )
@@ -259,7 +259,7 @@ function RunOne _
     wend
 
     '' The variable is set for this run and cleared straight after, so a test that
-    '' needs an environment cannot leak it into the next one. Order matters: fbx reads
+    '' needs an environment cannot leak it into the next one. Order matters: tiko-lang reads
     '' it at startup, so it must be in place before the shell( ) and gone before the
     '' following test builds its own command.
     for each e_ as string in tc.env
@@ -267,7 +267,7 @@ function RunOne _
     next
 
     dim as string outText = ""
-    dim as long rc = RunFbx( opts.fbxPath, args, outText )
+    dim as long rc = RunTko( opts.tikoPath, args, outText )
 
     for each e_ as string in tc.env
         dim as long eq = instr( e_, "=" )
@@ -297,10 +297,10 @@ function RunOne _
         '' The plan's recovery criterion: a broken file yields a few useful messages,
         '' not a cascade (docs/plan/04 section 8).
         dim as long count = 0
-        dim as long at = instr( outText, ": error FBX" )
+        dim as long at = instr( outText, ": error TKO" )
         while at > 0
             count += 1
-            at = instr( at + 1, outText, ": error FBX" )
+            at = instr( at + 1, outText, ": error TKO" )
         wend
         if count > tc.maxDiag then
             why = "produced " & count & " diagnostics, at most " & tc.maxDiag & " allowed"
@@ -327,9 +327,9 @@ end function
 '' ------------------------------------------------------------------------ main
 
 dim as Options opts
-opts.fbxPath = "bin/fbx.exe"
+opts.tikoPath = "bin/tiko.exe"
 #ifndef __FB_WIN32__
-    opts.fbxPath = "bin/fbx"
+    opts.tikoPath = "bin/tiko"
 #endif
 opts.accept = false
 opts.verbose = false
@@ -342,10 +342,10 @@ while len( command( argi ) ) > 0
     case "--accept" : opts.accept = true
     case "-v"       : opts.verbose = true
     case "--filter" : argi += 1 : opts.filter = command( argi )
-    case "--fbx"    : argi += 1 : opts.fbxPath = command( argi )
+    case "--tiko-lang"    : argi += 1 : opts.tikoPath = command( argi )
     case else
         if StartsWith( a, "-" ) then
-            print "fbx-test: unknown option '" & a & "'"
+            print "tiko-test: unknown option '" & a & "'"
             end 2
         end if
         opts.suites.Push( a )
@@ -396,7 +396,7 @@ for each path as string in files
 next
 
 print
-print "fbx-test " & RUNNER_VERSION & ": " & passed & " passed, " & _
+print "tiko-test " & RUNNER_VERSION & ": " & passed & " passed, " & _
       failed & " failed, " & skipped & " skipped"
 
 if failed > 0 then end 1

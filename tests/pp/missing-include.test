@@ -1,4 +1,4 @@
 '' TEST: cli
 '' ARGS: --pp-only tests/pp/src/nosuch.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: FBX0301: cannot open include file 'does-not-exist.bi'
+'' EXPECT-OUT: TKO0301: cannot open include file 'does-not-exist.bi'

@@ -13,7 +13,7 @@ file tests/lexer/src/strings.bas, 14 tokens
    11    3:7    STRING              kind=0 <unterminated>
    12    3:20   EOL
    13    4:1    EOF
-tests/lexer/src/strings.bas(3,7): warning FBX0201: missing closing quote in string literal
+tests/lexer/src/strings.bas(3,7): warning TKO0201: missing closing quote in string literal
      |
    3 | print "unterminated
      |       ^~~~~~~~~~~~~~

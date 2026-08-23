@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-udt.sh -- fbx's UDT layout against fbc's, shape by shape.
+# check-udt.sh -- tiko-lang's UDT layout against fbc's, shape by shape.
 #
 #   tools/gen/check-udt.sh
 #

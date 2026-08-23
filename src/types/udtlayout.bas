@@ -2,7 +2,7 @@
 
 #include once "types/udtlayout.bi"
 
-namespace Fbx
+namespace Tko
 
 function UdtLayouts.Find( byval t as TypeId ) as long
     for i as long = 0 to this.udts.Count - 1

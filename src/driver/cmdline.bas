@@ -4,7 +4,7 @@
 #include once "support/text.bi"
 #include once "fb/filesystem.bi"
 
-namespace Fbx
+namespace Tko
 
 dim shared as OptInfo optTable( 0 to OPT_COUNT - 1 )
 dim shared as boolean optTableReady = false
@@ -25,7 +25,7 @@ sub InitOptTable( )
         optTable(o_id).argName = @o_arg
         optTable(o_id).help = @o_help
     #endmacro
-    FBX_OPT_LIST( OPT )
+    TKO_OPT_LIST( OPT )
     #undef OPT
 
     optTableReady = true
@@ -52,7 +52,7 @@ end function
 constructor DriverOptions( )
     this.outputPath = ""
     this.targetName = ""
-    this.target = Fbx.HostTarget( )
+    this.target = Tko.HostTarget( )
     this.widthOverride = 0
     this.compileOnly = false
     this.debugInfo = false
@@ -88,12 +88,12 @@ end constructor
 
 end namespace
 
-namespace Fbx.Cmdline
+namespace Tko.Cmdline
 
 function VersionText( ) as string
-    dim as string v = str( Fbx.FBX_VERSION_MAJOR ) & "." & _
-                      str( Fbx.FBX_VERSION_MINOR ) & "." & _
-                      str( Fbx.FBX_VERSION_PATCH ) & Fbx.FBX_VERSION_SUFFIX
+    dim as string v = str( Tko.TKO_VERSION_MAJOR ) & "." & _
+                      str( Tko.TKO_VERSION_MINOR ) & "." & _
+                      str( Tko.TKO_VERSION_PATCH ) & Tko.TKO_VERSION_SUFFIX
 
     dim as string arch = "x86_64"
     #ifdef __FB_WIN32__
@@ -103,36 +103,36 @@ function VersionText( ) as string
     #endif
 
     dim as string outp = ""
-    outp += "fbx " & v & " -- a FreeBASIC-compatible compiler" & chr( 10 )
-    outp += "target " & os_ & ", language compatibility fbc " & Fbx.FBX_FBC_COMPAT & chr( 10 )
+    outp += "tiko-lang " & v & " -- a FreeBASIC-compatible compiler" & chr( 10 )
+    outp += "target " & os_ & ", language compatibility fbc " & Tko.TKO_FBC_COMPAT & chr( 10 )
     outp += "built with FreeBASIC " & __FB_VERSION__ & " (" & __FB_SIGNATURE__ & ")" & chr( 10 )
     return outp
 end function
 
 function HelpText( byval category as string = "" ) as string
-    Fbx.InitOptTable( )
+    Tko.InitOptTable( )
 
-    dim as string want = Fbx.Text.LowerAscii( trim( category ) )
+    dim as string want = Tko.Text.LowerAscii( trim( category ) )
     dim as boolean filtered = (len( want ) > 0)
 
     dim as string outp = ""
-    outp += "usage: fbx [options] <inputs...>" & chr( 10 ) & chr( 10 )
+    outp += "usage: tiko-lang [options] <inputs...>" & chr( 10 ) & chr( 10 )
 
-    for c as long = Fbx.OPTCAT_GENERAL to Fbx.OPTCAT_DEVEL
-        dim as string catName = Fbx.CategoryName( cast( Fbx.OptCategory, c ) )
+    for c as long = Tko.OPTCAT_GENERAL to Tko.OPTCAT_DEVEL
+        dim as string catName = Tko.CategoryName( cast( Tko.OptCategory, c ) )
         dim as boolean skip = filtered andalso _
-                              (instr( Fbx.Text.LowerAscii( catName ), want ) = 0)
+                              (instr( Tko.Text.LowerAscii( catName ), want ) = 0)
         if skip then continue for
 
         dim as string body = ""
-        for i as long = 1 to Fbx.OPT_COUNT - 1
-            dim as Fbx.OptInfo ptr info = Fbx.OptInfoOf( cast( Fbx.OptId, i ) )
+        for i as long = 1 to Tko.OPT_COUNT - 1
+            dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
             if info->category <> c then continue for
 
             dim as string spell = *info->spelling
             dim as string arg = *info->argName
             if len( arg ) > 0 then
-                if info->kind = Fbx.OPTK_JOINED then
+                if info->kind = Tko.OPTK_JOINED then
                     spell += "<" & arg & ">"
                 else
                     spell += " <" & arg & ">"
@@ -166,22 +166,22 @@ private function SplitEq _
     return true
 end function
 
-'' fbx ships no headers of its own, and until this it searched no directory it had
+'' tiko-lang ships no headers of its own, and until this it searched no directory it had
 '' not been given: '#include "vbcompat.bi"' failed where fbc compiles it clean. fbc's
 '' search ends at <exe-dir>/inc, and 144 of the corpus's 145 include failures are that
 '' one missing rule -- 17 of them parse completely clean once it is there.
 ''
 '' Appended LAST, so every -i the user gave still wins, and only if the directory
 '' actually exists: a search path that is not there costs a stat per include for
-'' nothing. Both layouts are tried, because fbx lives in bin/ and fbc does not:
+'' nothing. Both layouts are tried, because tiko-lang lives in bin/ and fbc does not:
 ''
 ''     <exe-dir>/inc        fbc's shape
-''     <exe-dir>/../inc     fbx's, with the exe in bin/
+''     <exe-dir>/../inc     tiko-lang's, with the exe in bin/
 ''
-'' FBX_INCLUDE overrides both, which is how a build with no bundled headers -- the
+'' TKO_INCLUDE overrides both, which is how a build with no bundled headers -- the
 '' corpus runs, today -- points at a header set without every caller repeating -i.
-private sub AppendDefaultIncludeDir( byref opts as Fbx.DriverOptions )
-    dim as ustring env_ = environ( "FBX_INCLUDE" )
+private sub AppendDefaultIncludeDir( byref opts as Tko.DriverOptions )
+    dim as ustring env_ = environ( "TKO_INCLUDE" )
     if len( env_ ) > 0 then
         opts.includePaths.Push( env_ )
         return
@@ -200,31 +200,31 @@ private sub AppendDefaultIncludeDir( byref opts as Fbx.DriverOptions )
     if FB.IsDir( cand ) then opts.includePaths.Push( cand )
 end sub
 
-private function MatchExact( byval arg as string ) as Fbx.OptId
-    Fbx.InitOptTable( )
-    for i as long = 1 to Fbx.OPT_COUNT - 1
-        dim as Fbx.OptInfo ptr info = Fbx.OptInfoOf( cast( Fbx.OptId, i ) )
-        if *info->spelling = arg then return cast( Fbx.OptId, i )
+private function MatchExact( byval arg as string ) as Tko.OptId
+    Tko.InitOptTable( )
+    for i as long = 1 to Tko.OPT_COUNT - 1
+        dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
+        if *info->spelling = arg then return cast( Tko.OptId, i )
     next
-    return Fbx.OPT_NONE
+    return Tko.OPT_NONE
 end function
 
 '' Longest joined prefix wins, so "-Wno-" beats a hypothetical "-W".
 private function MatchJoined _
-    ( byval arg as string, byref value as string ) as Fbx.OptId
+    ( byval arg as string, byref value as string ) as Tko.OptId
 
-    Fbx.InitOptTable( )
-    dim as Fbx.OptId best = Fbx.OPT_NONE
+    Tko.InitOptTable( )
+    dim as Tko.OptId best = Tko.OPT_NONE
     dim as long bestLen = 0
 
-    for i as long = 1 to Fbx.OPT_COUNT - 1
-        dim as Fbx.OptInfo ptr info = Fbx.OptInfoOf( cast( Fbx.OptId, i ) )
-        if info->kind <> Fbx.OPTK_JOINED then continue for
+    for i as long = 1 to Tko.OPT_COUNT - 1
+        dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
+        if info->kind <> Tko.OPTK_JOINED then continue for
         dim as string spell = *info->spelling
         dim as long n = len( spell )
         dim as boolean fits = (len( arg ) > n) andalso (left( arg, n ) = spell)
         if fits andalso (n > bestLen) then
-            best = cast( Fbx.OptId, i )
+            best = cast( Tko.OptId, i )
             bestLen = n
             value = mid( arg, n + 1 )
         end if
@@ -233,10 +233,10 @@ private function MatchJoined _
 end function
 
 function Parse _
-    ( byref args as Fbx.StrVec, byref opts as Fbx.DriverOptions, _
-      byref diags as Fbx.DiagnosticEngine ) as boolean
+    ( byref args as Tko.StrVec, byref opts as Tko.DriverOptions, _
+      byref diags as Tko.DiagnosticEngine ) as boolean
 
-    Fbx.InitOptTable( )
+    Tko.InitOptTable( )
 
     dim as boolean ok = true
     dim as boolean noMoreOptions = false
@@ -262,44 +262,44 @@ function Parse _
         '' Three spellings are tried in order: exact, --opt=value, then joined.
         dim as string value = ""
         dim as boolean haveValue = false
-        dim as Fbx.OptId id = MatchExact( arg )
+        dim as Tko.OptId id = MatchExact( arg )
 
-        if id = Fbx.OPT_NONE then
+        if id = Tko.OPT_NONE then
             dim as string lhs = "", rhs = ""
             if SplitEq( arg, lhs, rhs ) then
                 id = MatchExact( lhs )
-                if id <> Fbx.OPT_NONE then
+                if id <> Tko.OPT_NONE then
                     value = rhs
                     haveValue = true
                 end if
             end if
         end if
 
-        if id = Fbx.OPT_NONE then
+        if id = Tko.OPT_NONE then
             id = MatchJoined( arg, value )
-            if id <> Fbx.OPT_NONE then haveValue = true
+            if id <> Tko.OPT_NONE then haveValue = true
         end if
 
-        if id = Fbx.OPT_NONE then
-            diags.ReportGlobal( Fbx.FBX0100, arg )
+        if id = Tko.OPT_NONE then
+            diags.ReportGlobal( Tko.TKO0100, arg )
             ok = false
             i += 1
             continue while
         end if
 
-        dim as Fbx.OptInfo ptr info = Fbx.OptInfoOf( id )
+        dim as Tko.OptInfo ptr info = Tko.OptInfoOf( id )
 
         '' A separated value is consumed only for OPTK_VALUE, and only when the
         '' next argument exists. --help is the one option whose value is optional.
-        dim as boolean wantsValue = (info->kind = Fbx.OPTK_VALUE) orelse _
-                                    (info->kind = Fbx.OPTK_OPTVALUE)
+        dim as boolean wantsValue = (info->kind = Tko.OPTK_VALUE) orelse _
+                                    (info->kind = Tko.OPTK_OPTVALUE)
         if wantsValue andalso (haveValue = false) then
-            dim as boolean optionalValue = (info->kind = Fbx.OPTK_OPTVALUE)
+            dim as boolean optionalValue = (info->kind = Tko.OPTK_OPTVALUE)
             dim as boolean hasNext = (i + 1 < n)
 
             '' An OPTIONAL value must be attached: '--dump-tokens=pp', never
             '' '--dump-tokens pp'. Consuming a separate argument would make
-            '' 'fbx --dump-tokens file.bas' ambiguous -- and it silently ate the
+            '' 'tiko-lang --dump-tokens file.bas' ambiguous -- and it silently ate the
             '' input file when this was first written.
             dim as boolean takeIt = hasNext andalso (optionalValue = false)
 
@@ -308,7 +308,7 @@ function Parse _
                 haveValue = true
                 i += 1
             elseif optionalValue = false then
-                diags.ReportGlobal( Fbx.FBX0101, arg )
+                diags.ReportGlobal( Tko.TKO0101, arg )
                 ok = false
                 i += 1
                 continue while
@@ -316,120 +316,120 @@ function Parse _
         end if
 
         select case id
-        case Fbx.OPT_HELP
+        case Tko.OPT_HELP
             opts.showHelp = true
             if haveValue then opts.helpCategory = value
-        case Fbx.OPT_VERSION  : opts.showVersion = true
-        case Fbx.OPT_VERBOSE  : opts.verbose = true
+        case Tko.OPT_VERSION  : opts.showVersion = true
+        case Tko.OPT_VERBOSE  : opts.verbose = true
 
-        case Fbx.OPT_INCLUDE  : opts.includePaths.Push( value )
-        case Fbx.OPT_DEFINE   : opts.defines.Push( value )
-        case Fbx.OPT_LIBPATH  : opts.libPaths.Push( value )
-        case Fbx.OPT_LIB      : opts.libs.Push( value )
+        case Tko.OPT_INCLUDE  : opts.includePaths.Push( value )
+        case Tko.OPT_DEFINE   : opts.defines.Push( value )
+        case Tko.OPT_LIBPATH  : opts.libPaths.Push( value )
+        case Tko.OPT_LIB      : opts.libs.Push( value )
 
-        case Fbx.OPT_OUTPUT   : opts.outputPath = value
-        case Fbx.OPT_COMPILE  : opts.compileOnly = true
-        case Fbx.OPT_DEBUG    : opts.debugInfo = true
-        case Fbx.OPT_MT       : opts.threadSafe = true
+        case Tko.OPT_OUTPUT   : opts.outputPath = value
+        case Tko.OPT_COMPILE  : opts.compileOnly = true
+        case Tko.OPT_DEBUG    : opts.debugInfo = true
+        case Tko.OPT_MT       : opts.threadSafe = true
 
-        case Fbx.OPT_OPTLEVEL
+        case Tko.OPT_OPTLEVEL
             dim as long lvl = valint( value )
             dim as boolean bad = (len( value ) <> 1) orelse (lvl < 0) orelse (lvl > 3)
             if bad then
-                diags.ReportGlobal( Fbx.FBX0106, value, "-O" )
+                diags.ReportGlobal( Tko.TKO0106, value, "-O" )
                 ok = false
             else
                 opts.optLevel = lvl
             end if
 
-        case Fbx.OPT_TARGET
+        case Tko.OPT_TARGET
             dim as boolean known = false
-            dim as Fbx.TargetId t = Fbx.TargetFromName( value, known )
+            dim as Tko.TargetId t = Tko.TargetFromName( value, known )
             if known = false then
-                diags.ReportGlobal( Fbx.FBX0103, value )
+                diags.ReportGlobal( Tko.TKO0103, value )
                 ok = false
             else
                 opts.target = t
-                opts.targetName = Fbx.TargetName( t )
+                opts.targetName = Tko.TargetName( t )
             end if
 
         '' -m32 and -m64 pick the WIDTH of the target family, and are resolved after
         '' the whole line is read so that they do not depend on where they appear.
-        case Fbx.OPT_M64      : opts.widthOverride = 64
-        case Fbx.OPT_M32      : opts.widthOverride = 32
+        case Tko.OPT_M64      : opts.widthOverride = 64
+        case Tko.OPT_M32      : opts.widthOverride = 32
 
-        case Fbx.OPT_WERROR   : opts.warningsAsErrors = true
-        case Fbx.OPT_WNO
-            dim as Fbx.DiagId d = Fbx.DiagIdFromName( value )
-            if d = Fbx.DIAG_NONE then
-                diags.ReportGlobal( Fbx.FBX0105, value )
+        case Tko.OPT_WERROR   : opts.warningsAsErrors = true
+        case Tko.OPT_WNO
+            dim as Tko.DiagId d = Tko.DiagIdFromName( value )
+            if d = Tko.DIAG_NONE then
+                diags.ReportGlobal( Tko.TKO0105, value )
             else
-                opts.ignoredDiags.Push( Fbx.DiagIdName( d ) )
+                opts.ignoredDiags.Push( Tko.DiagIdName( d ) )
             end if
 
-        case Fbx.OPT_MAXERR
+        case Tko.OPT_MAXERR
             dim as long m = valint( value )
             if m < 1 then
-                diags.ReportGlobal( Fbx.FBX0106, value, "-fmax-errors" )
+                diags.ReportGlobal( Tko.TKO0106, value, "-fmax-errors" )
                 ok = false
             else
                 opts.maxErrors = m
             end if
 
-        case Fbx.OPT_COLOR
-            dim as string w = Fbx.Text.LowerAscii( value )
+        case Tko.OPT_COLOR
+            dim as string w = Tko.Text.LowerAscii( value )
             select case w
-            case "always" : opts.colorMode = Fbx.COLOR_ALWAYS
-            case "never"  : opts.colorMode = Fbx.COLOR_NEVER
-            case "auto"   : opts.colorMode = Fbx.COLOR_AUTO
+            case "always" : opts.colorMode = Tko.COLOR_ALWAYS
+            case "never"  : opts.colorMode = Tko.COLOR_NEVER
+            case "auto"   : opts.colorMode = Tko.COLOR_AUTO
             case else
-                diags.ReportGlobal( Fbx.FBX0106, value, "--color" )
+                diags.ReportGlobal( Tko.TKO0106, value, "--color" )
                 ok = false
             end select
 
-        case Fbx.OPT_DIAGFMT
-            dim as string w = Fbx.Text.LowerAscii( value )
+        case Tko.OPT_DIAGFMT
+            dim as string w = Tko.Text.LowerAscii( value )
             select case w
-            case "fbc" : opts.diagFormat = Fbx.DIAGFMT_FBC
-            case "gnu" : opts.diagFormat = Fbx.DIAGFMT_GNU
+            case "fbc" : opts.diagFormat = Tko.DIAGFMT_FBC
+            case "gnu" : opts.diagFormat = Tko.DIAGFMT_GNU
             case else
-                diags.ReportGlobal( Fbx.FBX0106, value, "--diagnostics-format" )
+                diags.ReportGlobal( Tko.TKO0106, value, "--diagnostics-format" )
                 ok = false
             end select
 
-        case Fbx.OPT_DUMPSRC   : opts.dumpSource = true
-        case Fbx.OPT_DUMPTOK
+        case Tko.OPT_DUMPSRC   : opts.dumpSource = true
+        case Tko.OPT_DUMPTOK
             opts.dumpTokens = true
             if haveValue then
-                dim as string w = Fbx.Text.LowerAscii( value )
+                dim as string w = Tko.Text.LowerAscii( value )
                 select case w
                 case "pp"  : opts.dumpPp = true
                 case "raw" : opts.dumpPp = false
                 case else
-                    diags.ReportGlobal( Fbx.FBX0106, value, "--dump-tokens" )
+                    diags.ReportGlobal( Tko.TKO0106, value, "--dump-tokens" )
                     ok = false
                 end select
             end if
-        case Fbx.OPT_LEXONLY   : opts.lexOnly = true
-        case Fbx.OPT_PPONLY    : opts.ppOnly = true
-        case Fbx.OPT_DUMPAST   : opts.dumpAst = true
-        case Fbx.OPT_PARSEEXPR : opts.parseExpr = true
-        case Fbx.OPT_PARSEONLY : opts.parseOnly = true
-        case Fbx.OPT_DUMPTYPES : opts.dumpTypes = true
-        case Fbx.OPT_DUMPSYMS  : opts.dumpSymbols = true
-        case Fbx.OPT_RESOLVE   : opts.resolveOnly = true
-        case Fbx.OPT_MANGLE    : opts.dumpMangle = true
-        case Fbx.OPT_CHECK     : opts.checkOnly = true
-        case Fbx.OPT_UDT       : opts.dumpUdt = true
-        case Fbx.OPT_VTABLE    : opts.dumpVtable = true
-        case Fbx.OPT_RTL       : opts.dumpRtl = true
-        case Fbx.OPT_DUMPIR    : opts.dumpIr = true
-        case Fbx.OPT_EMITIR    : opts.emitIr = true
-        case Fbx.OPT_EMITASM   : opts.emitAsm = true
-        case Fbx.OPT_KEEPTEMPS : opts.keepTemps = true
-        case Fbx.OPT_STATS     : opts.stats = true
-        case Fbx.OPT_TIMEPASS  : opts.timePasses = true
-        case Fbx.OPT_SUBSET    : opts.bootstrapCheck = true
+        case Tko.OPT_LEXONLY   : opts.lexOnly = true
+        case Tko.OPT_PPONLY    : opts.ppOnly = true
+        case Tko.OPT_DUMPAST   : opts.dumpAst = true
+        case Tko.OPT_PARSEEXPR : opts.parseExpr = true
+        case Tko.OPT_PARSEONLY : opts.parseOnly = true
+        case Tko.OPT_DUMPTYPES : opts.dumpTypes = true
+        case Tko.OPT_DUMPSYMS  : opts.dumpSymbols = true
+        case Tko.OPT_RESOLVE   : opts.resolveOnly = true
+        case Tko.OPT_MANGLE    : opts.dumpMangle = true
+        case Tko.OPT_CHECK     : opts.checkOnly = true
+        case Tko.OPT_UDT       : opts.dumpUdt = true
+        case Tko.OPT_VTABLE    : opts.dumpVtable = true
+        case Tko.OPT_RTL       : opts.dumpRtl = true
+        case Tko.OPT_DUMPIR    : opts.dumpIr = true
+        case Tko.OPT_EMITIR    : opts.emitIr = true
+        case Tko.OPT_EMITASM   : opts.emitAsm = true
+        case Tko.OPT_KEEPTEMPS : opts.keepTemps = true
+        case Tko.OPT_STATS     : opts.stats = true
+        case Tko.OPT_TIMEPASS  : opts.timePasses = true
+        case Tko.OPT_SUBSET    : opts.bootstrapCheck = true
         end select
 
         i += 1
@@ -438,16 +438,16 @@ function Parse _
     '' The width override, now that the whole line is known. Linux is 64-bit only by
     '' decision, so -m32 there is an error rather than a silent win32.
     if opts.widthOverride = 32 then
-        if Fbx.TargetIsWindows( opts.target ) then
-            opts.target = Fbx.TARGET_WIN32
+        if Tko.TargetIsWindows( opts.target ) then
+            opts.target = Tko.TARGET_WIN32
         else
-            diags.ReportGlobal( Fbx.FBX0104 )
+            diags.ReportGlobal( Tko.TKO0104 )
             ok = false
         end if
     elseif opts.widthOverride = 64 then
-        if Fbx.TargetIsWindows( opts.target ) then opts.target = Fbx.TARGET_WIN64
+        if Tko.TargetIsWindows( opts.target ) then opts.target = Tko.TARGET_WIN64
     end if
-    opts.targetName = Fbx.TargetName( opts.target )
+    opts.targetName = Tko.TargetName( opts.target )
 
     AppendDefaultIncludeDir( opts )
 

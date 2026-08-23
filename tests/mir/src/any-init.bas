@@ -16,7 +16,7 @@ dim n as integer = any
 dim p as any ptr = any
 dim u as U = any
 
-'' The runtime QUERIES that had no declaration at all. fbc predeclares them; fbx
+'' The runtime QUERIES that had no declaration at all. fbc predeclares them; tiko-lang
 '' declares them in its prelude, and all three return a 32-bit LONG on both targets.
 dim f as long = freefile
 dim e as long = err

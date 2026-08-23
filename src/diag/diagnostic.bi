@@ -4,13 +4,13 @@
 '' by diag/render. Nothing formats a message by hand and nothing writes to the console
 '' except the renderer.
 
-#ifndef __FBX_DIAGNOSTIC_BI__
-#define __FBX_DIAGNOSTIC_BI__
+#ifndef __TKO_DIAGNOSTIC_BI__
+#define __TKO_DIAGNOSTIC_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "source/location.bi"
 
-namespace Fbx
+namespace Tko
 
     '' Ordered by increasing seriousness: policy code compares severities.
     enum Severity
@@ -30,17 +30,17 @@ namespace Fbx
 
     '' DIAGFMT_FBC is the default: existing FreeBASIC editors already parse it.
     enum DiagOutputFormat
-        DIAGFMT_FBC = 0      '' path(line,col): error FBX0001: msg
-        DIAGFMT_GNU          '' path:line:col: error: msg [FBX0001]
+        DIAGFMT_FBC = 0      '' path(line,col): error TKO0001: msg
+        DIAGFMT_GNU          '' path:line:col: error: msg [TKO0001]
     end enum
 
     '' The table needs Severity, so it is included HERE -- inside the namespace and
     '' after the enum above. Including it outside would put DiagId in the global
-    '' namespace, where Fbx.DiagId does not resolve.
+    '' namespace, where Tko.DiagId does not resolve.
     #include once "diag/diagids.bi"
 
     type DiagInfo
-        as zstring ptr idName        '' "FBX0100" -- the stable spelling
+        as zstring ptr idName        '' "TKO0100" -- the stable spelling
         as Severity    defaultSev
         as zstring ptr format        '' with %0 %1 %2 placeholders
     end type
@@ -68,7 +68,7 @@ namespace Fbx
     declare function DiagInfoOf( byval id as DiagId ) as DiagInfo ptr
     declare function DiagIdName( byval id as DiagId ) as string
 
-    '' Resolve "FBX0100" (case-insensitive) back to its id; DIAG_NONE if unknown.
+    '' Resolve "TKO0100" (case-insensitive) back to its id; DIAG_NONE if unknown.
     declare function DiagIdFromName( byval spelling as string ) as DiagId
 
     '' Substitute %0..%2 in fmt. A '%' not followed by a digit is literal.

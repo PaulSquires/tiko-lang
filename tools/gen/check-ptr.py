@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Compare fbx's pointer conversions with fbc's, over every measured combination.
+"""Compare tiko-lang's pointer conversions with fbc's, over every measured combination.
 
     python tools/gen/check-ptr.py
 
 Reads tests/types/expected/fbc-ptr.txt -- produced by ptr-truth.py from fbc itself --
-and replays both of its sections through fbx.
+and replays both of its sections through tiko-lang.
 
-  accept rows: one candidate, so the call either types or it does not. fbx printing a
+  accept rows: one candidate, so the call either types or it does not. tiko-lang printing a
                type means it took the call; '?' means it refused.
   pick rows:   two candidates differing only in RETURN type, which takes no part in
                resolution. BYTE names the first, SHORT the second, '?' a refusal --
@@ -18,13 +18,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-ptr.txt"
 TGT = []
 LABEL = "win64"
 WORK = ROOT / "build/.ptr"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 # Kept in step with ptr-truth.py: same declarations, same order.
 DECLS = [
@@ -54,9 +54,9 @@ def one_target() -> int:
     if not TRUTH.exists():
         print(f"check-ptr: {LABEL} no truth file; run tools/gen/ptr-truth.py", file=sys.stderr)
         return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print(f"check-ptr: {LABEL} fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print(f"check-ptr: {LABEL} tiko not built", file=sys.stderr)
         return 3
 
     rows = [line.split("\t")
@@ -81,10 +81,10 @@ def one_target() -> int:
             src.append(f"print {fn}( {arg} )")
         line_of[len(src)] = i
 
-    probe = WORK / "ptr-fbx.bas"
+    probe = WORK / "ptr-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
+    proc = subprocess.run([str(tiko), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -102,7 +102,7 @@ def one_target() -> int:
         if r[0] == "accept":
             _, arg, pt, want = r
             mine_ok = "no" if mine == "?" else "yes"
-            # 'warn' is fbc ACCEPTING with warning 3. fbx does not issue that warning
+            # 'warn' is fbc ACCEPTING with warning 3. tiko-lang does not issue that warning
             # yet, so the comparison here is acceptance only, and the shortfall is
             # reported rather than folded away.
             if want == "warn":
@@ -111,19 +111,19 @@ def one_target() -> int:
             if mine_ok == want:
                 ok += 1
             else:
-                bad.append(f"accept {arg} -> {pt}: fbc={want} fbx={mine_ok}")
+                bad.append(f"accept {arg} -> {pt}: fbc={want} tiko={mine_ok}")
         else:
             _, a, b, arg, want = r
             chose = a if mine == "byte" else (b if mine == "short" else "reject")
             if chose == want:
                 ok += 1
             else:
-                bad.append(f"pick {a} vs {b}, arg {arg}: fbc={want} fbx={chose}")
+                bad.append(f"pick {a} vs {b}, arg {arg}: fbc={want} tiko={chose}")
 
     print(f"check-ptr: {LABEL} {ok}/{len(rows)} match")
     if warn_rows:
         print(f"check-ptr: {LABEL} {warn_rows} of those are conversions fbc WARNS about "
-              f"(warning 3); fbx accepts them silently -- the warning is not "
+              f"(warning 3); tiko-lang accepts them silently -- the warning is not "
               f"implemented")
     if missing:
         print(f"check-ptr: {LABEL} {missing} rows produced no output")
@@ -138,7 +138,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

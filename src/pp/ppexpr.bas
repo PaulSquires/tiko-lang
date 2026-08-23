@@ -8,7 +8,7 @@
 '' Values are an int64 or a string. FreeBASIC's '#if' compares strings with '=' and
 '' '<>' (as in '#if __FB_LANG__ = "fb"'), so both kinds are first class.
 
-namespace Fbx
+namespace Tko
 
 type PpValue
     as boolean  isStr

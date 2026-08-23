@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-layout.sh -- fbx's builtin layout must agree with fbc's, field by field.
+# check-layout.sh -- tiko-lang's builtin layout must agree with fbc's, field by field.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
@@ -13,7 +13,7 @@ one( ) {
         echo "check-layout: no $label expectations; run tools/gen/layout-truth.sh" >&2
         return 3
     fi
-    ./bin/fbx$EXT --dump-types $tgt tests/lexer/src/basics.bas 2>/dev/null \
+    ./bin/tiko$EXT --dump-types $tgt tests/lexer/src/basics.bas 2>/dev/null \
         > "build/.types-$label.out"
     bad=0
     while read -r name size align; do
@@ -22,7 +22,7 @@ one( ) {
         got_size=$(echo "$line" | sed -n 's/.*size= *\([0-9]*\).*/\1/p')
         got_align=$(echo "$line" | sed -n 's/.*align= *\([0-9]*\).*/\1/p')
         if [ "$got_size" != "$size" ] || [ "$got_align" != "$align" ]; then
-            echo "check-layout: $label $name fbc=$size/$align fbx=$got_size/$got_align" >&2
+            echo "check-layout: $label $name fbc=$size/$align tiko-lang=$got_size/$got_align" >&2
             bad=$((bad + 1))
         fi
     done < "$TRUTH"

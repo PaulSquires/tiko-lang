@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-overload.sh -- fbx's overload choice against fbc's, over every measured pair.
+# check-overload.sh -- tiko-lang's overload choice against fbc's, over every measured pair.
 #
 #   tools/gen/check-overload.sh
 #

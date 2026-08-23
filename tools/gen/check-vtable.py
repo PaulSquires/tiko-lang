@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Compare fbx's virtual method tables with fbc's, slot by slot, on BOTH targets.
+"""Compare tiko-lang's virtual method tables with fbc's, slot by slot, on BOTH targets.
 
     python tools/gen/check-vtable.py
 
 Reads tests/types/expected/fbc-vtable.txt and fbc-vtable-win32.txt -- produced by
 vtable-truth.py from the C fbc leaves behind -- and compares each with
-'fbx --dump-vtable' over the same source.
+'tiko-lang --dump-vtable' over the same source.
 
 A slot at the wrong index does not fail loudly. It calls the WRONG METHOD, with the
 right number of arguments and a plausible answer, so a table either matches completely
@@ -18,13 +18,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import fbxtargets
+import tkotargets
 import importlib
 
 vtruth = importlib.import_module("vtable-truth".replace("-", "_")) \
     if False else None
 
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 TRUTH = ROOT / "tests/types/expected/fbc-vtable.txt"
 WORK = ROOT / "build/.vtc"
 
@@ -58,7 +58,7 @@ def one_target(label, truth, tgtargs) -> int:
     src = WORK / "vt.bas"
     src.write_text("\n".join(s.strip() for _, s in load_cases()) + "\n"
                    + "dim as long __vt_keep\n", encoding="utf-8")
-    proc = subprocess.run([str(FBX), "--dump-vtable", str(src)] + tgtargs,
+    proc = subprocess.run([str(TKO), "--dump-vtable", str(src)] + tgtargs,
                           capture_output=True, text=True)
 
     # 'vsimple vtable 2 slot(s)' then '  slot 0 _ZN7VSIMPLE1FEv'
@@ -74,9 +74,9 @@ def one_target(label, truth, tgtargs) -> int:
         if m and cur is not None:
             got[cur][int(m.group(1))] = m.group(2)
 
-    # fbx names a table by its TYPE; fbc by the mangled '_ZTVN...E' global. Matching is
+    # tiko-lang names a table by its TYPE; fbc by the mangled '_ZTVN...E' global. Matching is
     # by the SLOT CONTENTS' owner rather than by decoding one spelling into the other:
-    # each fbc table is found by the fbx table whose type name it encodes.
+    # each fbc table is found by the tiko-lang table whose type name it encodes.
     def fbc_type_of(table):
         m = re.fullmatch(r"_ZTVN?(\d+)(\w+?)E?", table)
         if not m:
@@ -88,12 +88,12 @@ def one_target(label, truth, tgtargs) -> int:
     for table, slots in sorted(want.items()):
         ty = fbc_type_of(table)
         if ty is None or ty not in got:
-            bad.append(f"    {table}: fbx has no table for '{ty}'")
+            bad.append(f"    {table}: tiko-lang has no table for '{ty}'")
             continue
         g = got[ty]
         checked += 1
         if g["count"] != slots["count"]:
-            bad.append(f"    {ty}: fbc has {slots['count']} slot(s), fbx {g['count']}")
+            bad.append(f"    {ty}: fbc has {slots['count']} slot(s), tiko-lang {g['count']}")
             continue
         for i in range(slots["count"]):
             w = slots[i]
@@ -102,7 +102,7 @@ def one_target(label, truth, tgtargs) -> int:
             if w == "0":
                 w = "<abstract>"
             if v != w:
-                bad.append(f"    {ty}.slot{i}: fbc={w} fbx={v}")
+                bad.append(f"    {ty}.slot{i}: fbc={w} tiko={v}")
 
     if bad:
         print(f"check-vtable: {label} {checked - len(set(b.split(chr(46))[0] for b in bad))}"
@@ -116,11 +116,11 @@ def one_target(label, truth, tgtargs) -> int:
 
 
 def main() -> int:
-    if not FBX.exists():
-        print("check-vtable: bin/fbx.exe not built", file=sys.stderr)
+    if not TKO.exists():
+        print("check-vtable: bin/tiko.exe not built", file=sys.stderr)
         return 3
     rc = 0
-    for label, truth, tgtargs in fbxtargets.check_targets(TRUTH):
+    for label, truth, tgtargs in tkotargets.check_targets(TRUTH):
         rc |= one_target(label, truth, tgtargs)
     return rc
 

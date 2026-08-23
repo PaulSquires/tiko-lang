@@ -1,4 +1,4 @@
-'' The mangling probe corpus. Every shape whose symbol name fbx must reproduce
+'' The mangling probe corpus. Every shape whose symbol name tiko-lang must reproduce
 '' byte for byte; the expected names are extracted from fbc, never written by hand.
 type UDT
     as long q

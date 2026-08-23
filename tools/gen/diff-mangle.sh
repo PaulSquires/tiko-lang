@@ -1,21 +1,21 @@
 #!/bin/sh
-# diff-mangle.sh -- the D3 gate at CORPUS scale: fbx's mangled names against fbc's,
-# over third-party source rather than over a probe fbx's author wrote.
+# diff-mangle.sh -- the D3 gate at CORPUS scale: tiko-lang's mangled names against fbc's,
+# over third-party source rather than over a probe tiko-lang's author wrote.
 #
 #   tools/gen/diff-mangle.sh [<file-count>]
 #
 # For each corpus file fbc can compile standalone, the object file's CODE symbols are
-# compared with fbx --dump-mangle. Files fbc rejects are skipped and counted, not
+# compared with tiko-lang --dump-mangle. Files fbc rejects are skipped and counted, not
 # silently dropped: a gate that quietly compares nothing reports a perfect score.
 #
 # Only code-section symbols are compared. An object file's externals also carry
 # public variables and the linker's .refptr.* indirection stubs for imported data,
-# and fbx --dump-mangle emits procedures only.
+# and tiko-lang --dump-mangle emits procedures only.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-FBC=${FBX_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
-FBX="$ROOT/bin/fbx.exe"
-[ -x "$FBX" ] || FBX="$ROOT/bin/fbx"
+FBC=${TKO_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+TKO="$ROOT/bin/tiko.exe"
+[ -x "$TKO" ] || TKO="$ROOT/bin/tiko"
 LIST="$ROOT/build/.corpus.lst"
 WORK="$ROOT/build/.mg/d"
 LIMIT=${1:-400}
@@ -26,11 +26,11 @@ LIMIT=${1:-400}
 rm -rf "$WORK"
 mkdir -p "$WORK"
 : > "$WORK/miss.txt"
-# fbc knows its own inc/ directory implicitly; fbx has to be told, or the comparison
+# fbc knows its own inc/ directory implicitly; tiko-lang has to be told, or the comparison
 # is between a compiler that found its headers and one that did not.
 FBCINC=$(dirname "$FBC")/inc
 INC="-i $ROOT/tests/vendor/fbc-tests -i $ROOT/tests/vendor/fbc-tests/fbcunit/inc"
-FBXINC="$INC -i $FBCINC"
+TKOINC="$INC -i $FBCINC"
 
 # A UNIQUE object per file, never a reused one. Sharing a single t.o means a
 # lingering lock on Windows makes 'rm' fail, and under 'set -e' that aborted the run
@@ -47,7 +47,7 @@ for f in $(head -"$LIMIT" "$LIST"); do
         | tr -d '\r' | sort -u > "$WORK/a.txt" || { skip=$((skip + 1)); continue; }
     n=$(wc -l < "$WORK/a.txt" | tr -d ' ')
     [ "$n" -eq 0 ] && { skip=$((skip + 1)); continue; }
-    timeout 25 "$FBX" --dump-mangle $FBXINC "$f" 2>/dev/null \
+    timeout 25 "$TKO" --dump-mangle $TKOINC "$f" 2>/dev/null \
         | tr -d '\r' | sort -u > "$WORK/b.txt" || true
     h=$(comm -12 "$WORK/a.txt" "$WORK/b.txt" | wc -l | tr -d ' ')
     ok=$((ok + 1)); tot=$((tot + n)); hit=$((hit + h))

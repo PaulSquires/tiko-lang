@@ -8,10 +8,10 @@
 '' pipeline stops there. Every later phase adds one step to Run( ) and nothing else
 '' about this module changes shape.
 
-#ifndef __FBX_DRIVER_BI__
-#define __FBX_DRIVER_BI__
+#ifndef __TKO_DRIVER_BI__
+#define __TKO_DRIVER_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "driver/options.bi"
 #include once "diag/engine.bi"
 #include once "source/manager.bi"
@@ -19,9 +19,9 @@
 #include once "lexer/lexer.bi"
 #include once "types/type.bi"
 
-namespace Fbx
+namespace Tko
 
-    '' One per fbx process invocation. Nothing in the compiler is global; everything
+    '' One per tiko-lang process invocation. Nothing in the compiler is global; everything
     '' hangs off this, which is what makes parallel compilation possible later and
     '' in-process fuzzing possible now.
     type CompilerContext
@@ -37,10 +37,10 @@ namespace Fbx
 
 end namespace
 
-namespace Fbx.Driver
+namespace Tko.Driver
 
-    '' Returns a process exit code from Fbx.ExitCode.
-    declare function Run( byref args as Fbx.StrVec ) as long
+    '' Returns a process exit code from Tko.ExitCode.
+    declare function Run( byref args as Tko.StrVec ) as long
 
 end namespace
 

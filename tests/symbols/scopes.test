@@ -6,5 +6,5 @@
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: enumconst 'red'
 '' EXPECT-OUT: scope 4 type of 'point'
-'' EXPECT-NOT: FBX0600
+'' EXPECT-NOT: TKO0600
 '' GOLDEN: expected/scopes.out

@@ -4,7 +4,7 @@
 '' hide sets free: the macro is hidden exactly while its frame is on the stack, and
 '' rescanning happens naturally because the main loop reads from the top frame.
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------------ definition
 
@@ -108,13 +108,13 @@ end function
 private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock as boolean )
     dim as Token t
     if PeekOnLine( e, t ) = false then
-        Report( e, FBX0316, at, iif( isBlock, "macro", "define" ) )
+        Report( e, TKO0316, at, iif( isBlock, "macro", "define" ) )
         return
     end if
     if Tk( t ) <> TK_IDENT then
         '' Redefining a keyword is legal in FreeBASIC and the corpus does it.
         if IsKeywordKind( Tk( t ) ) = false then
-            Report( e, FBX0316, t.loc, iif( isBlock, "macro", "define" ) )
+            Report( e, TKO0316, t.loc, iif( isBlock, "macro", "define" ) )
             SkipToEol( e )
             return
         end if
@@ -156,7 +156,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     '' '#ifdef __FB_64BIT__', both genuinely active on win64. It looked for a long
     '' time like a conditional-stack bug -- the two definitions sit under mutually
     '' exclusive-LOOKING guards 1,500 lines apart -- and it was not one. A probe
-    '' inserted at the first definition proved fbx knew the target was 64-bit there.
+    '' inserted at the first definition proved tiko-lang knew the target was 64-bit there.
     dim as boolean wasDefined = m->isDefined
     dim as boolean oldIsFunc = m->isFunc
     dim as TokenVec oldBody
@@ -181,7 +181,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
         CollectLine( e, m->body, true )
         if wasDefined then
             if IdenticalRedefinition_( m, oldIsFunc, oldBody ) = false then
-                Report( e, FBX0305, at, e.names->Spelling( id ) )
+                Report( e, TKO0305, at, e.names->Spelling( id ) )
             end if
         end if
         return
@@ -192,7 +192,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     do
         dim as Token u
         if PeekTok( e, u ) = false then
-            Report( e, FBX0311, at )
+            Report( e, TKO0311, at )
             exit do
         end if
 
@@ -228,7 +228,7 @@ end sub
 private sub PpUndef( byref e as PpEngine, byval at as SourceLoc )
     dim as Token t
     if PeekOnLine( e, t ) = false then
-        Report( e, FBX0316, at, "undef" )
+        Report( e, TKO0316, at, "undef" )
         return
     end if
     if Tk( t ) = TK_IDENT then
@@ -269,7 +269,7 @@ private function PpReadArgs _
 
     do
         if PeekTok( e, t ) = false then
-            Report( e, FBX0307, m->loc, e.names->Spelling( m->name ) )
+            Report( e, TKO0307, m->loc, e.names->Spelling( m->name ) )
             return false
         end if
 
@@ -278,7 +278,7 @@ private function PpReadArgs _
             '' Running out of tokens is only an error for the parenthesised form; the
             '' bare form is simply finished.
             if bare then exit do
-            Report( e, FBX0307, m->loc, e.names->Spelling( m->name ) )
+            Report( e, TKO0307, m->loc, e.names->Spelling( m->name ) )
             return false
         end if
         if bare andalso (k = TK_EOL) then exit do
@@ -394,7 +394,7 @@ end function
 '' then "", which is why 113 corpus files reported 'expected )' at a fbcunit assert.
 ''
 '' And the literal is '$'-prefixed, i.e. NON-escaped, so a backslash in the argument
-'' stays a backslash rather than becoming an escape. That costs nothing today (fbx does
+'' stays a backslash rather than becoming an escape. That costs nothing today (tiko-lang does
 '' not decode escapes yet) and is free to get right now rather than later.
 private function Stringised_( byref t as string ) as string
     dim as string r = "$"""
@@ -603,7 +603,7 @@ private function PpExpand _
         if m->isVariadic then need = want - 1
         dim as boolean countOk = (got = want) orelse (m->isVariadic andalso (got >= need))
         if countOk = false then
-            Report( e, FBX0306, use.loc, e.names->Spelling( m->name ), str( want ) )
+            Report( e, TKO0306, use.loc, e.names->Spelling( m->name ), str( want ) )
             return true
         end if
 
@@ -691,7 +691,7 @@ function PpExpandBuiltin _
                 '' Shifted down rather than popped, because the entry to drop is not
                 '' always the array's top -- two names can interleave.
                 if utop < 0 then
-                    Report( e, FBX0319, use.loc, ArgText( e, uargs, 0 ) )
+                    Report( e, TKO0319, use.loc, ArgText( e, uargs, 0 ) )
                 end if
                 if utop >= 0 then
                     for i as long = utop to e.uidNames.Count - 2
@@ -710,7 +710,7 @@ function PpExpandBuiltin _
                     e.uidValues.Push( cast( ulong, e.uniqueCounter ) )
                     utop = e.uidNames.Count - 1
                 end if
-                RelexInto( e, "__fbx_uid_" & e.uidValues[utop], use.loc, *buf )
+                RelexInto( e, "__tko_uid_" & e.uidValues[utop], use.loc, *buf )
             end if
         end if
 
@@ -753,7 +753,7 @@ function PpExpandBuiltin _
             dim as boolean iok = false
             dim as longint i = BuiltinIntArg_( e, args, 0, iok )
             if (iok = false) orelse (i < 0) then
-                Report( e, FBX0324, use.loc, "1", e.names->Spelling( m->name ) )
+                Report( e, TKO0324, use.loc, "1", e.names->Spelling( m->name ) )
             elseif (i + 1) < args.firsts.Count then
                 RelexInto( e, ArgText( e, args, cast( long, i ) + 1 ), use.loc, *buf )
             end if
@@ -782,7 +782,7 @@ function PpExpandBuiltin _
             dim as boolean sok = false
             dim as longint stp = BuiltinIntArg_( e, args, 1, sok )
             if sok = false then
-                Report( e, FBX0324, use.loc, "2", e.names->Spelling( m->name ) )
+                Report( e, TKO0324, use.loc, "2", e.names->Spelling( m->name ) )
             else
                 dim as string mname = trim( ArgText( e, args, 0 ) )
                 dim as long n = args.firsts.Count - 2      '' the list length
@@ -828,7 +828,7 @@ function PpExpandBuiltin _
         end if
 
     case else
-        Report( e, FBX0314, use.loc, e.names->Spelling( m->name ) )
+        Report( e, TKO0314, use.loc, e.names->Spelling( m->name ) )
     end select
 
     if buf->IsEmpty( ) then

@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-callconv.sh -- fbx's DECLARE/definition calling-convention rule against fbc's.
+# check-callconv.sh -- tiko-lang's DECLARE/definition calling-convention rule against fbc's.
 #
 #   tools/gen/check-callconv.sh
 #

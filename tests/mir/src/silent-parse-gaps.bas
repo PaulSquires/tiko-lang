@@ -20,7 +20,7 @@
 ''
 '' It declined for a while first, and that was the right answer at the time: parsing
 '' BYREF without declining turned a statement that silently vanished into one that
-'' silently aliased nothing. 'rb = 5 : print a' prints 5 under fbc; fbx would have
+'' silently aliased nothing. 'rb = 5 : print a' prints 5 under fbc; tiko-lang would have
 '' printed 1.
 ''
 '' A SHARED or STATIC alias is module storage holding an address, and fbc initialises it
@@ -29,7 +29,7 @@
 '' is instead. Same value either way: the referent is module storage too, so its address
 '' does not change between passes.
 ''
-'' EXPLICIT is recorded and its SCOPING is not implemented: fbx still resolves a bare
+'' EXPLICIT is recorded and its SCOPING is not implemented: tiko-lang still resolves a bare
 '' member where fbc gives error 42. Accepting more than fbc never loses a file; the
 '' diagnostic is owed.
 

@@ -3,5 +3,5 @@
 '' TEST: cli
 '' ARGS: --dump-tokens tests/lexer/src/strings.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: FBX0201
+'' EXPECT-OUT: TKO0201
 '' GOLDEN: expected/strings.out

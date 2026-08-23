@@ -3,7 +3,7 @@
 #include once "support/intern.bi"
 #include once "support/text.bi"
 
-namespace Fbx
+namespace Tko
 
 const INTERN_INITIAL_SLOTS as long = 4096
 const INTERN_MAX_LOAD_NUM  as long = 7      '' grow past 7/10 occupancy
@@ -119,7 +119,7 @@ function Interner.Fold( byval id as InternId ) as InternId
     dim as InternId result = id
     if n > 0 then
         dim as ubyte ptr tmp = allocate( n )
-        Fbx.Text.LowerAsciiInto( this.entries[idx].bytes, n, tmp )
+        Tko.Text.LowerAsciiInto( this.entries[idx].bytes, n, tmp )
         '' Get( ) may push a new entry, which can reallocate the entries array --
         '' so re-index afterwards rather than holding a reference across the call.
         result = this.Get( tmp, n )

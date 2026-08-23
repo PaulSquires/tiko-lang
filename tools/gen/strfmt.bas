@@ -1,12 +1,12 @@
-'' strfmt.bas -- print fbx's float rendering for every row of a str truth file.
+'' strfmt.bas -- print tiko-lang's float rendering for every row of a str truth file.
 ''
 ''     strfmt <truth-file>
 ''
 '' Driven by tools/gen/check-str.py. Rows are keyed by BIT PATTERN, not by a decimal
 '' literal, so this program never depends on a literal parser -- its own or fbc's --
-'' and a row means exactly "given these 64 bits, fbx writes this text".
+'' and a row means exactly "given these 64 bits, tiko-lang writes this text".
 ''
-'' Compiled against src/support/fbstr.bas directly rather than going through bin/fbx.exe:
+'' Compiled against src/support/fbstr.bas directly rather than going through bin/tiko.exe:
 '' the formatter has no command-line surface yet, and a gate that can only run once the
 '' driver exposes one is a gate that does not run.
 
@@ -36,10 +36,10 @@ while eof( fh ) = 0
             dim as ulongint q = valulng( "&h" + bits )
             dim as string got
             if kind = "d" then
-                got = Fbx.Text.StrOfDouble( *cptr( double ptr, @q ) )
+                got = Tko.Text.StrOfDouble( *cptr( double ptr, @q ) )
             else
                 dim as ulong w = cast( ulong, q )
-                got = Fbx.Text.StrOfSingle( *cptr( single ptr, @w ) )
+                got = Tko.Text.StrOfSingle( *cptr( single ptr, @w ) )
             end if
             print kind + chr(9) + bits + chr(9) + got
         end if

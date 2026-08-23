@@ -27,7 +27,7 @@
 ''
 '' ONE DIVERGENCE, and it is fbc's OVERLOAD RESOLUTION rather than lowering: for
 '' 'trim( wv )' fbc picks the NARROW trim and converts around it --
-'' fb_WstrAssignToA into a temporary, fb_TRIM, fb_WstrAssignFromA back -- where fbx
+'' fb_WstrAssignToA into a temporary, fb_TRIM, fb_WstrAssignFromA back -- where tiko-lang
 '' calls fb_WstrTrim on the converted pointer directly. Same value, three calls fewer.
 ''
 '' Implicit user conversion to a NUMBER is the same idea at a different set of call

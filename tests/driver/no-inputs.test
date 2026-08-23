@@ -1,4 +1,4 @@
 '' TEST: cli
 '' ARGS:
 '' EXPECT-EXIT: 2
-'' EXPECT-OUT: FBX0102: no input files
+'' EXPECT-OUT: TKO0102: no input files

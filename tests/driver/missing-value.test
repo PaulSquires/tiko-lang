@@ -1,4 +1,4 @@
 '' TEST: cli
 '' ARGS: tests/source/plain.bas -o
 '' EXPECT-EXIT: 2
-'' EXPECT-OUT: FBX0101: option '-o' requires an argument
+'' EXPECT-OUT: TKO0101: option '-o' requires an argument

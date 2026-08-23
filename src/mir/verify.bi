@@ -4,12 +4,12 @@
 '' A verifier failure is an INTERNAL COMPILER ERROR, never a user diagnostic: it means
 '' the compiler built something malformed, which is never the user's fault.
 
-#ifndef __FBX_MIR_VERIFY_BI__
-#define __FBX_MIR_VERIFY_BI__
+#ifndef __TKO_MIR_VERIFY_BI__
+#define __TKO_MIR_VERIFY_BI__
 
 #include once "mir/mir.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
     type VerifyResult
         as long    failures
@@ -21,7 +21,7 @@ namespace Fbx.Mir
     '' RETURN is legal FreeBASIC -- so reporting it by default would be reporting the
     '' user's program rather than a compiler fault.
     declare function Verify _
-        ( byref m as MirModule, byref names as Fbx.Interner, _
+        ( byref m as MirModule, byref names as Tko.Interner, _
           byval strict as boolean = false ) as VerifyResult
 
 end namespace

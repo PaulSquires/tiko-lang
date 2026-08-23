@@ -8,7 +8,7 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' ------------------------------------------------------------------ the walk
 
@@ -17,23 +17,23 @@ namespace Fbx.Mir
 '' through its ownerName, because an instantiation's members are qualified by the
 '' structural name and the two must not be confused.
 private function IsGenericMemberBody_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
-    dim as Fbx.ScopeId ps = c.info->ScopeOf( id )
-    if ps = Fbx.SCOPE_NONE then return false
-    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( ps )
+    dim as Tko.ScopeId ps = c.info->ScopeOf( id )
+    if ps = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( ps )
     if sc = 0 then return false
-    dim as Fbx.SymScope ptr owner = c.syms->ScopeAt( sc->parent )
+    dim as Tko.SymScope ptr owner = c.syms->ScopeAt( sc->parent )
     if owner = 0 then return false
-    dim as Fbx.Symbol ptr os = c.syms->SymbolAt( owner->owner )
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( owner->owner )
     if os = 0 then return false
-    if os->kind <> cast( ubyte, Fbx.SYM_UDT ) then return false
-    dim as Fbx.NodeId tn = cast( Fbx.NodeId, os->payload )
-    if tn = Fbx.NODE_NONE then return false
-    if c.ast->Kind( tn ) <> Fbx.N_TYPE then return false
-    dim as Fbx.StmtPayload ptr tp = StmtOf( c, tn )
+    if os->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    dim as Tko.NodeId tn = cast( Tko.NodeId, os->payload )
+    if tn = Tko.NODE_NONE then return false
+    if c.ast->Kind( tn ) <> Tko.N_TYPE then return false
+    dim as Tko.StmtPayload ptr tp = StmtOf( c, tn )
     '' 'b' holds the type PARAMETERS. A plain UDT has none.
-    if tp->b = Fbx.NODE_NONE then return false
+    if tp->b = Tko.NODE_NONE then return false
     '' AN INSTANTIATION SHARES THE GENERIC'S NODE as its payload, so the node alone
     '' does not tell them apart -- the NAME does: the generic is declared under its
     '' source spelling, an instantiation under the structural key.
@@ -43,33 +43,33 @@ end function
 '' Does this constructor body WRITE 'base( ... )'? A top-level statement of the body
 '' only -- fbc rejects the call anywhere else, and looking deeper would suppress the
 '' implicit construction for a 'base( )' the language never let run there.
-private function BodyCallsBase_( byref c as Ctx, byval body as Fbx.NodeId ) as boolean
-    if body = Fbx.NODE_NONE then return false
-    if c.ast->Kind( body ) <> Fbx.N_BLOCK then return false
-    dim as Fbx.ListPayload ptr lp = _
+private function BodyCallsBase_( byref c as Ctx, byval body as Tko.NodeId ) as boolean
+    if body = Tko.NODE_NONE then return false
+    if c.ast->Kind( body ) <> Tko.N_BLOCK then return false
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, body )].data )]
     for i as long = 0 to lp->count - 1
-        dim as Fbx.NodeId st = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
-        if c.ast->Kind( st ) <> Fbx.N_AMBIGUOUS then continue for
-        dim as Fbx.NodeId e = StmtOf( c, st )->a
-        if e = Fbx.NODE_NONE then continue for
-        if c.ast->Kind( e ) <> Fbx.N_CALL then continue for
-        dim as Fbx.ListPayload ptr cp = _
+        dim as Tko.NodeId st = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( st ) <> Tko.N_AMBIGUOUS then continue for
+        dim as Tko.NodeId e = StmtOf( c, st )->a
+        if e = Tko.NODE_NONE then continue for
+        if c.ast->Kind( e ) <> Tko.N_CALL then continue for
+        dim as Tko.ListPayload ptr cp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
-        if cp->target = Fbx.NODE_NONE then continue for
-        if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then continue for
-        dim as Fbx.IdentPayload ptr tip = _
+        if cp->target = Tko.NODE_NONE then continue for
+        if c.ast->Kind( cp->target ) <> Tko.N_IDENT then continue for
+        dim as Tko.IdentPayload ptr tip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-        if Fbx.Text.LowerAscii( c.names->Spelling( tip->name ) ) = "base" then return true
+        if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) = "base" then return true
     next
     return false
 end function
 
 sub LowerProc _
-    ( byref c as Ctx, byval id as Fbx.NodeId )
+    ( byref c as Ctx, byval id as Tko.NodeId )
 
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->b = Fbx.NODE_NONE then return       '' a declaration, not a definition
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->b = Tko.NODE_NONE then return       '' a declaration, not a definition
 
     '' A GENERIC'S OWN MEMBER BODY IS NOT CODE. 'sub Box.Put( byval x as T )' has no
     '' meaning until T is something: its parameter is void, its fields have no offsets,
@@ -79,7 +79,7 @@ sub LowerProc _
     if IsGenericMemberBody_( c, id ) then return
 
     '' A GENERIC PROCEDURE is not code either, for the same reason and one step worse:
-    '' fbx does not even keep its type parameters, so nothing can instantiate it. Its
+    '' tiko-lang does not even keep its type parameters, so nothing can instantiate it. Its
     '' body used to lower with every 'as T' standing for nothing -- 'local agg r size 0'
     '' beside stores into void slots -- and it counted as fully lowered. Declining says
     '' what is actually true.
@@ -89,22 +89,22 @@ sub LowerProc _
     '' nobody instantiates needs no instantiation, and one that is instantiated shows
     '' up as the instantiation. What a MISSING instantiation looks like is a CALL that
     '' bound to nothing, and that is counted where it happens.
-    if (sp->extra and Fbx.PF_GENERIC_PROC) <> 0 then return
+    if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return
 
-    dim as Fbx.SymbolId sid = c.info->RefOf( id )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( sid )
-    dim as Fbx.TypeId rt = iif( s <> 0, s->type_, Fbx.TYPE_NONE )
+    dim as Tko.SymbolId sid = c.info->RefOf( id )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    dim as Tko.TypeId rt = iif( s <> 0, s->type_, Tko.TYPE_NONE )
 
     '' MIR carries the MANGLED name and never a source one.
-    dim as Fbx.InternId nm = c.names->GetString( _
-        Fbx.Mangle.ProcName( *c.ast, id, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, id, *c.syms, *c.names, *c.types, *c.info ) )
 
     '' A STRING-RETURNING FUNCTION RETURNS A POINTER. fbc's own C says so --
     '' 'FBSTRING* F( void )' -- because the value leaves through
     '' fb_StrAllocTempResult, not as the descriptor itself. Declaring it 'agg' would
     '' put a type on the function that its own 'ret' contradicts.
     dim as MirType declRet = LowerType( rt, *c.types )
-    if rt <> Fbx.TYPE_NONE then
+    if rt <> Tko.TYPE_NONE then
         if IsStringType( c, rt ) then declRet = MT_PTR
         '' A UDT RETURNED THROUGH THE HIDDEN POINTER returns THAT POINTER, which is
         '' what fbc's own C says: 'struct T* F( struct T* tmp )'. Declaring it 'agg'
@@ -115,7 +115,7 @@ sub LowerProc _
     f->isDefinition = true
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
-    dim as Fbx.SymbolId savedSym = c.curProcSym
+    dim as Tko.SymbolId savedSym = c.curProcSym
     c.f = f
     c.curProcSym = sid
     c.st->functions += 1
@@ -124,9 +124,9 @@ sub LowerProc _
     '' source, so nothing else would count it -- and without it '@this' named a fresh
     '' uninitialised local while every CALL site dutifully passed a receiver into
     '' nothing.
-    dim as Fbx.SymbolId thisSym = Fbx.SYMBOL_NONE
+    dim as Tko.SymbolId thisSym = Tko.SYMBOL_NONE
     if s <> 0 then
-        if s->inner <> Fbx.SCOPE_NONE then
+        if s->inner <> Tko.SCOPE_NONE then
             thisSym = c.syms->LookupLocal( s->inner, _
                 c.names->Fold( c.names->GetString( "this" ) ) )
         end if
@@ -140,15 +140,15 @@ sub LowerProc _
     '' untyped local, and 17 stores in one corpus file went into a 'void' slot.
     ''
     '' Decided here rather than in Collect: only by now is the owner's KIND known.
-    if thisSym <> Fbx.SYMBOL_NONE then
+    if thisSym <> Tko.SYMBOL_NONE then
         '' A CONSTRUCTOR, DESTRUCTOR, OPERATOR or PROPERTY is a member by construction
         '' and always has one. 'constructor ns.UDT( )' is qualified by a NAMESPACE and
         '' owned by a TYPE, so nothing about the qualifier decides it -- testing the
         '' enclosing scope's parent got that wrong and silently emptied ten corpus
         '' files' worth of constructors.
         dim as boolean isStructor = false
-        select case cast( Fbx.TokenKind, sp->op )
-        case Fbx.KW_CONSTRUCTOR, Fbx.KW_DESTRUCTOR, Fbx.KW_OPERATOR, Fbx.KW_PROPERTY
+        select case cast( Tko.TokenKind, sp->op )
+        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR, Tko.KW_PROPERTY
             isStructor = true
         end select
 
@@ -160,15 +160,15 @@ sub LowerProc _
             '' cannot tell a namespace from a type. The function then took a parameter
             '' nothing passed and spilled it into an untyped local: 17 stores into a
             '' 'void' slot in one file.
-            dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( thisSym )
+            dim as Tko.Symbol ptr ts = c.syms->SymbolAt( thisSym )
             dim as boolean inType = false
             if ts <> 0 then
-                dim as Fbx.ScopeId walk = ts->parent
+                dim as Tko.ScopeId walk = ts->parent
                 dim as long guard = 0
-                while (walk <> Fbx.SCOPE_NONE) andalso (guard < 64)
-                    dim as Fbx.SymScope ptr sc2 = c.syms->ScopeAt( walk )
+                while (walk <> Tko.SCOPE_NONE) andalso (guard < 64)
+                    dim as Tko.SymScope ptr sc2 = c.syms->ScopeAt( walk )
                     if sc2 = 0 then exit while
-                    if sc2->kind = cast( ubyte, Fbx.SCOPEK_TYPE ) then
+                    if sc2->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
                         inType = true
                         exit while
                     end if
@@ -176,7 +176,7 @@ sub LowerProc _
                     guard += 1
                 wend
             end if
-            if inType = false then thisSym = Fbx.SYMBOL_NONE
+            if inType = false then thisSym = Tko.SYMBOL_NONE
         end if
     end if
     '' THE HIDDEN RESULT POINTER IS A PARAMETER. Counted here so the declaration and
@@ -184,10 +184,10 @@ sub LowerProc _
     '' '@N' but the callee still pops it, so the two numbers are genuinely different
     '' things and only this one is the argument count.
     if UsesSretReturn( c, rt ) then f->paramCount += 1
-    if thisSym <> Fbx.SYMBOL_NONE then f->paramCount += 1
+    if thisSym <> Tko.SYMBOL_NONE then f->paramCount += 1
 
     for i as long = 0 to sp->count - 1
-        if c.ast->Kind( cast( Fbx.NodeId, c.ast->children[sp->first + i] ) ) = Fbx.N_PARAM then
+        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) = Tko.N_PARAM then
             f->paramCount += 1
         end if
     next
@@ -195,22 +195,22 @@ sub LowerProc _
     c.curBlock = NewBlock( c, "entry" )
 
     '' The result slot, zero-initialised, exactly as fbc's C does it. Only for a
-    '' SCALAR result: a STRING or UDT return goes through a hidden pointer fbx does
+    '' SCALAR result: a STRING or UDT return goes through a hidden pointer tiko-lang does
     '' not model yet, and inventing a slot for one would miscompile silently rather
     '' than decline -- which is the failure mode this file has hit four times.
     dim as long savedRes = c.resultSlot
     dim as ubyte savedResTy = c.resultTy
-    dim as Fbx.TypeId savedResType = c.resultType
+    dim as Tko.TypeId savedResType = c.resultType
     dim as long savedSret = c.sretParam
     dim as boolean savedUdtRes = c.udtResult
     c.udtResult = false
     c.resultSlot = -1
     c.resultTy = cast( ubyte, MT_VOID )
-    c.resultType = Fbx.TYPE_NONE
+    c.resultType = Tko.TYPE_NONE
     c.sretParam = -1
 
     dim as MirType rmt = LowerType( rt, *c.types )
-    dim as boolean scalarResult = (rt <> Fbx.TYPE_NONE) andalso (rmt <> MT_VOID) andalso _
+    dim as boolean scalarResult = (rt <> Tko.TYPE_NONE) andalso (rmt <> MT_VOID) andalso _
                                   (rmt <> MT_AGG)
 
     '' A UDT RESULT WITH A DESTRUCTOR OR A COPY CONSTRUCTOR travels through an
@@ -222,7 +222,7 @@ sub LowerProc _
     '' There is NO result local in this case: the hidden pointer IS the result object,
     '' so 'function = expr' writes straight through it.
     dim as boolean sretResult = false
-    if (rt <> Fbx.TYPE_NONE) andalso (scalarResult = false) then
+    if (rt <> Tko.TYPE_NONE) andalso (scalarResult = false) then
         sretResult = UsesSretReturn( c, rt )
     end if
 
@@ -238,7 +238,7 @@ sub LowerProc _
     '' assignment into it -- which is why this one can be modelled where the UDT
     '' return, whose value really does come back through a hidden pointer, cannot.
     dim as boolean stringResult = false
-    if (rt <> Fbx.TYPE_NONE) andalso (scalarResult = false) then
+    if (rt <> Tko.TYPE_NONE) andalso (scalarResult = false) then
         stringResult = IsStringType( c, rt )
     end if
     if stringResult then
@@ -289,10 +289,10 @@ sub LowerProc _
     '' fbc's frontend never names a register either.
     '' Hoisted to a boolean local: FreeBASIC warns 38 on a mixed boolean/non-boolean
     '' chain, and the house rule is to name the condition rather than silence it.
-    dim as boolean haveRet = (rt <> Fbx.TYPE_NONE)
+    dim as boolean haveRet = (rt <> Tko.TYPE_NONE)
     dim as boolean udtByValue = false
     if haveRet andalso (scalarResult = false) andalso (sretResult = false) then
-        udtByValue = (c.types->Kind( rt ) = Fbx.TK_UDT)
+        udtByValue = (c.types->Kind( rt ) = Tko.TK_UDT)
     end if
     if udtByValue then
         c.resultSlot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
@@ -326,7 +326,7 @@ sub LowerProc _
     '' in XMM3 rather than XMM1.
     dim as long pidx = 0
     if c.sretParam >= 0 then pidx = 1
-    if thisSym <> Fbx.SYMBOL_NONE then
+    if thisSym <> Tko.SYMBOL_NONE then
         '' THIS is a POINTER TO the object -- the symbol carries that type, so the slot
         '' comes out a pointer and 'this.field' reaches through it like any other
         '' pointer base. It is what fbc's own C says: 'struct $1T* THIS$1'.
@@ -334,7 +334,7 @@ sub LowerProc _
         if tslot < 0 then tslot = 0
         '' AN UNTYPED 'this' gets a VOID slot, and storing the receiver into it is
         '' malformed. That happens when the structor's owner does not name a type here
-        '' -- which is now FBX0323 -- so the error is already reported and the store
+        '' -- which is now TKO0323 -- so the error is already reported and the store
         '' would only add a verify failure on top of it.
         dim as boolean thisTyped = true
         if tslot < c.f->locals.Count then
@@ -342,10 +342,10 @@ sub LowerProc _
         end if
         if thisTyped = false then
             pidx += 1
-            thisSym = Fbx.SYMBOL_NONE
+            thisSym = Tko.SYMBOL_NONE
         end if
     end if
-    if thisSym <> Fbx.SYMBOL_NONE then
+    if thisSym <> Tko.SYMBOL_NONE then
         dim as long tslot = LocalFor( c, thisSym )
         if tslot < 0 then tslot = 0
         dim as MirValue taddr
@@ -365,12 +365,12 @@ sub LowerProc _
         pidx += 1
     end if
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-        dim as Fbx.StmtPayload ptr pp = StmtOf( c, prm )
-        dim as Fbx.SymbolId psid = _
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
+        dim as Tko.SymbolId psid = _
             c.syms->LookupLocalTyped( c.info->ScopeOf( id ), pp->name, false )
-        if psid <> Fbx.SYMBOL_NONE then
+        if psid <> Tko.SYMBOL_NONE then
             dim as long slot = LocalFor( c, psid )
             if slot >= 0 then
                 dim as MirValue addr
@@ -406,16 +406,16 @@ sub LowerProc _
     ''
     '' So a written 'constructor B( )' still constructs A, and still zeroes its own
     '' string fields before its first statement can assign through one.
-    dim as Fbx.TypeId structorType = Fbx.TYPE_NONE
+    dim as Tko.TypeId structorType = Tko.TYPE_NONE
     dim as boolean inCtor = false
-    if (thisSym <> Fbx.SYMBOL_NONE) andalso (s <> 0) then
-        dim as Fbx.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
-        dim as Fbx.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
+    if (thisSym <> Tko.SYMBOL_NONE) andalso (s <> 0) then
+        dim as Tko.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
+        dim as Tko.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
         if (s->name = ctorNm) orelse (s->name = dtorNm) then
             inCtor = (s->name = ctorNm)
-            dim as Fbx.SymScope ptr ownerSc = c.syms->ScopeAt( s->parent )
+            dim as Tko.SymScope ptr ownerSc = c.syms->ScopeAt( s->parent )
             if ownerSc <> 0 then
-                dim as Fbx.Symbol ptr ownerSym = c.syms->SymbolAt( ownerSc->owner )
+                dim as Tko.Symbol ptr ownerSym = c.syms->SymbolAt( ownerSc->owner )
                 if ownerSym <> 0 then structorType = ownerSym->type_
             end if
         end if
@@ -425,7 +425,7 @@ sub LowerProc _
     '' nothing to do left a dead load in the prologue of every structor of every
     '' ordinary UDT -- the same mistake, twice, in the same function.
     dim as boolean wantsPrologue = false
-    if structorType <> Fbx.TYPE_NONE then
+    if structorType <> Tko.TYPE_NONE then
         if inCtor then
             wantsPrologue = NeedsCtorBody_( c, structorType )
         elseif c.vts <> 0 then
@@ -459,7 +459,7 @@ sub LowerProc _
     '' registration order runs it LAST: after every local the body declares, which is
     '' the order fbc emits.
     dim as boolean wantsEpilogue = false
-    if (structorType <> Fbx.TYPE_NONE) andalso (inCtor = false) then
+    if (structorType <> Tko.TYPE_NONE) andalso (inCtor = false) then
         wantsEpilogue = NeedsDtorBody_( c, structorType )
     end if
     if wantsEpilogue then
@@ -575,19 +575,19 @@ end sub
 '' a variable declared at file scope, but a module-level DIM without SHARED is visible
 '' only at module level, so a local is exactly right -- and it is what makes the string
 '' cleanup above run at all.
-declare function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+declare function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
 '' 'function = expr' inside a UDT function that returns through the HIDDEN POINTER.
 ''
 '' There is no result local: the pointer IS the result object, so the value is copied
 '' straight through it. Measured -- fbc emits '__builtin_memcpy( tmp$2$1, &T$1, 4 )'.
 ''
-'' fbc uses the type's 'operator let' where it has one. fbx does not, here or in an
+'' fbc uses the type's 'operator let' where it has one. tiko-lang does not, here or in an
 '' ordinary UDT assignment: both are a whole-aggregate load and store. That is one
 '' behaviour, consistently wrong for a type with a user LET, rather than two.
-function LowerSretResult( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
+function LowerSretResult( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
     if c.sretParam < 0 then return false
-    if valueE = Fbx.NODE_NONE then return false
+    if valueE = Tko.NODE_NONE then return false
 
     '' The VALUE first, the address only as a fallback: 'function = F( )' has no
     '' address to take, and a call result is already an aggregate value here.
@@ -616,9 +616,9 @@ function LowerSretResult( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolea
 end function
 
 
-sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
-    if root = Fbx.NODE_NONE then return
-    if c.ast->Kind( root ) <> Fbx.N_MODULE then return
+sub LowerMainModule( byref c as Ctx, byval root as Tko.NodeId )
+    if root = Tko.NODE_NONE then return
+    if c.ast->Kind( root ) <> Tko.N_MODULE then return
 
     '' Nothing to run means no main at all, rather than an empty one: a module compiled
     '' as a library has no entry point and emitting one would collide at link time.
@@ -673,14 +673,14 @@ sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
     '' The children are walked directly rather than through LowerBlock. N_MODULE is a
     '' LIST node, so handing it to a routine that reads a statement payload would read
     '' the wrong pool -- the mistake this file has made three times already.
-    dim as Fbx.ListPayload ptr mp = _
+    dim as Tko.ListPayload ptr mp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
     for i as long = 0 to mp->count - 1
-        ScanLabels( c, cast( Fbx.NodeId, c.ast->children[mp->first + i] ), _
+        ScanLabels( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ), _
                     scopeDepthIn + 1 )
     next
     for i as long = 0 to mp->count - 1
-        LowerStmt( c, cast( Fbx.NodeId, c.ast->children[mp->first + i] ) )
+        LowerStmt( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ) )
     next
     CloseScope( c )
     if c.scopeMark.Count <> scopeDepthIn then
@@ -716,14 +716,14 @@ sub LowerMainModule( byref c as Ctx, byval root as Fbx.NodeId )
 end sub
 
 '' Whether a module has anything to run, as opposed to only declarations.
-function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    if id = Fbx.NODE_NONE then return false
-    dim as Fbx.ListPayload ptr lp = _
+function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     for i as long = 0 to lp->count - 1
-        select case c.ast->Kind( cast( Fbx.NodeId, c.ast->children[lp->first + i] ) )
-        case Fbx.N_PROC, Fbx.N_TYPE, Fbx.N_ENUM, Fbx.N_TYPEDEF, Fbx.N_NAMESPACE, _
-             Fbx.N_EXTERN_BLOCK, Fbx.N_CONST, Fbx.N_FIELD, Fbx.N_PARAM
+        select case c.ast->Kind( cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
+        case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, Tko.N_NAMESPACE, _
+             Tko.N_EXTERN_BLOCK, Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM
             '' A declaration; it does not put anything in main.
         case else
             return true
@@ -732,31 +732,31 @@ function ModuleHasCode( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     return false
 end function
 
-private sub WalkTop( byref c as Ctx, byval id as Fbx.NodeId )
-    if id = Fbx.NODE_NONE then return
+private sub WalkTop( byref c as Ctx, byval id as Tko.NodeId )
+    if id = Tko.NODE_NONE then return
     select case c.ast->Kind( id )
-    case Fbx.N_MODULE, Fbx.N_BLOCK
-        dim as Fbx.ListPayload ptr lp = _
+    case Tko.N_MODULE, Tko.N_BLOCK
+        dim as Tko.ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         for i as long = 0 to lp->count - 1
-            WalkTop( c, cast( Fbx.NodeId, c.ast->children[lp->first + i] ) )
+            WalkTop( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
         next
-    case Fbx.N_NAMESPACE, Fbx.N_EXTERN_BLOCK
-        dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
+    case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         for i as long = 0 to sp->count - 1
-            WalkTop( c, cast( Fbx.NodeId, c.ast->children[sp->first + i] ) )
+            WalkTop( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) )
         next
-    case Fbx.N_PROC
+    case Tko.N_PROC
         LowerProc( c, id )
     end select
 end sub
 
 function Lower _
-    ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-      byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
-      byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
-      byref src as Fbx.SourceManager, byref udts as Fbx.UdtLayouts, _
-      byref vts as Fbx.VTables, _
+    ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
+      byref src as Tko.SourceManager, byref udts as Tko.UdtLayouts, _
+      byref vts as Tko.VTables, _
       byref m as MirModule, byref st as LowerStats ) as long
 
     dim as Ctx c
@@ -784,7 +784,7 @@ function Lower _
     '' from root -- they would be collected, resolved and typed, and then silently not
     '' emitted, which reads at a call site as a call into a name with no code.
     for i as long = 0 to ast.extraTopLevel.Count - 1
-        WalkTop( c, cast( Fbx.NodeId, ast.extraTopLevel[i] ) )
+        WalkTop( c, cast( Tko.NodeId, ast.extraTopLevel[i] ) )
     next
     LowerMainModule( c, root )
     '' THE SYNTHESISED STRUCTORS, after every written one exists to be called by them
@@ -805,7 +805,7 @@ end function
 '' to fb_StrAllocTempResult on the way out, which is what fbc emits. Returning the
 '' expression directly would hand back a pointer to static text where the caller expects
 '' a descriptor.
-function LowerStringReturn( byref c as Ctx, byval valueE as Fbx.NodeId ) as boolean
+function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
     if c.resultSlot < 0 then return false
     if c.resultTy <> cast( ubyte, MT_AGG ) then return false
     '' AND THE RESULT MUST ACTUALLY BE A STRING. MT_AGG alone stopped being enough the
@@ -815,7 +815,7 @@ function LowerStringReturn( byref c as Ctx, byval valueE as Fbx.NodeId ) as bool
     '' object, which lowers cleanly and verifies.
     if IsStringType( c, c.resultType ) = false then return false
 
-    if valueE <> Fbx.NODE_NONE then
+    if valueE <> Tko.NODE_NONE then
         if LowerStringAssignToSlot( c, c.resultSlot, valueE ) = false then SkipHere( c )
     end if
     '' A RETURN leaves every open scope, so their actions run before the terminator.

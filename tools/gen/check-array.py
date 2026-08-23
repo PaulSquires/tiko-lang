@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check fbx's array SLOT SIZES against the sizes fbc reserves.
+"""Check tiko-lang's array SLOT SIZES against the sizes fbc reserves.
 
     python tools/gen/check-array.py
 
@@ -13,12 +13,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-array.txt"
 TGT = []
 LABEL = "win64"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 SRC = ROOT / "build/.ar/arr.bas"
 
 
@@ -37,7 +37,7 @@ def one_target() -> int:
         name, size = line.split("\t")
         want[name] = int(size)
 
-    proc = subprocess.run([str(FBX), "--dump-ir"] + TGT + [str(SRC)],
+    proc = subprocess.run([str(TKO), "--dump-ir"] + TGT + [str(SRC)],
                           capture_output=True, text=True, cwd=str(ROOT))
     got = {}
     for m in re.finditer(r"^\s*local agg (\w+) size (\d+)", proc.stdout, re.M):
@@ -48,7 +48,7 @@ def one_target() -> int:
         have = got.get(name)
         if have != size:
             bad += 1
-            print(f"    {name}: fbc={size} fbx={have if have is not None else 'ABSENT'}")
+            print(f"    {name}: fbc={size} tiko={have if have is not None else 'ABSENT'}")
     if bad:
         print(f"check-array: {LABEL} {bad}/{len(want)} array sizes DISAGREE with fbc")
         return 1
@@ -60,7 +60,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

@@ -6,7 +6,7 @@
 '' Every parser here obeys the same two rules as the rest of the parser: it consumes
 '' at least one token per iteration, and it never runs past the end of the line.
 
-namespace Fbx
+namespace Tko
 
 dim shared as ubyte   intrForm( 0 to TK_KIND_COUNT - 1 )
 dim shared as boolean intrReady = false
@@ -19,7 +19,7 @@ private sub InitIntrinsicTable( )
     #macro INTR( i_kind, i_form )
         intrForm(i_kind) = cast( ubyte, i_form )
     #endmacro
-    FBX_INTRINSIC_LIST( INTR )
+    TKO_INTRINSIC_LIST( INTR )
     #undef INTR
     intrReady = true
 end sub
@@ -45,47 +45,47 @@ end function
 
 end namespace
 
-namespace Fbx.Parse
+namespace Tko.Parse
 
 '' Comma-separated expressions to end of line. The workhorse: two thirds of the
 '' registry needs nothing more.
-private sub IntrArgList( byref p as Fbx.ParserState, byref items as Fbx.NodeIdVec )
+private sub IntrArgList( byref p as Tko.ParserState, byref items as Tko.NodeIdVec )
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
         dim as long before = p.pos
         '' 'locate ,,0' -- an intrinsic's arguments may be elided too.
-        dim as Fbx.NodeId arg = ArgOrElided( p, Fbx.TK_EOL )
+        dim as Tko.NodeId arg = ArgOrElided( p, Tko.TK_EOL )
         items.Push( cast( ulong, arg ) )
         '' The no-progress guard exists to stop a loop that cannot consume anything.
         '' An ELIDED argument consumes nothing BY DEFINITION, so it has to be exempt --
         '' the comma after it is what advances, and without this 'locate ,,0' bailed
         '' out on its first argument.
-        if (p.ast->Kind( arg ) <> Fbx.N_ELIDED) andalso (p.pos = before) then exit do
-        if Accept( p, Fbx.TK_COMMA ) = false then exit do
+        if (p.ast->Kind( arg ) <> Tko.N_ELIDED) andalso (p.pos = before) then exit do
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
 end sub
 
 '' '#n' or '#n,' -- a file number, which several forms accept as a leading argument.
-private function IntrFileNum( byref p as Fbx.ParserState ) as Fbx.NodeId
-    if Peek( p ) <> Fbx.TK_HASH then return Fbx.NODE_NONE
+private function IntrFileNum( byref p as Tko.ParserState ) as Tko.NodeId
+    if Peek( p ) <> Tko.TK_HASH then return Tko.NODE_NONE
     Advance( p )
-    return Expression( p, Fbx.PREC_POSTFIX )
+    return Expression( p, Tko.PREC_POSTFIX )
 end function
 
 '' PRINT / LPRINT / WRITE.
 ''   [#n,] [USING fmt;] expr [ ; | , ] expr ...
 '' The separators are semantically meaningful -- ';' suppresses the column advance --
 '' so they are recorded as N_PRINT_SEP children rather than skipped.
-private sub IntrPrint( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
+private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     sp.a = IntrFileNum( p )
-    if sp.a <> Fbx.NODE_NONE then
-        if Accept( p, Fbx.TK_COMMA ) = false then Accept( p, Fbx.TK_SEMICOLON )
+    if sp.a <> Tko.NODE_NONE then
+        if Accept( p, Tko.TK_COMMA ) = false then Accept( p, Tko.TK_SEMICOLON )
     end if
 
-    if Peek( p ) = Fbx.KW_USING then
+    if Peek( p ) = Tko.KW_USING then
         Advance( p )
         sp.c = Expression( p )
-        if Accept( p, Fbx.TK_SEMICOLON ) = false then Accept( p, Fbx.TK_COMMA )
+        if Accept( p, Tko.TK_SEMICOLON ) = false then Accept( p, Tko.TK_COMMA )
         sp.extra = 1                      '' marks the USING form for lowering
     end if
 
@@ -94,19 +94,19 @@ private sub IntrPrint( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     '' end-of-statement as the third argument to every fb_Print* call. Dropping them
     '' would make 'print a; b', 'print a, b' and 'print a;' indistinguishable, and all
     '' three produce different output.
-    dim as Fbx.NodeIdVec items
+    dim as Tko.NodeIdVec items
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
         '' 'if c then print i end if' -- the item list must stop at what closes the
         '' enclosing single-line statement, or it eats it.
         if EndsSingleLineStmt( p ) then exit do
-        dim as Fbx.TokenKind k = Peek( p )
-        if (k = Fbx.TK_SEMICOLON) orelse (k = Fbx.TK_COMMA) then
-            dim as Fbx.Token t = Cur( p )
+        dim as Tko.TokenKind k = Peek( p )
+        if (k = Tko.TK_SEMICOLON) orelse (k = Tko.TK_COMMA) then
+            dim as Tko.Token t = Cur( p )
             Advance( p )
-            dim as Fbx.StmtPayload ssp
+            dim as Tko.StmtPayload ssp
             ssp.op = cast( ushort, k )
-            items.Push( cast( ulong, MakeStmt( p, Fbx.N_PRINT_SEP, t.loc, ssp ) ) )
+            items.Push( cast( ulong, MakeStmt( p, Tko.N_PRINT_SEP, t.loc, ssp ) ) )
             continue do
         end if
         dim as long before = p.pos
@@ -125,9 +125,9 @@ end sub
 ''   [#n,] [;] [prompt ( ; | , )] var [, var]
 '' The prompt is a string literal followed by ';' or ',', which is the only thing that
 '' distinguishes it from the first variable.
-private sub IntrInput( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
+private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     sp.a = IntrFileNum( p )
-    if sp.a <> Fbx.NODE_NONE then Accept( p, Fbx.TK_COMMA )
+    if sp.a <> Tko.NODE_NONE then Accept( p, Tko.TK_COMMA )
 
     '' A LEADING ';' -- 'input ; a' -- suppresses the newline the runtime would echo
     '' after the user presses return. It comes before the prompt, so it cannot be folded
@@ -140,13 +140,13 @@ private sub IntrInput( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     '' BIT 4, not 1. LINE INPUT arrives here with 'extra' already set to 1 to say so,
     '' and overwriting it made a LINE INPUT and a semicolon-suppressed INPUT
     '' indistinguishable -- the flags are a SET, and each needs its own bit.
-    if Accept( p, Fbx.TK_SEMICOLON ) then sp.extra or= 4
+    if Accept( p, Tko.TK_SEMICOLON ) then sp.extra or= 4
 
-    if Peek( p ) = Fbx.TK_STRING_LIT then
+    if Peek( p ) = Tko.TK_STRING_LIT then
         dim as long save = p.pos
-        dim as Fbx.NodeId prompt = Expression( p, Fbx.PREC_POSTFIX )
-        dim as boolean isPrompt = (Peek( p ) = Fbx.TK_SEMICOLON) orelse _
-                                  (Peek( p ) = Fbx.TK_COMMA)
+        dim as Tko.NodeId prompt = Expression( p, Tko.PREC_POSTFIX )
+        dim as boolean isPrompt = (Peek( p ) = Tko.TK_SEMICOLON) orelse _
+                                  (Peek( p ) = Tko.TK_COMMA)
         if isPrompt then
             sp.c = prompt
             Advance( p )
@@ -155,7 +155,7 @@ private sub IntrInput( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
         end if
     end if
 
-    dim as Fbx.NodeIdVec items
+    dim as Tko.NodeIdVec items
     IntrArgList( p, items )
     sp.first = p.ast->children.Count
     sp.count = items.Count
@@ -173,20 +173,20 @@ end sub
 '' expression form with every clause the statement takes, the comma-less QB spelling
 '' 'open( f for input as #1 )', ACCESS, ENCODING, and 'open pipe( ... )'.
 private sub IntrOpen _
-    ( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload, _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
       byval stopParen as boolean = false )
 
     '' THE DEFAULT MODE IS RANDOM, NOT ZERO. Leaving 'extra' at 0 would say BINARY, and
     '' an OPEN with no FOR clause would silently be opened in the wrong mode.
-    sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 1
+    sp.extra = (sp.extra and not Tko.OPEN_MODE_MASK) or 1
 
     sp.a = Expression( p )
 
-    dim as Fbx.NodeIdVec items
+    dim as Tko.NodeIdVec items
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
-        if stopParen andalso (Peek( p ) = Fbx.TK_RPAREN) then exit do
-        dim as Fbx.TokenKind k = Peek( p )
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
+        if stopParen andalso (Peek( p ) = Tko.TK_RPAREN) then exit do
+        dim as Tko.TokenKind k = Peek( p )
 
         '' THE MODE, ACCESS AND LOCK WORDS ARE SMALL INTEGERS, and they were consumed
         '' and DISCARDED -- so every OPEN reached lowering with no idea what it was
@@ -201,21 +201,21 @@ private sub IntrOpen _
         '' RANDOM gives -- so a missing clause and a written one are indistinguishable
         '' by design. And 'SHARED' compiles to lock 0, indistinguishable from writing no
         '' LOCK at all.
-        if k = Fbx.KW_FOR then
+        if k = Tko.KW_FOR then
             Advance( p )
-            if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+            if (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false) then
                 select case Peek( p )
-                case Fbx.KW_BINARY : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 0
-                case Fbx.KW_RANDOM : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 1
-                case Fbx.KW_INPUT  : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 2
-                case Fbx.KW_OUTPUT : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 3
-                case Fbx.KW_APPEND : sp.extra = (sp.extra and not Fbx.OPEN_MODE_MASK) or 4
+                case Tko.KW_BINARY : sp.extra = (sp.extra and not Tko.OPEN_MODE_MASK) or 0
+                case Tko.KW_RANDOM : sp.extra = (sp.extra and not Tko.OPEN_MODE_MASK) or 1
+                case Tko.KW_INPUT  : sp.extra = (sp.extra and not Tko.OPEN_MODE_MASK) or 2
+                case Tko.KW_OUTPUT : sp.extra = (sp.extra and not Tko.OPEN_MODE_MASK) or 3
+                case Tko.KW_APPEND : sp.extra = (sp.extra and not Tko.OPEN_MODE_MASK) or 4
                 end select
                 Advance( p )
             end if
             continue do
         end if
-        if (k = Fbx.KW_ACCESS) orelse (k = Fbx.KW_LOCK) then
+        if (k = Tko.KW_ACCESS) orelse (k = Tko.KW_LOCK) then
             Advance( p )
             '' 'access read write' is two words -- but ONLY those two. Consuming every
             '' keyword until AS swallowed the LOCK clause that follows: 'access write
@@ -224,48 +224,48 @@ private sub IntrOpen _
             dim as long rw_ = 0
             do
                 select case Peek( p )
-                case Fbx.KW_READ  : rw_ or= 1
-                case Fbx.KW_WRITE : rw_ or= 2
+                case Tko.KW_READ  : rw_ or= 1
+                case Tko.KW_WRITE : rw_ or= 2
                 case else : exit do
                 end select
                 Advance( p )
             loop
-            if k = Fbx.KW_ACCESS then
-                sp.extra = (sp.extra and not Fbx.OPEN_ACCESS_MASK) or _
-                           cast( ushort, rw_ shl Fbx.OPEN_ACCESS_SHIFT )
+            if k = Tko.KW_ACCESS then
+                sp.extra = (sp.extra and not Tko.OPEN_ACCESS_MASK) or _
+                           cast( ushort, rw_ shl Tko.OPEN_ACCESS_SHIFT )
             else
-                sp.extra = (sp.extra and not Fbx.OPEN_LOCK_MASK) or _
-                           cast( ushort, rw_ shl Fbx.OPEN_LOCK_SHIFT )
+                sp.extra = (sp.extra and not Tko.OPEN_LOCK_MASK) or _
+                           cast( ushort, rw_ shl Tko.OPEN_LOCK_SHIFT )
             end if
             continue do
         end if
-        if k = Fbx.KW_AS then
+        if k = Tko.KW_AS then
             Advance( p )
-            if Peek( p ) = Fbx.TK_HASH then Advance( p )
-            sp.b = Expression( p, Fbx.PREC_POSTFIX )
+            if Peek( p ) = Tko.TK_HASH then Advance( p )
+            sp.b = Expression( p, Tko.PREC_POSTFIX )
             continue do
         end if
         '' ENCODING takes a string that is not one of the clause keywords, so without
         '' this it would fall through to the trailing-expression case and be collected
         '' as a filename.
-        if k = Fbx.KW_ENCODING then
+        if k = Tko.KW_ENCODING then
             Advance( p )
-            if (Peek( p ) <> Fbx.TK_EOL) andalso (AtEnd( p ) = false) then
+            if (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false) then
                 '' RECORDED, so lowering knows to use the Encod entry point. The
                 '' encoding is the ONE clause fbc does not reduce to an integer -- it
                 '' passes the string through raw and unvalidated, so "bogus" compiles.
-                sp.extra or= Fbx.OPEN_HAS_ENCODING
+                sp.extra or= Tko.OPEN_HAS_ENCODING
                 items.Push( cast( ulong, Expression( p ) ) )
             end if
             continue do
         end if
-        if k = Fbx.KW_LEN then
+        if k = Tko.KW_LEN then
             Advance( p )
-            Accept( p, Fbx.TK_EQ )
+            Accept( p, Tko.TK_EQ )
             sp.c = Expression( p )
             continue do
         end if
-        if k = Fbx.TK_COMMA then
+        if k = Tko.TK_COMMA then
             Advance( p )
             continue do
         end if
@@ -284,31 +284,31 @@ end sub
 
 '' CLOSE / SEEK / LOCK / UNLOCK: '#n [, expr ...]', and CLOSE takes a list of them.
 '' 'open( ... )' / 'open pipe( ... )' in EXPRESSION position. The cursor is on OPEN.
-function OpenExprCall( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
+function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
     Advance( p )                                    '' OPEN
     '' 'pipe' is not a keyword -- it arrives as an identifier, the same way the
     '' statement form sees it.
-    if Peek( p ) = Fbx.TK_IDENT then Advance( p )
-    if Accept( p, Fbx.TK_LPAREN ) = false then
-        return ErrorNode( p, Fbx.FBX0401, "(" )
+    if Peek( p ) = Tko.TK_IDENT then Advance( p )
+    if Accept( p, Tko.TK_LPAREN ) = false then
+        return ErrorNode( p, Tko.TKO0401, "(" )
     end if
-    dim as Fbx.StmtPayload sp
-    sp.op = cast( ushort, Fbx.KW_OPEN )
+    dim as Tko.StmtPayload sp
+    sp.op = cast( ushort, Tko.KW_OPEN )
     IntrOpen( p, sp, true )
-    Expect( p, Fbx.TK_RPAREN, ")" )
-    return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
+    Expect( p, Tko.TK_RPAREN, ")" )
+    return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
 
-private sub IntrFileNumList( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
-    dim as Fbx.NodeIdVec items
+private sub IntrFileNumList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    dim as Tko.NodeIdVec items
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
-        if Peek( p ) = Fbx.TK_HASH then Advance( p )
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
+        if Peek( p ) = Tko.TK_HASH then Advance( p )
         dim as long before = p.pos
         items.Push( cast( ulong, Expression( p ) ) )
         if p.pos = before then exit do
-        if Accept( p, Fbx.TK_COMMA ) = false then exit do
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count
@@ -321,27 +321,27 @@ end sub
 ''   file:     GET #n, [pos], var
 ''   graphics: PUT [target,] (x, y), source [, mode]
 '' A leading '#' or a leading '(' is what tells them apart.
-private sub IntrGetPut( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
-    dim as boolean isFile = (Peek( p ) = Fbx.TK_HASH)
+private sub IntrGetPut( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    dim as boolean isFile = (Peek( p ) = Tko.TK_HASH)
     sp.extra = iif( isFile, 1, 2 )
 
     if isFile then
         Advance( p )
-        sp.a = Expression( p, Fbx.PREC_POSTFIX )
-        Accept( p, Fbx.TK_COMMA )
+        sp.a = Expression( p, Tko.PREC_POSTFIX )
+        Accept( p, Tko.TK_COMMA )
     end if
 
     '' THE GRAPHICS FORM HAS ITS OWN COORDINATE GRAMMAR -- see gfx.bas. Bit 1 of
     '' 'extra' is what says which of the two statements this is, so the graphics flags
     '' start above it.
     if isFile = false then
-        if ParseGfxGetPut( p, sp.op = cast( ushort, Fbx.KW_PUT ), sp ) then return
+        if ParseGfxGetPut( p, sp.op = cast( ushort, Tko.KW_PUT ), sp ) then return
     end if
 
-    dim as Fbx.NodeIdVec items
+    dim as Tko.NodeIdVec items
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
-        if Peek( p ) = Fbx.TK_COMMA then
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
+        if Peek( p ) = Tko.TK_COMMA then
             Advance( p )
             continue do
         end if
@@ -358,8 +358,8 @@ private sub IntrGetPut( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload 
 end sub
 
 '' LINE is two statements too: 'LINE INPUT ...' and the graphics LINE.
-private sub IntrLine( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
-    if Peek( p ) = Fbx.KW_INPUT then
+private sub IntrLine( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    if Peek( p ) = Tko.KW_INPUT then
         Advance( p )
         sp.extra = 1
         IntrInput( p, sp )
@@ -368,8 +368,8 @@ private sub IntrLine( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
     '' THE GRAPHICS LINE, which has its own coordinate grammar -- see gfx.bas. Bit 1
     '' says which of the two statements this is; the graphics flags start above it.
     sp.extra = 2
-    dim as Fbx.Token lt = Cur( p )
-    ParseGfxStmt( p, lt, Fbx.KW_LINE, sp )
+    dim as Tko.Token lt = Cur( p )
+    ParseGfxStmt( p, lt, Tko.KW_LINE, sp )
 end sub
 
 '' DATA holds literals, not expressions: unquoted words are data, not identifiers.
@@ -381,15 +381,15 @@ end sub
 '' fbc parses an expression and FOLDS it: 'data &hFF' and 'data 1+2' are stored as the
 '' text "255" and "3". A bare undeclared word is fbc error 42, so there is no
 '' QB-style unquoted-string case that an expression parse would break.
-private sub IntrData( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
-    dim as Fbx.NodeIdVec items
+private sub IntrData( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    dim as Tko.NodeIdVec items
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
         dim as long before = p.pos
         items.Push( cast( ulong, Expression( p ) ) )
         '' The no-progress guard: an item that consumed nothing would loop forever.
         if p.pos = before then exit do
-        if Accept( p, Fbx.TK_COMMA ) = false then exit do
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count
@@ -399,15 +399,15 @@ private sub IntrData( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
 end sub
 
 '' ON expr GOTO l1, l2 ...   /   ON [LOCAL] ERROR GOTO label
-private sub IntrOn( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
-    if Peek( p ) = Fbx.KW_LOCAL then Advance( p )
+private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    if Peek( p ) = Tko.KW_LOCAL then Advance( p )
 
-    if Peek( p ) = Fbx.KW_ERROR then
+    if Peek( p ) = Tko.KW_ERROR then
         Advance( p )
         sp.extra = 1
-        if (Peek( p ) = Fbx.KW_GOTO) orelse (Peek( p ) = Fbx.KW_GOSUB) then Advance( p )
-        if (Peek( p ) = Fbx.TK_IDENT) orelse (Peek( p ) = Fbx.TK_INT_LIT) then
-            sp.name = cast( Fbx.InternId, Cur( p ).literal )
+        if (Peek( p ) = Tko.KW_GOTO) orelse (Peek( p ) = Tko.KW_GOSUB) then Advance( p )
+        if (Peek( p ) = Tko.TK_IDENT) orelse (Peek( p ) = Tko.TK_INT_LIT) then
+            sp.name = cast( Tko.InternId, Cur( p ).literal )
             Advance( p )
         end if
         return
@@ -415,15 +415,15 @@ private sub IntrOn( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
 
     sp.extra = 2
     sp.a = Expression( p )
-    if (Peek( p ) = Fbx.KW_GOTO) orelse (Peek( p ) = Fbx.KW_GOSUB) then Advance( p )
+    if (Peek( p ) = Tko.KW_GOTO) orelse (Peek( p ) = Tko.KW_GOSUB) then Advance( p )
 
-    dim as Fbx.NodeIdVec items
+    dim as Tko.NodeIdVec items
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
-        dim as Fbx.Token t = Cur( p )
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
+        dim as Tko.Token t = Cur( p )
         items.Push( cast( ulong, MakeIdent( p, t ) ) )
         Advance( p )
-        if Accept( p, Fbx.TK_COMMA ) = false then exit do
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
     sp.count = items.Count
@@ -433,16 +433,16 @@ private sub IntrOn( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
 end sub
 
 '' DEFINT A-Z: letter ranges, not expressions.
-private sub IntrDefType( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload )
-    dim as Fbx.NodeIdVec items
+private sub IntrDefType( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    dim as Tko.NodeIdVec items
     do
-        if (Peek( p ) = Fbx.TK_EOL) orelse AtEnd( p ) then exit do
-        dim as Fbx.Token t = Cur( p )
-        if (Peek( p ) = Fbx.TK_IDENT) orelse Fbx.IsKeywordKind( Peek( p ) ) then
+        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
+        dim as Tko.Token t = Cur( p )
+        if (Peek( p ) = Tko.TK_IDENT) orelse Tko.IsKeywordKind( Peek( p ) ) then
             items.Push( cast( ulong, MakeIdent( p, t ) ) )
         end if
         Advance( p )
-        if (Peek( p ) = Fbx.TK_MINUS) orelse (Peek( p ) = Fbx.TK_COMMA) then
+        if (Peek( p ) = Tko.TK_MINUS) orelse (Peek( p ) = Tko.TK_COMMA) then
             Advance( p )
             continue do
         end if
@@ -456,44 +456,44 @@ private sub IntrDefType( byref p as Fbx.ParserState, byref sp as Fbx.StmtPayload
 end sub
 
 '' The entry point: dispatch on the registry.
-function ParseIntrinsic( byref p as Fbx.ParserState ) as Fbx.NodeId
-    dim as Fbx.Token t = Cur( p )
-    dim as Fbx.TokenKind k = Peek( p )
-    dim as Fbx.StmtPayload sp
+function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.TokenKind k = Peek( p )
+    dim as Tko.StmtPayload sp
     sp.op = cast( ushort, k )
 
     '' '?' is PRINT, and is not a keyword at all.
-    dim as Fbx.IntrinsicForm form = Fbx.IFORM_PRINT
-    if k <> Fbx.TK_QUESTION then form = Fbx.IntrinsicFormOf( k )
+    dim as Tko.IntrinsicForm form = Tko.IFORM_PRINT
+    if k <> Tko.TK_QUESTION then form = Tko.IntrinsicFormOf( k )
     Advance( p )
 
     select case form
-    case Fbx.IFORM_PRINT    : IntrPrint( p, sp )
-    case Fbx.IFORM_INPUT    : IntrInput( p, sp )
-    case Fbx.IFORM_LINE     : IntrLine( p, sp )
-    case Fbx.IFORM_OPEN     : IntrOpen( p, sp )
-    case Fbx.IFORM_FILENUM  : IntrFileNumList( p, sp )
-    case Fbx.IFORM_GETPUT   : IntrGetPut( p, sp )
-    case Fbx.IFORM_DATA     : IntrData( p, sp )
-    case Fbx.IFORM_ON       : IntrOn( p, sp )
-    case Fbx.IFORM_DEFTYPE  : IntrDefType( p, sp )
+    case Tko.IFORM_PRINT    : IntrPrint( p, sp )
+    case Tko.IFORM_INPUT    : IntrInput( p, sp )
+    case Tko.IFORM_LINE     : IntrLine( p, sp )
+    case Tko.IFORM_OPEN     : IntrOpen( p, sp )
+    case Tko.IFORM_FILENUM  : IntrFileNumList( p, sp )
+    case Tko.IFORM_GETPUT   : IntrGetPut( p, sp )
+    case Tko.IFORM_DATA     : IntrData( p, sp )
+    case Tko.IFORM_ON       : IntrOn( p, sp )
+    case Tko.IFORM_DEFTYPE  : IntrDefType( p, sp )
 
-    case Fbx.IFORM_SWAP, Fbx.IFORM_NAME
+    case Tko.IFORM_SWAP, Tko.IFORM_NAME
         sp.a = Expression( p )
-        if Accept( p, Fbx.TK_COMMA ) = false then Accept( p, Fbx.KW_AS )
+        if Accept( p, Tko.TK_COMMA ) = false then Accept( p, Tko.KW_AS )
         sp.b = Expression( p )
 
-    case Fbx.IFORM_CVA_ARG
+    case Tko.IFORM_CVA_ARG
         '' cva_arg( list, TYPE ). The second argument is a TYPE REFERENCE, not an
         '' expression, so the argument list cannot be parsed generically.
-        Expect( p, Fbx.TK_LPAREN, "(" )
+        Expect( p, Tko.TK_LPAREN, "(" )
         sp.a = Expression( p )
-        Expect( p, Fbx.TK_COMMA, "," )
+        Expect( p, Tko.TK_COMMA, "," )
         sp.c = TypeRef( p )
-        Expect( p, Fbx.TK_RPAREN, ")" )
+        Expect( p, Tko.TK_RPAREN, ")" )
 
-    case Fbx.IFORM_UNSUPPORTED
-        ErrorNode( p, Fbx.FBX0409, Fbx.TokenKindText( k ) )
+    case Tko.IFORM_UNSUPPORTED
+        ErrorNode( p, Tko.TKO0409, Tko.TokenKindText( k ) )
         EndOfStatement( p )
 
     case else
@@ -502,18 +502,18 @@ function ParseIntrinsic( byref p as Fbx.ParserState ) as Fbx.NodeId
         '' two tuples, and 'step(1,2)' a CALL to a procedure named 'step'. Faithful to
         '' nothing: the tree said subtract where the source said "from here to there".
         select case k
-        case Fbx.KW_LINE, Fbx.KW_PSET, Fbx.KW_PRESET, Fbx.KW_CIRCLE, Fbx.KW_PAINT, _
-             Fbx.KW_VIEW, Fbx.KW_WINDOW, Fbx.KW_DRAW
+        case Tko.KW_LINE, Tko.KW_PSET, Tko.KW_PRESET, Tko.KW_CIRCLE, Tko.KW_PAINT, _
+             Tko.KW_VIEW, Tko.KW_WINDOW, Tko.KW_DRAW
             if ParseGfxStmt( p, t, k, sp ) then
-                return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
+                return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
             end if
-        case Fbx.KW_PALETTE
+        case Tko.KW_PALETTE
             if ParseGfxPalette( p, sp ) then
-                return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
+                return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
             end if
         end select
 
-        dim as Fbx.NodeIdVec items
+        dim as Tko.NodeIdVec items
         IntrArgList( p, items )
         sp.first = p.ast->children.Count
         sp.count = items.Count
@@ -522,7 +522,7 @@ function ParseIntrinsic( byref p as Fbx.ParserState ) as Fbx.NodeId
         next
     end select
 
-    return MakeStmt( p, Fbx.N_INTRINSIC, t.loc, sp )
+    return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
 
 end namespace

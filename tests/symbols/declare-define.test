@@ -3,7 +3,7 @@
 '' and then defined -- most real programs -- was AMBIGUOUS and resolved to nothing.
 ''
 '' It went unnoticed because of what the corpus looks like: fbcunit declares its
-'' procedures in a header and defines them in a library fbx never compiles, and the
+'' procedures in a header and defines them in a library tiko-lang never compiles, and the
 '' overload gate's probes are all bodiless declarations.
 '' TEST: cli
 '' ARGS: --check tests/symbols/src/declare-define.bas

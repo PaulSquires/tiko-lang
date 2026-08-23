@@ -2,8 +2,8 @@
 ''
 '' Two output shapes (docs/plan/12 section 5.2):
 ''
-''   DIAGFMT_FBC   grid.bas(42,17): error FBX0100: unknown option '-q'
-''   DIAGFMT_GNU   grid.bas:42:17: error: unknown option '-q' [FBX0100]
+''   DIAGFMT_FBC   grid.bas(42,17): error TKO0100: unknown option '-q'
+''   DIAGFMT_GNU   grid.bas:42:17: error: unknown option '-q' [TKO0100]
 ''
 '' The fbc shape is the default because existing FreeBASIC editors -- including tiko --
 '' already parse it.
@@ -13,14 +13,14 @@
 '' wide characters count as two cells, so the caret lands under the right character in
 '' a CJK or accented source line.
 
-#ifndef __FBX_DIAG_RENDER_BI__
-#define __FBX_DIAG_RENDER_BI__
+#ifndef __TKO_DIAG_RENDER_BI__
+#define __TKO_DIAG_RENDER_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "diag/diagnostic.bi"
 #include once "source/manager.bi"
 
-namespace Fbx.Render
+namespace Tko.Render
 
     '' ANSI SGR sequences. Emitted only when the engine says colour is in use.
     const ANSI_RESET  as string = !"\e[0m"
@@ -32,14 +32,14 @@ namespace Fbx.Render
     const ANSI_GREY   as string = !"\e[0;90m"
 
     declare function Diagnostic_ _
-        ( byref d as Fbx.Diagnostic, byref src as Fbx.SourceManager, _
-          byval fmt as Fbx.DiagOutputFormat, byval useColor as boolean ) as string
+        ( byref d as Tko.Diagnostic, byref src as Tko.SourceManager, _
+          byval fmt as Tko.DiagOutputFormat, byval useColor as boolean ) as string
 
     declare function Snippet _
-        ( byref src as Fbx.SourceManager, byref rng as Fbx.SourceRange, _
+        ( byref src as Tko.SourceManager, byref rng as Tko.SourceRange, _
           byval useColor as boolean, byval caretColor as string ) as string
 
-    declare function SeverityColor( byval s as Fbx.Severity ) as string
+    declare function SeverityColor( byval s as Tko.Severity ) as string
 
 end namespace
 

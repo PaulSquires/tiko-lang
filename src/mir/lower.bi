@@ -12,8 +12,8 @@
 '' virtual dispatch, and the whole ABI layer. Each of those needs either the runtime
 '' declarations or the cleanup model, and neither exists yet.
 
-#ifndef __FBX_MIR_LOWER_BI__
-#define __FBX_MIR_LOWER_BI__
+#ifndef __TKO_MIR_LOWER_BI__
+#define __TKO_MIR_LOWER_BI__
 
 #include once "mir/mir.bi"
 #include once "ast/nodes.bi"
@@ -25,7 +25,7 @@
 #include once "mir/rtl.bi"
 #include once "diag/engine.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
     type LowerStats
         as long functions
@@ -105,11 +105,11 @@ namespace Fbx.Mir
     end type
 
     declare function Lower _
-        ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-          byref syms as Fbx.SymbolTable, byref types as Fbx.TypeContext, _
-          byref names as Fbx.Interner, byref info as Fbx.SemanticInfo, _
-          byref src as Fbx.SourceManager, byref udts as Fbx.UdtLayouts, _
-          byref vts as Fbx.VTables, _
+        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+          byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
+          byref src as Tko.SourceManager, byref udts as Tko.UdtLayouts, _
+          byref vts as Tko.VTables, _
           byref m as MirModule, byref st as LowerStats ) as long
 
 end namespace

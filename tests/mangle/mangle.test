@@ -1,6 +1,6 @@
 '' Decision D3: the emitted symbol name must be BYTE-IDENTICAL to fbc's. A name that
 '' differs by one character does not fail loudly -- it fails at link time in someone
-'' else's project, against a library fbx never saw.
+'' else's project, against a library tiko-lang never saw.
 ''
 '' The full 60-name differential against fbc's own object file is
 '' tools/gen/check-mangle.sh, which needs fbc present. This test is the part that

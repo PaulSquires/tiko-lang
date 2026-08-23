@@ -12,15 +12,15 @@
 ''   - lineStarts[0] is always 0, and lineStarts is strictly increasing.
 ''   - Every file's bytes are valid UTF-8 or preserved-verbatim bytes; nothing else.
 
-#ifndef __FBX_SOURCE_MANAGER_BI__
-#define __FBX_SOURCE_MANAGER_BI__
+#ifndef __TKO_SOURCE_MANAGER_BI__
+#define __TKO_SOURCE_MANAGER_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "source/location.bi"
 #include once "support/intern.bi"
 #include once "support/text.bi"
 
-namespace Fbx
+namespace Tko
 
     type LongVec as FB.Array( of long )
 
@@ -29,7 +29,7 @@ namespace Fbx
         as InternId        displayPath   '' as the user wrote it -- for diagnostics
         as ByteBuf         text          '' normalised UTF-8
         as LongVec         lineStarts    '' byte offset of each line; [0] = 0
-        as Fbx.Text.Encoding encoding
+        as Tko.Text.Encoding encoding
         as SourceLoc       locBase       '' first location owned by this file
         as ulong           contentHash   '' for future incremental compilation
         as boolean         isVirtual     '' created from memory, not from disk

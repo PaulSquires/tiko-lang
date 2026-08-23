@@ -3,7 +3,7 @@
 #include once "source/manager.bi"
 #include once "fb/filesystem.bi"
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------------ location.bi
 
@@ -70,7 +70,7 @@ end function
 '' --------------------------------------------------------------------- loading
 
 function SourceManager.Find( byref absPath as ustring ) as FileId
-    dim as InternId want = this.names->GetString( Fbx.Text.UStringToUtf8( absPath ) )
+    dim as InternId want = this.names->GetString( Tko.Text.UStringToUtf8( absPath ) )
     dim as long n = this.files.Count
     for i as long = 0 to n - 1
         if this.files[i]->path = want then return cast( FileId, i + 1 )
@@ -98,20 +98,20 @@ function SourceManager.Adopt _
 
     dim as SourceFile ptr f = new SourceFile
 
-    f->path = this.names->GetString( Fbx.Text.UStringToUtf8( absPath ) )
-    f->displayPath = this.names->GetString( Fbx.Text.UStringToUtf8( shownPath ) )
+    f->path = this.names->GetString( Tko.Text.UStringToUtf8( absPath ) )
+    f->displayPath = this.names->GetString( Tko.Text.UStringToUtf8( shownPath ) )
     f->isVirtual = isVirt
 
     dim as long rawCount = raw.Count
     dim as const ubyte ptr rawPtr = 0
     if rawCount > 0 then rawPtr = @raw[0]
 
-    f->encoding = Fbx.Text.DetectEncoding( rawPtr, rawCount )
+    f->encoding = Tko.Text.DetectEncoding( rawPtr, rawCount )
     f->firstBadByte = -1
-    if f->encoding = Fbx.Text.ENC_BYTES then
-        f->firstBadByte = Fbx.Text.FirstInvalidUtf8( rawPtr, rawCount )
+    if f->encoding = Tko.Text.ENC_BYTES then
+        f->firstBadByte = Tko.Text.FirstInvalidUtf8( rawPtr, rawCount )
     end if
-    Fbx.Text.NormalizeToUtf8( raw, f->text, f->encoding )
+    Tko.Text.NormalizeToUtf8( raw, f->text, f->encoding )
 
     dim as long n = f->text.Count
     if n > 0 then
@@ -226,7 +226,7 @@ function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
     d.lineNo = lineIdx + 1
     dim as const ubyte ptr textBase = 0
     if f->text.Count > 0 then textBase = @f->text[0]
-    d.column = Fbx.Text.ColumnOf( textBase, f->lineStarts[lineIdx], off )
+    d.column = Tko.Text.ColumnOf( textBase, f->lineStarts[lineIdx], off )
     return d
 end function
 

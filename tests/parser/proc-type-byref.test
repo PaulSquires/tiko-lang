@@ -2,4 +2,4 @@
 '' TEST: cli
 '' ARGS: --dump-ast tests/parser/src/proc-type-byref.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-NOT: FBX0401
+'' EXPECT-NOT: TKO0401

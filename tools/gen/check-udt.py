@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Compare fbx's UDT layout with fbc's, shape by shape.
+"""Compare tiko-lang's UDT layout with fbc's, shape by shape.
 
     python tools/gen/check-udt.py
 
 Reads tests/types/expected/fbc-udt.txt -- produced by udt-truth.py, which compiles and
-RUNS a probe under fbc -- rebuilds the same declarations as fbx source, and compares
+RUNS a probe under fbc -- rebuilds the same declarations as tiko-lang source, and compares
 every size, alignment and field offset.
 
 A field at the wrong offset does not fail loudly; it reads the neighbouring field's
-bytes. So a shape either matches completely or it is reported, and shapes fbx does not
+bytes. So a shape either matches completely or it is reported, and shapes tiko-lang does not
 support yet are listed by name rather than quietly skipped.
 """
 import re
@@ -17,13 +17,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-udt.txt"
 TGT = []
 LABEL = "win64"
 WORK = ROOT / "build/.ud"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 sys.path.insert(0, str(ROOT / "tools/gen"))
 from importlib import import_module
@@ -40,9 +40,9 @@ def one_target() -> int:
     if not TRUTH.exists():
         print(f"check-udt: {LABEL} no truth file; run tools/gen/udt-truth.py", file=sys.stderr)
         return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print(f"check-udt: {LABEL} fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print(f"check-udt: {LABEL} tiko not built", file=sys.stderr)
         return 3
 
     want = {}
@@ -61,10 +61,10 @@ def one_target() -> int:
         if decl not in seen:
             decls.append(decl)
             seen.add(decl)
-    probe = WORK / "udt-fbx.bas"
+    probe = WORK / "udt-tiko.bas"
     probe.write_text("\n".join(decls) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--dump-udt"] + TGT + [str(probe)],
+    proc = subprocess.run([str(tiko), "--dump-udt"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     cur = None
@@ -76,7 +76,7 @@ def one_target() -> int:
             continue
         # 'inherited' is a field the type gets from its base -- 'extends' is one
         # field holding the whole base, so an inherited name is not in the type's own
-        # list and every inheritance shape read as "fbx has no offset" without this.
+        # list and every inheritance shape read as "tiko-lang has no offset" without this.
         m = re.fullmatch(r"(\w+) (?:off|inherited) (\S+) (\d+)", line)
         if m:
             got[(m.group(1), "off", m.group(2))] = int(m.group(3))
@@ -94,7 +94,7 @@ def one_target() -> int:
         ws, wa = want[(n, "size")]
         if (gs, ga) != (ws, wa):
             shape_ok = False
-            diffs.append(f"{name}: fbc size={ws} align={wa}, fbx size={gs} align={ga}")
+            diffs.append(f"{name}: fbc size={ws} align={wa}, tiko-lang size={gs} align={ga}")
         for f in fields:
             key = (n, "off", f.lower())
             if key not in want:
@@ -102,10 +102,10 @@ def one_target() -> int:
             gf = got.get((n, "off", f.split("(")[0].lower()))
             if gf is None:
                 shape_ok = False
-                diffs.append(f"{name}.{f}: fbx has no offset")
+                diffs.append(f"{name}.{f}: tiko-lang has no offset")
             elif gf != want[key]:
                 shape_ok = False
-                diffs.append(f"{name}.{f}: fbc={want[key]} fbx={gf}")
+                diffs.append(f"{name}.{f}: fbc={want[key]} tiko={gf}")
         if shape_ok:
             ok += 1
         else:
@@ -113,7 +113,7 @@ def one_target() -> int:
 
     print(f"check-udt: {LABEL} {ok}/{len(CASES)} shapes match exactly")
     if absent:
-        print(f"check-udt: {LABEL} {absent} shapes fbx does not lay out at all: "
+        print(f"check-udt: {LABEL} {absent} shapes tiko-lang does not lay out at all: "
               + ", ".join(missing))
     if diffs:
         print(f"check-udt: {LABEL} {len(diffs)} disagreements:")
@@ -126,7 +126,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

@@ -21,21 +21,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-import fbxtargets
+import tkotargets
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# The toolchains live in fbxtargets, so control.py can point a half elsewhere.
+# The toolchains live in tkotargets, so control.py can point a half elsewhere.
 # THE GRAPHICS ENTRY POINTS ARE IN A DIFFERENT ARCHIVE. libfbgfx.a, not libfb.a, and
 # looking in only the first made every one of them read as ABSENT -- which is a
 # perfectly good way to describe a symbol that is simply somewhere else, and says
 # nothing about whether the signature is right.
 TARGETS = {
-    "win64": (fbxtargets.FBC64,
-              [fbxtargets.TC / "lib/win64/libfb.a", fbxtargets.TC / "lib/win64/libfbgfx.a"],
+    "win64": (tkotargets.FBC64,
+              [tkotargets.TC / "lib/win64/libfb.a", tkotargets.TC / "lib/win64/libfbgfx.a"],
               ROOT / "tests/expected/fbc-rtl.txt", ROOT / "build/.rt", []),
-    "win32": (fbxtargets.FBC32,
-              [fbxtargets.TC / "lib/win32/libfb.a", fbxtargets.TC / "lib/win32/libfbgfx.a"],
+    "win32": (tkotargets.FBC32,
+              [tkotargets.TC / "lib/win32/libfb.a", tkotargets.TC / "lib/win32/libfbgfx.a"],
               ROOT / "tests/expected/fbc-rtl-win32.txt", ROOT / "build/.rt32",
               ["-gen", "gcc"]),
 }
@@ -277,7 +277,7 @@ sub StrConvProbe( )
 end sub
 ''',
     # The math intrinsics that ARE runtime calls. sqr/sin/cos and the rest are gcc
-    # BUILTINS to fbc and are opcodes in fbx, so they are deliberately not here: a
+    # BUILTINS to fbc and are opcodes in tiko-lang, so they are deliberately not here: a
     # builtin is declared nowhere and would look like a missing entry.
     "mathrtl": '''
 sub MathProbe( )
@@ -571,7 +571,7 @@ end sub
 
 # A declaration, not a call: ends in ');' and has no assignment or body. win32 adds
 # '__stdcall' and an asm() alias carrying the DECORATED name -- '_fb_StrAssign@20' --
-# which is exactly what fbx has to emit there, so it is captured rather than stripped.
+# which is exactly what tiko-lang has to emit there, so it is captured rather than stripped.
 # NOT ONLY 'fb_*'. DELETE lowers to libc's 'free' -- fbc emits 'void free( void* );'
 # with no prefix at all -- so the pattern names the extra functions explicitly rather
 # than assuming every runtime entry point is prefixed.
@@ -626,7 +626,7 @@ def one_target(label, fbc, lib, out, work, extra) -> int:
         return 1
 
     # Cross-check every name against the runtime archive. A name absent from libfb is
-    # a signature fbx would emit and the linker would then reject.
+    # a signature tiko-lang would emit and the linker would then reject.
     #
     # EXCEPT THE LIBC ONES. malloc, free, pow and atan2 come from the C runtime, not
     # from libfb, so their absence there is expected and is not a missing symbol.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract fbc's ARRAY STORAGE SIZES, for comparison against fbx's slot sizes.
+"""Extract fbc's ARRAY STORAGE SIZES, for comparison against tiko-lang's slot sizes.
 
     python tools/gen/array-truth.py
 
@@ -16,9 +16,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
-FBC = fbxtargets.FBC64
+FBC = tkotargets.FBC64
 LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-array.txt"
 WORK = ROOT / "build/.ar"
@@ -79,7 +79,7 @@ def main() -> int:
     """Every target, into its own expectations file."""
     global FBC, OUT, WORK, LABEL
     rc = 0
-    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+    for LABEL, FBC, OUT, WORK in tkotargets.truth_targets(OUT, WORK):
         if one_target() != 0:
             rc = 1
     return rc

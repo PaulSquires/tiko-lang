@@ -3,38 +3,38 @@
 '' Walks the AST and creates a symbol for every declaration, wiring up scopes.
 '' See collect.bas for the contract.
 
-#ifndef __FBX_COLLECT_BI__
-#define __FBX_COLLECT_BI__
+#ifndef __TKO_COLLECT_BI__
+#define __TKO_COLLECT_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "ast/nodes.bi"
 #include once "symbols/symbol.bi"
 #include once "types/type.bi"
 #include once "diag/engine.bi"
 #include once "symbols/resolve.bi"
 
-namespace Fbx.Collect
+namespace Tko.Collect
 
     '' Returns the number of duplicate declarations reported.
     declare function Run _
-        ( byref ast as Fbx.AstArena, byval root as Fbx.NodeId, _
-          byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-          byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
-          byref info as Fbx.SemanticInfo ) as long
+        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+          byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+          byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
+          byref info as Tko.SemanticInfo ) as long
 
     '' COLLECT ONE NODE into an existing scope, for a declaration that did not exist
     '' when Run walked the unit: an instantiated generic member. Run itself cannot be
     '' reused -- it opens a fresh module scope and redeclares the builtins.
     declare function One _
-        ( byref ast as Fbx.AstArena, byval id as Fbx.NodeId, byval scope_ as Fbx.ScopeId, _
-          byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-          byref types as Fbx.TypeContext, byref diags as Fbx.DiagnosticEngine, _
-          byref info as Fbx.SemanticInfo ) as long
+        ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId, _
+          byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+          byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
+          byref info as Tko.SemanticInfo ) as long
 
     '' --dump-symbols. Byte-stable; lists each scope in declaration order.
     declare function Dump _
-        ( byref syms as Fbx.SymbolTable, byref names as Fbx.Interner, _
-          byref types as Fbx.TypeContext, byref src as Fbx.SourceManager ) as string
+        ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+          byref types as Tko.TypeContext, byref src as Tko.SourceManager ) as string
 
 end namespace
 

@@ -1,4 +1,4 @@
-'' main.bas -- fbx entry point.
+'' main.bas -- tiko-lang entry point.
 ''
 '' Deliberately trivial: collect the argument vector and hand it to the driver. Every
 '' decision, including how to fail, belongs to Driver.Run so that the whole compiler is
@@ -6,7 +6,7 @@
 
 #include once "driver/driver.bi"
 
-using Fbx
+using Tko
 
 dim as StrVec args
 

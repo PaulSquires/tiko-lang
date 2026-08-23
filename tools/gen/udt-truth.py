@@ -17,9 +17,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
-FBC = fbxtargets.FBC64
+FBC = tkotargets.FBC64
 LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-udt.txt"
 WORK = ROOT / "build/.ud"
@@ -75,7 +75,7 @@ CASES = [
     #      fields; a bitfield joining a narrower run contributes none. Three ULONG
     #      bitfields are align 4; 'ubyte:3 then ulong:3' is align 1.
     #
-    # NOT IMPLEMENTED. fbx marks a bitfield and DECLINES its access -- see
+    # NOT IMPLEMENTED. tiko-lang marks a bitfield and DECLINES its access -- see
     # SYMF_BITFIELD -- because a full-width read or write of one clobbers everything
     # packed beside it. These six shapes are what will say when the layout is right.
     #
@@ -205,7 +205,7 @@ def main() -> int:
     """Every target, into its own expectations file."""
     global FBC, OUT, WORK, LABEL
     rc = 0
-    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+    for LABEL, FBC, OUT, WORK in tkotargets.truth_targets(OUT, WORK):
         if one_target() != 0:
             rc = 1
     return rc

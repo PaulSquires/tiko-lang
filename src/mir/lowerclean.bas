@@ -5,7 +5,7 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' -------------------------------------------------------------- cleanup model
 
@@ -22,7 +22,7 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     if depth + 1 < c.scopeMark.Count then upto = c.scopeMark[depth + 1]
     for i as long = upto - 1 to from_ step -1
         if c.cleanupSlot[i] < 0 then
-            LowerStmt( c, cast( Fbx.NodeId, c.cleanupNode[i] ) )
+            LowerStmt( c, cast( Tko.NodeId, c.cleanupNode[i] ) )
         elseif c.cleanupNode[i] = CLEANUP_DTOR_EPILOGUE then
             '' A DESTRUCTOR'S OWN EPILOGUE -- the fields in reverse, then the base.
             '' Registered as a cleanup action rather than appended after the body,
@@ -38,13 +38,13 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
             ta.id = c.cleanupSlot[i]
             dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
             if tv.kind <> cast( ubyte, MV_NONE ) then
-                EmitDtorEpilogue_( c, cast( Fbx.TypeId, c.cleanupType[i] ), tv )
+                EmitDtorEpilogue_( c, cast( Tko.TypeId, c.cleanupType[i] ), tv )
             end if
         elseif c.cleanupNode[i] = CLEANUP_DESTROY_ARRAY then
             '' AN ARRAY OF T IS N OBJECTS. The entry names the ARRAY type, which is
             '' where both the element type and the count come from.
             EmitArrayElems_( c, c.cleanupSlot[i], _
-                             cast( Fbx.TypeId, c.cleanupType[i] ), false )
+                             cast( Tko.TypeId, c.cleanupType[i] ), false )
         elseif c.cleanupNode[i] = CLEANUP_IMPLICIT_DTOR then
             '' THE DESTRUCTOR FBC WRITES FOR YOU. It has no symbol -- there is no
             '' declaration anywhere -- so the entry names the TYPE and the emitted name
@@ -53,7 +53,7 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
             ia.kind = cast( ubyte, MV_LOCAL )
             ia.ty = cast( ubyte, MT_PTR )
             ia.id = c.cleanupSlot[i]
-            CallImplicitDtor_( c, cast( Fbx.TypeId, c.cleanupType[i] ), ia )
+            CallImplicitDtor_( c, cast( Tko.TypeId, c.cleanupType[i] ), ia )
         elseif c.cleanupNode[i] = CLEANUP_ERASE_ARRAY then
             '' A local DYNAMIC array is erased at scope exit whatever its element
             '' type -- measured; fbc emits fb_ArrayErase / fb_ArrayStrErase /
@@ -78,7 +78,7 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
             args.Push( cast( ulong, addr.id ) )
             EmitRtl( c, RTL_STR_DELETE, args )
         else
-            EmitDtorCall( c, cast( Fbx.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
+            EmitDtorCall( c, cast( Tko.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
         end if
     next
 end sub

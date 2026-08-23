@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Compare fbx's assignment legality with fbc's, over every measured pair.
+"""Compare tiko-lang's assignment legality with fbc's, over every measured pair.
 
     python tools/gen/check-assign.py
 
 Reads tests/types/expected/fbc-assign.txt -- produced by assign-truth.py from fbc
-itself -- rebuilds the same assignments as fbx source, and compares the verdicts.
+itself -- rebuilds the same assignments as tiko-lang source, and compares the verdicts.
 'warn' is kept distinct from 'ok': fbc accepts a pointer/integer assignment but says
 something about it, and collapsing the two would hide a real difference in behaviour.
 """
@@ -14,13 +14,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-assign.txt"
 TGT = []
 LABEL = "win64"
 WORK = ROOT / "build/.as"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 TYPES = ["byte", "ubyte", "short", "ushort", "long", "ulong", "integer",
          "uinteger", "longint", "ulongint", "single", "double", "boolean",
@@ -32,9 +32,9 @@ def one_target() -> int:
         print(f"check-assign: {LABEL} no truth file; run tools/gen/assign-truth.py",
               file=sys.stderr)
         return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print(f"check-assign: {LABEL} fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print(f"check-assign: {LABEL} tiko not built", file=sys.stderr)
         return 3
 
     rows = [line.split("\t")
@@ -51,10 +51,10 @@ def one_target() -> int:
             line_of[len(src)] = idx
             idx += 1
 
-    probe = WORK / "assign-fbx.bas"
+    probe = WORK / "assign-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
+    proc = subprocess.run([str(tiko), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -73,7 +73,7 @@ def one_target() -> int:
             ok += 1
         else:
             bad += 1
-            diffs.append(f"{dt} = {st}: fbc={want} fbx={mine}")
+            diffs.append(f"{dt} = {st}: fbc={want} tiko={mine}")
 
     print(f"check-assign: {LABEL} {ok}/{len(rows)} match")
     if missing:
@@ -89,7 +89,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

@@ -9,10 +9,10 @@
 ''   - Never consumes TK_EOL or TK_EOF: statements own their terminators.
 ''   - Recursion is capped, so no input can overflow the stack.
 
-#ifndef __FBX_EXPR_BI__
-#define __FBX_EXPR_BI__
+#ifndef __TKO_EXPR_BI__
+#define __TKO_EXPR_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "ast/nodes.bi"
 #include once "parser/prectable.bi"
 #include once "lexer/token.bi"
@@ -21,7 +21,7 @@
 #include once "diag/engine.bi"
 #include once "support/intern.bi"
 
-namespace Fbx
+namespace Tko
 
     const PARSE_MAX_DEPTH as long = 256
 
@@ -55,11 +55,11 @@ namespace Fbx
 
 end namespace
 
-namespace Fbx.Parse
+namespace Tko.Parse
 
 '' Defined in intrinsics.bas: 'open( ... )' used as an EXPRESSION. Declared here
 '' because Primary needs it and expr.bas is compiled before that file.
-declare function OpenExprCall( byref p as Fbx.ParserState ) as Fbx.NodeId
+declare function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
 
 '' Defined in decl.bas: an ANONYMOUS procedure used as a value --
 ''   dim as function( byref as T, byref as T ) as boolean less = _
@@ -67,47 +67,47 @@ declare function OpenExprCall( byref p as Fbx.ParserState ) as Fbx.NodeId
 ''           return x < y
 ''       end function
 '' Same routing reason as OpenExprCall: Primary needs it, decl.bas is compiled later.
-declare function TryLambdaExpr( byref p as Fbx.ParserState ) as Fbx.NodeId
+declare function TryLambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
 declare function ArgOrElided _
-    ( byref p as Fbx.ParserState, byval closer as Fbx.TokenKind ) as Fbx.NodeId
+    ( byref p as Tko.ParserState, byval closer as Tko.TokenKind ) as Tko.NodeId
 
     declare function Expression _
-        ( byref p as Fbx.ParserState, byval minPrec as long = 1 ) as Fbx.NodeId
+        ( byref p as Tko.ParserState, byval minPrec as long = 1 ) as Tko.NodeId
 
     '' Parse one whole token vector as a single expression. Used by the expression
     '' tests and by the precedence differential harness.
-    declare function OneExpression( byref p as Fbx.ParserState ) as Fbx.NodeId
+    declare function OneExpression( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' Shared with parser.bas. Not private: the statement layer is a separate module.
     '' True when buffer index 'want' exists, pulling from the preprocessor if needed.
-    declare function HasTok( byref p as Fbx.ParserState, byval want as long ) as boolean
-    declare function Peek( byref p as Fbx.ParserState ) as Fbx.TokenKind
-    declare function Cur( byref p as Fbx.ParserState ) as Fbx.Token
-    declare sub Advance( byref p as Fbx.ParserState )
-    declare function Accept( byref p as Fbx.ParserState, byval k as Fbx.TokenKind ) as boolean
+    declare function HasTok( byref p as Tko.ParserState, byval want as long ) as boolean
+    declare function Peek( byref p as Tko.ParserState ) as Tko.TokenKind
+    declare function Cur( byref p as Tko.ParserState ) as Tko.Token
+    declare sub Advance( byref p as Tko.ParserState )
+    declare function Accept( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
     declare function ErrorNode _
-        ( byref p as Fbx.ParserState, byval id as Fbx.DiagId, _
-          byval a0 as string = "" ) as Fbx.NodeId
+        ( byref p as Tko.ParserState, byval id as Tko.DiagId, _
+          byval a0 as string = "" ) as Tko.NodeId
     declare function Expect _
-        ( byref p as Fbx.ParserState, byval k as Fbx.TokenKind, _
+        ( byref p as Tko.ParserState, byval k as Tko.TokenKind, _
           byval what as string ) as boolean
-    declare function MakeIdent( byref p as Fbx.ParserState, byref t as Fbx.Token ) as Fbx.NodeId
+    declare function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
     '' A token as the node it is: literals stay literals. See the comment on it.
     declare function MakeTokenNode _
-        ( byref p as Fbx.ParserState, byref t as Fbx.Token ) as Fbx.NodeId
+        ( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
     declare function MakeList _
-        ( byref p as Fbx.ParserState, byval kind as Fbx.NodeKind, byval loc as Fbx.SourceLoc, _
-          byval target as Fbx.NodeId, byref items as Fbx.NodeIdVec ) as Fbx.NodeId
+        ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
+          byval target as Tko.NodeId, byref items as Tko.NodeIdVec ) as Tko.NodeId
     declare function MakeStmt _
-        ( byref p as Fbx.ParserState, byval kind as Fbx.NodeKind, byval loc as Fbx.SourceLoc, _
-          byref sp as Fbx.StmtPayload ) as Fbx.NodeId
+        ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
+          byref sp as Tko.StmtPayload ) as Tko.NodeId
     declare function NewNodeAt _
-        ( byref p as Fbx.ParserState, byval kind as Fbx.NodeKind, byval loc as Fbx.SourceLoc, _
-          byval payload as ulong ) as Fbx.NodeId
+        ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
+          byval payload as ulong ) as Tko.NodeId
 
     declare function Dump _
-        ( byref ast as Fbx.AstArena, byref src as Fbx.SourceManager, _
-          byref names as Fbx.Interner, byval root as Fbx.NodeId ) as string
+        ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+          byref names as Tko.Interner, byval root as Tko.NodeId ) as string
 
 end namespace
 

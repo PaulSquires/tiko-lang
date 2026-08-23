@@ -15,7 +15,7 @@ set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 CORPUS=tests/vendor/fbc-tests
-OUT=tests/expected/fbx-emit-none.txt
+OUT=tests/expected/tiko-emit-none.txt
 [ -d "$CORPUS" ] || { echo "emit-baseline: corpus not vendored" >&2; exit 3; }
 
 # A quarter of the corpus includes its own test framework from a directory it does not
@@ -26,7 +26,7 @@ FBCUNIT=""
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 : > build/.emitnone.txt
 while IFS= read -r f; do
-    n=$(./bin/fbx.exe --dump-ir $FBCUNIT "$f" 2>/dev/null | awk '/^lowered:/{print $2}')
+    n=$(./bin/tiko.exe --dump-ir $FBCUNIT "$f" 2>/dev/null | awk '/^lowered:/{print $2}')
     [ "${n:-0}" = "0" ] && echo "$f" >> build/.emitnone.txt
 done < build/.corpus.lst
 

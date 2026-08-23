@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-str.sh -- fbx's float rendering against the text fbc's STR( ) produces.
+# check-str.sh -- tiko-lang's float rendering against the text fbc's STR( ) produces.
 #
 #   tools/gen/check-str.sh
 #

@@ -15,17 +15,17 @@
 '' 'virtual' on anything that does not -- error 221 -- so there is no such thing as a
 '' vptr-bearing UDT outside this chain, and the vptr is never anywhere but offset 0.
 
-#ifndef __FBX_VTABLE_BI__
-#define __FBX_VTABLE_BI__
+#ifndef __TKO_VTABLE_BI__
+#define __TKO_VTABLE_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "ast/nodes.bi"
 #include once "types/type.bi"
 #include once "symbols/symbol.bi"
 #include once "symbols/mangle.bi"
 #include once "symbols/resolve.bi"
 
-namespace Fbx
+namespace Tko
 
     type VtSlot
         '' The procedure this slot dispatches to, or SYMBOL_NONE for an ABSTRACT slot

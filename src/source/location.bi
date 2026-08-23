@@ -14,12 +14,12 @@
 ''     so a diagnostic can point one past the last byte.
 ''   - Offsets are into the NORMALISED UTF-8 buffer, never the original file bytes.
 
-#ifndef __FBX_LOCATION_BI__
-#define __FBX_LOCATION_BI__
+#ifndef __TKO_LOCATION_BI__
+#define __TKO_LOCATION_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 
-namespace Fbx
+namespace Tko
 
     type SourceLoc as ulong
 

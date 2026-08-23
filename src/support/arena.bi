@@ -10,12 +10,12 @@
 ''     reallocated, only appended, which is what makes stable addresses possible.
 ''   - Alloc never returns null; exhaustion is fatal, not a return code.
 
-#ifndef __FBX_ARENA_BI__
-#define __FBX_ARENA_BI__
+#ifndef __TKO_ARENA_BI__
+#define __TKO_ARENA_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 
-namespace Fbx
+namespace Tko
 
     const ARENA_BLOCK_BYTES as long = 65536
 

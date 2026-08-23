@@ -12,7 +12,7 @@
 # started and not FINISHED (inside), and the second is larger by more than an order of
 # magnitude.
 #
-# Do not rebuild while this runs: the link will fail on a locked bin/fbx.exe, and a
+# Do not rebuild while this runs: the link will fail on a locked bin/tiko.exe, and a
 # half-replaced binary mid-sweep would report numbers from two different compilers.
 set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -27,22 +27,22 @@ CORPUS=tests/vendor/fbc-tests
 FBCUNIT=""
 [ -d "$CORPUS/fbcunit/inc" ] && FBCUNIT="-i $CORPUS/fbcunit/inc"
 
-# fbx ships no headers, so its default include directory does not exist in a source
+# tiko-lang ships no headers, so its default include directory does not exist in a source
 # tree. 144 corpus files include a real FreeBASIC runtime header; without a header set
 # they fail at their first line and every number after that is measured against files
-# that could not open their own dependencies. FBX_INCLUDE is the driver's own override,
+# that could not open their own dependencies. TKO_INCLUDE is the driver's own override,
 # so this is the same shape as the -i above: a HARNESS fact, not a compiler one.
-FBXINC=${FBX_INCLUDE:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/inc}
-if [ -d "$FBXINC" ]; then
-    FBX_INCLUDE="$FBXINC"
-    export FBX_INCLUDE
+TKOINC=${TKO_INCLUDE:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/inc}
+if [ -d "$TKOINC" ]; then
+    TKO_INCLUDE="$TKOINC"
+    export TKO_INCLUDE
 else
-    echo "mirsweep: no runtime headers at $FBXINC -- 144 files will fail on #include" >&2
+    echo "mirsweep: no runtime headers at $TKOINC -- 144 files will fail on #include" >&2
 fi
 
 find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 
-# One fbx per file, N at a time. Each writes its OWN part file rather than appending to
+# One tiko-lang per file, N at a time. Each writes its OWN part file rather than appending to
 # a shared one: concurrent appends interleave once a file's output passes the pipe
 # buffer, and a torn 'lowered:' line would be counted as something else rather than
 # reported as an error. The parts are concatenated afterwards, so the aggregate is
@@ -54,7 +54,7 @@ JOBS=${MIRSWEEP_JOBS:-6}
 rm -rf build/.mirparts build/.diagparts build/.skipparts
 mkdir -p build/.mirparts build/.diagparts build/.skipparts
 
-# ONE fbx per file, producing BOTH outputs. The diagnostics used to be collected by a
+# ONE tiko-lang per file, producing BOTH outputs. The diagnostics used to be collected by a
 # SECOND sweep running the identical command, which doubled the wall time and the fork
 # pressure for nothing -- and left two measurements that could disagree with each other
 # if the binary changed between them.
@@ -66,11 +66,11 @@ xargs -a build/.corpus.lst -d '
 ' -P "$JOBS" -I{} sh -c '
     key=$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
     raw=build/.mirparts/$key.raw
-    FBX_TRACE_SKIP=1 ./bin/fbx.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
+    TKO_TRACE_SKIP=1 ./bin/tiko.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
     grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb|^  var " \
         "$raw" > "build/.mirparts/$key" || true
     grep -E "^SKIP " "$raw" | sed "s/.* at //" > "build/.skipparts/$key" || true
-    grep -E ": (error|fatal) FBX" "$raw" > "build/.diagparts/$key" || true
+    grep -E ": (error|fatal) TKO" "$raw" > "build/.diagparts/$key" || true
     rm -f "$raw"
 ' _ {}
 
@@ -99,7 +99,7 @@ awk '
   if (ins_prev == ins) empty++
   ins_prev = ins
 }
-# The line fbx actually prints is "verify: N FAILURES". The pattern here was
+# The line tiko-lang actually prints is "verify: N FAILURES". The pattern here was
 # "^verify: FAIL", which matches NONE of them -- so this sweep reported "0 verify
 # failures" on every run while 3,035 of them stood in 406 files. A gate can be
 # green because it does not cover the thing; this one was green because it could
@@ -152,7 +152,7 @@ END {
 dirty=$(grep -l . build/.diagparts/* 2>/dev/null | wc -l)
 echo "mirsweep: $dirty files report a diagnostic, of $want"
 for f in build/.diagparts/*; do head -1 "$f"; done 2>/dev/null \
-    | grep -oE 'FBX[0-9]+: .*' | sed -E "s/'[^']*'/'X'/g; s/[0-9]+/N/g" \
+    | grep -oE 'TKO[0-9]+: .*' | sed -E "s/'[^']*'/'X'/g; s/[0-9]+/N/g" \
     | sort | uniq -c | sort -rn | head -8 | sed 's/^/mirsweep:  /'
 
 

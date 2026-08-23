@@ -51,7 +51,7 @@ sub P( )
 
     '' The caller provides the storage for the hidden-pointer form: a temporary passed
     '' as argument 0. STATED DEFECT: fbc destroys that temporary at the end of the
-    '' statement and fbx does not model that yet, so this leaks one object per call.
+    '' statement and tiko-lang does not model that yet, so this leaks one object per call.
     dim as D c1 = MakeD( 1 )
     dim as D c2
     c2 = MakeD( 2 )

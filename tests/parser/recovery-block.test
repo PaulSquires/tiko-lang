@@ -4,4 +4,4 @@
 '' ARGS: --parse-only tests/parser/broken/missing-end.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 3
-'' EXPECT-OUT: FBX0405
+'' EXPECT-OUT: TKO0405

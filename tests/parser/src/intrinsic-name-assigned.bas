@@ -6,7 +6,7 @@
 ''
 ''     width = cast( ubyte, TuiCharWidth( cp ) )
 ''
-'' which fbx routed to the WIDTH statement and then failed on the '='. Nine corpus files.
+'' which tiko-lang routed to the WIDTH statement and then failed on the '='. Nine corpus files.
 ''
 '' Measured: fbc accepts a FIELD named 'width' and REJECTS a variable of that name
 '' outright ('dim width as ubyte' is error 4, a duplicated definition), so the field case

@@ -12,9 +12,9 @@
 #   2. GLOBAL MUTABLE STATE. 'dim shared' is banned outside an explicit allowlist.
 #   3. FILE SIZE. No source file over 1500 lines.
 #   4. TRAILING WHITESPACE.
-#   5. TABS in source. fbx sources are space-indented.
+#   5. TABS in source. tiko-lang sources are space-indented.
 #
-# TODO: port to tools/fbx-lint once fbx can compile itself, so the lint is
+# TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -52,7 +52,7 @@ layer_of( ) {
 
 for f in $(find src -name '*.bas' -o -name '*.bi' | sort); do
     dir=$(echo "$f" | cut -d/ -f2)
-    [ "$dir" = "fbx.bi" ] && continue
+    [ "$dir" = "tko.bi" ] && continue
     mine=$(layer_of "$dir")
     [ "$mine" = "9" ] && continue
 

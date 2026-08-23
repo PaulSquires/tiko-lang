@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-promo.sh -- fbx's expression typing against fbc's, over every combination.
+# check-promo.sh -- tiko-lang's expression typing against fbc's, over every combination.
 #
 #   tools/gen/check-promo.sh
 #

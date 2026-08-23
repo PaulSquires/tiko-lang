@@ -3,12 +3,12 @@
 #include once "mir/rtl.bi"
 #include once "support/text.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 function RtlSymbol( byval r as RtlId ) as string
     select case r
     #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : return r_sym
-    FBX_RTL_LIST( RTL )
+    TKO_RTL_LIST( RTL )
     #undef RTL
     end select
     return ""
@@ -39,7 +39,7 @@ function RtlReturn( byval r as RtlId, byval is32 as boolean ) as MirType
     dim as string ret = ""
     select case r
     #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : ret = r_ret
-    FBX_RTL_LIST( RTL )
+    TKO_RTL_LIST( RTL )
     #undef RTL
     end select
     return RtlTypeOfLetter( ret, is32 )
@@ -56,7 +56,7 @@ end function
 '' declaring it -- 'chk = procptr( fb_ArrayRedimEx )' is 510 statements in one corpus
 '' file testing exactly that.
 private function LowerName_( byref nm as string ) as string
-    return Fbx.Text.LowerAscii( nm )
+    return Tko.Text.LowerAscii( nm )
 end function
 
 function RtlByName( byref nm as string ) as RtlId
@@ -64,7 +64,7 @@ function RtlByName( byref nm as string ) as RtlId
     '' per row, and a qualified call inside that expansion does not parse.
     dim as string want = LowerName_( nm )
     #define RTL( r_id, r_sym, r_ret, r_args ) if LowerName_( r_sym ) = want then return r_id
-    FBX_RTL_LIST( RTL )
+    TKO_RTL_LIST( RTL )
     #undef RTL
     return RTL_NONE
 end function
@@ -107,7 +107,7 @@ end function
 function RtlParams( byval r as RtlId ) as string
     select case r
     #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : return r_args
-    FBX_RTL_LIST( RTL )
+    TKO_RTL_LIST( RTL )
     #undef RTL
     end select
     return ""

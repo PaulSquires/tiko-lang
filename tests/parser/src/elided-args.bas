@@ -10,7 +10,7 @@
 ''   a parenthesised call        PostfixChain
 ''   an intrinsic's arguments    IntrArgList
 ''   a PAREN-LESS call           ParseAmbiguous  <- 'locate ,,0' goes here, because
-''                                                  LOCATE is not in fbx's intrinsic
+''                                                  LOCATE is not in tiko-lang's intrinsic
 ''                                                  registry at all
 ''
 '' IntrArgList also has a no-progress guard to stop a loop that cannot consume anything,

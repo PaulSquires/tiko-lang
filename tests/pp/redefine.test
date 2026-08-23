@@ -1,6 +1,6 @@
-'' fbc rejects redefinition outright ("error 4: Duplicated definition"), so fbx must
+'' fbc rejects redefinition outright ("error 4: Duplicated definition"), so tiko-lang must
 '' too -- compatibility is the accept/reject decision.
 '' TEST: cli
 '' ARGS: --pp-only tests/pp/src/redef.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: FBX0305
+'' EXPECT-OUT: TKO0305

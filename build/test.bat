@@ -5,7 +5,7 @@ set "ROOT=%~dp0.."
 call "%ROOT%\build\build.bat" Debug --test-runner
 if errorlevel 1 exit /b 1
 pushd "%ROOT%"
-"bin\fbx-test.exe" %*
+"bin\tiko-test.exe" %*
 set "RC=%errorlevel%"
 popd
 exit /b %RC%

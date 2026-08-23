@@ -4,7 +4,7 @@
 '' is no single test to emit. fbc computes the sign ONCE, before the loop, and branches
 '' on it at the top of every iteration -- two tests, one taken.
 ''
-'' fbx used to record this as unlowered and then emit the RISING test anyway, so a
+'' tiko-lang used to record this as unlowered and then emit the RISING test anyway, so a
 '' negative runtime step ran the loop zero times where fbc runs it to completion.
 ''
 '' The step itself is also evaluated ONCE, into a temporary. It used to be re-lowered

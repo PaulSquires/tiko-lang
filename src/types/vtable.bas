@@ -2,7 +2,7 @@
 
 #include once "types/vtable.bi"
 
-namespace Fbx
+namespace Tko
 
 function VTables.Find( byval t as TypeId ) as long
     for i as long = 0 to this.types_.Count - 1
@@ -171,7 +171,7 @@ private function BuildOne_ _
                             '' AN OVERRIDE NEED NOT SAY 'virtual'. What makes a
                             '' procedure occupy a slot is matching an inherited one --
                             '' 'declare function f( ) as long override' carries neither
-                            '' modifier fbx records, and it is B's f that a call through
+                            '' modifier tiko-lang records, and it is B's f that a call through
                             '' an A ptr must reach.
                             dim as long at = -1
                             for i as long = 0 to v.count - 1

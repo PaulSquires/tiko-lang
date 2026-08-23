@@ -10,7 +10,7 @@
 '' 'Fail( of T, FsError )( ... )' and 'sizeof( Box( of long ) )'.
 ''
 '' The arguments are consumed and DISCARDED, which is what TypeRef already does with the
-'' same construct: every instantiation of one generic is the same type to fbx. That
+'' same construct: every instantiation of one generic is the same type to tiko-lang. That
 '' limitation is pre-existing -- this makes the expression side agree with the type side.
 
 type Box( of U )

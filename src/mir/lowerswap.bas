@@ -5,12 +5,12 @@
 
 #include once "lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
-using Fbx
+using Tko
 
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
 '' A SWAP operand's type.
 ''
@@ -19,29 +19,29 @@ declare function StrSwapKind_ _
 '' lowered. The pointee is what the subscript yields, and asking the TARGET for it is
 '' the same thing LowerPtrIndex already does to compute the element size.
 private function SwapOperandType_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId ) as Fbx.TypeId
+    ( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
 
-    dim as Fbx.TypeId t = c.info->TypeOf_( e )
-    if t <> Fbx.TYPE_NONE then return t
-    if e = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    if c.ast->Kind( e ) <> Fbx.N_INDEX then return Fbx.TYPE_NONE
+    dim as Tko.TypeId t = c.info->TypeOf_( e )
+    if t <> Tko.TYPE_NONE then return t
+    if e = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( e ) <> Tko.N_INDEX then return Tko.TYPE_NONE
 
-    dim as Fbx.ListPayload ptr lp = _
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
-    if lp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.TypeId pt = c.info->TypeOf_( lp->target )
-    if pt = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-    if c.types->Kind( pt ) <> Fbx.TK_POINTER then return Fbx.TYPE_NONE
+    if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId pt = c.info->TypeOf_( lp->target )
+    if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( pt ) <> Tko.TK_POINTER then return Tko.TYPE_NONE
     return c.types->Inner( pt )
 end function
 
 
-function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if (sp->a = Fbx.NODE_NONE) orelse (sp->b = Fbx.NODE_NONE) then return false
+function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return false
 
-    dim as Fbx.TypeId t = SwapOperandType_( c, sp->a )
-    if t = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId t = SwapOperandType_( c, sp->a )
+    if t = Tko.TYPE_NONE then return false
 
     dim as MirValue la = LowerAddr( c, sp->a )
     dim as MirValue lb = LowerAddr( c, sp->b )
@@ -92,8 +92,8 @@ function LowerSwap( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     ''
     '' Loading both sides through one type instead reinterprets the bits, which lowers
     '' cleanly, verifies, and is wrong. This was exactly that bug for one commit.
-    dim as Fbx.TypeId rt = SwapOperandType_( c, sp->b )
-    if rt = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId rt = SwapOperandType_( c, sp->b )
+    if rt = Tko.TYPE_NONE then return false
     dim as MirType mtl = LowerType( t, *c.types )
     dim as MirType mtr = LowerType( rt, *c.types )
     if (mtl = MT_VOID) orelse (mtr = MT_VOID) then return false
@@ -178,11 +178,11 @@ end sub
 '' 'return' -- '_ZN1TC1Ex( &fb$result$1, N$1 ); return fb$result$1;' -- which is one
 '' copy fewer. Same value; the copy is recorded here rather than hidden.
 function LowerTypeCtorExpr_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    dim as Fbx.TypeId t = TypeCtorTypeOf_( c, id )
-    if t = Fbx.TYPE_NONE then return false
-    dim as Fbx.ListPayload ptr cp = _
+    dim as Tko.TypeId t = TypeCtorTypeOf_( c, id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
 
     dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
@@ -199,16 +199,16 @@ end function
 
 '' The TYPE a 'T( args )' expression builds, or nothing when this is not one. A call
 '' whose callee is bound to a UDT SYMBOL rather than to a procedure.
-function TypeCtorTypeOf_( byref c as Ctx, byval id as Fbx.NodeId ) as Fbx.TypeId
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return Fbx.TYPE_NONE
-    dim as Fbx.ListPayload ptr cp = _
+function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+    if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.TYPE_NONE
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
-    if s = 0 then return Fbx.TYPE_NONE
-    if s->kind <> cast( ubyte, Fbx.SYM_UDT ) then return Fbx.TYPE_NONE
-    if s->type_ = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-    if c.types->Kind( s->type_ ) <> Fbx.TK_UDT then return Fbx.TYPE_NONE
+    if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+    if s = 0 then return Tko.TYPE_NONE
+    if s->kind <> cast( ubyte, Tko.SYM_UDT ) then return Tko.TYPE_NONE
+    if s->type_ = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( s->type_ ) <> Tko.TK_UDT then return Tko.TYPE_NONE
     return s->type_
 end function
 
@@ -229,29 +229,29 @@ end function
 '' setter one, they share a symbol chain, and taking the head of it picks whichever was
 '' declared first.
 function PropertyAt_ _
-    ( byref c as Ctx, byval node as Fbx.NodeId, byval want as long, _
-      byref self_ as MirValue ) as Fbx.SymbolId
+    ( byref c as Ctx, byval node as Tko.NodeId, byval want as long, _
+      byref self_ as MirValue ) as Tko.SymbolId
 
-    if c.ast->Kind( node ) <> Fbx.N_MEMBER then return Fbx.SYMBOL_NONE
-    dim as Fbx.SymbolId sid = c.info->RefOf( node )
-    if sid = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+    if c.ast->Kind( node ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId sid = c.info->RefOf( node )
+    if sid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
 
     '' The whole chain, because the getter and the setter share one symbol.
-    dim as Fbx.SymbolId cur = sid
-    dim as Fbx.SymbolId want_ = Fbx.SYMBOL_NONE
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+    dim as Tko.SymbolId cur = sid
+    dim as Tko.SymbolId want_ = Tko.SYMBOL_NONE
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind = cast( ubyte, Fbx.SYM_PROC ) then
-            dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-            if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-                dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-                if pp->op = cast( ushort, Fbx.KW_PROPERTY ) then
+        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+            if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+                if pp->op = cast( ushort, Tko.KW_PROPERTY ) then
                     dim as long np = 0
                     for i as long = 0 to pp->count - 1
-                        dim as Fbx.NodeId prm = _
-                            cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                        if c.ast->Kind( prm ) = Fbx.N_PARAM then np += 1
+                        dim as Tko.NodeId prm = _
+                            cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                        if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
                     next
                     if np = want then
                         want_ = cur
@@ -262,19 +262,19 @@ function PropertyAt_ _
         end if
         cur = s->nextOverload
     wend
-    if want_ = Fbx.SYMBOL_NONE then return Fbx.SYMBOL_NONE
+    if want_ = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
 
     '' The RECEIVER is the member's base, by address -- 'p.V' through a pointer takes
     '' the pointer's value instead, exactly as a field access does.
-    dim as Fbx.BinaryPayload ptr mp = _
+    dim as Tko.BinaryPayload ptr mp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, node )].data )]
-    dim as Fbx.TypeId bt = c.info->TypeOf_( mp->lhs )
-    if (bt <> Fbx.TYPE_NONE) andalso (c.types->Kind( bt ) = Fbx.TK_POINTER) then
+    dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
+    if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
         self_ = LowerExpr( c, mp->lhs )
     else
         self_ = LowerAddr( c, mp->lhs )
     end if
-    if self_.kind = cast( ubyte, MV_NONE ) then return Fbx.SYMBOL_NONE
+    if self_.kind = cast( ubyte, MV_NONE ) then return Tko.SYMBOL_NONE
     return want_
 end function
 
@@ -286,33 +286,33 @@ end function
 '' A MEMBER operator takes the left operand as its RECEIVER and the right as its only
 '' argument; a global one takes both.
 declare function OperandValue_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId, byval pt as Fbx.TypeId, _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
       byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
 
 function LowerUserBinaryOp_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval bp as Fbx.BinaryPayload ptr, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
       byval mt as MirType, byref outv as MirValue ) as boolean
 
-    dim as Fbx.SymbolId op = c.info->RefOf( id )
-    if op = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr os = c.syms->SymbolAt( op )
+    dim as Tko.SymbolId op = c.info->RefOf( id )
+    if op = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
     if os = 0 then return false
-    if os->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, os->payload )
-    if pn = Fbx.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
-    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-    if pp->op <> cast( ushort, Fbx.KW_OPERATOR ) then return false
+    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
 
     '' The parameters, in order, with their byref-ness.
     dim as FB.Array( of ulong ) ptypes
     dim as FB.Array( of ulong ) prefs
     for i as long = 0 to pp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         ptypes.Push( cast( ulong, c.info->TypeOf_( StmtOf( c, prm )->a ) ) )
         dim as ulong isRef = 0
-        if (c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then isRef = 1
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then isRef = 1
         prefs.Push( isRef )
     next
     if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
@@ -325,15 +325,15 @@ function LowerUserBinaryOp_ _
         if self_.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, self_.kind ) ) : args.Push( cast( ulong, self_.id ) )
     else
-        if OperandValue_( c, bp->lhs, cast( Fbx.TypeId, ptypes[0] ), _
+        if OperandValue_( c, bp->lhs, cast( Tko.TypeId, ptypes[0] ), _
                           (prefs[0] <> 0), args ) = false then return false
         firstArg = 1
     end if
-    if OperandValue_( c, bp->rhs, cast( Fbx.TypeId, ptypes[firstArg] ), _
+    if OperandValue_( c, bp->rhs, cast( Tko.TypeId, ptypes[firstArg] ), _
                       (prefs[firstArg] <> 0), args ) = false then return false
 
     dim as MirType rmt = mt
-    if os->type_ <> Fbx.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
     outv = EmitDirectCall_( c, op, rmt, args )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
@@ -341,35 +341,35 @@ end function
 '' A USER-DEFINED UNARY OPERATOR, called. A GLOBAL one takes the operand as its only
 '' parameter; a MEMBER one takes it as the receiver and nothing else.
 function LowerUserUnaryOp_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval up as Fbx.UnaryPayload ptr, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval up as Tko.UnaryPayload ptr, _
       byval mt as MirType, byref outv as MirValue ) as boolean
 
-    dim as Fbx.SymbolId op = c.info->RefOf( id )
-    if op = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr os = c.syms->SymbolAt( op )
+    dim as Tko.SymbolId op = c.info->RefOf( id )
+    if op = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
     if os = 0 then return false
-    if os->kind <> cast( ubyte, Fbx.SYM_PROC ) then return false
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, os->payload )
-    if pn = Fbx.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Fbx.N_PROC then return false
-    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-    if pp->op <> cast( ushort, Fbx.KW_OPERATOR ) then return false
+    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
 
-    dim as Fbx.TypeId pt = Fbx.TYPE_NONE
+    dim as Tko.TypeId pt = Tko.TYPE_NONE
     dim as boolean isRef = false
     dim as long np = 0
     for i as long = 0 to pp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if np = 0 then
             pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-            isRef = ((c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0)
+            isRef = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
         end if
         np += 1
     next
 
     dim as MirType rmt = mt
-    if os->type_ <> Fbx.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
 
     if np = 0 then
         dim as MirValue self_ = LowerAddr( c, up->operand )
@@ -387,7 +387,7 @@ end function
 
 '' One operator operand, pushed as the parameter wants it.
 private function OperandValue_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId, byval pt as Fbx.TypeId, _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
       byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
 
     dim as MirValue v
@@ -427,11 +427,11 @@ end function
 
 '' 't.V' as a value: the GETTER, called on the base.
 function LowerPropertyGet_ _
-    ( byref c as Ctx, byval node as Fbx.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval node as Tko.NodeId, byref outv as MirValue ) as boolean
     dim as MirValue self_
-    dim as Fbx.SymbolId g = PropertyAt_( c, node, 0, self_ )
-    if g = Fbx.SYMBOL_NONE then return false
-    dim as Fbx.Symbol ptr gs = c.syms->SymbolAt( g )
+    dim as Tko.SymbolId g = PropertyAt_( c, node, 0, self_ )
+    if g = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( g )
     if gs = 0 then return false
     outv = EmitMemberCall( c, g, self_, LowerType( gs->type_, *c.types ) )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -439,21 +439,21 @@ end function
 
 '' 't.V = x': the SETTER, called with the value after the receiver.
 function LowerPropertySet_ _
-    ( byref c as Ctx, byval target as Fbx.NodeId, byval value as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     dim as MirValue self_
-    dim as Fbx.SymbolId sset = PropertyAt_( c, target, 1, self_ )
-    if sset = Fbx.SYMBOL_NONE then return false
+    dim as Tko.SymbolId sset = PropertyAt_( c, target, 1, self_ )
+    if sset = Tko.SYMBOL_NONE then return false
 
     '' The parameter's type, so the value is coerced the way the callee expects.
-    dim as Fbx.Symbol ptr ss = c.syms->SymbolAt( sset )
+    dim as Tko.Symbol ptr ss = c.syms->SymbolAt( sset )
     if ss = 0 then return false
-    dim as Fbx.NodeId pn = cast( Fbx.NodeId, ss->payload )
-    if pn = Fbx.NODE_NONE then return false
-    dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-    dim as Fbx.TypeId pt = Fbx.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ss->payload )
+    if pn = Tko.NODE_NONE then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as Tko.TypeId pt = Tko.TYPE_NONE
     for i as long = 0 to pp->count - 1
-        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-        if c.ast->Kind( prm ) = Fbx.N_PARAM then
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) = Tko.N_PARAM then
             pt = c.info->TypeOf_( StmtOf( c, prm )->a )
             exit for
         end if
@@ -461,7 +461,7 @@ function LowerPropertySet_ _
 
     dim as MirValue v = LowerExpr( c, value )
     if v.kind = cast( ubyte, MV_NONE ) then return false
-    if pt <> Fbx.TYPE_NONE then
+    if pt <> Tko.TYPE_NONE then
         v = Coerce( c, v, LowerType( pt, *c.types ), IsUnsignedType( c, pt ) )
         if v.kind = cast( ubyte, MV_NONE ) then return false
     end if

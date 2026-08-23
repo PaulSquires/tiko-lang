@@ -12,11 +12,11 @@
 '' a constant into a temporary and takes any type at all. Answered from the SHAPE,
 '' since Check has no source manager to fold constants with.
 private function IsLvalueShape_ _
-    ( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 
-    if e = Fbx.NODE_NONE then return false
+    if e = Tko.NODE_NONE then return false
     select case c.ast->Kind( e )
-    case Fbx.N_IDENT, Fbx.N_MEMBER, Fbx.N_INDEX, Fbx.N_DEREF
+    case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
         return true
     end select
     return false
@@ -26,16 +26,16 @@ end function
 '' a pointer, a UDT and ANY are all excluded: each has its own conversion rules, and fbc
 '' does convert some of them at a byref parameter.
 private function IsNumericBuiltin_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 
-    if t = Fbx.TYPE_NONE then return false
-    dim as Fbx.TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) <> Fbx.TK_BUILTIN then return false
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
     select case c.types->BuiltinOf( u )
-    case Fbx.TY_BYTE, Fbx.TY_UBYTE, Fbx.TY_SHORT, Fbx.TY_USHORT, _
-         Fbx.TY_LONG, Fbx.TY_ULONG, Fbx.TY_INTEGER, Fbx.TY_UINTEGER, _
-         Fbx.TY_LONGINT, Fbx.TY_ULONGINT, Fbx.TY_SINGLE, Fbx.TY_DOUBLE, _
-         Fbx.TY_BOOLEAN
+    case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, _
+         Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
+         Tko.TY_LONGINT, Tko.TY_ULONGINT, Tko.TY_SINGLE, Tko.TY_DOUBLE, _
+         Tko.TY_BOOLEAN
         return true
     end select
     return false
@@ -44,25 +44,25 @@ end function
 '' A UDT's operator by its SPELLING -- '[]', '+', 'cast'. Operators are declared under
 '' the punctuation itself, folded, which is what makes this a plain member lookup.
 private function UdtOperatorNamed_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref nm as string ) as Fbx.SymbolId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    dim as Fbx.TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( u )
-    if tn = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( u ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Fbx.Symbol ptr sy = c.syms->SymbolAt( ts )
-    if sy = 0 then return Fbx.SYMBOL_NONE
-    if sy->inner = Fbx.SCOPE_NONE then return Fbx.SYMBOL_NONE
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( u )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( u ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( ts )
+    if sy = 0 then return Tko.SYMBOL_NONE
+    if sy->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
 
-private function IsUdtOperand_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    return (c.types->Kind( c.types->Unqualify( t ) ) = Fbx.TK_UDT)
+private function IsUdtOperand_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    return (c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT)
 end function
 
 '' THE USER-DEFINED BINARY OPERATOR for 'lt op rt', or nothing.
@@ -75,61 +75,61 @@ end function
 '' Both operands are costed, so an overload set over several right-hand types picks
 '' the same way a call does; a tie yields nothing rather than a silent choice.
 private function UserBinaryOp_ _
-    ( byref c as Ctx, byval op as Fbx.TokenKind, byval lt as Fbx.TypeId, _
-      byval rt as Fbx.TypeId ) as Fbx.SymbolId
+    ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, _
+      byval rt as Tko.TypeId ) as Tko.SymbolId
 
-    dim as string nm = Fbx.TokenKindText( op )
-    if len( nm ) = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId fold = c.names->Fold( c.names->GetString( nm ) )
+    dim as string nm = Tko.TokenKindText( op )
+    if len( nm ) = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.InternId fold = c.names->Fold( c.names->GetString( nm ) )
 
     '' The candidates: the left operand's members, the right operand's, then the scope
     '' the expression is written in.
     dim as FB.Array( of ulong ) heads
-    dim as Fbx.SymbolId h1 = UdtOperatorNamed_( c, lt, nm )
-    if h1 <> Fbx.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
-    dim as Fbx.SymbolId h2 = UdtOperatorNamed_( c, rt, nm )
-    if (h2 <> Fbx.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( ulong, h2 ) )
+    dim as Tko.SymbolId h1 = UdtOperatorNamed_( c, lt, nm )
+    if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
+    dim as Tko.SymbolId h2 = UdtOperatorNamed_( c, rt, nm )
+    if (h2 <> Tko.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( ulong, h2 ) )
     '' FROM THE OPERAND TYPE'S OWN SCOPE, not from the expression's: Check has no
     '' current scope, and SCOPE_GLOBAL holds only the builtins -- the trap this
     '' codebase has now hit three times. A type and the operators over it are declared
     '' together, which is what makes the declaring scope the right place to look, and
     '' Lookup walks outward from there.
     for si as long = 0 to 1
-        dim as Fbx.TypeId ot = iif( si = 0, lt, rt )
-        if ot = Fbx.TYPE_NONE then continue for
-        dim as Fbx.ScopeId sc = cast( Fbx.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
-        if sc = Fbx.SCOPE_NONE then continue for
-        dim as Fbx.SymbolId h3 = c.syms->Lookup( sc, fold )
-        if h3 = Fbx.SYMBOL_NONE then continue for
+        dim as Tko.TypeId ot = iif( si = 0, lt, rt )
+        if ot = Tko.TYPE_NONE then continue for
+        dim as Tko.ScopeId sc = cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
+        if sc = Tko.SCOPE_NONE then continue for
+        dim as Tko.SymbolId h3 = c.syms->Lookup( sc, fold )
+        if h3 = Tko.SYMBOL_NONE then continue for
         dim as boolean dup = false
         for k as long = 0 to heads.Count - 1
-            if cast( Fbx.SymbolId, heads[k] ) = h3 then dup = true
+            if cast( Tko.SymbolId, heads[k] ) = h3 then dup = true
         next
         if dup = false then heads.Push( cast( ulong, h3 ) )
     next
-    if heads.Count = 0 then return Fbx.SYMBOL_NONE
+    if heads.Count = 0 then return Tko.SYMBOL_NONE
 
-    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
+    dim as Tko.SymbolId best = Tko.SYMBOL_NONE
     dim as long bestCost = CONV_NONE
     dim as long ties = 0
     for hi as long = 0 to heads.Count - 1
-        dim as Fbx.SymbolId cur = cast( Fbx.SymbolId, heads[hi] )
-        while cur <> Fbx.SYMBOL_NONE
-            dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        dim as Tko.SymbolId cur = cast( Tko.SymbolId, heads[hi] )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
             if s = 0 then exit while
-            if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
-            dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-            if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-                dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-                if pp->op = cast( ushort, Fbx.KW_OPERATOR ) then
+            if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+            if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
                     '' A MEMBER operator takes ONE parameter and the receiver; a
                     '' global one takes two.
                     dim as long np = 0
-                    dim as Fbx.TypeId p0 = Fbx.TYPE_NONE
-                    dim as Fbx.TypeId p1 = Fbx.TYPE_NONE
+                    dim as Tko.TypeId p0 = Tko.TYPE_NONE
+                    dim as Tko.TypeId p1 = Tko.TYPE_NONE
                     for i as long = 0 to pp->count - 1
-                        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then
                             p0 = c.info->TypeOf_( StmtOf( c, prm )->a )
                         elseif np = 1 then
@@ -148,9 +148,9 @@ private function UserBinaryOp_ _
                         '' outside one it is a UNARY operator and is not a candidate
                         '' here at all. Costing it either way let 'operator -( byref a
                         '' as D )' win the binary '-' and be called with one operand.
-                        dim as Fbx.SymScope ptr osc = c.syms->ScopeAt( s->parent )
+                        dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
                         if osc <> 0 then
-                            if osc->kind = cast( ubyte, Fbx.SCOPEK_TYPE ) then
+                            if osc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
                                 '' The receiver is the LEFT operand and is not costed:
                                 '' fbc only considers a member operator for its own type.
                                 dim as long c1 = ConversionCost( rt, p0, *c.types )
@@ -172,7 +172,7 @@ private function UserBinaryOp_ _
             cur = s->nextOverload
         wend
     next
-    if ties > 0 then return Fbx.SYMBOL_NONE
+    if ties > 0 then return Tko.SYMBOL_NONE
     return best
 end function
 
@@ -181,49 +181,49 @@ end function
 '' parameter and a member takes NONE, so the two are told apart by the scope they are
 '' declared in rather than by counting.
 function UserUnaryOp_ _
-    ( byref c as Ctx, byval op as Fbx.TokenKind, byval ot as Fbx.TypeId ) as Fbx.SymbolId
+    ( byref c as Ctx, byval op as Tko.TokenKind, byval ot as Tko.TypeId ) as Tko.SymbolId
 
-    if IsUdtOperand_( c, ot ) = false then return Fbx.SYMBOL_NONE
-    dim as string nm = Fbx.TokenKindText( op )
-    if len( nm ) = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId fold = c.names->Fold( c.names->GetString( nm ) )
+    if IsUdtOperand_( c, ot ) = false then return Tko.SYMBOL_NONE
+    dim as string nm = Tko.TokenKindText( op )
+    if len( nm ) = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.InternId fold = c.names->Fold( c.names->GetString( nm ) )
 
     dim as FB.Array( of ulong ) heads
-    dim as Fbx.SymbolId h1 = UdtOperatorNamed_( c, ot, nm )
-    if h1 <> Fbx.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
-    dim as Fbx.ScopeId sc = cast( Fbx.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
-    if sc <> Fbx.SCOPE_NONE then
-        dim as Fbx.SymbolId h2 = c.syms->Lookup( sc, fold )
-        if (h2 <> Fbx.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( ulong, h2 ) )
+    dim as Tko.SymbolId h1 = UdtOperatorNamed_( c, ot, nm )
+    if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
+    dim as Tko.ScopeId sc = cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
+    if sc <> Tko.SCOPE_NONE then
+        dim as Tko.SymbolId h2 = c.syms->Lookup( sc, fold )
+        if (h2 <> Tko.SYMBOL_NONE) andalso (h2 <> h1) then heads.Push( cast( ulong, h2 ) )
     end if
-    if heads.Count = 0 then return Fbx.SYMBOL_NONE
+    if heads.Count = 0 then return Tko.SYMBOL_NONE
 
-    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
+    dim as Tko.SymbolId best = Tko.SYMBOL_NONE
     dim as long bestCost = CONV_NONE
     dim as long ties = 0
     for hi as long = 0 to heads.Count - 1
-        dim as Fbx.SymbolId cur = cast( Fbx.SymbolId, heads[hi] )
-        while cur <> Fbx.SYMBOL_NONE
-            dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+        dim as Tko.SymbolId cur = cast( Tko.SymbolId, heads[hi] )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
             if s = 0 then exit while
-            if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
-            dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-            if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-                dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
-                if pp->op = cast( ushort, Fbx.KW_OPERATOR ) then
+            if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+            if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
                     dim as long np = 0
-                    dim as Fbx.TypeId p0 = Fbx.TYPE_NONE
+                    dim as Tko.TypeId p0 = Tko.TYPE_NONE
                     for i as long = 0 to pp->count - 1
-                        dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                        if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then p0 = c.info->TypeOf_( StmtOf( c, prm )->a )
                         np += 1
                     next
                     dim as long total = CONV_NONE
-                    dim as Fbx.SymScope ptr osc = c.syms->ScopeAt( s->parent )
+                    dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
                     dim as boolean member_ = false
                     if osc <> 0 then
-                        member_ = (osc->kind = cast( ubyte, Fbx.SCOPEK_TYPE ))
+                        member_ = (osc->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
                     end if
                     if (np = 1) andalso (member_ = false) then
                         total = ConversionCost( ot, p0, *c.types )
@@ -244,44 +244,44 @@ function UserUnaryOp_ _
             cur = s->nextOverload
         wend
     next
-    if ties > 0 then return Fbx.SYMBOL_NONE
+    if ties > 0 then return Tko.SYMBOL_NONE
     return best
 end function
 
 '' Pick the overload for one call. Returns the chosen procedure's RETURN type, or
 '' TYPE_NONE when nothing is viable or two candidates tie.
 private function ResolveCall_ _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval callee as Fbx.SymbolId, _
-      byval argFirst as long, byval argCount as long ) as Fbx.TypeId
+    ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
+      byval argFirst as long, byval argCount as long ) as Tko.TypeId
 
     '' Argument types first; an untyped argument makes the whole call undecidable
     '' rather than wrong.
     dim as FB.Array( of ulong ) argT
     for i as long = 0 to argCount - 1
-        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
         '' AN ELIDED ARGUMENT -- 'locate , 10' -- has no type and needs none: it takes
         '' the parameter's default, so it is recorded as TYPE_NONE and costed as a
         '' parameter that was not written at all. Treating it as an untyped argument
         '' made every call with a hole in it undecidable.
-        if c.ast->Kind( a ) = Fbx.N_ELIDED then
-            argT.Push( cast( ulong, Fbx.TYPE_NONE ) )
+        if c.ast->Kind( a ) = Tko.N_ELIDED then
+            argT.Push( cast( ulong, Tko.TYPE_NONE ) )
             continue for
         end if
-        dim as Fbx.TypeId at = TypeOf_( c, a )
-        if at = Fbx.TYPE_NONE then
-            dim as Fbx.NodeId leaf = UntypedLeaf_( c, a )
+        dim as Tko.TypeId at = TypeOf_( c, a )
+        if at = Tko.TYPE_NONE then
+            dim as Tko.NodeId leaf = UntypedLeaf_( c, a )
             NoteUntypedName_( c, leaf )
             dim as long ak = cast( long, c.ast->Kind( leaf ) )
             while c.st->argUntypedKind.Count <= ak
                 c.st->argUntypedKind.Push( 0 )
             wend
             c.st->argUntypedKind[ak] += 1
-            return Fbx.TYPE_NONE
+            return Tko.TYPE_NONE
         end if
         argT.Push( cast( ulong, at ) )
     next
 
-    dim as Fbx.SymbolId best = Fbx.SYMBOL_NONE
+    dim as Tko.SymbolId best = Tko.SYMBOL_NONE
     dim as long bestCost = CONV_NONE
     dim as long ties = 0
 
@@ -290,25 +290,25 @@ private function ResolveCall_ _
     '' procedure called on its own and refuses the identical conversion the moment a
     '' second overload exists, however unviable that second one is.
     dim as long ncand = 0
-    dim as Fbx.SymbolId walk = callee
-    while walk <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr ws = c.syms->SymbolAt( walk )
+    dim as Tko.SymbolId walk = callee
+    while walk <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr ws = c.syms->SymbolAt( walk )
         if ws = 0 then exit while
-        if ws->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
+        if ws->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
         ncand += 1
         walk = ws->nextOverload
     wend
     dim as boolean overloaded = (ncand > 1)
 
-    dim as Fbx.SymbolId cur = callee
+    dim as Tko.SymbolId cur = callee
 
-    while cur <> Fbx.SYMBOL_NONE
-        dim as Fbx.Symbol ptr s = c.syms->SymbolAt( cur )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
-        if s->kind <> cast( ubyte, Fbx.SYM_PROC ) then exit while
-        dim as Fbx.NodeId pn = cast( Fbx.NodeId, s->payload )
-        if (pn <> Fbx.NODE_NONE) andalso (c.ast->Kind( pn ) = Fbx.N_PROC) then
-            dim as Fbx.StmtPayload ptr pp = StmtOf( c, pn )
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
             '' A CANDIDATE IS VIABLE ON FEWER ARGUMENTS THAN PARAMETERS when every
             '' parameter past the last written one has a DEFAULT. This read 'np =
             '' argT.Count' and nothing else, so a procedure with an optional parameter
@@ -324,9 +324,9 @@ private function ResolveCall_ _
             dim as long np = 0
             dim as boolean variadic = false
             for i as long = 0 to pp->count - 1
-                dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-                if StmtOf( c, prm )->op = cast( ushort, Fbx.TK_ELLIPSIS ) then
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then
                     variadic = true
                 else
                     np += 1
@@ -340,10 +340,10 @@ private function ResolveCall_ _
                 arityOk = true
                 dim as long seen = 0
                 for i as long = 0 to pp->count - 1
-                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     if seen >= argT.Count then
-                        if StmtOf( c, prm )->b = Fbx.NODE_NONE then
+                        if StmtOf( c, prm )->b = Tko.NODE_NONE then
                             arityOk = false
                             exit for
                         end if
@@ -356,25 +356,25 @@ private function ResolveCall_ _
                 dim as long ai = 0
                 dim as boolean viable = true
                 for i as long = 0 to pp->count - 1
-                    dim as Fbx.NodeId prm = cast( Fbx.NodeId, c.ast->children[pp->first + i] )
-                    if c.ast->Kind( prm ) <> Fbx.N_PARAM then continue for
-                    dim as Fbx.StmtPayload ptr sp2 = StmtOf( c, prm )
-                    if sp2->op = cast( ushort, Fbx.TK_ELLIPSIS ) then continue for
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                    dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
+                    if sp2->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
                     '' Past the written arguments, or an elided one: the default
                     '' stands and there is nothing to convert. An elided argument
                     '' whose parameter has NO default is not viable -- 'locate , 10'
                     '' against a parameter that must be written.
                     if ai >= argT.Count then exit for
-                    dim as Fbx.TypeId at2 = cast( Fbx.TypeId, argT[ai] )
-                    if at2 = Fbx.TYPE_NONE then
-                        if sp2->b = Fbx.NODE_NONE then
+                    dim as Tko.TypeId at2 = cast( Tko.TypeId, argT[ai] )
+                    if at2 = Tko.TYPE_NONE then
+                        if sp2->b = Tko.NODE_NONE then
                             viable = false
                             exit for
                         end if
                         ai += 1
                         continue for
                     end if
-                    dim as Fbx.TypeId pt = c.info->TypeOf_( sp2->a )
+                    dim as Tko.TypeId pt = c.info->TypeOf_( sp2->a )
 
                     '' A BYREF NUMERIC PARAMETER TAKES ITS OWN TYPE AND NOTHING ELSE.
                     '' Measured: 'declare sub F( byref x as long )' called with a SHORT
@@ -383,18 +383,18 @@ private function ResolveCall_ _
                     '' write back through. A CONSTANT is exempt, because it has no
                     '' address either way and fbc materialises a temporary for it.
                     ''
-                    '' This is not pedantry about a diagnostic fbx does not emit: it
+                    '' This is not pedantry about a diagnostic tiko-lang does not emit: it
                     '' decides an OVERLOAD. 'screeninfo w, h' over INTEGERs is
                     '' fb_GfxScreenInfo64 and over LONGs is fb_GfxScreenInfo32, and
                     '' costing the two as convertible picked the 32-bit one for both --
                     '' an int64* passed where an int32* belongs.
-                    if (prm <> Fbx.NODE_NONE) andalso (pt <> Fbx.TYPE_NONE) then
-                        if (c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
+                    if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
+                        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
                             if IsNumericBuiltin_( c, pt ) andalso IsNumericBuiltin_( c, at2 ) then
                                 if c.types->Unqualify( at2 ) <> c.types->Unqualify( pt ) then
-                                    dim as Fbx.NodeId an2 = Fbx.NODE_NONE
+                                    dim as Tko.NodeId an2 = Tko.NODE_NONE
                                     if ai < argCount then
-                                        an2 = cast( Fbx.NodeId, c.ast->children[argFirst + ai] )
+                                        an2 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
                                     end if
                                     if IsLvalueShape_( c, an2 ) then
                                         viable = false
@@ -427,14 +427,14 @@ private function ResolveCall_ _
         cur = s->nextOverload
     wend
 
-    if best = Fbx.SYMBOL_NONE then return Fbx.TYPE_NONE
+    if best = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     if ties > 0 then
         c.st->callsAmbiguous += 1
-        return Fbx.TYPE_NONE
+        return Tko.TYPE_NONE
     end if
     c.st->callsResolved += 1
     c.info->SetRef( id, best )
-    dim as Fbx.Symbol ptr bs = c.syms->SymbolAt( best )
-    if bs = 0 then return Fbx.TYPE_NONE
+    dim as Tko.Symbol ptr bs = c.syms->SymbolAt( best )
+    if bs = 0 then return Tko.TYPE_NONE
     return bs->type_
 end function

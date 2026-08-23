@@ -1,4 +1,4 @@
-'' 'union' used to require a name, so an anonymous one reported FBX0406 and lost every
+'' 'union' used to require a name, so an anonymous one reported TKO0406 and lost every
 '' member of the enclosing type. Anonymity is legal only INSIDE another aggregate --
 '' a bare 'type' at module level is still an error, which is why the parser tracks
 '' how many aggregate bodies enclose the cursor rather than accepting both.

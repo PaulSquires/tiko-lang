@@ -1,9 +1,9 @@
-# fbx
+# tiko-lang
 
 **A FreeBASIC-compatible compiler.** Clean-sheet frontend, LLVM backend, targeting Windows x86-64
 and Linux x86-64. Written in FreeBASIC, built with [FBC-Modern](https://github.com/PaulSquires).
 
-> **Status: Phase 5 of 12 — semantic frontend.** fbx does not compile FreeBASIC yet, and there is
+> **Status: Phase 5 of 12 — semantic frontend.** tiko-lang does not compile FreeBASIC yet, and there is
 > no backend. It tokenises, preprocesses, **parses**, and now **resolves names and mangles
 > symbols**. Over the 3,230 vendored files of fbc's own test suite it binds **695,942 references
 > (92.8%)** and resolves 1.4M type references with no crashes. Its emitted symbol names are
@@ -33,30 +33,30 @@ It is deliberately unoriginal where originality costs: **LLVM does code generati
 ## What works today
 
 ```
-fbx --version
-fbx --help [category]
-fbx --dump-source <files...>      loaded files: size, lines, encoding, content hash
-fbx --dump-tokens <files...>      the token stream
-fbx --dump-tokens=pp <files...>   the token stream after preprocessing
-fbx --lex-only / --pp-only        run one phase and report counts; the corpus gate
-fbx --parse-expr <files...>       parse each line as one expression and dump the AST
-fbx --dump-ast <files...>         parse whole files and dump the syntax tree
-fbx --parse-only                  parse and report counts; the corpus gate
-fbx --dump-types                  the type table with sizes and alignments
-fbx --dump-symbols                collect declarations and dump the symbol table
-fbx --resolve                     bind references and resolve type references
-fbx --dump-mangle                 print the emitted symbol name of each procedure
+tiko-lang --version
+tiko-lang --help [category]
+tiko-lang --dump-source <files...>      loaded files: size, lines, encoding, content hash
+tiko-lang --dump-tokens <files...>      the token stream
+tiko-lang --dump-tokens=pp <files...>   the token stream after preprocessing
+tiko-lang --lex-only / --pp-only        run one phase and report counts; the corpus gate
+tiko-lang --parse-expr <files...>       parse each line as one expression and dump the AST
+tiko-lang --dump-ast <files...>         parse whole files and dump the syntax tree
+tiko-lang --parse-only                  parse and report counts; the corpus gate
+tiko-lang --dump-types                  the type table with sizes and alignments
+tiko-lang --dump-symbols                collect declarations and dump the symbol table
+tiko-lang --resolve                     bind references and resolve type references
+tiko-lang --dump-mangle                 print the emitted symbol name of each procedure
 ```
 
 Source files are accepted as ANSI, UTF-8, UTF-16LE and UTF-16BE (with or without BOM) and
 normalised to UTF-8 once at load. Diagnostics carry a stable id, a source location, a rendered
 caret and colour when the output is a terminal.
 
-Anything else reports `FBX0992: not implemented in this build` rather than exiting quietly.
+Anything else reports `TKO0992: not implemented in this build` rather than exiting quietly.
 
 ## Build
 
-Requires an FBC-Modern `fbc`. Override its location with `FBX_STAGE0`.
+Requires an FBC-Modern `fbc`. Override its location with `TKO_STAGE0`.
 
 ```bash
 build/build.sh Debug --test-runner    # or build\build.bat on Windows
@@ -80,7 +80,7 @@ src/parser/     precedence table, Pratt expressions, statements, the intrinsic r
 src/types/      the canonical type model and its target-injected layout
 src/symbols/    symbols, scopes and declaration collection
 src/driver/     option table, command line, pipeline orchestration
-tools/fbx-test/ the test runner
+tools/tiko-test/ the test runner
 tests/          the suite; goldens live in expected/ beside their tests
 docs/plan/      the architecture and implementation plan (16 documents)
 docs/internals/ per-subsystem notes, written by the phase that builds the subsystem

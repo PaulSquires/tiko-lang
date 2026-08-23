@@ -4,7 +4,7 @@
 #include once "diag/render.bi"
 #include once "support/platform.bi"
 
-namespace Fbx
+namespace Tko
 
 const POLICY_DEFAULT as long = -1
 const POLICY_IGNORE  as long = -2
@@ -73,7 +73,7 @@ function DiagnosticEngine.UseColor( ) as boolean
     select case this.colorMode
     case COLOR_ALWAYS : return true
     case COLOR_NEVER  : return false
-    case else         : return Fbx.Platform.IsTerminal( Fbx.Platform.STREAM_ERR )
+    case else         : return Tko.Platform.IsTerminal( Tko.Platform.STREAM_ERR )
     end select
 end function
 
@@ -111,10 +111,10 @@ sub DiagnosticEngine.Push _
             if this.capReported = false then
                 this.capReported = true
                 dim as Diagnostic cap
-                cap.id = FBX0990
+                cap.id = TKO0990
                 cap.sev = SEV_ERROR
                 cap.range = PointRange( LOC_NONE )
-                cap.text = *DiagInfoOf( FBX0990 )->format
+                cap.text = *DiagInfoOf( TKO0990 )->format
                 cap.hasLocation = false
                 this.pending.Push( cap )
             end if
@@ -167,7 +167,7 @@ sub DiagnosticEngine.Flush( )
     if this.pending.IsEmpty( ) then return
 
     dim as boolean colour = this.UseColor( )
-    if colour then Fbx.Platform.EnableAnsi( )
+    if colour then Tko.Platform.EnableAnsi( )
 
     '' Rendered in report order. Determinism is a project requirement, so this
     '' must never become "sorted by location" or "grouped by file".
@@ -179,7 +179,7 @@ sub DiagnosticEngine.Flush( )
     dim as long h = stderrHandle
 
     for each d as Diagnostic in this.pending
-        dim as string rendered = Fbx.Render.Diagnostic_( d, *this.sources, this.outputFormat, colour )
+        dim as string rendered = Tko.Render.Diagnostic_( d, *this.sources, this.outputFormat, colour )
         if h > 0 then
             print #h, rendered;
         else

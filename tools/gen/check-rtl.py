@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Compare fbx's runtime inventory with the signatures FBC emits, on BOTH targets.
+"""Compare tiko-lang's runtime inventory with the signatures FBC emits, on BOTH targets.
 
     python tools/gen/check-rtl.py
 
 Reads tests/expected/fbc-rtl.txt and fbc-rtl-win32.txt -- produced by rtl-truth.py from
 the C intermediate fbc leaves behind, and cross-checked against libfb.a -- and compares
-each with 'fbx --dump-rtl' for that target.
+each with 'tiko-lang --dump-rtl' for that target.
 
 Passing three arguments to a two-argument runtime function is a link error at best and
 a silent stack mismatch at worst, so the arity and every parameter type are compared,
@@ -18,14 +18,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 TARGETS = [
     ("win64", ROOT / "tests/expected/fbc-rtl.txt", []),
     ("win32", ROOT / "tests/expected/fbc-rtl-win32.txt", ["-target", "win32"]),
 ]
 
-# fbc's C spelling -> the MIR type fbx names it by.
+# fbc's C spelling -> the MIR type tiko-lang names it by.
 #
 # SIGNED AND UNSIGNED COLLAPSE, deliberately. MIR has no unsigned types: signedness lives
 # in the OPCODE (icmp.ult against icmp.slt, udiv against sdiv), not in the operand type,
@@ -49,14 +49,14 @@ def c_to_mir(t: str) -> str:
     return CMAP.get(t, "?" + t)
 
 
-def one_target(fbx, label, truth, tgtargs):
+def one_target(tiko, label, truth, tgtargs):
     if not truth.exists():
         print(f"check-rtl: {label}: no truth file; run tools/gen/rtl-truth.py",
               file=sys.stderr)
         return 3
 
     # The win32 file carries a fifth column: the DECORATED symbol, which is the name
-    # fbx has to emit. On win64 it is the plain name and the column agrees with it.
+    # tiko-lang has to emit. On win64 it is the plain name and the column agrees with it.
     want = {}
     for line in truth.read_text(encoding="utf-8").splitlines():
         if not line.strip():
@@ -70,7 +70,7 @@ def one_target(fbx, label, truth, tgtargs):
     probe = ROOT / "build/.rt/e.bas"
     probe.parent.mkdir(parents=True, exist_ok=True)
     probe.write_text("sub F( )\nend sub\n", encoding="utf-8", newline="\n")
-    proc = subprocess.run([str(fbx), "--dump-rtl"] + tgtargs + [str(probe)],
+    proc = subprocess.run([str(tiko), "--dump-rtl"] + tgtargs + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -82,7 +82,7 @@ def one_target(fbx, label, truth, tgtargs):
     ok, diffs = 0, []
     for sym, (gret, gargs) in sorted(got.items()):
         if sym not in want:
-            diffs.append(f"{sym}: in fbx's table, not in anything fbc emitted")
+            diffs.append(f"{sym}: in tiko-lang's table, not in anything fbc emitted")
             continue
         fn, wret, wargs, present = want[sym]
         # LIBC, not libfb. pow and atan2 come from the C runtime -- fbc calls them
@@ -97,18 +97,18 @@ def one_target(fbx, label, truth, tgtargs):
         cmp_w = [a for a in wargs if a != "..."]
         gargs = [a for a in gargs if a != "..."]
         if gret != wret:
-            diffs.append(f"{fn}: return fbc={wret} fbx={gret}")
+            diffs.append(f"{fn}: return fbc={wret} tiko={gret}")
             continue
         if gargs != cmp_w:
             kind = "fixed args" if variadic else "args"
-            diffs.append(f"{fn}: {kind} fbc={cmp_w} fbx={gargs}")
+            diffs.append(f"{fn}: {kind} fbc={cmp_w} tiko={gargs}")
             continue
         ok += 1
 
     print(f"check-rtl: {label} {ok}/{len(got)} entries match the signatures fbc emits")
     unused = sorted(set(want) - set(got))
     if unused:
-        print(f"check-rtl: {label} {len(unused)} measured but not yet in fbx's table: "
+        print(f"check-rtl: {label} {len(unused)} measured but not yet in tiko-lang's table: "
               + ", ".join(unused))
     if diffs:
         print(f"check-rtl: {label} {len(diffs)} disagreements:")
@@ -118,13 +118,13 @@ def one_target(fbx, label, truth, tgtargs):
 
 
 def main() -> int:
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print("check-rtl: fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print("check-rtl: tiko not built", file=sys.stderr)
         return 3
     rc = 0
     for label, truth, tgtargs in TARGETS:
-        if one_target(fbx, label, truth, tgtargs) != 0:
+        if one_target(tiko, label, truth, tgtargs) != 0:
             rc = 1
     return rc
 

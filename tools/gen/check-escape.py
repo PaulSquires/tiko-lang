@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Compare the bytes fbx puts in a string literal with the bytes fbc puts there.
+r"""Compare the bytes tiko-lang puts in a string literal with the bytes fbc puts there.
 
     python tools/gen/check-escape.py
 
@@ -8,7 +8,7 @@ output. Each case is compiled ALONE -- one file per literal -- because two diffe
 spellings can produce the same bytes ('!"\101"' and '!"\x41"' are both "A") and a
 shared probe would let literal pooling merge them into one row.
 
-fbx's answer is read out of '--dump-ir': the 'global str' line carries the bytes and
+tiko-lang's answer is read out of '--dump-ir': the 'global str' line carries the bytes and
 the fb_StrInit call carries the count. The dump is read as BYTES, not as text, since a
 correct answer contains control characters and byte 255.
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TRUTH = ROOT / "tests/types/expected/fbc-escape.txt"
 WORK = ROOT / "build/.esc"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 
 def rows():
@@ -33,13 +33,13 @@ def rows():
     return out
 
 
-def fbx_bytes(lit, idx):
+def tiko_bytes(lit, idx):
     probe = WORK / f"esc-{idx}.bas"
     probe.write_bytes(("dim shared as string s\ns = " + lit + "\n").encode("utf-8"))
-    r = subprocess.run([str(FBX), "--dump-ir", str(probe)], capture_output=True)
+    r = subprocess.run([str(TKO), "--dump-ir", str(probe)], capture_output=True)
     dump = r.stdout or b""
-    if b": error FBX" in dump or b": fatal FBX" in dump:
-        return None, "fbx reported a diagnostic"
+    if b": error TKO" in dump or b": fatal TKO" in dump:
+        return None, "tiko-lang reported a diagnostic"
     m = re.search(rb'^global str \$str\d+ "(.*)"$', dump, re.MULTILINE | re.DOTALL)
     if not m:
         # No global at all is the right answer for an EMPTY literal.
@@ -55,15 +55,15 @@ def main() -> int:
     if not TRUTH.exists():
         print("check-escape: no truth file; run tools/gen/escape-truth.py", file=sys.stderr)
         return 3
-    if not FBX.exists():
-        print("check-escape: bin/fbx.exe not built", file=sys.stderr)
+    if not TKO.exists():
+        print("check-escape: bin/tiko.exe not built", file=sys.stderr)
         return 3
     WORK.mkdir(parents=True, exist_ok=True)
 
     total = bad = 0
     for i, (lit, n, codes) in enumerate(rows()):
         total += 1
-        got, err = fbx_bytes(lit, i)
+        got, err = tiko_bytes(lit, i)
         if err is not None:
             bad += 1
             print(f"check-escape:   {lit}  -- {err}")

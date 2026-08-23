@@ -15,33 +15,33 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' Defined below; LowerAddr above it needs the name.
-declare function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+declare function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
 declare function ArrayStrides _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref strides as FB.Array( of longint ), _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as FB.Array( of longint ), _
       byref bias as longint ) as boolean
 
 '' Whether a node is an 'iif' whose ARMS are UDTs. Asked before anything is lowered:
 '' LowerAggIif_ emits a branch sequence, and a caller that tried it speculatively and
 '' then fell through would evaluate both arms twice.
-function IsAggIif_( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr lp = _
+function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->count <> 3 then return false
-    if lp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( lp->target ) <> Fbx.N_IDENT then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-    if Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
     for k as long = 1 to 2
-        dim as Fbx.TypeId at = _
-            c.info->TypeOf_( cast( Fbx.NodeId, c.ast->children[lp->first + k] ) )
-        if at <> Fbx.TYPE_NONE then
-            if c.types->Kind( at ) = Fbx.TK_UDT then return true
+        dim as Tko.TypeId at = _
+            c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+        if at <> Tko.TYPE_NONE then
+            if c.types->Kind( at ) = Tko.TK_UDT then return true
         end if
     next
     return false
@@ -51,10 +51,10 @@ end function
 '' The ADDRESS of an assignable expression, or an undef value when this slice cannot
 '' produce one (a member, an index, a dereference).
 function LowerAddr _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+    ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
     dim as MirValue v
-    if id = Fbx.NODE_NONE then return v
+    if id = Tko.NODE_NONE then return v
 
     '' A BYREF-RETURNING CALL YIELDS AN ADDRESS, which is the whole point of one:
     '' fbc writes 'int32* vr = _ZN1TixEi( &A, 1 ); *vr = 99;' for 'a[ 1 ] = 99'. So
@@ -66,33 +66,33 @@ function LowerAddr _
     '' N_CALL only: an N_INDEX over a UDT is the 'operator []' path further down,
     '' which knows how to find the receiver -- this one would call the operator with
     '' the subscript and NO 'this'.
-    if c.ast->Kind( id ) = Fbx.N_CALL then
-        dim as Fbx.ListPayload ptr bl = _
+    if c.ast->Kind( id ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr bl = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Fbx.SymbolId bcal = c.info->RefOf( id )
-        if bcal = Fbx.SYMBOL_NONE then bcal = c.info->RefOf( bl->target )
-        dim as Fbx.Symbol ptr bcs = c.syms->SymbolAt( bcal )
+        dim as Tko.SymbolId bcal = c.info->RefOf( id )
+        if bcal = Tko.SYMBOL_NONE then bcal = c.info->RefOf( bl->target )
+        dim as Tko.Symbol ptr bcs = c.syms->SymbolAt( bcal )
         if bcs <> 0 then
-            if bcs->kind = cast( ubyte, Fbx.SYM_PROC ) then
-                dim as Fbx.NodeId bpn = cast( Fbx.NodeId, bcs->payload )
-                if (bpn <> Fbx.NODE_NONE) andalso (c.ast->Kind( bpn ) = Fbx.N_PROC) then
+            if bcs->kind = cast( ubyte, Tko.SYM_PROC ) then
+                dim as Tko.NodeId bpn = cast( Tko.NodeId, bcs->payload )
+                if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) then
                     '' ...and a UDT RETURNED THROUGH A HIDDEN POINTER is already a
                     '' temporary the caller owns, so the call's value is its address.
                     '' 'this.GetD( ).W' -- a property on a call result -- asked for one
                     '' and got nothing, which is how fb/chrono.bi writes most of its
                     '' accessors.
                     dim as boolean byrefRet = _
-                        ((c.ast->nodes[cast( long, bpn )].flags and Fbx.NF_BYREF) <> 0)
+                        ((c.ast->nodes[cast( long, bpn )].flags and Tko.NF_BYREF) <> 0)
                     if byrefRet orelse UsesSretReturn( c, bcs->type_ ) then
                         dim as MirValue bv = LowerCallParts( c, bl->target, bcal, _
                                                             bl->first, bl->count, MT_PTR )
                         if bv.kind <> cast( ubyte, MV_NONE ) then return bv
-                    elseif bcs->type_ <> Fbx.TYPE_NONE then
+                    elseif bcs->type_ <> Tko.TYPE_NONE then
                         '' A SMALL UDT COMES BACK IN REGISTERS, so there is no hidden
                         '' temporary to take the address of -- but 'GetD( ).a' still
                         '' needs one. The value is stored into a temporary of its own
                         '' type and that is what the member reads through.
-                        if c.types->Kind( bcs->type_ ) = Fbx.TK_UDT then
+                        if c.types->Kind( bcs->type_ ) = Tko.TK_UDT then
                             dim as MirValue av = LowerCallParts( c, bl->target, bcal, _
                                                                  bl->first, bl->count, MT_AGG )
                             if av.kind <> cast( ubyte, MV_NONE ) then
@@ -121,12 +121,12 @@ function LowerAddr _
     '' Without this the resolve fix made 'ns.counter = 2' stop being counted as declined
     '' while still emitting no store: the statement silently did nothing, which is worse
     '' than the honest decline it replaced.
-    if c.ast->Kind( id ) = Fbx.N_MEMBER then
-        dim as Fbx.SymbolId qsid = c.info->RefOf( id )
-        if qsid <> Fbx.SYMBOL_NONE then
-            dim as Fbx.Symbol ptr qs = c.syms->SymbolAt( qsid )
+    if c.ast->Kind( id ) = Tko.N_MEMBER then
+        dim as Tko.SymbolId qsid = c.info->RefOf( id )
+        if qsid <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
             if qs <> 0 then
-                if qs->kind = cast( ubyte, Fbx.SYM_VARIABLE ) then return AddrOfVar( c, qsid )
+                if qs->kind = cast( ubyte, Tko.SYM_VARIABLE ) then return AddrOfVar( c, qsid )
             end if
         end if
     end if
@@ -134,12 +134,12 @@ function LowerAddr _
     '' 'x.f' is the base's address plus a CONSTANT offset. The offset comes from the
     '' measured layout, and Check already bound the member to its field symbol, so
     '' nothing is looked up twice.
-    if c.ast->Kind( id ) = Fbx.N_MEMBER then
-        dim as Fbx.BinaryPayload ptr mp = _
+    if c.ast->Kind( id ) = Tko.N_MEMBER then
+        dim as Tko.BinaryPayload ptr mp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Fbx.TypeId bt = c.info->TypeOf_( mp->lhs )
+        dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
         dim as MirValue base_
-        if (bt <> Fbx.TYPE_NONE) andalso (c.types->Kind( bt ) = Fbx.TK_POINTER) then
+        if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
             '' Through a pointer the base is the VALUE, not its slot.
             base_ = LowerExpr( c, mp->lhs )
             bt = c.types->Inner( bt )
@@ -147,8 +147,8 @@ function LowerAddr _
             base_ = LowerAddr( c, mp->lhs )
         end if
         if base_.kind = cast( ubyte, MV_NONE ) then return v
-        dim as Fbx.SymbolId fsym = c.info->RefOf( id )
-        dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsym )
+        dim as Tko.SymbolId fsym = c.info->RefOf( id )
+        dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsym )
         if fs = 0 then return v
 
         '' A BITFIELD HAS NO ADDRESS OF ITS OWN. Its declared type sizes the storage
@@ -157,7 +157,7 @@ function LowerAddr _
         '' layout is not packed yet either -- tools/gen/check-udt.sh measures that gap
         '' on three shapes -- so this declines rather than emitting an access that
         '' would be wrong twice over.
-        if (fs->flags and Fbx.SYMF_BITFIELD) <> 0 then return v
+        if (fs->flags and Tko.SYMF_BITFIELD) <> 0 then return v
 
         dim as boolean found = false
         dim as long off = c.udts->FieldOffset( bt, fs->name, found )
@@ -178,21 +178,21 @@ function LowerAddr _
     ''
     '' Only for an aggregate target: a numeric cast produces a VALUE and has no address,
     '' and handing back the operand's would read the wrong width from it.
-    if c.ast->Kind( id ) = Fbx.N_CALL then
-        dim as Fbx.ListPayload ptr cl = _
+    if c.ast->Kind( id ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr cl = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if (cl->count = 2) andalso (cl->target <> Fbx.NODE_NONE) then
-            if c.ast->Kind( cl->target ) = Fbx.N_IDENT then
-                dim as Fbx.IdentPayload ptr cip = _
+        if (cl->count = 2) andalso (cl->target <> Tko.NODE_NONE) then
+            if c.ast->Kind( cl->target ) = Tko.N_IDENT then
+                dim as Tko.IdentPayload ptr cip = _
                     @c.ast->idents[cast( long, c.ast->nodes[cast( long, cl->target )].data )]
-                dim as string cnm = Fbx.Text.LowerAscii( c.names->Spelling( cip->name ) )
+                dim as string cnm = Tko.Text.LowerAscii( c.names->Spelling( cip->name ) )
                 if (cnm = "cast") orelse (cnm = "ctype") then
-                    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cl->first] )
-                    if c.ast->Kind( a0 ) = Fbx.N_TYPEREF then
-                        dim as Fbx.TypeId tt = c.info->TypeOf_( id )
-                        if tt <> Fbx.TYPE_NONE then
-                            if c.types->Kind( tt ) = Fbx.TK_UDT then
-                                return LowerAddr( c, cast( Fbx.NodeId, _
+                    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cl->first] )
+                    if c.ast->Kind( a0 ) = Tko.N_TYPEREF then
+                        dim as Tko.TypeId tt = c.info->TypeOf_( id )
+                        if tt <> Tko.TYPE_NONE then
+                            if c.types->Kind( tt ) = Tko.TK_UDT then
+                                return LowerAddr( c, cast( Tko.NodeId, _
                                                   c.ast->children[cl->first + 1] ) )
                             end if
                         end if
@@ -205,11 +205,11 @@ function LowerAddr _
     '' Parentheses are kept in the tree for diagnostics, so an address has to see through
     '' them: '(*p).M( )' is a PAREN around a deref, and stopping at the paren lost the
     '' receiver.
-    if c.ast->Kind( id ) = Fbx.N_PAREN then
-        dim as Fbx.ListPayload ptr pp = _
+    if c.ast->Kind( id ) = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr pp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         if pp->count = 1 then
-            return LowerAddr( c, cast( Fbx.NodeId, c.ast->children[pp->first] ) )
+            return LowerAddr( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
         end if
         return v
     end if
@@ -217,8 +217,8 @@ function LowerAddr _
     '' The address of '*p' IS p. Without this '(*p).M( )' had no receiver to pass, and
     '' 'sub P( byref x as T )' -- which lowering sees as a dereference -- had no address
     '' to store through.
-    if c.ast->Kind( id ) = Fbx.N_DEREF then
-        dim as Fbx.UnaryPayload ptr dp = _
+    if c.ast->Kind( id ) = Tko.N_DEREF then
+        dim as Tko.UnaryPayload ptr dp = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         return LowerExpr( c, dp->operand )
     end if
@@ -230,12 +230,12 @@ function LowerAddr _
     '' Asked by SHAPE before anything is lowered, because LowerAggIif_ emits a branch
     '' sequence and reaching it twice would evaluate both arms twice.
     if IsAggIif_( c, id ) then
-        dim as Fbx.ListPayload ptr ip2 = _
+        dim as Tko.ListPayload ptr ip2 = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as MirValue av
-        if LowerAggIif_( c, cast( Fbx.NodeId, c.ast->children[ip2->first] ), _
-                            cast( Fbx.NodeId, c.ast->children[ip2->first + 1] ), _
-                            cast( Fbx.NodeId, c.ast->children[ip2->first + 2] ), av ) then
+        if LowerAggIif_( c, cast( Tko.NodeId, c.ast->children[ip2->first] ), _
+                            cast( Tko.NodeId, c.ast->children[ip2->first + 1] ), _
+                            cast( Tko.NodeId, c.ast->children[ip2->first + 2] ), av ) then
             return av
         end if
         return v
@@ -245,11 +245,11 @@ function LowerAddr _
     if IsArrayIndex( c, id ) then return LowerArrayIndex( c, id )
 
     '' '[ ]' is a separate node and only ever pointer indexing in -lang fb.
-    if c.ast->Kind( id ) = Fbx.N_INDEX then return LowerPtrIndex( c, id )
+    if c.ast->Kind( id ) = Tko.N_INDEX then return LowerPtrIndex( c, id )
 
-    if c.ast->Kind( id ) <> Fbx.N_IDENT then return v
-    dim as Fbx.SymbolId sid = c.info->RefOf( id )
-    if sid = Fbx.SYMBOL_NONE then return v
+    if c.ast->Kind( id ) <> Tko.N_IDENT then return v
+    dim as Tko.SymbolId sid = c.info->RefOf( id )
+    if sid = Tko.SYMBOL_NONE then return v
 
     '' AN UNQUALIFIED FIELD, inside a method of its own type. 'v = 1' where v is a
     '' field is 'this->v = 1', and there is no base written to say so.
@@ -261,9 +261,9 @@ function LowerAddr _
     '' spelling: most FreeBASIC methods never write 'this.'.
     ''
     '' The sibling-CALL case already had this handled; the sibling-FIELD case did not.
-    dim as Fbx.Symbol ptr fsy = c.syms->SymbolAt( sid )
+    dim as Tko.Symbol ptr fsy = c.syms->SymbolAt( sid )
     if fsy <> 0 then
-        if fsy->kind = cast( ubyte, Fbx.SYM_FIELD ) then return AddrOfThisField( c, sid )
+        if fsy->kind = cast( ubyte, Tko.SYM_FIELD ) then return AddrOfThisField( c, sid )
     end if
 
     return AddrOfVar( c, sid )
@@ -276,24 +276,24 @@ end function
 '' must agree. Returns nothing when there is no 'this' in scope, which is a field
 '' referenced from outside any method: an error the checker owes, not something to
 '' invent an address for.
-function AddrOfThisField( byref c as Ctx, byval fsid as Fbx.SymbolId ) as MirValue
+function AddrOfThisField( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirValue
     dim as MirValue v
-    if c.curProcSym = Fbx.SYMBOL_NONE then return v
-    dim as Fbx.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
+    if c.curProcSym = Tko.SYMBOL_NONE then return v
+    dim as Tko.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
     if me = 0 then return v
-    if me->inner = Fbx.SCOPE_NONE then return v
+    if me->inner = Tko.SCOPE_NONE then return v
 
-    dim as Fbx.SymbolId tsid = c.syms->LookupLocal( me->inner, _
+    dim as Tko.SymbolId tsid = c.syms->LookupLocal( me->inner, _
         c.names->Fold( c.names->GetString( "this" ) ) )
-    if tsid = Fbx.SYMBOL_NONE then return v
-    dim as Fbx.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if tsid = Tko.SYMBOL_NONE then return v
+    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
     if ts = 0 then return v
-    if ts->type_ = Fbx.TYPE_NONE then return v
-    if c.types->Kind( ts->type_ ) <> Fbx.TK_POINTER then return v
-    dim as Fbx.TypeId bt = c.types->Inner( ts->type_ )
-    if bt = Fbx.TYPE_NONE then return v
+    if ts->type_ = Tko.TYPE_NONE then return v
+    if c.types->Kind( ts->type_ ) <> Tko.TK_POINTER then return v
+    dim as Tko.TypeId bt = c.types->Inner( ts->type_ )
+    if bt = Tko.TYPE_NONE then return v
 
-    dim as Fbx.Symbol ptr fs = c.syms->SymbolAt( fsid )
+    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
     if fs = 0 then return v
     dim as boolean found = false
     dim as long off = c.udts->FieldOffset( bt, fs->name, found )
@@ -328,41 +328,41 @@ end function
 '' '*pz' derefs to. Keeping them apart is what made '(*pz)[i]' match neither the array
 '' test nor the pointer one, so it declined while the two spellings either side of it
 '' worked.
-function CharElemSize_( byref c as Ctx, byval t as Fbx.TypeId ) as long
-    if t = Fbx.TYPE_NONE then return 0
-    dim as Fbx.TypeId el = t
-    if c.types->Kind( el ) = Fbx.TK_ARRAY then el = c.types->Inner( el )
-    if el = Fbx.TYPE_NONE then return 0
-    if c.types->Kind( el ) <> Fbx.TK_BUILTIN then return 0
+function CharElemSize_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return 0
+    dim as Tko.TypeId el = t
+    if c.types->Kind( el ) = Tko.TK_ARRAY then el = c.types->Inner( el )
+    if el = Tko.TYPE_NONE then return 0
+    if c.types->Kind( el ) <> Tko.TK_BUILTIN then return 0
     select case c.types->BuiltinOf( el )
-    case Fbx.TY_ZSTRING, Fbx.TY_FIXSTR : return 1
-    case Fbx.TY_WSTRING : return 2
+    case Tko.TY_ZSTRING, Tko.TY_FIXSTR : return 1
+    case Tko.TY_WSTRING : return 2
     end select
     return 0
 end function
 
-function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as MirValue none_
-    if c.ast->Kind( id ) <> Fbx.N_INDEX then return none_
-    dim as Fbx.ListPayload ptr sp = _
+    if c.ast->Kind( id ) <> Tko.N_INDEX then return none_
+    dim as Tko.ListPayload ptr sp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->count <> 1 then return none_
-    if sp->target = Fbx.NODE_NONE then return none_
+    if sp->target = Tko.NODE_NONE then return none_
 
-    dim as Fbx.TypeId pt = c.info->TypeOf_( sp->target )
-    if pt = Fbx.TYPE_NONE then return none_
+    dim as Tko.TypeId pt = c.info->TypeOf_( sp->target )
+    if pt = Tko.TYPE_NONE then return none_
 
     '' A UDT WITH 'operator []' -- every container in the runtime headers has one, and
     '' 'a[ 0 ]' over one is a CALL, not an address computation. What comes back is a
     '' BYREF result, so it is a pointer to the element and the caller loads through it
     '' exactly as it would through any other address this function returns.
-    if c.types->Kind( pt ) = Fbx.TK_UDT then
-        dim as Fbx.SymbolId ixs = UdtMemberNamed_( c, pt, "[]" )
-        if ixs <> Fbx.SYMBOL_NONE then
+    if c.types->Kind( pt ) = Tko.TK_UDT then
+        dim as Tko.SymbolId ixs = UdtMemberNamed_( c, pt, "[]" )
+        if ixs <> Tko.SYMBOL_NONE then
             if sp->count <> 1 then return none_
             dim as MirValue self_ = LowerAddr( c, sp->target )
             if self_.kind = cast( ubyte, MV_NONE ) then return none_
-            dim as Fbx.NodeId ie = cast( Fbx.NodeId, c.ast->children[sp->first] )
+            dim as Tko.NodeId ie = cast( Tko.NodeId, c.ast->children[sp->first] )
             dim as MirValue iv = LowerExpr( c, ie )
             if iv.kind = cast( ubyte, MV_NONE ) then return none_
             iv = Coerce( c, iv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( ie ) ) )
@@ -390,9 +390,9 @@ function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
         base_ = LowerAddr( c, sp->target )
         if base_.kind = cast( ubyte, MV_NONE ) then return none_
     else
-        if c.types->Kind( pt ) <> Fbx.TK_POINTER then return none_
-        dim as Fbx.TypeId el = c.types->Inner( pt )
-        if el = Fbx.TYPE_NONE then return none_
+        if c.types->Kind( pt ) <> Tko.TK_POINTER then return none_
+        dim as Tko.TypeId el = c.types->Inner( pt )
+        if el = Tko.TYPE_NONE then return none_
         esz = c.types->Layout( el ).size
         dim as long ui = c.udts->Find( el )
         if ui >= 0 then esz = c.udts->udts[ui].size
@@ -410,7 +410,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
     dim as MirType offTy = MT_I64
     if c.types->target.pointerBits = 32 then offTy = MT_I32
 
-    dim as Fbx.NodeId ix = cast( Fbx.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first] )
     dim as MirValue iv = LowerExpr( c, ix )
     if iv.kind = cast( ubyte, MV_NONE ) then return none_
     iv = Coerce( c, iv, offTy, IsUnsignedType( c, c.info->TypeOf_( ix ) ) )
@@ -436,26 +436,26 @@ end function
 
 '' Whether an N_CALL is really a subscript: FreeBASIC spells indexing and calling the
 '' same way, so the callee's TYPE is what tells them apart.
-function IsArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    if c.ast->Kind( id ) <> Fbx.N_CALL then return false
+function IsArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
     '' N_CALL is a LIST node -- callee in 'target', arguments in the child pool -- not a
     '' statement payload. Reading it as one is the payload-pool mistake this codebase has
     '' now made four times; the rule is to check how a node is CONSTRUCTED, not what its
     '' name suggests.
-    dim as Fbx.ListPayload ptr cp = _
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    dim as Fbx.TypeId t = c.info->TypeOf_( cp->target )
-    if t = Fbx.TYPE_NONE then return false
-    return (c.types->Kind( t ) = Fbx.TK_ARRAY)
+    if cp->target = Tko.NODE_NONE then return false
+    dim as Tko.TypeId t = c.info->TypeOf_( cp->target )
+    if t = Tko.TYPE_NONE then return false
+    return (c.types->Kind( t ) = Tko.TK_ARRAY)
 end function
 
 '' The ADDRESS of one element.
-function LowerArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
+function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as MirValue none_
-    dim as Fbx.ListPayload ptr sp = _
+    dim as Tko.ListPayload ptr sp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as Fbx.TypeId at = c.info->TypeOf_( sp->target )
+    dim as Tko.TypeId at = c.info->TypeOf_( sp->target )
 
     '' A DYNAMIC array has no compile-time strides: its base and its per-dimension
     '' element counts live in the descriptor and are read from it.
@@ -479,7 +479,7 @@ function LowerArrayIndex( byref c as Ctx, byval id as Fbx.NodeId ) as MirValue
 
     dim as MirValue acc
     for k as long = 0 to sp->count - 1
-        dim as Fbx.NodeId ix = cast( Fbx.NodeId, c.ast->children[sp->first + k] )
+        dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         dim as MirValue iv = LowerExpr( c, ix )
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
         iv = Coerce( c, iv, offTy )
@@ -532,14 +532,14 @@ end function
 '' the element COUNTS of every dimension after it. Returns false when the bounds were not
 '' constant, in which case nothing may be folded and the subscript is not lowered.
 private function ArrayStrides _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref strides as FB.Array( of longint ), _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as FB.Array( of longint ), _
       byref bias as longint ) as boolean
 
     bias = 0
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
 
-    dim as Fbx.TypeId elem = c.types->Inner( t )
+    dim as Tko.TypeId elem = c.types->Inner( t )
     dim as long esz
     dim as long ui = c.udts->Find( elem )
     if ui >= 0 then
@@ -596,23 +596,23 @@ end function
 '' A brace list SHORTER than the array leaves the rest alone, which is what fbc's own
 '' output does; a longer one stops at the array's length rather than writing past it.
 function LowerArrayInit _
-    ( byref c as Ctx, byval slot as long, byval t as Fbx.TypeId, _
-      byval init as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
 
-    if init = Fbx.NODE_NONE then return false
-    if c.ast->Kind( init ) <> Fbx.N_INITIALIZER then return false
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+    if init = Tko.NODE_NONE then return false
+    if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
 
-    dim as Fbx.TypeId el = c.types->Inner( t )
-    if el = Fbx.TYPE_NONE then return false
+    dim as Tko.TypeId el = c.types->Inner( t )
+    if el = Tko.TYPE_NONE then return false
     dim as MirType emt = LowerType( el, *c.types )
     if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
     dim as long esz = c.types->Layout( el ).size
     if esz <= 0 then return false
 
     dim as long total = c.types->ElemCount( t )
-    dim as Fbx.ListPayload ptr lp = _
+    dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
 
     dim as MirValue base_
@@ -622,7 +622,7 @@ function LowerArrayInit _
 
     for i as long = 0 to lp->count - 1
         if (total > 0) andalso (i >= total) then exit for
-        dim as Fbx.NodeId e = cast( Fbx.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         dim as MirValue ev = LowerExpr( c, e )
         if ev.kind = cast( ubyte, MV_NONE ) then return false
 

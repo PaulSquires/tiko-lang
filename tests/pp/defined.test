@@ -7,5 +7,5 @@
 '' TEST: cli
 '' ARGS: --dump-tokens=pp tests/pp/src/defined.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-NOT: FBX0308
+'' EXPECT-NOT: TKO0308
 '' GOLDEN: expected/defined.out

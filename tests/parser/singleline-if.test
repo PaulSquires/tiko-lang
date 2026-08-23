@@ -6,6 +6,6 @@
 '' TEST: cli
 '' ARGS: --dump-ast tests/parser/src/singleline-if.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-NOT: FBX0405
-'' EXPECT-NOT: FBX0408
+'' EXPECT-NOT: TKO0405
+'' EXPECT-NOT: TKO0408
 '' EXPECT-MAX-DIAG: 0

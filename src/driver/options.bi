@@ -5,25 +5,25 @@
 ''
 '' COMPATIBILITY. fbc's spellings are accepted where they exist, because existing
 '' makefiles and build scripts use them: -i, -p, -l, -d, -g, -c, -mt, -w, -O, -target,
-'' -s. GNU-style long options are added only where fbc has no equivalent. fbx does not
+'' -s. GNU-style long options are added only where fbc has no equivalent. tiko-lang does not
 '' copy gcc's option surface wholesale.
 ''
 '' Macro parameters are o_-prefixed: FreeBASIC substitutes a macro parameter name even
 '' after a '.', so a parameter called 'kind' would rewrite '.kind' too.
 
-#ifndef __FBX_OPTIONS_BI__
-#define __FBX_OPTIONS_BI__
+#ifndef __TKO_OPTIONS_BI__
+#define __TKO_OPTIONS_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "types/type.bi"
 #include once "diag/diagnostic.bi"
 
-namespace Fbx
+namespace Tko
 
     enum OptKind
         OPTK_FLAG = 0      '' -c
         OPTK_VALUE         '' -o <v>   or  --opt=<v>
-        OPTK_JOINED        '' -Wno-FBX0105, -O2  -- value is glued to the spelling
+        OPTK_JOINED        '' -Wno-TKO0105, -O2  -- value is glued to the spelling
         OPTK_OPTVALUE      '' --help [category], --dump-tokens[=pp]
     end enum
 
@@ -37,7 +37,7 @@ namespace Fbx
     end enum
 
 '' OPT( id, spelling, kind, category, argName, help )
-#macro FBX_OPT_LIST( OPT )
+#macro TKO_OPT_LIST( OPT )
 
     OPT( OPT_HELP,      "--help",     OPTK_OPTVALUE, OPTCAT_GENERAL, "category", "show help; optionally for one category" )
     OPT( OPT_VERSION,   "--version",  OPTK_FLAG,  OPTCAT_GENERAL, "",         "show version and exit" )
@@ -92,7 +92,7 @@ namespace Fbx
     enum OptId
         OPT_NONE = 0
         #define OPT( o_id, o_spell, o_kind, o_cat, o_arg, o_help ) o_id,
-        FBX_OPT_LIST( OPT )
+        TKO_OPT_LIST( OPT )
         #undef OPT
         OPT_COUNT
     end enum
@@ -118,7 +118,7 @@ namespace Fbx
         '' the preprocessor's predefines, and eventually the ABI. targetName was
         '' written and read by nothing, which is how '-target linux-x86_64' came to be
         '' accepted and then ignored.
-        as Fbx.TargetId target
+        as Tko.TargetId target
         '' -m32 / -m64, held until the whole line is read. Applied as it is SEEN, the
         '' answer would depend on the order: '-m32 -target linux-x86_64' would quietly
         '' end up on Linux, while the reverse order errors.

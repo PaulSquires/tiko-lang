@@ -10,7 +10,7 @@
 
 set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-UPSTREAM=${FBX_FBC_REPO:-/c/dev/fbc-modern}
+UPSTREAM=${TKO_FBC_REPO:-/c/dev/fbc-modern}
 DEST="$ROOT/tests/vendor/fbc-tests"
 STAMP="$ROOT/tests/vendor/CORPUS-COMMIT"
 

@@ -2,7 +2,7 @@
 
 #include once "symbols/symbol.bi"
 
-namespace Fbx
+namespace Tko
 
 '' ------------------------------------------------------------------- metadata
 
@@ -17,7 +17,7 @@ private sub InitSymNames( )
     #macro SYM( s_id, s_name )
         symKindNames(s_id) = @s_name
     #endmacro
-    FBX_SYMKIND_LIST( SYM )
+    TKO_SYMKIND_LIST( SYM )
     #undef SYM
     symNamesReady = true
 end sub

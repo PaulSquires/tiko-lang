@@ -12,14 +12,14 @@
 ''   - The vector always ends with exactly one TK_EOF.
 ''   - A malformed token is TK_INVALID with a real span. The lexer never stops early.
 
-#ifndef __FBX_TOKEN_BI__
-#define __FBX_TOKEN_BI__
+#ifndef __TKO_TOKEN_BI__
+#define __TKO_TOKEN_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "source/location.bi"
 #include once "lexer/keywords.bi"
 
-namespace Fbx
+namespace Tko
 
     enum KeywordClass
         KWCLASS_OPERATOR = 0     '' AND, MOD, SHL, NEW ...
@@ -30,7 +30,7 @@ namespace Fbx
     '' PUNCT( enum name, spelling )
     '' Longest-match is the scanner's job; this list only names them and supplies the
     '' text for dumps and diagnostics.
-    #macro FBX_PUNCT_LIST( PUNCT )
+    #macro TKO_PUNCT_LIST( PUNCT )
         PUNCT( TK_LPAREN,     "("   )
         PUNCT( TK_RPAREN,     ")"   )
         PUNCT( TK_LBRACKET,   "["   )
@@ -84,13 +84,13 @@ namespace Fbx
 
         TK_PUNCT_FIRST
         #define PUNCT( p_name, p_text ) p_name,
-        FBX_PUNCT_LIST( PUNCT )
+        TKO_PUNCT_LIST( PUNCT )
         #undef PUNCT
         TK_PUNCT_LAST
 
         TK_KW_FIRST
         #define KW( k_name, k_text, k_class ) k_name,
-        FBX_KEYWORD_LIST( KW )
+        TKO_KEYWORD_LIST( KW )
         #undef KW
         TK_KW_LAST
 
@@ -169,7 +169,7 @@ namespace Fbx
 
     '' -------------------------------------------------------------- keyword map
     '' Keyword lookup is an array index, not a hash: the keyword spellings are
-    '' interned FIRST, so they occupy InternIds 1..FBX_KEYWORD_COUNT contiguously and
+    '' interned FIRST, so they occupy InternIds 1..TKO_KEYWORD_COUNT contiguously and
     '' an identifier is a keyword exactly when its folded id falls in that range.
     '' This replaces the perfect hash of docs/plan/03 section 5.2 -- same cost, and it
     '' falls out of interning the compiler already does.

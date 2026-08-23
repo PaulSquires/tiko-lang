@@ -2,7 +2,7 @@
 
 #include once "support/arena.bi"
 
-namespace Fbx
+namespace Tko
 
 destructor ByteArena( )
     this.Free( )
@@ -41,7 +41,7 @@ function ByteArena.Alloc _
 
         dim as ubyte ptr blk = callocate( blockBytes )
         if blk = 0 then
-            print "fbx: internal error: out of memory allocating "; blockBytes; " bytes"
+            print "tiko-lang: internal error: out of memory allocating "; blockBytes; " bytes"
             end EXIT_ICE
         end if
         this.blocks.Push( blk )

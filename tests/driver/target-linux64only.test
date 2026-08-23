@@ -4,4 +4,4 @@
 '' TEST: cli
 '' ARGS: -m32 -target linux-x86_64 tests/source/plain.bas
 '' EXPECT-EXIT: 2
-'' EXPECT-OUT: FBX0104: 32-bit is supported on Windows only
+'' EXPECT-OUT: TKO0104: 32-bit is supported on Windows only

@@ -6,4 +6,4 @@
 '' TEST: cli
 '' ARGS: --parse-only tests/parser/src/statements.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-NOT: FBX04
+'' EXPECT-NOT: TKO04

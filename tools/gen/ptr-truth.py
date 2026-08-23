@@ -8,7 +8,7 @@ Writes tests/types/expected/fbc-ptr.txt and fbc-ptr-win32.txt in two sections:
     accept <arg-expr> <param-type> yes|no
     pick   <cand-a> <cand-b> <arg-expr> <winner>|reject
 
-fbx's ConversionCost answers CONV_NONE for every type that is not TK_BUILTIN, so a
+tiko-lang's ConversionCost answers CONV_NONE for every type that is not TK_BUILTIN, so a
 'zstring ptr' parameter makes its whole procedure unviable and the call resolves to
 nothing. That is the single largest cause of declined statements in the corpus --
 fbcunit's CU_ASSERT_ takes three zstring ptr parameters -- so the cost table needs a
@@ -25,9 +25,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
-FBC = fbxtargets.FBC64
+FBC = tkotargets.FBC64
 LABEL = "win64"
 OUT = ROOT / "tests/types/expected/fbc-ptr.txt"
 WORK = ROOT / "build/.ptr"
@@ -186,7 +186,7 @@ def main() -> int:
     """Every target, into its own expectations file."""
     global FBC, OUT, WORK, LABEL
     rc = 0
-    for LABEL, FBC, OUT, WORK in fbxtargets.truth_targets(OUT, WORK):
+    for LABEL, FBC, OUT, WORK in tkotargets.truth_targets(OUT, WORK):
         if one_target() != 0:
             rc = 1
     return rc

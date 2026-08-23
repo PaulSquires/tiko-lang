@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-intrin.sh -- fbx's EXPRESSION-intrinsic result types against fbc's.
+# check-intrin.sh -- tiko-lang's EXPRESSION-intrinsic result types against fbc's.
 #
 #   tools/gen/check-intrin.sh
 #

@@ -5,14 +5,14 @@
 
 #include once "lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
-using Fbx
+using Tko
 
 declare function UsingRtlFor _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref isWide as boolean ) as RtlId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref isWide as boolean ) as RtlId
 declare function UsingOne_ _
-    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean
 
 
@@ -39,9 +39,9 @@ declare function UsingOne_ _
 '' masks. BIT 31 PRODUCED NO OBSERVABLE DIFFERENCE FROM 0 in any probe; fbc sets it
 '' together with bit 0 on the last item and it is presumably an 'is last' flag. It is
 '' emitted here because fbc emits it, and no behaviour is implemented for it.
-function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
-    dim as Fbx.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->c = Fbx.NODE_NONE then return false
+function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->c = Tko.NODE_NONE then return false
 
     '' The channel, lowered ONCE and reused -- fbc hoists any non-literal channel
     '' expression into a temporary evaluated before Init, so a channel with a side
@@ -50,7 +50,7 @@ function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     chan.kind = cast( ubyte, MV_CONST_INT )
     chan.ty = cast( ubyte, MT_I32 )
     chan.id = 0
-    if sp->a <> Fbx.NODE_NONE then
+    if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
         chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
@@ -59,7 +59,7 @@ function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     '' The format is an FBSTRING DESCRIPTOR. A literal has none, so it borrows a
     '' temporary one exactly as PRINT does with a literal item.
     dim as MirValue fmt
-    if c.ast->Kind( sp->c ) = Fbx.N_STRING_LIT then
+    if c.ast->Kind( sp->c ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, sp->c )
         dim as FB.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )
@@ -93,8 +93,8 @@ function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
     '' leave the runtime holding a format string with no End to close it.
     dim as FB.Array( of ulong ) itemNode
     for i as long = 0 to sp->count - 1
-        dim as Fbx.NodeId it = cast( Fbx.NodeId, c.ast->children[sp->first + i] )
-        if c.ast->Kind( it ) = Fbx.N_PRINT_SEP then continue for
+        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
         dim as boolean isWide
         if UsingRtlFor( c, c.info->TypeOf_( it ), isWide ) = RTL_NONE then return false
         itemNode.Push( cast( ulong, it ) )
@@ -111,7 +111,7 @@ function LowerPrintUsing( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
         if i = itemNode.Count - 1 then
             if UsingEndsLine_( c, sp ) then mask = -2147483647
         end if
-        if UsingOne_( c, cast( Fbx.NodeId, itemNode[i] ), mask, chan ) = false then
+        if UsingOne_( c, cast( Tko.NodeId, itemNode[i] ), mask, chan ) = false then
             '' Init is already out. Closing the bracket is the least wrong thing
             '' available, and the statement is still counted as skipped.
             dim as FB.Array( of ulong ) ea
@@ -131,18 +131,18 @@ end function
 '' Whether the statement ends with a newline -- that is, whether its LAST child is an
 '' item rather than a trailing ';'. 'print using f; a; b' newlines; 'print using f; a;'
 '' does not. A ',' cannot appear here at all: fbc rejects it with error 47.
-function UsingEndsLine_( byref c as Ctx, byval sp as Fbx.StmtPayload ptr ) as boolean
+function UsingEndsLine_( byref c as Ctx, byval sp as Tko.StmtPayload ptr ) as boolean
     if sp->count = 0 then return false
-    dim as Fbx.NodeId last = cast( Fbx.NodeId, c.ast->children[sp->first + sp->count - 1] )
-    return (c.ast->Kind( last ) <> Fbx.N_PRINT_SEP)
+    dim as Tko.NodeId last = cast( Tko.NodeId, c.ast->children[sp->first + sp->count - 1] )
+    return (c.ast->Kind( last ) <> Tko.N_PRINT_SEP)
 end function
 
 '' One USING item.
 private function UsingOne_ _
-    ( byref c as Ctx, byval it as Fbx.NodeId, byval mask as long, _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean
 
-    dim as Fbx.TypeId t = c.info->TypeOf_( it )
+    dim as Tko.TypeId t = c.info->TypeOf_( it )
     dim as boolean isWide
     dim as RtlId which = UsingRtlFor( c, t, isWide )
     if which = RTL_NONE then return false
@@ -162,7 +162,7 @@ private function UsingOne_ _
 
     if which = RTL_USING_STR then
         dim as MirValue desc
-        if c.ast->Kind( it ) = Fbx.N_STRING_LIT then
+        if c.ast->Kind( it ) = Tko.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )
             dim as FB.Array( of ulong ) ta
             ta.Push( cast( ulong, MV_GLOBAL ) )
@@ -210,10 +210,10 @@ end function
 '' family, so every signed integral collapses to Longint and every unsigned to
 '' ULongint. A POINTER is rejected by fbc outright (error 24) and is rejected here.
 private function UsingRtlFor _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref isWide as boolean ) as RtlId
+    ( byref c as Ctx, byval t as Tko.TypeId, byref isWide as boolean ) as RtlId
 
     isWide = false
-    if t = Fbx.TYPE_NONE then return RTL_NONE
+    if t = Tko.TYPE_NONE then return RTL_NONE
     if WideStringElems( c, t ) > 0 then
         isWide = true
         return RTL_USING_WSTR
@@ -221,18 +221,18 @@ private function UsingRtlFor _
     if IsStringType( c, t ) then return RTL_USING_STR
 
     select case c.types->Kind( t )
-    case Fbx.TK_ENUM
+    case Tko.TK_ENUM
         '' fbc sends an enum through fb_PrintUsingDouble, with its own warning 5.
         return RTL_USING_DOUBLE
-    case Fbx.TK_BUILTIN
+    case Tko.TK_BUILTIN
         select case c.types->BuiltinOf( t )
-        case Fbx.TY_BYTE, Fbx.TY_SHORT, Fbx.TY_LONG, Fbx.TY_LONGINT, Fbx.TY_INTEGER
+        case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG, Tko.TY_LONGINT, Tko.TY_INTEGER
             return RTL_USING_LONGINT
-        case Fbx.TY_UBYTE, Fbx.TY_USHORT, Fbx.TY_ULONG, Fbx.TY_ULONGINT, Fbx.TY_UINTEGER
+        case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_ULONGINT, Tko.TY_UINTEGER
             return RTL_USING_ULONGINT
-        case Fbx.TY_SINGLE   : return RTL_USING_SINGLE
-        case Fbx.TY_DOUBLE   : return RTL_USING_DOUBLE
-        case Fbx.TY_BOOLEAN  : return RTL_USING_BOOLEAN
+        case Tko.TY_SINGLE   : return RTL_USING_SINGLE
+        case Tko.TY_DOUBLE   : return RTL_USING_DOUBLE
+        case Tko.TY_BOOLEAN  : return RTL_USING_BOOLEAN
         end select
     end select
     return RTL_NONE
@@ -249,17 +249,17 @@ end function
 '' fb_PrintSPC's count is ssize -- int64 on win64, int32 on win32 -- and fb_PrintTab's
 '' is int32 on BOTH.
 function LowerPrintPos _
-    ( byref c as Ctx, byval it as Fbx.NodeId, byref chan as MirValue ) as boolean
+    ( byref c as Ctx, byval it as Tko.NodeId, byref chan as MirValue ) as boolean
 
-    if c.ast->Kind( it ) <> Fbx.N_CALL then return false
-    dim as Fbx.ListPayload ptr cp = _
+    if c.ast->Kind( it ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, it )].data )]
-    if cp->target = Fbx.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if cp->count <> 1 then return false
-    dim as Fbx.IdentPayload ptr ip = _
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as RtlId r = RTL_NONE
     dim as MirType want = MT_I32
@@ -273,7 +273,7 @@ function LowerPrintPos _
         return false
     end if
 
-    dim as Fbx.NodeId a0 = cast( Fbx.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as MirValue n = LowerExpr( c, a0 )
     if n.kind = cast( ubyte, MV_NONE ) then return false
     n = Coerce( c, n, want, IsUnsignedType( c, c.info->TypeOf_( a0 ) ) )

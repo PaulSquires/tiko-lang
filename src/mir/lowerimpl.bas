@@ -32,78 +32,78 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' Defined in lowerstr.bas. IsStringType is true for a FIXED-LENGTH string too, and one
 '' of those is bytes rather than a descriptor: zeroing it or handing it to fb_StrDelete
 '' would be releasing something that was never allocated. Kind 0 is the var-length one.
 declare function StrSwapKind_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref n as longint ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
-private function IsObjectT_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+private function IsObjectT_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
     return (c.types->NameOf( t ) = c.names->GetString( "object" ))
 end function
 
 '' The base a UDT extends, or nothing. 'extends' is a field named 'base' at offset 0.
-private function ImplBaseOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.TypeId
-    if t = Fbx.TYPE_NONE then return Fbx.TYPE_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.TYPE_NONE
-    dim as Fbx.SymbolId ts = UdtSymOf_( c, t )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Fbx.TYPE_NONE
-    if s->inner = Fbx.SCOPE_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
-    if bf = Fbx.SYMBOL_NONE then return Fbx.TYPE_NONE
-    dim as Fbx.Symbol ptr b = c.syms->SymbolAt( bf )
-    if b = 0 then return Fbx.TYPE_NONE
-    if b->kind <> cast( ubyte, Fbx.SYM_FIELD ) then return Fbx.TYPE_NONE
+private function ImplBaseOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
+    if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.TYPE_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.TYPE_NONE
+    dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
+    if bf = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
+    if b = 0 then return Tko.TYPE_NONE
+    if b->kind <> cast( ubyte, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
     return b->type_
 end function
 
 '' The UDT symbol a TypeId belongs to.
-function UdtSymOf_( byref c as Ctx, byval t as Fbx.TypeId ) as Fbx.SymbolId
-    if t = Fbx.TYPE_NONE then return Fbx.SYMBOL_NONE
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return Fbx.SYMBOL_NONE
-    dim as Fbx.InternId tn = c.types->NameOf( t )
-    if tn = 0 then return Fbx.SYMBOL_NONE
-    dim as Fbx.ScopeId ds = cast( Fbx.ScopeId, c.types->DeclScopeOf( t ) )
-    dim as Fbx.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Fbx.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     return ts
 end function
 
 '' Does a member of this type need INITIALISING -- a string descriptor zeroed, a dynamic
 '' array's descriptor built, a nested constructor run, a vptr stored?
-function TypeNeedsInit_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
+function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
     if IsStringType( c, t ) then return true
     if c.types->IsDynArray( t ) then return true
-    if c.types->Kind( t ) = Fbx.TK_ARRAY then return TypeNeedsInit_( c, c.types->Inner( t ) )
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    if c.types->Kind( t ) = Tko.TK_ARRAY then return TypeNeedsInit_( c, c.types->Inner( t ) )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
 
     '' A TABLE MEANS A VPTR, and the vptr is stored by the constructor.
     if c.vts <> 0 then
         if c.vts->Find( t ) >= 0 then return true
     end if
-    if StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Fbx.SYMBOL_NONE then
+    if StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Tko.SYMBOL_NONE then
         return true
     end if
 
-    dim as Fbx.SymbolId ts = UdtSymOf_( c, t )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return false
-    if s->inner = Fbx.SCOPE_NONE then return false
-    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if s->inner = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
-    dim as Fbx.SymbolId cur = sc->firstSym
+    dim as Tko.SymbolId cur = sc->firstSym
     dim as long guard = 0
-    while (cur <> Fbx.SYMBOL_NONE) andalso (guard < 100000)
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cur )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Fbx.SYM_FIELD ) then
+        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
             if f->type_ <> t then
                 if TypeNeedsInit_( c, f->type_ ) then return true
             end if
@@ -118,31 +118,31 @@ end function
 '' NOT the same set as above, which is what the measurement said and symmetry would
 '' not: 'extends object' needs a constructor and no destructor, and a field with a
 '' user constructor needs a constructor and no destructor either.
-function TypeNeedsDtor_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
+function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
     if IsObjectT_( c, t ) then return false
     if IsStringType( c, t ) then return true
     if c.types->IsDynArray( t ) then return true
-    if c.types->Kind( t ) = Fbx.TK_ARRAY then return TypeNeedsDtor_( c, c.types->Inner( t ) )
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    if c.types->Kind( t ) = Tko.TK_ARRAY then return TypeNeedsDtor_( c, c.types->Inner( t ) )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
 
-    if StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Fbx.SYMBOL_NONE then
+    if StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Tko.SYMBOL_NONE then
         return true
     end if
 
-    dim as Fbx.SymbolId ts = UdtSymOf_( c, t )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return false
-    if s->inner = Fbx.SCOPE_NONE then return false
-    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if s->inner = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
-    dim as Fbx.SymbolId cur = sc->firstSym
+    dim as Tko.SymbolId cur = sc->firstSym
     dim as long guard = 0
-    while (cur <> Fbx.SYMBOL_NONE) andalso (guard < 100000)
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cur )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if f->kind = cast( ubyte, Fbx.SYM_FIELD ) then
+        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
             if f->type_ <> t then
                 if TypeNeedsDtor_( c, f->type_ ) then return true
             end if
@@ -153,21 +153,21 @@ function TypeNeedsDtor_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
 end function
 
 private function AnyFieldNeeds_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval forDtor as boolean ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byval forDtor as boolean ) as boolean
 
-    dim as Fbx.SymbolId ts = UdtSymOf_( c, t )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return false
-    if s->inner = Fbx.SCOPE_NONE then return false
-    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if s->inner = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
-    dim as Fbx.SymbolId cur = sc->firstSym
+    dim as Tko.SymbolId cur = sc->firstSym
     dim as long guard = 0
-    while (cur <> Fbx.SYMBOL_NONE) andalso (guard < 100000)
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cur )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if (f->kind = cast( ubyte, Fbx.SYM_FIELD )) andalso (f->type_ <> t) then
+        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
             if forDtor then
                 if TypeNeedsDtor_( c, f->type_ ) then return true
             else
@@ -189,43 +189,43 @@ end function
 ''
 '' The base is an ordinary field here, so a base needing initialisation is covered by
 '' the field scan.
-function NeedsCtorBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
+function NeedsCtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
     if IsObjectT_( c, t ) then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
     if c.vts <> 0 then
         if c.vts->Find( t ) >= 0 then return true
     end if
     return AnyFieldNeeds_( c, t, false )
 end function
 
-function NeedsDtorBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
+function NeedsDtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
     if IsObjectT_( c, t ) then return false
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
     return AnyFieldNeeds_( c, t, true )
 end function
 
 '' The fields of a UDT, in declaration order, as (symbol, offset) pairs.
 private sub FieldsInOrder_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref outv as FB.Array( of ulong ) )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as FB.Array( of ulong ) )
 
-    dim as Fbx.SymbolId ts = UdtSymOf_( c, t )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return
-    if s->inner = Fbx.SCOPE_NONE then return
-    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if s->inner = Tko.SCOPE_NONE then return
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return
-    dim as Fbx.SymbolId cur = sc->firstSym
+    dim as Tko.SymbolId cur = sc->firstSym
     dim as long guard = 0
-    while (cur <> Fbx.SYMBOL_NONE) andalso (guard < 100000)
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cur )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
         '' THE BASE IS NOT A FIELD HERE. It is constructed by its own call, before
         '' everything else, and treating it as an ordinary member would run its
         '' initialisation twice.
-        if (f->kind = cast( ubyte, Fbx.SYM_FIELD )) andalso (f->name <> c.vts->baseName) then
+        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (f->name <> c.vts->baseName) then
             outv.Push( cast( ulong, cur ) )
         end if
         cur = f->nextInScope
@@ -234,8 +234,8 @@ end sub
 
 '' The address of one field, given the object's address.
 private function FieldAddr_ _
-    ( byref c as Ctx, byref thisPtr as MirValue, byval t as Fbx.TypeId, _
-      byval nm as Fbx.InternId ) as MirValue
+    ( byref c as Ctx, byref thisPtr as MirValue, byval t as Tko.TypeId, _
+      byval nm as Tko.InternId ) as MirValue
 
     dim as boolean found = false
     dim as long off = c.udts->FieldOffset( t, nm, found )
@@ -251,7 +251,7 @@ end function
 
 '' One member's initialisation, whatever it turns out to be.
 private sub InitMember_ _
-    ( byref c as Ctx, byref addr as MirValue, byval ft as Fbx.TypeId )
+    ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId )
 
     if addr.kind = cast( ubyte, MV_NONE ) then return
     if IsStringType( c, ft ) then
@@ -264,10 +264,10 @@ private sub InitMember_ _
         InitDynArrayDesc( c, addr, ft )
         return
     end if
-    if c.types->Kind( ft ) <> Fbx.TK_UDT then return
+    if c.types->Kind( ft ) <> Tko.TK_UDT then return
 
-    dim as Fbx.SymbolId ctor = StructorWithArity( c, StructorOf( c, ft, "__ctor" ), 0 )
-    if ctor <> Fbx.SYMBOL_NONE then
+    dim as Tko.SymbolId ctor = StructorWithArity( c, StructorOf( c, ft, "__ctor" ), 0 )
+    if ctor <> Tko.SYMBOL_NONE then
         dim as FB.Array( of ulong ) none_
         EmitStructorCall( c, ctor, -1, @addr, @none_ )
         return
@@ -277,7 +277,7 @@ end sub
 
 '' ...and one member's release.
 private sub DestroyMember_ _
-    ( byref c as Ctx, byref addr as MirValue, byval ft as Fbx.TypeId )
+    ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId )
 
     if addr.kind = cast( ubyte, MV_NONE ) then return
     if IsStringType( c, ft ) then
@@ -294,10 +294,10 @@ private sub DestroyMember_ _
         EmitRtl( c, RTL_ARRAY_ERASE, args )
         return
     end if
-    if c.types->Kind( ft ) <> Fbx.TK_UDT then return
+    if c.types->Kind( ft ) <> Tko.TK_UDT then return
 
-    dim as Fbx.SymbolId dtor = StructorWithArity( c, StructorOf( c, ft, "__dtor" ), 0 )
-    if dtor <> Fbx.SYMBOL_NONE then
+    dim as Tko.SymbolId dtor = StructorWithArity( c, StructorOf( c, ft, "__dtor" ), 0 )
+    if dtor <> Tko.SYMBOL_NONE then
         dim as FB.Array( of ulong ) none_
         EmitStructorCall( c, dtor, -1, @addr, @none_ )
         return
@@ -308,7 +308,7 @@ end sub
 '' The base call, the fields in DECLARATION order, then the vptr. Measured order, and
 '' this runs in front of a user-written constructor's own statements as well.
 sub EmitCtorPrologue_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue, _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
       byval skipBase as boolean = false )
 
     if thisPtr.kind = cast( ubyte, MV_NONE ) then return
@@ -318,16 +318,16 @@ sub EmitCtorPrologue_ _
     '' constructor and NOTHING ELSE for the base. Emitting both ran the base
     '' constructor TWICE -- over the same storage, so a base that allocates leaked and
     '' one that counts counted twice, with nothing to say so.
-    dim as Fbx.TypeId bt = ImplBaseOf_( c, t )
-    if skipBase then bt = Fbx.TYPE_NONE
-    if (bt <> Fbx.TYPE_NONE) andalso (bt <> t) then
+    dim as Tko.TypeId bt = ImplBaseOf_( c, t )
+    if skipBase then bt = Tko.TYPE_NONE
+    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) then
         '' The base subobject is at offset 0, so its address is this one -- but it is
         '' taken through field.addr all the same, because fbc's cast says so and a
         '' later change to that offset would otherwise be silent.
         dim as MirValue ba = FieldAddr_( c, thisPtr, t, c.vts->baseName )
         if ba.kind <> cast( ubyte, MV_NONE ) then
-            dim as Fbx.SymbolId bc = StructorWithArity( c, StructorOf( c, bt, "__ctor" ), 0 )
-            if bc <> Fbx.SYMBOL_NONE then
+            dim as Tko.SymbolId bc = StructorWithArity( c, StructorOf( c, bt, "__ctor" ), 0 )
+            if bc <> Tko.SYMBOL_NONE then
                 dim as FB.Array( of ulong ) none_
                 EmitStructorCall( c, bc, -1, @ba, @none_ )
             elseif TypeNeedsInit_( c, bt ) then
@@ -339,7 +339,7 @@ sub EmitCtorPrologue_ _
     dim as FB.Array( of ulong ) flds
     FieldsInOrder_( c, t, flds )
     for i as long = 0 to flds.Count - 1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cast( Fbx.SymbolId, flds[i] ) )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
         if TypeNeedsInit_( c, f->type_ ) = false then continue for
         InitMember_( c, FieldAddr_( c, thisPtr, t, f->name ), f->type_ )
@@ -354,25 +354,25 @@ end sub
 '' The fields in REVERSE declaration order, then the base. Runs AFTER a user-written
 '' destructor's own statements.
 sub EmitDtorEpilogue_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref thisPtr as MirValue )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue )
 
     if thisPtr.kind = cast( ubyte, MV_NONE ) then return
 
     dim as FB.Array( of ulong ) flds
     FieldsInOrder_( c, t, flds )
     for i as long = flds.Count - 1 to 0 step -1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cast( Fbx.SymbolId, flds[i] ) )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
         if TypeNeedsDtor_( c, f->type_ ) = false then continue for
         DestroyMember_( c, FieldAddr_( c, thisPtr, t, f->name ), f->type_ )
     next
 
-    dim as Fbx.TypeId bt = ImplBaseOf_( c, t )
-    if (bt <> Fbx.TYPE_NONE) andalso (bt <> t) then
+    dim as Tko.TypeId bt = ImplBaseOf_( c, t )
+    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) then
         dim as MirValue ba = FieldAddr_( c, thisPtr, t, c.vts->baseName )
         if ba.kind <> cast( ubyte, MV_NONE ) then
-            dim as Fbx.SymbolId bd = StructorWithArity( c, StructorOf( c, bt, "__dtor" ), 0 )
-            if bd <> Fbx.SYMBOL_NONE then
+            dim as Tko.SymbolId bd = StructorWithArity( c, StructorOf( c, bt, "__dtor" ), 0 )
+            if bd <> Tko.SYMBOL_NONE then
                 dim as FB.Array( of ulong ) none_
                 EmitStructorCall( c, bd, -1, @ba, @none_ )
             elseif TypeNeedsDtor_( c, bt ) then
@@ -393,28 +393,28 @@ end sub
 '' A DYNAMIC ARRAY MEMBER STOPS IT. fbc copies one with fb_ArrayRedimTo and an element
 '' loop; emitting an assignment that skipped the array would be worse than the bitwise
 '' copy that happens today, because it would look like the field had been handled.
-function NeedsLetBody_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if NeedsCtorBody_( c, t ) = false then return false
     return (HasDynArrayMember_( c, t ) = false)
 end function
 
-function HasDynArrayMember_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
+function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
     if c.types->IsDynArray( t ) then return true
-    if c.types->Kind( t ) <> Fbx.TK_UDT then return false
-    dim as Fbx.SymbolId ts = UdtSymOf_( c, t )
-    dim as Fbx.Symbol ptr s = c.syms->SymbolAt( ts )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return false
-    if s->inner = Fbx.SCOPE_NONE then return false
-    dim as Fbx.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if s->inner = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
-    dim as Fbx.SymbolId cur = sc->firstSym
+    dim as Tko.SymbolId cur = sc->firstSym
     dim as long guard = 0
-    while (cur <> Fbx.SYMBOL_NONE) andalso (guard < 100000)
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cur )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
-        if (f->kind = cast( ubyte, Fbx.SYM_FIELD )) andalso (f->type_ <> t) then
+        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
             if HasDynArrayMember_( c, f->type_ ) then return true
         end if
         cur = f->nextInScope
@@ -424,7 +424,7 @@ end function
 
 '' One member copied from another object of the same type.
 private sub CopyMember_ _
-    ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, byval ft as Fbx.TypeId )
+    ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, byval ft as Tko.TypeId )
 
     if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
         return
@@ -444,9 +444,9 @@ private sub CopyMember_ _
         return
     end if
 
-    if c.types->Kind( ft ) = Fbx.TK_UDT then
-        dim as Fbx.SymbolId lt = StructorOf( c, ft, "let" )
-        if lt <> Fbx.SYMBOL_NONE then
+    if c.types->Kind( ft ) = Tko.TK_UDT then
+        dim as Tko.SymbolId lt = StructorOf( c, ft, "let" )
+        if lt <> Tko.SYMBOL_NONE then
             dim as FB.Array( of ulong ) args
             args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
             EmitStructorCall( c, lt, -1, @dst, @args )
@@ -476,17 +476,17 @@ end sub
 '' The base, then every field in DECLARATION order. Measured; the reverse belongs to
 '' the destructor and nowhere else.
 sub EmitLetBody_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
 
-    dim as Fbx.TypeId bt = ImplBaseOf_( c, t )
-    if (bt <> Fbx.TYPE_NONE) andalso (bt <> t) then
+    dim as Tko.TypeId bt = ImplBaseOf_( c, t )
+    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) then
         CopyMember_( c, FieldAddr_( c, dst, t, c.vts->baseName ), _
                      FieldAddr_( c, src, t, c.vts->baseName ), bt )
     end if
     dim as FB.Array( of ulong ) flds
     FieldsInOrder_( c, t, flds )
     for i as long = 0 to flds.Count - 1
-        dim as Fbx.Symbol ptr f = c.syms->SymbolAt( cast( Fbx.SymbolId, flds[i] ) )
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
         CopyMember_( c, FieldAddr_( c, dst, t, f->name ), _
                      FieldAddr_( c, src, t, f->name ), f->type_ )
@@ -497,10 +497,10 @@ end sub
 '' one: '_ZN1TC1Ev' and '_ZN1TD1Ev'. A type already in a namespace encodes as
 '' 'N2NS1TE' and is not wrapped twice.
 private function ImplStructorName_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval suffix as string ) as string
+    ( byref c as Ctx, byval t as Tko.TypeId, byval suffix as string ) as string
 
-    dim as Fbx.Mangle.Substitutions subs
-    dim as string code = Fbx.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+    dim as Tko.Mangle.Substitutions subs
+    dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
     if len( code ) = 0 then return ""
     if left( code, 1 ) = "N" then
         '' 'N2NS1TE' -> 'N2NS1TC1Ev': the trailing E belongs to the nested name and the
@@ -510,7 +510,7 @@ private function ImplStructorName_ _
     return "_ZN" + code + suffix + "Ev"
 end function
 
-function ImplicitCtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+function ImplicitCtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     '' OBJECT'S CONSTRUCTOR IS THE RUNTIME'S, under a name nothing else would produce:
     '' fbc declares 'void _ZN10fb_Object$C1Ev( struct $10fb_Object$* )' and never
     '' defines it. Synthesising one here instead gave every 'extends object' chain an
@@ -518,7 +518,7 @@ function ImplicitCtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
     '' stored at all, and the base of the chain kept whatever the stack held.
     ''
     '' NOT DECORATED FOR WIN32. fbc declares it cdecl there, so the linker-visible name
-    '' carries a leading underscore that this does not add -- fbx has no backend to
+    '' carries a leading underscore that this does not add -- tiko-lang has no backend to
     '' apply it in yet, and every other hand-written runtime name here is in the same
     '' position.
     if IsObjectT_( c, t ) then return "_ZN10fb_Object$C1Ev"
@@ -528,25 +528,25 @@ end function
 '' 'operator let' and the COPY CONSTRUCTOR, as fbc spells them: '_ZN1TaSERKS_' and
 '' '_ZN1TC1ERKS_'. 'RKS_' is the Itanium substitution for 'const T&', which is what
 '' both take -- so neither ends in the plain 'Ev' the other two do.
-function ImplicitLetName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     if IsObjectT_( c, t ) then return ""
-    dim as Fbx.Mangle.Substitutions subs
-    dim as string code = Fbx.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+    dim as Tko.Mangle.Substitutions subs
+    dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
     if len( code ) = 0 then return ""
     if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "aSERKS_"
     return "_ZN" + code + "aSERKS_"
 end function
 
-function ImplicitCopyName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     if IsObjectT_( c, t ) then return "_ZN10fb_Object$C1ERKS_"
-    dim as Fbx.Mangle.Substitutions subs
-    dim as string code = Fbx.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+    dim as Tko.Mangle.Substitutions subs
+    dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
     if len( code ) = 0 then return ""
     if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "C1ERKS_"
     return "_ZN" + code + "C1ERKS_"
 end function
 
-function ImplicitDtorName_( byref c as Ctx, byval t as Fbx.TypeId ) as string
+function ImplicitDtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     '' OBJECT HAS NO DESTRUCTOR. Measured: a module holding only 'dim shared as object'
     '' emits a _GLOBAL__I and no _GLOBAL__D at all.
     if IsObjectT_( c, t ) then return ""
@@ -559,7 +559,7 @@ private sub CallImplByName_ _
 
     if len( nm ) = 0 then return
     if selfv.kind = cast( ubyte, MV_NONE ) then return
-    dim as Fbx.InternId id = c.names->GetString( nm )
+    dim as Tko.InternId id = c.names->GetString( nm )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = id then
@@ -587,7 +587,7 @@ end sub
 
 '' Kind: 0 destructor, 1 constructor, 2 'operator let', 3 copy constructor.
 sub WantImplicit_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval k as long )
+    ( byref c as Ctx, byval t as Tko.TypeId, byval k as long )
 
     for i as long = 0 to c.implWantedType.Count - 1
         if (c.implWantedType[i] = cast( ulong, t )) andalso (c.implWantedKind[i] = k) then
@@ -605,7 +605,7 @@ private sub CallImplTwo_ _
     if (dst.kind = cast( ubyte, MV_NONE )) orelse (src.kind = cast( ubyte, MV_NONE )) then
         return
     end if
-    dim as Fbx.InternId id = c.names->GetString( nm )
+    dim as Tko.InternId id = c.names->GetString( nm )
     dim as long fidx = -1
     for i as long = 0 to c.m->functions.Count - 1
         if c.m->functions[i]->name = id then
@@ -634,25 +634,25 @@ private sub CallImplTwo_ _
 end sub
 
 sub CallImplicitLet_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
     WantImplicit_( c, t, 2 )
     CallImplTwo_( c, ImplicitLetName_( c, t ), dst, src )
 end sub
 
 sub CallImplicitCopy_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref dst as MirValue, byref src as MirValue )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
     WantImplicit_( c, t, 3 )
     CallImplTwo_( c, ImplicitCopyName_( c, t ), dst, src )
 end sub
 
 sub CallImplicitCtor_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
     WantImplicit_( c, t, 1 )
     CallImplByName_( c, ImplicitCtorName_( c, t ), selfv )
 end sub
 
 sub CallImplicitDtor_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byref selfv as MirValue )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
     WantImplicit_( c, t, 0 )
     CallImplByName_( c, ImplicitDtorName_( c, t ), selfv )
 end sub
@@ -662,7 +662,7 @@ end sub
 '' one in a loop, and 'new T' calls one; giving it a body in one place is what lets all
 '' of those refer to it.
 private sub EmitOneImplicit_ _
-    ( byref c as Ctx, byval t as Fbx.TypeId, byval kind_ as long )
+    ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as long )
 
     dim as string nm = ""
     select case kind_
@@ -672,7 +672,7 @@ private sub EmitOneImplicit_ _
     case else : nm = ImplicitCopyName_( c, t )
     end select
     if len( nm ) = 0 then return
-    dim as Fbx.InternId id = c.names->GetString( nm )
+    dim as Tko.InternId id = c.names->GetString( nm )
     for i as long = 0 to c.m->functions.Count - 1
         if (c.m->functions[i]->name = id) andalso c.m->functions[i]->isDefinition then return
     next
@@ -715,8 +715,8 @@ private sub EmitOneImplicit_ _
         '' is zeroed and then assigned rather than assigned over a descriptor that was
         '' never initialised.
         EmitCtorPrologue_( c, t, selfv )
-        dim as Fbx.SymbolId lt = StructorOf( c, t, "let" )
-        if lt <> Fbx.SYMBOL_NONE then
+        dim as Tko.SymbolId lt = StructorOf( c, t, "let" )
+        if lt <> Tko.SYMBOL_NONE then
             dim as FB.Array( of ulong ) args
             args.Push( cast( ulong, rhs.kind ) ) : args.Push( cast( ulong, rhs.id ) )
             EmitStructorCall( c, lt, -1, @selfv, @args )
@@ -731,21 +731,21 @@ private sub EmitOneImplicit_ _
 end sub
 
 '' Is this a FIXED array whose element type needs a constructor -- or a destructor?
-function ArrayElemNeedsInit_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+function ArrayElemNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
     if c.types->IsDynArray( t ) then return false
-    dim as Fbx.TypeId el = c.types->Inner( t )
-    if c.types->Kind( el ) <> Fbx.TK_UDT then return false
+    dim as Tko.TypeId el = c.types->Inner( t )
+    if c.types->Kind( el ) <> Tko.TK_UDT then return false
     return TypeNeedsInit_( c, el )
 end function
 
-function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
-    if t = Fbx.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Fbx.TK_ARRAY then return false
+function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
     if c.types->IsDynArray( t ) then return false
-    dim as Fbx.TypeId el = c.types->Inner( t )
-    if c.types->Kind( el ) <> Fbx.TK_UDT then return false
+    dim as Tko.TypeId el = c.types->Inner( t )
+    if c.types->Kind( el ) <> Tko.TK_UDT then return false
     return TypeNeedsDtor_( c, el )
 end function
 
@@ -764,7 +764,7 @@ end function
 '' reaches are small and the instruction count is bounded by the element count, which
 '' is a compile-time constant or this is not a fixed array at all.
 sub EmitArrayElems_ _
-    ( byref c as Ctx, byval slot as long, byval at as Fbx.TypeId, byval isCtor as boolean )
+    ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean )
 
     if slot < 0 then return
     dim as MirValue sbase
@@ -776,13 +776,13 @@ end sub
 
 '' The same, from an ADDRESS rather than a slot: a module-lifetime array is a global.
 sub EmitArrayElemsAt_ _
-    ( byref c as Ctx, byref base_ as MirValue, byval at as Fbx.TypeId, byval isCtor as boolean )
+    ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, byval isCtor as boolean )
 
     if base_.kind = cast( ubyte, MV_NONE ) then return
-    if c.types->Kind( at ) <> Fbx.TK_ARRAY then return
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return
     if c.types->IsDynArray( at ) then return
-    dim as Fbx.TypeId el = c.types->Inner( at )
-    if c.types->Kind( el ) <> Fbx.TK_UDT then return
+    dim as Tko.TypeId el = c.types->Inner( at )
+    if c.types->Kind( el ) <> Tko.TK_UDT then return
     dim as long n = c.types->ElemCount( at )
     if (n <= 0) orelse (n > 4096) then return
     dim as long esz = SizeOfType( c, el )
@@ -798,16 +798,16 @@ sub EmitArrayElemsAt_ _
         dim as MirValue ea = Emit( c, fa )
         if ea.kind = cast( ubyte, MV_NONE ) then return
         if isCtor then
-            dim as Fbx.SymbolId ct = StructorWithArity( c, StructorOf( c, el, "__ctor" ), 0 )
-            if ct <> Fbx.SYMBOL_NONE then
+            dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, el, "__ctor" ), 0 )
+            if ct <> Tko.SYMBOL_NONE then
                 dim as FB.Array( of ulong ) none_
                 EmitStructorCall( c, ct, -1, @ea, @none_ )
             else
                 CallImplicitCtor_( c, el, ea )
             end if
         else
-            dim as Fbx.SymbolId dt = StructorWithArity( c, StructorOf( c, el, "__dtor" ), 0 )
-            if dt <> Fbx.SYMBOL_NONE then
+            dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, el, "__dtor" ), 0 )
+            if dt <> Tko.SYMBOL_NONE then
                 dim as FB.Array( of ulong ) none_
                 EmitStructorCall( c, dt, -1, @ea, @none_ )
             else
@@ -831,7 +831,7 @@ sub EmitModuleInit_( byref c as Ctx )
 
     for pass as long = 0 to 1
         dim as boolean isCtor = (pass = 0)
-        dim as Fbx.InternId nm = c.names->GetString( iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" ) )
+        dim as Tko.InternId nm = c.names->GetString( iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" ) )
         dim as MirFunction ptr f = c.m->AddFunction( nm, MT_VOID )
         f->isDefinition = true
         f->paramCount = 0
@@ -847,24 +847,24 @@ sub EmitModuleInit_( byref c as Ctx )
         dim as long n = c.modInitGlobal.Count
         for k as long = 0 to n - 1
             dim as long i = iif( isCtor, k, n - 1 - k )
-            dim as Fbx.TypeId gt = cast( Fbx.TypeId, c.modInitType[i] )
+            dim as Tko.TypeId gt = cast( Tko.TypeId, c.modInitType[i] )
             dim as MirValue ga
             ga.kind = cast( ubyte, MV_GLOBAL )
             ga.ty = cast( ubyte, MT_PTR )
             ga.id = c.modInitGlobal[i]
 
-            if c.types->Kind( gt ) = Fbx.TK_UDT then
+            if c.types->Kind( gt ) = Tko.TK_UDT then
                 if isCtor then
-                    dim as Fbx.SymbolId ct = StructorWithArity( c, StructorOf( c, gt, "__ctor" ), 0 )
-                    if ct <> Fbx.SYMBOL_NONE then
+                    dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, gt, "__ctor" ), 0 )
+                    if ct <> Tko.SYMBOL_NONE then
                         dim as FB.Array( of ulong ) none1
                         EmitStructorCall( c, ct, -1, @ga, @none1 )
                     elseif TypeNeedsInit_( c, gt ) then
                         CallImplicitCtor_( c, gt, ga )
                     end if
                 else
-                    dim as Fbx.SymbolId dt = StructorWithArity( c, StructorOf( c, gt, "__dtor" ), 0 )
-                    if dt <> Fbx.SYMBOL_NONE then
+                    dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, gt, "__dtor" ), 0 )
+                    if dt <> Tko.SYMBOL_NONE then
                         dim as FB.Array( of ulong ) none2
                         EmitStructorCall( c, dt, -1, @ga, @none2 )
                     elseif TypeNeedsDtor_( c, gt ) then
@@ -903,10 +903,10 @@ sub EmitImplicitStructors( byref c as Ctx )
     dim as long guard = 0
     while (at < c.implWantedType.Count) andalso (guard < 100000)
         guard += 1
-        dim as Fbx.TypeId t = cast( Fbx.TypeId, c.implWantedType[at] )
+        dim as Tko.TypeId t = cast( Tko.TypeId, c.implWantedType[at] )
         dim as long kind_ = c.implWantedKind[at]
         at += 1
-        if t = Fbx.TYPE_NONE then continue while
+        if t = Tko.TYPE_NONE then continue while
         if c.udts->Find( t ) < 0 then continue while
         '' OBJECT'S OWN STRUCTORS ARE THE RUNTIME'S, not this module's.
         if IsObjectT_( c, t ) then continue while
@@ -915,13 +915,13 @@ sub EmitImplicitStructors( byref c as Ctx )
         dim as boolean written = false
         select case kind_
         case 0
-            written = (StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Fbx.SYMBOL_NONE)
+            written = (StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Tko.SYMBOL_NONE)
         case 1
-            written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Fbx.SYMBOL_NONE)
+            written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Tko.SYMBOL_NONE)
         case 2
-            written = (StructorOf( c, t, "let" ) <> Fbx.SYMBOL_NONE)
+            written = (StructorOf( c, t, "let" ) <> Tko.SYMBOL_NONE)
         case else
-            written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 ) <> Fbx.SYMBOL_NONE)
+            written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 ) <> Tko.SYMBOL_NONE)
         end select
         if written then continue while
         EmitOneImplicit_( c, t, kind_ )

@@ -3,10 +3,10 @@
 
     python tools/gen/str-truth.py
 
-fbx must reproduce this rendering at COMPILE TIME. `data 1.5` is constant-folded by fbc
+tiko-lang must reproduce this rendering at COMPILE TIME. `data 1.5` is constant-folded by fbc
 and stored as the TEXT "1.5" (docs/internals/phase-6-print-using-and-data.md, "Item
 values are constant-folded and re-rendered as text"), so a READ of a float datum
-diverges the moment fbx renders a digit differently.
+diverges the moment tiko-lang renders a digit differently.
 
 Measured, not transcribed. Two probes are compiled and RUN:
 
@@ -15,7 +15,7 @@ Measured, not transcribed. Two probes are compiled and RUN:
      That also lets a positive quiet NaN and both infinities be named exactly, which no
      literal can do.
   2. the DATA probe -- the same values written as source literals, folded by fbc into
-     DATA text, and READ back at run time. That is the rendering fbx actually has to
+     DATA text, and READ back at run time. That is the rendering tiko-lang actually has to
      match; the STR() probe is only usable as truth because this one proves the two
      agree.
 
@@ -35,7 +35,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import fbxtargets
+import tkotargets
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "tests/expected/fbc-str.txt"
@@ -259,7 +259,7 @@ def one_target(label, fbc, out, work, extra):
               % (label, len(rows), len(dl) + len(sl)), file=sys.stderr)
         return 3
 
-    # Cross-check: the DATA folding fbx must match, against the STR() recorded here.
+    # Cross-check: the DATA folding tiko-lang must match, against the STR() recorded here.
     lits = literal_rows(dl, sl, rows)
     folded = run(fbc, work, "dataprobe", data_probe(lits), extra)
     if folded is None:
@@ -286,7 +286,7 @@ def one_target(label, fbc, out, work, extra):
 
 def main() -> int:
     rc = 0
-    for label, fbc, out, work in fbxtargets.truth_targets(OUT, WORK):
+    for label, fbc, out, work in tkotargets.truth_targets(OUT, WORK):
         # fbc32 defaults to -gen gas; every other truth generator here pins -gen gcc
         # for the same reason.
         extra = ["-gen", "gcc"] if label == "win32" else []

@@ -15,17 +15,17 @@
 
 #include once "mir/lowerctx.bi"
 
-namespace Fbx.Mir
+namespace Tko.Mir
 
 '' The intrinsic's spelling, or "" when this call is not one of them.
 private function ConvName_ _
-    ( byref c as Ctx, byval cp as Fbx.ListPayload ptr ) as string
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as string
 
-    if cp->target = Fbx.NODE_NONE then return ""
-    if c.ast->Kind( cp->target ) <> Fbx.N_IDENT then return ""
-    dim as Fbx.IdentPayload ptr ip = _
+    if cp->target = Tko.NODE_NONE then return ""
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return ""
+    dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Fbx.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     select case nm
     case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", "cuint", _
          "clngint", "culngint", "csng", "cdbl", "cbool", "csign", "cunsg", _
@@ -36,18 +36,18 @@ private function ConvName_ _
 end function
 
 function IsConvIntrinsic _
-    ( byref c as Ctx, byval id as Fbx.NodeId ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
-    dim as Fbx.ListPayload ptr cp = _
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     return len( ConvName_( c, cp ) ) > 0
 end function
 
 function LowerConvIntrinsic _
-    ( byref c as Ctx, byval id as Fbx.NodeId, byval mt as MirType ) as MirValue
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 
     dim as MirValue v
-    dim as Fbx.ListPayload ptr cp = _
+    dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     dim as string nm = ConvName_( c, cp )
     if len( nm ) = 0 then return v
@@ -61,7 +61,7 @@ function LowerConvIntrinsic _
         if cp->count <> 1 then return v
     end if
 
-    dim as Fbx.NodeId arg = cast( Fbx.NodeId, c.ast->children[cp->first + vi] )
+    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[cp->first + vi] )
     dim as MirValue x = LowerExpr( c, arg )
     if x.kind = cast( ubyte, MV_NONE ) then return v
 

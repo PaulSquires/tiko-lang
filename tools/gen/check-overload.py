@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Compare fbx's overload choice with fbc's, over every measured combination.
+"""Compare tiko-lang's overload choice with fbc's, over every measured combination.
 
     python tools/gen/check-overload.py
 
 Reads tests/types/expected/fbc-overload.txt -- produced by overload-truth.py from fbc
-itself -- rebuilds the same candidate pairs as fbx source, and compares. The two
-candidates have distinct RETURN types, so the type fbx computes for the call says
+itself -- rebuilds the same candidate pairs as tiko-lang source, and compares. The two
+candidates have distinct RETURN types, so the type tiko-lang computes for the call says
 which one it picked: BYTE for the first, SHORT for the second.
 """
 import re
@@ -14,13 +14,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import fbxtargets
+import tkotargets
 
 TRUTH = ROOT / "tests/types/expected/fbc-overload.txt"
 TGT = []
 LABEL = "win64"
 WORK = ROOT / "build/.ov"
-FBX = ROOT / "bin/fbx.exe"
+TKO = ROOT / "bin/tiko.exe"
 
 TYPES = ["byte", "ubyte", "short", "ushort", "long", "ulong", "integer",
          "uinteger", "longint", "ulongint", "single", "double", "boolean", "string"]
@@ -31,9 +31,9 @@ def one_target() -> int:
         print(f"check-overload: {LABEL} no truth file; run tools/gen/overload-truth.py",
               file=sys.stderr)
         return 3
-    fbx = FBX if FBX.exists() else ROOT / "bin/fbx"
-    if not fbx.exists():
-        print(f"check-overload: {LABEL} fbx not built", file=sys.stderr)
+    tiko = TKO if TKO.exists() else ROOT / "bin/tiko"
+    if not tiko.exists():
+        print(f"check-overload: {LABEL} tiko not built", file=sys.stderr)
         return 3
 
     rows = [line.split("\t")
@@ -56,10 +56,10 @@ def one_target() -> int:
                 line_of[len(src)] = idx
                 idx += 1
 
-    probe = WORK / "ovl-fbx.bas"
+    probe = WORK / "ovl-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(fbx), "--check"] + TGT + [str(probe)],
+    proc = subprocess.run([str(tiko), "--check"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():
@@ -79,7 +79,7 @@ def one_target() -> int:
                 rej_ok += 1
             else:
                 rej_bad += 1
-                bad.append(f"{a} vs {b}, arg {g}: fbc REJECTS, fbx picked "
+                bad.append(f"{a} vs {b}, arg {g}: fbc REJECTS, tiko-lang picked "
                            f"{'first' if mine == 'byte' else 'second'}")
             continue
         # byte marks the first candidate, short the second
@@ -88,7 +88,7 @@ def one_target() -> int:
             pick_ok += 1
         else:
             pick_bad += 1
-            bad.append(f"{a} vs {b}, arg {g}: fbc={want} fbx={chose}")
+            bad.append(f"{a} vs {b}, arg {g}: fbc={want} tiko={chose}")
 
     total_pick = sum(1 for r in rows if r[3] != "reject")
     total_rej = len(rows) - total_pick
@@ -107,7 +107,7 @@ def main() -> int:
     """Every target, against its own expectations file."""
     global TRUTH, TGT, LABEL
     rc = 0
-    for LABEL, TRUTH, TGT in fbxtargets.check_targets(TRUTH):
+    for LABEL, TRUTH, TGT in tkotargets.check_targets(TRUTH):
         if one_target() != 0:
             rc = 1
     return rc

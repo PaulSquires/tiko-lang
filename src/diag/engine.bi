@@ -14,14 +14,14 @@
 ''     none outstanding is a no-op, never a crash.
 ''   - Once the error cap is reached, further errors are counted but not stored.
 
-#ifndef __FBX_DIAG_ENGINE_BI__
-#define __FBX_DIAG_ENGINE_BI__
+#ifndef __TKO_DIAG_ENGINE_BI__
+#define __TKO_DIAG_ENGINE_BI__
 
-#include once "fbx.bi"
+#include once "tko.bi"
 #include once "diag/diagnostic.bi"
 #include once "source/manager.bi"
 
-namespace Fbx
+namespace Tko
 
     const DIAG_DEFAULT_MAX_ERRORS as long = 100
 

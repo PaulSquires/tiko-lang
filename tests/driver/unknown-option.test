@@ -1,4 +1,4 @@
 '' TEST: cli
 '' ARGS: -q tests/source/plain.bas
 '' EXPECT-EXIT: 2
-'' EXPECT-OUT: FBX0100: unknown option '-q'
+'' EXPECT-OUT: TKO0100: unknown option '-q'

@@ -1,5 +1,5 @@
 #!/bin/sh
-# check-const.sh -- fbx's constant folding against fbc's, bit for bit.
+# check-const.sh -- tiko-lang's constant folding against fbc's, bit for bit.
 #
 #   tools/gen/check-const.sh
 #
