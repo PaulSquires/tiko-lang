@@ -779,7 +779,15 @@ private sub WalkExpr _
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE, Tko.N_INITIALIZER, _
          Tko.N_STRCAT
         dim as Tko.ListPayload ptr lp = ListOf( c, id )
-        WalkExpr( c, lp->target, scope_ )
+        '' 'type<P>( 5, 6 )' PUTS A TYPE IN THE TARGET, not an expression. Walking it
+        '' as one leaves the literal with no type at all, and every use of it -- an
+        '' initialiser, an argument, a parameter default -- then has nothing to build.
+        if (lp->target <> Tko.NODE_NONE) andalso _
+           (c.ast->Kind( lp->target ) = Tko.N_TYPEREF) then
+            ResolveTypeRef( c, lp->target, scope_ )
+        else
+            WalkExpr( c, lp->target, scope_ )
+        end if
 
         '' THE CALL NODE CARRIES ITS CALLEE, which lowering reads off it. A direct
         '' call gets one because the target's own binding is copied up elsewhere; a
@@ -1452,45 +1460,6 @@ sub Run _
     InstantiatePendingProcs_( c )
     BackpatchTypedefs( c )
 end sub
-
-
-function Dump _
-    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
-      byref types as Tko.TypeContext, byref names as Tko.Interner, _
-      byref info as Tko.SemanticInfo, byref st as Stats ) as string
-
-    dim as string outp = ""
-    outp += "resolved: " & st.references & " references, " & st.builtins & _
-            " builtins, " & st.undefined_ & " unresolved, " & st.typeRefs & _
-            " type refs, " & st.calls & " calls, " & st.assigns & _
-            " assignments" & chr( 10 )
-
-    for i as long = 0 to st.unresolvedNames.Count - 1
-        outp += "  unresolved: " & _
-                names.Spelling( cast( Tko.InternId, st.unresolvedNames[i] ) ) & chr( 10 )
-    next
-
-    for i as long = 1 to ast.Count( )
-        dim as Tko.NodeId n = cast( Tko.NodeId, i )
-        dim as Tko.NodeKind k = ast.Kind( n )
-
-        if k = Tko.N_TYPEREF then
-            dim as Tko.TypeId t = info.TypeOf_( n )
-            if t <> Tko.TYPE_NONE then
-                outp += "  typeref #" & i & " -> " & types.Name( t ) & chr( 10 )
-            end if
-        elseif k = Tko.N_AMBIGUOUS then
-            dim as string what = "?"
-            select case info.AmbiguousOf( n )
-            case Tko.AMB_CALL   : what = "call"
-            case Tko.AMB_ASSIGN : what = "assign"
-            case Tko.AMB_RESULT : what = "function-result"
-            case Tko.AMB_ERROR  : what = "error"
-            end select
-            outp += "  stmt #" & i & " -> " & what & chr( 10 )
-        end if
-    next
-    return outp
-end function
+#include once "symbols/resolvedump.bas"
 
 end namespace

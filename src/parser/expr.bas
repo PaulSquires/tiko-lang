@@ -693,6 +693,52 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         if nIsArray then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_ARRAY
         return nn
 
+    case Tko.KW_TYPE
+        '' 'type<P>( 5, 6 )' -- THE ANONYMOUS UDT LITERAL, and 'type( 5, 6 )' with the
+        '' type taken from context. 789 corpus lines and 36 in the runtime headers
+        '' write one.
+        ''
+        '' It was not recognised at all, and the failure was SILENT: the expression
+        '' parser read 'type<P>( 5, 6 )' as '(type < P) > (5, 6)' -- two comparisons
+        '' over a name that binds to nothing -- so 'dim as GUID g = type<GUID>( ... )'
+        '' produced a boolean-shaped tree where an object belonged, and declined three
+        '' passes later with nothing pointing back here.
+        ''
+        '' Measured: it is EXACTLY the parenthesised field list with the type written
+        '' out. fbc emits the same field stores and the same tail memset for
+        '' 'type<P>( 5, 6 )' as for '( 5, 6 )', so the node built here is the same
+        '' N_TUPLE -- with the type reference in the list's TARGET, which the bare form
+        '' leaves empty.
+        dim as Tko.NodeId litType = Tko.NODE_NONE
+        dim as long save_ = p.pos
+        Advance( p )                                  '' 'type'
+        if Peek( p ) = Tko.TK_LT then
+            Advance( p )
+            litType = TypeRef( p )
+            if Accept( p, Tko.TK_GT ) = false then
+                '' Not a literal after all -- put the cursor back and let the ordinary
+                '' paths have it, rather than consuming tokens on a guess.
+                p.pos = save_
+                return ErrorNode( p, Tko.TKO0402 )
+            end if
+        end if
+        if Peek( p ) <> Tko.TK_LPAREN then
+            p.pos = save_
+            return ErrorNode( p, Tko.TKO0402 )
+        end if
+        Advance( p )                                  '' '('
+        dim as Tko.NodeIdVec titems
+        if Peek( p ) <> Tko.TK_RPAREN then
+            do
+                titems.Push( cast( ulong, Expression( p ) ) )
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
+            loop
+        end if
+        Expect( p, Tko.TK_RPAREN, ")" )
+        dim as Tko.NodeId tn = MakeList( p, Tko.N_TUPLE, t.loc, litType, titems )
+        p.ast->nodes[cast( long, tn )].flags or= Tko.NF_HAS_COMMA
+        return PostfixChain( p, tn )
+
     case Tko.TK_LPAREN
         '' '(a)' is a parenthesised expression; '(a, b)' is a tuple. Purely
         '' syntactic, so the parser decides (docs/plan/04 section 3.3).

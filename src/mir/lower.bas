@@ -51,6 +51,14 @@ function LowerExpr _
         if mt = MT_VOID then mt = MT_F64
         return ConstFloat( c, lp->fltValue, mt )
 
+    case Tko.N_TUPLE
+        '' 'type<P>( 5, 6 )' IN VALUE POSITION -- an argument, a parameter default.
+        '' fbc builds a temporary and field-initialises it. A bare tuple has no type
+        '' target and is not one of these.
+        dim as MirValue ulv
+        if LowerUdtLiteralValue_( c, id, ulv ) then return ulv
+        return v
+
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]

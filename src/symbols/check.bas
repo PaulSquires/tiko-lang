@@ -806,6 +806,19 @@ function TypeOf_ _
             end if
         end if
 
+    case Tko.N_TUPLE
+        '' 'type<P>( 5, 6 )' -- THE ANONYMOUS UDT LITERAL. The parser puts the written
+        '' type in the list's TARGET, and that IS the expression's type; an ordinary
+        '' tuple has no target and is left alone here, so the tuple feature is
+        '' untouched.
+        dim as Tko.ListPayload ptr tl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if tl->target <> Tko.NODE_NONE then
+            if c.ast->Kind( tl->target ) = Tko.N_TYPEREF then
+                t = c.info->TypeOf_( tl->target )
+            end if
+        end if
+
     case Tko.N_PAREN
         '' A parenthesised expression is a LIST node, not a statement node: its
         '' single child is in the shared child pool. Reading it through the stmt
@@ -1241,7 +1254,7 @@ private sub WalkAll( byref c as Ctx )
         case Tko.N_INT_LIT, Tko.N_FLOAT_LIT, Tko.N_STRING_LIT, Tko.N_STRCAT, _
              Tko.N_IDENT, Tko.N_PAREN, Tko.N_UNARY, Tko.N_BINARY, _
              Tko.N_DEREF, Tko.N_ADDROF, Tko.N_CALL, Tko.N_MEMBER, _
-             Tko.N_INDEX, Tko.N_NEW
+             Tko.N_INDEX, Tko.N_NEW, Tko.N_TUPLE
             '' N_INDEX was missing from this list, so 'p[i]' was never typed however
             '' well the case for it was written -- the cache is what lowering reads,
             '' and nothing ever filled it. A missing case here is invisible: the type

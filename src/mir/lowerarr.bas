@@ -56,6 +56,14 @@ function LowerAddr _
     dim as MirValue v
     if id = Tko.NODE_NONE then return v
 
+    '' 'type<P>( 5, 6 )' HAS AN ADDRESS ONLY BECAUSE A TEMPORARY IS BUILT FOR IT, which
+    '' is what a byref parameter defaulted from one needs. fbc does the same.
+    if c.ast->Kind( id ) = Tko.N_TUPLE then
+        dim as MirValue ula
+        if LowerUdtLiteralAddr_( c, id, ula ) then return ula
+        return v
+    end if
+
     '' A BYREF-RETURNING CALL YIELDS AN ADDRESS, which is the whole point of one:
     '' fbc writes 'int32* vr = _ZN1TixEi( &A, 1 ); *vr = 99;' for 'a[ 1 ] = 99'. So
     '' 'operator []' over a container is an LVALUE, and without this every assignment

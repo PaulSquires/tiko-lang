@@ -354,6 +354,12 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideAssign _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' 'type<T>( ... )' as a value or an address -- lowersub.bas.
+    declare function LowerUdtLiteralValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerUdtLiteralAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
     '' THE VARARG CURSOR -- lowercva.bas.
     declare function LowerCvaStart( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerCvaCopy( byref c as Ctx, byval id as Tko.NodeId ) as boolean

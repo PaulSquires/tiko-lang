@@ -1,0 +1,7 @@
+'' 'type<T>( ... )' -- the anonymous UDT literal, in every position it appears in.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-literal.out
