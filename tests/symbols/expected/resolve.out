@@ -1,4 +1,4 @@
-resolved: 11 references, 0 builtins, 0 unresolved, 155 type refs, 2 calls, 2 assignments
+resolved: 11 references, 0 builtins, 0 unresolved, 180 type refs, 2 calls, 2 assignments
   typeref #1 -> long
   typeref #5 -> long
   typeref #8 -> long
@@ -130,30 +130,55 @@ resolved: 11 references, 0 builtins, 0 unresolved, 155 type refs, 2 calls, 2 ass
   typeref #327 -> long
   typeref #330 -> long
   typeref #333 -> string
-  typeref #337 -> any
-  typeref #338 -> any ptr
-  typeref #340 -> long
-  typeref #343 -> long
-  typeref #346 -> long
-  typeref #349 -> long
-  typeref #352 -> any
-  typeref #353 -> any ptr
-  typeref #356 -> long
+  typeref #337 -> integer
+  typeref #340 -> integer
+  typeref #343 -> integer
+  typeref #346 -> integer
+  typeref #349 -> integer
+  typeref #352 -> integer
+  typeref #355 -> string
   typeref #359 -> long
-  typeref #361 -> long
-  typeref #364 -> long
-  typeref #367 -> long
-  typeref #370 -> long
-  typeref #373 -> long
-  typeref #376 -> long
-  typeref #378 -> long
-  typeref #381 -> integer
-  typeref #384 -> single
-  typeref #387 -> single
-  typeref #390 -> single
-  typeref #393 -> single
-  typeref #396 -> single
-  typeref #399 -> single
-  typeref #402 -> single
-  typeref #405 -> single
+  typeref #362 -> long
+  typeref #365 -> long
+  typeref #368 -> long
+  typeref #371 -> long
+  typeref #374 -> long
+  typeref #376 -> integer
+  typeref #379 -> integer
+  typeref #382 -> integer
+  typeref #385 -> integer
+  typeref #388 -> integer
+  typeref #391 -> long
+  typeref #393 -> long
+  typeref #395 -> long
+  typeref #398 -> long
+  typeref #401 -> long
+  typeref #404 -> long
   typeref #408 -> long
+  typeref #410 -> integer
+  typeref #413 -> integer
+  typeref #416 -> integer
+  typeref #419 -> integer
+  typeref #423 -> long
+  typeref #425 -> string
+  typeref #428 -> any
+  typeref #429 -> any ptr
+  typeref #431 -> long
+  typeref #434 -> long
+  typeref #437 -> long
+  typeref #440 -> long
+  typeref #443 -> any
+  typeref #444 -> any ptr
+  typeref #447 -> long
+  typeref #450 -> long
+  typeref #452 -> long
+  typeref #455 -> integer
+  typeref #458 -> single
+  typeref #461 -> single
+  typeref #464 -> single
+  typeref #467 -> single
+  typeref #470 -> single
+  typeref #473 -> single
+  typeref #476 -> single
+  typeref #479 -> single
+  typeref #482 -> long

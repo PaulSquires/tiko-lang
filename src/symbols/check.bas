@@ -700,17 +700,51 @@ private function LiteralType_ _
 end function
 
 
+'' Could this expression have an ADDRESS? Asked by the byref-exactness rule, because
+'' that rule exists only where there IS a variable to write back through: fbc converts
+'' a constant into a temporary and takes any type at all. Answered from the SHAPE,
+'' since Check has no source manager to fold constants with.
+private function IsLvalueShape_ _
+    ( byref c as Ctx, byval e as Fbx.NodeId ) as boolean
+
+    if e = Fbx.NODE_NONE then return false
+    select case c.ast->Kind( e )
+    case Fbx.N_IDENT, Fbx.N_MEMBER, Fbx.N_INDEX, Fbx.N_DEREF
+        return true
+    end select
+    return false
+end function
+
+'' A builtin NUMERIC type -- the family the byref-exactness rule applies to. A string,
+'' a pointer, a UDT and ANY are all excluded: each has its own conversion rules, and fbc
+'' does convert some of them at a byref parameter.
+private function IsNumericBuiltin_ _
+    ( byref c as Ctx, byval t as Fbx.TypeId ) as boolean
+
+    if t = Fbx.TYPE_NONE then return false
+    dim as Fbx.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Fbx.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( u )
+    case Fbx.TY_BYTE, Fbx.TY_UBYTE, Fbx.TY_SHORT, Fbx.TY_USHORT, _
+         Fbx.TY_LONG, Fbx.TY_ULONG, Fbx.TY_INTEGER, Fbx.TY_UINTEGER, _
+         Fbx.TY_LONGINT, Fbx.TY_ULONGINT, Fbx.TY_SINGLE, Fbx.TY_DOUBLE, _
+         Fbx.TY_BOOLEAN
+        return true
+    end select
+    return false
+end function
+
 '' Pick the overload for one call. Returns the chosen procedure's RETURN type, or
 '' TYPE_NONE when nothing is viable or two candidates tie.
 private function ResolveCall_ _
     ( byref c as Ctx, byval id as Fbx.NodeId, byval callee as Fbx.SymbolId, _
-      byval cp as Fbx.ListPayload ptr ) as Fbx.TypeId
+      byval argFirst as long, byval argCount as long ) as Fbx.TypeId
 
     '' Argument types first; an untyped argument makes the whole call undecidable
     '' rather than wrong.
     dim as FB.Array( of ulong ) argT
-    for i as long = 0 to cp->count - 1
-        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[cp->first + i] )
+    for i as long = 0 to argCount - 1
+        dim as Fbx.NodeId a = cast( Fbx.NodeId, c.ast->children[argFirst + i] )
         '' AN ELIDED ARGUMENT -- 'locate , 10' -- has no type and needs none: it takes
         '' the parameter's default, so it is recorded as TYPE_NONE and costed as a
         '' parameter that was not written at all. Treating it as an untyped argument
@@ -827,6 +861,36 @@ private function ResolveCall_ _
                         continue for
                     end if
                     dim as Fbx.TypeId pt = c.info->TypeOf_( sp2->a )
+
+                    '' A BYREF NUMERIC PARAMETER TAKES ITS OWN TYPE AND NOTHING ELSE.
+                    '' Measured: 'declare sub F( byref x as long )' called with a SHORT
+                    '' or an INTEGER is fbc's error 58, not a conversion -- there is
+                    '' nowhere for a converted value to live that the callee could
+                    '' write back through. A CONSTANT is exempt, because it has no
+                    '' address either way and fbc materialises a temporary for it.
+                    ''
+                    '' This is not pedantry about a diagnostic fbx does not emit: it
+                    '' decides an OVERLOAD. 'screeninfo w, h' over INTEGERs is
+                    '' fb_GfxScreenInfo64 and over LONGs is fb_GfxScreenInfo32, and
+                    '' costing the two as convertible picked the 32-bit one for both --
+                    '' an int64* passed where an int32* belongs.
+                    if (prm <> Fbx.NODE_NONE) andalso (pt <> Fbx.TYPE_NONE) then
+                        if (c.ast->nodes[cast( long, prm )].flags and Fbx.NF_BYREF) <> 0 then
+                            if IsNumericBuiltin_( c, pt ) andalso IsNumericBuiltin_( c, at2 ) then
+                                if c.types->Unqualify( at2 ) <> c.types->Unqualify( pt ) then
+                                    dim as Fbx.NodeId an2 = Fbx.NODE_NONE
+                                    if ai < argCount then
+                                        an2 = cast( Fbx.NodeId, c.ast->children[argFirst + ai] )
+                                    end if
+                                    if IsLvalueShape_( c, an2 ) then
+                                        viable = false
+                                        exit for
+                                    end if
+                                end if
+                            end if
+                        end if
+                    end if
+
                     dim as long cost = ConversionCost( at2, pt, *c.types, overloaded )
                     ai += 1
                     if cost >= CONV_NONE then
@@ -1086,7 +1150,7 @@ function TypeOf_ _
             if t = Fbx.TYPE_NONE then
                 dim as Fbx.SymbolId callee = c.info->RefOf( cp->target )
                 if callee <> Fbx.SYMBOL_NONE then
-                    t = ResolveCall_( c, id, callee, cp )
+                    t = ResolveCall_( c, id, callee, cp->first, cp->count )
                 end if
             end if
         end if
@@ -1259,6 +1323,36 @@ private sub WalkAll( byref c as Ctx )
             '' and nothing ever filled it. A missing case here is invisible: the type
             '' function has the answer and no one asks it.
             TypeOf_( c, n )
+
+        case Fbx.N_AMBIGUOUS
+            '' A CALL WRITTEN AS A STATEMENT IS NOT AN N_CALL NODE. 'W 1, 2' is this
+            '' statement's own callee and children, so nothing here ever costed its
+            '' arguments -- and lowering then used whatever Resolve had bound, which is
+            '' the HEAD of the overload chain. Every overloaded statement call went to
+            '' the first candidate: 'screeninfo w, h' over INTEGERs called the 32-bit
+            '' entry point with int64 pointers.
+            ''
+            '' The chosen symbol is recorded on the CALLEE IDENT, which is where
+            '' LowerStmtCall reads it from.
+            if c.info->AmbiguousOf( n ) = Fbx.AMB_CALL then
+                dim as Fbx.StmtPayload ptr asp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+                if asp->a <> Fbx.NODE_NONE then
+                    if c.ast->Kind( asp->a ) = Fbx.N_IDENT then
+                        dim as Fbx.SymbolId ac = c.info->RefOf( asp->a )
+                        dim as Fbx.Symbol ptr acs = c.syms->SymbolAt( ac )
+                        if acs <> 0 then
+                            '' Only when there is a choice to make: a single candidate
+                            '' is already bound, and re-costing it could only take a
+                            '' binding away.
+                            if (acs->kind = cast( ubyte, Fbx.SYM_PROC )) andalso _
+                               (acs->nextOverload <> Fbx.SYMBOL_NONE) then
+                                ResolveCall_( c, asp->a, ac, asp->first, asp->count )
+                            end if
+                        end if
+                    end if
+                end if
+            end if
         end select
     next
 end sub

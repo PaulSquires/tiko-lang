@@ -1,0 +1,8 @@
+'' Byref numeric parameters are exact, and a statement call resolves its overload.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-overload.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: fb_GfxScreenInfo64
+'' EXPECT-OUT: fb_GfxScreenInfo32
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byref-overload.out
