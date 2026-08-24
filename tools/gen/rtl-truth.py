@@ -111,6 +111,27 @@ sub SP( )
     s.a = 1
 end sub
 ''',
+    # The CVx / MKx family -- a number's BYTES as a string and back. Every width has
+    # its own entry point, and 'cvi'/'mki' follow the INTEGER width rather than having
+    # one of their own: measured, 'cvi' is fb_CVLONGINT on win64 and fb_CVL on win32,
+    # while fb_MKI exists on both and takes int64 there and int32 here.
+    "cvmk": '''
+sub CvProbe( )
+    dim as string s
+    dim as long l = cvl( s )
+    dim as short sh = cvshort( s )
+    dim as longint li = cvlongint( s )
+    dim as double d = cvd( s )
+    dim as single sg = cvs( s )
+    dim as integer i = cvi( s )
+    s = mki( i )
+    s = mkl( l )
+    s = mkshort( sh )
+    s = mklongint( li )
+    s = mkd( d )
+    s = mks( sg )
+end sub
+''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a
     # null check, with the destructor called first.
     "deletestmt": '''

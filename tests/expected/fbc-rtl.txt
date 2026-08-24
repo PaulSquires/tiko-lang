@@ -28,6 +28,11 @@ fb_BIN_p	FBSTRING*	void*	lib	fb_BIN_p
 fb_BIN_s	FBSTRING*	uint16	lib	fb_BIN_s
 fb_BoolToStr	FBSTRING*	boolean	lib	fb_BoolToStr
 fb_CHR	FBSTRING*	int32, ...	lib	fb_CHR
+fb_CVD	double	FBSTRING*	lib	fb_CVD
+fb_CVL	int32	FBSTRING*	lib	fb_CVL
+fb_CVLONGINT	int64	FBSTRING*	lib	fb_CVLONGINT
+fb_CVS	float	FBSTRING*	lib	fb_CVS
+fb_CVSHORT	int16	FBSTRING*	lib	fb_CVSHORT
 fb_ConsoleInput	int32	FBSTRING*, int32, int32	lib	fb_ConsoleInput
 fb_DataReadBool	void	boolean*	lib	fb_DataReadBool
 fb_DataReadByte	void	int8*	lib	fb_DataReadByte
@@ -115,6 +120,12 @@ fb_LineInput	int32	FBSTRING*, void*, int64, int32, int32, int32	lib	fb_LineInput
 fb_LineInputWstr	int32	uint16*, uint16*, int64, int32, int32	lib	fb_LineInputWstr
 fb_LongintToStr	FBSTRING*	int64	lib	fb_LongintToStr
 fb_LongintToWstr	uint16*	int64	lib	fb_LongintToWstr
+fb_MKD	FBSTRING*	double	lib	fb_MKD
+fb_MKI	FBSTRING*	int64	lib	fb_MKI
+fb_MKL	FBSTRING*	int32	lib	fb_MKL
+fb_MKLONGINT	FBSTRING*	int64	lib	fb_MKLONGINT
+fb_MKS	FBSTRING*	float	lib	fb_MKS
+fb_MKSHORT	FBSTRING*	int16	lib	fb_MKSHORT
 fb_MemSwap	void	void*, void*, int64	lib	fb_MemSwap
 fb_MutexCreate	void*	void	lib	fb_MutexCreate
 fb_MutexDestroy	void	void*	lib	fb_MutexDestroy

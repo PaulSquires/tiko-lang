@@ -52,3 +52,41 @@ private function IsAnyInit_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )]
     return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "any")
 end function
+
+'' The single argument of a type literal that is a COPY of the target -- 'type<T>( y )'
+'' where y is already a T -- or NODE_NONE. Parentheses on either side make no
+'' difference and are looked through.
+function TypeLitCopySource_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as Tko.NodeId
+
+    if value = Tko.NODE_NONE then return Tko.NODE_NONE
+    dim as Tko.NodeId v = Unparen_( c, value )
+    if v = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( v ) <> Tko.N_TUPLE then return Tko.NODE_NONE
+    if (c.ast->nodes[cast( long, v )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        return Tko.NODE_NONE
+    end if
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, v )].data )]
+    if lp->count <> 1 then return Tko.NODE_NONE
+
+    dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( target ) )
+    if tt = Tko.TYPE_NONE then return Tko.NODE_NONE
+    if c.types->Kind( tt ) <> Tko.TK_UDT then return Tko.NODE_NONE
+    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[lp->first] )
+    if c.types->Unqualify( c.info->TypeOf_( arg ) ) <> tt then return Tko.NODE_NONE
+    return arg
+end function
+
+
+'' An expression lowered as a CONDITION -- see Ctx.rawCmpNode.
+function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    dim as Tko.NodeId saved = c.rawCmpNode
+    '' THROUGH THE PARENTHESES, which is how the condition is usually written:
+    '' 'if (a < b) then' is the same branch as 'if a < b then', and taking the PAREN
+    '' node as the raw one left the comparison inside it negated and then branched on.
+    c.rawCmpNode = Unparen_( c, e )
+    dim as MirValue r = LowerExpr( c, e )
+    c.rawCmpNode = saved
+    return r
+end function

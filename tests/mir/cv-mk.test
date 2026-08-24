@@ -1,0 +1,13 @@
+'' The CVx / MKx family: a number's BYTES as a string and back. Every width has its own
+'' entry point, and the pair is NOT symmetric -- there is no fb_CVI at all, so 'cvi'
+'' follows the INTEGER width and is fb_CVLONGINT on win64 and fb_CVL on win32, while
+'' fb_MKI does exist and takes int64 there and int32 here. Both measured on both
+'' targets; neither is guessable from the other half of the family.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cv-mk.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl i64 fb_CVLONGINT
+'' EXPECT-OUT: call.rtl ptr fb_MKI
+'' GOLDEN: expected/cv-mk.out

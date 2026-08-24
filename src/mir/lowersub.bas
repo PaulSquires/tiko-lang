@@ -420,6 +420,34 @@ function LowerStrOf_ _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
+    '' THE MKx FAMILY -- a number's BYTES as a string. One number in, a descriptor
+    '' out, so it belongs beside CHR rather than with the renderers: MKI writes the
+    '' eight bytes of an INTEGER, it does not write "1".
+    dim as RtlId mr = RTL_NONE
+    dim as MirType mt2 = MT_I32
+    select case nm
+    case "mkd"      : mr = RTL_MKD       : mt2 = MT_F64
+    case "mks"      : mr = RTL_MKS       : mt2 = MT_F32
+    case "mkshort"  : mr = RTL_MKSHORT   : mt2 = MT_I16
+    case "mkl"      : mr = RTL_MKL       : mt2 = MT_I32
+    case "mklongint": mr = RTL_MKLONGINT : mt2 = MT_I64
+    case "mki"
+        mr = RTL_MKI
+        mt2 = MT_I64
+        if c.types->target.pointerBits = 32 then mt2 = MT_I32
+    end select
+    if mr <> RTL_NONE then
+        if cp->count <> 1 then return false
+        dim as Tko.NodeId ma = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as MirValue mv = LowerExpr( c, ma )
+        if mv.kind = cast( ubyte, MV_NONE ) then return false
+        mv = Coerce( c, mv, mt2, IsUnsignedType( c, c.info->TypeOf_( ma ) ) )
+        dim as FB.Array( of ulong ) ma2
+        ma2.Push( cast( ulong, mv.kind ) ) : ma2.Push( cast( ulong, mv.id ) )
+        outv = EmitRtl( c, mr, ma2 )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
     if nm <> "str" then return false
     if cp->count <> 1 then return false
     dim as Tko.NodeId sa = cast( Tko.NodeId, c.ast->children[cp->first] )
@@ -539,6 +567,19 @@ function LowerStrNumCall_ _
     case "valulng" : vr = RTL_VALULNG
     case "valint"  : vr = RTL_VALINT
     case "valuint" : vr = RTL_VALUINT
+    '' THE CVx FAMILY -- a string's BYTES read back as a number. Same shape as VAL:
+    '' one descriptor in, a number out. 'cvi' has NO ENTRY POINT OF ITS OWN and
+    '' follows the INTEGER width instead, which is fb_CVLONGINT on win64 and fb_CVL
+    '' on win32 -- measured on both, and not guessable from the family, which has a
+    '' separate fb_MKI on the other side.
+    case "cvd"      : vr = RTL_CVD
+    case "cvs"      : vr = RTL_CVS
+    case "cvshort"  : vr = RTL_CVSHORT
+    case "cvl"      : vr = RTL_CVL
+    case "cvlongint": vr = RTL_CVLONGINT
+    case "cvi"
+        vr = RTL_CVLONGINT
+        if c.types->target.pointerBits = 32 then vr = RTL_CVL
     end select
     if vr <> RTL_NONE then
         if cp->count <> 1 then return false

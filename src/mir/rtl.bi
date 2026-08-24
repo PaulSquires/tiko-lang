@@ -532,6 +532,22 @@ namespace Tko.Mir
         '' constructor call and defines the thunk itself. Measured -- 'int32 atexit(
         '' void* );' -- and cdecl on win32 like the rest of libc.
         RTL( RTL_ATEXIT,            "atexit",              "l",   "p"     )
+        '' CVx / MKx -- a number's BYTES as a string and back. Every width has its own
+        '' entry point and the pair is NOT symmetric: there is no fb_CVI at all, so
+        '' 'cvi' is fb_CVLONGINT on win64 and fb_CVL on win32 -- it follows the
+        '' INTEGER width -- while fb_MKI does exist on both and its parameter follows
+        '' that same width, which is what 'z' says here.
+        RTL( RTL_CVD,               "fb_CVD",              "d",   "p"     )
+        RTL( RTL_CVS,               "fb_CVS",              "f",   "p"     )
+        RTL( RTL_CVSHORT,           "fb_CVSHORT",          "s",   "p"     )
+        RTL( RTL_CVL,               "fb_CVL",              "l",   "p"     )
+        RTL( RTL_CVLONGINT,         "fb_CVLONGINT",        "q",   "p"     )
+        RTL( RTL_MKD,               "fb_MKD",              "p",   "d"     )
+        RTL( RTL_MKS,               "fb_MKS",              "p",   "f"     )
+        RTL( RTL_MKSHORT,           "fb_MKSHORT",          "p",   "s"     )
+        RTL( RTL_MKI,               "fb_MKI",              "p",   "z"     )
+        RTL( RTL_MKL,               "fb_MKL",              "p",   "l"     )
+        RTL( RTL_MKLONGINT,         "fb_MKLONGINT",        "p",   "q"     )
         '' Mutexes. All four are ordinary stdcall entries on win32.
         RTL( RTL_MUTEX_CREATE,      "fb_MutexCreate",      "p",   ""      )
         RTL( RTL_MUTEX_DESTROY,     "fb_MutexDestroy",     "v",   "p"     )

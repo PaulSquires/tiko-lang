@@ -5,6 +5,8 @@
 
 namespace Tko.Mir
 
+declare function TypeLitCopySource_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as Tko.NodeId
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
@@ -26,18 +28,6 @@ private function IsCmpOp_( byval op as MirOp ) as boolean
         return true
     end select
     return false
-end function
-
-'' An expression lowered as a CONDITION -- see Ctx.rawCmpNode.
-function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
-    dim as Tko.NodeId saved = c.rawCmpNode
-    '' THROUGH THE PARENTHESES, which is how the condition is usually written:
-    '' 'if (a < b) then' is the same branch as 'if a < b then', and taking the PAREN
-    '' node as the raw one left the comparison inside it negated and then branched on.
-    c.rawCmpNode = Unparen_( c, e )
-    dim as MirValue r = LowerExpr( c, e )
-    c.rawCmpNode = saved
-    return r
 end function
 
 function LowerExpr _
@@ -456,6 +446,7 @@ sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
     next
 end sub
 
+
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId )
 
@@ -466,6 +457,16 @@ private sub LowerAssign _
     '' A WIDE STRING is neither a store nor the narrow string runtime: 'wstring * N'
     '' is a bare uint16* with its own family of entry points, and which one depends on
     '' whether the SOURCE is wide or narrow.
+    '' 'x = type<T>( y )' OVER THE SAME TYPE IS A COPY OF y, not a field list, and
+    '' the field-list path could not take it -- T's first field is a LONG and the
+    '' argument is a T -- so the whole assignment declined. Unwrapped and assigned,
+    '' so a type with an 'operator let' still gets its call. See TypeLitCopySource_.
+    dim as Tko.NodeId tlv = TypeLitCopySource_( c, target, value )
+    if tlv <> Tko.NODE_NONE then
+        LowerAssign( c, target, tlv )
+        return
+    end if
+
     if LowerWideAssign( c, target, value ) then return
     if LowerWideToNarrow( c, target, value ) then return
 

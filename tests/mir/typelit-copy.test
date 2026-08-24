@@ -1,0 +1,11 @@
+'' 'x = type<T>( y )' over the same type is a COPY of y, not a field list. Measured:
+'' fbc emits '__builtin_memcpy( &X$0, &Y$0, 4 )' for it, and the same for the three
+'' parenthesised spellings structs/anon-param writes beside it to say they are one
+'' thing. The field-list path could not take it -- T's first field is a LONG and the
+'' argument is a T -- so the whole assignment declined.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typelit-copy.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/typelit-copy.out
