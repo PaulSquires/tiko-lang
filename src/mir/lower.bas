@@ -254,24 +254,6 @@ function LowerExpr _
         dim as MirValue uov
         if LowerUserBinaryOp_( c, id, bp, mt, uov ) then return uov
 
-        '' ...AND WHEN THERE IS NO OPERATOR TO CALL, THE ANSWER IS NOTHING. A UDT
-        '' operand with no bound operator and no type of its own fell straight through
-        '' to the arithmetic path below and ADDED THE RAW AGGREGATES as integers --
-        '' the very failure the comment above describes, one case along: it happens
-        '' whenever Check could not bind the operator rather than whenever there is
-        '' none. A GENERIC global operator is exactly that case, and 'x + y' over two
-        '' 'Box( of long )' emitted 'add' on the two objects, verified, and was wrong.
-        ''
-        '' The node's own TYPE is what separates the two: a UDT that reaches the
-        '' numeric path legitimately does so through 'operator cast', and Check types
-        '' the expression when it does.
-        if c.info->TypeOf_( id ) = Tko.TYPE_NONE then
-            dim as Tko.TypeId lud = c.types->Unqualify( c.info->TypeOf_( bp->lhs ) )
-            dim as Tko.TypeId rud = c.types->Unqualify( c.info->TypeOf_( bp->rhs ) )
-            dim as boolean udtOperand = (c.types->Kind( lud ) = Tko.TK_UDT) orelse _
-                                        (c.types->Kind( rud ) = Tko.TK_UDT)
-            if udtOperand then return v
-        end if
 
         '' ANDALSO and ORELSE must not evaluate the right side unless they have to,
         '' so they are control flow, not an opcode.
@@ -320,6 +302,30 @@ function LowerExpr _
             dim as MirValue sc = LowerStrCompare( c, id, bp, tk )
             if sc.kind <> cast( ubyte, MV_NONE ) then return sc
             return v
+        end if
+
+        '' AND WHEN THERE IS NO OPERATOR TO CALL, THE ANSWER IS NOTHING. A UDT operand
+        '' with no bound operator and no type of its own fell through to the arithmetic
+        '' path below and ADDED THE RAW AGGREGATES as integers -- the failure the
+        '' user-operator comment above describes, one case along: it happens whenever
+        '' Check could not BIND the operator rather than whenever there is none, and a
+        '' GENERIC global operator is exactly that case. 'x + y' over two
+        '' 'Box( of long )' emitted 'add' on the two objects, verified, and was wrong.
+        ''
+        '' AFTER the string tests, not before them: a UDT with 'operator cast' to a
+        '' string is compared as a STRING and has no type of its own either, so
+        '' refusing it here as well took 'ut = st' with it -- 350 corpus statements
+        '' across the udt-wstring and udt-zstring families.
+        ''
+        '' The node's own TYPE is what separates the remaining two: a UDT that reaches
+        '' the numeric path legitimately does so through 'operator cast', and Check
+        '' types the expression when it does.
+        if c.info->TypeOf_( id ) = Tko.TYPE_NONE then
+            dim as Tko.TypeId lud = c.types->Unqualify( c.info->TypeOf_( bp->lhs ) )
+            dim as Tko.TypeId rud = c.types->Unqualify( c.info->TypeOf_( bp->rhs ) )
+            dim as boolean udtOperand = (c.types->Kind( lud ) = Tko.TK_UDT) orelse _
+                                        (c.types->Kind( rud ) = Tko.TK_UDT)
+            if udtOperand then return v
         end if
 
         dim as MirValue l = LowerExpr( c, bp->lhs )

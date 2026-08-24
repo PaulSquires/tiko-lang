@@ -57,3 +57,19 @@ sub G( )
     dim rt as zstring * 50
     dim r as boolean = ( rt = rv )
 end sub
+
+'' A UDT COMPARED AGAINST A FIXED STRING is a STRING comparison and has no type of its
+'' own -- so a guard that refuses an untyped UDT operand before the string tests takes
+'' this with it. It did, for one commit: 350 statements across the udt-wstring and
+'' udt-zstring corpus families, which are made of exactly this line.
+sub CompareAgainstFixed( )
+    dim as zstring * 50 sz = "abc"
+    dim as U uz = @"abc"
+    if uz = sz then print "z"
+    if sz = uz then print "z2"
+
+    dim as wstring * 50 sw = wstr( "abc" )
+    dim as W uw
+    if uw = sw then print "w"
+    if sw = uw then print "w2"
+end sub

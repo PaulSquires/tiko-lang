@@ -1,6 +1,12 @@
 global str $str0 "lit"
 global str $str1 ", "
 global wstr $wstr2 "x"
+global str $str3 "abc"
+global str $str4 "z"
+global str $str5 "z2"
+global wstr $wstr6 "abc"
+global str $str7 "w"
+global str $str8 "w2"
 func void _ZN1UC1Ev($0) {
   local ptr this
   entry0:
@@ -139,5 +145,68 @@ declare ptr fb_WstrAssignFromA($0, $1, $2, $3)
 declare ptr fb_StrToWstr($0)
 declare i32 fb_WstrCompare($0, $1)
 declare void fb_StrDelete($0)
+func void COMPAREAGAINSTFIXED() {
+  local agg sz size 50
+  local agg uz size 32
+  local agg sw size 100
+  local agg uw size 64
+  entry0:
+    %1 = alloca ptr sz
+    %2 = call.rtl ptr fb_StrAssign(@sz, 50, @@$str3, 4, 0)
+    %3 = alloca ptr uz
+    call void _ZN1UC1EPKc(@uz, @@$str3)
+    %4 = call ptr _ZN1UcvcEv(@uz)
+    %5 = call.rtl i32 fb_StrCompare(%4, 0, @sz, 50)
+    %6 = icmp.eq %5, 0
+    %12 = alloca ptr sw
+    %14 = alloca ptr uw
+    condbr %6, if.then2, if.else3
+  if.join1:
+    %8 = call ptr _ZN1UcvcEv(@uz)
+    %9 = call.rtl i32 fb_StrCompare(@sz, 50, %8, 0)
+    %10 = icmp.eq %9, 0
+    condbr %10, if.then5, if.else6
+  if.then2:
+    %7 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    call.rtl void fb_PrintString(0, %7, 1)
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %13 = call.rtl ptr fb_WstrAssign(@sw, 50, @@$wstr6)
+    %15 = call ptr _ZN1WcvwEv(@uw)
+    %16 = call.rtl i32 fb_WstrCompare(%15, @sw)
+    %17 = icmp.eq %16, 0
+    condbr %17, if.then8, if.else9
+  if.then5:
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 2)
+    call.rtl void fb_PrintString(0, %11, 1)
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %19 = call ptr _ZN1WcvwEv(@uw)
+    %20 = call.rtl i32 fb_WstrCompare(@sw, %19)
+    %21 = icmp.eq %20, 0
+    condbr %21, if.then11, if.else12
+  if.then8:
+    %18 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 1)
+    call.rtl void fb_PrintString(0, %18, 1)
+    br if.join7
+  if.else9:
+    br if.join7
+  if.join10:
+    ret
+  if.then11:
+    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 2)
+    call.rtl void fb_PrintString(0, %22, 1)
+    br if.join10
+  if.else12:
+    br if.join10
+}
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare ptr fb_WstrAssign($0, $1, $2)
 verify: ok
-lowered: 5 functions, 5 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 18 blocks, 114 insts, 0 statements not lowered, 0 scope imbalance
