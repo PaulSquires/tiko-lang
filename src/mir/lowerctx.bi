@@ -497,6 +497,8 @@ declare function EmitRtl _
     declare function StrDescriptorOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+    declare function WideAppendToU_ _
+        ( byref c as Ctx, byref dst as MirValue, byval value as Tko.NodeId ) as boolean
     declare function WideOperand_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideRvalue _

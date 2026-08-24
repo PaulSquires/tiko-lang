@@ -806,6 +806,25 @@ function LowerWideRvalue _
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     if (cp->count < 1) orelse (cp->count > 3) then return false
 
+    '' 'wchr( a, b, ... )' -- THE WIDE TWIN OF CHR, and variadic like it: a COUNT and
+    '' then that many codes. It had no lowering at all, so 'w = wchr( n )' declined and
+    '' so did every term built out of one -- 'u &= wchr( QUOTE )' is the line
+    '' fb/string.bi's own comment insists must be WCHR and never CHR.
+    if nm = "wchr" then
+        if cp->count < 1 then return false
+        dim as FB.Array( of ulong ) wca
+        wca.Push( cast( ulong, MV_CONST_INT ) ) : wca.Push( cast( ulong, cp->count ) )
+        for i as long = 0 to cp->count - 1
+            dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+            dim as MirValue av = LowerExpr( c, ai )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+            av = Coerce( c, av, MT_I64, IsUnsignedType( c, c.info->TypeOf_( ai ) ) )
+            wca.Push( cast( ulong, av.kind ) ) : wca.Push( cast( ulong, av.id ) )
+        next
+        outv = EmitRtl( c, RTL_WSTR_CHR, wca )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
     '' The FIRST argument decides: these names are all overloaded on narrow strings
     '' too, and only the wide overload is lowered here.
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )

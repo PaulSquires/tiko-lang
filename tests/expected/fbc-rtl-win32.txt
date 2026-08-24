@@ -253,6 +253,7 @@ fb_WstrBin_i	uint16*	uint32	lib	_fb_WstrBin_i@4
 fb_WstrBin_l	uint16*	uint64	lib	_fb_WstrBin_l@8
 fb_WstrBin_p	uint16*	void*	lib	_fb_WstrBin_p@4
 fb_WstrBin_s	uint16*	uint16	lib	_fb_WstrBin_s@4
+fb_WstrChr	uint16*	int32, ...	lib	_fb_WstrChr
 fb_WstrCompare	int32	uint16*, uint16*	lib	_fb_WstrCompare@8
 fb_WstrConcat	uint16*	uint16*, uint16*	lib	_fb_WstrConcat@8
 fb_WstrConcatAW	uint16*	void*, int32, uint16*	lib	_fb_WstrConcatAW@12

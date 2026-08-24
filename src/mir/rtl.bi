@@ -310,6 +310,8 @@ namespace Tko.Mir
         '' CHR is VARIADIC and its first argument is the COUNT, not a character:
         '' 'chr( a, b )' is fb_CHR( 2, a, b ). Every character widens to int64.
         RTL( RTL_STR_CHR,           "fb_CHR",              "p",   "l."    )
+        '' ...and its WIDE twin, same shape: a COUNT and then that many codes.
+        RTL( RTL_WSTR_CHR,          "fb_WstrChr",          "p",   "l."    )
         '' ASC / INSTR / INSTRREV. The default start position is 1 and is passed
         '' EXPLICITLY -- there is no defaulted-argument entry point -- while INSTRREV's
         '' default is -1 and sits at the END of its list rather than the front.

@@ -1,0 +1,25 @@
+'' WCHR had no lowering at all, so 'w = wchr( n )' declined and so did every term built
+'' out of one. It is the wide twin of CHR and variadic like it -- fb_WstrChr( count,
+'' code... ), measured -- and its TYPE is 'WSTRING * (argc + 1)', measured with
+'' '#print typeof': the terminator counts.
+''
+'' A WIDE VALUE APPENDED TO A USTRING IS A CONVERSION, not a concatenation: a wstring
+'' is a bare uint16* and a ustring a DESCRIPTOR, and no entry point takes one and
+'' appends to the other. Measured:
+''
+''     vr$2 = fb_WstrChr( 1, QUOTE );
+''     vr$3 = fb_WstrToUStr( vr$2 );
+''     fb_UStrConcatAssign( &CUR$0, -1, vr$3, -1, 0 );
+''
+'' -- which is how fb/string.bi appends 'wchr( QUOTE )' to the ustring it is building,
+'' on the line its own comment insists must be WCHR and never CHR.
+''
+'' ONE DIVERGENCE, deliberate: fbc FOLDS 'wchr( 65 )' over a literal to a wide literal
+'' and emits no call. tiko-lang always calls. Same value, different code.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wchr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrChr
+'' GOLDEN: expected/wchr.out

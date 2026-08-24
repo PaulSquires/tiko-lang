@@ -169,6 +169,14 @@ private function ExprIntrinsicType_ _
     case "sgn"
         if isNum = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_LONG )
+    '' WCHR is WIDE, and its length is the ARGUMENT COUNT PLUS ONE: measured with
+    '' '#print typeof', 'wchr( 65 )' is 'WSTRING * 2' and 'wchr( 65, 66 )' is
+    '' 'WSTRING * 3' -- the terminator counts. Untyped, every term built out of one
+    '' read as NEUTRAL, so 'u &= wchr( QUOTE )' over a ustring could not tell which
+    '' flavour it was appending and declined.
+    case "wchr"
+        if isNum = false then return Tko.TYPE_NONE
+        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, cp->count + 1 )
     case "chr", "mki", "mkl", "mks", "mkd", "mkshort", "mklongint"
         if isNum = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )

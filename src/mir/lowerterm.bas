@@ -758,4 +758,29 @@ function StrCatText_ _
     return true
 end function
 
+
+'' 'u &= <wide>' -- A WIDE VALUE APPENDED TO A USTRING, which is a CONVERSION and not
+'' a concatenation. Measured:
+''
+''     vr$2 = fb_WstrChr( 1, QUOTE );
+''     vr$3 = fb_WstrToUStr( vr$2 );
+''     fb_UStrConcatAssign( &CUR$0, -1, vr$3, -1, 0 );
+''
+'' -- which is how fb/string.bi appends 'wchr( QUOTE )' to the ustring it is building,
+'' on the line its own comment insists must be WCHR and never CHR.
+function WideAppendToU_ _
+    ( byref c as Ctx, byref dst as MirValue, byval value as Tko.NodeId ) as boolean
+
+    dim as MirValue uv
+    if WideTermAsUStr_( c, value, uv ) = false then return false
+    if uv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) aargs
+    PushStrArg( aargs, dst )
+    PushStrArg( aargs, uv )
+    aargs.Push( cast( ulong, MV_CONST_INT ) )
+    aargs.Push( 0 )
+    EmitRtl( c, RTL_USTR_CONCAT_ASSIGN, aargs )
+    return true
+end function
+
 end namespace

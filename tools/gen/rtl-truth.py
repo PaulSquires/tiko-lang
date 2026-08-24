@@ -155,6 +155,11 @@ sub RevProbe( )
     dim as wstring * 8 f1, f2
     f1 = wstring( 3, 65 )
     f2 = wstring( 3, w )
+    '' A RUNTIME argument: 'wchr( 65 )' with a literal FOLDS to a wide literal and
+    '' fbc emits no call at all.
+    dim as long code_ = 65
+    f1 = wchr( code_ )
+    f2 = wchr( code_, code_ )
 end sub
 ''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a

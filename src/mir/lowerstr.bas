@@ -1354,6 +1354,14 @@ function LowerConcatAssignStmt _
         '' an assign, not one concat-assign -- measured. It is the two-term chain
         '' 'u = u + q', so it goes through the same fold.
         dim as long vf = StrTermFlavour_( c, value )
+
+        '' A WIDE SOURCE APPENDED TO A USTRING IS A CONVERSION, not a concat: a
+        '' wstring is a bare uint16* and a ustring a DESCRIPTOR, and no entry point
+        '' takes one and appends to the other. See WideAppendToU_.
+        if isU andalso (vf = STF_WIDE) then
+            if WideAppendToU_( c, dst, value ) then return true
+        end if
+
         dim as boolean mism = false
         if vf <> STF_NEUTRAL then
             if isU then

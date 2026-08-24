@@ -1,0 +1,67 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i32 code_
+  local agg w size 16
+  local agg cur size 24
+  local agg x size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr code_
+    %5 = const i64 34
+    %6 = trunc %5
+    store @code_, %6
+    %7 = alloca ptr w
+    %8 = load @code_
+    %9 = sext %8
+    %10 = call.rtl ptr fb_WstrChr(1, %9)
+    %11 = call.rtl ptr fb_WstrAssign(@w, 8, %10)
+    %12 = load @code_
+    %13 = sext %12
+    %14 = load @code_
+    %15 = sext %14
+    %16 = call.rtl ptr fb_WstrChr(2, %13, %15)
+    %17 = call.rtl ptr fb_WstrAssign(@w, 8, %16)
+    %18 = alloca ptr cur
+    %19 = field.addr @cur, 0
+    store %19, 0
+    %20 = field.addr @cur, 8
+    store %20, 0
+    %21 = field.addr @cur, 16
+    store %21, 0
+    %22 = load @code_
+    %23 = sext %22
+    %24 = call.rtl ptr fb_WstrChr(1, %23)
+    %25 = call.rtl ptr fb_WstrToUStr(%24)
+    %26 = call.rtl ptr fb_UStrConcatAssign(@cur, -1, %25, -1, 0)
+    %27 = alloca ptr x
+    %28 = load @code_
+    %29 = sext %28
+    %30 = call.rtl ptr fb_WstrChr(1, %29)
+    %31 = call.rtl ptr fb_WstrToUStr(%30)
+    %32 = call.rtl ptr fb_UStrInit(@x, -1, %31, -1, 0)
+    call.rtl void fb_PrintWstr(0, @w, 2)
+    call.rtl void fb_PrintUStr(0, @cur, 2)
+    call.rtl void fb_PrintUStr(0, @x, 1)
+    call.rtl void fb_UStrDelete(@x)
+    call.rtl void fb_UStrDelete(@cur)
+    %33 = const i32 0
+    call.rtl void fb_End(%33)
+    %34 = load @$tmp0
+    ret %34
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_WstrChr($0, $1)
+declare ptr fb_WstrAssign($0, $1, $2)
+declare ptr fb_WstrToUStr($0)
+declare ptr fb_UStrConcatAssign($0, $1, $2, $3, $4)
+declare ptr fb_UStrInit($0, $1, $2, $3, $4)
+declare void fb_PrintWstr($0, $1, $2)
+declare void fb_PrintUStr($0, $1, $2)
+declare void fb_UStrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance
