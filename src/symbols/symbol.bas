@@ -347,4 +347,33 @@ function SymbolTable.DeclareSym _
     return id
 end function
 
+'' Make an EXISTING symbol reachable under ANOTHER name's overload chain.
+''
+'' An instantiated generic global operator is declared under its STRUCTURAL KEY -- '+<6>'
+'' -- so that two uses of the same instantiation reach one function and the module
+'' carries one definition of it. Overload resolution looks the operator up under its own
+'' spelling, '+', and found only the uninstantiated generic there.
+''
+'' Idempotent, because the instantiation cache returns the same id for every later use
+'' and chaining it twice would make the list circular.
+sub SymbolTable.ChainOverload _
+    ( byval scope_ as ScopeId, byval nm as InternId, byval id as SymbolId )
+
+    if id = SYMBOL_NONE then return
+    dim as SymbolId head = this.LookupLocal( scope_, nm )
+    if head = SYMBOL_NONE then return
+    if head = id then return
+    dim as SymbolId cur = head
+    dim as long guard = 0
+    do
+        if cur = id then return
+        if this.symbols[cast( long, cur )].nextOverload = SYMBOL_NONE then exit do
+        cur = this.symbols[cast( long, cur )].nextOverload
+        guard += 1
+        if guard > 4096 then return
+    loop
+    this.symbols[cast( long, cur )].nextOverload = id
+    this.symbols[cast( long, id )].flags or= SYMF_OVERLOAD
+end sub
+
 end namespace

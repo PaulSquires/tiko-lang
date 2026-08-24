@@ -1,0 +1,9 @@
+'' A generic global operator -- '+', unary '*' and '->' over 'Box( of T )' -- which was
+'' never instantiated, so overload resolution found nothing and lowering added the raw
+'' aggregates.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-global-operator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-global-operator.out

@@ -282,6 +282,15 @@ function LowerAddr _
     if c.ast->Kind( id ) = Tko.N_DEREF then
         dim as Tko.UnaryPayload ptr dp = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' ...UNLESS IT IS A USER OPERATOR. '*p' over a UDT is a CALL to that UDT's
+        '' 'operator *', which fb/sharedptr.bi and fb/comptr.bi both declare byref --
+        '' and it is spelled with the same token as a dereference, so it arrives here.
+        '' Check binds the operator onto this node; taking the operand's value instead
+        '' would read the HANDLE as if it were the pointer.
+        if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then
+            dim as MirValue duv
+            if LowerUserUnaryOp_( c, id, dp, MT_PTR, duv ) then return duv
+        end if
         return LowerExpr( c, dp->operand )
     end if
 

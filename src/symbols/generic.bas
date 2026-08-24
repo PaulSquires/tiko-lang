@@ -296,6 +296,10 @@ end function
 ''
 '' Returns the instantiated symbol, or SYMBOL_NONE when this is not a generic call at
 '' all -- which is every ordinary call, so it must be cheap to say no.
+declare function InstantiateProcAt_ _
+    ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
+      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ) ) as Tko.SymbolId
+
 function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 
@@ -348,6 +352,20 @@ function InstantiateGenericProc_ _
         taCount = cast( long, argTypes.Count )
         if pl->count <> taCount then return Tko.SYMBOL_NONE
     end if
+
+    return InstantiateProcAt_( c, gn, gsid, gname, argTypes )
+end function
+
+'' The second half of the above, reached by TWO callers: a call that names a generic
+'' procedure, and a generic GLOBAL OPERATOR being instantiated alongside the generic
+'' TYPE it is written over. Everything from the cache key down is the same work.
+function InstantiateProcAt_ _
+    ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
+      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ) ) as Tko.SymbolId
+
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
+    if gs = 0 then return Tko.SYMBOL_NONE
+    dim as long taCount = cast( long, argTypes.Count )
 
     dim as string key = c.names->Spelling( gname ) & "<"
     for i as long = 0 to taCount - 1
@@ -619,6 +637,93 @@ function HasGenericDecl_( byref c as Ctx ) as boolean
     return false
 end function
 
+
+'' A GENERIC GLOBAL OPERATOR IS INSTANTIATED WITH THE TYPE IT IS WRITTEN OVER.
+''
+''     operator -> ( of T )( byref p as SharedPtr( of T ) ) byref as T
+''     operator +  ( of T )( byref a as Box( of T ), byref b as Box( of T ) ) as Box( of T )
+''
+'' are part of the type's interface and are declared beside it, but they are NOT members
+'' -- fbc refuses a member arithmetic operator -- so InstantiateMembers_ never saw them
+'' and nothing else ever did either. The result was that overload resolution costed the
+'' UNINSTANTIATED parameter, 'Box( of T )', against the concrete 'Box( of long )', found
+'' no candidate, and left the expression untyped; lowering then added the two objects as
+'' raw integers. 542 corpus statements.
+''
+'' Instantiating a call's generic PROCEDURE cannot serve here: that is driven by an
+'' N_CALL with arguments to infer from, and an operator has neither -- what it has is a
+'' PARAMETER PATTERN naming the generic. So the trigger is the TYPE's instantiation, and
+'' the arguments are that instantiation's own.
+''
+'' The match is deliberately narrow: the same number of type parameters, and a FIRST
+'' parameter whose type reference names this generic. An operator over some other
+'' generic in the same file is not instantiated here.
+private sub InstantiateGlobalOpsFor_ _
+    ( byref c as Ctx, byval gname as Tko.InternId, byval scope_ as Tko.ScopeId, _
+      byval argFirst as long, byval argCount as long )
+
+    if argCount <= 0 then return
+    dim as long n0 = c.ast->tokenRanges.Count
+    for i as long = 0 to n0 - 3 step 3
+        dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->tokenRanges[i] )
+        if c.ast->Kind( dn ) <> Tko.N_PROC then continue for
+        dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
+        if (dp->extra and Tko.PF_GENERIC_PROC) = 0 then continue for
+        if dp->op <> cast( ushort, Tko.KW_OPERATOR ) then continue for
+        if dp->ownerName <> 0 then continue for
+
+        '' The same arity of type parameters, or the arguments do not fit.
+        if dp->c = Tko.NODE_NONE then continue for
+        if c.ast->Kind( dp->c ) <> Tko.N_BLOCK then continue for
+        dim as Tko.ListPayload ptr tl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, dp->c )].data )]
+        if tl->count <> argCount then continue for
+
+        '' ...and a first parameter that names THIS generic.
+        dim as boolean overThis = false
+        for k as long = 0 to dp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[dp->first + k] )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            dim as Tko.NodeId tn = StmtOf( c, prm )->a
+            if tn <> Tko.NODE_NONE then
+                if c.ast->Kind( tn ) = Tko.N_TYPEREF then
+                    overThis = (StmtOf( c, tn )->name = gname)
+                end if
+            end if
+            exit for
+        next
+        if overThis = false then continue for
+
+        '' Its own symbol, found by walking the operator name's overload chain for the
+        '' one whose payload is THIS node: an operator name carries several.
+        dim as Tko.SymbolId osid = c.syms->Lookup( scope_, dp->name )
+        dim as Tko.SymbolId found = Tko.SYMBOL_NONE
+        while osid <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr os = c.syms->SymbolAt( osid )
+            if os = 0 then exit while
+            if cast( Tko.NodeId, os->payload ) = dn then
+                found = osid
+                exit while
+            end if
+            osid = os->nextOverload
+        wend
+        if found = Tko.SYMBOL_NONE then continue for
+
+        dim as FB.Array( of ulong ) argTypes
+        for k as long = 0 to argCount - 1
+            argTypes.Push( c.pendInstArgs[argFirst + k] )
+        next
+        dim as Tko.SymbolId isid = InstantiateProcAt_( c, dn, found, dp->name, argTypes )
+        '' ...and reachable under the OPERATOR'S OWN SPELLING, which is what overload
+        '' resolution looks up. Declared under its structural key alone, the
+        '' instantiation existed and nothing could find it.
+        if isid <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr gsy = c.syms->SymbolAt( found )
+            if gsy <> 0 then c.syms->ChainOverload( gsy->parent, dp->name, isid )
+        end if
+    next
+end sub
+
 sub InstantiatePending_( byref c as Ctx )
     '' Drained rather than iterated: a member body may name another generic, and
     '' resolving it appends here. The count is re-read every time round.
@@ -632,6 +737,10 @@ sub InstantiatePending_( byref c as Ctx )
                              cast( Tko.ScopeId, c.pendInst[i + 4] ), _
                              cast( long, c.pendInst[i + 5] ), _
                              cast( long, c.pendInst[i + 6] ) )
+        InstantiateGlobalOpsFor_( c, cast( Tko.InternId, c.pendInst[i + 1] ), _
+                                  cast( Tko.ScopeId, c.pendInst[i + 4] ), _
+                                  cast( long, c.pendInst[i + 5] ), _
+                                  cast( long, c.pendInst[i + 6] ) )
     wend
 end sub
 

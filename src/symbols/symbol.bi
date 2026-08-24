@@ -191,6 +191,14 @@ namespace Tko
             ( byval scope_ as ScopeId, byval nm as InternId, byval k as SymbolKind, _
               byval loc as SourceLoc, byref duplicate as boolean ) as SymbolId
 
+        '' Make an EXISTING symbol reachable under ANOTHER name's overload chain. An
+        '' instantiated generic global operator is declared under its structural key so
+        '' two uses reach one function, and has to be findable under the operator's own
+        '' spelling as well, which is what overload resolution looks up. Idempotent: the
+        '' same id is never chained twice.
+        declare sub ChainOverload _
+            ( byval scope_ as ScopeId, byval nm as InternId, byval id as SymbolId )
+
         '' Innermost-first through the enclosing scope chain.
         declare function Lookup _
             ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId

@@ -359,6 +359,10 @@ function LowerUserBinaryOp_ _
 
     dim as MirType rmt = mt
     if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    '' A BYREF RETURN IS A POINTER, which is what the DECLARATION says too. Reading it
+    '' as the referent's own MIR type put an i32 result on a function declared to return
+    '' a pointer -- 'operator *' over a smart pointer is byref by construction.
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
     outv = EmitDirectCall_( c, op, rmt, args )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
@@ -395,6 +399,10 @@ function LowerUserUnaryOp_ _
 
     dim as MirType rmt = mt
     if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    '' A BYREF RETURN IS A POINTER, which is what the DECLARATION says too. Reading it
+    '' as the referent's own MIR type put an i32 result on a function declared to return
+    '' a pointer -- 'operator *' over a smart pointer is byref by construction.
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
 
     if np = 0 then
         dim as MirValue self_ = LowerAddr( c, up->operand )

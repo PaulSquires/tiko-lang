@@ -216,6 +216,18 @@ function BinaryResult _
     if types.Kind( lhs2 ) = Tko.TK_ENUM then lhs2 = types.Builtin( Tko.TY_INTEGER )
     if types.Kind( rhs2 ) = Tko.TK_ENUM then rhs2 = types.Builtin( Tko.TY_INTEGER )
 
+    '' A POINTER COMPARES AS AN INTEGER and answers one: measured, 'typeof( p <> 0 )',
+    '' 'typeof( p = q )' and 'typeof( p < q )' are all INTEGER. A pointer is not a
+    '' builtin, so every one of them fell out at the guard below with no type at all --
+    '' and an untyped comparison is a value that cannot be printed, assigned or passed.
+    '' 'if p <> 0' worked all along, because a CONDITION needs no type.
+    if IsComparison_( op ) then
+        if (types.Kind( lhs2 ) = Tko.TK_POINTER) orelse _
+           (types.Kind( rhs2 ) = Tko.TK_POINTER) then
+            return types.Builtin( Tko.TY_INTEGER )
+        end if
+    end if
+
     '' Only builtin operands are decided here. A UDT operand means an overloaded
     '' operator, which is overload resolution's business, not this table's.
     if types.Kind( lhs2 ) <> Tko.TK_BUILTIN then return Tko.TYPE_NONE
@@ -1106,6 +1118,24 @@ function TypeOf_ _
         dim as Tko.TypeId inner = TypeOf_( c, dp->operand )
         if inner <> Tko.TYPE_NONE then
             if c.types->Kind( inner ) = Tko.TK_POINTER then t = c.types->Inner( inner )
+        end if
+        '' '*p' OVER A UDT IS A USER OPERATOR, not a dereference. fb/sharedptr.bi and
+        '' fb/comptr.bi both declare 'operator *' byref over their handle, which is the
+        '' checked-free way to reach the object -- and it is spelled with the SAME token
+        '' as a pointer dereference, so it arrives here rather than at the unary case.
+        '' Untyped, every use of one declined.
+        if t = Tko.TYPE_NONE then
+            dim as Tko.SymbolId dop = UserUnaryOp_( c, Tko.TK_STAR, inner )
+            if dop <> Tko.SYMBOL_NONE then
+                c.info->SetRef( id, dop )
+                dim as Tko.Symbol ptr ds = c.syms->SymbolAt( dop )
+                if ds <> 0 then
+                    t = c.types->Unqualify( ds->type_ )
+                    if c.types->Kind( t ) = Tko.TK_REFERENCE then
+                        t = c.types->Unqualify( c.types->Inner( t ) )
+                    end if
+                end if
+            end if
         end if
 
     case Tko.N_ADDROF

@@ -14,19 +14,20 @@ func i32 main($0, $1) {
     %4 = alloca ptr p
     %5 = func.addr ptr _ZN5TESTS7MYSUITE4INITEv
     store @p, %5
-    %6 = const i64 7
-    call.rtl void fb_PrintLongint(0, %6, 1)
-    %7 = const i32 0
-    call.rtl void fb_End(%7)
-    %8 = load @$tmp0
-    ret %8
+    %6 = load @p
+    %7 = const i64 0
+    %8 = bitcast %7
+    %9 = icmp.ne %6, %8
+    call.rtl void fb_PrintLongint(0, %9, 1)
+    %10 = const i64 7
+    call.rtl void fb_PrintLongint(0, %10, 1)
+    %11 = const i32 0
+    call.rtl void fb_End(%11)
+    %12 = load @$tmp0
+    ret %12
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 13 insts, 1 statements not lowered, 0 scope imbalance
-  unlowered N_INTRINSIC 1
-  inside N_INTRINSIC 1
-  unlowered intrinsic KW_PRINT 1
-  skip-site src\mir\lowerctl.bas:138 1
+lowered: 2 functions, 2 blocks, 18 insts, 0 statements not lowered, 0 scope imbalance
