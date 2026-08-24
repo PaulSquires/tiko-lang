@@ -1,0 +1,8 @@
+'' Pointer arithmetic and comparison, both of which had no type at all: the difference
+'' is a count, the sum is a pointer, and every comparison is an integer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/pointer-arith.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/pointer-arith.out
