@@ -88,6 +88,13 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as boolean fmtWide = (WideStringElems( c, c.info->TypeOf_( sp->c ) ) > 0)
         if fmtWide = false then fmtWide = IsWideString_( c, c.info->TypeOf_( sp->c ) )
         if fmtWide = false then fmtWide = TermIsWide_( c, Unparen_( c, sp->c ) )
+        '' ...and a CONCATENATION is wide when any TERM of it is. The parenthesised
+        '' form carries no type of its own, so neither of the tests above sees one:
+        '' 'using ( QT(fmt) & ", " & QT("&") )' is the whole of wstring/print_using's
+        '' harness and every line of it declined here.
+        if fmtWide = false then
+            fmtWide = ConcatHasWideTerm_( c, Unparen_( c, sp->c ) )
+        end if
         if fmtWide then
             fmtTmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
             if fmtTmp < 0 then return false
@@ -193,7 +200,16 @@ private function UsingOne_ _
 
     if isWide then
         '' A wide item passes the POINTER; a wide string has no descriptor.
+        ''
+        '' AND AN RVALUE HAS NO ADDRESS. 'print using "&"; wstr( cmp )' is how
+        '' wstring/print_using writes every item, and asking a CALL for an address gave
+        '' nothing -- so the format was emitted, the item declined, and the statement
+        '' closed its bracket and gave up. WideOperand_ knows all three spellings of a
+        '' wide operand, which is exactly what this argument is.
         dim as MirValue wa = LowerAddr( c, it )
+        if wa.kind = cast( ubyte, MV_NONE ) then
+            if WideOperand_( c, Unparen_( c, it ), wa ) = false then return false
+        end if
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
         PushConst( args, mask )

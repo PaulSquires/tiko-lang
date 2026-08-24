@@ -1,5 +1,10 @@
 global wstr $wstr0 "###"
 global str $str1 "###"
+global wstr $wstr2 "["
+global str $str3 ", "
+global wstr $wstr4 "]"
+global str $str5 "&"
+global wstr $wstr6 "cd"
 func i32 main($0, $1) {
   local i32 $tmp0
   local i32 n
@@ -9,6 +14,9 @@ func i32 main($0, $1) {
   local agg $tmp5 size 24
   local agg $tmp6 size 24
   local agg s size 24
+  local agg $tmp8 size 24
+  local ptr $tmp9
+  local ptr $tmp10
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -90,11 +98,45 @@ func i32 main($0, $1) {
     %59 = sext %58
     %60 = call.rtl i32 fb_PrintUsingLongint(0, %59, -2147483647)
     %61 = call.rtl i32 fb_PrintUsingEnd(0)
+    %62 = alloca ptr $tmp8
+    %63 = field.addr @$tmp8, 0
+    store %63, 0
+    %64 = field.addr @$tmp8, 8
+    store %64, 0
+    %65 = field.addr @$tmp8, 16
+    store %65, 0
+    %66 = call.rtl ptr fb_WstrConcatWA(@@$wstr2, @@$str3, 3)
+    %67 = alloca ptr $tmp9
+    store @$tmp9, %66
+    %68 = load @$tmp9
+    %69 = call.rtl ptr fb_WstrConcat(%68, @@$wstr4)
+    %70 = alloca ptr $tmp10
+    store @$tmp10, %69
+    %71 = load @$tmp10
+    %72 = call.rtl ptr fb_WstrAssignToA(@$tmp8, -1, %71, 0)
+    %73 = call.rtl i32 fb_PrintUsingInit(@$tmp8)
+    call.rtl void fb_StrDelete(@$tmp8)
+    %74 = load @n
+    %75 = sext %74
+    %76 = call.rtl i32 fb_PrintUsingLongint(0, %75, -2147483647)
+    %77 = call.rtl i32 fb_PrintUsingEnd(0)
+    %78 = load @$tmp10
+    call.rtl void fb_WstrDelete(%78)
+    %79 = load @$tmp9
+    call.rtl void fb_WstrDelete(%79)
+    %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 1)
+    %81 = call.rtl i32 fb_PrintUsingInit(%80)
+    %82 = call.rtl i32 fb_PrintUsingWstr(0, @w, -2147483647)
+    %83 = call.rtl i32 fb_PrintUsingEnd(0)
+    %84 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 1)
+    %85 = call.rtl i32 fb_PrintUsingInit(%84)
+    %86 = call.rtl i32 fb_PrintUsingWstr(0, @@$wstr6, -2147483647)
+    %87 = call.rtl i32 fb_PrintUsingEnd(0)
     call.rtl void fb_StrDelete(@s)
-    %62 = const i32 0
-    call.rtl void fb_End(%62)
-    %63 = load @$tmp0
-    ret %63
+    %88 = const i32 0
+    call.rtl void fb_End(%88)
+    %89 = load @$tmp0
+    ret %89
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrAssign($0, $1, $2)
@@ -105,6 +147,10 @@ declare i32 fb_PrintUsingLongint($0, $1, $2)
 declare i32 fb_PrintUsingEnd($0)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_WstrConcatWA($0, $1, $2)
+declare ptr fb_WstrConcat($0, $1)
+declare void fb_WstrDelete($0)
+declare i32 fb_PrintUsingWstr($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 118 insts, 0 statements not lowered, 0 scope imbalance

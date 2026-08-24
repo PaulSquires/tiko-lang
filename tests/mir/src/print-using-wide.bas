@@ -30,3 +30,15 @@ print using ( w ); n
 print using "###"; n
 dim as string s = "###"
 print using s; n
+
+'' A CONCATENATION IS WIDE WHEN ANY TERM OF IT IS, and the parenthesised form carries no
+'' type of its own -- so neither the element count nor the type test sees one.
+'' 'using ( QT(fmt) & ", " & QT("&") )' is the whole of wstring/print_using's harness and
+'' every line of it declined for that.
+print using ( wstr( "[" ) & ", " & wstr( "]" ) ); n
+
+'' AND A WIDE ITEM MAY BE AN RVALUE. 'print using "&"; wstr( cmp )' is how that file
+'' writes every item, and asking a CALL for an address gave nothing -- so the format was
+'' emitted, the item declined, and the statement closed its bracket and gave up.
+print using "&"; w
+print using "&"; wstr( "cd" )
