@@ -1,0 +1,8 @@
+'' 'new T[n]': the sized calloc, the guarded construction loop, a count evaluated once,
+'' and a scalar element that needs no loop.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/new-array.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/new-array.out

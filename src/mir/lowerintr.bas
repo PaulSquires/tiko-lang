@@ -147,96 +147,9 @@ end function
 '' declines: it needs a construction loop and a cookie whose presence depends on a
 '' property of T that is invisible at the delete site, and getting that half-right is
 '' worse than declining it.
-function LowerNew_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+'' 'new' and its array form, in their own file at the 1500-line cap.
+#include once "mir/lowernew.bas"
 
-    if c.ast->Kind( id ) <> Tko.N_NEW then return false
-    dim as Tko.ListPayload ptr np = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if np->target = Tko.NODE_NONE then return false
-    '' THE ARRAY FORM IS NOT DONE. See the note above.
-    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0 then return false
-
-    dim as Tko.TypeId el = c.info->TypeOf_( np->target )
-    if el = Tko.TYPE_NONE then return false
-    dim as long esz = SizeOfType( c, el )
-    if esz <= 0 then return false
-
-    '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
-    '' passes 1, folding the whole size into the first -- not the other way round.
-    dim as FB.Array( of ulong ) aa
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
-    dim as MirValue raw = EmitRtl( c, RTL_CALLOC, aa )
-    if raw.kind = cast( ubyte, MV_NONE ) then return false
-
-    '' The allocation lives in a slot, because the construction below is a BRANCH and
-    '' the value has to survive the join.
-    dim as long slot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
-    if slot < 0 then return false
-    dim as MirValue saddr
-    saddr.kind = cast( ubyte, MV_LOCAL )
-    saddr.ty = cast( ubyte, MT_PTR )
-    saddr.id = slot
-    dim as MirInst st0
-    st0.op = cast( ushort, M_STORE )
-    st0.ty = cast( ubyte, MT_VOID )
-    st0.a = saddr
-    st0.b = raw
-    Emit( c, st0 )
-
-    '' A CONSTRUCTOR, guarded by the null check fbc emits inline.
-    ''
-    '' INCLUDING THE ONE FBC WRITES FOR YOU. 'new T' over a type with a string field
-    '' allocated the object and constructed nothing -- calloc's zeroing happens to
-    '' leave a valid empty descriptor, so it survived, but a type with a base, a vptr
-    '' or a nested constructor got none of them and the vptr in particular stayed null.
-    dim as Tko.SymbolId ctor = CtorOf_( c, el, np->count )
-    dim as boolean implCtor = false
-    if (ctor = Tko.SYMBOL_NONE) andalso (np->count = 0) then
-        implCtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsInit_( c, el )
-    end if
-    dim as FB.Array( of ulong ) cargs
-    if ctor <> Tko.SYMBOL_NONE then
-        '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
-        '' written, not inside the null-guarded arm -- which matters the moment one has
-        '' a side effect.
-        for i as long = 0 to np->count - 1
-            dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[np->first + i] )
-            dim as MirValue av = LowerExpr( c, ae )
-            if av.kind = cast( ubyte, MV_NONE ) then return false
-            cargs.Push( cast( ulong, av.kind ) )
-            cargs.Push( cast( ulong, av.id ) )
-        next
-    end if
-    if (ctor <> Tko.SYMBOL_NONE) orelse implCtor then
-        dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
-        if pv.kind = cast( ubyte, MV_NONE ) then return false
-        dim as MirValue zero = ConstInt( c, 0, MT_PTR )
-        dim as MirInst cmp
-        cmp.op = cast( ushort, M_ICMP_NE )
-        cmp.ty = cast( ubyte, MT_I32 )
-        cmp.a = pv
-        cmp.b = zero
-        dim as MirValue cond = Emit( c, cmp )
-        if cond.kind = cast( ubyte, MV_NONE ) then return false
-
-        dim as long bodyB = NewBlock( c, "new.ctor" )
-        dim as long joinB = NewBlock( c, "new.join" )
-        Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
-        c.curBlock = bodyB
-        if ctor <> Tko.SYMBOL_NONE then
-            EmitStructorCall( c, ctor, -1, @pv, @cargs )
-        else
-            CallImplicitCtor_( c, el, pv )
-        end if
-        Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
-        c.curBlock = joinB
-    end if
-
-    outv = LowerExprLoad( c, saddr, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
-end function
 
 '' The constructor of a type taking 'want' arguments, or nothing. Structors live in the
 '' type's scope under a synthetic name, because neither has a name of its own in the
