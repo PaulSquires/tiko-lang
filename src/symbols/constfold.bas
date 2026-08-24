@@ -197,7 +197,13 @@ function ConstFloatOf _
         case Tko.TK_MINUS : outd = l - r
         case Tko.TK_STAR  : outd = l * r
         case Tko.TK_SLASH
-            if r = 0.0 then return false
+            '' DIVIDING BY ZERO IS AN ANSWER IN FLOATING POINT, not an error: IEEE
+            '' gives +/-INF and 0/0 gives a NaN, and fbc FOLDS all of them -- measured,
+            '' 'dim shared as double b = 1.0 / 0.0' emits '__builtin_inf()' and
+            '' '0.0 / 0.0' emits '(-__builtin_nan( "" ))'. Refusing it left every
+            '' INF and NaN constant unfolded, so a STATIC or SHARED initialised from
+            '' one had no image at all: 32 declines in numbers/infnan.bas, which is
+            '' the file that exists to test exactly these values.
             outd = l / r
         case else : return false
         end select

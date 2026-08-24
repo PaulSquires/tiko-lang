@@ -191,7 +191,29 @@ function DumpModule _
                     next
                 elseif (m.globals[i].ty = cast( ubyte, MT_F32 )) orelse _
                        (m.globals[i].ty = cast( ubyte, MT_F64 )) then
-                    outp += " = " & str( m.globals[i].initFlt )
+                    '' A NON-FINITE VALUE PRINTS ITS BITS. 'str( )' renders every NaN
+                    '' as 'nan' whatever its sign, and the sign is exactly what a test
+                    '' comparing a bit pattern is looking at -- numbers/infnan is that
+                    '' test and its own comment says so. INF too, for the same reason:
+                    '' the two of them are the values this dump has to be able to tell
+                    '' apart.
+                    dim as double fv = m.globals[i].initFlt
+                    if (fv <> fv) orelse (fv > 1.7976931348623157e308) orelse _
+                       (fv < -1.7976931348623157e308) then
+                        '' IN THE GLOBAL'S OWN WIDTH: an f32 holds a float, and
+                        '' printing the double's 64 bits beside it would name a value
+                        '' the global cannot hold.
+                        if m.globals[i].ty = cast( ubyte, MT_F32 ) then
+                            dim as single sv = cast( single, fv )
+                            dim as ulong sb = *cptr( ulong ptr, @sv )
+                            outp += " = 0x" & hex( sb, 8 )
+                        else
+                            dim as ulongint bits_ = *cptr( ulongint ptr, @fv )
+                            outp += " = 0x" & hex( bits_, 16 )
+                        end if
+                    else
+                        outp += " = " & str( fv )
+                    end if
                 else
                     outp += " = " & str( m.globals[i].initInt )
                 end if
