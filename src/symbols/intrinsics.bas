@@ -209,6 +209,17 @@ private function ExprIntrinsicType_ _
         end if
         if wn < 1 then wn = 1
         return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, wn )
+    '' THE RADIX FAMILY. Measured with '#print typeof(...)': hex, oct and bin are
+    '' STRING and their wide halves are 'WSTRING * 1' -- the same shape wstr( ) has,
+    '' and not a bare WSTRING. Untyped, every one of them made its CONSUMER decline:
+    '' 'takeZstringPtr( hex( n ) )' reached overload resolution with an argument of no
+    '' type and resolved to nothing.
+    case "hex", "oct", "bin"
+        if isNum = false then return Tko.TYPE_NONE
+        return c.types->Builtin( Tko.TY_STRING )
+    case "whex", "woct", "wbin"
+        if isNum = false then return Tko.TYPE_NONE
+        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     case "trim", "ltrim", "rtrim", "ucase", "lcase", "mid", "left", "right"
         if isStr = false then return Tko.TYPE_NONE
         if ab = Tko.TY_WSTRING then return c.types->Builtin( Tko.TY_WSTRING )

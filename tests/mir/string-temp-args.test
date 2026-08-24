@@ -1,0 +1,17 @@
+'' A STRING RVALUE PASSED AS AN ARGUMENT, in the three shapes functions/temp-strings
+'' writes side by side. Measured:
+''
+''   byval as string   a caller-built descriptor, assigned into and deleted after
+''   zstring ptr       the same temporary, read one level further: '*(char**)&TMP'
+''   wstring ptr       the wide value IS the pointer: 'TMP = fb_WstrHex_l( 255 )'
+''
+'' And the radix family had NO TYPE AT ALL -- measured with '#print typeof', hex/oct/
+'' bin are STRING and whex/woct/wbin are 'WSTRING * 1' -- so every call taking one as
+'' an argument reached overload resolution with an untyped argument and resolved to
+'' nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/string-temp-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/string-temp-args.out

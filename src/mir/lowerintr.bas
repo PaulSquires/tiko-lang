@@ -581,6 +581,24 @@ function LowerStringIif_ _
     return true
 end function
 
+'' A STRING-TYPED ARM THAT HAS AN ADDRESS -- a variable, a field, an element. False
+'' when it is string-typed and has none, which is a CALL: 'iif( c, hex( 1 ), hex( 2 ) )'
+'' used to reach the descriptor path below only because Check computed no type for an
+'' intrinsic call, and the moment the radix family was typed the type test claimed the
+'' arm and then asked an N_CALL for an address it has not got. Falling through instead
+'' of declining is what makes the two orderings agree.
+private function StringArmAddr_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref args as FB.Array( of ulong ) ) as boolean
+
+    if IsStringType( c, c.info->TypeOf_( e ) ) = false then return false
+    dim as MirValue sv = LowerAddr( c, e )
+    if sv.kind = cast( ubyte, MV_NONE ) then return false
+    args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    return true
+end function
+
 '' fb_StrInit( dst, -1, src, srcLen, 0 ) for one arm. A literal passes its own bytes
 '' and a length that INCLUDES the terminator, which is the fb_StrInit convention and
 '' not the fb_StrAllocTempDescZEx one.
@@ -622,12 +640,8 @@ function StrInitFrom_ _
         args.Push( cast( ulong, zv.kind ) ) : args.Push( cast( ulong, zv.id ) )
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, zn ) )
-    elseif IsStringType( c, c.info->TypeOf_( e ) ) then
-        dim as MirValue sv = LowerAddr( c, e )
-        if sv.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    elseif StringArmAddr_( c, e, args ) then
+        '' handled: a string-typed arm that has an address
     else
         '' ANYTHING THAT HANDS BACK A DESCRIPTOR -- 'hex( n )', 'trim( s )', a nested
         '' string iif. fbc puts the call's result in a temporary and inits from it:

@@ -347,6 +347,7 @@ function LowerCallParts _
             '' hole in it that the verifier does not look at.
             dim as Tko.TypeId ppt = ParamTypeAt( c, callee, i )
             dim as boolean wantsZPtr = false
+            dim as boolean wantsWPtr = false
             if ppt <> Tko.TYPE_NONE then
                 if c.types->Kind( c.types->Unqualify( ppt ) ) = Tko.TK_POINTER then
                     dim as Tko.TypeId pin = _
@@ -354,12 +355,49 @@ function LowerCallParts _
                     if c.types->Kind( pin ) = Tko.TK_BUILTIN then
                         if c.types->BuiltinOf( pin ) = Tko.TY_ZSTRING then
                             wantsZPtr = IsStringType( c, c.info->TypeOf_( argNode ) )
+                        elseif c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
+                            '' A 'wstring ptr' PARAMETER TAKES THE WIDE DATA POINTER,
+                            '' which is what a wide value already IS: measured, fbc
+                            '' writes 'TMP = fb_WstrHex_l( 255 ); TAKEWSTRINGPTR( TMP )'
+                            '' and passes it straight through.
+                            wantsWPtr = IsWideString_( c, c.info->TypeOf_( argNode ) )
                         end if
                     end if
                 end if
             end if
+            if wantsWPtr then
+                if WideOperand_( c, argNode, a ) = false then
+                    c.blameNode = cast( ulong, argNode )
+                    return v
+                end if
+                argv.Push( cast( ulong, a.kind ) )
+                argv.Push( cast( ulong, a.id ) )
+                continue for
+            end if
+
             if wantsZPtr then
-                if ZstrDataOf_( c, argNode, a ) = false then return v
+                if ZstrDataOf_( c, argNode, a ) = false then
+                    '' AN RVALUE HAS NO DESCRIPTOR TO TAKE THE DATA POINTER OUT OF.
+                    '' Measured: fbc builds one, passes its data pointer, and deletes
+                    '' it after the call --
+                    ''
+                    ''     fb_StrAssign( &TMP$5$0, -1, vr$8, -1, 0 );
+                    ''     TAKEZSTRINGPTR( (char*)*(char**)&TMP$5$0, 0 );
+                    ''     fb_StrDelete( &TMP$5$0 );
+                    ''
+                    '' -- which is the same temporary a byval string parameter gets,
+                    '' read one level further.
+                    dim as MirValue zt
+                    dim as Tko.TypeId zpt = c.info->TypeOf_( argNode )
+                    if ByvalStrTemp_( c, argNode, zpt, zt, tempSlot ) = false then
+                        c.blameNode = cast( ulong, argNode )
+                        return v
+                    end if
+                    strTemps.Push( cast( ulong, tempSlot ) )
+                    strTempTypes.Push( cast( ulong, zpt ) )
+                    a = LowerExprLoad( c, zt, MT_PTR )
+                    if a.kind = cast( ubyte, MV_NONE ) then return v
+                end if
                 argv.Push( cast( ulong, a.kind ) )
                 argv.Push( cast( ulong, a.id ) )
                 continue for
