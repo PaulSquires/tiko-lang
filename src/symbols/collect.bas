@@ -63,6 +63,9 @@ private function Declare_ _
     return id
 end function
 
+declare sub SpreadOverloadFlag_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval id as Tko.NodeId )
 declare function SameTypeRef_ _
     ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
 declare function LiteralLen_ _
@@ -663,6 +666,16 @@ sub WalkNode _
                 sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
             end if
         end if
+        '' OVERLOAD BELONGS TO THE NAME, NOT TO THE DECLARATION THAT SPELLED IT.
+        ''
+        '' Measured: a definition that does not repeat the keyword still mangles as an
+        '' overload -- fbc emits '_Z2PRi' for 'function pr( byval p as long )' when the
+        '' DECLARE said 'overload'. tiko-lang mangled that definition as the bare name
+        '' 'PR', so the definition and every call site named two different symbols; and
+        '' because the two also mangled differently, nothing downstream could recognise
+        '' them as one procedure and the call resolved to NOTHING.
+        SpreadOverloadFlag_( w, scope_, declName, id )
+
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
         if s <> 0 then
             if sp->b = Tko.NODE_NONE then
@@ -913,6 +926,53 @@ private function ProcArity _
     next
     return n
 end function
+
+
+'' Give every declaration of this name the OVERLOAD flag if any of them has it.
+''
+'' The flag decides how the name MANGLES, and fbc mangles them all alike: the keyword
+'' is written once, usually on the header's declaration, and the definition in the
+'' implementation file does not repeat it.
+private sub SpreadOverloadFlag_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval id as Tko.NodeId )
+
+    if nm = 0 then return
+    dim as boolean any_ = ((StmtOf( w, id )->extra and Tko.PF_OVERLOAD) <> 0)
+    dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (pn <> 0) then
+            if w.ast->Kind( pn ) = Tko.N_PROC then
+                if (StmtOf( w, pn )->extra and Tko.PF_OVERLOAD) <> 0 then any_ = true
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    if any_ = false then return
+
+    StmtOf( w, id )->extra or= Tko.PF_OVERLOAD
+    cur = w.syms->LookupLocal( scope_, nm )
+    guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (pn <> 0) then
+            if w.ast->Kind( pn ) = Tko.N_PROC then
+                StmtOf( w, pn )->extra or= Tko.PF_OVERLOAD
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+end sub
 
 '' The one DECLARED-but-not-yet-defined overload of this name taking 'want' parameters,
 '' or SYMBOL_NONE when there is not exactly one.

@@ -1,0 +1,17 @@
+'' A declaration and its definition are ONE procedure even when only the declaration
+'' says 'overload'. Collect pairs them by ARITY, because it runs before any type is
+'' resolved, so a same-arity overload set left the definition to declare a symbol of
+'' its own: the set then held the procedure twice, the two cost identically, and the
+'' call resolved to NOTHING -- an untyped call whose consumer declined, with no
+'' diagnostic. Measured: fbc mangles the definition '_Z2PRi' either way.
+''
+'' The string family needed an ORDER for the same reason. Every string-to-string
+'' conversion cost the same, so any two string overloads tied. Measured pairwise
+'' against fbc: a ZSTRING source prefers 'string', a STRING source prefers 'zstring',
+'' and neither order is the other's mirror.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-split.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/overload-split.out

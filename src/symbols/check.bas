@@ -2,6 +2,7 @@
 '' for why each of them is not what a C programmer would guess.
 
 #include once "symbols/check.bi"
+#include once "symbols/mangle.bi"
 
 
 namespace Tko.Check
@@ -254,6 +255,40 @@ function FixedStringElem _
     return Tko.TYPE_NONE
 end function
 
+
+'' WHICH STRING PARAMETER A STRING ARGUMENT PREFERS: 0 is best, 3 worst, and -1 when
+'' either side is not one of the four string builtins.
+''
+'' Measured pairwise against fbc over every ordered pair of { string, zstring, wstring,
+'' ustring } and every source, then read off as four total orders. Nothing about them
+'' is symmetric: a ZSTRING source puts 'string' first and a STRING source puts
+'' 'zstring' first.
+private function StringPref_ _
+    ( byval srcB as Tko.BuiltinType, byval dstB as Tko.BuiltinType ) as long
+
+    if IsStringy_( srcB ) = false then return -1
+    if IsStringy_( dstB ) = false then return -1
+    dim as long order( 0 to 3 )
+    select case srcB
+    case Tko.TY_STRING
+        order(0) = Tko.TY_ZSTRING : order(1) = Tko.TY_STRING
+        order(2) = Tko.TY_USTRING : order(3) = Tko.TY_WSTRING
+    case Tko.TY_ZSTRING
+        order(0) = Tko.TY_STRING  : order(1) = Tko.TY_USTRING
+        order(2) = Tko.TY_ZSTRING : order(3) = Tko.TY_WSTRING
+    case Tko.TY_WSTRING
+        order(0) = Tko.TY_WSTRING : order(1) = Tko.TY_USTRING
+        order(2) = Tko.TY_STRING  : order(3) = Tko.TY_ZSTRING
+    case else
+        order(0) = Tko.TY_ZSTRING : order(1) = Tko.TY_USTRING
+        order(2) = Tko.TY_STRING  : order(3) = Tko.TY_WSTRING
+    end select
+    for i as long = 0 to 3
+        if order( i ) = dstB then return i
+    next
+    return -1
+end function
+
 function ConversionCost _
     ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
       byref types as Tko.TypeContext, _
@@ -282,6 +317,27 @@ function ConversionCost _
     dim as Tko.TypeId fdst = FixedStringElem( to_, types )
     if fdst <> Tko.TYPE_NONE then to_ = fdst
     if from_ = to_ then return CONV_EXACT
+
+    '' THE STRING FAMILY, BEFORE THE EXACT TEST, because fbc does not treat an exact
+    '' string match as unbeatable. Measured, one probe per pair:
+    ''
+    ''   a STRING variable offered { string, zstring }   takes ZSTRING
+    ''   a ZSTRING * n offered     { string, zstring }   takes STRING
+    ''
+    '' -- so in both the exact candidate LOSES, and a model that answers CONV_EXACT
+    '' for it can never agree. The four orders below are each a total order derived
+    '' from every pair, and they are not one rule with the roles swapped.
+    ''
+    '' Until this existed EVERY string-to-string conversion cost the same CONV_WIDEN,
+    '' so any two string overloads TIED -- the call bound to nothing, the expression
+    '' stayed untyped, and whatever consumed it declined with no diagnostic. That is
+    '' 80 declines in fb/fspath.bi's own test alone, whose seven decomposition
+    '' functions each have a { string, wstring, ustring } overload set.
+    if (types.Kind( from_ ) = Tko.TK_BUILTIN) andalso _
+       (types.Kind( to_ ) = Tko.TK_BUILTIN) then
+        dim as long sr = StringPref_( types.BuiltinOf( from_ ), types.BuiltinOf( to_ ) )
+        if sr >= 0 then return CONV_WIDEN + sr
+    end if
 
     '' POINTERS, before the builtin-only tiers below. Everything here is measured in
     '' tests/types/expected/fbc-ptr.txt; the shape a cost model would guess -- pointee

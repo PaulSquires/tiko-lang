@@ -248,6 +248,39 @@ function UserUnaryOp_ _
     return best
 end function
 
+
+'' Are these two symbols the SAME PROCEDURE -- a declaration and its definition that
+'' Collect could not pair up? Compared by MANGLED NAME, which is exactly the question:
+'' two symbols that mangle alike are one linker symbol.
+private function SameProc_ _
+    ( byref c as Ctx, byval a as Tko.SymbolId, byval b as Tko.SymbolId ) as boolean
+
+    if (a = Tko.SYMBOL_NONE) orelse (b = Tko.SYMBOL_NONE) then return false
+    if a = b then return true
+    dim as Tko.Symbol ptr sa = c.syms->SymbolAt( a )
+    dim as Tko.Symbol ptr sb = c.syms->SymbolAt( b )
+    if (sa = 0) orelse (sb = 0) then return false
+    dim as Tko.NodeId na = cast( Tko.NodeId, sa->payload )
+    dim as Tko.NodeId nb = cast( Tko.NodeId, sb->payload )
+    if (na = Tko.NODE_NONE) orelse (nb = Tko.NODE_NONE) then return false
+    if c.ast->Kind( na ) <> Tko.N_PROC then return false
+    if c.ast->Kind( nb ) <> Tko.N_PROC then return false
+    return (Tko.Mangle.ProcName( *c.ast, na, *c.syms, *c.names, *c.types, *c.info ) = _
+            Tko.Mangle.ProcName( *c.ast, nb, *c.syms, *c.names, *c.types, *c.info ))
+end function
+
+'' Does this symbol's procedure node carry a BODY, or is it a bare declaration?
+private function ProcHasBody_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
+    if n = Tko.NODE_NONE then return false
+    if c.ast->Kind( n ) <> Tko.N_PROC then return false
+    return (StmtOf( c, n )->b <> Tko.NODE_NONE)
+end function
+
 '' Pick the overload for one call. Returns the chosen procedure's RETURN type, or
 '' TYPE_NONE when nothing is viable or two candidates tie.
 private function ResolveCall_ _
@@ -440,7 +473,30 @@ private function ResolveCall_ _
                         best = cur
                         ties = 0
                     elseif total = bestCost then
-                        ties += 1
+                        '' TWO HALVES OF ONE PROCEDURE ARE NOT TWO CANDIDATES.
+                        ''
+                        '' Collect attaches a definition to its declaration by ARITY,
+                        '' because it runs before any type is resolved -- so when two
+                        '' overloads take the same NUMBER of parameters it cannot tell
+                        '' which one a definition belongs to, and the definition
+                        '' declares a symbol of its own. The set then holds the same
+                        '' procedure twice, the two cost identically, and the call
+                        '' resolved to NOTHING: not a diagnostic, an untyped call whose
+                        '' consumer then declined.
+                        ''
+                        '' That is every header with a same-arity overload set and a
+                        '' body somewhere -- fb/fspath.bi's seven decomposition
+                        '' functions each have three, and its own test lost 80
+                        '' statements to it.
+                        ''
+                        '' Here the types ARE resolved, so the two can be compared the
+                        '' way a linker would: by mangled name. The one with a BODY
+                        '' wins, so the call reaches the definition.
+                        if SameProc_( c, best, cur ) then
+                            if ProcHasBody_( c, cur ) then best = cur
+                        else
+                            ties += 1
+                        end if
                     end if
                 end if
             end if
