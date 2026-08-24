@@ -678,6 +678,10 @@ declare function EmitRtl _
     declare function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function NeedsCtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' A byval UDT parameter that fbc passes as a POINTER to a caller-built copy.
+    declare function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ParamIsIndirectUdt_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
     declare function NeedsDtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare sub EmitCtorPrologue_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _

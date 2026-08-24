@@ -8,6 +8,14 @@
 
 namespace Tko.Mir
 
+declare function ByvalUdtCopyArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+declare sub DestroyArgTemps_ _
+    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
+      byref types as FB.Array( of ulong ) )
+
+
 using Tko
 
 
@@ -163,6 +171,12 @@ function LowerCallParts _
     '' lowered: 'F( G( 7 ), 9 )' emitted 'call void F(%4, %5)' -- F( 7, G(7) ) -- and
     '' dropped the 9 entirely. No decline, no diagnostic, wrong arguments.
     dim as FB.Array( of ulong ) argv
+    '' THE CALLER-BUILT COPIES of byval non-trivial UDT arguments, which are destroyed
+    '' AFTER the call returns and so cannot be dealt with where they are made.
+    dim as FB.Array( of ulong ) tempSlots
+    dim as FB.Array( of ulong ) tempTypes
+    dim as long tempSlot = -1
+    dim as Tko.TypeId tempType = Tko.TYPE_NONE
 
     '' THE RECEIVER IS THE FIRST ARGUMENT of an instance method, and it was missing.
     '' fbc declares 'void _ZN1T1MEi( struct $1T*, int32 )'; tiko-lang emitted
@@ -338,6 +352,37 @@ function LowerCallParts _
                 continue for
             end if
 
+            '' A BYVAL NON-TRIVIAL UDT ARGUMENT IS A COPY THE CALLER BUILDS.
+            ''
+            '' Measured: the parameter is a POINTER, and around the call fbc writes
+            ''
+            ''     _ZN2S1C1ERKS_( &TMP$5$0, &S$0 );      the copy constructor...
+            ''     T3( &TMP$5$0 );                       ...the call takes its address
+            ''     _ZN2S1D1Ev( &TMP$5$0 );               ...and the temporary dies here
+            ''
+            '' -- a plain memcpy into the temporary when the type has a destructor but
+            '' no copy constructor, and no destruction at all when it has a copy
+            '' constructor but no destructor. Each of the three was measured on its own
+            '' type.
+            ''
+            '' Passing the AGGREGATE, which is what this did, gave the callee a bitwise
+            '' copy: over a type holding a string, two objects owning one buffer and
+            '' both released. It lowered and it verified.
+            if ParamIsIndirectUdt_( c, callee, i ) then
+                if ByvalUdtCopyArg_( c, argNode, ParamTypeAt( c, callee, i ), _
+                                     a, tempSlot, tempType ) = false then
+                    c.blameNode = cast( ulong, argNode )
+                    return v
+                end if
+                if tempSlot >= 0 then
+                    tempSlots.Push( cast( ulong, tempSlot ) )
+                    tempTypes.Push( cast( ulong, tempType ) )
+                end if
+                argv.Push( cast( ulong, a.kind ) )
+                argv.Push( cast( ulong, a.id ) )
+                continue for
+            end if
+
             a = LowerExpr( c, argNode )
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be
             '' pushed anyway, so the call went out with a malformed operand in it.
@@ -418,6 +463,7 @@ function LowerCallParts _
                 vc.first = first
                 vc.count = n
                 dim as MirValue vr = Emit( c, vc )
+                DestroyArgTemps_( c, tempSlots, tempTypes )
                 if sretTmp.kind <> cast( ubyte, MV_NONE ) then
                     return LowerExprLoad( c, sretTmp, MT_AGG )
                 end if
@@ -454,7 +500,9 @@ function LowerCallParts _
         ic.a = Coerce( c, fp, MT_PTR )
         ic.first = first
         ic.count = n
-        return Emit( c, ic )
+        dim as MirValue iv = Emit( c, ic )
+        DestroyArgTemps_( c, tempSlots, tempTypes )
+        return iv
     end if
 
     '' Finding the function object is a linear scan for now; it is a map when it
@@ -479,6 +527,7 @@ function LowerCallParts _
     ins.count = n
     ins.callee = fidx
     dim as MirValue cv = Emit( c, ins )
+    DestroyArgTemps_( c, tempSlots, tempTypes )
 
     '' The RESULT is the VALUE in the temporary the callee filled in, not the pointer
     '' the call returned. An aggregate variable's value is a whole-aggregate load in
@@ -602,5 +651,107 @@ function IsUnsignedType _
     end select
     return false
 end function
+
+
+
+'' THE CALLER-BUILT COPY of one byval non-trivial UDT argument.
+''
+'' Returns the address to pass, and the temporary's slot when one was made so the call
+'' site can destroy it afterwards. A slot of -1 means nothing needs destroying, which
+'' is the type with a copy constructor and no destructor.
+private function ByvalUdtCopyArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+
+    outSlot = -1
+    outType = Tko.TYPE_NONE
+    if argNode = Tko.NODE_NONE then return false
+    dim as long sz = SizeOfType( c, pt )
+    if sz <= 0 then return false
+
+    '' WHICH COPY, DECIDED BEFORE ANYTHING IS EMITTED. A decline that has already made
+    '' a temporary is a decline that does not LOOK like one: the alloca counts as an
+    '' instruction, and the statement then reads as lowered with the call missing from
+    '' it. That is the shape this whole sweep exists to find.
+    ''   2  the written copy constructor      1  the synthesised one      0  memcpy
+    dim as Tko.SymbolId cc = StructorWithArity( c, StructorOf( c, pt, "__ctor" ), 1 )
+    dim as long how = 0
+    if cc <> Tko.SYMBOL_NONE then
+        dim as Tko.TypeId cpt = ParamTypeAt( c, cc, 0 )
+        if cpt <> Tko.TYPE_NONE then
+            if c.types->Kind( cpt ) = Tko.TK_REFERENCE then cpt = c.types->Inner( cpt )
+            if c.types->Unqualify( cpt ) = c.types->Unqualify( pt ) then how = 2
+        end if
+    end if
+    if (how = 0) andalso NeedsLetBody_( c, pt ) then how = 1
+    '' A DYNAMIC ARRAY MEMBER AND NO WRITTEN COPY CONSTRUCTOR IS A DECLINE.
+    ''
+    '' fbc synthesises one for such a type and copies the array with fb_ArrayRedimTo
+    '' and an element loop; tiko-lang deliberately synthesises none, because an
+    '' assignment that skipped the array would look like the field had been handled.
+    '' The bitwise fallback is fine for a type whose destructor owns nothing -- fbc
+    '' itself memcpys one -- but here the temporary would hold a SECOND descriptor
+    '' over the caller's data, and destroying it after the call would erase it.
+    if (how = 0) andalso HasDynArrayMember_( c, pt ) then return false
+
+    '' THE SOURCE HAS TO HAVE AN ADDRESS. A copy constructor takes one, and a bitwise
+    '' copy of an rvalue that something else already owns would be a second owner of
+    '' its buffer -- so an argument with no address DECLINES rather than being copied
+    '' some other way.
+    dim as MirValue src = LowerAddr( c, argNode )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long slot = NewTempLocal( c, MT_AGG, sz )
+    if slot < 0 then return false
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+
+    select case how
+    case 2
+        dim as FB.Array( of ulong ) cargs
+        cargs.Push( cast( ulong, src.kind ) )
+        cargs.Push( cast( ulong, src.id ) )
+        EmitStructorCall( c, cc, -1, @dst, @cargs )
+    case 1
+        CallImplicitCopy_( c, pt, dst, src )
+    case else
+        '' fbc emits '__builtin_memcpy( &TMP$4$0, &D$0, 4 )' and nothing else for a
+        '' type whose only claim on this path is a destructor.
+        dim as MirValue whole = LowerExprLoad( c, src, MT_AGG )
+        if whole.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, dst, whole )
+    end select
+
+    if TypeNeedsDtor_( c, pt ) then
+        outSlot = slot
+        outType = pt
+    end if
+    outa = dst
+    return true
+end function
+
+'' The temporaries a call built for its byval UDT arguments, destroyed after it returns
+'' and in reverse -- which is the order fbc destroys them in when there is more than one.
+private sub DestroyArgTemps_ _
+    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
+      byref types as FB.Array( of ulong ) )
+
+    for k as long = slots.Count - 1 to 0 step -1
+        dim as Tko.TypeId t = cast( Tko.TypeId, types[k] )
+        dim as MirValue a
+        a.kind = cast( ubyte, MV_LOCAL )
+        a.ty = cast( ubyte, MT_PTR )
+        a.id = cast( long, slots[k] )
+        dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 )
+        if dt <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) none_
+            EmitStructorCall( c, dt, -1, @a, @none_ )
+        else
+            CallImplicitDtor_( c, t, a )
+        end if
+    next
+end sub
 
 end namespace

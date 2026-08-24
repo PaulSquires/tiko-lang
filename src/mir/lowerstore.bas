@@ -70,6 +70,7 @@ function LocalFor _
             exit for
         end if
     next
+    dim as boolean indirectUdtParam = false
     l.frontendType = s->type_
     l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
     '' A BYDESC ARRAY PARAMETER'S SLOT HOLDS A POINTER, not a descriptor. fbc's own
@@ -79,10 +80,19 @@ function LocalFor _
         if c.types->IsDynArray( s->type_ ) then
             l.ty = cast( ubyte, MT_PTR )
         end if
+        '' AND SO DOES A BYVAL NON-TRIVIAL UDT PARAMETER. fbc passes one as a POINTER
+        '' to a copy the CALLER built -- 'void T3( struct $2S1* V$1 )' -- so the slot
+        '' holds that address and not the object.
+        if ByvalUdtIndirect_( c, s->type_ ) then
+            l.ty = cast( ubyte, MT_PTR )
+            indirectUdtParam = true
+        end if
     end if
     '' An aggregate slot needs its SIZE: 'agg' says nothing about how many bytes to
     '' reserve, and the layout pass is the only thing that knows.
     l.size = SizeOfType( c, s->type_ )
+    '' ...and the slot is then a POINTER'S worth of storage, not the object's.
+    if indirectUdtParam then l.size = c.types->target.pointerBits \ 8
     c.f->locals.Push( l )
 
     '' The alloca goes in the ENTRY block, which is a verifier rule and also what
@@ -968,6 +978,12 @@ function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
             '' it, corrupting the descriptor. It lowered and it verified.
             if cs->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
                 if c.types->IsDynArray( cs->type_ ) then
+                    return LowerExprLoad( c, v, MT_PTR )
+                end if
+                '' A BYVAL NON-TRIVIAL UDT PARAMETER'S SLOT HOLDS AN ADDRESS TOO --
+                '' the caller built the copy and passed a pointer to it -- so every
+                '' read, write and '@' of the parameter goes through this one load.
+                if ByvalUdtIndirect_( c, cs->type_ ) then
                     return LowerExprLoad( c, v, MT_PTR )
                 end if
             end if

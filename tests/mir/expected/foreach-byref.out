@@ -117,7 +117,7 @@ func i32 SUMOF($0) {
 }
 func i32 SUMOFVAL($0) {
   local i32 $tmp0
-  local agg a size 80
+  local ptr a
   local i32 s
   local i32 e
   local agg $tmp4 size 16
@@ -129,27 +129,28 @@ func i32 SUMOFVAL($0) {
     store @a, $0
     %4 = alloca ptr s
     %5 = alloca ptr e
-    %6 = alloca ptr $tmp4
-    %7 = call agg _ZN3BAG11GETITERATOREv(@a)
-    store @$tmp4, %7
+    %6 = load @a
+    %7 = alloca ptr $tmp4
+    %8 = call agg _ZN3BAG11GETITERATOREv(%6)
+    store @$tmp4, %8
     br each.test3
   each.body1:
-    %8 = call i32 _ZN4ITER5VALUEEv(@$tmp4)
-    store @e, %8
-    %9 = load @s
-    %10 = load @e
-    %11 = add %9, %10
-    store @s, %11
+    %9 = call i32 _ZN4ITER5VALUEEv(@$tmp4)
+    store @e, %9
+    %10 = load @s
+    %11 = load @e
+    %12 = add %10, %11
+    store @s, %12
     br each.cont2
   each.cont2:
     call void _ZN4ITER8MOVENEXTEv(@$tmp4)
     br each.test3
   each.test3:
-    %12 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
-    condbr %12, each.body1, each.exit4
+    %13 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
+    condbr %13, each.body1, each.exit4
   each.exit4:
-    %13 = load @s
-    ret %13
+    %14 = load @s
+    ret %14
 }
 verify: ok
-lowered: 6 functions, 14 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 14 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,0 +1,11 @@
+'' A BYVAL UDT PARAMETER is a POINTER to a copy the CALLER builds -- but only when the
+'' type is non-trivial. Measured: fbc writes 'void T1( struct $2D1* )' for a type with a
+'' destructor and 'void T2( struct $2C1 )' for one whose only member is a default
+'' constructor, and around the call it emits the copy, the call and the temporary's
+'' destructor in that order.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byval-udt-param.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byval-udt-param.out

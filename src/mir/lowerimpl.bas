@@ -928,4 +928,47 @@ sub EmitImplicitStructors( byref c as Ctx )
     wend
 end sub
 
+
+'' IS A BYVAL PARAMETER OF THIS TYPE PASSED INDIRECTLY, with the caller building the
+'' copy?
+''
+'' Measured, and it is not 'every UDT'. fbc passes a TRIVIAL structure by value as a
+'' struct and a NON-TRIVIAL one as a pointer to a caller-built temporary:
+''
+''     type P : as long a, b : end type            void TAKEP( struct $1P );
+''     type C1 : declare constructor( ) : end type void T2 ( struct $2C1 );
+''     type D1 : declare destructor( )  : end type void T1 ( struct $2D1* );
+''     type S1 : as string s            : end type void T3 ( struct $2S1* );
+''     type V1 extends object           : end type void T4 ( struct $2V1* );
+''
+'' -- so a DEFAULT constructor alone does not move it, and a destructor or a copy
+'' constructor, written or synthesised, does. That is the same distinction C++ draws
+'' and it is what the caller's temporary exists for: the callee's parameter IS that
+'' temporary, and the caller destroys it after the call returns.
+function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    if TypeNeedsDtor_( c, t ) then return true
+    if NeedsLetBody_( c, t ) then return true
+    '' A WRITTEN copy constructor, by SHAPE: the one-argument constructor whose
+    '' parameter is this same type. Any other one-argument constructor is a conversion
+    '' and says nothing about how the type is passed.
+    dim as Tko.SymbolId cc = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
+    if cc = Tko.SYMBOL_NONE then return false
+    dim as Tko.TypeId pt = ParamTypeAt( c, cc, 0 )
+    if pt = Tko.TYPE_NONE then return false
+    if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
+    return (c.types->Unqualify( pt ) = c.types->Unqualify( t ))
+end function
+
+'' The same question about a PARAMETER, which needs the passing mode as well as the
+'' type: a BYREF parameter is already a pointer and is not this.
+function ParamIsIndirectUdt_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+
+    if ParamIsByref( c, callee, idx ) then return false
+    if ParamIsArray( c, callee, idx ) then return false
+    return ByvalUdtIndirect_( c, ParamTypeAt( c, callee, idx ) )
+end function
+
 end namespace
