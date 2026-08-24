@@ -142,9 +142,27 @@ private function ExprIntrinsicType_ _
     case "instr", "instrrev"
         if isStr = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
+    '' ASC IS UINTEGER, not ULONG. fb_ASC RETURNS uint32 -- measured -- but fbc types
+    '' the EXPRESSION as UINTEGER and zero-extends, so on win64 the two differ in
+    '' width and 'typeof( asc( s ) )' says UINTEGER.
     case "asc"
         if isStr = false then return Tko.TYPE_NONE
-        return c.types->Builtin( Tko.TY_ULONG )
+        return c.types->Builtin( Tko.TY_UINTEGER )
+    '' THE VAL FAMILY, which was not in this table at all -- so 'print val( s )' had
+    '' nothing to print and declined, while 'dim as double d = val( s )' lowered
+    '' because the DECLARATION supplies the type. Measured with '#print typeof', and
+    '' the two middle rows are the surprise: 'valint' is LONG and 'valuint' is ULONG,
+    '' NOT integer and uinteger, whatever their names say.
+    case "val"     : if isStr = false then return Tko.TYPE_NONE
+                     return c.types->Builtin( Tko.TY_DOUBLE )
+    case "vallng"  : if isStr = false then return Tko.TYPE_NONE
+                     return c.types->Builtin( Tko.TY_LONGINT )
+    case "valulng" : if isStr = false then return Tko.TYPE_NONE
+                     return c.types->Builtin( Tko.TY_ULONGINT )
+    case "valint"  : if isStr = false then return Tko.TYPE_NONE
+                     return c.types->Builtin( Tko.TY_LONG )
+    case "valuint" : if isStr = false then return Tko.TYPE_NONE
+                     return c.types->Builtin( Tko.TY_ULONG )
     case "peek"
         if (isNum orelse isPtr) = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_UBYTE )

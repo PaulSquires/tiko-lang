@@ -19,3 +19,9 @@ dim as integer  v3 = valint( w )
 dim as uinteger v4 = valuint( w )
 dim as double   v5 = val( w )
 print v1, v2, v3, v4, v5
+
+'' ...and PRINT of one, which had nothing to print: the VAL family was not in the
+'' frontend's type table at all.
+print val( w ), vallng( w ), valint( w )
+dim as string ns = "42"
+print val( ns ), valint( ns ), asc( ns )

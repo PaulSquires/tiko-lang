@@ -1,4 +1,5 @@
 global wstr $wstr0 "123"
+global str $str1 "42"
 func i32 main($0, $1) {
   local i32 $tmp0
   local i8 b1
@@ -15,6 +16,7 @@ func i32 main($0, $1) {
   local i64 v3
   local i64 v4
   local f64 v5
+  local agg ns size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -67,7 +69,7 @@ func i32 main($0, $1) {
     store @v3, %32
     %33 = alloca ptr v4
     %34 = call.rtl i32 fb_WstrValUInt(@w)
-    %35 = sext %34
+    %35 = zext %34
     store @v4, %35
     %36 = alloca ptr v5
     %37 = call.rtl f64 fb_WstrVal(@w)
@@ -82,10 +84,26 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintULongint(0, %41, 2)
     %42 = load @v5
     call.rtl void fb_PrintDouble(0, %42, 1)
-    %43 = const i32 0
-    call.rtl void fb_End(%43)
-    %44 = load @$tmp0
-    ret %44
+    %43 = call.rtl f64 fb_WstrVal(@w)
+    call.rtl void fb_PrintDouble(0, %43, 2)
+    %44 = call.rtl i64 fb_WstrValLng(@w)
+    call.rtl void fb_PrintLongint(0, %44, 2)
+    %45 = call.rtl i32 fb_WstrValInt(@w)
+    call.rtl void fb_PrintInt(0, %45, 1)
+    %46 = alloca ptr ns
+    %47 = call.rtl ptr fb_StrInit(@ns, -1, @@$str1, 3, 0)
+    %48 = call.rtl f64 fb_VAL(@ns)
+    call.rtl void fb_PrintDouble(0, %48, 2)
+    %49 = call.rtl i32 fb_VALINT(@ns)
+    call.rtl void fb_PrintInt(0, %49, 2)
+    %50 = call.rtl i32 fb_ASC(@ns, 1)
+    %51 = sext %50
+    call.rtl void fb_PrintULongint(0, %51, 1)
+    call.rtl void fb_StrDelete(@ns)
+    %52 = const i32 0
+    call.rtl void fb_End(%52)
+    %53 = load @$tmp0
+    ret %53
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
@@ -103,6 +121,11 @@ declare i32 fb_WstrValInt($0)
 declare i32 fb_WstrValUInt($0)
 declare f64 fb_WstrVal($0)
 declare void fb_PrintDouble($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare f64 fb_VAL($0)
+declare i32 fb_VALINT($0)
+declare i32 fb_ASC($0, $1)
+declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

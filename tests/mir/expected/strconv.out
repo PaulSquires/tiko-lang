@@ -120,7 +120,7 @@ func void P() {
     %85 = call.rtl i32 fb_VALINT(@s)
     store @n, %85
     %86 = call.rtl i32 fb_VALUINT(@s)
-    %87 = sext %86
+    %87 = zext %86
     store @uq, %87
     call.rtl void fb_StrDelete(@t)
     call.rtl void fb_StrDelete(@s)
