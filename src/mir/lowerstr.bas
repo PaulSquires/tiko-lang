@@ -1149,6 +1149,17 @@ function LowerWstrOf _
     dim as long sk = StrSwapKind_( c, at, zn )
     if sk = 0 then
         dim as MirValue d = LowerAddr( c, a )
+        '' A NARROW CONCATENATION HAS NO ADDRESS. Measured, fbc builds it into a
+        '' temporary descriptor and converts THAT:
+        ''
+        ''     vr$6 = fb_StrConcat( &TMP$4$0, "asd", 4, vr$3, -1 );
+        ''     vr$8 = fb_StrToWstr( (char*)*(char**)&TMP$5$0 );
+        ''
+        '' -- which is 'wstr( "asd" + chr( 0 ) )', the shape wstring/instr_0.bas is
+        '' written out of. Asking only for an address declined every one of them.
+        if d.kind = cast( ubyte, MV_NONE ) then
+            if ConcatToTemp_( c, a, d ) = false then return false
+        end if
         if d.kind = cast( ubyte, MV_NONE ) then return false
         '' Field 0 of the descriptor is its data pointer.
         dim as MirInst fa
