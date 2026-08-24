@@ -13,7 +13,8 @@ func i8 _ZN4ITER7ISVALIDEv($0) {
     %7 = const i64 1
     %8 = sext %6
     %9 = icmp.slt %8, %7
-    ret %9
+    %10 = neg %9
+    ret %10
 }
 func ptr _ZN4ITER5VALUEEv($0) {
   local i32 $tmp0
@@ -151,4 +152,4 @@ func i32 SUMOFVAL($0) {
     ret %13
 }
 verify: ok
-lowered: 6 functions, 14 blocks, 93 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 14 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance

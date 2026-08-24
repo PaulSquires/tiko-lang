@@ -14,7 +14,8 @@ func i8 _ZN4ITER7ISVALIDEv($0) {
     %8 = field.addr %7, 4
     %9 = load %8
     %10 = icmp.slt %6, %9
-    ret %10
+    %11 = neg %10
+    ret %11
 }
 func i32 _ZN4ITER5VALUEEv($0) {
   local i32 $tmp0
@@ -139,4 +140,4 @@ func void P() {
     br if.join12
 }
 verify: ok
-lowered: 5 functions, 19 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 19 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance

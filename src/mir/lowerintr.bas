@@ -609,7 +609,7 @@ function LowerStringIif_ _
     ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
       byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    dim as MirValue cond = LowerExpr( c, condE )
+    dim as MirValue cond = LowerCondition( c, condE )
     if cond.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
@@ -719,7 +719,7 @@ function LowerAggIif_ _
     dim as long sz = SizeOfType( c, ft )
     if sz <= 0 then return false
 
-    dim as MirValue cond = LowerExpr( c, condE )
+    dim as MirValue cond = LowerCondition( c, condE )
     if cond.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as long slot = NewTempLocal( c, MT_AGG, sz )
@@ -833,7 +833,7 @@ function LowerIif _
 
     if rt = MT_VOID then return false
 
-    dim as MirValue cond = LowerExpr( c, condE )
+    dim as MirValue cond = LowerCondition( c, condE )
     if cond.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as long slot = NewTempLocal( c, rt, c.types->Layout( ft ).size )

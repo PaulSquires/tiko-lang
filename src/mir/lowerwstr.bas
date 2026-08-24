@@ -405,7 +405,7 @@ function LowerWideIif_ _
     ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
       byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    dim as MirValue cond = LowerExpr( c, condE )
+    dim as MirValue cond = LowerCondition( c, condE )
     if cond.kind = cast( ubyte, MV_NONE ) then return false
 
     '' A POINTER slot, not an aggregate one: what the arms produce is an allocation.

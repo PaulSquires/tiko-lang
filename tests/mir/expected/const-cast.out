@@ -20,7 +20,8 @@ func i32 FAILED($0) {
     %5 = const i32 2147500037
     %6 = icmp.eq %4, %5
     %7 = neg %6
-    ret %7
+    %8 = neg %7
+    ret %8
 }
 func i32 main($0, $1) {
   local i32 $tmp0
@@ -62,4 +63,4 @@ declare void fb_PrintLongint($0, $1, $2)
 declare void fb_PrintULongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 3 functions, 3 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

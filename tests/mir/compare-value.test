@@ -1,0 +1,8 @@
+'' A comparison used as a value is NEGATED -- -1 and 0, not 1 and 0 -- in every
+'' destination fbc has, and a CONDITION is not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/compare-value.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/compare-value.out

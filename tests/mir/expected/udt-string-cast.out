@@ -120,9 +120,10 @@ func void G() {
     %46 = load @$tmp13
     %47 = call.rtl i32 fb_WstrCompare(%46, @rv)
     %48 = icmp.eq %47, 0
-    store @r, %48
-    %49 = load @$tmp13
-    call.rtl void fb_WstrDelete(%49)
+    %49 = neg %48
+    store @r, %49
+    %50 = load @$tmp13
+    call.rtl void fb_WstrDelete(%50)
     call.rtl void fb_StrDelete(@s)
     ret
 }
@@ -139,4 +140,4 @@ declare ptr fb_StrToWstr($0)
 declare i32 fb_WstrCompare($0, $1)
 declare void fb_StrDelete($0)
 verify: ok
-lowered: 5 functions, 5 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance

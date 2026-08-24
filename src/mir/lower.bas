@@ -17,6 +17,29 @@ declare function StrSwapKind_ _
 
 
 
+'' Is this opcode a COMPARISON -- one that yields 0 or 1 rather than a number?
+private function IsCmpOp_( byval op as MirOp ) as boolean
+    select case op
+    case M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
+         M_ICMP_ULT, M_ICMP_UGT, _
+         M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, M_FCMP_LE, M_FCMP_GE
+        return true
+    end select
+    return false
+end function
+
+'' An expression lowered as a CONDITION -- see Ctx.rawCmpNode.
+function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    dim as Tko.NodeId saved = c.rawCmpNode
+    '' THROUGH THE PARENTHESES, which is how the condition is usually written:
+    '' 'if (a < b) then' is the same branch as 'if a < b then', and taking the PAREN
+    '' node as the raw one left the comparison inside it negated and then branched on.
+    c.rawCmpNode = Unparen_( c, e )
+    dim as MirValue r = LowerExpr( c, e )
+    c.rawCmpNode = saved
+    return r
+end function
+
 function LowerExpr _
     ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
@@ -294,7 +317,7 @@ function LowerExpr _
             cmpStr = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
         end if
         if cmpStr then
-            dim as MirValue sc = LowerStrCompare( c, bp, tk )
+            dim as MirValue sc = LowerStrCompare( c, id, bp, tk )
             if sc.kind <> cast( ubyte, MV_NONE ) then return sc
             return v
         end if
@@ -347,7 +370,23 @@ function LowerExpr _
         ins.ty = cast( ubyte, iif( mt = MT_VOID, opTy, mt ) )
         ins.a = l
         ins.b = r
-        return Emit( c, ins )
+        dim as MirValue res = Emit( c, ins )
+
+        '' A COMPARISON USED AS A VALUE IS NEGATED. Measured, in every value position
+        '' fbc has: 'R = -(A < B)', 'print -(A < B)', 'Y = (int8)-(A < B)' -- so the
+        '' answer is -1 and 0, not 1 and 0. tiko-lang emitted the bare comparison, and
+        '' every printed, stored or passed comparison in the corpus was off by a sign.
+        ''
+        '' NOT for the one node being lowered as a CONDITION: a branch only asks
+        '' whether it is nonzero, and fbc emits no negation there either.
+        if IsCmpOp_( op ) andalso (id <> c.rawCmpNode) then
+            dim as MirInst neg
+            neg.op = cast( ushort, M_NEG )
+            neg.ty = ins.ty
+            neg.a = res
+            return Emit( c, neg )
+        end if
+        return res
 
     case Tko.N_CALL
         '' THE EXPRESSION CALL CHAIN -- a dozen constructs that are spelled like a
@@ -1203,7 +1242,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         dim as long exitB = NewBlock( c, "while.exit" )
         Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
         c.curBlock = headB
-        dim as MirValue cond = LowerExpr( c, sp->a )
+        dim as MirValue cond = LowerCondition( c, sp->a )
         Terminate( c, MTERM_CONDBR, bodyB, exitB, cond )
         c.curBlock = bodyB
         c.breakTo.Push( exitB )

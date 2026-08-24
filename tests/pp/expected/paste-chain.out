@@ -18,16 +18,17 @@ func i32 main($0, $1) {
     %7 = const i64 0
     %8 = bitcast %7
     %9 = icmp.ne %6, %8
-    call.rtl void fb_PrintLongint(0, %9, 1)
-    %10 = const i64 7
+    %10 = neg %9
     call.rtl void fb_PrintLongint(0, %10, 1)
-    %11 = const i32 0
-    call.rtl void fb_End(%11)
-    %12 = load @$tmp0
-    ret %12
+    %11 = const i64 7
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 18 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 19 insts, 0 statements not lowered, 0 scope imbalance

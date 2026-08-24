@@ -1222,7 +1222,7 @@ end function
 '' fb_StrAssign convention, where a literal's length INCLUDES the terminator: fbc passes
 '' 4 for "lit" here, not the 3 fb_StrAllocTempDescZEx takes.
 function LowerStrCompare _
-    ( byref c as Ctx, byval bp as Tko.BinaryPayload ptr, _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
       byval tk as Tko.TokenKind ) as MirValue
 
     dim as MirValue none_
@@ -1310,7 +1310,19 @@ function LowerStrCompare _
     ins.a = cmp
     ins.b = zero_
     if ins.op = cast( ushort, M_NONE ) then return none_
-    return Emit( c, ins )
+    dim as MirValue res = Emit( c, ins )
+
+    '' A STRING COMPARISON IS NEGATED IN VALUE POSITION exactly as a numeric one is:
+    '' measured, 'R = -( fb_StrCompare( ... ) == 0 )'. Not for the node being lowered
+    '' as a CONDITION, which is a branch and asks only whether it is nonzero.
+    if id <> c.rawCmpNode then
+        dim as MirInst neg
+        neg.op = cast( ushort, M_NEG )
+        neg.ty = cast( ubyte, MT_I8 )
+        neg.a = res
+        return Emit( c, neg )
+    end if
+    return res
 end function
 
 end namespace

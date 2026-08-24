@@ -26,6 +26,16 @@ type Ctx
     '' rather than a pair, because the statements take a level count.
     as FB.Array( of long )  breakTo
     as FB.Array( of long )  contTo
+    '' THE ONE COMPARISON NODE BEING LOWERED AS A CONDITION, or NODE_NONE.
+    ''
+    '' A comparison used as a VALUE is NEGATED -- fbc writes '-((int64)A < (int64)B)',
+    '' so 'print a < b' prints -1 and not 1 -- and a comparison used as a CONDITION is
+    '' a branch, which only asks whether it is nonzero. Negating one there would be an
+    '' extra instruction in every IF in the corpus and is not what fbc emits.
+    ''
+    '' The exact NODE rather than a depth, because a condition may CONTAIN a value-
+    '' position comparison: 'if (a < b) + 1' negates the inner one, measured.
+    as Tko.NodeId           rawCmpNode
     as Tko.SourceManager ptr srcMgr    '' only for the constant evaluator
     as Tko.UdtLayouts ptr   udts      '' field offsets, for member access
     '' THE SYNTHESISED STRUCTORS THIS UNIT ACTUALLY ASKED FOR. fbc emits one only
@@ -141,6 +151,9 @@ end type
 declare function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
 declare function NoVal( ) as MirValue
 declare function LowerExpr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+'' An expression lowered as a CONDITION: the same lowering, with the top-level
+'' comparison left un-negated because a branch only asks whether it is nonzero.
+declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
 declare function LowerAddr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 declare sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
 declare function StmtOf _
@@ -570,7 +583,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
 
     declare function LowerStrCompare _
-        ( byref c as Ctx, byval bp as Tko.BinaryPayload ptr, _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval tk as Tko.TokenKind ) as MirValue
 
     '' lowerarr.bas -- array indexing.

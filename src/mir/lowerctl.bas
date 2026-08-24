@@ -1151,7 +1151,7 @@ sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
 
     c.curBlock = headB
     if sp->a <> Tko.NODE_NONE then
-        dim as MirValue cond = LowerExpr( c, sp->a )
+        dim as MirValue cond = LowerCondition( c, sp->a )
         '' UNTIL is the same test with the arms swapped, which is cheaper than
         '' emitting a negation and is exactly what fbc's own lowering does.
         if isUntil then
@@ -1210,7 +1210,7 @@ sub LowerIf _
         '' The branch still goes out, to the THEN side: an unconditional entry is no
         '' more wrong than a missing condition and keeps the block graph well formed,
         '' and the decline beside it is what says the test is missing.
-        dim as MirValue cond = LowerExpr( c, bp->a )
+        dim as MirValue cond = LowerCondition( c, bp->a )
         if cond.kind = cast( ubyte, MV_NONE ) then
             SkipHere( c )
             Terminate( c, MTERM_BR, thenB, -1, NoVal( ) )
