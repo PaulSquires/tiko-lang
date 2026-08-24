@@ -912,8 +912,15 @@ function LowerLen _
     dim as Tko.TypeId at = c.info->TypeOf_( a )
     if at = Tko.TYPE_NONE then return false
 
+    '' 'len( string )' NAMES A TYPE, not a value, and folds to that type's SIZE like
+    '' SIZEOF does: measured, fbc emits 24 for 'len( string )' -- the descriptor -- and
+    '' 2 for 'len( wstring )'. The string branches below asked a TYPE REFERENCE for an
+    '' address, which it has not got, so both declined while 'sizeof( string )' beside
+    '' them folded.
+    dim as boolean lenOfType = (c.ast->Kind( a ) = Tko.N_TYPEREF)
+
     '' WIDE: one argument, no length.
-    if (IsWideString_( c, at )) andalso (isSizeof = false) then
+    if (IsWideString_( c, at )) andalso (isSizeof = false) andalso (lenOfType = false) then
         dim as MirValue wa = LowerAddr( c, a )
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) wargs
@@ -925,7 +932,7 @@ function LowerLen _
     '' NARROW: a descriptor passes -1, a fixed ZSTRING its element count.
     dim as longint zn = -1
     dim as boolean narrow = false
-    if isSizeof = false then
+    if (isSizeof = false) andalso (lenOfType = false) then
         narrow = IsStringType( c, at )
         if narrow = false then
             if StrSwapKind_( c, at, zn ) = 1 then narrow = true
@@ -937,7 +944,7 @@ function LowerLen _
     '' declared size and never its contents. That is the opposite of 'zstring * N',
     '' whose len IS a runtime strlen. Every 'if len( a ) = 0' over a fixed string is
     '' therefore dead code, in fbc as here.
-    if isSizeof = false then
+    if (isSizeof = false) andalso (lenOfType = false) then
         dim as longint fn2
         if StrSwapKind_( c, at, fn2 ) = 3 then
             outv = ConstInt( c, c.types->ElemCount( at ), MT_I64 )

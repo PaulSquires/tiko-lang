@@ -66,13 +66,21 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintInt(0, %43, 2)
     %44 = load @m
     call.rtl void fb_PrintInt(0, %44, 1)
+    %45 = const i64 24
+    call.rtl void fb_PrintLongint(0, %45, 2)
+    %46 = const i64 2
+    call.rtl void fb_PrintLongint(0, %46, 2)
+    %47 = const i64 24
+    call.rtl void fb_PrintLongint(0, %47, 2)
+    %48 = const i64 8
+    call.rtl void fb_PrintLongint(0, %48, 1)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
-    %45 = const i32 0
-    call.rtl void fb_End(%45)
-    %46 = load @$tmp0
-    ret %46
+    %49 = const i32 0
+    call.rtl void fb_End(%49)
+    %50 = load @$tmp0
+    ret %50
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
@@ -87,7 +95,8 @@ declare i64 fb_StrLen($0, $1)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_PrintWstr($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
 declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
