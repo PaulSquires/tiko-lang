@@ -1,0 +1,8 @@
+'' Virtual dispatch through 'operator ->', an abstract slot matched by its declaration,
+'' and a generic type argument inferred from inside an instantiated parameter.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/arrow-virtual.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/arrow-virtual.out

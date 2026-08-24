@@ -238,6 +238,39 @@ end function
 ''
 '' Every parameter must come out with a type or this returns false and the call declines
 '' -- a partly-inferred instantiation is a miscompile, not a partial answer.
+'' THE TYPE ARGUMENTS OF AN INSTANTIATION, recovered from its structural name.
+''
+'' The name IS the key: InstantiateGeneric_ builds 'Box<6,9>' out of the generic's
+'' spelling and the TypeIds of its arguments, so this is a DECODE of that encoding
+'' rather than a guess -- the two belong together and must move together.
+private function InstArgsOf_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as FB.Array( of ulong ) ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId ut = c.types->Unqualify( t )
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return false
+    dim as string nm = c.names->Spelling( c.types->NameOf( ut ) )
+    dim as long lt_ = instr( nm, "<" )
+    if lt_ = 0 then return false
+    if right( nm, 1 ) <> ">" then return false
+    dim as string body = mid( nm, lt_ + 1, len( nm ) - lt_ - 1 )
+    dim as long from = 1
+    do
+        dim as long comma = instr( from, body, "," )
+        dim as string piece
+        if comma = 0 then
+            piece = mid( body, from )
+        else
+            piece = mid( body, from, comma - from )
+        end if
+        if len( trim( piece ) ) = 0 then return false
+        outv.Push( cast( ulong, cast( long, val( piece ) ) ) )
+        if comma = 0 then exit do
+        from = comma + 1
+    loop
+    return (outv.Count > 0)
+end function
+
 private function InferProcTypeArgs_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval gn as Tko.NodeId, _
       byval scope_ as Tko.ScopeId, byref outT as FB.Array( of ulong ) ) as boolean
@@ -270,7 +303,33 @@ private function InferProcTypeArgs_ _
                 continue for
             end if
             dim as Tko.StmtPayload ptr tp = StmtOf( c, pp->a )
-            if tp->name <> want then continue for
+            if tp->name <> want then
+                '' 'byref dst as Box( of T )' -- THE PARAMETER IS AN INSTANTIATION and
+                '' the type parameter is one of ITS arguments. Only a bare 'T' was
+                '' matched, so every generic procedure written this way inferred
+                '' nothing and declined -- fb/comptr.bi's ComQI and ComQIAs are both
+                '' this shape, and they are what the whole com family asserts on.
+                if tp->count <= 0 then continue for
+                dim as long at_ = -1
+                for j as long = 0 to tp->count - 1
+                    dim as Tko.NodeId an2 = cast( Tko.NodeId, c.ast->children[tp->first + j] )
+                    if c.ast->Kind( an2 ) <> Tko.N_TYPEREF then continue for
+                    if StmtOf( c, an2 )->name = want then
+                        at_ = j
+                        exit for
+                    end if
+                next
+                if at_ < 0 then continue for
+                dim as Tko.TypeId argT = InferArgType_( c, _
+                    cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_ )
+                if argT = Tko.TYPE_NONE then continue for
+                dim as FB.Array( of ulong ) iargs
+                if InstArgsOf_( c, argT, iargs ) = false then continue for
+                if at_ >= iargs.Count then continue for
+                got = cast( Tko.TypeId, iargs[at_] )
+                if got <> Tko.TYPE_NONE then exit for
+                continue for
+            end if
             got = InferArgType_( c, cast( Tko.NodeId, c.ast->children[cl->first + k] ), _
                                  scope_ )
             if got <> Tko.TYPE_NONE then exit for

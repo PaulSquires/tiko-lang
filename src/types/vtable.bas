@@ -11,12 +11,24 @@ function VTables.Find( byval t as TypeId ) as long
     return -1
 end function
 
-function VTables.SlotOf( byval t as TypeId, byval p as SymbolId ) as long
+function VTables.SlotOf _
+    ( byval t as TypeId, byval p as SymbolId, byval decl as NodeId ) as long
+
     dim as long vi = this.Find( t )
     if vi < 0 then return -1
     dim as VtInfo ptr v = @this.types_[vi]
     for i as long = 0 to v->count - 1
         if this.slots[v->first + i].proc_ = p then return i
+    next
+
+    '' AN ABSTRACT SLOT HAS NO PROCEDURE: its entry in the emitted table is null and an
+    '' override fills it, so a call to the abstract DECLARATION itself matched nothing
+    '' and was emitted as a DIRECT call to a procedure with no body -- silently, and for
+    '' every call through a base handle to an abstract method, which is the whole of
+    '' fb/comptr.bi's surface. Matched by its DECLARATION NODE instead.
+    if decl = NODE_NONE then return -1
+    for i as long = 0 to v->count - 1
+        if this.slots[v->first + i].decl = decl then return i
     next
     return -1
 end function

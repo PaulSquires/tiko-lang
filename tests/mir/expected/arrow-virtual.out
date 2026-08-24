@@ -1,0 +1,201 @@
+global str $str0 "arrow"
+global str $str1 "deref"
+global str $str2 "grab"
+extern ptrs __fb_ZTS6Object [ ]
+global str $str4 "5IFACE"
+global ptrs _ZTSN5IFACEE [ 0, @$str4, @__fb_ZTS6Object ]
+global str $str6 "4IMPL"
+global ptrs _ZTSN4IMPLE [ 0, @$str6, @_ZTSN5IFACEE ]
+global ptrs _ZTVN4IMPLE [ 0, @_ZTSN4IMPLE, _ZN4IMPL4POKEEv ]
+global ptrs _ZTVN5IFACEE [ 0, @_ZTSN5IFACEE, 0 ]
+func i32 _ZN4IMPL4POKEEv($0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 8
+    %6 = load %5
+    %7 = const i64 1
+    %8 = sext %6
+    %9 = add %8, %7
+    ret %9
+}
+func ptr _ZptR1H($0) {
+  local agg $tmp0 size 8
+  local ptr h
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr h
+    store @h, $0
+    %3 = load @h
+    %4 = field.addr %3, 0
+    %5 = load %4
+    %6 = load %5
+    store @$tmp0, %6
+    %7 = load @$tmp0
+    ret %7
+}
+func ptr _ZdeR1H($0) {
+  local agg $tmp0 size 8
+  local ptr h
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr h
+    store @h, $0
+    %3 = load @h
+    %4 = field.addr %3, 0
+    %5 = load %4
+    %6 = load %5
+    store @$tmp0, %6
+    %7 = load @$tmp0
+    ret %7
+}
+func i32 GRAB<6>($0, $1) {
+  local i32 $tmp0
+  local ptr src
+  local ptr dst
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr src
+    store @src, $0
+    %4 = alloca ptr dst
+    store @dst, $1
+    %5 = load @dst
+    %6 = field.addr %5, 0
+    %7 = const i64 0
+    %8 = trunc %7
+    store %6, %8
+    %9 = const i64 5
+    ret %9
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg im size 16
+  local agg hh size 8
+  local ptr q
+  local agg bx size 4
+  local ptr pv
+  local i32 got
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr im
+    call void _ZN4IMPLC1Ev(@im)
+    %5 = field.addr @im, 8
+    %6 = const i64 4
+    %7 = trunc %6
+    store %5, %7
+    %8 = alloca ptr hh
+    %9 = field.addr @hh, 0
+    store %9, @im
+    %10 = call ptr _ZptR1H(@hh)
+    %11 = load %10
+    %12 = field.addr %11, 0
+    %13 = load %12
+    %14 = call.ind i32 %13(%10)
+    %15 = const i64 0
+    %16 = sext %14
+    %17 = icmp.sgt %16, %15
+    %33 = alloca ptr q
+    %39 = alloca ptr bx
+    %40 = alloca ptr pv
+    %47 = alloca ptr got
+    condbr %17, if.then2, if.else3
+  if.join1:
+    %19 = call ptr _ZdeR1H(@hh)
+    %20 = load %19
+    %21 = field.addr %20, 0
+    %22 = load %21
+    %23 = call.ind i32 %22(%19)
+    %24 = const i64 0
+    %25 = sext %23
+    %26 = icmp.sgt %25, %24
+    condbr %26, if.then5, if.else6
+  if.then2:
+    %18 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 5)
+    call.rtl void fb_PrintString(0, %18, 1)
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %28 = call ptr _ZptR1H(@hh)
+    %29 = load %28
+    %30 = field.addr %29, 0
+    %31 = load %30
+    %32 = call.ind i32 %31(%28)
+    call.rtl void fb_PrintInt(0, %32, 1)
+    store @q, @im
+    %34 = load @q
+    %35 = load %34
+    %36 = field.addr %35, 0
+    %37 = load %36
+    %38 = call.ind i32 %37(%34)
+    call.rtl void fb_PrintInt(0, %38, 1)
+    %41 = load @pv
+    %42 = call i32 GRAB<6>(%41, @bx)
+    %43 = const i64 5
+    %44 = sext %42
+    %45 = icmp.eq %44, %43
+    condbr %45, if.then8, if.else9
+  if.then5:
+    %27 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
+    call.rtl void fb_PrintString(0, %27, 1)
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %48 = load @pv
+    %49 = call i32 GRAB<6>(%48, @bx)
+    store @got, %49
+    %50 = load @got
+    call.rtl void fb_PrintInt(0, %50, 2)
+    %51 = field.addr @bx, 0
+    %52 = load %51
+    call.rtl void fb_PrintInt(0, %52, 1)
+    %53 = const i32 0
+    call.rtl void fb_End(%53)
+    %54 = load @$tmp0
+    ret %54
+  if.then8:
+    %46 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 4)
+    call.rtl void fb_PrintString(0, %46, 1)
+    br if.join7
+  if.else9:
+    br if.join7
+}
+declare void fb_Init($0, $1, $2)
+declare void _ZN4IMPLC1Ev($0)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_End($0)
+func void _ZN4IMPLC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN5IFACEC1Ev(%1)
+    %2 = field.addr @@_ZTVN4IMPLE, 16
+    store $0, %2
+    ret
+}
+declare void _ZN5IFACEC1Ev($0)
+func void _ZN5IFACEC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN10fb_Object$C1Ev(%1)
+    %2 = field.addr @@_ZTVN5IFACEE, 16
+    store $0, %2
+    ret
+}
+declare void _ZN10fb_Object$C1Ev($0)
+verify: ok
+lowered: 7 functions, 16 blocks, 119 insts, 0 statements not lowered, 0 scope imbalance

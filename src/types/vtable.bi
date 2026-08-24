@@ -52,7 +52,11 @@ namespace Tko
         declare function Find( byval t as TypeId ) as long
         '' Which slot dispatches to this procedure, or -1 if it is not virtual in this
         '' type. This is what a call site needs and the only reason the table exists.
-        declare function SlotOf( byval t as TypeId, byval p as SymbolId ) as long
+        '' 'decl' is the callee's own declaration node, which is how an ABSTRACT slot
+        '' is matched: it carries no procedure symbol.
+        declare function SlotOf _
+            ( byval t as TypeId, byval p as SymbolId, _
+              byval decl as NodeId = NODE_NONE ) as long
     end type
 
     '' Build a table for every UDT that extends OBJECT. Runs after Resolve, because

@@ -251,6 +251,21 @@ function VirtualSlotOf_ _
         if rt <> Tko.TYPE_NONE then
             if c.types->Kind( rt ) = Tko.TK_POINTER then rt = c.types->Inner( rt )
         end if
+
+        '' 'p->V( )' OVER A UDT dispatches through the ARROW'S RESULT, not the handle:
+        '' the handle has no vtable of its own, so the slot lookup found nothing and the
+        '' call fell out of the virtual path entirely. Every virtual method reached
+        '' through a smart pointer -- which is what fb/comptr.bi exists for -- is this.
+        dim as Tko.TypeId urt = c.types->Unqualify( rt )
+        if ((c.ast->nodes[cast( long, target )].flags and Tko.NF_ARROW) <> 0) andalso _
+           (c.types->Kind( urt ) = Tko.TK_UDT) then
+            dim as Tko.SymbolId vaop = Tko.Check.ArrowOperatorFor( _
+                *c.types, *c.syms, *c.names, *c.ast, *c.info, urt )
+            if vaop <> Tko.SYMBOL_NONE then
+                dim as Tko.TypeId vart = Tko.Check.ArrowResultType( *c.types, *c.syms, vaop )
+                if vart <> Tko.TYPE_NONE then rt = vart
+            end if
+        end if
     else
         '' AN UNQUALIFIED CALL TO A SIBLING METHOD dispatches virtually too --
         '' measured: inside C.v2, a bare 'v1( )' goes through this's own vptr while
@@ -268,7 +283,7 @@ function VirtualSlotOf_ _
     end if
 
     if rt = Tko.TYPE_NONE then return -1
-    return c.vts->SlotOf( rt, callee )
+    return c.vts->SlotOf( rt, callee, cd )
 end function
 
 '' The function pointer a virtual call goes through: the vptr, indexed.

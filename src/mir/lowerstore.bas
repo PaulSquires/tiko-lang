@@ -575,6 +575,30 @@ function ReceiverOf _
     if bt <> Tko.TYPE_NONE then
         if c.types->Kind( bt ) = Tko.TK_POINTER then return LowerExpr( c, mb->lhs )
     end if
+
+    '' 'p->M( )' OVER A UDT: the receiver is what that UDT's 'operator ->' hands back,
+    '' not the handle itself. Measured -- fbc emits 'vr = _ZptR6HOLDER( &H )' and then
+    '' '_ZN5INNER4BUMPEi( vr, 3 )'. Check resolves the method in the arrow's result
+    '' type, so the CALLEE was already right; the receiver was the HANDLE, so every
+    '' method called through a smart pointer ran against the wrong object. It lowered,
+    '' it verified, and the mangled name said the method was found.
+    dim as Tko.TypeId ubt = c.types->Unqualify( bt )
+    if ((c.ast->nodes[cast( long, target )].flags and Tko.NF_ARROW) <> 0) andalso _
+       (c.types->Kind( ubt ) = Tko.TK_UDT) then
+        dim as Tko.SymbolId aop = Tko.Check.ArrowOperatorFor( _
+            *c.types, *c.syms, *c.names, *c.ast, *c.info, ubt )
+        if aop <> Tko.SYMBOL_NONE then
+            dim as MirValue hself = LowerAddr( c, mb->lhs )
+            if hself.kind <> cast( ubyte, MV_NONE ) then
+                dim as FB.Array( of ulong ) aargs
+                aargs.Push( cast( ulong, hself.kind ) )
+                aargs.Push( cast( ulong, hself.id ) )
+                dim as MirValue av = EmitDirectCall_( c, aop, MT_PTR, aargs )
+                if av.kind <> cast( ubyte, MV_NONE ) then return av
+            end if
+            return v
+        end if
+    end if
     return LowerAddr( c, mb->lhs )
 end function
 
