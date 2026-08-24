@@ -1325,4 +1325,7 @@ function LowerStrCompare _
     return res
 end function
 
+'' Tuple equality, in its own file at the 1500-line cap.
+#include once "mir/lowertup.bas"
+
 end namespace

@@ -1,0 +1,658 @@
+global str $str0 "eq"
+global str $str1 "ne"
+global str $str2 "never"
+global str $str3 "ne3"
+global str $str4 "hello"
+global str $str5 "world"
+global str $str6 "seq"
+global str $str7 "sne"
+global str $str8 "neq"
+global str $str9 "nne"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a size 8
+  local agg b size 8
+  local agg c size 8
+  local ptr $tmp4
+  local ptr $tmp5
+  local i32 $tmp6
+  local ptr $tmp7
+  local ptr $tmp8
+  local i32 $tmp9
+  local i32 r
+  local ptr $tmp11
+  local ptr $tmp12
+  local i32 $tmp13
+  local i32 q
+  local ptr $tmp15
+  local ptr $tmp16
+  local i32 $tmp17
+  local agg p3 size 12
+  local agg q3 size 12
+  local ptr $tmp20
+  local ptr $tmp21
+  local i32 $tmp22
+  local ptr $tmp23
+  local ptr $tmp24
+  local i32 $tmp25
+  local agg s1 size 32
+  local agg s2 size 32
+  local agg s3 size 32
+  local ptr $tmp29
+  local ptr $tmp30
+  local i32 $tmp31
+  local ptr $tmp32
+  local ptr $tmp33
+  local i32 $tmp34
+  local agg n1 size 12
+  local agg n2 size 12
+  local agg n3 size 12
+  local ptr $tmp38
+  local ptr $tmp39
+  local i32 $tmp40
+  local ptr $tmp41
+  local ptr $tmp42
+  local i32 $tmp43
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = const i64 2
+    %8 = trunc %7
+    %9 = field.addr @a, 0
+    store %9, %6
+    %10 = field.addr @a, 4
+    store %10, %8
+    %11 = alloca ptr b
+    %12 = const i64 1
+    %13 = trunc %12
+    %14 = const i64 2
+    %15 = trunc %14
+    %16 = field.addr @b, 0
+    store %16, %13
+    %17 = field.addr @b, 4
+    store %17, %15
+    %18 = alloca ptr c
+    %19 = const i64 1
+    %20 = trunc %19
+    %21 = const i64 3
+    %22 = trunc %21
+    %23 = field.addr @c, 0
+    store %23, %20
+    %24 = field.addr @c, 4
+    store %24, %22
+    %25 = alloca ptr $tmp4
+    %26 = alloca ptr $tmp5
+    store @$tmp4, @a
+    store @$tmp5, @b
+    %27 = alloca ptr $tmp6
+    %28 = load @$tmp4
+    %29 = load @$tmp5
+    %30 = field.addr %28, 0
+    %31 = field.addr %29, 0
+    %32 = load %30
+    %33 = load %31
+    %34 = icmp.eq %32, %33
+    %46 = alloca ptr $tmp7
+    %47 = alloca ptr $tmp8
+    %48 = alloca ptr $tmp9
+    %67 = alloca ptr r
+    %68 = alloca ptr $tmp11
+    %69 = alloca ptr $tmp12
+    %70 = alloca ptr $tmp13
+    %88 = alloca ptr q
+    %89 = alloca ptr $tmp15
+    %90 = alloca ptr $tmp16
+    %91 = alloca ptr $tmp17
+    %111 = alloca ptr p3
+    %121 = alloca ptr q3
+    %131 = alloca ptr $tmp20
+    %132 = alloca ptr $tmp21
+    %133 = alloca ptr $tmp22
+    %162 = alloca ptr $tmp23
+    %163 = alloca ptr $tmp24
+    %164 = alloca ptr $tmp25
+    %193 = alloca ptr s1
+    %199 = alloca ptr s2
+    %205 = alloca ptr s3
+    %211 = alloca ptr $tmp29
+    %212 = alloca ptr $tmp30
+    %213 = alloca ptr $tmp31
+    %232 = alloca ptr $tmp32
+    %233 = alloca ptr $tmp33
+    %234 = alloca ptr $tmp34
+    %253 = alloca ptr n1
+    %263 = alloca ptr n2
+    %273 = alloca ptr n3
+    %283 = alloca ptr $tmp38
+    %284 = alloca ptr $tmp39
+    %285 = alloca ptr $tmp40
+    %314 = alloca ptr $tmp41
+    %315 = alloca ptr $tmp42
+    %316 = alloca ptr $tmp43
+    condbr %34, tup.rhs4, tup.short5
+  if.join1:
+    store @$tmp7, @a
+    store @$tmp8, @c
+    %49 = load @$tmp7
+    %50 = load @$tmp8
+    %51 = field.addr %49, 0
+    %52 = field.addr %50, 0
+    %53 = load %51
+    %54 = load %52
+    %55 = icmp.ne %53, %54
+    condbr %55, tup.short11, tup.rhs10
+  if.then2:
+    %45 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 2)
+    call.rtl void fb_PrintString(0, %45, 1)
+    br if.join1
+  if.else3:
+    br if.join1
+  tup.rhs4:
+    %35 = load @$tmp4
+    %36 = load @$tmp5
+    %37 = field.addr %35, 4
+    %38 = field.addr %36, 4
+    %39 = load %37
+    %40 = load %38
+    %41 = icmp.eq %39, %40
+    %42 = neg %41
+    store @$tmp6, %42
+    br tup.join6
+  tup.short5:
+    %43 = const i32 0
+    store @$tmp6, %43
+    br tup.join6
+  tup.join6:
+    %44 = load @$tmp6
+    condbr %44, if.then2, if.else3
+  if.join7:
+    store @$tmp11, @a
+    store @$tmp12, @b
+    %71 = load @$tmp11
+    %72 = load @$tmp12
+    %73 = field.addr %71, 0
+    %74 = field.addr %72, 0
+    %75 = load %73
+    %76 = load %74
+    %77 = icmp.eq %75, %76
+    condbr %77, tup.rhs13, tup.short14
+  if.then8:
+    %66 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 2)
+    call.rtl void fb_PrintString(0, %66, 1)
+    br if.join7
+  if.else9:
+    br if.join7
+  tup.rhs10:
+    %56 = load @$tmp7
+    %57 = load @$tmp8
+    %58 = field.addr %56, 4
+    %59 = field.addr %57, 4
+    %60 = load %58
+    %61 = load %59
+    %62 = icmp.ne %60, %61
+    %63 = neg %62
+    store @$tmp9, %63
+    br tup.join12
+  tup.short11:
+    %64 = const i32 -1
+    store @$tmp9, %64
+    br tup.join12
+  tup.join12:
+    %65 = load @$tmp9
+    condbr %65, if.then8, if.else9
+  tup.rhs13:
+    %78 = load @$tmp11
+    %79 = load @$tmp12
+    %80 = field.addr %78, 4
+    %81 = field.addr %79, 4
+    %82 = load %80
+    %83 = load %81
+    %84 = icmp.eq %82, %83
+    %85 = neg %84
+    store @$tmp13, %85
+    br tup.join15
+  tup.short14:
+    %86 = const i32 0
+    store @$tmp13, %86
+    br tup.join15
+  tup.join15:
+    %87 = load @$tmp13
+    store @r, %87
+    store @$tmp15, @a
+    store @$tmp16, @b
+    %92 = load @$tmp15
+    %93 = load @$tmp16
+    %94 = field.addr %92, 0
+    %95 = field.addr %93, 0
+    %96 = load %94
+    %97 = load %95
+    %98 = icmp.ne %96, %97
+    condbr %98, tup.short17, tup.rhs16
+  tup.rhs16:
+    %99 = load @$tmp15
+    %100 = load @$tmp16
+    %101 = field.addr %99, 4
+    %102 = field.addr %100, 4
+    %103 = load %101
+    %104 = load %102
+    %105 = icmp.ne %103, %104
+    %106 = neg %105
+    store @$tmp17, %106
+    br tup.join18
+  tup.short17:
+    %107 = const i32 -1
+    store @$tmp17, %107
+    br tup.join18
+  tup.join18:
+    %108 = load @$tmp17
+    store @q, %108
+    %109 = load @r
+    call.rtl void fb_PrintInt(0, %109, 2)
+    %110 = load @q
+    call.rtl void fb_PrintInt(0, %110, 1)
+    %112 = const i64 1
+    %113 = trunc %112
+    %114 = const i64 2
+    %115 = trunc %114
+    %116 = const i64 3
+    %117 = trunc %116
+    %118 = field.addr @p3, 0
+    store %118, %113
+    %119 = field.addr @p3, 4
+    store %119, %115
+    %120 = field.addr @p3, 8
+    store %120, %117
+    %122 = const i64 1
+    %123 = trunc %122
+    %124 = const i64 2
+    %125 = trunc %124
+    %126 = const i64 4
+    %127 = trunc %126
+    %128 = field.addr @q3, 0
+    store %128, %123
+    %129 = field.addr @q3, 4
+    store %129, %125
+    %130 = field.addr @q3, 8
+    store %130, %127
+    store @$tmp20, @p3
+    store @$tmp21, @q3
+    %134 = load @$tmp20
+    %135 = load @$tmp21
+    %136 = field.addr %134, 0
+    %137 = field.addr %135, 0
+    %138 = load %136
+    %139 = load %137
+    %140 = icmp.eq %138, %139
+    condbr %140, tup.rhs22, tup.short23
+  if.join19:
+    store @$tmp23, @p3
+    store @$tmp24, @q3
+    %165 = load @$tmp23
+    %166 = load @$tmp24
+    %167 = field.addr %165, 0
+    %168 = field.addr %166, 0
+    %169 = load %167
+    %170 = load %168
+    %171 = icmp.ne %169, %170
+    condbr %171, tup.short32, tup.rhs31
+  if.then20:
+    %161 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 5)
+    call.rtl void fb_PrintString(0, %161, 1)
+    br if.join19
+  if.else21:
+    br if.join19
+  tup.rhs22:
+    %141 = load @$tmp20
+    %142 = load @$tmp21
+    %143 = field.addr %141, 4
+    %144 = field.addr %142, 4
+    %145 = load %143
+    %146 = load %144
+    %147 = icmp.eq %145, %146
+    %148 = neg %147
+    store @$tmp22, %148
+    br tup.join24
+  tup.short23:
+    %149 = const i32 0
+    store @$tmp22, %149
+    br tup.join24
+  tup.join24:
+    %150 = load @$tmp22
+    condbr %150, tup.rhs25, tup.short26
+  tup.rhs25:
+    %151 = load @$tmp20
+    %152 = load @$tmp21
+    %153 = field.addr %151, 8
+    %154 = field.addr %152, 8
+    %155 = load %153
+    %156 = load %154
+    %157 = icmp.eq %155, %156
+    %158 = neg %157
+    store @$tmp22, %158
+    br tup.join27
+  tup.short26:
+    %159 = const i32 0
+    store @$tmp22, %159
+    br tup.join27
+  tup.join27:
+    %160 = load @$tmp22
+    condbr %160, if.then20, if.else21
+  if.join28:
+    call void _ZN9$TUP:6:15C1Ev(@s1)
+    %194 = const i64 1
+    %195 = trunc %194
+    %196 = field.addr @s1, 0
+    store %196, %195
+    %197 = field.addr @s1, 8
+    %198 = call.rtl ptr fb_StrAssign(%197, -1, @@$str4, 6, 0)
+    call void _ZN9$TUP:6:15C1Ev(@s2)
+    %200 = const i64 1
+    %201 = trunc %200
+    %202 = field.addr @s2, 0
+    store %202, %201
+    %203 = field.addr @s2, 8
+    %204 = call.rtl ptr fb_StrAssign(%203, -1, @@$str4, 6, 0)
+    call void _ZN9$TUP:6:15C1Ev(@s3)
+    %206 = const i64 1
+    %207 = trunc %206
+    %208 = field.addr @s3, 0
+    store %208, %207
+    %209 = field.addr @s3, 8
+    %210 = call.rtl ptr fb_StrAssign(%209, -1, @@$str5, 6, 0)
+    store @$tmp29, @s1
+    store @$tmp30, @s2
+    %214 = load @$tmp29
+    %215 = load @$tmp30
+    %216 = field.addr %214, 0
+    %217 = field.addr %215, 0
+    %218 = load %216
+    %219 = load %217
+    %220 = icmp.eq %218, %219
+    condbr %220, tup.rhs40, tup.short41
+  if.then29:
+    %192 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 3)
+    call.rtl void fb_PrintString(0, %192, 1)
+    br if.join28
+  if.else30:
+    br if.join28
+  tup.rhs31:
+    %172 = load @$tmp23
+    %173 = load @$tmp24
+    %174 = field.addr %172, 4
+    %175 = field.addr %173, 4
+    %176 = load %174
+    %177 = load %175
+    %178 = icmp.ne %176, %177
+    %179 = neg %178
+    store @$tmp25, %179
+    br tup.join33
+  tup.short32:
+    %180 = const i32 -1
+    store @$tmp25, %180
+    br tup.join33
+  tup.join33:
+    %181 = load @$tmp25
+    condbr %181, tup.short35, tup.rhs34
+  tup.rhs34:
+    %182 = load @$tmp23
+    %183 = load @$tmp24
+    %184 = field.addr %182, 8
+    %185 = field.addr %183, 8
+    %186 = load %184
+    %187 = load %185
+    %188 = icmp.ne %186, %187
+    %189 = neg %188
+    store @$tmp25, %189
+    br tup.join36
+  tup.short35:
+    %190 = const i32 -1
+    store @$tmp25, %190
+    br tup.join36
+  tup.join36:
+    %191 = load @$tmp25
+    condbr %191, if.then29, if.else30
+  if.join37:
+    store @$tmp32, @s1
+    store @$tmp33, @s3
+    %235 = load @$tmp32
+    %236 = load @$tmp33
+    %237 = field.addr %235, 0
+    %238 = field.addr %236, 0
+    %239 = load %237
+    %240 = load %238
+    %241 = icmp.ne %239, %240
+    condbr %241, tup.short47, tup.rhs46
+  if.then38:
+    %231 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 3)
+    call.rtl void fb_PrintString(0, %231, 1)
+    br if.join37
+  if.else39:
+    br if.join37
+  tup.rhs40:
+    %221 = load @$tmp29
+    %222 = load @$tmp30
+    %223 = field.addr %221, 8
+    %224 = field.addr %222, 8
+    %225 = call.rtl i32 fb_StrCompare(%223, -1, %224, -1)
+    %226 = const i32 0
+    %227 = icmp.eq %225, %226
+    %228 = neg %227
+    store @$tmp31, %228
+    br tup.join42
+  tup.short41:
+    %229 = const i32 0
+    store @$tmp31, %229
+    br tup.join42
+  tup.join42:
+    %230 = load @$tmp31
+    condbr %230, if.then38, if.else39
+  if.join43:
+    %254 = const i64 1
+    %255 = trunc %254
+    %256 = const i64 2
+    %257 = trunc %256
+    %258 = const i64 3
+    %259 = trunc %258
+    %260 = field.addr @n1, 0
+    store %260, %255
+    %261 = field.addr @n1, 4
+    store %261, %257
+    %262 = field.addr @n1, 8
+    store %262, %259
+    %264 = const i64 1
+    %265 = trunc %264
+    %266 = const i64 2
+    %267 = trunc %266
+    %268 = const i64 3
+    %269 = trunc %268
+    %270 = field.addr @n2, 0
+    store %270, %265
+    %271 = field.addr @n2, 4
+    store %271, %267
+    %272 = field.addr @n2, 8
+    store %272, %269
+    %274 = const i64 1
+    %275 = trunc %274
+    %276 = const i64 9
+    %277 = trunc %276
+    %278 = const i64 3
+    %279 = trunc %278
+    %280 = field.addr @n3, 0
+    store %280, %275
+    %281 = field.addr @n3, 4
+    store %281, %277
+    %282 = field.addr @n3, 8
+    store %282, %279
+    store @$tmp38, @n1
+    store @$tmp39, @n2
+    %286 = load @$tmp38
+    %287 = load @$tmp39
+    %288 = field.addr %286, 0
+    %289 = field.addr %287, 0
+    %290 = load %288
+    %291 = load %289
+    %292 = icmp.eq %290, %291
+    condbr %292, tup.rhs52, tup.short53
+  if.then44:
+    %252 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %252, 1)
+    br if.join43
+  if.else45:
+    br if.join43
+  tup.rhs46:
+    %242 = load @$tmp32
+    %243 = load @$tmp33
+    %244 = field.addr %242, 8
+    %245 = field.addr %243, 8
+    %246 = call.rtl i32 fb_StrCompare(%244, -1, %245, -1)
+    %247 = const i32 0
+    %248 = icmp.ne %246, %247
+    %249 = neg %248
+    store @$tmp34, %249
+    br tup.join48
+  tup.short47:
+    %250 = const i32 -1
+    store @$tmp34, %250
+    br tup.join48
+  tup.join48:
+    %251 = load @$tmp34
+    condbr %251, if.then44, if.else45
+  if.join49:
+    store @$tmp41, @n1
+    store @$tmp42, @n3
+    %317 = load @$tmp41
+    %318 = load @$tmp42
+    %319 = field.addr %317, 0
+    %320 = field.addr %318, 0
+    %321 = load %319
+    %322 = load %320
+    %323 = icmp.ne %321, %322
+    condbr %323, tup.short62, tup.rhs61
+  if.then50:
+    %313 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 3)
+    call.rtl void fb_PrintString(0, %313, 1)
+    br if.join49
+  if.else51:
+    br if.join49
+  tup.rhs52:
+    %293 = load @$tmp38
+    %294 = load @$tmp39
+    %295 = field.addr %293, 4
+    %296 = field.addr %294, 4
+    %297 = load %295
+    %298 = load %296
+    %299 = icmp.eq %297, %298
+    %300 = neg %299
+    store @$tmp40, %300
+    br tup.join54
+  tup.short53:
+    %301 = const i32 0
+    store @$tmp40, %301
+    br tup.join54
+  tup.join54:
+    %302 = load @$tmp40
+    condbr %302, tup.rhs55, tup.short56
+  tup.rhs55:
+    %303 = load @$tmp38
+    %304 = load @$tmp39
+    %305 = field.addr %303, 8
+    %306 = field.addr %304, 8
+    %307 = load %305
+    %308 = load %306
+    %309 = icmp.eq %307, %308
+    %310 = neg %309
+    store @$tmp40, %310
+    br tup.join57
+  tup.short56:
+    %311 = const i32 0
+    store @$tmp40, %311
+    br tup.join57
+  tup.join57:
+    %312 = load @$tmp40
+    condbr %312, if.then50, if.else51
+  if.join58:
+    call void _ZN9$TUP:6:15D1Ev(@s3)
+    call void _ZN9$TUP:6:15D1Ev(@s2)
+    call void _ZN9$TUP:6:15D1Ev(@s1)
+    %345 = const i32 0
+    call.rtl void fb_End(%345)
+    %346 = load @$tmp0
+    ret %346
+  if.then59:
+    %344 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str9, 3)
+    call.rtl void fb_PrintString(0, %344, 1)
+    br if.join58
+  if.else60:
+    br if.join58
+  tup.rhs61:
+    %324 = load @$tmp41
+    %325 = load @$tmp42
+    %326 = field.addr %324, 4
+    %327 = field.addr %325, 4
+    %328 = load %326
+    %329 = load %327
+    %330 = icmp.ne %328, %329
+    %331 = neg %330
+    store @$tmp43, %331
+    br tup.join63
+  tup.short62:
+    %332 = const i32 -1
+    store @$tmp43, %332
+    br tup.join63
+  tup.join63:
+    %333 = load @$tmp43
+    condbr %333, tup.short65, tup.rhs64
+  tup.rhs64:
+    %334 = load @$tmp41
+    %335 = load @$tmp42
+    %336 = field.addr %334, 8
+    %337 = field.addr %335, 8
+    %338 = load %336
+    %339 = load %337
+    %340 = icmp.ne %338, %339
+    %341 = neg %340
+    store @$tmp43, %341
+    br tup.join66
+  tup.short65:
+    %342 = const i32 -1
+    store @$tmp43, %342
+    br tup.join66
+  tup.join66:
+    %343 = load @$tmp43
+    condbr %343, if.then59, if.else60
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void _ZN9$TUP:6:15C1Ev($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare void _ZN9$TUP:6:15D1Ev($0)
+declare void fb_End($0)
+func void _ZN9$TUP:6:15C1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 8
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
+func void _ZN9$TUP:6:15D1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 8
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 3 functions, 69 blocks, 448 insts, 0 statements not lowered, 0 scope imbalance

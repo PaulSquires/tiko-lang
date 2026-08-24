@@ -41,7 +41,7 @@ end function
 declare function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
       byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
-      byval depth as long ) as boolean
+      byval depth as long, byref fts as FB.Array( of ulong ) ) as boolean
 
 '' 'type<P>( 5, 6 )' AS A VALUE, not as an initialiser -- an argument, a parameter
 '' default, anything that is not the right-hand side of a declaration. fbc builds a
@@ -135,7 +135,10 @@ function LowerUdtParenInit_ _
     '' one aggregate slot.
     dim as FB.Array( of ulong ) fOff
     dim as FB.Array( of ulong ) fTy
-    if FlattenUdtFields_( c, t, 0, fOff, fTy, 0 ) = false then return false
+    '' The FRONTEND type of each leaf, beside its MIR one: a var-length STRING leaf is
+    '' written by a runtime call and not by a store, and only this tells one.
+    dim as FB.Array( of ulong ) fFt
+    if FlattenUdtFields_( c, t, 0, fOff, fTy, 0, fFt ) = false then return false
     dim as long fCount = fOff.Count
     if fCount <= 0 then return false
 
@@ -163,10 +166,20 @@ function LowerUdtParenInit_ _
     dim as FB.Array( of ulong ) vals
     dim as FB.Array( of ulong ) vOff
     dim as long cur = 0
+    '' A STRING LEAF is recorded by its NODE and written at the store site, because it
+    '' takes fb_StrInit rather than a store and there is no value to hold here.
+    dim as FB.Array( of ulong ) sNode
+    dim as FB.Array( of ulong ) sOff
     for i as long = 0 to vCount - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
         if cur >= fCount then return false
         dim as MirType fmt = cast( MirType, fTy[cur] )
+        if IsStringType( c, cast( Tko.TypeId, fFt[cur] ) ) then
+            sNode.Push( cast( ulong, e ) )
+            sOff.Push( fOff[cur] )
+            cur += 1
+            continue for
+        end if
         dim as MirValue v = LowerExpr( c, e )
         if v.kind = cast( ubyte, MV_NONE ) then return false
         dim as long span = 1
@@ -198,7 +211,10 @@ function LowerUdtParenInit_ _
         cur += span
     next
 
-    for i as long = 0 to vCount - 1
+    '' OVER THE VALUES ACTUALLY RECORDED, not over the value COUNT: a string leaf is
+    '' held aside and records nothing here, so counting the written values instead left
+    '' the loop reading one entry past the end and emitting a store with no operand.
+    for i as long = 0 to cast( long, vOff.Count ) - 1
         dim as MirInst fa
         fa.op = cast( ushort, M_FIELD_ADDR )
         fa.ty = cast( ubyte, MT_PTR )
@@ -216,6 +232,23 @@ function LowerUdtParenInit_ _
         st.a = addr
         st.b = v
         Emit( c, st )
+    next
+
+    '' ...AND THE STRING LEAVES, after the scalar stores. Each is an fb_StrInit into a
+    '' descriptor that has just been zeroed by the caller, which is what a declaration
+    '' does. One that will not lower declines with the scalars already written -- the
+    '' one place this file's "lower everything first" rule cannot hold, because the
+    '' string assignment IS the lowering and it emits as it goes.
+    for i as long = 0 to sNode.Count - 1
+        dim as MirInst sfa
+        sfa.op = cast( ushort, M_FIELD_ADDR )
+        sfa.ty = cast( ubyte, MT_PTR )
+        sfa.a = base_
+        sfa.imm = cast( long, sOff[i] )
+        dim as MirValue saddr = Emit( c, sfa )
+        if saddr.kind = cast( ubyte, MV_NONE ) then return false
+        if LowerStringAssignTo( c, saddr, Tko.NODE_NONE, _
+                                cast( Tko.NodeId, sNode[i] ) ) = false then return false
     next
 
     '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first
@@ -257,7 +290,7 @@ end function
 function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
       byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
-      byval depth as long ) as boolean
+      byval depth as long, byref fts as FB.Array( of ulong ) ) as boolean
 
     if depth > 8 then return false
     dim as long ui = c.udts->Find( t )
@@ -289,16 +322,29 @@ function FlattenUdtFields_ _
                 for k as long = 0 to total - 1
                     offs.Push( cast( ulong, base_ + fld->offset + k * esz ) )
                     tys.Push( cast( ulong, emt ) )
+                    fts.Push( cast( ulong, et ) )
                 next
+                continue for
+            end if
+            '' A VAR-LENGTH STRING FIELD IS A LEAF, not a structure to walk into: its
+            '' descriptor is an aggregate, but it is written by fb_StrInit and not by a
+            '' store, so it is carried through with its FRONTEND type and the store site
+            '' does the right thing with it. Refusing it declined every tuple and every
+            '' UDT literal holding a string.
+            if IsStringType( c, fld->type_ ) then
+                offs.Push( cast( ulong, base_ + fld->offset ) )
+                tys.Push( cast( ulong, fmt ) )
+                fts.Push( cast( ulong, fld->type_ ) )
                 continue for
             end if
             if c.types->Kind( fld->type_ ) <> Tko.TK_UDT then return false
             if FlattenUdtFields_( c, fld->type_, base_ + fld->offset, offs, tys, _
-                                  depth + 1 ) = false then return false
+                                  depth + 1, fts ) = false then return false
         else
             if fmt = MT_VOID then return false
             offs.Push( cast( ulong, base_ + fld->offset ) )
             tys.Push( cast( ulong, fmt ) )
+            fts.Push( cast( ulong, fld->type_ ) )
         end if
     next
     return true
@@ -354,6 +400,9 @@ function FoldAggInit_ _
 
     dim as FB.Array( of ulong ) fOff
     dim as FB.Array( of ulong ) fTy
+    '' The FRONTEND type of each leaf, beside its MIR one: a var-length STRING leaf is
+    '' written by a runtime call and not by a store, and only this tells one.
+    dim as FB.Array( of ulong ) fFt
     '' A FIXED ARRAY OF SCALARS IS ITS OWN LEAF LIST -- 'static as long t( 0 to 3 ) =
     '' { 1, 2, 3, 4 }' is 'static int32 T$0[4] = { 1, 2, 3, 4 }', a byte image exactly
     '' as a static UDT is. FlattenUdtFields_ answers only for a UDT, so every constant
@@ -371,7 +420,7 @@ function FoldAggInit_ _
             fOff.Push( cast( ulong, k * esz ) )
             fTy.Push( cast( ulong, emt ) )
         next
-    elseif FlattenUdtFields_( c, t, 0, fOff, fTy, 0 ) = false then
+    elseif FlattenUdtFields_( c, t, 0, fOff, fTy, 0, fFt ) = false then
         return false
     end if
     dim as FB.Array( of ulong ) vNode

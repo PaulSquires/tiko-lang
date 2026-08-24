@@ -254,6 +254,11 @@ function LowerExpr _
         dim as MirValue uov
         if LowerUserBinaryOp_( c, id, bp, mt, uov ) then return uov
 
+        '' TUPLE EQUALITY is a SHORT-CIRCUIT CHAIN over the elements, not a comparison
+        '' of two objects -- see LowerTupleCompare for the shape fbc emits.
+        dim as MirValue tcv
+        if LowerTupleCompare( c, id, bp, tk, tcv ) then return tcv
+
 
         '' ANDALSO and ORELSE must not evaluate the right side unless they have to,
         '' so they are control flow, not an opcode.
