@@ -1,0 +1,18 @@
+'' A BYVAL VAR-LENGTH STRING PARAMETER IS A POINTER to a descriptor the CALLER builds,
+'' assigns into and deletes. Measured:
+''
+''     memset( &TMP$4$0, 0, 24 );
+''     fb_StrAssign( &TMP$4$0, -1, &V$0, -1, 0 );
+''     TAKEBYVALSTRING( &TMP$4$0 );
+''     fb_StrDelete( &TMP$4$0 );
+''
+'' Passing the descriptor BY VALUE, which is what this did, gave the callee a second
+'' owner of the caller's buffer: a callee that appends to its parameter reallocated it
+'' and left the caller's descriptor dangling, and the caller then deleted the freed
+'' pointer. It lowered and it verified. USTRING is the same shape through the U
+'' entry points.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

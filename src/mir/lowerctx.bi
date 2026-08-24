@@ -699,6 +699,11 @@ declare function EmitRtl _
     declare function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ParamIsIndirectUdt_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+    '' ...and a byval var-length STRING parameter, which is the same shape with the
+    '' string runtime doing the copying.
+    declare function ByvalStrIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ParamIsIndirectStr_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
     declare function NeedsDtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare sub EmitCtorPrologue_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _

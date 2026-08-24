@@ -7,6 +7,13 @@
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
+declare function ByvalStrTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long ) as boolean
+declare sub DeleteStrArgTemps_ _
+    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
+      byref types as FB.Array( of ulong ) )
+
 
 declare function ByvalUdtCopyArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
@@ -175,6 +182,10 @@ function LowerCallParts _
     '' AFTER the call returns and so cannot be dealt with where they are made.
     dim as FB.Array( of ulong ) tempSlots
     dim as FB.Array( of ulong ) tempTypes
+    '' ...and the STRING descriptors, which are released with the runtime rather than
+    '' with a destructor.
+    dim as FB.Array( of ulong ) strTemps
+    dim as FB.Array( of ulong ) strTempTypes
     dim as long tempSlot = -1
     dim as Tko.TypeId tempType = Tko.TYPE_NONE
 
@@ -370,6 +381,26 @@ function LowerCallParts _
             '' Passing the AGGREGATE, which is what this did, gave the callee a bitwise
             '' copy: over a type holding a string, two objects owning one buffer and
             '' both released. It lowered and it verified.
+            '' A BYVAL VAR-LENGTH STRING ARGUMENT IS A COPY THE CALLER BUILDS, in a
+            '' descriptor of its own that it deletes after the call. Measured:
+            ''
+            ''     memset( &TMP$4$0, 0, 24 );
+            ''     fb_StrAssign( &TMP$4$0, -1, &V$0, -1, 0 );
+            ''     TAKEBYVALSTRING( &TMP$4$0 );
+            ''     fb_StrDelete( &TMP$4$0 );
+            if ParamIsIndirectStr_( c, callee, i ) then
+                dim as Tko.TypeId spt = ParamTypeAt( c, callee, i )
+                if ByvalStrTemp_( c, argNode, spt, a, tempSlot ) = false then
+                    c.blameNode = cast( ulong, argNode )
+                    return v
+                end if
+                strTemps.Push( cast( ulong, tempSlot ) )
+                strTempTypes.Push( cast( ulong, spt ) )
+                argv.Push( cast( ulong, a.kind ) )
+                argv.Push( cast( ulong, a.id ) )
+                continue for
+            end if
+
             if ParamIsIndirectUdt_( c, callee, i ) then
                 if ByvalUdtCopyArg_( c, argNode, ParamTypeAt( c, callee, i ), _
                                      a, tempSlot, tempType ) = false then
@@ -466,6 +497,7 @@ function LowerCallParts _
                 vc.count = n
                 dim as MirValue vr = Emit( c, vc )
                 DestroyArgTemps_( c, tempSlots, tempTypes )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes )
                 if sretTmp.kind <> cast( ubyte, MV_NONE ) then
                     return LowerExprLoad( c, sretTmp, MT_AGG )
                 end if
@@ -504,6 +536,7 @@ function LowerCallParts _
         ic.count = n
         dim as MirValue iv = Emit( c, ic )
         DestroyArgTemps_( c, tempSlots, tempTypes )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes )
         return iv
     end if
 
@@ -530,6 +563,7 @@ function LowerCallParts _
     ins.callee = fidx
     dim as MirValue cv = Emit( c, ins )
     DestroyArgTemps_( c, tempSlots, tempTypes )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes )
 
     '' The RESULT is the VALUE in the temporary the callee filled in, not the pointer
     '' the call returned. An aggregate variable's value is a whole-aggregate load in
@@ -753,6 +787,48 @@ private sub DestroyArgTemps_ _
         else
             CallImplicitDtor_( c, t, a )
         end if
+    next
+end sub
+
+
+'' THE CALLER-BUILT DESCRIPTOR for one byval var-length string argument: zeroed,
+'' assigned from the source, and passed by ADDRESS. The slot comes back so the call
+'' site can delete it afterwards.
+private function ByvalStrTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long ) as boolean
+
+    outSlot = -1
+    if argNode = Tko.NODE_NONE then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+    ZeroStrDescriptor( c, dst )
+    '' The same assignment a 'dim as string s = expr' makes, so every source shape --
+    '' a literal, a fixed-length string, a concatenation, a wide value -- reaches the
+    '' entry point it already had.
+    if LowerStringAssignToSlot( c, slot, argNode ) = false then return false
+    outSlot = slot
+    outa = dst
+    return true
+end function
+
+'' ...and their release, after the call returns.
+private sub DeleteStrArgTemps_ _
+    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
+      byref types as FB.Array( of ulong ) )
+
+    for k as long = slots.Count - 1 to 0 step -1
+        dim as MirValue a
+        a.kind = cast( ubyte, MV_LOCAL )
+        a.ty = cast( ubyte, MT_PTR )
+        a.id = cast( long, slots[k] )
+        dim as FB.Array( of ulong ) args
+        args.Push( cast( ulong, a.kind ) ) : args.Push( cast( ulong, a.id ) )
+        EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, types[k] ), RTL_STR_DELETE ), args )
     next
 end sub
 

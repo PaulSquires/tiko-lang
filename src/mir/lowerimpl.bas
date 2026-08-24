@@ -961,6 +961,24 @@ function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     return (c.types->Unqualify( pt ) = c.types->Unqualify( t ))
 end function
 
+'' A BYVAL VAR-LENGTH STRING PARAMETER IS INDIRECT TOO, and for the same reason: the
+'' callee gets a descriptor of its OWN, built by the caller.
+''
+'' Measured -- 'void TAKEBYVALSTRING( FBSTRING* )', and around the call
+''
+''     memset( &TMP$4$0, 0, 24 );
+''     fb_StrAssign( &TMP$4$0, -1, &V$0, -1, 0 );
+''     TAKEBYVALSTRING( &TMP$4$0 );
+''     fb_StrDelete( &TMP$4$0 );
+''
+'' -- so the argument is COPIED. Passing the descriptor by value, which is what this
+'' did, gave the callee a second owner of the caller's buffer: a callee that appends
+'' to its parameter reallocated it and left the caller's descriptor dangling, and the
+'' caller then deleted the freed pointer. It lowered and it verified.
+function ByvalStrIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    return IsStringType( c, t )
+end function
+
 '' The same question about a PARAMETER, which needs the passing mode as well as the
 '' type: a BYREF parameter is already a pointer and is not this.
 function ParamIsIndirectUdt_ _
@@ -969,6 +987,14 @@ function ParamIsIndirectUdt_ _
     if ParamIsByref( c, callee, idx ) then return false
     if ParamIsArray( c, callee, idx ) then return false
     return ByvalUdtIndirect_( c, ParamTypeAt( c, callee, idx ) )
+end function
+
+function ParamIsIndirectStr_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+
+    if ParamIsByref( c, callee, idx ) then return false
+    if ParamIsArray( c, callee, idx ) then return false
+    return ByvalStrIndirect_( c, ParamTypeAt( c, callee, idx ) )
 end function
 
 end namespace

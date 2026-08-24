@@ -24,3 +24,14 @@ end function
 
 dim as string s = "abc"
 print fu( ).a, fl( ), fz( s ), fz2( s )
+
+'' A BYVAL VAR-LENGTH STRING PARAMETER is a POINTER to a copy the caller builds and
+'' deletes -- the callee owns a descriptor of its own.
+sub takeByvalString( byval t as string )
+    t = t + "x"
+    print t
+end sub
+
+dim as string v = "a"
+takeByvalString( v )
+print v

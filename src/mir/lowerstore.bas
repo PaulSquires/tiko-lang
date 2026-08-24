@@ -83,7 +83,11 @@ function LocalFor _
         '' AND SO DOES A BYVAL NON-TRIVIAL UDT PARAMETER. fbc passes one as a POINTER
         '' to a copy the CALLER built -- 'void T3( struct $2S1* V$1 )' -- so the slot
         '' holds that address and not the object.
-        if ByvalUdtIndirect_( c, s->type_ ) then
+        '' ...and a byval VAR-LENGTH STRING parameter, whose descriptor the caller
+        '' builds and owns: 'void TAKEBYVALSTRING( FBSTRING* )'.
+        dim as boolean indirectHere = ByvalUdtIndirect_( c, s->type_ )
+        indirectHere = indirectHere orelse ByvalStrIndirect_( c, s->type_ )
+        if indirectHere then
             l.ty = cast( ubyte, MT_PTR )
             indirectUdtParam = true
         end if
@@ -983,7 +987,9 @@ function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
                 '' A BYVAL NON-TRIVIAL UDT PARAMETER'S SLOT HOLDS AN ADDRESS TOO --
                 '' the caller built the copy and passed a pointer to it -- so every
                 '' read, write and '@' of the parameter goes through this one load.
-                if ByvalUdtIndirect_( c, cs->type_ ) then
+                dim as boolean indirectP = ByvalUdtIndirect_( c, cs->type_ )
+                indirectP = indirectP orelse ByvalStrIndirect_( c, cs->type_ )
+                if indirectP then
                     return LowerExprLoad( c, v, MT_PTR )
                 end if
             end if
