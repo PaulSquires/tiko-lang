@@ -89,7 +89,7 @@ func void P() {
     %57 = const i64 1
     %58 = ptr.add @a, %57
     %59 = load %58
-    %60 = sext %59
+    %60 = zext %59
     store @n, %60
     %61 = const i64 -9223372036854775776
     %62 = call.rtl ptr fb_StrAllocTempDescF(@a, %61)

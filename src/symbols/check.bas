@@ -1016,7 +1016,9 @@ function TypeOf_ _
                     '' Only the ARRAY spelling had a case, so 's[i]' over a plain
                     '' string was UNTYPED -- and an untyped target is what makes an
                     '' assignment decline rather than store somewhere wrong.
-                    if c.types->BuiltinOf( c.types->Unqualify( pt ) ) = Tko.TY_USTRING then
+                    dim as Tko.BuiltinType sb = _
+                        c.types->BuiltinOf( c.types->Unqualify( pt ) )
+                    if (sb = Tko.TY_USTRING) orelse (sb = Tko.TY_FIXUSTR) then
                         t = c.types->Builtin( Tko.TY_USHORT )
                     else
                         t = c.types->Builtin( Tko.TY_UBYTE )
@@ -1031,7 +1033,16 @@ function TypeOf_ _
                     if el <> Tko.TYPE_NONE then
                         if c.types->Kind( el ) = Tko.TK_BUILTIN then
                             select case c.types->BuiltinOf( el )
-                            case Tko.TY_ZSTRING : t = c.types->Builtin( Tko.TY_UBYTE )
+                            '' ...AND TY_FIXSTR, which is what 'string * N' is an
+                            '' array OF. It fell to the default below and came out
+                            '' with the element's own type, so 's[ 0 ]' over one was
+                            '' a fixstr rather than a character -- and the assignment
+                            '' through it declined while the read printed nothing.
+                            '' Measured: fbc subscripts it exactly as it does a
+                            '' zstring, '*(uint8*)ONE$0', and prints the result with
+                            '' fb_PrintUByte.
+                            case Tko.TY_ZSTRING, Tko.TY_FIXSTR
+                                t = c.types->Builtin( Tko.TY_UBYTE )
                             case Tko.TY_WSTRING, Tko.TY_FIXUSTR
                                 t = c.types->Builtin( Tko.TY_USHORT )
                             case else           : t = el

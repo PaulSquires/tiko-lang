@@ -73,6 +73,7 @@ function LowerStrRvalue _
     '' WHICH ENTRY POINT, decided before anything is emitted: StrDescriptorOf_ may
     '' emit a call of its own, and a decline afterwards would leave it behind.
     dim as RtlId r = RTL_NONE
+    dim as boolean secondIsMode = false      '' the trailing int32 case mode
     dim as boolean secondIsStr = false
     select case nm
     case "trim", "ltrim", "rtrim"
@@ -109,11 +110,16 @@ function LowerStrRvalue _
     case "mid"
         if (cp->count < 2) orelse (cp->count > 3) then return false
         r = RTL_STR_MID
+    '' THE SECOND ARGUMENT IS THE CASE MODE, and it is written: 'ucase( s, 1 )' is
+    '' 'fb_StrUcase2( &S$0, 1 )'. Accepting only the one-argument form declined every
+    '' call that names it, and string/case.bas names it in all of them.
     case "ucase"
-        if cp->count <> 1 then return false
+        if (cp->count < 1) orelse (cp->count > 2) then return false
+        secondIsMode = true
         r = RTL_STR_UCASE
     case "lcase"
-        if cp->count <> 1 then return false
+        if (cp->count < 1) orelse (cp->count > 2) then return false
+        secondIsMode = true
         r = RTL_STR_LCASE
     case else
         return false
@@ -134,7 +140,10 @@ function LowerStrRvalue _
         else
             dim as MirValue n1 = LowerExpr( c, a1 )
             if n1.kind = cast( ubyte, MV_NONE ) then return false
-            n1 = Coerce( c, n1, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            '' A COUNT is 64-bit; the case MODE is the int32 fbc declares.
+            dim as MirType nw = MT_I64
+            if secondIsMode then nw = MT_I32
+            n1 = Coerce( c, n1, nw, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
             args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
         end if
     end if
@@ -152,7 +161,7 @@ function LowerStrRvalue _
             args.Push( cast( ulong, MV_CONST_INT ) )
             args.Push( cast( ulong, cast( ulongint, -1 ) ) )
         end if
-    elseif (r = RTL_STR_UCASE) orelse (r = RTL_STR_LCASE) then
+    elseif secondIsMode andalso (a1 = Tko.NODE_NONE) then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
 

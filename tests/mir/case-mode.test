@@ -1,0 +1,17 @@
+'' UCASE and LCASE take the case MODE as a written second argument -- measured,
+'' 'ucase( s, 1 )' is 'fb_StrUcase2( &S$0, 1 )' and 'ucase( w, 1 )' is
+'' 'fb_WstrUcase2( (uint16*)V$0, 1 )' -- and 0 only when the call omits it. Both
+'' halves accepted the one-argument form alone, so every call that names the mode
+'' declined; string/case.bas names it in all of them.
+''
+'' And 'string * N' subscripted is its CHARACTER, unsigned, exactly as 'zstring * N'
+'' is: 'string * N' is an array of TY_FIXSTR, which fell through the element table's
+'' default and came out with the element's own type -- so 's[ 0 ] = 65' declined and
+'' 'print s[ 0 ]' printed nothing. fbc writes '*(uint8*)ONE$0' and fb_PrintUByte.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/case-mode.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_PrintUByte
+'' GOLDEN: expected/case-mode.out

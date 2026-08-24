@@ -829,6 +829,7 @@ function LowerWideRvalue _
 
     dim as RtlId r = RTL_NONE
     dim as boolean secondIsWide = false      '' else it is a count
+    dim as boolean secondIsMode = false      '' ...or a 32-bit case mode
     select case nm
     case "trim", "ltrim", "rtrim"
         secondIsWide = true
@@ -864,11 +865,17 @@ function LowerWideRvalue _
     case "mid"
         if (cp->count < 2) orelse (cp->count > 3) then return false
         r = RTL_WSTR_MID
+    '' THE SECOND ARGUMENT IS THE CASE MODE, and it is written: fbc emits
+    '' 'fb_WstrUcase2( (uint16*)V$0, 1 )' for 'ucase( v, 1 )' and passes 0 only when
+    '' the call omits it. Accepting the one-argument form alone made every
+    '' 'ucase( w, 1 )' decline -- which is how string/case.bas writes all of them.
     case "ucase"
-        if cp->count <> 1 then return false
+        if (cp->count < 1) orelse (cp->count > 2) then return false
+        secondIsMode = true
         r = RTL_WSTR_UCASE
     case "lcase"
-        if cp->count <> 1 then return false
+        if (cp->count < 1) orelse (cp->count > 2) then return false
+        secondIsMode = true
         r = RTL_WSTR_LCASE
     case else
         return false
@@ -885,10 +892,13 @@ function LowerWideRvalue _
             args.Push( cast( ulong, s1.kind ) ) : args.Push( cast( ulong, s1.id ) )
         else
             '' left/right/mid take a 64-bit COUNT; the source expression is whatever
-            '' integer width the program used, so it is widened here.
+            '' integer width the program used, so it is widened here. The case mode
+            '' is an int32 instead, which is the width fbc declares.
             dim as MirValue n1 = LowerExpr( c, a1 )
             if n1.kind = cast( ubyte, MV_NONE ) then return false
-            n1 = Coerce( c, n1, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            dim as MirType nw = MT_I64
+            if secondIsMode then nw = MT_I32
+            n1 = Coerce( c, n1, nw, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
             args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
         end if
     end if
@@ -906,8 +916,8 @@ function LowerWideRvalue _
             args.Push( cast( ulong, MV_CONST_INT ) )
             args.Push( cast( ulong, cast( ulongint, -1 ) ) )
         end if
-    elseif (r = RTL_WSTR_UCASE) orelse (r = RTL_WSTR_LCASE) then
-        '' The trailing int32 is the case-mode; fbc passed 0 in every probe.
+    elseif secondIsMode andalso (a1 = Tko.NODE_NONE) then
+        '' The trailing int32 is the case mode, 0 when the call omits it.
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
 
