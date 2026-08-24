@@ -1171,6 +1171,10 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             '' for a call that had just been emitted elsewhere.
             dim as long beforeB = c.curBlock
             dim as long beforeN = c.f->blocks[c.curBlock].insts.Count
+            '' AND WHETHER A CALL GAVE UP, which the instruction count cannot tell:
+            '' the ARGUMENTS are lowered before the call can fail, so a statement whose
+            '' call was never emitted looked exactly like one that lowered.
+            c.lastCallOk = true
             '' 'W( 1, 2 )' is an expression; 'W 1, 2' is this statement's own callee
             '' and children, and looks nothing like a call node.
             if c.ast->Kind( sp->a ) = Tko.N_CALL then
@@ -1206,6 +1210,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
             if deliberateNoOp then
                 '' nothing to emit, and nothing to count
+            elseif c.lastCallOk = false then
+                SkipHere( c )
+                CountUnlowredCall( c, sp->a )
             elseif (c.curBlock = beforeB) andalso _
                    (c.f->blocks[c.curBlock].insts.Count = beforeN) then
                 SkipHere( c )

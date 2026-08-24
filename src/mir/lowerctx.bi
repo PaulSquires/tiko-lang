@@ -114,6 +114,12 @@ type Ctx
     '' A BYREF RESULT: the slot holds an ADDRESS, and 'function = expr' stores the
     '' address of expr rather than its value.
     as boolean              byrefResult
+    '' WHETHER THE LAST CALL LOWERED. Read by the statement dispatcher, because a
+    '' call's arguments are emitted before the call can fail and an instruction count
+    '' therefore cannot tell a dropped call from a lowered one. Calls NEST, and the
+    '' OUTERMOST is the last to write it -- which is the one the statement is asking
+    '' about, and why this is a flag rather than a counter.
+    as boolean              lastCallOk
     as long                 sretParam
     as long                 dataHead
     as FB.Array( of ulong ) dataLabelName

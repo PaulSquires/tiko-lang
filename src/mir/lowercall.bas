@@ -7,6 +7,8 @@
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
+declare function CallFailed_( byref c as Ctx, byref v as MirValue ) as MirValue
+
 declare function ByvalStrTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long ) as boolean
@@ -152,8 +154,8 @@ function LowerCallParts _
     if LowerBuiltinProc( c, calleeNode, argFirst, argCount, bv ) then return bv
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if callee = Tko.SYMBOL_NONE then return v
-    if cs = 0 then return v
+    if callee = Tko.SYMBOL_NONE then return CallFailed_( c, v )
+    if cs = 0 then return CallFailed_( c, v )
 
     '' A CALL THROUGH A PROCEDURE POINTER. 'dim as sub( ) p = procptr( f ) : p( )'
     '' names a VARIABLE, not a procedure, so there is no function to look up and
@@ -169,7 +171,7 @@ function LowerCallParts _
         end if
         '' Anything else that is not a procedure is not callable, and was already
         '' declining here.
-        if viaPointer = false then return v
+        if viaPointer = false then return CallFailed_( c, v )
     end if
 
     '' Arguments are collected LOCALLY and pushed to the shared pool in one run at the
@@ -207,7 +209,7 @@ function LowerCallParts _
         if UsesSretReturn( c, cs->type_ ) then
             dim as long tslot = _
                 NewTempLocal( c, MT_AGG, SizeOfType( c, cs->type_ ) )
-            if tslot < 0 then return v
+            if tslot < 0 then return CallFailed_( c, v )
             if TypeNeedsDtor_( c, cs->type_ ) then
                 c.udtTemps.Push( cast( ulong, tslot ) )
                 c.udtTempTypes.Push( cast( ulong, cs->type_ ) )
@@ -264,7 +266,7 @@ function LowerCallParts _
         if argNode = Tko.NODE_NONE then
             '' Nothing written and no default: the call is short and the callee would
             '' read the stack. Declining says so.
-            if i >= argCount then return v
+            if i >= argCount then return CallFailed_( c, v )
         end if
         dim as boolean wantsRef = ParamIsByref( c, callee, i ) andalso (forcedByval = false)
 
@@ -312,10 +314,10 @@ function LowerCallParts _
             if StrDescriptorOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
         elseif wantsWide then
             if WideOperand_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
-            if a.kind = cast( ubyte, MV_NONE ) then return v
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
         elseif wantsZ then
             if ZstrDataOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
-            if a.kind = cast( ubyte, MV_NONE ) then return v
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
         elseif wantsRef then
             a = LowerAddr( c, argNode )
             '' AN ARGUMENT WITH NO ADDRESS -- a literal, a computed value, or the
@@ -338,7 +340,7 @@ function LowerCallParts _
             end if
             '' Still nothing: decline, rather than pass something that is not the
             '' variable the callee will write through.
-            if a.kind = cast( ubyte, MV_NONE ) then return v
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
         else
             '' A STRING PASSED TO A 'zstring ptr' PARAMETER IS ITS DATA POINTER.
             '' Measured: fbc writes 'F( (char*)*(char**)&S )', and for an rvalue it
@@ -368,7 +370,7 @@ function LowerCallParts _
             if wantsWPtr then
                 if WideOperand_( c, argNode, a ) = false then
                     c.blameNode = cast( ulong, argNode )
-                    return v
+                    return CallFailed_( c, v )
                 end if
                 argv.Push( cast( ulong, a.kind ) )
                 argv.Push( cast( ulong, a.id ) )
@@ -391,12 +393,12 @@ function LowerCallParts _
                     dim as Tko.TypeId zpt = c.info->TypeOf_( argNode )
                     if ByvalStrTemp_( c, argNode, zpt, zt, tempSlot ) = false then
                         c.blameNode = cast( ulong, argNode )
-                        return v
+                        return CallFailed_( c, v )
                     end if
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, zpt ) )
                     a = LowerExprLoad( c, zt, MT_PTR )
-                    if a.kind = cast( ubyte, MV_NONE ) then return v
+                    if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
                 end if
                 argv.Push( cast( ulong, a.kind ) )
                 argv.Push( cast( ulong, a.id ) )
@@ -430,7 +432,7 @@ function LowerCallParts _
                 dim as Tko.TypeId spt = ParamTypeAt( c, callee, i )
                 if ByvalStrTemp_( c, argNode, spt, a, tempSlot ) = false then
                     c.blameNode = cast( ulong, argNode )
-                    return v
+                    return CallFailed_( c, v )
                 end if
                 strTemps.Push( cast( ulong, tempSlot ) )
                 strTempTypes.Push( cast( ulong, spt ) )
@@ -443,7 +445,7 @@ function LowerCallParts _
                 if ByvalUdtCopyArg_( c, argNode, ParamTypeAt( c, callee, i ), _
                                      a, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
-                    return v
+                    return CallFailed_( c, v )
                 end if
                 if tempSlot >= 0 then
                     tempSlots.Push( cast( ulong, tempSlot ) )
@@ -463,7 +465,7 @@ function LowerCallParts _
             '' invocation and point at the work.
             if a.kind = cast( ubyte, MV_NONE ) then
                 c.blameNode = cast( ulong, argNode )
-                return v
+                return CallFailed_( c, v )
             end if
             '' TO THE PARAMETER'S TYPE, not the argument's. 'randomize 42' passes an
             '' INTEGER literal to a 'byval as double', and handing the callee the
@@ -535,7 +537,8 @@ function LowerCallParts _
                 vc.count = n
                 dim as MirValue vr = Emit( c, vc )
                 DestroyArgTemps_( c, tempSlots, tempTypes )
-    DeleteStrArgTemps_( c, strTemps, strTempTypes )
+                DeleteStrArgTemps_( c, strTemps, strTempTypes )
+                c.lastCallOk = true
                 if sretTmp.kind <> cast( ubyte, MV_NONE ) then
                     return LowerExprLoad( c, sretTmp, MT_AGG )
                 end if
@@ -565,7 +568,7 @@ function LowerCallParts _
         end if
 
         dim as MirValue fp = LowerExpr( c, calleeNode )
-        if fp.kind = cast( ubyte, MV_NONE ) then return v
+        if fp.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
         dim as MirInst ic
         ic.op = cast( ushort, M_CALL_IND )
         ic.ty = cast( ubyte, callTy )
@@ -574,7 +577,8 @@ function LowerCallParts _
         ic.count = n
         dim as MirValue iv = Emit( c, ic )
         DestroyArgTemps_( c, tempSlots, tempTypes )
-    DeleteStrArgTemps_( c, strTemps, strTempTypes )
+        DeleteStrArgTemps_( c, strTemps, strTempTypes )
+        c.lastCallOk = true
         return iv
     end if
 
@@ -602,6 +606,7 @@ function LowerCallParts _
     dim as MirValue cv = Emit( c, ins )
     DestroyArgTemps_( c, tempSlots, tempTypes )
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
+    c.lastCallOk = true
 
     '' The RESULT is the VALUE in the temporary the callee filled in, not the pointer
     '' the call returned. An aggregate variable's value is a whole-aggregate load in
@@ -846,9 +851,14 @@ private function ByvalStrTemp_ _
     dst.id = slot
     ZeroStrDescriptor( c, dst )
     '' The same assignment a 'dim as string s = expr' makes, so every source shape --
-    '' a literal, a fixed-length string, a concatenation, a wide value -- reaches the
-    '' entry point it already had.
-    if LowerStringAssignToSlot( c, slot, argNode ) = false then return false
+    '' a literal, a fixed-length string, a concatenation -- reaches the entry point it
+    '' already had. A WIDE source is its own conversion: measured,
+    '' 'takeByvalString( whex( n ) )' is 'fb_WstrAssignToA( &TMP, -1, TMP_wide, 0 )'
+    '' and not fb_StrAssign.
+    if LowerWideToNarrowSlot( c, slot, pt, argNode ) then
+    elseif LowerStringAssignToSlot( c, slot, argNode ) = false then
+        return false
+    end if
     outSlot = slot
     outa = dst
     return true
@@ -869,5 +879,23 @@ private sub DeleteStrArgTemps_ _
         EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, types[k] ), RTL_STR_DELETE ), args )
     next
 end sub
+
+
+'' A CALL THAT GAVE UP, counted.
+''
+'' The statement dispatcher used to ask whether the block had gained INSTRUCTIONS, and
+'' a call's ARGUMENTS are lowered before the call itself can fail -- so a statement
+'' whose call was never emitted read as fully lowered with the call missing out of the
+'' middle of it. That hid 2,632 dropped calls in ONE corpus file and 956,887
+'' instructions across the corpus, with nothing anywhere to say so.
+''
+'' A FLAG AND NOT A COUNTER, because calls NEST and an inner one may fail and then be
+'' retried by another path: 'takeByvalString( hex( 255 ) )' lowers the argument through
+'' here first, fails, and succeeds as an intrinsic. The OUTERMOST call is the last to
+'' write the flag, so what the statement reads is its own outcome.
+private function CallFailed_( byref c as Ctx, byref v as MirValue ) as MirValue
+    c.lastCallOk = false
+    return v
+end function
 
 end namespace

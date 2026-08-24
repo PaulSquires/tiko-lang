@@ -80,23 +80,29 @@ func i32 main($0, $1) {
     %17 = field.addr @$tmp3, 16
     store %17, 0
     %18 = const i64 255
-    %19 = call.rtl ptr fb_HEX_l(%18)
-    %20 = load %19
+    %19 = call.rtl ptr fb_WstrHex_l(%18)
+    %20 = call.rtl ptr fb_WstrAssignToA(@$tmp3, -1, %19, 0)
     %21 = const i64 0
-    call void TAKEZSTRINGPTR(%20, %21)
-    %22 = load @w
-    %23 = sext %22
-    %24 = bitcast %23
+    call void TAKEBYVALSTRING(@$tmp3, %21)
+    call.rtl void fb_StrDelete(@$tmp3)
+    %22 = const i64 255
+    %23 = call.rtl ptr fb_HEX_l(%22)
+    %24 = load %23
     %25 = const i64 0
     call void TAKEZSTRINGPTR(%24, %25)
-    %26 = const i64 255
-    %27 = call.rtl ptr fb_WstrHex_l(%26)
-    %28 = const i64 0
-    call void TAKEWSTRINGPTR(%27, %28)
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    %26 = load @w
+    %27 = sext %26
+    %28 = bitcast %27
+    %29 = const i64 0
+    call void TAKEZSTRINGPTR(%28, %29)
+    %30 = const i64 255
+    %31 = call.rtl ptr fb_WstrHex_l(%30)
+    %32 = const i64 0
+    call void TAKEWSTRINGPTR(%31, %32)
+    %33 = const i32 0
+    call.rtl void fb_End(%33)
+    %34 = load @$tmp0
+    ret %34
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrAssign($0, $1, $2)
@@ -104,6 +110,7 @@ declare ptr fb_HEX_l($0)
 declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare void fb_StrDelete($0)
 declare ptr fb_WstrHex_l($0)
+declare ptr fb_WstrAssignToA($0, $1, $2, $3)
 declare void fb_End($0)
 verify: ok
-lowered: 4 functions, 4 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance
