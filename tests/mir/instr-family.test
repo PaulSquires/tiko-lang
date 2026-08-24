@@ -1,0 +1,20 @@
+'' WHERE THE START POSITION SITS IS NOT THE SAME FOR THE TWO OF THEM:
+''
+''   instr( start, text, pattern )      first, and passed first
+''   instrrev( text, pattern, start )   THIRD, and passed last
+''
+'' Taking the first argument for INSTRREV read the TEXT as a start and the INDEX as a
+'' pattern, so the second descriptor could not be built and the call was DROPPED --
+'' and the statement counted itself as lowered, because its arguments had been.
+''
+'' 'instrrev( s, any p )' is its own entry point, fb_StrInstrRevAny, and was declined
+'' for want of one. The WIDE half had no lowering at all, and which family a call
+'' belongs to cannot always be read off the first operand: 'instr( ut, up )' over a UDT
+'' with a cast to wstring has no wide type anywhere in the expression, so the cast
+'' overload is what decides.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/instr-family.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/instr-family.out

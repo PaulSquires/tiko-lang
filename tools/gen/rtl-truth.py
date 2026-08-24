@@ -132,6 +132,23 @@ sub CvProbe( )
     s = mks( sg )
 end sub
 ''',
+    # INSTRREV's ANY form, narrow and wide. The start position is its THIRD argument
+    # and is passed LAST -- the opposite of INSTR, whose start is the first argument
+    # and is passed first -- and neither entry point is named after the other's.
+    "instrrevany": '''
+sub RevProbe( )
+    dim as string s, p
+    dim as wstring * 20 w, q
+    dim as integer a
+    a = instrrev( s, any p )
+    a = instrrev( s, any p, 3 )
+    a = instrrev( w, any q )
+    a = instrrev( w, q, 3 )
+    a = instr( w, q )
+    a = instr( w, any q )
+    a = instr( 2, w, q )
+end sub
+''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a
     # null check, with the destructor called first.
     "deletestmt": '''

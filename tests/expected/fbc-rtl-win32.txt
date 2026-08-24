@@ -190,6 +190,7 @@ fb_StrInit	FBSTRING*	void*, int32, void*, int32, int32	lib	_fb_StrInit@20
 fb_StrInstr	int32	int32, FBSTRING*, FBSTRING*	lib	_fb_StrInstr@12
 fb_StrInstrAny	int32	int32, FBSTRING*, FBSTRING*	lib	_fb_StrInstrAny@12
 fb_StrInstrRev	int32	FBSTRING*, FBSTRING*, int32	lib	_fb_StrInstrRev@12
+fb_StrInstrRevAny	int32	FBSTRING*, FBSTRING*, int32	lib	_fb_StrInstrRevAny@12
 fb_StrLcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrLcase2@8
 fb_StrLen	int32	void*, int32	lib	_fb_StrLen@8
 fb_StrLset	void	FBSTRING*, FBSTRING*	lib	_fb_StrLset@8
@@ -268,6 +269,10 @@ fb_WstrHex_i	uint16*	uint32	lib	_fb_WstrHex_i@4
 fb_WstrHex_l	uint16*	uint64	lib	_fb_WstrHex_l@8
 fb_WstrHex_p	uint16*	void*	lib	_fb_WstrHex_p@4
 fb_WstrHex_s	uint16*	uint16	lib	_fb_WstrHex_s@4
+fb_WstrInstr	int32	int32, uint16*, uint16*	lib	_fb_WstrInstr@12
+fb_WstrInstrAny	int32	int32, uint16*, uint16*	lib	_fb_WstrInstrAny@12
+fb_WstrInstrRev	int32	uint16*, uint16*, int32	lib	_fb_WstrInstrRev@12
+fb_WstrInstrRevAny	int32	uint16*, uint16*, int32	lib	_fb_WstrInstrRevAny@12
 fb_WstrLTrim	uint16*	uint16*	lib	_fb_WstrLTrim@4
 fb_WstrLTrimAny	uint16*	uint16*, uint16*	lib	_fb_WstrLTrimAny@8
 fb_WstrLTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrLTrimEx@8

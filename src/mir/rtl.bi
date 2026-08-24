@@ -316,7 +316,17 @@ namespace Tko.Mir
         RTL( RTL_STR_ASC,           "fb_ASC",              "l",   "pz"    )
         RTL( RTL_STR_INSTR,         "fb_StrInstr",         "z",   "zpp"   )
         RTL( RTL_STR_INSTR_ANY,     "fb_StrInstrAny",      "z",   "zpp"   )
+        '' INSTRREV'S START IS ITS THIRD ARGUMENT AND IS PASSED LAST -- the opposite of
+        '' INSTR, whose start is the first and is passed first. That asymmetry is in
+        '' the signatures below and it is measured, not inferred from the family.
         RTL( RTL_STR_INSTR_REV,     "fb_StrInstrRev",      "z",   "ppz"   )
+        RTL( RTL_STR_INSTR_REV_ANY, "fb_StrInstrRevAny",   "z",   "ppz"   )
+        '' The WIDE half. A wide string is a bare uint16*, so there is no descriptor
+        '' anywhere in these -- and the argument ORDER is the narrow family's.
+        RTL( RTL_WSTR_INSTR,        "fb_WstrInstr",        "z",   "zpp"   )
+        RTL( RTL_WSTR_INSTR_ANY,    "fb_WstrInstrAny",     "z",   "zpp"   )
+        RTL( RTL_WSTR_INSTR_REV,    "fb_WstrInstrRev",     "z",   "ppz"   )
+        RTL( RTL_WSTR_INSTR_REV_ANY,"fb_WstrInstrRevAny",  "z",   "ppz"   )
         '' VAL and its four typed siblings. Plain VAL returns a DOUBLE whatever it is
         '' assigned to: 'dim as long n = val( s )' is fb_D2I( fb_VAL( &S ) ), and
         '' fb_D2I is a MACRO over __builtin_nearbyint, so the conversion ROUNDS TO

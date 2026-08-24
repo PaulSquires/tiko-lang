@@ -627,13 +627,24 @@ function LowerStrNumCall_ _
     if (nm <> "instr") andalso (isRev = false) then return false
     if cp->count < 2 then return false
 
-    '' THE START POSITION IS THE FIRST ARGUMENT WHEN THERE ARE THREE, and the two
-    '' strings follow. With two arguments there is no start and the default is used.
+    '' WHERE THE START POSITION SITS IS NOT THE SAME FOR THE TWO OF THEM.
+    ''
+    ''   instr( start, text, pattern )      first, and passed first
+    ''   instrrev( text, pattern, start )   THIRD, and passed last
+    ''
+    '' Measured on both. Taking the first argument for INSTRREV made 'instrrev( s, p,
+    '' 3 )' read the TEXT as a start and the INDEX as a pattern, so the second
+    '' descriptor could not be built and the whole call was dropped -- 448 statements
+    '' in udt-zstring/instrrev.bas alone, and the call statement did not count them.
     dim as Tko.NodeId startE = Tko.NODE_NONE
     dim as long si = cp->first
     if cp->count = 3 then
-        startE = cast( Tko.NodeId, c.ast->children[cp->first] )
-        si += 1
+        if isRev then
+            startE = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+        else
+            startE = cast( Tko.NodeId, c.ast->children[cp->first] )
+            si += 1
+        end if
     end if
     dim as Tko.NodeId sE = cast( Tko.NodeId, c.ast->children[si] )
     dim as Tko.NodeId tE = cast( Tko.NodeId, c.ast->children[si + 1] )
@@ -649,13 +660,38 @@ function LowerStrNumCall_ _
             tE = up->operand
         end if
     end if
-    if isAny andalso isRev then return false
+    '' 'instrrev( s, any p )' IS ITS OWN ENTRY POINT, fb_StrInstrRevAny, and not a
+    '' shape INSTRREV lacks: it was declined here for want of one.
+
+    '' A WIDE OPERAND TAKES THE WIDE ENTRY POINTS, and there is no descriptor
+    '' anywhere in them: a wstring is a bare uint16*. The argument ORDER is the same
+    '' on both sides, which is why the wide half belongs here rather than in a
+    '' lowering of its own -- and INSTRREV's start sits differently from INSTR's
+    '' whichever half it is.
+    '' EITHER OPERAND DECIDES. 'instr( ut, sp )' over a UDT with a cast to wstring has
+    '' no wide TYPE on the first operand at all -- it is the UDT's -- so asking only
+    '' that one sent the whole call down the narrow path, where the descriptor cannot
+    '' be built and the call was dropped.
+    dim as boolean isWide = IsWideString_( c, c.info->TypeOf_( sE ) )
+    isWide = isWide orelse IsWideString_( c, c.info->TypeOf_( tE ) )
+    '' ...and a UDT decides by its 'operator cast'. 'instr( ut, up )' has a UDT on
+    '' BOTH sides and no wide type anywhere in the expression, so nothing but the cast
+    '' overload can say which family the call belongs to.
+    isWide = isWide orelse _
+        (WideCastOverload_( c, c.info->TypeOf_( sE ) ) <> Tko.SYMBOL_NONE)
+    isWide = isWide orelse _
+        (WideCastOverload_( c, c.info->TypeOf_( tE ) ) <> Tko.SYMBOL_NONE)
 
     '' EVERY OPERAND BEFORE ANYTHING IS EMITTED. StrDescriptorOf_ may emit a call of
     '' its own, and declining afterwards would leave it behind with nothing using it.
     dim as MirValue sd, td
-    if StrDescriptorOf_( c, sE, sd ) = false then return false
-    if StrDescriptorOf_( c, tE, td ) = false then return false
+    if isWide then
+        if WideOperand_( c, sE, sd ) = false then return false
+        if WideOperand_( c, tE, td ) = false then return false
+    else
+        if StrDescriptorOf_( c, sE, sd ) = false then return false
+        if StrDescriptorOf_( c, tE, td ) = false then return false
+    end if
     dim as MirValue stv
     if startE <> Tko.NODE_NONE then
         stv = LowerExpr( c, startE )
@@ -673,7 +709,13 @@ function LowerStrNumCall_ _
             args.Push( cast( ulong, MV_CONST_INT ) )
             args.Push( cast( ulong, cast( ulongint, -1 ) ) )
         end if
-        outv = EmitRtl( c, RTL_STR_INSTR_REV, args )
+        dim as RtlId rr = RTL_STR_INSTR_REV
+        if isAny then rr = RTL_STR_INSTR_REV_ANY
+        if isWide then
+            rr = RTL_WSTR_INSTR_REV
+            if isAny then rr = RTL_WSTR_INSTR_REV_ANY
+        end if
+        outv = EmitRtl( c, rr, args )
     else
         if startE <> Tko.NODE_NONE then
             args.Push( cast( ulong, stv.kind ) ) : args.Push( cast( ulong, stv.id ) )
@@ -682,7 +724,13 @@ function LowerStrNumCall_ _
         end if
         args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
         args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
-        outv = EmitRtl( c, iif( isAny, RTL_STR_INSTR_ANY, RTL_STR_INSTR ), args )
+        dim as RtlId fr = RTL_STR_INSTR
+        if isAny then fr = RTL_STR_INSTR_ANY
+        if isWide then
+            fr = RTL_WSTR_INSTR
+            if isAny then fr = RTL_WSTR_INSTR_ANY
+        end if
+        outv = EmitRtl( c, fr, args )
     end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
