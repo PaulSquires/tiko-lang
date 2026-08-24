@@ -27,6 +27,8 @@ func i32 main($0, $1) {
   local ptr $tmp4
   local ptr $tmp5
   local ptr $tmp6
+  local agg $tmp7 size 16
+  local ptr $tmp8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -112,13 +114,28 @@ func i32 main($0, $1) {
     %66 = field.addr %65, 0
     %67 = load %66
     call.rtl void fb_PrintInt(0, %67, 1)
-    %68 = const i32 0
-    call.rtl void fb_End(%68)
-    %69 = load @$tmp0
-    ret %69
+    %68 = alloca ptr $tmp7
+    %69 = const i64 9
+    %70 = trunc %69
+    %71 = const i64 0
+    %72 = bitcast %71
+    %73 = field.addr @$tmp7, 0
+    store %73, %70
+    %74 = field.addr @$tmp7, 8
+    store %74, %72
+    %75 = alloca ptr $tmp8
+    store @$tmp8, @$tmp7
+    %76 = load @$tmp8
+    %77 = field.addr %76, 0
+    %78 = load %77
+    call.rtl void fb_PrintInt(0, %78, 1)
+    %79 = const i32 0
+    call.rtl void fb_End(%79)
+    %80 = load @$tmp0
+    ret %80
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 98 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance

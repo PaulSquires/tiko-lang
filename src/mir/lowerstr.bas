@@ -1412,5 +1412,54 @@ function SameLValue _
     return c.info->RefOf( a ) = c.info->RefOf( b )
 end function
 
+'' 'offsetof( T, field )' -- A COMPILE-TIME INTEGER, folded from the measured layout.
+''
+'' Measured: over a type whose first two fields are INTEGERs, 'offsetof( E, i )' is 16
+'' and 'typeof' of it is INTEGER. It takes a TYPE and a FIELD NAME rather than two
+'' expressions -- neither argument has a type of its own, and the field name never
+'' resolves to anything, which is why nothing else here recognises the shape.
+''
+'' It was not implemented at all, so every use declined. structs/padding.bas is written
+'' almost entirely in terms of it.
+function LowerOffsetOf _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 2 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "offsetof" then return false
+
+    '' THE TYPE. Written as a bare name, so Resolve bound it to the UDT's own symbol
+    '' rather than typing the node.
+    dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.TypeId ut = c.info->TypeOf_( tn )
+    if ut = Tko.TYPE_NONE then
+        dim as Tko.SymbolId ts = c.info->RefOf( tn )
+        dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( ts )
+        if tsy = 0 then return false
+        ut = tsy->type_
+    end if
+    if ut = Tko.TYPE_NONE then return false
+    ut = c.types->Unqualify( ut )
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return false
+
+    '' THE FIELD, by name. It is not an expression and resolves to nothing, so the
+    '' spelling is all there is to go on -- which is what the layout store keys on too.
+    dim as Tko.NodeId fn = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    if c.ast->Kind( fn ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr fip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, fn )].data )]
+
+    dim as boolean found = false
+    dim as long off = c.udts->FieldOffset( ut, fip->name, found )
+    if found = false then return false
+    outv = ConstInt( c, off, MT_I64 )
+    return true
+end function
 
 end namespace

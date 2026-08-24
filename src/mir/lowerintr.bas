@@ -1376,6 +1376,10 @@ function LowerCallExpr_ _
     '' 'len( x )' is a runtime call for a string and a constant for anything else.
     dim as MirValue lnv
     if LowerLen( c, id, lnv ) then return lnv
+
+    '' 'offsetof( T, field )' -- a compile-time integer from the measured layout.
+    dim as MirValue oov
+    if LowerOffsetOf( c, id, oov ) then return oov
     '' int / fix / frac / abs / sgn / sqr and the transcendentals. A mix of gcc
     '' builtins, runtime calls and a plain floor -- see LowerMathCall_.
     dim as MirValue mtv

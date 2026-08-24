@@ -1056,7 +1056,8 @@ sub WalkStmt _
         dim as boolean pushed = false
         if wsp->a <> Tko.NODE_NONE then
             select case c.ast->Kind( wsp->a )
-            case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_DEREF, Tko.N_INDEX, Tko.N_CALL
+            case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_DEREF, Tko.N_INDEX, Tko.N_CALL, _
+                 Tko.N_TUPLE
                 '' N_CALL IS HOW AN ARRAY ELEMENT IS SPELLED -- 'with status( i )' --
                 '' and the parser cannot tell it from a procedure call, so the node
                 '' kind stays N_CALL through resolution. Refusing it left every member
@@ -1067,6 +1068,10 @@ sub WalkStmt _
                 '' LOWERING instead: the subject's ADDRESS is computed ONCE into a
                 '' temporary and every '.field' inside the body reads that, so a
                 '' subject with a side effect runs once, which is what fbc does.
+                ''
+                '' N_TUPLE IS 'with( type<UDT>( 123 ) )' -- a type literal, which has an
+                '' address because a temporary is built for it. The same once-evaluated
+                '' slot serves it.
                 c.withSubject.Push( cast( ulong, wsp->a ) )
                 pushed = true
             end select

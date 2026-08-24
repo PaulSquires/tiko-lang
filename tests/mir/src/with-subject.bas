@@ -62,3 +62,9 @@ with( status( slot( i ) ) )
 	.instance = @one
 	print .refcount
 end with
+
+'' A TYPE LITERAL IS A SUBJECT TOO -- 'with( type<S>( ... ) )' has an address because a
+'' temporary is built for it, and the same once-evaluated slot serves it.
+with( type<S>( 9, 0 ) )
+	print .refcount
+end with

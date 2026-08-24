@@ -127,6 +127,13 @@ private function ExprIntrinsicType_ _
 
     select case nm
     '' LEN and SIZEOF measure ANYTHING, which is the exception rather than the rule.
+    '' OFFSETOF( T, field ) IS A COMPILE-TIME INTEGER, measured -- 'offsetof( E, i )'
+    '' over a type whose first two fields are INTEGERs is 16, and 'typeof' of it is
+    '' INTEGER. It takes a TYPE and a FIELD NAME rather than two expressions, so
+    '' neither argument has a type of its own and the count is the only guard here.
+    case "offsetof"
+        if cp->count <> 2 then return Tko.TYPE_NONE
+        return c.types->Builtin( Tko.TY_INTEGER )
     case "len", "sizeof"
         return c.types->Builtin( Tko.TY_INTEGER )
     case "lbound", "ubound"
