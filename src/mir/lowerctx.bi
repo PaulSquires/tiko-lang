@@ -36,6 +36,16 @@ type Ctx
     '' The exact NODE rather than a depth, because a condition may CONTAIN a value-
     '' position comparison: 'if (a < b) + 1' negates the inner one, measured.
     as Tko.NodeId           rawCmpNode
+    '' THE OPEN 'with' SUBJECTS AND THE ADDRESS EACH WAS EVALUATED TO, innermost last.
+    ''
+    '' Resolve points every baseless '.field' at the subject's OWN NODE, which makes the
+    '' tree a DAG: one expression reached from as many places as there are members. Left
+    '' to lower itself each time, 'with( status( hFindSlot( @this ) ) )' would call
+    '' hFindSlot once per '.field'. fbc evaluates the subject ONCE, so its address is
+    '' computed once here and every use inside the body reads this instead.
+    as FB.Array( of ulong )  withNode
+    as FB.Array( of ulong )  withKind
+    as FB.Array( of ulong )  withId
     as Tko.SourceManager ptr srcMgr    '' only for the constant evaluator
     as Tko.UdtLayouts ptr   udts      '' field offsets, for member access
     '' THE SYNTHESISED STRUCTORS THIS UNIT ACTUALLY ASKED FOR. fbc emits one only

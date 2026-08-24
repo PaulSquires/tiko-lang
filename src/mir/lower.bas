@@ -1290,10 +1290,50 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' subject's own node, so the body lowers as ordinary statements and the member
         '' accesses find their base the usual way.
         ''
-        '' A subject Resolve would not accept -- anything but an lvalue, because the
-        '' base is SHARED rather than evaluated into a temporary -- leaves its members
-        '' baseless, and they decline inside the body instead of here.
-        LowerBlock( c, StmtOf( c, id )->b )
+        '' ...ONCE. The subject's ADDRESS is computed here and pushed, and LowerAddr
+        '' hands that same address back for every use of the node inside the body --
+        '' so a subject with a side effect runs once, which is what fbc does, and
+        '' 'with( status( hFindSlot( @this ) ) )' does not call hFindSlot per field.
+        ''
+        '' A subject with no address leaves the stack alone and its members decline
+        '' inside the body, which is the honest outcome and what happened before.
+        dim as Tko.StmtPayload ptr wp = StmtOf( c, id )
+        dim as boolean wpushed = false
+        if wp->a <> Tko.NODE_NONE then
+            dim as MirValue wa = LowerAddr( c, wp->a )
+            if wa.kind <> cast( ubyte, MV_NONE ) then
+                '' INTO A SLOT, not held as a value. A GOTO may jump INTO the body --
+                '' warnings/branch-cross-with is a corpus file that does exactly that,
+                '' and fbc warns about it rather than refusing it -- so a use inside is
+                '' not dominated by the definition at the top and the verifier is right
+                '' to say so. A LOCAL is not in SSA form: stored once here and loaded
+                '' at each use, which is the shape fbc emits as well.
+                dim as long wslot = NewTempLocal( c, MT_PTR, _
+                    c.types->target.pointerBits \ 8 )
+                if wslot >= 0 then
+                    dim as MirValue wdst
+                    wdst.kind = cast( ubyte, MV_LOCAL )
+                    wdst.ty = cast( ubyte, MT_PTR )
+                    wdst.id = wslot
+                    dim as MirInst wst
+                    wst.op = cast( ushort, M_STORE )
+                    wst.ty = cast( ubyte, MT_VOID )
+                    wst.a = wdst
+                    wst.b = wa
+                    Emit( c, wst )
+                    c.withNode.Push( cast( ulong, wp->a ) )
+                    c.withKind.Push( cast( ulong, MV_LOCAL ) )
+                    c.withId.Push( cast( ulong, wslot ) )
+                    wpushed = true
+                end if
+            end if
+        end if
+        LowerBlock( c, wp->b )
+        if wpushed then
+            c.withNode.Pop( )
+            c.withKind.Pop( )
+            c.withId.Pop( )
+        end if
 
     case Tko.N_END_STMT
         LowerEndStmt( c, id )

@@ -479,54 +479,6 @@ end function
 '' ------------------------------------------------------------------- walking
 
 
-'' A possibly-dotted name -- 'UDT', 'ns.UDT', 'a.b.UDT' -- resolved to its symbol.
-''
-'' Only the FIRST component is visible from the starting scope; each later one is looked
-'' up INSIDE what the previous opened. Shared by qualified type references and by
-'' BindThis, which needs the same walk for a structor defined outside its namespace.
-private function LookupDottedType_ _
-    ( byref c as Ctx, byval scope_ as Tko.ScopeId, _
-      byval path as Tko.InternId ) as Tko.SymbolId
-
-    dim as string qpath = c.names->Spelling( path )
-    dim as Tko.ScopeId sc = scope_
-    dim as boolean first_ = true
-    dim as long at = 0
-    dim as Tko.SymbolId found = Tko.SYMBOL_NONE
-
-    while at <= len( qpath )
-        dim as long dot = instr( at + 1, qpath, "." )
-        dim as long stop_ = dot
-        if stop_ = 0 then stop_ = len( qpath ) + 1
-        dim as string comp = mid( qpath, at + 1, stop_ - at - 1 )
-        if len( comp ) = 0 then return Tko.SYMBOL_NONE
-        dim as Tko.InternId cid = c.names->GetString( comp )
-
-        dim as Tko.SymbolId sid
-        if first_ then
-            sid = c.syms->Lookup( sc, cid )
-        else
-            sid = c.syms->LookupLocalTyped( sc, cid, true )
-        end if
-        dim as Tko.Symbol ptr sym = c.syms->SymbolAt( sid )
-        if sym = 0 then return Tko.SYMBOL_NONE
-        found = sid
-        first_ = false
-
-        if dot = 0 then exit while
-        '' Only a NAMESPACE or a UDT opens a scope to descend into.
-        dim as boolean opens = _
-            (sym->kind = cast( ubyte, Tko.SYM_NAMESPACE )) orelse _
-            (sym->kind = cast( ubyte, Tko.SYM_UDT ))
-        if (opens = false) orelse (sym->inner = Tko.SCOPE_NONE) then
-            return Tko.SYMBOL_NONE
-        end if
-        sc = sym->inner
-        at = dot
-    wend
-    return found
-end function
-
 '' THIS, inside a method body. Collect declares the parameter -- it is never written, so
 '' nothing else would -- and this gives it the owning type. Without it 'this.v' was
 '' untyped, 'this.M( )' lowered with no receiver at all, and every unqualified reference
@@ -535,6 +487,9 @@ end function
 '' The type comes from the enclosing scope chain rather than from the procedure's name:
 '' a member DEFINITION opens its scope inside the TYPE's, which is what makes 'this', the
 '' sibling fields and the mangled name all come out of one arrangement.
+'' A dotted type name, in its own file at the 1500-line cap.
+#include once "symbols/resolvedot.bas"
+
 private sub BindThis _
     ( byref c as Ctx, byval procScope as Tko.ScopeId, _
       byval ownerName as Tko.InternId = 0 )
@@ -1084,11 +1039,34 @@ sub WalkStmt _
         '' body declines exactly as it did before -- which is the honest outcome, not a
         '' silently doubled call.
         dim as Tko.StmtPayload ptr wsp = StmtOf( c, id )
+        '' 'with( x )' IS THE SPELLING THE CORPUS USES, and the parentheses are a node.
+        '' The subject is normalised to what is inside them so the kind test below sees
+        '' the expression itself -- and so LOWERING keys its evaluated address on the
+        '' same node the members were pointed at.
+        '' N_PAREN keeps its contents in the CHILD LIST, not in 'target' -- MakeList
+        '' builds it with no target at all -- and exactly one of them unless a comma
+        '' was written, which makes it a tuple instead.
+        while c.ast->Kind( wsp->a ) = Tko.N_PAREN
+            dim as Tko.ListPayload ptr pl2 = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, wsp->a )].data )]
+            if pl2->count <> 1 then exit while
+            wsp->a = cast( Tko.NodeId, c.ast->children[pl2->first] )
+        wend
         WalkExpr( c, wsp->a, here )
         dim as boolean pushed = false
         if wsp->a <> Tko.NODE_NONE then
             select case c.ast->Kind( wsp->a )
-            case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_DEREF, Tko.N_INDEX
+            case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_DEREF, Tko.N_INDEX, Tko.N_CALL
+                '' N_CALL IS HOW AN ARRAY ELEMENT IS SPELLED -- 'with status( i )' --
+                '' and the parser cannot tell it from a procedure call, so the node
+                '' kind stays N_CALL through resolution. Refusing it left every member
+                '' inside baseless, and 'with( status( hFindSlot( @this ) ) )' is how
+                '' structs/temp-var-dtors is written from end to end.
+                ''
+                '' The re-evaluation the comment above warns about is answered in
+                '' LOWERING instead: the subject's ADDRESS is computed ONCE into a
+                '' temporary and every '.field' inside the body reads that, so a
+                '' subject with a side effect runs once, which is what fbc does.
                 c.withSubject.Push( cast( ulong, wsp->a ) )
                 pushed = true
             end select

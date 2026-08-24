@@ -56,6 +56,22 @@ function LowerAddr _
     dim as MirValue v
     if id = Tko.NODE_NONE then return v
 
+    '' THE OPEN 'with' SUBJECT WAS ALREADY EVALUATED. Resolve points every baseless
+    '' '.field' at the subject's own node, so the node is reached once per member --
+    '' and lowering it each time would call 'with( status( hFindSlot( @this ) ) )' once
+    '' per field. fbc evaluates the subject ONCE; its address is on the stack, so this
+    '' hands the same one back.
+    for wi as long = c.withNode.Count - 1 to 0 step -1
+        if cast( Tko.NodeId, c.withNode[wi] ) = id then
+            dim as MirValue wslotv
+            wslotv.kind = cast( ubyte, c.withKind[wi] )
+            wslotv.ty = cast( ubyte, MT_PTR )
+            wslotv.id = cast( long, c.withId[wi] )
+            '' The SLOT holds the address; the address IS its contents.
+            return LowerExprLoad( c, wslotv, MT_PTR )
+        end if
+    next
+
     '' 'type<P>( 5, 6 )' HAS AN ADDRESS ONLY BECAUSE A TEMPORARY IS BUILT FOR IT, which
     '' is what a byref parameter defaulted from one needs. fbc does the same.
     if c.ast->Kind( id ) = Tko.N_TUPLE then
