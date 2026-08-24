@@ -1,0 +1,8 @@
+'' ANDALSO and ORELSE: the answer in a slot, the normalised short-circuit constant,
+'' and a right side that does not run when the left decides.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/short-circuit.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/short-circuit.out

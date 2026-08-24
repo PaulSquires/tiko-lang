@@ -109,6 +109,17 @@ function IsFloatTy( byval t as MirType ) as boolean
     return (t = MT_F32) orelse (t = MT_F64)
 end function
 
+'' A MIR type's size in BYTES, for the temporaries that hold one.
+function TyWidthBytes_( byval t as MirType ) as long
+    select case t
+    case MT_I8  : return 1
+    case MT_I16 : return 2
+    case MT_I32, MT_F32 : return 4
+    case MT_I64, MT_F64, MT_PTR : return 8
+    end select
+    return 8
+end function
+
 private function TyWidth( byval t as MirType ) as long
     select case t
     case MT_I8  : return 8

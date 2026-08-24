@@ -1023,27 +1023,66 @@ function LowerShortCircuit _
       byval mt as MirType ) as MirValue
 
     dim as MirValue v
+    dim as boolean isAnd = (cast( Tko.TokenKind, bp->op ) = Tko.KW_ANDALSO)
+
+    '' THE ANSWER LIVES IN A SLOT, because MIR has no phis and the join cannot name
+    '' "whichever side ran". It used to return the RIGHT operand's value from the join
+    '' -- correct only when the right side actually ran, and undefined on exactly the
+    '' path short-circuiting exists for. It verified, because a value is a value.
+    ''
+    '' fbc does the same thing with a temporary, and NORMALISES the result: measured,
+    ''
+    ''     r = (a <> 0) andalso (b <> 0)
+    ''         if( A == 0 ) goto SHORT;  TMP = -(B != 0);  goto JOIN;
+    ''         SHORT: TMP = 0;  JOIN: R = (int32)TMP;
+    ''
+    '' so the short-circuit constant is 0 for ANDALSO and -1 for ORELSE, and the taken
+    '' side contributes its own value, which a comparison has already negated.
+    dim as MirType rty = mt
+    if (rty = MT_VOID) orelse (rty = MT_AGG) then rty = MT_I32
+    dim as long slot = NewTempLocal( c, rty, TyWidthBytes_( rty ) )
+    if slot < 0 then return v
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+
     dim as MirValue l = LowerExpr( c, bp->lhs )
     if l.kind = cast( ubyte, MV_NONE ) then return v
 
     dim as long rhsB = NewBlock( c, "sc.rhs" )
+    dim as long shortB = NewBlock( c, "sc.short" )
     dim as long joinB = NewBlock( c, "sc.join" )
-    if cast( Tko.TokenKind, bp->op ) = Tko.KW_ANDALSO then
-        Terminate( c, MTERM_CONDBR, rhsB, joinB, l )
+    if isAnd then
+        Terminate( c, MTERM_CONDBR, rhsB, shortB, l )
     else
-        Terminate( c, MTERM_CONDBR, joinB, rhsB, l )
+        Terminate( c, MTERM_CONDBR, shortB, rhsB, l )
     end if
 
     c.curBlock = rhsB
     dim as MirValue r = LowerExpr( c, bp->rhs )
+    if r.kind <> cast( ubyte, MV_NONE ) then
+        dim as MirInst st1
+        st1.op = cast( ushort, M_STORE )
+        st1.ty = cast( ubyte, MT_VOID )
+        st1.a = dst
+        st1.b = Coerce( c, r, rty, false )
+        Emit( c, st1 )
+    end if
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+
+    c.curBlock = shortB
+    dim as MirInst st2
+    st2.op = cast( ushort, M_STORE )
+    st2.ty = cast( ubyte, MT_VOID )
+    st2.a = dst
+    st2.b = ConstInt( c, iif( isAnd, cast( longint, 0 ), cast( longint, -1 ) ), rty )
+    Emit( c, st2 )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = joinB
-    '' Without phis the join cannot name "whichever side ran". Producing the RIGHT
-    '' operand's value here is correct only when it ran, so this is marked as the
-    '' known gap it is rather than pretended to be complete.
-    if r.kind = cast( ubyte, MV_NONE ) then return l
-    return r
+    if r.kind = cast( ubyte, MV_NONE ) then return v
+    return LowerExprLoad( c, dst, rty )
 end function
 
 '' A call, given its PIECES rather than a node: FreeBASIC spells one two ways and both
