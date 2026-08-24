@@ -121,6 +121,33 @@ function LowerUdtParenInit_ _
     '' void-result rule then declined; before that rule it would have stored something.
     dim as Tko.ListPayload ptr pl0 = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+
+    '' 'type<T>( )' WITH NO ARGUMENTS IS THE DEFAULT CONSTRUCTOR, on a temporary.
+    ''
+    '' Measured: fbc emits '_ZN1CC1Ev( &TMP$2$0 )' and then reads out of TMP, and it
+    '' REJECTS the empty form over a type that has no constructor -- error 9, expected
+    '' expression -- so there is no zeroing case to model beside it.
+    ''
+    '' The field-list walk below had nothing to iterate and returned as though it had
+    '' done the work, so '(type<ClassUdt>( )).i' and 'x = type<ClassUdt>( )' produced
+    '' no construction at all: 479 statements in structs/temp-var-dtors.bas, whose
+    '' whole subject is counting the constructor calls a temporary makes.
+    if pl0->count = 0 then
+        dim as Tko.SymbolId zct = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 )
+        if zct <> Tko.SYMBOL_NONE then
+            EmitStructorCall( c, zct, slot )
+            return true
+        end if
+        dim as MirValue za
+        za.kind = cast( ubyte, MV_LOCAL )
+        za.ty = cast( ubyte, MT_PTR )
+        za.id = slot
+        if TypeNeedsInit_( c, t ) then
+            CallImplicitCtor_( c, t, za )
+            return true
+        end if
+        return false
+    end if
     if pl0->count = 1 then
         dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->children[pl0->first] )
         dim as Tko.TypeId ot = c.info->TypeOf_( only_ )

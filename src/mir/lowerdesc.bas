@@ -760,7 +760,33 @@ function LowerArrayBoundCall _
     end if
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
-    if c.types->IsDynArray( c.info->TypeOf_( a0 ) ) = false then return false
+
+    '' A FIXED ARRAY FOLDS, and nothing was folding it. The comment above said so and
+    '' the code returned false instead, so 'ubound( a )' over 'dim a( 0 to 7 )'
+    '' declined -- and with it the whole statement it was in: 424 of those were one
+    '' macro in structs/temp-var-dtors.bas, which sizes a CLEAR with it.
+    ''
+    '' The dimension is ONE-BASED in the source and zero-based in the layout, and an
+    '' unknown bound -- which is what an ELLIPSIS leaves -- declines rather than
+    '' folding to whatever the table happens to hold.
+    dim as Tko.TypeId at0 = c.info->TypeOf_( a0 )
+    if c.types->IsDynArray( at0 ) = false then
+        if c.types->Kind( at0 ) <> Tko.TK_ARRAY then return false
+        dim as long dimIx = 0
+        if cp->count = 2 then
+            dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( _
+                *c.ast, d1, *c.srcMgr, *c.names, c.types->target.pointerBits )
+            if dcv.known = false then return false
+            dimIx = cast( long, dcv.value ) - 1
+        end if
+        if dimIx < 0 then return false
+        dim as boolean known = false
+        dim as longint b = c.types->ArrayBound( at0, dimIx, (nm = "ubound"), known )
+        if known = false then return false
+        outv = ConstInt( c, b, MT_I64 )
+        return true
+    end if
     dim as MirValue desc = LowerAddr( c, a0 )
     if desc.kind = cast( ubyte, MV_NONE ) then return false
 

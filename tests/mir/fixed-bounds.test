@@ -1,0 +1,18 @@
+'' A FIXED array's LBOUND and UBOUND fold at compile time. The comment on the runtime
+'' path said so and the code returned false instead, so every one of them declined --
+'' and with it the whole statement it was in. Measured: fbc emits the four constants
+'' 2, 9, 0 and 3 for 'dim b_( 2 to 9, 0 to 3 )'. The dimension is ONE-BASED in the
+'' source and zero-based in the layout, and an unknown bound declines rather than
+'' folding to whatever the table happens to hold.
+''
+'' 'type<T>( )' WITH NO ARGUMENTS is the default constructor on a temporary --
+'' '_ZN1CC1Ev( &TMP$2$0 )' and then a read out of TMP -- and fbc REJECTS the empty
+'' form over a type that has no constructor, so there is no zeroing case beside it.
+'' The field-list walk had nothing to iterate and returned as though it had done the
+'' work, so the temporary was never constructed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixed-bounds.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fixed-bounds.out
