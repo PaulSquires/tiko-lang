@@ -1,0 +1,6 @@
+'' A comment between the '_' and the newline: the apostrophe, the block and REM forms,
+'' all of which fbc folds to the same value.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/lexer/src/continuation-comment.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/continuation-comment.out

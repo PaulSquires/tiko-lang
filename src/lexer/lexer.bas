@@ -249,6 +249,24 @@ private sub SkipBlockComment( byref s as Scanner, byval first as long )
     Report( s, Tko.TKO0202, first )
 end sub
 
+'' Is the text at 'at' the keyword REM, followed by something that cannot continue an
+'' identifier? It is a comment to the end of the line, and it may follow a line
+'' continuation exactly as an apostrophe may.
+private function IsRemWord_( byref s as Scanner, byval at as long ) as boolean
+    if at + 2 >= s.n then return false
+    dim as ubyte a0 = s.p[at], a1 = s.p[at + 1], a2 = s.p[at + 2]
+    if (a0 <> 82) andalso (a0 <> 114) then return false      '' R r
+    if (a1 <> 69) andalso (a1 <> 101) then return false      '' E e
+    if (a2 <> 77) andalso (a2 <> 109) then return false      '' M m
+    if at + 3 >= s.n then return true
+    dim as ubyte a3 = s.p[at + 3]
+    if (a3 >= 48) andalso (a3 <= 57) then return false
+    if (a3 >= 65) andalso (a3 <= 90) then return false
+    if (a3 >= 97) andalso (a3 <= 122) then return false
+    if a3 = 95 then return false
+    return true
+end function
+
 private sub SkipLineComment( byref s as Scanner )
     while s.i < s.n
         if s.p[s.i] = 10 then exit while
@@ -744,6 +762,47 @@ sub Run _
             while (j < s.n) andalso IsSpace( s.p[j] )
                 j += 1
             wend
+
+            '' A COMMENT MAY SIT BETWEEN THE '_' AND THE NEWLINE, and the corpus writes
+            '' its long continued expressions that way -- 'sizeof(ubyte) + _ '' 1' with
+            '' the running total in the comment. Measured: fbc folds all three forms,
+            '' the apostrophe comment, the block comment and REM, to the same value.
+            '' Without this the '_' was lexed as an IDENTIFIER and the logical line
+            '' ended there, so every such expression came apart.
+            dim as long jc = j
+            if (jc < s.n) andalso (s.p[jc] = 39) then
+                '' ' ... to the end of the line
+                while (jc < s.n) andalso (s.p[jc] <> 10) andalso (s.p[jc] <> 13)
+                    jc += 1
+                wend
+                j = jc
+            elseif (jc + 1 < s.n) andalso (s.p[jc] = 47) andalso (s.p[jc + 1] = 39) then
+                '' /' ... '/ -- only when it closes on this line, because one that runs
+                '' on is not a continuation's trailing comment at all.
+                dim as long k = jc + 2
+                dim as boolean closed = false
+                while k + 1 < s.n
+                    if (s.p[k] = 10) then exit while
+                    if (s.p[k] = 39) andalso (s.p[k + 1] = 47) then
+                        closed = true
+                        k += 2
+                        exit while
+                    end if
+                    k += 1
+                wend
+                if closed then
+                    while (k < s.n) andalso IsSpace( s.p[k] )
+                        k += 1
+                    wend
+                    j = k
+                end if
+            elseif IsRemWord_( s, jc ) then
+                while (jc < s.n) andalso (s.p[jc] <> 10) andalso (s.p[jc] <> 13)
+                    jc += 1
+                wend
+                j = jc
+            end if
+
             dim as boolean atCr = (j < s.n) andalso (s.p[j] = 13)
             if atCr then j += 1
             dim as boolean atEol = (j < s.n) andalso (s.p[j] = 10)

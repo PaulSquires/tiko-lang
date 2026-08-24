@@ -1,0 +1,66 @@
+file tests/lexer/src/continuation-comment.bas, 65 tokens
+    0    1:54   EOL
+    1    2:3    EOL
+    2    3:89   EOL
+    3    4:87   EOL
+    4    5:84   EOL
+    5    6:3    EOL
+    6    7:86   EOL
+    7    8:87   EOL
+    8    9:15   EOL
+    9   10:1    KW_DIM              'DIM'
+   10   10:5    KW_AS               'AS'
+   11   10:8    KW_LONG             'LONG'
+   12   10:13   IDENT               'a'
+   13   10:15   TK_EQ               '='
+   14   10:17   INT                 1 radix=10 suffix=0
+   15   10:19   TK_PLUS             '+'
+   16   11:9    INT                 2 radix=10 suffix=0
+   17   11:11   TK_PLUS             '+'
+   18   12:9    INT                 3 radix=10 suffix=0
+   19   12:10   EOL
+   20   13:1    EOL
+   21   14:1    KW_DIM              'DIM'
+   22   14:5    KW_AS               'AS'
+   23   14:8    KW_LONG             'LONG'
+   24   14:13   IDENT               'b'
+   25   14:15   TK_EQ               '='
+   26   14:17   INT                 1 radix=10 suffix=0
+   27   14:19   TK_PLUS             '+'
+   28   15:9    INT                 2 radix=10 suffix=0
+   29   15:11   TK_PLUS             '+'
+   30   16:9    INT                 3 radix=10 suffix=0
+   31   16:10   EOL
+   32   17:1    EOL
+   33   18:1    KW_DIM              'DIM'
+   34   18:5    KW_AS               'AS'
+   35   18:8    KW_LONG             'LONG'
+   36   18:13   IDENT               'c'
+   37   18:15   TK_EQ               '='
+   38   18:17   INT                 1 radix=10 suffix=0
+   39   18:19   TK_PLUS             '+'
+   40   19:9    INT                 2 radix=10 suffix=0
+   41   19:11   TK_PLUS             '+'
+   42   20:9    INT                 3 radix=10 suffix=0
+   43   20:10   EOL
+   44   21:1    EOL
+   45   22:84   EOL
+   46   23:85   EOL
+   47   24:1    KW_DIM              'DIM'
+   48   24:5    KW_AS               'AS'
+   49   24:8    KW_LONG             'LONG'
+   50   24:13   IDENT               'd'
+   51   24:15   TK_EQ               '='
+   52   24:17   INT                 4 radix=10 suffix=0
+   53   24:18   EOL
+   54   25:1    EOL
+   55   26:1    KW_PRINT            'PRINT'
+   56   26:7    IDENT               'a'
+   57   26:8    TK_COMMA            ','
+   58   26:10   IDENT               'b'
+   59   26:11   TK_COMMA            ','
+   60   26:13   IDENT               'c'
+   61   26:14   TK_COMMA            ','
+   62   26:16   IDENT               'd'
+   63   26:17   EOL
+   64   27:1    EOF
