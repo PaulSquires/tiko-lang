@@ -374,6 +374,17 @@ function ConversionCost _
     if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
     if from_ = to_ then return CONV_EXACT
 
+    '' CONST IS NOT A DIFFERENT TYPE HERE. 'byref lhs as const U' is the natural way to
+    '' declare an operand a procedure will not write, and 'U' and 'const U' are distinct
+    '' TypeIds -- so every such parameter scored CONV_NONE against its own type and the
+    '' overload was never found. 'r = a + b' over a UDT declined for it, which is every
+    '' global arithmetic operator over a value type in cpp/bop-fbc.bas.
+    ''
+    '' Whether a CONST argument may bind to a NON-const byref parameter is a separate
+    '' question that nothing here models either way; this only stops const from hiding
+    '' an exact match.
+    if types.Unqualify( from_ ) = types.Unqualify( to_ ) then return CONV_EXACT
+
     '' A fixed-length string converts as the string type it is. Its LENGTH plays no
     '' part, and cannot: fbc refuses 'byval x as zstring * 4' outright -- error 59,
     '' "Illegal specification" -- so no parameter ever has one of these types and no

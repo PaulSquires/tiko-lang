@@ -1,0 +1,8 @@
+'' A global operator over a UDT declared with const operands: const must not hide an
+'' exact match in overload resolution.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-global-operator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-global-operator.out

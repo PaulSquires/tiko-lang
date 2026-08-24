@@ -342,7 +342,39 @@ function LowerUserBinaryOp_ _
     next
     if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
 
+    dim as MirType rmt = mt
+    if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    if IsStringType( c, os->type_ ) then rmt = MT_PTR
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
+
+    '' A UDT RESULT TRAVELS THROUGH A HIDDEN POINTER, and the caller provides the
+    '' landing place: a temporary passed as ARGUMENT 0, before the operands. fbc emits
+    '' 'struct T* _ZplRK1TS1_( struct T* tmp, ... )' -- the declaration says a pointer,
+    '' so a call typed 'agg' with no temporary was neither the right type nor the right
+    '' argument list, and 'r = a + b' over a UDT-returning operator declined. That is
+    '' every global arithmetic operator over a value type there is.
+    ''
+    '' The call's VALUE is the temporary's ADDRESS, which is what the assignment then
+    '' reads through.
+    dim as MirValue sretTmp
+    dim as boolean usesSret = false
+    if os->type_ <> Tko.TYPE_NONE then
+        if UsesSretReturn( c, os->type_ ) then
+            dim as long tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, os->type_ ) )
+            if tslot < 0 then return false
+            sretTmp.kind = cast( ubyte, MV_LOCAL )
+            sretTmp.ty = cast( ubyte, MT_PTR )
+            sretTmp.id = tslot
+            usesSret = true
+            rmt = MT_PTR
+        end if
+    end if
+
     dim as FB.Array( of ulong ) args
+    if usesSret then
+        args.Push( cast( ulong, sretTmp.kind ) )
+        args.Push( cast( ulong, sretTmp.id ) )
+    end if
     dim as long firstArg = 0
     if ptypes.Count = 1 then
         '' The RECEIVER is the left operand, by address.
@@ -357,17 +389,15 @@ function LowerUserBinaryOp_ _
     if OperandValue_( c, bp->rhs, cast( Tko.TypeId, ptypes[firstArg] ), _
                       (prefs[firstArg] <> 0), args ) = false then return false
 
-    dim as MirType rmt = mt
-    if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
-    '' A STRING RESULT IS A DESCRIPTOR POINTER, which is what the function's own
-    '' declaration says: 'FBSTRING* F( void )'. Reading it as the string's MIR type put
-    '' an 'agg' result on a call to a function declared to return a pointer.
-    if IsStringType( c, os->type_ ) then rmt = MT_PTR
-    '' A BYREF RETURN IS A POINTER, which is what the DECLARATION says too. Reading it
-    '' as the referent's own MIR type put an i32 result on a function declared to return
-    '' a pointer -- 'operator *' over a smart pointer is byref by construction.
-    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
     outv = EmitDirectCall_( c, op, rmt, args )
+    if usesSret then
+        '' The RESULT IS THE TEMPORARY, not what the call handed back: fbc returns the
+        '' same pointer it was given, and reading the temporary is what every use of
+        '' the result then does.
+        if outv.kind = cast( ubyte, MV_NONE ) then return false
+        outv = sretTmp
+        return true
+    end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
