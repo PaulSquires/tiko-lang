@@ -527,6 +527,11 @@ private sub LowerAssign _
 
     if LowerBitfieldStore( c, target, value ) then return
 
+    '' 'let (a, b) = expr' -- N assignments from the elements of ONE evaluation, not an
+    '' assignment of one thing to another. An N_TUPLE target is not an lvalue and has no
+    '' address, so the whole statement declined.
+    if LowerDestructure( c, target, value ) then return
+
     dim as MirValue addr = LowerAddr( c, target )
     dim as MirValue val = LowerExpr( c, value )
     if (addr.kind = cast( ubyte, MV_NONE )) orelse (val.kind = cast( ubyte, MV_NONE )) then
@@ -562,49 +567,8 @@ end sub
 
 declare sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
-'' THE COPY CONSTRUCTOR of a UDT: the one-argument constructor whose parameter is that
-'' same type. StructorWithArity answers any one-argument constructor at all, which is
-'' not the same question -- a type whose only constructor takes a long had that one
-'' chosen to copy it with.
-private function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
-    dim as Tko.SymbolId s = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
-    if s = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
-    dim as Tko.TypeId pt = ParamTypeAt( c, s, 0 )
-    if pt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
-    if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
-    if c.types->Unqualify( pt ) <> c.types->Unqualify( t ) then return Tko.SYMBOL_NONE
-    return s
-end function
-
-'' A FIELD LIST ASSIGNED TO THE RESULT -- 'function = ( 1, 2 )' and 'function =
-'' type( 1, 2 )'. The result slot IS the object, so this is the declaration
-'' initialiser with the result's type standing in for the declared one.
-private function ResultFieldListInit_ _
-    ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
-
-    if c.resultSlot < 0 then return false
-    if c.resultType = Tko.TYPE_NONE then return false
-    if e = Tko.NODE_NONE then return false
-    '' ONLY THE 'type( ... )' SPELLING. Measured: fbc accepts 'function = type( 5, 6 )'
-    '' and rejects 'function = ( 5, 6 )' with error 7, expecting ')' where the comma
-    '' is. The two build the same node, so the parser marks which was written.
-    if c.ast->Kind( e ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( long, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then
-        return false
-    end if
-    return LowerUdtParenInit_( c, c.resultSlot, c.resultType, e )
-end function
-
-'' 'dim x as T = ANY' -- the explicit request for an UNINITIALISED variable, which
-'' emits no store. 'any' is a keyword, so no variable can be spelled that way and
-'' matching the name alone is safe.
-private function IsAnyInit_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
-    if id = Tko.NODE_NONE then return false
-    if c.ast->Kind( id ) <> Tko.N_IDENT then return false
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )]
-    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "any")
-end function
+'' The assignment and declaration helpers, in their own file at the 1500-line cap.
+#include once "mir/lowerinit.bas"
 
 sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
     if id = Tko.NODE_NONE then return
@@ -1375,6 +1339,29 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' and 'return Vec3d_( x, y, z )' have no address to take -- a call
                 '' result is a value -- and requiring one declined 10,387 statements,
                 '' which is most of what a UDT-returning function actually returns.
+                '' A BARE TUPLE LITERAL HAS NO TYPE OF ITS OWN -- 'return (20, 22)'
+                '' names no type and UdtLiteralSlot_ wants one written -- so it is
+                '' built straight INTO the result slot from the function's own result
+                '' type. fbc builds a temporary and copies it in; this is the same
+                '' object one copy earlier, and without it every tuple-returning
+                '' function declined its return.
+                if (c.ast->Kind( sp->a ) = Tko.N_TUPLE) orelse _
+                   (c.ast->Kind( sp->a ) = Tko.N_PAREN) then
+                    if c.info->TypeOf_( sp->a ) = Tko.TYPE_NONE then
+                        if LowerUdtParenInit_( c, c.resultSlot, c.resultType, sp->a ) then
+                            EmitCleanupsTo( c, 0 )
+                            dim as MirValue ura0
+                            ura0.kind = cast( ubyte, MV_LOCAL )
+                            ura0.ty = cast( ubyte, MT_PTR )
+                            ura0.id = c.resultSlot
+                            Terminate( c, MTERM_RET, -1, -1, _
+                                       LowerExprLoad( c, ura0, MT_AGG ) )
+                            c.curBlock = NewBlock( c, "after" )
+                            return
+                        end if
+                    end if
+                end if
+
                 dim as MirValue uval = LowerExpr( c, sp->a )
                 dim as boolean copied = false
                 if uval.kind = cast( ubyte, MV_NONE ) then

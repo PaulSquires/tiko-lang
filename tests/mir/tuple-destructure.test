@@ -1,0 +1,8 @@
+'' Tuple destructuring: from a call, from a variable, with a string element, and the
+'' right side evaluated exactly once. Plus 'return' of a bare tuple literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/tuple-destructure.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/tuple-destructure.out

@@ -531,6 +531,8 @@ declare function EmitRtl _
     const STF_UTF16   as long = 3
     declare function LowerStrOperandOp_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerDestructure _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     declare function LowerTupleCompare _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval tk as Tko.TokenKind, byref outv as MirValue ) as boolean
