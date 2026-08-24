@@ -1121,6 +1121,12 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 end if
             end if
         case Tko.AMB_ASSIGN
+            '' THE BLOCK AS WELL AS THE COUNT. A compound assignment that is CONTROL
+            '' FLOW -- 'i andalso= e' -- ends the current block and continues in the
+            '' join, so comparing the join's instruction count against the count taken
+            '' in a different block reported a statement that lowered perfectly well as
+            '' having emitted nothing.
+            dim as long beforeAB = c.curBlock
             dim as long beforeA = c.f->blocks[c.curBlock].insts.Count
             dim as Tko.TokenKind aop = cast( Tko.TokenKind, sp->op )
             '' '&=' WAS TREATED AS PLAIN, so 's &= "b"' lowered to fb_StrAssign -- an
@@ -1131,7 +1137,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             elseif LowerCompoundAssign( c, sp->a, sp->b, aop ) = false then
                 SkipHere( c )
             end if
-            if c.f->blocks[c.curBlock].insts.Count = beforeA then
+            if (c.curBlock = beforeAB) andalso _
+               (c.f->blocks[c.curBlock].insts.Count = beforeA) then
                 c.st->ambAssign += 1
                 '' WHICH KIND OF TARGET, so the next reader has something to go and
                 '' implement rather than a number.

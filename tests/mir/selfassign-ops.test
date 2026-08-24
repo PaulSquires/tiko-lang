@@ -1,0 +1,12 @@
+'' '^=' is libc's pow in double with the result converted back, exactly as '^' is;
+'' 'andalso=' and 'orelse=' are the SHORT-CIRCUIT form -- 'i andalso= e' is 'i = i
+'' andalso e', with the right side evaluated only when the left decides nothing -- and
+'' every compound assignment has a second spelling with '=>' that means the same thing.
+'' Measured: 'I = fb_D2L( pow( (double)I, (double)N ) )', and for the short-circuit
+'' 'if( I == 0 ) goto SHORT; vr = SIDE( ); TMP = -( vr != 0 ); goto JOIN; SHORT: TMP = 0'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/selfassign-ops.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/selfassign-ops.out

@@ -16,7 +16,10 @@
 ''         SHORT: TMP = -1;  JOIN: Q = (int32)TMP;
 ''
 '' so the short-circuit constant is 0 for ANDALSO and -1 for ORELSE, and the taken side
-'' contributes its own value -- which a comparison has already negated.
+'' is NORMALISED with '-( x != 0 )' whatever it was. That last part is not cosmetic:
+'' storing the operand's own value made 'r = 1 andalso 7' come out 7 where FreeBASIC
+'' says -1. Over a comparison the two agree, which is why every test written with one
+'' passed.
 ''
 '' THE RIGHT SIDE MUST NOT RUN when the left decides it: 'sidefx( )' below is called
 '' once, not twice.

@@ -592,6 +592,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerBitfieldStore _
         ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' 'a andalso b' from its PIECES, so the compound form can reach it too.
+    declare function LowerShortCircuitParts_ _
+        ( byref c as Ctx, byval lhsE as Tko.NodeId, byval rhsE as Tko.NodeId, _
+          byval isAnd as boolean, byval mt as MirType ) as MirValue
     declare function LowerCompoundAssign _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
           byval op as Tko.TokenKind ) as boolean

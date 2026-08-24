@@ -256,6 +256,26 @@ function LowerCompoundAssign _
     ''
     '' 'andalso=' and 'orelse=' are NOT here: they are control flow, and lowering them
     '' as a plain AND would evaluate the right side unconditionally.
+    '' 'andalso=' and 'orelse=' ARE THE SHORT-CIRCUIT FORM, and lowering them as a
+    '' plain AND would evaluate the right side unconditionally. Measured, 'i andalso=
+    '' side( )' is exactly 'i = i andalso side( )':
+    ''
+    ''     if( I == 0 ) goto SHORT;  vr = SIDE( );  TMP = -( vr != 0 );  goto JOIN;
+    ''     SHORT: TMP = 0;  JOIN: I = TMP;
+    if (op = Tko.KW_ANDALSO) orelse (op = Tko.KW_ORELSE) then
+        dim as Tko.TypeId stt = c.info->TypeOf_( target )
+        if stt = Tko.TYPE_NONE then return false
+        dim as MirType smt = LowerType( stt, *c.types )
+        if (smt = MT_VOID) orelse (smt = MT_AGG) then return false
+        dim as MirValue sv = LowerShortCircuitParts_( c, target, value, _
+                                                      (op = Tko.KW_ANDALSO), smt )
+        if sv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue sa = LowerAddr( c, target )
+        if sa.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, sa, Coerce( c, sv, smt, IsUnsignedType( c, stt ) ) )
+        return true
+    end if
+
     dim as Tko.TokenKind bop = Tko.TK_EOF
     select case op
     case Tko.TK_PLUSEQ   : bop = Tko.TK_PLUS
@@ -263,6 +283,7 @@ function LowerCompoundAssign _
     case Tko.TK_STAREQ   : bop = Tko.TK_STAR
     case Tko.TK_SLASHEQ  : bop = Tko.TK_SLASH
     case Tko.TK_BSLASHEQ : bop = Tko.TK_BACKSLASH
+    case Tko.TK_CARETEQ  : bop = Tko.TK_CARET
     case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_IMP, Tko.KW_EQV, _
          Tko.KW_MOD, Tko.KW_SHL, Tko.KW_SHR
         bop = op
@@ -281,6 +302,10 @@ function LowerCompoundAssign _
     if bop = Tko.TK_SLASH then
         wt = iif( mt = MT_F32, MT_F32, MT_F64 )
     end if
+    '' '^' IS ALWAYS A DOUBLE, whatever the target is: it is libc's pow, and fbc
+    '' converts BOTH operands to double and the result back -- 'I = fb_D2L( pow(
+    '' (double)I, (double)N ) )' over a LONG. Measured.
+    if bop = Tko.TK_CARET then wt = MT_F64
 
     dim as MirValue addr = LowerAddr( c, target )
     if addr.kind = cast( ubyte, MV_NONE ) then return false
@@ -292,7 +317,12 @@ function LowerCompoundAssign _
     rhs = Coerce( c, rhs, wt, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
 
     dim as MirValue res
-    if (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
+    if bop = Tko.TK_CARET then
+        dim as FB.Array( of ulong ) pa
+        pa.Push( cast( ulong, cur.kind ) ) : pa.Push( cast( ulong, cur.id ) )
+        pa.Push( cast( ulong, rhs.kind ) ) : pa.Push( cast( ulong, rhs.id ) )
+        res = EmitRtl( c, RTL_POW, pa )
+    elseif (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
         res = EmitImpEqv_( c, bop, wt, cur, rhs )
     else
         dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, tt ) )
@@ -993,8 +1023,18 @@ function LowerShortCircuit _
     ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
       byval mt as MirType ) as MirValue
 
+    return LowerShortCircuitParts_( c, bp->lhs, bp->rhs, _
+        (cast( Tko.TokenKind, bp->op ) = Tko.KW_ANDALSO), mt )
+end function
+
+'' ...from its PIECES, because 'i andalso= e' is the same construct with no binary
+'' node to hand over: the target is the left operand and the statement stores the
+'' result back into it.
+function LowerShortCircuitParts_ _
+    ( byref c as Ctx, byval lhsE as Tko.NodeId, byval rhsE as Tko.NodeId, _
+      byval isAnd as boolean, byval mt as MirType ) as MirValue
+
     dim as MirValue v
-    dim as boolean isAnd = (cast( Tko.TokenKind, bp->op ) = Tko.KW_ANDALSO)
 
     '' THE ANSWER LIVES IN A SLOT, because MIR has no phis and the join cannot name
     '' "whichever side ran". It used to return the RIGHT operand's value from the join
@@ -1018,7 +1058,7 @@ function LowerShortCircuit _
     dst.ty = cast( ubyte, MT_PTR )
     dst.id = slot
 
-    dim as MirValue l = LowerExpr( c, bp->lhs )
+    dim as MirValue l = LowerExpr( c, lhsE )
     if l.kind = cast( ubyte, MV_NONE ) then return v
 
     dim as long rhsB = NewBlock( c, "sc.rhs" )
@@ -1031,8 +1071,28 @@ function LowerShortCircuit _
     end if
 
     c.curBlock = rhsB
-    dim as MirValue r = LowerExpr( c, bp->rhs )
+    dim as MirValue r = LowerExpr( c, rhsE )
     if r.kind <> cast( ubyte, MV_NONE ) then
+        '' NORMALISED, and it is not optional: measured, fbc writes
+        '' 'TMP = -( (int64)vr != 0 )' for the taken side whatever the operand was.
+        '' Storing the operand's own value made 'r = 1 andalso 7' come out 7 where
+        '' FreeBASIC says -1 -- a wrong answer that lowered, verified and looked
+        '' entirely ordinary. When the operand IS a comparison the two agree, which
+        '' is why every test written with one passed.
+        dim as MirInst nz
+        nz.op = cast( ushort, M_ICMP_NE )
+        nz.ty = cast( ubyte, MT_I32 )
+        nz.a = r
+        nz.b = ConstInt( c, 0, cast( MirType, r.ty ) )
+        dim as MirValue bv = Emit( c, nz )
+        if bv.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirInst ng
+            ng.op = cast( ushort, M_NEG )
+            ng.ty = cast( ubyte, rty )
+            ng.a = Coerce( c, bv, rty, false )
+            dim as MirValue nv = Emit( c, ng )
+            if nv.kind <> cast( ubyte, MV_NONE ) then r = nv
+        end if
         dim as MirInst st1
         st1.op = cast( ushort, M_STORE )
         st1.ty = cast( ubyte, MT_VOID )

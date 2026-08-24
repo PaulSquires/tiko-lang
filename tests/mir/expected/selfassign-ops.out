@@ -1,0 +1,145 @@
+func void P($0) {
+  local i32 q
+  local i64 i
+  local i64 $tmp2
+  local i64 $tmp3
+  local i64 $tmp4
+  local i64 $tmp5
+  entry0:
+    %1 = alloca ptr q
+    store @q, $0
+    %2 = alloca ptr i
+    %3 = const i64 3
+    store @i, %3
+    %4 = load @i
+    %5 = sitofp %4
+    %6 = const i64 2
+    %7 = sitofp %6
+    %8 = call.rtl f64 pow(%5, %7)
+    %9 = nearbyint %8
+    %10 = fptosi %9
+    store @i, %10
+    %11 = alloca ptr $tmp2
+    %12 = load @i
+    %20 = alloca ptr $tmp3
+    %36 = alloca ptr $tmp4
+    %45 = alloca ptr $tmp5
+    condbr %12, sc.rhs1, sc.short2
+  sc.rhs1:
+    %13 = call i32 SIDE_()
+    %14 = const i32 0
+    %15 = icmp.ne %13, %14
+    %16 = sext %15
+    %17 = neg %16
+    store @$tmp2, %17
+    br sc.join3
+  sc.short2:
+    %18 = const i64 0
+    store @$tmp2, %18
+    br sc.join3
+  sc.join3:
+    %19 = load @$tmp2
+    store @i, %19
+    %21 = load @i
+    condbr %21, sc.short5, sc.rhs4
+  sc.rhs4:
+    %22 = call i32 SIDE_()
+    %23 = const i32 0
+    %24 = icmp.ne %22, %23
+    %25 = sext %24
+    %26 = neg %25
+    store @$tmp3, %26
+    br sc.join6
+  sc.short5:
+    %27 = const i64 -1
+    store @$tmp3, %27
+    br sc.join6
+  sc.join6:
+    %28 = load @$tmp3
+    store @i, %28
+    %29 = load @i
+    %30 = sitofp %29
+    %31 = const i64 2
+    %32 = sitofp %31
+    %33 = call.rtl f64 pow(%30, %32)
+    %34 = nearbyint %33
+    %35 = fptosi %34
+    store @i, %35
+    %37 = load @i
+    condbr %37, sc.rhs7, sc.short8
+  sc.rhs7:
+    %38 = call i32 SIDE_()
+    %39 = const i32 0
+    %40 = icmp.ne %38, %39
+    %41 = sext %40
+    %42 = neg %41
+    store @$tmp4, %42
+    br sc.join9
+  sc.short8:
+    %43 = const i64 0
+    store @$tmp4, %43
+    br sc.join9
+  sc.join9:
+    %44 = load @$tmp4
+    store @i, %44
+    %46 = load @i
+    condbr %46, sc.short11, sc.rhs10
+  sc.rhs10:
+    %47 = call i32 SIDE_()
+    %48 = const i32 0
+    %49 = icmp.ne %47, %48
+    %50 = sext %49
+    %51 = neg %50
+    store @$tmp5, %51
+    br sc.join12
+  sc.short11:
+    %52 = const i64 -1
+    store @$tmp5, %52
+    br sc.join12
+  sc.join12:
+    %53 = load @$tmp5
+    store @i, %53
+    %54 = load @i
+    %55 = const i64 1
+    %56 = add %54, %55
+    store @i, %56
+    %57 = load @i
+    %58 = const i64 1
+    %59 = and %57, %58
+    store @i, %59
+    %60 = load @i
+    call.rtl void fb_PrintLongint(0, %60, 1)
+    ret
+}
+declare f64 pow($0, $1)
+declare i32 SIDE_()
+declare void fb_PrintLongint($0, $1, $2)
+func i32 SIDE_() {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i64 7
+    ret %3
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i64 1
+    %5 = trunc %4
+    call void P(%5)
+    %6 = const i32 0
+    call.rtl void fb_End(%6)
+    %7 = load @$tmp0
+    ret %7
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 15 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance

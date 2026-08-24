@@ -51,14 +51,14 @@ func i32 main($0, $1) {
     %14 = sext %12
     %15 = icmp.ne %14, %13
     %16 = neg %15
-    %25 = alloca ptr q
-    %26 = alloca ptr $tmp6
-    %42 = alloca ptr $tmp7
-    %56 = alloca ptr $tmp8
-    %70 = alloca ptr $tmp9
-    %85 = alloca ptr t
-    %86 = alloca ptr $tmp11
-    %87 = alloca ptr $tmp12
+    %29 = alloca ptr q
+    %30 = alloca ptr $tmp6
+    %50 = alloca ptr $tmp7
+    %68 = alloca ptr $tmp8
+    %86 = alloca ptr $tmp9
+    %105 = alloca ptr t
+    %106 = alloca ptr $tmp11
+    %107 = alloca ptr $tmp12
     condbr %16, sc.rhs1, sc.short2
   sc.rhs1:
     %17 = load @b
@@ -66,171 +66,199 @@ func i32 main($0, $1) {
     %19 = sext %17
     %20 = icmp.ne %19, %18
     %21 = neg %20
-    store @$tmp4, %21
+    %22 = const i64 0
+    %23 = icmp.ne %21, %22
+    %24 = sext %23
+    %25 = neg %24
+    store @$tmp4, %25
     br sc.join3
   sc.short2:
-    %22 = const i64 0
-    store @$tmp4, %22
+    %26 = const i64 0
+    store @$tmp4, %26
     br sc.join3
   sc.join3:
-    %23 = load @$tmp4
-    %24 = trunc %23
-    store @r, %24
-    %27 = load @a
-    %28 = const i64 0
-    %29 = sext %27
-    %30 = icmp.ne %29, %28
-    %31 = neg %30
-    condbr %31, sc.short5, sc.rhs4
+    %27 = load @$tmp4
+    %28 = trunc %27
+    store @r, %28
+    %31 = load @a
+    %32 = const i64 0
+    %33 = sext %31
+    %34 = icmp.ne %33, %32
+    %35 = neg %34
+    condbr %35, sc.short5, sc.rhs4
   sc.rhs4:
-    %32 = load @b
-    %33 = const i64 0
-    %34 = sext %32
-    %35 = icmp.ne %34, %33
-    %36 = neg %35
-    store @$tmp6, %36
+    %36 = load @b
+    %37 = const i64 0
+    %38 = sext %36
+    %39 = icmp.ne %38, %37
+    %40 = neg %39
+    %41 = const i64 0
+    %42 = icmp.ne %40, %41
+    %43 = sext %42
+    %44 = neg %43
+    store @$tmp6, %44
     br sc.join6
   sc.short5:
-    %37 = const i64 -1
-    store @$tmp6, %37
+    %45 = const i64 -1
+    store @$tmp6, %45
     br sc.join6
   sc.join6:
-    %38 = load @$tmp6
-    %39 = trunc %38
-    store @q, %39
-    %40 = load @r
-    call.rtl void fb_PrintInt(0, %40, 2)
-    %41 = load @q
-    call.rtl void fb_PrintInt(0, %41, 1)
-    %43 = load @a
-    %44 = const i64 0
-    %45 = sext %43
-    %46 = icmp.ne %45, %44
-    %47 = neg %46
-    condbr %47, sc.rhs10, sc.short11
+    %46 = load @$tmp6
+    %47 = trunc %46
+    store @q, %47
+    %48 = load @r
+    call.rtl void fb_PrintInt(0, %48, 2)
+    %49 = load @q
+    call.rtl void fb_PrintInt(0, %49, 1)
+    %51 = load @a
+    %52 = const i64 0
+    %53 = sext %51
+    %54 = icmp.ne %53, %52
+    %55 = neg %54
+    condbr %55, sc.rhs10, sc.short11
   if.join7:
-    %57 = load @a
-    %58 = const i64 0
-    %59 = sext %57
-    %60 = icmp.ne %59, %58
-    %61 = neg %60
-    condbr %61, sc.short17, sc.rhs16
+    %69 = load @a
+    %70 = const i64 0
+    %71 = sext %69
+    %72 = icmp.ne %71, %70
+    %73 = neg %72
+    condbr %73, sc.short17, sc.rhs16
   if.then8:
-    %55 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
-    call.rtl void fb_PrintString(0, %55, 1)
+    %67 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    call.rtl void fb_PrintString(0, %67, 1)
     br if.join7
   if.else9:
     br if.join7
   sc.rhs10:
-    %48 = load @b
-    %49 = const i64 0
-    %50 = sext %48
-    %51 = icmp.ne %50, %49
-    %52 = neg %51
-    store @$tmp7, %52
+    %56 = load @b
+    %57 = const i64 0
+    %58 = sext %56
+    %59 = icmp.ne %58, %57
+    %60 = neg %59
+    %61 = const i64 0
+    %62 = icmp.ne %60, %61
+    %63 = sext %62
+    %64 = neg %63
+    store @$tmp7, %64
     br sc.join12
   sc.short11:
-    %53 = const i64 0
-    store @$tmp7, %53
+    %65 = const i64 0
+    store @$tmp7, %65
     br sc.join12
   sc.join12:
-    %54 = load @$tmp7
-    condbr %54, if.then8, if.else9
+    %66 = load @$tmp7
+    condbr %66, if.then8, if.else9
   if.join13:
-    %71 = load @a
-    %72 = const i64 0
-    %73 = sext %71
-    %74 = icmp.ne %73, %72
-    %75 = neg %74
-    condbr %75, sc.rhs22, sc.short23
+    %87 = load @a
+    %88 = const i64 0
+    %89 = sext %87
+    %90 = icmp.ne %89, %88
+    %91 = neg %90
+    condbr %91, sc.rhs22, sc.short23
   if.then14:
-    %69 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 2)
-    call.rtl void fb_PrintString(0, %69, 1)
+    %85 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 2)
+    call.rtl void fb_PrintString(0, %85, 1)
     br if.join13
   if.else15:
     br if.join13
   sc.rhs16:
-    %62 = load @b
-    %63 = const i64 0
-    %64 = sext %62
-    %65 = icmp.ne %64, %63
-    %66 = neg %65
-    store @$tmp8, %66
+    %74 = load @b
+    %75 = const i64 0
+    %76 = sext %74
+    %77 = icmp.ne %76, %75
+    %78 = neg %77
+    %79 = const i64 0
+    %80 = icmp.ne %78, %79
+    %81 = sext %80
+    %82 = neg %81
+    store @$tmp8, %82
     br sc.join18
   sc.short17:
-    %67 = const i64 -1
-    store @$tmp8, %67
+    %83 = const i64 -1
+    store @$tmp8, %83
     br sc.join18
   sc.join18:
-    %68 = load @$tmp8
-    condbr %68, if.then14, if.else15
+    %84 = load @$tmp8
+    condbr %84, if.then14, if.else15
   if.join19:
-    %84 = load @@calls
-    call.rtl void fb_PrintInt(0, %84, 1)
-    %88 = load @a
-    %89 = const i64 0
-    %90 = sext %88
-    %91 = icmp.eq %90, %89
-    %92 = neg %91
-    condbr %92, sc.rhs25, sc.short26
+    %104 = load @@calls
+    call.rtl void fb_PrintInt(0, %104, 1)
+    %108 = load @a
+    %109 = const i64 0
+    %110 = sext %108
+    %111 = icmp.eq %110, %109
+    %112 = neg %111
+    condbr %112, sc.rhs25, sc.short26
   if.then20:
-    %83 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 5)
-    call.rtl void fb_PrintString(0, %83, 1)
+    %103 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 5)
+    call.rtl void fb_PrintString(0, %103, 1)
     br if.join19
   if.else21:
     br if.join19
   sc.rhs22:
-    %76 = call i32 SIDEFX()
-    %77 = const i64 0
-    %78 = sext %76
-    %79 = icmp.ne %78, %77
-    %80 = neg %79
-    store @$tmp9, %80
+    %92 = call i32 SIDEFX()
+    %93 = const i64 0
+    %94 = sext %92
+    %95 = icmp.ne %94, %93
+    %96 = neg %95
+    %97 = const i64 0
+    %98 = icmp.ne %96, %97
+    %99 = sext %98
+    %100 = neg %99
+    store @$tmp9, %100
     br sc.join24
   sc.short23:
-    %81 = const i64 0
-    store @$tmp9, %81
+    %101 = const i64 0
+    store @$tmp9, %101
     br sc.join24
   sc.join24:
-    %82 = load @$tmp9
-    condbr %82, if.then20, if.else21
+    %102 = load @$tmp9
+    condbr %102, if.then20, if.else21
   sc.rhs25:
-    %93 = load @b
-    %94 = const i64 2
-    %95 = sext %93
-    %96 = icmp.eq %95, %94
-    %97 = neg %96
-    store @$tmp12, %97
+    %113 = load @b
+    %114 = const i64 2
+    %115 = sext %113
+    %116 = icmp.eq %115, %114
+    %117 = neg %116
+    %118 = const i64 0
+    %119 = icmp.ne %117, %118
+    %120 = sext %119
+    %121 = neg %120
+    store @$tmp12, %121
     br sc.join27
   sc.short26:
-    %98 = const i64 0
-    store @$tmp12, %98
+    %122 = const i64 0
+    store @$tmp12, %122
     br sc.join27
   sc.join27:
-    %99 = load @$tmp12
-    condbr %99, sc.rhs28, sc.short29
+    %123 = load @$tmp12
+    condbr %123, sc.rhs28, sc.short29
   sc.rhs28:
-    %100 = load @b
-    %101 = const i64 0
-    %102 = sext %100
-    %103 = icmp.ne %102, %101
-    %104 = neg %103
-    store @$tmp11, %104
+    %124 = load @b
+    %125 = const i64 0
+    %126 = sext %124
+    %127 = icmp.ne %126, %125
+    %128 = neg %127
+    %129 = const i64 0
+    %130 = icmp.ne %128, %129
+    %131 = sext %130
+    %132 = neg %131
+    store @$tmp11, %132
     br sc.join30
   sc.short29:
-    %105 = const i64 0
-    store @$tmp11, %105
+    %133 = const i64 0
+    store @$tmp11, %133
     br sc.join30
   sc.join30:
-    %106 = load @$tmp11
-    %107 = trunc %106
-    store @t, %107
-    %108 = load @t
-    call.rtl void fb_PrintInt(0, %108, 1)
-    %109 = const i32 0
-    call.rtl void fb_End(%109)
-    %110 = load @$tmp0
-    ret %110
+    %134 = load @$tmp11
+    %135 = trunc %134
+    store @t, %135
+    %136 = load @t
+    call.rtl void fb_PrintInt(0, %136, 1)
+    %137 = const i32 0
+    call.rtl void fb_End(%137)
+    %138 = load @$tmp0
+    ret %138
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
@@ -238,4 +266,4 @@ declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 32 blocks, 148 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 32 blocks, 176 insts, 0 statements not lowered, 0 scope imbalance

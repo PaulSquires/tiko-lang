@@ -962,6 +962,12 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     if isAssign then
         sp.op = cast( ushort, k )
         Advance( p )
+        '' 'i +=> 1' IS THE SAME STATEMENT AS 'i += 1'. FreeBASIC spells every
+        '' compound assignment two ways, and the second lexes as the operator token
+        '' followed by a bare '>' -- so the arrow is consumed here rather than given
+        '' its own token, and nothing below this line can tell which was written.
+        '' Without it 'i +=> 1' was 'expected an expression' at the '>'.
+        Accept( p, Tko.TK_GT )
         sp.b = Expression( p )
         return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
     end if
@@ -971,8 +977,12 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     '' the operator is a keyword and the '=' is its own -- so nothing recognised them
     '' and 't1 and= t2' parsed as the expression 't1' followed by a paren-less call to
     '' something named 'and'. Measured: fbc emits 'T1 = T1 & T2' for the first of them.
+    '' ...and the word-spelled ones take the arrow too -- 'i and=> 1' -- where it is
+    '' ONE token, because '=>' after a keyword lexes as TK_FATARROW rather than as an
+    '' '=' with a '>' behind it.
     if Tko.IsWordAssignOp( k ) andalso HasTok( p, p.pos + 1 ) then
-        if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ then
+        dim as Tko.TokenKind k2 = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+        if (k2 = Tko.TK_EQ) orelse (k2 = Tko.TK_FATARROW) then
             sp.op = cast( ushort, k )
             Advance( p )
             Advance( p )
