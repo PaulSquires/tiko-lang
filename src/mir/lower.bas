@@ -5,6 +5,8 @@
 
 namespace Tko.Mir
 
+declare function LowerCtorReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+declare function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function IsCmpOp_( byval op as MirOp ) as boolean
 declare function LowerByrefResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
@@ -1374,22 +1376,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' type. fbc builds a temporary and copies it in; this is the same
                 '' object one copy earlier, and without it every tuple-returning
                 '' function declined its return.
-                if (c.ast->Kind( sp->a ) = Tko.N_TUPLE) orelse _
-                   (c.ast->Kind( sp->a ) = Tko.N_PAREN) then
-                    if c.info->TypeOf_( sp->a ) = Tko.TYPE_NONE then
-                        if LowerUdtParenInit_( c, c.resultSlot, c.resultType, sp->a ) then
-                            EmitCleanupsTo( c, 0 )
-                            dim as MirValue ura0
-                            ura0.kind = cast( ubyte, MV_LOCAL )
-                            ura0.ty = cast( ubyte, MT_PTR )
-                            ura0.id = c.resultSlot
-                            Terminate( c, MTERM_RET, -1, -1, _
-                                       LowerExprLoad( c, ura0, MT_AGG ) )
-                            c.curBlock = NewBlock( c, "after" )
-                            return
-                        end if
-                    end if
-                end if
+                if LowerTupleReturn_( c, sp->a ) then return
+
+                '' 'return T( args )' CONSTRUCTS INTO THE RESULT, and is not a value
+                '' to copy: 'D( this.y + n )' is a constructor call spelled as a call
+                '' to the type name, so LowerExpr had nothing to hand back and
+                '' LowerAddr no address to take. See LowerCtorReturn_.
+                if LowerCtorReturn_( c, sp->a ) then return
 
                 dim as MirValue uval = LowerExpr( c, sp->a )
                 dim as boolean copied = false

@@ -124,3 +124,45 @@ function IsCmpOp_( byval op as MirOp ) as boolean
     end select
     return false
 end function
+
+'' 'return T( args )' OUT OF A UDT-RETURNING FUNCTION: the object is built where it
+'' belongs rather than in a temporary that is then copied in -- one copy earlier than
+'' fbc, which materialises a temporary and memcpys it. LowerCtorInit knows both
+'' spellings, 'T( args )' and 'type<T>( args )', and takes a slot.
+function LowerCtorReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if c.resultSlot < 0 then return false
+    if LowerCtorInit( c, c.resultSlot, c.resultType, e ) = false then return false
+    EmitCleanupsTo( c, 0 )
+    dim as MirValue urc
+    urc.kind = cast( ubyte, MV_LOCAL )
+    urc.ty = cast( ubyte, MT_PTR )
+    urc.id = c.resultSlot
+    Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, urc, MT_AGG ) )
+    '' A DEAD CURSOR, not a fresh block: this is a RETURN and nothing follows it in
+    '' the same block. Opening an "after" block instead left one unreachable block --
+    '' and one unreachable 'ret' the epilogue put in it -- per return in the corpus,
+    '' 1,488 of them.
+    c.curBlock = -1
+    return true
+end function
+
+'' 'return ( 20, 22 )' -- A BARE TUPLE LITERAL HAS NO TYPE OF ITS OWN, so it is built
+'' straight into the result slot from the FUNCTION'S result type. fbc builds a
+'' temporary and copies it in; this is the same object one copy earlier, and without
+'' it every tuple-returning function declined its return.
+function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if c.resultSlot < 0 then return false
+    if (c.ast->Kind( e ) <> Tko.N_TUPLE) andalso (c.ast->Kind( e ) <> Tko.N_PAREN) then
+        return false
+    end if
+    if c.info->TypeOf_( e ) <> Tko.TYPE_NONE then return false
+    if LowerUdtParenInit_( c, c.resultSlot, c.resultType, e ) = false then return false
+    EmitCleanupsTo( c, 0 )
+    dim as MirValue ura0
+    ura0.kind = cast( ubyte, MV_LOCAL )
+    ura0.ty = cast( ubyte, MT_PTR )
+    ura0.id = c.resultSlot
+    Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, ura0, MT_AGG ) )
+    c.curBlock = NewBlock( c, "after" )
+    return true
+end function
