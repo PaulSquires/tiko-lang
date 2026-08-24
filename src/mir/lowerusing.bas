@@ -59,6 +59,8 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' The format is an FBSTRING DESCRIPTOR. A literal has none, so it borrows a
     '' temporary one exactly as PRINT does with a literal item.
     dim as MirValue fmt
+    '' The slot a WIDE format was converted into, or -1. It is released after Init.
+    dim as long fmtTmp = -1
     if c.ast->Kind( sp->c ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, sp->c )
         dim as FB.Array( of ulong ) ta
@@ -68,12 +70,39 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         ta.Push( cast( ulong, len( litText ) ) )
         fmt = EmitRtl( c, RTL_STR_TEMPZ, ta )
     else
-        '' A WSTRING format is round-tripped through a narrow temporary by fbc, in a
-        '' way that looks like an fbc bug (it writes the result back into the wstring
-        '' and deletes the temp before the item calls). Not reproduced: declining is
-        '' better than copying a defect whose behaviour was never measured.
-        if WideStringElems( c, c.info->TypeOf_( sp->c ) ) > 0 then return false
-        if IsStringType( c, c.info->TypeOf_( sp->c ) ) = false then return false
+        '' A WSTRING FORMAT IS CONVERTED TO A NARROW TEMPORARY, and this used to be
+        '' refused with a note calling fbc's shape a bug. It is not one -- the note had
+        '' the direction of the assignment backwards. Measured:
+        ''
+        ''     fb_WstrAssignToA( &TMP4, -1, L"###", 0 );
+        ''     fb_PrintUsingInit( &TMP4 );
+        ''     fb_StrDelete( &TMP4 );
+        ''     fb_PrintUsingLongint( 0, N, -2147483647 );
+        ''
+        '' -- the narrow temporary is the DESTINATION, Init copies the format out of it,
+        '' and the temp is released before the items run. wstring/print_using.bas is
+        '' written entirely in wide formats.
+        '' WIDE BY TYPE OR BY SHAPE. The corpus writes the format as a wide
+        '' CONCATENATION -- 'using ( QT(fmt) & ", " & QT("&") )' -- which types as the
+        '' WSTRING builtin rather than a sized one, so counting elements missed it.
+        dim as boolean fmtWide = (WideStringElems( c, c.info->TypeOf_( sp->c ) ) > 0)
+        if fmtWide = false then fmtWide = IsWideString_( c, c.info->TypeOf_( sp->c ) )
+        if fmtWide = false then fmtWide = TermIsWide_( c, Unparen_( c, sp->c ) )
+        if fmtWide then
+            fmtTmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+            if fmtTmp < 0 then return false
+            dim as MirValue fdst
+            fdst.kind = cast( ubyte, MV_LOCAL )
+            fdst.ty = cast( ubyte, MT_PTR )
+            fdst.id = fmtTmp
+            ZeroStrDescriptor( c, fdst )
+            if LowerWideToNarrowSlot( c, fmtTmp, _
+                   c.types->Builtin( Tko.TY_STRING ), _
+                   Unparen_( c, sp->c ) ) = false then return false
+            fmt = fdst
+        elseif IsStringType( c, c.info->TypeOf_( sp->c ) ) = false then
+            return false
+        else
         '' A CONCATENATION IS A STRING WITH NO ADDRESS. The corpus writes the format
         '' as one more often than it writes a variable -- 'using ( QT(fmt) & ", " &
         '' QT("&") )' is the whole of one file's harness -- and asking a value for an
@@ -84,6 +113,7 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             if ConcatToTempDesc_( c, Unparen_( c, sp->c ), fmt ) = false then
                 return false
             end if
+        end if
         end if
     end if
     if fmt.kind = cast( ubyte, MV_NONE ) then return false
@@ -103,6 +133,17 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as FB.Array( of ulong ) ia
     ia.Push( cast( ulong, fmt.kind ) ) : ia.Push( cast( ulong, fmt.id ) )
     EmitRtl( c, RTL_USING_INIT, ia )
+    '' ...and the wide format's temporary is released right after Init, which is where
+    '' fbc releases it: Init has copied the format out by then.
+    if fmtTmp >= 0 then
+        dim as MirValue fd
+        fd.kind = cast( ubyte, MV_LOCAL )
+        fd.ty = cast( ubyte, MT_PTR )
+        fd.id = fmtTmp
+        dim as FB.Array( of ulong ) da
+        da.Push( cast( ulong, fd.kind ) ) : da.Push( cast( ulong, fd.id ) )
+        EmitRtl( c, RTL_STR_DELETE, da )
+    end if
 
     for i as long = 0 to itemNode.Count - 1
         '' The last item carries 0x80000001; every earlier one carries 0. A TRAILING

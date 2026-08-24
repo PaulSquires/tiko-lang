@@ -1,0 +1,8 @@
+'' A wstring format for 'print using', converted to a narrow temporary and released
+'' after Init -- and the narrow forms beside it, unchanged.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/print-using-wide.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/print-using-wide.out

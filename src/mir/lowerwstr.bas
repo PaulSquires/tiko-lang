@@ -310,6 +310,21 @@ private function NarrowDestWideSource_ _
     if ConcatHasWideTerm_( c, value ) then
         if WideConcatToTemp_( c, value, src ) then return true
     end if
+
+    '' A WIDE RVALUE WITH NO ADDRESS -- 'wstr( x )', 'trim( w )' -- is a bare uint16*
+    '' like any other wide operand, and WideOperand_ already knows all three spellings.
+    '' Without it 'print using wstr( "###" )' had a wide source that was neither a
+    '' concatenation nor an operator cast and declined.
+    ''
+    '' ASKED ONLY OF A GENUINELY WIDE TERM. WideOperand_ answers for shapes that are
+    '' not wide at all -- it is a spelling test, not a type test -- and letting it claim
+    '' a NARROW source here turned four goldens into wide runtime calls over narrow
+    '' data.
+    if TermIsWide_( c, value ) then
+        if WideOperand_( c, value, src ) then
+            if src.kind <> cast( ubyte, MV_NONE ) then return true
+        end if
+    end if
     return UserCastToWide_( c, value, src )
 end function
 
