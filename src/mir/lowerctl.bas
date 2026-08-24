@@ -1151,7 +1151,11 @@ sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
 
     c.curBlock = headB
     if sp->a <> Tko.NODE_NONE then
+        '' A UDT temporary made by the CONDITION dies here, not at the end of the
+        '' loop: the head runs again on every iteration and the slot is the same one.
+        dim as long umark = c.udtTemps.Count
         dim as MirValue cond = LowerCondition( c, sp->a )
+        ReleaseUdtTemps_( c, umark )
         '' UNTIL is the same test with the arms swapped, which is cheaper than
         '' emitting a negation and is exactly what fbc's own lowering does.
         if isUntil then

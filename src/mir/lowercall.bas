@@ -189,16 +189,18 @@ function LowerCallParts _
     '' pointer and RDX is 'this'.
     ''
     '' The call's VALUE is that temporary's address, so 'v = F( )' and 'F( ).field'
-    '' both read from it. fbc destroys the temp at the end of the statement; tiko-lang does
-    '' not model that yet, so a result whose type has a destructor LEAKS one object per
-    '' call. Stated rather than hidden -- and the alternative was not lowering the
-    '' statement at all.
+    '' both read from it, and it is destroyed at the END OF THE STATEMENT -- measured,
+    '' and registered below beside the string temporaries, which have the same life.
     dim as MirValue sretTmp
     if cs->kind = cast( ubyte, Tko.SYM_PROC ) then
         if UsesSretReturn( c, cs->type_ ) then
             dim as long tslot = _
                 NewTempLocal( c, MT_AGG, SizeOfType( c, cs->type_ ) )
             if tslot < 0 then return v
+            if TypeNeedsDtor_( c, cs->type_ ) then
+                c.udtTemps.Push( cast( ulong, tslot ) )
+                c.udtTempTypes.Push( cast( ulong, cs->type_ ) )
+            end if
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )
             sretTmp.id = tslot

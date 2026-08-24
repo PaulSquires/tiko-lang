@@ -97,6 +97,12 @@ type Ctx
     '' release is fb_WstrDelete on the pointer LOADED from the slot, where a narrow one
     '' is fb_StrDelete on the descriptor's own address.
     as FB.Array( of ulong ) wstrTemps
+    '' STATEMENT-LIFETIME UDT TEMPORARIES: the hidden result object of a call that
+    '' returns a UDT by value. Measured -- fbc destroys one at the END OF THE
+    '' STATEMENT that consumed it, which is shorter than any scope, so it belongs
+    '' beside the string temporaries and not on the cleanup list.
+    as FB.Array( of ulong ) udtTemps
+    as FB.Array( of ulong ) udtTempTypes
     '' DATA. The head of the module's block chain (-1 when it has none), and the
     '' label -> block map a 'restore lbl' resolves through. Both are built by a
     '' PRE-PASS, because 'restore lbl' may name a label that appears later.
@@ -164,6 +170,10 @@ declare function LowerExpr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 '' An expression lowered as a CONDITION: the same lowering, with the top-level
 '' comparison left un-negated because a branch only asks whether it is nonzero.
 declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+'' Destroy every statement-lifetime UDT temporary made since 'mark'. Called from the
+'' statement dispatcher, and from a LOOP HEAD, where waiting for the statement to end
+'' would leak one per iteration.
+declare sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
 declare function LowerAddr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 declare sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
 declare function StmtOf _

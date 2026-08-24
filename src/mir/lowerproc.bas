@@ -9,6 +9,9 @@
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
+declare function SretCopyResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
+
 
 '' ------------------------------------------------------------------ the walk
 
@@ -613,6 +616,21 @@ function LowerSretResult( byref c as Ctx, byval valueE as Tko.NodeId ) as boolea
     if c.sretParam < 0 then return false
     if valueE = Tko.NODE_NONE then return false
 
+    '' A UDT RESULT WITH A COPY CONSTRUCTOR IS COPY-CONSTRUCTED INTO, not stored.
+    ''
+    '' Measured: 'return t' out of a function returning a type that holds a string is
+    ''
+    ''     _ZN1SC1ERKS_( tmp$4$1, &T$1 );      copy-construct the caller's storage
+    ''     _ZN1SD1Ev( &T$1 );                  ...and T is still destroyed on the way out
+    ''
+    '' A whole-aggregate store instead made the result and the local own ONE buffer,
+    '' and the local's destructor then freed it -- so the caller was handed a
+    '' descriptor pointing at released memory. It lowered, it verified, and every
+    '' function returning a string-holding type had it.
+    if c.resultType <> Tko.TYPE_NONE then
+        if SretCopyResult_( c, valueE, c.resultType ) then return true
+    end if
+
     '' The VALUE first, the address only as a fallback: 'function = F( )' has no
     '' address to take, and a call result is already an aggregate value here.
     dim as MirValue val = LowerExpr( c, valueE )
@@ -853,6 +871,50 @@ function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as bool
     rr.Push( cast( ulong, rsa.kind ) ) : rr.Push( cast( ulong, rsa.id ) )
     Terminate( c, MTERM_RET, -1, -1, EmitRtl( c, RTL_STR_TEMP_RESULT, rr ) )
     c.curBlock = -1
+    return true
+end function
+
+
+'' The copy-construction half of a UDT result. False when the type has no copy
+'' constructor at all, written or synthesised, which is the trivial structure fbc
+'' stores whole.
+private function SretCopyResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
+
+    if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId cc = StructorWithArity( c, StructorOf( c, rt, "__ctor" ), 1 )
+    dim as boolean written = false
+    if cc <> Tko.SYMBOL_NONE then
+        dim as Tko.TypeId cpt = ParamTypeAt( c, cc, 0 )
+        if cpt <> Tko.TYPE_NONE then
+            if c.types->Kind( cpt ) = Tko.TK_REFERENCE then cpt = c.types->Inner( cpt )
+            written = (c.types->Unqualify( cpt ) = c.types->Unqualify( rt ))
+        end if
+    end if
+    if (written = false) andalso (NeedsLetBody_( c, rt ) = false) then return false
+
+    '' AND THE SOURCE MUST BE ONE OF THESE. 'return T( 1 )' constructs a temporary
+    '' somewhere this cannot see, and 'return' with no value has nothing to copy.
+    dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
+    if vt <> c.types->Unqualify( rt ) then return false
+    dim as MirValue src = LowerAddr( c, valueE )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue sa
+    sa.kind = cast( ubyte, MV_LOCAL )
+    sa.ty = cast( ubyte, MT_PTR )
+    sa.id = c.sretParam
+    dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+
+    if written then
+        dim as FB.Array( of ulong ) cargs
+        cargs.Push( cast( ulong, src.kind ) )
+        cargs.Push( cast( ulong, src.id ) )
+        EmitStructorCall( c, cc, -1, @dst, @cargs )
+    else
+        CallImplicitCopy_( c, rt, dst, src )
+    end if
     return true
 end function
 

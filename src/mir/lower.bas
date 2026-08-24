@@ -599,8 +599,11 @@ sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
     '' have already been released by the inner LowerStmt.
     dim as long tmpMark = c.strTemps.Count
     dim as long wtmpMark = c.wstrTemps.Count
+    dim as long utmpMark = c.udtTemps.Count
 
     LowerStmtInner( c, id )
+
+    ReleaseUdtTemps_( c, utmpMark )
 
     while c.strTemps.Count > tmpMark
         dim as long slot = cast( long, c.strTemps[c.strTemps.Count - 1] )
@@ -1241,7 +1244,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         dim as long exitB = NewBlock( c, "while.exit" )
         Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
         c.curBlock = headB
+        '' A UDT temporary made by the CONDITION dies here, not at the end of the
+        '' loop: the head runs again on every iteration and the slot is the same one.
+        dim as long umark = c.udtTemps.Count
         dim as MirValue cond = LowerCondition( c, sp->a )
+        ReleaseUdtTemps_( c, umark )
         Terminate( c, MTERM_CONDBR, bodyB, exitB, cond )
         c.curBlock = bodyB
         c.breakTo.Push( exitB )
@@ -1482,6 +1489,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         SkipStmt( c, id )
     end select
 end sub
+
 
 
 

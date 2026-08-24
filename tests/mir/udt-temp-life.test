@@ -1,0 +1,14 @@
+'' A UDT-returning call lands in a hidden temporary, and fbc destroys that temporary at
+'' the END OF THE STATEMENT -- measured: 'MAKE( &TMP ); fb_PrintString( ..., &TMP, 1 );
+'' _ZN1SD1Ev( &TMP )'. A loop head releases its own before branching, because the head
+'' runs again on every iteration and the slot is the same one.
+''
+'' 'return t' out of a UDT function is a COPY CONSTRUCTION of the caller's storage --
+'' '_ZN1SC1ERKS_( tmp$4$1, &T$1 )' followed by T's own destructor -- and not a
+'' whole-aggregate store, which handed the caller a descriptor over released memory.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-temp-life.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-temp-life.out

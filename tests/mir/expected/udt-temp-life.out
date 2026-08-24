@@ -1,0 +1,151 @@
+global str $str0 ""
+global str $str1 "a"
+global str $str2 "x"
+global str $str3 "b"
+func void _ZN1SD1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    call.rtl void fb_StrDelete(%3)
+    ret
+}
+declare void fb_StrDelete($0)
+func void P() {
+  local agg $tmp0 size 24
+  local agg $tmp1 size 24
+  local agg $tmp2 size 24
+  local agg q size 24
+  local agg $tmp4 size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = call ptr MAKE_(@$tmp0)
+    %3 = load @$tmp0
+    %4 = field.addr %3, 0
+    call.rtl void fb_PrintString(0, %4, 1)
+    call void _ZN1SD1Ev(@$tmp0)
+    %5 = alloca ptr $tmp1
+    %6 = call ptr MAKE_(@$tmp1)
+    %7 = load @$tmp1
+    %8 = field.addr %7, 0
+    %9 = call.rtl i32 fb_StrCompare(%8, -1, @@$str0, 1)
+    %10 = icmp.eq %9, 0
+    %12 = alloca ptr $tmp2
+    %19 = alloca ptr q
+    %20 = alloca ptr $tmp4
+    condbr %10, if.then2, if.else3
+  if.join1:
+    call void _ZN1SD1Ev(@$tmp1)
+    br while.head4
+  if.then2:
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 1)
+    call.rtl void fb_PrintString(0, %11, 1)
+    br if.join1
+  if.else3:
+    br if.join1
+  while.head4:
+    %13 = call ptr MAKE_(@$tmp2)
+    %14 = load @$tmp2
+    %15 = field.addr %14, 0
+    %16 = call.rtl i32 fb_StrCompare(%15, -1, @@$str2, 2)
+    %17 = icmp.eq %16, 0
+    call void _ZN1SD1Ev(@$tmp2)
+    condbr %17, while.body5, while.exit6
+  while.body5:
+    %18 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
+    call.rtl void fb_PrintString(0, %18, 1)
+    br while.head4
+  while.exit6:
+    %21 = call ptr MAKE_(@$tmp4)
+    %22 = load @$tmp4
+    call void _ZN1SC1ERKS_(@q, %22)
+    call void _ZN1SD1Ev(@$tmp4)
+    call void _ZN1SD1Ev(@q)
+    ret
+}
+declare ptr MAKE_()
+declare void fb_PrintString($0, $1, $2)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void _ZN1SC1ERKS_($0, $1)
+func ptr G($0) {
+  local ptr $tmp0
+  local agg t size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = alloca ptr t
+    call void _ZN1SC1Ev(@t)
+    %3 = load @$tmp0
+    call void _ZN1SC1ERKS_(%3, @t)
+    call void _ZN1SD1Ev(@t)
+    %4 = load @$tmp0
+    ret %4
+}
+declare void _ZN1SC1Ev($0)
+func ptr MAKE_($0) {
+  local ptr $tmp0
+  local agg r size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = alloca ptr r
+    call void _ZN1SC1Ev(@r)
+    %3 = load @$tmp0
+    call void _ZN1SC1ERKS_(%3, @r)
+    call void _ZN1SD1Ev(@r)
+    %4 = load @$tmp0
+    ret %4
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void P()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+func void _ZN1SC1ERKS_($0, $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    call void _ZN1SaSERKS_($0, $1)
+    ret
+}
+declare void _ZN1SaSERKS_($0, $1)
+func void _ZN1SC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
+func void _ZN1SaSERKS_($0, $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = call.rtl ptr fb_StrAssign(%2, -1, %1, -1, 0)
+    ret
+}
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+verify: ok
+lowered: 8 functions, 14 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance

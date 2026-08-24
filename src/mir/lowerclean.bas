@@ -118,4 +118,44 @@ sub CloseScope( byref c as Ctx )
     PopScope( c )
 end sub
 
+
+'' A CALL'S HIDDEN RESULT OBJECT, destroyed where fbc destroys it.
+''
+'' Measured: 'print make( ).s' over a type holding a string is
+''
+''     MAKE( &TMP$3$1 );
+''     fb_PrintString( 0, (FBSTRING*)&TMP$3$1, 1 );
+''     _ZN1SD1Ev( &TMP$3$1 );
+''
+'' -- one destructor per call, at the end of the statement. Without it every call
+'' returning a string-holding type LEAKED one object, which was recorded and left.
+''
+'' A LOOP HEAD releases its own before branching, because the condition runs again on
+'' every iteration and the slot is reused: waiting for the statement to end would
+'' destroy the last one and leak the rest.
+sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
+    while c.udtTemps.Count > mark
+        dim as long slot = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+        dim as Tko.TypeId t = cast( Tko.TypeId, c.udtTempTypes[c.udtTempTypes.Count - 1] )
+        c.udtTemps.Pop( )
+        c.udtTempTypes.Pop( )
+        '' A dead cursor means the statement ended in a terminator, and anything
+        '' emitted here would land in no block at all -- the same hole the string
+        '' temporaries have, and fbc has it too.
+        if c.curBlock >= 0 then
+            dim as MirValue a
+            a.kind = cast( ubyte, MV_LOCAL )
+            a.ty = cast( ubyte, MT_PTR )
+            a.id = slot
+            dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 )
+            if dt <> Tko.SYMBOL_NONE then
+                dim as FB.Array( of ulong ) none_
+                EmitStructorCall( c, dt, -1, @a, @none_ )
+            else
+                CallImplicitDtor_( c, t, a )
+            end if
+        end if
+    wend
+end sub
+
 end namespace
