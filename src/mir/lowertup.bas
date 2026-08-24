@@ -332,3 +332,10 @@ function LowerDestructure _
     next
     return true
 end function
+
+'' IS THIS TYPE A TUPLE? Its fields are named '_1', '_2', ... in order and it has no
+'' members of its own; there is no other marker.
+function IsTupleType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    dim as FB.Array( of ulong ) ts, os
+    return TupleElems_( c, c.types->Unqualify( t ), ts, os, false )
+end function

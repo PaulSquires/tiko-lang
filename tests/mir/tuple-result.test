@@ -1,0 +1,8 @@
+'' 'function = ( a, b )' out of a tuple-returning function -- the spelling that is
+'' error 7 over a plain UDT and the only one there is over a tuple.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/tuple-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/tuple-result.out

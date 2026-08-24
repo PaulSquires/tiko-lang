@@ -32,8 +32,12 @@ private function ResultFieldListInit_ _
     '' and rejects 'function = ( 5, 6 )' with error 7, expecting ')' where the comma
     '' is. The two build the same node, so the parser marks which was written.
     if c.ast->Kind( e ) <> Tko.N_TUPLE then return false
+    '' ...UNLESS THE RESULT IS A TUPLE, where the bare spelling is the ONLY one:
+    '' 'function = ( a \ b, a mod b )' out of a '(quotient as T, remainder as T)' is
+    '' what fb/mathint.bi's DivMod is, and fbc-modern accepts it. It is still error 7
+    '' over a plain UDT, which is what the rule above was measured on.
     if (c.ast->nodes[cast( long, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then
-        return false
+        if IsTupleType_( c, c.resultType ) = false then return false
     end if
     return LowerUdtParenInit_( c, c.resultSlot, c.resultType, e )
 end function
