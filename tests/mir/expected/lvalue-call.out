@@ -6,12 +6,12 @@ global str $str4 "e"
 global str $str5 "g"
 global wstr $wstr6 "a"
 func ptr _ZN1TixEi($0, $1) {
-  local i32 $tmp0
+  local ptr $tmp0
   local ptr this
   local i32 i
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = const i32 0
+    %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0
@@ -28,12 +28,12 @@ func ptr _ZN1TixEi($0, $1) {
     ret %12
 }
 func ptr _ZN1T2ATEi($0, $1) {
-  local i32 $tmp0
+  local ptr $tmp0
   local ptr this
   local i32 i
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = const i32 0
+    %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0

@@ -1,12 +1,16 @@
 func ptr _ZN1UcvcEv($0) {
+  local ptr $tmp0
   local ptr this
   entry0:
-    %1 = alloca ptr this
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
     store @this, $0
-    %2 = load @this
-    %3 = field.addr %2, 0
-    %4 = load %3
-    ret %4
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
 }
 func void P() {
   local agg uv size 50
@@ -38,14 +42,18 @@ declare ptr fb_TRIM($0)
 declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare void fb_StrDelete($0)
 func ptr _ZN1WcvwEv($0) {
+  local ptr $tmp0
   local ptr this
   entry0:
-    %1 = alloca ptr this
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
     store @this, $0
-    %2 = load @this
-    %3 = field.addr %2, 0
-    %4 = load %3
-    ret %4
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
 }
 func void Q() {
   local agg wv size 100
@@ -75,4 +83,4 @@ declare ptr fb_WstrTrim($0)
 declare ptr fb_WstrAssign($0, $1, $2)
 declare ptr fb_WstrAssignToA($0, $1, $2, $3)
 verify: ok
-lowered: 4 functions, 4 blocks, 45 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 51 insts, 0 statements not lowered, 0 scope imbalance

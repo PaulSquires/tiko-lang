@@ -1,0 +1,16 @@
+'' A BYREF RESULT IS A POINTER. The return TYPE already followed that rule; the result
+'' SLOT did not, so 'function = g' over a 'byref as Inner' copied g into a local
+'' aggregate and returned the AGGREGATE where the declaration promised a pointer -- it
+'' lowered, it verified, and the caller read whichever bytes happened to be there. A
+'' byref STRING or ZSTRING result had no slot at all and declined instead.
+''
+'' Measured: 'struct $5INNER* F( void ) { struct $5INNER* fb$result$1; fb$result$1 =
+'' &G$; return fb$result$1; }', and 'char* F1( FBSTRING* S$1 ) { fb$result$1 =
+'' *(char**)S$1; }' -- so the slot holds an ADDRESS and 'function = expr' stores the
+'' address of expr.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byref-result.out

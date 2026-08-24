@@ -111,6 +111,9 @@ type Ctx
     '' Whether the current procedure returns a TRIVIAL UDT by value, in which case the
     '' result slot holds the object itself and 'ret' carries its VALUE.
     as boolean              udtResult
+    '' A BYREF RESULT: the slot holds an ADDRESS, and 'function = expr' stores the
+    '' address of expr rather than its value.
+    as boolean              byrefResult
     as long                 sretParam
     as long                 dataHead
     as FB.Array( of ulong ) dataLabelName

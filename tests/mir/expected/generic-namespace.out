@@ -65,12 +65,12 @@ func i8 _ZN1N5IT<6>7ISVALIDEv($0) {
     ret %10
 }
 func ptr _ZN1N5IT<6>5VALUEEv($0) {
-  local i32 $tmp0
+  local ptr $tmp0
   local ptr this
   local i32 z
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = const i32 0
+    %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0

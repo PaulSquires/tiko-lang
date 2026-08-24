@@ -1,10 +1,10 @@
 func ptr _ZN2FB6ARR<6>ixEi($0, $1) {
-  local i32 $tmp0
+  local ptr $tmp0
   local ptr this
   local i32 i
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = const i32 0
+    %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0

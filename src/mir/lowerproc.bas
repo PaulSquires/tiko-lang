@@ -214,7 +214,9 @@ sub LowerProc _
     dim as Tko.TypeId savedResType = c.resultType
     dim as long savedSret = c.sretParam
     dim as boolean savedUdtRes = c.udtResult
+    dim as boolean savedByrefRes = c.byrefResult
     c.udtResult = false
+    c.byrefResult = false
     c.resultSlot = -1
     c.resultTy = cast( ubyte, MT_VOID )
     c.resultType = Tko.TYPE_NONE
@@ -223,6 +225,26 @@ sub LowerProc _
     dim as MirType rmt = LowerType( rt, *c.types )
     dim as boolean scalarResult = (rt <> Tko.TYPE_NONE) andalso (rmt <> MT_VOID) andalso _
                                   (rmt <> MT_AGG)
+
+    '' A BYREF RESULT IS A POINTER, whatever the declared type is, and so is its
+    '' RESULT SLOT. Measured:
+    ''
+    ''     struct $5INNER* F( void ) { struct $5INNER* fb$result$1;
+    ''                                 fb$result$1 = &G$;  return fb$result$1; }
+    ''
+    '' The return TYPE already followed that rule; the slot did not, so
+    '' 'function = g' over a byref UDT result copied g into a local aggregate and
+    '' returned the AGGREGATE where the declaration promised a pointer. It lowered,
+    '' it verified, and the caller read whichever bytes happened to be there. A byref
+    '' STRING or ZSTRING result had no slot at all and declined instead -- which is
+    '' every 'function = *strptr( s )' in functions/temp-strings.bas.
+    dim as boolean byrefDecl = _
+        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0)
+    c.byrefResult = byrefDecl andalso (rt <> Tko.TYPE_NONE)
+    if c.byrefResult then
+        scalarResult = false
+        rmt = MT_PTR
+    end if
 
     '' A UDT RESULT WITH A DESTRUCTOR OR A COPY CONSTRUCTOR travels through an
     '' EXPLICIT HIDDEN POINTER: parameter 0, holding the caller's storage, and the
@@ -233,7 +255,10 @@ sub LowerProc _
     '' There is NO result local in this case: the hidden pointer IS the result object,
     '' so 'function = expr' writes straight through it.
     dim as boolean sretResult = false
-    if (rt <> Tko.TYPE_NONE) andalso (scalarResult = false) then
+    dim as boolean sretMaybe = (rt <> Tko.TYPE_NONE)
+    sretMaybe = sretMaybe andalso (scalarResult = false)
+    sretMaybe = sretMaybe andalso (c.byrefResult = false)
+    if sretMaybe then
         sretResult = UsesSretReturn( c, rt )
     end if
 
@@ -248,8 +273,15 @@ sub LowerProc _
     '' So the slot IS a descriptor and 'function = expr' is an ordinary string
     '' assignment into it -- which is why this one can be modelled where the UDT
     '' return, whose value really does come back through a hidden pointer, cannot.
+    '' A BYREF STRING RESULT IS NOT A STRING RESULT: it is a pointer to somebody
+    '' else's descriptor, so there is no local descriptor to build and none to
+    '' release. Measured -- fbc writes 'char* F1( FBSTRING* )' for
+    '' 'byref as zstring' and returns the data pointer it was handed.
     dim as boolean stringResult = false
-    if (rt <> Tko.TYPE_NONE) andalso (scalarResult = false) then
+    dim as boolean aggRet = (rt <> Tko.TYPE_NONE)
+    aggRet = aggRet andalso (scalarResult = false)
+    aggRet = aggRet andalso (c.byrefResult = false)
+    if aggRet then
         stringResult = IsStringType( c, rt )
     end if
     if stringResult then
@@ -302,7 +334,11 @@ sub LowerProc _
     '' chain, and the house rule is to name the condition rather than silence it.
     dim as boolean haveRet = (rt <> Tko.TYPE_NONE)
     dim as boolean udtByValue = false
-    if haveRet andalso (scalarResult = false) andalso (sretResult = false) then
+    dim as boolean udtMaybe = haveRet
+    udtMaybe = udtMaybe andalso (scalarResult = false)
+    udtMaybe = udtMaybe andalso (sretResult = false)
+    udtMaybe = udtMaybe andalso (c.byrefResult = false)
+    if udtMaybe then
         udtByValue = (c.types->Kind( rt ) = Tko.TK_UDT)
         '' A 'cva_list' RESULT IS THE SAME SHAPE and needs the same slot. It is a
         '' BUILTIN rather than a UDT, so the kind test alone said no to it and
@@ -326,6 +362,17 @@ sub LowerProc _
         c.resultTy = cast( ubyte, MT_AGG )
         c.resultType = rt
         c.udtResult = true
+    end if
+
+    if c.byrefResult then
+        c.resultSlot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        c.resultTy = cast( ubyte, MT_PTR )
+        c.resultType = rt
+        dim as MirValue ba
+        ba.kind = cast( ubyte, MV_LOCAL )
+        ba.ty = cast( ubyte, MT_PTR )
+        ba.id = c.resultSlot
+        StoreThrough( c, ba, ConstInt( c, 0, MT_PTR ) )
     end if
 
     if scalarResult then
@@ -571,6 +618,7 @@ sub LowerProc _
     c.curProcSym = savedSym
     c.curBlock = savedB
     c.udtResult = savedUdtRes
+    c.byrefResult = savedByrefRes
     c.sretParam = savedSret
     c.resultSlot = savedRes
     c.resultTy = savedResTy

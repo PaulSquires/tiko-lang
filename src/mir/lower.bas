@@ -5,6 +5,9 @@
 
 namespace Tko.Mir
 
+declare function IsCmpOp_( byval op as MirOp ) as boolean
+declare function LowerByrefResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
 declare function TypeLitCopySource_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as Tko.NodeId
 declare function StrSwapKind_ _
@@ -14,21 +17,6 @@ declare function StrSwapKind_ _
 
 
 #include once "mir/lowerutil.bas"
-
-
-
-
-
-'' Is this opcode a COMPARISON -- one that yields 0 or 1 rather than a number?
-private function IsCmpOp_( byval op as MirOp ) as boolean
-    select case op
-    case M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
-         M_ICMP_ULT, M_ICMP_UGT, _
-         M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, M_FCMP_LE, M_FCMP_GE
-        return true
-    end select
-    return false
-end function
 
 function LowerExpr _
     ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
@@ -1083,6 +1071,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 if (rk >= 0) andalso (rk < 16) then
                     c.st->resultNoSlotKinds[rk] += 1
                 end if
+            elseif c.byrefResult then
+                if LowerByrefResult_( c, sp->b ) = false then SkipHere( c )
             elseif IsStringType( c, c.resultType ) then
                 '' A STRING RESULT IS ASSIGNED, NOT STORED. The result slot holds a
                 '' DESCRIPTOR, and copying one is not the same as assigning to it:

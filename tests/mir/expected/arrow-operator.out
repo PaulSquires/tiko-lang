@@ -33,33 +33,33 @@ func void _ZN5INNER4BUMPEi($0, $1) {
     ret
 }
 func ptr _ZptR6HOLDER($0) {
-  local agg $tmp0 size 8
+  local ptr $tmp0
   local ptr h
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr h
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr h
     store @h, $0
-    %3 = load @h
-    %4 = field.addr %3, 0
-    %5 = load %4
+    %4 = load @h
+    %5 = field.addr %4, 0
     %6 = load %5
-    store @$tmp0, %6
-    %7 = load @$tmp0
+    %7 = load %6
     ret %7
 }
 func ptr _ZdeR6HOLDER($0) {
-  local agg $tmp0 size 8
+  local ptr $tmp0
   local ptr h
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr h
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr h
     store @h, $0
-    %3 = load @h
-    %4 = field.addr %3, 0
-    %5 = load %4
+    %4 = load @h
+    %5 = field.addr %4, 0
     %6 = load %5
-    store @$tmp0, %6
-    %7 = load @$tmp0
+    %7 = load %6
     ret %7
 }
 func i32 main($0, $1) {

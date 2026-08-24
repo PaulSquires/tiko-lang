@@ -17,12 +17,12 @@ func i8 _ZN4ITER7ISVALIDEv($0) {
     ret %10
 }
 func ptr _ZN4ITER5VALUEEv($0) {
-  local i32 $tmp0
+  local ptr $tmp0
   local ptr this
   local ptr b
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = const i32 0
+    %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0

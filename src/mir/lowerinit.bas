@@ -90,3 +90,37 @@ function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
     c.rawCmpNode = saved
     return r
 end function
+
+'' A BYREF RESULT IS AN ADDRESS. 'function = g' stores '&G$', and
+'' 'function = *strptr( s )' stores the pointer the deref is of -- which is what makes
+'' a 'byref as zstring' function work at all: it returns somebody else's data pointer
+'' and owns nothing.
+function LowerByrefResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+
+    if c.resultSlot < 0 then return false
+    dim as MirValue bav = LowerAddr( c, valueE )
+    if bav.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue bra
+    bra.kind = cast( ubyte, MV_LOCAL )
+    bra.ty = cast( ubyte, MT_PTR )
+    bra.id = c.resultSlot
+    StoreThrough( c, bra, Coerce( c, bav, MT_PTR, false ) )
+    return true
+end function
+
+
+
+
+
+
+'' Is this opcode a COMPARISON -- one that yields 0 or 1 rather than a number?
+function IsCmpOp_( byval op as MirOp ) as boolean
+    select case op
+    case M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
+         M_ICMP_ULT, M_ICMP_UGT, _
+         M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, M_FCMP_LE, M_FCMP_GE
+        return true
+    end select
+    return false
+end function
