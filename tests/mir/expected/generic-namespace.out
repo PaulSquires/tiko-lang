@@ -63,7 +63,7 @@ func i8 _ZN1N5IT<6>7ISVALIDEv($0) {
     %9 = icmp.slt %8, %7
     ret %9
 }
-func i32 _ZN1N5IT<6>5VALUEEv($0) {
+func ptr _ZN1N5IT<6>5VALUEEv($0) {
   local i32 $tmp0
   local ptr this
   local i32 z

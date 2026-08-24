@@ -254,6 +254,22 @@ operator * ( byref opa as OpD, byval opn as long ) as OpD
     dim r as OpD
     return r
 end operator
+'' THE TWO POINTER-LIKE OPERATORS, which fb/sharedptr.bi and fb/comptr.bi both declare
+'' and neither of which is derivable from the spelling: '->' is 'pt' and UNARY '*' is
+'' 'de' -- where BINARY '*' above is 'ml'. tiko-lang spelled the arrow with the vendor
+'' extension, '_Zv12->R...', which is a link error against every smart pointer there is.
+type OpE
+    v as long
+end type
+type OpF
+    p as OpE ptr
+end type
+operator -> ( byref opf as OpF ) byref as OpE
+    return *opf.p
+end operator
+operator * ( byref opf as OpF ) byref as OpE
+    return *opf.p
+end operator
 operator = ( byref opa as OpD, byref opb as OpD ) as boolean
     return false
 end operator

@@ -110,6 +110,14 @@ sub LowerProc _
         '' what fbc's own C says: 'struct T* F( struct T* tmp )'. Declaring it 'agg'
         '' would put a type on the function that its own 'ret' contradicts.
         if UsesSretReturn( c, rt ) then declRet = MT_PTR
+        '' A BYREF RETURN IS A POINTER, which is what a reference IS at the ABI:
+        '' fbc writes 'struct INNER* F( void )' for 'function f( ) byref as Inner'.
+        '' Declared 'agg', the function returned the object by the hidden-pointer
+        '' convention while every CALL to it read a pointer -- and 'operator ->', which
+        '' is byref by construction, is the shape that made it visible.
+        if (c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0 then
+            declRet = MT_PTR
+        end if
     end if
     dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
     f->isDefinition = true

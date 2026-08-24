@@ -18,7 +18,7 @@ func void _ZN1UC1EPKc($0, $1) {
     store @rhs, $1
     ret
 }
-func void _ZN1UcvcEv($0) {
+func ptr _ZN1UcvcEv($0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -28,7 +28,7 @@ func void _ZN1UcvcEv($0) {
     %4 = load %3
     ret %4
 }
-func void _ZN1WcvwEv($0) {
+func ptr _ZN1WcvwEv($0) {
   local ptr this
   entry0:
     %1 = alloca ptr this

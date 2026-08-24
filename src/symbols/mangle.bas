@@ -381,7 +381,6 @@ private function OperatorCode _
     case "<="  : return "le"
     case ">"   : return "gt"
     case ">="  : return "ge"
-    case "*"   : return "ml"
     case "/"   : return "dv"
     case "mod" : return "rm"
     case "shl" : return "ls"
@@ -393,6 +392,13 @@ private function OperatorCode _
     case "[]"  : return "ix"
     case "+"   : return iif( arity = 1, "ps", "pl" )
     case "-"   : return iif( arity = 1, "ng", "mi" )
+    '' AND SO DOES '*': binary is MULTIPLY, 'ml', and UNARY is DEREFERENCE, 'de'.
+    '' fb/sharedptr.bi and fb/comptr.bi both declare the unary form.
+    case "*"   : return iif( arity = 1, "de", "ml" )
+    '' '->' IS 'pt', and it is not in the arity group because there is only one form.
+    '' It was falling through to the VENDOR EXTENSION below and coming out as
+    '' '_Zv12->R6HOLDER' -- a link error against every smart pointer there is.
+    case "->"  : return "pt"
     end select
 
     '' FreeBASIC's OWN operators -- integer divide, power, FOR/STEP/NEXT, the custom

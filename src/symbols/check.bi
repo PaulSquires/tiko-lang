@@ -101,6 +101,16 @@ namespace Tko.Check
     declare function FixedStringElem _
         ( byval t as Tko.TypeId, byref types as Tko.TypeContext ) as Tko.TypeId
 
+    '' The global 'operator ->' for a UDT and what it hands back. Both layers need
+    '' them -- Check to TYPE 'p->v' and lowering to CALL the operator -- so they take
+    '' the tables rather than a context.
+    declare function ArrowOperatorFor _
+        ( byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
+          byref names as Tko.Interner, byref ast as Tko.AstArena, _
+          byref info as Tko.SemanticInfo, byval bt as Tko.TypeId ) as Tko.SymbolId
+    declare function ArrowResultType _
+        ( byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
+          byval op as Tko.SymbolId ) as Tko.TypeId
     declare function ConversionCost _
         ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
           byref types as Tko.TypeContext, _

@@ -158,6 +158,48 @@ function LowerAddr _
         '' Every copy constructor in the corpus is written 'byref x as const T'.
         dim as Tko.TypeId bt = c.types->Unqualify( c.info->TypeOf_( mp->lhs ) )
         dim as MirValue base_
+
+        '' 'p->v' OVER A UDT IS A CALL to that UDT's global 'operator ->', whose byref
+        '' result is a POINTER at the ABI -- so the access is that call and then the
+        '' ordinary constant field offset. Measured from what fbc emits:
+        ''
+        ''     h->v = 77   vr = _ZptR6HOLDER( &H )   *(int32*)vr = 77
+        ''
+        '' and the operator is called AGAIN for every occurrence, which is what fbc
+        '' does rather than caching the pointer.
+        if (bt <> Tko.TYPE_NONE) andalso _
+           ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARROW) <> 0) andalso _
+           (c.types->Kind( bt ) = Tko.TK_UDT) then
+            dim as Tko.SymbolId aop = Tko.Check.ArrowOperatorFor( _
+                *c.types, *c.syms, *c.names, *c.ast, *c.info, bt )
+            if aop <> Tko.SYMBOL_NONE then
+                dim as Tko.TypeId art = Tko.Check.ArrowResultType( *c.types, *c.syms, aop )
+                if art <> Tko.TYPE_NONE then
+                    dim as MirValue self_ = LowerAddr( c, mp->lhs )
+                    if self_.kind = cast( ubyte, MV_NONE ) then return v
+                    dim as FB.Array( of ulong ) aargs
+                    aargs.Push( cast( ulong, self_.kind ) )
+                    aargs.Push( cast( ulong, self_.id ) )
+                    base_ = EmitDirectCall_( c, aop, MT_PTR, aargs )
+                    if base_.kind = cast( ubyte, MV_NONE ) then return v
+                    bt = art
+                    dim as Tko.SymbolId afs = c.info->RefOf( id )
+                    dim as Tko.Symbol ptr afsym = c.syms->SymbolAt( afs )
+                    if afsym = 0 then return v
+                    if (afsym->flags and Tko.SYMF_BITFIELD) <> 0 then return v
+                    dim as boolean afound = false
+                    dim as long aoff = c.udts->FieldOffset( bt, afsym->name, afound )
+                    if afound = false then return v
+                    dim as MirInst ains
+                    ains.op = cast( ushort, M_FIELD_ADDR )
+                    ains.ty = cast( ubyte, MT_PTR )
+                    ains.a = base_
+                    ains.imm = aoff
+                    return Emit( c, ains )
+                end if
+            end if
+        end if
+
         if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
             '' Through a pointer the base is the VALUE, not its slot. The POINTEE may
             '' be const too -- 'byval p as const T ptr' -- so it is unqualified as well.

@@ -5,7 +5,7 @@ global str $str3 "d"
 global str $str4 "e"
 global str $str5 "g"
 global wstr $wstr6 "a"
-func i32 _ZN1TixEi($0, $1) {
+func ptr _ZN1TixEi($0, $1) {
   local i32 $tmp0
   local ptr this
   local i32 i
@@ -27,7 +27,7 @@ func i32 _ZN1TixEi($0, $1) {
     %12 = load %11
     ret %12
 }
-func i32 _ZN1T2ATEi($0, $1) {
+func ptr _ZN1T2ATEi($0, $1) {
   local i32 $tmp0
   local ptr this
   local i32 i

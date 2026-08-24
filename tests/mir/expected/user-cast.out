@@ -1,4 +1,4 @@
-func void _ZN1UcvcEv($0) {
+func ptr _ZN1UcvcEv($0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -37,7 +37,7 @@ declare ptr fb_StrAllocTempDescZ($0)
 declare ptr fb_TRIM($0)
 declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare void fb_StrDelete($0)
-func void _ZN1WcvwEv($0) {
+func ptr _ZN1WcvwEv($0) {
   local ptr this
   entry0:
     %1 = alloca ptr this

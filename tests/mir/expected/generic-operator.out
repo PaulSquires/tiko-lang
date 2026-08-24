@@ -1,4 +1,4 @@
-func i32 _ZN2FB6ARR<6>ixEi($0, $1) {
+func ptr _ZN2FB6ARR<6>ixEi($0, $1) {
   local i32 $tmp0
   local ptr this
   local i32 i

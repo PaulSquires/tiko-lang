@@ -459,3 +459,82 @@ private function ResolveCall_ _
     if bs = 0 then return Tko.TYPE_NONE
     return bs->type_
 end function
+
+'' The statement payload from an ARENA rather than a context -- the two arrow helpers
+'' below take the tables, so they cannot use Check's own StmtOf.
+private function StmtAt_ _
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
+    return @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
+end function
+
+'' THE GLOBAL 'operator ->' FOR A UDT, or nothing.
+''
+'' 'p->v' over a UDT is a CALL to that operator followed by an ordinary field access on
+'' what it returns, which is byref and so a pointer at the ABI. fb/sharedptr.bi and
+'' fb/comptr.bi both declare one, and without this every '->' on a smart pointer was an
+'' untyped member access: 63 declines in generics/container-sharedptr.bas and the whole
+'' com/comptr family behind it.
+''
+'' Free-standing, with the tables passed in rather than a Ctx, because CHECK needs it to
+'' TYPE the access and LOWERING needs the same operator to CALL -- and the two layers
+'' have different context types.
+function ArrowOperatorFor _
+    ( byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
+      byref names as Tko.Interner, byref ast as Tko.AstArena, _
+      byref info as Tko.SemanticInfo, byval bt as Tko.TypeId ) as Tko.SymbolId
+
+    if bt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId ut = types.Unqualify( bt )
+    if types.Kind( ut ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+
+    dim as Tko.InternId fold = names.Fold( names.GetString( "->" ) )
+    dim as Tko.ScopeId sc = cast( Tko.ScopeId, types.DeclScopeOf( ut ) )
+    if sc = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = syms.Lookup( sc, fold )
+
+    '' ONE PARAMETER, and it must be this UDT. An overload set over several handle
+    '' types is ordinary here -- comptr declares one per interface shape -- so the
+    '' parameter is compared rather than assumed.
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+            if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
+                dim as Tko.StmtPayload ptr pp = StmtAt_( ast, pn )
+                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
+                    dim as long np = 0
+                    dim as Tko.TypeId p0 = Tko.TYPE_NONE
+                    for i as long = 0 to pp->count - 1
+                        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+                        if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+                        if np = 0 then p0 = info.TypeOf_( StmtAt_( ast, prm )->a )
+                        np += 1
+                    next
+                    if np = 1 then
+                        if types.Unqualify( p0 ) = ut then return cur
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
+'' What 'operator ->' hands back, with the BYREF stripped: the UDT whose fields the
+'' access then names.
+function ArrowResultType _
+    ( byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
+      byval op as Tko.SymbolId ) as Tko.TypeId
+
+    if op = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr s = syms.SymbolAt( op )
+    if s = 0 then return Tko.TYPE_NONE
+    dim as Tko.TypeId rt = s->type_
+    if rt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    rt = types.Unqualify( rt )
+    if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
+    if types.Kind( rt ) = Tko.TK_POINTER then rt = types.Unqualify( types.Inner( rt ) )
+    return rt
+end function
