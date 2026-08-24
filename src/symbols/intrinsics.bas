@@ -75,6 +75,17 @@ end function
 '' Not covered, and named rather than faked: fbc CONSTANT-FOLDS several of these, so
 '' 'chr( 1 )' is a ZSTRING * 2 and 'str( 1 )' a ZSTRING * n where the same call on a
 '' variable is STRING. Those rows are the gate's shortfall.
+'' Is this argument the bare keyword VIRTUAL? It is the second argument of
+'' 'procptr( T.m, virtual )', and the parser leaves it as an identifier because
+'' VIRTUAL is a keyword the expression grammar has nowhere else to put.
+private function IsVirtualKeyword_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
+    if a = Tko.NODE_NONE then return false
+    if c.ast->Kind( a ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, a )].data )]
+    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "virtual")
+end function
+
 private function ExprIntrinsicType_ _
     ( byref c as Ctx, byref nm as string, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
@@ -526,6 +537,19 @@ private function IntrinsicCallType_ _
     '' 'fbcu.add_test( ..., procptr( test_name ), ... )' unbound -- and an unbound callee
     '' is a declined statement. 2,444 of them across the corpus, from this one gap.
     if nm = "procptr" then
+        '' 'procptr( T.m, VIRTUAL )' IS NOT A POINTER AT ALL. Measured: fbc folds it to
+        '' the member's VTABLE SLOT INDEX as an int64 -- 'FP$0 = 1ll' for the second
+        '' virtual member and 0 for the first -- which is what
+        '' pointers/procptr-virtual.bas asserts against its own INDEX constants. The
+        '' comment above had it as an override selector that "does not change the result
+        '' type", and typing it as a procedure pointer left every one of them declining.
+        if cp->count = 2 then
+            dim as Tko.NodeId va = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            if IsVirtualKeyword_( c, va ) then
+                return c.types->Builtin( Tko.TY_LONGINT )
+            end if
+        end if
+
         '' A MEMBER, not just a bare name: 'procptr( T.proc1 )' is an N_MEMBER, and
         '' rejecting it left the whole expression untyped -- so 'var fp = procptr(
         '' T.proc1 )' gave fp a VOID slot and the store into it was malformed. Both

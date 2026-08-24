@@ -42,9 +42,14 @@ fv = 0
 '' chosen by taking the first: a silently WRONG function address rather than a decline.
 ''
 '' AND AN UNMATCHED SECOND ARGUMENT DECLINES rather than falling back to the first. The
-'' only reason to write one is that the first is not the one wanted. 'procptr( T.v1,
-'' virtual )' above lands there too -- it names which OVERRIDE to point at, which is
-'' not the direct address this path would give.
+'' only reason to write one is that the first is not the one wanted.
+''
+'' 'procptr( T.v1, virtual )' above is NOT that shape and this comment used to say it
+'' was. Measured against fbc: it folds to the member's VTABLE SLOT INDEX as an int64 --
+'' 'FP$0 = 1ll' for the second virtual member and 0 for the first -- which is what
+'' pointers/procptr-virtual.bas asserts against its own INDEX constants. It is a number,
+'' not a pointer, and reading it as an override selector left every one of them
+'' declining.
 type C
     as long n
     declare constructor( )

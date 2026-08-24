@@ -1,0 +1,75 @@
+extern ptrs __fb_ZTS6Object [ ]
+global str $str1 "1B"
+global ptrs _ZTSN1BE [ 0, @$str1, @__fb_ZTS6Object ]
+global ptrs _ZTVN1BE [ 0, @_ZTSN1BE, 0, _ZN1B5PROC2Ev, _ZN1B5PROC3Ev ]
+global str $str4 "1D"
+global ptrs _ZTSN1DE [ 0, @$str4, @_ZTSN1BE ]
+global ptrs _ZTVN1DE [ 0, @_ZTSN1DE, _ZN1D5PROC1Ev, _ZN1D5PROC2Ev, _ZN1B5PROC3Ev ]
+func void _ZN1B5PROC2Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN1B5PROC3Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN1D5PROC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN1D5PROC2Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 fq
+  local i64 fp
+  local i64 fr
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr fq
+    %5 = const i64 0
+    store @fq, %5
+    %6 = alloca ptr fp
+    %7 = const i64 1
+    store @fp, %7
+    %8 = alloca ptr fr
+    %9 = const i64 2
+    store @fr, %9
+    %10 = load @fq
+    call.rtl void fb_PrintLongint(0, %10, 2)
+    %11 = load @fp
+    call.rtl void fb_PrintLongint(0, %11, 2)
+    %12 = load @fr
+    call.rtl void fb_PrintLongint(0, %12, 1)
+    %13 = const i64 -1
+    call.rtl void fb_PrintLongint(0, %13, 2)
+    %14 = const i64 -1
+    call.rtl void fb_PrintLongint(0, %14, 1)
+    %15 = const i32 0
+    call.rtl void fb_End(%15)
+    %16 = load @$tmp0
+    ret %16
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 5 functions, 5 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance

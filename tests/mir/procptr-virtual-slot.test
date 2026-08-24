@@ -1,0 +1,8 @@
+'' 'procptr( T.m, virtual )' is the member's vtable SLOT INDEX, not a pointer -- and
+'' -1 where the declaration itself says neither virtual nor abstract.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-virtual-slot.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/procptr-virtual-slot.out
