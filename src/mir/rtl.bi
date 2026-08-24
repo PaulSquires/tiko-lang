@@ -527,6 +527,11 @@ namespace Tko.Mir
         '' 'clear dst, value, bytes' is libc memset. Measured: fbc emits
         '' 'memset( (void*)A, 0, 16ull )' for the general form.
         RTL( RTL_MEMSET,            "memset",              "p",   "plz"   )
+        '' A STATIC LOCAL OBJECT'S DESTRUCTOR is registered with libc's atexit, not with
+        '' anything in libfb: fbc emits 'atexit( (void*)&LABEL$8 )' beside the guarded
+        '' constructor call and defines the thunk itself. Measured -- 'int32 atexit(
+        '' void* );' -- and cdecl on win32 like the rest of libc.
+        RTL( RTL_ATEXIT,            "atexit",              "l",   "p"     )
         '' Mutexes. All four are ordinary stdcall entries on win32.
         RTL( RTL_MUTEX_CREATE,      "fb_MutexCreate",      "p",   ""      )
         RTL( RTL_MUTEX_DESTROY,     "fb_MutexDestroy",     "v",   "p"     )

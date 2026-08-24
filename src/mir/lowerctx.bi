@@ -288,7 +288,11 @@ declare function EmitRtl _
           byval init_ as Tko.NodeId ) as boolean
     declare function LowerCtorInit _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-          byval init_ as Tko.NodeId ) as boolean
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    '' A STATIC LOCAL that needs constructing: the guard flag, the constructor and the
+    '' atexit thunk fbc emits for one.
+    declare function LowerStaticLocalInit_ _
+        ( byref c as Ctx, byval sid as Tko.SymbolId, byval init_ as Tko.NodeId ) as boolean
     declare function LowerDynArrayIndex _
         ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.ListPayload ptr, _
           byval at as Tko.TypeId ) as MirValue

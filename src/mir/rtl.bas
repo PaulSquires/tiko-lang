@@ -94,7 +94,7 @@ function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
     '' libc is CDECL: the leading underscore is all win32 adds, no '@N'.
     select case r
     case RTL_FREE, RTL_MALLOC, RTL_CALLOC, RTL_REALLOC, RTL_MEMSET, _
-         RTL_POW, RTL_ATAN2
+         RTL_POW, RTL_ATAN2, RTL_ATEXIT
         return "_" & nm
     '' ...AND SO ARE THE PUT BLENDERS, alone among the graphics family. Measured: every
     '' fb_Gfx* entry point is __stdcall with an asm name on win32 and every fb_hPut* is

@@ -1,0 +1,11 @@
+'' A STATIC LOCAL OBJECT, constructed lazily: the guard flag, the constructor at the
+'' declaration, and the destructor registered with atexit through a thunk of its own.
+'' Measured against fbc, which emits exactly that and one guard PER DECLARATION --
+'' including for a static inside an IF, which is not constructed until the branch runs.
+'' A type with no destructor gets no thunk; a scalar static gets no guard at all.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-object.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/static-object.out

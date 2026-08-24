@@ -745,6 +745,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     end if
                     continue for
                 end if
+                '' A STATIC LOCAL OBJECT is constructed LAZILY, where it is declared:
+                '' a guard flag, the constructor and an atexit thunk. Module storage
+                '' with no code run on it left a string field's descriptor
+                '' uninitialised for the life of the program.
+                if IsStaticLocal( c, sid ) then
+                    if LowerStaticLocalInit_( c, sid, ip->b ) then continue for
+                end if
                 InitSharedGlobal( c, sid, ip->b )
                 continue for
             end if

@@ -1,4 +1,5 @@
 atan2	double	double, double	ABSENT	atan2
+atexit	int32	void*	lib	atexit
 calloc	void*	uint64, uint64	lib	calloc
 fb_ASC	uint32	FBSTRING*, int64	lib	fb_ASC
 fb_ArrayClear	int32	struct $7FBARRAYIvE*	lib	fb_ArrayClear

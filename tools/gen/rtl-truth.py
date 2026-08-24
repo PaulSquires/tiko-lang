@@ -92,6 +92,25 @@ sub S( )
     swap u1, u2
 end sub
 ''',
+    # A STATIC LOCAL OBJECT is constructed LAZILY behind a guard flag, and its
+    # destructor is registered with libc's atexit -- not with anything in libfb. The
+    # entry point is therefore 'atexit' itself, which no other probe here makes fbc
+    # declare.
+    "staticobj": '''
+type StatU
+    as integer a
+    declare constructor( )
+    declare destructor( )
+end type
+constructor StatU( )
+end constructor
+destructor StatU( )
+end destructor
+sub SP( )
+    static as StatU s
+    s.a = 1
+end sub
+''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a
     # null check, with the destructor called first.
     "deletestmt": '''
@@ -655,9 +674,11 @@ end sub
 # NOT ONLY 'fb_*'. DELETE lowers to libc's 'free' -- fbc emits 'void free( void* );'
 # with no prefix at all -- so the pattern names the extra functions explicitly rather
 # than assuming every runtime entry point is prefixed.
+# 'atexit' is on that list for the same reason: a STATIC LOCAL object's destructor is
+# registered with libc's atexit, not with anything in libfb.
 DECL = re.compile(
     r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?"
-    r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2))"
+    r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2|atexit))"
     r"\s*\(([^;{]*?)\)"
     r"(?:\s*asm\(\"([^\"]*)\"\))?\s*;")
 
