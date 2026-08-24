@@ -152,7 +152,55 @@ function LowerUdtParenInit_ _
         dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->children[pl0->first] )
         dim as Tko.TypeId ot = c.info->TypeOf_( only_ )
         if ot <> Tko.TYPE_NONE then
-            if c.types->Unqualify( ot ) = c.types->Unqualify( t ) then return false
+            if c.types->Unqualify( ot ) = c.types->Unqualify( t ) then
+                '' ...UNLESS IT IS A WRITTEN TYPE LITERAL, which is a COPY.
+                ''
+                '' 'dim x2 as t1 = type<t1>( y )' is measured as
+                '' '__builtin_memcpy( &X2$0, &Y$0, 4 )', and the same for the three
+                '' parenthesised spellings structs/anon-param writes beside it. The
+                '' guard below is for a BARE '( expr )' -- punctuation around an
+                '' operator, which fb/fintvm.bi needs -- and that one still declines.
+                if (c.ast->nodes[cast( long, init )].flags and _
+                    Tko.NF_TYPE_LITERAL) <> 0 then
+                    dim as MirValue cdst
+                    cdst.kind = cast( ubyte, MV_LOCAL )
+                    cdst.ty = cast( ubyte, MT_PTR )
+                    cdst.id = slot
+                    dim as Tko.SymbolId lcc = _
+                        StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
+                    if lcc <> Tko.SYMBOL_NONE then
+                        dim as Tko.TypeId lpt = ParamTypeAt( c, lcc, 0 )
+                        if lpt <> Tko.TYPE_NONE then
+                            if c.types->Kind( lpt ) = Tko.TK_REFERENCE then
+                                lpt = c.types->Inner( lpt )
+                            end if
+                            if c.types->Unqualify( lpt ) <> c.types->Unqualify( t ) then
+                                lcc = Tko.SYMBOL_NONE
+                            end if
+                        else
+                            lcc = Tko.SYMBOL_NONE
+                        end if
+                    end if
+                    dim as MirValue csrc = LowerAddr( c, only_ )
+                    if csrc.kind = cast( ubyte, MV_NONE ) then return false
+                    if lcc <> Tko.SYMBOL_NONE then
+                        dim as FB.Array( of ulong ) largs
+                        largs.Push( cast( ulong, csrc.kind ) )
+                        largs.Push( cast( ulong, csrc.id ) )
+                        EmitStructorCall( c, lcc, -1, @cdst, @largs )
+                        return true
+                    end if
+                    if NeedsLetBody_( c, t ) then
+                        CallImplicitCopy_( c, t, cdst, csrc )
+                        return true
+                    end if
+                    dim as MirValue whole = LowerExprLoad( c, csrc, MT_AGG )
+                    if whole.kind = cast( ubyte, MV_NONE ) then return false
+                    StoreThrough( c, cdst, whole )
+                    return true
+                end if
+                return false
+            end if
         end if
     end if
 

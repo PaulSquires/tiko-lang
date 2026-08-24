@@ -18,6 +18,10 @@ func i32 main($0, $1) {
   local i32 $tmp0
   local agg x size 4
   local agg y size 4
+  local agg x2 size 4
+  local agg x4 size 4
+  local agg x5 size 4
+  local agg $tmp6 size 4
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -45,12 +49,33 @@ func i32 main($0, $1) {
     %16 = field.addr @x, 0
     %17 = load %16
     call.rtl void fb_PrintInt(0, %17, 1)
-    %18 = const i32 0
-    call.rtl void fb_End(%18)
-    %19 = load @$tmp0
-    ret %19
+    %18 = alloca ptr x2
+    %19 = load @y
+    store @x2, %19
+    %20 = alloca ptr x4
+    %21 = load @y
+    store @x4, %21
+    %22 = alloca ptr x5
+    %23 = alloca ptr $tmp6
+    %24 = load @y
+    store @$tmp6, %24
+    %25 = load @$tmp6
+    store @x5, %25
+    %26 = field.addr @x2, 0
+    %27 = load %26
+    call.rtl void fb_PrintInt(0, %27, 2)
+    %28 = field.addr @x4, 0
+    %29 = load %28
+    call.rtl void fb_PrintInt(0, %29, 2)
+    %30 = field.addr @x5, 0
+    %31 = load %30
+    call.rtl void fb_PrintInt(0, %31, 1)
+    %32 = const i32 0
+    call.rtl void fb_End(%32)
+    %33 = load @$tmp0
+    ret %33
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 38 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 59 insts, 0 statements not lowered, 0 scope imbalance
