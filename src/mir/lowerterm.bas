@@ -144,6 +144,16 @@ function EmitStrTerm _
         return true
     end if
 
+    '' A USER OPERATOR THAT RETURNS A STRING is a call and hands back a descriptor
+    '' pointer, exactly as a string-returning function does -- and it is spelled '-a'
+    '' or 'a + b', so it arrives as a UNARY or a BINARY and none of the tests above
+    '' looks at one.
+    dim as MirValue uopv
+    if LowerStrOperandOp_( c, term, uopv ) then
+        PushStrArg( args, uopv )
+        return true
+    end if
+
     '' A FIXED-LENGTH STRING IS A CHAR ARRAY WITH NO DESCRIPTOR, so it passes its
     '' ADDRESS and its DECLARED LENGTH where a var-length string passes -1 and lets the
     '' descriptor say. Measured -- 'dim as string c : dim as zstring * 8 fa : c = fa':
@@ -678,6 +688,33 @@ function StrSwapKind_ _
         return 3
     end select
     return -1
+end function
+
+'' A USER OPERATOR WHOSE RESULT IS A STRING, as the descriptor pointer every string
+'' reader wants. '-a' and 'a + b' over a UDT are calls like any other, but they are
+'' spelled as a UNARY and a BINARY, so nothing that looks for a string CALL finds them.
+function LowerStrOperandOp_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.SymbolId opsym = c.info->RefOf( id )
+    if opsym = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr opsy = c.syms->SymbolAt( opsym )
+    if opsy = 0 then return false
+    if opsy->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if IsStringType( c, opsy->type_ ) = false then return false
+
+    if c.ast->Kind( id ) = Tko.N_UNARY then
+        dim as Tko.UnaryPayload ptr uop = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        return LowerUserUnaryOp_( c, id, uop, MT_PTR, outv )
+    end if
+    if c.ast->Kind( id ) = Tko.N_BINARY then
+        dim as Tko.BinaryPayload ptr bop = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        return LowerUserBinaryOp_( c, id, bop, MT_PTR, outv )
+    end if
+    return false
 end function
 
 end namespace

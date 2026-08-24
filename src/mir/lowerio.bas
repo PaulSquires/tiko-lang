@@ -459,6 +459,20 @@ function PrintOne _
         return true
     end if
 
+    '' A USER OPERATOR THAT RETURNS A STRING hands back a descriptor pointer, exactly
+    '' as a string-returning function does -- and it is spelled '-a' or 'a + b', so it
+    '' arrives as a UNARY or a BINARY and neither the rvalue test above nor the type
+    '' test below looks at one. 'print -a' over a UDT whose 'operator -' returns a
+    '' string declined with the operator sitting right there; structs/ops.bas is
+    '' nothing but those.
+    dim as MirValue uov
+    if LowerStrOperandOp_( c, it, uov ) then
+        args.Push( cast( ulong, uov.kind ) ) : args.Push( cast( ulong, uov.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, PrintStrRtl_( c, it ), args )
+        return true
+    end if
+
     if IsStringType( c, t ) then
         '' fb_PrintString takes an FBSTRING DESCRIPTOR, not a (pointer, length) pair
         '' like fb_StrAssign does. A literal has no descriptor, so fbc borrows a

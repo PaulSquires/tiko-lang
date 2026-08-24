@@ -529,6 +529,8 @@ declare function EmitRtl _
     const STF_NARROW  as long = 1
     const STF_WIDE    as long = 2
     const STF_UTF16   as long = 3
+    declare function LowerStrOperandOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     declare function UStrCmpOperand_ _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), _

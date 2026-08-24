@@ -359,6 +359,10 @@ function LowerUserBinaryOp_ _
 
     dim as MirType rmt = mt
     if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    '' A STRING RESULT IS A DESCRIPTOR POINTER, which is what the function's own
+    '' declaration says: 'FBSTRING* F( void )'. Reading it as the string's MIR type put
+    '' an 'agg' result on a call to a function declared to return a pointer.
+    if IsStringType( c, os->type_ ) then rmt = MT_PTR
     '' A BYREF RETURN IS A POINTER, which is what the DECLARATION says too. Reading it
     '' as the referent's own MIR type put an i32 result on a function declared to return
     '' a pointer -- 'operator *' over a smart pointer is byref by construction.
@@ -399,6 +403,10 @@ function LowerUserUnaryOp_ _
 
     dim as MirType rmt = mt
     if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    '' A STRING RESULT IS A DESCRIPTOR POINTER, which is what the function's own
+    '' declaration says: 'FBSTRING* F( void )'. Reading it as the string's MIR type put
+    '' an 'agg' result on a call to a function declared to return a pointer.
+    if IsStringType( c, os->type_ ) then rmt = MT_PTR
     '' A BYREF RETURN IS A POINTER, which is what the DECLARATION says too. Reading it
     '' as the referent's own MIR type put an i32 result on a function declared to return
     '' a pointer -- 'operator *' over a smart pointer is byref by construction.

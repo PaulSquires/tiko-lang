@@ -1,0 +1,8 @@
+'' A user operator whose result is a string, printed and used as a term, and the
+'' pointer its call returns.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/operator-string-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/operator-string-result.out
