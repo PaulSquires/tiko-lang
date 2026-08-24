@@ -72,7 +72,7 @@ func void P() {
     %36 = const i64 1
     %37 = ptr.add %35, %36
     %38 = load %37
-    %39 = sext %38
+    %39 = zext %38
     store @n, %39
     %40 = load @pz
     %41 = const i64 1

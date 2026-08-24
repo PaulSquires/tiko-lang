@@ -1,6 +1,8 @@
 global str $str0 "ab"
 global str $str1 "asd"
 global str $str2 "x"
+global str $str3 "123"
+global wstr $wstr4 "123"
 func i32 main($0, $1) {
   local i32 $tmp0
   local i32 code_
@@ -11,6 +13,12 @@ func i32 main($0, $1) {
   local agg w2 size 32
   local agg $tmp7 size 24
   local agg $tmp8 size 24
+  local agg z0 size 8
+  local agg w0 size 16
+  local ptr pz
+  local ptr pw
+  local f64 dv
+  local i32 nv
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -83,13 +91,43 @@ func i32 main($0, $1) {
     %54 = call.rtl ptr fb_StrToWstr(%53)
     %55 = call.rtl ptr fb_WstrAssign(@w2, 16, %54)
     call.rtl void fb_PrintWstr(0, @w2, 1)
+    %56 = alloca ptr z0
+    %57 = alloca ptr w0
+    %58 = alloca ptr pz
+    store @pz, @z0
+    %59 = alloca ptr pw
+    store @pw, @w0
+    %60 = call.rtl ptr fb_StrAssign(@z0, 8, @@$str3, 4, 0)
+    %61 = call.rtl ptr fb_WstrAssign(@w0, 8, @@$wstr4)
+    %62 = alloca ptr dv
+    %63 = alloca ptr nv
+    %64 = load @pz
+    %65 = load %64
+    %66 = uitofp %65
+    store @dv, %66
+    %67 = load @pz
+    %68 = load %67
+    %69 = zext %68
+    store @nv, %69
+    %70 = load @pw
+    %71 = load %70
+    %72 = uitofp %71
+    store @dv, %72
+    %73 = load @pw
+    %74 = load %73
+    %75 = zext %74
+    store @nv, %75
+    %76 = load @dv
+    call.rtl void fb_PrintDouble(0, %76, 2)
+    %77 = load @nv
+    call.rtl void fb_PrintInt(0, %77, 1)
     call.rtl void fb_StrDelete(@s2)
     call.rtl void fb_UStrDelete(@x)
     call.rtl void fb_UStrDelete(@cur)
-    %56 = const i32 0
-    call.rtl void fb_End(%56)
-    %57 = load @$tmp0
-    ret %57
+    %78 = const i32 0
+    call.rtl void fb_End(%78)
+    %79 = load @$tmp0
+    ret %79
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrChr($0, $1)
@@ -103,8 +141,11 @@ declare ptr fb_StrInit($0, $1, $2, $3, $4)
 declare ptr fb_CHR($0, $1)
 declare ptr fb_StrConcat($0, $1, $2, $3, $4)
 declare ptr fb_StrToWstr($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_PrintDouble($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
 declare void fb_StrDelete($0)
 declare void fb_UStrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance

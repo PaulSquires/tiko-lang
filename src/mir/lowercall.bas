@@ -727,6 +727,14 @@ function IsUnsignedType _
     select case c.types->BuiltinOf( t )
     case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT
         return true
+    '' A STRING IN AN ARITHMETIC CONTEXT IS ONE CHARACTER, and characters are
+    '' UNSIGNED. The only way a string TYPE reaches a numeric coercion is '*pz' or
+    '' 's[ i ]' being widened, and fbc writes '(double)(uint8)*PZ$0' for it -- a byte
+    '' above 127 would come out NEGATIVE through a sign extension. Every string PATH
+    '' goes through the descriptor helpers instead and never asks this.
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_STRING, Tko.TY_USTRING, _
+         Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+        return true
     end select
     return false
 end function

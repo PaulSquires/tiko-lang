@@ -166,3 +166,26 @@ function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     c.curBlock = NewBlock( c, "after" )
     return true
 end function
+
+'' THE CHARACTER TYPE OF '*p' over a STRING POINTER, or MT_VOID when it is not one.
+''
+'' A 'zstring ptr' dereferences to one unsigned BYTE and a 'wstring ptr' to one
+'' unsigned wide character -- measured, '(uint8)*PZ$0' and a load out of a uint16*.
+'' Only the UNSIZED pointee: 'zstring * N' is an array and its deref is the array.
+function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+    dim as Tko.UnaryPayload ptr dp = _
+        @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( dp->operand ) )
+    if pt = Tko.TYPE_NONE then return MT_VOID
+    if c.types->Kind( pt ) <> Tko.TK_POINTER then return MT_VOID
+    dim as Tko.TypeId inner = c.types->Unqualify( c.types->Inner( pt ) )
+    if inner = Tko.TYPE_NONE then return MT_VOID
+    if c.types->Kind( inner ) <> Tko.TK_BUILTIN then return MT_VOID
+    select case c.types->BuiltinOf( inner )
+    case Tko.TY_ZSTRING : return MT_I8
+    case Tko.TY_WSTRING
+        if c.types->target.wcharBytes = 4 then return MT_I32
+        return MT_I16
+    end select
+    return MT_VOID
+end function

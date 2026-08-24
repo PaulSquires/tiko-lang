@@ -7,6 +7,7 @@ namespace Tko.Mir
 
 declare function LowerCtorReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+declare function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
 declare function IsCmpOp_( byval op as MirOp ) as boolean
 declare function LowerByrefResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
@@ -211,6 +212,15 @@ function LowerExpr _
         '' the address is the pointer's VALUE -- so this is the load around it.
         dim as MirValue da = LowerAddr( c, id )
         if da.kind = cast( ubyte, MV_NONE ) then return v
+        '' '*pz' AND '*pw' AS A NUMBER ARE ONE CHARACTER, unsigned. Measured:
+        '' 'd = *pz' over a 'zstring ptr' is '(double)(uint8)*PZ$0' and over a
+        '' 'wstring ptr' it is '(double)*PW$0' out of a uint16*. The ordinary load
+        '' asked for the POINTEE's type, which is a string, so it produced an
+        '' aggregate the arithmetic could not take and the statement declined. A
+        '' STRING context never reaches here: it goes through StrDescriptorOf_.
+        '' The widening is the CONSUMER's, and unsigned -- see IsUnsignedType.
+        dim as MirType cmt = DerefCharTy_( c, id )
+        if cmt <> MT_VOID then return LowerExprLoad( c, da, cmt )
         return LowerExprLoad( c, da, mt )
 
     case Tko.N_UNARY
