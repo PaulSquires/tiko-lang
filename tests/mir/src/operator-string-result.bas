@@ -43,3 +43,20 @@ print len( a )
 '' ...and as a term of something else, which is the other reader.
 dim as string s = (-a) & "|" & (a + b)
 print s
+
+'' ADJACENT LITERALS ARE ONE STRING. '"a" "b"' is an N_STRCAT of its parts -- the lexer
+'' keeps the run rather than folding it -- and the corpus writes it as '(#op " ")', a
+'' STRINGIZE followed by a literal, which is how structs/ops.bas declares all 36 of its
+'' operators. Nothing in the string-term path looked at one, so every
+'' 'return (#op " ") & a.value' declined.
+#macro makeop( op )
+	operator op ( byref a as mytype ) as string
+		return (#op " ") & a.value
+	end operator
+#endmacro
+
+makeop( FIX )
+makeop( SGN )
+
+print fix( a ), sgn( a )
+print ("lit" " " "run") & a.value

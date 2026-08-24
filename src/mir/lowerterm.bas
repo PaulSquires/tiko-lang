@@ -42,6 +42,22 @@ function EmitStrTerm _
         end if
     end if
 
+    '' ADJACENT LITERALS ARE ONE STRING. '"a" "b"' is N_STRCAT, and the corpus writes
+    '' it as '(#op " ")' -- a STRINGIZE followed by a literal -- which is how
+    '' structs/ops.bas declares all 36 of its operators. Nothing here looked at one, so
+    '' every 'return (#op " ") & a.value' declined.
+    dim as string catText
+    if StrCatText_( c, term, catText ) then
+        if isU then
+            PushUStrLiteralArg( c, args, _
+                c.m->AddWideStringLiteral( catText, *c.names ), len( catText ) )
+        else
+            PushStrLiteralArg( args, c.m->AddStringLiteral( catText, *c.names ), _
+                               len( catText ) )
+        end if
+        return true
+    end if
+
     if c.ast->Kind( term ) = Tko.N_STRING_LIT then
         '' Named litText, not text: 'Text' is a namespace and FreeBASIC is
         '' case-insensitive, so a local called text shadows it.
@@ -715,6 +731,31 @@ function LowerStrOperandOp_ _
         return LowerUserBinaryOp_( c, id, bop, MT_PTR, outv )
     end if
     return false
+end function
+
+'' THE TEXT OF A RUN OF ADJACENT STRING LITERALS, or false when the node is not one.
+'' The lexer keeps '"a" "b"' as an N_STRCAT of its parts rather than folding it, so the
+'' whole run has to be joined before it can be emitted as one literal.
+function StrCatText_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as string ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_STRCAT then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <= 0 then return false
+    outv = ""
+    for i as long = 0 to lp->count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( e ) = Tko.N_STRING_LIT then
+            outv &= StringLitText_( c, e )
+        else
+            dim as string inner
+            if StrCatText_( c, e, inner ) = false then return false
+            outv &= inner
+        end if
+    next
+    return true
 end function
 
 end namespace

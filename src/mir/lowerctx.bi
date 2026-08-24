@@ -538,6 +538,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval tk as Tko.TokenKind, byref outv as MirValue ) as boolean
     declare function TyWidthBytes_( byval t as MirType ) as long
+    declare function StrCatText_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as string ) as boolean
     declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     declare function UStrCmpOperand_ _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), _
