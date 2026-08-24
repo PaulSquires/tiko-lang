@@ -432,6 +432,14 @@ namespace Tko.Mir
         '' is the POINTER this gives back, not the descriptor itself.
         RTL( RTL_STR_TEMP_RESULT,   "fb_StrAllocTempResult", "p",   "p"     )
         RTL( RTL_VALINT,            "fb_VALINT",           "l",   "p"     )
+        '' THE WIDE HALF of the VAL family. Same five shapes, a bare uint16* instead of
+        '' a descriptor, and the RESULT WIDTHS are the narrow family's -- fb_WstrValInt
+        '' is int32 on both targets, like fb_VALINT.
+        RTL( RTL_WSTR_VAL,          "fb_WstrVal",          "d",   "p"     )
+        RTL( RTL_WSTR_VALINT,       "fb_WstrValInt",       "l",   "p"     )
+        RTL( RTL_WSTR_VALUINT,      "fb_WstrValUInt",      "l",   "p"     )
+        RTL( RTL_WSTR_VALLNG,       "fb_WstrValLng",       "q",   "p"     )
+        RTL( RTL_WSTR_VALULNG,      "fb_WstrValULng",      "q",   "p"     )
         '' PRINT has NO generic entry point: every scalar type has its own, and the
         '' third argument is a SEPARATOR MASK -- 0 nothing, 1 newline, 2 tab --
         '' describing what follows that item. A POINTER has no entry of its own and

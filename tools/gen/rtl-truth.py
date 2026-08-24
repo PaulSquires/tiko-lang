@@ -147,6 +147,11 @@ sub RevProbe( )
     a = instr( w, q )
     a = instr( w, any q )
     a = instr( 2, w, q )
+    dim as double d = val( w )
+    dim as longint q1 = vallng( w )
+    dim as ulongint q2 = valulng( w )
+    dim as integer q3 = valint( w )
+    dim as uinteger q4 = valuint( w )
 end sub
 ''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a

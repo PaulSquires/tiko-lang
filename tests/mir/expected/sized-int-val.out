@@ -1,0 +1,108 @@
+global wstr $wstr0 "123"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i8 b1
+  local i16 s1
+  local i32 l1
+  local i64 q1
+  local i8 b2
+  local i16 s2
+  local i32 l2
+  local i64 q2
+  local agg w size 512
+  local i64 v1
+  local i64 v2
+  local i64 v3
+  local i64 v4
+  local f64 v5
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr b1
+    %5 = alloca ptr s1
+    %6 = alloca ptr l1
+    %7 = alloca ptr q1
+    %8 = alloca ptr b2
+    %9 = alloca ptr s2
+    %10 = alloca ptr l2
+    %11 = alloca ptr q2
+    %12 = const i64 1
+    call.rtl void fb_PrintLongint(0, %12, 2)
+    %13 = const i64 2
+    call.rtl void fb_PrintLongint(0, %13, 2)
+    %14 = const i64 4
+    call.rtl void fb_PrintLongint(0, %14, 2)
+    %15 = const i64 8
+    call.rtl void fb_PrintLongint(0, %15, 1)
+    %16 = load @b1
+    call.rtl void fb_PrintByte(0, %16, 2)
+    %17 = load @s1
+    call.rtl void fb_PrintShort(0, %17, 2)
+    %18 = load @l1
+    call.rtl void fb_PrintInt(0, %18, 2)
+    %19 = load @q1
+    call.rtl void fb_PrintLongint(0, %19, 2)
+    %20 = load @b2
+    call.rtl void fb_PrintUByte(0, %20, 2)
+    %21 = load @s2
+    call.rtl void fb_PrintUShort(0, %21, 2)
+    %22 = load @l2
+    call.rtl void fb_PrintUInt(0, %22, 2)
+    %23 = load @q2
+    call.rtl void fb_PrintULongint(0, %23, 1)
+    %24 = alloca ptr w
+    %25 = call.rtl ptr fb_WstrAssign(@w, 256, @@$wstr0)
+    %26 = alloca ptr v1
+    %27 = call.rtl i64 fb_WstrValLng(@w)
+    store @v1, %27
+    %28 = alloca ptr v2
+    %29 = call.rtl i64 fb_WstrValULng(@w)
+    store @v2, %29
+    %30 = alloca ptr v3
+    %31 = call.rtl i32 fb_WstrValInt(@w)
+    %32 = sext %31
+    store @v3, %32
+    %33 = alloca ptr v4
+    %34 = call.rtl i32 fb_WstrValUInt(@w)
+    %35 = sext %34
+    store @v4, %35
+    %36 = alloca ptr v5
+    %37 = call.rtl f64 fb_WstrVal(@w)
+    store @v5, %37
+    %38 = load @v1
+    call.rtl void fb_PrintLongint(0, %38, 2)
+    %39 = load @v2
+    call.rtl void fb_PrintULongint(0, %39, 2)
+    %40 = load @v3
+    call.rtl void fb_PrintLongint(0, %40, 2)
+    %41 = load @v4
+    call.rtl void fb_PrintULongint(0, %41, 2)
+    %42 = load @v5
+    call.rtl void fb_PrintDouble(0, %42, 1)
+    %43 = const i32 0
+    call.rtl void fb_End(%43)
+    %44 = load @$tmp0
+    ret %44
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintByte($0, $1, $2)
+declare void fb_PrintShort($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintUByte($0, $1, $2)
+declare void fb_PrintUShort($0, $1, $2)
+declare void fb_PrintUInt($0, $1, $2)
+declare void fb_PrintULongint($0, $1, $2)
+declare ptr fb_WstrAssign($0, $1, $2)
+declare i64 fb_WstrValLng($0)
+declare i64 fb_WstrValULng($0)
+declare i32 fb_WstrValInt($0)
+declare i32 fb_WstrValUInt($0)
+declare f64 fb_WstrVal($0)
+declare void fb_PrintDouble($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

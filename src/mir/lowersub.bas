@@ -592,8 +592,21 @@ function LowerStrNumCall_ _
     end select
     if vr <> RTL_NONE then
         if cp->count <> 1 then return false
+        dim as Tko.NodeId v0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+        '' A WIDE OPERAND HAS ITS OWN FIVE ENTRY POINTS, taking a bare uint16* rather
+        '' than a descriptor. Without them 'valint( w )' declined -- and string/val.bas
+        '' asks every one of the five of a wstring beside its narrow twin.
         dim as MirValue sd
-        if StrDescriptorOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), sd ) = false then
+        if IsWideString_( c, c.info->TypeOf_( v0 ) ) then
+            select case vr
+            case RTL_VAL      : vr = RTL_WSTR_VAL
+            case RTL_VALLNG   : vr = RTL_WSTR_VALLNG
+            case RTL_VALULNG  : vr = RTL_WSTR_VALULNG
+            case RTL_VALINT   : vr = RTL_WSTR_VALINT
+            case RTL_VALUINT  : vr = RTL_WSTR_VALUINT
+            end select
+            if WideOperand_( c, v0, sd ) = false then return false
+        elseif StrDescriptorOf_( c, v0, sd ) = false then
             return false
         end if
         dim as FB.Array( of ulong ) va

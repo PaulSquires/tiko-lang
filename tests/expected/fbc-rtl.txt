@@ -303,6 +303,11 @@ fb_WstrTrim	uint16*	uint16*	lib	fb_WstrTrim
 fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrTrimAny
 fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrTrimEx
 fb_WstrUcase2	uint16*	uint16*, int32	lib	fb_WstrUcase2
+fb_WstrVal	double	uint16*	lib	fb_WstrVal
+fb_WstrValInt	int32	uint16*	lib	fb_WstrValInt
+fb_WstrValLng	int64	uint16*	lib	fb_WstrValLng
+fb_WstrValUInt	uint32	uint16*	lib	fb_WstrValUInt
+fb_WstrValULng	uint64	uint16*	lib	fb_WstrValULng
 fb_hPutAlpha	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutAlpha
 fb_hPutAnd	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutAnd
 fb_hPutBlend	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	fb_hPutBlend

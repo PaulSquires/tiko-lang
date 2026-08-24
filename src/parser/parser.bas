@@ -424,6 +424,50 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
 
+    '' 'integer<N>' AND 'uinteger<N>' -- THE SIZED INTEGER SPELLINGS, which are
+    '' ALIASES and not types of their own. Measured with '#print typeof':
+    ''
+    ''   integer<8>  BYTE     integer<16>  SHORT    integer<32>  LONG
+    ''   integer<64> LONGINT  and the uinteger row is UBYTE/USHORT/ULONG/ULONGINT
+    ''
+    '' Nothing parsed them at all -- 'expected an identifier' at the '<' -- so
+    '' numbers/integer_n.bas and fbc-int/array-size.bas, which are written entirely in
+    '' terms of them, failed at their first declaration.
+    dim as boolean sizedBase = (cast( Tko.TokenKind, sp.op ) = Tko.KW_INTEGER)
+    sizedBase = sizedBase orelse (cast( Tko.TokenKind, sp.op ) = Tko.KW_UINTEGER)
+    if sizedBase andalso (Peek( p ) = Tko.TK_LT) then
+        dim as long saveW = p.pos
+        Advance( p )
+        dim as Tko.TokenKind wk = cast( Tko.TokenKind, 0 )
+        if Peek( p ) = Tko.TK_INT_LIT then
+            dim as boolean uns = (cast( Tko.TokenKind, sp.op ) = Tko.KW_UINTEGER)
+            '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
+            dim as longint wv = -1
+            if cast( long, Cur( p ).literal ) < p.litPool->Count then
+                wv = (*p.litPool)[cast( long, Cur( p ).literal )].intValue
+            end if
+            select case wv
+            case 8  : wk = iif( uns, Tko.KW_UBYTE,    Tko.KW_BYTE )
+            case 16 : wk = iif( uns, Tko.KW_USHORT,   Tko.KW_SHORT )
+            case 32 : wk = iif( uns, Tko.KW_ULONG,    Tko.KW_LONG )
+            case 64 : wk = iif( uns, Tko.KW_ULONGINT, Tko.KW_LONGINT )
+            end select
+        end if
+        if wk <> cast( Tko.TokenKind, 0 ) then
+            Advance( p )
+            if Peek( p ) = Tko.TK_GT then
+                Advance( p )
+                sp.op = cast( ushort, wk )
+                sp.name = p.names->GetString( _
+                    Tko.Text.LowerAscii( Tko.TokenKindText( wk ) ) )
+            else
+                p.pos = saveW
+            end if
+        else
+            p.pos = saveW
+        end if
+    end if
+
     '' Qualified names: 'ns.Type'. The QUALIFIER IS KEPT, in 'ownerName' -- the field
     '' N_PROC already uses for the 'Widget' of 'Widget.Method'. Overwriting 'name' per
     '' component and keeping only the last left 'nsab.T1' to resolve as a bare 'T1',
