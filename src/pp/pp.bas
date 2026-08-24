@@ -174,17 +174,34 @@ private sub Advance( byref e as PpEngine )
     e.frames[e.frames.Count - 1].pos += 1
 end sub
 
-'' Next token on the CURRENT line of the current frame, without crossing TK_EOL.
-'' Directives are line-scoped, so every directive parser uses this.
+'' Next token on the CURRENT line, without crossing TK_EOL. Directives are line-scoped,
+'' so every directive parser uses this.
+''
+'' A SYNTHESISED DIRECTIVE CONTINUES ON THE LINE THAT INVOKED IT. '__FB_UNQUOTE__(
+'' "#define n1 " ) __FB_QUOTE__( 42 )' re-lexes the first half into an EXPANSION FRAME
+'' that ends immediately after 'n1' -- and fbc defines n1 as '"42"', reading on into the
+'' rest of the invoking line. Stopping at the frame's end instead defined it EMPTY and
+'' left the quoted half behind as a stray expression: 76 declines in
+'' pp/macro-arg-extract.bas, which is the file that exists to test this.
+''
+'' Only an EXPANSION frame is crossed. A FILE frame ends the line whatever follows it --
+'' a directive must not run past the end of the file it was written in.
 private function PeekOnLine( byref e as PpEngine, byref outTok as Token ) as boolean
-    if e.frames.IsEmpty( ) then return false
-    dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
-    if f->pos > f->toks->Count - 1 then return false
-    dim as Token t = f->toks->At( f->pos )
-    dim as boolean ends = (Tk( t ) = TK_EOL) orelse (Tk( t ) = TK_EOF)
-    if ends then return false
-    outTok = t
-    return true
+    while e.frames.Count > 0
+        dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
+        if f->pos > f->toks->Count - 1 then
+            if f->file <> FILE_NONE then return false
+            if e.frames.Count = 1 then return false
+            PopFrame( e )
+            continue while
+        end if
+        dim as Token t = f->toks->At( f->pos )
+        dim as boolean ends = (Tk( t ) = TK_EOL) orelse (Tk( t ) = TK_EOF)
+        if ends then return false
+        outTok = t
+        return true
+    wend
+    return false
 end function
 
 private sub SkipToEol( byref e as PpEngine )

@@ -1,0 +1,8 @@
+'' A directive synthesised by __FB_UNQUOTE__ continues on the line that invoked it --
+'' only across an expansion frame, never past the end of a file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/unquote-directive.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/unquote-directive.out
