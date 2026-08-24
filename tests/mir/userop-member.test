@@ -1,0 +1,14 @@
+'' '( a + b ).f' -- A MEMBER ON A USER OPERATOR'S RESULT. The result is a TEMPORARY the
+'' caller made, so it has an address; LowerAddr had no case for a BINARY at all, so the
+'' member declined while 'c = a + b' followed by 'c.f' lowered beside it.
+''
+'' An SRET operator already hands back its temporary's address -- fbc emits
+'' 'struct T* _ZplRK1TS1_( struct T* tmp, ... )' and returns the pointer it was given --
+'' and a TRIVIAL UDT comes back by value and is stored into one here, exactly as a
+'' small UDT returned from an ordinary call already was.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/userop-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/userop-member.out

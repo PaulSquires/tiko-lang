@@ -16,6 +16,9 @@
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
+declare function UserOpTempAddr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
 
 '' Defined below; LowerAddr above it needs the name.
 declare function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
@@ -78,6 +81,20 @@ function LowerAddr _
         dim as MirValue ula
         if LowerUdtLiteralAddr_( c, id, ula ) then return ula
         return v
+    end if
+
+    '' A USER OPERATOR RETURNING A UDT HAS AN ADDRESS, because the result is a
+    '' TEMPORARY the caller made: '( ( d + s ) - s ).Ticks' is how fb/chrono.bi's own
+    '' tests are written, and LowerAddr had no case for a BINARY at all -- so the
+    '' member on the result declined while the same operator assigned to a variable
+    '' lowered.
+    ''
+    '' An sret operator already hands back its temporary's address; a TRIVIAL UDT
+    '' comes back by value and is stored into one here, exactly as a small UDT
+    '' returned from an ordinary call is below.
+    if (c.ast->Kind( id ) = Tko.N_BINARY) orelse (c.ast->Kind( id ) = Tko.N_UNARY) then
+        dim as MirValue uov
+        if UserOpTempAddr_( c, id, uov ) then return uov
     end if
 
     '' A BYREF-RETURNING CALL YIELDS AN ADDRESS, which is the whole point of one:
@@ -763,6 +780,56 @@ function LowerArrayInit _
         st.b = Coerce( c, ev, emt, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
         Emit( c, st )
     next
+    return true
+end function
+
+
+'' THE ADDRESS OF A USER OPERATOR'S UDT RESULT, or false when the node is not one.
+private function UserOpTempAddr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.SymbolId op = c.info->RefOf( id )
+    if op = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.TypeId rt = os->type_
+    if rt = Tko.TYPE_NONE then return false
+    if c.types->Kind( c.types->Unqualify( rt ) ) <> Tko.TK_UDT then return false
+    '' A BYREF-returning operator hands back a reference, which the arrow and index
+    '' paths below already know how to read; this one is about a VALUE result.
+    dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+    if pn = Tko.NODE_NONE then return false
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+
+    dim as MirValue uv
+    dim as boolean got = false
+    if c.ast->Kind( id ) = Tko.N_BINARY then
+        dim as Tko.BinaryPayload ptr ubp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        got = LowerUserBinaryOp_( c, id, ubp, MT_PTR, uv )
+    else
+        dim as Tko.UnaryPayload ptr uup = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        got = LowerUserUnaryOp_( c, id, uup, MT_PTR, uv )
+    end if
+    if got = false then return false
+    if uv.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' An SRET result IS the temporary's address already.
+    if UsesSretReturn( c, rt ) then
+        outv = uv
+        return true
+    end if
+
+    dim as long tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
+    if tslot < 0 then return false
+    dim as MirValue ta
+    ta.kind = cast( ubyte, MV_LOCAL )
+    ta.ty = cast( ubyte, MT_PTR )
+    ta.id = tslot
+    StoreThrough( c, ta, uv )
+    outv = ta
     return true
 end function
 
