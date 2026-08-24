@@ -1,0 +1,58 @@
+global wstr $wstr0 "w1"
+global str $str1 "z1"
+global wstr $wstr2 "d1"
+global str $str3 "d2"
+global wstr $wstr4 "given"
+func void T1($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    %2 = load @p
+    call.rtl void fb_PrintWstr(0, %2, 1)
+    ret
+}
+declare void fb_PrintWstr($0, $1, $2)
+func void T2($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    %2 = load @p
+    %3 = call.rtl ptr fb_StrAllocTempDescZ(%2)
+    call.rtl void fb_PrintString(0, %3, 1)
+    ret
+}
+declare ptr fb_StrAllocTempDescZ($0)
+declare void fb_PrintString($0, $1, $2)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr pw
+  local ptr pz
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr pw
+    store @pw, @@$wstr0
+    %5 = load @pw
+    call.rtl void fb_PrintWstr(0, %5, 1)
+    %6 = alloca ptr pz
+    store @pz, @@$str1
+    %7 = load @pz
+    %8 = call.rtl ptr fb_StrAllocTempDescZ(%7)
+    call.rtl void fb_PrintString(0, %8, 1)
+    call void T1(@@$wstr2)
+    call void T2(@@$str3)
+    call void T1(@@$wstr4)
+    %9 = const i32 0
+    call.rtl void fb_End(%9)
+    %10 = load @$tmp0
+    ret %10
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 29 insts, 0 statements not lowered, 0 scope imbalance

@@ -154,6 +154,16 @@ function LowerExpr _
         if c.ast->Kind( ap->operand ) = Tko.N_STRING_LIT then
             return LowerStringLitAddr( c, ap->operand )
         end if
+        '' '@wstr( "w1" )' -- A WIDE STRING IS ALREADY A POINTER, so its address is
+        '' that pointer and not the address of a temporary holding one. Measured: fbc
+        '' folds the whole thing to '(uint16*)L"w1"', the literal's own storage. Asking
+        '' LowerAddr for a CALL's address instead gave nothing, and the parameter
+        '' default 'byval pw as const wstring ptr = @wstr( "w1" )' declined with it --
+        '' which is how functions/paraminit writes every wide default.
+        dim as MirValue wrv
+        if WideOperand_( c, ap->operand, wrv ) then
+            if wrv.kind <> cast( ubyte, MV_NONE ) then return wrv
+        end if
         return LowerAddr( c, ap->operand )
 
     case Tko.N_NEW

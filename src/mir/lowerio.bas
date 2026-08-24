@@ -415,8 +415,14 @@ function PrintOne _
     '' fb_PrintString like any other narrow string -- measured, fbc wraps it in
     '' fb_StrAllocTempDescF first. StrDescriptorOf_ already knows how; PRINT simply had
     '' no branch that reached it for this flavour.
+    '' KIND 1 IS A ZSTRING -- 'zstring * N' and the unsized one a 'zstring ptr' points
+    '' at -- and it borrows a descriptor the same way, from its own entry point.
+    '' Measured: 'print *pz' is 'fb_StrAllocTempDescZ( PZ )' and then fb_PrintString.
+    '' Only the fixed narrow flavour had a branch here, so every print through a
+    '' zstring pointer declined.
     dim as longint fpn
-    if StrSwapKind_( c, t, fpn ) = 3 then
+    dim as long fpk = StrSwapKind_( c, t, fpn )
+    if (fpk = 3) orelse (fpk = 1) then
         dim as MirValue fd
         if StrDescriptorOf_( c, it, fd ) = false then return false
         args.Push( cast( ulong, fd.kind ) ) : args.Push( cast( ulong, fd.id ) )

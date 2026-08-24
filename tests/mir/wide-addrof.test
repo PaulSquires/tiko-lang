@@ -1,0 +1,8 @@
+'' '@wstr( lit )' as an address, and a print through a zstring pointer -- both the
+'' shapes a wide or narrow parameter default is written in.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-addrof.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-addrof.out
