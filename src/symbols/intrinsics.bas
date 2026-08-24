@@ -227,6 +227,18 @@ private function ExprIntrinsicType_ _
         end if
         if wn < 1 then wn = 1
         return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, wn )
+    '' STRING( n, ch ), WSTRING( n, ch ) AND SPACE( n ). Measured with '#print typeof':
+    '' STRING and STRING, and 'WSTRING * 1' for the wide one -- the same shape wstr( )
+    '' has. Untyped, 'len( string( 3, "a" ) )' had nothing to measure and declined,
+    '' while 'dim as string a = string( 3, "a" )' beside it lowered.
+    case "space"
+        if isNum = false then return Tko.TYPE_NONE
+        return c.types->Builtin( Tko.TY_STRING )
+    case "string"
+        return c.types->Builtin( Tko.TY_STRING )
+    case "wstring"
+        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
+
     '' THE RADIX FAMILY. Measured with '#print typeof(...)': hex, oct and bin are
     '' STRING and their wide halves are 'WSTRING * 1' -- the same shape wstr( ) has,
     '' and not a bare WSTRING. Untyped, every one of them made its CONSUMER decline:

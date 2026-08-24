@@ -417,6 +417,9 @@ namespace Tko.Mir
         RTL( RTL_STR_SPACE,         "fb_SPACE",            "p",   "z"     )
         RTL( RTL_STR_FILL1,         "fb_StrFill1",         "p",   "zl"    )
         RTL( RTL_STR_FILL2,         "fb_StrFill2",         "p",   "zp"    )
+        '' ...and the WIDE half, which yields a bare uint16* rather than a descriptor.
+        RTL( RTL_WSTR_FILL1,        "fb_WstrFill1",        "p",   "zl"    )
+        RTL( RTL_WSTR_FILL2,        "fb_WstrFill2",        "p",   "zp"    )
 
         '' A FIXED-LENGTH string borrowed as a descriptor. Its own entry point, taking
         '' the TAGGED length -- 'fb_StrAllocTempDescF( A, -9223372036854775776ll )' --

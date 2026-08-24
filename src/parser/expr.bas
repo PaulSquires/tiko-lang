@@ -385,6 +385,23 @@ private function TypeArgCall _
     if Peek( p ) <> Tko.TK_RPAREN then
         dim as boolean always = (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR)
         dim as boolean looksLikeType = Tko.IsTypeKeyword( Peek( p ) )
+        '' ...BUT 'string(' AND 'wstring(' ARE CALLS, not types. Both spellings name a
+        '' TYPE and an INTRINSIC, and the '(' is what tells them apart -- which is
+        '' exactly what quirk/len-sizeof.bas says beside the line that needs it:
+        '' "Relies on disambiguation from len(string) via the '(' in 'string('".
+        '' Read as a type, 'len( string( 3, "a" ) )' left '3, "a" )' behind and the
+        '' whole expression was a parse error.
+        if looksLikeType then
+            dim as Tko.TokenKind sk = Peek( p )
+            if (sk = Tko.KW_STRING) orelse (sk = Tko.KW_WSTRING) then
+                if HasTok( p, p.pos + 1 ) then
+                    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = _
+                       Tko.TK_LPAREN then
+                        looksLikeType = false
+                    end if
+                end if
+            end if
+        end if
         if (looksLikeType = false) andalso (Peek( p ) = Tko.TK_IDENT) then
             if HasTok( p, p.pos + 1 ) then
                 dim as Tko.TokenKind n = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )

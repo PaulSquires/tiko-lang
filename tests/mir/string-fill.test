@@ -1,0 +1,19 @@
+'' 'wstring( n, ch )' IS THE WIDE HALF of STRING( n, ch ), with its own two entry
+'' points -- measured, fb_WstrFill1 and fb_WstrFill2, returning a bare uint16* rather
+'' than a descriptor. Only the narrow name was recognised.
+''
+'' AND 'string(' IS A CALL, NOT A TYPE. Both spellings name a TYPE and an INTRINSIC,
+'' and the '(' is what tells them apart -- which is what quirk/len-sizeof.bas says
+'' beside the line that needs it. Read as a type, 'len( string( 3, "a" ) )' left
+'' '3, "a" )' behind and the whole expression was a parse error.
+''
+'' The three of them also had no TYPE: measured with '#print typeof', STRING, STRING
+'' and 'WSTRING * 1', so 'len( string( 3, "a" ) )' had nothing to measure even once it
+'' parsed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/string-fill.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrFill1
+'' GOLDEN: expected/string-fill.out

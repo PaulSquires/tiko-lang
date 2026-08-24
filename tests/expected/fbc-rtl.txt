@@ -259,6 +259,8 @@ fb_WstrConcatAW	uint16*	void*, int64, uint16*	lib	fb_WstrConcatAW
 fb_WstrConcatAssign	uint16*	uint16*, int64, uint16*	lib	fb_WstrConcatAssign
 fb_WstrConcatWA	uint16*	uint16*, void*, int64	lib	fb_WstrConcatWA
 fb_WstrDelete	void	uint16*	lib	fb_WstrDelete
+fb_WstrFill1	uint16*	int64, int32	lib	fb_WstrFill1
+fb_WstrFill2	uint16*	int64, uint16*	lib	fb_WstrFill2
 fb_WstrHexEx_b	uint16*	uint8, int32	lib	fb_WstrHexEx_b
 fb_WstrHexEx_i	uint16*	uint32, int32	lib	fb_WstrHexEx_i
 fb_WstrHexEx_l	uint16*	uint64, int32	lib	fb_WstrHexEx_l

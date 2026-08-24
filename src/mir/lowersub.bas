@@ -225,8 +225,12 @@ function LowerRadixCall_ _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
-    if nm = "string" then
+    '' 'wstring( n, ch )' IS THE WIDE HALF, with its own two entry points -- measured,
+    '' fb_WstrFill1 and fb_WstrFill2, returning a bare uint16* rather than a
+    '' descriptor. Only the narrow name was recognised, so every wide one declined.
+    if (nm = "string") orelse (nm = "wstring") then
         if cp->count <> 2 then return false
+        dim as boolean fillWide = (nm = "wstring")
         dim as MirValue n0 = LowerExpr( c, a0 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
         n0 = Coerce( c, n0, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a0 ) ) )
@@ -237,17 +241,22 @@ function LowerRadixCall_ _
         '' code -- two entry points, not one with a converted argument.
         dim as boolean isStr = (c.ast->Kind( a1 ) = Tko.N_STRING_LIT)
         if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a1 ) )
+        if fillWide then isStr = IsWideString_( c, c.info->TypeOf_( a1 ) )
         if isStr then
             dim as MirValue dv
-            if StrDescriptorOf_( c, a1, dv ) = false then return false
+            if fillWide then
+                if WideOperand_( c, a1, dv ) = false then return false
+            elseif StrDescriptorOf_( c, a1, dv ) = false then
+                return false
+            end if
             sa.Push( cast( ulong, dv.kind ) ) : sa.Push( cast( ulong, dv.id ) )
-            outv = EmitRtl( c, RTL_STR_FILL2, sa )
+            outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL2, RTL_STR_FILL2 ), sa )
         else
             dim as MirValue cv = LowerExpr( c, a1 )
             if cv.kind = cast( ubyte, MV_NONE ) then return false
             cv = Coerce( c, cv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
             sa.Push( cast( ulong, cv.kind ) ) : sa.Push( cast( ulong, cv.id ) )
-            outv = EmitRtl( c, RTL_STR_FILL1, sa )
+            outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL1, RTL_STR_FILL1 ), sa )
         end if
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if

@@ -152,6 +152,9 @@ sub RevProbe( )
     dim as ulongint q2 = valulng( w )
     dim as integer q3 = valint( w )
     dim as uinteger q4 = valuint( w )
+    dim as wstring * 8 f1, f2
+    f1 = wstring( 3, 65 )
+    f2 = wstring( 3, w )
 end sub
 ''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a
