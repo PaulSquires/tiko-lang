@@ -1,0 +1,14 @@
+'' A LEADING '.' outside any WITH names the ENCLOSING SCOPE, which is what '..' names
+'' too. Measured inside 'private sub T.s1( )' over a type with a static 'x' and a
+'' shared 'x' beside it: fbc reads '_ZN1T2X$E' for 'x' and 'T.x', and 'X$' for '.x'
+'' and '..x'.
+''
+'' Left baseless it resolved to nothing and the statement holding it declined -- 32 of
+'' those in structs/global-static.bas and as many in namespace/global3.bas, which is
+'' what both files are about.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dot-global.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/dot-global.out

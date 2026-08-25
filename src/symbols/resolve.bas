@@ -637,6 +637,25 @@ private sub WalkExpr _
             if c.withSubject.Count > 0 then
                 mb->lhs = cast( Tko.NodeId, _
                                 c.withSubject[c.withSubject.Count - 1] )
+            else
+                '' NO OPEN 'with' AT ALL, and then a leading '.' is the ENCLOSING
+                '' SCOPE'S -- the same thing '..' names. Measured, inside
+                '' 'private sub T.s1( )' over a type with a static 'x' and a shared
+                '' 'x' beside it: 'x' and 'T.x' both read the STATIC member and '.x'
+                '' and '..x' both read the shared one.
+                ''
+                '' Left baseless it resolved to nothing, and the statement holding it
+                '' declined -- 32 of them in structs/global-static.bas and as many
+                '' again in namespace/global3.bas, whose whole subject this is.
+                if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+                    dim as Tko.SymbolId dsid = c.syms->LookupLocal( _
+                        FileScopeOf_( c, scope_ ), IdentNameOf( c, mb->rhs ) )
+                    if dsid <> Tko.SYMBOL_NONE then
+                        c.info->SetRef( mb->rhs, dsid )
+                        c.info->SetRef( id, dsid )
+                        return
+                    end if
+                end if
             end if
         end if
         WalkExpr( c, mb->lhs, scope_ )
