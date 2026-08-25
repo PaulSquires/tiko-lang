@@ -11,32 +11,32 @@ N_MODULE (6) <1:86>
           N_TYPEREF [FUNCTION] <17:18>
             N_TYPEREF ptr <17:53>
               N_TYPEREF 'any' [ANY] <17:53>
-            N_PARAM 'n' <17:28>
+            N_PARAM 'n' byval <17:28>
               N_TYPEREF 'uinteger' [UINTEGER] <17:39>
   N_PROC 'f' [SUB] <19:9>
-    N_PARAM 'c' <19:16>
+    N_PARAM 'c' byval <19:16>
       N_TYPEREF ptr <19:27>
         N_TYPEREF 'typeof' [TYPEOF] <19:27>
           N_TYPEREF [SUB] <19:35>
-    N_PARAM 'd' <19:49>
+    N_PARAM 'd' byval <19:49>
       N_TYPEREF 'long' [LONG] <19:60>
   N_PROC 'g' [SUB] <22:9>
-    N_PARAM 'a' <22:16>
+    N_PARAM 'a' byval <22:16>
       N_TYPEREF [FUNCTION] <22:27>
         N_TYPEREF ptr <22:62>
           N_TYPEREF 'any' [ANY] <22:62>
-        N_PARAM 'n' <22:37>
+        N_PARAM 'n' byval <22:37>
           N_TYPEREF 'uinteger' [UINTEGER] <22:48>
-    N_PARAM 'b' <23:16>
+    N_PARAM 'b' byval <23:16>
       N_TYPEREF [SUB] <23:27>
-        N_PARAM 'p' <23:32>
+        N_PARAM 'p' byval <23:32>
           N_TYPEREF ptr <23:43>
             N_TYPEREF 'any' [ANY] <23:43>
-    N_PARAM 'c' <24:16>
+    N_PARAM 'c' byval <24:16>
       N_TYPEREF ptr <24:27>
         N_TYPEREF 'typeof' [TYPEOF] <24:27>
           N_TYPEREF [FUNCTION] <24:35>
             N_TYPEREF ptr <24:70>
               N_TYPEREF 'any' [ANY] <24:70>
-            N_PARAM 'n' <24:45>
+            N_PARAM 'n' byval <24:45>
               N_TYPEREF 'uinteger' [UINTEGER] <24:56>

@@ -318,3 +318,32 @@ sub ArrP.apa( byref y as ArrP, x( ) as integer )
 end sub
 constructor ArrP( x( ) as integer )
 end constructor
+
+'' NEITHER KEYWORD WRITTEN IS NOT BYVAL. Measured from the signatures fbc emits:
+'' BYREF for a UDT and for every string kind, BYVAL for everything else -- and the
+'' mangled name says so, which is what makes it checkable here rather than only in
+'' the emitted C.
+type DefP
+    v as long
+    declare sub d1( n as integer )
+    declare sub d2( u as DefP )
+    declare sub d3( s as string )
+    declare sub d4( z as zstring )
+    declare sub d5( w as wstring )
+    declare sub d6( p as DefP ptr )
+    declare sub d7( d as double )
+end type
+sub DefP.d1( n as integer )
+end sub
+sub DefP.d2( u as DefP )
+end sub
+sub DefP.d3( s as string )
+end sub
+sub DefP.d4( z as zstring )
+end sub
+sub DefP.d5( w as wstring )
+end sub
+sub DefP.d6( p as DefP ptr )
+end sub
+sub DefP.d7( d as double )
+end sub

@@ -1,23 +1,23 @@
 N_MODULE (8) <1:86>
   N_PROC 'f' [SUB] <25:9>
-    N_PARAM 'a' <25:16>
+    N_PARAM 'a' byval <25:16>
       N_TYPEREF 'long' [LONG] <25:27>
       N_INT_LIT 1 radix=10 <25:34>
-    N_PARAM 'b' <25:37>
+    N_PARAM 'b' byval <25:37>
       N_TYPEREF 'long' [LONG] <25:48>
       N_INT_LIT 2 radix=10 <25:55>
-    N_PARAM 'c' <25:58>
+    N_PARAM 'c' byval <25:58>
       N_TYPEREF 'long' [LONG] <25:69>
       N_INT_LIT 3 radix=10 <25:76>
   N_PROC 'f' [SUB] <27:1>
     N_BLOCK (0) <27:71>
-    N_PARAM 'a' <27:8>
+    N_PARAM 'a' byval <27:8>
       N_TYPEREF 'long' [LONG] <27:19>
       N_INT_LIT 1 radix=10 <27:26>
-    N_PARAM 'b' <27:29>
+    N_PARAM 'b' byval <27:29>
       N_TYPEREF 'long' [LONG] <27:40>
       N_INT_LIT 2 radix=10 <27:47>
-    N_PARAM 'c' <27:50>
+    N_PARAM 'c' byval <27:50>
       N_TYPEREF 'long' [LONG] <27:61>
       N_INT_LIT 3 radix=10 <27:68>
   N_AMBIGUOUS <30:1>

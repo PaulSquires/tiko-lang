@@ -11,7 +11,7 @@ N_MODULE (9) <1:54>
   N_VAR [DIM] <18:1>
     N_VAR_ITEM 'p' <18:5>
       N_TYPEREF [SUB] <18:10>
-        N_PARAM <18:21>
+        N_PARAM byval <18:21>
           N_TYPEREF 'integer' [INTEGER] <18:30>
         N_PARAM array <18:39>
           N_TYPEREF 'integer' [INTEGER] <18:46>

@@ -843,115 +843,7 @@ private sub WalkExpr _
         next
     end select
 end sub
-
-'' The parser's three-way ambiguity, decided now that the target's symbol is known
-'' (docs/plan/07 section 8). The payoff is the diagnostic: where fbc reports a syntax
-'' error, tiko-lang can say what the name actually is.
-
-'' An array type from a declaration's bounds, or the base type unchanged when there are
-'' none.
-''
-'' THE PARSER SPELLS BOUNDS TWO DIFFERENT WAYS, which is why this takes node lists
-'' rather than a payload:
-''
-''   N_FIELD      flat (lo, hi) children          as long f(0 to 3)
-''   N_VAR_ITEM   an N_BLOCK of N_CASE_RANGE      dim as long a(0 to 9)
-''
-'' Both are collected into (lo, hi) pairs here so the arithmetic exists once. Assuming
-'' the field shape for both is what left every LOCAL array typed as its element -- four
-'' bytes where forty were needed -- and that went unnoticed only because indexing was
-'' not lowered either.
-''
-'' A missing low bound means 0: 'a(9)' is 'a(0 to 9)'. BOUNDS ARE RETAINED, not just
-'' their product, because indexing needs each dimension's stride and its lbound bias.
-'' Nothing is folded when any bound is non-constant.
-private sub ResolveAmbiguous _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
-
-    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    WalkExpr( c, sp->a, scope_ )
-    WalkExpr( c, sp->b, scope_ )
-    for i as long = 0 to sp->count - 1
-        WalkExpr( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), scope_ )
-    next
-
-    dim as boolean isAssign = (sp->op <> 0)
-
-    '' 'function = expr' names no symbol, so it cannot reach the lookup below -- but it
-    '' is the SAME statement as 'f = expr' inside f, and both belong in one bucket. The
-    '' keyword form used to decline at a different line from the name form, which is
-    '' the shape that made 'amb other' mislead for four commits.
-    if c.ast->Kind( sp->a ) = Tko.N_FUNCRESULT then
-        c.info->SetAmbiguous( id, Tko.AMB_RESULT )
-        c.st->assigns += 1
-        return
-    end if
-
-    '' The target's head symbol: for a.b.c the head is a.
-    dim as Tko.NodeId head = sp->a
-    dim as long guard = 0
-    while guard < 64
-        guard += 1
-        dim as Tko.NodeKind hk = c.ast->Kind( head )
-        if hk = Tko.N_MEMBER then
-            head = c.ast->binaries[cast( long, c.ast->nodes[cast( long, head )].data )].lhs
-        elseif (hk = Tko.N_CALL) orelse (hk = Tko.N_INDEX) then
-            head = ListOf( c, head )->target
-        else
-            exit while
-        end if
-    wend
-
-    '' A QUALIFIED name binds on the MEMBER node itself, so prefer that over the head:
-    '' for 'ns.Greet( 1 )' the head is the namespace and tells us nothing useful, while
-    '' the member resolved to the procedure.
-    dim as Tko.SymbolId sid = c.info->RefOf( head )
-    if c.ast->Kind( sp->a ) = Tko.N_MEMBER then
-        dim as Tko.SymbolId qsid = c.info->RefOf( sp->a )
-        if qsid <> Tko.SYMBOL_NONE then sid = qsid
-    elseif c.ast->Kind( sp->a ) = Tko.N_CALL then
-        dim as Tko.NodeId callee = ListOf( c, sp->a )->target
-        if c.ast->Kind( callee ) = Tko.N_MEMBER then
-            dim as Tko.SymbolId qsid = c.info->RefOf( callee )
-            if qsid <> Tko.SYMBOL_NONE then sid = qsid
-        end if
-    end if
-    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-
-    if isAssign then
-        '' Assigning to the enclosing function name is BASIC's result assignment.
-        dim as boolean isResult = (c.currentProc <> Tko.SYMBOL_NONE) andalso _
-                                  (sid = c.currentProc)
-        if isResult then
-            c.info->SetAmbiguous( id, Tko.AMB_RESULT )
-        else
-            c.info->SetAmbiguous( id, Tko.AMB_ASSIGN )
-        end if
-        c.st->assigns += 1
-        return
-    end if
-
-    if s = 0 then
-        c.info->SetAmbiguous( id, Tko.AMB_CALL )
-        c.st->calls += 1
-        return
-    end if
-
-    select case cast( Tko.SymbolKind, s->kind )
-    case Tko.SYM_PROC
-        c.info->SetAmbiguous( id, Tko.AMB_CALL )
-        c.st->calls += 1
-    case Tko.SYM_UDT, Tko.SYM_ENUM, Tko.SYM_TYPEDEF, Tko.SYM_NAMESPACE
-        '' This is the diagnostic the ambiguous node exists to make possible.
-        dim as Tko.SourceRange r = Tko.PointRange( c.ast->Loc( id ) )
-        c.diags->Report( Tko.TKO0602, r, c.names->Spelling( s->name ), _
-                         Tko.SymbolKindName( cast( Tko.SymbolKind, s->kind ) ) )
-        c.info->SetAmbiguous( id, Tko.AMB_ERROR )
-    case else
-        c.info->SetAmbiguous( id, Tko.AMB_CALL )
-        c.st->calls += 1
-    end select
-end sub
+#include once "symbols/resolveamb.bas"
 
 sub WalkStmt _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
@@ -1258,6 +1150,50 @@ sub WalkStmt _
            ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0) then
             t = c.types->DynArrayOf( t, 1 )
         end if
+        '' NEITHER KEYWORD WRITTEN IS NOT BYVAL. Measured from the signatures fbc
+        '' emits:
+        ''
+        ''   n as integer   int64 N$1          a as string    FBSTRING* A$1
+        ''   d as double    double D$1         a as zstring   char* A$1
+        ''   e as ENUM      $1E E$1            a as wstring   uint16* A$1
+        ''   p as U ptr     struct $1U* P$1    a as ustring   FBUSTRING* A$1
+        ''   u as U         struct $1U* U$1
+        ''
+        '' -- BYREF for a UDT and for every string kind, BYVAL for everything else,
+        '' and 'z as zstring * 8' is error 324, "Fixed-length string combined with
+        '' BYREF", which is fbc saying the default it chose there was byref.
+        ''
+        '' tiko read the absence of the keyword as byval, so 'sub mut( u as U )'
+        '' received a COPY: 'u.k = 99' wrote to it and the caller's object was
+        '' unchanged, with no decline and nothing in the IR to say so. Every
+        '' unannotated UDT and string parameter in the corpus and in the shipped
+        '' headers was passed the wrong way.
+        ''
+        '' An ARRAY parameter is exempt: byval and byref are both ILLEGAL on one, so
+        '' the passing mode never enters into it and a descriptor crosses either way.
+        if t <> Tko.TYPE_NONE then
+            dim as ushort pflags = c.ast->nodes[cast( long, id )].flags
+            dim as boolean written = ((pflags and Tko.NF_BYREF) <> 0)
+            written = written orelse ((pflags and Tko.NF_BYVAL_WRITTEN) <> 0)
+            written = written orelse ((pflags and Tko.NF_ARRAY) <> 0)
+            if written = false then
+                dim as Tko.TypeId bare = c.types->Unqualify( t )
+                dim as boolean wantsRef = (c.types->Kind( bare ) = Tko.TK_UDT)
+                if wantsRef = false then
+                    if c.types->Kind( bare ) = Tko.TK_BUILTIN then
+                        select case c.types->BuiltinOf( bare )
+                        case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, _
+                             Tko.TY_USTRING
+                            wantsRef = true
+                        end select
+                    end if
+                end if
+                if wantsRef then
+                    c.ast->nodes[cast( long, id )].flags or= Tko.NF_BYREF
+                end if
+            end if
+        end if
+
         if (t <> Tko.TYPE_NONE) andalso _
            ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0) then
             t = c.types->Reference( t )

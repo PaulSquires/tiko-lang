@@ -80,7 +80,7 @@ N_MODULE (31) <1:1>
           N_BLOCK (1) <29:19>
             N_INTRINSIC [PRINT] <29:21>
               N_STRING_LIT len=3 kind=0 <29:27>
-      N_PARAM 'n' <12:10>
+      N_PARAM 'n' byval <12:10>
         N_TYPEREF 'long' [LONG] <12:21>
       N_PARAM 's' byref <12:27>
         N_TYPEREF 'string' [STRING] <12:38>
@@ -103,7 +103,7 @@ N_MODULE (31) <1:1>
   N_VAR [DIM] <49:1>
     N_VAR_ITEM 'pf3' <49:5>
       N_TYPEREF [SUB] <49:12>
-        N_PARAM <49:17>
+        N_PARAM byval <49:17>
           N_TYPEREF 'long' [LONG] <49:26>
         N_PARAM <49:32>
           N_TYPEREF 'double' [DOUBLE] <49:35>
@@ -163,7 +163,7 @@ N_MODULE (31) <1:1>
     N_PROC 'cppchar' [FUNCTION] <75:13>
       N_TYPEREF 'byte' [BYTE] <75:65>
         N_STRING_LIT len=4 kind=0 <75:76>
-      N_PARAM 'a' <75:31>
+      N_PARAM 'a' byval <75:31>
         N_TYPEREF 'byte' [BYTE] <75:42>
           N_STRING_LIT len=4 kind=0 <75:53>
   N_PROC 'varia' [SUB] <81:1>
@@ -198,7 +198,7 @@ N_MODULE (31) <1:1>
       N_INTRINSIC [CVA_END] <88:5>
         N_PAREN <88:12>
           N_IDENT 'vl' <88:14>
-    N_PARAM 'n' <81:18>
+    N_PARAM 'n' byval <81:18>
       N_TYPEREF 'long' [LONG] <81:29>
     N_PARAM [...] <81:35>
   N_VAR [DIM] <94:1>

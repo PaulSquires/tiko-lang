@@ -1,0 +1,26 @@
+'' A PARAMETER WITH NEITHER KEYWORD IS NOT BYVAL. Measured from the signatures fbc
+'' emits:
+''
+''   n as integer   int64 N$1          a as string    FBSTRING* A$1
+''   d as double    double D$1         a as zstring   char* A$1
+''   e as ENUM      $1E E$1            a as wstring   uint16* A$1
+''   p as U ptr     struct $1U* P$1    a as ustring   FBUSTRING* A$1
+''   u as U         struct $1U* U$1
+''
+'' -- BYREF for a UDT and for every string kind, BYVAL for everything else. And
+'' 'z as zstring * 8' with no keyword is error 324, "Fixed-length string combined with
+'' BYREF", which is fbc saying the default it chose there was byref.
+''
+'' tiko read the absence of the keyword as byval, so 'sub mut( u as U )' received a
+'' COPY -- 'u.k = 99' wrote to it, the caller's object was unchanged, and nothing in
+'' the IR said so. Every unannotated UDT and string parameter in the corpus and in the
+'' shipped headers was passed the wrong way. check-mangle carries the rule too: 109
+'' rows now, up from 102.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/param-default-byref.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void MUT(@a)
+'' EXPECT-OUT: call void MUTS(@t)
+'' GOLDEN: expected/param-default-byref.out

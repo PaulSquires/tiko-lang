@@ -69,7 +69,15 @@ private sub DumpAny _
     if (n->flags and Tko.NF_SHARED) <> 0 then row += " shared"
     if (n->flags and Tko.NF_STATIC) <> 0 then row += " static"
     if (n->flags and Tko.NF_UNTIL) <> 0 then row += " until"
-    if (n->flags and Tko.NF_POST_COND) <> 0 then row += " post"
+    '' THE BIT IS SHARED. NF_POST_COND is N_DO's and NF_BYVAL_WRITTEN is N_PARAM's,
+    '' so the node kind is what says which word to print.
+    if (n->flags and Tko.NF_POST_COND) <> 0 then
+        if k = Tko.N_PARAM then
+            row += " byval"
+        else
+            row += " post"
+        end if
+    end if
     if (n->flags and Tko.NF_IS_UNION) <> 0 then row += " union"
     if (n->flags and Tko.NF_SINGLE_LINE) <> 0 then row += " single-line"
 

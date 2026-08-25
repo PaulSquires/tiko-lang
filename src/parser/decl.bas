@@ -346,7 +346,11 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
     dim as ushort flags = 0
 
     if Accept( p, Tko.KW_BYVAL ) then
-        '' byval is the marker absence of NF_BYREF
+        '' RECORDED, because the absence of NF_BYREF does NOT mean byval: with neither
+        '' keyword written the default is BYREF for a UDT or a string and BYVAL for
+        '' everything else, and which one that is depends on a type this pass has not
+        '' resolved. Resolve settles it.
+        flags or= Tko.NF_BYVAL_WRITTEN
     elseif Accept( p, Tko.KW_BYREF ) then
         flags or= Tko.NF_BYREF
     end if

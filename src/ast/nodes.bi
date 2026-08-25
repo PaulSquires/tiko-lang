@@ -164,6 +164,14 @@ namespace Tko
     '' 'function = ( 5, 6 )' with error 7, and the two build the same node otherwise.
     const NF_TYPE_LITERAL as ushort = &h0080
 
+    '' N_PARAM: 'byval' was WRITTEN. The passing mode is not decided by the parser --
+    '' with neither keyword the default depends on the TYPE, which is not resolved yet
+    '' -- so the absence of NF_BYREF cannot mean "byval" on its own.
+    ''
+    '' Shares its bit with NF_POST_COND, which is N_DO's and can never appear on an
+    '' N_PARAM, the same way NF_TYPE_LITERAL shares with NF_UNTIL.
+    const NF_BYVAL_WRITTEN as ushort = &h0100
+
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.
     const PF_OVERLOAD   as ushort = &h0001   '' the OVERLOAD keyword was written
