@@ -332,6 +332,30 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         ''
         '' Kept for CHECK rather than Resolve: the type of an expression is Check's to
         '' say, and it says it lazily -- the same arrangement 'var' uses.
+        '' A TYPE OPERAND SPELLED AS A KEYWORD -- 'typeof( integer )', 'typeof( long
+        '' ptr )'. The bare-name test above fires only on an IDENT and no expression
+        '' parser reads a builtin type name, so these were discarded and the
+        '' declaration came out untyped. Speculative like the expression attempt
+        '' below: it counts only when the parse lands exactly on the ')'.
+        if tookName = false then
+            dim as long saveT = p.pos
+            dim as boolean savedSilentT = p.silent
+            dim as long savedErrorsT = p.errors
+            p.silent = true
+            Advance( p )                       '' past '('
+            dim as Tko.NodeId inner = TypeRef( p )
+            dim as boolean landedT = (Peek( p ) = Tko.TK_RPAREN)
+            p.silent = savedSilentT
+            p.errors = savedErrorsT
+            if (inner <> Tko.NODE_NONE) andalso landedT then
+                sp.b = inner
+                Advance( p )                   '' past ')'
+                tookName = true
+            else
+                p.pos = saveT
+            end if
+        end if
+
         if tookName = false then
             dim as long saveE = p.pos
             dim as boolean savedSilent = p.silent
@@ -1372,108 +1396,4 @@ function Unit( byref p as Tko.ParserState ) as Tko.NodeId
     return MakeList( p, Tko.N_MODULE, t.loc, Tko.NODE_NONE, items )
 end function
 
-end namespace
-
-namespace Tko.Parse
-
-'' ----------------------------------------------------------------------- dump
-
-private sub DumpAny _
-    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
-      byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as long, _
-      byref outp as string )
-
-    if id = Tko.NODE_NONE then return
-    if cast( long, id ) >= ast.nodes.Count then return
-    '' THE BUILTIN PRELUDE IS NOT WHAT THE USER WROTE. It is real source and is parsed
-    '' like everything else, but printing its thirty declarations under every file
-    '' would bury the file.
-    if src.IsBuiltin( ast.nodes[cast( long, id )].loc ) then return
-
-    dim as Tko.AstNode ptr n = @ast.nodes[cast( long, id )]
-    dim as Tko.NodeKind k = cast( Tko.NodeKind, n->kind )
-    dim as Tko.NodeCategory cat = Tko.NodeKindCategory( k )
-
-    '' Expressions already have a printer; reuse it so one shape is printed one way.
-    if (cat = Tko.NCAT_EXPR) andalso (k <> Tko.N_ERROR) then
-        dim as string sub_ = Dump( ast, src, names, id )
-        dim as long start = 1
-        while start <= len( sub_ )
-            dim as long nl = instr( start, sub_, chr( 10 ) )
-            if nl = 0 then exit while
-            outp += space( indent * 2 ) & mid( sub_, start, nl - start ) & chr( 10 )
-            start = nl + 1
-        wend
-        return
-    end if
-
-    dim as Tko.DecodedLoc d = src.Decode( n->loc )
-    dim as string row = space( indent * 2 ) & Tko.NodeKindName( k )
-
-    dim as boolean hasStmt = (cat = Tko.NCAT_STMT) orelse (cat = Tko.NCAT_TYPE) orelse _
-                             (cat = Tko.NCAT_DECL)
-    dim as boolean isList = (k = Tko.N_BLOCK) orelse (k = Tko.N_MODULE)
-
-    if isList then
-        dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, n->data )]
-        row += " (" & lp->count & ")"
-        outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
-        for i as long = 0 to lp->count - 1
-            DumpAny( ast, src, names, cast( Tko.NodeId, ast.children[lp->first + i] ), _
-                     indent + 1, outp )
-        next
-        return
-    end if
-
-    if hasStmt = false then
-        outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
-        return
-    end if
-
-    dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( long, n->data )]
-    if sp->name <> Tko.INTERN_NONE then row += " '" & names.Spelling( sp->name ) & "'"
-    if sp->op <> 0 then
-        dim as string ot = Tko.TokenKindText( cast( Tko.TokenKind, sp->op ) )
-        if len( ot ) > 0 then row += " [" & ot & "]"
-    end if
-    if (n->flags and Tko.NF_BYREF) <> 0 then row += " byref"
-    if (n->flags and Tko.NF_PTR) <> 0 then row += " ptr"
-    if (n->flags and Tko.NF_ARRAY) <> 0 then row += " array"
-    if (n->flags and Tko.NF_SHARED) <> 0 then row += " shared"
-    if (n->flags and Tko.NF_STATIC) <> 0 then row += " static"
-    if (n->flags and Tko.NF_UNTIL) <> 0 then row += " until"
-    if (n->flags and Tko.NF_POST_COND) <> 0 then row += " post"
-    if (n->flags and Tko.NF_IS_UNION) <> 0 then row += " union"
-    if (n->flags and Tko.NF_SINGLE_LINE) <> 0 then row += " single-line"
-
-    '' Member visibility lives in 'extra', not in the node flags, so it needs its own
-    '' line here -- and without one a 'private:' label is invisible in the dump, which
-    '' is exactly how a parsed-but-discarded label would look.
-    if (n->kind = Tko.N_FIELD) orelse (n->kind = Tko.N_PROC) then
-        if (sp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then row += " private"
-        if (sp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then row += " protected"
-    end if
-    '' EXPLICIT is invisible in the dump otherwise, and an unparsed EXPLICIT looked
-    '' exactly like a parsed one -- as an extra member nobody wrote.
-    if (n->kind = Tko.N_ENUM) andalso (sp->extra <> 0) then row += " explicit"
-    outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
-
-    DumpAny( ast, src, names, sp->a, indent + 1, outp )
-    DumpAny( ast, src, names, sp->b, indent + 1, outp )
-    DumpAny( ast, src, names, sp->c, indent + 1, outp )
-    for i as long = 0 to sp->count - 1
-        DumpAny( ast, src, names, cast( Tko.NodeId, ast.children[sp->first + i] ), _
-                 indent + 1, outp )
-    next
-end sub
-
-function DumpTree _
-    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
-      byref names as Tko.Interner, byval root as Tko.NodeId ) as string
-
-    dim as string outp = ""
-    DumpAny( ast, src, names, root, 0, outp )
-    return outp
-end function
-
-end namespace
+#include once "parser/parserdump.bas"

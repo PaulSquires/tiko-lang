@@ -7,9 +7,11 @@
 '' which is how it surfaced. 20 corpus files, all of them including win/rpcndr.bi, whose
 '' RpcSsSwapClientAllocFree declaration uses the form twice.
 ''
-'' The group is consumed and DISCARDED, so the type is left unresolved rather than
-'' wrong: the inner may be a type OR an expression and telling which needs Check. That
-'' is no worse than the named type it used to produce, which resolved to nothing either.
+'' A TYPE OPERAND IS KEPT, as a nested TYPEREF: 'typeof( sub( ) )', 'typeof( integer
+'' ptr )', 'typeof( const T )'. The attempt is speculative and counts only when the
+'' type parse lands exactly on the closing ')', so an EXPRESSION operand -- which no
+'' type parser reads -- falls through to the expression attempt after it, and anything
+'' neither reads is still consumed and discarded.
 
 dim a as typeof( sub( ) ) ptr
 dim b as typeof( function( byval n as uinteger ) as any ptr ) ptr

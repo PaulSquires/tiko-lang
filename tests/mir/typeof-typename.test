@@ -1,0 +1,15 @@
+'' 'typeof( <TYPE> )' WHERE THE TYPE IS SPELLED AS A KEYWORD -- 'typeof( integer )',
+'' 'typeof( long ptr )'. The parser kept the operand only when it was a bare IDENT and
+'' no expression parser reads a builtin type name, so these were consumed and
+'' discarded and the declaration came out untyped. Measured: fbc gives 8, 8, 8, 5, 8
+'' for the five below, and every one of them declined.
+''
+'' quirk/typeof.bas -- the file that exists for this operator -- lost 22 statements to
+'' it, and the attempt is speculative in the same way the expression attempt beside it
+'' is, so 'typeof( *p )' still reaches the expression parser.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typeof-typename.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/typeof-typename.out
