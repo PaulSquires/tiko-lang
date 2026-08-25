@@ -1,0 +1,21 @@
+'' A UDT OPERAND IN A NUMERIC EXPRESSION GOES THROUGH ITS OWN 'operator cast'.
+'' Measured, over a type that declares 'operator cast( ) as integer' and no comparison
+'' operator at all:
+''
+''     int64 vr$3 = _ZN3UDTcvu7INTEGEREv( &U$0 );
+''     RESULT$0 = (boolean)((int64)-(vr$3 != 0ll) != 0ll);
+''
+'' -- the operator is called and the RESULT is compared. The conversion is what makes
+'' the comparison legal in the first place.
+''
+'' Every one of them declined: the arithmetic path asked the UDT for a value, and a
+'' UDT has none. It is asked BEFORE the refusal that stops a UDT reaching that path,
+'' because a type that HAS such an operator is exactly the case the refusal must not
+'' take. structs/udt-comp-ops-1.bas: 24 -> 0.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cast-num.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _ZN3UDTcvu7INTEGEREv(@u)
+'' GOLDEN: expected/udt-cast-num.out

@@ -387,7 +387,20 @@ function LowerExpr _
         '' The node's own TYPE is what separates the remaining two: a UDT that reaches
         '' the numeric path legitimately does so through 'operator cast', and Check
         '' types the expression when it does.
-        if c.info->TypeOf_( id ) = Tko.TYPE_NONE then
+        '' A UDT OPERAND REACHES THE NUMERIC PATH THROUGH ITS OWN 'operator cast',
+        '' and asking it for a value directly gets nothing. ASKED BEFORE the refusal
+        '' below, because a type that HAS such an operator is exactly the case that
+        '' refusal must not take: 'result = u <> 0' over a type declaring only
+        '' 'operator cast( ) as integer' is measured as a call to it and a comparison
+        '' of the RESULT. See UserCastToNum_.
+        dim as MirValue l
+        dim as MirValue r
+        dim as boolean lCast = UserCastToNum_( c, bp->lhs, l )
+        dim as boolean rCast = UserCastToNum_( c, bp->rhs, r )
+
+        dim as boolean noType = (c.info->TypeOf_( id ) = Tko.TYPE_NONE)
+        dim as boolean noCast = (lCast = false) andalso (rCast = false)
+        if noType andalso noCast then
             dim as Tko.TypeId lud = c.types->Unqualify( c.info->TypeOf_( bp->lhs ) )
             dim as Tko.TypeId rud = c.types->Unqualify( c.info->TypeOf_( bp->rhs ) )
             dim as boolean udtOperand = (c.types->Kind( lud ) = Tko.TK_UDT) orelse _
@@ -395,8 +408,8 @@ function LowerExpr _
             if udtOperand then return v
         end if
 
-        dim as MirValue l = LowerExpr( c, bp->lhs )
-        dim as MirValue r = LowerExpr( c, bp->rhs )
+        if lCast = false then l = LowerExpr( c, bp->lhs )
+        if rCast = false then r = LowerExpr( c, bp->rhs )
         if (l.kind = cast( ubyte, MV_NONE )) orelse (r.kind = cast( ubyte, MV_NONE )) then
             return v
         end if

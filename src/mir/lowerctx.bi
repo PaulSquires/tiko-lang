@@ -350,6 +350,9 @@ declare function EmitRtl _
     declare function EmitMemberCallArgs_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
           byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
+    declare function UserCastToNum_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
     declare function UdtMemberNamed_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
     declare function EmitMemberCall _

@@ -1035,6 +1035,67 @@ function UserCastToStr_ _
     return true
 end function
 
+'' A UDT OPERAND IN A NUMERIC EXPRESSION, through its own 'operator cast'.
+''
+'' Measured: 'result = u <> 0' over a type that declares 'operator cast( ) as integer'
+'' and nothing else is
+''
+''     int64 vr$3 = _ZN3UDTcvu7INTEGEREv( &U$0 );
+''     RESULT$0 = (boolean)((int64)-(vr$3 != 0ll) != 0ll);
+''
+'' -- the operator is called and the RESULT is compared. There is no 'operator <>' in
+'' the type at all; the conversion is what makes the comparison legal. Every one of
+'' them declined, because the arithmetic path asked the UDT for a value and a UDT has
+'' none: structs/udt-comp-ops-1.bas and -2.bas are written entirely in this shape.
+''
+'' THE OVERLOAD THAT YIELDS A NUMBER, exactly as UserCastToStr_ picks the one that
+'' yields a string: 'operator cast' may be declared several times over different
+'' targets and they hang off one symbol as a chain.
+function UserCastToNum_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    dim as Tko.SymbolId want = Tko.SYMBOL_NONE
+    dim as MirType wantTy = MT_VOID
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
+        if rt <> Tko.TYPE_NONE then
+            dim as boolean num = false
+            if c.types->Kind( rt ) = Tko.TK_ENUM then num = true
+            if c.types->Kind( rt ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( rt )
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, _
+                     Tko.TY_VOID
+                case else
+                    num = true
+                end select
+            end if
+            if num then
+                dim as MirType mt2 = LowerType( rt, *c.types )
+                if (mt2 <> MT_VOID) andalso (mt2 <> MT_AGG) then
+                    want = cur
+                    wantTy = mt2
+                    exit while
+                end if
+            end if
+        end if
+        cur = cse->nextOverload
+    wend
+    if want = Tko.SYMBOL_NONE then return false
+
+    dim as MirValue self_ = LowerAddr( c, id )
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    outv = EmitMemberCall( c, want, self_, wantTy )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+
 '' A member of a UDT by name, folded. Nothing when the type has no such member.
 function UdtMemberNamed_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
@@ -1341,124 +1402,7 @@ function LowerZstrAssignTo _
     EmitRtl( c, iif( isInit, RTL_STR_INIT, RTL_STR_ASSIGN ), args )
     return true
 end function
-
-
-'' A string relational operator.
-''
-'' MEASURED from fbc: one fb_StrCompare, then the operator applied against ZERO.
-''
-''     int32 vr$5 = fb_StrCompare( &A$1, -1ll, &B$1, -1ll );
-''     if( (int64)vr$5 != 0ll ) goto ...          ' for 'a = b'
-''
-'' so '=' becomes 'cmp == 0', '<' becomes 'cmp < 0', and so on -- the same operator,
-'' with the second operand replaced by 0. The (pointer, length) pairs follow the
-'' fb_StrAssign convention, where a literal's length INCLUDES the terminator: fbc passes
-'' 4 for "lit" here, not the 3 fb_StrAllocTempDescZEx takes.
-function LowerStrCompare _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
-      byval tk as Tko.TokenKind ) as MirValue
-
-    dim as MirValue none_
-    select case tk
-    case Tko.TK_EQ, Tko.TK_NE, Tko.TK_LT, Tko.TK_GT, Tko.TK_LE, Tko.TK_GE
-    case else
-        '' Concatenation and the rest are not comparisons and do not belong here.
-        return none_
-    end select
-
-    dim as FB.Array( of ulong ) args
-    dim as MirValue cmp
-
-    '' A WIDE COMPARISON is a DIFFERENT function with a different shape: two bare
-    '' pointers, no lengths at all, where the narrow one takes (ptr, len) per side.
-    '' One entry point covers all six operators, exactly as the narrow one does.
-    '' WIDE if EITHER side is, for the same reason the caller's guard asks both: an
-    '' intrinsic call has no type of its own, so 'trim( w ) = b' looks wide only from
-    '' the right.
-    '' TermIsWide_ rather than the type alone: 'wbin( b ) = wstr( "10000000" )' is two
-    '' calls, neither of which Check types, so both sides looked NARROW and the whole
-    '' comparison declined -- 228 statements in one corpus file, every one of them
-    '' inside a CU_ASSERT that then declined with it.
-    dim as boolean isWide = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
-    '' ...UNLESS THE OTHER SIDE IS A USTRING, in which case it is a UTF-16 comparison
-    '' and the WIDE operand is the one converted -- 'fb_WstrToUStr' then fb_UStrCompare,
-    '' measured. Taken as a wide comparison it converted the ustring to a wstring
-    '' instead, which reads a descriptor as a bare uint16*.
-    if IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
-       IsUStringType( c, c.info->TypeOf_( bp->rhs ) ) then
-        isWide = false
-    end if
-    if isWide then
-        '' EITHER SIDE MAY BE AN RVALUE. LowerAddr alone accepted only an addressable
-        '' wide variable, so 'trim( a ) = b' and 'a = wstr( 1 )' produced no comparison
-        '' -- and the IF around them went out as a conditional branch with NOTHING to
-        '' branch on, silently, for as long as that was tolerated. WideOperand_ already
-        '' knows all three spellings; it was simply not asked.
-        '' A MIXED COMPARISON CONVERTS THE NARROW SIDE. Measured: 'rt = ru' over a
-        '' 'zstring * 50' and a 'wstring * 50' is 'fb_StrToWstr( RT )' into a temporary
-        '' and then fb_WstrCompare, with the temporary deleted afterwards. Requiring
-        '' both sides to be wide declined the comparison outright.
-        dim as MirValue la, ra
-        if WideOperand_( c, bp->lhs, la ) = false then
-            if NarrowToWideTemp_( c, bp->lhs, la ) = false then return none_
-        end if
-        if WideOperand_( c, bp->rhs, ra ) = false then
-            if NarrowToWideTemp_( c, bp->rhs, ra ) = false then return none_
-        end if
-        if (la.kind = cast( ubyte, MV_NONE )) orelse _
-           (ra.kind = cast( ubyte, MV_NONE )) then return none_
-        args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
-        args.Push( cast( ulong, ra.kind ) ) : args.Push( cast( ulong, ra.id ) )
-        cmp = EmitRtl( c, RTL_WSTR_COMPARE, args )
-    else
-        '' EITHER SIDE MAKES IT A USTRING COMPARISON, and the literal on the other
-        '' side follows: 'a = "x"' over a ustring is fb_UStrCompare with a UTF-16
-        '' literal, where fb_StrCompare would read the descriptor as narrow.
-        dim as boolean isU = IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
-                             IsUStringType( c, c.info->TypeOf_( bp->rhs ) )
-        '' ...BUT A REAL STRING ON THE OTHER SIDE IS CONVERTED, not reinterpreted.
-        '' Measured: 'u = q' over a narrow string is 'fb_StrToUStr( q, -1 )' into a
-        '' temporary and only then fb_UStrCompare, and a wide operand goes through
-        '' fb_WstrToUStr the same way. Pushing the narrow bytes straight into the
-        '' UTF-16 comparison is what this did, and it compared UTF-8 against UTF-16.
-        if isU then
-            if UStrCmpOperand_( c, args, bp->lhs ) = false then return none_
-            if UStrCmpOperand_( c, args, bp->rhs ) = false then return none_
-            cmp = EmitRtl( c, RTL_USTR_COMPARE, args )
-        else
-            if EmitStrTerm( c, args, bp->lhs, false ) = false then return none_
-            if EmitStrTerm( c, args, bp->rhs, false ) = false then return none_
-            cmp = EmitRtl( c, RTL_STR_COMPARE, args )
-        end if
-    end if
-    if cmp.kind = cast( ubyte, MV_NONE ) then return none_
-
-    dim as MirValue zero_
-    zero_.kind = cast( ubyte, MV_CONST_INT )
-    zero_.ty = cast( ubyte, MT_I32 )
-    zero_.id = 0
-    dim as MirInst ins
-    ins.op = cast( ushort, BinOpFor( tk, MT_I32, false ) )
-    ins.ty = cast( ubyte, MT_I8 )
-    ins.a = cmp
-    ins.b = zero_
-    if ins.op = cast( ushort, M_NONE ) then return none_
-    dim as MirValue res = Emit( c, ins )
-
-    '' A STRING COMPARISON IS NEGATED IN VALUE POSITION exactly as a numeric one is:
-    '' measured, 'R = -( fb_StrCompare( ... ) == 0 )'. Not for the node being lowered
-    '' as a CONDITION, which is a branch and asks only whether it is nonzero.
-    if id <> c.rawCmpNode then
-        dim as MirInst neg
-        neg.op = cast( ushort, M_NEG )
-        neg.ty = cast( ubyte, MT_I8 )
-        neg.a = res
-        return Emit( c, neg )
-    end if
-    return res
-end function
-
-'' Tuple equality, in its own file at the 1500-line cap.
+#include once "mir/lowerstrcmp.bas"
 #include once "mir/lowertup.bas"
 
 end namespace
