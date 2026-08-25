@@ -68,7 +68,18 @@ function LowerConvCtorInit_ _
 
     if init_ = Tko.NODE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    '' AN ARRAY INITIALISER -- 'dim x as T = a( )' over 'constructor T( array( ) as
+    '' integer )'. The argument is a DESCRIPTOR and its type is the ARRAY's, not the
+    '' element's, so it is taken from the name inside the empty call rather than from
+    '' the call node. structs/udt-array-ops-1.bas is 24 statements of this one shape.
+    dim as MirValue adv
+    dim as boolean fromArray = ArrayDescArg_( c, init_, true, adv )
     dim as Tko.TypeId it = c.info->TypeOf_( init_ )
+    if fromArray then
+        dim as Tko.ListPayload ptr alp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, init_ )].data )]
+        it = c.info->TypeOf_( alp->target )
+    end if
     if it = Tko.TYPE_NONE then return false
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
@@ -96,7 +107,11 @@ function LowerConvCtorInit_ _
     next
 
     dim as MirValue av
-    if CtorArgValue_( c, init_, pt, av ) = false then return false
+    if fromArray then
+        av = adv
+    elseif CtorArgValue_( c, init_, pt, av ) = false then
+        return false
+    end if
     dim as FB.Array( of ulong ) cargs
     cargs.Push( cast( ulong, av.kind ) )
     cargs.Push( cast( ulong, av.id ) )

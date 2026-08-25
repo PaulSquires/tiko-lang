@@ -262,8 +262,26 @@ function PickCtor _
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
-                    dim as long cost = Tko.Check.ConversionCost( _
-                        cast( Tko.TypeId, argT[ai] ), c.info->TypeOf_( sp2->a ), *c.types )
+                    '' AN ARRAY PARAMETER IS MATCHED BY ITS ELEMENT TYPE. Its declared
+                    '' type IS the element -- the array-ness is the parameter node's
+                    '' flag -- so 'constructor T( array( ) as integer )' was costed as
+                    '' though it took one INTEGER, the whole array argument was
+                    '' unconvertible, and 'dim x as T = a( )' found no constructor at
+                    '' all. structs/udt-array-ops-1.bas is 24 statements of it.
+                    dim as Tko.TypeId at2 = cast( Tko.TypeId, argT[ai] )
+                    dim as Tko.TypeId pt2 = c.info->TypeOf_( sp2->a )
+                    dim as long cost = 0
+                    if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
+                        dim as Tko.TypeId ae = at2
+                        if ae <> Tko.TYPE_NONE then
+                            if c.types->Kind( ae ) = Tko.TK_ARRAY then
+                                ae = c.types->Inner( ae )
+                            end if
+                        end if
+                        cost = Tko.Check.ConversionCost( ae, pt2, *c.types )
+                    else
+                        cost = Tko.Check.ConversionCost( at2, pt2, *c.types )
+                    end if
                     ai += 1
                     if cost >= Tko.Check.CONV_NONE then
                         viable = false

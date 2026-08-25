@@ -1,0 +1,21 @@
+'' AN ARRAY IS A CONSTRUCTOR ARGUMENT AND AN ASSIGNMENT SOURCE, and neither was read.
+''
+'' An array PARAMETER's declared type is its ELEMENT -- the array-ness is the
+'' parameter node's flag -- so overload costing charged 'constructor T( array( ) as
+'' integer )' as though it took one INTEGER, found the whole array unconvertible, and
+'' 'dim x as T = a( )' matched no constructor at all.
+''
+'' 'z = a( )' is 'operator let( a( ) as E )': the two sides are never the same type,
+'' so the same-type test the assignment path uses can never reach it, and the
+'' argument is a DESCRIPTOR rather than an address. The shape is tested before
+'' anything is emitted, because building a descriptor is code and code emitted for an
+'' overload that does not exist is dead.
+''
+'' structs/udt-array-ops-1.bas: 24 -> 9, the rest being 'new T( b( ) )' and the
+'' compound operators.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-array-ctor-let.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-array-ctor-let.out

@@ -72,7 +72,46 @@ private sub LowerAssign _
     ''
     '' Both sides must be the SAME type: 'x = someOtherThing' is a conversion, and the
     '' assignment operator takes its own type by reference.
+    '' AN ARRAY ASSIGNED TO A UDT IS ITS 'operator let( a( ) as E )'. The two sides
+    '' are never the same type, so the equality test below can never reach it, and
+    '' the argument is a DESCRIPTOR rather than an address.
+    '' structs/udt-array-ops-1.bas writes 'z = a( )' beside the constructor form.
+    ''
+    '' The SHAPE is tested before anything is emitted -- an empty call over a name
+    '' whose type is an ARRAY -- because building the descriptor is code, and code
+    '' emitted for an overload that then does not exist is dead.
     dim as Tko.TypeId atl = c.info->TypeOf_( target )
+    if (atl <> Tko.TYPE_NONE) andalso (c.ast->Kind( value ) = Tko.N_CALL) then
+        if c.types->Kind( atl ) = Tko.TK_UDT then
+            dim as Tko.ListPayload ptr vlp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, value )].data )]
+            dim as Tko.TypeId vat = Tko.TYPE_NONE
+            if (vlp->count = 0) andalso (vlp->target <> Tko.NODE_NONE) then
+                vat = c.info->TypeOf_( vlp->target )
+            end if
+            if vat <> Tko.TYPE_NONE then
+                if c.types->Kind( vat ) = Tko.TK_ARRAY then
+                    dim as FB.Array( of ulong ) latT
+                    latT.Push( cast( ulong, vat ) )
+                    dim as Tko.SymbolId alet = _
+                        PickCtor( c, StructorOf( c, atl, "let" ), latT )
+                    if alet <> Tko.SYMBOL_NONE then
+                        dim as MirValue ada = LowerAddr( c, target )
+                        dim as MirValue aadv
+                        if (ada.kind <> cast( ubyte, MV_NONE )) andalso _
+                           ArrayDescArg_( c, value, true, aadv ) then
+                            dim as FB.Array( of ulong ) alargs
+                            alargs.Push( cast( ulong, aadv.kind ) )
+                            alargs.Push( cast( ulong, aadv.id ) )
+                            EmitStructorCall( c, alet, -1, @ada, @alargs )
+                            return
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     if (atl <> Tko.TYPE_NONE) andalso (atl = c.info->TypeOf_( value )) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
             dim as boolean handled = false
