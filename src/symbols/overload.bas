@@ -74,6 +74,11 @@ end function
 ''
 '' Both operands are costed, so an overload set over several right-hand types picks
 '' the same way a call does; a tie yields nothing rather than a silent choice.
+declare function SameProc_ _
+    ( byref c as Ctx, byval a as Tko.SymbolId, byval b as Tko.SymbolId ) as boolean
+declare function ProcHasBody_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+
 private function UserBinaryOp_ _
     ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, _
       byval rt as Tko.TypeId ) as Tko.SymbolId
@@ -164,7 +169,18 @@ private function UserBinaryOp_ _
                             best = cur
                             ties = 0
                         elseif total = bestCost then
-                            ties += 1
+                            '' TWO HALVES OF ONE OPERATOR ARE NOT TWO CANDIDATES, for
+                            '' the same reason a procedure's are not: Collect pairs a
+                            '' definition with its declaration by ARITY, and every
+                            '' binary operator has the same arity. fb/chrono.bi
+                            '' declares three '-' operators and defines them lower
+                            '' down, so the set held each one twice, they cost
+                            '' identically, and NO operator bound at all.
+                            if SameProc_( c, best, cur ) then
+                                if ProcHasBody_( c, cur ) then best = cur
+                            else
+                                ties += 1
+                            end if
                         end if
                     end if
                 end if
@@ -236,7 +252,18 @@ function UserUnaryOp_ _
                             best = cur
                             ties = 0
                         elseif total = bestCost then
-                            ties += 1
+                            '' TWO HALVES OF ONE OPERATOR ARE NOT TWO CANDIDATES, for
+                            '' the same reason a procedure's are not: Collect pairs a
+                            '' definition with its declaration by ARITY, and every
+                            '' binary operator has the same arity. fb/chrono.bi
+                            '' declares three '-' operators and defines them lower
+                            '' down, so the set held each one twice, they cost
+                            '' identically, and NO operator bound at all.
+                            if SameProc_( c, best, cur ) then
+                                if ProcHasBody_( c, cur ) then best = cur
+                            else
+                                ties += 1
+                            end if
                         end if
                     end if
                 end if
@@ -252,7 +279,7 @@ end function
 '' Are these two symbols the SAME PROCEDURE -- a declaration and its definition that
 '' Collect could not pair up? Compared by MANGLED NAME, which is exactly the question:
 '' two symbols that mangle alike are one linker symbol.
-private function SameProc_ _
+function SameProc_ _
     ( byref c as Ctx, byval a as Tko.SymbolId, byval b as Tko.SymbolId ) as boolean
 
     if (a = Tko.SYMBOL_NONE) orelse (b = Tko.SYMBOL_NONE) then return false
@@ -270,7 +297,7 @@ private function SameProc_ _
 end function
 
 '' Does this symbol's procedure node carry a BODY, or is it a bare declaration?
-private function ProcHasBody_ _
+function ProcHasBody_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )

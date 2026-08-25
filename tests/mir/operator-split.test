@@ -1,0 +1,18 @@
+'' AN OPERATOR DECLARED AND DEFINED SEPARATELY is ONE operator. Collect pairs a
+'' definition with its declaration by ARITY, and every binary operator has the same
+'' arity -- so a set of three '-' declarations left each definition to declare a symbol
+'' of its own, the duplicates cost identically, and NO operator bound at all. That is
+'' how fb/chrono.bi declares its twelve, and it is the same fix the ordinary call
+'' picker already had: two candidates that MANGLE ALIKE are one procedure, and the one
+'' with a body wins.
+''
+'' PARENTHESES ARE TRANSPARENT TO AN ADDRESS. '( ( d + s ) - s ).ticks' wraps the inner
+'' operator in a paren; with no case for one, the address fell through to the value
+'' path, which stored the RESULT POINTER into a fresh aggregate temporary -- an address
+'' where the object belonged.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/operator-split.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/operator-split.out

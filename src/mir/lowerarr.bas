@@ -75,6 +75,19 @@ function LowerAddr _
         end if
     next
 
+    '' PARENTHESES ARE TRANSPARENT TO AN ADDRESS. '( ( d + s ) - s ).Ticks' wraps the
+    '' inner operator in a paren, and with no case for one here the address fell
+    '' through to the value path, which stored the RESULT POINTER into a fresh
+    '' aggregate temporary -- an address where the object belonged.
+    if c.ast->Kind( id ) = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr plp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if plp->count = 1 then
+            return LowerAddr( c, cast( Tko.NodeId, c.ast->children[plp->first] ) )
+        end if
+        return v
+    end if
+
     '' 'type<P>( 5, 6 )' HAS AN ADDRESS ONLY BECAUSE A TEMPORARY IS BUILT FOR IT, which
     '' is what a byref parameter defaulted from one needs. fbc does the same.
     if c.ast->Kind( id ) = Tko.N_TUPLE then
