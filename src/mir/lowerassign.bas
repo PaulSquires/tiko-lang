@@ -35,6 +35,47 @@ private sub LowerAssign _
         return
     end if
 
+    '' 'a = type( 1, 2, 3 )' IS A SEQUENCE OF FIELD STORES, the same ones the DIM
+    '' initialiser makes. Measured, for 'dim as FVec3 a3 : a3 = type( 1.5f, 0.75f,
+    '' 2.25f )':
+    ''
+    ''   *(float*)&A3$0 = 0x1.8p+0f;
+    ''   *(float*)((uint8*)&A3$0 + 4ll) = 0x1.8p-1f;
+    ''   *(float*)((uint8*)&A3$0 + 8ll) = 0x1.2p+1f;
+    ''
+    '' -- no temporary and no copy. Only the DIM position read the form, so every
+    '' later assignment of one declined: optimizations/vector.bas writes 24 of them
+    '' and math/vector.bas more.
+    ''
+    '' ...AND ONLY OVER A TYPE WITH NO CONSTRUCTOR. Measured, the two are different:
+    '' 'x = type<C>( )' over a type that HAS one builds a temporary and memcpys it --
+    '' '_ZN1CC1Ev( &TMP$2$0 ); __builtin_memcpy( &X$0, &TMP$2$0, 8 )' -- while
+    '' 'y = type<D>( 1, 2 )' over one that does not writes the fields straight into Y.
+    '' And a type whose fields need construction, a string member say, REJECTS the
+    '' form outright: error 99, "No matching overloaded function, E.constructor()".
+    ''
+    '' A PLAIN LOCAL ONLY, because the field-list walk addresses its destination by
+    '' SLOT. A field or an element target still declines, which is honest rather than
+    '' half-done.
+    if c.ast->Kind( target ) = Tko.N_IDENT then
+        dim as Tko.TypeId tlt = c.types->Unqualify( c.info->TypeOf_( target ) )
+        dim as boolean tlPlain = (c.types->Kind( tlt ) = Tko.TK_UDT)
+        if tlPlain then
+            tlPlain = (StructorOf( c, tlt, "__ctor" ) = Tko.SYMBOL_NONE)
+            tlPlain = tlPlain andalso (TypeNeedsInit_( c, tlt ) = false)
+        end if
+        if tlPlain then
+            dim as boolean isList = (c.ast->Kind( value ) = Tko.N_TUPLE)
+            isList = isList orelse (c.ast->Kind( value ) = Tko.N_PAREN)
+            if isList then
+                dim as long tlslot = LocalFor( c, c.info->RefOf( target ) )
+                if tlslot >= 0 then
+                    if LowerUdtParenInit_( c, tlslot, tlt, value ) then return
+                end if
+            end if
+        end if
+    end if
+
     if LowerWideAssign( c, target, value ) then return
     if LowerWideToNarrow( c, target, value ) then return
 

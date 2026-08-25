@@ -1,0 +1,21 @@
+'' 'a = type( 1, 2, 3 )' IS A SEQUENCE OF FIELD STORES, the same ones the DIM
+'' initialiser makes. Measured:
+''
+''   *(float*)&A3$0 = 0x1.8p+0f;
+''   *(float*)((uint8*)&A3$0 + 4ll) = 0x1.8p-1f;
+''   *(float*)((uint8*)&A3$0 + 8ll) = 0x1.2p+1f;
+''
+'' -- no temporary and no copy. Only the DIM position read the form, so every later
+'' assignment of one declined: optimizations/vector.bas is 24 of them, now 0.
+''
+'' ONLY OVER A TYPE WITH NO CONSTRUCTOR, and the two are different. 'x = type<C>( )'
+'' over a type that HAS one builds a temporary and memcpys it --
+'' '_ZN1CC1Ev( &TMP$2$0 ); __builtin_memcpy( &X$0, &TMP$2$0, 8 )' -- and a type whose
+'' fields need construction, a string member say, REJECTS the form outright: error 99,
+'' "No matching overloaded function, E.constructor()".
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typelit-assign.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/typelit-assign.out
