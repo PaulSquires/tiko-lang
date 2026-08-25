@@ -1,0 +1,31 @@
+'' AN INHERITED MEMBER NAMED WITHOUT A BASE. 'v = 5' inside a method of a type that
+'' EXTENDS another names the base's field, and the ordinary scope walk cannot reach it:
+'' the base's scope is not a PARENT of the derived type's, it is the TYPE of a field
+'' called 'base'.
+''
+'' Check's own FieldOf_ has walked that chain since inheritance landed -- which is why
+'' 'x.v' worked the whole time and a bare 'v' did not. Every unqualified read, write
+'' and '@' of an inherited field declined.
+''
+'' The offsets are measured: fbc writes '*(int32*)THIS$1' for v and
+'' '*(uint8*)((uint8*)THIS$1 + 4ll)' for d, which is what 'extends' being a field at
+'' offset 0 already gives.
+''
+'' Beside it, SWAP OVER TWO OPERANDS WITH NO ADDRESS. 'swap wstr( a ), wstr( b )' over
+'' a UDT whose 'operator cast( ) byref as wstring' hands back a uint16* is measured as
+'' 'fb_WstrSwap( vr$5, 0ll, vr$3, 0ll )' -- both through the operator, LENGTH 0 each,
+'' where an addressable 'wstring * 5' passes its own 5. A call has no address, so both
+'' sides answered nothing and the statement declined.
+''
+''
+'' The swap half is not asserted here: fbc rejects the spelling over a type declared
+'' this simply -- error 24 -- and only accepts it over the corpus's own
+'' UWSTRING_FIXED_MUTABLE chain, which is where udt-wstring/swap.bas exercises it.
+''
+'' udt-wstring/swap.bas 22 -> 0, structs/inherit-type-4 and -5 to 0.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/inherited-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/inherited-member.out

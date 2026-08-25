@@ -40,11 +40,41 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return false
 
+    '' AN OPERAND WITH NO ADDRESS BUT A WIDE VALUE. 'swap wstr( u1 ), wstr( u2 )' over
+    '' a UDT whose 'operator cast( ) byref as wstring' hands back a uint16* is
+    '' measured as
+    ''
+    ''     vr$3 = _ZN3UWHcvwEv( &U2$1 );
+    ''     vr$5 = _ZN3UWHcvwEv( &U1$1 );
+    ''     fb_WstrSwap( vr$5, 0ll, vr$3, 0ll );
+    ''
+    '' -- both through the operator, and LENGTH 0 for each, where an addressable
+    '' 'wstring * 5' passes its own 5. A call has no address, so both sides answered
+    '' nothing and the whole statement declined: udt-wstring/swap.bas writes the shape
+    '' three times per element type.
+    if TermIsWide_( c, sp->a ) andalso TermIsWide_( c, sp->b ) then
+        dim as MirValue wa, wb
+        dim as boolean gotA = WideOperand_( c, sp->a, wa )
+        dim as boolean gotB = false
+        if gotA then gotB = WideOperand_( c, sp->b, wb )
+        if gotB then
+            dim as FB.Array( of ulong ) wargs
+            wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
+            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( 0 )
+            wargs.Push( cast( ulong, wb.kind ) ) : wargs.Push( cast( ulong, wb.id ) )
+            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( 0 )
+            EmitRtl( c, RTL_WSTR_SWAP, wargs )
+            return true
+        end if
+    end if
+
+
     dim as Tko.TypeId t = SwapOperandType_( c, sp->a )
     if t = Tko.TYPE_NONE then return false
 
     dim as MirValue la = LowerAddr( c, sp->a )
     dim as MirValue lb = LowerAddr( c, sp->b )
+
     if (la.kind = cast( ubyte, MV_NONE )) orelse (lb.kind = cast( ubyte, MV_NONE )) then
         return false
     end if
