@@ -311,12 +311,72 @@ function LowerCallParts _
             end if
         end if
         if wantsDesc then
-            if StrDescriptorOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+            '' A WIDE ARGUMENT TO A BYREF STRING IS A CONVERSION, not an address.
+            '' Measured: 'g( w )' against 'byref s as string' is
+            '' 'fb_WstrAssignToA( &TMP$3$0, -1, (uint16*)W$0, 0 ); G1( &TMP$3$0, 0 )'.
+            '' tiko handed the callee the WIDE BUFFER'S address where an FBSTRING
+            '' belongs, and for a wide RVALUE it pushed NOTHING AT ALL -- a call with
+            '' a hole in it, counted as fully lowered.
+            if IsWideString_( c, c.info->TypeOf_( argNode ) ) then
+                dim as Tko.TypeId wsp = c.types->Builtin( Tko.TY_STRING )
+                if ByvalStrTemp_( c, argNode, wsp, a, tempSlot ) then
+                    strTemps.Push( cast( ulong, tempSlot ) )
+                    strTempTypes.Push( cast( ulong, wsp ) )
+                end if
+            end if
+            if a.kind = cast( ubyte, MV_NONE ) then
+                if StrDescriptorOf_( c, argNode, a ) = false then
+                    a = LowerAddr( c, argNode )
+                end if
+            end if
+            '' NOTHING TO PASS IS NOT AN ARGUMENT.
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
         elseif wantsWide then
             if WideOperand_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+            '' A NARROW ARGUMENT IS CONVERTED, and an RVALUE has no address to fall
+            '' back on. Measured -- 'f( hex( 1 ) )' against 'byref w as wstring' is a
+            '' narrow temporary, fb_StrToWstr over its data pointer, and the call:
+            ''
+            ''     fb_StrAssign( &TMP$6$0, -1, vr$20, -1, 0 );
+            ''     vr$22 = fb_StrToWstr( (char*)*(char**)&TMP$6$0 );
+            ''     vr$23 = F1( TMP$7$0, 0 );
+            ''
+            '' functions/temp-strings.bas writes the shape twelve times and every one
+            '' of them declined.
+            if a.kind = cast( ubyte, MV_NONE ) then
+                NarrowToWideTemp_( c, argNode, a )
+            end if
             if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
         elseif wantsZ then
             if ZstrDataOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+            '' A WIDE ARGUMENT IS CONVERTED. Measured, for 'byref z as zstring':
+            ''
+            ''     fb_WstrAssignToA( &TMP$7$0, -1, TMP$5$0, 0 );
+            ''     vr$28 = G2( *(char**)&TMP$7$0, 0 );
+            ''
+            '' -- the same narrow temporary a byval string parameter gets, read one
+            '' level further. A wide RVALUE has no address either way, so both the
+            '' descriptor and the address answered nothing and the call declined.
+            if a.kind = cast( ubyte, MV_NONE ) then
+                dim as MirValue wzt
+                '' THE TEMPORARY IS A NARROW STRING, whatever the argument was:
+                '' 'fb_WstrAssignToA' writes an FBSTRING, and it is the temporary's
+                '' own type that says which deleter releases it.
+                dim as Tko.TypeId wzp = c.types->Builtin( Tko.TY_STRING )
+                if ByvalStrTemp_( c, argNode, wzp, wzt, tempSlot ) then
+                    strTemps.Push( cast( ulong, tempSlot ) )
+                    strTempTypes.Push( cast( ulong, wzp ) )
+                    dim as MirInst wzf
+                    wzf.op = cast( ushort, M_FIELD_ADDR )
+                    wzf.ty = cast( ubyte, MT_PTR )
+                    wzf.a = wzt
+                    wzf.imm = 0
+                    dim as MirValue wzpa = Emit( c, wzf )
+                    if wzpa.kind <> cast( ubyte, MV_NONE ) then
+                        a = LowerExprLoad( c, wzpa, MT_PTR )
+                    end if
+                end if
+            end if
             if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
         elseif wantsRef then
             a = LowerAddr( c, argNode )
@@ -356,19 +416,44 @@ function LowerCallParts _
                         c.types->Unqualify( c.types->Inner( c.types->Unqualify( ppt ) ) )
                     if c.types->Kind( pin ) = Tko.TK_BUILTIN then
                         if c.types->BuiltinOf( pin ) = Tko.TY_ZSTRING then
-                            wantsZPtr = IsStringType( c, c.info->TypeOf_( argNode ) )
+                            '' A WIDE ARGUMENT COUNTS TOO, and is converted through
+                            '' the same narrow temporary: measured,
+                            '' 'G3( (char*)*(char**)&TMP$10$0, 0 )' after an
+                            '' fb_WstrAssignToA into it.
+                            dim as Tko.TypeId zat = c.info->TypeOf_( argNode )
+                            wantsZPtr = IsStringType( c, zat )
+                            wantsZPtr = wantsZPtr orelse IsWideString_( c, zat )
                         elseif c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
                             '' A 'wstring ptr' PARAMETER TAKES THE WIDE DATA POINTER,
                             '' which is what a wide value already IS: measured, fbc
                             '' writes 'TMP = fb_WstrHex_l( 255 ); TAKEWSTRINGPTR( TMP )'
                             '' and passes it straight through.
-                            wantsWPtr = IsWideString_( c, c.info->TypeOf_( argNode ) )
+                            '' A NARROW ARGUMENT COUNTS TOO, and is CONVERTED.
+                            '' Measured: 'f( s )' and 'f( z )' against a 'wstring ptr'
+                            '' parameter are 'fb_StrToWstr( (char*)*(char**)&S$0 )'
+                            '' and 'fb_StrToWstr( (char*)Z$0 )'. tiko loaded the
+                            '' DESCRIPTOR'S FIRST EIGHT BYTES and bitcast them to the
+                            '' wide pointer -- so the callee read narrow bytes as
+                            '' UTF-16, and nothing declined.
+                            dim as Tko.TypeId wat = c.info->TypeOf_( argNode )
+                            wantsWPtr = IsWideString_( c, wat )
+                            wantsWPtr = wantsWPtr orelse IsStringType( c, wat )
+                            if wantsWPtr = false then
+                                dim as longint wzn
+                                wantsWPtr = (StrSwapKind_( c, wat, wzn ) = 1)
+                            end if
                         end if
                     end if
                 end if
             end if
             if wantsWPtr then
                 if WideOperand_( c, argNode, a ) = false then
+                    '' A NARROW ARGUMENT IS CONVERTED HERE TOO. 'wstring ptr' takes
+                    '' the same wide pointer 'byref as wstring' does, and fbc builds
+                    '' the same narrow temporary for an rvalue source.
+                    NarrowToWideTemp_( c, argNode, a )
+                end if
+                if a.kind = cast( ubyte, MV_NONE ) then
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v )
                 end if
@@ -390,7 +475,14 @@ function LowerCallParts _
                     '' -- which is the same temporary a byval string parameter gets,
                     '' read one level further.
                     dim as MirValue zt
+                    '' A NARROW TEMPORARY, whatever the source was: a WIDE argument
+                    '' is converted into it by fb_WstrAssignToA, and it is the
+                    '' temporary's type -- not the argument's -- that says which
+                    '' deleter releases it.
                     dim as Tko.TypeId zpt = c.info->TypeOf_( argNode )
+                    if IsStringType( c, zpt ) = false then
+                        zpt = c.types->Builtin( Tko.TY_STRING )
+                    end if
                     if ByvalStrTemp_( c, argNode, zpt, zt, tempSlot ) = false then
                         c.blameNode = cast( ulong, argNode )
                         return CallFailed_( c, v )

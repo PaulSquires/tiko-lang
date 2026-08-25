@@ -1,0 +1,298 @@
+global str $str0 "a"
+global wstr $wstr1 "a"
+global str $str2 "1"
+global wstr $wstr3 "1"
+func ptr G1($0, $1) {
+  local ptr $tmp0
+  local ptr s
+  local i64 isfixed
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr s
+    store @s, $0
+    %4 = alloca ptr isfixed
+    store @isfixed, $1
+    %5 = load @s
+    %6 = load %5
+    ret %6
+}
+func ptr G2($0, $1) {
+  local ptr $tmp0
+  local ptr z
+  local i64 isfixed
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr z
+    store @z, $0
+    %4 = alloca ptr isfixed
+    store @isfixed, $1
+    %5 = load @z
+    ret %5
+}
+func ptr G3($0, $1) {
+  local ptr $tmp0
+  local ptr pz
+  local i64 isfixed
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr pz
+    store @pz, $0
+    %4 = alloca ptr isfixed
+    store @isfixed, $1
+    %5 = load @pz
+    ret %5
+}
+func ptr F1($0, $1) {
+  local ptr $tmp0
+  local ptr w
+  local i64 isfixed
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr w
+    store @w, $0
+    %4 = alloca ptr isfixed
+    store @isfixed, $1
+    %5 = load @w
+    ret %5
+}
+func ptr F2($0, $1) {
+  local ptr $tmp0
+  local ptr pw
+  local i64 isfixed
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr pw
+    store @pw, $0
+    %4 = alloca ptr isfixed
+    store @isfixed, $1
+    %5 = load @pw
+    ret %5
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg s size 24
+  local agg z size 4
+  local agg w size 8
+  local agg $tmp4 size 24
+  local agg $tmp5 size 24
+  local agg $tmp6 size 24
+  local agg $tmp7 size 24
+  local agg $tmp8 size 24
+  local ptr $tmp9
+  local ptr $tmp10
+  local ptr $tmp11
+  local ptr $tmp12
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr s
+    %5 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
+    %6 = alloca ptr z
+    %7 = call.rtl ptr fb_StrAssign(@z, 4, @@$str0, 2, 0)
+    %8 = alloca ptr w
+    %9 = call.rtl ptr fb_WstrAssign(@w, 4, @@$wstr1)
+    %10 = alloca ptr $tmp4
+    %11 = field.addr @$tmp4, 0
+    store %11, 0
+    %12 = field.addr @$tmp4, 8
+    store %12, 0
+    %13 = field.addr @$tmp4, 16
+    store %13, 0
+    %14 = call.rtl ptr fb_WstrAssignToA(@$tmp4, -1, @w, 0)
+    %15 = const i64 0
+    %16 = call ptr G1(@$tmp4, %15)
+    call.rtl void fb_StrDelete(@$tmp4)
+    %17 = call.rtl i32 fb_StrCompare(%16, 0, @@$str0, 2)
+    %18 = icmp.eq %17, 0
+    %19 = neg %18
+    %20 = sext %19
+    call.rtl void fb_PrintLongint(0, %20, 1)
+    %21 = alloca ptr $tmp5
+    %22 = field.addr @$tmp5, 0
+    store %22, 0
+    %23 = field.addr @$tmp5, 8
+    store %23, 0
+    %24 = field.addr @$tmp5, 16
+    store %24, 0
+    %25 = const i64 1
+    %26 = call.rtl ptr fb_WstrHex_l(%25)
+    %27 = call.rtl ptr fb_WstrAssignToA(@$tmp5, -1, %26, 0)
+    %28 = const i64 0
+    %29 = call ptr G1(@$tmp5, %28)
+    call.rtl void fb_StrDelete(@$tmp5)
+    %30 = call.rtl i32 fb_StrCompare(%29, 0, @@$str2, 2)
+    %31 = icmp.eq %30, 0
+    %32 = neg %31
+    %33 = sext %32
+    call.rtl void fb_PrintLongint(0, %33, 1)
+    %34 = const i64 0
+    %35 = call ptr G2(@w, %34)
+    %36 = call.rtl i32 fb_StrCompare(%35, 0, @@$str0, 2)
+    %37 = icmp.eq %36, 0
+    %38 = neg %37
+    %39 = sext %38
+    call.rtl void fb_PrintLongint(0, %39, 1)
+    %40 = alloca ptr $tmp6
+    %41 = field.addr @$tmp6, 0
+    store %41, 0
+    %42 = field.addr @$tmp6, 8
+    store %42, 0
+    %43 = field.addr @$tmp6, 16
+    store %43, 0
+    %44 = const i64 1
+    %45 = call.rtl ptr fb_WstrHex_l(%44)
+    %46 = call.rtl ptr fb_WstrAssignToA(@$tmp6, -1, %45, 0)
+    %47 = field.addr @$tmp6, 0
+    %48 = load %47
+    %49 = const i64 0
+    %50 = call ptr G2(%48, %49)
+    call.rtl void fb_StrDelete(@$tmp6)
+    %51 = call.rtl i32 fb_StrCompare(%50, 0, @@$str2, 2)
+    %52 = icmp.eq %51, 0
+    %53 = neg %52
+    %54 = sext %53
+    call.rtl void fb_PrintLongint(0, %54, 1)
+    %55 = alloca ptr $tmp7
+    %56 = field.addr @$tmp7, 0
+    store %56, 0
+    %57 = field.addr @$tmp7, 8
+    store %57, 0
+    %58 = field.addr @$tmp7, 16
+    store %58, 0
+    %59 = call.rtl ptr fb_WstrAssignToA(@$tmp7, -1, @w, 0)
+    %60 = load @$tmp7
+    %61 = const i64 0
+    %62 = call ptr G3(%60, %61)
+    call.rtl void fb_StrDelete(@$tmp7)
+    %63 = call.rtl i32 fb_StrCompare(%62, 0, @@$str0, 2)
+    %64 = icmp.eq %63, 0
+    %65 = neg %64
+    %66 = sext %65
+    call.rtl void fb_PrintLongint(0, %66, 1)
+    %67 = alloca ptr $tmp8
+    %68 = field.addr @$tmp8, 0
+    store %68, 0
+    %69 = field.addr @$tmp8, 8
+    store %69, 0
+    %70 = field.addr @$tmp8, 16
+    store %70, 0
+    %71 = const i64 1
+    %72 = call.rtl ptr fb_WstrHex_l(%71)
+    %73 = call.rtl ptr fb_WstrAssignToA(@$tmp8, -1, %72, 0)
+    %74 = load @$tmp8
+    %75 = const i64 0
+    %76 = call ptr G3(%74, %75)
+    call.rtl void fb_StrDelete(@$tmp8)
+    %77 = call.rtl i32 fb_StrCompare(%76, 0, @@$str2, 2)
+    %78 = icmp.eq %77, 0
+    %79 = neg %78
+    %80 = sext %79
+    call.rtl void fb_PrintLongint(0, %80, 1)
+    %81 = const i64 0
+    %82 = call ptr F1(@s, %81)
+    %83 = call.rtl i32 fb_WstrCompare(%82, @@$wstr1)
+    %84 = icmp.eq %83, 0
+    %85 = neg %84
+    %86 = sext %85
+    call.rtl void fb_PrintLongint(0, %86, 1)
+    %87 = const i64 0
+    %88 = call ptr F1(@z, %87)
+    %89 = call.rtl i32 fb_WstrCompare(%88, @@$wstr1)
+    %90 = icmp.eq %89, 0
+    %91 = neg %90
+    %92 = sext %91
+    call.rtl void fb_PrintLongint(0, %92, 1)
+    %93 = const i64 1
+    %94 = call.rtl ptr fb_HEX_l(%93)
+    %95 = load %94
+    %96 = call.rtl ptr fb_StrToWstr(%95)
+    %97 = alloca ptr $tmp9
+    store @$tmp9, %96
+    %98 = load @$tmp9
+    %99 = const i64 0
+    %100 = call ptr F1(%98, %99)
+    %101 = call.rtl i32 fb_WstrCompare(%100, @@$wstr3)
+    %102 = icmp.eq %101, 0
+    %103 = neg %102
+    %104 = sext %103
+    call.rtl void fb_PrintLongint(0, %104, 1)
+    %105 = load @$tmp9
+    call.rtl void fb_WstrDelete(%105)
+    %106 = load @s
+    %107 = call.rtl ptr fb_StrToWstr(%106)
+    %108 = alloca ptr $tmp10
+    store @$tmp10, %107
+    %109 = load @$tmp10
+    %110 = const i64 0
+    %111 = call ptr F2(%109, %110)
+    %112 = call.rtl i32 fb_WstrCompare(%111, @@$wstr1)
+    %113 = icmp.eq %112, 0
+    %114 = neg %113
+    %115 = sext %114
+    call.rtl void fb_PrintLongint(0, %115, 1)
+    %116 = load @$tmp10
+    call.rtl void fb_WstrDelete(%116)
+    %117 = call.rtl ptr fb_StrToWstr(@z)
+    %118 = alloca ptr $tmp11
+    store @$tmp11, %117
+    %119 = load @$tmp11
+    %120 = const i64 0
+    %121 = call ptr F2(%119, %120)
+    %122 = call.rtl i32 fb_WstrCompare(%121, @@$wstr1)
+    %123 = icmp.eq %122, 0
+    %124 = neg %123
+    %125 = sext %124
+    call.rtl void fb_PrintLongint(0, %125, 1)
+    %126 = load @$tmp11
+    call.rtl void fb_WstrDelete(%126)
+    %127 = const i64 1
+    %128 = call.rtl ptr fb_HEX_l(%127)
+    %129 = load %128
+    %130 = call.rtl ptr fb_StrToWstr(%129)
+    %131 = alloca ptr $tmp12
+    store @$tmp12, %130
+    %132 = load @$tmp12
+    %133 = const i64 0
+    %134 = call ptr F2(%132, %133)
+    %135 = call.rtl i32 fb_WstrCompare(%134, @@$wstr3)
+    %136 = icmp.eq %135, 0
+    %137 = neg %136
+    %138 = sext %137
+    call.rtl void fb_PrintLongint(0, %138, 1)
+    %139 = load @$tmp12
+    call.rtl void fb_WstrDelete(%139)
+    call.rtl void fb_StrDelete(@s)
+    %140 = const i32 0
+    call.rtl void fb_End(%140)
+    %141 = load @$tmp0
+    ret %141
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_WstrAssign($0, $1, $2)
+declare ptr fb_WstrAssignToA($0, $1, $2, $3)
+declare void fb_StrDelete($0)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare void fb_PrintLongint($0, $1, $2)
+declare ptr fb_WstrHex_l($0)
+declare i32 fb_WstrCompare($0, $1)
+declare ptr fb_HEX_l($0)
+declare ptr fb_StrToWstr($0)
+declare void fb_WstrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 6 functions, 6 blocks, 226 insts, 0 statements not lowered, 0 scope imbalance

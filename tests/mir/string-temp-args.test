@@ -5,6 +5,11 @@
 ''   zstring ptr       the same temporary, read one level further: '*(char**)&TMP'
 ''   wstring ptr       the wide value IS the pointer: 'TMP = fb_WstrHex_l( 255 )'
 ''
+'' A WIDE argument to a NARROW parameter is CONVERTED, not reinterpreted: measured,
+'' 'takeZstringPtr( w )' is 'fb_WstrAssignToA( &TMP, -1, (uint16*)W, 0 )' and then
+'' '*(char**)&TMP'. tiko loaded the wide buffer's address and bitcast it, so the
+'' callee read UTF-16 as bytes -- and nothing declined.
+''
 '' And the radix family had NO TYPE AT ALL -- measured with '#print typeof', hex/oct/
 '' bin are STRING and whex/woct/wbin are 'WSTRING * 1' -- so every call taking one as
 '' an argument reached overload resolution with an untyped argument and resolved to

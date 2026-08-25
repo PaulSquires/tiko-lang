@@ -1,0 +1,24 @@
+'' A STRING ARGUMENT WHOSE WIDTH DIFFERS FROM ITS PARAMETER'S IS CONVERTED, in both
+'' directions and for a value as much as for a variable. Measured:
+''
+''   byref as string  <- wide    fb_WstrAssignToA( &TMP, -1, W, 0 );  G1( &TMP, 0 )
+''   byref as zstring <- wide    ...the same temporary, read one level: *(char**)&TMP
+''   zstring ptr      <- wide    ...and the same again
+''   byref as wstring <- narrow  fb_StrToWstr( (char*)*(char**)&S );  F1( TMP, 0 )
+''   wstring ptr      <- narrow  ...and the same again
+''
+'' A NARROW RVALUE gets a narrow temporary first -- 'fb_StrAssign( &TMP, -1, vr, -1,
+'' 0 )' -- which is the temporary a byval string parameter already had.
+''
+'' None of it was read. A wide lvalue handed the callee the WIDE BUFFER'S address
+'' where an FBSTRING belongs and a narrow one the DESCRIPTOR'S FIRST EIGHT BYTES
+'' bitcast to a wide pointer; a wide RVALUE to a byref string pushed NOTHING and went
+'' out as a call with a hole in it, counted as fully lowered. functions/temp-strings.bas
+'' writes all five rows side by side: 34 -> 20.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-narrow-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: , _)
+'' GOLDEN: expected/wide-narrow-args.out
