@@ -1,0 +1,16 @@
+'' A STRUCTOR BELONGS TO THE TYPE, not to a const view of it. Mangling a 'const T'
+'' produced '_ZNK2T1C1Ev' -- the CONST-METHOD spelling -- and a constructor is never
+'' const, so 'dim as const T c = T( )' called a name nothing defines while the real
+'' '_ZN2T1C1Ev' sat beside it. Measured: fbc emits '_ZN2T1C1Ev( &C1$0 )'.
+''
+'' AND AN EMPTY 'T( )' IS FINISHED once the synthesised constructor has run: it has no
+'' value of its own, so the initialiser store asked it for one, got nothing, and
+'' declined with the object already built. 'type<P>( 5, 6 )' is a FIELD LIST and the
+'' store is what writes it -- which is why the count of what was written decides.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-object-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _ZN2T1C1Ev
+'' GOLDEN: expected/const-object-init.out

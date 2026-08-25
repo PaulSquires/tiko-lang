@@ -499,6 +499,11 @@ end sub
 private function ImplStructorName_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval suffix as string ) as string
 
+    '' UNQUALIFIED. A structor belongs to the TYPE, not to a const view of it: mangling
+    '' a 'const T' gave '_ZNK2T1C1Ev', the CONST-METHOD spelling, and a constructor is
+    '' never const. So 'dim as const T c = T( )' called a name nothing defines while
+    '' the real '_ZN2T1C1Ev' sat beside it.
+    t = c.types->Unqualify( t )
     dim as Tko.Mangle.Substitutions subs
     dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
     if len( code ) = 0 then return ""
@@ -529,6 +534,8 @@ end function
 '' '_ZN1TC1ERKS_'. 'RKS_' is the Itanium substitution for 'const T&', which is what
 '' both take -- so neither ends in the plain 'Ev' the other two do.
 function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    '' Unqualified, for the reason ImplStructorName_ gives.
+    t = c.types->Unqualify( t )
     if IsObjectT_( c, t ) then return ""
     dim as Tko.Mangle.Substitutions subs
     dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
@@ -538,6 +545,8 @@ function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
 end function
 
 function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    '' Unqualified, for the reason ImplStructorName_ gives.
+    t = c.types->Unqualify( t )
     if IsObjectT_( c, t ) then return "_ZN10fb_Object$C1ERKS_"
     dim as Tko.Mangle.Substitutions subs
     dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )

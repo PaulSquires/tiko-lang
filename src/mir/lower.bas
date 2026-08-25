@@ -10,6 +10,7 @@ declare function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as b
 declare function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
 declare function StaticMemberSym_ _
     ( byref c as Ctx, byval stmt as Tko.NodeId, byval item as Tko.NodeId ) as Tko.SymbolId
+declare function InitArgCount_( byref c as Ctx, byval e as Tko.NodeId ) as long
 declare function IsCmpOp_( byval op as MirOp ) as boolean
 declare function LowerByrefResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
@@ -895,6 +896,18 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         end if
                     elseif ArrayElemNeedsInit_( c, vs->type_ ) then
                         EmitArrayElems_( c, slot, vs->type_, true )
+                    end if
+                    '' 'dim as T x = T( )' OVER A TYPE WITH NO WRITTEN CONSTRUCTOR
+                    '' is finished HERE. The synthesised one has run; there is nothing
+                    '' left to store, and an EMPTY constructor call has no value of
+                    '' its own -- so the store below asked it for one, got nothing,
+                    '' and declined with the object already built. Measured: fbc emits
+                    '' the constructor call and nothing else.
+                    ''
+                    '' EMPTY ONLY. 'type<P>( 5, 6 )' is a FIELD LIST and the store
+                    '' below is what writes it.
+                    if initIsLiteral andalso (InitArgCount_( c, ip->b ) = 0) then
+                        constructed = true
                     end if
                 end if
                 dim as Tko.SymbolId dtor = StructorWithArity( c, _

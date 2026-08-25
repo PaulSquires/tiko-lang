@@ -354,3 +354,14 @@ function LowerCall _
     if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
     return LowerCallParts( c, cp->target, callee, cp->first, cp->count, mt )
 end function
+
+'' How many values a type literal or a type-constructor call was written with. An empty
+'' 'T( )' constructs and stores nothing; 'type<P>( 5, 6 )' is a field list.
+function InitArgCount_( byref c as Ctx, byval e as Tko.NodeId ) as long
+    if e = Tko.NODE_NONE then return 0
+    select case c.ast->Kind( e )
+    case Tko.N_TUPLE, Tko.N_CALL
+        return c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )].count
+    end select
+    return 0
+end function
