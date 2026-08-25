@@ -1408,6 +1408,12 @@ function Unit( byref p as Tko.ParserState ) as Tko.NodeId
     '' declaring the prelude after the unit's own statements changes nothing -- and it
     '' keeps every NodeId in the file the number it already had, which is what the dumps
     '' and their goldens are written in.
+    '' THE HOISTED LAMBDAS, before the prelude and after the unit's own statements.
+    '' Each is an ordinary module-level procedure by the time anything looks at it;
+    '' the expression that wrote one holds '@its name'.
+    for i as long = 0 to p.lambdas.Count - 1
+        items.Push( p.lambdas[i] )
+    next
     ParsePrelude( p, items )
     return MakeList( p, Tko.N_MODULE, t.loc, Tko.NODE_NONE, items )
 end function

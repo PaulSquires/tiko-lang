@@ -51,6 +51,13 @@ namespace Tko
         as long                 aggDepth
         as long                 errors
         as boolean              silent      '' suppress cascades after an error
+        '' LAMBDAS, HOISTED. 'function( ) as long ... end function' written where an
+        '' expression belongs is an ordinary procedure with a generated name --
+        '' measured, fbc emits one and assigns its ADDRESS -- so the N_PROC is moved
+        '' to module level and the expression becomes '@<that name>'. Collected here
+        '' because the expression parser has no way to reach the module's child list.
+        as NodeIdVec            lambdas
+        as long                 lambdaSeq
     end type
 
 end namespace
@@ -102,6 +109,11 @@ declare function ArgOrElided _
     declare function MakeStmt _
         ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
           byref sp as Tko.StmtPayload ) as Tko.NodeId
+    declare function MakeAddrOfName _
+        ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+          byval loc as Tko.SourceLoc, byval spellOff as long, _
+          byval spellLen as long ) as Tko.NodeId
+
     declare function NewNodeAt _
         ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
           byval payload as ulong ) as Tko.NodeId

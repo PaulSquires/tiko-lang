@@ -1,0 +1,55 @@
+N_MODULE (4) <1:86>
+  N_TYPE 'ishell' <4:1>
+    N_FIELD 'dummy' <5:5>
+      N_TYPEREF 'long' [LONG] <5:14>
+  N_TYPE 'ishellvtbl' <7:1>
+    N_FIELD 'namespace' <8:5>
+      N_TYPEREF [FUNCTION] <8:18>
+        N_TYPEREF 'long' [LONG] <8:75>
+        N_PARAM 'this' byval <8:28>
+          N_TYPEREF ptr <8:42>
+            N_TYPEREF 'ishell' <8:42>
+        N_PARAM 'a' byval <8:54>
+          N_TYPEREF 'long' [LONG] <8:65>
+    N_FIELD 'open' <9:5>
+      N_TYPEREF [FUNCTION] <9:13>
+        N_TYPEREF 'long' [LONG] <9:70>
+        N_PARAM 'this' byval <9:23>
+          N_TYPEREF ptr <9:37>
+            N_TYPEREF 'ishell' <9:37>
+        N_PARAM 'a' byval <9:49>
+          N_TYPEREF 'long' [LONG] <9:60>
+    N_FIELD 'explore' <10:5>
+      N_TYPEREF [FUNCTION] <10:16>
+        N_TYPEREF 'long' [LONG] <10:73>
+        N_PARAM 'this' byval <10:26>
+          N_TYPEREF ptr <10:40>
+            N_TYPEREF 'ishell' <10:40>
+        N_PARAM 'a' byval <10:52>
+          N_TYPEREF 'long' [LONG] <10:63>
+    N_FIELD 'windows' <11:5>
+      N_TYPEREF [FUNCTION] <11:16>
+        N_TYPEREF 'long' [LONG] <11:73>
+        N_PARAM 'this' byval <11:26>
+          N_TYPEREF ptr <11:40>
+            N_TYPEREF 'ishell' <11:40>
+        N_PARAM 'a' byval <11:52>
+          N_TYPEREF 'long' [LONG] <11:63>
+    N_FIELD 'print' <12:5>
+      N_TYPEREF 'long' [LONG] <12:14>
+    N_FIELD 'if' <13:5>
+      N_TYPEREF 'long' [LONG] <13:11>
+    N_FIELD 'for' <14:5>
+      N_TYPEREF 'long' [LONG] <14:12>
+    N_FIELD 'type' <15:5>
+      N_TYPEREF 'long' [LONG] <15:13>
+    N_FIELD 'union' <16:5>
+      N_TYPEREF 'long' [LONG] <16:14>
+    N_FIELD 'property' <17:5>
+      N_TYPEREF 'long' [LONG] <17:17>
+    N_FIELD 'line' [DIM] <18:5>
+      N_TYPEREF 'long' [LONG] <18:23>
+      N_BLOCK (1) <18:5>
+        N_CASE_RANGE <18:16>
+          N_INT_LIT 0 radix=10 <18:11>
+          N_INT_LIT 3 radix=10 <18:16>

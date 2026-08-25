@@ -1011,6 +1011,30 @@ function TypeOf_ _
             end if
         end if
 
+        '' A CALL THROUGH A PROCEDURE POINTER IS THE PROCEDURE'S RESULT TYPE. The
+        '' callee is a VARIABLE, so the overload machinery above has no procedure to
+        '' score and the expression came out untyped -- which is why 'print f( 1 )'
+        '' declined while 'dim as long v = f( 1 )' beside it lowered: the DIM takes
+        '' its type from the variable and PRINT has only the expression's.
+        ''
+        '' ASKED LAST, after everything above has had its go. ResolveCall_ BINDS the
+        '' call as well as typing it, so answering ahead of it left 133 calls in
+        '' win/shldisp.bi with no callee -- a COM interface is a TYPE FULL OF
+        '' FUNCTION POINTERS, and every one of them goes through here.
+        if t = Tko.TYPE_NONE then
+            dim as Tko.TypeId pct = ct
+            if pct <> Tko.TYPE_NONE then
+                if c.types->Kind( pct ) = Tko.TK_REFERENCE then
+                    pct = c.types->Inner( pct )
+                end if
+                pct = c.types->Unqualify( pct )
+                if c.types->Kind( pct ) = Tko.TK_POINTER then
+                    pct = c.types->Unqualify( c.types->Inner( pct ) )
+                end if
+                if c.types->Kind( pct ) = Tko.TK_PROC then t = c.types->Inner( pct )
+            end if
+        end if
+
     case Tko.N_NEW
         '' 'new T' IS A POINTER TO T, whatever else it is. Resolve typed the target as
         '' a type reference; this turns it into the pointer the expression yields.

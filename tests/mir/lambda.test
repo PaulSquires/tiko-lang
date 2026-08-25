@@ -1,0 +1,31 @@
+'' A LAMBDA IS AN ORDINARY PROCEDURE WITH A GENERATED NAME, and the expression is its
+'' ADDRESS. Measured: fbc emits a function called L2B9C516C192D043_LT_0003 and writes
+'' 'LESS$1 = (tmp$2)&L2B9C516C192D043_LT_0003'.
+''
+'' Nothing outside the module can name it, so the spelling is ours -- but it must not
+'' COLLIDE across translation units, which is what the file's content hash is for: the
+'' same job fbc's own hex prefix does.
+''
+'' HOISTED to module level rather than lowered in place, because a procedure is not an
+'' expression: Collect declares it, Resolve binds its body, and the site that wrote it
+'' gets '@name'. FreeBASIC lambdas CAPTURE NOTHING -- the body may name an enclosing
+'' local's TYPE but not its value, and fbc rejects the latter with error 42 -- so
+'' there is no closure to build.
+''
+'' THE PROBE THAT RECOGNISES ONE has to read the WHOLE signature: 'byref as long' is
+'' part of it, and the one-line form ends in a COLON rather than an EOL. Missing
+'' either made the body parse as statements where an expression belonged.
+''
+'' Beside it, A CALL THROUGH A PROCEDURE POINTER IS THE PROCEDURE'S RESULT TYPE. The
+'' callee is a VARIABLE, so the overload machinery had nothing to score and the
+'' expression came out untyped -- which is why 'print f( 1 )' declined while
+'' 'dim as long v = f( 1 )' beside it lowered.
+''
+'' generics/lambda.bas: 17 -> 5.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lambda.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: func.addr ptr __TKO_LAMBDA
+'' GOLDEN: expected/lambda.out

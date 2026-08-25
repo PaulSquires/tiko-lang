@@ -789,8 +789,15 @@ function TryLambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     dim as boolean isLambda = false
     if Peek( p ) = Tko.TK_LPAREN then
         ParseParamList( p, probe )
+        '' A BYREF RESULT IS PART OF THE SIGNATURE. 'function( byref a as long, byref
+        '' b as long ) byref as long' is how generics/lambda.bas writes its picker,
+        '' and stopping at the 'byref' made the probe say "not a lambda" -- so the
+        '' body was parsed as statements where an expression belonged.
+        ByrefResult_( p )
         if Accept( p, Tko.KW_AS ) then probe.a = TypeRef( p )
-        isLambda = (Peek( p ) = Tko.TK_EOL)
+        '' ...AND THE ONE-LINE FORM ends in a COLON, not an EOL: 'dim shared g as Fn =
+        '' function( byval x as long ) as long : return x + 100 : end function'.
+        isLambda = (Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_COLON)
     end if
 
     p.pos = savedPos
@@ -821,9 +828,32 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
 
     sp.b = Block( p )
     ExpectEnd( p, kw )
+
+    '' A LAMBDA IS AN ORDINARY PROCEDURE WITH A GENERATED NAME, and the expression is
+    '' its ADDRESS. Measured: fbc emits a function called L2B9C516C192D043_LT_0003 and
+    '' writes 'LESS$1 = (tmp$2)&L2B9C516C192D043_LT_0003'. Nothing outside the module
+    '' can name it, so the spelling is ours to choose -- but it must not COLLIDE
+    '' across translation units, which is what the file's content hash is for: the
+    '' same thing fbc's own hex prefix does.
+    ''
+    '' HOISTED to module level rather than lowered in place, because a procedure is
+    '' not an expression: Collect declares it, Resolve binds its body, and the site
+    '' that wrote it gets '@name' -- which is what fbc emits and what every later pass
+    '' already understands. FreeBASIC lambdas CAPTURE NOTHING (the body may name an
+    '' enclosing local's TYPE but not its value), so there is no closure to build.
+    dim as ulong lhash = 0
+    dim as Tko.DecodedLoc ld = p.src->Decode( t.loc )
+    dim as Tko.SourceFile ptr lf = p.src->FileAt( ld.file )
+    if lf <> 0 then lhash = lf->contentHash
+    sp.name = p.names->GetString( "__tko_lambda_" & hex( lhash ) & "_" & _
+                                  trim( str( p.lambdaSeq ) ) )
+    p.lambdaSeq += 1
+
     dim as Tko.NodeId ln = MakeStmt( p, Tko.N_PROC, t.loc, sp )
     if byrefRet then p.ast->nodes[cast( long, ln )].flags or= Tko.NF_BYREF
-    return ln
+    p.lambdas.Push( cast( ulong, ln ) )
+
+    return MakeAddrOfName( p, sp.name, t.loc, ld.offset, cast( long, t.length ) )
 end function
 
 '' An access section reaches into a nested anonymous TYPE or UNION -- measured: a
@@ -855,22 +885,34 @@ private sub ApplyVisibility _
     next
 end sub
 
-'' A FIELD whose NAME is a keyword that also starts a declaration. MEASURED against fbc,
-'' because the accepted set is not guessable -- TYPE and UNION are in it and ENUM and
-'' DECLARE are not:
+'' A FIELD whose NAME is a keyword. MEASURED against fbc, one keyword at a time over
+'' all 247 of them: it accepts 223 and REJECTS exactly these twenty-four --
 ''
-''   Function Sub Property Type Union     accepted as a field name
-''   Enum Declare Const Static Dim        fbc rejects
+''   the operator words   and andalso eqv imp mod not or orelse shl shr xor
+''   the declarers        const declare dim enum redim static private protected public
+''   and                  as delete new rem
+''
+'' -- so the rule is a DENY list, not the five-name allow list this used to be.
+'' win/shldisp.bi alone declares interface members called Open, NameSpace, Windows and
+'' Explore, and 'NameSpace as function( ... )' opened a NAMESPACE BLOCK that swallowed
+'' the next eighteen lines: the vtable lost its fields and all 133 calls through it
+'' declined.
 ''
 '' What follows decides it: a field is 'name as T', 'name( bounds ) as T' or
 '' 'as T name' -- the last handled elsewhere. A DECLARATION never has 'as' or '(' in
-'' that position.
+'' that position, which is what keeps a real 'type T' or 'namespace N' out.
 private function IsFieldNamedByKeyword _
     ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 
+    if Tko.IsKeywordKind( k ) = false then return false
     select case k
-    case Tko.KW_FUNCTION, Tko.KW_SUB, Tko.KW_PROPERTY, Tko.KW_TYPE, Tko.KW_UNION
-    case else
+    case Tko.KW_AND, Tko.KW_ANDALSO, Tko.KW_EQV, Tko.KW_IMP, Tko.KW_MOD, _
+         Tko.KW_NOT, Tko.KW_OR, Tko.KW_ORELSE, Tko.KW_SHL, Tko.KW_SHR, Tko.KW_XOR
+        return false
+    case Tko.KW_CONST, Tko.KW_DECLARE, Tko.KW_DIM, Tko.KW_ENUM, Tko.KW_REDIM, _
+         Tko.KW_STATIC, Tko.KW_PRIVATE, Tko.KW_PROTECTED, Tko.KW_PUBLIC
+        return false
+    case Tko.KW_AS, Tko.KW_DELETE, Tko.KW_NEW, Tko.KW_REM
         return false
     end select
     if HasTok( p, p.pos + 1 ) = false then return false

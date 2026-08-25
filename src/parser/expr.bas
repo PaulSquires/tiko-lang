@@ -336,6 +336,24 @@ private function MakeUnary _
     return Tko.NewNode( *p.ast, kind, loc, p.ast->unaries.Count - 1 )
 end function
 
+
+'' '@name' built from an interned NAME rather than from a token. The hoisted-lambda
+'' site has a name it generated and no token to make one from.
+function MakeAddrOfName _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc, byval spellOff as long, _
+      byval spellLen as long ) as Tko.NodeId
+
+    dim as Tko.IdentPayload ip
+    ip.name = nm
+    ip.spellOffset = spellOff
+    ip.spellLength = spellLen
+    p.ast->idents.Push( ip )
+    dim as Tko.NodeId lid = _
+        NewNode( *p.ast, Tko.N_IDENT, loc, p.ast->idents.Count - 1 )
+    return MakeUnary( p, Tko.TK_AT, loc, lid, Tko.N_ADDROF )
+end function
+
 private function MakeBinary _
     ( byref p as Tko.ParserState, byval op as Tko.TokenKind, byval loc as Tko.SourceLoc, _
       byval lhs as Tko.NodeId, byval rhs as Tko.NodeId ) as Tko.NodeId

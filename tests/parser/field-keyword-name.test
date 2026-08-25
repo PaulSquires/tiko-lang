@@ -1,0 +1,22 @@
+'' A FIELD whose NAME is a keyword. The accepted set is a DENY list, not the five-name
+'' allow list this used to be: fbc rejects only the operator words (and andalso eqv imp
+'' mod not or orelse shl shr xor), the declarers (const declare dim enum redim static
+'' private protected public), and AS, DELETE, NEW and REM.
+''
+'' win/shldisp.bi alone declares interface members called Open, NameSpace, Windows and
+'' Explore, and 'NameSpace as function( ... )' opened a NAMESPACE BLOCK that swallowed
+'' the next eighteen lines -- the vtable lost its fields and all 133 calls through it
+'' declined.
+''
+'' What follows decides it: a field is 'name as T' or 'name( bounds ) as T', and a real
+'' declaration never has 'as' or '(' in that position.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/field-keyword-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: N_FIELD 'namespace'
+'' EXPECT-OUT: N_FIELD 'open'
+'' EXPECT-OUT: N_FIELD 'print'
+'' EXPECT-OUT: N_FIELD 'if'
+'' EXPECT-OUT: N_FIELD 'line'
+'' EXPECT-NOT: N_NAMESPACE
+'' GOLDEN: expected/field-keyword-name.out
