@@ -323,9 +323,22 @@ private function InferProcTypeArgs_ _
                 dim as Tko.TypeId argT = InferArgType_( c, _
                     cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_ )
                 if argT = Tko.TYPE_NONE then continue for
+                '' AN ARGUMENT THAT IS NOT AN INSTANTIATION AT ALL MAKES THE WHOLE
+                '' INFERENCE FAIL, rather than moving on to the next parameter.
+                ''
+                '' fb/array.bi declares 'Contains( of T )( byref a as Array( of T ),
+                '' byref v as T )' and fb/string.bi declares three concrete 'Contains'
+                '' beside it. Skipping a parameter that could not match let T be
+                '' inferred from the SECOND argument alone, so
+                '' 'Contains( "hello", "ell" )' instantiated the array generic with
+                '' T = string -- 'call void contains<15>( ... )', a result that went
+                '' nowhere and a variable that was never stored. This parameter is
+                '' written as an instantiation and the argument is not one: the
+                '' candidate cannot apply, and saying so is what lets the concrete
+                '' overloads be considered.
                 dim as FB.Array( of ulong ) iargs
-                if InstArgsOf_( c, argT, iargs ) = false then continue for
-                if at_ >= iargs.Count then continue for
+                if InstArgsOf_( c, argT, iargs ) = false then return false
+                if at_ >= iargs.Count then return false
                 got = cast( Tko.TypeId, iargs[at_] )
                 if got <> Tko.TYPE_NONE then exit for
                 continue for
@@ -358,6 +371,7 @@ end function
 declare function InstantiateProcAt_ _
     ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
       byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ) ) as Tko.SymbolId
+
 
 function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId

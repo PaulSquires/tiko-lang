@@ -1,0 +1,17 @@
+'' A GENERIC PARAMETER WRITTEN AS AN INSTANTIATION -- 'byref a as Array( of T )' --
+'' must actually MATCH its argument, or the whole inference fails and the candidate
+'' drops out.
+''
+'' Skipping a parameter that could not match let T be inferred from a LATER one, so
+'' fb/array.bi's 'Contains( of T )( byref a as Array( of T ), byref v as T )' claimed
+'' 'Contains( "hello", "ell" )' -- a call fb/string.bi has three concrete overloads for
+'' -- and instantiated it with T = string. The result was 'call void contains<15>( ...
+'' )': the answer went nowhere and the variable it initialised was never stored.
+'' string/fbstr_search.bas lost 19 statements to it and string/fbstr_extract.bas 13.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-infer-shape.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: has_str
+'' GOLDEN: expected/generic-infer-shape.out
