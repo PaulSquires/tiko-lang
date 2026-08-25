@@ -1,0 +1,14 @@
+'' A GENERIC CALL WHOSE ARGUMENT IS ITSELF A CALL takes its type argument from the
+'' CALLEE'S RESULT TYPE, which the symbol table already knows. Inference only read
+'' names and casts, so 'function = Some( CurrencyFromRaw( r ) )' -- how fb/currency.bi
+'' and fb/decimal.bi return every Option they build -- instantiated nothing and the
+'' whole result assignment declined. finance/flows.bas lost 24 statements to it.
+''
+'' ONLY AN UNAMBIGUOUS NAME: an overload set has one result type per candidate and
+'' this pass runs before the one that picks.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-infer-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-infer-call.out

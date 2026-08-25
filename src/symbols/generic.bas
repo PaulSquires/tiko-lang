@@ -207,13 +207,29 @@ private function InferArgType_ _
         '' more often than it writes a bare name: every narrowing result in the checked
         '' arithmetic family is a cast.
         dim as Tko.ListPayload ptr cp = ListOf( c, a )
-        if cp->count < 1 then return Tko.TYPE_NONE
         if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
         if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
         dim as Tko.InternId cn = IdentNameOf( c, cp->target )
         if cn = 0 then return Tko.TYPE_NONE
-        if Tko.Text.LowerAscii( c.names->Spelling( cn ) ) <> "cast" then
-            return Tko.TYPE_NONE
+        if (Tko.Text.LowerAscii( c.names->Spelling( cn ) ) <> "cast") orelse (cp->count < 1) then
+            '' AN ORDINARY CALL IS ITS CALLEE'S RESULT TYPE, which the symbol table
+            '' already knows -- 'function = Some( CurrencyFromRaw( r ) )' is how
+            '' fb/currency.bi and fb/decimal.bi return every Option they build, and
+            '' with nothing to infer from, the generic was not instantiated and the
+            '' whole 'function =' declined.
+            ''
+            '' ONLY AN UNAMBIGUOUS NAME. An overload set has one return type per
+            '' candidate and picking the chain head would be picking one at random;
+            '' Check resolves those later and this pass cannot.
+            dim as Tko.SymbolId psid = c.syms->Lookup( scope_, cn )
+            dim as Tko.Symbol ptr psy = c.syms->SymbolAt( psid )
+            if psy = 0 then return Tko.TYPE_NONE
+            if psy->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+            if psy->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+            dim as Tko.TypeId rt = psy->type_
+            if rt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+            if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Inner( rt )
+            return rt
         end if
         dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[cp->first] )
         if c.ast->Kind( tn ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
