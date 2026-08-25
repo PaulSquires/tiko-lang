@@ -432,6 +432,29 @@ private function TypeArgCall _
     '' read as a name that binds to nothing -- and the call could be neither typed nor
     '' lowered. The statement-position form was already parsed correctly, which is why
     '' this only ever showed up in an initialiser.
+    '' 'procptr( f, sub( ) )' PUTS A PROCEDURE TYPE SECOND. The first argument names
+    '' the procedure and the second says WHICH OVERLOAD -- measured, fbc emits
+    '' '&_Z1Sv' for 'sub( )' and '&_Z1Sa' for 'sub( byval as byte )'.
+    ''
+    '' Read as an expression it came out as an EMPTY typeref: 'sub( )' is not a lambda
+    '' -- a lambda has a body and this has a ')' -- and nothing else in the expression
+    '' parser reads a procedure signature. So the second argument is parsed as a TYPE
+    '' when it starts with SUB or FUNCTION, and as an expression otherwise, which is
+    '' what 'procptr( T.m, VIRTUAL )' needs.
+    if k = Tko.KW_PROCPTR then
+        items.Push( cast( ulong, Expression( p ) ) )
+        if Accept( p, Tko.TK_COMMA ) then
+            dim as Tko.TokenKind sk2 = Peek( p )
+            if (sk2 = Tko.KW_SUB) orelse (sk2 = Tko.KW_FUNCTION) then
+                items.Push( cast( ulong, TypeRef( p ) ) )
+            else
+                items.Push( cast( ulong, Expression( p ) ) )
+            end if
+        end if
+        Expect( p, Tko.TK_RPAREN, ")" )
+        return PostfixChain( p, MakeList( p, Tko.N_CALL, t.loc, callee, items ) )
+    end if
+
     if k = Tko.KW_CVA_ARG then
         items.Push( cast( ulong, Expression( p ) ) )
         Expect( p, Tko.TK_COMMA, "," )
@@ -932,7 +955,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
     '' parser reads 'any ptr' as two names and fails on the second.
     if (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR) orelse _
        (k = Tko.KW_SIZEOF) orelse (k = Tko.KW_LEN) orelse (k = Tko.KW_TYPEOF) orelse _
-       (k = Tko.KW_CVA_ARG) then
+       (k = Tko.KW_CVA_ARG) orelse (k = Tko.KW_PROCPTR) then
         if HasTok( p, p.pos + 1 ) then
             if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then
                 return TypeArgCall( p, t, k )

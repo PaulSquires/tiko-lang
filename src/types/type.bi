@@ -217,6 +217,9 @@ namespace Tko
               byval declScope as ulong = 0 ) as TypeId
         declare function NameOf( byval t as TypeId ) as InternId
         declare function ElemCount( byval t as TypeId ) as long
+        declare function ProcParamCount( byval t as TypeId ) as long
+        declare function ProcParam _
+            ( byval t as TypeId, byval i as long ) as TypeId
         declare function Packing( byval t as TypeId ) as long
         declare function DeclScopeOf( byval t as TypeId ) as ulong
         declare sub SetPacking( byval t as TypeId, byval n as long )

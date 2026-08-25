@@ -467,6 +467,21 @@ function TypeContext.ElemCount( byval t as TypeId ) as long
     return this.types[cast( long, t )].elems
 end function
 
+'' A PROCEDURE TYPE'S PARAMETERS -- how many, and the i'th. They live in the shared
+'' pool at 'first', which is where ProcType put them; 'elems' is an ARRAY's count and
+'' says nothing about a proc.
+function TypeContext.ProcParamCount( byval t as TypeId ) as long
+    if this.Kind( t ) <> TK_PROC then return 0
+    return this.types[cast( long, t )].count
+end function
+
+function TypeContext.ProcParam( byval t as TypeId, byval i as long ) as TypeId
+    if this.Kind( t ) <> TK_PROC then return TYPE_NONE
+    dim as TypeInfo ptr ti = @this.types[cast( long, t )]
+    if (i < 0) orelse (i >= ti->count) then return TYPE_NONE
+    return cast( TypeId, this.pool[ti->first + i] )
+end function
+
 function TypeContext.NameOf( byval t as TypeId ) as InternId
     if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return 0
     return this.types[cast( long, t )].name

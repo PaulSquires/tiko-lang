@@ -1,0 +1,29 @@
+'' 'procptr( f, sub( ) )' PICKS AN OVERLOAD BY SIGNATURE. Measured, over two subs
+'' called 's' and two functions called 'g':
+''
+''   procptr( s, sub( ) )                &_Z1Sv
+''   procptr( s, sub( byval as byte ) )  &_Z1Sa
+''
+'' -- the second argument is a procedure TYPE and it names which of them is meant.
+'' Only the VIRTUAL form of the two-argument spelling was read for a bare name, so
+'' every one of these declined; the MEMBER form read it but could not match, and took
+'' the first overload instead -- a silently wrong function address.
+''
+'' TWO THINGS HAD TO BE FIXED TOGETHER. 'sub( )' in an ordinary call argument is
+'' neither a lambda -- a lambda has a body -- nor anything else the expression parser
+'' reads, so it came out as an EMPTY typeref that matched nothing: procptr needs its
+'' own argument parser, taking a TYPE second when it starts with SUB or FUNCTION and
+'' an expression otherwise, which is what 'procptr( T.m, VIRTUAL )' needs.
+''
+'' And a SUB spells its absent result TWO WAYS: a declared one carries TYPE_NONE and a
+'' procedure TYPE carries the VOID builtin, because ResolveTypeRef fills in what a
+'' declaration leaves empty. Comparing them raw made every 'procptr( s, sub( ) )' miss
+'' its own overload.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-signature.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: func.addr ptr _Z1Sv
+'' EXPECT-OUT: func.addr ptr _Z1Sa
+'' GOLDEN: expected/procptr-signature.out

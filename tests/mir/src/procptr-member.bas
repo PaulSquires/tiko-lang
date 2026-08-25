@@ -41,6 +41,13 @@ fv = 0
 '' CALL to something named 'sub', which nothing could match -- so the overload was
 '' chosen by taking the first: a silently WRONG function address rather than a decline.
 ''
+'' AND IT WAS STILL WRONG until procptr's own argument parser was written: 'sub( )' in
+'' an ordinary call argument is neither a lambda -- a lambda has a body -- nor
+'' anything else the expression parser reads, so it came out as an EMPTY typeref that
+'' matched nothing, and this golden recorded '&_ZN1C1MEv' for 'procptr( C.M, sub(
+'' byval as long ) )' while the measurement three lines up says '&_ZN1C1MEi'. fbc
+'' emits 'PML$0 = (tmp$7)&_ZN1C1MEi'.
+''
 '' AND AN UNMATCHED SECOND ARGUMENT DECLINES rather than falling back to the first. The
 '' only reason to write one is that the first is not the one wanted.
 ''

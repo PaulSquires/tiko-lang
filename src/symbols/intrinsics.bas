@@ -376,8 +376,27 @@ private function StructorHead_ _
     return UdtMemberSym_( c, t, which )
 end function
 
+declare function ProcPtrPickOverload_ _
+    ( byref c as Ctx, byval head as Tko.SymbolId, _
+      byval lp as Tko.ListPayload ptr ) as Tko.SymbolId
+
 private function MemberProcPtr_ _
     ( byref c as Ctx, byval fnE as Tko.NodeId, byval lp as Tko.ListPayload ptr ) as Tko.SymbolId
+
+    '' A BARE OVERLOADED NAME TAKES THE SAME SIGNATURE MATCH. 'procptr( s, sub( ) )'
+    '' over two subs called 's' is measured as '&_Z1Sv' and
+    '' 'procptr( s, sub( byval as byte ) )' as '&_Z1Sa' -- the same rule the member
+    '' form already had, over a chain that hangs off the name instead of off a type.
+    '' Without it only the first overload was ever bound, so the signature was read
+    '' and then ignored.
+    if c.ast->Kind( fnE ) = Tko.N_IDENT then
+        if lp->count < 2 then return Tko.SYMBOL_NONE
+        dim as Tko.SymbolId bh = c.info->RefOf( fnE )
+        dim as Tko.Symbol ptr bhs = c.syms->SymbolAt( bh )
+        if bhs = 0 then return Tko.SYMBOL_NONE
+        if bhs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+        return ProcPtrPickOverload_( c, bh, lp )
+    end if
 
     if c.ast->Kind( fnE ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
     dim as Tko.BinaryPayload ptr mp = _
@@ -411,6 +430,15 @@ private function MemberProcPtr_ _
 
     '' NO SIGNATURE WRITTEN: the first overload, which is what fbc takes.
     if lp->count < 2 then return head
+    return ProcPtrPickOverload_( c, head, lp )
+end function
+
+
+'' The overload in 'head''s chain whose PARAMETER TYPES match the written signature,
+'' position for position. Shared by the member and the bare-name forms.
+function ProcPtrPickOverload_ _
+    ( byref c as Ctx, byval head as Tko.SymbolId, _
+      byval lp as Tko.ListPayload ptr ) as Tko.SymbolId
 
     '' A SIGNATURE WRITTEN AND NOT MATCHED IS A DECLINE, never a fallback to the first.
     '' The whole point of writing one is that the first is not the one wanted, so

@@ -101,7 +101,7 @@ func i32 main($0, $1) {
     %22 = func.addr ptr _ZN1C1MEv
     store @pm, %22
     %23 = alloca ptr pml
-    %24 = func.addr ptr _ZN1C1MEv
+    %24 = func.addr ptr _ZN1C1MEi
     store @pml, %24
     %25 = const i32 0
     call.rtl void fb_End(%25)
