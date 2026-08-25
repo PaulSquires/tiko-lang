@@ -1,0 +1,16 @@
+'' 'procptr( T.+= )' NAMES A MEMBER BY ITS OPERATOR TOKEN, and the member parser
+'' refused one: "expected a member name after '.'". The name is the token table's TEXT
+'' column, exactly as the DECLARATION takes it, so the two agree without either
+'' knowing about the other -- and '[]' is two tokens and one name in both places.
+'' Only inside a procptr argument, because an operator after a dot is a syntax error
+'' anywhere else and should stay one.
+''
+'' pointers/procptr-member.bas writes it twelve times.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-operator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: func.addr ptr _ZN1TpLEu7INTEGER
+'' EXPECT-OUT: func.addr ptr _ZN1TixEu7INTEGER
+'' GOLDEN: expected/procptr-operator.out

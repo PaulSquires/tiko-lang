@@ -347,3 +347,43 @@ sub DefP.d6( p as DefP ptr )
 end sub
 sub DefP.d7( d as double )
 end sub
+
+'' THE COMPOUND ASSIGNMENTS, all fifteen. The split between the Itanium codes and the
+'' vendor extension is not the one the binary operators make: 'mod=' and 'shl=' have
+'' codes while '\=' and '^=' do not, and '&=' -- FB's string concatenation -- has none
+'' either. A MEMBER operator counts its RECEIVER in the vendor arity, so a member
+'' 'operator ^=' with one declared parameter is v27selfpow where the global
+'' 'operator ^' with two is v23pow.
+type OpC
+    v as long
+    declare operator += ( byval a as integer )
+    declare operator -= ( byval a as integer )
+    declare operator *= ( byval a as integer )
+    declare operator /= ( byval a as integer )
+    declare operator \= ( byval a as integer )
+    declare operator ^= ( byval a as integer )
+    declare operator &= ( byval a as integer )
+    declare operator mod= ( byval a as integer )
+    declare operator shl= ( byval a as integer )
+    declare operator shr= ( byval a as integer )
+    declare operator and= ( byval a as integer )
+    declare operator or= ( byval a as integer )
+    declare operator xor= ( byval a as integer )
+    declare operator eqv= ( byval a as integer )
+    declare operator imp= ( byval a as integer )
+end type
+operator OpC.+= ( byval a as integer ) : end operator
+operator OpC.-= ( byval a as integer ) : end operator
+operator OpC.*= ( byval a as integer ) : end operator
+operator OpC./= ( byval a as integer ) : end operator
+operator OpC.\= ( byval a as integer ) : end operator
+operator OpC.^= ( byval a as integer ) : end operator
+operator OpC.&= ( byval a as integer ) : end operator
+operator OpC.mod= ( byval a as integer ) : end operator
+operator OpC.shl= ( byval a as integer ) : end operator
+operator OpC.shr= ( byval a as integer ) : end operator
+operator OpC.and= ( byval a as integer ) : end operator
+operator OpC.or= ( byval a as integer ) : end operator
+operator OpC.xor= ( byval a as integer ) : end operator
+operator OpC.eqv= ( byval a as integer ) : end operator
+operator OpC.imp= ( byval a as integer ) : end operator

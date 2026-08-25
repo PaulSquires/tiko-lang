@@ -364,6 +364,17 @@ private function OperatorCode _
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
         if ast.Kind( prm ) = Tko.N_PARAM then arity += 1
     next
+    '' A MEMBER OPERATOR COUNTS ITS RECEIVER. Measured: a member 'operator ^=' with
+    '' one declared parameter is v27selfpow -- arity TWO -- while the global 'operator
+    '' ^' with two is v23pow. 'this' is not in the parameter list, so it is added here.
+    dim as FB.Array( of string ) aq
+    dim as FB.Array( of ulong ) aqt
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, aq, aqt )
+    if aqt.Count > 0 then
+        dim as boolean memb = (aqt[aqt.Count - 1] <> 0)
+        memb = memb andalso ((sp->extra and Tko.PF_STATIC) = 0)
+        if memb then arity += 1
+    end if
 
     '' THE ITANIUM OPERATOR CODES, for the operators C++ also has. Measured against
     '' fbc, and the two-character codes are not derivable from the spelling:
@@ -399,6 +410,26 @@ private function OperatorCode _
     '' It was falling through to the VENDOR EXTENSION below and coming out as
     '' '_Zv12->R6HOLDER' -- a link error against every smart pointer there is.
     case "->"  : return "pt"
+    '' THE COMPOUND ASSIGNMENTS. Measured, all fifteen, and the split between the
+    '' Itanium codes and the vendor extension is not the one the binary operators
+    '' make: 'mod=' and 'shl=' have codes while '\=' and '^=' do not, and '&=' -- FB's
+    '' string concatenation -- has none either.
+    ''
+    ''   +=  pL    -=  mI    *=  mL    /=  dV    mod= rM
+    ''   shl= lS   shr= rS   and= aN   or=  oR   xor= eO
+    ''
+    '' tiko spelled every one of them as a vendor extension over the PUNCTUATION,
+    '' '_ZN1Tv12+=Eu7INTEGER', which is a name nothing defines.
+    case "+="   : return "pL"
+    case "-="   : return "mI"
+    case "*="   : return "mL"
+    case "/="   : return "dV"
+    case "mod=" : return "rM"
+    case "shl=" : return "lS"
+    case "shr=" : return "rS"
+    case "and=" : return "aN"
+    case "or="  : return "oR"
+    case "xor=" : return "eO"
     end select
 
     '' FreeBASIC's OWN operators -- integer divide, power, FOR/STEP/NEXT, the custom
@@ -409,6 +440,14 @@ private function OperatorCode _
     select case nm
     case "\"  : return "v" & trim( str( arity ) ) & SrcName( "idiv" )
     case "^"  : return "v" & trim( str( arity ) ) & SrcName( "pow" )
+    '' The five COMPOUND assignments C++ has no code for. Their vendor name is 'self'
+    '' plus the operation and not the punctuation: measured, '\=' is v28selfidiv,
+    '' '^=' is v27selfpow and '&=' -- FB's string concatenation -- is v27selfcat.
+    case "\="  : return "v" & trim( str( arity ) ) & SrcName( "selfidiv" )
+    case "^="  : return "v" & trim( str( arity ) ) & SrcName( "selfpow" )
+    case "&="  : return "v" & trim( str( arity ) ) & SrcName( "selfcat" )
+    case "eqv=" : return "v" & trim( str( arity ) ) & SrcName( "selfeqv" )
+    case "imp=" : return "v" & trim( str( arity ) ) & SrcName( "selfimp" )
     end select
     return "v" & trim( str( arity ) ) & SrcName( nm )
 end function

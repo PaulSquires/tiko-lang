@@ -442,7 +442,10 @@ private function TypeArgCall _
     '' when it starts with SUB or FUNCTION, and as an expression otherwise, which is
     '' what 'procptr( T.m, VIRTUAL )' needs.
     if k = Tko.KW_PROCPTR then
+        dim as boolean savedPP = p.inProcPtrArg
+        p.inProcPtrArg = true
         items.Push( cast( ulong, Expression( p ) ) )
+        p.inProcPtrArg = savedPP
         if Accept( p, Tko.TK_COMMA ) then
             dim as Tko.TokenKind sk2 = Peek( p )
             if (sk2 = Tko.KW_SUB) orelse (sk2 = Tko.KW_FUNCTION) then
@@ -707,12 +710,46 @@ function PostfixChain _
             dim as Tko.Token nameTok = Cur( p )
             dim as boolean isName = (Peek( p ) = Tko.TK_IDENT) orelse _
                                     Tko.IsKeywordKind( Peek( p ) )
-            if isName = false then
+
+            '' 'procptr( T.+= )' AND 'procptr( T.[] )' NAME A MEMBER BY ITS OPERATOR
+            '' TOKEN. The name is the token table's TEXT column, exactly as
+            '' ReadOperatorName takes it for the DECLARATION, so the two agree without
+            '' either knowing about the other -- and '[]' is two tokens and one name
+            '' there as well.
+            ''
+            '' Only inside a procptr argument: an operator after a dot is a syntax
+            '' error anywhere else, and it should stay one.
+            dim as Tko.InternId opNm = 0
+            if (isName = false) andalso p.inProcPtrArg then
+                dim as string ops = Tko.TokenKindText( Peek( p ) )
+                if len( ops ) > 0 then
+                    Advance( p )
+                    if (ops = "[") andalso (Peek( p ) = Tko.TK_RBRACKET) then
+                        ops = "[]"
+                        Advance( p )
+                    end if
+                    opNm = p.names->Fold( p.names->GetString( ops ) )
+                end if
+            end if
+
+            if (isName = false) andalso (opNm = 0) then
                 result = ErrorNode( p, Tko.TKO0402 )
                 exit do
             end if
-            Advance( p )
-            dim as Tko.NodeId member = MakeIdent( p, nameTok )
+            dim as Tko.NodeId member
+            if opNm <> 0 then
+                dim as Tko.IdentPayload oip
+                oip.name = opNm
+                dim as Tko.DecodedLoc odl = p.src->Decode( nameTok.loc )
+                oip.spellOffset = odl.offset
+                oip.spellLength = cast( long, nameTok.length )
+                p.ast->idents.Push( oip )
+                member = NewNode( *p.ast, Tko.N_IDENT, nameTok.loc, _
+                                  p.ast->idents.Count - 1 )
+            else
+                Advance( p )
+                member = MakeIdent( p, nameTok )
+            end if
             result = MakeBinary( p, k, t.loc, result, member )
             p.ast->nodes[cast( long, result )].kind = cast( ushort, Tko.N_MEMBER )
             if k = Tko.TK_ARROW then

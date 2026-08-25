@@ -56,6 +56,11 @@ namespace Tko
         '' measured, fbc emits one and assigns its ADDRESS -- so the N_PROC is moved
         '' to module level and the expression becomes '@<that name>'. Collected here
         '' because the expression parser has no way to reach the module's child list.
+        '' Inside a PROCPTR argument list, where 'T.+=' and 'T.[]' name a member by
+        '' its OPERATOR token rather than by a word. Nowhere else in an expression is
+        '' an operator legal after a dot, so the member parser only accepts one while
+        '' this is set.
+        as boolean              inProcPtrArg
         as NodeIdVec            lambdas
         as long                 lambdaSeq
     end type

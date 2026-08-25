@@ -524,6 +524,22 @@ end function
 private sub ReadOperatorName _
     ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
 
+    '' 'operator and=' IS TWO TOKENS AND ONE NAME. The PUNCTUATION compounds -- '+=',
+    '' '*=' -- lex as a single token, but a WORD one does not, and the KEYWORD half has
+    '' already been taken as the name by the time this runs. So 'and=' was read as
+    '' 'and' and mangled as the BINARY operator: '_ZN1TanEu7INTEGER' where fbc emits
+    '' '_ZN1TaNEu7INTEGER', a name nothing defines.
+    if (sp.name <> 0) andalso (Peek( p ) = Tko.TK_EQ) then
+        dim as string had = Tko.Text.LowerAscii( p.names->Spelling( sp.name ) )
+        select case had
+        case "mod", "shl", "shr", "and", "or", "xor", "eqv", "imp"
+            Advance( p )
+            sp.name = p.names->Fold( p.names->GetString( had & "=" ) )
+            sp.rawName = p.names->GetString( had & "=" )
+            return
+        end select
+    end if
+
     if (Peek( p ) = Tko.TK_LPAREN) orelse AtEnd( p ) then return
     if Peek( p ) = Tko.TK_EOL then return
     if Peek( p ) = Tko.TK_DOT then return

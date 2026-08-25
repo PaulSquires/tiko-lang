@@ -1,0 +1,83 @@
+func void _ZN1TpLEu7INTEGER($0, $1) {
+  local ptr this
+  local i64 a
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr a
+    store @a, $1
+    ret
+}
+func void _ZN1TpLERKS_($0, $1) {
+  local ptr this
+  local ptr a
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr a
+    store @a, $1
+    ret
+}
+func i64 _ZN1TixEu7INTEGER($0, $1) {
+  local i64 $tmp0
+  local ptr this
+  local i64 a
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr a
+    store @a, $1
+    %5 = load @a
+    ret %5
+}
+func i64 _ZN1TixERKS_($0, $1) {
+  local i64 $tmp0
+  local ptr this
+  local ptr a
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr a
+    store @a, $1
+    %5 = const i64 0
+    ret %5
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr f1
+  local ptr f2
+  local ptr f3
+  local ptr f4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr f1
+    %5 = func.addr ptr _ZN1TpLEu7INTEGER
+    store @f1, %5
+    %6 = alloca ptr f2
+    %7 = func.addr ptr _ZN1TpLEu7INTEGER
+    store @f2, %7
+    %8 = alloca ptr f3
+    %9 = func.addr ptr _ZN1TixEu7INTEGER
+    store @f3, %9
+    %10 = alloca ptr f4
+    %11 = func.addr ptr _ZN1TixEu7INTEGER
+    store @f4, %11
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 5 functions, 5 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance
