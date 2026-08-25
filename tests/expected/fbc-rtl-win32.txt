@@ -240,6 +240,7 @@ fb_WriteUShort	void	int32, uint16, int32	lib	_fb_WriteUShort@12
 fb_WriteVoid	void	int32, int32	lib	_fb_WriteVoid@8
 fb_WriteWstr	void	int32, uint16*, int32	lib	_fb_WriteWstr@12
 fb_WstrAlloc	uint16*	int32	lib	_fb_WstrAlloc@4
+fb_WstrAsc	uint32	uint16*, int32	lib	_fb_WstrAsc@8
 fb_WstrAssign	uint16*	uint16*, int32, uint16*	lib	_fb_WstrAssign@12
 fb_WstrAssignFromA	uint16*	uint16*, int32, void*, int32	lib	_fb_WstrAssignFromA@16
 fb_WstrAssignToA	FBSTRING*	void*, int32, uint16*, int32	lib	_fb_WstrAssignToA@16

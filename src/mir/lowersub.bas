@@ -626,8 +626,17 @@ function LowerStrNumCall_ _
 
     if nm = "asc" then
         if (cp->count < 1) orelse (cp->count > 2) then return false
+        dim as Tko.NodeId a0asc = cast( Tko.NodeId, c.ast->children[cp->first] )
+        '' A WIDE OPERAND HAS ITS OWN ENTRY POINT, as the val family above does:
+        '' 'fb_WstrAsc( (uint16*)W$0, 1ll )'. Asked for a DESCRIPTOR, a wstring had
+        '' none and every 'asc( w, n )' declined -- string/asc.bas and
+        '' string/asc-utf16le.bas ask it of a wstring beside every narrow one.
+        dim as RtlId ascR = RTL_STR_ASC
         dim as MirValue sd
-        if StrDescriptorOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), sd ) = false then
+        if IsWideString_( c, c.info->TypeOf_( a0asc ) ) then
+            ascR = RTL_WSTR_ASC
+            if WideOperand_( c, a0asc, sd ) = false then return false
+        elseif StrDescriptorOf_( c, a0asc, sd ) = false then
             return false
         end if
         dim as FB.Array( of ulong ) aa
@@ -636,12 +645,16 @@ function LowerStrNumCall_ _
             dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             dim as MirValue nv = LowerExpr( c, a1 )
             if nv.kind = cast( ubyte, MV_NONE ) then return false
-            nv = Coerce( c, nv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            '' The POSITION follows the pointer -- int64 on win64 and int32 on
+            '' win32, measured on both halves of the family.
+            dim as MirType pw = MT_I64
+            if c.types->target.pointerBits = 32 then pw = MT_I32
+            nv = Coerce( c, nv, pw, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
             aa.Push( cast( ulong, nv.kind ) ) : aa.Push( cast( ulong, nv.id ) )
         else
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
         end if
-        outv = EmitRtl( c, RTL_STR_ASC, aa )
+        outv = EmitRtl( c, ascR, aa )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 

@@ -796,6 +796,21 @@ function WideOperand_ _
         return true
     end if
 
+    '' A WIDE STRING CONSTANT IS ITS TEXT, as a wide literal. 'const S = wstr( "ab" )'
+    '' has a type -- 'WSTRING * 3' -- but no storage and no address, so the branch
+    '' below claimed it and then asked for one. Every use of a wide constant declined.
+    if (c.ast->Kind( id ) = Tko.N_IDENT) orelse (c.ast->Kind( id ) = Tko.N_MEMBER) then
+        if IsWideString_( c, c.info->TypeOf_( id ) ) then
+            dim as string wct
+            if ConstStringTextOf_( c, id, wct ) then
+                outv.kind = cast( ubyte, MV_GLOBAL )
+                outv.ty = cast( ubyte, MT_PTR )
+                outv.id = c.m->AddWideStringLiteral( wct, *c.names )
+                return true
+            end if
+        end if
+    end if
+
     '' A CONCATENATION BEFORE THE TYPE TEST: a wide concat IS wide-typed, so the
     '' branch below would claim it and then ask for its ADDRESS, which it has not
     '' got. The same ordering trap the narrow paths set four times.

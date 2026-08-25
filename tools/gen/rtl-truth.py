@@ -173,6 +173,14 @@ sub BwProbe( )
     s = str( b )
 end sub
 ''',
+    # ASC over a WIDE operand, which has its own entry point like the val family.
+    "wideasc": '''
+sub WAscProbe( )
+    dim as wstring * 8 w
+    dim as long r
+    r = asc( w, 1 )
+end sub
+''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a
     # null check, with the destructor called first.
     "deletestmt": '''

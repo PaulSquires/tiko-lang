@@ -444,6 +444,9 @@ namespace Tko.Mir
         '' THE WIDE HALF of the VAL family. Same five shapes, a bare uint16* instead of
         '' a descriptor, and the RESULT WIDTHS are the narrow family's -- fb_WstrValInt
         '' is int32 on both targets, like fb_VALINT.
+        '' ASC over a wide operand, with its own entry point like the val family:
+        '' 'fb_WstrAsc( (uint16*)W$0, 1ll )', measured.
+        RTL( RTL_WSTR_ASC,          "fb_WstrAsc",          "l",   "pz"    )
         RTL( RTL_WSTR_VAL,          "fb_WstrVal",          "d",   "p"     )
         RTL( RTL_WSTR_VALINT,       "fb_WstrValInt",       "l",   "p"     )
         RTL( RTL_WSTR_VALUINT,      "fb_WstrValUInt",      "l",   "p"     )

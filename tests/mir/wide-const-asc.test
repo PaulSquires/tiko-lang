@@ -1,0 +1,23 @@
+'' 'asc( w, n )' OVER A WIDE OPERAND has its own entry point -- measured,
+'' 'fb_WstrAsc( (uint16*)W$0, 1ll )', with the position following the POINTER width as
+'' the narrow fb_ASC's does. Asked for a descriptor, a wstring had none and every one
+'' of them declined.
+''
+'' AND A WIDE STRING CONSTANT HAD NO TEXT AT ALL. 'const S = wstr( "ab" )' has a type --
+'' 'WSTRING * 3' -- but no storage and no address, and the constant folder only read a
+'' literal or a concatenation, never a conversion. So 'w = S' declined too, with
+'' nothing to say why. The conversion changes the width, not the characters, so the
+'' constant's text is its argument's and a wide literal is what the width is for.
+''
+'' string/asc.bas and string/asc-utf16le.bas: 21 declines each down to 4.
+'' boolean/boolean_wstr.bas: 24 down to 0.
+'' NOT FOLDED, and it shows: fbc constant-folds 'asc' over a CONSTANT to its value and
+'' tiko-lang calls the runtime for it, so fbc emits one fewer call of each. Same answer,
+'' more code -- the same divergence chr and str already have.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-const-asc.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrAsc
+'' GOLDEN: expected/wide-const-asc.out

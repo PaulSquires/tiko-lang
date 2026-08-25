@@ -343,6 +343,25 @@ function ConstStringTextOf_ _
         outText = lt + rt
         return true
 
+    case Tko.N_CALL
+        '' 'const S = wstr( "ab" )' -- A WIDE STRING CONSTANT. Its initialiser is a
+        '' CALL, and the text is the call's own argument: the conversion changes the
+        '' width, not the characters, and a wide literal is what the width is for.
+        '' Without this a wide constant had no text at all, so 'w = S' and
+        '' 'asc( S, 1 )' both declined.
+        dim as Tko.ListPayload ptr wp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if wp->count <> 1 then return false
+        if wp->target = Tko.NODE_NONE then return false
+        if c.ast->Kind( wp->target ) <> Tko.N_IDENT then return false
+        dim as Tko.IdentPayload ptr wip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, wp->target )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) <> "wstr" then
+            return false
+        end if
+        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
+                                   outText, depth + 1 )
+
     case Tko.N_IDENT
         '' The constant's payload is its N_VAR_ITEM, whose 'b' is the initialiser --
         '' the same shape the integer folder reads, and read as the same pool.
