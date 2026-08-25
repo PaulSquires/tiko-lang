@@ -9,6 +9,9 @@
 
 namespace Tko.Mir
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
 '' THE BYTE SIZE OF A TYPE, for anything that has to reserve storage.
 ''
 '' TypeContext.Layout does not know about UDTs -- their sizes live in the separate
@@ -710,6 +713,63 @@ sub InitSharedGlobal _
     '' and no code at all -- so the field values with their offsets are exactly the
     '' bytes of its storage. The integer folder below cannot carry one and every one of
     '' them declined, which is how fb/comptr.bi declares every IID.
+    '' A FIXED-LENGTH STRING GLOBAL IS A BYTE IMAGE TOO, and its padding is not the
+    '' same in all four flavours. Measured:
+    ''
+    ''   zstring * 8 = "abc"        char Z$[8] = "abc"
+    ''   wstring * 8 = wstr("abc")  uint16 W$[8] = { L'a', L'b', L'c' }
+    ''   ustring * 8 = "abc"        uint16 U$[8] = "abc"
+    ''   string  * 8 = "abc"        uint8 S$[8] = "abc     "
+    ''
+    '' -- the three terminated flavours ZERO-fill and 'string * N' SPACE-fills, which
+    '' is what makes it the odd one out here as well as in its length tag.
+    ''
+    '' AND THEY TRUNCATE DIFFERENTLY. Measured at N = 4 with a seven-character source:
+    '' 'zstring * 4' keeps "abc" and 'string * 4' keeps "abcd" -- N-1 usable
+    '' characters against N, the same capacity difference the length tag records.
+    dim as longint fsn
+    dim as long fsk = StrSwapKind_( c, c.m->globals[g].frontendType, fsn )
+    '' 'wstr( "abc" )' IS A LITERAL TOO where a wide destination is concerned: fbc
+    '' folds it to the same '{ L'a', L'b', L'c' }' image a bare literal would give,
+    '' and it is how every wide fixed-length global in the corpus is written.
+    dim as Tko.NodeId flit = init
+    if c.ast->Kind( flit ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr wlp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, flit )].data )]
+        if (wlp->count = 1) andalso IsWstrCall_( c, flit ) then
+            dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->children[wlp->first] )
+            if c.ast->Kind( wa ) = Tko.N_STRING_LIT then flit = wa
+        end if
+    end if
+    if (fsk >= 1) andalso (fsk <= 4) andalso (c.ast->Kind( flit ) = Tko.N_STRING_LIT) then
+        dim as string ftxt = StringLitText_( c, flit )
+        '' N, from the type's own element count -- StrSwapKind_ answers the ENCODED
+        '' length tag, which is not a count.
+        dim as long cap = 0
+        dim as Tko.TypeId fst = c.types->Unqualify( c.m->globals[g].frontendType )
+        if c.types->Kind( fst ) = Tko.TK_ARRAY then cap = c.types->ElemCount( fst )
+        if cap > 0 then
+            dim as string fimg
+            dim as long usable = iif( fsk = 3, cap, cap - 1 )
+            if usable < 0 then usable = 0
+            if len( ftxt ) > usable then ftxt = left( ftxt, usable )
+            dim as boolean wide = (fsk = 2) orelse (fsk = 4)
+            for i as long = 0 to len( ftxt ) - 1
+                fimg += chr( ftxt[i] )
+                if wide then fimg += chr( 0 )
+            next
+            dim as ubyte pad = iif( fsk = 3, 32, 0 )
+            while len( fimg ) < c.m->globals[g].size
+                fimg += chr( pad )
+            wend
+            if len( fimg ) = c.m->globals[g].size then
+                c.m->globals[g].initBytes = fimg
+                c.m->globals[g].hasInit = true
+                return
+            end if
+        end if
+    end if
+
     if gt = MT_AGG then
         dim as string img
         if FoldAggInit_( c, c.m->globals[g].frontendType, init, _
