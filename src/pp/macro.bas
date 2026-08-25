@@ -325,6 +325,126 @@ private function PpReadArgs _
     return true
 end function
 
+'' ONE ARGUMENT'S TOKENS, MACRO-EXPANDED, as text.
+''
+'' Split out of BuiltinIntArg_, which did the same walk and then read an integer.
+private function ExpandedArgText_ _
+    ( byref e as PpEngine, byref args as ArgList, byval idx as long ) as string
+
+    if (idx < 0) orelse (idx >= args.firsts.Count) then return ""
+
+    dim as TokenVec ptr raw = new TokenVec
+    dim as long first = args.firsts[idx]
+    for i as long = 0 to args.counts[idx] - 1
+        raw->Push( args.flat[first + i] )
+    next
+
+    dim as long baseDepth = e.frames.Count
+    PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
+
+    dim as string outp = ""
+    dim as long n = 0
+    dim as long guard = 0
+    do
+        guard += 1
+        if guard > 100000 then exit do
+        if e.frames.Count <= baseDepth then exit do
+        dim as Token t
+        if PeekTok( e, t ) = false then exit do
+        if e.frames.Count <= baseDepth then exit do
+        if Tk( t ) = TK_IDENT then
+            dim as InternId id = cast( InternId, t.literal )
+            dim as PpMacro ptr mm = MacroFor( e, id )
+            if (mm <> 0) andalso (IsHidden( e, id ) = false) then
+                if PpExpand( e, mm, t ) then continue do
+            end if
+        end if
+        Advance( e )
+        if ((t.flags and TF_SPACE_BEFORE) <> 0) andalso (n > 0) then outp += " "
+        outp += SpellOf( e, t )
+        n += 1
+    loop
+    while e.frames.Count > baseDepth
+        PopFrame( e )
+    wend
+    return outp
+end function
+
+'' A run of the re-split list, comma-joined.
+private function ListJoin_ _
+    ( byref lst as FB.Array( of string ), byval from as long, byval upto as long ) as string
+
+    dim as string s = ""
+    dim as long last = upto
+    if last > lst.Count - 1 then last = lst.Count - 1
+    for i as long = from to last
+        if i > from then s += ", "
+        s += lst[i]
+    next
+    return s
+end function
+
+'' THE ARGUMENTS FROM 'from' ON, EXPANDED AND THEN RE-SPLIT on top-level commas.
+''
+'' This is what makes the __FB_ARG_* family work at all, and it is not the C rule.
+'' Measured, with '#define P 1, 2':
+''
+''     __FB_ARG_COUNT__( P )            2      not 1
+''     __FB_ARG_COUNT__( P, 9 )         3
+''     __FB_ARG_EXTRACT__( 0, P, 9 )    1
+''     __FB_ARG_EXTRACT__( 2, P, 9 )    9
+''     __FB_ARG_LISTEXPAND__( M, 1, P, 9 )   three calls: M(1) M(2) M(9)
+''
+'' -- so a macro standing in for a LIST contributes every element of it. Splitting on
+'' the written commas first, which is what this did, made '__FB_ARG_EXTRACT__( 0, L )'
+'' expand to the whole of L and every higher index expand to NOTHING: 52 statements in
+'' pp/macro-arg-extract.bas, whose entire subject this is.
+private sub ExpandedArgList_ _
+    ( byref e as PpEngine, byref args as ArgList, byval from as long, _
+      byref outp as FB.Array( of string ) )
+
+    dim as string joined = ""
+    for i as long = from to args.firsts.Count - 1
+        if i > from then joined += ", "
+        joined += ExpandedArgText_( e, args, i )
+    next
+
+    '' A comma inside PARENTHESES or a STRING LITERAL is not a separator -- the same
+    '' rule PpReadArgs follows when it reads the invocation in the first place.
+    dim as long depth = 0
+    dim as boolean inQuote = false
+    dim as string cur = ""
+    for i as long = 0 to len( joined ) - 1
+        dim as ubyte ch = joined[i]
+        if inQuote then
+            cur += chr( ch )
+            if ch = 34 then inQuote = false
+            continue for
+        end if
+        select case ch
+        case 34
+            inQuote = true
+            cur += chr( ch )
+        case 40, 91
+            depth += 1
+            cur += chr( ch )
+        case 41, 93
+            depth -= 1
+            cur += chr( ch )
+        case 44
+            if depth = 0 then
+                outp.Push( trim( cur ) )
+                cur = ""
+            else
+                cur += chr( ch )
+            end if
+        case else
+            cur += chr( ch )
+        end select
+    next
+    outp.Push( trim( cur ) )
+end sub
+
 '' An argument to a builtin macro, MACRO-EXPANDED and then read as an integer.
 ''
 '' The step of a __FB_ARG_LISTEXPAND__ is usually written as a literal, but fbc accepts
@@ -736,8 +856,10 @@ function PpExpandBuiltin _
     case PPB_ARG_COUNT
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
-            dim as long n = args.firsts.Count
-            if (n = 1) andalso (args.counts[0] = 0) then n = 0
+            dim as FB.Array( of string ) lst
+            ExpandedArgList_( e, args, 0, lst )
+            dim as long n = lst.Count
+            if (n = 1) andalso (len( lst[0] ) = 0) then n = 0
             RelexInto( e, str( n ), use.loc, *buf )
         end if
 
@@ -754,8 +876,15 @@ function PpExpandBuiltin _
             dim as longint i = BuiltinIntArg_( e, args, 0, iok )
             if (iok = false) orelse (i < 0) then
                 Report( e, TKO0324, use.loc, "1", e.names->Spelling( m->name ) )
-            elseif (i + 1) < args.firsts.Count then
-                RelexInto( e, ArgText( e, args, cast( long, i ) + 1 ), use.loc, *buf )
+            else
+                '' The LIST is everything after the index, expanded and RE-SPLIT --
+                '' so a macro standing in for several elements contributes all of
+                '' them, which is the whole point of this builtin.
+                dim as FB.Array( of string ) lst
+                ExpandedArgList_( e, args, 1, lst )
+                if i < lst.Count then
+                    RelexInto( e, lst[cast( long, i )], use.loc, *buf )
+                end if
             end if
         end if
 
@@ -785,19 +914,23 @@ function PpExpandBuiltin _
                 Report( e, TKO0324, use.loc, "2", e.names->Spelling( m->name ) )
             else
                 dim as string mname = trim( ArgText( e, args, 0 ) )
-                dim as long n = args.firsts.Count - 2      '' the list length
+                '' ...and the LIST is re-split the same way here.
+                dim as FB.Array( of string ) lst
+                ExpandedArgList_( e, args, 2, lst )
+                if (lst.Count = 1) andalso (len( lst[0] ) = 0) then lst.Pop( )
+                dim as long n = lst.Count                  '' the list length
                 dim as string s = ""
                 dim as long calls = 0
                 if n > 0 then
                     if stp = 0 then
-                        s = mname + "( " + ArgTail_( e, args, 2, args.firsts.Count - 1 ) + " )"
+                        s = mname + "( " + ListJoin_( lst, 0, n - 1 ) + " )"
                     elseif stp > 0 then
                         dim as long at = 0
                         while at < n
                             dim as long last = at + cast( long, stp ) - 1
                             if last > n - 1 then last = n - 1
                             if calls > 0 then s += " : "
-                            s += mname + "( " + ArgTail_( e, args, 2 + at, 2 + last ) + " )"
+                            s += mname + "( " + ListJoin_( lst, at, last ) + " )"
                             calls += 1
                             at += cast( long, stp )
                         wend
@@ -806,7 +939,7 @@ function PpExpandBuiltin _
                         dim as long at = 0
                         while at < n
                             if calls > 0 then s += " : "
-                            s += mname + "( " + ArgTail_( e, args, 2 + at, args.firsts.Count - 1 ) + " )"
+                            s += mname + "( " + ListJoin_( lst, at, n - 1 ) + " )"
                             calls += 1
                             at += drop
                         wend

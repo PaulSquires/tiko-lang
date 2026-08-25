@@ -1,0 +1,17 @@
+'' THE __FB_ARG_* FAMILY EXPANDS ITS ARGUMENTS AND RE-SPLITS THEM on top-level commas,
+'' which is not the C rule and is the whole point of the family: a macro standing in
+'' for a LIST contributes every element of it. Measured, with '#define P 1, 2':
+''
+''     __FB_ARG_COUNT__( P )                  2      not 1
+''     __FB_ARG_COUNT__( P, 9 )               3
+''     __FB_ARG_EXTRACT__( 0, P, 9 )          1
+''     __FB_ARG_EXTRACT__( 2, P, 9 )          9
+''     __FB_ARG_LISTEXPAND__( M, 1, P, 9 )    M(1) M(2) M(9)
+''
+'' Splitting on the WRITTEN commas first made '__FB_ARG_EXTRACT__( 0, L )' expand to
+'' the whole of L and every higher index expand to nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/arg-extract.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/arg-extract.out
