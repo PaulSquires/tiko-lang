@@ -632,4 +632,33 @@ function Dump _
     return outp
 end function
 
+
+'' A STATIC MEMBER'S LINKER NAME -- 'static x as integer' inside a type, defined with
+'' 'dim shared T.x'.
+''
+'' Measured: fbc emits '_ZN1T8COUNTER$E' for 'T.counter' and '_ZN2NS1U4VAL$E' for one
+'' inside a namespace -- the ordinary NESTED-NAME mangling with the member component
+'' UPPERCASED and a '$' appended, and the length counting that '$'.
+''
+'' It is not a static LOCAL: those are named per procedure, which is what tiko-lang was
+'' doing here -- '_ZN1T2S1Ev$x', the name of whichever member function first touched
+'' it. Within one translation unit the values were right; across two the name would
+'' not agree.
+function StaticMemberName _
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner, byref member as string ) as string
+
+    dim as FB.Array( of string ) quals
+    dim as FB.Array( of ulong ) qualTypes
+    QualifierChain( syms, sc, names, quals, qualTypes )
+    if quals.Count = 0 then return ""
+    dim as string outp = "_ZN"
+    for i as long = 0 to quals.Count - 1
+        outp += str( len( quals[i] ) ) & quals[i]
+    next
+    dim as string m = Tko.Text.UpperAscii( member ) & "$"
+    outp += str( len( m ) ) & m & "E"
+    return outp
+end function
+
 end namespace

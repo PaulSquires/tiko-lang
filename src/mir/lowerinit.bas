@@ -189,3 +189,72 @@ function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
     end select
     return MT_VOID
 end function
+
+'' THE STATIC MEMBER a qualified DIM defines -- 'dim shared as integer T.counter'.
+''
+'' The declaration inside the type is the symbol; this statement is its DEFINITION, and
+'' fbc emits the storage here: 'int64 _ZN1T8COUNTER$E;'. Collect deliberately declares
+'' nothing for it, so lowering used to look the last component up in the enclosing
+'' scope, find nothing and decline -- while the storage got made by whichever
+'' expression first read it.
+''
+'' The owner may be a PATH -- 'NS.U.val' -- so it is walked a component at a time.
+''
+'' AND IT IS ASKED FIRST, before the unqualified lookup. Falling back to it was worse
+'' than not having it: with a module-level 'x' beside the type, the LAST COMPONENT
+'' alone found THAT one, and the definition of T.x quietly became a second initialiser
+'' for the shared x. Measured -- fbc gives 'dim shared x as integer = 1' the value 1
+'' and '_ZN1T2X$E' the value 2, and tiko-lang gave x the 2.
+function StaticMemberSym_ _
+    ( byref c as Ctx, byval stmt as Tko.NodeId, byval item as Tko.NodeId ) as Tko.SymbolId
+
+    if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) = 0 then
+        return Tko.SYMBOL_NONE
+    end if
+    dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+    if ip->ownerName = 0 then return Tko.SYMBOL_NONE
+
+    dim as Tko.ScopeId sc = c.info->ScopeOf( stmt )
+    dim as string path = c.names->Spelling( ip->ownerName )
+    dim as long pos = 1
+    dim as boolean first = true
+    do
+        dim as long dot = instr( pos, path, "." )
+        dim as string part
+        if dot = 0 then
+            part = mid( path, pos )
+        else
+            part = mid( path, pos, dot - pos )
+        end if
+        if len( part ) = 0 then return Tko.SYMBOL_NONE
+        dim as Tko.InternId pn = c.names->Fold( c.names->GetString( part ) )
+        dim as Tko.SymbolId osid = Tko.SYMBOL_NONE
+        if first then
+            osid = c.syms->Lookup( sc, pn )
+        else
+            osid = c.syms->LookupLocal( sc, pn )
+        end if
+        first = false
+        dim as Tko.Symbol ptr os = c.syms->SymbolAt( osid )
+        if os = 0 then return Tko.SYMBOL_NONE
+        if os->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+        sc = os->inner
+        if dot = 0 then exit do
+        pos = dot + 1
+    loop
+
+    return c.syms->LookupLocalTyped( sc, ip->name, false )
+end function
+
+sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
+    if id = Tko.NODE_NONE then return
+    if c.ast->Kind( id ) <> Tko.N_BLOCK then
+        LowerStmt( c, id )
+        return
+    end if
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for i as long = 0 to lp->count - 1
+        LowerStmt( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
+    next
+end sub

@@ -97,13 +97,12 @@ func i32 main($0, $1) {
     %49 = call.rtl i32 fb_VALINT(@ns)
     call.rtl void fb_PrintInt(0, %49, 2)
     %50 = call.rtl i32 fb_ASC(@ns, 1)
-    %51 = sext %50
-    call.rtl void fb_PrintULongint(0, %51, 1)
+    call.rtl void fb_PrintUInt(0, %50, 1)
     call.rtl void fb_StrDelete(@ns)
-    %52 = const i32 0
-    call.rtl void fb_End(%52)
-    %53 = load @$tmp0
-    ret %53
+    %51 = const i32 0
+    call.rtl void fb_End(%51)
+    %52 = load @$tmp0
+    ret %52
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
@@ -128,4 +127,4 @@ declare i32 fb_ASC($0, $1)
 declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

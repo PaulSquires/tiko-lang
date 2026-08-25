@@ -1,0 +1,22 @@
+'' A STATIC MEMBER IS NOT A STATIC LOCAL. 'static x as integer' inside a type is one
+'' object for the whole program, named after the TYPE -- measured, '_ZN1T8COUNTER$E',
+'' the ordinary nested-name mangling with the member component uppercased and a '$'
+'' appended. tiko-lang named it the static-LOCAL way, '_ZN1T2S1Ev$x': whichever member
+'' function first touched it. Within one translation unit the values were right;
+'' across two the name would not agree.
+''
+'' The DEFINITION -- 'dim shared T.x as integer = 2' -- kept only its last component,
+'' so with a module-level 'x' beside the type it found THAT one and quietly became a
+'' second initialiser for the shared x. Measured: fbc gives the shared x the 1 it was
+'' written with and '_ZN1T2X$E' the 2.
+''
+'' 'NS.U.val' needed one more thing: a namespace-qualified TYPE NAME had no type of
+'' its own, so the member access above it had no base to look a field up in.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: global var i64 _ZN1T8COUNTER$E = 2
+'' EXPECT-OUT: global var i64 _ZN2NS1U4VAL$E = 5
+'' GOLDEN: expected/static-member.out

@@ -882,6 +882,16 @@ function TypeOf_ _
                         t = c.types->Builtin( Tko.TY_INTEGER )
                     end if
                     exit select
+                '' A NAMESPACE-QUALIFIED TYPE NAME -- 'NS.U' -- is the TYPE, and it
+                '' is the BASE of the member access above it: 'NS.U.val' is the
+                '' static member of NS.U. Left untyped, the outer access had no base
+                '' type to look a field up in, so a static member one namespace deep
+                '' resolved to nothing while the same member on a top-level type
+                '' worked. The N_CALL path already draws the type off a UDT symbol
+                '' the same way, for 'P( 3 ).v'.
+                case Tko.SYM_UDT
+                    t = qs->type_
+                    exit select
                 end select
             end if
         end if

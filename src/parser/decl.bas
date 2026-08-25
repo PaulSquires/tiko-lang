@@ -167,9 +167,16 @@ private function VarItem _
     dim as boolean qualified = false
     dim as Tko.NodeId qexpr = Tko.NODE_NONE
     if isRedim then qexpr = MakeIdent( p, headTok )
+    '' THE QUALIFIER IS KEPT. Only the LAST component used to survive, so
+    '' 'dim shared as integer T.counter' -- the DEFINITION of a static member --
+    '' looked like a module-level 'counter' that nothing had declared, and the
+    '' statement declined. The owner goes where a member PROCEDURE's already does.
+    dim as string ownerPath = ""
     while Peek( p ) = Tko.TK_DOT
         dim as Tko.Token dotTok = Cur( p )
         Advance( p )
+        if len( ownerPath ) > 0 then ownerPath += "."
+        ownerPath += p.names->Spelling( sp.name )
         qualified = true
         dim as Tko.Token memberTok = Cur( p )
         DeclName( p, sp.name )
@@ -177,6 +184,7 @@ private function VarItem _
             qexpr = MakeMemberRef_( p, dotTok, qexpr, MakeIdent( p, memberTok ) )
         end if
     wend
+    if qualified then sp.ownerName = p.names->GetString( ownerPath )
     if isRedim andalso qualified andalso (qexpr <> Tko.NODE_NONE) then
         sp.b = qexpr
         sp.extra = cast( ushort, Tko.KW_REDIM )

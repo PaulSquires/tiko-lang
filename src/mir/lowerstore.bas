@@ -172,7 +172,27 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     next
 
     dim as Tko.InternId nm = s->name
-    if IsStaticLocal( c, sid ) then nm = StaticName( c, sid )
+    if IsStaticLocal( c, sid ) then
+        '' A STATIC MEMBER IS NOT A STATIC LOCAL. 'static x as integer' inside a type
+        '' is one object for the whole program, named after the TYPE -- measured,
+        '' '_ZN1T8COUNTER$E' -- while a static LOCAL is named per procedure. Naming a
+        '' member the local way gave it whichever member function first touched it,
+        '' so two translation units would not agree on the symbol.
+        dim as Tko.SymScope ptr ps = c.syms->ScopeAt( s->parent )
+        dim as boolean memberStatic = false
+        if ps <> 0 then memberStatic = (ps->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+        if memberStatic then
+            dim as string smn = Tko.Mangle.StaticMemberName( _
+                *c.syms, s->parent, *c.names, c.names->Spelling( s->name ) )
+            if len( smn ) > 0 then
+                nm = c.names->GetString( smn )
+            else
+                nm = StaticName( c, sid )
+            end if
+        else
+            nm = StaticName( c, sid )
+        end if
+    end if
     dim as long sz = SizeOfType( c, s->type_ )
     '' The storage NAME must still be unique, because it is what a linker and a golden
     '' diff see. A collision here means two distinct symbols wanted the same spelling,

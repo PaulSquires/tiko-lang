@@ -59,6 +59,12 @@ namespace Tko.Mangle
     '' by its enclosing namespaces and types -- 'NS.INNER', 'T.M'. It does not
     '' distinguish overloads, so it is not a mangled name and shares only the qualifier
     '' walk with one. Measured, docs/internals/phase-6-pointers.md.
+    '' A STATIC MEMBER'S linker name: the nested-name mangling with the member
+    '' component uppercased and a '$' appended. Measured -- '_ZN1T8COUNTER$E'.
+    declare function StaticMemberName _
+        ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+          byref names as Tko.Interner, byref member as string ) as string
+
     declare function SourceQualifiedName _
         ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
           byref names as Tko.Interner ) as string

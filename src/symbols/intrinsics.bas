@@ -142,12 +142,13 @@ private function ExprIntrinsicType_ _
     case "instr", "instrrev"
         if isStr = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
-    '' ASC IS UINTEGER, not ULONG. fb_ASC RETURNS uint32 -- measured -- but fbc types
-    '' the EXPRESSION as UINTEGER and zero-extends, so on win64 the two differ in
-    '' width and 'typeof( asc( s ) )' says UINTEGER.
+    '' ASC IS ULONG, and it matches fb_ASC's own uint32 return. An earlier note here
+    '' claimed UINTEGER; '#print typeof( asc( v_string ) )' says ULONG on win64, and
+    '' so does the intrin truth table it is checked against. Typed a width too wide,
+    '' every 'asc' fed a LONGINT where fbc has a LONG.
     case "asc"
         if isStr = false then return Tko.TYPE_NONE
-        return c.types->Builtin( Tko.TY_UINTEGER )
+        return c.types->Builtin( Tko.TY_ULONG )
     '' THE VAL FAMILY, which was not in this table at all -- so 'print val( s )' had
     '' nothing to print and declined, while 'dim as double d = val( s )' lowered
     '' because the DECLARATION supplies the type. Measured with '#print typeof', and
@@ -166,7 +167,11 @@ private function ExprIntrinsicType_ _
     case "peek"
         if (isNum orelse isPtr) = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_UBYTE )
+    '' SGN TAKES NO POINTER. fbc rejects 'sgn( p )' outright, and the general isNum
+    '' above says yes to one because most of this table's arithmetic does accept a
+    '' pointer. Answering LONG for it made a rejected program lower.
     case "sgn"
+        if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_LONG )
     '' WCHR is WIDE, and its length is the ARGUMENT COUNT PLUS ONE: measured with
@@ -176,7 +181,13 @@ private function ExprIntrinsicType_ _
     '' flavour it was appending and declined.
     case "wchr"
         if isNum = false then return Tko.TYPE_NONE
-        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, cp->count + 1 )
+        '' 'WSTRING * 1', whatever the argument count. The 'WSTRING * 2' and
+        '' 'WSTRING * 3' an earlier note here recorded are what fbc gives a CONSTANT
+        '' argument, which it FOLDS into a literal of that width; the runtime call is
+        '' 'WSTRING * 1' for one argument and for two alike -- measured on both.
+        '' tiko-lang does not fold, so the runtime answer is the honest one, and the
+        '' folded row is a divergence check-intrin reports rather than one this hides.
+        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     case "chr", "mki", "mkl", "mks", "mkd", "mkshort", "mklongint"
         if isNum = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )
@@ -205,7 +216,12 @@ private function ExprIntrinsicType_ _
         return c.types->Pointer_( a0 )
 
     '' SINGLE in, SINGLE out; everything else DOUBLE.
+    '' NONE OF THE MATH FAMILY TAKES A POINTER. fbc rejects every one of them over an
+    '' 'any ptr' -- measured, all nine -- and the general isNum above says yes to one
+    '' because most of this table's arithmetic does accept a pointer. Answering DOUBLE
+    '' for them made a rejected program lower.
     case "sin", "cos", "tan", "atn", "asin", "acos", "exp", "log", "sqr"
+        if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
         if ab = Tko.TY_SINGLE then return c.types->Builtin( Tko.TY_SINGLE )
         return c.types->Builtin( Tko.TY_DOUBLE )
@@ -260,7 +276,14 @@ private function ExprIntrinsicType_ _
         return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     case "trim", "ltrim", "rtrim", "ucase", "lcase", "mid", "left", "right"
         if isStr = false then return Tko.TYPE_NONE
-        if ab = Tko.TY_WSTRING then return c.types->Builtin( Tko.TY_WSTRING )
+        '' A WIDE ARGUMENT GIVES 'WSTRING * 1', not a bare WSTRING. The two are
+        '' different types to fbc -- '*p' over a 'wstring ptr' prints WSTRING and
+        '' 'trim( w )' prints WSTRING * 1 -- and the bare one is what a byref
+        '' parameter declares, so typing the result that way made every one of these
+        '' look like a reference to somebody else's storage.
+        if ab = Tko.TY_WSTRING then
+            return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
+        end if
         return c.types->Builtin( Tko.TY_STRING )
 
     '' The two GRAPHICS expressions. Their result types are measured from what fbc

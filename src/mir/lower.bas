@@ -8,6 +8,8 @@ namespace Tko.Mir
 declare function LowerCtorReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+declare function StaticMemberSym_ _
+    ( byref c as Ctx, byval stmt as Tko.NodeId, byval item as Tko.NodeId ) as Tko.SymbolId
 declare function IsCmpOp_( byval op as MirOp ) as boolean
 declare function LowerByrefResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
@@ -433,18 +435,6 @@ end function
 
 '' -------------------------------------------------------------- statements
 
-sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
-    if id = Tko.NODE_NONE then return
-    if c.ast->Kind( id ) <> Tko.N_BLOCK then
-        LowerStmt( c, id )
-        return
-    end if
-    dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    for i as long = 0 to lp->count - 1
-        LowerStmt( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
-    next
-end sub
 
 
 private sub LowerAssign _
@@ -717,8 +707,15 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
             dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
             '' The VARIABLE, not a type name that happens to share the spelling.
-            dim as Tko.SymbolId sid = _
-                c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
+            dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
+            if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) = 0 then
+                sid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
+            end if
+            '' 'dim shared T.x as integer = 2' DEFINES a static member, looked up
+            '' through its OWNER. See StaticMemberSym_.
+            if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) <> 0 then
+                sid = StaticMemberSym_( c, id, item )
+            end if
             if sid = Tko.SYMBOL_NONE then
                 SkipHere( c )
                 continue for
