@@ -99,7 +99,8 @@ function IsTypeKeyword( byval k as TokenKind ) as boolean
     case KW_BYTE, KW_UBYTE, KW_SHORT, KW_USHORT, KW_LONG, KW_ULONG, _
          KW_INTEGER, KW_UINTEGER, KW_LONGINT, KW_ULONGINT, KW_SINGLE, _
          KW_DOUBLE, KW_BOOLEAN, KW_STRING, KW_ZSTRING, KW_WSTRING, _
-         KW_USTRING, KW_ANY, KW_CONST, KW_SUB, KW_FUNCTION
+         KW_USTRING, KW_ANY, KW_CONST, KW_SUB, KW_FUNCTION, _
+         KW_UNSIGNED
         return true
     end select
     return false

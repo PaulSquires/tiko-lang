@@ -1,0 +1,21 @@
+'' THREE SPELLINGS THE CORPUS WRITES AND NOTHING READ.
+''
+'' 'integer<8>=' lexes the closing '>' and the '=' as ONE '>=' token, so the sized
+'' type went unparsed and its constant had no value -- which declines at every use.
+'' numbers/integer_n.bas writes every one of its constants that way.
+''
+'' 'unsigned' is the first word of a two-word type name, so 'sizeof( unsigned
+'' integer )' was read as an expression and failed at the second word. Measured: 8, 1,
+'' 2, 2 for the four below.
+''
+'' '@( @x )' over a BYREF PARAMETER is the parameter's own slot -- a byref parameter
+'' IS a pointer variable, so '@x' names its contents. Measured, and fbc REJECTS the
+'' same spelling over any other variable (error 24), so there is nothing else beside
+'' it. pointers/arith.bas puts every byref case through one macro that writes it four
+'' times.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sized-int-unsigned.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/sized-int-unsigned.out

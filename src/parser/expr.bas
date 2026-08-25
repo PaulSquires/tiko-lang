@@ -432,6 +432,11 @@ private function TypeArgCall _
         '' untyped and the statement holding it declined. TypeRef already reads the
         '' form: 'dim as typeof( x ) y' worked the whole time.
         if Peek( p ) = Tko.KW_TYPEOF then looksLikeType = true
+        '' 'UNSIGNED' IS THE FIRST WORD OF A TWO-WORD TYPE NAME, so it belongs on the
+        '' list too: 'sizeof( unsigned integer )' and 'len( unsigned integer<16> )'
+        '' were read as expressions and failed at the second word --
+        '' "expected ')'". numbers/integer_n.bas runs its whole unsigned half
+        '' through both spellings.
         '' ...BUT 'string(' AND 'wstring(' ARE CALLS, not types. Both spellings name a
         '' TYPE and an INTRINSIC, and the '(' is what tells them apart -- which is
         '' exactly what quirk/len-sizeof.bas says beside the line that needs it:

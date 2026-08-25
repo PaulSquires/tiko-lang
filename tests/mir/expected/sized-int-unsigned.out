@@ -1,0 +1,36 @@
+func void T1() {
+  entry0:
+    %1 = const i8 -128
+    call.rtl void fb_PrintByte(0, %1, 2)
+    %2 = const i8 127
+    call.rtl void fb_PrintByte(0, %2, 1)
+    %3 = const i64 8
+    call.rtl void fb_PrintLongint(0, %3, 2)
+    %4 = const i64 1
+    call.rtl void fb_PrintLongint(0, %4, 1)
+    %5 = const i64 2
+    call.rtl void fb_PrintLongint(0, %5, 2)
+    %6 = const i64 2
+    call.rtl void fb_PrintLongint(0, %6, 1)
+    ret
+}
+declare void fb_PrintByte($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+func void T2($0) {
+  local ptr x
+  local i64 addrof_x
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    %2 = alloca ptr addrof_x
+    %3 = bitcast @x
+    store @addrof_x, %3
+    %4 = load @addrof_x
+    %5 = bitcast %4
+    %6 = icmp.eq @x, %5
+    %7 = neg %6
+    call.rtl void fb_PrintLongint(0, %7, 1)
+    ret
+}
+verify: ok
+lowered: 2 functions, 2 blocks, 22 insts, 0 statements not lowered, 0 scope imbalance

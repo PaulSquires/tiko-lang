@@ -479,8 +479,24 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         if wk <> cast( Tko.TokenKind, 0 ) then
             Advance( p )
-            if Peek( p ) = Tko.TK_GT then
+            '' 'integer<8>=' LEXES THE CLOSING '>' AND THE '=' AS ONE '>=' TOKEN, and
+            '' 'const MIN as integer<8>= 0' is how numbers/integer_n.bas writes every
+            '' one of its constants -- no space before the '='. fbc reads it, so the
+            '' token is SPLIT here: the '>' closes the width and what is left in the
+            '' stream is the '=' the declaration still needs. Rejecting it left the
+            '' whole sized type unparsed and its constant with no value, which
+            '' declines at every use.
+            dim as boolean closed = (Peek( p ) = Tko.TK_GT)
+            if Peek( p ) = Tko.TK_GE then
+                dim as Tko.Token ptr gt = @(*p.toks)[p.pos]
+                gt->kind = cast( ushort, Tko.TK_EQ )
+                gt->length = 1
+                gt->loc += 1
+                closed = true
+            elseif closed then
                 Advance( p )
+            end if
+            if closed then
                 sp.op = cast( ushort, wk )
                 sp.name = p.names->GetString( _
                     Tko.Text.LowerAscii( Tko.TokenKindText( wk ) ) )
