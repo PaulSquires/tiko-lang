@@ -8,6 +8,8 @@ namespace Tko.Mir
 declare function LowerCtorReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+declare function CharLvalueTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 declare function StaticMemberSym_ _
     ( byref c as Ctx, byval stmt as Tko.NodeId, byval item as Tko.NodeId ) as Tko.SymbolId
 declare function InitArgCount_( byref c as Ctx, byval e as Tko.NodeId ) as long
@@ -349,6 +351,19 @@ function LowerExpr _
         '' CU_ASSERT around it with it, 228 times in one corpus file.
         if cmpStr = false then
             cmpStr = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
+        end if
+        '' ...UNLESS ONE SIDE IS A SINGLE CHARACTER AND THE OTHER A NUMBER. Measured:
+        '' 'pw[0] = asc( "1" )' is '(uint64)(int64)*PW$0 == 49ull' -- an unsigned
+        '' INTEGER comparison of one element -- while '*pz = "723"' beside it stays a
+        '' string compare, because there the other side is a string too.
+        ''
+        '' The string test claimed both, and the wide compare then had no string on
+        '' the numeric side: quirk/zwstr-deref.bas asserts the shape eight times.
+        if cmpStr then
+            dim as boolean lChar = (CharLvalueTy_( c, bp->lhs ) <> MT_VOID)
+            dim as boolean rChar = (CharLvalueTy_( c, bp->rhs ) <> MT_VOID)
+            if lChar andalso NumericTerm_( c, bp->rhs ) then cmpStr = false
+            if rChar andalso NumericTerm_( c, bp->lhs ) then cmpStr = false
         end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, id, bp, tk )

@@ -172,6 +172,55 @@ end function
 '' A 'zstring ptr' dereferences to one unsigned BYTE and a 'wstring ptr' to one
 '' unsigned wide character -- measured, '(uint8)*PZ$0' and a load out of a uint16*.
 '' Only the UNSIZED pointee: 'zstring * N' is an array and its deref is the array.
+'' Whether a term is a NUMBER: a builtin that is not one of the four string kinds, or
+'' an enum. A term with no type at all is not one -- an intrinsic call Check said
+'' nothing about must not be read as a number by default.
+function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.TypeId t = c.info->TypeOf_( id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId b = c.types->Unqualify( t )
+    if c.types->Kind( b ) = Tko.TK_ENUM then return true
+    if c.types->Kind( b ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( b )
+    case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, Tko.TY_VOID
+        return false
+    end select
+    return true
+end function
+
+
+'' The CHARACTER an expression names, when it names one: '*pz', '*pw', 'pz[i]' and
+'' 'pw[i]' are one byte narrow and two wide, and MT_VOID for anything else. The
+'' subscript form and the deref form are one thing in FreeBASIC -- 'pz[1]' is
+'' '*(pz + 1)' -- so both arrive here.
+function CharLvalueTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+    if id = Tko.NODE_NONE then return MT_VOID
+    dim as Tko.TypeId bt = Tko.TYPE_NONE
+    if c.ast->Kind( id ) = Tko.N_DEREF then
+        return DerefCharTy_( c, id )
+    elseif c.ast->Kind( id ) = Tko.N_INDEX then
+        dim as Tko.ListPayload ptr xp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        bt = c.types->Unqualify( c.info->TypeOf_( xp->target ) )
+    else
+        return MT_VOID
+    end if
+    if bt = Tko.TYPE_NONE then return MT_VOID
+    if c.types->Kind( bt ) <> Tko.TK_POINTER then return MT_VOID
+    dim as Tko.TypeId bi = c.types->Unqualify( c.types->Inner( bt ) )
+    if bi = Tko.TYPE_NONE then return MT_VOID
+    if c.types->Kind( bi ) <> Tko.TK_BUILTIN then return MT_VOID
+    select case c.types->BuiltinOf( bi )
+    case Tko.TY_ZSTRING : return MT_I8
+    case Tko.TY_WSTRING
+        if c.types->target.wcharBytes = 4 then return MT_I32
+        return MT_I16
+    end select
+    return MT_VOID
+end function
+
+
 function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
     dim as Tko.UnaryPayload ptr dp = _
         @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]

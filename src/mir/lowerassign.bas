@@ -97,6 +97,82 @@ private sub LowerAssign _
     dim as long zdk = StrSwapKind_( c, c.info->TypeOf_( target ), zdn )
     '' Kind 4 is a fixed USTRING, which takes the same shape through the UTF-16
     '' entry points.
+    '' A NUMBER ASSIGNED THROUGH A ZSTRING OR WSTRING POINTER IS A ONE-CHARACTER
+    '' STORE, not a string assignment. Measured:
+    ''
+    ''   *pz = i    *PZ$0 = (uint8)I$0
+    ''   *pw = i    *PW$0 = (uint16)I$0
+    ''   *pz = d    *PZ$0 = (uint8)fb_D2I( D$0 )
+    ''
+    '' -- the ordinary float-to-integer conversion and then a truncation to the
+    '' ELEMENT width. Every one of them declined: the string path claimed the
+    '' statement because the destination is a string type, and then had no string to
+    '' assign. quirk/zwstr-deref.bas writes the six shapes twice over.
+    ''
+    '' THROUGH A POINTER ONLY. fbc REJECTS the same assignment to a fixed-length
+    '' destination -- 'z0 = i' over a 'zstring * 8' is error 181 -- which is what the
+    '' zero length distinguishes: an unsized zstring is what a deref yields.
+    dim as boolean derefStr = false
+    dim as boolean derefWide = false
+    '' 'pz[1] = i' IS THE SAME RULE INDEXED. The subscript form and the deref form are
+    '' one thing in FreeBASIC -- 'pz[1]' is '*(pz + 1)' -- and both name a single
+    '' character of the pointee.
+    dim as boolean derefShape = (c.ast->Kind( target ) = Tko.N_DEREF)
+    derefShape = derefShape orelse (c.ast->Kind( target ) = Tko.N_INDEX)
+    if derefShape then
+        dim as Tko.TypeId dtt = c.types->Unqualify( c.info->TypeOf_( target ) )
+        if c.types->Kind( dtt ) = Tko.TK_BUILTIN then
+            select case c.types->BuiltinOf( dtt )
+            case Tko.TY_ZSTRING : derefStr = true
+            case Tko.TY_WSTRING : derefStr = true : derefWide = true
+            end select
+        end if
+    end if
+    if derefStr then
+        dim as Tko.TypeId nvt = c.info->TypeOf_( value )
+        dim as boolean nvIsNum = false
+        if nvt <> Tko.TYPE_NONE then
+            dim as Tko.TypeId nvb = c.types->Unqualify( nvt )
+            if c.types->Kind( nvb ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( nvb )
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING
+                case Tko.TY_VOID
+                case else
+                    nvIsNum = true
+                end select
+            end if
+            if c.types->Kind( nvb ) = Tko.TK_ENUM then nvIsNum = true
+        end if
+        if nvIsNum then
+            dim as MirValue nda = LowerAddr( c, target )
+            dim as MirValue nv = LowerExpr( c, value )
+            if (nda.kind = cast( ubyte, MV_NONE )) orelse _
+               (nv.kind = cast( ubyte, MV_NONE )) then
+                SkipHere( c )
+                return
+            end if
+            dim as MirType elemTy = iif( derefWide, MT_I16, MT_I8 )
+            '' A FLOAT GOES THROUGH THE 32-BIT CONVERSION FIRST. fbc writes
+            '' '(uint8)fb_D2I( D$0 )' and fb_D2I is '(int32)nearbyint( v )', so an
+            '' out-of-range double lands on the x86 indefinite value at 32 bits and
+            '' is truncated from there. Converting straight to one byte would not.
+            if IsFloatTy( cast( MirType, nv.ty ) ) then
+                nv = Coerce( c, nv, MT_I32, false )
+                if nv.kind = cast( ubyte, MV_NONE ) then
+                    SkipHere( c )
+                    return
+                end if
+            end if
+            nv = Coerce( c, nv, elemTy, IsUnsignedType( c, nvt ) )
+            if nv.kind = cast( ubyte, MV_NONE ) then
+                SkipHere( c )
+                return
+            end if
+            StoreThrough( c, nda, nv )
+            return
+        end if
+    end if
+
     if (zdk = 1) orelse (zdk = 3) orelse (zdk = 4) then
         dim as MirValue zdst = LowerAddr( c, target )
         if zdst.kind <> cast( ubyte, MV_NONE ) then

@@ -1,0 +1,27 @@
+'' A NUMBER ASSIGNED THROUGH A ZSTRING OR WSTRING POINTER IS A ONE-CHARACTER STORE,
+'' not a string assignment. Measured:
+''
+''   *pz = i    *PZ$0 = (uint8)I$0
+''   *pw = i    *PW$0 = (uint16)I$0
+''   *pz = d    *PZ$0 = (uint8)fb_D2I( D$0 )
+''
+'' -- the ordinary float-to-integer conversion at 32 bits and THEN a truncation to the
+'' element width, which is why a float goes through i32 rather than straight to one
+'' byte. 'pz[1] = i' is the same rule indexed: 'pz[1]' is '*(pz + 1)'.
+''
+'' THROUGH A POINTER ONLY: fbc REJECTS the same assignment to a fixed-length
+'' destination, 'z0 = i' over a 'zstring * 8' is error 181.
+''
+'' AND A COMPARISON AGAINST A NUMBER IS NUMERIC. 'pw[0] = asc( "1" )' is
+'' '(uint64)(int64)*PW$0 == 49ull' -- one element, unsigned -- while '*pz = "123"'
+'' beside it stays a string compare, because there the other side is a string too.
+'' The string test claimed both and the wide compare then had no string to work with.
+''
+'' quirk/zwstr-deref.bas: 25 -> 5.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/char-deref.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_StrCompare
+'' GOLDEN: expected/char-deref.out

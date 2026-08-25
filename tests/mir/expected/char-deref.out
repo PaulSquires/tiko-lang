@@ -1,0 +1,142 @@
+global str $str0 "123"
+global wstr $wstr1 "123"
+global str $str2 "1"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg z0 size 8
+  local agg w0 size 16
+  local ptr pz
+  local ptr pw
+  local i32 i
+  local i64 ll
+  local f64 d
+  local i8 b1
+  local i8 b2
+  local i8 b3
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr z0
+    %5 = call.rtl ptr fb_StrAssign(@z0, 8, @@$str0, 4, 0)
+    %6 = alloca ptr w0
+    %7 = call.rtl ptr fb_WstrAssign(@w0, 8, @@$wstr1)
+    %8 = alloca ptr pz
+    store @pz, @z0
+    %9 = alloca ptr pw
+    store @pw, @w0
+    %10 = alloca ptr i
+    %11 = const i64 55
+    %12 = trunc %11
+    store @i, %12
+    %13 = alloca ptr ll
+    %14 = const i64 56
+    store @ll, %14
+    %15 = alloca ptr d
+    %16 = const f64 57
+    store @d, %16
+    %17 = load @pz
+    %18 = load @i
+    %19 = trunc %18
+    store %17, %19
+    %20 = load @pw
+    %21 = load @pw
+    %22 = load @i
+    %23 = trunc %22
+    store %21, %23
+    %24 = load @pz
+    %25 = load @ll
+    %26 = trunc %25
+    store %24, %26
+    %27 = load @pw
+    %28 = load @pw
+    %29 = load @ll
+    %30 = trunc %29
+    store %28, %30
+    %31 = load @pz
+    %32 = load @d
+    %33 = nearbyint %32
+    %34 = fptosi %33
+    %35 = trunc %34
+    store %31, %35
+    %36 = load @pw
+    %37 = load @pw
+    %38 = load @d
+    %39 = nearbyint %38
+    %40 = fptosi %39
+    %41 = trunc %40
+    store %37, %41
+    %42 = load @pz
+    %43 = const i64 1
+    %44 = ptr.add %42, %43
+    %45 = load @i
+    %46 = trunc %45
+    store %44, %46
+    %47 = load @pw
+    %48 = const i64 1
+    %49 = const i64 2
+    %50 = mul %48, %49
+    %51 = ptr.add %47, %50
+    %52 = load @pw
+    %53 = const i64 1
+    %54 = const i64 2
+    %55 = mul %53, %54
+    %56 = ptr.add %52, %55
+    %57 = load @i
+    %58 = trunc %57
+    store %56, %58
+    %59 = alloca ptr b1
+    %60 = load @pw
+    %61 = const i64 0
+    %62 = const i64 2
+    %63 = mul %61, %62
+    %64 = ptr.add %60, %63
+    %65 = load %64
+    %66 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    %67 = call.rtl i32 fb_ASC(%66, 1)
+    %68 = zext %65
+    %69 = icmp.eq %68, %67
+    %70 = neg %69
+    %71 = trunc %70
+    store @b1, %71
+    %72 = alloca ptr b2
+    %73 = load @pz
+    %74 = const i64 0
+    %75 = ptr.add %73, %74
+    %76 = load %75
+    %77 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    %78 = call.rtl i32 fb_ASC(%77, 1)
+    %79 = zext %76
+    %80 = icmp.eq %79, %78
+    %81 = neg %80
+    %82 = trunc %81
+    store @b2, %82
+    %83 = alloca ptr b3
+    %84 = load @pz
+    %85 = call.rtl i32 fb_StrCompare(%84, 0, @@$str0, 4)
+    %86 = icmp.eq %85, 0
+    %87 = neg %86
+    store @b3, %87
+    %88 = load @b1
+    call.rtl void fb_PrintBool(0, %88, 2)
+    %89 = load @b2
+    call.rtl void fb_PrintBool(0, %89, 2)
+    %90 = load @b3
+    call.rtl void fb_PrintBool(0, %90, 1)
+    %91 = const i32 0
+    call.rtl void fb_End(%91)
+    %92 = load @$tmp0
+    ret %92
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_WstrAssign($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare i32 fb_ASC($0, $1)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare void fb_PrintBool($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 114 insts, 0 statements not lowered, 0 scope imbalance
