@@ -93,7 +93,16 @@ function LowerConvIntrinsic _
         bc.a = x
         return Emit( c, bc )
     end if
-    return Coerce( c, x, want )
+    '' THE CONVERSION'S OWN SIGNEDNESS. Only CUINT and CULNGINT name an unsigned
+    '' 64-bit target, and only there does fbc call fb_D2UL rather than the signed
+    '' helper.
+    dim as boolean dstU = (nm = "cuint") orelse (nm = "culngint") orelse _
+                          (nm = "culng") orelse (nm = "cushort") orelse _
+                          (nm = "cubyte")
+    if (nm = "cast") orelse (nm = "cptr") then
+        dstU = IsUnsignedType( c, c.info->TypeOf_( id ) )
+    end if
+    return Coerce( c, x, want, IsUnsignedType( c, c.info->TypeOf_( arg ) ), dstU )
 end function
 
 end namespace

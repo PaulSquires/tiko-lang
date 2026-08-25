@@ -88,6 +88,15 @@ namespace Tko.Mir
         OP( M_FPTRUNC,    "fptrunc",    1, true  )
         OP( M_FPEXT,      "fpext",      1, true  )
         OP( M_FPTOSI,     "fptosi",     1, true  )
+        '' FLOAT to an UNSIGNED 64-BIT integer. fbc calls fb_D2UL / fb_F2UL for that
+        '' one target and the SIGNED helper for every other -- measured:
+        ''
+        ''   culngint( d )  fb_D2UL( D )            cuint( d )   fb_D2UL( D )
+        ''   culng( d )     (uint32)fb_D2L( D )     cushort( d ) (uint16)fb_D2I( D )
+        ''
+        '' -- because only at 64 bits does the unsigned range run past what a signed
+        '' conversion can express: fptosi of 2^63 does not produce 9223372036854775808.
+        OP( M_FPTOUI,     "fptoui",     1, true  )
         OP( M_SITOFP,     "sitofp",     1, true  )
         '' FLOAT to FLOAT, rounding to the nearest integral value, halves to EVEN.
         '' FreeBASIC does NOT truncate a float on the way to an integer: measured by

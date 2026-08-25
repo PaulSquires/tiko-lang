@@ -159,7 +159,8 @@ end function
 '' constant expression is made of. A mixed expression folds in DOUBLE, as fbc's does.
 function ConstFloatOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
-      byval depth as long = 0 ) as boolean
+      byval depth as long = 0, byval syms as Tko.SymbolTable ptr = 0, _
+      byval scope_ as Tko.ScopeId = 0 ) as boolean
 
     if id = Tko.NODE_NONE then return false
     if depth > 32 then return false
@@ -173,12 +174,14 @@ function ConstFloatOf _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return false
         return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
-                             outd, depth + 1 )
+                             outd, depth + 1, syms, scope_ )
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
-        if ConstFloatOf( ast, up->operand, outd, depth + 1 ) = false then return false
+        if ConstFloatOf( ast, up->operand, outd, depth + 1, syms, scope_ ) = false then
+            return false
+        end if
         select case cast( Tko.TokenKind, up->op )
         case Tko.TK_MINUS : outd = -outd
         case Tko.TK_PLUS
@@ -190,8 +193,12 @@ function ConstFloatOf _
         dim as Tko.BinaryPayload ptr bp = _
             @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
         dim as double l, r
-        if ConstFloatOf( ast, bp->lhs, l, depth + 1 ) = false then return false
-        if ConstFloatOf( ast, bp->rhs, r, depth + 1 ) = false then return false
+        if ConstFloatOf( ast, bp->lhs, l, depth + 1, syms, scope_ ) = false then
+            return false
+        end if
+        if ConstFloatOf( ast, bp->rhs, r, depth + 1, syms, scope_ ) = false then
+            return false
+        end if
         select case cast( Tko.TokenKind, bp->op )
         case Tko.TK_PLUS  : outd = l + r
         case Tko.TK_MINUS : outd = l - r
@@ -205,9 +212,35 @@ function ConstFloatOf _
             '' one had no image at all: 32 declines in numbers/infnan.bas, which is
             '' the file that exists to test exactly these values.
             outd = l / r
+        '' '^' IS A FLOAT OPERATOR AND ITS RESULT IS A DOUBLE. '2^63' is how the
+        '' corpus writes every power-of-two boundary -- numbers/cast_f2ll.bas writes
+        '' six of them -- and with no case for it the whole constant was unknown.
+        case Tko.TK_CARET : outd = l ^ r
         case else : return false
         end select
         return true
+
+    '' A NAMED FLOAT CONSTANT. 'const as double d = 2^63' followed by
+    '' 'culngint( d )' folded to nothing, and a conversion that folds to nothing
+    '' declines at every use. Optional, exactly as in ConstOf: a caller with no scope
+    '' to look in passes nothing and gets the old answer.
+    case Tko.N_IDENT
+        if syms = 0 then return false
+        if depth >= 16 then return false
+        dim as Tko.InternId inm = _
+            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+        dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
+        if csid = Tko.SYMBOL_NONE then return false
+        dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
+        if cs = 0 then return false
+        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+        if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return false
+        if cs->payload = 0 then return false
+        dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
+        if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return false
+        dim as Tko.StmtPayload ptr cip = _
+            @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
+        return ConstFloatOf( ast, cip->b, outd, depth + 1, syms, cs->parent )
     end select
     return false
 end function
@@ -290,6 +323,13 @@ private function ConstCall_ _
     dim as double d = 0
     dim as boolean isNum = LitNum_( ast, a0, d )
     dim as ConstVal iv = ConstOf( ast, a0, src, names, intBits, syms, scope_, depth )
+    '' A NAMED float constant, or an EXPRESSION over one, is a number too -- but only
+    '' asked for when the integer folder already said it had nothing, so a named
+    '' INTEGER constant keeps the exact integer path below rather than going round
+    '' through a double it may not fit in.
+    if (isNum = false) andalso (iv.known = false) then
+        isNum = ConstFloatOf( ast, a0, d, 0, syms, scope_ )
+    end if
 
     select case nm
     case "abs"
@@ -347,6 +387,11 @@ private function ConstCall_ _
     case "cushort" : if iv.known then return CVWU_( cast( longint, cast( ushort, iv.value ) ), 32, true )
     case "culng"   : if iv.known then return CVWU_( cast( longint, cast( ulong, iv.value ) ), 32, true )
     case "cuint", "culngint"
+        '' AN UNSIGNED TARGET TAKES THE WHOLE 64-BIT RANGE, so the float path cannot
+        '' go through the signed rounding above: measured, fbc folds
+        '' 'culngint( 2^63 )' to 9223372036854775808ull and 'culngint( 2^64 - 2^11 )'
+        '' to 18446744073709549568ull, both of which are negative read as signed.
+        if isNum then return CVWU_( cast( longint, culngint( d ) ), 64, true )
         if iv.known then return CVWU_( iv.value, 64, true )
     case "cbool"
         '' A FreeBASIC truth value is -1, never 1.

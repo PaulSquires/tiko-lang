@@ -233,7 +233,8 @@ declare function EmitRtl _
     '' running fbc, which prints 4000000000 and 1.844674407370955e+019.
     declare function Coerce _
         ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
-          byval srcUnsigned as boolean = false ) as MirValue
+          byval srcUnsigned as boolean = false, _
+          byval dstUnsigned as boolean = false ) as MirValue
     declare function EmitImpEqv_ _
         ( byref c as Ctx, byval tk as Tko.TokenKind, byval ty as MirType, _
           byref l as MirValue, byref r as MirValue ) as MirValue

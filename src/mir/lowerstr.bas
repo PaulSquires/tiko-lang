@@ -492,9 +492,15 @@ function LowerPredeclared _
         '' evaluator has to learn about floats to get there. Declining was 862 of one
         '' corpus file's statements -- every 'iif( c, T1, 0.0 )' over a
         '' 'const T1 as double', where BOTH arms came out empty.
+        '' A FLOAT CONSTANT IS ALWAYS LOWERED FROM ITS INITIALISER, even when the
+        '' INTEGER evaluator answered -- '^' is a double operator over integer
+        '' literals, so 'const A = 2^10' folded to the integer 1024 with a DOUBLE
+        '' type, and refusing that declined every use. Casting the integer field to a
+        '' double is still not allowed: it would turn 'const PI = 3.5' into 3.
         if IsFloatTy( mt ) then
-            if cv.known then return v
-            return LowerExpr( c, ip->b )
+            dim as MirValue fv = LowerExpr( c, ip->b )
+            if fv.kind = cast( ubyte, MV_NONE ) then return v
+            return Coerce( c, fv, mt )
         end if
         return ConstInt( c, cv.value, mt )
     end if

@@ -136,7 +136,8 @@ end function
 '' against an i32 counter, and the IR states something the backend cannot honour.
 function Coerce _
     ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
-      byval srcUnsigned as boolean = false ) as MirValue
+      byval srcUnsigned as boolean = false, _
+      byval dstUnsigned as boolean = false ) as MirValue
 
     if v.kind = cast( ubyte, MV_NONE ) then return v
     dim as MirType have = cast( MirType, v.ty )
@@ -196,7 +197,16 @@ function Coerce _
         rn.a = v
         dim as MirValue rv = Emit( c, rn )
         if rv.kind <> cast( ubyte, MV_NONE ) then ins.a = rv
-        ins.op = cast( ushort, M_FPTOSI )
+        '' AN UNSIGNED 64-BIT TARGET TAKES ITS OWN CONVERSION. fbc calls fb_D2UL for
+        '' 'culngint( d )' and '(uint32)fb_D2L( d )' for 'culng( d )': only at 64
+        '' bits does the unsigned range run past what the signed conversion can
+        '' express, so that is the only width that changes. Without it 'culngint(
+        '' 2^63 )' was a signed conversion of a value one past its maximum.
+        if dstUnsigned andalso (TyWidth( want ) = 64) then
+            ins.op = cast( ushort, M_FPTOUI )
+        else
+            ins.op = cast( ushort, M_FPTOSI )
+        end if
     elseif wf then
         '' An UNSIGNED source goes through uitofp. sitofp reads the top bit as a sign,
         '' so a ULONGINT near its maximum came out as -1 instead of 1.8e19.

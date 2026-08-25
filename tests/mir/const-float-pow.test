@@ -1,0 +1,16 @@
+'' '^' IS A DOUBLE OPERATOR whose operands are usually integer literals, so
+'' 'const A = 2^10' folded to the INTEGER 1024 while carrying a DOUBLE type -- and a
+'' float constant that refused an integer answer had no value at all, which declines
+'' at every use of it. numbers/cast_f2ll.bas writes six powers of two that way.
+''
+'' AND A FLOAT CONVERTED TO AN UNSIGNED 64-BIT INTEGER TAKES ITS OWN CONVERSION.
+'' Measured: 'culngint( d )' is fb_D2UL and 'culng( d )' is '(uint32)fb_D2L' --
+'' only at 64 bits does the unsigned range run past what the signed conversion can
+'' express, and fptosi of 2^63 does not produce 9223372036854775808.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-float-pow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fptoui
+'' GOLDEN: expected/const-float-pow.out

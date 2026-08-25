@@ -1,0 +1,112 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local f64 dv
+  local f32 sv
+  local i64 u1
+  local i64 u2
+  local i32 u3
+  local i64 s1
+  local i16 u4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr dv
+    %5 = const f64 1.5
+    store @dv, %5
+    %6 = alloca ptr sv
+    %7 = const f64 1.5
+    %8 = fptrunc %7
+    store @sv, %8
+    %9 = const i64 2
+    %10 = const i64 63
+    %11 = sitofp %9
+    %12 = sitofp %10
+    %13 = call.rtl f64 pow(%11, %12)
+    %14 = nearbyint %13
+    %15 = fptoui %14
+    call.rtl void fb_PrintULongint(0, %15, 1)
+    %16 = const i64 2
+    %17 = const i64 63
+    %18 = sitofp %16
+    %19 = sitofp %17
+    %20 = call.rtl f64 pow(%18, %19)
+    %21 = const f64 1.5
+    %22 = mul %20, %21
+    %23 = nearbyint %22
+    %24 = fptoui %23
+    call.rtl void fb_PrintULongint(0, %24, 1)
+    %25 = const i64 2
+    %26 = const i64 64
+    %27 = sitofp %25
+    %28 = sitofp %26
+    %29 = call.rtl f64 pow(%27, %28)
+    %30 = const i64 2
+    %31 = const i64 63
+    %32 = const i64 52
+    %33 = sub %31, %32
+    %34 = sitofp %30
+    %35 = sitofp %33
+    %36 = call.rtl f64 pow(%34, %35)
+    %37 = sub %29, %36
+    %38 = nearbyint %37
+    %39 = fptoui %38
+    call.rtl void fb_PrintULongint(0, %39, 1)
+    %40 = const i64 2
+    %41 = const i64 10
+    %42 = sitofp %40
+    %43 = sitofp %41
+    %44 = call.rtl f64 pow(%42, %43)
+    call.rtl void fb_PrintDouble(0, %44, 1)
+    %45 = alloca ptr u1
+    %46 = load @dv
+    %47 = nearbyint %46
+    %48 = fptoui %47
+    store @u1, %48
+    %49 = alloca ptr u2
+    %50 = load @sv
+    %51 = nearbyint %50
+    %52 = fptoui %51
+    store @u2, %52
+    %53 = alloca ptr u3
+    %54 = load @dv
+    %55 = nearbyint %54
+    %56 = fptosi %55
+    store @u3, %56
+    %57 = alloca ptr s1
+    %58 = load @dv
+    %59 = nearbyint %58
+    %60 = fptosi %59
+    store @s1, %60
+    %61 = alloca ptr u4
+    %62 = load @dv
+    %63 = nearbyint %62
+    %64 = fptosi %63
+    store @u4, %64
+    %65 = load @u1
+    call.rtl void fb_PrintULongint(0, %65, 2)
+    %66 = load @u2
+    call.rtl void fb_PrintULongint(0, %66, 2)
+    %67 = load @u3
+    call.rtl void fb_PrintUInt(0, %67, 2)
+    %68 = load @s1
+    call.rtl void fb_PrintLongint(0, %68, 2)
+    %69 = load @u4
+    call.rtl void fb_PrintUShort(0, %69, 1)
+    %70 = const i32 0
+    call.rtl void fb_End(%70)
+    %71 = load @$tmp0
+    ret %71
+}
+declare void fb_Init($0, $1, $2)
+declare f64 pow($0, $1)
+declare void fb_PrintULongint($0, $1, $2)
+declare void fb_PrintDouble($0, $1, $2)
+declare void fb_PrintUInt($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintUShort($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance
