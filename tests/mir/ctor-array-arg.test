@@ -1,0 +1,16 @@
+'' AN ARRAY ARGUMENT TO A CONSTRUCTOR TAKES A DESCRIPTOR, like every other array
+'' argument. The constructor paths built their arguments by hand and lowered 'garr( )'
+'' as an ordinary expression, which produced nothing -- and pushed it anyway:
+''
+''   call void _ZN2C1C1ER7FBARRAYIu7INTEGERE(@b, _)
+''
+'' a call with a hole where its only argument belongs, counted as fully lowered. The
+'' rvalue and default-argument spellings declined instead. functions/paraminit-udt.bi
+'' is 34 statements of the third.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-array-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: , _)
+'' GOLDEN: expected/ctor-array-arg.out

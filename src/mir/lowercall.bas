@@ -42,7 +42,7 @@ declare function StrSwapKind_ _
 '' The argument is spelled 'v( )', an empty call over the array's name, so the name is
 '' one level in. Without this the argument lowered to NOTHING and was pushed anyway:
 '' 'Q( v( ) )' went out as a call with a hole where its only operand belongs.
-private function ArrayDescArg_ _
+function ArrayDescArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval isArrayParam as boolean, _
       byref outv as MirValue ) as boolean
 

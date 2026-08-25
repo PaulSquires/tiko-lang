@@ -273,3 +273,48 @@ end operator
 operator = ( byref opa as OpD, byref opb as OpD ) as boolean
     return false
 end operator
+
+'' AN ARRAY PARAMETER IS A REFERENCE TO A TEMPLATE -- R7FBARRAYI<element>E, with the
+'' element run through the ordinary encoder and sharing the one substitution table.
+'' Neither BYREF nor BYVAL is legal on one, so the passing mode never enters into it.
+''
+'' The repeats are the whole point of the last three: '7FBARRAY' takes NO substitution
+'' slot, so the second array of a type already seen is the REFERENCE candidate and a
+'' second FBARRAY over a NEW element is written out in full with the earlier one right
+'' there in the table.
+type ArrP
+    v as long
+    declare sub ap1( x( ) as integer )
+    declare sub ap2( x( ) as double )
+    declare sub ap3( x( ) as string )
+    declare sub ap4( x( ) as ArrP )
+    declare sub ap5( x( ) as integer ptr )
+    declare sub ap6( x( ) as const integer )
+    declare sub ap7( x( ) as integer, byval y as long )
+    declare sub ap8( x( ) as integer, y( ) as integer )
+    declare sub ap9( x( ) as integer, byref y as ArrP, z( ) as ArrP, w( ) as ArrP )
+    declare sub apa( byref y as ArrP, x( ) as integer )
+    declare constructor( x( ) as integer )
+end type
+sub ArrP.ap1( x( ) as integer )
+end sub
+sub ArrP.ap2( x( ) as double )
+end sub
+sub ArrP.ap3( x( ) as string )
+end sub
+sub ArrP.ap4( x( ) as ArrP )
+end sub
+sub ArrP.ap5( x( ) as integer ptr )
+end sub
+sub ArrP.ap6( x( ) as const integer )
+end sub
+sub ArrP.ap7( x( ) as integer, byval y as long )
+end sub
+sub ArrP.ap8( x( ) as integer, y( ) as integer )
+end sub
+sub ArrP.ap9( x( ) as integer, byref y as ArrP, z( ) as ArrP, w( ) as ArrP )
+end sub
+sub ArrP.apa( byref y as ArrP, x( ) as integer )
+end sub
+constructor ArrP( x( ) as integer )
+end constructor

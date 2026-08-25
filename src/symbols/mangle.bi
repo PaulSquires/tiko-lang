@@ -43,6 +43,11 @@ namespace Tko.Mangle
     type Substitutions
         as FB.Array( of string ) items      '' the encoding of each candidate
         as FB.Array( of ulong )  keys       '' the TypeId it came from, 0 for a name
+        '' An ARRAY parameter is keyed by its ELEMENT type: 'FBARRAY<T>' and 'T'
+        '' are two candidates over the one TypeId, and the encoding cannot be the
+        '' key because the second occurrence of the element is itself substituted.
+        as FB.Array( of ulong )  arrKeys
+        as FB.Array( of long )   arrIdx
 
         declare function Find( byref enc as string ) as long
         declare function FindType( byval t as Tko.TypeId ) as long

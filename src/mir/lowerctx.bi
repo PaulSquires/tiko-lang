@@ -641,6 +641,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.NodeId
     declare function ParamTypeAt _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
+    declare function ArrayDescArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, _
+          byval isArrayParam as boolean, byref outv as MirValue ) as boolean
+
     declare function ParamIsArray _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
     declare function ParamIsByref _

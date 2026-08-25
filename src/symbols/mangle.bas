@@ -432,8 +432,11 @@ private function StdcallBytes _
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
-        '' BYREF is a pointer whatever it refers to.
-        if (ast.nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+        '' BYREF is a pointer whatever it refers to -- AND SO IS AN ARRAY, which
+        '' passes a descriptor pointer. Measured: 'ap2( x( ) as double )' is @8 on
+        '' win32, not @12, and 'ap3( x( ) as string )' @8 and not @16.
+        if (ast.nodes[cast( long, prm )].flags and _
+            (Tko.NF_BYREF or Tko.NF_ARRAY)) <> 0 then
             total += 4
             continue for
         end if
@@ -496,6 +499,49 @@ end function
 '' The name before any target decoration. Split out so the win32 underscore and '@N'
 '' apply to EVERY path -- the foreign one, the unmangled one and the Itanium one alike --
 '' rather than to whichever return the change happened to be written next to.
+'' AN ARRAY PARAMETER IS A REFERENCE TO A TEMPLATE. Measured, for every element
+'' shape fbc accepts -- byref and byval are both ILLEGAL on one, so the passing mode
+'' never enters into it:
+''
+''   x( ) as integer      R7FBARRAYIu7INTEGERE
+''   x( ) as double       R7FBARRAYIdE
+''   x( ) as string       R7FBARRAYI8FBSTRINGE
+''   x( ) as C1           R7FBARRAYIS_E        (inside C1)
+''   x( ) as integer ptr  R7FBARRAYIPu7INTEGERE
+''   x( ) as const integer R7FBARRAYIKu7INTEGERE
+''
+'' The element goes through the ordinary encoder and shares the one substitution
+'' table, which is why the C1 case comes out as S_.
+''
+'' TWO CANDIDATES, AND THE NAME IS NOT ONE OF THEM. Measured from the repeats:
+'' 'd1( x( ) as integer, byref y as C1, z( ) as C1, w( ) as C1 )' ends in S5_ and
+'' 'c1x( x( ) as integer, y( ) as integer )' in S2_, and both count only if
+'' '7FBARRAY' takes no slot at all -- which is why 'R7FBARRAYIS_E' is written out
+'' in full every time with the earlier one right there in the table.
+''
+'' KEYED BY THE ELEMENT TYPE, not by the encoding: the second occurrence of the
+'' element is itself substituted, so the string built the second time round never
+'' equals the one stored the first.
+private function ArrayParamCode _
+    ( byval elem as Tko.TypeId, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref subs as Substitutions ) as string
+
+    for i as long = 0 to subs.arrKeys.Count - 1
+        if subs.arrKeys[i] = cast( ulong, elem ) then return SubRef( subs.arrIdx[i] )
+    next
+    dim as string tmpl = "7FBARRAYI" & _
+        TypeCode( elem, types, syms, names, subs ) & "E"
+    subs.items.Push( tmpl )
+    subs.keys.Push( 0 )
+    subs.items.Push( "R" & tmpl )
+    subs.keys.Push( 0 )
+    subs.arrKeys.Push( cast( ulong, elem ) )
+    subs.arrIdx.Push( subs.items.Count - 1 )
+    return "R" & tmpl
+end function
+
+
 private function ProcNameCore _
     ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
@@ -587,6 +633,11 @@ private function ProcNameCore _
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
         dim as Tko.TypeId pt = info.TypeOf_( pp->a )
+        if (ast.nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
+            outp += ArrayParamCode( pt, types, syms, names, subs )
+            emitted += 1
+            continue for
+        end if
         if (ast.nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
             pt = types.Reference( pt )
         end if

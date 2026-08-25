@@ -147,12 +147,39 @@ function LowerCtorInit _
     dim as FB.Array( of ulong ) argT
     dim as FB.Array( of ulong ) argKind
     dim as FB.Array( of ulong ) argId
+    '' AN ARRAY ARGUMENT TAKES A DESCRIPTOR. Measured: fbc builds a static one for a
+    '' fixed-length array and passes its address --
+    ''
+    ''   static struct $8FBARRAY1Iu7INTEGERE tmp$2$ = { GARR, GARR, 32, ... };
+    ''   _ZN2C1C1ER7FBARRAYIu7INTEGERE( &B, (struct ...*)&tmp$2$ );
+    ''
+    '' -- and this lowered 'garr( )' as an ordinary expression instead, which produced
+    '' nothing and was PUSHED ANYWAY: 'dim as C1 b = C1( garr( ) )' came out as
+    '' 'call void _ZN2C1C1ER7FBARRAYIu7INTEGERE(@b, _)', a constructor call with a
+    '' hole where its only argument belongs, with no decline to say so. It verified.
+    ''
+    '' The shape answers for itself, which is what lets this run before the overload is
+    '' picked: 'garr( )' is an empty call over a name whose type is an ARRAY, and
+    '' nothing else is.
+    dim as FB.Array( of ulong ) argDesc
     for i as long = 0 to cp->count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+        dim as MirValue adv
+        if ArrayDescArg_( c, a, true, adv ) then
+            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
+            argKind.Push( cast( ulong, adv.kind ) )
+            argId.Push( cast( ulong, adv.id ) )
+            argDesc.Push( 1 )
+            continue for
+        end if
         dim as MirValue av = LowerExpr( c, a )
+        '' NOTHING TO PASS IS NOT AN ARGUMENT. Pushing it anyway put a hole in the
+        '' call and counted the statement as fully lowered.
+        if av.kind = cast( ubyte, MV_NONE ) then return false
         argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
         argKind.Push( cast( ulong, av.kind ) )
         argId.Push( cast( ulong, av.id ) )
+        argDesc.Push( 0 )
     next
 
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
@@ -171,6 +198,10 @@ function LowerCtorInit _
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if ai2 >= argT.Count then exit for
+        if argDesc[ai2] <> 0 then
+            ai2 += 1
+            continue for
+        end if
         dim as MirValue av
         av.kind = cast( ubyte, argKind[ai2] )
         av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
@@ -248,6 +279,24 @@ function EmitTypeCtorInto_ _
     dim as long pi = 0
     for i as long = 0 to cp->count - 1
         dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+
+        '' AN ARRAY ARGUMENT TAKES A DESCRIPTOR, in a constructor call as much as in
+        '' any other. Measured: fbc builds a static descriptor for a fixed-length
+        '' array and passes its address --
+        ''
+        ''   static struct $8FBARRAY1Iu7INTEGERE tmp$2$ = { GARR, GARR, 32, ... };
+        ''   _ZN2C1C1ER7FBARRAYIu7INTEGERE( &B, (struct ...*)&tmp$2$ );
+        ''
+        '' -- and this loop lowered 'garr( )' as an ORDINARY expression instead, which
+        '' produced nothing and was pushed anyway: a constructor call with a hole where
+        '' its only argument belongs. It verified.
+        dim as MirValue adv
+        if ArrayDescArg_( c, ae, ParamIsArray( c, ctor, pi ), adv ) then
+            args.Push( cast( ulong, adv.kind ) ) : args.Push( cast( ulong, adv.id ) )
+            pi += 1
+            continue for
+        end if
+
         dim as MirValue av = LowerExpr( c, ae )
         if av.kind = cast( ubyte, MV_NONE ) then return false
         '' The matching parameter, counted over N_PARAM children only.
