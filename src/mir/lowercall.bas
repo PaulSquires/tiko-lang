@@ -631,7 +631,13 @@ function LowerBareProcCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
       byref outv as MirValue ) as boolean
 
-    if c.ast->Kind( id ) <> Tko.N_IDENT then return false
+    '' 'T.StaticFn' IS THE SAME RULE QUALIFIED. 'DateTime.MaxValue' is a call, and
+    '' with only the bare spelling here it was a member access whose base named a
+    '' procedure -- so it declined, or worse, read the function's code bytes.
+    '' chrono/core.bas writes it eleven times. A PROPERTY is handled before this by
+    '' LowerPropertyGet_, so the only member form that arrives is a real procedure.
+    dim as Tko.NodeKind bk = c.ast->Kind( id )
+    if (bk <> Tko.N_IDENT) andalso (bk <> Tko.N_MEMBER) then return false
     dim as Tko.SymbolId sid = c.info->RefOf( id )
     if sid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )

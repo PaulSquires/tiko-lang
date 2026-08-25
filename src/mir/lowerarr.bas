@@ -246,7 +246,41 @@ function LowerAddr _
             end if
         end if
 
-        if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
+        '' A PAREN-LESS CALL AS THE BASE. 'mk.field' and 'T.StaticFn.field' are CALLS
+        '' -- measured, fbc emits 'vr = MK( ); TMP = vr;' for 'mk.ticks' and the same
+        '' code it emits for 'mk( ).ticks', which is the whole difference between the
+        '' two spellings.
+        ''
+        '' Asking LowerAddr for the address of a PROCEDURE gave its CODE address, and
+        '' the field offset was then applied to that: 'mk.ticks' read the function's
+        '' own bytes as a struct. It lowered, it verified, and nothing declined.
+        '' chrono/core.bas writes 'DateTime.MaxValue.Day' eleven times.
+        dim as boolean calledBase = false
+        dim as Tko.Symbol ptr bsy = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+        if bsy <> 0 then
+            if LowerBareProcCall_( c, mp->lhs, MT_AGG, base_ ) then
+                bt = c.types->Unqualify( bsy->type_ )
+                '' An SRET result IS the temporary's address already; anything
+                '' narrower comes back as a VALUE and needs one of its own before a
+                '' field offset can be applied to it.
+                if UsesSretReturn( c, bsy->type_ ) = false then
+                    dim as long btslot = _
+                        NewTempLocal( c, MT_AGG, SizeOfType( c, bsy->type_ ) )
+                    if btslot < 0 then return v
+                    dim as MirValue bta
+                    bta.kind = cast( ubyte, MV_LOCAL )
+                    bta.ty = cast( ubyte, MT_PTR )
+                    bta.id = btslot
+                    StoreThrough( c, bta, base_ )
+                    base_ = bta
+                end if
+                calledBase = true
+            end if
+        end if
+
+        if calledBase then
+            '' the call's value IS the temporary's address
+        elseif (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
             '' Through a pointer the base is the VALUE, not its slot. The POINTEE may
             '' be const too -- 'byval p as const T ptr' -- so it is unqualified as well.
             base_ = LowerExpr( c, mp->lhs )

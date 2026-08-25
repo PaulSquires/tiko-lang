@@ -1,0 +1,19 @@
+'' A PAREN-LESS CALL AS THE BASE OF A MEMBER ACCESS IS A CALL. Measured: fbc emits
+'' 'vr = MK( ); TMP = vr;' for 'mk.ticks' -- exactly the code it emits for
+'' 'mk( ).ticks', which is the whole difference between the two spellings.
+''
+'' LowerAddr was asked for the address of a PROCEDURE and gave its CODE address, and
+'' the field offset was applied to that: 'mk.ticks' read the function's own bytes as
+'' a struct. It lowered, it verified, and nothing declined.
+''
+'' The QUALIFIED spelling 'T.StaticFn' is the same rule and was not read at all --
+'' chrono/core.bas writes 'DateTime.MaxValue.Day' eleven times and lost 31 statements
+'' to it. A PROPERTY is handled before this, so the only member form that arrives is
+'' a real procedure.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/parenless-call-base.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: func.addr
+'' GOLDEN: expected/parenless-call-base.out
