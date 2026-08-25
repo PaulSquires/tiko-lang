@@ -461,6 +461,96 @@ sub MathProbe( )
     y = x ^ y
 end sub
 ''',
+    # THE CONSOLE, THE FILESYSTEM, THE CLOCK, THE ENVIRONMENT AND THE THREAD FOUR.
+    # None of these statements is lowered yet; the inventory is measured first because
+    # warnings/rtl-prototypes.bas takes the ADDRESS of each and a name tiko does not
+    # know declines at the procptr, whatever the statement does.
+    "console": '''
+sub ConsoleProbe( )
+    color 1, 2
+    width 80, 25
+    view print 1 to 2
+    dim as long x = pos( 0 ), y = csrlin
+    cls
+    locate 1, 1
+    beep
+end sub
+''',
+    "fsdir": '''
+sub FsDirProbe( )
+    name "a", "b"
+    chdir "a"
+    mkdir "a"
+    rmdir "a"
+    kill "a"
+    dim as string cd = curdir
+    dim as string dd = dir( "*" )
+end sub
+''',
+    "fileio2": '''
+sub FileIoProbe( )
+    dim as long f = freefile
+    open "x" for binary as #f
+    dim as long v
+    get #f, , v
+    put #f, , v
+    dim as longint l = loc( f ), l2 = lof( f )
+    dim as long e = eof( f )
+    seek #f, 1
+    l = seek( f )
+    close #f
+    reset
+end sub
+''',
+    "clockenv": '''
+sub ClockEnvProbe( )
+    dim as string d = date, t = time
+    dim as double tm = timer
+    randomize
+    dim as double r = rnd
+    sleep 1
+    dim as string e = environ( "PATH" )
+    setenviron "A=1"
+    dim as string c = command( )
+    dim as string x = exepath( )
+    dim as long rc = exec( "a", "b" )
+    rc = shell( "a" )
+end sub
+''',
+    "threads": '''
+sub ThreadProbe( )
+    dim as any ptr t = threadcreate( 0, 0 )
+    threadwait( t )
+    dim as any ptr m = mutexcreate( )
+    mutexlock( m )
+    mutexunlock( m )
+    mutexdestroy( m )
+    dim as any ptr cv = condcreate( )
+    condsignal( cv )
+    condbroadcast( cv )
+    conddestroy( cv )
+end sub
+''',
+    # ERR, ERL, ERMN, ERFN and the setter behind 'err = n'.
+    "errinfo": '''
+sub ErrProbe( )
+    dim as long e = err
+    e = erl
+    dim as zstring ptr s = ermn
+    s = erfn
+    err = 5
+end sub
+''',
+    # 'mid( s, i, n ) = t' -- an ASSIGNMENT INTO a string, which is its own entry point
+    # in both widths and is not the mid() that reads.
+    "midassign": '''
+sub MidAssignProbe( )
+    dim as string s = "abc"
+    dim as wstring * 8 w
+    mid( s, 1, 1 ) = "z"
+    mid( w, 1, 1 ) = wstr( "z" )
+end sub
+''',
     # A WIDE 'iif'. Its arms ALLOCATE -- fb_WstrAlloc is the only wide entry point that
     # does -- which is why it needs a pointer temporary where the narrow form needs a
     # descriptor. The condition has to be NON-CONSTANT or fbc folds the whole thing.
@@ -746,6 +836,10 @@ end sub
 # than assuming every runtime entry point is prefixed.
 # 'atexit' is on that list for the same reason: a STATIC LOCAL object's destructor is
 # registered with libc's atexit, not with anything in libfb.
+# 'typedef void (*tmp$1)( void* );' -- fbc names a function-pointer parameter type
+# rather than spelling it inline.
+FNPTR_TYPEDEF = re.compile(r"typedef\s+[\w \*]+\(\s*\*\s*([\w$]+)\s*\)\s*\(")
+
 DECL = re.compile(
     r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?"
     r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2|atexit))"
@@ -772,7 +866,13 @@ def one_target(label, fbc, lib, out, work, extra) -> int:
             print(f"rtl-truth: {label}: {name}: no C intermediate\n"
                   + (proc.stdout or "") + (proc.stderr or ""), file=sys.stderr)
             continue
-        for line in c.read_text(encoding="utf-8", errors="replace").splitlines():
+        text = c.read_text(encoding="utf-8", errors="replace")
+        # A FUNCTION-POINTER PARAMETER IS EMITTED AS A TYPEDEF, not spelled inline:
+        # 'typedef void (*tmp$1)( void* ); void* fb_ThreadCreate( tmp$1, void*, int64 )'.
+        # Recorded as the pointer it is, or the comparison sees a type name that means
+        # nothing to it and reports a disagreement where there is none.
+        fnptrs = set(FNPTR_TYPEDEF.findall(text))
+        for line in text.splitlines():
             m = DECL.fullmatch(line.strip())
             if m:
                 ret, fn, args = m.group(1).strip(), m.group(2), m.group(3).strip()
@@ -782,6 +882,9 @@ def one_target(label, fbc, lib, out, work, extra) -> int:
                 if fn.startswith("fb_ctor__") or ret.startswith("static"):
                     continue
                 args = " ".join(args.split())
+                for tn in fnptrs:
+                    args = re.sub(r"(?<![\w$])" + re.escape(tn) + r"(?![\w$])",
+                                  "void*", args)
                 # No asm() clause means fbc did not decorate it, which on win32 is the
                 # VARIADIC functions -- cdecl, because varargs need caller cleanup. They
                 # still take the leading underscore: the archive holds '_fb_ArrayRedimEx'

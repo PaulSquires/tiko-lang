@@ -583,6 +583,74 @@ namespace Tko.Mir
         RTL( RTL_MUTEX_DESTROY,     "fb_MutexDestroy",     "v",   "p"     )
         RTL( RTL_MUTEX_LOCK,        "fb_MutexLock",        "v",   "p"     )
         RTL( RTL_MUTEX_UNLOCK,      "fb_MutexUnlock",      "v",   "p"     )
+        '' THE CONSOLE, THE FILESYSTEM, THE CLOCK, THE ENVIRONMENT AND THE THREAD PAIR.
+        '' None of these statements is lowered yet. The inventory is measured first
+        '' because warnings/rtl-prototypes.bas takes the ADDRESS of each, and a name
+        '' tiko does not know declines at the procptr whatever the statement does --
+        '' 224 statements in that one file.
+        ''
+        '' Every signature below is from what fbc DECLARES for a probe that uses the
+        '' statement, on both targets, and every name is present in libfb.a.
+        '' 'z' rather than 'q' wherever the width follows the pointer: fb_StrAssignMid
+        '' takes int64 on win64 and int32 on win32, while fb_FileTell returns int64 on
+        '' BOTH and keeps its 'q'.
+        RTL( RTL_BEEP,              "fb_Beep",             "v",   ""      )
+        RTL( RTL_CLS,               "fb_Cls",              "v",   "l"     )
+        RTL( RTL_LOCATE,            "fb_Locate",           "l",   "lllll" )
+        RTL( RTL_COLOR,             "fb_Color",            "l",   "lll"   )
+        RTL( RTL_WIDTH,             "fb_Width",            "l",   "ll"    )
+        RTL( RTL_CONSOLE_VIEW,      "fb_ConsoleView",      "l",   "ll"    )
+        RTL( RTL_POS,               "fb_Pos",              "l",   "l"     )
+        RTL( RTL_CSRLIN,            "fb_GetY",             "l",   ""      )
+        RTL( RTL_CHDIR,             "fb_ChDir",            "l",   "p"     )
+        RTL( RTL_MKDIR,             "fb_MkDir",            "l",   "p"     )
+        RTL( RTL_RMDIR,             "fb_RmDir",            "l",   "p"     )
+        RTL( RTL_KILL,              "fb_FileKill",         "l",   "p"     )
+        RTL( RTL_CURDIR,            "fb_CurDir",           "p",   ""      )
+        '' DIR's third argument is an OUT parameter -- the attribute of what it found.
+        RTL( RTL_DIR,               "fb_Dir",              "p",   "plp"   )
+        RTL( RTL_FILE_EOF,          "fb_FileEof",          "l",   "l"     )
+        RTL( RTL_FILE_FREE,         "fb_FileFree",         "l",   ""      )
+        RTL( RTL_FILE_LOC,          "fb_FileLocation",     "q",   "l"     )
+        RTL( RTL_FILE_LOF,          "fb_FileSize",         "q",   "l"     )
+        RTL( RTL_FILE_TELL,         "fb_FileTell",         "q",   "l"     )
+        RTL( RTL_FILE_RESET,        "fb_FileReset",        "v",   ""      )
+        RTL( RTL_DATE,              "fb_Date",             "p",   ""      )
+        RTL( RTL_TIME,              "fb_Time",             "p",   ""      )
+        RTL( RTL_TIMER,             "fb_Timer",            "d",   ""      )
+        '' RANDOMIZE takes the seed as a DOUBLE and the algorithm as an int32.
+        RTL( RTL_RANDOMIZE,         "fb_Randomize",        "v",   "dl"    )
+        '' ...and RND takes a SINGLE, not a double, and returns a double.
+        RTL( RTL_RND,               "fb_Rnd",              "d",   "f"     )
+        RTL( RTL_SLEEP,             "fb_Sleep",            "v",   "l"     )
+        RTL( RTL_ENVIRON,           "fb_GetEnviron",       "p",   "p"     )
+        RTL( RTL_SETENVIRON,        "fb_SetEnviron",       "l",   "p"     )
+        RTL( RTL_COMMAND,           "fb_Command",          "p",   "l"     )
+        RTL( RTL_EXEPATH,           "fb_ExePath",          "p",   ""      )
+        RTL( RTL_EXEC,              "fb_Exec",             "l",   "pp"    )
+        RTL( RTL_SHELL,             "fb_Shell",            "l",   "p"     )
+        '' ERR, ERL, ERMN and ERFN. The two NAME queries return a raw char*, not a
+        '' descriptor, and 'err = n' is a SETTER that returns the previous value.
+        RTL( RTL_ERR_GET,           "fb_ErrorGetNum",      "l",   ""      )
+        RTL( RTL_ERR_SET,           "fb_ErrorSetNum",      "l",   "l"     )
+        RTL( RTL_ERR_LINE,          "fb_ErrorGetLineNum",  "l",   ""      )
+        RTL( RTL_ERR_MODNAME,       "fb_ErrorGetModName",  "p",   ""      )
+        RTL( RTL_ERR_FUNCNAME,      "fb_ErrorGetFuncName", "p",   ""      )
+        '' THREADS, and the condition-variable four beside the mutexes above.
+        '' fb_ThreadCreate's first argument is the thread PROCEDURE, a function
+        '' pointer, and its third is the stack size, which follows the pointer width.
+        RTL( RTL_THREAD_CREATE,     "fb_ThreadCreate",     "p",   "ppz"   )
+        RTL( RTL_THREAD_WAIT,       "fb_ThreadWait",       "v",   "p"     )
+        RTL( RTL_COND_CREATE,       "fb_CondCreate",       "p",   ""      )
+        RTL( RTL_COND_DESTROY,      "fb_CondDestroy",      "v",   "p"     )
+        RTL( RTL_COND_SIGNAL,       "fb_CondSignal",       "v",   "p"     )
+        RTL( RTL_COND_BROADCAST,    "fb_CondBroadcast",    "v",   "p"     )
+        '' 'mid( s, i, n ) = t' -- an ASSIGNMENT INTO a string, which is its own entry
+        '' point in each width and is not the mid( ) that reads. The wide form takes
+        '' one argument more: the destination's fixed LENGTH, which a uint16* does not
+        '' carry.
+        RTL( RTL_STR_ASSIGN_MID,    "fb_StrAssignMid",     "v",   "pzzp"  )
+        RTL( RTL_WSTR_ASSIGN_MID,   "fb_WstrAssignMid",    "v",   "pzzzp" )
         '' fbc PREDECLARES this one -- a program may call it with no declaration in
         '' sight, which is how the COM tests reach it through their own assert_ macro.
         RTL( RTL_ASSERT,            "fb_Assert",           "v",   "pzpp"  )
