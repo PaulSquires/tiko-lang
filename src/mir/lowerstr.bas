@@ -1177,7 +1177,12 @@ function LowerWstrOf _
     dim as RtlId r = RTL_NONE
     dim as MirType want = MT_I32
     select case c.types->BuiltinOf( at )
-    case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG, Tko.TY_BOOLEAN
+    '' BOOLEAN IS ITS OWN RENDERER, not an integer one -- measured, 'wstr( b )' is
+    '' 'fb_BoolToWstr( B$0 )', and fb_IntToWstr writes -1 and 0 where fbc writes
+    '' "true" and "false". The narrow half of this table already had the distinction.
+    case Tko.TY_BOOLEAN
+        r = RTL_BOOL_TO_WSTR : want = MT_I8
+    case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG
         r = RTL_INT_TO_WSTR
     case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG
         r = RTL_UINT_TO_WSTR

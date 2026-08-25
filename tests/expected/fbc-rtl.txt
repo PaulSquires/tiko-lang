@@ -27,6 +27,7 @@ fb_BIN_l	FBSTRING*	uint64	lib	fb_BIN_l
 fb_BIN_p	FBSTRING*	void*	lib	fb_BIN_p
 fb_BIN_s	FBSTRING*	uint16	lib	fb_BIN_s
 fb_BoolToStr	FBSTRING*	boolean	lib	fb_BoolToStr
+fb_BoolToWstr	uint16*	boolean	lib	fb_BoolToWstr
 fb_CHR	FBSTRING*	int32, ...	lib	fb_CHR
 fb_CVD	double	FBSTRING*	lib	fb_CVD
 fb_CVL	int32	FBSTRING*	lib	fb_CVL

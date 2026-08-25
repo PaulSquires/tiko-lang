@@ -13,6 +13,10 @@
 
 namespace Tko.Mir
 
+declare function WideConcatStep_ _
+    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+      byref acc as MirValue ) as boolean
+
 '' Defined in lowerstr.bas; the narrow classifier the wide code needs for a mixed
 '' operand.
 declare function StrSwapKind_ _
@@ -234,8 +238,64 @@ function LowerWideConcatAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval n as long, _
       byval value as Tko.NodeId ) as boolean
 
-    if IsWideString_( c, c.info->TypeOf_( value ) ) = false then return false
-    dim as MirValue src = LowerAddr( c, value )
+    '' A SOURCE THAT IS NOT A STRING AT ALL is rendered wide first. Measured:
+    ''
+    ''     w &= n     vr = fb_IntToWstr( N$0 );  TMP = vr;
+    ''                fb_WstrConcatAssign( W, 80, TMP );  fb_WstrDelete( TMP );
+    ''
+    '' -- and the same for a BOOLEAN through fb_BoolToWstr and a DOUBLE through
+    '' fb_DoubleToWstr. Without it every 'w &= n' and 'w = wstr( "a" ) & n' declined,
+    '' which is most of what the boolean and wstring corpus files append.
+    if IsWideString_( c, c.info->TypeOf_( value ) ) = false then
+        '' A NARROW STRING SOURCE goes through the MIXED entry point and back:
+        ''
+        ''     TMP = fb_WstrConcatWA( W, (void*)"lit", 4 );
+        ''     fb_WstrAssign( W, 80, TMP );  fb_WstrDelete( TMP );
+        ''
+        '' -- measured, and it is not fb_WstrConcatAssign with the narrow bytes: the
+        '' append happens into a temporary and the result is assigned back.
+        dim as Tko.TypeId svt = c.info->TypeOf_( value )
+        dim as longint zln
+        dim as boolean narrowSrc = IsStringType( c, svt ) andalso _
+                                   (IsUStringType( c, svt ) = false)
+        if narrowSrc = false then
+            narrowSrc = (StrSwapKind_( c, svt, zln ) = 1)
+        end if
+        if narrowSrc = false then
+            narrowSrc = (c.ast->Kind( Unparen_( c, value ) ) = Tko.N_STRING_LIT)
+        end if
+        if narrowSrc then
+            dim as FB.Array( of ulong ) wargs
+            wargs.Push( cast( ulong, dst.kind ) ) : wargs.Push( cast( ulong, dst.id ) )
+            if EmitStrTerm( c, wargs, value ) = false then return false
+            dim as MirValue acc
+            if WideConcatStep_( c, wargs, RTL_WSTR_CONCAT_WA, acc ) = false then
+                return false
+            end if
+            dim as FB.Array( of ulong ) aargs
+            aargs.Push( cast( ulong, dst.kind ) ) : aargs.Push( cast( ulong, dst.id ) )
+            aargs.Push( cast( ulong, MV_CONST_INT ) ) : aargs.Push( cast( ulong, n ) )
+            aargs.Push( cast( ulong, acc.kind ) ) : aargs.Push( cast( ulong, acc.id ) )
+            EmitRtl( c, RTL_WSTR_ASSIGN, aargs )
+            return true
+        end if
+
+        dim as MirValue nv
+        if NumberToWideTemp_( c, value, nv ) = false then return false
+        dim as FB.Array( of ulong ) nargs
+        nargs.Push( cast( ulong, dst.kind ) ) : nargs.Push( cast( ulong, dst.id ) )
+        nargs.Push( cast( ulong, MV_CONST_INT ) ) : nargs.Push( cast( ulong, n ) )
+        nargs.Push( cast( ulong, nv.kind ) ) : nargs.Push( cast( ulong, nv.id ) )
+        EmitRtl( c, RTL_WSTR_CONCAT_ASSIGN, nargs )
+        return true
+    end if
+    '' THROUGH WideOperand_, not LowerAddr: a wide RVALUE -- 'w &= wstr( "2" )',
+    '' 'w &= trim( w2 )' -- has no address, and asking for one declined every
+    '' compound append whose source was a call rather than a variable. It is the same
+    '' recogniser the assignment path already uses, and it knows every wide shape:
+    '' a literal, a variable, a call and a concatenation.
+    dim as MirValue src
+    if WideOperand_( c, value, src ) = false then return false
     if src.kind = cast( ubyte, MV_NONE ) then return false
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
@@ -526,7 +586,7 @@ end function
 '' One concatenation step: emit the call, put the result in a slot, and register that
 '' slot for deletion. Every result is an allocation the CALLER owns -- fbc emits an
 '' fb_WstrDelete for each -- so the slot goes on the statement-temporary list.
-private function WideConcatStep_ _
+function WideConcatStep_ _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
@@ -590,6 +650,49 @@ end function
 ''     fb_WstrDelete( (uint16*)vr );
 ''
 '' The temporary is registered for deletion like every other wide one.
+'' A NUMBER OR A BOOLEAN RENDERED WIDE, into a temporary the statement releases.
+''
+'' Measured: 'w &= n' is 'vr = fb_IntToWstr( N$0 ); TMP = vr; fb_WstrConcatAssign( W,
+'' 80, TMP ); fb_WstrDelete( TMP )'. Which renderer comes off the operand's own type,
+'' and BOOLEAN has its own -- fb_BoolToWstr, which writes "true" where fb_IntToWstr
+'' would write -1.
+function NumberToWideTemp_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId at = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if at = Tko.TYPE_NONE then return false
+    if c.types->Kind( at ) = Tko.TK_ENUM then at = c.types->Builtin( Tko.TY_INTEGER )
+    if c.types->Kind( at ) <> Tko.TK_BUILTIN then return false
+
+    dim as RtlId r = RTL_NONE
+    dim as MirType want = MT_I32
+    select case c.types->BuiltinOf( at )
+    case Tko.TY_BOOLEAN
+        r = RTL_BOOL_TO_WSTR : want = MT_I8
+    case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG
+        r = RTL_INT_TO_WSTR
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG
+        r = RTL_UINT_TO_WSTR
+    case Tko.TY_INTEGER, Tko.TY_LONGINT
+        r = RTL_LONGINT_TO_WSTR : want = MT_I64
+    case Tko.TY_UINTEGER, Tko.TY_ULONGINT
+        r = RTL_ULONGINT_TO_WSTR : want = MT_I64
+    case Tko.TY_SINGLE
+        r = RTL_FLOAT_TO_WSTR : want = MT_F32
+    case Tko.TY_DOUBLE
+        r = RTL_DOUBLE_TO_WSTR : want = MT_F64
+    case else
+        return false
+    end select
+
+    dim as MirValue av = LowerExpr( c, e )
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+    av = Coerce( c, av, want, IsUnsignedType( c, at ) )
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    return WideConcatStep_( c, args, r, outv )
+end function
+
 function NarrowToWideTemp_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 

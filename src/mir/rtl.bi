@@ -142,6 +142,10 @@ namespace Tko.Mir
         RTL( RTL_PRINT_WSTR,        "fb_PrintWstr",        "v",   "lpl"   )
         '' byte/short widen to int32 and ubyte/ushort to uint32; there are no
         '' per-width entries.
+        '' BOOLEAN HAS ITS OWN WIDE RENDERER, exactly as it has its own narrow one:
+        '' 'wstr( b )' is 'fb_BoolToWstr( B$0 )' -- measured -- and fb_IntToWstr would
+        '' write -1 and 0 where fbc writes "true" and "false".
+        RTL( RTL_BOOL_TO_WSTR,      "fb_BoolToWstr",       "p",   "b"     )
         RTL( RTL_INT_TO_WSTR,       "fb_IntToWstr",        "p",   "l"     )
         RTL( RTL_UINT_TO_WSTR,      "fb_UIntToWstr",       "p",   "l"     )
         RTL( RTL_LONGINT_TO_WSTR,   "fb_LongintToWstr",    "p",   "q"     )

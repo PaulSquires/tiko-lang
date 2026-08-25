@@ -1,0 +1,22 @@
+'' 'w &= x' OVER A FIXED WIDE STRING, and what x may be. Only a wide VARIABLE worked:
+'' the source was asked for its ADDRESS, so every call declined -- 'w &= wstr( "2" )'
+'' and 'w &= trim( w2 )' alike -- and a narrow, numeric or boolean source declined
+'' outright. Measured, each shape separately:
+''
+''   w &= w2      fb_WstrConcatAssign( W, 80, W2 )
+''   w &= "lit"   TMP = fb_WstrConcatWA( W, (void*)"lit", 4 ); fb_WstrAssign( W, 80,
+''                TMP ); fb_WstrDelete( TMP )   -- an append into a TEMPORARY, assigned
+''                back, not fb_WstrConcatAssign with the narrow bytes
+''   w &= n       vr = fb_IntToWstr( N ); TMP = vr; fb_WstrConcatAssign( W, 80, TMP );
+''                fb_WstrDelete( TMP )
+''   w &= b       the same through fb_BoolToWstr, which writes "true" where
+''                fb_IntToWstr would write -1 -- BOOLEAN has its own wide renderer
+''                exactly as it has its own narrow one, and tiko-lang used the integer
+''                one for it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-append.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_BoolToWstr
+'' GOLDEN: expected/wide-append.out

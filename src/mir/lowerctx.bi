@@ -378,6 +378,9 @@ declare function EmitRtl _
     declare function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function WideToNarrowTemp_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A number or a boolean rendered WIDE, into a statement-lifetime temporary.
+    declare function NumberToWideTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function NarrowToWideTemp_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean

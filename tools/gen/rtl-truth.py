@@ -162,6 +162,17 @@ sub RevProbe( )
     f2 = wchr( code_, code_ )
 end sub
 ''',
+    # BOOLEAN's own renderers, narrow and WIDE. 'wstr( b )' is fb_BoolToWstr, not
+    # fb_IntToWstr: the two differ in what they write, "true" against -1.
+    "boolwstr": '''
+sub BwProbe( )
+    dim as boolean b
+    dim as wstring * 8 w
+    dim as string s
+    w = wstr( b )
+    s = str( b )
+end sub
+''',
     # DELETE is not an fb_* entry point at all: fbc emits libc's free, guarded by a
     # null check, with the destructor called first.
     "deletestmt": '''
