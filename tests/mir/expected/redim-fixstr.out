@@ -1,0 +1,1141 @@
+func void S() {
+  local agg a size 240
+  local agg b size 240
+  local agg c2 size 240
+  local agg d size 240
+  local agg e size 240
+  local agg f size 240
+  entry0:
+    %1 = alloca ptr a
+    %2 = const ptr 0
+    %3 = field.addr @a, 0
+    store %3, %2
+    %4 = field.addr @a, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr @a, 16
+    store %6, %5
+    %7 = const i64 4
+    %8 = field.addr @a, 24
+    store %8, %7
+    %9 = const i64 0
+    %10 = field.addr @a, 32
+    store %10, %9
+    %11 = const i64 8
+    %12 = field.addr @a, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr @a, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr @a, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr @a, 64
+    store %18, %17
+    %19 = const i64 0
+    %20 = field.addr @a, 72
+    store %20, %19
+    %21 = const i64 0
+    %22 = field.addr @a, 80
+    store %22, %21
+    %23 = const i64 0
+    %24 = field.addr @a, 88
+    store %24, %23
+    %25 = const i64 0
+    %26 = field.addr @a, 96
+    store %26, %25
+    %27 = const i64 0
+    %28 = field.addr @a, 104
+    store %28, %27
+    %29 = const i64 0
+    %30 = field.addr @a, 112
+    store %30, %29
+    %31 = const i64 0
+    %32 = field.addr @a, 120
+    store %32, %31
+    %33 = const i64 0
+    %34 = field.addr @a, 128
+    store %34, %33
+    %35 = const i64 0
+    %36 = field.addr @a, 136
+    store %36, %35
+    %37 = const i64 0
+    %38 = field.addr @a, 144
+    store %38, %37
+    %39 = const i64 0
+    %40 = field.addr @a, 152
+    store %40, %39
+    %41 = const i64 0
+    %42 = field.addr @a, 160
+    store %42, %41
+    %43 = const i64 0
+    %44 = field.addr @a, 168
+    store %44, %43
+    %45 = const i64 0
+    %46 = field.addr @a, 176
+    store %46, %45
+    %47 = const i64 0
+    %48 = field.addr @a, 184
+    store %48, %47
+    %49 = const i64 0
+    %50 = field.addr @a, 192
+    store %50, %49
+    %51 = const i64 0
+    %52 = field.addr @a, 200
+    store %52, %51
+    %53 = const i64 0
+    %54 = field.addr @a, 208
+    store %54, %53
+    %55 = const i64 0
+    %56 = field.addr @a, 216
+    store %56, %55
+    %57 = const i64 0
+    %58 = field.addr @a, 224
+    store %58, %57
+    %59 = const i64 0
+    %60 = field.addr @a, 232
+    store %60, %59
+    %61 = const ptr 0
+    %62 = field.addr @a, 0
+    store %62, %61
+    %63 = field.addr @a, 8
+    store %63, %61
+    %64 = const i64 0
+    %65 = field.addr @a, 16
+    store %65, %64
+    %66 = const i64 4
+    %67 = field.addr @a, 24
+    store %67, %66
+    %68 = const i64 0
+    %69 = field.addr @a, 32
+    store %69, %68
+    %70 = const i64 8
+    %71 = field.addr @a, 40
+    store %71, %70
+    %72 = const i64 0
+    %73 = field.addr @a, 48
+    store %73, %72
+    %74 = const i64 0
+    %75 = field.addr @a, 56
+    store %75, %74
+    %76 = const i64 0
+    %77 = field.addr @a, 64
+    store %77, %76
+    %78 = const i64 0
+    %79 = field.addr @a, 72
+    store %79, %78
+    %80 = const i64 0
+    %81 = field.addr @a, 80
+    store %81, %80
+    %82 = const i64 0
+    %83 = field.addr @a, 88
+    store %83, %82
+    %84 = const i64 0
+    %85 = field.addr @a, 96
+    store %85, %84
+    %86 = const i64 0
+    %87 = field.addr @a, 104
+    store %87, %86
+    %88 = const i64 0
+    %89 = field.addr @a, 112
+    store %89, %88
+    %90 = const i64 0
+    %91 = field.addr @a, 120
+    store %91, %90
+    %92 = const i64 0
+    %93 = field.addr @a, 128
+    store %93, %92
+    %94 = const i64 0
+    %95 = field.addr @a, 136
+    store %95, %94
+    %96 = const i64 0
+    %97 = field.addr @a, 144
+    store %97, %96
+    %98 = const i64 0
+    %99 = field.addr @a, 152
+    store %99, %98
+    %100 = const i64 0
+    %101 = field.addr @a, 160
+    store %101, %100
+    %102 = const i64 0
+    %103 = field.addr @a, 168
+    store %103, %102
+    %104 = const i64 0
+    %105 = field.addr @a, 176
+    store %105, %104
+    %106 = const i64 0
+    %107 = field.addr @a, 184
+    store %107, %106
+    %108 = const i64 0
+    %109 = field.addr @a, 192
+    store %109, %108
+    %110 = const i64 0
+    %111 = field.addr @a, 200
+    store %111, %110
+    %112 = const i64 0
+    %113 = field.addr @a, 208
+    store %113, %112
+    %114 = const i64 0
+    %115 = field.addr @a, 216
+    store %115, %114
+    %116 = const i64 0
+    %117 = field.addr @a, 224
+    store %117, %116
+    %118 = const i64 0
+    %119 = field.addr @a, 232
+    store %119, %118
+    %120 = const i64 0
+    %121 = const i64 0
+    %122 = const i64 9
+    %123 = call.rtl i32 fb_ArrayRedimEx(@a, 4, 32, 0, 1, %121, %122)
+    %124 = alloca ptr b
+    %125 = const ptr 0
+    %126 = field.addr @b, 0
+    store %126, %125
+    %127 = field.addr @b, 8
+    store %127, %125
+    %128 = const i64 0
+    %129 = field.addr @b, 16
+    store %129, %128
+    %130 = const i64 4
+    %131 = field.addr @b, 24
+    store %131, %130
+    %132 = const i64 0
+    %133 = field.addr @b, 32
+    store %133, %132
+    %134 = const i64 8
+    %135 = field.addr @b, 40
+    store %135, %134
+    %136 = const i64 0
+    %137 = field.addr @b, 48
+    store %137, %136
+    %138 = const i64 0
+    %139 = field.addr @b, 56
+    store %139, %138
+    %140 = const i64 0
+    %141 = field.addr @b, 64
+    store %141, %140
+    %142 = const i64 0
+    %143 = field.addr @b, 72
+    store %143, %142
+    %144 = const i64 0
+    %145 = field.addr @b, 80
+    store %145, %144
+    %146 = const i64 0
+    %147 = field.addr @b, 88
+    store %147, %146
+    %148 = const i64 0
+    %149 = field.addr @b, 96
+    store %149, %148
+    %150 = const i64 0
+    %151 = field.addr @b, 104
+    store %151, %150
+    %152 = const i64 0
+    %153 = field.addr @b, 112
+    store %153, %152
+    %154 = const i64 0
+    %155 = field.addr @b, 120
+    store %155, %154
+    %156 = const i64 0
+    %157 = field.addr @b, 128
+    store %157, %156
+    %158 = const i64 0
+    %159 = field.addr @b, 136
+    store %159, %158
+    %160 = const i64 0
+    %161 = field.addr @b, 144
+    store %161, %160
+    %162 = const i64 0
+    %163 = field.addr @b, 152
+    store %163, %162
+    %164 = const i64 0
+    %165 = field.addr @b, 160
+    store %165, %164
+    %166 = const i64 0
+    %167 = field.addr @b, 168
+    store %167, %166
+    %168 = const i64 0
+    %169 = field.addr @b, 176
+    store %169, %168
+    %170 = const i64 0
+    %171 = field.addr @b, 184
+    store %171, %170
+    %172 = const i64 0
+    %173 = field.addr @b, 192
+    store %173, %172
+    %174 = const i64 0
+    %175 = field.addr @b, 200
+    store %175, %174
+    %176 = const i64 0
+    %177 = field.addr @b, 208
+    store %177, %176
+    %178 = const i64 0
+    %179 = field.addr @b, 216
+    store %179, %178
+    %180 = const i64 0
+    %181 = field.addr @b, 224
+    store %181, %180
+    %182 = const i64 0
+    %183 = field.addr @b, 232
+    store %183, %182
+    %184 = const ptr 0
+    %185 = field.addr @b, 0
+    store %185, %184
+    %186 = field.addr @b, 8
+    store %186, %184
+    %187 = const i64 0
+    %188 = field.addr @b, 16
+    store %188, %187
+    %189 = const i64 4
+    %190 = field.addr @b, 24
+    store %190, %189
+    %191 = const i64 0
+    %192 = field.addr @b, 32
+    store %192, %191
+    %193 = const i64 8
+    %194 = field.addr @b, 40
+    store %194, %193
+    %195 = const i64 0
+    %196 = field.addr @b, 48
+    store %196, %195
+    %197 = const i64 0
+    %198 = field.addr @b, 56
+    store %198, %197
+    %199 = const i64 0
+    %200 = field.addr @b, 64
+    store %200, %199
+    %201 = const i64 0
+    %202 = field.addr @b, 72
+    store %202, %201
+    %203 = const i64 0
+    %204 = field.addr @b, 80
+    store %204, %203
+    %205 = const i64 0
+    %206 = field.addr @b, 88
+    store %206, %205
+    %207 = const i64 0
+    %208 = field.addr @b, 96
+    store %208, %207
+    %209 = const i64 0
+    %210 = field.addr @b, 104
+    store %210, %209
+    %211 = const i64 0
+    %212 = field.addr @b, 112
+    store %212, %211
+    %213 = const i64 0
+    %214 = field.addr @b, 120
+    store %214, %213
+    %215 = const i64 0
+    %216 = field.addr @b, 128
+    store %216, %215
+    %217 = const i64 0
+    %218 = field.addr @b, 136
+    store %218, %217
+    %219 = const i64 0
+    %220 = field.addr @b, 144
+    store %220, %219
+    %221 = const i64 0
+    %222 = field.addr @b, 152
+    store %222, %221
+    %223 = const i64 0
+    %224 = field.addr @b, 160
+    store %224, %223
+    %225 = const i64 0
+    %226 = field.addr @b, 168
+    store %226, %225
+    %227 = const i64 0
+    %228 = field.addr @b, 176
+    store %228, %227
+    %229 = const i64 0
+    %230 = field.addr @b, 184
+    store %230, %229
+    %231 = const i64 0
+    %232 = field.addr @b, 192
+    store %232, %231
+    %233 = const i64 0
+    %234 = field.addr @b, 200
+    store %234, %233
+    %235 = const i64 0
+    %236 = field.addr @b, 208
+    store %236, %235
+    %237 = const i64 0
+    %238 = field.addr @b, 216
+    store %238, %237
+    %239 = const i64 0
+    %240 = field.addr @b, 224
+    store %240, %239
+    %241 = const i64 0
+    %242 = field.addr @b, 232
+    store %242, %241
+    %243 = const i64 0
+    %244 = const i64 0
+    %245 = const i64 9
+    %246 = call.rtl i32 fb_ArrayRedimEx(@b, 4, -1, 0, 1, %244, %245)
+    %247 = alloca ptr c2
+    %248 = const ptr 0
+    %249 = field.addr @c2, 0
+    store %249, %248
+    %250 = field.addr @c2, 8
+    store %250, %248
+    %251 = const i64 0
+    %252 = field.addr @c2, 16
+    store %252, %251
+    %253 = const i64 8
+    %254 = field.addr @c2, 24
+    store %254, %253
+    %255 = const i64 0
+    %256 = field.addr @c2, 32
+    store %256, %255
+    %257 = const i64 8
+    %258 = field.addr @c2, 40
+    store %258, %257
+    %259 = const i64 0
+    %260 = field.addr @c2, 48
+    store %260, %259
+    %261 = const i64 0
+    %262 = field.addr @c2, 56
+    store %262, %261
+    %263 = const i64 0
+    %264 = field.addr @c2, 64
+    store %264, %263
+    %265 = const i64 0
+    %266 = field.addr @c2, 72
+    store %266, %265
+    %267 = const i64 0
+    %268 = field.addr @c2, 80
+    store %268, %267
+    %269 = const i64 0
+    %270 = field.addr @c2, 88
+    store %270, %269
+    %271 = const i64 0
+    %272 = field.addr @c2, 96
+    store %272, %271
+    %273 = const i64 0
+    %274 = field.addr @c2, 104
+    store %274, %273
+    %275 = const i64 0
+    %276 = field.addr @c2, 112
+    store %276, %275
+    %277 = const i64 0
+    %278 = field.addr @c2, 120
+    store %278, %277
+    %279 = const i64 0
+    %280 = field.addr @c2, 128
+    store %280, %279
+    %281 = const i64 0
+    %282 = field.addr @c2, 136
+    store %282, %281
+    %283 = const i64 0
+    %284 = field.addr @c2, 144
+    store %284, %283
+    %285 = const i64 0
+    %286 = field.addr @c2, 152
+    store %286, %285
+    %287 = const i64 0
+    %288 = field.addr @c2, 160
+    store %288, %287
+    %289 = const i64 0
+    %290 = field.addr @c2, 168
+    store %290, %289
+    %291 = const i64 0
+    %292 = field.addr @c2, 176
+    store %292, %291
+    %293 = const i64 0
+    %294 = field.addr @c2, 184
+    store %294, %293
+    %295 = const i64 0
+    %296 = field.addr @c2, 192
+    store %296, %295
+    %297 = const i64 0
+    %298 = field.addr @c2, 200
+    store %298, %297
+    %299 = const i64 0
+    %300 = field.addr @c2, 208
+    store %300, %299
+    %301 = const i64 0
+    %302 = field.addr @c2, 216
+    store %302, %301
+    %303 = const i64 0
+    %304 = field.addr @c2, 224
+    store %304, %303
+    %305 = const i64 0
+    %306 = field.addr @c2, 232
+    store %306, %305
+    %307 = const ptr 0
+    %308 = field.addr @c2, 0
+    store %308, %307
+    %309 = field.addr @c2, 8
+    store %309, %307
+    %310 = const i64 0
+    %311 = field.addr @c2, 16
+    store %311, %310
+    %312 = const i64 8
+    %313 = field.addr @c2, 24
+    store %313, %312
+    %314 = const i64 0
+    %315 = field.addr @c2, 32
+    store %315, %314
+    %316 = const i64 8
+    %317 = field.addr @c2, 40
+    store %317, %316
+    %318 = const i64 0
+    %319 = field.addr @c2, 48
+    store %319, %318
+    %320 = const i64 0
+    %321 = field.addr @c2, 56
+    store %321, %320
+    %322 = const i64 0
+    %323 = field.addr @c2, 64
+    store %323, %322
+    %324 = const i64 0
+    %325 = field.addr @c2, 72
+    store %325, %324
+    %326 = const i64 0
+    %327 = field.addr @c2, 80
+    store %327, %326
+    %328 = const i64 0
+    %329 = field.addr @c2, 88
+    store %329, %328
+    %330 = const i64 0
+    %331 = field.addr @c2, 96
+    store %331, %330
+    %332 = const i64 0
+    %333 = field.addr @c2, 104
+    store %333, %332
+    %334 = const i64 0
+    %335 = field.addr @c2, 112
+    store %335, %334
+    %336 = const i64 0
+    %337 = field.addr @c2, 120
+    store %337, %336
+    %338 = const i64 0
+    %339 = field.addr @c2, 128
+    store %339, %338
+    %340 = const i64 0
+    %341 = field.addr @c2, 136
+    store %341, %340
+    %342 = const i64 0
+    %343 = field.addr @c2, 144
+    store %343, %342
+    %344 = const i64 0
+    %345 = field.addr @c2, 152
+    store %345, %344
+    %346 = const i64 0
+    %347 = field.addr @c2, 160
+    store %347, %346
+    %348 = const i64 0
+    %349 = field.addr @c2, 168
+    store %349, %348
+    %350 = const i64 0
+    %351 = field.addr @c2, 176
+    store %351, %350
+    %352 = const i64 0
+    %353 = field.addr @c2, 184
+    store %353, %352
+    %354 = const i64 0
+    %355 = field.addr @c2, 192
+    store %355, %354
+    %356 = const i64 0
+    %357 = field.addr @c2, 200
+    store %357, %356
+    %358 = const i64 0
+    %359 = field.addr @c2, 208
+    store %359, %358
+    %360 = const i64 0
+    %361 = field.addr @c2, 216
+    store %361, %360
+    %362 = const i64 0
+    %363 = field.addr @c2, 224
+    store %363, %362
+    %364 = const i64 0
+    %365 = field.addr @c2, 232
+    store %365, %364
+    %366 = const i64 0
+    %367 = const i64 0
+    %368 = const i64 9
+    %369 = call.rtl i32 fb_ArrayRedimEx(@c2, 8, -1, 0, 1, %367, %368)
+    %370 = alloca ptr d
+    %371 = const ptr 0
+    %372 = field.addr @d, 0
+    store %372, %371
+    %373 = field.addr @d, 8
+    store %373, %371
+    %374 = const i64 0
+    %375 = field.addr @d, 16
+    store %375, %374
+    %376 = const i64 8
+    %377 = field.addr @d, 24
+    store %377, %376
+    %378 = const i64 0
+    %379 = field.addr @d, 32
+    store %379, %378
+    %380 = const i64 8
+    %381 = field.addr @d, 40
+    store %381, %380
+    %382 = const i64 0
+    %383 = field.addr @d, 48
+    store %383, %382
+    %384 = const i64 0
+    %385 = field.addr @d, 56
+    store %385, %384
+    %386 = const i64 0
+    %387 = field.addr @d, 64
+    store %387, %386
+    %388 = const i64 0
+    %389 = field.addr @d, 72
+    store %389, %388
+    %390 = const i64 0
+    %391 = field.addr @d, 80
+    store %391, %390
+    %392 = const i64 0
+    %393 = field.addr @d, 88
+    store %393, %392
+    %394 = const i64 0
+    %395 = field.addr @d, 96
+    store %395, %394
+    %396 = const i64 0
+    %397 = field.addr @d, 104
+    store %397, %396
+    %398 = const i64 0
+    %399 = field.addr @d, 112
+    store %399, %398
+    %400 = const i64 0
+    %401 = field.addr @d, 120
+    store %401, %400
+    %402 = const i64 0
+    %403 = field.addr @d, 128
+    store %403, %402
+    %404 = const i64 0
+    %405 = field.addr @d, 136
+    store %405, %404
+    %406 = const i64 0
+    %407 = field.addr @d, 144
+    store %407, %406
+    %408 = const i64 0
+    %409 = field.addr @d, 152
+    store %409, %408
+    %410 = const i64 0
+    %411 = field.addr @d, 160
+    store %411, %410
+    %412 = const i64 0
+    %413 = field.addr @d, 168
+    store %413, %412
+    %414 = const i64 0
+    %415 = field.addr @d, 176
+    store %415, %414
+    %416 = const i64 0
+    %417 = field.addr @d, 184
+    store %417, %416
+    %418 = const i64 0
+    %419 = field.addr @d, 192
+    store %419, %418
+    %420 = const i64 0
+    %421 = field.addr @d, 200
+    store %421, %420
+    %422 = const i64 0
+    %423 = field.addr @d, 208
+    store %423, %422
+    %424 = const i64 0
+    %425 = field.addr @d, 216
+    store %425, %424
+    %426 = const i64 0
+    %427 = field.addr @d, 224
+    store %427, %426
+    %428 = const i64 0
+    %429 = field.addr @d, 232
+    store %429, %428
+    %430 = const ptr 0
+    %431 = field.addr @d, 0
+    store %431, %430
+    %432 = field.addr @d, 8
+    store %432, %430
+    %433 = const i64 0
+    %434 = field.addr @d, 16
+    store %434, %433
+    %435 = const i64 8
+    %436 = field.addr @d, 24
+    store %436, %435
+    %437 = const i64 0
+    %438 = field.addr @d, 32
+    store %438, %437
+    %439 = const i64 8
+    %440 = field.addr @d, 40
+    store %440, %439
+    %441 = const i64 0
+    %442 = field.addr @d, 48
+    store %442, %441
+    %443 = const i64 0
+    %444 = field.addr @d, 56
+    store %444, %443
+    %445 = const i64 0
+    %446 = field.addr @d, 64
+    store %446, %445
+    %447 = const i64 0
+    %448 = field.addr @d, 72
+    store %448, %447
+    %449 = const i64 0
+    %450 = field.addr @d, 80
+    store %450, %449
+    %451 = const i64 0
+    %452 = field.addr @d, 88
+    store %452, %451
+    %453 = const i64 0
+    %454 = field.addr @d, 96
+    store %454, %453
+    %455 = const i64 0
+    %456 = field.addr @d, 104
+    store %456, %455
+    %457 = const i64 0
+    %458 = field.addr @d, 112
+    store %458, %457
+    %459 = const i64 0
+    %460 = field.addr @d, 120
+    store %460, %459
+    %461 = const i64 0
+    %462 = field.addr @d, 128
+    store %462, %461
+    %463 = const i64 0
+    %464 = field.addr @d, 136
+    store %464, %463
+    %465 = const i64 0
+    %466 = field.addr @d, 144
+    store %466, %465
+    %467 = const i64 0
+    %468 = field.addr @d, 152
+    store %468, %467
+    %469 = const i64 0
+    %470 = field.addr @d, 160
+    store %470, %469
+    %471 = const i64 0
+    %472 = field.addr @d, 168
+    store %472, %471
+    %473 = const i64 0
+    %474 = field.addr @d, 176
+    store %474, %473
+    %475 = const i64 0
+    %476 = field.addr @d, 184
+    store %476, %475
+    %477 = const i64 0
+    %478 = field.addr @d, 192
+    store %478, %477
+    %479 = const i64 0
+    %480 = field.addr @d, 200
+    store %480, %479
+    %481 = const i64 0
+    %482 = field.addr @d, 208
+    store %482, %481
+    %483 = const i64 0
+    %484 = field.addr @d, 216
+    store %484, %483
+    %485 = const i64 0
+    %486 = field.addr @d, 224
+    store %486, %485
+    %487 = const i64 0
+    %488 = field.addr @d, 232
+    store %488, %487
+    %489 = const i64 0
+    %490 = const i64 0
+    %491 = const i64 9
+    %492 = call.rtl i32 fb_ArrayRedimEx(@d, 8, -1, 0, 1, %490, %491)
+    %493 = alloca ptr e
+    %494 = const ptr 0
+    %495 = field.addr @e, 0
+    store %495, %494
+    %496 = field.addr @e, 8
+    store %496, %494
+    %497 = const i64 0
+    %498 = field.addr @e, 16
+    store %498, %497
+    %499 = const i64 24
+    %500 = field.addr @e, 24
+    store %500, %499
+    %501 = const i64 0
+    %502 = field.addr @e, 32
+    store %502, %501
+    %503 = const i64 8
+    %504 = field.addr @e, 40
+    store %504, %503
+    %505 = const i64 0
+    %506 = field.addr @e, 48
+    store %506, %505
+    %507 = const i64 0
+    %508 = field.addr @e, 56
+    store %508, %507
+    %509 = const i64 0
+    %510 = field.addr @e, 64
+    store %510, %509
+    %511 = const i64 0
+    %512 = field.addr @e, 72
+    store %512, %511
+    %513 = const i64 0
+    %514 = field.addr @e, 80
+    store %514, %513
+    %515 = const i64 0
+    %516 = field.addr @e, 88
+    store %516, %515
+    %517 = const i64 0
+    %518 = field.addr @e, 96
+    store %518, %517
+    %519 = const i64 0
+    %520 = field.addr @e, 104
+    store %520, %519
+    %521 = const i64 0
+    %522 = field.addr @e, 112
+    store %522, %521
+    %523 = const i64 0
+    %524 = field.addr @e, 120
+    store %524, %523
+    %525 = const i64 0
+    %526 = field.addr @e, 128
+    store %526, %525
+    %527 = const i64 0
+    %528 = field.addr @e, 136
+    store %528, %527
+    %529 = const i64 0
+    %530 = field.addr @e, 144
+    store %530, %529
+    %531 = const i64 0
+    %532 = field.addr @e, 152
+    store %532, %531
+    %533 = const i64 0
+    %534 = field.addr @e, 160
+    store %534, %533
+    %535 = const i64 0
+    %536 = field.addr @e, 168
+    store %536, %535
+    %537 = const i64 0
+    %538 = field.addr @e, 176
+    store %538, %537
+    %539 = const i64 0
+    %540 = field.addr @e, 184
+    store %540, %539
+    %541 = const i64 0
+    %542 = field.addr @e, 192
+    store %542, %541
+    %543 = const i64 0
+    %544 = field.addr @e, 200
+    store %544, %543
+    %545 = const i64 0
+    %546 = field.addr @e, 208
+    store %546, %545
+    %547 = const i64 0
+    %548 = field.addr @e, 216
+    store %548, %547
+    %549 = const i64 0
+    %550 = field.addr @e, 224
+    store %550, %549
+    %551 = const i64 0
+    %552 = field.addr @e, 232
+    store %552, %551
+    %553 = const ptr 0
+    %554 = field.addr @e, 0
+    store %554, %553
+    %555 = field.addr @e, 8
+    store %555, %553
+    %556 = const i64 0
+    %557 = field.addr @e, 16
+    store %557, %556
+    %558 = const i64 24
+    %559 = field.addr @e, 24
+    store %559, %558
+    %560 = const i64 0
+    %561 = field.addr @e, 32
+    store %561, %560
+    %562 = const i64 8
+    %563 = field.addr @e, 40
+    store %563, %562
+    %564 = const i64 0
+    %565 = field.addr @e, 48
+    store %565, %564
+    %566 = const i64 0
+    %567 = field.addr @e, 56
+    store %567, %566
+    %568 = const i64 0
+    %569 = field.addr @e, 64
+    store %569, %568
+    %570 = const i64 0
+    %571 = field.addr @e, 72
+    store %571, %570
+    %572 = const i64 0
+    %573 = field.addr @e, 80
+    store %573, %572
+    %574 = const i64 0
+    %575 = field.addr @e, 88
+    store %575, %574
+    %576 = const i64 0
+    %577 = field.addr @e, 96
+    store %577, %576
+    %578 = const i64 0
+    %579 = field.addr @e, 104
+    store %579, %578
+    %580 = const i64 0
+    %581 = field.addr @e, 112
+    store %581, %580
+    %582 = const i64 0
+    %583 = field.addr @e, 120
+    store %583, %582
+    %584 = const i64 0
+    %585 = field.addr @e, 128
+    store %585, %584
+    %586 = const i64 0
+    %587 = field.addr @e, 136
+    store %587, %586
+    %588 = const i64 0
+    %589 = field.addr @e, 144
+    store %589, %588
+    %590 = const i64 0
+    %591 = field.addr @e, 152
+    store %591, %590
+    %592 = const i64 0
+    %593 = field.addr @e, 160
+    store %593, %592
+    %594 = const i64 0
+    %595 = field.addr @e, 168
+    store %595, %594
+    %596 = const i64 0
+    %597 = field.addr @e, 176
+    store %597, %596
+    %598 = const i64 0
+    %599 = field.addr @e, 184
+    store %599, %598
+    %600 = const i64 0
+    %601 = field.addr @e, 192
+    store %601, %600
+    %602 = const i64 0
+    %603 = field.addr @e, 200
+    store %603, %602
+    %604 = const i64 0
+    %605 = field.addr @e, 208
+    store %605, %604
+    %606 = const i64 0
+    %607 = field.addr @e, 216
+    store %607, %606
+    %608 = const i64 0
+    %609 = field.addr @e, 224
+    store %609, %608
+    %610 = const i64 0
+    %611 = field.addr @e, 232
+    store %611, %610
+    %612 = const i64 0
+    %613 = const i64 0
+    %614 = const i64 9
+    %615 = call.rtl i32 fb_ArrayRedimEx(@e, 24, -1, -1, 1, %613, %614)
+    %616 = alloca ptr f
+    %617 = const ptr 0
+    %618 = field.addr @f, 0
+    store %618, %617
+    %619 = field.addr @f, 8
+    store %619, %617
+    %620 = const i64 0
+    %621 = field.addr @f, 16
+    store %621, %620
+    %622 = const i64 4
+    %623 = field.addr @f, 24
+    store %623, %622
+    %624 = const i64 0
+    %625 = field.addr @f, 32
+    store %625, %624
+    %626 = const i64 8
+    %627 = field.addr @f, 40
+    store %627, %626
+    %628 = const i64 0
+    %629 = field.addr @f, 48
+    store %629, %628
+    %630 = const i64 0
+    %631 = field.addr @f, 56
+    store %631, %630
+    %632 = const i64 0
+    %633 = field.addr @f, 64
+    store %633, %632
+    %634 = const i64 0
+    %635 = field.addr @f, 72
+    store %635, %634
+    %636 = const i64 0
+    %637 = field.addr @f, 80
+    store %637, %636
+    %638 = const i64 0
+    %639 = field.addr @f, 88
+    store %639, %638
+    %640 = const i64 0
+    %641 = field.addr @f, 96
+    store %641, %640
+    %642 = const i64 0
+    %643 = field.addr @f, 104
+    store %643, %642
+    %644 = const i64 0
+    %645 = field.addr @f, 112
+    store %645, %644
+    %646 = const i64 0
+    %647 = field.addr @f, 120
+    store %647, %646
+    %648 = const i64 0
+    %649 = field.addr @f, 128
+    store %649, %648
+    %650 = const i64 0
+    %651 = field.addr @f, 136
+    store %651, %650
+    %652 = const i64 0
+    %653 = field.addr @f, 144
+    store %653, %652
+    %654 = const i64 0
+    %655 = field.addr @f, 152
+    store %655, %654
+    %656 = const i64 0
+    %657 = field.addr @f, 160
+    store %657, %656
+    %658 = const i64 0
+    %659 = field.addr @f, 168
+    store %659, %658
+    %660 = const i64 0
+    %661 = field.addr @f, 176
+    store %661, %660
+    %662 = const i64 0
+    %663 = field.addr @f, 184
+    store %663, %662
+    %664 = const i64 0
+    %665 = field.addr @f, 192
+    store %665, %664
+    %666 = const i64 0
+    %667 = field.addr @f, 200
+    store %667, %666
+    %668 = const i64 0
+    %669 = field.addr @f, 208
+    store %669, %668
+    %670 = const i64 0
+    %671 = field.addr @f, 216
+    store %671, %670
+    %672 = const i64 0
+    %673 = field.addr @f, 224
+    store %673, %672
+    %674 = const i64 0
+    %675 = field.addr @f, 232
+    store %675, %674
+    %676 = const ptr 0
+    %677 = field.addr @f, 0
+    store %677, %676
+    %678 = field.addr @f, 8
+    store %678, %676
+    %679 = const i64 0
+    %680 = field.addr @f, 16
+    store %680, %679
+    %681 = const i64 4
+    %682 = field.addr @f, 24
+    store %682, %681
+    %683 = const i64 0
+    %684 = field.addr @f, 32
+    store %684, %683
+    %685 = const i64 8
+    %686 = field.addr @f, 40
+    store %686, %685
+    %687 = const i64 0
+    %688 = field.addr @f, 48
+    store %688, %687
+    %689 = const i64 0
+    %690 = field.addr @f, 56
+    store %690, %689
+    %691 = const i64 0
+    %692 = field.addr @f, 64
+    store %692, %691
+    %693 = const i64 0
+    %694 = field.addr @f, 72
+    store %694, %693
+    %695 = const i64 0
+    %696 = field.addr @f, 80
+    store %696, %695
+    %697 = const i64 0
+    %698 = field.addr @f, 88
+    store %698, %697
+    %699 = const i64 0
+    %700 = field.addr @f, 96
+    store %700, %699
+    %701 = const i64 0
+    %702 = field.addr @f, 104
+    store %702, %701
+    %703 = const i64 0
+    %704 = field.addr @f, 112
+    store %704, %703
+    %705 = const i64 0
+    %706 = field.addr @f, 120
+    store %706, %705
+    %707 = const i64 0
+    %708 = field.addr @f, 128
+    store %708, %707
+    %709 = const i64 0
+    %710 = field.addr @f, 136
+    store %710, %709
+    %711 = const i64 0
+    %712 = field.addr @f, 144
+    store %712, %711
+    %713 = const i64 0
+    %714 = field.addr @f, 152
+    store %714, %713
+    %715 = const i64 0
+    %716 = field.addr @f, 160
+    store %716, %715
+    %717 = const i64 0
+    %718 = field.addr @f, 168
+    store %718, %717
+    %719 = const i64 0
+    %720 = field.addr @f, 176
+    store %720, %719
+    %721 = const i64 0
+    %722 = field.addr @f, 184
+    store %722, %721
+    %723 = const i64 0
+    %724 = field.addr @f, 192
+    store %724, %723
+    %725 = const i64 0
+    %726 = field.addr @f, 200
+    store %726, %725
+    %727 = const i64 0
+    %728 = field.addr @f, 208
+    store %728, %727
+    %729 = const i64 0
+    %730 = field.addr @f, 216
+    store %730, %729
+    %731 = const i64 0
+    %732 = field.addr @f, 224
+    store %732, %731
+    %733 = const i64 0
+    %734 = field.addr @f, 232
+    store %734, %733
+    %735 = const i64 0
+    %736 = const i64 0
+    %737 = const i64 9
+    %738 = call.rtl i32 fb_ArrayRedimEx(@f, 4, -1, 0, 1, %736, %737)
+    %739 = call.rtl i32 fb_ArrayErase(@f)
+    %740 = call.rtl i32 fb_ArrayErase(@f)
+    call.rtl void fb_ArrayStrErase(@e)
+    call.rtl void fb_ArrayStrErase(@e)
+    %741 = call.rtl i32 fb_ArrayErase(@d)
+    %742 = call.rtl i32 fb_ArrayErase(@d)
+    %743 = call.rtl i32 fb_ArrayErase(@c2)
+    %744 = call.rtl i32 fb_ArrayErase(@c2)
+    %745 = call.rtl i32 fb_ArrayErase(@b)
+    %746 = call.rtl i32 fb_ArrayErase(@b)
+    %747 = call.rtl i32 fb_ArrayErase(@a)
+    %748 = call.rtl i32 fb_ArrayErase(@a)
+    ret
+}
+declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayErase($0)
+declare void fb_ArrayStrErase($0)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 1119 insts, 0 statements not lowered, 0 scope imbalance

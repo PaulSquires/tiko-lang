@@ -632,18 +632,27 @@ private function RedimOne_ _
     else
         '' Argument 4 is -1 if and only if the element is a var-len STRING.
         ''
-        '' Argument 3 is -1 for every element type measured EXCEPT an FB fixed-length
-        '' 'string * N', which gives 32 at any N. tiko-lang cannot tell 'string * N' from
-        '' 'zstring * N': both are modelled as an array of TY_ZSTRING, and fbc gives
-        '' -1 for the second. So a FIXED-LENGTH STRING ELEMENT DECLINES rather than
-        '' guessing which of the two it is and being silently wrong half the time.
+        '' Argument 3 is 32 for an FB fixed-length 'string * N' and -1 for every other
+        '' element type. Measured, one redim per element type:
+        ''
+        ''   string * 4    ( &A, 4,  32, 0, ... )    string * 8   ( &A, 8,  32, 0, ... )
+        ''   zstring * 4   ( &B, 4,  -1, 0, ... )    string * 40  ( &B, 40, 32, 0, ... )
+        ''   wstring * 4   ( &C, 8,  -1, 0, ... )    string       ( &E, 24, -1, -1, ... )
+        ''   ustring * 4   ( &D, 8,  -1, 0, ... )    long         ( &F, 4,  -1, 0, ... )
+        ''
+        '' -- so 32 is a TYPE TAG, not a length: it does not move with N.
+        ''
+        '' THIS USED TO DECLINE OUTRIGHT, on the grounds that 'string * N' and
+        '' 'zstring * N' could not be told apart. They can: the type system grew
+        '' TY_FIXSTR, and StrSwapKind_ answers 3 for the first and 1 for the second.
+        '' fbc-int/array-size.bas is written over every element type there is.
         dim as longint a3 = -1
         dim as longint a4 = 0
         if IsStringType( c, et ) then
             a4 = -1
         else
             dim as longint zn
-            if StrSwapKind_( c, et, zn ) >= 0 then return false
+            if StrSwapKind_( c, et, zn ) = 3 then a3 = 32
         end if
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a3 ) )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a4 ) )

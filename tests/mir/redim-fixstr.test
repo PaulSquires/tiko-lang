@@ -1,0 +1,36 @@
+'' fb_ArrayRedimEx's ARGUMENT 3 IS 32 FOR AN FB FIXED-LENGTH 'string * N' and -1 for
+'' every other element type; argument 4 is -1 if and only if the element is a
+'' VAR-LENGTH string. Measured, one redim per element type:
+''
+''   string * 4    ( &A, 4,  32, 0, ... )    string * 8   ( &A, 8,  32, 0, ... )
+''   zstring * 4   ( &B, 4,  -1, 0, ... )    string * 40  ( &B, 40, 32, 0, ... )
+''   wstring * 4   ( &C, 8,  -1, 0, ... )    string       ( &E, 24, -1, -1, ... )
+''   ustring * 4   ( &D, 8,  -1, 0, ... )    long         ( &F, 4,  -1, 0, ... )
+''
+'' -- so 32 is a TYPE TAG, not a length: it does not move with N.
+''
+'' A fixed-length string element used to DECLINE outright, on the grounds that
+'' 'string * N' and 'zstring * N' could not be told apart. They can: the type system
+'' grew TY_FIXSTR, and StrSwapKind_ answers 3 for the first and 1 for the second.
+'' fbc-int/array-size.bas is written over every element type there is: 24 -> 0.
+''
+'' A RE-DECLARING REDIM OVER AN ARRAY THAT ALREADY EXISTS is not a duplicate either,
+'' and this file could not be written without that: 'dim a( ) as T' followed by
+'' 'redim a( 0 to 9 ) as T' is the shape. Measured -- the previous declaration must be
+'' a DYNAMIC array and the element type must agree:
+''
+''   dim a( ) as long      : redim a( 0 to 9 ) as long          accepted
+''   dim b( ) as long      : redim b( 0 to 9 ) as string        error 4
+''   dim a( 0 to 3 ) as long : redim a( 0 to 9 ) as long        error 4
+''   dim b( any, any ) as long : redim b( 0 to 9 ) as long      error 36
+''
+'' -- the BOUNDS are what a redim exists to change, so only the type is compared.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/redim-fixstr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_ArrayRedimEx(@a, 4, 32, 0, 1
+'' EXPECT-OUT: fb_ArrayRedimEx(@b, 4, -1, 0, 1
+'' EXPECT-OUT: fb_ArrayRedimEx(@e, 24, -1, -1, 1
+'' GOLDEN: expected/redim-fixstr.out

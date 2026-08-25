@@ -91,6 +91,30 @@ declare function SameConstValue_ _
 '' What it does catch is exactly what the corpus's 29 negative tests differ by --
 '' measured: a different builtin (fbc error 4), a different array shape (error 54), a
 '' different fixed-string length (error 20).
+'' A DYNAMIC array ITEM: one declared with no bounds at all, or with every bound
+'' written 'any'. 'dim a( )' and 'dim a( any, any )' are dynamic and 'dim a( 0 to 3 )'
+'' is fixed -- which is the difference fbc reports as error 4 when a re-declaring
+'' REDIM names the second.
+private function IsDynArrayItem_ _
+    ( byref w as Walker, byval item as Tko.NodeId ) as boolean
+
+    if item = Tko.NODE_NONE then return false
+    if cast( long, item ) >= w.ast->nodes.Count then return false
+    if (w.ast->nodes[cast( long, item )].flags and Tko.NF_ARRAY) = 0 then return false
+    dim as Tko.StmtPayload ptr ip = StmtOf( w, item )
+    if ip = 0 then return false
+    if ip->c = Tko.NODE_NONE then return true
+    if w.ast->Kind( ip->c ) <> Tko.N_BLOCK then return false
+    dim as Tko.ListPayload ptr lp = ListOf( w, ip->c )
+    if lp = 0 then return false
+    for i as long = 0 to lp->count - 1
+        dim as Tko.NodeId d = cast( Tko.NodeId, w.ast->children[lp->first + i] )
+        if w.ast->Kind( d ) <> Tko.N_IDENT then return false
+    next
+    return true
+end function
+
+
 private function SameDeclShape_ _
     ( byref w as Walker, byval aItem as Tko.NodeId, byval bItem as Tko.NodeId ) as boolean
 
@@ -434,6 +458,36 @@ sub WalkNode _
                         dim as Tko.NodeId prevItem = cast( Tko.NodeId, pcs->payload )
                         if SameDeclShape_( w, prevItem, item ) then
                             if SameConstValue_( w, prevItem, item ) then continue for
+                        end if
+                    end if
+                end if
+            end if
+
+            '' A RE-DECLARING REDIM OVER AN ARRAY THAT ALREADY EXISTS is not a
+            '' duplicate. Measured:
+            ''
+            ''   dim a( ) as long : redim a( 0 to 9 ) as long      accepted
+            ''   dim b( ) as long : redim b( 0 to 9 ) as string    error 4
+            ''
+            '' -- the same "allowed exactly when the written shapes agree" rule the
+            '' EXTERN merge below uses, and 'dim a( ) as T' followed by
+            '' 'redim a( 0 to 9 ) as T' is what fbc-int/array-size.bas writes for every
+            '' element type there is. Reporting it left 24 errors in that one file.
+            if (sk = Tko.SYM_VARIABLE) andalso _
+               (sp->op = cast( ushort, Tko.KW_REDIM )) then
+                dim as Tko.SymbolId prevR = _
+                    w.syms->LookupLocalTyped( scope_, ip->name, false )
+                dim as Tko.Symbol ptr prs = w.syms->SymbolAt( prevR )
+                if prs <> 0 then
+                    if prs->kind = cast( ubyte, Tko.SYM_VARIABLE ) then
+                        dim as Tko.NodeId prevIt = cast( Tko.NodeId, prs->payload )
+                        '' The BOUNDS are what a redim exists to change, so only the
+                        '' element TYPE has to agree -- and the previous declaration
+                        '' has to be a DYNAMIC array, which is what 'a( )' and
+                        '' 'a( any, any )' are and 'a( 0 to 3 )' is not.
+                        if IsDynArrayItem_( w, prevIt ) then
+                            dim as Tko.StmtPayload ptr pip = StmtOf( w, prevIt )
+                            if SameTypeRef_( w, pip->a, ip->a ) then continue for
                         end if
                     end if
                 end if
