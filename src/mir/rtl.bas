@@ -13,8 +13,16 @@ function RtlSymbol( byval r as RtlId, byval is32 as boolean = false ) as string
     '' name and only its DECORATION varies, which is RtlLinkName's business.
     if is32 then
         select case r
-        case RTL_FILE_GET : return "fb_FileGet"
-        case RTL_FILE_PUT : return "fb_FilePut"
+        case RTL_FILE_GET        : return "fb_FileGet"
+        case RTL_FILE_PUT        : return "fb_FilePut"
+        case RTL_FILE_GET_ARRAY  : return "fb_FileGetArray"
+        case RTL_FILE_PUT_ARRAY  : return "fb_FilePutArray"
+        case RTL_FILE_GET_STR    : return "fb_FileGetStr"
+        case RTL_FILE_PUT_STR    : return "fb_FilePutStr"
+        case RTL_FILE_GET_WSTR   : return "fb_FileGetWstr"
+        case RTL_FILE_LOCK       : return "fb_FileLock"
+        case RTL_FILE_UNLOCK     : return "fb_FileUnlock"
+        case RTL_FILE_SEEK       : return "fb_FileSeek"
         end select
     end if
     select case r

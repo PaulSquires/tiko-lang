@@ -103,6 +103,26 @@ namespace Tko.Mir
         '' override beside it -- and 'z' covers both widths.
         RTL( RTL_FILE_GET,           "fb_FileGetLarge",     "l",   "lzpz"  )
         RTL( RTL_FILE_PUT,           "fb_FilePutLarge",     "l",   "lzpz"  )
+        '' ...AND THE REST OF THE FAMILY, each with the same win64/win32 name split:
+        '' the position and the count follow the POINTER, so the 'Large' spelling is
+        '' win64's and the plain one win32's. RtlSymbol carries the pairs.
+        RTL( RTL_FILE_GET_ARRAY,     "fb_FileGetArrayLarge","l",   "lzp"   )
+        RTL( RTL_FILE_PUT_ARRAY,     "fb_FilePutArrayLarge","l",   "lzp"   )
+        RTL( RTL_FILE_GET_STR,       "fb_FileGetStrLarge",  "l",   "lzpz"  )
+        RTL( RTL_FILE_PUT_STR,       "fb_FilePutStrLarge",  "l",   "lzpz"  )
+        RTL( RTL_FILE_GET_WSTR,      "fb_FileGetWstrLarge", "l",   "lzpz"  )
+        RTL( RTL_FILE_LOCK,          "fb_FileLockLarge",    "l",   "lzz"   )
+        RTL( RTL_FILE_UNLOCK,        "fb_FileUnlockLarge",  "l",   "lzz"   )
+        RTL( RTL_FILE_SEEK,          "fb_FileSeekLarge",    "l",   "lz"    )
+        '' THE FIVE SPECIAL OPEN FORMS. Each is its own entry point and each takes the
+        '' same seven arguments fb_FileOpenEncod does -- the trailing char* is the
+        '' encoding, passed raw.
+        RTL( RTL_FILE_OPEN_COM,      "fb_FileOpenCom",      "l",   "pllllLp" )
+        RTL( RTL_FILE_OPEN_CONS,     "fb_FileOpenCons",     "l",   "pllllLp" )
+        RTL( RTL_FILE_OPEN_ERR,      "fb_FileOpenErr",      "l",   "pllllLp" )
+        RTL( RTL_FILE_OPEN_LPT,      "fb_FileOpenLpt",      "l",   "pllllLp" )
+        RTL( RTL_FILE_OPEN_PIPE,     "fb_FileOpenPipe",     "l",   "pllllLp" )
+        RTL( RTL_FILE_OPEN_SCRN,     "fb_FileOpenScrn",     "l",   "pllllLp" )
         '' SWAP of two strings. Six arguments, not four: each side is (ptr, length,
         '' flag) where the flag is 0 -- the same shape fb_StrAssign uses plus a trailing
         '' word per operand.

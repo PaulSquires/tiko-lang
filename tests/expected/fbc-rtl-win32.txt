@@ -87,18 +87,31 @@ fb_FileCloseAll	int32	void	lib	_fb_FileCloseAll@0
 fb_FileEof	int32	int32	lib	_fb_FileEof@4
 fb_FileFree	int32	void	lib	_fb_FileFree@0
 fb_FileGet	int32	int32, int32, void*, uint32	lib	_fb_FileGet@16
+fb_FileGetArray	int32	int32, int32, struct $7FBARRAYIvE*	lib	_fb_FileGetArray@12
+fb_FileGetStr	int32	int32, int32, void*, int32	lib	_fb_FileGetStr@16
+fb_FileGetWstr	int32	int32, int32, uint16*, int32	lib	_fb_FileGetWstr@16
 fb_FileInput	int32	int32	lib	_fb_FileInput@4
 fb_FileKill	int32	FBSTRING*	lib	_fb_FileKill@4
 fb_FileLineInput	int32	int32, void*, int32, int32	lib	_fb_FileLineInput@16
 fb_FileLineInputWstr	int32	int32, uint16*, int32	lib	_fb_FileLineInputWstr@12
 fb_FileLocation	int64	int32	lib	_fb_FileLocation@4
+fb_FileLock	int32	int32, uint32, uint32	lib	_fb_FileLock@12
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	_fb_FileOpen@24
+fb_FileOpenCom	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenCom@28
+fb_FileOpenCons	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenCons@28
 fb_FileOpenEncod	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenEncod@28
+fb_FileOpenErr	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenErr@28
+fb_FileOpenLpt	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenLpt@28
+fb_FileOpenPipe	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenPipe@28
+fb_FileOpenScrn	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenScrn@28
 fb_FilePut	int32	int32, int32, void*, uint32	lib	_fb_FilePut@16
+fb_FilePutArray	int32	int32, int32, struct $7FBARRAYIKvE*	lib	_fb_FilePutArray@12
+fb_FilePutStr	int32	int32, int32, void*, int32	lib	_fb_FilePutStr@16
 fb_FileReset	void	void	lib	_fb_FileReset@0
 fb_FileSeek	int32	int32, int32	lib	_fb_FileSeek@8
 fb_FileSize	int64	int32	lib	_fb_FileSize@4
 fb_FileTell	int64	int32	lib	_fb_FileTell@4
+fb_FileUnlock	int32	int32, uint32, uint32	lib	_fb_FileUnlock@12
 fb_FloatToStr	FBSTRING*	float	lib	_fb_FloatToStr@4
 fb_FloatToWstr	uint16*	float	lib	_fb_FloatToWstr@4
 fb_GetEnviron	FBSTRING*	FBSTRING*	lib	_fb_GetEnviron@4

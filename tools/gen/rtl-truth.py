@@ -521,6 +521,40 @@ sub KwRestProbe( )
     chain "b"
 end sub
 ''',
+    # GET, PUT, LOCK and the five special OPEN forms. THE NAMES ARE TARGET-DEPENDENT:
+    # win64 declares fb_FileGetLarge and win32 fb_FileGet, because the offset follows
+    # the pointer -- so the two expectation files legitimately name different symbols
+    # for the same statement.
+    "fileio3": '''
+sub FioProbe( )
+    dim as long f = freefile
+    open "x" for binary as #f
+    dim as long v
+    dim as long arr( 0 to 3 )
+    dim as string s
+    dim as wstring * 8 w
+    get #f, , v
+    get #f, , arr( )
+    get #f, , s
+    get #f, , w
+    put #f, , v
+    put #f, , arr( )
+    put #f, , s
+    put #f, , w
+    lock #f, 1 to 2
+    unlock #f, 1 to 2
+    dim as string li
+    line input #f, li
+    input #f, v
+    close #f
+    open com "COM1:9600" as #f
+    open cons for output as #f
+    open err for output as #f
+    open lpt "LPT1:" for output as #f
+    open pipe "cmd" for input as #f
+    open scrn for output as #f
+end sub
+''',
     "fsdir": '''
 sub FsDirProbe( )
     name "a", "b"

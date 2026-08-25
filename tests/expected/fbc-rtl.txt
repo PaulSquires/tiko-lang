@@ -86,19 +86,32 @@ fb_FileClose	int32	int32	lib	fb_FileClose
 fb_FileCloseAll	int32	void	lib	fb_FileCloseAll
 fb_FileEof	int32	int32	lib	fb_FileEof
 fb_FileFree	int32	void	lib	fb_FileFree
+fb_FileGetArrayLarge	int32	int32, int64, struct $7FBARRAYIvE*	lib	fb_FileGetArrayLarge
 fb_FileGetLarge	int32	int32, int64, void*, uint64	lib	fb_FileGetLarge
+fb_FileGetStrLarge	int32	int32, int64, void*, int64	lib	fb_FileGetStrLarge
+fb_FileGetWstrLarge	int32	int32, int64, uint16*, int64	lib	fb_FileGetWstrLarge
 fb_FileInput	int32	int32	lib	fb_FileInput
 fb_FileKill	int32	FBSTRING*	lib	fb_FileKill
 fb_FileLineInput	int32	int32, void*, int64, int32	lib	fb_FileLineInput
 fb_FileLineInputWstr	int32	int32, uint16*, int64	lib	fb_FileLineInputWstr
 fb_FileLocation	int64	int32	lib	fb_FileLocation
+fb_FileLockLarge	int32	int32, int64, int64	lib	fb_FileLockLarge
 fb_FileOpen	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	fb_FileOpen
+fb_FileOpenCom	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenCom
+fb_FileOpenCons	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenCons
 fb_FileOpenEncod	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenEncod
+fb_FileOpenErr	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenErr
+fb_FileOpenLpt	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenLpt
+fb_FileOpenPipe	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenPipe
+fb_FileOpenScrn	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	fb_FileOpenScrn
+fb_FilePutArrayLarge	int32	int32, int64, struct $7FBARRAYIKvE*	lib	fb_FilePutArrayLarge
 fb_FilePutLarge	int32	int32, int64, void*, uint64	lib	fb_FilePutLarge
+fb_FilePutStrLarge	int32	int32, int64, void*, int64	lib	fb_FilePutStrLarge
 fb_FileReset	void	void	lib	fb_FileReset
 fb_FileSeekLarge	int32	int32, int64	lib	fb_FileSeekLarge
 fb_FileSize	int64	int32	lib	fb_FileSize
 fb_FileTell	int64	int32	lib	fb_FileTell
+fb_FileUnlockLarge	int32	int32, int64, int64	lib	fb_FileUnlockLarge
 fb_FloatToStr	FBSTRING*	float	lib	fb_FloatToStr
 fb_FloatToWstr	uint16*	float	lib	fb_FloatToWstr
 fb_GetEnviron	FBSTRING*	FBSTRING*	lib	fb_GetEnviron
