@@ -8,6 +8,9 @@ func i32 main($0, $1) {
   local ptr f
   local ptr g
   local ptr h
+  local ptr i2
+  local ptr j
+  local ptr k
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -38,26 +41,41 @@ func i32 main($0, $1) {
     %18 = alloca ptr h
     %19 = func.addr ptr fb_StrDelete
     store @h, %19
-    %20 = load @a
-    call.rtl void fb_PrintULongint(0, %20, 2)
-    %21 = load @b
-    call.rtl void fb_PrintULongint(0, %21, 2)
-    %22 = load @c
-    call.rtl void fb_PrintULongint(0, %22, 2)
-    %23 = load @d
-    call.rtl void fb_PrintULongint(0, %23, 2)
-    %24 = load @e
-    call.rtl void fb_PrintULongint(0, %24, 2)
-    %25 = load @f
-    call.rtl void fb_PrintULongint(0, %25, 2)
-    %26 = load @g
+    %20 = alloca ptr i2
+    %21 = func.addr ptr fb_End
+    store @i2, %21
+    %22 = alloca ptr j
+    %23 = func.addr ptr fb_Inkey
+    store @j, %23
+    %24 = alloca ptr k
+    %25 = func.addr ptr fb_GfxCursor
+    store @k, %25
+    %26 = load @a
     call.rtl void fb_PrintULongint(0, %26, 2)
-    %27 = load @h
-    call.rtl void fb_PrintULongint(0, %27, 1)
-    %28 = const i32 0
-    call.rtl void fb_End(%28)
-    %29 = load @$tmp0
-    ret %29
+    %27 = load @b
+    call.rtl void fb_PrintULongint(0, %27, 2)
+    %28 = load @c
+    call.rtl void fb_PrintULongint(0, %28, 2)
+    %29 = load @d
+    call.rtl void fb_PrintULongint(0, %29, 2)
+    %30 = load @e
+    call.rtl void fb_PrintULongint(0, %30, 2)
+    %31 = load @f
+    call.rtl void fb_PrintULongint(0, %31, 2)
+    %32 = load @g
+    call.rtl void fb_PrintULongint(0, %32, 2)
+    %33 = load @h
+    call.rtl void fb_PrintULongint(0, %33, 2)
+    %34 = load @i2
+    call.rtl void fb_PrintULongint(0, %34, 2)
+    %35 = load @j
+    call.rtl void fb_PrintULongint(0, %35, 2)
+    %36 = load @k
+    call.rtl void fb_PrintULongint(0, %36, 1)
+    %37 = const i32 0
+    call.rtl void fb_End(%37)
+    %38 = load @$tmp0
+    ret %38
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_Cls($0)
@@ -68,7 +86,9 @@ declare ptr malloc($0)
 declare ptr fb_HEX_b($0)
 declare ptr fb_ThreadCreate($0, $1, $2)
 declare void fb_StrDelete($0)
-declare void fb_PrintULongint($0, $1, $2)
 declare void fb_End($0)
+declare ptr fb_Inkey()
+declare f32 fb_GfxCursor($0)
+declare void fb_PrintULongint($0, $1, $2)
 verify: ok
-lowered: 1 functions, 1 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 63 insts, 0 statements not lowered, 0 scope imbalance

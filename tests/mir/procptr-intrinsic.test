@@ -8,7 +8,8 @@
 '' bare 'pos' is fb_GetX; 'dir( pattern )' is fb_Dir and 'dir( )' is fb_DirNext.
 '' procptr takes the no-argument one in both cases, which is not derivable from the
 '' spelling. The radix family answers with the first overload -- fb_HEX_b, not
-'' fb_HEX_l -- and 'allocate' with libc's malloc.
+'' fb_HEX_l -- and 'allocate' with libc's malloc. 'stop' and 'system' are both fb_End,
+'' the same entry the module epilogue calls, and 'pointcoord' is fb_GfxCursor.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/procptr-intrinsic.bas
 '' EXPECT-EXIT: 0
@@ -19,4 +20,7 @@
 '' EXPECT-OUT: func.addr ptr fb_DirNext
 '' EXPECT-OUT: func.addr ptr malloc
 '' EXPECT-OUT: func.addr ptr fb_HEX_b
+'' EXPECT-OUT: func.addr ptr fb_End
+'' EXPECT-OUT: func.addr ptr fb_Inkey
+'' EXPECT-OUT: func.addr ptr fb_GfxCursor
 '' GOLDEN: expected/procptr-intrinsic.out

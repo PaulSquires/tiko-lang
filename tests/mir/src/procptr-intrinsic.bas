@@ -7,5 +7,8 @@ scope
     dim f as any ptr = procptr( hex )
     dim g as any ptr = procptr( threadcreate )
     dim h as any ptr = procptr( fb_StrDelete )
-    print a, b, c, d, e, f, g, h
+    dim i2 as any ptr = procptr( stop )
+    dim j as any ptr = procptr( inkey )
+    dim k as any ptr = procptr( pointcoord )
+    print a, b, c, d, e, f, g, h, i2, j, k
 end scope

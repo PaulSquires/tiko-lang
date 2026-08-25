@@ -36,6 +36,7 @@ fb_CVLONGINT	int64	FBSTRING*	lib	fb_CVLONGINT
 fb_CVS	float	FBSTRING*	lib	fb_CVS
 fb_CVSHORT	int16	FBSTRING*	lib	fb_CVSHORT
 fb_ChDir	int32	FBSTRING*	lib	fb_ChDir
+fb_Chain	int32	FBSTRING*	lib	fb_Chain
 fb_Cls	void	int32	lib	fb_Cls
 fb_Color	uint32	int32, int32, uint32	lib	fb_Color
 fb_Command	FBSTRING*	int32	lib	fb_Command
@@ -65,6 +66,9 @@ fb_Dir	FBSTRING*	FBSTRING*, int32, int32*	lib	fb_Dir
 fb_DirNext	FBSTRING*	int32*	lib	fb_DirNext
 fb_DoubleToStr	FBSTRING*	double	lib	fb_DoubleToStr
 fb_DoubleToWstr	uint16*	double	lib	fb_DoubleToWstr
+fb_DylibFree	void	void*	lib	fb_DylibFree
+fb_DylibLoad	void*	FBSTRING*	lib	fb_DylibLoad
+fb_DylibSymbol	void*	void*, FBSTRING*	lib	fb_DylibSymbol
 fb_End	void	int32	lib	fb_End
 fb_ErrorGetFuncName	char*	void	lib	fb_ErrorGetFuncName
 fb_ErrorGetLineNum	int32	void	lib	fb_ErrorGetLineNum
@@ -98,13 +102,20 @@ fb_FileTell	int64	int32	lib	fb_FileTell
 fb_FloatToStr	FBSTRING*	float	lib	fb_FloatToStr
 fb_FloatToWstr	uint16*	float	lib	fb_FloatToWstr
 fb_GetEnviron	FBSTRING*	FBSTRING*	lib	fb_GetEnviron
+fb_GetMemAvail	uint64	int32	lib	fb_GetMemAvail
+fb_GetMouse	int32	int32*, int32*, int32*, int32*, int32*	lib	fb_GetMouse
 fb_GetX	int32	void	lib	fb_GetX
 fb_GetY	int32	void	lib	fb_GetY
+fb_Getkey	int32	void	lib	fb_Getkey
+fb_GfxBload	int32	FBSTRING*, void*, void*	lib	fb_GfxBload
+fb_GfxBsave	int32	FBSTRING*, void*, uint32, void*	lib	fb_GfxBsave
+fb_GfxCursor	float	int32	lib	fb_GfxCursor
 fb_GfxDraw	void	void*, FBSTRING*	lib	fb_GfxDraw
 fb_GfxEllipse	void	void*, float, float, float, uint32, float, float, float, int32, int32	lib	fb_GfxEllipse
 fb_GfxGet	int32	void*, float, float, float, float, void*, int32, struct $7FBARRAYIKvE*	lib	fb_GfxGet
 fb_GfxImageCreate	void*	int32, int32, uint32, int32, int32	lib	fb_GfxImageCreate
 fb_GfxLine	void	void*, float, float, float, float, uint32, int32, uint32, int32	lib	fb_GfxLine
+fb_GfxPMap	float	float, int32	lib	fb_GfxPMap
 fb_GfxPaint	void	void*, float, float, uint32, uint32, FBSTRING*, int32, int32	lib	fb_GfxPaint
 fb_GfxPalette	void	int32, int32, int32, int32	lib	fb_GfxPalette
 fb_GfxPaletteGet	void	int32, int32*, int32*, int32*	lib	fb_GfxPaletteGet
@@ -117,6 +128,7 @@ fb_GfxPoint	uint32	void*, float, float	lib	fb_GfxPoint
 fb_GfxPset	void	void*, float, float, uint32, int32, int32	lib	fb_GfxPset
 fb_GfxPut	int32	void*, float, float, void*, int32, int32, int32, int32, int32, int32, void*, int32, void*, void*	lib	fb_GfxPut
 fb_GfxScreen	int32	int32, int32, int32, int32, int32	lib	fb_GfxScreen
+fb_GfxScreenList	int32	int32	lib	fb_GfxScreenList
 fb_GfxScreenRes	int32	int32, int32, int32, int32, int32, int32	lib	fb_GfxScreenRes
 fb_GfxView	void	int32, int32, int32, int32, uint32, uint32, int32	lib	fb_GfxView
 fb_GfxWindow	void	float, float, float, float, int32	lib	fb_GfxWindow
@@ -130,7 +142,9 @@ fb_HEX_i	FBSTRING*	uint32	lib	fb_HEX_i
 fb_HEX_l	FBSTRING*	uint64	lib	fb_HEX_l
 fb_HEX_p	FBSTRING*	void*	lib	fb_HEX_p
 fb_HEX_s	FBSTRING*	uint16	lib	fb_HEX_s
+fb_In	int32	uint16	lib	fb_In
 fb_Init	void	int32, char**, int32	lib	fb_Init
+fb_Inkey	FBSTRING*	void	lib	fb_Inkey
 fb_InputByte	int32	int8*	lib	fb_InputByte
 fb_InputDouble	int32	double*	lib	fb_InputDouble
 fb_InputInt	int32	int32*	lib	fb_InputInt
@@ -162,6 +176,7 @@ fb_MKS	FBSTRING*	float	lib	fb_MKS
 fb_MKSHORT	FBSTRING*	int16	lib	fb_MKSHORT
 fb_MemSwap	void	void*, void*, int64	lib	fb_MemSwap
 fb_MkDir	int32	FBSTRING*	lib	fb_MkDir
+fb_Multikey	int32	int32	lib	fb_Multikey
 fb_MutexCreate	void*	void	lib	fb_MutexCreate
 fb_MutexDestroy	void	void*	lib	fb_MutexDestroy
 fb_MutexLock	void	void*	lib	fb_MutexLock
@@ -176,6 +191,8 @@ fb_OCT_i	FBSTRING*	uint32	lib	fb_OCT_i
 fb_OCT_l	FBSTRING*	uint64	lib	fb_OCT_l
 fb_OCT_p	FBSTRING*	void*	lib	fb_OCT_p
 fb_OCT_s	FBSTRING*	uint16	lib	fb_OCT_s
+fb_Out	int32	uint16, uint8	lib	fb_Out
+fb_PageCopy	int32	int32, int32	lib	fb_PageCopy
 fb_Pos	int32	int32	lib	fb_Pos
 fb_PrintBool	void	int32, boolean, int32	lib	fb_PrintBool
 fb_PrintByte	void	int32, int8, int32	lib	fb_PrintByte
@@ -210,11 +227,15 @@ fb_RTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	fb_RTrimEx
 fb_Randomize	void	double, int32	lib	fb_Randomize
 fb_RmDir	int32	FBSTRING*	lib	fb_RmDir
 fb_Rnd	double	float	lib	fb_Rnd
+fb_Run	int32	FBSTRING*, FBSTRING*	lib	fb_Run
 fb_SGNDouble	int32	double	lib	fb_SGNDouble
 fb_SGNSingle	int32	float	lib	fb_SGNSingle
 fb_SGNl	int32	int64	lib	fb_SGNl
 fb_SPACE	FBSTRING*	int64	lib	fb_SPACE
+fb_SetDate	int32	FBSTRING*	lib	fb_SetDate
 fb_SetEnviron	int32	FBSTRING*	lib	fb_SetEnviron
+fb_SetMouse	int32	int32, int32, int32, int32	lib	fb_SetMouse
+fb_SetTime	int32	FBSTRING*	lib	fb_SetTime
 fb_Shell	int32	FBSTRING*	lib	fb_Shell
 fb_Sleep	void	int32	lib	fb_Sleep
 fb_StrAllocTempDescF	FBSTRING*	void*, int64	lib	fb_StrAllocTempDescF
@@ -271,6 +292,7 @@ fb_VALINT	int32	FBSTRING*	lib	fb_VALINT
 fb_VALLNG	int64	FBSTRING*	lib	fb_VALLNG
 fb_VALUINT	uint32	FBSTRING*	lib	fb_VALUINT
 fb_VALULNG	uint64	FBSTRING*	lib	fb_VALULNG
+fb_Wait	int32	uint16, int32, int32	lib	fb_Wait
 fb_Width	int32	int32, int32	lib	fb_Width
 fb_WriteBool	void	int32, boolean, int32	lib	fb_WriteBool
 fb_WriteByte	void	int32, int8, int32	lib	fb_WriteByte

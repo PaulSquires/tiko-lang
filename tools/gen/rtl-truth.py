@@ -487,6 +487,40 @@ sub BareFormProbe( )
     w = wspace( 4 )
 end sub
 ''',
+    # THE REST OF THE INTRINSIC KEYWORDS warnings/rtl-prototypes.bas takes the address
+    # of: the console keyboard and mouse, the ports, the dynamic loader, the graphics
+    # page and palette helpers, and the two process replacements.
+    #
+    # 'stop' and 'system' are not here because both are fb_End( 0 ), which the module
+    # probe already carries.
+    "kwrest": '''
+sub KwRestProbe( )
+    dim as long a( 0 to 3 )
+    bload "f", @a(0)
+    bsave "f", @a(0), 16
+    dim as any ptr h = dylibload( "x" )
+    dim as any ptr sy = dylibsymbol( h, "y" )
+    dylibfree( h )
+    dim as string k = inkey
+    dim as long gk = getkey
+    out 1, 2
+    dim as long i2 = inp( 1 )
+    pcopy 0, 1
+    dim as long px = pmap( 1, 0 )
+    dim as ulong pc = point( 1, 1 )
+    dim as long pcz = pointcoord( 0 )
+    setdate "01-01-2000"
+    settime "00:00:00"
+    dim as long m = multikey( 1 )
+    screenlist 32
+    getmouse px, px
+    setmouse 1, 1
+    dim as double fr = fre
+    wait 1, 2
+    run "a"
+    chain "b"
+end sub
+''',
     "fsdir": '''
 sub FsDirProbe( )
     name "a", "b"

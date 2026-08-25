@@ -651,6 +651,38 @@ namespace Tko.Mir
         RTL( RTL_COND_DESTROY,      "fb_CondDestroy",      "v",   "p"     )
         RTL( RTL_COND_SIGNAL,       "fb_CondSignal",       "v",   "p"     )
         RTL( RTL_COND_BROADCAST,    "fb_CondBroadcast",    "v",   "p"     )
+        '' THE REST OF THE INTRINSIC KEYWORDS: the console keyboard and mouse, the
+        '' ports, the dynamic loader, the graphics page and palette helpers, and the
+        '' two process replacements. Measured on both targets like the rest.
+        ''
+        '' 'stop' and 'system' are not here: both are fb_End( 0 ), which is already
+        '' the entry the module epilogue uses.
+        RTL( RTL_INKEY,             "fb_Inkey",            "p",   ""      )
+        RTL( RTL_GETKEY,            "fb_Getkey",           "l",   ""      )
+        RTL( RTL_MULTIKEY,          "fb_Multikey",         "l",   "l"     )
+        RTL( RTL_GETMOUSE,          "fb_GetMouse",         "l",   "ppppp" )
+        RTL( RTL_SETMOUSE,          "fb_SetMouse",         "l",   "llll"  )
+        '' The PORT pair take a 16-bit port number, and OUT an 8-bit datum.
+        RTL( RTL_INP,               "fb_In",               "l",   "s"     )
+        RTL( RTL_OUT,               "fb_Out",              "l",   "sb"    )
+        RTL( RTL_SETDATE,           "fb_SetDate",          "l",   "p"     )
+        RTL( RTL_SETTIME,           "fb_SetTime",          "l",   "p"     )
+        RTL( RTL_WAIT,              "fb_Wait",             "l",   "sll"   )
+        RTL( RTL_RUN,               "fb_Run",              "l",   "pp"    )
+        RTL( RTL_CHAIN,             "fb_Chain",            "l",   "p"     )
+        RTL( RTL_DYLIB_LOAD,        "fb_DylibLoad",        "p",   "p"     )
+        RTL( RTL_DYLIB_SYMBOL,      "fb_DylibSymbol",      "p",   "pp"    )
+        RTL( RTL_DYLIB_FREE,        "fb_DylibFree",        "v",   "p"     )
+        '' FRE follows the pointer -- uint64 on win64 and uint32 on win32.
+        RTL( RTL_FRE,               "fb_GetMemAvail",      "z",   "l"     )
+        '' THE GRAPHICS HELPERS THAT ARE NOT DRAWING. PMAP and POINTCOORD both return
+        '' a SINGLE, which is not guessable from either name.
+        RTL( RTL_BLOAD,             "fb_GfxBload",         "l",   "ppp"   )
+        RTL( RTL_BSAVE,             "fb_GfxBsave",         "l",   "pplp"  )
+        RTL( RTL_PCOPY,             "fb_PageCopy",         "l",   "ll"    )
+        RTL( RTL_PMAP,              "fb_GfxPMap",          "f",   "fl"    )
+        RTL( RTL_POINTCOORD,        "fb_GfxCursor",        "f",   "l"     )
+        RTL( RTL_SCREENLIST,        "fb_GfxScreenList",    "l",   "l"     )
         '' 'mid( s, i, n ) = t' -- an ASSIGNMENT INTO a string, which is its own entry
         '' point in each width and is not the mid( ) that reads. The wide form takes
         '' one argument more: the destination's fixed LENGTH, which a uint16* does not

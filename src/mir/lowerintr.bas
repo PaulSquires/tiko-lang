@@ -752,6 +752,32 @@ private function IntrinsicProcPtrRtl_( byref nm as string ) as RtlId
     case "whex"         : return RTL_WHEX_B
     case "woct"         : return RTL_WOCT_B
     case "wspace"       : return RTL_WSTR_SPACE
+    '' 'stop' AND 'system' ARE BOTH fb_End, measured -- the same entry the module
+    '' epilogue calls, not one of their own.
+    case "stop", "system" : return RTL_END
+    case "clear"        : return RTL_MEMSET
+    case "bload"        : return RTL_BLOAD
+    case "bsave"        : return RTL_BSAVE
+    case "chain"        : return RTL_CHAIN
+    case "run"          : return RTL_RUN
+    case "dylibload"    : return RTL_DYLIB_LOAD
+    case "dylibsymbol"  : return RTL_DYLIB_SYMBOL
+    case "dylibfree"    : return RTL_DYLIB_FREE
+    case "getkey"       : return RTL_GETKEY
+    case "inkey"        : return RTL_INKEY
+    case "multikey"     : return RTL_MULTIKEY
+    case "getmouse"     : return RTL_GETMOUSE
+    case "setmouse"     : return RTL_SETMOUSE
+    case "out"          : return RTL_OUT
+    case "inp"          : return RTL_INP
+    case "pcopy"        : return RTL_PCOPY
+    case "pmap"         : return RTL_PMAP
+    case "pointcoord"   : return RTL_POINTCOORD
+    case "screenlist"   : return RTL_SCREENLIST
+    case "setdate"      : return RTL_SETDATE
+    case "settime"      : return RTL_SETTIME
+    case "wait"         : return RTL_WAIT
+    case "fre"          : return RTL_FRE
     end select
     return RTL_NONE
 end function
