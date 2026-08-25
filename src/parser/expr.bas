@@ -267,6 +267,46 @@ function MakeTokenNode _
     return MakeIdent( p, t )
 end function
 
+'' '<n>' AFTER 'cint' OR 'cuint': the width-specific conversion keyword it stands for,
+'' or 0 when what follows is not one. The cursor is left PAST the '<n>' only when it
+'' answers -- a bare 'cint' followed by a comparison must parse as it always did.
+private function SizedConvKeyword_ _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as Tko.TokenKind
+
+    if HasTok( p, p.pos + 1 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_LT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if HasTok( p, p.pos + 3 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) <> Tko.TK_INT_LIT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 3 ).kind ) <> Tko.TK_GT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+
+    '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
+    dim as longint wv = -1
+    dim as long li = cast( long, p.toks->At( p.pos + 2 ).literal )
+    if li < p.litPool->Count then wv = (*p.litPool)[li].intValue
+
+    dim as boolean uns = (k = Tko.KW_CUINT)
+    dim as Tko.TokenKind wk = cast( Tko.TokenKind, 0 )
+    select case wv
+    case 8  : wk = iif( uns, Tko.KW_CUBYTE,    Tko.KW_CBYTE )
+    case 16 : wk = iif( uns, Tko.KW_CUSHORT,   Tko.KW_CSHORT )
+    case 32 : wk = iif( uns, Tko.KW_CULNG,     Tko.KW_CLNG )
+    case 64 : wk = iif( uns, Tko.KW_CULNGINT,  Tko.KW_CLNGINT )
+    end select
+    if wk = cast( Tko.TokenKind, 0 ) then return wk
+
+    Advance( p )        '' the conversion keyword
+    Advance( p )        '' '<'
+    Advance( p )        '' the width
+    Advance( p )        '' '>'
+    return wk
+end function
+
 function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
     dim as Tko.IdentPayload ip
     ip.name = cast( Tko.InternId, t.literal )
@@ -922,6 +962,23 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 p.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_MEMBER )
                 return PostfixChain( p, n )
             end if
+        end if
+    end if
+
+    '' 'cint<n>( x )' AND 'cuint<n>( x )' -- THE SIZED CONVERSION SPELLINGS, which are
+    '' ALIASES for the width-specific ones and not conversions of their own. Measured
+    '' with '#print typeof': 'cint<16>( 1 )' is SHORT and 'cuint<8>( 1 )' is UBYTE, so
+    '' the same table the sized TYPE spellings use answers both.
+    ''
+    '' Nothing parsed them: 'cint<32>( -1 )' came out as '(cint < 32) > (-1)', two
+    '' comparisons over an unbound name, and numbers/integer_n.bas is written entirely
+    '' in terms of them.
+    if (k = Tko.KW_CINT) orelse (k = Tko.KW_CUINT) then
+        dim as Tko.TokenKind wk = SizedConvKeyword_( p, k )
+        if wk <> cast( Tko.TokenKind, 0 ) then
+            dim as Tko.Token wt = t
+            wt.kind = cast( ushort, wk )
+            return PostfixChain( p, MakeIdent( p, wt ) )
         end if
     end if
 

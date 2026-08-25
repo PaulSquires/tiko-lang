@@ -1,0 +1,16 @@
+'' 'cint<n>( x )' and 'cuint<n>( x )' are ALIASES for the width-specific conversions,
+'' not conversions of their own -- measured with '#print typeof': 'cint<16>( 1 )' is
+'' SHORT and 'cuint<8>( 1 )' is UBYTE, the same table the sized TYPE spellings use.
+''
+'' Nothing parsed them: 'cint<32>( -1 )' came out as '(cint < 32) > (-1)', two
+'' comparisons over an unbound name. numbers/integer_n.bas is written entirely in terms
+'' of them.
+''
+'' The rewrite only fires on the whole '< n >' shape, so a bare 'cint' followed by a
+'' comparison parses as it always did.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sized-conv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/sized-conv.out
