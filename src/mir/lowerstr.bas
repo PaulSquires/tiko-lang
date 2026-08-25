@@ -240,28 +240,6 @@ private function DecodeEscape_ _
     return c
 end function
 
-'' The text of a string literal. The parser records the span rather than the decoded
-'' bytes, so it is read back out of the source buffer here.
-'' THE EXPRESSION INSIDE A REDUNDANT '( )'. The parser keeps parentheses -- diagnostics
-'' and faithful dumps both want them -- so every recogniser that matches on SHAPE has to
-'' see through one, and none of them did: '(str(a)) = (str(b))' declined where
-'' 'str(a) = str(b)' beside it lowered, which is the shape fbcunit's CU_ASSERT_EQUAL
-'' macro writes for every one of its arguments.
-''
-'' A parenthesised LIST is not a redundant paren and is left alone.
-function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
-    dim as Tko.NodeId n = id
-    for guard as long = 0 to 15
-        if n = Tko.NODE_NONE then return n
-        if c.ast->Kind( n ) <> Tko.N_PAREN then return n
-        dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
-        if lp->count <> 1 then return n
-        n = cast( Tko.NodeId, c.ast->children[lp->first] )
-    next
-    return n
-end function
-
 function StringLitText_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as string
 

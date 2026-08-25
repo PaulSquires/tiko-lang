@@ -1,0 +1,17 @@
+'' 'typeof( EXPR )' used as a TYPE outside a declaration -- 'sizeof( typeof( *p ) )' --
+'' was parsed as an EXPRESSION: a call to something named 'typeof', which binds to
+'' nothing, so the sizeof came out untyped and its statement declined. TypeRef already
+'' read the form; only this position never asked it. Measured: 24 for a string ptr
+'' deref and 4 for a long one.
+''
+'' 'type<T>( e )' WHERE T IS NOT A UDT is a CONVERSION and nothing more -- measured,
+'' fbc emits 'fb_StrInit( &R$0, -1, &S$0, -1, 0 )' for the string form and
+'' 'D$0 = (double)N$0' for the numeric one, which is the same code the bare operand
+'' would have produced. The UDT-literal path wants a field list and a UDT to put it in,
+'' so every one of these declined.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typeof-typelit.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/typeof-typelit.out

@@ -13,6 +13,8 @@ declare function StaticMemberSym_ _
 declare function IsCmpOp_( byval op as MirOp ) as boolean
 declare function LowerByrefResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+declare function LowerTypeLitConvert_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 declare function TypeLitCopySource_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as Tko.NodeId
 declare function StrSwapKind_ _
@@ -70,6 +72,11 @@ function LowerExpr _
         '' 'type<P>( 5, 6 )' IN VALUE POSITION -- an argument, a parameter default.
         '' fbc builds a temporary and field-initialises it. A bare tuple has no type
         '' target and is not one of these.
+        '' ...and the same spelling over a type that is NOT a UDT is a plain
+        '' CONVERSION. See LowerTypeLitConvert_.
+        dim as MirValue tcv
+        if LowerTypeLitConvert_( c, id, tcv ) then return tcv
+
         dim as MirValue ulv
         if LowerUdtLiteralValue_( c, id, ulv ) then return ulv
         return v
@@ -414,20 +421,6 @@ end function
 
 '' NOT private any more: the expression call chain moved to lowerintr.bas when this
 '' file reached its size limit, and it ends here.
-function LowerCall _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
-
-    dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-
-    '' The callee is recorded on the CALL node, and for a member call it is recorded
-    '' on the MEMBER instead -- Check binds 'b.Push' when it types it, which is after
-    '' Resolve has finished copying references onto call nodes. Falling back to the
-    '' callee's own reference is what makes 'b.Push( 1 )' find its procedure.
-    dim as Tko.SymbolId callee = c.info->RefOf( id )
-    if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
-    return LowerCallParts( c, cp->target, callee, cp->first, cp->count, mt )
-end function
 
 
 

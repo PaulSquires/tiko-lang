@@ -680,6 +680,25 @@ function TypeOf_ _
     case Tko.N_INT_LIT, Tko.N_FLOAT_LIT, Tko.N_STRING_LIT, Tko.N_STRCAT
         t = LiteralType_( c, id )
 
+    '' 'typeof( EXPR )' USED AS A TYPE, anywhere -- 'sizeof( typeof( *p ) )' is what
+    '' quirk/typeof.bas is about. Resolve types the BARE-NAME form and leaves this
+    '' one, because an expression has no type until here; the DECLARATION path already
+    '' finished the job for 'dim x as typeof( EXPR )' and nothing did for any other
+    '' position, so the sizeof came out untyped and its statement declined.
+    case Tko.N_TYPEREF
+        dim as Tko.StmtPayload ptr trp = StmtOf( c, id )
+        if cast( Tko.TokenKind, trp->op ) = Tko.KW_TYPEOF then
+            if trp->b <> Tko.NODE_NONE then
+                t = TypeOf_( c, trp->b )
+                '' A REFERENCE is transparent, as it is in an expression.
+                if t <> Tko.TYPE_NONE then
+                    if c.types->Kind( t ) = Tko.TK_REFERENCE then
+                        t = c.types->Inner( t )
+                    end if
+                end if
+            end if
+        end if
+
     case Tko.N_IDENT
         dim as Tko.SymbolId sid = c.info->RefOf( id )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )

@@ -385,6 +385,13 @@ private function TypeArgCall _
     if Peek( p ) <> Tko.TK_RPAREN then
         dim as boolean always = (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR)
         dim as boolean looksLikeType = Tko.IsTypeKeyword( Peek( p ) )
+        '' ...AND 'typeof( e )' IS A TYPE wherever one is allowed, which is what
+        '' 'sizeof( typeof( *p ) )' is asking for. It is not a type KEYWORD, so the
+        '' test above said no and the argument was parsed as an EXPRESSION -- a call
+        '' to something named 'typeof', which binds to nothing, so the sizeof came out
+        '' untyped and the statement holding it declined. TypeRef already reads the
+        '' form: 'dim as typeof( x ) y' worked the whole time.
+        if Peek( p ) = Tko.KW_TYPEOF then looksLikeType = true
         '' ...BUT 'string(' AND 'wstring(' ARE CALLS, not types. Both spellings name a
         '' TYPE and an INTRINSIC, and the '(' is what tells them apart -- which is
         '' exactly what quirk/len-sizeof.bas says beside the line that needs it:

@@ -258,3 +258,99 @@ sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
         LowerStmt( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
     next
 end sub
+
+'' 'type<T>( e )' WHERE T IS NOT A UDT is a CONVERSION of e to T, and nothing more.
+''
+'' Measured: 'dim as string r = type<string>( s )' is 'fb_StrInit( &R$0, -1, &S$0, -1,
+'' 0 )' and 'type<double>( n )' is '(double)N$0' -- the same code the bare argument
+'' would have produced. The UDT literal path wants a field list and a UDT to put it
+'' in, so every one of these declined; structs/anon-intrinsic writes its whole string
+'' half this way.
+''
+'' A STRING result is left to the string paths: they reach this node through
+'' StrDescriptorOf_, and handing back a loaded descriptor here would copy the bytes
+'' rather than assign them.
+function LowerTypeLitConvert_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_TUPLE then return false
+    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        return false
+    end if
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 1 then return false
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) = Tko.TK_UDT then return false
+
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as MirType mt = LowerType( t, *c.types )
+    if mt = MT_VOID then return false
+    if mt = MT_AGG then
+        '' A string or another aggregate: the value IS the operand, and whatever
+        '' consumes it does the assigning.
+        outv = LowerExpr( c, a0 )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    dim as MirValue av = LowerExpr( c, a0 )
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+    outv = Coerce( c, av, mt, IsUnsignedType( c, t ) )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+
+'' The text of a string literal. The parser records the span rather than the decoded
+'' bytes, so it is read back out of the source buffer here.
+'' THE EXPRESSION INSIDE A REDUNDANT '( )'. The parser keeps parentheses -- diagnostics
+'' and faithful dumps both want them -- so every recogniser that matches on SHAPE has to
+'' see through one, and none of them did: '(str(a)) = (str(b))' declined where
+'' 'str(a) = str(b)' beside it lowered, which is the shape fbcunit's CU_ASSERT_EQUAL
+'' macro writes for every one of its arguments.
+''
+'' A parenthesised LIST is not a redundant paren and is left alone.
+function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    dim as Tko.NodeId n = id
+    for guard as long = 0 to 15
+        if n = Tko.NODE_NONE then return n
+        '' 'type<string>( e )' IS TRANSPARENT the same way a paren is: over a type
+        '' that is not a UDT it converts and nothing more, and for a STRING the
+        '' conversion is the identity -- measured, fbc emits the same fb_StrInit the
+        '' bare operand would have. Left in place it reached the field-list path,
+        '' which wants a UDT, and the statement declined.
+        if c.ast->Kind( n ) = Tko.N_TUPLE then
+            if (c.ast->nodes[cast( long, n )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+                return n
+            end if
+            dim as Tko.ListPayload ptr tp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+            if tp->count <> 1 then return n
+            dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( n ) )
+            if tt = Tko.TYPE_NONE then return n
+            if c.types->Kind( tt ) = Tko.TK_UDT then return n
+            n = cast( Tko.NodeId, c.ast->children[tp->first] )
+            continue for
+        end if
+        if c.ast->Kind( n ) <> Tko.N_PAREN then return n
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if lp->count <> 1 then return n
+        n = cast( Tko.NodeId, c.ast->children[lp->first] )
+    next
+    return n
+end function
+
+function LowerCall _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
+
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+
+    '' The callee is recorded on the CALL node, and for a member call it is recorded
+    '' on the MEMBER instead -- Check binds 'b.Push' when it types it, which is after
+    '' Resolve has finished copying references onto call nodes. Falling back to the
+    '' callee's own reference is what makes 'b.Push( 1 )' find its procedure.
+    dim as Tko.SymbolId callee = c.info->RefOf( id )
+    if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
+    return LowerCallParts( c, cp->target, callee, cp->first, cp->count, mt )
+end function
