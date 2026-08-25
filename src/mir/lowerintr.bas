@@ -1384,6 +1384,9 @@ function LowerCallExpr_ _
     '' 'cva_arg( list, T )' is a builtin over the vararg cursor -- see lowercva.bas.
     dim as MirValue cav
     if LowerCvaArg( c, id, cav ) then return cav
+    '' 'peek( [T,] p )' is a LOAD through the pointer -- the read half of POKE.
+    dim as MirValue pkv
+    if LowerPeek( c, id, pkv ) then return pkv
     '' 'len( x )' is a runtime call for a string and a constant for anything else.
     dim as MirValue lnv
     if LowerLen( c, id, lnv ) then return lnv

@@ -237,6 +237,97 @@ end function
 
 '' The BUILTIN named by a POKE's or PEEK's type argument. Only the fixed-width scalars
 '' can be poked, which is what fbc accepts.
+'' PEEK -- the read half, and the exact mirror of POKE.
+''
+'' Measured, all four spellings over the same byte:
+''
+''   peek( @b )                fb_PrintUByte( 0, B$0, 1 )
+''   peek( pb )                fb_PrintUByte( 0, *PB$0, 1 )
+''   peek( ubyte, pb )         fb_PrintUByte( 0, *PB$0, 1 )
+''   peek( typeof( b ), pb )   fb_PrintUByte( 0, *PB$0, 1 )
+''   peek( integer, @i )       fb_PrintLongint( 0, (int64)I$0, 1 )
+''
+'' -- a LOAD of the named type through the pointer, and UBYTE when no type is named.
+'' POKE was implemented and PEEK was not, so every read declined:
+'' quirk/peek-poke.bas is 22 statements of them.
+function LowerPeek _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (cp->count < 1) orelse (cp->count > 2) then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr tip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "peek" then return false
+
+    dim as long base_ = cp->first
+    dim as Tko.TypeId dt = c.types->Builtin( Tko.TY_UBYTE )
+    if cp->count = 2 then
+        dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[base_] )
+        dim as Tko.BuiltinType b = PokeTypeName_( c, tn )
+        if b <> Tko.TY_NONE then
+            dt = c.types->Builtin( b )
+        else
+            '' 'peek( typeof( b ), p )' names the type as a TYPEOF rather than as a
+            '' bare keyword, and it is the same argument either way. In an intrinsic
+            '' argument list a typeof arrives as a CALL, so the operand is what
+            '' carries the type.
+            dim as Tko.TypeId tt = c.info->TypeOf_( tn )
+            if (tt = Tko.TYPE_NONE) andalso (c.ast->Kind( tn ) = Tko.N_CALL) then
+                dim as Tko.ListPayload ptr tlp = _
+                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, tn )].data )]
+                if tlp->count = 1 then
+                    tt = c.info->TypeOf_( _
+                        cast( Tko.NodeId, c.ast->children[tlp->first] ) )
+                end if
+            end if
+            '' ...or a NAMED TYPE: 'type array as ubyte' and then
+            '' 'peek( array, array( 0 ) )', where only the POSITION says which
+            '' 'array' is the type.
+            if c.ast->Kind( tn ) = Tko.N_IDENT then
+                dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( c.info->RefOf( tn ) )
+                if tsy <> 0 then
+                    select case tsy->kind
+                    case Tko.SYM_UDT, Tko.SYM_TYPEDEF
+                        tt = tsy->type_
+                    case else
+                        '' Resolve bound the VARIABLE of that spelling; the TYPE that
+                        '' shadows it lives in the same scope.
+                        dim as Tko.IdentPayload ptr tnip = _
+                            @c.ast->idents[cast( long, c.ast->nodes[cast( long, tn )].data )]
+                        dim as Tko.SymbolId tt2 = c.syms->LookupTyped( _
+                            tsy->parent, tnip->name, true )
+                        dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( tt2 )
+                        if tsy2 <> 0 then
+                            select case tsy2->kind
+                            case Tko.SYM_UDT, Tko.SYM_TYPEDEF
+                                tt = tsy2->type_
+                            end select
+                        end if
+                    end select
+                end if
+            end if
+            if tt = Tko.TYPE_NONE then return false
+            dt = tt
+        end if
+        base_ += 1
+    end if
+
+    dim as MirType mt = LowerType( dt, *c.types )
+    if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
+
+    dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->children[base_] ) )
+    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    addr = Coerce( c, addr, MT_PTR, false )
+    if addr.kind = cast( ubyte, MV_NONE ) then return false
+    outv = LowerExprLoad( c, addr, mt )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+
 private function PokeTypeName_ _
     ( byref c as Ctx, byval n as Tko.NodeId ) as Tko.BuiltinType
 

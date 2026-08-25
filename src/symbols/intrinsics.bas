@@ -514,6 +514,81 @@ end function
 '' tests/types/expected/fbc-conv.txt. Their acceptance is WIDER than assignment's --
 '' 'cbyte( a_string )' is a BYTE to fbc while 'dim as byte b = a_string' is refused --
 '' so ConversionCost is not the viability test here and is not used as one.
+'' The TYPE a PEEK or POKE names, written either as a bare builtin keyword -- which
+'' the intrinsic argument parser reads as an IDENT -- or as a 'typeof', which is a
+'' TYPEREF. Both are the same argument.
+private function PeekTypeArg_ _
+    ( byref c as Ctx, byval n as Tko.NodeId ) as Tko.TypeId
+
+    if n = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( n ) = Tko.N_TYPEREF then return c.info->TypeOf_( n )
+    '' 'peek( typeof( b ), p )' -- in an INTRINSIC argument list every argument is
+    '' read as an expression, so a 'typeof' arrives as a CALL rather than as the
+    '' TYPEREF the declaration parser would have made. Its operand's type is the
+    '' answer either way.
+    if c.ast->Kind( n ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr tp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if tp->count <> 1 then return Tko.TYPE_NONE
+        if tp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+        if c.ast->Kind( tp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+        dim as Tko.IdentPayload ptr tnp = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, tp->target )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( tnp->name ) ) <> "typeof" then
+            return Tko.TYPE_NONE
+        end if
+        return TypeOf_( c, cast( Tko.NodeId, c.ast->children[tp->first] ) )
+    end if
+    if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )]
+    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    case "byte"     : return c.types->Builtin( Tko.TY_BYTE )
+    case "ubyte"    : return c.types->Builtin( Tko.TY_UBYTE )
+    case "short"    : return c.types->Builtin( Tko.TY_SHORT )
+    case "ushort"   : return c.types->Builtin( Tko.TY_USHORT )
+    case "long"     : return c.types->Builtin( Tko.TY_LONG )
+    case "ulong"    : return c.types->Builtin( Tko.TY_ULONG )
+    case "integer"  : return c.types->Builtin( Tko.TY_INTEGER )
+    case "uinteger" : return c.types->Builtin( Tko.TY_UINTEGER )
+    case "longint"  : return c.types->Builtin( Tko.TY_LONGINT )
+    case "ulongint" : return c.types->Builtin( Tko.TY_ULONGINT )
+    case "single"   : return c.types->Builtin( Tko.TY_SINGLE )
+    case "double"   : return c.types->Builtin( Tko.TY_DOUBLE )
+    end select
+
+    '' ...OR A NAMED TYPE. 'type array as ubyte' followed by
+    '' 'peek( array, array( 0 ) )' is how quirk/peek-poke.bas checks that a TYPEDEF
+    '' and an array SUBSCRIPT of the same spelling are told apart -- the first
+    '' argument is the type and the second the pointer, and only their position says
+    '' which is which.
+    '' THE SCOPE COMES FROM WHAT RESOLVE BOUND, not from ScopeOf: Collect never walks
+    '' a procedure BODY, so an expression node inside one has no scope of its own.
+    '' Resolve bound this name to the VARIABLE -- 'dim as ubyte ptr array( 0 to 1 )'
+    '' is declared before 'type array as ubyte' shadows it -- and the type of the
+    '' same spelling lives in that variable's own scope.
+    dim as Tko.Symbol ptr rsy = c.syms->SymbolAt( c.info->RefOf( n ) )
+    dim as Tko.ScopeId look = Tko.SCOPE_NONE
+    if rsy <> 0 then
+        select case rsy->kind
+        case Tko.SYM_UDT, Tko.SYM_TYPEDEF
+            return rsy->type_
+        end select
+        look = rsy->parent
+    end if
+    if look = Tko.SCOPE_NONE then look = c.info->ScopeOf( n )
+    dim as Tko.SymbolId tsid = c.syms->LookupTyped( look, ip->name, true )
+    dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( tsid )
+    if tsy <> 0 then
+        select case tsy->kind
+        case Tko.SYM_UDT, Tko.SYM_TYPEDEF
+            return tsy->type_
+        end select
+    end if
+    return Tko.TYPE_NONE
+end function
+
+
 private function IntrinsicCallType_ _
     ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
@@ -539,6 +614,17 @@ private function IntrinsicCallType_ _
         dim as Tko.NodeId vt = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         if c.ast->Kind( vt ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
         return c.info->TypeOf_( vt )
+    end if
+
+    '' PEEK IS UBYTE UNLESS IT IS TOLD OTHERWISE. Measured: 'peek( p )' prints through
+    '' fb_PrintUByte and 'peek( integer, p )' through fb_PrintLongint, so the type
+    '' argument -- a bare keyword or a 'typeof' -- IS the result type.
+    if (nm = "peek") andalso (cp->count >= 1) andalso (cp->count <= 2) then
+        if cp->count = 1 then return c.types->Builtin( Tko.TY_UBYTE )
+        dim as Tko.NodeId pt = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.TypeId ptt = PeekTypeArg_( c, pt )
+        if ptt <> Tko.TYPE_NONE then return ptt
+        return Tko.TYPE_NONE
     end if
 
     if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then

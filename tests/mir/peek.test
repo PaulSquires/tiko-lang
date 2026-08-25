@@ -1,0 +1,31 @@
+'' PEEK -- the read half, and the exact mirror of POKE, which was implemented while
+'' this was not. Measured, all the spellings over the same byte:
+''
+''   peek( @b )                fb_PrintUByte( 0, B$0, 1 )
+''   peek( pb )                fb_PrintUByte( 0, *PB$0, 1 )
+''   peek( ubyte, pb )         fb_PrintUByte( 0, *PB$0, 1 )
+''   peek( typeof( b ), pb )   fb_PrintUByte( 0, *PB$0, 1 )
+''   peek( integer, @i )       fb_PrintLongint( 0, (int64)I$0, 1 )
+''   peek( double, @d )        fb_PrintDouble( 0, D$0, 1 )
+''
+'' -- a LOAD of the named type through the pointer, and UBYTE when no type is named.
+''
+'' THE TYPE ARGUMENT COMES IN THREE SHAPES. A bare builtin keyword, which the
+'' intrinsic argument parser reads as an IDENT; a 'typeof', which in an intrinsic
+'' argument list arrives as a CALL rather than as a TYPEREF; and a NAMED type, where
+'' only the POSITION says which of two same-spelled symbols is meant --
+'' quirk/peek-poke.bas declares 'dim as ubyte ptr array( 0 to 1 )' and then
+'' 'type array as ubyte' over it, and writes 'peek( array, array( 0 ) )'. The scope to
+'' look the type up in comes from what Resolve bound the name to, because Collect
+'' never walks a procedure body and an expression node inside one has no scope.
+''
+'' quirk/peek-poke.bas: 22 -> 6.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/peek.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_PrintUByte
+'' EXPECT-OUT: fb_PrintLongint
+'' EXPECT-OUT: fb_PrintDouble
+'' GOLDEN: expected/peek.out
