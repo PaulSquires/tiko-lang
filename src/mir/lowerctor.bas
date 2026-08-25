@@ -32,11 +32,25 @@ private function CtorArgValue_ _
         if c.types->Kind( u ) = Tko.TK_POINTER then
             dim as Tko.TypeId pin = c.types->Unqualify( c.types->Inner( u ) )
             if c.types->Kind( pin ) = Tko.TK_BUILTIN then
+                '' AN ARGUMENT WITH NO TYPE IS STILL TRIED. Check computes no type
+                '' for an 'iif' call -- an arm may be an intrinsic with no type
+                '' either -- so 'dim a as U = iif( c, wstr( "a" ), u2 )' asked
+                '' LowerExpr for a value a wide iif does not have, and declined.
+                '' WideOperand_ and ZstrDataOf_ are both STRUCTURAL about iif, which
+                '' is what makes asking them safe here: the PARAMETER already says
+                '' which width is wanted.
+                dim as boolean untyped = (at = Tko.TYPE_NONE)
                 if c.types->BuiltinOf( pin ) = Tko.TY_ZSTRING then
                     if IsStringType( c, at ) then return ZstrDataOf_( c, argNode, outv )
+                    if untyped then
+                        if ZstrDataOf_( c, argNode, outv ) then return true
+                    end if
                 end if
                 if c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
                     if IsWideString_( c, at ) then return WideOperand_( c, argNode, outv )
+                    if untyped then
+                        if WideOperand_( c, argNode, outv ) then return true
+                    end if
                 end if
             end if
         end if
@@ -80,7 +94,40 @@ function LowerConvCtorInit_ _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, init_ )].data )]
         it = c.info->TypeOf_( alp->target )
     end if
-    if it = Tko.TYPE_NONE then return false
+    '' AN 'iif' HAS NO TYPE AT ALL -- Check computes none for one, deliberately,
+    '' because an arm may be an intrinsic with no type either and every wide and
+    '' narrow path is STRUCTURAL about it instead. So 'dim a as U = iif( c,
+    '' wstr( "a" ), u2 )' arrived here with nothing to pick a constructor by.
+    ''
+    '' The CONSTRUCTOR is what supplies the missing type: a one-argument converting
+    '' constructor over a zstring or wstring POINTER names the width, and
+    '' CtorArgValue_ is structural about iif in both. udt-wstring/iif.bas and
+    '' udt-zstring/iif.bas write nothing else.
+    if it = Tko.TYPE_NONE then
+        dim as Tko.NodeId ic, itn, ien
+        if IsIifCall_( c, init_, ic, itn, ien ) = false then return false
+        dim as Tko.SymbolId sc = _
+            StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
+        if sc = Tko.SYMBOL_NONE then return false
+        dim as Tko.TypeId spt = ParamTypeAt( c, sc, 0 )
+        if spt = Tko.TYPE_NONE then return false
+        dim as Tko.TypeId su = c.types->Unqualify( spt )
+        if c.types->Kind( su ) <> Tko.TK_POINTER then return false
+        dim as Tko.TypeId spin = c.types->Unqualify( c.types->Inner( su ) )
+        if c.types->Kind( spin ) <> Tko.TK_BUILTIN then return false
+        select case c.types->BuiltinOf( spin )
+        case Tko.TY_ZSTRING, Tko.TY_WSTRING
+        case else
+            return false
+        end select
+        dim as MirValue iav
+        if CtorArgValue_( c, init_, spt, iav ) = false then return false
+        dim as FB.Array( of ulong ) iargs
+        iargs.Push( cast( ulong, iav.kind ) )
+        iargs.Push( cast( ulong, iav.id ) )
+        EmitStructorCall( c, sc, slot, 0, @iargs )
+        return true
+    end if
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
     if c.types->Unqualify( it ) = c.types->Unqualify( t ) then return false
