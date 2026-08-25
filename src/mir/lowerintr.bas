@@ -1454,6 +1454,10 @@ function LowerCallExpr_ _
     '' 'offsetof( T, field )' -- a compile-time integer from the measured layout.
     dim as MirValue oov
     if LowerOffsetOf( c, id, oov ) then return oov
+    '' '__FB_QUERY_SYMBOL__( q, sym )' -- a compile-time answer about a SYMBOL rather
+    '' than about a value, so there is nothing to emit but the integer.
+    dim as MirValue qsv
+    if LowerQuerySymbol_( c, id, qsv ) then return qsv
     '' int / fix / frac / abs / sgn / sqr and the transcendentals. A mix of gcc
     '' builtins, runtime calls and a plain floor -- see LowerMathCall_.
     dim as MirValue mtv

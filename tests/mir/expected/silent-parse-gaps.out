@@ -16,16 +16,19 @@ func i32 main($0, $1) {
     %6 = alloca ptr rb
     store @rb, @a
     store @@rg, @@g
-    %7 = const i32 0
-    call.rtl void fb_End(%7)
-    %8 = load @$tmp0
-    ret %8
+    %7 = const i64 0
+    call.rtl void fb_PrintInt(0, %7, 2)
+    %8 = const i64 0
+    call.rtl void fb_PrintInt(0, %8, 2)
+    %9 = const i64 0
+    call.rtl void fb_PrintInt(0, %9, 1)
+    %10 = const i32 0
+    call.rtl void fb_End(%10)
+    %11 = load @$tmp0
+    ret %11
 }
 declare void fb_Init($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 14 insts, 1 statements not lowered, 0 scope imbalance
-  unlowered N_INTRINSIC 1
-  inside N_INTRINSIC 1
-  unlowered intrinsic KW_PRINT 1
-  skip-site src\mir\lowerctl.bas:194 1
+lowered: 1 functions, 1 blocks, 20 insts, 0 statements not lowered, 0 scope imbalance

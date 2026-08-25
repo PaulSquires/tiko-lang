@@ -1,0 +1,22 @@
+'' '__FB_QUERY_SYMBOL__( query, symbol )' -- fbc's compile-time symbol query. Every
+'' answer here was MEASURED against fbc over the same twenty-six symbols, and four of
+'' them do not follow from the names in fbc-int/symbol.bi:
+''
+''   a PARAMETER reads as FB_SYMBCLASS_VAR, not _PARAM
+''   an ENUM MEMBER reads as FB_SYMBCLASS_CONST, and its datatype is _ENUM
+''   'type C extends object' is _STRUCT, not _CLASS
+''   'zstring * 8' is CHAR and 'string * 8' is FIXSTR -- not the same answer
+''
+'' The datatype is ENCODED -- base type in the low five bits, pointer level in the next
+'' four, one const bit per level from bit 9 -- so 'const zstring ptr' is 1060 and
+'' 'long ptr ptr' is 75.
+''
+'' The query codes are only ever written as ENUM MEMBERS three levels deep
+'' ('fbc.FB_QUERY_SYMBOL.symbclass'), and an enum member named through its enum was
+'' bound to nothing at all: 'dim as long a = E.elem' allocated a and stored nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/query-symbol.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/query-symbol.out

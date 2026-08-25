@@ -698,6 +698,18 @@ private sub WalkExpr _
                         c.info->SetRef( id, msid )
                     end if
                 end if
+            elseif bs->kind = cast( ubyte, Tko.SYM_ENUM ) then
+                '' 'E.elem' -- AN ENUM MEMBER NAMED THROUGH ITS ENUM, which is the
+                '' only spelling an EXPLICIT enum has. Unbound, the expression was
+                '' untyped and everything built on it declined.
+                if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+                    dim as Tko.SymbolId esid = _
+                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
+                    if esid <> Tko.SYMBOL_NONE then
+                        c.info->SetRef( mb->rhs, esid )
+                        c.info->SetRef( id, esid )
+                    end if
+                end if
             elseif bs->kind = cast( ubyte, Tko.SYM_UDT ) then
                 '' 'T.foo( )' where T is the TYPE, not a variable of it: a STATIC
                 '' member, qualified by its type exactly as a namespace member is by

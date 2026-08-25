@@ -523,6 +523,14 @@ private function IntrinsicCallType_ _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
+    '' '__FB_QUERY_SYMBOL__( query, symbol )' IS AN INTEGER, whatever it is asked --
+    '' measured, '#print typeof' of one says INTEGER even for the text queries. Its
+    '' SECOND argument is a symbol rather than a value, so nothing about it can be
+    '' inferred from the operands the way the rest of this table works.
+    if (nm = "__fb_query_symbol__") andalso (cp->count = 2) then
+        return c.types->Builtin( Tko.TY_INTEGER )
+    end if
+
     '' CAST and CPTR name their result outright, as a TYPE argument.
     '' 'cva_arg( list, TYPE )' HAS THE TYPE IT IS TOLD TO HAVE. The second argument is
     '' a type reference, resolved by the time Check runs, and it IS the result type --

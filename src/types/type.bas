@@ -547,6 +547,19 @@ function TypeContext.Layout( byval t as TypeId ) as TypeLayout
             if r.align < 1 then r.align = 1
         end select
 
+    '' AN ENUM IS INTEGER-WIDE, which is 8 bytes on win64 and 4 on win32. Measured:
+    '' 'sizeof( E )' is 8, and 'type S : a as E : b as long : end type' is 16 with b
+    '' at offset 8; on win32 the same struct is 8.
+    ''
+    '' It fell to the default below and came out size ZERO, so an enum variable
+    '' reserved nothing, every field after one in a structure sat at the wrong offset,
+    '' and the structure itself was the wrong size -- 4 where fbc has 16 for the pair
+    '' above, with BOTH fields at offset 0.
+    case TK_ENUM
+        r.size = ptrBytes
+        r.align = ptrBytes
+        if r.align > this.target.maxAlign then r.align = this.target.maxAlign
+
     case TK_ARRAY
         '' A fixed array is elemSize * elemCount, aligned as its ELEMENT. The count is
         '' on the type now: it is part of the type's identity, because two arrays of

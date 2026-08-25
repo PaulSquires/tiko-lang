@@ -4,7 +4,7 @@ func void MYSUB() {
 }
 func i32 main($0, $1) {
   local i32 $tmp0
-  local i32 a_thing
+  local i64 a_thing
   local i64 res
   local ptr f
   local agg l size 8
@@ -19,31 +19,30 @@ func i32 main($0, $1) {
     %5 = alloca ptr res
     %6 = load @a_thing
     %7 = const i64 69
-    %8 = sext %6
-    %9 = add %8, %7
-    store @res, %9
-    %10 = alloca ptr f
-    %11 = func.addr ptr MYSUB
-    store @f, %11
-    %12 = alloca ptr l
-    %13 = const i64 1
-    store @res, %13
-    %14 = const i64 0
-    %15 = bitcast %14
-    store @f, %15
-    %16 = field.addr @l, 0
-    %17 = const i64 2
-    store %16, %17
-    %18 = alloca ptr bb
-    %19 = field.addr @bb, 0
-    %20 = const i64 3
-    store %19, %20
-    %21 = const i32 0
-    call.rtl void fb_End(%21)
-    %22 = load @$tmp0
-    ret %22
+    %8 = add %6, %7
+    store @res, %8
+    %9 = alloca ptr f
+    %10 = func.addr ptr MYSUB
+    store @f, %10
+    %11 = alloca ptr l
+    %12 = const i64 1
+    store @res, %12
+    %13 = const i64 0
+    %14 = bitcast %13
+    store @f, %14
+    %15 = field.addr @l, 0
+    %16 = const i64 2
+    store %15, %16
+    %17 = alloca ptr bb
+    %18 = field.addr @bb, 0
+    %19 = const i64 3
+    store %18, %19
+    %20 = const i32 0
+    call.rtl void fb_End(%20)
+    %21 = load @$tmp0
+    ret %21
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance

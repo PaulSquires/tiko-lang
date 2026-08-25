@@ -562,6 +562,9 @@ declare function EmitRtl _
     declare function LowerTupleCompare _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval tk as Tko.TokenKind, byref outv as MirValue ) as boolean
+    '' '__FB_QUERY_SYMBOL__( q, sym )' -- fbc's compile-time symbol query, folded.
+    declare function LowerQuerySymbol_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerOffsetOf _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function TyWidthBytes_( byval t as MirType ) as long

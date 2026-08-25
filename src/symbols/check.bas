@@ -889,7 +889,7 @@ function TypeOf_ _
                 '' resolved to nothing while the same member on a top-level type
                 '' worked. The N_CALL path already draws the type off a UDT symbol
                 '' the same way, for 'P( 3 ).v'.
-                case Tko.SYM_UDT
+                case Tko.SYM_UDT, Tko.SYM_ENUM
                     t = qs->type_
                     exit select
                 end select

@@ -201,8 +201,12 @@ function LowerType _
         '' type would reserve ONE element -- four bytes where forty were needed.
         return MT_AGG
     case Tko.TK_UDT, Tko.TK_ENUM
-        '' An ENUM is its underlying integer; a UDT is opaque.
-        if types.Kind( t ) = Tko.TK_ENUM then return MT_I32
+        '' An ENUM is its underlying integer, which is INTEGER-wide -- 8 bytes on
+        '' win64 and 4 on win32, measured -- and not a fixed 32 bits. A UDT is opaque.
+        if types.Kind( t ) = Tko.TK_ENUM then
+            if types.target.pointerBits = 32 then return MT_I32
+            return MT_I64
+        end if
         return MT_AGG
     case Tko.TK_BUILTIN
         select case types.BuiltinOf( t )
