@@ -1,0 +1,18 @@
+'' ABS OF AN UNSIGNED ARGUMENT IS STILL llabs. This used to refuse one, on the
+'' reasoning that an unsigned value has nothing to take the absolute of -- but fbc
+'' does it anyway, and measurably:
+''
+''   dim as ulong    a = abs( ul )    A$0 = (uint32)__builtin_llabs( (int64)UL$0 )
+''   dim as ulongint b = abs( ull )   B$0 = __builtin_llabs( ULL$0 )
+''
+'' -- widened, llabs, narrowed back. Refusing left it to a path that has no answer for
+'' ABS at all, so every one of them declined: optimizations/consteval.bas runs the
+'' whole unary family over every width, and lost 13 statements to it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/abs-unsigned.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: zext
+'' EXPECT-OUT: iabs
+'' GOLDEN: expected/abs-unsigned.out

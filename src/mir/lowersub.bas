@@ -907,9 +907,18 @@ function LowerMathCall_ _
     case "exp"  : op = M_EXP
     case "abs"
         '' PER WIDTH, and the integer form widens to int64: '__builtin_llabs(
-        '' (int64)N )'. An unsigned argument has nothing to do and is left to the
-        '' ordinary path rather than given a signed absolute value.
-        if uns andalso (isFlt = false) then return false
+        '' (int64)N )'.
+        ''
+        '' AN UNSIGNED ARGUMENT GOES THE SAME WAY. This used to refuse one, on the
+        '' reasoning that an unsigned value has nothing to take the absolute of --
+        '' but fbc does it anyway, and measurably:
+        ''
+        ''   dim as ulong    a = abs( ul )    A$0 = (uint32)__builtin_llabs( (int64)UL$0 )
+        ''   dim as ulongint b = abs( ull )   B$0 = __builtin_llabs( ULL$0 )
+        ''
+        '' -- widened, llabs, narrowed back. Refusing left it to a path that has no
+        '' answer for ABS at all, so every one of them declined:
+        '' optimizations/consteval.bas runs the whole unary family over every width.
         if amt = MT_F32 then
             op = M_FABS : rty = MT_F32
         elseif amt = MT_F64 then
