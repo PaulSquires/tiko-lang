@@ -6,6 +6,12 @@
 '' so the array was never declared, never typed, and lowering had no symbol, no type and
 '' no descriptor to build. Every one produced NO CODE AT ALL.
 ''
+'' AND A DECLARING REDIM IS STILL A DECLARATION. Its 72-byte descriptor was left
+'' UNINITIALISED and handed straight to fb_ArrayRedimEx, which reads the data pointer
+'' and the element size out of it, and nothing erased it at scope exit. Measured: fbc
+'' writes the whole descriptor first and erases it on the way out, exactly as it does
+'' for 'dim d( any )'.
+''
 '' The 'as' clause is what tells the two forms apart, and it has to be read off the
 '' ITEM rather than the statement: 'redim as long baz( 0 to 2 )' puts it there too and
 '' means the same thing.

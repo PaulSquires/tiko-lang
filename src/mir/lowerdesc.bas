@@ -541,6 +541,22 @@ private function RedimOne_ _
         desc.ty = cast( ubyte, MT_PTR )
         desc.id = slot
         aty = vs->type_
+
+        '' 'redim as long d( 0 to 2 )' DECLARES d, and a declaring REDIM never went
+        '' through the declaration path -- so its 72-byte descriptor was left
+        '' UNINITIALISED and handed straight to fb_ArrayRedimEx, which reads the data
+        '' pointer and the element size out of it. Measured: fbc writes the whole
+        '' descriptor first and erases it at scope exit.
+        ''
+        '' The TYPEREF is what says this one declares: 'redim d( 0 to 2 )' over an
+        '' array declared elsewhere has none, and must not be re-initialised or
+        '' registered twice.
+        if ip->a <> Tko.NODE_NONE then
+            InitDynArrayDesc( c, desc, aty )
+            c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
+            c.cleanupSlot.Push( slot )
+            c.cleanupType.Push( 0 )
+        end if
     else
         '' NOT ONLY A LOCAL, exactly as ERASE is not. 'redim preserve this.items( 0 to
         '' n-1 )' names a FIELD, and so does the unqualified 'redim items( ... )'
