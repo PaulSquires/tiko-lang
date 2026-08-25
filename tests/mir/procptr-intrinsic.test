@@ -1,0 +1,22 @@
+'' 'procptr( <intrinsic> )' IS THE ADDRESS OF THE RUNTIME ENTRY POINT BEHIND IT.
+'' Measured one spelling at a time, by reading what fbc assigns:
+'' 'ZZ0$1 = (void*)&fb_Cls'. Sixty of them, and only the 'fb_' spelling was read
+'' before -- warnings/rtl-prototypes.bas takes the address of every runtime entry the
+'' compiler has and lost 224 statements to the two halves together.
+''
+'' TWO ARE NOT THE ENTRY POINT THE EXPRESSION FORM USES. 'pos( 0 )' is fb_Pos and a
+'' bare 'pos' is fb_GetX; 'dir( pattern )' is fb_Dir and 'dir( )' is fb_DirNext.
+'' procptr takes the no-argument one in both cases, which is not derivable from the
+'' spelling. The radix family answers with the first overload -- fb_HEX_b, not
+'' fb_HEX_l -- and 'allocate' with libc's malloc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-intrinsic.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: func.addr ptr fb_Cls
+'' EXPECT-OUT: func.addr ptr fb_GetX
+'' EXPECT-OUT: func.addr ptr fb_DirNext
+'' EXPECT-OUT: func.addr ptr malloc
+'' EXPECT-OUT: func.addr ptr fb_HEX_b
+'' GOLDEN: expected/procptr-intrinsic.out

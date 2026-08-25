@@ -476,6 +476,17 @@ sub ConsoleProbe( )
     beep
 end sub
 ''',
+    # THE NO-ARGUMENT SPELLINGS ARE DIFFERENT ENTRY POINTS. 'pos( 0 )' is fb_Pos and a
+    # bare 'pos' is fb_GetX; 'dir( pattern )' is fb_Dir and a bare 'dir( )' is
+    # fb_DirNext, which continues the walk the first one started.
+    "bareforms": '''
+sub BareFormProbe( )
+    dim as long x = pos
+    dim as string d = dir( )
+    dim as wstring * 8 w
+    w = wspace( 4 )
+end sub
+''',
     "fsdir": '''
 sub FsDirProbe( )
     name "a", "b"

@@ -1,0 +1,74 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr a
+  local ptr b
+  local ptr c
+  local ptr d
+  local ptr e
+  local ptr f
+  local ptr g
+  local ptr h
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = func.addr ptr fb_Cls
+    store @a, %5
+    %6 = alloca ptr b
+    %7 = func.addr ptr fb_Timer
+    store @b, %7
+    %8 = alloca ptr c
+    %9 = func.addr ptr fb_GetX
+    store @c, %9
+    %10 = alloca ptr d
+    %11 = func.addr ptr fb_DirNext
+    store @d, %11
+    %12 = alloca ptr e
+    %13 = func.addr ptr malloc
+    store @e, %13
+    %14 = alloca ptr f
+    %15 = func.addr ptr fb_HEX_b
+    store @f, %15
+    %16 = alloca ptr g
+    %17 = func.addr ptr fb_ThreadCreate
+    store @g, %17
+    %18 = alloca ptr h
+    %19 = func.addr ptr fb_StrDelete
+    store @h, %19
+    %20 = load @a
+    call.rtl void fb_PrintULongint(0, %20, 2)
+    %21 = load @b
+    call.rtl void fb_PrintULongint(0, %21, 2)
+    %22 = load @c
+    call.rtl void fb_PrintULongint(0, %22, 2)
+    %23 = load @d
+    call.rtl void fb_PrintULongint(0, %23, 2)
+    %24 = load @e
+    call.rtl void fb_PrintULongint(0, %24, 2)
+    %25 = load @f
+    call.rtl void fb_PrintULongint(0, %25, 2)
+    %26 = load @g
+    call.rtl void fb_PrintULongint(0, %26, 2)
+    %27 = load @h
+    call.rtl void fb_PrintULongint(0, %27, 1)
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_Cls($0)
+declare f64 fb_Timer()
+declare i32 fb_GetX()
+declare ptr fb_DirNext($0)
+declare ptr malloc($0)
+declare ptr fb_HEX_b($0)
+declare ptr fb_ThreadCreate($0, $1, $2)
+declare void fb_StrDelete($0)
+declare void fb_PrintULongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

@@ -680,6 +680,83 @@ private function IsVirtualArg_( byref c as Ctx, byval a as Tko.NodeId ) as boole
     return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "virtual")
 end function
 
+'' THE RUNTIME ENTRY POINT BEHIND AN INTRINSIC, for 'procptr( cls )'. Measured, one
+'' spelling at a time, by reading what fbc assigns: 'ZZ0$1 = (void*)&fb_Cls'.
+''
+'' TWO OF THEM ARE NOT THE ENTRY POINT THE EXPRESSION FORM USES. 'pos( 0 )' is fb_Pos
+'' and a bare 'pos' is fb_GetX; 'dir( pattern )' is fb_Dir and 'dir( )' is fb_DirNext.
+'' procptr takes the NO-ARGUMENT one in both cases, which is not derivable from the
+'' spelling and would have been wrong by a plausible-looking name.
+''
+'' The RADIX and MEMORY families answer with the first overload -- fb_HEX_b, not
+'' fb_HEX_l -- and 'allocate' with libc's malloc rather than anything in libfb.
+private function IntrinsicProcPtrRtl_( byref nm as string ) as RtlId
+    select case nm
+    case "cls"          : return RTL_CLS
+    case "beep"         : return RTL_BEEP
+    case "locate"       : return RTL_LOCATE
+    case "csrlin"       : return RTL_CSRLIN
+    case "pos"          : return RTL_GETX
+    case "chdir"        : return RTL_CHDIR
+    case "mkdir"        : return RTL_MKDIR
+    case "rmdir"        : return RTL_RMDIR
+    case "kill"         : return RTL_KILL
+    case "curdir"       : return RTL_CURDIR
+    case "dir"          : return RTL_DIR_NEXT
+    case "eof"          : return RTL_FILE_EOF
+    case "loc"          : return RTL_FILE_LOC
+    case "lof"          : return RTL_FILE_LOF
+    case "freefile"     : return RTL_FILE_FREE
+    case "reset"        : return RTL_FILE_RESET
+    case "date"         : return RTL_DATE
+    case "time"         : return RTL_TIME
+    case "timer"        : return RTL_TIMER
+    case "randomize"    : return RTL_RANDOMIZE
+    case "rnd"          : return RTL_RND
+    case "sleep"        : return RTL_SLEEP
+    case "environ"      : return RTL_ENVIRON
+    case "setenviron"   : return RTL_SETENVIRON
+    case "command"      : return RTL_COMMAND
+    case "exepath"      : return RTL_EXEPATH
+    case "exec"         : return RTL_EXEC
+    case "shell"        : return RTL_SHELL
+    case "erl"          : return RTL_ERR_LINE
+    case "ermn"         : return RTL_ERR_MODNAME
+    case "erfn"         : return RTL_ERR_FUNCNAME
+    case "threadcreate" : return RTL_THREAD_CREATE
+    case "threadwait"   : return RTL_THREAD_WAIT
+    case "condcreate"   : return RTL_COND_CREATE
+    case "conddestroy"  : return RTL_COND_DESTROY
+    case "condsignal"   : return RTL_COND_SIGNAL
+    case "condbroadcast": return RTL_COND_BROADCAST
+    case "allocate"     : return RTL_MALLOC
+    case "callocate"    : return RTL_CALLOC
+    case "reallocate"   : return RTL_REALLOC
+    case "deallocate"   : return RTL_FREE
+    case "mutexcreate"  : return RTL_MUTEX_CREATE
+    case "mutexdestroy" : return RTL_MUTEX_DESTROY
+    case "mutexlock"    : return RTL_MUTEX_LOCK
+    case "mutexunlock"  : return RTL_MUTEX_UNLOCK
+    case "hex"          : return RTL_HEX_B
+    case "oct"          : return RTL_OCT_B
+    case "bin"          : return RTL_BIN_B
+    case "space"        : return RTL_STR_SPACE
+    case "left"         : return RTL_STR_LEFT
+    case "right"        : return RTL_STR_RIGHT
+    case "val"          : return RTL_VAL
+    case "valint"       : return RTL_VALINT
+    case "vallng"       : return RTL_VALLNG
+    case "valuint"      : return RTL_VALUINT
+    case "valulng"      : return RTL_VALULNG
+    case "wbin"         : return RTL_WBIN_B
+    case "whex"         : return RTL_WHEX_B
+    case "woct"         : return RTL_WOCT_B
+    case "wspace"       : return RTL_WSTR_SPACE
+    end select
+    return RTL_NONE
+end function
+
+
 function LowerProcPtr _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -754,6 +831,13 @@ function LowerProcPtr _
         dim as Tko.IdentPayload ptr rip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, fnE )].data )]
         dim as RtlId rr = RtlByName( c.names->Spelling( rip->name ) )
+        '' ...AND AN INTRINSIC NAMES ONE TOO. 'procptr( cls )' is '&fb_Cls' --
+        '' measured, for sixty spellings -- so the keyword resolves to the same
+        '' address the runtime name does.
+        if rr = RTL_NONE then
+            rr = IntrinsicProcPtrRtl_( Tko.Text.LowerAscii( _
+                c.names->Spelling( rip->name ) ) )
+        end if
         if rr <> RTL_NONE then
             dim as boolean is32 = (c.types->target.pointerBits = 32)
             dim as Tko.InternId rnm = c.names->GetString( RtlLinkName( rr, is32 ) )

@@ -62,6 +62,7 @@ fb_DataReadWstr	void	uint16*, int32	lib	_fb_DataReadWstr@8
 fb_DataRestore	void	void*	lib	_fb_DataRestore@4
 fb_Date	FBSTRING*	void	lib	_fb_Date@0
 fb_Dir	FBSTRING*	FBSTRING*, int32, int32*	lib	_fb_Dir@12
+fb_DirNext	FBSTRING*	int32*	lib	_fb_DirNext@4
 fb_DoubleToStr	FBSTRING*	double	lib	_fb_DoubleToStr@8
 fb_DoubleToWstr	uint16*	double	lib	_fb_DoubleToWstr@8
 fb_End	void	int32	lib	_fb_End@4
@@ -97,6 +98,7 @@ fb_FileTell	int64	int32	lib	_fb_FileTell@4
 fb_FloatToStr	FBSTRING*	float	lib	_fb_FloatToStr@4
 fb_FloatToWstr	uint16*	float	lib	_fb_FloatToWstr@4
 fb_GetEnviron	FBSTRING*	FBSTRING*	lib	_fb_GetEnviron@4
+fb_GetX	int32	void	lib	_fb_GetX@0
 fb_GetY	int32	void	lib	_fb_GetY@0
 fb_GfxDraw	void	void*, FBSTRING*	lib	_fb_GfxDraw@8
 fb_GfxEllipse	void	void*, float, float, float, uint32, float, float, float, int32, int32	lib	_fb_GfxEllipse@40
@@ -347,6 +349,7 @@ fb_WstrRTrimAny	uint16*	uint16*, uint16*	lib	_fb_WstrRTrimAny@8
 fb_WstrRTrimEx	uint16*	uint16*, uint16*	lib	_fb_WstrRTrimEx@8
 fb_WstrRight	uint16*	uint16*, int32	lib	_fb_WstrRight@8
 fb_WstrRset	void	uint16*, uint16*	lib	_fb_WstrRset@8
+fb_WstrSpace	uint16*	int32	lib	_fb_WstrSpace@4
 fb_WstrSwap	void	uint16*, int32, uint16*, int32	lib	_fb_WstrSwap@16
 fb_WstrToStr	FBSTRING*	uint16*	lib	_fb_WstrToStr@4
 fb_WstrToUStr	FBUSTRING*	uint16*	lib	_fb_WstrToUStr@4

@@ -600,7 +600,11 @@ namespace Tko.Mir
         RTL( RTL_COLOR,             "fb_Color",            "l",   "lll"   )
         RTL( RTL_WIDTH,             "fb_Width",            "l",   "ll"    )
         RTL( RTL_CONSOLE_VIEW,      "fb_ConsoleView",      "l",   "ll"    )
+        '' THE NO-ARGUMENT SPELLINGS ARE DIFFERENT ENTRY POINTS. 'pos( 0 )' is
+        '' fb_Pos and a bare 'pos' is fb_GetX; 'dir( pattern )' is fb_Dir and a bare
+        '' 'dir( )' is fb_DirNext, which continues the walk the first one started.
         RTL( RTL_POS,               "fb_Pos",              "l",   "l"     )
+        RTL( RTL_GETX,              "fb_GetX",             "l",   ""      )
         RTL( RTL_CSRLIN,            "fb_GetY",             "l",   ""      )
         RTL( RTL_CHDIR,             "fb_ChDir",            "l",   "p"     )
         RTL( RTL_MKDIR,             "fb_MkDir",            "l",   "p"     )
@@ -609,6 +613,8 @@ namespace Tko.Mir
         RTL( RTL_CURDIR,            "fb_CurDir",           "p",   ""      )
         '' DIR's third argument is an OUT parameter -- the attribute of what it found.
         RTL( RTL_DIR,               "fb_Dir",              "p",   "plp"   )
+        RTL( RTL_DIR_NEXT,          "fb_DirNext",          "p",   "p"     )
+        RTL( RTL_WSTR_SPACE,        "fb_WstrSpace",        "p",   "z"     )
         RTL( RTL_FILE_EOF,          "fb_FileEof",          "l",   "l"     )
         RTL( RTL_FILE_FREE,         "fb_FileFree",         "l",   ""      )
         RTL( RTL_FILE_LOC,          "fb_FileLocation",     "q",   "l"     )
