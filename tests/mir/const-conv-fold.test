@@ -1,0 +1,14 @@
+'' A CONVERSION FOLDS ITS ARGUMENT WITH THE SYMBOL TABLE. Every argument of a folded
+'' call was evaluated WITHOUT it, so a conversion over a NAMED constant folded to
+'' nothing -- 'cbool( FALSE )' and 'cbyte( K )' alike. The constant they initialise
+'' then had no value at all, and every USE of it declined rather than the declaration
+'' saying so. boolean/boolean-conversions.bas is written out of exactly that shape:
+'' 26 declines down to 0.
+''
+'' The same omission reached IIF's condition and both its arms, and CAST's operand.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-conv-fold.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/const-conv-fold.out

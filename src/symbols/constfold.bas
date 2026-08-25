@@ -226,9 +226,15 @@ end function
 
 '' The intrinsics fbc folds at compile time. Anything not listed simply does not fold,
 '' which is an absence rather than an error.
+'' THE SYMBOL TABLE COMES WITH IT. Every argument here was folded WITHOUT it, so a
+'' conversion over a NAMED constant folded to nothing: 'cbool( FALSE )' and
+'' 'cbyte( K )' alike, and the constant they initialise then had no value -- so every
+'' USE of it declined, which is what boolean-conversions.bas is written out of.
 private function ConstCall_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
-      byref src as Tko.SourceManager, byref names as Tko.Interner ) as ConstVal
+      byref src as Tko.SourceManager, byref names as Tko.Interner, _
+      byval intBits as long, byval syms as Tko.SymbolTable ptr, _
+      byval scope_ as Tko.ScopeId, byval depth as long ) as ConstVal
 
     dim as Tko.ListPayload ptr cp = _
         @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
@@ -240,11 +246,11 @@ private function ConstCall_ _
 
     if (nm = "iif") andalso (cp->count = 3) then
         dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
-                                     src, names )
+                                     src, names, intBits, syms, scope_, depth )
         if c.known = false then return CVNone_( )
         dim as long pick = iif( c.value <> 0, 1, 2 )
         return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + pick] ), _
-                        src, names )
+                        src, names, intBits, syms, scope_, depth )
     end if
 
     '' 'cast( T, expr )' AND 'cptr( T, expr )' FOLD TO THEIR OPERAND. The conversion
@@ -259,7 +265,8 @@ private function ConstCall_ _
     '' S_OK', 'if failed( hr )', '*ppv = 0 : return E_POINTER'. The line the count
     '' pointed at never mentioned a cast.
     if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
-        return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), src, names )
+        return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), src, _
+                        names, intBits, syms, scope_, depth )
     end if
 
     if cp->count <> 1 then return CVNone_( )
@@ -282,19 +289,25 @@ private function ConstCall_ _
 
     dim as double d = 0
     dim as boolean isNum = LitNum_( ast, a0, d )
-    dim as ConstVal iv = ConstOf( ast, a0, src, names )
+    dim as ConstVal iv = ConstOf( ast, a0, src, names, intBits, syms, scope_, depth )
 
     select case nm
     case "abs"
         if iv.known then return CV_( abs( iv.value ) )
     case "sgn"
         if iv.known then return CV_( sgn( iv.value ) )
+    '' A NAMED CONSTANT IS NOT A LITERAL, and 'isNum' asks only about a literal. So
+    '' 'const CL = clng( K )' over 'const K = 300' folded to NOTHING while
+    '' 'clng( 300 )' folded -- and a constant with no value makes every USE of it
+    '' decline. The rounding is the FLOAT path's; an integer that is already known
+    '' needs none of it.
     case "cint", "clngint"
         if isNum then
             dim as longint r = RoundHalfEven_( d )
             if nm = "cint" then return CV_( r )
             return CV_( r )
         end if
+        if iv.known then return CV_( iv.value )
     case "clng"
         '' CLNG targets 32 bits, and an out-of-range float does NOT wrap: fbc yields
         '' the x86 "indefinite" value, &h80000000, and warns about the overflow.
@@ -308,10 +321,18 @@ private function ConstCall_ _
             end if
             return CV_( r )
         end if
+        if iv.known then
+            if (iv.value > 2147483647ll) orelse (iv.value < -2147483648ll) then
+                return CV_( -2147483648ll )
+            end if
+            return CV_( iv.value )
+        end if
     case "int"
         if isNum then return CV_( cast( longint, int( d ) ) )
+        if iv.known then return CV_( iv.value )
     case "fix"
         if isNum then return CV_( cast( longint, fix( d ) ) )
+        if iv.known then return CV_( iv.value )
 
     '' THE REST OF THE CONVERSION FAMILY, which folds by TRUNCATING to the target's
     '' width and carrying its signedness. Only CINT, CLNG and CLNGINT were here, so
@@ -490,7 +511,7 @@ function ConstOf _
         return CVNone_( )
 
     case Tko.N_CALL
-        return ConstCall_( ast, id, src, names )
+        return ConstCall_( ast, id, src, names, intBits, syms, scope_, depth )
     end select
 
     return CVNone_( )

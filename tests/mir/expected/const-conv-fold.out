@@ -1,0 +1,65 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i32 a
+  local i32 b
+  local i32 c
+  local i32 d
+  local i32 e_
+  local i8 bb
+  local i32 f
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = const i64 300
+    %6 = trunc %5
+    %7 = sext %6
+    store @a, %7
+    %8 = alloca ptr b
+    %9 = const i8 0
+    %10 = sext %9
+    store @b, %10
+    %11 = alloca ptr c
+    %12 = const i8 44
+    %13 = sext %12
+    store @c, %13
+    %14 = alloca ptr d
+    %15 = const i32 300
+    store @d, %15
+    %16 = alloca ptr e_
+    %17 = const i64 300
+    %18 = trunc %17
+    store @e_, %18
+    %19 = alloca ptr bb
+    %20 = alloca ptr f
+    %21 = load @bb
+    %22 = const i8 -1
+    %23 = icmp.eq %21, %22
+    %24 = neg %23
+    %25 = trunc %24
+    store @f, %25
+    %26 = load @a
+    call.rtl void fb_PrintInt(0, %26, 2)
+    %27 = load @b
+    call.rtl void fb_PrintInt(0, %27, 2)
+    %28 = load @c
+    call.rtl void fb_PrintInt(0, %28, 2)
+    %29 = load @d
+    call.rtl void fb_PrintInt(0, %29, 2)
+    %30 = load @e_
+    call.rtl void fb_PrintInt(0, %30, 2)
+    %31 = load @f
+    call.rtl void fb_PrintInt(0, %31, 1)
+    %32 = const i32 0
+    call.rtl void fb_End(%32)
+    %33 = load @$tmp0
+    ret %33
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance
