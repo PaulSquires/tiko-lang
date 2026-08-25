@@ -10,6 +10,7 @@
 
 namespace Tko.Mir
 
+
 declare function AggIifArm_ _
     ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
 declare function StrSwapKind_ _
@@ -295,6 +296,12 @@ function LowerCompoundAssign _
     dim as MirType mt = LowerType( tt, *c.types )
     if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
 
+    '' A BITFIELD TARGET HAS NO ADDRESS: it is bits inside a unit its neighbours
+    '' share, so 'x.a += 1' is a read, an add and a masked write rather than a store
+    '' through an address. The plain path asked LowerAddr for one and declined.
+    '' Measured -- fbc emits the whole read-modify-write in one line.
+    if BitfieldCompound_( c, target, value, bop ) then return true
+
     '' The type the arithmetic happens in. Every operator but '/' works in the
     '' target's own type; '/' is float division, in single when the target already is
     '' one and in double otherwise -- 'dim as single h = 1 : h /= 2' prints 0.5.
@@ -347,190 +354,10 @@ end function
 
 
 
-'' The low 'n' bits set. Built by shifting rather than written as a literal so a
-'' 64-bit field does not overflow the shift it would need.
-private function BitMask_( byval n as long ) as longint
-    if n >= 64 then return -1
-    return (cast( longint, 1 ) shl n) - 1
-end function
 
 '' A BITFIELD MEMBER ACCESS, as the address of its storage UNIT plus the bits it owns.
 '' Returns false when the member is not a bitfield, so the caller carries on as before.
 ''
-'' The unit is addressed at the field's byte offset and read at the field's DECLARED
-'' type -- which is what sizes the unit, not what sizes the field.
-function BitfieldParts _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, _
-      byref bitOff as long, byref bitWidth as long, byref unitTy as MirType, _
-      byref unitUnsigned as boolean ) as boolean
-
-    if c.ast->Kind( id ) <> Tko.N_MEMBER then return false
-    dim as Tko.SymbolId fsym = c.info->RefOf( id )
-    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsym )
-    if fs = 0 then return false
-    if (fs->flags and Tko.SYMF_BITFIELD) = 0 then return false
-
-    dim as Tko.BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
-    dim as MirValue base_
-    if bt <> Tko.TYPE_NONE then
-        if c.types->Kind( bt ) = Tko.TK_POINTER then
-            base_ = LowerExpr( c, mp->lhs )
-            bt = c.types->Inner( bt )
-        else
-            base_ = LowerAddr( c, mp->lhs )
-        end if
-    end if
-    if base_.kind = cast( ubyte, MV_NONE ) then return false
-
-    dim as long ui = c.udts->Find( bt )
-    if ui < 0 then return false
-    dim as long off = 0
-    dim as boolean got = false
-    for i as long = 0 to c.udts->udts[ui].count - 1
-        dim as long fi = c.udts->udts[ui].first + i
-        if c.udts->fields[fi].name = fs->name then
-            off = c.udts->fields[fi].offset
-            bitOff = c.udts->fields[fi].bitOffset
-            bitWidth = c.udts->fields[fi].bitWidth
-            got = true
-            exit for
-        end if
-    next
-    if (got = false) orelse (bitWidth <= 0) then return false
-
-    unitTy = LowerType( fs->type_, *c.types )
-    if (unitTy = MT_VOID) orelse (unitTy = MT_AGG) then return false
-    '' The unit widens to 64 bits by its DECLARED signedness. fbc writes
-    '' '(int64)*(uint32*)&A', which zero-extends; sign-extending a ULONG unit whose
-    '' top bit is set drags ones down into the shift.
-    unitUnsigned = IsUnsignedType( c, fs->type_ )
-
-    dim as MirInst fa
-    fa.op = cast( ushort, M_FIELD_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
-    fa.a = base_
-    fa.imm = off
-    addr = Emit( c, fa )
-    return (addr.kind <> cast( ubyte, MV_NONE ))
-end function
-
-'' Read a bitfield. Measured from fbc's own C, for a 3-bit field at bit 1:
-''
-''     V = (int32)((uint64)((int64)*(int32*)&T >> (1ll & 63ll)) & 7ull);
-''
-'' Widen the unit to 64 bits, shift the field down, mask it -- and NO SIGN EXTENSION,
-'' even for a signed declared type: fbc reads a 3-bit 'as long' holding all ones as 7,
-'' not as -1. Measured, not assumed; it is the one part of this a C habit gets wrong.
-function LowerBitfieldRead _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-
-    dim as MirValue addr
-    dim as long bitOff, bitWidth
-    dim as MirType unitTy
-    dim as boolean unitUns
-    if BitfieldParts( c, id, addr, bitOff, bitWidth, unitTy, unitUns ) = false then
-        return false
-    end if
-
-    dim as MirValue raw = LowerExprLoad( c, addr, unitTy )
-    if raw.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirValue wide = Coerce( c, raw, MT_I64, unitUns )
-
-    if bitOff > 0 then
-        dim as MirInst sh
-        sh.op = cast( ushort, M_ASHR )
-        sh.ty = cast( ubyte, MT_I64 )
-        sh.a = wide
-        sh.b = ConstInt( c, bitOff, MT_I64 )
-        wide = Emit( c, sh )
-        if wide.kind = cast( ubyte, MV_NONE ) then return false
-    end if
-
-    dim as MirInst an
-    an.op = cast( ushort, M_AND )
-    an.ty = cast( ubyte, MT_I64 )
-    an.a = wide
-    an.b = ConstInt( c, BitMask_( bitWidth ), MT_I64 )
-    dim as MirValue masked = Emit( c, an )
-    if masked.kind = cast( ubyte, MV_NONE ) then return false
-
-    outv = Coerce( c, masked, unitTy )
-    return true
-end function
-
-'' Write a bitfield: read the unit, clear the field's bits, or the value in, store back.
-''
-''     *(uint32*)&A = (uint32)((uint64)((int64)*(uint32*)&A & -15ll) | 10ull);
-''
-'' -15 is the complement of (7 shl 1) -- the mask for a 3-bit field at bit 1 -- and 10
-'' is (5 and 7) shl 1, which fbc has constant-folded. The read-modify-write is what
-'' keeps the neighbours packed in the same unit intact, and is the whole reason an
-'' ordinary full-width store could not be used here.
-function LowerBitfieldStore _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
-
-    dim as MirValue addr
-    dim as long bitOff, bitWidth
-    dim as MirType unitTy
-    dim as boolean unitUns
-    if BitfieldParts( c, id, addr, bitOff, bitWidth, unitTy, unitUns ) = false then
-        return false
-    end if
-
-    dim as MirValue val = LowerExpr( c, value )
-    if val.kind = cast( ubyte, MV_NONE ) then return false
-    val = Coerce( c, val, MT_I64, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
-
-    dim as MirValue raw = LowerExprLoad( c, addr, unitTy )
-    if raw.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirValue wide = Coerce( c, raw, MT_I64, unitUns )
-
-    dim as longint mask = BitMask_( bitWidth )
-
-    dim as MirInst cl
-    cl.op = cast( ushort, M_AND )
-    cl.ty = cast( ubyte, MT_I64 )
-    cl.a = wide
-    cl.b = ConstInt( c, not (mask shl bitOff), MT_I64 )
-    dim as MirValue cleared = Emit( c, cl )
-    if cleared.kind = cast( ubyte, MV_NONE ) then return false
-
-    dim as MirInst vm
-    vm.op = cast( ushort, M_AND )
-    vm.ty = cast( ubyte, MT_I64 )
-    vm.a = val
-    vm.b = ConstInt( c, mask, MT_I64 )
-    dim as MirValue vmasked = Emit( c, vm )
-    if vmasked.kind = cast( ubyte, MV_NONE ) then return false
-
-    if bitOff > 0 then
-        dim as MirInst sh
-        sh.op = cast( ushort, M_SHL )
-        sh.ty = cast( ubyte, MT_I64 )
-        sh.a = vmasked
-        sh.b = ConstInt( c, bitOff, MT_I64 )
-        vmasked = Emit( c, sh )
-        if vmasked.kind = cast( ubyte, MV_NONE ) then return false
-    end if
-
-    dim as MirInst orr
-    orr.op = cast( ushort, M_OR )
-    orr.ty = cast( ubyte, MT_I64 )
-    orr.a = cleared
-    orr.b = vmasked
-    dim as MirValue merged = Emit( c, orr )
-    if merged.kind = cast( ubyte, MV_NONE ) then return false
-
-    dim as MirInst st
-    st.op = cast( ushort, M_STORE )
-    st.ty = cast( ubyte, MT_VOID )
-    st.a = addr
-    st.b = Coerce( c, merged, unitTy )
-    Emit( c, st )
-    return true
-end function
 
 '' A STRING 'iif'. Measured from fbc:
 ''

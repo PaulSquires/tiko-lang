@@ -566,6 +566,12 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval tk as Tko.TokenKind, byref outv as MirValue ) as boolean
     '' '__FB_QUERY_SYMBOL__( q, sym )' -- fbc's compile-time symbol query, folded.
+    '' The low 'n' bits set, for a bitfield mask.
+    declare function BitMask_( byval n as long ) as longint
+    '' 'x.a op= v' over a BITFIELD: a read, the operator and a masked write.
+    declare function BitfieldCompound_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval bop as Tko.TokenKind ) as boolean
     declare function LowerQuerySymbol_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerOffsetOf _

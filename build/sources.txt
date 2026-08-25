@@ -36,6 +36,7 @@ src/mir/lowerstore.bas
 src/mir/lowerarr.bas
 src/mir/lowerconv.bas
 src/mir/lowerintr.bas
+src/mir/lowerbf.bas
 src/mir/lowerqsym.bas
 src/mir/lowerusing.bas
 src/mir/lowerio.bas

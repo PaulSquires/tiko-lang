@@ -1,0 +1,19 @@
+'' A BITFIELD IS READ AND WRITTEN THROUGH ITS UNIT, addressed at the UNIT's start and
+'' not at the field's own byte. A field packed at bit 8 has a byte offset of 1, and
+'' reading it at its DECLARED width from there is a four-byte access one byte past a
+'' four-byte structure -- so writing it read and rewrote whatever followed the object.
+''
+'' Measured, mask for mask: fbc writes 'c' as '*(int32*)&X$ = (int32)((int64)*(int32*)&X$
+'' & -3841ll | (... << 8))' and reads it as '>> 8 & 15'. A unit no wider than a byte is
+'' already in bounds at its own offset and is left alone -- 'd : 1 as ubyte' at byte 1
+'' shifts by 4 where fbc shifts the whole word by 12, which is the same bit.
+'' AND 'x.a += 1' OVER ONE is a read, an arithmetic step and a masked write. A
+'' bitfield has no address, so the plain compound-assignment path asked LowerAddr for
+'' one and declined. Measured: fbc emits the whole read-modify-write in one line.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bitfield-unit.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: const i64 -3841
+'' GOLDEN: expected/bitfield-unit.out

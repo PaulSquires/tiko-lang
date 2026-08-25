@@ -1,0 +1,138 @@
+global var agg x size 4
+func void F() {
+  entry0:
+    %1 = field.addr @@x, 0
+    %2 = const i64 5
+    %3 = load %1
+    %4 = zext %3
+    %5 = const i64 -8
+    %6 = and %4, %5
+    %7 = const i64 7
+    %8 = and %2, %7
+    %9 = or %6, %8
+    %10 = trunc %9
+    store %1, %10
+    %11 = field.addr @@x, 0
+    %12 = const i64 17
+    %13 = load %11
+    %14 = zext %13
+    %15 = const i64 -249
+    %16 = and %14, %15
+    %17 = const i64 31
+    %18 = and %12, %17
+    %19 = const i64 3
+    %20 = shl %18, %19
+    %21 = or %16, %20
+    %22 = trunc %21
+    store %11, %22
+    %23 = field.addr @@x, 0
+    %24 = const i64 3
+    %25 = neg %24
+    %26 = load %23
+    %27 = sext %26
+    %28 = const i64 -3841
+    %29 = and %27, %28
+    %30 = const i64 15
+    %31 = and %25, %30
+    %32 = const i64 8
+    %33 = shl %31, %32
+    %34 = or %29, %33
+    %35 = trunc %34
+    store %23, %35
+    %36 = field.addr @@x, 1
+    %37 = const i64 1
+    %38 = load %36
+    %39 = zext %38
+    %40 = const i64 -17
+    %41 = and %39, %40
+    %42 = const i64 1
+    %43 = and %37, %42
+    %44 = const i64 4
+    %45 = shl %43, %44
+    %46 = or %41, %45
+    %47 = trunc %46
+    store %36, %47
+    %48 = field.addr @@x, 0
+    %49 = load %48
+    %50 = zext %49
+    %51 = const i64 7
+    %52 = and %50, %51
+    %53 = trunc %52
+    call.rtl void fb_PrintUInt(0, %53, 2)
+    %54 = field.addr @@x, 0
+    %55 = load %54
+    %56 = zext %55
+    %57 = const i64 3
+    %58 = ashr %56, %57
+    %59 = const i64 31
+    %60 = and %58, %59
+    %61 = trunc %60
+    call.rtl void fb_PrintUInt(0, %61, 2)
+    %62 = field.addr @@x, 0
+    %63 = load %62
+    %64 = sext %63
+    %65 = const i64 8
+    %66 = ashr %64, %65
+    %67 = const i64 15
+    %68 = and %66, %67
+    %69 = trunc %68
+    call.rtl void fb_PrintInt(0, %69, 2)
+    %70 = field.addr @@x, 1
+    %71 = load %70
+    %72 = zext %71
+    %73 = const i64 4
+    %74 = ashr %72, %73
+    %75 = const i64 1
+    %76 = and %74, %75
+    %77 = trunc %76
+    call.rtl void fb_PrintUByte(0, %77, 1)
+    %78 = field.addr @@x, 0
+    %79 = field.addr @@x, 0
+    %80 = load %79
+    %81 = zext %80
+    %82 = const i64 7
+    %83 = and %81, %82
+    %84 = trunc %83
+    %85 = const i64 1
+    %86 = zext %84
+    %87 = add %86, %85
+    %88 = field.addr @@x, 0
+    %89 = load %88
+    %90 = zext %89
+    %91 = const i64 -8
+    %92 = and %90, %91
+    %93 = const i64 7
+    %94 = and %87, %93
+    %95 = or %92, %94
+    %96 = trunc %95
+    store %88, %96
+    %97 = field.addr @@x, 0
+    %98 = load %97
+    %99 = zext %98
+    %100 = const i64 7
+    %101 = and %99, %100
+    %102 = trunc %101
+    call.rtl void fb_PrintUInt(0, %102, 1)
+    ret
+}
+declare void fb_PrintUInt($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintUByte($0, $1, $2)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void F()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 121 insts, 0 statements not lowered, 0 scope imbalance

@@ -822,4 +822,12 @@ function LowerArrayBoundCall _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+
+'' The low 'n' bits set. Built by shifting rather than written as a literal so a
+'' 64-bit field does not overflow the shift it would need.
+function BitMask_( byval n as long ) as longint
+    if n >= 64 then return -1
+    return (cast( longint, 1 ) shl n) - 1
+end function
+
 end namespace
