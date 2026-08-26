@@ -952,7 +952,16 @@ function LowerLen _
 
     '' WIDE: one argument, no length.
     if (IsWideString_( c, at )) andalso (isSizeof = false) andalso (lenOfType = false) then
+        '' A WIDE EXPRESSION HAS NO ADDRESS. 'len( wstr( x ) )' is wide-typed --
+        '' 'WSTRING * 1' -- so this branch claimed it and then asked an N_CALL for an
+        '' address, which it has not got, and the whole statement declined. Every
+        '' flavour did: over a var-length string, over a 'zstring * N' and over a
+        '' literal alike. WideOperand_ is what BUILDS one, and it is what every other
+        '' wide site already uses; only this one asked for an address directly.
         dim as MirValue wa = LowerAddr( c, a )
+        if wa.kind = cast( ubyte, MV_NONE ) then
+            if WideOperand_( c, a, wa ) = false then return false
+        end if
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) wargs
         wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
@@ -1238,6 +1247,64 @@ function LowerWstrOf _
         dim as FB.Array( of ulong ) zargs
         zargs.Push( cast( ulong, za.kind ) ) : zargs.Push( cast( ulong, za.id ) )
         outv = EmitRtl( c, RTL_STR_TO_WSTR, zargs )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    elseif sk = 3 then
+        '' A 'string * N' IS NOT A CHAR ARRAY THE WAY A ZSTRING IS: it is SPACE-PADDED
+        '' and carries no terminator, so its N bytes cannot be handed to fb_StrToWstr
+        '' as a C string. Measured, fbc copies it into a var-length temporary first and
+        '' converts THAT:
+        ''
+        ''   fb_StrAssign( &TMP$2$0, -1ll, (void*)FS$0, -9223372036854775798ll, 0 );
+        ''   vr$6 = fb_StrToWstr( (char*)*(char**)&TMP$2$0 );
+        ''
+        '' -- the second argument being the TAGGED length of the fixed string, which is
+        '' what tells the runtime to stop at N bytes and trim the padding.
+        ''
+        '' fbc emits a third call after those two, copying the temporary BACK into the
+        '' fixed string, which is its general byref-temp protocol; nothing here writes
+        '' the temporary, so it is a no-op and is not reproduced.
+        ''
+        '' Without this row 'wstr( fs )' produced nothing, and it takes the enclosing
+        '' statement with it: overload/strings_ptr.bas is twelve calls that each pass
+        '' one.
+        dim as MirValue fa2 = LowerAddr( c, a )
+        if fa2.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long fslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if fslot < 0 then return false
+        dim as MirValue fd
+        fd.kind = cast( ubyte, MV_LOCAL )
+        fd.ty = cast( ubyte, MT_PTR )
+        fd.id = fslot
+        ZeroStrDescriptor( c, fd )
+        dim as FB.Array( of ulong ) faa
+        faa.Push( cast( ulong, fd.kind ) ) : faa.Push( cast( ulong, fd.id ) )
+        faa.Push( cast( ulong, MV_CONST_INT ) )
+        faa.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        faa.Push( cast( ulong, fa2.kind ) ) : faa.Push( cast( ulong, fa2.id ) )
+        '' ALREADY ENCODED: StrSwapKind_ hands back a FIXSTR's length in the tagged
+        '' form, because that is the only form any runtime call wants it in --
+        '' encoding it a second time here would set the tag bit on a value that
+        '' already has it. And it is a 64-BIT constant, so it goes through
+        '' PushStrLen_: pushing it as a ulong truncates the tag away and the runtime
+        '' reads a plain length of 10.
+        PushStrLen_( c, faa, zn )
+        faa.Push( cast( ulong, MV_CONST_INT ) ) : faa.Push( 0 )
+        EmitRtl( c, RTL_STR_ASSIGN, faa )
+        '' Released at the END OF THE STATEMENT, with the other string temporaries.
+        c.strTemps.Push( cast( ulong, fslot ) )
+
+        dim as MirInst ffa
+        ffa.op = cast( ushort, M_FIELD_ADDR )
+        ffa.ty = cast( ubyte, MT_PTR )
+        ffa.a = fd
+        ffa.imm = 0
+        dim as MirValue fpa = Emit( c, ffa )
+        if fpa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue fraw = LowerExprLoad( c, fpa, MT_PTR )
+        if fraw.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) fargs
+        fargs.Push( cast( ulong, fraw.kind ) ) : fargs.Push( cast( ulong, fraw.id ) )
+        outv = EmitRtl( c, RTL_STR_TO_WSTR, fargs )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 

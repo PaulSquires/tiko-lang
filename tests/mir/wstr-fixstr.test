@@ -1,0 +1,7 @@
+'' wstr( ) over a fixed-length narrow string. See the source: the tagged length is what
+'' trims the padding, and it is easy to tag twice or truncate.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wstr-fixstr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wstr-fixstr.out
