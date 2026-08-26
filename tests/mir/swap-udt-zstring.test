@@ -1,0 +1,7 @@
+'' SWAP over a UDT that casts to a zstring. See the source: both sides go through the
+'' operator and each passes LENGTH 0, where an addressable fixed string passes its own.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/swap-udt-zstring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/swap-udt-zstring.out

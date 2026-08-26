@@ -18,6 +18,25 @@ declare function StrSwapKind_ _
 '' 'swap pa[i], pb[i]' declined on its very first line while the array form beside it
 '' lowered. The pointee is what the subscript yields, and asking the TARGET for it is
 '' the same thing LowerPtrIndex already does to compute the element size.
+'' THE OPERAND OF A 'str( x )' CALL, or the node itself when it is not one. SWAP over
+'' a UDT that casts to a string is written 'swap str( u1 ), str( u2 )' in the corpus,
+'' and the cast that answers for it hangs off the UDT, not off the call.
+private function StrCallOperand_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as Tko.NodeId
+
+    if e = Tko.NODE_NONE then return e
+    if c.ast->Kind( e ) <> Tko.N_CALL then return e
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if cp->count <> 1 then return e
+    if cp->target = Tko.NODE_NONE then return e
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return e
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "str" then return e
+    return cast( Tko.NodeId, c.ast->children[cp->first] )
+end function
+
 private function SwapOperandType_ _
     ( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
 
@@ -68,6 +87,43 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         end if
     end if
 
+    '' ...AND THE NARROW TWIN OF IT, which is the same shape one flavour over: 'swap
+    '' str( u1 ), str( u2 )' over a UDT whose 'operator cast( ) byref as zstring' hands
+    '' back a char*. Measured:
+    ''
+    ''     vr$3 = _ZN1UcvcEv( &U2$0 );
+    ''     vr$5 = _ZN1UcvcEv( &U1$0 );
+    ''     fb_StrSwap( vr$5, 0ll, 0, vr$3, 0ll, 0 );
+    ''
+    '' -- both through the operator, LENGTH 0 for each where an addressable
+    '' 'zstring * 50' passes its own 50, and the same fill argument the ordinary path
+    '' passes. A call has no address, so both sides answered nothing and the whole
+    '' statement declined; udt-zstring/swap.bas writes the shape twelve times.
+    ''
+    '' The MIXED spelling the same file writes -- 'swap str( u1 ), u2' -- is not this:
+    '' one side is a raw pointer and the other a UDT, and what fbc emits for that
+    '' pairing has not been measured, so it declines rather than being guessed at.
+    '' UNWRAPPED FIRST. 'str( u1 )' is a CALL whose type is STRING, so asking it for
+    '' a user cast finds none -- the cast lives on the UDT INSIDE it. fbc emits no
+    '' conversion for this shape at all: 'str' of a value that casts to zstring is the
+    '' cast and nothing more.
+    dim as MirValue ra, rb
+    dim as boolean rawA = false, rawB = false
+    dim as Tko.NodeId ua = StrCallOperand_( c, sp->a )
+    dim as Tko.NodeId ub = StrCallOperand_( c, sp->b )
+    if UserCastToStr_( c, ua, ra, rawA ) andalso rawA then
+        if UserCastToStr_( c, ub, rb, rawB ) andalso rawB then
+            dim as FB.Array( of ulong ) zargs
+            zargs.Push( cast( ulong, ra.kind ) ) : zargs.Push( cast( ulong, ra.id ) )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            zargs.Push( cast( ulong, rb.kind ) ) : zargs.Push( cast( ulong, rb.id ) )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            EmitRtl( c, RTL_STR_SWAP, zargs )
+            return true
+        end if
+    end if
 
     dim as Tko.TypeId t = SwapOperandType_( c, sp->a )
     if t = Tko.TYPE_NONE then return false
