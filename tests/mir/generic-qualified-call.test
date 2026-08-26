@@ -1,0 +1,7 @@
+'' A generic procedure called through its namespace. See the source: the same call
+'' unqualified always worked, which is what isolated it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-qualified-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-qualified-call.out

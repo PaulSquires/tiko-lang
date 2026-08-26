@@ -400,6 +400,40 @@ function InstantiateGenericProc_ _
     dim as Tko.ListPayload ptr lp = ListOf( c, callId )
     dim as Tko.NodeId tgt = lp->target
     if tgt = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+
+    '' A QUALIFIED CALLEE IS STILL A CALLEE. 'NS.Mk( 5L )' names the generic through
+    '' its NAMESPACE, so the target is an N_MEMBER and not an identifier -- and this
+    '' refused it, so the generic was never instantiated. The call still went out, to a
+    '' mangled name with no body behind it, or produced nothing at all where the result
+    '' had to be a value.
+    ''
+    '' It is most of fb/optional.bi and fb/result.bi: every 'FB.Some( x )' in the
+    '' shipped headers is written this way, and 'using FB' with the SAME call
+    '' unqualified instantiated correctly -- which is what says the fault is here and
+    '' not in the instantiation itself.
+    ''
+    '' The lookup starts from the QUALIFIER'S scope in that case, not from the call
+    '' site's: 'NS.Mk' means the Mk in NS, and looking it up where the call sits would
+    '' find a different one or none.
+    dim as Tko.ScopeId lookScope = scope_
+    dim as boolean qualified = false
+    if c.ast->Kind( tgt ) = Tko.N_MEMBER then
+        dim as Tko.BinaryPayload ptr qbp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, tgt )].data )]
+        if c.ast->Kind( qbp->lhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
+        '' THE NAMESPACE'S OWN BINDING, which Resolve has already made -- and its
+        '' member scope is 'inner', not 'payload'.
+        dim as Tko.SymbolId nsid = c.info->RefOf( qbp->lhs )
+        if nsid = Tko.SYMBOL_NONE then
+            nsid = c.syms->Lookup( scope_, IdentNameOf( c, qbp->lhs ) )
+        end if
+        dim as Tko.Symbol ptr nss = c.syms->SymbolAt( nsid )
+        if nss = 0 then return Tko.SYMBOL_NONE
+        if nss->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
+        lookScope = cast( Tko.ScopeId, nss->inner )
+        tgt = qbp->rhs
+        qualified = true
+    end if
     if c.ast->Kind( tgt ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
     dim as Tko.InternId gname = IdentNameOf( c, tgt )
     if gname = 0 then return Tko.SYMBOL_NONE
@@ -407,7 +441,14 @@ function InstantiateGenericProc_ _
     '' THE GENERIC'S OWN NODE, through its symbol. A name that resolves to something
     '' that is not a generic procedure is left alone -- 'Box( of long )' in expression
     '' position is a TYPE and takes the other path.
-    dim as Tko.SymbolId gsid = c.syms->Lookup( scope_, gname )
+    '' A QUALIFIED NAME LOOKS ONLY IN THAT SCOPE: 'NS.Mk' means the Mk in NS, and
+    '' walking outward from it would find a different one.
+    dim as Tko.SymbolId gsid
+    if qualified then
+        gsid = c.syms->LookupLocal( lookScope, gname )
+    else
+        gsid = c.syms->Lookup( lookScope, gname )
+    end if
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return Tko.SYMBOL_NONE
     if gs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
