@@ -28,6 +28,10 @@ namespace NS
         return this.v
     end function
 
+    function Five( ) as long
+        return 5
+    end function
+
     function Mk( of T )( byref x as T ) as Box( of T )
         dim as Box( of T ) r
         r.v = x
@@ -41,6 +45,18 @@ print b.Value( )
 dim as NS.Box( of long ) c
 c = NS.Mk( 7L )
 print c.Value( )
+
+'' AND AN ARGUMENT THAT IS ITSELF A QUALIFIED CALL, for the same reason one level in:
+'' inferring the outer T reads the inner call's RESULT TYPE, and that lookup refused a
+'' qualified callee too -- so the outer generic was uninferrable and the statement
+'' declined.
+dim as NS.Box( of long ) e = NS.Mk( NS.Five( ) )
+print e.Value( )
+
+'' WHAT STILL DECLINES, and deliberately: an inner call that is an OVERLOAD SET. One
+'' return type per candidate, and picking the chain head would be picking one at
+'' random -- Check resolves overloads later and this pass cannot. 'Some( IPow( 2L, 3L ) )'
+'' in fb/mathint.bi is that, because IPow is macro-generated once per type.
 
 '' ...and the unqualified spelling, which already worked
 using NS

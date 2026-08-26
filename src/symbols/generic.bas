@@ -208,8 +208,31 @@ private function InferArgType_ _
         '' arithmetic family is a cast.
         dim as Tko.ListPayload ptr cp = ListOf( c, a )
         if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
-        if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
-        dim as Tko.InternId cn = IdentNameOf( c, cp->target )
+
+        '' A QUALIFIED CALLEE IS STILL A CALLEE, here as in InstantiateGenericProc_:
+        '' 'Some( FB.CurrencyFromRaw( r ) )' names the inner procedure through its
+        '' NAMESPACE, so the target is an N_MEMBER and this answered nothing -- which
+        '' made the OUTER generic uninferrable and declined the whole statement.
+        dim as Tko.NodeId ctgt = cp->target
+        dim as Tko.ScopeId cscope = scope_
+        dim as boolean cqual = false
+        if c.ast->Kind( ctgt ) = Tko.N_MEMBER then
+            dim as Tko.BinaryPayload ptr cqb = _
+                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, ctgt )].data )]
+            if c.ast->Kind( cqb->lhs ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+            dim as Tko.SymbolId cnsid = c.info->RefOf( cqb->lhs )
+            if cnsid = Tko.SYMBOL_NONE then
+                cnsid = c.syms->Lookup( scope_, IdentNameOf( c, cqb->lhs ) )
+            end if
+            dim as Tko.Symbol ptr cnss = c.syms->SymbolAt( cnsid )
+            if cnss = 0 then return Tko.TYPE_NONE
+            if cnss->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then return Tko.TYPE_NONE
+            cscope = cast( Tko.ScopeId, cnss->inner )
+            ctgt = cqb->rhs
+            cqual = true
+        end if
+        if c.ast->Kind( ctgt ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+        dim as Tko.InternId cn = IdentNameOf( c, ctgt )
         if cn = 0 then return Tko.TYPE_NONE
         if (Tko.Text.LowerAscii( c.names->Spelling( cn ) ) <> "cast") orelse (cp->count < 1) then
             '' AN ORDINARY CALL IS ITS CALLEE'S RESULT TYPE, which the symbol table
@@ -221,7 +244,12 @@ private function InferArgType_ _
             '' ONLY AN UNAMBIGUOUS NAME. An overload set has one return type per
             '' candidate and picking the chain head would be picking one at random;
             '' Check resolves those later and this pass cannot.
-            dim as Tko.SymbolId psid = c.syms->Lookup( scope_, cn )
+            dim as Tko.SymbolId psid
+            if cqual then
+                psid = c.syms->LookupLocal( cscope, cn )
+            else
+                psid = c.syms->Lookup( cscope, cn )
+            end if
             dim as Tko.Symbol ptr psy = c.syms->SymbolAt( psid )
             if psy = 0 then return Tko.TYPE_NONE
             if psy->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
