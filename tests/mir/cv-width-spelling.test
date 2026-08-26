@@ -1,0 +1,7 @@
+'' The bit-width spellings of CVI and MKI. See the source for why only those two have
+'' the form and for the widths fbc rejects.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cv-width-spelling.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/cv-width-spelling.out

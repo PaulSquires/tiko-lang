@@ -307,6 +307,47 @@ private function SizedConvKeyword_ _
     return wk
 end function
 
+'' 'cvi<N>' and 'mki<N>', by the same rule and with the same care as the CINT form
+'' above: the whole '< N >' is consumed only when all three tokens are there and the
+'' width is one fbc accepts. 'cvi < 16' with no '>' after it IS a comparison over an
+'' unbound name and must keep parsing as one, and 'cvi<8>' is fbc's error 310 -- a
+'' width nothing here rounds up.
+private function SizedCvKeyword_ _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as Tko.TokenKind
+
+    if HasTok( p, p.pos + 1 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_LT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if HasTok( p, p.pos + 3 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) <> Tko.TK_INT_LIT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 3 ).kind ) <> Tko.TK_GT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+
+    '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
+    dim as longint wv = -1
+    dim as long li = cast( long, p.toks->At( p.pos + 2 ).literal )
+    if li < p.litPool->Count then wv = (*p.litPool)[li].intValue
+
+    dim as boolean isMk = (k = Tko.KW_MKI)
+    dim as Tko.TokenKind wk = cast( Tko.TokenKind, 0 )
+    select case wv
+    case 16 : wk = iif( isMk, Tko.KW_MKSHORT,   Tko.KW_CVSHORT )
+    case 32 : wk = iif( isMk, Tko.KW_MKL,       Tko.KW_CVL )
+    case 64 : wk = iif( isMk, Tko.KW_MKLONGINT, Tko.KW_CVLONGINT )
+    end select
+    if wk = cast( Tko.TokenKind, 0 ) then return wk
+
+    Advance( p )        '' the intrinsic keyword
+    Advance( p )        '' '<'
+    Advance( p )        '' the width
+    Advance( p )        '' '>'
+    return wk
+end function
+
 function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
     dim as Tko.IdentPayload ip
     ip.name = cast( Tko.InternId, t.literal )
@@ -1083,6 +1124,24 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
             dim as Tko.Token wt = t
             wt.kind = cast( ushort, wk )
             return PostfixChain( p, MakeIdent( p, wt ) )
+        end if
+    end if
+
+    '' 'cvi<16>( s )' and 'mki<32>( n )' -- the same shape over the CV/MK family, and
+    '' these two are the ONLY members that have it: 'cvs<32>' is fbc's error 6. The
+    '' width names an entry point the compiler already reaches by another spelling --
+    '' measured, 'cvi<16>' is fb_CVSHORT, 'cvi<32>' is fb_CVL and 'cvi<64>' is
+    '' fb_CVLONGINT -- so rewriting the KEYWORD is the whole implementation.
+    ''
+    '' Without it the angle brackets parsed as RELATIONAL OPERATORS, '(cvi < 16) >
+    '' (s)', which is a well-formed expression that means nothing: fourteen statements
+    '' in string/mkcv.bas declined with no syntax error to say why.
+    if (k = Tko.KW_CVI) orelse (k = Tko.KW_MKI) then
+        dim as Tko.TokenKind ck = SizedCvKeyword_( p, k )
+        if ck <> cast( Tko.TokenKind, 0 ) then
+            dim as Tko.Token ct = t
+            ct.kind = cast( ushort, ck )
+            return PostfixChain( p, MakeIdent( p, ct ) )
         end if
     end if
 
