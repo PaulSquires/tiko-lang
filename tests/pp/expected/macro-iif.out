@@ -1,16 +1,11 @@
 global str $str0 "tests/pp/src/macro-iif.bas"
 global str $str1 "__FB_MAINPROC__"
-global str $str2 "__FB_IIF__( 0, 1, 2 ) = 2"
-global str $str3 "__FB_IIF__( -1, 1, 2 ) = 1"
-global str $str4 "__FB_IIF__( 1, 1, 2 ) = 1"
-global str $str5 "__FB_IIF__( A , 1, 2 ) = 1"
-global str $str6 "__FB_IIF__( A+B , 1, 2 ) = 1"
-global str $str7 "__FB_IIF__( C-B-A, 1, 2 ) = 2"
-global str $str8 "__FB_IIF__( A, Q, 2 ) = 7"
-global str $str9 "__FB_IIF__( 0, p1 p2, p3 p4 )"
-global str $str10 "p3 p4"
-global str $str11 "__FB_QUOTE__( __FB_IIF__( 0, p1 p2, p3 p4 ) ) = "p3 p4""
-global str $str12 "__FB_IIF__( 1, 4, this IS NOT an expression ) = 4"
+global str $str2 "2 = 2"
+global str $str3 "1 = 1"
+global str $str4 "7 = 7"
+global str $str5 "p3 p4"
+global str $str6 ""p3 p4" = "p3 p4""
+global str $str7 "4 = 4"
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -64,7 +59,7 @@ func i32 main($0, $1) {
     condbr %30, if.then11, if.else12
   if.then8:
     %24 = const i64 11
-    call.rtl void fb_Assert(@@$str0, %24, @@$str1, @@$str4)
+    call.rtl void fb_Assert(@@$str0, %24, @@$str1, @@$str3)
     br if.join7
   if.else9:
     br if.join7
@@ -78,7 +73,7 @@ func i32 main($0, $1) {
     condbr %37, if.then14, if.else15
   if.then11:
     %31 = const i64 11
-    call.rtl void fb_Assert(@@$str0, %31, @@$str1, @@$str5)
+    call.rtl void fb_Assert(@@$str0, %31, @@$str1, @@$str3)
     br if.join10
   if.else12:
     br if.join10
@@ -92,7 +87,7 @@ func i32 main($0, $1) {
     condbr %44, if.then17, if.else18
   if.then14:
     %38 = const i64 11
-    call.rtl void fb_Assert(@@$str0, %38, @@$str1, @@$str6)
+    call.rtl void fb_Assert(@@$str0, %38, @@$str1, @@$str3)
     br if.join13
   if.else15:
     br if.join13
@@ -106,12 +101,12 @@ func i32 main($0, $1) {
     condbr %51, if.then20, if.else21
   if.then17:
     %45 = const i64 11
-    call.rtl void fb_Assert(@@$str0, %45, @@$str1, @@$str7)
+    call.rtl void fb_Assert(@@$str0, %45, @@$str1, @@$str2)
     br if.join16
   if.else18:
     br if.join16
   if.join19:
-    %53 = call.rtl i32 fb_StrCompare(@@$str9, 30, @@$str10, 6)
+    %53 = call.rtl i32 fb_StrCompare(@@$str5, 6, @@$str5, 6)
     %54 = icmp.eq %53, 0
     %55 = neg %54
     %56 = const i64 0
@@ -120,7 +115,7 @@ func i32 main($0, $1) {
     condbr %58, if.then23, if.else24
   if.then20:
     %52 = const i64 11
-    call.rtl void fb_Assert(@@$str0, %52, @@$str1, @@$str8)
+    call.rtl void fb_Assert(@@$str0, %52, @@$str1, @@$str4)
     br if.join19
   if.else21:
     br if.join19
@@ -134,7 +129,7 @@ func i32 main($0, $1) {
     condbr %65, if.then26, if.else27
   if.then23:
     %59 = const i64 11
-    call.rtl void fb_Assert(@@$str0, %59, @@$str1, @@$str11)
+    call.rtl void fb_Assert(@@$str0, %59, @@$str1, @@$str6)
     br if.join22
   if.else24:
     br if.join22
@@ -145,7 +140,7 @@ func i32 main($0, $1) {
     ret %68
   if.then26:
     %66 = const i64 11
-    call.rtl void fb_Assert(@@$str0, %66, @@$str1, @@$str12)
+    call.rtl void fb_Assert(@@$str0, %66, @@$str1, @@$str7)
     br if.join25
   if.else27:
     br if.join25

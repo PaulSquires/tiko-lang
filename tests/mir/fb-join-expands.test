@@ -1,0 +1,7 @@
+'' __FB_JOIN__ expands its arguments before pasting. See the source for the measurement
+'' that separates that from C's '##', and for why stringify stays the other way round.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fb-join-expands.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fb-join-expands.out

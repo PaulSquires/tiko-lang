@@ -391,6 +391,22 @@ private function ExpandedArgText_ _
 
     dim as string outp = ""
     dim as long n = 0
+    '' THE FIRST TOKEN AN EXPANSION PRODUCES TAKES THE SPACING OF THE NAME THAT
+    '' TRIGGERED IT, not its own. A macro's body begins after the space separating it
+    '' from the name in the '#define', so that space sits on its first body token --
+    '' and emitting it put one where the source had none:
+    ''
+    ''   #define A 1 : #define C   A+A
+    ''   '#x' over C   ->   fbc [1+1],   tiko [1+ 1]
+    ''
+    '' -- the second A expands to a body whose '1' carries the define's space. Measured
+    '' against '#define B A + A', which is [1 + 1] in both: the space that survives is
+    '' the one at the USE, which is exactly this rule.
+    ''
+    '' FIRST WINS on a nested expansion: the outer trigger's spacing is what the run
+    '' begins with, and an inner macro at the head of that body must not overwrite it.
+    dim as boolean pendSet = false
+    dim as boolean pendSpace = false
     dim as long guard = 0
     do
         guard += 1
@@ -403,11 +419,23 @@ private function ExpandedArgText_ _
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr mm = MacroFor( e, id )
             if (mm <> 0) andalso (IsHidden( e, id ) = false) then
-                if PpExpand( e, mm, t ) then continue do
+                dim as boolean trigSpace = ((t.flags and TF_SPACE_BEFORE) <> 0)
+                if PpExpand( e, mm, t ) then
+                    if pendSet = false then
+                        pendSet = true
+                        pendSpace = trigSpace
+                    end if
+                    continue do
+                end if
             end if
         end if
         Advance( e )
-        if ((t.flags and TF_SPACE_BEFORE) <> 0) andalso (n > 0) then outp += " "
+        dim as boolean spBefore = ((t.flags and TF_SPACE_BEFORE) <> 0)
+        if pendSet then
+            spBefore = pendSpace
+            pendSet = false
+        end if
+        if spBefore andalso (n > 0) then outp += " "
         outp += SpellOf( e, t )
         n += 1
     loop
@@ -718,7 +746,20 @@ private sub PpSubstitute _
                 if np <> 0 then
                     dim as long ai = ArgIndexOf( m, np )
                     if ai >= 0 then
-                        RelexInto( e, Stringised_( ArgText( e, args, ai ) ), useLoc, outv )
+                        '' THE ARGUMENT IS EXPANDED FIRST. Measured, and it is the
+                        '' opposite of C, whose '#' stringifies the raw operand:
+                        ''
+                        ''   #define A 1 : #define B A+A
+                        ''   SHOW( A )     ->  [1]
+                        ''   SHOW( B )     ->  [1+1]
+                        ''   SHOW( A B )   ->  [1 1+1]
+                        ''
+                        '' -- fully expanded, not one level: B becomes A+A and then
+                        '' 1+1. tiko-lang stringified the RAW text and produced [A],
+                        '' [B] and [A B].
+                        RelexInto( e, _
+                            Stringised_( ExpandedArgText_( e, args, ai ) ), _
+                            useLoc, outv )
                         i += 2
                         continue while
                     end if
@@ -948,7 +989,10 @@ function PpExpandBuiltin _
             '' every one of the 27 in pp/macro-arg-extract.bas.
             '' Measured: fbc doubles the inner quotes and prefixes '$', so a backslash
             '' in the argument stays a backslash.
-            RelexInto( e, Stringised_( ArgText( e, args, 0 ) ), use.loc, *buf )
+            '' AND THE ARGUMENT IS EXPANDED FIRST, exactly as '#' is -- measured:
+            '' '__FB_QUOTE__( B )' over '#define B A+A' is "1+1", not "B".
+            RelexInto( e, Stringised_( ExpandedArgText_( e, args, 0 ) ), _
+                       use.loc, *buf )
         end if
 
     case PPB_UNQUOTE
@@ -1095,11 +1139,25 @@ function PpExpandBuiltin _
 
 
     case PPB_JOIN
+        '' __FB_JOIN__ EXPANDS ITS ARGUMENTS BEFORE PASTING THEM, which is where it
+        '' parts company with C's '##'. Measured, and the case that settles it is the
+        '' one the two rules disagree about:
+        ''
+        ''   #define A 1 : #define B 2 : #define AB 99
+        ''   __FB_JOIN__( A, B )   ->   12, not 99 and not 'AB'
+        ''
+        '' -- 12 is expand-then-paste; 99 would be paste-then-rescan and 'AB' would
+        '' be paste-with-no-rescan. Pasting the RAW text produced the identifier AB,
+        '' which is undeclared, so every join over macro arguments declined while
+        '' '__FB_JOIN__( 1, 2 )' beside it worked. pp/macro-join.bas is twelve of them.
+        ''
+        '' STRINGIFY IS THE OTHER WAY ROUND and stays so: '#x' must NOT expand, which
+        '' is why the two helpers exist side by side.
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
             dim as string s = ""
             for i as long = 0 to args.firsts.Count - 1
-                s += ArgText( e, args, i )
+                s += ExpandedArgText_( e, args, i )
             next
             RelexInto( e, s, use.loc, *buf )
         end if
