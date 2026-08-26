@@ -1,0 +1,7 @@
+'' GET and PUT over a string and over an array. See the source for the two entry points
+'' and for the two rows that decline rather than being approximated.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/file-get-string-array.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/file-get-string-array.out

@@ -953,7 +953,70 @@ function LowerFileGetPut _
     '' var-length string is a descriptor and takes the other entry point entirely.
     dim as Tko.TypeId vt = c.info->TypeOf_( varN )
     if vt = Tko.TYPE_NONE then return false
-    if IsStringType( c, vt ) then return false
+
+    '' A VAR-LENGTH STRING TAKES ITS OWN ENTRY POINT, and it is not the byte-count
+    '' one: the destination is a DESCRIPTOR, and the runtime resizes it. Measured --
+    ''
+    ''   fb_FileGetStrLarge( F$0, 1ll, (void*)&S$0, -1ll );
+    ''
+    '' -- the trailing -1 being 'as many bytes as the string already holds', which is
+    '' what the var-length form passes. Refused outright before this, so every
+    '' 'get( #f, 1, s )' declined; file/get.bas writes twelve.
+    if IsStringType( c, vt ) then
+        '' NARROW ONLY: a ustring descriptor is UTF-16 and fb_FileGetStrLarge would
+        '' fill it with bytes.
+        if IsUStringType( c, vt ) then return false
+        dim as MirValue sa = LowerAddr( c, varN )
+        if sa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) sargs
+        sargs.Push( cast( ulong, chan.kind ) ) : sargs.Push( cast( ulong, chan.id ) )
+        sargs.Push( cast( ulong, pv.kind ) ) : sargs.Push( cast( ulong, pv.id ) )
+        sargs.Push( cast( ulong, sa.kind ) ) : sargs.Push( cast( ulong, sa.id ) )
+        PushStrLen_( c, sargs, -1 )
+        outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT_STR, RTL_FILE_GET_STR ), sargs )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' AN ARRAY TAKES A DESCRIPTOR TOO, and a different one again: 'get( #f, 1, a() )'
+    '' is fb_FileGetArrayLarge over the array's FBARRAY descriptor, which is the same
+    '' descriptor ERASE builds for a fixed array. Only the FIXED form: a dynamic
+    '' array's descriptor is not built at all yet, so passing whatever its slot holds
+    '' would hand the runtime a wild pointer.
+    '' THE ARRAY IS SPELLED 'a()' -- an EMPTY CALL over a name whose type is an array,
+    '' which is not an N_IDENT and has no array type of its own. ArrayDescArg_ is what
+    '' already recognises that shape and builds the descriptor for it; asking
+    '' TypeOf( varN ) instead answered nothing and the statement declined.
+    ''
+    '' It handles the DYNAMIC form too, by passing the descriptor the slot already
+    '' holds -- which tiko-lang does not build, so a dynamic array is refused here
+    '' rather than handing the runtime whatever that slot contains.
+    dim as boolean isEmptyCall = false
+    if c.ast->Kind( varN ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr avp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, varN )].data )]
+        isEmptyCall = (avp->count = 0) andalso (avp->target <> Tko.NODE_NONE)
+    end if
+    dim as boolean isArrName = (c.types->Kind( vt ) = Tko.TK_ARRAY)
+    if isArrName then isArrName = (CharElemSize_( c, vt ) = 0)
+    if isEmptyCall orelse isArrName then
+        dim as MirValue adesc
+        if ArrayDescArg_( c, varN, true, adesc ) then
+            dim as Tko.TypeId aet = c.info->TypeOf_( varN )
+            if c.ast->Kind( varN ) = Tko.N_CALL then
+                dim as Tko.ListPayload ptr avp2 = _
+                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, varN )].data )]
+                aet = c.info->TypeOf_( avp2->target )
+            end if
+            if c.types->IsDynArray( aet ) = false then
+                dim as FB.Array( of ulong ) aargs
+                aargs.Push( cast( ulong, chan.kind ) ) : aargs.Push( cast( ulong, chan.id ) )
+                aargs.Push( cast( ulong, pv.kind ) ) : aargs.Push( cast( ulong, pv.id ) )
+                aargs.Push( cast( ulong, adesc.kind ) ) : aargs.Push( cast( ulong, adesc.id ) )
+                outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT_ARRAY, RTL_FILE_GET_ARRAY ), aargs )
+                return (outv.kind <> cast( ubyte, MV_NONE ))
+            end if
+        end if
+    end if
     dim as long vsz = SizeOfType( c, vt )
     if vsz <= 0 then return false
     dim as MirValue va = LowerAddr( c, varN )
