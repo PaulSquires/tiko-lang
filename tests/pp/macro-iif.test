@@ -1,0 +1,6 @@
+'' The preprocessor's own conditional -- see the source for how each rule was measured.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/macro-iif.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/macro-iif.out

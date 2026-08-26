@@ -1,0 +1,8 @@
+'' The four predefined byte/word extractor macros -- see the source for how each fact
+'' was measured. A one-parameter function-like macro predefined by the driver, which
+'' the builtin table had no way to express before.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/byte-word-macros.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byte-word-macros.out

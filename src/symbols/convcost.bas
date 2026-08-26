@@ -42,6 +42,11 @@ private function PointerCost_ _
         if types.Kind( si ) = Tko.TK_BUILTIN then
             if types.BuiltinOf( si ) = Tko.TY_ANY then return CONV_PTR_NEAR
         end if
+        '' A POINTER TO A DERIVED TYPE reaches a pointer to any of its bases, and does
+        '' so BEFORE the any-ptr tier: measured, offered { any ptr, T1 ptr } a 'T2 ptr'
+        '' argument takes T1 ptr. The same nearest-base order as the value form.
+        dim as long ud = types.BaseDistance( types.Unqualify( si ), types.Unqualify( di ) )
+        if ud > 0 then return CONV_UDT_BASE + (ud - 1) * CONV_UDT_LINK
         if PointeeNear_( si, di, types ) then return CONV_PTR_NEAR
         '' The warning-3 tier. Accepted on its own; gone the moment there is a choice.
         if overloaded then return CONV_NONE

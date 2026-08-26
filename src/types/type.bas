@@ -487,6 +487,38 @@ function TypeContext.NameOf( byval t as TypeId ) as InternId
     return this.types[cast( long, t )].name
 end function
 
+function TypeContext.BaseOf( byval t as TypeId ) as TypeId
+    if t = TYPE_NONE then return TYPE_NONE
+    if cast( long, t ) >= this.types.Count then return TYPE_NONE
+    return this.types[cast( long, t )].baseType
+end function
+
+sub TypeContext.SetBase( byval t as TypeId, byval b as TypeId )
+    if t = TYPE_NONE then return
+    if cast( long, t ) >= this.types.Count then return
+    this.types[cast( long, t )].baseType = b
+end sub
+
+'' How many 'extends' links separate a derived type from one of its bases. 0 when they
+'' are the same type, -1 when 'to_' is not on 'from_'s chain at all.
+''
+'' Single inheritance, so there is one chain and no ambiguity; the depth cap is a cycle
+'' guard, not a language limit.
+function TypeContext.BaseDistance _
+    ( byval from_ as TypeId, byval to_ as TypeId ) as long
+
+    if (from_ = TYPE_NONE) orelse (to_ = TYPE_NONE) then return -1
+    dim as TypeId a = this.Unqualify( from_ )
+    dim as TypeId b = this.Unqualify( to_ )
+    if a = b then return 0
+    for d as long = 1 to 31
+        a = this.Unqualify( this.BaseOf( a ) )
+        if a = TYPE_NONE then return -1
+        if a = b then return d
+    next
+    return -1
+end function
+
 function TypeContext.Kind( byval t as TypeId ) as TypeKind
     if t = TYPE_NONE then return TK_ERROR
     if cast( long, t ) >= this.types.Count then return TK_ERROR

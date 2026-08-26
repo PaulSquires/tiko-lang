@@ -1,0 +1,315 @@
+global str $str0 "tests/pp/src/arg-leftof.bas"
+global str $str1 "__FB_MAINPROC__"
+global str $str2 "__FB_ARG_LEFTOF__( 1 2 3, 2 ) = 1"
+global str $str3 "__FB_ARG_RIGHTOF__( 1 2 3, 2 ) = 3"
+global str $str4 "__FB_ARG_LEFTOF__( 1 TO 2, TO ) = 1"
+global str $str5 "__FB_ARG_LEFTOF__( E, F ) = A"
+global str $str6 "__FB_ARG_RIGHTOF__( E, F ) = B"
+global str $str7 "__FB_ARG_LEFTOF__( X C, C ) = X"
+global str $str8 "__FB_ARG_RIGHTOF__( X C, X ) = C"
+global str $str9 "__FB_ARG_LEFTOF__( A B, C )"
+global str $str10 ""
+global str $str11 "__FB_QUOTE__( __FB_ARG_LEFTOF__( A B, C ) ) = """
+global str $str12 "__FB_ARG_LEFTOF__( A B, C, X ) = 12"
+global str $str13 "__FB_ARG_RIGHTOF__( X C, B )"
+global str $str14 "__FB_QUOTE__( __FB_ARG_RIGHTOF__( X C, B ) ) = """
+global str $str15 "__FB_ARG_RIGHTOF__( X C, B, A ) = 1"
+global str $str16 "__FB_ARG_LEFTOF__( a b, a, ZZ ) = 99"
+global str $str17 "__FB_ARG_RIGHTOF__( a b, b, ZZ ) = 99"
+global str $str18 "__FB_ARG_LEFTOF__( a b c, a b, ZZ ) = 99"
+global str $str19 "__FB_ARG_RIGHTOF__( a b c d, b c )"
+global str $str20 "__FB_QUOTE__( __FB_ARG_RIGHTOF__( a b c d, b c ) ) = """
+global str $str21 "__FB_ARG_LEFTOF__( 1 2 1 2, 2 )"
+global str $str22 "1"
+global str $str23 "__FB_QUOTE__( __FB_ARG_LEFTOF__( 1 2 1 2, 2 ) ) = "1""
+global str $str24 "__FB_ARG_RIGHTOF__( 1 2 1 2, 1 )"
+global str $str25 "2 1 2"
+global str $str26 "__FB_QUOTE__( __FB_ARG_RIGHTOF__( 1 2 1 2, 1 ) ) = "2 1 2""
+global str $str27 "__FB_ARG_LEFTOF__( (1 2) 3, 3 )"
+global str $str28 "(1 2)"
+global str $str29 "__FB_QUOTE__( __FB_ARG_LEFTOF__( (1 2) 3, 3 ) ) = "(1 2)""
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i64 1
+    %5 = const i64 1
+    %6 = icmp.eq %4, %5
+    %7 = neg %6
+    %8 = const i64 0
+    %9 = icmp.eq %7, %8
+    condbr %9, if.then2, if.else3
+  if.join1:
+    %11 = const i64 3
+    %12 = const i64 3
+    %13 = icmp.eq %11, %12
+    %14 = neg %13
+    %15 = const i64 0
+    %16 = icmp.eq %14, %15
+    condbr %16, if.then5, if.else6
+  if.then2:
+    %10 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %10, @@$str1, @@$str2)
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %18 = const i64 1
+    %19 = const i64 1
+    %20 = icmp.eq %18, %19
+    %21 = neg %20
+    %22 = const i64 0
+    %23 = icmp.eq %21, %22
+    condbr %23, if.then8, if.else9
+  if.then5:
+    %17 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %17, @@$str1, @@$str3)
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %25 = const i64 1
+    %26 = const i64 1
+    %27 = icmp.eq %25, %26
+    %28 = neg %27
+    %29 = const i64 0
+    %30 = icmp.eq %28, %29
+    condbr %30, if.then11, if.else12
+  if.then8:
+    %24 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %24, @@$str1, @@$str4)
+    br if.join7
+  if.else9:
+    br if.join7
+  if.join10:
+    %32 = const i64 1
+    %33 = const i64 1
+    %34 = icmp.eq %32, %33
+    %35 = neg %34
+    %36 = const i64 0
+    %37 = icmp.eq %35, %36
+    condbr %37, if.then14, if.else15
+  if.then11:
+    %31 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %31, @@$str1, @@$str4)
+    br if.join10
+  if.else12:
+    br if.join10
+  if.join13:
+    %39 = const i64 2
+    %40 = const i64 2
+    %41 = icmp.eq %39, %40
+    %42 = neg %41
+    %43 = const i64 0
+    %44 = icmp.eq %42, %43
+    condbr %44, if.then17, if.else18
+  if.then14:
+    %38 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %38, @@$str1, @@$str5)
+    br if.join13
+  if.else15:
+    br if.join13
+  if.join16:
+    %46 = const i64 12
+    %47 = const i64 12
+    %48 = icmp.eq %46, %47
+    %49 = neg %48
+    %50 = const i64 0
+    %51 = icmp.eq %49, %50
+    condbr %51, if.then20, if.else21
+  if.then17:
+    %45 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %45, @@$str1, @@$str6)
+    br if.join16
+  if.else18:
+    br if.join16
+  if.join19:
+    %53 = const i64 3
+    %54 = const i64 3
+    %55 = icmp.eq %53, %54
+    %56 = neg %55
+    %57 = const i64 0
+    %58 = icmp.eq %56, %57
+    condbr %58, if.then23, if.else24
+  if.then20:
+    %52 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %52, @@$str1, @@$str7)
+    br if.join19
+  if.else21:
+    br if.join19
+  if.join22:
+    %60 = call.rtl i32 fb_StrCompare(@@$str9, 28, @@$str10, 1)
+    %61 = icmp.eq %60, 0
+    %62 = neg %61
+    %63 = const i64 0
+    %64 = sext %62
+    %65 = icmp.eq %64, %63
+    condbr %65, if.then26, if.else27
+  if.then23:
+    %59 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %59, @@$str1, @@$str8)
+    br if.join22
+  if.else24:
+    br if.join22
+  if.join25:
+    %67 = const i64 12
+    %68 = const i64 12
+    %69 = icmp.eq %67, %68
+    %70 = neg %69
+    %71 = const i64 0
+    %72 = icmp.eq %70, %71
+    condbr %72, if.then29, if.else30
+  if.then26:
+    %66 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %66, @@$str1, @@$str11)
+    br if.join25
+  if.else27:
+    br if.join25
+  if.join28:
+    %74 = call.rtl i32 fb_StrCompare(@@$str13, 29, @@$str10, 1)
+    %75 = icmp.eq %74, 0
+    %76 = neg %75
+    %77 = const i64 0
+    %78 = sext %76
+    %79 = icmp.eq %78, %77
+    condbr %79, if.then32, if.else33
+  if.then29:
+    %73 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %73, @@$str1, @@$str12)
+    br if.join28
+  if.else30:
+    br if.join28
+  if.join31:
+    %81 = const i64 1
+    %82 = const i64 1
+    %83 = icmp.eq %81, %82
+    %84 = neg %83
+    %85 = const i64 0
+    %86 = icmp.eq %84, %85
+    condbr %86, if.then35, if.else36
+  if.then32:
+    %80 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %80, @@$str1, @@$str14)
+    br if.join31
+  if.else33:
+    br if.join31
+  if.join34:
+    %88 = const i64 99
+    %89 = const i64 99
+    %90 = icmp.eq %88, %89
+    %91 = neg %90
+    %92 = const i64 0
+    %93 = icmp.eq %91, %92
+    condbr %93, if.then38, if.else39
+  if.then35:
+    %87 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %87, @@$str1, @@$str15)
+    br if.join34
+  if.else36:
+    br if.join34
+  if.join37:
+    %95 = const i64 99
+    %96 = const i64 99
+    %97 = icmp.eq %95, %96
+    %98 = neg %97
+    %99 = const i64 0
+    %100 = icmp.eq %98, %99
+    condbr %100, if.then41, if.else42
+  if.then38:
+    %94 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %94, @@$str1, @@$str16)
+    br if.join37
+  if.else39:
+    br if.join37
+  if.join40:
+    %102 = const i64 99
+    %103 = const i64 99
+    %104 = icmp.eq %102, %103
+    %105 = neg %104
+    %106 = const i64 0
+    %107 = icmp.eq %105, %106
+    condbr %107, if.then44, if.else45
+  if.then41:
+    %101 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %101, @@$str1, @@$str17)
+    br if.join40
+  if.else42:
+    br if.join40
+  if.join43:
+    %109 = call.rtl i32 fb_StrCompare(@@$str19, 35, @@$str10, 1)
+    %110 = icmp.eq %109, 0
+    %111 = neg %110
+    %112 = const i64 0
+    %113 = sext %111
+    %114 = icmp.eq %113, %112
+    condbr %114, if.then47, if.else48
+  if.then44:
+    %108 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %108, @@$str1, @@$str18)
+    br if.join43
+  if.else45:
+    br if.join43
+  if.join46:
+    %116 = call.rtl i32 fb_StrCompare(@@$str21, 32, @@$str22, 2)
+    %117 = icmp.eq %116, 0
+    %118 = neg %117
+    %119 = const i64 0
+    %120 = sext %118
+    %121 = icmp.eq %120, %119
+    condbr %121, if.then50, if.else51
+  if.then47:
+    %115 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %115, @@$str1, @@$str20)
+    br if.join46
+  if.else48:
+    br if.join46
+  if.join49:
+    %123 = call.rtl i32 fb_StrCompare(@@$str24, 33, @@$str25, 6)
+    %124 = icmp.eq %123, 0
+    %125 = neg %124
+    %126 = const i64 0
+    %127 = sext %125
+    %128 = icmp.eq %127, %126
+    condbr %128, if.then53, if.else54
+  if.then50:
+    %122 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %122, @@$str1, @@$str23)
+    br if.join49
+  if.else51:
+    br if.join49
+  if.join52:
+    %130 = call.rtl i32 fb_StrCompare(@@$str27, 32, @@$str28, 6)
+    %131 = icmp.eq %130, 0
+    %132 = neg %131
+    %133 = const i64 0
+    %134 = sext %132
+    %135 = icmp.eq %134, %133
+    condbr %135, if.then56, if.else57
+  if.then53:
+    %129 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %129, @@$str1, @@$str26)
+    br if.join52
+  if.else54:
+    br if.join52
+  if.join55:
+    %137 = const i32 0
+    call.rtl void fb_End(%137)
+    %138 = load @$tmp0
+    ret %138
+  if.then56:
+    %136 = const i64 14
+    call.rtl void fb_Assert(@@$str0, %136, @@$str1, @@$str29)
+    br if.join55
+  if.else57:
+    br if.join55
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_Assert($0, $1, $2, $3)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 58 blocks, 160 insts, 0 statements not lowered, 0 scope imbalance

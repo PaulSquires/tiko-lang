@@ -399,6 +399,60 @@ end function
 '' the written commas first, which is what this did, made '__FB_ARG_EXTRACT__( 0, L )'
 '' expand to the whole of L and every higher index expand to NOTHING: 52 statements in
 '' pp/macro-arg-extract.bas, whose entire subject this is.
+'' THE TOKENS ON ONE SIDE OF A NEEDLE. __FB_ARG_LEFTOF__ and __FB_ARG_RIGHTOF__ are
+'' the same scan with the two halves swapped, so they are one function.
+''
+'' Every rule below was measured by reading 'fbc -pp' output, and three of them are not
+'' guessable:
+''
+''   __FB_ARG_LEFTOF__( a b c d, b c )      EMPTY -- a needle of more than ONE token
+''                                          never matches, however it is spelled
+''   __FB_ARG_LEFTOF__( a b, a, zz )        zz    -- the needle WAS found and the left
+''                                          side is empty, and an empty RESULT is what
+''                                          reaches for the third argument, not a
+''                                          missing needle
+''   __FB_ARG_LEFTOF__( , a, zz )           EMPTY -- but an empty TEXT does not, even
+''                                          though its result is empty too
+''
+'' The match is case-insensitive ('1 TO 2' is split by 'to'), and every argument --
+'' text, needle and the fallback alike -- is macro-expanded first.
+private function SplitAtToken_ _
+    ( byref e as PpEngine, byref text_ as string, byref needle as string, _
+      byval wantLeft as boolean ) as string
+
+    if len( trim( text_ ) ) = 0 then return ""
+    dim as TokenVec tv, nv
+    RelexInto( e, text_, LOC_NONE, tv )
+    RelexInto( e, needle, LOC_NONE, nv )
+    if nv.Count <> 1 then return ""
+
+    dim as string want = Text.LowerAscii( SpellOf( e, nv[0] ) )
+    dim as long hit = -1
+    for i as long = 0 to tv.Count - 1
+        if Text.LowerAscii( SpellOf( e, tv[i] ) ) = want then
+            hit = i
+            exit for
+        end if
+    next
+    if hit < 0 then return ""
+
+    dim as long lo_ = 0
+    dim as long hi_ = hit - 1
+    if wantLeft = false then
+        lo_ = hit + 1
+        hi_ = tv.Count - 1
+    end if
+    '' Respelled the way ArgText does it, so the spacing that came in comes back out
+    '' and a stringize of the result reads as it was written.
+    dim as string s = ""
+    for i as long = lo_ to hi_
+        dim as boolean sep = ((tv[i].flags and TF_SPACE_BEFORE) <> 0) andalso (i > lo_)
+        if sep then s += " "
+        s += SpellOf( e, tv[i] )
+    next
+    return s
+end function
+
 private sub ExpandedArgList_ _
     ( byref e as PpEngine, byref args as ArgList, byval from as long, _
       byref outp as FB.Array( of string ) )
@@ -886,6 +940,42 @@ function PpExpandBuiltin _
                     RelexInto( e, lst[cast( long, i )], use.loc, *buf )
                 end if
             end if
+        end if
+
+    case PPB_IIF
+        '' __FB_IIF__( cond, a, b ) -- the PREPROCESSOR's conditional, and not the
+        '' language's: measured with 'fbc -pp', only the selected arm appears in the
+        '' output at all, so the other one need not even be well formed.
+        ''
+        '' The condition is a constant expression on EXPANDED tokens, the same input
+        '' '#if' is given -- '__FB_IIF__( A+B, 1, 2 )' with '#define A 1' and
+        '' '#define B 2' takes the first arm.
+        dim as ArgList args
+        if PpReadArgs( e, m, args ) then
+            dim as TokenVec cv
+            RelexInto( e, ExpandedArgText_( e, args, 0 ), LOC_NONE, cv )
+            dim as boolean cok = false
+            dim as boolean truthy = PpEvalCondition( e, cv, cok )
+            if cok = false then
+                Report( e, TKO0324, use.loc, "1", e.names->Spelling( m->name ) )
+            else
+                '' RAW, not expanded: the arm goes back through the ordinary expansion
+                '' path once it is relexed into the buffer.
+                RelexInto( e, ArgText( e, args, iif( truthy, 1, 2 ) ), use.loc, *buf )
+            end if
+        end if
+
+    case PPB_ARG_LEFTOF, PPB_ARG_RIGHTOF
+        dim as ArgList args
+        if PpReadArgs( e, m, args ) then
+            dim as string text_ = ExpandedArgText_( e, args, 0 )
+            dim as string needle = trim( ExpandedArgText_( e, args, 1 ) )
+            dim as string res = _
+                SplitAtToken_( e, text_, needle, (m->builtin = PPB_ARG_LEFTOF) )
+            if (len( res ) = 0) andalso (len( trim( text_ ) ) > 0) then
+                if args.firsts.Count > 2 then res = ExpandedArgText_( e, args, 2 )
+            end if
+            RelexInto( e, res, use.loc, *buf )
         end if
 
     case PPB_ARG_LISTEXPAND

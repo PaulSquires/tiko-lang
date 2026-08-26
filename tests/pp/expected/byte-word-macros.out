@@ -1,0 +1,96 @@
+global str $str0 " "
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i8 i8
+  local i16 i16
+  local i32 i32
+  local i64 i64
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr i8
+    %5 = const i64 136
+    %6 = trunc %5
+    store @i8, %6
+    %7 = alloca ptr i16
+    %8 = const i64 30600
+    %9 = trunc %8
+    store @i16, %9
+    %10 = alloca ptr i32
+    %11 = const i64 1432778632
+    %12 = trunc %11
+    store @i32, %12
+    %13 = alloca ptr i64
+    %14 = const i64 1234605616436508552
+    store @i64, %14
+    %15 = load @i8
+    %16 = zext %15
+    %17 = const i64 255
+    %18 = and %16, %17
+    call.rtl void fb_PrintULongint(0, %18, 0)
+    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %19, 0)
+    %20 = load @i16
+    %21 = zext %20
+    %22 = const i64 65280
+    %23 = and %21, %22
+    %24 = const i64 8
+    %25 = lshr %23, %24
+    call.rtl void fb_PrintULongint(0, %25, 0)
+    %26 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %26, 0)
+    %27 = load @i32
+    %28 = zext %27
+    %29 = const i64 65535
+    %30 = and %28, %29
+    call.rtl void fb_PrintULongint(0, %30, 0)
+    %31 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %31, 0)
+    %32 = load @i32
+    %33 = zext %32
+    %34 = const i64 4294901760
+    %35 = and %33, %34
+    %36 = const i64 16
+    %37 = lshr %35, %36
+    call.rtl void fb_PrintULongint(0, %37, 1)
+    %38 = load @i64
+    %39 = const i64 255
+    %40 = and %38, %39
+    call.rtl void fb_PrintULongint(0, %40, 0)
+    %41 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %41, 0)
+    %42 = load @i64
+    %43 = const i64 65280
+    %44 = and %42, %43
+    %45 = const i64 8
+    %46 = lshr %44, %45
+    call.rtl void fb_PrintULongint(0, %46, 0)
+    %47 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %47, 0)
+    %48 = load @i64
+    %49 = const i64 65535
+    %50 = and %48, %49
+    call.rtl void fb_PrintULongint(0, %50, 0)
+    %51 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %51, 0)
+    %52 = load @i64
+    %53 = const i64 4294901760
+    %54 = and %52, %53
+    %55 = const i64 16
+    %56 = lshr %54, %55
+    call.rtl void fb_PrintULongint(0, %56, 1)
+    %57 = const i32 0
+    call.rtl void fb_End(%57)
+    %58 = load @$tmp0
+    ret %58
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintULongint($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance

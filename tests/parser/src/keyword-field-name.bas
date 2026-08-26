@@ -20,6 +20,22 @@ type T
 	Arr( 0 to 1 ) as ulongint
 end type
 
+'' THE ARRAY FORM IS NARROWER THAN THE 'as T' FORM. Measured over all 247 keywords:
+'' 'name as T' takes 223 of them, 'name( lo to hi ) as T' only 221 -- TYPE and UNION
+'' are fbc error 14, "Expected identifier, found '('", spelled the second way and are
+'' fields spelled the first.
+''
+'' And the bounds have to reach the LAYOUT. They were parsed into the payload slot a
+'' VARIABLE uses rather than the one a FIELD uses, so they were dropped in silence and
+'' the type laid out as if every one of these were a scalar. fbc says this one is 48
+'' bytes with Fix at 8, Len at 32 and b at 40; tiko-lang said 24, 8, 16 and 16.
+type KA
+	a as byte
+	Fix( 0 to 2 ) as integer
+	Len( 0 to 1 ) as long
+	b as byte
+end type
+
 '' The shape from winnt.bi.
 union U
 	ForwarderString as ulongint
@@ -29,6 +45,7 @@ end union
 
 dim a as T
 dim b as U
+dim c as KA
 print sizeof( T ), sizeof( U )
 
 '' The union's size was WRONG here for one commit -- 24 for three ULONGINTs, where

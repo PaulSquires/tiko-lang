@@ -15,5 +15,9 @@ type IShellVtbl
     Type as long
     Union as long
     Property as long
+    '' THE BOUNDS HAVE TO REACH THE FIELD, not the slot a VARIABLE keeps them in.
+    '' They went to the second one, so a keyword-named array field laid out as a
+    '' SCALAR -- the dump below shows the flat bound pair a field carries, and the
+    '' N_BLOCK it used to show was invisible to the layout pass.
     Line( 0 to 3 ) as long
 end type

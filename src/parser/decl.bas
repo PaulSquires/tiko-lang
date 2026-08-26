@@ -933,7 +933,17 @@ private function IsFieldNamedByKeyword _
     end select
     if HasTok( p, p.pos + 1 ) = false then return false
     dim as Tko.TokenKind nx = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
-    return (nx = Tko.KW_AS) orelse (nx = Tko.TK_LPAREN)
+    if nx = Tko.KW_AS then return true
+    if nx <> Tko.TK_LPAREN then return false
+    '' THE TWO FORMS DO NOT ACCEPT THE SAME WORDS. Measured over all 247 keywords: the
+    '' 'name as T' form takes 223 of them and the ARRAY form 'name( lo to hi ) as T'
+    '' takes only 221 -- TYPE and UNION are legal field names spelled the first way and
+    '' fbc error 14, "Expected identifier, found '('", spelled the second.
+    select case k
+    case Tko.KW_TYPE, Tko.KW_UNION
+        return false
+    end select
+    return true
 end function
 
 '' The member list of a TYPE or UNION, its 'end', and the node. Shared by the named
@@ -1049,8 +1059,15 @@ private function ParseAggregateBody _
             fp.name = p.names->GetString( _
                 Tko.Text.LowerAscii( Tko.TokenKindText( k ) ) )
             Advance( p )
-            ParseArrayBoundsInto( p, fp, ft )
-            if fp.c <> Tko.NODE_NONE then fp.op = cast( ushort, Tko.KW_DIM )
+            '' ParseArrayBounds, NOT ParseArrayBoundsInto. The two write the bounds to
+            '' DIFFERENT PLACES: a FIELD carries them as the payload's flat first/count
+            '' pair, a VARIABLE as a block hanging off 'c'. This branch wrote the
+            '' variable shape, which the layout pass does not read, so
+            '' 'fix(0 to 2) as integer' -- a field named for a keyword -- laid out as a
+            '' SCALAR. Measured against fbc: that type is 40 bytes with 'b' at 32, and
+            '' tiko-lang made it 24 with 'b' at 16.
+            ParseArrayBounds( p, fp )
+            if fp.count > 0 then fp.op = cast( ushort, Tko.KW_DIM )
             if Accept( p, Tko.KW_AS ) then fp.a = TypeRef( p )
             fp.extra or= vis
             members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )

@@ -512,6 +512,29 @@ private sub PpDefineValue _
     if len( body ) > 0 then RelexInto( e, body, LOC_NONE, m->body )
 end sub
 
+'' A predefined FUNCTION-LIKE macro of one parameter.
+''
+'' LOBYTE / HIBYTE / LOWORD / HIWORD are not keywords and not compiler intrinsics --
+'' measured, fbc reports "Argument count mismatch, expanding: LOBYTE" for a two-argument
+'' call and "Duplicated definition, lobyte" (the SYMBOL wording, not the keyword's
+'' "found 'sgn'") for 'dim lobyte'. They are predefined MACROS, and 'fbc -pp' prints
+'' their bodies outright. A one-parameter helper is all four of them need.
+private sub PpDefineFunc1 _
+    ( byref e as PpEngine, byval spelling as string, byval body as string )
+
+    dim as InternId id = e.names->GetString( Text.LowerAscii( spelling ) )
+    dim as PpMacro ptr m = PpFindOrAddMacro( e, id )
+    m->isDefined = true
+    m->isFunc = true
+    m->isVariadic = false
+    m->optParens = false
+    m->builtin = PPB_NONE
+    m->params.Clear( )
+    m->params.Push( cast( ulong, e.names->GetString( "x" ) ) )
+    m->body.Clear( )
+    RelexInto( e, body, LOC_NONE, m->body )
+end sub
+
 private sub PpDefineBuiltinMacro _
     ( byref e as PpEngine, byval spelling as string, byval which as PpBuiltin, _
       byval isFunc as boolean )
@@ -603,6 +626,18 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__FB_OUT_DLL__", "0" )
     PpDefineValue( e, "__FB_OUT_OBJ__", "0" )
 
+    '' The BYTE/WORD extractors. Bodies copied from 'fbc -pp', which prints them
+    '' verbatim; HIWORD is the one that differs by target, because on win32 the
+    '' &hFFFF0000 mask is redundant once the shift has run and fbc omits it.
+    PpDefineFunc1( e, "lobyte", "(cuint(x) and &h000000FF)" )
+    PpDefineFunc1( e, "hibyte", "((cuint(x) and &h0000FF00) shr 8)" )
+    PpDefineFunc1( e, "loword", "(cuint(x) and &h0000FFFF)" )
+    if on64 then
+        PpDefineFunc1( e, "hiword", "((cuint(x) and &hFFFF0000) shr 16)" )
+    else
+        PpDefineFunc1( e, "hiword", "(cuint(x) shr 16)" )
+    end if
+
     '' Builtins that manipulate tokens rather than carry a value.
     PpDefineBuiltinMacro( e, "__FILE__", PPB_FILE, false )
     PpDefineBuiltinMacro( e, "__FILE_NQ__", PPB_FILE_NQ, false )
@@ -614,6 +649,9 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineBuiltinMacro( e, "__FB_UNQUOTE__", PPB_UNQUOTE, true )
     PpDefineBuiltinMacro( e, "__FB_ARG_COUNT__", PPB_ARG_COUNT, true )
     PpDefineBuiltinMacro( e, "__FB_ARG_EXTRACT__", PPB_ARG_EXTRACT, true )
+    PpDefineBuiltinMacro( e, "__FB_IIF__", PPB_IIF, true )
+    PpDefineBuiltinMacro( e, "__FB_ARG_LEFTOF__", PPB_ARG_LEFTOF, true )
+    PpDefineBuiltinMacro( e, "__FB_ARG_RIGHTOF__", PPB_ARG_RIGHTOF, true )
     PpDefineBuiltinMacro( e, "__FB_ARG_LISTEXPAND__", PPB_ARG_LISTEXPAND, true )
     PpDefineBuiltinMacro( e, "__FB_JOIN__", PPB_JOIN, true )
     PpDefineBuiltinMacro( e, "__FB_UNIQUEID__", PPB_UNIQUEID, true )

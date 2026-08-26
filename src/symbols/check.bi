@@ -75,6 +75,12 @@ namespace Tko.Check
     '' about -- warning 3, 'Passing different pointer types' -- and warning 3 is also
     '' what makes a candidate unviable once the procedure is overloaded, which is the
     '' whole reason ConversionCost has to be told which question it is answering.
+    '' DERIVED TO BASE, one tier per 'extends' link. Measured: an exact match wins, then
+    '' the NEAREST base -- offered { object, T1, T2 } a T3 argument takes T2 -- and a
+    '' base pointer BEATS 'any ptr', which is why this sits below CONV_PTR_ANY and the
+    '' per-link step is small enough that 31 links still do.
+    const CONV_UDT_BASE  as long = 100
+    const CONV_UDT_LINK  as long = 2
     const CONV_PTR_ANY   as long = 200
     const CONV_PTR_NEAR  as long = 250
     const CONV_PTR_OTHER as long = 400

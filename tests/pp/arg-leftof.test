@@ -1,0 +1,6 @@
+'' The two side-of-a-needle builtins -- see the source for how each rule was measured.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/arg-leftof.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/arg-leftof.out

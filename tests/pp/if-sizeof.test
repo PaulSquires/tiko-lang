@@ -1,4 +1,7 @@
 '' sizeof and typeof inside #if, for the builtins the preprocessor can know.
+''
+'' The 'file(s)' count on the first line counts the VIRTUAL files a predefined macro's
+'' body is relexed through as well as the real ones, so adding a predefine moves it.
 '' TEST: cli
 '' ARGS: --pp-only tests/pp/src/if-sizeof.bas
 '' EXPECT-EXIT: 0

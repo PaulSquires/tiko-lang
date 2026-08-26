@@ -1,0 +1,8 @@
+'' Passing a derived type where a base is wanted -- see the source for the measured
+'' selection order. The golden's call targets ARE the answer: each mangled name says
+'' which overload the cost model chose.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-upcast.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-upcast.out

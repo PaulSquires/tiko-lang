@@ -233,6 +233,7 @@ end function
 
 '' The pointer half of conversion costing, in its own file at the 1500-line cap.
 #include once "symbols/convcost.bas"
+#include once "symbols/checkbase.bas"
 
 '' 'zstring * 8' as the string type it IS, or TYPE_NONE.
 ''
@@ -346,6 +347,11 @@ function ConversionCost _
     dim as boolean dstP = (types.Kind( to_ ) = Tko.TK_POINTER)
     if srcP orelse dstP then
         return PointerCost_( from_, to_, srcP, dstP, types, overloaded )
+    end if
+
+    '' DERIVED TO BASE -- see UdtBaseCost_.
+    if (types.Kind( from_ ) = Tko.TK_UDT) andalso (types.Kind( to_ ) = Tko.TK_UDT) then
+        return UdtBaseCost_( from_, to_, types )
     end if
 
     '' AN ENUM CONVERTS AS ITS UNDERLYING INTEGER, which is what the binary-operator
@@ -1412,6 +1418,7 @@ function Run _
     '' this only afterwards typed the symbol correctly and left every USE of it
     '' untyped, so 'str( n1v )' declined while 'str( n2v )' beside it worked. The
     '' second pass stays because a typeof whose operand needs the walk resolves then.
+    RecordUdtBases_( c )
     InferUnusedVarTypes_( c )
     InferForEachVarTypes_( c )
     WalkAll( c )
@@ -1419,76 +1426,6 @@ function Run _
     return st.badOperands
 end function
 
-'' ------------------------------------------------------------------------ dump
-
-function Dump _
-    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
-      byref types as Tko.TypeContext, byref names as Tko.Interner, _
-      byref info as Tko.SemanticInfo, byref st as Stats ) as string
-
-    dim as string outp = ""
-    for i as long = 1 to ast.Count( )
-        dim as Tko.NodeId n = cast( Tko.NodeId, i )
-
-        '' An assignment reports its LEGALITY rather than a type, so
-        '' tools/gen/check-assign.py can put the verdict beside fbc's.
-        if ast.Kind( n ) = Tko.N_AMBIGUOUS then
-            if info.AmbiguousOf( n ) = Tko.AMB_ASSIGN then
-                '' N_AMBIGUOUS is a STATEMENT payload -- 'a' is the target and 'b'
-                '' the value -- not a binary. Reading it as a binary indexes a
-                '' different arena, which is the exact mistake phase-5-check.md warns
-                '' about, made again while writing this.
-                dim as Tko.StmtPayload ptr ap = _
-                    @ast.stmts[cast( long, ast.nodes[cast( long, n )].data )]
-                dim as Tko.TypeId dt = info.TypeOf_( ap->a )
-                dim as Tko.TypeId st2 = info.TypeOf_( ap->b )
-                dim as string verdict = "assign:unknown"
-                if (dt <> Tko.TYPE_NONE) andalso (st2 <> Tko.TYPE_NONE) then
-                    select case AssignableTo( st2, dt, types )
-                    case ASSIGN_OK     : verdict = "assign:ok"
-                    case ASSIGN_WARN   : verdict = "assign:warn"
-                    case else          : verdict = "assign:reject"
-                    end select
-                end if
-                outp += str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & _
-                        verdict & chr( 10 )
-            end if
-            continue for
-        end if
-
-        if ast.Kind( n ) <> Tko.N_INTRINSIC then continue for
-        dim as Tko.StmtPayload ptr sp = _
-            @ast.stmts[cast( long, ast.nodes[cast( long, n )].data )]
-        if sp->count <= 0 then continue for
-        dim as Tko.NodeId arg = cast( Tko.NodeId, ast.children[sp->first] )
-        if arg = Tko.NODE_NONE then continue for
-        dim as Tko.TypeId t = info.TypeOf_( arg )
-        dim as string nm = "?"
-        if t <> Tko.TYPE_NONE then nm = types.Name( t )
-        outp += str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & nm & chr( 10 )
-        '' Constants get their own line with a NON-numeric prefix, so the promotion
-        '' and overload gates -- which key on 'line type' -- cannot collide with it.
-        dim as ConstVal cv = ConstOf( ast, arg, src, names, types.target.pointerBits )
-        if cv.known then
-            outp += "const " & str( src.Decode( ast.Loc( n ) ).lineNo ) & " " & _
-                    str( cv.value ) & chr( 10 )
-        end if
-    next
-    for i as long = 0 to st.argUntypedNames.Count - 1
-        outp += "arg-untyped-name " & _
-                names.Spelling( cast( Tko.InternId, st.argUntypedNames[i] ) ) & chr( 10 )
-    next
-    '' The expression forms that came back untyped in ARGUMENT position, which is the
-    '' list of things to implement next: one of these declines its whole statement.
-    for i as long = 0 to st.argUntypedKind.Count - 1
-        if st.argUntypedKind[i] = 0 then continue for
-        outp += "arg-untyped " & Tko.NodeKindName( cast( Tko.NodeKind, i ) ) & " " & _
-                str( st.argUntypedKind[i] ) & chr( 10 )
-    next
-    outp += "checked: " & st.typed & " typed, " & st.untyped & " untyped, " & _
-            st.badOperands & " bad operand pairs, " & st.callsResolved & _
-            " calls resolved, " & st.callsAmbiguous & " ambiguous" & chr( 10 )
-    return outp
-end function
+#include once "symbols/checkdump.bas"
 
 end namespace

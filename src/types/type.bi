@@ -145,6 +145,12 @@ namespace Tko
                                    '' Part of the IDENTITY -- two namespaces may each
                                    '' hold a 'Vec' -- and part of the mangled name,
                                    '' which spells a namespaced UDT as N<prefix>3VECE.
+        '' TK_UDT: what this type EXTENDS, or TYPE_NONE. The fact lives in the symbol
+        '' table -- 'extends T' is a field named 'base' -- and is copied here because
+        '' ConversionCost is handed a TypeContext and nothing else, and cannot ask a
+        '' question of the symbol table to answer "is this argument a derived type of
+        '' that parameter". Filled once by Check.
+        as TypeId   baseType
     end type
 
     '' The targets tiko-lang can compile for. Windows comes in both widths; Linux is 64-bit
@@ -222,6 +228,13 @@ namespace Tko
             ( byval t as TypeId, byval i as long ) as TypeId
         declare function Packing( byval t as TypeId ) as long
         declare function DeclScopeOf( byval t as TypeId ) as ulong
+        '' The type a UDT extends, and the number of 'extends' links from a derived
+        '' type up to one of its bases -- 0 when they are the same type, -1 when 'to_'
+        '' is not a base of 'from_' at all.
+        declare function BaseOf( byval t as TypeId ) as TypeId
+        declare sub SetBase( byval t as TypeId, byval b as TypeId )
+        declare function BaseDistance _
+            ( byval from_ as TypeId, byval to_ as TypeId ) as long
         declare sub SetPacking( byval t as TypeId, byval n as long )
         '' Qualify( ) can only ADD flags. Removing const needs its own operation --
         '' 'Qualify( t, 0 )' silently returns t unchanged.

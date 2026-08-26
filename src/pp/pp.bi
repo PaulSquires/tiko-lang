@@ -39,6 +39,17 @@ namespace Tko
         PPB_UNQUOTE          '' __FB_UNQUOTE__( "s" )   -> s
         PPB_ARG_COUNT        '' __FB_ARG_COUNT__( ... ) -> n
         PPB_ARG_EXTRACT      '' __FB_ARG_EXTRACT__( i, ... )    -> argument i
+        '' __FB_ARG_LEFTOF__( text, tok [, else] ) -> the tokens before the FIRST
+        '' 'tok' in 'text', and __FB_ARG_RIGHTOF__ the ones after it. See macro.bas
+        '' for the measured rules; the ones that are not guessable are that the
+        '' needle must be exactly ONE token and that an EMPTY RESULT -- not just a
+        '' missing needle -- is what reaches for the third argument.
+        '' __FB_IIF__( cond, a, b ) -- a PREPROCESSOR conditional. 'cond' is a
+        '' constant expression evaluated here, exactly as '#if' evaluates one, and
+        '' only the arm it selects reaches the output.
+        PPB_IIF
+        PPB_ARG_LEFTOF
+        PPB_ARG_RIGHTOF
         PPB_ARG_LISTEXPAND   '' __FB_ARG_LISTEXPAND__( M, n, ... ) -> M( chunk ) ...
         PPB_JOIN             '' __FB_JOIN__( a, b )     -> ab
         PPB_UNIQUEID         '' __FB_UNIQUEID__( id )      -> the name's current id

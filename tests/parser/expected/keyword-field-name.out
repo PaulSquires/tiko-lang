@@ -5,10 +5,15 @@ t size 56 align 8
   t off type 24
   t off union 32
   t off arr 40
+ka size 48 align 8
+  ka off a 0
+  ka off fix 8
+  ka off len 32
+  ka off b 40
 u size 8 align 8
   u off forwarderstring 0
   u off function 0
   u off ordinal 0
 object size 8 align 8
   object off vptr 0
-udts: 3
+udts: 4

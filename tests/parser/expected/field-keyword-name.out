@@ -1,4 +1,4 @@
-N_MODULE (4) <1:86>
+N_MODULE (4) <1:87>
   N_TYPE 'ishell' <4:1>
     N_FIELD 'dummy' <5:5>
       N_TYPEREF 'long' [LONG] <5:14>
@@ -47,9 +47,7 @@ N_MODULE (4) <1:86>
       N_TYPEREF 'long' [LONG] <16:14>
     N_FIELD 'property' <17:5>
       N_TYPEREF 'long' [LONG] <17:17>
-    N_FIELD 'line' [DIM] <18:5>
-      N_TYPEREF 'long' [LONG] <18:23>
-      N_BLOCK (1) <18:5>
-        N_CASE_RANGE <18:16>
-          N_INT_LIT 0 radix=10 <18:11>
-          N_INT_LIT 3 radix=10 <18:16>
+    N_FIELD 'line' [DIM] <22:5>
+      N_TYPEREF 'long' [LONG] <22:23>
+      N_INT_LIT 0 radix=10 <22:11>
+      N_INT_LIT 3 radix=10 <22:16>
