@@ -1,0 +1,6 @@
+'' A parenthesised callee -- see the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/paren-callee.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/paren-callee.out

@@ -376,4 +376,46 @@ sub SymbolTable.ChainOverload _
     this.symbols[cast( long, id )].flags or= SYMF_OVERLOAD
 end sub
 
+'' The synthetic UDT a tuple desugars into. See symbol.bi for why it is shared.
+''
+'' Measured: fbc's own name for the type of '(1, 2)' is FBTUPLE2Iu7INTEGERu7INTEGERE and
+'' its layout is that of the equivalent hand-written TYPE, field for field -- so the
+'' fields are named '_1'.._N and nothing else about it is special. The KEY is built from
+'' the element type ids rather than from their spellings, so two tuples written apart
+'' with the same element types are ONE type and assignable to each other.
+function TupleUdtFor _
+    ( byref syms as SymbolTable, byref types as TypeContext, _
+      byref names as Interner, byref elemTypes as FB.Array( of ulong ), _
+      byval at as SourceLoc ) as TypeId
+
+    if elemTypes.Count = 0 then return TYPE_NONE
+
+    dim as string key = "$tup"
+    for i as long = 0 to elemTypes.Count - 1
+        if cast( TypeId, elemTypes[i] ) = TYPE_NONE then return TYPE_NONE
+        key += ":" & str( cast( long, elemTypes[i] ) )
+    next
+
+    dim as InternId tnm = names.Fold( names.GetString( key ) )
+    dim as SymbolId prev = syms.LookupLocalTyped( SCOPE_GLOBAL, tnm, true )
+    dim as Symbol ptr ps = syms.SymbolAt( prev )
+    if ps <> 0 then return ps->type_
+
+    dim as boolean dup = false
+    dim as SymbolId tsid = syms.DeclareSym( SCOPE_GLOBAL, tnm, SYM_UDT, at, dup )
+    dim as Symbol ptr ts = syms.SymbolAt( tsid )
+    if ts = 0 then return TYPE_NONE
+    dim as ScopeId tin = syms.OpenScope( SCOPEK_TYPE, SCOPE_GLOBAL, tsid )
+    ts->inner = tin
+    ts->type_ = types.NamedType( TK_UDT, tnm, cast( ulong, SCOPE_GLOBAL ) )
+    for i as long = 0 to elemTypes.Count - 1
+        dim as InternId fnm = names.Fold( names.GetString( "_" & str( i + 1 ) ) )
+        dim as boolean fdup = false
+        dim as SymbolId fsid = syms.DeclareSym( tin, fnm, SYM_FIELD, at, fdup )
+        dim as Symbol ptr fs = syms.SymbolAt( fsid )
+        if fs <> 0 then fs->type_ = cast( TypeId, elemTypes[i] )
+    next
+    return ts->type_
+end function
+
 end namespace

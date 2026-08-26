@@ -34,7 +34,8 @@ declare function GfxPutMode( byref p as Tko.ParserState ) as ushort
 declare function GfxPoint _
     ( byref p as Tko.ParserState, byref items as Tko.NodeIdVec, _
       byref stepped as boolean ) as boolean
-declare function GfxTarget( byref p as Tko.ParserState ) as Tko.NodeId
+declare function GfxTarget _
+    ( byref p as Tko.ParserState, byval needPoint as boolean = true ) as Tko.NodeId
 declare function GfxNone( byref p as Tko.ParserState ) as Tko.NodeId
 declare function GfxOption _
     ( byref p as Tko.ParserState, byref outv as Tko.NodeId ) as boolean
@@ -95,13 +96,22 @@ end function
 '' 'line buffer, (10,10)-(20,20)' and 'line (10,10)-(20,20)' both start with something
 '' that could be an expression, so the decision is lookahead: an expression, then a
 '' COMMA, then a coordinate. Speculative, and the cursor goes back when it is not one.
-private function GfxTarget( byref p as Tko.ParserState ) as Tko.NodeId
+'' 'needPoint' is false for DRAW ALONE. Every other graphics statement is followed by a
+'' COORDINATE, and requiring one is what tells 'circle pp, (x,y)' -- a target -- from
+'' 'circle (x,y)' -- no target, and the expression the target parse just read is really
+'' the point. DRAW has no coordinates at all: it is 'draw [target,] <string>', so the
+'' comma is the whole signal, and demanding a point after it backtracked EVERY targeted
+'' DRAW into a malformed statement. gfx/image-expr.bas writes seven of them.
+private function GfxTarget _
+    ( byref p as Tko.ParserState, byval needPoint as boolean = true ) as Tko.NodeId
+
     if AtGfxPoint( p ) then return Tko.NODE_NONE
     if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then return Tko.NODE_NONE
     dim as long save = p.pos
     dim as Tko.NodeId e = Expression( p )
     if e <> Tko.NODE_NONE then
         if Accept( p, Tko.TK_COMMA ) then
+            if needPoint = false then return e
             if AtGfxPoint( p ) then return e
         end if
     end if
@@ -154,7 +164,7 @@ function ParseGfxStmt _
         end if
     end if
 
-    sp.a = GfxTarget( p )
+    sp.a = GfxTarget( p, (k <> Tko.KW_DRAW) )
     if sp.a <> Tko.NODE_NONE then sp.extra or= GFX_HASTARGET
 
     '' DRAW is the odd one: a target and then a STRING, no coordinates at all.

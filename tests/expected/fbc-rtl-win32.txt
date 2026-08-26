@@ -1,21 +1,33 @@
+__divdi3	int64	int64, int64	lib	___divdi3
+__fixunsdfdi	uint64	double	ABSENT	___fixunsdfdi
+__main	void	void	ABSENT	___main
+__moddi3	int64	int64, int64	lib	___moddi3
+__udivdi3	uint64	uint64, uint64	lib	___udivdi3
+__umoddi3	uint64	uint64, uint64	lib	___umoddi3
 atan2	double	double, double	ABSENT	_atan2
 atexit	int32	void*	lib	_atexit
 calloc	void*	uint32, uint32	lib	_calloc
 fb_ASC	uint32	FBSTRING*, int32	lib	_fb_ASC@8
+fb_ArrayBoundChkEx	void*	int32, int32, int32, int32, char*, char*	lib	_fb_ArrayBoundChkEx@24
 fb_ArrayClear	int32	struct $7FBARRAYIvE*	lib	_fb_ArrayClear@4
 fb_ArrayClearObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	_fb_ArrayClearObj@12
 fb_ArrayDestructObj	void	struct $7FBARRAYIvE*, void*	lib	_fb_ArrayDestructObj@8
 fb_ArrayDestructStr	void	struct $7FBARRAYIvE*	lib	_fb_ArrayDestructStr@4
+fb_ArrayDimensionChk	void*	int32, struct $7FBARRAYIKvE*, int32, char*, char*	lib	_fb_ArrayDimensionChk@20
 fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	_fb_ArrayErase@4
 fb_ArrayEraseObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	_fb_ArrayEraseObj@12
+fb_ArrayFill	int32	struct $7FBARRAYIvE*, int32	lib	_fb_ArrayFill@8
 fb_ArrayLBound	int32	struct $7FBARRAYIKvE*, int32	lib	_fb_ArrayLBound@8
 fb_ArrayRedimEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimEx
 fb_ArrayRedimObj	int32	struct $7FBARRAYIvE*, uint32, void*, void*, uint32, ...	lib	_fb_ArrayRedimObj
 fb_ArrayRedimPresvEx	int32	struct $7FBARRAYIvE*, uint32, int32, int32, uint32, ...	lib	_fb_ArrayRedimPresvEx
 fb_ArrayRedimPresvObj	int32	struct $7FBARRAYIvE*, uint32, void*, void*, uint32, ...	lib	_fb_ArrayRedimPresvObj
+fb_ArrayRedimTo	int32	struct $7FBARRAYIvE*, struct $7FBARRAYIvE*, int32, void*, void*	lib	_fb_ArrayRedimTo@20
+fb_ArraySngBoundChkEx	void*	uint32, uint32, int32, char*, char*	lib	_fb_ArraySngBoundChkEx@20
 fb_ArrayStrErase	void	struct $7FBARRAYIvE*	lib	_fb_ArrayStrErase@4
 fb_ArrayUBound	int32	struct $7FBARRAYIKvE*, int32	lib	_fb_ArrayUBound@8
 fb_Assert	void	char*, int32, char*, char*	lib	_fb_Assert@16
+fb_AssertWarn	void	char*, int32, char*, char*	lib	_fb_AssertWarn@16
 fb_BINEx_b	FBSTRING*	uint8, int32	lib	_fb_BINEx_b@8
 fb_BINEx_i	FBSTRING*	uint32, int32	lib	_fb_BINEx_i@8
 fb_BINEx_l	FBSTRING*	uint64, int32	lib	_fb_BINEx_l@12
@@ -31,9 +43,13 @@ fb_BoolToStr	FBSTRING*	boolean	lib	_fb_BoolToStr@4
 fb_BoolToWstr	uint16*	boolean	lib	_fb_BoolToWstr@4
 fb_CHR	FBSTRING*	int32, ...	lib	_fb_CHR
 fb_CVD	double	FBSTRING*	lib	_fb_CVD@4
+fb_CVDFROMLONGINT	double	int64	lib	_fb_CVDFROMLONGINT@8
 fb_CVL	int32	FBSTRING*	lib	_fb_CVL@4
+fb_CVLFROMS	int32	float	lib	_fb_CVLFROMS@4
 fb_CVLONGINT	int64	FBSTRING*	lib	_fb_CVLONGINT@4
+fb_CVLONGINTFROMD	int64	double	lib	_fb_CVLONGINTFROMD@8
 fb_CVS	float	FBSTRING*	lib	_fb_CVS@4
+fb_CVSFROML	float	int32	lib	_fb_CVSFROML@4
 fb_CVSHORT	int16	FBSTRING*	lib	_fb_CVSHORT@4
 fb_ChDir	int32	FBSTRING*	lib	_fb_ChDir@4
 fb_Chain	int32	FBSTRING*	lib	_fb_Chain@4
@@ -74,7 +90,13 @@ fb_ErrorGetFuncName	char*	void	lib	_fb_ErrorGetFuncName@0
 fb_ErrorGetLineNum	int32	void	lib	_fb_ErrorGetLineNum@0
 fb_ErrorGetModName	char*	void	lib	_fb_ErrorGetModName@0
 fb_ErrorGetNum	int32	void	lib	_fb_ErrorGetNum@0
+fb_ErrorResume	void*	void	lib	_fb_ErrorResume
+fb_ErrorResumeNext	void*	void	lib	_fb_ErrorResumeNext
+fb_ErrorSetFuncName	char*	char*	lib	_fb_ErrorSetFuncName@4
+fb_ErrorSetHandler	void*	void*	lib	_fb_ErrorSetHandler@4
+fb_ErrorSetModName	char*	char*	lib	_fb_ErrorSetModName@4
 fb_ErrorSetNum	int32	int32	lib	_fb_ErrorSetNum@4
+fb_ErrorThrowAt	void*	int32, char*, void*, void*	lib	_fb_ErrorThrowAt
 fb_ErrorThrowEx	void*	int32, int32, char*, void*, void*	lib	_fb_ErrorThrowEx
 fb_ExePath	FBSTRING*	void	lib	_fb_ExePath@0
 fb_Exec	int32	FBSTRING*, FBSTRING*	lib	_fb_Exec@8
@@ -88,8 +110,16 @@ fb_FileEof	int32	int32	lib	_fb_FileEof@4
 fb_FileFree	int32	void	lib	_fb_FileFree@0
 fb_FileGet	int32	int32, int32, void*, uint32	lib	_fb_FileGet@16
 fb_FileGetArray	int32	int32, int32, struct $7FBARRAYIvE*	lib	_fb_FileGetArray@12
+fb_FileGetArrayIOB	int32	int32, int32, struct $7FBARRAYIvE*, uint32*	lib	_fb_FileGetArrayIOB@16
+fb_FileGetArrayLargeIOB	int32	int32, int64, struct $7FBARRAYIvE*, uint32*	lib	_fb_FileGetArrayLargeIOB@20
+fb_FileGetIOB	int32	int32, int32, void*, uint32, uint32*	lib	_fb_FileGetIOB@20
+fb_FileGetLargeIOB	int32	int32, int64, void*, uint32, uint32*	lib	_fb_FileGetLargeIOB@24
 fb_FileGetStr	int32	int32, int32, void*, int32	lib	_fb_FileGetStr@16
+fb_FileGetStrIOB	int32	int32, int32, void*, int32, uint32*	lib	_fb_FileGetStrIOB@20
+fb_FileGetStrLargeIOB	int32	int32, int64, void*, int32, uint32*	lib	_fb_FileGetStrLargeIOB@24
 fb_FileGetWstr	int32	int32, int32, uint16*, int32	lib	_fb_FileGetWstr@16
+fb_FileGetWstrIOB	int32	int32, int32, uint16*, int32, uint32*	lib	_fb_FileGetWstrIOB@20
+fb_FileGetWstrLargeIOB	int32	int32, int64, uint16*, int32, uint32*	lib	_fb_FileGetWstrLargeIOB@24
 fb_FileInput	int32	int32	lib	_fb_FileInput@4
 fb_FileKill	int32	FBSTRING*	lib	_fb_FileKill@4
 fb_FileLineInput	int32	int32, void*, int32, int32	lib	_fb_FileLineInput@16
@@ -103,15 +133,19 @@ fb_FileOpenEncod	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	li
 fb_FileOpenErr	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenErr@28
 fb_FileOpenLpt	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenLpt@28
 fb_FileOpenPipe	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenPipe@28
+fb_FileOpenQB	int32	FBSTRING*, uint32, uint32, uint32, int32, int32	lib	_fb_FileOpenQB@24
 fb_FileOpenScrn	int32	FBSTRING*, uint32, uint32, uint32, int32, int32, char*	lib	_fb_FileOpenScrn@28
+fb_FileOpenShort	int32	FBSTRING*, int32, FBSTRING*, int32, FBSTRING*, FBSTRING*	lib	_fb_FileOpenShort@24
 fb_FilePut	int32	int32, int32, void*, uint32	lib	_fb_FilePut@16
 fb_FilePutArray	int32	int32, int32, struct $7FBARRAYIKvE*	lib	_fb_FilePutArray@12
 fb_FilePutStr	int32	int32, int32, void*, int32	lib	_fb_FilePutStr@16
 fb_FileReset	void	void	lib	_fb_FileReset@0
 fb_FileSeek	int32	int32, int32	lib	_fb_FileSeek@8
 fb_FileSize	int64	int32	lib	_fb_FileSize@4
+fb_FileStrInput	FBSTRING*	int32, int32	lib	_fb_FileStrInput@8
 fb_FileTell	int64	int32	lib	_fb_FileTell@4
 fb_FileUnlock	int32	int32, uint32, uint32	lib	_fb_FileUnlock@12
+fb_FileWstrInput	uint16*	int32, int32	lib	_fb_FileWstrInput@8
 fb_FloatToStr	FBSTRING*	float	lib	_fb_FloatToStr@4
 fb_FloatToWstr	uint16*	float	lib	_fb_FloatToWstr@4
 fb_GetEnviron	FBSTRING*	FBSTRING*	lib	_fb_GetEnviron@4
@@ -124,9 +158,11 @@ fb_GfxBload	int32	FBSTRING*, void*, void*	lib	_fb_GfxBload@12
 fb_GfxBsave	int32	FBSTRING*, void*, uint32, void*	lib	_fb_GfxBsave@16
 fb_GfxCursor	float	int32	lib	_fb_GfxCursor@4
 fb_GfxDraw	void	void*, FBSTRING*	lib	_fb_GfxDraw@8
+fb_GfxDrawString	int32	void*, float, float, int32, FBSTRING*, uint32, void*, int32, void*, void*, void*	lib	_fb_GfxDrawString@44
 fb_GfxEllipse	void	void*, float, float, float, uint32, float, float, float, int32, int32	lib	_fb_GfxEllipse@40
 fb_GfxGet	int32	void*, float, float, float, float, void*, int32, struct $7FBARRAYIKvE*	lib	_fb_GfxGet@32
 fb_GfxImageCreate	void*	int32, int32, uint32, int32, int32	lib	_fb_GfxImageCreate@20
+fb_GfxImageCreateQB	void*	int32, int32, uint32, int32, int32	lib	_fb_GfxImageCreateQB@20
 fb_GfxLine	void	void*, float, float, float, float, uint32, int32, uint32, int32	lib	_fb_GfxLine@36
 fb_GfxPMap	float	float, int32	lib	_fb_GfxPMap@8
 fb_GfxPaint	void	void*, float, float, uint32, uint32, FBSTRING*, int32, int32	lib	_fb_GfxPaint@32
@@ -142,6 +178,7 @@ fb_GfxPset	void	void*, float, float, uint32, int32, int32	lib	_fb_GfxPset@24
 fb_GfxPut	int32	void*, float, float, void*, int32, int32, int32, int32, int32, int32, void*, int32, void*, void*	lib	_fb_GfxPut@56
 fb_GfxScreen	int32	int32, int32, int32, int32, int32	lib	_fb_GfxScreen@20
 fb_GfxScreenList	int32	int32	lib	_fb_GfxScreenList@4
+fb_GfxScreenQB	int32	int32, int32, int32	lib	_fb_GfxScreenQB@12
 fb_GfxScreenRes	int32	int32, int32, int32, int32, int32, int32	lib	_fb_GfxScreenRes@24
 fb_GfxView	void	int32, int32, int32, int32, uint32, uint32, int32	lib	_fb_GfxView@28
 fb_GfxWindow	void	float, float, float, float, int32	lib	_fb_GfxWindow@20
@@ -157,7 +194,9 @@ fb_HEX_p	FBSTRING*	void*	lib	_fb_HEX_p@4
 fb_HEX_s	FBSTRING*	uint16	lib	_fb_HEX_s@4
 fb_In	int32	uint16	lib	_fb_In@4
 fb_Init	void	int32, char**, int32	lib	_fb_Init@12
+fb_InitSignals	void	void	lib	_fb_InitSignals@0
 fb_Inkey	FBSTRING*	void	lib	_fb_Inkey@0
+fb_InputBool	int32	boolean*	lib	_fb_InputBool@4
 fb_InputByte	int32	int8*	lib	_fb_InputByte@4
 fb_InputDouble	int32	double*	lib	_fb_InputDouble@4
 fb_InputInt	int32	int32*	lib	_fb_InputInt@4
@@ -172,7 +211,24 @@ fb_InputUshort	int32	uint16*	lib	_fb_InputUshort@4
 fb_InputWstr	int32	uint16*, int32	lib	_fb_InputWstr@8
 fb_IntToStr	FBSTRING*	int32	lib	_fb_IntToStr@4
 fb_IntToWstr	uint16*	int32	lib	_fb_IntToWstr@4
+fb_IsTypeOf	int32	void*, void*	lib	_fb_IsTypeOf@8
 fb_LEFT	FBSTRING*	FBSTRING*, int32	lib	_fb_LEFT@8
+fb_LEFTSELF	void	FBSTRING*, int32	lib	_fb_LEFTSELF@8
+fb_LPrintBool	void	int32, boolean, int32	lib	_fb_LPrintBool@12
+fb_LPrintByte	void	int32, int8, int32	lib	_fb_LPrintByte@12
+fb_LPrintDouble	void	int32, double, int32	lib	_fb_LPrintDouble@16
+fb_LPrintInt	void	int32, int32, int32	lib	_fb_LPrintInt@12
+fb_LPrintLongint	void	int32, int64, int32	lib	_fb_LPrintLongint@16
+fb_LPrintShort	void	int32, int16, int32	lib	_fb_LPrintShort@12
+fb_LPrintSingle	void	int32, float, int32	lib	_fb_LPrintSingle@12
+fb_LPrintString	void	int32, FBSTRING*, int32	lib	_fb_LPrintString@12
+fb_LPrintUByte	void	int32, uint8, int32	lib	_fb_LPrintUByte@12
+fb_LPrintUInt	void	int32, uint32, int32	lib	_fb_LPrintUInt@12
+fb_LPrintULongint	void	int32, uint64, int32	lib	_fb_LPrintULongint@16
+fb_LPrintUShort	void	int32, uint16, int32	lib	_fb_LPrintUShort@12
+fb_LPrintUsingInit	int32	FBSTRING*	lib	_fb_LPrintUsingInit@4
+fb_LPrintVoid	void	int32, int32	lib	_fb_LPrintVoid@8
+fb_LPrintWstr	void	int32, uint16*, int32	lib	_fb_LPrintWstr@12
 fb_LTRIM	FBSTRING*	FBSTRING*	lib	_fb_LTRIM@4
 fb_LTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_LTrimAny@8
 fb_LTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_LTrimEx@8
@@ -187,6 +243,7 @@ fb_MKL	FBSTRING*	int32	lib	_fb_MKL@4
 fb_MKLONGINT	FBSTRING*	int64	lib	_fb_MKLONGINT@8
 fb_MKS	FBSTRING*	float	lib	_fb_MKS@4
 fb_MKSHORT	FBSTRING*	int16	lib	_fb_MKSHORT@4
+fb_MemCopyClear	void	void*, uint32, void*, uint32	lib	_fb_MemCopyClear@16
 fb_MemSwap	void	void*, void*, int32	lib	_fb_MemSwap@12
 fb_MkDir	int32	FBSTRING*	lib	_fb_MkDir@4
 fb_Multikey	int32	int32	lib	_fb_Multikey@4
@@ -194,6 +251,7 @@ fb_MutexCreate	void*	void	lib	_fb_MutexCreate@0
 fb_MutexDestroy	void	void*	lib	_fb_MutexDestroy@4
 fb_MutexLock	void	void*	lib	_fb_MutexLock@4
 fb_MutexUnlock	void	void*	lib	_fb_MutexUnlock@4
+fb_NullPtrChk	void*	void*, int32, char*	lib	_fb_NullPtrChk@12
 fb_OCTEx_b	FBSTRING*	uint8, int32	lib	_fb_OCTEx_b@8
 fb_OCTEx_i	FBSTRING*	uint32, int32	lib	_fb_OCTEx_i@8
 fb_OCTEx_l	FBSTRING*	uint64, int32	lib	_fb_OCTEx_l@12
@@ -206,6 +264,7 @@ fb_OCT_p	FBSTRING*	void*	lib	_fb_OCT_p@4
 fb_OCT_s	FBSTRING*	uint16	lib	_fb_OCT_s@4
 fb_Out	int32	uint16, uint8	lib	_fb_Out@8
 fb_PageCopy	int32	int32, int32	lib	_fb_PageCopy@8
+fb_PageSet	int32	int32, int32	lib	_fb_PageSet@8
 fb_Pos	int32	int32	lib	_fb_Pos@4
 fb_PrintBool	void	int32, boolean, int32	lib	_fb_PrintBool@12
 fb_PrintByte	void	int32, int8, int32	lib	_fb_PrintByte@12
@@ -238,6 +297,7 @@ fb_RTRIM	FBSTRING*	FBSTRING*	lib	_fb_RTRIM@4
 fb_RTrimAny	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_RTrimAny@8
 fb_RTrimEx	FBSTRING*	FBSTRING*, FBSTRING*	lib	_fb_RTrimEx@8
 fb_Randomize	void	double, int32	lib	_fb_Randomize@12
+fb_ReadXY	uint32	int32, int32, int32	lib	_fb_ReadXY@12
 fb_RmDir	int32	FBSTRING*	lib	_fb_RmDir@4
 fb_Rnd	double	float	lib	_fb_Rnd@4
 fb_Run	int32	FBSTRING*, FBSTRING*	lib	_fb_Run@8
@@ -260,6 +320,7 @@ fb_StrAssignMid	void	FBSTRING*, int32, int32, FBSTRING*	lib	_fb_StrAssignMid@16
 fb_StrCompare	int32	void*, int32, void*, int32	lib	_fb_StrCompare@16
 fb_StrConcat	FBSTRING*	FBSTRING*, void*, int32, void*, int32	lib	_fb_StrConcat@20
 fb_StrConcatAssign	FBSTRING*	void*, int32, void*, int32, int32	lib	_fb_StrConcatAssign@20
+fb_StrConcatByref	FBSTRING*	void*, int32, void*, int32, int32	lib	_fb_StrConcatByref@20
 fb_StrDelete	void	FBSTRING*	lib	_fb_StrDelete@4
 fb_StrFill1	FBSTRING*	int32, int32	lib	_fb_StrFill1@8
 fb_StrFill2	FBSTRING*	int32, FBSTRING*	lib	_fb_StrFill2@8
@@ -280,6 +341,7 @@ fb_StrToUStr	FBUSTRING*	void*, int32	lib	_fb_StrToUStr@8
 fb_StrToWstr	uint16*	char*	lib	_fb_StrToWstr@4
 fb_StrUcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrUcase2@8
 fb_TRIM	FBSTRING*	FBSTRING*	lib	_fb_TRIM@4
+fb_ThreadCall	void*	void*, int32, int32, int32, ...	lib	_fb_ThreadCall
 fb_ThreadCreate	void*	void*, void*, int32	lib	_fb_ThreadCreate@12
 fb_ThreadWait	void	void*	lib	_fb_ThreadWait@4
 fb_Time	FBSTRING*	void	lib	_fb_Time@0
@@ -302,13 +364,18 @@ fb_UStrConcatUA	FBUSTRING*	FBUSTRING*, void*, int32, void*, int32	lib	_fb_UStrCo
 fb_UStrDelete	void	FBUSTRING*	lib	_fb_UStrDelete@4
 fb_UStrInit	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrInit@20
 fb_UStrLen	int32	void*, int32	lib	_fb_UStrLen@8
+fb_UStrLset	void	void*, int32, void*, int32	lib	_fb_UStrLset@16
+fb_UStrRset	void	void*, int32, void*, int32	lib	_fb_UStrRset@16
 fb_VAL	double	FBSTRING*	lib	_fb_VAL@4
+fb_VALBOOL	boolean	FBSTRING*	lib	_fb_VALBOOL@4
 fb_VALINT	int32	FBSTRING*	lib	_fb_VALINT@4
 fb_VALLNG	int64	FBSTRING*	lib	_fb_VALLNG@4
 fb_VALUINT	uint32	FBSTRING*	lib	_fb_VALUINT@4
 fb_VALULNG	uint64	FBSTRING*	lib	_fb_VALULNG@4
 fb_Wait	int32	uint16, int32, int32	lib	_fb_Wait@12
 fb_Width	int32	int32, int32	lib	_fb_Width@8
+fb_WidthDev	int32	FBSTRING*, int32	lib	_fb_WidthDev@8
+fb_WidthFile	int32	int32, int32	lib	_fb_WidthFile@8
 fb_WriteBool	void	int32, boolean, int32	lib	_fb_WriteBool@12
 fb_WriteByte	void	int32, int8, int32	lib	_fb_WriteByte@12
 fb_WriteDouble	void	int32, double, int32	lib	_fb_WriteDouble@16
@@ -399,6 +466,7 @@ fb_WstrValInt	int32	uint16*	lib	_fb_WstrValInt@4
 fb_WstrValLng	int64	uint16*	lib	_fb_WstrValLng@4
 fb_WstrValUInt	uint32	uint16*	lib	_fb_WstrValUInt@4
 fb_WstrValULng	uint64	uint16*	lib	_fb_WstrValULng@4
+fb_hPutAdd	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	_fb_hPutAdd
 fb_hPutAlpha	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	_fb_hPutAlpha
 fb_hPutAnd	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	_fb_hPutAnd
 fb_hPutBlend	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	_fb_hPutBlend
@@ -408,8 +476,12 @@ fb_hPutPReset	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, voi
 fb_hPutPSet	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	_fb_hPutPSet
 fb_hPutTrans	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	_fb_hPutTrans
 fb_hPutXor	void	uint8*, uint8*, int32, int32, int32, int32, int32, void*, void*	lib	_fb_hPutXor
+fb_hStrDelTemp	int32	FBSTRING*	lib	_fb_hStrDelTemp@4
 free	void	void*	lib	_free
 malloc	void*	uint32	lib	_malloc
+memcpy	void*	void*, void*, uint32	lib	_memcpy
+memmove	void*	void*, void*, uint32	lib	_memmove
 memset	void*	void*, int32, uint32	lib	_memset
 pow	double	double, double	lib	_pow
 realloc	void*	void*, uint32	lib	_realloc
+rename	int32	char*, char*	ABSENT	_rename

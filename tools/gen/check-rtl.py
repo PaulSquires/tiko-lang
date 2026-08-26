@@ -89,7 +89,13 @@ def one_target(tiko, label, truth, tgtargs):
         # directly and links libc alongside libfb -- so their absence from the archive
         # is expected and says nothing. malloc and free are in libfb only because
         # mingw's libfb happens to re-export them; that is not something to rely on.
-        if present != "lib" and fn not in ("pow", "atan2"):
+        # ...and seven more of them, reached only by ADDRESS: 'procptr( fb_MemMove )'
+        # is legal FreeBASIC and what fbc emits for it is plain 'memmove'. The libgcc
+        # four, __fixunsdfdi, __main and rename live in libgcc/libmingw32/msvcrt, not in
+        # libfb, exactly as pow and atan2 do.
+        if present != "lib" and fn not in (
+                "pow", "atan2", "rename", "__main", "__divdi3", "__udivdi3",
+                "__moddi3", "__umoddi3", "__fixunsdfdi"):
             diffs.append(f"{fn}: not an exported symbol of libfb.a")
             continue
         # A variadic tail is not modelled yet; compare the fixed prefix.

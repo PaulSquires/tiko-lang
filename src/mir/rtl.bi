@@ -519,6 +519,12 @@ namespace Tko.Mir
         RTL( RTL_STR_RSET_ANA,      "fb_StrRsetANA",       "v",   "pzp"   )
         RTL( RTL_WSTR_LSET,         "fb_WstrLset",         "v",   "pp"    )
         RTL( RTL_WSTR_RSET,         "fb_WstrRset",         "v",   "pp"    )
+        '' A USTRING DESTINATION takes FOUR arguments -- (bytes, tagged length, source
+        '' descriptor, source length) -- and its source is always a freshly transcoded
+        '' FBUSTRING with length -1, never the raw operand. Measured:
+        '' 'fb_UStrLset( (void*)US1, -9223372036854775759ll, (void*)vr$0, -1ll )'.
+        RTL( RTL_USTR_LSET,         "fb_UStrLset",         "v",   "pzpz"  )
+        RTL( RTL_USTR_RSET,         "fb_UStrRset",         "v",   "pzpz"  )
         '' ARRAY DESCRIPTOR routines. Only the ones a FIXED array needs are here; the
         '' four variadic Redim* entries wait until dynamic arrays are modelled, and
         '' they are the only array routines that are CDECL on win32.
@@ -747,6 +753,104 @@ namespace Tko.Mir
         RTL( RTL_INPUT_DOUBLE,      "fb_InputDouble",      "l",   "p"     )
         RTL( RTL_INPUT_STRING,      "fb_InputString",      "l",   "pzl"   )
         RTL( RTL_INPUT_WSTR,        "fb_InputWstr",        "l",   "pz"    )
+
+        '' THE ADDRESSABLE REST OF THE RUNTIME. warnings/rtl-prototypes.bas takes
+        '' 'procptr( fb_Xxx )' of 554 entry points and asserts each is non-null; 84 of
+        '' them named nothing in this table, so the expression had no value and the
+        '' assignment declined -- every one of that file's declines, from ONE cause.
+        ''
+        '' Signatures MEASURED the usual way: a generated probe of 'chk = procptr( f )'
+        '' lines through 'fbc -r -gen gcc' on BOTH targets, and the letter is 'z'
+        '' wherever win64 declares int64 and win32 int32.
+        ''
+        '' TWELVE OF THEM ARE DECLARED UNDER A DIFFERENT NAME. 'fb_MemMove' is plain
+        '' 'memmove', 'fb_Pow' is 'pow', 'fb___divdi3' is libgcc's own '__divdi3' and
+        '' 'fb_LeftSelf' is 'fb_LEFTSELF' -- the FB spelling is what a program writes
+        '' and the C name is what links, so RtlByName maps between them.
+        ''
+        '' NOT EVERY ONE IS STDCALL ON WIN32 either: fb_ErrorResume, fb_ErrorResumeNext,
+        '' fb_ErrorThrowAt and fb_hPutAdd are cdecl, as is every aliased C name, and
+        '' decorating those emits a symbol the linker cannot resolve.
+        RTL( RTL_ARRAY_BOUND_CHK_EX,    "fb_ArrayBoundChkEx",      "p",   "zzzlpp"    )
+        RTL( RTL_ARRAY_DIMENSION_CHK,   "fb_ArrayDimensionChk",    "p",   "zplpp"     )
+        RTL( RTL_ARRAY_FILL,            "fb_ArrayFill",            "l",   "pl"        )
+        RTL( RTL_ARRAY_REDIM_TO,        "fb_ArrayRedimTo",         "l",   "pplpp"     )
+        RTL( RTL_ARRAY_SNG_BOUND_CHK_EX, "fb_ArraySngBoundChkEx",   "p",   "zzlpp"     )
+        RTL( RTL_ASSERT_WARN,           "fb_AssertWarn",           "v",   "plpp"      )
+        RTL( RTL_CVD_FROM_LONGINT,      "fb_CVDFROMLONGINT",       "d",   "q"         )
+        RTL( RTL_CVL_FROM_S,            "fb_CVLFROMS",             "l",   "f"         )
+        RTL( RTL_CVLONGINT_FROM_D,      "fb_CVLONGINTFROMD",       "q",   "d"         )
+        RTL( RTL_CVS_FROM_L,            "fb_CVSFROML",             "f",   "l"         )
+        RTL( RTL_ERROR_RESUME,          "fb_ErrorResume",          "p",   ""          )
+        RTL( RTL_ERROR_RESUME_NEXT,     "fb_ErrorResumeNext",      "p",   ""          )
+        RTL( RTL_ERROR_SET_FUNC_NAME,   "fb_ErrorSetFuncName",     "p",   "p"         )
+        RTL( RTL_ERROR_SET_HANDLER,     "fb_ErrorSetHandler",      "p",   "p"         )
+        RTL( RTL_ERROR_SET_MOD_NAME,    "fb_ErrorSetModName",      "p",   "p"         )
+        RTL( RTL_ERROR_THROW_AT,        "fb_ErrorThrowAt",         "p",   "lppp"      )
+        RTL( RTL_FILE_GET32,              "fb_FileGet",              "l",   "llpz"      )
+        RTL( RTL_FILE_GET_ARRAY32,        "fb_FileGetArray",         "l",   "llp"       )
+        RTL( RTL_FILE_GET_ARRAY_IOB,  "fb_FileGetArrayIOB",      "l",   "llpp"      )
+        RTL( RTL_FILE_GET_ARRAY_LARGE_IOB, "fb_FileGetArrayLargeIOB", "l",   "lqpp"      )
+        RTL( RTL_FILE_GET_IOB,        "fb_FileGetIOB",           "l",   "llpzp"     )
+        RTL( RTL_FILE_GET_LARGE_IOB,  "fb_FileGetLargeIOB",      "l",   "lqpzp"     )
+        RTL( RTL_FILE_GET_STR32,          "fb_FileGetStr",           "l",   "llpz"      )
+        RTL( RTL_FILE_GET_STR_IOB,    "fb_FileGetStrIOB",        "l",   "llpzp"     )
+        RTL( RTL_FILE_GET_STR_LARGE_IOB, "fb_FileGetStrLargeIOB",   "l",   "lqpzp"     )
+        RTL( RTL_FILE_GET_WSTR32,         "fb_FileGetWstr",          "l",   "llpz"      )
+        RTL( RTL_FILE_GET_WSTR_IOB,   "fb_FileGetWstrIOB",       "l",   "llpzp"     )
+        RTL( RTL_FILE_GET_WSTR_LARGE_IOB, "fb_FileGetWstrLargeIOB",  "l",   "lqpzp"     )
+        RTL( RTL_FILE_LOCK32,             "fb_FileLock",             "l",   "lll"       )
+        RTL( RTL_FILE_OPEN_QB,         "fb_FileOpenQB",           "l",   "plllll"    )
+        RTL( RTL_FILE_OPEN_SHORT,       "fb_FileOpenShort",        "l",   "plplpp"    )
+        RTL( RTL_FILE_PUT32,              "fb_FilePut",              "l",   "llpz"      )
+        RTL( RTL_FILE_PUT_ARRAY32,        "fb_FilePutArray",         "l",   "llp"       )
+        RTL( RTL_FILE_PUT_STR32,          "fb_FilePutStr",           "l",   "llpz"      )
+        RTL( RTL_FILE_SEEK32,             "fb_FileSeek",             "l",   "ll"        )
+        RTL( RTL_FILE_STR_INPUT,        "fb_FileStrInput",         "p",   "zl"        )
+        RTL( RTL_FILE_UNLOCK32,           "fb_FileUnlock",           "l",   "lll"       )
+        RTL( RTL_FILE_WSTR_INPUT,       "fb_FileWstrInput",        "p",   "zl"        )
+        RTL( RTL_GFX_DRAW_STRING,       "fb_GfxDrawString",        "z",   "pfflplplppp" )
+        RTL( RTL_GFX_IMAGE_CREATE_QB,  "fb_GfxImageCreateQB",     "p",   "lllll"     )
+        RTL( RTL_GFX_SCREEN_QB,        "fb_GfxScreenQB",          "l",   "lll"       )
+        RTL( RTL_INIT_SIGNALS,          "fb_InitSignals",          "v",   ""          )
+        RTL( RTL_INPUT_BOOL,            "fb_InputBool",            "l",   "p"         )
+        RTL( RTL_IS_TYPE_OF,            "fb_IsTypeOf",             "l",   "pp"        )
+        RTL( RTL_LPRINT_BOOL,          "fb_LPrintBool",           "v",   "lbl"       )
+        RTL( RTL_LPRINT_BYTE,          "fb_LPrintByte",           "v",   "lbl"       )
+        RTL( RTL_LPRINT_DOUBLE,        "fb_LPrintDouble",         "v",   "ldl"       )
+        RTL( RTL_LPRINT_INT,           "fb_LPrintInt",            "v",   "lll"       )
+        RTL( RTL_LPRINT_LONGINT,       "fb_LPrintLongint",        "v",   "lql"       )
+        RTL( RTL_LPRINT_SHORT,         "fb_LPrintShort",          "v",   "lsl"       )
+        RTL( RTL_LPRINT_SINGLE,        "fb_LPrintSingle",         "v",   "lfl"       )
+        RTL( RTL_LPRINT_STRING,        "fb_LPrintString",         "v",   "lpl"       )
+        RTL( RTL_LPRINT_UBYTE,        "fb_LPrintUByte",          "v",   "lbl"       )
+        RTL( RTL_LPRINT_UINT,         "fb_LPrintUInt",           "v",   "lll"       )
+        RTL( RTL_LPRINT_ULONGINT,     "fb_LPrintULongint",       "v",   "lql"       )
+        RTL( RTL_LPRINT_USHORT,       "fb_LPrintUShort",         "v",   "lsl"       )
+        RTL( RTL_LPRINT_USING_INIT,     "fb_LPrintUsingInit",      "l",   "p"         )
+        RTL( RTL_LPRINT_VOID,          "fb_LPrintVoid",           "v",   "ll"        )
+        RTL( RTL_LPRINT_WSTR,          "fb_LPrintWstr",           "v",   "lpl"       )
+        RTL( RTL_MEM_COPY_CLEAR,        "fb_MemCopyClear",         "v",   "pzpz"      )
+        RTL( RTL_NULL_PTR_CHK,          "fb_NullPtrChk",           "p",   "plp"       )
+        RTL( RTL_PAGE_SET,              "fb_PageSet",              "l",   "ll"        )
+        RTL( RTL_READ_XY,              "fb_ReadXY",               "l",   "lll"       )
+        RTL( RTL_STR_CONCAT_BYREF,      "fb_StrConcatByref",       "p",   "pzpzl"     )
+        RTL( RTL_THREAD_CALL,           "fb_ThreadCall",           "p",   "plzl."     )
+        RTL( RTL_VAL_BOOL,              "fb_VALBOOL",              "b",   "p"         )
+        RTL( RTL_WIDTH_DEV,             "fb_WidthDev",             "l",   "pl"        )
+        RTL( RTL_WIDTH_FILE,            "fb_WidthFile",            "l",   "ll"        )
+        RTL( RTL_H_PUT_ADD,             "fb_hPutAdd",              "v",   "pplllllpp" )
+        RTL( RTL_H_STR_DEL_TEMP,        "fb_hStrDelTemp",          "l",   "p"         )
+        RTL( RTL_RENAME,                "rename",                  "l",   "pp"        )   '' fb_rename
+        RTL( RTL_MEM_MOVE,              "memmove",                 "p",   "ppz"       )   '' fb_MemMove
+        RTL( RTL_MEM_COPY,              "memcpy",                  "p",   "ppz"       )   '' fb_MemCopy
+        RTL( RTL_DIVDI3,                "__divdi3",                "q",   "qq"        )   '' fb___divdi3
+        RTL( RTL_UDIVDI3,               "__udivdi3",               "q",   "qq"        )   '' fb___udivdi3
+        RTL( RTL_MODDI3,                "__moddi3",                "q",   "qq"        )   '' fb___moddi3
+        RTL( RTL_UMODDI3,               "__umoddi3",               "q",   "qq"        )   '' fb___umoddi3
+        RTL( RTL_FIXUNSDFDI,            "__fixunsdfdi",            "q",   "d"         )   '' fb___fixunsdfdi
+        RTL( RTL_C_MAIN,                "__main",                  "v",   ""          )   '' fb___main
+        RTL( RTL_LEFT_SELF,             "fb_LEFTSELF",             "v",   "pz"        )   '' fb_LeftSelf
     #endmacro
 
     enum RtlId

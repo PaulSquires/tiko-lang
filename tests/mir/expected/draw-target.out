@@ -1,0 +1,36 @@
+global str $str0 "C15 M0,0 L8,8"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr pp
+  local agg s size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr pp
+    %5 = alloca ptr s
+    %6 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 14, 0)
+    %7 = const ptr 0
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 13)
+    call.rtl void fb_GfxDraw(%7, %8)
+    %9 = load @pp
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 13)
+    call.rtl void fb_GfxDraw(%9, %10)
+    %11 = load @pp
+    call.rtl void fb_GfxDraw(%11, @s)
+    call.rtl void fb_StrDelete(@s)
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_GfxDraw($0, $1)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 20 insts, 0 statements not lowered, 0 scope imbalance

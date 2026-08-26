@@ -58,10 +58,14 @@ function UdtLiteralSlot_ _
     if c.ast->Kind( id ) <> Tko.N_TUPLE then return -1
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    '' A TARGET IS WHAT MAKES IT A LITERAL. A bare '( a, b )' is the tuple feature and
-    '' has no type of its own; only the written form reaches here.
-    if lp->target = Tko.NODE_NONE then return -1
-    if c.ast->Kind( lp->target ) <> Tko.N_TYPEREF then return -1
+    '' A TARGET IS THE WRITTEN FORM -- 'type<P>( 5, 6 )'. A BARE '( 1, 2 )' is the
+    '' tuple feature, and it reaches here too now that Check gives one the synthetic UDT
+    '' its elements key: fbc builds exactly the same temporary for it, field by field,
+    '' which is what makes 'let (a, b) = (1, 2)' one evaluation rather than two.
+    '' Anything still untyped is answered by the TYPE_NONE test below.
+    if lp->target <> Tko.NODE_NONE then
+        if c.ast->Kind( lp->target ) <> Tko.N_TYPEREF then return -1
+    end if
 
     dim as Tko.TypeId lt = c.info->TypeOf_( id )
     if lt = Tko.TYPE_NONE then return -1

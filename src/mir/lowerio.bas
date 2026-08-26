@@ -384,15 +384,46 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     dim as Tko.NodeId srcE = bp->rhs
 
     dim as Tko.TypeId dt = c.info->TypeOf_( dstE )
-    dim as MirValue dst = LowerAddr( c, dstE )
+
+    '' A UDT DESTINATION IS ITS OWN 'operator cast', and from that point the lowering is
+    '' byte-identical to a plain string of the same flavour: measured, fbc calls the
+    '' operator on the DESTINATION too and feeds the bare char*/uint16* it returns
+    '' straight to fb_StrAllocTempDescZ or fb_WstrLset. There is no runtime entry point
+    '' for the UDT and no temporary of its own.
+    ''
+    '' udt-zstring/lrset.bas and udt-wstring/lrset.bas are written entirely in this
+    '' shape, and every one of them declined -- the destination has an address, but it
+    '' is the address of a STRUCT, and passing that as a descriptor would have been
+    '' worse than declining.
+    dim as boolean dstIsWideRaw = false
+    dim as MirValue dst
+    dim as boolean dstFromCast = false
+    if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
+        if UserCastToWide_( c, dstE, dst ) then
+            dstIsWideRaw = true
+            dstFromCast = true
+        else
+            dim as boolean narrowRaw = false
+            if UserCastToStr_( c, dstE, dst, narrowRaw ) = false then return false
+            if narrowRaw = false then return false
+            dstFromCast = true
+        end if
+    else
+        dst = LowerAddr( c, dstE )
+    end if
     if dst.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as FB.Array( of ulong ) args
 
-    '' A WIDE destination takes the wide pair, and only a wide source.
-    if IsWideString_( c, dt ) then
-        if IsWideString_( c, c.info->TypeOf_( srcE ) ) = false then return false
-        dim as MirValue wsrc = LowerAddr( c, srcE )
+    '' A WIDE destination takes the wide pair, and only a wide source -- which may
+    '' itself be a UDT with a wide 'operator cast'.
+    if dstIsWideRaw orelse IsWideString_( c, dt ) then
+        dim as MirValue wsrc
+        if IsWideString_( c, c.info->TypeOf_( srcE ) ) then
+            wsrc = LowerAddr( c, srcE )
+        elseif UserCastToWide_( c, srcE, wsrc ) = false then
+            return false
+        end if
         if wsrc.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
         args.Push( cast( ulong, wsrc.kind ) ) : args.Push( cast( ulong, wsrc.id ) )
@@ -403,6 +434,11 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     '' A ZSTRING destination borrows a temporary descriptor over its own bytes.
     dim as longint zn
     dim as long dk = StrSwapKind_( c, dt, zn )
+    '' A NARROW UDT DESTINATION IS ALREADY ITS OWN char*, so it borrows one the same
+    '' way: measured, fbc wraps the operator's result in fb_StrAllocTempDescZ exactly as
+    '' it wraps a zstring variable's address. StrSwapKind_ answers -1 for the UDT, which
+    '' is the honest answer about the TYPE and the wrong one about the value in hand.
+    if dstFromCast andalso (dstIsWideRaw = false) then dk = 1
     if dk = 1 then
         dim as FB.Array( of ulong ) ta
         ta.Push( cast( ulong, dst.kind ) ) : ta.Push( cast( ulong, dst.id ) )
@@ -422,9 +458,56 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         args.Push( cast( ulong, fsrc.kind ) ) : args.Push( cast( ulong, fsrc.id ) )
         EmitRtl( c, iif( isRight, RTL_STR_RSET_ANA, RTL_STR_LSET_ANA ), args )
         return true
+    elseif (dk = 4) orelse IsUStringType( c, dt ) then
+        '' A USTRING DESTINATION IS NOT AN FBSTRING. Its bytes and its TAGGED length go
+        '' to fb_UStrLset, and the SOURCE is always transcoded into a fresh FBUSTRING
+        '' first -- measured, 'fb_WstrToUStr( W2 )' for a wide source and
+        '' 'fb_StrToUStr( Z2, 50ll )' for a narrow one, then
+        '' 'fb_UStrLset( US1, <tag>, vr, -1ll )'.
+        ''
+        '' Without this the statement fell through to fb_StrLset and passed an FBUSTRING
+        '' where an FBSTRING belongs. It lowered, it verified, and it was wrong -- the
+        '' one shape here that was not a decline.
+        ''
+        '' A USTRING SOURCE is not legal for lset at all: fbc rejects every spelling of
+        '' it with error 24, "Invalid data types", so there is nothing to model.
+        if IsUStringType( c, c.info->TypeOf_( srcE ) ) then return false
+        dim as MirValue uconv
+        if IsWideString_( c, c.info->TypeOf_( srcE ) ) then
+            dim as MirValue wp = LowerAddr( c, srcE )
+            if wp.kind = cast( ubyte, MV_NONE ) then return false
+            dim as FB.Array( of ulong ) wa
+            wa.Push( cast( ulong, wp.kind ) ) : wa.Push( cast( ulong, wp.id ) )
+            uconv = EmitRtl( c, RTL_WSTR_TO_USTR, wa )
+        else
+            dim as MirValue np
+            dim as longint nn
+            dim as long sk = StrSwapKind_( c, c.info->TypeOf_( srcE ), nn )
+            if sk < 0 then return false
+            np = LowerAddr( c, srcE )
+            if np.kind = cast( ubyte, MV_NONE ) then return false
+            dim as FB.Array( of ulong ) na
+            na.Push( cast( ulong, np.kind ) ) : na.Push( cast( ulong, np.id ) )
+            PushStrLen_( c, na, nn )
+            uconv = EmitRtl( c, RTL_STR_TO_USTR, na )
+        end if
+        if uconv.kind = cast( ubyte, MV_NONE ) then return false
+        '' A var-length ustring passes -1 where a fixed one passes its tag.
+        dim as longint dlen = -1
+        if dk = 4 then dlen = zn
+        dim as FB.Array( of ulong ) ua
+        ua.Push( cast( ulong, dst.kind ) ) : ua.Push( cast( ulong, dst.id ) )
+        PushStrLen_( c, ua, dlen )
+        ua.Push( cast( ulong, uconv.kind ) ) : ua.Push( cast( ulong, uconv.id ) )
+        PushStrLen_( c, ua, -1 )
+        EmitRtl( c, iif( isRight, RTL_USTR_RSET, RTL_USTR_LSET ), ua )
+        return true
     elseif dk <> 0 then
         return false
     end if
+
+    '' ...and a USTRING never reaches the narrow pair. See above.
+    if IsUStringType( c, dt ) then return false
 
     dim as MirValue src
     if StrDescriptorOf_( c, srcE, src ) = false then return false

@@ -318,10 +318,19 @@ function ConversionCost _
     '' part, and cannot: fbc refuses 'byval x as zstring * 4' outright -- error 59,
     '' "Illegal specification" -- so no parameter ever has one of these types and no
     '' length-to-length question arises.
-    dim as Tko.TypeId fsrc = FixedStringElem( from_, types )
-    if fsrc <> Tko.TYPE_NONE then from_ = fsrc
-    dim as Tko.TypeId fdst = FixedStringElem( to_, types )
-    if fdst <> Tko.TYPE_NONE then to_ = fdst
+    '' ...and it converts as the FLAVOUR it is, which is not the same as its element
+    '' type. 'string * N' is an array of TY_FIXSTR and 'ustring * N' one of TY_FIXUSTR,
+    '' and NEITHER is a string as far as the table below is concerned: every one scored
+    '' CONV_NONE against a plain 'string' parameter. That is not a diagnostic -- the
+    '' callee still binds, so the call comes out with a VOID result and whatever
+    '' consumed it declines. 'f( byval s as string )' handed a 'string * 31' is twenty
+    '' declines in functions/temp-strings.bas alone.
+    ''
+    '' Measured: offered { string, zstring ptr, wstring ptr }, a 'string * 31' argument
+    '' takes the STRING overload -- _Z1G8FBSTRING -- and a 'zstring * 31' takes
+    '' _Z1GPc. StrFlavourOf_ already knew this mapping and this path did not use it.
+    from_ = StrFlavourOf_( types, from_ )
+    to_ = StrFlavourOf_( types, to_ )
     if from_ = to_ then return CONV_EXACT
 
     '' THE STRING FAMILY, BEFORE THE EXACT TEST, because fbc does not treat an exact
@@ -797,6 +806,34 @@ function TypeOf_ _
         if tl->target <> Tko.NODE_NONE then
             if c.ast->Kind( tl->target ) = Tko.N_TYPEREF then
                 t = c.info->TypeOf_( tl->target )
+            end if
+        elseif tl->count > 0 then
+            '' A BARE TUPLE LITERAL -- '(1, 2)' -- HAS A TYPE, and this is the first
+            '' pass that can know it: the synthetic UDT a tuple desugars into is keyed
+            '' by its ELEMENT TYPES, and Resolve, which builds the one for a written
+            '' tuple TYPE, has no expression types to key it by.
+            ''
+            '' Without it every tuple literal was untyped, so 'let (a, b) = (1, 2)'
+            '' found no elements to destructure and declined -- while the same
+            '' statement with a CALL on the right worked, because a call has a result
+            '' type. tuple/destructure.bas is half literals.
+            ''
+            '' ComputeUdtLayouts runs AFTER Check and walks symbols, so a type declared
+            '' here is laid out with every other.
+            dim as FB.Array( of ulong ) tets
+            dim as boolean allTyped = true
+            for i as long = 0 to tl->count - 1
+                dim as Tko.TypeId et = _
+                    TypeOf_( c, cast( Tko.NodeId, c.ast->children[tl->first + i] ) )
+                if et = Tko.TYPE_NONE then
+                    allTyped = false
+                    exit for
+                end if
+                tets.Push( cast( ulong, c.types->Unqualify( et ) ) )
+            next
+            if allTyped then
+                t = Tko.TupleUdtFor( *c.syms, *c.types, *c.names, tets, _
+                                     c.ast->Loc( id ) )
             end if
         end if
 

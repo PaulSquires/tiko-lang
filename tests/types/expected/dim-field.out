@@ -1,0 +1,15 @@
+a size 16 align 8
+  a off i 0
+  a off j 8
+b size 16 align 8
+  b off i 0
+  b off j 8
+c size 40 align 8
+  c off a 0
+  c off arr 8
+  c off b 32
+d size 8 align 8
+  d off i 0
+object size 8 align 8
+  object off vptr 0
+udts: 5

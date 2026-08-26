@@ -1,0 +1,48 @@
+global var i64 global_i
+func void S1() {
+  local i64 local_i
+  local ptr $tmp1
+  entry0:
+    %1 = alloca ptr local_i
+    %2 = const i64 0
+    %3 = trunc %2
+    %4 = const i64 8
+    %5 = call.rtl ptr memset(@local_i, %3, %4)
+    %6 = const i64 0
+    %7 = trunc %6
+    %8 = const i64 8
+    %9 = call.rtl ptr memset(@@global_i, %7, %8)
+    %10 = alloca ptr $tmp1
+    store @$tmp1, @local_i
+    %11 = const i64 0
+    %12 = trunc %11
+    %13 = const i64 8
+    %14 = call.rtl ptr memset(@$tmp1, %12, %13)
+    %15 = const i64 0
+    %16 = trunc %15
+    %17 = const i64 8
+    %18 = call.rtl ptr memset(@@global_i, %16, %17)
+    %19 = const i64 0
+    %20 = trunc %19
+    %21 = const i64 8
+    %22 = call.rtl ptr memset(0, %20, %21)
+    ret
+}
+declare ptr memset($0, $1, $2)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance

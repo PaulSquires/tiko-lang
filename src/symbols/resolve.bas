@@ -226,34 +226,14 @@ function ResolveTypeRef _
             elemTypes.Push( cast( ulong, et ) )
             key += ":" & str( cast( long, et ) )
         next
-        if elemTypes.Count = 0 then return Tko.TYPE_NONE
-
-        dim as Tko.InternId tnm = c.names->Fold( c.names->GetString( key ) )
-        dim as Tko.SymbolId prev = c.syms->LookupLocalTyped( Tko.SCOPE_GLOBAL, tnm, true )
-        dim as Tko.Symbol ptr ps = c.syms->SymbolAt( prev )
-        if ps <> 0 then
-            c.info->SetType( id, ps->type_ )
-            return ps->type_
-        end if
-
-        dim as boolean dup = false
-        dim as Tko.SymbolId tsid = c.syms->DeclareSym( Tko.SCOPE_GLOBAL, tnm, _
-            Tko.SYM_UDT, c.ast->Loc( id ), dup )
-        dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-        if ts = 0 then return Tko.TYPE_NONE
-        dim as Tko.ScopeId tin = c.syms->OpenScope( Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
-        ts->inner = tin
-        ts->type_ = c.types->NamedType( Tko.TK_UDT, tnm, cast( ulong, Tko.SCOPE_GLOBAL ) )
-        for i as long = 0 to elemTypes.Count - 1
-            dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( "_" & str( i + 1 ) ) )
-            dim as boolean fdup = false
-            dim as Tko.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Tko.SYM_FIELD, _
-                c.ast->Loc( id ), fdup )
-            dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-            if fs <> 0 then fs->type_ = cast( Tko.TypeId, elemTypes[i] )
-        next
-        c.info->SetType( id, ts->type_ )
-        return ts->type_
+        '' The builder moved to symbol.bas so CHECK can name the same type for a tuple
+        '' LITERAL. Nothing about it changed in the move; 'key' above is now only the
+        '' loop's own bookkeeping and the builder rebuilds it from the same ids.
+        dim as Tko.TypeId tt = Tko.TupleUdtFor( *c.syms, *c.types, *c.names, _
+                                                elemTypes, c.ast->Loc( id ) )
+        if tt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        c.info->SetType( id, tt )
+        return tt
     end if
 
     dim as Tko.TypeId base_ = Tko.TYPE_NONE

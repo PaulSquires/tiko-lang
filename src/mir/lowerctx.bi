@@ -494,6 +494,8 @@ declare function EmitRtl _
     declare function UserCastToStr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
           byref raw as boolean ) as boolean
+    declare function UserCastToWide_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerStrOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerStrNumCall_ _
@@ -712,6 +714,8 @@ declare function EmitRtl _
     declare function LowerCallExpr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
     declare function LowerRgbCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerVarPtrCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerStrPtrCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean

@@ -22,6 +22,23 @@ private function IsLvalueShape_ _
     return false
 end function
 
+'' IS THIS ARGUMENT WRITTEN AS AN ARRAY? 'a( )' is spelled as a CALL WITH NO ARGUMENTS
+'' over a name, and what makes it an array rather than a zero-argument call is the type
+'' the name has. Answered from the shape and the type, which is all this pass has.
+private function IsArrayArgShape_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if lp->count <> 0 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    dim as Tko.TypeId tt = c.info->TypeOf_( lp->target )
+    if tt = Tko.TYPE_NONE then return false
+    return (c.types->Kind( c.types->Unqualify( tt ) ) = Tko.TK_ARRAY)
+end function
+
 '' A builtin NUMERIC type -- the family the byref-exactness rule applies to. A string,
 '' a pointer, a UDT and ANY are all excluded: each has its own conversion rules, and fbc
 '' does convert some of them at a byref parameter.
@@ -507,6 +524,32 @@ private function ResolveCall_ _
                     if anyArrayParam then
                         ai += 1
                         continue for
+                    end if
+
+                    '' AN ARRAY PARAMETER TAKES AN ARRAY AND NOTHING ELSE, and a scalar
+                    '' parameter never takes one. It is a VIABILITY rule, not a cost:
+                    '' measured, 'sub p( a( ) as integer )' called with a scalar is fbc
+                    '' error 58, "Type mismatch, at parameter 1", while an overload set
+                    '' holding BOTH 'a( ) as integer' and 'byval as integer' compiles
+                    '' clean and picks by the spelling of the argument.
+                    ''
+                    '' The argument of an array parameter arrives here as its ELEMENT
+                    '' type -- see the ANY case above -- so the two cost IDENTICALLY and
+                    '' every call in overload/bydesc.bas tied, bound to nothing, and
+                    '' declined with no diagnostic.
+                    ''
+                    '' 'a( )' is spelled as a CALL WITH NO ARGUMENTS over a name whose
+                    '' type is an array, which is what tells the two apart here.
+                    if (prm <> Tko.NODE_NONE) andalso (ai < argCount) then
+                        dim as boolean prmArray = _
+                            ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
+                        dim as Tko.NodeId an4 = _
+                            cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                        dim as boolean argArray = IsArrayArgShape_( c, an4 )
+                        if prmArray <> argArray then
+                            viable = false
+                            exit for
+                        end if
                     end if
 
                     dim as long cost = ConversionCost( at2, pt, *c.types, overloaded )

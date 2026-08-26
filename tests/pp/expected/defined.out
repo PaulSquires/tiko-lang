@@ -1,23 +1,22 @@
-preprocessed: 22 tokens, 0 includes, 1 expansions, depth 3
+preprocessed: 21 tokens, 0 includes, 1 expansions, depth 3
     0    1:14   EOL
     1    8:10   EOL
-    2    2:14   EOL                  [macro]
-    3    5:10   EOL                  [macro]
-    4    6:9    KW_PRINT            'PRINT' [macro]
-    5    6:15   STRING               [macro]
-    6    6:32   EOL                  [macro]
-    7    7:11   EOL                  [macro]
-    8    9:9    EOL
-    9   10:27   EOL
-   10   11:1    KW_PRINT            'PRINT'
-   11   11:7    STRING
-   12   11:27   EOL
-   13   12:7    EOL
-   14   15:7    EOL
-   15   16:19   EOL
-   16   17:1    KW_PRINT            'PRINT'
-   17   17:7    STRING
-   18   17:25   EOL
-   19   18:7    EOL
-   20   19:1    EOF
-   21    1:1    EOF
+    2    5:10   EOL                  [macro]
+    3    6:9    KW_PRINT            'PRINT' [macro]
+    4    6:15   STRING               [macro]
+    5    6:32   EOL                  [macro]
+    6    7:11   EOL                  [macro]
+    7    9:9    EOL
+    8   10:27   EOL
+    9   11:1    KW_PRINT            'PRINT'
+   10   11:7    STRING
+   11   11:27   EOL
+   12   12:7    EOL
+   13   15:7    EOL
+   14   16:19   EOL
+   15   17:1    KW_PRINT            'PRINT'
+   16   17:7    STRING
+   17   17:25   EOL
+   18   18:7    EOL
+   19   19:1    EOF
+   20    1:1    EOF

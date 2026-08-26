@@ -153,16 +153,32 @@ function LowerCallParts _
     dim as MirValue bv
     if LowerBuiltinProc( c, calleeNode, argFirst, argCount, bv ) then return bv
 
+    '' A CALLEE THAT IS AN EXPRESSION, not a name. '(iif( c, p1, p2 ))( )' and
+    '' 'cptr( typeof( d.proc ), tbl[ i ] )( args )' are how the corpus calls through a
+    '' procedure pointer it just computed, and there is no symbol to look up -- so the
+    '' call was abandoned even though the value is exactly what the indirect path at the
+    '' bottom of this function already knows how to call. Its TYPE is what says it is
+    '' callable, and that is all the indirect path needs.
+    dim as boolean exprCallee = false
+    if callee = Tko.SYMBOL_NONE then
+        dim as Tko.TypeId et = c.types->Unqualify( c.info->TypeOf_( calleeNode ) )
+        if c.types->Kind( et ) = Tko.TK_REFERENCE then et = c.types->Inner( et )
+        if c.types->Kind( et ) = Tko.TK_POINTER then et = c.types->Inner( et )
+        exprCallee = (c.types->Kind( et ) = Tko.TK_PROC)
+    end if
+
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if callee = Tko.SYMBOL_NONE then return CallFailed_( c, v )
-    if cs = 0 then return CallFailed_( c, v )
+    if (callee = Tko.SYMBOL_NONE) andalso (exprCallee = false) then
+        return CallFailed_( c, v )
+    end if
+    if (cs = 0) andalso (exprCallee = false) then return CallFailed_( c, v )
 
     '' A CALL THROUGH A PROCEDURE POINTER. 'dim as sub( ) p = procptr( f ) : p( )'
     '' names a VARIABLE, not a procedure, so there is no function to look up and
     '' mangling its name would invent one. docs/plan/09 lists 'call_indirect' for
     '' exactly this; the callee is the pointer's VALUE.
-    dim as boolean viaPointer = false
-    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then
+    dim as boolean viaPointer = exprCallee
+    if (exprCallee = false) andalso (cs->kind <> cast( ubyte, Tko.SYM_PROC )) then
         dim as Tko.TypeId ct = cs->type_
         if ct <> Tko.TYPE_NONE then
             if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
@@ -205,7 +221,7 @@ function LowerCallParts _
     '' both read from it, and it is destroyed at the END OF THE STATEMENT -- measured,
     '' and registered below beside the string temporaries, which have the same life.
     dim as MirValue sretTmp
-    if cs->kind = cast( ubyte, Tko.SYM_PROC ) then
+    if (cs <> 0) andalso (cs->kind = cast( ubyte, Tko.SYM_PROC )) then
         if UsesSretReturn( c, cs->type_ ) then
             dim as long tslot = _
                 NewTempLocal( c, MT_AGG, SizeOfType( c, cs->type_ ) )
@@ -594,8 +610,11 @@ function LowerCallParts _
     '' it here produced 'call void a()' against a definition named 'A', which matched
     '' nothing and silently added an extern declaration instead. The result was a
     '' module that referenced a symbol it also defined, under two spellings.
-    dim as Tko.InternId cnm = cs->name
-    if cs->payload <> 0 then
+    '' A CALLEE WITH NO SYMBOL has no name and no declaration to read defaults from;
+    '' it is called indirectly and nothing below this point applies to it.
+    dim as Tko.InternId cnm = 0
+    if cs <> 0 then cnm = cs->name
+    if (cs <> 0) andalso (cs->payload <> 0) then
         cnm = c.names->GetString( Tko.Mangle.ProcName( _
             *c.ast, cast( Tko.NodeId, cs->payload ), *c.syms, *c.names, _
             *c.types, *c.info ) )

@@ -1,0 +1,7 @@
+'' A constant initialised from sizeof -- see the source. The golden shows the folded
+'' constants at each use.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-sizeof.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/const-sizeof.out

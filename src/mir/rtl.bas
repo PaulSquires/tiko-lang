@@ -82,6 +82,30 @@ function RtlByName( byref nm as string ) as RtlId
     '' Compared through a helper rather than inline: the macro expands its body once
     '' per row, and a qualified call inside that expansion does not parse.
     dim as string want = LowerName_( nm )
+
+    '' TWELVE ENTRY POINTS ARE DECLARED UNDER A DIFFERENT NAME than the one a program
+    '' writes. 'procptr( fb_MemMove )' is legal FreeBASIC and what fbc emits for it is
+    '' plain 'memmove'; the same goes for memcpy, pow, rename, atexit, __main, libgcc's
+    '' four 64-bit division helpers, __fixunsdfdi, and fb_LeftSelf, whose runtime name
+    '' is the SHOUTED fb_LEFTSELF. Measured from the C 'fbc -r' emits for each.
+    ''
+    '' Mapped here rather than by adding a second row per name: the table's symbol is
+    '' what LINKS, and two rows for one function would be two entries in the inventory
+    '' the gate counts.
+    select case want
+    case "fb_memmove"      : want = "memmove"
+    case "fb_memcopy"      : want = "memcpy"
+    case "fb_pow"          : want = "pow"
+    case "fb_rename"       : want = "rename"
+    case "fb_atexit"       : want = "atexit"
+    case "fb___main"       : want = "__main"
+    case "fb___divdi3"     : want = "__divdi3"
+    case "fb___udivdi3"    : want = "__udivdi3"
+    case "fb___moddi3"     : want = "__moddi3"
+    case "fb___umoddi3"    : want = "__umoddi3"
+    case "fb___fixunsdfdi" : want = "__fixunsdfdi"
+    case "fb_leftself"     : want = "fb_leftself"
+    end select
     #define RTL( r_id, r_sym, r_ret, r_args ) if LowerName_( r_sym ) = want then return r_id
     TKO_RTL_LIST( RTL )
     #undef RTL
@@ -103,6 +127,16 @@ function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
     select case r
     case RTL_FREE, RTL_MALLOC, RTL_CALLOC, RTL_REALLOC, RTL_MEMSET, _
          RTL_POW, RTL_ATAN2, RTL_ATEXIT
+        return "_" & nm
+    '' The rest of libc and libgcc, reached through 'procptr( fb_MemMove )' and its
+    '' eleven siblings. Same rule, measured the same way.
+    case RTL_MEM_MOVE, RTL_MEM_COPY, RTL_RENAME, RTL_C_MAIN, RTL_DIVDI3, _
+         RTL_UDIVDI3, RTL_MODDI3, RTL_UMODDI3, RTL_FIXUNSDFDI
+        return "_" & nm
+    '' ...and four of the runtime's own, which are cdecl where their families are not.
+    '' Measured: libfb.a carries '_fb_ErrorResume' with no '@N' while every fb_Error*
+    '' entry point beside them is decorated.
+    case RTL_ERROR_RESUME, RTL_ERROR_RESUME_NEXT, RTL_ERROR_THROW_AT, RTL_H_PUT_ADD
         return "_" & nm
     '' ...AND SO ARE THE PUT BLENDERS, alone among the graphics family. Measured: every
     '' fb_Gfx* entry point is __stdcall with an asm name on win32 and every fb_hPut* is

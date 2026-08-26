@@ -228,6 +228,21 @@ namespace Tko
             ( byval scope_ as ScopeId, byval nm as InternId ) as long
     end type
 
+    '' THE SYNTHETIC UDT A TUPLE DESUGARS INTO -- '$tup:<id>:<id>', with fields
+    '' '_1'.._N. Shared because BOTH halves need to name the same one: Resolve builds it
+    '' for a tuple TYPE, 'as (long, string)', and Check builds it for a tuple LITERAL,
+    '' '(1, 2)', whose element types it is the first pass to know. Identity is
+    '' STRUCTURAL, through the element type ids, which is what makes a literal
+    '' assignable to a variable of the written type.
+    ''
+    '' Declaring a SYMBOL rather than a bare type is what makes the layout free:
+    '' ComputeUdtLayouts walks symbols and runs after both passes, so a tuple goes
+    '' through the same offset and alignment code as every other type.
+    declare function TupleUdtFor _
+        ( byref syms as SymbolTable, byref types as TypeContext, _
+          byref names as Interner, byref elemTypes as FB.Array( of ulong ), _
+          byval at as SourceLoc ) as TypeId
+
     declare function SymbolKindName( byval k as SymbolKind ) as string
     declare function ScopeKindName( byval k as ScopeKind ) as string
 

@@ -1,0 +1,7 @@
+'' 'varptr( x )' is '@x' -- see the source for the six shapes and for the one intrinsic
+'' that is NOT the same answer. Every line prints -1 under fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/varptr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/varptr.out

@@ -1,0 +1,8 @@
+'' CLEAR over a first argument with no address -- see the source for the three measured
+'' answers. fbc warns 50 on the '@local_i' line; the golden shows the temporary that
+'' warning is about.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/clear-byref-any.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/clear-byref-any.out

@@ -320,6 +320,60 @@ private function ConstCall_ _
         return CV_( f->text[lp->strOffset] )
     end if
 
+    '' THE CV FAMILY OVER A LITERAL. 'cvshort( "ABCDEFGH" )' is the first two bytes of
+    '' that text read as a little-endian integer, and fbc FOLDS it -- string/mkcv.bas
+    '' writes seven 'const as longint' initialised that way and then asserts each
+    '' against a hex constant, so a constant with no value is seven declines and the
+    '' lines that mention it never mention a cv.
+    ''
+    '' Measured: "ABCDEFGH" gives &h4241 for cvshort, &h44434241 for cvl and
+    '' &h4847464544434241 for cvlongint -- little-endian, and SIGNED, which is what
+    '' makes the reinterpretation and not a sum.
+    ''
+    '' The bytes come out of the SOURCE SPAN, the same way LEN and ASC read theirs, so
+    '' a literal whose span is longer than its decoded length -- one with an escape in
+    '' it -- is refused rather than read wrong.
+    dim as long cvBytes = 0
+    select case nm
+    case "cvshort" : cvBytes = 2
+    case "cvl", "cvs" : cvBytes = 4
+    case "cvlongint", "cvd" : cvBytes = 8
+    case "cvi" : cvBytes = intBits \ 8
+    end select
+    '' CVS and CVD are FLOAT reinterpretations, not integer ones, and this folder has
+    '' no float value to give back. Named above only so they are not silently folded
+    '' as integers.
+    if (nm = "cvs") orelse (nm = "cvd") then cvBytes = 0
+    if (cvBytes >= 2) andalso (ast.Kind( a0 ) = Tko.N_STRING_LIT) then
+        dim as Tko.LiteralPayload ptr clp = _
+            @ast.literals[cast( long, ast.nodes[cast( long, a0 )].data )]
+        '' AN ESCAPED LITERAL IS NOT ITS OWN BYTES. An escaped newline spans two
+        '' characters and is
+        '' one byte, so reading the span would fold the backslash. Refused rather than
+        '' decoded: the plain and raw kinds are the ones whose span IS the value, and
+        '' those are what the corpus writes.
+        dim as boolean cvPlain = (clp->strKind <> cast( ubyte, Tko.STRK_ESCAPED ))
+        if cvPlain andalso (clp->strLength >= cvBytes) then
+            '' THE SPAN'S OWN FILE, not the node's location -- macro expansion is free
+            '' to rewrite the second and the payload says so in its own comment.
+            dim as Tko.SourceFile ptr cf = _
+                src.FileAt( cast( Tko.FileId, clp->strFile ) )
+            if cf <> 0 then
+                if (clp->strOffset + cvBytes) <= cf->text.Count then
+                    dim as ulongint acc = 0
+                    for i as long = cvBytes - 1 to 0 step -1
+                        acc = (acc shl 8) or cast( ulongint, cf->text[clp->strOffset + i] )
+                    next
+                    select case cvBytes
+                    case 2 : return CVW_( cast( longint, cast( short, acc ) ), 32 )
+                    case 4 : return CVW_( cast( longint, cast( long, acc ) ), 32 )
+                    end select
+                    return CV_( cast( longint, acc ) )
+                end if
+            end if
+        end if
+    end if
+
     dim as double d = 0
     dim as boolean isNum = LitNum_( ast, a0, d )
     dim as ConstVal iv = ConstOf( ast, a0, src, names, intBits, syms, scope_, depth )

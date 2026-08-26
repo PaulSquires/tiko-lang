@@ -1,0 +1,293 @@
+global str $str0 "tests/mir/src/rtl-procptr.bas"
+global str $str1 "__FB_MAINPROC__"
+global str $str2 "chk <> 0"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr chk
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr chk
+    %5 = func.addr ptr fb_LPrintInt
+    store @chk, %5
+    %6 = load @chk
+    %7 = const i64 0
+    %8 = bitcast %7
+    %9 = icmp.ne %6, %8
+    %10 = neg %9
+    %11 = const i64 0
+    %12 = icmp.eq %10, %11
+    condbr %12, if.then2, if.else3
+  if.join1:
+    %14 = func.addr ptr fb_LPrintString
+    store @chk, %14
+    %15 = load @chk
+    %16 = const i64 0
+    %17 = bitcast %16
+    %18 = icmp.ne %15, %17
+    %19 = neg %18
+    %20 = const i64 0
+    %21 = icmp.eq %19, %20
+    condbr %21, if.then5, if.else6
+  if.then2:
+    %13 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %13, @@$str1, @@$str2)
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %23 = func.addr ptr fb_ErrorResume
+    store @chk, %23
+    %24 = load @chk
+    %25 = const i64 0
+    %26 = bitcast %25
+    %27 = icmp.ne %24, %26
+    %28 = neg %27
+    %29 = const i64 0
+    %30 = icmp.eq %28, %29
+    condbr %30, if.then8, if.else9
+  if.then5:
+    %22 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %22, @@$str1, @@$str2)
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %32 = func.addr ptr fb_ErrorSetHandler
+    store @chk, %32
+    %33 = load @chk
+    %34 = const i64 0
+    %35 = bitcast %34
+    %36 = icmp.ne %33, %35
+    %37 = neg %36
+    %38 = const i64 0
+    %39 = icmp.eq %37, %38
+    condbr %39, if.then11, if.else12
+  if.then8:
+    %31 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %31, @@$str1, @@$str2)
+    br if.join7
+  if.else9:
+    br if.join7
+  if.join10:
+    %41 = func.addr ptr memmove
+    store @chk, %41
+    %42 = load @chk
+    %43 = const i64 0
+    %44 = bitcast %43
+    %45 = icmp.ne %42, %44
+    %46 = neg %45
+    %47 = const i64 0
+    %48 = icmp.eq %46, %47
+    condbr %48, if.then14, if.else15
+  if.then11:
+    %40 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %40, @@$str1, @@$str2)
+    br if.join10
+  if.else12:
+    br if.join10
+  if.join13:
+    %50 = func.addr ptr memcpy
+    store @chk, %50
+    %51 = load @chk
+    %52 = const i64 0
+    %53 = bitcast %52
+    %54 = icmp.ne %51, %53
+    %55 = neg %54
+    %56 = const i64 0
+    %57 = icmp.eq %55, %56
+    condbr %57, if.then17, if.else18
+  if.then14:
+    %49 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %49, @@$str1, @@$str2)
+    br if.join13
+  if.else15:
+    br if.join13
+  if.join16:
+    %59 = func.addr ptr fb_LEFTSELF
+    store @chk, %59
+    %60 = load @chk
+    %61 = const i64 0
+    %62 = bitcast %61
+    %63 = icmp.ne %60, %62
+    %64 = neg %63
+    %65 = const i64 0
+    %66 = icmp.eq %64, %65
+    condbr %66, if.then20, if.else21
+  if.then17:
+    %58 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %58, @@$str1, @@$str2)
+    br if.join16
+  if.else18:
+    br if.join16
+  if.join19:
+    %68 = func.addr ptr fb_FileGet
+    store @chk, %68
+    %69 = load @chk
+    %70 = const i64 0
+    %71 = bitcast %70
+    %72 = icmp.ne %69, %71
+    %73 = neg %72
+    %74 = const i64 0
+    %75 = icmp.eq %73, %74
+    condbr %75, if.then23, if.else24
+  if.then20:
+    %67 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %67, @@$str1, @@$str2)
+    br if.join19
+  if.else21:
+    br if.join19
+  if.join22:
+    %77 = func.addr ptr fb_FilePut
+    store @chk, %77
+    %78 = load @chk
+    %79 = const i64 0
+    %80 = bitcast %79
+    %81 = icmp.ne %78, %80
+    %82 = neg %81
+    %83 = const i64 0
+    %84 = icmp.eq %82, %83
+    condbr %84, if.then26, if.else27
+  if.then23:
+    %76 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %76, @@$str1, @@$str2)
+    br if.join22
+  if.else24:
+    br if.join22
+  if.join25:
+    %86 = func.addr ptr fb_ThreadCall
+    store @chk, %86
+    %87 = load @chk
+    %88 = const i64 0
+    %89 = bitcast %88
+    %90 = icmp.ne %87, %89
+    %91 = neg %90
+    %92 = const i64 0
+    %93 = icmp.eq %91, %92
+    condbr %93, if.then29, if.else30
+  if.then26:
+    %85 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %85, @@$str1, @@$str2)
+    br if.join25
+  if.else27:
+    br if.join25
+  if.join28:
+    %95 = func.addr ptr fb_ArrayBoundChkEx
+    store @chk, %95
+    %96 = load @chk
+    %97 = const i64 0
+    %98 = bitcast %97
+    %99 = icmp.ne %96, %98
+    %100 = neg %99
+    %101 = const i64 0
+    %102 = icmp.eq %100, %101
+    condbr %102, if.then32, if.else33
+  if.then29:
+    %94 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %94, @@$str1, @@$str2)
+    br if.join28
+  if.else30:
+    br if.join28
+  if.join31:
+    %104 = func.addr ptr fb_IsTypeOf
+    store @chk, %104
+    %105 = load @chk
+    %106 = const i64 0
+    %107 = bitcast %106
+    %108 = icmp.ne %105, %107
+    %109 = neg %108
+    %110 = const i64 0
+    %111 = icmp.eq %109, %110
+    condbr %111, if.then35, if.else36
+  if.then32:
+    %103 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %103, @@$str1, @@$str2)
+    br if.join31
+  if.else33:
+    br if.join31
+  if.join34:
+    %113 = func.addr ptr fb_CVLONGINTFROMD
+    store @chk, %113
+    %114 = load @chk
+    %115 = const i64 0
+    %116 = bitcast %115
+    %117 = icmp.ne %114, %116
+    %118 = neg %117
+    %119 = const i64 0
+    %120 = icmp.eq %118, %119
+    condbr %120, if.then38, if.else39
+  if.then35:
+    %112 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %112, @@$str1, @@$str2)
+    br if.join34
+  if.else36:
+    br if.join34
+  if.join37:
+    %122 = func.addr ptr fb_hPutAdd
+    store @chk, %122
+    %123 = load @chk
+    %124 = const i64 0
+    %125 = bitcast %124
+    %126 = icmp.ne %123, %125
+    %127 = neg %126
+    %128 = const i64 0
+    %129 = icmp.eq %127, %128
+    condbr %129, if.then41, if.else42
+  if.then38:
+    %121 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %121, @@$str1, @@$str2)
+    br if.join37
+  if.else39:
+    br if.join37
+  if.join40:
+    %131 = func.addr ptr fb_MemCopyClear
+    store @chk, %131
+    %132 = load @chk
+    %133 = const i64 0
+    %134 = bitcast %133
+    %135 = icmp.ne %132, %134
+    %136 = neg %135
+    %137 = const i64 0
+    %138 = icmp.eq %136, %137
+    condbr %138, if.then44, if.else45
+  if.then41:
+    %130 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %130, @@$str1, @@$str2)
+    br if.join40
+  if.else42:
+    br if.join40
+  if.join43:
+    %140 = const i32 0
+    call.rtl void fb_End(%140)
+    %141 = load @$tmp0
+    ret %141
+  if.then44:
+    %139 = const i64 29
+    call.rtl void fb_Assert(@@$str0, %139, @@$str1, @@$str2)
+    br if.join43
+  if.else45:
+    br if.join43
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_LPrintInt($0, $1, $2)
+declare void fb_Assert($0, $1, $2, $3)
+declare void fb_LPrintString($0, $1, $2)
+declare ptr fb_ErrorResume()
+declare ptr fb_ErrorSetHandler($0)
+declare ptr memmove($0, $1, $2)
+declare ptr memcpy($0, $1, $2)
+declare void fb_LEFTSELF($0, $1)
+declare i32 fb_FileGet($0, $1, $2, $3)
+declare i32 fb_FilePut($0, $1, $2, $3)
+declare ptr fb_ThreadCall($0, $1, $2, $3, $4)
+declare ptr fb_ArrayBoundChkEx($0, $1, $2, $3, $4, $5)
+declare i32 fb_IsTypeOf($0, $1)
+declare i64 fb_CVLONGINTFROMD($0)
+declare void fb_hPutAdd($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare void fb_MemCopyClear($0, $1, $2, $3)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 46 blocks, 174 insts, 0 statements not lowered, 0 scope imbalance

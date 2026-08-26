@@ -696,11 +696,104 @@ restore
 ''',
     # WRITE and the LSET/RSET pair. Every WRITE width is probed because the
     # destination type alone picks the entry point, exactly as PRINT does.
+    # THE ADDRESSABLE REST OF THE RUNTIME. warnings/rtl-prototypes.bas takes the ADDRESS
+    # of 554 entry points; 84 of them named nothing in tiko-lang's table. Taking the
+    # address is enough to make fbc DECLARE each one, which is all this file reads --
+    # the probe is never run.
+    "rtlproto": '''
+sub RtlProtoProbe( )
+    dim chk as any ptr
+    chk = procptr( fb_ArrayBoundChkEx )
+    chk = procptr( fb_ArrayDimensionChk )
+    chk = procptr( fb_ArrayFill )
+    chk = procptr( fb_ArrayRedimTo )
+    chk = procptr( fb_ArraySngBoundChkEx )
+    chk = procptr( fb_AssertWarn )
+    chk = procptr( fb_CVDFROMLONGINT )
+    chk = procptr( fb_CVLFROMS )
+    chk = procptr( fb_CVLONGINTFROMD )
+    chk = procptr( fb_CVSFROML )
+    chk = procptr( fb_ErrorResume )
+    chk = procptr( fb_ErrorResumeNext )
+    chk = procptr( fb_ErrorSetFuncName )
+    chk = procptr( fb_ErrorSetHandler )
+    chk = procptr( fb_ErrorSetModName )
+    chk = procptr( fb_ErrorThrowAt )
+    chk = procptr( fb_FileGet )
+    chk = procptr( fb_FileGetArray )
+    chk = procptr( fb_FileGetArrayIOB )
+    chk = procptr( fb_FileGetArrayLargeIOB )
+    chk = procptr( fb_FileGetIOB )
+    chk = procptr( fb_FileGetLargeIOB )
+    chk = procptr( fb_FileGetStr )
+    chk = procptr( fb_FileGetStrIOB )
+    chk = procptr( fb_FileGetStrLargeIOB )
+    chk = procptr( fb_FileGetWstr )
+    chk = procptr( fb_FileGetWstrIOB )
+    chk = procptr( fb_FileGetWstrLargeIOB )
+    chk = procptr( fb_FileLock )
+    chk = procptr( fb_FileOpenQB )
+    chk = procptr( fb_FileOpenShort )
+    chk = procptr( fb_FilePut )
+    chk = procptr( fb_FilePutArray )
+    chk = procptr( fb_FilePutStr )
+    chk = procptr( fb_FileSeek )
+    chk = procptr( fb_FileStrInput )
+    chk = procptr( fb_FileUnlock )
+    chk = procptr( fb_FileWstrInput )
+    chk = procptr( fb_GfxDrawString )
+    chk = procptr( fb_GfxImageCreateQB )
+    chk = procptr( fb_GfxScreenQB )
+    chk = procptr( fb_InitSignals )
+    chk = procptr( fb_InputBool )
+    chk = procptr( fb_IsTypeOf )
+    chk = procptr( fb_LPrintBool )
+    chk = procptr( fb_LPrintByte )
+    chk = procptr( fb_LPrintDouble )
+    chk = procptr( fb_LPrintInt )
+    chk = procptr( fb_LPrintLongint )
+    chk = procptr( fb_LPrintShort )
+    chk = procptr( fb_LPrintSingle )
+    chk = procptr( fb_LPrintString )
+    chk = procptr( fb_LPrintUByte )
+    chk = procptr( fb_LPrintUInt )
+    chk = procptr( fb_LPrintULongint )
+    chk = procptr( fb_LPrintUShort )
+    chk = procptr( fb_LPrintUsingInit )
+    chk = procptr( fb_LPrintVoid )
+    chk = procptr( fb_LPrintWstr )
+    chk = procptr( fb_LeftSelf )
+    chk = procptr( fb_MemCopy )
+    chk = procptr( fb_MemCopyClear )
+    chk = procptr( fb_MemMove )
+    chk = procptr( fb_NullPtrChk )
+    chk = procptr( fb_PageSet )
+    chk = procptr( fb_Pow )
+    chk = procptr( fb_ReadXY )
+    chk = procptr( fb_StrConcatByref )
+    chk = procptr( fb_ThreadCall )
+    chk = procptr( fb_VALBOOL )
+    chk = procptr( fb_WidthDev )
+    chk = procptr( fb_WidthFile )
+    chk = procptr( fb___divdi3 )
+    chk = procptr( fb___fixunsdfdi )
+    chk = procptr( fb___main )
+    chk = procptr( fb___moddi3 )
+    chk = procptr( fb___udivdi3 )
+    chk = procptr( fb___umoddi3 )
+    chk = procptr( fb_atexit )
+    chk = procptr( fb_hPutAdd )
+    chk = procptr( fb_hStrDelTemp )
+    chk = procptr( fb_rename )
+end sub
+''',
     "writeset": '''
 sub WSProbe( )
     dim as string s1, s2
     dim as zstring * 8 z
     dim as string * 8 fx, fx2
+    dim as ustring * 8 ux
+    dim as ustring uv
     dim as wstring * 8 w, w2
     dim as byte b : dim as ubyte ub
     dim as short sh : dim as ushort ush
@@ -718,6 +811,12 @@ sub WSProbe( )
     '' shape borrows a temporary descriptor from fb_StrAllocTempDescF.
     lset fx = s2
     rset fx = fx2
+    '' A USTRING DESTINATION has entry points of its own and transcodes its source
+    '' first. A ustring SOURCE is fbc error 24 and cannot be probed.
+    lset ux = w2
+    rset ux = s2
+    lset uv = z
+    rset uv = w2
     lset w = w2
     rset w = w2
 end sub
@@ -921,13 +1020,19 @@ end sub
 # than assuming every runtime entry point is prefixed.
 # 'atexit' is on that list for the same reason: a STATIC LOCAL object's destructor is
 # registered with libc's atexit, not with anything in libfb.
+# AND NINE MORE, reached only by taking their ADDRESS: 'procptr( fb_MemMove )' is legal
+# FreeBASIC and what fbc emits for it is plain 'memmove'. The FB spelling is what a
+# program writes and the C name is what links -- eleven such pairs in all, of which
+# 'pow' and 'atexit' were already here.
 # 'typedef void (*tmp$1)( void* );' -- fbc names a function-pointer parameter type
 # rather than spelling it inline.
 FNPTR_TYPEDEF = re.compile(r"typedef\s+[\w \*]+\(\s*\*\s*([\w$]+)\s*\)\s*\(")
 
 DECL = re.compile(
     r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?"
-    r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2|atexit))"
+    r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2|atexit"
+    r"|memmove|memcpy|rename|__main|__divdi3|__udivdi3|__moddi3|__umoddi3"
+    r"|__fixunsdfdi))"
     r"\s*\(([^;{]*?)\)"
     r"(?:\s*asm\(\"([^\"]*)\"\))?\s*;")
 

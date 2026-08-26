@@ -1023,7 +1023,56 @@ function LowerBuiltinProc _
         '' CLEAR's first argument is an LVALUE whose ADDRESS is passed, not its value.
         if (r = RTL_MEMSET) andalso (i = 0) then
             dim as MirValue da = LowerAddr( c, a )
-            if da.kind = cast( ubyte, MV_NONE ) then return false
+            if da.kind = cast( ubyte, MV_NONE ) then
+                '' NOT AN LVALUE. 'clear' takes 'byref as any', and fbc has three
+                '' answers for an argument with no address of its own -- measured, all
+                '' three from the same probe:
+                ''
+                ''   clear 0            memset( (void*)0ll, ... )      the VALUE is the
+                ''                                                     address
+                ''   clear @global_i    memset( (void*)&GLOBAL_I$, ... )   a link-time
+                ''                                                     constant, used
+                ''                                                     directly
+                ''   clear @local_i     TMP = &LOCAL_I$;               a TEMPORARY, and
+                ''                      memset( (void*)&TMP, ... )     ITS address --
+                ''                                                     so the clear hits
+                ''                                                     the temp, not the
+                ''                                                     local
+                ''
+                '' The third is the point of
+                '' warnings/param-byref-as-any-suspicious-temp-var.bas, which is named
+                '' for fbc's own warning 50 on exactly that line. Reproducing it means
+                '' reproducing a clear that does nothing, which is what fbc does.
+                '' A CONSTANT IS THE ADDRESS. Asked of the AST, not of the lowered
+                '' value: a literal comes back as a const INSTRUCTION here, which is
+                '' indistinguishable by kind from anything else computed.
+                dim as Tko.Check.ConstVal acv = Tko.Check.ConstOf( _
+                    *c.ast, a, *c.srcMgr, *c.names, c.types->target.pointerBits, _
+                    c.syms, Tko.SCOPE_GLOBAL )
+                if acv.known then
+                    args.Push( cast( ulong, MV_CONST_INT ) )
+                    args.Push( cast( ulong, cast( long, acv.value ) ) )
+                    continue for
+                end if
+                dim as MirValue vv = LowerExpr( c, a )
+                if vv.kind = cast( ubyte, MV_NONE ) then return false
+                '' A GLOBAL's address is a link-time constant and goes straight in.
+                if vv.kind = cast( ubyte, MV_GLOBAL ) then
+                    args.Push( cast( ulong, vv.kind ) )
+                    args.Push( cast( ulong, vv.id ) )
+                    continue for
+                end if
+                dim as long pbytes = c.types->target.pointerBits \ 8
+                dim as long tslot = NewTempLocal( c, MT_PTR, pbytes )
+                if tslot < 0 then return false
+                dim as MirValue tv
+                tv.kind = cast( ubyte, MV_LOCAL )
+                tv.ty = cast( ubyte, MT_PTR )
+                tv.id = tslot
+                StoreThrough( c, tv, Coerce( c, vv, MT_PTR, false ) )
+                args.Push( cast( ulong, tv.kind ) ) : args.Push( cast( ulong, tv.id ) )
+                continue for
+            end if
             args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
             continue for
         end if
@@ -1150,6 +1199,30 @@ end function
 '' Its TYPE follows the operand too -- '#print typeof( strptr( w ) )' is
 '' 'WSTRING * 4 PTR' -- so a narrow answer made 'dim pw as wstring ptr = strptr( w )'
 '' an incompatible initialiser as well as an unlowered one.
+'' 'varptr( x )' -- see the dispatch site for what fbc emits for each shape.
+''
+'' NOT sadd: measured, 'sadd( s )' is '*(char**)&S$0' -- the var-length string's
+'' DATA pointer -- where 'varptr( s )' is '&S$0', its DESCRIPTOR's address. Two
+'' different answers, and only this one is LowerAddr's.
+function LowerVarPtrCall_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->count <> 1 then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    if nm <> "varptr" then return false
+
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    outv = LowerAddr( c, a0 )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 function LowerStrPtrCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -1274,6 +1347,15 @@ function LowerCallExpr_ _
     if LowerQuerySymbol_( c, id, qsv ) then return qsv
     '' int / fix / frac / abs / sgn / sqr and the transcendentals. A mix of gcc
     '' builtins, runtime calls and a plain floor -- see LowerMathCall_.
+    '' 'varptr( x )' IS '@x', for every shape of x. Measured -- fbc emits
+    '' '(void*)&I$0' for a scalar, '(void*)&S$0' for a var-length STRING (its
+    '' DESCRIPTOR's address, not its data), '(void*)Z$0' for a 'zstring * N', and the
+    '' element address for 'varptr( a( 1 ) )'. That is LowerAddr's answer in every case.
+    ''
+    '' It had NO LOWERING AT ALL -- parsed, typed, and then nothing -- so every use
+    '' declined, including 'p = varptr( i )' over a plain local.
+    dim as MirValue vpv
+    if LowerVarPtrCall_( c, id, vpv ) then return vpv
     dim as MirValue mtv
     if LowerMathCall_( c, id, mtv ) then return mtv
     '' 'asc', 'instr', 'instrrev' and the val family: string intrinsics whose

@@ -1,0 +1,6 @@
+'' __FB_QUOTE__ of an argument containing a quote -- see the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/quote-embedded-quote.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/quote-embedded-quote.out

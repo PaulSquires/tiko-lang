@@ -1,0 +1,7 @@
+'' procptr over the addressable runtime -- see the source for the awkward classes each
+'' line stands for. The golden's 'declare' lines are the inventory this exercises.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/rtl-procptr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/rtl-procptr.out

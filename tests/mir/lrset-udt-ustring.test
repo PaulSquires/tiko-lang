@@ -1,0 +1,7 @@
+'' LSET/RSET through a UDT cast operator and into a ustring -- see the source for the
+'' measured shapes. The golden's runtime calls ARE the answer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lrset-udt-ustring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/lrset-udt-ustring.out

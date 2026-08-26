@@ -223,6 +223,53 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
         m->body.Push( u )
         Advance( e )
     loop
+
+    '' THE BODY HAS NO EOL AT EITHER END. The capture pushes every token between the
+    '' '#macro NAME( params )' line and the '#endmacro' line, and that run BEGINS with
+    '' the header line's own end-of-line and ENDS with the last body line's -- two
+    '' tokens fbc's model does not have.
+    ''
+    '' Measured with 'fbc -pp'. A one-line body used in EXPRESSION position --
+    '' 's = m( 5 )' over '#macro m( a ) / a + 1 / #endmacro' -- is 's = 5 + 1' on ONE
+    '' line, and tiko-lang put the header's EOL between 's =' and the body: the
+    '' statement split in two, the assignment got no value, and every '#macro' called
+    '' from inside an expression declined. A '#define' with the same body was right all
+    '' along, which is what made it look like a macro-expansion problem rather than a
+    '' capture one.
+    ''
+    '' Both ends trim a RUN, not one token: measured, a body with two leading and three
+    '' trailing blank lines loses all five. An EOL strictly INSIDE the run stays --
+    '' 'print 5 / (blank) / print 5 + 1' keeps its blank line -- so this trims only the
+    '' ends, and a body of nothing but EOLs becomes genuinely empty, which is what
+    '' 'print 1 : m( ) : print 2' shows fbc doing.
+    ''
+    '' One program changes direction: a body whose FIRST line is a preprocessor
+    '' directive, invoked after a ':', becomes an error. fbc errors on it too.
+    dim as long lead = 0
+    while lead < m->body.Count
+        if Tk( m->body[lead] ) <> TK_EOL then exit while
+        lead += 1
+    wend
+    if lead > 0 then
+        for i as long = lead to m->body.Count - 1
+            m->body[i - lead] = m->body[i]
+        next
+        for i as long = 1 to lead
+            m->body.Pop( )
+        next
+    end if
+    '' THE TRAILING RUN IS LEFT ALONE, and that is a MEASURED DIVERGENCE rather than an
+    '' oversight. fbc's model has no end-of-line there either -- 'm( 5 ) : print "x"'
+    '' over a two-line body puts the last body line and the 'print' on ONE line -- but
+    '' trimming it here cost 830 corpus declines against the 4 the leading trim buys.
+    ''
+    '' __FB_ARG_LISTEXPAND__ synthesises 'M( 1 ) : M( 2 ) : M( 3 )' as TEXT and relies on
+    '' each expansion ending where it does; without the trailing end-of-line the
+    '' repetitions run together and 'const n' inside the body is declared twice in one
+    '' scope. pp/macro-arg-listexpand.bas went from 0 declines to 415.
+    ''
+    '' The leading trim is what the two broken shapes needed; this one is only about
+    '' matching fbc's token layout exactly, and it is not worth that.
 end sub
 
 private sub PpUndef( byref e as PpEngine, byval at as SourceLoc )
@@ -894,7 +941,14 @@ function PpExpandBuiltin _
         '' that could never be an identifier (probe L9).
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
-            RelexInto( e, """" & ArgText( e, args, 0 ) & """", use.loc, *buf )
+            '' Stringised_, NOT a naive wrap in quotes -- the same fix '#' already had
+            '' and this did not. A QUOTE INSIDE THE ARGUMENT has to be DOUBLED or it
+            '' closes the literal early: '__FB_QUOTE__( "2,3" )' came back as an EMPTY
+            '' string plus two stray tokens, and the whole statement then declined --
+            '' every one of the 27 in pp/macro-arg-extract.bas.
+            '' Measured: fbc doubles the inner quotes and prefixes '$', so a backslash
+            '' in the argument stays a backslash.
+            RelexInto( e, Stringised_( ArgText( e, args, 0 ) ), use.loc, *buf )
         end if
 
     case PPB_UNQUOTE

@@ -1,0 +1,6 @@
+'' 'dim' inside a TYPE declares FIELDS -- see the source for what a TYPE body accepts
+'' and what fbc rejects. The sizes fbc gives these four are 16, 16, 40 and 8.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/dim-field.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/dim-field.out

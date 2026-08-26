@@ -1035,6 +1035,23 @@ private function ParseAggregateBody _
             end if
         end if
 
+        '' 'dim' INSIDE A TYPE DECLARES FIELDS, and nothing else. It went to the
+        '' DECLARATION parser instead, which built an N_VAR that the layout pass -- which
+        '' reads N_FIELD and only N_FIELD -- never saw: 'type C : dim as integer i, j :
+        '' end type' came out with NO FIELDS AT ALL and a size of 1 where fbc says 16.
+        '' Every field after such a type sat on top of it, and structs/udt-init-1.bas and
+        '' -2.bas declare every member that way.
+        ''
+        '' Measured over what a TYPE body accepts: 'dim as T x' and 'dim x as T' are
+        '' fields, 'dim as T x(0 to 2)' is an array field, 'dim shared' is error 3, and
+        '' STATIC and CONST declare no field at all -- a type holding only those is
+        '' fbc error 256, "cannot be empty". So only DIM is swallowed here; the other two
+        '' keep going to the declaration parser, which is where a static member belongs.
+        if k = Tko.KW_DIM then
+            Advance( p )
+            k = Peek( p )
+        end if
+
         if k = Tko.KW_AS then
             '' 'as long x, y' -- the type comes first and is shared by the names.
             Advance( p )

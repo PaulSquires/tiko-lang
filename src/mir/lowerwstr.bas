@@ -311,8 +311,6 @@ end function
 ''     fb_WstrAssignToA( (void*)Z, 64ll, (uint16*)W, 0 )
 ''
 '' The trailing int32 was 0 in every probe.
-declare function UserCastToWide_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 declare function NarrowDestWideSource_ _
     ( byref c as Ctx, byval value as Tko.NodeId, byref src as MirValue ) as boolean
 declare sub EmitWideToNarrow_ _
@@ -880,7 +878,7 @@ function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbo
     return Tko.SYMBOL_NONE
 end function
 
-private function UserCastToWide_ _
+function UserCastToWide_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as Tko.SymbolId want = WideCastOverload_( c, c.info->TypeOf_( id ) )

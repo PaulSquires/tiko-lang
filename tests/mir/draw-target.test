@@ -1,0 +1,6 @@
+'' DRAW with a target image -- see the source for why its target parse is the odd one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/draw-target.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/draw-target.out

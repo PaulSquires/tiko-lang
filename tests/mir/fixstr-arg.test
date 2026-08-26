@@ -1,0 +1,7 @@
+'' A 'string * N' passed where a 'string' is wanted -- see the source. The golden's
+'' mangled call targets say which overload each call chose.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixstr-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fixstr-arg.out

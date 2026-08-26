@@ -1,4 +1,4 @@
-preprocessed: 129 tokens, 1 includes, 15 expansions, depth 3
+preprocessed: 121 tokens, 1 includes, 15 expansions, depth 3
     0    1:28   EOL
     1    2:17   EOL
     2    3:25   EOL
@@ -43,88 +43,80 @@ preprocessed: 129 tokens, 1 includes, 15 expansions, depth 3
    41   17:30   TK_EQ               '='
    42   17:32   INT
    43   17:33   EOL
-   44    4:18   EOL                  [macro]
-   45   18:8    KW_PRINT            'PRINT' [macro]
-   46   18:14   STRING               [macro]
-   47    5:6    EOL                  [macro]
-   48   18:8    KW_PRINT            'PRINT' [macro]
-   49   18:14   STRING               [macro]
-   50    6:6    EOL                  [macro]
-   51   18:23   EOL
-   52   19:1    KW_PRINT            'PRINT'
-   53   19:7    INT                  [macro]
-   54   19:34   EOL
-   55   20:1    EOL
-   56   21:89   EOL
-   57   22:91   EOL
-   58   23:89   EOL
-   59   26:10   EOL
-   60   24:24   EOL                  [macro]
-   61   25:5    KW_DIM              'DIM' [macro]
-   62   25:9    KW_AS               'AS' [macro]
-   63   25:12   KW_LONG             'LONG' [macro]
-   64   27:8    IDENT               'vt1' [macro]
-   65   25:18   EOL                  [macro]
-   66   27:13   EOL
-   67   24:24   EOL                  [macro]
-   68   25:5    KW_DIM              'DIM' [macro]
-   69   25:9    KW_AS               'AS' [macro]
-   70   25:12   KW_LONG             'LONG' [macro]
-   71   28:8    IDENT               'vt2' [macro]
-   72   25:18   EOL                  [macro]
-   73   28:16   EOL
-   74   29:1    EOL
-   75   30:89   EOL
-   76   31:88   EOL
-   77   32:60   EOL
-   78   35:10   EOL
-   79   33:18   EOL                  [macro]
-   80   34:5    KW_DIM              'DIM' [macro]
-   81   34:9    KW_AS               'AS' [macro]
-   82   34:12   KW_LONG             'LONG' [macro]
-   83   36:6    IDENT               'opt_bare' [macro]
-   84   34:18   EOL                  [macro]
-   85   36:14   EOL
-   86   33:18   EOL                  [macro]
-   87   34:5    KW_DIM              'DIM' [macro]
-   88   34:9    KW_AS               'AS' [macro]
-   89   34:12   KW_LONG             'LONG' [macro]
-   90   37:7    IDENT               'opt_paren' [macro]
-   91   34:18   EOL                  [macro]
-   92   37:18   EOL
-   93   38:1    EOL
-   94   39:80   EOL
-   95   40:89   EOL
-   96   41:86   EOL
-   97   42:90   EOL
-   98   45:10   EOL
-   99   43:17   EOL                  [macro]
-  100   44:5    KW_DIM              'DIM' [macro]
-  101   44:9    KW_AS               'AS' [macro]
-  102   44:12   KW_LONG             'LONG' [macro]
-  103   46:7    IDENT               'strz_ok' [macro]
-  104   44:18   EOL                  [macro]
-  105   46:16   EOL
-  106   47:1    EOL
-  107   48:80   EOL
-  108   55:10   EOL
-  109   49:26   EOL                  [macro]
-  110   50:16   EOL                  [macro]
-  111   51:9    KW_DIM              'DIM' [macro]
-  112   51:13   KW_AS               'AS' [macro]
-  113   51:16   KW_LONG             'LONG' [macro]
-  114   51:21   IDENT               'strtest_empty' [macro]
-  115   51:34   EOL                  [macro]
-  116   54:11   EOL                  [macro]
-  117   56:13   EOL
-  118   49:26   EOL                  [macro]
-  119   52:10   EOL                  [macro]
-  120   53:9    KW_DIM              'DIM' [macro]
-  121   53:13   KW_AS               'AS' [macro]
-  122   53:16   KW_LONG             'LONG' [macro]
-  123   53:21   IDENT               'strtest_hasargs' [macro]
-  124   53:36   EOL                  [macro]
-  125   54:11   EOL                  [macro]
-  126   57:16   EOL
-  127   58:1    EOF
-  128    1:1    EOF
+   44   18:8    KW_PRINT            'PRINT' [macro]
+   45   18:14   STRING               [macro]
+   46    5:6    EOL                  [macro]
+   47   18:8    KW_PRINT            'PRINT' [macro]
+   48   18:14   STRING               [macro]
+   49    6:6    EOL                  [macro]
+   50   18:23   EOL
+   51   19:1    KW_PRINT            'PRINT'
+   52   19:7    INT                  [macro]
+   53   19:34   EOL
+   54   20:1    EOL
+   55   21:89   EOL
+   56   22:91   EOL
+   57   23:89   EOL
+   58   26:10   EOL
+   59   25:5    KW_DIM              'DIM' [macro]
+   60   25:9    KW_AS               'AS' [macro]
+   61   25:12   KW_LONG             'LONG' [macro]
+   62   27:8    IDENT               'vt1' [macro]
+   63   25:18   EOL                  [macro]
+   64   27:13   EOL
+   65   25:5    KW_DIM              'DIM' [macro]
+   66   25:9    KW_AS               'AS' [macro]
+   67   25:12   KW_LONG             'LONG' [macro]
+   68   28:8    IDENT               'vt2' [macro]
+   69   25:18   EOL                  [macro]
+   70   28:16   EOL
+   71   29:1    EOL
+   72   30:89   EOL
+   73   31:88   EOL
+   74   32:60   EOL
+   75   35:10   EOL
+   76   34:5    KW_DIM              'DIM' [macro]
+   77   34:9    KW_AS               'AS' [macro]
+   78   34:12   KW_LONG             'LONG' [macro]
+   79   36:6    IDENT               'opt_bare' [macro]
+   80   34:18   EOL                  [macro]
+   81   36:14   EOL
+   82   34:5    KW_DIM              'DIM' [macro]
+   83   34:9    KW_AS               'AS' [macro]
+   84   34:12   KW_LONG             'LONG' [macro]
+   85   37:7    IDENT               'opt_paren' [macro]
+   86   34:18   EOL                  [macro]
+   87   37:18   EOL
+   88   38:1    EOL
+   89   39:80   EOL
+   90   40:89   EOL
+   91   41:86   EOL
+   92   42:90   EOL
+   93   45:10   EOL
+   94   44:5    KW_DIM              'DIM' [macro]
+   95   44:9    KW_AS               'AS' [macro]
+   96   44:12   KW_LONG             'LONG' [macro]
+   97   46:7    IDENT               'strz_ok' [macro]
+   98   44:18   EOL                  [macro]
+   99   46:16   EOL
+  100   47:1    EOL
+  101   48:80   EOL
+  102   55:10   EOL
+  103   50:16   EOL                  [macro]
+  104   51:9    KW_DIM              'DIM' [macro]
+  105   51:13   KW_AS               'AS' [macro]
+  106   51:16   KW_LONG             'LONG' [macro]
+  107   51:21   IDENT               'strtest_empty' [macro]
+  108   51:34   EOL                  [macro]
+  109   54:11   EOL                  [macro]
+  110   56:13   EOL
+  111   52:10   EOL                  [macro]
+  112   53:9    KW_DIM              'DIM' [macro]
+  113   53:13   KW_AS               'AS' [macro]
+  114   53:16   KW_LONG             'LONG' [macro]
+  115   53:21   IDENT               'strtest_hasargs' [macro]
+  116   53:36   EOL                  [macro]
+  117   54:11   EOL                  [macro]
+  118   57:16   EOL
+  119   58:1    EOF
+  120    1:1    EOF

@@ -399,9 +399,15 @@ function LowerCall _
     '' on the MEMBER instead -- Check binds 'b.Push' when it types it, which is after
     '' Resolve has finished copying references onto call nodes. Falling back to the
     '' callee's own reference is what makes 'b.Push( 1 )' find its procedure.
+    '' A PARENTHESISED CALLEE IS A CALLEE. '(p)( )' and '(iif( c, p1, p2 ))( )' are how
+    '' the corpus calls through a procedure pointer chosen by an expression, and the
+    '' N_PAREN carries no reference of its own -- so the lookup found nothing, the call
+    '' was abandoned, and the statement declined. 'p( )' beside it worked.
+    dim as Tko.NodeId tgt = Unparen_( c, cp->target )
     dim as Tko.SymbolId callee = c.info->RefOf( id )
     if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
-    return LowerCallParts( c, cp->target, callee, cp->first, cp->count, mt )
+    if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( tgt )
+    return LowerCallParts( c, tgt, callee, cp->first, cp->count, mt )
 end function
 
 '' How many values a type literal or a type-constructor call was written with. An empty

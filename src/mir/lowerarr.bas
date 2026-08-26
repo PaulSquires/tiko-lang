@@ -88,6 +88,38 @@ function LowerAddr _
         return v
     end if
 
+    '' 'cast( BaseT, this ) = u' IS AN LVALUE. A cast to a UDT does not move anything:
+    '' measured, fbc lowers it to '__builtin_memcpy( THIS, U, 16 )' -- the base subobject
+    '' lives at offset 0, so the address of the cast IS the address of the operand.
+    '' structs/udt-init-2.bas writes every base assignment that way, inside a
+    '' constructor, and 'cast( udt1, this ) = u' declined because a cast is spelled as a
+    '' CALL and LowerAddr had no case for one that is not really a call.
+    ''
+    '' Only for a UDT destination: 'cast( short, n ) = 7' is fbc error 24, "Invalid data
+    '' types", so a numeric cast is not an lvalue and must keep declining.
+    if c.ast->Kind( id ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr xlp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (xlp->count = 2) andalso (xlp->target <> Tko.NODE_NONE) then
+            if c.ast->Kind( xlp->target ) = Tko.N_IDENT then
+                dim as Tko.IdentPayload ptr xip = _
+                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, xlp->target )].data )]
+                dim as string xnm = Tko.Text.LowerAscii( c.names->Spelling( xip->name ) )
+                if xnm = "cast" then
+                    dim as Tko.NodeId xt = cast( Tko.NodeId, c.ast->children[xlp->first] )
+                    if c.ast->Kind( xt ) = Tko.N_TYPEREF then
+                        dim as Tko.TypeId xtt = _
+                            c.types->Unqualify( c.info->TypeOf_( xt ) )
+                        if c.types->Kind( xtt ) = Tko.TK_UDT then
+                            return LowerAddr( c, _
+                                cast( Tko.NodeId, c.ast->children[xlp->first + 1] ) )
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     '' 'type<P>( 5, 6 )' HAS AN ADDRESS ONLY BECAUSE A TEMPORARY IS BUILT FOR IT, which
     '' is what a byref parameter defaulted from one needs. fbc does the same.
     if c.ast->Kind( id ) = Tko.N_TUPLE then

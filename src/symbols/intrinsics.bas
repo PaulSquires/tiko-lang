@@ -521,6 +521,29 @@ private function ProcTypeOfSymbol_ _
     dim as Tko.TypeId ret = s->type_
     if ret = Tko.TYPE_NONE then ret = c.types->Builtin( Tko.TY_VOID )
     dim as Tko.TypeIdVec2 ps
+
+    '' AN INSTANCE MEMBER'S SIGNATURE STARTS WITH ITS RECEIVER. Measured:
+    '' '#print typeof( procptr( T.proc1 ) )' over a member sub with no parameters of its
+    '' own is SUB(AS T), and fbc's C declares it 'void _ZN1T5PROC1Ev( struct $1T* )'.
+    '' Leaving the receiver out gave 'sub( ) ptr' -- a type of the wrong arity, which
+    '' every call through the pointer then disagreed with.
+    ''
+    '' A STATIC member has no receiver, which is what PF_STATIC says; a free procedure
+    '' has no owning TYPE scope to find one in.
+    if (pp->extra and Tko.PF_STATIC) = 0 then
+        dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
+        if osc <> 0 then
+            if osc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+                dim as Tko.Symbol ptr ow = c.syms->SymbolAt( osc->owner )
+                if ow <> 0 then
+                    if ow->type_ <> Tko.TYPE_NONE then
+                        ps.Push( cast( ulong, c.types->Reference( ow->type_ ) ) )
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for

@@ -1,0 +1,7 @@
+'' A tuple literal as a value, and the assignment form of destructuring -- see the
+'' source for the measured shape and for why the temporary is not optional.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/tuple-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/tuple-literal.out

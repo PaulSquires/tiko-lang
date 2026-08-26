@@ -893,6 +893,27 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 return ErrorNode( p, Tko.TKO0402 )
             end if
         end if
+        '' 'type<T>expr' -- THE PAREN-LESS FORM, and it is one expression, not a list.
+        '' Measured: 'x = type<integer>1' and 'x = (type<integer>4)' are accepted and are
+        '' exactly the one-argument parenthesised form; 'type<integer>' with nothing after
+        '' it is fbc error 9, 'type<integer>()' is error 9 too, and 'type<integer>1, 2' is
+        '' error 3 -- so exactly one, and it is not scalar-only: 'q = type<t1>z' over a
+        '' UDT compiles clean.
+        ''
+        '' It reported "expected a member name" at the token after the '>' and consumed
+        '' nothing, so nine of structs/anon-param.bas's lines were a hard error rather
+        '' than a decline.
+        if (Peek( p ) <> Tko.TK_LPAREN) andalso (litType <> Tko.NODE_NONE) then
+            dim as Tko.NodeIdVec oneItem
+            '' PREC_SIGN, measured: 'type<integer>2^3' is 8 -- the POWER binds INTO
+            '' the operand -- while 'type<integer>1 * 2' is 2 and 'type<integer>2 shl 1'
+            '' is 4, so multiplication and shift do not. A unary minus binds in too:
+            '' 'type<integer>-1' is -1.
+            oneItem.Push( cast( ulong, Expression( p, Tko.PREC_SIGN ) ) )
+            dim as Tko.NodeId bn = MakeList( p, Tko.N_TUPLE, t.loc, litType, oneItem )
+            p.ast->nodes[cast( long, bn )].flags or= Tko.NF_TYPE_LITERAL
+            return PostfixChain( p, bn )
+        end if
         if Peek( p ) <> Tko.TK_LPAREN then
             p.pos = save_
             return ErrorNode( p, Tko.TKO0402 )

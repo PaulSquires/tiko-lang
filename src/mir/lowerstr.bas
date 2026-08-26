@@ -482,7 +482,22 @@ function LowerPredeclared _
                                c.types->target.pointerBits, c.syms, s->parent )
         dim as MirType mt = LowerType( c.info->TypeOf_( id ), *c.types )
         if mt = MT_VOID then mt = MT_I64
-        if (cv.known = false) andalso (IsFloatTy( mt ) = false) then return v
+        '' AN INTEGER CONSTANT WHOSE INITIALISER THE EVALUATOR CANNOT FOLD is lowered
+        '' from that initialiser too, for the same reason the float one below is.
+        '' 'const N = sizeof( T )' is the shape: the size comes from the UDT LAYOUT,
+        '' which is computed after Check and which the evaluator therefore has no way to
+        '' reach -- while lowering, where the layout exists, folds it to a plain
+        '' constant. Every READ of such a constant was silently valueless, and
+        '' 'const IMAGE_BUFFER_SIZE = sizeof( fb.IMAGE ) + ...' is how gfx/image-expr.bas
+        '' sizes every buffer in it.
+        ''
+        '' A constant's initialiser is a constant expression, so this emits constants
+        '' and not work -- and it is only reached where the evaluator has already failed.
+        if (cv.known = false) andalso (IsFloatTy( mt ) = false) then
+            dim as MirValue iv2 = LowerExpr( c, ip->b )
+            if iv2.kind = cast( ubyte, MV_NONE ) then return v
+            return Coerce( c, iv2, mt, IsUnsignedType( c, c.info->TypeOf_( id ) ) )
+        end if
         '' ConstOf answers INTEGERS only, so a float constant never reaches here with
         '' a known value -- and must not be given one by casting an integer field to a
         '' double, which would make 'const PI = 3.5' into 3 without a word.

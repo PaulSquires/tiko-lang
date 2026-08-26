@@ -1,0 +1,7 @@
+'' The cv family folded over a literal -- see the source for the measured values and
+'' for the two spellings that are deliberately NOT folded.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cv-const-fold.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/cv-const-fold.out

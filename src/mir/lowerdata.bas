@@ -186,14 +186,32 @@ private function DataItemText_ _
 
     dim as Tko.Check.ConstVal v = _
         Tko.Check.ConstOf( *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits )
-    if v.known = false then return false
-
-    if v.uns then
-        outp = str( cast( ulongint, v.value ) )
-    else
-        outp = str( v.value )
+    if v.known then
+        if v.uns then
+            outp = str( cast( ulongint, v.value ) )
+        else
+            outp = str( v.value )
+        end if
+        return true
     end if
-    return true
+
+    '' A FOLDED FLOAT EXPRESSION -- 'data (1.0*1.0/24.0)'. ConstOf has no float field at
+    '' all, so an expression that is only constant as a DOUBLE reached here and the whole
+    '' block declined. datetime/testtime.bas writes sixteen of them and nothing else.
+    ''
+    '' AFTER the integer attempt, not before: '(1)' has to keep rendering "1" and a wide
+    '' int64 datum has to keep its exact digits, neither of which survives a trip through
+    '' a double.
+    ''
+    '' Measured: fbc renders '(1.0*1.0/24.0)' as the decimal string
+    '' "0.04166666666666666" with length 19, and '-(1.0/(24.0*60.0))' with its sign --
+    '' the same digits STR() gives, which is what StrOfDouble reproduces.
+    dim as double fd = 0
+    if Tko.Check.ConstFloatOf( *c.ast, e, fd, 0, c.syms, Tko.SCOPE_GLOBAL ) then
+        outp = Tko.Text.StrOfDouble( fd )
+        return true
+    end if
+    return false
 end function
 
 
