@@ -1,0 +1,216 @@
+global str $str0 "v"
+global str $str1 ""
+func i8 _ZN8PAIRITER7ISVALIDEv($0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = const i64 3
+    %8 = sext %6
+    %9 = icmp.slt %8, %7
+    %10 = neg %9
+    ret %10
+}
+func agg _ZN8PAIRITER5VALUEEv($0) {
+  local agg $tmp0 size 32
+  local ptr this
+  local agg $tmp2 size 32
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr $tmp2
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = field.addr @$tmp2, 0
+    store %7, %6
+    %8 = field.addr @$tmp2, 8
+    %9 = call.rtl ptr fb_StrAssign(%8, -1, @@$str0, 2, 0)
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = call.rtl ptr fb_IntToStr(%12)
+    %14 = call.rtl ptr fb_StrConcatAssign(%8, -1, %13, -1, 0)
+    %15 = load @$tmp2
+    store @$tmp0, %15
+    %16 = load @$tmp0
+    ret %16
+}
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_IntToStr($0)
+declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
+func void _ZN8PAIRITER8MOVENEXTEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = add %4, %6
+    store %3, %7
+    ret
+}
+func agg _ZN8PAIRCOLL11GETITERATOREv($0) {
+  local agg $tmp0 size 4
+  local ptr this
+  local agg it size 4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr it
+    %4 = field.addr @it, 0
+    %5 = const i64 0
+    %6 = trunc %5
+    store %4, %6
+    %7 = load @it
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    ret %8
+}
+func void S1() {
+  local agg c size 4
+  local i32 keys
+  local agg vals size 24
+  local agg $fe1 size 32
+  local agg $tmp4 size 4
+  local i32 k
+  local agg v size 24
+  local i32 seen
+  local agg $fe2 size 32
+  local agg $tmp9 size 4
+  local i32 k2
+  local agg v2 size 24
+  entry0:
+    %1 = alloca ptr c
+    %2 = alloca ptr keys
+    %3 = const i64 0
+    %4 = trunc %3
+    store @keys, %4
+    %5 = alloca ptr vals
+    %6 = call.rtl ptr fb_StrInit(@vals, -1, @@$str1, 1, 0)
+    %7 = alloca ptr $fe1
+    %8 = alloca ptr $tmp4
+    %9 = call agg _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$tmp4, %9
+    %11 = alloca ptr k
+    %14 = alloca ptr v
+    %22 = alloca ptr seen
+    %25 = alloca ptr $fe2
+    %26 = alloca ptr $tmp9
+    %29 = alloca ptr k2
+    %32 = alloca ptr v2
+    br each.test3
+  each.body1:
+    %10 = call agg _ZN8PAIRITER5VALUEEv(@$tmp4)
+    store @$fe1, %10
+    %12 = field.addr @$fe1, 0
+    %13 = load %12
+    store @k, %13
+    %15 = field.addr @$fe1, 8
+    %16 = call.rtl ptr fb_StrInit(@v, -1, %15, -1, 0)
+    %17 = load @keys
+    %18 = load @k
+    %19 = add %17, %18
+    store @keys, %19
+    %20 = call.rtl ptr fb_StrConcatAssign(@vals, -1, @v, -1, 0)
+    call.rtl void fb_StrDelete(@v)
+    br each.cont2
+  each.cont2:
+    call void _ZN8PAIRITER8MOVENEXTEv(@$tmp4)
+    br each.test3
+  each.test3:
+    %21 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp4)
+    condbr %21, each.body1, each.exit4
+  each.exit4:
+    %23 = const i64 0
+    %24 = trunc %23
+    store @seen, %24
+    %27 = call agg _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$tmp9, %27
+    br each.test7
+  each.body5:
+    %28 = call agg _ZN8PAIRITER5VALUEEv(@$tmp9)
+    store @$fe2, %28
+    %30 = field.addr @$fe2, 0
+    %31 = load %30
+    store @k2, %31
+    %33 = field.addr @$fe2, 8
+    %34 = call.rtl ptr fb_StrInit(@v2, -1, %33, -1, 0)
+    %35 = load @k2
+    %36 = const i64 0
+    %37 = sext %35
+    %38 = icmp.eq %37, %36
+    condbr %38, if.then10, if.else11
+  each.cont6:
+    call void _ZN8PAIRITER8MOVENEXTEv(@$tmp9)
+    br each.test7
+  each.test7:
+    %47 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp9)
+    condbr %47, each.body5, each.exit8
+  each.exit8:
+    %48 = load @keys
+    call.rtl void fb_PrintInt(0, %48, 2)
+    call.rtl void fb_PrintString(0, @vals, 2)
+    %49 = load @seen
+    call.rtl void fb_PrintInt(0, %49, 1)
+    call.rtl void fb_StrDelete(@vals)
+    ret
+  if.join9:
+    %39 = load @k2
+    %40 = const i64 2
+    %41 = sext %39
+    %42 = icmp.eq %41, %40
+    condbr %42, if.then13, if.else14
+  if.then10:
+    call.rtl void fb_StrDelete(@v2)
+    br each.cont6
+  if.else11:
+    br if.join9
+  if.join12:
+    %43 = load @seen
+    %44 = const i64 1
+    %45 = trunc %44
+    %46 = add %43, %45
+    store @seen, %46
+    call.rtl void fb_StrDelete(@v2)
+    br each.cont6
+  if.then13:
+    call.rtl void fb_StrDelete(@v2)
+    br each.exit8
+  if.else14:
+    br if.join12
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintString($0, $1, $2)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S1()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 6 functions, 20 blocks, 129 insts, 0 statements not lowered, 0 scope imbalance

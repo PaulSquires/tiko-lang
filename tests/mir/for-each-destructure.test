@@ -1,0 +1,6 @@
+'' 'for each (k, v) in c' -- the destructuring form, desugared in the parser.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/for-each-destructure.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/for-each-destructure.out

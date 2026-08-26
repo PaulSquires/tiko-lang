@@ -95,6 +95,9 @@
     DIAG( TKO0407, SEV_ERROR,   "inline assembly is not supported; compile that module with fbc" )
     DIAG( TKO0408, SEV_ERROR,   "expected a statement" )
     DIAG( TKO0409, SEV_ERROR,   "'%0' is not available in the fb dialect" )
+    DIAG( TKO0410, SEV_ERROR,   "'for each' with a name list takes no 'as' clause; each name is typed by its own element" )
+    DIAG( TKO0411, SEV_ERROR,   "'for each byref' cannot take a name list; bind the whole element byref instead" )
+    DIAG( TKO0412, SEV_ERROR,   "'for each' with a name list needs at least two names" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )

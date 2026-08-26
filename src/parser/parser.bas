@@ -41,6 +41,12 @@ namespace Tko.Parse
 declare function IsDeclarationStart( byval k as Tko.TokenKind ) as boolean
 declare function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
 declare function Block( byref p as Tko.ParserState ) as Tko.NodeId
+
+'' Defined in decl.bas, which is compiled after this file: the body rewrite that turns
+'' the destructuring FOR EACH into the ordinary one.
+declare function ForEachDestructure_ _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, byval tmpName as Tko.InternId, _
+      byref names as Tko.NodeIdVec, byval body as Tko.NodeId ) as Tko.NodeId
 declare sub EndOfStatement( byref p as Tko.ParserState )
 declare sub SkipEols( byref p as Tko.ParserState )
 declare function AtEnd( byref p as Tko.ParserState ) as boolean
@@ -368,18 +374,78 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
     if Peek( p ) = Tko.TK_IDENT then
         dim as Tko.InternId id = cast( Tko.InternId, Cur( p ).literal )
         if p.names->Spelling( id ) = "each" then
+            '' 'each' IS AN ORDINARY IDENTIFIER, so 'for each as long = 1 to 3' and
+            '' 'for each = 4 to 6' are counted loops over a variable that happens to be
+            '' called that -- both of which fbc compiles. What separates them is the
+            '' NEXT token: the counted form always has AS or '=' after the counter's
+            '' name, and FOR EACH never does (a name, '(' or 'in' follows). Without the
+            '' lookahead 'each' was eaten as the marker and the rest read as a
+            '' sequence, which is a parse error two tokens later.
             isEach = true
-            Advance( p )
+            if HasTok( p, p.pos + 1 ) then
+                dim as Tko.TokenKind nk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                if (nk = Tko.KW_AS) orelse (nk = Tko.TK_EQ) then isEach = false
+            end if
+            if isEach then Advance( p )
         end if
     end if
 
     dim as Tko.StmtPayload sp
     if isEach then
+        dim as boolean isByref = false
         if Accept( p, Tko.KW_BYREF ) then
+            isByref = true
             sp.op = cast( ushort, Tko.KW_BYREF )
         end if
-        sp.a = Expression( p, Tko.PREC_POSTFIX )
-        if Accept( p, Tko.KW_AS ) then sp.c = TypeRef( p )
+
+        '' 'for each (k, v) in c' -- THE LIST FORM, desugared here into the ordinary
+        '' one over a hidden element and one 'var' per name:
+        ''
+        ''     for each $fe<n> in c
+        ''         var k = $fe<n>._1, v = $fe<n>._2
+        ''         BODY
+        ''     next
+        ''
+        '' -- a shape every later pass already handles completely, which is why this
+        '' is a parse rewrite and not a lowering of its own. Each name is typed by ITS
+        '' OWN element rather than by the tuple, the element is evaluated once, a
+        '' STRING half is copy-initialised by the ordinary declaration path so it owns
+        '' its data, and the names are redeclared per iteration because they are
+        '' declared INSIDE the body -- which is what makes the ctor/dtor counts balance.
+        dim as Tko.NodeIdVec dnames
+        dim as Tko.InternId feTmp = Tko.INTERN_NONE
+        if Peek( p ) = Tko.TK_LPAREN then
+            '' BYREF binds the whole element or nothing: there is no spelling for one
+            '' name by reference and another by value.
+            if isByref then return ErrorNode( p, Tko.TKO0411 )
+            Advance( p )
+            do
+                if Peek( p ) <> Tko.TK_IDENT then return ErrorNode( p, Tko.TKO0406 )
+                dnames.Push( cast( ulong, cast( Tko.InternId, Cur( p ).literal ) ) )
+                Advance( p )
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
+            loop
+            Expect( p, Tko.TK_RPAREN, ")" )
+            '' '(a)' IS A PARENTHESISED EXPRESSION everywhere else in the grammar, and
+            '' one name has nothing to destructure, so it is rejected here rather than
+            '' silently taken as either.
+            if dnames.Count < 2 then return ErrorNode( p, Tko.TKO0412 )
+            p.destructureSeq += 1
+            feTmp = p.names->GetString( "$fe" & str( p.destructureSeq ) )
+            dim as Tko.IdentPayload tip
+            tip.name = feTmp
+            p.ast->idents.Push( tip )
+            sp.a = NewNodeAt( p, Tko.N_IDENT, t.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+        else
+            sp.a = Expression( p, Tko.PREC_POSTFIX )
+        end if
+
+        if Accept( p, Tko.KW_AS ) then
+            '' One type cannot describe elements that differ, and per-name types would
+            '' spell out what the tuple already says.
+            if dnames.Count > 0 then return ErrorNode( p, Tko.TKO0410 )
+            sp.c = TypeRef( p )
+        end if
         '' 'in' is contextual too.
         if Peek( p ) = Tko.TK_IDENT then
             dim as Tko.InternId id = cast( Tko.InternId, Cur( p ).literal )
@@ -390,6 +456,9 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
         sp.count = 1
         p.ast->children.Push( cast( ulong, seq ) )
         sp.b = Block( p )
+        if dnames.Count > 0 then
+            sp.b = ForEachDestructure_( p, t, feTmp, dnames, sp.b )
+        end if
         if Accept( p, Tko.KW_NEXT ) then
             while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
                 Advance( p )

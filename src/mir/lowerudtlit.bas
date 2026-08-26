@@ -388,9 +388,22 @@ function FlattenUdtFields_ _
             '' every GUID in fb/comptr.bi, which is how COM declares every IID.
             ''
             '' A DYNAMIC array is a descriptor rather than storage and has no elements
-            '' to write here.
+            '' to write here -- so it is ONE LEAF, its descriptor, and not a run of
+            '' them. Refusing it refused the whole flatten, which took every type with
+            '' a dynamic-array field anywhere in it: 'FB.Array( of T )' has one, so
+            '' 'return (k, v)' out of a Map's tuple view declined, and so did every
+            '' 'dim as (long, Array(of long)) t = ( k, a )' beside it.
+            ''
+            '' Measured: fbc copies such an element with ONE whole-object memcpy of the
+            '' field -- the descriptor is copied, not the data -- which is what the
+            '' aggregate store this leaf attracts already emits.
             if c.types->Kind( fld->type_ ) = Tko.TK_ARRAY then
-                if c.types->IsDynArray( fld->type_ ) then return false
+                if c.types->IsDynArray( fld->type_ ) then
+                    offs.Push( cast( ulong, base_ + fld->offset ) )
+                    tys.Push( cast( ulong, fmt ) )
+                    fts.Push( cast( ulong, fld->type_ ) )
+                    continue for
+                end if
                 dim as Tko.TypeId et = c.types->Inner( fld->type_ )
                 dim as MirType emt = LowerType( et, *c.types )
                 if (emt = MT_VOID) orelse (emt = MT_AGG) then return false

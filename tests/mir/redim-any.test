@@ -1,0 +1,6 @@
+'' 'redim z(any)' is a declaration and emits no runtime call.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/redim-any.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/redim-any.out

@@ -32,6 +32,7 @@ src/mir/lowersub.bas
 src/mir/lowerswap.bas
 src/mir/lowerwstr.bas
 src/mir/lowerctl.bas
+src/mir/lowereach.bas
 src/mir/lowerstore.bas
 src/mir/lowerarr.bas
 src/mir/lowerconv.bas

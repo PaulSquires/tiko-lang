@@ -1,0 +1,6 @@
+'' FOR EACH over an array of tuples and of a counted UDT: copy-construct and destroy.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/for-each-udt-array.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/for-each-udt-array.out

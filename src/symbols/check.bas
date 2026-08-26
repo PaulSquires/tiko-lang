@@ -1182,6 +1182,15 @@ end function
 ''
 '' A PRE-PASS, before the walk, for the same reason InferUnusedVarTypes_ is: every
 '' USE of the loop variable is inside the body, and the walk types those.
+'' A VAR-LENGTH string, either width. 'string * N' is an ARRAY of a character builtin,
+'' so it is not this and is not walked as one -- see LowerForEachStr_.
+private function IsVarLenStringType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType b = c.types->BuiltinOf( t )
+    return (b = Tko.TY_STRING) orelse (b = Tko.TY_USTRING)
+end function
+
 private sub InferForEachVarTypes_( byref c as Ctx )
     for i as long = 1 to c.ast->Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
@@ -1203,6 +1212,12 @@ private sub InferForEachVarTypes_( byref c as Ctx )
         end if
         if c.types->Kind( seqT ) = Tko.TK_ARRAY then
             vsym->type_ = c.types->Inner( seqT )
+        elseif IsVarLenStringType_( c, seqT ) then
+            '' 'for each ch in s' over a VAR-LENGTH STRING walks its CHARACTERS, and
+            '' a character is a UBYTE -- measured, fbc declares the loop variable
+            '' 'uint8'. Without this the variable was declared and untyped, so every
+            '' use of it in the body had no operand type to work from.
+            vsym->type_ = c.types->Builtin( Tko.TY_UBYTE )
         elseif c.types->Kind( seqT ) = Tko.TK_UDT then
             '' The RFC-0002 protocol: GetIterator gives the iterator's type and its
             '' Value( ) gives the element's.

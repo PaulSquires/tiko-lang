@@ -300,6 +300,73 @@ private function VarDestructure _
     return n
 end function
 
+'' The body of a DESTRUCTURING 'for each (k, v) in c', rewritten.
+''
+'' The loop itself is left alone: it binds one hidden element, '$fe<n>', exactly as the
+'' ordinary form binds one name. All this does is put a 'var' in FRONT of the body that
+'' declares each written name from one field of that element --
+''
+''     var k = $fe<n>._1, v = $fe<n>._2
+''
+'' -- so nothing after the parser knows the list form exists. Declaring the names
+'' INSIDE the body, rather than beside the loop variable, is what gives them per-
+'' ITERATION lifetime: the body's scope closes each time round, so a name holding a
+'' UDT is constructed and destroyed once per element and the counts balance.
+''
+'' The ELEMENT is bound once and read N times, so a collection whose Value( ) is
+'' expensive -- or has a side effect -- is still called once per iteration.
+''
+'' The ARITY is not checked here: '_3' on a two-element tuple is an ordinary missing
+'' member, diagnosed where every other missing member is.
+function ForEachDestructure_ _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, byval tmpName as Tko.InternId, _
+      byref names as Tko.NodeIdVec, byval body as Tko.NodeId ) as Tko.NodeId
+
+    if names.Count = 0 then return body
+    if body = Tko.NODE_NONE then return body
+    if p.ast->Kind( body ) <> Tko.N_BLOCK then return body
+
+    dim as Tko.NodeIdVec items
+    for i as long = 0 to names.Count - 1
+        dim as Tko.IdentPayload bip
+        bip.name = tmpName
+        p.ast->idents.Push( bip )
+        dim as Tko.NodeId base_ = _
+            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+        dim as Tko.IdentPayload fip
+        fip.name = p.names->GetString( "_" & str( i + 1 ) )
+        p.ast->idents.Push( fip )
+        dim as Tko.NodeId fld = _
+            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+
+        dim as Tko.StmtPayload ep
+        ep.name = cast( Tko.InternId, names[i] )
+        ep.b = MakeMemberRef_( p, t, base_, fld )
+        items.Push( cast( ulong, MakeStmt( p, Tko.N_VAR_ITEM, t.loc, ep ) ) )
+    next
+
+    dim as Tko.StmtPayload vp
+    vp.op = cast( ushort, Tko.KW_VAR )
+    vp.first = p.ast->children.Count
+    vp.count = items.Count
+    for i as long = 0 to items.Count - 1
+        p.ast->children.Push( items[i] )
+    next
+    dim as Tko.NodeId decls = MakeStmt( p, Tko.N_VAR, t.loc, vp )
+
+    '' A NEW block, rather than a splice: the children pool is append-only and the
+    '' body's own run is already closed, so the declarations cannot be pushed in front
+    '' of it in place. The old run is simply left unreferenced.
+    dim as Tko.ListPayload ptr bl = _
+        @p.ast->lists[cast( long, p.ast->nodes[cast( long, body )].data )]
+    dim as Tko.NodeIdVec stmts
+    stmts.Push( cast( ulong, decls ) )
+    for i as long = 0 to bl->count - 1
+        stmts.Push( p.ast->children[bl->first + i] )
+    next
+    return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, stmts )
+end function
+
 '' dim / redim / var / static / shared / common / extern, in any legal combination.
 private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )

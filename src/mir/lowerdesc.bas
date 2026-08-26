@@ -588,6 +588,36 @@ private function RedimOne_ _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
     if lp->count < 1 then return false
 
+    '' 'redim z(any) as long' IS A DECLARATION AND NOTHING ELSE. Measured: fbc emits no
+    '' runtime call at all for it -- byte for byte the same descriptor setup 'dim z(any)'
+    '' emits, with DIMENSIONS set to the written rank and the dimension table zeroed, so
+    '' lbound answers 0, ubound answers -1 and FOR EACH over it iterates no times. That
+    '' setup has already happened above; the only thing left to do is NOT build an
+    '' fb_ArrayRedimEx out of bounds that are not bounds.
+    ''
+    '' 'any' arrives here as an ordinary IDENT -- it is a keyword nowhere in an
+    '' expression -- so it resolved to nothing, its bound lowered to no value, and the
+    '' whole statement declined.
+    ''
+    '' ALL the dimensions or none: 'redim z(any, 3)' is not a shape fbc accepts, and
+    '' taking the 'any' half as zero would produce a plausible array of the wrong
+    '' extent.
+    dim as long anyDims = 0
+    for d as long = 0 to lp->count - 1
+        dim as Tko.NodeId adn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
+        if c.ast->Kind( adn ) <> Tko.N_IDENT then exit for
+        dim as Tko.IdentPayload ptr aip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, adn )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( aip->name ) ) <> "any" then exit for
+        anyDims += 1
+    next
+    if anyDims = lp->count then
+        '' The DECLARING form only. fbc rejects 'any' on a redim of an array that was
+        '' already declared (error 147), so there is nothing to model for that one.
+        if ip->a = Tko.NODE_NONE then return false
+        return true
+    end if
+
     dim as Tko.TypeId et = c.types->Inner( aty )
     dim as MirType zt = DescIntTy_( c )
 
