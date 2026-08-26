@@ -1,0 +1,88 @@
+global str $str0 "ghi"
+global str $str1 ", "
+global str $str2 "&"
+global str $str3 "jkl"
+global str $str4 "abc"
+global str $str5 "x"
+global str $str6 "#.##"
+global str $str7 "&&"
+global str $str8 "a"
+global str $str9 "b"
+global str $str10 "y"
+global str $str11 "p"
+global str $str12 "q"
+global str $str13 "r"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 3)
+    call.rtl void fb_PrintString(0, %4, 0)
+    %5 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 2)
+    call.rtl void fb_PrintString(0, %5, 0)
+    %6 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    %7 = call.rtl i32 fb_PrintUsingInit(%6)
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 3)
+    %9 = call.rtl i32 fb_PrintUsingStr(0, %8, -2147483647)
+    %10 = call.rtl i32 fb_PrintUsingEnd(0)
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    %12 = call.rtl i32 fb_PrintUsingInit(%11)
+    %13 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 3)
+    %14 = call.rtl i32 fb_PrintUsingStr(0, %13, -2147483647)
+    %15 = call.rtl i32 fb_PrintUsingEnd(0)
+    %16 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 1)
+    call.rtl void fb_PrintString(0, %16, 0)
+    %17 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 4)
+    %18 = call.rtl i32 fb_PrintUsingInit(%17)
+    %19 = const f64 1.5
+    %20 = call.rtl i32 fb_PrintUsingDouble(0, %19, -2147483647)
+    %21 = call.rtl i32 fb_PrintUsingEnd(0)
+    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 2)
+    %23 = call.rtl i32 fb_PrintUsingInit(%22)
+    %24 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 1)
+    %25 = call.rtl i32 fb_PrintUsingStr(0, %24, 0)
+    %26 = const i64 10
+    %27 = trunc %26
+    call.rtl void fb_PrintTab(0, %27)
+    %28 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str9, 1)
+    %29 = call.rtl i32 fb_PrintUsingStr(0, %28, -2147483647)
+    %30 = call.rtl i32 fb_PrintUsingEnd(0)
+    %31 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 1)
+    call.rtl void fb_PrintString(0, %31, 0)
+    %32 = const i64 5
+    call.rtl void fb_PrintSPC(0, %32)
+    %33 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 1)
+    call.rtl void fb_PrintString(0, %33, 1)
+    %34 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 1)
+    call.rtl void fb_PrintString(0, %34, 0)
+    %35 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    %36 = call.rtl i32 fb_PrintUsingInit(%35)
+    %37 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str12, 1)
+    %38 = call.rtl i32 fb_PrintUsingStr(0, %37, 0)
+    %39 = const i64 20
+    %40 = trunc %39
+    call.rtl void fb_PrintTab(0, %40)
+    %41 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 1)
+    %42 = call.rtl i32 fb_PrintUsingStr(0, %41, -2147483647)
+    %43 = call.rtl i32 fb_PrintUsingEnd(0)
+    %44 = const i32 0
+    call.rtl void fb_End(%44)
+    %45 = load @$tmp0
+    ret %45
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare i32 fb_PrintUsingInit($0)
+declare i32 fb_PrintUsingStr($0, $1, $2)
+declare i32 fb_PrintUsingEnd($0)
+declare i32 fb_PrintUsingDouble($0, $1, $2)
+declare void fb_PrintTab($0, $1)
+declare void fb_PrintSPC($0, $1)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance

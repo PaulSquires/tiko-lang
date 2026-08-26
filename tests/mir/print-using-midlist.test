@@ -1,0 +1,7 @@
+'' A USING that starts part way through a PRINT, and SPC/TAB inside a using run. See the
+'' source for what fbc emits for each.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/print-using-midlist.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/print-using-midlist.out

@@ -39,9 +39,33 @@ declare function UsingOne_ _
 '' masks. BIT 31 PRODUCED NO OBSERVABLE DIFFERENCE FROM 0 in any probe; fbc sets it
 '' together with bit 0 on the last item and it is presumably an 'is last' flag. It is
 '' emitted here because fbc emits it, and no behaviour is implemented for it.
-function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+'' IS THIS ITEM SPC OR TAB? Asked before an item's TYPE is, because a positioning item
+'' has no value and no using entry point -- and it must be recognised in the scratch
+'' pass too, which runs before anything is emitted.
+private function IsPrintPos_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
+    if c.ast->Kind( it ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, it )].data )]
+    if cp->count <> 1 then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    return (nm = "spc") orelse (nm = "tab")
+end function
+
+'' TWO ENTRY SHAPES, one body. 'print using f; a; b' puts the format on the STATEMENT
+'' and covers every item; 'print x; using f; a' puts it in the ITEM LIST and covers only
+'' what follows it -- so the run needs a starting index and a format that may come from
+'' either place. The leading form passes the defaults and reads exactly as it did.
+function LowerPrintUsing _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval fromIdx as long = 0, _
+      byval fmtNode as Tko.NodeId = Tko.NODE_NONE ) as boolean
+
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->c = Tko.NODE_NONE then return false
+    if fmtNode = Tko.NODE_NONE then fmtNode = sp->c
+    if fmtNode = Tko.NODE_NONE then return false
 
     '' The channel, lowered ONCE and reused -- fbc hoists any non-literal channel
     '' expression into a temporary evaluated before Init, so a channel with a side
@@ -61,8 +85,8 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue fmt
     '' The slot a WIDE format was converted into, or -1. It is released after Init.
     dim as long fmtTmp = -1
-    if c.ast->Kind( sp->c ) = Tko.N_STRING_LIT then
-        dim as string litText = StringLitText_( c, sp->c )
+    if c.ast->Kind( fmtNode ) = Tko.N_STRING_LIT then
+        dim as string litText = StringLitText_( c, fmtNode )
         dim as FB.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )
         ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
@@ -85,15 +109,15 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' WIDE BY TYPE OR BY SHAPE. The corpus writes the format as a wide
         '' CONCATENATION -- 'using ( QT(fmt) & ", " & QT("&") )' -- which types as the
         '' WSTRING builtin rather than a sized one, so counting elements missed it.
-        dim as boolean fmtWide = (WideStringElems( c, c.info->TypeOf_( sp->c ) ) > 0)
-        if fmtWide = false then fmtWide = IsWideString_( c, c.info->TypeOf_( sp->c ) )
-        if fmtWide = false then fmtWide = TermIsWide_( c, Unparen_( c, sp->c ) )
+        dim as boolean fmtWide = (WideStringElems( c, c.info->TypeOf_( fmtNode ) ) > 0)
+        if fmtWide = false then fmtWide = IsWideString_( c, c.info->TypeOf_( fmtNode ) )
+        if fmtWide = false then fmtWide = TermIsWide_( c, Unparen_( c, fmtNode ) )
         '' ...and a CONCATENATION is wide when any TERM of it is. The parenthesised
         '' form carries no type of its own, so neither of the tests above sees one:
         '' 'using ( QT(fmt) & ", " & QT("&") )' is the whole of wstring/print_using's
         '' harness and every line of it declined here.
         if fmtWide = false then
-            fmtWide = ConcatHasWideTerm_( c, Unparen_( c, sp->c ) )
+            fmtWide = ConcatHasWideTerm_( c, Unparen_( c, fmtNode ) )
         end if
         if fmtWide then
             fmtTmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
@@ -105,9 +129,9 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             ZeroStrDescriptor( c, fdst )
             if LowerWideToNarrowSlot( c, fmtTmp, _
                    c.types->Builtin( Tko.TY_STRING ), _
-                   Unparen_( c, sp->c ) ) = false then return false
+                   Unparen_( c, fmtNode ) ) = false then return false
             fmt = fdst
-        elseif IsStringType( c, c.info->TypeOf_( sp->c ) ) = false then
+        elseif IsStringType( c, c.info->TypeOf_( fmtNode ) ) = false then
             return false
         else
         '' A CONCATENATION IS A STRING WITH NO ADDRESS. The corpus writes the format
@@ -115,9 +139,9 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' QT("&") )' is the whole of one file's harness -- and asking a value for an
         '' address it has not got declined the statement. Built into a temporary
         '' descriptor, which is what every other string argument with no lvalue does.
-        fmt = LowerAddr( c, Unparen_( c, sp->c ) )
+        fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
         if fmt.kind = cast( ubyte, MV_NONE ) then
-            if ConcatToTempDesc_( c, Unparen_( c, sp->c ), fmt ) = false then
+            if ConcatToTempDesc_( c, Unparen_( c, fmtNode ), fmt ) = false then
                 return false
             end if
         end if
@@ -129,9 +153,18 @@ function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' handle declines BEFORE Init is emitted. Emitting Init and then giving up would
     '' leave the runtime holding a format string with no End to close it.
     dim as FB.Array( of ulong ) itemNode
-    for i as long = 0 to sp->count - 1
+    for i as long = fromIdx to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
+        '' SPC AND TAB ARE POSITIONING ITEMS, and they appear INSIDE a using run:
+        '' measured, 'print using "&&"; "a"; tab(10); "b"' emits the ordinary
+        '' fb_PrintTab BETWEEN the two using items, not a formatted one. They have no
+        '' USING entry point at all, so this test refused them and took the whole
+        '' statement with it.
+        if IsPrintPos_( c, it ) then
+            itemNode.Push( cast( ulong, it ) )
+            continue for
+        end if
         dim as boolean isWide
         if UsingRtlFor( c, c.info->TypeOf_( it ), isWide ) = RTL_NONE then return false
         itemNode.Push( cast( ulong, it ) )
@@ -189,6 +222,11 @@ end function
 private function UsingOne_ _
     ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean
+
+    '' A POSITIONING ITEM prints nothing of its own and takes no mask -- the same rule
+    '' PRINT follows, and fbc emits the same fb_PrintTab / fb_PrintSPC inside a using
+    '' run as outside one.
+    if LowerPrintPos( c, it, chan ) then return true
 
     dim as Tko.TypeId t = c.info->TypeOf_( it )
     dim as boolean isWide

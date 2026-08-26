@@ -109,6 +109,26 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
             items.Push( cast( ulong, MakeStmt( p, Tko.N_PRINT_SEP, t.loc, ssp ) ) )
             continue do
         end if
+        '' 'using' CAN APPEAR AFTER THE LIST HAS STARTED: 'print "ghi"; ", "; using
+        '' "&"; "jkl"' prints the first two items normally and the rest through the
+        '' format. Only the LEADING form was read -- the one right after the file
+        '' number -- so a later 'using' was parsed as an expression naming something
+        '' called 'using', and the statement declined. Both print_using corpus files
+        '' write it.
+        ''
+        '' Recorded IN PLACE, as a separator-shaped marker carrying the format, because
+        '' the POSITION is the whole meaning: what precedes it prints plainly and what
+        '' follows it prints through the format.
+        if k = Tko.KW_USING then
+            dim as Tko.Token ut = Cur( p )
+            Advance( p )
+            dim as Tko.StmtPayload usp
+            usp.op = cast( ushort, Tko.KW_USING )
+            usp.a = Expression( p )
+            items.Push( cast( ulong, MakeStmt( p, Tko.N_PRINT_SEP, ut.loc, usp ) ) )
+            if Accept( p, Tko.TK_SEMICOLON ) = false then Accept( p, Tko.TK_COMMA )
+            continue do
+        end if
         dim as long before = p.pos
         items.Push( cast( ulong, Expression( p ) ) )
         if p.pos = before then exit do

@@ -292,7 +292,9 @@ declare function EmitRtl _
     declare function LowerLrset _
         ( byref c as Ctx, byval id as Tko.NodeId, byval isRight as boolean ) as boolean
     '' lowerusing.bas
-    declare function LowerPrintUsing( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerPrintUsing _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval fromIdx as long = 0, _
+          byval fmtNode as Tko.NodeId = Tko.NODE_NONE ) as boolean
     '' lowerdesc.bas
     declare function SynthFixedArrayDesc _
         ( byref c as Ctx, byref arrAddr as MirValue, byval t as Tko.TypeId, _

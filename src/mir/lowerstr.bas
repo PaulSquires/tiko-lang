@@ -804,7 +804,18 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
-        if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
+        if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
+            '' 'print x; using f; a' -- A USING THAT STARTS PART WAY THROUGH. What
+            '' precedes it has just been printed plainly; everything after it belongs
+            '' to the format, so the rest of the list is handed to the USING run and
+            '' this loop is done. Measured: fbc emits the plain items, then Init, the
+            '' formatted items, and End.
+            dim as Tko.StmtPayload ptr usp = StmtOf( c, it )
+            if usp->op = cast( ushort, Tko.KW_USING ) then
+                return LowerPrintUsing( c, id, i + 1, usp->a )
+            end if
+            continue for
+        end if
 
         '' What follows decides the mask: a ';' suppresses, a ',' tabs, and anything
         '' else -- including running out of children -- ends the line.
