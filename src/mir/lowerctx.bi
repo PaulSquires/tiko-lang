@@ -205,6 +205,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byval isExit as boolean )
     declare sub LowerEndStmt( byref c as Ctx, byval id as Tko.NodeId )
     declare sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     declare sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
     declare sub ScanLabels _
         ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long )

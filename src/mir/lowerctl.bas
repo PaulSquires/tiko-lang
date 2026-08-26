@@ -755,6 +755,131 @@ sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
     c.curBlock = b
 end sub
 
+'' 'on n goto l1, l2, l3' -- the COMPUTED GOTO, which was not lowered at all.
+''
+'' Measured semantics, and the two facts that matter are both in the range test fbc
+'' emits:
+''
+''   TMP = (uint64)I$0;
+''   if( (TMP - 1ull) > 2ull ) goto label$5;   <- past the list: FALL THROUGH
+''   goto *tmp$7[TMP - 1ull];
+''
+'' -- the list is ONE-BASED, so the selector has 1 subtracted from it, and the test is
+'' UNSIGNED, which is what makes a selector of 0 (or any negative) fall through in a
+'' single comparison rather than needing two.
+''
+'' THE DISPATCH ITSELF IS A CHAIN HERE, not a jump table. fbc uses GCC's computed goto
+'' over a static array of label addresses; MIR has BR and CONDBR and nothing else, so
+'' the same choice is made with one equality test per label. Semantically identical --
+'' the range test above still runs first, so the chain is entered only for a selector
+'' that names a label -- and O(N) where fbc is O(1). The corpus's longest list is
+'' three.
+''
+'' 'on n GOSUB' is a separate statement -- it pushes a return address -- and is NOT
+'' lowered: it declines rather than jumping without one. 'on error goto' likewise; it
+'' needs the error-handler machinery, which is not built.
+sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    '' 1 is 'on error goto', 3 is 'on n gosub'; neither is this.
+    if sp->extra <> 2 then
+        SkipHere( c )
+        return
+    end if
+    if (sp->count < 1) orelse (sp->a = Tko.NODE_NONE) then
+        SkipHere( c )
+        return
+    end if
+
+    '' EVERY LABEL FIRST. A list naming one this procedure has not got would leave a
+    '' branch to a block that never exists, so nothing is emitted until all of them
+    '' are known -- the same rule LowerGoto applies to its single label.
+    dim as FB.Array( of ulong ) blocks
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId ln = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( ln ) <> Tko.N_IDENT then
+            SkipHere( c )
+            return
+        end if
+        dim as Tko.IdentPayload ptr lip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, ln )].data )]
+        dim as long slot = LabelSlot( c, lip->name )
+        dim as long d = c.labelDepth[slot]
+        if (d < 0) orelse (d = LABEL_AMBIGUOUS) then
+            SkipHere( c )
+            return
+        end if
+        blocks.Push( cast( ulong, LabelBlockOf( c, slot ) ) )
+    next
+
+    dim as MirValue sel = LowerExpr( c, sp->a )
+    if sel.kind = cast( ubyte, MV_NONE ) then
+        SkipHere( c )
+        return
+    end if
+    sel = Coerce( c, sel, MT_I64, true )
+
+    '' THE LIST IS ONE-BASED: the index is the selector minus one.
+    dim as MirValue one
+    one.kind = cast( ubyte, MV_CONST_INT )
+    one.ty = cast( ubyte, MT_I64 )
+    one.id = 1
+    dim as MirInst sub_
+    sub_.op = cast( ushort, M_SUB )
+    sub_.ty = cast( ubyte, MT_I64 )
+    sub_.a = sel
+    sub_.b = one
+    dim as MirValue idx = Emit( c, sub_ )
+    if idx.kind = cast( ubyte, MV_NONE ) then
+        SkipHere( c )
+        return
+    end if
+
+    '' ...and the range test is UNSIGNED, so 0 and every negative selector fall
+    '' through on the same comparison.
+    dim as MirValue hi
+    hi.kind = cast( ubyte, MV_CONST_INT )
+    hi.ty = cast( ubyte, MT_I64 )
+    hi.id = cast( ulong, sp->count - 1 )
+    dim as MirInst cmp
+    cmp.op = cast( ushort, M_ICMP_UGT )
+    cmp.ty = cast( ubyte, MT_I64 )
+    cmp.a = idx
+    cmp.b = hi
+    dim as MirValue over = Emit( c, cmp )
+    if over.kind = cast( ubyte, MV_NONE ) then
+        SkipHere( c )
+        return
+    end if
+
+    dim as long afterB = NewBlock( c, "on.after" )
+    dim as long testB = NewBlock( c, "on.test" )
+    Terminate( c, MTERM_CONDBR, afterB, testB, over )
+
+    for i as long = 0 to sp->count - 1
+        c.curBlock = testB
+        dim as MirValue k
+        k.kind = cast( ubyte, MV_CONST_INT )
+        k.ty = cast( ubyte, MT_I64 )
+        k.id = cast( ulong, i )
+        dim as MirInst eq
+        eq.op = cast( ushort, M_ICMP_EQ )
+        eq.ty = cast( ubyte, MT_I64 )
+        eq.a = idx
+        eq.b = k
+        dim as MirValue hit = Emit( c, eq )
+        if hit.kind = cast( ubyte, MV_NONE ) then
+            SkipHere( c )
+            return
+        end if
+        dim as long nextB = afterB
+        if i < (sp->count - 1) then nextB = NewBlock( c, "on.test" )
+        Terminate( c, MTERM_CONDBR, cast( long, blocks[i] ), nextB, hit )
+        testB = nextB
+    next
+
+    c.curBlock = afterB
+end sub
+
 sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->name = 0 then

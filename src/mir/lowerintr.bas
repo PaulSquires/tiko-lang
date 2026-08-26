@@ -1309,6 +1309,12 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         end if
     end select
     if ip->op = cast( ushort, Tko.KW_INPUT ) then handled = LowerInput( c, id, false )
+    '' 'on n goto l1, l2, ...' -- the computed goto; see LowerOnGoto for the
+    '' one-based index and the unsigned range test, both measured.
+    if ip->op = cast( ushort, Tko.KW_ON ) then
+        LowerOnGoto( c, id )
+        handled = true
+    end if
     '' THE VARARG CURSOR. Builtins, not runtime calls -- see lowercva.bas.
     if ip->op = cast( ushort, Tko.KW_CVA_START ) then handled = LowerCvaStart( c, id )
     if ip->op = cast( ushort, Tko.KW_CVA_COPY ) then handled = LowerCvaCopy( c, id )

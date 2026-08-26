@@ -1,0 +1,8 @@
+'' The computed GOTO. See the source: the list is one-based and the range test is
+'' UNSIGNED, which is what makes a zero or negative selector fall through in one
+'' comparison.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/on-goto.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/on-goto.out

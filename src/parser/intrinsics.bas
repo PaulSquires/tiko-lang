@@ -462,9 +462,17 @@ private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         return
     end if
 
+    '' WHICH JUMP, recorded. 'on n goto' and 'on n gosub' were both coming out as
+    '' 'extra = 2', so lowering could not tell a jump from a call and had to refuse
+    '' both. GOSUB pushes a return address; GOTO does not.
     sp.extra = 2
     sp.a = Expression( p )
-    if (Peek( p ) = Tko.KW_GOTO) orelse (Peek( p ) = Tko.KW_GOSUB) then Advance( p )
+    if Peek( p ) = Tko.KW_GOSUB then
+        sp.extra = 3
+        Advance( p )
+    elseif Peek( p ) = Tko.KW_GOTO then
+        Advance( p )
+    end if
 
     dim as Tko.NodeIdVec items
     do
