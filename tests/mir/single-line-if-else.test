@@ -1,5 +1,5 @@
-'' A single-line IF with an empty then-branch and an else. See the source for why the
-'' empty branch and the else after it cannot be fixed separately.
+'' A single-line IF's else branch, in both shapes. See the source: the else was being
+'' DISCARDED by EndOfStatement before the IF ever got to look for it.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/single-line-if-else.bas
 '' EXPECT-EXIT: 0

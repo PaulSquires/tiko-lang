@@ -1248,7 +1248,13 @@ function LowerStrPtrCall_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "strptr" then return false
+    '' SADD IS THE SAME THING BY ANOTHER NAME. Measured: 'sadd( s )' emits
+    '' '*(char**)&S$0' -- the descriptor's DATA POINTER -- byte for byte what
+    '' 'strptr( s )' emits, and over a fixed string both give the buffer's address.
+    '' It was not implemented at all, so 'mid( *sadd( s ), 1 ) = "0"' declined while
+    '' the strptr line beside it in the same corpus file lowered.
+    dim as string spnm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    if (spnm <> "strptr") andalso (spnm <> "sadd") then return false
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     if TermIsWide_( c, a0 ) then return WideOperand_( c, a0, outv )

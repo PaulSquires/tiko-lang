@@ -279,6 +279,9 @@ declare function EmitRtl _
     declare function LowerPeek _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
+    declare function LowerMidAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, _
+          byval value as Tko.NodeId ) as boolean
     declare function LowerDir _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerBitOp _

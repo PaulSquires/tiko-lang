@@ -1,0 +1,7 @@
+'' MID as an assignment target, over every destination shape. See the source for the
+'' measured table and for the two ordering facts that each cost a run.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/mid-assign.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/mid-assign.out

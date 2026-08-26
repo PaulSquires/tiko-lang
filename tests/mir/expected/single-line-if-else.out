@@ -1,9 +1,18 @@
 global str $str0 "empty-then taken"
 global str $str1 "not printed"
+global str $str2 "then-arm"
+global str $str3 "else-arm"
+global str $str4 "then-arm 2"
+global str $str5 "else-arm 2"
+global str $str6 "inner-then"
+global str $str7 "inner-else"
+global str $str8 "after"
 func i32 main($0, $1) {
   local i32 $tmp0
   local i32 e
   local i32 f
+  local i32 a
+  local i32 b
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -19,6 +28,8 @@ func i32 main($0, $1) {
     %9 = trunc %8
     store @f, %9
     %10 = load @e
+    %20 = alloca ptr a
+    %23 = alloca ptr b
     condbr %10, if.then2, if.else3
   if.join1:
     %12 = load @f
@@ -30,20 +41,68 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintString(0, %11, 1)
     br if.join1
   if.join4:
-    %14 = const i32 0
-    call.rtl void fb_End(%14)
-    %15 = load @$tmp0
-    ret %15
+    %14 = load @e
+    condbr %14, if.then8, if.else9
   if.then5:
     br if.join4
   if.else6:
     %13 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 11)
     call.rtl void fb_PrintString(0, %13, 1)
     br if.join4
+  if.join7:
+    %17 = load @f
+    condbr %17, if.then11, if.else12
+  if.then8:
+    %15 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 8)
+    call.rtl void fb_PrintString(0, %15, 1)
+    br if.join7
+  if.else9:
+    %16 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 8)
+    call.rtl void fb_PrintString(0, %16, 1)
+    br if.join7
+  if.join10:
+    %21 = const i64 1
+    %22 = trunc %21
+    store @a, %22
+    %24 = const i64 0
+    %25 = trunc %24
+    store @b, %25
+    %26 = load @a
+    condbr %26, if.then14, if.else15
+  if.then11:
+    %18 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 10)
+    call.rtl void fb_PrintString(0, %18, 1)
+    br if.join10
+  if.else12:
+    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 10)
+    call.rtl void fb_PrintString(0, %19, 1)
+    br if.join10
+  if.join13:
+    %30 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 5)
+    call.rtl void fb_PrintString(0, %30, 1)
+    %31 = const i32 0
+    call.rtl void fb_End(%31)
+    %32 = load @$tmp0
+    ret %32
+  if.then14:
+    %27 = load @b
+    condbr %27, if.then17, if.else18
+  if.else15:
+    br if.join13
+  if.join16:
+    br if.join13
+  if.then17:
+    %28 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 10)
+    call.rtl void fb_PrintString(0, %28, 1)
+    br if.join16
+  if.else18:
+    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 10)
+    call.rtl void fb_PrintString(0, %29, 1)
+    br if.join16
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 7 blocks, 22 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 19 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

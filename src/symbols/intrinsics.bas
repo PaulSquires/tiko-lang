@@ -224,7 +224,7 @@ private function ExprIntrinsicType_ _
         case "cvshort"   : return c.types->Builtin( Tko.TY_SHORT )
         end select
         return c.types->Builtin( Tko.TY_LONGINT )
-    case "strptr"
+    case "strptr", "sadd"
         '' A WIDE operand gives a WIDE pointer: '#print typeof( strptr( w ) )' over a
         '' 'wstring * 4' is 'WSTRING * 4 PTR', not a zstring ptr. Typing it narrow made
         '' 'dim pw as wstring ptr = strptr( w )' an incompatible initialiser and

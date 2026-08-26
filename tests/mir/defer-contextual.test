@@ -1,0 +1,7 @@
+'' 'defer' as a keyword and as a variable of that name. See the source for the rule and
+'' for why the corpus file's own warning about '+=' does not apply to this lexer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/defer-contextual.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/defer-contextual.out

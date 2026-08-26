@@ -76,6 +76,15 @@ private sub LowerAssign _
         end if
     end if
 
+    '' 'mid( s, n [, l ] ) = v' -- MID AS A TARGET is a runtime call over the
+    '' destination's descriptor, not a store: an N_CALL is not an lvalue and has no
+    '' address, so the whole statement produced nothing and the string was untouched.
+    ''
+    '' BEFORE THE FLAVOUR TESTS BELOW, not after. 'mid( s, 1 )' is STRING-TYPED, so
+    '' the narrow-assignment path claimed it and then asked an N_CALL for an address --
+    '' which is why the WIDE spellings lowered while every narrow one declined.
+    if LowerMidAssign( c, target, value ) then return
+
     if LowerWideAssign( c, target, value ) then return
     if LowerWideToNarrow( c, target, value ) then return
 
@@ -261,6 +270,7 @@ private sub LowerAssign _
     if LowerPropertySet_( c, target, value ) then return
 
     if LowerBitfieldStore( c, target, value ) then return
+
 
     '' 'let (a, b) = expr' -- N assignments from the elements of ONE evaluation, not an
     '' assignment of one thing to another. An N_TUPLE target is not an lvalue and has no

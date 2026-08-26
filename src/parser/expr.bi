@@ -74,6 +74,11 @@ namespace Tko
         '' temporary of its own: two in one loop body, or one nested inside another,
         '' must not name the same thing.
         as long                 destructureSeq
+        '' Inside the THEN-BRANCH OF A SINGLE-LINE IF, where an ELSE on the same line
+        '' belongs to that IF and not to the statement being parsed. EndOfStatement
+        '' otherwise walks to the line's end and DISCARDS whatever it passes, which is
+        '' how 'if c then a else b' lost its else branch in silence.
+        as boolean              stopAtElse
     end type
 
 end namespace
