@@ -1,0 +1,7 @@
+'' A paren-less call whose first argument is parenthesised. See the source for the three
+'' measurements that separate it from the call-with-a-paren-list it looks like.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/paren-first-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/paren-first-arg.out

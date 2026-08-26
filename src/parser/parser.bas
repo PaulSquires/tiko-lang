@@ -649,6 +649,37 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' Anything else on the line is a paren-less argument list.
     dim as Tko.NodeIdVec args
+
+    '' 'proc (x), y' IS ONE CALL WITH TWO ARGUMENTS, the first of them parenthesised.
+    '' The postfix parser has already taken '(x)' as the call's whole ARGUMENT LIST,
+    '' so what followed the ')' was read as more paren-less arguments and the comma
+    '' produced an ELIDED one: 'proc1 (4), 4' came out as 'proc1( 4 )' followed by
+    '' <elided> and 4. Measured, all three shapes:
+    ''
+    ''   p2 (4), 4        ->  4, 4        two arguments
+    ''   p3 (1), 2, 3     ->  1, 2, 3     three
+    ''   p2 (1, 2)        ->  1, 2        the paren IS the list, nothing follows
+    ''
+    '' -- so the rule is exactly: A COMMA AFTER THE CLOSING PAREN means the group was
+    '' the FIRST ARGUMENT. structs/anon-param.bas writes ten of them.
+    ''
+    '' Only the ONE-ARGUMENT group is lifted. 'p2 (1, 2), 3' would make the group a
+    '' TUPLE argument, which is a different question and is left declining rather
+    '' than guessed at.
+    if Peek( p ) = Tko.TK_COMMA then
+        if p.ast->Kind( sp.a ) = Tko.N_CALL then
+            dim as Tko.ListPayload ptr lcp = _
+                @p.ast->lists[cast( long, p.ast->nodes[cast( long, sp.a )].data )]
+            if (lcp->count = 1) andalso (lcp->target <> Tko.NODE_NONE) then
+                dim as Tko.NodeId inner = _
+                    cast( Tko.NodeId, p.ast->children[lcp->first] )
+                sp.a = lcp->target
+                args.Push( cast( ulong, inner ) )
+                Advance( p )        '' the comma
+            end if
+        end if
+    end if
+
     dim as boolean more = (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
     if EndsSingleLineStmt( p ) then more = false
     if more then
