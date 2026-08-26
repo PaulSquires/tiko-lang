@@ -1,0 +1,71 @@
+global str $str0 "abcdef"
+global str $str1 "ghijkl"
+global str $str2 "ab"
+global str $str3 "cd"
+global str $str4 "|"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg z size 64
+  local agg f size 16
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr z
+    %5 = field.addr @z, 0
+    %6 = call.rtl ptr fb_StrAssign(%5, 32, @@$str0, 7, 0)
+    %7 = field.addr @z, 32
+    %8 = call.rtl ptr fb_StrAssign(%7, 32, @@$str1, 7, 0)
+    %9 = const i64 0
+    %10 = const i64 32
+    %11 = mul %9, %10
+    %12 = ptr.add @z, %11
+    %13 = call.rtl ptr fb_StrAllocTempDescZ(%12)
+    call.rtl void fb_PrintString(0, %13, 0)
+    %14 = const i64 1
+    %15 = const i64 32
+    %16 = mul %14, %15
+    %17 = ptr.add @z, %16
+    %18 = call.rtl ptr fb_StrAllocTempDescZ(%17)
+    call.rtl void fb_PrintString(0, %18, 1)
+    %19 = alloca ptr f
+    %20 = field.addr @f, 0
+    %21 = const i64 -9223372036854775800
+    %22 = call.rtl ptr fb_StrAssign(%20, %21, @@$str2, 3, -1)
+    %23 = field.addr @f, 8
+    %24 = const i64 -9223372036854775800
+    %25 = call.rtl ptr fb_StrAssign(%23, %24, @@$str3, 3, -1)
+    %26 = const i64 0
+    %27 = const i64 8
+    %28 = mul %26, %27
+    %29 = ptr.add @f, %28
+    %30 = const i64 -9223372036854775800
+    %31 = call.rtl ptr fb_StrAllocTempDescF(%29, %30)
+    call.rtl void fb_PrintString(0, %31, 0)
+    %32 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    call.rtl void fb_PrintString(0, %32, 0)
+    %33 = const i64 1
+    %34 = const i64 8
+    %35 = mul %33, %34
+    %36 = ptr.add @f, %35
+    %37 = const i64 -9223372036854775800
+    %38 = call.rtl ptr fb_StrAllocTempDescF(%36, %37)
+    call.rtl void fb_PrintString(0, %38, 0)
+    %39 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    call.rtl void fb_PrintString(0, %39, 1)
+    %40 = const i32 0
+    call.rtl void fb_End(%40)
+    %41 = load @$tmp0
+    ret %41
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_StrAllocTempDescZ($0)
+declare void fb_PrintString($0, $1, $2)
+declare ptr fb_StrAllocTempDescF($0, $1)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance

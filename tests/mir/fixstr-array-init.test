@@ -1,0 +1,7 @@
+'' A brace initialiser over an array of fixed-length strings. See the source for why it
+'' was rejected and for the destination length fbc passes.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixstr-array-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fixstr-array-init.out

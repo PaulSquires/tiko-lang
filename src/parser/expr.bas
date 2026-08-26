@@ -1118,7 +1118,17 @@ function Expression _
         '' Every FreeBASIC binary operator is LEFT-associative, so the right side
         '' is parsed at one level tighter. There is no right-associative case --
         '' not even '^' (docs/language/precedence.md).
-        dim as Tko.NodeId right = Expression( p, prec + 1 )
+        '' 'a IS T' TAKES A TYPE ON THE RIGHT, not an expression: 'Sq( of integer )'
+        '' is a generic instantiation and 'Dog' is a type name, neither of which the
+        '' expression parser can be asked for. It goes in the ordinary binary node's
+        '' right slot as an N_TYPEREF, which is the same shape 'cast( T, x )' and
+        '' 'type<T>( ... )' already put in an argument and a callee.
+        dim as Tko.NodeId right
+        if k = Tko.KW_IS then
+            right = TypeRef( p )
+        else
+            right = Expression( p, prec + 1 )
+        end if
         left = MakeBinary( p, k, opTok.loc, left, right )
     loop
 

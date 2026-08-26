@@ -273,6 +273,9 @@ declare function EmitRtl _
     declare function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' lowerio.bas
     declare function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerIsTypeOf_ _
+        ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, _
+          byref outv as MirValue ) as boolean
     declare function LowerPeek _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

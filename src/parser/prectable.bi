@@ -52,6 +52,13 @@ namespace Tko
         BINOP( TK_LE,         PREC_REL     )
         BINOP( TK_GT,         PREC_REL     )
         BINOP( TK_GE,         PREC_REL     )
+        '' 'a IS T' -- the RTTI type test. Measured for PRECEDENCE, not assumed:
+        '' '-1 = a is Dog' is -1, so it binds TIGHTER than '=' -- read the other way
+        '' round it would be '(-1 = a) is Dog', which does not compile -- and 'a is Dog
+        '' andalso 1' compiles, so it is tighter than ANDALSO too. Its right operand is
+        '' a TYPE NAME rather than an expression, so nothing binds to its right and
+        '' this level only says how much of the left it takes.
+        BINOP( KW_IS,         PREC_CONCAT  )
         BINOP( TK_AMP,        PREC_CONCAT  )
         BINOP( TK_PLUS,       PREC_ADD     )
         BINOP( TK_MINUS,      PREC_ADD     )

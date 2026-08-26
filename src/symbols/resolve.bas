@@ -690,7 +690,13 @@ private sub WalkExpr _
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( long, n->data )]
         WalkExpr( c, bp->lhs, scope_ )
-        WalkExpr( c, bp->rhs, scope_ )
+        '' 'a IS T' HAS A TYPE ON THE RIGHT. Walking it as an expression leaves the
+        '' type unresolved, and the test then has nothing to compare against.
+        if c.ast->Kind( bp->rhs ) = Tko.N_TYPEREF then
+            ResolveTypeRef( c, bp->rhs, scope_ )
+        else
+            WalkExpr( c, bp->rhs, scope_ )
+        end if
 
     case Tko.N_MEMBER
         '' Only the base: the member name needs the base's type.

@@ -868,6 +868,13 @@ end function
 ''
 '' A brace list SHORTER than the array leaves the rest alone, which is what fbc's own
 '' output does; a longer one stops at the array's length rather than writing past it.
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
+declare function LowerFixStrArrayInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId, byval n as longint, byval isU as boolean ) as boolean
+
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
       byref outv as FB.Array( of ulong ) )
@@ -920,6 +927,23 @@ function LowerArrayInit _
         if IsUStringType( c, el ) then return false
         return LowerStrArrayInit_( c, slot, t, init )
     end if
+    '' A FIXED-LENGTH STRING ELEMENT -- 'dim as zstring * 32 z(0 to 1) = { "abcdef",
+    '' "ghijkl" }' -- is an ARRAY OF ARRAYS, since 'zstring * N' is itself modelled as
+    '' an array of the char builtin. It lowers as an aggregate like every other array,
+    '' so it was rejected too. Measured, the destination length is the ELEMENT'S OWN
+    '' character count and not -1:
+    ''
+    ''   fb_StrAssign( (void*)Z$0, 32ll, (void*)"abcdef", 7ll, 0 );
+    ''   fb_StrAssign( (void*)((int64)(char*)Z$0 + 32ll), 32ll, (void*)"ghijkl", 7ll, 0 );
+    ''
+    '' -- which is exactly what the SCALAR declaration of one already emits, so each
+    '' element goes through the same routine with its own address as the destination.
+    dim as longint fen
+    dim as long fek = StrSwapKind_( c, el, fen )
+    if (fek = 1) orelse (fek = 3) orelse (fek = 4) then
+        return LowerFixStrArrayInit_( c, slot, t, init, fen, (fek = 4) )
+    end if
+
     '' A UDT ELEMENT lowers as an aggregate, which the test below rejected outright:
     '' 'dim as Decimal d(0 to 4) = { D( "-1000" ), ... }' dropped its whole
     '' initialiser and every element read back as whatever the stack held.
@@ -983,6 +1007,41 @@ function LowerArrayInit _
     return true
 end function
 
+
+'' ONE fb_StrAssign PER ELEMENT, over an array whose elements are FIXED-LENGTH
+'' strings. Each element's destination length is its own character count, which is the
+'' same argument the scalar declaration of one passes -- so the work is the scalar
+'' routine, called once per element with that element's address.
+private function LowerFixStrArrayInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId, byval n as longint, byval isU as boolean ) as boolean
+
+    dim as Tko.TypeId el = c.types->Inner( t )
+    dim as long esz = SizeOfType( c, el )
+    if esz <= 0 then return false
+    dim as long total = c.types->ElemCount( t )
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+
+    dim as MirValue base_
+    base_.kind = cast( ubyte, MV_LOCAL )
+    base_.ty = cast( ubyte, MT_PTR )
+    base_.id = slot
+
+    for i as long = 0 to lp->count - 1
+        if (total > 0) andalso (i >= total) then exit for
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = base_
+        fa.imm = i * esz
+        dim as MirValue ea = Emit( c, fa )
+        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        if LowerZstrAssignTo( c, ea, n, e, true, isU ) = false then return false
+    next
+    return true
+end function
 
 '' ONE fb_StrInit PER ELEMENT, over an array whose descriptors have already been
 '' zeroed at the declaration. An element the initialiser does not name keeps that

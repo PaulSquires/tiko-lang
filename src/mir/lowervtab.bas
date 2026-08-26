@@ -311,4 +311,41 @@ function VirtualCalleeOf_ _
     return LowerExprLoad( c, at, MT_PTR )
 end function
 
+
+'' 'a IS T' -- fb_IsTypeOf over the object's address and T's RTTI record.
+''
+'' The record is the one the vtable already points at, built on demand and shared, so
+'' a test against a type with no vtable of its own still has something to name. A type
+'' with no record at all -- a builtin, a pointer -- is not a thing this can answer, so
+'' it declines rather than passing a null the runtime would dereference.
+function LowerIsTypeOf_ _
+    ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, _
+      byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId rt = c.info->TypeOf_( rhs )
+    if rt = Tko.TYPE_NONE then return false
+    rt = c.types->Unqualify( rt )
+    if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+
+    '' THE OBJECT'S ADDRESS. A dereference has one by the ordinary route, and so has a
+    '' variable or a byref alias; a value with no address is not something IS can be
+    '' asked about.
+    dim as MirValue obj = LowerAddr( c, lhs )
+    if obj.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long g = RttiGlobalOf_( c, rt )
+    if g < 0 then return false
+    dim as MirValue rec
+    rec.kind = cast( ubyte, MV_GLOBAL )
+    rec.ty = cast( ubyte, MT_PTR )
+    rec.id = g
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, obj.kind ) ) : args.Push( cast( ulong, obj.id ) )
+    args.Push( cast( ulong, rec.kind ) ) : args.Push( cast( ulong, rec.id ) )
+    outv = EmitRtl( c, RTL_IS_TYPE_OF, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+
 end namespace

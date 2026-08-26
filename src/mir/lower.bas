@@ -298,6 +298,20 @@ function LowerExpr _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         dim as Tko.TokenKind tk = cast( Tko.TokenKind, bp->op )
 
+        '' 'a IS T' -- the RTTI type test, and not an arithmetic operator at all.
+        '' Measured:
+        ''
+        ''   int32 vr$2 = fb_IsTypeOf( (void*)A$0, (void*)&_ZTSN3DOGE );
+        ''
+        '' -- the OBJECT'S ADDRESS and the named type's RTTI record, both of which the
+        '' lowerer already knows how to produce. '*p is Dog' passes the pointer itself,
+        '' which is the same address by another route.
+        if tk = Tko.KW_IS then
+            dim as MirValue isv
+            if LowerIsTypeOf_( c, bp->lhs, bp->rhs, isv ) then return isv
+            return v
+        end if
+
         '' A USER-DEFINED OPERATOR IS A CALL. Without it 'x - y' over two UDTs
         '' subtracted the raw aggregates as integers -- emitted, verified, wrong.
         dim as MirValue uov
