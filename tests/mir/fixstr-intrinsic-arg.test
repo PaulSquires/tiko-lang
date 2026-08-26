@@ -1,0 +1,7 @@
+'' A fixed-length narrow string as an intrinsic's argument. See the source: the table
+'' refused it, which left the call untyped and the failure three layers from its cause.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixstr-intrinsic-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fixstr-intrinsic-arg.out

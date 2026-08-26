@@ -106,7 +106,27 @@ private function ExprIntrinsicType_ _
     '' ACCEPTANCE is measured too, and is most of the table: fbc REFUSES 'asc( v_byte )'
     '' and 'chr( v_string )', where a rule built only from result types would happily
     '' answer both. Each family names the argument class it takes.
-    dim as boolean isStr = IsStringy_( ab )
+    '' A 'string * N' IS A STRING ARGUMENT. FixedStringElem answers TY_FIXSTR for one
+    '' -- that is what it is for -- and IsStringy_ does not list TY_FIXSTR, so every
+    '' intrinsic in this table refused a fixed narrow string and left the call UNTYPED.
+    ''
+    '' Measured, and fbc takes all of them over one, with the same result types the
+    '' var-length forms give:
+    ''
+    ''   wstr( fs )      WSTRING * 1        val( fs )     DOUBLE
+    ''   asc( fs )       ULONG              left( fs, 2 ) STRING
+    ''   trim( fs )      STRING             ucase( fs )   STRING
+    ''
+    '' The cost of the omission was not a diagnostic: an untyped argument makes the
+    '' ENCLOSING call untypable too, so 'proc( wstr( fs ) )' declined with the failure
+    '' three layers from its cause -- the argument path asks IsWideString_ of the
+    '' argument's type and there was none.
+    ''
+    '' NARROWED TO THIS TABLE deliberately. IsStringy_ also feeds assignment legality,
+    '' binary-result typing and conversion cost, all of which are gated at 100% against
+    '' fbc and reach a fixed string by another route; widening it there is a separate
+    '' question with its own measurements to make.
+    dim as boolean isStr = IsStringy_( ab ) orelse (ab = Tko.TY_FIXSTR)
     dim as boolean isNum = IsInt_( ab ) orelse IsFloat_( ab ) orelse (ab = Tko.TY_BOOLEAN)
     '' An ARRAY or a POINTER counts as numeric for these: measured, fbc takes
     '' 'chr( v_ptr )' and 'abs( v_arr )' and answers as if given a number.
