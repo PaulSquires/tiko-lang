@@ -660,11 +660,17 @@ function NumberToWideTemp_ _
     dim as Tko.TypeId at = c.types->Unqualify( c.info->TypeOf_( e ) )
     if at = Tko.TYPE_NONE then return false
     if c.types->Kind( at ) = Tko.TK_ENUM then at = c.types->Builtin( Tko.TY_INTEGER )
-    if c.types->Kind( at ) <> Tko.TK_BUILTIN then return false
+    '' A POINTER RENDERS AS ITS ADDRESS, unsigned -- measured, 'wstr( p )' is
+    '' 'fb_ULongintToWstr( (uint64)P$0 )' for every pointer type. It is not a
+    '' BUILTIN, so the test below refused it and the call came out untyped.
+    dim as boolean atPtr = (c.types->Kind( at ) = Tko.TK_POINTER)
+    if (c.types->Kind( at ) <> Tko.TK_BUILTIN) andalso (atPtr = false) then return false
 
     dim as RtlId r = RTL_NONE
     dim as MirType want = MT_I32
-    select case c.types->BuiltinOf( at )
+    if atPtr then r = RTL_ULONGINT_TO_WSTR : want = MT_I64
+    if atPtr = false then
+        select case c.types->BuiltinOf( at )
     case Tko.TY_BOOLEAN
         r = RTL_BOOL_TO_WSTR : want = MT_I8
     case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG
@@ -682,6 +688,7 @@ function NumberToWideTemp_ _
     case else
         return false
     end select
+    end if
 
     dim as MirValue av = LowerExpr( c, e )
     if av.kind = cast( ubyte, MV_NONE ) then return false

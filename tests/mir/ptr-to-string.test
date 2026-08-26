@@ -1,0 +1,7 @@
+'' A pointer rendered by STR and WSTR. See the source: it is the address as an unsigned
+'' number, and the dispatch read its entry point off a builtin a pointer has not got.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ptr-to-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ptr-to-string.out

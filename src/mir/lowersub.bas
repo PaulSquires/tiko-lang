@@ -511,6 +511,12 @@ function NumberToStrDesc_ _
     select case c.types->Kind( at )
     case Tko.TK_ENUM
         r = RTL_STR_INTTOSTR
+    '' A POINTER RENDERS AS ITS ADDRESS, unsigned. Measured -- 'str( p )' over a
+    '' 'wstring ptr' and over an 'any ptr' alike is 'fb_ULongintToStr( (uint64)P$0 )',
+    '' and the wide half is fb_ULongintToWstr. Refusing it left the call untyped, and
+    '' an untyped argument takes the enclosing statement with it.
+    case Tko.TK_POINTER
+        r = RTL_STR_ULONGTOSTR : want = MT_I64 : uns = true
     case Tko.TK_BUILTIN
         select case c.types->BuiltinOf( at )
         case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG    : r = RTL_STR_INTTOSTR
