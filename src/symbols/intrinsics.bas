@@ -16,6 +16,39 @@
 '' result is the argument's signed or unsigned COUNTERPART, and the argument itself
 '' where there is none -- with a fixed-length string an asymmetric case, since 'cunsg'
 '' of a ZSTRING * n is that same type while 'csign' of it is BYTE.
+'' THE RESULT TYPE OF A UDT'S 'operator cast' THAT YIELDS A STRING, or TYPE_NONE.
+''
+'' 'operator cast' may be declared several times over different targets -- as long, as
+'' string, as zstring -- and they hang off one symbol as a chain, so the first is not
+'' necessarily the one being asked about.
+private function UdtStringCastType_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
+
+    if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
+    while cs <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
+        if cse = 0 then exit while
+        dim as Tko.TypeId rt = cse->type_
+        if rt <> Tko.TYPE_NONE then
+            dim as Tko.TypeId ru = c.types->Unqualify( rt )
+            if c.types->Kind( ru ) = Tko.TK_REFERENCE then
+                ru = c.types->Unqualify( c.types->Inner( ru ) )
+            end if
+            if c.types->Kind( ru ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( ru )
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING
+                    return ru
+                end select
+            end if
+        end if
+        cs = cse->nextOverload
+    wend
+    return Tko.TYPE_NONE
+end function
+
 private function SignedFlip_ _
     ( byval t as Tko.TypeId, byval wantUnsigned as boolean, _
       byref types as Tko.TypeContext ) as Tko.TypeId
@@ -279,15 +312,31 @@ private function ExprIntrinsicType_ _
     '' A string function keeps the string KIND it was given.
     '' STR is always a var-length STRING, even for a WSTRING argument -- unlike TRIM and
     '' the rest, which keep the kind they were handed.
+    '' STR OF A UDT THAT CASTS TO A STRING IS THE CAST, and its type is the CAST'S own:
+    '' measured, '#print typeof( str( u ) )' over a type with 'operator cast( ) byref as
+    '' zstring' is ZSTRING, not STRING. fbc emits no conversion at all for the shape.
+    ''
+    '' Untyped, it was not merely this call that declined. A concatenation is typed from
+    '' its LEFT TERM, so 'str( u ) & ", "' had nothing to classify and PRINT gave up on
+    '' the whole item -- while '", " & str( u )', the same terms the other way round,
+    '' lowered. That asymmetry is what the corpus's QT( ) macro walks into.
     case "str"
-        if (isNum orelse isStr) = false then return Tko.TYPE_NONE
+        if (isNum orelse isStr) = false then
+            dim as Tko.TypeId ct = UdtStringCastType_( c, a0 )
+            if ct <> Tko.TYPE_NONE then return ct
+            return Tko.TYPE_NONE
+        end if
         return c.types->Builtin( Tko.TY_STRING )
     '' WSTR IS A FIXED WSTRING, not a var-length one, and the LENGTH is measured:
     '' 'WSTRING * 1' for every argument fbc accepts except a fixed wstring, which keeps
     '' its own. Typing it as nothing at all left every concatenation of one untyped --
     '' 'wstr( i ) + w' as a SELECT CASE subject is 19 corpus declines by itself.
     case "wstr"
-        if (isNum orelse isStr) = false then return Tko.TYPE_NONE
+        '' ...and the wide half takes one too: 'wstr( u )' over the same type is
+        '' 'WSTRING * 1', the length every accepted argument gets.
+        if (isNum orelse isStr) = false then
+            if UdtStringCastType_( c, a0 ) = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        end if
         dim as long wn = 1
         if ab = Tko.TY_WSTRING then
             if c.types->Kind( a0 ) = Tko.TK_ARRAY then wn = c.types->ElemCount( a0 )

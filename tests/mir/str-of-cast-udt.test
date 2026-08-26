@@ -1,0 +1,7 @@
+'' STR and WSTR over a UDT that casts to a string. See the source: untyped, it took the
+'' enclosing concatenation with it -- but only when it was the LEFT term.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/str-of-cast-udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/str-of-cast-udt.out
