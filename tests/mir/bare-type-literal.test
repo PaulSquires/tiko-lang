@@ -1,0 +1,7 @@
+'' A bare 'type( )' assigned to an existing variable. See the source: the temporary it
+'' builds is observable through the destructor, so it is not optimised away.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bare-type-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/bare-type-literal.out

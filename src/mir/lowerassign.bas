@@ -15,6 +15,53 @@
 
 
 
+'' 'x = type( )' -- a BARE type literal assigned to an existing variable.
+''
+'' Recognised by SHAPE: an empty N_TUPLE marked as a type literal, with no type name of
+'' its own. The type comes from the DESTINATION, which is the only place it can come
+'' from, so this cannot be done in Check -- nothing types bottom-up here.
+private function LowerBareTypeLiteralAssign_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    if value = Tko.NODE_NONE then return false
+    if c.ast->Kind( value ) <> Tko.N_TUPLE then return false
+    if (c.ast->nodes[cast( long, value )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        return false
+    end if
+    if c.info->TypeOf_( value ) <> Tko.TYPE_NONE then return false
+
+    dim as Tko.TypeId dt = c.types->Unqualify( c.info->TypeOf_( target ) )
+    if c.types->Kind( dt ) <> Tko.TK_UDT then return false
+    dim as long sz = SizeOfType( c, dt )
+    if sz <= 0 then return false
+
+    dim as MirValue daddr = LowerAddr( c, target )
+    if daddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long tslot = NewTempLocal( c, MT_AGG, sz )
+    if tslot < 0 then return false
+    if LowerCtorInit( c, tslot, dt, value ) = false then
+        '' A TYPE WITH NO CONSTRUCTOR still has a default value -- fbc emits the
+        '' memset its implicit constructor would -- but nothing here has been emitted
+        '' yet, so declining leaves the statement clean.
+        return false
+    end if
+    '' DESTROYED AT THE END OF THE STATEMENT, which is the life fbc gives it.
+    if TypeNeedsDtor_( c, dt ) then
+        c.udtTemps.Push( cast( ulong, tslot ) )
+        c.udtTempTypes.Push( cast( ulong, dt ) )
+    end if
+
+    dim as MirValue taddr
+    taddr.kind = cast( ubyte, MV_LOCAL )
+    taddr.ty = cast( ubyte, MT_PTR )
+    taddr.id = tslot
+    dim as MirValue tv = LowerExprLoad( c, taddr, MT_AGG )
+    if tv.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, daddr, tv )
+    return true
+end function
+
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId )
 
@@ -268,6 +315,23 @@ private sub LowerAssign _
     '' ordinary store path, which looked for a FIELD of that name, found a procedure and
     '' declined.
     if LowerPropertySet_( c, target, value ) then return
+
+    '' 'x = type( )' -- A BARE TYPE LITERAL, which names no type of its own: it means a
+    '' default-constructed temporary of whatever the DESTINATION is. The declaration
+    '' form 'dim as T y = type( )' already worked, because there the type is written
+    '' one line up; the ASSIGNMENT had nothing to construct and produced nothing.
+    ''
+    '' Measured, and the temporary is not an implementation detail -- it is observable
+    '' through the destructor:
+    ''
+    ''   _ZN1TC1Ev( &TMP$2$0 );
+    ''   __builtin_memcpy( &X$0, &TMP$2$0, 4 );
+    ''   _ZN1TD1Ev( &TMP$2$0 );
+    ''
+    '' -- construct a temporary, copy it in, destroy it. Constructing straight into the
+    '' destination would skip that destructor, which structs/temp-var-dtors.bas exists
+    '' to count.
+    if LowerBareTypeLiteralAssign_( c, target, value ) then return
 
     if LowerBitfieldStore( c, target, value ) then return
 
