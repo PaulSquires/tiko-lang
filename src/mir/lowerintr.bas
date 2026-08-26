@@ -1294,6 +1294,18 @@ function LowerStrPtrCall_ _
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     if TermIsWide_( c, a0 ) then return WideOperand_( c, a0, outv )
+
+    '' A UDT THAT CASTS TO A ZSTRING IS THE CAST, and the cast's result already IS the
+    '' char* this asks for -- measured, 'strptr( u )' emits '_ZN1UcvcEv( &U1$0 )' and
+    '' nothing else. ZstrDataOf_ wants a string it can take the data pointer out of and
+    '' a UDT is not one, so every use of it declined.
+    dim as MirValue ucv
+    dim as boolean ucRaw = false
+    if UserCastToStr_( c, a0, ucv, ucRaw ) andalso ucRaw then
+        outv = ucv
+        return true
+    end if
+
     return ZstrDataOf_( c, a0, outv )
 end function
 

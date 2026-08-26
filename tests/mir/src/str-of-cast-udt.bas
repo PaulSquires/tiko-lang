@@ -37,3 +37,10 @@ print str( x ) & ", "
 print ", " & str( x )
 print str( "q" & str( x ) )
 print QT( x ) & ", " & QT( "abc" )
+
+'' STRPTR AND SADD GO THE SAME WAY: measured, 'strptr( u )' over this type is ZSTRING
+'' PTR and emits the cast and nothing else -- the cast's result already IS the char*
+'' they ask for, where ZstrDataOf_ wants a string it can take a data pointer out of.
+dim as zstring ptr p1 = strptr( x )
+dim as zstring ptr p2 = sadd( x )
+print *p1, *p2

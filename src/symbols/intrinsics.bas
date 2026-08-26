@@ -278,6 +278,14 @@ private function ExprIntrinsicType_ _
         end select
         return c.types->Builtin( Tko.TY_LONGINT )
     case "strptr", "sadd"
+        '' A UDT THAT CASTS TO A STRING IS A STRING OPERAND HERE TOO, by the same rule
+        '' STR follows: measured, '#print typeof( strptr( u ) )' over a type with
+        '' 'operator cast( ) byref as zstring' is ZSTRING PTR, and fbc emits the cast
+        '' and nothing else. udt-zstring/strptr.bas writes it nine times.
+        if isStr = false then
+            dim as Tko.TypeId spct = UdtStringCastType_( c, a0 )
+            if spct <> Tko.TYPE_NONE then return c.types->Pointer_( spct )
+        end if
         '' A WIDE operand gives a WIDE pointer: '#print typeof( strptr( w ) )' over a
         '' 'wstring * 4' is 'WSTRING * 4 PTR', not a zstring ptr. Typing it narrow made
         '' 'dim pw as wstring ptr = strptr( w )' an incompatible initialiser and

@@ -41,6 +41,8 @@ func i32 main($0, $1) {
   local agg $tmp5 size 24
   local agg $tmp6 size 24
   local agg $tmp7 size 24
+  local ptr p1
+  local ptr p2
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -116,10 +118,22 @@ func i32 main($0, $1) {
     %47 = call.rtl ptr fb_StrConcatAssign(@$tmp7, -1, @@$str3, 2, 0)
     %48 = call.rtl ptr fb_StrConcatAssign(@$tmp5, -1, @$tmp7, -1, 0)
     call.rtl void fb_PrintString(0, @$tmp5, 1)
-    %49 = const i32 0
-    call.rtl void fb_End(%49)
-    %50 = load @$tmp0
-    ret %50
+    %49 = alloca ptr p1
+    %50 = call ptr _ZN1UcvcEv(@x)
+    store @p1, %50
+    %51 = alloca ptr p2
+    %52 = call ptr _ZN1UcvcEv(@x)
+    store @p2, %52
+    %53 = load @p1
+    %54 = call.rtl ptr fb_StrAllocTempDescZ(%53)
+    call.rtl void fb_PrintString(0, %54, 2)
+    %55 = load @p2
+    %56 = call.rtl ptr fb_StrAllocTempDescZ(%55)
+    call.rtl void fb_PrintString(0, %56, 1)
+    %57 = const i32 0
+    call.rtl void fb_End(%57)
+    %58 = load @$tmp0
+    ret %58
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_StrAllocTempDescZ($0)
@@ -129,4 +143,4 @@ declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare void fb_End($0)
 verify: ok
-lowered: 3 functions, 3 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance
