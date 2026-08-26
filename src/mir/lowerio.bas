@@ -181,6 +181,65 @@ end function
 ''
 '' The named type is a TYPEREF argument, not an expression, which is what makes the
 '' two forms tell apart: three arguments means the first is the type.
+'' THE TYPE NAMED IN A PEEK OR POKE'S FIRST ARGUMENT, in all three spellings it has.
+''
+''   poke ubyte, p, 5            a TYPE KEYWORD, which parses as a NAME
+''   poke typeof( b ), p, 5      a TYPEOF, which in an argument list arrives as a CALL
+''   type t as ubyte : poke t, p, 5   a NAMED TYPE, and it may be SHADOWED by a
+''                                    variable of the same spelling, where only the
+''                                    POSITION says which one is meant
+''
+'' PEEK grew all three and POKE only the first, so 'poke typeof( b ), pb, 123' and
+'' 'poke t, @b, 123' both declined while the identical PEEK beside them lowered --
+'' quirk/peek-poke.bas writes each spelling on both sides, which is what made the
+'' asymmetry visible at all.
+private function PeekPokeType_ _
+    ( byref c as Ctx, byval tn as Tko.NodeId, byref outT as Tko.TypeId ) as boolean
+
+    dim as Tko.BuiltinType b = PokeTypeName_( c, tn )
+    if b <> Tko.TY_NONE then
+        outT = c.types->Builtin( b )
+        return true
+    end if
+
+    dim as Tko.TypeId tt = c.info->TypeOf_( tn )
+    if (tt = Tko.TYPE_NONE) andalso (c.ast->Kind( tn ) = Tko.N_CALL) then
+        dim as Tko.ListPayload ptr tlp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, tn )].data )]
+        if tlp->count = 1 then
+            tt = c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[tlp->first] ) )
+        end if
+    end if
+
+    if c.ast->Kind( tn ) = Tko.N_IDENT then
+        dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( c.info->RefOf( tn ) )
+        if tsy <> 0 then
+            select case tsy->kind
+            case Tko.SYM_UDT, Tko.SYM_TYPEDEF
+                tt = tsy->type_
+            case else
+                '' Resolve bound the VARIABLE of that spelling; the TYPE that shadows
+                '' it lives in the same scope.
+                dim as Tko.IdentPayload ptr tnip = _
+                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, tn )].data )]
+                dim as Tko.SymbolId tt2 = c.syms->LookupTyped( _
+                    tsy->parent, tnip->name, true )
+                dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( tt2 )
+                if tsy2 <> 0 then
+                    select case tsy2->kind
+                    case Tko.SYM_UDT, Tko.SYM_TYPEDEF
+                        tt = tsy2->type_
+                    end select
+                end if
+            end select
+        end if
+    end if
+
+    if tt = Tko.TYPE_NONE then return false
+    outT = tt
+    return true
+end function
+
 function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if (sp->count < 2) orelse (sp->count > 3) then return false
@@ -192,10 +251,9 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as long base_ = sp->first
     dim as Tko.TypeId dt = c.types->Builtin( Tko.TY_UBYTE )
     if sp->count = 3 then
-        dim as Tko.BuiltinType b = _
-            PokeTypeName_( c, cast( Tko.NodeId, c.ast->children[base_] ) )
-        if b = Tko.TY_NONE then return false
-        dt = c.types->Builtin( b )
+        if PeekPokeType_( c, cast( Tko.NodeId, c.ast->children[base_] ), dt ) = false then
+            return false
+        end if
         base_ += 1
     end if
 

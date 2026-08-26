@@ -1,0 +1,7 @@
+'' POKE's three spellings of a type argument. See the source: PEEK grew all three and
+'' POKE only the first.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/poke-type-spellings.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/poke-type-spellings.out
