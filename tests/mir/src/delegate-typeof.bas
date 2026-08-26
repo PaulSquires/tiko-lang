@@ -2,12 +2,11 @@
 ''
 '' Three separate faults, and the first is the worst kind:
 ''
-''   STILL OPEN, and this file records it rather than hiding it: a FIELD whose type is
-''   'typeof( EXPR )' is never typed. Only variables and constants are filled in
-''   after Check, and a field left untyped makes ComputeUdtLayouts refuse the whole
-''   UDT -- '--dump-udt' does not list 'Deleg' at all, with nothing said. Thirty of
-''   the forty declines in pointers/procptr-low-level-delegate.bas are that, and
-''   they are why this file's own sizeof line is not asserted.
+''   A FIELD THAT STAYS UNTYPED TAKES THE WHOLE UDT WITH IT. 'typeof( EXPR )' can
+''   only be answered by Check, and only variables and constants were being filled
+''   in there. A field left untyped makes ComputeUdtLayouts refuse the type
+''   outright, so it vanished from the table with NOTHING SAID -- '--dump-udt'
+''   simply did not list it -- and every use of the delegate declined.
 ''
 ''   AN INSTANCE MEMBER'S SIGNATURE STARTS WITH ITS RECEIVER. Measured:
 ''   '#print typeof( procptr( T.proc1 ) )' is SUB(AS T), and fbc declares that procedure
@@ -18,8 +17,14 @@
 ''   A CALLEE THAT IS AN EXPRESSION is still a callee. The indirect path already knew
 ''   how to call a computed pointer; it just refused to start without a symbol.
 ''
-'' Run under fbc this prints ' 24' and then 'T.proc1' / 'T.proc2'. tiko-lang gets
-'' the two calls right and the size wrong, for the reason above.
+''   AN EMPTY VARIADIC ARGUMENT IS NOT AN ARGUMENT. The corpus macro is written
+''   'procptr( typeName.procName, signature )' over 'signature...', and all ten of
+''   its call sites leave the signature out -- so what fbc actually sees is
+''   'procptr( T.proc1, )', a trailing comma with nothing after it, which it
+''   accepts. Read as TWO arguments it went down the overload-selection path,
+''   matched nothing, and the expression came out untyped.
+''
+'' Run under fbc this prints ' 24' and then 'T.proc1' / 'T.proc2'.
 
 type T
 	__ as integer
@@ -36,10 +41,18 @@ type Deleg
 	inst as T ptr
 end type
 
+'' The empty-variadic spelling, which is what the corpus macro expands to.
+type Deleg2
+	proc as typeof( procptr( T.proc1, ) )
+	indx as integer
+	inst as T ptr
+end type
+
 dim d as Deleg
+dim e as Deleg2
 dim x as T
 
-print sizeof( Deleg )
+print sizeof( Deleg ); sizeof( Deleg2 )
 
 d.proc = procptr( T.proc1 )
 d.indx = procptr( T.proc1, virtual )

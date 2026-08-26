@@ -1,10 +1,8 @@
-'' A field typed 'typeof( procptr( T.m ) )', and a call through an expression.
-''
-'' NOT ZERO DECLINES, on purpose: the field-typeof gap the source describes is still
-'' open, so this file pins the CURRENT state -- the two calls right, the UDT missing --
-'' rather than pretending otherwise. When that gap closes the golden gains a 'deleg'
-'' entry and the count goes to zero, which is exactly the diff to look for.
+'' A field typed 'typeof( procptr( T.m ) )', a call through an expression, and the empty
+'' variadic spelling the corpus macro actually expands to -- see the source for the four
+'' faults, of which the first silently dropped a whole UDT.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/delegate-typeof.bas
 '' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
 '' GOLDEN: expected/delegate-typeof.out

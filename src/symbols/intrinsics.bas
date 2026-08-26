@@ -761,13 +761,35 @@ private function IntrinsicCallType_ _
     '' 'fbcu.add_test( ..., procptr( test_name ), ... )' unbound -- and an unbound callee
     '' is a declined statement. 2,444 of them across the corpus, from this one gap.
     if nm = "procptr" then
+        '' 'procptr( T.m, )' -- A TRAILING COMMA WITH NOTHING AFTER IT. It is what an
+        '' EMPTY VARIADIC macro argument expands to, and fbc accepts it: the delegate
+        '' macro in pointers/procptr-low-level-delegate.bas is written
+        '' 'procptr( typeName.procName, signature )' over 'signature...', and every one
+        '' of its ten call sites leaves the signature out.
+        ''
+        '' The empty argument arrives as an N_ERROR from the expression parser, which is
+        '' the honest thing for it to produce; treating the call as having TWO arguments
+        '' then sent it down the overload-selection path, where nothing matched and the
+        '' whole expression came out untyped. There is one argument here.
+        dim as long ppCount = cp->count
+        if ppCount = 2 then
+            dim as Tko.NodeId ppSecond = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            if ppSecond = Tko.NODE_NONE then
+                ppCount = 1
+            elseif c.ast->Kind( ppSecond ) = Tko.N_ERROR then
+                ppCount = 1
+            elseif c.ast->Kind( ppSecond ) = Tko.N_ELIDED then
+                ppCount = 1
+            end if
+        end if
+
         '' 'procptr( T.m, VIRTUAL )' IS NOT A POINTER AT ALL. Measured: fbc folds it to
         '' the member's VTABLE SLOT INDEX as an int64 -- 'FP$0 = 1ll' for the second
         '' virtual member and 0 for the first -- which is what
         '' pointers/procptr-virtual.bas asserts against its own INDEX constants. The
         '' comment above had it as an override selector that "does not change the result
         '' type", and typing it as a procedure pointer left every one of them declining.
-        if cp->count = 2 then
+        if ppCount = 2 then
             dim as Tko.NodeId va = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             if IsVirtualKeyword_( c, va ) then
                 return c.types->Builtin( Tko.TY_LONGINT )
@@ -802,7 +824,7 @@ private function IntrinsicCallType_ _
         '' only reason to write a signature is that the first is not the one wanted.
         '' 'procptr( T.v1, virtual )' lands here too -- it names which OVERRIDE to
         '' point at, which is a different address again.
-        if cp->count = 2 then return Tko.TYPE_NONE
+        if ppCount = 2 then return Tko.TYPE_NONE
 
         return ProcTypeOfSymbol_( c, c.info->RefOf( pa ) )
     end if

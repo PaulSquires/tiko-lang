@@ -618,6 +618,17 @@ sub WalkNode _
         '' of a sequential anonymous group as much as an overlapping one.
         dim as Tko.Symbol ptr fs = w.syms->SymbolAt( fid )
         if fs <> 0 then
+            '' THE FIELD'S OWN NODE, so a later pass can reach its typeref. A field
+            '' whose type is 'typeof( EXPR )' cannot be typed before Check -- Resolve has
+            '' no expression types -- and without a way back to the declaration there is
+            '' nothing for Check to fill in. Left untyped it does not merely lower badly:
+            '' ComputeUdtLayouts refuses the WHOLE UDT, which vanishes from the type
+            '' table with nothing said. See InferUnusedVarTypes_.
+            ''
+            '' A BITFIELD's payload is its WIDTH IN BITS, written by Resolve, and that
+            '' overwrites this -- which is right: a bitfield's type is spelled out and
+            '' never needs inferring.
+            fs->payload = cast( long, id )
             fs->anonDepth = cast( ubyte, w.anonDepth )
             if w.inUnion then fs->flags or= Tko.SYMF_UNION
             if w.unionFirst then fs->flags or= Tko.SYMF_UNION_FIRST

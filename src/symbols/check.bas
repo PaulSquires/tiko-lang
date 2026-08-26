@@ -1276,11 +1276,27 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
         dim as boolean inferrable = _
             (s->kind = cast( ubyte, Tko.SYM_VARIABLE )) orelse _
             (s->kind = cast( ubyte, Tko.SYM_CONSTANT ))
+        '' A FIELD TOO, and for a sharper reason than a variable: a field left untyped
+        '' makes ComputeUdtLayouts refuse the WHOLE UDT, which then vanishes from the
+        '' type table with nothing said and every use of it declines. Thirty of the forty
+        '' in pointers/procptr-low-level-delegate.bas are one field typed
+        '' 'typeof( procptr( T.m ) )'.
+        ''
+        '' A BITFIELD is excluded: its payload is the WIDTH, not a node, and its type is
+        '' spelled out anyway.
+        if s->kind = cast( ubyte, Tko.SYM_FIELD ) then
+            if (s->flags and Tko.SYMF_BITFIELD) = 0 then inferrable = true
+        end if
         if inferrable = false then continue for
         if s->type_ <> Tko.TYPE_NONE then continue for
         if s->payload = 0 then continue for
         dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
-        if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
+        '' A field's declaration node is an N_FIELD; its typeref sits in the same payload
+        '' slot a variable item keeps one in, so the walk below is shared.
+        dim as boolean isField = (c.ast->Kind( item ) = Tko.N_FIELD)
+        if (c.ast->Kind( item ) <> Tko.N_VAR_ITEM) andalso (isField = false) then
+            continue for
+        end if
         dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
 
         '' 'dim x as typeof( EXPR )'. The declared type IS an expression's type, which
