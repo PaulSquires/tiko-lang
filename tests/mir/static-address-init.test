@@ -1,0 +1,7 @@
+'' A static pointer initialised from an address -- a relocation, which the IR could not
+'' express. See the source for what it is and for the one shape still declining.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-address-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/static-address-init.out

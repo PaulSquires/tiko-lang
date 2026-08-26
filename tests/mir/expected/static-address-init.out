@@ -1,0 +1,48 @@
+global var i64 S1$i = 789
+global var ptr S1$pi = @S1$i
+global var agg S1$x size 4
+global var ptr S1$px = @S1$x
+global var ptr S1$pf = FOO
+func void S1() {
+  entry0:
+    %1 = load @@S1$pi
+    %2 = load %1
+    call.rtl void fb_PrintLongint(0, %2, 2)
+    %3 = load @@S1$px
+    %4 = field.addr %3, 0
+    %5 = load %4
+    call.rtl void fb_PrintInt(0, %5, 2)
+    %6 = load @@S1$pf
+    %7 = call.ind i64 %6()
+    call.rtl void fb_PrintLongint(0, %7, 1)
+    ret
+}
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+func i64 FOO() {
+  local i64 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = const i64 1
+    ret %3
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S1()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance

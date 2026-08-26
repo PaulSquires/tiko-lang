@@ -180,7 +180,19 @@ function DumpModule _
             if m.globals[i].ty = cast( ubyte, MT_AGG ) then
                 outp += " size " & str( m.globals[i].size )
             end if
-            if m.globals[i].hasInit then
+            '' AN ADDRESS INITIALISER prints as the thing it points at: '@name' for
+            '' another global and a bare name for a FUNCTION, which is the same
+            '' spelling a pointer table's words already use. An offset is written
+            '' out, so '@a + 8' and '@a' cannot be confused.
+            if m.globals[i].initReloc >= 0 then
+                outp += " = @" & names.Spelling( _
+                    m.globals[cast( long, m.globals[i].initReloc )].name )
+                if m.globals[i].initRelocOff <> 0 then
+                    outp += " + " & str( m.globals[i].initRelocOff )
+                end if
+            elseif m.globals[i].initRelocFn <> 0 then
+                outp += " = " & names.Spelling( m.globals[i].initRelocFn )
+            elseif m.globals[i].hasInit then
                 '' A FLOAT initialiser prints as a float: printing initInt for one
                 '' would show 0 beside a global that has a value. An AGGREGATE prints
                 '' its bytes in hex, which is what it is.

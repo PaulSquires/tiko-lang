@@ -318,6 +318,18 @@ namespace Tko.Mir
         '' 'static struct $1G G$1 = { 1u, 2, 3 };' -- a static UDT is initialised where
         '' it is DEFINED, not by a store somewhere -- and the field values with their
         '' offsets are exactly a byte image of the object.
+        '' AN INITIAL VALUE THAT IS AN ADDRESS, not a number: 'static px as UDT ptr =
+        '' @x' is a RELOCATION, which nothing here could express -- initInt holds a
+        '' constant and initBytes a byte image, and the address of another global is
+        '' neither. So every static pointer initialised from one declined.
+        ''
+        '' -1 when there is none. 'initRelocOff' is the byte offset added to it, for
+        '' '@array( 2 )'; 'initRelocFn' names a FUNCTION instead, by name rather than
+        '' by index, because it may be defined in another module -- the same reason a
+        '' pointer table's function words are named.
+        as long     initReloc
+        as longint  initRelocOff
+        as InternId initRelocFn
         as string   initBytes
         as boolean  hasInit
     end type

@@ -130,6 +130,10 @@ function MirModule.AddVarGlobal _
     dim as MirGlobal g
     g.name = nm
     g.isVar = true
+    '' -1 IS 'NO RELOCATION'. Zero is a valid global index, so a zero-initialised
+    '' field would name the first global in the module as every static pointer's
+    '' initial value.
+    g.initReloc = -1
     g.ty = cast( ubyte, ty )
     g.frontendType = ft
     g.size = sizeBytes

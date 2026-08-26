@@ -657,6 +657,89 @@ function ReceiverOf _
     return LowerAddr( c, mb->lhs )
 end function
 
+
+'' '@x' AS A STATIC INITIALISER: the address of another global, or of a procedure.
+''
+'' Only what is genuinely fixed at load time is taken. '@localVar' is not -- a local
+'' has no address until its frame exists -- and neither is '@this.field'. What is left
+'' is a SHARED or STATIC variable, whose global this returns, and a PROCEDURE, which is
+'' named rather than indexed because it may live in another module.
+''
+'' '@array( 2 )' is the array's global plus a byte offset, and the offset is folded
+'' here rather than emitted as arithmetic: a relocation is address-plus-constant and
+'' nothing else. Only the ZERO-BASED spelling is taken -- 'dim a(1 to 3)' would need
+'' its lower bound subtracted, and getting that wrong points the pointer at the wrong
+'' element with nothing to say so, so a non-zero lower bound declines instead.
+private function GlobalRelocInit_ _
+    ( byref c as Ctx, byval g as long, byval init as Tko.NodeId ) as boolean
+
+    if init = Tko.NODE_NONE then return false
+    if c.ast->Kind( init ) <> Tko.N_ADDROF then return false
+    dim as Tko.UnaryPayload ptr up = _
+        @c.ast->unaries[cast( long, c.ast->nodes[cast( long, init )].data )]
+    dim as Tko.NodeId a = up->operand
+    if a = Tko.NODE_NONE then return false
+
+    '' '@array( n )' -- the element's offset from the array's own address.
+    dim as longint off = 0
+    if c.ast->Kind( a ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr acp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
+        if acp->count <> 1 then return false
+        if acp->target = Tko.NODE_NONE then return false
+        dim as Tko.TypeId aat = c.info->TypeOf_( acp->target )
+        if c.types->Kind( aat ) <> Tko.TK_ARRAY then return false
+        if c.types->IsDynArray( aat ) then return false
+        if c.types->types[cast( long, aat )].dims <> 1 then return false
+        dim as boolean lbKnown = false
+        if c.types->ArrayBound( aat, 1, false, lbKnown ) <> 0 then return false
+        if lbKnown = false then return false
+        dim as Tko.NodeId ixn = cast( Tko.NodeId, c.ast->children[acp->first] )
+        dim as Tko.Check.ConstVal ixv = Tko.Check.ConstOf( _
+            *c.ast, ixn, *c.srcMgr, *c.names, c.types->target.pointerBits )
+        if ixv.known = false then return false
+        dim as Tko.TypeId ael = c.types->Inner( aat )
+        dim as long esz = SizeOfType( c, ael )
+        if esz <= 0 then return false
+        '' THE ARRAY'S OWN LOWER BOUND, so 'dim a(1 to 3)' indexes from its base.
+        off = ixv.value * esz
+        a = acp->target
+    end if
+
+    if c.ast->Kind( a ) <> Tko.N_IDENT then return false
+    dim as Tko.SymbolId sid = c.info->RefOf( a )
+    if sid = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
+    if sy = 0 then return false
+
+    '' A PROCEDURE'S ADDRESS is its NAME.
+    if sy->kind = cast( ubyte, Tko.SYM_PROC ) then
+        if off <> 0 then return false
+        dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
+        if pn = Tko.NODE_NONE then return false
+        if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+        c.m->globals[g].initRelocFn = c.names->GetString( _
+            Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+        c.m->globals[g].hasInit = true
+        return true
+    end if
+
+    if sy->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return false
+    '' A LOCAL HAS NO ADDRESS UNTIL ITS FRAME EXISTS, so only what actually has
+    '' module storage is taken: a SHARED variable, or a STATIC LOCAL -- which is the
+    '' same test GlobalFor itself uses to decide it has one.
+    dim as boolean isGlobalVar = ((sy->flags and Tko.SYMF_SHARED) <> 0)
+    isGlobalVar = isGlobalVar orelse IsStaticLocal( c, sid )
+    if isGlobalVar = false then return false
+
+    dim as long tg = GlobalFor( c, sid )
+    if tg < 0 then return false
+    c.m->globals[g].initReloc = tg
+    c.m->globals[g].initRelocOff = off
+    c.m->globals[g].hasInit = true
+    return true
+end function
+
 '' A DIM SHARED or STATIC initialiser, which is a compile-time value rather than a store
 '' on entry. A non-constant one cannot become a static one and declines.
 sub InitSharedGlobal _
@@ -781,6 +864,13 @@ sub InitSharedGlobal _
         SkipHere( c )
         return
     end if
+
+    '' AN ADDRESS IS NOT A CONSTANT, and it is what a static POINTER is usually given:
+    '' 'static pi as integer ptr = @i' and 'static pf as function( ) as integer = @foo'
+    '' are RELOCATIONS -- fbc emits 'static int32* PI$1 = (int32*)&I$1;' -- and ConstOf
+    '' cannot answer for one, so every such declaration declined. Seven of the thirteen
+    '' in functions/return-byref.bas are this shape.
+    if GlobalRelocInit_( c, g, init ) then return
 
     dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
         *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits )
