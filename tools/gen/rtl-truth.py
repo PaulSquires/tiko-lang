@@ -487,6 +487,15 @@ end sub
 sub BareFormProbe( )
     dim as long x = pos
     dim as string d = dir( )
+    '' ...and DIR's OUT PARAMETER picks the entry point by WIDTH: a 4-byte target
+    '' takes fb_Dir / fb_DirNext and an 8-byte one fb_Dir64 / fb_DirNext64, which are
+    '' separate symbols and not a cast of the same one.
+    dim as long a4
+    dim as longint a8
+    d = dir( "*", 0, a4 )
+    d = dir( "*", 0, a8 )
+    d = dir( a4 )
+    d = dir( a8 )
     dim as wstring * 8 w
     w = wspace( 4 )
 end sub

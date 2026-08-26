@@ -602,6 +602,46 @@ function LowerStrNumCall_ _
     if vr <> RTL_NONE then
         if cp->count <> 1 then return false
         dim as Tko.NodeId v0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+
+        '' A NON-STRING OPERAND IS THE OTHER HALF OF THE FAMILY. 'cvi( 1.58e40 )' does
+        '' not read a string's bytes -- there is no string -- it REINTERPRETS a
+        '' number's bits, and fbc has a separate entry point for each pairing:
+        ''
+        ''   cvi( d ) / cvlongint( d )   fb_CVLONGINTFROMD( D$0 )
+        ''   cvl( f )                    fb_CVLFROMS( F$0 )
+        ''   cvd( q ) / cvd( i )         fb_CVDFROMLONGINT( Q$0 )
+        ''   cvs( l )                    fb_CVSFROML( L$0 )
+        ''
+        '' -- measured, and fbc REJECTS every other pairing (its error 58), so there is
+        '' no fifth row to invent. Asked for a descriptor, a number had none and every
+        '' one of these declined; string/mkcv.bas writes eight of them.
+        dim as Tko.TypeId v0t = c.info->TypeOf_( v0 )
+        dim as boolean v0str = IsStringType( c, v0t ) orelse _
+                               IsWideString_( c, v0t )
+        '' 'zstring * N' and 'wstring * N' are ARRAYS of the char builtin, which
+        '' neither string test above claims; CharElemSize_ is what tells one from an
+        '' ordinary array.
+        if v0str = false then
+            if CharElemSize_( c, v0t ) > 0 then v0str = true
+        end if
+        if (v0str = false) andalso (v0t <> Tko.TYPE_NONE) then
+            dim as RtlId fr = RTL_NONE
+            dim as MirType want = MT_VOID
+            select case vr
+            case RTL_CVLONGINT : fr = RTL_CVLONGINT_FROM_D : want = MT_F64
+            case RTL_CVL       : fr = RTL_CVL_FROM_S       : want = MT_F32
+            case RTL_CVD       : fr = RTL_CVD_FROM_LONGINT : want = MT_I64
+            case RTL_CVS       : fr = RTL_CVS_FROM_L       : want = MT_I32
+            end select
+            if fr = RTL_NONE then return false
+            dim as MirValue nv = LowerExpr( c, v0 )
+            if nv.kind = cast( ubyte, MV_NONE ) then return false
+            nv = Coerce( c, nv, want, IsUnsignedType( c, v0t ) )
+            dim as FB.Array( of ulong ) fa
+            fa.Push( cast( ulong, nv.kind ) ) : fa.Push( cast( ulong, nv.id ) )
+            outv = EmitRtl( c, fr, fa )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
         '' A WIDE OPERAND HAS ITS OWN FIVE ENTRY POINTS, taking a bare uint16* rather
         '' than a descriptor. Without them 'valint( w )' declined -- and string/val.bas
         '' asks every one of the five of a wstring beside its narrow twin.
@@ -1154,6 +1194,11 @@ function StrDescriptorOf_ _
         outv = EmitRtl( c, RTL_STR_TEMPZ, ta )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
+    '' 'dir( ... )' -- an INTRINSIC whose result is a descriptor pointer already, so it
+    '' belongs here rather than on the value path: every use of it is a string, and
+    '' 'print dir( "*" )' and 's = dir( "*" )' both arrive by this route.
+    if LowerDir( c, id, outv ) then return true
+
     '' A CALL TO A STRING-RETURNING FUNCTION, before the type test claims it: an N_CALL
     '' is string-typed and has no address, so 'print f( 2 )' declined outright.
     ''

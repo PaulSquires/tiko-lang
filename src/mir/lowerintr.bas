@@ -1345,6 +1345,9 @@ function LowerCallExpr_ _
     '' 'cva_arg( list, T )' is a builtin over the vararg cursor -- see lowercva.bas.
     dim as MirValue cav
     if LowerCvaArg( c, id, cav ) then return cav
+    '' 'dir( ... )' -- five spellings over two families of runtime entry point.
+    dim as MirValue drv
+    if LowerDir( c, id, drv ) then return drv
     '' 'bit( v, n )' and its two setters are bit arithmetic, not calls.
     dim as MirValue btv
     if LowerBitOp( c, id, btv ) then return btv

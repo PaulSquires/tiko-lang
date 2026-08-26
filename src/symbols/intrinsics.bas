@@ -182,6 +182,13 @@ private function ExprIntrinsicType_ _
     ''
     '' -- the narrowing back to LONG in 'l = bitset( l, j )' comes from the ASSIGNMENT,
     '' not from the intrinsic. Untyped, every one of them declined.
+    '' DIR IS A STRING in every one of its spellings -- 'dir( )', 'dir( pattern )',
+    '' 'dir( pattern, attrib )', 'dir( pattern, attrib, outAttrib )' and the bare
+    '' continuation 'dir( outAttrib )'. It was not in this table at all, so every
+    '' assignment from one had nothing to store: file/dir-overloads.bas is fifteen
+    '' lines of nothing else.
+    case "dir"
+        return c.types->Builtin( Tko.TY_STRING )
     case "bit", "bitset", "bitreset"
         if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
@@ -203,8 +210,12 @@ private function ExprIntrinsicType_ _
     case "chr", "mki", "mkl", "mks", "mkd", "mkshort", "mklongint"
         if isNum = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )
+    '' THE CVx FAMILY TAKES A NUMBER TOO. 'cvi( 1.58e40 )' reinterprets a DOUBLE'S
+    '' BITS rather than a string's bytes -- fbc has a separate entry point for each
+    '' pairing -- and requiring a string here typed every one of them as nothing, so
+    '' the declaration they initialise had no value to store.
     case "cvi", "cvl", "cvs", "cvd", "cvshort", "cvlongint"
-        if isStr = false then return Tko.TYPE_NONE
+        if (isStr orelse isNum) = false then return Tko.TYPE_NONE
         select case nm
         case "cvi"       : return c.types->Builtin( Tko.TY_INTEGER )
         case "cvl"       : return c.types->Builtin( Tko.TY_LONG )

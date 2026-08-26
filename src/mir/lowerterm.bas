@@ -112,6 +112,15 @@ function EmitStrTerm _
         end if
     end if
 
+    '' 'dir( ... )' -- an INTRINSIC that hands back a descriptor pointer, tried before
+    '' the ordinary call path below: Check now types it STRING, so that path would
+    '' claim it and then look for a callee symbol it has not got.
+    dim as MirValue drv
+    if LowerDir( c, term, drv ) then
+        PushStrArg( args, drv )
+        return true
+    end if
+
     '' A CALL TO A STRING-RETURNING FUNCTION, before the type test below claims it.
     ''
     '' 's = f( 1 )' and 'print f( 2 )' both produced NOTHING -- the term is string-typed,

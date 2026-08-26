@@ -1,0 +1,8 @@
+'' DIR in all five spellings. See the source for the three things about it that are not
+'' guessable -- the default attribute, the width-selected entry point, and what a
+'' number in the first argument means.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dir-intrinsic.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/dir-intrinsic.out

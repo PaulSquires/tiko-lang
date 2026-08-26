@@ -80,7 +80,9 @@ fb_DataReadWstr	void	uint16*, int64	lib	fb_DataReadWstr
 fb_DataRestore	void	void*	lib	fb_DataRestore
 fb_Date	FBSTRING*	void	lib	fb_Date
 fb_Dir	FBSTRING*	FBSTRING*, int32, int32*	lib	fb_Dir
+fb_Dir64	FBSTRING*	FBSTRING*, int32, int64*	lib	fb_Dir64
 fb_DirNext	FBSTRING*	int32*	lib	fb_DirNext
+fb_DirNext64	FBSTRING*	int64*	lib	fb_DirNext64
 fb_DoubleToStr	FBSTRING*	double	lib	fb_DoubleToStr
 fb_DoubleToWstr	uint16*	double	lib	fb_DoubleToWstr
 fb_DylibFree	void	void*	lib	fb_DylibFree

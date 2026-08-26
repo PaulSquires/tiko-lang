@@ -1,0 +1,7 @@
+'' The CVx family over a NUMBER rather than a string: four entry points, one per
+'' pairing. See the source for the table and for the pairings fbc rejects outright.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cv-from-number.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/cv-from-number.out

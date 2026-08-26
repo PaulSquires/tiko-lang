@@ -645,7 +645,13 @@ namespace Tko.Mir
         RTL( RTL_CURDIR,            "fb_CurDir",           "p",   ""      )
         '' DIR's third argument is an OUT parameter -- the attribute of what it found.
         RTL( RTL_DIR,               "fb_Dir",              "p",   "plp"   )
+        '' ...and its WIDTH picks the entry point: a 4-byte out target takes fb_Dir
+        '' and an 8-byte one fb_Dir64, which are separate symbols in libfb and not a
+        '' cast of the same one. Measured; 'integer' is 8 bytes on win64, so the plain
+        '' spelling takes the 64 form there.
+        RTL( RTL_DIR64,             "fb_Dir64",            "p",   "plp"   )
         RTL( RTL_DIR_NEXT,          "fb_DirNext",          "p",   "p"     )
+        RTL( RTL_DIR_NEXT64,        "fb_DirNext64",        "p",   "p"     )
         RTL( RTL_WSTR_SPACE,        "fb_WstrSpace",        "p",   "z"     )
         RTL( RTL_FILE_EOF,          "fb_FileEof",          "l",   "l"     )
         RTL( RTL_FILE_FREE,         "fb_FileFree",         "l",   ""      )
