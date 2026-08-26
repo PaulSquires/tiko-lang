@@ -1,0 +1,49 @@
+global str $str0 "empty-then taken"
+global str $str1 "not printed"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i32 e
+  local i32 f
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr e
+    %5 = const i64 0
+    %6 = trunc %5
+    store @e, %6
+    %7 = alloca ptr f
+    %8 = const i64 1
+    %9 = trunc %8
+    store @f, %9
+    %10 = load @e
+    condbr %10, if.then2, if.else3
+  if.join1:
+    %12 = load @f
+    condbr %12, if.then5, if.else6
+  if.then2:
+    br if.join1
+  if.else3:
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 16)
+    call.rtl void fb_PrintString(0, %11, 1)
+    br if.join1
+  if.join4:
+    %14 = const i32 0
+    call.rtl void fb_End(%14)
+    %15 = load @$tmp0
+    ret %15
+  if.then5:
+    br if.join4
+  if.else6:
+    %13 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 11)
+    call.rtl void fb_PrintString(0, %13, 1)
+    br if.join4
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 7 blocks, 22 insts, 0 statements not lowered, 0 scope imbalance

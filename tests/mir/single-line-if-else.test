@@ -1,0 +1,7 @@
+'' A single-line IF with an empty then-branch and an else. See the source for why the
+'' empty branch and the else after it cannot be fixed separately.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/single-line-if-else.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/single-line-if-else.out

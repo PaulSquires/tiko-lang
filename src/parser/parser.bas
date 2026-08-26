@@ -673,10 +673,35 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
     dim as boolean singleLine = (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
     if singleLine then
         dim as Tko.NodeIdVec one
-        dim as Tko.NodeId s = Statement( p )
-        if s <> Tko.NODE_NONE then one.Push( cast( ulong, s ) )
+        '' 'if (e) then else stmt' -- AN EMPTY THEN-BRANCH, which is legal and which
+        '' the corpus writes: optimizations/self_compare.bas defines CHECK_TRUE as
+        '' 'if (e) then else CU_FAIL( ... )'. Asked for a statement, the parser found
+        '' ELSE and reported 'expected a statement' -- the one shape here that fails
+        '' LOUDLY rather than silently.
+        if Peek( p ) <> Tko.KW_ELSE then
+            dim as Tko.NodeId s = Statement( p )
+            if s <> Tko.NODE_NONE then one.Push( cast( ulong, s ) )
+        end if
         first_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, one )
         branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )
+
+        '' ...and the ELSE that follows an empty then-branch is this IF's, so it is
+        '' taken here. The two halves are inseparable: leaving the ELSE for the
+        '' enclosing statement loop reports the same 'expected a statement' one token
+        '' later.
+        ''
+        '' ONLY REACHED WHEN THE THEN-BRANCH IS EMPTY. After a then-STATEMENT the
+        '' cursor is already past the line's end -- the statement layer runs
+        '' EndOfStatement, which is what the NF_SINGLE_LINE flag below exists to tell
+        '' the caller -- so 'if c then a else b' does not come through here. That one
+        '' is a separate bug and is recorded as one; see HANDOFF section 5.
+        if Peek( p ) = Tko.KW_ELSE then
+            Advance( p )
+            dim as Tko.NodeIdVec eone
+            dim as Tko.NodeId es = Statement( p )
+            if es <> Tko.NODE_NONE then eone.Push( cast( ulong, es ) )
+            sp.c = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, eone )
+        end if
         '' 'if c then s : end if' terminates explicitly. ':' and a newline both lex
         '' as an EOL, so the token kinds cannot tell them apart -- only the LINE can:
         ''
@@ -702,6 +727,9 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         p.ast->nodes[cast( long, n )].flags or= Tko.NF_SINGLE_LINE
         dim as Tko.StmtPayload done_
         done_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, branches )
+        '' THE ELSE BLOCK TRAVELS IN 'c', and this payload REPLACES the node's, so
+        '' it has to be carried across or the branch just parsed is thrown away.
+        done_.c = sp.c
         p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )] = done_
         return n
     end if
