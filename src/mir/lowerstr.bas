@@ -563,6 +563,19 @@ function IsStringType _
     return (b = Tko.TY_STRING) orelse (b = Tko.TY_USTRING)
 end function
 
+'' A FIXED (non-dynamic) ARRAY whose ELEMENTS are var-length strings, either
+'' flavour. 'string * N' is itself spelled as an array of a fixed-string element, so
+'' the test is on the element being a BUILTIN string and not on the array-ness alone.
+function IsFixedStrArray_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
+    if c.types->IsDynArray( t ) then return false
+    if c.types->types[cast( long, t )].dims < 1 then return false
+    return IsStringType( c, c.types->Inner( t ) )
+end function
+
 '' A USTRING -- the UTF-16 flavour, var-length or 'ustring * N'. It shares every SHAPE
 '' with the narrow family, and that symmetry is exactly why it was a miscompile:
 '' IsStringType says yes to both, so every narrow path claimed it and 'dim as ustring

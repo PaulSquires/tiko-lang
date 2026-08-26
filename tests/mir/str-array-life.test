@@ -1,0 +1,8 @@
+'' A fixed array of var-length strings: zeroed at its declaration, one fb_StrInit per
+'' brace-initialiser element, and destructed at scope exit -- with the UTF-16 flavour
+'' taking its own entry point. See the source for what each half was doing instead.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/str-array-life.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/str-array-life.out

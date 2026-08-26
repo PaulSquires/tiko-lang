@@ -597,6 +597,20 @@ function LowerIif _
     dim as MirType rt = mt
     if (rt = MT_VOID) andalso (ft <> Tko.TYPE_NONE) then rt = LowerType( ft, *c.types )
 
+    '' A WIDE iif -- 'iif( c, wstr( "aaaa" ), wstr( "b" ) )' -- is a POINTER
+    '' temporary rather than a descriptor: measured, fbc measures, allocates and
+    '' assigns in each arm and releases the result with fb_WstrDelete. WideOperand_ has
+    '' known how to build one all along, but only a caller ALREADY IN A WIDE CONTEXT
+    '' reached it -- so a wide iif in an ordinary expression, 'len( iif( c, wstr(
+    '' "aaaa" ), wstr( "b" ) ) )', declined with nothing wide about the surroundings
+    '' to route it.
+    ''
+    '' By SHAPE, not by type: Check computes no type for 'wstr( x )', so an arm made of
+    '' one is untyped and 'ft' above is TYPE_NONE for the whole call.
+    if TermIsWide_( c, thenE ) orelse TermIsWide_( c, elseE ) then
+        if LowerWideIif_( c, condE, thenE, elseE, outv ) then return true
+    end if
+
     '' A STRING iif builds a DESCRIPTOR, not a value, so it takes a different shape:
     '' fb_StrInit into a temporary in each arm, and an fb_StrDelete once the
     '' consuming statement is done with it.
@@ -1331,6 +1345,9 @@ function LowerCallExpr_ _
     '' 'cva_arg( list, T )' is a builtin over the vararg cursor -- see lowercva.bas.
     dim as MirValue cav
     if LowerCvaArg( c, id, cav ) then return cav
+    '' 'bit( v, n )' and its two setters are bit arithmetic, not calls.
+    dim as MirValue btv
+    if LowerBitOp( c, id, btv ) then return btv
     '' 'peek( [T,] p )' is a LOAD through the pointer -- the read half of POKE.
     dim as MirValue pkv
     if LowerPeek( c, id, pkv ) then return pkv

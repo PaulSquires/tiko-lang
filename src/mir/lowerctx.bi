@@ -190,6 +190,7 @@ declare function StmtOf _
 declare function SameLValue _
     ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
 declare function IsStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+declare function IsFixedStrArray_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 declare function LowerStringAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 declare function NewTempLocal _
@@ -275,6 +276,9 @@ declare function EmitRtl _
     declare function LowerPeek _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
+    declare function LowerBitOp _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
     declare function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerLrset _
         ( byref c as Ctx, byval id as Tko.NodeId, byval isRight as boolean ) as boolean
@@ -295,6 +299,7 @@ declare function EmitRtl _
     const CLEANUP_IMPLICIT_DTOR as ulong = &hFFFFFFFE
     const CLEANUP_DESTROY_ARRAY as ulong = &hFFFFFFFD
     const CLEANUP_DTOR_EPILOGUE as ulong = &hFFFFFFFC
+    const CLEANUP_DESTRUCT_STR_ARRAY as ulong = &hFFFFFFFB
 
     declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
     declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
@@ -614,6 +619,7 @@ declare function EmitRtl _
     declare function LowerWideIif_ _
         ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
           byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerStringIif_ _
         ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
           byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -752,6 +758,7 @@ declare function EmitRtl _
     declare sub CallImplicitDtor_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
     declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     declare function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string

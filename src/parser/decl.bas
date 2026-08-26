@@ -221,6 +221,85 @@ private function VarItem _
     return n
 end function
 
+'' 'var (a, b, c) = expr' -- the DESTRUCTURING DECLARATION.
+''
+'' Desugared here, into ONE 'var' with N+1 items:
+''
+''     var $dt<n> = expr, a = $dt<n>._1, b = $dt<n>._2, c = $dt<n>._3
+''
+'' -- which is a shape every later pass already handles completely. The items of one
+'' 'var' are declared in order, so the temporary is typed before the names that read
+'' it; each name gets its own inferred type from the element it is initialised from;
+'' and a STRING element is copy-initialised by the ordinary declaration path, so it
+'' owns its data and outlives the temporary. It also gets the once-only evaluation for
+'' free: 'expr' appears exactly once, in the temporary's initialiser, so 'var (p, q) =
+'' counted( )' calls counted once however many names are on the left.
+''
+'' The temporary's name carries a '$', which no source identifier can contain, so it
+'' cannot collide with anything written; the counter makes nested and repeated uses --
+'' two in one loop body -- distinct.
+private function VarDestructure _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, _
+      byref sp as Tko.StmtPayload, byval flags as ushort ) as Tko.NodeId
+
+    dim as Tko.Token lp = Cur( p )
+    Advance( p )        '' '('
+
+    dim as Tko.NodeIdVec names
+    dim as Tko.NodeIdVec items
+    do
+        dim as Tko.InternId nm = Tko.INTERN_NONE
+        if DeclName( p, nm ) = false then
+            return ErrorNode( p, Tko.TKO0406 )
+        end if
+        names.Push( cast( ulong, nm ) )
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
+    loop
+    Expect( p, Tko.TK_RPAREN, ")" )
+    '' A DESTRUCTURING DECLARATION MUST HAVE AN INITIALISER. There is nothing else
+    '' for the element types to come from.
+    if Accept( p, Tko.TK_EQ ) = false then
+        return ErrorNode( p, Tko.TKO0401, "=" )
+    end if
+    dim as Tko.NodeId rhs = Expression( p )
+
+    p.destructureSeq += 1
+    dim as Tko.InternId tmpName = _
+        p.names->GetString( "$dt" & str( p.destructureSeq ) )
+
+    dim as Tko.StmtPayload tp
+    tp.name = tmpName
+    tp.b = rhs
+    items.Push( cast( ulong, MakeStmt( p, Tko.N_VAR_ITEM, lp.loc, tp ) ) )
+
+    for i as long = 0 to names.Count - 1
+        dim as Tko.IdentPayload bip
+        bip.name = tmpName
+        p.ast->idents.Push( bip )
+        dim as Tko.NodeId base_ = _
+            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+        dim as Tko.IdentPayload fip
+        fip.name = p.names->GetString( "_" & str( i + 1 ) )
+        p.ast->idents.Push( fip )
+        dim as Tko.NodeId fld = _
+            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( ulong, p.ast->idents.Count - 1 ) )
+
+        dim as Tko.StmtPayload ep
+        ep.name = cast( Tko.InternId, names[i] )
+        ep.b = MakeMemberRef_( p, lp, base_, fld )
+        items.Push( cast( ulong, MakeStmt( p, Tko.N_VAR_ITEM, lp.loc, ep ) ) )
+    next
+
+    sp.first = p.ast->children.Count
+    sp.count = items.Count
+    for i as long = 0 to items.Count - 1
+        p.ast->children.Push( items[i] )
+    next
+    dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
+    p.ast->nodes[cast( long, n )].flags or= flags
+    return n
+end function
+
 '' dim / redim / var / static / shared / common / extern, in any legal combination.
 private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
@@ -274,10 +353,32 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.NodeId sharedType = Tko.NODE_NONE
     if Accept( p, Tko.KW_AS ) then sharedType = TypeRef( p )
 
+    '' 'var (a, b) = expr' -- DESTRUCTURING DECLARATION, which had no parse at all:
+    '' the '(' was read where a name belongs and the whole statement died as
+    '' 'expected an identifier'.
+    if (sp.op = cast( ushort, Tko.KW_VAR )) andalso (Peek( p ) = Tko.TK_LPAREN) then
+        if sharedType = Tko.NODE_NONE then return VarDestructure( p, t, sp, flags )
+    end if
+
     dim as Tko.NodeIdVec items
     do
         dim as long before = p.pos
+        '' 'byref' AGAIN, ON A LATER ITEM: 'dim byref r1 as integer = i, byref r2 as
+        '' integer = i' is two aliases, and fbc reads the second 'byref' as a modifier
+        '' exactly like the first. Only the LEADING one was consumed, by the modifier
+        '' loop above, so what followed the comma began at the word 'byref' -- which
+        '' DeclName happily takes as a NAME, keywords being legal identifiers in
+        '' declaration position. The result was a variable called 'byref' aliasing
+        '' nothing and NO r2 at all, with no diagnostic: every later use of r2 was an
+        '' unbound name. Recorded on the ITEM, because 'byref' now varies between
+        '' items of one declaration.
+        dim as boolean itemByref = false
+        if Peek( p ) = Tko.KW_BYREF then
+            Advance( p )
+            itemByref = true
+        end if
         dim as Tko.NodeId item = VarItem( p, sp.op = cast( ushort, Tko.KW_REDIM ) )
+        if itemByref then p.ast->nodes[cast( long, item )].flags or= Tko.NF_BYREF
         items.Push( cast( ulong, item ) )
         '' The item may be an ERROR node, which has no StmtPayload -- indexing its
         '' 'data' as one is a segfault. Error nodes must be checked for, never

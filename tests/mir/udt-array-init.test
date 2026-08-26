@@ -1,0 +1,7 @@
+'' A brace initialiser over an array of UDT: an aggregate store for a POD element and a
+'' copy constructor for one with structors. See the source for what it did instead.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-array-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-array-init.out

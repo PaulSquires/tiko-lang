@@ -531,6 +531,7 @@ namespace Tko.Mir
         RTL( RTL_ARRAY_CLEAR,       "fb_ArrayClear",       "l",   "p"     )
         RTL( RTL_ARRAY_CLEAR_OBJ,   "fb_ArrayClearObj",    "l",   "ppp"   )
         RTL( RTL_ARRAY_DESTRUCT_STR,"fb_ArrayDestructStr", "v",   "p"     )
+        RTL( RTL_ARRAY_DESTRUCT_USTR,"fb_ArrayDestructUStr","v",  "p"     )
         RTL( RTL_ARRAY_DESTRUCT_OBJ,"fb_ArrayDestructObj", "v",   "pp"    )
         RTL( RTL_ARRAY_ERASE_OBJ,   "fb_ArrayEraseObj",    "l",   "ppp"   )
         RTL( RTL_ARRAY_STR_ERASE,   "fb_ArrayStrErase",    "v",   "p"     )

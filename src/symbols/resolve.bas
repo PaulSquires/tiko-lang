@@ -1166,7 +1166,13 @@ sub WalkStmt _
             '' already follows from that one fact: the slot lowers to a pointer, and
             '' AddrOfVar loads it, so every read, write and '@' goes through the
             '' indirection. Only the DECLARATION had to learn to store an address.
-            if (c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0 then
+            '' EITHER NODE MAY CARRY IT. A leading 'byref' belongs to the whole
+            '' declaration and sits on the N_VAR; one written again after a comma
+            '' belongs to that item alone and sits on the item.
+            dim as ushort brf = _
+                (c.ast->nodes[cast( long, id )].flags or _
+                 c.ast->nodes[cast( long, item )].flags)
+            if (brf and Tko.NF_BYREF) <> 0 then
                 if t <> Tko.TYPE_NONE then t = c.types->Reference( t )
             end if
             if t = Tko.TYPE_NONE then

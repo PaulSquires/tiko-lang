@@ -1,0 +1,7 @@
+'' An iif result subscripted, and a wide iif in an ordinary expression. See the source
+'' for the two gaps and for what fbc emits for a wide one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/iif-string-index.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/iif-string-index.out

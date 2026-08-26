@@ -237,6 +237,112 @@ end function
 
 '' The BUILTIN named by a POKE's or PEEK's type argument. Only the fixed-width scalars
 '' can be poked, which is what fbc accepts.
+'' One two-operand instruction, emitted and handed back as a value.
+private function EmitBin_ _
+    ( byref c as Ctx, byval op as MirOp, byval ty as MirType, _
+      byref a as MirValue, byref b as MirValue ) as MirValue
+
+    dim as MirInst ins
+    ins.op = cast( ushort, op )
+    ins.ty = cast( ubyte, ty )
+    ins.a = a
+    ins.b = b
+    return Emit( c, ins )
+end function
+
+'' BIT / BITSET / BITRESET -- three expressions over one bit, and none of them a call.
+''
+'' Measured, over a LONG and over a UBYTE alike -- fbc widens the operand to LONGINT
+'' and keeps it there, and masks the index with 63 whatever the operand's width:
+''
+''   bit( c, j )        (int64)-((C$0 & (1ll << (J$0 & 63ll))) != 0ll)
+''   bitset( c, j )     C$0 | (1ll << (J$0 & 63ll))
+''   bitreset( c, j )   C$0 & ~(1ll << (J$0 & 63ll))
+''
+'' BIT's result is 0 or -1, not 0 or 1: it is the NEGATED comparison, which is what
+'' makes 'bit( 224, 5 ) = -1' true. Reading it as a plain mask would have given 32.
+''
+'' The mask is 63 even for a 32-bit operand -- measured, not assumed -- so the shift
+'' is built at LONGINT width and the narrowing back, where there is one, comes from
+'' the assignment around the intrinsic rather than from here.
+function LowerBitOp _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->count <> 2 then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr tip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( tip->name ) )
+    dim as long which = 0
+    select case nm
+    case "bit"      : which = 1
+    case "bitset"   : which = 2
+    case "bitreset" : which = 3
+    case else       : return false
+    end select
+
+    '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC. fbc reserves these words, but
+    '' nothing here does, so a resolved reference wins over the builtin.
+    if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
+
+    dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    dim as MirValue av = LowerExpr( c, an )
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue bv = LowerExpr( c, bn )
+    if bv.kind = cast( ubyte, MV_NONE ) then return false
+    av = Coerce( c, av, MT_I64, IsUnsignedType( c, c.info->TypeOf_( an ) ) )
+    bv = Coerce( c, bv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( bn ) ) )
+
+    dim as MirValue k63
+    k63.kind = cast( ubyte, MV_CONST_INT )
+    k63.ty = cast( ubyte, MT_I64 )
+    k63.id = 63
+    dim as MirValue idx = EmitBin_( c, M_AND, MT_I64, bv, k63 )
+    if idx.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue one
+    one.kind = cast( ubyte, MV_CONST_INT )
+    one.ty = cast( ubyte, MT_I64 )
+    one.id = 1
+    dim as MirValue mask = EmitBin_( c, M_SHL, MT_I64, one, idx )
+    if mask.kind = cast( ubyte, MV_NONE ) then return false
+
+    if which = 2 then
+        outv = EmitBin_( c, M_OR, MT_I64, av, mask )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if which = 3 then
+        dim as MirInst nt
+        nt.op = cast( ushort, M_NOT )
+        nt.ty = cast( ubyte, MT_I64 )
+        nt.a = mask
+        dim as MirValue inv = Emit( c, nt )
+        if inv.kind = cast( ubyte, MV_NONE ) then return false
+        outv = EmitBin_( c, M_AND, MT_I64, av, inv )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    dim as MirValue got = EmitBin_( c, M_AND, MT_I64, av, mask )
+    if got.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue zero
+    zero.kind = cast( ubyte, MV_CONST_INT )
+    zero.ty = cast( ubyte, MT_I64 )
+    zero.id = 0
+    dim as MirValue ne = EmitBin_( c, M_ICMP_NE, MT_I64, got, zero )
+    if ne.kind = cast( ubyte, MV_NONE ) then return false
+    '' 0 or -1, which is the NEGATION of the 0-or-1 comparison.
+    dim as MirInst ng
+    ng.op = cast( ushort, M_NEG )
+    ng.ty = cast( ubyte, MT_I64 )
+    ng.a = ne
+    outv = Emit( c, ng )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 '' PEEK -- the read half, and the exact mirror of POKE.
 ''
 '' Measured, all four spellings over the same byte:

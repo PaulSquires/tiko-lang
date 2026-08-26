@@ -1,3 +1,5 @@
+global str $str0 "x"
+global str $str1 "y"
 func i32 main($0, $1) {
   local i32 $tmp0
   local agg a size 24
@@ -6,6 +8,7 @@ func i32 main($0, $1) {
   local agg d size 48
   local agg e size 48
   local agg f size 24
+  local agg $tmp7 size 72
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -33,29 +36,98 @@ func i32 main($0, $1) {
     %17 = field.addr @b, 16
     store %17, %16
     %18 = alloca ptr c
-    %19 = alloca ptr d
-    %20 = alloca ptr e
-    %21 = alloca ptr f
-    %22 = const i64 1
-    %23 = field.addr @f, 0
-    store %23, %22
-    %24 = const i64 2
-    %25 = field.addr @f, 8
-    store %25, %24
-    %26 = const i64 3
-    %27 = field.addr @f, 16
-    store %27, %26
-    %28 = const i64 1
-    call.rtl void fb_PrintLongint(0, %28, 1)
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    %19 = const i64 1
+    %20 = field.addr @c, 0
+    store %20, %19
+    %21 = const i64 2
+    %22 = field.addr @c, 8
+    store %22, %21
+    %23 = const i64 3
+    %24 = field.addr @c, 16
+    store %24, %23
+    %25 = const i64 4
+    %26 = field.addr @c, 24
+    store %26, %25
+    %27 = const i64 5
+    %28 = field.addr @c, 32
+    store %28, %27
+    %29 = const i64 6
+    %30 = field.addr @c, 40
+    store %30, %29
+    %31 = alloca ptr d
+    %32 = const i64 1
+    %33 = field.addr @d, 0
+    store %33, %32
+    %34 = const i64 2
+    %35 = field.addr @d, 8
+    store %35, %34
+    %36 = const i64 3
+    %37 = field.addr @d, 16
+    store %37, %36
+    %38 = const i64 4
+    %39 = field.addr @d, 24
+    store %39, %38
+    %40 = const i64 5
+    %41 = field.addr @d, 32
+    store %41, %40
+    %42 = const i64 6
+    %43 = field.addr @d, 40
+    store %43, %42
+    %44 = alloca ptr e
+    %45 = call.rtl ptr memset(@e, 0, 48)
+    %46 = field.addr @e, 0
+    %47 = call.rtl ptr fb_StrInit(%46, -1, @@$str0, 2, 0)
+    %48 = field.addr @e, 24
+    %49 = call.rtl ptr fb_StrInit(%48, -1, @@$str1, 2, 0)
+    %50 = alloca ptr f
+    %51 = const i64 1
+    %52 = field.addr @f, 0
+    store %52, %51
+    %53 = const i64 2
+    %54 = field.addr @f, 8
+    store %54, %53
+    %55 = const i64 3
+    %56 = field.addr @f, 16
+    store %56, %55
+    %57 = const i64 1
+    call.rtl void fb_PrintLongint(0, %57, 1)
+    %58 = alloca ptr $tmp7
+    %59 = field.addr @$tmp7, 0
+    store %59, @e
+    %60 = field.addr @$tmp7, 8
+    store %60, @e
+    %61 = const i64 48
+    %62 = field.addr @$tmp7, 16
+    store %62, %61
+    %63 = const i64 24
+    %64 = field.addr @$tmp7, 24
+    store %64, %63
+    %65 = const i64 1
+    %66 = field.addr @$tmp7, 32
+    store %66, %65
+    %67 = const i64 49
+    %68 = field.addr @$tmp7, 40
+    store %68, %67
+    %69 = const i64 2
+    %70 = field.addr @$tmp7, 48
+    store %70, %69
+    %71 = const i64 0
+    %72 = field.addr @$tmp7, 56
+    store %72, %71
+    %73 = const i64 1
+    %74 = field.addr @$tmp7, 64
+    store %74, %73
+    call.rtl void fb_ArrayDestructStr(@$tmp7)
+    %75 = const i32 0
+    call.rtl void fb_End(%75)
+    %76 = load @$tmp0
+    ret %76
 }
 declare void fb_Init($0, $1, $2)
+declare ptr memset($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
 declare void fb_PrintLongint($0, $1, $2)
+declare void fb_ArrayDestructStr($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 43 insts, 3 statements not lowered, 0 scope imbalance
-  inside N_VAR 3
-  skip-site src\mir\lower.bas:952 3
+lowered: 1 functions, 1 blocks, 111 insts, 0 statements not lowered, 0 scope imbalance

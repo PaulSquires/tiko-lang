@@ -337,7 +337,9 @@ end sub
 ''',
     # ERASE over a FIXED array. Each of the four shapes has to be a separate array:
     # what erase emits depends on the ELEMENT type, and the fixed-string row is
-    # fb_ArrayDestructStr rather than the fb_ArrayClear the name would suggest.
+    # fb_ArrayDestructStr rather than the fb_ArrayClear the name would suggest --
+    # and the UTF-16 row is fb_ArrayDestructUStr, a SEPARATE entry point, so a
+    # ustring array is probed beside the narrow one rather than assumed to share it.
     "arrayerase": '''
 type EU
     declare constructor( )
@@ -351,10 +353,12 @@ end destructor
 sub AEProbe( )
     dim as long a(0 to 4)
     dim as string sa(0 to 4)
+    dim as ustring uta(0 to 4)
     dim as EU ua(0 to 2)
     dim as long m(1 to 2, 3 to 5)
     erase a
     erase sa
+    erase uta
     erase ua
     erase m
 end sub

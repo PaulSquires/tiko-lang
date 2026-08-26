@@ -1,0 +1,7 @@
+'' A second 'byref' after a comma is a modifier, not a name. See the source for what it
+'' silently declared instead.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-comma-list.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byref-comma-list.out

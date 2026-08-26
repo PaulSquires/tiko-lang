@@ -13,6 +13,7 @@ fb_ArrayClear	int32	struct $7FBARRAYIvE*	lib	fb_ArrayClear
 fb_ArrayClearObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	fb_ArrayClearObj
 fb_ArrayDestructObj	void	struct $7FBARRAYIvE*, void*	lib	fb_ArrayDestructObj
 fb_ArrayDestructStr	void	struct $7FBARRAYIvE*	lib	fb_ArrayDestructStr
+fb_ArrayDestructUStr	void	struct $7FBARRAYIvE*	lib	fb_ArrayDestructUStr
 fb_ArrayDimensionChk	void*	int64, struct $7FBARRAYIKvE*, int32, char*, char*	lib	fb_ArrayDimensionChk
 fb_ArrayErase	int32	struct $7FBARRAYIvE*	lib	fb_ArrayErase
 fb_ArrayEraseObj	int32	struct $7FBARRAYIvE*, void*, void*	lib	fb_ArrayEraseObj

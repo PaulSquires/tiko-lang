@@ -1,0 +1,127 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 c
+  local i32 l
+  local i8 b
+  local i64 j
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr c
+    %5 = const i64 0
+    store @c, %5
+    %6 = alloca ptr l
+    %7 = const i64 0
+    %8 = trunc %7
+    store @l, %8
+    %9 = alloca ptr b
+    %10 = const i64 224
+    %11 = trunc %10
+    store @b, %11
+    %12 = alloca ptr j
+    %13 = const i64 3
+    store @j, %13
+    %14 = load @c
+    %15 = load @j
+    %16 = and %15, 63
+    %17 = shl 1, %16
+    %18 = or %14, %17
+    store @c, %18
+    %19 = load @c
+    %20 = load @j
+    %21 = and %20, 63
+    %22 = shl 1, %21
+    %23 = and %19, %22
+    %24 = icmp.ne %23, 0
+    %25 = neg %24
+    call.rtl void fb_PrintLongint(0, %25, 2)
+    %26 = load @c
+    %27 = const i64 2
+    %28 = and %27, 63
+    %29 = shl 1, %28
+    %30 = and %26, %29
+    %31 = icmp.ne %30, 0
+    %32 = neg %31
+    call.rtl void fb_PrintLongint(0, %32, 1)
+    %33 = load @c
+    %34 = load @j
+    %35 = and %34, 63
+    %36 = shl 1, %35
+    %37 = not %36
+    %38 = and %33, %37
+    store @c, %38
+    %39 = load @c
+    %40 = load @j
+    %41 = and %40, 63
+    %42 = shl 1, %41
+    %43 = and %39, %42
+    %44 = icmp.ne %43, 0
+    %45 = neg %44
+    call.rtl void fb_PrintLongint(0, %45, 1)
+    %46 = load @l
+    %47 = const i64 5
+    %48 = sext %46
+    %49 = and %47, 63
+    %50 = shl 1, %49
+    %51 = or %48, %50
+    %52 = trunc %51
+    store @l, %52
+    %53 = load @l
+    call.rtl void fb_PrintInt(0, %53, 2)
+    %54 = load @l
+    %55 = const i64 5
+    %56 = sext %54
+    %57 = and %55, 63
+    %58 = shl 1, %57
+    %59 = and %56, %58
+    %60 = icmp.ne %59, 0
+    %61 = neg %60
+    call.rtl void fb_PrintLongint(0, %61, 1)
+    %62 = load @b
+    %63 = const i64 5
+    %64 = zext %62
+    %65 = and %63, 63
+    %66 = shl 1, %65
+    %67 = and %64, %66
+    %68 = icmp.ne %67, 0
+    %69 = neg %68
+    call.rtl void fb_PrintLongint(0, %69, 2)
+    %70 = load @b
+    %71 = const i64 4
+    %72 = zext %70
+    %73 = and %71, 63
+    %74 = shl 1, %73
+    %75 = and %72, %74
+    %76 = icmp.ne %75, 0
+    %77 = neg %76
+    call.rtl void fb_PrintLongint(0, %77, 1)
+    %78 = const i64 224
+    %79 = const i64 5
+    %80 = and %79, 63
+    %81 = shl 1, %80
+    %82 = and %78, %81
+    %83 = icmp.ne %82, 0
+    %84 = neg %83
+    call.rtl void fb_PrintLongint(0, %84, 2)
+    %85 = const i64 224
+    %86 = const i64 4
+    %87 = and %86, 63
+    %88 = shl 1, %87
+    %89 = and %85, %88
+    %90 = icmp.ne %89, 0
+    %91 = neg %90
+    call.rtl void fb_PrintLongint(0, %91, 1)
+    %92 = const i32 0
+    call.rtl void fb_End(%92)
+    %93 = load @$tmp0
+    ret %93
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 112 insts, 0 statements not lowered, 0 scope imbalance

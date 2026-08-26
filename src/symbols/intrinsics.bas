@@ -174,6 +174,18 @@ private function ExprIntrinsicType_ _
         if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_LONG )
+    '' BIT / BITSET / BITRESET are LONGINT whatever they are given. Measured, over a
+    '' LONG and over a UBYTE alike, fbc widens the operand and keeps the result wide:
+    ''
+    ''   bit( l, j )       (int64)-(((int64)L$0 & (1ll << (J$0 & 63ll))) != 0ll)
+    ''   bitset( l, j )    (int64)L$0 | (1ll << (J$0 & 63ll))
+    ''
+    '' -- the narrowing back to LONG in 'l = bitset( l, j )' comes from the ASSIGNMENT,
+    '' not from the intrinsic. Untyped, every one of them declined.
+    case "bit", "bitset", "bitreset"
+        if isPtr then return Tko.TYPE_NONE
+        if isNum = false then return Tko.TYPE_NONE
+        return c.types->Builtin( Tko.TY_LONGINT )
     '' WCHR is WIDE, and its length is the ARGUMENT COUNT PLUS ONE: measured with
     '' '#print typeof', 'wchr( 65 )' is 'WSTRING * 2' and 'wchr( 65, 66 )' is
     '' 'WSTRING * 3' -- the terminator counts. Untyped, every term built out of one

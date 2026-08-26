@@ -54,6 +54,30 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
             ia.ty = cast( ubyte, MT_PTR )
             ia.id = c.cleanupSlot[i]
             CallImplicitDtor_( c, cast( Tko.TypeId, c.cleanupType[i] ), ia )
+        elseif c.cleanupNode[i] = CLEANUP_DESTRUCT_STR_ARRAY then
+            '' A FIXED ARRAY OF VAR-LENGTH STRINGS owns N descriptors, and every one
+            '' of them held a buffer nothing was releasing. Measured: fbc builds the
+            '' array's descriptor and hands it to fb_ArrayDestructStr -- the same call
+            '' ERASE makes over the same shape, which is why the entry carries the
+            '' ARRAY type and rebuilds the descriptor here rather than keeping one.
+            dim as MirValue sab
+            sab.kind = cast( ubyte, MV_LOCAL )
+            sab.ty = cast( ubyte, MT_PTR )
+            sab.id = c.cleanupSlot[i]
+            dim as MirValue sad
+            if SynthFixedArrayDesc( c, sab, _
+                                    cast( Tko.TypeId, c.cleanupType[i] ), sad ) then
+                dim as FB.Array( of ulong ) saa
+                saa.Push( cast( ulong, sad.kind ) )
+                saa.Push( cast( ulong, sad.id ) )
+                dim as Tko.TypeId sae = _
+                    c.types->Inner( cast( Tko.TypeId, c.cleanupType[i] ) )
+                if IsUStringType( c, sae ) then
+                    EmitRtl( c, RTL_ARRAY_DESTRUCT_USTR, saa )
+                else
+                    EmitRtl( c, RTL_ARRAY_DESTRUCT_STR, saa )
+                end if
+            end if
         elseif c.cleanupNode[i] = CLEANUP_ERASE_ARRAY then
             '' A local DYNAMIC array is erased at scope exit whatever its element
             '' type -- measured; fbc emits fb_ArrayErase / fb_ArrayStrErase /

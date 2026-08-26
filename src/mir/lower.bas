@@ -713,6 +713,36 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 end if
             end if
 
+            '' A FIXED ARRAY OF VAR-LENGTH STRINGS. Every element is a descriptor the
+            '' runtime owns, and neither end of its life was being lowered: the array
+            '' was never zeroed, so the first 'a(i) = x' handed fb_StrAssign a garbage
+            '' descriptor to RELEASE, and nothing destructed it, so every buffer it did
+            '' end up holding leaked. Both halves are measured --
+            ''
+            ''   __builtin_memset( (FBSTRING*)S$0, 0, 48ll );
+            ''   ...
+            ''   fb_ArrayDestructStr( (struct $7FBARRAYIvE*)&tmp$2$0 );
+            ''
+            '' -- and the UTF-16 flavour takes fb_ArrayDestructUStr instead.
+            if (slot >= 0) andalso (vs <> 0) then
+                if IsFixedStrArray_( c, vs->type_ ) then
+                    dim as MirValue za
+                    za.kind = cast( ubyte, MV_LOCAL )
+                    za.ty = cast( ubyte, MT_PTR )
+                    za.id = slot
+                    dim as FB.Array( of ulong ) zma
+                    zma.Push( cast( ulong, za.kind ) )
+                    zma.Push( cast( ulong, za.id ) )
+                    zma.Push( cast( ulong, MV_CONST_INT ) ) : zma.Push( 0 )
+                    zma.Push( cast( ulong, MV_CONST_INT ) )
+                    zma.Push( cast( ulong, SizeOfType( c, vs->type_ ) ) )
+                    EmitRtl( c, RTL_MEMSET, zma )
+                    c.cleanupNode.Push( CLEANUP_DESTRUCT_STR_ARRAY )
+                    c.cleanupSlot.Push( slot )
+                    c.cleanupType.Push( cast( ulong, vs->type_ ) )
+                end if
+            end if
+
             if (slot >= 0) andalso (vs <> 0) then
                 '' 'dim as T x = T( 5 )' selects a constructor by its arguments; a
                 '' bare 'dim as T x' takes the no-argument one.

@@ -1,0 +1,7 @@
+'' The declaring form of destructuring, 'var (a, b) = expr', which the parser had no
+'' route into at all. See the source for the desugar and for what it buys.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/var-destructure.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/var-destructure.out

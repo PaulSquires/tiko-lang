@@ -51,6 +51,28 @@ function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 end function
 
 
+'' An 'iif' whose arms are NARROW var-length strings. Same shape test as IsAggIif_,
+'' and asked before anything is lowered for the same reason: the arms must not be
+'' evaluated twice.
+function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 3 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    for k as long = 1 to 2
+        dim as Tko.TypeId at = _
+            c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+        if IsStringType( c, at ) = false then return false
+        if IsUStringType( c, at ) then return false
+    next
+    return true
+end function
+
 '' The ADDRESS of an assignable expression, or an undef value when this slice cannot
 '' produce one (a member, an index, a dereference).
 function LowerAddr _
@@ -420,6 +442,39 @@ function LowerAddr _
                             cast( Tko.NodeId, c.ast->children[ip2->first + 1] ), _
                             cast( Tko.NodeId, c.ast->children[ip2->first + 2] ), av ) then
             return av
+        end if
+        return v
+    end if
+
+    '' A WIDE 'iif' YIELDS A POINTER TO CHARACTERS, and for a wide string that
+    '' pointer IS the base every subscript is taken from -- there is no descriptor in
+    '' between. So the address of one is its value, which is what 'iif( c, wa, wb )[0]'
+    '' needs; without it the subscript had no base and the statement declined.
+    dim as Tko.NodeId wC, wT, wE
+    if IsIifCall_( c, id, wC, wT, wE ) then
+        if TermIsWide_( c, wT ) orelse TermIsWide_( c, wE ) then
+            dim as MirValue wv2
+            if LowerWideIif_( c, wC, wT, wE, wv2 ) then return wv2
+            return v
+        end if
+    end if
+
+    '' A NARROW-STRING 'iif' HAS AN ADDRESS TOO -- the temporary descriptor it builds
+    '' its result in, which is exactly what LowerStringIif_ already hands back as its
+    '' VALUE. Without it 'iif( c, sa, sb )[0]' had no base to index from and the whole
+    '' statement declined: twelve of expressions/iif.bas's fourteen.
+    ''
+    '' NARROW ONLY, like LowerStringIif_ itself: its arms go through fb_StrInit, which
+    '' would write narrow bytes into a UTF-16 descriptor.
+    if IsStrIif_( c, id ) then
+        dim as Tko.ListPayload ptr ip3 = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as MirValue sv2
+        if LowerStringIif_( c, cast( Tko.NodeId, c.ast->children[ip3->first] ), _
+                               cast( Tko.NodeId, c.ast->children[ip3->first + 1] ), _
+                               cast( Tko.NodeId, c.ast->children[ip3->first + 2] ), _
+                               sv2 ) then
+            return sv2
         end if
         return v
     end if
@@ -813,6 +868,37 @@ end function
 ''
 '' A brace list SHORTER than the array leaves the rest alone, which is what fbc's own
 '' output does; a longer one stops at the array's length rather than writing past it.
+declare sub FlattenInitLeaves_ _
+    ( byref c as Ctx, byval init as Tko.NodeId, _
+      byref outv as FB.Array( of ulong ) )
+
+declare function LowerUdtArrayInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+declare function LowerStrArrayInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+'' THE LEAF EXPRESSIONS OF A NESTED BRACE INITIALISER, in row-major order: a nested
+'' N_INITIALIZER is read through rather than treated as a value, which is what makes
+'' '{ {1,2,3}, {4,5,6} }' six integers laid out end to end.
+private sub FlattenInitLeaves_ _
+    ( byref c as Ctx, byval init as Tko.NodeId, _
+      byref outv as FB.Array( of ulong ) )
+
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    for i as long = 0 to lp->count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( e ) = Tko.N_INITIALIZER then
+            FlattenInitLeaves_( c, e, outv )
+        else
+            outv.Push( cast( ulong, e ) )
+        end if
+    next
+end sub
+
 function LowerArrayInit _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
       byval init as Tko.NodeId ) as boolean
@@ -824,23 +910,58 @@ function LowerArrayInit _
 
     dim as Tko.TypeId el = c.types->Inner( t )
     if el = Tko.TYPE_NONE then return false
+    '' A VAR-LENGTH STRING ELEMENT IS NOT A STORE. Its 24 bytes are a descriptor,
+    '' so 'dim as string s(0 to 1) = { "a", "b" }' is one fb_StrInit per element,
+    '' measured. It lowers as an aggregate, which the size test below rejected --
+    '' the whole initialiser was dropped and the array read back empty.
+    if IsStringType( c, el ) then
+        '' NARROW ONLY. fb_StrInit over an FBUSTRING would write narrow bytes into
+        '' a UTF-16 descriptor; the UTF-16 form declines rather than doing that.
+        if IsUStringType( c, el ) then return false
+        return LowerStrArrayInit_( c, slot, t, init )
+    end if
+    '' A UDT ELEMENT lowers as an aggregate, which the test below rejected outright:
+    '' 'dim as Decimal d(0 to 4) = { D( "-1000" ), ... }' dropped its whole
+    '' initialiser and every element read back as whatever the stack held.
     dim as MirType emt = LowerType( el, *c.types )
-    if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
+    if emt = MT_AGG then
+        if c.types->Kind( c.types->Unqualify( el ) ) <> Tko.TK_UDT then return false
+        return LowerUdtArrayInit_( c, slot, t, init )
+    end if
+    if emt = MT_VOID then return false
     dim as long esz = c.types->Layout( el ).size
     if esz <= 0 then return false
 
     dim as long total = c.types->ElemCount( t )
-    dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+
+    '' A MULTI-DIMENSIONAL INITIALISER IS WRITTEN IN ROWS -- 'dim c(0 to 1, 0 to 2) as
+    '' integer = { {1,2,3}, {4,5,6} }' -- and the storage is one flat run in row-major
+    '' order, so the rows are read through and their leaves laid out end to end. Each
+    '' row is itself an N_INITIALIZER, which LowerExpr has nothing to make of: the
+    '' whole declaration declined and the array was left uninitialised.
+    ''
+    '' Only where the array HAS more than one dimension. Over a one-dimensional array
+    '' a nested brace list means something else -- the fields of an element -- and
+    '' flattening it would spread one element's fields across several elements.
+    dim as FB.Array( of ulong ) leaves
+    if c.types->types[cast( long, t )].dims > 1 then
+        FlattenInitLeaves_( c, init, leaves )
+    else
+        dim as Tko.ListPayload ptr lp0 = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+        for i as long = 0 to lp0->count - 1
+            leaves.Push( c.ast->children[lp0->first + i] )
+        next
+    end if
 
     dim as MirValue base_
     base_.kind = cast( ubyte, MV_LOCAL )
     base_.ty = cast( ubyte, MT_PTR )
     base_.id = slot
 
-    for i as long = 0 to lp->count - 1
+    for i as long = 0 to leaves.Count - 1
         if (total > 0) andalso (i >= total) then exit for
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
         dim as MirValue ev = LowerExpr( c, e )
         if ev.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -862,6 +983,125 @@ function LowerArrayInit _
     return true
 end function
 
+
+'' ONE fb_StrInit PER ELEMENT, over an array whose descriptors have already been
+'' zeroed at the declaration. An element the initialiser does not name keeps that
+'' zeroed descriptor, which is the empty string -- fbc leaves it alone too.
+private function LowerStrArrayInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    dim as Tko.TypeId el = c.types->Inner( t )
+    dim as long esz = c.types->Layout( el ).size
+    if esz <= 0 then return false
+    dim as long total = c.types->ElemCount( t )
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+
+    dim as MirValue base_
+    base_.kind = cast( ubyte, MV_LOCAL )
+    base_.ty = cast( ubyte, MT_PTR )
+    base_.id = slot
+
+    for i as long = 0 to lp->count - 1
+        if (total > 0) andalso (i >= total) then exit for
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = base_
+        fa.imm = i * esz
+        dim as MirValue ea = Emit( c, fa )
+        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        '' THE ANSWER IS READ. An element that will not build is the whole
+        '' initialiser declining, not a silently empty slot in the middle of it.
+        if StrInitFrom_( c, ea, e ) = false then return false
+    next
+    return true
+end function
+
+'' ONE ELEMENT OF A BRACE INITIALISER OVER AN ARRAY OF UDT.
+''
+'' Measured, and the two rows differ by more than emphasis:
+''
+''   POD                *(struct $1U*)A$0 = vr$2;
+''   with structors     _ZN1CC1ERKS_( (struct $1C*)A$0, vr$3 );
+''
+'' -- a COPY CONSTRUCTOR for the second, and no default construction before it: fbc
+'' constructs each element once, from its initialiser, and never twice. A type holding
+'' a string is the case that notices, because an aggregate store there would leave two
+'' objects owning one buffer and both would release it.
+private function LowerUdtElemInit_ _
+    ( byref c as Ctx, byref dst as MirValue, byval et as Tko.TypeId, _
+      byval e as Tko.NodeId ) as boolean
+
+    dim as Tko.TypeId ivt = c.info->TypeOf_( e )
+    if (ivt <> Tko.TYPE_NONE) andalso (ivt = et) then
+        dim as Tko.SymbolId ucp = CopyCtorOf_( c, et )
+        if (ucp <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, et ) then
+            dim as MirValue src = LowerAddr( c, e )
+            if src.kind = cast( ubyte, MV_NONE ) then return false
+            if ucp <> Tko.SYMBOL_NONE then
+                dim as FB.Array( of ulong ) cargs
+                cargs.Push( cast( ulong, src.kind ) )
+                cargs.Push( cast( ulong, src.id ) )
+                EmitStructorCall( c, ucp, -1, @dst, @cargs )
+            else
+                CallImplicitCopy_( c, et, dst, src )
+            end if
+            return true
+        end if
+    end if
+
+    '' A CONSTRUCTOR CALL SPELT OUT -- '{ C( 1 ), C( 2 ) }' -- constructs INTO the
+    '' element, exactly as it does into a variable's slot.
+    if LowerCtorInit( c, -1, et, e, @dst ) then return true
+
+    '' ...and a POD element is the plain aggregate copy fbc emits for one.
+    dim as MirValue ev = LowerExpr( c, e )
+    if ev.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, dst, ev )
+    return true
+end function
+
+'' A BRACE INITIALISER OVER AN ARRAY OF UDT, element by element. An element the list
+'' does not name is left as the declaration made it -- default-constructed or zeroed --
+'' which is what fbc does with a short list.
+private function LowerUdtArrayInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    dim as Tko.TypeId el = c.types->Inner( t )
+    '' THE ELEMENT'S SIZE, through SizeOfType rather than Layout( ).size: a UDT's
+    '' layout record is not what carries its size here, and reading it gave 0 --
+    '' which this rejected as 'no size', declining every UDT array initialiser.
+    dim as long esz = SizeOfType( c, el )
+    if esz <= 0 then return false
+    dim as long total = c.types->ElemCount( t )
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+
+    dim as MirValue base_
+    base_.kind = cast( ubyte, MV_LOCAL )
+    base_.ty = cast( ubyte, MT_PTR )
+    base_.id = slot
+
+    for i as long = 0 to lp->count - 1
+        if (total > 0) andalso (i >= total) then exit for
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = base_
+        fa.imm = i * esz
+        dim as MirValue ea = Emit( c, fa )
+        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        '' THE ANSWER IS READ. An element that will not build declines the whole
+        '' initialiser rather than leaving a hole in the middle of it.
+    if LowerUdtElemInit_( c, ea, el, e ) = false then return false
+    next
+    return true
+end function
 
 '' THE ADDRESS OF A USER OPERATOR'S UDT RESULT, or false when the node is not one.
 private function UserOpTempAddr_ _

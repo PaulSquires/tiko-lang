@@ -70,6 +70,10 @@ namespace Tko
         '' INSTANTIATION re-parses the body and hoists a lambda of its own, with the
         '' flag cleared and a sequence number no other instantiation can produce.
         as long                 genericDepth
+        '' How many 'var (a, b) = expr' declarations have been desugared. Each needs a
+        '' temporary of its own: two in one loop body, or one nested inside another,
+        '' must not name the same thing.
+        as long                 destructureSeq
     end type
 
 end namespace

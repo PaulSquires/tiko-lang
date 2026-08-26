@@ -533,7 +533,10 @@ sub WalkNode _
             if s <> 0 then
                 if (n->flags and Tko.NF_SHARED) <> 0 then s->flags or= Tko.SYMF_SHARED
                 if (n->flags and Tko.NF_STATIC) <> 0 then s->flags or= Tko.SYMF_STATIC
-                if (n->flags and Tko.NF_BYREF) <> 0 then s->flags or= Tko.SYMF_BYREF
+                '' ...and from the ITEM as well, for a 'byref' written again after a
+                '' comma, which belongs to that item rather than to the declaration.
+                if ((n->flags or w.ast->nodes[cast( long, item )].flags) and _
+                    Tko.NF_BYREF) <> 0 then s->flags or= Tko.SYMF_BYREF
                 if isExtern then s->flags or= Tko.SYMF_EXTERN
                 if k = Tko.N_CONST then s->flags or= Tko.SYMF_CONST
                 s->payload = cast( long, item )

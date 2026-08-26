@@ -2,4 +2,5 @@
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/ellipsis-bound.bas
 '' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
 '' GOLDEN: expected/ellipsis-bound.out

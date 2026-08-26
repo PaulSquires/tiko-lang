@@ -267,8 +267,15 @@ private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
 
     '' A var-len STRING element is destructed, not cleared: its bytes are a descriptor
     '' the runtime owns.
+    '' A UTF-16 element is a DIFFERENT entry point -- fb_ArrayDestructUStr,
+    '' measured -- and IsStringType says yes to both flavours, so the narrow call
+    '' was being made over FBUSTRING descriptors.
     if IsStringType( c, et ) then
-        EmitRtl( c, RTL_ARRAY_DESTRUCT_STR, args )
+        if IsUStringType( c, et ) then
+            EmitRtl( c, RTL_ARRAY_DESTRUCT_USTR, args )
+        else
+            EmitRtl( c, RTL_ARRAY_DESTRUCT_STR, args )
+        end if
         return true
     end if
 

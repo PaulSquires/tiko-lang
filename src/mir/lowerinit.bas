@@ -9,7 +9,7 @@
 '' same type. StructorWithArity answers any one-argument constructor at all, which is
 '' not the same question -- a type whose only constructor takes a long had that one
 '' chosen to copy it with.
-private function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     dim as Tko.SymbolId s = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
     if s = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     dim as Tko.TypeId pt = ParamTypeAt( c, s, 0 )

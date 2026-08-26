@@ -1,0 +1,7 @@
+'' The three bit intrinsics, which were not implemented at all. See the source for what
+'' fbc emits for each and for why the result is 0 or -1 rather than 0 or 1.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bit-intrinsics.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/bit-intrinsics.out
