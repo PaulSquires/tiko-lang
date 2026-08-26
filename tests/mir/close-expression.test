@@ -1,0 +1,7 @@
+'' CLOSE used as an expression. See the source: both the one-channel and the close-all
+'' forms have a value, and it is the same call the statement makes.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/close-expression.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/close-expression.out

@@ -54,6 +54,14 @@ function LowerExpr _
             dim as MirValue gv
             if LowerFileGetPut( c, id, (iop = Tko.KW_PUT), gv ) then return gv
         end if
+        '' 'close( n )' YIELDS THE ERROR CODE the same way, and that is how the corpus
+        '' asks about a bad channel: 'CU_ASSERT_EQUAL( close(0), ILLEGALFUNCTIONCALL )'.
+        '' Measured -- 'e = close(0)' is 'vr$1 = fb_FileClose( 0 )', the same call the
+        '' statement form makes with its result discarded.
+        if iop = Tko.KW_CLOSE then
+            dim as MirValue cv2
+            if LowerCloseCall_( c, id, cv2 ) then return cv2
+        end if
         return v
 
     case Tko.N_STRING_LIT

@@ -49,6 +49,42 @@ function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     return true
 end function
 
+'' 'close( n )' IN EXPRESSION POSITION, which yields the ERROR CODE.
+''
+'' The parser builds the same N_INTRINSIC node either way, so this is the statement
+'' form with its result kept rather than discarded -- measured, 'e = close(0)' is
+'' 'vr$1 = fb_FileClose( 0 )' and nothing else. Only ONE channel: 'close #1, #2' is two
+'' calls and has no single value to be, and fbc does not accept the comma form in an
+'' expression anyway.
+''
+'' file/close.bas asks it ten times, every one about a channel that is not open.
+function LowerCloseCall_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_INTRINSIC then return false
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->op <> cast( ushort, Tko.KW_CLOSE ) then return false
+
+    '' 'close( )' WITH NO CHANNEL closes them all, and has a value of its own:
+    '' measured, 'e = close( )' is 'vr$1 = fb_FileCloseAll( )'.
+    if sp->count = 0 then
+        dim as FB.Array( of ulong ) none_
+        outv = EmitRtl( c, RTL_FILE_CLOSEALL, none_ )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if sp->count <> 1 then return false
+    dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first] )
+    if c.ast->Kind( it ) = Tko.N_ELIDED then return false
+
+    dim as MirValue fn = LowerExpr( c, it )
+    if fn.kind = cast( ubyte, MV_NONE ) then return false
+    fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( it ) ) )
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
+    outv = EmitRtl( c, RTL_FILE_CLOSE, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 '' ERROR n -- raise a runtime error.
 ''
 '' Measured from fbc's own C:

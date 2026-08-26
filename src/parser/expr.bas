@@ -1035,6 +1035,17 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
 
+    '' 'close( n )' yields the error code too, and 'close #1' as a STATEMENT is the
+    '' same keyword -- so, as with GET, only the form with a '(' immediately after is
+    '' taken here and the statement form is untouched.
+    if k = Tko.KW_CLOSE then
+        if HasTok( p, p.pos + 1 ) then
+            if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then
+                return CloseExprCall( p )
+            end if
+        end if
+    end if
+
     '' An ANONYMOUS procedure is a VALUE: 'f = function( byval x as long ) as long
     '' ... end function'. fb/sort.bi writes one, so every corpus file that includes
     '' it failed at the header rather than at anything of its own -- four of them.

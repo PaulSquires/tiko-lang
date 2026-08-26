@@ -327,6 +327,43 @@ end function
 '' expression, so a generic call parse chokes on it -- it came out as a CALL to an
 '' identifier 'get' with an N_ERROR argument, and nothing downstream could recognise
 '' that as the statement it is.
+'' 'close( n )' IN EXPRESSION POSITION, which yields the ERROR CODE.
+''
+'' The same shape OPEN and GET already have: the STATEMENT parser reads a comma list to
+'' end of line, which in an expression would swallow whatever follows the ')'. This
+'' reads exactly one channel and stops at the paren, and it builds the SAME N_INTRINSIC
+'' node the statement form does, so lowering needs no second shape.
+''
+'' Only ONE channel, or none: 'close #1, #2' is two calls and has no single value to
+'' be. fbc
+'' does not accept the comma form in an expression either.
+function CloseExprCall( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    Advance( p )                                    '' CLOSE
+    if Accept( p, Tko.TK_LPAREN ) = false then
+        return ErrorNode( p, Tko.TKO0401, "(" )
+    end if
+
+    dim as Tko.StmtPayload sp
+    sp.op = cast( ushort, Tko.KW_CLOSE )
+    '' 'close( )' WITH NO CHANNEL is the close-all form, and it has a value too --
+    '' measured, 'e = close( )' is 'vr$1 = fb_FileCloseAll( )'. An empty list here is
+    '' that, not a missing argument.
+    dim as Tko.NodeIdVec items
+    if Peek( p ) <> Tko.TK_RPAREN then
+        if Peek( p ) = Tko.TK_HASH then Advance( p )
+        items.Push( cast( ulong, Expression( p ) ) )
+    end if
+    Expect( p, Tko.TK_RPAREN, ")" )
+
+    sp.first = p.ast->children.Count
+    sp.count = items.Count
+    for i as long = 0 to items.Count - 1
+        p.ast->children.Push( items[i] )
+    next
+    return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
+end function
+
 function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.TokenKind k = Peek( p )
