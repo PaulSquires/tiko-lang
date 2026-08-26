@@ -691,8 +691,11 @@ private function GlobalRelocInit_ _
         if c.types->Kind( aat ) <> Tko.TK_ARRAY then return false
         if c.types->IsDynArray( aat ) then return false
         if c.types->types[cast( long, aat )].dims <> 1 then return false
+        '' DIMENSIONS ARE ZERO-BASED HERE: ArrayBound indexes the bound pool as
+        '' 'dim_ * 2', so the first dimension is 0 and asking for 1 walked off the
+        '' end of a one-dimensional array's pair and answered 'not known'.
         dim as boolean lbKnown = false
-        if c.types->ArrayBound( aat, 1, false, lbKnown ) <> 0 then return false
+        if c.types->ArrayBound( aat, 0, false, lbKnown ) <> 0 then return false
         if lbKnown = false then return false
         dim as Tko.NodeId ixn = cast( Tko.NodeId, c.ast->children[acp->first] )
         dim as Tko.Check.ConstVal ixv = Tko.Check.ConstOf( _

@@ -2,19 +2,40 @@ global var i64 S1$i = 789
 global var ptr S1$pi = @S1$i
 global var agg S1$x size 4
 global var ptr S1$px = @S1$x
+global var agg S1$arr size 32
+global var ptr S1$pa = @S1$arr
+global var ptr S1$pb = @S1$arr + 16
 global var ptr S1$pf = FOO
 func void S1() {
   entry0:
-    %1 = load @@S1$pi
-    %2 = load %1
-    call.rtl void fb_PrintLongint(0, %2, 2)
-    %3 = load @@S1$px
-    %4 = field.addr %3, 0
-    %5 = load %4
-    call.rtl void fb_PrintInt(0, %5, 2)
-    %6 = load @@S1$pf
-    %7 = call.ind i64 %6()
-    call.rtl void fb_PrintLongint(0, %7, 1)
+    %1 = const i64 0
+    %2 = const i64 8
+    %3 = mul %1, %2
+    %4 = ptr.add @@S1$arr, %3
+    %5 = const i64 10
+    store %4, %5
+    %6 = const i64 2
+    %7 = const i64 8
+    %8 = mul %6, %7
+    %9 = ptr.add @@S1$arr, %8
+    %10 = const i64 30
+    store %9, %10
+    %11 = load @@S1$pi
+    %12 = load %11
+    call.rtl void fb_PrintLongint(0, %12, 2)
+    %13 = load @@S1$px
+    %14 = field.addr %13, 0
+    %15 = load %14
+    call.rtl void fb_PrintInt(0, %15, 2)
+    %16 = load @@S1$pa
+    %17 = load %16
+    call.rtl void fb_PrintLongint(0, %17, 2)
+    %18 = load @@S1$pb
+    %19 = load %18
+    call.rtl void fb_PrintLongint(0, %19, 2)
+    %20 = load @@S1$pf
+    %21 = call.ind i64 %20()
+    call.rtl void fb_PrintLongint(0, %21, 1)
     ret
 }
 declare void fb_PrintLongint($0, $1, $2)
@@ -45,4 +66,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 3 functions, 3 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

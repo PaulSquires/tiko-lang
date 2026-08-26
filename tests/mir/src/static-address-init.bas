@@ -16,10 +16,15 @@
 '' -- a local has no address until its frame exists -- so the test is the same one
 '' GlobalFor itself uses to decide a symbol has a global.
 ''
-'' STILL DECLINING, and recorded rather than guessed at: '@arr( 0 )'. The offset form is
-'' written and the shape is recognised, but one of its guards is refusing an array that
-'' looks ordinary, and a relocation aimed at the wrong element points the pointer
-'' somewhere plausible with nothing to say so.
+'' '@arr( n )' IS THE ARRAY'S GLOBAL PLUS A BYTE OFFSET, folded here rather than
+'' emitted as arithmetic: a relocation is address-plus-constant and nothing else. The
+'' guard that refused it was reading the dimension index as ONE-based -- ArrayBound
+'' indexes its pool as 'dim_ * 2', so the first dimension is 0, and asking for 1 walked
+'' off the end of a one-dimensional array's pair and answered 'not known'.
+''
+'' Only the ZERO-BASED spelling is taken: 'dim a(1 to 3)' would need its lower bound
+'' subtracted, and getting that wrong points the pointer at the wrong element with
+'' nothing to say so, so a non-zero lower bound declines instead.
 type U
     as long a
 end type
@@ -31,8 +36,12 @@ sub s1( )
     static pi as integer ptr = @i
     static x as U
     static px as U ptr = @x
+    static arr(0 to 3) as integer
+    static pa as integer ptr = @arr(0)
+    static pb as integer ptr = @arr(2)
     static pf as function( ) as integer = @foo
-    print *pi, px->a, pf( )
+    arr(0) = 10 : arr(2) = 30
+    print *pi, px->a, *pa, *pb, pf( )
 end sub
 
 function foo( ) as integer
