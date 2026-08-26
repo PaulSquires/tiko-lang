@@ -1,0 +1,8 @@
+'' CONST as an overload axis -- see the source for how each row was measured. The
+'' golden's mangled call targets ARE the answer: 'R2T1' is the non-const byref
+'' parameter and 'RK2T1' the const one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-overload.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/const-overload.out

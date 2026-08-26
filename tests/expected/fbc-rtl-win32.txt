@@ -271,8 +271,10 @@ fb_StrInstrRevAny	int32	FBSTRING*, FBSTRING*, int32	lib	_fb_StrInstrRevAny@12
 fb_StrLcase2	FBSTRING*	FBSTRING*, int32	lib	_fb_StrLcase2@8
 fb_StrLen	int32	void*, int32	lib	_fb_StrLen@8
 fb_StrLset	void	FBSTRING*, FBSTRING*	lib	_fb_StrLset@8
+fb_StrLsetANA	void	void*, int32, FBSTRING*	lib	_fb_StrLsetANA@12
 fb_StrMid	FBSTRING*	FBSTRING*, int32, int32	lib	_fb_StrMid@12
 fb_StrRset	void	FBSTRING*, FBSTRING*	lib	_fb_StrRset@8
+fb_StrRsetANA	void	void*, int32, FBSTRING*	lib	_fb_StrRsetANA@12
 fb_StrSwap	void	void*, int32, int32, void*, int32, int32	lib	_fb_StrSwap@24
 fb_StrToUStr	FBUSTRING*	void*, int32	lib	_fb_StrToUStr@8
 fb_StrToWstr	uint16*	char*	lib	_fb_StrToWstr@4

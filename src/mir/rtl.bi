@@ -512,6 +512,11 @@ namespace Tko.Mir
         '' one and a wide destination has its own pair of entries.
         RTL( RTL_STR_LSET,          "fb_StrLset",          "v",   "pp"    )
         RTL( RTL_STR_RSET,          "fb_StrRset",          "v",   "pp"    )
+        '' A 'string * N' DESTINATION takes its BYTES and its TAGGED length rather than
+        '' a descriptor -- 'fb_StrLsetANA( F1, -9223372036854775800ll, S2 )' on win64
+        '' and the same shape with an int32 length on win32.
+        RTL( RTL_STR_LSET_ANA,      "fb_StrLsetANA",       "v",   "pzp"   )
+        RTL( RTL_STR_RSET_ANA,      "fb_StrRsetANA",       "v",   "pzp"   )
         RTL( RTL_WSTR_LSET,         "fb_WstrLset",         "v",   "pp"    )
         RTL( RTL_WSTR_RSET,         "fb_WstrRset",         "v",   "pp"    )
         '' ARRAY DESCRIPTOR routines. Only the ones a FIXED array needs are here; the

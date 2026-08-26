@@ -307,7 +307,12 @@ function ConversionCost _
     '' Whether a CONST argument may bind to a NON-const byref parameter is a separate
     '' question that nothing here models either way; this only stops const from hiding
     '' an exact match.
-    if types.Unqualify( from_ ) = types.Unqualify( to_ ) then return CONV_EXACT
+    if types.Unqualify( from_ ) = types.Unqualify( to_ ) then
+        dim as boolean dstConst = types.IsConst( to_ )
+        dim as boolean srcConst = types.IsConst( from_ )
+        if dstConst andalso (srcConst = false) then return CONV_CONST_ADD
+        return CONV_EXACT
+    end if
 
     '' A fixed-length string converts as the string type it is. Its LENGTH plays no
     '' part, and cannot: fbc refuses 'byval x as zstring * 4' outright -- error 59,

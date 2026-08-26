@@ -1,0 +1,7 @@
+'' A lambda inside a generic body -- see the source for the two halves of the fix. The
+'' golden shows the TEMPLATE copy absent and one instantiated lambda per instantiation.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lambda-in-generic.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/lambda-in-generic.out

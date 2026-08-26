@@ -63,6 +63,13 @@ namespace Tko
         as boolean              inProcPtrArg
         as NodeIdVec            lambdas
         as long                 lambdaSeq
+        '' How many GENERIC procedure bodies enclose the cursor. A lambda written
+        '' inside one is a TEMPLATE like the body around it -- its own body names the
+        '' generic's type parameters, which stand for nothing at module level -- so it
+        '' is hoisted carrying PF_GENERIC_PROC and lowering leaves it alone. Each
+        '' INSTANTIATION re-parses the body and hoists a lambda of its own, with the
+        '' flag cleared and a sequence number no other instantiation can produce.
+        as long                 genericDepth
     end type
 
 end namespace

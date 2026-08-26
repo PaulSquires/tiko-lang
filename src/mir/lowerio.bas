@@ -408,6 +408,20 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         ta.Push( cast( ulong, dst.kind ) ) : ta.Push( cast( ulong, dst.id ) )
         dst = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
         if dst.kind = cast( ubyte, MV_NONE ) then return false
+    elseif dk = 3 then
+        '' A 'string * N' DESTINATION IS NOT A DESCRIPTOR AND CANNOT BORROW ONE. It has
+        '' entry points of its own that take the bytes and the TAGGED length -- measured
+        '' from fbc's C, 'fb_StrLsetANA( (void*)F1, -9223372036854775800ll, S2 )', where
+        '' the constant is &h8000000000000000 or N and the sign bit is the tag that says
+        '' "fixed-length". Sending one through fb_StrLset instead would hand the runtime
+        '' eight bytes of PADDING as a descriptor pointer.
+        dim as MirValue fsrc
+        if StrDescriptorOf_( c, srcE, fsrc ) = false then return false
+        args.Push( cast( ulong, dst.kind ) )  : args.Push( cast( ulong, dst.id ) )
+        PushStrLen_( c, args, zn )
+        args.Push( cast( ulong, fsrc.kind ) ) : args.Push( cast( ulong, fsrc.id ) )
+        EmitRtl( c, iif( isRight, RTL_STR_RSET_ANA, RTL_STR_LSET_ANA ), args )
+        return true
     elseif dk <> 0 then
         return false
     end if

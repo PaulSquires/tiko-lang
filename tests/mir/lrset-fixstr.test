@@ -1,0 +1,7 @@
+'' LSET/RSET into a fixed-length narrow string -- see the source for the measured
+'' entry points and the tagged length the golden shows as a constant.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lrset-fixstr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/lrset-fixstr.out

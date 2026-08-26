@@ -736,7 +736,10 @@ private function ParseProc _
         return dn
     end if
 
+    dim as boolean inGeneric = ((sp.extra and Tko.PF_GENERIC_PROC) <> 0)
+    if inGeneric then p.genericDepth += 1
     sp.b = Block( p )
+    if inGeneric then p.genericDepth -= 1
     ExpectEnd( p, kw )
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
     if qualified then p.ast->nodes[cast( long, pn )].flags or= Tko.NF_QUALIFIED
@@ -865,6 +868,12 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
                                   trim( str( p.lambdaSeq ) ) )
     p.lambdaSeq += 1
 
+    '' A LAMBDA INSIDE A GENERIC BODY IS A TEMPLATE TOO. Hoisted at module level its
+    '' body names type parameters that stand for nothing there, so it lowered to
+    '' nothing and counted as a decline in every file that included fb/sort.bi. Marked
+    '' the way the enclosing body is marked, lowering skips it and each instantiation
+    '' hoists a copy of its own -- see InstantiatePendingProcs_.
+    if p.genericDepth > 0 then sp.extra or= Tko.PF_GENERIC_PROC
     dim as Tko.NodeId ln = MakeStmt( p, Tko.N_PROC, t.loc, sp )
     if byrefRet then p.ast->nodes[cast( long, ln )].flags or= Tko.NF_BYREF
     p.lambdas.Push( cast( ulong, ln ) )

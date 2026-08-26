@@ -26,6 +26,25 @@ private function PointeeNear_ _
     return types.Layout( a ).size > 0
 end function
 
+'' The SIGNED/UNSIGNED COUNTERPART of a builtin -- the five pairs, by ID rather than by
+'' width, because 'integer' and 'longint' are the same eight bytes on win64 and are
+'' still not each other's counterpart.
+private function SignedPair_( byval b as Tko.BuiltinType ) as Tko.BuiltinType
+    select case b
+    case Tko.TY_BYTE     : return Tko.TY_UBYTE
+    case Tko.TY_UBYTE    : return Tko.TY_BYTE
+    case Tko.TY_SHORT    : return Tko.TY_USHORT
+    case Tko.TY_USHORT   : return Tko.TY_SHORT
+    case Tko.TY_LONG     : return Tko.TY_ULONG
+    case Tko.TY_ULONG    : return Tko.TY_LONG
+    case Tko.TY_INTEGER  : return Tko.TY_UINTEGER
+    case Tko.TY_UINTEGER : return Tko.TY_INTEGER
+    case Tko.TY_LONGINT  : return Tko.TY_ULONGINT
+    case Tko.TY_ULONGINT : return Tko.TY_LONGINT
+    end select
+    return Tko.TY_NONE
+end function
+
 private function PointerCost_ _
     ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
       byval srcP as boolean, byval dstP as boolean, _
@@ -35,10 +54,19 @@ private function PointerCost_ _
         '' Identical pointer types were already answered CONV_EXACT by the caller, so
         '' what is left is a mismatch.
         dim as Tko.TypeId di = types.Inner( to_ )
+        dim as Tko.TypeId si = types.Inner( from_ )
+        '' 'const T ptr' TAKES A 'T ptr'. The POINTEE's constness is a step of its own,
+        '' and the caller's exact test cannot have answered it: the two pointer types
+        '' are distinct ids and unqualifying THEM strips nothing, because the const is
+        '' on what they point at.
+        if types.Unqualify( si ) = types.Unqualify( di ) then
+            dim as boolean dc = types.IsConst( di )
+            dim as boolean sc = types.IsConst( si )
+            if dc andalso (sc = false) then return CONV_CONST_ADD
+        end if
         if types.Kind( di ) = Tko.TK_BUILTIN then
             if types.BuiltinOf( di ) = Tko.TY_ANY then return CONV_PTR_ANY
         end if
-        dim as Tko.TypeId si = types.Inner( from_ )
         if types.Kind( si ) = Tko.TK_BUILTIN then
             if types.BuiltinOf( si ) = Tko.TY_ANY then return CONV_PTR_NEAR
         end if
@@ -47,7 +75,38 @@ private function PointerCost_ _
         '' argument takes T1 ptr. The same nearest-base order as the value form.
         dim as long ud = types.BaseDistance( types.Unqualify( si ), types.Unqualify( di ) )
         if ud > 0 then return CONV_UDT_BASE + (ud - 1) * CONV_UDT_LINK
-        if PointeeNear_( si, di, types ) then return CONV_PTR_NEAR
+        if PointeeNear_( si, di, types ) then
+            '' WITHIN the near tier, in order: the argument's own signed/unsigned
+            '' COUNTERPART first, then merely the same signedness, then the rest.
+            '' Measured on win64, where 'integer' and 'longint' are the same eight
+            '' bytes and every candidate here is therefore equally near:
+            ''
+            ''   { longint ptr, integer ptr }  + ulongint ptr  ->  longint ptr
+            ''   { longint ptr, integer ptr }  + uinteger ptr  ->  integer ptr
+            ''   { longint ptr, ulongint ptr } + integer ptr   ->  longint ptr
+            ''
+            '' The first two are the counterpart rule and nothing else explains them;
+            '' the third is the signedness rule with no counterpart on offer. Without
+            '' the order the candidates TIED -- the call bound to nothing, the
+            '' expression stayed untyped, and both integerPointers groups of
+            '' overload/pointers.bas declined with no diagnostic.
+            '' INTEGER POINTEES ONLY. ZSTRING is one byte wide and counts as NEAR a
+            '' byte pointer, but it does not take part in this order: measured, offered
+            '' { byte ptr, zstring ptr } a 'ubyte ptr' argument takes ZSTRING PTR even
+            '' though byte is ubyte's own counterpart, and offered { byte ptr, ubyte
+            '' ptr } the same argument is REJECTED rather than resolved. Ranking the
+            '' string flavours here moved three check-ptr rows the wrong way.
+            dim as Tko.BuiltinType sb = types.BuiltinOf( types.Unqualify( si ) )
+            dim as Tko.BuiltinType db = types.BuiltinOf( types.Unqualify( di ) )
+            if IsInt_( sb ) andalso IsInt_( db ) then
+                if SignedPair_( sb ) = db then return CONV_PTR_NEAR
+                if IsUnsignedInt_( sb ) = IsUnsignedInt_( db ) then
+                    return CONV_PTR_NEAR + 5
+                end if
+                return CONV_PTR_NEAR + 10
+            end if
+            return CONV_PTR_NEAR
+        end if
         '' The warning-3 tier. Accepted on its own; gone the moment there is a choice.
         if overloaded then return CONV_NONE
         return CONV_PTR_OTHER

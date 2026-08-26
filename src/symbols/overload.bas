@@ -450,6 +450,29 @@ private function ResolveCall_ _
                     '' an int64* passed where an int32* belongs.
                     if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
                         if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+                            '' A CONST ARGUMENT DOES NOT REACH A NON-CONST BYREF
+                            '' PARAMETER. Measured, and the same for a UDT and a plain
+                            '' integer: fbc error 181, "Invalid assignment/conversion".
+                            '' BYVAL is exempt -- that is a copy, and fbc takes a const
+                            '' argument for one without a word -- and so is a non-lvalue,
+                            '' which has no address to protect and gets a temporary.
+                            ''
+                            '' It decides an OVERLOAD, not just a diagnostic: with both
+                            '' 'const T1' and 'T1' offered the two cost identically
+                            '' without this, the call binds to neither, and the whole
+                            '' statement declines with nothing said.
+                            dim as boolean argConst = c.types->IsConst( at2 )
+                            dim as boolean prmConst = c.types->IsConst( pt )
+                            if argConst andalso (prmConst = false) then
+                                dim as Tko.NodeId an3 = Tko.NODE_NONE
+                                if ai < argCount then
+                                    an3 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                                end if
+                                if IsLvalueShape_( c, an3 ) then
+                                    viable = false
+                                    exit for
+                                end if
+                            end if
                             if IsNumericBuiltin_( c, pt ) andalso IsNumericBuiltin_( c, at2 ) then
                                 if c.types->Unqualify( at2 ) <> c.types->Unqualify( pt ) then
                                     dim as Tko.NodeId an2 = Tko.NODE_NONE

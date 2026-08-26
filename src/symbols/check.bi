@@ -79,6 +79,11 @@ namespace Tko.Check
     '' the NEAREST base -- offered { object, T1, T2 } a T3 argument takes T2 -- and a
     '' base pointer BEATS 'any ptr', which is why this sits below CONV_PTR_ANY and the
     '' per-link step is small enough that 31 links still do.
+    '' ADDING CONST IS ONE STEP, and only one. A 'byref x as const T' parameter takes a
+    '' non-const T and must LOSE to an exact non-const overload when there is one:
+    '' measured, offered { const T1, T1 } a non-const argument takes T1 and a CONST
+    '' argument takes const T1, while offered only { const T1 } both take it.
+    const CONV_CONST_ADD as long = 1
     const CONV_UDT_BASE  as long = 100
     const CONV_UDT_LINK  as long = 2
     const CONV_PTR_ANY   as long = 200

@@ -544,8 +544,14 @@ sub InstantiatePendingProcs_( byref c as Ctx )
         q.diags = c.diags
         q.pos = t0
         q.silent = true
+        '' SEEDED AND WRITTEN BACK, so a lambda in this body gets a name no other
+        '' instantiation of the same generic can produce. The re-parse is a fresh
+        '' ParserState whose counter would otherwise start at zero every time, and
+        '' every instantiation would hoist a procedure called __tko_lambda_<hash>_0.
+        q.lambdaSeq = p0->lambdaSeq
 
         dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
+        p0->lambdaSeq = q.lambdaSeq
         if (fresh <> Tko.NODE_NONE) andalso (c.ast->Kind( fresh ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr fp = StmtOf( c, fresh )
             '' THE NAME IS THE STRUCTURAL KEY, and the generic flag comes OFF -- this
@@ -556,10 +562,40 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             fp->extra and= not Tko.PF_GENERIC_PROC
             fp->c = Tko.NODE_NONE
 
+            '' A LAMBDA WRITTEN INSIDE A GENERIC BODY is hoisted by the RE-PARSE, into
+            '' the re-parse's own ParserState -- which is a local here, so the
+            '' procedure was built, named, and then dropped on the floor. Its body
+            '' names the generic's type parameters, which is exactly why it cannot be
+            '' hoisted once at module level with the original: the parameters are bound
+            '' only for the length of this instantiation.
+            ''
+            '' fb/sort.bi declares its comparator that way in all four of Sort,
+            '' SortDesc, IsSorted and IsSortedDesc -- 'dim as function( byref as T,
+            '' byref as T ) as boolean less = function( ... ) return x < y end
+            '' function' -- so every sort in the corpus lowered a comparator whose
+            '' body produced nothing.
+            ''
+            '' Collected BEFORE the body that names them, so '@__tko_lambda_...'
+            '' resolves; walked after, with the generic's parameters still bound.
+            for li as long = 0 to q.lambdas.Count - 1
+                dim as Tko.NodeId lam = cast( Tko.NodeId, q.lambdas[li] )
+                '' CONCRETE now, like the body it came out of: the re-parse marked it
+                '' a template because the enclosing generic header is still spelled
+                '' '( of T )', and lowering skips anything carrying that.
+                StmtOf( c, lam )->extra and= not Tko.PF_GENERIC_PROC
+                c.ast->extraTopLevel.Push( cast( ulong, lam ) )
+                c.info->Resize( c.ast->Count( ) )
+                Tko.Collect.One( *c.ast, lam, home, *c.syms, *c.names, *c.types, _
+                                 *c.diags, *c.info )
+            next
+
             c.ast->extraTopLevel.Push( cast( ulong, fresh ) )
             c.info->Resize( c.ast->Count( ) )
             Tko.Collect.One( *c.ast, fresh, home, *c.syms, *c.names, *c.types, _
                              *c.diags, *c.info )
+            for li as long = 0 to q.lambdas.Count - 1
+                WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), home )
+            next
             WalkStmt( c, fresh, home )
             '' Collect declares its own symbol for a fresh unqualified definition, and
             '' that one carries the node. The symbol the CALL SITE was given is the one
@@ -908,8 +944,10 @@ private sub InstantiateMembers_ _
         q.diags = c.diags
         q.pos = cast( long, c.ast->tokenRanges[i + 1] )
         q.silent = true
+        q.lambdaSeq = p0->lambdaSeq
 
         dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
+        p0->lambdaSeq = q.lambdaSeq
         if fresh = Tko.NODE_NONE then continue for
         if c.ast->Kind( fresh ) <> Tko.N_PROC then continue for
 
@@ -959,10 +997,24 @@ private sub InstantiateMembers_ _
         '' The unit's root block was closed when it was parsed, so this node is not
         '' reachable from it. Later passes walk extraTopLevel to find it; without that
         '' it would be collected, resolved, typed -- and never emitted.
+        '' The same lambda hoist the procedure half does, and for the same reason: the
+        '' re-parse owns the procedures it hoists and this ParserState is a local.
+        for li as long = 0 to q.lambdas.Count - 1
+            dim as Tko.NodeId lam = cast( Tko.NodeId, q.lambdas[li] )
+            StmtOf( c, lam )->extra and= not Tko.PF_GENERIC_PROC
+            c.ast->extraTopLevel.Push( cast( ulong, lam ) )
+            c.info->Resize( c.ast->Count( ) )
+            Tko.Collect.One( *c.ast, lam, scope_, *c.syms, *c.names, *c.types, _
+                             *c.diags, *c.info )
+        next
+
         c.ast->extraTopLevel.Push( cast( ulong, fresh ) )
         c.info->Resize( c.ast->Count( ) )
         Tko.Collect.One( *c.ast, fresh, scope_, *c.syms, *c.names, *c.types, _
                          *c.diags, *c.info )
+        for li as long = 0 to q.lambdas.Count - 1
+            WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), scope_ )
+        next
         WalkStmt( c, fresh, scope_ )
     next
 

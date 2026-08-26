@@ -700,6 +700,7 @@ restore
 sub WSProbe( )
     dim as string s1, s2
     dim as zstring * 8 z
+    dim as string * 8 fx, fx2
     dim as wstring * 8 w, w2
     dim as byte b : dim as ubyte ub
     dim as short sh : dim as ushort ush
@@ -712,6 +713,11 @@ sub WSProbe( )
     lset s1 = s2
     rset s1 = s2
     lset z = s2
+    '' A 'string * N' DESTINATION IS NOT A DESCRIPTOR. It takes the bytes and the
+    '' TAGGED length instead, through entry points of its own, and a source of that
+    '' shape borrows a temporary descriptor from fb_StrAllocTempDescF.
+    lset fx = s2
+    rset fx = fx2
     lset w = w2
     rset w = w2
 end sub
