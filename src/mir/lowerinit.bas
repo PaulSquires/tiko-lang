@@ -100,6 +100,35 @@ function LowerByrefResult_ _
 
     if c.resultSlot < 0 then return false
     dim as MirValue bav = LowerAddr( c, valueE )
+    '' A STRING LITERAL IS AN ADDRESS TOO. 'function = "also good"' out of a
+    '' 'byref as zstring' is measured as 'fb$result$1 = (char*)"also good"' -- the
+    '' literal's own address, no temporary anywhere -- and the wide half is the same
+    '' thing over an L"...". A literal is not an lvalue, so LowerAddr had nothing for
+    '' it and the whole assignment declined.
+    if bav.kind = cast( ubyte, MV_NONE ) then
+        dim as Tko.NodeId lv = Unparen_( c, valueE )
+        '' 'wstr( "..." )' IS THE SAME LITERAL at a different width -- the conversion
+        '' changes how the bytes are stored, not which string it is.
+        if c.ast->Kind( lv ) = Tko.N_CALL then
+            dim as Tko.ListPayload ptr wp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, lv )].data )]
+            if (wp->count = 1) andalso (wp->target <> Tko.NODE_NONE) then
+                if c.ast->Kind( wp->target ) = Tko.N_IDENT then
+                    dim as Tko.IdentPayload ptr wip = _
+                        @c.ast->idents[cast( long, _
+                            c.ast->nodes[cast( long, wp->target )].data )]
+                    if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) = "wstr" then
+                        dim as Tko.NodeId inner_ = _
+                            Unparen_( c, cast( Tko.NodeId, c.ast->children[wp->first] ) )
+                        if c.ast->Kind( inner_ ) = Tko.N_STRING_LIT then lv = inner_
+                    end if
+                end if
+            end if
+        end if
+        if c.ast->Kind( lv ) = Tko.N_STRING_LIT then
+            bav = LowerStringLitAddr( c, lv )
+        end if
+    end if
     if bav.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue bra
     bra.kind = cast( ubyte, MV_LOCAL )

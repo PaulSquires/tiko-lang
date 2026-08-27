@@ -29,6 +29,28 @@ function EmitStrTerm _
 
     '' A STRING CONSTANT IS ITS TEXT, and it has to be recognised BEFORE the type test
     '' below claims it and asks for an address a constant has not got.
+    '' '__FUNCTION__' IS A STRING LITERAL, folded to the enclosing procedure's name --
+    '' measured, fbc folds a concatenation containing one to a single literal. It is
+    '' recognised here for the same reason a string CONSTANT is: the type test below
+    '' would claim it and then ask a predeclared name for an address it has not got.
+    if c.ast->Kind( term ) = Tko.N_IDENT then
+        dim as Tko.Symbol ptr fns = c.syms->SymbolAt( c.info->RefOf( term ) )
+        if fns <> 0 then
+            if (fns->flags and Tko.SYMF_FUNCNAME) <> 0 then
+                dim as string fnText = Tko.Mangle.ProcNameOrMain( _
+                    *c.syms, c.curProcSym, *c.names )
+                if isU then
+                    PushUStrLiteralArg( c, args, _
+                        c.m->AddWideStringLiteral( fnText, *c.names ), len( fnText ) )
+                else
+                    PushStrLiteralArg( args, _
+                        c.m->AddStringLiteral( fnText, *c.names ), len( fnText ) )
+                end if
+                return true
+            end if
+        end if
+    end if
+
     if c.ast->Kind( term ) = Tko.N_IDENT then
         dim as string ct
         if ConstStringTextOf_( c, term, ct ) then

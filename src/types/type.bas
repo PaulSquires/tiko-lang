@@ -336,6 +336,15 @@ function TypeContext.Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
             dim as TypeInfo ptr c2 = @this.types[i]
             if c2->kind <> src->kind then continue for
             if c2->name <> nm then continue for
+            '' ...AND THE SCOPE IT WAS DECLARED IN, which is part of a named type's
+            '' IDENTITY -- NamedType already says so, and this re-find did not.
+            '' Two SIBLING NAMESPACES each declaring a 'T1' is all it takes: adding or
+            '' stripping a const scanned the table from the front and answered with
+            '' whichever T1 was declared FIRST, so 'const B.T1 ptr' became 'const A.T1
+            '' ptr' and no argument of type 'B.T1 ptr' matched it. Six calls in
+            '' overload/arg-upcasting.bas resolved to nothing, and moving namespace A
+            '' below B made them work -- a pure declaration-order dependence.
+            if c2->declScope <> src->declScope then continue for
             if c2->flags = want then return cast( TypeId, i )
         next
         dim as TypeInfo n2 = *src
@@ -404,6 +413,15 @@ function TypeContext.Unqualify( byval t as TypeId ) as TypeId
             dim as TypeInfo ptr c2 = @this.types[i]
             if c2->kind <> src->kind then continue for
             if c2->name <> nm then continue for
+            '' ...AND THE SCOPE IT WAS DECLARED IN, which is part of a named type's
+            '' IDENTITY -- NamedType already says so, and this re-find did not.
+            '' Two SIBLING NAMESPACES each declaring a 'T1' is all it takes: adding or
+            '' stripping a const scanned the table from the front and answered with
+            '' whichever T1 was declared FIRST, so 'const B.T1 ptr' became 'const A.T1
+            '' ptr' and no argument of type 'B.T1 ptr' matched it. Six calls in
+            '' overload/arg-upcasting.bas resolved to nothing, and moving namespace A
+            '' below B made them work -- a pure declaration-order dependence.
+            if c2->declScope <> src->declScope then continue for
             if c2->flags = want then return cast( TypeId, i )
         next
         dim as TypeInfo n2 = *src

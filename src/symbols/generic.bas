@@ -234,7 +234,38 @@ private function InferArgType_ _
         if c.ast->Kind( ctgt ) <> Tko.N_IDENT then return Tko.TYPE_NONE
         dim as Tko.InternId cn = IdentNameOf( c, ctgt )
         if cn = 0 then return Tko.TYPE_NONE
-        if (Tko.Text.LowerAscii( c.names->Spelling( cn ) ) <> "cast") orelse (cp->count < 1) then
+        '' A CONVERSION INTRINSIC IS ITS OWN TYPE. 'csng( x )' parses as a CALL over an
+        '' N_IDENT that has no symbol at all -- it is a builtin -- so the ordinary-call
+        '' lookup below answered nothing and the type argument was never inferred:
+        '' 'function = Some( csng( dd ) )' declined while 'Some( cast( single, dd ) )'
+        '' and 'dim s as single = csng( dd ) : Some( s )' beside it both worked. fbc
+        '' infers T = single and instantiates. Four lines of fb/mathtext.bi are written
+        '' this way.
+        ''
+        '' 'csign' and 'cunsg' are NOT here: their result depends on the OPERAND's type,
+        '' which this pass runs too early to know.
+        dim as string cnm = Tko.Text.LowerAscii( c.names->Spelling( cn ) )
+        if cp->count >= 1 then
+            dim as Tko.BuiltinType cb = Tko.TY_NONE
+            select case cnm
+            case "cbyte"    : cb = Tko.TY_BYTE
+            case "cubyte"   : cb = Tko.TY_UBYTE
+            case "cshort"   : cb = Tko.TY_SHORT
+            case "cushort"  : cb = Tko.TY_USHORT
+            case "clng"     : cb = Tko.TY_LONG
+            case "culng"    : cb = Tko.TY_ULONG
+            case "cint"     : cb = Tko.TY_INTEGER
+            case "cuint"    : cb = Tko.TY_UINTEGER
+            case "clngint"  : cb = Tko.TY_LONGINT
+            case "culngint" : cb = Tko.TY_ULONGINT
+            case "csng"     : cb = Tko.TY_SINGLE
+            case "cdbl"     : cb = Tko.TY_DOUBLE
+            case "cbool"    : cb = Tko.TY_BOOLEAN
+            end select
+            if cb <> Tko.TY_NONE then return c.types->Builtin( cb )
+        end if
+
+        if (cnm <> "cast") orelse (cp->count < 1) then
             '' AN ORDINARY CALL IS ITS CALLEE'S RESULT TYPE, which the symbol table
             '' already knows -- 'function = Some( CurrencyFromRaw( r ) )' is how
             '' fb/currency.bi and fb/decimal.bi return every Option they build, and
