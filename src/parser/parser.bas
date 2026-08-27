@@ -885,6 +885,25 @@ private function DeferStatementHead_ _
     return DeferIsKeyword_( p )
 end function
 
+'' 'spawn f( a, b )' -- FBC-Modern, and CONTEXTUAL for the same reason DEFER is:
+'' 'dim shared as long spawn : spawn = 4 : print spawn' compiles, measured.
+''
+'' The keyword is claimed only when a NAME follows it, which is the shape every use
+'' has -- 'spawn f( ... )', and 'spawn f' with no arguments. That leaves the variable
+'' spellings alone: 'spawn = 4' and its compound forms are an assignment, and
+'' 'spawn( i ) = 5' over an ARRAY of that name begins with '(' rather than a name.
+''
+'' Measured: fbc claims the keyword even when what follows is not a call at all --
+'' 'spawn z' is error 357, not a call to something named spawn.
+private function SpawnStatementHead_ _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+
+    if k <> Tko.TK_IDENT then return false
+    if IsContextual( p, "spawn" ) = false then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_IDENT)
+end function
+
 function Statement( byref p as Tko.ParserState ) as Tko.NodeId
     SkipEols( p )
     if AtEnd( p ) then return Tko.NODE_NONE
@@ -1020,6 +1039,16 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             n = ParseAmbiguous( p )
         elseif Tko.IsStatementIntrinsic( k ) then
             n = ParseIntrinsic( p )
+        elseif SpawnStatementHead_( p, k ) then
+            '' The whole statement is the CALL: 'spawn' contributes nothing but the
+            '' keyword, so the node holds one child and every later pass reads the
+            '' call out of it the way THREADCALL's does.
+            dim as Tko.Token st = Cur( p )
+            Advance( p )
+            dim as Tko.StmtPayload ssp
+            ssp.a = Expression( p, Tko.PREC_POSTFIX )
+            n = MakeStmt( p, Tko.N_SPAWN, st.loc, ssp )
+
         elseif DeferStatementHead_( p, k ) then
             '' 'defer' is CONTEXTUAL in FBC-Modern -- not reserved, so it arrives as
             '' an identifier and is recognised by spelling, exactly as 'each' and
@@ -1180,6 +1209,7 @@ function Unit( byref p as Tko.ParserState ) as Tko.NodeId
     for i as long = 0 to p.lambdas.Count - 1
         items.Push( p.lambdas[i] )
     next
+
     ParsePrelude( p, items )
     return MakeList( p, Tko.N_MODULE, t.loc, Tko.NODE_NONE, items )
 end function

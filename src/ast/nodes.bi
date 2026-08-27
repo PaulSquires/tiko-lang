@@ -82,6 +82,7 @@ namespace Tko
         NODE( N_WITH,         NCAT_STMT )
         NODE( N_SCOPE,        NCAT_STMT )
         NODE( N_DEFER,        NCAT_STMT )   '' 'defer <stmt>' -- FBC-Modern, CONTEXTUAL
+        NODE( N_SPAWN,        NCAT_STMT )   '' 'spawn f( a )' -- FBC-Modern, CONTEXTUAL
         NODE( N_RETURN,       NCAT_STMT )
         NODE( N_EXIT,         NCAT_STMT )
         NODE( N_END_STMT,     NCAT_STMT )   '' END [exitcode] -- terminates the program
