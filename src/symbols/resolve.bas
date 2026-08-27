@@ -727,8 +727,16 @@ private sub WalkExpr _
                 '' declined -- 32 of them in structs/global-static.bas and as many
                 '' again in namespace/global3.bas, whose whole subject this is.
                 if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
-                    dim as Tko.SymbolId dsid = c.syms->LookupLocal( _
+                    dim as Tko.SymbolId dsid = c.syms->LookupInNamespace( _
                         FileScopeOf_( c, scope_ ), IdentNameOf( c, mb->rhs ) )
+                    '' ...AND THE USINGS IN EFFECT HERE. One written INSIDE a procedure
+                    '' is registered on the procedure's own scope, not on the file's, so
+                    '' the probe above cannot see it -- and fbc accepts
+                    '' 'sub s( ) : using n1 : r = .v1 : end sub'.
+                    if dsid = Tko.SYMBOL_NONE then
+                        dsid = c.syms->LookupThroughUsings( _
+                            scope_, IdentNameOf( c, mb->rhs ) )
+                    end if
                     if dsid <> Tko.SYMBOL_NONE then
                         c.info->SetRef( mb->rhs, dsid )
                         c.info->SetRef( id, dsid )
@@ -752,8 +760,8 @@ private sub WalkExpr _
         '' here, and the enclosing member access then takes the namespace path below.
         if c.ast->Kind( mb->lhs ) = Tko.N_GLOBALSCOPE then
             if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
-                dim as Tko.SymbolId gsid = _
-                    c.syms->LookupLocal( FileScopeOf_( c, scope_ ), IdentNameOf( c, mb->rhs ) )
+                dim as Tko.SymbolId gsid = c.syms->LookupInNamespace( _
+                    FileScopeOf_( c, scope_ ), IdentNameOf( c, mb->rhs ) )
                 if gsid <> Tko.SYMBOL_NONE then
                     c.info->SetRef( mb->rhs, gsid )
                     c.info->SetRef( id, gsid )
@@ -770,8 +778,11 @@ private sub WalkExpr _
                     '' IdentNameOf, not StmtOf: an N_IDENT is not a statement payload,
                     '' and reading it as one is the pool mistake this codebase keeps
                     '' making.
+                    '' LookupInNamespace, not LookupLocal: a namespace may get the
+                    '' name from its OWN using, and a single hash probe never sees
+                    '' one.
                     dim as Tko.SymbolId msid = _
-                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
+                        c.syms->LookupInNamespace( bs->inner, IdentNameOf( c, mb->rhs ) )
                     if msid <> Tko.SYMBOL_NONE then
                         c.info->SetRef( mb->rhs, msid )
                         c.info->SetRef( id, msid )
@@ -974,12 +985,12 @@ sub WalkStmt _
         '' and before its parent's -- a local declaration beats an import, an import
         '' beats an outer name.
         ''
-        '' A DOTTED path 'using a.b' only reaches here as its LAST component, because
-        '' the parser overwrites the name per component. Single-name imports, which is
-        '' every one in the corpus and the headers, are exact.
+        '' A DOTTED path -- 'using a.b' -- is walked component by component, the same
+        '' way a qualified type name is: only the FIRST is visible from here, and each
+        '' later one is looked up INSIDE what the previous opened.
         dim as Tko.StmtPayload ptr usp = StmtOf( c, id )
         if usp->name <> 0 then
-            dim as Tko.SymbolId nsid = c.syms->Lookup( here, usp->name )
+            dim as Tko.SymbolId nsid = LookupDottedNamespace_( c, here, usp->name )
             dim as Tko.Symbol ptr nss = c.syms->SymbolAt( nsid )
             if nss <> 0 then
                 if nss->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then

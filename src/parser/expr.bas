@@ -831,6 +831,19 @@ private function Prefix( byref p as Tko.ParserState ) as Tko.NodeId
         Advance( p )
         dim as Tko.NodeId operand = Expression( p, Tko.PREC_SIGN )
         return MakeUnary( p, k, t.loc, operand, Tko.N_DEREF )
+
+    case Tko.KW_BYVAL
+        '' 'byval x' IS AN EXPRESSION PREFIX, not only an argument marker. It says the
+        '' VALUE is wanted where an address would otherwise be taken, and the one place
+        '' that matters outside a call is a BYREF RESULT: 'function = byval pi' stores
+        '' the pointer's value rather than its address.
+        ''
+        '' It was recognised only in the argument parser, so everywhere else the word
+        '' lexed as a bare identifier and THE OPERAND WAS SILENTLY DROPPED -- the tree
+        '' held 'N_IDENT byval' with 'pi' nowhere in it.
+        Advance( p )
+        dim as Tko.NodeId bvOperand = Expression( p, Tko.PREC_SIGN )
+        return MakeUnary( p, k, t.loc, bvOperand )
     end select
 
     return Primary( p )

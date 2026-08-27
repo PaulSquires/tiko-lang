@@ -377,11 +377,24 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
     case Tko.KW_USING
         Advance( p )
         dim as Tko.StmtPayload sp
+        '' THE WHOLE PATH, DOTTED, in the one field -- the same shape a qualified TYPE
+        '' REFERENCE and a member DEFINITION both keep.
+        ''
+        '' It used to OVERWRITE the name per component, so 'using a.b' arrived as plain
+        '' 'b' -- which is not visible unqualified, so the lookup found nothing and
+        '' AddUsing was never called at all. Seventeen corpus statements imported
+        '' nothing and every name they were meant to bring in declined.
+        dim as string usePath
         DeclName( p, sp.name )
+        if sp.name <> 0 then usePath = p.names->Spelling( sp.name )
         while Peek( p ) = Tko.TK_DOT
             Advance( p )
-            DeclName( p, sp.name )
+            dim as Tko.InternId comp = 0
+            DeclName( p, comp )
+            if comp = 0 then exit while
+            usePath += "." & p.names->Spelling( comp )
         wend
+        if len( usePath ) > 0 then sp.name = p.names->GetString( usePath )
         return MakeStmt( p, Tko.N_USING, t.loc, sp )
 
     case Tko.KW_OPTION

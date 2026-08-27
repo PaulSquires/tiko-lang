@@ -99,6 +99,26 @@ function LowerByrefResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
 
     if c.resultSlot < 0 then return false
+
+    '' 'function = BYVAL pi' SAYS THE VALUE, not the address. That is what the prefix is
+    '' for in a byref result: measured, 'fb$result$1 = PI$1' -- the pointer's own value
+    '' stored, no '&' anywhere.
+    dim as Tko.NodeId bvE = Unparen_( c, valueE )
+    if c.ast->Kind( bvE ) = Tko.N_UNARY then
+        dim as Tko.UnaryPayload ptr bvp = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, bvE )].data )]
+        if cast( Tko.TokenKind, bvp->op ) = Tko.KW_BYVAL then
+            dim as MirValue bvv = LowerExpr( c, bvp->operand )
+            if bvv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue bvr
+            bvr.kind = cast( ubyte, MV_LOCAL )
+            bvr.ty = cast( ubyte, MT_PTR )
+            bvr.id = c.resultSlot
+            StoreThrough( c, bvr, Coerce( c, bvv, MT_PTR, false ) )
+            return true
+        end if
+    end if
+
     dim as MirValue bav = LowerAddr( c, valueE )
     '' A STRING LITERAL IS AN ADDRESS TOO. 'function = "also good"' out of a
     '' 'byref as zstring' is measured as 'fb$result$1 = (char*)"also good"' -- the

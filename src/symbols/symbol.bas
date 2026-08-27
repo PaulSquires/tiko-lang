@@ -162,6 +162,66 @@ function SymbolTable.LookupLocal _
     return cast( SymbolId, this.slots[slot] )
 end function
 
+'' A name inside a NAMESPACE, following that namespace's OWN usings.
+''
+'' LookupLocal is a single hash probe and never sees a using; the walking Lookup follows
+'' the ENCLOSING-SCOPE chain and never descends into a named namespace. So
+''
+''     namespace n3 : using n1.n2 : end namespace
+''     r = n3.v2
+''
+'' found nothing -- and the same gap took a leading '.name' under a file-scope using and
+'' every later component of a qualified type path.
+''
+'' DEPTH-LIMITED rather than visited-set: a using chain can be CYCLIC
+'' (namespace/using_rec.bas is), and a bound is enough because the answer at depth n is
+'' the answer at depth n+1 for anything a program can write.
+function SymbolTable.LookupInNamespace _
+    ( byval nsScope as ScopeId, byval nm as InternId, _
+      byval depth as long ) as SymbolId
+
+    if nsScope = SCOPE_NONE then return SYMBOL_NONE
+    dim as SymbolId got = this.LookupLocal( nsScope, nm )
+    if got <> SYMBOL_NONE then return got
+    if depth >= 8 then return SYMBOL_NONE
+    for i as long = 0 to this.usingAt.Count - 1
+        if this.usingAt[i] <> cast( ulong, nsScope ) then continue for
+        got = this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm, depth + 1 )
+        if got <> SYMBOL_NONE then return got
+    next
+    return SYMBOL_NONE
+end function
+
+'' A name reachable only through a USING in effect at 'scope_'.
+''
+'' The scope's own usings and every enclosing scope's, and NOT the scopes' own
+'' declarations -- which is exactly what a leading '.name' needs, because it must not
+'' see an ordinary local. Measured: fbc accepts
+''
+''     sub s( ) : using n1 : r = .v1 : end sub
+''
+'' and resolves it to n1.v1, so a using written INSIDE a procedure counts. The file-scope
+'' probe alone missed every one of those.
+function SymbolTable.LookupThroughUsings _
+    ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
+
+    dim as ScopeId s = scope_
+    dim as long guard = 0
+    while (s <> SCOPE_NONE) andalso (guard < 1024)
+        guard += 1
+        for i as long = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( ulong, s ) then continue for
+            dim as SymbolId got = _
+                this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm )
+            if got <> SYMBOL_NONE then return got
+        next
+        dim as SymScope ptr sc = this.ScopeAt( s )
+        if sc = 0 then exit while
+        s = sc->parent
+    wend
+    return SYMBOL_NONE
+end function
+
 function SymbolTable.LookupLocalTyped _
     ( byval scope_ as ScopeId, byval nm as InternId, _
       byval wantType as boolean ) as SymbolId

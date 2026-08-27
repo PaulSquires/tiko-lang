@@ -281,7 +281,8 @@ private sub IntrOpen _
         end if
         if k = Tko.KW_LEN then
             Advance( p )
-            Accept( p, Tko.TK_EQ )
+            '' 'len => 1' -- '=>' is an exact synonym for '=' in this clause too.
+            if Accept( p, Tko.TK_EQ ) = false then Accept( p, Tko.TK_FATARROW )
             sp.c = Expression( p )
             continue do
         end if

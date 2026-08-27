@@ -213,6 +213,21 @@ namespace Tko
         declare function LookupLocal _
             ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
 
+        '' A name inside a NAMESPACE, following that namespace's OWN usings.
+        '' LookupLocal is a single hash probe and never sees them; the walking
+        '' Lookup only follows the enclosing-scope chain, never into a named
+        '' namespace. So 'ns.name' where ns gets 'name' from its own 'using' found
+        '' nothing at all.
+        declare function LookupInNamespace _
+            ( byval nsScope as ScopeId, byval nm as InternId, _
+              byval depth as long = 0 ) as SymbolId
+
+        '' A name reachable only through a USING in effect at 'scope_' -- the scope's
+        '' own and every enclosing one's, and NOT the scopes' own declarations. That
+        '' is what a leading '.name' needs: it must not see an ordinary local.
+        declare function LookupThroughUsings _
+            ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
+
         '' Register 'using ns' in a scope. Repeats are ignored, so a header included
         '' twice does not grow the list.
         declare sub AddUsing( byval scope_ as ScopeId, byval nsScope as ScopeId )

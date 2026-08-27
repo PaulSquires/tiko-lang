@@ -481,7 +481,14 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.NodeId fromExpr = Tko.NODE_NONE
     dim as Tko.NodeId toExpr = Tko.NODE_NONE
     dim as Tko.NodeId stepExpr = Tko.NODE_NONE
-    if Accept( p, Tko.TK_EQ ) then fromExpr = Expression( p )
+    '' 'for j => 1 to 2' -- the same synonym, in the initialiser.
+    '' TWO SIDE-EFFECTING CALLS IN ONE 'orelse' DO NOT BEHAVE. Written as
+    '' 'if Accept( TK_EQ ) orelse Accept( TK_FATARROW ) then', the arrow was consumed and
+    '' the TOKEN AFTER IT went missing -- this very line lost the 'to 3' of
+    '' 'for j => 1 to 3'. Each Accept advances, so they are sequenced explicitly.
+    dim as boolean sawInit = Accept( p, Tko.TK_EQ )
+    if sawInit = false then sawInit = Accept( p, Tko.TK_FATARROW )
+    if sawInit then fromExpr = Expression( p )
     if Accept( p, Tko.KW_TO ) then toExpr = Expression( p )
     if Accept( p, Tko.KW_STEP ) then stepExpr = Expression( p )
 
@@ -684,11 +691,18 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     sp.a = Expression( p, Tko.PREC_POSTFIX )
 
     dim as Tko.TokenKind k = Peek( p )
-    dim as boolean isAssign = (k = Tko.TK_EQ) orelse (k = Tko.TK_PLUSEQ) orelse _
+    '' '=>' IS AN EXACT SYNONYM FOR '=' wherever an assignment is written -- measured,
+    '' fbc takes 'i => 5' as 'i = 5', and the same in a FOR initialiser and a default
+    '' parameter value. The COMPOUND arrows were already handled, here and two blocks
+    '' below; the plain one lexes as its own token and matched nothing, so 'i => 5' was
+    '' read as the expression 'i' followed by a paren-less call.
+    dim as boolean isAssign = (k = Tko.TK_EQ) orelse (k = Tko.TK_FATARROW) orelse _
+                              (k = Tko.TK_PLUSEQ) orelse _
                               (k = Tko.TK_MINUSEQ) orelse (k = Tko.TK_STAREQ) orelse _
                               (k = Tko.TK_SLASHEQ) orelse (k = Tko.TK_BSLASHEQ) orelse _
                               (k = Tko.TK_CARETEQ) orelse (k = Tko.TK_AMPEQ)
     if isAssign then
+        if k = Tko.TK_FATARROW then k = Tko.TK_EQ
         sp.op = cast( ushort, k )
         Advance( p )
         '' 'i +=> 1' IS THE SAME STATEMENT AS 'i += 1'. FreeBASIC spells every
@@ -699,6 +713,32 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
         Accept( p, Tko.TK_GT )
         sp.b = Expression( p )
         return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
+    end if
+
+    '' A COMPOUND ASSIGNMENT SPELLED WITH A SPACE -- 'i + => 5' and 'i + = 5'. The fused
+    '' '+=' is one token and was always taken; separated, the operator arrives on its own
+    '' and the statement read as the expression 'i' followed by a paren-less call.
+    '' Measured: fbc takes both as 'i += 5'.
+    dim as ushort spacedOp = 0
+    select case k
+    case Tko.TK_PLUS      : spacedOp = cast( ushort, Tko.TK_PLUSEQ )
+    case Tko.TK_MINUS     : spacedOp = cast( ushort, Tko.TK_MINUSEQ )
+    case Tko.TK_STAR      : spacedOp = cast( ushort, Tko.TK_STAREQ )
+    case Tko.TK_SLASH     : spacedOp = cast( ushort, Tko.TK_SLASHEQ )
+    case Tko.TK_BACKSLASH : spacedOp = cast( ushort, Tko.TK_BSLASHEQ )
+    case Tko.TK_CARET     : spacedOp = cast( ushort, Tko.TK_CARETEQ )
+    case Tko.TK_AMP       : spacedOp = cast( ushort, Tko.TK_AMPEQ )
+    end select
+    if (spacedOp <> 0) andalso HasTok( p, p.pos + 1 ) then
+        dim as Tko.TokenKind k3 = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+        if (k3 = Tko.TK_EQ) orelse (k3 = Tko.TK_FATARROW) then
+            sp.op = spacedOp
+            Advance( p )
+            Advance( p )
+            if k3 = Tko.TK_EQ then Accept( p, Tko.TK_GT )
+            sp.b = Expression( p )
+            return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
+        end if
     end if
 
     '' THE WORD-SPELLED COMPOUND ASSIGNMENTS: 'and=', 'or=', 'xor=', 'imp=', 'eqv=',
