@@ -278,7 +278,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, _
           byref outv as MirValue ) as boolean
     declare function LowerPeek _
-        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, byval wantAddr as boolean = false ) as boolean
 
     declare function LowerMidAssign _
         ( byref c as Ctx, byval target as Tko.NodeId, _
@@ -658,6 +658,8 @@ declare function EmitRtl _
           byref outv as MirValue ) as boolean
     declare function LowerBitfieldRead _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerBitfieldStoreValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref val as MirValue ) as boolean
     declare function LowerBitfieldStore _
         ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     '' 'a andalso b' from its PIECES, so the compound form can reach it too.

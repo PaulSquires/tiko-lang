@@ -133,6 +133,51 @@ private function VarItem _
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
 
+    '' 'redim ..a.b.arr( 0 to 2 )' AND 'redim .arr( 0 to 2 )' -- a target that begins
+    '' with a DOT. '..' names the global scope and a single leading '.' is the enclosing
+    '' one's or an open WITH's; both are ordinary lvalue expressions everywhere else, and
+    '' the name reader here demanded an identifier, so the statement did not parse at all.
+    ''
+    '' The postfix chain must NOT run over the bounds, so the target is read at POSTFIX
+    '' precedence and stopped before the '(' -- the same reason the parenthesised form
+    '' below reads its group explicitly.
+    if isRedim andalso (Peek( p ) = Tko.TK_DOT) then
+        dim as Tko.Token dotTok0 = Cur( p )
+        Advance( p )
+        '' '..' NAMES THE GLOBAL SCOPE; a single '.' is the enclosing scope's or an open
+        '' WITH's, which is the same node with no base at all -- exactly what the
+        '' expression parser builds for each.
+        dim as boolean twoDots = (Peek( p ) = Tko.TK_DOT)
+        if twoDots then Advance( p )
+        dim as Tko.NodeId dbase = Tko.NODE_NONE
+        if twoDots then
+            dbase = NewNodeAt( p, Tko.N_GLOBALSCOPE, dotTok0.loc, 0 )
+        end if
+        '' THE CHAIN IS BUILT BY HAND, not through the postfix parser: that one takes
+        '' the '( 0 to 2 )' that follows as a CALL and swallows the bounds -- the same
+        '' reason the parenthesised form below reads its group explicitly.
+        dim as long dguard = 0
+        do
+            dguard += 1
+            if dguard > 64 then exit do
+            if (Peek( p ) <> Tko.TK_IDENT) andalso _
+               (Tko.IsKeywordKind( Peek( p ) ) = false) then exit do
+            dim as Tko.Token memTok = Cur( p )
+            dim as Tko.InternId dnm = 0
+            DeclName( p, dnm )
+            dbase = MakeMemberRef_( p, dotTok0, dbase, MakeIdent( p, memTok ) )
+            if Peek( p ) <> Tko.TK_DOT then exit do
+            Advance( p )
+        loop
+        if dbase = Tko.NODE_NONE then return ErrorNode( p, Tko.TKO0406 )
+        sp.b = dbase
+        sp.extra = cast( ushort, Tko.KW_REDIM )
+        ParseArrayBoundsInto( p, sp, t )
+        dim as Tko.NodeId dn = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
+        if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_ARRAY
+        return dn
+    end if
+
     if isRedim andalso (Peek( p ) = Tko.TK_LPAREN) then
         '' The parenthesised group is read EXPLICITLY rather than through the postfix
         '' chain, which would take '(a)(0 to 1)' as a CALL of '(a)' and swallow the

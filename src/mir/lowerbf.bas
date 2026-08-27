@@ -8,8 +8,7 @@
 
 namespace Tko.Mir
 
-declare function LowerBitfieldStoreValue_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref val as MirValue ) as boolean
+'' Declared in lowerctx.bi now that SWAP needs it too.
 declare function BitfieldStoreParts_ _
     ( byref c as Ctx, byref addr as MirValue, byval bitOff as long, _
       byval bitWidth as long, byval unitTy as MirType, byval unitUns as boolean, _

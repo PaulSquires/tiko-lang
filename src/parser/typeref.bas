@@ -9,6 +9,20 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.StmtPayload sp
     dim as ushort flags = 0
 
+    '' A LEADING '..' -- 'dim as ..a.b.T x' and 'type<..a.b.T>( n )'. It names the GLOBAL
+    '' scope, exactly as it does in an expression, and it is consumed here so the
+    '' qualified-name loop further down sees the ordinary shape.
+    dim as boolean globalPrefix = false
+    if Peek( p ) = Tko.TK_DOT then
+        if HasTok( p, p.pos + 1 ) then
+            if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_DOT then
+                Advance( p )
+                Advance( p )
+                globalPrefix = true
+            end if
+        end if
+    end if
+
     '' 'const T' and 'T const' are both written; the qualifier is a flag, not a level.
     while Peek( p ) = Tko.KW_CONST
         Advance( p )
@@ -325,6 +339,20 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
             end if
         else
             p.pos = saveW
+        end if
+    end if
+
+    '' A LEADING '..' NAMES THE GLOBAL SCOPE. 'type<..a.b.T>( x )' is how the corpus's
+    '' re-opened-namespace tests spell an unambiguous type, and the qualified-name loop
+    '' below only ran AFTER a base identifier -- so the two dots were a syntax error and
+    '' the whole statement went with them.
+    ''
+    '' Recorded as an EMPTY FIRST COMPONENT of the dotted path, which is the one spelling
+    '' a real identifier can never produce; Resolve reads it as 'start at the file scope'
+    '' rather than at the current one.
+    if globalPrefix then
+        if sp.ownerName = 0 then
+            sp.ownerName = p.names->GetString( "" )
         end if
     end if
 

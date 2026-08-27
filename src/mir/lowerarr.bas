@@ -142,6 +142,14 @@ function LowerAddr _
         end if
     end if
 
+    '' 'peek( T, p )' IS AN LVALUE: it IS '*(T*)p', and fbc emits no load for it at all.
+    '' Without an address here, 'peek( T, p ).i' had nothing to offset from and
+    '' 'with peek( T, p )' had no subject.
+    if c.ast->Kind( id ) = Tko.N_CALL then
+        dim as MirValue pka
+        if LowerPeek( c, id, pka, true ) then return pka
+    end if
+
     '' 'type<P>( 5, 6 )' HAS AN ADDRESS ONLY BECAUSE A TEMPORARY IS BUILT FOR IT, which
     '' is what a byref parameter defaulted from one needs. fbc does the same.
     if c.ast->Kind( id ) = Tko.N_TUPLE then

@@ -1,0 +1,6 @@
+'' A leading '..' in a type name and a redim target, PEEK as an lvalue, and SWAP over bitfields.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dotted-paths.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/dotted-paths.out

@@ -416,8 +416,16 @@ end function
 '' -- a LOAD of the named type through the pointer, and UBYTE when no type is named.
 '' POKE was implemented and PEEK was not, so every read declined:
 '' quirk/peek-poke.bas is 22 statements of them.
+'' 'peek( T, p )' IS AN LVALUE -- '*(T*)p' -- and fbc emits no load at all for it: the
+'' pointer IS the answer, and 'with peek( T, p )' caches it once. So the same walk
+'' answers both questions, and 'wantAddr' picks which.
+''
+'' It was written scalar-only, so a UDT type argument lowered to MT_AGG and bailed
+'' before the pointer was ever computed -- and 'peek( T, p ).i' declined with it, which
+'' is what made it look like a WITH problem: 'with *cptr( T ptr, p )' beside it lowered.
 function LowerPeek _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+      byval wantAddr as boolean ) as boolean
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
@@ -483,12 +491,19 @@ function LowerPeek _
     end if
 
     dim as MirType mt = LowerType( dt, *c.types )
-    if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
+    '' A VALUE still has to fit in one: only the ADDRESS is meaningful for an aggregate.
+    if wantAddr = false then
+        if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
+    end if
 
     dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->children[base_] ) )
     if addr.kind = cast( ubyte, MV_NONE ) then return false
     addr = Coerce( c, addr, MT_PTR, false )
     if addr.kind = cast( ubyte, MV_NONE ) then return false
+    if wantAddr then
+        outv = addr
+        return true
+    end if
     outv = LowerExprLoad( c, addr, mt )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function

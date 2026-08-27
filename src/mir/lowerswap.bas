@@ -55,6 +55,54 @@ private function SwapOperandType_ _
 end function
 
 
+'' 'swap x.a, x.b' WHERE EITHER IS A BITFIELD.
+''
+'' Measured from fbc -- a temporary of the field's own type and three read-modify-writes
+'' through the container word, no address taken anywhere:
+''
+''     TMP = x.a;  x.a = x.b;  x.b = TMP;
+''
+'' Each side is read and written through the ordinary bitfield helpers, so a bitfield
+'' may be swapped with a plain lvalue and the masking is the same masking every other
+'' bitfield write uses. Returns false when NEITHER side is one, which leaves the
+'' address-first paths below untouched.
+private function BitfieldSwap_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+
+    dim as MirValue av, bv
+    dim as boolean aBf = LowerBitfieldRead( c, a, av )
+    dim as boolean bBf = LowerBitfieldRead( c, b, bv )
+    if (aBf orelse bBf) = false then return false
+
+    '' EVERYTHING READ BEFORE ANYTHING IS WRITTEN. The two sides may name bits in the
+    '' SAME unit, and writing the first before reading the second would swap a value
+    '' with itself.
+    if aBf = false then
+        av = LowerExpr( c, a )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+    if bBf = false then
+        bv = LowerExpr( c, b )
+        if bv.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+
+    if aBf then
+        if LowerBitfieldStoreValue_( c, a, bv ) = false then return false
+    else
+        dim as MirValue aa = LowerAddr( c, a )
+        if aa.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, aa, bv )
+    end if
+    if bBf then
+        if LowerBitfieldStoreValue_( c, b, av ) = false then return false
+    else
+        dim as MirValue ba = LowerAddr( c, b )
+        if ba.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, ba, av )
+    end if
+    return true
+end function
+
 function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return false
@@ -127,6 +175,15 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as Tko.TypeId t = SwapOperandType_( c, sp->a )
     if t = Tko.TYPE_NONE then return false
+
+    '' A BITFIELD HAS NO ADDRESS OF ITS OWN -- it is bits inside a unit its neighbours
+    '' share -- so every path below, which is address-first, declined the whole
+    '' statement. Measured: fbc emits a temporary of the FIELD'S type and three
+    '' read-modify-writes through the container word, with no address taken anywhere.
+    ''
+    '' Either side may be one, and a bitfield may be swapped with an ordinary lvalue.
+    dim as MirValue bfTmp
+    if BitfieldSwap_( c, sp->a, sp->b ) then return true
 
     dim as MirValue la = LowerAddr( c, sp->a )
     dim as MirValue lb = LowerAddr( c, sp->b )
