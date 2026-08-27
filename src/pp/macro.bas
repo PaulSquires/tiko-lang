@@ -393,6 +393,11 @@ private function ExpandedArgText_ _
     next
 
     dim as long baseDepth = e.frames.Count
+    '' THE FRAMES BELOW THIS ONE ARE NOT THIS WALK'S TO POP. See PpEngine.frameFloor:
+    '' without it a nested builtin whose ')' ends the enclosing frame took that frame
+    '' and the macro body's with it, and its own result then landed below this walk.
+    dim as long savedFloor = e.frameFloor
+    e.frameFloor = baseDepth
     PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
 
     dim as string outp = ""
@@ -445,6 +450,7 @@ private function ExpandedArgText_ _
         outp += SpellOf( e, t )
         n += 1
     loop
+    e.frameFloor = savedFloor
     while e.frames.Count > baseDepth
         PopFrame( e )
     wend
@@ -604,6 +610,11 @@ private function BuiltinIntArg_ _
     next
 
     dim as long baseDepth = e.frames.Count
+    '' THE FRAMES BELOW THIS ONE ARE NOT THIS WALK'S TO POP. See PpEngine.frameFloor:
+    '' without it a nested builtin whose ')' ends the enclosing frame took that frame
+    '' and the macro body's with it, and its own result then landed below this walk.
+    dim as long savedFloor = e.frameFloor
+    e.frameFloor = baseDepth
     PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
 
     dim as TokenVec expanded
@@ -625,6 +636,7 @@ private function BuiltinIntArg_ _
         Advance( e )
         expanded.Push( t )
     loop
+    e.frameFloor = savedFloor
     while e.frames.Count > baseDepth
         PopFrame( e )
     wend

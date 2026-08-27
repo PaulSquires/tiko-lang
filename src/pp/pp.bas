@@ -41,6 +41,22 @@ type PpEngine
     as PpResult ptr      outp
 
     as FB.Array( of PpFrame ) frames
+    '' THE LOWEST FRAME COUNT PeekTok MAY POP TO. Zero everywhere except inside a
+    '' builtin that is expanding ONE ARGUMENT of its own -- see ExpandedArgText_.
+    ''
+    '' PeekTok pops exhausted frames until it finds a token, and it had no floor: when
+    '' a nested builtin's ')' was the LAST token of the frame that contained it, the
+    '' cascade ran on past that frame and past the enclosing macro body's, deleting
+    '' both. The inner builtin then pushed its result onto a stack shorter than the
+    '' outer walk's own baseDepth, so the outer loop stopped immediately and returned
+    '' "", and the orphaned frame drained into the main output instead --
+    ''
+    ''     #define q __FB_QUOTE__( __FB_ARG_COUNT__( a, b, c ) )
+    ''     print q      fbc: print $"3"      tiko: an EMPTY string, then a stray 3
+    ''
+    '' PeekOnLine's own pop is deliberately NOT floored: a synthesised directive
+    '' continuing onto the invoking line depends on crossing exactly that boundary.
+    as long                   frameFloor
     as FB.Array( of PpCond )  conds
     as MacroVec               macros
     as IdVec                  macroSlot     '' InternId -> macros index + 1
@@ -154,12 +170,14 @@ private function PeekTok( byref e as PpEngine, byref outTok as Token ) as boolea
         '' handed out: only the root's EOF reaches the output.
         dim as long last = f->toks->Count - 1
         if f->pos > last then
+            if e.frames.Count <= e.frameFloor then return false
             PopFrame( e )
             continue while
         end if
         dim as Token t = f->toks->At( f->pos )
         dim as boolean fileEof = (f->file <> FILE_NONE) andalso (Tk( t ) = TK_EOF)
         if fileEof andalso (e.frames.Count > 1) then
+            if e.frames.Count <= e.frameFloor then return false
             PopFrame( e )
             continue while
         end if

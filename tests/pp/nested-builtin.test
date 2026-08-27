@@ -1,0 +1,6 @@
+'' A nested PP builtin whose ')' ends the frame around it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/nested-builtin.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/nested-builtin.out

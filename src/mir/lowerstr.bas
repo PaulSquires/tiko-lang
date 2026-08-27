@@ -4,6 +4,7 @@
 '' is by subject rather than by size: everything here is about the string runtime.
 
 #include once "mir/lowerctx.bi"
+#include once "support/fbstr.bi"
 
 namespace Tko.Mir
 
@@ -306,76 +307,6 @@ function StringLitText_ _
 end function
 
 
-'' THE TEXT OF A STRING CONSTANT, folded here because the constant evaluator cannot
-'' carry one: ConstVal.value is a longint, so 'const F = "f.txt"' has no value it can
-'' return and every use of F declined -- the assignment, the PRINT, and the filename of
-'' every OPEN in the corpus's file tests, which is how they all name their file.
-''
-'' Only literals and the concatenation of literals are folded, which is what a constant
-'' declaration can hold: fbc rejects a non-constant initialiser outright.
-function ConstStringTextOf_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outText as string, _
-      byval depth as long = 0 ) as boolean
-
-    if id = Tko.NODE_NONE then return false
-    if depth > 16 then return false
-
-    select case c.ast->Kind( id )
-    case Tko.N_STRING_LIT
-        outText = StringLitText_( c, id )
-        return true
-
-    case Tko.N_PAREN
-        dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if lp->count <> 1 then return false
-        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), _
-                                   outText, depth + 1 )
-
-    case Tko.N_BINARY
-        dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
-        if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
-        dim as string lt, rt
-        if ConstStringTextOf_( c, bp->lhs, lt, depth + 1 ) = false then return false
-        if ConstStringTextOf_( c, bp->rhs, rt, depth + 1 ) = false then return false
-        outText = lt + rt
-        return true
-
-    case Tko.N_CALL
-        '' 'const S = wstr( "ab" )' -- A WIDE STRING CONSTANT. Its initialiser is a
-        '' CALL, and the text is the call's own argument: the conversion changes the
-        '' width, not the characters, and a wide literal is what the width is for.
-        '' Without this a wide constant had no text at all, so 'w = S' and
-        '' 'asc( S, 1 )' both declined.
-        dim as Tko.ListPayload ptr wp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if wp->count <> 1 then return false
-        if wp->target = Tko.NODE_NONE then return false
-        if c.ast->Kind( wp->target ) <> Tko.N_IDENT then return false
-        dim as Tko.IdentPayload ptr wip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, wp->target )].data )]
-        if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) <> "wstr" then
-            return false
-        end if
-        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
-                                   outText, depth + 1 )
-
-    case Tko.N_IDENT
-        '' The constant's payload is its N_VAR_ITEM, whose 'b' is the initialiser --
-        '' the same shape the integer folder reads, and read as the same pool.
-        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if cs = 0 then return false
-        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
-        if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return false
-        if cs->payload = 0 then return false
-        dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
-        if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
-        return ConstStringTextOf_( c, StmtOf( c, item )->b, outText, depth + 1 )
-    end select
-    return false
-end function
 
 '' ------------------------------------------------------------------ runtime
 

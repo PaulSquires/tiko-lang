@@ -1,0 +1,6 @@
+'' 'const F = str( 16 )' -- the two string intrinsics fbc folds into a constant.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-string-fold.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/const-string-fold.out
