@@ -1119,6 +1119,12 @@ sub WalkStmt _
                 declares = true
                 dim as Tko.TypeId bt3 = ResolveTypeRef( c, ip3->a, here )
                 if bt3 = Tko.TYPE_NONE then continue for
+                '' RANK 0 MEANS UNSPECIFIED, and EMPTY PARENS ARE RANK 0. Measured:
+                '' 'redim a() as T' emits the same descriptor 'dim a() as T' does --
+                '' DIMENSIONS 0 and FLAGS 8, eight dimension-table slots, 240 bytes --
+                '' where a written rank gives DIMENSIONS n and FLAGS 16 + n. Forcing a
+                '' minimum of one made it a 72-byte one-dimensional descriptor, so the
+                '' two spellings of the same declaration disagreed about their own size.
                 dim as long ndim = 1
                 if ip3->c <> Tko.NODE_NONE then
                     if c.ast->Kind( ip3->c ) = Tko.N_BLOCK then
@@ -1126,7 +1132,7 @@ sub WalkStmt _
                             c.ast->nodes[cast( long, ip3->c )].data )].count
                     end if
                 end if
-                if ndim < 1 then ndim = 1
+                if ndim < 0 then ndim = 0
                 BindDeclType( c, here, ip3->name, c.types->DynArrayOf( bt3, ndim ) )
             next
 

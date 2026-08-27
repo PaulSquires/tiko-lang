@@ -684,8 +684,24 @@ private function ArgTail_ _
     return s
 end function
 
-'' One operand of a '##', as text: a PARAMETER contributes its argument's spelling, and
-'' anything else its own.
+'' One operand of a '##', as text: a PARAMETER contributes its argument, and anything
+'' else its own spelling.
+''
+'' THE ARGUMENT IS EXPANDED FIRST, which is the OPPOSITE of C and is measured:
+''
+''     #define A 1
+''     #define CAT(a,b) a##b
+''     CAT( q, A )     ->  q1        (C would give 'qA')
+''     CAT( A, A )     ->  11
+''
+'' Both operands come through here, so one call covers left and right. The '#'
+'' stringise operator had the same bug and the same fix.
+''
+'' It is what the SEQUENCE-SIZE idiom is built on -- a chain of macros each expanding to
+'' the next, driven by a parenthesised sequence and pasted onto a prefix. Pasting the raw
+'' spellings gave 'SEQ_SIZE_SEQ_SIZE_0' where fbc gives 'SEQ_SIZE_SEQ_SIZE_3', so the
+'' answer was 0 for every sequence and the '(a)(b)(c)' tokens survived into the
+'' statement after it.
 private function PasteSpelling_ _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
       byref t as Token ) as string
@@ -693,7 +709,7 @@ private function PasteSpelling_ _
     dim as InternId pn = ParamNameId_( e, t )
     if pn <> 0 then
         dim as long ai = ArgIndexOf( m, pn )
-        if ai >= 0 then return ArgText( e, args, ai )
+        if ai >= 0 then return ExpandedArgText_( e, args, ai )
     end if
     return SpellOf( e, t )
 end function

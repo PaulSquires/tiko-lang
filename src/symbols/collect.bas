@@ -331,6 +331,9 @@ declare function ProcArity _
 declare function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval want as long ) as Tko.SymbolId
+declare function MemberDeclForDef_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId
 
 
 '' A possibly-dotted owner name -- 'Widget', 'ns.UDT', 'a.b.UDT' -- resolved to its
@@ -856,7 +859,19 @@ sub WalkNode _
         '' gets no answer. __FUNCTION__ inside a method is what found this.
         dim as Tko.SymbolId scopeOwner = sid
         if (scopeOwner = Tko.SYMBOL_NONE) andalso (declName <> 0) then
-            scopeOwner = w.syms->LookupLocal( parentScope, declName )
+            '' THE OVERLOAD IT DEFINES, not the head of the chain.
+            ''
+            '' A member DEFINITION declares no symbol of its own, so it has to be
+            '' matched to one of the DECLARATIONS inside the type -- and a bare lookup
+            '' answers the first one, whatever it was declared as. A type with two cast
+            '' operators is the shape that shows it: 'operator TV.cast() as TU' bound to
+            '' the 'as string' declaration, so the procedure's RETURN TYPE came from one
+            '' overload while its MANGLED NAME came from the other -- which mangle.bas
+            '' takes from the definition node. The TU operator then lowered as though it
+            '' returned a string and declined, and the same disagreement over an
+            '' ordinary overloaded method DID NOT decline: it emitted a function that
+            '' returns an integer declared as returning a string descriptor.
+            scopeOwner = MemberDeclForDef_( w, parentScope, declName, sp )
         end if
         dim as Tko.ScopeId inner = w.syms->OpenScope( Tko.SCOPEK_PROC, parentScope, _
                                                       scopeOwner )
@@ -1049,6 +1064,101 @@ end sub
 '' compare parameter TYPES. Requiring exactly one candidate is what keeps that
 '' approximation safe -- two same-arity overloads leave the definition to declare itself,
 '' which is the behaviour this replaces rather than a new way to be wrong.
+'' ONE WRITTEN TYPE REFERENCE AGAINST ANOTHER, strictly.
+''
+'' NOT SameTypeRef_, which exists to decide whether a RESTATEMENT is legal and answers
+'' 'same' whenever it cannot tell -- a named type may be a typedef for the builtin on
+'' the other side, and refusing that pair rejects four corpus files. Discriminating an
+'' OVERLOAD is the opposite question: 'the same as far as I can see' is not an answer,
+'' because acting on it moves a body onto the wrong declaration. So a builtin matches
+'' only the same builtin and a name only the same name, and anything it cannot decide
+'' is reported as DIFFERENT -- which costs nothing, because the caller falls back to
+'' the head of the chain, and the head is what it used before this existed.
+private function SameWrittenType_ _
+    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+
+    if (a = Tko.NODE_NONE) andalso (b = Tko.NODE_NONE) then return true
+    if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return false
+    if w.ast->Kind( a ) <> Tko.N_TYPEREF then return false
+    if w.ast->Kind( b ) <> Tko.N_TYPEREF then return false
+    dim as ushort af = w.ast->nodes[cast( long, a )].flags
+    dim as ushort bf = w.ast->nodes[cast( long, b )].flags
+    dim as ushort mask = Tko.NF_PTR or Tko.NF_CONST or Tko.NF_PROC_TYPE
+    if (af and mask) <> (bf and mask) then return false
+    dim as Tko.StmtPayload ptr ap = StmtOf( w, a )
+    dim as Tko.StmtPayload ptr bp = StmtOf( w, b )
+    if ap->op <> bp->op then return false
+    if ap->op = cast( ushort, Tko.TK_IDENT ) then
+        if ap->name <> bp->name then return false
+    end if
+    '' PTR nests another N_TYPEREF in 'a', so recursing compares the pointed-to type
+    '' and, by arriving at different depths, the pointer depth with it.
+    return SameWrittenType_( w, ap->a, bp->a )
+end function
+
+'' The RETURN TYPE and every PARAMETER TYPE, as written, on two N_PROC payloads whose
+'' arities already agree.
+private function SameSignature_ _
+    ( byref w as Walker, byval a as Tko.StmtPayload ptr, _
+      byval b as Tko.StmtPayload ptr ) as boolean
+
+    if SameWrittenType_( w, a->a, b->a ) = false then return false
+    if a->count <> b->count then return false
+    for i as long = 0 to a->count - 1
+        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
+        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
+        if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
+           (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
+        if SameWrittenType_( w, StmtOf( w, an )->a, StmtOf( w, bn )->a ) = false then
+            return false
+        end if
+    next
+    return true
+end function
+
+'' The DECLARATION a member DEFINITION belongs to, chosen out of the overload set by
+'' signature rather than taken from the head of the chain.
+''
+'' Collect runs before types exist, so the only thing there is to compare is what was
+'' WRITTEN: the arity, and the return type reference. That separates the two cast
+'' operators that motivated this, and every overload set it cannot separate falls back
+'' to the head -- which is what it did for all of them before.
+''
+'' UNIQUELY OR NOT AT ALL. Two declarations of the same arity and the same return type
+'' differ only in their parameter types, which cannot be compared here, so picking
+'' either would be a guess and the guess would move a body onto the wrong symbol.
+private function MemberDeclForDef_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId
+
+    dim as Tko.SymbolId head = w.syms->LookupLocal( scope_, nm )
+    if head = Tko.SYMBOL_NONE then return head
+    dim as long want = ProcArity( w, sp )
+    dim as Tko.SymbolId found = Tko.SYMBOL_NONE
+    dim as long hits = 0
+    dim as Tko.SymbolId cur = head
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (w.ast->Kind( pn ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr dp = StmtOf( w, pn )
+            if ProcArity( w, dp ) = want then
+                if SameSignature_( w, dp, sp ) then
+                    found = cur
+                    hits += 1
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    if hits = 1 then return found
+    return head
+end function
+
 private function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval want as long ) as Tko.SymbolId

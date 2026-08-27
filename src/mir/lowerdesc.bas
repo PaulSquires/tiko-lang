@@ -542,11 +542,13 @@ private function RedimOne_ _
     if viaExpr then
         '' already resolved above
     elseif (vs <> 0) andalso c.types->IsDynArray( vs->type_ ) then
-        dim as long slot = LocalFor( c, sid )
-        if slot < 0 then return false
-        desc.kind = cast( ubyte, MV_LOCAL )
-        desc.ty = cast( ubyte, MT_PTR )
-        desc.id = slot
+        '' AddrOfVar, NOT LocalFor. 'redim shared a( 0 to 3 ) as integer' at module
+        '' level declares a SHARED array, and LocalFor minted a frame slot for it
+        '' beside the global it also has -- so the descriptor was written into the
+        '' LOCAL and every later use of the name read the global, which nothing had
+        '' initialised. It looked right in the dump because both existed.
+        desc = AddrOfVar( c, sid )
+        if desc.kind = cast( ubyte, MV_NONE ) then return false
         aty = vs->type_
 
         '' 'redim as long d( 0 to 2 )' DECLARES d, and a declaring REDIM never went
@@ -560,9 +562,14 @@ private function RedimOne_ _
         '' registered twice.
         if ip->a <> Tko.NODE_NONE then
             InitDynArrayDesc( c, desc, aty )
-            c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
-            c.cleanupSlot.Push( slot )
-            c.cleanupType.Push( 0 )
+            '' ...and erased at SCOPE EXIT, which only a LOCAL has. A module-level
+            '' array outlives every scope there is and is released the way every other
+            '' shared array is.
+            if desc.kind = cast( ubyte, MV_LOCAL ) then
+                c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
+                c.cleanupSlot.Push( desc.id )
+                c.cleanupType.Push( 0 )
+            end if
         end if
     else
         '' NOT ONLY A LOCAL, exactly as ERASE is not. 'redim preserve this.items( 0 to
@@ -586,7 +593,6 @@ private function RedimOne_ _
     if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
-    if lp->count < 1 then return false
 
     '' 'redim z(any) as long' IS A DECLARATION AND NOTHING ELSE. Measured: fbc emits no
     '' runtime call at all for it -- byte for byte the same descriptor setup 'dim z(any)'
@@ -602,6 +608,13 @@ private function RedimOne_ _
     '' ALL the dimensions or none: 'redim z(any, 3)' is not a shape fbc accepts, and
     '' taking the 'any' half as zero would produce a plausible array of the wrong
     '' extent.
+    '' EMPTY PARENS ARE THE SAME ANSWER as all-'any' ones, and are counted with them:
+    '' 'redim a() as T' is a DECLARATION of a dynamic array whose rank is not written,
+    '' and fbc emits nothing at all for it -- byte for byte what 'dim a() as T' emits.
+    '' A guard refusing an empty bound list ran first and took it, after the descriptor
+    '' had already been set up above, so the statement declined with its own work
+    '' already emitted. Thirty-two corpus statements, four of them in fbcunit's own
+    '' framework and so re-counted in every test that includes it.
     dim as long anyDims = 0
     for d as long = 0 to lp->count - 1
         dim as Tko.NodeId adn = cast( Tko.NodeId, c.ast->children[lp->first + d] )

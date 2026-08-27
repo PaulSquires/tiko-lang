@@ -1,37 +1,30 @@
 func i32 _ZN1T8V__get__Ev($0) {
   local i32 $tmp0
   local ptr this
-  local ptr this$2
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0
-    %4 = alloca ptr this$2
-    %5 = load @this$2
-    %6 = field.addr %5, 0
-    %7 = load %6
-    ret %7
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
 }
-func i32 _ZN1T8V__set__Ei($0, $1) {
-  local i32 $tmp0
+func void _ZN1T8V__set__Ei($0, $1) {
   local ptr this
   local i32 n
   entry0:
-    %1 = alloca ptr $tmp0
-    %2 = const i32 0
-    store @$tmp0, %2
-    %3 = alloca ptr this
+    %1 = alloca ptr this
     store @this, $0
-    %4 = alloca ptr n
+    %2 = alloca ptr n
     store @n, $1
-    %5 = load @this
-    %6 = field.addr %5, 0
-    %7 = load @n
-    store %6, %7
-    %8 = load @$tmp0
-    ret %8
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = load @n
+    store %4, %5
+    ret
 }
 func void P() {
   local agg t size 4
@@ -49,4 +42,4 @@ func void P() {
     ret
 }
 verify: ok
-lowered: 3 functions, 3 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 25 insts, 0 statements not lowered, 0 scope imbalance

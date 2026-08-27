@@ -673,6 +673,19 @@ function TypeOf_ _
             end if
         end if
 
+        '' A UDT WITH NO UNARY OPERATOR BUT A NUMERIC 'operator cast' IS ITS CAST.
+        '' Measured: '-v' emits '_ZN3UDTcvu7INTEGEREv( &V )' and negates the RESULT, and
+        '' the type of the whole expression is the operator's return type. Without this,
+        '' BinaryResult was asked to add a UDT to itself, answered nothing, and the
+        '' expression lowered to no instruction at all -- while 'v + 1' beside it worked,
+        '' because the BINARY case has had this since the operator was implemented.
+        if inner <> Tko.TYPE_NONE then
+            if c.types->Kind( c.types->Unqualify( inner ) ) = Tko.TK_UDT then
+                dim as Tko.TypeId nct = UdtCastResultOf_( c, inner, false )
+                if nct <> Tko.TYPE_NONE then inner = nct
+            end if
+        end if
+
         if inner <> Tko.TYPE_NONE then
             if op = Tko.KW_NOT then
                 '' NOT keeps BOOLEAN boolean and widens everything else, exactly as
@@ -1240,6 +1253,8 @@ private sub InferForEachVarTypes_( byref c as Ctx )
     next
 end sub
 
+#include once "symbols/checkeach.bas"
+
 private sub WalkAll( byref c as Ctx )
     '' Every expression node in the arena, in id order. Expressions are created
     '' bottom-up by the parser, so a child always has a LOWER id than its parent and
@@ -1313,6 +1328,7 @@ function Run _
     RecordUdtBases_( c )
     InferUnusedVarTypes_( c )
     InferForEachVarTypes_( c )
+    CheckForEach_( c )
     WalkAll( c )
     InferUnusedVarTypes_( c )
     return st.badOperands

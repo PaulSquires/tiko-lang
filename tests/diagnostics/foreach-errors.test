@@ -1,0 +1,5 @@
+'' Every FOR EACH that cannot work names what is wrong with it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/foreach-errors.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/foreach-errors.out

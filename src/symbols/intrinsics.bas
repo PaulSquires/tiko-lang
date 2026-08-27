@@ -49,6 +49,45 @@ private function UdtStringCastType_ _
     return Tko.TYPE_NONE
 end function
 
+'' The result type of a UDT's 'operator cast' that returns a POINTER, or a NUMBER.
+''
+'' Same walk as UdtStringCastType_ and for the same reason: the cast operators share one
+'' symbol chain, so the one that matters is found by what it RETURNS and not by taking
+'' the head. Measured -- 'cast( integer ptr, bar )' emits a call to the pointer-returning
+'' operator and then derefs its result, and '-v' calls the numeric one and negates ITS
+'' result, with the operator's return type as the type of the whole expression.
+private function UdtCastResultOf_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval wantPtr as boolean ) as Tko.TypeId
+
+    if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
+    while cs <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
+        if cse = 0 then exit while
+        dim as Tko.TypeId rt = cse->type_
+        if rt <> Tko.TYPE_NONE then
+            dim as Tko.TypeId ru = c.types->Unqualify( rt )
+            if c.types->Kind( ru ) = Tko.TK_REFERENCE then
+                ru = c.types->Unqualify( c.types->Inner( ru ) )
+            end if
+            if wantPtr then
+                if c.types->Kind( ru ) = Tko.TK_POINTER then return ru
+            else
+                '' A NUMBER, which is every builtin that is not one of the four string
+                '' flavours -- those are UdtStringCastType_'s and mean something else at
+                '' every site that asks this.
+                if c.types->Kind( ru ) = Tko.TK_BUILTIN then
+                    if IsStringy_( c.types->BuiltinOf( ru ) ) = false then return ru
+                end if
+            end if
+        end if
+        cs = cse->nextOverload
+    wend
+    return Tko.TYPE_NONE
+end function
+
 private function SignedFlip_ _
     ( byval t as Tko.TypeId, byval wantUnsigned as boolean, _
       byref types as Tko.TypeContext ) as Tko.TypeId
@@ -796,7 +835,16 @@ private function IntrinsicCallType_ _
             srcPtrInt = IsPointerSized_( c.types->BuiltinOf( st ), *c.types )
         end if
         if c.types->Kind( rt ) = Tko.TK_POINTER then
-            if (srcPtr orelse srcPtrInt) = false then return Tko.TYPE_NONE
+            '' A UDT THAT CASTS TO A POINTER IS A POINTER SOURCE. Measured:
+            '' 'cast( integer ptr, bar )' emits '_ZN3FOOcvPu7INTEGEREv( &BAR )' and uses
+            '' its result. Refusing it left the cast untyped, so the DEREF around it was
+            '' untyped too and emitted nothing -- while the same cast assigned to a
+            '' pointer variable, one line above, lowered.
+            if (srcPtr orelse srcPtrInt) = false then
+                if UdtCastResultOf_( c, st, true ) = Tko.TYPE_NONE then
+                    return Tko.TYPE_NONE
+                end if
+            end if
             return rt
         end if
         if nm = "cptr" then return Tko.TYPE_NONE

@@ -172,6 +172,16 @@ namespace Tko
     '' N_PARAM, the same way NF_TYPE_LITERAL shares with NF_UNTIL.
     const NF_BYVAL_WRITTEN as ushort = &h0100
 
+    '' N_FOREACH: the loop was written with a NAME LIST -- 'for each (k, v) in c'.
+    '' The parser rewrites that into the ordinary form plus a 'var' at the top of the
+    '' body, so nothing downstream can tell from the shape alone; only the check that
+    '' the element really is a tuple of the right arity needs to know, and it is the
+    '' one thing the rewrite cannot express.
+    ''
+    '' Shares its bit with NF_IS_UNION, which is N_TYPE's and can never appear on an
+    '' N_FOREACH, the same way NF_TYPE_LITERAL shares with NF_UNTIL.
+    const NF_DESTRUCTURE as ushort = &h0200
+
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.
     const PF_OVERLOAD   as ushort = &h0001   '' the OVERLOAD keyword was written

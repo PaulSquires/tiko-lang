@@ -1,0 +1,229 @@
+global str $str0 "hi"
+func i8 _ZN6NEARLY7ISVALIDEv($0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = const i64 1
+    %8 = sext %6
+    %9 = icmp.slt %8, %7
+    %10 = neg %9
+    ret %10
+}
+func i32 _ZN6NEARLY5VALUEEv($0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = const i64 1
+    ret %4
+}
+func agg _ZN10ALMOSTCOLL11GETITERATOREv($0) {
+  local agg $tmp0 size 4
+  local ptr this
+  local agg r size 4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr r
+    %4 = load @r
+    store @$tmp0, %4
+    %5 = load @$tmp0
+    ret %5
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg z size 8
+  local agg grid size 16
+  local agg ac size 4
+  local agg pl size 4
+  local agg scalars size 8
+  local i32 $fe1
+  local i64 $tmp7
+  local void a1
+  local void b1
+  local agg pairs size 64
+  local agg $fe2 size 32
+  local i64 $tmp12
+  local i32 a2
+  local agg b2 size 24
+  local void c2
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr z
+    %5 = call.rtl ptr fb_StrAssign(@z, 8, @@$str0, 3, 0)
+    %6 = alloca ptr grid
+    %7 = alloca ptr ac
+    %8 = alloca ptr pl
+    %9 = alloca ptr scalars
+    %10 = alloca ptr $fe1
+    %11 = const i64 0
+    %12 = const i64 2
+    %13 = alloca ptr $tmp7
+    store @$tmp7, %11
+    %21 = alloca ptr a1
+    %22 = alloca ptr b1
+    %26 = alloca ptr pairs
+    %29 = alloca ptr $fe2
+    %32 = alloca ptr $tmp12
+    %39 = alloca ptr a2
+    %42 = alloca ptr b2
+    %45 = alloca ptr c2
+    br each.head1
+  each.head1:
+    %14 = load @$tmp7
+    %15 = icmp.slt %14, %12
+    condbr %15, each.body2, each.exit4
+  each.body2:
+    %16 = load @$tmp7
+    %17 = const i64 4
+    %18 = mul %16, %17
+    %19 = ptr.add @scalars, %18
+    %20 = load %19
+    store @$fe1, %20
+    br each.step3
+  each.step3:
+    %23 = load @$tmp7
+    %24 = const i64 1
+    %25 = add %23, %24
+    store @$tmp7, %25
+    br each.head1
+  each.exit4:
+    %27 = field.addr @pairs, 0
+    call void _ZN9$TUP:6:15C1Ev(%27)
+    %28 = field.addr @pairs, 32
+    call void _ZN9$TUP:6:15C1Ev(%28)
+    %30 = const i64 0
+    %31 = const i64 2
+    store @$tmp12, %30
+    br each.head5
+  each.head5:
+    %33 = load @$tmp12
+    %34 = icmp.slt %33, %31
+    condbr %34, each.body6, each.exit8
+  each.body6:
+    %35 = load @$tmp12
+    %36 = const i64 32
+    %37 = mul %35, %36
+    %38 = ptr.add @pairs, %37
+    call void _ZN9$TUP:6:15C1ERKS_(@$fe2, %38)
+    %40 = field.addr @$fe2, 0
+    %41 = load %40
+    store @a2, %41
+    %43 = field.addr @$fe2, 8
+    %44 = call.rtl ptr fb_StrInit(@b2, -1, %43, -1, 0)
+    call.rtl void fb_StrDelete(@b2)
+    call void _ZN9$TUP:6:15D1Ev(@$fe2)
+    br each.step7
+  each.step7:
+    %46 = load @$tmp12
+    %47 = const i64 1
+    %48 = add %46, %47
+    store @$tmp12, %48
+    br each.head5
+  each.exit8:
+    %49 = field.addr @pairs, 32
+    call void _ZN9$TUP:6:15D1Ev(%49)
+    %50 = field.addr @pairs, 0
+    call void _ZN9$TUP:6:15D1Ev(%50)
+    %51 = const i32 0
+    call.rtl void fb_End(%51)
+    %52 = load @$tmp0
+    ret %52
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void _ZN9$TUP:6:15C1Ev($0)
+declare void _ZN9$TUP:6:15C1ERKS_($0, $1)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void _ZN9$TUP:6:15D1Ev($0)
+declare void fb_End($0)
+func void _ZN9$TUP:6:15C1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 8
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
+func void _ZN9$TUP:6:15C1ERKS_($0, $1) {
+  entry0:
+    %1 = field.addr $0, 8
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    call void _ZN9$TUP:6:15aSERKS_($0, $1)
+    ret
+}
+declare void _ZN9$TUP:6:15aSERKS_($0, $1)
+func void _ZN9$TUP:6:15D1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 8
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+func void _ZN9$TUP:6:15aSERKS_($0, $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = load %1
+    store %2, %3
+    %4 = field.addr $1, 8
+    %5 = field.addr $0, 8
+    %6 = call.rtl ptr fb_StrAssign(%5, -1, %4, -1, 0)
+    ret
+}
+verify: ok
+lowered: 8 functions, 16 blocks, 117 insts, 7 statements not lowered, 0 scope imbalance
+  unlowered N_FOREACH 4
+  inside N_FOREACH 4
+  inside N_VAR 3
+  skip-site src\mir\lowerctl.bas:194 4
+  skip-site src\mir\lower.bas:1011 3
+tests/diagnostics/src/foreach-errors.bas(41,1): error TKO0609: 'for each' cannot walk a fixed-length string: it carries no length
+     |
+  41 | for each ch in z
+     | ^
+tests/diagnostics/src/foreach-errors.bas(45,1): error TKO0608: 'for each' over a multi-dimensional array has no defined order
+     |
+  45 | for each g in grid
+     | ^
+tests/diagnostics/src/foreach-errors.bas(49,1): error TKO0607: 'nearly' is not an iterator: it has no 'MoveNext( )'
+     |
+  49 | for each v in ac
+     | ^
+tests/diagnostics/src/foreach-errors.bas(53,1): error TKO0606: 'plain' cannot be walked by 'for each': it has no GetIterator( )
+     |
+  53 | for each w in pl
+     | ^
+tests/diagnostics/src/foreach-errors.bas(57,1): error TKO0610: 'for each' with a name list needs a tuple element; 'long' is not one
+     |
+  57 | for each (a1, b1) in scalars
+     | ^
+tests/diagnostics/src/foreach-errors.bas(61,1): error TKO0611: 'for each' binds 3 names but the element has 2
+     |
+  61 | for each (a2, b2, c2) in pairs
+     | ^

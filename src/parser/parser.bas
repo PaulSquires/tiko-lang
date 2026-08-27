@@ -456,15 +456,19 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
         sp.count = 1
         p.ast->children.Push( cast( ulong, seq ) )
         sp.b = Block( p )
+        dim as ushort eachFlags = 0
         if dnames.Count > 0 then
             sp.b = ForEachDestructure_( p, t, feTmp, dnames, sp.b )
+            eachFlags = Tko.NF_DESTRUCTURE
         end if
         if Accept( p, Tko.KW_NEXT ) then
             while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
                 Advance( p )
             wend
         end if
-        return MakeStmt( p, Tko.N_FOREACH, t.loc, sp )
+        dim as Tko.NodeId en = MakeStmt( p, Tko.N_FOREACH, t.loc, sp )
+        p.ast->nodes[cast( long, en )].flags or= eachFlags
+        return en
     end if
 
     sp.a = Expression( p, Tko.PREC_POSTFIX )

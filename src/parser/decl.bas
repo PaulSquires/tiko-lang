@@ -172,19 +172,43 @@ private function VarItem _
     '' looked like a module-level 'counter' that nothing had declared, and the
     '' statement declined. The owner goes where a member PROCEDURE's already does.
     dim as string ownerPath = ""
-    while Peek( p ) = Tko.TK_DOT
+    dim as boolean viaArrow = false
+    do
+        dim as boolean isDot = (Peek( p ) = Tko.TK_DOT)
+        '' 'redim px->array( 1 to 1 )' -- THROUGH A POINTER, which this loop accepted
+        '' only with a dot. The arrow ended the item, so the bounds were never read and
+        '' the statement declined with no descriptor to re-dimension; five corpus lines
+        '' in dim/redim.bas write it, and '(px->array)( 1 to 1 )' beside them already
+        '' lowered to exactly the right call.
+        ''
+        '' A REDIM ONLY. Everywhere else this loop is reading a QUALIFIED DECLARED NAME
+        '' -- 'dim shared as integer T.counter' -- and there is no such thing as
+        '' declaring one through a pointer.
+        dim as boolean isArrow = isRedim andalso (Peek( p ) = Tko.TK_ARROW)
+        if (isDot orelse isArrow) = false then exit do
         dim as Tko.Token dotTok = Cur( p )
         Advance( p )
-        if len( ownerPath ) > 0 then ownerPath += "."
-        ownerPath += p.names->Spelling( sp.name )
+        if isArrow then
+            viaArrow = true
+        else
+            if len( ownerPath ) > 0 then ownerPath += "."
+            ownerPath += p.names->Spelling( sp.name )
+        end if
         qualified = true
         dim as Tko.Token memberTok = Cur( p )
         DeclName( p, sp.name )
         if qexpr <> Tko.NODE_NONE then
             qexpr = MakeMemberRef_( p, dotTok, qexpr, MakeIdent( p, memberTok ) )
+            if isArrow then
+                p.ast->nodes[cast( long, qexpr )].flags or= Tko.NF_ARROW
+            end if
         end if
-    wend
-    if qualified then sp.ownerName = p.names->GetString( ownerPath )
+    loop
+    '' NOT THROUGH AN ARROW. An owner name is what makes a qualified DECLARATION find
+    '' the type it belongs to, and 'px' is a variable, not a type.
+    if qualified andalso (viaArrow = false) then
+        sp.ownerName = p.names->GetString( ownerPath )
+    end if
     if isRedim andalso qualified andalso (qexpr <> Tko.NODE_NONE) then
         sp.b = qexpr
         sp.extra = cast( ushort, Tko.KW_REDIM )
@@ -708,6 +732,18 @@ private sub ReadOperatorName _
         end select
     end if
 
+    '' A WORD NAME IS ALREADY THE NAME, and there is nothing here left to read.
+    ''
+    '' 'operator udt.cast as integer' -- the PARENLESS spelling, which fbc accepts and
+    '' which uop_coersion.bas is written in -- arrived with 'cast' already taken as the
+    '' name and 'as' as the next token, so the loop below ate the AS. The return type
+    '' was then never parsed: the operator mangled as _ZN3UDTcvvEv, a cast to VOID,
+    '' where fbc emits _ZN3UDTcvu7INTEGEREv for both spellings. That is an ABI mismatch
+    '' and not a decline -- the name links against nothing.
+    ''
+    '' The compound WORD operators are the one exception and are taken above, before
+    '' this, because their keyword half is what got read as the name.
+    if sp.name <> 0 then return
     if (Peek( p ) = Tko.TK_LPAREN) orelse AtEnd( p ) then return
     if Peek( p ) = Tko.TK_EOL then return
     if Peek( p ) = Tko.TK_DOT then return

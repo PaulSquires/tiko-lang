@@ -288,7 +288,14 @@ function LowerExpr _
         dim as MirValue uuv
         if LowerUserUnaryOp_( c, id, up, mt, uuv ) then return uuv
 
-        dim as MirValue x = LowerExpr( c, up->operand )
+        '' A UDT THAT ONLY CASTS TO A NUMBER IS THAT NUMBER HERE -- '-v' is a call to
+        '' 'operator cast( ) as integer' and a negation of its result, measured. The
+        '' binary case has had this since the operator was implemented; the unary one
+        '' lowered the UDT itself and negated an aggregate.
+        dim as MirValue x
+        if UserCastToNum_( c, up->operand, x ) = false then
+            x = LowerExpr( c, up->operand )
+        end if
         if x.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins
         ins.ty = cast( ubyte, mt )

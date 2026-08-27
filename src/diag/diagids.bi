@@ -106,6 +106,12 @@
     DIAG( TKO0603, SEV_ERROR,   "calling convention does not match the declaration of '%0'" )
     DIAG( TKO0604, SEV_ERROR,   "#assert condition failed" )
     DIAG( TKO0605, SEV_ERROR,   "expected a constant expression" )
+    DIAG( TKO0606, SEV_ERROR,   "'%0' cannot be walked by 'for each': it has no GetIterator( )" )
+    DIAG( TKO0607, SEV_ERROR,   "'%0' is not an iterator: it has no '%1'" )
+    DIAG( TKO0608, SEV_ERROR,   "'for each' over a multi-dimensional array has no defined order" )
+    DIAG( TKO0609, SEV_ERROR,   "'for each' cannot walk a fixed-length string: it carries no length" )
+    DIAG( TKO0610, SEV_ERROR,   "'for each' with a name list needs a tuple element; '%0' is not one" )
+    DIAG( TKO0611, SEV_ERROR,   "'for each' binds %0 names but the element has %1" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

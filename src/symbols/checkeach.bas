@@ -1,0 +1,204 @@
+'' checkeach.bas -- FOR EACH, validated.
+''
+'' Split out of check.bas at the 1500-line cap and included from it, inside its
+'' namespace, exactly as checkconv.bas is.
+''
+'' Until this ran, a FOR EACH THAT CANNOT WORK SAID NOTHING: the lowering declined the
+'' statement and the count went up by one, which is the same thing it reports for a
+'' shape nobody has implemented yet. A structural protocol's failure mode is getting it
+'' NEARLY right, so "not iterable" on its own is useless -- RFC-0002 section 7 wants the
+'' missing member NAMED, and the corpus has a test whose whole subject is that.
+''
+'' It runs BEFORE the walk, beside the type inference it mirrors, so the diagnostic
+'' lands on the loop rather than on some consequence of it three statements later.
+
+'' The declaring symbol of a UDT type. Same lookup UdtMemberSym_ does, stopping one step
+'' earlier because what is wanted here is the SCOPE and not one name in it.
+private function UdtSymOfType_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( u )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( u ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    return ts
+end function
+
+'' A FIXED-LENGTH string -- 'string * N', 'zstring * N', 'wstring * N', 'ustring * N'.
+'' All four are spelled as an ARRAY of a character builtin, which is exactly why the
+'' array arm would otherwise take them.
+private function IsFixedStrTypeC_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_ARRAY then return false
+    dim as Tko.TypeId el = c.types->Inner( u )
+    if el = Tko.TYPE_NONE then return false
+    if c.types->Kind( el ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( el )
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
+'' An array's RANK. A dynamic array carries its own; a fixed one records it as the
+'' number of dimensions its bounds were retained for.
+private function ArrayRankOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if c.types->IsDynArray( t ) then return c.types->DynRank( t )
+    return c.types->types[cast( long, t )].dims
+end function
+
+'' The RFC-0002 iterator protocol's three members, in the order they are reported
+'' missing, or "" when all three are there.
+private function MissingIterMember_ _
+    ( byref c as Ctx, byval itT as Tko.TypeId ) as string
+
+    if UdtMemberSym_( c, itT, "isvalid" ) = Tko.SYMBOL_NONE then return "IsValid( )"
+    if UdtMemberSym_( c, itT, "value" ) = Tko.SYMBOL_NONE then return "Value( )"
+    if UdtMemberSym_( c, itT, "movenext" ) = Tko.SYMBOL_NONE then return "MoveNext( )"
+    return ""
+end function
+
+'' How many elements a TUPLE has, or -1 for anything that is not one.
+''
+'' A tuple is built as a UDT whose fields are named '_1', '_2', ... in order; that is
+'' what tells one from an ordinary structure, and there is no other marker on the type.
+'' The same rule TupleElems_ uses in the lowering, deliberately -- if the two disagree,
+'' one of them accepts a shape the other will not lower.
+private function TupleArity_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return -1
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return -1
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOfType_( c, u ) )
+    if s = 0 then return -1
+    if s->inner = Tko.SCOPE_NONE then return -1
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return -1
+
+    dim as long n = 0
+    dim as Tko.SymbolId cur = sc->firstSym
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit while
+        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+            n += 1
+            if c.names->Spelling( f->name ) <> ("_" & trim( str( n ) )) then return -1
+        end if
+        cur = f->nextInScope
+    wend
+    if n < 2 then return -1
+    return n
+end function
+
+'' The synthetic 'var' the parser put at the top of a destructuring loop's body. Its
+'' item count IS the number of names that were written, which is the only place that
+'' number survives -- the loop itself binds one hidden element like any other form.
+private function DestructureArity_( byref c as Ctx, byval body as Tko.NodeId ) as long
+    if body = Tko.NODE_NONE then return -1
+    if c.ast->Kind( body ) <> Tko.N_BLOCK then return -1
+    dim as Tko.ListPayload ptr bl = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, body )].data )]
+    if bl->count < 1 then return -1
+    dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->children[bl->first] )
+    if c.ast->Kind( first_ ) <> Tko.N_VAR then return -1
+    dim as Tko.StmtPayload ptr vp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, first_ )].data )]
+    return vp->count
+end function
+
+'' Every FOR EACH in the arena, checked against what its sequence actually is.
+''
+'' The refusals are fbc's, not inventions: a MULTI-DIMENSIONAL array has no defensible
+'' traversal order and fbc rejects it outright; a FIXED-LENGTH string carries no length,
+'' so walking its declared size reads past its contents; a type with none of the
+'' protocol's members cannot be walked at all; and one whose GetIterator returns
+'' something ALMOST an iterator is the case the message has to be specific about.
+sub CheckForEach_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if c.ast->Kind( n ) <> Tko.N_FOREACH then continue for
+        dim as Tko.StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if sp->count <> 1 then continue for
+
+        dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
+        dim as Tko.TypeId seqT = TypeOf_( c, seqE )
+        '' NO TYPE IS NOT A DIAGNOSTIC HERE. The sequence may be an expression nothing
+        '' has typed yet, and reporting "not iterable" for one of those would put an
+        '' error on every program that merely has something else wrong with it.
+        if seqT = Tko.TYPE_NONE then continue for
+        seqT = c.types->Unqualify( seqT )
+        if c.types->Kind( seqT ) = Tko.TK_REFERENCE then
+            seqT = c.types->Unqualify( c.types->Inner( seqT ) )
+        end if
+
+        dim as Tko.SourceRange r = Tko.PointRange( c.ast->Loc( n ) )
+        dim as Tko.TypeId elT = Tko.TYPE_NONE
+        dim as boolean ok = true
+
+        if IsFixedStrTypeC_( c, seqT ) then
+            c.diags->Report( Tko.TKO0609, r )
+            ok = false
+        elseif c.types->Kind( seqT ) = Tko.TK_ARRAY then
+            if ArrayRankOf_( c, seqT ) > 1 then
+                c.diags->Report( Tko.TKO0608, r )
+                ok = false
+            else
+                elT = c.types->Inner( seqT )
+            end if
+        elseif IsVarLenStringType_( c, seqT ) then
+            elT = c.types->Builtin( Tko.TY_UBYTE )
+        elseif c.types->Kind( seqT ) = Tko.TK_UDT then
+            dim as Tko.SymbolId gi = UdtMemberSym_( c, seqT, "getiterator" )
+            dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gi )
+            dim as Tko.TypeId itT = Tko.TYPE_NONE
+            if gs <> 0 then itT = gs->type_
+            if (itT = Tko.TYPE_NONE) orelse (c.types->Kind( itT ) <> Tko.TK_UDT) then
+                c.diags->Report( Tko.TKO0606, r, c.types->Name( seqT ) )
+                ok = false
+            else
+                dim as string miss = MissingIterMember_( c, itT )
+                if len( miss ) > 0 then
+                    c.diags->Report( Tko.TKO0607, r, c.types->Name( itT ), miss )
+                    ok = false
+                else
+                    dim as Tko.Symbol ptr vo = _
+                        c.syms->SymbolAt( UdtMemberSym_( c, itT, "value" ) )
+                    if vo <> 0 then
+                        elT = vo->type_
+                        if elT <> Tko.TYPE_NONE then
+                            if c.types->Kind( elT ) = Tko.TK_REFERENCE then
+                                elT = c.types->Inner( elT )
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        else
+            c.diags->Report( Tko.TKO0606, r, c.types->Name( seqT ) )
+            ok = false
+        end if
+
+        '' THE NAME LIST, against the element it will be taken apart into. An arity that
+        '' does not match would otherwise surface as a missing '_3' on a type nobody
+        '' wrote, in a body the source does not contain.
+        if ok = false then continue for
+        if (c.ast->nodes[cast( long, n )].flags and Tko.NF_DESTRUCTURE) = 0 then
+            continue for
+        end if
+        dim as long want = DestructureArity_( c, sp->b )
+        if want < 2 then continue for
+        if elT = Tko.TYPE_NONE then continue for
+        dim as long have = TupleArity_( c, elT )
+        if have < 0 then
+            c.diags->Report( Tko.TKO0610, r, c.types->Name( elT ) )
+        elseif have <> want then
+            c.diags->Report( Tko.TKO0611, r, trim( str( want ) ), trim( str( have ) ) )
+        end if
+    next
+end sub
