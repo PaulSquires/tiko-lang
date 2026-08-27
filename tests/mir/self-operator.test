@@ -1,0 +1,6 @@
+'' A self-operator over a UDT is a member call, chosen by the parameter's type.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/self-operator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/self-operator.out

@@ -1,0 +1,110 @@
+func void _ZN1TpLERS_($0, $1) {
+  local ptr this
+  local ptr rhs
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr rhs
+    store @rhs, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = load %4
+    %6 = load @rhs
+    %7 = field.addr %6, 0
+    %8 = load %7
+    %9 = add %5, %8
+    store %4, %9
+    ret
+}
+func void _ZN1TpLEi($0, $1) {
+  local ptr this
+  local i32 n
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = load %4
+    %6 = load @n
+    %7 = add %5, %6
+    store %4, %7
+    ret
+}
+func void _ZN1TmIERS_($0, $1) {
+  local ptr this
+  local ptr rhs
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr rhs
+    store @rhs, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = load %4
+    %6 = load @rhs
+    %7 = field.addr %6, 0
+    %8 = load %7
+    %9 = sub %5, %8
+    store %4, %9
+    ret
+}
+func void _ZN1TlSEi($0, $1) {
+  local ptr this
+  local i32 n
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = load %4
+    %6 = load @n
+    %7 = shl %5, %6
+    store %4, %7
+    ret
+}
+func void S1() {
+  local agg u size 4
+  local agg v size 4
+  entry0:
+    %1 = alloca ptr u
+    %2 = alloca ptr v
+    %3 = field.addr @v, 0
+    %4 = const i64 3
+    %5 = trunc %4
+    store %3, %5
+    call void _ZN1TpLERS_(@u, @v)
+    %6 = const i64 10
+    %7 = trunc %6
+    call void _ZN1TpLEi(@u, %7)
+    call void _ZN1TmIERS_(@u, @v)
+    %8 = const i64 2
+    %9 = trunc %8
+    call void _ZN1TlSEi(@u, %9)
+    %10 = field.addr @u, 0
+    %11 = load %10
+    call.rtl void fb_PrintInt(0, %11, 1)
+    ret
+}
+declare void fb_PrintInt($0, $1, $2)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S1()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 6 functions, 6 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance

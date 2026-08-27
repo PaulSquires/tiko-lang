@@ -283,6 +283,7 @@ end function
 ''
 '' '^=' is absent on purpose: power needs a runtime call tiko-lang's inventory does not carry
 '' yet, and declining is the honest answer where inventing a shift would not be.
+
 function LowerCompoundAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind ) as boolean
@@ -329,6 +330,22 @@ function LowerCompoundAssign _
 
     dim as Tko.TypeId tt = c.info->TypeOf_( target )
     if tt = Tko.TYPE_NONE then return false
+
+    '' A SELF-OPERATOR ON A UDT IS A MEMBER CALL, and it was not lowered at all: this
+    '' function bailed on MT_AGG before it ever looked for one, so 'u += v' over a type
+    '' declaring 'operator +=' declined -- while 'u = u + v' beside it, through a global
+    '' 'operator +', lowered perfectly.
+    ''
+    '' Measured: no temporary anywhere, no read-modify-write. fbc emits the member call
+    '' with the TARGET'S ADDRESS as the receiver and nothing else:
+    ''
+    ''     _ZN1TpLERS_( &U$0, &V$0 );
+    ''
+    '' The operator's member NAME is the spelling it was declared with -- '+=' for the
+    '' punctuation ones and 'and=' for the word ones, which is exactly what the parser
+    '' interns for 'operator and=' (two tokens, one name).
+    if SelfOpMemberCall_( c, target, value, op, tt ) then return true
+
     dim as MirType mt = LowerType( tt, *c.types )
     if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
 
@@ -1171,102 +1188,6 @@ function LowerBuiltinProc _
 
     outv = EmitRtl( c, r, args )
     if retTy = MT_VOID then return true
-    return (outv.kind <> cast( ubyte, MV_NONE ))
-end function
-
-
-'' THE INTRINSIC STATEMENTS. One keyword each, dispatched on the op the parser
-'' recorded -- and three of those keywords are TWO statements sharing a spelling,
-'' which is what the 'extra' bits are for. Split out of lower.bas when that file
-'' reached the 1500-line cap; nothing about it changed in the move.
-'' 'rgb( r, g, b )' AND 'rgba( r, g, b, a )'. Neither is a call: fbc folds each into
-'' shifts and ors, and each component is TRUNCATED TO A BYTE first. Measured:
-''
-''   rgb( r, g, b )      ((r&255) << 16) | ((g&255) << 8) | (b&255) | 0xFF000000
-''   rgba( r, g, b, a )  the same three, with ((a&255) << 24) in place of the constant
-''
-'' The opaque alpha in the three-argument form is why they are not one function with a
-'' default: 0xFF000000 is a CONSTANT there and a shifted operand here.
-''
-'' They are PREDECLARED NAMES rather than procedures -- 'dim as long rgb' is fbc's
-'' error 4 -- so they cannot be written in the prelude either.
-function LowerRgbCall_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-
-    if c.ast->Kind( id ) <> Tko.N_CALL then return false
-    dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cp->target = Tko.NODE_NONE then return false
-    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
-    dim as long want = 0
-    if nm = "rgb" then
-        want = 3
-    elseif nm = "rgba" then
-        want = 4
-    else
-        return false
-    end if
-    if cp->count <> want then return false
-
-    '' One component: masked to a byte and widened, which is what the casts in fbc's
-    '' output amount to.
-    dim as MirValue parts( 0 to 3 )
-    for i as long = 0 to want - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
-        dim as MirValue v = LowerExpr( c, an )
-        if v.kind = cast( ubyte, MV_NONE ) then return false
-        v = Coerce( c, v, MT_I64, IsUnsignedType( c, c.info->TypeOf_( an ) ) )
-        dim as MirInst m
-        m.op = cast( ushort, M_AND )
-        m.ty = cast( ubyte, MT_I64 )
-        m.a = v
-        m.b = ConstInt( c, 255, MT_I64 )
-        parts( i ) = Emit( c, m )
-        if parts( i ).kind = cast( ubyte, MV_NONE ) then return false
-    next
-
-    '' Shift each into place, then or them together.
-    dim as long shifts( 0 to 3 ) = { 16, 8, 0, 24 }
-    dim as MirValue acc
-    for i as long = 0 to want - 1
-        dim as MirValue term = parts( i )
-        if shifts( i ) <> 0 then
-            dim as MirInst sh
-            sh.op = cast( ushort, M_SHL )
-            sh.ty = cast( ubyte, MT_I64 )
-            sh.a = term
-            sh.b = ConstInt( c, shifts( i ), MT_I64 )
-            term = Emit( c, sh )
-            if term.kind = cast( ubyte, MV_NONE ) then return false
-        end if
-        if i = 0 then
-            acc = term
-        else
-            dim as MirInst o
-            o.op = cast( ushort, M_OR )
-            o.ty = cast( ubyte, MT_I64 )
-            o.a = acc
-            o.b = term
-            acc = Emit( c, o )
-            if acc.kind = cast( ubyte, MV_NONE ) then return false
-        end if
-    next
-
-    if want = 3 then
-        '' The opaque alpha.
-        dim as MirInst o2
-        o2.op = cast( ushort, M_OR )
-        o2.ty = cast( ubyte, MT_I64 )
-        o2.a = acc
-        o2.b = ConstInt( c, 4278190080, MT_I64 )
-        acc = Emit( c, o2 )
-        if acc.kind = cast( ubyte, MV_NONE ) then return false
-    end if
-
-    outv = Coerce( c, acc, MT_I32, true )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
