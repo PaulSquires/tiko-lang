@@ -56,6 +56,29 @@ end function
 '' declare '+=' for several right-hand types, and taking the head would take one at
 '' random. An operand whose type matches nothing declines rather than being converted
 '' on a guess.
+'' THE ELEMENT TYPE OF A BARE ARRAY REFERENCE -- 'a' or 'a( )' -- or TYPE_NONE for
+'' anything else. A self-operator can take an ARRAY parameter, 'operator +=( array( )
+'' as integer )', and the argument written for it is the array's NAME: it has no value
+'' and no scalar type, so scoring it against the parameter answered CONV_NONE and every
+'' 'x += a( )' declined with the operator declared right there.
+private function ArrayArgElem_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId ) as Tko.TypeId
+
+    if argNode = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.NodeId nameNode = argNode
+    if c.ast->Kind( argNode ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+        if lp->count <> 0 then return Tko.TYPE_NONE
+        if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+        nameNode = lp->target
+    end if
+    dim as Tko.TypeId at = c.info->TypeOf_( nameNode )
+    if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return Tko.TYPE_NONE
+    return c.types->Unqualify( c.types->Inner( at ) )
+end function
+
 function SelfOpMemberCall_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind, byval tt as Tko.TypeId ) as boolean
@@ -65,8 +88,11 @@ function SelfOpMemberCall_ _
     dim as string opn = SelfOpName_( op )
     if len( opn ) = 0 then return false
 
+    '' An ARRAY argument has an ELEMENT type, not a value type, and it is the element
+    '' the parameter is declared with.
+    dim as Tko.TypeId aet = ArrayArgElem_( c, value )
     dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
-    if vt = Tko.TYPE_NONE then return false
+    if (vt = Tko.TYPE_NONE) andalso (aet = Tko.TYPE_NONE) then return false
 
     '' SCORED, NOT MATCHED EXACTLY. 'u += 10' over a type declaring both
     '' 'operator +=( byref as T )' and 'operator +=( byval as long )' has to reach the
@@ -86,6 +112,28 @@ function SelfOpMemberCall_ _
         if os = 0 then exit while
         if ParamCountOf_( c, cur ) = 1 then
             dim as Tko.TypeId pt = ParamTypeAt( c, cur, 0 )
+            '' AN ARRAY PARAMETER TAKES AN ARRAY AND NOTHING ELSE, and its declared
+            '' type IS the element's -- so the two are compared element to element
+            '' and a mismatch on either side removes the candidate outright.
+            dim as boolean pIsArr = ParamIsArray( c, cur, 0 )
+            if pIsArr orelse (aet <> Tko.TYPE_NONE) then
+                dim as long acost = Tko.Check.CONV_NONE
+                if pIsArr andalso (aet <> Tko.TYPE_NONE) andalso _
+                   (pt <> Tko.TYPE_NONE) then
+                    if c.types->Unqualify( pt ) = aet then
+                        acost = Tko.Check.CONV_EXACT
+                    end if
+                end if
+                if acost < best then
+                    best = acost
+                    want = cur
+                    ties = 0
+                elseif (acost = best) andalso (acost < Tko.Check.CONV_NONE) then
+                    ties += 1
+                end if
+                cur = os->nextOverload
+                continue while
+            end if
             if pt <> Tko.TYPE_NONE then
                 dim as Tko.TypeId pu = c.types->Unqualify( pt )
                 if c.types->Kind( pu ) = Tko.TK_REFERENCE then
@@ -115,7 +163,10 @@ function SelfOpMemberCall_ _
     if self_.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirValue av
-    if ParamIsByref( c, want, 0 ) then
+    '' A BYDESC ARRAY ARGUMENT travels as a DESCRIPTOR POINTER, whichever way the
+    '' parameter was spelled -- the same answer an ordinary call's arguments get.
+    if ArrayDescArg_( c, value, ParamIsArray( c, want, 0 ), av ) then
+    elseif ParamIsByref( c, want, 0 ) then
         av = LowerAddr( c, value )
     else
         av = LowerExpr( c, value )

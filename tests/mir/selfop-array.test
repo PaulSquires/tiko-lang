@@ -1,0 +1,7 @@
+'' A BYDESC ARRAY argument to a self-operator and to 'new T( ... )': both take a
+'' descriptor, and neither had one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/selfop-array.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/selfop-array.out

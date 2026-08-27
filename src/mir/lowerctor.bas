@@ -338,9 +338,28 @@ function EmitTypeCtorInto_ _
     dim as Tko.StmtPayload ptr pp = StmtOf( c, cn )
 
     dim as FB.Array( of ulong ) args
+    if PushCtorArgs_( c, ctor, cp->first, cp->count, args ) = false then return false
+
+    EmitStructorCall( c, ctor, slot, 0, @args )
+    return true
+end function
+
+'' THE ARGUMENTS OF A CONSTRUCTOR CALL, coerced to the constructor's own parameters.
+'' Shared with 'new T( ... )', which pushed every argument as a plain expression and so
+'' had none of this: an ARRAY argument produced nothing and was pushed anyway.
+function PushCtorArgs_ _
+    ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as long, _
+      byval count as long, byref args as FB.Array( of ulong ) ) as boolean
+
+    dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( ctor )
+    if cs2 = 0 then return false
+    dim as Tko.NodeId cn2 = cast( Tko.NodeId, cs2->payload )
+    if cn2 = Tko.NODE_NONE then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, cn2 )
+
     dim as long pi = 0
-    for i as long = 0 to cp->count - 1
-        dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+    for i as long = 0 to count - 1
+        dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[first_ + i] )
 
         '' AN ARRAY ARGUMENT TAKES A DESCRIPTOR, in a constructor call as much as in
         '' any other. Measured: fbc builds a static descriptor for a fixed-length
@@ -380,8 +399,6 @@ function EmitTypeCtorInto_ _
         end if
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     next
-
-    EmitStructorCall( c, ctor, slot, 0, @args )
     return true
 end function
 

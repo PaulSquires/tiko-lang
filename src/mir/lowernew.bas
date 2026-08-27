@@ -210,13 +210,11 @@ function LowerNew_ _
         '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
         '' written, not inside the null-guarded arm -- which matters the moment one has
         '' a side effect.
-        for i as long = 0 to np->count - 1
-            dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[np->first + i] )
-            dim as MirValue av = LowerExpr( c, ae )
-            if av.kind = cast( ubyte, MV_NONE ) then return false
-            cargs.Push( cast( ulong, av.kind ) )
-            cargs.Push( cast( ulong, av.id ) )
-        next
+        '' THE SAME ARGUMENTS AN ORDINARY CONSTRUCTOR CALL GETS. This pushed each one
+        '' as a plain expression, so 'new T( b( ) )' -- an ARRAY argument, which has no
+        '' value and travels as a descriptor -- produced nothing, while the identical
+        '' 'T( b( ) )' one line away lowered.
+        if PushCtorArgs_( c, ctor, np->first, np->count, cargs ) = false then return false
     end if
     if (ctor <> Tko.SYMBOL_NONE) orelse implCtor then
         dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )

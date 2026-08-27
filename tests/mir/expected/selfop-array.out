@@ -1,0 +1,249 @@
+func void _ZN1TC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const ptr 0
+    %5 = field.addr %3, 0
+    store %5, %4
+    %6 = field.addr %3, 8
+    store %6, %4
+    %7 = const i64 0
+    %8 = field.addr %3, 16
+    store %8, %7
+    %9 = const i64 8
+    %10 = field.addr %3, 24
+    store %10, %9
+    %11 = const i64 1
+    %12 = field.addr %3, 32
+    store %12, %11
+    %13 = const i64 17
+    %14 = field.addr %3, 40
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %3, 48
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %3, 56
+    store %18, %17
+    %19 = const i64 0
+    %20 = field.addr %3, 64
+    store %20, %19
+    ret
+}
+func void _ZN1TC1ER7FBARRAYIu7INTEGERE($0, $1) {
+  local ptr this
+  local ptr array
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr array
+    store @array, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = const ptr 0
+    %6 = field.addr %4, 0
+    store %6, %5
+    %7 = field.addr %4, 8
+    store %7, %5
+    %8 = const i64 0
+    %9 = field.addr %4, 16
+    store %9, %8
+    %10 = const i64 8
+    %11 = field.addr %4, 24
+    store %11, %10
+    %12 = const i64 1
+    %13 = field.addr %4, 32
+    store %13, %12
+    %14 = const i64 17
+    %15 = field.addr %4, 40
+    store %15, %14
+    %16 = const i64 0
+    %17 = field.addr %4, 48
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr %4, 56
+    store %19, %18
+    %20 = const i64 0
+    %21 = field.addr %4, 64
+    store %21, %20
+    %22 = load @this
+    %23 = field.addr %22, 0
+    %24 = const i64 0
+    %25 = load @array
+    %26 = const i64 1
+    %27 = call.rtl i64 fb_ArrayLBound(%25, %26)
+    %28 = load @array
+    %29 = const i64 1
+    %30 = call.rtl i64 fb_ArrayUBound(%28, %29)
+    %31 = call.rtl i32 fb_ArrayRedimEx(%23, 8, -1, 0, 1, %27, %30)
+    ret
+}
+declare i64 fb_ArrayLBound($0, $1)
+declare i64 fb_ArrayUBound($0, $1)
+declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
+func void _ZN1TpLER7FBARRAYIu7INTEGERE($0, $1) {
+  local ptr this
+  local ptr array
+  local i64 i
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr array
+    store @array, $1
+    %3 = alloca ptr i
+    %4 = load @array
+    %5 = const i64 1
+    %6 = call.rtl i64 fb_ArrayLBound(%4, %5)
+    store @i, %6
+    br for.head1
+  for.head1:
+    %7 = load @i
+    %8 = load @array
+    %9 = const i64 1
+    %10 = call.rtl i64 fb_ArrayUBound(%8, %9)
+    %11 = icmp.sle %7, %10
+    condbr %11, for.body2, for.exit4
+  for.body2:
+    %12 = load @this
+    %13 = field.addr %12, 0
+    %14 = load @i
+    %15 = const i64 8
+    %16 = mul %14, %15
+    %17 = load %13
+    %18 = ptr.add %17, %16
+    %19 = load %18
+    %20 = load @array
+    %21 = load @i
+    %22 = const i64 8
+    %23 = mul %21, %22
+    %24 = load %20
+    %25 = ptr.add %24, %23
+    %26 = load %25
+    %27 = add %19, %26
+    store %18, %27
+    br for.step3
+  for.step3:
+    %28 = load @i
+    %29 = const i64 1
+    %30 = add %28, %29
+    store @i, %30
+    br for.head1
+  for.exit4:
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a size 80
+  local agg x size 72
+  local agg $tmp3 size 72
+  local ptr y
+  local ptr $tmp5
+  local agg $tmp6 size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = alloca ptr x
+    call void _ZN1TC1Ev(@x)
+    %6 = alloca ptr $tmp3
+    %7 = field.addr @$tmp3, 0
+    store %7, @a
+    %8 = field.addr @$tmp3, 8
+    store %8, @a
+    %9 = const i64 80
+    %10 = field.addr @$tmp3, 16
+    store %10, %9
+    %11 = const i64 8
+    %12 = field.addr @$tmp3, 24
+    store %12, %11
+    %13 = const i64 1
+    %14 = field.addr @$tmp3, 32
+    store %14, %13
+    %15 = const i64 49
+    %16 = field.addr @$tmp3, 40
+    store %16, %15
+    %17 = const i64 10
+    %18 = field.addr @$tmp3, 48
+    store %18, %17
+    %19 = const i64 0
+    %20 = field.addr @$tmp3, 56
+    store %20, %19
+    %21 = const i64 9
+    %22 = field.addr @$tmp3, 64
+    store %22, %21
+    call void _ZN1TpLER7FBARRAYIu7INTEGERE(@x, @$tmp3)
+    %23 = alloca ptr y
+    %24 = call.rtl ptr calloc(72, 1)
+    %25 = alloca ptr $tmp5
+    store @$tmp5, %24
+    %26 = alloca ptr $tmp6
+    %27 = field.addr @$tmp6, 0
+    store %27, @a
+    %28 = field.addr @$tmp6, 8
+    store %28, @a
+    %29 = const i64 80
+    %30 = field.addr @$tmp6, 16
+    store %30, %29
+    %31 = const i64 8
+    %32 = field.addr @$tmp6, 24
+    store %32, %31
+    %33 = const i64 1
+    %34 = field.addr @$tmp6, 32
+    store %34, %33
+    %35 = const i64 49
+    %36 = field.addr @$tmp6, 40
+    store %36, %35
+    %37 = const i64 10
+    %38 = field.addr @$tmp6, 48
+    store %38, %37
+    %39 = const i64 0
+    %40 = field.addr @$tmp6, 56
+    store %40, %39
+    %41 = const i64 9
+    %42 = field.addr @$tmp6, 64
+    store %42, %41
+    %43 = load @$tmp5
+    %44 = const ptr 0
+    %45 = icmp.ne %43, %44
+    condbr %45, new.ctor1, new.join2
+  new.ctor1:
+    call void _ZN1TC1ER7FBARRAYIu7INTEGERE(%43, @$tmp6)
+    br new.join2
+  new.join2:
+    %46 = load @$tmp5
+    store @y, %46
+    %47 = load @y
+    %48 = const ptr 0
+    %49 = icmp.ne %47, %48
+    condbr %49, del.body3, del.join4
+  del.body3:
+    call void _ZN1TD1Ev(%47)
+    call.rtl void free(%47)
+    br del.join4
+  del.join4:
+    call void _ZN1TD1Ev(@x)
+    %50 = const i32 0
+    call.rtl void fb_End(%50)
+    %51 = load @$tmp0
+    ret %51
+}
+declare void fb_Init($0, $1, $2)
+declare ptr calloc($0, $1)
+declare void _ZN1TD1Ev($0)
+declare void free($0)
+declare void fb_End($0)
+func void _ZN1TD1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    ret
+}
+declare i32 fb_ArrayErase($0)
+verify: ok
+lowered: 5 functions, 13 blocks, 189 insts, 0 statements not lowered, 0 scope imbalance
