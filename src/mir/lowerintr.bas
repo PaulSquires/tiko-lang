@@ -1070,6 +1070,38 @@ function LowerBuiltinProc _
     dim as FB.Array( of ulong ) args
     for i as long = 0 to argCount - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+
+        '' 'clear BYVAL p, 0, n' SAYS THE ARGUMENT ALREADY IS THE ADDRESS.
+        ''
+        '' That is the whole point of the spelling: 'clear @li, ...' takes the address
+        '' of a TEMPORARY holding @li and clears the temporary -- fbc's own warning 50 --
+        '' while 'clear byval @li, ...' clears li. Measured, both from one probe:
+        ''
+        ''     clear @li, 0, 8         TMP = &LI$0;  memset( &TMP, 0, 8 )
+        ''     clear byval @li, 0, 8   memset( (void*)&LI$0, 0, 8 )
+        ''
+        '' KW_BYVAL was unwrapped in exactly one place in the lowerer -- the user-call
+        '' path -- so here the wrapper reached LowerAddr, ConstOf and LowerExpr in turn
+        '' and none of them knew what it was.
+        dim as boolean forcedByval = false
+        if c.ast->Kind( a ) = Tko.N_UNARY then
+            dim as Tko.UnaryPayload ptr bup = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+            if cast( Tko.TokenKind, bup->op ) = Tko.KW_BYVAL then
+                forcedByval = true
+                a = bup->operand
+            end if
+        end if
+        if forcedByval then
+            dim as MirValue bv = LowerExpr( c, a )
+            if bv.kind = cast( ubyte, MV_NONE ) then return false
+            bv = Coerce( c, bv, MT_PTR, false )
+            if bv.kind = cast( ubyte, MV_NONE ) then return false
+            args.Push( cast( ulong, bv.kind ) )
+            args.Push( cast( ulong, bv.id ) )
+            continue for
+        end if
+
         '' CLEAR's first argument is an LVALUE whose ADDRESS is passed, not its value.
         if (r = RTL_MEMSET) andalso (i = 0) then
             dim as MirValue da = LowerAddr( c, a )

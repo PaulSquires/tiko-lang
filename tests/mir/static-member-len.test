@@ -1,0 +1,6 @@
+'' 'len( T.field )' over a TYPE NAME is a constant, and a dotted string constant folds.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-member-len.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/static-member-len.out

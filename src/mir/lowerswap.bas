@@ -317,7 +317,18 @@ function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
     if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
     if s = 0 then return Tko.TYPE_NONE
-    if s->kind <> cast( ubyte, Tko.SYM_UDT ) then return Tko.TYPE_NONE
+    '' ...OR TO A TYPEDEF FOR ONE. 'type Alias as T' is a SYM_TYPEDEF whose own type is
+    '' a TK_TYPEDEF placeholder, so both tests below refused it and 'Alias( ).a'
+    '' declined -- while 'T( ).a' and 'type<Alias>( ).a' beside it lowered.
+    select case s->kind
+    case cast( ubyte, Tko.SYM_UDT ), cast( ubyte, Tko.SYM_TYPEDEF )
+    case else
+        return Tko.TYPE_NONE
+    end select
+    dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( cp->target ) )
+    if ct <> Tko.TYPE_NONE then
+        if c.types->Kind( ct ) = Tko.TK_UDT then return ct
+    end if
     if s->type_ = Tko.TYPE_NONE then return Tko.TYPE_NONE
     if c.types->Kind( s->type_ ) <> Tko.TK_UDT then return Tko.TYPE_NONE
     return s->type_

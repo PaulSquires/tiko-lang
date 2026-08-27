@@ -1,0 +1,6 @@
+'' wspace, a four-code wchr, and 'clear byval'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-space-clear.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-space-clear.out

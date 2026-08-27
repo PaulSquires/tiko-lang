@@ -1,0 +1,6 @@
+'' A constructor call through a TYPEDEF for a UDT.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typedef-ctor-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/typedef-ctor-call.out

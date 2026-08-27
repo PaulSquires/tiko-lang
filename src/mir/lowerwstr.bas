@@ -927,7 +927,7 @@ function LowerWideRvalue _
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
-    if (cp->count < 1) orelse (cp->count > 3) then return false
+    if cp->count < 1 then return false
 
     '' 'wchr( a, b, ... )' -- THE WIDE TWIN OF CHR, and variadic like it: a COUNT and
     '' then that many codes. It had no lowering at all, so 'w = wchr( n )' declined and
@@ -947,6 +947,31 @@ function LowerWideRvalue _
         outv = EmitRtl( c, RTL_WSTR_CHR, wca )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
+
+    '' 'wspace( n )' -- THE WIDE TWIN OF SPACE. fb_WstrSpace was in the runtime table
+    '' and had no caller at all, so every 'e = wspace( 5 )' declined -- and the corpus
+    '' builds most of its EXPECTED VALUES that way, which is why lset and rset looked
+    '' broken when they were not.
+    ''
+    '' Measured: 'uint16* vr$4 = fb_WstrSpace( 5ll )', and the result is an allocation
+    '' the CALLER owns -- fbc deletes it -- so it goes through WideConcatStep_, which is
+    '' what registers a wide temporary for its fb_WstrDelete.
+    if nm = "wspace" then
+        if cp->count <> 1 then return false
+        dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as MirValue nv = LowerExpr( c, sn )
+        if nv.kind = cast( ubyte, MV_NONE ) then return false
+        nv = Coerce( c, nv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( sn ) ) )
+        if nv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) sa
+        sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )
+        return WideConcatStep_( c, sa, RTL_WSTR_SPACE, outv )
+    end if
+
+    '' AT MOST THREE, for everything below -- the trim, mid and radix families. WCHR is
+    '' VARIADIC and is taken above this: fbc accepts up to 32 codes, and the guard used
+    '' to sit at the top of the function and refuse a fourth.
+    if cp->count > 3 then return false
 
     '' The FIRST argument decides: these names are all overloaded on narrow strings
     '' too, and only the wide overload is lowered here.

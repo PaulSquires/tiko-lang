@@ -857,6 +857,76 @@ end function
 '' It was lowered NOWHERE -- not even for a narrow string -- so every 'n = len( s )'
 '' declined, and inside a DIM initialiser did so silently until the initialiser path
 '' started counting.
+'' A DOTTED PATH THROUGH A TYPE OR A NAMESPACE rather than through an object --
+'' 'T.field', 'T.Inner.field', 'ns.name'. What distinguishes it is the LEFTMOST name: a
+'' type or a namespace, never a variable.
+private function QualifiedStaticPath_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.NodeId cur = id
+    dim as long guard = 0
+    while (c.ast->Kind( cur ) = Tko.N_MEMBER) andalso (guard < 64)
+        guard += 1
+        cur = c.ast->binaries[cast( long, c.ast->nodes[cast( long, cur )].data )].lhs
+    wend
+    if cur = id then return false
+    if c.ast->Kind( cur ) <> Tko.N_IDENT then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cur ) )
+    if s = 0 then return false
+    select case s->kind
+    case cast( ubyte, Tko.SYM_UDT ), cast( ubyte, Tko.SYM_NAMESPACE ), _
+         cast( ubyte, Tko.SYM_TYPEDEF )
+        return true
+    end select
+    return false
+end function
+
+'' 'len( T.field )' AND 'sizeof( T.field )' OVER A TYPE NAME ARE COMPILE-TIME CONSTANTS.
+''
+'' There is no object, so there is nothing to measure at run time -- and tiko-lang
+'' INVENTED ONE. It allocated a local of the type, took a field address inside it and
+'' called fb_StrLen on that: a length read out of a frame slot nothing had written.
+'' It lowered, it verified, and it counted as a statement successfully compiled.
+''
+'' Measured, over 'type T: const zs = "hello" : z as zstring * 10 : w as wstring * 10 :
+'' s as string : sl as long : end type':
+''
+''     len( T.zs )     5     the CONSTANT'S TEXT length
+''     sizeof( T.zs )  6     ...and its byte size, the NUL included
+''     len( T.z )     10     'zstring * 10' -- its DECLARED SIZE, not a strlen
+''     len( T.w )     20     'wstring * 10' -- twenty BYTES, not ten characters
+''     len( T.s )     24     the descriptor
+''     len( T.sl )     4
+''
+'' -- so every one of them is the member's own size, and LEN and SIZEOF differ only over
+'' a string CONSTANT, where len is the text and sizeof the bytes it occupies.
+''
+'' The same holds through a namespace: 'len( ns.s )' over 'const s = "hello"' is 5.
+private function LowerStaticMemberLen_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval isSizeof as boolean, _
+      byref outv as MirValue ) as boolean
+
+    if QualifiedStaticPath_( c, a ) = false then return false
+
+    '' A STRING CONSTANT MEASURES ITS TEXT. It has no storage of its own, so the size
+    '' its type would give is the size of whatever the initialiser was written as.
+    dim as string ct
+    if ConstStringTextOf_( c, a, ct ) then
+        dim as longint n = len( ct )
+        if isSizeof then n += 1
+        outv = ConstInt( c, n, MT_I64 )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    dim as Tko.TypeId mt2 = c.info->TypeOf_( a )
+    if mt2 = Tko.TYPE_NONE then return false
+    dim as long sz = SizeOfType( c, mt2 )
+    if sz <= 0 then return false
+    outv = ConstInt( c, sz, MT_I64 )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 function LowerLen _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -882,6 +952,13 @@ function LowerLen _
     if (lenNm <> "len") andalso (isSizeof = false) then return false
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
+
+    '' A DOTTED PATH THROUGH A TYPE NAME IS A COMPILE-TIME SIZE, and there is no object
+    '' to measure -- see LowerStaticMemberLen_, which is also where the phantom instance
+    '' this used to allocate came from. Tried before the type test below because a
+    '' string CONSTANT member has no type of its own to report.
+    if LowerStaticMemberLen_( c, a, isSizeof, outv ) then return true
+
     dim as Tko.TypeId at = c.info->TypeOf_( a )
     if at = Tko.TYPE_NONE then return false
 

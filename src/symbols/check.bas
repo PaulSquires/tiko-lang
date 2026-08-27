@@ -882,8 +882,29 @@ function TypeOf_ _
                 '' way: 'DateTime( 2025, 1, 31 ).AddMonths( 0 ).Ticks'.
                 dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( callee )
                 if cs2 <> 0 then
-                    if cs2->kind = cast( ubyte, Tko.SYM_UDT ) then
+                    '' ...OR A TYPEDEF FOR ONE. 'type Alias as T' is a SYM_TYPEDEF, so
+                    '' 'Alias( ).a' left the call untyped and the '.a' on it had nothing
+                    '' to offset from -- while 'T( ).a' and 'type<Alias>( ).a' beside it
+                    '' both worked.
+                    dim as boolean udtCallee = (cs2->kind = cast( ubyte, Tko.SYM_UDT ))
+                    if cs2->kind = cast( ubyte, Tko.SYM_TYPEDEF ) then
+                        '' THE TYPEDEF'S OWN TYPE IS A TK_TYPEDEF PLACEHOLDER, not the
+                        '' UDT -- so what says this names an object is the type the
+                        '' NAME resolves to, which is already in hand.
+                        if ct <> Tko.TYPE_NONE then
+                            udtCallee = _
+                                (c.types->Kind( c.types->Unqualify( ct ) ) = Tko.TK_UDT)
+                        end if
+                    end if
+                    if udtCallee then
                         t = cs2->type_
+                        if t <> Tko.TYPE_NONE then
+                            if c.types->Kind( c.types->Unqualify( t ) ) <> Tko.TK_UDT then
+                                t = ct
+                            end if
+                        else
+                            t = ct
+                        end if
                     end if
                 end if
                 if (t = Tko.TYPE_NONE) andalso (callee <> Tko.SYMBOL_NONE) then

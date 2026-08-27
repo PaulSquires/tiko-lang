@@ -1,0 +1,61 @@
+func void S1() {
+  local i64 r
+  entry0:
+    %1 = alloca ptr r
+    %2 = const i64 5
+    store @r, %2
+    %3 = load @r
+    call.rtl void fb_PrintLongint(0, %3, 1)
+    %4 = const i64 6
+    store @r, %4
+    %5 = load @r
+    call.rtl void fb_PrintLongint(0, %5, 1)
+    %6 = const i64 5
+    store @r, %6
+    %7 = load @r
+    call.rtl void fb_PrintLongint(0, %7, 1)
+    %8 = const i64 6
+    store @r, %8
+    %9 = load @r
+    call.rtl void fb_PrintLongint(0, %9, 1)
+    %10 = const i64 10
+    store @r, %10
+    %11 = load @r
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = const i64 20
+    store @r, %12
+    %13 = load @r
+    call.rtl void fb_PrintLongint(0, %13, 1)
+    %14 = const i64 24
+    store @r, %14
+    %15 = load @r
+    call.rtl void fb_PrintLongint(0, %15, 1)
+    %16 = const i64 4
+    store @r, %16
+    %17 = load @r
+    call.rtl void fb_PrintLongint(0, %17, 1)
+    %18 = const i64 4
+    store @r, %18
+    %19 = load @r
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    ret
+}
+declare void fb_PrintLongint($0, $1, $2)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S1()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

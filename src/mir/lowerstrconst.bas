@@ -135,7 +135,12 @@ function ConstStringTextOf_ _
         return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
                                    outText, depth + 1 )
 
-    case Tko.N_IDENT
+    case Tko.N_IDENT, Tko.N_MEMBER
+        '' A DOTTED PATH TO A CONSTANT IS STILL A CONSTANT -- 'T.zs' over a 'const zs =
+        '' "hello"' declared inside a type, and 'ns.s' over one in a namespace. Only the
+        '' bare name was folded, so 'len( T.zs )' had no text to measure and every use
+        '' of a member constant declined. Resolve has already bound the member to its
+        '' symbol, so the two spellings read exactly the same way from here.
         '' The constant's payload is its N_VAR_ITEM, whose 'b' is the initialiser --
         '' the same shape the integer folder reads, and read as the same pool.
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
