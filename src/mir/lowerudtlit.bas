@@ -215,6 +215,33 @@ function LowerUdtParenInit_ _
         end if
     end if
 
+    '' A TYPE WITH A CONSTRUCTOR IS CONSTRUCTED, not written field by field.
+    ''
+    '' Measured, over a T declaring 'constructor( byval n as long )' and a U declaring
+    '' none:
+    ''
+    ''     dim as T x = type<T>( 7 )      _ZN1TC1Ei( &X$0, 7 )
+    ''     dim as U y = type<U>( 1, 2 )   *(int32*)&Y$0 = 1; *(int32*)(&Y$0+4) = 2
+    ''
+    '' -- so the field walk below is the NO-CONSTRUCTOR case only. Reaching it over a
+    '' type that has one wrote the arguments straight into the fields and never called
+    '' the constructor: 'f( type<T>( 123 ) )' set T.v and skipped whatever else the
+    '' constructor does, silently, in a statement that lowered and verified. The
+    '' zero-argument form above already knew this; the N-argument form did not.
+    ''
+    '' The overload is picked by ARITY, which is what 'T( args )' -- the other spelling
+    '' of the same construction -- already does, so the two agree. That is not full
+    '' overload resolution and neither path claims to be.
+    dim as Tko.SymbolId lct = CtorOf_( c, t, pl0->count )
+    if lct <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) lca
+        if PushCtorArgs_( c, lct, pl0->first, pl0->count, lca ) then
+            EmitStructorCall( c, lct, slot, 0, @lca )
+            return true
+        end if
+        return false
+    end if
+
     '' THE FIELDS, FLATTENED. 'dim as Outer x = ( ( 1, 2 ), 3 )' emits the same three
     '' stores at 0, 4 and 8 that a flat type would: nesting exists in the parser and
     '' nowhere else, so a nested UDT field contributes its OWN leaves here rather than

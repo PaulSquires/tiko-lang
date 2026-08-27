@@ -1,0 +1,8 @@
+'' 'type<T>( 7 )' calls T's constructor -- it used to write the argument into the
+'' first field and never call it -- and a bare 'type( 123 )' is typed from the
+'' parameter rather than from the synthetic tuple UDT, which sized its temporary wrong.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/type-literal-ctor.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/type-literal-ctor.out

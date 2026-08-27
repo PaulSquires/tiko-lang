@@ -460,6 +460,22 @@ end function
 
 '' Pick the overload for one call. Returns the chosen procedure's RETURN type, or
 '' TYPE_NONE when nothing is viable or two candidates tie.
+'' A 'type( ... )' THAT NAMES NO TYPE -- the form that takes its type from context.
+'' 'type<T>( ... )' and '( 1, 2 )' are not this: the first names its own type and the
+'' second is the tuple feature.
+private function BareTypeLiteral_ _
+    ( byref c as Ctx, byval a as Tko.NodeId ) as boolean
+
+    if a = Tko.NODE_NONE then return false
+    if c.ast->Kind( a ) <> Tko.N_TUPLE then return false
+    if (c.ast->nodes[cast( long, a )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        return false
+    end if
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
+    return (lp->target = Tko.NODE_NONE)
+end function
+
 private function ResolveCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as long, byval argCount as long ) as Tko.TypeId
@@ -685,6 +701,33 @@ private function ResolveCall_ _
                         end if
                     end if
 
+                    '' A BARE 'type( ... )' TAKES THE PARAMETER'S TYPE, so it costs
+                    '' EXACT against any UDT parameter and nothing against anything
+                    '' else. It names no type of its own, so the tuple rule gave it the
+                    '' SYNTHETIC tuple UDT keyed by its elements -- which converts to
+                    '' no real type at all, so the call bound to NOTHING and the
+                    '' statement declined with the constructor sitting right there.
+                    if ai < argCount then
+                        dim as Tko.NodeId an5 = _
+                            cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                        if BareTypeLiteral_( c, an5 ) then
+                            dim as Tko.TypeId pu5 = pt
+                            if pu5 <> Tko.TYPE_NONE then
+                                if c.types->Kind( pu5 ) = Tko.TK_REFERENCE then
+                                    pu5 = c.types->Inner( pu5 )
+                                end if
+                                pu5 = c.types->Unqualify( pu5 )
+                            end if
+                            if c.types->Kind( pu5 ) <> Tko.TK_UDT then
+                                viable = false
+                                exit for
+                            end if
+                            ai += 1
+                            total += CONV_EXACT
+                            continue for
+                        end if
+                    end if
+
                     dim as long cost = ConversionCost( at2, pt, *c.types, overloaded )
                     '' ...AND THE USER-DEFINED CONVERSIONS, which ConversionCost cannot
                     '' see: it takes only a TypeContext, so it can look up neither a
@@ -741,6 +784,32 @@ private function ResolveCall_ _
     end if
     c.st->callsResolved += 1
     c.info->SetRef( id, best )
+
+    '' A BARE 'type( ... )' ARGUMENT TAKES THE PARAMETER'S TYPE. It names none of its
+    '' own, so the tuple rule above gave it the SYNTHETIC tuple UDT keyed by its element
+    '' types -- and lowering then built a temporary of THAT: eight bytes for a
+    '' four-byte T, written field by field, with the type's own constructor never
+    '' called. It lowered and it verified.
+    ''
+    '' Measured, and all three spellings are the same construction to fbc:
+    ''
+    ''     f( type( 123 ) )      _ZN1TC1Ei( &TMP$2$0, 123 ); F( TMP$2$0 )
+    ''     f( type<T>( 123 ) )   the same
+    ''     f( T( 123 ) )         the same
+    ''
+    '' Retyped HERE rather than during scoring: the parameter is only known once a
+    '' candidate has won, and a bare literal cannot help choose between candidates --
+    '' fbc cannot either, and says so.
+    for i as long = 0 to argCount - 1
+        dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+        if BareTypeLiteral_( c, a2 ) = false then continue for
+        dim as Tko.TypeId pt2 = ProcParamTypeAt_( c, best, i )
+        if pt2 = Tko.TYPE_NONE then continue for
+        if c.types->Kind( pt2 ) = Tko.TK_REFERENCE then pt2 = c.types->Inner( pt2 )
+        pt2 = c.types->Unqualify( pt2 )
+        if c.types->Kind( pt2 ) <> Tko.TK_UDT then continue for
+        c.info->SetType( a2, pt2 )
+    next
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( best )
     if bs = 0 then return Tko.TYPE_NONE
     return bs->type_
