@@ -31,7 +31,16 @@ private function LowerNewArray_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval np as Tko.ListPayload ptr, _
       byref outv as MirValue ) as boolean
 
-    if np->count <> 1 then return false
+    '' PLACEMENT: the pointer is child 0 and the COUNT follows it.
+    dim as boolean isPlace = _
+        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_PLACEMENT) <> 0)
+    dim as long cntAt = np->first
+    if isPlace then
+        if np->count <> 2 then return false
+        cntAt += 1
+    elseif np->count <> 1 then
+        return false
+    end if
     dim as Tko.TypeId el = c.info->TypeOf_( np->target )
     if el = Tko.TYPE_NONE then return false
     dim as long esz = SizeOfType( c, el )
@@ -42,7 +51,7 @@ private function LowerNewArray_ _
 
     '' THE COUNT, once: it is an expression and may have a side effect -- the corpus
     '' writes 'new ClassUDT[sidefx( )]' precisely to check that it runs once.
-    dim as Tko.NodeId cntE = cast( Tko.NodeId, c.ast->children[np->first] )
+    dim as Tko.NodeId cntE = cast( Tko.NodeId, c.ast->children[cntAt] )
     dim as MirValue cnt0 = LowerExpr( c, cntE )
     if cnt0.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue cnt = Coerce( c, cnt0, zt, _
@@ -57,10 +66,29 @@ private function LowerNewArray_ _
     dim as MirValue bytes_ = Emit( c, mul )
     if bytes_.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) aa
-    aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
-    dim as MirValue raw = EmitRtl( c, RTL_CALLOC, aa )
+    '' A PLACEMENT ARRAY ALLOCATES NOTHING EITHER, and it has no cookie to write,
+    '' so the byte count computed above is used only to ZERO a trivial element type.
+    '' Measured, over an element with no constructor:
+    ''
+    ''     TMP$12$0 = (int64*)BUF$0;
+    ''     if( TMP$12$0 == (int64*)0ull) goto label$18;
+    ''     __builtin_memset( TMP$12$0, 0, 24ull );
+    ''     label$18:;
+    ''
+    '' An element WITH a constructor gets the same count-down loop the ordinary form
+    '' already emits, over the placement pointer.
+    dim as MirValue raw
+    if isPlace then
+        dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->children[np->first] )
+        raw = LowerExpr( c, pe )
+        if raw.kind = cast( ubyte, MV_NONE ) then return false
+        raw = Coerce( c, raw, MT_PTR, true )
+    else
+        dim as FB.Array( of ulong ) aa
+        aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
+        aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+        raw = EmitRtl( c, RTL_CALLOC, aa )
+    end if
     if raw.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as long pbytes = c.types->target.pointerBits \ 8
@@ -78,6 +106,34 @@ private function LowerNewArray_ _
     dim as boolean implCtor = false
     if ctor = Tko.SYMBOL_NONE then
         implCtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsInit_( c, el )
+    end if
+
+    '' A PLACEMENT ARRAY OF A TRIVIAL ELEMENT STILL HAS TO BE ZEROED: there is no
+    '' calloc to have done it. Measured as one memset over the whole n * sizeof( T ).
+    dim as boolean zeroArr = isPlace
+    if zeroArr then zeroArr = (ctor = Tko.SYMBOL_NONE)
+    if zeroArr then zeroArr = (implCtor = false)
+    if zeroArr then
+        dim as MirValue zp = LowerExprLoad( c, saddr, MT_PTR )
+        if zp.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirInst zc
+        zc.op = cast( ushort, M_ICMP_NE )
+        zc.ty = cast( ubyte, MT_I32 )
+        zc.a = zp
+        zc.b = ConstInt( c, 0, MT_PTR )
+        dim as MirValue zcond = Emit( c, zc )
+        if zcond.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long zbody = NewBlock( c, "newp.zero" )
+        dim as long zjoin = NewBlock( c, "newp.join" )
+        Terminate( c, MTERM_CONDBR, zbody, zjoin, zcond )
+        c.curBlock = zbody
+        dim as FB.Array( of ulong ) za
+        za.Push( cast( ulong, zp.kind ) ) : za.Push( cast( ulong, zp.id ) )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( ulong, bytes_.kind ) ) : za.Push( cast( ulong, bytes_.id ) )
+        EmitRtl( c, RTL_MEMSET, za )
+        Terminate( c, MTERM_BR, zjoin, -1, NoVal( ) )
+        c.curBlock = zjoin
     end if
 
     if (ctor <> Tko.SYMBOL_NONE) orelse implCtor then
@@ -171,12 +227,37 @@ function LowerNew_ _
     dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return false
 
-    '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
-    '' passes 1, folding the whole size into the first -- not the other way round.
-    dim as FB.Array( of ulong ) aa
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
-    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
-    dim as MirValue raw = EmitRtl( c, RTL_CALLOC, aa )
+    '' PLACEMENT NEW ALLOCATES NOTHING: the pointer is the one written, cast to the
+    '' type. Everything after it -- the null guard, the constructor, the result -- is
+    '' the same, which is why this is one value and not a second path.
+    ''
+    '' Measured, and the placement expression is evaluated BEFORE the guard:
+    ''
+    ''     TMP$2$0 = (struct $5PLAIN*)BUF$0;
+    ''     if( TMP$2$0 == (struct $5PLAIN*)0ull) goto label$10;
+    ''     __builtin_memset( TMP$2$0, 0, 8ull );
+    ''     label$10:;
+    dim as boolean isPlace = _
+        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_PLACEMENT) <> 0)
+    dim as long argFirst = np->first
+    dim as long argCount = np->count
+    dim as MirValue raw
+    if isPlace then
+        if argCount < 1 then return false
+        dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->children[argFirst] )
+        argFirst += 1
+        argCount -= 1
+        raw = LowerExpr( c, pe )
+        if raw.kind = cast( ubyte, MV_NONE ) then return false
+        raw = Coerce( c, raw, MT_PTR, true )
+    else
+        '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
+        '' passes 1, folding the whole size into the first -- not the other way round.
+        dim as FB.Array( of ulong ) aa
+        aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
+        aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+        raw = EmitRtl( c, RTL_CALLOC, aa )
+    end if
     if raw.kind = cast( ubyte, MV_NONE ) then return false
 
     '' The allocation lives in a slot, because the construction below is a BRANCH and
@@ -200,13 +281,42 @@ function LowerNew_ _
     '' allocated the object and constructed nothing -- calloc's zeroing happens to
     '' leave a valid empty descriptor, so it survived, but a type with a base, a vptr
     '' or a nested constructor got none of them and the vptr in particular stayed null.
-    dim as Tko.SymbolId ctor = CtorOf_( c, el, np->count )
+    dim as Tko.SymbolId ctor = CtorOf_( c, el, argCount )
     dim as boolean implCtor = false
-    if (ctor = Tko.SYMBOL_NONE) andalso (np->count = 0) then
+    if (ctor = Tko.SYMBOL_NONE) andalso (argCount = 0) then
         implCtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsInit_( c, el )
     end if
+
+    '' A SCALAR NEW WITH AN INITIALISER -- 'new integer( 111 )'. There is no
+    '' constructor to find, so this fell past every branch below and the value was
+    '' DROPPED: the allocation happened, calloc's zeroing stood in for it, and the
+    '' statement lowered and verified with the 111 nowhere in the output.
+    ''
+    '' Measured, and it sits inside the same null guard a constructor call does:
+    ''
+    ''     TMP$2$0 = (int64*)vr$0;
+    ''     if( TMP$2$0 == (int64*)0ull) goto label$2;
+    ''     *TMP$2$0 = 111ll;
+    ''     label$2:;
+    dim as boolean scalarInit = false
+    if (ctor = Tko.SYMBOL_NONE) andalso (argCount = 1) then
+        dim as MirType emt = LowerType( el, *c.types )
+        scalarInit = (emt <> MT_VOID) andalso (emt <> MT_AGG)
+    end if
+
+    '' PLACEMENT NEW OVER A TYPE WITH NO CONSTRUCTOR ZEROES, because there is no
+    '' calloc to have done it. Measured: '__builtin_memset( TMP$2$0, 0, 8ull )', and
+    '' fbc emits NO memset when a constructor runs or when a scalar initialiser is
+    '' written -- both write the bytes themselves.
+    dim as boolean placeZero = false
+    if isPlace then
+        dim as boolean noCtor = (ctor = Tko.SYMBOL_NONE)
+        if noCtor then noCtor = (implCtor = false)
+        if noCtor then noCtor = (scalarInit = false)
+        placeZero = noCtor
+    end if
     dim as FB.Array( of ulong ) cargs
-    if ctor <> Tko.SYMBOL_NONE then
+    if (ctor <> Tko.SYMBOL_NONE) andalso (isPlace = false) then
         '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
         '' written, not inside the null-guarded arm -- which matters the moment one has
         '' a side effect.
@@ -214,9 +324,12 @@ function LowerNew_ _
         '' as a plain expression, so 'new T( b( ) )' -- an ARRAY argument, which has no
         '' value and travels as a descriptor -- produced nothing, while the identical
         '' 'T( b( ) )' one line away lowered.
-        if PushCtorArgs_( c, ctor, np->first, np->count, cargs ) = false then return false
+        if PushCtorArgs_( c, ctor, argFirst, argCount, cargs ) = false then return false
     end if
-    if (ctor <> Tko.SYMBOL_NONE) orelse implCtor then
+    dim as boolean needsGuard = (ctor <> Tko.SYMBOL_NONE) orelse implCtor
+    if needsGuard = false then needsGuard = scalarInit
+    if needsGuard = false then needsGuard = placeZero
+    if needsGuard then
         dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
         if pv.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue zero = ConstInt( c, 0, MT_PTR )
@@ -232,8 +345,31 @@ function LowerNew_ _
         dim as long joinB = NewBlock( c, "new.join" )
         Terminate( c, MTERM_CONDBR, bodyB, joinB, cond )
         c.curBlock = bodyB
+        '' A PLACEMENT NEW'S CONSTRUCTOR ARGUMENTS ARE EVALUATED INSIDE THE GUARD.
+        '' Measured, with a side-effecting placement expression and a side-effecting
+        '' argument: the placement call runs before the branch and the argument call
+        '' after it. An ordinary 'new' evaluates its arguments where the 'new' is
+        '' written, which is why the two are pushed in different places.
+        if isPlace andalso (ctor <> Tko.SYMBOL_NONE) then
+            if PushCtorArgs_( c, ctor, argFirst, argCount, cargs ) = false then
+                return false
+            end if
+        end if
         if ctor <> Tko.SYMBOL_NONE then
             EmitStructorCall( c, ctor, -1, @pv, @cargs )
+        elseif scalarInit then
+            dim as Tko.NodeId ive = cast( Tko.NodeId, c.ast->children[argFirst] )
+            dim as MirValue iv = LowerExpr( c, ive )
+            if iv.kind = cast( ubyte, MV_NONE ) then return false
+            iv = Coerce( c, iv, LowerType( el, *c.types ), IsUnsignedType( c, el ) )
+            if iv.kind = cast( ubyte, MV_NONE ) then return false
+            StoreThrough( c, pv, iv )
+        elseif placeZero then
+            dim as FB.Array( of ulong ) pz
+            pz.Push( cast( ulong, pv.kind ) ) : pz.Push( cast( ulong, pv.id ) )
+            pz.Push( cast( ulong, MV_CONST_INT ) ) : pz.Push( 0 )
+            pz.Push( cast( ulong, MV_CONST_INT ) ) : pz.Push( cast( ulong, esz ) )
+            EmitRtl( c, RTL_MEMSET, pz )
         else
             CallImplicitCtor_( c, el, pv )
         end if

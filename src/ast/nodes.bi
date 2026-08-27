@@ -182,6 +182,14 @@ namespace Tko
     '' N_FOREACH, the same way NF_TYPE_LITERAL shares with NF_UNTIL.
     const NF_DESTRUCTURE as ushort = &h0200
 
+    '' PLACEMENT NEW -- 'new( p ) T'. The placement expression is CHILD 0 and the
+    '' constructor arguments (or the array count) follow it, so the two uses of the
+    '' child list stay exactly as they were for an ordinary 'new'.
+    ''
+    '' Shares its bit with NF_PRESERVE, which is REDIM's and can never appear on an
+    '' N_NEW -- the same sharing NF_TYPE_LITERAL and NF_DESTRUCTURE already do.
+    const NF_PLACEMENT as ushort = &h1000
+
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.
     const PF_OVERLOAD   as ushort = &h0001   '' the OVERLOAD keyword was written

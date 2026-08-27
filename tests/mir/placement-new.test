@@ -1,0 +1,7 @@
+'' Placement new, all four scalar shapes and the array form, plus the scalar
+'' initialiser 'new integer( 111 )' that used to be dropped.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/placement-new.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/placement-new.out

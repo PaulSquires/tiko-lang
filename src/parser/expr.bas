@@ -895,9 +895,23 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         '' constructor arguments. The ARRAY form marks the node NF_ARRAY and puts the
         '' element count in child 0 -- fbc accepts no constructor arguments there, so
         '' the two uses of the child list never collide.
+        '' PLACEMENT NEW -- 'new( p ) T', 'new( p ) T( args )', 'new( p ) T[ n ]'.
+        '' The parenthesis comes BEFORE the type, and with no lookahead for it TypeRef
+        '' ate the '(' and then reported 'expected )' at the type name that followed:
+        '' pointers/new-delete.bas and structs/udt-upcast-3.bas both died outright.
+        '' Worse, 'new( buf ) T' with no constructor arguments produced an N_NEW with
+        '' NO TARGET AND NO CHILDREN, no diagnostic and no decline -- the allocation
+        '' simply vanished.
         Advance( p )
+        dim as Tko.NodeId nplace = Tko.NODE_NONE
+        if Peek( p ) = Tko.TK_LPAREN then
+            Advance( p )
+            nplace = Expression( p )
+            Expect( p, Tko.TK_RPAREN, ")" )
+        end if
         dim as Tko.NodeId nty = TypeRef( p )
         dim as Tko.NodeIdVec nargs
+        if nplace <> Tko.NODE_NONE then nargs.Push( cast( ulong, nplace ) )
         dim as boolean nIsArray = false
         if Peek( p ) = Tko.TK_LBRACKET then
             Advance( p )
@@ -916,6 +930,9 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         dim as Tko.NodeId nn = MakeList( p, Tko.N_NEW, t.loc, nty, nargs )
         if nIsArray then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_ARRAY
+        if nplace <> Tko.NODE_NONE then
+            p.ast->nodes[cast( long, nn )].flags or= Tko.NF_PLACEMENT
+        end if
         return nn
 
     case Tko.KW_TYPE
