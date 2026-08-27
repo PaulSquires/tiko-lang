@@ -756,59 +756,33 @@ sub Run _
             continue while
         end if
 
-        '' A trailing '_' continues the logical line: swallow it and the newline, and
-        '' do NOT emit TK_EOL (probe L8).
+        '' A '_' CONTINUES THE LOGICAL LINE, AND THE REST OF THAT PHYSICAL LINE IS
+        '' DISCARDED. Measured, and it is not the narrow rule this used to apply:
+        ''
+        ''     y = 1 + _ junk ) here      y = 1 + 2
+        ''         2
+        ''
+        '' -- fbc throws away everything after the '_' whatever it is, not just a
+        '' trailing comment. Requiring the line to END after the '_' meant a
+        '' continuation inside a MACRO ARGUMENT LIST was lexed as an IDENTIFIER and the
+        '' logical line stopped there: 'chk( x, _ )' with the rest on the next line
+        '' came out as the wrong argument count, in wstring/select.bas and
+        '' udt-wstring/select.bas. Measured, fbc expands exactly that to
+        '' 'print 1, 2, 3'.
+        ''
+        '' WHAT FOLLOWS THE '_' IMMEDIATELY decides, and only that: an identifier
+        '' character makes it a NAME -- '_x', '_ab' and '_9' are all identifiers, and
+        '' fbc reports the last as an undeclared variable rather than continuing the
+        '' line -- and anything else, INCLUDING A SPACE, makes it a continuation.
         if c = 95 then
-            dim as long j = s.i + 1
-            while (j < s.n) andalso IsSpace( s.p[j] )
-                j += 1
-            wend
-
-            '' A COMMENT MAY SIT BETWEEN THE '_' AND THE NEWLINE, and the corpus writes
-            '' its long continued expressions that way -- 'sizeof(ubyte) + _ '' 1' with
-            '' the running total in the comment. Measured: fbc folds all three forms,
-            '' the apostrophe comment, the block comment and REM, to the same value.
-            '' Without this the '_' was lexed as an IDENTIFIER and the logical line
-            '' ended there, so every such expression came apart.
-            dim as long jc = j
-            if (jc < s.n) andalso (s.p[jc] = 39) then
-                '' ' ... to the end of the line
-                while (jc < s.n) andalso (s.p[jc] <> 10) andalso (s.p[jc] <> 13)
-                    jc += 1
+            dim as boolean nameChar = false
+            if s.i + 1 < s.n then nameChar = IsIdentCont( s.p[s.i + 1] )
+            if nameChar = false then
+                dim as long j = s.i + 1
+                while (j < s.n) andalso (s.p[j] <> 10)
+                    j += 1
                 wend
-                j = jc
-            elseif (jc + 1 < s.n) andalso (s.p[jc] = 47) andalso (s.p[jc + 1] = 39) then
-                '' /' ... '/ -- only when it closes on this line, because one that runs
-                '' on is not a continuation's trailing comment at all.
-                dim as long k = jc + 2
-                dim as boolean closed = false
-                while k + 1 < s.n
-                    if (s.p[k] = 10) then exit while
-                    if (s.p[k] = 39) andalso (s.p[k + 1] = 47) then
-                        closed = true
-                        k += 2
-                        exit while
-                    end if
-                    k += 1
-                wend
-                if closed then
-                    while (k < s.n) andalso IsSpace( s.p[k] )
-                        k += 1
-                    wend
-                    j = k
-                end if
-            elseif IsRemWord_( s, jc ) then
-                while (jc < s.n) andalso (s.p[jc] <> 10) andalso (s.p[jc] <> 13)
-                    jc += 1
-                wend
-                j = jc
-            end if
-
-            dim as boolean atCr = (j < s.n) andalso (s.p[j] = 13)
-            if atCr then j += 1
-            dim as boolean atEol = (j < s.n) andalso (s.p[j] = 10)
-            if atEol then
-                s.i = j + 1
+                s.i = iif( j < s.n, j + 1, s.n )
                 s.pendingFlags or= Tko.TF_SPACE_BEFORE
                 continue while
             end if

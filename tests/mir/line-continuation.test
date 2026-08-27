@@ -1,0 +1,7 @@
+'' The line continuation discards the rest of its physical line, which is what a
+'' continuation inside a macro argument list depends on.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/line-continuation.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/line-continuation.out
