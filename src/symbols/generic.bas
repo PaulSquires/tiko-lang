@@ -293,6 +293,22 @@ private function InferArgType_ _
         dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[cp->first] )
         if c.ast->Kind( tn ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
         return ResolveTypeRef( c, tn, scope_ )
+    case Tko.N_BINARY
+        '' 'Some( a + b )' -- AN ARITHMETIC EXPRESSION HAS A TYPE, and it is the
+        '' one BinaryResult already computes for every operator, gated at
+        '' 3596/3596 against fbc by check-promo. This pass runs before Check, so
+        '' it computes the operands' types itself and asks the same table; without
+        '' it any generic called with an expression -- 'Some( a + b )',
+        '' 'Some( x \ 2 )' -- inferred nothing and the whole statement declined,
+        '' while the same call over a NAME one line up instantiated.
+        dim as Tko.BinaryPayload ptr bip = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+        dim as Tko.TypeId blt = InferArgType_( c, bip->lhs, scope_ )
+        if blt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        dim as Tko.TypeId brt = InferArgType_( c, bip->rhs, scope_ )
+        if brt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        return Tko.Check.BinaryResult( _
+            cast( Tko.TokenKind, bip->op ), blt, brt, *c.types )
     case Tko.N_INT_LIT
         return c.types->Builtin( Tko.TY_INTEGER )
     case Tko.N_FLOAT_LIT

@@ -1,0 +1,8 @@
+'' Inferring a generic's type argument from an ARITHMETIC EXPRESSION, through the
+'' same promotion table check-promo gates: 'Mk( a + b )' is integer, 'Mk( a / b )'
+'' double.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-infer-expr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-infer-expr.out
