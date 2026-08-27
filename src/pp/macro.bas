@@ -378,6 +378,95 @@ private function PpReadArgs _
     return true
 end function
 
+'' ONE ARGUMENT'S TOKENS, MACRO-EXPANDED, then folded to a VALUE -- number or string.
+''
+'' The same walk BuiltinIntArg_ does; it throws a string away, which is right for the
+'' builtins that want a count and wrong for __FB_EVAL__, which wants whichever the
+'' expression turned out to be.
+private function BuiltinValueArg_ _
+    ( byref e as PpEngine, byref args as ArgList, byval idx as long, _
+      byref ok as boolean ) as PpValue
+
+    dim as PpValue empty_
+    ok = false
+    if (idx < 0) orelse (idx >= args.firsts.Count) then return empty_
+
+    dim as TokenVec ptr raw = new TokenVec
+    dim as long first = args.firsts[idx]
+    for i as long = 0 to args.counts[idx] - 1
+        raw->Push( args.flat[first + i] )
+    next
+
+    dim as long baseDepth = e.frames.Count
+    dim as long savedFloor = e.frameFloor
+    e.frameFloor = baseDepth
+    PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
+
+    dim as TokenVec expanded
+    dim as long guard = 0
+    do
+        guard += 1
+        if guard > 100000 then exit do
+        if e.frames.Count <= baseDepth then exit do
+        dim as Token t
+        if PeekTok( e, t ) = false then exit do
+        if e.frames.Count <= baseDepth then exit do
+        if Tk( t ) = TK_IDENT then
+            dim as InternId id = cast( InternId, t.literal )
+            dim as PpMacro ptr mm = MacroFor( e, id )
+            if (mm <> 0) andalso (IsHidden( e, id ) = false) then
+                if PpExpand( e, mm, t ) then continue do
+            end if
+        end if
+        Advance( e )
+        expanded.Push( t )
+    loop
+    e.frameFloor = savedFloor
+    while e.frames.Count > baseDepth
+        PopFrame( e )
+    wend
+
+    return PpEvalValueTokens( e, expanded, ok )
+end function
+
+'' A FOLDED VALUE, RE-EMITTED AS A CANONICAL LITERAL -- what __FB_EVAL__ produces.
+''
+'' Measured against fbc, and the rule is exactly three cases:
+''
+''   a WIDE result            !"\uXXXX" per character, four UPPERCASE hex digits
+''   a narrow result WITH a NUL   !"\xNN" per byte
+''   any other narrow result  $"..." with the bytes VERBATIM and nothing escaped
+''
+'' An integer is plain decimal, whatever radix it was written in: '&hFF' is '255'.
+''
+'' ONLY THE THIRD CASE IS PRODUCED HERE, and the other two DECLINE rather than being
+'' approximated. Both need the literal's escapes DECODED and its narrow/wide flavour
+'' known, and the preprocessor reads a raw source span: it has neither. Emitting the
+'' undecoded bytes would be a different string with nothing to say so.
+''
+'' A QUOTE OR A CONTROL BYTE IN THE RESULT DECLINES TOO. fbc emits those raw, which
+'' produces source that will not re-lex -- '__FB_EVAL__( "A" + chr(34) + "B" )' becomes
+'' '$"A"B"'. That is a defect to reproduce nowhere: a decline says so, and a broken
+'' literal does not.
+private function EvalLiteral_ _
+    ( byref v as PpValue, byref ok as boolean ) as string
+
+    ok = true
+    if v.isStr = false then return str( v.num )
+    if v.escaped then
+        ok = false
+        return ""
+    end if
+    for i as long = 1 to len( v.str_ )
+        dim as long ch = asc( mid( v.str_, i, 1 ) )
+        if (ch < 32) orelse (ch = 34) then
+            ok = false
+            return ""
+        end if
+    next
+    return "$" & chr( 34 ) & v.str_ & chr( 34 )
+end function
+
 '' ONE ARGUMENT'S TOKENS, MACRO-EXPANDED, as text.
 ''
 '' Split out of BuiltinIntArg_, which did the same walk and then read an integer.
@@ -1032,11 +1121,43 @@ function PpExpandBuiltin _
     case PPB_UNQUOTE
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
-            dim as string s = ArgText( e, args, 0 )
+            '' THE ARGUMENT IS EXPANDED FIRST, exactly as QUOTE's is. The corpus's own
+            '' idiom is '__FB_UNQUOTE__( __FB_EVAL__( "#define " "X" " 1" ) )' -- fold a
+            '' directive's text and then let it BE a directive -- and reading the raw
+            '' argument saw the nested builtin's NAME rather than the string it folds to,
+            '' so the synthesised '#define' had no identifier after it.
+            dim as string s = ExpandedArgText_( e, args, 0 )
             dim as long a = instr( s, """" )
             dim as long b = instrrev( s, """" )
             if (a > 0) andalso (b > a) then s = mid( s, a + 1, b - a - 1 )
             RelexInto( e, s, use.loc, *buf )
+        end if
+
+    case PPB_EVAL
+        '' __FB_EVAL__( expr ) -- ONE ARGUMENT, macro-expanded, folded, and re-emitted
+        '' as a canonical literal. See EvalLiteral_ for what each result renders as and
+        '' which two decline.
+        ''
+        '' There is no '#__FB_EVAL__' directive form: measured, fbc answers error 17 for
+        '' one, so this is an expression builtin and nothing else.
+        dim as ArgList args
+        if PpReadArgs( e, m, args ) then
+            if args.firsts.Count <> 1 then
+                Report( e, TKO0325, use.loc, e.names->Spelling( m->name ) )
+            else
+                dim as boolean vok = false
+                dim as PpValue v = BuiltinValueArg_( e, args, 0, vok )
+                if vok then
+                    dim as boolean rok = false
+                    dim as string lit = EvalLiteral_( v, rok )
+                    '' A RESULT THIS CANNOT RENDER IS LEFT UNEXPANDED, which is what
+                    '' the name did before the builtin existed: the statement declines
+                    '' rather than receiving a literal that is not the one fbc emits.
+                    if rok then RelexInto( e, lit, use.loc, *buf )
+                else
+                    Report( e, TKO0325, use.loc, e.names->Spelling( m->name ) )
+                end if
+            end if
         end if
 
     case PPB_ARG_COUNT

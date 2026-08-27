@@ -83,6 +83,7 @@
     DIAG( TKO0322, SEV_ERROR,   "duplicated type parameter '%0'" )
     DIAG( TKO0323, SEV_ERROR,   "'%0' does not name a type here, so it cannot own this constructor or destructor" )
     DIAG( TKO0324, SEV_ERROR,   "argument %0 of '%1' must be an integer constant" )
+    DIAG( TKO0325, SEV_ERROR,   "argument of '%0' must be a constant expression" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

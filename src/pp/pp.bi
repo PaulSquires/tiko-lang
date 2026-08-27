@@ -52,6 +52,11 @@ namespace Tko
         PPB_ARG_RIGHTOF
         PPB_ARG_LISTEXPAND   '' __FB_ARG_LISTEXPAND__( M, n, ... ) -> M( chunk ) ...
         PPB_JOIN             '' __FB_JOIN__( a, b )     -> ab
+        '' __FB_EVAL__( expr ) -- FOLD THE ARGUMENT AND RE-EMIT IT AS A CANONICAL
+        '' LITERAL. Measured: expression position only (there is no '#__FB_EVAL__'
+        '' directive -- fbc error 17), exactly one argument, and the argument is
+        '' MACRO-EXPANDED first. See macro.bas for what each result renders as.
+        PPB_EVAL
         PPB_UNIQUEID         '' __FB_UNIQUEID__( id )      -> the name's current id
         PPB_UNIQUEID_PUSH    '' __FB_UNIQUEID_PUSH__( id ) -> nothing; makes a new one
         PPB_UNIQUEID_POP     '' __FB_UNIQUEID_POP__( id )  -> nothing; restores the last

@@ -14,6 +14,13 @@ type PpValue
     as boolean  isStr
     as longint  num
     as string   str_
+    '' THE VALUE CAME FROM AN ESCAPED LITERAL somewhere -- '!"..."'. The span this
+    '' evaluator reads is RAW SOURCE, so a backslash escape has not been decoded and a
+    '' unicode one has not been recognised as making the whole literal WIDE. '#if'
+    '' compares content and has always been content with that; __FB_EVAL__ has to
+    '' RE-EMIT the value, and re-emitting undecoded bytes would produce a different
+    '' string. So it is carried, and the one caller that cannot live with it refuses.
+    as boolean  escaped
 end type
 
 type PpExprState
@@ -22,6 +29,18 @@ type PpExprState
     as long     pos
     as boolean  bad
 end type
+
+'' Whether a string token was written in the ESCAPED spelling, '!"..."'. The kind is
+'' on the literal payload, which the token indexes; the SPELLING has already lost the
+'' prefix by the time it comes back from SpellOf.
+private function StrTokenIsEscaped_ _
+    ( byref e as PpEngine, byref t as Token ) as boolean
+
+    if Tk( t ) <> TK_STRING_LIT then return false
+    dim as long li = cast( long, t.literal )
+    if (li < 0) orelse (li >= e.outp->literals.Count) then return false
+    return (e.outp->literals[li].strKind = cast( ubyte, STRK_ESCAPED ))
+end function
 
 private function PxPeek( byref x as PpExprState ) as TokenKind
     if x.pos >= x.toks->Count then return TK_EOF
@@ -135,18 +154,43 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         return PxNum( clngint( val( sp ) ) )
 
     case TK_STRING_LIT
-        dim as string sp = SpellOf( *x.e, t )
-        PxNext( x )
+        '' ADJACENT LITERALS ARE ONE STRING. '"#define " "X" " 1"' is a single value
+        '' in FreeBASIC, and the corpus writes __FB_EVAL__ arguments that way -- two of
+        '' the twenty-five. Reading only the first left the rest as stray tokens after
+        '' the expression, which the caller then rejected as trailing input.
         dim as PpValue r
         r.isStr = true
-        '' Strip the delimiters and any !/$ prefix; '#if' comparisons are on content.
-        dim as long a = instr( sp, """" )
-        dim as long b = instrrev( sp, """" )
-        if (a > 0) andalso (b > a) then
-            r.str_ = mid( sp, a + 1, b - a - 1 )
-        else
-            r.str_ = sp
-        end if
+        do
+            dim as Token st = PxTok( x )
+            dim as string sp = SpellOf( *x.e, st )
+            PxNext( x )
+            '' Strip the delimiters and any !/$ prefix; comparisons are on content.
+            dim as long a = instr( sp, """" )
+            dim as long b = instrrev( sp, """" )
+            dim as string body
+            if (a > 0) andalso (b > a) then
+                body = mid( sp, a + 1, b - a - 1 )
+            else
+                body = sp
+            end if
+            '' '""' INSIDE A LITERAL IS ONE QUOTE -- the span is raw source and the
+            '' lexer only refuses to end the literal there, so the collapse happens on
+            '' the way out, exactly as the MIR reader does it.
+            dim as string coll
+            dim as long i = 1
+            while i <= len( body )
+                dim as string ch = mid( body, i, 1 )
+                coll += ch
+                if (ch = """") andalso (mid( body, i + 1, 1 ) = """") then
+                    i += 2
+                else
+                    i += 1
+                end if
+            wend
+            r.str_ += coll
+            if StrTokenIsEscaped_( *x.e, st ) then r.escaped = true
+            if PxPeek( x ) <> TK_STRING_LIT then exit do
+        loop
         return r
 
     case TK_LPAREN
@@ -280,14 +324,33 @@ private function PxAdd( byref x as PpExprState ) as PpValue
     dim as PpValue l = PxMul( x )
     do
         dim as TokenKind k = PxPeek( x )
-        dim as boolean isAdd = (k = TK_PLUS) orelse (k = TK_MINUS)
+        dim as boolean isAdd = (k = TK_PLUS) orelse (k = TK_MINUS) orelse (k = TK_AMP)
         if isAdd = false then exit do
         PxNext( x )
         dim as PpValue r = PxMul( x )
-        if k = TK_PLUS then
+        '' '+' AND '&' OVER TWO STRINGS CONCATENATE. Nothing here did: both operands
+        '' went through '.num', which is zero for a string, so '"A" + "B"' folded to 0.
+        '' '#if' never writes it, but __FB_EVAL__ is written with almost nothing else --
+        '' and fbc concatenates, measured.
+        if l.isStr andalso r.isStr andalso (k <> TK_MINUS) then
+            dim as PpValue c
+            c.isStr = true
+            c.str_ = l.str_ + r.str_
+            c.escaped = l.escaped orelse r.escaped
+            l = c
+        elseif (l.isStr orelse r.isStr) then
+            '' A STRING AND A NUMBER IS NOT SOMETHING TO GUESS AT. fbc has its own rule
+            '' for it and it has not been measured, so it is refused rather than folded
+            '' to whichever operand happens to be numeric.
+            x.bad = true
+            l = PxNum( 0 )
+        elseif k = TK_PLUS then
             l = PxNum( l.num + r.num )
-        else
+        elseif k = TK_MINUS then
             l = PxNum( l.num - r.num )
+        else
+            x.bad = true
+            l = PxNum( 0 )
         end if
     loop
     return l
@@ -409,6 +472,31 @@ end function
 '' '__FB_ARG_EXTRACT__( __FB_ARG_COUNT__( args ) - 1, args )'. Reading digits off the
 '' spelling handled the literal cases and rejected that one, which is the shape that
 '' matters.
+'' The same expression grammar again, for the WHOLE VALUE -- number or string.
+''
+'' PpEvalIntTokens throws a string away (it sets ok = false for one), which is right for
+'' the two builtins that want a count. __FB_EVAL__ wants whichever the expression is.
+function PpEvalValueTokens _
+    ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as PpValue
+
+    dim as PpExprState x
+    x.e = @e
+    x.toks = @toks
+    x.pos = 0
+    x.bad = false
+
+    dim as PpValue v
+    if toks.IsEmpty( ) then
+        ok = false
+        return v
+    end if
+
+    v = PxOrElse( x )
+    if x.pos < toks.Count then x.bad = true
+    ok = (x.bad = false)
+    return v
+end function
+
 function PpEvalIntTokens _
     ( byref e as PpEngine, byref toks as TokenVec, byref ok as boolean ) as longint
 

@@ -1,0 +1,6 @@
+'' __FB_EVAL__ folds its argument and re-emits it as a canonical literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/fb-eval.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fb-eval.out
