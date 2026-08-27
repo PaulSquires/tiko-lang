@@ -17,6 +17,12 @@ declare sub DeleteStrArgTemps_ _
       byref types as FB.Array( of ulong ) )
 
 
+declare function UdtConvTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+declare function ArgNeedsUdtConv_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+      byval argNode as Tko.NodeId ) as boolean
 declare function ByvalUdtCopyArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
@@ -549,6 +555,38 @@ function LowerCallParts _
                 continue for
             end if
 
+            '' AN ARGUMENT THAT IS NOT THE PARAMETER'S TYPE IS A CONVERSION, and it is
+            '' tried before either copy path: neither of those has anything to copy
+            '' FROM. See UdtConvTemp_ -- without it the raw operand went to the callee.
+            if ArgNeedsUdtConv_( c, callee, i, argNode ) then
+                dim as Tko.TypeId upt = ParamTypeAt( c, callee, i )
+                dim as MirValue ca
+                if UdtConvTemp_( c, argNode, upt, ca, tempSlot, tempType ) = false then
+                    c.blameNode = cast( ulong, argNode )
+                    return CallFailed_( c, v )
+                end if
+                if tempSlot >= 0 then
+                    tempSlots.Push( cast( ulong, tempSlot ) )
+                    tempTypes.Push( cast( ulong, tempType ) )
+                end if
+                '' THE CALLEE TAKES WHAT IT WOULD HAVE TAKEN ANYWAY: the temporary's
+                '' ADDRESS when the type is passed indirectly, and the aggregate itself
+                '' when it is not. Measured -- fbc writes 'F( TMP$2$0 )' for a type with
+                '' no destructor and 'F( &TMP$3$0 )' for one with.
+                if ParamIsIndirectUdt_( c, callee, i ) then
+                    a = ca
+                else
+                    a = LowerExprLoad( c, ca, MT_AGG )
+                    if a.kind = cast( ubyte, MV_NONE ) then
+                        c.blameNode = cast( ulong, argNode )
+                        return CallFailed_( c, v )
+                    end if
+                end if
+                argv.Push( cast( ulong, a.kind ) )
+                argv.Push( cast( ulong, a.id ) )
+                continue for
+            end if
+
             if ParamIsIndirectUdt_( c, callee, i ) then
                 if ByvalUdtCopyArg_( c, argNode, ParamTypeAt( c, callee, i ), _
                                      a, tempSlot, tempType ) = false then
@@ -564,7 +602,16 @@ function LowerCallParts _
                 continue for
             end if
 
-            a = LowerExpr( c, argNode )
+            '' A UDT ARGUMENT FOR A SCALAR PARAMETER IS ITS 'operator cast', not its
+            '' bytes -- the same rule an assignment follows, and the other half of the
+            '' user-defined conversion the overload ranking now scores. Without it the
+            '' candidate became viable and the argument was then passed as a loaded,
+            '' sign-extended aggregate.
+            dim as boolean argCast = false
+            if callee <> Tko.SYMBOL_NONE then
+                argCast = UserConvToScalar_( c, argNode, ParamTypeAt( c, callee, i ), a )
+            end if
+            if argCast = false then a = LowerExpr( c, argNode )
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be
             '' pushed anyway, so the call went out with a malformed operand in it.
             ''
@@ -857,6 +904,139 @@ function IsUnsignedType _
 end function
 
 
+
+'' THE CONVERSION CONSTRUCTOR for one argument that is not already the parameter's type.
+''
+'' 'sub f( byval x as UDT )' called as 'f( 1122 )' over a type declaring
+'' 'declare constructor( byval n as integer )'. Measured:
+''
+''     struct UDT TMP$2$0;
+''     _ZN3UDTC1Eu7INTEGER( &TMP$2$0, 1122ll );
+''     F( TMP$2$0 );
+''
+'' -- a temporary, the constructor into it, and the temporary passed. It is destroyed at
+'' the END OF THE STATEMENT, after the call's result has been consumed, which is what
+'' the argument-temporary list this returns into already does.
+''
+'' Without it the raw operand went straight to the callee: 'call void F( 1122 )', an
+'' integer where an object belongs, with "0 statements not lowered" beside it. It lowered
+'' and it verified.
+''
+'' A CONVERSION CONSTRUCTOR IS ANY ARITY-1 CONSTRUCTOR WHOSE PARAMETER IS NOT THE TYPE
+'' ITSELF -- one whose parameter IS the type is the copy constructor, and that is a
+'' different path with a different meaning.
+private function ConvCtorFor_ _
+    ( byref c as Ctx, byval pt as Tko.TypeId ) as Tko.SymbolId
+
+    dim as Tko.SymbolId cur = StructorOf( c, pt, "__ctor" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+            dim as long np = 0
+            for i as long = 0 to pp->count - 1
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
+            next
+            if np = 1 then
+                dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
+                if cpt <> Tko.TYPE_NONE then
+                    dim as Tko.TypeId u = cpt
+                    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Inner( u )
+                    if c.types->Unqualify( u ) <> c.types->Unqualify( pt ) then
+                        return cur
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
+'' A TEMPORARY OF THE PARAMETER'S TYPE, constructed from the argument. Returns its
+'' ADDRESS; the caller decides whether the callee wants that or the aggregate loaded out
+'' of it, which is the same choice an ordinary byval UDT argument already makes.
+private function UdtConvTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+
+    outSlot = -1
+    outType = Tko.TYPE_NONE
+    if argNode = Tko.NODE_NONE then return false
+    dim as long sz = SizeOfType( c, pt )
+    if sz <= 0 then return false
+
+    dim as Tko.SymbolId cv = ConvCtorFor_( c, pt )
+    if cv = Tko.SYMBOL_NONE then return false
+    dim as Tko.TypeId cpt = ParamTypeAt( c, cv, 0 )
+    if cpt = Tko.TYPE_NONE then return false
+
+    '' EVERYTHING THAT CAN FAIL, BEFORE ANYTHING IS EMITTED. A decline that has already
+    '' made a temporary does not LOOK like one -- the alloca counts as an instruction and
+    '' the statement reads as lowered with the call missing from it.
+    dim as boolean byrefP = ParamIsByref( c, cv, 0 )
+    dim as MirValue av
+    if byrefP then
+        av = LowerAddr( c, argNode )
+    else
+        av = LowerExpr( c, argNode )
+    end if
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+    if byrefP = false then
+        dim as MirType cmt = LowerType( cpt, *c.types )
+        if (cmt = MT_VOID) orelse (cmt = MT_AGG) then return false
+        av = Coerce( c, av, cmt, IsUnsignedType( c, c.info->TypeOf_( argNode ) ) )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+
+    dim as long slot = NewTempLocal( c, MT_AGG, sz )
+    if slot < 0 then return false
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+
+    dim as FB.Array( of ulong ) cargs
+    cargs.Push( cast( ulong, av.kind ) )
+    cargs.Push( cast( ulong, av.id ) )
+    EmitStructorCall( c, cv, -1, @dst, @cargs )
+
+    if TypeNeedsDtor_( c, pt ) then
+        outSlot = slot
+        outType = pt
+    end if
+    outa = dst
+    return true
+end function
+
+'' Whether argument 'i' of 'callee' has to be CONVERTED rather than passed. True only
+'' when the parameter is a UDT and the argument is not already one of that type -- an
+'' argument of the same type is a copy, and both other cases are somebody else's path.
+private function ArgNeedsUdtConv_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+      byval argNode as Tko.NodeId ) as boolean
+
+    if argNode = Tko.NODE_NONE then return false
+    if ParamIsArray( c, callee, idx ) then return false
+    dim as Tko.TypeId pt = ParamTypeAt( c, callee, idx )
+    if pt = Tko.TYPE_NONE then return false
+    if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
+    pt = c.types->Unqualify( pt )
+    if c.types->Kind( pt ) <> Tko.TK_UDT then return false
+
+    dim as Tko.TypeId at = c.info->TypeOf_( argNode )
+    if at = Tko.TYPE_NONE then return false
+    if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Inner( at )
+    at = c.types->Unqualify( at )
+    if at = pt then return false
+    '' A DERIVED OBJECT IS NOT A CONVERSION -- it is the base subobject at offset zero,
+    '' which the ordinary path already passes.
+    if c.types->Kind( at ) = Tko.TK_UDT then return false
+    return true
+end function
 
 '' THE CALLER-BUILT COPY of one byval non-trivial UDT argument.
 ''

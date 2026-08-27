@@ -1002,7 +1002,16 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             end if
 
             if needsStore then
-                dim as MirValue val = LowerExpr( c, ip->b )
+                '' A UDT INITIALISER FOR A SCALAR IS ITS 'operator cast', not its bytes.
+                '' See UserConvToScalar_ -- this loaded the aggregate and sign-extended
+                '' it, and that lowered and verified.
+                dim as MirValue val
+                dim as Tko.TypeId dstT = Tko.TYPE_NONE
+                dim as Tko.Symbol ptr dsym = c.syms->SymbolAt( sid )
+                if dsym <> 0 then dstT = dsym->type_
+                if UserConvToScalar_( c, ip->b, dstT, val ) = false then
+                    val = LowerExpr( c, ip->b )
+                end if
                 '' AN INITIALISER THAT WOULD NOT LOWER IS A DECLINE, and was silent:
                 '' the store was simply skipped, so 'dim as integer r = iif( c, 10,
                 '' 20 )' allocated r, stored nothing, and printed whatever the stack

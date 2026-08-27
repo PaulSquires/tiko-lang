@@ -1,0 +1,6 @@
+'' A conversion constructor at an argument, and an 'operator cast' at an assignment.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/user-conversion.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/user-conversion.out

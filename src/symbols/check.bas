@@ -480,7 +480,6 @@ end function
 '' subject and a long one, and check.bas reached the 1500-line cap. Included HERE for
 '' the same reason the intrinsic tables are -- it reads Ctx and calls TypeOf_, both of
 '' which have to exist first. Nothing in it changed in the move.
-#include once "symbols/overload.bas"
 
 '' The intrinsic tables live in their own file: one subject, and a long one. It is
 '' included HERE rather than at the top because it reads Ctx and calls TypeOf_, both
@@ -489,6 +488,8 @@ end function
 '' folded, procedures included.
 declare function UdtMemberSym_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
+#include once "symbols/overload.bas"
 
 #include once "symbols/intrinsics.bas"
 

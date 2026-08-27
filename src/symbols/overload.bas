@@ -11,6 +11,139 @@
 '' that rule exists only where there IS a variable to write back through: fbc converts
 '' a constant into a temporary and takes any type at all. Answered from the SHAPE,
 '' since Check has no source manager to fold constants with.
+'' ONE PARAMETER'S TYPE, off a procedure symbol. The same walk the lowering's
+'' ParamTypeAt does; Check needs it to look at a constructor it did not itself call.
+private function ProcParamTypeAt_ _
+    ( byref c as Ctx, byval proc_ as Tko.SymbolId, byval idx as long ) as Tko.TypeId
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
+    if s = 0 then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr pp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+    dim as long seen = 0
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen = idx then
+            dim as Tko.StmtPayload ptr ps = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+            return c.info->TypeOf_( ps->a )
+        end if
+        seen += 1
+    next
+    return Tko.TYPE_NONE
+end function
+
+'' How many parameters a procedure symbol was declared with.
+private function ProcParamCount_ _
+    ( byref c as Ctx, byval proc_ as Tko.SymbolId ) as long
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
+    if s = 0 then return -1
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return -1
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return -1
+    dim as Tko.StmtPayload ptr pp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+    dim as long np = 0
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
+    next
+    return np
+end function
+
+'' WHAT A USER-DEFINED CONVERSION COSTS, or CONV_NONE when there is none.
+''
+'' ConversionCost knows the standard conversions and nothing else -- it takes only a
+'' TypeContext, so it cannot look a constructor or a cast operator up. Two shapes were
+'' therefore not viable for ANY overload:
+''
+''     sub f( byval x as UDT ) ... f( 1122 )        a CONVERSION CONSTRUCTOR on UDT
+''     function h( byval i as integer ) ... h( q )  an 'operator cast' on q's type
+''
+'' Neither was a diagnostic. The call simply bound to nothing, came out untyped, and
+'' whatever consumed it declined -- and where the callee bound anyway, because there was
+'' only one candidate, the raw operand went to it: an integer where an object belongs.
+''
+'' PRICED ABOVE EVERY STANDARD CONVERSION AND BELOW CONV_NONE, and ADDED to the cost of
+'' the standard conversion that follows it, because that one still ranks: measured,
+'' offered 'h( integer )' and 'h( double )' against a UDT casting to integer, fbc picks
+'' the DOUBLE overload. Saturating instead would have made the two tie.
+private function UserConvCost_ _
+    ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId ) as long
+
+    if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
+    dim as Tko.TypeId f = c.types->Unqualify( from_ )
+    dim as Tko.TypeId t = c.types->Unqualify( to_ )
+    if c.types->Kind( f ) = Tko.TK_REFERENCE then
+        f = c.types->Unqualify( c.types->Inner( f ) )
+    end if
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then
+        t = c.types->Unqualify( c.types->Inner( t ) )
+    end if
+    if f = t then return CONV_NONE
+
+    dim as long best = CONV_NONE
+
+    '' A CONVERSION CONSTRUCTOR on the destination -- any arity-1 constructor whose
+    '' parameter is not the destination type itself, which is the copy constructor.
+    if c.types->Kind( t ) = Tko.TK_UDT then
+        dim as Tko.SymbolId cur = UdtMemberSym_( c, t, "__ctor" )
+        dim as long guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
+            guard += 1
+            dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+            if s = 0 then exit while
+            if ProcParamCount_( c, cur ) = 1 then
+                dim as Tko.TypeId pt = ProcParamTypeAt_( c, cur, 0 )
+                if pt <> Tko.TYPE_NONE then
+                    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+                    if c.types->Kind( pu ) = Tko.TK_REFERENCE then
+                        pu = c.types->Unqualify( c.types->Inner( pu ) )
+                    end if
+                    if pu <> t then
+                        dim as long sc = ConversionCost( f, pt, *c.types )
+                        if sc < CONV_NONE then
+                            if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc
+                        end if
+                    end if
+                end if
+            end if
+            cur = s->nextOverload
+        wend
+    end if
+
+    '' ...and an 'operator cast' on the source. Same walk UdtCastResultOf_ does, with
+    '' the target chosen by what the parameter wants rather than by a fixed class.
+    if c.types->Kind( f ) = Tko.TK_UDT then
+        dim as Tko.SymbolId cur = UdtMemberSym_( c, f, "cast" )
+        dim as long guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
+            guard += 1
+            dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+            if s = 0 then exit while
+            dim as Tko.TypeId rt = s->type_
+            if rt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId ru = c.types->Unqualify( rt )
+                if c.types->Kind( ru ) = Tko.TK_REFERENCE then
+                    ru = c.types->Unqualify( c.types->Inner( ru ) )
+                end if
+                dim as long sc = ConversionCost( ru, t, *c.types )
+                if sc < CONV_NONE then
+                    if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc
+                end if
+            end if
+            cur = s->nextOverload
+        wend
+    end if
+
+    return best
+end function
+
 private function IsLvalueShape_ _
     ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 
@@ -553,6 +686,10 @@ private function ResolveCall_ _
                     end if
 
                     dim as long cost = ConversionCost( at2, pt, *c.types, overloaded )
+                    '' ...AND THE USER-DEFINED CONVERSIONS, which ConversionCost cannot
+                    '' see: it takes only a TypeContext, so it can look up neither a
+                    '' conversion constructor nor an 'operator cast'. See UserConvCost_.
+                    if cost >= CONV_NONE then cost = UserConvCost_( c, at2, pt )
                     ai += 1
                     if cost >= CONV_NONE then
                         viable = false

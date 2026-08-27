@@ -332,13 +332,19 @@ end function
 '' The enclosing NAMESPACE and TYPE names, outermost first. A procedure's own scope
 '' and any block scope inside it are not part of its name.
 
-'' A property's emitted name carries its accessor: SIZE__get__ / SIZE__set__. Which
-'' one it is comes from the signature -- a getter takes no parameters.
+'' A property's emitted name carries its accessor: SIZE__get__ / SIZE__set__.
+''
+'' WHICH ONE IT IS COMES FROM THE RESULT TYPE, not the parameter count. "A getter takes
+'' no parameters" is false for an INDEXED property -- 'property bar( index as integer )
+'' as integer' takes one and is still a getter -- so every indexed getter in the corpus
+'' went out as '__set__'. No decline and no diagnostic: it simply links against a name
+'' nothing defines, and can collide with the real setter when the argument lists agree.
+'' Measured, fbc emits '_ZN3FOO10BAR__get__Eu7INTEGER' for exactly that declaration.
 private function PropertySuffix _
     ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId ) as string
     dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
-    if sp->count > 0 then return "__set__"
-    return "__get__"
+    if sp->a <> Tko.NODE_NONE then return "__get__"
+    return "__set__"
 end function
 
 '' fbc rejects most operators as members ("Operator cannot be a member function"),

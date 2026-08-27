@@ -342,7 +342,12 @@ private sub LowerAssign _
     if LowerDestructure( c, target, value ) then return
 
     dim as MirValue addr = LowerAddr( c, target )
-    dim as MirValue val = LowerExpr( c, value )
+    '' A UDT VALUE ASSIGNED TO A SCALAR IS ITS 'operator cast', not its bytes. See
+    '' UserConvToScalar_.
+    dim as MirValue val
+    if UserConvToScalar_( c, value, c.info->TypeOf_( target ), val ) = false then
+        val = LowerExpr( c, value )
+    end if
     if (addr.kind = cast( ubyte, MV_NONE )) orelse (val.kind = cast( ubyte, MV_NONE )) then
         SkipHere( c )
         return

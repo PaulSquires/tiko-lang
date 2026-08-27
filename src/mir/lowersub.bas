@@ -1106,6 +1106,34 @@ end function
 '' THE OVERLOAD THAT YIELDS A NUMBER, exactly as UserCastToStr_ picks the one that
 '' yields a string: 'operator cast' may be declared several times over different
 '' targets and they hang off one symbol as a chain.
+'' A UDT VALUE FLOWING INTO A SCALAR DESTINATION IS A CALL to its 'operator cast'.
+''
+'' Measured: 'dim as integer a = q' over a type declaring only 'operator cast( ) as
+'' integer' emits '_ZN1Scvu7INTEGEREv( &Q )' and stores the RESULT. tiko-lang loaded the
+'' AGGREGATE and sign-extended it -- the object's first eight bytes reinterpreted as the
+'' number -- and that lowered, verified, and counted as a statement successfully
+'' compiled. The STRING half of the same thing already worked, which is why it went
+'' unnoticed.
+''
+'' Not for a UDT DESTINATION: that is a copy, or a conversion constructor, and neither
+'' is this.
+function UserConvToScalar_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval dstT as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if dstT = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId d = c.types->Unqualify( dstT )
+    if c.types->Kind( d ) = Tko.TK_REFERENCE then
+        d = c.types->Unqualify( c.types->Inner( d ) )
+    end if
+    if c.types->Kind( d ) = Tko.TK_UDT then return false
+    dim as Tko.TypeId st = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if c.types->Kind( st ) <> Tko.TK_UDT then return false
+    dim as MirType dm = LowerType( d, *c.types )
+    if (dm = MT_VOID) orelse (dm = MT_AGG) then return false
+    return UserCastToNum_( c, id, outv )
+end function
+
 function UserCastToNum_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

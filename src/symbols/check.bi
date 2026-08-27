@@ -65,6 +65,12 @@ namespace Tko.Check
                                            '' any widening, however far
     const CONV_CLASS    as long = 5000     '' integer <-> float
     const CONV_BOOL     as long = 20000    '' anything <-> boolean
+    '' A USER-DEFINED CONVERSION -- a conversion constructor on the destination, or an
+    '' 'operator cast' on the source. Above every standard conversion and below
+    '' CONV_NONE, and the standard conversion that follows it is ADDED rather than
+    '' swallowed: measured, offered 'h( integer )' and 'h( double )' against a UDT that
+    '' casts to integer, fbc picks the DOUBLE overload, so the second step still ranks.
+    const CONV_USERDEF  as long = 200000
     const CONV_NONE     as long = 999999
 
     '' The POINTER tiers, measured in tests/types/expected/fbc-ptr.txt.
