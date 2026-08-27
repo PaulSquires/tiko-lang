@@ -407,17 +407,157 @@ end function
 '' WHICH OVERLOAD IS DECIDED BY ARITY, not by the name: the getter takes none and the
 '' setter one, they share a symbol chain, and taking the head of it picks whichever was
 '' declared first.
+'' WHAT ONE CANDIDATE'S INDEX PARAMETERS COST for this call's index arguments, or
+'' CONV_NONE when it cannot take them. The parameters are matched positionally from the
+'' front; a SETTER's trailing value parameter is not one of them and is not scored here.
+'' THE INDEX ARGUMENTS of an indexed property, coerced to the chosen overload's own
+'' parameters and pushed in written order. They come before the receiver's other
+'' arguments in both accessors: getter = indices, setter = indices then the value.
+private function PushPropIndexArgs_ _
+    ( byref c as Ctx, byval prop as Tko.SymbolId, byval idxFirst as long, _
+      byval idxCount as long, byref args as FB.Array( of ulong ) ) as boolean
+
+    if idxCount = 0 then return true
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( prop )
+    if s = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen >= idxCount then exit for
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[idxFirst + seen] )
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        dim as MirValue av
+        dim as boolean byref_ = _
+            ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none --
+        '' measured, fbc materialises one and passes its address:
+        '' '_ZN3FOO10BAR__set__ER8FBSTRINGu7INTEGER( &F$0, &TMP$3$0, 5678ll )'.
+        '' LowerAddr has none to give, so every STRING-indexed property declined
+        '' while the integer-indexed one lowered; and handing over the literal's own
+        '' bytes instead would be a wild read, not a decline.
+        if byref_ andalso IsStringType( c, pt ) then
+            if StrDescriptorOf_( c, a, av ) = false then return false
+        elseif byref_ then
+            av = LowerAddr( c, a )
+        else
+            av = LowerExpr( c, a )
+            if av.kind <> cast( ubyte, MV_NONE ) then
+                dim as MirType pmt = LowerType( pt, *c.types )
+                if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
+                    av = Coerce( c, av, pmt, IsUnsignedType( c, c.info->TypeOf_( a ) ) )
+                end if
+            end if
+        end if
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, av.kind ) )
+        args.Push( cast( ulong, av.id ) )
+        seen += 1
+    next
+    return (seen = idxCount)
+end function
+
+'' A SETTER OVERLOAD IS ALSO CHOSEN BY ITS VALUE PARAMETER, not by its indices alone:
+'' obj_property_idx.bas declares bar(integer,integer), bar(integer,string),
+'' bar(string,integer) and bar(string,string), so scoring the index only leaves two
+'' candidates tied on every call and the whole statement declined as ambiguous.
+private function PropIndexCost_ _
+    ( byref c as Ctx, byval prop as Tko.SymbolId, byval idxFirst as long, _
+      byval idxCount as long, byval valNode as Tko.NodeId = Tko.NODE_NONE ) as long
+
+    if (idxCount = 0) andalso (valNode = Tko.NODE_NONE) then return Tko.Check.CONV_EXACT
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( prop )
+    if s = 0 then return Tko.Check.CONV_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return Tko.Check.CONV_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.Check.CONV_NONE
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as long total = 0
+    dim as long seen = 0
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen >= idxCount then exit for
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        dim as Tko.TypeId at = c.info->TypeOf_( _
+            cast( Tko.NodeId, c.ast->children[idxFirst + seen] ) )
+        if (pt = Tko.TYPE_NONE) orelse (at = Tko.TYPE_NONE) then return Tko.Check.CONV_NONE
+        dim as Tko.TypeId pu = c.types->Unqualify( pt )
+        if c.types->Kind( pu ) = Tko.TK_REFERENCE then
+            pu = c.types->Unqualify( c.types->Inner( pu ) )
+        end if
+        dim as long cst = Tko.Check.ConversionCost( c.types->Unqualify( at ), pu, *c.types )
+        if cst >= Tko.Check.CONV_NONE then return Tko.Check.CONV_NONE
+        total += cst
+        seen += 1
+    next
+    if seen <> idxCount then return Tko.Check.CONV_NONE
+
+    '' ...and the TRAILING VALUE PARAMETER, which sits one past the indices.
+    if valNode <> Tko.NODE_NONE then
+        dim as long at2 = 0
+        dim as Tko.TypeId vpt = Tko.TYPE_NONE
+        for i as long = 0 to pp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            if at2 = idxCount then
+                vpt = c.info->TypeOf_( StmtOf( c, prm )->a )
+                exit for
+            end if
+            at2 += 1
+        next
+        dim as Tko.TypeId vat = c.info->TypeOf_( valNode )
+        if (vpt = Tko.TYPE_NONE) orelse (vat = Tko.TYPE_NONE) then
+            return Tko.Check.CONV_NONE
+        end if
+        dim as Tko.TypeId vpu = c.types->Unqualify( vpt )
+        if c.types->Kind( vpu ) = Tko.TK_REFERENCE then
+            vpu = c.types->Unqualify( c.types->Inner( vpu ) )
+        end if
+        dim as long vc = Tko.Check.ConversionCost( _
+            c.types->Unqualify( vat ), vpu, *c.types )
+        if vc >= Tko.Check.CONV_NONE then return Tko.Check.CONV_NONE
+        total += vc
+    end if
+    return total
+end function
+
 function PropertyAt_ _
     ( byref c as Ctx, byval node as Tko.NodeId, byval want as long, _
-      byref self_ as MirValue ) as Tko.SymbolId
+      byref self_ as MirValue, byref outIdxFirst as long, _
+      byref outIdxCount as long, _
+      byval valNode as Tko.NodeId = Tko.NODE_NONE ) as Tko.SymbolId
 
-    if c.ast->Kind( node ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
-    dim as Tko.SymbolId sid = c.info->RefOf( node )
+    '' AN INDEXED PROPERTY IS SPELLED LIKE A CALL. 'f.bar( 0 )' is an N_CALL whose
+    '' TARGET is the member, and this refused anything that was not a bare member on its
+    '' first line -- so 'f.bar( 0 ) = v' fell through to the ordinary store path, which
+    '' looked for a field of that name, found a procedure and declined.
+    dim as Tko.NodeId member = node
+    dim as long idxFirst = 0
+    dim as long idxCount = 0
+    if c.ast->Kind( node ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr ip2 = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, node )].data )]
+        if ip2->target = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+        if c.ast->Kind( ip2->target ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+        member = ip2->target
+        idxFirst = ip2->first
+        idxCount = ip2->count
+    end if
+    if c.ast->Kind( member ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId sid = c.info->RefOf( member )
     if sid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    outIdxFirst = idxFirst
+    outIdxCount = idxCount
 
     '' The whole chain, because the getter and the setter share one symbol.
     dim as Tko.SymbolId cur = sid
     dim as Tko.SymbolId want_ = Tko.SYMBOL_NONE
+    dim as long bestCost = Tko.Check.CONV_NONE
+    dim as long ties = 0
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
         if s = 0 then exit while
@@ -432,9 +572,25 @@ function PropertyAt_ _
                             cast( Tko.NodeId, c.ast->children[pp->first + i] )
                         if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
                     next
-                    if np = want then
-                        want_ = cur
-                        exit while
+                    '' WHICH ACCESSOR IT IS COMES FROM THE RESULT TYPE, not from the
+                    '' parameter count: an INDEXED getter takes one parameter and is
+                    '' still a getter. 'want' is 0 for a get and 1 for a set, and the
+                    '' index arguments are added on top of it.
+                    dim as boolean isGet = (pp->a <> Tko.NODE_NONE)
+                    dim as boolean wantGet = (want = 0)
+                    if (isGet = wantGet) andalso (np = idxCount + want) then
+                        '' SCORED over the index arguments, because a type may declare
+                        '' several -- obj_property_idx.bas overloads on the index type
+                        '' AND the value type. A tie picks nothing.
+                        dim as long cost = PropIndexCost_( _
+                            c, cur, idxFirst, idxCount, valNode )
+                        if cost < bestCost then
+                            bestCost = cost
+                            want_ = cur
+                            ties = 0
+                        elseif (cost = bestCost) andalso (cost < Tko.Check.CONV_NONE) then
+                            ties += 1
+                        end if
                     end if
                 end if
             end if
@@ -442,11 +598,12 @@ function PropertyAt_ _
         cur = s->nextOverload
     wend
     if want_ = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    if ties > 0 then return Tko.SYMBOL_NONE
 
     '' The RECEIVER is the member's base, by address -- 'p.V' through a pointer takes
     '' the pointer's value instead, exactly as a field access does.
     dim as Tko.BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, node )].data )]
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, member )].data )]
     dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
     if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
         self_ = LowerExpr( c, mp->lhs )
@@ -654,11 +811,17 @@ end function
 function LowerPropertyGet_ _
     ( byref c as Ctx, byval node as Tko.NodeId, byref outv as MirValue ) as boolean
     dim as MirValue self_
-    dim as Tko.SymbolId g = PropertyAt_( c, node, 0, self_ )
+    dim as long gFirst, gCount
+    dim as Tko.SymbolId g = PropertyAt_( c, node, 0, self_, gFirst, gCount )
     if g = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( g )
     if gs = 0 then return false
-    outv = EmitMemberCall( c, g, self_, LowerType( gs->type_, *c.types ) )
+    '' The INDEX ARGUMENTS follow the receiver, in written order, coerced to the
+    '' parameters the chosen overload declared -- measured, fbc emits
+    '' '_ZN3FOO10BAR__get__Eu7INTEGER( &F$, 0ll )'.
+    dim as FB.Array( of ulong ) gargs
+    if PushPropIndexArgs_( c, g, gFirst, gCount, gargs ) = false then return false
+    outv = EmitMemberCallArgs_( c, g, self_, LowerType( gs->type_, *c.types ), @gargs )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
@@ -666,7 +829,9 @@ end function
 function LowerPropertySet_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     dim as MirValue self_
-    dim as Tko.SymbolId sset = PropertyAt_( c, target, 1, self_ )
+    dim as long sFirst, sCount
+    dim as Tko.SymbolId sset = PropertyAt_( _
+        c, target, 1, self_, sFirst, sCount, value )
     if sset = Tko.SYMBOL_NONE then return false
 
     '' The parameter's type, so the value is coerced the way the callee expects.
@@ -675,23 +840,32 @@ function LowerPropertySet_ _
     dim as Tko.NodeId pn = cast( Tko.NodeId, ss->payload )
     if pn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    '' THE VALUE IS THE LAST PARAMETER, not the first. For an INDEXED setter the
+    '' leading ones are the indices, and taking parameter zero for the value coerced
+    '' the value to the INDEX's type.
     dim as Tko.TypeId pt = Tko.TYPE_NONE
+    dim as long np2 = 0
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) = Tko.N_PARAM then
             pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-            exit for
+            np2 += 1
         end if
     next
+
+    dim as FB.Array( of ulong ) args
+    if PushPropIndexArgs_( c, sset, sFirst, sCount, args ) = false then
+    end if
 
     dim as MirValue v = LowerExpr( c, value )
     if v.kind = cast( ubyte, MV_NONE ) then return false
     if pt <> Tko.TYPE_NONE then
-        v = Coerce( c, v, LowerType( pt, *c.types ), IsUnsignedType( c, pt ) )
-        if v.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirType vmt = LowerType( pt, *c.types )
+        if (vmt <> MT_VOID) andalso (vmt <> MT_AGG) then
+            v = Coerce( c, v, vmt, IsUnsignedType( c, pt ) )
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+        end if
     end if
-
-    dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
     EmitStructorCall( c, sset, -1, @self_, @args )
     return true

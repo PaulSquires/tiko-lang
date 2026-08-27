@@ -527,42 +527,7 @@ end function
 function EmitMemberCall _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
       byval rt as MirType ) as MirValue
-
-    dim as MirValue none_
-    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return none_
-    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-    if pn = Tko.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
-    if self_.kind = cast( ubyte, MV_NONE ) then return none_
-
-    dim as long first = c.m->argPool.Count \ 2
-    c.m->argPool.Push( cast( ulong, self_.kind ) )
-    c.m->argPool.Push( cast( ulong, self_.id ) )
-
-    dim as Tko.InternId nm = c.names->GetString( _
-        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, rt )
-        decl->isDefinition = false
-        decl->paramCount = 1
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, rt )
-    ins.first = first
-    ins.count = 1
-    ins.callee = fidx
-    return Emit( c, ins )
+    return EmitMemberCallArgs_( c, sym, self_, rt, 0 )
 end function
 
 '' The paren-less STATEMENT form: 'W 1, 2'. The callee is the statement's own 'a' and

@@ -1,0 +1,7 @@
+'' An INDEXED property: the accessor is chosen by result type and by the cost of BOTH
+'' its index and its value parameters, and a byref string index travels as a descriptor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/prop-indexed.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/prop-indexed.out
