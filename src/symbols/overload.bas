@@ -292,10 +292,23 @@ private function UserBinaryOp_ _
                         end if
                         np += 1
                     next
+                    '' ...AND THE USER-DEFINED CONVERSIONS, exactly as the CALL path
+                    '' already costs them. UserConvCost_ prices one conversion
+                    '' CONSTRUCTOR on the destination or one 'operator cast' on the
+                    '' source; ConversionCost cannot see either, because it takes only a
+                    '' TypeContext. Without this an operand reachable only through a user
+                    '' conversion scored CONV_NONE, the operator bound to nothing, and
+                    '' 'u <> v' declined with the operator declared right there.
+                    ''
+                    '' TWO CHAINED user conversions -- a cast to STRING and then a
+                    '' constructor FROM string -- are still not modelled, here or in
+                    '' UserConvCost_, and still decline.
                     dim as long total = CONV_NONE
                     if np = 2 then
                         dim as long c0 = ConversionCost( lt, p0, *c.types )
+                        if c0 >= CONV_NONE then c0 = UserConvCost_( c, lt, p0 )
                         dim as long c1 = ConversionCost( rt, p1, *c.types )
+                        if c1 >= CONV_NONE then c1 = UserConvCost_( c, rt, p1 )
                         if (c0 < CONV_NONE) andalso (c1 < CONV_NONE) then total = c0 + c1
                     elseif np = 1 then
                         '' ONE PARAMETER MEANS TWO DIFFERENT THINGS. Inside a TYPE it
@@ -309,6 +322,7 @@ private function UserBinaryOp_ _
                                 '' The receiver is the LEFT operand and is not costed:
                                 '' fbc only considers a member operator for its own type.
                                 dim as long c1 = ConversionCost( rt, p0, *c.types )
+                                if c1 >= CONV_NONE then c1 = UserConvCost_( c, rt, p0 )
                                 if c1 < CONV_NONE then total = c1
                             end if
                         end if

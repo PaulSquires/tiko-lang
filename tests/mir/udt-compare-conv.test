@@ -1,0 +1,7 @@
+'' A comparison operator reached through a conversion constructor and through an
+'' operator cast: the cost model now prices both, and the lowering builds what fbc does.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-compare-conv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-compare-conv.out

@@ -1012,6 +1012,79 @@ private function UdtConvTemp_ _
     return true
 end function
 
+'' THE OPERAND OF A USER-DEFINED OPERATOR, converted to the parameter's type the way
+'' an ARGUMENT would be. Two shapes, and they are not the same code:
+''
+''   an 'operator cast' ON THE SOURCE that yields the parameter's own type is called
+''   and its RESULT IS THE OPERAND -- measured, and there is no temporary and no
+''   destructor at all:
+''
+''     struct $2TU* vr$4 = _ZN2TVcv2TUEv( &VV$0 );
+''     int64 vr$6 = _ZneR2TUS0_( &UU$0, vr$4 );
+''
+''   a conversion CONSTRUCTOR on the destination builds a temporary, the operator is
+''   called on it, and the temporary is DESTRUCTED at end of statement:
+''
+''     _ZN2TUC1ER2TV( &TMP$2$0, &VV$0 );
+''     int64 vr$7 = _ZneR2TUS0_( &UU$0, &TMP$2$0 );
+''     _ZN2TUD1Ev( &TMP$2$0 );
+''
+'' TWO CHAINED conversions -- a cast to STRING and then a constructor FROM string --
+'' are not modelled and decline, in the cost model as well as here.
+function UserConvOperand_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+
+    outSlot = -1
+    outType = Tko.TYPE_NONE
+    if (e = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then
+        pu = c.types->Unqualify( c.types->Inner( pu ) )
+    end if
+    if c.types->Kind( pu ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId et = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->Kind( et ) = Tko.TK_REFERENCE then
+        et = c.types->Unqualify( c.types->Inner( et ) )
+    end if
+    if et = Tko.TYPE_NONE then return false
+    if et = pu then return false
+
+    '' THE CAST FIRST: fbc prefers it, and the file that exercises this says so in
+    '' its own priority table.
+    if c.types->Kind( et ) = Tko.TK_UDT then
+        dim as Tko.SymbolId cur = StructorOf( c, et, "cast" )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+            if cs = 0 then exit while
+            dim as Tko.TypeId rt = cs->type_
+            if rt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId ru = c.types->Unqualify( rt )
+                if c.types->Kind( ru ) = Tko.TK_REFERENCE then
+                    ru = c.types->Unqualify( c.types->Inner( ru ) )
+                end if
+                if ru = pu then
+                    dim as MirValue self_ = LowerAddr( c, e )
+                    if self_.kind = cast( ubyte, MV_NONE ) then return false
+                    outa = EmitMemberCall( c, cur, self_, MT_PTR )
+                    return (outa.kind <> cast( ubyte, MV_NONE ))
+                end if
+            end if
+            cur = cs->nextOverload
+        wend
+    end if
+
+    return UdtConvTemp_( c, e, pu, outa, outSlot, outType )
+end function
+
+'' The matching teardown: the same destructor pass a call makes over its own
+'' argument temporaries.
+sub DestroyOperandTemps_ _
+    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
+      byref types as FB.Array( of ulong ) )
+    DestroyArgTemps_( c, slots, types )
+end sub
+
 '' Whether argument 'i' of 'callee' has to be CONVERTED rather than passed. True only
 '' when the parameter is a UDT and the argument is not already one of that type -- an
 '' argument of the same type is a copy, and both other cases are somebody else's path.

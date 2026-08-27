@@ -623,7 +623,9 @@ end function
 '' argument; a global one takes both.
 declare function OperandValue_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
-      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
+      byval byref_ as boolean, byref args as FB.Array( of ulong ), _
+      byref tmpSlots as FB.Array( of ulong ), _
+      byref tmpTypes as FB.Array( of ulong ) ) as boolean
 
 function LowerUserBinaryOp_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
@@ -687,6 +689,8 @@ function LowerUserBinaryOp_ _
         args.Push( cast( ulong, sretTmp.id ) )
     end if
     dim as long firstArg = 0
+    dim as FB.Array( of ulong ) opTmpSlots
+    dim as FB.Array( of ulong ) opTmpTypes
     if ptypes.Count = 1 then
         '' The RECEIVER is the left operand, by address.
         dim as MirValue self_ = LowerAddr( c, bp->lhs )
@@ -694,13 +698,20 @@ function LowerUserBinaryOp_ _
         args.Push( cast( ulong, self_.kind ) ) : args.Push( cast( ulong, self_.id ) )
     else
         if OperandValue_( c, bp->lhs, cast( Tko.TypeId, ptypes[0] ), _
-                          (prefs[0] <> 0), args ) = false then return false
+                          (prefs[0] <> 0), args, opTmpSlots, opTmpTypes ) = false then
+            return false
+        end if
         firstArg = 1
     end if
     if OperandValue_( c, bp->rhs, cast( Tko.TypeId, ptypes[firstArg] ), _
-                      (prefs[firstArg] <> 0), args ) = false then return false
+                      (prefs[firstArg] <> 0), args, opTmpSlots, opTmpTypes ) = false then
+        return false
+    end if
 
     outv = EmitDirectCall_( c, op, rmt, args )
+    '' A CONVERTED OPERAND'S TEMPORARY IS DESTRUCTED AFTER THE OPERATOR, which is
+    '' where fbc puts it: '_ZN2TUD1Ev( &TMP$2$0 )' on the line after the call.
+    DestroyOperandTemps_( c, opTmpSlots, opTmpTypes )
     if usesSret then
         '' The RESULT IS THE TEMPORARY, not what the call handed back: fbc returns the
         '' same pointer it was given, and reading the temporary is what every use of
@@ -762,17 +773,40 @@ function LowerUserUnaryOp_ _
     if np <> 1 then return false
 
     dim as FB.Array( of ulong ) args
-    if OperandValue_( c, up->operand, pt, isRef, args ) = false then return false
+    dim as FB.Array( of ulong ) unTmpSlots
+    dim as FB.Array( of ulong ) unTmpTypes
+    if OperandValue_( c, up->operand, pt, isRef, args, unTmpSlots, unTmpTypes ) = false then
+        return false
+    end if
     outv = EmitDirectCall_( c, op, rmt, args )
+    DestroyOperandTemps_( c, unTmpSlots, unTmpTypes )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 '' One operator operand, pushed as the parameter wants it.
 private function OperandValue_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
-      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
+      byval byref_ as boolean, byref args as FB.Array( of ulong ), _
+      byref tmpSlots as FB.Array( of ulong ), _
+      byref tmpTypes as FB.Array( of ulong ) ) as boolean
 
     dim as MirValue v
+
+    '' AN OPERAND THAT IS NOT THE PARAMETER'S TYPE IS A CONVERSION, and it is asked
+    '' before anything else: neither branch below has anything to convert with, so
+    '' 'u <> v' over an unrelated UDT handed the operator the RAW operand -- or, once
+    '' the cost model refused it, declined outright.
+    dim as long ucSlot = -1
+    dim as Tko.TypeId ucType = Tko.TYPE_NONE
+    if UserConvOperand_( c, e, pt, v, ucSlot, ucType ) then
+        if ucSlot >= 0 then
+            tmpSlots.Push( cast( ulong, ucSlot ) )
+            tmpTypes.Push( cast( ulong, ucType ) )
+        end if
+        args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+        return true
+    end if
+
     if byref_ then
         v = LowerAddr( c, e )
         if v.kind = cast( ubyte, MV_NONE ) then

@@ -684,6 +684,12 @@ declare function EmitRtl _
     declare function PushCtorArgs_ _
         ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as long, _
           byval count as long, byref args as FB.Array( of ulong ) ) as boolean
+    declare function UserConvOperand_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+    declare sub DestroyOperandTemps_ _
+        ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
+          byref types as FB.Array( of ulong ) )
     declare function ArrayDescArg_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, _
           byval isArrayParam as boolean, byref outv as MirValue ) as boolean
