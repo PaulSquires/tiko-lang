@@ -1,0 +1,7 @@
+'' The address of a procedure inside a namespace, which declined while the
+'' unqualified spelling lowered.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procaddr-qualified.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/procaddr-qualified.out

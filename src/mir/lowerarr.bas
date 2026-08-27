@@ -250,6 +250,16 @@ function LowerAddr _
             dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
             if qs <> 0 then
                 if qs->kind = cast( ubyte, Tko.SYM_VARIABLE ) then return AddrOfVar( c, qsid )
+                '' ...AND A QUALIFIED PROCEDURE'S ADDRESS IS ITS OWN. '@NS.Tramp' is
+                '' an N_MEMBER, so it fell through to the FIELD path below, found no
+                '' field of that name and declined -- while '@Tramp' unqualified
+                '' lowered, because AddrOfVar has answered SYM_PROC all along.
+                ''
+                '' Measured, and the namespace changes only the mangled name:
+                ''
+                ''     PW$0  = (tmp$1)&_ZN2NS5TRAMPEPv;
+                ''     PW3$0 = (tmp$1)&TRAMP3;
+                if qs->kind = cast( ubyte, Tko.SYM_PROC ) then return AddrOfVar( c, qsid )
             end if
         end if
     end if
