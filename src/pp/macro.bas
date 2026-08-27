@@ -270,6 +270,12 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     ''
     '' The leading trim is what the two broken shapes needed; this one is only about
     '' matching fbc's token layout exactly, and it is not worth that.
+    ''
+    '' RE-MEASURED 2026-08-26, because __FB_ARG_LISTEXPAND__ now writes the ' : '
+    '' between its repetitions itself and the old reason looked spent. It is not: the
+    '' pp corpus went from 77 declines to 900 and five preprocessor goldens changed.
+    '' Whatever else depends on the trailing end-of-line, it is not only LISTEXPAND --
+    '' find out what before trying this a third time.
 end sub
 
 private sub PpUndef( byref e as PpEngine, byval at as SourceLoc )
