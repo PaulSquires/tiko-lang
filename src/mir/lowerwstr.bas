@@ -876,10 +876,15 @@ function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbo
         if cse = 0 then exit while
         dim as Tko.TypeId rt = cse->type_
         if rt <> Tko.TYPE_NONE then
-            '' BYREF makes it a POINTER to the wstring, so both spellings count.
-            dim as Tko.TypeId inner = rt
+            '' BYREF makes it a POINTER to the wstring, so both spellings count -- and a
+            '' REFERENCE is the third, which 'byref as const wstring' resolves to. CONST
+            '' is stripped with it: 'const wstring' is the same wstring.
+            dim as Tko.TypeId inner = c.types->Unqualify( rt )
+            if c.types->Kind( inner ) = Tko.TK_REFERENCE then
+                inner = c.types->Unqualify( c.types->Inner( inner ) )
+            end if
             if c.types->Kind( inner ) = Tko.TK_POINTER then
-                inner = c.types->Inner( inner )
+                inner = c.types->Unqualify( c.types->Inner( inner ) )
             end if
             if IsWideString_( c, inner ) then return cur
             if inner <> Tko.TYPE_NONE then

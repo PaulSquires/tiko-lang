@@ -476,6 +476,20 @@ function LowerStrOf_ _
     '' StrDescriptorOf_ knows every spelling; without this the whole call declined.
     '' ...and so is STR of a UDT with 'operator cast' to one, which is the same
     '' question asked of a different type kind.
+    '' 'str( w )' OVER A WIDE OPERAND IS A CONVERSION, not the identity: it answers a
+    '' NARROW descriptor. Measured -- 'fb_WstrToStr( (uint16*)vr )', and the entry point
+    '' was in the runtime table with no caller at all, so every wide 'str' declined. The
+    '' operand may be a wstring, a 'wstring * N' or a UDT that CASTS to one, which is
+    '' exactly the set TermIsWide_ answers for.
+    if TermIsWide_( c, sa ) then
+        dim as MirValue wsv
+        if WideOperand_( c, sa, wsv ) = false then return false
+        dim as FB.Array( of ulong ) wsa
+        wsa.Push( cast( ulong, wsv.kind ) ) : wsa.Push( cast( ulong, wsv.id ) )
+        outv = EmitRtl( c, RTL_WSTR_TO_STR, wsa )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
     dim as longint sn
     if IsStringType( c, c.info->TypeOf_( sa ) ) orelse _
        (StrSwapKind_( c, c.info->TypeOf_( sa ), sn ) >= 0) orelse _
@@ -677,9 +691,14 @@ function LowerStrNumCall_ _
         '' 'fb_WstrAsc( (uint16*)W$0, 1ll )'. Asked for a DESCRIPTOR, a wstring had
         '' none and every 'asc( w, n )' declined -- string/asc.bas and
         '' string/asc-utf16le.bas ask it of a wstring beside every narrow one.
+        '' TermIsWide_, not IsWideString_ on the TYPE: a UDT that declares
+        '' 'operator cast( ) as wstring' IS a wide operand, and its type is a UDT. So
+        '' 'asc( u )' asked for a narrow descriptor, a UDT has none, and it declined --
+        '' while 'w = u' and 'dim w as wstring * 10 = u' beside it both lowered, because
+        '' WideOperand_ has known about the cast all along.
         dim as RtlId ascR = RTL_STR_ASC
         dim as MirValue sd
-        if IsWideString_( c, c.info->TypeOf_( a0asc ) ) then
+        if TermIsWide_( c, a0asc ) then
             ascR = RTL_WSTR_ASC
             if WideOperand_( c, a0asc, sd ) = false then return false
         elseif StrDescriptorOf_( c, a0asc, sd ) = false then

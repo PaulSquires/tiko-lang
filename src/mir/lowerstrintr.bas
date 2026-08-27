@@ -68,6 +68,16 @@ function LowerMidAssign _
     dim as longint dn
     dim as long dk = StrSwapKind_( c, dt, dn )
 
+    '' A UDT THAT CASTS TO A WSTRING IS A WIDE DESTINATION. StrSwapKind_ answers -1 for
+    '' one -- it classifies TYPES, and a UDT is not a string type -- so the wide branch
+    '' below was never reached and 'mid( u, 2 ) = w' declined, while 'w = u' beside it
+    '' lowered. Measured: fbc calls the cast operator and passes its result with LENGTH
+    '' ZERO, which is the runtime's 'work it out from the terminator'.
+    if (dk < 0) andalso TermIsWide_( c, dstN ) then
+        dk = 2
+        dn = 0
+    end if
+
     '' THE WIDE FLAVOUR takes the buffer POINTER and its CHARACTER COUNT, not a
     '' descriptor -- a wstring has none.
     if dk = 2 then

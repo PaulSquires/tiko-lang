@@ -643,6 +643,21 @@ function ZstrDataOf_ _
         outv = LowerAddr( c, id )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
+    '' A 'string * N' IS NOT ITS OWN DATA POINTER. It is SPACE-PADDED and carries NO
+    '' TERMINATOR, so handing its buffer to anything that walks to a NUL reads past it --
+    '' which is why fbc borrows a temporary DESCRIPTOR first, with the tagged length, and
+    '' takes the pointer out of that. Measured, comparing a 'wstring * N' with one:
+    ''
+    ''     fb_StrAssign( &TMP, -1, F, 0x8000000000000000|10, 0 );
+    ''     fb_StrToWstr( *(char**)&TMP );
+    ''
+    '' Refusing it instead left the whole comparison unlowered, in both directions.
+    if k = 3 then
+        dim as MirValue fda
+        if StrDescriptorOf_( c, id, fda ) = false then return false
+        outv = LowerExprLoad( c, fda, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
     if k = 0 then
         '' StrDescriptorOf_ RATHER THAN LowerAddr, so an rvalue works too: 'str( t )'
         '' has no address, and fbc copies it into a temporary descriptor before taking

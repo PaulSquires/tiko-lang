@@ -1,0 +1,6 @@
+'' A UDT that casts to a wstring at the call-family gates, str of a wide operand, and a fixed string as a data pointer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-cast-family.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-cast-family.out
