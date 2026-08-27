@@ -1,0 +1,6 @@
+'' 'base( ... )' over a base that declares no constructor, and the implicit zeroing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/base-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/base-init.out

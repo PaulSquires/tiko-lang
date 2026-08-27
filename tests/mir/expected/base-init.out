@@ -1,0 +1,136 @@
+func void _ZN2C1C1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const i64 1
+    %5 = field.addr %3, 0
+    store %5, %4
+    %6 = const i64 2
+    %7 = field.addr %3, 8
+    store %7, %6
+    %8 = const i64 3
+    %9 = field.addr %3, 16
+    store %9, %8
+    ret
+}
+func void _ZN2C2C1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const i64 123
+    %5 = field.addr %3, 0
+    store %5, %4
+    %6 = field.addr %3, 8
+    %7 = call.rtl ptr memset(%6, 0, 16)
+    ret
+}
+declare ptr memset($0, $1, $2)
+func void _ZN2C3C1ER1P($0, $1) {
+  local ptr this
+  local ptr p0
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr p0
+    store @p0, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = load @p0
+    %6 = load %5
+    store %4, %6
+    ret
+}
+func void _ZN2C4C1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 24
+    %4 = const i64 7
+    store %3, %4
+    ret
+}
+func void S1() {
+  local agg x size 24
+  local agg y size 24
+  local agg pp size 24
+  local agg z size 24
+  local agg w size 32
+  entry0:
+    %1 = alloca ptr x
+    call void _ZN2C1C1Ev(@x)
+    %2 = alloca ptr y
+    call void _ZN2C2C1Ev(@y)
+    %3 = alloca ptr pp
+    %4 = field.addr @pp, 0
+    %5 = const i64 9
+    store %4, %5
+    %6 = field.addr @pp, 8
+    %7 = const i64 8
+    store %6, %7
+    %8 = alloca ptr z
+    %9 = load @pp
+    call void _ZN2C3C1ER1P(@z, %9)
+    %10 = alloca ptr w
+    call void _ZN2C4C1Ev(@w)
+    %11 = field.addr @x, 0
+    %12 = load %11
+    call.rtl void fb_PrintLongint(0, %12, 2)
+    %13 = field.addr @x, 8
+    %14 = load %13
+    call.rtl void fb_PrintLongint(0, %14, 2)
+    %15 = field.addr @x, 16
+    %16 = load %15
+    call.rtl void fb_PrintLongint(0, %16, 1)
+    %17 = field.addr @y, 0
+    %18 = load %17
+    call.rtl void fb_PrintLongint(0, %18, 2)
+    %19 = field.addr @y, 8
+    %20 = load %19
+    call.rtl void fb_PrintLongint(0, %20, 2)
+    %21 = field.addr @y, 16
+    %22 = load %21
+    call.rtl void fb_PrintLongint(0, %22, 1)
+    %23 = field.addr @z, 0
+    %24 = load %23
+    call.rtl void fb_PrintLongint(0, %24, 2)
+    %25 = field.addr @z, 8
+    %26 = load %25
+    call.rtl void fb_PrintLongint(0, %26, 2)
+    %27 = field.addr @z, 16
+    %28 = load %27
+    call.rtl void fb_PrintLongint(0, %28, 1)
+    %29 = field.addr @w, 0
+    %30 = load %29
+    call.rtl void fb_PrintLongint(0, %30, 2)
+    %31 = field.addr @w, 24
+    %32 = load %31
+    call.rtl void fb_PrintLongint(0, %32, 1)
+    ret
+}
+declare void fb_PrintLongint($0, $1, $2)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S1()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 6 functions, 6 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance

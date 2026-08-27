@@ -332,6 +332,20 @@ sub EmitCtorPrologue_ _
                 EmitStructorCall( c, bc, -1, @ba, @none_ )
             elseif TypeNeedsInit_( c, bt ) then
                 CallImplicitCtor_( c, bt, ba )
+            else
+                '' A BASE WITH NO CONSTRUCTOR AT ALL IS ZEROED. Measured: fbc emits
+                '' 'memset( (P*)THIS, 0, sizeof(P) )' as the first statement of the
+                '' derived constructor, and tiko-lang emitted NOTHING -- it did not
+                '' decline either, it silently left the base subobject holding whatever
+                '' the allocation held.
+                dim as long bsz2 = SizeOfType( c, bt )
+                if bsz2 > 0 then
+                    dim as FB.Array( of ulong ) bz
+                    bz.Push( cast( ulong, ba.kind ) ) : bz.Push( cast( ulong, ba.id ) )
+                    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( 0 )
+                    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( cast( ulong, bsz2 ) )
+                    EmitRtl( c, RTL_MEMSET, bz )
+                end if
             end if
         end if
     end if

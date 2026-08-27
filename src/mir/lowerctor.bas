@@ -399,6 +399,87 @@ end function
 ''
 '' Returns false when the call is not this shape, so an ordinary call to something
 '' that happens to be spelled 'base' is unaffected.
+'' 'base( ... )' WHERE THE BASE DECLARES NO CONSTRUCTOR IS A FIELD-WISE INITIALISER,
+'' not a call -- there is nothing to call.
+''
+'' Measured against fbc, at the very top of the derived constructor's body:
+''
+''   base( 1, 2, 3 )   *(int64*)THIS=1; *(THIS+8)=2; *(THIS+16)=3;
+''   base( 123 )       *(int64*)THIS=123; memset( THIS+8, 0, 16 );   -- the supplied
+''                     values go to the LEADING base fields and THE REST OF THE BASE
+''                     SUBOBJECT IS ZEROED
+''   base( p0 )        memcpy( (P*)THIS, P0, 16 )   -- one argument of the base's own
+''                     type is a whole-subobject copy
+''
+'' The base subobject sits at offset 0, which is the same fact single inheritance rests
+'' on everywhere else in this file.
+private function LowerBaseFieldInit_ _
+    ( byref c as Ctx, byval selfAddr as MirValue, byval bt as Tko.TypeId, _
+      byval first_ as long, byval count as long ) as boolean
+
+    dim as long bsz = SizeOfType( c, bt )
+    if bsz <= 0 then return false
+    dim as long bui = c.udts->Find( bt )
+    if bui < 0 then return false
+
+    '' A SINGLE ARGUMENT OF THE BASE'S OWN TYPE IS A COPY of the whole subobject.
+    if count = 1 then
+        dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->children[first_] )
+        dim as Tko.TypeId ot2 = c.types->Unqualify( c.info->TypeOf_( only_ ) )
+        if ot2 = c.types->Unqualify( bt ) then
+            dim as MirValue src = LowerAddr( c, only_ )
+            if src.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue whole = LowerExprLoad( c, src, MT_AGG )
+            if whole.kind = cast( ubyte, MV_NONE ) then return false
+            StoreThrough( c, selfAddr, whole )
+            return true
+        end if
+    end if
+
+    '' THE LEADING FIELDS, one value each, in declaration order.
+    dim as long f0 = c.udts->udts[bui].first
+    dim as long nf = c.udts->udts[bui].count
+    if count > nf then return false
+    dim as long tailOff = bsz
+    for i as long = 0 to count - 1
+        dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
+        dim as MirType fmt = LowerType( fld->type_, *c.types )
+        if (fmt = MT_VOID) orelse (fmt = MT_AGG) then return false
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
+        dim as MirValue av = LowerExpr( c, a )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        av = Coerce( c, av, fmt, IsUnsignedType( c, c.info->TypeOf_( a ) ) )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = selfAddr
+        fa.imm = fld->offset
+        dim as MirValue faddr = Emit( c, fa )
+        if faddr.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, faddr, av )
+        if i = count - 1 then tailOff = fld->offset + SizeOfType( c, fld->type_ )
+    next
+
+    '' ...AND THE REST OF THE SUBOBJECT ZEROED. Measured: fbc emits the memset even
+    '' where the derived constructor writes those bytes again a line later.
+    if (count > 0) andalso (tailOff < bsz) then
+        dim as MirInst ta
+        ta.op = cast( ushort, M_FIELD_ADDR )
+        ta.ty = cast( ubyte, MT_PTR )
+        ta.a = selfAddr
+        ta.imm = tailOff
+        dim as MirValue taddr = Emit( c, ta )
+        if taddr.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) za
+        za.Push( cast( ulong, taddr.kind ) ) : za.Push( cast( ulong, taddr.id ) )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, bsz - tailOff ) )
+        EmitRtl( c, RTL_MEMSET, za )
+    end if
+    return true
+end function
+
 function LowerBaseCtorCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
@@ -437,7 +518,15 @@ function LowerBaseCtorCall_ _
     if c.types->Kind( bt ) <> Tko.TK_UDT then return false
 
     dim as Tko.SymbolId ctors = StructorOf( c, bt, "__ctor" )
-    if ctors = Tko.SYMBOL_NONE then return false
+    if ctors = Tko.SYMBOL_NONE then
+        '' A BASE WITH NO CONSTRUCTOR IS INITIALISED FIELD BY FIELD, not called. This
+        '' returned false the moment there was nothing to pick, so the statement fell
+        '' through to an ordinary call of a procedure named 'base' and declined -- seven
+        '' corpus statements, in the four files whose whole subject is base initialisers.
+        dim as MirValue frecv = AddrOfThisField( c, bsid )
+        if frecv.kind = cast( ubyte, MV_NONE ) then return false
+        return LowerBaseFieldInit_( c, frecv, bt, cp->first, cp->count )
+    end if
 
     '' Argument VALUES first, then the pick: the types are needed to choose, and the
     '' values must be evaluated in source order whichever overload wins.
