@@ -33,13 +33,13 @@ func void S1() {
     %4 = alloca ptr k1
     %5 = call ptr _ZN8WIDECASTcvKwEv(@u)
     %6 = call.rtl i32 fb_WstrAsc(%5, 1)
-    %7 = sext %6
+    %7 = zext %6
     store @k1, %7
     %8 = alloca ptr k2
     %9 = call ptr _ZN8WIDECASTcvKwEv(@u)
     %10 = const i64 2
     %11 = call.rtl i32 fb_WstrAsc(%9, %10)
-    %12 = sext %11
+    %12 = zext %11
     store @k2, %12
     %13 = load @k1
     call.rtl void fb_PrintLongint(0, %13, 2)

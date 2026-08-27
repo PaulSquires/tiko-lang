@@ -172,6 +172,23 @@ private function ExprIntrinsicType_ _
             ab = c.types->BuiltinOf( fs )
         elseif c.types->Kind( a0 ) = Tko.TK_BUILTIN then
             ab = c.types->BuiltinOf( a0 )
+        else
+            '' A UDT THAT CASTS TO A STRING IS THAT STRING, for the WHOLE family and
+            '' not only for STR. Measured, over a type declaring
+            '' 'operator cast( ) byref as const wstring' and one declaring
+            '' 'operator cast( ) byref as string':
+            ''
+            ''     asc( wide_udt )      ULONG        asc( narrow_udt )    ULONG
+            ''     val( narrow_udt )    DOUBLE       instr( narrow_udt, "a" )  INTEGER
+            ''     trim( narrow_udt )   STRING       left( narrow_udt, 1 )     STRING
+            ''
+            '' The acceptance test below reads the argument's BUILTIN type, and a UDT
+            '' has none -- so every one of those came out UNTYPED. That is not a
+            '' diagnostic: 'print asc( u )' declined for want of anything to print,
+            '' while 'dim k as integer = asc( u )' one line down lowered, because a
+            '' DECLARATION takes its type from the variable.
+            dim as Tko.TypeId sc = UdtStringCastType_( c, a0 )
+            if sc <> Tko.TYPE_NONE then ab = c.types->BuiltinOf( sc )
         end if
     end if
 
@@ -321,10 +338,11 @@ private function ExprIntrinsicType_ _
         '' STR follows: measured, '#print typeof( strptr( u ) )' over a type with
         '' 'operator cast( ) byref as zstring' is ZSTRING PTR, and fbc emits the cast
         '' and nothing else. udt-zstring/strptr.bas writes it nine times.
-        if isStr = false then
-            dim as Tko.TypeId spct = UdtStringCastType_( c, a0 )
-            if spct <> Tko.TYPE_NONE then return c.types->Pointer_( spct )
-        end if
+        '' ASKED FIRST, for the reason STR is: with the cast folded into 'ab' the
+        '' isStr test below is now TRUE for one of these, and the wide/narrow rules
+        '' after it would answer for the CAST'S FLAVOUR rather than for the cast.
+        dim as Tko.TypeId spct = UdtStringCastType_( c, a0 )
+        if spct <> Tko.TYPE_NONE then return c.types->Pointer_( spct )
         '' A WIDE operand gives a WIDE pointer: '#print typeof( strptr( w ) )' over a
         '' 'wstring * 4' is 'WSTRING * 4 PTR', not a zstring ptr. Typing it narrow made
         '' 'dim pw as wstring ptr = strptr( w )' an incompatible initialiser and
@@ -368,11 +386,14 @@ private function ExprIntrinsicType_ _
     '' the whole item -- while '", " & str( u )', the same terms the other way round,
     '' lowered. That asymmetry is what the corpus's QT( ) macro walks into.
     case "str"
-        if (isNum orelse isStr) = false then
-            dim as Tko.TypeId ct = UdtStringCastType_( c, a0 )
-            if ct <> Tko.TYPE_NONE then return ct
-            return Tko.TYPE_NONE
-        end if
+        '' ASKED BEFORE the general rules, because with the cast folded into 'ab'
+        '' above STR would otherwise answer STRING for a WIDE cast -- and measured,
+        '' '#print typeof( str( u ) )' over 'operator cast( ) byref as const wstring'
+        '' is CONST WSTRING. STR keeps the CAST'S own kind, not the STRING every other
+        '' argument gives it.
+        dim as Tko.TypeId ct = UdtStringCastType_( c, a0 )
+        if ct <> Tko.TYPE_NONE then return ct
+        if (isNum orelse isStr) = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )
     '' WSTR IS A FIXED WSTRING, not a var-length one, and the LENGTH is measured:
     '' 'WSTRING * 1' for every argument fbc accepts except a fixed wstring, which keeps

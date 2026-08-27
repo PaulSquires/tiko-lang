@@ -25,10 +25,15 @@ sub s1( )
     dim u as WideCast
     u.buf = "hello"
 
-    '' Through a variable, not straight into PRINT: 'print asc( u )' still declines, and
-    '' so does 'dim as string s = str( u )'. Those are two MORE gates that ask the
-    '' operand's TYPE rather than TermIsWide_ -- the PRINT item classifier and the string
-    '' initialiser -- and they are recorded rather than guessed at.
+    '' 'print asc( u )' lowers now too: the gate was not the PRINT classifier at all but
+    '' CHECK, which read the argument's BUILTIN type to decide what the intrinsic
+    '' family accepts -- and a UDT has none, so the call came out UNTYPED and PRINT had
+    '' nothing to print. A UDT that casts to a string is now that string for the whole
+    '' family. 'dim as string s = str( u )' still declines: see the note in HANDOFF.
+    ''
+    '' ASC IS ULONG, so its result ZERO-extends into an integer. Measured:
+    '' 'uint32 vr$2 = fb_WstrAsc( ... ); K$0 = (int64)vr$2'. It sign-extended here
+    '' while the call was untyped, which is what the earlier golden recorded.
     dim as integer k1 = asc( u )
     dim as integer k2 = asc( u, 2 )
     print k1, k2
