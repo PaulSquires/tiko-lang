@@ -883,6 +883,25 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         Advance( p )
         return PostfixChain( p, MakeIdent( p, t ) )
 
+    case Tko.KW_THREADCALL
+        '' 'threadcall' IN EXPRESSION POSITION -- 't = threadcall w( 1 )'. It was
+        '' registered as a STATEMENT intrinsic and nothing else, so the expression
+        '' parser fell through to the identifier path: the callee and its whole
+        '' argument list were DROPPED and the initialiser was left as the bare name
+        '' 'threadcall'. Every real use in the corpus is this position.
+        ''
+        '' The node built here is EXACTLY the one the statement form builds -- an
+        '' N_INTRINSIC whose single child is the call -- so one lowering serves both,
+        '' the way OPEN, GET, PUT and CLOSE already do.
+        Advance( p )
+        dim as Tko.StmtPayload tcp
+        tcp.op = cast( ushort, Tko.KW_THREADCALL )
+        dim as Tko.NodeId tcCall = Expression( p, Tko.PREC_POSTFIX )
+        tcp.first = p.ast->children.Count
+        tcp.count = 1
+        p.ast->children.Push( cast( ulong, tcCall ) )
+        return MakeStmt( p, Tko.N_INTRINSIC, t.loc, tcp )
+
     case Tko.KW_NEW
         '' 'new T', 'new T( args )', 'new T[ n ]'.
         ''

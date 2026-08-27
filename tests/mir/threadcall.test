@@ -1,0 +1,7 @@
+'' threadcall in expression and statement position: the fixed prefix, the per-argument
+'' (type code, address) pairs, and the byval-string copy with its delete.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/threadcall.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/threadcall.out

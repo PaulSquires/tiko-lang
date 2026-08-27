@@ -856,6 +856,16 @@ function TypeOf_ _
             end if
         end if
 
+    case Tko.N_INTRINSIC
+        '' 'threadcall f( a )' IS A THREAD HANDLE -- 'any ptr', which is what
+        '' 'dim as any ptr t = threadcall f( 1 )' declares and what fb_ThreadCall
+        '' returns. Every other intrinsic reaching here in expression position takes
+        '' its type from its own lowering and needs none.
+        dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
+        if cast( Tko.TokenKind, tsp->op ) = Tko.KW_THREADCALL then
+            t = c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )
+        end if
+
     case Tko.N_CALL
         '' The callee's symbol was bound by Resolve; the overloads hang off it in a
         '' chain. Score every candidate against the arguments and take the unique

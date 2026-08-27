@@ -1203,4 +1203,9 @@ private function CallFailed_( byref c as Ctx, byref v as MirValue ) as MirValue
     return v
 end function
 
+'' 'threadcall' -- included HERE rather than made a module of its own, because the
+'' byval-string temporary and its delete are this file's private helpers and a thread
+'' call marshals a string exactly the way an ordinary call's argument does.
+#include once "mir/lowerthread.bas"
+
 end namespace

@@ -1,0 +1,117 @@
+global str $str0 "hi"
+func void NOARGS() {
+  entry0:
+    ret
+}
+func void SCAL($0, $1, $2) {
+  local i64 a
+  local f64 b
+  local i16 c
+  entry0:
+    %1 = alloca ptr a
+    store @a, $0
+    %2 = alloca ptr b
+    store @b, $1
+    %3 = alloca ptr c
+    store @c, $2
+    ret
+}
+func void WITHSTR($0) {
+  local ptr s
+  entry0:
+    %1 = alloca ptr s
+    store @s, $0
+    ret
+}
+func void BYREFINT($0) {
+  local ptr v
+  entry0:
+    %1 = alloca ptr v
+    store @v, $0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr t1
+  local i64 iv
+  local ptr t2
+  local f64 $tmp4
+  local i16 $tmp5
+  local agg sv size 24
+  local ptr t3
+  local agg $tmp8 size 24
+  local ptr $tmp9
+  local ptr t4
+  local ptr $tmp11
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr t1
+    %5 = func.addr ptr NOARGS
+    %6 = call.rtl ptr fb_ThreadCall(%5, 0, 0, 0)
+    store @t1, %6
+    %7 = alloca ptr iv
+    %8 = const i64 1
+    store @iv, %8
+    %9 = alloca ptr t2
+    %10 = func.addr ptr SCAL
+    %11 = const f64 2.5
+    %12 = alloca ptr $tmp4
+    store @$tmp4, %11
+    %13 = const i64 3
+    %14 = trunc %13
+    %15 = alloca ptr $tmp5
+    store @$tmp5, %14
+    %16 = call.rtl ptr fb_ThreadCall(%10, 0, 0, 3, 8, @iv, 11, @$tmp4, 4, @$tmp5)
+    store @t2, %16
+    %17 = alloca ptr sv
+    %18 = call.rtl ptr fb_StrInit(@sv, -1, @@$str0, 3, 0)
+    %19 = alloca ptr t3
+    %20 = func.addr ptr WITHSTR
+    %21 = alloca ptr $tmp8
+    %22 = field.addr @$tmp8, 0
+    store %22, 0
+    %23 = field.addr @$tmp8, 8
+    store %23, 0
+    %24 = field.addr @$tmp8, 16
+    store %24, 0
+    %25 = call.rtl ptr fb_StrAssign(@$tmp8, -1, @sv, -1, 0)
+    %26 = alloca ptr $tmp9
+    store @$tmp9, @$tmp8
+    %27 = call.rtl ptr fb_ThreadCall(%20, 0, 0, 1, 13, @$tmp9)
+    call.rtl void fb_StrDelete(@$tmp8)
+    store @t3, %27
+    %28 = alloca ptr t4
+    %29 = func.addr ptr BYREFINT
+    %30 = alloca ptr $tmp11
+    store @$tmp11, @iv
+    %31 = call.rtl ptr fb_ThreadCall(%29, 0, 0, 1, 13, @$tmp11)
+    store @t4, %31
+    %32 = func.addr ptr NOARGS
+    %33 = call.rtl ptr fb_ThreadCall(%32, 0, 0, 0)
+    %34 = load @t1
+    call void fb_ThreadWait(%34)
+    %35 = load @t2
+    call void fb_ThreadWait(%35)
+    %36 = load @t3
+    call void fb_ThreadWait(%36)
+    %37 = load @t4
+    call void fb_ThreadWait(%37)
+    call.rtl void fb_StrDelete(@sv)
+    %38 = const i32 0
+    call.rtl void fb_End(%38)
+    %39 = load @$tmp0
+    ret %39
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_ThreadCall($0, $1, $2, $3, $4)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_ThreadWait()
+declare void fb_End($0)
+verify: ok
+lowered: 5 functions, 5 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance

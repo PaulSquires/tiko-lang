@@ -1266,6 +1266,11 @@ end function
 function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr ip = StmtOf( c, id )
     dim as boolean handled = false
+    '' 'threadcall f( a )' AS A STATEMENT is the same call with its handle discarded.
+    if ip->op = cast( ushort, Tko.KW_THREADCALL ) then
+        dim as MirValue tcv
+        handled = LowerThreadCall_( c, id, tcv )
+    end if
     if ip->op = cast( ushort, Tko.KW_PRINT ) then handled = LowerPrint( c, id )
     if ip->op = cast( ushort, Tko.KW_SWAP ) then handled = LowerSwap( c, id )
     if ip->op = cast( ushort, Tko.KW_CLOSE ) then handled = LowerClose( c, id )

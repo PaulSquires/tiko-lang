@@ -23,6 +23,9 @@ function LowerExpr _
     '' initialised from one allocated its slot and stored nothing.
     case Tko.N_INTRINSIC
         dim as MirValue ov
+        '' 'threadcall f( a )' YIELDS THE THREAD HANDLE, and that is how every real
+        '' use in the corpus writes it: 'dim as any ptr t = threadcall f( 1 )'.
+        if LowerThreadCall_( c, id, ov ) then return ov
         if LowerOpenCall_( c, id, ov ) then return ov
         '' 'get( #f, 1, b )' YIELDS THE ERROR CODE, and that is how the corpus writes
         '' every one: 'CU_ASSERT( get( #f, 1, b ) = 0 )'. Same node either way, so the
