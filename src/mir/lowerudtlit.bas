@@ -11,6 +11,13 @@
 
 namespace Tko.Mir
 
+'' Defined in lowerterm.bas and lowerarr.bas, which are compiled after this file.
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+declare sub FlattenInitLeaves_ _
+    ( byref c as Ctx, byval init as Tko.NodeId, _
+      byref outv as FB.Array( of ulong ) )
+
 using Tko
 
 '' THE LEAF VALUES of an initialiser, in order, with nested lists opened out. fbc
@@ -478,6 +485,67 @@ end function
 '' Returns false unless EVERY leaf folds. A partial image would be worse than none: the
 '' bytes that did fold would look initialised and the rest would be zero, with nothing
 '' to say which was which.
+'' THE BYTE IMAGE of a static array whose elements are FIXED-LENGTH STRINGS.
+''
+'' Each element is its own raw buffer -- no descriptor -- so the whole array is one image
+'' and the leaves are laid out in row-major order, the same way a multi-dimensional scalar
+'' array's are. Measured against fbc, and the three flavours differ only in the fill and
+'' the width:
+''
+''   zstring * N    the bytes, then NUL to N
+''   string  * N    the bytes, then SPACES to N -- it has no terminator, so its N bytes
+''                  ARE its value and an unwritten one must read back as N blanks
+''   wstring * N    each byte widened to two, then NUL pairs to N
+''
+'' Returns false for anything that is not one, which leaves the caller's own path alone.
+private function FixStrArrayImage_ _
+    ( byref c as Ctx, byval et as Tko.TypeId, byval init as Tko.NodeId, _
+      byval size_ as long, byref outImg as string ) as boolean
+
+    dim as longint fen
+    dim as long fsk = StrSwapKind_( c, et, fen )
+    if (fsk < 1) orelse (fsk > 4) then return false
+    dim as long esz = SizeOfType( c, et )
+    if esz <= 0 then return false
+    dim as long cap = c.types->ElemCount( et )
+    if cap <= 0 then return false
+    dim as long total = size_ \ esz
+    if total <= 0 then return false
+
+    dim as FB.Array( of ulong ) leaves
+    FlattenInitLeaves_( c, init, leaves )
+    if leaves.Count = 0 then return false
+    if cast( long, leaves.Count ) > total then return false
+
+    dim as boolean wide = (fsk = 2) orelse (fsk = 4)
+    dim as ubyte pad = iif( fsk = 3, 32, 0 )
+    dim as long usable = iif( fsk = 3, cap, cap - 1 )
+    if usable < 0 then usable = 0
+
+    dim as string img
+    for i as long = 0 to total - 1
+        dim as string txt
+        if i < cast( long, leaves.Count ) then
+            if ConstStringTextOf_( c, cast( Tko.NodeId, leaves[i] ), txt ) = false then
+                return false
+            end if
+        end if
+        if len( txt ) > usable then txt = left( txt, usable )
+        dim as string one
+        for k as long = 0 to len( txt ) - 1
+            one += chr( txt[k] )
+            if wide then one += chr( 0 )
+        next
+        while len( one ) < esz
+            one += chr( pad )
+        wend
+        img += one
+    next
+    if len( img ) <> size_ then return false
+    outImg = img
+    return true
+end function
+
 function FoldAggInit_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
       byval size_ as long, byref outBytes as string ) as boolean
@@ -502,6 +570,14 @@ function FoldAggInit_ _
     if c.types->Kind( t ) = Tko.TK_ARRAY then
         if c.types->IsDynArray( t ) then return false
         dim as Tko.TypeId et = c.types->Inner( t )
+
+        '' AN ARRAY OF FIXED-LENGTH STRINGS IS A BYTE IMAGE TOO -- measured, fbc emits
+        '' 'static char ZARRAY$1[3][3][10] = { { "abc", "def" }, ... }' and nothing else.
+        '' A fixed string lowers to MT_AGG, so the rejection below took every one of
+        '' them; the SCALAR half of exactly this fold already lives in LowerGlobalInit,
+        '' including the SPACE fill a 'string * N' takes where the others take zeros.
+        if FixStrArrayImage_( c, et, init, size_, outBytes ) then return true
+
         dim as MirType emt = LowerType( et, *c.types )
         if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
         dim as long esz = c.types->Layout( et ).size

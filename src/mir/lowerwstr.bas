@@ -165,8 +165,16 @@ function LowerWideAssignTo _
 
     dim as Tko.TypeId st = c.info->TypeOf_( value )
 
+    '' A LITERAL, or ADJACENT LITERALS, which are one literal -- see LowerZstrAssignTo.
+    dim as string lit
+    dim as boolean isLit = false
     if c.ast->Kind( value ) = Tko.N_STRING_LIT then
-        dim as string lit = StringLitText_( c, value )
+        lit = StringLitText_( c, value )
+        isLit = true
+    elseif c.ast->Kind( value ) = Tko.N_STRCAT then
+        isLit = StrCatText_( c, value, lit )
+    end if
+    if isLit then
         args.Push( cast( ulong, MV_GLOBAL ) )
         args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )
         '' The literal's byte length INCLUDING its NUL, which is what fbc passes.

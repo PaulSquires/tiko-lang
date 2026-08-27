@@ -1259,8 +1259,17 @@ function LowerZstrAssignTo _
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     PushStrLen_( c, args, n )
 
+    '' A LITERAL, or ADJACENT LITERALS, which are one literal: '"a" "1"' is folded
+    '' before it reaches any call. The kind test alone missed the second spelling.
+    dim as string lit
+    dim as boolean isLit = false
     if c.ast->Kind( value ) = Tko.N_STRING_LIT then
-        dim as string lit = StringLitText_( c, value )
+        lit = StringLitText_( c, value )
+        isLit = true
+    elseif c.ast->Kind( value ) = Tko.N_STRCAT then
+        isLit = StrCatText_( c, value, lit )
+    end if
+    if isLit then
         '' A USTRING DESTINATION TAKES A UTF-16 LITERAL, and its length is the tagged
         '' CHARACTER COUNT rather than the narrow family's len+1.
         if isU then

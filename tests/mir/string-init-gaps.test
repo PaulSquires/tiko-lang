@@ -1,0 +1,6 @@
+'' A wide term in a ustring chain, adjacent literals, and fixed-string arrays.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/string-init-gaps.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/string-init-gaps.out

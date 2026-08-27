@@ -847,8 +847,12 @@ function PrintOne _
         '' Both are string-typed and neither has an address, so LowerAddr below
         '' answered NONE and 'print f( 2 )' declined outright. StrDescriptorOf_ knows
         '' both shapes and every other one this branch would otherwise repeat.
+        '' ...and ADJACENT LITERALS, which are one literal: '"a" "1"' folds to "a1"
+        '' before it reaches any call, so it has a TEXT and StrDescriptorOf_ borrows a
+        '' temporary descriptor over it exactly as it does for a single literal.
         dim as boolean isCallish = (c.ast->Kind( it ) = Tko.N_CALL) orelse _
-                                   (c.ast->Kind( it ) = Tko.N_IDENT)
+                                   (c.ast->Kind( it ) = Tko.N_IDENT) orelse _
+                                   (c.ast->Kind( it ) = Tko.N_STRCAT)
         if isCallish then
             dim as MirValue cd
             if StrDescriptorOf_( c, it, cd ) then

@@ -890,7 +890,7 @@ declare function LowerStrArrayInit_ _
 '' THE LEAF EXPRESSIONS OF A NESTED BRACE INITIALISER, in row-major order: a nested
 '' N_INITIALIZER is read through rather than treated as a value, which is what makes
 '' '{ {1,2,3}, {4,5,6} }' six integers laid out end to end.
-private sub FlattenInitLeaves_ _
+sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
       byref outv as FB.Array( of ulong ) )
 
@@ -940,7 +940,10 @@ function LowerArrayInit _
     '' element goes through the same routine with its own address as the destination.
     dim as longint fen
     dim as long fek = StrSwapKind_( c, el, fen )
-    if (fek = 1) orelse (fek = 3) orelse (fek = 4) then
+    '' KIND 2 IS 'wstring * N' and belongs here with the other three. It was omitted, so
+    '' a wide fixed-string array fell through to the aggregate test below, was not a UDT,
+    '' and declined -- while the narrow twin one line away lowered.
+    if (fek = 1) orelse (fek = 2) orelse (fek = 3) orelse (fek = 4) then
         return LowerFixStrArrayInit_( c, slot, t, init, fen, (fek = 4) )
     end if
 
@@ -1020,17 +1023,30 @@ private function LowerFixStrArrayInit_ _
     dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return false
     dim as long total = c.types->ElemCount( t )
-    dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    '' A MULTI-DIMENSIONAL INITIALISER IS WRITTEN IN ROWS and the storage is one flat
+    '' run in row-major order -- the same rule the scalar path follows. This walked only
+    '' the TOP-LEVEL children, so every row arrived as a nested N_INITIALIZER that the
+    '' element assignment had nothing to make of, and the whole declaration declined.
+    dim as FB.Array( of ulong ) leaves
+    if c.types->types[cast( long, t )].dims > 1 then
+        FlattenInitLeaves_( c, init, leaves )
+    else
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+        for i as long = 0 to lp->count - 1
+            leaves.Push( c.ast->children[lp->first + i] )
+        next
+    end if
 
     dim as MirValue base_
     base_.kind = cast( ubyte, MV_LOCAL )
     base_.ty = cast( ubyte, MT_PTR )
     base_.id = slot
 
-    for i as long = 0 to lp->count - 1
+    dim as long written = 0
+    for i as long = 0 to cast( long, leaves.Count ) - 1
         if (total > 0) andalso (i >= total) then exit for
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
         dim as MirInst fa
         fa.op = cast( ushort, M_FIELD_ADDR )
         fa.ty = cast( ubyte, MT_PTR )
@@ -1039,7 +1055,28 @@ private function LowerFixStrArrayInit_ _
         dim as MirValue ea = Emit( c, fa )
         if ea.kind = cast( ubyte, MV_NONE ) then return false
         if LowerZstrAssignTo( c, ea, n, e, true, isU ) = false then return false
+        written = i + 1
     next
+
+    '' AND THE ELEMENTS THE INITIALISER DID NOT NAME ARE ZEROED. A fixed-length string
+    '' is raw storage, not a descriptor, so an unwritten one holds whatever the frame
+    '' held -- and this simply stopped at the last supplied leaf. Measured: fbc emits an
+    '' explicit memset over the rest, per row and for the whole tail.
+    if (total > 0) andalso (written < total) then
+        dim as MirInst ta
+        ta.op = cast( ushort, M_FIELD_ADDR )
+        ta.ty = cast( ubyte, MT_PTR )
+        ta.a = base_
+        ta.imm = written * esz
+        dim as MirValue taddr = Emit( c, ta )
+        if taddr.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) za
+        za.Push( cast( ulong, taddr.kind ) ) : za.Push( cast( ulong, taddr.id ) )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( ulong, MV_CONST_INT ) )
+        za.Push( cast( ulong, (total - written) * esz ) )
+        EmitRtl( c, RTL_MEMSET, za )
+    end if
     return true
 end function
 

@@ -29,6 +29,14 @@ function ConstStringTextOf_ _
         outText = StringLitText_( c, id )
         return true
 
+    case Tko.N_STRCAT
+        '' ADJACENT LITERALS ARE ONE STRING. '"a" "1"' is a single literal in
+        '' FreeBASIC, folded before it reaches any call -- measured, fbc emits
+        '' 'fb_StrAssign( B$0, 5ll, "a1", 3ll, 0 )'. Only the CONCATENATION path knew
+        '' that, so a fixed-length initialiser, an assignment and a PRINT all declined
+        '' while 'dim as string c = "a" "1"' beside them worked.
+        return StrCatText_( c, id, outText )
+
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -55,7 +63,10 @@ function ConstStringTextOf_ _
         '' 'asc( S, 1 )' both declined.
         dim as Tko.ListPayload ptr wp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if wp->count <> 1 then return false
+        '' NO ARITY GUARD HERE. Each name below checks its own, and a blanket 'exactly
+        '' one argument' at the top silently excluded every two-argument form -- which
+        '' is the only form of lcase and ucase that fbc folds at all.
+        if wp->count < 1 then return false
         if wp->target = Tko.NODE_NONE then return false
         if c.ast->Kind( wp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr wip = _
@@ -98,6 +109,35 @@ function ConstStringTextOf_ _
             return true
         end if
 
+        '' 'lcase( s, 1 )' AND 'ucase( s, 1 )' -- AND ONLY WITH THE MODE ARGUMENT, and
+        '' only when it is 1. Measured, by asking fbc to accept each as a constant:
+        ''
+        ''     const a = lcase( "XYZ123", 1 )   "xyz123"   accepted
+        ''     const b = ucase( "abc", 1 )      "ABC"
+        ''     const c = lcase( "XYZ" )                    fbc error 11
+        ''     const d = lcase( "XYZ", 0 )                  fbc error 11
+        ''
+        '' Mode 1 is the locale-independent one, which is the only one whose answer is
+        '' knowable at compile time -- so folding the others would be folding something
+        '' fbc deliberately does not.
+        if (wnm = "lcase") orelse (wnm = "ucase") then
+            if wp->count <> 2 then return false
+            dim as Tko.Check.ConstVal mv = Tko.Check.ConstOf( _
+                *c.ast, cast( Tko.NodeId, c.ast->children[wp->first + 1] ), _
+                *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms )
+            if mv.known = false then return false
+            if mv.value <> 1 then return false
+            dim as string ct2
+            if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
+                                   ct2, depth + 1 ) = false then return false
+            if wnm = "lcase" then
+                outText = Tko.Text.LowerAscii( ct2 )
+            else
+                outText = Tko.Text.UpperAscii( ct2 )
+            end if
+            return true
+        end if
+
         if wnm = "str" then
             if wp->count <> 1 then return false
             dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[wp->first] )
@@ -132,6 +172,7 @@ function ConstStringTextOf_ _
         '' 'const S = wstr( "ab" )' -- A WIDE STRING CONSTANT. The text is the call's own
         '' argument: the conversion changes the WIDTH, not the characters.
         if wnm <> "wstr" then return false
+        if wp->count <> 1 then return false
         return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
                                    outText, depth + 1 )
 

@@ -458,7 +458,18 @@ function LowerUStrChain _
         case STF_UTF16  : hasU = true
         end select
     next
-    if hasU = false then return false
+    '' A WIDE TERM IN A USTRING DESTINATION IS A USTRING TERM. 'dim as ustring u =
+    '' "caf" & wchr( &hE9 )' has no ustring-TYPED term at all -- a narrow literal and a
+    '' wide call -- so this refused the chain, and the narrow fallback then pushed the
+    '' wide term at narrow width and failed too. Fourteen corpus statements, every one
+    '' of them in a DECLARATION, which is what made it look like an initialiser gap.
+    ''
+    '' Measured, fbc const-folds the whole chain to one UTF-16 literal; what is emitted
+    '' here is fb_WstrToUStr on the wide term and fb_UStrConcat over the rest, which is
+    '' the same VALUE by the same runtime and is what the non-constant chain gets from
+    '' fbc too.
+    if (hasU = false) andalso (dstIsU = false) then return false
+    if (hasU = false) andalso (hasW = false) then return false
     if hasW andalso hasN then return false
 
     '' The accumulator starts as the FIRST NON-NEUTRAL term's flavour, and a wide one

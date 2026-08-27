@@ -23,8 +23,12 @@ function StrDescriptorOf_ _
 
     '' A STRING CONSTANT IS ITS TEXT. Recognised here rather than left to the type
     '' test below, which would claim it and then ask a constant for an address.
+    '' ...and ADJACENT LITERALS, which are one literal: '"a" "1"' folds to "a1" before
+    '' it reaches any call, so 'print "a" "1"' has a text and not an expression.
     dim as string constText
-    if c.ast->Kind( id ) = Tko.N_IDENT then
+    dim as boolean constish = (c.ast->Kind( id ) = Tko.N_IDENT)
+    if c.ast->Kind( id ) = Tko.N_STRCAT then constish = true
+    if constish then
         if ConstStringTextOf_( c, id, constText ) then
             dim as FB.Array( of ulong ) ca
             ca.Push( cast( ulong, MV_GLOBAL ) )
