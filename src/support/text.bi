@@ -79,6 +79,16 @@ namespace Tko.Text
     declare sub LowerAsciiInto _
         ( byval src as const ubyte ptr, byval n as long, byval dst as ubyte ptr )
 
+    '' THE BYTES ONE ESCAPED LITERAL BODY STANDS FOR -- '!"..."' with its backslash
+    '' escapes decoded. The rules were measured by RUNNING programs fbc compiled;
+    '' tools/gen/check-escape.sh replays all 47 answers.
+    ''
+    '' A UNICODE escape makes the whole literal WIDE, which this does not model:
+    '' 'outWide' comes back true and the result is empty, so a caller refuses rather
+    '' than getting the byte escapes around it decoded and the wide ones dropped.
+    declare function DecodeEscapedBody _
+        ( byref body as string, byref outWide as boolean ) as string
+
     declare function Utf8ToUString( byval p as const ubyte ptr, byval n as long ) as ustring
     declare function UStringToUtf8( byval s as ustring ) as string
 

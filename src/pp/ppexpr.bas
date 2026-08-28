@@ -21,6 +21,11 @@ type PpValue
     '' RE-EMIT the value, and re-emitting undecoded bytes would produce a different
     '' string. So it is carried, and the one caller that cannot live with it refuses.
     as boolean  escaped
+    '' ...and the literal was WIDE -- it carried a '\u' escape, which promotes the
+    '' whole thing to a wstring. Decoding the byte escapes around one and dropping
+    '' the wide ones would produce a string neither compiler has, so it is carried
+    '' and __FB_EVAL__ refuses it.
+    as boolean  wide
 end type
 
 type PpExprState
@@ -187,8 +192,25 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                     i += 1
                 end if
             wend
-            r.str_ += coll
-            if StrTokenIsEscaped_( *x.e, st ) then r.escaped = true
+            '' AN ESCAPED LITERAL IS DECODED HERE, not carried raw. '#if' compares
+            '' content and undecoded bytes were close enough for it, but __FB_EVAL__
+            '' RE-EMITS the value: '!"plain"' came back with nothing to re-emit and
+            '' declined, and '"A" + !"\0"' -- which fbc answers with '\x41\x00' --
+            '' declined with it. pp/macro-eval-str.bas is 11 of those and its
+            '' utf16le twin another 11.
+            if StrTokenIsEscaped_( *x.e, st ) then
+                dim as boolean wasWide = false
+                dim as string dec = Tko.Text.DecodeEscapedBody( coll, wasWide )
+                if wasWide then
+                    r.wide = true
+                    r.escaped = true
+                    r.str_ += coll
+                else
+                    r.str_ += dec
+                end if
+            else
+                r.str_ += coll
+            end if
             if PxPeek( x ) <> TK_STRING_LIT then exit do
         loop
         return r
@@ -337,6 +359,7 @@ private function PxAdd( byref x as PpExprState ) as PpValue
             c.isStr = true
             c.str_ = l.str_ + r.str_
             c.escaped = l.escaped orelse r.escaped
+            c.wide = l.wide orelse r.wide
             l = c
         elseif (l.isStr orelse r.isStr) then
             '' A STRING AND A NUMBER IS NOT SOMETHING TO GUESS AT. fbc has its own rule

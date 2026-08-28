@@ -202,24 +202,24 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC18VECTOR_IDENTITIES_Ev( void )
 			struct $N2FB5VEC3DE vr$16 = _ZN2FB9NORMALIZEERNS_5VEC3DE( &A$3 );
 			N$3 = vr$16;
 			double vr$18 = _ZN2FB6LENGTHERNS_5VEC3DE( &N$3 );
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$18 + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 27, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( Length( n ) - 1.0 ) < 1e-12)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$18 + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 27, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( Length( n ) - 1.0 ) < 1e-12)" );
 			struct $N2FB5VEC3DE C$3;
 			struct $N2FB5VEC3DE vr$25 = _ZN2FB5CROSSERNS_5VEC3DES1_( &A$3, &B$3 );
 			C$3 = vr$25;
 			double vr$28 = _ZN2FB3DOTERNS_5VEC3DES1_( &C$3, &A$3 );
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( vr$28 ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 31, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( Dot( c, a ) ) < 1e-8)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( vr$28 ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 31, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( Dot( c, a ) ) < 1e-8)" );
 			double vr$34 = _ZN2FB3DOTERNS_5VEC3DES1_( &C$3, &B$3 );
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( vr$34 ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 32, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( Dot( c, b ) ) < 1e-8)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( vr$34 ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 32, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( Dot( c, b ) ) < 1e-8)" );
 			struct $N2FB5VEC3DE C2$3;
 			struct $N2FB5VEC3DE vr$40 = _ZN2FB5CROSSERNS_5VEC3DES1_( &B$3, &A$3 );
 			C2$3 = vr$40;
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)&C$3 + *(double*)&C2$3) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 34, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( c.x + c2.x ) < 1e-12)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)&C$3 + *(double*)&C2$3) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 34, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( c.x + c2.x ) < 1e-12)" );
 			struct $N2FB5VEC3DE vr$47 = _ZN2FBplERNS_5VEC3DES1_( &A$3, &B$3 );
 			TMP$65$3 = vr$47;
 			double vr$49 = _ZN2FB6LENGTHERNS_5VEC3DE( &TMP$65$3 );
 			double vr$51 = _ZN2FB6LENGTHERNS_5VEC3DE( &A$3 );
 			double vr$53 = _ZN2FB6LENGTHERNS_5VEC3DE( &B$3 );
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$49 <= ((vr$51 + vr$53) + 0x1.12E0BE826D695p-30)) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 37, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(Length( a + b ) <= Length( a ) + Length( b ) + 1e-9)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$49 <= ((vr$51 + vr$53) + 0x1.12E0BE826D695p-30)) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 37, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(Length( a + b ) <= Length( a ) + Length( b ) + 1e-9)" );
 			double LHS$3;
 			double vr$60 = _ZN2FB3DOTERNS_5VEC3DES1_( &A$3, &B$3 );
 			LHS$3 = vr$60;
@@ -228,11 +228,11 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC18VECTOR_IDENTITIES_Ev( void )
 			double vr$64 = _ZN2FB6LENGTHERNS_5VEC3DE( &B$3 );
 			double vr$68 = _ZN2FB5ANGLEERNS_5VEC3DES1_( &A$3, &B$3 );
 			RHS$3 = (vr$62 * vr$64) * __builtin_cos( vr$68 );
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (LHS$3 - RHS$3) ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 42, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( lhs - rhs ) < 1e-8)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (LHS$3 - RHS$3) ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 42, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( lhs - rhs ) < 1e-8)" );
 			double vr$76 = _ZN2FB13LENGTHSQUAREDERNS_5VEC3DE( &A$3 );
 			double vr$78 = _ZN2FB6LENGTHERNS_5VEC3DE( &A$3 );
 			double vr$80 = _ZN2FB6LENGTHERNS_5VEC3DE( &A$3 );
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$76 - (vr$78 * vr$80)) ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 45, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( LengthSquared( a ) - Length( a ) * Length( a ) ) < 1e-8)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$76 - (vr$78 * vr$80)) ) < 0x1.5798EE2308C3Ap-27) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 45, (char*)"TESTS.FBC_TESTS.MATH.VEC.VECTOR_IDENTITIES_", (char*)"CU_ASSERT(abs( LengthSquared( a ) - Length( a ) * Length( a ) ) < 1e-8)" );
 		}
 		label$557:;
 		K$2 = (int32)((int64)K$2 + 1ll);
@@ -255,24 +255,24 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC12ZERO_VECTOR_Ev( void )
 	TMP$77$1 = vr$0;
 	struct $N2FB5VEC3DE vr$2 = _ZN2FB9NORMALIZEERNS_5VEC3DE( &TMP$77$1 );
 	Z$1 = vr$2;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&Z$1 == 0x0p+0) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 54, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(z.x = 0.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&Z$1 + 8ll) == 0x0p+0) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 55, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(z.y = 0.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&Z$1 + 16ll) == 0x0p+0) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 56, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(z.z = 0.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(!(*(double*)&Z$1 != *(double*)&Z$1)) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 57, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(( z.x <> z.x ) = 0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&Z$1 == 0x0p+0) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 54, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(z.x = 0.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&Z$1 + 8ll) == 0x0p+0) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 55, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(z.y = 0.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&Z$1 + 16ll) == 0x0p+0) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 56, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(z.z = 0.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(!(*(double*)&Z$1 != *(double*)&Z$1)) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 57, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(( z.x <> z.x ) = 0)" );
 	struct $N2FB5VEC3FE ZF$1;
 	struct $N2FB5VEC3FE vr$11 = _ZN2FB6VEC3F_Efff( 0x0p+0f, 0x0p+0f, 0x0p+0f );
 	TMP$91$1 = vr$11;
 	struct $N2FB5VEC3FE vr$13 = _ZN2FB9NORMALIZEERNS_5VEC3FE( &TMP$91$1 );
 	ZF$1 = vr$13;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(float*)&ZF$1 == 0x0p+0f) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 60, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(zf.x = 0.0f)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(float*)&ZF$1 == 0x0p+0f) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 60, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(zf.x = 0.0f)" );
 	struct $N2FB5VEC3DE vr$16 = _ZN2FB6VEC3D_Eddd( 0x1.8p+1, 0x1.p+2, 0x0p+0 );
 	TMP$95$1 = vr$16;
 	double vr$18 = _ZN2FB6LENGTHERNS_5VEC3DE( &TMP$95$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$18 == 0x1.4p+2) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 62, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(Length( Vec3d_( 3, 4, 0 ) ) = 5.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$18 == 0x1.4p+2) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 62, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(Length( Vec3d_( 3, 4, 0 ) ) = 5.0)" );
 	struct $N2FB5VEC3DE vr$21 = _ZN2FB6VEC3D_Eddd( 0x0p+0, 0x0p+0, 0x0p+0 );
 	TMP$99$1 = vr$21;
 	double vr$23 = _ZN2FB6LENGTHERNS_5VEC3DE( &TMP$99$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$23 == 0x0p+0) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 63, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(Length( Vec3d_( 0, 0, 0 ) ) = 0.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$23 == 0x0p+0) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 63, (char*)"TESTS.FBC_TESTS.MATH.VEC.ZERO_VECTOR_", (char*)"CU_ASSERT(Length( Vec3d_( 0, 0, 0 ) ) = 0.0)" );
 	label$563:;
 }
 
@@ -343,7 +343,7 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC18MATRIX_IDENTITIES_Ev( void )
 					if( (int64)I$5 <= 15ll) goto label$581;
 					label$580:;
 				}
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(WORST$4 < 0x1.0C6F7A0B5ED8Dp-20) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 87, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(worst < 1e-6)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(WORST$4 < 0x1.0C6F7A0B5ED8Dp-20) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 87, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(worst < 1e-6)" );
 			}
 			label$577:;
 			label$576:;
@@ -389,7 +389,7 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC18MATRIX_IDENTITIES_Ev( void )
 			double vr$64 = _ZN2FB11DETERMINANTERNS_5MAT4DE( &A$3 );
 			double vr$66 = _ZN2FB11DETERMINANTERNS_5MAT4DE( &B$3 );
 			RHS$3 = vr$64 * vr$66;
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (LHS$3 - RHS$3) ) <= ((__builtin_fabs( RHS$3 ) * 0x1.0C6F7A0B5ED8Dp-20) + 0x1.0C6F7A0B5ED8Dp-20)) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 100, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(abs( lhs - rhs ) <= 1e-6 * ( 1.0 + abs( rhs ) ))" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (LHS$3 - RHS$3) ) <= ((__builtin_fabs( RHS$3 ) * 0x1.0C6F7A0B5ED8Dp-20) + 0x1.0C6F7A0B5ED8Dp-20)) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 100, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(abs( lhs - rhs ) <= 1e-6 * ( 1.0 + abs( rhs ) ))" );
 		}
 		label$585:;
 		K$2 = (int32)((int64)K$2 + 1ll);
@@ -405,17 +405,17 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC18MATRIX_IDENTITIES_Ev( void )
 	struct $N2FB5MAT4DE vr$84 = _ZN2FB9TRANSPOSEERNS_5MAT4DE( &TMP$113$1 );
 	TMP$114$1 = vr$84;
 	boolean vr$86 = _ZN2FBeqERNS_5MAT4DES1_( &TMP$114$1, &T$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( vr$86, (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 105, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(Transpose( Transpose( t ) ) = t)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( vr$86, (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 105, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(Transpose( Transpose( t ) ) = t)" );
 	struct $N2FB5MAT4DE vr$90 = _ZN2FBmlERNS_5MAT4DES1_( &T$1, &ID$1 );
 	TMP$118$1 = vr$90;
 	boolean vr$92 = _ZN2FBeqERNS_5MAT4DES1_( &TMP$118$1, &T$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( vr$92, (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 106, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(( t * id ) = t)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( vr$92, (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 106, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(( t * id ) = t)" );
 	struct $N2FB5MAT4DE vr$96 = _ZN2FBmlERNS_5MAT4DES1_( &ID$1, &T$1 );
 	TMP$122$1 = vr$96;
 	boolean vr$98 = _ZN2FBeqERNS_5MAT4DES1_( &TMP$122$1, &T$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( vr$98, (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 107, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(( id * t ) = t)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( vr$98, (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 107, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(( id * t ) = t)" );
 	double vr$100 = _ZN2FB11DETERMINANTERNS_5MAT4DE( &ID$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$100 == 0x1.p+0) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 108, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(Determinant( id ) = 1.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(vr$100 == 0x1.p+0) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 108, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(Determinant( id ) = 1.0)" );
 	struct $N2FB5MAT4DE SING$1;
 	__builtin_memset( &SING$1, 0, 128ll );
 	{
@@ -434,7 +434,7 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC18MATRIX_IDENTITIES_Ev( void )
 	struct $N2FB5MAT4DE JUNK$1;
 	__builtin_memset( &JUNK$1, 0, 128ll );
 	boolean vr$115 = _ZN2FB10TRYINVERSEERNS_5MAT4DES1_( &SING$1, &JUNK$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)(vr$115 == (boolean)0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 116, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(TryInverse( sing, junk ) = false)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)(vr$115 == (boolean)0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 116, (char*)"TESTS.FBC_TESTS.MATH.VEC.MATRIX_IDENTITIES_", (char*)"CU_ASSERT(TryInverse( sing, junk ) = false)" );
 	label$567:;
 }
 
@@ -455,15 +455,15 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC20POINT_VERSUS_VECTOR_Ev( void )
 	struct $N2FB5VEC3DE P$1;
 	struct $N2FB5VEC3DE vr$4 = _ZN2FB14TRANSFORMPOINTERNS_5MAT4DERNS_5VEC3DE( &T$1, &V$1 );
 	P$1 = vr$4;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&P$1 == 0x1.6p+3) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 126, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(p.x = 11.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&P$1 + 8ll) == 0x1.6p+4) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 127, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(p.y = 22.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&P$1 + 16ll) == 0x1.08p+5) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 128, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(p.z = 33.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&P$1 == 0x1.6p+3) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 126, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(p.x = 11.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&P$1 + 8ll) == 0x1.6p+4) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 127, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(p.y = 22.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&P$1 + 16ll) == 0x1.08p+5) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 128, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(p.z = 33.0)" );
 	struct $N2FB5VEC3DE D$1;
 	struct $N2FB5VEC3DE vr$13 = _ZN2FB15TRANSFORMVECTORERNS_5MAT4DERNS_5VEC3DE( &T$1, &V$1 );
 	D$1 = vr$13;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&D$1 == 0x1.p+0) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 131, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(d.x = 1.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&D$1 + 8ll) == 0x1.p+1) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 132, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(d.y = 2.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&D$1 + 16ll) == 0x1.8p+1) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 133, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(d.z = 3.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&D$1 == 0x1.p+0) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 131, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(d.x = 1.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&D$1 + 8ll) == 0x1.p+1) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 132, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(d.y = 2.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)((uint8*)&D$1 + 16ll) == 0x1.8p+1) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 133, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(d.z = 3.0)" );
 	struct $N2FB5MAT4DE S$1;
 	struct $N2FB5MAT4DE vr$20 = _ZN2FB12MAT4DSCALINGEddd( 0x1.p+1, 0x1.p+1, 0x1.p+1 );
 	S$1 = vr$20;
@@ -481,8 +481,8 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC20POINT_VERSUS_VECTOR_Ev( void )
 	TMP$155$1 = vr$32;
 	struct $N2FB5VEC3DE vr$34 = _ZN2FB14TRANSFORMPOINTERNS_5MAT4DERNS_5VEC3DE( &TMP$155$1, &TMP$156$1 );
 	ST$1 = vr$34;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&TS$1 == 0x1.8p+3) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 141, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(ts.x = 12.0)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&ST$1 == 0x1.6p+4) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 142, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(st.x = 22.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&TS$1 == 0x1.8p+3) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 141, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(ts.x = 12.0)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(*(double*)&ST$1 == 0x1.6p+4) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 142, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(st.x = 22.0)" );
 	struct $N2FB5MAT4DE RY$1;
 	struct $N2FB5MAT4DE vr$39 = _ZN2FB14MAT4DROTATIONYEd( 0x1.6666666666666p-1 );
 	RY$1 = vr$39;
@@ -492,7 +492,7 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC20POINT_VERSUS_VECTOR_Ev( void )
 	struct $N2FB5VEC3DE vr$43 = _ZN2FB15TRANSFORMVECTORERNS_5MAT4DERNS_5VEC3DE( &RY$1, &TMP$163$1 );
 	RV$1 = vr$43;
 	double vr$45 = _ZN2FB6LENGTHERNS_5VEC3DE( &RV$1 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$45 + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 147, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(abs( Length( rv ) - 1.0 ) < 1e-12)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$45 + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 147, (char*)"TESTS.FBC_TESTS.MATH.VEC.POINT_VERSUS_VECTOR_", (char*)"CU_ASSERT(abs( Length( rv ) - 1.0 ) < 1e-12)" );
 	label$599:;
 }
 
@@ -530,14 +530,14 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC22QUATERNION_IDENTITIES_Ev( void )
 				struct $N2FB5QUATDE vr$15 = _ZN2FB18QUATDFROMAXISANGLEERNS_5VEC3DEd( &AXIS$3, ANG$4 );
 				Q$4 = vr$15;
 				double vr$17 = _ZN2FB6LENGTHERNS_5QUATDE( &Q$4 );
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$17 + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 162, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( Length( q ) - 1.0 ) < 1e-12)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$17 + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 162, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( Length( q ) - 1.0 ) < 1e-12)" );
 				struct $N2FB5QUATDE E$4;
 				struct $N2FB5QUATDE vr$23 = _ZN2FB9CONJUGATEERNS_5QUATDE( &Q$4 );
 				TMP$174$4 = vr$23;
 				struct $N2FB5QUATDE vr$26 = _ZN2FBmlERNS_5QUATDES1_( &Q$4, &TMP$174$4 );
 				E$4 = vr$26;
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&E$4 + 24ll) + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 166, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( e.w - 1.0 ) < 1e-12)" );
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( *(double*)&E$4 ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 167, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( e.x ) < 1e-12)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&E$4 + 24ll) + -0x1.p+0) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 166, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( e.w - 1.0 ) < 1e-12)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( *(double*)&E$4 ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 167, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( e.x ) < 1e-12)" );
 				struct $N2FB5VEC3DE V$4;
 				struct $N2FB5VEC3DE vr$34 = _ZN2FB6VEC3D_Eddd( 0x1.p+0, 0x1.p+1, 0x1.8p+1 );
 				V$4 = vr$34;
@@ -546,19 +546,19 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC22QUATERNION_IDENTITIES_Ev( void )
 				RV$4 = vr$37;
 				double vr$39 = _ZN2FB6LENGTHERNS_5VEC3DE( &RV$4 );
 				double vr$41 = _ZN2FB6LENGTHERNS_5VEC3DE( &V$4 );
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$39 - vr$41) ) < 0x1.B7CDFD9D7BDBBp-34) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 172, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( Length( rv ) - Length( v ) ) < 1e-10)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$39 - vr$41) ) < 0x1.B7CDFD9D7BDBBp-34) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 172, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( Length( rv ) - Length( v ) ) < 1e-10)" );
 				struct $N2FB5VEC3DE MV$4;
 				struct $N2FB5MAT4DE vr$48 = _ZN2FB8TOMATRIXERNS_5QUATDE( &Q$4 );
 				TMP$184$4 = vr$48;
 				struct $N2FB5VEC3DE vr$50 = _ZN2FB15TRANSFORMVECTORERNS_5MAT4DERNS_5VEC3DE( &TMP$184$4, &V$4 );
 				MV$4 = vr$50;
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)&MV$4 - *(double*)&RV$4) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 179, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( mv.x - rv.x ) < 1e-9)" );
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&MV$4 + 8ll) - *(double*)((uint8*)&RV$4 + 8ll)) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 180, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( mv.y - rv.y ) < 1e-9)" );
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&MV$4 + 16ll) - *(double*)((uint8*)&RV$4 + 16ll)) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 181, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( mv.z - rv.z ) < 1e-9)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)&MV$4 - *(double*)&RV$4) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 179, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( mv.x - rv.x ) < 1e-9)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&MV$4 + 8ll) - *(double*)((uint8*)&RV$4 + 8ll)) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 180, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( mv.y - rv.y ) < 1e-9)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&MV$4 + 16ll) - *(double*)((uint8*)&RV$4 + 16ll)) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 181, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( mv.z - rv.z ) < 1e-9)" );
 				struct $N2FB5VEC3DE RA$4;
 				struct $N2FB5VEC3DE vr$65 = _ZN2FB6ROTATEERNS_5QUATDERNS_5VEC3DE( &Q$4, &AXIS$3 );
 				RA$4 = vr$65;
-				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)&RA$4 - *(double*)&AXIS$3) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 185, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( ra.x - axis.x ) < 1e-9)" );
+				_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)&RA$4 - *(double*)&AXIS$3) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 185, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( ra.x - axis.x ) < 1e-9)" );
 			}
 			label$609:;
 			label$608:;
@@ -579,8 +579,8 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC22QUATERNION_IDENTITIES_Ev( void )
 	TMP$198$1 = vr$77;
 	struct $N2FB5VEC3DE vr$80 = _ZN2FB6ROTATEERNS_5QUATDERNS_5VEC3DE( &Q90$1, &TMP$198$1 );
 	RX$1 = vr$80;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( *(double*)&RX$1 ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 192, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( rx.x ) < 1e-9)" );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&RX$1 + 16ll) + 0x1.p+0) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 193, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( rx.z + 1.0 ) < 1e-9)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( *(double*)&RX$1 ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 192, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( rx.x ) < 1e-9)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&RX$1 + 16ll) + 0x1.p+0) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 193, (char*)"TESTS.FBC_TESTS.MATH.VEC.QUATERNION_IDENTITIES_", (char*)"CU_ASSERT(abs( rx.z + 1.0 ) < 1e-9)" );
 	label$603:;
 }
 
@@ -602,11 +602,11 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC6SLERP_Ev( void )
 	struct $N2FB5QUATDE S0$1;
 	struct $N2FB5QUATDE vr$8 = _ZN2FB5SLERPERNS_5QUATDES1_d( &A$1, &B$1, 0x0p+0 );
 	S0$1 = vr$8;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&S0$1 + 24ll) - *(double*)((uint8*)&A$1 + 24ll)) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 202, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(abs( s0.w - a.w ) < 1e-12)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&S0$1 + 24ll) - *(double*)((uint8*)&A$1 + 24ll)) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 202, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(abs( s0.w - a.w ) < 1e-12)" );
 	struct $N2FB5QUATDE S1$1;
 	struct $N2FB5QUATDE vr$15 = _ZN2FB5SLERPERNS_5QUATDES1_d( &A$1, &B$1, 0x1.p+0 );
 	S1$1 = vr$15;
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&S1$1 + 24ll) - *(double*)((uint8*)&B$1 + 24ll)) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 204, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(abs( s1.w - b.w ) < 1e-12)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (*(double*)((uint8*)&S1$1 + 24ll) - *(double*)((uint8*)&B$1 + 24ll)) ) < 0x1.19799812DEA11p-40) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 204, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(abs( s1.w - b.w ) < 1e-12)" );
 	{
 		int32 I$2;
 		I$2 = 0;
@@ -616,7 +616,7 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC6SLERP_Ev( void )
 			struct $N2FB5QUATDE vr$25 = _ZN2FB5SLERPERNS_5QUATDES1_d( &A$1, &B$1, (double)(int64)I$2 / 0x1.9p+6 );
 			S$3 = vr$25;
 			double vr$27 = _ZN2FB6LENGTHERNS_5QUATDE( &S$3 );
-			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$27 + -0x1.p+0) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 209, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(abs( Length( s ) - 1.0 ) < 1e-9)" );
+			_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(__builtin_fabs( (vr$27 + -0x1.p+0) ) < 0x1.12E0BE826D695p-30) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 209, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(abs( Length( s ) - 1.0 ) < 1e-9)" );
 		}
 		label$615:;
 		I$2 = (int32)((int64)I$2 + 1ll);
@@ -633,7 +633,7 @@ void _ZN5TESTS9FBC_TESTS4MATH3VEC6SLERP_Ev( void )
 	double DOTM$1;
 	double vr$46 = _ZN2FB3DOTERNS_5QUATDES1_( &A$1, &MID_$1 );
 	DOTM$1 = __builtin_fabs( vr$46 );
-	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(DOTM$1 > 0x1.999999999999Ap-1) != 0ll), (char*)"C:\x5C" "dev\x5Ctiko-lang\x5Ctests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 217, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(dotm > 0.8)" );
+	_ZN4FBCU10CU_ASSERT_EbPciS0_S0_( (boolean)((int64)-(DOTM$1 > 0x1.999999999999Ap-1) != 0ll), (char*)"tests\x5Cvendor\x5C" "fbc-tests\x5Cmath\x5Cvector.bas", 217, (char*)"TESTS.FBC_TESTS.MATH.VEC.SLERP_", (char*)"CU_ASSERT(dotm > 0.8)" );
 	label$613:;
 }
 

@@ -57,6 +57,11 @@ CASES = [
     '"a' + BS + 'nb"', '$"a' + BS + 'tb"',
     # doubled quotes, in all three spellings
     '"a""b"', '!"a""b"', '$"a""b"',
+    # A NUL FROM AN ESCAPE ENDS THE LITERAL, and nothing here covered it. The rule is
+    # NOT the one fbc's C output suggests: that carries every byte -- 4ll for
+    # '!"A"+NUL+"B"' -- and the RUNTIME then reports length 1. Measured by
+    # running it, which is the only thing that answers.
+    '!"A' + BS + '0B"', '!"A' + BS + 'x00B"', '!"' + BS + '0"', '!"A' + BS + '&h00B"', '!"A' + BS + '000B"',
     # empty, and no escape at all
     '""', '!""', '!"plain"',
 ]

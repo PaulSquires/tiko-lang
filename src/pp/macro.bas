@@ -453,13 +453,40 @@ private function EvalLiteral_ _
 
     ok = true
     if v.isStr = false then return str( v.num )
-    if v.escaped then
+    '' A WIDE RESULT IS STILL REFUSED. It re-emits as '!"\uXXXX"' per character,
+    '' four UPPERCASE hex digits -- measured, __FB_EVAL__( wstr("A") ) is
+    '' '\u0041' -- and the preprocessor has no wide value to render.
+    if v.wide orelse v.escaped then
         ok = false
         return ""
     end if
+    '' A NUL ANYWHERE MAKES IT THE HEX FORM, every byte of it. Measured:
+    '' __FB_EVAL__( "A" + !"\0" ) is '\x41\x00' and not a truncated "A" -- the NUL
+    '' that ends a literal at RUNTIME does not end this one.
+    dim as boolean hasNul = false
+    for i as long = 1 to len( v.str_ )
+        if asc( mid( v.str_, i, 1 ) ) = 0 then
+            hasNul = true
+            exit for
+        end if
+    next
+    if hasNul then
+        dim as string h = "!" & chr( 34 )
+        for i as long = 1 to len( v.str_ )
+            '' ONE backslash: a plain FreeBASIC literal processes no escapes, so
+            '' the doubled spelling emitted the text of an escape rather than one.
+            h += "\x" & Tko.Text.UpperAscii( hex( asc( mid( v.str_, i, 1 ) ), 2 ) )
+        next
+        return h & chr( 34 )
+    end if
+    '' A NEWLINE OR A QUOTE IN THE RESULT DECLINES. fbc emits those RAW, which
+    '' produces source that will not re-lex -- '__FB_EVAL__( "A" + chr(34) + "B" )'
+    '' becomes '$"AB"' followed by a stray quote, and fbc then reports an error on
+    '' its own output. That is a defect to reproduce nowhere. A TAB is fine and is
+    '' emitted raw, which is what fbc does with it.
     for i as long = 1 to len( v.str_ )
         dim as long ch = asc( mid( v.str_, i, 1 ) )
-        if (ch < 32) orelse (ch = 34) then
+        if (ch = 10) orelse (ch = 13) orelse (ch = 34) then
             ok = false
             return ""
         end if

@@ -1,6 +1,6 @@
 # literal <TAB> length <TAB> byte codes, measured by RUNNING fbc's output.
 # Regenerate with tools/gen/escape-truth.py. Do not hand-edit.
-# 47 cases. '\u' and '\U' are deliberately absent: they make a WSTRING literal.
+# 52 cases. '\u' and '\U' are deliberately absent: they make a WSTRING literal.
 
 !"\a"	1	7
 !"\b"	1	8
@@ -46,6 +46,11 @@ $"a\tb"	4	97 92 116 98
 "a""b"	3	97 34 98
 !"a""b"	3	97 34 98
 $"a""b"	3	97 34 98
+!"A\0B"	1	65
+!"A\x00B"	1	65
+!"\0"	0	
+!"A\&h00B"	1	65
+!"A\000B"	1	65
 ""	0	
 !""	0	
 !"plain"	5	112 108 97 105 110

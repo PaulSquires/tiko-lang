@@ -373,4 +373,112 @@ function UStringToUtf8( byval s as ustring ) as string
     return s                '' USTRING -> STRING is UTF-8 on every target
 end function
 
+'' One radix run: at most 'maxd' digits in 'radix', clamped at 255. 'i' indexes the
+'' first digit and is advanced past what was consumed.
+private function ReadRadixIn_ _
+    ( byref b as string, byref i as long, byval radix as long, _
+      byval maxd as long ) as long
+
+    dim as long v = 0
+    dim as long d = 0
+    while (d < maxd) andalso (i <= len( b ))
+        dim as long k = asc( mid( b, i, 1 ) )
+        dim as long dv = -1
+        if (k >= 48) andalso (k <= 57) then dv = k - 48
+        if (k >= 97) andalso (k <= 102) then dv = k - 87
+        if (k >= 65) andalso (k <= 70) then dv = k - 55
+        if (dv < 0) orelse (dv >= radix) then exit while
+        v = v * radix + dv
+        i += 1
+        d += 1
+    wend
+    if v > 255 then v = 255
+    return v
+end function
+
+'' One escape, 'i' indexing the BACKSLASH. The byte, or -1 for an escape that produces
+'' NOTHING; 'i' advances past everything consumed. Byte-for-byte the rule MIR's own
+'' reader applies -- the two used to be one routine over a source SPAN, which the
+'' preprocessor has no way to reach.
+private function EscapeByteIn_( byref b as string, byref i as long ) as long
+    i += 1
+    if i > len( b ) then return 92
+    dim as long c = asc( mid( b, i, 1 ) )
+    select case c
+    case asc( "a" ) : i += 1 : return 7
+    case asc( "b" ) : i += 1 : return 8
+    case asc( "f" ) : i += 1 : return 12
+    case asc( "n" ) : i += 1 : return 10
+    case asc( "r" ) : i += 1 : return 13
+    case asc( "t" ) : i += 1 : return 9
+    case asc( "v" ) : i += 1 : return 11
+    case 92         : i += 1 : return 92
+    case 34         : i += 1 : return 34
+    case 39         : i += 1 : return 39
+    end select
+    '' DECIMAL, not octal, one to three digits, clamped at 255.
+    if (c >= 48) andalso (c <= 57) then
+        dim as long v = 0
+        dim as long d = 0
+        while (d < 3) andalso (i <= len( b ))
+            dim as long k = asc( mid( b, i, 1 ) )
+            if (k < 48) orelse (k > 57) then exit while
+            v = v * 10 + (k - 48)
+            i += 1
+            d += 1
+        wend
+        if v > 255 then v = 255
+        return v
+    end if
+    if (c = asc( "x" )) orelse (c = asc( "X" )) then
+        i += 1
+        return ReadRadixIn_( b, i, 16, 2 )
+    end if
+    if c = 38 then
+        if i + 1 <= len( b ) then
+            dim as long r = asc( mid( b, i + 1, 1 ) )
+            select case r
+            case asc( "h" ), asc( "H" ) : i += 2 : return ReadRadixIn_( b, i, 16, 2 )
+            case asc( "o" ), asc( "O" ) : i += 2 : return ReadRadixIn_( b, i, 8, 3 )
+            case asc( "b" ), asc( "B" ) : i += 2 : return ReadRadixIn_( b, i, 2, 8 )
+            end select
+        end if
+        i += 1
+        return -1
+    end if
+    '' ANYTHING ELSE is the character itself, and is NEVER an error.
+    i += 1
+    return c
+end function
+
+function DecodeEscapedBody _
+    ( byref body as string, byref outWide as boolean ) as string
+
+    outWide = false
+    dim as long n = len( body )
+    '' A UNICODE escape promotes the WHOLE literal to a wstring, which is a different
+    '' object and not this routine's to invent.
+    for k as long = 1 to n - 1
+        if asc( mid( body, k, 1 ) ) = 92 then
+            dim as long nx = asc( mid( body, k + 1, 1 ) )
+            if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
+                outWide = true
+                return ""
+            end if
+        end if
+    next
+    dim as string r = ""
+    dim as long i = 1
+    while i <= n
+        if asc( mid( body, i, 1 ) ) = 92 then
+            dim as long v = EscapeByteIn_( body, i )
+            if v >= 0 then r += chr( v )
+        else
+            r += mid( body, i, 1 )
+            i += 1
+        end if
+    wend
+    return r
+end function
+
 end namespace

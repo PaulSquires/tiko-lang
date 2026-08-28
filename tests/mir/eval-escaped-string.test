@@ -1,0 +1,22 @@
+'' AN ESCAPED LITERAL REACHED __FB_EVAL__ UNDECODED, and it refused every one.
+''
+'' The preprocessor reads a RAW SOURCE SPAN, so a backslash escape had not been
+'' decoded; '#if' compares content and had always been content with that, but
+'' __FB_EVAL__ has to RE-EMIT the value and undecoded bytes are a different string. So
+'' it declined -- '!"plain"' included, which has no escape in it at all -- and every
+'' USE of the result declined with it. pp/macro-eval-str.bas is 11 of those and its
+'' utf16le twin another 11.
+''
+'' The decoder is now shared with MIR's own literal reader rather than written twice:
+'' Tko.Text.DecodeEscapedBody, gated by check-escape's 52 measured answers.
+''
+'' A WIDE result still declines. It re-emits as '!"\uXXXX"' per character -- measured,
+'' __FB_EVAL__( wstr( "A" ) ) is 'A' -- and the preprocessor has no wide value to
+'' render. That is 6 of the 11 in each of those two files, and they stay open.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/eval-escaped-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: "plain"
+'' GOLDEN: expected/eval-escaped-string.out

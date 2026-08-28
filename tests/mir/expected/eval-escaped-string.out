@@ -1,0 +1,43 @@
+global str $str0 "A"
+global str $str1 "\\\"
+global str $str2 "plain"
+global str $str3 "A	B"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a size 24
+  local agg b size 24
+  local agg c size 24
+  local agg d size 24
+  local agg e size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = call.rtl ptr fb_StrInit(@a, -1, @@$str0, 2, 0)
+    %6 = alloca ptr b
+    %7 = call.rtl ptr fb_StrInit(@b, -1, @@$str0, 2, 0)
+    %8 = alloca ptr c
+    %9 = call.rtl ptr fb_StrInit(@c, -1, @@$str1, 4, 0)
+    %10 = alloca ptr d
+    %11 = call.rtl ptr fb_StrInit(@d, -1, @@$str2, 6, 0)
+    %12 = alloca ptr e
+    %13 = call.rtl ptr fb_StrInit(@e, -1, @@$str3, 4, 0)
+    call.rtl void fb_StrDelete(@e)
+    call.rtl void fb_StrDelete(@d)
+    call.rtl void fb_StrDelete(@c)
+    call.rtl void fb_StrDelete(@b)
+    call.rtl void fb_StrDelete(@a)
+    %14 = const i32 0
+    call.rtl void fb_End(%14)
+    %15 = load @$tmp0
+    ret %15
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance
