@@ -698,6 +698,41 @@ function LowerCallParts _
     dim as MirType callTy = mt
     if sretTmp.kind <> cast( ubyte, MV_NONE ) then callTy = MT_PTR
 
+    '' A BYREF RESULT IS AN ADDRESS, and the call's own type said otherwise.
+    '' 'function pick( ... ) byref as long' is 'int32* PICK( ... )' to fbc and every
+    '' call site reads '*vr'. Here the CALL took its type from the expression --
+    '' 'long' -- so a pointer was emitted as an i32 and used as the number. It
+    '' lowered and it verified.
+    dim as boolean byrefRet = false
+    if sretTmp.kind = cast( ubyte, MV_NONE ) then
+        if viaPointer then
+            if calleeSigT <> Tko.TYPE_NONE then
+                dim as Tko.TypeId srt = c.types->Inner( calleeSigT )
+                byrefRet = (c.types->Kind( srt ) = Tko.TK_REFERENCE)
+            end if
+        elseif cs <> 0 then
+            dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
+            if cpn <> Tko.NODE_NONE then
+                if c.ast->Kind( cpn ) = Tko.N_PROC then
+                    byrefRet = ((c.ast->nodes[cast( long, cpn )].flags and _
+                                 Tko.NF_BYREF) <> 0)
+                end if
+            end if
+        end if
+    end if
+    '' AN AGGREGATE REFERENT IS LEFT AS THE POINTER. Measured, fbc's own consumers
+    '' read through it -- 'struct INNER* vr$1 = FU( ); fb_PrintInt( 0,
+    '' *(int32*)vr$1, 2 )' for 'fu( ).a' -- so field.addr applies to the call's
+    '' result directly and loading the object first would copy it.
+    if byrefRet then
+        callTy = MT_PTR
+        if mt = MT_AGG then byrefRet = false
+        '' ...and a DISCARDED result has nothing to read through. 'f1( 123 )' as a
+        '' statement asks for no type, and loading MT_VOID answers with nothing --
+        '' which turned a working call into a decline.
+        if mt = MT_VOID then byrefRet = false
+    end if
+
     '' A VIRTUAL CALL GOES THROUGH THE RECEIVER'S OWN VPTR, not to the name the
     '' overload resolver bound. 'p->f( )' through an 'A ptr' binds to A's f, and if p
     '' holds a B the call must reach B's -- so the name is right and the CALL is not.
@@ -761,6 +796,7 @@ function LowerCallParts _
         DestroyArgTemps_( c, tempSlots, tempTypes )
         DeleteStrArgTemps_( c, strTemps, strTempTypes )
         c.lastCallOk = true
+        if byrefRet then return LowerExprLoad( c, iv, mt )
         return iv
     end if
 
@@ -801,6 +837,7 @@ function LowerCallParts _
     if sretTmp.kind <> cast( ubyte, MV_NONE ) then
         return LowerExprLoad( c, sretTmp, MT_AGG )
     end if
+    if byrefRet then return LowerExprLoad( c, cv, mt )
     return cv
 end function
 

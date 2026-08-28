@@ -12,7 +12,8 @@ func ptr _ZN1M1TixEi($0, $1) {
     store @i, $1
     %5 = load @this
     %6 = field.addr %5, 0
-    %7 = load %6
+    store @$tmp0, %6
+    %7 = load @$tmp0
     ret %7
 }
 func void P($0) {
@@ -31,4 +32,4 @@ func void P($0) {
     ret
 }
 verify: ok
-lowered: 2 functions, 2 blocks, 19 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 20 insts, 0 statements not lowered, 0 scope imbalance

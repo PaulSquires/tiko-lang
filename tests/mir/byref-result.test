@@ -8,6 +8,21 @@
 '' &G$; return fb$result$1; }', and 'char* F1( FBSTRING* S$1 ) { fb$result$1 =
 '' *(char**)S$1; }' -- so the slot holds an ADDRESS and 'function = expr' stores the
 '' address of expr.
+'' ...AND SO IS EVERY 'return' OUT OF ONE, which only the 'byval' spelling used to be.
+'' An ordinary 'return p' lowered to the pointee's VALUE and returned it where the
+'' declaration promises an ADDRESS: tiko-lang emitted 'func ptr PICK' and then 'ret <the
+'' loaded long>'. Measured, fbc's C is 'int32* PICK( ... )' with 'fb$result$1 = P$1'.
+''
+'' The CALL SITE had the other half: the call took its type from the EXPRESSION, so a
+'' pointer came back typed i32 and was used as the number. fbc reads '*vr' at every
+'' one. An AGGREGATE referent is left as the pointer -- 'fu( ).a' is
+'' '*(int32*)vr$1' to fbc, so field.addr applies to the call's result directly -- and a
+'' DISCARDED result is left alone, because there is nothing to read through.
+''
+'' Nineteen goldens moved when this landed. The note that used to sit at the return
+'' path said routing every one through the assignment path was 'a blast radius out of
+'' all proportion'; the blast radius was the bug, and all nineteen were the same wrong
+'' answer.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/byref-result.bas
 '' EXPECT-EXIT: 0

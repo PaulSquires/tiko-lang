@@ -18,7 +18,8 @@ func ptr _ZN2NS6BOX<6>5VALUEEv($0) {
     store @this, $0
     %4 = load @this
     %5 = field.addr %4, 0
-    %6 = load %5
+    store @$tmp0, %5
+    %6 = load @$tmp0
     ret %6
 }
 func ptr _ZN2NS7BOX<13>5VALUEEv($0) {
@@ -32,7 +33,8 @@ func ptr _ZN2NS7BOX<13>5VALUEEv($0) {
     store @this, $0
     %4 = load @this
     %5 = field.addr %4, 0
-    %6 = load %5
+    store @$tmp0, %5
+    %6 = load @$tmp0
     ret %6
 }
 func agg _ZN2NS5MK<8>ERu7INTEGER($0) {
@@ -100,7 +102,8 @@ func ptr _ZN2NS6BOX<8>5VALUEEv($0) {
     store @this, $0
     %4 = load @this
     %5 = field.addr %4, 0
-    %6 = load %5
+    store @$tmp0, %5
+    %6 = load @$tmp0
     ret %6
 }
 func i32 main($0, $1) {
@@ -125,40 +128,44 @@ func i32 main($0, $1) {
     store @$tmp2, %5
     %7 = call agg _ZN2NS5MK<8>ERu7INTEGER(@$tmp2)
     store @b, %7
-    %8 = call i32 _ZN2NS6BOX<6>5VALUEEv(@b)
-    call.rtl void fb_PrintInt(0, %8, 1)
-    %9 = alloca ptr c
-    %10 = const i64 7
-    %11 = alloca ptr $tmp4
-    store @$tmp4, %10
-    %12 = call agg _ZN2NS5MK<8>ERu7INTEGER(@$tmp4)
-    store @c, %12
-    %13 = call i32 _ZN2NS6BOX<6>5VALUEEv(@c)
-    call.rtl void fb_PrintInt(0, %13, 1)
-    %14 = alloca ptr e
-    %15 = call i32 _ZN2NS4FIVEEv()
-    %16 = alloca ptr $tmp6
-    store @$tmp6, %15
-    %17 = call agg _ZN2NS5MK<6>ERi(@$tmp6)
-    store @e, %17
-    %18 = call i32 _ZN2NS6BOX<6>5VALUEEv(@e)
-    call.rtl void fb_PrintInt(0, %18, 1)
-    %19 = alloca ptr d
-    %20 = const f64 2.5
-    %21 = alloca ptr $tmp8
-    store @$tmp8, %20
-    %22 = call agg _ZN2NS6MK<13>ERd(@$tmp8)
-    store @d, %22
-    %23 = call f64 _ZN2NS7BOX<13>5VALUEEv(@d)
-    call.rtl void fb_PrintDouble(0, %23, 1)
-    %24 = const i32 0
-    call.rtl void fb_End(%24)
-    %25 = load @$tmp0
-    ret %25
+    %8 = call ptr _ZN2NS6BOX<6>5VALUEEv(@b)
+    %9 = load %8
+    call.rtl void fb_PrintInt(0, %9, 1)
+    %10 = alloca ptr c
+    %11 = const i64 7
+    %12 = alloca ptr $tmp4
+    store @$tmp4, %11
+    %13 = call agg _ZN2NS5MK<8>ERu7INTEGER(@$tmp4)
+    store @c, %13
+    %14 = call ptr _ZN2NS6BOX<6>5VALUEEv(@c)
+    %15 = load %14
+    call.rtl void fb_PrintInt(0, %15, 1)
+    %16 = alloca ptr e
+    %17 = call i32 _ZN2NS4FIVEEv()
+    %18 = alloca ptr $tmp6
+    store @$tmp6, %17
+    %19 = call agg _ZN2NS5MK<6>ERi(@$tmp6)
+    store @e, %19
+    %20 = call ptr _ZN2NS6BOX<6>5VALUEEv(@e)
+    %21 = load %20
+    call.rtl void fb_PrintInt(0, %21, 1)
+    %22 = alloca ptr d
+    %23 = const f64 2.5
+    %24 = alloca ptr $tmp8
+    store @$tmp8, %23
+    %25 = call agg _ZN2NS6MK<13>ERd(@$tmp8)
+    store @d, %25
+    %26 = call ptr _ZN2NS7BOX<13>5VALUEEv(@d)
+    %27 = load %26
+    call.rtl void fb_PrintDouble(0, %27, 1)
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
 declare void fb_PrintDouble($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 8 functions, 8 blocks, 101 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance

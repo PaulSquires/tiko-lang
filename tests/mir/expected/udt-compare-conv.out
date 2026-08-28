@@ -78,7 +78,8 @@ func ptr _ZN2CVcv2TUEv($0, $1) {
     %12 = field.addr %11, 0
     %13 = load %12
     store %10, %13
-    %14 = load @@_ZN2CVcv2TUEv$t
+    store @$tmp0, @@_ZN2CVcv2TUEv$t
+    %14 = load @$tmp0
     ret %14
 }
 func void _ZN2CVcv2TUEv$t$dtor() {
@@ -129,4 +130,4 @@ declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 7 functions, 9 blocks, 76 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 9 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance

@@ -75,7 +75,8 @@ func ptr _ZN1N5IT<6>5VALUEEv($0) {
     %3 = alloca ptr this
     store @this, $0
     %4 = alloca ptr z
-    %5 = load @z
+    store @$tmp0, @z
+    %5 = load @$tmp0
     ret %5
 }
 func void _ZN1N5IT<6>8MOVENEXTEv($0) {
@@ -93,4 +94,4 @@ func void _ZN1N5IT<6>8MOVENEXTEv($0) {
     ret
 }
 verify: ok
-lowered: 6 functions, 6 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 54 insts, 0 statements not lowered, 0 scope imbalance

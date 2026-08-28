@@ -32,7 +32,8 @@ func ptr _Zv15*<23>R7BOX<23>($0) {
     %4 = load @a
     %5 = field.addr %4, 0
     %6 = load %5
-    %7 = load %6
+    store @$tmp0, %6
+    %7 = load @$tmp0
     ret %7
 }
 func ptr _Zv16-><23>R7BOX<23>($0) {
@@ -47,7 +48,8 @@ func ptr _Zv16-><23>R7BOX<23>($0) {
     %4 = load @a
     %5 = field.addr %4, 0
     %6 = load %5
-    %7 = load %6
+    store @$tmp0, %6
+    %7 = load @$tmp0
     ret %7
 }
 func i32 main($0, $1) {
@@ -115,4 +117,4 @@ declare void fb_PrintLongint($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 4 functions, 4 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

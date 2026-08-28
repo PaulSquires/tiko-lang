@@ -18,7 +18,8 @@ func ptr _ZN2FB6ARR<6>ixEi($0, $1) {
     %10 = mul %8, %9
     %11 = load %6
     %12 = ptr.add %11, %10
-    %13 = load %12
+    store @$tmp0, %12
+    %13 = load @$tmp0
     ret %13
 }
 func void _ZN2FB6ARR<6>7RESERVEEi($0, $1) {
@@ -117,4 +118,4 @@ func void _ZN2FB6ARR<6>D1Ev($0) {
     ret
 }
 verify: ok
-lowered: 5 functions, 5 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

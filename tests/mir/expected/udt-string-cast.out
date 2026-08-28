@@ -35,7 +35,8 @@ func ptr _ZN1UcvcEv($0) {
     store @this, $0
     %4 = load @this
     %5 = field.addr %4, 0
-    %6 = load %5
+    store @$tmp0, %5
+    %6 = load @$tmp0
     ret %6
 }
 func ptr _ZN1WcvwEv($0) {
@@ -49,7 +50,8 @@ func ptr _ZN1WcvwEv($0) {
     store @this, $0
     %4 = load @this
     %5 = field.addr %4, 0
-    %6 = load %5
+    store @$tmp0, %5
+    %6 = load @$tmp0
     ret %6
 }
 func void G() {
@@ -217,4 +219,4 @@ declare i32 fb_StrCompare($0, $1, $2, $3)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare ptr fb_WstrAssign($0, $1, $2)
 verify: ok
-lowered: 6 functions, 18 blocks, 120 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 18 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance

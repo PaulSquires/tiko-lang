@@ -33,7 +33,8 @@ func ptr _ZN2UWcvwEv($0) {
     store @this, $0
     %4 = load @this
     %5 = field.addr %4, 0
-    %6 = load %5
+    store @$tmp0, %5
+    %6 = load @$tmp0
     ret %6
 }
 func void S($0) {
@@ -126,4 +127,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 11 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 11 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance

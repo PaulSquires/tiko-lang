@@ -41,7 +41,8 @@ func ptr _ZN4ITER5VALUEEv($0) {
     %15 = mul %13, %14
     %16 = load %9
     %17 = ptr.add %16, %15
-    %18 = load %17
+    store @$tmp0, %17
+    %18 = load @$tmp0
     ret %18
 }
 func void _ZN4ITER8MOVENEXTEv($0) {
@@ -153,4 +154,4 @@ func i32 SUMOFVAL($0) {
     ret %14
 }
 verify: ok
-lowered: 6 functions, 14 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 14 blocks, 96 insts, 0 statements not lowered, 0 scope imbalance

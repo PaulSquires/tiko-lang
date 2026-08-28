@@ -969,15 +969,20 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' function already lowers, and routing every one of them through the assignment
         '' path changed fourteen goldens -- a blast radius out of all proportion to the
         '' two statements this closes.
-        dim as boolean retByval = false
-        if c.byrefResult andalso (sp->a <> Tko.NODE_NONE) then
-            dim as Tko.NodeId rbE = Unparen_( c, sp->a )
-            if c.ast->Kind( rbE ) = Tko.N_UNARY then
-                dim as Tko.UnaryPayload ptr rbp = _
-                    @c.ast->unaries[cast( long, c.ast->nodes[cast( long, rbE )].data )]
-                retByval = (cast( Tko.TokenKind, rbp->op ) = Tko.KW_BYVAL)
-            end if
-        end if
+        '' EVERY 'return' OUT OF A BYREF FUNCTION GOES THROUGH THE SAME PATH AS
+        '' 'function =', and only the 'byval' spelling used to. An ordinary
+        '' 'return p' lowered to the pointee's VALUE and returned it where the
+        '' declaration promises an ADDRESS -- measured, fbc's C for
+        '' 'function pick( ... ) byref as long' is 'int32* PICK( ... )' with
+        '' 'fb$result = P$1' and '*vr' at every call site. tiko-lang emitted
+        '' 'func ptr PICK' and then 'ret <the loaded long>': a well-typed
+        '' function returning the wrong thing, which lowered and verified.
+        ''
+        '' The note that used to sit here said routing every return through the
+        '' assignment path 'changed fourteen goldens -- a blast radius out of all
+        '' proportion'. The blast radius was the bug: all fourteen were the same
+        '' wrong answer.
+        dim as boolean retByval = c.byrefResult andalso (sp->a <> Tko.NODE_NONE)
         if retByval then
             if LowerByrefResult_( c, sp->a ) then
                 EmitCleanupsTo( c, 0 )

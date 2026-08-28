@@ -80,11 +80,13 @@ func ptr __TKO_LAMBDA_801F6C16_1($0, $1) {
     condbr %9, if.then2, if.else3
   if.join1:
     %12 = load @q
-    %13 = load %12
+    store @$tmp0, %12
+    %13 = load @$tmp0
     ret %13
   if.then2:
     %10 = load @p
-    %11 = load %10
+    store @$tmp0, %10
+    %11 = load @$tmp0
     ret %11
   if.else3:
     br if.join1
@@ -121,4 +123,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 8 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 8 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance

@@ -24,7 +24,8 @@ func ptr _ZN1TixEi($0, $1) {
     %9 = const i64 4
     %10 = mul %8, %9
     %11 = ptr.add %6, %10
-    %12 = load %11
+    store @$tmp0, %11
+    %12 = load @$tmp0
     ret %12
 }
 func ptr _ZN1T2ATEi($0, $1) {
@@ -46,7 +47,8 @@ func ptr _ZN1T2ATEi($0, $1) {
     %9 = const i64 4
     %10 = mul %8, %9
     %11 = ptr.add %6, %10
-    %12 = load %11
+    store @$tmp0, %11
+    %12 = load @$tmp0
     ret %12
 }
 func void G() {
@@ -70,8 +72,9 @@ func void G() {
     %12 = alloca ptr r
     %13 = const i64 2
     %14 = trunc %13
-    %15 = call i32 _ZN1T2ATEi(@a, %14)
-    store @r, %15
+    %15 = call ptr _ZN1T2ATEi(@a, %14)
+    %16 = load %15
+    store @r, %16
     ret
 }
 func void H() {
@@ -181,4 +184,4 @@ func void I() {
 declare i32 fb_StrCompare($0, $1, $2, $3)
 declare i32 fb_WstrCompare($0, $1)
 verify: ok
-lowered: 5 functions, 18 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 18 blocks, 110 insts, 0 statements not lowered, 0 scope imbalance

@@ -37,7 +37,8 @@ func ptr _ZptR1H($0) {
     %4 = load @h
     %5 = field.addr %4, 0
     %6 = load %5
-    %7 = load %6
+    store @$tmp0, %6
+    %7 = load @$tmp0
     ret %7
 }
 func ptr _ZdeR1H($0) {
@@ -52,7 +53,8 @@ func ptr _ZdeR1H($0) {
     %4 = load @h
     %5 = field.addr %4, 0
     %6 = load %5
-    %7 = load %6
+    store @$tmp0, %6
+    %7 = load @$tmp0
     ret %7
 }
 func i32 GRAB<6>($0, $1) {
@@ -198,4 +200,4 @@ func void _ZN5IFACEC1Ev($0) {
 }
 declare void _ZN10fb_Object$C1Ev($0)
 verify: ok
-lowered: 7 functions, 16 blocks, 119 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 16 blocks, 121 insts, 0 statements not lowered, 0 scope imbalance
