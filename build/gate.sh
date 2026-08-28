@@ -155,6 +155,27 @@ esac
 
 cd "$FBC_TREE/src/tests"
 
+# ---------------------------------------------------------------------- lock
+#
+# fbc's tests/ directory is a SHARED, MUTABLE resource: the gate compiles ~1,500
+# objects into it. Two gates in it at once corrupt each other, and the way that
+# surfaced was not a clash but a MISSING object -- an interrupted run's orphaned
+# make and fbc processes kept writing .o files while the next run was deleting
+# them, so make then judged half the tree up to date, skipped it, and the link
+# died on "cannot find ./functions/array_recursion_str.o". Half the suite never
+# compiled and no number was produced.
+#
+# Also worth stating because it applies to bench.sh too: nothing else may be
+# running while a gate is. A run that shares the machine is not comparable to
+# one that did not.
+LOCK="$FBC_TREE/src/tests/.tiko-rt-gate.lock"
+if ! ( set -o noclobber; echo "$$ $TARGET $(date)" > "$LOCK" ) 2>/dev/null; then
+    rt_die "another gate is running (or died holding the lock):
+  $(cat "$LOCK" 2>/dev/null)
+  If no gate is running, remove $LOCK"
+fi
+trap 'rm -f "$LOCK"' EXIT INT TERM
+
 # Clean FIRST, then drop the generated lists -- clean reads unit-tests.inc to
 # know which objects to delete. Then delete any .o that survived anyway: a run
 # whose numbers get compared to a published baseline may not link one stale
@@ -176,7 +197,12 @@ sed -n '/SUMMARY/,$p' "$LOG" > "$SUMMARY"
 REF="$RT_ROOT/tests/abi/baseline/$TARGET-gcc.summary"
 
 if ! grep -q ' Total' "$SUMMARY"; then
-    echo "gate: NO SUMMARY -- the run did not finish. See $LOG" >&2
+    echo "gate: NO SUMMARY -- the run did not finish." >&2
+    # Name the cause rather than leaving a 700-line log to read. A short
+    # invocation count is the tell: the baseline run makes ~1,477 of them.
+    echo "gate: fbc invocations: $(grep -ac 'fbc' "$LOG" || true) (a full run makes ~1,477)" >&2
+    grep -iE 'cannot find|No such file|linking failed|\*\*\*' "$LOG" | head -8 | sed 's/^/    /' >&2
+    echo "gate: full log $LOG" >&2
     exit 1
 fi
 
