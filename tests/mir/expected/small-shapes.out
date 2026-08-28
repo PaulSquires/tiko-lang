@@ -1,0 +1,104 @@
+global var i32 v1
+global str $str1 "#.##"
+global str $str2 "x"
+global str $str3 "zzz"
+func void _ZN2N21SEv() {
+  entry0:
+    %1 = load @@v1
+    call.rtl void fb_PrintInt(0, %1, 1)
+    ret
+}
+declare void fb_PrintInt($0, $1, $2)
+func void _ZN1TC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const i64 5
+    %5 = trunc %4
+    store %3, %5
+    ret
+}
+func void _ZN1TD1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg x size 4
+  local agg a size 24
+  local agg f size 24
+  local ptr b
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void _ZN2N21SEv()
+    %4 = alloca ptr x
+    call void _ZN1TC1Ev(@x)
+    call void _ZN1TC1Ev(@x)
+    call void _ZN1TD1Ev(@x)
+    %5 = alloca ptr a
+    %6 = const i64 -1
+    call.rtl void fb_PrintLongint(0, %6, 2)
+    %7 = const i64 0
+    call.rtl void fb_PrintLongint(0, %7, 2)
+    %8 = const i64 1
+    call.rtl void fb_PrintLongint(0, %8, 2)
+    %9 = const i64 1
+    call.rtl void fb_PrintLongint(0, %9, 1)
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
+    %11 = call.rtl i32 fb_PrintUsingInit(%10)
+    %12 = const f64 1
+    %13 = call.rtl i32 fb_PrintUsingDouble(0, %12, -2147483647)
+    %14 = call.rtl i32 fb_PrintUsingEnd(0)
+    %15 = alloca ptr f
+    %16 = call.rtl ptr fb_StrInit(@f, -1, @@$str2, 2, 0)
+    %17 = alloca ptr b
+    %18 = const i64 1
+    %19 = trunc %18
+    %20 = call ptr fb_Command(%19)
+    %21 = call.rtl i32 fb_StrCompare(%20, -1, @@$str3, 4)
+    %22 = icmp.eq %21, 0
+    condbr %22, if.then2, if.else3
+  if.join1:
+    call.rtl void fb_StrDelete(@f)
+    call void _ZN1TD1Ev(@x)
+    %30 = const i32 0
+    call.rtl void fb_End(%30)
+    %31 = load @$tmp0
+    ret %31
+  if.then2:
+    %23 = load @f
+    %24 = zext %23
+    %25 = bitcast %24
+    %26 = load @b
+    %27 = call.rtl i32 fb_GfxBsave(%25, %26, 0, 0)
+    %28 = const i64 1
+    %29 = trunc %28
+    call.rtl void fb_End(%29)
+    br if.join1
+  if.else3:
+    br if.join1
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare i32 fb_PrintUsingInit($0)
+declare i32 fb_PrintUsingDouble($0, $1, $2)
+declare i32 fb_PrintUsingEnd($0)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_Command()
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare i32 fb_GfxBsave($0, $1, $2, $3)
+declare void fb_End($0)
+declare void fb_StrDelete($0)
+verify: ok
+lowered: 4 functions, 7 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance

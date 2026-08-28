@@ -385,8 +385,17 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
         '' AddUsing was never called at all. Seventeen corpus statements imported
         '' nothing and every name they were meant to bring in declined.
         dim as string usePath
+        '' A LEADING '..' IS THE GLOBAL ROOT: 'using ..outer1' inside a namespace
+        '' names the outer1 at FILE scope. fbc accepts it -- the probe prints 7 --
+        '' and here the first token is a DOT, so DeclName failed, the path came out
+        '' EMPTY, and the using imported nothing at all. The dots are kept in the
+        '' path spelling; the resolver reads them.
+        while Peek( p ) = Tko.TK_DOT
+            Advance( p )
+            usePath += "."
+        wend
         DeclName( p, sp.name )
-        if sp.name <> 0 then usePath = p.names->Spelling( sp.name )
+        if sp.name <> 0 then usePath += p.names->Spelling( sp.name )
         while Peek( p ) = Tko.TK_DOT
             Advance( p )
             dim as Tko.InternId comp = 0

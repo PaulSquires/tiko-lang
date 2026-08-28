@@ -66,6 +66,12 @@ function LowerPrintUsing _
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if fmtNode = Tko.NODE_NONE then fmtNode = sp->c
     if fmtNode = Tko.NODE_NONE then return false
+    '' PARENTHESES ARE TRANSPARENT HERE. 'print using ( "#.##" ); 1.0' is the same
+    '' statement as the bare form -- fbc emits 'fb_PrintUsingInit( vr )' over the
+    '' literal either way -- but the literal test below asks the NODE KIND, so an
+    '' N_PAREN fell to the else branch, where the paren carries no type of its own
+    '' and the whole statement declined.
+    fmtNode = Unparen_( c, fmtNode )
 
     '' The channel, lowered ONCE and reused -- fbc hoists any non-literal channel
     '' expression into a temporary evaluated before Init, so a channel with a side

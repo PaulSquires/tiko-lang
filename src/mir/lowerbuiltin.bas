@@ -71,6 +71,10 @@ private function BuiltinProcRtl _
         '' 'fb_FileTell( 1 )' where 'seek #1, 2' is fb_FileSeekLarge. A comment
         '' in lowerdev.bas claimed this spelling 'already lowers'; it did not.
         case "seek"         : retTy = MT_I64  : return RTL_FILE_TELL
+        '' 'end( n )' -- THE PARENTHESISED SPELLING of the END statement, which
+        '' parses as a call and so never reached the statement's own case.
+        '' Measured: 'if c then end( 1 )' is 'fb_End( 1 );'.
+        case "end"          : retTy = MT_VOID : return RTL_END
         case "bsave"        : retTy = MT_I32  : return RTL_BSAVE
         case "bload"        : retTy = MT_I32  : return RTL_BLOAD
         case "dylibload"    : retTy = MT_PTR  : return RTL_DYLIB_LOAD
@@ -127,8 +131,13 @@ function LowerBuiltinProc _
     '' spells 'fb_StrAllocTempDescZEx( "", 0 )' -- a temporary descriptor over a
     '' zero-length literal, not a null pointer.
     dim as boolean runShort = (r = RTL_RUN) andalso (argCount = want - 1)
+    '' 'bsave( file, buf )' DEFAULTS ITS LAST TWO to zero. Measured, both
+    '' spellings emit the same call:
+    '' 'fb_GfxBsave( &F, B, 0u, (void*)0ull )'.
+    dim as boolean bsaveShort = (r = RTL_BSAVE) andalso (argCount = want - 2)
     dim as boolean widthOk = (widthShort > 0)
     dim as boolean shortOk = widthOk orelse runShort
+    shortOk = shortOk orelse bsaveShort
     dim as boolean arityBad = (argCount <> want)
     dim as boolean notCalloc = (callocOneArg = false)
     dim as boolean notShort = (shortOk = false)
@@ -242,6 +251,10 @@ function LowerBuiltinProc _
     for k as long = 1 to widthShort
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
     next
+    if bsaveShort then
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
     if runShort then
         dim as FB.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )

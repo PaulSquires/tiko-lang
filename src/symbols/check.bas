@@ -371,6 +371,17 @@ private function FieldOf_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval nm as Tko.InternId ) as Tko.SymbolId
 
     if (t = Tko.TYPE_NONE) orelse (nm = 0) then return Tko.SYMBOL_NONE
+    '' 'x.constructor( )' AND 'x.destructor( )' NAME THE STRUCTORS, which are
+    '' declared under '__ctor' and '__dtor'. Measured, fbc emits '_ZN1TC1Ev( &X )'
+    '' and '_ZN1TD1Ev( &X )' -- an ordinary explicit call. The mapping existed
+    '' only on the 'procptr( T.M )' path, so the spelled-out call found no member
+    '' at all and its callee stayed unbound.
+    select case Tko.Text.LowerAscii( c.names->Spelling( nm ) )
+    case "constructor"
+        nm = c.names->Fold( c.names->GetString( "__ctor" ) )
+    case "destructor"
+        nm = c.names->Fold( c.names->GetString( "__dtor" ) )
+    end select
     '' CONST IS TRANSPARENT TO A FIELD LOOKUP. 'byref x as const T' gives x a QUALIFIED
     '' type, which failed the kind test outright -- so 'x.n' over a const reference was
     '' untyped and every read through one declined, while the same line without the
@@ -1273,7 +1284,17 @@ function UdtMemberSym_ _
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( ts )
     if sy = 0 then return Tko.SYMBOL_NONE
     if sy->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
-    return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( nm ) ) )
+    '' 'x.constructor( )' AND 'p->destructor( )' NAME THE STRUCTORS, which are
+    '' declared under '__ctor' and '__dtor'. Measured, fbc emits '_ZN1TC1Ev( &X )'
+    '' and '_ZN1TD1Ev( &X )' for them -- an ordinary explicit call. The mapping
+    '' existed only on the 'procptr( T.M )' path, so the spelled-out call found no
+    '' member at all and declined.
+    dim as string mnm = nm
+    select case Tko.Text.LowerAscii( mnm )
+    case "constructor" : mnm = "__ctor"
+    case "destructor"  : mnm = "__dtor"
+    end select
+    return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( mnm ) ) )
 end function
 
 '' THE 'for each' LOOP VARIABLE, where Resolve could not work it out.

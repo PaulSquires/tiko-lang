@@ -1087,6 +1087,17 @@ function PpExpandBuiltin _
     case PPB_DATE
         RelexInto( e, """" & date( ) & """", use.loc, *buf )
 
+    '' __DATE_ISO__ IS THE SAME DAY IN THE OTHER ORDER. Measured, one probe on
+    '' 2026-08-28: __DATE__ is "08-28-2026" and __DATE_ISO__ is "2026-08-28".
+    '' FreeBASIC's DATE( ) gives the first, so this reorders its fields rather
+    '' than asking the clock twice -- a run that straddles midnight would
+    '' otherwise put two different days in one program.
+    case PPB_DATE_ISO
+        dim as string dmy = date( )
+        dim as string iso = mid( dmy, 7, 4 ) & "-" & mid( dmy, 1, 2 ) & "-" & _
+                            mid( dmy, 4, 2 )
+        RelexInto( e, """" & iso & """", use.loc, *buf )
+
     case PPB_TIME
         RelexInto( e, """" & time( ) & """", use.loc, *buf )
 

@@ -16,6 +16,27 @@ private function LookupDottedNamespace_ _
     dim as Tko.ScopeId sc = scope_
     dim as boolean first_ = true
     dim as long at = 0
+    '' A LEADING '..' IS THE GLOBAL ROOT. 'using ..outer1' inside a namespace names
+    '' the outer1 at file scope, not one relative to here -- fbc accepts it and
+    '' prints 7 for the probe. Split on '.', the prefix yields an EMPTY first
+    '' component, which this refused outright, so the using was never recorded and
+    '' every name it was meant to import went unresolved.
+    if left( qpath, 2 ) = ".." then
+        at = 2
+        '' The MODULE scope, which is where a file-scope namespace is declared:
+        '' SCOPE_GLOBAL above it holds the builtins and nothing a program writes.
+        dim as Tko.ScopeId root = scope_
+        dim as long rg = 0
+        while (root <> Tko.SCOPE_NONE) andalso (rg < 1024)
+            rg += 1
+            dim as Tko.SymScope ptr rs = c.syms->ScopeAt( root )
+            if rs = 0 then exit while
+            if rs->parent = Tko.SCOPE_GLOBAL then exit while
+            if rs->parent = Tko.SCOPE_NONE then exit while
+            root = rs->parent
+        wend
+        sc = root
+    end if
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
     dim as long guard = 0
 

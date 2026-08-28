@@ -65,6 +65,7 @@ namespace Tko
         PPB_PATH
         PPB_LINE             '' __LINE__
         PPB_DATE
+        PPB_DATE_ISO        '' __DATE_ISO__ -- YYYY-MM-DD, where __DATE__ is MM-DD-YYYY
         PPB_TIME
         PPB_FUNCTION         '' __FUNCTION__ -- parser territory; passed through
     end enum

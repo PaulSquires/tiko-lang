@@ -1,0 +1,6 @@
+'' Seven small shapes: a global-root using, end( n ), the short bsave, __DATE_ISO__,
+'' out-of-range array bounds, a parenthesised PRINT USING format, explicit structors.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/small-shapes.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/small-shapes.out
