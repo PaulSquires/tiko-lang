@@ -966,8 +966,11 @@ sub WalkNode _
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
         Declare_( w, scope_, sp->name, Tko.SYM_LABEL, w.ast->Loc( id ) )
 
+    '' N_SPAWN is here because the parser rewrote it into a SCOPE full of ordinary
+    '' statements -- a 'dim' among them -- and an unlisted statement kind is not
+    '' walked at all, so nothing inside it was ever declared.
     case Tko.N_SCOPE, Tko.N_IF, Tko.N_IF_BRANCH, Tko.N_FOR, Tko.N_FOREACH, _
-         Tko.N_DO, Tko.N_WHILE, Tko.N_WITH, Tko.N_SELECT, Tko.N_CASE
+         Tko.N_DO, Tko.N_WHILE, Tko.N_WITH, Tko.N_SELECT, Tko.N_CASE, Tko.N_SPAWN
         '' Compound statements introduce a block scope for their bodies. Declarations
         '' inside are collected; expressions are ignored until Resolve.
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )

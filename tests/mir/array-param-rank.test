@@ -1,0 +1,5 @@
+'' A multi-dimensional array parameter indexes through DIMTB like a dynamic local.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/array-param-rank.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/array-param-rank.out

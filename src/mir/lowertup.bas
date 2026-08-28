@@ -231,6 +231,53 @@ function TupleElems_ _
     return (n > 0)
 end function
 
+'' THE FIELDS A DESTRUCTURING READS: every field of ANY UDT, in declaration order.
+''
+'' NOT TupleElems_, which is for tuple EQUALITY and rightly insists on '_1'..'_N' and
+'' refuses a type with members. Measured, fbc destructures a plain UDT positionally,
+'' methods and all:
+''
+''   let( a, b, c ) = f( )   over 'type P: as long x, y, z: declare sub m( )'
+''                           prints 1 2 3
+''   let( a, b ) = f( )      over the same THREE-field type prints 1 2 -- FEWER
+''                           names than fields is accepted and takes the leading ones
+''   let( a, b, c ) = f( )   over a TWO-field type is fbc error 266,
+''                           'Too many elements'
+''
+'' Without this, 'let( a, b, c ) = f( )' over an ordinary UDT did not decline: the
+'' N_TUPLE target fell through to the value path, which built a temporary FROM THE
+'' NAMES' CURRENT VALUES and stored the call's result into it. Nothing was assigned
+'' to a, b or c, no decline said so, and it verified.
+private function DestructureElems_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as FB.Array( of ulong ), _
+      byref eoffs as FB.Array( of ulong ) ) as boolean
+
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return false
+    if s->inner = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return false
+
+    dim as Tko.SymbolId cur = sc->firstSym
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit while
+        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+            dim as boolean found = false
+            dim as long off = c.udts->FieldOffset( t, f->name, found )
+            if found = false then return false
+            etypes.Push( cast( ulong, f->type_ ) )
+            eoffs.Push( cast( ulong, off ) )
+        end if
+        cur = f->nextInScope
+    wend
+    return (etypes.Count > 0)
+end function
+
 '' 'let (a, b) = expr' -- TUPLE DESTRUCTURING.
 ''
 '' The target is an N_TUPLE of lvalues and the value is one tuple, so this is not an
@@ -261,8 +308,10 @@ function LowerDestructure _
     dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
     dim as FB.Array( of ulong ) etypes
     dim as FB.Array( of ulong ) eoffs
-    if TupleElems_( c, vt, etypes, eoffs, false ) = false then return false
-    if etypes.Count <> tl->count then return false
+    if DestructureElems_( c, vt, etypes, eoffs ) = false then return false
+    '' FEWER NAMES THAN FIELDS IS LEGAL and takes the leading ones; MORE is fbc
+    '' error 266 and declines here.
+    if tl->count > etypes.Count then return false
 
     '' THE RIGHT SIDE ONCE. An addressable value is read where it is; anything else --
     '' a call, a literal -- is built into a temporary first, which is what fbc does.
@@ -294,6 +343,12 @@ function LowerDestructure _
 
     for i as long = 0 to tl->count - 1
         dim as Tko.NodeId nm = cast( Tko.NodeId, c.ast->children[tl->first + i] )
+        '' AN ELIDED SLOT IS SKIPPED AND STILL COUNTS. 'let( a, , b ) = f( )' takes
+        '' the FIRST and THIRD elements -- measured, fbc writes
+        '' 'A = *(int32*)TMP; B = *(int32*)((uint8*)TMP + 8)' -- so the position
+        '' drives the offset whether or not anything is named there. Without a case
+        '' for it LowerAddr had no lvalue and the whole destructuring declined.
+        if c.ast->Kind( nm ) = Tko.N_ELIDED then continue for
         dim as Tko.TypeId et = cast( Tko.TypeId, etypes[i] )
         dim as MirValue base_ = LowerExprLoad( c, pdst, MT_PTR )
         if base_.kind = cast( ubyte, MV_NONE ) then return false

@@ -1046,7 +1046,12 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as boolean sawComma = false
         if Peek( p ) <> Tko.TK_RPAREN then
             do
-                items.Push( cast( ulong, Expression( p ) ) )
+                '' AN OMITTED ELEMENT IS A NODE, not a gap -- 'let( a, , b ) = f( )'
+                '' names the FIRST and THIRD elements, and fbc reads it that way:
+                '' 'A = *(int32*)TMP; B = *(int32*)((uint8*)TMP + 8)'. Expression( )
+                '' made an N_ERROR for the empty slot, silently, and the whole
+                '' destructuring then declined.
+                items.Push( cast( ulong, ArgOrElided( p, Tko.TK_RPAREN ) ) )
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
                 sawComma = true
             loop

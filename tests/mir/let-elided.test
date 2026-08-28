@@ -1,0 +1,5 @@
+'' An elided destructuring slot is skipped without shifting the ones after it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/let-elided.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/let-elided.out

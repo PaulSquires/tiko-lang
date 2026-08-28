@@ -834,6 +834,8 @@ end namespace
 '' 'select channel' desugars into a scope full of ordinary statements, so it needs
 '' every node builder above it.
 #include once "parser/selchan.bas"
+'' 'spawn' desugars the same way, and for the same reason.
+#include once "parser/spawn.bas"
 
 namespace Tko.Parse
 
@@ -1060,7 +1062,16 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
             dim as Tko.StmtPayload ssp
             ssp.a = Expression( p, Tko.PREC_POSTFIX )
-            n = MakeStmt( p, Tko.N_SPAWN, st.loc, ssp )
+            '' DESUGARED, when the shape allows it: a frame allocated and filled
+            '' at the spawn, a hoisted thunk that calls the target and deletes
+            '' the frame, and fb_Spawn between them. See parser/spawn.bas.
+            '' Anything else -- a callee that is not a plain name, or an
+            '' expression that is not a call at all -- keeps the bare node and
+            '' declines, which is what every 'spawn' did before.
+            n = MakeSpawn_( p, st, ssp.a )
+            if n = Tko.NODE_NONE then
+                n = MakeStmt( p, Tko.N_SPAWN, st.loc, ssp )
+            end if
 
         elseif DeferStatementHead_( p, k ) then
             '' 'defer' is CONTEXTUAL in FBC-Modern -- not reserved, so it arrives as

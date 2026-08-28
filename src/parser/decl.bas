@@ -641,11 +641,37 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
 
     if Peek( p ) = Tko.TK_LPAREN then
         Advance( p )
-        while (Peek( p ) <> Tko.TK_RPAREN) andalso (AtEnd( p ) = false)
+        '' THE RANK IS THE COMMA COUNT, and it is recorded rather than discarded.
+        '' 'a( any, any )' is TWO dimensions and Resolve typed every array
+        '' parameter rank 1, so 'a( 1, 1 )' inside the body found a rank
+        '' mismatch and declined -- while fbc indexes it
+        '' '*(int32*)((uint8*)((*(int64*)(A + 72) << 2) + *(int64*)A) + 4)',
+        '' scaling by DIMTB[1].ELEMENTS exactly as the dynamic-local path here
+        '' already does.
+        ''
+        '' 'a( )' STAYS RANK ZERO -- UNSPECIFIED -- because fbc accepts a
+        '' two-dimensional array through one and indexes it by the SUBSCRIPT
+        '' COUNT at the use, which is what rank 0 means downstream.
+        ''
+        '' 'extra' is free on an N_PARAM -- 'op' already carries the ellipsis marker
+        '' and 'first/count' are NOT free after all: the AST dumper prints a
+        '' statement's children from them, so a rank written there came out as
+        '' phantom child nodes in every parser golden.
+        dim as long acommas = 0
+        dim as long adepth = 0
+        dim as boolean anyInside = false
+        while (AtEnd( p ) = false)
+            dim as Tko.TokenKind at2 = Peek( p )
+            if (at2 = Tko.TK_RPAREN) andalso (adepth = 0) then exit while
+            anyInside = true
+            if at2 = Tko.TK_LPAREN then adepth += 1
+            if at2 = Tko.TK_RPAREN then adepth -= 1
+            if (at2 = Tko.TK_COMMA) andalso (adepth = 0) then acommas += 1
             Advance( p )
         wend
         Expect( p, Tko.TK_RPAREN, ")" )
         flags or= Tko.NF_ARRAY
+        if anyInside then sp.extra = cast( ushort, acommas + 1 )
     end if
 
     if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )

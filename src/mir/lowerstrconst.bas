@@ -97,12 +97,22 @@ function ConstStringTextOf_ _
         '' So hex, oct, bin, lcase, ucase, left, right, mid and trim are NOT folded here:
         '' fbc rejects every one of them outright, and folding them would accept a
         '' program fbc refuses.
-        '' ONE ARGUMENT. The variadic form does fold in fbc -- 'chr( 65, 66 )' is
-        '' "AB" -- but it does not fold here yet and declines instead: measured, the
-        '' constant comes out with no text and the assignment reading it declines,
-        '' which is a decline and not a wrong string.
-        if wnm = "chr" then
-            if wp->count <> 1 then return false
+        '' VARIADIC, as fbc's is: measured, 'const a = chr( 65, 66 )' is
+        '' 'fb_StrInit( &S, -1, "AB", 3, 0 )'. The loop below always handled it; only
+        '' an arity guard above it said otherwise.
+        ''
+        '' 'wchr' FOLDS THE SAME WAY, and fbc folds it too --
+        '' 'const b = wchr( 65, 66 )' is
+        '' 'fb_UStrInit( &U, -1, (uint16[]){0x0041,0x0042,0x0000}, ... )'. The codes
+        '' go into the SAME BYTE TEXT every other constant here uses, and the wide
+        '' consumer widens it one unit per byte, which is exactly fbc's answer for
+        '' a code that fits in a byte: 'wchr( &hE9 )' is 0x00E9 either way.
+        ''
+        '' A CODE ABOVE 255 DECLINES rather than folding. fbc accepts it --
+        '' 'wchr( &h4E2D )' is 0x4E2D -- but this carrier is a byte string and has
+        '' nowhere to put it, so folding it would truncate a character silently.
+        '' The decline is the same one there was before.
+        if (wnm = "chr") orelse (wnm = "wchr") then
             dim as string ct
             for i as long = 0 to wp->count - 1
                 dim as Tko.NodeId cArg = cast( Tko.NodeId, c.ast->children[wp->first + i] )

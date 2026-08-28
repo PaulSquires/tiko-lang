@@ -340,6 +340,14 @@ private sub LowerAssign _
     '' assignment of one thing to another. An N_TUPLE target is not an lvalue and has no
     '' address, so the whole statement declined.
     if LowerDestructure( c, target, value ) then return
+    '' AND AN N_TUPLE TARGET IS NEVER ANYTHING ELSE. Falling through to the value
+    '' path below built a temporary out of the NAMES' CURRENT VALUES and stored the
+    '' right side into that -- assigning nothing to any of them, with no decline to
+    '' say so. A destructuring this cannot lower is a decline.
+    if c.ast->Kind( target ) = Tko.N_TUPLE then
+        SkipHere( c )
+        return
+    end if
 
     dim as MirValue addr = LowerAddr( c, target )
     '' A UDT VALUE ASSIGNED TO A SCALAR IS ITS 'operator cast', not its bytes. See

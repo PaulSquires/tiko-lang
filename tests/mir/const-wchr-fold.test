@@ -1,0 +1,5 @@
+'' Variadic 'chr' and 'wchr' fold into a string constant.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-wchr-fold.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/const-wchr-fold.out

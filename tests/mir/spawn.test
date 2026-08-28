@@ -1,0 +1,5 @@
+'' 'spawn f( a )' allocates a frame, copies the arguments in and hands it to fb_Spawn.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/spawn.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/spawn.out

@@ -1,0 +1,301 @@
+'' spawn.bas -- 'spawn f( a0, ... )', DESUGARED in the parser.
+''
+'' RFC-0003's goroutine statement. fbc lowers it to a generic FRAME type extending
+'' FB.SpawnWork, a generic 'make' procedure, a virtual INVOKE, and FB.SpawnTrampoline
+'' as the callback -- measured, for 'spawn worker( uu )' over a UDT:
+''
+''   struct __fbspawnframe_1I1UE { struct SPAWNWORK BASE$; struct $1U A0; };
+''   __fbspawnmake( U* A0 ) {
+''       F = calloc( 32, 1 ); __fbspawnframe::ctor( F );
+''       U::operator=( &F->A0, A0 );
+''       fb_Spawn( &FB::SpawnTrampoline, F );
+''   }
+''   __fbspawnframe::INVOKE( THIS ) {
+''       U::ctor( &TMP, &THIS->A0 ); WORKER( &TMP ); U::dtor( &TMP );
+''   }
+''
+'' and FB.SpawnTrampoline, which is in fb/scheduler.bi and readable, is
+'' 'w->Invoke( ); delete w'.
+''
+'' THE VIRTUAL CALL IS FBC'S PROBLEM, NOT TIKO'S. Its own header says why: the frame is
+'' a GENERIC INSTANTIATION, whose name cannot be written and whose address cannot be
+'' taken, so the typed half has to be reached through a vtable. tiko-lang synthesises
+'' the frame itself and can therefore name a PLAIN thunk and pass its address straight
+'' to fb_Spawn -- no base type, no vtable, no virtual destructor. That is a deliberate
+'' difference of the same kind as the synthesised array descriptor, and the observable
+'' behaviour is identical: the arguments are COPIED into the frame at the spawn, the
+'' goroutine gets a copy of that copy, and the frame is destroyed and freed afterwards.
+''
+'' So the whole statement becomes source tiko-lang already lowers -- verified by
+'' compiling the hand-written equivalent with BOTH compilers before writing any of
+'' this:
+''
+''   sub __tko_spawnfn_TAG( byval __tko_sfp as any ptr )
+''       dim as __tko_spawnframe_TAG ptr __tko_sf = __tko_sfp
+''       f( (*__tko_sf).__ARG_0, ... )
+''       delete __tko_sf
+''   end sub
+''
+'' The FRAME TYPE is named here and built in Resolve, exactly as the capturing lambda's
+'' closure type is: its fields' types are the CALLEE'S PARAMETER types, and only Resolve
+'' can see the callee's declaration from the spawn site's scope.
+''
+'' The thunk is hoisted through 'p.lambdas', which the module assembles AFTER the unit's
+'' own statements -- so the frame type is built by the time the thunk is resolved.
+
+namespace Tko.Parse
+
+'' An identifier node for a name already interned. The parser's own: no token behind it,
+'' so it records no source spelling.
+private function SpIdent_ _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc ) as Tko.NodeId
+    dim as Tko.IdentPayload ip
+    ip.name = nm
+    p.ast->idents.Push( ip )
+    return NewNodeAt( p, Tko.N_IDENT, loc, p.ast->idents.Count - 1 )
+end function
+
+'' ...and a TYPEREF naming one, optionally a POINTER to it. A pointer typeref is an
+'' N_TYPEREF whose 'a' is the pointee and whose node carries NF_PTR, which is what
+'' TypeRef( ) itself builds for 'T ptr'.
+private function SpTypeRef_ _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc, byval isPtr as boolean ) as Tko.NodeId
+    dim as Tko.StmtPayload tp
+    tp.name = nm
+    dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPEREF, loc, tp )
+    if isPtr = false then return n
+    dim as Tko.StmtPayload up
+    up.a = n
+    dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, loc, up )
+    p.ast->nodes[cast( long, pn )].flags or= Tko.NF_PTR
+    return pn
+end function
+
+'' '(*base).field' -- the member access the thunk's body is made of. Spelled through a
+'' DEREF rather than '->' because that shape is already built by hand elsewhere here and
+'' needs no second node kind.
+private function SpMember_ _
+    ( byref p as Tko.ParserState, byval baseNm as Tko.InternId, _
+      byval fieldNm as Tko.InternId, byval loc as Tko.SourceLoc ) as Tko.NodeId
+
+    dim as Tko.UnaryPayload dp
+    dp.op = cast( ushort, Tko.TK_STAR )
+    dp.operand = SpIdent_( p, baseNm, loc )
+    p.ast->unaries.Push( dp )
+    dim as Tko.NodeId der = NewNodeAt( p, Tko.N_DEREF, loc, p.ast->unaries.Count - 1 )
+
+    dim as Tko.BinaryPayload mb
+    mb.op = cast( ushort, Tko.TK_DOT )
+    mb.lhs = der
+    mb.rhs = SpIdent_( p, fieldNm, loc )
+    p.ast->binaries.Push( mb )
+    dim as Tko.NodeId mem = _
+        NewNodeAt( p, Tko.N_BINARY, loc, p.ast->binaries.Count - 1 )
+    p.ast->nodes[cast( long, mem )].kind = cast( ushort, Tko.N_MEMBER )
+    return mem
+end function
+
+'' The frame type's field name for argument K. '__ARG_0', '__ARG_1', ... -- positional,
+'' because an argument has no name to borrow the way a capture does.
+function SpawnArgFieldName _
+    ( byref names as Tko.Interner, byval k as long ) as Tko.InternId
+    return names.Fold( names.GetString( "__ARG_" & trim( str( k ) ) ) )
+end function
+
+'' Build the thunk and the N_SPAWN node for 'spawn <call>'. Returns NODE_NONE when the
+'' expression is not a CALL, in which case the caller keeps the plain N_SPAWN it would
+'' have made -- and that declines, which is what it did before.
+function MakeSpawn_ _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, _
+      byval callNode as Tko.NodeId ) as Tko.NodeId
+
+    if callNode = Tko.NODE_NONE then return Tko.NODE_NONE
+    if p.ast->Kind( callNode ) <> Tko.N_CALL then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr cp = _
+        @p.ast->lists[cast( long, p.ast->nodes[cast( long, callNode )].data )]
+    if cp->target = Tko.NODE_NONE then return Tko.NODE_NONE
+    '' A PLAIN NAME ONLY. The frame's field types are the CALLEE'S PARAMETER types,
+    '' which Resolve looks up by name from the spawn site's scope; a dotted or
+    '' computed callee has no name to look up and is left to decline rather than
+    '' be guessed at. Every 'spawn' in the corpus names a plain sub.
+    if p.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.NODE_NONE
+
+    dim as ulong shash = 0
+    dim as Tko.DecodedLoc sd = p.src->Decode( t.loc )
+    dim as Tko.SourceFile ptr sf = p.src->FileAt( sd.file )
+    if sf <> 0 then shash = sf->contentHash
+    dim as string tag = hex( shash ) & "_" & trim( str( p.lambdaSeq ) )
+    p.lambdaSeq += 1
+    dim as Tko.InternId frmNm = _
+        p.names->Fold( p.names->GetString( "__tko_spawnframe_" & tag ) )
+    dim as Tko.InternId fnNm = _
+        p.names->Fold( p.names->GetString( "__tko_spawnfn_" & tag ) )
+    dim as Tko.InternId sfpNm = p.names->Fold( p.names->GetString( "__tko_sfp" ) )
+    dim as Tko.InternId sfNm = p.names->Fold( p.names->GetString( "__tko_sf" ) )
+
+    '' READ OUT BEFORE ANYTHING ELSE IS BUILT. 'cp' points INTO the list pool, and
+    '' every MakeList below appends to it -- one growth and the pointer is stale,
+    '' which is a wrong callee and a wrong argument count with nothing to say so.
+    dim as long argc = cp->count
+    dim as long argFirst = cp->first
+    dim as Tko.NodeId calleeN = cp->target
+
+    '' ---- the thunk's body
+
+    '' 'dim as <frame> ptr __tko_sf = __tko_sfp'
+    dim as Tko.NodeIdVec body
+    dim as Tko.StmtPayload vi
+    vi.name = sfNm
+    vi.a = SpTypeRef_( p, frmNm, t.loc, true )
+    vi.b = SpIdent_( p, sfpNm, t.loc )
+    dim as Tko.NodeId viN = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, vi )
+    dim as Tko.StmtPayload vs
+    vs.op = cast( ushort, Tko.KW_DIM )
+    vs.first = p.ast->children.Count
+    vs.count = 1
+    p.ast->children.Push( cast( ulong, viN ) )
+    body.Push( cast( ulong, MakeStmt( p, Tko.N_VAR, t.loc, vs ) ) )
+
+    '' 'f( (*__tko_sf).__ARG_0, ... )' -- THE ORIGINAL CALLEE NODE IS REUSED. It is an
+    '' expression the parser already built and nothing else refers to it, so there is
+    '' no aliasing: the N_CALL it came from is discarded here.
+    dim as Tko.NodeIdVec cargs
+    for k as long = 0 to argc - 1
+        cargs.Push( cast( ulong, _
+            SpMember_( p, sfNm, SpawnArgFieldName( *p.names, k ), t.loc ) ) )
+    next
+    dim as Tko.NodeId inner = _
+        MakeList( p, Tko.N_CALL, t.loc, calleeN, cargs )
+    '' A BARE CALL STATEMENT IS AN N_AMBIGUOUS -- call-or-assign, with no assigned
+    '' value -- which is the node the parser makes for every other one.
+    dim as Tko.StmtPayload es
+    es.a = inner
+    body.Push( cast( ulong, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, es ) ) )
+
+    '' 'delete __tko_sf' -- WHICH IS WHAT DESTROYS THE ARGUMENTS. The frame's fields are
+    '' the copies made at the spawn; a plain deallocate would leak every string, array
+    '' and UDT among them, silently. fbc's trampoline does the same thing through a
+    '' virtual destructor.
+    dim as Tko.StmtPayload ds
+    ds.a = SpIdent_( p, sfNm, t.loc )
+    body.Push( cast( ulong, MakeStmt( p, Tko.N_DELETE_STMT, t.loc, ds ) ) )
+
+    '' ---- the thunk itself: 'sub __tko_spawnfn_TAG( byval __tko_sfp as any ptr )'
+    ''
+    '' 'any ptr' AND NOT THE FRAME'S OWN TYPE, because fb_Spawn's parameter is
+    '' 'sub( byval ctx as any ptr )' and a differently-typed procedure pointer does not
+    '' match it. The cast back is the 'dim' above.
+    dim as Tko.StmtPayload pp0
+    pp0.name = sfpNm
+    pp0.a = SpTypeRef_( p, _
+        p.names->Fold( p.names->GetString( "any" ) ), t.loc, true )
+    dim as Tko.NodeId prm = MakeStmt( p, Tko.N_PARAM, t.loc, pp0 )
+    p.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYVAL_WRITTEN
+
+    dim as Tko.StmtPayload fp
+    fp.name = fnNm
+    fp.rawName = fnNm
+    fp.op = cast( ushort, Tko.KW_SUB )
+    fp.first = p.ast->children.Count
+    fp.count = 1
+    p.ast->children.Push( cast( ulong, prm ) )
+    fp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, body )
+    dim as Tko.NodeId fn = MakeStmt( p, Tko.N_PROC, t.loc, fp )
+    p.lambdas.Push( cast( ulong, fn ) )
+
+    '' ---- the statement: the frame's NAME, the thunk, and the arguments
+    '' THE THUNK IS NAMED, NOT CHILDED. It is already a module-level statement --
+    '' 'p.lambdas' puts it there -- and hanging the same N_PROC off this node too
+    '' would have Collect walk it twice and declare it twice. The name is what
+    '' lowering needs, and it is the mangling's input either way.
+    '' ---- THE SPAWN SITE, rewritten into statements this compiler already lowers:
+    ''
+    ''   scope
+    ''       dim as <frame> ptr __tko_sfN = new <frame>
+    ''       (*__tko_sfN).__ARG_0 = a0
+    ''       ...
+    ''       FB.Spawn( @__tko_spawnfn_TAG, __tko_sfN )
+    ''   end scope
+    ''
+    '' A SCOPE, so that the whole thing stays ONE statement: 'if c then spawn f( 1 )'
+    '' has a single-statement body and three loose statements would not fit in it.
+    ''
+    '' NO CAST ON THE THUNK'S ADDRESS. fb_Spawn's parameter is
+    '' 'sub stdcall( byval ctx as any ptr )' on Windows and cdecl on Linux, and a
+    '' plain 'sub' has exactly that convention on each -- verified by COMPILING AND
+    '' RUNNING this shape with fbc.
+    dim as Tko.InternId sfvNm = _
+        p.names->Fold( p.names->GetString( "__tko_sf_" & tag ) )
+    dim as Tko.NodeIdVec site
+
+    dim as Tko.StmtPayload nw
+    nw.a = SpTypeRef_( p, frmNm, t.loc, false )
+    dim as Tko.NodeIdVec noArgs
+    dim as Tko.NodeId newN = MakeList( p, Tko.N_NEW, t.loc, nw.a, noArgs )
+    dim as Tko.StmtPayload si
+    si.name = sfvNm
+    si.a = SpTypeRef_( p, frmNm, t.loc, true )
+    si.b = newN
+    dim as Tko.NodeId sitemN = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, si )
+    dim as Tko.StmtPayload sv
+    sv.op = cast( ushort, Tko.KW_DIM )
+    sv.first = p.ast->children.Count
+    sv.count = 1
+    p.ast->children.Push( cast( ulong, sitemN ) )
+    site.Push( cast( ulong, MakeStmt( p, Tko.N_VAR, t.loc, sv ) ) )
+
+    '' One assignment per argument, in the order they were written.
+    for k as long = 0 to argc - 1
+        dim as Tko.StmtPayload asn
+        asn.a = SpMember_( p, sfvNm, SpawnArgFieldName( *p.names, k ), t.loc )
+        asn.b = cast( Tko.NodeId, p.ast->children[argFirst + k] )
+        asn.op = cast( ushort, Tko.TK_EQ )
+        site.Push( cast( ulong, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, asn ) ) )
+    next
+
+    '' 'FB.Spawn( @thunk, frame )' -- the runtime call, named through the namespace
+    '' the program has already included.
+    dim as Tko.BinaryPayload qb
+    qb.op = cast( ushort, Tko.TK_DOT )
+    qb.lhs = SpIdent_( p, p.names->Fold( p.names->GetString( "fb" ) ), t.loc )
+    qb.rhs = SpIdent_( p, p.names->Fold( p.names->GetString( "spawn" ) ), t.loc )
+    p.ast->binaries.Push( qb )
+    dim as Tko.NodeId qn = _
+        NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->binaries.Count - 1 )
+    p.ast->nodes[cast( long, qn )].kind = cast( ushort, Tko.N_MEMBER )
+
+    dim as Tko.UnaryPayload ap
+    ap.op = cast( ushort, Tko.TK_AT )
+    ap.operand = SpIdent_( p, fnNm, t.loc )
+    p.ast->unaries.Push( ap )
+    dim as Tko.NodeId adr = _
+        NewNodeAt( p, Tko.N_ADDROF, t.loc, p.ast->unaries.Count - 1 )
+
+    dim as Tko.NodeIdVec sargs
+    sargs.Push( cast( ulong, adr ) )
+    sargs.Push( cast( ulong, SpIdent_( p, sfvNm, t.loc ) ) )
+    dim as Tko.StmtPayload cs
+    cs.a = MakeList( p, Tko.N_CALL, t.loc, qn, sargs )
+    site.Push( cast( ulong, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, cs ) ) )
+
+    dim as Tko.StmtPayload scp
+    scp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, site )
+    dim as Tko.NodeId scN = MakeStmt( p, Tko.N_SCOPE, t.loc, scp )
+
+    '' THE NODE ITSELF carries only what RESOLVE needs -- the frame type's name,
+    '' the callee's name and the arity -- plus the rewritten statements. The thunk
+    '' is NOT childed here: 'p.lambdas' already makes it a module-level statement,
+    '' and a second parent would have Collect declare it twice.
+    dim as Tko.StmtPayload ssp
+    ssp.name = frmNm
+    ssp.rawName = fnNm
+    ssp.aliasName = _
+        p.ast->idents[cast( long, p.ast->nodes[cast( long, calleeN )].data )].name
+    ssp.extra = cast( ushort, argc )
+    ssp.b = scN
+    return MakeStmt( p, Tko.N_SPAWN, t.loc, ssp )
+end function
+
+end namespace

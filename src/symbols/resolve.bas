@@ -351,6 +351,98 @@ end function
 ''
 '' '__fbinvoke' is declared in the type's scope so a CALL on a closure object can
 '' find the procedure from the OBJECT, which is the only thing the call site has.
+'' THE FRAME TYPE FOR A 'spawn', named by the parser and built here for the same
+'' reason the closure type is: only this pass can see the CALLEE's declaration from
+'' the spawn site's scope, and the type has to live at module level for the hoisted
+'' thunk to name it.
+''
+'' ITS FIELDS ARE THE CALLEE'S PARAMETER TYPES, one '__ARG_k' each. fbc parameterises
+'' its frame on the ARGUMENT types instead and converts inside the invoke -- measured,
+'' 'spawn worker( 7 )' over 'worker( byval n as long )' stores an INTEGER and calls
+'' 'WORKER( (int32)*(int64*)(THIS + 8) )' -- which for a value argument is the same
+'' copy either way. Taking the parameter's type puts the conversion at the spawn,
+'' where the argument expression still is.
+''
+'' NOTHING IS BUILT UNLESS EVERY PART IS KNOWN: a unique callee of matching arity,
+'' every parameter BYVAL, and every parameter type already resolved. A frame with a
+'' missing or guessed field would be an argument copied to the wrong offset, which is
+'' worse than the decline this leaves behind.
+private sub BuildSpawnFrame_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->name = 0 then return
+    if sp->aliasName = 0 then return
+    if c.syms->LookupLocalTyped( Tko.SCOPE_GLOBAL, sp->name, true ) <> Tko.SYMBOL_NONE then
+        return
+    end if
+
+    '' THE OVERLOAD OF MATCHING ARITY, uniquely or not at all.
+    dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
+    dim as long hits = 0
+    dim as Tko.SymbolId cur = c.syms->Lookup( scope_, sp->aliasName )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+        if pn <> Tko.NODE_NONE then
+            if c.ast->Kind( pn ) = Tko.N_PROC then
+                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+                dim as long np = 0
+                for i as long = 0 to pp->count - 1
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
+                next
+                if np = cast( long, sp->extra ) then
+                    pick = cur
+                    hits += 1
+                end if
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    if hits <> 1 then return
+
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
+    dim as Tko.NodeId pnode = cast( Tko.NodeId, ps->payload )
+    dim as Tko.StmtPayload ptr pp2 = StmtOf( c, pnode )
+    dim as FB.Array( of ulong ) fTy
+    for i as long = 0 to pp2->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp2->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        '' A BYREF PARAMETER WOULD MAKE THE FRAME HOLD AN ADDRESS into a stack
+        '' frame the goroutine outlives. fbc has no such case in the corpus and
+        '' inventing one here would be inventing a lifetime.
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then return
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        if pt = Tko.TYPE_NONE then return
+        if c.types->Kind( pt ) = Tko.TK_REFERENCE then return
+        fTy.Push( cast( ulong, pt ) )
+    next
+    if fTy.Count <> cast( long, sp->extra ) then return
+
+    dim as boolean dup = false
+    dim as Tko.SourceLoc at = c.ast->Loc( id )
+    dim as Tko.SymbolId tsid = c.syms->DeclareSym( _
+        Tko.SCOPE_GLOBAL, sp->name, Tko.SYM_UDT, at, dup )
+    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return
+    dim as Tko.ScopeId tin = c.syms->OpenScope( _
+        Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
+    ts->inner = tin
+    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( ulong, Tko.SCOPE_GLOBAL ) )
+    for k as long = 0 to fTy.Count - 1
+        dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
+            "__ARG_" & trim( str( k ) ) ) )
+        dim as boolean fdup = false
+        dim as Tko.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Tko.SYM_FIELD, at, fdup )
+        dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
+        if fs <> 0 then fs->type_ = cast( Tko.TypeId, fTy[k] )
+    next
+    c.info->SetType( id, ts->type_ )
+end sub
+
 private sub BuildClosureType_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -749,6 +841,15 @@ sub WalkStmt _
         WalkBlock_( c, id, here )
         return
 
+    case Tko.N_SPAWN
+        '' 'spawn f( a, ... )'. The parser rewrote it into ordinary statements --
+        '' allocate the frame, copy the arguments in, hand it to fb_Spawn -- and
+        '' they hang off 'b'. Only the FRAME TYPE is left, and it is built here
+        '' because nothing later can see the callee's declaration from this scope.
+        BuildSpawnFrame_( c, id, here )
+        WalkStmt( c, StmtOf( c, id )->b, here )
+        return
+
     case Tko.N_ASSERT
         '' '#assert expr' -- a COMPILE-TIME check, not a runtime one, and not a
         '' preprocessor directive either: its expression is ordinary FreeBASIC and may
@@ -1058,7 +1159,13 @@ sub WalkStmt _
         '' does not know.
         if (t <> Tko.TYPE_NONE) andalso _
            ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0) then
-            t = c.types->DynArrayOf( t, 1 )
+            '' THE RANK THE PARAMETER WAS WRITTEN WITH, which the parser now
+            '' records on the N_PARAM's unused 'count'. Hard-coded 1, every
+            '' 'a( any, any )' parameter was a ONE-dimensional array and the
+            '' two-subscript reads inside the body declined on a rank mismatch.
+            '' 'a( )' is rank ZERO -- unspecified -- and the subscript count at
+            '' the use decides, which is what fbc does with it.
+            t = c.types->DynArrayOf( t, cast( long, sp->extra ) )
         end if
         '' NEITHER KEYWORD WRITTEN IS NOT BYVAL. Measured from the signatures fbc
         '' emits:

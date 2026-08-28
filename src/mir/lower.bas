@@ -136,6 +136,18 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             c.curBlock = scExit
         end if
 
+    case Tko.N_SPAWN
+        '' The parser rewrote 'spawn f( a )' into a SCOPE of ordinary statements --
+        '' allocate the frame, copy the arguments in, hand it to fb_Spawn -- so
+        '' there is nothing here but to lower them. A spawn whose shape the
+        '' rewrite refused has no body and declines, as it always did.
+        dim as Tko.NodeId sb = StmtOf( c, id )->b
+        if sb = Tko.NODE_NONE then
+            SkipHere( c )
+        else
+            LowerStmt( c, sb )
+        end if
+
     case Tko.N_DEFER
         '' Registered, not run. It fires at the end of the ENCLOSING scope, in
         '' reverse registration order -- which is the FBC-Modern behaviour to
