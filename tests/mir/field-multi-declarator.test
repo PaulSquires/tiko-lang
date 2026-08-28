@@ -1,0 +1,21 @@
+'' A FIELD INITIALISER STOPPED THE DECLARATOR LOOP, so every declarator after the first
+'' was DROPPED. 'dim as short a = any, b = any' laid out as TWO BYTES with one field
+'' where fbc gives four with two -- a wrong LAYOUT, so every field after it in the same
+'' type sits at the wrong offset, and nothing said so.
+''
+'' '= any' is an ordinary expression here: it parses to an N_IDENT named 'any', exactly
+'' as 'dim as integer i = any' does outside a type.
+''
+'' THE VALUE GOES IN 'c', NOT 'b'. On an N_FIELD 'b' is the BITFIELD WIDTH, so the first
+'' attempt made 'dim as integer i = 5, j = 6' a FIVE-BIT field with j on top of it --
+'' 8 bytes with both at offset 0, where fbc gives 16.
+''
+'' NOTHING READS THE DEFAULT YET: a field default is not modelled here or in the
+'' name-first branch, so it is parsed and kept rather than applied. That gap is
+'' unchanged; what changes is that the declarators after it are no longer lost.
+'' TEST: cli
+'' ARGS: --dump-udt tests/mir/src/field-multi-declarator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: s size 4 align 2
+'' EXPECT-OUT: i size 16 align 8
+'' GOLDEN: expected/field-multi-declarator.out

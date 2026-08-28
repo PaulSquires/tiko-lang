@@ -1207,6 +1207,31 @@ private function ParseAggregateBody _
                 if DeclName( p, fp.name ) = false then exit do
                 ParseArrayBounds( p, fp )
                 if fp.count > 0 then fp.op = cast( ushort, Tko.KW_DIM )
+                '' A FIELD INITIALISER, which the loop did not read -- so the '='
+                '' was not a comma, the loop stopped, and every declarator AFTER
+                '' the first was DROPPED. 'dim as short a = any, b = any' laid out
+                '' as TWO BYTES with one field where fbc gives four with two, and
+                '' nothing said so: it is a wrong LAYOUT, so every later field sits
+                '' at the wrong offset too.
+                ''
+                '' '= any' IS AN ORDINARY EXPRESSION here -- it parses to an N_IDENT
+                '' named 'any', exactly as 'dim as integer i = any' does outside a
+                '' type -- so no special case is needed to consume it.
+                ''
+                '' Only the SHARED-TYPE form takes several: measured, fbc answers
+                '' error 3 for 'dim p as short = any, q as short = any' and accepts
+                '' 'dim as short p = any, q = any'.
+                dim as boolean fEq = Accept( p, Tko.TK_EQ )
+                if fEq = false then fEq = Accept( p, Tko.TK_FATARROW )
+                '' INTO 'c', NOT 'b'. On an N_FIELD 'b' is the BITFIELD WIDTH, so
+                '' 'dim as integer i = 5, j = 6' made i a FIVE-BIT field and put j
+                '' on top of it -- 8 bytes with both at offset 0 where fbc gives 16.
+                ''
+                '' NOTHING READS IT YET: a field DEFAULT is not modelled, here or in
+                '' the name-first branch below, so it is parsed and kept rather than
+                '' applied. That is the same gap as before this change; what changes
+                '' is that the declarators AFTER it are no longer lost.
+                if fEq then fp.c = Expression( p )
                 fp.a = shared_
                 fp.extra or= vis
                 members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )

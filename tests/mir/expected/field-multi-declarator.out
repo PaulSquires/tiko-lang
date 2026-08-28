@@ -1,0 +1,9 @@
+s size 4 align 2
+  s off a 0
+  s off b 2
+i size 16 align 8
+  i off i 0
+  i off j 8
+object size 8 align 8
+  object off vptr 0
+udts: 3
