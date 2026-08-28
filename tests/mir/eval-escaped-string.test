@@ -10,9 +10,17 @@
 '' The decoder is now shared with MIR's own literal reader rather than written twice:
 '' Tko.Text.DecodeEscapedBody, gated by check-escape's 52 measured answers.
 ''
-'' A WIDE result still declines. It re-emits as '!"\uXXXX"' per character -- measured,
-'' __FB_EVAL__( wstr( "A" ) ) is 'A' -- and the preprocessor has no wide value to
-'' render. That is 6 of the 11 in each of those two files, and they stay open.
+'' A WIDE RESULT re-emits as '!"\uXXXX"' per character, four UPPERCASE hex digits.
+'' Measured: __FB_EVAL__( wstr( "A" ) ) is '\u0041'. The preprocessor folds 'wstr( )'
+'' as the WIDE flavour of its operand -- the conversion is a WIDTH, not a content --
+'' and refuses a byte above 127, where a byte is not a code unit and the source
+'' encoding would decide what it is.
+''
+'' THIS WAS WRITTEN, REVERTED, AND WRITTEN AGAIN. The first attempt produced the
+'' right re-emission and the wrong VALUE: a '\u' in a re-lexed literal was still six
+'' characters of spelling to the literal reader, so a decline became a wrong wide
+'' string. It landed only once the reader carried code units. The four lengths fbc's
+'' own run reports for the wide cases below are 1, 2, 1 and 3.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/eval-escaped-string.bas
 '' EXPECT-EXIT: 0

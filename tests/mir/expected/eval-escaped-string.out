@@ -2,6 +2,10 @@ global str $str0 "A"
 global str $str1 "\\\"
 global str $str2 "plain"
 global str $str3 "A	B"
+global wstr $wstr4 "A"
+global wstr $wstr5 "AB"
+global wstr $wstr6 "A\u0000"
+global wstr $wstr7 "\u005C\u005C\u005C"
 func i32 main($0, $1) {
   local i32 $tmp0
   local agg a size 24
@@ -9,6 +13,10 @@ func i32 main($0, $1) {
   local agg c size 24
   local agg d size 24
   local agg e size 24
+  local agg wa size 64
+  local agg wb size 64
+  local agg wc size 64
+  local agg wd size 64
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -25,19 +33,38 @@ func i32 main($0, $1) {
     %11 = call.rtl ptr fb_StrInit(@d, -1, @@$str2, 6, 0)
     %12 = alloca ptr e
     %13 = call.rtl ptr fb_StrInit(@e, -1, @@$str3, 4, 0)
+    %14 = alloca ptr wa
+    %15 = call.rtl ptr fb_WstrAssign(@wa, 32, @@$wstr4)
+    %16 = alloca ptr wb
+    %17 = call.rtl ptr fb_WstrAssign(@wb, 32, @@$wstr5)
+    %18 = alloca ptr wc
+    %19 = call.rtl ptr fb_WstrAssign(@wc, 32, @@$wstr6)
+    %20 = alloca ptr wd
+    %21 = call.rtl ptr fb_WstrAssign(@wd, 32, @@$wstr7)
+    %22 = call.rtl i64 fb_WstrLen(@wa)
+    call.rtl void fb_PrintLongint(0, %22, 2)
+    %23 = call.rtl i64 fb_WstrLen(@wb)
+    call.rtl void fb_PrintLongint(0, %23, 2)
+    %24 = call.rtl i64 fb_WstrLen(@wc)
+    call.rtl void fb_PrintLongint(0, %24, 2)
+    %25 = call.rtl i64 fb_WstrLen(@wd)
+    call.rtl void fb_PrintLongint(0, %25, 1)
     call.rtl void fb_StrDelete(@e)
     call.rtl void fb_StrDelete(@d)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
-    %14 = const i32 0
-    call.rtl void fb_End(%14)
-    %15 = load @$tmp0
-    ret %15
+    %26 = const i32 0
+    call.rtl void fb_End(%26)
+    %27 = load @$tmp0
+    ret %27
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare ptr fb_WstrAssign($0, $1, $2)
+declare i64 fb_WstrLen($0)
+declare void fb_PrintLongint($0, $1, $2)
 declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 39 insts, 0 statements not lowered, 0 scope imbalance

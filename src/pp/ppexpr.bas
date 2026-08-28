@@ -264,6 +264,35 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         if v < 0 then return PxNum( 0 )
         return PxNum( v )
 
+    case KW_WSTR
+        '' 'wstr( expr )' -- THE WIDE FLAVOUR OF ITS OPERAND, and nothing else
+        '' about the value changes: the conversion is a WIDTH, not a content.
+        '' Measured, __FB_EVAL__( wstr( "A" ) ) is '\u0041' and
+        '' __FB_EVAL__( "A" ) is '$"A"' -- the same character, re-emitted in the
+        '' wide spelling.
+        ''
+        '' Without this the whole expression was 'not a constant' and every
+        '' __FB_EVAL__ over a wide value declined -- six in each of
+        '' pp/macro-eval-str.bas and its utf16le twin.
+        PxNext( x )
+        if PxPeek( x ) <> TK_LPAREN then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        PxNext( x )
+        dim as PpValue wv = PxOrElse( x )
+        if PxPeek( x ) = TK_RPAREN then
+            PxNext( x )
+        else
+            x.bad = true
+        end if
+        if wv.isStr = false then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        wv.wide = true
+        return wv
+
     case KW_DEFINED, TK_IDENT
         dim as string nm = "defined"
         if k = TK_IDENT then

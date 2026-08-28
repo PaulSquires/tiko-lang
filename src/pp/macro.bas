@@ -456,7 +456,36 @@ private function EvalLiteral_ _
     '' A WIDE RESULT IS STILL REFUSED. It re-emits as '!"\uXXXX"' per character,
     '' four UPPERCASE hex digits -- measured, __FB_EVAL__( wstr("A") ) is
     '' '\u0041' -- and the preprocessor has no wide value to render.
-    if v.wide orelse v.escaped then
+    '' A WIDE RESULT IS '!"\uXXXX"' PER CHARACTER, four UPPERCASE hex digits.
+    '' Measured, one probe per shape:
+    ''
+    ''   wstr( "A" )                        \u0041
+    ''   wstr( "A" ) + wstr( "B" )           \u0041\u0042
+    ''   wstr( "A" ) + wstr( !"\0" )         \u0041\u0000
+    ''   wstr( !"\\" ) three times          \u005C\u005C\u005C
+    ''
+    '' ASCII ONLY. The preprocessor holds the value as BYTES, and above 127 a
+    '' byte is not a code unit -- the source encoding decides what it is, and
+    '' emitting it as one would put a different character in the literal. That
+    '' case declines, as the whole wide family did before this.
+    if v.wide then
+        if v.escaped then
+            ok = false
+            return ""
+        end if
+        for i as long = 1 to len( v.str_ )
+            if asc( mid( v.str_, i, 1 ) ) > 127 then
+                ok = false
+                return ""
+            end if
+        next
+        dim as string w = "!" & chr( 34 )
+        for i as long = 1 to len( v.str_ )
+            w += "\u" & Tko.Text.UpperAscii( hex( asc( mid( v.str_, i, 1 ) ), 4 ) )
+        next
+        return w & chr( 34 )
+    end if
+    if v.escaped then
         ok = false
         return ""
     end if
