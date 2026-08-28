@@ -70,6 +70,91 @@ private function CtorArgValue_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' A CHARACTER-POINTER CONVERTING CONSTRUCTOR, chosen by the initialiser's WIDTH.
+''
+'' Two shapes need it and neither can be picked by TYPE. An 'iif' has no type at
+'' all -- Check computes none, deliberately, because an arm may be an intrinsic
+'' with no type either -- and a FIXED-LENGTH string argument has one the overload
+'' costing cannot convert to a pointer, so 'dim u4 as uzstr_t = wstr( u1 )' found
+'' no constructor while 'chr( 12 )' beside it did.
+''
+'' Measured, fbc calls the converting constructor with the wide temporary:
+'' '_ZN14UZSTRING_FIXEDC1EPKw( &U4$0, (uint16*)TMP$3$0 )'.
+''
+'' THE WIDTH DECIDES WHICH ONE. A type like the corpus's UZSTRING_FIXED declares
+'' BOTH -- over 'const zstring const ptr' and over the wstring twin -- and taking
+'' the first arity-1 constructor picked the narrow one for a wide argument, which
+'' then had no value to build.
+private function CharPtrCtorInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval init_ as Tko.NodeId ) as boolean
+
+    '' ...AND SO HAS ANY UNBOUND CALL. 'dim u4 as uzstr_t = wstr( u1 )' is the
+    '' same shape as the iif this branch was written for: Check computes no
+    '' type for the callee, so there is nothing to pick a constructor by, and
+    '' the CONSTRUCTOR is again what supplies the missing width. Measured, fbc
+    '' calls the converting constructor with the wide temporary:
+    '' '_ZN14UZSTRING_FIXEDC1EPKw( &U4$0, (uint16*)TMP$3$0 )'.
+    ''
+    '' The iif test is gone rather than widened: what the branch actually needs
+    '' is a one-argument constructor over a character POINTER and an argument
+    '' CtorArgValue_ can build, and both are tested below.
+    '' THE WIDTH DECIDES WHICH ONE. A type like the corpus's UZSTRING_FIXED
+    '' declares BOTH -- 'constructor( byval rhs as const zstring const ptr )'
+    '' and the wstring twin -- and taking the first arity-1 constructor picked
+    '' the narrow one for a wide argument, which then had no value to build.
+    dim as boolean wantWide = TermIsWide_( c, init_ )
+    dim as Tko.SymbolId sc = Tko.SYMBOL_NONE
+    dim as Tko.TypeId spt = Tko.TYPE_NONE
+    dim as Tko.SymbolId sccur = StructorOf( c, t, "__ctor" )
+    dim as Tko.SymbolId scfall = Tko.SYMBOL_NONE
+    dim as Tko.TypeId sptfall = Tko.TYPE_NONE
+    while sccur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr scs = c.syms->SymbolAt( sccur )
+        if scs = 0 then exit while
+        if ParamCountOf( c, sccur ) = 1 then
+            dim as Tko.TypeId cpt = ParamTypeAt( c, sccur, 0 )
+            if cpt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId cu2 = c.types->Unqualify( cpt )
+                if c.types->Kind( cu2 ) = Tko.TK_POINTER then
+                    dim as Tko.TypeId cin = _
+                        c.types->Unqualify( c.types->Inner( cu2 ) )
+                    if c.types->Kind( cin ) = Tko.TK_BUILTIN then
+                        dim as Tko.BuiltinType cb = c.types->BuiltinOf( cin )
+                        dim as boolean isW = (cb = Tko.TY_WSTRING)
+                        dim as boolean isZ = (cb = Tko.TY_ZSTRING)
+                        if isW orelse isZ then
+                            if scfall = Tko.SYMBOL_NONE then
+                                scfall = sccur
+                                sptfall = cpt
+                            end if
+                            if isW = wantWide then
+                                sc = sccur
+                                spt = cpt
+                                exit while
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+        sccur = scs->nextOverload
+    wend
+    if sc = Tko.SYMBOL_NONE then
+        sc = scfall
+        spt = sptfall
+    end if
+    if sc = Tko.SYMBOL_NONE then return false
+    if spt = Tko.TYPE_NONE then return false
+    dim as MirValue iav
+    if CtorArgValue_( c, init_, spt, iav ) = false then return false
+    dim as FB.Array( of ulong ) iargs
+    iargs.Push( cast( ulong, iav.kind ) )
+    iargs.Push( cast( ulong, iav.id ) )
+    EmitStructorCall( c, sc, slot, 0, @iargs )
+    return true
+end function
+
 '' 'dim u as U = s' -- A CONVERTING CONSTRUCTOR, chosen by the initialiser's type.
 ''
 '' Only the explicit 'dim u as U = U( s )' spelling was handled, so this one fell
@@ -104,29 +189,7 @@ function LowerConvCtorInit_ _
     '' CtorArgValue_ is structural about iif in both. udt-wstring/iif.bas and
     '' udt-zstring/iif.bas write nothing else.
     if it = Tko.TYPE_NONE then
-        dim as Tko.NodeId ic, itn, ien
-        if IsIifCall_( c, init_, ic, itn, ien ) = false then return false
-        dim as Tko.SymbolId sc = _
-            StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
-        if sc = Tko.SYMBOL_NONE then return false
-        dim as Tko.TypeId spt = ParamTypeAt( c, sc, 0 )
-        if spt = Tko.TYPE_NONE then return false
-        dim as Tko.TypeId su = c.types->Unqualify( spt )
-        if c.types->Kind( su ) <> Tko.TK_POINTER then return false
-        dim as Tko.TypeId spin = c.types->Unqualify( c.types->Inner( su ) )
-        if c.types->Kind( spin ) <> Tko.TK_BUILTIN then return false
-        select case c.types->BuiltinOf( spin )
-        case Tko.TY_ZSTRING, Tko.TY_WSTRING
-        case else
-            return false
-        end select
-        dim as MirValue iav
-        if CtorArgValue_( c, init_, spt, iav ) = false then return false
-        dim as FB.Array( of ulong ) iargs
-        iargs.Push( cast( ulong, iav.kind ) )
-        iargs.Push( cast( ulong, iav.id ) )
-        EmitStructorCall( c, sc, slot, 0, @iargs )
-        return true
+        return CharPtrCtorInit_( c, slot, t, init_ )
     end if
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
@@ -137,7 +200,13 @@ function LowerConvCtorInit_ _
     dim as FB.Array( of ulong ) argT
     argT.Push( cast( ulong, it ) )
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
-    if pick = Tko.SYMBOL_NONE then return false
+    '' ...AND A FIXED-LENGTH STRING ARGUMENT HAS A TYPE THE COSTING CANNOT CONVERT
+    '' to a character POINTER, so 'dim u4 as uzstr_t = wstr( u1 )' found no
+    '' constructor while 'chr( 12 )' beside it did. Same answer as the untyped case
+    '' above, and the same code.
+    if pick = Tko.SYMBOL_NONE then
+        return CharPtrCtorInit_( c, slot, t, init_ )
+    end if
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
     if ps = 0 then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
