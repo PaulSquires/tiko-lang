@@ -59,7 +59,7 @@ GATE_FBC=${GATE_FBC:-"$FBC_TREE/src/fbc.exe"}
 # CBASE points at a clang-built baseline (build/cbase.sh) and removes that
 # confound. Until it is used, a result here is "FreeBASIC through clang versus C
 # through gcc", which is not the question. RFC-0004 section 5.4.4.
-CLIB=${CBASE:-"$FBC_TREE/src/lib/$TARGET"}
+CLIB=${CBASE:-$(rt_reflib "$TARGET")} || rt_die "no reference libfb.a for $TARGET"
 case "${CBASE:-}" in
     "") echo "bench: WARNING -- C side is fbc's GCC-built archive; set CBASE for a clang baseline" >&2 ;;
     *)  echo "bench: C side is the clang baseline at $CLIB" >&2 ;;

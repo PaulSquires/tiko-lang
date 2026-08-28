@@ -71,7 +71,8 @@ done
 
 # The baseline archive: fbc's own, with exactly those members swapped for the
 # clang-built ones. Identical content, one compiler changed.
-cp "$FBC_TREE/src/lib/$TARGET"/*.a "$OUT/lib/"
+REFDIR=$(rt_reflib "$TARGET") || rt_die "no reference libfb.a for $TARGET"
+cp "$REFDIR"/*.a "$OUT/lib/"
 for pair in "libfb.a st" "libfbmt.a mt"; do
     set -- $pair
     archive=$1; thread=$2

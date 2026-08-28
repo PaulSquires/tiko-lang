@@ -52,8 +52,7 @@ MAKE=${MAKE:-$(command -v make || echo /c/dev/utils/mingw64/bin/make)}
 # libfb.a for all three targets. Standalone layout, so lib/<target>/.
 GATE_FBC=${GATE_FBC:-"$FBC_TREE/src/fbc.exe"}
 [ -x "$GATE_FBC" ] || rt_die "gate compiler not found at $GATE_FBC (set GATE_FBC)"
-SRCLIB="$FBC_TREE/src/lib/$TARGET"
-[ -d "$SRCLIB" ] || rt_die "no reference libs at $SRCLIB"
+SRCLIB=$(rt_reflib "$TARGET") || rt_die "no reference libfb.a for $TARGET"
 
 WORK="$RT_ROOT/obj/gate/$TARGET"
 GATELIB="$WORK/lib"

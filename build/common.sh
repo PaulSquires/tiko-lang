@@ -96,6 +96,21 @@ rt_cfg_flags( ) {
 
 rt_die( ) { echo "tiko-rt: $*" >&2; exit 2; }
 
+# Where fbc's own libfb.a lives for a target.
+#
+# Two layouts, and the difference is not cosmetic: the standalone build tree puts
+# win32/win64 archives in lib/<target>/, but for linux-x86_64 that directory holds
+# only the startup objects (fbrt0.o and friends) and the ARCHIVES are one level
+# down in lib/freebasic/<target>/. A script that assumes the first layout finds a
+# real directory with no libfb.a in it, which reads as "wrong target" rather than
+# "wrong path".
+rt_reflib( ) {
+    for d in "$FBC_TREE/src/lib/$1" "$FBC_TREE/src/lib/freebasic/$1"; do
+        if [ -f "$d/libfb.a" ]; then echo "$d"; return 0; fi
+    done
+    return 1
+}
+
 rt_check_tools( ) {
     [ -x "$TKORT_FBC" ] || rt_die "stage0 compiler not found at $TKORT_FBC (set TKORT_FBC)"
     [ -x "$CLANG" ]     || rt_die "clang not found at $CLANG (set CLANG)"
