@@ -24,8 +24,8 @@ N_MODULE (8) <1:84>
   N_INTRINSIC [PRINT] <28:1>
     N_CALL <28:7>
       N_IDENT 'sizeof' <28:7>
-      N_IDENT 'box' <28:15>
+      N_TYPEREF <28:15>
   N_INTRINSIC [PRINT] <29:1>
     N_CALL <29:7>
       N_IDENT 'sizeof' <29:7>
-      N_IDENT 'pair' <29:15>
+      N_TYPEREF <29:15>

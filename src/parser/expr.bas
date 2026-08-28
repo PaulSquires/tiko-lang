@@ -456,6 +456,8 @@ declare function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
 '' argument unambiguously opens one: a type keyword, or a name followed by PTR. That
 '' keeps every existing 'len( someString )' parsing exactly as it did, without
 '' consulting the symbol table, which this layer may not do.
+declare function IsGenericArgs( byref p as Tko.ParserState ) as boolean
+
 private function TypeArgCall _
     ( byref p as Tko.ParserState, byref t as Tko.Token, _
       byval k as Tko.TokenKind ) as Tko.NodeId
@@ -538,6 +540,20 @@ private function TypeArgCall _
                     end if
                 end if
             end if
+        end if
+        '' ...AND A GENERIC INSTANTIATION IS A TYPE NAME. 'sizeof( Box( of long ) )'
+        '' was read as an EXPRESSION, so the '( of long )' was dropped on the floor
+        '' and only the bare name 'box' survived -- the TEMPLATE, which has no size,
+        '' so the sizeof came out untyped and its statement declined. Measured: fbc
+        '' accepts it and folds the whole comparison away.
+        ''
+        '' The '( of' lookahead is the same one TypeRef uses, and it consults no
+        '' symbol table -- which this layer may not do.
+        if (looksLikeType = false) andalso (Peek( p ) = Tko.TK_IDENT) then
+            dim as long savedGp = p.pos
+            Advance( p )
+            looksLikeType = IsGenericArgs( p )
+            p.pos = savedGp
         end if
         if (looksLikeType = false) andalso (Peek( p ) = Tko.TK_IDENT) then
             if HasTok( p, p.pos + 1 ) then

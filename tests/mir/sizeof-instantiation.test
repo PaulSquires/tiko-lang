@@ -1,0 +1,19 @@
+'' A GENERIC INSTANTIATION IS A TYPE NAME wherever one is allowed, and the type-argument
+'' parser did not know it. 'sizeof( Box( of long ) )' was read as an EXPRESSION, so the
+'' '( of long )' was dropped on the floor and only the bare name 'box' survived -- the
+'' TEMPLATE, which has no size -- so the sizeof came out untyped and its statement
+'' declined. Measured: fbc accepts it.
+''
+'' The '( of' lookahead is the same one TypeRef uses, and it consults no symbol table,
+'' which this layer may not do. An UNDECLARED generic still declines, so the name is
+'' doing the work rather than the shape.
+''
+'' The four sizes below are 4, 8, 8 and 16, and the two instantiations of Pair are
+'' distinct types in the layout table.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sizeof-instantiation.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: const i64 16
+'' GOLDEN: expected/sizeof-instantiation.out
