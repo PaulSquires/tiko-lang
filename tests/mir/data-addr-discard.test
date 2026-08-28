@@ -1,0 +1,5 @@
+'' A DATA item that is the address of a shared variable, and a discarded string call.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/data-addr-discard.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/data-addr-discard.out

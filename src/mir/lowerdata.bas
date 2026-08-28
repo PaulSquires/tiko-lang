@@ -119,13 +119,48 @@ private function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as lo
             dim as Tko.UnaryPayload ptr aup = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, ae )].data )]
             dim as Tko.NodeId ao = Unparen_( c, aup->operand )
-            '' ONLY A STRING LITERAL. '@somevar' would be a relocation the
-            '' descriptor cannot express, and guessing it would put a number
-            '' where an address belongs.
-            if c.ast->Kind( ao ) <> Tko.N_STRING_LIT then return -1
-            types.Push( -2 )
-            refs.Push( c.m->AddStringLiteral( StringLitText_( c, ao ), *c.names ) )
-            continue for
+            if c.ast->Kind( ao ) = Tko.N_STRING_LIT then
+                types.Push( -2 )
+                refs.Push( c.m->AddStringLiteral( StringLitText_( c, ao ), *c.names ) )
+                continue for
+            end if
+            '' '@somevar' OVER A MODULE-LIFETIME VARIABLE IS A RELOCATION, and a
+            '' descriptor entry IS one: its ref names a GLOBAL. Measured:
+            ''
+            ''   data @"fOObAR", @mydbl, 5
+            ''   { (int16)-2, (void*)"fOObAR" }, { (int16)-2, (void*)&MYDBL$ },
+            ''   { (int16)1, (void*)"5" }, { (int16)-1, (void*)0ull }
+            ''
+            '' Refusing it cost far more than the one item: a block with any
+            '' unfoldable entry emits NOTHING, which leaves the module with no
+            '' data head at all -- so every DATA and every RESTORE in the file
+            '' declined too.
+            ''
+            '' A LOCAL still declines: it has no address the image can hold.
+            if c.ast->Kind( ao ) = Tko.N_IDENT then
+                dim as Tko.SymbolId asid = c.info->RefOf( ao )
+                dim as Tko.Symbol ptr asy = c.syms->SymbolAt( asid )
+                if asy <> 0 then
+                    if asy->kind = cast( ubyte, Tko.SYM_VARIABLE ) then
+                        '' SHARED or STATIC -- module lifetime, so the address is a
+                        '' link-time constant. A plain local has none.
+                        dim as boolean isMod = _
+                            ((asy->flags and Tko.SYMF_SHARED) <> 0)
+                        if isMod = false then
+                            isMod = ((asy->flags and Tko.SYMF_STATIC) <> 0)
+                        end if
+                        if isMod then
+                            dim as long ag = GlobalFor( c, asid )
+                            if ag >= 0 then
+                                types.Push( -2 )
+                                refs.Push( ag )
+                                continue for
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+            return -1
         end if
         if DataItemText_( c, e, isWide, txt ) = false then return -1
         if len( txt ) > 32766 then return -1        '' would collide with the terminator

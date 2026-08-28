@@ -712,7 +712,45 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' 'base( n )' IS THE BASE-CLASS CONSTRUCTOR, not a call to anything
                 '' named 'base' -- tried first, because the ordinary call path has no
                 '' callee to bind and would decline it.
-                if LowerBaseCtorCall_( c, sp->a ) = false then LowerExpr( c, sp->a )
+                if LowerBaseCtorCall_( c, sp->a ) = false then
+                    dim as MirValue dv = LowerExpr( c, sp->a )
+                    '' A DISCARDED STRING RESULT IS STILL A CALL, and it is released.
+                    '' 'hex( i )' as a statement is, measured:
+                    ''
+                    ''   FBSTRING* vr = fb_HEX_i( (uint32)I );
+                    ''   fb_hStrDelTemp( (FBSTRING*)vr );
+                    ''
+                    '' -- and the wide twin through fb_WstrHex_i and fb_WstrDelete.
+                    '' These callees answer only through the string-DESCRIPTOR path,
+                    '' which nothing asked for here, so LowerExpr produced nothing
+                    '' and the statement declined -- while 'dim s as string =
+                    '' hex( i )' beside it lowered.
+                    if dv.kind = cast( ubyte, MV_NONE ) then
+                        dim as MirValue sd
+                        dim as boolean released = false
+                        if TermIsWide_( c, sp->a ) then
+                            if WideOperand_( c, sp->a, sd ) then
+                                dim as FB.Array( of ulong ) wa
+                                wa.Push( cast( ulong, sd.kind ) )
+                                wa.Push( cast( ulong, sd.id ) )
+                                EmitRtl( c, RTL_WSTR_DELETE, wa )
+                                released = true
+                            end if
+                        elseif StrDescriptorOf_( c, sp->a, sd ) then
+                            dim as FB.Array( of ulong ) da
+                            da.Push( cast( ulong, sd.kind ) )
+                            da.Push( cast( ulong, sd.id ) )
+                            EmitRtl( c, RTL_H_STR_DEL_TEMP, da )
+                            released = true
+                        end if
+                        '' The call DID lower after all, so the failure the ordinary
+                        '' path recorded on the way past is not one.
+                        if released then
+                            c.lastCallOk = true
+                            c.lastCallFailLine = 0
+                        end if
+                    end if
+                end if
             else
                 LowerStmtCall( c, id )
             end if
