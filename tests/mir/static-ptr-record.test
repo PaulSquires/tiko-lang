@@ -1,0 +1,5 @@
+'' A static UDT of procedure pointers initialised with their addresses.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-ptr-record.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/static-ptr-record.out

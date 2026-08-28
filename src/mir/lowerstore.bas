@@ -707,15 +707,47 @@ private function GlobalPtrArrayInit_ _
       byval init as Tko.NodeId ) as boolean
 
     if init = Tko.NODE_NONE then return false
-    if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
+    '' A PAREN LIST COUNTS TOO. A UDT's initialiser is written '( a, b )' where an
+    '' array's is '{ a, b }', and both arrive here as a flat list of words.
+    select case c.ast->Kind( init )
+    case Tko.N_INITIALIZER, Tko.N_TUPLE, Tko.N_PAREN
+    case else
+        return false
+    end select
     dim as Tko.TypeId at = c.types->Unqualify( t )
-    if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
-    if c.types->IsDynArray( at ) then return false
-    dim as Tko.TypeId et = c.types->Unqualify( c.types->Inner( at ) )
-    '' POINTER-SIZED ELEMENTS ONLY. A procedure type is already a pointer in
-    '' FreeBASIC, so both spellings arrive here.
-    if LowerType( et, *c.types ) <> MT_PTR then return false
-    dim as long total = c.types->ElemCount( at )
+    dim as long total = 0
+    if c.types->Kind( at ) = Tko.TK_ARRAY then
+        if c.types->IsDynArray( at ) then return false
+        dim as Tko.TypeId et = c.types->Unqualify( c.types->Inner( at ) )
+        '' POINTER-SIZED ELEMENTS ONLY. A procedure type is already a pointer in
+        '' FreeBASIC, so both spellings arrive here.
+        if LowerType( et, *c.types ) <> MT_PTR then return false
+        total = c.types->ElemCount( at )
+    elseif c.types->Kind( at ) = Tko.TK_UDT then
+        '' A UDT WHOSE EVERY FIELD IS POINTER-SIZED IS A POINTER TABLE TOO, and it
+        '' is how a callback record is written. Measured:
+        ''
+        ''   static as fntype fn = ( @subr_cb, @func_cb )
+        ''     static struct $6FNTYPE FN$0 = { (tmp$2)&SUBR_CB, (tmp$3)&FUNC_CB };
+        ''
+        '' The byte-image fold cannot express a relocation, so without this the
+        '' declaration declined outright.
+        dim as long ui = c.udts->Find( at )
+        if ui < 0 then return false
+        dim as long uf = c.udts->udts[ui].first
+        dim as long un = c.udts->udts[ui].count
+        if un <= 0 then return false
+        dim as long pb2 = c.types->target.pointerBits \ 8
+        for k as long = 0 to un - 1
+            dim as Tko.UdtField ptr uff = @c.udts->fields[uf + k]
+            if uff->bitWidth <> 0 then return false
+            if LowerType( uff->type_, *c.types ) <> MT_PTR then return false
+            if uff->offset <> k * pb2 then return false
+        next
+        total = un
+    else
+        return false
+    end if
     if total <= 0 then return false
 
     dim as FB.Array( of ulong ) leaves
