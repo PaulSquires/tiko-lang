@@ -271,6 +271,21 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     '' The leading trim is what the two broken shapes needed; this one is only about
     '' matching fbc's token layout exactly, and it is not worth that.
     ''
+    '' AND A THIRD TIME, 2026-08-28, with a NARROWER rule: trim only where the
+    '' invocation sits in the MIDDLE OF AN EXPRESSION -- not at a line start and
+    '' not after a ':' -- which is the only place the kept end-of-line is wrong.
+    '' It fixes exactly what it was meant to:
+    ''
+    ''   #macro h( ) / "hello" / #endmacro   s = h( ) + "x"   -> "hellox"
+    ''
+    '' -- fbc compiles that, and an INTERIOR newline is genuinely a statement
+    '' break there too ('s = two( )' over a two-line body is fbc error 119). It
+    '' STILL BREAKS __FB_ARG_LISTEXPAND__: tests/mir/arg-listexpand's golden --
+    '' verified against fbc's own C, F(5,1,5) F(3,3,5) F(1,5,5) -- comes out with
+    '' the arguments re-associated. So the dependency is INSIDE an expansion, not
+    '' at its call site, and neither the line-start nor the ':' test can see it.
+    '' Reverted. Whatever depends on this, find it before a fourth attempt.
+
     '' RE-MEASURED 2026-08-26, because __FB_ARG_LISTEXPAND__ now writes the ' : '
     '' between its repetitions itself and the old reason looked spent. It is not: the
     '' pp corpus went from 77 declines to 900 and five preprocessor goldens changed.
