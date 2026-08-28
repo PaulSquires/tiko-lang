@@ -1184,10 +1184,14 @@ function LowerWstrOf _
     '' which is why this declined: 2,496 corpus statements, all of them
     '' 'dim w as wstring * 50 = trim( wstr( "..." ) )' and its relatives.
     if c.ast->Kind( a ) = Tko.N_STRING_LIT then
-        dim as string wlit = StringLitText_( c, a )
+        '' Through the wide reader, so a '\uXXXX' is a CODE UNIT here and not six
+        '' characters of spelling.
+        dim as long wch2 = 0
+        dim as long wg2 = WideLitGlobal_( c, a, wch2 )
+        if wg2 < 0 then return false
         outv.kind = cast( ubyte, MV_GLOBAL )
         outv.ty = cast( ubyte, MT_PTR )
-        outv.id = c.m->AddWideStringLiteral( wlit, *c.names )
+        outv.id = wg2
         return true
     end if
 

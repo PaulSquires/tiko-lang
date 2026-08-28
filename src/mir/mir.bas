@@ -50,8 +50,18 @@ sub MirModule.PushDataEntry _
     this.globals[g].dataCount += 1
 end sub
 
-function MirModule.AddWideStringLiteral _
-    ( byref text as string, byref names as Interner ) as long
+'' A WIDE LITERAL FROM ITS DECODED CODE UNITS.
+''
+'' 'text' is the literal's SOURCE spelling and is what the dump prints; the UNITS
+'' are the value. Widening the text one byte per unit -- which is what this used
+'' to be -- cannot express a '\uXXXX' above 255, and the corpus's wide tests are
+'' made of them: 'trim.bas' alone writes 186.
+''
+'' Two literals with the same TEXT have the same units, so the text is still the
+'' merge key.
+function MirModule.AddWideStringUnits _
+    ( byref text as string, byref units as FB.Array( of ulong ), _
+      byref names as Interner ) as long
 
     for i as long = 0 to this.globals.Count - 1
         if this.globals[i].isString andalso this.globals[i].isWide andalso _
@@ -63,9 +73,27 @@ function MirModule.AddWideStringLiteral _
     g.bytes = text
     g.isString = true
     g.isWide = true
+    g.wcharFirst = this.wcharPool.Count
+    g.wcharCount = units.Count
     g.name = names.GetString( "$wstr" & str( this.globals.Count ) )
     this.globals.Push( g )
+    for i as long = 0 to units.Count - 1
+        this.wcharPool.Push( units[i] )
+    next
     return this.globals.Count - 1
+end function
+
+'' ...and from plain TEXT, one unit per byte. Every caller that has no escapes to
+'' decode goes through here, and the units are filled in the same way so nothing
+'' downstream has to know which entry point was used.
+function MirModule.AddWideStringLiteral _
+    ( byref text as string, byref names as Interner ) as long
+
+    dim as FB.Array( of ulong ) units
+    for i as long = 0 to len( text ) - 1
+        units.Push( cast( ulong, text[i] ) )
+    next
+    return this.AddWideStringUnits( text, units, names )
 end function
 
 function MirModule.AddStringLiteral _

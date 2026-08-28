@@ -164,13 +164,31 @@ function DumpModule _
             next
             outp += " ]" & chr( 10 )
         elseif m.globals[i].isString then
-            '' A wide literal prints its SOURCE text with an L prefix, the way the
-            '' source spells it. Printing the widened bytes would put embedded NULs
-            '' in the dump.
-            dim as string pfx = "global str "
-            if m.globals[i].isWide then pfx = "global wstr "
-            outp += pfx & names.Spelling( m.globals[i].name ) & " " & _
-                    chr( 34 ) & m.globals[i].bytes & chr( 34 ) & chr( 10 )
+            '' A WIDE LITERAL PRINTS ITS CODE UNITS, not its source text: the text is
+            '' the SPELLING, and '!"\u0041"' spells one character with six of them.
+            '' Printing the text made a wrong wide literal look right in every
+            '' golden.
+            ''
+            '' Each unit in hex, four digits, so an embedded NUL and a character
+            '' above 255 both read back exactly. A unit that is printable ASCII
+            '' prints as itself, which keeps the common case legible.
+            if m.globals[i].isWide then
+                outp += "global wstr " & names.Spelling( m.globals[i].name ) & _
+                        " " & chr( 34 )
+                for k as long = 0 to m.globals[i].wcharCount - 1
+                    dim as ulong u = m.wcharPool[m.globals[i].wcharFirst + k]
+                    if (u >= 32) andalso (u < 127) andalso (u <> 34) andalso _
+                       (u <> 92) then
+                        outp += chr( cast( long, u ) )
+                    else
+                        outp += "\u" & ucase( hex( u, 4 ) )
+                    end if
+                next
+                outp += chr( 34 ) & chr( 10 )
+            else
+                outp += "global str " & names.Spelling( m.globals[i].name ) & _
+                        " " & chr( 34 ) & m.globals[i].bytes & chr( 34 ) & chr( 10 )
+            end if
         elseif m.globals[i].isVar then
             '' A DIM SHARED variable. The initialiser is part of the definition, the
             '' way fbc emits 'static int32 H$ = 5;', so it is printed here and not as

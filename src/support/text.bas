@@ -400,7 +400,7 @@ end function
 '' NOTHING; 'i' advances past everything consumed. Byte-for-byte the rule MIR's own
 '' reader applies -- the two used to be one routine over a source SPAN, which the
 '' preprocessor has no way to reach.
-private function EscapeByteIn_( byref b as string, byref i as long ) as long
+function EscapeByteAt( byref b as string, byref i as long ) as long
     i += 1
     if i > len( b ) then return 92
     dim as long c = asc( mid( b, i, 1 ) )
@@ -471,7 +471,7 @@ function DecodeEscapedBody _
     dim as long i = 1
     while i <= n
         if asc( mid( body, i, 1 ) ) = 92 then
-            dim as long v = EscapeByteIn_( body, i )
+            dim as long v = EscapeByteAt( body, i )
             if v >= 0 then r += chr( v )
         else
             r += mid( body, i, 1 )

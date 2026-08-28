@@ -1,0 +1,36 @@
+'' A WIDE LITERAL HELD THE SPELLING OF ITS ESCAPES, not their value.
+''
+'' StringLitText_ answers in BYTES and deliberately leaves an escaped literal
+'' containing a unicode escape alone -- decoding the byte escapes around one and
+'' dropping the wide ones would produce a literal that is neither compiler's answer --
+'' so the RAW TEXT flowed through to the wide global. A 'wstring' initialised from
+'' '!"AB"' held the TWELVE characters of the spelling where fbc has the two
+'' characters AB. It lowered, it verified, and nothing anywhere said so.
+''
+'' 34 corpus files are made of it and none of them declines: wstring/trim.bas writes
+'' 186 unicode escapes and lowered clean the whole time. Measured by RUNNING fbc's
+'' output -- the three lengths in the source are 2, 3 and 3.
+''
+'' A '\uXXXX' cannot be a byte, so the model had to change: a wide global now carries
+'' its CODE UNITS in a pool beside the data blocks, and 'bytes' keeps the source
+'' spelling for the dump alone. Every site that turns a literal into a wide global goes
+'' through one reader, so the length and the units come from the same decode -- they
+'' disagreed before, because the length was the spelling's.
+''
+'' EXACTLY FOUR HEX DIGITS: fewer is not this escape, and a greedy run would swallow
+'' the text after it. Every other escape is the byte the narrow reader gives, widened,
+'' and a NUL from a numeric escape ends the literal exactly as it does there.
+''
+'' STILL WRONG, and recorded rather than half-fixed: a '\u' literal assigned to a
+'' NARROW string. fbc makes the whole literal a WSTRING and emits
+'' 'fb_WstrAssignToA_Init( &S, -1, L"AB", 0 )'; tiko-lang still treats it as narrow and
+'' keeps the spelling. That is a TYPING question, not a reader one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-unicode-escape.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: global wstr $wstr0 "AB"
+'' EXPECT-OUT: global wstr $wstr1 "\u3041\u3043\u3045"
+'' EXPECT-OUT: global wstr $wstr2 "A\u0009B"
+'' GOLDEN: expected/wide-unicode-escape.out

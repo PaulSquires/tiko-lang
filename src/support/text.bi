@@ -86,6 +86,14 @@ namespace Tko.Text
     '' A UNICODE escape makes the whole literal WIDE, which this does not model:
     '' 'outWide' comes back true and the result is empty, so a caller refuses rather
     '' than getting the byte escapes around it decoded and the wide ones dropped.
+    '' ONE escape, 'i' indexing the BACKSLASH: the byte it stands for, or -1 for an
+    '' escape that produces nothing. 'i' advances past everything consumed. Exposed
+    '' beside the whole-body reader because a WIDE literal has to walk the escapes
+    '' itself -- '\uXXXX' is a CODE UNIT and not a byte, so it cannot go through a
+    '' routine that answers in bytes.
+    declare function EscapeByteAt _
+        ( byref body as string, byref i as long ) as long
+
     declare function DecodeEscapedBody _
         ( byref body as string, byref outWide as boolean ) as string
 

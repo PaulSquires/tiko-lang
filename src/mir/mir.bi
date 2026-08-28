@@ -300,9 +300,15 @@ namespace Tko.Mir
         '' It cannot reuse the DATA block: a data entry's ref is always a global, and
         '' a vtable's slots are FUNCTIONS -- by name, because the function may be
         '' declared in another module and have no index here.
+        '' A WIDE LITERAL'S CODE UNITS. 'bytes' holds the literal's SOURCE TEXT, which
+        '' is what the dump prints and what one-byte-per-unit widening used to be
+        '' derived from -- and that cannot hold a '\uXXXX' above 255 at all. The
+        '' units are the VALUE; the text is for reading.
         as boolean  isPtrTable
         as long     ptrFirst
         as long     ptrCount
+        as long     wcharFirst
+        as long     wcharCount
         '' DECLARED HERE, DEFINED ELSEWHERE. 'object' has an RTTI record that fbc
         '' references and never emits -- 'extern struct $8fb_RTTI$ __fb_ZTS6Object' --
         '' because it lives in the runtime. Without saying so, an empty table would
@@ -350,6 +356,10 @@ namespace Tko.Mir
         '' 2 a function's address (ref is the InternId of its emitted name).
         as FB.Array( of long )  ptrKinds
         as FB.Array( of ulong ) ptrRefs
+        '' Every wide literal's code units, pooled beside the data blocks and for the
+        '' same reason: an FB.Array by value inside a struct that itself lives in an
+        '' FB.Array is a copy hazard.
+        as FB.Array( of ulong ) wcharPool
         as FB.Array( of ulong ) argPool     '' call arguments, as MirValue ids
 
         declare constructor( )
@@ -361,6 +371,11 @@ namespace Tko.Mir
         declare function AddDataBlock( byref names as Interner ) as long
         declare sub PushDataEntry _
             ( byval g as long, byval ty as long, byval ref as long )
+        '' ...FROM ITS DECODED CODE UNITS, which is the only form that can carry a
+        '' '\uXXXX'. 'text' is kept for the dump and never read as the value.
+        declare function AddWideStringUnits _
+            ( byref text as string, byref units as FB.Array( of ulong ), _
+              byref names as Interner ) as long
         declare function AddWideStringLiteral _
             ( byref text as string, byref names as Interner ) as long
         declare function AddStringLiteral _

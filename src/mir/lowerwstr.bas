@@ -794,6 +794,115 @@ function WideConcatToTemp_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+
+'' A WIDE LITERAL'S CODE UNITS, with its escapes decoded.
+''
+'' '\uXXXX' IS A CODE UNIT, NOT A BYTE, which is why this exists beside the narrow
+'' reader rather than inside it: StringLitText_ answers in bytes and DELIBERATELY
+'' leaves an escaped literal containing a unicode escape alone, because decoding the
+'' byte escapes around one and dropping the wide ones would produce a literal that is
+'' neither compiler's answer.
+''
+'' So the raw text flowed through to the wide global, and a 'wstring' initialised
+'' from '!"\u0041\u0042"' held the twelve characters of the SPELLING where fbc has
+'' the two characters AB. It lowered, it verified, and 34 corpus files are made of
+'' it -- wstring/trim.bas writes 186 of them and declines nothing.
+''
+'' Every other escape is the byte the narrow reader gives, widened: measured, fbc's
+'' own wide literal for '!"A\n"' is L"A\\x000A".
+declare function WideLitUnits_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, _
+      byref outText as string, byref outUnits as FB.Array( of ulong ) ) as boolean
+
+'' A SOURCE LITERAL AS A WIDE GLOBAL, with its escapes decoded, and the CHARACTER
+'' COUNT that goes with it. Every site that turns an N_STRING_LIT into a wide
+'' literal goes through here: the count is the units', not the spelling's, and
+'' '!"\u0041"' is one character written with six.
+''
+'' Returns -1 when the node is not a literal this can read.
+function WideLitGlobal_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
+
+    outChars = 0
+    dim as string wtext
+    dim as FB.Array( of ulong ) wunits
+    if WideLitUnits_( c, id, wtext, wunits ) = false then return -1
+    outChars = cast( long, wunits.Count )
+    return c.m->AddWideStringUnits( wtext, wunits, *c.names )
+end function
+
+private function WideLitUnits_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, _
+      byref outText as string, byref outUnits as FB.Array( of ulong ) ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_STRING_LIT then return false
+    dim as Tko.LiteralPayload ptr lp = _
+        @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->strLength < 0 then return false
+    dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
+    if f = 0 then return false
+    if (lp->strOffset + lp->strLength) > f->text.Count then return false
+
+    '' The RAW body, with '""' collapsed to one quote -- the same first step the
+    '' narrow reader takes, and for the same reason: the span is source.
+    dim as string body = ""
+    dim as long k = 0
+    while k < lp->strLength
+        dim as ubyte ch = f->text[lp->strOffset + k]
+        body += chr( ch )
+        if (ch = 34) andalso (k + 1 < lp->strLength) then
+            if f->text[lp->strOffset + k + 1] = 34 then k += 1
+        end if
+        k += 1
+    wend
+    outText = body
+
+    if lp->strKind <> cast( ubyte, Tko.STRK_ESCAPED ) then
+        '' Not an escaped literal: every byte is its own code unit.
+        for i as long = 0 to len( body ) - 1
+            outUnits.Push( cast( ulong, body[i] ) )
+        next
+        return true
+    end if
+
+    dim as long p2 = 1
+    while p2 <= len( body )
+        if asc( mid( body, p2, 1 ) ) <> 92 then
+            outUnits.Push( cast( ulong, asc( mid( body, p2, 1 ) ) ) )
+            p2 += 1
+            continue while
+        end if
+        dim as long nx = 0
+        if p2 + 1 <= len( body ) then nx = asc( mid( body, p2 + 1, 1 ) )
+        if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
+            '' EXACTLY FOUR HEX DIGITS. Fewer is not this escape, and reading a
+            '' greedy run would swallow the text after it.
+            if p2 + 5 > len( body ) then return false
+            dim as long uv = 0
+            for d as long = 0 to 3
+                dim as long hc = asc( mid( body, p2 + 2 + d, 1 ) )
+                dim as long dv = -1
+                if (hc >= 48) andalso (hc <= 57) then dv = hc - 48
+                if (hc >= 97) andalso (hc <= 102) then dv = hc - 87
+                if (hc >= 65) andalso (hc <= 70) then dv = hc - 55
+                if dv < 0 then return false
+                uv = uv * 16 + dv
+            next
+            outUnits.Push( cast( ulong, uv ) )
+            p2 += 6
+            continue while
+        end if
+        dim as long bi = p2
+        dim as long bv = Tko.Text.EscapeByteAt( body, bi )
+        p2 = bi
+        '' A NUL FROM A NUMERIC ESCAPE ENDS THE LITERAL, exactly as it does in the
+        '' narrow reader -- measured there by running fbc's own output.
+        if bv = 0 then exit while
+        if bv > 0 then outUnits.Push( cast( ulong, bv ) )
+    wend
+    return true
+end function
+
 function WideOperand_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -803,9 +912,12 @@ function WideOperand_ _
     '' against a wstring -- a genuinely wide global, not a narrow one widened at
     '' runtime -- so it takes the wide literal pool the DATA statement already uses.
     if c.ast->Kind( id ) = Tko.N_STRING_LIT then
+        dim as string wtext
+        dim as FB.Array( of ulong ) wunits
+        if WideLitUnits_( c, id, wtext, wunits ) = false then return false
         outv.kind = cast( ubyte, MV_GLOBAL )
         outv.ty = cast( ubyte, MT_PTR )
-        outv.id = c.m->AddWideStringLiteral( StringLitText_( c, id ), *c.names )
+        outv.id = c.m->AddWideStringUnits( wtext, wunits, *c.names )
         return true
     end if
 

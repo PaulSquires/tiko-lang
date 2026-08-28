@@ -87,8 +87,13 @@ function EmitStrTerm _
         '' A USTRING LITERAL IS UTF-16 AND ITS LENGTH IS TAGGED. Emitting the narrow
         '' global here is what put narrow bytes in a UTF-16 descriptor.
         if isU then
-            PushUStrLiteralArg( c, args, _
-                c.m->AddWideStringLiteral( litText, *c.names ), len( litText ) )
+            '' THE UNITS, not the spelling: '!"\u0041"' is one character written
+            '' with six, and both the global and the length come from the same
+            '' decode.
+            dim as long wch = 0
+            dim as long wg = WideLitGlobal_( c, term, wch )
+            if wg < 0 then return false
+            PushUStrLiteralArg( c, args, wg, wch )
         else
             PushStrLiteralArg( args, c.m->AddStringLiteral( litText, *c.names ), _
                                len( litText ) )
