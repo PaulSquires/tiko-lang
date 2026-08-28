@@ -1,0 +1,5 @@
+'' 'seek( n )' is fb_FileTell and 'color( fg )' in expression position keeps its result.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/seek-color-rvalue.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/seek-color-rvalue.out

@@ -41,7 +41,13 @@ private function LowerNewArray_ _
     elseif np->count <> 1 then
         return false
     end if
-    dim as Tko.TypeId el = c.info->TypeOf_( np->target )
+    '' 'new const A' ALLOCATES AND CONSTRUCTS EXACTLY AS 'new A' DOES -- the const
+    '' is on the RESULT POINTER's target, not on the allocation. Measured, fbc
+    '' emits the same calloc and the same '_ZN1AC1Ev( TMP )' for both. Left
+    '' qualified, the element type is a TK_QUALIFIED and every lookup below --
+    '' the size, the constructor, the vptr -- asks for a UDT and gets nothing,
+    '' so the whole 'dim p as const A ptr = new const A' declined.
+    dim as Tko.TypeId el = c.types->Unqualify( c.info->TypeOf_( np->target ) )
     if el = Tko.TYPE_NONE then return false
     dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return false
@@ -222,7 +228,13 @@ function LowerNew_ _
         return LowerNewArray_( c, id, np, outv )
     end if
 
-    dim as Tko.TypeId el = c.info->TypeOf_( np->target )
+    '' 'new const A' ALLOCATES AND CONSTRUCTS EXACTLY AS 'new A' DOES -- the const
+    '' is on the RESULT POINTER's target, not on the allocation. Measured, fbc
+    '' emits the same calloc and the same '_ZN1AC1Ev( TMP )' for both. Left
+    '' qualified, the element type is a TK_QUALIFIED and every lookup below --
+    '' the size, the constructor, the vptr -- asks for a UDT and gets nothing,
+    '' so the whole 'dim p as const A ptr = new const A' declined.
+    dim as Tko.TypeId el = c.types->Unqualify( c.info->TypeOf_( np->target ) )
     if el = Tko.TYPE_NONE then return false
     dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return false

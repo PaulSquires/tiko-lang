@@ -565,6 +565,9 @@ declare function EmitRtl _
     declare function CtorOf_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval want as long ) as Tko.SymbolId
     declare function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerColorCall_ _
+        ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
+          byval argCount as long, byref outv as MirValue ) as boolean
     declare function LowerBuiltinProc _
         ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
           byval argCount as long, byref outv as MirValue, _

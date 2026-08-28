@@ -1074,6 +1074,11 @@ private function BuiltinProcRtl _
         case "run"          : retTy = MT_I32  : return RTL_RUN
         case "width"        : retTy = MT_I32  : return RTL_WIDTH
         case "chain"        : retTy = MT_I32  : return RTL_CHAIN
+        '' 'seek( n )' -- THE FUNCTION SPELLING, which is a DIFFERENT entry point
+        '' from the statement's: measured, 'dim as longint p = seek( 1 )' is
+        '' 'fb_FileTell( 1 )' where 'seek #1, 2' is fb_FileSeekLarge. A comment
+        '' in lowerdev.bas claimed this spelling 'already lowers'; it did not.
+        case "seek"         : retTy = MT_I64  : return RTL_FILE_TELL
         case "bsave"        : retTy = MT_I32  : return RTL_BSAVE
         case "bload"        : retTy = MT_I32  : return RTL_BLOAD
         case "dylibload"    : retTy = MT_PTR  : return RTL_DYLIB_LOAD

@@ -291,6 +291,29 @@ function LowerCtorInit _
         ai2 += 1
     next
 
+    '' EVERY PARAMETER PAST THE WRITTEN ARGUMENTS TAKES ITS DEFAULT, now that a
+    '' constructor with a defaulted tail can be picked at all. Without this the
+    '' call would go out one argument short and the callee would read the slot.
+    dim as long dseen = 0
+    for i as long = 0 to cpp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if dseen >= argT.Count then
+            dim as Tko.StmtPayload ptr dsp = StmtOf( c, prm )
+            if dsp->b = Tko.NODE_NONE then return false
+            dim as MirValue dv = LowerExpr( c, dsp->b )
+            if dv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as Tko.TypeId dt = c.info->TypeOf_( dsp->a )
+            dv = Coerce( c, dv, LowerType( dt, *c.types ), IsUnsignedType( c, dt ) )
+            if dv.kind = cast( ubyte, MV_NONE ) then return false
+            argT.Push( cast( ulong, dt ) )
+            argKind.Push( cast( ulong, dv.kind ) )
+            argId.Push( cast( ulong, dv.id ) )
+            argDesc.Push( 0 )
+        end if
+        dseen += 1
+    next
+
     '' THE RECEIVER, which is a local slot in every case but one: a STATIC LOCAL lives
     '' in module storage, so its address is a global and there is no slot to name.
     dim as long first = c.m->argPool.Count \ 2
@@ -413,6 +436,31 @@ function PushCtorArgs_ _
             if av.kind = cast( ubyte, MV_NONE ) then return false
         end if
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    next
+
+    '' EVERY PARAMETER PAST THE WRITTEN ARGUMENTS TAKES ITS DEFAULT. fbc fills
+    '' them at the call -- measured, 'A( 5 )' over
+    '' 'constructor( byval c as long, byval os as long = 0 )' is
+    '' '_ZN1AC1Eii( &A, 5, 0 )' -- and without this the call went out ONE ARGUMENT
+    '' SHORT, which the callee then read off the stack.
+    dim as long seen2 = 0
+    for k as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen2 >= pi then
+            dim as Tko.StmtPayload ptr dp = StmtOf( c, prm )
+            if dp->b = Tko.NODE_NONE then return false
+            dim as MirValue dv = LowerExpr( c, dp->b )
+            if dv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as Tko.TypeId dt = c.info->TypeOf_( dp->a )
+            if dt <> Tko.TYPE_NONE then
+                dv = Coerce( c, dv, LowerType( dt, *c.types ), _
+                             IsUnsignedType( c, dt ) )
+                if dv.kind = cast( ubyte, MV_NONE ) then return false
+            end if
+            args.Push( cast( ulong, dv.kind ) ) : args.Push( cast( ulong, dv.id ) )
+        end if
+        seen2 += 1
     next
     return true
 end function

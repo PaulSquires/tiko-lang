@@ -825,6 +825,34 @@ private function IntrinsicCallType_ _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
+    '' THE RUNTIME PROCEDURES SPELLED AS ORDINARY IDENTIFIERS. Nothing binds them,
+    '' so the callee lookup finds no symbol and the call came out UNTYPED -- and
+    '' 'var oldcolors = color( 1 )' then declared a variable with no type and
+    '' stored an i32 into a void slot. The verifier caught it; two corpus files.
+    ''
+    '' Measured, one '#print typeof' each, and COLOR IS UNSIGNED where the rest
+    '' are not:
+    ''
+    ''   color  ULONG      width run bsave bload chain  LONG
+    ''   seek   LONGINT    dylibload dylibsymbol        ANY PTR
+    ''
+    '' ONLY WHEN THE NAME IS UNBOUND: a program of its own that declares 'run'
+    '' or 'seek' must keep its own result type, and the symbol says which this
+    '' is. The lowering side of the same table is BuiltinProcRtl's unbound-only
+    '' half in lowerintr.bas; a name added to one belongs in both.
+    if c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE then
+        select case nm
+        case "color"
+            return c.types->Builtin( Tko.TY_ULONG )
+        case "width", "run", "bsave", "bload", "chain"
+            return c.types->Builtin( Tko.TY_LONG )
+        case "seek"
+            return c.types->Builtin( Tko.TY_LONGINT )
+        case "dylibload", "dylibsymbol"
+            return c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )
+        end select
+    end if
+
     '' '__FB_QUERY_SYMBOL__( query, symbol )' IS AN INTEGER, whatever it is asked --
     '' measured, '#print typeof' of one says INTEGER even for the text queries. Its
     '' SECOND argument is a symbol rather than a value, so nothing about it can be

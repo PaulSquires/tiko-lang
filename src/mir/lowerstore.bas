@@ -257,13 +257,39 @@ function PickCtor _
                 dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                 if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
             next
-            if np = argT.Count then
+            '' A CONSTRUCTOR WITH DEFAULTED TRAILING PARAMETERS IS VIABLE FOR THE
+            '' SHORTER CALL. 'constructor( byval c as long, byval os as long = 0 )'
+            '' answers 'A( 5 )' -- measured, fbc emits '_ZN1AC1Eii( &A1, 5, 0 )'
+            '' for it -- and an exact-arity test alone found no constructor at
+            '' all, so 'dim as A a1 = A( 5 )' fell to default-construct-then-copy:
+            '' the DEFAULT constructor ran over a1 and a temporary's bytes were
+            '' written on top of it. Two constructors on one object where fbc
+            '' runs one.
+            dim as boolean arityOk = (np = argT.Count)
+            if (arityOk = false) andalso (np > argT.Count) then
+                arityOk = true
+                dim as long sd = 0
+                for i as long = 0 to pp->count - 1
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                    if sd >= argT.Count then
+                        if StmtOf( c, prm )->b = Tko.NODE_NONE then
+                            arityOk = false
+                            exit for
+                        end if
+                    end if
+                    sd += 1
+                next
+            end if
+            if arityOk then
                 dim as long total = 0
                 dim as long ai = 0
                 dim as boolean viable = true
                 for i as long = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                    '' The defaulted tail costs nothing: there is no argument to convert.
+                    if ai >= argT.Count then exit for
                     dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
                     '' AN ARRAY PARAMETER IS MATCHED BY ITS ELEMENT TYPE. Its declared
                     '' type IS the element -- the array-ness is the parameter node's
@@ -334,6 +360,7 @@ end function
 function StructorWithArity _
     ( byref c as Ctx, byval first_ as Tko.SymbolId, byval want as long ) as Tko.SymbolId
 
+    dim as Tko.SymbolId defaulted = Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = first_
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
@@ -347,10 +374,32 @@ function StructorWithArity _
                 if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
             next
             if np = want then return cur
+            '' ...OR TAKES MORE, WITH A DEFAULT FOR EVERY ONE PAST 'want'. An exact
+            '' match is preferred, so this is only remembered and returned if the
+            '' walk finds nothing better.
+            ''
+            '' 'declare constructor( byval c as long, byval os as long = 0 )'
+            '' called as 'A( 5 )' found NO constructor at all and the declaration
+            '' declined -- while the same defaults on an ordinary SUB worked, which
+            '' is why this looked like a UDT problem. fbc fills the default at the
+            '' call: measured, '_ZN1EC1EiR8FBSTRINGi( &A$0, 1, &TMP, 0 )'.
+            if (np > want) andalso (defaulted = Tko.SYMBOL_NONE) then
+                dim as long seen = 0
+                dim as boolean allDef = true
+                for i as long = 0 to pp->count - 1
+                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                    if seen >= want then
+                        if StmtOf( c, prm )->b = Tko.NODE_NONE then allDef = false
+                    end if
+                    seen += 1
+                next
+                if allDef then defaulted = cur
+            end if
         end if
         cur = s->nextOverload
     wend
-    return Tko.SYMBOL_NONE
+    return defaulted
 end function
 
 '' A call to a structor with the slot's address as the implicit THIS. The receiver is

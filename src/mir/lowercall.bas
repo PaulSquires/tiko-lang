@@ -194,6 +194,13 @@ function LowerCallParts _
         '' beside the other built-ins at the top of this routine, so a program
         '' that declares its own 'sub run( )' still calls its own.
         dim as MirValue rv2
+        '' COLOR fills in DEFAULTS the arity guard below cannot express: its third
+        '' argument is a mask of what was omitted, so a one-argument call is a
+        '' three-argument entry point.
+        if LowerColorCall_( c, calleeNode, argFirst, argCount, rv2 ) then
+            c.lastCallOk = true
+            return rv2
+        end if
         if LowerBuiltinProc( c, calleeNode, argFirst, argCount, rv2, true ) then
             c.lastCallOk = true
             return rv2

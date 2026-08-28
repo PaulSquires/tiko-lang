@@ -1,0 +1,6 @@
+'' A defaulted trailing constructor parameter is filled at the call; 'new const T'
+'' lowers as 'new T'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-default-args.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/ctor-default-args.out

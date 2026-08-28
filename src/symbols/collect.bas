@@ -830,7 +830,15 @@ sub WalkNode _
                 sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
                                 w.ast->Loc( id ) )
             else
-                sid = w.syms->LookupLocal( parentScope, declName )
+                '' THE OVERLOAD THIS DEFINITION IS, not the head of the chain. A bare
+                '' lookup answers whichever constructor was declared first, so with two
+                '' of them BOTH definitions attached to the same symbol and the second
+                '' overwrote its 'inner' scope. Lowering then took the receiver from
+                '' the WRONG scope for the other constructor: its body's 'this' was a
+                '' different symbol from the parameter, so it allocated a fresh
+                '' uninitialised 'this$N' local and every field store in that
+                '' constructor went through garbage. It lowered and it verified.
+                sid = MemberDeclForDef_( w, parentScope, declName, sp )
                 if sid = Tko.SYMBOL_NONE then
                     sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
                                     w.ast->Loc( id ) )

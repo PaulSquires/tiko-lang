@@ -46,15 +46,20 @@ end function
 '' omitted argument passes 0, and the mask is the only thing that tells the
 '' runtime which of those zeros to believe. Guessing it as a COUNT would answer
 '' correctly for two of the four.
-private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
-    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->count > 2 then return false
+'' COLOR's arguments and its mask, from wherever they were written. The STATEMENT
+'' keeps them on an N_INTRINSIC and the EXPRESSION on an N_CALL, and the emission
+'' is the same either way -- 'var oldcolors = color( 1 )' is 'fb_Color( 1, 0, 2u )',
+'' the same call the statement makes with its result discarded.
+private function LowerColorArgs_ _
+    ( byref c as Ctx, byval first as long, byval count as long, _
+      byref outv as MirValue ) as boolean
 
+    if count > 2 then return false
     dim as long mask = 0
     dim as FB.Array( of ulong ) args
     for k as long = 0 to 1
         dim as Tko.NodeId e = Tko.NODE_NONE
-        if k < sp->count then e = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        if k < count then e = cast( Tko.NodeId, c.ast->children[first + k] )
         if e <> Tko.NODE_NONE then
             if c.ast->Kind( e ) = Tko.N_ELIDED then e = Tko.NODE_NONE
         end if
@@ -69,6 +74,29 @@ private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
         end if
     next
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, mask ) )
-    EmitRtl( c, RTL_COLOR, args )
-    return true
+    outv = EmitRtl( c, RTL_COLOR, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
+
+'' 'color( fg )' IN EXPRESSION POSITION yields the PREVIOUS colours, which is what
+'' the runtime returns and what 'var oldcolors = color( 1 )' is for.
+function LowerColorCall_ _
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
+      byval argCount as long, byref outv as MirValue ) as boolean
+
+    if calleeNode = Tko.NODE_NONE then return false
+    if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "color" then
+        return false
+    end if
+    return LowerColorArgs_( c, argFirst, argCount, outv )
+end function
+
+private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as MirValue cv
+    return LowerColorArgs_( c, sp->first, sp->count, cv )
+end function
+
