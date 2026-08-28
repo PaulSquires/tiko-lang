@@ -1,0 +1,6 @@
+'' A type/procedure name collision on a member base, a byref converting constructor over
+'' an rvalue, and a bare 'type( )' argument.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-arg-shapes.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/udt-arg-shapes.out

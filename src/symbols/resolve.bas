@@ -667,6 +667,44 @@ private sub WalkExpr _
             return
         end if
 
+        '' A NAME THAT IS BOTH A TYPE AND A PROCEDURE: as the BASE of a member
+        '' access it is the TYPE. An identifier in expression position deliberately
+        '' prefers the VALUE class -- see the N_IDENT case -- and that is right
+        '' everywhere except here, because a PROCEDURE has no members to reach.
+        ''
+        '' Measured, and it is not hypothetical: 'crt/time.bi' declares a global
+        '' 'localtime', 'fb/chrono.bi' declares 'FB.LocalTime', and including both
+        '' made every 'LocalTime.<static>( )' inside the namespace resolve to the C
+        '' function. Ten statements in tui/tuiterm_.bas, thirteen in the corpus,
+        '' and fbc compiles all of them.
+        ''
+        '' ONLY WHEN THE TYPE ACTUALLY HAS THE MEMBER, so a genuine call whose
+        '' result is reached into is untouched.
+        if c.ast->Kind( mb->lhs ) = Tko.N_IDENT then
+            dim as Tko.Symbol ptr bp0 = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
+            if bp0 <> 0 then
+                if bp0->kind = cast( ubyte, Tko.SYM_PROC ) then
+                    if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+                        dim as Tko.SymbolId tsid3 = c.syms->LookupTyped( _
+                            scope_, IdentNameOf( c, mb->lhs ), true )
+                        dim as Tko.Symbol ptr ty3 = c.syms->SymbolAt( tsid3 )
+                        if ty3 <> 0 then
+                            dim as boolean isUdt = _
+                                (ty3->kind = cast( ubyte, Tko.SYM_UDT ))
+                            dim as boolean hasIn = (ty3->inner <> Tko.SCOPE_NONE)
+                            if isUdt andalso hasIn then
+                                dim as Tko.SymbolId m3 = c.syms->LookupLocal( _
+                                    ty3->inner, IdentNameOf( c, mb->rhs ) )
+                                if m3 <> Tko.SYMBOL_NONE then
+                                    c.info->SetRef( mb->lhs, tsid3 )
+                                end if
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+
         dim as Tko.SymbolId bsid = c.info->RefOf( mb->lhs )
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
         if bs <> 0 then
