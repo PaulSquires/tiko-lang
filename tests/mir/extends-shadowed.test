@@ -1,0 +1,5 @@
+'' A type whose base clause names its own spelling from an enclosing scope.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/extends-shadowed.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/extends-shadowed.out

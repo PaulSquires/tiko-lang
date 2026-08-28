@@ -1174,7 +1174,47 @@ sub WalkStmt _
 
     case Tko.N_FIELD
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        dim as Tko.TypeId t = ResolveTypeRef( c, sp->a, here )
+        '' A TYPE IS NOT VISIBLE IN ITS OWN 'extends' CLAUSE. 'type UDT1 extends
+        '' UDT1' inside a namespace names the OUTER UDT1 -- fbc compiles it and
+        '' prints -1 for 'is' against the inner one -- but the lookup starts in the
+        '' type's own scope, found ITSELF, and the type became its own base: no
+        '' layout, so 'new ns1.UDT1' had nothing to size.
+        ''
+        '' The base is a synthesised FIELD named 'base' -- a keyword, so no user
+        '' field can be called that -- and it is the only field whose type may not
+        '' see the type around it.
+        dim as Tko.ScopeId fhere = here
+        dim as boolean isBaseFld = _
+            (sp->name = c.names->Fold( c.names->GetString( "base" ) ))
+        if isBaseFld then
+            dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( here )
+            if fsc <> 0 then
+                if fsc->parent <> Tko.SCOPE_NONE then fhere = fsc->parent
+            end if
+        end if
+        dim as Tko.TypeId t = ResolveTypeRef( c, sp->a, fhere )
+        '' ...AND IF IT STILL FOUND ITSELF, from one scope further out. A namespace
+        '' holds the type being declared as well, so stepping out ONE level is not
+        '' enough for 'namespace ns1 : type UDT1 extends UDT1'. Stepping out
+        '' unconditionally would be wrong -- a base declared BESIDE this type in
+        '' the same namespace is an ordinary sibling and must still be found -- so
+        '' the retry happens only when the answer IS this type.
+        if isBaseFld andalso (t <> Tko.TYPE_NONE) then
+            dim as Tko.SymScope ptr osc = c.syms->ScopeAt( here )
+            if osc <> 0 then
+                dim as Tko.Symbol ptr osy = c.syms->SymbolAt( osc->owner )
+                if osy <> 0 then
+                    if c.types->Unqualify( t ) = c.types->Unqualify( osy->type_ ) then
+                        dim as Tko.SymScope ptr psc = c.syms->ScopeAt( fhere )
+                        if psc <> 0 then
+                            if psc->parent <> Tko.SCOPE_NONE then
+                                t = ResolveTypeRef( c, sp->a, psc->parent )
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
         '' A field declared with bounds is an ARRAY of that type. The bounds are
         '' low/high pairs and the element count is their product -- which the layout
         '' needs, and which was simply lost while the bounds were being skipped.
