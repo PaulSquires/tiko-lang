@@ -1,0 +1,27 @@
+'' SEEK, COLOR AND A WIDE WRITE ITEM -- three statement kinds that reached the
+'' dispatcher and fell off the end of it. Every RTL entry point they need was already
+'' declared in rtl.bi; what was missing was the lowering.
+''
+'' COLOR's THIRD ARGUMENT IS A MASK OF WHAT WAS OMITTED, and that is not derivable
+'' from the argument count -- measured, all four spellings:
+''
+''   color 1, 2   fb_Color( 1, 2, 0u )      color 3   fb_Color( 3, 0, 2u )
+''   color , 4    fb_Color( 0, 4, 1u )      color     fb_Color( 0, 0, 3u )
+''
+'' -- so bit 1 says the FOREGROUND was not written and bit 2 the BACKGROUND, and an
+'' omitted argument passes 0. Reading it as a COUNT would answer correctly for two of
+'' the four.
+''
+'' WRITE's wide item asked LowerAddr for an address, which only an addressable wide
+'' VARIABLE has, so 'write #1, wstr( "W" )' had nothing to pass and the whole statement
+'' declined. WideOperand_ knows all three spellings and is what every other wide site
+'' already asks. file/encod.bas is three of them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/seek-color-write.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_FileSeekLarge
+'' EXPECT-OUT: fb_WriteWstr
+'' EXPECT-OUT: fb_Color(0, 0, 3)
+'' GOLDEN: expected/seek-color-write.out

@@ -82,8 +82,15 @@ private function WriteOne_ _
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
 
-    if IsWideString_( c, t ) then
-        dim as MirValue wa = LowerAddr( c, it )
+    '' A WIDE ITEM, AND ITS RVALUE SPELLINGS. LowerAddr alone accepted only an
+    '' addressable wide variable, so 'write #1, wstr( "World!" )' had nothing to
+    '' pass and the whole statement declined -- measured, fbc writes
+    '' 'fb_WriteWstr( 1, (uint16*)L"World!", 1 )'. WideOperand_ knows all three
+    '' spellings and is what every other wide site already asks; only this one
+    '' asked for an address directly. file/encod.bas is three of them.
+    if IsWideString_( c, t ) orelse TermIsWide_( c, it ) then
+        dim as MirValue wa
+        if WideOperand_( c, it, wa ) = false then wa = LowerAddr( c, it )
         if wa.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
         PushConst( args, mask )

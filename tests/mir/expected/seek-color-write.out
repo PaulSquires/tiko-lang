@@ -1,0 +1,75 @@
+global str $str0 "seek-color-write.tmp"
+global wstr $wstr1 "W"
+global str $str2 "a"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 20)
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = const i32 0
+    %8 = const i32 3
+    %9 = const i32 0
+    %10 = const i32 0
+    %11 = call.rtl i32 fb_FileOpen(%4, %8, %9, %10, %6, %7)
+    %12 = const i64 1
+    %13 = trunc %12
+    call.rtl void fb_WriteWstr(%13, @@$wstr1, 1)
+    %14 = const i64 1
+    %15 = trunc %14
+    %16 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_WriteString(%15, %16, 2)
+    %17 = const i64 1
+    call.rtl void fb_WriteLongint(%15, %17, 1)
+    %18 = const i64 1
+    %19 = trunc %18
+    %20 = call.rtl i32 fb_FileClose(%19)
+    %21 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 20)
+    %22 = const i64 1
+    %23 = trunc %22
+    %24 = const i32 0
+    %25 = const i32 0
+    %26 = const i32 0
+    %27 = const i32 0
+    %28 = call.rtl i32 fb_FileOpen(%21, %25, %26, %27, %23, %24)
+    %29 = const i64 1
+    %30 = trunc %29
+    %31 = const i64 2
+    %32 = call.rtl i32 fb_FileSeekLarge(%30, %31)
+    %33 = const i64 1
+    %34 = trunc %33
+    %35 = call.rtl i32 fb_FileClose(%34)
+    %36 = const i64 1
+    %37 = trunc %36
+    %38 = const i64 2
+    %39 = trunc %38
+    %40 = call.rtl i32 fb_Color(%37, %39, 0)
+    %41 = const i64 3
+    %42 = trunc %41
+    %43 = call.rtl i32 fb_Color(%42, 0, 2)
+    %44 = const i64 4
+    %45 = trunc %44
+    %46 = call.rtl i32 fb_Color(0, %45, 1)
+    %47 = call.rtl i32 fb_Color(0, 0, 3)
+    %48 = const i32 0
+    call.rtl void fb_End(%48)
+    %49 = load @$tmp0
+    ret %49
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare i32 fb_FileOpen($0, $1, $2, $3, $4, $5)
+declare void fb_WriteWstr($0, $1, $2)
+declare void fb_WriteString($0, $1, $2)
+declare void fb_WriteLongint($0, $1, $2)
+declare i32 fb_FileClose($0)
+declare i32 fb_FileSeekLarge($0, $1)
+declare i32 fb_Color($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

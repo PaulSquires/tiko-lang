@@ -1297,6 +1297,9 @@ function LowerStrPtrCall_ _
 end function
 
 
+'' SEEK and COLOR, split out at the 1500-line cap.
+#include once "mir/lowerdev.bas"
+
 function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr ip = StmtOf( c, id )
     dim as boolean handled = false
@@ -1313,6 +1316,8 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if ip->op = cast( ushort, Tko.KW_ERASE ) then handled = LowerErase( c, id )
     if ip->op = cast( ushort, Tko.KW_WRITE ) then handled = LowerWrite( c, id )
     if ip->op = cast( ushort, Tko.KW_POKE ) then handled = LowerPoke( c, id )
+    if ip->op = cast( ushort, Tko.KW_SEEK ) then handled = LowerSeekStmt_( c, id )
+    if ip->op = cast( ushort, Tko.KW_COLOR ) then handled = LowerColorStmt_( c, id )
     if ip->op = cast( ushort, Tko.KW_LSET ) then handled = LowerLrset( c, id, false )
     if ip->op = cast( ushort, Tko.KW_RSET ) then handled = LowerLrset( c, id, true )
     if ip->op = cast( ushort, Tko.KW_READ ) then handled = LowerRead( c, id )
