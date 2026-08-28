@@ -1,0 +1,26 @@
+'' A SHARED OR STATIC INITIALISER THAT NAMES SOMETHING was not folded, and the two
+'' halves of that failed differently.
+''
+'' 'dim shared b as boolean = true' got NO INITIALISER: the constant evaluator was
+'' called without the symbol table, so an identifier was simply not constant here. That
+'' is not a decline but a WRONG VALUE -- the global read FALSE -- and it verified.
+'' fbcunit.bas declares three of its own flags that way.
+''
+'' 'static f as any ptr = procptr( s )' and the 'cptr( any ptr, @s )' spelling declined
+'' outright: only the bare '@s' was recognised as a relocation, so the pointer was left
+'' NULL. dim/static-const-init.bas writes four.
+''
+'' NOT MATCHED, deliberately: tiko-lang stores -1 where fbc stores 1 for a boolean TRUE.
+'' Its own conversions normalise to -1 on the way out -- measured, fbc's 'print cbyte(a)'
+'' over a true boolean prints -1 as well -- so nothing tiko-lang emits can tell them
+'' apart, and the LOCAL path already stored -1. Making the global disagree with the
+'' local would be the worse answer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-init-reloc.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: global var ptr T$f = S
+'' EXPECT-OUT: global var ptr T$g = S
+'' EXPECT-OUT: global var i8 bt = -1
+'' GOLDEN: expected/static-init-reloc.out

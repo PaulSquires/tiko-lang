@@ -635,10 +635,55 @@ end function
 '' nothing else. Only the ZERO-BASED spelling is taken -- 'dim a(1 to 3)' would need
 '' its lower bound subtracted, and getting that wrong points the pointer at the wrong
 '' element with nothing to say so, so a non-zero lower bound declines instead.
+'' A PROCEDURE NAMED DIRECTLY as a static pointer's initialiser -- what
+'' 'procptr( f )' hands over, with no '@' around it.
+private function GlobalRelocProc_ _
+    ( byref c as Ctx, byval g as long, byval fn as Tko.NodeId ) as boolean
+
+    if fn = Tko.NODE_NONE then return false
+    if c.ast->Kind( fn ) <> Tko.N_IDENT then return false
+    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( fn ) )
+    if fs = 0 then return false
+    if fs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    c.m->globals[g].initRelocFn = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    c.m->globals[g].hasInit = true
+    return true
+end function
+
 private function GlobalRelocInit_ _
     ( byref c as Ctx, byval g as long, byval init as Tko.NodeId ) as boolean
 
     if init = Tko.NODE_NONE then return false
+    '' 'procptr( f )' IS '@f', and 'cptr( T, @f )' IS '@f' -- measured, fbc emits
+    '' 'static void* F$1 = (void*)&S' for all three spellings. Only the bare '@f'
+    '' was recognised, so the other two produced a static pointer with NO
+    '' initialiser, which reads NULL. dim/static-const-init.bas writes four.
+    dim as long unwrapN = 0
+    while unwrapN < 8
+        if c.ast->Kind( init ) <> Tko.N_CALL then exit while
+        dim as Tko.ListPayload ptr wcp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+        if wcp->target = Tko.NODE_NONE then exit while
+        if c.ast->Kind( wcp->target ) <> Tko.N_IDENT then exit while
+        dim as Tko.IdentPayload ptr wip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, wcp->target )].data )]
+        dim as string wnm2 = Tko.Text.LowerAscii( c.names->Spelling( wip->name ) )
+        if ((wnm2 = "cptr") orelse (wnm2 = "cast")) andalso (wcp->count = 2) then
+            init = cast( Tko.NodeId, c.ast->children[wcp->first + 1] )
+        elseif (wnm2 = "procptr") andalso (wcp->count = 1) then
+            '' 'procptr( f )' names the procedure directly, with no '@' around it,
+            '' so the operand IS what the address-of path below wants.
+            dim as Tko.NodeId pfn = cast( Tko.NodeId, c.ast->children[wcp->first] )
+            return GlobalRelocProc_( c, g, pfn )
+        else
+            exit while
+        end if
+        unwrapN += 1
+    wend
     if c.ast->Kind( init ) <> Tko.N_ADDROF then return false
     dim as Tko.UnaryPayload ptr up = _
         @c.ast->unaries[cast( long, c.ast->nodes[cast( long, init )].data )]
@@ -706,6 +751,18 @@ private function GlobalRelocInit_ _
     c.m->globals[g].initRelocOff = off
     c.m->globals[g].hasInit = true
     return true
+end function
+
+'' THE SCOPE AN INITIALISER'S NAMES ARE LOOKED UP IN: the DECLARING variable's own.
+'' Resolve records no scope against an initialiser's nodes -- ScopeOf comes back 0 for
+'' every one of them -- and the declaring scope is what a 'static' inside a procedure
+'' needs, where SCOPE_GLOBAL would miss the procedure's own constants.
+private function VarScopeOf_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.ScopeId
+    dim as Tko.Symbol ptr vs = c.syms->SymbolAt( sid )
+    if vs = 0 then return Tko.SCOPE_GLOBAL
+    if vs->parent = Tko.SCOPE_NONE then return Tko.SCOPE_GLOBAL
+    return vs->parent
 end function
 
 '' A DIM SHARED or STATIC initialiser, which is a compile-time value rather than a store
@@ -840,8 +897,14 @@ sub InitSharedGlobal _
     '' in functions/return-byref.bas are this shape.
     if GlobalRelocInit_( c, g, init ) then return
 
+    '' WITH THE SYMBOL TABLE, so a NAMED constant folds. Without it an identifier
+    '' was simply not constant here, and 'dim shared b as boolean = true' got NO
+    '' initialiser at all -- the global then read FALSE, which is not a decline but
+    '' a wrong VALUE, and it verified. fbc emits 'static boolean B$ = (boolean)1'.
+    '' fbcunit.bas declares three of its own flags that way.
     dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
-        *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits )
+        *c.ast, init, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, _
+        VarScopeOf_( c, sid ) )
     if cv.known = false then
         SkipHere( c )
         return
