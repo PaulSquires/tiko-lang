@@ -1,0 +1,5 @@
+'' A static aggregate image whose fields include fixed-length strings.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-agg-fixstr.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/static-agg-fixstr.out

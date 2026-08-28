@@ -432,6 +432,29 @@ function FlattenUdtFields_ _
             '' field -- the descriptor is copied, not the data -- which is what the
             '' aggregate store this leaf attracts already emits.
             if c.types->Kind( fld->type_ ) = Tko.TK_ARRAY then
+                '' A FIXED-LENGTH STRING FIELD IS ONE LEAF, not N character ones.
+                '' 'e as zstring * 5' is spelled as an array of the character
+                '' builtin, so the element walk below turned it into five leaves --
+                '' and the initialiser writes ONE value for it. Measured, fbc emits
+                '' the whole field as a string in the image:
+                ''
+                ''   static struct $2U1 X$0 =
+                ''     { (uint8)18u, (uint16)4386u, "1122",
+                ''       { (uint8)17u, (uint8)34u, (uint8)51u } };
+                dim as longint fsn
+                dim as long fsk = StrSwapKind_( c, fld->type_, fsn )
+                '' NOT 'string * N' (kind 3). Measured: fbc REFUSES a UDT holding one
+                '' in any initialiser -- 'static y as U2 = ( 7, "ab" )' is error 7
+                '' and the brace form is error 63 -- so folding it here would accept
+                '' a program fbc rejects.
+                dim as boolean fixStrLeaf = (fsk = 1) orelse (fsk = 2)
+                if fixStrLeaf = false then fixStrLeaf = (fsk = 4)
+                if fixStrLeaf then
+                    offs.Push( cast( ulong, base_ + fld->offset ) )
+                    tys.Push( cast( ulong, fmt ) )
+                    fts.Push( cast( ulong, fld->type_ ) )
+                    continue for
+                end if
                 if c.types->IsDynArray( fld->type_ ) then
                     offs.Push( cast( ulong, base_ + fld->offset ) )
                     tys.Push( cast( ulong, fmt ) )
@@ -633,6 +656,50 @@ function FoldAggInit_ _
         dim as long off = cast( long, fOff[i] )
         dim as longint bits = 0
         dim as long wid = 0
+
+        '' A FIXED-LENGTH STRING LEAF IS ITS OWN BYTE IMAGE, written here rather
+        '' than as an integer: 'zstring * 5' initialised from "1122" is four
+        '' characters and a NUL, and 'string * N' pads with SPACES where the
+        '' others pad with zeros -- the same rule FixStrArrayImage_ follows for an
+        '' array of them.
+        if (fmt = MT_AGG) andalso (i < cast( long, fFt.Count )) then
+            dim as Tko.TypeId lft = cast( Tko.TypeId, fFt[i] )
+            dim as longint lsn
+            dim as long lsk = StrSwapKind_( c, lft, lsn )
+            dim as boolean lIsFix = (lsk = 1) orelse (lsk = 2)
+            if lIsFix = false then lIsFix = (lsk = 4)
+            if lIsFix then
+                dim as long lcap = cast( long, c.types->ElemCount( _
+                    c.types->Unqualify( lft ) ) )
+                if lcap <= 0 then return false
+                dim as string ltx
+                if ConstStringTextOf_( c, e, ltx ) = false then return false
+                dim as boolean lwide = (lsk = 2) orelse (lsk = 4)
+                dim as ubyte lpad = iif( lsk = 3, 32, 0 )
+                dim as long lusable = iif( lsk = 3, lcap, lcap - 1 )
+                if lusable < 0 then lusable = 0
+                if len( ltx ) > lusable then ltx = left( ltx, lusable )
+                dim as long lsz = c.types->Layout( c.types->Unqualify( lft ) ).size
+                if (off < 0) orelse (off + lsz > size_) then return false
+                dim as long w = 0
+                for k as long = 0 to len( ltx ) - 1
+                    if w >= lsz then exit for
+                    img[off + w] = ltx[k]
+                    w += 1
+                    if lwide then
+                        if w < lsz then
+                            img[off + w] = 0
+                            w += 1
+                        end if
+                    end if
+                next
+                while w < lsz
+                    img[off + w] = lpad
+                    w += 1
+                wend
+                continue for
+            end if
+        end if
 
         select case fmt
         case MT_I8  : wid = 1
