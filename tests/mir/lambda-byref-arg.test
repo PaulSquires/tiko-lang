@@ -1,0 +1,5 @@
+'' A capturing lambda literal passed to a generic byref parameter.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lambda-byref-arg.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/lambda-byref-arg.out

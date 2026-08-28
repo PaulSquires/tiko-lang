@@ -17,7 +17,19 @@
 
 '' THE CLOSURE OBJECT, as a value: a temporary is built and loaded, which is the same
 '' shape a UDT literal already hands back.
-function LowerClosure_ _
+'' THE CLOSURE OBJECT'S ADDRESS. Built in a temporary, which is what fbc does at a
+'' call site too -- measured, passing a capturing lambda to
+'' 'sub Apply( of F )( ..., byref f as F )':
+''
+''   struct $25L...IiE TMP$3$0;
+''   __builtin_memset( &TMP$3$0, 0, 8ll );
+''   *(int32**)&TMP$3$0 = &SUM_$0;
+''   _Z5ApplyI25L...IiEEiRS1_( 4, &TMP$3$0 );
+''
+'' Split from the value form below because a BYREF argument needs the address and a
+'' byval one needs the load, and building the object twice for the two would be
+'' wrong as well as wasteful.
+function LowerClosureAddr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     if c.ast->Kind( id ) <> Tko.N_CLOSURE then return false
@@ -75,6 +87,16 @@ function LowerClosure_ _
         Emit( c, st )
     next
 
-    outv = LowerExprLoad( c, base_, MT_AGG )
+    outv = base_
     return true
+end function
+
+'' ...and the object itself, loaded out of that temporary.
+function LowerClosure_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as MirValue addr
+    if LowerClosureAddr_( c, id, addr ) = false then return false
+    outv = LowerExprLoad( c, addr, MT_AGG )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function

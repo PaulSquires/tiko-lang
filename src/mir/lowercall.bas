@@ -550,6 +550,28 @@ function LowerCallParts _
             end if
             if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsRef then
+            '' A CAPTURING LAMBDA PASSED BY REFERENCE IS AN OBJECT IN A TEMPORARY.
+            '' It is a literal, so it has no address of its own and LowerAddr found
+            '' none -- and ByrefTemp_ can only store an already-lowered rvalue, not
+            '' build an aggregate. Measured, passing one to
+            '' 'sub Apply( of F )( byval n as long, byref f as F )':
+            ''
+            ''   struct $25L...IiE TMP$3$0;
+            ''   __builtin_memset( &TMP$3$0, 0, 8ll );
+            ''   *(int32**)&TMP$3$0 = &SUM_$0;
+            ''   _Z5ApplyI25L...IiEEiRS1_( 4, &TMP$3$0 );
+            ''
+            '' -- which is exactly the object LowerClosureAddr_ already builds for a
+            '' declaration.
+            if c.ast->Kind( argNode ) = Tko.N_CLOSURE then
+                dim as MirValue cla
+                if LowerClosureAddr_( c, argNode, cla ) then
+                    argv.Push( cast( ulong, cla.kind ) )
+                    argv.Push( cast( ulong, cla.id ) )
+                    continue for
+                end if
+            end if
+
             '' 'f( type( ) )' -- see BareTypeLiteralArg_. The literal has no type of
             '' its own, so nothing typed it and LowerAddr had nothing to take.
             dim as long btSlot = -1
