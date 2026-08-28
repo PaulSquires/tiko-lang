@@ -454,6 +454,52 @@ private function ConstCall_ _
     return CVNone_( )
 end function
 
+'' ONE CONSTANT'S DECLARED TYPE, applied to its folded value: the width to truncate
+'' to and whether the result is unsigned. Read off the N_TYPEREF's keyword rather
+'' than the type table, which this module does not have.
+function ClampConstToTypeRef _
+    ( byref ast as Tko.AstArena, byval tref as Tko.NodeId, _
+      byref v as ConstVal, byval intBits as long ) as ConstVal
+
+    if v.known = false then return v
+    if tref = Tko.NODE_NONE then return v
+    if ast.Kind( tref ) <> Tko.N_TYPEREF then return v
+    dim as Tko.AstNode ptr tn = @ast.nodes[cast( long, tref )]
+    if (tn->flags and Tko.NF_PTR) <> 0 then return v
+    if (tn->flags and Tko.NF_PROC_TYPE) <> 0 then return v
+    dim as Tko.StmtPayload ptr tp = _
+        @ast.stmts[cast( long, ast.nodes[cast( long, tref )].data )]
+    dim as long bits = 0
+    dim as boolean uns = false
+    select case cast( Tko.TokenKind, tp->op )
+    case Tko.KW_BYTE     : bits = 8
+    case Tko.KW_UBYTE    : bits = 8  : uns = true
+    case Tko.KW_SHORT    : bits = 16
+    case Tko.KW_USHORT   : bits = 16 : uns = true
+    case Tko.KW_LONG     : bits = 32
+    case Tko.KW_ULONG    : bits = 32 : uns = true
+    case Tko.KW_INTEGER  : bits = intBits
+    case Tko.KW_UINTEGER : bits = intBits : uns = true
+    case Tko.KW_LONGINT  : bits = 64
+    case Tko.KW_ULONGINT : bits = 64 : uns = true
+    case else            : return v
+    end select
+    '' TRUNCATED AT THE DECLARED WIDTH, by hand: CVW_ rounds every width up to 32 or
+    '' 64 and sign-extends, so it cannot say 255 for a ubyte at all.
+    dim as ulongint mask = &hFFFFFFFFFFFFFFFFull
+    if bits < 64 then mask = (1ull shl bits) - 1
+    dim as ulongint raw = cast( ulongint, v.value ) and mask
+    if uns = false then
+        dim as ulongint signBit = 1ull shl (bits - 1)
+        if (raw and signBit) <> 0 then raw or= (not mask)
+    end if
+    dim as ConstVal r
+    r.known = true
+    r.bits = iif( bits <= 32, 32, 64 )
+    r.value = cast( longint, raw )
+    r.uns = uns
+    return r
+end function
 function ConstOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
@@ -512,7 +558,18 @@ function ConstOf _
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return CVNone_( )
         dim as Tko.StmtPayload ptr cip = _
             @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
-        return ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1 )
+        dim as ConstVal ivv = _
+            ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1 )
+        '' AT THE CONSTANT'S OWN DECLARED WIDTH AND SIGNEDNESS.
+        ''
+        '' 'const v as ubyte = not u' folded to the INITIALISER's value and stopped
+        '' there, so v was -1 where fbc has 255 -- measured, fbc's C for
+        '' 'dim as integer x = v' is 'X = 255ll'. The declared type is the whole
+        '' point of an unsigned constant and nothing here was reading it.
+        ''
+        '' A POINTER or a proc type is left alone: its value is an address, not a
+        '' number to truncate.
+        return ClampConstToTypeRef( ast, cip->a, ivv, intBits )
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _

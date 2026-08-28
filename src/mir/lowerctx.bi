@@ -120,6 +120,7 @@ type Ctx
     '' OUTERMOST is the last to write it -- which is the one the statement is asking
     '' about, and why this is a flag rather than a counter.
     as boolean              lastCallOk
+    as long                 lastCallFailLine
     as long                 sretParam
     as long                 dataHead
     as FB.Array( of ulong ) dataLabelName
@@ -423,7 +424,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval a0 as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function ConstStringTextOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outText as string, _
-          byval depth as long = 0 ) as boolean
+          byval depth as long = 0, _
+          byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL ) as boolean
     declare function ZstrDataOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerConcatAssignStmt _

@@ -17,9 +17,16 @@ using Tko
 '' Literals, the concatenation of literals, and the two intrinsics fbc itself folds into
 '' a constant -- 'str' and 'chr'. Everything else is rejected here because fbc rejects it
 '' as a constant initialiser: see the measurement beside the N_CALL case.
+'' THE SCOPE A NAMED CONSTANT ARGUMENT IS LOOKED UP IN travels with the recursion.
+'' Resolve records no scope against a constant INITIALISER's nodes -- ScopeOf comes
+'' back 0 for every one of them -- so folding 'const cs as string = str( b )' asked
+'' for 'b' in scope 0 and found nothing. The constant's OWN parent scope is what to
+'' ask, and the ident case below hands it down; SCOPE_GLOBAL is the default because
+'' a caller reaching a bare call rather than a name is at module level.
 function ConstStringTextOf_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outText as string, _
-      byval depth as long = 0 ) as boolean
+      byval depth as long = 0, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL ) as boolean
 
     if id = Tko.NODE_NONE then return false
     if depth > 16 then return false
@@ -42,7 +49,7 @@ function ConstStringTextOf_ _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         if lp->count <> 1 then return false
         return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), _
-                                   outText, depth + 1 )
+                                   outText, depth + 1, scope_ )
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
@@ -50,8 +57,8 @@ function ConstStringTextOf_ _
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
         if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
         dim as string lt, rt
-        if ConstStringTextOf_( c, bp->lhs, lt, depth + 1 ) = false then return false
-        if ConstStringTextOf_( c, bp->rhs, rt, depth + 1 ) = false then return false
+        if ConstStringTextOf_( c, bp->lhs, lt, depth + 1, scope_ ) = false then return false
+        if ConstStringTextOf_( c, bp->rhs, rt, depth + 1, scope_ ) = false then return false
         outText = lt + rt
         return true
 
@@ -98,9 +105,10 @@ function ConstStringTextOf_ _
             if wp->count <> 1 then return false
             dim as string ct
             for i as long = 0 to wp->count - 1
+                dim as Tko.NodeId cArg = cast( Tko.NodeId, c.ast->children[wp->first + i] )
                 dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
-                    *c.ast, cast( Tko.NodeId, c.ast->children[wp->first + i] ), _
-                    *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms )
+                    *c.ast, cArg, *c.srcMgr, *c.names, c.types->target.pointerBits, _
+                    c.syms, scope_ )
                 if cv.known = false then return false
                 if (cv.value < 0) orelse (cv.value > 255) then return false
                 ct += chr( cast( long, cv.value ) )
@@ -122,14 +130,15 @@ function ConstStringTextOf_ _
         '' fbc deliberately does not.
         if (wnm = "lcase") orelse (wnm = "ucase") then
             if wp->count <> 2 then return false
+            dim as Tko.NodeId mArg = cast( Tko.NodeId, c.ast->children[wp->first + 1] )
             dim as Tko.Check.ConstVal mv = Tko.Check.ConstOf( _
-                *c.ast, cast( Tko.NodeId, c.ast->children[wp->first + 1] ), _
-                *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms )
+                *c.ast, mArg, *c.srcMgr, *c.names, c.types->target.pointerBits, _
+                c.syms, scope_ )
             if mv.known = false then return false
             if mv.value <> 1 then return false
             dim as string ct2
             if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
-                                   ct2, depth + 1 ) = false then return false
+                                   ct2, depth + 1, scope_ ) = false then return false
             if wnm = "lcase" then
                 outText = Tko.Text.LowerAscii( ct2 )
             else
@@ -153,14 +162,20 @@ function ConstStringTextOf_ _
             end if
             if isFlt then
                 dim as double fd = 0
-                if Tko.Check.ConstFloatOf( *c.ast, a0, fd, 0, c.syms ) = false then
+                if Tko.Check.ConstFloatOf( *c.ast, a0, fd, 0, c.syms, scope_ ) = false then
                     return false
                 end if
                 outText = Tko.Text.StrOfDouble( fd )
                 return true
             end if
+            '' WITH THE ARGUMENT'S OWN SCOPE. Passing none left scope 0, so a NAMED
+            '' constant argument was never found: 'const cs as string = str( b )'
+            '' folded to nothing, and it is every USE of cs that then declined --
+            '' numbers/const_op.bas writes it 8 times and the lines that gave up
+            '' never mention str. 'str( 5 )' folded, which is why this looked fine.
             dim as Tko.Check.ConstVal iv = Tko.Check.ConstOf( _
-                *c.ast, a0, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms )
+                *c.ast, a0, *c.srcMgr, *c.names, c.types->target.pointerBits, _
+                c.syms, scope_ )
             if iv.known = false then return false
             '' FreeBASIC's STR( ) writes no leading blank for a positive number --
             '' measured, '"16"' with length 3 including the terminator. That is not QB's
@@ -174,7 +189,7 @@ function ConstStringTextOf_ _
         if wnm <> "wstr" then return false
         if wp->count <> 1 then return false
         return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
-                                   outText, depth + 1 )
+                                   outText, depth + 1, scope_ )
 
     case Tko.N_IDENT, Tko.N_MEMBER
         '' A DOTTED PATH TO A CONSTANT IS STILL A CONSTANT -- 'T.zs' over a 'const zs =
@@ -191,7 +206,7 @@ function ConstStringTextOf_ _
         if cs->payload = 0 then return false
         dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
-        return ConstStringTextOf_( c, StmtOf( c, item )->b, outText, depth + 1 )
+        return ConstStringTextOf_( c, StmtOf( c, item )->b, outText, depth + 1, cs->parent )
     end select
     return false
 end function

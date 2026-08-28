@@ -7,7 +7,7 @@
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
-declare function CallFailed_( byref c as Ctx, byref v as MirValue ) as MirValue
+declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue
 
 declare function ByvalStrTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
@@ -175,9 +175,9 @@ function LowerCallParts _
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if (callee = Tko.SYMBOL_NONE) andalso (exprCallee = false) then
-        return CallFailed_( c, v )
+        return CallFailed_( c, v, __LINE__ )
     end if
-    if (cs = 0) andalso (exprCallee = false) then return CallFailed_( c, v )
+    if (cs = 0) andalso (exprCallee = false) then return CallFailed_( c, v, __LINE__ )
 
     '' A CALL THROUGH A PROCEDURE POINTER. 'dim as sub( ) p = procptr( f ) : p( )'
     '' names a VARIABLE, not a procedure, so there is no function to look up and
@@ -193,7 +193,7 @@ function LowerCallParts _
         end if
         '' Anything else that is not a procedure is not callable, and was already
         '' declining here.
-        if viaPointer = false then return CallFailed_( c, v )
+        if viaPointer = false then return CallFailed_( c, v, __LINE__ )
     end if
 
     '' Arguments are collected LOCALLY and pushed to the shared pool in one run at the
@@ -231,7 +231,7 @@ function LowerCallParts _
         if UsesSretReturn( c, cs->type_ ) then
             dim as long tslot = _
                 NewTempLocal( c, MT_AGG, SizeOfType( c, cs->type_ ) )
-            if tslot < 0 then return CallFailed_( c, v )
+            if tslot < 0 then return CallFailed_( c, v, __LINE__ )
             if TypeNeedsDtor_( c, cs->type_ ) then
                 c.udtTemps.Push( cast( ulong, tslot ) )
                 c.udtTempTypes.Push( cast( ulong, cs->type_ ) )
@@ -288,7 +288,7 @@ function LowerCallParts _
         if argNode = Tko.NODE_NONE then
             '' Nothing written and no default: the call is short and the callee would
             '' read the stack. Declining says so.
-            if i >= argCount then return CallFailed_( c, v )
+            if i >= argCount then return CallFailed_( c, v, __LINE__ )
         end if
         dim as boolean wantsRef = ParamIsByref( c, callee, i ) andalso (forcedByval = false)
 
@@ -352,7 +352,7 @@ function LowerCallParts _
                 end if
             end if
             '' NOTHING TO PASS IS NOT AN ARGUMENT.
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsWide then
             if WideOperand_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
             '' A NARROW ARGUMENT IS CONVERTED, and an RVALUE has no address to fall
@@ -368,7 +368,7 @@ function LowerCallParts _
             if a.kind = cast( ubyte, MV_NONE ) then
                 NarrowToWideTemp_( c, argNode, a )
             end if
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsZ then
             if ZstrDataOf_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
             '' A WIDE ARGUMENT IS CONVERTED. Measured, for 'byref z as zstring':
@@ -399,7 +399,7 @@ function LowerCallParts _
                     end if
                 end if
             end if
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsRef then
             a = LowerAddr( c, argNode )
             '' AN ARGUMENT WITH NO ADDRESS -- a literal, a computed value, or the
@@ -422,7 +422,7 @@ function LowerCallParts _
             end if
             '' Still nothing: decline, rather than pass something that is not the
             '' variable the callee will write through.
-            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
+            if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         else
             '' A STRING PASSED TO A 'zstring ptr' PARAMETER IS ITS DATA POINTER.
             '' Measured: fbc writes 'F( (char*)*(char**)&S )', and for an rvalue it
@@ -477,7 +477,7 @@ function LowerCallParts _
                 end if
                 if a.kind = cast( ubyte, MV_NONE ) then
                     c.blameNode = cast( ulong, argNode )
-                    return CallFailed_( c, v )
+                    return CallFailed_( c, v, __LINE__ )
                 end if
                 argv.Push( cast( ulong, a.kind ) )
                 argv.Push( cast( ulong, a.id ) )
@@ -507,12 +507,12 @@ function LowerCallParts _
                     end if
                     if ByvalStrTemp_( c, argNode, zpt, zt, tempSlot ) = false then
                         c.blameNode = cast( ulong, argNode )
-                        return CallFailed_( c, v )
+                        return CallFailed_( c, v, __LINE__ )
                     end if
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, zpt ) )
                     a = LowerExprLoad( c, zt, MT_PTR )
-                    if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
+                    if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
                 end if
                 argv.Push( cast( ulong, a.kind ) )
                 argv.Push( cast( ulong, a.id ) )
@@ -546,7 +546,7 @@ function LowerCallParts _
                 dim as Tko.TypeId spt = ParamTypeAt( c, callee, i )
                 if ByvalStrTemp_( c, argNode, spt, a, tempSlot ) = false then
                     c.blameNode = cast( ulong, argNode )
-                    return CallFailed_( c, v )
+                    return CallFailed_( c, v, __LINE__ )
                 end if
                 strTemps.Push( cast( ulong, tempSlot ) )
                 strTempTypes.Push( cast( ulong, spt ) )
@@ -563,7 +563,7 @@ function LowerCallParts _
                 dim as MirValue ca
                 if UdtConvTemp_( c, argNode, upt, ca, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
-                    return CallFailed_( c, v )
+                    return CallFailed_( c, v, __LINE__ )
                 end if
                 if tempSlot >= 0 then
                     tempSlots.Push( cast( ulong, tempSlot ) )
@@ -579,7 +579,7 @@ function LowerCallParts _
                     a = LowerExprLoad( c, ca, MT_AGG )
                     if a.kind = cast( ubyte, MV_NONE ) then
                         c.blameNode = cast( ulong, argNode )
-                        return CallFailed_( c, v )
+                        return CallFailed_( c, v, __LINE__ )
                     end if
                 end if
                 argv.Push( cast( ulong, a.kind ) )
@@ -591,7 +591,7 @@ function LowerCallParts _
                 if ByvalUdtCopyArg_( c, argNode, ParamTypeAt( c, callee, i ), _
                                      a, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
-                    return CallFailed_( c, v )
+                    return CallFailed_( c, v, __LINE__ )
                 end if
                 if tempSlot >= 0 then
                     tempSlots.Push( cast( ulong, tempSlot ) )
@@ -620,7 +620,7 @@ function LowerCallParts _
             '' invocation and point at the work.
             if a.kind = cast( ubyte, MV_NONE ) then
                 c.blameNode = cast( ulong, argNode )
-                return CallFailed_( c, v )
+                return CallFailed_( c, v, __LINE__ )
             end if
             '' TO THE PARAMETER'S TYPE, not the argument's. 'randomize 42' passes an
             '' INTEGER literal to a 'byval as double', and handing the callee the
@@ -726,7 +726,7 @@ function LowerCallParts _
         end if
 
         dim as MirValue fp = LowerExpr( c, calleeNode )
-        if fp.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v )
+        if fp.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         dim as MirInst ic
         ic.op = cast( ushort, M_CALL_IND )
         ic.ty = cast( ubyte, callTy )
@@ -1271,8 +1271,9 @@ end sub
 '' retried by another path: 'takeByvalString( hex( 255 ) )' lowers the argument through
 '' here first, fails, and succeeds as an intrinsic. The OUTERMOST call is the last to
 '' write the flag, so what the statement reads is its own outcome.
-private function CallFailed_( byref c as Ctx, byref v as MirValue ) as MirValue
+private function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue
     c.lastCallOk = false
+    c.lastCallFailLine = ln
     return v
 end function
 

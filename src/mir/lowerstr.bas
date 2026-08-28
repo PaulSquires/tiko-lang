@@ -411,6 +411,12 @@ function LowerPredeclared _
         dim as Tko.Check.ConstVal cv = _
             Tko.Check.ConstOf( *c.ast, ip->b, *c.srcMgr, *c.names, _
                                c.types->target.pointerBits, c.syms, s->parent )
+        '' AT THE CONSTANT'S OWN DECLARED WIDTH. The INITIALISER is what was folded
+        '' and it knows nothing about the type it is declared as, so
+        '' 'const v as ubyte = not u' read back as -1 where fbc has 255 -- and it
+        '' lowered and verified, as an i8 holding the wrong number.
+        cv = Tko.Check.ClampConstToTypeRef( *c.ast, ip->a, cv, _
+                                            c.types->target.pointerBits )
         dim as MirType mt = LowerType( c.info->TypeOf_( id ), *c.types )
         if mt = MT_VOID then mt = MT_I64
         '' AN INTEGER CONSTANT WHOSE INITIALISER THE EVALUATOR CANNOT FOLD is lowered

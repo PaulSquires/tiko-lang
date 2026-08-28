@@ -1,0 +1,21 @@
+'' A CONSTANT'S DECLARED TYPE IS PART OF ITS VALUE, and nothing was reading it.
+''
+'' 'const v as ubyte = not u' folded to the INITIALISER's value and stopped there, so
+'' v was -1 where fbc has 255 -- and it lowered and verified, as an i8 holding the
+'' wrong number. Measured: fbc's C for 'dim as longint x = v' is 'X = 255ll'.
+''
+'' The string fold had the other half of it: ConstStringTextOf_ passed no scope, so a
+'' NAMED constant argument was looked up in scope 0 and never found. 'str( 5 )' folded
+'' and 'str( b )' did not, which is why this looked fine -- and it is every USE of the
+'' resulting constant that declined, never a line mentioning str.
+'' numbers/const_op.bas is 8 of them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-declared-width.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: const i8 255
+'' EXPECT-OUT: const i16 65535
+'' EXPECT-OUT: const i32 4294967295
+'' EXPECT-OUT: "255"
+'' GOLDEN: expected/const-declared-width.out

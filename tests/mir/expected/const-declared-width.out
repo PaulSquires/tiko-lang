@@ -1,0 +1,55 @@
+global str $str0 "255"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 x1
+  local i64 x2
+  local i64 x3
+  local i64 x4
+  local i64 x5
+  local agg q size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr x1
+    %5 = const i8 -1
+    %6 = sext %5
+    store @x1, %6
+    %7 = alloca ptr x2
+    %8 = const i8 255
+    %9 = zext %8
+    store @x2, %9
+    %10 = alloca ptr x3
+    %11 = const i16 -1
+    %12 = sext %11
+    store @x3, %12
+    %13 = alloca ptr x4
+    %14 = const i16 65535
+    %15 = zext %14
+    store @x4, %15
+    %16 = alloca ptr x5
+    %17 = const i32 4294967295
+    %18 = zext %17
+    store @x5, %18
+    %19 = alloca ptr q
+    %20 = field.addr @q, 0
+    store %20, 0
+    %21 = field.addr @q, 8
+    store %21, 0
+    %22 = field.addr @q, 16
+    store %22, 0
+    %23 = call.rtl ptr fb_StrAssign(@q, -1, @@$str0, 4, 0)
+    call.rtl void fb_StrDelete(@q)
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
+    %25 = load @$tmp0
+    ret %25
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 37 insts, 0 statements not lowered, 0 scope imbalance

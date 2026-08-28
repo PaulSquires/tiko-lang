@@ -162,6 +162,14 @@ namespace Tko.Check
         as boolean  uns
     end type
 
+    '' One folded value at a CONSTANT'S DECLARED width and signedness, read off its
+    '' N_TYPEREF. A constant folds from its INITIALISER, and the initialiser knows
+    '' nothing about the type it is being stored in: 'const v as ubyte = not u' is
+    '' 255 to fbc and was -1 here. Pointers and proc types are returned unchanged.
+    declare function ClampConstToTypeRef _
+        ( byref ast as Tko.AstArena, byval tref as Tko.NodeId, _
+          byref v as ConstVal, byval intBits as long ) as ConstVal
+
     declare function ConstFloatOf _
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
           byval depth as long = 0, byval syms as Tko.SymbolTable ptr = 0, _

@@ -165,6 +165,9 @@ private function QSymConstOf_ _
                     dim as Tko.Check.ConstVal icv = Tko.Check.ConstOf( _
                         *c.ast, StmtOf( c, item )->b, *c.srcMgr, *c.names, _
                         c.types->target.pointerBits, c.syms, sy->parent )
+                    '' ...at the constant's DECLARED width, as everywhere else.
+                    icv = Tko.Check.ClampConstToTypeRef( _
+                        *c.ast, StmtOf( c, item )->a, icv, c.types->target.pointerBits )
                     if icv.known then
                         outv = icv.value
                         return true

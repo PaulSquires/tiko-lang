@@ -691,6 +691,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             '' the ARGUMENTS are lowered before the call can fail, so a statement whose
             '' call was never emitted looked exactly like one that lowered.
             c.lastCallOk = true
+            c.lastCallFailLine = 0
             '' 'W( 1, 2 )' is an expression; 'W 1, 2' is this statement's own callee
             '' and children, and looks nothing like a call node.
             if c.ast->Kind( sp->a ) = Tko.N_CALL then
@@ -727,7 +728,17 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             if deliberateNoOp then
                 '' nothing to emit, and nothing to count
             elseif c.lastCallOk = false then
-                SkipHere( c )
+                '' BLAMED ON THE BRANCH THAT ACTUALLY GAVE UP, not on this line.
+                '' Every declining call in the corpus aggregated HERE, because this
+                '' is where the flag is read -- one site with hundreds of counts and
+                '' nothing to say which of the eighteen give-up branches inside
+                '' lowercall.bas produced them. CallFailed_ records its caller's
+                '' __LINE__ and the histogram gets that instead.
+                if c.lastCallFailLine > 0 then
+                    SkipAt( c, "lowercall.bas", c.lastCallFailLine )
+                else
+                    SkipHere( c )
+                end if
                 CountUnlowredCall( c, sp->a )
             elseif (c.curBlock = beforeB) andalso _
                    (c.f->blocks[c.curBlock].insts.Count = beforeN) then
