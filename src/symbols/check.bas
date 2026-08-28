@@ -879,6 +879,42 @@ function TypeOf_ _
             end if
         end if
 
+        '' A NESTED ENUM REACHED THROUGH AN INSTANCE. 'x.E.I' over a type holding
+        '' 'enum E' has an ENUM-typed base for its second step, and the field lookup
+        '' below answers only for a UDT -- so the member was unbound, the expression
+        '' untyped, and the PRINT around it declined. Resolve's own 'E.elem' case
+        '' cannot reach it: there the base is an IDENT bound to the enum symbol,
+        '' and here it is a member access whose type only Check knows.
+        ''
+        '' Measured: fbc folds 'print x.E.I, x.E.J' to 'fb_PrintLongint( 0, 0ll, 2 )'
+        '' and '( 0, 1ll, 1 )'.
+        if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
+            if c.types->Kind( bt ) = Tko.TK_ENUM then
+                dim as Tko.IdentPayload ptr eip = _
+                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+                dim as Tko.ScopeId eds = cast( Tko.ScopeId, c.types->DeclScopeOf( bt ) )
+                dim as Tko.InternId etn = c.types->NameOf( bt )
+                dim as Tko.SymbolId ets = c.syms->LookupLocalTyped( eds, etn, true )
+                if ets = Tko.SYMBOL_NONE then ets = c.syms->LookupTyped( eds, etn, true )
+                dim as Tko.Symbol ptr esy = c.syms->SymbolAt( ets )
+                if esy <> 0 then
+                    if esy->inner <> Tko.SCOPE_NONE then
+                        dim as Tko.SymbolId ems = _
+                            c.syms->LookupLocal( esy->inner, eip->name )
+                        if ems <> Tko.SYMBOL_NONE then
+                            c.info->SetRef( id, ems )
+                            c.info->SetRef( mp->rhs, ems )
+                            dim as Tko.Symbol ptr emy = c.syms->SymbolAt( ems )
+                            t = emy->type_
+                            if t = Tko.TYPE_NONE then
+                                t = c.types->Builtin( Tko.TY_INTEGER )
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+
         if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
             dim as Tko.IdentPayload ptr ip = _
                 @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]

@@ -1,0 +1,5 @@
+'' A nested enum reached through an instance, and sizeof over a type/procedure name.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/nested-enum-sizeof.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/nested-enum-sizeof.out

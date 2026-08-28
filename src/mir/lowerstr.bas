@@ -906,6 +906,33 @@ function LowerLen _
     '' string CONSTANT member has no type of its own to report.
     if LowerStaticMemberLen_( c, a, isSizeof, outv ) then return true
 
+    '' A NAME THAT IS BOTH A TYPE AND A PROCEDURE is, inside SIZEOF, the TYPE.
+    '' An identifier in expression position prefers the VALUE class, so
+    '' 'type f1 ... : declare sub f1 : print sizeof( f1 )' measured the SUB and
+    '' declined. Measured: fbc folds it to the type's size -- 'fb_PrintLongint(
+    '' 0, 8ll, 1 )' for a one-integer type.
+    if (isSizeof) andalso (c.ast->Kind( a ) = Tko.N_IDENT) then
+        dim as Tko.Symbol ptr asy = c.syms->SymbolAt( c.info->RefOf( a ) )
+        if asy <> 0 then
+            if asy->kind = cast( ubyte, Tko.SYM_PROC ) then
+                '' THROUGH 'altClass', not a fresh lookup: an expression node inside a
+                '' procedure has no recorded scope -- Collect never walks a body -- so
+                '' there is nothing to look the name up FROM. The slot already holds
+                '' both classes and this is the link between them.
+                dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( asy->altClass )
+                if tsy <> 0 then
+                    if tsy->type_ <> Tko.TYPE_NONE then
+                        dim as long tsz = SizeOfType( c, tsy->type_ )
+                        if tsz > 0 then
+                            outv = ConstInt( c, tsz, MT_I64 )
+                            return true
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     dim as Tko.TypeId at = c.info->TypeOf_( a )
     if at = Tko.TYPE_NONE then return false
 
