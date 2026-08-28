@@ -85,21 +85,27 @@ for src in $benches; do
     for which in c fb; do
         run=0
         while [ "$run" -lt "$RUNS" ]; do
-            "$WORK/$file-$which$EXT" > "$WORK/out.tmp" 2>/dev/null || true
+            # The benchmarks are Windows programs and end their lines with CRLF,
+            # so `read` hands the numeric filter a trailing carriage return and
+            # every value is rejected as non-numeric. The table then printed
+            # perfectly, with no rows, and reported PASS over zero results --
+            # both halves fixed: the CR is stripped here, and an empty result set
+            # is a hard failure below.
+            "$WORK/$file-$which$EXT" 2>/dev/null | tr -d "\r" > "$WORK/out.tmp" || true
             while read -r nm val; do
                 case "$val" in ''|*[!0-9.eE+-]*) continue ;; esac
-                echo "$val" >> "$WORK/r.$file.$nm.$which"
+                echo "$val" >> "$WORK/res.$file.$nm.$which"
             done < "$WORK/out.tmp"
             run=$((run + 1))
         done
     done
 
-    for f in "$WORK/r.$file".*.c; do
+    for f in "$WORK/res.$file".*.c; do
         [ -e "$f" ] || continue
         nm=$(basename "$f" .c)
-        nm=${nm#r.$file.}
-        tc=$(sort -g "$WORK/r.$file.$nm.c"  | awk '{v[NR]=$1} END{ print (NR%2)? v[(NR+1)/2] : (v[NR/2]+v[NR/2+1])/2 }')
-        tf=$(sort -g "$WORK/r.$file.$nm.fb" | awk '{v[NR]=$1} END{ print (NR%2)? v[(NR+1)/2] : (v[NR/2]+v[NR/2+1])/2 }')
+        nm=${nm#res.$file.}
+        tc=$(sort -g "$WORK/res.$file.$nm.c"  | awk '{v[NR]=$1} END{ print (NR%2)? v[(NR+1)/2] : (v[NR/2]+v[NR/2+1])/2 }')
+        tf=$(sort -g "$WORK/res.$file.$nm.fb" | awk '{v[NR]=$1} END{ print (NR%2)? v[(NR+1)/2] : (v[NR/2]+v[NR/2+1])/2 }')
         r=$(awk -v c="$tc" -v f="$tf" 'BEGIN{ printf "%.4f", (c>0)? f/c : 0 }')
         awk -v n="$nm" -v c="$tc" -v f="$tf" -v r="$r" \
             'BEGIN{ printf "%-28s %12.6f %12.6f %8.2fx\n", n, c, f, r }' >> "$WORK/rows.txt"
@@ -110,6 +116,11 @@ done
 awk 'BEGIN{ printf "%-28s %12s %12s %9s\n", "benchmark", "C (s)", "FB (s)", "ratio" }'
 awk 'BEGIN{ printf "%-28s %12s %12s %9s\n", "----------------------------", "------------", "------------", "---------" }'
 cat "$WORK/rows.txt"
+
+# A harness that measured nothing must not report success. This exact failure --
+# an empty table under a tidy "PASS within budget" -- is what a stray carriage
+# return produced, and it is indistinguishable from a real pass at a glance.
+[ -s "$WORK/ratios.txt" ] || rt_die "no results collected -- the benchmarks ran but nothing was parsed. See $WORK/out.tmp"
 
 awk '
     { r = $2 + 0

@@ -49,7 +49,10 @@ rtfiles( ) {
 # ------------------------------------------------------------- 1. provenance
 
 # 1a. No C outside src/c/, which is a closed list.
-for f in $(find . -name '*.c' -not -path './.git/*' 2>/dev/null); do
+# obj/ and lib/ are build output and are gitignored; scanning them made the
+# provenance check fire on bench.sh's own per-run result files, which are named
+# for the runtime they came from and end in .c for "the C runtime".
+for f in $(find . -name '*.c' -not -path './.git/*' -not -path './obj/*' -not -path './lib/*' 2>/dev/null); do
     case "$f" in
         ./src/c/*) ;;
         *) note "$f: C source outside src/c/ (RFC-0005)" ;;

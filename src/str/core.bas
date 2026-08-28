@@ -231,9 +231,31 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	'' FreeBASIC keyword (REDIM PRESERVE) and is error 59 as a parameter name.
 
 	if( s = 0 ) then return 0
-	if( s->data = 0 ) then return tkort_hStrAlloc( s, length )
 
 	dim as integer want = hGranuleSize( length )
+
+	'' An empty descriptor is NOT delegated to fb_hStrAlloc, even though the
+	'' result would be identical, because realloc(NULL, n) and malloc(n) are the
+	'' same operation under different names and the counts are compared by name.
+	'' fbc reaches this path through realloc; matching it keeps the allocation
+	'' differential exact rather than exact-modulo-bookkeeping.
+	if( s->data = 0 ) then
+		if( want = 0 ) then
+			s->size = 0
+			FB_STRSETLEN( s, 0 )
+			return s
+		end if
+		s->data = cptr( zstring ptr, reallocate( 0, want + 1 ) )
+		if( s->data = 0 ) then
+			s->size = 0
+			FB_STRSETLEN( s, 0 )
+			return 0
+		end if
+		s->size = want
+		FB_STRSETLEN( s, length )
+		s->data[length] = 0
+		return s
+	end if
 
 	if( want = 0 ) then
 		deallocate( s->data )
@@ -258,7 +280,30 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	'' while every other benchmark was at parity or faster. It is a difference in
 	'' allocation policy, not in code generation, and no amount of looking at the
 	'' emitted IR would have found it.
-	if( length > s->size ) then
+	'' THE TWO MODES RESIZE DIFFERENTLY, and that is the whole of the last
+	'' allocation-count divergence.
+	''
+	''   keepdata (append/grow)  keep the block while it still fits. Measured:
+	''       fbc appends to len=144 in a size=144 block, 288 in 288, 432 in 432,
+	''       without moving the pointer. This is what stops `s &= x` from
+	''       reallocating on every pass.
+	''
+	''   not keepdata (assign)   always resize to granule(len), INCLUDING
+	''       downwards. `s = big1` after s held 512 characters shrinks 576 -> 252
+	''       in fbc and did not in tiko-rt, which is where 1000 allocator
+	''       operations per 1000 iterations went missing.
+	''
+	'' Reproduced rather than improved, deliberately: keeping the larger block is
+	'' almost certainly cheaper, and adopting it here would make Gate 4 compare
+	'' two allocation policies again (RFC-0004 section 4).
+	dim as integer resize = any
+	if( keepdata <> 0 ) then
+		resize = (length > s->size)
+	else
+		resize = (want <> s->size)
+	end if
+
+	if( resize ) then
 		if( keepdata <> 0 ) then
 			dim as any ptr p = reallocate( s->data, want + 1 )
 			if( p = 0 ) then return 0
