@@ -1118,22 +1118,28 @@ function TypeOf_ _
     case Tko.N_ADDROF
         dim as Tko.UnaryPayload ptr ap = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Tko.TypeId inner = TypeOf_( c, ap->operand )
-        if inner <> Tko.TYPE_NONE then
-            t = c.types->Pointer_( inner )
-        else
-            '' '@mysub' -- A PROCEDURE has no type of its own on its symbol (that slot
-            '' holds its RETURN type), so the operand came back untyped and 'var f =
-            '' @mysub' inferred nothing. Measured: fbc says 'typeof( @mysub )' is
-            '' 'SUB()' -- the procedure type itself, which is already a pointer in
-            '' FreeBASIC and so is NOT wrapped again.
-            dim as Tko.SymbolId psid = c.info->RefOf( ap->operand )
-            dim as Tko.Symbol ptr psym = c.syms->SymbolAt( psid )
-            if psym <> 0 then
-                if psym->kind = cast( ubyte, Tko.SYM_PROC ) then
-                    t = ProcTypeOfSymbol_( c, psid )
-                end if
+        '' '@mysub' AND '@myfunc' -- A PROCEDURE has no type of its own on its
+        '' symbol: that slot holds its RETURN type. So the operand of '@f' came
+        '' back typed LONG and 'var v = @f' inferred 'long ptr', while '@s' over a
+        '' SUB came back untyped and inferred nothing. Measured: fbc says
+        '' 'typeof( @f )' is 'FUNCTION(AS LONG) AS LONG' and 'typeof( @s )' is
+        '' 'SUB()' -- the procedure type itself, which is already a pointer in
+        '' FreeBASIC and so is NOT wrapped again.
+        ''
+        '' ASKED FIRST, before the operand is typed at all: a FUNCTION answers that
+        '' question with the wrong thing rather than declining, which is why only
+        '' the SUB half of this was ever noticed. 'var v = <lambda>' then 'v( 5 )'
+        '' is the shape -- generics/lambda.bas and six more.
+        dim as Tko.SymbolId psid = c.info->RefOf( ap->operand )
+        dim as Tko.Symbol ptr psym = c.syms->SymbolAt( psid )
+        if psym <> 0 then
+            if psym->kind = cast( ubyte, Tko.SYM_PROC ) then
+                t = ProcTypeOfSymbol_( c, psid )
             end if
+        end if
+        if t = Tko.TYPE_NONE then
+            dim as Tko.TypeId inner = TypeOf_( c, ap->operand )
+            if inner <> Tko.TYPE_NONE then t = c.types->Pointer_( inner )
         end if
     end select
 

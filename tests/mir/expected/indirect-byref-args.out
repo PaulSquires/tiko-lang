@@ -95,6 +95,8 @@ func i32 main($0, $1) {
   local i32 $tmp0
   local ptr $tmp1
   local ptr p
+  local ptr $tmp3
+  local ptr $tmp4
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -113,16 +115,19 @@ func i32 main($0, $1) {
     %10 = load @p
     call.ind void %10(%9)
     %11 = func.addr ptr LESS
-    call void apply_<28>(%11)
-    %12 = func.addr ptr __TKO_LAMBDA_B9179CFB_0
-    call void apply_<28>(%12)
-    %13 = const i32 0
-    call.rtl void fb_End(%13)
-    %14 = load @$tmp0
-    ret %14
+    %12 = alloca ptr $tmp3
+    store @$tmp3, %11
+    call void APPLY_<28>(@$tmp3)
+    %13 = func.addr ptr __TKO_LAMBDA_B9179CFB_0
+    %14 = alloca ptr $tmp4
+    store @$tmp4, %13
+    call void APPLY_<28>(@$tmp4)
+    %15 = const i32 0
+    call.rtl void fb_End(%15)
+    %16 = load @$tmp0
+    ret %16
 }
 declare void fb_Init($0, $1, $2)
-declare void apply_<28>()
 declare void fb_End($0)
 verify: ok
-lowered: 6 functions, 6 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

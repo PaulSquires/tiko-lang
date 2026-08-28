@@ -1032,7 +1032,8 @@ end function
 '' own 'assert_' macro around it with nothing declaring it anywhere, and fbc compiles
 '' them. 2,054 unlowered calls came from that one macro.
 private function BuiltinProcRtl _
-    ( byref nm as string, byref argc as long, byref retTy as MirType ) as RtlId
+    ( byref nm as string, byref argc as long, byref retTy as MirType, _
+      byval unboundOnly as boolean = false ) as RtlId
 
     select case nm
     case "allocate"     : retTy = MT_PTR  : return RTL_MALLOC
@@ -1048,6 +1049,38 @@ private function BuiltinProcRtl _
     '' ADDRESS: fbc writes 'memset( (void*)A, 0, 16ull )' for 'clear a(0), 0, 16'.
     case "clear"        : retTy = MT_VOID : return RTL_MEMSET
     end select
+
+    '' ...AND THE NAMES THAT REACH HERE ONLY WHEN NOTHING ELSE BOUND THEM. These
+    '' are FreeBASIC runtime procedures spelled as ordinary identifiers rather
+    '' than keywords, so the callee lookup finds nothing and the call declined:
+    '' 'dim as long a = run( cmd )' is 'vr$3 = fb_Run( &CMD$0, vr$1 )' to fbc,
+    '' and 'w = width( )' is 'fb_Width( -1, -1 )'.
+    ''
+    '' ONLY THE ONES WHOSE ENTRY POINT DOES NOT DEPEND ON THE ARGUMENT'S TYPE.
+    '' IntrinsicProcPtrRtl_ below maps about fifty names and CANNOT be used for
+    '' this: its own header says it answers with the FIRST overload -- RTL_HEX_B
+    '' rather than RTL_HEX_L -- because that is what 'procptr( hex )' needs. Using
+    '' it here would give 'hex( i )' the byte entry point, which is a wrong call
+    '' where there used to be none.
+    if unboundOnly then
+        select case nm
+        '' 'run' AND 'width' KEEP THEIR ARITY GUARD AND SO STILL DECLINE WHERE THE
+        '' CALL IS SHORT. Measured: 'run( cmd )' is
+        '' 'fb_Run( &CMD, fb_StrAllocTempDescZEx( "", 0 ) )' -- a DEFAULTED second
+        '' argument this does not synthesise -- and 'width( )' is
+        '' 'fb_Width( -1, -1 )'. Listing them costs nothing and is wrong nowhere:
+        '' LowerBuiltinProc refuses a wrong arity, so the fully written spellings
+        '' lower and the short ones decline as they did.
+        case "run"          : retTy = MT_I32  : return RTL_RUN
+        case "width"        : retTy = MT_I32  : return RTL_WIDTH
+        case "chain"        : retTy = MT_I32  : return RTL_CHAIN
+        case "bsave"        : retTy = MT_I32  : return RTL_BSAVE
+        case "bload"        : retTy = MT_I32  : return RTL_BLOAD
+        case "dylibload"    : retTy = MT_PTR  : return RTL_DYLIB_LOAD
+        case "dylibsymbol"  : retTy = MT_PTR  : return RTL_DYLIB_SYMBOL
+        case "dylibfree"    : retTy = MT_VOID : return RTL_DYLIB_FREE
+        end select
+    end if
     return RTL_NONE
 end function
 
@@ -1055,7 +1088,8 @@ end function
 '' ordinary unbound callee still declines as it did.
 function LowerBuiltinProc _
     ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
-      byval argCount as long, byref outv as MirValue ) as boolean
+      byval argCount as long, byref outv as MirValue, _
+      byval unboundOnly as boolean = false ) as boolean
 
     if calleeNode = Tko.NODE_NONE then return false
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
@@ -1075,7 +1109,7 @@ function LowerBuiltinProc _
 
     dim as long argc = argCount
     dim as MirType retTy = MT_VOID
-    dim as RtlId r = BuiltinProcRtl( nm, argc, retTy )
+    dim as RtlId r = BuiltinProcRtl( nm, argc, retTy, unboundOnly )
     if r = RTL_NONE then return false
 
     '' The declared arity, so a wrong-arity call is left to decline rather than being

@@ -182,6 +182,16 @@ function LowerCallParts _
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if (callee = Tko.SYMBOL_NONE) andalso (exprCallee = false) then
+        '' A FREEBASIC RUNTIME PROCEDURE SPELLED AS AN ORDINARY IDENTIFIER --
+        '' 'run', 'bsave', 'dylibload'. There is no keyword and no symbol, so
+        '' nothing bound them and every call declined. Tried HERE rather than
+        '' beside the other built-ins at the top of this routine, so a program
+        '' that declares its own 'sub run( )' still calls its own.
+        dim as MirValue rv2
+        if LowerBuiltinProc( c, calleeNode, argFirst, argCount, rv2, true ) then
+            c.lastCallOk = true
+            return rv2
+        end if
         return CallFailed_( c, v, __LINE__ )
     end if
     if (cs = 0) andalso (exprCallee = false) then return CallFailed_( c, v, __LINE__ )

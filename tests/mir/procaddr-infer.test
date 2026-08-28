@@ -1,0 +1,27 @@
+'' '@f' OVER A FUNCTION WAS TYPED 'long ptr'.
+''
+'' A procedure has no type of its own on its symbol -- that slot holds its RETURN type
+'' -- so the operand of '@f' came back typed LONG and the address was wrapped as a
+'' pointer to it. Only the SUB half of this was ever noticed, because a SUB's return
+'' type is none and the operand came back UNTYPED: the fallback that reads the
+'' procedure's own signature was written for that case and asked SECOND, so a FUNCTION
+'' never reached it. Measured: fbc says 'typeof( @f )' is 'FUNCTION(AS LONG) AS LONG'.
+''
+'' It is why 'var v = <lambda>' then 'v( 5 )' declined while 'dim m as Fn = <lambda>'
+'' beside it lowered -- generics/lambda.bas and six more. A wrong TYPE rather than a
+'' missing one, which is why it declined at the CALL and never at the declaration.
+''
+'' ...and a FreeBASIC RUNTIME PROCEDURE spelled as an ordinary identifier -- 'chain',
+'' 'dylibload' -- has no keyword and no symbol, so nothing bound it. Consulted only
+'' where the callee bound to NOTHING, so a program that declares its own 'sub run( )'
+'' still calls its own. NOT taken from IntrinsicProcPtrRtl_, which answers with the
+'' FIRST overload because that is what 'procptr( hex )' needs: 'hex( i )' would get the
+'' byte entry point, a wrong call where there used to be none.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procaddr-infer.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_DylibLoad
+'' EXPECT-OUT: fb_Chain
+'' GOLDEN: expected/procaddr-infer.out

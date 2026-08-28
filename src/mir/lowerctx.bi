@@ -563,7 +563,8 @@ declare function EmitRtl _
     declare function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerBuiltinProc _
         ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
-          byval argCount as long, byref outv as MirValue ) as boolean
+          byval argCount as long, byref outv as MirValue, _
+          byval unboundOnly as boolean = false ) as boolean
     declare function LowerProcPtr _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerArrayInit _
