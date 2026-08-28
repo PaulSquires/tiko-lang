@@ -1,3 +1,21 @@
+func i32 _Z4FOO_i($0) {
+  local i32 $tmp0
+  local i32 x
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr x
+    store @x, $0
+    %4 = load @x
+    %5 = const i64 1
+    %6 = sext %4
+    %7 = add %6, %5
+    %8 = trunc %7
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    ret %9
+}
 func i32 main($0, $1) {
   local i32 $tmp0
   local i32 _x
@@ -41,14 +59,18 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintLongint(0, %22, 2)
     %23 = const i64 30
     call.rtl void fb_PrintLongint(0, %23, 1)
-    %24 = const i32 0
-    call.rtl void fb_End(%24)
-    %25 = load @$tmp0
-    ret %25
+    %24 = const i64 41
+    %25 = trunc %24
+    %26 = call i32 _Z4FOO_i(%25)
+    call.rtl void fb_PrintInt(0, %26, 1)
+    %27 = const i32 0
+    call.rtl void fb_End(%27)
+    %28 = load @$tmp0
+    ret %28
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance

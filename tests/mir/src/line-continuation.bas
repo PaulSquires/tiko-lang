@@ -30,3 +30,16 @@ chk( 1, _ )
 
 chk( 10, _
      20, 30 )
+
+'' ...EXCEPT NEXT TO A PASTE. 'V##_' is the NAME 'Foo_' and fbc reads it as one --
+'' measured, 'private function V##_ overload' gives '_Z4FOO_u7INTEGER'. Taking it as a
+'' continuation swallowed the declaration and pasted the NEXT line's first word:
+'' fb/vector.bi declared 'Vec2fdim' where fbc declares 'Vec2f_', the header then failed
+'' to parse at all, and 28 statements went missing from every file that includes it.
+#macro mkfn( V )
+    private function V##_ overload ( byval x as long ) as long
+        function = x + 1
+    end function
+#endmacro
+mkfn( Foo )
+print Foo_( 41 )

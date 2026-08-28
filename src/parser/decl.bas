@@ -55,7 +55,21 @@ private function RawSpelling( byref p as Tko.ParserState ) as Tko.InternId
     dim as Tko.SourceFile ptr f = p.src->FileAt( d.file )
     if f = 0 then return 0
     if (d.offset + cast( long, t.length )) > f->text.Count then return 0
-    return p.names->Get( @f->text[d.offset], cast( long, t.length ) )
+    dim as Tko.InternId raw = p.names->Get( @f->text[d.offset], cast( long, t.length ) )
+    '' ...ONLY IF THOSE BYTES ARE ACTUALLY THIS TOKEN. A token the preprocessor
+    '' BUILT -- a '##' paste, or a macro parameter substituted in -- keeps the
+    '' location it was expanded at, so the source there spells the INVOCATION and
+    '' not the name. 'mkfn( Foo )' over 'function V##_ overload' mangled the
+    '' function as MKFN, taking four bytes of the call site because 'Foo_' is four
+    '' bytes long; fbc emits '_Z4FOO_u7INTEGER'. fb/vector.bi is 30 procedures of
+    '' this shape.
+    ''
+    '' Checked by COMPARING rather than by trusting a flag: the raw spelling exists
+    '' only to preserve CASE, so the two must differ by case alone or the bytes are
+    '' not the token's and the interned name is the honest answer.
+    if Tko.Text.LowerAscii( p.names->Spelling( raw ) ) <> _
+       Tko.Text.LowerAscii( p.names->Spelling( t.literal ) ) then return 0
+    return raw
 end function
 
 '' 'a.b' as an EXPRESSION node, built without going through the postfix parser -- which

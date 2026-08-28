@@ -1,7 +1,17 @@
 '' The line continuation discards the rest of its physical line, which is what a
 '' continuation inside a macro argument list depends on.
+'' ...EXCEPT NEXT TO A PASTE. 'V##_' is the NAME 'Foo_' and fbc reads it as one --
+'' measured, fbc emits '_Z4FOO_u7INTEGER'. Taken as a continuation it swallowed the
+'' declaration and pasted the NEXT line's first word instead: fb/vector.bi declared
+'' 'Vec2fdim' where fbc declares 'Vec2f_', the header then failed to parse at all, and
+'' 28 statements went missing from every file that includes it.
+''
+'' The mangled name is checked here for a second reason: a token the PREPROCESSOR built
+'' keeps the location it was expanded at, so the raw spelling read from the source there
+'' was the INVOCATION -- four bytes of 'mkfn( Foo )' for a four-byte 'Foo_'.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/line-continuation.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _Z4FOO_i
 '' GOLDEN: expected/line-continuation.out

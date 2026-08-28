@@ -774,10 +774,27 @@ sub Run _
         '' character makes it a NAME -- '_x', '_ab' and '_9' are all identifiers, and
         '' fbc reports the last as an undeclared variable rather than continuing the
         '' line -- and anything else, INCLUDING A SPACE, makes it a continuation.
+        '' ...EXCEPT NEXT TO A PASTE. 'V2##_' is the NAME 'Vec2f_' and fbc reads it as
+        '' one -- measured, 'private function V##_ overload' inside a macro gives
+        '' '_Z4FOO_u7INTEGER', so the '_' is an identifier there and not a
+        '' continuation. It is the '##' that decides and nothing else: a bare '_ '
+        '' inside the same macro body still continues the line, measured the same
+        '' way. Without this, 'V2##_ overload ( ... ) as V2' swallowed its own
+        '' declaration and pasted the NEXT line's first word instead -- fb/vector.bi
+        '' declared 'Vec2fdim' where fbc declares 'Vec2f_', and every use of the
+        '' real name then declined.
         if c = 95 then
             dim as boolean nameChar = false
             if s.i + 1 < s.n then nameChar = IsIdentCont( s.p[s.i + 1] )
-            if nameChar = false then
+            dim as boolean pasteAdj = false
+            if s.i >= 2 then
+                pasteAdj = (s.p[s.i - 1] = 35) andalso (s.p[s.i - 2] = 35)
+            end if
+            if pasteAdj = false then
+                if (s.i + 2 < s.n) andalso (s.p[s.i + 1] = 35) andalso _
+                   (s.p[s.i + 2] = 35) then pasteAdj = true
+            end if
+            if (nameChar = false) andalso (pasteAdj = false) then
                 dim as long j = s.i + 1
                 while (j < s.n) andalso (s.p[j] <> 10)
                     j += 1
