@@ -315,30 +315,30 @@ function tkort_hStrAllocTemp alias "fb_hStrAllocTemp" _
 	return r
 end function
 
-'' Same contract as DelTempDesc (PROBE-16): 0 when this was a pool temporary and
-'' has been released, -1 when it was not ours.
+'' Free the temporary's data, then release its descriptor if -- and only if --
+'' the descriptor came from our pool.
 ''
-'' The -1 case must do NOTHING. If it freed the data and still reported -1, the
-'' caller -- which reads -1 as "you still own this" -- would free it again.
+'' THE RETURN VALUE AND THE FREEING ARE INDEPENDENT, which is the thing the
+'' first version got wrong. PROBE-16 measured `DelTemp( a caller's temp ) -> -1`
+'' and it was read as "so it does nothing". It is not: the allocation-count
+'' differential shows fbc performing 1000 frees per 1000 temporaries on exactly
+'' that path, while tiko-rt performed **zero**. A straight leak -- 1000 blocks
+'' allocated and never released.
+''
+'' It could not have been caught any other way. The gate passed, every output
+'' matched, and every descriptor differential said IDENTICAL, because a leak
+'' changes nothing a program can observe. RFC-0004 section 4 says exactly this
+'' about Gate 3 and it went unbuilt until it was needed.
+''
+'' So: -1 means "the descriptor was not mine to release", not "I did nothing".
+'' The data is freed either way, when the temp bit says the temporary owns it.
 function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
 	( byval s as FBSTRING ptr ) as long
 
-	if( hFromPool( s ) = 0 ) then return -1
+	if( s = 0 ) then return -1
 
-	'' FREE THE DATA ONLY IF THIS TEMPORARY OWNS IT.
-	''
-	'' PROBE-17: fb_StrAllocTempDescZ builds a temporary whose `data` points
-	'' straight at a STRING LITERAL -- len=2, size=2, and the TEMP BIT CLEAR --
-	'' so that PRINT "hi" needs no copy. Freeing that is free() on a literal.
-	''
-	'' It is what the first version of this file did, and the symptom was
-	'' exquisite: `print "hi"` printed "hi" and *then* the program died at
-	'' shutdown with no message, while plain assignment worked perfectly. The
-	'' bisect that found it had to avoid PRINT, because PRINT was the thing
-	'' being broken.
-	''
-	'' The temp bit is the ownership flag: set by fb_hStrAllocTemp when it
-	'' allocates a block, clear on a borrowed one.
+	'' The temp bit is the OWNERSHIP flag: fb_StrAllocTempDescZ builds temporaries
+	'' whose data points at a string literal and leaves the bit clear (PROBE-17).
 	if( FB_ISTEMP( s ) andalso (s->data <> 0) ) then
 		deallocate( s->data )
 	end if
@@ -346,6 +346,7 @@ function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
 	s->len  = 0
 	s->size = 0
 
+	if( hFromPool( s ) = 0 ) then return -1
 	hPoolFree( s )
 	return 0
 
