@@ -337,16 +337,52 @@ function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
 
 	if( s = 0 ) then return -1
 
-	'' The temp bit is the OWNERSHIP flag: fb_StrAllocTempDescZ builds temporaries
-	'' whose data points at a string literal and leaves the bit clear (PROBE-17).
-	if( FB_ISTEMP( s ) andalso (s->data <> 0) ) then
-		deallocate( s->data )
-	end if
-	s->data = 0
-	s->len  = 0
-	s->size = 0
+	'' NOT A TEMPORARY -> NOT OURS TO TOUCH. Leave it entirely alone.
+	''
+	'' This gate is the whole contract and it took two wrong versions to find.
+	'' fbc calls fb_hStrDelTemp on THREE descriptors per `len(a + b)`: the two
+	'' operands and the result. Only the result carries the temp bit.
+	''
+	''   version 1  returned -1 for anything not from our pool, without freeing.
+	''              Correct for the operands, and a LEAK for the result whenever
+	''              fbc supplied its own descriptor -- 1000 allocations, 0 frees.
+	''   version 2  freed and zeroed unconditionally. It plugged the leak and
+	''              ZEROED THE OPERANDS' DESCRIPTORS -- live strings, wiped.
+	''   this one   keys on the temp bit, which is what actually says "this
+	''              temporary owns its data". Operands survive; the result is
+	''              freed; and fbc's call counts line up with its own runtime's.
+	''
+	'' The tell was never a wrong answer. It was fb_hStrAllocTemp being called
+	'' ONCE per thousand iterations instead of a thousand times: with the
+	'' operands' descriptors zeroed, the caller stopped asking for a buffer.
+	'' TWO SEPARATE QUESTIONS, and conflating them is what went wrong twice:
+	''
+	''   does this temporary OWN its data?   -> the temp bit. PROBE-17: a
+	''       literal-backed temporary points at a string literal and leaves the
+	''       bit clear, so freeing it is free() on a literal.
+	''   is this descriptor OURS to release? -> whether it came from the pool.
+	''
+	'' Gating the whole function on the temp bit exhausted the 256-entry pool,
+	'' because literal-backed descriptors ARE ours and were never handed back.
+	'' Gating it on the pool leaked the data. Each question governs its own half.
+	dim as integer mine = hFromPool( s )
 
-	if( hFromPool( s ) = 0 ) then return -1
+	if( (FB_ISTEMP( s ) = 0) andalso (mine = 0) ) then
+		'' Neither a temporary nor ours: a live string belonging to someone
+		'' else. fbc calls this on all three descriptors of `len(a + b)` -- the
+		'' two operands and the result -- and only the result is a temporary.
+		'' Touching the operands wipes live data.
+		return -1
+	end if
+
+	if( FB_ISTEMP( s ) ) then
+		if( s->data <> 0 ) then deallocate( s->data )
+		s->data = 0
+		s->len  = 0
+		s->size = 0
+	end if
+
+	if( mine = 0 ) then return -1
 	hPoolFree( s )
 	return 0
 
