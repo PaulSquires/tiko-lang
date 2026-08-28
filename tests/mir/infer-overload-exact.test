@@ -1,0 +1,7 @@
+'' A generic's type argument inferred through an overload set, by the one candidate
+'' whose first parameter matches the argument exactly.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/infer-overload-exact.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/infer-overload-exact.out

@@ -284,7 +284,65 @@ private function InferArgType_ _
             dim as Tko.Symbol ptr psy = c.syms->SymbolAt( psid )
             if psy = 0 then return Tko.TYPE_NONE
             if psy->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
-            if psy->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+            if psy->nextOverload <> Tko.SYMBOL_NONE then
+                '' AN OVERLOAD SET WITH AN EXACT MATCH IS NOT A GUESS. Where one
+                '' candidate's first parameter is EXACTLY the first argument's type,
+                '' that is the candidate overload resolution picks -- an exact match
+                '' beats every conversion -- and if that candidate RETURNS that same
+                '' type, the call's type is the argument's type whatever else is in
+                '' the set.
+                ''
+                '' 'return Some( IPow( base_, expo ) )' inside 'IPowChecked( of T )'
+                '' is this shape and nothing else in the corpus is: fb/mathint.bi
+                '' expands one ordinary 'IPow( byval as T, byval as T ) as T' per
+                '' integer type from a MACRO, so the set is four concrete overloads
+                '' rather than a generic -- which is what an earlier note here got
+                '' wrong.
+                ''
+                '' Still refused where NO candidate matches exactly: picking the
+                '' cheapest conversion is overload resolution, which is Check's and
+                '' runs later.
+                if cp->count < 1 then return Tko.TYPE_NONE
+                dim as Tko.TypeId a0t = InferArgType_( c, _
+                    cast( Tko.NodeId, c.ast->children[cp->first] ), scope_ )
+                if a0t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+                dim as Tko.TypeId a0u = c.types->Unqualify( a0t )
+                dim as Tko.SymbolId ocur = psid
+                while ocur <> Tko.SYMBOL_NONE
+                    dim as Tko.Symbol ptr osy = c.syms->SymbolAt( ocur )
+                    if osy = 0 then exit while
+                    dim as Tko.NodeId opn = cast( Tko.NodeId, osy->payload )
+                    if (opn <> Tko.NODE_NONE) andalso (c.ast->Kind( opn ) = Tko.N_PROC) then
+                        dim as Tko.StmtPayload ptr opp = StmtOf( c, opn )
+                        dim as Tko.NodeId p0 = Tko.NODE_NONE
+                        for oi as long = 0 to opp->count - 1
+                            dim as Tko.NodeId oprm = _
+                                cast( Tko.NodeId, c.ast->children[opp->first + oi] )
+                            if c.ast->Kind( oprm ) = Tko.N_PARAM then
+                                p0 = oprm
+                                exit for
+                            end if
+                        next
+                        if p0 <> Tko.NODE_NONE then
+                            dim as Tko.TypeId pt0 = _
+                                ResolveTypeRef( c, StmtOf( c, p0 )->a, scope_ )
+                            if pt0 <> Tko.TYPE_NONE then
+                                if c.types->Unqualify( pt0 ) = a0u then
+                                    dim as Tko.TypeId ort = osy->type_
+                                    if ort <> Tko.TYPE_NONE then
+                                        if c.types->Kind( ort ) = Tko.TK_REFERENCE then
+                                            ort = c.types->Inner( ort )
+                                        end if
+                                        if c.types->Unqualify( ort ) = a0u then return a0u
+                                    end if
+                                end if
+                            end if
+                        end if
+                    end if
+                    ocur = osy->nextOverload
+                wend
+                return Tko.TYPE_NONE
+            end if
             dim as Tko.TypeId rt = psy->type_
             if rt = Tko.TYPE_NONE then return Tko.TYPE_NONE
             if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Inner( rt )
