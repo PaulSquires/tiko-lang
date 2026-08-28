@@ -793,6 +793,26 @@ sub WalkStmt _
         '' is why this is here and not in Collect: folding it needs the symbol table
         '' populated and a SourceManager, and Collect has neither at that point.
         dim as Tko.StmtPayload ptr esp = StmtOf( c, id )
+        '' AN ANONYMOUS ENUM GETS A GENERATED NAME, because its members need a TYPE
+        '' like any others and a type here is made from one. Without it they stayed
+        '' UNTYPED, and an untyped argument leaves the whole call untyped: the
+        '' result type went missing, 'call void g( ... )' came out where the
+        '' callee returns a long, and every use of the value declined.
+        ''
+        '' That is 'setlocale( LC_ALL, 0 )', every 'CoCreateInstance( ...,
+        '' CLSCTX_INPROC_SERVER, ... )' and 'astNew( AST_VAR )' -- LC_ALL, CLSCTX_*
+        '' and AST_* are all anonymous-enum members, and the lines that declined
+        '' never mention an enum.
+        ''
+        '' 'TMP$' is fbc's own spelling: measured, '#print typeof( X )' over a
+        '' member of an anonymous enum prints 'TMP$2' and the next one 'TMP$3'. The
+        '' NUMBER is the declaring NODE rather than a compilation-order counter --
+        '' nothing can observe it that fbc can be asked about, since the name is
+        '' not spellable in source, and a node id is stable across passes.
+        dim as Tko.InternId enumName = esp->name
+        if enumName = 0 then
+            enumName = c.names->Fold( c.names->GetString( "TMP$" & str( cast( long, id ) ) ) )
+        end if
         dim as longint enumNext = 0
         for i as long = 0 to esp->count - 1
             dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[esp->first + i] )
@@ -815,12 +835,9 @@ sub WalkStmt _
                     '' typeof( B )' for a member of 'enum E2' prints E2. Without it the
                     '' member was untyped and anything reading it -- a PRINT item, a
                     '' comparison -- had nothing to work from. An ANONYMOUS enum has no
-                    '' name to make a type from and keeps its members untyped; fbc gives
-                    '' them a generated one, which tiko-lang has no equivalent of.
-                    if esp->name <> 0 then
-                        es->type_ = c.types->NamedType( Tko.TK_ENUM, esp->name, _
-                                                        cast( ulong, here ) )
-                    end if
+                    '' name to make one from, so it is given the generated one above.
+                    es->type_ = c.types->NamedType( Tko.TK_ENUM, enumName, _
+                                                    cast( ulong, here ) )
                 end if
             end if
             enumNext += 1

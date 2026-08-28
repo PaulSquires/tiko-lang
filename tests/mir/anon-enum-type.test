@@ -1,0 +1,19 @@
+'' AN ANONYMOUS ENUM LEFT ITS MEMBERS UNTYPED, and an untyped ARGUMENT leaves the whole
+'' CALL untyped: the result type went missing, 'call void G( ... )' came out where the
+'' callee returns a long, and every use of the value declined.
+''
+'' The lines that declined never mention an enum. It is 'setlocale( LC_ALL, 0 )', every
+'' 'CoCreateInstance( ..., CLSCTX_INPROC_SERVER, ... )' and 'astNew( AST_VAR )' --
+'' LC_ALL, CLSCTX_* and AST_* are all anonymous-enum members.
+''
+'' A NAMED enum worked, which is why this looked fine: the type is made FROM THE NAME
+'' and an anonymous one had none to make it from. fbc generates one, spelled 'TMP$n';
+'' the number here is the declaring NODE rather than a compilation-order counter,
+'' because the name is not spellable in source and nothing can observe which it is.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/anon-enum-type.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call i32 G
+'' GOLDEN: expected/anon-enum-type.out
