@@ -3,3 +3,4 @@
 # the toolchain path end to end. Populated from S2 onward.
 mem/mem.bas
 support/list.bas
+str/core.bas
