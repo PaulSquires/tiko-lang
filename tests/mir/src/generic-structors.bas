@@ -51,3 +51,32 @@ print a.v, b.v, c.v
 dim as H( of long ) h
 h.v = 9
 print h.Get( )
+
+'' ...AND CONSTRUCTING ONE WITH ARGUMENTS. The callee spells the TEMPLATE, 'K', while
+'' the declared type is the INSTANTIATION, so a name comparison alone said no and the
+'' whole thing fell through to the copy path -- a temporary constructed and copied out,
+'' with the temporary's own destructor never run. Measured, fbc constructs in place:
+''
+''     _ZN1KIiEC1Ei( &Q$0, 7 );
+''     _ZN1KIiED1Ev( &Q$0 );
+type K( of T )
+    dim as T v
+    declare constructor( )
+    declare constructor( byval n as T )
+    declare destructor( )
+end type
+
+constructor K( of T )( )
+    v = 5
+end constructor
+
+constructor K( of T )( byval n as T )
+    v = n
+end constructor
+
+destructor K( of T )( )
+end destructor
+
+dim as K( of long ) p
+dim as K( of long ) q = K( of long )( 7 )
+print p.v, q.v

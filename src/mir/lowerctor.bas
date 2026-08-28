@@ -198,7 +198,22 @@ function LowerCtorInit _
         if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr ip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-        if ip->name <> c.types->NameOf( t ) then return false
+        '' A GENERIC IS NAMED BY ITS TEMPLATE AT THE CALL AND BY ITS INSTANTIATION
+        '' IN THE TYPE: 'Box( of long )( 7 )' spells the callee 'Box' while the
+        '' declared type is 'Box<6>', so a name comparison alone said no and the
+        '' whole thing fell through to the copy path -- which built a temporary,
+        '' constructed into that and copied the bytes out, leaving the temporary's
+        '' own destructor unrun. Resolve records the instantiation on the callee, so
+        '' the TYPE answers where the name cannot.
+        if ip->name <> c.types->NameOf( t ) then
+            '' ...and ONLY when the callee NAMES A TYPE. Comparing the target's type
+            '' alone accepted a FUNCTION whose result happens to be this type, and the
+            '' argument values are lowered before the overload is picked -- so it
+            '' emitted them, found no constructor, and left them behind as dead
+            '' instructions. TypeCtorTypeOf_ asks the callee's SYMBOL, which is what
+            '' tells a type name from a function returning one.
+            if TypeCtorTypeOf_( c, init_ ) <> c.types->Unqualify( t ) then return false
+        end if
     end if
 
     dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )

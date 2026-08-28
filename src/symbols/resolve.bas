@@ -305,6 +305,41 @@ private function InheritedMember_ _
 end function
 
 
+'' 'Box( of long )( 7 )' -- CONSTRUCTING A GENERIC, which is not a generic PROCEDURE
+'' call and was not handled beside one.
+''
+'' The callee names the GENERIC and the instantiation arguments are recorded against
+'' the CALL, so the ordinary binding pointed the call at the TEMPLATE: the constructor
+'' was looked for on a type that has none, the arguments were dropped, and a 'dim'
+'' default-constructed instead. 'Channel( of long )( 1 )' is exactly this shape, so a
+'' channel was getting capacity 0.
+''
+'' Instantiated through the same entry a TYPE REFERENCE uses, so 'Box( of long )( 7 )'
+'' and 'dim as Box( of long )' name one type and not two.
+private function GenericCtorCall_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval lp as Tko.ListPayload ptr, _
+      byval scope_ as Tko.ScopeId ) as boolean
+
+    if lp->target = Tko.NODE_NONE then return false
+    dim as long taFirst, taCount
+    if c.ast->CallTypeArgsOf( id, taFirst, taCount ) = false then return false
+    if taCount <= 0 then return false
+
+    dim as Tko.SymbolId gsid = c.info->RefOf( lp->target )
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
+    if gs = 0 then return false
+    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+
+    dim as Tko.StmtPayload gsp
+    gsp.name = gs->name
+    gsp.first = taFirst
+    gsp.count = taCount
+    dim as Tko.TypeId inst = InstantiateGeneric_( c, id, @gsp, scope_, gsid )
+    if inst = Tko.TYPE_NONE then return false
+    c.info->SetType( id, inst )
+    c.info->SetType( lp->target, inst )
+    return true
+end function
 private sub WalkExpr _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -583,6 +618,8 @@ private sub WalkExpr _
             if gpi <> Tko.SYMBOL_NONE then
                 c.info->SetRef( id, gpi )
                 c.info->SetRef( lp->target, gpi )
+            elseif GenericCtorCall_( c, id, lp, scope_ ) then
+                '' Bound to the INSTANTIATION by the call above.
             elseif c.info->RefOf( id ) = Tko.SYMBOL_NONE then
                 c.info->SetRef( id, c.info->RefOf( lp->target ) )
             end if
