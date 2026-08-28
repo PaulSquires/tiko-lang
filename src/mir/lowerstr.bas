@@ -538,9 +538,19 @@ function LowerStringInit _
             '' is ZSTRING. Without it 'dim as string s = !"\u0041\u0042"' put the
             '' twelve characters of the SPELLING in a narrow global; fbc emits
             '' 'fb_WstrAssignToA_Init( &S, -1, L"AB", 0 )'.
-            if ConcatHasWideTerm_( c, value ) orelse _
-               IsWideString_( c, c.info->TypeOf_( value ) ) orelse _
-               LitHasUnicodeEscape_( c, value ) then
+            '' ...AND A WIDE CALL WHOSE TYPE IS EMPTY. 'wchr( 65 )' and 'wspace( n )'
+            '' have no type at all -- Check computes none for an unbound callee -- so
+            '' a type-and-literal test said narrow and
+            '' 'dim s as zstring * 10 = wchr( 65 )' declined, while 'wstr( "B" )'
+            '' beside it lowered. Measured, fbc folds the code and emits
+            '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )'.
+            dim as boolean wideInit = ConcatHasWideTerm_( c, value )
+            if wideInit = false then
+                wideInit = IsWideString_( c, c.info->TypeOf_( value ) )
+            end if
+            if wideInit = false then wideInit = LitHasUnicodeEscape_( c, value )
+            if wideInit = false then wideInit = TermIsWide_( c, value )
+            if wideInit then
                 ZeroStrDescriptor( c, dst )
                 if LowerWideToNarrowSlot( c, slot, dt0, value, true ) then return true
                 return false
@@ -1080,7 +1090,7 @@ function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if lp->count <> 1 then return false
+    if lp->count < 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
@@ -1094,7 +1104,14 @@ function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' narrow, and sent it to the narrow emitter, which had nothing to give.
     '' Measured: 'wstr( "a" ) + wspace( 3 )' is
     '' 'fb_WstrConcat( L"a", fb_WstrSpace( 3 ) )'.
+    '' 'wchr( a, b, ... )' IS VARIADIC and wide whatever its arity, which is why the
+    '' one-argument guard is per-name and no longer at the top: measured,
+    '' 'dim s as zstring * 10 = wchr( 65 )' is
+    '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )' -- the code folded to a wide
+    '' literal -- and tiko-lang declined it while 'wstr( "B" )' beside it lowered.
     case "wstr", "whex", "woct", "wbin", "wspace"
+        return (lp->count = 1)
+    case "wchr"
         return true
     end select
     return false

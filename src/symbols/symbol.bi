@@ -222,6 +222,11 @@ namespace Tko
             ( byval nsScope as ScopeId, byval nm as InternId, _
               byval depth as long = 0 ) as SymbolId
 
+        '' The same, wanting a TYPE name (or wanting not to be one).
+        declare function LookupInNamespaceTyped _
+            ( byval nsScope as ScopeId, byval nm as InternId, _
+              byval wantType as boolean, byval depth as long = 0 ) as SymbolId
+
         '' A name reachable only through a USING in effect at 'scope_' -- the scope's
         '' own and every enclosing one's, and NOT the scopes' own declarations. That
         '' is what a leading '.name' needs: it must not see an ordinary local.

@@ -192,6 +192,40 @@ function SymbolTable.LookupInNamespace _
     return SYMBOL_NONE
 end function
 
+'' The same, WANTING A TYPE NAME (or wanting not to be one). LookupTyped's using loop
+'' probed the used namespace ONCE and stopped, so a using that leads through a second
+'' using found nothing:
+''
+''     namespace foo : type t1 : as long v : end type : end namespace
+''     namespace bar : using foo : ... : end namespace
+''     using bar
+''     foobar( type<t1>( -123 ) )
+''
+'' fbc accepts that and prints -123; tiko-lang could not see t1 at all, so the type
+'' literal was untyped and the argument declined. LookupInNamespace already follows
+'' the chain for VALUES and this is the same walk, asking the type question.
+''
+'' DEPTH-LIMITED for the same reason: a using chain can be cyclic.
+function SymbolTable.LookupInNamespaceTyped _
+    ( byval nsScope as ScopeId, byval nm as InternId, byval wantType as boolean, _
+      byval depth as long ) as SymbolId
+
+    if nsScope = SCOPE_NONE then return SYMBOL_NONE
+    dim as SymbolId got = this.LookupLocalTyped( nsScope, nm, wantType )
+    if got <> SYMBOL_NONE then
+        dim as Symbol ptr g = @this.symbols[cast( long, got )]
+        if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return got
+    end if
+    if depth >= 8 then return SYMBOL_NONE
+    for i as long = 0 to this.usingAt.Count - 1
+        if this.usingAt[i] <> cast( ulong, nsScope ) then continue for
+        got = this.LookupInNamespaceTyped( _
+            cast( ScopeId, this.usingInner[i] ), nm, wantType, depth + 1 )
+        if got <> SYMBOL_NONE then return got
+    next
+    return SYMBOL_NONE
+end function
+
 '' A name reachable only through a USING in effect at 'scope_'.
 ''
 '' The scope's own usings and every enclosing scope's, and NOT the scopes' own
@@ -255,11 +289,11 @@ function SymbolTable.LookupTyped _
         '' and before its parent's, which is the order Lookup( ) already uses.
         for i as long = 0 to this.usingAt.Count - 1
             if this.usingAt[i] <> cast( ulong, sc ) then continue for
-            got = this.LookupLocalTyped( cast( ScopeId, this.usingInner[i] ), nm, wantType )
-            if got <> SYMBOL_NONE then
-                dim as Symbol ptr gu = @this.symbols[cast( long, got )]
-                if IsTypeNameKind( cast( SymbolKind, gu->kind ) ) = wantType then return got
-            end if
+            '' ...AND THROUGH THAT NAMESPACE'S OWN USINGS. See
+            '' LookupInNamespaceTyped: a single probe missed every transitive one.
+            got = this.LookupInNamespaceTyped( _
+                cast( ScopeId, this.usingInner[i] ), nm, wantType, 0 )
+            if got <> SYMBOL_NONE then return got
         next
 
         dim as SymScope ptr s_ = this.ScopeAt( sc )

@@ -1,0 +1,5 @@
+'' A type name reached through a using inside a used namespace.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/using-transitive.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/using-transitive.out
