@@ -47,7 +47,7 @@ case "$TARGET" in
 esac
 
 # The members tiko-rt replaces, and the sources they come from.
-MEMBERS="swap_mem mem_copyclear list listdyn str_core"
+MEMBERS="swap_mem mem_copyclear list listdyn str_core strw_len strw_comp strw_trim strw_ltrim strw_rtrim"
 
 # fbc's own rtlib flags (src/makefile:179-181), minus the warning options: a
 # diagnostic here would quote source text, which PROVENANCE.md has no reason to
