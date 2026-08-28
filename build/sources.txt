@@ -1,0 +1,4 @@
+# sources.txt -- one module per line, relative to src/, in link order.
+# S0 has no modules yet; the build produces empty archives, which still proves
+# the toolchain path end to end. Populated from S2 onward.
+mem/mem.bas

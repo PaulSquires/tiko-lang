@@ -1,0 +1,63 @@
+#ifndef __TKORT_CONFIG_BI__
+#define __TKORT_CONFIG_BI__
+
+'' config.bi -- the constants of the ABI contract.
+''
+'' Every value here is taken from a header (docs/tiko-rt/RFC-0002), never from
+'' an rtlib .c body. Where a value depends on the target it is derived from the
+'' target rather than tabulated, so that adding a target cannot silently pick up
+'' a wrong constant.
+
+'' ------------------------------------------------------------ truth values
+''
+'' FreeBASIC's TRUE is -1, not 1. Runtime entry points that return a BASIC
+'' boolean must return this, and the ones that return a C int must not.
+
+const FB_TRUE  as long = -1
+const FB_FALSE as long =  0
+
+'' ----------------------------------------------------------- the sign bit
+''
+'' FBSTRING.len and FBUSTRING.len carry the "this is a temporary" flag in their
+'' sign bit, so len must NEVER be read raw -- always through FB_STRSIZE /
+'' FB_USTRSIZE (descriptors.bi). The same bit pattern is reused, with a
+'' different meaning, in the `size` argument every string entry point takes:
+'' there it marks a fixed-length operand.
+''
+'' Derived from the width of `integer`, which is pointer-width on every target
+'' FreeBASIC supports, rather than written out per target.
+
+#ifdef __FB_64BIT__
+	const FB_TEMPSTRBIT as integer = cast( integer, &h8000000000000000ull )
+	const FB_STRSIZEMSK as integer = cast( integer, &h7fffffffffffffffull )
+#else
+	const FB_TEMPSTRBIT as integer = cast( integer, &h80000000ul )
+	const FB_STRSIZEMSK as integer = cast( integer, &h7ffffffful )
+#endif
+
+'' Same bit, different question. Named separately because the two uses are
+'' unrelated and conflating them is how a fixed-length operand gets treated as
+'' a temporary.
+const FB_STRISFIXED as integer = FB_TEMPSTRBIT
+
+'' The `size` argument's sentinel for "s is a var-len STRING descriptor".
+const FB_STRSIZEVARLEN  as integer = -1
+const FB_USTRSIZEVARLEN as integer = -1
+
+'' ------------------------------------------------------------- capacities
+
+const FB_STR_TMPDESCRIPTORS as integer = 256    '' fixed, not a free-growing pool
+const FB_MAXDIMENSIONS      as integer = 8
+const FB_ERRMSG_SIZE        as integer = 1024
+
+'' --------------------------------------------------------------- invariants
+''
+'' Asserted rather than assumed, on every target. Each one is silent corruption
+'' if it is ever false, and each costs nothing to check. RFC-0003 section 5.7.
+
+#assert sizeof( integer ) = sizeof( any ptr )
+#assert FB_TEMPSTRBIT < 0                       '' it really is the sign bit
+#assert FB_STRSIZEMSK > 0
+#assert (FB_TEMPSTRBIT and FB_STRSIZEMSK) = 0   '' and the two do not overlap
+
+#endif '' __TKORT_CONFIG_BI__
