@@ -25,10 +25,33 @@
 '' If step 2 still says OK, the gate is not testing tiko-rt and no number it
 '' produces means anything.
 ''
-'' Recorded result, 2026-08-28, win64, fb_MemSwap:
-''   unmutated                       -> OK
-''   third memcpy of the swap removed -> WRONG
-''   restored                        -> OK
+'' RECORDED RESULTS, 2026-08-28, win64
+''
+''   fb_MemSwap        unmutated                          -> OK
+''                     third memcpy of the swap removed   -> WRONG
+''                     restored                           -> OK
+''
+''   fb_hList*         THE OK/WRONG FLAG DOES NOT DETECT IT, and cannot.
+''                     Two mutations were tried:
+''
+''                       free head not advanced  -> still "all OK". Benign:
+''                         fbc frees each temporary before allocating the next
+''                         in these expressions, so handing out the same
+''                         descriptor repeatedly is indistinguishable.
+''
+''                       AllocElem always NULL   -> the program printed NOTHING
+''                         AT ALL. Not three WRONG lines: no output whatsoever.
+''
+''                     That second result is the liveness proof -- our list is
+''                     unquestionably reached -- but it also shows why this case
+''                     cannot assert in-band: with the pool dead, PRINT itself is
+''                     dead, so the reporter cannot report. THE DETECTOR FOR THIS
+''                     CASE IS THE PRESENCE OF CORRECT OUTPUT, compared outside
+''                     the program, not the flag it prints.
+''
+''                     The real validation for the list is Gate 2: 4.9M
+''                     assertions of fbc's string suite, every temporary of which
+''                     passes through it.
 
 #include once "fbc-int/memory.bi"
 
@@ -38,8 +61,22 @@ end type
 
 dim as integer failures = 0
 
-sub report( byref what as string, byval ok as integer )
-	print what; ": "; iif( ok, "OK", "WRONG" )
+'' Reports WITHOUT building a string temporary.
+''
+'' That is not fussiness. When the temporary-descriptor pool is broken -- which
+'' is exactly the condition the fb_hList* case below exists to detect -- string
+'' concatenation is undefined, and a reporter that concatenates corrupts its own
+'' output. The first version printed `what; ": "; iif(...)`; under a mutated pool
+'' the ": " separators silently vanished and every line still read "OK".
+''
+'' So: a zstring pointer, separate PRINT items, no temporaries, and the exit
+'' code as the machine-readable answer.
+sub report( byval what as zstring ptr, byval ok as integer )
+	if( ok ) then
+		print *what; " OK"
+	else
+		print *what; " WRONG"
+	end if
 end sub
 
 '' ---------------------------------------------------- fb_MemSwap, via SWAP
@@ -63,7 +100,7 @@ scope
 	next
 
 	if( (okx = 0) orelse (oky = 0) ) then failures += 1
-	report( "fb_MemSwap  (udt swap)   ", okx andalso oky )
+	report( @"fb_MemSwap  (udt swap)   :", okx andalso oky )
 end scope
 
 '' ------------------------------------- fb_MemCopyClear, via FBC.copyclear
@@ -109,7 +146,37 @@ scope
 	next
 
 	if( ok = 0 ) then failures += 1
-	report( "fb_MemCopyClear (contract)", ok )
+	report( @"fb_MemCopyClear (contract):", ok )
+end scope
+
+'' --------------------------------- fb_hList*, via the temporary-descriptor pool
+''
+'' The list has no user-visible API. It is reached because fbc's own str_core.c
+'' and ustr_core.c call fb_hListInit / AllocElem / FreeElem to manage the
+'' 256-entry temporary pool, so ANY expression that creates string temporaries
+'' runs through it.
+''
+'' Many temporaries live at once inside one expression, which is what forces the
+'' pool to hand out distinct descriptors rather than the same one repeatedly --
+'' the failure mode if AllocElem does not advance the free head.
+scope
+	dim as string a = "a", b = "bb", c = "ccc", d = "dddd"
+	dim as integer ok = 1
+	dim as string r
+
+	'' One expression, many simultaneous temporaries.
+	r = (a + b) + (c + d) + (a + c) + (b + d) + (a + b + c + d)
+	if( r <> "abbcccddddaccc" + "bbdddd" + "abbcccdddd" ) then ok = 0
+
+	'' Repeated in a loop, so descriptors must be RECYCLED correctly too: a
+	'' pool of 256 could not survive 5,000 iterations otherwise.
+	for i as integer = 1 to 5000
+		r = (a + b) + (c + d)
+		if( r <> "abbcccdddd" ) then ok = 0 : exit for
+	next
+
+	if( ok = 0 ) then failures += 1
+	report( @"fb_hList*  (temp pool)   :", ok )
 end scope
 
 print
