@@ -89,9 +89,39 @@ function ConversionCost _
     '' diagnostic but an UNTYPED CALL: the callee still bound, so the call was emitted
     '' with a VOID result and whatever consumed it declined. 'return TuiAnsi( ... )'
     '' out of a UDT-returning function is how the tui headers write nearly everything.
-    if types.Kind( from_ ) = Tko.TK_ENUM then from_ = types.Builtin( Tko.TY_INTEGER )
-    if types.Kind( to_ ) = Tko.TK_ENUM then to_ = types.Builtin( Tko.TY_INTEGER )
-    if from_ = to_ then return CONV_EXACT
+    '' ...BUT NOT AS AN IDENTITY, and the asymmetry is measured. An ENUM ARGUMENT
+    '' reaches a numeric parameter the way an INTEGER does -- offered
+    '' { integer, byte } it takes integer, and { single, integer } integer again.
+    '' A NUMERIC ARGUMENT reaching an ENUM PARAMETER is the dearest conversion
+    '' there is short of a user-defined one: offered { longint, E } an integer
+    '' takes longint, { byte, E } takes byte, { single, E } takes single, and even
+    '' { boolean, E } takes boolean. It is still VIABLE -- with only the enum
+    '' candidate offered, fbc accepts it -- so it is a cost and not a refusal.
+    ''
+    '' Mapping both sides to INTEGER unconditionally made the two EXACT, so
+    '' 'proc( intvar )' over { integer, E } TIED, bound to neither, and came out
+    '' UNTYPED -- which is a decline at whatever consumed it, never at the call.
+    '' overload/simple.bas is seven of them.
+    dim as boolean fromEnum = (types.Kind( from_ ) = Tko.TK_ENUM)
+    dim as boolean toEnum   = (types.Kind( to_ ) = Tko.TK_ENUM)
+    if fromEnum then from_ = types.Builtin( Tko.TY_INTEGER )
+    if toEnum then to_ = types.Builtin( Tko.TY_INTEGER )
+    if from_ = to_ then
+        if toEnum andalso (fromEnum = false) then return CONV_BOOL + CONV_WIDEN
+        '' AN ENUM ARGUMENT REACHING AN INTEGER PARAMETER IS STILL A CONVERSION.
+        '' Costing it EXACT tied with the enum's own overload and the call bound
+        '' to neither: measured, 'p2( ev )' over { integer, E } takes E. WIDEN
+        '' keeps it ahead of everything it was measured to beat -- offered
+        '' { integer, byte } an enum takes integer, and { single, integer }
+        '' integer again.
+        if fromEnum orelse toEnum then return CONV_WIDEN
+        return CONV_EXACT
+    end if
+    '' A NUMERIC PARAMETER TAKING AN ENUM keeps the integer cost the mapping just
+    '' gave it; only the other direction is dear.
+    if toEnum andalso (fromEnum = false) then
+        return CONV_BOOL + CONV_WIDEN
+    end if
 
     if types.Kind( from_ ) <> Tko.TK_BUILTIN then return CONV_NONE
     if types.Kind( to_ ) <> Tko.TK_BUILTIN then return CONV_NONE

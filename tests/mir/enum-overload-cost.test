@@ -1,0 +1,29 @@
+'' AN ENUM AND ITS UNDERLYING INTEGER COST THE SAME, so any overload set holding both
+'' TIED -- the call bound to neither, came out UNTYPED, and whatever consumed it
+'' declined. Never at the call, which is what made it hard to see: adding an ENUM
+'' overload broke resolution for the INTEGER one beside it. overload/simple.bas is
+'' seven of those.
+''
+'' THE COST IS NOT SYMMETRIC, and every tier here was measured by RUNNING fbc:
+''
+''   int argument  vs { integer, E }    takes integer
+''   E   argument  vs { integer, E }    takes E
+''   int argument  vs { longint, E }    takes longint
+''   int argument  vs { byte,    E }    takes byte
+''   int argument  vs { single,  E }    takes single
+''   int argument  vs { boolean, E }    takes boolean
+''   int argument  vs { E }             ACCEPTED -- so it is a cost, not a refusal
+''   E   argument  vs { integer, byte } takes integer
+''   E   argument  vs { single, integer } takes integer
+''
+'' So a NUMERIC argument reaching an ENUM parameter is the dearest conversion short of
+'' a user-defined one, and an ENUM argument reaching a numeric parameter behaves as an
+'' INTEGER does -- but neither is EXACT, because an exact match on the enum itself has
+'' to beat both.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/enum-overload-cost.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _Z2P21E
+'' GOLDEN: expected/enum-overload-cost.out
