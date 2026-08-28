@@ -6,6 +6,7 @@ func i32 main($0, $1) {
   local agg a size 32
   local agg b size 32
   local agg c size 32
+  local agg s size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -24,15 +25,31 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintLongint(0, %11, 2)
     %12 = call.rtl i64 fb_WstrLen(@c)
     call.rtl void fb_PrintLongint(0, %12, 1)
-    %13 = const i32 0
-    call.rtl void fb_End(%13)
-    %14 = load @$tmp0
-    ret %14
+    %13 = alloca ptr s
+    %14 = field.addr @s, 0
+    store %14, 0
+    %15 = field.addr @s, 8
+    store %15, 0
+    %16 = field.addr @s, 16
+    store %16, 0
+    %17 = call.rtl ptr fb_WstrAssignToA_Init(@s, -1, @@$wstr0, 0)
+    %18 = call.rtl i64 fb_StrLen(@s, -1)
+    call.rtl void fb_PrintLongint(0, %18, 2)
+    call.rtl void fb_PrintString(0, @s, 1)
+    call.rtl void fb_StrDelete(@s)
+    %19 = const i32 0
+    call.rtl void fb_End(%19)
+    %20 = load @$tmp0
+    ret %20
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrAssign($0, $1, $2)
 declare i64 fb_WstrLen($0)
 declare void fb_PrintLongint($0, $1, $2)
+declare ptr fb_WstrAssignToA_Init($0, $1, $2, $3)
+declare i64 fb_StrLen($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 20 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance

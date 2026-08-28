@@ -419,6 +419,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function NarrowToWideTemp_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LitHasUnicodeEscape_ _
+        ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function WideLitGlobal_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
     declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean

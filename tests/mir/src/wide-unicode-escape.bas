@@ -4,3 +4,8 @@ dim as wstring * 16 a = !"\u0041\u0042"
 dim as wstring * 16 b = !"\u3041\u3043\u3045"
 dim as wstring * 16 c = !"A\tB"
 print len( a ), len( b ), len( c )
+
+'' A NARROW DESTINATION CONVERTS ONE: fbc emits
+'' 'fb_WstrAssignToA_Init( &S, -1, L"AB", 0 )' and its length is 2.
+dim as string s = !"\u0041\u0042"
+print len( s ), s

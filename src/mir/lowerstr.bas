@@ -8,6 +8,9 @@
 
 namespace Tko.Mir
 
+'' The string FLAVOUR predicates, split out at the 1500-line cap.
+#include once "mir/lowerstrkind.bas"
+
 '' Defined below; the wide-string helpers above it classify a narrow operand.
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
@@ -492,84 +495,6 @@ sub PushStrArg _
 end sub
 
 
-function IsStringType _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-    if t = Tko.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
-    dim as Tko.BuiltinType b = c.types->BuiltinOf( t )
-    return (b = Tko.TY_STRING) orelse (b = Tko.TY_USTRING)
-end function
-
-'' A FIXED (non-dynamic) ARRAY whose ELEMENTS are var-length strings, either
-'' flavour. 'string * N' is itself spelled as an array of a fixed-string element, so
-'' the test is on the element being a BUILTIN string and not on the array-ness alone.
-function IsFixedStrArray_ _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-
-    if t = Tko.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
-    if c.types->IsDynArray( t ) then return false
-    if c.types->types[cast( long, t )].dims < 1 then return false
-    return IsStringType( c, c.types->Inner( t ) )
-end function
-
-'' A USTRING -- the UTF-16 flavour, var-length or 'ustring * N'. It shares every SHAPE
-'' with the narrow family, and that symmetry is exactly why it was a miscompile:
-'' IsStringType says yes to both, so every narrow path claimed it and 'dim as ustring
-'' v = "x"' lowered to fb_StrInit with a NARROW literal. A UTF-16 descriptor held
-'' narrow bytes and fb_StrDelete was called on an FBUSTRING.
-function IsUStringType _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-
-    if t = Tko.TYPE_NONE then return false
-    dim as Tko.TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
-    '' 'ustring * N' is an ARRAY of the fixed-ustring element.
-    if c.types->Kind( u ) = Tko.TK_ARRAY then
-        dim as Tko.TypeId e = c.types->Unqualify( c.types->Inner( u ) )
-        if c.types->Kind( e ) <> Tko.TK_BUILTIN then return false
-        return (c.types->BuiltinOf( e ) = Tko.TY_FIXUSTR)
-    end if
-    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
-    return (c.types->BuiltinOf( u ) = Tko.TY_USTRING)
-end function
-
-'' The UTF-16 entry point matching a narrow one. One table rather than a test at each
-'' of the twenty-odd call sites, so a new site cannot quietly use the narrow one.
-function UStrRtl_( byval narrow as RtlId ) as RtlId
-    select case narrow
-    case RTL_STR_INIT          : return RTL_USTR_INIT
-    case RTL_STR_ASSIGN        : return RTL_USTR_ASSIGN
-    case RTL_STR_CONCAT_ASSIGN : return RTL_USTR_CONCAT_ASSIGN
-    case RTL_STR_CONCAT        : return RTL_USTR_CONCAT
-    case RTL_STR_COMPARE       : return RTL_USTR_COMPARE
-    case RTL_STR_LEN           : return RTL_USTR_LEN
-    case RTL_STR_DELETE        : return RTL_USTR_DELETE
-    end select
-    return narrow
-end function
-
-'' The same, chosen by the type at the site.
-function StrRtlFor_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval narrow as RtlId ) as RtlId
-    if IsUStringType( c, t ) then return UStrRtl_( narrow )
-    return narrow
-end function
-
-'' THE LENGTH ARGUMENT OF A USTRING LITERAL. Measured: it is the CHARACTER COUNT with
-'' the sign bit set -- '"abc"' is &h8000000000000003 -- and the NUL is NOT counted,
-'' unlike the narrow family, where fb_StrInit is passed len+1.
-sub PushUStrLiteralArg _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval gidx as long, _
-      byval nchars as long )
-    args.Push( cast( ulong, MV_GLOBAL ) )
-    args.Push( cast( ulong, gidx ) )
-    '' PushStrLen_, NOT a bare push: the tagged length does not fit in the 32-bit
-    '' immediate an argument slot carries, and casting it to one truncates the SIGN
-    '' BIT away -- '&h8000000000000001' became a plain 1, which is the tag gone and a
-    '' length that happens to look right.
-    PushStrLen_( c, args, FixedStrLenArg_( c, nchars ) )
-end sub
 
 '' 'a = b' and 'a = a + b' between var-length strings. Returns false when this is not
 '' a string assignment, so the caller falls back to an ordinary store.
@@ -608,8 +533,14 @@ function LowerStringInit _
         dim as Tko.TypeId dt0 = c.f->locals[slot].frontendType
         if dt0 = Tko.TYPE_NONE then dt0 = c.info->TypeOf_( target )
         if IsUStringType( c, dt0 ) = false then
+            '' A LITERAL CONTAINING A UNICODE ESCAPE IS WIDE and does not follow its
+            '' context: '#print typeof( !"\u0041" )' is WSTRING * 3 while '!"\n"'
+            '' is ZSTRING. Without it 'dim as string s = !"\u0041\u0042"' put the
+            '' twelve characters of the SPELLING in a narrow global; fbc emits
+            '' 'fb_WstrAssignToA_Init( &S, -1, L"AB", 0 )'.
             if ConcatHasWideTerm_( c, value ) orelse _
-               IsWideString_( c, c.info->TypeOf_( value ) ) then
+               IsWideString_( c, c.info->TypeOf_( value ) ) orelse _
+               LitHasUnicodeEscape_( c, value ) then
                 ZeroStrDescriptor( c, dst )
                 if LowerWideToNarrowSlot( c, slot, dt0, value, true ) then return true
                 return false

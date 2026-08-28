@@ -562,12 +562,43 @@ end function
 '' Only the TWO-TERM form, because fb_WstrConcat takes exactly two operands.
 '' Is this TERM wide? Its TYPE is not the whole answer: Check computes none for
 '' 'wstr( x )', so a chain containing one looked entirely narrow and 'print
+
+'' DOES THIS LITERAL CONTAIN A UNICODE ESCAPE? Only an ESCAPED literal can: '"'+BS+'u41"'
+'' is four ordinary characters and '$"'+BS+'u41"' is too.
+function LitHasUnicodeEscape_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
+    dim as Tko.LiteralPayload ptr lp = _
+        @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if lp->strKind <> cast( ubyte, Tko.STRK_ESCAPED ) then return false
+    if lp->strLength < 2 then return false
+    dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
+    if f = 0 then return false
+    if (lp->strOffset + lp->strLength) > f->text.Count then return false
+    for k as long = 0 to lp->strLength - 2
+        if f->text[lp->strOffset + k] = 92 then
+            dim as ubyte nx = f->text[lp->strOffset + k + 1]
+            if (nx = asc( "u" )) orelse (nx = asc( "U" )) then return true
+        end if
+    next
+    return false
+end function
+
 '' wstr( cmp )' declined outright -- 52 statements in one corpus file, all of them the
 '' same macro.
 function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     e = Unparen_( c, e )
     if e = Tko.NODE_NONE then return false
     if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
+    '' A LITERAL CONTAINING A UNICODE ESCAPE IS WIDE, and does NOT follow its
+    '' context the way every other literal does. Measured: '#print typeof(
+    '' !"\u0041" )' is 'WSTRING * 3' while '!"\n"' and '"A"' are both ZSTRING.
+    ''
+    '' So a NARROW destination CONVERTS one -- fbc emits
+    '' 'fb_WstrAssignToA_Init( &S, -1, L"AB", 0 )' for 'dim as string s =
+    '' !"\u0041\u0042"' -- where tiko-lang put the twelve characters of the
+    '' SPELLING into a narrow global and called it done.
+    if LitHasUnicodeEscape_( c, e ) then return true
     '' A UDT WITH 'operator cast' TO A WSTRING is wide too, and asking that costs a
     '' walk rather than an emission -- which is the whole reason this predicate exists
     '' separately from UserCastToWide_.

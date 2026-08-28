@@ -21,10 +21,11 @@
 '' the text after it. Every other escape is the byte the narrow reader gives, widened,
 '' and a NUL from a numeric escape ends the literal exactly as it does there.
 ''
-'' STILL WRONG, and recorded rather than half-fixed: a '\u' literal assigned to a
-'' NARROW string. fbc makes the whole literal a WSTRING and emits
-'' 'fb_WstrAssignToA_Init( &S, -1, L"AB", 0 )'; tiko-lang still treats it as narrow and
-'' keeps the spelling. That is a TYPING question, not a reader one.
+'' A NARROW DESTINATION CONVERTS ONE, because such a literal is WIDE and does not
+'' follow its context the way every other literal does: '#print typeof( !"\u0041" )'
+'' is 'WSTRING * 3' while '!"\n"' and '"A"' are both ZSTRING. fbc emits
+'' 'fb_WstrAssignToA_Init( &S, -1, L"AB", 0 )' and its length is 2; tiko-lang had put
+'' the twelve characters of the SPELLING into a narrow global instead.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/wide-unicode-escape.bas
 '' EXPECT-EXIT: 0
@@ -33,4 +34,5 @@
 '' EXPECT-OUT: global wstr $wstr0 "AB"
 '' EXPECT-OUT: global wstr $wstr1 "\u3041\u3043\u3045"
 '' EXPECT-OUT: global wstr $wstr2 "A\u0009B"
+'' EXPECT-OUT: fb_WstrAssignToA_Init
 '' GOLDEN: expected/wide-unicode-escape.out
