@@ -22,3 +22,11 @@ Thumbs.db
 /*.exe
 __pycache__/
 *.pyc
+
+# fbc WRITES ITS C OUTPUT NEXT TO THE SOURCE unless -x names somewhere else, and the
+# corpus is compiled with fbc constantly -- to measure what it emits, and by every
+# check-*.sh gate. Those .c files are BUILD ARTEFACTS in a directory that must never
+# be edited, and 'git add -A' swept 46 of them into a commit before this rule existed.
+tests/vendor/**/*.c
+tests/vendor/**/*.exe
+tests/vendor/**/*.o
