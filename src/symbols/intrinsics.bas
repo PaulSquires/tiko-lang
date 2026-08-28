@@ -608,8 +608,47 @@ function ProcPtrPickOverload_ _
     '' A SIGNATURE: the one whose PARAMETER TYPES match it, position for position. A
     '' destructor takes none, so this only ever discriminates constructors.
     dim as Tko.NodeId sigN = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
-    if c.ast->Kind( sigN ) <> Tko.N_TYPEREF then return noMatch
-    dim as Tko.TypeId sigT = c.info->TypeOf_( sigN )
+    '' ...OR A TYPEDEF NAMING ONE. 'type t as sub( byval as single )' followed by
+    '' 'procptr( s, t )' writes the second argument as an ORDINARY IDENTIFIER, so
+    '' it is not an N_TYPEREF and carries no type of its own -- and the whole
+    '' expression came out untyped, while the spelled-out signature beside it
+    '' worked. fbc answers the same address for both.
+    '' ...AND 'typeof( X )' AROUND EITHER, which is how the corpus writes it:
+    '' 'procptr( s, typeof( t ) )' and 'procptr( s, typeof( p1 ) )'. In EXPRESSION
+    '' position typeof is a CALL, not a type reference, so it is unwrapped here
+    '' rather than given a case of its own further down.
+    if c.ast->Kind( sigN ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr tlp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sigN )].data )]
+        dim as boolean isTypeof = false
+        if (tlp->count = 1) andalso (tlp->target <> Tko.NODE_NONE) then
+            if c.ast->Kind( tlp->target ) = Tko.N_IDENT then
+                dim as Tko.IdentPayload ptr tip = _
+                    @c.ast->idents[cast( long, _
+                        c.ast->nodes[cast( long, tlp->target )].data )]
+                isTypeof = (Tko.Text.LowerAscii( _
+                    c.names->Spelling( tip->name ) ) = "typeof")
+            end if
+        end if
+        if isTypeof then
+            sigN = cast( Tko.NodeId, c.ast->children[tlp->first] )
+        end if
+    end if
+    dim as Tko.TypeId sigT = Tko.TYPE_NONE
+    if c.ast->Kind( sigN ) = Tko.N_TYPEREF then
+        sigT = c.info->TypeOf_( sigN )
+    elseif c.ast->Kind( sigN ) = Tko.N_IDENT then
+        dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( c.info->RefOf( sigN ) )
+        if tsy <> 0 then
+            '' A VARIABLE counts too, because 'typeof( p1 )' unwrapped above
+            '' leaves its NAME here and the signature wanted is the one it
+            '' holds.
+            select case cast( Tko.SymbolKind, tsy->kind )
+            case Tko.SYM_TYPEDEF, Tko.SYM_UDT, Tko.SYM_VARIABLE
+                sigT = tsy->type_
+            end select
+        end if
+    end if
     if sigT = Tko.TYPE_NONE then return noMatch
     '' A procedure TYPE is already a pointer in FreeBASIC; the callable is inside it.
     if c.types->Kind( sigT ) = Tko.TK_POINTER then sigT = c.types->Inner( sigT )

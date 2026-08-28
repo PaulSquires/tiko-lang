@@ -1,0 +1,5 @@
+'' A procptr signature selector written as a typedef, or as typeof over one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-selector.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/procptr-selector.out

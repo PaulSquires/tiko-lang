@@ -18,6 +18,23 @@ private function ProcPtrBySignature_ _
       byref outv as MirValue ) as boolean
 
     dim as Tko.TypeId st = c.types->Unqualify( c.info->TypeOf_( sigN ) )
+    '' ...OR A TYPEDEF NAMING THE SIGNATURE. 'type t as sub( byval as single )'
+    '' followed by 'procptr( s, t )' writes the second argument as an ORDINARY
+    '' IDENTIFIER, not a type reference, so it carries no type of its own and the
+    '' selector found nothing -- while the spelled-out 'sub( byval as single )'
+    '' beside it worked. fbc answers the same address for both: 'P1$0 =
+    '' (tmp$4)&_Z1Sf'.
+    if st = Tko.TYPE_NONE then
+        if c.ast->Kind( sigN ) = Tko.N_IDENT then
+            dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( c.info->RefOf( sigN ) )
+            if tsy <> 0 then
+                select case cast( Tko.SymbolKind, tsy->kind )
+                case Tko.SYM_TYPEDEF, Tko.SYM_UDT
+                    st = c.types->Unqualify( tsy->type_ )
+                end select
+            end if
+        end if
+    end if
     if st = Tko.TYPE_NONE then return false
     if c.types->Kind( st ) = Tko.TK_POINTER then
         st = c.types->Unqualify( c.types->Inner( st ) )
@@ -185,7 +202,9 @@ function LowerProcPtr _
     '' so comparing them raw made every 'procptr( s, sub( ) )' miss its own overload.
     if lp->count = 2 then
         dim as Tko.NodeId sigN = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
-        if c.ast->Kind( sigN ) = Tko.N_TYPEREF then
+        dim as boolean sigOk = (c.ast->Kind( sigN ) = Tko.N_TYPEREF)
+        if sigOk = false then sigOk = (c.ast->Kind( sigN ) = Tko.N_IDENT)
+        if sigOk then
             dim as MirValue sv
             if ProcPtrBySignature_( c, fnE, sigN, sv ) then
                 outv = sv
