@@ -42,6 +42,15 @@
 '' the arena -- the arena is bump-allocated and never freed, so that is a few bytes,
 '' not a leak.
 declare function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
+declare function MakeClosure_ _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, byref sp as Tko.StmtPayload, _
+      byval byrefRet as boolean, byref capIdents as Tko.NodeIdVec ) as Tko.NodeId
+declare function IdentNamed_ _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc ) as Tko.NodeId
+declare function TypeRefNamed_ _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc ) as Tko.NodeId
 
 function TryLambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     dim as long savedPos = p.pos
@@ -88,6 +97,147 @@ function TryLambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     return LambdaExpr( p )
 end function
 
+'' A CLOSURE OBJECT, from a capturing lambda's parts.
+''
+'' MEASURED from fbc, which is what the shape below reproduces: one '__CAP_<NAME>'
+'' field per capture -- a POINTER for byref and the value INLINE for byval -- and an
+'' invoke procedure whose FIRST parameter is the object.
+''
+''   struct $25LF...E { int32* __CAP_ACC; };
+''   static void _ZN25LF...E10__FBINVOKEEi( struct $25LF...E* THIS, int32 V )
+''   ... TMP = {0}; *(int32**)&TMP = &ACC; C = TMP; __FBINVOKE( &C, 5 );
+''
+'' A BYVAL CAPTURE IS STORED IN THE OBJECT AND MUTATED THERE. Measured by RUNNING it:
+'' two calls to a 'sub[ byval n ]' doing 'n += v' print 11 then 12 while the outer n
+'' stays 10. So the body must reach the FIELD and not a per-call copy -- which is what
+'' the prologue below is for, and why it is a REFERENCE in both cases: to the pointee
+'' for a byref capture and to the field itself for a byval one. With that, THE BODY
+'' NEEDS NO REWRITING: every mention of a captured name resolves to the alias.
+''
+'' THE CLOSURE TYPE IS NAMED HERE AND BUILT IN RESOLVE. Its fields' types are the
+'' CAPTURES' types, which are only knowable in the scope the lambda was WRITTEN in --
+'' and the type has to live at module level for the hoisted invoke procedure to name
+'' it. So the parser writes the name and the N_CLOSURE node carries the captures to
+'' the one pass that can see both.
+private function MakeClosure_ _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, byref sp as Tko.StmtPayload, _
+      byval byrefRet as boolean, byref capIdents as Tko.NodeIdVec ) as Tko.NodeId
+
+    dim as ulong lhash = 0
+    dim as Tko.DecodedLoc ld = p.src->Decode( t.loc )
+    dim as Tko.SourceFile ptr lf = p.src->FileAt( ld.file )
+    if lf <> 0 then lhash = lf->contentHash
+    dim as string tag = hex( lhash ) & "_" & trim( str( p.lambdaSeq ) )
+    p.lambdaSeq += 1
+    dim as Tko.InternId clsNm = _
+        p.names->Fold( p.names->GetString( "__tko_closure_" & tag ) )
+    dim as Tko.InternId invNm = _
+        p.names->Fold( p.names->GetString( "__tko_lambda_" & tag ) )
+    dim as Tko.InternId selfNm = p.names->Fold( p.names->GetString( "__tko_cl" ) )
+
+    '' THE PROLOGUE, before the body and in the order the captures were written.
+    dim as Tko.NodeIdVec body
+    for i as long = 0 to capIdents.Count - 1
+        dim as Tko.NodeId cn = cast( Tko.NodeId, capIdents[i] )
+        dim as Tko.InternId cnm = _
+            p.ast->idents[cast( long, p.ast->nodes[cast( long, cn )].data )].name
+        dim as Tko.InternId fnm = p.names->Fold( p.names->GetString( _
+            "__CAP_" & p.names->Spelling( cnm ) ) )
+        dim as Tko.BinaryPayload mb
+        mb.op = cast( ushort, Tko.TK_DOT )
+        mb.lhs = IdentNamed_( p, selfNm, t.loc )
+        mb.rhs = IdentNamed_( p, fnm, t.loc )
+        p.ast->binaries.Push( mb )
+        dim as Tko.NodeId mem = _
+            NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->binaries.Count - 1 )
+        p.ast->nodes[cast( long, mem )].kind = cast( ushort, Tko.N_MEMBER )
+        dim as Tko.NodeId src_ = mem
+        if (p.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
+            dim as Tko.UnaryPayload dp
+            dp.op = cast( ushort, Tko.TK_STAR )
+            dp.operand = mem
+            p.ast->unaries.Push( dp )
+            src_ = NewNodeAt( p, Tko.N_DEREF, t.loc, p.ast->unaries.Count - 1 )
+        end if
+        dim as Tko.StmtPayload ip2
+        ip2.name = cnm
+        ip2.b = src_
+        dim as Tko.NodeId item = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, ip2 )
+        dim as Tko.StmtPayload vp
+        vp.op = cast( ushort, Tko.KW_VAR )
+        vp.first = p.ast->children.Count
+        vp.count = 1
+        p.ast->children.Push( cast( ulong, item ) )
+        dim as Tko.NodeId vn = MakeStmt( p, Tko.N_VAR, t.loc, vp )
+        p.ast->nodes[cast( long, vn )].flags or= Tko.NF_BYREF
+        body.Push( cast( ulong, vn ) )
+    next
+    '' ...then the lambda's own statements, read out of the block it was parsed into.
+    if sp.b <> Tko.NODE_NONE then
+        dim as Tko.ListPayload ptr bl = _
+            @p.ast->lists[cast( long, p.ast->nodes[cast( long, sp.b )].data )]
+        for i as long = 0 to bl->count - 1
+            body.Push( p.ast->children[bl->first + i] )
+        next
+    end if
+    sp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, body )
+
+    '' THE RECEIVER IS PARAMETER ZERO, ahead of the lambda's own.
+    dim as Tko.NodeIdVec prms
+    dim as Tko.StmtPayload pp0
+    pp0.name = selfNm
+    pp0.a = TypeRefNamed_( p, clsNm, t.loc )
+    dim as Tko.NodeId p0 = MakeStmt( p, Tko.N_PARAM, t.loc, pp0 )
+    p.ast->nodes[cast( long, p0 )].flags or= Tko.NF_BYREF
+    prms.Push( cast( ulong, p0 ) )
+    for i as long = 0 to sp.count - 1
+        prms.Push( p.ast->children[sp.first + i] )
+    next
+    sp.first = p.ast->children.Count
+    sp.count = prms.Count
+    for i as long = 0 to prms.Count - 1
+        p.ast->children.Push( prms[i] )
+    next
+
+    sp.name = invNm
+    sp.rawName = invNm
+    sp.extra or= Tko.PF_CLOSURE_INVOKE
+    if p.genericDepth > 0 then sp.extra or= Tko.PF_GENERIC_PROC
+    dim as Tko.NodeId ln = MakeStmt( p, Tko.N_PROC, t.loc, sp )
+    if byrefRet then p.ast->nodes[cast( long, ln )].flags or= Tko.NF_BYREF
+    p.lambdas.Push( cast( ulong, ln ) )
+
+    dim as Tko.StmtPayload cp2
+    cp2.name = clsNm
+    cp2.a = ln
+    cp2.first = p.ast->children.Count
+    cp2.count = capIdents.Count
+    for i as long = 0 to capIdents.Count - 1
+        p.ast->children.Push( capIdents[i] )
+    next
+    return MakeStmt( p, Tko.N_CLOSURE, t.loc, cp2 )
+end function
+
+'' An identifier node for a name already interned -- the parser's own, with no token
+'' behind it, so it records no source spelling.
+private function IdentNamed_ _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc ) as Tko.NodeId
+    dim as Tko.IdentPayload ip
+    ip.name = nm
+    p.ast->idents.Push( ip )
+    return NewNodeAt( p, Tko.N_IDENT, loc, p.ast->idents.Count - 1 )
+end function
+
+'' ...and a TYPEREF naming one.
+private function TypeRefNamed_ _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc ) as Tko.NodeId
+    dim as Tko.StmtPayload tp
+    tp.name = nm
+    return MakeStmt( p, Tko.N_TYPEREF, loc, tp )
+end function
+
 private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
@@ -111,6 +261,9 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     '' sees afterwards.
     dim as long capCount = 0
     dim as boolean sawCaptures = false
+    '' THE CAPTURES THEMSELVES, kept rather than counted: each becomes a FIELD of
+    '' the closure type and a name the body has to see.
+    dim as Tko.NodeIdVec capIdents
     if Peek( p ) = Tko.TK_LBRACKET then
         sawCaptures = true
         Advance( p )
@@ -123,6 +276,12 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
                     return ErrorNode( p, Tko.TKO0413 )
                 end if
                 if Peek( p ) <> Tko.TK_IDENT then return ErrorNode( p, Tko.TKO0406 )
+                dim as Tko.Token ct = Cur( p )
+                dim as Tko.NodeId cn = MakeIdent( p, ct )
+                if capByref then
+                    p.ast->nodes[cast( long, cn )].flags or= Tko.NF_BYREF
+                end if
+                capIdents.Push( cast( ulong, cn ) )
                 Advance( p )
                 capCount += 1
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
@@ -153,8 +312,9 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     '' declining: at module level the captured names either resolve to nothing or, worse,
     '' to a same-named module-level variable, and the second one reads the wrong storage
     '' with nothing to say so.
+    '' A CAPTURING LAMBDA IS A CLOSURE OBJECT, built here as ordinary declarations.
     if sawCaptures then
-        return ErrorNode( p, Tko.TKO0992, "a capturing lambda" )
+        return MakeClosure_( p, t, sp, byrefRet, capIdents )
     end if
 
     '' A LAMBDA IS AN ORDINARY PROCEDURE WITH A GENERATED NAME, and the expression is

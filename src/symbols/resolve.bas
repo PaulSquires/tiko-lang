@@ -340,6 +340,88 @@ private function GenericCtorCall_ _
     c.info->SetType( lp->target, inst )
     return true
 end function
+'' THE CLOSURE TYPE OF A CAPTURING LAMBDA, built HERE because this is the only pass
+'' that can see both halves: the captures' types are only knowable in the scope the
+'' lambda was WRITTEN in, and the type has to live at module level for the hoisted
+'' invoke procedure to name it.
+''
+'' One '__CAP_<NAME>' field per capture -- a POINTER for byref and the value INLINE
+'' for byval -- which is what fbc emits. Built the way TupleUdtFor builds its own:
+'' a symbol, a scope and its fields, with no AST behind it.
+''
+'' '__fbinvoke' is declared in the type's scope so a CALL on a closure object can
+'' find the procedure from the OBJECT, which is the only thing the call site has.
+private sub BuildClosureType_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->name = 0 then return
+    if c.syms->LookupLocalTyped( Tko.SCOPE_GLOBAL, sp->name, true ) <> Tko.SYMBOL_NONE then
+        return
+    end if
+
+    '' EVERY CAPTURE MUST RESOLVE, or the type is not built at all: a closure with a
+    '' missing field would lower to an object whose body reads the wrong offsets.
+    dim as FB.Array( of ulong ) fTy
+    for k as long = 0 to sp->count - 1
+        dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        if c.ast->Kind( cn ) <> Tko.N_IDENT then return
+        dim as Tko.SymbolId csid = c.syms->LookupTyped( scope_, IdentNameOf( c, cn ), false )
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( csid )
+        if cs = 0 then return
+        dim as Tko.TypeId ct = cs->type_
+        if ct = Tko.TYPE_NONE then return
+        if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
+        c.info->SetRef( cn, csid )
+        c.info->SetType( cn, ct )
+        if (c.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
+            ct = c.types->Pointer_( ct )
+        end if
+        fTy.Push( cast( ulong, ct ) )
+    next
+
+    dim as boolean dup = false
+    dim as Tko.SourceLoc at = c.ast->Loc( id )
+    dim as Tko.SymbolId tsid = c.syms->DeclareSym( _
+        Tko.SCOPE_GLOBAL, sp->name, Tko.SYM_UDT, at, dup )
+    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return
+    dim as Tko.ScopeId tin = c.syms->OpenScope( _
+        Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
+    ts->inner = tin
+    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( ulong, Tko.SCOPE_GLOBAL ) )
+    for k as long = 0 to sp->count - 1
+        dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
+            "__CAP_" & c.names->Spelling( IdentNameOf( c, cn ) ) ) )
+        dim as boolean fdup = false
+        dim as Tko.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Tko.SYM_FIELD, at, fdup )
+        dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
+        if fs <> 0 then fs->type_ = cast( Tko.TypeId, fTy[k] )
+    next
+
+    '' THE INVOKE PROCEDURE, reachable from the TYPE. Its own module-level symbol is
+    '' declared by Collect like any other hoisted lambda; this is a second name for
+    '' the same N_PROC, so nothing is emitted twice.
+    if sp->a <> Tko.NODE_NONE then
+        dim as Tko.InternId inm = c.names->Fold( c.names->GetString( "__fbinvoke" ) )
+        dim as boolean idup = false
+        dim as Tko.SymbolId isid = c.syms->DeclareSym( tin, inm, Tko.SYM_PROC, at, idup )
+        dim as Tko.Symbol ptr isy = c.syms->SymbolAt( isid )
+        '' ITS PAYLOAD IS THE MODULE-LEVEL SYMBOL, not the node. The hoisted lambda
+        '' already has one -- Collect declared it like any other procedure -- and
+        '' that is what carries the type and the mangled name. Looked up from HERE
+        '' because the lambda site's scope chain reaches the module and a later
+        '' pass's does not.
+        if isy <> 0 then
+            isy->payload = cast( ulong, c.syms->Lookup( _
+                scope_, StmtOf( c, sp->a )->name ) )
+        end if
+    end if
+
+    c.info->SetType( id, ts->type_ )
+end sub
+
 private sub WalkExpr _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -348,6 +430,11 @@ private sub WalkExpr _
     dim as Tko.AstNode ptr n = @c.ast->nodes[cast( long, id )]
 
     select case k
+    case Tko.N_CLOSURE
+        '' A CAPTURING LAMBDA. Its captures are names in THIS scope and nowhere else.
+        BuildClosureType_( c, id, scope_ )
+        return
+
     case Tko.N_IDENT
         dim as Tko.InternId nm = IdentNameOf( c, id )
         '' A name in EXPRESSION position wants the VALUE, not a type of the same

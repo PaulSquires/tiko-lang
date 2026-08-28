@@ -8,6 +8,8 @@
 
 namespace Tko.Mir
 declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue
+declare function ClosureInvokeSym_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
 declare function SigParamIsRef_ _
     ( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as long ) as boolean
 declare function ArgParamType_ _
@@ -196,6 +198,9 @@ function LowerCallParts _
     '' handed the callee the number 1 where it expected an address and the callee
     '' then read through it. It lowered and it verified.
     dim as Tko.TypeId calleeSigT = Tko.TYPE_NONE
+    '' A CLOSURE OBJECT'S ADDRESS, and the shift it puts on every parameter index.
+    dim as MirValue closureSelf
+    dim as long pbase = 0
     if exprCallee then
         dim as Tko.TypeId eT = c.types->Unqualify( c.info->TypeOf_( calleeNode ) )
         if c.types->Kind( eT ) = Tko.TK_REFERENCE then eT = c.types->Inner( eT )
@@ -210,9 +215,29 @@ function LowerCallParts _
             viaPointer = (c.types->Kind( ct ) = Tko.TK_PROC)
             if viaPointer then calleeSigT = ct
         end if
+        '' 'c( 5 )' OVER A CLOSURE OBJECT IS A CALL TO ITS '__fbinvoke'. FreeBASIC
+        '' has no call operator, so nothing else would look for one -- and fbc
+        '' emits exactly that: '__FBINVOKE( &C, 5 )', the object by ADDRESS as
+        '' parameter zero. Its receiver is a REAL parameter rather than an
+        '' implicit THIS, so every later parameter query is asked one along.
+        if viaPointer = false then
+            dim as Tko.SymbolId civ = ClosureInvokeSym_( c, ct )
+            if civ <> Tko.SYMBOL_NONE then
+                dim as MirValue selfv = LowerAddr( c, calleeNode )
+                if selfv.kind = cast( ubyte, MV_NONE ) then
+                    return CallFailed_( c, v, __LINE__ )
+                end if
+                closureSelf = selfv
+                callee = civ
+                cs = c.syms->SymbolAt( callee )
+                pbase = 1
+            end if
+        end if
         '' Anything else that is not a procedure is not callable, and was already
         '' declining here.
-        if viaPointer = false then return CallFailed_( c, v, __LINE__ )
+        if (viaPointer = false) andalso (pbase = 0) then
+            return CallFailed_( c, v, __LINE__ )
+        end if
     end if
 
     '' Arguments are collected LOCALLY and pushed to the shared pool in one run at the
@@ -268,6 +293,12 @@ function LowerCallParts _
         argv.Push( cast( ulong, self_.kind ) )
         argv.Push( cast( ulong, self_.id ) )
     end if
+    '' ...and the CLOSURE OBJECT, which is a written parameter rather than an
+    '' implicit receiver -- so it is pushed here and counted by 'pbase' below.
+    if closureSelf.kind <> cast( ubyte, MV_NONE ) then
+        argv.Push( cast( ulong, closureSelf.kind ) )
+        argv.Push( cast( ulong, closureSelf.id ) )
+    end if
 
     '' DEFAULTED ARGUMENTS. A parameter's default was parsed onto its N_PARAM and then
     '' never used, so 'sleep' called fb_Sleep with NO arguments and 'locate 5, 10'
@@ -277,7 +308,10 @@ function LowerCallParts _
     '' The count comes from the CALLEE, not from the call: a call with three arguments
     '' to a five-parameter procedure emits five. A variadic tail has no parameter list
     '' to run past, so the written count stands.
-    dim as long nparams = ParamCountOf( c, callee )
+    '' ...LESS THE RECEIVER, when the callee declares one as a real parameter. A
+    '' closure's '__fbinvoke' does; counting it here would run the loop one past
+    '' the written arguments and decline on a parameter that is already pushed.
+    dim as long nparams = ParamCountOf( c, callee ) - pbase
     dim as long slots = argCount
     if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then slots = nparams
 
@@ -289,7 +323,7 @@ function LowerCallParts _
             argNode = cast( Tko.NodeId, c.ast->children[argFirst + i] )
             if c.ast->Kind( argNode ) = Tko.N_ELIDED then argNode = Tko.NODE_NONE
         end if
-        if argNode = Tko.NODE_NONE then argNode = ParamDefaultAt( c, callee, i )
+        if argNode = Tko.NODE_NONE then argNode = ParamDefaultAt( c, callee, i + pbase )
         '' 'f( byval x )' AGAINST A BYREF PARAMETER: the value itself is the reference.
         '' The marker is unwrapped here and remembered, so everything below sees the
         '' expression it wraps.
@@ -309,10 +343,10 @@ function LowerCallParts _
             '' read the stack. Declining says so.
             if i >= argCount then return CallFailed_( c, v, __LINE__ )
         end if
-        dim as boolean declRef = ParamIsByref( c, callee, i )
+        dim as boolean declRef = ParamIsByref( c, callee, i + pbase )
         '' ...or the SIGNATURE's, for a call with no callee symbol.
         if viaPointer andalso (calleeSigT <> Tko.TYPE_NONE) then
-            declRef = SigParamIsRef_( c, calleeSigT, i )
+            declRef = SigParamIsRef_( c, calleeSigT, i + pbase )
         end if
         dim as boolean wantsRef = declRef andalso (forcedByval = false)
 
@@ -340,7 +374,7 @@ function LowerCallParts _
         '' A BYDESC ARRAY PARAMETER takes a descriptor pointer, whichever way the
         '' parameter was spelled: the array-ness is the type's, not the passing mode's.
         dim as MirValue adv
-        if ArrayDescArg_( c, argNode, ParamIsArray( c, callee, i ), adv ) then
+        if ArrayDescArg_( c, argNode, ParamIsArray( c, callee, i + pbase ), adv ) then
             argv.Push( cast( ulong, adv.kind ) )
             argv.Push( cast( ulong, adv.id ) )
             continue for
@@ -359,7 +393,7 @@ function LowerCallParts _
         dim as boolean wantsWide = false
         dim as boolean wantsZ = false
         if wantsRef then
-            dim as Tko.TypeId prt = ArgParamType_( c, callee, calleeSigT, i )
+            dim as Tko.TypeId prt = ArgParamType_( c, callee, calleeSigT, i + pbase )
             wantsDesc = IsStringType( c, prt )
             '' A BYREF WSTRING IS A uint16*, A BYREF ZSTRING A char*, and neither is a
             '' descriptor or the address of one. Asked for either as an ordinary byref
@@ -463,7 +497,7 @@ function LowerCallParts _
             '' Passing the VALUE -- which is what this did -- handed the callee a
             '' number where it expected a pointer, and it then wrote through it.
             if a.kind = cast( ubyte, MV_NONE ) then
-                a = ByrefTemp_( c, argNode, ArgParamType_( c, callee, calleeSigT, i ) )
+                a = ByrefTemp_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ) )
             end if
             '' Still nothing: decline, rather than pass something that is not the
             '' variable the callee will write through.
@@ -474,7 +508,7 @@ function LowerCallParts _
             '' copies into a temporary descriptor first. Without it the argument
             '' lowered to NOTHING and went out as a malformed operand -- a call with a
             '' hole in it that the verifier does not look at.
-            dim as Tko.TypeId ppt = ArgParamType_( c, callee, calleeSigT, i )
+            dim as Tko.TypeId ppt = ArgParamType_( c, callee, calleeSigT, i + pbase )
             dim as boolean wantsZPtr = false
             dim as boolean wantsWPtr = false
             if ppt <> Tko.TYPE_NONE then
@@ -587,8 +621,8 @@ function LowerCallParts _
             ''     fb_StrAssign( &TMP$4$0, -1, &V$0, -1, 0 );
             ''     TAKEBYVALSTRING( &TMP$4$0 );
             ''     fb_StrDelete( &TMP$4$0 );
-            if ParamIsIndirectStr_( c, callee, i ) then
-                dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i )
+            if ParamIsIndirectStr_( c, callee, i + pbase ) then
+                dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 if ByvalStrTemp_( c, argNode, spt, a, tempSlot ) = false then
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v, __LINE__ )
@@ -603,8 +637,8 @@ function LowerCallParts _
             '' AN ARGUMENT THAT IS NOT THE PARAMETER'S TYPE IS A CONVERSION, and it is
             '' tried before either copy path: neither of those has anything to copy
             '' FROM. See UdtConvTemp_ -- without it the raw operand went to the callee.
-            if ArgNeedsUdtConv_( c, callee, i, argNode ) then
-                dim as Tko.TypeId upt = ArgParamType_( c, callee, calleeSigT, i )
+            if ArgNeedsUdtConv_( c, callee, i + pbase, argNode ) then
+                dim as Tko.TypeId upt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 dim as MirValue ca
                 if UdtConvTemp_( c, argNode, upt, ca, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
@@ -618,7 +652,7 @@ function LowerCallParts _
                 '' ADDRESS when the type is passed indirectly, and the aggregate itself
                 '' when it is not. Measured -- fbc writes 'F( TMP$2$0 )' for a type with
                 '' no destructor and 'F( &TMP$3$0 )' for one with.
-                if ParamIsIndirectUdt_( c, callee, i ) then
+                if ParamIsIndirectUdt_( c, callee, i + pbase ) then
                     a = ca
                 else
                     a = LowerExprLoad( c, ca, MT_AGG )
@@ -632,8 +666,8 @@ function LowerCallParts _
                 continue for
             end if
 
-            if ParamIsIndirectUdt_( c, callee, i ) then
-                if ByvalUdtCopyArg_( c, argNode, ArgParamType_( c, callee, calleeSigT, i ), _
+            if ParamIsIndirectUdt_( c, callee, i + pbase ) then
+                if ByvalUdtCopyArg_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), _
                                      a, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v, __LINE__ )
@@ -654,7 +688,7 @@ function LowerCallParts _
             '' sign-extended aggregate.
             dim as boolean argCast = false
             if callee <> Tko.SYMBOL_NONE then
-                argCast = UserConvToScalar_( c, argNode, ArgParamType_( c, callee, calleeSigT, i ), a )
+                argCast = UserConvToScalar_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
             end if
             if argCast = false then a = LowerExpr( c, argNode )
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be
@@ -673,8 +707,8 @@ function LowerCallParts _
             '' type-constructor path already applies to its own arguments.
             ''
             '' An AGGREGATE is passed whole and has nothing to convert.
-            dim as Tko.TypeId pt = ArgParamType_( c, callee, calleeSigT, i )
-            if forcedByval andalso ParamIsByref( c, callee, i ) then
+            dim as Tko.TypeId pt = ArgParamType_( c, callee, calleeSigT, i + pbase )
+            if forcedByval andalso ParamIsByref( c, callee, i + pbase ) then
                 '' The parameter is a REFERENCE and the value is standing in for one,
                 '' so the width is the pointer's, not the parameter's declared type.
                 if a.kind <> cast( ubyte, MV_NONE ) then a = Coerce( c, a, MT_PTR, false )
@@ -1371,6 +1405,34 @@ private function SigParamIsRef_ _
     if c.types->Kind( sigT ) <> Tko.TK_PROC then return false
     if (idx < 0) orelse (idx >= c.types->ProcParamCount( sigT )) then return false
     return (c.types->Kind( c.types->ProcParam( sigT, idx ) ) = Tko.TK_REFERENCE)
+end function
+
+'' THE '__fbinvoke' PROCEDURE OF A CLOSURE TYPE, as its MODULE-LEVEL symbol -- the
+'' one Collect declared for the hoisted lambda, which is what carries the type and
+'' the mangled name. Resolve declares a second name for the same N_PROC inside the
+'' closure type's scope precisely so a CALL can get here from the OBJECT, which is
+'' all the call site has.
+private function ClosureInvokeSym_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    end if
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId tsid = _
+        c.syms->LookupLocalTyped( cast( Tko.ScopeId, c.types->DeclScopeOf( u ) ), _
+                                  c.types->NameOf( u ), true )
+    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return Tko.SYMBOL_NONE
+    if ts->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId iv = c.syms->LookupLocal( ts->inner, _
+        c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
+    dim as Tko.Symbol ptr isy = c.syms->SymbolAt( iv )
+    if isy = 0 then return Tko.SYMBOL_NONE
+    '' Its payload IS the module-level symbol -- see BuildClosureType_.
+    return cast( Tko.SymbolId, isy->payload )
 end function
 
 '' A CALL THAT GAVE UP, counted.

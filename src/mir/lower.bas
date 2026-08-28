@@ -28,6 +28,8 @@ declare function StrSwapKind_ _
 
 #include once "mir/lowerutil.bas"
 #include once "mir/lowerexpr.bas"
+'' A CAPTURING LAMBDA'S OBJECT, split out of lowerexpr.bas at the 1500-line cap.
+#include once "mir/lowerclosure.bas"
 #include once "mir/lowerassign.bas"
 
 #include once "mir/lowerinit.bas"

@@ -47,6 +47,10 @@ namespace Tko
         NODE( N_PAREN,        NCAT_EXPR )   '' kept: diagnostics and faithful dumps
         NODE( N_TUPLE,        NCAT_EXPR )
         NODE( N_INITIALIZER,  NCAT_EXPR )   '' { ... }
+        '' A CAPTURING LAMBDA'S closure object: the invoke procedure in 'target', one
+        '' capture per child (NF_BYREF says which kind), and the generated closure
+        '' TYPE's name in 'name'. See lambda.bas.
+        NODE( N_CLOSURE,      NCAT_EXPR )
         NODE( N_NEW,          NCAT_EXPR )
         NODE( N_DELETE,       NCAT_EXPR )
         NODE( N_FUNCRESULT,   NCAT_EXPR )
@@ -233,6 +237,10 @@ namespace Tko
     '' modifier sits before the AS, which is what made it a parse error rather than
     '' a flag -- the same shape the byref-returning DECLARATION had.
     const PF_BYREF_RESULT   as ushort = &h2000
+    '' A CAPTURING LAMBDA'S '__fbinvoke'. Its FIRST parameter is the closure object,
+    '' written by the parser rather than by the source, so nothing may read the
+    '' parameter list as the lambda's own.
+    const PF_CLOSURE_INVOKE as ushort = &h4000
 
     type UnaryPayload
         as ushort op                '' TokenKind

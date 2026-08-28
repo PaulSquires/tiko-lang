@@ -46,6 +46,12 @@ function LowerExpr _
         end if
         return v
 
+    case Tko.N_CLOSURE
+        '' A CAPTURING LAMBDA'S OBJECT. See lowerclosure.bas.
+        dim as MirValue clv
+        if LowerClosure_( c, id, clv ) then return clv
+        return v
+
     case Tko.N_STRING_LIT
         return LowerStringLitAddr( c, id )
 

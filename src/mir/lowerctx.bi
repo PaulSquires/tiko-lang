@@ -422,6 +422,8 @@ declare function EmitRtl _
     declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function NumberToStrDesc_ _
         ( byref c as Ctx, byval a0 as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerClosure_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function ConstStringTextOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outText as string, _
           byval depth as long = 0, _

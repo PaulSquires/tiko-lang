@@ -493,6 +493,27 @@ declare function UdtMemberSym_ _
 
 #include once "symbols/intrinsics.bas"
 
+
+'' THE '__fbinvoke' OF A CLOSURE TYPE, or nothing when this is not one. Resolve
+'' declares it in the type's own scope precisely so a CALL can find the procedure
+'' from the OBJECT, which is all the call site has.
+private function ClosureInvokeOf_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId tsid = _
+        c.syms->LookupLocalTyped( cast( Tko.ScopeId, c.types->DeclScopeOf( u ) ), _
+                                  c.types->NameOf( u ), true )
+    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return Tko.SYMBOL_NONE
+    if ts->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    return c.syms->LookupLocal( ts->inner, _
+        c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
+end function
+
 function TypeOf_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
@@ -923,6 +944,26 @@ function TypeOf_ _
             end if
         end if
 
+        '' 'c( 5 )' OVER A CLOSURE OBJECT IS A CALL TO ITS '__fbinvoke'. FreeBASIC
+        '' has no call operator, so nothing else would look for one -- and fbc
+        '' emits exactly that: '__FBINVOKE( &C, 5 )'. The receiver is written by
+        '' lowering, so only the RESULT TYPE is settled here.
+        if t = Tko.TYPE_NONE then
+            dim as Tko.SymbolId civ = ClosureInvokeOf_( c, ct )
+            if civ <> Tko.SYMBOL_NONE then
+                '' THE RESULT TYPE COMES OFF THE PROCEDURE'S OWN MODULE-LEVEL SYMBOL,
+                '' which Collect declared for the hoisted lambda like any other. The
+                '' '__fbinvoke' name in the type's scope is a second name for the
+                '' same N_PROC and carries no type of its own.
+                dim as Tko.Symbol ptr ips = c.syms->SymbolAt( _
+                    cast( Tko.SymbolId, c.syms->SymbolAt( civ )->payload ) )
+                if ips <> 0 then
+                    t = ips->type_
+                    if t = Tko.TYPE_NONE then t = c.types->Builtin( Tko.TY_VOID )
+                end if
+            end if
+        end if
+
         '' A CALL THROUGH A PROCEDURE POINTER IS THE PROCEDURE'S RESULT TYPE. The
         '' callee is a VARIABLE, so the overload machinery above has no procedure to
         '' score and the expression came out untyped -- which is why 'print f( 1 )'
@@ -946,6 +987,11 @@ function TypeOf_ _
                 if c.types->Kind( pct ) = Tko.TK_PROC then t = c.types->Inner( pct )
             end if
         end if
+
+    case Tko.N_CLOSURE
+        '' A CAPTURING LAMBDA'S OBJECT. Resolve built the type, because only it can
+        '' see the captures' own scope; the node already carries it.
+        t = c.info->TypeOf_( id )
 
     case Tko.N_NEW
         '' 'new T' IS A POINTER TO T, whatever else it is. Resolve typed the target as

@@ -1,0 +1,33 @@
+'' A CAPTURING LAMBDA WAS REFUSED OUTRIGHT -- "not implemented in this build" -- and it
+'' was the largest single feature left, at 32 declines across two sites.
+''
+'' It is NOT the architectural wall 'spawn' is. fbc's model, measured from its own C,
+'' is a UDT with one '__CAP_<NAME>' field per capture -- a POINTER for byref and the
+'' value INLINE for byval -- and a '__FBINVOKE' member whose FIRST parameter is the
+'' object. NO GENERICS are involved, so the token-range problem that blocks 'spawn'
+'' does not apply.
+''
+'' A BYVAL CAPTURE IS STORED IN THE OBJECT AND MUTATED THERE. Measured by RUNNING it:
+'' two calls to a 'sub[ byval n ]' doing 'n += v' print 11 then 12 while the outer n
+'' stays 10. So the body must reach the FIELD and not a per-call copy -- which is why
+'' the prologue aliases each capture with 'var byref', to the POINTEE for a byref
+'' capture and to the FIELD ITSELF for a byval one. With that the body needs no
+'' rewriting at all: every mention of a captured name resolves to the alias.
+''
+'' THE TYPE IS NAMED IN THE PARSER AND BUILT IN RESOLVE, because those are the only two
+'' places that can each see half of it: a capture's TYPE is only knowable in the scope
+'' the lambda was WRITTEN in, and the type has to live at module level for the hoisted
+'' invoke procedure to name it.
+''
+'' 'c( 5 )' has no operator behind it -- FreeBASIC has no call operator -- so the call
+'' is bound by looking for '__fbinvoke' in the OBJECT's type, which is all the call site
+'' has. Its receiver is a REAL parameter rather than an implicit THIS, so every
+'' parameter query in the argument loop is asked one along.
+''
+'' generics/lambda-capture.bas: 44 declines to 4. tui/tuiwidget_.bas: 24 to 12.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lambda-capture.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/lambda-capture.out
