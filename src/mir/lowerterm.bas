@@ -305,6 +305,12 @@ function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
         if ConstStringTextOf_( c, t2, ct ) then return STF_NEUTRAL
     end if
 
+    '' A MIXED CONCATENATION HAS NO TYPE OF ITS OWN, so the type test below answers
+    '' NEUTRAL for one and a ustring comparison then pushed its bytes unconverted.
+    '' Whether any TERM is wide is the question, and it is the same predicate the
+    '' narrow-destination path already asks.
+    if ConcatHasWideTerm_( c, t2 ) then return STF_WIDE
+
     dim as Tko.TypeId tt = c.info->TypeOf_( t2 )
     if tt = Tko.TYPE_NONE then return STF_NEUTRAL
     if IsUStringType( c, tt ) then return STF_UTF16
@@ -324,7 +330,16 @@ function WideTermAsUStr_ _
     ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
 
     dim as MirValue wp
-    if WideOperand_( c, term, wp ) = false then return false
+    '' A CONCATENATION HAS NO ADDRESS AND NO SINGLE OPERAND. It is built into a
+    '' wide temporary first and converted from THAT -- measured, 'u = w & "z"' is
+    '' 'fb_WstrConcatWA( W, "z", 2 )' and then fb_WstrToUStr over its result.
+    '' WideOperand_ answers for a single term only, so every wide concatenation
+    '' reaching a ustring -- as an argument or as a comparison operand -- declined.
+    if ConcatHasWideTerm_( c, term ) then
+        if WideConcatToTemp_( c, term, wp ) = false then return false
+    elseif WideOperand_( c, term, wp ) = false then
+        return false
+    end if
     if wp.kind = cast( ubyte, MV_NONE ) then return false
     dim as FB.Array( of ulong ) wargs
     wargs.Push( cast( ulong, wp.kind ) ) : wargs.Push( cast( ulong, wp.id ) )

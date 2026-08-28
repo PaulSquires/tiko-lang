@@ -1,5 +1,6 @@
 global wstr $wstr0 "q"
 global str $str1 "z"
+global wstr $wstr2 "qz"
 func i32 G($0) {
   local i32 $tmp0
   local ptr s
@@ -22,6 +23,9 @@ func i32 main($0, $1) {
   local i32 r2
   local agg $tmp5 size 24
   local ptr $tmp6
+  local agg u size 24
+  local i32 r3
+  local ptr $tmp9
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -66,10 +70,38 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintInt(0, %26, 2)
     %27 = load @r2
     call.rtl void fb_PrintInt(0, %27, 1)
-    %28 = const i32 0
-    call.rtl void fb_End(%28)
-    %29 = load @$tmp0
-    ret %29
+    %28 = alloca ptr u
+    %29 = const i64 -9223372036854775806
+    %30 = call.rtl ptr fb_UStrInit(@u, -1, @@$wstr2, %29, 0)
+    %31 = alloca ptr r3
+    %32 = const i64 0
+    %33 = trunc %32
+    store @r3, %33
+    %34 = call.rtl ptr fb_WstrConcatWA(@w, @@$str1, 2)
+    %35 = alloca ptr $tmp9
+    store @$tmp9, %34
+    %36 = load @$tmp9
+    %37 = call.rtl ptr fb_WstrToUStr(%36)
+    %38 = call.rtl i32 fb_UStrCompare(@u, -1, %37, -1)
+    %39 = icmp.eq %38, 0
+    condbr %39, if.then2, if.else3
+  if.join1:
+    %42 = load @$tmp9
+    call.rtl void fb_WstrDelete(%42)
+    %43 = load @r3
+    call.rtl void fb_PrintInt(0, %43, 1)
+    call.rtl void fb_UStrDelete(@u)
+    %44 = const i32 0
+    call.rtl void fb_End(%44)
+    %45 = load @$tmp0
+    ret %45
+  if.then2:
+    %40 = const i64 1
+    %41 = trunc %40
+    store @r3, %41
+    br if.join1
+  if.else3:
+    br if.join1
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrAssign($0, $1, $2)
@@ -79,6 +111,8 @@ declare void fb_UStrDelete($0)
 declare ptr fb_WstrConcatWA($0, $1, $2)
 declare void fb_WstrDelete($0)
 declare void fb_PrintInt($0, $1, $2)
+declare ptr fb_UStrInit($0, $1, $2, $3, $4)
+declare i32 fb_UStrCompare($0, $1, $2, $3)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 5 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance

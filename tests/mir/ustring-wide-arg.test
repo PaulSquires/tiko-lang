@@ -11,6 +11,12 @@
 '' THE WIDE TEMPORARY IS STILL LEAKED, as every wide temporary here is: fbc emits an
 '' fb_WstrDelete for it and tiko-lang models no wide lifetime. That is a leak and not a
 '' wrong answer, and rtl.bi's own header already records it.
+'' THE SAME CONVERTER SERVES A COMPARISON OPERAND, which is why the concatenation case
+'' lives in it rather than at either call site: 'if u = ( w & "z" )' pushed the wide
+'' bytes into fb_UStrCompare unconverted, comparing UTF-16 against UTF-16 that was not
+'' the same UTF-16. A mixed concatenation has no type of its own, so the FLAVOUR test
+'' has to ask whether any TERM is wide.
+''
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/ustring-wide-arg.bas
 '' EXPECT-EXIT: 0
@@ -19,4 +25,5 @@
 '' EXPECT-OUT: fb_WstrConcatWA
 '' EXPECT-OUT: fb_WstrToUStr
 '' EXPECT-OUT: fb_UStrDelete
+'' EXPECT-OUT: fb_UStrCompare
 '' GOLDEN: expected/ustring-wide-arg.out

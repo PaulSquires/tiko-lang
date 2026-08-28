@@ -16,3 +16,10 @@ dim as wstring * 8 w = "q"
 dim as long r1 = G( w )
 dim as long r2 = G( w & "z" )
 print r1, r2
+
+'' ...and the same converter serves a COMPARISON operand: fbc emits fb_WstrToUStr and
+'' then fb_UStrCompare, so the two sides compare the same encoding.
+dim as ustring u = "qz"
+dim as long r3 = 0
+if u = ( w & "z" ) then r3 = 1
+print r3
