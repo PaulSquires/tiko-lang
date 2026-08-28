@@ -1,0 +1,5 @@
+'' PRINT, WRITE and PRINT USING over a UDT with cast operators.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cast-io.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/udt-cast-io.out

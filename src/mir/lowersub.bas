@@ -1153,6 +1153,41 @@ function UserConvToScalar_ _
     return UserCastToNum_( c, id, outv )
 end function
 
+'' THE 'operator cast' OVERLOAD THAT YIELDS A NUMBER, as a symbol. Split out of
+'' UserCastToNum_ so that a caller which needs the RESULT TYPE -- WRITE, to pick its
+'' per-width entry point -- asks the same question rather than repeating the rule
+'' and drifting from it.
+function UserCastNumOverload_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur2 = UdtMemberNamed_( c, t, "cast" )
+    while cur2 <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( cur2 )
+        if cs2 = 0 then exit while
+        dim as Tko.TypeId rt2 = c.types->Unqualify( cs2->type_ )
+        if rt2 <> Tko.TYPE_NONE then
+            dim as boolean num2 = false
+            if c.types->Kind( rt2 ) = Tko.TK_ENUM then num2 = true
+            if c.types->Kind( rt2 ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( rt2 )
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, _
+                     Tko.TY_VOID
+                case else
+                    num2 = true
+                end select
+            end if
+            if num2 then
+                dim as MirType m2 = LowerType( rt2, *c.types )
+                if (m2 <> MT_VOID) andalso (m2 <> MT_AGG) then return cur2
+            end if
+        end if
+        cur2 = cs2->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
 function UserCastToNum_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

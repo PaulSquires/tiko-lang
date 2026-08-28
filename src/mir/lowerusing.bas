@@ -172,7 +172,18 @@ function LowerPrintUsing _
             continue for
         end if
         dim as boolean isWide
-        if UsingRtlFor( c, c.info->TypeOf_( it ), isWide ) = RTL_NONE then return false
+        dim as Tko.TypeId itT = c.info->TypeOf_( it )
+        dim as boolean itemOk = (UsingRtlFor( c, itT, isWide ) <> RTL_NONE)
+        '' A UDT ITEM ANSWERS THROUGH ITS NUMERIC 'operator cast' -- see UsingOne_.
+        '' This pre-check runs before anything is emitted, so it has to know the
+        '' same shapes UsingOne_ does or it refuses the whole statement first.
+        if itemOk = false then
+            if c.types->Kind( c.types->Unqualify( itT ) ) = Tko.TK_UDT then
+                itemOk = (UserCastNumOverload_( c, c.types->Unqualify( itT ) ) <> _
+                          Tko.SYMBOL_NONE)
+            end if
+        end if
+        if itemOk = false then return false
         itemNode.Push( cast( ulong, it ) )
     next
 
@@ -236,6 +247,41 @@ private function UsingOne_ _
 
     dim as Tko.TypeId t = c.info->TypeOf_( it )
     dim as boolean isWide
+
+    '' A UDT ITEM IS ITS 'operator cast', and USING takes the NUMERIC one where
+    '' PRINT and WRITE take the string. Measured, over a type declaring both:
+    ''
+    ''   print l               vr$2 = _ZN1Tcv8FBSTRINGEv( &L ); fb_PrintString
+    ''   write l               vr$4 = _ZN1Tcv8FBSTRINGEv( &L ); fb_WriteString
+    ''   print using "#.##"; l  vr$7 = _ZN1TcvdEv( &L );        fb_PrintUsingDouble
+    ''
+    '' Untried, the item had no entry point and the whole statement declined.
+    if c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT then
+        dim as Tko.SymbolId usym = UserCastNumOverload_( c, c.types->Unqualify( t ) )
+        if usym <> Tko.SYMBOL_NONE then
+            dim as Tko.TypeId ut = c.types->Unqualify( c.syms->SymbolAt( usym )->type_ )
+            dim as boolean uwide = false
+            dim as RtlId uwhich = UsingRtlFor( c, ut, uwide )
+            if (uwhich <> RTL_NONE) andalso (uwide = false) then
+                dim as MirValue uv
+                if UserCastToNum_( c, it, uv ) then
+                    if uv.kind <> cast( ubyte, MV_NONE ) then
+                        uv = Coerce( c, uv, LowerType( ut, *c.types ), _
+                                     IsUnsignedType( c, ut ) )
+                        dim as FB.Array( of ulong ) uargs
+                        uargs.Push( cast( ulong, chan.kind ) )
+                        uargs.Push( cast( ulong, chan.id ) )
+                        uargs.Push( cast( ulong, uv.kind ) )
+                        uargs.Push( cast( ulong, uv.id ) )
+                        PushConst( uargs, mask )
+                        EmitRtl( c, uwhich, uargs )
+                        return true
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     dim as RtlId which = UsingRtlFor( c, t, isWide )
     if which = RTL_NONE then return false
 
