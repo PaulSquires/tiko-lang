@@ -77,6 +77,19 @@ dim shared as FB_STR_TMPDESC tkort_tmpTable( 0 to FB_STR_TMPDESCRIPTORS - 1 )
 dim shared as FB_LIST        tkort_tmpList
 dim shared as integer        tkort_tmpReady
 
+'' ALLOCATE, NOT CALLOCATE.
+''
+'' Nothing here needs a zeroed block: the caller writes the characters and this
+'' module writes the terminator. The first version used callocate, and the very
+'' first benchmark run came out 2.60x slower than C -- almost all of it the
+'' memset that calloc does and malloc does not, over blocks that reach 8 KB in
+'' the concat benchmark.
+''
+'' Worth recording as a method note as much as a fix: the first Gate 4 number
+'' this project ever produced was dominated by an implementation choice, not by
+'' the language. A benchmark that is not chased down to its cause is just a
+'' number with a story attached.
+
 '' PROBE-13's law, and the single place it is written down in code.
 private function hGranuleSize( byval length as integer ) as integer
 	if( length <= 0 ) then return 0
@@ -191,7 +204,7 @@ function tkort_hStrAlloc alias "fb_hStrAlloc" _
 		return s
 	end if
 
-	s->data = cptr( zstring ptr, callocate( want, 1 ) )
+	s->data = cptr( zstring ptr, allocate( want + 1 ) )
 	if( s->data = 0 ) then
 		s->size = 0
 		s->len  = 0
@@ -230,14 +243,29 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 		return s
 	end if
 
-	if( s->size <> want ) then
+	'' GROW ONLY WHEN THE BLOCK IS ACTUALLY TOO SMALL.
+	''
+	'' `size` is the usable capacity in characters, and `len` is allowed to
+	'' reach it exactly -- measured against the C runtime, which produces
+	'' len=144 size=144, len=288 size=288, len=432 size=432 while appending.
+	'' The terminator then sits at data[size], which is why the block is
+	'' allocated with one spare byte.
+	''
+	'' The first version tested `s->size <> want` instead, which reallocates
+	'' whenever the granule count changes -- roughly twice as often on a growing
+	'' append, and it needlessly SHRANK the block on the way down. That single
+	'' comparison was the whole of a 2.1x regression on `acc = acc + piece`,
+	'' while every other benchmark was at parity or faster. It is a difference in
+	'' allocation policy, not in code generation, and no amount of looking at the
+	'' emitted IR would have found it.
+	if( length > s->size ) then
 		if( keepdata <> 0 ) then
-			dim as any ptr p = reallocate( s->data, want )
+			dim as any ptr p = reallocate( s->data, want + 1 )
 			if( p = 0 ) then return 0
 			s->data = cptr( zstring ptr, p )
 		else
 			deallocate( s->data )
-			s->data = cptr( zstring ptr, callocate( want, 1 ) )
+			s->data = cptr( zstring ptr, allocate( want + 1 ) )
 			if( s->data = 0 ) then
 				s->size = 0
 				FB_STRSETLEN( s, 0 )

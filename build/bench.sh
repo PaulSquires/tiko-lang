@@ -3,8 +3,6 @@
 #
 #   build/bench.sh [target] [runs]
 #
-#   build/bench.sh win64 7
-#
 # This is Gate 4 of docs/tiko-rt/RFC-0004 section 4.
 #
 # GATE:  <=5% geomean regression, and no single benchmark worse than 20%.
@@ -15,16 +13,23 @@
 # backend. The only difference is which libfb.a the linker finds, which -p
 # decides. If anything else differs, the number measures that instead.
 #
-# Each benchmark times itself internally and prints "<name> <seconds>", so
-# process startup is outside the measurement. Runs are repeated and the MEDIAN
-# is taken -- not the mean, which one scheduling hiccup can move, and not the
-# minimum, which hides variance that matters.
+# Each benchmark times itself and prints one or more "<name> <seconds>" lines,
+# so process startup stays outside the measurement. EACH LINE IS ITS OWN RESULT.
+# The first version of this script piped a whole benchmark's output through a
+# single median, which silently mixed str_micro's four unrelated timings into one
+# meaningless number.
 #
-# IMPROVEMENTS ARE REPORTED BUT EXCLUDED FROM THE GEOMEAN. A rewrite can beat
-# the original in places -- the temp-descriptor free list and str_concat's
-# allocation strategy are both improvable -- but that is a rewrite dividend, not
-# a language dividend, and averaging it in would make the number measure the
-# wrong thing.
+# Runs are repeated and the MEDIAN is taken -- not the mean, which one scheduling
+# hiccup moves, and not the minimum, which hides variance that matters.
+#
+# IMPROVEMENTS ARE REPORTED BUT EXCLUDED FROM THE GEOMEAN. A rewrite can beat the
+# original, but that is a rewrite dividend rather than a language dividend, and
+# averaging it in would make the number measure the wrong thing.
+#
+# AND A FASTER RESULT IS A FINDING TO EXPLAIN, NOT TO BANK. The first PASS this
+# script produced showed tiko-rt 4.9x faster on one case; the cause turned out to
+# be that it was doing far less allocator work than fbc, i.e. a different
+# allocation policy. See RFC-0004 section 5.
 #
 # DO NOT RUN THIS CONCURRENTLY WITH ANYTHING. A 5% budget is smaller than the
 # noise from a competing build.
@@ -72,46 +77,53 @@ done
 
 # ------------------------------------------------------------------- run
 
-median( ) { tr ' ' '\n' | sort -g | awk '{v[NR]=$1} END{ print (NR%2) ? v[(NR+1)/2] : (v[NR/2]+v[NR/2+1])/2 }'; }
-
-printf '%-28s %12s %12s %9s\n' benchmark "C (s)" "FB (s)" ratio
-printf '%-28s %12s %12s %9s\n' "----------------------------" "------------" "------------" "---------"
-
 : > "$WORK/ratios.txt"
-worst=1.0
-worstname="-"
+: > "$WORK/rows.txt"
 
 for src in $benches; do
-    name=$(basename "$src" .bas)
+    file=$(basename "$src" .bas)
     for which in c fb; do
-        acc=""
-        i=0
-        while [ "$i" -lt "$RUNS" ]; do
-            t=$("$WORK/$name-$which$EXT" | awk '{print $NF}')
-            acc="$acc $t"
-            i=$((i + 1))
+        run=0
+        while [ "$run" -lt "$RUNS" ]; do
+            "$WORK/$file-$which$EXT" > "$WORK/out.tmp" 2>/dev/null || true
+            while read -r nm val; do
+                case "$val" in ''|*[!0-9.eE+-]*) continue ;; esac
+                echo "$val" >> "$WORK/r.$file.$nm.$which"
+            done < "$WORK/out.tmp"
+            run=$((run + 1))
         done
-        eval "t_$which=\$(echo \"\$acc\" | median)"
     done
 
-    ratio=$(awk -v c="$t_c" -v f="$t_fb" 'BEGIN{ printf "%.4f", (c>0)? f/c : 0 }')
-    printf '%-28s %12.6f %12.6f %8.2fx\n' "$name" "$t_c" "$t_fb" "$ratio"
-    echo "$name $ratio" >> "$WORK/ratios.txt"
-    worse=$(awk -v r="$ratio" -v w="$worst" 'BEGIN{ print (r>w) ? 1 : 0 }')
-    if [ "$worse" = "1" ]; then worst=$ratio; worstname=$name; fi
+    for f in "$WORK/r.$file".*.c; do
+        [ -e "$f" ] || continue
+        nm=$(basename "$f" .c)
+        nm=${nm#r.$file.}
+        tc=$(sort -g "$WORK/r.$file.$nm.c"  | awk '{v[NR]=$1} END{ print (NR%2)? v[(NR+1)/2] : (v[NR/2]+v[NR/2+1])/2 }')
+        tf=$(sort -g "$WORK/r.$file.$nm.fb" | awk '{v[NR]=$1} END{ print (NR%2)? v[(NR+1)/2] : (v[NR/2]+v[NR/2+1])/2 }')
+        r=$(awk -v c="$tc" -v f="$tf" 'BEGIN{ printf "%.4f", (c>0)? f/c : 0 }')
+        awk -v n="$nm" -v c="$tc" -v f="$tf" -v r="$r" \
+            'BEGIN{ printf "%-28s %12.6f %12.6f %8.2fx\n", n, c, f, r }' >> "$WORK/rows.txt"
+        echo "$nm $r" >> "$WORK/ratios.txt"
+    done
 done
 
-# -------------------------------------------------------------- the verdict
+awk 'BEGIN{ printf "%-28s %12s %12s %9s\n", "benchmark", "C (s)", "FB (s)", "ratio" }'
+awk 'BEGIN{ printf "%-28s %12s %12s %9s\n", "----------------------------", "------------", "------------", "---------" }'
+cat "$WORK/rows.txt"
 
-awk -v worst="$worst" -v worstname="$worstname" '
-    { r = $2; if (r > 1.0) { s += log(r); n++ } }   # regressions only
+awk '
+    { r = $2 + 0
+      if (r > worst) { worst = r; worstname = $1 }
+      if (r > 1.0)   { s += log(r); n++ }          # regressions only
+    }
     END {
+        if (worst == 0) { worst = 1; worstname = "-" }
         geo = (n > 0) ? exp(s / n) : 1.0
-        printf "\ngeomean of regressions: %.4fx over %d of the benchmarks\n", geo, n
+        printf "\ngeomean of regressions: %.4fx over %d result(s)\n", geo, n
         printf "worst single:           %.4fx (%s)\n", worst, worstname
         ok = 1
-        if (geo > 1.05)  { printf "FAIL geomean %.2f%% > 5%% budget\n", (geo-1)*100; ok = 0 }
-        if (worst > 1.20){ printf "FAIL %s %.2f%% > 20%% single-benchmark budget\n", worstname, (worst-1)*100; ok = 0 }
+        if (geo > 1.05)   { printf "FAIL geomean %.2f%% > 5%% budget\n", (geo-1)*100; ok = 0 }
+        if (worst > 1.20) { printf "FAIL %s %.2f%% > 20%% single-benchmark budget\n", worstname, (worst-1)*100; ok = 0 }
         if (ok) print "PASS within budget (RFC-0004 R5)"
         exit (ok ? 0 : 1)
     }
