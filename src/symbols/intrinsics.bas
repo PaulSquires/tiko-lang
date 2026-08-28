@@ -718,6 +718,22 @@ private function ProcTypeOfSymbol_ _
     return c.types->Pointer_( c.types->ProcType( ret, ps ) )
 end function
 
+'' IS THIS NODE THE RECEIVER -- the implicit 'this' of a member body? It is declared
+'' by Collect and typed by Resolve as a POINTER to the owning type; nothing else in
+'' scope can carry that name, because THIS is a keyword everywhere else.
+private function IsThisIdent_( byref c as Ctx, byval n as Tko.NodeId ) as boolean
+    if n = Tko.NODE_NONE then return false
+    if c.ast->Kind( n ) <> Tko.N_IDENT then return false
+    dim as Tko.InternId nm = _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )].name
+    if c.names->Fold( nm ) <> c.names->Fold( c.names->GetString( "this" ) ) then
+        return false
+    end if
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if sy = 0 then return false
+    return (sy->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+end function
+
 '' The result type of a conversion intrinsic, or TYPE_NONE when this is not one.
 ''
 '' These are KEYWORDS in expression position, so no symbol is ever bound and the callee
@@ -843,8 +859,25 @@ private function IntrinsicCallType_ _
         if c.ast->Kind( ta ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
         dim as Tko.TypeId rt = c.info->TypeOf_( ta )
         if rt = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        dim as Tko.TypeId st = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + 1] ) )
+        dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        dim as Tko.TypeId st = TypeOf_( c, sn )
         if st = Tko.TYPE_NONE then return rt
+        '' 'this' DENOTES THE OBJECT, not the pointer. tiko-lang types it as a
+        '' POINTER because that is what the ABI passes -- fbc's own C spells the
+        '' receiver 'struct $1T*' -- and every member access reaches through it, so
+        '' the modelling is right everywhere except here, where the source's
+        '' POINTER-NESS is what the rule turns on.
+        ''
+        '' 'cast( Base, this ) = v' is the base SLICE, and fbc emits
+        '' 'memcpy( THIS, &V, 8 )' for it. Typed off the pointer it was refused, so
+        '' the assignment target had no type and the statement declined.
+        ''
+        '' Measured, and the distinction is real: 'cast( Base, *p )' over a derived
+        '' OBJECT is accepted while 'cast( Base, p )' over the POINTER is fbc error
+        '' 20. So this unwraps the receiver and nothing else.
+        if IsThisIdent_( c, sn ) then
+            if c.types->Kind( st ) = Tko.TK_POINTER then st = c.types->Inner( st )
+        end if
         '' Measured acceptance. CPTR reaches a pointer only FROM one, or from a
         '' pointer-width integer; CAST follows the destination's class -- a pointer
         '' destination takes the same two, a numeric one takes anything but a pointer,

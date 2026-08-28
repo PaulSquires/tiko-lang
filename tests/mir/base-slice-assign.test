@@ -1,0 +1,26 @@
+'' 'this' DENOTES THE OBJECT, not the pointer, and two places disagreed.
+''
+'' tiko-lang types 'this' as a POINTER because that is what the ABI passes -- fbc's own C
+'' spells the receiver 'struct $1T*' -- and every member access reaches through it, so
+'' the modelling is right everywhere except where the source's POINTER-NESS is what the
+'' rule turns on.
+''
+'' TYPING: 'cast( Base, this )' was refused, because a pointer reaches a UDT
+'' destination nowhere else. So the assignment target had no type at all and the
+'' statement declined. Measured, and the distinction is real: 'cast( Base, *p )' over a
+'' derived OBJECT is accepted while 'cast( Base, p )' over the POINTER is fbc error 20,
+'' so only the receiver is unwrapped.
+''
+'' ADDRESS: with the typing fixed the statement lowered and was WRONG -- 'store @this,
+'' <the loaded udt>' wrote the base object OVER THE RECEIVER SLOT instead of through
+'' it. The object's address is the pointer's VALUE; its own address is a pointer to a
+'' pointer. Caught by reading the IR against fbc's 'memcpy( THIS, U2, 8 )' before it
+'' went anywhere.
+''
+'' structs/udt-init-2.bas writes every base assignment this way, inside a constructor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/base-slice-assign.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/base-slice-assign.out

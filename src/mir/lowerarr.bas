@@ -75,6 +75,22 @@ end function
 
 '' The ADDRESS of an assignable expression, or an undef value when this slice cannot
 '' produce one (a member, an index, a dereference).
+'' IS THIS NODE THE RECEIVER, held as a POINTER? 'this' denotes the OBJECT in source
+'' and a pointer in the ABI, so anything wanting the object's ADDRESS wants the
+'' pointer's VALUE and not the slot's address.
+private function IsThisPointerIdent_ _
+    ( byref c as Ctx, byval n as Tko.NodeId ) as boolean
+
+    if n = Tko.NODE_NONE then return false
+    if c.ast->Kind( n ) <> Tko.N_IDENT then return false
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if sy = 0 then return false
+    if sy->kind <> cast( ubyte, Tko.SYM_PARAMETER ) then return false
+    if sy->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
+    if sy->type_ = Tko.TYPE_NONE then return false
+    return (c.types->Kind( sy->type_ ) = Tko.TK_POINTER)
+end function
+
 function LowerAddr _
     ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
@@ -133,8 +149,20 @@ function LowerAddr _
                         dim as Tko.TypeId xtt = _
                             c.types->Unqualify( c.info->TypeOf_( xt ) )
                         if c.types->Kind( xtt ) = Tko.TK_UDT then
-                            return LowerAddr( c, _
-                                cast( Tko.NodeId, c.ast->children[xlp->first + 1] ) )
+                            dim as Tko.NodeId xop = _
+                                cast( Tko.NodeId, c.ast->children[xlp->first + 1] )
+                            '' 'this' HOLDS A POINTER, so the object's address is its
+                            '' VALUE. Its own address is a pointer to a pointer, and
+                            '' 'cast( Base, this ) = u' then wrote the base object
+                            '' OVER THE RECEIVER SLOT instead of through it --
+                            '' 'store @this, <the loaded udt>' where fbc emits
+                            '' 'memcpy( THIS, &U, 8 )'.
+                            if IsThisPointerIdent_( c, xop ) then
+                                dim as MirValue xa = LowerAddr( c, xop )
+                                if xa.kind = cast( ubyte, MV_NONE ) then return xa
+                                return LowerExprLoad( c, xa, MT_PTR )
+                            end if
+                            return LowerAddr( c, xop )
                         end if
                     end if
                 end if
@@ -524,6 +552,7 @@ function LowerAddr _
 
     return AddrOfVar( c, sid )
 end function
+
 
 '' 'this->field', for a field named without a base.
 ''
