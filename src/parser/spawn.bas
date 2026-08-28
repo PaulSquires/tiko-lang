@@ -61,9 +61,13 @@ end function
 '' TypeRef( ) itself builds for 'T ptr'.
 private function SpTypeRef_ _
     ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
-      byval loc as Tko.SourceLoc, byval isPtr as boolean ) as Tko.NodeId
+      byval loc as Tko.SourceLoc, byval isPtr as boolean, _
+      byval kw as Tko.TokenKind = Tko.TK_EOF ) as Tko.NodeId
     dim as Tko.StmtPayload tp
     tp.name = nm
+    '' A BUILTIN TYPE IS NAMED BY ITS KEYWORD, in 'op', and not by a name: the
+    '' name 'any' resolves to no symbol at all.
+    tp.op = cast( ushort, kw )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPEREF, loc, tp )
     if isPtr = false then return n
     dim as Tko.StmtPayload up
@@ -189,8 +193,7 @@ function MakeSpawn_ _
     '' match it. The cast back is the 'dim' above.
     dim as Tko.StmtPayload pp0
     pp0.name = sfpNm
-    pp0.a = SpTypeRef_( p, _
-        p.names->Fold( p.names->GetString( "any" ) ), t.loc, true )
+    pp0.a = SpTypeRef_( p, 0, t.loc, true, Tko.KW_ANY )
     dim as Tko.NodeId prm = MakeStmt( p, Tko.N_PARAM, t.loc, pp0 )
     p.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYVAL_WRITTEN
 

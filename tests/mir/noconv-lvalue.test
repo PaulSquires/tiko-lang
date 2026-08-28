@@ -1,0 +1,6 @@
+'' A size-and-family-preserving conversion is an lvalue; width/run default their tails;
+'' wspace is a wide term.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/noconv-lvalue.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/noconv-lvalue.out

@@ -91,6 +91,76 @@ private function IsThisPointerIdent_ _
     return (c.types->Kind( sy->type_ ) = Tko.TK_POINTER)
 end function
 
+'' A CONVERSION THAT CONVERTS NOTHING IS AN LVALUE, and only that one.
+''
+'' Measured, by asking fbc to accept each:
+''
+''   dim as integer i : cuint( i ) = i + 1        'I = (uint64)(I + 1)'
+''   dim as long j    : clng( j ) = j + 1         'J = (int32)((int64)J + 1)'
+''   dim as long i    : cuint( i ) = i + 1        error 24, Invalid data types
+''   dim as long j    : @cast( long, j )          accepted
+''   dim as longint k : @cast( integer, k )       accepted -- INT and INTPTR are
+''                                                one family
+''   dim as long j    : @cast( single, j )        error 24 -- same SIZE, and still
+''                                                a conversion
+''   dim as double d  : @cast( longint, d )       error 24
+''   dim as boolean b : @cast( byte, b )          error 24 -- BOOL is its own
+''
+'' So the rule is one rule for both spellings: same SIZE and the same FAMILY, where
+'' the integer family is TC_INT and TC_INTPTR together. Anything else fbc rejects,
+'' and accepting it here would take a program fbc refuses.
+private function NoConvFamily_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as long
+
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return 0
+    select case Tko.BuiltinClass( c.types->BuiltinOf( u ) )
+    case Tko.TC_INT, Tko.TC_INTPTR : return 1
+    case Tko.TC_FLOAT              : return 2
+    end select
+    return 0
+end function
+
+'' The operand of a no-op conversion, or NODE_NONE. Handles both spellings:
+'' 'cast( T, x )' and the one-argument intrinsics 'cuint( x )', 'clng( x )', ...
+private function NoConvOperand_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.NODE_NONE
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    dim as Tko.NodeId op = Tko.NODE_NONE
+    if nm = "cast" then
+        if lp->count <> 2 then return Tko.NODE_NONE
+        op = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    else
+        select case nm
+        case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", _
+             "cuint", "clngint", "culngint", "csng", "cdbl", "csign", "cunsg"
+            if lp->count <> 1 then return Tko.NODE_NONE
+            op = cast( Tko.NodeId, c.ast->children[lp->first] )
+        case else
+            return Tko.NODE_NONE
+        end select
+    end if
+    if op = Tko.NODE_NONE then return Tko.NODE_NONE
+
+    dim as Tko.TypeId rt = c.info->TypeOf_( id )
+    dim as Tko.TypeId ot = c.info->TypeOf_( op )
+    if (rt = Tko.TYPE_NONE) orelse (ot = Tko.TYPE_NONE) then return Tko.NODE_NONE
+    dim as long fam = NoConvFamily_( c, rt )
+    if fam = 0 then return Tko.NODE_NONE
+    if NoConvFamily_( c, ot ) <> fam then return Tko.NODE_NONE
+    if SizeOfType( c, rt ) <> SizeOfType( c, ot ) then return Tko.NODE_NONE
+    return op
+end function
+
 function LowerAddr _
     ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
@@ -168,6 +238,13 @@ function LowerAddr _
                 end if
             end if
         end if
+    end if
+
+    '' ...AND A CONVERSION THAT CONVERTS NOTHING, which is the same question for the
+    '' numeric spellings. See NoConvOperand_ for the rule and what fbc rejects.
+    if c.ast->Kind( id ) = Tko.N_CALL then
+        dim as Tko.NodeId ncop = NoConvOperand_( c, id )
+        if ncop <> Tko.NODE_NONE then return LowerAddr( c, ncop )
     end if
 
     '' 'peek( T, p )' IS AN LVALUE: it IS '*(T*)p', and fbc emits no load for it at all.

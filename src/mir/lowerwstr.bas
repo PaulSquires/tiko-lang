@@ -254,7 +254,14 @@ function LowerWideConcatAssignTo _
     '' -- and the same for a BOOLEAN through fb_BoolToWstr and a DOUBLE through
     '' fb_DoubleToWstr. Without it every 'w &= n' and 'w = wstr( "a" ) & n' declined,
     '' which is most of what the boolean and wstring corpus files append.
-    if IsWideString_( c, c.info->TypeOf_( value ) ) = false then
+    '' TermIsWide_ AND NOT THE TYPE ALONE. A wide RVALUE whose callee is unbound --
+    '' 'wspace( 3 )', 'wstr( n )' -- has NO TYPE, so a type-only test called it
+    '' 'not a wide string', fell into the narrow/number branch below, matched
+    '' neither, and declined. The wide path underneath already reaches it through
+    '' WideOperand_, which knows the shape.
+    dim as boolean srcIsWide = IsWideString_( c, c.info->TypeOf_( value ) )
+    if srcIsWide = false then srcIsWide = TermIsWide_( c, value )
+    if srcIsWide = false then
         '' A NARROW STRING SOURCE goes through the MIXED entry point and back:
         ''
         ''     TMP = fb_WstrConcatWA( W, (void*)"lit", 4 );

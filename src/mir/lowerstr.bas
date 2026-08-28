@@ -1088,7 +1088,13 @@ function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' ...and the WIDE RADIX FAMILY, which is wide by the same rule and for the same
     '' reason: Check computes no type for the call, so only the NAME says so.
     select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
-    case "wstr", "whex", "woct", "wbin"
+    '' ...AND 'wspace( n )', which is wide for the same reason and was not here:
+    '' it lowered standalone -- fb_WstrSpace -- and compared against a wstring, but
+    '' inside a CONCATENATION TermIsWide_ asks this list, decided the term was
+    '' narrow, and sent it to the narrow emitter, which had nothing to give.
+    '' Measured: 'wstr( "a" ) + wspace( 3 )' is
+    '' 'fb_WstrConcat( L"a", fb_WstrSpace( 3 ) )'.
+    case "wstr", "whex", "woct", "wbin", "wspace"
         return true
     end select
     return false
