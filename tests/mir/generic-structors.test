@@ -1,0 +1,7 @@
+'' A generic instantiation's default constructor, copy constructor and destructor,
+'' none of which were being instantiated at all.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-structors.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-structors.out

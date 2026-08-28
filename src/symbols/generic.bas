@@ -1044,7 +1044,28 @@ private sub InstantiateMembers_ _
         dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->tokenRanges[i] )
         if c.ast->Kind( dn ) <> Tko.N_PROC then continue for
         dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
-        if dp->ownerName <> gname then continue for
+        '' A GENERIC'S CONSTRUCTOR AND DESTRUCTOR NAME THE TYPE, WITH NO DOT --
+        '' 'constructor G( of T )( )' -- so the parser records no ownerName for one
+        '' and this filter threw every structor away. An ordinary member is written
+        '' 'function G( of T ).Get( )', HAS the dot, and passed; that is why member
+        '' functions instantiated and structors did not.
+        ''
+        '' Nothing then declared __ctor or __dtor in the instantiation's scope, so
+        '' StructorOf found none and every caller concluded the type had none: a
+        '' 'dim' of a generic ran no constructor, an initialiser copied the bytes
+        '' instead of calling the copy constructor, and scope exit ran no destructor.
+        '' Silently -- it lowered and it verified.
+        ''
+        '' That is ComPtr's and SharedPtr's refcounting, LinkedList's teardown and
+        '' Channel's reference count, none of which were running.
+        dim as boolean isStructor = _
+            (dp->op = cast( ushort, Tko.KW_CONSTRUCTOR )) orelse _
+            (dp->op = cast( ushort, Tko.KW_DESTRUCTOR ))
+        dim as boolean mine = (dp->ownerName = gname)
+        if mine = false then
+            if isStructor then mine = (dp->name = gname)
+        end if
+        if mine = false then continue for
         if dp->b = Tko.NODE_NONE then continue for
 
         '' A PARSER OF ITS OWN over the same buffer. The stream is deliberately NOT
@@ -1069,6 +1090,20 @@ private sub InstantiateMembers_ _
 
         dim as Tko.StmtPayload ptr fp2 = StmtOf( c, fresh )
         fp2->ownerName = inm
+        '' A STRUCTOR NAMES ITS TYPE IN 'name', not in 'ownerName' -- there is no
+        '' dot, so that is where the parser puts it and where Collect reads the
+        '' owner from. Left as the GENERIC's name it was collected as a plain
+        '' module-level procedure called 'G', which is what the emitted 'func void
+        '' G(...)' was: three real bodies under a name no instantiation could call.
+        select case cast( Tko.TokenKind, fp2->op )
+        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+            '' ...and its ownerName goes back to NOTHING, because Collect reads a
+            '' structor's owner as 'ownerName & "." & name' when both are set --
+            '' 'ns.UDT' for 'constructor ns.UDT( )'. Leaving both would ask for a type
+            '' called 'g<6>.g<6>'.
+            fp2->name = inm
+            fp2->ownerName = 0
+        end select
         '' THE GENERIC-PROCEDURE FLAG COMES OFF. Every out-of-line member of a generic
         '' is spelled 'function Array( of T ).Count( )', so the parser's '( of ... )'
         '' branch marks it PF_GENERIC_PROC -- and lowering skips anything carrying that
@@ -1087,11 +1122,27 @@ private sub InstantiateMembers_ _
         '' the receiver by looking 'this' up in the proc symbol's scope, found no
         '' symbol and gave the method NO RECEIVER at all.
         ''
-        '' Structors are left alone: Collect already declares those itself, under the
-        '' synthetic __ctor / __dtor names, and doing it twice would split the chain.
+        '' A STRUCTOR NEEDS ONE SYMBOL PER OVERLOAD, and that is what this gives it.
+        '' Collect attaches a ctor DEFINITION to whatever 'LookupLocal' answers for
+        '' '__ctor', which is right when the TYPE declares one -- the declarations
+        '' inside a type carry the signatures and the definitions attach to them. An
+        '' INSTANTIATION'S scope has no such declarations: InstantiateGeneric_ mirrors
+        '' only the fields. So every definition collapsed onto the first symbol, the
+        '' chain was one long, and 'G( of long )( 7 )' resolved to the DEFAULT
+        '' constructor and dropped the 7.
+        ''
+        '' Declared here with the FRESH node as the payload, exactly as an ordinary
+        '' member is, each overload keeps its own signature and its own mangled name.
+        dim as Tko.InternId declNm = mname
         select case cast( Tko.TokenKind, mop )
-        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+        case Tko.KW_CONSTRUCTOR
+            declNm = c.names->Fold( c.names->GetString( "__ctor" ) )
+        case Tko.KW_DESTRUCTOR
+            declNm = c.names->Fold( c.names->GetString( "__dtor" ) )
+        end select
+        select case cast( Tko.TokenKind, mop )
         case else
+            mname = declNm
             if mname <> 0 then
                 dim as boolean mdup = false
                 dim as Tko.SymbolId msid = c.syms->DeclareSym( iin, mname, _
