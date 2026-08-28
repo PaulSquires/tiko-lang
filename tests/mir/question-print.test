@@ -1,0 +1,16 @@
+'' '?' IS PRINT, and keeping TK_QUESTION in the statement's 'op' made a second
+'' statement KIND out of a pure synonym. The lowerer dispatches on the op, so every '?'
+'' reached the end of the dispatcher and declined while the 'print' beside it lowered.
+''
+'' Recorded as KW_PRINT in the parser rather than dispatched twice in lowering: the
+'' two are the same statement, and every later pass that reads the op -- the lowerer,
+'' the statistics, a future diagnostic -- would otherwise each need to know about both.
+''
+'' syntax/non-indexed-array.bas writes it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/question-print.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_ArrayLBound
+'' GOLDEN: expected/question-print.out

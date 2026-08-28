@@ -1,0 +1,80 @@
+global str $str0 "hi"
+func void T($0) {
+  local ptr array
+  entry0:
+    %1 = alloca ptr array
+    store @array, $0
+    %2 = load @array
+    %3 = const i64 1
+    %4 = call.rtl i64 fb_ArrayLBound(%2, %3)
+    call.rtl void fb_PrintLongint(0, %4, 1)
+    %5 = load @array
+    %6 = const i64 1
+    %7 = call.rtl i64 fb_ArrayUBound(%5, %6)
+    call.rtl void fb_PrintLongint(0, %7, 1)
+    ret
+}
+declare i64 fb_ArrayLBound($0, $1)
+declare void fb_PrintLongint($0, $1, $2)
+declare i64 fb_ArrayUBound($0, $1)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i32 n
+  local agg a size 16
+  local agg $tmp3 size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr n
+    %5 = const i64 5
+    %6 = trunc %5
+    store @n, %6
+    %7 = alloca ptr a
+    %8 = load @n
+    call.rtl void fb_PrintInt(0, %8, 1)
+    %9 = load @n
+    call.rtl void fb_PrintInt(0, %9, 1)
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 2)
+    call.rtl void fb_PrintString(0, %10, 1)
+    %11 = alloca ptr $tmp3
+    %12 = field.addr @$tmp3, 0
+    store %12, @a
+    %13 = field.addr @$tmp3, 8
+    store %13, @a
+    %14 = const i64 16
+    %15 = field.addr @$tmp3, 16
+    store %15, %14
+    %16 = const i64 8
+    %17 = field.addr @$tmp3, 24
+    store %17, %16
+    %18 = const i64 1
+    %19 = field.addr @$tmp3, 32
+    store %19, %18
+    %20 = const i64 49
+    %21 = field.addr @$tmp3, 40
+    store %21, %20
+    %22 = const i64 2
+    %23 = field.addr @$tmp3, 48
+    store %23, %22
+    %24 = const i64 0
+    %25 = field.addr @$tmp3, 56
+    store %25, %24
+    %26 = const i64 1
+    %27 = field.addr @$tmp3, 64
+    store %27, %26
+    call void T(@$tmp3)
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance

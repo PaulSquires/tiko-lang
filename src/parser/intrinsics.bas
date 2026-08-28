@@ -579,7 +579,15 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' '?' is PRINT, and is not a keyword at all.
     dim as Tko.IntrinsicForm form = Tko.IFORM_PRINT
-    if k <> Tko.TK_QUESTION then form = Tko.IntrinsicFormOf( k )
+    if k = Tko.TK_QUESTION then
+        '' ...AND IT IS RECORDED AS ONE. Keeping TK_QUESTION in 'op' made a second
+        '' statement kind out of a pure synonym, and the lowerer dispatches on the
+        '' op: every '?' reached the end of the dispatcher and declined, while the
+        '' 'print' beside it lowered. syntax/non-indexed-array.bas writes it.
+        sp.op = cast( ushort, Tko.KW_PRINT )
+    else
+        form = Tko.IntrinsicFormOf( k )
+    end if
     Advance( p )
 
     select case form
