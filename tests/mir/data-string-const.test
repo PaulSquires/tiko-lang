@@ -1,0 +1,35 @@
+'' A DATA BLOCK DECLINES WHOLE OR NOT AT ALL -- a short one would silently shift every
+'' later READ onto the wrong datum -- so one item it could not fold took the block, its
+'' READs and its RESTOREs with it.
+''
+'' Three items it could not fold, each measured against fbc's own descriptor:
+''
+''   const S  = "abc"        { (int16)3, (void*)"abc" }
+''   const V1 = wstr( "123" ) { (int16)-32765, (void*)L"123" }
+''   @"foo"                  { (int16)-2, (void*)"foo" }
+''
+'' A STRING CONSTANT could never fold here because ConstOf has no string field at all;
+'' the note in this file said a wide datum "does not fold here", and now it does. The
+'' WIDENESS comes off the constant's INITIALISER, not off the constant, which carries
+'' no type worth asking.
+''
+'' -2 IS NOT A LENGTH. It is a distinct tag saying the NODE is an ADDRESS, so it cannot
+'' go through the 'length or &h8000' path at all. Only a STRING LITERAL operand is
+'' accepted: '@somevar' would be a relocation the descriptor cannot express, and
+'' guessing it would put a number where an address belongs.
+''
+'' A POINTER target reads with fb_DataReadULongint -- the runtime moves the ADDRESS and
+'' has no pointer reader of its own -- and on win32 with the 32-bit entry point, for the
+'' same reason INTEGER splits.
+''
+'' wstring/data.bas: 10 declines to 0.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/data-string-const.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: 3 -> $str0
+'' EXPECT-OUT: 32771 -> $wstr1
+'' EXPECT-OUT: -2 -> $str2
+'' EXPECT-OUT: fb_DataReadULongint
+'' GOLDEN: expected/data-string-const.out

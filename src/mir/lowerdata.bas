@@ -110,6 +110,23 @@ private function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as lo
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         dim as boolean isWide = false
         dim as string txt
+        '' '@"foo"' -- THE DATUM IS AN ADDRESS, and its tag is -2 rather than a
+        '' length. Measured: '{ (int16)-2, (void*)"foo" }', read back with
+        '' fb_DataReadULongint into a pointer. Nothing here knew the tag, so the
+        '' whole block declined and the READ and RESTORE beside it went with it.
+        dim as Tko.NodeId ae = Unparen_( c, e )
+        if c.ast->Kind( ae ) = Tko.N_ADDROF then
+            dim as Tko.UnaryPayload ptr aup = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, ae )].data )]
+            dim as Tko.NodeId ao = Unparen_( c, aup->operand )
+            '' ONLY A STRING LITERAL. '@somevar' would be a relocation the
+            '' descriptor cannot express, and guessing it would put a number
+            '' where an address belongs.
+            if c.ast->Kind( ao ) <> Tko.N_STRING_LIT then return -1
+            types.Push( -2 )
+            refs.Push( c.m->AddStringLiteral( StringLitText_( c, ao ), *c.names ) )
+            continue for
+        end if
         if DataItemText_( c, e, isWide, txt ) = false then return -1
         if len( txt ) > 32766 then return -1        '' would collide with the terminator
         dim as long ty = len( txt )
@@ -136,6 +153,23 @@ end function
 '' fbc folds every item to a compile-time constant and renders it as decimal, so the
 '' source spelling is gone: 'data &hFF' and 'data "255"' produce byte-identical
 '' entries. Anything that will not fold declines the whole block.
+'' IS THIS CONSTANT'S TEXT WIDE? The constant itself carries no type worth asking --
+'' 'const V1 = wstr( "123" )' is recorded with none -- so the question goes to its
+'' INITIALISER, which is where the wstr( ) is.
+private function DataConstIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if e = Tko.NODE_NONE then return false
+    if TermIsWide_( c, e ) then return true
+    dim as Tko.NodeKind k = c.ast->Kind( e )
+    if (k <> Tko.N_IDENT) andalso (k <> Tko.N_MEMBER) then return false
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( e ) )
+    if cs = 0 then return false
+    if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+    if cs->payload = 0 then return false
+    dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
+    if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
+    return TermIsWide_( c, StmtOf( c, item )->b )
+end function
+
 private function DataItemText_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref isWide as boolean, _
       byref outp as string ) as boolean
@@ -182,6 +216,24 @@ private function DataItemText_ _
             end select
             return true
         end if
+    end if
+
+    '' A STRING CONSTANT IS ITS TEXT, and a WIDE one sets bit 15. The note above
+    '' said a wide datum 'does not fold here' -- it does now, and so does a narrow
+    '' one, which ConstOf could never answer for because it has no string field.
+    ''
+    '' Measured, for 'const S = "abc"' and 'const V1 = wstr( "123" )':
+    ''
+    ''   { (int16)3, (void*)"abc" }, { (int16)-32765, (void*)L"123" }
+    ''
+    '' -- 3 is the length, and -32765 is 3 with bit 15 set. wstring/data.bas is six
+    '' of them, and the four RESTOREs that cascade off the block declining with
+    '' them.
+    dim as string ct
+    if ConstStringTextOf_( c, e, ct ) then
+        outp = ct
+        isWide = DataConstIsWide_( c, e )
+        return true
     end if
 
     dim as Tko.Check.ConstVal v = _
@@ -271,6 +323,14 @@ private function DataReadRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as Rtl
     if StrSwapKind_( c, t, zn ) = 1 then return RTL_DATA_READ_STR
 
     select case c.types->Kind( t )
+    '' A POINTER TARGET READS AS AN UNSIGNED WORD. Measured: 'read ps' over a
+    '' 'zstring ptr' is 'fb_DataReadULongint( (uint64*)&PS$0 )' -- the runtime
+    '' moves the ADDRESS stored in the datum, and has no pointer reader of its
+    '' own. On win32 that is the 32-bit entry point, for the same reason INTEGER
+    '' splits below.
+    case Tko.TK_POINTER
+        if c.types->target.pointerBits = 32 then return RTL_DATA_READ_UINT
+        return RTL_DATA_READ_ULONGINT
     case Tko.TK_ENUM : return RTL_DATA_READ_INT
     case Tko.TK_BUILTIN
         select case c.types->BuiltinOf( t )
