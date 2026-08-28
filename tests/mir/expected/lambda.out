@@ -16,26 +16,23 @@ func void S1() {
     %7 = const i64 2
     %8 = trunc %7
     store @b, %8
-    %9 = load @a
-    %10 = load @b
-    %11 = load @less
-    %12 = call.ind i8 %11(%9, %10)
-    call.rtl void fb_PrintBool(0, %12, 1)
-    %13 = alloca ptr pick
-    %14 = func.addr ptr __TKO_LAMBDA_801F6C16_1
-    store @pick, %14
-    %15 = load @a
-    %16 = load @b
-    %17 = load @pick
-    %18 = call.ind i32 %17(%15, %16)
-    call.rtl void fb_PrintInt(0, %18, 1)
-    %19 = alloca ptr one
-    %20 = func.addr ptr __TKO_LAMBDA_801F6C16_2
-    store @one, %20
-    %21 = const i64 1
-    %22 = load @one
-    %23 = call.ind i32 %22(%21)
-    call.rtl void fb_PrintInt(0, %23, 1)
+    %9 = load @less
+    %10 = call.ind i8 %9(@a, @b)
+    call.rtl void fb_PrintBool(0, %10, 1)
+    %11 = alloca ptr pick
+    %12 = func.addr ptr __TKO_LAMBDA_801F6C16_1
+    store @pick, %12
+    %13 = load @pick
+    %14 = call.ind i32 %13(@a, @b)
+    call.rtl void fb_PrintInt(0, %14, 1)
+    %15 = alloca ptr one
+    %16 = func.addr ptr __TKO_LAMBDA_801F6C16_2
+    store @one, %16
+    %17 = const i64 1
+    %18 = trunc %17
+    %19 = load @one
+    %20 = call.ind i32 %19(%18)
+    call.rtl void fb_PrintInt(0, %20, 1)
     ret
 }
 declare void __TKO_LAMBDA_801F6C16_0()
@@ -124,4 +121,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 8 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 8 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance

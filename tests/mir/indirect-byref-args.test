@@ -1,0 +1,23 @@
+'' AN INDIRECT CALL PASSED EVERY ARGUMENT BY VALUE, whatever the callee declared.
+''
+'' ParamIsByref and ParamTypeAt both read the callee's SYMBOL, and a call through a
+'' pointer has none -- so a BYREF parameter got the number where it expected an address
+'' and the callee then read through it, and a narrow parameter got an unconverted i64.
+'' It lowered and it verified. Measured, fbc materialises a temporary per rvalue
+'' ('TMP$3 = 1; (F$1)( &TMP$3, ... )') and casts for width ('(P2$0)( (int8)0 )').
+''
+'' The callee's SIGNATURE is what to read instead: a TK_PROC type carries its parameter
+'' types, and a byref one is a TK_REFERENCE. Three goldens moved when this landed, all
+'' three in the same direction -- tests/mir/lambda.out among them, which had the wrong
+'' answer baked into it.
+''
+'' The second half is inference: '@less' had no case in InferArgType_, so a generic
+'' whose parameter type IS the comparer inferred nothing and instantiated nothing.
+'' generics/container-sort.bas writes eighteen of those and fb/sort.bi declares
+'' SortBy that way on purpose.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/indirect-byref-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/indirect-byref-args.out

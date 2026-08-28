@@ -178,6 +178,58 @@ end function
 '' REFERENCE is transparent -- 'byval v as T' called with a byref parameter binds T to
 '' the referent, not to a reference. Anything else returns TYPE_NONE, and the call then
 '' declines rather than instantiating at a guessed type.
+'' THE PROCEDURE-POINTER TYPE OF A NAME, built from the procedure's own
+'' declaration. Check has a routine for this and it is in another namespace with
+'' another Ctx; this one resolves the typerefs itself, which is what Resolve is
+'' for and what makes it usable BEFORE Check has typed anything.
+''
+'' AN OVERLOADED NAME IS REFUSED. Choosing between overloads is overload
+'' resolution, which runs later and with the parameter type in hand; picking one
+'' here would be a guess, and a wrong instantiation is worse than none.
+private function ProcPtrTypeOfName_ _
+    ( byref c as Ctx, byval n as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
+
+    if n = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+    dim as Tko.InternId nm = IdentNameOf( c, n )
+    if nm = 0 then return Tko.TYPE_NONE
+    dim as Tko.SymbolId sid = c.syms->Lookup( scope_, nm )
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
+    if sy = 0 then return Tko.TYPE_NONE
+    if sy->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+    if sy->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
+    if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    '' A GENERIC PROCEDURE HAS NO ONE TYPE. Its parameters name type parameters,
+    '' so resolving them here would bind whatever those names happen to mean.
+    if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.TYPE_NONE
+
+    dim as Tko.ScopeId psc = sy->parent
+    if psc = Tko.SCOPE_NONE then psc = scope_
+    dim as Tko.TypeId ret = c.types->Builtin( Tko.TY_VOID )
+    if pp->a <> Tko.NODE_NONE then
+        ret = ResolveTypeRef( c, pp->a, psc )
+        if ret = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    end if
+    dim as Tko.TypeIdVec2 ps
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.TypeId pt = ResolveTypeRef( c, StmtOf( c, prm )->a, psc )
+        if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            pt = c.types->Reference( pt )
+        end if
+        ps.Push( cast( ulong, pt ) )
+    next
+    '' A PROCEDURE TYPE IS ALREADY A POINTER in FreeBASIC -- 'sub( ) ptr' is PPFvvE,
+    '' one P for the type and one for the written 'ptr' -- so the pointer is built
+    '' in here, exactly as ResolveTypeRef does for a written signature.
+    return c.types->Pointer_( c.types->ProcType( ret, ps ) )
+end function
+
 private function InferArgType_ _
     ( byref c as Ctx, byval a as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -373,6 +425,17 @@ private function InferArgType_ _
         return c.types->Builtin( Tko.TY_DOUBLE )
     case Tko.N_STRING_LIT
         return c.types->Builtin( Tko.TY_STRING )
+
+    case Tko.N_ADDROF
+        '' '@cmp' AND A LAMBDA, which is '@' over its generated name. There was no
+        '' case for either, so 'SortBy( a, function( ... ) ... end function )'
+        '' inferred nothing, instantiated nothing, and the call declined --
+        '' generics/container-sort.bas writes eighteen of them and fb/sort.bi
+        '' declares the comparer as a type PARAMETER precisely so any callable
+        '' fits.
+        dim as Tko.UnaryPayload ptr aup = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+        return ProcPtrTypeOfName_( c, aup->operand, scope_ )
     end select
     return Tko.TYPE_NONE
 end function

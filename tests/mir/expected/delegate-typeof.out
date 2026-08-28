@@ -50,37 +50,35 @@ func i32 main($0, $1) {
     store %13, @x
     %14 = field.addr @d, 16
     %15 = load %14
-    %16 = load %15
-    %17 = field.addr @d, 0
-    %18 = load %17
-    call.ind void %18(@d, %16)
-    %19 = alloca ptr c
-    %20 = const i64 0
-    store @c, %20
-    %21 = field.addr @d, 16
-    %22 = load %21
-    %23 = load %22
-    %24 = load @c
-    %25 = alloca ptr $tmp5
-    condbr %24, iif.then1, iif.else2
+    %16 = field.addr @d, 0
+    %17 = load %16
+    call.ind void %17(@d, %15)
+    %18 = alloca ptr c
+    %19 = const i64 0
+    store @c, %19
+    %20 = field.addr @d, 16
+    %21 = load %20
+    %22 = load @c
+    %23 = alloca ptr $tmp5
+    condbr %22, iif.then1, iif.else2
   iif.then1:
-    %26 = func.addr ptr _ZN1T5PROC1Ev
-    store @$tmp5, %26
+    %24 = func.addr ptr _ZN1T5PROC1Ev
+    store @$tmp5, %24
     br iif.join3
   iif.else2:
-    %27 = func.addr ptr _ZN1T5PROC2Ev
-    store @$tmp5, %27
+    %25 = func.addr ptr _ZN1T5PROC2Ev
+    store @$tmp5, %25
     br iif.join3
   iif.join3:
-    %28 = load @$tmp5
-    call.ind void %28(%23)
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    %26 = load @$tmp5
+    call.ind void %26(%21)
+    %27 = const i32 0
+    call.rtl void fb_End(%27)
+    %28 = load @$tmp0
+    ret %28
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 3 functions, 6 blocks, 51 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 6 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance

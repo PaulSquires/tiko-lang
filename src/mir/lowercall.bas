@@ -8,6 +8,11 @@
 
 namespace Tko.Mir
 declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue
+declare function SigParamIsRef_ _
+    ( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as long ) as boolean
+declare function ArgParamType_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
+      byval idx as long ) as Tko.TypeId
 
 declare function ByvalStrTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
@@ -184,12 +189,26 @@ function LowerCallParts _
     '' mangling its name would invent one. docs/plan/09 lists 'call_indirect' for
     '' exactly this; the callee is the pointer's VALUE.
     dim as boolean viaPointer = exprCallee
+    '' THE CALLEE'S OWN SIGNATURE, when there is no callee SYMBOL to ask. An
+    '' indirect call has parameters like any other and some of them are BYREF; with
+    '' nothing to read them off, every argument went out BY VALUE. Measured, fbc
+    '' materialises a temporary for each -- 'TMP$3 = 1; F( &TMP$3 )' -- and this
+    '' handed the callee the number 1 where it expected an address and the callee
+    '' then read through it. It lowered and it verified.
+    dim as Tko.TypeId calleeSigT = Tko.TYPE_NONE
+    if exprCallee then
+        dim as Tko.TypeId eT = c.types->Unqualify( c.info->TypeOf_( calleeNode ) )
+        if c.types->Kind( eT ) = Tko.TK_REFERENCE then eT = c.types->Inner( eT )
+        if c.types->Kind( eT ) = Tko.TK_POINTER then eT = c.types->Inner( eT )
+        if c.types->Kind( eT ) = Tko.TK_PROC then calleeSigT = eT
+    end if
     if (exprCallee = false) andalso (cs->kind <> cast( ubyte, Tko.SYM_PROC )) then
         dim as Tko.TypeId ct = cs->type_
         if ct <> Tko.TYPE_NONE then
             if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
             if c.types->Kind( ct ) = Tko.TK_POINTER then ct = c.types->Inner( ct )
             viaPointer = (c.types->Kind( ct ) = Tko.TK_PROC)
+            if viaPointer then calleeSigT = ct
         end if
         '' Anything else that is not a procedure is not callable, and was already
         '' declining here.
@@ -290,7 +309,12 @@ function LowerCallParts _
             '' read the stack. Declining says so.
             if i >= argCount then return CallFailed_( c, v, __LINE__ )
         end if
-        dim as boolean wantsRef = ParamIsByref( c, callee, i ) andalso (forcedByval = false)
+        dim as boolean declRef = ParamIsByref( c, callee, i )
+        '' ...or the SIGNATURE's, for a call with no callee symbol.
+        if viaPointer andalso (calleeSigT <> Tko.TYPE_NONE) then
+            declRef = SigParamIsRef_( c, calleeSigT, i )
+        end if
+        dim as boolean wantsRef = declRef andalso (forcedByval = false)
 
         '' A BYDESC ARRAY PARAMETER takes a descriptor pointer, whichever way the
         '' parameter was spelled: the array-ness is the type's, not the passing mode's.
@@ -314,7 +338,7 @@ function LowerCallParts _
         dim as boolean wantsWide = false
         dim as boolean wantsZ = false
         if wantsRef then
-            dim as Tko.TypeId prt = ParamTypeAt( c, callee, i )
+            dim as Tko.TypeId prt = ArgParamType_( c, callee, calleeSigT, i )
             wantsDesc = IsStringType( c, prt )
             '' A BYREF WSTRING IS A uint16*, A BYREF ZSTRING A char*, and neither is a
             '' descriptor or the address of one. Asked for either as an ordinary byref
@@ -418,7 +442,7 @@ function LowerCallParts _
             '' Passing the VALUE -- which is what this did -- handed the callee a
             '' number where it expected a pointer, and it then wrote through it.
             if a.kind = cast( ubyte, MV_NONE ) then
-                a = ByrefTemp_( c, argNode, ParamTypeAt( c, callee, i ) )
+                a = ByrefTemp_( c, argNode, ArgParamType_( c, callee, calleeSigT, i ) )
             end if
             '' Still nothing: decline, rather than pass something that is not the
             '' variable the callee will write through.
@@ -429,7 +453,7 @@ function LowerCallParts _
             '' copies into a temporary descriptor first. Without it the argument
             '' lowered to NOTHING and went out as a malformed operand -- a call with a
             '' hole in it that the verifier does not look at.
-            dim as Tko.TypeId ppt = ParamTypeAt( c, callee, i )
+            dim as Tko.TypeId ppt = ArgParamType_( c, callee, calleeSigT, i )
             dim as boolean wantsZPtr = false
             dim as boolean wantsWPtr = false
             if ppt <> Tko.TYPE_NONE then
@@ -543,7 +567,7 @@ function LowerCallParts _
             ''     TAKEBYVALSTRING( &TMP$4$0 );
             ''     fb_StrDelete( &TMP$4$0 );
             if ParamIsIndirectStr_( c, callee, i ) then
-                dim as Tko.TypeId spt = ParamTypeAt( c, callee, i )
+                dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i )
                 if ByvalStrTemp_( c, argNode, spt, a, tempSlot ) = false then
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v, __LINE__ )
@@ -559,7 +583,7 @@ function LowerCallParts _
             '' tried before either copy path: neither of those has anything to copy
             '' FROM. See UdtConvTemp_ -- without it the raw operand went to the callee.
             if ArgNeedsUdtConv_( c, callee, i, argNode ) then
-                dim as Tko.TypeId upt = ParamTypeAt( c, callee, i )
+                dim as Tko.TypeId upt = ArgParamType_( c, callee, calleeSigT, i )
                 dim as MirValue ca
                 if UdtConvTemp_( c, argNode, upt, ca, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
@@ -588,7 +612,7 @@ function LowerCallParts _
             end if
 
             if ParamIsIndirectUdt_( c, callee, i ) then
-                if ByvalUdtCopyArg_( c, argNode, ParamTypeAt( c, callee, i ), _
+                if ByvalUdtCopyArg_( c, argNode, ArgParamType_( c, callee, calleeSigT, i ), _
                                      a, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v, __LINE__ )
@@ -609,7 +633,7 @@ function LowerCallParts _
             '' sign-extended aggregate.
             dim as boolean argCast = false
             if callee <> Tko.SYMBOL_NONE then
-                argCast = UserConvToScalar_( c, argNode, ParamTypeAt( c, callee, i ), a )
+                argCast = UserConvToScalar_( c, argNode, ArgParamType_( c, callee, calleeSigT, i ), a )
             end if
             if argCast = false then a = LowerExpr( c, argNode )
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be
@@ -628,7 +652,7 @@ function LowerCallParts _
             '' type-constructor path already applies to its own arguments.
             ''
             '' An AGGREGATE is passed whole and has nothing to convert.
-            dim as Tko.TypeId pt = ParamTypeAt( c, callee, i )
+            dim as Tko.TypeId pt = ArgParamType_( c, callee, calleeSigT, i )
             if forcedByval andalso ParamIsByref( c, callee, i ) then
                 '' The parameter is a REFERENCE and the value is standing in for one,
                 '' so the width is the pointer's, not the parameter's declared type.
@@ -1258,6 +1282,38 @@ private sub DeleteStrArgTemps_ _
     next
 end sub
 
+
+'' IS PARAMETER 'idx' OF A PROCEDURE TYPE A REFERENCE? The signature is all there
+'' is to read for an INDIRECT call: no N_PROC node, no NF_BYREF flag, and no
+'' symbol to reach either from.
+'' THE DECLARED TYPE of parameter 'idx', from the callee's symbol when there is one
+'' and from its SIGNATURE otherwise. A byref parameter is a REFERENCE in the
+'' signature and the DECLARED type in the symbol, so the reference is stripped:
+'' every caller here wants the type of the thing, not of the reference to it.
+private function ArgParamType_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
+      byval idx as long ) as Tko.TypeId
+
+    dim as Tko.TypeId t = ParamTypeAt( c, callee, idx )
+    if t <> Tko.TYPE_NONE then return t
+    if sigT = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( sigT ) <> Tko.TK_PROC then return Tko.TYPE_NONE
+    if (idx < 0) orelse (idx >= c.types->ProcParamCount( sigT )) then
+        return Tko.TYPE_NONE
+    end if
+    t = c.types->ProcParam( sigT, idx )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )
+    return t
+end function
+
+private function SigParamIsRef_ _
+    ( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as long ) as boolean
+
+    if sigT = Tko.TYPE_NONE then return false
+    if c.types->Kind( sigT ) <> Tko.TK_PROC then return false
+    if (idx < 0) orelse (idx >= c.types->ProcParamCount( sigT )) then return false
+    return (c.types->Kind( c.types->ProcParam( sigT, idx ) ) = Tko.TK_REFERENCE)
+end function
 
 '' A CALL THAT GAVE UP, counted.
 ''
