@@ -1,6 +1,12 @@
-'' A BYREF-RETURNING CALL YIELDS AN ADDRESS, which is the whole point of one:
-'' 'a.At( 2 ) = 88' stores THROUGH the returned reference. fbc writes
-'' 'int32* vr = _ZN1T2ATEi( &A, 2 ); *vr = 88;'.
+'' A BYREF-RETURNING CALL YIELDS AN ADDRESS, which is the whole point of one, and
+'' 'a[ i ] = 99' stores THROUGH it: measured, fbc writes
+'' 'int32* vr = _ZN1TixEi( &A, 1 ); *vr = 99;'.
+''
+'' THE PARENTHESISED SPELLING IS NOT THE SAME STATEMENT. This note used to claim
+'' 'a.At( 2 ) = 88' stores through the reference too; it does not. fbc warns 34 and
+'' re-reads it as the CALL 'a.At( 2 = 88 )' -- measured, its C is
+'' '_ZN1T2ATEi( &A$0, 0 )' and the program prints 0, not 88. See
+'' tests/mir/call-assign-reread.test.
 ''
 '' And 'a[ i ]' over a UDT had a working call path in LOWERING and no TYPE, so the
 '' assignment through one declined on the target's type before it ever got there --

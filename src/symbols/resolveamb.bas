@@ -24,6 +24,63 @@
 '' A missing low bound means 0: 'a(9)' is 'a(0 to 9)'. BOUNDS ARE RETAINED, not just
 '' their product, because indexing needs each dimension's stride and its lbound bias.
 '' Nothing is folded when any bound is non-constant.
+
+'' '<call>( args ) = value' RE-READ AS '<call>( args = value )'.
+''
+'' True when it applies, and the statement has been REWRITTEN by then: the call's
+'' LAST argument becomes an '=' over itself and the assigned value, which is what
+'' fbc parses. False leaves everything untouched.
+''
+'' Refused for anything but a CALL whose callee is a procedure -- an array
+'' subscript is spelled the same way and IS an assignment -- and refused when any
+'' candidate of matching arity returns BYREF, because that one is a real
+'' assignment through the returned reference.
+private function ReadCallAssignAsCall_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+      byval sid as Tko.SymbolId ) as boolean
+
+    if sp->a = Tko.NODE_NONE then return false
+    if sp->b = Tko.NODE_NONE then return false
+    if c.ast->Kind( sp->a ) <> Tko.N_CALL then return false
+    '' Only a plain '=': '+=' and its family are never a comparison.
+    if cast( Tko.TokenKind, sp->op ) <> Tko.TK_EQ then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+
+    dim as Tko.ListPayload ptr lp = ListOf( c, sp->a )
+    if lp->count < 1 then return false
+
+    '' ONE OR MORE WRITTEN ARGUMENTS. With NONE there is nothing to fold the '='
+    '' into, and fbc keeps the assignment: measured, 'br0( ) = 456' is
+    '' 'vr = BR0( ); *vr = 456' and the program prints 456, while 'br( 1 ) = 456'
+    '' over the same shape with an argument prints 0.
+    if lp->count < 1 then return false
+
+    '' THE REWRITE. The arena is plain data, so the node is appended the way the
+    '' parser appends one; nothing else here builds nodes, which is why this is
+    '' spelled out rather than borrowed.
+    dim as long lastIx = lp->first + lp->count - 1
+    dim as Tko.BinaryPayload bp
+    bp.op = cast( ushort, Tko.TK_EQ )
+    bp.lhs = cast( Tko.NodeId, c.ast->children[lastIx] )
+    bp.rhs = sp->b
+    c.ast->binaries.Push( bp )
+    dim as Tko.AstNode bn
+    bn.kind = cast( ushort, Tko.N_BINARY )
+    bn.flags = 0
+    bn.loc = c.ast->Loc( id )
+    bn.data = cast( ulong, c.ast->binaries.Count - 1 )
+    c.ast->nodes.Push( bn )
+    c.ast->children[lastIx] = cast( ulong, c.ast->nodes.Count - 1 )
+
+    '' The statement is now a CALL and nothing else: its assigned value has moved
+    '' inside the argument, and leaving 'b' set would lower it twice.
+    sp->b = Tko.NODE_NONE
+    sp->op = 0
+    return true
+end function
+
 private sub ResolveAmbiguous _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -76,6 +133,32 @@ private sub ResolveAmbiguous _
         end if
     end if
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+
+    '' 'f( 123 ) = 123' WHERE f RETURNS BYVAL IS NOT AN ASSIGNMENT AT ALL.
+    ''
+    '' fbc warns and RE-READS the statement as the call 'f( 123 = 123 )' --
+    '' warning 34, "'=' parsed as equality operator in function argument, not
+    '' assignment to BYREF function result" -- and emits
+    '' '_Z2F1u7INTEGER( -1ll )', the comparison's value passed as the argument.
+    '' Only a BYREF result makes the assignment form legal, because only that
+    '' has an address to store through.
+    ''
+    '' AND IT DOES NOT DEPEND ON THE RESULT BEING BYVAL, which the warning's own
+    '' wording suggests and measurement refutes: 'br( 1 ) = 456' over a BYREF
+    '' result warns and prints 0 too, and so does 'a.At( 2 ) = 88' over a byref
+    '' MEMBER. What decides is that ARGUMENTS WERE WRITTEN -- 'br0( ) = 456' with
+    '' none is the assignment, and prints 456.
+    ''
+    '' The BRACKET spelling is untouched: 'a[ 1 ] = 99' over an 'operator []' is
+    '' 'vr = _ZN1TixEi( &A, 1 ); *vr = 99' -- measured -- and its callee is a
+    '' VARIABLE rather than a procedure, which is what the test below asks.
+    if isAssign then
+        if ReadCallAssignAsCall_( c, id, sp, sid ) then
+            c.info->SetAmbiguous( id, Tko.AMB_CALL )
+            c.st->calls += 1
+            return
+        end if
+    end if
 
     if isAssign then
         '' Assigning to the enclosing function name is BASIC's result assignment.

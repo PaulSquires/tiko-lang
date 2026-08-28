@@ -1,0 +1,31 @@
+'' 'f( args ) = value' IS NOT AN ASSIGNMENT, and tiko-lang treated every one as if it
+'' were -- which declined where the result was BYVAL, because there is no address to
+'' store through, and silently stored through the reference where it was byref.
+''
+'' fbc warns 34 -- "'=' parsed as equality operator in function argument, not
+'' assignment to BYREF function result" -- and re-reads the statement as the CALL
+'' 'f( args = value )', passing the comparison. Measured, 'f1( 123 ) = 123' is
+'' '_Z2F1u7INTEGER( -1ll )': 123 = 123 is true, which is -1.
+''
+'' THE WARNING'S OWN WORDING SUGGESTS THE RULE IS ABOUT BYREF, AND IT IS NOT. Measured
+'' by running all four shapes:
+''
+''   br( 1 ) = 456     BYREF result, one argument     prints 0    -- re-read
+''   br0( ) = 456      BYREF result, no arguments     prints 456  -- assignment
+''   a.At( 2 ) = 88    BYREF MEMBER, one argument     prints 0    -- re-read
+''   a[ 3 ] = 99       'operator []'                  prints 99   -- assignment
+''
+'' What decides is that ARGUMENTS WERE WRITTEN. With none there is nothing to fold the
+'' '=' into. The BRACKET spelling is a different statement and stays an lvalue; so does
+'' an ARRAY subscript, whose callee is a variable rather than a procedure.
+''
+'' The rewrite happens in Resolve, which is the first pass that knows the callee is a
+'' PROCEDURE and not an array. It is the only place there that builds a node, and it is
+'' spelled out rather than borrowed for that reason.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/call-assign-reread.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: icmp.eq
+'' GOLDEN: expected/call-assign-reread.out
