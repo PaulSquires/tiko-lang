@@ -315,7 +315,17 @@ private function UsingRtlFor _
 
     isWide = false
     if t = Tko.TYPE_NONE then return RTL_NONE
-    if WideStringElems( c, t ) > 0 then
+    '' A REFERENCE IS TRANSPARENT HERE. 'sub t( byref s as wstring )' gives s a
+    '' TK_REFERENCE over an UNSIZED wstring, which is neither the array
+    '' WideStringElems counts nor anything the table below names -- so
+    '' 'print using "&"; s' inside the procedure declined, while the same
+    '' statement over a 'wstring * 8' lowered. Measured, fbc emits the same call
+    '' for both: 'fb_PrintUsingWstr( 0, (uint16*)S$1, -2147483647 )'.
+    dim as Tko.TypeId ut = c.types->Unqualify( t )
+    if c.types->Kind( ut ) = Tko.TK_REFERENCE then
+        ut = c.types->Unqualify( c.types->Inner( ut ) )
+    end if
+    if IsWideString_( c, ut ) then
         isWide = true
         return RTL_USING_WSTR
     end if

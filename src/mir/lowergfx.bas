@@ -40,6 +40,7 @@ const PGFX_NOSTART   as ushort = &h0100
 const PGFX_HASTARGET as ushort = &h0200
 const PGFX_PAL_GET   as ushort = &h0400
 const PGFX_PAL_USING as ushort = &h0800
+const PGFX_DRAWSTR   as ushort = &h1000
 
 '' The n'th child of a graphics statement, or NOTHING when it was elided.
 private function GfxArg _
@@ -341,6 +342,62 @@ function LowerGfxWindow( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 end function
 
 '' DRAW [target,] command-string
+'' DRAW STRING [target,] [STEP] (x,y), text [, colour [, font]]
+''
+'' Eleven arguments, and only the first six are ever anything but null. Measured,
+'' four probes:
+''
+''   draw string (1,2), "a", 7
+''     fb_GfxDrawString( 0, 1.0f, 2.0f, 4, vr, 7u, 0, 0, 0, 0, 0 )
+''   draw string step(1,2), "a", 7    ...the flag is 5
+''   draw string (1,2), "a"           ...it is -2147483644 -- the NO-COLOUR sign
+''                                       bit over the same 4
+''   draw string img, (0,0), "z", 3   ...the target is the image
+''
+'' So the flag is exactly the one-point family's: base 4, bit 0 for STEP, the sign
+'' bit when the colour is omitted. The FONT is the seventh argument and the eighth
+'' says whether one was given; the last three were 0 in every probe.
+function LowerGfxDrawString_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as boolean ok = true
+    dim as MirValue tgt = GfxTargetVal( c, sp, ok )
+    dim as MirValue x = GfxCoord( c, sp, 0, ok )
+    dim as MirValue y = GfxCoord( c, sp, 1, ok )
+    if ok = false then return false
+
+    dim as Tko.NodeId sn = GfxArg( c, sp, 2 )
+    if sn = Tko.NODE_NONE then return false
+    dim as MirValue sv
+    if StrDescriptorOf_( c, sn, sv ) = false then return false
+
+    dim as boolean hasCol = false
+    dim as MirValue col = GfxInt( c, sp, 3, 0, hasCol, ok )
+    if ok = false then return false
+
+    '' THE FONT IS A POINTER, and the argument after it says whether one was
+    '' written. Both are null/0 in every probe here, and a written font declines
+    '' rather than being passed as something it is not.
+    dim as Tko.NodeId fn = GfxArg( c, sp, 4 )
+    if fn <> Tko.NODE_NONE then return false
+
+    dim as long flags = GfxFlags1( sp->extra )
+    if hasCol = false then flags or= GFXF_NOCOLOUR
+
+    dim as FB.Array( of ulong ) args
+    PushV( args, tgt )
+    PushV( args, x ) : PushV( args, y )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
+    PushV( args, sv )
+    PushV( args, col )
+    for k as long = 1 to 5
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    next
+    EmitRtl( c, RTL_GFX_DRAW_STRING, args )
+    return true
+end function
+
 function LowerGfxDraw( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
@@ -572,7 +629,13 @@ function LowerGfxStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     case Tko.KW_PAINT  : return LowerGfxPaint( c, id )
     case Tko.KW_VIEW   : return LowerGfxView( c, id )
     case Tko.KW_WINDOW : return LowerGfxWindow( c, id )
-    case Tko.KW_DRAW   : return LowerGfxDraw( c, id )
+    case Tko.KW_DRAW
+        '' DRAW STRING is a different statement sharing the keyword; the parser
+        '' marked which one this is.
+        if (StmtOf( c, id )->extra and PGFX_DRAWSTR) <> 0 then
+            return LowerGfxDrawString_( c, id )
+        end if
+        return LowerGfxDraw( c, id )
     case Tko.KW_GET    : return LowerGfxGet( c, id )
     case Tko.KW_PUT    : return LowerGfxPut( c, id )
     case Tko.KW_PALETTE : return LowerGfxPalette( c, id )

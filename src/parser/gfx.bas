@@ -63,6 +63,10 @@ const GFX_NOSTART   as ushort = &h0100   '' 'line -(x,y)': the start point was o
 const GFX_HASTARGET as ushort = &h0200
 const GFX_PAL_GET   as ushort = &h0400   '' PALETTE GET
 const GFX_PAL_USING as ushort = &h0800   '' PALETTE USING
+'' DRAW STRING -- a different statement from DRAW, sharing the keyword. Bit 12 and
+'' up are PUT's blend mode and nothing else uses them, so DRAW may have one: the two
+'' statements can never both be this node.
+const GFX_DRAWSTR   as ushort = &h1000
 '' PUT's mode occupies bits 12..15: the code itself plus a bit saying one was written,
 '' because 0 is TRANS and cannot double as "absent".
 const GFX_PUTMODE_SHIFT as long = 12
@@ -164,8 +168,56 @@ function ParseGfxStmt _
         end if
     end if
 
-    sp.a = GfxTarget( p, (k <> Tko.KW_DRAW) )
+    '' 'DRAW STRING' IS NOT 'DRAW'. It takes a COORDINATE and a text, where DRAW
+    '' takes a command string and no coordinates at all -- and it goes to a
+    '' different runtime entry point. Measured:
+    ''
+    ''   draw string (1,2), "a", 7
+    ''     fb_GfxDrawString( 0, 1.0f, 2.0f, 4, vr, 7u, 0, 0, 0, 0, 0 )
+    ''   draw string step(1,2), "a", 7          ...the flag is 5
+    ''   draw string (1,2), "a"                 ...it is -2147483644, the
+    ''                                            NO-COLOUR sign bit over 4
+    ''   draw string img, (0,0), "z", 3         ...the target is the image
+    ''
+    '' Read as plain DRAW, 'string' was taken for the command expression and the
+    '' statement never lowered.
+    dim as boolean drawStr = false
+    if k = Tko.KW_DRAW then
+        if Peek( p ) = Tko.KW_STRING then
+            Advance( p )
+            drawStr = true
+            sp.extra or= GFX_DRAWSTR
+        end if
+    end if
+
+    dim as boolean wantPoint = (k <> Tko.KW_DRAW)
+    if drawStr then wantPoint = true
+    sp.a = GfxTarget( p, wantPoint )
     if sp.a <> Tko.NODE_NONE then sp.extra or= GFX_HASTARGET
+
+    '' DRAW STRING: [target,] [STEP] (x,y), text [, colour [, font]]. Five slots,
+    '' so an omitted colour or font is an elided child rather than a short list.
+    if drawStr then
+        dim as boolean ds1 = false
+        if GfxPoint( p, items, ds1 ) = false then return false
+        if ds1 then sp.extra or= GFX_STEP1
+        if Accept( p, Tko.TK_COMMA ) then
+            items.Push( cast( ulong, Expression( p ) ) )
+        end if
+        GfxPad( p, items, 3 )
+        dim as Tko.NodeId dsOpt = Tko.NODE_NONE
+        while GfxOption( p, dsOpt )
+            if dsOpt = Tko.NODE_NONE then
+                items.Push( cast( ulong, GfxNone( p ) ) )
+            else
+                items.Push( cast( ulong, dsOpt ) )
+            end if
+            if items.Count >= 5 then exit while
+        wend
+        GfxPad( p, items, 5 )
+        GfxFinish( p, sp, items )
+        return true
+    end if
 
     '' DRAW is the odd one: a target and then a STRING, no coordinates at all.
     if k = Tko.KW_DRAW then

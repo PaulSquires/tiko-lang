@@ -163,6 +163,34 @@ function ResolveTypeRef _
             dim as Tko.SymbolId tsid2 = c.syms->Lookup( scope_, sp->rawName )
             dim as Tko.Symbol ptr ts2 = c.syms->SymbolAt( tsid2 )
             if ts2 <> 0 then
+                '' A 'var' HAS NO TYPE YET. Its inference is Check's, and generic
+                '' instantiation runs HERE -- so
+                '' 'type BA as BoxOf( of typeof( onA ) )' over 'var onA = sub[...]'
+                '' gave an unresolvable type argument, InstantiateGeneric_ refused
+                '' to build anything at all, and every use of BA was a zero-sized
+                '' local whose field stores declined. Twelve statements in
+                '' tui/tuiwidget_.bas, and fbc compiles the file clean.
+                ''
+                '' THE ONE CASE RESOLVE CAN ANSWER is the one the corpus writes: an
+                '' initialiser this pass has ALREADY TYPED. BuildClosureType_ types
+                '' the N_CLOSURE node as it builds the closure UDT, so the answer is
+                '' sitting on the initialiser by the time the 'typeof' is read. A
+                '' 'var' over anything else is still unresolved here and still
+                '' declines -- that half is Check's and stays Check's.
+                if ts2->type_ = Tko.TYPE_NONE then
+                    if ts2->kind = cast( ubyte, Tko.SYM_VARIABLE ) then
+                        dim as Tko.NodeId vit = cast( Tko.NodeId, ts2->payload )
+                        if vit <> Tko.NODE_NONE then
+                            if c.ast->Kind( vit ) = Tko.N_VAR_ITEM then
+                                dim as Tko.NodeId iv = StmtOf( c, vit )->b
+                                if iv <> Tko.NODE_NONE then
+                                    dim as Tko.TypeId it2 = c.info->TypeOf_( iv )
+                                    if it2 <> Tko.TYPE_NONE then ts2->type_ = it2
+                                end if
+                            end if
+                        end if
+                    end if
+                end if
                 if ts2->type_ <> Tko.TYPE_NONE then
                     base_ = ts2->type_
                     '' A REFERENCE is transparent: 'typeof( n )' over a byref

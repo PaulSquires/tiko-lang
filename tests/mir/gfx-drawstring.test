@@ -1,0 +1,5 @@
+'' DRAW STRING in all four spellings, and a byref-wstring PRINT USING item.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/gfx-drawstring.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/gfx-drawstring.out

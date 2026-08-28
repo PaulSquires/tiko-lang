@@ -1,0 +1,5 @@
+'' A generic whose type argument is typeof( ) over a var holding a capturing lambda.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-over-typeof-var.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/generic-over-typeof-var.out
