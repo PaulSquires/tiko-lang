@@ -100,6 +100,10 @@
     DIAG( TKO0411, SEV_ERROR,   "'for each byref' cannot take a name list; bind the whole element byref instead" )
     DIAG( TKO0412, SEV_ERROR,   "'for each' with a name list needs at least two names" )
     DIAG( TKO0413, SEV_ERROR,   "every lambda capture needs an explicit 'byval' or 'byref'" )
+    DIAG( TKO0414, SEV_ERROR,   "'select channel' needs at least one case" )
+    DIAG( TKO0415, SEV_ERROR,   "expected receive, send, timeout or else after 'case'" )
+    DIAG( TKO0416, SEV_ERROR,   "expected '%0' in this 'select channel' case" )
+    DIAG( TKO0417, SEV_ERROR,   "only one 'case timeout' and one 'case else' are allowed" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )

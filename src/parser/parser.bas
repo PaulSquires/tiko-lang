@@ -48,6 +48,11 @@ declare function ForEachDestructure_ _
     ( byref p as Tko.ParserState, byref t as Tko.Token, byval tmpName as Tko.InternId, _
       byref names as Tko.NodeIdVec, byval body as Tko.NodeId ) as Tko.NodeId
 declare sub EndOfStatement( byref p as Tko.ParserState )
+
+'' Defined in selchan.bas, included after this file: 'select channel' and its test.
+declare function SelectIsChannel_( byref p as Tko.ParserState ) as boolean
+declare function ParseSelectChannel_ _
+    ( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
 declare sub SkipEols( byref p as Tko.ParserState )
 declare function AtEnd( byref p as Tko.ParserState ) as boolean
 declare function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
@@ -307,6 +312,11 @@ end function
 private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     Advance( p )
+    '' 'select channel' IS A DIFFERENT STATEMENT, not a SELECT CASE with a subject
+    '' called 'channel'. Read as one, its cases were patterns -- 'receive', 'timeout'
+    '' -- and 'v from ch' was demoted into the case BODY, which parsed without error
+    '' and only showed up as skips in lowering.
+    if SelectIsChannel_( p ) then return ParseSelectChannel_( p, t )
     if Peek( p ) = Tko.KW_CASE then Advance( p )
     if Peek( p ) = Tko.KW_AS then
         Advance( p )                          '' 'select case as const'
@@ -821,6 +831,9 @@ end namespace
 #include once "parser/decl.bas"
 #include once "parser/gfx.bas"
 #include once "parser/intrinsics.bas"
+'' 'select channel' desugars into a scope full of ordinary statements, so it needs
+'' every node builder above it.
+#include once "parser/selchan.bas"
 
 namespace Tko.Parse
 
