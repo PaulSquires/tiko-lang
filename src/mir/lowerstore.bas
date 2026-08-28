@@ -1032,10 +1032,21 @@ function ParamIsByref _
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
-    if idx >= psp->count then return false
-    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + idx] )
-    if c.ast->Kind( prm ) <> Tko.N_PARAM then return false
-    return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+    '' COUNTING PARAMETERS, not children. An N_PROC's children are not all
+    '' N_PARAM -- a BLOCK sits among them -- so indexing straight by 'idx' read
+    '' whatever was in that slot and answered NO for a byref parameter whenever
+    '' the list did not start at child zero. ParamTypeAt and ParamIsArray beside
+    '' this one both walk; this one did not.
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen = idx then
+            return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        end if
+        seen += 1
+    next
+    return false
 end function
 
 '' Is parameter 'idx' declared as an ARRAY -- 'sub Q( a( ) as long )'? Its TYPE is the

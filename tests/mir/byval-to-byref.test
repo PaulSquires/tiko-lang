@@ -1,0 +1,21 @@
+'' A 'byval'-MARKED ARGUMENT AGAINST A BYREF PARAMETER WAS NOT VIABLE, so the call came
+'' out UNTYPED and every use of its result declined. The value stands in for the
+'' ADDRESS, which is the whole point of the spelling; costing it against the
+'' parameter's own type asked the wrong question. Measured -- fbc writes
+'' 'FZ( (char*)0ll )' and nothing else. udt-zstring/zwstring-params.bas is six of them.
+''
+'' A POINTER OR A POINTER-WIDE INTEGER and nothing else: a float has no address to
+'' stand for and a string is a descriptor, so neither is viable.
+''
+'' Lowering had two matching holes. The string paths claimed the argument and had no
+'' answer for the literal 0, so a 'byref as zstring' parameter declined even once the
+'' call was typed -- a byval-marked argument now goes straight out as the pointer. And
+'' ParamIsByref indexed the N_PROC's children by parameter NUMBER, but an N_PROC's
+'' children are not all N_PARAM: ParamTypeAt and ParamIsArray beside it both walk, and
+'' this one did not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byval-to-byref.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byval-to-byref.out

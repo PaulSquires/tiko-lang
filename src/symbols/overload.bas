@@ -191,6 +191,24 @@ private function IsNumericBuiltin_ _
     return false
 end function
 
+'' An INTEGER builtin -- what a 'byval' argument standing in for a reference is
+'' allowed to be. A float has no address to stand for and a string is a
+'' descriptor, so neither is one.
+private function IsIntegerBuiltin_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( u )
+    case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, _
+         Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
+         Tko.TY_LONGINT, Tko.TY_ULONGINT
+        return true
+    end select
+    return false
+end function
+
 '' A UDT's operator by its SPELLING -- '[]', '+', 'cast'. Operators are declared under
 '' the punctuation itself, folded, which is what makes this a plain member lookup.
 private function UdtOperatorNamed_ _
@@ -628,6 +646,46 @@ private function ResolveCall_ _
                     '' fb_GfxScreenInfo64 and over LONGs is fb_GfxScreenInfo32, and
                     '' costing the two as convertible picked the 32-bit one for both --
                     '' an int64* passed where an int32* belongs.
+                    '' 'f( byval p )' AGAINST A BYREF PARAMETER SUPPLIES THE REFERENCE
+                    '' ITSELF, so the parameter's own type is not what the argument
+                    '' has to convert to -- it is a pointer, and fbc accepts one:
+                    '' measured, 'fz( byval 0 )' over 'byref z as zstring' is
+                    '' 'FZ( (char*)0ll )'. Costing it against ZSTRING said not viable,
+                    '' so the call came out UNTYPED and every use of its result
+                    '' declined -- udt-zstring/zwstring-params.bas is six of them.
+                    dim as boolean argIsByval = false
+                    if ai < argCount then
+                        dim as Tko.NodeId bvn = _
+                            cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                        if c.ast->Kind( bvn ) = Tko.N_UNARY then
+                            dim as Tko.UnaryPayload ptr bvp = _
+                                @c.ast->unaries[cast( long, _
+                                    c.ast->nodes[cast( long, bvn )].data )]
+                            argIsByval = _
+                                (cast( Tko.TokenKind, bvp->op ) = Tko.KW_BYVAL)
+                        end if
+                    end if
+                    if argIsByval andalso (prm <> Tko.NODE_NONE) then
+                        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+                            '' A POINTER OR A POINTER-WIDE INTEGER and nothing else:
+                            '' the value stands in for an ADDRESS, so a float or a
+                            '' string is still not viable.
+                            dim as Tko.TypeId bvt = c.types->Unqualify( at2 )
+                            dim as boolean bvOk = _
+                                (c.types->Kind( bvt ) = Tko.TK_POINTER)
+                            if bvOk = false then
+                                bvOk = IsIntegerBuiltin_( c, bvt )
+                            end if
+                            if bvOk = false then
+                                viable = false
+                                exit for
+                            end if
+                            total += CONV_EXACT
+                            ai += 1
+                            continue for
+                        end if
+                    end if
+
                     if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
                         if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
                             '' A CONST ARGUMENT DOES NOT REACH A NON-CONST BYREF

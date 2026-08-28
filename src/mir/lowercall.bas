@@ -316,6 +316,27 @@ function LowerCallParts _
         end if
         dim as boolean wantsRef = declRef andalso (forcedByval = false)
 
+        '' 'f( byval 0 )' AGAINST A BYREF PARAMETER IS THE POINTER ITSELF, and the
+        '' string paths below must not see it. A 'byref as zstring' parameter sent
+        '' the argument down the descriptor path, which has no answer for the
+        '' literal 0, so the call declined -- measured, fbc writes
+        '' 'FZ( (char*)0ll )' and nothing else. udt-zstring/zwstring-params.bas is
+        '' six of them.
+        ''
+        '' Only where the parameter really is BYREF: 'byval' against a byval
+        '' parameter is the ordinary spelling and means nothing extra.
+        if forcedByval andalso declRef then
+            dim as MirValue bva = LowerExpr( c, argNode )
+            if bva.kind = cast( ubyte, MV_NONE ) then
+                c.blameNode = cast( ulong, argNode )
+                return CallFailed_( c, v, __LINE__ )
+            end if
+            bva = Coerce( c, bva, MT_PTR, false )
+            argv.Push( cast( ulong, bva.kind ) )
+            argv.Push( cast( ulong, bva.id ) )
+            continue for
+        end if
+
         '' A BYDESC ARRAY PARAMETER takes a descriptor pointer, whichever way the
         '' parameter was spelled: the array-ness is the type's, not the passing mode's.
         dim as MirValue adv
