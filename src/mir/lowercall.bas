@@ -19,6 +19,12 @@ declare function ArgParamType_ _
 declare function ByvalStrTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long ) as boolean
+declare function FixedUStrArgTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, _
+      byref outa as MirValue, byref outSlot as long ) as boolean
+declare sub CopyBackUStrArgs_ _
+    ( byref c as Ctx, byref nodes as FB.Array( of ulong ), _
+      byref slots as FB.Array( of ulong ) )
 declare sub DeleteStrArgTemps_ _
     ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
       byref types as FB.Array( of ulong ) )
@@ -264,6 +270,12 @@ function LowerCallParts _
     '' with a destructor.
     dim as FB.Array( of ulong ) strTemps
     dim as FB.Array( of ulong ) strTempTypes
+    '' ...and the COPY-OUT a fixed USTRING argument needs. fbc copies a
+    '' 'ustring * N' into a descriptor, calls, copies BACK and deletes; the
+    '' write-back is not something DeleteStrArgTemps_ can do, so the source
+    '' node and the temporary are kept until after the call.
+    dim as FB.Array( of ulong ) ustrBackNode
+    dim as FB.Array( of ulong ) ustrBackSlot
     dim as long tempSlot = -1
     dim as Tko.TypeId tempType = Tko.TYPE_NONE
 
@@ -433,6 +445,31 @@ function LowerCallParts _
                 if ByvalStrTemp_( c, argNode, wsp, a, tempSlot ) then
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, wsp ) )
+                end if
+            end if
+            '' A FIXED 'ustring * N' AGAINST A BYREF USTRING IS A COPY, not an
+            '' address. There is no ustring temp-descriptor borrow in the
+            '' runtime at all -- libfb has fb_StrAllocTempDescF and no
+            '' fb_UStrAllocTempDescF -- so fbc copies IN, calls, copies BACK
+            '' and deletes. Measured, for 'G( uf )' over a 'byref as const
+            '' ustring':
+            ''
+            ''   memset( &TMP, 0, 24 )
+            ''   fb_UStrAssign( &TMP, -1, UF, <tag>, 0 )
+            ''   G( &TMP )
+            ''   fb_UStrAssign( UF, <tag>, &TMP, -1, -1 )
+            ''   fb_UStrDelete( &TMP )
+            ''
+            '' tiko-lang passed '@uf' -- the raw uint16 buffer where an
+            '' FBUSTRING* belongs -- and the callee read the first eight bytes
+            '' of the TEXT as a data pointer. It lowered and it verified.
+            if a.kind = cast( ubyte, MV_NONE ) then
+                if FixedUStrArgTemp_( c, argNode, a, tempSlot ) then
+                    strTemps.Push( cast( ulong, tempSlot ) )
+                    strTempTypes.Push( cast( ulong, _
+                        c.types->Builtin( Tko.TY_USTRING ) ) )
+                    ustrBackNode.Push( cast( ulong, argNode ) )
+                    ustrBackSlot.Push( cast( ulong, tempSlot ) )
                 end if
             end if
             if a.kind = cast( ubyte, MV_NONE ) then
@@ -819,7 +856,9 @@ function LowerCallParts _
                 vc.count = n
                 dim as MirValue vr = Emit( c, vc )
                 DestroyArgTemps_( c, tempSlots, tempTypes )
-                DeleteStrArgTemps_( c, strTemps, strTempTypes )
+                CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
+        CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes )
                 c.lastCallOk = true
                 if sretTmp.kind <> cast( ubyte, MV_NONE ) then
                     return LowerExprLoad( c, sretTmp, MT_AGG )
@@ -859,7 +898,9 @@ function LowerCallParts _
         ic.count = n
         dim as MirValue iv = Emit( c, ic )
         DestroyArgTemps_( c, tempSlots, tempTypes )
-        DeleteStrArgTemps_( c, strTemps, strTempTypes )
+        CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
+        CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes )
         c.lastCallOk = true
         if byrefRet then return LowerExprLoad( c, iv, mt )
         return iv
@@ -888,6 +929,7 @@ function LowerCallParts _
     ins.callee = fidx
     dim as MirValue cv = Emit( c, ins )
     DestroyArgTemps_( c, tempSlots, tempTypes )
+    CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
     c.lastCallOk = true
 
@@ -1338,52 +1380,6 @@ private sub DestroyArgTemps_ _
 end sub
 
 
-'' THE CALLER-BUILT DESCRIPTOR for one byval var-length string argument: zeroed,
-'' assigned from the source, and passed by ADDRESS. The slot comes back so the call
-'' site can delete it afterwards.
-private function ByvalStrTemp_ _
-    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref outSlot as long ) as boolean
-
-    outSlot = -1
-    if argNode = Tko.NODE_NONE then return false
-    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-    if slot < 0 then return false
-    dim as MirValue dst
-    dst.kind = cast( ubyte, MV_LOCAL )
-    dst.ty = cast( ubyte, MT_PTR )
-    dst.id = slot
-    ZeroStrDescriptor( c, dst )
-    '' The same assignment a 'dim as string s = expr' makes, so every source shape --
-    '' a literal, a fixed-length string, a concatenation -- reaches the entry point it
-    '' already had. A WIDE source is its own conversion: measured,
-    '' 'takeByvalString( whex( n ) )' is 'fb_WstrAssignToA( &TMP, -1, TMP_wide, 0 )'
-    '' and not fb_StrAssign.
-    if LowerWideToNarrowSlot( c, slot, pt, argNode ) then
-    elseif LowerStringAssignToSlot( c, slot, argNode ) = false then
-        return false
-    end if
-    outSlot = slot
-    outa = dst
-    return true
-end function
-
-'' ...and their release, after the call returns.
-private sub DeleteStrArgTemps_ _
-    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ) )
-
-    for k as long = slots.Count - 1 to 0 step -1
-        dim as MirValue a
-        a.kind = cast( ubyte, MV_LOCAL )
-        a.ty = cast( ubyte, MT_PTR )
-        a.id = cast( long, slots[k] )
-        dim as FB.Array( of ulong ) args
-        args.Push( cast( ulong, a.kind ) ) : args.Push( cast( ulong, a.id ) )
-        EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, types[k] ), RTL_STR_DELETE ), args )
-    next
-end sub
-
 
 '' IS PARAMETER 'idx' OF A PROCEDURE TYPE A REFERENCE? The signature is all there
 '' is to read for an INDIRECT call: no N_PROC node, no NF_BYREF flag, and no
@@ -1466,6 +1462,8 @@ end function
 '' 'threadcall' -- included HERE rather than made a module of its own, because the
 '' byval-string temporary and its delete are this file's private helpers and a thread
 '' call marshals a string exactly the way an ordinary call's argument does.
+'' The string TEMPORARIES an argument list builds, split out at the 1500-line cap.
+#include once "mir/lowerstrargs.bas"
 #include once "mir/lowerthread.bas"
 
 end namespace

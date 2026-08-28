@@ -250,7 +250,14 @@ function FixedStringElem _
     dim as Tko.TypeId e = types.Inner( t )
     if types.Kind( e ) <> Tko.TK_BUILTIN then return Tko.TYPE_NONE
     select case types.BuiltinOf( e )
-    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, Tko.TY_FIXSTR
+    '' TY_FIXUSTR IS THE 'ustring * N' ELEMENT, and it was missing -- so a fixed
+    '' ustring was not a fixed string at all here, StrFlavourOf_'s TY_FIXUSTR arm
+    '' could never be reached, and every 'ustring * N' argument cost CONV_NONE
+    '' against a 'ustring' parameter. The call then bound to nothing and came out
+    '' UNTYPED, so whatever consumed it declined. The narrow twin was listed and
+    '' worked, which is what kept this invisible.
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, Tko.TY_FIXSTR, _
+         Tko.TY_FIXUSTR
         return e
     end select
     return Tko.TYPE_NONE

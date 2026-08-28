@@ -1,0 +1,26 @@
+'' A 'ustring * N' ARGUMENT WAS NOT A FIXED STRING AT ALL, and then it was passed raw.
+''
+'' TWO BUGS, one on each side of the call. FixedStringElem listed TY_ZSTRING, TY_WSTRING,
+'' TY_USTRING and TY_FIXSTR and NOT TY_FIXUSTR, so StrFlavourOf_'s own TY_FIXUSTR arm
+'' could never be reached and every 'ustring * N' argument cost CONV_NONE against a
+'' 'ustring' parameter. The call bound to nothing, came out UNTYPED, and whatever
+'' consumed it declined. The narrow twin was listed and worked, which is what kept it
+'' invisible.
+''
+'' And where the call did go out -- as a bare statement, where nothing consumes the
+'' result -- tiko-lang passed '@uf', the raw uint16 buffer, where an FBUSTRING* belongs:
+'' the callee read the first eight bytes of the TEXT as a data pointer. It lowered and
+'' it verified.
+''
+'' The copy-out is emitted whether or not the parameter is CONST, which is what fbc
+'' does. A const parameter makes it a no-op, and guessing which is which would be a
+'' semantic fork over an observable write.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-fixed-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _Z1GRK8FBSTRING
+'' EXPECT-OUT: _Z1GRK9FBUSTRING
+'' EXPECT-OUT: fb_UStrDelete
+'' GOLDEN: expected/ustring-fixed-arg.out
