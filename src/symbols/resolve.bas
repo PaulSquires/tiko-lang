@@ -226,7 +226,7 @@ end sub
 '' declaration and its symbol are in the same scope by construction.
 sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
-      byval t as Tko.TypeId )
+      byval t as Tko.TypeId, byval force as boolean )
 
     if (nm = 0) orelse (t = Tko.TYPE_NONE) then return
     '' A VALUE's type. If a type name shares the spelling, the slot may hold either
@@ -234,7 +234,18 @@ sub BindDeclType _
     dim as Tko.SymbolId sid = c.syms->LookupLocalTyped( scope_, nm, false )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return
-    if s->type_ = Tko.TYPE_NONE then s->type_ = t
+    '' FIRST BINDING WINS, except when the caller says otherwise. The BACKPATCH
+    '' pass revisits a declaration whose type was built over something not
+    '' resolved yet -- 'dim as t p' where 't' aliases a pointer to a type declared
+    '' LATER -- and the whole point of the revisit is to replace what the first
+    '' pass left. Without the override the symbol kept its pointer-to-nothing, so
+    '' '*p = 0' had an untyped target and declined while the same program with the
+    '' two types in the other order lowered.
+    if force then
+        s->type_ = t
+    elseif s->type_ = Tko.TYPE_NONE then
+        s->type_ = t
+    end if
 end sub
 
 '' Bind identifiers inside an expression. A member name after a dot is NOT resolved
@@ -340,179 +351,11 @@ private function GenericCtorCall_ _
     c.info->SetType( lp->target, inst )
     return true
 end function
-'' THE CLOSURE TYPE OF A CAPTURING LAMBDA, built HERE because this is the only pass
-'' that can see both halves: the captures' types are only knowable in the scope the
-'' lambda was WRITTEN in, and the type has to live at module level for the hoisted
-'' invoke procedure to name it.
-''
-'' One '__CAP_<NAME>' field per capture -- a POINTER for byref and the value INLINE
-'' for byval -- which is what fbc emits. Built the way TupleUdtFor builds its own:
-'' a symbol, a scope and its fields, with no AST behind it.
-''
-'' '__fbinvoke' is declared in the type's scope so a CALL on a closure object can
-'' find the procedure from the OBJECT, which is the only thing the call site has.
-'' THE FRAME TYPE FOR A 'spawn', named by the parser and built here for the same
-'' reason the closure type is: only this pass can see the CALLEE's declaration from
-'' the spawn site's scope, and the type has to live at module level for the hoisted
-'' thunk to name it.
-''
-'' ITS FIELDS ARE THE CALLEE'S PARAMETER TYPES, one '__ARG_k' each. fbc parameterises
-'' its frame on the ARGUMENT types instead and converts inside the invoke -- measured,
-'' 'spawn worker( 7 )' over 'worker( byval n as long )' stores an INTEGER and calls
-'' 'WORKER( (int32)*(int64*)(THIS + 8) )' -- which for a value argument is the same
-'' copy either way. Taking the parameter's type puts the conversion at the spawn,
-'' where the argument expression still is.
-''
-'' NOTHING IS BUILT UNLESS EVERY PART IS KNOWN: a unique callee of matching arity,
-'' every parameter BYVAL, and every parameter type already resolved. A frame with a
-'' missing or guessed field would be an argument copied to the wrong offset, which is
-'' worse than the decline this leaves behind.
-private sub BuildSpawnFrame_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+'' The two SYNTHESISED TYPES -- a spawn's frame and a capturing lambda's closure --
+'' split out at the 1500-line cap and INCLUDED here, inside the same namespace.
+'' Nothing moved changed in the move.
+#include once "symbols/resolvesynth.bas"
 
-    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->name = 0 then return
-    if sp->aliasName = 0 then return
-    if c.syms->LookupLocalTyped( Tko.SCOPE_GLOBAL, sp->name, true ) <> Tko.SYMBOL_NONE then
-        return
-    end if
-
-    '' THE OVERLOAD OF MATCHING ARITY, uniquely or not at all.
-    dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
-    dim as long hits = 0
-    dim as Tko.SymbolId cur = c.syms->Lookup( scope_, sp->aliasName )
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
-        if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
-        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
-        if pn <> Tko.NODE_NONE then
-            if c.ast->Kind( pn ) = Tko.N_PROC then
-                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-                dim as long np = 0
-                for i as long = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
-                    if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
-                next
-                if np = cast( long, sp->extra ) then
-                    pick = cur
-                    hits += 1
-                end if
-            end if
-        end if
-        cur = cs->nextOverload
-    wend
-    if hits <> 1 then return
-
-    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    dim as Tko.NodeId pnode = cast( Tko.NodeId, ps->payload )
-    dim as Tko.StmtPayload ptr pp2 = StmtOf( c, pnode )
-    dim as FB.Array( of ulong ) fTy
-    for i as long = 0 to pp2->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp2->first + i] )
-        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        '' A BYREF PARAMETER WOULD MAKE THE FRAME HOLD AN ADDRESS into a stack
-        '' frame the goroutine outlives. fbc has no such case in the corpus and
-        '' inventing one here would be inventing a lifetime.
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then return
-        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        if pt = Tko.TYPE_NONE then return
-        if c.types->Kind( pt ) = Tko.TK_REFERENCE then return
-        fTy.Push( cast( ulong, pt ) )
-    next
-    if fTy.Count <> cast( long, sp->extra ) then return
-
-    dim as boolean dup = false
-    dim as Tko.SourceLoc at = c.ast->Loc( id )
-    dim as Tko.SymbolId tsid = c.syms->DeclareSym( _
-        Tko.SCOPE_GLOBAL, sp->name, Tko.SYM_UDT, at, dup )
-    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return
-    dim as Tko.ScopeId tin = c.syms->OpenScope( _
-        Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
-    ts->inner = tin
-    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( ulong, Tko.SCOPE_GLOBAL ) )
-    for k as long = 0 to fTy.Count - 1
-        dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
-            "__ARG_" & trim( str( k ) ) ) )
-        dim as boolean fdup = false
-        dim as Tko.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Tko.SYM_FIELD, at, fdup )
-        dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-        if fs <> 0 then fs->type_ = cast( Tko.TypeId, fTy[k] )
-    next
-    c.info->SetType( id, ts->type_ )
-end sub
-
-private sub BuildClosureType_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
-
-    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->name = 0 then return
-    if c.syms->LookupLocalTyped( Tko.SCOPE_GLOBAL, sp->name, true ) <> Tko.SYMBOL_NONE then
-        return
-    end if
-
-    '' EVERY CAPTURE MUST RESOLVE, or the type is not built at all: a closure with a
-    '' missing field would lower to an object whose body reads the wrong offsets.
-    dim as FB.Array( of ulong ) fTy
-    for k as long = 0 to sp->count - 1
-        dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
-        if c.ast->Kind( cn ) <> Tko.N_IDENT then return
-        dim as Tko.SymbolId csid = c.syms->LookupTyped( scope_, IdentNameOf( c, cn ), false )
-        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( csid )
-        if cs = 0 then return
-        dim as Tko.TypeId ct = cs->type_
-        if ct = Tko.TYPE_NONE then return
-        if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
-        c.info->SetRef( cn, csid )
-        c.info->SetType( cn, ct )
-        if (c.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
-            ct = c.types->Pointer_( ct )
-        end if
-        fTy.Push( cast( ulong, ct ) )
-    next
-
-    dim as boolean dup = false
-    dim as Tko.SourceLoc at = c.ast->Loc( id )
-    dim as Tko.SymbolId tsid = c.syms->DeclareSym( _
-        Tko.SCOPE_GLOBAL, sp->name, Tko.SYM_UDT, at, dup )
-    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return
-    dim as Tko.ScopeId tin = c.syms->OpenScope( _
-        Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
-    ts->inner = tin
-    ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( ulong, Tko.SCOPE_GLOBAL ) )
-    for k as long = 0 to sp->count - 1
-        dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
-        dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
-            "__CAP_" & c.names->Spelling( IdentNameOf( c, cn ) ) ) )
-        dim as boolean fdup = false
-        dim as Tko.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Tko.SYM_FIELD, at, fdup )
-        dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-        if fs <> 0 then fs->type_ = cast( Tko.TypeId, fTy[k] )
-    next
-
-    '' THE INVOKE PROCEDURE, reachable from the TYPE. Its own module-level symbol is
-    '' declared by Collect like any other hoisted lambda; this is a second name for
-    '' the same N_PROC, so nothing is emitted twice.
-    if sp->a <> Tko.NODE_NONE then
-        dim as Tko.InternId inm = c.names->Fold( c.names->GetString( "__fbinvoke" ) )
-        dim as boolean idup = false
-        dim as Tko.SymbolId isid = c.syms->DeclareSym( tin, inm, Tko.SYM_PROC, at, idup )
-        dim as Tko.Symbol ptr isy = c.syms->SymbolAt( isid )
-        '' ITS PAYLOAD IS THE MODULE-LEVEL SYMBOL, not the node. The hoisted lambda
-        '' already has one -- Collect declared it like any other procedure -- and
-        '' that is what carries the type and the mangled name. Looked up from HERE
-        '' because the lambda site's scope chain reaches the module and a later
-        '' pass's does not.
-        if isy <> 0 then
-            isy->payload = cast( ulong, c.syms->Lookup( _
-                scope_, StmtOf( c, sp->a )->name ) )
-        end if
-    end if
-
-    c.info->SetType( id, ts->type_ )
-end sub
 
 private sub WalkExpr _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
@@ -856,6 +699,41 @@ private sub WalkExpr _
 end sub
 #include once "symbols/resolveamb.bas"
 
+'' A TYPE BUILT OVER SOMETHING NOT RESOLVED YET.
+''
+'' 'type t as u const ptr' written before 'type u as integer' resolves to a POINTER
+'' TO NOTHING -- non-NONE, so 'dim as t p' looked resolved and never landed on the
+'' pending list. BackpatchTypedefs then fixed the TYPEDEF and never came back to the
+'' variable, whose slot stayed void: '*p = 0' had an untyped target and declined.
+''
+'' Refusing to BUILD the pointer was tried and is far too blunt -- 'any ptr' has no
+'' element type either, and an unresolved 'typeof' none yet -- so it left those
+'' declarations untyped instead and cost 540 corpus statements. The type is built as
+'' before; this only says the declaration is worth revisiting.
+private function TypeIsIncomplete_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    dim as Tko.TypeId u = t
+    for depth as long = 0 to 15
+        if u = Tko.TYPE_NONE then return false
+        u = c.types->Unqualify( u )
+        select case c.types->Kind( u )
+        case Tko.TK_POINTER, Tko.TK_REFERENCE, Tko.TK_ARRAY
+            dim as Tko.TypeId inner = c.types->Inner( u )
+            '' THE POINTEE IS MISSING -- which is what an unresolved element leaves.
+            '' 'any ptr' is NOT this: its element is the ANY builtin, a real type.
+            if inner = Tko.TYPE_NONE then return true
+            u = inner
+        case Tko.TK_TYPEDEF
+            '' The placeholder Collect gives every typedef, still unfilled.
+            return true
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
 sub WalkStmt _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -1107,7 +985,7 @@ sub WalkStmt _
                     end if
                 end if
                 if ndim < 0 then ndim = 0
-                BindDeclType( c, here, ip3->name, c.types->DynArrayOf( bt3, ndim ) )
+                BindDeclType( c, here, ip3->name, c.types->DynArrayOf( bt3, ndim ), false )
             next
 
             '' A REDIM declares nothing -- the array already exists -- but its BOUNDS
@@ -1161,7 +1039,11 @@ sub WalkStmt _
             if (brf and Tko.NF_BYREF) <> 0 then
                 if t <> Tko.TYPE_NONE then t = c.types->Reference( t )
             end if
-            if t = Tko.TYPE_NONE then
+            '' ...AND A TYPE BUILT OVER SOMETHING NOT RESOLVED YET is revisited too.
+            '' See TypeIsIncomplete_.
+            dim as boolean revisit = (t = Tko.TYPE_NONE)
+            if revisit = false then revisit = TypeIsIncomplete_( c, t )
+            if revisit then
                 '' A DECLARATION WITH NO TYPE AND NO INITIALISER is the DEFAULT-TYPE
                 '' feature -- 'dim a', 'dim b%', 'byval s$'. fbc refuses those outside
                 '' -lang deprecated/fblite/qb (its error 147), and tiko-lang implements
@@ -1181,7 +1063,7 @@ sub WalkStmt _
                 c.pendingItem.Push( cast( ulong, item ) )
                 c.pendingScope.Push( cast( ulong, here ) )
             end if
-            BindDeclType( c, here, ip->name, t )
+            BindDeclType( c, here, ip->name, t, false )
             WalkStmt( c, ip->b, here )
         next
         return
@@ -1253,7 +1135,7 @@ sub WalkStmt _
            ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0) then
             t = c.types->Reference( t )
         end if
-        BindDeclType( c, here, sp->name, t )
+        BindDeclType( c, here, sp->name, t, false )
         WalkStmt( c, sp->b, here )
         return
 
@@ -1297,7 +1179,7 @@ sub WalkStmt _
         '' low/high pairs and the element count is their product -- which the layout
         '' needs, and which was simply lost while the bounds were being skipped.
         t = ArrayFromBounds( c, t, sp->first, sp->count )
-        BindDeclType( c, here, sp->name, t )
+        BindDeclType( c, here, sp->name, t, false )
 
         '' A BITFIELD is marked, not modelled. 'b' holds the width expression; the
         '' declared type is the storage UNIT's, not the field's, so reading or writing
@@ -1332,7 +1214,7 @@ sub WalkStmt _
                (c.ast->Kind( sp->a ) = Tko.N_IDENT) then
                 dim as Tko.IdentPayload ptr ip = _
                     @c.ast->idents[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
-                BindDeclType( c, here, ip->name, t )
+                BindDeclType( c, here, ip->name, t, false )
             end if
         end if
         '' The SEQUENCE first, so its type is known before the variable is bound.

@@ -1,0 +1,5 @@
+'' A pointer typedef whose element type is declared later.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typedef-forward-ptr.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/typedef-forward-ptr.out

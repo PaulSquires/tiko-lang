@@ -81,7 +81,7 @@ declare function IterElemType_ _
     ( byref c as Ctx, byval seqT as Tko.TypeId ) as Tko.TypeId
 declare sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
-      byval t as Tko.TypeId )
+      byval t as Tko.TypeId, byval force as boolean = false )
 declare function InitCountAt _
     ( byref c as Ctx, byval init as Tko.NodeId, byval depth as long ) as long
 declare function ArrayFromPairs _

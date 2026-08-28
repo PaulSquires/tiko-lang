@@ -1346,7 +1346,7 @@ sub BackpatchTypedefs( byref c as Ctx )
         dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
         dim as Tko.TypeId t = ResolveTypeRef( c, ip->a, here )
         if t = Tko.TYPE_NONE then continue for
-        BindDeclType( c, here, ip->name, ArrayFromBoundsNode( c, t, ip->c, ip->b ) )
+        BindDeclType( c, here, ip->name, ArrayFromBoundsNode( c, t, ip->c, ip->b ), true )
     next
 end sub
 
