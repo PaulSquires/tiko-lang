@@ -831,6 +831,17 @@ function TypeOf_ _
                 case Tko.SYM_UDT, Tko.SYM_ENUM
                     t = qs->type_
                     exit select
+                '' A NAMESPACE-QUALIFIED PROCEDURE NAMED WITHOUT PARENTHESES IS A
+                '' CALL, and its type is its RESULT -- which is what a SYM_PROC's
+                '' 'type_' holds and what the BARE form already uses.
+                '' 'CpuClock.IsSupported' is how fb/chrono.bi's own test asks, and
+                '' fbc emits 'boolean vr$0 = _ZN2NS11ISSUPPORTEDEv( )' for it --
+                '' the same call the parenthesised spelling makes. Left untyped, the
+                '' member was a value of no type and the statement declined, while
+                '' 'NS.IsSupported( )' beside it lowered.
+                case Tko.SYM_PROC
+                    t = qs->type_
+                    exit select
                 end select
             end if
         end if

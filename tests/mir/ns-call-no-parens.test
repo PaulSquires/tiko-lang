@@ -1,0 +1,5 @@
+'' A namespace-qualified zero-argument function called without parentheses.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ns-call-no-parens.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/ns-call-no-parens.out
