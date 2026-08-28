@@ -52,7 +52,18 @@ esac
 GATE_FBC=${GATE_FBC:-"$FBC_TREE/src/fbc.exe"}
 [ -x "$GATE_FBC" ] || rt_die "compiler not found at $GATE_FBC"
 
-CLIB="$FBC_TREE/src/lib/$TARGET"
+# The C side of the comparison. By default fbc's own archive -- which is built
+# with GCC at -O2, while tiko-rt goes through clang at -O2, so the default
+# comparison contains a compiler difference as well as a language one.
+#
+# CBASE points at a clang-built baseline (build/cbase.sh) and removes that
+# confound. Until it is used, a result here is "FreeBASIC through clang versus C
+# through gcc", which is not the question. RFC-0004 section 5.4.4.
+CLIB=${CBASE:-"$FBC_TREE/src/lib/$TARGET"}
+case "${CBASE:-}" in
+    "") echo "bench: WARNING -- C side is fbc's GCC-built archive; set CBASE for a clang baseline" >&2 ;;
+    *)  echo "bench: C side is the clang baseline at $CLIB" >&2 ;;
+esac
 FLIB="$RT_ROOT/obj/gate/$TARGET/lib"
 [ -f "$FLIB/libfb.a" ] || rt_die "no merged tiko-rt runtime at $FLIB -- run build/gate.sh first"
 
