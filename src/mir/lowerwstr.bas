@@ -429,7 +429,16 @@ function LowerWideToNarrowSlot _
     if ChainTouchesU_( c, value ) then return false
     dim as longint dn = -1
     if IsStringType( c, dt ) = false then
-        if StrSwapKind_( c, dt, dn ) <> 1 then return false
+        '' A FIXED-LENGTH NARROW DESTINATION TAKES ITS OWN ELEMENT COUNT where a
+        '' var-length one takes -1. Measured:
+        ''
+        ''   dim s1 as zstring * 10 = wchr( 65 )
+        ''     fb_WstrAssignToA_Init( (void*)S1$0, 10ll, (uint16*)L"A", 0ll )
+        ''
+        '' Refusing anything but kind 1 left 'zstring * N' out, so the narrow
+        '' fixed-string path took it, found no narrow source, and declined.
+        dim as long dk = StrSwapKind_( c, dt, dn )
+        if (dk <> 1) andalso (dk <> 3) then return false
     end if
 
     '' A CONCATENATION IS WIDE-TYPED TOO now that 's + w' answers WSTRING, and it has no
@@ -1098,6 +1107,39 @@ function LowerWideRvalue _
     '' fb/string.bi's own comment insists must be WCHR and never CHR.
     if nm = "wchr" then
         if cp->count < 1 then return false
+        '' AN ALL-CONSTANT 'wchr' IS A LITERAL, and fbc folds it to one: measured,
+        '' 'dim s as zstring * 10 = wchr( 65 )' passes '(uint16*)L"A"' and calls
+        '' nothing. Emitting fb_WstrChr instead is a wide temporary the caller owns
+        '' and nothing here deletes -- a leak per execution where fbc has a static
+        '' global.
+        dim as boolean allConst = true
+        dim as string wtx
+        dim as FB.Array( of ulong ) wus
+        for i as long = 0 to cp->count - 1
+            dim as Tko.NodeId kn = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+            dim as Tko.Check.ConstVal kv = Tko.Check.ConstOf( _
+                *c.ast, kn, *c.srcMgr, *c.names, c.types->target.pointerBits, _
+                c.syms, c.info->ScopeOf( value ) )
+            if kv.known = false then
+                allConst = false
+                exit for
+            end if
+            if (kv.value < 0) orelse (kv.value > 65535) then
+                allConst = false
+                exit for
+            end if
+            wus.Push( cast( ulong, kv.value ) )
+            '' The TEXT is the pool's key and only that: two literals with the same
+            '' units must share one global, and the units decide what is emitted.
+            wtx += chr( cast( long, kv.value ) and &hFF )
+            wtx += chr( (cast( long, kv.value ) shr 8) and &hFF )
+        next
+        if allConst then
+            outv.kind = cast( ubyte, MV_GLOBAL )
+            outv.ty = cast( ubyte, MT_PTR )
+            outv.id = c.m->AddWideStringUnits( wtx, wus, *c.names )
+            return true
+        end if
         dim as FB.Array( of ulong ) wca
         wca.Push( cast( ulong, MV_CONST_INT ) ) : wca.Push( cast( ulong, cp->count ) )
         for i as long = 0 to cp->count - 1

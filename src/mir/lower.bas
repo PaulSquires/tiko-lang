@@ -508,8 +508,20 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     zdst.kind = cast( ubyte, MV_LOCAL )
                     zdst.ty = cast( ubyte, MT_PTR )
                     zdst.id = slot
-                    if LowerZstrAssignTo( c, zdst, zn2, ip->b, true, (zk2 = 4) ) then _
-                        needsStore = false
+                    '' A WIDE SOURCE FIRST. 'dim s1 as zstring * 10 = wchr( 65 )' is
+                    '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )' -- the code folded
+                    '' to a wide literal -- and the narrow path below has no narrow
+                    '' source to find, so it declined.
+                    if TermIsWide_( c, ip->b ) then
+                        if LowerWideToNarrowSlot( c, slot, _
+                               c.syms->SymbolAt( sid )->type_, ip->b, true ) then
+                            needsStore = false
+                        end if
+                    end if
+                    if needsStore then
+                        if LowerZstrAssignTo( c, zdst, zn2, ip->b, true, (zk2 = 4) ) then _
+                            needsStore = false
+                    end if
                 end if
             end if
 

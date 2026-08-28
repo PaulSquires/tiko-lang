@@ -1,0 +1,5 @@
+'' A constant wchr folds to a wide literal; a fixed narrow string takes a wide source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wchr-fold-init.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/wchr-fold-init.out
