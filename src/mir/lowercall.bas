@@ -440,8 +440,21 @@ function LowerCallParts _
             '' tiko handed the callee the WIDE BUFFER'S address where an FBSTRING
             '' belongs, and for a wide RVALUE it pushed NOTHING AT ALL -- a call with
             '' a hole in it, counted as fully lowered.
-            if IsWideString_( c, c.info->TypeOf_( argNode ) ) then
+            '' ...INTO THE PARAMETER'S OWN FLAVOUR. This built a NARROW temporary
+            '' whatever the parameter was, so a 'byref as const ustring' got an
+            '' FBSTRING and the call then declined. Measured, fbc converts through
+            '' the wide-to-UTF-16 entry point instead: 'fb_WstrToUStr( TMP )' and
+            '' then 'fb_UStrAssign( &TMP2, -1, vr, -1, 0 )'.
+            '' A CONCATENATION IS A WIDE SOURCE TOO when any term is: it has no
+            '' address and, depending on the terms, no type of its own either, so
+            '' the type test alone said no to 'G( w & "z" )'.
+            if IsWideString_( c, c.info->TypeOf_( argNode ) ) orelse _
+               ConcatHasWideTerm_( c, argNode ) then
                 dim as Tko.TypeId wsp = c.types->Builtin( Tko.TY_STRING )
+                if IsUStringType( c, ArgParamType_( c, callee, calleeSigT, _
+                                                    i + pbase ) ) then
+                    wsp = c.types->Builtin( Tko.TY_USTRING )
+                end if
                 if ByvalStrTemp_( c, argNode, wsp, a, tempSlot ) then
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, wsp ) )

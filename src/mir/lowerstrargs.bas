@@ -29,6 +29,49 @@ private function ByvalStrTemp_ _
     '' already had. A WIDE source is its own conversion: measured,
     '' 'takeByvalString( whex( n ) )' is 'fb_WstrAssignToA( &TMP, -1, TMP_wide, 0 )'
     '' and not fb_StrAssign.
+    '' A WIDE SOURCE FOR A USTRING TEMPORARY converts through fb_WstrToUStr and
+    '' then assigns the descriptor it hands back. Measured, for a wide rvalue
+    '' against a 'byref as const ustring':
+    ''
+    ''   vr = fb_WstrToUStr( TMP_wide )
+    ''   fb_UStrAssign( &TMP_u, -1, vr, -1, 0 )
+    ''   G( &TMP_u )
+    ''
+    '' The narrow conversion below refuses a ustring destination outright, so
+    '' without this the temporary was built NARROW whatever the parameter said --
+    '' an FBSTRING where an FBUSTRING belongs -- and the call declined.
+    ''
+    '' THE WIDE TEMPORARY ITSELF IS STILL LEAKED, as every wide temporary here is:
+    '' fbc emits an fb_WstrDelete for it and tiko-lang models no wide lifetime. That
+    '' is a leak and not a wrong answer, and it is recorded in rtl.bi's own header.
+    if IsUStringType( c, pt ) andalso _
+       (TermIsWide_( c, argNode ) orelse ConcatHasWideTerm_( c, argNode )) then
+        dim as MirValue uv
+        '' A CONCATENATION HAS NO ADDRESS. It is built into a wide temporary first
+        '' and converted from THAT -- measured, 'G( w & "z" )' is
+        '' 'fb_WstrConcatWA( W, "z", 2 )' and then fb_WstrToUStr over its result.
+        if ConcatHasWideTerm_( c, argNode ) then
+            dim as MirValue wtmp
+            if WideConcatToTemp_( c, argNode, wtmp ) = false then return false
+            dim as FB.Array( of ulong ) cargs
+            cargs.Push( cast( ulong, wtmp.kind ) ) : cargs.Push( cast( ulong, wtmp.id ) )
+            uv = EmitRtl( c, RTL_WSTR_TO_USTR, cargs )
+            if uv.kind = cast( ubyte, MV_NONE ) then return false
+        elseif WideTermAsUStr_( c, argNode, uv ) = false then
+            return false
+        end if
+        dim as FB.Array( of ulong ) uargs
+        uargs.Push( cast( ulong, dst.kind ) ) : uargs.Push( cast( ulong, dst.id ) )
+        PushStrLen_( c, uargs, -1 )
+        uargs.Push( cast( ulong, uv.kind ) ) : uargs.Push( cast( ulong, uv.id ) )
+        PushStrLen_( c, uargs, -1 )
+        uargs.Push( cast( ulong, MV_CONST_INT ) ) : uargs.Push( 0 )
+        EmitRtl( c, RTL_USTR_ASSIGN, uargs )
+        outSlot = slot
+        outa = dst
+        return true
+    end if
+
     if LowerWideToNarrowSlot( c, slot, pt, argNode ) then
     elseif LowerStringAssignToSlot( c, slot, argNode ) = false then
         return false

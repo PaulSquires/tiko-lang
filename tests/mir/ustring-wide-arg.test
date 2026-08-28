@@ -1,0 +1,22 @@
+'' A WIDE ARGUMENT TO A BYREF STRING BUILT A NARROW TEMPORARY whatever the parameter
+'' said, so a 'byref as const ustring' got an FBSTRING where an FBUSTRING belongs and
+'' the call declined. The conversion is the parameter's FLAVOUR, not one flavour:
+'' measured, fbc goes through fb_WstrToUStr and then the ordinary fb_UStrAssign.
+''
+'' A CONCATENATION HAS NO ADDRESS, so it is built into a wide temporary first and
+'' converted from THAT -- 'G( w & "z" )' is fb_WstrConcatWA and then fb_WstrToUStr over
+'' its result. The type test alone said no to it: a mixed concatenation has no type of
+'' its own, which is why the wide-TERM predicate is asked as well.
+''
+'' THE WIDE TEMPORARY IS STILL LEAKED, as every wide temporary here is: fbc emits an
+'' fb_WstrDelete for it and tiko-lang models no wide lifetime. That is a leak and not a
+'' wrong answer, and rtl.bi's own header already records it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-wide-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrConcatWA
+'' EXPECT-OUT: fb_WstrToUStr
+'' EXPECT-OUT: fb_UStrDelete
+'' GOLDEN: expected/ustring-wide-arg.out
