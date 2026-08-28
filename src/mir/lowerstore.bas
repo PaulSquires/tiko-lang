@@ -635,6 +635,106 @@ end function
 '' nothing else. Only the ZERO-BASED spelling is taken -- 'dim a(1 to 3)' would need
 '' its lower bound subtracted, and getting that wrong points the pointer at the wrong
 '' element with nothing to say so, so a non-zero lower bound declines instead.
+'' A STATIC ARRAY OF POINTERS INITIALISED FROM ADDRESSES -- one relocation per
+'' ELEMENT, which is what a pointer TABLE already is here. Measured:
+''
+''   dim shared a(0 to ...) as const zstring ptr = { @"a1", @"a2" }
+''   static as function( as long ) as long f( ... ) = { @bar, @baz }
+''
+'' are 'static char* A$[2] = { "a1", "a2" }' and
+'' 'static tmp$5 F$[2] = { &BAR, &BAZ }' to fbc. A MIR global carries ONE
+'' relocation, so neither could be expressed and both declined -- and the byte
+'' image the aggregate path builds cannot hold an address at all.
+''
+'' The WORDS go in the pointer pool a vtable already uses. Nothing else about the
+'' global changes: it is still a VAR, still writable, and the words are its initial
+'' value rather than a table of their own.
+declare sub FlattenInitLeaves_ _
+    ( byref c as Ctx, byval init as Tko.NodeId, _
+      byref outv as FB.Array( of ulong ) )
+
+private function GlobalPtrArrayInit_ _
+    ( byref c as Ctx, byval g as long, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    if init = Tko.NODE_NONE then return false
+    if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
+    dim as Tko.TypeId at = c.types->Unqualify( t )
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
+    if c.types->IsDynArray( at ) then return false
+    dim as Tko.TypeId et = c.types->Unqualify( c.types->Inner( at ) )
+    '' POINTER-SIZED ELEMENTS ONLY. A procedure type is already a pointer in
+    '' FreeBASIC, so both spellings arrive here.
+    if LowerType( et, *c.types ) <> MT_PTR then return false
+    dim as long total = c.types->ElemCount( at )
+    if total <= 0 then return false
+
+    dim as FB.Array( of ulong ) leaves
+    FlattenInitLeaves_( c, init, leaves )
+    if cast( long, leaves.Count ) <> total then return false
+
+    '' EVERY WORD MUST BE ONE, or none of them is: a half-filled table would be a
+    '' global whose remaining elements are silently zero.
+    dim as FB.Array( of long )  kinds
+    dim as FB.Array( of ulong ) refs
+    for k as long = 0 to total - 1
+        dim as Tko.NodeId e = Unparen_( c, cast( Tko.NodeId, leaves[k] ) )
+        if c.ast->Kind( e ) = Tko.N_ADDROF then
+            dim as Tko.UnaryPayload ptr up = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )]
+            dim as Tko.NodeId opnd = Unparen_( c, up->operand )
+            '' '@"a1"' IS THE LITERAL'S OWN GLOBAL, which is where a string literal
+            '' already lives.
+            if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then
+                kinds.Push( 1 )
+                refs.Push( cast( ulong, c.m->AddStringLiteral( _
+                    StringLitText_( c, opnd ), *c.names ) ) )
+                continue for
+            end if
+            if c.ast->Kind( opnd ) <> Tko.N_IDENT then return false
+            dim as Tko.SymbolId osid = c.info->RefOf( opnd )
+            dim as Tko.Symbol ptr sy = c.syms->SymbolAt( osid )
+            if sy = 0 then return false
+            if sy->kind = cast( ubyte, Tko.SYM_PROC ) then
+                dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
+                if pn = Tko.NODE_NONE then return false
+                if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+                kinds.Push( 2 )
+                refs.Push( cast( ulong, c.names->GetString( _
+                    Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, _
+                                         *c.types, *c.info ) ) ) )
+                continue for
+            end if
+            dim as long og = GlobalFor( c, osid )
+            if og < 0 then return false
+            kinds.Push( 1 )
+            refs.Push( cast( ulong, og ) )
+            continue for
+        end if
+        '' A NULL WORD is the only non-address a pointer table may hold.
+        dim as Tko.Check.ConstVal zv = Tko.Check.ConstOf( _
+            *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, _
+            Tko.SCOPE_GLOBAL )
+        if zv.known = false then return false
+        if zv.value <> 0 then return false
+        kinds.Push( 0 )
+        refs.Push( 0 )
+    next
+
+    '' Pushed only once every word is known, so a global is never left holding a
+    '' partial table.
+    c.m->globals[g].ptrFirst = c.m->ptrKinds.Count
+    for k as long = 0 to total - 1
+        select case kinds[k]
+        case 0 : c.m->PushPtrNull( g )
+        case 1 : c.m->PushPtrGlobal( g, cast( long, refs[k] ) )
+        case else : c.m->PushPtrFunc( g, cast( Tko.InternId, refs[k] ) )
+        end select
+    next
+    c.m->globals[g].hasInit = true
+    return true
+end function
+
 '' A PROCEDURE NAMED DIRECTLY as a static pointer's initialiser -- what
 '' 'procptr( f )' hands over, with no '@' around it.
 private function GlobalRelocProc_ _
@@ -879,6 +979,11 @@ sub InitSharedGlobal _
     end if
 
     if gt = MT_AGG then
+        '' TRIED BEFORE THE BYTE IMAGE: an address is not a byte image, and the
+        '' fold below would refuse each word one at a time.
+        if GlobalPtrArrayInit_( c, g, c.m->globals[g].frontendType, init ) then
+            return
+        end if
         dim as string img
         if FoldAggInit_( c, c.m->globals[g].frontendType, init, _
                          c.m->globals[g].size, img ) then

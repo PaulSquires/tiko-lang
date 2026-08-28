@@ -184,7 +184,25 @@ function DumpModule _
             '' another global and a bare name for a FUNCTION, which is the same
             '' spelling a pointer table's words already use. An offset is written
             '' out, so '@a + 8' and '@a' cannot be confused.
-            if m.globals[i].initReloc >= 0 then
+            '' A TABLE OF ADDRESSES, one per element: 'dim shared a( ... ) as
+            '' zstring ptr = { @"a1", @"a2" }'. The same words a vtable prints,
+            '' on a VAR rather than on a table of its own.
+            if m.globals[i].ptrCount > 0 then
+                outp += " = ["
+                for k as long = 0 to m.globals[i].ptrCount - 1
+                    dim as long e = m.globals[i].ptrFirst + k
+                    if k > 0 then outp += ","
+                    select case m.ptrKinds[e]
+                    case 0 : outp += " 0"
+                    case 1 : outp += " @" & names.Spelling( _
+                                 m.globals[cast( long, m.ptrRefs[e] )].name )
+                    case else
+                        outp += " " & names.Spelling( _
+                            cast( Tko.InternId, m.ptrRefs[e] ) )
+                    end select
+                next
+                outp += " ]"
+            elseif m.globals[i].initReloc >= 0 then
                 outp += " = @" & names.Spelling( _
                     m.globals[cast( long, m.globals[i].initReloc )].name )
                 if m.globals[i].initRelocOff <> 0 then

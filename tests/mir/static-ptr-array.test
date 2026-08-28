@@ -1,0 +1,23 @@
+'' A STATIC ARRAY OF POINTERS INITIALISED FROM ADDRESSES is ONE RELOCATION PER ELEMENT,
+'' and a MIR global carried exactly one. Measured -- fbc emits
+''
+''   static char*  A$[2] = { (char*)"a1", (char*)"a2" };
+''   static tmp$5  F$[2] = { (tmp$5)&BAR, (tmp$5)&BAZ };
+''
+'' -- so neither could be expressed and both declined. The byte image the aggregate path
+'' builds cannot hold an address at all, so it refused each word in turn.
+''
+'' The WORDS go in the pointer pool a vtable already uses. Nothing else about the global
+'' changes: it is still a VAR, still writable, and the words are its initial value
+'' rather than a table of its own. '@"a1"' is the literal's own global, which is where a
+'' string literal already lives.
+''
+'' ALL OR NOTHING: a table is pushed only once every word is known, so a global is never
+'' left holding a partial one with the rest silently zero.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-ptr-array.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: = [ @$str1, @$str2 ]
+'' EXPECT-OUT: = [ BAR, BAZ ]
+'' GOLDEN: expected/static-ptr-array.out
