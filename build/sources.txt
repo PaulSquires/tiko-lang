@@ -61,3 +61,4 @@ strw/slice.bas
 strw/search.bas
 strw/trimex.bas
 strw/case.bas
+strw/conv.bas

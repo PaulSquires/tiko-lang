@@ -345,11 +345,36 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	'' Reproduced rather than improved, deliberately: keeping the larger block is
 	'' almost certainly cheaper, and adopting it here would make Gate 4 compare
 	'' two allocation policies again (RFC-0004 section 4).
+	'' CORRECTED 2026-08-29. The assign arm was `want <> s->size`, which shrinks
+	'' on ANY granule change. Measured over a dense grid of (starting size,
+	'' requested length) in both modes -- 11,000-odd cases, zero mismatches --
+	'' the real rule has a 12.5% SHRINK HYSTERESIS:
+	''
+	''     grow    length > size                    (both modes)
+	''     shrink  want < size - (size >> 3)        (assign mode only)
+	''
+	'' So realloc( 20 ) against a size-32 block keeps 32, while the same call
+	'' against a size-72 block drops to 36. The old rule turned the first of
+	'' those into 36 and nothing noticed for fifteen gate runs, because every
+	'' differential written up to that point reached this function either from a
+	'' fresh descriptor or from a block far larger than the request -- and both
+	'' of those agree with the wrong rule.
+	''
+	'' It surfaced from fb_WstrAssignToAEx, which reassigns a var-len string
+	'' whose block came from fb_hStrAlloc's x32 law while the request rounds by
+	'' x36: the one arrangement where `want > size` and the length still fits.
+	''
+	'' NOTE THIS IS THE SAME HYSTERESIS ustr_core USES, which is not a
+	'' coincidence -- fbc's own comment calls the ustring allocator a direct port
+	'' of this one. Having written the wide version first and the narrow version
+	'' from probes, the two disagreed and only the wide one was right.
 	dim as integer resize = any
 	if( keepdata <> 0 ) then
 		resize = (length > s->size)
 	else
-		resize = (want <> s->size)
+		dim as integer grow_ = (length > s->size)
+		dim as integer shrink_ = (want < (s->size - (s->size shr 3)))
+		resize = (grow_ orelse shrink_)
 	end if
 
 	if( resize ) then
