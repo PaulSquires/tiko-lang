@@ -22,4 +22,9 @@ str/concat.bas
 str/tempdesc.bas
 str/instrany.bas
 str/legacycase.bas
+str/hskip.bas
+str/tempdescv.bas
+str/tempres.bas
+str/concatassign.bas
+str/concatbyref.bas
 ustr/utf.bas
