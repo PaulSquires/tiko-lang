@@ -376,6 +376,26 @@ function LowerCompoundAssign _
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
     rhs = Coerce( c, rhs, wt, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
 
+    '' POINTER ARITHMETIC IS SCALED BY THE POINTEE HERE TOO. 'p += 1' over a
+    '' 'short ptr' is '(uint8*)P$0 + 2ll' to fbc and was a one-BYTE add here --
+    '' the same silent miscompile the binary path had, in the other half of the
+    '' language. The element size comes from the ASSIGNMENT TARGET'S type, which
+    '' is what makes 'cptr( short ptr, pt ) += 1' advance by two even though pt
+    '' is an 'any ptr'.
+    dim as boolean ptrAddSub = (bop = Tko.TK_PLUS) orelse (bop = Tko.TK_MINUS)
+    if ptrAddSub then
+        dim as long pesz = PtrArithElem_( c, tt )
+        if pesz > 1 then
+            dim as MirInst psc
+            psc.op = cast( ushort, M_MUL )
+            psc.ty = cast( ubyte, wt )
+            psc.a = rhs
+            psc.b = ConstInt( c, pesz, wt )
+            rhs = Emit( c, psc )
+            if rhs.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+    end if
+
     dim as MirValue res
     if bop = Tko.TK_CARET then
         dim as FB.Array( of ulong ) pa

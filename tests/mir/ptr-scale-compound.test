@@ -1,0 +1,5 @@
+'' Pointer arithmetic scaled by the pointee, in the compound form and through a cast.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ptr-scale-compound.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/ptr-scale-compound.out

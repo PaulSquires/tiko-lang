@@ -113,6 +113,17 @@ private function NoConvFamily_ _
     ( byref c as Ctx, byval t as Tko.TypeId ) as long
 
     dim as Tko.TypeId u = c.types->Unqualify( t )
+    '' EVERY POINTER IS ONE FAMILY, and a cast between two of them converts
+    '' nothing. Measured, fbc accepts all three spellings:
+    ''
+    ''   dim as short ptr ptr pp = @cptr( short ptr, pt )   PP$0 = (int16**)&PT$0
+    ''   cptr( short ptr, pt ) = 0                          PT$0 = (void*)0ull
+    ''   cast( short ptr, pt ) += 1                         PT$0 =
+    ''                                          (void*)((uint8*)PT$0 + 2ll)
+    ''
+    '' -- and the last is why the CAST's type matters and not the variable's: the
+    '' increment is scaled by the pointee it was cast to.
+    if c.types->Kind( u ) = Tko.TK_POINTER then return 3
     if c.types->Kind( u ) <> Tko.TK_BUILTIN then return 0
     select case Tko.BuiltinClass( c.types->BuiltinOf( u ) )
     case Tko.TC_INT, Tko.TC_INTPTR : return 1
@@ -136,7 +147,9 @@ private function NoConvOperand_ _
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
 
     dim as Tko.NodeId op = Tko.NODE_NONE
-    if nm = "cast" then
+    '' 'cptr' TAKES A TYPE AND A VALUE exactly as 'cast' does, and is the spelling
+    '' the corpus uses for a pointer one.
+    if (nm = "cast") orelse (nm = "cptr") then
         if lp->count <> 2 then return Tko.NODE_NONE
         op = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
     else

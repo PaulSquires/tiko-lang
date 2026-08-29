@@ -1,3 +1,26 @@
+'' THE ELEMENT SIZE POINTER ARITHMETIC SCALES BY, or 0 when the type is not a
+'' pointer at all.
+''
+'' An ANY POINTEE COUNTS AS ONE. 'any' has size 0 in the type table -- it is the
+'' absence of a type -- and fbc still advances an 'any ptr' by ONE per unit:
+'' 'A$0 = (void*)((uint8*)A$0 + 1ll)'. Taking the size raw would multiply by zero
+'' and never move.
+function PtrArithElem_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as long
+
+    if t = Tko.TYPE_NONE then return 0
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    end if
+    if c.types->Kind( u ) <> Tko.TK_POINTER then return 0
+    dim as Tko.TypeId el = c.types->Inner( u )
+    if el = Tko.TYPE_NONE then return 1
+    dim as long sz = SizeOfType( c, el )
+    if sz < 1 then sz = 1
+    return sz
+end function
+
 '' lowerexpr.bas -- LowerExpr, the expression dispatcher.
 ''
 '' Split out of lower.bas at the 1500-line cap and INCLUDED from it, in the same place,
@@ -481,6 +504,44 @@ function LowerExpr _
         if IsFloatTy( cast( MirType, r.ty ) ) then opTy = cast( MirType, r.ty )
         l = Coerce( c, l, opTy, IsUnsignedType( c, lt ) )
         r = Coerce( c, r, opTy, IsUnsignedType( c, rt ) )
+
+        '' POINTER ARITHMETIC IS SCALED BY THE POINTEE, and none of it was.
+        '' 'dim as short ptr q = p + 1' emitted 'add p, 1' -- one BYTE -- where fbc
+        '' writes '(int16*)((uint8*)P$0 + 2ll)'. Every pointer walk over anything
+        '' wider than a byte was off, silently, and it verified.
+        ''
+        '' Measured, all four shapes from one probe:
+        ''
+        ''   p + 1     over 'short ptr'    (uint8*)P + 2
+        ''   1 + p     the same                          -- either side scales
+        ''   r - 2     over 'integer ptr'  (uint8*)R + -16
+        ''   a + 1     over 'any ptr'      (uint8*)A + 1  -- an ANY pointee is 1
+        ''   q - p     both pointers       ((int64)Q - (int64)P) / 2
+        ''
+        '' The last is a DIVISION of the byte difference, not a scaling of an
+        '' operand, so it is done after the subtract.
+        dim as boolean lPtr = PtrArithElem_( c, lt ) > 0
+        dim as boolean rPtr = PtrArithElem_( c, rt ) > 0
+        dim as boolean addSub = (tk = Tko.TK_PLUS) orelse (tk = Tko.TK_MINUS)
+        if addSub andalso (lPtr <> rPtr) then
+            dim as long esz = PtrArithElem_( c, lt )
+            if lPtr = false then esz = PtrArithElem_( c, rt )
+            if esz > 1 then
+                dim as MirInst sc
+                sc.op = cast( ushort, M_MUL )
+                sc.ty = cast( ubyte, opTy )
+                sc.b = ConstInt( c, esz, opTy )
+                if lPtr then
+                    sc.a = r
+                    r = Emit( c, sc )
+                    if r.kind = cast( ubyte, MV_NONE ) then return v
+                else
+                    sc.a = l
+                    l = Emit( c, sc )
+                    if l.kind = cast( ubyte, MV_NONE ) then return v
+                end if
+            end if
+        end if
         '' IMP and EQV are two instructions each and so have no entry in the table.
         if (tk = Tko.KW_IMP) orelse (tk = Tko.KW_EQV) then
             return EmitImpEqv_( c, tk, opTy, l, r )
@@ -493,6 +554,23 @@ function LowerExpr _
         ins.a = l
         ins.b = r
         dim as MirValue res = Emit( c, ins )
+
+        '' ...AND THE DIFFERENCE OF TWO POINTERS IS DIVIDED by the element size,
+        '' which is the one shape that scales the RESULT rather than an operand.
+        dim as boolean isSub = (tk = Tko.TK_MINUS)
+        dim as boolean bothPtr = lPtr andalso rPtr
+        if isSub andalso bothPtr then
+            dim as long dsz = PtrArithElem_( c, lt )
+            if dsz > 1 then
+                dim as MirInst dv
+                dv.op = cast( ushort, M_SDIV )
+                dv.ty = cast( ubyte, ins.ty )
+                dv.a = res
+                dv.b = ConstInt( c, dsz, cast( MirType, ins.ty ) )
+                res = Emit( c, dv )
+                if res.kind = cast( ubyte, MV_NONE ) then return v
+            end if
+        end if
 
         '' A COMPARISON USED AS A VALUE IS NEGATED. Measured, in every value position
         '' fbc has: 'R = -(A < B)', 'print -(A < B)', 'Y = (int8)-(A < B)' -- so the

@@ -64,81 +64,93 @@ func i32 main($0, $1) {
     %40 = load @q
     %41 = load @p
     %42 = sub %40, %41
-    call.rtl void fb_PrintLongint(0, %42, 1)
-    %43 = load @s
-    %44 = load @r
-    %45 = sub %43, %44
-    call.rtl void fb_PrintLongint(0, %45, 1)
-    %46 = const i64 8
-    call.rtl void fb_PrintLongint(0, %46, 1)
-    %47 = load @p
-    %48 = load @n
-    %49 = sext %48
-    %50 = bitcast %49
-    %51 = add %47, %50
-    %52 = load %51
-    call.rtl void fb_PrintInt(0, %52, 1)
-    %53 = load @n
-    %54 = load @p
-    %55 = sext %53
-    %56 = bitcast %55
-    %57 = add %56, %54
-    %58 = load %57
-    call.rtl void fb_PrintInt(0, %58, 1)
-    %59 = load @q
-    %60 = load @n
-    %61 = sext %60
-    %62 = bitcast %61
-    %63 = sub %59, %62
+    %43 = const i64 4
+    %44 = sdiv %42, %43
+    call.rtl void fb_PrintLongint(0, %44, 1)
+    %45 = load @s
+    %46 = load @r
+    %47 = sub %45, %46
+    call.rtl void fb_PrintLongint(0, %47, 1)
+    %48 = const i64 8
+    call.rtl void fb_PrintLongint(0, %48, 1)
+    %49 = load @p
+    %50 = load @n
+    %51 = sext %50
+    %52 = bitcast %51
+    %53 = const ptr 4
+    %54 = mul %52, %53
+    %55 = add %49, %54
+    %56 = load %55
+    call.rtl void fb_PrintInt(0, %56, 1)
+    %57 = load @n
+    %58 = load @p
+    %59 = sext %57
+    %60 = bitcast %59
+    %61 = const ptr 4
+    %62 = mul %60, %61
+    %63 = add %62, %58
     %64 = load %63
     call.rtl void fb_PrintInt(0, %64, 1)
-    %65 = alloca ptr t
-    %66 = load @p
-    %67 = const i64 2
+    %65 = load @q
+    %66 = load @n
+    %67 = sext %66
     %68 = bitcast %67
-    %69 = add %66, %68
-    store @t, %69
-    %70 = load @t
-    %71 = load %70
-    call.rtl void fb_PrintInt(0, %71, 1)
-    %72 = alloca ptr d
-    %73 = load @q
+    %69 = const ptr 4
+    %70 = mul %68, %69
+    %71 = sub %65, %70
+    %72 = load %71
+    call.rtl void fb_PrintInt(0, %72, 1)
+    %73 = alloca ptr t
     %74 = load @p
-    %75 = sub %73, %74
-    %76 = trunc %75
-    store @d, %76
-    %77 = load @d
-    call.rtl void fb_PrintInt(0, %77, 1)
-    %78 = load @p
-    %79 = const i64 0
-    %80 = bitcast %79
-    %81 = icmp.ne %78, %80
-    condbr %81, if.then2, if.else3
+    %75 = const i64 2
+    %76 = bitcast %75
+    %77 = const ptr 4
+    %78 = mul %76, %77
+    %79 = add %74, %78
+    store @t, %79
+    %80 = load @t
+    %81 = load %80
+    call.rtl void fb_PrintInt(0, %81, 1)
+    %82 = alloca ptr d
+    %83 = load @q
+    %84 = load @p
+    %85 = sub %83, %84
+    %86 = const i64 4
+    %87 = sdiv %85, %86
+    %88 = trunc %87
+    store @d, %88
+    %89 = load @d
+    call.rtl void fb_PrintInt(0, %89, 1)
+    %90 = load @p
+    %91 = const i64 0
+    %92 = bitcast %91
+    %93 = icmp.ne %90, %92
+    condbr %93, if.then2, if.else3
   if.join1:
-    %83 = load @p
-    %84 = load @q
-    %85 = icmp.slt %83, %84
-    condbr %85, if.then5, if.else6
+    %95 = load @p
+    %96 = load @q
+    %97 = icmp.slt %95, %96
+    condbr %97, if.then5, if.else6
   if.then2:
-    %82 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 7)
-    call.rtl void fb_PrintString(0, %82, 1)
+    %94 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 7)
+    call.rtl void fb_PrintString(0, %94, 1)
     br if.join1
   if.else3:
     br if.join1
   if.join4:
-    %87 = load @p
-    %88 = const i64 0
-    %89 = bitcast %88
-    %90 = icmp.eq %87, %89
-    %91 = neg %90
-    call.rtl void fb_PrintLongint(0, %91, 1)
-    %92 = const i32 0
-    call.rtl void fb_End(%92)
-    %93 = load @$tmp0
-    ret %93
+    %99 = load @p
+    %100 = const i64 0
+    %101 = bitcast %100
+    %102 = icmp.eq %99, %101
+    %103 = neg %102
+    call.rtl void fb_PrintLongint(0, %103, 1)
+    %104 = const i32 0
+    call.rtl void fb_End(%104)
+    %105 = load @$tmp0
+    ret %105
   if.then5:
-    %86 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 6)
-    call.rtl void fb_PrintString(0, %86, 1)
+    %98 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 6)
+    call.rtl void fb_PrintString(0, %98, 1)
     br if.join4
   if.else6:
     br if.join4
@@ -150,4 +162,4 @@ declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 7 blocks, 118 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 7 blocks, 130 insts, 0 statements not lowered, 0 scope imbalance

@@ -176,6 +176,8 @@ end type
 
 declare function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
 declare function NoVal( ) as MirValue
+declare function PtrArithElem_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as long
 declare function LowerExpr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 '' An expression lowered as a CONDITION: the same lowering, with the top-level
 '' comparison left un-negated because a branch only asks whether it is nonzero.
