@@ -113,10 +113,23 @@ private function MacroFor( byref e as PpEngine, byval id as InternId ) as PpMacr
     return m
 end function
 
+'' FBC HAS NO HIDE SET. This painted every macro blue for the whole of its own
+'' expansion, the way C does, and that is not FreeBASIC: measured,
+''
+''     #define f(x) x        print f(f(f(f(1))))    fbc prints 1, tiko-lang declined
+''     #define M(A,B) __FB_JOIN__(A,B)
+''                           M( A, M( B, C ) )      fbc gives 123, tiko-lang gave 1
+''                                                  AND left 'm ( 2 , 3 )' in the
+''                                                  stream -- a wrong value, emitted
+''
+'' A macro reached again through its own ARGUMENT is an ordinary nested invocation to
+'' fbc, and only TRUE self-recursion is refused: '#define f(x) f(x)' and '#define A A+1'
+'' are both 'error 89: Recursive DEFINE not allowed'.
+''
+'' Nothing is hidden now, and runaway expansion is caught where it always was -- the
+'' frame cap, PP_MAX_FRAMES, which reports TKO0304 and stops. The 'hides' field stays
+'' on the frame because the dump reads it.
 private function IsHidden( byref e as PpEngine, byval id as InternId ) as boolean
-    for i as long = 0 to e.frames.Count - 1
-        if e.frames[i].hides = id then return true
-    next
     return false
 end function
 

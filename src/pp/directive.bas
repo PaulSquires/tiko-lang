@@ -475,10 +475,27 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         case "private", "profile"
             PragmaOption( e, at, opt, isPush, isPop )
             SkipToEol( e )
+        case "once"
+            '' '#pragma once' IS '#include once' SAID FROM THE OTHER END, and it was a
+            '' NO-OP -- listed as recognised and then skipped. So a header guarded that
+            '' way was re-read every time, and one that includes ITSELF, which
+            '' pp/inc2self.bi does, recursed until the frame cap.
+            ''
+            '' The file is the one this directive is IN, not the one being included,
+            '' which is why it cannot share PpInclude's push.
+            if e.frames.IsEmpty( ) = false then
+                dim as FileId cf = e.frames[e.frames.Count - 1].file
+                if cf <> FILE_NONE then
+                    if PpAlreadyOnce( e, cf ) = false then
+                        e.onceFiles.Push( cast( ulong, cf ) )
+                    end if
+                end if
+            end if
+            SkipToEol( e )
         case else
             SkipToEol( e )
             select case which
-            case "once", "push", "pop", "msg", "reserve"
+            case "push", "pop", "msg", "reserve"
             case else
                 if len( which ) > 0 then Report( e, TKO0312, at, which )
             end select
