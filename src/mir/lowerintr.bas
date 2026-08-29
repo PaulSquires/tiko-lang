@@ -314,20 +314,6 @@ function LowerCompoundAssign _
         return true
     end if
 
-    dim as Tko.TokenKind bop = Tko.TK_EOF
-    select case op
-    case Tko.TK_PLUSEQ   : bop = Tko.TK_PLUS
-    case Tko.TK_MINUSEQ  : bop = Tko.TK_MINUS
-    case Tko.TK_STAREQ   : bop = Tko.TK_STAR
-    case Tko.TK_SLASHEQ  : bop = Tko.TK_SLASH
-    case Tko.TK_BSLASHEQ : bop = Tko.TK_BACKSLASH
-    case Tko.TK_CARETEQ  : bop = Tko.TK_CARET
-    case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_IMP, Tko.KW_EQV, _
-         Tko.KW_MOD, Tko.KW_SHL, Tko.KW_SHR
-        bop = op
-    case else            : return false
-    end select
-
     dim as Tko.TypeId tt = c.info->TypeOf_( target )
     if tt = Tko.TYPE_NONE then return false
 
@@ -345,6 +331,27 @@ function LowerCompoundAssign _
     '' punctuation ones and 'and=' for the word ones, which is exactly what the parser
     '' interns for 'operator and=' (two tokens, one name).
     if SelfOpMemberCall_( c, target, value, op, tt ) then return true
+
+    '' ...AND THE MEMBER CALL IS TRIED BEFORE THE OPERATOR MAP, because '&=' is not IN
+    '' that map. It is a CONCATENATION and never an arithmetic operator, so it reached
+    '' 'case else' and declined before SelfOpMemberCall_ -- which has known '&=' since
+    '' it was written -- ever ran. Nothing to do with strings: a UDT declaring both
+    '' '+=' and '&=' over plain integers lowered the first and declined the second.
+    '' Measured, fbc: '_ZN3BARv27selfcatERS_( &L$0, &R$0 );'.
+
+    dim as Tko.TokenKind bop = Tko.TK_EOF
+    select case op
+    case Tko.TK_PLUSEQ   : bop = Tko.TK_PLUS
+    case Tko.TK_MINUSEQ  : bop = Tko.TK_MINUS
+    case Tko.TK_STAREQ   : bop = Tko.TK_STAR
+    case Tko.TK_SLASHEQ  : bop = Tko.TK_SLASH
+    case Tko.TK_BSLASHEQ : bop = Tko.TK_BACKSLASH
+    case Tko.TK_CARETEQ  : bop = Tko.TK_CARET
+    case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_IMP, Tko.KW_EQV, _
+         Tko.KW_MOD, Tko.KW_SHL, Tko.KW_SHR
+        bop = op
+    case else            : return false
+    end select
 
     dim as MirType mt = LowerType( tt, *c.types )
     if (mt = MT_VOID) orelse (mt = MT_AGG) then return false

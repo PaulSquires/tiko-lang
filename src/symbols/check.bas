@@ -1253,7 +1253,25 @@ function TypeOf_ _
         end if
         if t = Tko.TYPE_NONE then
             dim as Tko.TypeId inner = TypeOf_( c, ap->operand )
-            if inner <> Tko.TYPE_NONE then t = c.types->Pointer_( inner )
+            '' A UDT MAY OVERLOAD '@'. 'operator foo.@ ( ) as integer ptr' makes '@f'
+            '' a CALL whose result is that pointer, not the object's own address --
+            '' measured, fbc emits 'int64* vr$2 = _ZN3FOOadEv( &F$0 );' and prints the
+            '' field the operator points at, 999, where taking the address of the
+            '' object would have read the one before it, 111. Typed as 'foo ptr' here
+            '' and stored as '@f' in lowering, it was WRONG rather than declined.
+            dim as Tko.SymbolId aop = UdtMemberSym_( c, inner, "@" )
+            if aop <> Tko.SYMBOL_NONE then
+                dim as Tko.Symbol ptr aos = c.syms->SymbolAt( aop )
+                if aos <> 0 then
+                    if (aos->kind = cast( ubyte, Tko.SYM_PROC )) andalso _
+                       (aos->type_ <> Tko.TYPE_NONE) then
+                        t = aos->type_
+                    end if
+                end if
+            end if
+            if (t = Tko.TYPE_NONE) andalso (inner <> Tko.TYPE_NONE) then
+                t = c.types->Pointer_( inner )
+            end if
         end if
     end select
 

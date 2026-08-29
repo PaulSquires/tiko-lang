@@ -160,6 +160,27 @@ function LowerExpr _
         '' that would not lower skipped its store without counting it.
         dim as Tko.UnaryPayload ptr ap = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' A UDT MAY OVERLOAD '@', and then '@f' is a CALL. Measured, fbc emits
+        '' 'int64* vr$2 = _ZN3FOOadEv( &F$0 );' and prints the field the operator
+        '' points at, 999, where the object's own address reads the one before it,
+        '' 111 -- so this was WRONG rather than declined, with 0 statements not
+        '' lowered to say so. overload/op_addrof.bas.
+        dim as Tko.TypeId aoT = c.info->TypeOf_( ap->operand )
+        if aoT <> Tko.TYPE_NONE then
+            if c.types->Kind( c.types->Unqualify( aoT ) ) = Tko.TK_UDT then
+                dim as Tko.SymbolId aoOp = _
+                    UdtMemberNamed_( c, c.types->Unqualify( aoT ), "@" )
+                if aoOp <> Tko.SYMBOL_NONE then
+                    dim as MirValue aoSelf = LowerAddr( c, ap->operand )
+                    if aoSelf.kind <> cast( ubyte, MV_NONE ) then
+                        dim as FB.Array( of ulong ) aoArgs
+                        aoArgs.Push( cast( ulong, aoSelf.kind ) )
+                        aoArgs.Push( cast( ulong, aoSelf.id ) )
+                        return EmitDirectCall_( c, aoOp, MT_PTR, aoArgs )
+                    end if
+                end if
+            end if
+        end if
         '' '@"lit"' IS THE ADDRESS OF THE BYTES, which is what a 'zstring ptr'
         '' parameter wants. A literal has no lvalue, so LowerAddr answered NOTHING and
         '' every 'printf( @"%d", n )' passed an unresolved value as its format.

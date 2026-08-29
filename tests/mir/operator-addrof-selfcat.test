@@ -1,0 +1,7 @@
+'' A user-defined 'operator @' -- ignored outright, not declined -- and 'operator &='.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/operator-addrof-selfcat.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/operator-addrof-selfcat.out

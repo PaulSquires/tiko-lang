@@ -416,6 +416,12 @@ private function OperatorCode _
     '' It was falling through to the VENDOR EXTENSION below and coming out as
     '' '_Zv12->R6HOLDER' -- a link error against every smart pointer there is.
     case "->"  : return "pt"
+
+    '' ...AND '@' IS 'ad', the same way and for the same reason: measured, fbc emits
+    '' 'int64* _ZN3FOOadEv( struct $3FOO* THIS$1 )' for 'operator foo.@ ( ) as integer
+    '' ptr', while the vendor extension spelled it '_ZN3FOOv11@Ev'. One form only --
+    '' FreeBASIC has no binary '@'.
+    case "@"   : return "ad"
     '' THE COMPOUND ASSIGNMENTS. Measured, all fifteen, and the split between the
     '' Itanium codes and the vendor extension is not the one the binary operators
     '' make: 'mod=' and 'shl=' have codes while '\=' and '^=' do not, and '&=' -- FB's

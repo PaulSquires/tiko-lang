@@ -236,6 +236,16 @@ namespace mgops
     operator OpIx.[] ( byval i as long ) byref as long
         return this.v
     end operator
+
+    '' 'operator @' IS 'ad', one form only -- FreeBASIC has no binary '@'. It fell to
+    '' the VENDOR EXTENSION and came out '_ZN3FOOv11@Ev', a name nothing defines.
+    type OpAd
+        v as long
+        declare operator @ ( ) as long ptr
+    end type
+    operator OpAd.@ ( ) as long ptr
+        return @this.v
+    end operator
 end namespace
 
 '' ---- GLOBAL OPERATORS. Not nested and not overloaded, so the plain rule would take
