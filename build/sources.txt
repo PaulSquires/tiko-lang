@@ -19,4 +19,7 @@ str/base.bas
 str/set.bas
 str/assign.bas
 str/concat.bas
+str/tempdesc.bas
+str/instrany.bas
+str/legacycase.bas
 ustr/utf.bas
