@@ -6,3 +6,5 @@ support/list.bas
 str/core.bas
 str/wide.bas
 err/getset.bas
+str/basic.bas
+str/slice.bas
