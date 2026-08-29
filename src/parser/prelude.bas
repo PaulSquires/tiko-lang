@@ -60,6 +60,14 @@ private function PreludeText( ) as string
     t += "declare function setenviron alias ""fb_SetEnviron"" ( byref s as const string ) as long" & chr( 10 )
     t += "declare function command alias ""fb_Command"" ( byval n as long = -1 ) as string" & chr( 10 )
     t += "declare function timer alias ""fb_Timer"" ( ) as double" & chr( 10 )
+    '' DATE AND TIME were in the runtime table with NO CALLER AT ALL, so every use of
+    '' either declined -- as an argument, in a DIM and in a PRINT alike, and
+    '' fbcunit's own run_tests writes 'print_output( date() & " " & time() )'.
+    '' Measured: 'FBSTRING* fb_Date( void )' and 'FBSTRING* fb_Time( void )', both
+    '' with no parameter, which is why they belong beside CURDIR and not beside
+    '' COMMAND.
+    t += "declare function date alias ""fb_Date"" ( ) as string" & chr( 10 )
+    t += "declare function time alias ""fb_Time"" ( ) as string" & chr( 10 )
     t += "'' THE REST OF THE PREDECLARED BUILTINS, each alias MEASURED from fbc's own C." & chr( 10 )
     t += "'' None of them is guessable and two are traps:" & chr( 10 )
     t += "''   RND with no argument is fb_Rnd( 1.0f ) -- the default is ONE, not 0 or -1," & chr( 10 )

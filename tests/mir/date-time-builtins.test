@@ -1,0 +1,9 @@
+'' date( ) and time( ): two runtime entry points that had no caller.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/date-time-builtins.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_Date
+'' EXPECT-OUT: fb_Time
+'' GOLDEN: expected/date-time-builtins.out
