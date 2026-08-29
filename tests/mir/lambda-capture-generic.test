@@ -1,0 +1,8 @@
+'' A capturing lambda inside a generic function: the closure type is built by the walk
+'' of the body, so the body is walked before the lambdas hoisted out of it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lambda-capture-generic.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/lambda-capture-generic.out

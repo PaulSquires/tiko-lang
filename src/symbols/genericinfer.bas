@@ -267,6 +267,63 @@ private function InferArgType_ _
     case Tko.N_STRING_LIT
         return c.types->Builtin( Tko.TY_STRING )
 
+    case Tko.N_UNARY
+        '' '-x', '+x' AND 'not x'. Without this a generic called with a NEGATIVE
+        '' LITERAL inferred nothing: 'ExitEarly( -4 )' declined while
+        '' 'ExitEarly( 4 )' on the line above instantiated, which is the last
+        '' declining statement in generics/lambda-in-generic.bas.
+        ''
+        '' MEASURED with '#print typeof', and the sign operators and NOT do NOT
+        '' follow the same rule:
+        ''
+        ''     -b -s -ul -q -uq -i -ui    INTEGER      every integral operand
+        ''     -f                         SINGLE
+        ''     -d                         DOUBLE
+        ''     -bo                        fbc error 20, type mismatch
+        ''     not bo                     BOOLEAN
+        ''     not ui, not uq             UINTEGER     the 64-bit unsigned pair
+        ''     not ub, not us, not ul     INTEGER      a narrower unsigned fits
+        ''     not f, not d               INTEGER
+        ''
+        '' -- so '-' forces SIGNED where 'not' keeps an operand that already fills
+        '' the integer width unsigned. Neither is BinaryResult over (t,t): 'uq - uq'
+        '' is UINTEGER where '-uq' is INTEGER.
+        dim as Tko.UnaryPayload ptr uup = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+        dim as Tko.TokenKind uop = cast( Tko.TokenKind, uup->op )
+        dim as boolean isSign = (uop = Tko.TK_MINUS) orelse (uop = Tko.TK_PLUS)
+        if (isSign = false) andalso (uop <> Tko.KW_NOT) then return Tko.TYPE_NONE
+        dim as Tko.TypeId ut = InferArgType_( c, uup->operand, scope_ )
+        if ut = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        dim as Tko.TypeId uu = c.types->Unqualify( ut )
+        if c.types->Kind( uu ) = Tko.TK_REFERENCE then
+            uu = c.types->Unqualify( c.types->Inner( uu ) )
+        end if
+        if c.types->Kind( uu ) <> Tko.TK_BUILTIN then return Tko.TYPE_NONE
+        dim as Tko.BuiltinType ub = c.types->BuiltinOf( uu )
+        if isSign then
+            select case ub
+            case Tko.TY_SINGLE, Tko.TY_DOUBLE
+                return c.types->Builtin( ub )
+            case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, _
+                 Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
+                 Tko.TY_LONGINT, Tko.TY_ULONGINT
+                return c.types->Builtin( Tko.TY_INTEGER )
+            end select
+            return Tko.TYPE_NONE
+        end if
+        select case ub
+        case Tko.TY_BOOLEAN
+            return c.types->Builtin( Tko.TY_BOOLEAN )
+        case Tko.TY_UINTEGER, Tko.TY_ULONGINT
+            return c.types->Builtin( Tko.TY_UINTEGER )
+        case Tko.TY_SINGLE, Tko.TY_DOUBLE, Tko.TY_BYTE, Tko.TY_UBYTE, _
+             Tko.TY_SHORT, Tko.TY_USHORT, Tko.TY_LONG, Tko.TY_ULONG, _
+             Tko.TY_INTEGER, Tko.TY_LONGINT
+            return c.types->Builtin( Tko.TY_INTEGER )
+        end select
+        return Tko.TYPE_NONE
+
     case Tko.N_ADDROF
         '' '@cmp' AND A LAMBDA, which is '@' over its generated name. There was no
         '' case for either, so 'SortBy( a, function( ... ) ... end function )'

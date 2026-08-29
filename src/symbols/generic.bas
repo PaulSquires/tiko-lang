@@ -627,10 +627,28 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             c.info->Resize( c.ast->Count( ) )
             Tko.Collect.One( *c.ast, fresh, home, *c.syms, *c.names, *c.types, _
                              *c.diags, *c.info )
+            '' THE BODY IS WALKED FIRST, and the hoisted lambdas after it.
+            ''
+            '' A CAPTURING lambda's closure TYPE is synthesised when the N_CLOSURE
+            '' node inside the body is walked -- that is the only point where the
+            '' captured names are in scope -- and the hoisted invoke procedure's
+            '' prologue reads that type's '__CAP_' fields through its own receiver.
+            '' Walked first, the invoke body named a type that did not exist yet, so
+            '' every 'var byref <name> = *__tko_cl.__CAP_<NAME>' had no reference to
+            '' bind and the body that used it declined with it:
+            ''
+            ''     sub[ byref total, byval bias ]( byval v as long )
+            ''         total = v + bias
+            ''     end sub
+            ''
+            '' -- inside a generic. The same lambda written in an ORDINARY procedure
+            '' lowered, which is what says the shape is fine and only the order was
+            '' wrong. COLLECT still runs lambdas-first: '@__tko_lambda_...' in the
+            '' body has to resolve, and that needs the symbol, not the walk.
+            WalkStmt( c, fresh, home )
             for li as long = 0 to q.lambdas.Count - 1
                 WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), home )
             next
-            WalkStmt( c, fresh, home )
             '' Collect declares its own symbol for a fresh unqualified definition, and
             '' that one carries the node. The symbol the CALL SITE was given is the one
             '' declared before the body existed, so it is pointed at the same node here
@@ -1097,10 +1115,13 @@ private sub InstantiateMembers_ _
         c.info->Resize( c.ast->Count( ) )
         Tko.Collect.One( *c.ast, fresh, scope_, *c.syms, *c.names, *c.types, _
                          *c.diags, *c.info )
+        '' BODY FIRST, then its lambdas -- the same order and the same reason as in
+        '' InstantiatePendingProcs_ above: a capturing lambda's closure type is
+        '' synthesised by the walk of the N_CLOSURE node inside the body.
+        WalkStmt( c, fresh, scope_ )
         for li as long = 0 to q.lambdas.Count - 1
             WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), scope_ )
         next
-        WalkStmt( c, fresh, scope_ )
     next
 
     while c.gparamName.Count > gmark

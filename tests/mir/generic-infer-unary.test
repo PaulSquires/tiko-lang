@@ -1,0 +1,8 @@
+'' A generic called with a unary expression: the sign operators and NOT each have
+'' their own measured result type.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-infer-unary.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-infer-unary.out
