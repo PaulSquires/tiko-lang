@@ -1052,9 +1052,6 @@ declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
       byref outv as FB.Array( of ulong ) )
 
-declare function LowerUdtArrayInit_ _
-    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId ) as boolean
 
 declare function LowerStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
@@ -1300,7 +1297,7 @@ end function
 '' constructs each element once, from its initialiser, and never twice. A type holding
 '' a string is the case that notices, because an aggregate store there would leave two
 '' objects owning one buffer and both would release it.
-private function LowerUdtElemInit_ _
+function LowerUdtElemInit_ _
     ( byref c as Ctx, byref dst as MirValue, byval et as Tko.TypeId, _
       byval e as Tko.NodeId ) as boolean
 
@@ -1365,9 +1362,11 @@ end function
 '' A BRACE INITIALISER OVER AN ARRAY OF UDT, element by element. An element the list
 '' does not name is left as the declaration made it -- default-constructed or zeroed --
 '' which is what fbc does with a short list.
-private function LowerUdtArrayInit_ _
+'' The destination is a SLOT or, for a STATIC LOCAL, an ADDRESS -- selfv. A static's
+'' storage is a GLOBAL and has no slot.
+function LowerUdtArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     '' THE ELEMENT'S SIZE, through SizeOfType rather than Layout( ).size: a UDT's
@@ -1380,9 +1379,13 @@ private function LowerUdtArrayInit_ _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
 
     dim as MirValue base_
-    base_.kind = cast( ubyte, MV_LOCAL )
-    base_.ty = cast( ubyte, MT_PTR )
-    base_.id = slot
+    if selfv <> 0 then
+        base_ = *selfv
+    else
+        base_.kind = cast( ubyte, MV_LOCAL )
+        base_.ty = cast( ubyte, MT_PTR )
+        base_.id = slot
+    end if
 
     for i as long = 0 to lp->count - 1
         if (total > 0) andalso (i >= total) then exit for

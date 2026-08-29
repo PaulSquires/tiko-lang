@@ -1,0 +1,7 @@
+'' A static array of a ctor-bearing UDT with a per-element initialiser list.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-udt-array-ctor.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/static-udt-array-ctor.out

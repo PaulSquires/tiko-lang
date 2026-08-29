@@ -793,6 +793,27 @@ function LowerStaticLocalInit_ _
     else
         wantsC = ArrayElemNeedsInit_( c, t )
         wantsD = ArrayElemNeedsDtor_( c, t )
+        '' ...AND AN INITIALISER LIST OVER A UDT ELEMENT WANTS CONSTRUCTING TOO, even
+        '' when the element needs no DEFAULT construction. 'static as bar b1(0 to 4) =
+        '' { bar(1), ... }' over a bar whose only constructor takes an argument answered
+        '' 'nothing to do' here and fell to the byte-image fold, which cannot fold a
+        '' constructor call and declined. Measured, fbc emits no image at all -- a
+        '' run-once guard and one ctor call per element:
+        ''
+        ''     _ZN3BARC1Eu7INTEGER( (struct $3BAR*)B1$1, 1ll );
+        ''     _ZN3BARC1Eu7INTEGER( (struct $3BAR*)((uint8*)B1$1 + 8ll), 2ll );
+        ''
+        '' and run, it prints ' 1 2 5' on both calls.
+        if (wantsC = false) andalso (init_ <> Tko.NODE_NONE) then
+            if c.types->Kind( t ) = Tko.TK_ARRAY then
+                dim as Tko.TypeId el0 = c.types->Unqualify( c.types->Inner( t ) )
+                if c.types->Kind( el0 ) = Tko.TK_UDT then
+                    if StructorOf( c, el0, "__ctor" ) <> Tko.SYMBOL_NONE then
+                        wantsC = true
+                    end if
+                end if
+            end if
+        end if
     end if
     if (wantsC = false) andalso (wantsD = false) then return false
 
@@ -849,7 +870,14 @@ function LowerStaticLocalInit_ _
                 constructed = true
             end if
         elseif wantsC then
-            EmitArrayElemsAt_( c, ga, t, true )
+            '' THE LIST FIRST, when there is one: it names each element's own
+            '' constructor arguments, and default-constructing over it would throw
+            '' them away.
+            dim as boolean listed = false
+            if init_ <> Tko.NODE_NONE then
+                listed = LowerUdtArrayInit_( c, -1, t, init_, @ga )
+            end if
+            if listed = false then EmitArrayElemsAt_( c, ga, t, true )
             constructed = true
         end if
     end if

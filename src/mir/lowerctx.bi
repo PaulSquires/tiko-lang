@@ -510,6 +510,11 @@ declare function EmitRtl _
           byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
     declare sub StoreThrough _
         ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
+    '' A brace initialiser over an array of UDT. 'selfv' is the destination when there
+    '' is no slot -- a STATIC local's storage is a global.
+    declare function LowerUdtArrayInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
     declare function LowerUdtParenInit_ _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
           byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
