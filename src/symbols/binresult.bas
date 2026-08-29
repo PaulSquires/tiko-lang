@@ -86,6 +86,45 @@ function BinaryResult _
     dim as boolean lBool = (lb = Tko.TY_BOOLEAN)
     dim as boolean rBool = (rb = Tko.TY_BOOLEAN)
 
+    '' A BARE ZSTRING OR WSTRING AGAINST A NUMBER DECAYS TO ITS FIRST CHARACTER.
+    '' That is not the same rule as "mixing a string with a number rejects", which is
+    '' what stood here and is right for every other string: measured,
+    ''
+    ''     dim p as zstring ptr = strptr( s )     '#print typeof( *p )'      ZSTRING
+    ''     *p + 0                                                           INTEGER
+    ''     *p + 1.5                                                         DOUBLE
+    ''     *pw + 0     over a wstring ptr                                   INTEGER
+    ''     s + 0       over a var-length string                             error 20
+    ''     z + 0       over a 'zstring * 8'                                 error 20
+    ''     *p + *p     two bare ones                                        error 20
+    ''     *p & "x"                                                         STRING
+    ''
+    '' and run, 'print *p + 0' over "abc" prints 97 -- fbc writes '(int64)*P$0', its
+    '' first character, ZERO-extended. The bare builtin is exactly what dereferencing
+    '' a pointer gives; a fixed-length string is an ARRAY of it and does not decay.
+    ''
+    '' Without this the pair had NO TYPE, and with no type the concat fallback won:
+    '' 'print *p + 0' came out as fb_StrConcat and printed "abc0". It verified.
+    '' '&' is decided above and stays a concatenation either way.
+    dim as boolean lBare = (lb = Tko.TY_ZSTRING) orelse (lb = Tko.TY_WSTRING)
+    dim as boolean rBare = (rb = Tko.TY_ZSTRING) orelse (rb = Tko.TY_WSTRING)
+    '' COMPARISON DECAYS TOO, when the other side is a number: measured, fbc writes
+    '' '(int64)(uint8)*P$0 >= 65ll' for '*p >= 65' -- a NUMERIC comparison, not a
+    '' string one -- and '#print typeof' says INTEGER. '*p = "abc"' still compares as
+    '' strings, because the test below is on the OTHER operand being numeric and a
+    '' literal is not.
+    scope
+        if lBare andalso rNum then
+            lb = iif( lb = Tko.TY_WSTRING, Tko.TY_USHORT, Tko.TY_UBYTE )
+            lStr = false
+            lNum = true
+        elseif rBare andalso lNum then
+            rb = iif( rb = Tko.TY_WSTRING, Tko.TY_USHORT, Tko.TY_UBYTE )
+            rStr = false
+            rNum = true
+        end if
+    end scope
+
     '' Strings concatenate with '+' and compare with anything; every other operator
     '' rejects them, and mixing a string with a number rejects too.
     if lStr orelse rStr then

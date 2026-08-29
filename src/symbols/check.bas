@@ -739,6 +739,27 @@ function TypeOf_ _
             end if
         end if
 
+        '' A BARE ZSTRING OR WSTRING UNDER A UNARY OPERATOR IS ITS FIRST CHARACTER,
+        '' the same decay the binary operators do against a number -- except that a
+        '' unary has no other operand to trigger it, and asking BinaryResult with the
+        '' SAME type on both sides asks the one question fbc answers with error 20:
+        '' '*p and *p' and '*p - *p' are both rejected while 'not *p' and '- *p' are
+        '' both INTEGER. Measured, and run over "abc": 'not *p' is -98 and '- *p' is
+        '' -97, with fbc writing '~(int64)*PW$0' for the wide one.
+        if inner <> Tko.TYPE_NONE then
+            dim as boolean unaryOp = (op = Tko.KW_NOT) orelse _
+                                     (op = Tko.TK_MINUS) orelse (op = Tko.TK_PLUS)
+            if unaryOp andalso IsBareCharStrBuiltin_( c, inner ) then
+                dim as Tko.BuiltinType ib = _
+                    c.types->BuiltinOf( c.types->Unqualify( inner ) )
+                if ib = Tko.TY_WSTRING then
+                    inner = c.types->Builtin( Tko.TY_USHORT )
+                else
+                    inner = c.types->Builtin( Tko.TY_UBYTE )
+                end if
+            end if
+        end if
+
         if inner <> Tko.TYPE_NONE then
             if op = Tko.KW_NOT then
                 '' NOT keeps BOOLEAN boolean and widens everything else, exactly as
