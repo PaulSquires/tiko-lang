@@ -5,10 +5,12 @@
 #
 # Two of these have teeth that the others do not:
 #
-#   PROVENANCE (check 1) is the rule from docs/tiko-rt/RFC-0005. A violation
-#   does not just break a build -- it retroactively devalues everything written
-#   before it, because a reimplementation by someone who has read libfb's C is
-#   not a clean room. So it is checked first and it is checked mechanically.
+#   PROVENANCE (check 1). R2 -- "never open a rtlib .c" -- was LIFTED on
+#   2026-08-29 (PROVENANCE.md), so this check no longer guards a clean room.
+#   It still guards something narrower and still worth having: tiko-rt is a
+#   REIMPLEMENTATION IN FREEBASIC, not a transliteration, and no .c belongs in
+#   this tree outside the closed list in src/c/. Reading a body to learn what a
+#   function does is now allowed; copying one in is not.
 #
 #   THE FREESTANDING SUBSET (check 2) is docs/tiko-rt/RFC-0003. The include path
 #   necessarily puts fb/*.bi, string.bi and the containers within reach; nothing

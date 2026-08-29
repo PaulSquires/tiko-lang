@@ -1,13 +1,52 @@
 # PROVENANCE
 
-## The rule
+> ## RULE R2 LIFTED — 2026-08-29, by the author, explicitly
+>
+> **`fbc-modern/src/src/rtlib/**/*.c` may now be read**, to make the remaining
+> implementation cheaper. Everything below this notice describes the rule that
+> was in force until that date and is kept because the record of *how* the first
+> 47 entry points were written is still true and still worth having.
+>
+> ### What this costs, stated plainly
+>
+> `libfb` is **LGPL-2.1-or-later**, and its static-linking exception defines its
+> own scope: *"An independent module is a module which is not derived from or
+> based on this library."* Code written from those bodies is derived from them,
+> so **tiko-rt is now a derivative work of `libfb` and is LGPL-2.1+**. Its source
+> must ship under LGPL if it ships at all.
+>
+> Programs **compiled by tiko** are unaffected: LGPL-2.1 §3 of the exception
+> permits extending the same static-linking exception to a modified version, and
+> tiko-rt does so (see LICENSE). End-user binaries stay licensable at will.
+>
+> What is actually given up is the option of tiko-rt being proprietary or
+> independently licensed — the "independence" argued for below.
+>
+> ### What remains true
+>
+> - **The first 47 entry points were written clean-room.** 39 probes, no `.c`
+>   opened, and the record of each contract is in the source at the site that
+>   depends on it. That history is not retroactively falsified; it is simply no
+>   longer the rule going forward.
+> - **Measurement still decides.** A body may now be read, but a contract is
+>   still only established when a probe or a differential agrees with it. Reading
+>   is a shortcut to the *question*, not an answer to it — the same discipline
+>   that has produced three consecutive first-run-identical modules.
+> - **No verbatim copying.** `lint.sh`'s check that no `.c` lives outside
+>   `src/c/` stays, and stays meaningful: this is a reimplementation in
+>   FreeBASIC, not a transliteration.
+
+---
+
+## The rule, as it stood until 2026-08-29
+### The rule
 
 **No file under `fbc-modern/src/src/rtlib/**/*.c` is ever opened by anyone
 working on this repository.**
 
 The specification is the headers, the FreeBASIC manual, and measurement.
 
-## Why it is absolute
+### Why it was absolute
 
 `libfb` is **LGPL v2.1+ with a static-linking exception**. That licence is not a
 reason to rewrite anything — programs linked against `libfb` are unencumbered

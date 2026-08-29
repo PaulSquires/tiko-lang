@@ -10,4 +10,11 @@ str/basic.bas
 str/slice.bas
 str/trim.bas
 str/mid.bas
+str/compare.bas
+str/del.bas
+str/fill.bas
+str/instr.bas
+str/instrrev.bas
+str/base.bas
+str/set.bas
 ustr/utf.bas

@@ -67,12 +67,23 @@ for src in "$RT_ROOT"/tests/abi/*.bas; do
     # of the source keeps flag and test together, so a new wrapper cannot forget
     # to bring its flag.
     # Stock: fbc's runtime, untouched.
+    # Backend, per file. Aliasing a RESERVED entry point -- fb_StrDelete is one --
+    # makes fbc emit two declarations of it in the generated C, with different
+    # parameter types, and gcc rejects the translation unit. The same source
+    # compiles under -gen llvm, which has no C type-checking layer to disagree
+    # with. A file that needs it says so in its own text.
+    #
+    # Both sides are compiled the same way, so the comparison stays valid: the
+    # backend is the harness, not the subject.
+    GENOPT=""
+    if grep -q 'NEEDS-GEN-LLVM' "$src"; then GENOPT="-gen llvm"; fi
+
     WRAP=""
     for sym in $(grep -oE '__real_[A-Za-z0-9_]+' "$src" | sed 's/^__real_//' | sort -u); do
         WRAP="$WRAP -Wl --wrap=$sym"
     done
 
-    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-stock.exe" $(rt_incflags) $WRAP \
+    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-stock.exe" $(rt_incflags) $GENOPT $WRAP \
             > "$WORK/$name-stock.build" 2>&1; then
         echo "diff: SKIP $name -- does not build against fbc's runtime" >&2
         sed 's/^/    /' "$WORK/$name-stock.build" >&2
@@ -81,7 +92,7 @@ for src in "$RT_ROOT"/tests/abi/*.bas; do
     fi
 
     # Merged: the same program, tiko-rt's objects ahead of the archive.
-    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-rt.exe" $(rt_incflags) $WRAP $OBJS \
+    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-rt.exe" $(rt_incflags) $GENOPT $WRAP $OBJS \
             > "$WORK/$name-rt.build" 2>&1; then
         echo "diff: FAIL $name -- does not link over tiko-rt" >&2
         sed 's/^/    /' "$WORK/$name-rt.build" >&2
