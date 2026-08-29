@@ -78,7 +78,8 @@ declare function ResolveTypeRef _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 declare function ArrayFromBounds _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval first as long, _
-      byval count as long ) as Tko.TypeId
+      byval count as long, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
 declare sub WalkStmt _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 declare function ListOf _
@@ -94,10 +95,12 @@ declare function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
-      byval emptyIsDynamic as boolean = false ) as Tko.TypeId
+      byval emptyIsDynamic as boolean = false, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
 declare function ArrayFromBoundsNode _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval id as Tko.NodeId, _
-      byval init as Tko.NodeId = Tko.NODE_NONE ) as Tko.TypeId
+      byval init as Tko.NodeId = Tko.NODE_NONE, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
 declare sub BackpatchTypedefs( byref c as Ctx )
 declare function IdentNameOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId

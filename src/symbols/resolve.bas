@@ -1024,7 +1024,7 @@ sub WalkStmt _
             '' 'dim as long a(0 to 9)' is an ARRAY of long, not a long. Without this a
             '' local array reserved one ELEMENT -- four bytes where forty were needed --
             '' which nothing noticed only because indexing was not lowered either.
-            t = ArrayFromBoundsNode( c, t, ip->c, ip->b )
+            t = ArrayFromBoundsNode( c, t, ip->c, ip->b, here )
             '' 'dim BYREF rb as integer = a' ALIASES a. Its type is a REFERENCE, which
             '' is the same shape a byref PARAMETER has -- and every piece of the model
             '' already follows from that one fact: the slot lowers to a pointer, and
@@ -1218,7 +1218,7 @@ sub WalkStmt _
         '' A field declared with bounds is an ARRAY of that type. The bounds are
         '' low/high pairs and the element count is their product -- which the layout
         '' needs, and which was simply lost while the bounds were being skipped.
-        t = ArrayFromBounds( c, t, sp->first, sp->count )
+        t = ArrayFromBounds( c, t, sp->first, sp->count, here )
         BindDeclType( c, here, sp->name, t, false )
 
         '' A BITFIELD is marked, not modelled. 'b' holds the width expression; the

@@ -1,0 +1,8 @@
+'' A fixed array bounded by a named const or an enum member. It became a dynamic array
+'' whose descriptor was never initialised, silently.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-array-bound.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/const-array-bound.out

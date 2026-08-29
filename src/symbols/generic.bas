@@ -133,7 +133,7 @@ function InstantiateGeneric_ _
         dim as Tko.StmtPayload ptr fp = StmtOf( c, m )
         if fp->name = 0 then continue for
         dim as Tko.TypeId ft = ResolveTypeRef( c, fp->a, iin )
-        ft = ArrayFromBounds( c, ft, fp->first, fp->count )
+        ft = ArrayFromBounds( c, ft, fp->first, fp->count, iin )
         dim as boolean fdup = false
         dim as Tko.SymbolId fsid = c.syms->DeclareSym( iin, fp->name, Tko.SYM_FIELD, _
             c.ast->Loc( m ), fdup )
@@ -1377,14 +1377,16 @@ sub BackpatchTypedefs( byref c as Ctx )
         dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
         dim as Tko.TypeId t = ResolveTypeRef( c, ip->a, here )
         if t = Tko.TYPE_NONE then continue for
-        BindDeclType( c, here, ip->name, ArrayFromBoundsNode( c, t, ip->c, ip->b ), true )
+        BindDeclType( c, here, ip->name, _
+            ArrayFromBoundsNode( c, t, ip->c, ip->b, here ), true )
     next
 end sub
 
 '' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
 function ArrayFromBoundsNode _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval id as Tko.NodeId, _
-      byval init as Tko.NodeId = Tko.NODE_NONE ) as Tko.TypeId
+      byval init as Tko.NodeId = Tko.NODE_NONE, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
 
     if id = Tko.NODE_NONE then return base_
     if c.ast->Kind( id ) <> Tko.N_BLOCK then return base_
@@ -1407,7 +1409,7 @@ function ArrayFromBoundsNode _
             his.Push( cast( ulong, d ) )
         end if
     next
-    return ArrayFromPairs( c, base_, los, his, init, true )
+    return ArrayFromPairs( c, base_, los, his, init, true, scope_ )
 end function
 
 '' 'init' is the declaration's initializer, or NODE_NONE. It is needed because an
@@ -1417,11 +1419,22 @@ end function
 '' Getting this wrong would not be a decline. An unknown bound makes this return the
 '' ELEMENT type, so the array becomes eight bytes where twenty-four were needed and
 '' nothing says so -- which is exactly what parsing '...' without inferring it did.
+'' 'scope_' IS WHAT LETS A NAMED CONSTANT BE A BOUND. ConstOf returns "unknown" for
+'' every N_IDENT when it is handed no symbol table -- its first line is 'if syms = 0
+'' then return CVNone_( )' -- so 'const N = 2 : dim a(0 to N)' had an unknown bound and
+'' fell to DynArrayOf below. That is not a decline: it made 'a' a 72-byte DESCRIPTOR
+'' that NOTHING EVER INITIALISES, so every element access dereferenced a garbage data
+'' pointer, with 0 statements not lowered and verify ok. fbc writes 'static int32
+'' T$[3];' and, run, prints ' 0 2 10 20 30' for lbound/ubound and the three elements.
 function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
-      byval emptyIsDynamic as boolean = false ) as Tko.TypeId
+      byval emptyIsDynamic as boolean = false, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
+
+    dim as Tko.ScopeId cscope = scope_
+    if cscope = Tko.SCOPE_NONE then cscope = Tko.SCOPE_GLOBAL
 
     if base_ = Tko.TYPE_NONE then return base_
 
@@ -1448,7 +1461,7 @@ function ArrayFromPairs _
         if loN <> Tko.NODE_NONE then
             dim as Tko.Check.ConstVal lv = _
                 Tko.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits )
+                                   c.types->target.pointerBits, c.syms, cscope )
             if lv.known then lo = lv.value else known = false
         end if
         dim as longint hi = lo - 1
@@ -1460,7 +1473,7 @@ function ArrayFromPairs _
         elseif hiN <> Tko.NODE_NONE then
             dim as Tko.Check.ConstVal hv = _
                 Tko.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits )
+                                   c.types->target.pointerBits, c.syms, cscope )
             if hv.known then hi = hv.value else known = false
         else
             known = false

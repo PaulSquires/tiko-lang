@@ -29,7 +29,8 @@ end function
 '' N_FIELD: flat (lo, hi) children.
 function ArrayFromBounds _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval first as long, _
-      byval count as long ) as Tko.TypeId
+      byval count as long, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
 
     dim as FB.Array( of ulong ) los, his
     dim as long i = 0
@@ -38,5 +39,5 @@ function ArrayFromBounds _
         his.Push( c.ast->children[first + i + 1] )
         i += 2
     wend
-    return ArrayFromPairs( c, base_, los, his )
+    return ArrayFromPairs( c, base_, los, his, Tko.NODE_NONE, false, scope_ )
 end function
