@@ -677,7 +677,9 @@ declare function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as bool
 '' fbc uses the type's 'operator let' where it has one. tiko-lang does not, here or in an
 '' ordinary UDT assignment: both are a whole-aggregate load and store. That is one
 '' behaviour, consistently wrong for a type with a user LET, rather than two.
-function LowerSretResult( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+function LowerSretResult _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, _
+      byval isReturn as boolean ) as boolean
     if c.sretParam < 0 then return false
     if valueE = Tko.NODE_NONE then return false
 
@@ -714,10 +716,48 @@ function LowerSretResult( byref c as Ctx, byval valueE as Tko.NodeId ) as boolea
         bareLit = ((c.ast->nodes[cast( long, valueE )].flags and _
                     Tko.NF_TYPE_LITERAL) <> 0)
     end if
+    '' THE NAMED FORM IS A LITERAL TOO. 'type<T>( )' carries its own type, so the
+    '' TypeOf_ test below -- which is what tells a BARE 'type( )' from anything else
+    '' -- excludes it, and only the RETURN path wants it: it builds into the hidden
+    '' pointer exactly as the bare one does.
+    dim as boolean namedLit = bareLit
+    if namedLit then
+        dim as Tko.TypeId nlt = c.info->TypeOf_( valueE )
+        if nlt <> Tko.TYPE_NONE then
+            namedLit = (c.types->Unqualify( nlt ) = c.types->Unqualify( c.resultType ))
+        end if
+    end if
     if bareLit then bareLit = (c.info->TypeOf_( valueE ) = Tko.TYPE_NONE)
-    if bareLit andalso (c.resultType <> Tko.TYPE_NONE) then
+    if (bareLit orelse namedLit) andalso (c.resultType <> Tko.TYPE_NONE) then
         dim as Tko.TypeId lt = c.types->Unqualify( c.resultType )
-        if c.types->Kind( lt ) = Tko.TK_UDT then
+        '' RETURN CONSTRUCTS STRAIGHT INTO THE HIDDEN POINTER; 'function =' does
+        '' not. The measurement above is of the ASSIGNMENT form and is right for it;
+        '' the two statements are not the same thing. Measured side by side, one
+        '' type with a constructor and a destructor:
+        ''
+        ''     return type<T>        _ZN1TC1Ev( tmp$1 ); return tmp$1
+        ''     return type<T>( )     _ZN1TC1Ev( tmp$1 ); return tmp$1
+        ''     return type( )        _ZN1TC1Ev( tmp$1 ); return tmp$1
+        ''     function = type( )    _ZN1TC1Ev( tmp$1 );
+        ''                           _ZN1TC1Ev( &TMP );
+        ''                           memcpy( tmp$1, &TMP, 8 ); _ZN1TD1Ev( &TMP )
+        ''
+        '' -- so a RETURN runs ONE constructor and NO destructor, which is the whole
+        '' subject of pp/typeof-no-dtors.bas. Building the temporary anyway ran a
+        '' destructor fbc does not, and for a type owning a buffer the bitwise copy
+        '' would have left two owners of it.
+        if isReturn andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
+            dim as MirValue rsa
+            rsa.kind = cast( ubyte, MV_LOCAL )
+            rsa.ty = cast( ubyte, MT_PTR )
+            rsa.id = c.sretParam
+            dim as MirValue rdst = LowerExprLoad( c, rsa, MT_PTR )
+            if rdst.kind <> cast( ubyte, MV_NONE ) then
+                if LowerCtorInit( c, -1, lt, valueE, @rdst ) then return true
+                if LowerUdtParenInit_( c, -1, lt, valueE, @rdst ) then return true
+            end if
+        end if
+        if bareLit andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
             dim as long lsz = SizeOfType( c, lt )
             if lsz > 0 then
                 dim as long lslot = NewTempLocal( c, MT_AGG, lsz )

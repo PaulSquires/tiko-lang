@@ -1013,7 +1013,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' does, 'return tmp$2$1'.
         if c.sretParam >= 0 then
             if sp->a <> Tko.NODE_NONE then
-                if LowerSretResult( c, sp->a ) = false then SkipHere( c )
+                if LowerSretResult( c, sp->a, true ) = false then SkipHere( c )
             end if
             EmitCleanupsTo( c, 0 )
             dim as MirValue spa

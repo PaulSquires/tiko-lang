@@ -408,7 +408,8 @@ declare function EmitRtl _
     declare sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     declare function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
     declare function LowerSretResult _
-        ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+        ( byref c as Ctx, byval valueE as Tko.NodeId, _
+          byval isReturn as boolean = false ) as boolean
     declare function LowerStringAssignToSlot _
         ( byref c as Ctx, byval slot as long, byval value as Tko.NodeId ) as boolean
     declare function LowerStringAssignTo _

@@ -1056,6 +1056,33 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         '' It reported "expected a member name" at the token after the '>' and consumed
         '' nothing, so nine of structs/anon-param.bas's lines were a hard error rather
         '' than a decline.
+        '' 'type<T>' WITH NOTHING AFTER IT IS THE DEFAULT CONSTRUCTION of T, and it
+        '' is the same thing as 'type<T>( )'. The note above is a correct measurement
+        '' of an INCOMPLETE rule: it was taken over INTEGER, which has no
+        '' constructor. Measured again, one type with a default constructor and one
+        '' without:
+        ''
+        ''     type A : declare constructor( ) : end type
+        ''     function fa( ) as A : return type<A> : end function     accepted
+        ''     type B : v as integer : end type
+        ''     function fb( ) as B : return type<B> : end function     error 9
+        ''
+        '' -- which is exactly the rule the EMPTY PARENTHESISED form already follows,
+        '' and fbc constructs straight into the hidden result pointer:
+        '' '_ZN1TC1Ev( tmp$2$1 ); return tmp$2$1'. The paren-less operand parse below
+        '' claimed it, found no expression, and reported TKO0400 with an N_ERROR in
+        '' the list -- so pp/typeof-no-dtors.bas was a hard error rather than a
+        '' decline.
+        ''
+        '' END OF THE STATEMENT is the test, because that is the whole difference:
+        '' 'type<integer>1' has an operand and this has none.
+        if (litType <> Tko.NODE_NONE) andalso _
+           ((Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)) then
+            dim as Tko.NodeIdVec noItems
+            dim as Tko.NodeId en = MakeList( p, Tko.N_TUPLE, t.loc, litType, noItems )
+            p.ast->nodes[cast( long, en )].flags or= Tko.NF_TYPE_LITERAL
+            return en
+        end if
         if (Peek( p ) <> Tko.TK_LPAREN) andalso (litType <> Tko.NODE_NONE) then
             dim as Tko.NodeIdVec oneItem
             '' PREC_SIGN, measured: 'type<integer>2^3' is 8 -- the POWER binds INTO

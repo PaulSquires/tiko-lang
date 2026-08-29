@@ -1,0 +1,129 @@
+func void _ZN1TC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN1TD1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func ptr G1($0) {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    call void _ZN1TC1Ev(%2)
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr G2($0) {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    call void _ZN1TC1Ev(%2)
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr G3($0) {
+  local ptr $tmp0
+  local agg $tmp1 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = alloca ptr $tmp1
+    call void _ZN1TC1Ev(@$tmp1)
+    %3 = load @$tmp1
+    %4 = load @$tmp0
+    store %4, %3
+    call void _ZN1TD1Ev(@$tmp1)
+    %5 = load @$tmp0
+    ret %5
+}
+func ptr G4($0) {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    call void _ZN1TC1Ev(%2)
+    %3 = load @$tmp0
+    ret %3
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a size 8
+  local agg $tmp2 size 8
+  local agg b size 8
+  local agg $tmp4 size 8
+  local agg c size 8
+  local agg $tmp6 size 8
+  local agg d size 8
+  local agg $tmp8 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    call void _ZN1TC1Ev(@a)
+    %5 = alloca ptr $tmp2
+    %6 = call ptr G1(@$tmp2)
+    %7 = load @$tmp2
+    store @a, %7
+    call void _ZN1TD1Ev(@$tmp2)
+    %8 = alloca ptr b
+    call void _ZN1TC1Ev(@b)
+    %9 = alloca ptr $tmp4
+    %10 = call ptr G2(@$tmp4)
+    %11 = load @$tmp4
+    store @b, %11
+    call void _ZN1TD1Ev(@$tmp4)
+    %12 = alloca ptr c
+    call void _ZN1TC1Ev(@c)
+    %13 = alloca ptr $tmp6
+    %14 = call ptr G3(@$tmp6)
+    %15 = load @$tmp6
+    store @c, %15
+    call void _ZN1TD1Ev(@$tmp6)
+    %16 = alloca ptr d
+    call void _ZN1TC1Ev(@d)
+    %17 = alloca ptr $tmp8
+    %18 = call ptr G4(@$tmp8)
+    %19 = load @$tmp8
+    store @d, %19
+    call void _ZN1TD1Ev(@$tmp8)
+    %20 = field.addr @a, 0
+    %21 = load %20
+    call.rtl void fb_PrintLongint(0, %21, 2)
+    %22 = field.addr @b, 0
+    %23 = load %22
+    call.rtl void fb_PrintLongint(0, %23, 2)
+    %24 = field.addr @c, 0
+    %25 = load %24
+    call.rtl void fb_PrintLongint(0, %25, 2)
+    %26 = field.addr @d, 0
+    %27 = load %26
+    call.rtl void fb_PrintLongint(0, %27, 1)
+    call void _ZN1TD1Ev(@d)
+    call void _ZN1TD1Ev(@c)
+    call void _ZN1TD1Ev(@b)
+    call void _ZN1TD1Ev(@a)
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 7 functions, 7 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance

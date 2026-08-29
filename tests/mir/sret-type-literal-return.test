@@ -1,0 +1,8 @@
+'' A type literal returned through the hidden result pointer: a RETURN constructs
+'' straight into it, where 'function =' builds a temporary and copies.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sret-type-literal-return.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/sret-type-literal-return.out
