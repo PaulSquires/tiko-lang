@@ -1,0 +1,5 @@
+'' All four property accessors on one name, including an indexed getter read.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/indexed-property.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/indexed-property.out

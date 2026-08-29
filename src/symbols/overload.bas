@@ -567,6 +567,26 @@ private function ResolveCall_ _
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+            '' A PROPERTY SETTER IS NOT CALLABLE AS AN EXPRESSION, and this is where
+            '' it has to be said: a getter and a setter share one symbol chain, and
+            '' an INDEXED getter has exactly the arity a PLAIN setter does. So
+            '' 'print f.bar( 3 )' over a type declaring all four accessors scored
+            '' both, tied, and came out UNTYPED -- and the PRINT declined -- while
+            '' 'f.bar( 3 ) = 7' beside it lowered, because the assignment path asks
+            '' for a setter by name.
+            ''
+            '' Measured: fbc mangles all four distinctly and reads 'f.bar( 3 )' as
+            '' '_ZN3FOO10BAR__get__Eu7INTEGER( &F$0, 3ll )'.
+            ''
+            '' A PROPERTY with no result is a setter; every other procedure without
+            '' one is a SUB, which is callable as a statement and is scored here for
+            '' that.
+            if pp->op = cast( ushort, Tko.KW_PROPERTY ) then
+                if pp->a = Tko.NODE_NONE then
+                    cur = s->nextOverload
+                    continue while
+                end if
+            end if
             '' A CANDIDATE IS VIABLE ON FEWER ARGUMENTS THAN PARAMETERS when every
             '' parameter past the last written one has a DEFAULT. This read 'np =
             '' argT.Count' and nothing else, so a procedure with an optional parameter
