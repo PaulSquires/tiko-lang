@@ -45,3 +45,5 @@ ustr/prim.bas
 ustr/conv.bas
 ustr/convw.bas
 strw/convfrom_str.bas
+ustr/trim.bas
+ustr/slice.bas
