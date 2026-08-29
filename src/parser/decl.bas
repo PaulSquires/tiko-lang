@@ -1192,7 +1192,23 @@ private function ParseAggregateBody _
     do
         SkipEols( p )
         if AtEnd( p ) then exit do
-        if Peek( p ) = Tko.KW_END then exit do
+        '' 'end' CLOSES THE BODY ONLY WHEN 'type', 'union' OR 'enum' FOLLOWS IT. A
+        '' FIELD may be called 'end' -- fbc builds 'struct $1P { int64 END; int64 V; };'
+        '' for 'end as integer' and prints ' 5  1' -- and the unconditional test closed
+        '' the TYPE at that field, so everything after it was read as module-level code
+        '' and the whole file desynced. The 'as integer end' spelling worked, which is
+        '' what made it look like something other than a member name.
+        if Peek( p ) = Tko.KW_END then
+            dim as boolean endsBody = true
+            if HasTok( p, p.pos + 1 ) then
+                select case cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                case Tko.KW_TYPE, Tko.KW_UNION, Tko.KW_ENUM, Tko.TK_EOL
+                case else
+                    endsBody = false
+                end select
+            end if
+            if endsBody then exit do
+        end if
 
         dim as long before = p.pos
         dim as Tko.TokenKind k = Peek( p )
