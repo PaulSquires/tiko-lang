@@ -1,0 +1,8 @@
+'' quirk/zwstr-deref.bas: a wide source into a 'string * N', a subscript of a bare
+'' zstring/wstring, and wspace in a concatenation. All four of that file's statements.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-narrow-index.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-narrow-index.out

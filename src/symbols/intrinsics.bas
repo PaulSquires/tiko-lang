@@ -418,6 +418,13 @@ private function ExprIntrinsicType_ _
     case "space"
         if isNum = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )
+    '' ...and WSPACE( n ) is the wide one, 'WSTRING * 1' like wstr( ). Measured. It was
+    '' the only wide string intrinsic left untyped, and an untyped TERM makes the whole
+    '' CONCAT it is in look narrow: 's = w + wspace(28)' took the narrow comparison
+    '' branch and the statement declined, where 's = w + whex(255)' beside it lowered.
+    case "wspace"
+        if isNum = false then return Tko.TYPE_NONE
+        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     case "string"
         return c.types->Builtin( Tko.TY_STRING )
     case "wstring"

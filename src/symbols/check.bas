@@ -470,6 +470,19 @@ private function IsVarLenStrBuiltin_ _
     return (b = Tko.TY_STRING) orelse (b = Tko.TY_USTRING)
 end function
 
+'' ...and its complement: the BARE zstring/wstring, which is what dereferencing a
+'' 'zstring ptr' gives. It is neither a var-length string nor an array, so both of the
+'' subscript branches at N_INDEX missed it.
+private function IsBareCharStrBuiltin_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType b = c.types->BuiltinOf( u )
+    return (b = Tko.TY_ZSTRING) orelse (b = Tko.TY_WSTRING)
+end function
+
 declare function TypeOf_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
@@ -1095,6 +1108,21 @@ function TypeOf_ _
                     dim as Tko.BuiltinType sb = _
                         c.types->BuiltinOf( c.types->Unqualify( pt ) )
                     if (sb = Tko.TY_USTRING) orelse (sb = Tko.TY_FIXUSTR) then
+                        t = c.types->Builtin( Tko.TY_USHORT )
+                    else
+                        t = c.types->Builtin( Tko.TY_UBYTE )
+                    end if
+                elseif IsBareCharStrBuiltin_( c, pt ) then
+                    '' ...AND THE BARE ZSTRING/WSTRING, which is neither of the two
+                    '' above: it is what '*pz' over a 'zstring ptr' has, and it is a
+                    '' TK_BUILTIN, so the var-len test (TY_STRING/TY_USTRING only) and
+                    '' the array test both missed it and '(*pz)[0]' was UNTYPED. A
+                    '' SELECT CASE over it then had nothing to switch on and declined.
+                    '' Measured, fbc: '(*pz)[0]' is UBYTE and '(*pw)[0]' is USHORT,
+                    '' and it writes '*(uint8*)PZ$0' / '*(uint16*)PW$0'.
+                    dim as Tko.BuiltinType wb = _
+                        c.types->BuiltinOf( c.types->Unqualify( pt ) )
+                    if wb = Tko.TY_WSTRING then
                         t = c.types->Builtin( Tko.TY_USHORT )
                     else
                         t = c.types->Builtin( Tko.TY_UBYTE )

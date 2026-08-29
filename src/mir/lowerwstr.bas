@@ -330,7 +330,7 @@ declare function NarrowDestWideSource_ _
     ( byref c as Ctx, byval value as Tko.NodeId, byref src as MirValue ) as boolean
 declare sub EmitWideToNarrow_ _
     ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue, _
-      byval isInit as boolean = false )
+      byval isInit as boolean = false, byval pad as longint = 0 )
 
 function LowerWideToNarrow _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
@@ -346,8 +346,19 @@ function LowerWideToNarrow _
     if IsUStringType( c, dt ) then return false
     if ChainTouchesU_( c, value ) then return false
     dim as longint dn = -1
+    dim as longint pad = 0
     if IsStringType( c, dt ) = false then
-        if StrSwapKind_( c, dt, dn ) <> 1 then return false
+        '' KIND 3 -- 'string * N' -- BELONGS HERE TOO, and refusing it sent 'f = *pw'
+        '' down the narrow path, which found no narrow source and declined. Its dn is
+        '' already the sign-bit-tagged length fbc wants, and it is the kind that pads,
+        '' so it is also the one that passes -1 last. Measured:
+        ''
+        ''     fb_WstrAssignToA( (void*)F$0, -9223372036854775777ll, (uint16*)PW$0, -1 )
+        ''
+        '' and run, f holds "123" space-padded to its full 31 columns.
+        dim as long dk0 = StrSwapKind_( c, dt, dn )
+        if (dk0 <> 1) andalso (dk0 <> 3) then return false
+        if dk0 = 3 then pad = -1
     end if
 
     '' A CONCATENATION IS WIDE-TYPED TOO now that 'w + s' answers WSTRING, and it has no
@@ -367,7 +378,7 @@ function LowerWideToNarrow _
     end if
     if src.kind = cast( ubyte, MV_NONE ) then return false
 
-    EmitWideToNarrow_( c, dst, dn, src )
+    EmitWideToNarrow_( c, dst, dn, src, false, pad )
     return true
 end function
 
@@ -403,13 +414,25 @@ end function
 
 private sub EmitWideToNarrow_ _
     ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue, _
-      byval isInit as boolean )
+      byval isInit as boolean, byval pad as longint )
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
+    '' PushStrLen_, NOT an inline MV_CONST_INT: that payload is 32 BITS and a
+    '' 'string * N' length is '&h8000000000000000 or N', which truncates to plain N
+    '' and silently turns the fixed-length tag into an ordinary zstring count. The
+    '' destination was a zstring here until kind 3 could reach this sub, so nothing
+    '' had ever passed a tagged length through it.
+    PushStrLen_( c, args, dn )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    '' THE LAST ARGUMENT IS NOT ALWAYS ZERO. It is -1 for a 'string * N'
+    '' destination, which is the one narrow kind that PADS, and 0 for the other two.
+    '' Measured, and in both entry points:
+    ''
+    ''     dim as string  * 9 f = *pw   fb_WstrAssignToA_Init( F, <encoded>, PW, -1ll )
+    ''     dim as zstring * 9 z = *pw   fb_WstrAssignToA_Init( Z, 9ll,       PW,  0ll )
+    ''     f = *pw                      fb_WstrAssignToA     ( F, <encoded>, PW, -1 )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, pad ) )
     '' THE DECLARATION FORM IS A DIFFERENT FUNCTION, not a flag: fb_WstrAssignToA_Init
     '' where a later store takes fb_WstrAssignToA. Measured.
     dim as long which = RTL_WSTR_ASSIGN_TOA
@@ -428,6 +451,7 @@ function LowerWideToNarrowSlot _
     if IsUStringType( c, dt ) then return false
     if ChainTouchesU_( c, value ) then return false
     dim as longint dn = -1
+    dim as longint pad = 0
     if IsStringType( c, dt ) = false then
         '' A FIXED-LENGTH NARROW DESTINATION TAKES ITS OWN ELEMENT COUNT where a
         '' var-length one takes -1. Measured:
@@ -439,6 +463,7 @@ function LowerWideToNarrowSlot _
         '' fixed-string path took it, found no narrow source, and declined.
         dim as long dk = StrSwapKind_( c, dt, dn )
         if (dk <> 1) andalso (dk <> 3) then return false
+        if dk = 3 then pad = -1
     end if
 
     '' A CONCATENATION IS WIDE-TYPED TOO now that 's + w' answers WSTRING, and it has no
@@ -455,7 +480,7 @@ function LowerWideToNarrowSlot _
     dst.kind = cast( ubyte, MV_LOCAL )
     dst.ty = cast( ubyte, MT_PTR )
     dst.id = slot
-    EmitWideToNarrow_( c, dst, dn, src, isInit )
+    EmitWideToNarrow_( c, dst, dn, src, isInit, pad )
     return true
 end function
 
