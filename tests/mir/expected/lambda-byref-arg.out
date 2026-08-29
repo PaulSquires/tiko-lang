@@ -19,6 +19,39 @@ func void __TKO_LAMBDA_5B527DDB_0($0, $1) {
     store %7, %10
     ret
 }
+func void APPLY<25>($0, $1) {
+  local i32 n
+  local ptr f
+  local i32 i
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = alloca ptr f
+    store @f, $1
+    %3 = alloca ptr i
+    %4 = const i64 1
+    %5 = trunc %4
+    store @i, %5
+    br for.head1
+  for.head1:
+    %6 = load @i
+    %7 = load @n
+    %8 = icmp.sle %6, %7
+    condbr %8, for.body2, for.exit4
+  for.body2:
+    %9 = load @f
+    %10 = load @i
+    call void __TKO_LAMBDA_5B527DDB_0(%9, %10)
+    br for.step3
+  for.step3:
+    %11 = load @i
+    %12 = const i32 1
+    %13 = add %11, %12
+    store @i, %13
+    br for.head1
+  for.exit4:
+    ret
+}
 func i32 main($0, $1) {
   local i32 $tmp0
   local i32 sum_
@@ -38,7 +71,7 @@ func i32 main($0, $1) {
     %9 = alloca ptr $tmp2
     %10 = field.addr @$tmp2, 0
     store %10, @sum_
-    call void APPLY(%8, @$tmp2)
+    call void APPLY<25>(%8, @$tmp2)
     %11 = load @sum_
     call.rtl void fb_PrintInt(0, %11, 1)
     %12 = const i32 0
@@ -47,8 +80,7 @@ func i32 main($0, $1) {
     ret %13
 }
 declare void fb_Init($0, $1, $2)
-declare void APPLY()
 declare void fb_PrintInt($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 2 functions, 2 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 7 blocks, 52 insts, 0 statements not lowered, 0 scope imbalance

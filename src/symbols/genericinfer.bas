@@ -252,6 +252,14 @@ private function InferArgType_ _
         if brt = Tko.TYPE_NONE then return Tko.TYPE_NONE
         return Tko.Check.BinaryResult( _
             cast( Tko.TokenKind, bip->op ), blt, brt, *c.types )
+    case Tko.N_CLOSURE
+        '' A CAPTURING LAMBDA IS AN OBJECT, and its type is the closure UDT Resolve
+        '' built for it. Only the NON-capturing form was answered -- that one is '@'
+        '' over a generated name and reaches the N_ADDROF case below -- so passing a
+        '' capturing lambda to a generic inferred nothing, the generic never
+        '' instantiated, and the call went out as 'declare void APPLYR()'. fbc
+        '' instantiates over the closure struct and the program prints 5.
+        return c.info->TypeOf_( a )
     case Tko.N_INT_LIT
         return c.types->Builtin( Tko.TY_INTEGER )
     case Tko.N_FLOAT_LIT
