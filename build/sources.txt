@@ -10,3 +10,4 @@ str/basic.bas
 str/slice.bas
 str/trim.bas
 str/mid.bas
+ustr/utf.bas
