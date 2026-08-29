@@ -329,6 +329,17 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
                     dim as string ls = space( lp->textLength )
                     memcpy( strptr( ls ), @lf->text[lp->textOffset], lp->textLength )
                     '' The span excludes the quotes, which the spelling must carry.
+                    ''
+                    '' THE '$' OR '!' PREFIX IS NOT PUT BACK, and that is measured on
+                    '' both sides rather than settled. It IS part of a literal written
+                    '' in source: 'len( __FB_QUOTE__( t ) )' over '#define t $"hello"'
+                    '' is 8 to fbc and 7 here, and 5 against 4 for a '!' one. But it is
+                    '' NOT part of one that a macro SYNTHESISED: __FB_QUOTE__ emits its
+                    '' result as '$"..."' text, and stringising THAT again gives fbc
+                    '' '"5" = "5"' with no '$' -- three fbc-verified goldens in
+                    '' tests/pp say so, and restoring the prefix here broke all three.
+                    '' Telling the two apart needs the literal to remember whether its
+                    '' buffer was a FILE or a synthesised one, which it does not.
                     if k = TK_STRING_LIT then return """" & ls & """"
                     return ls
                 end if
