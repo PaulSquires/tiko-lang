@@ -1,0 +1,7 @@
+'' Inferring a generic type argument through a 'T ptr' parameter.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-ptr-param.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-ptr-param.out
