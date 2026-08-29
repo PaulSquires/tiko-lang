@@ -693,6 +693,16 @@ function InstantiateProcAt_ _
     if gs = 0 then return Tko.SYMBOL_NONE
     dim as long taCount = cast( long, argTypes.Count )
 
+    '' THE GENERIC'S OWN SYMBOL IS PART OF THE KEY. Name plus type arguments is not
+    '' enough: fb/comptr.bi declares TWO global 'operator ->', one over ComPtr and one
+    '' over ComQIPtr, and at the same T they produce the same "-><5100>". ComPtr's
+    '' instantiated first and claimed it, so the lookup below handed ComQIPtr's
+    '' instantiation back the WRONG operator -- 'b->PokeB( )' over a ComQIPtr found no
+    '' arrow of its own, the member access stayed untyped, and the statement declined.
+    '' fbc emits both: _ZptR8ComPtrI6IFAKEBE and _ZptR8ComQIPtrI6IFAKEBE.
+    ''
+    '' Two CALL SITES naming the same instantiation still meet at one symbol, which is
+    '' what the cache is for -- they reach it through the same generic.
     dim as string key = c.names->Spelling( gname ) & "<"
     for i as long = 0 to taCount - 1
         if i > 0 then key += ","
@@ -706,8 +716,27 @@ function InstantiateProcAt_ _
     dim as Tko.InternId inm = c.names->Fold( c.names->GetString( key ) )
     dim as Tko.ScopeId home = gs->parent
     if home = Tko.SCOPE_NONE then home = Tko.SCOPE_GLOBAL
-    dim as Tko.SymbolId prev = c.syms->LookupLocal( home, inm )
-    if prev <> Tko.SYMBOL_NONE then return prev
+
+    '' LOOKED UP BY A KEY THAT NAMES THE GENERIC, not by the instantiation's NAME.
+    '' Name plus type arguments is not enough to tell two generics apart: fb/comptr.bi
+    '' declares TWO global 'operator ->', one over ComPtr and one over ComQIPtr, and at
+    '' the same T both spell "-><5100>". ComPtr's instantiated first and claimed the
+    '' name, so ComQIPtr's lookup found it and returned the WRONG operator -- and
+    '' 'b->PokeB( )' over a ComQIPtr then had no arrow of its own, the member access
+    '' stayed untyped, and the statement declined. fbc emits both:
+    '' _ZptR8ComPtrI6IFAKEBE and _ZptR8ComQIPtrI6IFAKEBE.
+    ''
+    '' The gsid goes in the KEY and not in the name, because the NAME IS MANGLED: put
+    '' it there and every instantiated generic came out as "MK#11<8>" where fbc writes
+    '' "MK<8>", which the mangle gate and four goldens said at once. Two SYM_PROCs of
+    '' one name in one scope chain as overloads, so the two arrows coexist.
+    dim as Tko.InternId ikey = _
+        c.names->Fold( c.names->GetString( key & "#" & str( cast( long, gsid ) ) ) )
+    for i as long = 0 to cast( long, c.procInstKey.Count ) - 1
+        if cast( Tko.InternId, c.procInstKey[i] ) = ikey then
+            return cast( Tko.SymbolId, c.procInstSym[i] )
+        end if
+    next
 
     '' The symbol is DECLARED NOW and its body filled in by the deferred pass, so a
     '' recursive generic -- one whose body calls itself at the same arguments -- finds
@@ -716,6 +745,8 @@ function InstantiateProcAt_ _
     dim as Tko.SymbolId isid = c.syms->DeclareSym( home, inm, Tko.SYM_PROC, _
         c.ast->Loc( gn ), idup )
     if isid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    c.procInstKey.Push( cast( ulong, ikey ) )
+    c.procInstSym.Push( cast( ulong, isid ) )
 
     dim as long argFirst = c.pendProcArgs.Count
     for i as long = 0 to taCount - 1

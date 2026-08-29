@@ -1,0 +1,8 @@
+'' Two generic global operators of one spelling over different generics, and a generic
+'' 'operator ='. The first collapsed onto one symbol; the second did not parse.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-op-distinct.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-op-distinct.out

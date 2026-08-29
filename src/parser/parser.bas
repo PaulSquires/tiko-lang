@@ -686,6 +686,24 @@ private function IsResultAssign _
     if k = Tko.KW_OPERATOR then
         if HasTok( p, p.pos + 2 ) then
             if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_LPAREN then
+                '' ...OR A GENERIC PARAMETER LIST, which holds no AS, BYREF or BYVAL
+                '' and so looked like a parenthesised expression:
+                ''
+                ''     operator = ( of T )( byref x as Box( of T ), ... ) as integer
+                ''
+                '' was read as a RESULT ASSIGNMENT of '( of T )' and failed to parse,
+                '' so the whole operator was lost -- TKO0401 at the T. Only '=' is
+                '' affected: no other operator spelling can begin a result assignment,
+                '' which is why the '<>' beside it in generics/global-operators.bas
+                '' had always worked.
+                if HasTok( p, p.pos + 3 ) then
+                    dim as Tko.Token o3 = p.toks->At( p.pos + 3 )
+                    if cast( Tko.TokenKind, o3.kind ) = Tko.TK_IDENT then
+                        dim as string w = Tko.Text.LowerAscii( _
+                            p.names->Spelling( cast( Tko.InternId, o3.literal ) ) )
+                        if w = "of" then return false
+                    end if
+                end if
                 if LooksLikeParamList( p, p.pos + 2 ) then return false
             end if
         end if

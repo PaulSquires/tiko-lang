@@ -62,6 +62,12 @@ type Ctx
     as FB.Array( of ulong )  pendProc
     as FB.Array( of ulong )  pendProcArgs
     as long                  pendProcDone
+    '' THE INSTANTIATION CACHE for generic procedures, one entry each: the key and the
+    '' symbol it produced. A SIDE table rather than a name lookup, because the key has
+    '' to name the GENERIC as well as the arguments and the symbol's name must not --
+    '' the name is what gets mangled, and fbc's is "MK<8>", not "MK#11<8>".
+    as FB.Array( of ulong )  procInstKey
+    as FB.Array( of ulong )  procInstSym
 end type
 
 '' The helpers the split shares. Their definitions stay in resolve.bas -- only the
