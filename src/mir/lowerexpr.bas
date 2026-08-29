@@ -67,6 +67,41 @@ function LowerExpr _
             dim as MirValue cv2
             if LowerCloseCall_( c, id, cv2 ) then return cv2
         end if
+        '' 'input( n [, [#]f] )' AND 'winput( ... )' -- n characters read as a VALUE.
+        '' A different construct from the INPUT STATEMENT, which reads variables, and
+        '' RTL_FILE_STR_INPUT and RTL_FILE_WSTR_INPUT had been declared with no emit
+        '' site at all. Measured:
+        ''
+        ''     input( 2, #1 )   fb_FileStrInput ( 2ll, 1 )
+        ''     input( 2 )       fb_FileStrInput ( 2ll, 0 )   -- no channel is 0
+        ''     winput( 2, #1 )  fb_FileWstrInput( 2ll, 1 )
+        ''
+        '' and run over a file holding 'aabbcc', they read 'aa' then 'b b '.
+        dim as boolean isInputExpr = (isp->extra and 8) <> 0
+        if isInputExpr then
+            isInputExpr = (iop = Tko.KW_INPUT) orelse (iop = Tko.KW_WINPUT)
+        end if
+        if isInputExpr then
+            dim as MirValue nv = LowerExpr( c, isp->a )
+            if nv.kind = cast( ubyte, MV_NONE ) then return v
+            nv = Coerce( c, nv, MT_I64, false )
+            if nv.kind = cast( ubyte, MV_NONE ) then return v
+            dim as MirValue fv
+            if isp->b <> Tko.NODE_NONE then
+                fv = LowerExpr( c, isp->b )
+                if fv.kind = cast( ubyte, MV_NONE ) then return v
+                fv = Coerce( c, fv, MT_I32, false )
+            else
+                fv = ConstInt( c, 0, MT_I32 )
+            end if
+            if fv.kind = cast( ubyte, MV_NONE ) then return v
+            dim as FB.Array( of ulong ) iargs
+            iargs.Push( cast( ulong, nv.kind ) ) : iargs.Push( cast( ulong, nv.id ) )
+            iargs.Push( cast( ulong, fv.kind ) ) : iargs.Push( cast( ulong, fv.id ) )
+            dim as long iw = RTL_FILE_STR_INPUT
+            if iop = Tko.KW_WINPUT then iw = RTL_FILE_WSTR_INPUT
+            return EmitRtl( c, iw, iargs )
+        end if
         return v
 
     case Tko.N_CLOSURE

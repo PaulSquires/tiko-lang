@@ -1007,6 +1007,24 @@ function WideOperand_ _
 
     id = Unparen_( c, id )
 
+    '' 'winput( n [, [#]f] )' HANDS BACK A WIDE POINTER, which is exactly what a wide
+    '' operand is. Its node is an N_INTRINSIC and nothing here claimed it, so
+    '' 'winput( 2, #1 ) = wstr( "bb" )' declined while the ASSIGNMENT form beside it
+    '' lowered. fbc: 'uint16* vr$10 = fb_FileWstrInput( 2ll, 1 );'.
+    if c.ast->Kind( id ) = Tko.N_INTRINSIC then
+        dim as Tko.StmtPayload ptr wip = StmtOf( c, id )
+        if (wip->extra and 8) <> 0 then
+            if cast( Tko.TokenKind, wip->op ) = Tko.KW_WINPUT then
+                dim as MirValue wiv = LowerExpr( c, id )
+                if wiv.kind <> cast( ubyte, MV_NONE ) then
+                    outv = wiv
+                    return true
+                end if
+                return false
+            end if
+        end if
+    end if
+
     '' A LITERAL IS A WIDE ONE HERE. fbc writes '(uint16*)L"x"' for a literal compared
     '' against a wstring -- a genuinely wide global, not a narrow one widened at
     '' runtime -- so it takes the wide literal pool the DATA statement already uses.

@@ -82,6 +82,24 @@ function StrDescriptorOf_ _
     '' 'print dir( "*" )' and 's = dir( "*" )' both arrive by this route.
     if LowerDir( c, id, outv ) then return true
 
+    '' 'input( n [, [#]f] )' IN EXPRESSION POSITION HANDS BACK A DESCRIPTOR, exactly as
+    '' a string-returning call does -- 'FBSTRING* vr$4 = fb_FileStrInput( 2ll, 1 );' --
+    '' and its node is an N_INTRINSIC rather than an N_CALL, so nothing here claimed it
+    '' and 'dim as string d = input( 2, #1 )' declined. The wide half lowered, because
+    '' its consumer is structural about the shape rather than about the node kind.
+    if c.ast->Kind( id ) = Tko.N_INTRINSIC then
+        dim as Tko.StmtPayload ptr iisp = StmtOf( c, id )
+        if (iisp->extra and 8) <> 0 then
+            if cast( Tko.TokenKind, iisp->op ) = Tko.KW_INPUT then
+                dim as MirValue iiv = LowerExpr( c, id )
+                if iiv.kind <> cast( ubyte, MV_NONE ) then
+                    outv = iiv
+                    return true
+                end if
+            end if
+        end if
+    end if
+
     '' A CALL TO A STRING-RETURNING FUNCTION, before the type test claims it: an N_CALL
     '' is string-typed and has no address, so 'print f( 2 )' declined outright.
     ''

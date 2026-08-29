@@ -27,6 +27,23 @@ function EmitStrTerm _
 
     term = Unparen_( c, term )
 
+    '' 'input( n [, [#]f] )' IN EXPRESSION POSITION HANDS BACK A DESCRIPTOR, and its
+    '' node is an N_INTRINSIC -- nothing here claimed it, so 'd = input( 2, #1 )'
+    '' declined while the wide half lowered. StrDescriptorOf_ knows the shape.
+    if c.ast->Kind( term ) = Tko.N_INTRINSIC then
+        dim as Tko.StmtPayload ptr itp = StmtOf( c, term )
+        if (itp->extra and 8) <> 0 then
+            dim as MirValue idv
+            if StrDescriptorOf_( c, term, idv ) then
+                args.Push( cast( ulong, idv.kind ) )
+                args.Push( cast( ulong, idv.id ) )
+                args.Push( cast( ulong, MV_CONST_INT ) )
+                args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+                return true
+            end if
+        end if
+    end if
+
     '' A STRING CONSTANT IS ITS TEXT, and it has to be recognised BEFORE the type test
     '' below claims it and asks for an address a constant has not got.
     '' '__FUNCTION__' IS A STRING LITERAL, folded to the enclosing procedure's name --

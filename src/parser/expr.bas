@@ -916,6 +916,36 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         Advance( p )
         return PostfixChain( p, MakeIdent( p, t ) )
 
+    case Tko.KW_INPUT, Tko.KW_WINPUT
+        '' 'input( n [, [#]f] )' IN EXPRESSION POSITION -- n characters read from a
+        '' file, or from the console with no channel. It is a different construct from
+        '' the INPUT STATEMENT, which reads variables, and only the statement form
+        '' existed: the expression form was 'expected an expression' at the '#' and the
+        '' whole enclosing statement declined. Measured:
+        ''
+        ''     input( 2, #1 )   fb_FileStrInput ( 2ll, 1 )
+        ''     input( 2 )       fb_FileStrInput ( 2ll, 0 )
+        ''     winput( 2, #1 )  fb_FileWstrInput( 2ll, 1 )
+        ''
+        '' The node is the same N_INTRINSIC the statement form builds, with bit 8 in
+        '' 'extra' to say which -- 'a' the count and 'b' the channel.
+        Advance( p )
+        dim as Tko.StmtPayload inp
+        inp.op = cast( ushort, k )
+        inp.extra = 8
+        if Accept( p, Tko.TK_LPAREN ) = false then
+            return ErrorNode( p, Tko.TKO0401 )
+        end if
+        inp.a = Expression( p )
+        if Accept( p, Tko.TK_COMMA ) then
+            Accept( p, Tko.TK_HASH )
+            inp.b = Expression( p )
+        end if
+        if Accept( p, Tko.TK_RPAREN ) = false then
+            return ErrorNode( p, Tko.TKO0401 )
+        end if
+        return MakeStmt( p, Tko.N_INTRINSIC, t.loc, inp )
+
     case Tko.KW_THREADCALL
         '' 'threadcall' IN EXPRESSION POSITION -- 't = threadcall w( 1 )'. It was
         '' registered as a STATEMENT intrinsic and nothing else, so the expression

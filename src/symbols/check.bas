@@ -1019,6 +1019,19 @@ function TypeOf_ _
         if cast( Tko.TokenKind, tsp->op ) = Tko.KW_THREADCALL then
             t = c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )
         end if
+        '' 'input( n [, [#]f] )' AND 'winput( ... )' IN EXPRESSION POSITION are a STRING
+        '' and a wide one -- bit 8 of 'extra' is what the parser marks the expression
+        '' form with. Untyped, 'dim as string d = input( 2, #1 )' had nothing to
+        '' initialise from and declined, while the wide half lowered because its
+        '' consumer is structural. fbc: 'FBSTRING* vr$4 = fb_FileStrInput( 2ll, 1 );'.
+        if (tsp->extra and 8) <> 0 then
+            select case cast( Tko.TokenKind, tsp->op )
+            case Tko.KW_INPUT
+                t = c.types->Builtin( Tko.TY_STRING )
+            case Tko.KW_WINPUT
+                t = c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
+            end select
+        end if
 
     case Tko.N_CALL
         '' The callee's symbol was bound by Resolve; the overloads hang off it in a
