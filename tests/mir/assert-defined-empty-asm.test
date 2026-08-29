@@ -1,0 +1,8 @@
+'' '#assert defined( X )' expanding its own operand, and an asm block that is empty after
+'' preprocessing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/assert-defined-empty-asm.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/assert-defined-empty-asm.out

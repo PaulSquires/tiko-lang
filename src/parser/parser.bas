@@ -1023,11 +1023,34 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
         '' miscompiled (docs/plan/01 section 5.6).
         Advance( p )
         dim as Tko.StmtPayload sp
-        n = MakeStmt( p, Tko.N_ASM, t.loc, sp )
-        ErrorNode( p, Tko.TKO0407 )
+        '' ...UNLESS THE BLOCK IS EMPTY, in which case there is no assembly to refuse.
+        '' pp/pragma-reserve-7.bas writes
+        ''
+        ''     asm
+        ''         #if defined(symbol)
+        ''             #error
+        ''         #endif
+        ''     end asm
+        ''
+        '' -- a body that is nothing at all once the preprocessor has run, and the
+        '' file's subject is the '#pragma reserve' above it rather than the asm.
+        '' Emitting an N_ASM with no content is what an empty block MEANS.
+        dim as long asmFirst = p.pos
         while (Peek( p ) <> Tko.KW_END) andalso (AtEnd( p ) = false)
             Advance( p )
         wend
+        dim as boolean asmEmpty = true
+        for ai as long = asmFirst to p.pos - 1
+            if cast( Tko.TokenKind, p.toks->At( ai ).kind ) <> Tko.TK_EOL then
+                asmEmpty = false
+                exit for
+            end if
+        next
+        '' 'extra' is 1 for an EMPTY block, which is what lets lowering emit nothing
+        '' for it rather than record an unlowered statement.
+        if asmEmpty then sp.extra = 1
+        n = MakeStmt( p, Tko.N_ASM, t.loc, sp )
+        if asmEmpty = false then ErrorNode( p, Tko.TKO0407 )
         ExpectEnd( p, Tko.KW_ASM )
 
     case else

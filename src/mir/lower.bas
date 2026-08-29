@@ -1096,6 +1096,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' So there is nothing for the statement layer to emit, and saying so is not
         '' the same as failing to.
 
+    case Tko.N_ASM
+        '' AN EMPTY ASM BLOCK EMITS NOTHING, and that is not a decline. The parser
+        '' marks one -- pp/pragma-reserve-7.bas writes a block whose whole body is a
+        '' '#if' that yields no tokens -- and a block with real assembly in it has
+        '' already been refused there, with a diagnostic.
+        if StmtOf( c, id )->extra <> 1 then SkipStmt( c, id )
+
     case else
         SkipStmt( c, id )
     end select

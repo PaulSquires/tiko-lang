@@ -431,6 +431,41 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         '' the ordinary main loop.
         EmitTok( e, hashTok )
         EmitTok( e, w )
+        '' ...EXCEPT 'defined X', WHOSE OPERAND MUST NOT EXPAND, which is the same rule
+        '' '#if' applies and this had no share of: '#assert defined( M2 )' over a
+        '' '#macro M2' substituted M2's BODY between DEFINED and ')' and the line became
+        '' TKO0401. fbc compiles it clean.
+        dim as Token dt
+        if PeekOnLine( e, dt ) then
+            dim as boolean isDefKw = (Tk( dt ) = KW_DEFINED)
+            if (isDefKw = false) andalso (Tk( dt ) = TK_IDENT) then
+                isDefKw = (e.names->Spelling( cast( InternId, dt.literal ) ) = "defined")
+            end if
+            if isDefKw then
+                EmitTok( e, dt )
+                Advance( e )
+                dim as boolean paren = false
+                if PeekOnLine( e, dt ) then
+                    if Tk( dt ) = TK_LPAREN then
+                        paren = true
+                        EmitTok( e, dt )
+                        Advance( e )
+                    end if
+                end if
+                if PeekOnLine( e, dt ) then
+                    EmitTok( e, dt )
+                    Advance( e )
+                end if
+                if paren then
+                    if PeekOnLine( e, dt ) then
+                        if Tk( dt ) = TK_RPAREN then
+                            EmitTok( e, dt )
+                            Advance( e )
+                        end if
+                    end if
+                end if
+            end if
+        end if
 
     case "lang"
         dim as Token t
