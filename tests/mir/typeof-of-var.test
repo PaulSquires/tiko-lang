@@ -1,0 +1,5 @@
+'' typeof over an inferred var, plain and through a pointer level.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typeof-of-var.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/typeof-of-var.out

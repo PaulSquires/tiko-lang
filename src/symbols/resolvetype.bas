@@ -161,6 +161,12 @@ function ResolveTypeRef _
         '' here, which is what it was before.
         if sp->rawName <> 0 then
             dim as Tko.SymbolId tsid2 = c.syms->Lookup( scope_, sp->rawName )
+            '' RECORDED ON THE TYPEREF, because Check may have to ask again. A
+            '' 'var' has no type yet HERE, and Check's repair pass cannot repeat the
+            '' lookup: an expression node inside a procedure has no recorded scope
+            '' to look a name up FROM. This is the only record of what the name
+            '' meant.
+            if tsid2 <> Tko.SYMBOL_NONE then c.info->SetRef( id, tsid2 )
             dim as Tko.Symbol ptr ts2 = c.syms->SymbolAt( tsid2 )
             if ts2 <> 0 then
                 '' A 'var' HAS NO TYPE YET. Its inference is Check's, and generic
