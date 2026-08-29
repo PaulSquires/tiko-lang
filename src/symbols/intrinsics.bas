@@ -156,6 +156,40 @@ private function UdtOperandBinaryType_ _
     if (lt2 = lt) andalso (rt2 = rt) then return Tko.TYPE_NONE
     return BinaryResult( op, lt2, rt2, *c.types )
 end function
+'' THE ACCESSOR A PROPERTY READ WANTS, given the head of a member's overload chain.
+''
+'' FieldOf_ hands back the HEAD and the read took its result type. A property SETTER has
+'' none, so 'f.bar' came out untyped and the statement declined -- ORDER-DEPENDENT and
+'' nothing else: declaring the getter first made the same file lower, and fbc builds it
+'' either way. A WRITE is resolved by the assignment path and does not come through here.
+''
+'' ONLY A PROPERTY. An overloaded METHOD may pair a SUB with a FUNCTION -- 'declare sub
+'' bar( )' beside 'declare function bar( byval i as integer )' -- and walking past the
+'' sub because it has no result type bound the ZERO-argument 'f.bar' to the one-argument
+'' function, which then had no argument to pass. fbc calls '_ZN3FOO3BAREv( &F$0 )'.
+private function PropertyReadAccessor_ _
+    ( byref c as Ctx, byval fs as Tko.SymbolId ) as Tko.SymbolId
+
+    dim as Tko.Symbol ptr f0 = c.syms->SymbolAt( fs )
+    if f0 = 0 then return fs
+    if f0->kind <> cast( ubyte, Tko.SYM_PROC ) then return fs
+    if f0->type_ <> Tko.TYPE_NONE then return fs
+    dim as Tko.NodeId f0n = cast( Tko.NodeId, f0->payload )
+    if f0n = Tko.NODE_NONE then return fs
+    if c.ast->Kind( f0n ) <> Tko.N_PROC then return fs
+    if StmtOf( c, f0n )->op <> cast( ushort, Tko.KW_PROPERTY ) then return fs
+
+    dim as Tko.SymbolId nx = f0->nextOverload
+    dim as long pg = 0
+    while (nx <> Tko.SYMBOL_NONE) andalso (pg < 64)
+        dim as Tko.Symbol ptr ns = c.syms->SymbolAt( nx )
+        if ns = 0 then exit while
+        if ns->type_ <> Tko.TYPE_NONE then return nx
+        nx = ns->nextOverload
+        pg += 1
+    wend
+    return fs
+end function
 private function SignedFlip_ _
     ( byval t as Tko.TypeId, byval wantUnsigned as boolean, _
       byref types as Tko.TypeContext ) as Tko.TypeId

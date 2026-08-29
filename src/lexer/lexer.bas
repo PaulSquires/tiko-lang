@@ -284,7 +284,18 @@ private sub ScanIdentifier( byref s as Scanner )
     wend
 
     '' Fold into a stack buffer; only pathological identifiers touch the heap.
+    ''
+    '' TRUNCATED AT 128 CHARACTERS, which is fbc's limit and not a formatting nicety:
+    '' two names that differ only past the boundary ARE THE SAME SYMBOL. Measured, over
+    '' 128 a's plus an X and a Y, fbc warns 'Identifier's name too big, truncated'
+    '' three times, assigns 9 through the second spelling and prints 9 through the
+    '' first. tiko-lang kept them distinct, so the second was an undeclared variable and
+    '' the assignment declined.
+    ''
+    '' The WARNING is not emitted -- the lexer has no diagnostic channel for one -- so
+    '' this silently accepts what fbc accepts noisily. dim/identifier-length.bas.
     dim as long n = s.i - first
+    if n > 128 then n = 128
     dim as ubyte folded(0 to 255)
     dim as Tko.InternId id = Tko.INTERN_NONE
     if n <= 256 then

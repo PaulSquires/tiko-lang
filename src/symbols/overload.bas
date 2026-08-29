@@ -280,6 +280,43 @@ private function UserBinaryOp_ _
         next
         if dup = false then heads.Push( cast( ulong, h3 ) )
     next
+
+    '' ...AND FROM ANY NAMESPACE NESTED INSIDE IT. Lookup walks OUTWARD, so an operator
+    '' declared one namespace DEEPER than the type it is over was invisible:
+    '' 'namespace aaa: type UDT ... namespace bbb: operator +( ... as aaa.UDT )' is what
+    '' namespace/mangling-nested-namespace-abbreviation.bas writes, and fbc finds it
+    '' with no 'using' at all -- measured, it compiles and prints 3. One level, and only
+    '' namespaces: this is a lookup widening, not a scope-chain change.
+    for si as long = 0 to 1
+        dim as Tko.TypeId ot2 = iif( si = 0, lt, rt )
+        if ot2 = Tko.TYPE_NONE then continue for
+        dim as Tko.ScopeId sc2 = _
+            cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot2 ) ) )
+        if sc2 = Tko.SCOPE_NONE then continue for
+        dim as Tko.SymScope ptr ss2 = c.syms->ScopeAt( sc2 )
+        if ss2 = 0 then continue for
+        dim as Tko.SymbolId m2 = ss2->firstSym
+        dim as long g2 = 0
+        while (m2 <> Tko.SYMBOL_NONE) andalso (g2 < 4096)
+            g2 += 1
+            dim as Tko.Symbol ptr ms2 = c.syms->SymbolAt( m2 )
+            if ms2 = 0 then exit while
+            if ms2->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
+                if ms2->inner <> Tko.SCOPE_NONE then
+                    dim as Tko.SymbolId h4 = _
+                        c.syms->LookupLocal( cast( Tko.ScopeId, ms2->inner ), fold )
+                    if h4 <> Tko.SYMBOL_NONE then
+                        dim as boolean dup2 = false
+                        for k as long = 0 to heads.Count - 1
+                            if cast( Tko.SymbolId, heads[k] ) = h4 then dup2 = true
+                        next
+                        if dup2 = false then heads.Push( cast( ulong, h4 ) )
+                    end if
+                end if
+            end if
+            m2 = ms2->nextInScope
+        wend
+    next
     if heads.Count = 0 then return Tko.SYMBOL_NONE
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE

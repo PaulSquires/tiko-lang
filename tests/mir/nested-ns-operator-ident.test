@@ -1,0 +1,8 @@
+'' An operator nested one namespace inside the type's own, and a 128-character
+'' identifier boundary.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/nested-ns-operator-ident.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/nested-ns-operator-ident.out

@@ -38,3 +38,26 @@ end property
 dim as baz b
 b.s = "ho"
 print b.qux
+
+'' ...AND ONLY A PROPERTY. An overloaded METHOD may pair a SUB with a FUNCTION, and
+'' walking past the sub because it has no result type bound the ZERO-argument 'g.bar'
+'' to the one-argument function, which then had no argument to pass. fbc calls
+'' '_ZN3FOO3BAREv( &F$0 )' and prints 'sub'.
+type meth
+	as integer pad
+	declare sub bar( )
+	declare function bar( byval i as integer ) as integer
+end type
+
+sub meth.bar( )
+	print "sub"
+end sub
+
+function meth.bar( byval i as integer ) as integer
+	print "fn"; i
+	return i
+end function
+
+dim as meth g
+g.bar
+g.bar( 3 )

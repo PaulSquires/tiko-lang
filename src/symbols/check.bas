@@ -975,30 +975,9 @@ function TypeOf_ _
             dim as Tko.SymbolId fs = FieldOf_( c, bt, ip->name )
             '' A PROPERTY OVERLOAD SET'S HEAD MAY BE THE SETTER, and a setter has no
             '' result type -- so 'f.bar' READ came out untyped and the statement
-            '' declined. It is ORDER-DEPENDENT and nothing else: declaring the getter
-            '' first made the same file lower. Walk the chain for an accessor that has
-            '' one, which is what a READ wants; a write is resolved by the assignment
-            '' path and does not come through here.
+            '' declined. See PropertyReadAccessor_.
+            if fs <> Tko.SYMBOL_NONE then fs = PropertyReadAccessor_( c, fs )
             if fs <> Tko.SYMBOL_NONE then
-                dim as Tko.Symbol ptr f0 = c.syms->SymbolAt( fs )
-                if f0 <> 0 then
-                    dim as boolean noResult = (f0->kind = cast( ubyte, Tko.SYM_PROC )) _
-                                              andalso (f0->type_ = Tko.TYPE_NONE)
-                    if noResult then
-                        dim as Tko.SymbolId nx = f0->nextOverload
-                        dim as long pg = 0
-                        while (nx <> Tko.SYMBOL_NONE) andalso (pg < 64)
-                            dim as Tko.Symbol ptr ns = c.syms->SymbolAt( nx )
-                            if ns = 0 then exit while
-                            if ns->type_ <> Tko.TYPE_NONE then
-                                fs = nx
-                                exit while
-                            end if
-                            nx = ns->nextOverload
-                            pg += 1
-                        wend
-                    end if
-                end if
                 dim as Tko.Symbol ptr f = c.syms->SymbolAt( fs )
                 if f <> 0 then
                     '' Recorded on the MEMBER node so lowering can find the field
