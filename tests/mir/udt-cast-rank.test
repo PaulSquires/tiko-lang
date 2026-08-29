@@ -1,0 +1,8 @@
+'' Choosing among several numeric 'operator cast' overloads, and typing the binop that
+'' needs one. The first in the chain was taken, and arithmetic ran at the wrong width.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cast-rank.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-cast-rank.out

@@ -49,6 +49,37 @@ private function UdtStringCastType_ _
     return Tko.TYPE_NONE
 end function
 
+'' Moved here from check.bas at the 1500-line cap, above the first caller.
+'' Nothing about it changed in the move.
+'' A member of a UDT by name, folded -- procedures included, which is what tells this
+'' from FieldOf_.
+function UdtMemberSym_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( u )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( u ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( ts )
+    if sy = 0 then return Tko.SYMBOL_NONE
+    if sy->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    '' 'x.constructor( )' AND 'p->destructor( )' NAME THE STRUCTORS, which are
+    '' declared under '__ctor' and '__dtor'. Measured, fbc emits '_ZN1TC1Ev( &X )'
+    '' and '_ZN1TD1Ev( &X )' for them -- an ordinary explicit call. The mapping
+    '' existed only on the 'procptr( T.M )' path, so the spelled-out call found no
+    '' member at all and declined.
+    dim as string mnm = nm
+    select case Tko.Text.LowerAscii( mnm )
+    case "constructor" : mnm = "__ctor"
+    case "destructor"  : mnm = "__dtor"
+    end select
+    return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( mnm ) ) )
+end function
+
 '' The result type of a UDT's 'operator cast' that returns a POINTER, or a NUMBER.
 ''
 '' Same walk as UdtStringCastType_ and for the same reason: the cast operators share one
@@ -63,6 +94,11 @@ private function UdtCastResultOf_ _
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.TYPE_NONE
     dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
+    '' THE BEST-RANKED numeric cast, not the first in the chain -- see NumericCastRank.
+    '' The pointer branch below still takes the first: there is one pointer cast in
+    '' every shape the corpus writes, and no measurement to rank two.
+    dim as Tko.TypeId bestNum = Tko.TYPE_NONE
+    dim as long bestNumRank = 0
     while cs <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
         if cse = 0 then exit while
@@ -79,15 +115,47 @@ private function UdtCastResultOf_ _
                 '' flavours -- those are UdtStringCastType_'s and mean something else at
                 '' every site that asks this.
                 if c.types->Kind( ru ) = Tko.TK_BUILTIN then
-                    if IsStringy_( c.types->BuiltinOf( ru ) ) = false then return ru
+                    if IsStringy_( c.types->BuiltinOf( ru ) ) = false then
+                        dim as long nrk = Tko.Check.NumericCastRank( *c.types, ru )
+                        if nrk > bestNumRank then
+                            bestNumRank = nrk
+                            bestNum = ru
+                        end if
+                    end if
                 end if
             end if
         end if
         cs = cse->nextOverload
     wend
+    if (wantPtr = false) andalso (bestNum <> Tko.TYPE_NONE) then return bestNum
     return Tko.TYPE_NONE
 end function
 
+'' A BINARY OPERATION WITH A UDT OPERAND AND NO USER OPERATOR takes each UDT side's
+'' numeric 'operator cast' result and asks BinaryResult about THOSE. TYPE_NONE when
+'' neither side is substituted or the pair is still not allowed.
+''
+'' The MIR has done this since it was written -- UserCastToNum_ on each side -- but
+'' Check handed BinaryResult the UDT type, which answers TYPE_NONE, so the node and
+'' every call over it were UNTYPED: 'show( l + r )' lowered because the parameter's type
+'' supplied the context, while 'print l + r' and 'dim z = func( l + r )' declined.
+'' Measured: '#print typeof( l + r )' over a type casting to byte and double is DOUBLE.
+private function UdtOperandBinaryType_ _
+    ( byref c as Ctx, byval op as Tko.TokenKind, _
+      byval lt as Tko.TypeId, byval rt as Tko.TypeId ) as Tko.TypeId
+
+    dim as Tko.TypeId lt2 = lt, rt2 = rt
+    if IsUdtOperand_( c, lt ) then
+        dim as Tko.TypeId lc = UdtCastResultOf_( c, lt, false )
+        if lc <> Tko.TYPE_NONE then lt2 = lc
+    end if
+    if IsUdtOperand_( c, rt ) then
+        dim as Tko.TypeId rc = UdtCastResultOf_( c, rt, false )
+        if rc <> Tko.TYPE_NONE then rt2 = rc
+    end if
+    if (lt2 = lt) andalso (rt2 = rt) then return Tko.TYPE_NONE
+    return BinaryResult( op, lt2, rt2, *c.types )
+end function
 private function SignedFlip_ _
     ( byval t as Tko.TypeId, byval wantUnsigned as boolean, _
       byref types as Tko.TypeContext ) as Tko.TypeId

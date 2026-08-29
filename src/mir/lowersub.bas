@@ -1198,6 +1198,7 @@ function UserCastToNum_ _
     dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
     dim as Tko.SymbolId want = Tko.SYMBOL_NONE
     dim as MirType wantTy = MT_VOID
+    dim as long bestRank = 0
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
         if cse = 0 then exit while
@@ -1216,9 +1217,17 @@ function UserCastToNum_ _
             if num then
                 dim as MirType mt2 = LowerType( rt, *c.types )
                 if (mt2 <> MT_VOID) andalso (mt2 <> MT_AGG) then
-                    want = cur
-                    wantTy = mt2
-                    exit while
+                    '' THE BEST-RANKED ONE, not the first. Taking the first is a
+                    '' silent miscompile: over a type declaring both 'cast( ) as byte'
+                    '' and 'cast( ) as double', 'show( l + r )' with both operands
+                    '' 100.0 called the BYTE cast and added in i8, so 200 came out as
+                    '' -56 where fbc prints 200.
+                    dim as long rk = Tko.Check.NumericCastRank( *c.types, rt )
+                    if rk > bestRank then
+                        bestRank = rk
+                        want = cur
+                        wantTy = mt2
+                    end if
                 end if
             end if
         end if

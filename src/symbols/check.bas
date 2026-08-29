@@ -813,6 +813,15 @@ function TypeOf_ _
         end if
         if uop <> Tko.SYMBOL_NONE then exit select
 
+        '' ...AND WITH NO USER OPERATOR, A UDT OPERAND IS ITS 'operator cast' -- see
+        '' UdtOperandBinaryType_.
+        dim as Tko.TypeId ct = UdtOperandBinaryType_( c, op, lt, rt )
+        if ct <> Tko.TYPE_NONE then
+            c.info->SetType( id, ct )
+            c.st->typed += 1
+            return ct
+        end if
+
         t = BinaryResult( op, lt, rt, *c.types )
         if (t = Tko.TYPE_NONE) andalso (lt <> Tko.TYPE_NONE) andalso _
            (rt <> Tko.TYPE_NONE) then
@@ -1313,35 +1322,6 @@ end function
 '' the same namespace. Nothing moved changed in the move.
 #include once "symbols/checkinfer.bas"
 
-
-'' A member of a UDT by name, folded -- procedures included, which is what tells this
-'' from FieldOf_.
-function UdtMemberSym_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
-
-    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
-    dim as Tko.TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
-    dim as Tko.InternId tn = c.types->NameOf( u )
-    if tn = 0 then return Tko.SYMBOL_NONE
-    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( u ) )
-    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
-    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
-    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( ts )
-    if sy = 0 then return Tko.SYMBOL_NONE
-    if sy->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
-    '' 'x.constructor( )' AND 'p->destructor( )' NAME THE STRUCTORS, which are
-    '' declared under '__ctor' and '__dtor'. Measured, fbc emits '_ZN1TC1Ev( &X )'
-    '' and '_ZN1TD1Ev( &X )' for them -- an ordinary explicit call. The mapping
-    '' existed only on the 'procptr( T.M )' path, so the spelled-out call found no
-    '' member at all and declined.
-    dim as string mnm = nm
-    select case Tko.Text.LowerAscii( mnm )
-    case "constructor" : mnm = "__ctor"
-    case "destructor"  : mnm = "__dtor"
-    end select
-    return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( mnm ) ) )
-end function
 
 '' THE 'for each' LOOP VARIABLE, where Resolve could not work it out.
 ''

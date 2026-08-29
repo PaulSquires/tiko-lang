@@ -121,6 +121,10 @@ namespace Tko.Check
     '' The global 'operator ->' for a UDT and what it hands back. Both layers need
     '' them -- Check to TYPE 'p->v' and lowering to CALL the operator -- so they take
     '' the tables rather than a context.
+    '' How good a numeric 'operator cast' is, for choosing among several. See the
+    '' definition -- the ordering is measured and is not width.
+    declare function NumericCastRank _
+        ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as long
     declare function ArrowOperatorFor _
         ( byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
           byref names as Tko.Interner, byref ast as Tko.AstArena, _

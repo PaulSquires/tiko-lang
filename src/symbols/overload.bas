@@ -914,6 +914,49 @@ private function StmtAt_ _
     return @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
 end function
 
+'' HOW GOOD A NUMERIC 'operator cast' IS, for choosing among several. Higher wins; 0
+'' means it is not a numeric cast at all.
+''
+'' Taking the FIRST one in the chain is what tiko-lang did, and it is a silent
+'' miscompile: over a type declaring both 'cast( ) as byte' and 'cast( ) as double',
+'' 'show( l + r )' with both operands 100.0 called the BYTE cast and added in i8, so
+'' 200 came out as -56. fbc calls the double one and prints 200.
+''
+'' The order is MEASURED, order-independent, pairwise, with 'print l + r' over two
+'' casts returning 1 and 2 -- so the sum says which ran:
+''
+''   boolean < byte < ubyte < short < ushort < integer < uinteger
+''           < long < ulong < longint < ulongint < single < double
+''
+'' and it is NOT width. LONG is four bytes and INTEGER eight, and long/integer picks
+'' LONG from either declaration order; longint then beats long. It is fbc's own type
+'' ordering, and every pair above was checked both ways round.
+function NumericCastRank _
+    ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as long
+
+    if t = Tko.TYPE_NONE then return 0
+    dim as Tko.TypeId u = types.Unqualify( t )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    '' AN ENUM counts as its underlying integer, which is where fbc puts it.
+    if types.Kind( u ) = Tko.TK_ENUM then return 6
+    if types.Kind( u ) <> Tko.TK_BUILTIN then return 0
+    select case types.BuiltinOf( u )
+    case Tko.TY_BOOLEAN  : return 1
+    case Tko.TY_BYTE     : return 2
+    case Tko.TY_UBYTE    : return 3
+    case Tko.TY_SHORT    : return 4
+    case Tko.TY_USHORT   : return 5
+    case Tko.TY_INTEGER  : return 6
+    case Tko.TY_UINTEGER : return 7
+    case Tko.TY_LONG     : return 8
+    case Tko.TY_ULONG    : return 9
+    case Tko.TY_LONGINT  : return 10
+    case Tko.TY_ULONGINT : return 11
+    case Tko.TY_SINGLE   : return 12
+    case Tko.TY_DOUBLE   : return 13
+    end select
+    return 0
+end function
 '' THE GLOBAL 'operator ->' FOR A UDT, or nothing.
 ''
 '' 'p->v' over a UDT is a CALL to that operator followed by an ordinary field access on
