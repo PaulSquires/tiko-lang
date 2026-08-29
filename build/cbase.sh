@@ -46,8 +46,40 @@ case "$TARGET" in
     linux-x86_64) TRIPLE=x86_64-pc-linux-gnu ;;
 esac
 
-# The members tiko-rt replaces, and the sources they come from.
-MEMBERS="swap_mem mem_copyclear list listdyn str_core strw_len strw_comp strw_trim strw_ltrim strw_rtrim"
+# The members tiko-rt replaces, DERIVED from the objects rather than listed.
+#
+# This was a hand-maintained list of ten names. tiko-rt reached nineteen members
+# and the list did not, so the "clang baseline" rebuilt ten of them and left nine
+# gcc-built -- reintroducing, in exactly nine members, the gcc-versus-clang
+# confound this script exists to remove. It reported "10 members rebuilt" every
+# time, and nothing else looked wrong.
+#
+# The mapping is the one gate.sh already performs: every symbol tiko-rt defines,
+# resolved to the fbc member that currently defines it. Same derivation, same
+# answer, and it cannot drift from what the gate actually replaces.
+#
+# Release objects, because Release is what the gate merges.
+CB_CFG=${CB_CFG:-Release}
+CB_OBJDIR="$RT_ROOT/obj/$TARGET/$CB_CFG/st"
+[ -d "$CB_OBJDIR" ] || rt_die "no tiko-rt objects at $CB_OBJDIR -- run build/build.sh $CB_CFG first"
+CB_OBJS=$(find "$CB_OBJDIR" -name '*.o' | sort)
+[ -n "$CB_OBJS" ] || rt_die "no objects in $CB_OBJDIR"
+
+CB_REFLIB=$(rt_reflib "$TARGET") || rt_die "no reference libfb.a for $TARGET"
+
+CB_SYMS=$("$TKORT_NM" --defined-only $CB_OBJS | awk '$2=="T"||$2=="D"||$2=="B"{print $3}' | sort -u)
+MEMBERS=$("$TKORT_NM" --defined-only --print-file-name "$CB_REFLIB/libfb.a" 2>/dev/null \
+    | awk -v syms="$CB_SYMS" '
+        BEGIN { n=split(syms,a,"\\n"); for(i=1;i<=n;i++) if(a[i]!="") want[a[i]]=1 }
+        {
+            loc = $1; sub(/:$/, "", loc)
+            k = index(loc, ".a:")
+            m = (k > 0) ? substr(loc, k + 3) : loc
+            if (($3=="T" || $3=="D" || $3=="B") && ($4 in want)) { sub(/\.o$/, "", m); print m }
+        }' | sort -u | tr '\n' ' ')
+
+[ -n "$MEMBERS" ] || rt_die "derived an empty member list -- the mapping is broken, and an
+    empty baseline is fbc unchanged wearing the name of a baseline"
 
 # fbc's own rtlib flags (src/makefile:179-181), minus the warning options: a
 # diagnostic here would quote source text, which PROVENANCE.md has no reason to
