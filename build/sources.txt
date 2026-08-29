@@ -5,3 +5,4 @@ mem/mem.bas
 support/list.bas
 str/core.bas
 str/wide.bas
+err/getset.bas
