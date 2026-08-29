@@ -739,6 +739,9 @@ declare function EmitRtl _
     '' The conversion intrinsics -- CBYTE, CBOOL, CAST, CPTR and the rest.
     declare function IsConvIntrinsic _
         ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' The operand of a string-to-string 'cast'/'cptr' -- see the definition.
+    declare function StrIdentityConvOperand_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
     declare function LowerConvIntrinsic _
         ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 

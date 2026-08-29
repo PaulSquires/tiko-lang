@@ -27,6 +27,10 @@ function EmitStrTerm _
 
     term = Unparen_( c, term )
 
+    '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_.
+    dim as Tko.NodeId sic = StrIdentityConvOperand_( c, term )
+    if sic <> Tko.NODE_NONE then term = Unparen_( c, sic )
+
     '' 'input( n [, [#]f] )' IN EXPRESSION POSITION HANDS BACK A DESCRIPTOR, and its
     '' node is an N_INTRINSIC -- nothing here claimed it, so 'd = input( 2, #1 )'
     '' declined while the wide half lowered. StrDescriptorOf_ knows the shape.

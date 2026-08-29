@@ -1408,6 +1408,12 @@ function LowerStringAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
       byval value as Tko.NodeId ) as boolean
 
+    '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_. Left
+    '' in place it looked like a CONVERSION term and took the transcoding path, which
+    '' has nothing to convert and declined.
+    dim as Tko.NodeId sicv = StrIdentityConvOperand_( c, value )
+    if sicv <> Tko.NODE_NONE then value = sicv
+
     '' A '+' chain is flattened and emitted as ONE assign followed by concat-assigns,
     '' which is exactly what fbc does: 'a = b + c' is fb_StrAssign(a,b) then
     '' fb_StrConcatAssign(a,c), with no temporary at all.

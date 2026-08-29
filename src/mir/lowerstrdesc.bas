@@ -21,6 +21,10 @@ function StrDescriptorOf_ _
 
     id = Unparen_( c, id )
 
+    '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_.
+    dim as Tko.NodeId sic = StrIdentityConvOperand_( c, id )
+    if sic <> Tko.NODE_NONE then id = Unparen_( c, sic )
+
     '' A STRING CONSTANT IS ITS TEXT. Recognised here rather than left to the type
     '' test below, which would claim it and then ask a constant for an address.
     '' ...and ADJACENT LITERALS, which are one literal: '"a" "1"' folds to "a1" before

@@ -1,0 +1,144 @@
+global str $str0 "37"
+global str $str1 "hi"
+global str $str2 "test"
+func void TAKES($0) {
+  local ptr s
+  entry0:
+    %1 = alloca ptr s
+    store @s, $0
+    %2 = load @s
+    call.rtl void fb_PrintString(0, %2, 1)
+    ret
+}
+declare void fb_PrintString($0, $1, $2)
+func void CALLER_($0) {
+  local ptr s
+  local agg $tmp1 size 24
+  entry0:
+    %1 = alloca ptr s
+    store @s, $0
+    %2 = alloca ptr $tmp1
+    %3 = field.addr @$tmp1, 0
+    store %3, 0
+    %4 = field.addr @$tmp1, 8
+    store %4, 0
+    %5 = field.addr @$tmp1, 16
+    store %5, 0
+    %6 = load @s
+    %7 = call.rtl ptr fb_StrAssign(@$tmp1, -1, %6, -1, 0)
+    call void TAKES(@$tmp1)
+    call.rtl void fb_StrDelete(@$tmp1)
+    ret
+}
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg x size 24
+  local agg s size 24
+  local agg $tmp3 size 24
+  local agg t size 24
+  local agg cx size 24
+  local agg cy size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr x
+    %5 = call.rtl ptr fb_StrInit(@x, -1, @@$str0, 3, 0)
+    %6 = call.rtl i32 fb_VALINT(@x)
+    %7 = trunc %6
+    call.rtl void fb_PrintByte(0, %7, 0)
+    %8 = call.rtl i32 fb_VALUINT(@x)
+    %9 = trunc %8
+    call.rtl void fb_PrintUByte(0, %9, 0)
+    %10 = call.rtl i32 fb_VALINT(@x)
+    %11 = trunc %10
+    call.rtl void fb_PrintShort(0, %11, 0)
+    %12 = call.rtl i32 fb_VALUINT(@x)
+    %13 = trunc %12
+    call.rtl void fb_PrintUShort(0, %13, 0)
+    %14 = call.rtl i32 fb_VALINT(@x)
+    call.rtl void fb_PrintInt(0, %14, 0)
+    %15 = call.rtl i32 fb_VALUINT(@x)
+    call.rtl void fb_PrintUInt(0, %15, 1)
+    %16 = call.rtl i64 fb_VALLNG(@x)
+    call.rtl void fb_PrintLongint(0, %16, 0)
+    %17 = call.rtl i64 fb_VALULNG(@x)
+    call.rtl void fb_PrintULongint(0, %17, 0)
+    %18 = call.rtl i64 fb_VALLNG(@x)
+    call.rtl void fb_PrintLongint(0, %18, 0)
+    %19 = call.rtl i64 fb_VALULNG(@x)
+    call.rtl void fb_PrintULongint(0, %19, 0)
+    %20 = call.rtl f64 fb_VAL(@x)
+    %21 = fptrunc %20
+    call.rtl void fb_PrintSingle(0, %21, 0)
+    %22 = call.rtl f64 fb_VAL(@x)
+    call.rtl void fb_PrintDouble(0, %22, 1)
+    %23 = const i64 1
+    %24 = call.rtl ptr fb_LEFT(@x, %23)
+    %25 = call.rtl i64 fb_VALULNG(%24)
+    call.rtl void fb_PrintULongint(0, %25, 1)
+    %26 = call.rtl f64 fb_VAL(@x)
+    call.rtl void fb_PrintDouble(0, %26, 1)
+    %27 = alloca ptr s
+    %28 = call.rtl ptr fb_StrInit(@s, -1, @@$str1, 3, 0)
+    %29 = alloca ptr $tmp3
+    %30 = field.addr @$tmp3, 0
+    store %30, 0
+    %31 = field.addr @$tmp3, 8
+    store %31, 0
+    %32 = field.addr @$tmp3, 16
+    store %32, 0
+    %33 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @s, -1, 0)
+    call void TAKES(@$tmp3)
+    call.rtl void fb_StrDelete(@$tmp3)
+    %34 = alloca ptr t
+    %35 = call.rtl ptr fb_StrInit(@t, -1, @s, -1, 0)
+    call.rtl void fb_PrintString(0, @t, 1)
+    call.rtl void fb_PrintString(0, @s, 1)
+    call void CALLER_(@s)
+    %36 = alloca ptr cx
+    %37 = call.rtl ptr fb_StrInit(@cx, -1, @@$str2, 5, 0)
+    %38 = alloca ptr cy
+    %39 = field.addr @cy, 0
+    store %39, 0
+    %40 = field.addr @cy, 8
+    store %40, 0
+    %41 = field.addr @cy, 16
+    store %41, 0
+    %42 = call.rtl ptr fb_StrAssign(@cy, -1, @cx, -1, 0)
+    call.rtl void fb_PrintString(0, @cy, 1)
+    call.rtl void fb_StrDelete(@cy)
+    call.rtl void fb_StrDelete(@cx)
+    call.rtl void fb_StrDelete(@t)
+    call.rtl void fb_StrDelete(@s)
+    call.rtl void fb_StrDelete(@x)
+    %43 = const i32 0
+    call.rtl void fb_End(%43)
+    %44 = load @$tmp0
+    ret %44
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare i32 fb_VALINT($0)
+declare void fb_PrintByte($0, $1, $2)
+declare i32 fb_VALUINT($0)
+declare void fb_PrintUByte($0, $1, $2)
+declare void fb_PrintShort($0, $1, $2)
+declare void fb_PrintUShort($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintUInt($0, $1, $2)
+declare i64 fb_VALLNG($0)
+declare void fb_PrintLongint($0, $1, $2)
+declare i64 fb_VALULNG($0)
+declare void fb_PrintULongint($0, $1, $2)
+declare f64 fb_VAL($0)
+declare void fb_PrintSingle($0, $1, $2)
+declare void fb_PrintDouble($0, $1, $2)
+declare ptr fb_LEFT($0, $1)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance

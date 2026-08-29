@@ -43,6 +43,49 @@ function IsConvIntrinsic _
     return len( ConvName_( c, cp ) ) > 0
 end function
 
+'' THE OPERAND OF A STRING-TO-STRING 'cast' OR 'cptr', or NODE_NONE.
+''
+'' 'cast( string, s )' converts nothing -- measured, fbc emits the ordinary byval-string
+'' temporary and nothing else: 'fb_StrAssign( &TMP$2$1, -1ll, S$1, -1ll, 0 );
+'' CONST_CAST_STRING1( &TMP$2$1 );'. So every string path can look straight through it,
+'' and without that 'takes( cast(string, s) )', 'dim t = cast(string, s)',
+'' 'y = cast(string, x)' and 'print cast(string, s)' all declined.
+''
+'' A byref parameter's type is a REFERENCE and a reference is transparent to this too.
+function StrIdentityConvOperand_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+
+    if id = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as string nm = ConvName_( c, cp )
+    if (nm <> "cast") andalso (nm <> "cptr") then return Tko.NODE_NONE
+    if cp->count <> 2 then return Tko.NODE_NONE
+    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    '' UNQUALIFIED on both sides. IsStringType tests the BUILTIN kind and a 'const
+    '' string' is a distinct qualified entry, so 'cast( string, x )' over a
+    '' 'dim x as const string' answered 'not a string' and the identity was missed --
+    '' which is the whole of what const-discard.bas writes.
+    '' THE TARGET TYPE COMES FROM THE TYPEREF, not from the call's own type: Check
+    '' computes none for 'cast( string, x )' -- a string result is not a value it
+    '' models here -- so testing the call answered TYPE_NONE and the identity was never
+    '' recognised at all.
+    dim as Tko.TypeId rt2 = c.info->TypeOf_( id )
+    if rt2 = Tko.TYPE_NONE then
+        dim as Tko.NodeId tn2 = cast( Tko.NodeId, c.ast->children[cp->first] )
+        if c.ast->Kind( tn2 ) = Tko.N_TYPEREF then rt2 = c.info->TypeOf_( tn2 )
+    end if
+    if IsStringType( c, c.types->Unqualify( rt2 ) ) = false then
+        return Tko.NODE_NONE
+    end if
+    dim as Tko.TypeId ot = c.types->Unqualify( c.info->TypeOf_( op ) )
+    if c.types->Kind( ot ) = Tko.TK_REFERENCE then
+        ot = c.types->Unqualify( c.types->Inner( ot ) )
+    end if
+    if IsStringType( c, ot ) = false then return Tko.NODE_NONE
+    return op
+end function
 function LowerConvIntrinsic _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 
@@ -62,6 +105,59 @@ function LowerConvIntrinsic _
     end if
 
     dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[cp->first + vi] )
+
+    '' A STRING OPERAND IS PARSED, NOT COERCED. There was no case for one at all, so
+    '' 'm = cuint( x )' over a string LOADED THE DESCRIPTOR'S FIRST EIGHT BYTES -- the
+    '' char* data pointer -- and zero-extended THAT into the integer. A heap address
+    '' where 37 belonged, verifier clean, 0 statements not lowered. A string TEMPORARY
+    '' -- 'cuint( left( x, 1 ) )' -- has no value to load, so that one declined instead:
+    '' the same hole, showing on two sides.
+    ''
+    '' Measured, and the entry point is chosen by the RESULT'S width and signedness
+    '' rather than by the intrinsic's name:
+    ''
+    ''     cbyte/cubyte/cshort/cushort/clng/culng   fb_VALINT  / fb_VALUINT
+    ''     cint/clngint  and their unsigned twins   fb_VALLNG  / fb_VALULNG
+    ''     csng/cdbl                                fb_VAL
+    ''
+    '' -- so 'clng( x )' is 'int32 vr = fb_VALINT( &X$0 )' and 'cint( x )' is
+    '' 'int64 vr = fb_VALLNG( &X$0 )'. Run, all thirteen print 37.
+    ''
+    '' CAST and CPTR are NOT in this: 'cast( string, s )' is the identity on a string
+    '' and has nothing to parse.
+    dim as boolean isCastLike = (nm = "cast") orelse (nm = "cptr")
+    if isCastLike = false then
+        dim as Tko.TypeId at2 = c.info->TypeOf_( arg )
+        dim as boolean argIsStr = IsStringType( c, at2 )
+        if argIsStr then
+            dim as MirValue sd
+            if StrDescriptorOf_( c, arg, sd ) = false then return v
+            if sd.kind = cast( ubyte, MV_NONE ) then return v
+            dim as FB.Array( of ulong ) vargs
+            vargs.Push( cast( ulong, sd.kind ) ) : vargs.Push( cast( ulong, sd.id ) )
+            dim as long vw = RTL_VAL
+            dim as MirType vmt = MT_F64
+            select case nm
+            case "csng", "cdbl"
+                vw = RTL_VAL : vmt = MT_F64
+            case "cint", "clngint"
+                vw = RTL_VALLNG : vmt = MT_I64
+            case "cuint", "culngint"
+                vw = RTL_VALULNG : vmt = MT_I64
+            case "cubyte", "cushort", "culng"
+                vw = RTL_VALUINT : vmt = MT_I32
+            case else
+                vw = RTL_VALINT : vmt = MT_I32
+            end select
+            dim as MirValue vr2 = EmitRtl( c, vw, vargs )
+            if vr2.kind = cast( ubyte, MV_NONE ) then return v
+            dim as MirType vwant = mt
+            if vwant = MT_VOID then vwant = vmt
+            dim as boolean vU = (vw = RTL_VALULNG) orelse (vw = RTL_VALUINT)
+            return Coerce( c, vr2, vwant, vU, IsUnsignedType( c, c.info->TypeOf_( id ) ) )
+        end if
+    end if
+
     dim as MirValue x = LowerExpr( c, arg )
     if x.kind = cast( ubyte, MV_NONE ) then return v
 

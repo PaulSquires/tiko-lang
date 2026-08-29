@@ -124,6 +124,13 @@ private function NoConvFamily_ _
     '' -- and the last is why the CAST's type matters and not the variable's: the
     '' increment is scaled by the pointee it was cast to.
     if c.types->Kind( u ) = Tko.TK_POINTER then return 3
+    '' AND EVERY VAR-LENGTH STRING IS ONE. 'cast( string, s )' converts nothing --
+    '' measured, fbc emits the ordinary byval-string temporary and nothing else:
+    '' 'fb_StrAssign( &TMP$2$1, -1ll, S$1, -1ll, 0 ); CONST_CAST_STRING1( &TMP$2$1 );'
+    '' -- so the cast is transparent and every string path can look through it. Without
+    '' this the three shapes 'takes( cast(string, s) )', 'dim t = cast(string, s)' and
+    '' 'print cast(string, s)' all declined. warnings/const-discard.bas.
+    if IsStringType( c, u ) then return 4
     if c.types->Kind( u ) <> Tko.TK_BUILTIN then return 0
     select case Tko.BuiltinClass( c.types->BuiltinOf( u ) )
     case Tko.TC_INT, Tko.TC_INTPTR : return 1
@@ -167,6 +174,13 @@ private function NoConvOperand_ _
     dim as Tko.TypeId rt = c.info->TypeOf_( id )
     dim as Tko.TypeId ot = c.info->TypeOf_( op )
     if (rt = Tko.TYPE_NONE) orelse (ot = Tko.TYPE_NONE) then return Tko.NODE_NONE
+    '' A BYREF PARAMETER'S TYPE IS A REFERENCE, and a reference is transparent to a
+    '' conversion: 'cast( string, s )' over a 'byref s as const string' converts nothing
+    '' either. Left wrapped, the family test said 'not one of the four' and the cast
+    '' stopped being an identity exactly where const-discard.bas writes it.
+    if c.types->Kind( c.types->Unqualify( ot ) ) = Tko.TK_REFERENCE then
+        ot = c.types->Inner( c.types->Unqualify( ot ) )
+    end if
     dim as long fam = NoConvFamily_( c, rt )
     if fam = 0 then return Tko.NODE_NONE
     if NoConvFamily_( c, ot ) <> fam then return Tko.NODE_NONE

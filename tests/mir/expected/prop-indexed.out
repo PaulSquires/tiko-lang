@@ -35,14 +35,14 @@ func i64 _ZN3FOO10BAR__get__ER8FBSTRING($0, $1) {
     %5 = load @this
     %6 = field.addr %5, 0
     %7 = load @index
-    %8 = load %7
-    %9 = zext %8
-    %10 = const i64 8
-    %11 = mul %9, %10
-    %12 = ptr.add %6, %11
-    %13 = load %12
-    ret %13
+    %8 = call.rtl i64 fb_VALLNG(%7)
+    %9 = const i64 8
+    %10 = mul %8, %9
+    %11 = ptr.add %6, %10
+    %12 = load %11
+    ret %12
 }
+declare i64 fb_VALLNG($0)
 func void _ZN3FOO10BAR__set__Eu7INTEGERS0_($0, $1, $2) {
   local ptr this
   local i64 index
@@ -78,13 +78,12 @@ func void _ZN3FOO10BAR__set__ER8FBSTRINGu7INTEGER($0, $1, $2) {
     %4 = load @this
     %5 = field.addr %4, 0
     %6 = load @index
-    %7 = load %6
-    %8 = zext %7
-    %9 = const i64 8
-    %10 = mul %8, %9
-    %11 = ptr.add %5, %10
-    %12 = load @value
-    store %11, %12
+    %7 = call.rtl i64 fb_VALLNG(%6)
+    %8 = const i64 8
+    %9 = mul %7, %8
+    %10 = ptr.add %5, %9
+    %11 = load @value
+    store %10, %11
     ret
 }
 func i32 main($0, $1) {
@@ -119,4 +118,4 @@ declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 5 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance

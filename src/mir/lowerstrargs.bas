@@ -17,6 +17,9 @@ private function ByvalStrTemp_ _
 
     outSlot = -1
     if argNode = Tko.NODE_NONE then return false
+    '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_.
+    dim as Tko.NodeId sica = StrIdentityConvOperand_( c, argNode )
+    if sica <> Tko.NODE_NONE then argNode = sica
     dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if slot < 0 then return false
     dim as MirValue dst
