@@ -1129,6 +1129,9 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if ip->op = cast( ushort, Tko.KW_SEEK ) then handled = LowerSeekStmt_( c, id )
     if ip->op = cast( ushort, Tko.KW_COLOR ) then handled = LowerColorStmt_( c, id )
     if ip->op = cast( ushort, Tko.KW_WIDTH ) then handled = LowerWidthStmt_( c, id )
+    '' 'err = n' -- the WRITE half of the ERR pseudo-variable. The READ is an
+    '' ordinary call, through the prelude's alias to fb_ErrorGetNum.
+    if ip->op = cast( ushort, Tko.KW_ERR ) then handled = LowerErrSet_( c, id )
     if ip->op = cast( ushort, Tko.KW_LSET ) then handled = LowerLrset( c, id, false )
     if ip->op = cast( ushort, Tko.KW_RSET ) then handled = LowerLrset( c, id, true )
     if ip->op = cast( ushort, Tko.KW_READ ) then handled = LowerRead( c, id )

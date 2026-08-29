@@ -1,0 +1,9 @@
+'' The ERR pseudo-variable: fb_ErrorGetNum to read, fb_ErrorSetNum to write.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/err-pseudovar.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_ErrorSetNum
+'' EXPECT-OUT: fb_ErrorGetNum
+'' GOLDEN: expected/err-pseudovar.out

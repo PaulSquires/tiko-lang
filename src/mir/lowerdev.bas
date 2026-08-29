@@ -117,6 +117,30 @@ end function
 ''   'n = width' with NO PARENTHESES -- a bare KEYWORD intrinsic in expression position
 ''     is a plain N_IDENT that nothing claims. 'n = width( )' is the same call and does
 ''     lower; 'n = pos' works only because pos is a PRELUDE function and not a keyword.
+'' 'err = n' -- THE WRITE HALF OF THE ERR PSEUDO-VARIABLE. Measured:
+''
+''     e = err     int32 vr = fb_ErrorGetNum( );  E = (int64)vr
+''     err = 5     fb_ErrorSetNum( 5 )
+''
+'' The read has always worked -- the prelude declares 'err' aliased to
+'' fb_ErrorGetNum, so it is an ordinary call -- and the write never reached the
+'' statement parser at all, because ERR is a KEYWORD. fb_ErrorSetNum sat in the
+'' runtime table with no caller.
+''
+'' fbc DISCARDS the result: 'fb_ErrorSetNum( 5 );' as a statement, not assigned.
+private function LowerErrSet_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Tko.NODE_NONE then return false
+    dim as MirValue v = LowerExpr( c, sp->a )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    v = Coerce( c, v, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    dim as MirValue r = EmitRtl( c, RTL_ERR_SET, args )
+    return (r.kind <> cast( ubyte, MV_NONE ))
+end function
+
 private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count > 2 then return false

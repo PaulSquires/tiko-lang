@@ -1201,6 +1201,30 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' with the dereference operator, and the target is an ordinary lvalue
             '' expression from there -- the same call-or-assign ambiguity again.
             n = ParseAmbiguous( p )
+        elseif (k = Tko.KW_ERR) andalso HasTok( p, p.pos + 1 ) andalso _
+               (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ) then
+            '' 'err = n' -- ERR IS A PSEUDO-VARIABLE, readable AND assignable, and the
+            '' two halves go to different entry points. Measured:
+            ''
+            ''     e = err     int32 vr = fb_ErrorGetNum( );  E = (int64)vr
+            ''     err = 5     fb_ErrorSetNum( 5 )
+            ''
+            '' The READ has always worked: the prelude declares 'err' aliased to
+            '' fb_ErrorGetNum, so it is an ordinary call. The WRITE never reached the
+            '' statement parser at all -- ERR is a KEYWORD, so it fell off the end of
+            '' this dispatch and was 'expected a statement', with fb_ErrorSetNum in
+            '' the runtime table and no caller.
+            ''
+            '' A STATEMENT OF ITS OWN rather than the call-or-assign ambiguity: the
+            '' name resolves to the prelude FUNCTION, so an assignment to it would
+            '' read as 'function = expr', the result assignment, which is a different
+            '' statement with a different meaning.
+            Advance( p )
+            Advance( p )
+            dim as Tko.StmtPayload erp
+            erp.op = cast( ushort, Tko.KW_ERR )
+            erp.a = Expression( p )
+            n = MakeStmt( p, Tko.N_INTRINSIC, t.loc, erp )
         elseif k = Tko.TK_QUESTION then
             n = ParseIntrinsic( p )       '' '?' is PRINT
         else
