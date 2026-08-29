@@ -23,16 +23,17 @@ func void S1() {
     %12 = func.addr ptr __TKO_LAMBDA_801F6C16_1
     store @pick, %12
     %13 = load @pick
-    %14 = call.ind i32 %13(@a, @b)
-    call.rtl void fb_PrintInt(0, %14, 1)
-    %15 = alloca ptr one
-    %16 = func.addr ptr __TKO_LAMBDA_801F6C16_2
-    store @one, %16
-    %17 = const i64 1
-    %18 = trunc %17
-    %19 = load @one
-    %20 = call.ind i32 %19(%18)
-    call.rtl void fb_PrintInt(0, %20, 1)
+    %14 = call.ind ptr %13(@a, @b)
+    %15 = load %14
+    call.rtl void fb_PrintInt(0, %15, 1)
+    %16 = alloca ptr one
+    %17 = func.addr ptr __TKO_LAMBDA_801F6C16_2
+    store @one, %17
+    %18 = const i64 1
+    %19 = trunc %18
+    %20 = load @one
+    %21 = call.ind i32 %20(%19)
+    call.rtl void fb_PrintInt(0, %21, 1)
     ret
 }
 declare void __TKO_LAMBDA_801F6C16_0()
@@ -123,4 +124,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 8 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 8 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance

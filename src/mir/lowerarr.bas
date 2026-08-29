@@ -313,7 +313,29 @@ function LowerAddr _
         dim as Tko.SymbolId bcal = c.info->RefOf( id )
         if bcal = Tko.SYMBOL_NONE then bcal = c.info->RefOf( bl->target )
         dim as Tko.Symbol ptr bcs = c.syms->SymbolAt( bcal )
+        '' A BYREF RESULT THROUGH A FUNCTION POINTER. The callee is a VARIABLE, not a
+        '' SYM_PROC, so the branch below never saw it and 'dim byref as long r =
+        '' pick( lo, hi )' had no address to alias -- while the same call over a NAMED
+        '' function lowered. Measured, fbc: 'int32* vr$2 = (PICK$0)( &LO$0, &HI$0 );
+        '' R$0 = vr$2;', and '@(p( ))' over one is the returned pointer itself.
+        ''
+        '' The signature's INNER type is what says byref, which is exactly the test
+        '' LowerCallParts already makes for the indirect case.
         if bcs <> 0 then
+            if bcs->kind <> cast( ubyte, Tko.SYM_PROC ) then
+                dim as Tko.TypeId sigT = c.types->Unqualify( bcs->type_ )
+                if c.types->Kind( sigT ) = Tko.TK_POINTER then
+                    sigT = c.types->Unqualify( c.types->Inner( sigT ) )
+                end if
+                if c.types->Kind( sigT ) = Tko.TK_PROC then
+                    dim as Tko.TypeId srt2 = c.types->Inner( sigT )
+                    if c.types->Kind( srt2 ) = Tko.TK_REFERENCE then
+                        dim as MirValue iv = LowerCallParts( c, bl->target, bcal, _
+                                                            bl->first, bl->count, MT_PTR )
+                        if iv.kind <> cast( ubyte, MV_NONE ) then return iv
+                    end if
+                end if
+            end if
             if bcs->kind = cast( ubyte, Tko.SYM_PROC ) then
                 dim as Tko.NodeId bpn = cast( Tko.NodeId, bcs->payload )
                 if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) then

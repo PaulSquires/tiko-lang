@@ -1117,7 +1117,17 @@ function TypeOf_ _
                 if c.types->Kind( pct ) = Tko.TK_POINTER then
                     pct = c.types->Unqualify( c.types->Inner( pct ) )
                 end if
-                if c.types->Kind( pct ) = Tko.TK_PROC then t = c.types->Inner( pct )
+                if c.types->Kind( pct ) = Tko.TK_PROC then
+                    t = c.types->Inner( pct )
+                    '' A BYREF RESULT IS THE REFERENT to everything above the call.
+                    '' The reference is a LOWERING fact -- the call yields a pointer
+                    '' and the consumer reads through it -- and LowerCallParts still
+                    '' reads it off the SIGNATURE. Left on the expression's type,
+                    '' 'print pick( a, b )' had a reference to print.
+                    if c.types->Kind( t ) = Tko.TK_REFERENCE then
+                        t = c.types->Inner( t )
+                    end if
+                end if
             end if
         end if
 

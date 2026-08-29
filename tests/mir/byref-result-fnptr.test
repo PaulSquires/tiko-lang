@@ -1,0 +1,7 @@
+'' A byref-returning call through a function pointer: aliased, printed, and addressed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-result-fnptr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byref-result-fnptr.out

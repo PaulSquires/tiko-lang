@@ -33,6 +33,16 @@ function ResolveTypeRef _
         else
             ret = c.types->Builtin( Tko.TY_VOID )
         end if
+        '' 'as function( ... ) BYREF as long' -- THE RESULT'S BYREF-NESS BELONGS TO THE
+        '' TYPE. The parser has recorded it as PF_BYREF_RESULT since the spelling was
+        '' accepted and nothing read it back, so a procedure TYPE did not carry it and
+        '' every consumer had to guess: 'dim byref as long r = pick( lo, hi )' through a
+        '' function POINTER found no address to alias, while the same call over a NAMED
+        '' function -- where the PROC NODE carries the flag -- lowered. Measured, fbc:
+        '' 'int32* vr$2 = (PICK$0)( &LO$0, &HI$0 ); R$0 = vr$2;'.
+        if (sp->extra and Tko.PF_BYREF_RESULT) <> 0 then
+            if ret <> Tko.TYPE_NONE then ret = c.types->Reference( ret )
+        end if
         dim as Tko.TypeIdVec2 ps
         for i as long = 0 to sp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
