@@ -1,0 +1,9 @@
+'' Copying a dynamic array whose elements are strings, a UDT with written structors, or
+'' a UDT whose structors are synthesised: the flag and the two function pointers
+'' fb_ArrayRedimTo takes, and the per-element loop for an element that assigns itself.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dynarray-elem-copy.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/dynarray-elem-copy.out

@@ -407,9 +407,13 @@ end sub
 '' A DYNAMIC ARRAY MEMBER STOPS IT. fbc copies one with fb_ArrayRedimTo and an element
 '' loop; emitting an assignment that skipped the array would be worse than the bitwise
 '' copy that happens today, because it would look like the field had been handled.
+'' A DYNAMIC ARRAY MEMBER USED TO SUPPRESS THE WHOLE LET BODY, which left every copy
+'' of such a type as a bitwise store of the DESCRIPTOR -- two objects over one buffer,
+'' erased twice. CopyMember_ deep-copies the array now, so the body is wanted here
+'' exactly as it is for any other member that cannot be copied bitwise.
 function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-    if NeedsCtorBody_( c, t ) = false then return false
-    return (HasDynArrayMember_( c, t ) = false)
+    if NeedsCtorBody_( c, t ) then return true
+    return HasDynArrayMember_( c, t )
 end function
 
 function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
@@ -436,6 +440,96 @@ function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     return false
 end function
 
+'' The VALUE at 'base + off', loaded as 'mt'. The array descriptor's own fields are
+'' reached this way and nowhere else in this file.
+'' The ADDRESS of a SYNTHESISED structor. FuncAddrOf names a WRITTEN procedure through
+'' its symbol; an implicit one has no symbol, only the name EmitImplicit_ will give it,
+'' so the function-table entry is found or declared by that name exactly as
+'' CallImplByName_ does -- and the body is REQUESTED, or the address would point at a
+'' declaration nothing ever defines.
+private function ImplStructorAddr_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as long ) as MirValue
+
+    dim as MirValue none_
+    dim as string nm
+    if kind_ = 1 then
+        nm = ImplicitCtorName_( c, t )
+    else
+        nm = ImplicitDtorName_( c, t )
+    end if
+    if len( nm ) = 0 then return none_
+    WantImplicit_( c, t, kind_ )
+    dim as Tko.InternId id = c.names->GetString( nm )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = id then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
+        decl->isDefinition = false
+        decl->paramCount = 1
+        fidx = c.m->functions.Count - 1
+    end if
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FUNC_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.callee = cast( ulong, fidx )
+    return Emit( c, fa )
+end function
+
+'' Store 'v' through the address 'addr'.
+private sub ImplStoreTo_ _
+    ( byref c as Ctx, byref addr as MirValue, byref v as MirValue )
+
+    if (addr.kind = cast( ubyte, MV_NONE )) orelse _
+       (v.kind = cast( ubyte, MV_NONE )) then return
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = addr
+    st.b = v
+    Emit( c, st )
+end sub
+
+'' Advance the pointer held in the slot at 'addr' by 'n' BYTES. M_PTR_ADD takes a byte
+'' offset already, so nothing here scales by an element size a second time.
+private sub ImplBumpPtr_ _
+    ( byref c as Ctx, byref addr as MirValue, byval n as long )
+
+    if addr.kind = cast( ubyte, MV_NONE ) then return
+    dim as MirValue cur = LowerExprLoad( c, addr, MT_PTR )
+    if cur.kind = cast( ubyte, MV_NONE ) then return
+    dim as MirType dit = MT_I64
+    if c.types->target.pointerBits = 32 then dit = MT_I32
+    dim as MirValue step_ = ConstInt( c, n, dit )
+    dim as MirInst pa
+    pa.op = cast( ushort, M_PTR_ADD )
+    pa.ty = cast( ubyte, MT_PTR )
+    pa.a = cur
+    pa.b = step_
+    dim as MirValue nxt = Emit( c, pa )
+    ImplStoreTo_( c, addr, nxt )
+end sub
+
+private function ImplFieldAt_ _
+    ( byref c as Ctx, byref base_ as MirValue, byval off as long, _
+      byval mt as MirType ) as MirValue
+
+    dim as MirValue none_
+    if base_.kind = cast( ubyte, MV_NONE ) then return none_
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = base_
+    fa.imm = off
+    dim as MirValue a = Emit( c, fa )
+    if a.kind = cast( ubyte, MV_NONE ) then return none_
+    return LowerExprLoad( c, a, mt )
+end function
+
 '' One member copied from another object of the same type.
 private sub CopyMember_ _
     ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, byval ft as Tko.TypeId )
@@ -455,6 +549,169 @@ private sub CopyMember_ _
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, 0 ) )
         EmitRtl( c, RTL_STR_ASSIGN, args )
+        return
+    end if
+
+    '' A DYNAMIC ARRAY FIELD IS DEEP-COPIED, and copying the DESCRIPTOR instead is
+    '' worse than doing nothing: the two objects then share one buffer and BOTH
+    '' destructors erase it. Measured over 'type Box: dim as double arr( any )' and
+    '' 'dim as Box b = a', where fbc's generated LET is
+    ''
+    ''     fb_ArrayRedimTo( THIS, __FB_RHS__, 0, NULL, NULL );
+    ''     <element loop: PTR to PTR, SIZE bytes>
+    ''
+    '' -- the resize first, out of the source's own descriptor, then the elements.
+    '' fbc walks them one at a time because an element may have its own assignment;
+    '' where none does, the loop is a straight byte copy of SIZE bytes and memcpy is
+    '' the same thing. An element type that DOES need per-element work declines
+    '' rather than guessing -- see below.
+    if c.types->IsDynArray( ft ) then
+        dim as Tko.TypeId et = c.types->Inner( ft )
+        '' EVERY SHAPE THAT NEEDS fbc'S PER-ELEMENT LOOP, declined together: a
+        '' var-length string element is an fb_StrAssign each, and a UDT element
+        '' with an assignment of its own is a call each. A byte copy of either
+        '' would alias a buffer the same way the descriptor copy did.
+        dim as longint esn = 0
+        dim as boolean elemVarStr = false
+        if IsStringType( c, et ) then
+            elemVarStr = (StrSwapKind_( c, et, esn ) = 0)
+        end if
+        '' AN ELEMENT THAT ASSIGNS ITSELF needs fbc's loop rather than a byte copy:
+        '' a var-length string element is an fb_StrAssign each, a UDT element with
+        '' its own LET is a call each, and a byte copy of either would alias the
+        '' buffer exactly the way the descriptor copy did.
+        dim as boolean perElem = elemVarStr
+        if StructorOf( c, et, "let" ) <> Tko.SYMBOL_NONE then perElem = true
+        if NeedsLetBody_( c, et ) then perElem = true
+
+        '' fb_ArrayRedimTo( dst, src, isString, ctor, dtor ). Measured, over the same
+        '' 'dim as A y = x' with the element type varied:
+        ''
+        ''     double        ( ..., 0,  NULL,       NULL )
+        ''     string        ( ..., -1, NULL,       NULL )
+        ''     E with both   ( ..., 0,  &_ZN1EC1Ev, &_ZN1ED1Ev )
+        ''
+        '' -- so the flag says STRING and the last two are the element's structors,
+        '' which the runtime runs over the elements it grows and drops. Passing NULL
+        '' where one belongs leaves a grown element unconstructed, so an element
+        '' needing an IMPLICIT structor declines here: FuncAddrOf names a WRITTEN
+        '' procedure and a synthesised one has no symbol to name.
+        dim as MirValue nulp = ConstInt( c, 0, MT_PTR )
+        dim as MirValue flag = ConstInt( c, iif( elemVarStr, -1, 0 ), MT_I32 )
+        dim as MirValue ector = nulp
+        dim as MirValue edtor = nulp
+        dim as Tko.SymbolId ecs = _
+            StructorWithArity( c, StructorOf( c, et, "__ctor" ), 0 )
+        dim as Tko.SymbolId eds = _
+            StructorWithArity( c, StructorOf( c, et, "__dtor" ), 0 )
+        if ecs <> Tko.SYMBOL_NONE then
+            ector = FuncAddrOf( c, ecs )
+        elseif TypeNeedsInit_( c, et ) andalso (elemVarStr = false) then
+            ector = ImplStructorAddr_( c, et, 1 )
+        end if
+        if eds <> Tko.SYMBOL_NONE then
+            edtor = FuncAddrOf( c, eds )
+        elseif TypeNeedsDtor_( c, et ) andalso (elemVarStr = false) then
+            edtor = ImplStructorAddr_( c, et, 0 )
+        end if
+        if (ector.kind = cast( ubyte, MV_NONE )) orelse _
+           (edtor.kind = cast( ubyte, MV_NONE )) then
+            SkipHere( c )
+            return
+        end if
+        dim as FB.Array( of ulong ) ra
+        ra.Push( cast( ulong, dst.kind ) ) : ra.Push( cast( ulong, dst.id ) )
+        ra.Push( cast( ulong, src.kind ) ) : ra.Push( cast( ulong, src.id ) )
+        ra.Push( cast( ulong, flag.kind ) ) : ra.Push( cast( ulong, flag.id ) )
+        ra.Push( cast( ulong, ector.kind ) ) : ra.Push( cast( ulong, ector.id ) )
+        ra.Push( cast( ulong, edtor.kind ) ) : ra.Push( cast( ulong, edtor.id ) )
+        EmitRtl( c, RTL_ARRAY_REDIM_TO, ra )
+
+        '' PTR is at one pointer in and SIZE at two -- the descriptor layout in
+        '' lowerdesc.bas, halved on win32 like every other offset there. The copy
+        '' reads the SOURCE's byte count, which is what fbc's loop bound is.
+        dim as long pb = c.types->target.pointerBits \ 8
+        dim as MirType dit = MT_I64
+        if c.types->target.pointerBits = 32 then dit = MT_I32
+        dim as MirValue dp = ImplFieldAt_( c, dst, pb, MT_PTR )
+        dim as MirValue sp_ = ImplFieldAt_( c, src, pb, MT_PTR )
+        dim as MirValue sz = ImplFieldAt_( c, src, pb * 2, dit )
+        if (dp.kind = cast( ubyte, MV_NONE )) orelse _
+           (sp_.kind = cast( ubyte, MV_NONE )) orelse _
+           (sz.kind = cast( ubyte, MV_NONE )) then
+            SkipHere( c )
+            return
+        end if
+        if perElem = false then
+            dim as FB.Array( of ulong ) ma
+            ma.Push( cast( ulong, dp.kind ) ) : ma.Push( cast( ulong, dp.id ) )
+            ma.Push( cast( ulong, sp_.kind ) ) : ma.Push( cast( ulong, sp_.id ) )
+            ma.Push( cast( ulong, sz.kind ) ) : ma.Push( cast( ulong, sz.id ) )
+            EmitRtl( c, RTL_MEM_COPY, ma )
+            return
+        end if
+
+        '' THE PER-ELEMENT LOOP, which is fbc's shape:
+        ''
+        ''     TMP2 = THIS->PTR;  TMP3 = RHS->PTR;  TMP4 = TMP3 + RHS->SIZE;
+        ''     while TMP3 < TMP4:  *TMP2 = *TMP3;  TMP2 += len;  TMP3 += len
+        ''
+        '' -- bounded by the SOURCE's byte count and stepped by the element size.
+        '' The two cursors are slots because this IR has no phi: a temp would have
+        '' to be redefined across the back edge.
+        dim as long elen = SizeOfType( c, et )
+        if elen <= 0 then
+            SkipHere( c )
+            return
+        end if
+        dim as long dcur = NewTempLocal( c, MT_PTR, pb )
+        dim as long scur = NewTempLocal( c, MT_PTR, pb )
+        if (dcur < 0) orelse (scur < 0) then
+            SkipHere( c )
+            return
+        end if
+        dim as MirValue dcurA, scurA
+        dcurA.kind = cast( ubyte, MV_LOCAL ) : dcurA.ty = cast( ubyte, MT_PTR )
+        dcurA.id = dcur
+        scurA.kind = cast( ubyte, MV_LOCAL ) : scurA.ty = cast( ubyte, MT_PTR )
+        scurA.id = scur
+        ImplStoreTo_( c, dcurA, dp )
+        ImplStoreTo_( c, scurA, sp_ )
+
+        '' The end pointer is the source base plus its byte count, computed ONCE:
+        '' the source is not written through here, so it cannot move.
+        dim as MirInst ea
+        ea.op = cast( ushort, M_PTR_ADD )
+        ea.ty = cast( ubyte, MT_PTR )
+        ea.a = sp_
+        ea.b = sz
+        dim as MirValue endp = Emit( c, ea )
+
+        dim as long headB = NewBlock( c, "arrcopy.head" )
+        dim as long bodyB = NewBlock( c, "arrcopy.body" )
+        dim as long doneB = NewBlock( c, "arrcopy.done" )
+        dim as MirValue noCond
+        Terminate( c, MTERM_BR, headB, -1, noCond )
+
+        c.curBlock = headB
+        dim as MirValue sNow = LowerExprLoad( c, scurA, MT_PTR )
+        dim as MirInst cmp
+        cmp.op = cast( ushort, M_ICMP_ULT )
+        cmp.ty = cast( ubyte, MT_I32 )
+        cmp.a = sNow
+        cmp.b = endp
+        dim as MirValue more = Emit( c, cmp )
+        Terminate( c, MTERM_CONDBR, bodyB, doneB, more )
+
+        c.curBlock = bodyB
+        dim as MirValue dEl = LowerExprLoad( c, dcurA, MT_PTR )
+        dim as MirValue sEl = LowerExprLoad( c, scurA, MT_PTR )
+        CopyMember_( c, dEl, sEl, et )
+        ImplBumpPtr_( c, dcurA, elen )
+        ImplBumpPtr_( c, scurA, elen )
+        Terminate( c, MTERM_BR, headB, -1, noCond )
+
+        c.curBlock = doneB
         return
     end if
 

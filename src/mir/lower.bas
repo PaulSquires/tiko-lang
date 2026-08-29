@@ -342,7 +342,27 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         '' one picked as its copy constructor -- and was handed an
                         '' ADDRESS where a long belonged.
                         dim as Tko.SymbolId ucp = CopyCtorOf_( c, ivt )
-                        if (ucp <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, ivt ) then
+                        '' A FUNCTION RESULT IS ALREADY A TEMPORARY, so it is MOVED
+                        '' and not copied. fbc hands the callee the destination and
+                        '' the object is built there once -- 'F( &T$1 )' with no copy
+                        '' at the call site at all. Routing one through the implicit
+                        '' copy instead took the returned descriptor into a temporary,
+                        '' deep-copied THAT into the destination, and never erased the
+                        '' temporary: a LEAK where the plain store was already right.
+                        dim as boolean initIsCall = _
+                            (c.ast->Kind( ip->b ) = Tko.N_CALL)
+                        '' ...and ONLY for a type carrying a dynamic array, which is
+                        '' the set this path newly reaches. A type that wanted the
+                        '' implicit copy BEFORE -- one holding a var-length string,
+                        '' say -- still gets it from a call, because a plain store
+                        '' would alias its buffer exactly the way it would here. The
+                        '' array case has no such history to preserve: its store was
+                        '' the move all along.
+                        dim as boolean wantImplCopy = NeedsLetBody_( c, ivt )
+                        if initIsCall andalso HasDynArrayMember_( c, ivt ) then
+                            wantImplCopy = false
+                        end if
+                        if (ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy then
                             dim as MirValue dsa
                             dsa.kind = cast( ubyte, MV_LOCAL )
                             dsa.ty = cast( ubyte, MT_PTR )
