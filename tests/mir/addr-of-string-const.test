@@ -1,0 +1,5 @@
+'' The address of a string constant is the literal's own storage.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/addr-of-string-const.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/addr-of-string-const.out

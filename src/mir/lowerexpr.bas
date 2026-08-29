@@ -143,6 +143,25 @@ function LowerExpr _
         if c.ast->Kind( ap->operand ) = Tko.N_STRING_LIT then
             return LowerStringLitAddr( c, ap->operand )
         end if
+        '' ...AND SO IS '@S' OVER A STRING CONSTANT. 'const s = "abc"' emits no
+        '' variable -- it folds -- so LowerAddr had nothing to take and
+        '' 'dim as byte ptr p = @s' declined. Measured, fbc hands back the
+        '' LITERAL'S OWN STORAGE: 'P$0 = (int8*)"abc"'.
+        if c.ast->Kind( ap->operand ) = Tko.N_IDENT then
+            dim as Tko.Symbol ptr acs = c.syms->SymbolAt( c.info->RefOf( ap->operand ) )
+            if acs <> 0 then
+                if acs->kind = cast( ubyte, Tko.SYM_CONSTANT ) then
+                    dim as string actx
+                    if ConstStringTextOf_( c, ap->operand, actx ) then
+                        dim as MirValue acv
+                        acv.kind = cast( ubyte, MV_GLOBAL )
+                        acv.ty = cast( ubyte, MT_PTR )
+                        acv.id = c.m->AddStringLiteral( actx, *c.names )
+                        return acv
+                    end if
+                end if
+            end if
+        end if
         '' '@wstr( "w1" )' -- A WIDE STRING IS ALREADY A POINTER, so its address is
         '' that pointer and not the address of a temporary holding one. Measured: fbc
         '' folds the whole thing to '(uint16*)L"w1"', the literal's own storage. Asking
