@@ -6,14 +6,17 @@
 '' to bisect to.
 ''
 '' Both CONSUME a temporary operand -- see the note on hSlice.
+''
+'' CORRECTED after PROBE-32. This module used to define a private empty
+'' descriptor of its own. Its CONTENTS were right and every gate passed, but
+'' fbc returns ONE shared empty -- &__fb_ctx.null_desc -- from fb_LEFT, fb_TRIM
+'' and fb_StrMid alike, so two empty results compare equal by address there and
+'' did not here. Nothing in fbc's 2,715-file suite looks; it was a divergence
+'' all the same. See inc/ctx.bi.
 
 #include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
 
-'' The shared empty result: len 0, size 0, data NULL, temp bit clear. Measured
-'' (PROBE-27): every degenerate LEFT/RIGHT answers with one of these rather than
-'' an allocated empty temporary, and the clear temp bit is what stops a caller
-'' freeing it.
-dim shared as FBSTRING tkort_sliceEmpty
 
 extern "rtlib"
 	declare function fb_hStrAllocTemp alias "fb_hStrAllocTemp" _
@@ -50,19 +53,19 @@ private function hSlice _
 
 	if( (s = 0) orelse (chars <= 0) ) then
 		if( s <> 0 ) then tkrt_DelTemp( s )
-		return @tkort_sliceEmpty
+		return TKORT_NULLSTR( )
 	end if
 
 	dim as zstring ptr p = s->data
 	if( p = 0 ) then
 		if( s <> 0 ) then tkrt_DelTemp( s )
-		return @tkort_sliceEmpty
+		return TKORT_NULLSTR( )
 	end if
 
 	dim as integer n = FB_STRSIZE( s )
 	if( n <= 0 ) then
 		if( s <> 0 ) then tkrt_DelTemp( s )
-		return @tkort_sliceEmpty
+		return TKORT_NULLSTR( )
 	end if
 
 	if( chars > n ) then chars = n
@@ -70,7 +73,7 @@ private function hSlice _
 	dim as FBSTRING ptr r = fb_hStrAllocTemp( 0, chars )
 	if( r = 0 ) then
 		if( s <> 0 ) then tkrt_DelTemp( s )
-		return @tkort_sliceEmpty
+		return TKORT_NULLSTR( )
 	end if
 
 	if( fromRight ) then

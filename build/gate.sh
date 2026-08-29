@@ -71,6 +71,22 @@ else
         archive=$1; thread=$2
         objdir="$RT_ROOT/obj/$TARGET/${GATE_CFG:-Release}/$thread"
         [ -d "$objdir" ] || rt_die "no tiko-rt objects at $objdir -- run build/build.sh first"
+        # STALENESS GUARD. gate.sh merges the ${GATE_CFG:-Release} objects; build.sh
+        # and diff.sh default to Debug. Building Debug and then running the gate
+        # therefore tests the PREVIOUS batch and reports a clean PASS for code that
+        # was never linked -- which is exactly what happened on the run that
+        # produced this check: two targets passed with "34 tiko-rt symbols, 15
+        # members" while the tree held 38 and 19.
+        #
+        # A stale artefact never errors. It answers, plausibly, about something
+        # else.
+        newest_src=$(find "$RT_ROOT/src" -name '*.ba[si]' -newer "$objdir" -print -quit 2>/dev/null || true)
+        if [ -n "$newest_src" ]; then
+            rt_die "objects in $objdir are older than $newest_src
+    the gate would merge the PREVIOUS batch and pass. Run:
+        build/build.sh ${GATE_CFG:-Release}"
+        fi
+
         objs=$(find "$objdir" -name '*.o' | sort)
         [ -n "$objs" ] || { echo "gate: no $thread objects yet, using fbc's $archive unchanged"; continue; }
 
@@ -194,9 +210,38 @@ trap 'rm -f "$LOCK"' EXIT INT TERM
 # know which objects to delete. Then delete any .o that survived anyway: a run
 # whose numbers get compared to a published baseline may not link one stale
 # object. A stale object yields a plausible NUMBER, never an error.
+# ACTIVE-WRITER GUARD. Cleaning at startup cannot stop a writer that is already
+# running, and the lock above only covers gates that reach it. A gate killed
+# mid-run leaves an orphaned make/fbc behind, and if that orphan is the WSL one
+# its processes carry Linux names -- `tasklist` shows nothing, so "the tree is
+# quiet" looks true from Windows while ELF objects are still landing in it.
+#
+# That is not hypothetical: a win64 gate once linked ELF `tui/*.o` written by a
+# killed Linux gate and died on undefined references to tcsetattr, ioctl and
+# poll -- POSIX symbols, in a Windows link, from a project that had touched none
+# of it. 740 objects and 132 executables had to be deleted by hand.
+#
+# So ask the TREE, not the process table: any object touched in the last half
+# minute means something is still writing here.
+recent=$(find . -name '*.o' -newermt '-30 seconds' -print -quit 2>/dev/null || true)
+if [ -n "$recent" ]; then
+    rt_die "something is still writing to $FBC_TREE/src/tests ($recent changed in the last 30s)
+    a previous gate was probably killed and its make/fbc is still running.
+    wait for it (WSL processes do not appear in tasklist), then re-run."
+fi
+
 "$MAKE" -f unit-tests.mk clean > /dev/null 2>&1 || true
 rm -f unit-tests.inc unit-tests-obj.lst
 find . -name '*.o' -delete
+
+# AND THE EXECUTABLES. Deleting only the objects leaves fbc-tests / fbc-tests.exe
+# behind, and a binary built for ANOTHER TARGET can then satisfy make. A win64
+# gate run straight after a Linux one came out 22 compiles short of the usual
+# 1,477 and died mid-summary with no message; re-run from a clean tree it passed
+# with 1,477 and matched the baseline exactly. The failure was never diagnosed
+# because it was never reproducible -- which is the point: it was discarded, not
+# explained, and this is what stops the next one being born.
+rm -f fbc-tests fbc-tests.exe
 
 echo "gate: $TARGET running fbc's unit-tests (this takes a while)"
 
@@ -217,6 +262,7 @@ if [ "${USE_WSL:-0}" = "1" ]; then
         make -f unit-tests.mk clean >/dev/null 2>&1 || true
         rm -f unit-tests.inc unit-tests-obj.lst
         find . -name '*.o' -delete
+        rm -f fbc-tests fbc-tests.exe
         make unit-tests FBC='$W_FBC -i $W_INC -p $W_LIB -gen gcc'
     " > "$LOG" 2>&1 || true
 else

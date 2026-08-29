@@ -263,17 +263,41 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 
 	dim as integer want = hReallocSize( length )
 
-	'' An empty descriptor is NOT delegated to fb_hStrAlloc, even though the
-	'' result would be identical, because realloc(NULL, n) and malloc(n) are the
-	'' same operation under different names and the counts are compared by name.
-	'' fbc reaches this path through realloc; matching it keeps the allocation
-	'' differential exact rather than exact-modulo-bookkeeping.
+	'' CORRECTED. This branch used reallocate( 0, ... ), on the reasoning that
+	'' fbc reaches an empty descriptor through realloc and that matching the NAME
+	'' matters as much as matching the count. The reasoning was sound; the premise
+	'' was wrong. fbc uses MALLOC here.
+	''
+	'' It went unseen because alloc-count.bas prints four columns -- malloc,
+	'' calloc, realloc, free -- and was being compared BY HAND on two of them.
+	'' Totals matched, allocation parity was recorded as reached, and the
+	'' malloc/realloc split was off by 1,000 operations per 1,000 iterations on
+	'' both assign_grow and temp_churn. build/diff.sh diffs the whole output and
+	'' found it on its first run.
+	''
+	'' realloc(NULL, n) and malloc(n) do the same thing, so nothing a program can
+	'' observe was wrong -- which is the class of difference Gate 3 exists for,
+	'' and the class a partial comparison cannot see.
 	if( s->data = 0 ) then
 		'' No zero-length shortcut here either: length 0 still gets a real
 		'' one-byte block, exactly as fb_hStrAlloc does. Measured -- fbc's
 		'' fb_hStrRealloc( fresh, 0, either mode ) returns size 0 and a NON-NULL
 		'' pointer, and its callers write the terminator regardless.
-		s->data = cptr( zstring ptr, reallocate( 0, want + 1 ) )
+		'' AND THE ALLOCATOR DEPENDS ON THE MODE, which is the second half of the
+		'' same correction. Measured, per 1,000 iterations:
+		''
+		''     assign_grow / temp_churn (not keepdata)  fbc: 1000 malloc,  0 realloc
+		''     append / concat_assign_growing (keepdata) fbc:    0 malloc, 54 realloc
+		''
+		'' Making this branch malloc unconditionally fixed the first pair and broke
+		'' the second, by exactly the two first-allocations it contains. The mode
+		'' governs the allocator even when there is nothing yet to keep:
+		'' realloc(NULL, n) is the append path's ordinary case, not a special one.
+		if( keepdata <> 0 ) then
+			s->data = cptr( zstring ptr, reallocate( 0, want + 1 ) )
+		else
+			s->data = cptr( zstring ptr, allocate( want + 1 ) )
+		end if
 		if( s->data = 0 ) then
 			s->size = 0
 			FB_STRSETLEN( s, 0 )

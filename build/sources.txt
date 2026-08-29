@@ -8,3 +8,5 @@ str/wide.bas
 err/getset.bas
 str/basic.bas
 str/slice.bas
+str/trim.bas
+str/mid.bas
