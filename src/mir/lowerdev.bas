@@ -94,6 +94,81 @@ function LowerColorCall_ _
     return LowerColorArgs_( c, argFirst, argCount, outv )
 end function
 
+'' WIDTH -- THREE ENTRY POINTS, chosen by the FIRST argument. Measured:
+''
+''   width 80, 25       fb_Width( 80, 25 )
+''   width 80           fb_Width( 80, -1 )
+''   width , 25         fb_Width( -1, 25 )
+''   width "scrn:", 40  fb_WidthDev( fb_StrAllocTempDescZEx( "scrn:", 5 ), 40 )
+''   width #1, 40       fb_WidthFile( 1, 40 )
+''   n = width          fb_Width( -1, -1 )
+''
+'' -- AN OMITTED ARGUMENT IS -1, not a mask as COLOR's is, and not a count: the two
+'' statements sit next to each other and do not share that rule.
+''
+'' The EXPRESSION form already lowered, through the builtin-call path that defaults
+'' every argument it is not given; only the STATEMENT had no case at all, so every
+'' spelling of it declined with fb_WidthDev and fb_WidthFile sitting in the runtime
+'' table with no caller.
+''
+'' TWO FORMS ARE NOT REACHED, both recorded rather than half-built:
+''   'width #1, 40' -- IFORM_GENERIC cannot read a file number, so it is a PARSE error
+''     before this is asked, and fb_WidthFile still has no caller.
+''   'n = width' with NO PARENTHESES -- a bare KEYWORD intrinsic in expression position
+''     is a plain N_IDENT that nothing claims. 'n = width( )' is the same call and does
+''     lower; 'n = pos' works only because pos is a PRELUDE function and not a keyword.
+private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count > 2 then return false
+
+    dim as Tko.NodeId a0 = Tko.NODE_NONE
+    if sp->count >= 1 then a0 = cast( Tko.NodeId, c.ast->children[sp->first] )
+    if a0 <> Tko.NODE_NONE then
+        if c.ast->Kind( a0 ) = Tko.N_ELIDED then a0 = Tko.NODE_NONE
+    end if
+
+    '' THE DEVICE FORM, and the first argument being a STRING is what says so.
+    if a0 <> Tko.NODE_NONE then
+        dim as boolean isStr = (c.ast->Kind( a0 ) = Tko.N_STRING_LIT)
+        if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a0 ) )
+        if isStr then
+            if sp->count <> 2 then return false
+            dim as MirValue dv
+            if StrDescriptorOf_( c, a0, dv ) = false then return false
+            dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+            if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
+            dim as MirValue nv = LowerExpr( c, a1 )
+            if nv.kind = cast( ubyte, MV_NONE ) then return false
+            nv = Coerce( c, nv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            dim as FB.Array( of ulong ) dargs
+            dargs.Push( cast( ulong, dv.kind ) ) : dargs.Push( cast( ulong, dv.id ) )
+            dargs.Push( cast( ulong, nv.kind ) ) : dargs.Push( cast( ulong, nv.id ) )
+            dim as MirValue dr = EmitRtl( c, RTL_WIDTH_DEV, dargs )
+            return (dr.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
+
+    dim as FB.Array( of ulong ) args
+    for k as long = 0 to 1
+        dim as Tko.NodeId e = Tko.NODE_NONE
+        if k < sp->count then e = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        if e <> Tko.NODE_NONE then
+            if c.ast->Kind( e ) = Tko.N_ELIDED then e = Tko.NODE_NONE
+        end if
+        if e = Tko.NODE_NONE then
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        else
+            dim as MirValue v = LowerExpr( c, e )
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+            v = Coerce( c, v, MT_I32, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+        end if
+    next
+    dim as MirValue wr = EmitRtl( c, RTL_WIDTH, args )
+    return (wr.kind <> cast( ubyte, MV_NONE ))
+end function
+
 private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as MirValue cv

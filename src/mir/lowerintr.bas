@@ -1128,6 +1128,7 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if ip->op = cast( ushort, Tko.KW_POKE ) then handled = LowerPoke( c, id )
     if ip->op = cast( ushort, Tko.KW_SEEK ) then handled = LowerSeekStmt_( c, id )
     if ip->op = cast( ushort, Tko.KW_COLOR ) then handled = LowerColorStmt_( c, id )
+    if ip->op = cast( ushort, Tko.KW_WIDTH ) then handled = LowerWidthStmt_( c, id )
     if ip->op = cast( ushort, Tko.KW_LSET ) then handled = LowerLrset( c, id, false )
     if ip->op = cast( ushort, Tko.KW_RSET ) then handled = LowerLrset( c, id, true )
     if ip->op = cast( ushort, Tko.KW_READ ) then handled = LowerRead( c, id )

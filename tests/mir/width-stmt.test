@@ -1,0 +1,9 @@
+'' The WIDTH statement: fb_Width with -1 for an omitted argument, and fb_WidthDev when
+'' the first argument is a string.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/width-stmt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WidthDev
+'' GOLDEN: expected/width-stmt.out

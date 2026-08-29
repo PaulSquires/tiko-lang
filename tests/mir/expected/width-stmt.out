@@ -1,0 +1,62 @@
+global str $str0 "scrn:"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 n
+  local i64 c
+  local i64 r
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr n
+    %5 = alloca ptr c
+    %6 = const i64 80
+    store @c, %6
+    %7 = alloca ptr r
+    %8 = const i64 25
+    store @r, %8
+    %9 = const i64 80
+    %10 = trunc %9
+    %11 = const i64 25
+    %12 = trunc %11
+    %13 = call.rtl i32 fb_Width(%10, %12)
+    %14 = const i64 80
+    %15 = trunc %14
+    %16 = call.rtl i32 fb_Width(%15, -1)
+    %17 = const i64 25
+    %18 = trunc %17
+    %19 = call.rtl i32 fb_Width(-1, %18)
+    %20 = load @c
+    %21 = trunc %20
+    %22 = load @r
+    %23 = trunc %22
+    %24 = call.rtl i32 fb_Width(%21, %23)
+    %25 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 5)
+    %26 = const i64 40
+    %27 = trunc %26
+    %28 = call.rtl i32 fb_WidthDev(%25, %27)
+    %29 = call.rtl i32 fb_Width(-1, -1)
+    %30 = sext %29
+    store @n, %30
+    %31 = const i64 80
+    %32 = trunc %31
+    %33 = call.rtl i32 fb_Width(%32, -1)
+    %34 = sext %33
+    store @n, %34
+    %35 = load @n
+    call.rtl void fb_PrintLongint(0, %35, 1)
+    %36 = const i32 0
+    call.rtl void fb_End(%36)
+    %37 = load @$tmp0
+    ret %37
+}
+declare void fb_Init($0, $1, $2)
+declare i32 fb_Width($0, $1)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare i32 fb_WidthDev($0, $1)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 45 insts, 0 statements not lowered, 0 scope imbalance
