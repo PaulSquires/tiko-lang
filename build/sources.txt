@@ -65,3 +65,5 @@ strw/conv.bas
 str/hexoctbin.bas
 strw/hexoctbin.bas
 strw/val.bas
+str/tostr.bas
+strw/tostr.bas
