@@ -1,23 +1,8 @@
-'' AN 'iif' HAS NO TYPE AT ALL -- Check computes none for one, deliberately, because an
-'' arm may be an intrinsic with no type either, and every wide and narrow path is
-'' STRUCTURAL about it instead. So 'dim a as U = iif( c, wstr( "a" ), u2 )' reached the
-'' converting-constructor path with nothing to pick a constructor by, and declined.
-''
-'' The CONSTRUCTOR is what supplies the missing type: a one-argument converting
-'' constructor over a zstring or wstring POINTER names the width, and the argument
-'' lowering is structural about iif in both. Measured, fbc builds both arms into ONE
-'' wide temporary and hands it to the constructor:
-''
-''   vr$3 = fb_WstrAlloc( fb_WstrLen( L"a" ) ); TMP$6 = vr$3; fb_WstrAssign( TMP$6, 0, L"a" )
-''   vr$6 = _ZN14UWSTRING_FIXEDcvwEv( &U2$1 ); ... fb_WstrAssign( TMP$6, 0, TMP$7 )
-''   _ZN14UWSTRING_FIXEDC1EPKw( &A$1, TMP$6 ); fb_WstrDelete( TMP$6 )
-''
-'' -- which is the shape the wide iif already emitted; only the way in was missing.
-'' udt-wstring/iif.bas: 10 -> 0.
+'' An iif feeding a UDT's converting constructor: one var-length temporary, written in
+'' each branch, and the constructor called from its data pointer.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/udt-iif-ctor.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: verify: ok
 '' EXPECT-OUT: 0 statements not lowered
-'' EXPECT-OUT: fb_WstrAlloc
 '' GOLDEN: expected/udt-iif-ctor.out

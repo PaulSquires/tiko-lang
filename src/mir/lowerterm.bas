@@ -719,13 +719,39 @@ function ZstrDataOf_ _
         return true
     end if
 
+    '' AN 'iif' IS ASKED BEFORE THE KIND TESTS, not after them. Measured, fbc builds
+    '' ONE var-length temporary, initialises it in EACH BRANCH, and takes the data
+    '' pointer out of it:
+    ''
+    ''     if( EXPR == 0 ) goto else;
+    ''       fb_StrInit( &TMP, -1, T1, 50, 0 ); goto join;
+    ''     else: fb_StrInit( &TMP, -1, T2, 50, 0 );
+    ''     join: _ZN14UZSTRING_FIXEDC1EPKc( &A, *(char**)&TMP );
+    ''           fb_StrDelete( &TMP );
+    ''
+    '' -- NOT a pointer per arm, which is what the note left here previously guessed.
+    '' Check DOES type an iif over two 'zstring * N' arms -- as 'zstring * N' --
+    '' so it took the FIXED row below, asked an iif for an ADDRESS it has not got,
+    '' and stopped there. StrDescriptorOf_ is structural about iif and builds that
+    '' temporary, so this is the same plain load the var-length row above does.
+    '' Without it 'dim a as uzstr_t = iif( expr, t1, t2 )' over two 'zstring * 50'
+    '' declined -- udt-zstring/iif.bas is four statements of it.
+    dim as Tko.NodeId qC, qT, qE
+    if IsIifCall_( c, id, qC, qT, qE ) then
+        dim as MirValue qd
+        if StrDescriptorOf_( c, id, qd ) then
+            outv = LowerExprLoad( c, qd, MT_PTR )
+            if outv.kind <> cast( ubyte, MV_NONE ) then return true
+        end if
+    end if
+
     dim as longint n
     dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
     if k = 1 then
         outv = LowerAddr( c, id )
-        '' AN IIF OVER TWO FIXED ZSTRINGS HAS NO ADDRESS, and this is where
-        '' 'dim a as uzstr_t = iif( expr, t1, t2 )' stops -- the four in
-        '' udt-zstring/iif.bas. The classification above it is now right (a
+        '' AN IIF OVER TWO FIXED ZSTRINGS HAS NO ADDRESS -- which is where
+        '' 'dim a as uzstr_t = iif( expr, t1, t2 )' used to stop. The iif row above
+        '' claims it now; this stays for anything else with no address. The classification above it is now right (a
         '' 'zstring * 50' argument does reach the zstring-pointer constructor); what
         '' is missing is an iif that yields a POINTER PER ARM, which LowerIif cannot
         '' express: it writes one temporary of a requested MIR type, and these arms
