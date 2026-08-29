@@ -36,4 +36,6 @@ str/val.bas
 str/valint.bas
 str/vallng.bas
 str/ops.bas
+str/valqb.bas
+str/valbool.bas
 ustr/utf.bas

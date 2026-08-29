@@ -1,0 +1,220 @@
+'' valqb.bas -- the QB-dialect number parsers (str_convfrom_qb.o).
+''
+'' `#lang "qb"` reads radix literals the way QuickBASIC did, and QuickBASIC's
+'' integers were 16 bits. Everything interesting here follows from that.
+''
+'' THE WIDTH RULE, which is the whole member:
+''
+''   a value that FITS IN 16 BITS becomes a SIGNED 16-bit value, sign bit and
+''   all -- so &hFFFF is -1, not 65535.
+''   a value that fits in 32 bits becomes a signed 32-bit value.
+''   anything wider is left alone rather than mangled.
+''
+''   UNLESS the literal carries the `&` LONG suffix, which keeps it 32 bits wide
+''   and skips the 16-bit narrowing entirely: `&hFFFF&` is 65535.
+''
+'' So the same text parses to different numbers in QB mode and FB mode, which is
+'' the point of the dialect.
+''
+'' DECIMAL IS NOT AFFECTED. Every one of these skips spaces, tries a radix
+'' prefix, and falls through to the ORDINARY parser when there is none -- "QB has
+'' nothing to say about it", as fbc's comment puts it. Only prefixed literals
+'' take the QB path.
+''
+'' The digit scanner is also stricter than the FB one: hDigitValue rejects a
+'' digit that is out of range FOR THE RADIX, so "&b12" stops at the 2 exactly as
+'' fb_hStrRadix2Int does -- but it accepts a..f for every radix and then range
+'' checks, where the FB version has a separate arm per radix.
+
+#include once "inc/descriptors.bi"
+
+extern "rtlib"
+	declare function tkrt_SkipChar alias "fb_hStrSkipChar" _
+		( byval s as zstring ptr, byval length as integer, byval c as long ) as zstring ptr
+	declare function tkrt_Str2Int alias "fb_hStr2Int" _
+		( byval s as zstring ptr, byval length as integer ) as long
+	declare function tkrt_Str2UInt alias "fb_hStr2UInt" _
+		( byval s as zstring ptr, byval length as integer ) as ulong
+	declare function tkrt_Str2Longint alias "fb_hStr2Longint" _
+		( byval s as zstring ptr, byval length as integer ) as longint
+	declare function tkrt_Str2ULongint alias "fb_hStr2ULongint" _
+		( byval s as zstring ptr, byval length as integer ) as ulongint
+	declare function tkrt_Str2Double alias "fb_hStr2Double" _
+		( byval s as zstring ptr, byval length as integer ) as double
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
+		( byval s as FBSTRING ptr ) as long
+end extern
+
+'' A digit's value in `radix`, or -1. Accepts a..f for ANY radix and then range
+'' checks, unlike the FB scanner's per-radix arms.
+private function hDigitValue( byval c as long, byval radix as long ) as long
+
+	dim as long v = any
+
+	if( (c >= asc("0")) andalso (c <= asc("9")) ) then
+		v = c - asc("0")
+	elseif( (c >= asc("a")) andalso (c <= asc("f")) ) then
+		v = c - asc("a") + 10
+	elseif( (c >= asc("A")) andalso (c <= asc("F")) ) then
+		v = c - asc("A") + 10
+	else
+		return -1
+	end if
+
+	if( v < radix ) then return v
+	return -1
+
+end function
+
+'' The radix of an `&` prefix, ADVANCING PAST IT; 0 if there is no prefix.
+'' An unrecognised letter after & is octal with only one character skipped --
+'' the same rule the FB parsers use.
+private function hRadixPrefix _
+	( byval p as zstring ptr ptr, byval length as integer ptr ) as long
+
+	if( *length < 2 ) then return 0
+
+	dim as ubyte ptr up = cptr( ubyte ptr, *p )
+	if( up[0] <> asc("&") ) then return 0
+
+	dim as long radix = any
+	dim as integer skip = 2
+
+	select case as const up[1]
+	case asc("h"), asc("H")
+		radix = 16
+	case asc("o"), asc("O")
+		radix = 8
+	case asc("b"), asc("B")
+		radix = 2
+	case else
+		radix = 8
+		skip = 1
+	end select
+
+	*p = cptr( zstring ptr, up + skip )
+	*length -= skip
+
+	return radix
+
+end function
+
+extern "rtlib"
+
+function tkort_hStrRadix2LongintQB alias "fb_hStrRadix2LongintQB" _
+	( byval src as zstring ptr, byval length as integer, byval radix as long ) as longint
+
+	dim as ulongint v = 0
+	dim as long islong = 0
+	dim as ubyte ptr p = cptr( ubyte ptr, src )
+	dim as long digit = any
+
+	while( length > 0 )
+		digit = hDigitValue( p[0], radix )
+		if( digit < 0 ) then exit while
+
+		v = (v * cast( ulongint, radix )) + cast( ulongint, digit )
+		p += 1
+		length -= 1
+	wend
+
+	'' The '&' LONG suffix keeps the literal 32 bits wide.
+	if( (length > 0) andalso (p[0] = asc("&")) ) then islong = 1
+
+	'' Fits in a QB INTEGER? Then it IS one -- SIGN BIT AND ALL, so &hFFFF is -1.
+	if( (islong = 0) andalso (v <= &hFFFFull) ) then
+		return cast( longint, cast( short, cast( ushort, v ) ) )
+	end if
+
+	if( v <= &hFFFFFFFFull ) then
+		return cast( longint, cast( long, cast( ulong, v ) ) )
+	end if
+
+	'' Wider than QB could express -- left alone rather than mangled.
+	return cast( longint, v )
+
+end function
+
+function tkort_hStrRadix2IntQB alias "fb_hStrRadix2IntQB" _
+	( byval src as zstring ptr, byval length as integer, byval radix as long ) as long
+	return cast( long, tkort_hStrRadix2LongintQB( src, length, radix ) )
+end function
+
+'' The five entry points below share one shape: skip spaces, try a prefix, and
+'' fall through to the ORDINARY parser when there is none.
+#macro QB_PROLOGUE( src, length, p, radix, bail )
+	dim as zstring ptr p = tkrt_SkipChar( src, length, 32 )
+	length -= cast( integer, cptr( ubyte ptr, p ) - cptr( ubyte ptr, src ) )
+	if( length < 1 ) then return bail
+	dim as long radix = hRadixPrefix( @p, @length )
+#endmacro
+
+function tkort_hStr2LongintQB alias "fb_hStr2LongintQB" _
+	( byval src as zstring ptr, byval length as integer ) as longint
+
+	QB_PROLOGUE( src, length, p, radix, 0 )
+
+	if( radix <> 0 ) then return tkort_hStrRadix2LongintQB( p, length, radix )
+	return tkrt_Str2Longint( p, length )
+
+end function
+
+function tkort_hStr2IntQB alias "fb_hStr2IntQB" _
+	( byval src as zstring ptr, byval length as integer ) as long
+
+	QB_PROLOGUE( src, length, p, radix, 0 )
+
+	if( radix <> 0 ) then return tkort_hStrRadix2IntQB( p, length, radix )
+	return tkrt_Str2Int( p, length )
+
+end function
+
+function tkort_hStr2UIntQB alias "fb_hStr2UIntQB" _
+	( byval src as zstring ptr, byval length as integer ) as ulong
+
+	QB_PROLOGUE( src, length, p, radix, 0 )
+
+	'' NOTE: the signed 32-bit form, then reinterpreted -- not the unsigned one.
+	if( radix <> 0 ) then return cast( ulong, tkort_hStrRadix2IntQB( p, length, radix ) )
+	return tkrt_Str2UInt( p, length )
+
+end function
+
+function tkort_hStr2ULongintQB alias "fb_hStr2ULongintQB" _
+	( byval src as zstring ptr, byval length as integer ) as ulongint
+
+	QB_PROLOGUE( src, length, p, radix, 0 )
+
+	if( radix <> 0 ) then return cast( ulongint, tkort_hStrRadix2LongintQB( p, length, radix ) )
+	return tkrt_Str2ULongint( p, length )
+
+end function
+
+function tkort_hStr2DoubleQB alias "fb_hStr2DoubleQB" _
+	( byval src as zstring ptr, byval length as integer ) as double
+
+	QB_PROLOGUE( src, length, p, radix, 0.0 )
+
+	if( radix <> 0 ) then return cast( double, tkort_hStrRadix2LongintQB( p, length, radix ) )
+	return tkrt_Str2Double( p, length )
+
+end function
+
+function tkort_VALQB alias "fb_VALQB" ( byval s as FBSTRING ptr ) as double
+
+	if( s = 0 ) then return 0.0
+
+	dim as double v = 0.0
+	if( s->data <> 0 ) then
+		if( FB_STRSIZE( s ) <> 0 ) then
+			v = tkort_hStr2DoubleQB( s->data, FB_STRSIZE( s ) )
+		end if
+	end if
+
+	tkrt_DelTemp( s )
+
+	return v
+
+end function
+
+end extern
