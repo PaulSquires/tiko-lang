@@ -31,4 +31,8 @@ str/midassign.bas
 str/ucase.bas
 str/lcase.bas
 str/swap.bas
+str/radix.bas
+str/val.bas
+str/valint.bas
+str/vallng.bas
 ustr/utf.bas
