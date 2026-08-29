@@ -641,15 +641,37 @@ function FoldAggInit_ _
         if FixStrArrayImage_( c, et, init, size_, outBytes ) then return true
 
         dim as MirType emt = LowerType( et, *c.types )
-        if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
-        dim as long esz = c.types->Layout( et ).size
-        if esz <= 0 then return false
-        dim as long total = size_ \ esz
-        if total <= 0 then return false
-        for k as long = 0 to total - 1
-            fOff.Push( cast( ulong, k * esz ) )
-            fTy.Push( cast( ulong, emt ) )
-        next
+        if emt = MT_VOID then return false
+
+        '' AN ARRAY OF UDT IS A BYTE IMAGE TOO, one element's leaf list after another.
+        '' Measured: 'static struct $2OD ARR$[2] = { { 1, 2 }, { 3, 4 } };' and
+        '' 'static struct $6MYTYPE ARRAYTYPE$0[11] = { { 1ll, 2ll, { 3, 4, 5 }, 6 },
+        '' ... };' -- a nested member included. Rejecting MT_AGG turned every one of
+        '' them away, so a static table of UDT got NO initialiser bytes at all while a
+        '' single static UDT beside it folded.
+        if emt = MT_AGG then
+            '' SizeOfType, not Layout( ).size: a UDT's size lives in the UDT store and
+            '' Layout answers 0 for one -- which the scalar path below never noticed
+            '' because it never had an aggregate element.
+            dim as long usz = SizeOfType( c, et )
+            if usz <= 0 then return false
+            dim as long ucount = size_ \ usz
+            if ucount <= 0 then return false
+            for k as long = 0 to ucount - 1
+                if FlattenUdtFields_( c, et, k * usz, fOff, fTy, 0, fFt ) = false then
+                    return false
+                end if
+            next
+        else
+            dim as long esz = c.types->Layout( et ).size
+            if esz <= 0 then return false
+            dim as long total = size_ \ esz
+            if total <= 0 then return false
+            for k as long = 0 to total - 1
+                fOff.Push( cast( ulong, k * esz ) )
+                fTy.Push( cast( ulong, emt ) )
+            next
+        end if
     elseif FlattenUdtFields_( c, t, 0, fOff, fTy, 0, fFt ) = false then
         return false
     end if
