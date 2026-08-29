@@ -56,3 +56,5 @@ ustr/search.bas
 ustr/misc.bas
 ustr/assign.bas
 ustr/casetable.bas
+strw/core.bas
+strw/slice.bas

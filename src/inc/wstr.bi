@@ -40,9 +40,45 @@
 #define FB_WSTR_LEN( s )    cast( integer, wcslen( s ) )
 
 '' Copy `chars` characters and terminate.
+''
+'' NOTE WHERE THE TERMINATOR LANDS WHEN NOTHING IS COPIED. fbc's fb_wstr_Copy
+'' advances its cursor only on the copying path, so a NULL source or a
+'' non-positive count writes the terminator at dst[0] -- it does NOT write one at
+'' dst[chars] and leave chars characters of whatever was there. Callers rely on
+'' this to clear a destination by copying nothing into it.
 #macro FB_WSTR_COPY( dst, src, chars )
-	memcpy( dst, src, (chars) * TKORT_WCHAR_SIZE )
-	(dst)[ chars ] = 0
+	scope
+		dim as wstring ptr __wc_d = (dst)
+		if( ((src) <> 0) andalso ((chars) > 0) ) then
+			memcpy( __wc_d, (src), (chars) * TKORT_WCHAR_SIZE )
+			__wc_d += (chars)
+		end if
+		__wc_d[0] = 0
+	end scope
+#endmacro
+
+'' Copy WITHOUT terminating, for building a string in pieces. fbc spells this
+'' fb_wstr_Move, which is a misleading name inherited from its return value
+'' rather than from any overlap safety: it is a memcpy, not a memmove, and the
+'' MID statement is the only caller that needs the non-terminating form.
+#macro FB_WSTR_MOVE( dst, src, chars )
+	if( (chars) > 0 ) then memcpy( dst, src, (chars) * TKORT_WCHAR_SIZE )
+#endmacro
+
+'' Fill `chars` characters and terminate. Per-character, not memset: a wide unit
+'' is 2 or 4 bytes and memset writes one byte pattern.
+#macro FB_WSTR_FILL( dst, c, chars )
+	scope
+		dim as wstring ptr __wf_d = (dst)
+		for __wf_i as integer = 0 to (chars) - 1
+			__wf_d[__wf_i] = (c)
+		next
+		if( (chars) > 0 ) then
+			__wf_d[(chars)] = 0
+		else
+			__wf_d[0] = 0
+		end if
+	end scope
 #endmacro
 
 #endif '' __TKORT_WSTR_BI__
