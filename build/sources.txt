@@ -62,3 +62,5 @@ strw/search.bas
 strw/trimex.bas
 strw/case.bas
 strw/conv.bas
+str/hexoctbin.bas
+strw/hexoctbin.bas
