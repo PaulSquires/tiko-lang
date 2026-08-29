@@ -27,4 +27,8 @@ str/tempdescv.bas
 str/tempres.bas
 str/concatassign.bas
 str/concatbyref.bas
+str/midassign.bas
+str/ucase.bas
+str/lcase.bas
+str/swap.bas
 ustr/utf.bas
