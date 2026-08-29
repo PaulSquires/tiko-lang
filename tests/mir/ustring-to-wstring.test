@@ -1,0 +1,7 @@
+'' Assigning a ustring to a wide destination. The fixed form overran its buffer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-to-wstring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ustring-to-wstring.out

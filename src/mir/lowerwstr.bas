@@ -100,7 +100,14 @@ function LowerWideAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
     if IsUStringType( c, c.info->TypeOf_( target ) ) then return false
-    if ChainTouchesU_( c, value ) then return false
+    '' ...BUT A USTRING SOURCE IS NOT A CHAIN THIS CANNOT DO. It is one runtime call,
+    '' fb_UStrAssignToW, and refusing it here sent 'w = s' over a 'wstring * 8' to the
+    '' generic scalar path, which found a non-void type and STORED THE 24-BYTE USTRING
+    '' DESCRIPTOR into the 16-byte buffer -- wrong bytes and an eight-byte overrun,
+    '' with 0 statements not lowered to say so.
+    if IsUStringType( c, c.info->TypeOf_( value ) ) = false then
+        if ChainTouchesU_( c, value ) then return false
+    end if
 
     '' THE COUNT IS 0 FOR A 'byref as wstring' PARAMETER, and that is the length fbc
     '' passes for one -- 'fb_WstrAssign( C$1, 0ll, ... )'. Reading 0 as "not a wide
@@ -156,6 +163,26 @@ function LowerWideAssignTo _
     '' 'wstr( x )' temporary or a 'trim( ... )' result. This is tried BEFORE the type
     '' tests: those callees are unbound, so TypeOf_ on the call is empty and a
     '' type-first test would never reach them.
+    '' A USTRING SOURCE IS ONE CALL. Measured, and the LENGTH is the destination's
+    '' element count plainly -- not the sign-tagged form the narrow fixed strings use:
+    ''
+    ''     w  = s   over a 'wstring * 8'   fb_UStrAssignToW( W$0, 8ll, &S$0, -1ll )
+    ''     *wp = s  over a 'wstring ptr'   fb_UStrAssignToW( WP$0, 0ll, &S$0, -1ll )
+    ''
+    '' and run, both print 'hi'. RTL_USTR_TO_W has been declared since the table was
+    '' written and had no emit site at all.
+    if IsUStringType( c, c.info->TypeOf_( value ) ) then
+        dim as MirValue usrc = LowerAddr( c, value )
+        if usrc.kind <> cast( ubyte, MV_NONE ) then
+            args.Push( cast( ulong, usrc.kind ) ) : args.Push( cast( ulong, usrc.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+            EmitRtl( c, RTL_USTR_TO_W, args )
+            return true
+        end if
+        return false
+    end if
+
     dim as MirValue rv
     if WideOperand_( c, value, rv ) then
         args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
