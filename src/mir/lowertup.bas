@@ -118,6 +118,54 @@ function LowerTupleCompare _
     return true
 end function
 
+'' THE GLOBAL 'operator =' OR 'operator <>' over a UDT, or nothing.
+''
+'' A tuple element that is a UDT compares through the element type's own operator, and
+'' there is no NODE for that element to hand to the ordinary user-operator path -- only
+'' a pair of addresses. So the operator is looked up here and called directly, which is
+'' exactly what the string-element branch above does with fb_StrCompare.
+''
+'' BOTH parameters must be this UDT: a type may declare '=' against several right-hand
+'' types, and taking the first would take one at random.
+private function TupleUdtCmpOp_ _
+    ( byref c as Ctx, byval ut as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
+    if ut = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId sc = cast( Tko.ScopeId, c.types->DeclScopeOf( ut ) )
+    if sc = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = _
+        c.syms->Lookup( sc, c.names->Fold( c.names->GetString( nm ) ) )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr os = c.syms->SymbolAt( cur )
+        if os = 0 then exit while
+        if os->kind = cast( ubyte, Tko.SYM_PROC ) then
+            dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+            dim as boolean isProc = (pn <> Tko.NODE_NONE)
+            if isProc then isProc = (c.ast->Kind( pn ) = Tko.N_PROC)
+            if isProc then
+                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+                if pp->op = cast( ushort, Tko.KW_OPERATOR ) then
+                    dim as long np = 0
+                    dim as boolean bothMine = true
+                    for i as long = 0 to pp->count - 1
+                        dim as Tko.NodeId prm = _
+                            cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+                        if c.types->Unqualify( pt ) <> ut then bothMine = false
+                        np += 1
+                    next
+                    if (np = 2) andalso bothMine then return cur
+                end if
+            end if
+        end if
+        cur = os->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
 '' One element of a tuple comparison: both sides loaded through the hoisted addresses
 '' and compared, RAW -- the negation belongs to the chain, not to the element.
 function TupleElemCmp_ _
@@ -163,7 +211,30 @@ function TupleElemCmp_ _
         return Emit( c, scmp )
     end if
 
-    if emt = MT_AGG then return none_
+    '' A UDT ELEMENT COMPARES THROUGH ITS OWN OPERATOR. Measured, fbc calls it on the
+    '' two field addresses and short-circuits between elements:
+    ''
+    ''     int64 vr$8  = _ZeqR7WATCHEDS0_( TMP$2$0, TMP$3$0 );
+    ''     if( vr$8 == 0ll) goto label$4;
+    ''     int64 vr$13 = _ZeqR7WATCHEDS0_( TMP$2$0 + 4ll, TMP$3$0 + 4ll );
+    ''
+    '' and run, 'a = b' over a mismatching first element calls it ONCE. Refusing every
+    '' aggregate element made the whole comparison MV_NONE, so the IF around it had no
+    '' condition and the statement declined -- tuple/equality.bas's own subject.
+    if emt = MT_AGG then
+        dim as string uop = "<>"
+        if isEq then uop = "="
+        dim as Tko.SymbolId ucmp = TupleUdtCmpOp_( c, c.types->Unqualify( et ), uop )
+        if ucmp = Tko.SYMBOL_NONE then return none_
+        dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( ucmp )
+        if ucs = 0 then return none_
+        dim as MirType urt = MT_I64
+        if ucs->type_ <> Tko.TYPE_NONE then urt = LowerType( ucs->type_, *c.types )
+        dim as FB.Array( of ulong ) uargs
+        uargs.Push( cast( ulong, laddr.kind ) ) : uargs.Push( cast( ulong, laddr.id ) )
+        uargs.Push( cast( ulong, raddr.kind ) ) : uargs.Push( cast( ulong, raddr.id ) )
+        return EmitDirectCall_( c, ucmp, urt, uargs )
+    end if
     dim as MirValue lv = LowerExprLoad( c, laddr, emt )
     dim as MirValue rv = LowerExprLoad( c, raddr, emt )
     if lv.kind = cast( ubyte, MV_NONE ) then return none_

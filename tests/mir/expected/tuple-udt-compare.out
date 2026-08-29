@@ -1,0 +1,251 @@
+global var i32 cmps
+func i64 _ZeqR7WATCHEDS0_($0, $1) {
+  local i64 $tmp0
+  local ptr a
+  local ptr b
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr a
+    store @a, $0
+    %4 = alloca ptr b
+    store @b, $1
+    %5 = load @@cmps
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = add %5, %7
+    store @@cmps, %8
+    %9 = load @a
+    %10 = field.addr %9, 0
+    %11 = load %10
+    %12 = load @b
+    %13 = field.addr %12, 0
+    %14 = load %13
+    %15 = icmp.eq %11, %14
+    %16 = neg %15
+    ret %16
+}
+func i64 _ZneR7WATCHEDS0_($0, $1) {
+  local i64 $tmp0
+  local ptr a
+  local ptr b
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr a
+    store @a, $0
+    %4 = alloca ptr b
+    store @b, $1
+    %5 = load @@cmps
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = add %5, %7
+    store @@cmps, %8
+    %9 = load @a
+    %10 = field.addr %9, 0
+    %11 = load %10
+    %12 = load @b
+    %13 = field.addr %12, 0
+    %14 = load %13
+    %15 = icmp.ne %11, %14
+    %16 = neg %15
+    ret %16
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a size 8
+  local agg b size 8
+  local i32 r
+  local ptr $tmp4
+  local ptr $tmp5
+  local i32 $tmp6
+  local ptr $tmp7
+  local ptr $tmp8
+  local i32 $tmp9
+  local ptr $tmp10
+  local ptr $tmp11
+  local i32 $tmp12
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = alloca ptr b
+    %6 = field.addr @a, 0
+    %7 = field.addr %6, 0
+    %8 = const i64 1
+    %9 = trunc %8
+    store %7, %9
+    %10 = field.addr @a, 4
+    %11 = field.addr %10, 0
+    %12 = const i64 2
+    %13 = trunc %12
+    store %11, %13
+    %14 = field.addr @b, 0
+    %15 = field.addr %14, 0
+    %16 = const i64 9
+    %17 = trunc %16
+    store %15, %17
+    %18 = field.addr @b, 4
+    %19 = field.addr %18, 0
+    %20 = const i64 2
+    %21 = trunc %20
+    store %19, %21
+    %22 = alloca ptr r
+    %23 = const i64 0
+    %24 = trunc %23
+    store @@cmps, %24
+    %25 = alloca ptr $tmp4
+    %26 = alloca ptr $tmp5
+    store @$tmp4, @a
+    store @$tmp5, @b
+    %27 = alloca ptr $tmp6
+    %28 = load @$tmp4
+    %29 = load @$tmp5
+    %30 = field.addr %28, 0
+    %31 = field.addr %29, 0
+    %32 = call i64 _ZeqR7WATCHEDS0_(%30, %31)
+    %50 = alloca ptr $tmp7
+    %51 = alloca ptr $tmp8
+    %52 = alloca ptr $tmp9
+    %79 = alloca ptr $tmp10
+    %80 = alloca ptr $tmp11
+    %81 = alloca ptr $tmp12
+    condbr %32, tup.rhs4, tup.short5
+  if.join1:
+    %46 = load @r
+    call.rtl void fb_PrintInt(0, %46, 0)
+    %47 = load @@cmps
+    call.rtl void fb_PrintInt(0, %47, 1)
+    %48 = const i64 0
+    %49 = trunc %48
+    store @@cmps, %49
+    store @$tmp7, @a
+    store @$tmp8, @b
+    %53 = load @$tmp7
+    %54 = load @$tmp8
+    %55 = field.addr %53, 0
+    %56 = field.addr %54, 0
+    %57 = call i64 _ZneR7WATCHEDS0_(%55, %56)
+    condbr %57, tup.short11, tup.rhs10
+  if.then2:
+    %42 = const i64 1
+    %43 = trunc %42
+    store @r, %43
+    br if.join1
+  if.else3:
+    %44 = const i64 0
+    %45 = trunc %44
+    store @r, %45
+    br if.join1
+  tup.rhs4:
+    %33 = load @$tmp4
+    %34 = load @$tmp5
+    %35 = field.addr %33, 4
+    %36 = field.addr %34, 4
+    %37 = call i64 _ZeqR7WATCHEDS0_(%35, %36)
+    %38 = trunc %37
+    %39 = neg %38
+    store @$tmp6, %39
+    br tup.join6
+  tup.short5:
+    %40 = const i32 0
+    store @$tmp6, %40
+    br tup.join6
+  tup.join6:
+    %41 = load @$tmp6
+    condbr %41, if.then2, if.else3
+  if.join7:
+    %71 = load @r
+    call.rtl void fb_PrintInt(0, %71, 0)
+    %72 = load @@cmps
+    call.rtl void fb_PrintInt(0, %72, 1)
+    %73 = field.addr @b, 0
+    %74 = field.addr %73, 0
+    %75 = const i64 1
+    %76 = trunc %75
+    store %74, %76
+    %77 = const i64 0
+    %78 = trunc %77
+    store @@cmps, %78
+    store @$tmp10, @a
+    store @$tmp11, @b
+    %82 = load @$tmp10
+    %83 = load @$tmp11
+    %84 = field.addr %82, 0
+    %85 = field.addr %83, 0
+    %86 = call i64 _ZeqR7WATCHEDS0_(%84, %85)
+    condbr %86, tup.rhs16, tup.short17
+  if.then8:
+    %67 = const i64 1
+    %68 = trunc %67
+    store @r, %68
+    br if.join7
+  if.else9:
+    %69 = const i64 0
+    %70 = trunc %69
+    store @r, %70
+    br if.join7
+  tup.rhs10:
+    %58 = load @$tmp7
+    %59 = load @$tmp8
+    %60 = field.addr %58, 4
+    %61 = field.addr %59, 4
+    %62 = call i64 _ZneR7WATCHEDS0_(%60, %61)
+    %63 = trunc %62
+    %64 = neg %63
+    store @$tmp9, %64
+    br tup.join12
+  tup.short11:
+    %65 = const i32 -1
+    store @$tmp9, %65
+    br tup.join12
+  tup.join12:
+    %66 = load @$tmp9
+    condbr %66, if.then8, if.else9
+  if.join13:
+    %100 = load @r
+    call.rtl void fb_PrintInt(0, %100, 0)
+    %101 = load @@cmps
+    call.rtl void fb_PrintInt(0, %101, 1)
+    %102 = const i32 0
+    call.rtl void fb_End(%102)
+    %103 = load @$tmp0
+    ret %103
+  if.then14:
+    %96 = const i64 1
+    %97 = trunc %96
+    store @r, %97
+    br if.join13
+  if.else15:
+    %98 = const i64 0
+    %99 = trunc %98
+    store @r, %99
+    br if.join13
+  tup.rhs16:
+    %87 = load @$tmp10
+    %88 = load @$tmp11
+    %89 = field.addr %87, 4
+    %90 = field.addr %88, 4
+    %91 = call i64 _ZeqR7WATCHEDS0_(%89, %90)
+    %92 = trunc %91
+    %93 = neg %92
+    store @$tmp12, %93
+    br tup.join18
+  tup.short17:
+    %94 = const i32 0
+    store @$tmp12, %94
+    br tup.join18
+  tup.join18:
+    %95 = load @$tmp12
+    condbr %95, if.then14, if.else15
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintInt($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 21 blocks, 178 insts, 0 statements not lowered, 0 scope imbalance
