@@ -1,0 +1,5 @@
+'' cva_arg over a call that returns a cva_list by value.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cva-byval-call.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/cva-byval-call.out

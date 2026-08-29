@@ -48,6 +48,32 @@ private function CvaAddr_ _
     if c.types->BuiltinOf( u ) <> TY_CVA_LIST then return false
 
     outv = LowerAddr( c, e )
+    '' A CALL RETURNING ONE BYVAL HAS NO ADDRESS, and fbc gives it a TEMPORARY:
+    '' 'cva_arg( sidefx_byval( args ), integer )' is legal and prints 42. Refusing
+    '' it declined the whole statement, so the side effect the test is named for
+    '' never happened either.
+    ''
+    '' The temporary is the OPERAND'S OWN, so writing through it -- which cva_arg
+    '' does, advancing the cursor -- advances the copy and not the caller's list.
+    '' That is what BYVAL means here, and it is what fbc does with it.
+    if outv.kind = cast( ubyte, MV_NONE ) then
+        dim as long csz = SizeOfType( c, u )
+        if csz > 0 then
+            dim as MirType cmt = LowerType( u, *c.types )
+            dim as MirValue cv = LowerExpr( c, e )
+            if cv.kind <> cast( ubyte, MV_NONE ) then
+                dim as long cslot = NewTempLocal( c, cmt, csz )
+                if cslot >= 0 then
+                    dim as MirValue cdst
+                    cdst.kind = cast( ubyte, MV_LOCAL )
+                    cdst.ty = cast( ubyte, MT_PTR )
+                    cdst.id = cslot
+                    StoreThrough( c, cdst, cv )
+                    outv = cdst
+                end if
+            end if
+        end if
+    end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
