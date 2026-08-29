@@ -490,7 +490,21 @@ function LowerUStrChain _
     '' fbc too.
     if (hasU = false) andalso (dstIsU = false) then return false
     if (hasU = false) andalso (hasW = false) then return false
-    if hasW andalso hasN then return false
+    '' A CHAIN CARRYING ALL THREE WIDTHS IS THIS FOLD'S BUSINESS TOO. The refusal that
+    '' stood here said a narrow-plus-wide prefix folds into a WIDE temporary first,
+    '' which is fbc's business and not this one's -- and for 's & w & u' that is exactly
+    '' what fbc does, fb_WstrConcatAW then fb_WstrToUStr. But for 'w & u & s' it does
+    '' NOT: measured,
+    ''
+    ''     FBUSTRING* vr$6  = fb_WstrToUStr ( (uint16*)W$0 );
+    ''     FBUSTRING* vr$9  = fb_UStrConcat  ( &TMP$6$0, vr$6, -1ll, &U$0,  -1ll );
+    ''     FBUSTRING* vr$12 = fb_UStrConcatUA( &TMP$7$0, vr$9, -1ll, &S$0,  -1ll );
+    ''
+    '' which is the left-to-right fold below, term for term. The refusal was blunt: it
+    '' turned away six orderings to describe one, and all six produce the same value by
+    '' the same runtime -- 'fb_UStrConcatAU( &TMP, &S$0, -1ll, &U$0, -1ll )' is
+    '' measured to be the narrow-then-UTF-16 step, so the accumulator reaches UTF-16 by
+    '' a different route and not to a different string. Run, fbc prints "wus" and "swu".
 
     '' The accumulator starts as the FIRST NON-NEUTRAL term's flavour, and a wide one
     '' becomes UTF-16 as soon as it meets a ustring -- which is every chain here.

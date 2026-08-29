@@ -1,0 +1,8 @@
+'' A wide concatenation as a comparison operand, and a concat chain carrying narrow,
+'' wide and UTF-16 terms at once. Both declined outright.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-concat-mixed.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-concat-mixed.out

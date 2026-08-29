@@ -40,7 +40,27 @@ function LowerStrCompare _
     '' calls, neither of which Check types, so both sides looked NARROW and the whole
     '' comparison declined -- 228 statements in one corpus file, every one of them
     '' inside a CU_ASSERT that then declined with it.
-    dim as boolean isWide = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
+    '' ...AND A CONCATENATION IS WIDE WHEN ITS TERMS ARE. It is an N_BINARY with no
+    '' type of its own, so TermIsWide_ said no to it and '(w & 42) = "n=42"' took the
+    '' NARROW branch, where EmitStrTerm then declined on the wide operand and the whole
+    '' comparison went with it. It worked only when the OTHER side was directly wide,
+    '' which is why some corpus lines lowered and their neighbours did not:
+    ''
+    ''     (w & w) = wstr( "n=n=" )   lowered      (w & w) = "n=n="    declined
+    ''     (w & w) = w                lowered      (w & w) = (w & w)   declined
+    ''
+    '' Measured, fbc takes the wide path and renders the integer as a wide literal:
+    '' 'fb_WstrConcat( W$0, L"42" )' then 'fb_WstrCompare( TMP$8$0, L"n=42" )'.
+    ''
+    '' Asked HERE rather than inside TermIsWide_, which ConcatHasWideTerm_ itself calls
+    '' on every term.
+    '' UNPARENED: '( w & w ) = "x"' arrives as an N_PAREN, and ConcatHasWideTerm_
+    '' answers false for anything that is not itself the N_BINARY.
+    dim as Tko.NodeId cl = Unparen_( c, bp->lhs )
+    dim as Tko.NodeId cr = Unparen_( c, bp->rhs )
+    dim as boolean lw = TermIsWide_( c, bp->lhs ) orelse ConcatHasWideTerm_( c, cl )
+    dim as boolean rw = TermIsWide_( c, bp->rhs ) orelse ConcatHasWideTerm_( c, cr )
+    dim as boolean isWide = lw orelse rw
     '' ...UNLESS THE OTHER SIDE IS A USTRING, in which case it is a UTF-16 comparison
     '' and the WIDE operand is the one converted -- 'fb_WstrToUStr' then fb_UStrCompare,
     '' measured. Taken as a wide comparison it converted the ustring to a wstring
