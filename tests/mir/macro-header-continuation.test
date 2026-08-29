@@ -1,0 +1,7 @@
+'' A '#macro' header ending in '_' swallowed the first line of its own body.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/macro-header-continuation.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/macro-header-continuation.out

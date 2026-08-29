@@ -188,7 +188,27 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     end if
 
     '' #macro ... #endmacro: the body runs to a '#endmacro' directive line.
-    SkipToEol( e )
+    ''
+    '' ...WHICH STARTS ON THE NEXT PHYSICAL LINE, whatever the header ends with. A
+    '' trailing '_' on the header is not a continuation into the body -- measured, fbc
+    '' runs
+    ''
+    ''     #macro case_T(T) _
+    ''     case sizeof(T)
+    ''         CU_ASSERT_EQUAL( cva_arg( p, T ), i )
+    ''     #endmacro
+    ''
+    '' with the case line as the BODY's first line, and 'm( a ) _' over a single
+    '' 'print a' prints, so the body cannot have been swallowed either. SkipToEol
+    '' stops at an EOL and a continuation REMOVES the EOL, so the first body line went
+    '' into the header and vanished: every 'case_T( byte )' expanded to the assert with
+    '' no CASE in front of it, which is 'expected end SELECT' and then a parse desync
+    '' that unbound the enclosing procedure's name. functions/var_args-gcc.bas, and
+    '' fbcunit.bi's own CU_ASSERT_EQUAL landing after the vanished case.
+    ''
+    '' A continuation INSIDE the parameter list is untouched -- PpReadParams has
+    '' already consumed those, and fbc accepts '#macro m( a, _' with 'b )' below it.
+    SkipMacroHeader_( e )
     do
         dim as Token u
         if PeekTok( e, u ) = false then

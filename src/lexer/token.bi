@@ -110,6 +110,19 @@ namespace Tko
     '' ':' and a bare LF are both one byte.
     const TF_COLON         as ushort = &h0010
 
+    '' THE TOKEN THAT FOLLOWS A LINE CONTINUATION -- the first one on the next PHYSICAL
+    '' line. Nothing about the logical line needs it; the '#macro' HEADER does. A
+    '' trailing '_' there is not a continuation into the body: fbc runs
+    ''
+    ''     #macro case_T(T) _
+    ''     case sizeof(T)
+    ''
+    '' with the case line as the BODY's first line, and 'm( a ) _' followed by one
+    '' 'print a' prints -- so the body cannot have been swallowed. A continuation does
+    '' not set TF_AT_LINE_START, so without this flag there was nothing to tell the
+    '' header's own tokens from the first body line's.
+    const TF_LINE_JOINED   as ushort = &h0020
+
     type Token                      '' 16 bytes
         as ushort    kind
         as ushort    flags

@@ -229,6 +229,17 @@ private sub SkipToEol( byref e as PpEngine )
     wend
 end sub
 
+'' ...and the same to the end of the PHYSICAL line: it stops at the first token that
+'' followed a line continuation. Only the '#macro' header wants this -- see the comment
+'' at its call site.
+private sub SkipMacroHeader_( byref e as PpEngine )
+    dim as Token t
+    while PeekOnLine( e, t )
+        if (t.flags and TF_LINE_JOINED) <> 0 then exit while
+        Advance( e )
+    wend
+end sub
+
 '' Collect the rest of the directive line, unexpanded.
 private sub CollectLine _
     ( byref e as PpEngine, byref outv as TokenVec, _

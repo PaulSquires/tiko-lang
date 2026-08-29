@@ -800,7 +800,7 @@ sub Run _
                     j += 1
                 wend
                 s.i = iif( j < s.n, j + 1, s.n )
-                s.pendingFlags or= Tko.TF_SPACE_BEFORE
+                s.pendingFlags or= (Tko.TF_SPACE_BEFORE or Tko.TF_LINE_JOINED)
                 continue while
             end if
             '' otherwise '_' starts an identifier
