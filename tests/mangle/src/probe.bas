@@ -246,6 +246,29 @@ namespace mgops
     operator OpAd.@ ( ) as long ptr
         return @this.v
     end operator
+
+    '' THE FOUR ALLOCATION OPERATORS. All four have Itanium codes -- nw, dl, na, da --
+    '' and tiko-lang spelled every one as the vendor extension over the word. The two
+    '' VECTOR forms did not even reach the mangler: the parser lost their '[ ]' and
+    '' with it their whole parameter list, so 'operator OpNw.new[]( byval s as
+    '' uinteger )' arrived with no parameters and mangled as a no-argument sub.
+    type OpNw
+        v as long
+        declare static operator new ( byval s as uinteger ) as any ptr
+        declare static operator delete ( byval b as any ptr )
+        declare static operator new[] ( byval s as uinteger ) as any ptr
+        declare static operator delete[] ( byval b as any ptr )
+    end type
+    operator OpNw.new ( byval s as uinteger ) as any ptr
+        return 0
+    end operator
+    operator OpNw.delete ( byval b as any ptr )
+    end operator
+    operator OpNw.new[] ( byval s as uinteger ) as any ptr
+        return 0
+    end operator
+    operator OpNw.delete[] ( byval b as any ptr )
+    end operator
 end namespace
 
 '' ---- GLOBAL OPERATORS. Not nested and not overloaded, so the plain rule would take

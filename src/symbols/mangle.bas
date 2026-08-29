@@ -347,6 +347,18 @@ private function PropertySuffix _
     return "__set__"
 end function
 
+'' THE FOUR ALLOCATION OPERATORS ARE STATIC whether or not the definition repeats the
+'' word -- fbc accepts 'static' on the DECLARE only. They take no receiver, which two
+'' places have to know: the arity that picks a unary code from a binary one, and win32's
+'' stdcall '@N'. Measured: '_ZN5MGOPS4OPNWnwEm@4', one 4-byte argument, not @8.
+private function IsAllocOperator_ _
+    ( byref names as Tko.Interner, byval nm as Tko.InternId ) as boolean
+
+    select case Tko.Text.LowerAscii( names.Spelling( nm ) )
+    case "new", "delete", "new[]", "delete[]" : return true
+    end select
+    return false
+end function
 '' fbc rejects most operators as members ("Operator cannot be a member function"),
 '' so only the two that compile are encoded: LET is Itanium's assignment operator,
 '' and CAST is a conversion operator whose TARGET TYPE is part of the name -- which
@@ -361,6 +373,21 @@ private function OperatorCode _
     dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
     dim as string nm = Tko.Text.LowerAscii( names.Spelling( sp->name ) )
     if nm = "let" then return "aS"
+    '' ALLOCATION, and all four have Itanium codes. Measured:
+    ''
+    ''     operator bar.new      _ZN3BARnwEu8UINTEGER
+    ''     operator bar.delete   _ZN3BARdlEPv
+    ''     operator bar.new[]    _ZN3BARnaEu8UINTEGER
+    ''     operator bar.delete[] _ZN3BARdaEPv
+    ''
+    '' tiko-lang spelled all four as the VENDOR EXTENSION over the word --
+    '' '_ZN3BARv23newEu8UINTEGER' -- which is a name nothing defines. The two vector
+    '' forms did not even reach here: the parser lost their '[ ]' and with it their
+    '' whole parameter list.
+    if nm = "new" then return "nw"
+    if nm = "delete" then return "dl"
+    if nm = "new[]" then return "na"
+    if nm = "delete[]" then return "da"
     if nm = "cast" then
         return "cv" & TypeCode( info.TypeOf_( sp->a ), types, syms, names, subs )
     end if
@@ -379,6 +406,7 @@ private function OperatorCode _
     if aqt.Count > 0 then
         dim as boolean memb = (aqt[aqt.Count - 1] <> 0)
         memb = memb andalso ((sp->extra and Tko.PF_STATIC) = 0)
+        memb = memb andalso (IsAllocOperator_( names, sp->name ) = false)
         if memb then arity += 1
     end if
 
@@ -523,8 +551,12 @@ private function DecorateWin32 _
     QualifierChain( syms, info.ScopeOf( proc_ ), names, q, qt )
     dim as boolean hasThis = false
     if qt.Count > 0 then
-        hasThis = (qt[qt.Count - 1] <> 0) andalso _
-                  ((sp->extra and Tko.PF_STATIC) = 0)
+        '' Hoisted: an 'andalso' chain mixing a boolean with a masked flag is
+        '' warning 38.
+        dim as boolean qOwned = (qt[qt.Count - 1] <> 0)
+        dim as boolean qStatic = ((sp->extra and Tko.PF_STATIC) <> 0)
+        dim as boolean qAlloc = IsAllocOperator_( names, sp->name )
+        hasThis = qOwned andalso (qStatic = false) andalso (qAlloc = false)
     end if
     dim as ushort kw = sp->op
     if (kw = cast( ushort, Tko.KW_CONSTRUCTOR )) orelse _

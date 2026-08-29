@@ -163,6 +163,19 @@ sub LowerProc _
             isStructor = true
         end select
 
+        '' ...EXCEPT THE FOUR ALLOCATION OPERATORS, which are STATIC whether or not the
+        '' definition repeats the word -- fbc accepts 'static' on the DECLARE only, and
+        '' emits 'void* _ZN3BARnwEu8UINTEGER( uint64 SIZE$1 )': ONE parameter, no
+        '' receiver. Treated as ordinary operators they took a 'this' nothing passes,
+        '' so every argument arrived one place late.
+        if isStructor then
+            select case Tko.Text.LowerAscii( c.names->Spelling( sp->name ) )
+            case "new", "delete", "new[]", "delete[]"
+                isStructor = false
+                thisSym = Tko.SYMBOL_NONE
+            end select
+        end if
+
         if isStructor = false then
             '' Otherwise: a receiver exists only if a TYPE scope encloses the
             '' procedure. 'private function procA.f1( ) as integer' inside 'namespace

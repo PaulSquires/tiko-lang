@@ -1,0 +1,122 @@
+global str $str0 "new"
+global str $str1 "delete"
+global str $str2 "new[]"
+global str $str3 "delete[]"
+func ptr _ZN3BARnwEu8UINTEGER($0) {
+  local ptr $tmp0
+  local i64 size
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr size
+    store @size, $0
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 3)
+    call.rtl void fb_PrintString(0, %4, 0)
+    %5 = load @size
+    call.rtl void fb_PrintULongint(0, %5, 1)
+    %6 = load @size
+    %7 = call.rtl ptr malloc(%6)
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    ret %8
+}
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintString($0, $1, $2)
+declare void fb_PrintULongint($0, $1, $2)
+declare ptr malloc($0)
+func void _ZN3BARdlEPv($0) {
+  local ptr buf
+  entry0:
+    %1 = alloca ptr buf
+    store @buf, $0
+    %2 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 6)
+    call.rtl void fb_PrintString(0, %2, 1)
+    %3 = load @buf
+    call.rtl void free(%3)
+    ret
+}
+declare void free($0)
+func ptr _ZN3BARnaEu8UINTEGER($0) {
+  local ptr $tmp0
+  local i64 size
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr size
+    store @size, $0
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 5)
+    call.rtl void fb_PrintString(0, %4, 0)
+    %5 = load @size
+    call.rtl void fb_PrintULongint(0, %5, 1)
+    %6 = load @size
+    %7 = call.rtl ptr malloc(%6)
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    ret %8
+}
+func void _ZN3BARdaEPv($0) {
+  local ptr buf
+  entry0:
+    %1 = alloca ptr buf
+    store @buf, $0
+    %2 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 8)
+    call.rtl void fb_PrintString(0, %2, 1)
+    %3 = load @buf
+    call.rtl void free(%3)
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr p1
+  local ptr $tmp2
+  local ptr p2
+  local ptr $tmp4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr p1
+    %5 = call.rtl ptr calloc(8, 1)
+    %6 = alloca ptr $tmp2
+    store @$tmp2, %5
+    %7 = load @$tmp2
+    store @p1, %7
+    %8 = load @p1
+    %9 = const ptr 0
+    %10 = icmp.ne %8, %9
+    %11 = alloca ptr p2
+    %16 = alloca ptr $tmp4
+    condbr %10, del.body1, del.join2
+  del.body1:
+    call.rtl void free(%8)
+    br del.join2
+  del.join2:
+    %12 = const i64 2
+    %13 = const i64 8
+    %14 = mul %12, %13
+    %15 = call.rtl ptr calloc(%14, 1)
+    store @$tmp4, %15
+    %17 = load @$tmp4
+    store @p2, %17
+    %18 = load @p2
+    %19 = const ptr 0
+    %20 = icmp.ne %18, %19
+    condbr %20, del.body3, del.join4
+  del.body3:
+    call.rtl void free(%18)
+    br del.join4
+  del.join4:
+    %21 = const i32 0
+    call.rtl void fb_End(%21)
+    %22 = load @$tmp0
+    ret %22
+}
+declare void fb_Init($0, $1, $2)
+declare ptr calloc($0, $1)
+declare void fb_End($0)
+verify: ok
+lowered: 5 functions, 9 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

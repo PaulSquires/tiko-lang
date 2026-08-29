@@ -836,6 +836,27 @@ private sub ReadOperatorName _
     ''
     '' The compound WORD operators are the one exception and are taken above, before
     '' this, because their keyword half is what got read as the name.
+    '' 'operator new[]' AND 'operator delete[]' ARE TWO TOKENS AND ONE NAME, the same
+    '' way 'operator []' is -- and the word half has already been taken as the name by
+    '' the time this runs, so the early-out below fired and left the '[' where the
+    '' PARAMETER LIST was expected. The whole list was then lost: 'operator bar.new[](
+    '' byval size as uinteger )' arrived with no parameters at all, so 'size' was
+    '' unbound and the declared 'buf' became the implicit 'this'. fbc mangles them 'na'
+    '' and 'da'; tiko-lang mangled '_ZN3BARv13newEv', a no-argument sub.
+    if (sp.name <> 0) andalso (Peek( p ) = Tko.TK_LBRACKET) then
+        dim as string hadw = Tko.Text.LowerAscii( p.names->Spelling( sp.name ) )
+        if (hadw = "new") orelse (hadw = "delete") then
+            dim as long sv = p.pos
+            Advance( p )
+            if Peek( p ) = Tko.TK_RBRACKET then
+                Advance( p )
+                sp.name = p.names->Fold( p.names->GetString( hadw & "[]" ) )
+                sp.rawName = p.names->GetString( hadw & "[]" )
+                return
+            end if
+            p.pos = sv
+        end if
+    end if
     if sp.name <> 0 then return
     if (Peek( p ) = Tko.TK_LPAREN) orelse AtEnd( p ) then return
     if Peek( p ) = Tko.TK_EOL then return
