@@ -152,6 +152,10 @@ sub RevProbe( )
     dim as ulongint q2 = valulng( w )
     dim as integer q3 = valint( w )
     dim as uinteger q4 = valuint( w )
+    '' fb_WstrValBool has NO NAME fbc will take a procptr of -- 'procptr(
+    '' fb_WstrValBool )' is error 8, undefined symbol. It is only ever emitted by
+    '' lowering a CBOOL over a wide string, so that is how it is probed.
+    dim as boolean q5 = cbool( w )
     dim as wstring * 8 f1, f2
     f1 = wstring( 3, 65 )
     f2 = wstring( 3, w )

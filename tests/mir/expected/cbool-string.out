@@ -1,0 +1,63 @@
+global str $str0 "true"
+global str $str1 "false"
+global wstr $wstr2 "true"
+func void NARROW() {
+  local agg s size 24
+  local i8 a
+  local i8 b
+  entry0:
+    %1 = alloca ptr s
+    %2 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 5, 0)
+    %3 = alloca ptr a
+    %4 = call.rtl i8 fb_VALBOOL(@s)
+    store @a, %4
+    %5 = alloca ptr b
+    %6 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
+    %7 = call.rtl i8 fb_VALBOOL(%6)
+    store @b, %7
+    %8 = load @a
+    call.rtl void fb_PrintBool(0, %8, 0)
+    %9 = load @b
+    call.rtl void fb_PrintBool(0, %9, 1)
+    call.rtl void fb_StrDelete(@s)
+    ret
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare i8 fb_VALBOOL($0)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare void fb_PrintBool($0, $1, $2)
+declare void fb_StrDelete($0)
+func void WIDE() {
+  local agg w size 16
+  local i8 a
+  entry0:
+    %1 = alloca ptr w
+    %2 = call.rtl ptr fb_WstrAssign(@w, 8, @@$wstr2)
+    %3 = alloca ptr a
+    %4 = call.rtl i8 fb_WstrValBool(@w)
+    store @a, %4
+    %5 = load @a
+    call.rtl void fb_PrintBool(0, %5, 1)
+    ret
+}
+declare ptr fb_WstrAssign($0, $1, $2)
+declare i8 fb_WstrValBool($0)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void NARROW()
+    call void WIDE()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance

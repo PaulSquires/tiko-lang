@@ -1,0 +1,8 @@
+'' cbool over a narrow and a wide string: fb_VALBOOL and fb_WstrValBool, not the
+'' integer parse.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cbool-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/cbool-string.out

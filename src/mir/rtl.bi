@@ -844,6 +844,7 @@ namespace Tko.Mir
         RTL( RTL_STR_CONCAT_BYREF,      "fb_StrConcatByref",       "p",   "pzpzl"     )
         RTL( RTL_THREAD_CALL,           "fb_ThreadCall",           "p",   "plzl."     )
         RTL( RTL_VAL_BOOL,              "fb_VALBOOL",              "b",   "p"         )
+        RTL( RTL_WSTR_VAL_BOOL,         "fb_WstrValBool",          "b",   "p"         )
         RTL( RTL_WIDTH_DEV,             "fb_WidthDev",             "l",   "pl"        )
         RTL( RTL_WIDTH_FILE,            "fb_WidthFile",            "l",   "ll"        )
         RTL( RTL_H_PUT_ADD,             "fb_hPutAdd",              "v",   "pplllllpp" )

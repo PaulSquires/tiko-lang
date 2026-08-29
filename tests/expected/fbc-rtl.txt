@@ -475,6 +475,7 @@ fb_WstrTrimAny	uint16*	uint16*, uint16*	lib	fb_WstrTrimAny
 fb_WstrTrimEx	uint16*	uint16*, uint16*	lib	fb_WstrTrimEx
 fb_WstrUcase2	uint16*	uint16*, int32	lib	fb_WstrUcase2
 fb_WstrVal	double	uint16*	lib	fb_WstrVal
+fb_WstrValBool	boolean	uint16*	lib	fb_WstrValBool
 fb_WstrValInt	int32	uint16*	lib	fb_WstrValInt
 fb_WstrValLng	int64	uint16*	lib	fb_WstrValLng
 fb_WstrValUInt	uint32	uint16*	lib	fb_WstrValUInt

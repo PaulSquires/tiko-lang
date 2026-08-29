@@ -153,6 +153,11 @@ function LowerConvIntrinsic _
             dim as long ww = RTL_WSTR_VALINT
             dim as MirType wmt = MT_I32
             select case nm
+            '' CBOOL PARSES THE WORD, not a number: fbc has an entry point of its own
+            '' for it and 'cbool( "true" )' is TRUE through it. Reaching VALINT
+            '' instead parsed "true" as a NUMBER, got 0, and answered false.
+            case "cbool"
+                ww = RTL_WSTR_VAL_BOOL : wmt = MT_I8
             case "csng", "cdbl"
                 ww = RTL_WSTR_VAL : wmt = MT_F64
             case "cint", "clngint"
@@ -183,6 +188,9 @@ function LowerConvIntrinsic _
             dim as long vw = RTL_VAL
             dim as MirType vmt = MT_F64
             select case nm
+            '' The narrow twin of the same rule -- see the wide row above.
+            case "cbool"
+                vw = RTL_VAL_BOOL : vmt = MT_I8
             case "csng", "cdbl"
                 vw = RTL_VAL : vmt = MT_F64
             case "cint", "clngint"
