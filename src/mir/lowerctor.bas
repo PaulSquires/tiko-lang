@@ -102,7 +102,7 @@ end function
 '' then had no value to build.
 private function CharPtrCtorInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init_ as Tko.NodeId ) as boolean
+      byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
     '' ...AND SO HAS ANY UNBOUND CALL. 'dim u4 as uzstr_t = wstr( u1 )' is the
     '' same shape as the iif this branch was written for: Check computes no
@@ -166,7 +166,7 @@ private function CharPtrCtorInit_ _
     dim as FB.Array( of ulong ) iargs
     iargs.Push( cast( ulong, iav.kind ) )
     iargs.Push( cast( ulong, iav.id ) )
-    EmitStructorCall( c, sc, slot, 0, @iargs )
+    EmitStructorCall( c, sc, slot, selfv, @iargs )
     return true
 end function
 
@@ -176,9 +176,11 @@ end function
 '' through to the DEFAULT constructor and the initialiser was DROPPED: the object was
 '' built empty, no store, no decline, no diagnostic. fbc emits
 '' '_ZN1UC1EPKc( &U1, *(char**)&S )'.
+'' The destination is a SLOT or, for an ARRAY ELEMENT, an address -- selfv. An element
+'' of a brace initialiser has no slot of its own.
 function LowerConvCtorInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init_ as Tko.NodeId ) as boolean
+      byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
 
     if init_ = Tko.NODE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
@@ -204,7 +206,7 @@ function LowerConvCtorInit_ _
     '' CtorArgValue_ is structural about iif in both. udt-wstring/iif.bas and
     '' udt-zstring/iif.bas write nothing else.
     if it = Tko.TYPE_NONE then
-        return CharPtrCtorInit_( c, slot, t, init_ )
+        return CharPtrCtorInit_( c, slot, t, init_, selfv )
     end if
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
@@ -220,7 +222,7 @@ function LowerConvCtorInit_ _
     '' constructor while 'chr( 12 )' beside it did. Same answer as the untyped case
     '' above, and the same code.
     if pick = Tko.SYMBOL_NONE then
-        return CharPtrCtorInit_( c, slot, t, init_ )
+        return CharPtrCtorInit_( c, slot, t, init_, selfv )
     end if
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
     if ps = 0 then return false
@@ -246,7 +248,7 @@ function LowerConvCtorInit_ _
     dim as FB.Array( of ulong ) cargs
     cargs.Push( cast( ulong, av.kind ) )
     cargs.Push( cast( ulong, av.id ) )
-    EmitStructorCall( c, pick, slot, 0, @cargs )
+    EmitStructorCall( c, pick, slot, selfv, @cargs )
     return true
 end function
 

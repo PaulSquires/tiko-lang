@@ -329,7 +329,7 @@ declare function EmitRtl _
     '' lowerctor.bas
     declare function LowerConvCtorInit_ _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-          byval init_ as Tko.NodeId ) as boolean
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
     declare function LowerCtorInit _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
           byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean

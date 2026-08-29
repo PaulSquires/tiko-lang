@@ -1290,6 +1290,19 @@ private function LowerUdtElemInit_ _
     '' element, exactly as it does into a variable's slot.
     if LowerCtorInit( c, -1, et, e, @dst ) then return true
 
+    '' ...AND ONE THAT IS NOT SPELT OUT IS STILL A CONSTRUCTOR CALL. 'dim tb(0 to 1) as
+    '' foo = { 7, 8 }' over a 'constructor foo( byval v as integer )' fell past both
+    '' branches above to the POD copy and STORED 7 AND 8 RAW into the elements --
+    '' no ctor, no decline, and it verified. Measured, fbc:
+    ''
+    ''     _ZN3FOOC1Eu7INTEGER( (struct $3FOO*)TB$0, 7ll );
+    ''     _ZN3FOOC1Eu7INTEGER( (struct $3FOO*)((int64)TB$0 + 8ll), 8ll );
+    ''
+    '' and run, with a constructor that multiplies by ten, fbc prints ' 70  80' where
+    '' tiko-lang's elements held 7 and 8. The scalar 'dim as foo a = 7' had taken the
+    '' converting constructor since it was written; only the ELEMENT position had not.
+    if LowerConvCtorInit_( c, -1, et, e, @dst ) then return true
+
     '' ...and a POD element is the plain aggregate copy fbc emits for one.
     dim as MirValue ev = LowerExpr( c, e )
     if ev.kind = cast( ubyte, MV_NONE ) then return false
