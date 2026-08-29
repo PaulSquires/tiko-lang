@@ -64,3 +64,4 @@ strw/case.bas
 strw/conv.bas
 str/hexoctbin.bas
 strw/hexoctbin.bas
+strw/val.bas
