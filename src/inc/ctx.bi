@@ -45,7 +45,8 @@ type TKORT_CTX_HEAD
 	as long             argc       '' C int
 	as zstring ptr ptr  argv
 	as FBSTRING         null_desc
-	'' ... FBUSTRING unull_desc, errmsg, hooks, fileTB, ... -- deliberately absent
+	as FBUSTRING        unull_desc   '' the ustring family's shared empty
+	'' ... errmsg, hooks, fileTB, ... -- deliberately absent
 end type
 
 extern "c" '' NON-FBCALL -- __fb_ctx is DATA, not a procedure. FBCALL decorates
@@ -58,5 +59,10 @@ end extern
 '' freeing it -- returning an allocated empty temporary instead would be a leak
 '' on every degenerate call.
 #define TKORT_NULLSTR() (@__fb_ctx.null_desc)
+
+'' The ustring counterpart. Same rule: one shared empty, temp bit clear, and
+'' returning an allocated empty temporary instead would be a leak on every
+'' degenerate call.
+#define TKORT_UNULLSTR() (@__fb_ctx.unull_desc)
 
 #endif '' __TKORT_CTX_BI__

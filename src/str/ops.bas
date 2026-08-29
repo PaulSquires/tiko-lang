@@ -79,6 +79,12 @@ end extern
 	if( (c) >= &h80 ) then r = 1
 #endmacro
 
+'' NO SURROGATES AT BYTE WIDTH: both fold to 0 and hReverseFill's pair branch
+'' disappears entirely at compile time. Defined rather than omitted, because the
+'' core needs them to exist.
+#define SOP_ISHIGH( u ) 0
+#define SOP_ISLOW( u )  0
+
 #include once "inc/ops-core.bi"
 
 

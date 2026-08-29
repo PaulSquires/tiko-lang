@@ -579,24 +579,40 @@ end function
 
 '' Reverse.
 ''
-'' BYTES REVERSE AS BYTES here, and that asymmetry with the 16-bit width is
-'' deliberate. A ustring is UTF-16 by definition, so blind reversal emits a low
-'' surrogate before its high one -- invalid every time an astral character
-'' appears -- and the wide instantiation keeps pairs together. A STRING is bytes
-'' with no declared encoding, so there is no pair to preserve and no way to know
-'' whether there would be one. It does corrupt multi-byte UTF-8, and it is the
-'' only defensible answer for a type that does not say what it holds.
+'' SURROGATE PAIRS ARE KEPT INTACT AT 16-BIT WIDTH AND NOT AT BYTE WIDTH, and
+'' the asymmetry is deliberate.
 ''
-'' In C this is one function with FB_SOP_ISHIGH/ISLOW defined to constant 0 at
-'' byte width, so the surrogate branch folds away. Here the branch is simply
-'' absent -- the same code after constant folding, written once.
+'' A ustring is UTF-16 by definition, so reversing its code units blindly emits
+'' a low surrogate before its high one -- invalid UTF-16, every single time an
+'' astral character is present, not occasionally. AfxStrReverse does exactly
+'' that. Keeping the pair together costs one comparison per unit and is the only
+'' result that is still a string.
+''
+'' A STRING is bytes with no declared encoding, so there is no pair to preserve
+'' and no way to know whether there would be one; bytes reverse as bytes. That
+'' does corrupt multi-byte UTF-8, and it is the only defensible answer for a
+'' type that does not say what it holds.
+''
+'' SOP_ISHIGH / SOP_ISLOW are constant 0 at byte width, so the branch folds away
+'' there entirely -- which is why str/ops.bas defines them to 0 rather than
+'' leaving them out. The first draft of the byte instantiation simply DELETED
+'' this branch, which was right for that width and would have silently split
+'' every astral pair once the core was shared.
 private sub SOP(hReverseFill) _
 	( byval dst as SOP_UNIT ptr, byval s as SOP_UNIT ptr, byval slen as integer )
 
-	dim as integer w = 0
-	for i as integer = slen - 1 to 0 step -1
-		dst[w] = s[i] : w += 1
-	next
+	dim as integer i = slen - 1, w = 0
+
+	while( i >= 0 )
+		if( (i >= 1) andalso SOP_ISLOW( s[i] ) andalso SOP_ISHIGH( s[i - 1] ) ) then
+			dst[w] = s[i - 1] : w += 1
+			dst[w] = s[i] : w += 1
+			i -= 2
+		else
+			dst[w] = s[i] : w += 1
+			i -= 1
+		end if
+	wend
 
 end sub
 

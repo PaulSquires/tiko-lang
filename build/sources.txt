@@ -39,3 +39,4 @@ str/ops.bas
 str/valqb.bas
 str/valbool.bas
 ustr/utf.bas
+ustr/ops.bas
