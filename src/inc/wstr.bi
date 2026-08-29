@@ -23,6 +23,29 @@
 
 '' A wide character is 2 bytes on Windows and 4 on Linux -- never assume, and
 '' never reinterpret a buffer as UTF-16 (RFC-0003 section 5.5).
+
+'' ===========================================================================
+'' THE RULE FOR READING A CHARACTER OUT OF A `wstring ptr`
+''
+'' `p[i]` is a wstring EXPRESSION, not a number, and what happens next depends
+'' entirely on how it is consumed:
+''
+''     cast( long, p[i] )          0, SILENTLY
+''     p[i] <> q[j]                compares wstring expressions, not characters
+''     dim as ulong c = p[i]       CORRECT -- the assignment converts
+''     return p[i]                 CORRECT -- the return converts
+''     f( p[i] ) as a numeric arg  error 58, the one honest failure
+''
+'' So the form that LOOKS most careful is wrong, the natural comparison is
+'' wrong, and only the form with no cast at all reports anything.
+''
+'' ALWAYS READ THROUGH A `dim as ulong` LOCAL. This bit FOUR TIMES in the
+'' strw batch alone -- fb_WstrFill2 returned NULs, fb_WstrInstrRev and
+'' fb_WstrInstrRevAny returned 0 for every input, and both one-character trim
+'' fast paths stripped nothing. Three of the four were caught only because the
+'' differential disagreed; a fifth instance in a test helper printed 0000 on
+'' BOTH sides and PASSED.
+'' ===========================================================================
 #define TKORT_WCHAR_SIZE (sizeof(wstring) )
 
 '' Characters between two pointers into the same buffer.

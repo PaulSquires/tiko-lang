@@ -58,3 +58,6 @@ ustr/assign.bas
 ustr/casetable.bas
 strw/core.bas
 strw/slice.bas
+strw/search.bas
+strw/trimex.bas
+strw/case.bas

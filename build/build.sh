@@ -46,6 +46,23 @@ build_one( ) {
     rm -rf "$objdir"
     mkdir -p "$objdir" "$libdir"
 
+    # THE ARCHIVE IS REMOVED BEFORE THE COMPILE, NOT AFTER IT.
+    #
+    # build.sh already exits non-zero when a compile fails (verified by planting
+    # one), but it used to leave the PREVIOUS run's archive sitting in lib/, so
+    # anything reading it afterwards saw a complete, valid, stale library.
+    #
+    # That is not hypothetical: a linux-only failure in strw/case.bas let
+    # build/symbols.sh report "912 symbol names identical" for a tree that had
+    # just failed to build, because the caller piped build.sh through `tail` and
+    # `&&` then saw the PIPE's exit status rather than the build's.
+    #
+    # Removing the archive first makes the failure impossible to read past --
+    # every downstream tool dies with "no archive" instead of agreeing with a
+    # library nobody just built. Fifth stale-artefact incident here, and the
+    # same shape as the other four.
+    rm -f "$libdir/$archive"
+
     # A stale object yields a plausible archive, never an error, so the object
     # directory is removed above rather than reused.
     objs=""
@@ -57,7 +74,6 @@ build_one( ) {
         objs="$objs $obj"
     done
 
-    rm -f "$libdir/$archive"
     if [ -z "$objs" ]; then
         # S0: no modules yet. An archive with no members is still a valid
         # archive and still proves the whole toolchain path works.
