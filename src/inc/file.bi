@@ -1,0 +1,136 @@
+#ifndef __TKORT_FILE_BI__
+#define __TKORT_FILE_BI__
+
+'' file.bi -- FB_FILE, its hook table, and the file-handle lookup.
+''
+'' NO ENTRY POINTS DEPEND ON THIS YET. It lands on its own because getting it
+'' wrong is not a compile error and not a crash: FB_FILE_TO_HANDLE is pointer
+'' arithmetic into fbc's own file table, so a wrong offset yields a PLAUSIBLE
+'' FB_FILE pointer that reads and writes the middle of a neighbouring entry.
+'' Every File*, Dev*, Con* and Print* entry point -- 262 of the 810 still
+'' outstanding -- goes through it, so it is worth proving before anything is
+'' built on top.
+''
+'' ================================================== HOW THE LAYOUT WAS FIXED
+''
+'' Not by reading the struct and counting -- that was tried and it was wrong.
+''
+'' A C probe compiled against fbc's OWN HEADERS gave the two 64-bit targets:
+''
+''                        win64   linux-x86_64   win32
+''     sizeof FB_FILE        80             80      64
+''     hooks                 56             56      52
+''     opaque                64             64      56
+''     fileTB (in ctx)      296            296     152
+''     FB_RESERVED_FILES      2              2       2
+''
+'' NO 32-BIT MinGW HEADERS ARE AVAILABLE HERE, so win32 could not be probed that
+'' way. Its fileTB offset was first DERIVED by counting members under ILP32
+'' rules, which produced 148 -- off by four. Nothing crashed: `width` read back
+'' 0 instead of 40, `mode` read 0 on an open handle, and `hooks` was null. A
+'' plausible pointer into the wrong place, exactly as the header above warns.
+''
+'' The real number came from ASKING THE RUNTIME: set a distinctive width on an
+'' open handle, scan __fb_ctx for the entry whose width field holds it, and work
+'' back to the table base. Run on win64 FIRST AS A CONTROL, where it returned
+'' 296 -- matching the C probe exactly -- and only then on win32, where it
+'' returned 152.
+''
+'' All three targets are then verified behaviourally by
+'' tests/abi/filebind-parity.bas, which drives each field from a public
+'' statement and reads it back through this binding. Measured stride: 80 on the
+'' 64-bit targets, 64 on win32, both matching sizeof( FB_FILE ).
+
+#include once "inc/descriptors.bi"
+
+'' The hook table. Fourteen function pointers, and the ORDER is the contract --
+'' an entry point that calls the wrong slot calls a real function with the wrong
+'' signature, which is a crash at best.
+type FB_FILE_HOOKS
+	as any ptr pfnEof
+	as any ptr pfnClose
+	as any ptr pfnSeek
+	as any ptr pfnTell
+	as any ptr pfnRead
+	as any ptr pfnReadWstr
+	as any ptr pfnWrite
+	as any ptr pfnWriteWstr
+	as any ptr pfnLock
+	as any ptr pfnUnlock
+	as any ptr pfnReadLine
+	as any ptr pfnReadLineWstr
+	as any ptr pfnSetWidth
+	as any ptr pfnFlush
+end type
+
+'' NOT byte-packed: this mirrors a struct the C compiler laid out, and packing it
+'' is the mistake that put __fb_ctx.null_desc four bytes early in inc/ctx.bi and
+'' returned a pointer into the middle of a descriptor.
+type FB_FILE
+	as long      mode
+	'' fbc calls this `len`; it is the RECORD length for RANDOM files, and it is
+	'' a C `int` -- genuinely 32-bit, not a pointer-width length. Named reclen
+	'' both because `len` is a FreeBASIC keyword and because the index-width lint
+	'' is right to object to a `long` called length: this one is a struct field
+	'' mirroring an int, not an index.
+	as long      reclen
+	as long      encod            '' FB_FILE_ENCOD, a C enum -> int
+	as longint   size             '' fb_off_t, 64-bit on all three targets
+	as long      type_            '' `type` is a keyword too
+	as long      access
+	as long      lock_            '' and `lock`
+	as ulong     line_length
+	as ulong     width
+	as ubyte     putback_buffer(0 to 3)
+	as uinteger  putback_size     '' size_t: pointer-width
+	as FB_FILE_HOOKS ptr hooks
+	as any ptr   opaque
+	as FB_FILE ptr redirection_to
+end type
+
+'' Checked on the two targets a C probe could be built for. win32 is covered by
+'' the behavioural test instead -- see the header.
+#if defined( __FB_64BIT__ )
+	#assert sizeof( FB_FILE_HOOKS ) = 112
+	#assert sizeof( FB_FILE )       = 80
+	#assert offsetof( FB_FILE, size )           = 16
+	#assert offsetof( FB_FILE, width )          = 40
+	#assert offsetof( FB_FILE, putback_size )   = 48
+	#assert offsetof( FB_FILE, hooks )          = 56
+	#assert offsetof( FB_FILE, opaque )         = 64
+	#assert offsetof( FB_FILE, redirection_to ) = 72
+	const TKORT_FILETB_OFFSET = 296
+#else
+	#assert sizeof( FB_FILE_HOOKS ) = 56
+	#assert sizeof( FB_FILE )       = 64
+	#assert offsetof( FB_FILE, size )           = 16
+	#assert offsetof( FB_FILE, width )          = 40
+	#assert offsetof( FB_FILE, hooks )          = 52
+	#assert offsetof( FB_FILE, opaque )         = 56
+	const TKORT_FILETB_OFFSET = 152
+#endif
+
+const FB_RESERVED_FILES = 2
+
+'' __fb_ctx as raw bytes, so the file table can be reached by its measured offset
+'' without binding the 20,872-byte context struct in full -- most of which is
+'' fields no entry point here will ever touch, each an opportunity to get a
+'' layout wrong for no benefit.
+extern "c"   '' NON-FBCALL: __fb_ctx is DATA, not a procedure.
+	extern __fb_ctx_bytes alias "__fb_ctx" as ubyte
+end extern
+
+#define TKORT_FILETB() cptr( FB_FILE ptr, @__fb_ctx_bytes + TKORT_FILETB_OFFSET )
+
+'' File number to handle. 0 is the screen and -1 the error stream; anything else
+'' indexes the table past the reserved entries.
+#define TKORT_FILE_TO_HANDLE( n ) _
+	iif( (n) = 0, cptr( FB_FILE ptr, FB_HANDLE_SCREEN ), _
+	     iif( (n) = -1, FB_HANDLE_ERROR, TKORT_FILETB() + ((n) - 1 + FB_RESERVED_FILES) ) )
+
+'' The two pseudo-handles PRINT uses. FB_FILE_TO_HANDLE maps file number 0 to the
+'' screen and -1 to the error stream; everything else indexes the table.
+#define FB_HANDLE_SCREEN 0
+#define FB_HANDLE_ERROR  cptr( FB_FILE ptr, -1 )
+
+#endif '' __TKORT_FILE_BI__
