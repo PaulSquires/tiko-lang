@@ -226,6 +226,67 @@ function LowerUdtParenInit_ _
                     return true
                 end if
                 return false
+            elseif c.types->BaseDistance( ot, t ) > 0 then
+                '' AN UPCAST SLICE: the literal names a DERIVED type and the
+                '' destination is one of its bases. Measured over a t2 extends t1,
+                '' both with destructors, for
+                '' 'dim as t1 u1 = type<t1>( type<t2>( 1, 2 ) )':
+                ''
+                ''     struct $2T2 TMP$4$1;
+                ''     *(int64*)&TMP$4$1 = 1ll;
+                ''     *(int64*)((uint8*)&TMP$4$1 + 8ll) = 2ll;
+                ''     __builtin_memcpy( &U1$1, &TMP$4$1, 8 );
+                ''     _ZN2T2D1Ev( &TMP$4$1 );
+                ''
+                '' -- one temporary of the SOURCE type, a copy of exactly
+                '' sizeof( DESTINATION ) bytes out of it, and the temporary
+                '' destructed straight after. The size is why this needed a call:
+                '' M_STORE of an MT_AGG carries no length, so the base-slice
+                '' assignment elsewhere works only because its source is already
+                '' the smaller type. memcpy carries one.
+                ''
+                '' Without the type-literal flag this is a bare '( expr )' again --
+                '' punctuation, not an initialiser -- so it declines with the
+                '' same-type case above.
+                if (c.ast->nodes[cast( long, init )].flags and _
+                    Tko.NF_TYPE_LITERAL) = 0 then return false
+                dim as long dsz = SizeOfType( c, t )
+                if dsz <= 0 then return false
+                dim as MirValue ssrc = LowerAddr( c, only_ )
+                if ssrc.kind = cast( ubyte, MV_NONE ) then return false
+                '' THE TEMPORARY IS DESTRUCTED, and this file's whole subject is
+                '' counting that: udt-upcast-4.bas asserts the per-level dtor
+                '' counts after every one of these. Nothing else registers it --
+                '' UdtLiteralSlot_ builds the object and leaves the release to
+                '' whoever asked for it -- so the slice does it here, and the
+                '' end-of-statement flush puts the call exactly where fbc's is.
+                '' ONLY WHEN THE SOURCE IS ITSELF A LITERAL. Written over a
+                '' VARIABLE -- 'dim as t1 u1 = type<t1>( v )' -- LowerAddr hands
+                '' back V'S OWN SLOT, and registering that would destruct the
+                '' user's variable here and AGAIN at scope end. Measured: fbc
+                '' emits 'memcpy( &U1, &V, 8 )' with no destructor beside it and
+                '' the single '_ZN2T2D1Ev( &V$1 )' at the end of the scope.
+                dim as boolean srcIsLit = false
+                if c.ast->Kind( only_ ) = Tko.N_TUPLE then
+                    srcIsLit = ((c.ast->nodes[cast( long, only_ )].flags and _
+                                 Tko.NF_TYPE_LITERAL) <> 0)
+                end if
+                dim as boolean srcIsLocal = (ssrc.kind = cast( ubyte, MV_LOCAL ))
+                if srcIsLit andalso srcIsLocal andalso _
+                   TypeNeedsDtor_( c, ot ) then
+                    c.udtTemps.Push( cast( ulong, ssrc.id ) )
+                    c.udtTempTypes.Push( cast( ulong, ot ) )
+                end if
+                dim as FB.Array( of ulong ) mca
+                mca.Push( cast( ulong, self_.kind ) )
+                mca.Push( cast( ulong, self_.id ) )
+                mca.Push( cast( ulong, ssrc.kind ) )
+                mca.Push( cast( ulong, ssrc.id ) )
+                dim as MirValue nb = ConstInt( c, dsz, MT_I64 )
+                mca.Push( cast( ulong, nb.kind ) )
+                mca.Push( cast( ulong, nb.id ) )
+                EmitRtl( c, RTL_MEM_COPY, mca )
+                return true
             end if
         end if
     end if

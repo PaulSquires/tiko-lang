@@ -1,0 +1,9 @@
+'' A type literal naming a DERIVED type, initialising one of its BASES: a sized copy,
+'' which is a memcpy because M_STORE of an MT_AGG carries no length. The temporary the
+'' literal builds is destructed; a plain variable in the same position is not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-upcast-slice.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-upcast-slice.out
