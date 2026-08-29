@@ -43,3 +43,5 @@ ustr/ops.bas
 ustr/core.bas
 ustr/prim.bas
 ustr/conv.bas
+ustr/convw.bas
+strw/convfrom_str.bas
