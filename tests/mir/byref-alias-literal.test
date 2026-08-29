@@ -1,0 +1,5 @@
+'' A byref alias bound to a string literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-alias-literal.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/byref-alias-literal.out

@@ -1303,6 +1303,19 @@ function BindAliasStorage _
     end if
 
     dim as MirValue ra = LowerAddr( c, init_ )
+    '' A STRING LITERAL HAS NO ADDRESS OF ITS OWN, and an alias to one is legal:
+    '' 'var byref i = "abc"' and 'dim byref rz as zstring = "foo"'. Measured, fbc
+    '' stores the LITERAL'S address in the alias slot -- 'I$0 = (char*)"abc"' --
+    '' and reads through it like any other reference. Asking LowerAddr alone left
+    '' both declarations declining.
+    if ra.kind = cast( ubyte, MV_NONE ) then
+        dim as Tko.NodeId li = Unparen_( c, init_ )
+        if c.ast->Kind( li ) = Tko.N_STRING_LIT then
+            ra.kind = cast( ubyte, MV_GLOBAL )
+            ra.ty = cast( ubyte, MT_PTR )
+            ra.id = c.m->AddStringLiteral( StringLitText_( c, li ), *c.names )
+        end if
+    end if
     if ra.kind = cast( ubyte, MV_NONE ) then return false
     StoreThrough( c, dst, Coerce( c, ra, MT_PTR ) )
     return true
