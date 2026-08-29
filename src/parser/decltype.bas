@@ -339,14 +339,25 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
     '' reads it, which is why this only has to route.
     dim as boolean procQual = (k = Tko.KW_CONST) orelse (k = Tko.KW_STATIC) orelse _
                               (k = Tko.KW_VIRTUAL) orelse (k = Tko.KW_ABSTRACT)
+    '' ...AND THERE MAY BE MORE THAN ONE OF THEM. 'const virtual sub A.s07( )' is one
+    '' declaration and fbc emits it, mangled _ZNK1A3S07Ev and in the vtable. Peeking a
+    '' single token saw 'virtual', fell through to ParseConstDecl, and reported
+    '' "'virtual' has no type" -- and the desync then took the NEXT definition with it,
+    '' which is where the decline landed. ParseProc's own modifier loop already reads
+    '' the whole run; only the routing here stopped at one.
     if procQual then
-        if HasTok( p, p.pos + 1 ) then
-            select case cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+        dim as long q = p.pos + 1
+        do while HasTok( p, q )
+            select case cast( Tko.TokenKind, p.toks->At( q ).kind )
+            case Tko.KW_CONST, Tko.KW_STATIC, Tko.KW_VIRTUAL, Tko.KW_ABSTRACT
+                q += 1
             case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
                  Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
                 return MarkPrivate( p, ParseProc( p, false ), isPrivate )
+            case else
+                exit do
             end select
-        end if
+        loop
     end if
 
     select case k

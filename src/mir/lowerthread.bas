@@ -166,6 +166,17 @@ function LowerThreadCall_ _
     dim as long pbytes = c.types->target.pointerBits \ 8
     for i as long = 0 to aCount - 1
         dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[aFirst + i] )
+        '' 'byval expr' AT A CALL SITE IS AN N_UNARY, and it is transparent here: fbc
+        '' writes the same 'fb_ThreadCall( &S3, 0, 0ll, 1, 13ll, &TMP$2$0 )' with the
+        '' byval as without it. Unstripped, the argument was classified as a unary
+        '' expression, LowerThreadCall_ returned false, and the whole assignment
+        '' declined -- while the ordinary call path had stripped it since it was
+        '' written. threads/threadcall.bas:166.
+        if c.ast->Kind( ae ) = Tko.N_UNARY then
+            dim as Tko.UnaryPayload ptr tup = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, ae )].data )]
+            if cast( Tko.TokenKind, tup->op ) = Tko.KW_BYVAL then ae = tup->operand
+        end if
         if c.ast->Kind( ae ) = Tko.N_ELIDED then return false
         dim as Tko.TypeId pt = ParamTypeAt( c, callee, i )
         if pt = Tko.TYPE_NONE then return false

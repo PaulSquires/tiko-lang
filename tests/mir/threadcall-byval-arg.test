@@ -1,0 +1,7 @@
+'' A 'byval' override on a threadcall argument. Only the pair failed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/threadcall-byval-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/threadcall-byval-arg.out

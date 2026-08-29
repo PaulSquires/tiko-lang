@@ -593,6 +593,23 @@ private sub WalkExpr _
                     dim as Tko.SymbolId msid = _
                         c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
 
+                    '' ...AND THEN IN WHAT THE TYPE EXTENDS. A STATIC member is called
+                    '' through a type NAME, and it may be the DERIVED one: fbc compiles
+                    '' 'Child.foo( )' over a foo declared on Parent and emits
+                    '' '_ZN6PARENT3FOOEv(  );' for it, the same call it emits for
+                    '' 'Parent.foo( )' on the line above. Searching only the type's own
+                    '' scope missed it, so nothing was bound and the walk fell back to
+                    '' resolving 'Child' itself -- a SYM_UDT, and the diagnostic
+                    '' "'child' is a type, not a procedure".
+                    dim as Tko.ScopeId bsc = cast( Tko.ScopeId, bs->inner )
+                    dim as long bdepth = 0
+                    do while (msid = Tko.SYMBOL_NONE) andalso (bdepth < 32)
+                        bsc = BaseScopeOf_( c, bsc )
+                        if bsc = Tko.SCOPE_NONE then exit do
+                        msid = c.syms->LookupLocal( bsc, IdentNameOf( c, mb->rhs ) )
+                        bdepth += 1
+                    loop
+
                     '' A CONSTANT declared inside a TYPE is reached the same way and
                     '' takes no receiver at all: 'type T : const c0 = 7 : end type'
                     '' then 'T.c0' is 7 to fbc, and 'var w = T.c0' is an INTEGER.

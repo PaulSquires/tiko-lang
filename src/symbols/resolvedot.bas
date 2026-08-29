@@ -69,6 +69,29 @@ private function LookupDottedNamespace_ _
     return found
 end function
 
+'' The inner scope of what a UDT extends, or SCOPE_NONE. The fact lives in the symbol
+'' table as a FIELD named 'base', which is where InheritedMember_ reads it too --
+'' TypeContext's own baseType is filled by Check and this runs in Resolve.
+private function BaseScopeOf_ _
+    ( byref c as Ctx, byval sc as Tko.ScopeId ) as Tko.ScopeId
+
+    dim as Tko.SymbolId bf = _
+        c.syms->LookupLocal( sc, c.names->Fold( c.names->GetString( "base" ) ) )
+    if bf = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
+    dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
+    if b = 0 then return Tko.SCOPE_NONE
+    if b->type_ = Tko.TYPE_NONE then return Tko.SCOPE_NONE
+    dim as Tko.TypeId bt = c.types->Unqualify( b->type_ )
+    if c.types->Kind( bt ) <> Tko.TK_UDT then return Tko.SCOPE_NONE
+    dim as Tko.InternId tn = c.types->NameOf( bt )
+    if tn = 0 then return Tko.SCOPE_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( bt ) )
+    dim as Tko.SymbolId us = c.syms->LookupLocalTyped( ds, tn, true )
+    if us = Tko.SYMBOL_NONE then us = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr usy = c.syms->SymbolAt( us )
+    if usy = 0 then return Tko.SCOPE_NONE
+    return cast( Tko.ScopeId, usy->inner )
+end function
 '' A possibly-dotted name -- 'UDT', 'ns.UDT', 'a.b.UDT' -- resolved to its symbol.
 ''
 '' Only the FIRST component is visible from the starting scope; each later one is looked
@@ -97,6 +120,21 @@ private function LookupDottedType_ _
             sid = c.syms->Lookup( sc, cid )
         else
             sid = c.syms->LookupLocalTyped( sc, cid, true )
+            '' ...AND THEN IN WHAT THAT TYPE EXTENDS. A STATIC member is called through
+            '' a type NAME, and it may be the DERIVED one: fbc compiles 'Child.foo( )'
+            '' over a foo declared on Parent and emits '_ZN6PARENT3FOOEv(  );' for it,
+            '' the same call it emits for 'Parent.foo( )' on the line above. Searching
+            '' only the type's own scope missed it, the walk fell back to resolving
+            '' 'Child' itself, and that is a SYM_UDT -- "'child' is a type, not a
+            '' procedure".
+            dim as Tko.ScopeId bsc = sc
+            dim as long bdepth = 0
+            do while (sid = Tko.SYMBOL_NONE) andalso (bdepth < 32)
+                bsc = BaseScopeOf_( c, bsc )
+                if bsc = Tko.SCOPE_NONE then exit do
+                sid = c.syms->LookupLocalTyped( bsc, cid, true )
+                bdepth += 1
+            loop
         end if
         dim as Tko.Symbol ptr sym = c.syms->SymbolAt( sid )
         if sym = 0 then return Tko.SYMBOL_NONE

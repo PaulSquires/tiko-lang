@@ -1,0 +1,8 @@
+'' An inherited static called through the derived name, and 'const virtual'. Both were
+'' parse or resolve failures, and both took a neighbouring definition down with them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/inherit-static-constvirtual.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/inherit-static-constvirtual.out
