@@ -1,0 +1,8 @@
+'' __FB_UNQUOTE__ over a literal that carries a doubled quote, and over the nested
+'' __FB_QUOTE__ that produces one. Both were wrong SILENTLY, not declined.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/unquote-value.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/unquote-value.out

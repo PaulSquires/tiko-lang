@@ -832,6 +832,54 @@ private function Stringised_( byref t as string ) as string
     return r + """"
 end function
 
+'' The inverse of Stringised_: the VALUE of a text that is ONE string literal.
+''
+'' What was here read the first quote and the last quote and took what lay between, so
+'' a literal carrying a DOUBLED quote came back with the doubling still in it. That is
+'' not a decline -- it is a WRONG STRING, silently:
+''
+''     __FB_UNQUOTE__( "dim s as string = ""freebasic""" )
+''
+'' relexed to 'dim s as string = "" freebasic ""' and tiko-lang initialised s to the
+'' EMPTY string, where fbc prints 'freebasic'. Measured, both.
+''
+'' A '$' or '!' prefix belongs to the literal and is not part of its value. Escapes are
+'' NOT processed: in -lang fb a plain literal does not have them, and a '!' one is left
+'' to whatever relexes the result -- returning ok=false for it would decline where the
+'' old code at least produced the text.
+''
+'' ok is false when the text is not exactly one literal (adjacent literals, a trailing
+'' token, a lone quote inside), and the caller keeps its previous, cruder strip.
+private function Unstringised_( byref t as string, byref ok as boolean ) as string
+    ok = false
+    dim as string src = trim( t )
+    dim as long i = 0
+    if len( src ) = 0 then return ""
+    if (src[0] = 36) orelse (src[0] = 33) then i = 1   '' '$' or '!'
+    if i >= len( src ) then return ""
+    if src[i] <> 34 then return ""
+    i += 1
+    dim as string r = ""
+    do while i < len( src )
+        if src[i] <> 34 then
+            r += chr( src[i] )
+            i += 1
+            continue do
+        end if
+        '' A quote: doubled it is one quote of the value, alone it closes the literal
+        '' and anything after it means this was never a single literal.
+        dim as boolean doubled = (i + 1 < len( src )) andalso (src[i + 1] = 34)
+        if doubled then
+            r += chr( 34 )
+            i += 2
+            continue do
+        end if
+        if i <> len( src ) - 1 then return ""
+        ok = true
+        return r
+    loop
+    return ""
+end function
 private function ArgText _
     ( byref e as PpEngine, byref args as ArgList, byval idx as long ) as string
 
@@ -1209,9 +1257,15 @@ function PpExpandBuiltin _
             '' argument saw the nested builtin's NAME rather than the string it folds to,
             '' so the synthesised '#define' had no identifier after it.
             dim as string s = ExpandedArgText_( e, args, 0 )
-            dim as long a = instr( s, """" )
-            dim as long b = instrrev( s, """" )
-            if (a > 0) andalso (b > a) then s = mid( s, a + 1, b - a - 1 )
+            dim as boolean uok = false
+            dim as string u = Unstringised_( s, uok )
+            if uok then
+                s = u
+            else
+                dim as long a = instr( s, """" )
+                dim as long b = instrrev( s, """" )
+                if (a > 0) andalso (b > a) then s = mid( s, a + 1, b - a - 1 )
+            end if
             RelexInto( e, s, use.loc, *buf )
         end if
 
