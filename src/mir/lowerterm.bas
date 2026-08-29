@@ -330,6 +330,54 @@ end function
 '' -- a narrow destination and no wide transfer anywhere. tiko-lang instead routed
 '' 'dim s as string = str( u )' and 'print str( u )' through the wide-to-narrow slot
 '' path, which has no wide source to offer, and both declined.
+'' Moved here from lowerstr.bas at the 1500-line cap, beside its mirror IsStrCall_.
+'' Nothing about it changed in the move.
+'' 'wstr( x )' -- a scalar or a narrow string widened into a fresh wide TEMPORARY.
+'' Returns false when the node is not one.
+''
+'' Measured: byte and short widen to int32 and go through fb_IntToWstr, ubyte and
+'' ushort to uint32 and fb_UIntToWstr -- there are NO per-width entries. A narrow
+'' string goes through fb_StrToWstr, which takes a RAW char*, so fbc dereferences the
+'' descriptor's data field at the call site rather than passing the descriptor.
+''
+'' The result is a temporary the caller must release with fb_WstrDelete. tiko-lang does not
+'' model that lifetime yet, so this LEAKS one wide temporary per conversion -- stated
+'' rather than hidden, and no worse than not compiling the program at all.
+'' Is this the call 'wstr( x )'? Asked by the concatenation and PRINT paths, which need
+'' to know a term is WIDE before anything is emitted for it -- and its TYPE does not
+'' say so.
+function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count < 1 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    '' ...and the WIDE RADIX FAMILY, which is wide by the same rule and for the same
+    '' reason: Check computes no type for the call, so only the NAME says so.
+    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    '' ...AND 'wspace( n )', which is wide for the same reason and was not here:
+    '' it lowered standalone -- fb_WstrSpace -- and compared against a wstring, but
+    '' inside a CONCATENATION TermIsWide_ asks this list, decided the term was
+    '' narrow, and sent it to the narrow emitter, which had nothing to give.
+    '' Measured: 'wstr( "a" ) + wspace( 3 )' is
+    '' 'fb_WstrConcat( L"a", fb_WstrSpace( 3 ) )'.
+    '' 'wchr( a, b, ... )' IS VARIADIC and wide whatever its arity, which is why the
+    '' one-argument guard is per-name and no longer at the top: measured,
+    '' 'dim s as zstring * 10 = wchr( 65 )' is
+    '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )' -- the code folded to a wide
+    '' literal -- and tiko-lang declined it while 'wstr( "B" )' beside it lowered.
+    case "wstr", "whex", "woct", "wbin", "wspace"
+        return (lp->count = 1)
+    case "wchr"
+        return true
+    end select
+    return false
+end function
+
 '' Moved here from lowerstr.bas at the 1500-line cap. Nothing about it changed.
 function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if id = Tko.NODE_NONE then return false
