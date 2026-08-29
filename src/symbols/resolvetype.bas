@@ -4,6 +4,28 @@
 '' exactly as resolvedot.bas is. Nothing about it changed in the move.
 
 
+'' THE TYPE A TYPE LITERAL NAMES, from the list's TARGET. 'type<T>( ... )' keeps its
+'' type reference there, so 'typeof' over one is answerable without typing the
+'' expression -- and the target may itself be a 'typeof', which recurses.
+private function TypeLitTargetType_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval scope_ as Tko.ScopeId, _
+      byref outT as Tko.TypeId ) as boolean
+
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_TUPLE then return false
+    if (c.ast->nodes[cast( long, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        return false
+    end if
+    dim as Tko.NodeId tgt = ListOf( c, e )->target
+    if tgt = Tko.NODE_NONE then return false
+    if c.ast->Kind( tgt ) <> Tko.N_TYPEREF then return false
+    dim as Tko.TypeId lt = ResolveTypeRef( c, tgt, scope_ )
+    if lt = Tko.TYPE_NONE then return false
+    if c.types->Kind( lt ) = Tko.TK_REFERENCE then lt = c.types->Inner( lt )
+    outT = lt
+    return true
+end function
+
 function ResolveTypeRef _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -157,6 +179,17 @@ function ResolveTypeRef _
                     end if
                     base_ = ity
                 end if
+            elseif TypeLitTargetType_( c, sp->b, scope_, base_ ) then
+                '' 'typeof( type<T>( ... ) )' -- A TYPE LITERAL NAMES ITS OWN TYPE,
+                '' in the list's TARGET, so this needs no expression typing at all.
+                '' The operand is neither a TYPEREF nor a bare name, so it fell to
+                '' the expression walk, stayed unresolved, and
+                '' 'dim as integer i = type<typeof( type<integer>( 1.5 ) )>( 3 )'
+                '' declined -- structs/anon-intrinsic.bas writes it nested twice.
+                ''
+                '' The nesting resolves itself: the inner literal's target is a
+                '' TYPEREF, which may itself be a 'typeof', and ResolveTypeRef is
+                '' what is being written here.
             else
                 WalkExpr( c, sp->b, scope_ )
             end if

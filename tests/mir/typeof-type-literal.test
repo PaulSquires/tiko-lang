@@ -1,0 +1,8 @@
+'' typeof over an anonymous type literal: the literal names its own type in the list's
+'' target, so no expression typing is needed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typeof-type-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/typeof-type-literal.out
