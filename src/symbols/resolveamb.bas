@@ -184,6 +184,21 @@ private sub ResolveAmbiguous _
         c.info->SetAmbiguous( id, Tko.AMB_CALL )
         c.st->calls += 1
     case Tko.SYM_UDT, Tko.SYM_ENUM, Tko.SYM_TYPEDEF, Tko.SYM_NAMESPACE
+        '' ...UNLESS THE TYPE NAME IS ONLY THE BASE. 'UDT( ).copyToGlobal( )'
+        '' constructs an ANONYMOUS TEMPORARY and calls a member on it -- the statement
+        '' is a CALL, and the type name is the receiver's constructor, not the callee.
+        '' The member does not bind (its base is a temporary), so the head's symbol --
+        '' the TYPE -- was what reached here and the diagnostic fired on a legal
+        '' statement. fbc emits '_ZN3UDTC1Ev( &TMP$2$0 ); _ZN3UDT12COPYTOGLOBALEv(
+        '' &TMP$2$0 );' and prints 123.
+        if c.ast->Kind( sp->a ) = Tko.N_CALL then
+            dim as Tko.NodeId uc = ListOf( c, sp->a )->target
+            if c.ast->Kind( uc ) = Tko.N_MEMBER then
+                c.info->SetAmbiguous( id, Tko.AMB_CALL )
+                c.st->calls += 1
+                return
+            end if
+        end if
         '' This is the diagnostic the ambiguous node exists to make possible.
         dim as Tko.SourceRange r = Tko.PointRange( c.ast->Loc( id ) )
         c.diags->Report( Tko.TKO0602, r, c.names->Spelling( s->name ), _

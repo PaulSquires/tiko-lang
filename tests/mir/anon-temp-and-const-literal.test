@@ -1,0 +1,8 @@
+'' A member call on an anonymous temporary, and a const-qualified anonymous type literal
+'' as an assignment source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/anon-temp-and-const-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/anon-temp-and-const-literal.out

@@ -28,7 +28,18 @@ private function LowerBareTypeLiteralAssign_ _
     if (c.ast->nodes[cast( long, value )].flags and Tko.NF_TYPE_LITERAL) = 0 then
         return false
     end if
-    if c.info->TypeOf_( value ) <> Tko.TYPE_NONE then return false
+    '' A TYPE LITERAL THAT DID GET A TYPE is still one, as long as the type is the
+    '' DESTINATION'S. 'x = type<const UDT>( )' is typed -- the CONST qualifier gives
+    '' Check something to record -- so the untyped test threw it out and the assignment
+    '' declined, while 'x = type<UDT>( )' and 'dim y as UDT = type<const UDT>( )' both
+    '' lowered. fbc builds the same temporary for all three:
+    '' '_ZN3UDTC1Ev( &TMP$2$0 ); __builtin_memcpy( &X$0, &TMP$2$0, 8 );'.
+    dim as Tko.TypeId lvt = c.info->TypeOf_( value )
+    if lvt <> Tko.TYPE_NONE then
+        dim as Tko.TypeId ldt0 = c.info->TypeOf_( target )
+        if ldt0 = Tko.TYPE_NONE then return false
+        if c.types->Unqualify( lvt ) <> c.types->Unqualify( ldt0 ) then return false
+    end if
 
     dim as Tko.TypeId dt = c.types->Unqualify( c.info->TypeOf_( target ) )
     if c.types->Kind( dt ) <> Tko.TK_UDT then return false

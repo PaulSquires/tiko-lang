@@ -1,0 +1,72 @@
+global var i64 g
+func void _ZN3UDTC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const i64 123
+    store %3, %4
+    ret
+}
+func void _ZN3UDT12COPYTOGLOBALEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    store @@g, %4
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg $tmp1 size 8
+  local agg x size 8
+  local agg $tmp3 size 8
+  local agg y size 8
+  local agg $tmp5 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr $tmp1
+    call void _ZN3UDTC1Ev(@$tmp1)
+    call void _ZN3UDT12COPYTOGLOBALEv(@$tmp1)
+    %5 = load @@g
+    call.rtl void fb_PrintLongint(0, %5, 1)
+    %6 = alloca ptr x
+    call void _ZN3UDTC1Ev(@x)
+    %7 = alloca ptr $tmp3
+    call void _ZN3UDTC1Ev(@$tmp3)
+    %8 = load @$tmp3
+    store @x, %8
+    %9 = field.addr @x, 0
+    %10 = load %9
+    call.rtl void fb_PrintLongint(0, %10, 1)
+    %11 = alloca ptr y
+    call void _ZN3UDTC1Ev(@y)
+    %12 = field.addr @y, 0
+    %13 = load %12
+    call.rtl void fb_PrintLongint(0, %13, 1)
+    %14 = alloca ptr $tmp5
+    call void _ZN3UDTC1Ev(@$tmp5)
+    %15 = load @$tmp5
+    store @x, %15
+    %16 = field.addr @x, 0
+    %17 = load %16
+    call.rtl void fb_PrintLongint(0, %17, 1)
+    %18 = const i32 0
+    call.rtl void fb_End(%18)
+    %19 = load @$tmp0
+    ret %19
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance
