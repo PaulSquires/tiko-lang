@@ -1,0 +1,5 @@
+'' A call whose callee is itself a call returning a procedure pointer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/call-of-call.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/call-of-call.out

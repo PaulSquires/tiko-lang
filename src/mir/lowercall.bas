@@ -181,7 +181,28 @@ function LowerCallParts _
     '' call was abandoned even though the value is exactly what the indirect path at the
     '' bottom of this function already knows how to call. Its TYPE is what says it is
     '' callable, and that is all the indirect path needs.
+    '' ...AND A CALLEE THAT IS ITSELF A CALL. 'f2( @f1 )( )' binds the INNER call
+    '' to f2, so a symbol IS in hand -- and taking it made the outer call a
+    '' zero-argument call to f2, which is the wrong arity and the wrong function.
+    '' Measured, fbc calls the RESULT:
+    ''
+    ''   tmp$3 vr$0 = F2( (tmp$3)&F1 );  (vr$0)(  );
+    ''   tmp$4 vr$2 = F4( (tmp$4)&F3 );  int32 vr$1 = (vr$2)(  );
+    ''
+    '' So the node's SHAPE decides here, not whether a symbol was bound: an N_CALL
+    '' whose own type is a procedure is a value to call, never a name.
     dim as boolean exprCallee = false
+    if callee <> Tko.SYMBOL_NONE then
+        if c.ast->Kind( calleeNode ) = Tko.N_CALL then
+            dim as Tko.TypeId ct2 = c.types->Unqualify( c.info->TypeOf_( calleeNode ) )
+            if c.types->Kind( ct2 ) = Tko.TK_REFERENCE then ct2 = c.types->Inner( ct2 )
+            if c.types->Kind( ct2 ) = Tko.TK_POINTER then ct2 = c.types->Inner( ct2 )
+            if c.types->Kind( ct2 ) = Tko.TK_PROC then
+                exprCallee = true
+                callee = Tko.SYMBOL_NONE
+            end if
+        end if
+    end if
     if callee = Tko.SYMBOL_NONE then
         dim as Tko.TypeId et = c.types->Unqualify( c.info->TypeOf_( calleeNode ) )
         if c.types->Kind( et ) = Tko.TK_REFERENCE then et = c.types->Inner( et )
