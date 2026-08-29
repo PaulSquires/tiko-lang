@@ -24,10 +24,18 @@ REJ=tools/.fbc-rejects
 owed=""; declare -A CNT
 n_neg=0; n_path=0; n_prag=0; n_err=0; n_rej=0; n_owed=0
 c_neg=0; c_path=0; c_prag=0; c_err=0; c_rej=0; c_owed=0
+# The part FILENAME is the corpus file, key-mangled; the lines INSIDE it are the source
+# lines that declined, which are often a HEADER the corpus file included. Classify by the
+# corpus file -- ex06.bas says '$lang: "qb"' in its own text and declines every line of it
+# inside fbcunit.bi, so reading the first skip line instead answers about the wrong file.
+declare -A SRCOF
+while read -r f; do
+    k="${f//[!A-Za-z0-9._-]/_}"; SRCOF[$k]="$f"
+done < build/.corpus.lst
 for part in build/.skipparts/*; do
     [ -s "$part" ] || continue
-    src=$(head -1 "$part" | sed 's/:[0-9]*$//')
-    [ -f "$src" ] || continue
+    src="${SRCOF[$(basename "$part")]:-}"
+    [ -n "$src" ] && [ -f "$src" ] || continue
     k=$(wc -l < "$part")
     case "$src" in
         */qb/*|*/deprecated/*|*/fblite/*) n_path=$((n_path+1)); c_path=$((c_path+k)); continue;;
@@ -54,5 +62,5 @@ case "${1:-}" in
     printf 'owed: %5d skips in %4d files -- fbc rejects it too\n' $c_rej $n_rej
     ;;
   --lines) cat $owed | sort | uniq -c | sort -rn ;;
-  *) for p in $owed; do printf '%5d %s\n' "$(wc -l < "$p")" "$(head -1 "$p"|sed 's/:[0-9]*$//')"; done | sort -rn ;;
+  *) for p in $owed; do printf '%5d %s\n' "$(wc -l < "$p")" "${SRCOF[$(basename "$p")]}"; done | sort -rn ;;
 esac
