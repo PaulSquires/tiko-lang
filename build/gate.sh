@@ -243,6 +243,31 @@ find . -name '*.o' -delete
 # explained, and this is what stops the next one being born.
 rm -f fbc-tests fbc-tests.exe
 
+# THE TEST TREE MUST STILL BE COMPLETE.
+#
+# Something in the clean path -- make's own clean_tests does
+# `cat unit-tests-obj.lst | xargs rm`, and this script deletes objects and
+# executables besides -- removed two TRACKED SOURCE FILES during a run:
+# quirk/inline-asm.bas and quirk/inline-asm-syntax.bas. The suite then built and
+# ran happily with 5 fewer assertions and 2 fewer cases, on all three targets,
+# and the only symptom was a summary differing from the baseline in a place with
+# nothing to do with the code under test.
+#
+# A MISSING TEST CANNOT FAIL. Check the tree against git and restore anything
+# that went missing, loudly: a silent restore would hide a recurring bug, and a
+# silent absence is worse than either.
+if git -C "$FBC_TREE" rev-parse --git-dir > /dev/null 2>&1; then
+    missing=$(git -C "$FBC_TREE" ls-files --deleted -- src/tests 2>/dev/null || true)
+    if [ -n "$missing" ]; then
+        echo "gate: WARNING -- tracked files missing from the test tree, restoring:" >&2
+        echo "$missing" | sed 's/^/    /' >&2
+        if ! git -C "$FBC_TREE" checkout -- src/tests 2>/dev/null; then
+            rt_die "could not restore them -- the suite would run short and the
+    summary would differ for reasons unrelated to tiko-rt"
+        fi
+    fi
+fi
+
 echo "gate: $TARGET running fbc's unit-tests (this takes a while)"
 
 if [ "${USE_WSL:-0}" = "1" ]; then

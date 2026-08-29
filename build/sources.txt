@@ -35,4 +35,5 @@ str/radix.bas
 str/val.bas
 str/valint.bas
 str/vallng.bas
+str/ops.bas
 ustr/utf.bas
