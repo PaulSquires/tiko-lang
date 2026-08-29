@@ -1,0 +1,8 @@
+'' A brace-initialiser element written as a bare parenthesised field list. It was built
+'' with the TUPLE's layout and overran the element.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/array-elem-paren-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/array-elem-paren-init.out

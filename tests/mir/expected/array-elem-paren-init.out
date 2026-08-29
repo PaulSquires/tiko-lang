@@ -1,0 +1,146 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg arr size 32
+  local agg ar2 size 32
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr arr
+    %5 = field.addr @arr, 0
+    %6 = const i64 7
+    %7 = trunc %6
+    %8 = const i64 8
+    %9 = trunc %8
+    %10 = const i64 9
+    %11 = field.addr %5, 0
+    store %11, %7
+    %12 = field.addr %5, 1
+    store %12, %9
+    %13 = field.addr %5, 8
+    store %13, %10
+    %14 = field.addr @arr, 16
+    %15 = const i64 1
+    %16 = trunc %15
+    %17 = const i64 2
+    %18 = trunc %17
+    %19 = const i64 3
+    %20 = field.addr %14, 0
+    store %20, %16
+    %21 = field.addr %14, 1
+    store %21, %18
+    %22 = field.addr %14, 8
+    store %22, %19
+    %23 = const i64 0
+    %24 = const i64 16
+    %25 = mul %23, %24
+    %26 = ptr.add @arr, %25
+    %27 = field.addr %26, 0
+    %28 = load %27
+    call.rtl void fb_PrintByte(0, %28, 2)
+    %29 = const i64 0
+    %30 = const i64 16
+    %31 = mul %29, %30
+    %32 = ptr.add @arr, %31
+    %33 = field.addr %32, 1
+    %34 = load %33
+    call.rtl void fb_PrintByte(0, %34, 2)
+    %35 = const i64 0
+    %36 = const i64 16
+    %37 = mul %35, %36
+    %38 = ptr.add @arr, %37
+    %39 = field.addr %38, 8
+    %40 = load %39
+    call.rtl void fb_PrintLongint(0, %40, 1)
+    %41 = const i64 1
+    %42 = const i64 16
+    %43 = mul %41, %42
+    %44 = ptr.add @arr, %43
+    %45 = field.addr %44, 0
+    %46 = load %45
+    call.rtl void fb_PrintByte(0, %46, 2)
+    %47 = const i64 1
+    %48 = const i64 16
+    %49 = mul %47, %48
+    %50 = ptr.add @arr, %49
+    %51 = field.addr %50, 1
+    %52 = load %51
+    call.rtl void fb_PrintByte(0, %52, 2)
+    %53 = const i64 1
+    %54 = const i64 16
+    %55 = mul %53, %54
+    %56 = ptr.add @arr, %55
+    %57 = field.addr %56, 8
+    %58 = load %57
+    call.rtl void fb_PrintLongint(0, %58, 1)
+    %59 = alloca ptr ar2
+    %60 = field.addr @ar2, 0
+    %61 = const i64 1
+    %62 = const i64 3
+    %63 = trunc %62
+    %64 = const i64 4
+    %65 = trunc %64
+    %66 = const i64 5
+    %67 = trunc %66
+    %68 = field.addr %60, 0
+    store %68, %61
+    %69 = field.addr %60, 8
+    store %69, %63
+    %70 = field.addr %60, 10
+    store %70, %65
+    %71 = field.addr %60, 12
+    store %71, %67
+    %72 = const i64 0
+    %73 = const i64 16
+    %74 = mul %72, %73
+    %75 = ptr.add @ar2, %74
+    %76 = field.addr %75, 0
+    %77 = load %76
+    call.rtl void fb_PrintLongint(0, %77, 2)
+    %78 = const i64 0
+    %79 = const i64 16
+    %80 = mul %78, %79
+    %81 = ptr.add @ar2, %80
+    %82 = field.addr %81, 8
+    %83 = const i64 0
+    %84 = const i64 2
+    %85 = mul %83, %84
+    %86 = ptr.add %82, %85
+    %87 = load %86
+    call.rtl void fb_PrintShort(0, %87, 2)
+    %88 = const i64 0
+    %89 = const i64 16
+    %90 = mul %88, %89
+    %91 = ptr.add @ar2, %90
+    %92 = field.addr %91, 8
+    %93 = const i64 1
+    %94 = const i64 2
+    %95 = mul %93, %94
+    %96 = ptr.add %92, %95
+    %97 = load %96
+    call.rtl void fb_PrintShort(0, %97, 2)
+    %98 = const i64 0
+    %99 = const i64 16
+    %100 = mul %98, %99
+    %101 = ptr.add @ar2, %100
+    %102 = field.addr %101, 8
+    %103 = const i64 2
+    %104 = const i64 2
+    %105 = mul %103, %104
+    %106 = ptr.add %102, %105
+    %107 = load %106
+    call.rtl void fb_PrintShort(0, %107, 1)
+    %108 = const i32 0
+    call.rtl void fb_End(%108)
+    %109 = load @$tmp0
+    ret %109
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintByte($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintShort($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 132 insts, 0 statements not lowered, 0 scope imbalance

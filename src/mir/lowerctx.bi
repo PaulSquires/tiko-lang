@@ -503,7 +503,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
     declare function LowerUdtParenInit_ _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-          byval init as Tko.NodeId ) as boolean
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
     declare function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function LowerZstrAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval n as longint, _

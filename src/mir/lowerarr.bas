@@ -1303,6 +1303,22 @@ private function LowerUdtElemInit_ _
     '' converting constructor since it was written; only the ELEMENT position had not.
     if LowerConvCtorInit_( c, -1, et, e, @dst ) then return true
 
+    '' A BARE PARENTHESISED FIELD LIST -- '{ ( 7, 8, 9 ) }' -- IS THE ELEMENT'S OWN
+    '' FIELDS, and it has to be built with the ELEMENT'S type. Left to LowerExpr below
+    '' it went to the tuple path, which infers a synthetic UDT from the values: over
+    ''
+    ''     type mt : as byte a, b : as integer c : end type
+    ''
+    '' -- sixteen bytes, at 0, 1 and 8 -- that built a TWENTY-FOUR byte temporary with
+    '' i64 fields at 0, 8 and 16 and stored the whole of it into the element, writing
+    '' eight bytes past its end and into the NEXT one. It verified, it declined
+    '' nothing, and every field but the first held the wrong value. fbc prints
+    '' ' 7  8  9'.
+    select case c.ast->Kind( e )
+    case Tko.N_TUPLE, Tko.N_PAREN
+        if LowerUdtParenInit_( c, -1, et, e, @dst ) then return true
+    end select
+
     '' ...and a POD element is the plain aggregate copy fbc emits for one.
     dim as MirValue ev = LowerExpr( c, e )
     if ev.kind = cast( ubyte, MV_NONE ) then return false

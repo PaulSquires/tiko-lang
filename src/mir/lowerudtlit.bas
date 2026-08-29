@@ -108,11 +108,16 @@ function LowerUdtLiteralAddr_ _
     return true
 end function
 
+'' The destination is a SLOT or, for an ARRAY ELEMENT, an ADDRESS -- selfv. An element
+'' of a brace initialiser has no slot of its own, and building the object in a
+'' temporary of ITS OWN inferred type instead is how '{ ( 7, 8, 9 ) }' over a
+'' 'type mt: as byte a, b: as integer c' came to write TWENTY-FOUR bytes of i64 fields
+'' into a SIXTEEN-byte element, clobbering the element after it. See the caller.
 function LowerUdtParenInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
 
-    if slot < 0 then return false
+    if (slot < 0) andalso (selfv = 0) then return false
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     select case c.ast->Kind( init )
@@ -123,6 +128,22 @@ function LowerUdtParenInit_ _
 
     dim as long ui = c.udts->Find( t )
     if ui < 0 then return false
+
+    '' THE DESTINATION, once: the slot's address, or the one the caller handed over.
+    dim as MirValue self_
+    if selfv <> 0 then
+        self_ = *selfv
+    else
+        self_.kind = cast( ubyte, MV_LOCAL )
+        self_.ty = cast( ubyte, MT_PTR )
+        self_.id = slot
+    end if
+    dim as long selfSlot = slot
+    dim as MirValue ptr selfAddr = 0
+    if selfv <> 0 then
+        selfSlot = -1
+        selfAddr = @self_
+    end if
 
     '' A SINGLE ELEMENT OF THE TYPE ITSELF IS NOT A FIELD LIST. 'dim as Decimal a =
     '' ( ( x - y ) / z )' has to be written with those outer parentheses -- fbc cannot
@@ -146,13 +167,10 @@ function LowerUdtParenInit_ _
     if pl0->count = 0 then
         dim as Tko.SymbolId zct = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 )
         if zct <> Tko.SYMBOL_NONE then
-            EmitStructorCall( c, zct, slot )
+            EmitStructorCall( c, zct, selfSlot, selfAddr )
             return true
         end if
-        dim as MirValue za
-        za.kind = cast( ubyte, MV_LOCAL )
-        za.ty = cast( ubyte, MT_PTR )
-        za.id = slot
+        dim as MirValue za = self_
         if TypeNeedsInit_( c, t ) then
             CallImplicitCtor_( c, t, za )
             return true
@@ -173,10 +191,7 @@ function LowerUdtParenInit_ _
                 '' operator, which fb/fintvm.bi needs -- and that one still declines.
                 if (c.ast->nodes[cast( long, init )].flags and _
                     Tko.NF_TYPE_LITERAL) <> 0 then
-                    dim as MirValue cdst
-                    cdst.kind = cast( ubyte, MV_LOCAL )
-                    cdst.ty = cast( ubyte, MT_PTR )
-                    cdst.id = slot
+                    dim as MirValue cdst = self_
                     dim as Tko.SymbolId lcc = _
                         StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
                     if lcc <> Tko.SYMBOL_NONE then
@@ -236,7 +251,7 @@ function LowerUdtParenInit_ _
     if lct <> Tko.SYMBOL_NONE then
         dim as FB.Array( of ulong ) lca
         if PushCtorArgs_( c, lct, pl0->first, pl0->count, lca ) then
-            EmitStructorCall( c, lct, slot, 0, @lca )
+            EmitStructorCall( c, lct, selfSlot, selfAddr, @lca )
             return true
         end if
         return false
@@ -263,10 +278,7 @@ function LowerUdtParenInit_ _
     '' writing past the last one.
     if vCount > fCount then return false
 
-    dim as MirValue base_
-    base_.kind = cast( ubyte, MV_LOCAL )
-    base_.ty = cast( ubyte, MT_PTR )
-    base_.id = slot
+    dim as MirValue base_ = self_
 
     '' EVERY VALUE LOWERED BEFORE ANYTHING IS STORED. A value that will not lower means
     '' the whole initialiser declines, and emitting the earlier stores first would leave
