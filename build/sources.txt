@@ -55,3 +55,4 @@ ustr/concat.bas
 ustr/search.bas
 ustr/misc.bas
 ustr/assign.bas
+ustr/casetable.bas

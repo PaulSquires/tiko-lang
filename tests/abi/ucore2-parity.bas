@@ -21,6 +21,7 @@
 ''   unit wide and can start at src_len. Using one clamp for both is invisible
 ''   until the start argument is out of range.
 #include once "fbc-int/string.bi"
+#include once "uarg.bi"
 
 extern "rtlib"
     declare function pLen   alias "fb_UStrLen"   ( byval s as any ptr, byval sz as integer ) as integer
@@ -84,109 +85,109 @@ end function
 
 '' ---- LEN counts CODE UNITS: an astral character is 2.
 mku( @ua(0), @da, "abc" )
-print "Len bmp        = "; pLen( @da, VARLEN )
+print "Len bmp        = "; pLen( UVAR( da ) )
 ua(0) = asc("a") : ua(1) = &hD83D : ua(2) = &hDE00 : ua(3) = 0
 da.data_ = @ua(0) : da.len_ = 3 : da.size_ = 3
-print "Len astral     = "; pLen( @da, VARLEN )
-print "Len fixed walk = "; pLen( @ua(0), FIXED(8) )
+print "Len astral     = "; pLen( UVAR( da ) )
+print "Len fixed walk = "; pLen( UFIX( ua, 8 ) )
 print "Len NULL       = "; pLen( 0, VARLEN )
 
 '' ---- COMPARE. Length breaks a common prefix, and code-unit order puts an
 '' astral character BELOW U+E000.
 mku( @ua(0), @da, "abc" ) : mku( @ub(0), @db, "abc" )
-print "Cmp eq         = "; pCmp( @da, VARLEN, @db, VARLEN )
+print "Cmp eq         = "; pCmp( UVAR( da ), UVAR( db ) )
 mku( @ub(0), @db, "ab" )
-print "Cmp longer     = "; pCmp( @da, VARLEN, @db, VARLEN )
-print "Cmp shorter    = "; pCmp( @db, VARLEN, @da, VARLEN )
+print "Cmp longer     = "; pCmp( UVAR( da ), UVAR( db ) )
+print "Cmp shorter    = "; pCmp( UVAR( db ), UVAR( da ) )
 ua(0) = &hD83D : ua(1) = 0 : da.data_ = @ua(0) : da.len_ = 1 : da.size_ = 1
 ub(0) = &hE000 : ub(1) = 0 : db.data_ = @ub(0) : db.len_ = 1 : db.size_ = 1
-print "Cmp astral<E000= "; pCmp( @da, VARLEN, @db, VARLEN )
+print "Cmp astral<E000= "; pCmp( UVAR( da ), UVAR( db ) )
 
 '' ---- ASC yields a CODE UNIT, so a surrogate half comes back as itself.
 ua(0) = asc("a") : ua(1) = &hD83D : ua(2) = &hDE00 : ua(3) = 0
 da.data_ = @ua(0) : da.len_ = 3 : da.size_ = 3
-print "Asc 1          = "; hex$( pAsc( @da, VARLEN, 1 ) )
-print "Asc 2 (high)   = "; hex$( pAsc( @da, VARLEN, 2 ) )
-print "Asc 0          = "; pAsc( @da, VARLEN, 0 )
-print "Asc 9          = "; pAsc( @da, VARLEN, 9 )
+print "Asc 1          = "; hex$( pAsc( UVAR( da ), 1 ) )
+print "Asc 2 (high)   = "; hex$( pAsc( UVAR( da ), 2 ) )
+print "Asc 0          = "; pAsc( UVAR( da ), 0 )
+print "Asc 9          = "; pAsc( UVAR( da ), 9 )
 
 '' ---- LSET / RSET PAD WITH SPACES -- not with NULs. The destination's current
 '' length is the field width and is never grown.
 mku( @ua(0), @da, "......" ) : mku( @ub(0), @db, "ab" )
-pLset( @da, VARLEN, @db, VARLEN ) : print "Lset 6 <- ab   "; ushow( @da )
+pLset( UVAR( da ), UVAR( db ) ) : print "Lset 6 <- ab   "; ushow( @da )
 mku( @ua(0), @da, "......" )
-pRset( @da, VARLEN, @db, VARLEN ) : print "Rset 6 <- ab   "; ushow( @da )
+pRset( UVAR( da ), UVAR( db ) ) : print "Rset 6 <- ab   "; ushow( @da )
 mku( @ua(0), @da, "..." ) : mku( @ub(0), @db, "abcdef" )
-pLset( @da, VARLEN, @db, VARLEN ) : print "Lset 3 <- 6chr "; ushow( @da )
+pLset( UVAR( da ), UVAR( db ) ) : print "Lset 3 <- 6chr "; ushow( @da )
 mku( @ua(0), @da, "..." ) : mku( @ub(0), @db, "" )
-pLset( @da, VARLEN, @db, VARLEN ) : print "Lset 3 <- ''   "; ushow( @da )
-pLset( 0, VARLEN, @db, VARLEN )
+pLset( UVAR( da ), UVAR( db ) ) : print "Lset 3 <- ''   "; ushow( @da )
+pLset( 0, VARLEN, UVAR( db ) )
 
 '' ---- SWAP. Two var-len operands EXCHANGE DESCRIPTORS: the data pointers move
 '' and no text is copied. Asserted by identity, because comparing the text after
 '' a swap cannot tell an exchange from a copy.
 mku( @ua(0), @da, "aaa" ) : mku( @ub(0), @db, "bbbbb" )
 dim as ushort ptr pa0 = da.data_, pb0 = db.data_
-pSwap( @da, VARLEN, @db, VARLEN )
+pSwap( UVAR( da ), UVAR( db ) )
 print "Swap var: ptrs exchanged = "; iif( (da.data_ = pb0) andalso (db.data_ = pa0), 1, 0 ); _
       "  a="; ushow( @da ); "  b="; ushow( @db )
 '' One side fixed: the TEXT has to move, and the shorter operand's tail is
 '' space-filled because a fixed field cannot shrink.
 mku( @ua(0), @da, "aaa" ) : mku( @ub(0), @db, "bb" )
-pSwap( @ua(0), FIXED(3), @ub(0), FIXED(2) )
+pSwap( UFIX( ua, 3 ), UFIX( ub, 2 ) )
 print "Swap fixed: a="; ushowraw( @ua(0), 3 ); " b="; ushowraw( @ub(0), 2 )
 
 '' ---- INSTR family. 0 means not found; positions are 1-based code units.
 mku( @ua(0), @da, "abcabc" ) : mku( @ub(0), @db, "bc" )
-print "Instr 1        = "; pInstr( 1, @da, VARLEN, @db, VARLEN )
-print "Instr 3        = "; pInstr( 3, @da, VARLEN, @db, VARLEN )
-print "Instr 0        = "; pInstr( 0, @da, VARLEN, @db, VARLEN )
-print "Instr 9        = "; pInstr( 9, @da, VARLEN, @db, VARLEN )
+print "Instr 1        = "; pInstr( 1, UVAR( da ), UVAR( db ) )
+print "Instr 3        = "; pInstr( 3, UVAR( da ), UVAR( db ) )
+print "Instr 0        = "; pInstr( 0, UVAR( da ), UVAR( db ) )
+print "Instr 9        = "; pInstr( 9, UVAR( da ), UVAR( db ) )
 mku( @ub(0), @db, "" )
-print "Instr empty    = "; pInstr( 1, @da, VARLEN, @db, VARLEN )
+print "Instr empty    = "; pInstr( 1, UVAR( da ), UVAR( db ) )
 mku( @ub(0), @db, "zz" )
-print "Instr missing  = "; pInstr( 1, @da, VARLEN, @db, VARLEN )
+print "Instr missing  = "; pInstr( 1, UVAR( da ), UVAR( db ) )
 
 mku( @ub(0), @db, "cb" )
-print "InstrAny 1     = "; pInstrAny( 1, @da, VARLEN, @db, VARLEN )
-print "InstrAny 4     = "; pInstrAny( 4, @da, VARLEN, @db, VARLEN )
+print "InstrAny 1     = "; pInstrAny( 1, UVAR( da ), UVAR( db ) )
+print "InstrAny 4     = "; pInstrAny( 4, UVAR( da ), UVAR( db ) )
 mku( @ub(0), @db, "z" )
-print "InstrAny miss  = "; pInstrAny( 1, @da, VARLEN, @db, VARLEN )
+print "InstrAny miss  = "; pInstrAny( 1, UVAR( da ), UVAR( db ) )
 
 '' THE TWO CLAMPS DIFFER. For the pattern form the last usable start is
 '' src_len - pat_len + 1 (the pattern must fit); for the Any form it is src_len.
 '' An out-of-range start is where using one clamp for both becomes visible.
 mku( @ub(0), @db, "bc" )
-print "InstrRev -1    = "; pInstrRev( @da, VARLEN, @db, VARLEN, -1 )
-print "InstrRev 99    = "; pInstrRev( @da, VARLEN, @db, VARLEN, 99 )
-print "InstrRev 3     = "; pInstrRev( @da, VARLEN, @db, VARLEN, 3 )
-print "InstrRev 0     = "; pInstrRev( @da, VARLEN, @db, VARLEN, 0 )
+print "InstrRev -1    = "; pInstrRev( UVAR( da ), UVAR( db ), -1 )
+print "InstrRev 99    = "; pInstrRev( UVAR( da ), UVAR( db ), 99 )
+print "InstrRev 3     = "; pInstrRev( UVAR( da ), UVAR( db ), 3 )
+print "InstrRev 0     = "; pInstrRev( UVAR( da ), UVAR( db ), 0 )
 mku( @ub(0), @db, "c" )
-print "InstrRevAny -1 = "; pInstrRevAny( @da, VARLEN, @db, VARLEN, -1 )
-print "InstrRevAny 99 = "; pInstrRevAny( @da, VARLEN, @db, VARLEN, 99 )
-print "InstrRevAny 3  = "; pInstrRevAny( @da, VARLEN, @db, VARLEN, 3 )
-print "InstrRevAny 0  = "; pInstrRevAny( @da, VARLEN, @db, VARLEN, 0 )
+print "InstrRevAny -1 = "; pInstrRevAny( UVAR( da ), UVAR( db ), -1 )
+print "InstrRevAny 99 = "; pInstrRevAny( UVAR( da ), UVAR( db ), 99 )
+print "InstrRevAny 3  = "; pInstrRevAny( UVAR( da ), UVAR( db ), 3 )
+print "InstrRevAny 0  = "; pInstrRevAny( UVAR( da ), UVAR( db ), 0 )
 
 '' ---- CONCAT.
 mku( @ua(0), @da, "ab" ) : mku( @ub(0), @db, "cd" )
-dim as any ptr cat = pConcat( 0, @ua(0), FIXED(2), @ub(0), FIXED(2) )
+dim as any ptr cat = pConcat( 0, UFIX( ua, 2 ), UFIX( ub, 2 ) )
 print "Concat         "; ushow( cat ); "  temp="; UTEMP( cptr( UDESC ptr, cat ) )
 pDelTmp( cat )
 
 '' &= on a var-len destination grows in place.
 dim as UDESC acc
 acc.data_ = 0 : acc.len_ = 0 : acc.size_ = 0
-pAssignEx( @acc, VARLEN, @ua(0), FIXED(2), 0, 1 )
-pConcatAsg( @acc, VARLEN, @ub(0), FIXED(2), 0 )
+pAssignEx( UVAR( acc ), UFIX( ua, 2 ), 0, 1 )
+pConcatAsg( UVAR( acc ), UFIX( ub, 2 ), 0 )
 print "ConcatAsg var  "; ushow( @acc )
 '' On a fixed destination it clamps to the capacity instead of growing.
 mku( @uc(0), @dc, "ab" )
-pConcatAsg( @uc(0), FIXED(4), @ub(0), FIXED(2), 0 )
+pConcatAsg( UFIX( uc, 4 ), UFIX( ub, 2 ), 0 )
 print "ConcatAsg fix4 "; ushowraw( @uc(0), 5 )
 mku( @uc(0), @dc, "ab" )
-pConcatAsg( @uc(0), FIXED(3), @ub(0), FIXED(2), 0 )
+pConcatAsg( UFIX( uc, 3 ), UFIX( ub, 2 ), 0 )
 print "ConcatAsg fix3 "; ushowraw( @uc(0), 5 )
-pConcatAsg( 0, VARLEN, @ub(0), FIXED(2), 0 )
+pConcatAsg( 0, VARLEN, UFIX( ub, 2 ), 0 )
 pUDel( @acc )
 
 '' ---- ASSIGN, and the fast path that a text comparison cannot see.
@@ -201,44 +202,44 @@ dim as UDESC ptr tmpd = cptr( UDESC ptr, tmp )
 for i as integer = 0 to 3 : tmpd->data_[i] = asc("W") + i : next
 tmpd->data_[4] = 0
 dim as ushort ptr stolen = tmpd->data_
-pAssignEx( @dst, VARLEN, tmp, VARLEN, 0, 1 )
+pAssignEx( UVAR( dst ), tmp, VARLEN, 0, 1 )
 print "Assign steals buffer = "; iif( dst.data_ = stolen, 1, 0 ); "  "; ushow( @dst )
 print "  source cleared     = "; iif( tmpd->data_ = 0, 1, 0 )
 
 '' A NON-temp source is copied, not stolen.
 mku( @ub(0), @db, "xyz" )
 dim as ushort ptr srcbuf = db.data_
-pAssignEx( @dst, VARLEN, @db, VARLEN, 0, 0 )
+pAssignEx( UVAR( dst ), UVAR( db ), 0, 0 )
 print "Assign copies non-temp= "; iif( dst.data_ <> srcbuf, 1, 0 ); "  "; ushow( @dst )
 
 '' An empty source: is_init decides whether there is anything valid to free.
-pAssignEx( @dst, VARLEN, 0, VARLEN, 0, 0 )
+pAssignEx( UVAR( dst ), 0, VARLEN, 0, 0 )
 print "Assign empty         "; ushow( @dst ); " data0="; iif( dst.data_ = 0, 1, 0 )
 
 '' A FIXED-LENGTH destination is NUL-padded, NOT space-padded -- the opposite of
 '' LSET above, and the rule the trim helpers depend on.
 for i as integer = 0 to 7 : uc(i) = &hEEEE : next
 mku( @ub(0), @db, "ab" )
-pAssignEx( @uc(0), FIXED(5), @db, VARLEN, 1, 0 )
+pAssignEx( UFIX( uc, 5 ), UVAR( db ), 1, 0 )
 print "Assign fix5 fill     "; ushowraw( @uc(0), 7 )
 for i as integer = 0 to 7 : uc(i) = &hEEEE : next
-pAssignEx( @uc(0), FIXED(5), @db, VARLEN, 0, 0 )
+pAssignEx( UFIX( uc, 5 ), UVAR( db ), 0, 0 )
 print "Assign fix5 nofill   "; ushowraw( @uc(0), 7 )
 '' Truncation to the capacity.
 mku( @ub(0), @db, "abcdefgh" )
 for i as integer = 0 to 9 : uc(i) = &hEEEE : next
-pAssignEx( @uc(0), FIXED(3), @db, VARLEN, 1, 0 )
+pAssignEx( UFIX( uc, 3 ), UVAR( db ), 1, 0 )
 print "Assign fix3 trunc    "; ushowraw( @uc(0), 6 )
 
 '' The two thin callers must differ only in is_init.
 dim as UDESC d2
 d2.data_ = 0 : d2.len_ = 0 : d2.size_ = 0
 mku( @ub(0), @db, "pq" )
-pInit( @d2, VARLEN, @db, VARLEN, 0 )
+pInit( UVAR( d2 ), UVAR( db ), 0 )
 print "Init                 "; ushow( @d2 )
-pAssign( @d2, VARLEN, @db, VARLEN, 0 )
+pAssign( UVAR( d2 ), UVAR( db ), 0 )
 print "Assign               "; ushow( @d2 )
-pAssign( 0, VARLEN, @db, VARLEN, 0 )
+pAssign( 0, VARLEN, UVAR( db ), 0 )
 pUDel( @d2 )
 pUDel( @dst )
 
@@ -246,18 +247,18 @@ pUDel( @dst )
 '' The accented letters are the cases that separate the two.
 ua(0) = asc("a") : ua(1) = &h00E9 : ua(2) = &h00FF : ua(3) = &h0430 : ua(4) = 0
 da.data_ = @ua(0) : da.len_ = 4 : da.size_ = 4
-print "Ucase                "; ushow( pUcase( @da, VARLEN ) )
+print "Ucase                "; ushow( pUcase( UVAR( da ) ) )
 ua(0) = asc("A") : ua(1) = &h00C9 : ua(2) = &h0178 : ua(3) = &h0410 : ua(4) = 0
 da.data_ = @ua(0) : da.len_ = 4 : da.size_ = 4
-print "Lcase                "; ushow( pLcase( @da, VARLEN ) )
+print "Lcase                "; ushow( pLcase( UVAR( da ) ) )
 mku( @ua(0), @da, "" )
-print "Ucase empty          "; ushow( pUcase( @da, VARLEN ) )
+print "Ucase empty          "; ushow( pUcase( UVAR( da ) ) )
 
 '' ---- AllocTempResult MOVES the descriptor and sets the temp bit.
 dim as UDESC res
 res.data_ = 0 : res.len_ = 0 : res.size_ = 0
 mku( @ub(0), @db, "result" )
-pAssignEx( @res, VARLEN, @db, VARLEN, 0, 1 )
+pAssignEx( UVAR( res ), UVAR( db ), 0, 1 )
 dim as ushort ptr resbuf = res.data_
 dim as any ptr tr = pTempRes( @res )
 dim as UDESC ptr trd = cptr( UDESC ptr, tr )
