@@ -764,6 +764,19 @@ function PostfixChain _
 
         case Tko.TK_DOT, Tko.TK_ARROW
             Advance( p )
+            '' 'x->*pi' AND 'x->***pppi' -- A RUN OF DEREFERENCES BETWEEN THE ARROW AND
+            '' THE MEMBER NAME, which is what a POINTER field is read through. Measured,
+            '' fbc: 'x->*pi' is '*(int64*)*(int64**)&TMP$2$0' -- the field of what the
+            '' arrow returns, dereferenced -- and 'x->***pppi' is three of them. Without
+            '' this the '*' stood where the member name belonged and the whole
+            '' expression was TKO0402.
+            dim as long arrowDerefs = 0
+            if k = Tko.TK_ARROW then
+                while Peek( p ) = Tko.TK_STAR
+                    Advance( p )
+                    arrowDerefs += 1
+                wend
+            end if
             dim as Tko.Token nameTok = Cur( p )
             dim as boolean isName = (Peek( p ) = Tko.TK_IDENT) orelse _
                                     Tko.IsKeywordKind( Peek( p ) )
@@ -812,6 +825,10 @@ function PostfixChain _
             if k = Tko.TK_ARROW then
                 p.ast->nodes[cast( long, result )].flags or= Tko.NF_ARROW
             end if
+            '' ...and the derefs wrap the ACCESS, innermost first.
+            for di as long = 1 to arrowDerefs
+                result = MakeUnary( p, Tko.TK_STAR, t.loc, result, Tko.N_DEREF )
+            next
 
         case else
             exit do
