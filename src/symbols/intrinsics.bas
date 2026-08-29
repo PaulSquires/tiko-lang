@@ -494,7 +494,28 @@ private function ExprIntrinsicType_ _
         '' is CONST WSTRING. STR keeps the CAST'S own kind, not the STRING every other
         '' argument gives it.
         dim as Tko.TypeId ct = UdtStringCastType_( c, a0 )
-        if ct <> Tko.TYPE_NONE then return ct
+        if ct <> Tko.TYPE_NONE then
+            '' ...BUT ONLY A NARROW CAST. A WIDE one is a real conversion and STR
+            '' answers STRING for it, which is the reverse of what the note above
+            '' says -- that measurement was of WSTR( ), taken on the wrong side.
+            '' Measured, one type with each cast:
+            ''
+            ''     str( z )    CONST ZSTRING      cast( ) byref as const zstring
+            ''     str( w )    STRING             cast( ) byref as const wstring
+            ''     wstr( w )   CONST WSTRING
+            ''     wstr( z )   WSTRING * 1
+            ''
+            '' Typing 'str( w )' wide made every narrow destination take the
+            '' wide-to-narrow transfer path, which has no wide source to offer:
+            '' 'dim s as string = str( w )' and 'print str( w )' both declined,
+            '' while the assignment form beside them lowered.
+            if c.types->Kind( c.types->Unqualify( ct ) ) = Tko.TK_BUILTIN then
+                if c.types->BuiltinOf( c.types->Unqualify( ct ) ) = Tko.TY_WSTRING then
+                    return c.types->Builtin( Tko.TY_STRING )
+                end if
+            end if
+            return ct
+        end if
         if (isNum orelse isStr) = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )
     '' WSTR IS A FIXED WSTRING, not a var-length one, and the LENGTH is measured:

@@ -420,3 +420,37 @@ operator OpC.or= ( byval a as integer ) : end operator
 operator OpC.xor= ( byval a as integer ) : end operator
 operator OpC.eqv= ( byval a as integer ) : end operator
 operator OpC.imp= ( byval a as integer ) : end operator
+
+'' A CAST OPERATOR'S RESULT DROPS ITS BYREF-NESS AND ITS TOP-LEVEL CONST. Const BELOW a
+'' pointer is kept, and 'byref as const zstring ptr' is a duplicated definition against
+'' 'as const zstring ptr'. This is how the udt-zstring reference type spells its
+'' conversion, so every one of them was an unresolved name.
+dim shared gCastZ as zstring * 4
+dim shared gCastW as wstring * 4
+dim shared gCastI as integer
+type CastR extends object
+    declare operator cast( ) byref as const zstring
+    declare operator cast( ) byref as const wstring
+    declare operator cast( ) byref as const integer
+    declare operator cast( ) byref as integer ptr
+    declare operator cast( ) as const zstring ptr
+    declare operator cast( ) as single
+end type
+operator CastR.cast( ) byref as const zstring
+    operator = gCastZ
+end operator
+operator CastR.cast( ) byref as const wstring
+    operator = gCastW
+end operator
+operator CastR.cast( ) byref as const integer
+    operator = gCastI
+end operator
+operator CastR.cast( ) byref as integer ptr
+    operator = cptr( integer ptr ptr, 0 )[0]
+end operator
+operator CastR.cast( ) as const zstring ptr
+    operator = 0
+end operator
+operator CastR.cast( ) as single
+    operator = 0
+end operator

@@ -1,0 +1,10 @@
+'' str( ) and wstr( ) over a UDT with 'operator cast' to a string, both directions,
+'' and the cast operator's mangled name.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-string-cast-str.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _ZN1WcvwEv
+'' EXPECT-OUT: _ZN1ZcvcEv
+'' GOLDEN: expected/udt-string-cast-str.out

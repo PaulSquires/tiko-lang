@@ -317,6 +317,33 @@ end function
 '' hands THAT to the same entry point. An untyped term is neutral too, because Check
 '' computes no type for an intrinsic call and following the destination is what the
 '' code did before any of this.
+'' Is this the call 'str( x )'? THE MIRROR OF IsWstrCall_, and asked for the same
+'' reason: a term's width is decided before anything is emitted for it, and Check
+'' computes no type for an intrinsic call, so TermIsWide_ falls back on the operand.
+'' Over 'str( u )' where u is a UDT with 'operator cast' to a WSTRING that fallback
+'' says WIDE -- and str( ) is narrow by definition, whatever it was handed. Measured:
+''
+''     vr$2 = _ZN14UWSTRING_FIXEDcvwEv( &U1$0 );
+''     vr$3 = fb_WstrToStr( vr$2 );
+''     fb_StrInit( (void*)ZZ$0, 10ll, (void*)vr$3, -1ll, 0 );
+''
+'' -- a narrow destination and no wide transfer anywhere. tiko-lang instead routed
+'' 'dim s as string = str( u )' and 'print str( u )' through the wide-to-narrow slot
+'' path, which has no wide source to offer, and both declined.
+'' Moved here from lowerstr.bas at the 1500-line cap. Nothing about it changed.
+function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 1 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "str")
+end function
+
 function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
 
     dim as Tko.NodeId t2 = Unparen_( c, term )
@@ -732,6 +759,29 @@ function ZstrDataOf_ _
         '' The data pointer is the descriptor's FIRST field, which is why this is a
         '' plain load and not a field address.
         outv = LowerExprLoad( c, da, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' A UDT WITH 'operator cast' TO A NARROW STRING. Its data pointer IS the
+    '' conversion's result, and fbc says so directly:
+    ''
+    ''     vr$2 = _ZN14UZSTRING_FIXEDcvcEv( &U1$0 );
+    ''     vr$3 = fb_StrToWstr( vr$2 );
+    ''
+    '' -- which is 'wstr( u )' over the udt-zstring reference type, whose cast is
+    '' 'byref as const zstring'. StrSwapKind_ answers nothing for a UDT, so this fell
+    '' off the end and every wide use of one declined: 'wstr( u )' into a 'wstring * N'
+    '' and into another UDT alike.
+    dim as boolean ucRaw = false
+    dim as MirValue ucv
+    if UserCastToStr_( c, id, ucv, ucRaw ) then
+        '' A BARE char* is the pointer itself; a DESCRIPTOR keeps its data in field 0,
+        '' which is the same plain load the var-length row above does.
+        if ucRaw then
+            outv = ucv
+            return true
+        end if
+        outv = LowerExprLoad( c, ucv, MT_PTR )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
     return false

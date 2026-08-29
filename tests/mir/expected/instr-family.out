@@ -2,7 +2,7 @@ global str $str0 "hello"
 global str $str1 "l"
 global wstr $wstr2 "hello"
 global wstr $wstr3 "l"
-func ptr _ZN2UWcvKwEv($0) {
+func ptr _ZN2UWcvwEv($0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -73,18 +73,18 @@ func i32 main($0, $1) {
     store @a, %31
     %32 = call.rtl i64 fb_WstrInstrRevAny(@w, @q, -1)
     store @a, %32
-    %33 = call ptr _ZN2UWcvKwEv(@uw)
+    %33 = call ptr _ZN2UWcvwEv(@uw)
     %34 = call.rtl i64 fb_WstrInstr(1, %33, @q)
     store @a, %34
-    %35 = call ptr _ZN2UWcvKwEv(@uq)
+    %35 = call ptr _ZN2UWcvwEv(@uq)
     %36 = call.rtl i64 fb_WstrInstr(1, @w, %35)
     store @a, %36
-    %37 = call ptr _ZN2UWcvKwEv(@uw)
-    %38 = call ptr _ZN2UWcvKwEv(@uq)
+    %37 = call ptr _ZN2UWcvwEv(@uw)
+    %38 = call ptr _ZN2UWcvwEv(@uq)
     %39 = call.rtl i64 fb_WstrInstr(1, %37, %38)
     store @a, %39
-    %40 = call ptr _ZN2UWcvKwEv(@uw)
-    %41 = call ptr _ZN2UWcvKwEv(@uq)
+    %40 = call ptr _ZN2UWcvwEv(@uw)
+    %41 = call ptr _ZN2UWcvwEv(@uq)
     %42 = const i64 2
     %43 = call.rtl i64 fb_WstrInstrRev(%40, %41, %42)
     store @a, %43

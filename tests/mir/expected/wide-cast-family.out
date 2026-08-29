@@ -2,7 +2,7 @@ global wstr $wstr0 "hello"
 global wstr $wstr1 "abc"
 global wstr $wstr2 "ZZ"
 global str $str3 "abc"
-func ptr _ZN8WIDECASTcvKwEv($0) {
+func ptr _ZN8WIDECASTcvwEv($0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -32,12 +32,12 @@ func void S1() {
     %2 = field.addr @u, 2
     %3 = call.rtl ptr fb_WstrAssign(%2, 12, @@$wstr0)
     %4 = alloca ptr k1
-    %5 = call ptr _ZN8WIDECASTcvKwEv(@u)
+    %5 = call ptr _ZN8WIDECASTcvwEv(@u)
     %6 = call.rtl i32 fb_WstrAsc(%5, 1)
     %7 = zext %6
     store @k1, %7
     %8 = alloca ptr k2
-    %9 = call ptr _ZN8WIDECASTcvKwEv(@u)
+    %9 = call ptr _ZN8WIDECASTcvwEv(@u)
     %10 = const i64 2
     %11 = call.rtl i32 fb_WstrAsc(%9, %10)
     %12 = zext %11
@@ -55,7 +55,7 @@ func void S1() {
     %20 = alloca ptr rep
     %21 = call.rtl ptr fb_WstrAssign(@rep, 6, @@$wstr2)
     %22 = const i64 2
-    %23 = call ptr _ZN8WIDECASTcvKwEv(@u)
+    %23 = call ptr _ZN8WIDECASTcvwEv(@u)
     call.rtl void fb_WstrAssignMid(%23, 0, %22, -1, @rep)
     %24 = field.addr @u, 2
     call.rtl void fb_PrintWstr(0, %24, 1)

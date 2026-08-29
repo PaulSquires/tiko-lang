@@ -389,7 +389,28 @@ private function OperatorCode _
     if nm = "new[]" then return "na"
     if nm = "delete[]" then return "da"
     if nm = "cast" then
-        return "cv" & TypeCode( info.TypeOf_( sp->a ), types, syms, names, subs )
+        '' THE RESULT'S BYREF-NESS AND ITS TOP-LEVEL CONST ARE BOTH DROPPED. Measured
+        '' against fbc, four operators on one type:
+        ''
+        ''     cast() byref as const zstring    _ZN1TcvcEv
+        ''     cast() byref as const wstring    _ZN1TcvwEv
+        ''     cast() byref as const integer    _ZN1Tcvu7INTEGEREv
+        ''     cast() byref as integer ptr      _ZN1TcvPu7INTEGEREv
+        ''     cast() as const integer          _ZN1Tcvu7INTEGEREv
+        ''     cast() as const zstring ptr      _ZN1TcvPKcEv
+        ''
+        '' -- so a const BELOW a pointer is kept and only the outermost one goes, and
+        '' 'byref as const zstring ptr' is a DUPLICATED DEFINITION against
+        '' 'as const zstring ptr', which is the same fact stated by the parser.
+        ''
+        '' tiko-lang encoded both, answering '_ZN1TcvKcEv' for the zstring cast --
+        '' a name nothing defines. Every 'operator cast() byref as const zstring' in
+        '' the corpus, which is how the udt-zstring reference type spells its
+        '' conversion, would have failed to link.
+        dim as Tko.TypeId ct = info.TypeOf_( sp->a )
+        if types.Kind( ct ) = Tko.TK_REFERENCE then ct = types.Inner( ct )
+        ct = types.Unqualify( ct )
+        return "cv" & TypeCode( ct, types, syms, names, subs )
     end if
 
     dim as long arity = 0

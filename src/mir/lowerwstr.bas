@@ -657,6 +657,9 @@ end function
 function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     e = Unparen_( c, e )
     if e = Tko.NODE_NONE then return false
+    '' 'str( x )' IS NARROW WHATEVER IT WAS HANDED, and it is asked first because
+    '' every test below reads the OPERAND's type -- see IsStrCall_.
+    if IsStrCall_( c, e ) then return false
     if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
     '' A LITERAL CONTAINING A UNICODE ESCAPE IS WIDE, and does NOT follow its
     '' context the way every other literal does. Measured: '#print typeof(
