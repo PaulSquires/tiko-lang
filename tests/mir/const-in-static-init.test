@@ -1,0 +1,8 @@
+'' A named const in a static/shared aggregate initialiser, and OPEN's record length in
+'' expression position.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/const-in-static-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/const-in-static-init.out

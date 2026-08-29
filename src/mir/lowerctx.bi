@@ -22,6 +22,15 @@ type Ctx
     as MirFunction ptr      f
     as LowerStats ptr       st
     as long                 curBlock
+    '' THE UNIT'S MODULE SCOPE, recorded once. Lowering has no scope of its own -- it
+    '' walks a typed tree -- but a CONSTANT FOLD needs one: ConstOf answers 'unknown'
+    '' for every identifier when it is handed no symbol table, and Lookup walks
+    '' OUTWARD, so SCOPE_GLOBAL cannot see a module-level 'const'.
+    as Tko.ScopeId          modScope
+    '' ...and the procedure currently being lowered, for the same reason: a 'static'
+    '' local's initialiser is folded while lowering the PROCEDURE, and the constant it
+    '' names may be in the namespace the procedure lives in rather than at file level.
+    as Tko.ScopeId          procScope
     '' The innermost loop's exit and continue targets, for EXIT and CONTINUE. A stack
     '' rather than a pair, because the statements take a level count.
     as FB.Array( of long )  breakTo

@@ -661,6 +661,12 @@ private sub WalkExpr _
         dim as Tko.StmtPayload ptr ip = StmtOf( c, id )
         if ip->a <> Tko.NODE_NONE then WalkExpr( c, ip->a, scope_ )
         if ip->b <> Tko.NODE_NONE then WalkExpr( c, ip->b, scope_ )
+        '' ...AND 'c', which is where the parser puts OPEN's record length. Left
+        '' unwalked, 'open( f for binary as #1 len = n )' had an unresolved 'n' and the
+        '' whole expression declined -- while a foldable 'len = 8 + 8' worked, and so
+        '' did the same OPEN written as a STATEMENT, which is what made it look like an
+        '' expression-form gap rather than a missing walk.
+        if ip->c <> Tko.NODE_NONE then WalkExpr( c, ip->c, scope_ )
         for i as long = 0 to ip->count - 1
             dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[ip->first + i] )
             if c.ast->Kind( arg ) <> Tko.N_ELIDED then WalkExpr( c, arg, scope_ )

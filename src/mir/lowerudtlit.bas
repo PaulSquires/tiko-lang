@@ -757,8 +757,17 @@ function FoldAggInit_ _
         end select
 
         if (fmt <> MT_F32) andalso (fmt <> MT_F64) then
+            '' WITH THE SYMBOL TABLE. ConstOf answers 'unknown' for every identifier
+            '' when it is handed none -- 'if syms = 0 then return CVNone_( )' -- so a
+            '' NAMED CONSTANT in a static or shared initialiser did not fold and the
+            '' whole image declined, while the same literal in the same slot did.
+            '' fbc writes 'static int64 ARR$[2] = { 42ll, 2ll };'.
+            dim as Tko.ScopeId fsc = c.info->ScopeOf( e )
+            if fsc = Tko.SCOPE_NONE then fsc = c.procScope
+            if fsc = Tko.SCOPE_NONE then fsc = c.modScope
             dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
-                *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits )
+                *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits, _
+                c.syms, fsc )
             if cv.known = false then return false
             bits = cv.value
         end if

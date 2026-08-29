@@ -217,6 +217,9 @@ sub LowerProc _
     next
 
     c.curBlock = NewBlock( c, "entry" )
+    '' The scope this procedure's body lives in -- see the field's comment.
+    dim as Tko.ScopeId savedProcScope = c.procScope
+    c.procScope = c.info->ScopeOf( id )
 
     '' The result slot, zero-initialised, exactly as fbc's C does it. Only for a
     '' SCALAR result: a STRING or UDT return goes through a hidden pointer tiko-lang does
@@ -633,6 +636,7 @@ sub LowerProc _
     c.udtResult = savedUdtRes
     c.byrefResult = savedByrefRes
     c.sretParam = savedSret
+    c.procScope = savedProcScope
     c.resultSlot = savedRes
     c.resultTy = savedResTy
     c.resultType = savedResType
@@ -874,6 +878,9 @@ function Lower _
     c.m = @m
     c.st = @st
     c.curBlock = -1
+    '' THE MODULE SCOPE, recorded once -- see the field's comment.
+    c.modScope = info.ScopeOf( root )
+    if c.modScope = Tko.SCOPE_NONE then c.modScope = Tko.SCOPE_GLOBAL
 
     '' DATA FIRST, before anything is lowered. Two reasons, and both are measured:
     '' 'restore lbl' may name a label that appears LATER in the file, and the block
