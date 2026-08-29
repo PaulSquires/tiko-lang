@@ -7,6 +7,9 @@
 namespace Tko.Mir
 
 using Tko
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
 
 
 '' 'dim as T x = T( 5 )'. The initialiser parses as a CALL on the type's name, so it
@@ -40,14 +43,26 @@ private function CtorArgValue_ _
                 '' is what makes asking them safe here: the PARAMETER already says
                 '' which width is wanted.
                 dim as boolean untyped = (at = Tko.TYPE_NONE)
+                '' A FIXED-LENGTH STRING ARGUMENT COUNTS AS ONE. 'zstring * 50' is
+                '' an ARRAY of the character builtin, so IsStringType says no to it
+                '' -- and 'dim a as uzstr_t = iif( expr, t1, t2 )' over two of them
+                '' then fell through to LowerExpr, which an iif has no value for.
+                '' udt-zstring/iif.bas is four statements of it.
+                dim as longint askn
+                dim as long ask = StrSwapKind_( c, at, askn )
+                dim as boolean narrowArg = IsStringType( c, at )
+                if narrowArg then narrowArg = (IsUStringType( c, at ) = false)
+                if narrowArg = false then narrowArg = (ask = 1) orelse (ask = 3)
+                dim as boolean wideArg = IsWideString_( c, at )
+                if wideArg = false then wideArg = (ask = 2) orelse (ask = 4)
                 if c.types->BuiltinOf( pin ) = Tko.TY_ZSTRING then
-                    if IsStringType( c, at ) then return ZstrDataOf_( c, argNode, outv )
+                    if narrowArg then return ZstrDataOf_( c, argNode, outv )
                     if untyped then
                         if ZstrDataOf_( c, argNode, outv ) then return true
                     end if
                 end if
                 if c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
-                    if IsWideString_( c, at ) then return WideOperand_( c, argNode, outv )
+                    if wideArg then return WideOperand_( c, argNode, outv )
                     if untyped then
                         if WideOperand_( c, argNode, outv ) then return true
                     end if

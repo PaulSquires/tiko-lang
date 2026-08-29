@@ -661,6 +661,14 @@ function ZstrDataOf_ _
     dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
     if k = 1 then
         outv = LowerAddr( c, id )
+        '' AN IIF OVER TWO FIXED ZSTRINGS HAS NO ADDRESS, and this is where
+        '' 'dim a as uzstr_t = iif( expr, t1, t2 )' stops -- the four in
+        '' udt-zstring/iif.bas. The classification above it is now right (a
+        '' 'zstring * 50' argument does reach the zstring-pointer constructor); what
+        '' is missing is an iif that yields a POINTER PER ARM, which LowerIif cannot
+        '' express: it writes one temporary of a requested MIR type, and these arms
+        '' are aggregates whose VALUE is an address. Closing it needs an iif entry
+        '' point that takes the arms' lowering from the caller.
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
     '' A 'string * N' IS NOT ITS OWN DATA POINTER. It is SPACE-PADDED and carries NO
