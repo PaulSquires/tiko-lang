@@ -17,4 +17,6 @@ str/instr.bas
 str/instrrev.bas
 str/base.bas
 str/set.bas
+str/assign.bas
+str/concat.bas
 ustr/utf.bas
