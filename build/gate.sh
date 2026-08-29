@@ -144,9 +144,24 @@ case "$TARGET" in
         TARGETVAR="TARGET=win32"
         ;;
     linux-x86_64)
-        rt_die "linux-x86_64 must run inside WSL, and needs libfbgfx*.a and
-  libfbcunit.a built for Linux first. See fbc-modern/docs/tests/llvm/gate-linux.sh
-  for the prerequisites. Not yet wired -- tracked in docs/tiko-rt/status/spike.md."
+        # Runs inside WSL: the suite has to EXECUTE, and these are ELF binaries.
+        # The merge above already produced ELF archives -- llvm-ar handles them
+        # regardless of which host it runs on.
+        #
+        # libfbgfx*.a for Linux is present in fbc's tree. libfbcunit.a is NOT
+        # per-target-safe: it is one file, rebuilt by whichever gate ran last, and
+        # right now it holds win32 objects because the win32 gate built it.
+        # `make` rebuilds it for whatever FBC it is handed, so the only thing
+        # needed is to delete it first and let the Linux run regenerate it --
+        # otherwise make sees an up-to-date archive of the wrong architecture and
+        # the link fails with something that looks nothing like the cause.
+        command -v wsl >/dev/null 2>&1 || rt_die "linux-x86_64 needs WSL"
+        LINUX_FBC=${LINUX_FBC:-"$FBC_TREE/toolchains/fbc-modern-linux/bin/fbc"}
+        # -f, not -x. The Linux fbc is an ELF binary that WSL runs; from Git Bash
+        # on Windows it is a file with no execute bit, so -x rejects a perfectly
+        # good compiler and blames the path.
+        [ -f "$LINUX_FBC" ] || rt_die "no Linux fbc at $LINUX_FBC (set LINUX_FBC)"
+        USE_WSL=1
         ;;
 esac
 
@@ -184,9 +199,31 @@ rm -f unit-tests.inc unit-tests-obj.lst
 find . -name '*.o' -delete
 
 echo "gate: $TARGET running fbc's unit-tests (this takes a while)"
-"$MAKE" unit-tests $TARGETVAR \
-    FBC="$GATE_FBC -i $FBC_TREE/src/inc $TARGETOPT $LIBOPT -gen gcc" \
-    > "$LOG" 2>&1 || true
+
+if [ "${USE_WSL:-0}" = "1" ]; then
+    # Windows paths become /mnt/c/... inside WSL. Everything else is the same
+    # command; the suite is built and run by the Linux fbc against the merged
+    # ELF archives.
+    wpath( ) { echo "$1" | sed 's|^/\([a-zA-Z]\)/|/mnt/\1/|'; }
+    W_TESTS=$(wpath "$FBC_TREE/src/tests")
+    W_FBC=$(wpath "$LINUX_FBC")
+    W_INC=$(wpath "$FBC_TREE/src/inc")
+    W_LIB=$(wpath "$GATELIB")
+    W_FBCBIN=$(wpath "$(dirname "$LINUX_FBC")")
+    wsl -e bash -c "
+        export PATH='$W_FBCBIN':\$PATH
+        cd '$W_TESTS' || exit 1
+        rm -f fbcunit/lib/libfbcunit.a
+        make -f unit-tests.mk clean >/dev/null 2>&1 || true
+        rm -f unit-tests.inc unit-tests-obj.lst
+        find . -name '*.o' -delete
+        make unit-tests FBC='$W_FBC -i $W_INC -p $W_LIB -gen gcc'
+    " > "$LOG" 2>&1 || true
+else
+    "$MAKE" unit-tests $TARGETVAR \
+        FBC="$GATE_FBC -i $FBC_TREE/src/inc $TARGETOPT $LIBOPT -gen gcc" \
+        > "$LOG" 2>&1 || true
+fi
 
 echo "gate: log $LOG"
 echo "gate: fbc invocations: $(grep -ac 'fbc' "$LOG" || true)"

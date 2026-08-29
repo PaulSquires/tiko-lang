@@ -38,9 +38,26 @@ end function
 function tkort_WstrCompare alias "fb_WstrCompare" _
 	( byval s1 as wstring ptr, byval s2 as wstring ptr ) as long
 
+	'' A NULL OPERAND IS AN EMPTY STRING, not "less than everything".
+	''
+	'' Measured against the C runtime (PROBE-24):
+	''
+	''     (NULL, NULL) -> 0     (empty, NULL) -> 0     (NULL, empty) -> 0
+	''     (abc,  NULL) -> 1     (NULL,  abc ) -> -1
+	''
+	'' fbc's own suite relies on it: string/comp_null.bas sets a `zstring ptr`
+	'' and a `wstring ptr` to 0 and then compares through the dereference, so
+	'' `w = *pw` must be TRUE for an empty w. Returning -1 for a null operand
+	'' failed 8 assertions there and contributed to 147 across five suites.
 	if( s1 = s2 ) then return 0
-	if( s1 = 0 ) then return -1
-	if( s2 = 0 ) then return 1
+	if( s1 = 0 ) then
+		if( s2[0] = 0 ) then return 0
+		return -1
+	end if
+	if( s2 = 0 ) then
+		if( s1[0] = 0 ) then return 0
+		return 1
+	end if
 
 	dim as integer i = 0
 	do

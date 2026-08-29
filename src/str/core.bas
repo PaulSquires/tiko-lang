@@ -90,8 +90,28 @@ dim shared as integer        tkort_tmpReady
 '' the language. A benchmark that is not chased down to its cause is just a
 '' number with a story attached.
 
-'' PROBE-13's law, and the single place it is written down in code.
-private function hGranuleSize( byval length as integer ) as integer
+'' TWO LAWS, NOT ONE. fb_hStrAlloc and fb_hStrRealloc round to DIFFERENT
+'' granules, and using one for both is wrong in a way almost nothing observes.
+''
+'' Measured by calling each entry point directly with a fresh descriptor
+'' (PROBE-22, PROBE-23):
+''
+''   fb_hStrAlloc      len 1..32 -> 32, 33..64 -> 64, 65..96 -> 96   (x32)
+''   fb_hStrRealloc    len 1..32 -> 36, 33..64 -> 72, 65..96 -> 108  (x36)
+''                     -- identical for keepdata TRUE and FALSE
+''
+'' PROBE-13 measured only the x36 law, because it swept `s = string(n,"a")` and
+'' assignment goes through fb_hStrRealloc. Nothing in the descriptor differential
+'' can see the fb_hStrAlloc law at all, which is why it survived this long.
+''
+'' Both return size 0 for length 0 -- and both still return a REAL data pointer
+'' there. See hAllocBlock.
+private function hAllocSize( byval length as integer ) as integer
+	if( length <= 0 ) then return 0
+	return ((length + 31) \ 32) * 32
+end function
+
+private function hReallocSize( byval length as integer ) as integer
 	if( length <= 0 ) then return 0
 	return ((length + 31) \ 32) * 36
 end function
@@ -195,15 +215,24 @@ function tkort_hStrAlloc alias "fb_hStrAlloc" _
 
 	if( s = 0 ) then return 0
 
-	dim as integer want = hGranuleSize( length )
+	dim as integer want = hAllocSize( length )
 
-	if( want = 0 ) then
-		s->data = 0
-		s->size = 0
-		s->len  = 0
-		return s
-	end if
-
+	'' NO ZERO-LENGTH SHORTCUT. A length of 0 still gets a real one-byte block.
+	''
+	'' The first version returned `data = NULL, size = 0` here, on the reasoning
+	'' that an empty string owns nothing -- which is true of a SETTLED variable
+	'' (`s = ""` really does end up with a null data pointer) but is not true of
+	'' what fb_hStrAlloc hands back. fbc's callers write the terminator
+	'' unconditionally: `fb_StrUcase2` ends with `movb $0x0,(%rax)`, and with a
+	'' null `rax` that is a segfault.
+	''
+	'' It cost a Linux gate run to find, and the crash was nowhere near the
+	'' cause: the visible failures were dozens of WIDE-string assertions in
+	'' expressions/iif.bas, and the actual fault was in a narrow ucase on a
+	'' zstring. Running the same test file on its own passed.
+	''
+	'' `size` still reports 0, which is what the growth-law differential measures
+	'' and what fbc reports; only the pointer is real.
 	s->data = cptr( zstring ptr, allocate( want + 1 ) )
 	if( s->data = 0 ) then
 		s->size = 0
@@ -232,7 +261,7 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 
 	if( s = 0 ) then return 0
 
-	dim as integer want = hGranuleSize( length )
+	dim as integer want = hReallocSize( length )
 
 	'' An empty descriptor is NOT delegated to fb_hStrAlloc, even though the
 	'' result would be identical, because realloc(NULL, n) and malloc(n) are the
@@ -240,11 +269,10 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	'' fbc reaches this path through realloc; matching it keeps the allocation
 	'' differential exact rather than exact-modulo-bookkeeping.
 	if( s->data = 0 ) then
-		if( want = 0 ) then
-			s->size = 0
-			FB_STRSETLEN( s, 0 )
-			return s
-		end if
+		'' No zero-length shortcut here either: length 0 still gets a real
+		'' one-byte block, exactly as fb_hStrAlloc does. Measured -- fbc's
+		'' fb_hStrRealloc( fresh, 0, either mode ) returns size 0 and a NON-NULL
+		'' pointer, and its callers write the terminator regardless.
 		s->data = cptr( zstring ptr, reallocate( 0, want + 1 ) )
 		if( s->data = 0 ) then
 			s->size = 0
@@ -257,13 +285,10 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 		return s
 	end if
 
-	if( want = 0 ) then
-		deallocate( s->data )
-		s->data = 0
-		s->size = 0
-		FB_STRSETLEN( s, 0 )
-		return s
-	end if
+	'' NOTE: shrinking to length 0 does NOT free the block and null the pointer.
+	'' It reports size 0 and keeps a valid buffer, which is what fbc does. The
+	'' null data pointer a settled empty variable ends up with comes from the
+	'' assignment path calling fb_StrDelete, not from here.
 
 	'' GROW ONLY WHEN THE BLOCK IS ACTUALLY TOO SMALL.
 	''
@@ -340,7 +365,16 @@ function tkort_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
 		owned = 1
 	end if
 
-	if( tkort_hStrAlloc( s, length ) = 0 ) then
+	'' NOTE: the x36 law, not fb_hStrAlloc's x32.
+	''
+	'' fb_hStrAllocTemp does NOT allocate the way fb_hStrAlloc does. Measured:
+	'' fb_hStrAllocTemp( d, 10 ) reports size 36, while fb_hStrAlloc( d, 10 )
+	'' reports 32. Routing this through fb_hStrAlloc gives a temporary one
+	'' granule too small in `size`, and because fb_StrAssign STEALS a
+	'' temporary's buffer rather than copying it, that wrong size then becomes
+	'' the size of an ordinary variable -- which is how a mistake in a temp
+	'' allocator shows up as a wrong growth law for `s = string(n,"a")`.
+	if( tkort_hStrRealloc( s, length, 0 ) = 0 ) then
 		if( owned ) then hPoolFree( s )
 		return 0
 	end if

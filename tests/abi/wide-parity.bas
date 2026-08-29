@@ -74,6 +74,14 @@ r = p_RTrim( @w ) : dump( @"  RTrim", r ) : p_WDel( r )
 print "-- len"
 print "  len('')="; p_Len( @wstr("") ); " len('abc')="; p_Len( @wstr("abc") )
 
+print "-- compare with NULL: a null operand is an EMPTY STRING"
+dim as wstring * 8 emp = wstr("")
+print "  (NULL,NULL)="; p_Comp( 0, 0 ); " (empty,NULL)="; p_Comp( @emp, 0 );
+print " (NULL,empty)="; p_Comp( 0, @emp );
+print " (abc,NULL)="; p_Comp( @wstr("abc"), 0 ); " (NULL,abc)="; p_Comp( 0, @wstr("abc") )
+print "  Len(NULL)="; p_Len( 0 )
+print "  Trim(NULL)="; iif( p_Trim( 0 ) = 0, "NULL", "non-null" )
+
 print "-- compare"
 dim as wstring * 8 a = wstr("abc"), b = wstr("abd"), c = wstr("abc"), d = wstr("ab")
 print "  (abc,abd)="; p_Comp( @a, @b ); " (abc,abc)="; p_Comp( @a, @c );
