@@ -696,6 +696,64 @@ function LowerSretResult( byref c as Ctx, byval valueE as Tko.NodeId ) as boolea
         if SretCopyResult_( c, valueE, c.resultType ) then return true
     end if
 
+    '' 'function = type( )' -- A BARE TYPE LITERAL has no type of its own, so LowerExpr
+    '' answers nothing and LowerAddr has nothing to take: the statement declined. It is
+    '' the RESULT TYPE that supplies the type, exactly as a declaration's does.
+    ''
+    '' Measured, fbc builds a TEMPORARY, copies it into the hidden pointer and destroys
+    '' it -- the temporary is why this only showed up on a type with a DESTRUCTOR:
+    ''
+    ''     _ZN8CLASSUDTC1Ev( tmp$2$1 );
+    ''     _ZN8CLASSUDTC1Ev( &TMP$3$1 );
+    ''     __builtin_memcpy( tmp$2$1, &TMP$3$1, 8 );
+    ''     _ZN8CLASSUDTD1Ev( &TMP$3$1 );
+    ''
+    '' and run, the function returns 123.
+    dim as boolean bareLit = (c.ast->Kind( valueE ) = Tko.N_TUPLE)
+    if bareLit then
+        bareLit = ((c.ast->nodes[cast( long, valueE )].flags and _
+                    Tko.NF_TYPE_LITERAL) <> 0)
+    end if
+    if bareLit then bareLit = (c.info->TypeOf_( valueE ) = Tko.TYPE_NONE)
+    if bareLit andalso (c.resultType <> Tko.TYPE_NONE) then
+        dim as Tko.TypeId lt = c.types->Unqualify( c.resultType )
+        if c.types->Kind( lt ) = Tko.TK_UDT then
+            dim as long lsz = SizeOfType( c, lt )
+            if lsz > 0 then
+                dim as long lslot = NewTempLocal( c, MT_AGG, lsz )
+                if lslot >= 0 then
+                    if LowerCtorInit( c, lslot, lt, valueE ) then
+                        if TypeNeedsDtor_( c, lt ) then
+                            c.udtTemps.Push( cast( ulong, lslot ) )
+                            c.udtTempTypes.Push( cast( ulong, lt ) )
+                        end if
+                        dim as MirValue laddr2
+                        laddr2.kind = cast( ubyte, MV_LOCAL )
+                        laddr2.ty = cast( ubyte, MT_PTR )
+                        laddr2.id = lslot
+                        dim as MirValue lv2 = LowerExprLoad( c, laddr2, MT_AGG )
+                        if lv2.kind <> cast( ubyte, MV_NONE ) then
+                            dim as MirValue lsa
+                            lsa.kind = cast( ubyte, MV_LOCAL )
+                            lsa.ty = cast( ubyte, MT_PTR )
+                            lsa.id = c.sretParam
+                            dim as MirValue ldst = LowerExprLoad( c, lsa, MT_PTR )
+                            if ldst.kind <> cast( ubyte, MV_NONE ) then
+                                dim as MirInst lst
+                                lst.op = cast( ushort, M_STORE )
+                                lst.ty = cast( ubyte, MT_VOID )
+                                lst.a = ldst
+                                lst.b = lv2
+                                Emit( c, lst )
+                                return true
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     '' The VALUE first, the address only as a fallback: 'function = F( )' has no
     '' address to take, and a call result is already an aggregate value here.
     dim as MirValue val = LowerExpr( c, valueE )

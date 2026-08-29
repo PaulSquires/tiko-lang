@@ -1,0 +1,7 @@
+'' 'function = type( )' out of a function returning a UDT with a destructor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sret-bare-type-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/sret-bare-type-literal.out
