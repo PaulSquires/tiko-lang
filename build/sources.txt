@@ -40,3 +40,6 @@ str/valqb.bas
 str/valbool.bas
 ustr/utf.bas
 ustr/ops.bas
+ustr/core.bas
+ustr/prim.bas
+ustr/conv.bas
