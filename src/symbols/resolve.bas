@@ -351,6 +351,19 @@ private function GenericCtorCall_ _
     c.info->SetType( lp->target, inst )
     return true
 end function
+'' THE TYPE BOUND TO A GENERIC PARAMETER OF THIS NAME, or nothing. The stack is
+'' searched from the top so an inner instantiation shadows an outer one, which is the
+'' same walk ResolveTypeRef makes for a type reference.
+private function GparamTypeOf_( byref c as Ctx, byval nm as Tko.InternId ) as Tko.TypeId
+    if nm = 0 then return Tko.TYPE_NONE
+    for gi as long = c.gparamName.Count - 1 to 0 step -1
+        if cast( Tko.InternId, c.gparamName[gi] ) = nm then
+            return cast( Tko.TypeId, c.gparamType[gi] )
+        end if
+    next
+    return Tko.TYPE_NONE
+end function
+
 '' The two SYNTHESISED TYPES -- a spawn's frame and a capturing lambda's closure --
 '' split out at the 1500-line cap and INCLUDED here, inside the same namespace.
 '' Nothing moved changed in the move.
@@ -411,6 +424,28 @@ private sub WalkExpr _
             '' unqualified read, write and '@' of an inherited field declined.
             c.info->SetRef( id, sid )
             c.st->references += 1
+        elseif GparamTypeOf_( c, nm ) <> Tko.TYPE_NONE then
+            '' A TYPE PARAMETER NAMED IN EXPRESSION POSITION, inside a generic being
+            '' instantiated. 'sizeof( T )' parses T as an EXPRESSION -- an N_IDENT --
+            '' not as a type reference, so ResolveTypeRef's substitution never saw it
+            '' and the node stayed untyped. Every spelling declined:
+            ''
+            ''     dim as uinteger k = sizeof( T )
+            ''     print n * sizeof( T )
+            ''     function SzOf( of T )( ) as uinteger : return sizeof( T )
+            ''
+            '' -- and fb/comptr.bi's ComHeapPtr.Alloc is written as
+            '' 'cptr( T ptr, CoTaskMemAlloc( count * sizeof( T ) ) )', so the whole
+            '' allocation produced nothing.
+            ''
+            '' ONLY WHEN NOTHING ELSE ANSWERS, which is what the position in this
+            '' chain says: a VARIABLE named 't' still wins, the mirror of the rule
+            '' typeparam-shadowing states for the type side.
+            ''
+            '' The TYPE only, and no reference: the name denotes a type, and giving
+            '' it a symbol would make every later pass read it as a value with
+            '' storage.
+            c.info->SetType( id, GparamTypeOf_( c, nm ) )
         elseif cast( long, nm ) <= TKO_KEYWORD_COUNT then
             '' A keyword used in expression position -- LEN, ASC, SIN. It is a
             '' BUILTIN, not an undefined name. This is free to detect because the

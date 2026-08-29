@@ -1,0 +1,8 @@
+'' sizeof( T ) over a generic type parameter, in a method, in an expression and as a
+'' generic function's result.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-sizeof-typaram.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-sizeof-typaram.out
