@@ -680,6 +680,25 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     end if
 
+    '' A SEPARATOR IS CONSUMED BY THE ITEM IMMEDIATELY BEFORE IT, and one with no item
+    '' before it PRINTS ON ITS OWN. Measured, and it is uniform:
+    ''
+    ''     print ,       fb_PrintVoid( 0, 2 )
+    ''     print ;       fb_PrintVoid( 0, 0 )
+    ''     print ,,      fb_PrintVoid( 0, 2 ) twice
+    ''     print ,;      fb_PrintVoid( 0, 2 ), fb_PrintVoid( 0, 0 )
+    ''     print 1,,     fb_PrintLongint( 0, 1, 2 ), fb_PrintVoid( 0, 2 )
+    ''     print ,1      fb_PrintVoid( 0, 2 ), fb_PrintLongint( 0, 1, 1 )
+    ''     print 1,2,    fb_PrintLongint( 0, 1, 2 ), fb_PrintLongint( 0, 2, 2 )
+    ''
+    '' -- the last one is the check: a TRAILING separator after an item is that
+    '' item's mask and adds nothing.
+    ''
+    '' The loop skipped every separator outright, so a print whose list is ONLY
+    '' separators emitted NOTHING AT ALL -- and counted as lowered, because nothing
+    '' declined. 'print #(1), ,' is how string/print_using.bas writes a blank
+    '' tabbed field, and the file lowered clean with the statement missing.
+    dim as long usedSep = -1
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
@@ -691,6 +710,15 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             dim as Tko.StmtPayload ptr usp = StmtOf( c, it )
             if usp->op = cast( ushort, Tko.KW_USING ) then
                 return LowerPrintUsing( c, id, i + 1, usp->a )
+            end if
+            '' NOT consumed by an item before it: it prints on its own.
+            if i <> usedSep then
+                dim as long smask = 0
+                if usp->op = cast( ushort, Tko.TK_COMMA ) then smask = 2
+                dim as FB.Array( of ulong ) sa
+                sa.Push( cast( ulong, chan.kind ) ) : sa.Push( cast( ulong, chan.id ) )
+                PushConst( sa, smask )
+                EmitRtl( c, RTL_PRINT_VOID, sa )
             end if
             continue for
         end if
@@ -710,6 +738,7 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
                 '' A separator with nothing after it is a TRAILING one, and trailing
                 '' means no newline -- which is the 0 already chosen for ';'. A
                 '' trailing ',' still tabs, so the mask stands either way.
+                usedSep = i + 1
             end if
         end if
 

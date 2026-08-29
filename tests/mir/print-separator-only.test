@@ -1,0 +1,9 @@
+'' A print whose list is only separators: each separator with no item before it emits
+'' its own fb_PrintVoid.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/print-separator-only.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_PrintVoid
+'' GOLDEN: expected/print-separator-only.out
