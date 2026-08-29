@@ -1,0 +1,8 @@
+'' Numeric casts over a wide string: the five fb_WstrVal* entry points, picked by the
+'' result's width and signedness, for a variable and for a literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-numeric-cast.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-numeric-cast.out

@@ -128,6 +128,51 @@ function LowerConvIntrinsic _
     dim as boolean isCastLike = (nm = "cast") orelse (nm = "cptr")
     if isCastLike = false then
         dim as Tko.TypeId at2 = c.info->TypeOf_( arg )
+
+        '' A WIDE OPERAND HAS ITS OWN FIVE ENTRY POINTS, taking a bare uint16* rather
+        '' than a descriptor -- the same five 'valint( w )' already uses, and chosen by
+        '' the RESULT's width and signedness exactly as the narrow rows below are.
+        '' Measured, over a 'wstring * 8' holding "789":
+        ''
+        ''     cbyte/cshort/clng      fb_WstrValInt      cubyte/cushort/culng  ...UInt
+        ''     cint/clngint           fb_WstrValLng      cuint/culngint        ...ULng
+        ''     csng/cdbl              fb_WstrVal
+        ''
+        '' Without them a wide argument fell past this whole block to the ordinary
+        '' coercion, which read the STRING AS A NUMBER: 'cdbl( w )' emitted a bare
+        '' 'sitofp' over the buffer and 'cdbl( wstr( "789" ) )' a 'bitcast' of the
+        '' literal's ADDRESS. Verifier clean, 0 statements not lowered, and the answer
+        '' was a pointer. This is the same hole the narrow rows below were written to
+        '' close, left open on the wide side.
+        if IsWideString_( c, at2 ) then
+            dim as MirValue wd
+            if WideOperand_( c, arg, wd ) = false then return v
+            if wd.kind = cast( ubyte, MV_NONE ) then return v
+            dim as FB.Array( of ulong ) wargs
+            wargs.Push( cast( ulong, wd.kind ) ) : wargs.Push( cast( ulong, wd.id ) )
+            dim as long ww = RTL_WSTR_VALINT
+            dim as MirType wmt = MT_I32
+            select case nm
+            case "csng", "cdbl"
+                ww = RTL_WSTR_VAL : wmt = MT_F64
+            case "cint", "clngint"
+                ww = RTL_WSTR_VALLNG : wmt = MT_I64
+            case "cuint", "culngint"
+                ww = RTL_WSTR_VALULNG : wmt = MT_I64
+            case "cubyte", "cushort", "culng"
+                ww = RTL_WSTR_VALUINT : wmt = MT_I32
+            case else
+                ww = RTL_WSTR_VALINT : wmt = MT_I32
+            end select
+            dim as MirValue wr = EmitRtl( c, ww, wargs )
+            if wr.kind = cast( ubyte, MV_NONE ) then return v
+            dim as MirType wwant = mt
+            if wwant = MT_VOID then wwant = wmt
+            dim as boolean wU = (ww = RTL_WSTR_VALULNG) orelse (ww = RTL_WSTR_VALUINT)
+            return Coerce( c, wr, wwant, wU, _
+                           IsUnsignedType( c, c.info->TypeOf_( id ) ) )
+        end if
+
         dim as boolean argIsStr = IsStringType( c, at2 )
         if argIsStr then
             dim as MirValue sd
