@@ -1,0 +1,59 @@
+global var i64 gi = 123
+func ptr F() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@gi
+    %3 = load @$tmp0
+    ret %3
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr p1
+  local ptr p2
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr p1
+    %5 = func.addr ptr F
+    store @p1, %5
+    %6 = alloca ptr p2
+    store @p2, @p1
+    %7 = load @p2
+    %8 = load %7
+    %9 = call.ind ptr %8()
+    %10 = load %9
+    call.rtl void fb_PrintLongint(0, %10, 1)
+    %11 = call ptr F()
+    %12 = load %11
+    %13 = icmp.eq %12, @@gi
+    %14 = neg %13
+    call.rtl void fb_PrintLongint(0, %14, 1)
+    %15 = load @p1
+    %16 = call.ind ptr %15()
+    %17 = load %16
+    %18 = icmp.eq %17, @@gi
+    %19 = neg %18
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    %20 = load @p2
+    %21 = load %20
+    %22 = call.ind ptr %21()
+    %23 = load %22
+    %24 = icmp.eq %23, @@gi
+    %25 = neg %24
+    call.rtl void fb_PrintLongint(0, %25, 1)
+    %26 = const i32 0
+    call.rtl void fb_End(%26)
+    %27 = load @$tmp0
+    ret %27
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

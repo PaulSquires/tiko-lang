@@ -338,6 +338,14 @@ function LowerAddr _
         if bcs <> 0 then
             if bcs->kind <> cast( ubyte, Tko.SYM_PROC ) then
                 dim as Tko.TypeId sigT = c.types->Unqualify( bcs->type_ )
+                '' ...AND THROUGH A BYREF VARIABLE HOLDING ONE. 'dim byref p2 as
+                '' function( ) byref as integer = p1' is a REFERENCE wrapping the
+                '' pointer, so the pointer test below missed it and '@(p2( ))'
+                '' declined while '@(p1( ))' beside it lowered. Measured, fbc reads
+                '' the same pointer either way: 'vr$3 = (*P2$0)( )'.
+                if c.types->Kind( sigT ) = Tko.TK_REFERENCE then
+                    sigT = c.types->Unqualify( c.types->Inner( sigT ) )
+                end if
                 if c.types->Kind( sigT ) = Tko.TK_POINTER then
                     sigT = c.types->Unqualify( c.types->Inner( sigT ) )
                 end if

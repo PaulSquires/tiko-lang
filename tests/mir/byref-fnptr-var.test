@@ -1,0 +1,8 @@
+'' The address of a byref result reached through a byref variable holding a function
+'' pointer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-fnptr-var.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/byref-fnptr-var.out

@@ -126,8 +126,60 @@ private function UdtConvTemp_ _
     '' made a temporary does not LOOK like one -- the alloca counts as an instruction and
     '' the statement reads as lowered with the call missing from it.
     dim as boolean byrefP = ParamIsByref( c, cv, 0 )
+
+    '' A CHAINED USER CONVERSION: the argument is a UDT that CASTS to what the
+    '' conversion constructor wants, so two user steps run back to back. Measured,
+    '' 'u <> v' over a TV that casts to STRING and a TU built from one:
+    ''
+    ''     vr$5 = _ZN2TVcv8FBSTRINGEv( &V$0 );
+    ''     _ZN2TUC1ER8FBSTRING( &TMP$3$0, ... );
+    ''
+    '' -- fbc's priority 4, which structs/udt-comp-ops-2.bas is written to exercise.
+    '' The cast SYMBOL is found here and CALLED below, so a decline still emits
+    '' nothing.
+    ''
+    '' Only a POINTER-SHAPED cast result is taken: a string is a descriptor pointer
+    '' and a UDT is an address, which is what a byref parameter wants either way. A
+    '' cast yielding a SCALAR into a byref parameter needs a temporary of its own and
+    '' is not measured, so it declines rather than guessing.
+    dim as Tko.SymbolId chainCast = Tko.SYMBOL_NONE
+    dim as Tko.TypeId cpu = c.types->Unqualify( cpt )
+    if c.types->Kind( cpu ) = Tko.TK_REFERENCE then
+        cpu = c.types->Unqualify( c.types->Inner( cpu ) )
+    end if
+    dim as Tko.TypeId au = c.types->Unqualify( c.info->TypeOf_( argNode ) )
+    if c.types->Kind( au ) = Tko.TK_REFERENCE then
+        au = c.types->Unqualify( c.types->Inner( au ) )
+    end if
+    dim as boolean chainOk = (au <> Tko.TYPE_NONE) andalso (au <> cpu)
+    if chainOk then chainOk = (c.types->Kind( au ) = Tko.TK_UDT)
+    if chainOk then chainOk = (IsStringType( c, cpu ) orelse (c.types->Kind( cpu ) = Tko.TK_UDT))
+    if chainOk then
+        dim as Tko.SymbolId ccur = StructorOf( c, au, "cast" )
+        while ccur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr ccs = c.syms->SymbolAt( ccur )
+            if ccs = 0 then exit while
+            dim as Tko.TypeId crt = ccs->type_
+            if crt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId cru = c.types->Unqualify( crt )
+                if c.types->Kind( cru ) = Tko.TK_REFERENCE then
+                    cru = c.types->Unqualify( c.types->Inner( cru ) )
+                end if
+                if cru = cpu then
+                    chainCast = ccur
+                    exit while
+                end if
+            end if
+            ccur = ccs->nextOverload
+        wend
+    end if
+
     dim as MirValue av
-    if byrefP then
+    if chainCast <> Tko.SYMBOL_NONE then
+        dim as MirValue cself = LowerAddr( c, argNode )
+        if cself.kind = cast( ubyte, MV_NONE ) then return false
+        av = EmitMemberCall( c, chainCast, cself, MT_PTR )
+    elseif byrefP then
         av = LowerAddr( c, argNode )
         '' AN RVALUE HAS NO ADDRESS, AND THE CONVERSION STILL HAPPENS. The
         '' constructor that does it may take its operand BYREF -- fb's own
@@ -148,7 +200,7 @@ private function UdtConvTemp_ _
         av = LowerExpr( c, argNode )
     end if
     if av.kind = cast( ubyte, MV_NONE ) then return false
-    if byrefP = false then
+    if (byrefP = false) andalso (chainCast = Tko.SYMBOL_NONE) then
         dim as MirType cmt = LowerType( cpt, *c.types )
         if (cmt = MT_VOID) orelse (cmt = MT_AGG) then return false
         av = Coerce( c, av, cmt, IsUnsignedType( c, c.info->TypeOf_( argNode ) ) )

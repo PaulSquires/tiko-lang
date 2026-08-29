@@ -74,7 +74,8 @@ end function
 '' offered 'h( integer )' and 'h( double )' against a UDT casting to integer, fbc picks
 '' the DOUBLE overload. Saturating instead would have made the two tie.
 private function UserConvCost_ _
-    ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId ) as long
+    ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
+      byval depth as long = 0 ) as long
 
     if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
     dim as Tko.TypeId f = c.types->Unqualify( from_ )
@@ -107,6 +108,24 @@ private function UserConvCost_ _
                     end if
                     if pu <> t then
                         dim as long sc = ConversionCost( f, pt, *c.types )
+                        '' TWO CHAINED USER CONVERSIONS: a cast on the SOURCE that
+                        '' answers what the conversion constructor wants. Measured --
+                        '' 'u <> v' over a TV that casts to STRING and a TU built
+                        '' from one, with only 'operator <>( TU, TU )' declared:
+                        ''
+                        ''     vr$5 = _ZN2TVcv8FBSTRINGEv( &V$0 );
+                        ''     fb_StrAssign( &TMP$2$0, -1, vr$5, -1, 0 );
+                        ''     _ZN2TUC1ER8FBSTRING( &TMP$3$0, &TMP$2$0 );
+                        ''     vr$11 = _ZneR2TUS0_( &U$0, &TMP$3$0 );
+                        ''     _ZN2TUD1Ev( &TMP$3$0 );
+                        ''
+                        '' -- fbc's priority 4, and structs/udt-comp-ops-2.bas is
+                        '' written to exercise exactly that ordering. ONE level, so
+                        '' the recursion is bounded by the guard rather than by
+                        '' hoping the type graph is acyclic.
+                        if (sc >= CONV_NONE) andalso (depth = 0) then
+                            sc = UserConvCost_( c, f, pt, 1 )
+                        end if
                         if sc < CONV_NONE then
                             if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc
                         end if
