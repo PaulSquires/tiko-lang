@@ -94,16 +94,26 @@ for each|(^|[^a-zA-Z_])for[[:space:]]+each([^a-zA-Z_]|$)
 runtime header|#include[[:space:]]+(once[[:space:]]+)?\"(fb/|string\.bi|vector\.bi|map\.bi|set\.bi)
 "
 
-for f in $(rtfiles); do
-    echo "$BANNED" | while IFS='|' read -r label re; do
-        [ -z "$label" ] && continue
-        hits=$(codelines "$f" | grep -iE "$re" | head -3)
-        if [ -n "$hits" ]; then
-            echo "lint: $f: banned by the freestanding subset -- $label (RFC-0003 section 3)" >&2
-            echo "$hits" | sed 's/^/    /' >&2
-            echo x >> "$RT_ROOT/obj/.lintfail"
-        fi
-    done
+# ONE GREP PER PATTERN, NOT ONE PER (FILE, PATTERN).
+#
+# The obvious nesting -- for each file, for each pattern -- spawns a subshell and
+# a grep per pair, and on Windows a process launch costs tens of milliseconds. At
+# 55 files and 12 patterns that is ~660 launches and it had grown to 1m50s of
+# wall clock, nearly all of it `sys`. Inverting the loops makes it 12 launches.
+#
+# The comment strip that `codelines` did per file is done here in awk instead,
+# on grep's `file:line:text` output, because grep is now reading every file at
+# once and there is no per-file hook left to put it in.
+FILES=$(rtfiles)
+echo "$BANNED" | while IFS='|' read -r label re; do
+    [ -z "$label" ] && continue
+    hits=$(grep -iEn "$re" $FILES 2>/dev/null            | awk -v q="'" '{ l=$0; sub(/^[^:]*:[0-9]+:/,"",l); sub(/^[ 	]+/,"",l);
+                             if( substr(l,1,1) != q ) print }'            | head -3)
+    if [ -n "$hits" ]; then
+        echo "lint: banned by the freestanding subset -- $label (RFC-0003 section 3)" >&2
+        echo "$hits" | sed 's/^/    /' >&2
+        echo x >> "$RT_ROOT/obj/.lintfail"
+    fi
 done
 
 # ------------------------------------------------------------- 3. export rule

@@ -47,3 +47,11 @@ ustr/convw.bas
 strw/convfrom_str.bas
 ustr/trim.bas
 ustr/slice.bas
+ustr/len.bas
+ustr/comp.bas
+ustr/tempres.bas
+ustr/case.bas
+ustr/concat.bas
+ustr/search.bas
+ustr/misc.bas
+ustr/assign.bas
