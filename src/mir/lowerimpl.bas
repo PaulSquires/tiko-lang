@@ -288,10 +288,21 @@ private sub DestroyMember_ _
         end if
         return
     end if
+    '' A DYNAMIC ARRAY FIELD IS ERASED THE WAY 'erase' ERASES ONE, which for an element
+    '' with structors means fb_ArrayEraseObj and the element's constructor and
+    '' destructor -- not the bare fb_ArrayErase this used to emit. Measured, the
+    '' generated destructor of a 'Box( of E )' holding an 'E' that declares both is
+    ''
+    ''     fb_ArrayEraseObj( THIS, (void*)&_ZN1EC1Ev, (void*)&_ZN1ED1Ev );
+    ''
+    '' -- and with the plain call NO ELEMENT WAS EVER DESTRUCTED, so every string an
+    '' element held leaked, in a destructor that verified and counted as lowered. The
+    '' LOCAL 'dim as E a( any )' already got this right; only the FIELD did not.
+    ''
+    '' EmitEraseDynAt_ is the same routine 'erase this.items' uses, so the two spellings
+    '' cannot drift apart again.
     if c.types->IsDynArray( ft ) then
-        dim as FB.Array( of ulong ) args
-        args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
-        EmitRtl( c, RTL_ARRAY_ERASE, args )
+        EmitEraseDynAt_( c, addr, ft )
         return
     end if
     if c.types->Kind( ft ) <> Tko.TK_UDT then return

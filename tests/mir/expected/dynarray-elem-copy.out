@@ -196,10 +196,10 @@ declare void _ZN4SBOXaSERKS_($0, $1)
 func void _ZN4SBOXD1Ev($0) {
   entry0:
     %1 = field.addr $0, 0
-    %2 = call.rtl i32 fb_ArrayErase(%1)
+    call.rtl void fb_ArrayStrErase(%1)
     ret
 }
-declare i32 fb_ArrayErase($0)
+declare void fb_ArrayStrErase($0)
 func void _ZN4EBOXC1Ev($0) {
   entry0:
     %1 = field.addr $0, 0
@@ -267,9 +267,12 @@ declare void _ZN4EBOXaSERKS_($0, $1)
 func void _ZN4EBOXD1Ev($0) {
   entry0:
     %1 = field.addr $0, 0
-    %2 = call.rtl i32 fb_ArrayErase(%1)
+    %2 = func.addr ptr _ZN1EC1Ev
+    %3 = func.addr ptr _ZN1ED1Ev
+    %4 = call.rtl i32 fb_ArrayEraseObj(%1, %2, %3)
     ret
 }
+declare i32 fb_ArrayEraseObj($0, $1, $2)
 func void _ZN4IBOXC1Ev($0) {
   entry0:
     %1 = field.addr $0, 0
@@ -340,6 +343,7 @@ func void _ZN4IBOXD1Ev($0) {
     %2 = call.rtl i32 fb_ArrayErase(%1)
     ret
 }
+declare i32 fb_ArrayErase($0)
 func void _ZN4SBOXaSERKS_($0, $1) {
   local ptr $tmp0
   local ptr $tmp1
@@ -473,4 +477,4 @@ func void _ZN5INNERaSERKS_($0, $1) {
     ret
 }
 verify: ok
-lowered: 21 functions, 27 blocks, 338 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 21 functions, 27 blocks, 340 insts, 0 statements not lowered, 0 scope imbalance

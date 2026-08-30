@@ -1,0 +1,184 @@
+func void _ZN1EC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = field.addr %3, 0
+    store %4, 0
+    %5 = field.addr %3, 8
+    store %5, 0
+    %6 = field.addr %3, 16
+    store %6, 0
+    ret
+}
+func void _ZN1ED1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    call.rtl void fb_StrDelete(%3)
+    ret
+}
+declare void fb_StrDelete($0)
+func void GO() {
+  local agg b size 80
+  local agg p size 72
+  entry0:
+    %1 = alloca ptr b
+    call void _ZN7BOX<23>C1Ev(@b)
+    call void _ZN7BOX<23>6SHRINKEv(@b)
+    %2 = alloca ptr p
+    call void _ZN5PLAINC1Ev(@p)
+    %3 = field.addr @p, 0
+    %4 = const i64 0
+    %5 = const i64 0
+    %6 = const i64 3
+    %7 = call.rtl i32 fb_ArrayRedimEx(%3, 8, -1, 0, 1, %5, %6)
+    call void _ZN5PLAIND1Ev(@p)
+    call void _ZN7BOX<23>D1Ev(@b)
+    ret
+}
+declare void _ZN7BOX<23>C1Ev($0)
+declare void _ZN7BOX<23>6SHRINKEv()
+declare void _ZN5PLAINC1Ev($0)
+declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
+declare void _ZN5PLAIND1Ev($0)
+declare void _ZN7BOX<23>D1Ev($0)
+func void _ZN7BOX<23>6SHRINKEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 72
+    %4 = load %3
+    %5 = const i64 0
+    %6 = sext %4
+    %7 = icmp.eq %6, %5
+    condbr %7, if.then2, if.else3
+  if.join1:
+    %13 = load @this
+    %14 = field.addr %13, 0
+    %15 = const i64 0
+    %16 = const i64 0
+    %17 = load @this
+    %18 = field.addr %17, 72
+    %19 = load %18
+    %20 = const i64 1
+    %21 = sext %19
+    %22 = sub %21, %20
+    %23 = func.addr ptr _ZN1EC1Ev
+    %24 = func.addr ptr _ZN1ED1Ev
+    %25 = call.rtl i32 fb_ArrayRedimPresvObj(%14, 24, %23, %24, 1, %16, %22)
+    ret
+  if.then2:
+    %8 = load @this
+    %9 = field.addr %8, 0
+    %10 = func.addr ptr _ZN1EC1Ev
+    %11 = func.addr ptr _ZN1ED1Ev
+    %12 = call.rtl i32 fb_ArrayEraseObj(%9, %10, %11)
+    ret
+  if.else3:
+    br if.join1
+}
+declare i32 fb_ArrayEraseObj($0, $1, $2)
+declare i32 fb_ArrayRedimPresvObj($0, $1, $2, $3, $4, $5)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void GO()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+func void _ZN7BOX<23>C1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const ptr 0
+    %3 = field.addr %1, 0
+    store %3, %2
+    %4 = field.addr %1, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr %1, 16
+    store %6, %5
+    %7 = const i64 24
+    %8 = field.addr %1, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr %1, 32
+    store %10, %9
+    %11 = const i64 17
+    %12 = field.addr %1, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr %1, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %1, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %1, 64
+    store %18, %17
+    ret
+}
+func void _ZN5PLAINC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const ptr 0
+    %3 = field.addr %1, 0
+    store %3, %2
+    %4 = field.addr %1, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr %1, 16
+    store %6, %5
+    %7 = const i64 8
+    %8 = field.addr %1, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr %1, 32
+    store %10, %9
+    %11 = const i64 17
+    %12 = field.addr %1, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr %1, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %1, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %1, 64
+    store %18, %17
+    ret
+}
+func void _ZN5PLAIND1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    ret
+}
+declare i32 fb_ArrayErase($0)
+func void _ZN7BOX<23>D1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = func.addr ptr _ZN1EC1Ev
+    %3 = func.addr ptr _ZN1ED1Ev
+    %4 = call.rtl i32 fb_ArrayEraseObj(%1, %2, %3)
+    ret
+}
+verify: ok
+lowered: 9 functions, 12 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance

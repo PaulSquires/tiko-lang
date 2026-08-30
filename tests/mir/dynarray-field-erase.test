@@ -1,0 +1,8 @@
+'' The implicit destructor of a type holding a dynamic array: fb_ArrayEraseObj with the
+'' element's structors when it has them, and the bare fb_ArrayErase when it does not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dynarray-field-erase.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/dynarray-field-erase.out
