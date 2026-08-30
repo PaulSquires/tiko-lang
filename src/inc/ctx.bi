@@ -170,4 +170,36 @@ type FB_OUTPROC    as function cdecl ( byval port as ushort, byval value as ubyt
 #define TKORT_HOOK_INPROC()     *cptr( FB_INPROC ptr,     @__fb_ctx_head + TKORT_HOOK_IN )
 #define TKORT_HOOK_OUTPROC()    *cptr( FB_OUTPROC ptr,    @__fb_ctx_head + TKORT_HOOK_OUT )
 
+'' THE REST OF THE TABLE, BY INDEX. Every slot is a pointer, so the address is
+'' base + index * pointer-width -- but that pattern was CHECKED, not assumed:
+'' eleven slots were read out of fbc's win32 objects (inkey 0, getkey 1, keyhit
+'' 2, cls 3, getsize 10, printbuff 11, printbuffw 12, in 17, out 18, sleep 23,
+'' isredir 24) and every one landed where the index says. hook_cls.o also shows
+'' 0xbc = 188 = fileTB(152) + line_length(36), confirming that pairing too.
+#if defined( __FB_64BIT__ )
+	#define TKORT_HOOK_AT( idx ) ( 72 + (idx) * 8 )
+#else
+	#define TKORT_HOOK_AT( idx ) ( 36 + (idx) * 4 )
+#endif
+
+'' The order is fb_hook.h's, and the index IS the contract -- a slot in the
+'' wrong place calls a real function through the wrong signature.
+#define TKORT_HK_CLS        TKORT_HOOK_AT( 3 )
+#define TKORT_HK_COLOR      TKORT_HOOK_AT( 4 )
+#define TKORT_HK_WIDTH      TKORT_HOOK_AT( 6 )
+#define TKORT_HK_GETX       TKORT_HOOK_AT( 7 )
+#define TKORT_HK_GETY       TKORT_HOOK_AT( 8 )
+#define TKORT_HK_GETXY      TKORT_HOOK_AT( 9 )
+#define TKORT_HK_GETSIZE    TKORT_HOOK_AT( 10 )
+#define TKORT_HK_MULTIKEY   TKORT_HOOK_AT( 14 )
+#define TKORT_HK_SETMOUSE   TKORT_HOOK_AT( 16 )
+#define TKORT_HK_VIEWUPDATE TKORT_HOOK_AT( 19 )
+#define TKORT_HK_READXY     TKORT_HOOK_AT( 22 )
+#define TKORT_HK_SLEEP      TKORT_HOOK_AT( 23 )
+#define TKORT_HK_ISREDIR    TKORT_HOOK_AT( 24 )
+#define TKORT_HK_PAGECOPY   TKORT_HOOK_AT( 25 )
+#define TKORT_HK_PAGESET    TKORT_HOOK_AT( 26 )
+
+#define TKORT_HOOKPTR( ty, off ) *cptr( ty ptr, @__fb_ctx_head + (off) )
+
 #endif '' __TKORT_CTX_BI__
