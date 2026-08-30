@@ -877,6 +877,11 @@ private sub ReadOperatorName _
     end if
 end sub
 
+
+
+
+
+
 private function ParseProc _
     ( byref p as Tko.ParserState, byval declareOnly as boolean ) as Tko.NodeId
 
@@ -901,6 +906,24 @@ private function ParseProc _
     dim as Tko.TokenKind kw = Peek( p )
     sp.op = cast( ushort, kw )
     Advance( p )
+
+    '' A CALLING CONVENTION SITS WHERE A CONSTRUCTOR'S NAME WOULD BE, and a
+    '' constructor has no name. 'declare constructor __thiscall ( )' is legal --
+    '' so are cdecl, stdcall and pascal, all four measured against fbc -- and the
+    '' name reader below accepts ANY keyword, so it took '__thiscall' as the name
+    '' and then as the OWNER: '__thiscall does not name a type here'. Eight corpus
+    '' files, and the file is lost from that line on.
+    ''
+    '' The convention is RECORDED here rather than merely eaten, because the loop
+    '' that normally records it runs AFTER the name -- which is where a SUB's
+    '' convention sits ('sub foo cdecl ( )') and where a structor's cannot.
+    '' ...AND SO DOES ALIAS, in the same place and for the same reason:
+    '' 'declare constructor cdecl alias "init"( )' is what structs/ctor_alias.bas
+    '' writes, and 'alias' was read as the owning type's name.
+    if (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR) then
+        while TakeProcPrefix_( p, sp, true )
+        wend
+    end if
 
     '' The name may be qualified ('Stack.Push') or absent (constructors).
     dim as boolean qualified = false
@@ -999,13 +1022,7 @@ private function ParseProc _
         '' The convention is RECORDED, not merely eaten. It decides the emitted name on
         '' win32 -- '_H@4' for stdcall against '_G' for cdecl -- and it is checked
         '' against the DECLARE prototype, which fbc refuses to contradict.
-        while Tko.IsCallConvKind( Peek( p ) )
-            select case Peek( p )
-            case Tko.KW_CDECL   : sp.extra or= Tko.PF_CDECL
-            case Tko.KW_STDCALL : sp.extra or= Tko.PF_STDCALL
-            case Tko.KW_PASCAL  : sp.extra or= Tko.PF_PASCAL
-            end select
-            Advance( p )
+        while TakeProcPrefix_( p, sp )
             ate = true
         wend
         if Accept( p, Tko.KW_OVERLOAD ) then

@@ -426,3 +426,34 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
 
     return ErrorNode( p, Tko.TKO0408 )
 end function
+
+'' A calling convention -- RECORDED, not eaten: it decides the win32 name -- and,
+'' with 'nameless', the OVERLOAD and ALIAS that may sit WHERE A NAME WOULD BE. A
+'' constructor has none, and the name reader accepts any keyword, so it took those
+'' as the name and then as the OWNING TYPE, losing the file from that line on.
+function TakeProcPrefix_ _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byval nameless as boolean = false ) as boolean
+    if Tko.IsCallConvKind( Peek( p ) ) then
+        select case Peek( p )
+        case Tko.KW_CDECL   : sp.extra or= Tko.PF_CDECL
+        case Tko.KW_STDCALL : sp.extra or= Tko.PF_STDCALL
+        case Tko.KW_PASCAL  : sp.extra or= Tko.PF_PASCAL
+        end select
+        Advance( p )
+        return true
+    end if
+    if nameless = false then return false
+    if Accept( p, Tko.KW_OVERLOAD ) then
+        sp.extra or= Tko.PF_OVERLOAD
+        return true
+    end if
+    if Accept( p, Tko.KW_ALIAS ) then
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            sp.aliasName = StringLitText( p )
+            Advance( p )
+        end if
+        return true
+    end if
+    return false
+end function

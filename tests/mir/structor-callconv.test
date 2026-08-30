@@ -1,0 +1,8 @@
+'' A constructor or destructor may carry a calling convention, OVERLOAD and ALIAS where
+'' its name would be -- it has none -- and none of those is the owning type.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/structor-callconv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/structor-callconv.out

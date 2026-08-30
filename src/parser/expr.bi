@@ -115,6 +115,12 @@ declare function ArgOrElided _
     declare function Cur( byref p as Tko.ParserState ) as Tko.Token
     declare sub Advance( byref p as Tko.ParserState )
     declare function Accept( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+    '' Lives in decltype.bas: a calling convention, and with 'nameless' the
+    '' OVERLOAD and ALIAS that may sit where a CONSTRUCTOR's name would be.
+    declare function TakeProcPrefix_ _
+        ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+          byval nameless as boolean = false ) as boolean
+
     declare function ErrorNode _
         ( byref p as Tko.ParserState, byval id as Tko.DiagId, _
           byval a0 as string = "" ) as Tko.NodeId
