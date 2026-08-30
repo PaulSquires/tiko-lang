@@ -73,3 +73,7 @@ math/misc.bas
 str/cvmk.bas
 io/file.bas
 io/file2.bas
+io/fileput.bas
+io/fileget.bas
+io/filestr.bas
+io/filewstr.bas

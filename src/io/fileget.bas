@@ -1,0 +1,217 @@
+'' fileget.bas -- the GET data path: six entry points, one fbc member.
+''
+'' The mirror of src/io/fileput.bas, plus the one thing PUT does not have: THE
+'' PUT-BACK BUFFER HAS TO BE DRAINED FIRST.
+''
+'' A read is satisfied from the put-back buffer before the device is touched, and
+'' only the shortfall goes to the hook. Four steps, in order:
+''
+''   1. take min( requested, pending ) from the buffer
+''   2. TRANSCODE if the buffer's width and the caller's differ -- the buffer
+''      holds wchar when the file is not ASCII, and the caller may want either
+''   3. shift what is left of the buffer down
+''   4. read the remainder from the device into the space after it
+''
+'' STEP 2 IS THE SUBTLE ONE. There are four combinations of (buffer wide, caller
+'' wide) and only two are a memcpy; the other two widen or narrow one element at
+'' a time. Getting the pairing backwards copies the right number of BYTES into
+'' the wrong number of CHARACTERS.
+''
+'' AND THE RANDOM SKIP DIFFERS FROM PUT'S. GET spends the skip against any
+'' pending put-back characters FIRST, because those stand for bytes the device
+'' has already advanced past; only the remainder becomes a seek. PUT needs no
+'' such adjustment because a write clears the buffer outright.
+
+#include once "inc/descriptors.bi"
+#include once "inc/file.bi"
+#include once "crt/string.bi"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_Lock alias "fb_Lock" ( )
+		declare sub fb_Unlock alias "fb_Unlock" ( )
+	end extern
+	#define IOLOCK()   fb_Lock()
+	#define IOUNLOCK() fb_Unlock()
+#else
+	#define IOLOCK()
+	#define IOUNLOCK()
+#endif
+
+const FB_RTERROR_OK = 0
+const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
+const FB_RTERROR_FILEIO = 3
+const FB_FILE_ENCOD_ASCII = 0
+const TKORT_SEEK_CUR = 1
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: the *Ex form takes a handle.
+	declare function tkrt_FileSeekEx alias "fb_FileSeekEx" _
+		( byval h as FB_FILE ptr, byval newpos as longint ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: fb_file.h declares these plainly.
+
+function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
+	( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+	  byval length as uinteger, byval bytesread as uinteger ptr, _
+	  byval adjust_rec_pos as long, byval is_unicode as long ) as long
+
+	if( TKORT_HANDLE_USED( h ) = 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+	if( pos_ < 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	IOLOCK()
+
+	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as uinteger chars = length
+	dim as uinteger read_chars = 0
+	dim as ubyte ptr pachData = cptr( ubyte ptr, dst )
+
+	if( pos_ > 0 ) then res = tkrt_FileSeekEx( h, pos_ )
+
+	if( h->putback_size <> 0 ) then
+
+		dim as uinteger bytes = chars
+		if( h->encod <> FB_FILE_ENCOD_ASCII ) then bytes = bytes * sizeof( wstring )
+		if( h->putback_size < bytes ) then bytes = h->putback_size
+
+		dim as ubyte ptr pb = @h->putback_buffer(0)
+
+		if( is_unicode = 0 ) then
+			if( h->encod = FB_FILE_ENCOD_ASCII ) then
+				memcpy( pachData, pb, bytes )
+			else
+				dim as wstring ptr wcp = cptr( wstring ptr, pb )
+				dim as uinteger n = bytes \ sizeof( wstring )
+				for i as uinteger = 0 to n - 1
+					dim as ulong ch = wcp[i]
+					pachData[i] = cast( ubyte, ch )
+				next
+			end if
+		else
+			if( h->encod <> FB_FILE_ENCOD_ASCII ) then
+				memcpy( pachData, pb, bytes )
+			else
+				dim as wstring ptr wcp = cptr( wstring ptr, pachData )
+				for i as uinteger = 0 to bytes - 1
+					wcp[i] = pb[i]
+				next
+			end if
+		end if
+
+		h->putback_size -= bytes
+		if( h->putback_size <> 0 ) then memmove( pb, pb + bytes, h->putback_size )
+
+		pachData += bytes
+		if( h->encod <> FB_FILE_ENCOD_ASCII ) then bytes = bytes \ sizeof( wstring )
+
+		read_chars = bytes
+		chars -= bytes
+
+	end if
+
+	if( (res = FB_RTERROR_OK) andalso (chars <> 0) ) then
+		if( is_unicode = 0 ) then
+			if( h->hooks->pfnRead = 0 ) then
+				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+			else
+				res = h->hooks->pfnRead( h, pachData, @chars )
+				read_chars += chars
+			end if
+		else
+			if( h->hooks->pfnReadWstr = 0 ) then
+				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+			else
+				res = h->hooks->pfnReadWstr( h, cptr( wstring ptr, pachData ), @chars )
+				read_chars += chars
+			end if
+		end if
+	end if
+
+	dim as integer do_skip = -1
+	if( h->mode <> FB_FILE_MODE_RANDOM ) then do_skip = 0
+	if( res <> FB_RTERROR_OK ) then do_skip = 0
+	if( adjust_rec_pos = 0 ) then do_skip = 0
+	if( h->reclen = 0 ) then do_skip = 0
+	if( h->hooks->pfnSeek = 0 ) then do_skip = 0
+
+	if( do_skip ) then
+		'' A RANDOM read must be exactly one record. A short one sets FILEIO and
+		'' the skip still runs -- the same shape as PUT.
+		if( length <> h->reclen ) then res = tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+
+		dim as uinteger got = read_chars
+		if( is_unicode <> 0 ) then got = read_chars * sizeof( wstring )
+		dim as longint skip_size = (h->reclen - (got mod h->reclen)) mod h->reclen
+
+		'' Spent against the put-back buffer before it becomes a seek.
+		if( skip_size <> 0 ) then
+			if( skip_size > h->putback_size ) then
+				skip_size -= h->putback_size
+				h->putback_size = 0
+			else
+				h->putback_size -= skip_size
+				skip_size = 0
+			end if
+		end if
+
+		if( skip_size <> 0 ) then h->hooks->pfnSeek( h, skip_size, TKORT_SEEK_CUR )
+	end if
+
+	if( bytesread <> 0 ) then *bytesread = read_chars
+
+	IOUNLOCK()
+
+	'' Re-establish the code: pfnSeek above may have reset it.
+	return tkrt_ErrorSetNum( res )
+
+end function
+
+function tkort_FileGetData alias "fb_FileGetData" _
+	( byval fnum as long, byval pos_ as longint, byval dst as any ptr, _
+	  byval chars as uinteger, byval adjust_rec_pos as long ) as long
+	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, _
+	                            0, adjust_rec_pos, 0 )
+end function
+
+end extern
+
+extern "rtlib"
+
+function tkort_FileGet alias "fb_FileGet" _
+	( byval fnum as long, byval pos_ as long, byval dst as any ptr, _
+	  byval chars as uinteger ) as long
+	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, 0, -1, 0 )
+end function
+
+function tkort_FileGetLarge alias "fb_FileGetLarge" _
+	( byval fnum as long, byval pos_ as longint, byval dst as any ptr, _
+	  byval chars as uinteger ) as long
+	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, 0, -1, 0 )
+end function
+
+'' The IOB forms differ only in REPORTING how much was actually read -- which is
+'' the only way a caller can tell a short read from a full one, since the return
+'' value is an error code and a partial read is not an error.
+function tkort_FileGetIOB alias "fb_FileGetIOB" _
+	( byval fnum as long, byval pos_ as long, byval dst as any ptr, _
+	  byval chars as uinteger, byval bytesread as uinteger ptr ) as long
+	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, _
+	                            bytesread, -1, 0 )
+end function
+
+function tkort_FileGetLargeIOB alias "fb_FileGetLargeIOB" _
+	( byval fnum as long, byval pos_ as longint, byval dst as any ptr, _
+	  byval chars as uinteger, byval bytesread as uinteger ptr ) as long
+	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, _
+	                            bytesread, -1, 0 )
+end function
+
+end extern
