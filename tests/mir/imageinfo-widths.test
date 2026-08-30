@@ -1,0 +1,8 @@
+'' imageinfo picks fb_GfxImageInfo32 for long outputs and fb_GfxImageInfo64 for integer
+'' ones, the way screeninfo and getmouse already did.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/imageinfo-widths.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/imageinfo-widths.out

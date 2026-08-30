@@ -1,4 +1,4 @@
-resolved: 11 references, 0 builtins, 0 unresolved, 210 type refs, 2 calls, 2 assignments
+resolved: 11 references, 0 builtins, 0 unresolved, 220 type refs, 2 calls, 2 assignments
   typeref #1 -> long
   typeref #5 -> long
   typeref #8 -> long
@@ -201,14 +201,24 @@ resolved: 11 references, 0 builtins, 0 unresolved, 210 type refs, 2 calls, 2 ass
   typeref #504 -> any ptr
   typeref #507 -> long
   typeref #510 -> long
-  typeref #512 -> long
+  typeref #512 -> any
+  typeref #513 -> any ptr
   typeref #515 -> integer
-  typeref #518 -> single
-  typeref #521 -> single
-  typeref #524 -> single
-  typeref #527 -> single
-  typeref #530 -> single
-  typeref #533 -> single
-  typeref #536 -> single
-  typeref #539 -> single
-  typeref #542 -> long
+  typeref #518 -> integer
+  typeref #521 -> integer
+  typeref #524 -> integer
+  typeref #527 -> any
+  typeref #528 -> any ptr
+  typeref #531 -> integer
+  typeref #534 -> long
+  typeref #536 -> long
+  typeref #539 -> integer
+  typeref #542 -> single
+  typeref #545 -> single
+  typeref #548 -> single
+  typeref #551 -> single
+  typeref #554 -> single
+  typeref #557 -> single
+  typeref #560 -> single
+  typeref #563 -> single
+  typeref #566 -> long
