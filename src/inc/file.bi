@@ -43,30 +43,52 @@
 
 #include once "inc/descriptors.bi"
 
+'' Forward: the hook signatures name FB_FILE and FB_FILE names the hook table.
+type FB_FILE as FB_FILE_
+
 '' The hook table. Fourteen function pointers, and the ORDER is the contract --
 '' an entry point that calls the wrong slot calls a real function with the wrong
 '' signature, which is a crash at best.
+''
+'' TYPED, not `any ptr`. The dispatchers in src/io/file.bas call these directly,
+'' and a wrong signature here is a wrong calling sequence at every call site
+'' rather than a compile error at one.
+type FnFileEof         as function cdecl ( byval h as FB_FILE ptr ) as long
+type FnFileClose       as function cdecl ( byval h as FB_FILE ptr ) as long
+type FnFileSeek        as function cdecl ( byval h as FB_FILE ptr, byval offset as longint, byval whence as long ) as long
+type FnFileTell        as function cdecl ( byval h as FB_FILE ptr, byval pOffset as longint ptr ) as long
+type FnFileRead        as function cdecl ( byval h as FB_FILE ptr, byval value as any ptr, byval pLen as uinteger ptr ) as long
+type FnFileReadWstr    as function cdecl ( byval h as FB_FILE ptr, byval value as wstring ptr, byval pLen as uinteger ptr ) as long
+type FnFileWrite       as function cdecl ( byval h as FB_FILE ptr, byval value as any ptr, byval length as uinteger ) as long
+type FnFileWriteWstr   as function cdecl ( byval h as FB_FILE ptr, byval value as wstring ptr, byval length as uinteger ) as long
+type FnFileLock        as function cdecl ( byval h as FB_FILE ptr, byval pos as longint, byval size as longint ) as long
+type FnFileUnlock      as function cdecl ( byval h as FB_FILE ptr, byval pos as longint, byval size as longint ) as long
+type FnFileReadLine    as function cdecl ( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+type FnFileReadLineWstr as function cdecl ( byval h as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
+type FnFileSetWidth    as function cdecl ( byval h as FB_FILE ptr, byval new_width as long ) as long
+type FnFileFlush       as function cdecl ( byval h as FB_FILE ptr ) as long
+
 type FB_FILE_HOOKS
-	as any ptr pfnEof
-	as any ptr pfnClose
-	as any ptr pfnSeek
-	as any ptr pfnTell
-	as any ptr pfnRead
-	as any ptr pfnReadWstr
-	as any ptr pfnWrite
-	as any ptr pfnWriteWstr
-	as any ptr pfnLock
-	as any ptr pfnUnlock
-	as any ptr pfnReadLine
-	as any ptr pfnReadLineWstr
-	as any ptr pfnSetWidth
-	as any ptr pfnFlush
+	as FnFileEof           pfnEof
+	as FnFileClose         pfnClose
+	as FnFileSeek          pfnSeek
+	as FnFileTell          pfnTell
+	as FnFileRead          pfnRead
+	as FnFileReadWstr      pfnReadWstr
+	as FnFileWrite         pfnWrite
+	as FnFileWriteWstr     pfnWriteWstr
+	as FnFileLock          pfnLock
+	as FnFileUnlock        pfnUnlock
+	as FnFileReadLine      pfnReadLine
+	as FnFileReadLineWstr  pfnReadLineWstr
+	as FnFileSetWidth      pfnSetWidth
+	as FnFileFlush         pfnFlush
 end type
 
 '' NOT byte-packed: this mirrors a struct the C compiler laid out, and packing it
 '' is the mistake that put __fb_ctx.null_desc four bytes early in inc/ctx.bi and
 '' returned a pointer into the middle of a descriptor.
-type FB_FILE
+type FB_FILE_
 	as long      mode
 	'' fbc calls this `len`; it is the RECORD length for RANDOM files, and it is
 	'' a C `int` -- genuinely 32-bit, not a pointer-width length. Named reclen
@@ -153,5 +175,18 @@ const FB_MAX_FILES = FB_RESERVED_FILES + 255
 	          iif( TKORT_FILE_INDEX_VALID( n ), _
 	               TKORT_FILETB() + ((n) - 1 + FB_RESERVED_FILES), _
 	               cptr( FB_FILE ptr, 0 ) ) ) )
+
+'' The open modes, and the test every dispatcher starts with.
+''
+'' FB_HANDLE_USED IS A HOOKS CHECK, NOT A NULL CHECK: a handle in the table that
+'' was never opened has a null hooks pointer, and calling through it is the
+'' crash the test exists to prevent.
+const FB_FILE_MODE_BINARY = 0
+const FB_FILE_MODE_RANDOM = 1
+const FB_FILE_MODE_INPUT  = 2
+const FB_FILE_MODE_OUTPUT = 3
+const FB_FILE_MODE_APPEND = 4
+
+#define TKORT_HANDLE_USED( h ) ( ((h) <> 0) andalso ((h)->hooks <> 0) )
 
 #endif '' __TKORT_FILE_BI__
