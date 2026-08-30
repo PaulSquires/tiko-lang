@@ -72,3 +72,4 @@ io/print_wstr.bas
 math/misc.bas
 str/cvmk.bas
 io/file.bas
+io/file2.bas
