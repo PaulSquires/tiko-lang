@@ -10,6 +10,12 @@ namespace Tko.Mir
 
 using Tko
 
+'' Defined in lowerwstr.bas. A WIDE result is an allocation the caller owns, and
+'' this is what parks it in a temporary and registers that for its fb_WstrDelete.
+declare function WideConcatStep_ _
+    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+      byref acc as MirValue ) as boolean
+
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
@@ -399,6 +405,14 @@ function LowerRadixCall_ _
         n1 = Coerce( c, n1, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
         args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
     end if
+
+    '' THE WIDE HALF RETURNS AN ALLOCATION THE CALLER OWNS. Measured:
+    '' 's = whex( 42 )' into a narrow string is 'vr = fb_WstrHex_l( 42 );
+    '' fb_WstrAssignToA( &S, -1, vr, 0 ); fb_WstrDelete( vr )', and EmitRtl alone
+    '' dropped the pointer -- so every whex, woct and wbin leaked one temporary.
+    '' The narrow half hands back a temp DESCRIPTOR and is released elsewhere; only
+    '' the wide one goes through here.
+    if wide then return WideConcatStep_( c, args, r, outv )
 
     outv = EmitRtl( c, r, args )
     return (outv.kind <> cast( ubyte, MV_NONE ))

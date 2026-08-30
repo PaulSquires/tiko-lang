@@ -761,12 +761,25 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         dim as MirValue sd
                         dim as boolean released = false
                         if TermIsWide_( c, sp->a ) then
+                            '' ...UNLESS THE OPERAND REGISTERED ITSELF. The wide
+                            '' radix family now parks its result in a statement
+                            '' temporary, so the flush at the end of LowerStmt
+                            '' already releases it -- and emitting one here as well
+                            '' is a DOUBLE FREE. 'whex( i )' as a discarded
+                            '' statement is one fb_WstrDelete to fbc and became two.
+                            '' The count is what says which: WideOperand_ pushes
+                            '' onto wstrTemps exactly when it took ownership.
+                            dim as long wtBefore = c.wstrTemps.Count
                             if WideOperand_( c, sp->a, sd ) then
-                                dim as FB.Array( of ulong ) wa
-                                wa.Push( cast( ulong, sd.kind ) )
-                                wa.Push( cast( ulong, sd.id ) )
-                                EmitRtl( c, RTL_WSTR_DELETE, wa )
-                                released = true
+                                if c.wstrTemps.Count > wtBefore then
+                                    released = true
+                                else
+                                    dim as FB.Array( of ulong ) wa
+                                    wa.Push( cast( ulong, sd.kind ) )
+                                    wa.Push( cast( ulong, sd.id ) )
+                                    EmitRtl( c, RTL_WSTR_DELETE, wa )
+                                    released = true
+                                end if
                             end if
                         elseif StrDescriptorOf_( c, sp->a, sd ) then
                             dim as FB.Array( of ulong ) da

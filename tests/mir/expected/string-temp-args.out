@@ -51,8 +51,10 @@ func i32 main($0, $1) {
   local agg w size 16
   local agg $tmp2 size 24
   local agg $tmp3 size 24
-  local agg $tmp4 size 24
+  local ptr $tmp4
   local agg $tmp5 size 24
+  local agg $tmp6 size 24
+  local ptr $tmp7
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -83,44 +85,54 @@ func i32 main($0, $1) {
     store %17, 0
     %18 = const i64 255
     %19 = call.rtl ptr fb_WstrHex_l(%18)
-    %20 = call.rtl ptr fb_WstrAssignToA(@$tmp3, -1, %19, 0)
-    %21 = const i64 0
-    call void TAKEBYVALSTRING(@$tmp3, %21)
+    %20 = alloca ptr $tmp4
+    store @$tmp4, %19
+    %21 = load @$tmp4
+    %22 = call.rtl ptr fb_WstrAssignToA(@$tmp3, -1, %21, 0)
+    %23 = const i64 0
+    call void TAKEBYVALSTRING(@$tmp3, %23)
     call.rtl void fb_StrDelete(@$tmp3)
-    %22 = const i64 255
-    %23 = call.rtl ptr fb_HEX_l(%22)
-    %24 = alloca ptr $tmp4
-    %25 = field.addr @$tmp4, 0
-    store %25, 0
-    %26 = field.addr @$tmp4, 8
-    store %26, 0
-    %27 = field.addr @$tmp4, 16
-    store %27, 0
-    %28 = call.rtl ptr fb_StrAssign(@$tmp4, -1, %23, -1, 0)
-    %29 = load @$tmp4
-    %30 = const i64 0
-    call void TAKEZSTRINGPTR(%29, %30)
-    call.rtl void fb_StrDelete(@$tmp4)
-    %31 = alloca ptr $tmp5
-    %32 = field.addr @$tmp5, 0
-    store %32, 0
-    %33 = field.addr @$tmp5, 8
-    store %33, 0
-    %34 = field.addr @$tmp5, 16
-    store %34, 0
-    %35 = call.rtl ptr fb_WstrAssignToA(@$tmp5, -1, @w, 0)
-    %36 = load @$tmp5
-    %37 = const i64 0
-    call void TAKEZSTRINGPTR(%36, %37)
+    %24 = load @$tmp4
+    call.rtl void fb_WstrDelete(%24)
+    %25 = const i64 255
+    %26 = call.rtl ptr fb_HEX_l(%25)
+    %27 = alloca ptr $tmp5
+    %28 = field.addr @$tmp5, 0
+    store %28, 0
+    %29 = field.addr @$tmp5, 8
+    store %29, 0
+    %30 = field.addr @$tmp5, 16
+    store %30, 0
+    %31 = call.rtl ptr fb_StrAssign(@$tmp5, -1, %26, -1, 0)
+    %32 = load @$tmp5
+    %33 = const i64 0
+    call void TAKEZSTRINGPTR(%32, %33)
     call.rtl void fb_StrDelete(@$tmp5)
-    %38 = const i64 255
-    %39 = call.rtl ptr fb_WstrHex_l(%38)
+    %34 = alloca ptr $tmp6
+    %35 = field.addr @$tmp6, 0
+    store %35, 0
+    %36 = field.addr @$tmp6, 8
+    store %36, 0
+    %37 = field.addr @$tmp6, 16
+    store %37, 0
+    %38 = call.rtl ptr fb_WstrAssignToA(@$tmp6, -1, @w, 0)
+    %39 = load @$tmp6
     %40 = const i64 0
-    call void TAKEWSTRINGPTR(%39, %40)
-    %41 = const i32 0
-    call.rtl void fb_End(%41)
-    %42 = load @$tmp0
-    ret %42
+    call void TAKEZSTRINGPTR(%39, %40)
+    call.rtl void fb_StrDelete(@$tmp6)
+    %41 = const i64 255
+    %42 = call.rtl ptr fb_WstrHex_l(%41)
+    %43 = alloca ptr $tmp7
+    store @$tmp7, %42
+    %44 = load @$tmp7
+    %45 = const i64 0
+    call void TAKEWSTRINGPTR(%44, %45)
+    %46 = load @$tmp7
+    call.rtl void fb_WstrDelete(%46)
+    %47 = const i32 0
+    call.rtl void fb_End(%47)
+    %48 = load @$tmp0
+    ret %48
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrAssign($0, $1, $2)
@@ -129,6 +141,7 @@ declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare void fb_StrDelete($0)
 declare ptr fb_WstrHex_l($0)
 declare ptr fb_WstrAssignToA($0, $1, $2, $3)
+declare void fb_WstrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 4 functions, 4 blocks, 91 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 101 insts, 0 statements not lowered, 0 scope imbalance

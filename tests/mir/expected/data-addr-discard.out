@@ -6,6 +6,7 @@ func i32 main($0, $1) {
   local i32 $tmp0
   local ptr p
   local i32 i
+  local ptr $tmp3
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -15,6 +16,7 @@ func i32 main($0, $1) {
     call.rtl void fb_DataRestore(@@$data3)
     %4 = alloca ptr p
     %10 = alloca ptr i
+    %18 = alloca ptr $tmp3
     br lbl.mydata1
   lbl.mydata1:
     call.rtl void fb_DataRestore(@@$data3)
@@ -33,14 +35,17 @@ func i32 main($0, $1) {
     %15 = call.rtl i32 fb_hStrDelTemp(%14)
     %16 = load @i
     %17 = call.rtl ptr fb_WstrHex_i(%16)
-    call.rtl void fb_WstrDelete(%17)
-    %18 = load @i
-    %19 = call.rtl ptr fb_HEX_i(%18)
-    call.rtl void fb_PrintString(0, %19, 1)
-    %20 = const i32 0
-    call.rtl void fb_End(%20)
-    %21 = load @$tmp0
-    ret %21
+    store @$tmp3, %17
+    %19 = load @$tmp3
+    %20 = load @$tmp3
+    call.rtl void fb_WstrDelete(%20)
+    %21 = load @i
+    %22 = call.rtl ptr fb_HEX_i(%21)
+    call.rtl void fb_PrintString(0, %22, 1)
+    %23 = const i32 0
+    call.rtl void fb_End(%23)
+    %24 = load @$tmp0
+    ret %24
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_DataRestore($0)
@@ -53,4 +58,4 @@ declare void fb_WstrDelete($0)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 2 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 2 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance
