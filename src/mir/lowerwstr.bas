@@ -937,6 +937,53 @@ private function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
       byref outText as string, byref outUnits as FB.Array( of ulong ) ) as boolean
 
+    '' A NAMED CONSTANT IS ITS INITIALISER. 'const TV = wchr( 256, 257 )' then
+    '' 'dim as wstring * 32 s = TV' -- only an N_STRING_LIT was read here, so the
+    '' constant fell through to the NARROW folder, whose carrier is a byte string
+    '' and which declines a code above 255. Reading it here gives the units
+    '' directly, which is what the wide global holds anyway.
+    if (c.ast->Kind( id ) = Tko.N_IDENT) orelse (c.ast->Kind( id ) = Tko.N_MEMBER) then
+        dim as Tko.Symbol ptr wcs = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if wcs = 0 then return false
+        if wcs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+        if (wcs->flags and Tko.SYMF_BUILTIN) <> 0 then return false
+        if wcs->payload = 0 then return false
+        dim as Tko.NodeId witem = cast( Tko.NodeId, wcs->payload )
+        if c.ast->Kind( witem ) <> Tko.N_VAR_ITEM then return false
+        return WideLitUnits_( c, StmtOf( c, witem )->b, outText, outUnits )
+    end if
+
+    '' 'wchr( a, b, c )' IS A WIDE LITERAL, one unit per code, and a code ABOVE 255
+    '' is the whole point of writing it: 'wchr( 256, 257, 258 )' is three units the
+    '' narrow carrier cannot hold, so it declined there and the statement went with
+    '' it. wstring/wchr.bas is two of those.
+    if c.ast->Kind( id ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr wcp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if wcp->target = Tko.NODE_NONE then return false
+        if c.ast->Kind( wcp->target ) <> Tko.N_IDENT then return false
+        dim as Tko.IdentPayload ptr wip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, wcp->target )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) <> "wchr" then
+            return false
+        end if
+        if wcp->count < 1 then return false
+        dim as string wkey = ""
+        for i as long = 0 to wcp->count - 1
+            dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->children[wcp->first + i] )
+            dim as Tko.Check.ConstVal wv = Tko.Check.ConstOf( _
+                *c.ast, wa, *c.srcMgr, *c.names, 64, c.syms, Tko.SCOPE_GLOBAL )
+            if wv.known = false then return false
+            if (wv.value < 0) orelse (wv.value > 65535) then return false
+            outUnits.Push( cast( ulong, wv.value ) )
+            '' The MERGE KEY, and it has to separate two literals with different
+            '' units -- AddWideStringUnits dedups on this text, not on the units.
+            wkey += "\u" & hex( cast( long, wv.value ), 4 )
+        next
+        outText = wkey
+        return true
+    end if
+
     if c.ast->Kind( id ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = _
         @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -1046,6 +1093,18 @@ function WideOperand_ _
     '' below claimed it and then asked for one. Every use of a wide constant declined.
     if (c.ast->Kind( id ) = Tko.N_IDENT) orelse (c.ast->Kind( id ) = Tko.N_MEMBER) then
         if IsWideString_( c, c.info->TypeOf_( id ) ) then
+            '' THE UNITS FIRST, because ConstStringTextOf_'s carrier is a BYTE
+            '' string: 'const TV = wchr( 256, 257, 258 )' has no byte spelling and
+            '' declined there, taking the assignment with it. WideLitUnits_ reads
+            '' the constant's initialiser and hands back real code units.
+            dim as string wut
+            dim as FB.Array( of ulong ) wuu
+            if WideLitUnits_( c, id, wut, wuu ) then
+                outv.kind = cast( ubyte, MV_GLOBAL )
+                outv.ty = cast( ubyte, MT_PTR )
+                outv.id = c.m->AddWideStringUnits( wut, wuu, *c.names )
+                return true
+            end if
             dim as string wct
             if ConstStringTextOf_( c, id, wct ) then
                 outv.kind = cast( ubyte, MV_GLOBAL )

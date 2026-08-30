@@ -1,0 +1,8 @@
+'' A 'wchr' constant reaches the wide literal pool as code units, so a code above 255
+'' no longer declines.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wchr-const-wide.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wchr-const-wide.out

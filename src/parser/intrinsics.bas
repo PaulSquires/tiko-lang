@@ -620,6 +620,41 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
         EndOfStatement( p )
 
     case else
+        '' LSET AND RSET TAKE AN ASSIGNMENT, and '=>' spells one. Measured: fbc
+        '' compiles 'lset s => "x"' and 'rset s => "x"' and both pad exactly as the
+        '' '=' spelling does, while 'if x => 3 then' is fbc error 31 -- so '=>' is an
+        '' ASSIGNMENT token and never a comparison, and it does NOT belong in the
+        '' infix precedence table beside '='.
+        ''
+        '' The '=' form needs nothing here: Expression reads 's = "x"' as one
+        '' N_BINARY, which is what LowerLrset expects. The arrow has no infix entry,
+        '' so the expression stopped at 's' and the rest of the line was dropped
+        '' SILENTLY -- quirk/assignment-token.bas writes one of each.
+        ''
+        '' Built as TK_EQ, because that is what it means and what the lowering reads.
+        if (k = Tko.KW_LSET) orelse (k = Tko.KW_RSET) then
+            dim as Tko.NodeId lrLhs = Expression( p )
+            dim as Tko.NodeIdVec lrItems
+            if Peek( p ) = Tko.TK_FATARROW then
+                dim as Tko.Token lrAt = Cur( p )
+                Advance( p )
+                dim as Tko.BinaryPayload lrBp
+                lrBp.op = cast( ushort, Tko.TK_EQ )
+                lrBp.lhs = lrLhs
+                lrBp.rhs = Expression( p )
+                p.ast->binaries.Push( lrBp )
+                lrLhs = NewNodeAt( p, Tko.N_BINARY, lrAt.loc, _
+                                    cast( ulong, p.ast->binaries.Count - 1 ) )
+            end if
+            lrItems.Push( cast( ulong, lrLhs ) )
+            sp.first = p.ast->children.Count
+            sp.count = lrItems.Count
+            for i as long = 0 to lrItems.Count - 1
+                p.ast->children.Push( lrItems[i] )
+            next
+            return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
+        end if
+
         '' THE COORDINATE-SYNTAX STATEMENTS have a grammar of their own -- see gfx.bas.
         '' '(x,y)-(x,y)' was parsed as an expression, which made it a BINARY MINUS of
         '' two tuples, and 'step(1,2)' a CALL to a procedure named 'step'. Faithful to

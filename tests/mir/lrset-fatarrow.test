@@ -1,0 +1,7 @@
+'' '=>' is an assignment in LSET and RSET, exactly as '=' is.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lrset-fatarrow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/lrset-fatarrow.out
