@@ -1,0 +1,7 @@
+'' PUT's ten blenders, one per mode, with ADD and CUSTOM among them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/put-modes.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/put-modes.out

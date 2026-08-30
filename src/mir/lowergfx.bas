@@ -461,6 +461,9 @@ private function PutBlender( byval mode as long ) as RtlId
     case 4 : return RTL_GFX_PUT_OR
     case 5 : return RTL_GFX_PUT_XOR
     case 6 : return RTL_GFX_PUT_ALPHA
+    '' ADD had NO ROW and fell to the default below, so 'put ..., add' blended
+    '' with XOR. Measured: fbc emits fb_hPutAdd.
+    case 7 : return RTL_H_PUT_ADD
     case 8 : return RTL_GFX_PUT_CUSTOM
     case 9 : return RTL_GFX_PUT_BLEND
     end select
@@ -487,9 +490,11 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if src.kind = cast( ubyte, MV_NONE ) then return false
     src = Coerce( c, src, MT_PTR )
 
+    '' THE MODE IS m+1 IN FOUR BITS and 0 means none was written -- see
+    '' GfxPutMode. The default is XOR.
     dim as long mode = 5
     dim as long mbits = cast( long, (sp->extra shr 12) and &hF )
-    if (mbits and 8) <> 0 then mode = (mbits and 7)
+    if mbits <> 0 then mode = mbits - 1
 
     '' ALPHA with a level is mode 9; CUSTOM takes a procedure pointer instead. They
     '' share the slot because no form has both.

@@ -408,11 +408,18 @@ function GfxPutMode( byref p as Tko.ParserState ) as ushort
     case "or"     : m = 4
     case "xor"    : m = 5
     case "alpha"  : m = 6
+    case "add"    : m = 7
     case "custom" : m = 8
     end select
     if m < 0 then return 0
     Advance( p )
-    return cast( ushort, m ) or &h8
+    '' ENCODED AS m+1 IN FOUR BITS, with 0 meaning 'no mode written'.
+    '' It used to be 'm or &h8' -- a three-bit value with the fourth bit as the
+    '' present flag -- which cannot hold 8. CUSTOM is 8, so 'm or &h8' was 8,
+    '' and the reader's 'm and 7' turned it back into 0: every
+    '' 'put ..., custom, @cb' blended as TRANS. ADD is 7 and did not fit
+    '' either once CUSTOM had taken the flag bit's value.
+    return cast( ushort, m + 1 )
 end function
 
 '' PALETTE, in its three forms:
