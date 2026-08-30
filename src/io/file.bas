@@ -43,13 +43,7 @@ extern "rtlib"
 	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
 end extern
 
-'' THE INTERNAL CODE IS 1, NOT 5. FB_RTERROR is fbc's own enum and
-'' ILLEGALFUNCTIONCALL is simply its second member; the 5 that BASIC's ERR
-'' reports is a SEPARATE mapping applied later. Guessing the BASIC number here
-'' would have set FB_RTERROR_OUTOFMEM on every failed seek -- a wrong error, not
-'' a missing one.
-const FB_RTERROR_OK = 0
-const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
+#include once "inc/rterror.bi"
 
 '' The C library's whence values, not FreeBASIC's -- these go straight to the
 '' hook, which is C.
