@@ -1,0 +1,194 @@
+'' read.bas -- the READ statement's data readers: twelve entry points over
+'' twelve fbc members.
+''
+'' Each takes the next DATA item and converts it to the destination's type. The
+'' item list -- __fb_data_ptr and fb_DataNext -- stays fbc's; this module is the
+'' per-type CONVERSION.
+''
+'' ================================================== THREE KINDS OF ITEM
+''
+'' The descriptor is a 16-bit length and a union, and THE LENGTH ENCODES WHICH
+'' ARM OF THE UNION IS LIVE:
+''
+''     len = -2 (FB_DATATYPE_OFS)   an ADDRESS, not text -- a label reference,
+''                                  taken as an integer
+''     len & 0x8000                 a WSTRING, real length len & 0x7FFF
+''     otherwise                    a ZSTRING of exactly that length
+''
+'' SO THE TOP BIT IS BOTH A FLAG AND PART OF THE LENGTH, which is why the wide
+'' arm masks and the narrow arm does not. Reading len raw for a wstring gives a
+'' length above 32768 and walks off the end.
+''
+'' THE DESCRIPTOR IS PACKED -- fb_data.h marks it FBPACKED -- so the pointer
+'' follows the 16-bit length with no alignment padding.
+''
+'' RUNNING OUT IS NOT AN ERROR: every reader still assigns, 0 for the numerics
+'' and an EMPTY STRING for the string forms. READ past the end does not leave
+'' the destination alone.
+
+#include once "inc/descriptors.bi"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_Lock alias "fb_Lock" ( )
+		declare sub fb_Unlock alias "fb_Unlock" ( )
+	end extern
+	#define IOLOCK()   fb_Lock()
+	#define IOUNLOCK() fb_Unlock()
+#else
+	#define IOLOCK()
+	#define IOUNLOCK()
+#endif
+
+type FB_DATADESC field = 1
+	as short    length
+	as any ptr  item      '' zstr / wstr / ofs / next, chosen by `length`
+end type
+
+const FB_DATATYPE_OFS  = -2
+const FB_DATATYPE_WSTR = &h8000
+const FB_DATATYPE_LENMASK = &h7FFF
+
+extern "c"   '' NON-FBCALL: the list cursor is DATA and its advance is plain.
+	extern __fb_data_ptr alias "__fb_data_ptr" as FB_DATADESC ptr
+	declare sub tkrt_DataNext alias "fb_DataNext" ( )
+end extern
+
+extern "rtlib"
+	declare function tkrt_Str2Int alias "fb_hStr2Int" ( byval s as zstring ptr, byval n as integer ) as long
+	declare function tkrt_Str2UInt alias "fb_hStr2UInt" ( byval s as zstring ptr, byval n as integer ) as ulong
+	declare function tkrt_Str2Longint alias "fb_hStr2Longint" ( byval s as zstring ptr, byval n as integer ) as longint
+	declare function tkrt_Str2ULongint alias "fb_hStr2ULongint" ( byval s as zstring ptr, byval n as integer ) as ulongint
+	declare function tkrt_Str2Double alias "fb_hStr2Double" ( byval s as zstring ptr, byval n as integer ) as double
+	declare function tkrt_Str2Bool alias "fb_hStr2Bool" ( byval s as zstring ptr, byval n as integer ) as long
+	declare function tkrt_WstrToInt alias "fb_WstrToInt" ( byval s as wstring ptr, byval n as integer ) as long
+	declare function tkrt_WstrToUInt alias "fb_WstrToUInt" ( byval s as wstring ptr, byval n as integer ) as ulong
+	declare function tkrt_WstrToLongint alias "fb_WstrToLongint" ( byval s as wstring ptr, byval n as integer ) as longint
+	declare function tkrt_WstrToULongint alias "fb_WstrToULongint" ( byval s as wstring ptr, byval n as integer ) as ulongint
+	declare function tkrt_WstrToDouble alias "fb_WstrToDouble" ( byval s as wstring ptr, byval n as integer ) as double
+	declare function tkrt_WstrToBool alias "fb_WstrToBool" ( byval s as wstring ptr, byval n as integer ) as byte
+	declare function tkrt_StrAssign alias "fb_StrAssign" _
+		( byval dst as any ptr, byval dst_size as integer, byval src as any ptr, _
+		  byval src_size as integer, byval fill_rem as long ) as any ptr
+	declare function tkrt_WstrAssign alias "fb_WstrAssign" _
+		( byval dst as wstring ptr, byval dst_chars as integer, byval src as wstring ptr ) as wstring ptr
+	declare function tkrt_WstrAssignToA alias "fb_WstrAssignToA" _
+		( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
+		  byval fill_rem as long ) as any ptr
+	declare function tkrt_WstrAssignFromA alias "fb_WstrAssignFromA" _
+		( byval dst as wstring ptr, byval dst_chars as integer, byval src as any ptr, _
+		  byval src_size as integer ) as wstring ptr
+end extern
+
+'' The three arms, once. `wfn` takes the MASKED length; `zfn` takes it raw.
+#macro DATA_READ_NUM( dst, ty, zfn, wfn, zero )
+	IOLOCK()
+	if( __fb_data_ptr <> 0 ) then
+		dim as short ln = __fb_data_ptr->length
+		if( ln = FB_DATATYPE_OFS ) then
+			*dst = cast( ty, cast( uinteger, __fb_data_ptr->item ) )
+		elseif( (ln and FB_DATATYPE_WSTR) <> 0 ) then
+			*dst = cast( ty, wfn( cptr( wstring ptr, __fb_data_ptr->item ), _
+			                      ln and FB_DATATYPE_LENMASK ) )
+		else
+			*dst = cast( ty, zfn( cptr( zstring ptr, __fb_data_ptr->item ), ln ) )
+		end if
+	else
+		*dst = zero
+	end if
+	tkrt_DataNext( )
+	IOUNLOCK()
+#endmacro
+
+extern "rtlib"
+
+sub tkort_DataReadByte alias "fb_DataReadByte" ( byval dst as byte ptr )
+	DATA_READ_NUM( dst, byte, tkrt_Str2Int, tkrt_WstrToInt, 0 )
+end sub
+sub tkort_DataReadUByte alias "fb_DataReadUByte" ( byval dst as ubyte ptr )
+	DATA_READ_NUM( dst, ubyte, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
+end sub
+sub tkort_DataReadShort alias "fb_DataReadShort" ( byval dst as short ptr )
+	DATA_READ_NUM( dst, short, tkrt_Str2Int, tkrt_WstrToInt, 0 )
+end sub
+sub tkort_DataReadUShort alias "fb_DataReadUShort" ( byval dst as ushort ptr )
+	DATA_READ_NUM( dst, ushort, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
+end sub
+sub tkort_DataReadInt alias "fb_DataReadInt" ( byval dst as long ptr )
+	DATA_READ_NUM( dst, long, tkrt_Str2Int, tkrt_WstrToInt, 0 )
+end sub
+sub tkort_DataReadUInt alias "fb_DataReadUInt" ( byval dst as ulong ptr )
+	DATA_READ_NUM( dst, ulong, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
+end sub
+sub tkort_DataReadLongint alias "fb_DataReadLongint" ( byval dst as longint ptr )
+	DATA_READ_NUM( dst, longint, tkrt_Str2Longint, tkrt_WstrToLongint, 0 )
+end sub
+sub tkort_DataReadULongint alias "fb_DataReadULongint" ( byval dst as ulongint ptr )
+	DATA_READ_NUM( dst, ulongint, tkrt_Str2ULongint, tkrt_WstrToULongint, 0 )
+end sub
+sub tkort_DataReadSingle alias "fb_DataReadSingle" ( byval dst as single ptr )
+	DATA_READ_NUM( dst, single, tkrt_Str2Double, tkrt_WstrToDouble, 0.0 )
+end sub
+sub tkort_DataReadDouble alias "fb_DataReadDouble" ( byval dst as double ptr )
+	DATA_READ_NUM( dst, double, tkrt_Str2Double, tkrt_WstrToDouble, 0.0 )
+end sub
+sub tkort_DataReadBool alias "fb_DataReadBool" ( byval dst as byte ptr )
+	DATA_READ_NUM( dst, byte, tkrt_Str2Bool, tkrt_WstrToBool, 0 )
+end sub
+
+end extern
+
+'' The string forms go through the ordinary assigns, so padding and clamping
+'' happen in one place.
+''
+'' THE OFS ARM IS UNIMPLEMENTED IN fbc -- its source says only "!!!WRITEME!!!" --
+'' so READing a label reference into a string leaves the destination UNTOUCHED,
+'' not empty. Reproduced: writing something sensible here would be a divergence
+'' rather than a fix, and it is the one arm where "no more DATA" and "this item"
+'' behave differently.
+
+extern "rtlib"
+
+sub tkort_DataReadStr alias "fb_DataReadStr" _
+	( byval dst as any ptr, byval dst_size as integer, byval fillrem as long )
+	IOLOCK()
+	if( __fb_data_ptr <> 0 ) then
+		dim as short ln = __fb_data_ptr->length
+		if( ln = FB_DATATYPE_OFS ) then
+			'' !!!WRITEME!!! -- fbc's, left as fbc leaves it.
+		elseif( (ln and FB_DATATYPE_WSTR) <> 0 ) then
+			tkrt_WstrAssignToA( dst, dst_size, cptr( wstring ptr, __fb_data_ptr->item ), fillrem )
+		else
+			'' src_size 0: a plain zstring pointer, length walked -- NOT the
+			'' descriptor's length, which is what the numeric arms use.
+			tkrt_StrAssign( dst, dst_size, __fb_data_ptr->item, 0, fillrem )
+		end if
+	else
+		tkrt_StrAssign( dst, dst_size, @"", 0, fillrem )
+	end if
+	tkrt_DataNext( )
+	IOUNLOCK()
+end sub
+
+sub tkort_DataReadWstr alias "fb_DataReadWstr" _
+	( byval dst as wstring ptr, byval dst_size as integer )
+	IOLOCK()
+	if( __fb_data_ptr <> 0 ) then
+		dim as short ln = __fb_data_ptr->length
+		if( ln = FB_DATATYPE_OFS ) then
+			'' !!!WRITEME!!! -- fbc's.
+		elseif( (ln and FB_DATATYPE_WSTR) <> 0 ) then
+			tkrt_WstrAssign( dst, dst_size, cptr( wstring ptr, __fb_data_ptr->item ) )
+		else
+			'' NOTE THE RAW LENGTH: this arm passes `ln` unmasked, because the
+			'' top bit is clear on this path by construction.
+			tkrt_WstrAssignFromA( dst, dst_size, __fb_data_ptr->item, ln )
+		end if
+	else
+		tkrt_WstrAssign( dst, dst_size, wstr( "" ) )
+	end if
+	tkrt_DataNext( )
+	IOUNLOCK()
+end sub
+
+end extern
