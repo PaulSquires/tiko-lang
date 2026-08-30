@@ -1,0 +1,69 @@
+global str $str0 "t.dat"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg w size 16
+  local agg s size 24
+  local i32 v
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr w
+    %5 = alloca ptr s
+    %6 = field.addr @s, 0
+    store %6, 0
+    %7 = field.addr @s, 8
+    store %7, 0
+    %8 = field.addr @s, 16
+    store %8, 0
+    %9 = alloca ptr v
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 5)
+    %11 = const i64 1
+    %12 = trunc %11
+    %13 = const i32 0
+    %14 = const i32 0
+    %15 = const i32 0
+    %16 = const i32 0
+    %17 = call.rtl i32 fb_FileOpen(%10, %14, %15, %16, %12, %13)
+    %18 = const i64 1
+    %19 = trunc %18
+    %20 = const i64 0
+    %21 = const i64 8
+    %22 = call.rtl i32 fb_FileGetWstrLarge(%19, %20, @w, %21)
+    %23 = const i64 1
+    %24 = trunc %23
+    %25 = const i64 0
+    %26 = const i64 8
+    %27 = call.rtl i32 fb_FilePutStrLarge(%24, %25, @w, %26)
+    %28 = const i64 1
+    %29 = trunc %28
+    %30 = const i64 0
+    %31 = call.rtl i32 fb_FileGetStrLarge(%29, %30, @s, -1)
+    %32 = const i64 1
+    %33 = trunc %32
+    %34 = const i64 0
+    %35 = const i64 4
+    %36 = call.rtl i32 fb_FileGetLarge(%33, %34, @v, %35)
+    %37 = const i64 1
+    %38 = trunc %37
+    %39 = call.rtl i32 fb_FileClose(%38)
+    call.rtl void fb_StrDelete(@s)
+    %40 = const i32 0
+    call.rtl void fb_End(%40)
+    %41 = load @$tmp0
+    ret %41
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare i32 fb_FileOpen($0, $1, $2, $3, $4, $5)
+declare i32 fb_FileGetWstrLarge($0, $1, $2, $3)
+declare i32 fb_FilePutStrLarge($0, $1, $2, $3)
+declare i32 fb_FileGetStrLarge($0, $1, $2, $3)
+declare i32 fb_FileGetLarge($0, $1, $2, $3)
+declare i32 fb_FileClose($0)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

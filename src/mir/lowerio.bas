@@ -910,6 +910,40 @@ function LowerFileGetPut _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
+    '' A FIXED WIDE STRING HAS ITS OWN GET, and the pair is NOT symmetric. Measured,
+    '' over a 'wstring * 8' at position 0:
+    ''
+    ''     get:  fb_FileGetWstrLarge( 1, 0ll, (uint16*)W$0, 8ll );
+    ''     put:  fb_FilePutStrLarge ( 1, 0ll, (void*)W$0,   8ll );
+    ''
+    '' -- the WIDE entry point on the way in and the NARROW one on the way out, with
+    '' the same count in both: the DECLARED CHARACTER count, not a byte size. That
+    '' asymmetry is measured and is not a transcription slip.
+    ''
+    '' Without this a fixed wstring fell through to the byte-count path below and was
+    '' read with fb_FileGetLarge -- raw bytes into a UTF-16 buffer, in a statement that
+    '' lowered and verified. fb_FileGetWstrLarge was already in the table with no
+    '' caller.
+    if IsWideString_( c, vt ) then
+        '' AN UNBOUNDED WSTRING PASSES ZERO, not a refusal. Through a pointer --
+        '' 'get( #f, 1, *pw )' -- there is no declared length, and measured fbc emits
+        '' 'fb_FileGetWstrLarge( 1, 1ll, PW$0, 0ll )'. Refusing it declined the four
+        '' statements file/get.bas writes in that spelling, which is how this was
+        '' caught: the corpus went 749 -> 753 and the scoped sweep named the file.
+        dim as long nel = WideStringElems( c, vt )
+        if nel < 0 then nel = 0
+        dim as MirValue wa = LowerAddr( c, varN )
+        if wa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) wargs
+        wargs.Push( cast( ulong, chan.kind ) ) : wargs.Push( cast( ulong, chan.id ) )
+        wargs.Push( cast( ulong, pv.kind ) ) : wargs.Push( cast( ulong, pv.id ) )
+        wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
+        dim as MirValue wn = ConstInt( c, nel, zt )
+        wargs.Push( cast( ulong, wn.kind ) ) : wargs.Push( cast( ulong, wn.id ) )
+        outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT_STR, RTL_FILE_GET_WSTR ), wargs )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
     '' AN ARRAY TAKES A DESCRIPTOR TOO, and a different one again: 'get( #f, 1, a() )'
     '' is fb_FileGetArrayLarge over the array's FBARRAY descriptor, which is the same
     '' descriptor ERASE builds for a fixed array. Only the FIXED form: a dynamic

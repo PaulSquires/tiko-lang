@@ -1,0 +1,8 @@
+'' GET into a fixed wide string uses fb_FileGetWstrLarge and PUT out of one uses
+'' fb_FilePutStrLarge, with a narrow string and a scalar beside them unchanged.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/file-get-wstring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/file-get-wstring.out
