@@ -121,10 +121,19 @@ namespace Tko
     '' agree. The flag lives here because the DECLARATION keyword is not on the
     '' item, and the symbol is the only place the two can be compared from.
     const SYMF_COMMON    as ushort = &h8000
+    '' The variable was brought into existence by a REDIM, so it IS a dynamic
+    '' array however its bounds were written. A second REDIM of it is a
+    '' re-dimension and not a duplicate -- fbc accepts two 'redim a( ... ) as
+    '' integer' in one scope and rejects the pair when the ELEMENT TYPE differs
+    '' (error 4), both measured. IsDynArrayItem_ cannot see this: it reads the
+    '' written bounds, and a redim's are written out in full.
+    ''
+    '' Past &h8000, which is why 'flags' is a ulong.
+    const SYMF_REDIM     as ulong  = &h00010000
 
     type Symbol
         as ubyte     kind
-        as ushort    flags
+        as ulong     flags
         as InternId  name          '' folded spelling
         as ScopeId   parent
         as TypeId    type_

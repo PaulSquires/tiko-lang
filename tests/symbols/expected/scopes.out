@@ -1,4 +1,4 @@
-scopes: 14  symbols: 18  (builtin: 203)
+scopes: 15  symbols: 20  (builtin: 203)
 scope 1 global parent=0 (4)
     const     'true' builtin
     const     'false' builtin
@@ -18,7 +18,10 @@ scope 4 type of 'point' parent=3 (3)
     field     'x'
     field     'y'
     proc      'norm' declared
-scope 6 proc of 'run' parent=3 (3)
+scope 6 namespace of 'colour' parent=3 (2)
+    enumconst 'red'
+    enumconst 'green'
+scope 7 proc of 'run' parent=3 (3)
     param     'n'
     param     's'
     var       'i'

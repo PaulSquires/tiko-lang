@@ -1,0 +1,8 @@
+'' An enum member colliding with an existing name: the existing name wins unqualified,
+'' 'E.K' still reaches the member, and an EXPLICIT enum publishes nothing at all.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/enum-name-collision.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/enum-name-collision.out

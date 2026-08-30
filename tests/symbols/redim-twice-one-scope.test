@@ -1,0 +1,6 @@
+'' A second REDIM of an array the first REDIM declared is a re-dimension, not a
+'' duplicate declaration.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/redim-twice-one-scope.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/redim-twice-one-scope.out

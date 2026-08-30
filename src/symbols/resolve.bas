@@ -975,6 +975,22 @@ sub WalkStmt _
         if enumName = 0 then
             enumName = c.names->Fold( c.names->GetString( "TMP$" & str( cast( long, id ) ) ) )
         end if
+        '' The scope Collect opened for this enum, when it has one. An ANONYMOUS
+        '' enum has no symbol and so no scope, and its members live only outside.
+        ''
+        '' Read off the SYMBOL, not from info->SetScope: 'here' above is
+        '' ScopeOf( id ), so recording the enum's own scope on the N_ENUM node
+        '' moved 'here' INTO the enum -- and then the members published in the
+        '' ENCLOSING scope never got a value or a type at all. That is a bare
+        '' 'OP__COUNT' as an array bound going unfoldable, silently.
+        dim as Tko.ScopeId escope = Tko.SCOPE_NONE
+        if esp->name <> 0 then
+            dim as Tko.Symbol ptr eos = _
+                c.syms->SymbolAt( c.syms->LookupLocal( here, esp->name ) )
+            if eos <> 0 then
+                if eos->kind = cast( ubyte, Tko.SYM_ENUM ) then escope = eos->inner
+            end if
+        end if
         dim as longint enumNext = 0
         for i as long = 0 to esp->count - 1
             dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[esp->first + i] )
@@ -987,7 +1003,16 @@ sub WalkStmt _
                 '' wrong by ONE member rather than by all of them.
                 if ev.known then enumNext = ev.value
             end if
-            dim as Tko.SymbolId esid = c.syms->LookupLocal( here, ip->name )
+            '' TWO symbols may carry one member: the enum's OWN scope always holds
+            '' it, and the enclosing scope holds it too when the name was free
+            '' there. Both need the value, or 'E.K' and a bare 'K' disagree.
+            for pass_ as long = 0 to 1
+            dim as Tko.ScopeId lsc = here
+            if pass_ = 1 then
+                lsc = escope
+                if lsc = Tko.SCOPE_NONE then continue for
+            end if
+            dim as Tko.SymbolId esid = c.syms->LookupLocal( lsc, ip->name )
             dim as Tko.Symbol ptr es = c.syms->SymbolAt( esid )
             if es <> 0 then
                 if es->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
@@ -1002,6 +1027,7 @@ sub WalkStmt _
                                                     cast( ulong, here ) )
                 end if
             end if
+            next
             enumNext += 1
         next
         return

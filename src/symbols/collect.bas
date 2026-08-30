@@ -30,6 +30,11 @@ type Walker
     '' body -- measured both ways -- so the allowance is gated on this.
     as boolean              inProcDecl
     as long                 duplicates
+    '' The enum whose members are being walked. Its members are declared in a
+    '' scope of ITS OWN as well as, when the name is free, the enclosing one.
+    as Tko.ScopeId          enumScope
+    '' 'enum E explicit' -- the members are NOT published unqualified.
+    as boolean              enumExplicit
 end type
 
 private function StmtOf _
@@ -515,7 +520,15 @@ sub WalkNode _
                         '' element TYPE has to agree -- and the previous declaration
                         '' has to be a DYNAMIC array, which is what 'a( )' and
                         '' 'a( any, any )' are and 'a( 0 to 3 )' is not.
-                        if IsDynArrayItem_( w, prevIt ) then
+                        '' ...OR THE PREVIOUS DECLARATION WAS ITSELF A REDIM.
+                        '' 'redim a( 0 to 3 ) as integer' twice in one scope with
+                        '' no DIM ahead of it is accepted by fbc -- dim/redim.bas
+                        '' does exactly that, twice -- and the first one wrote
+                        '' bounds, so IsDynArrayItem_ called it fixed and the
+                        '' second collided.
+                        dim as boolean prevRedim = _
+                            ((prs->flags and Tko.SYMF_REDIM) <> 0)
+                        if IsDynArrayItem_( w, prevIt ) orelse prevRedim then
                             dim as Tko.StmtPayload ptr pip = StmtOf( w, prevIt )
                             if SameTypeRef_( w, pip->a, ip->a ) then continue for
                         end if
@@ -571,6 +584,12 @@ sub WalkNode _
                 if isExtern then s->flags or= Tko.SYMF_EXTERN
                 if isCommon then s->flags or= Tko.SYMF_COMMON
                 if k = Tko.N_CONST then s->flags or= Tko.SYMF_CONST
+                '' A REDIM's array is DYNAMIC whatever bounds it wrote, and only
+                '' the symbol can say so afterwards -- the item keeps the written
+                '' bounds, so IsDynArrayItem_ reads it as fixed.
+                if sp->op = cast( ushort, Tko.KW_REDIM ) then
+                    s->flags or= Tko.SYMF_REDIM
+                end if
                 s->payload = cast( long, item )
             end if
         next
@@ -675,16 +694,45 @@ sub WalkNode _
         dim as Tko.SymbolId sid = Declare_( w, scope_, sp->name, Tko.SYM_ENUM, _
                                             w.ast->Loc( id ) )
         '' Enum constants land in the ENCLOSING scope, as in FreeBASIC: 'Red' is
-        '' usable without qualification.
+        '' usable without qualification -- AND in a scope of the enum's own, which
+        '' is what 'E.Red' reaches into.
+        ''
+        '' Both, not one. 'inner' USED TO BE THE ENCLOSING SCOPE, so 'E.K' was a
+        '' lookup of plain 'K' next to the enum: with 'const GlobalConst1 = 111'
+        '' ahead of an enum whose second member is also called GlobalConst1, fbc
+        '' prints 111 for the bare name and 2 for 'Enum1.GlobalConst1' -- measured --
+        '' and tiko-lang emitted 111 for BOTH. A wrong constant, lowered and verified,
+        '' with only a duplicate-declaration diagnostic to hint at it.
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
+        dim as Tko.ScopeId prevES = w.enumScope
+        dim as boolean prevEX = w.enumExplicit
+        w.enumScope = Tko.SCOPE_NONE
+        w.enumExplicit = (sp->extra <> 0)
         if s <> 0 then
-            s->inner = scope_
+            s->inner = w.syms->OpenScope( Tko.SCOPEK_NAMESPACE, scope_, sid )
+            w.enumScope = s->inner
             s->type_ = w.types->NamedType( Tko.TK_ENUM, sp->name, cast( ulong, scope_ ) )
         end if
         WalkChildren( w, sp->first, sp->count, scope_ )
+        w.enumScope = prevES
+        w.enumExplicit = prevEX
 
     case Tko.N_ENUM_ITEM
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
+        '' THE ENUM'S OWN SCOPE ALWAYS, and that is also where a member repeated
+        '' within one enum is caught.
+        if w.enumScope <> Tko.SCOPE_NONE then
+            Declare_( w, w.enumScope, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
+        end if
+        '' UNQUALIFIED only when the name is still free. fbc does NOT reject an enum
+        '' member that collides with something already declared alongside it: the
+        '' EXISTING name keeps the bare spelling, in either declaration order, and
+        '' the member stays reachable as 'E.K'. Measured both ways.
+        ''
+        '' An ANONYMOUS enum has no scope of its own, so it publishes regardless --
+        '' it has no other spelling. That is LC_ALL and every CLSCTX_*.
+        if w.enumExplicit andalso (w.enumScope <> Tko.SCOPE_NONE) then return
+        if w.syms->LookupLocal( scope_, sp->name ) <> Tko.SYMBOL_NONE then return
         Declare_( w, scope_, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
 
     case Tko.N_TYPEDEF
@@ -1378,100 +1426,6 @@ function One _
     info.Resize( ast.Count( ) )
     WalkNode( w, id, scope_ )
     return w.duplicates
-end function
-
-'' ----------------------------------------------------------------------- dump
-
-function Dump _
-    ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
-      byref types as Tko.TypeContext, byref src as Tko.SourceManager ) as string
-
-    '' THE COUNTS EXCLUDE THE PRELUDE TOO, or they would contradict the rows below --
-    '' thirty declarations counted and none of them printed. The prelude's own total is
-    '' reported beside them rather than hidden.
-    dim as long nbuiltin = 0
-    for i as long = 1 to syms.Count( )
-        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, i ) )
-        if s = 0 then continue for
-        if src.IsBuiltin( s->loc ) then nbuiltin += 1
-    next
-    dim as long nscopes = 0
-    for i as long = 1 to syms.ScopeCount( )
-        dim as Tko.SymScope ptr sc = syms.ScopeAt( cast( Tko.ScopeId, i ) )
-        if sc = 0 then continue for
-        if sc->owner <> Tko.SYMBOL_NONE then
-            dim as Tko.Symbol ptr os = syms.SymbolAt( sc->owner )
-            if os <> 0 then
-                if src.IsBuiltin( os->loc ) then continue for
-            end if
-        end if
-        nscopes += 1
-    next
-
-    dim as string outp = ""
-    outp += "scopes: " & nscopes & "  symbols: " & (syms.Count( ) - nbuiltin)
-    if nbuiltin > 0 then outp += "  (builtin: " & nbuiltin & ")"
-    outp += chr( 10 )
-
-    for i as long = 1 to syms.ScopeCount( )
-        dim as Tko.SymScope ptr sc = syms.ScopeAt( cast( Tko.ScopeId, i ) )
-        if sc->count = 0 then continue for
-        '' A scope the prelude opened -- the body of one of its declarations -- is not
-        '' printed at all.
-        if sc->owner <> Tko.SYMBOL_NONE then
-            dim as Tko.Symbol ptr os = syms.SymbolAt( sc->owner )
-            if os <> 0 then
-                if src.IsBuiltin( os->loc ) then continue for
-            end if
-        end if
-        '' How many of this scope's symbols are the user's, which is what the rows
-        '' below will actually show.
-        dim as long nvis = 0
-        dim as Tko.SymbolId vc = sc->firstSym
-        while vc <> Tko.SYMBOL_NONE
-            dim as Tko.Symbol ptr vs = syms.SymbolAt( vc )
-            if vs = 0 then exit while
-            if src.IsBuiltin( vs->loc ) = false then nvis += 1
-            vc = vs->nextInScope
-        wend
-        if nvis = 0 then continue for
-
-        dim as string owner = ""
-        if sc->owner <> Tko.SYMBOL_NONE then
-            owner = " of '" & names.Spelling( syms.SymbolAt( sc->owner )->name ) & "'"
-        end if
-        outp += "scope " & i & " " & Tko.ScopeKindName( cast( Tko.ScopeKind, sc->kind ) ) & _
-                owner & " parent=" & sc->parent & " (" & nvis & ")" & chr( 10 )
-
-        '' Declaration order, which is the order destruction will reverse.
-        dim as Tko.SymbolId cur = sc->firstSym
-        while cur <> Tko.SYMBOL_NONE
-            dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
-            '' Same reason as the AST dump: the prelude is declared, and listing it
-            '' under every file would bury the file.
-            if src.IsBuiltin( s->loc ) then
-                cur = s->nextInScope
-                continue while
-            end if
-            dim as string row = "    " & _
-                left( Tko.SymbolKindName( cast( Tko.SymbolKind, s->kind ) ) & "         ", 10 ) & _
-                "'" & names.Spelling( s->name ) & "'"
-            if (s->flags and Tko.SYMF_SHARED) <> 0 then row += " shared"
-            if (s->flags and Tko.SYMF_STATIC) <> 0 then row += " static"
-            if (s->flags and Tko.SYMF_CONST) <> 0 then row += " const"
-            if (s->flags and Tko.SYMF_DECLARED) <> 0 then row += " declared"
-            if (s->flags and Tko.SYMF_DEFINED) <> 0 then row += " defined"
-            if (s->flags and Tko.SYMF_BUILTIN) <> 0 then row += " builtin"
-            if s->callConv <> cast( ubyte, Tko.CC_NONE ) then
-                row += " " & Tko.CallConvName( cast( Tko.CallConv, s->callConv ) )
-            end if
-            if (s->flags and Tko.SYMF_FUNCNAME) <> 0 then row += " funcname"
-            if s->nextOverload <> Tko.SYMBOL_NONE then row += " +overloads"
-            outp += row & chr( 10 )
-            cur = s->nextInScope
-        wend
-    next
-    return outp
 end function
 
 end namespace
