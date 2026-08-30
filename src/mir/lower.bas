@@ -781,6 +781,30 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                             c.lastCallOk = true
                             c.lastCallFailLine = 0
                         end if
+                    else
+                        '' ...AND WHEN IT LOWERED FINE. The branch above releases only
+                        '' what LowerExpr could not produce, which is the INTRINSIC
+                        '' case; a user function returning a string lowers perfectly
+                        '' well and its result was then dropped on the floor. Measured,
+                        '' for 'F()' as a statement over a 'function F( ) as string':
+                        ''
+                        ''     FBSTRING* vr$0 = F( );
+                        ''     fb_hStrDelTemp( (FBSTRING*)vr$0 );
+                        ''
+                        '' -- one leak per call, in a statement that lowered and
+                        '' verified. 'dim as string s = F()' beside it is NOT this: the
+                        '' initialisation CONSUMES the temporary, and fbc emits no
+                        '' release for it.
+                        dim as Tko.TypeId dvt = c.info->TypeOf_( sp->a )
+                        dim as longint dvn = 0
+                        if IsStringType( c, dvt ) andalso _
+                           (StrSwapKind_( c, dvt, dvn ) = 0) then
+                            dim as FB.Array( of ulong ) ra
+                            ra.Push( cast( ulong, dv.kind ) )
+                            ra.Push( cast( ulong, dv.id ) )
+                            EmitRtl( c, iif( IsUStringType( c, dvt ), _
+                                             RTL_USTR_DELETE, RTL_H_STR_DEL_TEMP ), ra )
+                        end if
                     end if
                 end if
             else

@@ -1,0 +1,8 @@
+'' A string-returning call used as a statement releases its temporary; one used as an
+'' initialiser does not, because the initialisation consumes it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/discarded-string-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/discarded-string-result.out

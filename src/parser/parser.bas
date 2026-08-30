@@ -937,6 +937,19 @@ private function SpawnStatementHead_ _
     return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_IDENT)
 end function
 
+'' '=>' IS THE OTHER ASSIGNMENT TOKEN, and it is legal wherever '=' is in a
+'' statement position: 'err => 0' is quirk/assignment-token.bas's spelling and it
+'' was a parse error, which stopped that file dead and took the twenty statements
+'' after it with it.
+private function ErrAssignStmt_ _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+
+    if k <> Tko.KW_ERR then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    dim as Tko.TokenKind nk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+    return ((nk = Tko.TK_EQ) orelse (nk = Tko.TK_FATARROW))
+end function
+
 function Statement( byref p as Tko.ParserState ) as Tko.NodeId
     SkipEols( p )
     if AtEnd( p ) then return Tko.NODE_NONE
@@ -1201,8 +1214,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' with the dereference operator, and the target is an ordinary lvalue
             '' expression from there -- the same call-or-assign ambiguity again.
             n = ParseAmbiguous( p )
-        elseif (k = Tko.KW_ERR) andalso HasTok( p, p.pos + 1 ) andalso _
-               (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ) then
+        elseif ErrAssignStmt_( p, k ) then
             '' 'err = n' -- ERR IS A PSEUDO-VARIABLE, readable AND assignable, and the
             '' two halves go to different entry points. Measured:
             ''
