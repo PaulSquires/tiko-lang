@@ -1,0 +1,8 @@
+'' valint and its family accept a UDT that casts to a zstring, through a borrowed
+'' temporary descriptor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/val-udt-cast.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/val-udt-cast.out
