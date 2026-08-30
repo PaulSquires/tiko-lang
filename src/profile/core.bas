@@ -25,73 +25,13 @@
 '' compiler's layout, and `field = 1` here would shift every field it touches.
 
 #include once "inc/descriptors.bi"
+#include once "inc/profile.bi"
 #include once "inc/rterror.bi"
 #include once "inc/iolock.bi"
 #include once "inc/fmt.bi"
 #include once "crt/string.bi"
 #include once "crt/stdlib.bi"
 #include once "crt/time.bi"
-
-const STRING_INFO_TB_SIZE = 10240
-const STRING_HASH_TB_SIZE = 997
-const PROFILER_MAX_PATH   = 1024
-
-const DEFAULT_PROFILE_FILE = "profile.txt"
-const DEFAULT_PROFILE_EXT  = ".prf"
-
-'' THREE C ints, not lengths in the index-width sense: this struct mirrors one
-'' the C profiler writes, so the widths are fixed by its layout and cannot be
-'' widened to `integer`. Named entbytes/strbytes rather than size/length so the
-'' lint does not have to be argued with at every reader.
-type STRING_INFO
-	as long         entbytes      '' padded allocation size of this entry
-	as long         strbytes      '' strlen + 1, the bytes actually stored
-	as ulong        hashkey
-end type
-
-type STRING_INFO_TB_
-	as ubyte              data( 0 to STRING_INFO_TB_SIZE - 1 )
-	as STRING_INFO_TB_ ptr nxt
-	as long               bytes_used
-	as long               string_tb_id
-end type
-
-type STRING_TABLE
-	as STRING_INFO_TB_ ptr tb
-end type
-
-type STRING_HASH_TB_
-	as STRING_INFO ptr     items( 0 to STRING_HASH_TB_SIZE - 1 )
-	as STRING_HASH_TB_ ptr nxt
-end type
-
-type STRING_HASH_TABLE_
-	as STRING_TABLE ptr    strings
-	as STRING_HASH_TB_ ptr tb
-end type
-
-type STRING_HASH_
-	as STRING_HASH_TABLE_ ptr strings_hash
-	as STRING_HASH_TABLE_     hash_
-end type
-
-type FB_PROFILER_GLOBAL
-	as any ptr             profiler_ctx
-	as STRING_TABLE        strings
-	as STRING_HASH_TABLE_  strings_hash
-	as STRING_HASH_TABLE_  ignores_hash
-	as zstring * PROFILER_MAX_PATH filename
-	as zstring * 32        launch_time
-	as long                options
-end type
-
-type FB_PROFILER_METRICS
-	as long nthreads
-	as long string_bytes_allocated, string_bytes_used, string_bytes_free
-	as long string_count_blocks, string_count_strings, string_max_len
-	as long hash_bytes_allocated, hash_count_blocks, hash_count_items, hash_count_slots
-	as long procs_bytes_allocated, procs_count_blocks, procs_count_items, procs_count_slots
-end type
 
 extern "c"   '' NON-FBCALL: fb_hGetExeName is declared plain in fb_system.h.
 	declare function tkrt_GetExeName alias "fb_hGetExeName" _
