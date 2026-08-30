@@ -78,6 +78,25 @@ function LowerMidAssign _
         dn = 0
     end if
 
+    '' ...AND A UDT THAT CASTS TO A NARROW ZSTRING IS A CHARACTER BUFFER. Measured:
+    '' fbc calls the operator, wraps the char* it returns in fb_StrAllocTempDescZ and
+    '' passes THAT -- byte-identical to the plain 'zstring * N' row below, with the
+    '' pointer coming from the cast instead of from the destination's address.
+    '' udt-zstring/midstmt.bas writes four of these.
+    dim as MirValue castPtr
+    dim as boolean haveCastPtr = false
+    if dk < 0 then
+        if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
+            dim as boolean narrowRaw = false
+            if UserCastToStr_( c, dstN, castPtr, narrowRaw ) then
+                if narrowRaw then
+                    dk = 1
+                    haveCastPtr = true
+                end if
+            end if
+        end if
+    end if
+
     '' THE WIDE FLAVOUR takes the buffer POINTER and its CHARACTER COUNT, not a
     '' descriptor -- a wstring has none.
     if dk = 2 then
@@ -98,8 +117,36 @@ function LowerMidAssign _
         return true
     end if
 
-    '' A UTF-16 DESCRIPTOR IS NOT A NARROW ONE. Declines; see the header.
-    if IsUStringType( c, dt ) then return false
+    '' A UTF-16 DESCRIPTOR IS NOT A NARROW ONE: it has its own entry point, and
+    '' handing it to the narrow call would write UTF-8 bytes into a UTF-16 buffer.
+    ''
+    ''     mid( a, 2 ) = b        fb_UStrAssignMid( &A, -1, 2, -1, &B, -1 )
+    ''     mid( a, 5, 2 ) = b     fb_UStrAssignMid( &A, -1, 5,  2, &B, -1 )
+    ''
+    '' -- six arguments, a (pointer, length) pair at each end, -1 meaning 'as
+    '' declared'. Measured.
+    ''
+    '' THE SOURCE MUST BE A USTRING TOO. fbc converts a narrow one first --
+    '' 'mid( a, 2 ) = n' over a STRING passes the result of a conversion, and a
+    '' LITERAL becomes a UTF-16 array with a tagged length -- and neither
+    '' conversion is modelled here, so those still decline rather than pass bytes
+    '' of the wrong width. fb/string.bi's Join writes both of its mids with a
+    '' ustring on the right, which is the 14 corpus statements this is for.
+    if IsUStringType( c, dt ) then
+        if IsUStringType( c, c.info->TypeOf_( value ) ) = false then return false
+        dim as MirValue ud
+        if StrDescriptorOf_( c, dstN, ud ) = false then return false
+        dim as MirValue us
+        if StrDescriptorOf_( c, value, us ) = false then return false
+        dim as FB.Array( of ulong ) ua
+        PushStrArg( ua, ud )
+        ua.Push( cast( ulong, sv.kind ) ) : ua.Push( cast( ulong, sv.id ) )
+        ua.Push( cast( ulong, lv.kind ) ) : ua.Push( cast( ulong, lv.id ) )
+        PushStrArg( ua, us )
+        '' A VOID RESULT IS STILL A CALL -- see the wide branch above.
+        EmitRtl( c, RTL_USTR_ASSIGN_MID, ua )
+        return true
+    end if
     if dk = 4 then return false
 
     dim as MirValue ddesc
@@ -108,8 +155,10 @@ function LowerMidAssign _
         ddesc = LowerAddr( c, dstN )
         if ddesc.kind = cast( ubyte, MV_NONE ) then return false
     elseif (dk = 1) orelse (dk = 3) then
-        '' A CHARACTER BUFFER, wrapped in a temporary descriptor.
-        dim as MirValue bufp = LowerAddr( c, dstN )
+        '' A CHARACTER BUFFER, wrapped in a temporary descriptor -- whose pointer is
+        '' the cast's result when the destination was a UDT.
+        dim as MirValue bufp = castPtr
+        if haveCastPtr = false then bufp = LowerAddr( c, dstN )
         if bufp.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) ta
         ta.Push( cast( ulong, bufp.kind ) ) : ta.Push( cast( ulong, bufp.id ) )

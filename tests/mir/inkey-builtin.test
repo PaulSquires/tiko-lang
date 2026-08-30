@@ -1,0 +1,7 @@
+'' INKEY is a predeclared no-argument string builtin: fb_Inkey.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/inkey-builtin.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/inkey-builtin.out

@@ -1,0 +1,7 @@
+'' The MID statement over a USTRING destination lowers to fb_UStrAssignMid.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-mid-stmt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ustring-mid-stmt.out

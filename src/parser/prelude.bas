@@ -68,6 +68,10 @@ private function PreludeText( ) as string
     '' COMMAND.
     t += "declare function date alias ""fb_Date"" ( ) as string" & chr( 10 )
     t += "declare function time alias ""fb_Time"" ( ) as string" & chr( 10 )
+    '' INKEY is the same shape and was missing outright: 'FBSTRING* fb_Inkey( void )',
+    '' measured. Without it 's = inkey' declined, and an interactive loop is written
+    '' 's = inkey: while s = "": s = inkey: wend'.
+    t += "declare function inkey alias ""fb_Inkey"" ( ) as string" & chr( 10 )
     t += "'' THE REST OF THE PREDECLARED BUILTINS, each alias MEASURED from fbc's own C." & chr( 10 )
     t += "'' None of them is guessable and two are traps:" & chr( 10 )
     t += "''   RND with no argument is fb_Rnd( 1.0f ) -- the default is ONE, not 0 or -1," & chr( 10 )

@@ -147,7 +147,11 @@ private sub LowerAssign _
     if LowerWideToNarrow( c, target, value ) then return
 
     if IsStringType( c, c.info->TypeOf_( target ) ) then
-        if LowerStringAssign( c, target, value ) = false then c.st->skipped += 1
+        '' SkipHere, NOT a bare counter bump. This site incremented 'skipped'
+        '' directly, so its declines had NO trace line, NO skip-site and NO source
+        '' line: 14 corpus statements were counted and could not be located at all,
+        '' and TKO_TRACE_SKIP printed nothing for the files that carried them.
+        if LowerStringAssign( c, target, value ) = false then SkipHere( c )
         return
     end if
 
