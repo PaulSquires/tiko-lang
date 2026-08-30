@@ -1186,7 +1186,11 @@ private function InputRtlFor _
     if c.types->Kind( t ) <> Tko.TK_BUILTIN then return RTL_NONE
     select case c.types->BuiltinOf( t )
     case Tko.TY_BYTE      : return RTL_INPUT_BYTE
-    case Tko.TY_UBYTE, Tko.TY_BOOLEAN : return RTL_INPUT_UBYTE
+    case Tko.TY_UBYTE     : return RTL_INPUT_UBYTE
+    '' A BOOLEAN READS THE WORD, not a byte: fbc has fb_InputBool for it, which
+    '' parses "true" the way fb_VALBOOL does. Sharing the UBYTE row read a NUMBER,
+    '' so a file holding "true" gave 0 -- the same mistake cbool over a string made.
+    case Tko.TY_BOOLEAN   : return RTL_INPUT_BOOL
     case Tko.TY_SHORT     : return RTL_INPUT_SHORT
     case Tko.TY_USHORT    : return RTL_INPUT_USHORT
     case Tko.TY_LONG      : return RTL_INPUT_INT

@@ -1,0 +1,54 @@
+global str $str0 ""
+global str $str1 "t.txt"
+func void FROMCONSOLE() {
+  local i8 b
+  local i8 u
+  entry0:
+    %1 = alloca ptr b
+    %2 = alloca ptr u
+    %3 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    %4 = call.rtl i32 fb_ConsoleInput(%3, -1, -1)
+    %5 = call.rtl i32 fb_InputBool(@b)
+    %6 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    %7 = call.rtl i32 fb_ConsoleInput(%6, -1, -1)
+    %8 = call.rtl i32 fb_InputUbyte(@u)
+    %9 = load @b
+    call.rtl void fb_PrintBool(0, %9, 0)
+    %10 = load @u
+    call.rtl void fb_PrintUByte(0, %10, 1)
+    ret
+}
+declare ptr fb_StrAllocTempDescZEx($0, $1)
+declare i32 fb_ConsoleInput($0, $1, $2)
+declare i32 fb_InputBool($0)
+declare i32 fb_InputUbyte($0)
+declare void fb_PrintBool($0, $1, $2)
+declare void fb_PrintUByte($0, $1, $2)
+func void FROMFILE() {
+  local i8 b
+  entry0:
+    %1 = alloca ptr b
+    %2 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
+    %3 = const i64 1
+    %4 = trunc %3
+    %5 = const i32 0
+    %6 = const i32 2
+    %7 = const i32 0
+    %8 = const i32 0
+    %9 = call.rtl i32 fb_FileOpen(%2, %6, %7, %8, %4, %5)
+    %10 = const i64 1
+    %11 = trunc %10
+    %12 = call.rtl i32 fb_FileInput(%11)
+    %13 = call.rtl i32 fb_InputBool(@b)
+    %14 = const i64 1
+    %15 = trunc %14
+    %16 = call.rtl i32 fb_FileClose(%15)
+    %17 = load @b
+    call.rtl void fb_PrintBool(0, %17, 1)
+    ret
+}
+declare i32 fb_FileOpen($0, $1, $2, $3, $4, $5)
+declare i32 fb_FileInput($0)
+declare i32 fb_FileClose($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance
