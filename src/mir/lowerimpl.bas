@@ -305,6 +305,44 @@ private sub DestroyMember_ _
         EmitEraseDynAt_( c, addr, ft )
         return
     end if
+
+    '' A FIXED ARRAY OF STRINGS AS A FIELD owns N descriptors, and NOTHING released
+    '' them: the generated destructor walked the field list, found a type that is
+    '' neither a string nor a dynamic array nor a UDT, and returned. Every string in
+    '' every element leaked, in a destructor that verified and counted as lowered.
+    ''
+    '' Measured: fbc builds a temporary descriptor over the field and hands it to
+    '' fb_ArrayDestructStr -- the same call it makes for a LOCAL fixed string array,
+    '' which tiko-lang already got right. functions/bydesc.bas is one, and the
+    '' USTRING twin is fb_ArrayDestructUStr.
+    ''
+    '' A UDT ELEMENT is NOT done here. fbc emits an inline reverse loop of element
+    '' destructor calls for a field, and fb_ArrayDestructObj for a local; tiko-lang
+    '' unrolls the local. Which of those a field should be is a choice, not a
+    '' measurement, so it is left declining rather than guessed -- and it is a REAL
+    '' leak, recorded in HANDOFF.
+    if c.types->Kind( ft ) = Tko.TK_ARRAY then
+        dim as Tko.TypeId aet = c.types->Inner( ft )
+        if aet = Tko.TYPE_NONE then return
+        if IsStringType( c, aet ) = false then return
+        '' Only a VAR-LENGTH element owns anything; a 'zstring * N' element is
+        '' bytes in place, exactly as it is for a scalar field above.
+        dim as boolean aeU = IsUStringType( c, aet )
+        if aeU = false then
+            if StrSwapKind_( c, aet, 0 ) <> 0 then return
+        end if
+        dim as MirValue adesc
+        if SynthFixedArrayDesc( c, addr, ft, adesc ) = false then return
+        dim as FB.Array( of ulong ) aargs
+        aargs.Push( cast( ulong, adesc.kind ) ) : aargs.Push( cast( ulong, adesc.id ) )
+        if aeU then
+            EmitRtl( c, RTL_ARRAY_DESTRUCT_USTR, aargs )
+        else
+            EmitRtl( c, RTL_ARRAY_DESTRUCT_STR, aargs )
+        end if
+        return
+    end if
+
     if c.types->Kind( ft ) <> Tko.TK_UDT then return
 
     dim as Tko.SymbolId dtor = StructorWithArity( c, StructorOf( c, ft, "__dtor" ), 0 )

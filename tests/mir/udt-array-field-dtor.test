@@ -1,0 +1,7 @@
+'' A UDT's generated destructor destroys a fixed string or ustring array field.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-array-field-dtor.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-array-field-dtor.out
