@@ -1,0 +1,7 @@
+'' PRINT of frac, beside fix and sgn: seven runtime entry points and nothing declined.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/frac-print.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/frac-print.out

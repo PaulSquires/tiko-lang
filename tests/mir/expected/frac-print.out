@@ -1,0 +1,81 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local f64 d
+  local f32 s
+  local i32 l
+  local i64 i
+  local f64 r
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr d
+    %5 = const f64 2.7
+    %6 = neg %5
+    store @d, %6
+    %7 = alloca ptr s
+    %8 = const f64 2.7
+    %9 = neg %8
+    %10 = fptrunc %9
+    store @s, %10
+    %11 = alloca ptr l
+    %12 = const i64 5
+    %13 = neg %12
+    %14 = trunc %13
+    store @l, %14
+    %15 = alloca ptr i
+    %16 = const i64 3
+    store @i, %16
+    %17 = load @d
+    %18 = call.rtl f64 fb_FIXDouble(%17)
+    call.rtl void fb_PrintDouble(0, %18, 0)
+    %19 = load @s
+    %20 = call.rtl f32 fb_FIXSingle(%19)
+    call.rtl void fb_PrintSingle(0, %20, 1)
+    %21 = load @d
+    %22 = call.rtl f64 fb_FRACd(%21)
+    call.rtl void fb_PrintDouble(0, %22, 0)
+    %23 = load @s
+    %24 = call.rtl f32 fb_FRACf(%23)
+    call.rtl void fb_PrintSingle(0, %24, 0)
+    %25 = load @i
+    %26 = const i64 0
+    call.rtl void fb_PrintLongint(0, %26, 1)
+    %27 = load @d
+    %28 = call.rtl i32 fb_SGNDouble(%27)
+    call.rtl void fb_PrintInt(0, %28, 0)
+    %29 = load @s
+    %30 = call.rtl i32 fb_SGNSingle(%29)
+    call.rtl void fb_PrintInt(0, %30, 0)
+    %31 = load @l
+    %32 = sext %31
+    %33 = call.rtl i32 fb_SGNl(%32)
+    call.rtl void fb_PrintInt(0, %33, 1)
+    %34 = alloca ptr r
+    %35 = load @d
+    %36 = call.rtl f64 fb_FRACd(%35)
+    store @r, %36
+    %37 = load @r
+    call.rtl void fb_PrintDouble(0, %37, 1)
+    %38 = const i32 0
+    call.rtl void fb_End(%38)
+    %39 = load @$tmp0
+    ret %39
+}
+declare void fb_Init($0, $1, $2)
+declare f64 fb_FIXDouble($0)
+declare void fb_PrintDouble($0, $1, $2)
+declare f32 fb_FIXSingle($0)
+declare void fb_PrintSingle($0, $1, $2)
+declare f64 fb_FRACd($0)
+declare f32 fb_FRACf($0)
+declare void fb_PrintLongint($0, $1, $2)
+declare i32 fb_SGNDouble($0)
+declare void fb_PrintInt($0, $1, $2)
+declare i32 fb_SGNSingle($0)
+declare i32 fb_SGNl($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance

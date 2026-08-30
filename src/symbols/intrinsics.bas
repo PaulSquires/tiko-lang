@@ -470,7 +470,14 @@ private function ExprIntrinsicType_ _
         return c.types->Builtin( Tko.TY_DOUBLE )
 
     '' The argument's PROMOTED type: any integer gives INTEGER, a float gives itself.
-    case "abs", "int", "fix"
+    ''
+    '' FRAC IS IN THIS ROW, measured -- '#print typeof( frac( x ) )' is INTEGER for
+    '' every integer width, SINGLE for a single and DOUBLE for a double, exactly as
+    '' abs/int/fix are. (frac of an integer is always 0; the TYPE is still INTEGER.)
+    '' Untyped, 'print frac( d )' declined the whole statement -- PRINT classifies an
+    '' item by its type and had none -- while 'dim as double r = frac( d )' lowered,
+    '' because that one is typed by its DESTINATION. The lowering was there all along.
+    case "abs", "int", "fix", "frac"
         if ab = Tko.TY_NONE then return Tko.TYPE_NONE
         if IsFloat_( ab ) then return c.types->Builtin( ab )
         if IsInt_( ab ) then return c.types->Builtin( Tko.TY_INTEGER )

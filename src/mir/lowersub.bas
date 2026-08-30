@@ -924,6 +924,30 @@ function LowerMathCall_ _
     end if
     if cp->count <> 1 then return false
 
+    '' AN INTEGER ARGUMENT NEVER REACHES THE RUNTIME. Measured, and each prints what
+    '' fbc prints for 'dim as integer i = 3':
+    ''
+    ''     fix( i )   3      int( i )   3      frac( i )   0
+    ''
+    '' -- fbc emits no fb_FIX*/fb_FRAC* call at all for these; there is no fractional
+    '' part to take. Refusing them instead declined the whole statement, so
+    '' 'print fix( i )' was unlowered while 'print abs( i )' beside it was fine.
+    '' The ARGUMENT is still lowered: it may have side effects that fbc performs.
+    dim as boolean truncFamily = _
+        ((nm = "fix") orelse (nm = "int") orelse (nm = "frac"))
+    if (isFlt = false) andalso truncFamily then
+        dim as MirValue iv = LowerExpr( c, a0 )
+        if iv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirType iwant = LowerType( c.info->TypeOf_( id ), *c.types )
+        if iwant = MT_VOID then iwant = amt
+        if nm = "frac" then
+            outv = ConstInt( c, 0, iwant )
+        else
+            outv = Coerce( c, iv, iwant, uns )
+        end if
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
     '' FIX / FRAC / SGN -- the runtime three. SGN is the odd one out twice over: it
     '' accepts integers as well as floats, and its result is int32 whatever went in.
     dim as RtlId r = RTL_NONE
