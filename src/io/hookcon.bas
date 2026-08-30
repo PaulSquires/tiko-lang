@@ -20,17 +20,7 @@
 #include once "inc/ctx.bi"
 #include once "inc/file.bi"
 
-#ifdef ENABLE_MT
-	extern "rtlib"
-		declare sub fb_Lock alias "fb_Lock" ( )
-		declare sub fb_Unlock alias "fb_Unlock" ( )
-	end extern
-	#define IOLOCK()   fb_Lock()
-	#define IOUNLOCK() fb_Unlock()
-#else
-	#define IOLOCK()
-	#define IOUNLOCK()
-#endif
+#include once "inc/iolock.bi"
 
 type FB_CLSPROC        as sub cdecl ( byval mode as long )
 type FB_COLORPROC      as function cdecl ( byval fc as ulong, byval bc as ulong, byval flags as long ) as ulong
@@ -75,7 +65,7 @@ extern "rtlib"
 
 sub tkort_Cls alias "fb_Cls" ( byval mode as long )
 	tkrt_DevScrnInitNoOpen( )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as FB_CLSPROC p = TKORT_HOOKPTR( FB_CLSPROC, TKORT_HK_CLS )
 	if( p <> 0 ) then
 		p( mode )
@@ -84,135 +74,135 @@ sub tkort_Cls alias "fb_Cls" ( byval mode as long )
 	end if
 	'' Zeroed here, or the next PRINT , pads from a stale column.
 	TKORT_FILETB()->line_length = 0
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 end sub
 
 function tkort_Color alias "fb_Color" _
 	( byval fc as ulong, byval bc as ulong, byval flags as long ) as ulong
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as ulong cur = any
 	dim as FB_COLORPROC p = TKORT_HOOKPTR( FB_COLORPROC, TKORT_HK_COLOR )
 	if( p <> 0 ) then cur = p( fc, bc, flags ) else cur = tkrt_ConsoleColor( fc, bc, flags )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return cur
 end function
 
 function tkort_Width alias "fb_Width" ( byval cols as long, byval rows as long ) as long
 	tkrt_DevScrnInitNoOpen( )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long cur = any
 	dim as FB_WIDTHPROC p = TKORT_HOOKPTR( FB_WIDTHPROC, TKORT_HK_WIDTH )
 	if( p <> 0 ) then cur = p( cols, rows ) else cur = tkrt_ConsoleWidth( cols, rows )
 	if( cols > 0 ) then TKORT_FILETB()->width = cols
 	'' VIEW PRINT is reset only when something was actually set.
 	if( (cols > 0) orelse (rows > 0) ) then tkrt_ConsoleView( 0, 0 )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	'' The current value when querying, 0 when setting.
 	if( (cols < 1) andalso (rows < 1) ) then return cur
 	return 0
 end function
 
 function tkort_GetX alias "fb_GetX" ( ) as long
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long res = any
 	dim as FB_GETXPROC p = TKORT_HOOKPTR( FB_GETXPROC, TKORT_HK_GETX )
 	if( p <> 0 ) then res = p( ) else res = tkrt_ConsoleGetX( )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 
 function tkort_GetY alias "fb_GetY" ( ) as long
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long res = any
 	dim as FB_GETYPROC p = TKORT_HOOKPTR( FB_GETYPROC, TKORT_HK_GETY )
 	if( p <> 0 ) then res = p( ) else res = tkrt_ConsoleGetY( )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 
 sub tkort_GetXY alias "fb_GetXY" ( byval col as long ptr, byval row as long ptr )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as FB_GETXYPROC p = TKORT_HOOKPTR( FB_GETXYPROC, TKORT_HK_GETXY )
 	if( p <> 0 ) then p( col, row ) else tkrt_ConsoleGetXY( col, row )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 end sub
 
 sub tkort_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as FB_GETSIZEPROC p = TKORT_HOOKPTR( FB_GETSIZEPROC, TKORT_HK_GETSIZE )
 	if( p <> 0 ) then p( cols, rows ) else tkrt_ConsoleGetSize( cols, rows )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 end sub
 
 function tkort_Multikey alias "fb_Multikey" ( byval scancode as long ) as long
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long res = any
 	dim as FB_MULTIKEYPROC p = TKORT_HOOKPTR( FB_MULTIKEYPROC, TKORT_HK_MULTIKEY )
 	if( p <> 0 ) then res = p( scancode ) else res = tkrt_ConsoleMultikey( scancode )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 
 function tkort_SetMouse alias "fb_SetMouse" _
 	( byval x as long, byval y as long, byval cursor as long, byval clip as long ) as long
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long res = any
 	dim as FB_SETMOUSEPROC p = TKORT_HOOKPTR( FB_SETMOUSEPROC, TKORT_HK_SETMOUSE )
 	if( p <> 0 ) then res = p( x, y, cursor, clip ) else res = tkrt_ConsoleSetMouse( x, y, cursor, clip )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 
 sub tkort_ViewUpdate alias "fb_ViewUpdate" ( )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as FB_VIEWUPDATEPROC p = TKORT_HOOKPTR( FB_VIEWUPDATEPROC, TKORT_HK_VIEWUPDATE )
 	if( p <> 0 ) then p( ) else tkrt_ConsoleViewUpdate( )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 end sub
 
 function tkort_ReadXY alias "fb_ReadXY" _
 	( byval col as long, byval row as long, byval colorflag as long ) as ulong
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as ulong res = any
 	dim as FB_READXYPROC p = TKORT_HOOKPTR( FB_READXYPROC, TKORT_HK_READXY )
 	if( p <> 0 ) then res = p( col, row, colorflag ) else res = tkrt_ConsoleReadXY( col, row, colorflag )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 
 sub tkort_Sleep alias "fb_Sleep" ( byval msecs as long )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as FB_SLEEPPROC p = TKORT_HOOKPTR( FB_SLEEPPROC, TKORT_HK_SLEEP )
 	if( p <> 0 ) then p( msecs ) else tkrt_ConsoleSleep( msecs )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 end sub
 
 function tkort_IsRedirected alias "fb_IsRedirected" ( byval is_input as long ) as long
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long res = any
 	dim as FB_ISREDIRPROC p = TKORT_HOOKPTR( FB_ISREDIRPROC, TKORT_HK_ISREDIR )
 	if( p <> 0 ) then res = p( is_input ) else res = tkrt_ConsoleIsRedirected( is_input )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 
 function tkort_PageCopy alias "fb_PageCopy" ( byval src as long, byval dst as long ) as long
 	tkrt_DevScrnInitNoOpen( )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long res = any
 	dim as FB_PAGECOPYPROC p = TKORT_HOOKPTR( FB_PAGECOPYPROC, TKORT_HK_PAGECOPY )
 	if( p <> 0 ) then res = p( src, dst ) else res = tkrt_ConsolePageCopy( src, dst )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 
 function tkort_PageSet alias "fb_PageSet" ( byval active as long, byval visible as long ) as long
 	tkrt_DevScrnInitNoOpen( )
-	IOLOCK()
+	TKORT_IOLOCK()
 	dim as long res = any
 	dim as FB_PAGESETPROC p = TKORT_HOOKPTR( FB_PAGESETPROC, TKORT_HK_PAGESET )
 	if( p <> 0 ) then res = p( active, visible ) else res = tkrt_ConsolePageSet( active, visible )
-	IOUNLOCK()
+	TKORT_IOUNLOCK()
 	return res
 end function
 

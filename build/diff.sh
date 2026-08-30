@@ -51,6 +51,7 @@ rm -rf "$WORK"; mkdir -p "$WORK"
 pass=0
 fail=0
 skip=0
+crash=0
 
 for src in "$RT_ROOT"/tests/abi/*.bas; do
     [ -e "$src" ] || continue
@@ -78,12 +79,19 @@ for src in "$RT_ROOT"/tests/abi/*.bas; do
     GENOPT=""
     if grep -q 'NEEDS-GEN-LLVM' "$src"; then GENOPT="-gen llvm"; fi
 
+    # Same idea for the language dialect. GOSUB/RETURN exist only under
+    # -lang fblite or qb, and a test that needs one says so in its own text
+    # rather than the dialect being applied to every file.
+    LANGOPT=""
+    if grep -q 'NEEDS-LANG-FBLITE' "$src"; then LANGOPT="-lang fblite"; fi
+    if grep -q 'NEEDS-LANG-QB' "$src"; then LANGOPT="-lang qb"; fi
+
     WRAP=""
     for sym in $(grep -oE '__real_[A-Za-z0-9_]+' "$src" | sed 's/^__real_//' | sort -u); do
         WRAP="$WRAP -Wl --wrap=$sym"
     done
 
-    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-stock.exe" $(rt_incflags) $GENOPT $WRAP \
+    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-stock.exe" $(rt_incflags) $GENOPT $LANGOPT $WRAP \
             > "$WORK/$name-stock.build" 2>&1; then
         echo "diff: SKIP $name -- does not build against fbc's runtime" >&2
         sed 's/^/    /' "$WORK/$name-stock.build" >&2
@@ -92,7 +100,7 @@ for src in "$RT_ROOT"/tests/abi/*.bas; do
     fi
 
     # Merged: the same program, tiko-rt's objects ahead of the archive.
-    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-rt.exe" $(rt_incflags) $GENOPT $WRAP $OBJS \
+    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-rt.exe" $(rt_incflags) $GENOPT $LANGOPT $WRAP $OBJS \
             > "$WORK/$name-rt.build" 2>&1; then
         echo "diff: FAIL $name -- does not link over tiko-rt" >&2
         sed 's/^/    /' "$WORK/$name-rt.build" >&2
@@ -103,13 +111,33 @@ for src in "$RT_ROOT"/tests/abi/*.bas; do
     # A crash is a failure, not an empty output to be diffed against another
     # empty output. Both exit codes are recorded so that two matching crashes
     # cannot pass as "identical".
-    "$WORK/$name-stock.exe" > "$WORK/$name-stock.out" 2>&1; echo "exit=$?" >> "$WORK/$name-stock.out"
-    "$WORK/$name-rt.exe"    > "$WORK/$name-rt.out"    2>&1; echo "exit=$?" >> "$WORK/$name-rt.out"
+    # `|| rc=$?`, NOT `; echo exit=$?`. This script runs under set -e, so a
+    # test executable that segfaults or exits non-zero used to ABORT THE WHOLE
+    # RUN -- no summary line, no failure count, just the shell's own
+    # "Segmentation fault" notice and a silent exit 0 from the script. That is
+    # how a crashing test came to look like a clean pass. The exit code is
+    # captured into the .out either way, so it still takes part in the
+    # comparison.
+    rc=0; "$WORK/$name-stock.exe" > "$WORK/$name-stock.out" 2>&1 || rc=$?
+    echo "exit=$rc" >> "$WORK/$name-stock.out"
+    rc=0; "$WORK/$name-rt.exe"    > "$WORK/$name-rt.out"    2>&1 || rc=$?
+    echo "exit=$rc" >> "$WORK/$name-rt.out"
 
     if [ ! -s "$WORK/$name-stock.out" ]; then
         echo "diff: FAIL $name -- stock run produced no output at all" >&2
         fail=$((fail + 1))
         continue
+    fi
+
+    # A TEST THAT CRASHES THE SAME WAY ON BOTH SIDES COMPARES EQUAL AND PASSES.
+    # The exit code is recorded inside each .out, so an identical segfault is an
+    # identical output -- which is exactly what this script is built to accept.
+    # It is still not a result anyone should read as "fine", so it is counted
+    # and named separately. This exists because a run reported "0 differing"
+    # while the shell was printing "Segmentation fault" beside it.
+    if ! grep -qx 'exit=0' "$WORK/$name-rt.out"; then
+        echo "diff: NOTE $name -- both sides exited non-zero ($(grep -o 'exit=[0-9]*' "$WORK/$name-rt.out" | tail -1))" >&2
+        crash=$((crash + 1))
     fi
 
     if diff -u "$WORK/$name-stock.out" "$WORK/$name-rt.out" > "$WORK/$name.diff"; then
@@ -125,7 +153,9 @@ if [ $((pass + fail + skip)) -eq 0 ]; then
     rt_die "no differential programs found in tests/abi -- an empty pass is not a pass"
 fi
 
-echo "diff: $TARGET [$CFG] -- $pass identical, $fail differing, $skip skipped"
+crashnote=""
+if [ "$crash" -gt 0 ]; then crashnote=", $crash exited non-zero on BOTH sides"; fi
+echo "diff: $TARGET [$CFG] -- $pass identical, $fail differing, $skip skipped$crashnote"
 
 # A SKIP IS A HARNESS FAILURE, not a neutral outcome. Every program in tests/abi
 # is meant to run; one that will not build against fbc's own runtime means the

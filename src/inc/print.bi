@@ -44,6 +44,21 @@ const FB_TAB_WIDTH = 14
 #define TKORT_BIN_NEWLINE     !"\r\n"
 #define TKORT_BIN_NEWLINE_LEN 2
 
+'' The wide newline literals. A wstring literal's length is in CHARACTERS, and
+'' the byte length would be twice or four times it depending on the target --
+'' which is why these carry an explicit count rather than a sizeof.
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+	#define TKORT_WNEWLINE     wstr( !"\r\n" )
+	#define TKORT_WNEWLINE_LEN 2
+#else
+	#define TKORT_WNEWLINE     wstr( !"\n" )
+	#define TKORT_WNEWLINE_LEN 1
+#endif
+
+'' CRLF on both, exactly as on the narrow side.
+#define TKORT_WBIN_NEWLINE     wstr( !"\r\n" )
+#define TKORT_WBIN_NEWLINE_LEN 2
+
 '' Follow a redirection chain to the handle that actually writes.
 ''
 '' OPEN "SCRN:" builds a handle whose redirection_to points at another, so every

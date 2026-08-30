@@ -1,0 +1,310 @@
+'' write.bas -- the WRITE # statement: fifteen entry points over nine fbc
+'' members. Every one of them emits a value followed by a SEPARATOR chosen from
+'' the print mask, and the separator is where all the behaviour lives.
+''
+'' THE SEPARATOR IS PART OF THE SAME sprintf CALL, not appended afterwards.
+'' fbc builds "%d\r\n" or "%d," as the format string and formats once. Emitting
+'' the value and then the separator would produce identical bytes for every
+'' input, and a different number of writes -- which is observable through a
+'' file handle's buffering and through the device layer's line accounting.
+''
+'' THREE-WAY, NOT TWO-WAY: BIN_NEWLINE is tested BEFORE NEWLINE, and the
+'' fallback is a COMMA rather than nothing. WRITE # separates its arguments
+'' with commas and terminates the record with a newline, so a value with
+'' neither newline bit set is a mid-record value and must be followed by ",".
+''
+'' STRINGS ARE QUOTED, AND THE CLOSING QUOTE IS GLUED TO THE SEPARATOR --
+'' "\"" & newline, one buffer, one call. The opening quote is a separate
+'' one-byte write, and the payload a third, all three under one lock. A NULL
+'' or empty string takes a different path that emits "" and the separator in a
+'' SINGLE write, so the call count differs between the empty and non-empty
+'' cases. That asymmetry is fbc's, and it is visible to an allocation- or
+'' write-count differential.
+''
+'' fb_WriteString DELETES ITS TEMP; fb_WriteFixString has no temp to delete.
+'' fb_WriteWstr does NOT delete anything either -- wide temps are owned
+'' elsewhere. Three neighbouring functions, three different ownership rules.
+''
+'' THE NARROW PATH USES sprintf, WHICH IS MinGW ON WINDOWS (see inc/fmt.bi).
+'' That decides how %g-style output and infinities print, so it is the call
+'' that has to match, not the nicer of the two implementations available.
+
+#include once "inc/descriptors.bi"
+#include once "inc/file.bi"
+#include once "inc/print.bi"
+#include once "inc/fmt.bi"
+#include once "inc/wstr.bi"
+#include once "inc/iolock.bi"
+#include once "crt/string.bi"
+
+extern "c"   '' NON-FBCALL: the device-layer writers, declared plain in fb_print.h.
+	declare function tkrt_PrintBufferEx alias "fb_hFilePrintBufferEx" _
+		( byval h as FB_FILE ptr, byval s as zstring ptr, byval length as uinteger ) as long
+	declare function tkrt_PrintBufferWstrEx alias "fb_hFilePrintBufferWstrEx" _
+		( byval h as FB_FILE ptr, byval s as wstring ptr, byval length as uinteger ) as long
+	declare function tkrt_Float2Str alias "fb_hFloat2Str" _
+		( byval v as double, byval b as zstring ptr, byval digits as long, _
+		  byval mask as long ) as zstring ptr
+	declare function tkrt_hBoolToStr alias "fb_hBoolToStr" ( byval n as byte ) as zstring ptr
+end extern
+
+extern "rtlib"
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+end extern
+
+'' The trailing separator, as a format-string suffix. Returned as a pointer to
+'' a literal so it can be concatenated into the sprintf format.
+private function hSep( byval mask as long ) as zstring ptr
+	'' BIN_NEWLINE FIRST: a handle opened FOR BINARY sets both bits on some
+	'' paths, and testing NEWLINE first would emit LF on Linux where fbc
+	'' emits CRLF.
+	if( (mask and FB_PRINT_BIN_NEWLINE) <> 0 ) then return @TKORT_BIN_NEWLINE
+	if( (mask and FB_PRINT_NEWLINE) <> 0 ) then return @TKORT_NEWLINE
+	return @","
+end function
+
+'' Formats value + separator in one sprintf, then writes once.
+#macro TKORT_WRITENUM( handle, val, mask, fmtlit )
+	scope
+		dim as zstring * 80 buffer = any
+		dim as zstring * 16 fmt = any
+		'' integer, not long: it is a length handed to the device writer.
+		'' sprintf returns a C int, so the widening is explicit here rather
+		'' than the value being carried at 32 bits into a pointer-width API.
+		dim as integer len_ = any
+		strcpy( fmt, fmtlit )
+		strcat( fmt, hSep( mask ) )
+		len_ = tkrt_sprintf( buffer, fmt, val )
+		tkrt_PrintBufferEx( handle, buffer, len_ )
+	end scope
+#endmacro
+
+extern "rtlib"
+
+sub tkort_WriteInt alias "fb_WriteInt" _
+	( byval fnum as long, byval val_ as long, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), val_, mask, "%d" )
+end sub
+
+sub tkort_WriteUInt alias "fb_WriteUInt" _
+	( byval fnum as long, byval val_ as ulong, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), val_, mask, "%u" )
+end sub
+
+sub tkort_WriteByte alias "fb_WriteByte" _
+	( byval fnum as long, byval val_ as byte, byval mask as long )
+	'' %d, not %hhd: the C takes a signed char and lets the default
+	'' promotion widen it to int before sprintf sees it.
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), cast( long, val_ ), mask, "%d" )
+end sub
+
+sub tkort_WriteUByte alias "fb_WriteUByte" _
+	( byval fnum as long, byval val_ as ubyte, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), cast( ulong, val_ ), mask, "%u" )
+end sub
+
+sub tkort_WriteShort alias "fb_WriteShort" _
+	( byval fnum as long, byval val_ as short, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), cast( long, val_ ), mask, "%hd" )
+end sub
+
+sub tkort_WriteUShort alias "fb_WriteUShort" _
+	( byval fnum as long, byval val_ as ushort, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), cast( ulong, val_ ), mask, "%hu" )
+end sub
+
+sub tkort_WriteLongint alias "fb_WriteLongint" _
+	( byval fnum as long, byval val_ as longint, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), val_, mask, "%lld" )
+end sub
+
+sub tkort_WriteULongint alias "fb_WriteULongint" _
+	( byval fnum as long, byval val_ as ulongint, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), val_, mask, "%llu" )
+end sub
+
+'' The bool is rendered by fb_hBoolToStr and then written with %s -- so it
+'' takes the same one-sprintf path as the numbers, not a string path.
+sub tkort_WriteBool alias "fb_WriteBool" _
+	( byval fnum as long, byval val_ as byte, byval mask as long )
+	TKORT_WRITENUM( TKORT_FILE_TO_HANDLE( fnum ), tkrt_hBoolToStr( val_ ), mask, "%s" )
+end sub
+
+end extern
+
+extern "rtlib"
+
+'' The floats do NOT go through sprintf: fb_hFloat2Str renders them (7 digits
+'' for SINGLE, 16 for DOUBLE) and the separator is strcat'd onto the result.
+'' Two calls, not one -- but still a single write.
+sub tkort_WriteSingle alias "fb_WriteSingle" _
+	( byval fnum as long, byval val_ as single, byval mask as long )
+	dim as zstring * 8+1+8+1+2+1 buffer = any
+	tkrt_Float2Str( cdbl( val_ ), buffer, 7, 0 )
+	strcat( buffer, hSep( mask ) )
+	tkrt_PrintBufferEx( TKORT_FILE_TO_HANDLE( fnum ), buffer, strlen( buffer ) )
+end sub
+
+sub tkort_WriteDouble alias "fb_WriteDouble" _
+	( byval fnum as long, byval val_ as double, byval mask as long )
+	dim as zstring * 16+1+8+1+1 buffer = any
+	tkrt_Float2Str( val_, buffer, 16, 0 )
+	strcat( buffer, hSep( mask ) )
+	tkrt_PrintBufferEx( TKORT_FILE_TO_HANDLE( fnum ), buffer, strlen( buffer ) )
+end sub
+
+end extern
+
+'' The quoted-string path: three writes under one lock for a real string, ONE
+'' write for the empty/NULL case. See the header -- the asymmetry is fbc's.
+private sub hWriteStrEx( byval handle as FB_FILE ptr, byval s as zstring ptr, _
+                         byval length as uinteger, byval mask as long )
+
+	dim as zstring * 8 buff = any
+	'' Closing quote glued to the separator, so the tail is one write.
+	buff[0] = asc( """" )
+	buff[1] = 0
+	strcat( buff, hSep( mask ) )
+
+	TKORT_IOLOCK()
+	tkrt_PrintBufferEx( handle, @"""", 1 )
+	if( length <> 0 ) then tkrt_PrintBufferEx( handle, s, length )
+	tkrt_PrintBufferEx( handle, buff, strlen( buff ) )
+	TKORT_IOUNLOCK()
+end sub
+
+'' The empty form: "" plus the separator, emitted as a single buffer.
+private sub hWriteEmpty( byval handle as FB_FILE ptr, byval mask as long )
+	dim as zstring * 8 buff = any
+	buff[0] = asc( """" )
+	buff[1] = asc( """" )
+	buff[2] = 0
+	strcat( buff, hSep( mask ) )
+	tkrt_PrintBufferEx( handle, buff, strlen( buff ) )
+end sub
+
+extern "rtlib"
+
+sub tkort_WriteString alias "fb_WriteString" _
+	( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+
+	dim as FB_FILE ptr handle = TKORT_FILE_TO_HANDLE( fnum )
+
+	if( (s <> 0) andalso (s->data <> 0) ) then
+		hWriteStrEx( handle, s->data, FB_STRSIZE( s ), mask )
+	else
+		hWriteEmpty( handle, mask )
+	end if
+
+	'' Deletes the temp; fb_WriteFixString below has none to delete.
+	tkrt_DelTemp( s )
+end sub
+
+sub tkort_WriteFixString alias "fb_WriteFixString" _
+	( byval fnum as long, byval s as zstring ptr, byval mask as long )
+
+	dim as FB_FILE ptr handle = TKORT_FILE_TO_HANDLE( fnum )
+
+	'' NOT the same emptiness test as fb_WriteString: a fixed-length string
+	'' is a bare pointer, so only NULL takes the empty path -- a zero-length
+	'' one still goes through hWriteStrEx and produces the same bytes by a
+	'' different number of writes.
+	if( s <> 0 ) then
+		hWriteStrEx( handle, s, strlen( s ), mask )
+	else
+		hWriteEmpty( handle, mask )
+	end if
+end sub
+
+end extern
+
+extern "rtlib"
+
+'' WRITE # with no argument list -- the separator alone.
+''
+'' THIS ONE DOES NOT TEST BIN_NEWLINE. fbc checks NEWLINE, then PAD, and
+'' otherwise writes nothing at all. So a bare WRITE # to a handle opened FOR
+'' BINARY emits FB_NEWLINE -- LF on Linux -- where every other entry point in
+'' this file would emit CRLF. Folding this into hSep() would "fix" that and
+'' diverge on exactly one target.
+sub tkort_WriteVoid alias "fb_WriteVoid" ( byval fnum as long, byval mask as long )
+	dim as zstring ptr buffer = 0
+
+	if( (mask and FB_PRINT_NEWLINE) <> 0 ) then
+		buffer = @TKORT_NEWLINE
+	elseif( (mask and FB_PRINT_PAD) <> 0 ) then
+		buffer = @!"\t"
+	end if
+
+	'' No separator at all when neither bit is set -- not even a comma.
+	if( buffer <> 0 ) then
+		tkrt_PrintBufferEx( TKORT_FILE_TO_HANDLE( fnum ), buffer, strlen( buffer ) )
+	end if
+end sub
+
+'' The wide quoted-string path. Mirrors hWriteStrEx exactly, including the
+'' one-write empty case and the closing quote glued to the separator.
+''
+'' THE TAIL IS BUILT CHARACTER BY CHARACTER, NOT FROM A WIDE LITERAL.
+'' @wstr( "..." ) compiles on Windows and fails on Linux with "invalid data
+'' types for @": with a 2-byte wchar the conversion folds to an addressable
+'' literal, with a 4-byte one it does not. That is the wchar_t width trap in
+'' its usual shape -- accidentally right on Windows, broken on Linux -- so the
+'' buffer is filled by index, which means the same thing on both targets.
+''
+'' WRITING b[i] IS SAFE; READING IT IS THE TRAP. p[i] on a wstring yields a
+'' wstring EXPRESSION, so a read has to go through a ulong local (inc/wstr.bi).
+'' Nothing here reads one back.
+private function hWTail( byval b as wstring ptr, byval mask as long, _
+                         byval nquotes as integer ) as integer
+	dim as integer n = 0
+	while( n < nquotes )
+		b[n] = 34            '' a double quote
+		n += 1
+	wend
+	'' BIN_NEWLINE first, then NEWLINE, then a COMMA -- never nothing.
+	if( (mask and FB_PRINT_BIN_NEWLINE) <> 0 ) then
+		b[n] = 13 : n += 1
+		b[n] = 10 : n += 1
+	elseif( (mask and FB_PRINT_NEWLINE) <> 0 ) then
+		#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+			b[n] = 13 : n += 1
+		#endif
+		b[n] = 10 : n += 1
+	else
+		b[n] = 44 : n += 1   '' a comma
+	end if
+	b[n] = 0
+	return n
+end function
+
+sub tkort_WriteWstr alias "fb_WriteWstr" _
+	( byval fnum as long, byval s as wstring ptr, byval mask as long )
+
+	dim as FB_FILE ptr handle = TKORT_FILE_TO_HANDLE( fnum )
+	dim as wstring * 8 buff = any
+	dim as wstring * 4 openq = any
+	dim as integer bufflen = any, length = any
+
+	if( s = 0 ) then
+		'' Two quotes plus the separator, in a SINGLE write.
+		bufflen = hWTail( @buff, mask, 2 )
+		tkrt_PrintBufferWstrEx( handle, @buff, bufflen )
+		'' NO TEMP DELETE, and none to delete -- unlike fb_WriteString.
+		'' Three neighbouring functions, three ownership rules; see header.
+		exit sub
+	end if
+
+	bufflen = hWTail( @buff, mask, 1 )
+	openq[0] = 34
+	openq[1] = 0
+
+	TKORT_IOLOCK()
+	tkrt_PrintBufferWstrEx( handle, @openq, 1 )
+	length = FB_WSTR_LEN( s )
+	if( length <> 0 ) then tkrt_PrintBufferWstrEx( handle, s, length )
+	tkrt_PrintBufferWstrEx( handle, @buff, bufflen )
+	TKORT_IOUNLOCK()
+end sub
+
+end extern

@@ -1,12 +1,33 @@
-'' rterror.bi -- the FB_RTERROR codes the runtime sets internally.
+'' rterror.bi -- FB_RTERROR, the runtime's internal error codes.
 ''
-'' THE INTERNAL CODE IS 1, NOT 5. FB_RTERROR is fbc's own enum and
-'' ILLEGALFUNCTIONCALL is simply its second member; the 5 that BASIC's ERR
-'' reports is a SEPARATE mapping applied later. Guessing the BASIC number here
+'' THESE ARE NOT THE NUMBERS BASIC'S `ERR` REPORTS. FB_RTERROR is fbc's own
+'' enum and the mapping to the BASIC error number is applied later, on the way
+'' out. ILLEGALFUNCTIONCALL is 1 here and 5 there. Guessing the BASIC number
 '' set FB_RTERROR_OUTOFMEM on every failed seek once already -- a wrong error
-'' rather than a missing one, which is why this lives in one place now.
+'' rather than a missing one, which is why the whole enum now lives in one
+'' place and is spelled out in fb_error.h's order rather than picked off one
+'' constant at a time.
 
 #pragma once
 
-const FB_RTERROR_OK = 0
-const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
+const FB_RTERROR_OK                   = 0
+const FB_RTERROR_ILLEGALFUNCTIONCALL  = 1
+const FB_RTERROR_FILENOTFOUND         = 2
+const FB_RTERROR_FILEIO               = 3
+const FB_RTERROR_OUTOFMEM             = 4
+const FB_RTERROR_ILLEGALRESUME        = 5
+const FB_RTERROR_OUTOFBOUNDS          = 6
+const FB_RTERROR_NULLPTR              = 7
+const FB_RTERROR_NOPRIVILEGES         = 8
+const FB_RTERROR_SIGINT               = 9
+const FB_RTERROR_SIGILL               = 10
+const FB_RTERROR_SIGFPE               = 11
+const FB_RTERROR_SIGSEGV              = 12
+const FB_RTERROR_SIGTERM              = 13
+const FB_RTERROR_SIGABRT              = 14
+const FB_RTERROR_SIGQUIT              = 15
+const FB_RTERROR_RETURNWITHOUTGOSUB   = 16
+const FB_RTERROR_ENDOFFILE            = 17
+const FB_RTERROR_NOTDIMENSIONED       = 18
+const FB_RTERROR_WRONGDIMENSIONS      = 19
+const FB_RTERROR_MAX                  = 20
