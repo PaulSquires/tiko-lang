@@ -1,0 +1,8 @@
+'' A threadcall passes its callee's defaulted parameters, and an explicit 'byval'
+'' against a byref parameter passes the value as the reference.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/threadcall-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/threadcall-args.out

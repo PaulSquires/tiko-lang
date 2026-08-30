@@ -161,21 +161,49 @@ function LowerThreadCall_ _
     if (pp->extra and Tko.PF_FOREIGN) <> 0 then conv = 1
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, conv ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, aCount ) )
+    '' THE COUNT COMES FROM THE CALLEE, not from the call. A DEFAULTED PARAMETER IS
+    '' PASSED like any other: measured, 'sub two( byval a as integer, opt as integer
+    '' = 13 )' called as 'threadcall two( 5 )' is
+    ''
+    ''     TMP$4$0 = 13ll;
+    ''     fb_ThreadCall( &TWO, 0, 0ll, 2, 8ll, &TMP$3$0, 8ll, &TMP$4$0 )
+    ''
+    '' -- TWO arguments, the written one and the default. tiko-lang passed the
+    '' written count and stopped there, and fb_ThreadCall is VARIADIC, so nothing
+    '' complained: the thread read an uninitialised 'opt'. Lowered, verified, and
+    '' wrong. The ordinary call path has done this since it was written.
+    dim as long nparams = ParamCountOf( c, callee )
+    dim as long slots = aCount
+    if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then
+        slots = nparams
+    end if
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, slots ) )
 
     dim as long pbytes = c.types->target.pointerBits \ 8
-    for i as long = 0 to aCount - 1
-        dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[aFirst + i] )
+    for i as long = 0 to slots - 1
+        dim as Tko.NodeId ae = Tko.NODE_NONE
+        if i < aCount then ae = cast( Tko.NodeId, c.ast->children[aFirst + i] )
+        if ae <> Tko.NODE_NONE then
+            if c.ast->Kind( ae ) = Tko.N_ELIDED then ae = Tko.NODE_NONE
+        end if
+        if ae = Tko.NODE_NONE then ae = ParamDefaultAt( c, callee, i )
+        if ae = Tko.NODE_NONE then return false
         '' 'byval expr' AT A CALL SITE IS AN N_UNARY, and it is transparent here: fbc
         '' writes the same 'fb_ThreadCall( &S3, 0, 0ll, 1, 13ll, &TMP$2$0 )' with the
         '' byval as without it. Unstripped, the argument was classified as a unary
         '' expression, LowerThreadCall_ returned false, and the whole assignment
         '' declined -- while the ordinary call path had stripped it since it was
         '' written. threads/threadcall.bas:166.
+        '' ...AND AN EXPLICIT 'byval' AGAINST A BYREF PARAMETER MEANS THE VALUE IS
+        '' THE REFERENCE, so it is remembered rather than merely stripped.
+        dim as boolean forcedByval = false
         if c.ast->Kind( ae ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr tup = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, ae )].data )]
-            if cast( Tko.TokenKind, tup->op ) = Tko.KW_BYVAL then ae = tup->operand
+            if cast( Tko.TokenKind, tup->op ) = Tko.KW_BYVAL then
+                forcedByval = true
+                ae = tup->operand
+            end if
         end if
         if c.ast->Kind( ae ) = Tko.N_ELIDED then return false
         dim as Tko.TypeId pt = ParamTypeAt( c, callee, i )
@@ -209,7 +237,16 @@ function LowerThreadCall_ _
             '' A POINTER TEMPORARY HOLDING THE ADDRESS, and the temporary's own address
             '' is what is passed. Measured: 'int64* TMP$4$0; TMP$4$0 = &IV$0;
             '' fb_ThreadCall( ..., 13ll, &TMP$4$0 )'.
-            dim as MirValue ad = LowerAddr( c, ae )
+            '' 'byval @bv' HAS NO ADDRESS OF ITS OWN -- it IS one. Asking LowerAddr
+            '' for the address of an address-of gave MV_NONE and the whole
+            '' assignment declined; fbc stores the VALUE, 'TMP$3$0 = &BV$0'.
+            '' threads/threadcall.bas:166 is exactly this argument.
+            dim as MirValue ad
+            if forcedByval then
+                ad = LowerExpr( c, ae )
+            else
+                ad = LowerAddr( c, ae )
+            end if
             if ad.kind = cast( ubyte, MV_NONE ) then return false
             dim as long rslot = NewTempLocal( c, MT_PTR, pbytes )
             if rslot < 0 then return false
