@@ -110,3 +110,4 @@ io/devscrn.bas
 math/rnd.bas
 chrono/clock.bas
 chrono/zone.bas
+fs/error.bas
