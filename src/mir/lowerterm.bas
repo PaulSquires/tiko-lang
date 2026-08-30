@@ -756,6 +756,32 @@ end function
 ''     P2( *(char**)&S )      a STRING: the pointer LOADED out of the descriptor
 ''
 '' The wide half of this is WideOperand_, which already existed for the same reason.
+'' Whether a narrow string TERM owns its descriptor or borrows one from the runtime.
+''
+'' A CALL and a CONCATENATION are rvalues: fb_LongintToStr and fb_StrConcat hand back
+'' a temporary of the runtime's, and taking its data pointer without copying leaves
+'' nothing to delete it. A variable, a field, an element and a literal are not: their
+'' descriptors outlive the statement and copying one would be a delete fbc does not
+'' emit.
+''
+'' Answered from the NODE KIND on purpose. The other way to ask -- whether LowerAddr
+'' can produce an address -- would lower the expression a SECOND time and repeat its
+'' side effects.
+private function ZstrTermIsRvalue_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    select case c.ast->Kind( id )
+    case Tko.N_CALL, Tko.N_INTRINSIC
+        return true
+    case Tko.N_BINARY
+        '' A concatenation only; every other binary over strings is a comparison,
+        '' whose result is not a string at all.
+        return IsStringType( c, c.info->TypeOf_( id ) )
+    end select
+    return false
+end function
+
 function ZstrDataOf_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -830,6 +856,40 @@ function ZstrDataOf_ _
         dim as MirValue da
         if StrDescriptorOf_( c, id, da ) = false then da = LowerAddr( c, id )
         if da.kind = cast( ubyte, MV_NONE ) then return false
+
+        '' AN RVALUE IS BORROWED INTO A TEMPORARY, and the temporary is DELETED.
+        '' Measured, for a 'byval as const zstring ptr' parameter:
+        ''
+        ''     T( s )        -- a variable: the descriptor is taken as it is
+        ''     T( "lit" )    -- a literal: the bytes are taken as they are
+        ''     T( str( n ) ) -- fb_StrAssign( &TMP, -1, vr, -1, 0 )
+        ''                      T( *(char**)&TMP ); fb_StrDelete( &TMP )
+        ''     T( s & "x" )  -- the same borrow
+        ''
+        '' tiko took the data pointer straight out of the RUNTIME's temporary and
+        '' deleted nothing, so every such argument leaked one string. The comment
+        '' on this row already SAID fbc copies it first; the row just never did.
+        ''
+        '' Whether it is an rvalue is answered from the NODE, not by lowering it
+        '' again: asking LowerAddr a second time would re-emit the expression and
+        '' its side effects.
+        if ZstrTermIsRvalue_( c, id ) then
+            dim as long btmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+            if btmp >= 0 then
+                dim as MirValue bd
+                bd.kind = cast( ubyte, MV_LOCAL )
+                bd.ty = cast( ubyte, MT_PTR )
+                bd.id = btmp
+                ZeroStrDescriptor( c, bd )
+                dim as FB.Array( of ulong ) bargs
+                PushStrArg( bargs, bd )
+                PushStrArg( bargs, da )
+                bargs.Push( cast( ulong, MV_CONST_INT ) ) : bargs.Push( 0 )
+                EmitRtl( c, RTL_STR_ASSIGN, bargs )
+                c.strTemps.Push( cast( ulong, btmp ) )
+                da = bd
+            end if
+        end if
         '' The data pointer is the descriptor's FIRST field, which is why this is a
         '' plain load and not a field address.
         outv = LowerExprLoad( c, da, MT_PTR )

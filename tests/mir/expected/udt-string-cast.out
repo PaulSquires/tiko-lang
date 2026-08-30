@@ -61,14 +61,15 @@ func void G() {
   local i32 t
   local agg u1 size 32
   local agg u2 size 32
+  local agg $tmp6 size 24
   local agg u3 size 32
-  local ptr $tmp7
   local ptr $tmp8
+  local ptr $tmp9
   local agg rv size 100
   local agg ru size 100
   local agg rt size 50
   local i8 r
-  local ptr $tmp13
+  local ptr $tmp14
   entry0:
     %1 = alloca ptr u
     call void _ZN1UC1Ev(@u)
@@ -98,48 +99,57 @@ func void G() {
     %17 = alloca ptr u2
     %18 = load @t
     %19 = call.rtl ptr fb_IntToStr(%18)
-    %20 = load %19
-    call void _ZN1UC1EPKc(@u2, %20)
-    %21 = alloca ptr u3
+    %20 = alloca ptr $tmp6
+    %21 = field.addr @$tmp6, 0
+    store %21, 0
+    %22 = field.addr @$tmp6, 8
+    store %22, 0
+    %23 = field.addr @$tmp6, 16
+    store %23, 0
+    %24 = call.rtl ptr fb_StrAssign(@$tmp6, -1, %19, -1, 0)
+    %25 = load @$tmp6
+    call void _ZN1UC1EPKc(@u2, %25)
+    call.rtl void fb_StrDelete(@$tmp6)
+    %26 = alloca ptr u3
     call void _ZN1UC1EPKc(@u3, @@$str0)
-    %22 = call ptr _ZN1WcvwEv(@w)
-    %23 = call.rtl ptr fb_WstrConcatWA(%22, @@$str1, 3)
-    %24 = alloca ptr $tmp7
-    store @$tmp7, %23
-    %25 = load @$tmp7
-    %26 = call.rtl ptr fb_WstrConcat(%25, @@$wstr2)
-    %27 = alloca ptr $tmp8
-    store @$tmp8, %26
-    %28 = load @$tmp8
-    call.rtl void fb_PrintWstr(0, %28, 1)
-    %29 = load @$tmp8
-    call.rtl void fb_WstrDelete(%29)
-    %30 = load @$tmp7
-    call.rtl void fb_WstrDelete(%30)
-    %31 = call ptr _ZN1WcvwEv(@w)
-    call.rtl void fb_PrintWstr(0, %31, 1)
-    %32 = alloca ptr rv
-    %33 = const i64 1
-    %34 = call.rtl ptr fb_StrMid(@s, %33, -1)
-    %35 = call.rtl ptr fb_WstrAssignFromA(@rv, 50, %34, -1)
-    %36 = alloca ptr ru
-    %37 = call ptr _ZN1UcvcEv(@u)
-    %38 = call.rtl ptr fb_StrAllocTempDescZ(%37)
-    %39 = const i64 1
-    %40 = call.rtl ptr fb_StrMid(%38, %39, -1)
-    %41 = call.rtl ptr fb_WstrAssignFromA(@ru, 50, %40, -1)
-    %42 = alloca ptr rt
-    %43 = alloca ptr r
-    %44 = call.rtl ptr fb_StrToWstr(@rt)
-    %45 = alloca ptr $tmp13
-    store @$tmp13, %44
-    %46 = load @$tmp13
-    %47 = call.rtl i32 fb_WstrCompare(%46, @rv)
-    %48 = icmp.eq %47, 0
-    %49 = neg %48
-    store @r, %49
-    %50 = load @$tmp13
-    call.rtl void fb_WstrDelete(%50)
+    %27 = call ptr _ZN1WcvwEv(@w)
+    %28 = call.rtl ptr fb_WstrConcatWA(%27, @@$str1, 3)
+    %29 = alloca ptr $tmp8
+    store @$tmp8, %28
+    %30 = load @$tmp8
+    %31 = call.rtl ptr fb_WstrConcat(%30, @@$wstr2)
+    %32 = alloca ptr $tmp9
+    store @$tmp9, %31
+    %33 = load @$tmp9
+    call.rtl void fb_PrintWstr(0, %33, 1)
+    %34 = load @$tmp9
+    call.rtl void fb_WstrDelete(%34)
+    %35 = load @$tmp8
+    call.rtl void fb_WstrDelete(%35)
+    %36 = call ptr _ZN1WcvwEv(@w)
+    call.rtl void fb_PrintWstr(0, %36, 1)
+    %37 = alloca ptr rv
+    %38 = const i64 1
+    %39 = call.rtl ptr fb_StrMid(@s, %38, -1)
+    %40 = call.rtl ptr fb_WstrAssignFromA(@rv, 50, %39, -1)
+    %41 = alloca ptr ru
+    %42 = call ptr _ZN1UcvcEv(@u)
+    %43 = call.rtl ptr fb_StrAllocTempDescZ(%42)
+    %44 = const i64 1
+    %45 = call.rtl ptr fb_StrMid(%43, %44, -1)
+    %46 = call.rtl ptr fb_WstrAssignFromA(@ru, 50, %45, -1)
+    %47 = alloca ptr rt
+    %48 = alloca ptr r
+    %49 = call.rtl ptr fb_StrToWstr(@rt)
+    %50 = alloca ptr $tmp14
+    store @$tmp14, %49
+    %51 = load @$tmp14
+    %52 = call.rtl i32 fb_WstrCompare(%51, @rv)
+    %53 = icmp.eq %52, 0
+    %54 = neg %53
+    store @r, %54
+    %55 = load @$tmp14
+    call.rtl void fb_WstrDelete(%55)
     call.rtl void fb_StrDelete(@s)
     ret
 }
@@ -147,6 +157,8 @@ declare ptr fb_StrAllocTempDescZ($0)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_PrintWstr($0, $1, $2)
 declare ptr fb_IntToStr($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
 declare ptr fb_WstrConcatWA($0, $1, $2)
 declare ptr fb_WstrConcat($0, $1)
 declare void fb_WstrDelete($0)
@@ -154,7 +166,6 @@ declare ptr fb_StrMid($0, $1, $2)
 declare ptr fb_WstrAssignFromA($0, $1, $2, $3)
 declare ptr fb_StrToWstr($0)
 declare i32 fb_WstrCompare($0, $1)
-declare void fb_StrDelete($0)
 func void COMPAREAGAINSTFIXED() {
   local agg sz size 50
   local agg uz size 32
@@ -214,9 +225,8 @@ func void COMPAREAGAINSTFIXED() {
   if.else12:
     br if.join10
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare i32 fb_StrCompare($0, $1, $2, $3)
 declare ptr fb_StrAllocTempDescZEx($0, $1)
 declare ptr fb_WstrAssign($0, $1, $2)
 verify: ok
-lowered: 6 functions, 18 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 18 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance

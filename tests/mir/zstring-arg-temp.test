@@ -1,0 +1,8 @@
+'' A zstring-pointer argument: a variable and a literal are taken as they are, a call
+'' result and a concatenation are borrowed into a temporary that is deleted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/zstring-arg-temp.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/zstring-arg-temp.out

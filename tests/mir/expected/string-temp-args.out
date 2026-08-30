@@ -52,6 +52,7 @@ func i32 main($0, $1) {
   local agg $tmp2 size 24
   local agg $tmp3 size 24
   local agg $tmp4 size 24
+  local agg $tmp5 size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -88,29 +89,38 @@ func i32 main($0, $1) {
     call.rtl void fb_StrDelete(@$tmp3)
     %22 = const i64 255
     %23 = call.rtl ptr fb_HEX_l(%22)
-    %24 = load %23
-    %25 = const i64 0
-    call void TAKEZSTRINGPTR(%24, %25)
-    %26 = alloca ptr $tmp4
-    %27 = field.addr @$tmp4, 0
+    %24 = alloca ptr $tmp4
+    %25 = field.addr @$tmp4, 0
+    store %25, 0
+    %26 = field.addr @$tmp4, 8
+    store %26, 0
+    %27 = field.addr @$tmp4, 16
     store %27, 0
-    %28 = field.addr @$tmp4, 8
-    store %28, 0
-    %29 = field.addr @$tmp4, 16
-    store %29, 0
-    %30 = call.rtl ptr fb_WstrAssignToA(@$tmp4, -1, @w, 0)
-    %31 = load @$tmp4
-    %32 = const i64 0
-    call void TAKEZSTRINGPTR(%31, %32)
+    %28 = call.rtl ptr fb_StrAssign(@$tmp4, -1, %23, -1, 0)
+    %29 = load @$tmp4
+    %30 = const i64 0
+    call void TAKEZSTRINGPTR(%29, %30)
     call.rtl void fb_StrDelete(@$tmp4)
-    %33 = const i64 255
-    %34 = call.rtl ptr fb_WstrHex_l(%33)
-    %35 = const i64 0
-    call void TAKEWSTRINGPTR(%34, %35)
-    %36 = const i32 0
-    call.rtl void fb_End(%36)
-    %37 = load @$tmp0
-    ret %37
+    %31 = alloca ptr $tmp5
+    %32 = field.addr @$tmp5, 0
+    store %32, 0
+    %33 = field.addr @$tmp5, 8
+    store %33, 0
+    %34 = field.addr @$tmp5, 16
+    store %34, 0
+    %35 = call.rtl ptr fb_WstrAssignToA(@$tmp5, -1, @w, 0)
+    %36 = load @$tmp5
+    %37 = const i64 0
+    call void TAKEZSTRINGPTR(%36, %37)
+    call.rtl void fb_StrDelete(@$tmp5)
+    %38 = const i64 255
+    %39 = call.rtl ptr fb_WstrHex_l(%38)
+    %40 = const i64 0
+    call void TAKEWSTRINGPTR(%39, %40)
+    %41 = const i32 0
+    call.rtl void fb_End(%41)
+    %42 = load @$tmp0
+    ret %42
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrAssign($0, $1, $2)
@@ -121,4 +131,4 @@ declare ptr fb_WstrHex_l($0)
 declare ptr fb_WstrAssignToA($0, $1, $2, $3)
 declare void fb_End($0)
 verify: ok
-lowered: 4 functions, 4 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 91 insts, 0 statements not lowered, 0 scope imbalance

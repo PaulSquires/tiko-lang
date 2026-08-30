@@ -1,0 +1,71 @@
+global str $str0 "ab"
+global str $str1 "lit"
+global str $str2 "x"
+func void GO() {
+  local i32 n
+  local agg s size 24
+  local i32 r
+  local agg $tmp3 size 24
+  local agg $tmp4 size 24
+  local agg $tmp5 size 24
+  entry0:
+    %1 = alloca ptr n
+    %2 = const i64 5
+    %3 = trunc %2
+    store @n, %3
+    %4 = alloca ptr s
+    %5 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 3, 0)
+    %6 = alloca ptr r
+    %7 = load @s
+    %8 = call i32 T(%7)
+    store @r, %8
+    %9 = call i32 T(@@$str1)
+    store @r, %9
+    %10 = load @n
+    %11 = call.rtl ptr fb_IntToStr(%10)
+    %12 = alloca ptr $tmp3
+    %13 = field.addr @$tmp3, 0
+    store %13, 0
+    %14 = field.addr @$tmp3, 8
+    store %14, 0
+    %15 = field.addr @$tmp3, 16
+    store %15, 0
+    %16 = call.rtl ptr fb_StrAssign(@$tmp3, -1, %11, -1, 0)
+    %17 = load @$tmp3
+    %18 = call i32 T(%17)
+    store @r, %18
+    call.rtl void fb_StrDelete(@$tmp3)
+    %19 = alloca ptr $tmp4
+    %20 = field.addr @$tmp4, 0
+    store %20, 0
+    %21 = field.addr @$tmp4, 8
+    store %21, 0
+    %22 = field.addr @$tmp4, 16
+    store %22, 0
+    %23 = call.rtl ptr fb_StrConcat(@$tmp4, @s, -1, @@$str2, 2)
+    %24 = alloca ptr $tmp5
+    %25 = field.addr @$tmp5, 0
+    store %25, 0
+    %26 = field.addr @$tmp5, 8
+    store %26, 0
+    %27 = field.addr @$tmp5, 16
+    store %27, 0
+    %28 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @$tmp4, -1, 0)
+    %29 = load @$tmp5
+    %30 = call i32 T(%29)
+    store @r, %30
+    call.rtl void fb_StrDelete(@$tmp5)
+    %31 = load @r
+    call.rtl void fb_PrintInt(0, %31, 1)
+    call.rtl void fb_StrDelete(@s)
+    ret
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare i32 T()
+declare ptr fb_IntToStr($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare ptr fb_StrConcat($0, $1, $2, $3, $4)
+declare void fb_PrintInt($0, $1, $2)
+verify: ok
+lowered: 1 functions, 1 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
