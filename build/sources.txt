@@ -78,3 +78,5 @@ io/fileget.bas
 io/filestr.bas
 io/filewstr.bas
 io/inputnum.bas
+io/inputstr.bas
+strw/swap.bas
