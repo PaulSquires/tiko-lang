@@ -460,6 +460,22 @@ namespace Tko.Mir
         '' runtime that descriptor on the way out; what the function actually returns
         '' is the POINTER this gives back, not the descriptor itself.
         RTL( RTL_STR_TEMP_RESULT,   "fb_StrAllocTempResult", "p",   "p"     )
+        RTL( RTL_USTR_TEMP_RESULT,  "fb_UStrAllocTempResult", "p",  "p"     )
+        '' THE USTRING INTRINSIC FAMILY. Each takes its descriptor as a
+        '' (pointer, length) pair where the narrow twin takes a bare descriptor
+        '' -- a ustring may be FIXED-LENGTH and the length is what says so.
+        '' Signatures measured from what fbc emits, not transcribed.
+        RTL( RTL_USTR_UCASE,        "fb_UStrUcase",        "p",   "pz"    )
+        RTL( RTL_USTR_LCASE,        "fb_UStrLcase",        "p",   "pz"    )
+        RTL( RTL_USTR_TRIM,         "fb_UStrTrim",         "p",   "pz"    )
+        RTL( RTL_USTR_LTRIM,        "fb_UStrLTrim",        "p",   "pz"    )
+        RTL( RTL_USTR_RTRIM,        "fb_UStrRTrim",        "p",   "pz"    )
+        RTL( RTL_USTR_MID,          "fb_UStrMid",          "p",   "pzzz"  )
+        RTL( RTL_USTR_LEFT,         "fb_UStrLeftD",        "p",   "pz"    )
+        RTL( RTL_USTR_RIGHT,        "fb_UStrRightD",       "p",   "pz"    )
+        RTL( RTL_USTR_INSTR,        "fb_UStrInstr",        "z",   "zpzpz" )
+        RTL( RTL_USTR_INSTR_REV,    "fb_UStrInstrRev",     "z",   "pzpzz" )
+        RTL( RTL_USTR_ASSIGN_MID,   "fb_UStrAssignMid",    "v",   "pzzzpz" )
         RTL( RTL_VALINT,            "fb_VALINT",           "l",   "p"     )
         '' THE WIDE HALF of the VAL family. Same five shapes, a bare uint16* instead of
         '' a descriptor, and the RESULT WIDTHS are the narrow family's -- fb_WstrValInt
@@ -535,6 +551,7 @@ namespace Tko.Mir
         RTL( RTL_ARRAY_DESTRUCT_OBJ,"fb_ArrayDestructObj", "v",   "pp"    )
         RTL( RTL_ARRAY_ERASE_OBJ,   "fb_ArrayEraseObj",    "l",   "ppp"   )
         RTL( RTL_ARRAY_STR_ERASE,   "fb_ArrayStrErase",    "v",   "p"     )
+        RTL( RTL_ARRAY_USTR_ERASE,  "fb_ArrayUStrErase",   "v",   "p"     )
         RTL( RTL_ARRAY_LBOUND,      "fb_ArrayLBound",      "z",   "pz"    )
         RTL( RTL_ARRAY_UBOUND,      "fb_ArrayUBound",      "z",   "pz"    )
         '' SPC and TAB take NO MASK, so 'print spc(n);' emits one call and nothing

@@ -671,6 +671,11 @@ declare function EmitRtl _
           byref terms as FB.Array( of ulong ) ) as boolean
     declare sub PushStrLiteralArg _
         ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
+    '' lowerustr.bas -- the USTRING intrinsic family, the third beside the narrow set
+    '' in lowersub.bas and the wide one in lowerwstr.bas.
+    declare function LowerUStrIntrin_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
     declare sub PushStrLen_ _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), byval n as longint )
     declare function LowerWideIif_ _

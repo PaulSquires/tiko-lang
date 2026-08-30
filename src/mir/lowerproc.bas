@@ -46,6 +46,19 @@ end function
 '' Does this constructor body WRITE 'base( ... )'? A top-level statement of the body
 '' only -- fbc rejects the call anywhere else, and looking deeper would suppress the
 '' implicit construction for a 'base( )' the language never let run there.
+'' THE TEMP-RESULT ENTRY POINT FOR THIS PROCEDURE'S RESULT TYPE. A USTRING has its own:
+'' measured, 'function f( ) as ustring' ends
+''
+''     FBUSTRING* vr$7 = fb_UStrAllocTempResult( &fb$result$1 );
+''
+'' -- and handing an FBUSTRING to the NARROW fb_StrAllocTempResult, which is what every
+'' string-returning procedure used to do, books the wrong descriptor into the runtime's
+'' temp list. The narrow case is unchanged.
+private function ResultTempRtl_( byref c as Ctx ) as RtlId
+    if IsUStringType( c, c.resultType ) then return RTL_USTR_TEMP_RESULT
+    return RTL_STR_TEMP_RESULT
+end function
+
 private function BodyCallsBase_( byref c as Ctx, byval body as Tko.NodeId ) as boolean
     if body = Tko.NODE_NONE then return false
     if c.ast->Kind( body ) <> Tko.N_BLOCK then return false
@@ -600,7 +613,7 @@ sub LowerProc _
         ra2.id = c.resultSlot
         dim as FB.Array( of ulong ) rargs
         rargs.Push( cast( ulong, ra2.kind ) ) : rargs.Push( cast( ulong, ra2.id ) )
-        dim as MirValue rv2 = EmitRtl( c, RTL_STR_TEMP_RESULT, rargs )
+        dim as MirValue rv2 = EmitRtl( c, ResultTempRtl_( c ), rargs )
         Terminate( c, MTERM_RET, -1, -1, rv2 )
     else
         Terminate( c, MTERM_RET, -1, -1, LoadResult( c ) )
@@ -1035,7 +1048,7 @@ function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as bool
     rsa.id = c.resultSlot
     dim as FB.Array( of ulong ) rr
     rr.Push( cast( ulong, rsa.kind ) ) : rr.Push( cast( ulong, rsa.id ) )
-    Terminate( c, MTERM_RET, -1, -1, EmitRtl( c, RTL_STR_TEMP_RESULT, rr ) )
+    Terminate( c, MTERM_RET, -1, -1, EmitRtl( c, ResultTempRtl_( c ), rr ) )
     c.curBlock = -1
     return true
 end function

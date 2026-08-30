@@ -235,8 +235,34 @@ sub UProbe( )
     '' assigning into a ustring is optimised into assign + concat-assign, exactly as
     '' the wide family above.
     UTake( a & b )
+
+    '' THE INTRINSIC FAMILY. Each takes its descriptor as a (pointer, length) pair,
+    '' and none of them is reachable any other way -- fbc has no name to procptr.
+    dim as ustring w
+    w = ucase( a ) : w = lcase( a )
+    w = trim( a )  : w = ltrim( a ) : w = rtrim( a )
+    w = mid( a, 2, 3 ) : w = left( a, 3 ) : w = right( a, 3 )
+    c = instr( a, b ) : c = instrrev( a, b )
+    mid( a, 2, 3 ) = b
+
+    '' An ARRAY of them erases through fb_ArrayUStrErase, not the narrow twin.
+    dim as ustring ua( any )
+    redim ua( 0 to 3 )
+    erase ua
 end sub
 sub UTake( byref x as const ustring )
+end sub
+
+'' RETURNING one is its own entry point -- fb_UStrAllocTempResult, the ustring twin of
+'' fb_StrAllocTempResult -- and nothing else in this probe set reaches it.
+function UMake( ) as ustring
+    dim as ustring u = "hi"
+    return u
+end function
+
+sub UResultProbe( )
+    dim as ustring r = UMake( )
+    print r
 end sub
 
 '' THE CONVERSION SURFACE, which is a different set of entry points again and was

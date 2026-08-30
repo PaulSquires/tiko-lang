@@ -409,7 +409,14 @@ sub EmitEraseDynAt_ _
     args.Push( cast( ulong, d.kind ) ) : args.Push( cast( ulong, d.id ) )
 
     if IsStringType( c, et ) then
-        EmitRtl( c, RTL_ARRAY_STR_ERASE, args )
+        '' A USTRING ELEMENT HAS ITS OWN, and the narrow call over one frees
+        '' FBSTRING descriptors across FBUSTRING data. Measured: an array of
+        '' ustring erases with fb_ArrayUStrErase.
+        if IsUStringType( c, et ) then
+            EmitRtl( c, RTL_ARRAY_USTR_ERASE, args )
+        else
+            EmitRtl( c, RTL_ARRAY_STR_ERASE, args )
+        end if
         return
     end if
     if c.types->Kind( et ) = Tko.TK_UDT then

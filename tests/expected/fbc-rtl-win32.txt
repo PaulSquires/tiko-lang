@@ -27,6 +27,7 @@ fb_ArrayRedimTo	int32	struct $7FBARRAYIvE*, struct $7FBARRAYIvE*, int32, void*, 
 fb_ArraySngBoundChkEx	void*	uint32, uint32, int32, char*, char*	lib	_fb_ArraySngBoundChkEx@20
 fb_ArrayStrErase	void	struct $7FBARRAYIvE*	lib	_fb_ArrayStrErase@4
 fb_ArrayUBound	int32	struct $7FBARRAYIKvE*, int32	lib	_fb_ArrayUBound@8
+fb_ArrayUStrErase	void	struct $7FBARRAYIvE*	lib	_fb_ArrayUStrErase@4
 fb_Assert	void	char*, int32, char*, char*	lib	_fb_Assert@16
 fb_AssertWarn	void	char*, int32, char*, char*	lib	_fb_AssertWarn@16
 fb_BINEx_b	FBSTRING*	uint8, int32	lib	_fb_BINEx_b@8
@@ -355,8 +356,10 @@ fb_UIntToStr	FBSTRING*	uint32	lib	_fb_UIntToStr@4
 fb_UIntToWstr	uint16*	uint32	lib	_fb_UIntToWstr@4
 fb_ULongintToStr	FBSTRING*	uint64	lib	_fb_ULongintToStr@8
 fb_ULongintToWstr	uint16*	uint64	lib	_fb_ULongintToWstr@8
+fb_UStrAllocTempResult	FBUSTRING*	FBUSTRING*	lib	_fb_UStrAllocTempResult@4
 fb_UStrAssign	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrAssign@20
 fb_UStrAssignFromA	FBUSTRING*	void*, int32, void*, int32, int32, int32	lib	_fb_UStrAssignFromA@24
+fb_UStrAssignMid	void	void*, int32, int32, int32, void*, int32	lib	_fb_UStrAssignMid@24
 fb_UStrAssignToA	FBSTRING*	void*, int32, void*, int32, int32, int32	lib	_fb_UStrAssignToA@24
 fb_UStrAssignToW	uint16*	uint16*, int32, void*, int32	lib	_fb_UStrAssignToW@16
 fb_UStrCompare	int32	void*, int32, void*, int32	lib	_fb_UStrCompare@16
@@ -366,9 +369,19 @@ fb_UStrConcatAssign	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrCon
 fb_UStrConcatUA	FBUSTRING*	FBUSTRING*, void*, int32, void*, int32	lib	_fb_UStrConcatUA@20
 fb_UStrDelete	void	FBUSTRING*	lib	_fb_UStrDelete@4
 fb_UStrInit	FBUSTRING*	void*, int32, void*, int32, int32	lib	_fb_UStrInit@20
+fb_UStrInstr	int32	int32, void*, int32, void*, int32	lib	_fb_UStrInstr@20
+fb_UStrInstrRev	int32	void*, int32, void*, int32, int32	lib	_fb_UStrInstrRev@20
+fb_UStrLTrim	FBUSTRING*	void*, int32	lib	_fb_UStrLTrim@8
+fb_UStrLcase	FBUSTRING*	void*, int32	lib	_fb_UStrLcase@8
+fb_UStrLeftD	FBUSTRING*	FBUSTRING*, int32	lib	_fb_UStrLeftD@8
 fb_UStrLen	int32	void*, int32	lib	_fb_UStrLen@8
 fb_UStrLset	void	void*, int32, void*, int32	lib	_fb_UStrLset@16
+fb_UStrMid	FBUSTRING*	void*, int32, int32, int32	lib	_fb_UStrMid@16
+fb_UStrRTrim	FBUSTRING*	void*, int32	lib	_fb_UStrRTrim@8
+fb_UStrRightD	FBUSTRING*	FBUSTRING*, int32	lib	_fb_UStrRightD@8
 fb_UStrRset	void	void*, int32, void*, int32	lib	_fb_UStrRset@16
+fb_UStrTrim	FBUSTRING*	void*, int32	lib	_fb_UStrTrim@8
+fb_UStrUcase	FBUSTRING*	void*, int32	lib	_fb_UStrUcase@8
 fb_VAL	double	FBSTRING*	lib	_fb_VAL@4
 fb_VALBOOL	boolean	FBSTRING*	lib	_fb_VALBOOL@4
 fb_VALINT	int32	FBSTRING*	lib	_fb_VALINT@4

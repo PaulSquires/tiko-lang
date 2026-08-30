@@ -55,6 +55,13 @@ function LowerStrRvalue _
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     if IsWideString_( c, c.info->TypeOf_( a0 ) ) then return false
 
+    '' ...AND A USTRING BELONGS TO lowerustr.bas. Falling through to the narrow rows
+    '' below handed an FBUSTRING to fb_StrUcase2, fb_TRIM, fb_StrMid and fb_StrInstr --
+    '' the byte-string entry points -- which lowered, verified, and answered with
+    '' whatever the UTF-16 bytes happened to spell.
+    if LowerUStrIntrin_( c, id, outv ) then return true
+    if IsUStringType( c, c.info->TypeOf_( a0 ) ) then return false
+
     '' The second argument, unwrapped from 'any' if it carries one.
     dim as Tko.NodeId a1 = Tko.NODE_NONE
     dim as boolean isAny = false
@@ -784,6 +791,15 @@ function LowerStrNumCall_ _
 
     '' EVERY OPERAND BEFORE ANYTHING IS EMITTED. StrDescriptorOf_ may emit a call of
     '' its own, and declining afterwards would leave it behind with nothing using it.
+    '' A USTRING TAKES ITS OWN PAIR, and the operand shape differs from both
+    '' others: fb_UStrInstr( start, haystack, hlen, needle, nlen ) passes each
+    '' descriptor WITH A LENGTH, where the narrow twin passes a bare one.
+    '' Without this a ustring went down the NARROW half and handed an FBUSTRING
+    '' to fb_StrInstr, which read it as a byte string.
+    dim as boolean isU = IsUStringType( c, c.info->TypeOf_( sE ) )
+    isU = isU orelse IsUStringType( c, c.info->TypeOf_( tE ) )
+    if isU andalso isWide then return false
+
     dim as MirValue sd, td
     if isWide then
         if WideOperand_( c, sE, sd ) = false then return false
@@ -801,8 +817,13 @@ function LowerStrNumCall_ _
 
     dim as FB.Array( of ulong ) args
     if isRev then
-        args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
-        args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
+        if isU then
+            PushStrArg( args, sd )
+            PushStrArg( args, td )
+        else
+            args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
+            args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
+        end if
         if startE <> Tko.NODE_NONE then
             args.Push( cast( ulong, stv.kind ) ) : args.Push( cast( ulong, stv.id ) )
         else
@@ -811,6 +832,12 @@ function LowerStrNumCall_ _
         end if
         dim as RtlId rr = RTL_STR_INSTR_REV
         if isAny then rr = RTL_STR_INSTR_REV_ANY
+        '' No fb_UStrInstrRevAny exists, so an 'any' form over a ustring
+        '' declines rather than reaching the narrow one.
+        if isU then
+            if isAny then return false
+            rr = RTL_USTR_INSTR_REV
+        end if
         if isWide then
             rr = RTL_WSTR_INSTR_REV
             if isAny then rr = RTL_WSTR_INSTR_REV_ANY
@@ -822,10 +849,19 @@ function LowerStrNumCall_ _
         else
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )
         end if
-        args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
-        args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
+        if isU then
+            PushStrArg( args, sd )
+            PushStrArg( args, td )
+        else
+            args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
+            args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
+        end if
         dim as RtlId fr = RTL_STR_INSTR
         if isAny then fr = RTL_STR_INSTR_ANY
+        if isU then
+            if isAny then return false
+            fr = RTL_USTR_INSTR
+        end if
         if isWide then
             fr = RTL_WSTR_INSTR
             if isAny then fr = RTL_WSTR_INSTR_ANY

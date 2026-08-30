@@ -35,10 +35,18 @@ type Plain
     dim as double v( any )
 end type
 
+'' A USTRING ELEMENT HAS ITS OWN ERASE. The narrow fb_ArrayStrErase over one frees
+'' FBSTRING descriptors across FBUSTRING data; measured, fbc emits fb_ArrayUStrErase.
+type UBox
+    dim as ustring u( any )
+end type
+
 sub go()
     dim as Box( of E ) b
     b.Shrink( )
     dim as Plain p
     redim p.v( 0 to 3 )
+    dim as UBox ub
+    redim ub.u( 0 to 3 )
 end sub
 go()
