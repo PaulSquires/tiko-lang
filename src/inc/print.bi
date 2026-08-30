@@ -23,6 +23,16 @@
 const FB_PRINT_NEWLINE      = &h00000001
 const FB_PRINT_PAD          = &h00000002
 const FB_PRINT_BIN_NEWLINE  = &h00000004
+
+'' Forces the device layer to re-read the REAL cursor position before it is
+'' used. Needed at the bottom-right cell, where the console's own reported
+'' position lags until something makes it adjust.
+const FB_PRINT_FORCE_ADJUST = &h00000008
+
+'' USING only. The compiler sets it on the LAST value of a PRINT USING
+'' statement, which is what tells the runtime to drop the format string --
+'' the format outlives every value but the last, on purpose.
+const FB_PRINT_ISLAST       = &h80000000
 const FB_PRINT_APPEND_SPACE = &h00000010
 const FB_PRINT_HLMASK       = &h00000003
 

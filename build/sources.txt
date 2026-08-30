@@ -99,3 +99,8 @@ chrono/iso.bas
 err/throw.bas
 array/boundchk.bas
 fs/path.bas
+io/printusg.bas
+io/devwidth.bas
+chrono/pattern.bas
+fs/dirent.bas
+io/viewhlp.bas

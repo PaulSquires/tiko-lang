@@ -1,0 +1,143 @@
+'' dirent.bas -- the filesystem kernel's USTRING accessors and the ABI
+'' cross-check hooks: nine entry points over one fbc member.
+''
+'' EVERY NAME IS TAKEN BY LENGTH, NEVER BY NUL SCAN. A directory entry is a
+'' COUNTED sequence and the count is what the enumeration reported; a name
+'' containing an embedded NUL, or one that fills its buffer without a
+'' terminator, survives only if the length is used.
+''
+'' AND NEVER THROUGH WSTRING. The obvious FB-side alternative -- a per-unit
+'' loop building the name with wchr( ) -- goes through WSTRING, which is UTF-32
+'' on Linux, so an unpaired surrogate would not round-trip. Preserving exactly
+'' those names is why this kernel is USTRING throughout, so the name must not
+'' pass through a narrower type on its way out. The units are copied verbatim.
+''
+'' THE fb_FsSizeof* HOOKS EXIST BECAUSE THE STRUCTS ARE WRITTEN DIRECTLY by the
+'' C kernel and mirrored in FreeBASIC. A layout drift between the two would not
+'' fail loudly -- it would scramble every field of every result -- so fbc's own
+'' suite asserts these against the FB mirrors rather than against literals that
+'' would have to be kept in step by hand.
+''
+'' THESE STRUCTS ARE NOT BYTE-PACKED. They mirror what the C compiler laid out,
+'' and `field = 1` here would change every sizeof this file reports -- which is
+'' precisely the drift the hooks exist to catch.
+
+#include once "inc/descriptors.bi"
+#include once "inc/fspath.bi"
+
+const FB_FS_MAXNAME = 260
+const FB_FS_MAXPATH = 512
+
+type FB_FSINFO
+	as ulongint  size_
+	as longint   mtime, ctime, atime      '' ticks; 0 when absent
+	as ulong     native_attrs             '' dwFileAttributes / st_mode
+	as long      kind                     '' FB_FSKIND_*
+	as long      flags                    '' FB_FSFLAG_*
+end type
+
+type FB_FSDIRENT
+	as FB_UCHAR  name( 0 to FB_FS_MAXNAME - 1 )
+	as long      namelen
+	as long      kind
+	as long      has_info
+	as FB_FSINFO info
+end type
+
+type FB_FSVOLUME
+	as FB_UCHAR  root( 0 to FB_FS_MAXPATH - 1 )
+	as FB_UCHAR  name( 0 to FB_FS_MAXNAME - 1 )
+	as FB_UCHAR  fstype( 0 to FB_FS_MAXNAME - 1 )
+	as long      rootlen, namelen, fstypelen
+	as ulong     maxcomp
+	as long      flags
+end type
+
+type FB_FSCHANGE
+	as FB_UCHAR  path( 0 to FB_FS_MAXPATH - 1 )
+	as long      pathlen
+	as long      kind
+end type
+
+extern "c"   '' NON-FBCALL: the ustring temp builder, declared plain.
+	declare function tkrt_UStrAllocTemp alias "fb_hUStrAllocTemp" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare sub tkrt_UStrCopy2 alias "fb_hUStrCopy" _
+		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
+end extern
+
+'' The same temp builder fs/path.bas uses: a caller-freed TEMP, or the shared
+'' empty descriptor when there is nothing to return.
+private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
+	dim as FBUSTRING ptr dst = any
+	if( units <= 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( 0, units )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data <> 0 ) then
+		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+		dst->data[units] = 0
+	end if
+	return dst
+end function
+
+'' Clamp to [0, cap-1] and copy. A NEGATIVE length is treated as zero rather
+'' than as an error: the enumeration owns that field, and a bad value there
+'' should produce an empty name, not a read out of bounds.
+private function hField( byval src as FB_UCHAR ptr, byval len_ as long, _
+                         byval cap as long ) as FBUSTRING ptr
+	dim as integer n = len_
+	if( n < 0 ) then n = 0
+	if( n > cap - 1 ) then n = cap - 1
+	return hTemp( src, n )
+end function
+
+extern "rtlib"
+
+function tkort_UStrFsDirEntName alias "fb_UStrFsDirEntName" _
+	( byval e as FB_FSDIRENT ptr ) as FBUSTRING ptr
+	if( e = 0 ) then return TKORT_UNULL_DESC()
+	return hField( @e->name(0), e->namelen, FB_FS_MAXNAME )
+end function
+
+function tkort_UStrFsVolumeRoot alias "fb_UStrFsVolumeRoot" _
+	( byval v as FB_FSVOLUME ptr ) as FBUSTRING ptr
+	if( v = 0 ) then return TKORT_UNULL_DESC()
+	return hField( @v->root(0), v->rootlen, FB_FS_MAXPATH )
+end function
+
+function tkort_UStrFsVolumeName alias "fb_UStrFsVolumeName" _
+	( byval v as FB_FSVOLUME ptr ) as FBUSTRING ptr
+	if( v = 0 ) then return TKORT_UNULL_DESC()
+	return hField( @v->name(0), v->namelen, FB_FS_MAXNAME )
+end function
+
+function tkort_UStrFsVolumeFsType alias "fb_UStrFsVolumeFsType" _
+	( byval v as FB_FSVOLUME ptr ) as FBUSTRING ptr
+	if( v = 0 ) then return TKORT_UNULL_DESC()
+	return hField( @v->fstype(0), v->fstypelen, FB_FS_MAXNAME )
+end function
+
+function tkort_UStrFsChangePath alias "fb_UStrFsChangePath" _
+	( byval c as FB_FSCHANGE ptr ) as FBUSTRING ptr
+	if( c = 0 ) then return TKORT_UNULL_DESC()
+	return hField( @c->path(0), c->pathlen, FB_FS_MAXPATH )
+end function
+
+'' The four size hooks -- see the header.
+function tkort_FsSizeofInfo alias "fb_FsSizeofInfo" ( ) as long
+	return cast( long, sizeof( FB_FSINFO ) )
+end function
+
+function tkort_FsSizeofDirEnt alias "fb_FsSizeofDirEnt" ( ) as long
+	return cast( long, sizeof( FB_FSDIRENT ) )
+end function
+
+function tkort_FsSizeofVolume alias "fb_FsSizeofVolume" ( ) as long
+	return cast( long, sizeof( FB_FSVOLUME ) )
+end function
+
+function tkort_FsSizeofChange alias "fb_FsSizeofChange" ( ) as long
+	return cast( long, sizeof( FB_FSCHANGE ) )
+end function
+
+end extern

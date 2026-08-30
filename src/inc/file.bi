@@ -189,6 +189,22 @@ const FB_FILE_MODE_APPEND = 4
 
 #define TKORT_HANDLE_USED( h ) ( ((h) <> 0) andalso ((h)->hooks <> 0) )
 
+'' FB_FILE_TYPE, in fb_file.h's order.
+const FB_FILE_TYPE_NONE    = 0
+const FB_FILE_TYPE_LOCAL   = 1
+const FB_FILE_TYPE_CONSOLE = 2
+const FB_FILE_TYPE_PIPE    = 3
+const FB_FILE_TYPE_VFS     = 4
+const FB_FILE_TYPE_PRINTER = 5
+const FB_FILE_TYPE_SERIAL  = 6
+
+'' THE SCREEN HANDLE IS THE FILE TABLE'S FIRST ENTRY and the printer is its
+'' second -- fbc spells them __fb_ctx.fileTB and fileTB+1. A handle is "the
+'' screen" only after its redirection chain is followed, because OPEN "SCRN:"
+'' builds a handle that points at it.
+#define TKORT_HANDLE_SCREEN()  TKORT_FILETB()
+#define TKORT_HANDLE_PRINTER() ( TKORT_FILETB() + 1 )
+
 '' FB_FILE_ENCOD, in fb_file.h's order. ASCII is 0 and is also
 '' FB_FILE_ENCOD_DEFAULT, so a zeroed handle is an ASCII handle -- the encoding
 '' field needs no explicit initialisation anywhere, and adding a member before
