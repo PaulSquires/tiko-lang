@@ -126,12 +126,28 @@ const FB_ERRMSG_SIZE = 1024
 ''
 ''     hook_printstr.o    movl 0x50, %eax   rel ___fb_ctx  ->  80
 ''     hook_print_wstr.o  movl 0x54, %eax   rel ___fb_ctx  ->  84
+'' Measured the same way for every slot below. The win32 hooks base is 0x24 (36)
+'' and the 64-bit one is 72, so each slot is the base plus its index times the
+'' pointer width -- but every number here was READ, not computed from that.
+''
+''     hook_inkey.o   movl 0x24 / 0x28 / 0x2c   inkey / getkey / keyhit
+''     hook_ports.o   movl 0x68 / 0x6c          in / out
 #if defined( __FB_64BIT__ )
+	const TKORT_HOOK_INKEY      = 72
+	const TKORT_HOOK_GETKEY     = 80
+	const TKORT_HOOK_KEYHIT     = 88
 	const TKORT_HOOK_PRINTBUFF  = 160
 	const TKORT_HOOK_PRINTBUFFW = 168
+	const TKORT_HOOK_IN         = 208
+	const TKORT_HOOK_OUT        = 216
 #else
+	const TKORT_HOOK_INKEY      = 36
+	const TKORT_HOOK_GETKEY     = 40
+	const TKORT_HOOK_KEYHIT     = 44
 	const TKORT_HOOK_PRINTBUFF  = 80
 	const TKORT_HOOK_PRINTBUFFW = 84
+	const TKORT_HOOK_IN         = 104
+	const TKORT_HOOK_OUT        = 108
 #endif
 
 type FB_PRINTBUFFPROC as sub cdecl ( byval buffer as any ptr, byval length as uinteger, byval mask as long )
@@ -141,5 +157,17 @@ type FB_PRINTBUFFWPROC as sub cdecl ( byval buffer as wstring ptr, byval length 
 	*cptr( FB_PRINTBUFFPROC ptr, @__fb_ctx_head + TKORT_HOOK_PRINTBUFF )
 #define TKORT_HOOK_PRINTBUFFWPROC() _
 	*cptr( FB_PRINTBUFFWPROC ptr, @__fb_ctx_head + TKORT_HOOK_PRINTBUFFW )
+
+type FB_INKEYPROC  as function cdecl ( ) as FBSTRING ptr
+type FB_GETKEYPROC as function cdecl ( ) as long
+type FB_KEYHITPROC as function cdecl ( ) as long
+type FB_INPROC     as function cdecl ( byval port as ushort ) as long
+type FB_OUTPROC    as function cdecl ( byval port as ushort, byval value as ubyte ) as long
+
+#define TKORT_HOOK_INKEYPROC()  *cptr( FB_INKEYPROC ptr,  @__fb_ctx_head + TKORT_HOOK_INKEY )
+#define TKORT_HOOK_GETKEYPROC() *cptr( FB_GETKEYPROC ptr, @__fb_ctx_head + TKORT_HOOK_GETKEY )
+#define TKORT_HOOK_KEYHITPROC() *cptr( FB_KEYHITPROC ptr, @__fb_ctx_head + TKORT_HOOK_KEYHIT )
+#define TKORT_HOOK_INPROC()     *cptr( FB_INPROC ptr,     @__fb_ctx_head + TKORT_HOOK_IN )
+#define TKORT_HOOK_OUTPROC()    *cptr( FB_OUTPROC ptr,    @__fb_ctx_head + TKORT_HOOK_OUT )
 
 #endif '' __TKORT_CTX_BI__
