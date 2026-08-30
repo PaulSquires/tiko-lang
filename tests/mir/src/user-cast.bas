@@ -62,7 +62,18 @@ sub Q( )
     dim as W wv
     dim as wstring * 50 z
     dim as string r
-    z = trim( wv )     '' fb_WstrTrim on the converted pointer
+    '' MEASURED, AND TIKO-LANG DOES NOT MATCH IT YET: fbc converts the wide
+    '' pointer to a NARROW temporary first and calls the NARROW trim on that --
+    ''
+    ''     vr = _ZN1WcvwEv( &WV );
+    ''     fb_WstrAssignToA( &TMP, -1, vr, 0 );
+    ''     vr8 = fb_TRIM( &TMP );
+    ''
+    '' -- while tiko-lang calls fb_WstrTrim on the converted pointer directly.
+    '' A plain 'wstring * N' operand DOES take fb_WstrTrim in both, so this is
+    '' overload selection over a UDT cast, not the wide trim itself. Recorded
+    '' here because the golden below shows tiko-lang's call, not fbc's.
+    z = trim( wv )
     z = wv             '' fb_WstrAssign( Z, 50, vr )
     r = wv             '' fb_WstrAssignToA( &R, -1, vr, 0 )
 end sub

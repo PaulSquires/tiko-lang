@@ -1147,9 +1147,10 @@ end function
 ''
 '' Each of these returns a bare uint16* -- there is no descriptor, which is what makes
 '' them lowerable now while their narrow counterparts still are not. fbc releases the
-'' result with fb_WstrDelete; tiko-lang does not model that lifetime yet, so EVERY CALL HERE
-'' LEAKS ONE TEMPORARY. That is a real defect, recorded rather than hidden, and the
-'' alternative is emitting nothing at all for 2,442 corpus statements.
+'' result with fb_WstrDelete, and so does the tail of this function: the result goes
+'' out through WideConcatStep_, which parks it in a temporary and puts that on the
+'' statement's wide-temporary list. It used to leave through EmitRtl, and every call
+'' here leaked one temporary.
 ''
 '' The mapping was read off fbc's C, not assumed from the narrow forms, and the shapes
 '' are NOT uniform:
@@ -1366,8 +1367,13 @@ function LowerWideRvalue _
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
 
-    outv = EmitRtl( c, r, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    '' THROUGH WideConcatStep_, WHICH REGISTERS THE RESULT FOR ITS fb_WstrDelete.
+    '' Every one of these returns an allocation the CALLER owns -- measured:
+    '' 'w1 = left( d, 3 )' is 'vr = fb_WstrLeft( D, 3 ); fb_WstrAssign( W1, 50,
+    '' vr ); fb_WstrDelete( vr )' -- and EmitRtl alone dropped the pointer, so
+    '' every call here leaked one temporary. 12 of the 20 wstring corpus files
+    '' that lower fully call fb_WstrDelete in fbc and never did here.
+    return WideConcatStep_( c, args, r, outv )
 end function
 
 

@@ -12,7 +12,9 @@ func i32 main($0, $1) {
   local agg s2 size 24
   local agg w2 size 32
   local agg $tmp7 size 24
-  local agg $tmp8 size 24
+  local ptr $tmp8
+  local agg $tmp9 size 24
+  local ptr $tmp10
   local agg z0 size 8
   local agg w0 size 16
   local ptr pz
@@ -77,57 +79,67 @@ func i32 main($0, $1) {
     %43 = field.addr @$tmp7, 0
     %44 = load %43
     %45 = call.rtl ptr fb_StrToWstr(%44)
-    %46 = call.rtl ptr fb_WstrAssign(@w2, 16, %45)
-    %47 = alloca ptr $tmp8
-    %48 = field.addr @$tmp8, 0
-    store %48, 0
-    %49 = field.addr @$tmp8, 8
-    store %49, 0
-    %50 = field.addr @$tmp8, 16
-    store %50, 0
-    %51 = call.rtl ptr fb_StrConcat(@$tmp8, @s2, -1, @@$str2, 2)
-    %52 = field.addr @$tmp8, 0
-    %53 = load %52
-    %54 = call.rtl ptr fb_StrToWstr(%53)
-    %55 = call.rtl ptr fb_WstrAssign(@w2, 16, %54)
+    %46 = alloca ptr $tmp8
+    store @$tmp8, %45
+    %47 = load @$tmp8
+    %48 = call.rtl ptr fb_WstrAssign(@w2, 16, %47)
+    %49 = load @$tmp8
+    call.rtl void fb_WstrDelete(%49)
+    %50 = alloca ptr $tmp9
+    %51 = field.addr @$tmp9, 0
+    store %51, 0
+    %52 = field.addr @$tmp9, 8
+    store %52, 0
+    %53 = field.addr @$tmp9, 16
+    store %53, 0
+    %54 = call.rtl ptr fb_StrConcat(@$tmp9, @s2, -1, @@$str2, 2)
+    %55 = field.addr @$tmp9, 0
+    %56 = load %55
+    %57 = call.rtl ptr fb_StrToWstr(%56)
+    %58 = alloca ptr $tmp10
+    store @$tmp10, %57
+    %59 = load @$tmp10
+    %60 = call.rtl ptr fb_WstrAssign(@w2, 16, %59)
+    %61 = load @$tmp10
+    call.rtl void fb_WstrDelete(%61)
     call.rtl void fb_PrintWstr(0, @w2, 1)
-    %56 = alloca ptr z0
-    %57 = alloca ptr w0
-    %58 = alloca ptr pz
+    %62 = alloca ptr z0
+    %63 = alloca ptr w0
+    %64 = alloca ptr pz
     store @pz, @z0
-    %59 = alloca ptr pw
+    %65 = alloca ptr pw
     store @pw, @w0
-    %60 = call.rtl ptr fb_StrAssign(@z0, 8, @@$str3, 4, 0)
-    %61 = call.rtl ptr fb_WstrAssign(@w0, 8, @@$wstr4)
-    %62 = alloca ptr dv
-    %63 = alloca ptr nv
-    %64 = load @pz
-    %65 = load %64
-    %66 = uitofp %65
-    store @dv, %66
-    %67 = load @pz
-    %68 = load %67
-    %69 = zext %68
-    store @nv, %69
-    %70 = load @pw
+    %66 = call.rtl ptr fb_StrAssign(@z0, 8, @@$str3, 4, 0)
+    %67 = call.rtl ptr fb_WstrAssign(@w0, 8, @@$wstr4)
+    %68 = alloca ptr dv
+    %69 = alloca ptr nv
+    %70 = load @pz
     %71 = load %70
     %72 = uitofp %71
     store @dv, %72
-    %73 = load @pw
+    %73 = load @pz
     %74 = load %73
     %75 = zext %74
     store @nv, %75
-    %76 = load @dv
-    call.rtl void fb_PrintDouble(0, %76, 2)
-    %77 = load @nv
-    call.rtl void fb_PrintInt(0, %77, 1)
+    %76 = load @pw
+    %77 = load %76
+    %78 = uitofp %77
+    store @dv, %78
+    %79 = load @pw
+    %80 = load %79
+    %81 = zext %80
+    store @nv, %81
+    %82 = load @dv
+    call.rtl void fb_PrintDouble(0, %82, 2)
+    %83 = load @nv
+    call.rtl void fb_PrintInt(0, %83, 1)
     call.rtl void fb_StrDelete(@s2)
     call.rtl void fb_UStrDelete(@x)
     call.rtl void fb_UStrDelete(@cur)
-    %78 = const i32 0
-    call.rtl void fb_End(%78)
-    %79 = load @$tmp0
-    ret %79
+    %84 = const i32 0
+    call.rtl void fb_End(%84)
+    %85 = load @$tmp0
+    ret %85
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_WstrChr($0, $1)
@@ -141,6 +153,7 @@ declare ptr fb_StrInit($0, $1, $2, $3, $4)
 declare ptr fb_CHR($0, $1)
 declare ptr fb_StrConcat($0, $1, $2, $3, $4)
 declare ptr fb_StrToWstr($0)
+declare void fb_WstrDelete($0)
 declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare void fb_PrintDouble($0, $1, $2)
 declare void fb_PrintInt($0, $1, $2)
@@ -148,4 +161,4 @@ declare void fb_StrDelete($0)
 declare void fb_UStrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 117 insts, 0 statements not lowered, 0 scope imbalance

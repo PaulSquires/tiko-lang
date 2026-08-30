@@ -11,6 +11,13 @@ namespace Tko.Mir
 '' The string FLAVOUR predicates, split out at the 1500-line cap.
 #include once "mir/lowerstrkind.bas"
 
+'' Defined in lowerwstr.bas. Every fb_StrToWstr result is an allocation the caller
+'' owns, and this is what parks it in a temporary and registers that for the
+'' fb_WstrDelete at the end of the statement.
+declare function WideConcatStep_ _
+    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+      byref acc as MirValue ) as boolean
+
 '' Defined below; the wide-string helpers above it classify a narrow operand.
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
@@ -1231,16 +1238,18 @@ function LowerWstrOf _
         if raw.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) sargs
         sargs.Push( cast( ulong, raw.kind ) ) : sargs.Push( cast( ulong, raw.id ) )
-        outv = EmitRtl( c, RTL_STR_TO_WSTR, sargs )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        '' AND THE RESULT IS OWNED. fbc writes 'vr = fb_StrToWstr( ... )' and a
+        '' matching fb_WstrDelete at the end of the statement -- measured over all
+        '' three narrow shapes, six conversions and six deletes. EmitRtl alone
+        '' dropped the pointer, so every 'wstr( s )' leaked.
+        return WideConcatStep_( c, sargs, RTL_STR_TO_WSTR, outv )
     elseif sk = 1 then
         '' A ZSTRING * N IS already a char array: its address is the char*.
         dim as MirValue za = LowerAddr( c, a )
         if za.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) zargs
         zargs.Push( cast( ulong, za.kind ) ) : zargs.Push( cast( ulong, za.id ) )
-        outv = EmitRtl( c, RTL_STR_TO_WSTR, zargs )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return WideConcatStep_( c, zargs, RTL_STR_TO_WSTR, outv )
     elseif sk = 3 then
         '' A 'string * N' IS NOT A CHAR ARRAY THE WAY A ZSTRING IS: it is SPACE-PADDED
         '' and carries no terminator, so its N bytes cannot be handed to fb_StrToWstr
@@ -1297,8 +1306,7 @@ function LowerWstrOf _
         if fraw.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) fargs
         fargs.Push( cast( ulong, fraw.kind ) ) : fargs.Push( cast( ulong, fraw.id ) )
-        outv = EmitRtl( c, RTL_STR_TO_WSTR, fargs )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return WideConcatStep_( c, fargs, RTL_STR_TO_WSTR, outv )
     end if
 
     '' A UDT WITH 'operator cast'. 'wstr( u )' over one whose cast yields a WSTRING is

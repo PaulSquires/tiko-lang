@@ -1,0 +1,80 @@
+global wstr $wstr0 "abcdefgh"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg d size 100
+  local agg w1 size 100
+  local ptr $tmp3
+  local ptr $tmp4
+  local ptr $tmp5
+  local ptr $tmp6
+  local ptr $tmp7
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr d
+    %5 = call.rtl ptr fb_WstrAssign(@d, 50, @@$wstr0)
+    %6 = alloca ptr w1
+    %7 = const i64 3
+    %8 = call.rtl ptr fb_WstrLeft(@d, %7)
+    %9 = alloca ptr $tmp3
+    store @$tmp3, %8
+    %10 = load @$tmp3
+    %11 = call.rtl ptr fb_WstrAssign(@w1, 50, %10)
+    %12 = load @$tmp3
+    call.rtl void fb_WstrDelete(%12)
+    call.rtl void fb_PrintWstr(0, @w1, 1)
+    %13 = const i64 2
+    %14 = call.rtl ptr fb_WstrRight(@d, %13)
+    %15 = alloca ptr $tmp4
+    store @$tmp4, %14
+    %16 = load @$tmp4
+    %17 = call.rtl ptr fb_WstrAssign(@w1, 50, %16)
+    %18 = load @$tmp4
+    call.rtl void fb_WstrDelete(%18)
+    call.rtl void fb_PrintWstr(0, @w1, 1)
+    %19 = const i64 2
+    %20 = const i64 3
+    %21 = call.rtl ptr fb_WstrMid(@d, %19, %20)
+    %22 = alloca ptr $tmp5
+    store @$tmp5, %21
+    %23 = load @$tmp5
+    %24 = call.rtl ptr fb_WstrAssign(@w1, 50, %23)
+    %25 = load @$tmp5
+    call.rtl void fb_WstrDelete(%25)
+    call.rtl void fb_PrintWstr(0, @w1, 1)
+    %26 = call.rtl ptr fb_WstrUcase2(@d, 0)
+    %27 = alloca ptr $tmp6
+    store @$tmp6, %26
+    %28 = load @$tmp6
+    %29 = call.rtl ptr fb_WstrAssign(@w1, 50, %28)
+    %30 = load @$tmp6
+    call.rtl void fb_WstrDelete(%30)
+    call.rtl void fb_PrintWstr(0, @w1, 1)
+    %31 = call.rtl ptr fb_WstrTrim(@d)
+    %32 = alloca ptr $tmp7
+    store @$tmp7, %31
+    %33 = load @$tmp7
+    %34 = call.rtl ptr fb_WstrAssign(@w1, 50, %33)
+    %35 = load @$tmp7
+    call.rtl void fb_WstrDelete(%35)
+    call.rtl void fb_PrintWstr(0, @w1, 1)
+    %36 = const i32 0
+    call.rtl void fb_End(%36)
+    %37 = load @$tmp0
+    ret %37
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_WstrAssign($0, $1, $2)
+declare ptr fb_WstrLeft($0, $1)
+declare void fb_WstrDelete($0)
+declare void fb_PrintWstr($0, $1, $2)
+declare ptr fb_WstrRight($0, $1)
+declare ptr fb_WstrMid($0, $1, $2)
+declare ptr fb_WstrUcase2($0, $1)
+declare ptr fb_WstrTrim($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

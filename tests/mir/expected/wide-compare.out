@@ -6,6 +6,7 @@ func void P() {
   local agg b size 16
   local agg z size 8
   local i32 n
+  local ptr $tmp4
   local ptr pz
   local i64 i
   entry0:
@@ -15,8 +16,9 @@ func void P() {
     %4 = alloca ptr n
     %5 = call.rtl i32 fb_WstrCompare(@a, @b)
     %6 = icmp.eq %5, 0
-    %34 = alloca ptr pz
-    %45 = alloca ptr i
+    %20 = alloca ptr $tmp4
+    %37 = alloca ptr pz
+    %48 = alloca ptr i
     condbr %6, if.then2, if.else3
   if.join1:
     %9 = call.rtl i32 fb_WstrCompare(@a, @@$wstr0)
@@ -44,9 +46,11 @@ func void P() {
     br if.join4
   if.join7:
     %19 = call.rtl ptr fb_WstrTrim(@a)
-    %20 = call.rtl i32 fb_WstrCompare(%19, @b)
-    %21 = icmp.eq %20, 0
-    condbr %21, if.then11, if.else12
+    store @$tmp4, %19
+    %21 = load @$tmp4
+    %22 = call.rtl i32 fb_WstrCompare(%21, @b)
+    %23 = icmp.eq %22, 0
+    condbr %23, if.then11, if.else12
   if.then8:
     %17 = const i64 3
     %18 = trunc %17
@@ -55,75 +59,77 @@ func void P() {
   if.else9:
     br if.join7
   if.join10:
-    %24 = const i64 1
-    %25 = const i64 2
-    %26 = mul %24, %25
-    %27 = ptr.add @a, %26
-    %28 = load %27
-    %29 = zext %28
-    store @n, %29
-    %30 = const i64 1
-    %31 = ptr.add @z, %30
-    %32 = load %31
-    %33 = zext %32
-    store @n, %33
+    %26 = load @$tmp4
+    call.rtl void fb_WstrDelete(%26)
+    %27 = const i64 1
+    %28 = const i64 2
+    %29 = mul %27, %28
+    %30 = ptr.add @a, %29
+    %31 = load %30
+    %32 = zext %31
+    store @n, %32
+    %33 = const i64 1
+    %34 = ptr.add @z, %33
+    %35 = load %34
+    %36 = zext %35
+    store @n, %36
     store @pz, @z
-    %35 = load @pz
-    %36 = const i64 1
-    %37 = ptr.add %35, %36
-    %38 = load %37
-    %39 = zext %38
-    store @n, %39
-    %40 = load @pz
-    %41 = const i64 1
-    %42 = ptr.add %40, %41
-    %43 = load %42
-    %44 = zext %43
-    store @n, %44
-    %46 = const i64 0
-    store @i, %46
+    %38 = load @pz
+    %39 = const i64 1
+    %40 = ptr.add %38, %39
+    %41 = load %40
+    %42 = zext %41
+    store @n, %42
+    %43 = load @pz
+    %44 = const i64 1
+    %45 = ptr.add %43, %44
+    %46 = load %45
+    %47 = zext %46
+    store @n, %47
+    %49 = const i64 0
+    store @i, %49
     br for.head13
   if.then11:
-    %22 = const i64 4
-    %23 = trunc %22
-    store @n, %23
+    %24 = const i64 4
+    %25 = trunc %24
+    store @n, %25
     br if.join10
   if.else12:
     br if.join10
   for.head13:
-    %47 = load @i
-    %48 = call.rtl i64 fb_WstrLen(@a)
-    %49 = const i64 1
-    %50 = sub %48, %49
-    %51 = icmp.sle %47, %50
-    condbr %51, for.body14, for.exit16
+    %50 = load @i
+    %51 = call.rtl i64 fb_WstrLen(@a)
+    %52 = const i64 1
+    %53 = sub %51, %52
+    %54 = icmp.sle %50, %53
+    condbr %54, for.body14, for.exit16
   for.body14:
-    %52 = load @i
-    %53 = const i64 2
-    %54 = mul %52, %53
-    %55 = ptr.add @a, %54
-    %56 = load %55
-    %57 = load @i
-    %58 = const i64 2
-    %59 = mul %57, %58
-    %60 = ptr.add @b, %59
-    %61 = load %60
-    %62 = icmp.ne %56, %61
-    condbr %62, if.then18, if.else19
+    %55 = load @i
+    %56 = const i64 2
+    %57 = mul %55, %56
+    %58 = ptr.add @a, %57
+    %59 = load %58
+    %60 = load @i
+    %61 = const i64 2
+    %62 = mul %60, %61
+    %63 = ptr.add @b, %62
+    %64 = load %63
+    %65 = icmp.ne %59, %64
+    condbr %65, if.then18, if.else19
   for.step15:
-    %65 = load @i
-    %66 = const i64 1
-    %67 = add %65, %66
-    store @i, %67
+    %68 = load @i
+    %69 = const i64 1
+    %70 = add %68, %69
+    store @i, %70
     br for.head13
   for.exit16:
     ret
   if.join17:
     br for.step15
   if.then18:
-    %63 = const i64 5
-    %64 = trunc %63
-    store @n, %64
+    %66 = const i64 5
+    %67 = trunc %66
+    store @n, %67
     br if.join17
   if.else19:
     br if.join17
@@ -131,6 +137,7 @@ func void P() {
 declare i32 fb_WstrCompare($0, $1)
 declare ptr fb_LongintToWstr($0)
 declare ptr fb_WstrTrim($0)
+declare void fb_WstrDelete($0)
 declare i64 fb_WstrLen($0)
 func void Q() {
   local agg a size 64
@@ -194,7 +201,6 @@ func void Q() {
 }
 declare ptr fb_WstrAlloc($0)
 declare ptr fb_WstrAssign($0, $1, $2)
-declare void fb_WstrDelete($0)
 func void R($0, $1, $2) {
   local ptr a
   local ptr b
@@ -354,4 +360,4 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 6 functions, 37 blocks, 223 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 37 blocks, 228 insts, 0 statements not lowered, 0 scope imbalance

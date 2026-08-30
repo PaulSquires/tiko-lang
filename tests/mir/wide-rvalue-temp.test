@@ -1,0 +1,8 @@
+'' Every wide substring/trim result is released with fb_WstrDelete at the end of its
+'' statement, which is what fbc emits.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-rvalue-temp.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/wide-rvalue-temp.out

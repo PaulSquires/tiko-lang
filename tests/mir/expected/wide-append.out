@@ -16,6 +16,7 @@ func i32 main($0, $1) {
   local ptr $tmp9
   local ptr $tmp10
   local ptr $tmp11
+  local ptr $tmp12
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -38,60 +39,65 @@ func i32 main($0, $1) {
     %15 = call.rtl ptr fb_WstrAssign(@s, 80, @@$wstr2)
     %16 = call.rtl ptr fb_WstrConcatAssign(@s, 80, @@$wstr3)
     %17 = call.rtl ptr fb_WstrTrim(@w)
-    %18 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %17)
-    %19 = call.rtl ptr fb_WstrConcatAssign(@s, 80, @w)
-    %20 = call.rtl ptr fb_WstrConcatWA(@s, @@$str4, 4)
-    %21 = alloca ptr $tmp7
-    store @$tmp7, %20
-    %22 = load @$tmp7
-    %23 = call.rtl ptr fb_WstrAssign(@s, 80, %22)
-    %24 = load @$tmp7
-    call.rtl void fb_WstrDelete(%24)
-    %25 = call.rtl ptr fb_WstrConcatWA(@s, @n, -1)
-    %26 = alloca ptr $tmp8
-    store @$tmp8, %25
+    %18 = alloca ptr $tmp7
+    store @$tmp7, %17
+    %19 = load @$tmp7
+    %20 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %19)
+    %21 = load @$tmp7
+    call.rtl void fb_WstrDelete(%21)
+    %22 = call.rtl ptr fb_WstrConcatAssign(@s, 80, @w)
+    %23 = call.rtl ptr fb_WstrConcatWA(@s, @@$str4, 4)
+    %24 = alloca ptr $tmp8
+    store @$tmp8, %23
+    %25 = load @$tmp8
+    %26 = call.rtl ptr fb_WstrAssign(@s, 80, %25)
     %27 = load @$tmp8
-    %28 = call.rtl ptr fb_WstrAssign(@s, 80, %27)
-    %29 = load @$tmp8
-    call.rtl void fb_WstrDelete(%29)
-    %30 = load @i
-    %31 = call.rtl ptr fb_IntToWstr(%30)
-    %32 = alloca ptr $tmp9
-    store @$tmp9, %31
-    %33 = load @$tmp9
-    %34 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %33)
-    %35 = load @$tmp9
-    call.rtl void fb_WstrDelete(%35)
-    %36 = load @d
-    %37 = call.rtl ptr fb_DoubleToWstr(%36)
-    %38 = alloca ptr $tmp10
-    store @$tmp10, %37
-    %39 = load @$tmp10
-    %40 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %39)
-    %41 = load @$tmp10
-    call.rtl void fb_WstrDelete(%41)
-    %42 = load @b
-    %43 = call.rtl ptr fb_BoolToWstr(%42)
-    %44 = alloca ptr $tmp11
-    store @$tmp11, %43
-    %45 = load @$tmp11
-    %46 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %45)
-    %47 = load @$tmp11
-    call.rtl void fb_WstrDelete(%47)
+    call.rtl void fb_WstrDelete(%27)
+    %28 = call.rtl ptr fb_WstrConcatWA(@s, @n, -1)
+    %29 = alloca ptr $tmp9
+    store @$tmp9, %28
+    %30 = load @$tmp9
+    %31 = call.rtl ptr fb_WstrAssign(@s, 80, %30)
+    %32 = load @$tmp9
+    call.rtl void fb_WstrDelete(%32)
+    %33 = load @i
+    %34 = call.rtl ptr fb_IntToWstr(%33)
+    %35 = alloca ptr $tmp10
+    store @$tmp10, %34
+    %36 = load @$tmp10
+    %37 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %36)
+    %38 = load @$tmp10
+    call.rtl void fb_WstrDelete(%38)
+    %39 = load @d
+    %40 = call.rtl ptr fb_DoubleToWstr(%39)
+    %41 = alloca ptr $tmp11
+    store @$tmp11, %40
+    %42 = load @$tmp11
+    %43 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %42)
+    %44 = load @$tmp11
+    call.rtl void fb_WstrDelete(%44)
+    %45 = load @b
+    %46 = call.rtl ptr fb_BoolToWstr(%45)
+    %47 = alloca ptr $tmp12
+    store @$tmp12, %46
+    %48 = load @$tmp12
+    %49 = call.rtl ptr fb_WstrConcatAssign(@s, 80, %48)
+    %50 = load @$tmp12
+    call.rtl void fb_WstrDelete(%50)
     call.rtl void fb_PrintWstr(0, @s, 1)
     call.rtl void fb_StrDelete(@n)
-    %48 = const i32 0
-    call.rtl void fb_End(%48)
-    %49 = load @$tmp0
-    ret %49
+    %51 = const i32 0
+    call.rtl void fb_End(%51)
+    %52 = load @$tmp0
+    ret %52
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_StrInit($0, $1, $2, $3, $4)
 declare ptr fb_WstrAssign($0, $1, $2)
 declare ptr fb_WstrConcatAssign($0, $1, $2)
 declare ptr fb_WstrTrim($0)
-declare ptr fb_WstrConcatWA($0, $1, $2)
 declare void fb_WstrDelete($0)
+declare ptr fb_WstrConcatWA($0, $1, $2)
 declare ptr fb_IntToWstr($0)
 declare ptr fb_DoubleToWstr($0)
 declare ptr fb_BoolToWstr($0)
@@ -99,4 +105,4 @@ declare void fb_PrintWstr($0, $1, $2)
 declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 71 insts, 0 statements not lowered, 0 scope imbalance

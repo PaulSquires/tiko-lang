@@ -7,6 +7,10 @@ func i32 main($0, $1) {
   local agg fz size 7
   local agg s size 24
   local agg $tmp4 size 24
+  local ptr $tmp5
+  local ptr $tmp6
+  local ptr $tmp7
+  local ptr $tmp8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -33,22 +37,42 @@ func i32 main($0, $1) {
     %18 = field.addr @$tmp4, 0
     %19 = load %18
     %20 = call.rtl ptr fb_StrToWstr(%19)
-    call.rtl void fb_PrintWstr(0, %20, 1)
+    %21 = alloca ptr $tmp5
+    store @$tmp5, %20
+    %22 = load @$tmp5
+    call.rtl void fb_PrintWstr(0, %22, 1)
     call.rtl void fb_StrDelete(@$tmp4)
-    %21 = call.rtl ptr fb_StrToWstr(@fz)
-    call.rtl void fb_PrintWstr(0, %21, 1)
-    %22 = field.addr @s, 0
-    %23 = load %22
-    %24 = call.rtl ptr fb_StrToWstr(%23)
-    call.rtl void fb_PrintWstr(0, %24, 1)
-    %25 = call.rtl ptr fb_StrToWstr(@fz)
-    %26 = call.rtl i64 fb_WstrLen(%25)
-    call.rtl void fb_PrintLongint(0, %26, 1)
+    %23 = load @$tmp5
+    call.rtl void fb_WstrDelete(%23)
+    %24 = call.rtl ptr fb_StrToWstr(@fz)
+    %25 = alloca ptr $tmp6
+    store @$tmp6, %24
+    %26 = load @$tmp6
+    call.rtl void fb_PrintWstr(0, %26, 1)
+    %27 = load @$tmp6
+    call.rtl void fb_WstrDelete(%27)
+    %28 = field.addr @s, 0
+    %29 = load %28
+    %30 = call.rtl ptr fb_StrToWstr(%29)
+    %31 = alloca ptr $tmp7
+    store @$tmp7, %30
+    %32 = load @$tmp7
+    call.rtl void fb_PrintWstr(0, %32, 1)
+    %33 = load @$tmp7
+    call.rtl void fb_WstrDelete(%33)
+    %34 = call.rtl ptr fb_StrToWstr(@fz)
+    %35 = alloca ptr $tmp8
+    store @$tmp8, %34
+    %36 = load @$tmp8
+    %37 = call.rtl i64 fb_WstrLen(%36)
+    call.rtl void fb_PrintLongint(0, %37, 1)
+    %38 = load @$tmp8
+    call.rtl void fb_WstrDelete(%38)
     call.rtl void fb_StrDelete(@s)
-    %27 = const i32 0
-    call.rtl void fb_End(%27)
-    %28 = load @$tmp0
-    ret %28
+    %39 = const i32 0
+    call.rtl void fb_End(%39)
+    %40 = load @$tmp0
+    ret %40
 }
 declare void fb_Init($0, $1, $2)
 declare ptr memset($0, $1, $2)
@@ -57,8 +81,9 @@ declare ptr fb_StrInit($0, $1, $2, $3, $4)
 declare ptr fb_StrToWstr($0)
 declare void fb_PrintWstr($0, $1, $2)
 declare void fb_StrDelete($0)
+declare void fb_WstrDelete($0)
 declare i64 fb_WstrLen($0)
 declare void fb_PrintLongint($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 60 insts, 0 statements not lowered, 0 scope imbalance

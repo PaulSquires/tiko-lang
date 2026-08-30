@@ -61,6 +61,7 @@ func void Q() {
   local agg wv size 100
   local agg z size 100
   local agg r size 24
+  local ptr $tmp3
   entry0:
     %1 = alloca ptr wv
     %2 = alloca ptr z
@@ -73,16 +74,22 @@ func void Q() {
     store %6, 0
     %7 = call ptr _ZN1WcvwEv(@wv)
     %8 = call.rtl ptr fb_WstrTrim(%7)
-    %9 = call.rtl ptr fb_WstrAssign(@z, 50, %8)
-    %10 = call ptr _ZN1WcvwEv(@wv)
+    %9 = alloca ptr $tmp3
+    store @$tmp3, %8
+    %10 = load @$tmp3
     %11 = call.rtl ptr fb_WstrAssign(@z, 50, %10)
-    %12 = call ptr _ZN1WcvwEv(@wv)
-    %13 = call.rtl ptr fb_WstrAssignToA(@r, -1, %12, 0)
+    %12 = load @$tmp3
+    call.rtl void fb_WstrDelete(%12)
+    %13 = call ptr _ZN1WcvwEv(@wv)
+    %14 = call.rtl ptr fb_WstrAssign(@z, 50, %13)
+    %15 = call ptr _ZN1WcvwEv(@wv)
+    %16 = call.rtl ptr fb_WstrAssignToA(@r, -1, %15, 0)
     call.rtl void fb_StrDelete(@r)
     ret
 }
 declare ptr fb_WstrTrim($0)
 declare ptr fb_WstrAssign($0, $1, $2)
+declare void fb_WstrDelete($0)
 declare ptr fb_WstrAssignToA($0, $1, $2, $3)
 verify: ok
-lowered: 4 functions, 4 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance

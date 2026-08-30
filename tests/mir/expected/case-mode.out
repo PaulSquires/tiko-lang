@@ -6,6 +6,9 @@ func i32 main($0, $1) {
   local agg t size 24
   local agg w size 16
   local agg v size 16
+  local ptr $tmp5
+  local ptr $tmp6
+  local ptr $tmp7
   local agg one size 4
   local agg arr size 2
   entry0:
@@ -39,46 +42,61 @@ func i32 main($0, $1) {
     %23 = const i64 1
     %24 = trunc %23
     %25 = call.rtl ptr fb_WstrUcase2(@v, %24)
-    %26 = call.rtl ptr fb_WstrAssign(@w, 8, %25)
-    %27 = const i64 1
-    %28 = trunc %27
-    %29 = call.rtl ptr fb_WstrLcase2(@v, %28)
-    %30 = call.rtl ptr fb_WstrAssign(@w, 8, %29)
-    %31 = call.rtl ptr fb_WstrUcase2(@v, 0)
-    %32 = call.rtl ptr fb_WstrAssign(@w, 8, %31)
+    %26 = alloca ptr $tmp5
+    store @$tmp5, %25
+    %27 = load @$tmp5
+    %28 = call.rtl ptr fb_WstrAssign(@w, 8, %27)
+    %29 = load @$tmp5
+    call.rtl void fb_WstrDelete(%29)
+    %30 = const i64 1
+    %31 = trunc %30
+    %32 = call.rtl ptr fb_WstrLcase2(@v, %31)
+    %33 = alloca ptr $tmp6
+    store @$tmp6, %32
+    %34 = load @$tmp6
+    %35 = call.rtl ptr fb_WstrAssign(@w, 8, %34)
+    %36 = load @$tmp6
+    call.rtl void fb_WstrDelete(%36)
+    %37 = call.rtl ptr fb_WstrUcase2(@v, 0)
+    %38 = alloca ptr $tmp7
+    store @$tmp7, %37
+    %39 = load @$tmp7
+    %40 = call.rtl ptr fb_WstrAssign(@w, 8, %39)
+    %41 = load @$tmp7
+    call.rtl void fb_WstrDelete(%41)
     call.rtl void fb_PrintString(0, @t, 2)
     call.rtl void fb_PrintWstr(0, @w, 1)
-    %33 = alloca ptr one
-    %34 = call.rtl ptr memset(@one, 32, 4)
-    %35 = alloca ptr arr
-    %36 = const i64 0
-    %37 = ptr.add @one, %36
-    %38 = const i64 67
-    %39 = trunc %38
-    store %37, %39
-    %40 = const i64 1
-    %41 = ptr.add @arr, %40
-    %42 = const i64 0
-    %43 = ptr.add %41, %42
-    %44 = const i64 65
-    %45 = trunc %44
-    store %43, %45
-    %46 = const i64 0
-    %47 = ptr.add @one, %46
-    %48 = load %47
-    call.rtl void fb_PrintUByte(0, %48, 2)
+    %42 = alloca ptr one
+    %43 = call.rtl ptr memset(@one, 32, 4)
+    %44 = alloca ptr arr
+    %45 = const i64 0
+    %46 = ptr.add @one, %45
+    %47 = const i64 67
+    %48 = trunc %47
+    store %46, %48
     %49 = const i64 1
     %50 = ptr.add @arr, %49
     %51 = const i64 0
     %52 = ptr.add %50, %51
-    %53 = load %52
-    call.rtl void fb_PrintUByte(0, %53, 1)
+    %53 = const i64 65
+    %54 = trunc %53
+    store %52, %54
+    %55 = const i64 0
+    %56 = ptr.add @one, %55
+    %57 = load %56
+    call.rtl void fb_PrintUByte(0, %57, 2)
+    %58 = const i64 1
+    %59 = ptr.add @arr, %58
+    %60 = const i64 0
+    %61 = ptr.add %59, %60
+    %62 = load %61
+    call.rtl void fb_PrintUByte(0, %62, 1)
     call.rtl void fb_StrDelete(@t)
     call.rtl void fb_StrDelete(@s)
-    %54 = const i32 0
-    call.rtl void fb_End(%54)
-    %55 = load @$tmp0
-    ret %55
+    %63 = const i32 0
+    call.rtl void fb_End(%63)
+    %64 = load @$tmp0
+    ret %64
 }
 declare void fb_Init($0, $1, $2)
 declare ptr fb_StrInit($0, $1, $2, $3, $4)
@@ -87,6 +105,7 @@ declare ptr fb_StrUcase2($0, $1)
 declare ptr fb_StrAssign($0, $1, $2, $3, $4)
 declare ptr fb_StrLcase2($0, $1)
 declare ptr fb_WstrUcase2($0, $1)
+declare void fb_WstrDelete($0)
 declare ptr fb_WstrLcase2($0, $1)
 declare void fb_PrintString($0, $1, $2)
 declare void fb_PrintWstr($0, $1, $2)
@@ -95,4 +114,4 @@ declare void fb_PrintUByte($0, $1, $2)
 declare void fb_StrDelete($0)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
