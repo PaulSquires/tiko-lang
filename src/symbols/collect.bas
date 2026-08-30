@@ -25,6 +25,10 @@ type Walker
     as boolean              inUnion      '' the immediate enclosing aggregate is a union
     as boolean              unionFirst   '' the next field starts a NEW anonymous group
     as long                 anonDepth    '' anonymous aggregates enclosing the cursor
+    '' The parameters being walked belong to a PROTOTYPE, not a definition. fbc
+    '' allows two parameters to share a name in a 'declare' and REJECTS it in a
+    '' body -- measured both ways -- so the allowance is gated on this.
+    as boolean              inProcDecl
     as long                 duplicates
 end type
 
@@ -924,11 +928,37 @@ sub WalkNode _
         '' reads this to find the procedure it is in, and without it __FUNCTION__ inside
         '' a method lowered to an UNDEF that the call around it happily passed.
         if scopeOwner <> Tko.SYMBOL_NONE then w.info->SetRef( id, scopeOwner )
+        '' A DECLARE has no body node; a definition does. See Walker.inProcDecl.
+        dim as boolean prevDeclCtx = w.inProcDecl
+        w.inProcDecl = (sp->b = Tko.NODE_NONE)
         WalkChildren( w, sp->first, sp->count, inner )
+        w.inProcDecl = prevDeclCtx
         if sp->b <> Tko.NODE_NONE then WalkNode( w, sp->b, inner )
 
     case Tko.N_PARAM
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
+        '' TWO PARAMETERS MAY SHARE A NAME. Measured, fbc accepts
+        ''
+        ''     declare function f cdecl ( byval size as uinteger, _
+        ''                               byval size as uinteger = 1 ) as any ptr
+        ''
+        '' -- and the SHIPPED HEADER fbc-int/memory.bi writes exactly that for
+        '' callocate, so reporting it broke every file that includes it. The second
+        '' one wins for the body, which is what declaring it again gives.
+        dim as Tko.SymbolId pdup = Tko.SYMBOL_NONE
+        if w.inProcDecl then
+            pdup = w.syms->LookupLocalTyped( scope_, sp->name, false )
+        end if
+        if pdup <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr pps = w.syms->SymbolAt( pdup )
+            if pps <> 0 then
+                if pps->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
+                    pps->payload = cast( long, id )
+                    pps->loc = w.ast->Loc( id )
+                    return
+                end if
+            end if
+        end if
         Declare_( w, scope_, sp->name, Tko.SYM_PARAMETER, w.ast->Loc( id ) )
 
     case Tko.N_NAMESPACE

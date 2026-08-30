@@ -1,0 +1,5 @@
+'' Two parameters sharing a name is accepted, not a duplicate declaration.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/dup-param-name.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/dup-param-name.out

@@ -1,0 +1,16 @@
+scopes: 5  symbols: 10  (builtin: 203)
+scope 1 global parent=0 (4)
+    const     'true' builtin
+    const     'false' builtin
+    const     '__function__' funcname
+    const     '__function_nq__'
+scope 2 module parent=1 (2)
+    proc      'f' declared cdecl
+    proc      'g' declared defined
+scope 3 proc of 'f' parent=2 (1)
+    param     'size'
+scope 4 proc of 'g' parent=2 (1)
+    param     'n'
+scope 5 proc of 'g' parent=2 (2)
+    param     'n'
+    param     'm'
