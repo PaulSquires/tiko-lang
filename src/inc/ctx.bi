@@ -65,4 +65,48 @@ end extern
 '' degenerate call.
 #define TKORT_UNULLSTR() (@__fb_ctx.unull_desc)
 
+'' ================================================== __fb_ctx.errmsg
+''
+'' fb_hRtExit prints this on the way out, so the error and assert paths have to
+'' set it -- and it is the field AFTER unull_desc, which the struct above
+'' deliberately stops at.
+''
+'' MEASURED, INCLUDING ON win32, BY READING fbc's OWN COMPILED CODE.
+''
+'' The C probe against fbc's headers gives the 64-bit targets directly, but no
+'' 32-bit MinGW headers are available here, and the runtime scan that located
+'' fileTB cannot work for this field: errmsg is NULL until an assert fires, so
+'' there is nothing to search for.
+''
+'' fbc's own win32 object encodes it. Disassembling error_assert.o:
+''
+''     45: c7 05 20 00 00 00 ...   movl $0x0, 0x20
+''     00000047: IMAGE_REL_I386_DIR32  ___fb_ctx
+''
+'' -- a store to __fb_ctx + 0x20, so errmsg is at 32.
+''
+'' THE METHOD WAS VALIDATED AGAINST A KNOWN ANSWER FIRST. The same disassembly
+'' applied to file_free.o gives `addl $0x98, %eax` against ___fb_ctx -- 152 --
+'' which is exactly what the runtime scan had already established for fileTB.
+'' Its `shll $0x6` also confirms sizeof( FB_FILE ) = 64 on win32 independently.
+'' A technique that has not reproduced something already known is not a
+'' measurement.
+#if defined( __FB_64BIT__ )
+	const TKORT_ERRMSG_OFFSET = 64
+#else
+	const TKORT_ERRMSG_OFFSET = 32
+#endif
+
+extern "c"   '' NON-FBCALL: both are DATA.
+	extern __fb_ctx_head alias "__fb_ctx" as ubyte
+	'' The 1024-byte buffer fbc formats its message into. Shared, not ours.
+	extern __fb_errmsg alias "__fb_errmsg" as ubyte
+end extern
+
+const FB_ERRMSG_SIZE = 1024
+
+'' The slot fb_hRtExit reads. Writing it is how a runtime error's text reaches
+'' the exit path.
+#define TKORT_CTX_ERRMSG() *cptr( any ptr ptr, @__fb_ctx_head + TKORT_ERRMSG_OFFSET )
+
 #endif '' __TKORT_CTX_BI__

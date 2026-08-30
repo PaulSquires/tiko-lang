@@ -156,6 +156,21 @@ end function
 
 '' The wide twin. NOTE IT RETURNS NULL rather than a shared empty on failure --
 '' the wstring family's rule, where empty and absent are the same value.
+''
+'' THE LENGTH IS IN CHARACTERS, NOT BYTES. fb_FileGetDataEx counts CHARACTERS
+'' when is_unicode is set, and the first version here multiplied by
+'' sizeof( wstring ) first -- asking for two to four times the buffer.
+''
+'' That overran on every target. Both Windows gates PASSED it: the screen loop
+'' is unreachable in a non-interactive suite, and at 2 bytes per character the
+'' file path's overrun landed inside slack. Linux is where a wchar is FOUR
+'' bytes, and glibc caught it -- "corrupted size vs. prev_size", a core dump at
+'' 748 of ~1,477 invocations.
+''
+'' AND THE FILE BRANCH SETS read_chars TO THE FULL COUNT regardless of what was
+'' actually read, so the terminator goes at `chars` even on a short read. That
+'' is fbc's, and it differs from the narrow INPUT$ next door, which tracks the
+'' real count and shrinks the descriptor.
 function tkort_FileWstrInput alias "fb_FileWstrInput" _
 	( byval chars as integer, byval fnum as long ) as wstring ptr
 
@@ -180,27 +195,27 @@ function tkort_FileWstrInput alias "fb_FileWstrInput" _
 		if( hIsScreen( h ) ) then
 			while( read_chars <> chars )
 				res = tkrt_GetDataEx( h, 0, b + read_chars * sizeof( wstring ), _
-				                      (chars - read_chars) * sizeof( wstring ), _
-				                      @length, -1, -1 )
+				                      chars - read_chars, @length, -1, -1 )
 				if( res <> FB_RTERROR_OK ) then exit while
 				read_chars += length
 			wend
 		else
-			res = tkrt_GetDataEx( h, 0, dst, chars * sizeof( wstring ), @length, -1, -1 )
-			if( res = FB_RTERROR_OK ) then read_chars += length
+			res = tkrt_GetDataEx( h, 0, dst, chars, @length, -1, -1 )
+			'' The full count, not what arrived.
+			read_chars = chars
 		end if
 
-		'' Terminate through a byte pointer, so the width is the target's.
-		for k as integer = 0 to sizeof( wstring ) - 1
-			b[read_chars * sizeof( wstring ) + k] = 0
-		next
+		if( res = FB_RTERROR_OK ) then
+			'' Terminate through a byte pointer, so the width is the target's.
+			for k as integer = 0 to sizeof( wstring ) - 1
+				b[read_chars * sizeof( wstring ) + k] = 0
+			next
+		else
+			FB_WSTR_DEL( dst )
+			dst = 0
+		end if
 	else
 		res = FB_RTERROR_OUTOFMEM
-	end if
-
-	if( res <> FB_RTERROR_OK ) then
-		if( dst <> 0 ) then FB_WSTR_DEL( dst )
-		dst = 0
 	end if
 
 	IOUNLOCK()

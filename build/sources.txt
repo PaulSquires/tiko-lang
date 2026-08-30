@@ -80,3 +80,4 @@ io/filewstr.bas
 io/inputnum.bas
 io/inputstr.bas
 strw/swap.bas
+error/assert.bas
