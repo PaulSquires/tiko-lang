@@ -491,6 +491,32 @@ sub WalkNode _
             '' COMMON specifically -- 'dim a( ) ... dim a( 1 to 2 )' is fbc
             '' error 4 -- and the element types still have to agree, so it
             '' joins the REDIM row rather than getting one of its own.
+            '' A VAR-LEN ARRAY CANNOT BE INITIALIZED -- fbc error 75, measured over
+            '' four spellings and identical in every one:
+            ''
+            ''     redim a(0 to 1) as integer => { 1, 2 }
+            ''     redim a(0 to 1) as integer = 5
+            ''     dim a( ) as integer => { 1, 2 }
+            ''     dim a( any ) as integer => { 1, 2 }
+            ''
+            '' A FIXED array initialises fine, and so does 'dim a(0 to 1) as integer
+            '' = any' -- the rule is about having no storage yet, not about the
+            '' initialiser's shape. tiko-lang accepted all four and wrote the
+            '' initialiser into a descriptor that had not been allocated.
+            ''
+            '' HOISTED, and that is not style. Written as one 'itemDyn andalso
+            '' (ip->b <> Tko.NODE_NONE)' the condition was NEVER TRUE and the build
+            '' said nothing -- each half fires on its own. It is the andalso trap
+            '' this codebase already has a rule about, and here it did not warn.
+            dim as boolean itemDyn = (sp->op = cast( ushort, Tko.KW_REDIM ))
+            if itemDyn = false then itemDyn = IsDynArrayItem_( w, item )
+            dim as boolean itemHasInit = (ip->b <> Tko.NODE_NONE)
+            if itemDyn andalso itemHasInit then
+                w.diags->Report( Tko.TKO0612, _
+                                 Tko.PointRange( w.ast->Loc( item ) ), _
+                                 w.names->Spelling( ip->name ) )
+            end if
+
             dim as boolean redimLike = (sp->op = cast( ushort, Tko.KW_REDIM ))
             if redimLike = false then
                 if sp->op = cast( ushort, Tko.KW_DIM ) then

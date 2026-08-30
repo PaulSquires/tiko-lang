@@ -1,0 +1,244 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a size 72
+  local agg b size 72
+  local agg c size 240
+  local agg d size 72
+  local agg e size 16
+  local agg f size 16
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = const ptr 0
+    %6 = field.addr @a, 0
+    store %6, %5
+    %7 = field.addr @a, 8
+    store %7, %5
+    %8 = const i64 0
+    %9 = field.addr @a, 16
+    store %9, %8
+    %10 = const i64 8
+    %11 = field.addr @a, 24
+    store %11, %10
+    %12 = const i64 1
+    %13 = field.addr @a, 32
+    store %13, %12
+    %14 = const i64 17
+    %15 = field.addr @a, 40
+    store %15, %14
+    %16 = const i64 0
+    %17 = field.addr @a, 48
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr @a, 56
+    store %19, %18
+    %20 = const i64 0
+    %21 = field.addr @a, 64
+    store %21, %20
+    %22 = const i64 0
+    %23 = const i64 0
+    %24 = const i64 1
+    %25 = call.rtl i32 fb_ArrayRedimEx(@a, 8, -1, 0, 1, %23, %24)
+    %26 = alloca ptr b
+    %27 = const ptr 0
+    %28 = field.addr @b, 0
+    store %28, %27
+    %29 = field.addr @b, 8
+    store %29, %27
+    %30 = const i64 0
+    %31 = field.addr @b, 16
+    store %31, %30
+    %32 = const i64 8
+    %33 = field.addr @b, 24
+    store %33, %32
+    %34 = const i64 1
+    %35 = field.addr @b, 32
+    store %35, %34
+    %36 = const i64 17
+    %37 = field.addr @b, 40
+    store %37, %36
+    %38 = const i64 0
+    %39 = field.addr @b, 48
+    store %39, %38
+    %40 = const i64 0
+    %41 = field.addr @b, 56
+    store %41, %40
+    %42 = const i64 0
+    %43 = field.addr @b, 64
+    store %43, %42
+    %44 = const i64 0
+    %45 = const i64 0
+    %46 = const i64 1
+    %47 = call.rtl i32 fb_ArrayRedimEx(@b, 8, -1, 0, 1, %45, %46)
+    %48 = alloca ptr c
+    %49 = const ptr 0
+    %50 = field.addr @c, 0
+    store %50, %49
+    %51 = field.addr @c, 8
+    store %51, %49
+    %52 = const i64 0
+    %53 = field.addr @c, 16
+    store %53, %52
+    %54 = const i64 8
+    %55 = field.addr @c, 24
+    store %55, %54
+    %56 = const i64 0
+    %57 = field.addr @c, 32
+    store %57, %56
+    %58 = const i64 8
+    %59 = field.addr @c, 40
+    store %59, %58
+    %60 = const i64 0
+    %61 = field.addr @c, 48
+    store %61, %60
+    %62 = const i64 0
+    %63 = field.addr @c, 56
+    store %63, %62
+    %64 = const i64 0
+    %65 = field.addr @c, 64
+    store %65, %64
+    %66 = const i64 0
+    %67 = field.addr @c, 72
+    store %67, %66
+    %68 = const i64 0
+    %69 = field.addr @c, 80
+    store %69, %68
+    %70 = const i64 0
+    %71 = field.addr @c, 88
+    store %71, %70
+    %72 = const i64 0
+    %73 = field.addr @c, 96
+    store %73, %72
+    %74 = const i64 0
+    %75 = field.addr @c, 104
+    store %75, %74
+    %76 = const i64 0
+    %77 = field.addr @c, 112
+    store %77, %76
+    %78 = const i64 0
+    %79 = field.addr @c, 120
+    store %79, %78
+    %80 = const i64 0
+    %81 = field.addr @c, 128
+    store %81, %80
+    %82 = const i64 0
+    %83 = field.addr @c, 136
+    store %83, %82
+    %84 = const i64 0
+    %85 = field.addr @c, 144
+    store %85, %84
+    %86 = const i64 0
+    %87 = field.addr @c, 152
+    store %87, %86
+    %88 = const i64 0
+    %89 = field.addr @c, 160
+    store %89, %88
+    %90 = const i64 0
+    %91 = field.addr @c, 168
+    store %91, %90
+    %92 = const i64 0
+    %93 = field.addr @c, 176
+    store %93, %92
+    %94 = const i64 0
+    %95 = field.addr @c, 184
+    store %95, %94
+    %96 = const i64 0
+    %97 = field.addr @c, 192
+    store %97, %96
+    %98 = const i64 0
+    %99 = field.addr @c, 200
+    store %99, %98
+    %100 = const i64 0
+    %101 = field.addr @c, 208
+    store %101, %100
+    %102 = const i64 0
+    %103 = field.addr @c, 216
+    store %103, %102
+    %104 = const i64 0
+    %105 = field.addr @c, 224
+    store %105, %104
+    %106 = const i64 0
+    %107 = field.addr @c, 232
+    store %107, %106
+    %108 = const i64 1
+    %109 = field.addr @c, 0
+    store %109, %108
+    %110 = const i64 2
+    %111 = field.addr @c, 8
+    store %111, %110
+    %112 = alloca ptr d
+    %113 = const ptr 0
+    %114 = field.addr @d, 0
+    store %114, %113
+    %115 = field.addr @d, 8
+    store %115, %113
+    %116 = const i64 0
+    %117 = field.addr @d, 16
+    store %117, %116
+    %118 = const i64 8
+    %119 = field.addr @d, 24
+    store %119, %118
+    %120 = const i64 1
+    %121 = field.addr @d, 32
+    store %121, %120
+    %122 = const i64 17
+    %123 = field.addr @d, 40
+    store %123, %122
+    %124 = const i64 0
+    %125 = field.addr @d, 48
+    store %125, %124
+    %126 = const i64 0
+    %127 = field.addr @d, 56
+    store %127, %126
+    %128 = const i64 0
+    %129 = field.addr @d, 64
+    store %129, %128
+    %130 = const i64 1
+    %131 = field.addr @d, 0
+    store %131, %130
+    %132 = const i64 2
+    %133 = field.addr @d, 8
+    store %133, %132
+    %134 = alloca ptr e
+    %135 = const i64 1
+    %136 = field.addr @e, 0
+    store %136, %135
+    %137 = const i64 2
+    %138 = field.addr @e, 8
+    store %138, %137
+    %139 = alloca ptr f
+    %140 = call.rtl i32 fb_ArrayErase(@d)
+    %141 = call.rtl i32 fb_ArrayErase(@c)
+    %142 = call.rtl i32 fb_ArrayErase(@b)
+    %143 = call.rtl i32 fb_ArrayErase(@a)
+    %144 = const i32 0
+    call.rtl void fb_End(%144)
+    %145 = load @$tmp0
+    ret %145
+}
+declare void fb_Init($0, $1, $2)
+declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayErase($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 211 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/varlen-array-init.bas(7,7): error TKO0612: var-len array 'a' cannot be initialized
+     |
+   7 | redim a( 0 to 1 ) as integer => { 1, 2 }
+     |       ^
+tests/diagnostics/src/varlen-array-init.bas(8,7): error TKO0612: var-len array 'b' cannot be initialized
+     |
+   8 | redim b( 0 to 1 ) as integer = 5
+     |       ^
+tests/diagnostics/src/varlen-array-init.bas(9,5): error TKO0612: var-len array 'c' cannot be initialized
+     |
+   9 | dim c( ) as integer => { 1, 2 }
+     |     ^
+tests/diagnostics/src/varlen-array-init.bas(10,5): error TKO0612: var-len array 'd' cannot be initialized
+     |
+  10 | dim d( any ) as integer => { 1, 2 }
+     |     ^

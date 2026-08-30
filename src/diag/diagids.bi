@@ -118,6 +118,9 @@
     DIAG( TKO0609, SEV_ERROR,   "'for each' cannot walk a fixed-length string: it carries no length" )
     DIAG( TKO0610, SEV_ERROR,   "'for each' with a name list needs a tuple element; '%0' is not one" )
     DIAG( TKO0611, SEV_ERROR,   "'for each' binds %0 names but the element has %1" )
+    '' fbc's error 75, in its own words. A DYNAMIC array has no storage at the point
+    '' of declaration, so there is nothing for an initialiser to write into.
+    DIAG( TKO0612, SEV_ERROR,   "var-len array '%0' cannot be initialized" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

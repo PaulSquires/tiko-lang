@@ -1,0 +1,5 @@
+'' A dynamic array cannot carry an initialiser, in any of its spellings; a fixed one can.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/varlen-array-init.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/varlen-array-init.out
