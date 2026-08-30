@@ -1,0 +1,11 @@
+scopes: 4  symbols: 7  (builtin: 203)
+scope 1 global parent=0 (4)
+    const     'true' builtin
+    const     'false' builtin
+    const     '__function__' funcname
+    const     '__function_nq__'
+scope 2 module parent=1 (2)
+    var       'arr'
+    var       'brr'
+scope 4 block parent=2 (1)
+    var       'brr'

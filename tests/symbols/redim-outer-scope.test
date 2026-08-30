@@ -1,0 +1,6 @@
+'' A REDIM finds the array it re-dimensions through enclosing scopes, so two of them in
+'' an inner scope are not a duplicate declaration.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/redim-outer-scope.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/redim-outer-scope.out

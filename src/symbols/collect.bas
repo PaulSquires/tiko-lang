@@ -498,8 +498,15 @@ sub WalkNode _
                 end if
             end if
             if (sk = Tko.SYM_VARIABLE) andalso redimLike then
+                '' LookupTyped, NOT the LOCAL one: the array a REDIM re-dimensions
+                '' may live in an ENCLOSING scope, which is the ordinary case --
+                '' 'common array( )' at module level and 'redim array( 0 to 4 )'
+                '' inside a TEST body. Looking only in the local scope found
+                '' nothing, so the first redim DECLARED A SHADOW and the second
+                '' one collided with it: dim/redim.bas reports two, and neither
+                '' is a duplicate to fbc.
                 dim as Tko.SymbolId prevR = _
-                    w.syms->LookupLocalTyped( scope_, ip->name, false )
+                    w.syms->LookupTyped( scope_, ip->name, false )
                 dim as Tko.Symbol ptr prs = w.syms->SymbolAt( prevR )
                 if prs <> 0 then
                     if prs->kind = cast( ubyte, Tko.SYM_VARIABLE ) then
