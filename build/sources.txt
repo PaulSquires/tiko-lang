@@ -68,3 +68,6 @@ strw/val.bas
 str/tostr.bas
 strw/tostr.bas
 io/print.bas
+io/print_wstr.bas
+math/misc.bas
+str/cvmk.bas

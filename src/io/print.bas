@@ -268,3 +268,47 @@ sub tkort_PrintULongint alias "fb_PrintULongint" _
 end sub
 
 end extern
+
+'' ============================================================ floats and bool
+''
+'' PRINT of a float goes through fb_hFloat2Str with ADDBLANK, which is why these
+'' allocate a stack buffer and pass the RETURNED POINTER rather than the buffer:
+'' the formatter puts the text at buffer[1] and moves the start back only for a
+'' non-negative value. Passing @buffer instead would print a stray leading byte
+'' for every negative number.
+''
+'' The buffer sizes are fbc's -- 8+1+9+1 for a single, 16+1+9+1 for a double --
+'' and they are the formatter's worst case plus the blank, not a round number.
+
+extern "c"   '' NON-FBCALL: fb_string.h declares the formatter plainly.
+	declare function tkrt_Float2Str alias "fb_hFloat2Str" _
+		( byval v as double, byval b as zstring ptr, byval digits as long, _
+		  byval mask as long ) as zstring ptr
+	declare function tkrt_hBoolToStr alias "fb_hBoolToStr" ( byval n as byte ) as zstring ptr
+end extern
+
+const TKORT_F2A_ADDBLANK = 1
+
+extern "rtlib"
+
+sub tkort_PrintSingle alias "fb_PrintSingle" _
+	( byval fnum as long, byval v as single, byval mask as long )
+	dim as zstring * (8 + 1 + 9 + 1) buffer
+	tkort_PrintFixString( fnum, tkrt_Float2Str( v, @buffer, 7, TKORT_F2A_ADDBLANK ), mask )
+end sub
+
+sub tkort_PrintDouble alias "fb_PrintDouble" _
+	( byval fnum as long, byval v as double, byval mask as long )
+	dim as zstring * (16 + 1 + 9 + 1) buffer
+	tkort_PrintFixString( fnum, tkrt_Float2Str( v, @buffer, 16, TKORT_F2A_ADDBLANK ), mask )
+end sub
+
+'' PRINT of a BOOLEAN prints the WORD, not a number -- "true" or "false" -- and
+'' it goes through the same numeric macro with a "%s" format, so it picks up the
+'' newline and padding handling for free.
+sub tkort_PrintBool alias "fb_PrintBool" _
+	( byval fnum as long, byval v as byte, byval mask as long )
+	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), tkrt_hBoolToStr( v ), mask, "%s" )
+end sub
+
+end extern
