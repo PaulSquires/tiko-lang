@@ -17,7 +17,20 @@
 set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
-CORPUS=tests/vendor/fbc-tests
+# SCOPEABLE, because the full 2709-file run is ~9 minutes and most changes touch one
+# narrow path. 'MIRSWEEP_CORPUS=tests/vendor/fbc-tests/structs bash build/mirsweep.sh'
+# sweeps that directory in seconds.
+#
+# THE HEADLINE COUNT IS THEN THE SUBSET'S, and is NOT comparable to the whole-corpus
+# figure. Use a scoped run to answer 'did this change do what I meant here'; use the
+# full run before a commit lands, and compare THAT against the whole-corpus baseline.
+# THE INCLUDE ROOT IS NOT THE SCOPE. fbcunit/inc lives at the corpus ROOT, and nearly
+# every file includes it; deriving the -i from the scoped path made it vanish, every
+# include failed, and 'structs' alone reported 8869 statements not lowered against a
+# whole-corpus 749. The number is what gave it away -- a scoped run can only ever
+# report FEWER than the whole.
+CORPUS_ROOT=tests/vendor/fbc-tests
+CORPUS=${MIRSWEEP_CORPUS:-$CORPUS_ROOT}
 [ -d "$CORPUS" ] || { echo "mirsweep: corpus not vendored" >&2; exit 3; }
 
 # 761 of the 2,709 corpus files -- 28% -- '#include "fbcunit.bi"', the suite's own test
@@ -25,7 +38,7 @@ CORPUS=tests/vendor/fbc-tests
 # the corpus fails at its first line, and every number is measured against files that
 # cannot resolve their own harness. See docs/internals/corpus-include-path.md.
 FBCUNIT=""
-[ -d "$CORPUS/fbcunit/inc" ] && FBCUNIT="-i $CORPUS/fbcunit/inc"
+[ -d "$CORPUS_ROOT/fbcunit/inc" ] && FBCUNIT="-i $CORPUS_ROOT/fbcunit/inc"
 
 # tiko-lang ships no headers, so its default include directory does not exist in a source
 # tree. 144 corpus files include a real FreeBASIC runtime header; without a header set
@@ -51,6 +64,18 @@ find "$CORPUS" -name '*.bas' | sort > build/.corpus.lst
 # a worker died with its output redirected at a directory, once a run hung for an hour.
 # Six leaves headroom for the shell's own processes. Raise it with MIRSWEEP_JOBS.
 JOBS=${MIRSWEEP_JOBS:-6}
+# ONE SWEEP PER TREE AT A TIME. The parts directories are fixed names and the next
+# line deletes them, so a second sweep started in the same tree DESTROYS the first --
+# silently, and the victim just reports a smaller count. That happened: a scoped run
+# was started beside a full one and the full one's result was lost, not flagged.
+# mkdir is atomic, so it is the lock.
+if ! mkdir build/.mirlock 2>/dev/null ; then
+    echo "mirsweep: a sweep is already running in this tree (build/.mirlock exists)." >&2
+    echo "mirsweep: wait for it, or remove build/.mirlock if no sweep is running." >&2
+    exit 1
+fi
+trap 'rm -rf build/.mirlock' EXIT INT TERM
+
 rm -rf build/.mirparts build/.diagparts build/.skipparts
 mkdir -p build/.mirparts build/.diagparts build/.skipparts
 
