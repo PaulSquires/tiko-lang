@@ -1,205 +1,169 @@
-'' utf-parity.bas -- the four codecs and fb_hUStrCodepointAt.
+'' utf-parity.bas -- the byte<->UTF conversions: six entry points.
 ''
-'' The area RFC-0004 section 3.3 named as the one that could stop the project.
-'' Every case here is one PROBE-34/35/36 measured against fbc, so a divergence
-'' names the contract it broke rather than just failing.
+'' NEEDS-GEN-LLVM
 ''
-'' Buffers are over-allocated by more than one unit on purpose: the terminator
-'' lands at dst[min(need, capacity)], which is OUTSIDE the stated capacity, and
-'' a buffer sized exactly to the capacity would make every truncation test
-'' corrupt the next variable instead of reporting a difference.
-extern "c"   '' NON-FBCALL -- no @N on win32
-    declare function u8to16  alias "fb_hUtf8ToUtf16"  ( byval s as ubyte ptr, byval nb as integer, byval d as ushort ptr, byval du as integer ) as integer
-    declare function u16to8  alias "fb_hUtf16ToUtf8"  ( byval s as ushort ptr, byval nu as integer, byval d as ubyte ptr, byval db as integer ) as integer
-    declare function u32to16 alias "fb_hUtf32ToUtf16" ( byval s as ulong ptr,  byval nu as integer, byval d as ushort ptr, byval du as integer ) as integer
-    declare function u16to32 alias "fb_hUtf16ToUtf32" ( byval s as ushort ptr, byval nu as integer, byval d as ulong ptr,  byval du as integer ) as integer
-    declare function cpat    alias "fb_hUStrCodepointAt" ( byval s as ushort ptr, byval ln as integer, byval i as integer, byval used as integer ptr ) as ulong
+'' WHAT HAS A PLAUSIBLE WRONG ANSWER HERE:
+''   - a high surrogate must consume its PAIR and emit ONE '?'; skipping only
+''     the high half yields two, and every later count shifts
+''   - a bare continuation byte (0x80-0xBF) has trailing count 0, so it decodes
+''     as a one-byte sequence rather than being rejected
+''   - the returned `chars` excludes the terminator, and is the SAME whether the
+''     conversion stopped on the NUL or just before it
+''   - `bytes` is a BYTE count while `chars` is a CHARACTER count
+''   - an unknown encoding returns NULL and leaves `bytes` untouched
+''   - 0x80-0xFF must widen UNSIGNED: a signed read gives 0xFF80, not 0x0080
+#include once "fbc-int/string.bi"
+
+extern "c"
+	declare sub pC2U8 alias "fb_hCharToUTF8" ( byval src as ubyte ptr, byval chars as integer, byval dst as ubyte ptr, byval total as integer ptr )
+	declare function pC2U alias "fb_CharToUTF" ( byval encod as long, byval src as ubyte ptr, byval chars as integer, byval dst as ubyte ptr, byval bytes_ as integer ptr ) as ubyte ptr
+	declare function pU82C alias "fb_hUTF8ToChar" ( byval src as ubyte ptr, byval dst as ubyte ptr, byval chars as integer ptr ) as ubyte ptr
+	declare function pU162C alias "fb_hUTF16ToChar" ( byval src as ushort ptr, byval dst as ubyte ptr, byval chars as integer ptr ) as ubyte ptr
+	declare function pU322C alias "fb_hUTF32ToChar" ( byval src as ulong ptr, byval dst as ubyte ptr, byval chars as integer ptr ) as ubyte ptr
+	declare function pU2C alias "fb_UTFToChar" ( byval encod as long, byval src as any ptr, byval dst as ubyte ptr, byval chars as integer ptr ) as ubyte ptr
 end extern
 
-dim shared as ubyte  b8(0 to 127)
-dim shared as ushort b16(0 to 127)
-dim shared as ulong  b32(0 to 127)
-dim shared as ubyte  s(0 to 15)
-dim shared as ushort w(0 to 15)
-dim shared as ulong  q(0 to 15)
+declare sub cfree alias "free" ( byval p as any ptr )
 
-'' Dumps one past the reported length, so the terminator is part of the result.
-sub show16( byref tag as string, byval got as integer )
-    dim as string o = ""
-    for i as integer = 0 to got
-        o += right( "000" + hex$( b16(i) ), 4 ) + " "
-    next
-    print tag; " -> "; got; " ["; o; "]"
+sub hex8( byval p as ubyte ptr, byval n as integer )
+	dim as integer i = any
+	dim as string o = ""
+	for i = 0 to n - 1
+		o += hex( p[i], 2 ) & " "
+	next
+	print "    ["; o; "]"
 end sub
 
-sub show8( byref tag as string, byval got as integer )
-    dim as string o = ""
-    for i as integer = 0 to got
-        o += right( "0" + hex$( b8(i) ), 2 ) + " "
-    next
-    print tag; " -> "; got; " ["; o; "]"
+sub bytes8( byval p as ubyte ptr, byval n as integer )
+	dim as integer i = any
+	dim as string o = ""
+	for i = 0 to n - 1
+		dim as long c = p[i]
+		if( c >= 32 andalso c <= 126 ) then o += chr(c) else o += "<" & c & ">"
+	next
+	print "    ["; o; "]"
 end sub
 
-'' A dst = NULL measure and a real write must agree, always. That is the
-'' snprintf-like half of the contract, and it is cheap to assert on every case.
-sub t8( byref tag as string, byval n as integer, byval a as integer, byval b as integer, byval c as integer, byval d as integer )
-    s(0)=a : s(1)=b : s(2)=c : s(3)=d
-    for i as integer = 0 to 127 : b16(i) = &hCCCC : next
-    dim as integer need = u8to16( @s(0), n, 0, 0 )
-    dim as integer got  = u8to16( @s(0), n, @b16(0), 64 )
-    if( need <> got ) then print tag; " MEASURE/WRITE DISAGREE "; need; " "; got
-    show16( "u8->16 " + tag, got )
-end sub
+dim as integer i = any, n = any, nb = any
+dim as ubyte buf(0 to 2047)
+dim as ubyte srcb(0 to 511)
+dim as ushort s16(0 to 63)
+dim as ulong  s32(0 to 63)
 
-sub t16( byref tag as string, byval n as integer, byval a as integer, byval b as integer )
-    w(0)=a : w(1)=b
-    for i as integer = 0 to 127 : b8(i) = &hCC : next
-    dim as integer need = u16to8( @w(0), n, 0, 0 )
-    dim as integer got  = u16to8( @w(0), n, @b8(0), 64 )
-    if( need <> got ) then print tag; " MEASURE/WRITE DISAGREE "; need; " "; got
-    show8( "u16->8 " + tag, got )
-end sub
+print "-- fb_hCharToUTF8 over every byte value, including the NUL"
+for i = 0 to 255
+	srcb(i) = i
+next
+pC2U8( @srcb(0), 256, @buf(0), @nb )
+print "  bytes="; nb
+hex8( @buf(0), 40 )
+hex8( @buf(240), 40 )
 
-'' ---- well-formed UTF-8
-t8( "ascii A      ", 1, &h41, 0, 0, 0 )
-t8( "2byte C3A9   ", 2, &hC3, &hA9, 0, 0 )
-t8( "3byte E282AC ", 3, &hE2, &h82, &hAC, 0 )
-t8( "4byte F09F9880", 4, &hF0, &h9F, &h98, &h80 )
-t8( "NUL          ", 1, 0, 0, 0, 0 )
-t8( "A NUL B      ", 3, &h41, 0, &h42, 0 )
-
-'' ---- ill-formed UTF-8: the maximal-subpart rule, and the four narrowed
-''      second-byte ranges that make it identifiable
-t8( "trunc C3     ", 1, &hC3, 0, 0, 0 )
-t8( "trunc E282   ", 2, &hE2, &h82, 0, 0 )
-t8( "lone 80      ", 1, &h80, 0, 0, 0 )
-t8( "byte FF      ", 1, &hFF, 0, 0, 0 )
-t8( "C0 AF        ", 2, &hC0, &hAF, 0, 0 )
-t8( "C1 BF        ", 2, &hC1, &hBF, 0, 0 )
-t8( "E0 80 AF     ", 3, &hE0, &h80, &hAF, 0 )
-t8( "ED A0 80     ", 3, &hED, &hA0, &h80, 0 )
-t8( "F0 82 82 AC  ", 4, &hF0, &h82, &h82, &hAC )
-t8( "F4 90 80 80  ", 4, &hF4, &h90, &h80, &h80 )
-t8( "resync E28241", 3, &hE2, &h82, &h41, 0 )
-t8( "resync C341  ", 2, &hC3, &h41, 0, 0 )
-t8( "resync F09F41", 3, &hF0, &h9F, &h41, 0 )
-'' the accepting side of each narrowed range, so a wrong bound shows both ways
-t8( "E0 A0 80     ", 3, &hE0, &hA0, &h80, 0 )
-t8( "ED 9F BF     ", 3, &hED, &h9F, &hBF, 0 )
-t8( "F0 90 80 80  ", 4, &hF0, &h90, &h80, &h80 )
-t8( "F4 8F BF BF  ", 4, &hF4, &h8F, &hBF, &hBF )
-t8( "C2 80        ", 2, &hC2, &h80, 0, 0 )
-t8( "DF BF        ", 2, &hDF, &hBF, 0, 0 )
-t8( "F5 80 80 80  ", 4, &hF5, &h80, &h80, &h80 )
-
-'' ---- UTF-16 -> UTF-8
-t16( "ascii A      ", 1, &h41, 0 )
-t16( "00E9         ", 1, &h00E9, 0 )
-t16( "20AC         ", 1, &h20AC, 0 )
-t16( "pair D83DDE00", 2, &hD83D, &hDE00 )
-t16( "lone high    ", 1, &hD83D, 0 )
-t16( "lone low     ", 1, &hDE00, 0 )
-t16( "high then A  ", 2, &hD83D, &h41 )
-t16( "low then A   ", 2, &hDE00, &h41 )
-t16( "high then hi ", 2, &hD83D, &hD83D )
-t16( "NUL          ", 1, 0, 0 )
-t16( "D800 DC00    ", 2, &hD800, &hDC00 )
-t16( "DBFF DFFF    ", 2, &hDBFF, &hDFFF )
-
-'' ---- capacity: truncation is unit-exact, and the terminator is one past it.
-''      Swept from 0 rather than spot-checked: cap = 0 through a non-NULL dst
-''      still writes dst[0] = 0, and the boundary cases are where a
-''      >= / > mistake lives.
-sub cap16( byval cap as integer )
-    w(0)=&h20AC : w(1)=&h20AC : w(2)=&h41
-    for i as integer = 0 to 127 : b8(i) = &hCC : next
-    dim as integer r = u16to8( @w(0), 3, @b8(0), cap )
-    dim as string o = ""
-    for i as integer = 0 to 9
-        o += right( "0" + hex$( b8(i) ), 2 ) + " "
-    next
-    print "u16->8 cap="; cap; " ret="; r; " buf["; o; "]"
-end sub
-
-for c as integer = 0 to 8
-    cap16( c )
+print "-- fb_CharToUTF, fill mode, all four encodings incl. ASCII"
+dim as ubyte ptr r = any
+for i = 0 to 3
+	nb = -1
+	r = pC2U( i, @srcb(0), 8, @buf(0), @nb )
+	print "  encod"; i; " ret<>0="; iif(r <> 0, 1, 0); " bytes="; nb
+	if( r <> 0 ) then hex8( @buf(0), 32 )
 next
 
-sub cap8( byval cap as integer )
-    s(0)=&h41 : s(1)=&hF0 : s(2)=&h9F : s(3)=&h98 : s(4)=&h80
-    for i as integer = 0 to 127 : b16(i) = &hCCCC : next
-    dim as integer r = u8to16( @s(0), 5, @b16(0), cap )
-    dim as string o = ""
-    for i as integer = 0 to 5
-        o += right( "000" + hex$( b16(i) ), 4 ) + " "
-    next
-    print "u8->16 cap="; cap; " ret="; r; " buf["; o; "]"
+print "-- fb_CharToUTF, alloc mode; and the chars=0 case"
+for i = 1 to 3
+	nb = -1
+	r = pC2U( i, @srcb(128), 4, 0, @nb )
+	print "  encod"; i; " alloc bytes="; nb
+	if( r <> 0 ) then hex8( r, nb ) : cfree( r )
+	nb = -1
+	r = pC2U( i, @srcb(0), 0, 0, @nb )
+	print "  encod"; i; " chars=0 ret<>0="; iif(r <> 0, 1, 0); " bytes="; nb
+next
+
+print "-- fb_hUTF8ToChar, fill mode: ASCII, 2/3/4-byte, bare continuations"
+dim as ubyte u8(0 to 63)
+sub setu8( u() as ubyte, b0 as long, b1 as long, b2 as long, b3 as long, b4 as long, b5 as long )
+	u(0)=b0 : u(1)=b1 : u(2)=b2 : u(3)=b3 : u(4)=b4 : u(5)=b5 : u(6)=0 : u(7)=0
 end sub
 
-for c as integer = 0 to 4
-    cap8( c )
+'' 'A', U+00E9 (C3 A9), U+20AC (E2 82 AC), U+1F600 (F0 9F 98 80), then NUL
+setu8( u8(), &h41, &hC3, &hA9, &hE2, &h82, &hAC )
+u8(6) = &hF0 : u8(7) = &h9F : u8(8) = &h98 : u8(9) = &h80 : u8(10) = 0
+n = 16
+r = pU82C( @u8(0), @buf(0), @n )
+print "  fill n="; n
+bytes8( @buf(0), 8 )
+
+'' bare continuation bytes, which the table maps to a one-byte sequence
+setu8( u8(), &h80, &hBF, &h41, &h00, 0, 0 )
+n = 8
+r = pU82C( @u8(0), @buf(0), @n )
+print "  bare-continuation n="; n
+hex8( @buf(0), 6 )
+
+print "-- fb_hUTF8ToChar, alloc mode: the count must exclude the terminator"
+setu8( u8(), &h41, &h42, &h43, &h00, 0, 0 )
+n = -1
+r = pU82C( @u8(0), 0, @n )
+print "  alloc n="; n; " ret<>0="; iif(r <> 0, 1, 0)
+if( r <> 0 ) then bytes8( r, 4 ) : cfree( r )
+
+'' Long enough to force several realloc rounds of 8.
+for i = 0 to 29
+	u8(i) = 65 + (i mod 26)
+next
+u8(30) = 0
+n = -1
+r = pU82C( @u8(0), 0, @n )
+print "  alloc-30 n="; n
+if( r <> 0 ) then bytes8( r, 31 ) : cfree( r )
+
+print "-- fill mode stopping exactly ON the NUL vs one before it"
+setu8( u8(), &h41, &h42, &h00, 0, 0, 0 )
+for i = 1 to 4
+	n = i
+	r = pU82C( @u8(0), @buf(0), @n )
+	print "  max"; i; " -> n="; n; : bytes8( @buf(0), 3 )
 next
 
-'' ---- UTF-32 <-> UTF-16
-q(0)=&h41 : q(1)=&h20AC : q(2)=&h1F600 : q(3)=&h10FFFF : q(4)=&h110000 : q(5)=&hD800 : q(6)=&hDFFF : q(7)=0
-for i as integer = 0 to 127 : b16(i) = &hCCCC : next
-show16( "u32->16 mixed", u32to16( @q(0), 8, @b16(0), 64 ) )
+print "-- fb_hUTF16ToChar: surrogate pair, unpaired low, >255"
+s16(0) = &h41 : s16(1) = &hD83D : s16(2) = &hDE00 : s16(3) = &h42
+s16(4) = &hDE00 : s16(5) = &h20AC : s16(6) = &h43 : s16(7) = 0
+n = 16
+r = pU162C( @s16(0), @buf(0), @n )
+print "  fill n="; n
+bytes8( @buf(0), 8 )
+n = -1
+r = pU162C( @s16(0), 0, @n )
+print "  alloc n="; n
+if( r <> 0 ) then bytes8( r, 8 ) : cfree( r )
 
-'' A capacity landing between the two units of a surrogate pair: fbc splits it.
-sub cap32( byval cap as integer )
-    q(0)=&h41 : q(1)=&h1F600 : q(2)=&h42
-    for i as integer = 0 to 127 : b16(i) = &hCCCC : next
-    dim as integer r = u32to16( @q(0), 3, @b16(0), cap )
-    dim as string o = ""
-    for i as integer = 0 to 5
-        o += right( "000" + hex$( b16(i) ), 4 ) + " "
-    next
-    print "u32->16 cap="; cap; " ret="; r; " buf["; o; "]"
-end sub
+print "-- fb_hUTF32ToChar: >255 and a NUL"
+s32(0) = &h41 : s32(1) = &h1F600 : s32(2) = &hE9 : s32(3) = &h100
+s32(4) = &h42 : s32(5) = 0
+n = 16
+r = pU322C( @s32(0), @buf(0), @n )
+print "  fill n="; n
+hex8( @buf(0), 8 )
+n = -1
+r = pU322C( @s32(0), 0, @n )
+print "  alloc n="; n
+if( r <> 0 ) then hex8( r, 7 ) : cfree( r )
 
-for c as integer = 0 to 4
-    cap32( c )
+print "-- fb_UTFToChar dispatch, including the ASCII/unknown arms"
+for i = 0 to 4
+	n = 8
+	r = pU2C( i, @s32(0), @buf(0), @n )
+	print "  encod"; i; " ret<>0="; iif(r <> 0, 1, 0); " n="; n
 next
 
-w(0)=&h41 : w(1)=&hD83D : w(2)=&hDE00 : w(3)=&hD800 : w(4)=&hDC00 : w(5)=&hDE00 : w(6)=&hD83D
-for i as integer = 0 to 127 : b32(i) = &hCCCCCCCC : next
-dim as integer g2 = u16to32( @w(0), 7, @b32(0), 64 )
-dim as string o2 = ""
-for i as integer = 0 to g2
-    o2 += hex$( b32(i) ) + " "
+print "-- round trip: bytes -> UTF-8 -> bytes, every value"
+pC2U8( @srcb(1), 255, @buf(0), @nb )
+n = 255
+r = pU82C( @buf(0), @srcb(256), @n )
+print "  utf8 bytes="; nb; " back n="; n
+dim as long bad = 0
+for i = 0 to 254
+	if( srcb(256 + i) <> srcb(1 + i) ) then bad += 1
 next
-print "u16->32 mixed -> "; g2; " ["; o2; "]"
-
-sub cap32b( byval cap as integer )
-    w(0)=&h41 : w(1)=&hD83D : w(2)=&hDE00
-    for i as integer = 0 to 127 : b32(i) = &hCCCCCCCC : next
-    dim as integer r = u16to32( @w(0), 3, @b32(0), cap )
-    dim as string o = ""
-    for i as integer = 0 to 4
-        o += hex$( b32(i) ) + " "
-    next
-    print "u16->32 cap="; cap; " ret="; r; " buf["; o; "]"
-end sub
-
-for c as integer = 0 to 3
-    cap32b( c )
-next
-
-'' ---- zero-length sources
-print "zero-len u16->8 = "; u16to8( @w(0), 0, @b8(0), 8 )
-print "zero-len u8->16 = "; u8to16( @s(0), 0, @b16(0), 8 )
-print "zero-len u32->16 = "; u32to16( @q(0), 0, @b16(0), 8 )
-print "zero-len u16->32 = "; u16to32( @w(0), 0, @b32(0), 8 )
-
-'' ---- fb_hUStrCodepointAt, including one index past the end
-w(0)=&h41 : w(1)=&hD83D : w(2)=&hDE00 : w(3)=&hD83D : w(4)=&hDE00 : w(5)=&hDE00
-for i as integer = 0 to 6
-    dim as integer used = -99
-    dim as ulong cp = cpat( @w(0), 6, i, @used )
-    print "cpAt("; i; ") = "; hex$( cp ); " used="; used
-next
-
-dim as integer u2 = -99
-print "cpAt lone-high-at-end = "; hex$( cpat( @w(0), 2, 1, @u2 ) ); " used="; u2
-u2 = -99
-print "cpAt negative index   = "; hex$( cpat( @w(0), 6, -1, @u2 ) ); " used="; u2
+print "  mismatches="; bad
+print "done"

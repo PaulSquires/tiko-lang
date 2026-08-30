@@ -123,6 +123,26 @@ build_one( ) {
         "$TKORT_AR" rcs "$libdir/$archive" $objs
     fi
 
+    # ONE SYMBOL, ONE MEMBER. ar will happily archive two objects that define
+    # the same symbol; nothing complains until a LINK, and by then the message
+    # names .ll files rather than the two sources. This caught a whole family
+    # reimplemented in a second file when it already existed in a first -- the
+    # archive built clean, the symbol count went UP by the duplicate count, and
+    # it looked like progress.
+    #
+    # Names beginning with '.' are excluded: .refptr.__fb_ctx and friends are
+    # COMDAT thunks the backend emits ONCE PER OBJECT THAT REFERENCES THE
+    # SYMBOL, so they are duplicated by design and the linker folds them.
+    "$TKORT_NM" --defined-only "$libdir/$archive" 2>/dev/null         | awk '($2=="T"||$2=="D"||$2=="B"||$2=="R") && $3 !~ /^\./{print $3}'         | sort | uniq -d > "$objdir/.dup.tmp"
+    if [ -s "$objdir/.dup.tmp" ]; then
+        echo "build: $target/$archive defines these symbols TWICE:" >&2
+        sed 's/^/    /' "$objdir/.dup.tmp" >&2
+        echo "tiko-rt: a second module reimplements something already present" >&2
+        rm -f "$objdir/.dup.tmp" "$libdir/$archive"
+        exit 1
+    fi
+    rm -f "$objdir/.dup.tmp"
+
     n=$("$TKORT_NM" --defined-only "$libdir/$archive" 2>/dev/null | grep -c ' T ' || true)
     echo "build: $target/$archive [$CFG] -- $(echo $objs | wc -w) objects, $n text symbols"
 }

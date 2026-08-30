@@ -38,11 +38,28 @@ for target in $TARGETS; do
     refdir=$(rt_reflib "$target") || rt_die "no reference libfb.a for $target"
     theirs="$refdir/libfb.a"
 
+    # R IS IN BOTH SETS; T/D/B ALONE IS NOT ENOUGH.
+    #
+    # fbc puts its const tables -- __fb_utf8_trailingTb and friends -- in
+    # read-only data, which nm reports as 'R'. With R left out of the set the
+    # reference is built from, every read-only symbol we matched CORRECTLY was
+    # reported as "not defined by fbc's libfb.a": a false failure, and the worst
+    # kind, because it points at working code and says the ABI is broken.
+    #
+    # R is in the set we check FROM for the same reason. A table we place in
+    # .data and fbc places in .rdata is still the same symbol under the same
+    # name, and this script compares NAMES, not sections.
     "$TKORT_NM" --defined-only "$theirs" 2>/dev/null \
-        | awk '$2=="T"||$2=="D"||$2=="B"{print $3}' | sort -u > "$RT_ROOT/obj/.ref.$target"
+        | awk '$2=="T"||$2=="D"||$2=="B"||$2=="R"{print $3}' | sort -u > "$RT_ROOT/obj/.ref.$target"
 
+    # Names beginning with '.' are skipped. Admitting R above brought in the
+    # backend's COMDAT thunks -- .refptr.___fb_ctx and friends, emitted once per
+    # object that references a global and folded by the linker. fbc's archive has
+    # none to match against, so every one read as an ABI failure. They are
+    # compiler bookkeeping, not interface; build/build.sh's duplicate check
+    # excludes them for the same reason.
     for sym in $("$TKORT_NM" --defined-only "$ours" 2>/dev/null \
-                 | awk '$2=="T"||$2=="D"||$2=="B"{print $3}' | sort -u); do
+                 | awk '($2=="T"||$2=="D"||$2=="B"||$2=="R") && $3 !~ /^[.]/{print $3}' | sort -u); do
         checked=$((checked + 1))
         if ! grep -qx "$sym" "$RT_ROOT/obj/.ref.$target"; then
             echo "symbols: $target: '$sym' is not defined by fbc's libfb.a" >&2

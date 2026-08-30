@@ -189,4 +189,13 @@ const FB_FILE_MODE_APPEND = 4
 
 #define TKORT_HANDLE_USED( h ) ( ((h) <> 0) andalso ((h)->hooks <> 0) )
 
+'' FB_FILE_ENCOD, in fb_file.h's order. ASCII is 0 and is also
+'' FB_FILE_ENCOD_DEFAULT, so a zeroed handle is an ASCII handle -- the encoding
+'' field needs no explicit initialisation anywhere, and adding a member before
+'' ASCII would silently change what an uninitialised handle means.
+const FB_FILE_ENCOD_ASCII = 0
+const FB_FILE_ENCOD_UTF8  = 1
+const FB_FILE_ENCOD_UTF16 = 2
+const FB_FILE_ENCOD_UTF32 = 3
+
 #endif '' __TKORT_FILE_BI__

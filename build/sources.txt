@@ -91,3 +91,8 @@ dt/vb.bas
 array/query.bas
 ctrl/gosub.bas
 io/write.bas
+utf/core.bas
+utf/tochar.bas
+utf/fromchar.bas
+chrono/core.bas
+chrono/iso.bas
