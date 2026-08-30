@@ -88,3 +88,4 @@ io/hookkey.bas
 io/hookcon.bas
 dt/serial.bas
 dt/vb.bas
+array/query.bas
