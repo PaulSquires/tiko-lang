@@ -135,9 +135,14 @@ function LowerBuiltinProc _
     '' spellings emit the same call:
     '' 'fb_GfxBsave( &F, B, 0u, (void*)0ull )'.
     dim as boolean bsaveShort = (r = RTL_BSAVE) andalso (argCount = want - 2)
+    '' 'bload( file, buf )' DEFAULTS ITS LAST ONE the same way:
+    '' 'fb_GfxBload( &F, (void*)0ull, (void*)0ull )' -- measured, and the arity
+    '' guard refused the short form outright.
+    dim as boolean bloadShort = (r = RTL_BLOAD) andalso (argCount = want - 1)
     dim as boolean widthOk = (widthShort > 0)
     dim as boolean shortOk = widthOk orelse runShort
     shortOk = shortOk orelse bsaveShort
+    shortOk = shortOk orelse bloadShort
     dim as boolean arityBad = (argCount <> want)
     dim as boolean notCalloc = (callocOneArg = false)
     dim as boolean notShort = (shortOk = false)
@@ -236,6 +241,34 @@ function LowerBuiltinProc _
             args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
             continue for
         end if
+        '' BSAVE AND BLOAD TAKE A STRING DESCRIPTOR, not a char pointer. Measured:
+        ''
+        ''     bsave( "foo.bmp", 0 )
+        ''     vr = fb_StrAllocTempDescZEx( (char*)"foo.bmp", 7ll );
+        ''     fb_GfxBsave( (FBSTRING*)vr, (void*)0ull, 0u, (void*)0ull );
+        ''
+        '' -- and tiko-lang handed the LITERAL's own address straight to a parameter
+        '' declared FBSTRING*, so the runtime read a descriptor out of the string's
+        '' bytes. Nothing declined. gfx/bsave-nullptr-fb.bas and -qb.bas.
+        ''
+        '' A string VARIABLE was already right, because its address IS its
+        '' descriptor -- which is what hid this: only the literal is wrong, and the
+        '' corpus writes the variable form far more often. KILL and the rest of the
+        '' file family go through the prelude's declared procedures, where the
+        '' ordinary call path wraps a literal already.
+        ''
+        '' The RTL signature cannot say this: every one of these parameters is 'p'.
+        dim as boolean wantsStrDesc = false
+        if i = 0 then wantsStrDesc = (r = RTL_BSAVE) orelse (r = RTL_BLOAD)
+        if wantsStrDesc then
+            dim as MirValue sdv
+            if StrDescriptorOf_( c, a, sdv ) then
+                args.Push( cast( ulong, sdv.kind ) )
+                args.Push( cast( ulong, sdv.id ) )
+                continue for
+            end if
+        end if
+
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
         av = Coerce( c, av, RtlParamType( r, i, (c.types->target.pointerBits = 32) ), _
@@ -253,6 +286,9 @@ function LowerBuiltinProc _
     next
     if bsaveShort then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
+    if bloadShort then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
     if runShort then

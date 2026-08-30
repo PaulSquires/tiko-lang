@@ -1,0 +1,7 @@
+'' BSAVE and BLOAD wrap a string literal in a temporary descriptor, as fbc does.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bsave-string-desc.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/bsave-string-desc.out

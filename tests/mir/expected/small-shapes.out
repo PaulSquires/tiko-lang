@@ -71,19 +71,16 @@ func i32 main($0, $1) {
   if.join1:
     call.rtl void fb_StrDelete(@f)
     call void _ZN1TD1Ev(@x)
-    %30 = const i32 0
-    call.rtl void fb_End(%30)
-    %31 = load @$tmp0
-    ret %31
+    %27 = const i32 0
+    call.rtl void fb_End(%27)
+    %28 = load @$tmp0
+    ret %28
   if.then2:
-    %23 = load @f
-    %24 = zext %23
-    %25 = bitcast %24
-    %26 = load @b
-    %27 = call.rtl i32 fb_GfxBsave(%25, %26, 0, 0)
-    %28 = const i64 1
-    %29 = trunc %28
-    call.rtl void fb_End(%29)
+    %23 = load @b
+    %24 = call.rtl i32 fb_GfxBsave(@f, %23, 0, 0)
+    %25 = const i64 1
+    %26 = trunc %25
+    call.rtl void fb_End(%26)
     br if.join1
   if.else3:
     br if.join1
@@ -101,4 +98,4 @@ declare i32 fb_GfxBsave($0, $1, $2, $3)
 declare void fb_End($0)
 declare void fb_StrDelete($0)
 verify: ok
-lowered: 4 functions, 7 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 7 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
