@@ -122,15 +122,36 @@ end extern
 
 #define TKORT_FILETB() cptr( FB_FILE ptr, @__fb_ctx_bytes + TKORT_FILETB_OFFSET )
 
-'' File number to handle. 0 is the screen and -1 the error stream; anything else
-'' indexes the table past the reserved entries.
-#define TKORT_FILE_TO_HANDLE( n ) _
-	iif( (n) = 0, cptr( FB_FILE ptr, FB_HANDLE_SCREEN ), _
-	     iif( (n) = -1, FB_HANDLE_ERROR, TKORT_FILETB() + ((n) - 1 + FB_RESERVED_FILES) ) )
 
-'' The two pseudo-handles PRINT uses. FB_FILE_TO_HANDLE maps file number 0 to the
-'' screen and -1 to the error stream; everything else indexes the table.
-#define FB_HANDLE_SCREEN 0
-#define FB_HANDLE_ERROR  cptr( FB_FILE ptr, -1 )
+'' THE TWO SPECIAL FILE NUMBERS ARE TABLE ENTRIES, NOT SENTINELS -- and getting
+'' that wrong produced a PRINT that emitted absolutely nothing while fbc's own
+'' 2,715-file suite still passed.
+''
+''     0   -> __fb_ctx.fileTB       the screen
+''     -1  -> __fb_ctx.fileTB + 1   the PRINTER, not an error stream
+''
+'' The first version of this header guessed 0 for the screen and invented an
+'' "error" handle for -1. Passing NULL to fb_hFilePrintBufferEx is not a crash
+'' and not an error return: it writes nowhere, silently, so every PRINT in every
+'' program produced empty output and nothing said so.
+''
+'' FB_RESERVED_FILES = 2 is exactly these two, which is why an ordinary file
+'' number lands at fileTB + (n - 1 + 2).
+''
+'' AND THE INDEX IS RANGE-CHECKED. An out-of-range file number yields NULL --
+'' which the writer then ignores -- rather than an entry past the end of the
+'' table. Omitting the check turns a bad file number into a write into whatever
+'' follows fileTB in the context struct.
+const FB_MAX_FILES = FB_RESERVED_FILES + 255
+
+#define TKORT_FILE_INDEX_VALID( n ) _
+	( ((n) >= 1) andalso ((n) <= (FB_MAX_FILES - FB_RESERVED_FILES)) )
+
+#define TKORT_FILE_TO_HANDLE( n ) _
+	iif( (n) = 0, TKORT_FILETB(), _
+	     iif( (n) = -1, TKORT_FILETB() + 1, _
+	          iif( TKORT_FILE_INDEX_VALID( n ), _
+	               TKORT_FILETB() + ((n) - 1 + FB_RESERVED_FILES), _
+	               cptr( FB_FILE ptr, 0 ) ) ) )
 
 #endif '' __TKORT_FILE_BI__
