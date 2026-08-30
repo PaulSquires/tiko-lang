@@ -106,3 +106,6 @@ fs/dirent.bas
 io/viewhlp.bas
 profile/core.bas
 profile/calls.bas
+io/devscrn.bas
+math/rnd.bas
+chrono/clock.bas

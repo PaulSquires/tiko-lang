@@ -103,6 +103,30 @@ extern "c"   '' NON-FBCALL: both are DATA.
 	extern __fb_errmsg alias "__fb_errmsg" as ubyte
 end extern
 
+'' __fb_ctx.lang -- the FB_LANG_* dialect the program was compiled for.
+''
+'' MEASURED, not derived: 64-bit from a C probe against fbc's headers
+'' (offsetof = 20860, sizeof(__fb_ctx) = 20872), win32 by disassembling fbc's
+'' own math_rnd.o, where `movl 0x40dc, %eax` carries an IMAGE_REL_I386_DIR32
+'' relocation on ___fb_ctx -- 0x40dc = 16604.
+''
+'' The two differ by far more than the pointer width because the context holds
+'' the file table, so this is one of the offsets that CANNOT be guessed from
+'' the other.
+#if defined( __FB_64BIT__ )
+	const TKORT_LANG_OFFSET = 20860
+#else
+	const TKORT_LANG_OFFSET = 16604
+#endif
+
+#define TKORT_CTX_LANG() *cptr( long ptr, @__fb_ctx_head + TKORT_LANG_OFFSET )
+
+'' FB_LANG_*, in fb.h's enum order.
+const FB_LANG_FB            = 0
+const FB_LANG_FB_DEPRECATED = 1
+const FB_LANG_FB_FBLITE     = 2
+const FB_LANG_QB            = 3
+
 const FB_ERRMSG_SIZE = 1024
 
 '' The slot fb_hRtExit reads. Writing it is how a runtime error's text reaches

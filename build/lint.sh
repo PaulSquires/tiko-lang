@@ -107,7 +107,14 @@ runtime header|#include[[:space:]]+(once[[:space:]]+)?\"(fb/|string\.bi|vector\.
 FILES=$(rtfiles)
 echo "$BANNED" | while IFS='|' read -r label re; do
     [ -z "$label" ] && continue
-    hits=$(grep -iEn "$re" $FILES 2>/dev/null            | awk -v q="'" '{ l=$0; sub(/^[^:]*:[0-9]+:/,"",l); sub(/^[ 	]+/,"",l);
+    # ALIAS STRINGS ARE STRIPPED BEFORE MATCHING. The console-io pattern looks
+    # for a statement -- open/close/print followed by '#' or '"' -- and
+    # `declare function fdopen_ alias "open" (...)` matches it purely because
+    # the C symbol name sits inside quotes. That is a declaration of a libc
+    # file descriptor, not an OPEN statement, and the rule has no business
+    # firing on it. The strip is on a copy used only for matching, so a real
+    # statement on the same line is still caught.
+    hits=$(sed 's/alias[[:space:]]*"[^"]*"/alias/g' $FILES 2>/dev/null | grep -iEn "$re" 2>/dev/null            | awk -v q="'" '{ l=$0; sub(/^[0-9]+:/,"",l); sub(/^[ 	]+/,"",l);
                              if( substr(l,1,1) != q ) print }'            | head -3)
     if [ -n "$hits" ]; then
         echo "lint: banned by the freestanding subset -- $label (RFC-0003 section 3)" >&2

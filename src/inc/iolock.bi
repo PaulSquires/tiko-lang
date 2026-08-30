@@ -29,9 +29,20 @@
 	end extern
 	#define TKORT_PROFLOCK()   fb_ProfileLock()
 	#define TKORT_PROFUNLOCK() fb_ProfileUnlock()
+
+	'' The math lock is a THIRD one -- fb.h has separate FB_LOCK, FB_MATH_LOCK
+	'' and FB_PROFILE_LOCK, and the PRNG state is guarded by the math one.
+	extern "rtlib"
+		declare sub fb_MathLock alias "fb_MathLock" ( )
+		declare sub fb_MathUnlock alias "fb_MathUnlock" ( )
+	end extern
+	#define TKORT_MATHLOCK()   fb_MathLock()
+	#define TKORT_MATHUNLOCK() fb_MathUnlock()
 #else
 	#define TKORT_IOLOCK()
 	#define TKORT_IOUNLOCK()
 	#define TKORT_PROFLOCK()
 	#define TKORT_PROFUNLOCK()
+	#define TKORT_MATHLOCK()
+	#define TKORT_MATHUNLOCK()
 #endif
