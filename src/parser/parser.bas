@@ -668,7 +668,13 @@ private function IsResultAssign _
                                 (k = Tko.KW_OPERATOR) orelse (k = Tko.KW_PROPERTY)
     if isResultKw = false then return false
     if HasTok( p, p.pos + 1 ) = false then return false
-    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_EQ then return false
+    '' '=>' IS THE OTHER ASSIGNMENT TOKEN and is legal here too: 'function => i'
+    '' and 'operator => i' are quirk/assignment-token.bas's spellings, and testing
+    '' for TK_EQ alone made each of them 'expected end FUNCTION' -- which loses the
+    '' REST OF THE BODY, not just that line. PROPERTY was unaffected only because
+    '' its body happened to end before the arrow could matter.
+    dim as Tko.TokenKind rk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+    if (rk <> Tko.TK_EQ) andalso (rk <> Tko.TK_FATARROW) then return false
 
     '' 'operator = ( a, b ) as string' IS A DEFINITION, not a result assignment, and
     '' the comment on the caller has always said the two are told apart by what
