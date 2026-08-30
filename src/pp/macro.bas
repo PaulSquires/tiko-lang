@@ -353,6 +353,18 @@ private function PpReadArgs _
     end if
 
     dim as long depth = iif( bare, 0, 1 )
+    '' COMMAS THAT BELONG TO A NESTED PARENTHESIS-LESS MACRO ARE NOT SEPARATORS.
+    ''
+    ''     foo( bar 1, 2, 3, baz( 4, 5, 6 ) )
+    ''
+    '' -- 'bar' is a '#macro bar?( a, b, c )', so it takes '1, 2, 3' and the whole
+    '' thing is TWO arguments to foo, not four. Splitting on every comma at the
+    '' separator depth reported "macro 'foo' takes 2 argument(s)" and lost the
+    '' statement. fbc accepts all six spellings and prints the same string for each.
+    ''
+    '' A VARIADIC one is not counted: how many commas it claims is not knowable
+    '' from its declaration, so those keep splitting as they did.
+    dim as long pendingCommas = 0
     dim as long first = 0
     dim as long count = 0
     dim as boolean started = false
@@ -377,7 +389,11 @@ private function PpReadArgs _
             depth += 1
         elseif k = TK_RPAREN then
             depth -= 1
-            if depth = 0 then
+            '' ONLY THE PARENTHESISED FORM ENDS AT A ')'. The bare form starts at
+            '' depth 0, so the ')' closing a nested parenthesised argument --
+            '' 'foo bar( 1, 2, 3 ), baz( 4, 5, 6 )' -- brought depth back to 0 and
+            '' ended the invocation there, one argument in.
+            if (depth = 0) andalso (bare = false) then
                 Advance( e )
                 exit do
             end if
@@ -388,7 +404,10 @@ private function PpReadArgs _
             '' count of parameters.
             dim as boolean lastIsVariadic = m->isVariadic andalso _
                                             (args.firsts.Count >= m->params.Count - 1)
-            if lastIsVariadic = false then
+            if pendingCommas > 0 then
+                '' A nested bare macro's own separator: part of THIS argument.
+                pendingCommas -= 1
+            elseif lastIsVariadic = false then
                 args.firsts.Push( first )
                 args.counts.Push( count )
                 Advance( e )
@@ -406,6 +425,25 @@ private function PpReadArgs _
         args.flat.Push( t )
         count += 1
         Advance( e )
+        '' ...and if that was a bare invocation of a parenthesis-less macro, the
+        '' commas it is about to claim belong to it. Checked AFTER the advance,
+        '' because deciding needs the token that follows the name.
+        if k = TK_IDENT then
+            dim as PpMacro ptr im = MacroFor( e, cast( InternId, t.literal ) )
+            if im <> 0 then
+                dim as boolean claims = im->isFunc andalso im->optParens
+                if claims then claims = (im->isVariadic = false)
+                if claims then claims = (im->params.Count > 1)
+                if claims then
+                    dim as Token nx
+                    dim as boolean lp = PeekTok( e, nx )
+                    if lp then lp = (Tk( nx ) = TK_LPAREN)
+                    if lp = false then
+                        pendingCommas += im->params.Count - 1
+                    end if
+                end if
+            end if
+        end if
     loop
 
     if started orelse (m->params.Count > 0) then
@@ -847,9 +885,30 @@ end function
 '' not decode escapes yet) and is free to get right now rather than later.
 private function Stringised_( byref t as string ) as string
     dim as string r = "$"""
+    '' A NEWLINE BECOMES A SPACE. A string literal cannot carry a raw one, so the
+    '' result would not re-lex: with the macro bodies written across lines, as the
+    '' corpus writes them, a nested __FB_QUOTE__ arrived as
+    '' '<EOL>$"1 2 3"<EOL> <EOL>$"4 5 6"<EOL>' and the literal was truncated at the
+    '' first one -- 'missing closing quote', and a WRONG STRING beside it. fbc gives
+    '' '$"1 2 3" $"4 5 6"', which is the whitespace runs collapsed and trimmed.
+    dim as boolean pendSpace = false
+    dim as boolean seenAny = false
     for i as long = 0 to len( t ) - 1
-        if t[i] = 34 then r += """"
-        r += chr( t[i] )
+        dim as long ch = t[i]
+        dim as boolean isWs = (ch = 32) orelse (ch = 9)
+        if isWs = false then isWs = (ch = 13) orelse (ch = 10)
+        if isWs then
+            '' Leading whitespace is dropped rather than turned into a space.
+            if seenAny then pendSpace = true
+            continue for
+        end if
+        if pendSpace then
+            r += " "
+            pendSpace = false
+        end if
+        seenAny = true
+        if ch = 34 then r += """"
+        r += chr( ch )
     next
     return r + """"
 end function
@@ -1087,6 +1146,100 @@ private sub PpSubstitute _
     wend
 end sub
 
+'' AN ARGUMENT THAT IS A BARE MACRO INVOCATION IS EXPANDED BEFORE IT IS SUBSTITUTED.
+''
+'' Substitution pushes an argument's RAW tokens and lets the rescan expand them,
+'' which is right for everything except this one shape. Given
+''
+''     #macro foo ? ( a, b )    __fb_quote__( a b )    #endmacro
+''     foo( bar 1, 2, 3, baz( 4, 5, 6 ) )
+''
+'' the body becomes '__fb_quote__( bar 1, 2, 3 baz( 4, 5, 6 ) )' -- and 'bar' read
+'' bare runs to END OF LINE, so its third argument swallowed 'baz( 4, 5, 6 )' and
+'' the string came out '$"1 2 3 $""4 5 6""' where fbc gives '$"1 2 3" $"4 5 6"'.
+'' Lowered, verified, and wrong.
+''
+'' Expanding the argument first turns it into one literal token before it is placed
+'' next to the following one, so there is no boundary left to lose. Only arguments
+'' that BEGIN with a bare-callable name are touched: every other substitution keeps
+'' the raw-token behaviour it had.
+private sub PreExpandBareArgs_ _
+    ( byref e as PpEngine, byref args as ArgList )
+
+    dim as long n = args.firsts.Count
+    if n = 0 then return
+
+    dim as boolean anyBare = false
+    for ai as long = 0 to n - 1
+        if args.counts[ai] < 2 then continue for
+        dim as Token t0 = args.flat[args.firsts[ai]]
+        if Tk( t0 ) <> TK_IDENT then continue for
+        dim as PpMacro ptr im = MacroFor( e, cast( InternId, t0.literal ) )
+        if im = 0 then continue for
+        if (im->isFunc = false) orelse (im->optParens = false) then continue for
+        if Tk( args.flat[args.firsts[ai] + 1] ) = TK_LPAREN then continue for
+        anyBare = true
+        exit for
+    next
+    if anyBare = false then return
+
+    dim as ArgList outA
+    for ai as long = 0 to n - 1
+        dim as boolean isBare = false
+        if args.counts[ai] >= 2 then
+            dim as Token t0 = args.flat[args.firsts[ai]]
+            if Tk( t0 ) = TK_IDENT then
+                dim as PpMacro ptr im = MacroFor( e, cast( InternId, t0.literal ) )
+                if im <> 0 then
+                    isBare = im->isFunc andalso im->optParens
+                    if isBare then
+                        isBare = (Tk( args.flat[args.firsts[ai] + 1] ) <> TK_LPAREN)
+                    end if
+                end if
+            end if
+        end if
+
+        dim as long first = outA.flat.Count
+        dim as long count = 0
+        if isBare then
+            dim as TokenVec tv
+            RelexInto( e, ExpandedArgText_( e, args, ai ), LOC_NONE, tv )
+            for j as long = 0 to tv.Count - 1
+                dim as Token nt = tv[j]
+                '' THE ARGUMENT'S OWN LEADING SPACE SURVIVES THE REPLACEMENT.
+                '' Relexed tokens carry the spacing of the synthesised text, so two
+                '' bare arguments in a row came out '$"1 2 3"$"4 5 6"' -- fbc puts
+                '' a space there, and it is the space that was before 'baz'.
+                if j = 0 then
+                    dim as Token t0f = args.flat[args.firsts[ai]]
+                    nt.flags = nt.flags and (not TF_SPACE_BEFORE)
+                    nt.flags = nt.flags or (t0f.flags and TF_SPACE_BEFORE)
+                end if
+                outA.flat.Push( nt )
+                count += 1
+            next
+        else
+            for j as long = 0 to args.counts[ai] - 1
+                outA.flat.Push( args.flat[args.firsts[ai] + j] )
+                count += 1
+            next
+        end if
+        outA.firsts.Push( first )
+        outA.counts.Push( count )
+    next
+
+    args.flat.Clear( )
+    args.firsts.Clear( )
+    args.counts.Clear( )
+    for j as long = 0 to outA.flat.Count - 1
+        args.flat.Push( outA.flat[j] )
+    next
+    for j as long = 0 to outA.firsts.Count - 1
+        args.firsts.Push( outA.firsts[j] )
+        args.counts.Push( outA.counts[j] )
+    next
+end sub
+
 declare function PpExpandBuiltin _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
 
@@ -1133,6 +1286,7 @@ private function PpExpand _
             return true
         end if
 
+        PreExpandBareArgs_( e, args )
         dim as TokenVec ptr buf = new TokenVec
         PpSubstitute( e, m, args, use.loc, *buf )
         e.outp->expansionCount += 1
@@ -1149,343 +1303,6 @@ private function PpExpand _
     return true
 end function
 
-'' -------------------------------------------------------------------- builtins
-
-function PpExpandBuiltin _
-    ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
-
-    Advance( e )
-
-    dim as DecodedLoc d = e.src->Decode( use.loc )
-    dim as TokenVec ptr buf = new TokenVec
-
-    select case as const m->builtin
-    case PPB_LINE
-        RelexInto( e, str( d.lineNo ), use.loc, *buf )
-
-    case PPB_FILE
-        RelexInto( e, """" & e.src->PathOf( d.file ) & """", use.loc, *buf )
-
-    case PPB_FILE_NQ, PPB_PATH
-        RelexInto( e, e.src->PathOf( d.file ), use.loc, *buf )
-
-    case PPB_DATE
-        RelexInto( e, """" & date( ) & """", use.loc, *buf )
-
-    '' __DATE_ISO__ IS THE SAME DAY IN THE OTHER ORDER. Measured, one probe on
-    '' 2026-08-28: __DATE__ is "08-28-2026" and __DATE_ISO__ is "2026-08-28".
-    '' FreeBASIC's DATE( ) gives the first, so this reorders its fields rather
-    '' than asking the clock twice -- a run that straddles midnight would
-    '' otherwise put two different days in one program.
-    case PPB_DATE_ISO
-        dim as string dmy = date( )
-        dim as string iso = mid( dmy, 7, 4 ) & "-" & mid( dmy, 1, 2 ) & "-" & _
-                            mid( dmy, 4, 2 )
-        RelexInto( e, """" & iso & """", use.loc, *buf )
-
-    case PPB_TIME
-        RelexInto( e, """" & time( ) & """", use.loc, *buf )
-
-    case PPB_UNIQUEID, PPB_UNIQUEID_PUSH, PPB_UNIQUEID_POP
-        '' A STACK PER NAME. The previous version handed back a fresh identifier on
-        '' every use, so two references to __FB_UNIQUEID__( k ) in one scope named two
-        '' different variables -- which is what the fbcunit callstack macros do, and
-        '' the reason 1,633 corpus statements arrived at lowering as calls to an
-        '' undefined '__fb_uniqueid_push__'. Measured from fbc:
-        ''
-        ''     __fb_uniqueid_push__( k )   a NEW id becomes k's current one
-        ''     __fb_uniqueid__( k )        THE SAME id until the next push or pop
-        ''     __fb_uniqueid_pop__( k )    k's previous id is current again
-        ''
-        '' Push and pop expand to NOTHING. They fall through to the common tail with
-        '' an empty buffer rather than returning early: the buffer is heap-allocated
-        '' and the tail is what releases it.
-        dim as ArgList uargs
-        PpReadArgs( e, m, uargs )
-        dim as InternId ukey = _
-            e.names->GetString( Text.LowerAscii( ArgText( e, uargs, 0 ) ) )
-
-        if m->builtin = PPB_UNIQUEID_PUSH then
-            e.uniqueCounter += 1
-            e.uidNames.Push( cast( ulong, ukey ) )
-            e.uidValues.Push( cast( ulong, e.uniqueCounter ) )
-        else
-            '' The innermost entry for this name, found by scanning backwards.
-            dim as long utop = -1
-            for i as long = e.uidNames.Count - 1 to 0 step -1
-                if cast( InternId, e.uidNames[i] ) = ukey then
-                    utop = i
-                    exit for
-                end if
-            next
-
-            if m->builtin = PPB_UNIQUEID_POP then
-                '' AN UNMATCHED POP IS AN ERROR, not a no-op. Measured -- and two corpus
-                '' files exist to assert exactly that:
-                ''
-                ''     a.bas(1) error 17: Syntax error, expanding: __FB_UNIQUEID_POP__
-                ''
-                '' Shifted down rather than popped, because the entry to drop is not
-                '' always the array's top -- two names can interleave.
-                if utop < 0 then
-                    Report( e, TKO0319, use.loc, ArgText( e, uargs, 0 ) )
-                end if
-                if utop >= 0 then
-                    for i as long = utop to e.uidNames.Count - 2
-                        e.uidNames[i] = e.uidNames[i + 1]
-                        e.uidValues[i] = e.uidValues[i + 1]
-                    next
-                    e.uidNames.Pop( )
-                    e.uidValues.Pop( )
-                end if
-            else
-                '' A bare __FB_UNIQUEID__ with no push in front of it still has to
-                '' name something, so it opens the stack itself.
-                if utop < 0 then
-                    e.uniqueCounter += 1
-                    e.uidNames.Push( cast( ulong, ukey ) )
-                    e.uidValues.Push( cast( ulong, e.uniqueCounter ) )
-                    utop = e.uidNames.Count - 1
-                end if
-                RelexInto( e, "__tko_uid_" & e.uidValues[utop], use.loc, *buf )
-            end if
-        end if
-
-    case PPB_QUOTE
-        '' The whole point of the lexer keeping (loc, length) on every token: the
-        '' argument's exact source bytes are recoverable, including non-ASCII ones
-        '' that could never be an identifier (probe L9).
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            '' Stringised_, NOT a naive wrap in quotes -- the same fix '#' already had
-            '' and this did not. A QUOTE INSIDE THE ARGUMENT has to be DOUBLED or it
-            '' closes the literal early: '__FB_QUOTE__( "2,3" )' came back as an EMPTY
-            '' string plus two stray tokens, and the whole statement then declined --
-            '' every one of the 27 in pp/macro-arg-extract.bas.
-            '' Measured: fbc doubles the inner quotes and prefixes '$', so a backslash
-            '' in the argument stays a backslash.
-            '' AND THE ARGUMENT IS EXPANDED FIRST, exactly as '#' is -- measured:
-            '' '__FB_QUOTE__( B )' over '#define B A+A' is "1+1", not "B".
-            RelexInto( e, Stringised_( ExpandedArgText_( e, args, 0 ) ), _
-                       use.loc, *buf )
-        end if
-
-    case PPB_UNQUOTE
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            '' THE ARGUMENT IS EXPANDED FIRST, exactly as QUOTE's is. The corpus's own
-            '' idiom is '__FB_UNQUOTE__( __FB_EVAL__( "#define " "X" " 1" ) )' -- fold a
-            '' directive's text and then let it BE a directive -- and reading the raw
-            '' argument saw the nested builtin's NAME rather than the string it folds to,
-            '' so the synthesised '#define' had no identifier after it.
-            dim as string s = ExpandedArgText_( e, args, 0 )
-            dim as boolean uok = false
-            dim as string u = Unstringised_( s, uok )
-            if uok then
-                s = u
-            else
-                dim as long a = instr( s, """" )
-                dim as long b = instrrev( s, """" )
-                if (a > 0) andalso (b > a) then s = mid( s, a + 1, b - a - 1 )
-            end if
-            RelexInto( e, s, use.loc, *buf )
-        end if
-
-    case PPB_EVAL
-        '' __FB_EVAL__( expr ) -- ONE ARGUMENT, macro-expanded, folded, and re-emitted
-        '' as a canonical literal. See EvalLiteral_ for what each result renders as and
-        '' which two decline.
-        ''
-        '' There is no '#__FB_EVAL__' directive form: measured, fbc answers error 17 for
-        '' one, so this is an expression builtin and nothing else.
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            if args.firsts.Count <> 1 then
-                Report( e, TKO0325, use.loc, e.names->Spelling( m->name ) )
-            else
-                dim as boolean vok = false
-                dim as PpValue v = BuiltinValueArg_( e, args, 0, vok )
-                if vok then
-                    dim as boolean rok = false
-                    dim as string lit = EvalLiteral_( v, rok )
-                    '' A RESULT THIS CANNOT RENDER IS LEFT UNEXPANDED, which is what
-                    '' the name did before the builtin existed: the statement declines
-                    '' rather than receiving a literal that is not the one fbc emits.
-                    if rok then RelexInto( e, lit, use.loc, *buf )
-                else
-                    Report( e, TKO0325, use.loc, e.names->Spelling( m->name ) )
-                end if
-            end if
-        end if
-
-    case PPB_ARG_COUNT
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            dim as FB.Array( of string ) lst
-            ExpandedArgList_( e, args, 0, lst )
-            dim as long n = lst.Count
-            if (n = 1) andalso (len( lst[0] ) = 0) then n = 0
-            RelexInto( e, str( n ), use.loc, *buf )
-        end if
-
-    case PPB_ARG_EXTRACT
-        '' __FB_ARG_EXTRACT__( i, a, b, c ) -> the i'th of the list, ZERO-BASED.
-        ''
-        '' AN INDEX PAST THE END EXPANDS TO NOTHING rather than being an error of its
-        '' own -- measured: 'f( 0, __FB_ARG_EXTRACT__( 5, 1, 2 ) )' fails as an argument
-        '' count mismatch at the CALL, which is what an empty expansion produces. A
-        '' NEGATIVE index is rejected here, matching fbc's own syntax error.
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            dim as boolean iok = false
-            dim as longint i = BuiltinIntArg_( e, args, 0, iok )
-            if (iok = false) orelse (i < 0) then
-                Report( e, TKO0324, use.loc, "1", e.names->Spelling( m->name ) )
-            else
-                '' The LIST is everything after the index, expanded and RE-SPLIT --
-                '' so a macro standing in for several elements contributes all of
-                '' them, which is the whole point of this builtin.
-                dim as FB.Array( of string ) lst
-                ExpandedArgList_( e, args, 1, lst )
-                if i < lst.Count then
-                    RelexInto( e, lst[cast( long, i )], use.loc, *buf )
-                end if
-            end if
-        end if
-
-    case PPB_IIF
-        '' __FB_IIF__( cond, a, b ) -- the PREPROCESSOR's conditional, and not the
-        '' language's: measured with 'fbc -pp', only the selected arm appears in the
-        '' output at all, so the other one need not even be well formed.
-        ''
-        '' The condition is a constant expression on EXPANDED tokens, the same input
-        '' '#if' is given -- '__FB_IIF__( A+B, 1, 2 )' with '#define A 1' and
-        '' '#define B 2' takes the first arm.
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            dim as TokenVec cv
-            RelexInto( e, ExpandedArgText_( e, args, 0 ), LOC_NONE, cv )
-            dim as boolean cok = false
-            dim as boolean truthy = PpEvalCondition( e, cv, cok )
-            if cok = false then
-                Report( e, TKO0324, use.loc, "1", e.names->Spelling( m->name ) )
-            else
-                '' RAW, not expanded: the arm goes back through the ordinary expansion
-                '' path once it is relexed into the buffer.
-                RelexInto( e, ArgText( e, args, iif( truthy, 1, 2 ) ), use.loc, *buf )
-            end if
-        end if
-
-    case PPB_ARG_LEFTOF, PPB_ARG_RIGHTOF
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            dim as string text_ = ExpandedArgText_( e, args, 0 )
-            dim as string needle = trim( ExpandedArgText_( e, args, 1 ) )
-            dim as string res = _
-                SplitAtToken_( e, text_, needle, (m->builtin = PPB_ARG_LEFTOF) )
-            if (len( res ) = 0) andalso (len( trim( text_ ) ) > 0) then
-                if args.firsts.Count > 2 then res = ExpandedArgText_( e, args, 2 )
-            end if
-            RelexInto( e, res, use.loc, *buf )
-        end if
-
-    case PPB_ARG_LISTEXPAND
-        '' __FB_ARG_LISTEXPAND__( M, step, a, b, c ) -> M called over the list.
-        ''
-        '' MEASURED from fbc's own C output, because none of it is guessable:
-        ''
-        ''   step = 0    one call with the whole list.
-        ''   step = n    successive CHUNKS of n, front to back; the last is short.
-        ''               'M, 2, 1, 2, 3, 4, 5' is M(1,2) M(3,4) M(5).
-        ''   step = -n   successive TAILS, dropping n from the front each time and
-        ''               always passing everything that remains.
-        ''               'M, -2, 1, 2, 3, 4, 5' is M(1..5) M(3,4,5) M(5).
-        ''
-        '' A step wider than the list is one call with all of it, either sign.
-        ''
-        '' The calls are emitted as TEXT and re-lexed, so M expands by the ordinary
-        '' path -- there is nothing special about the macro being invoked. They are
-        '' separated by ':' rather than a newline because RelexInto drops TK_EOL, and
-        '' two statements run together would parse as one.
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            dim as boolean sok = false
-            dim as longint stp = BuiltinIntArg_( e, args, 1, sok )
-            if sok = false then
-                Report( e, TKO0324, use.loc, "2", e.names->Spelling( m->name ) )
-            else
-                dim as string mname = trim( ArgText( e, args, 0 ) )
-                '' ...and the LIST is re-split the same way here.
-                dim as FB.Array( of string ) lst
-                ExpandedArgList_( e, args, 2, lst )
-                if (lst.Count = 1) andalso (len( lst[0] ) = 0) then lst.Pop( )
-                dim as long n = lst.Count                  '' the list length
-                dim as string s = ""
-                dim as long calls = 0
-                if n > 0 then
-                    if stp = 0 then
-                        s = mname + "( " + ListJoin_( lst, 0, n - 1 ) + " )"
-                    elseif stp > 0 then
-                        dim as long at = 0
-                        while at < n
-                            dim as long last = at + cast( long, stp ) - 1
-                            if last > n - 1 then last = n - 1
-                            if calls > 0 then s += " : "
-                            s += mname + "( " + ListJoin_( lst, at, last ) + " )"
-                            calls += 1
-                            at += cast( long, stp )
-                        wend
-                    else
-                        dim as long drop = cast( long, -stp )
-                        dim as long at = 0
-                        while at < n
-                            if calls > 0 then s += " : "
-                            s += mname + "( " + ListJoin_( lst, at, n - 1 ) + " )"
-                            calls += 1
-                            at += drop
-                        wend
-                    end if
-                end if
-                if len( s ) > 0 then RelexInto( e, s, use.loc, *buf )
-            end if
-        end if
-
-
-    case PPB_JOIN
-        '' __FB_JOIN__ EXPANDS ITS ARGUMENTS BEFORE PASTING THEM, which is where it
-        '' parts company with C's '##'. Measured, and the case that settles it is the
-        '' one the two rules disagree about:
-        ''
-        ''   #define A 1 : #define B 2 : #define AB 99
-        ''   __FB_JOIN__( A, B )   ->   12, not 99 and not 'AB'
-        ''
-        '' -- 12 is expand-then-paste; 99 would be paste-then-rescan and 'AB' would
-        '' be paste-with-no-rescan. Pasting the RAW text produced the identifier AB,
-        '' which is undeclared, so every join over macro arguments declined while
-        '' '__FB_JOIN__( 1, 2 )' beside it worked. pp/macro-join.bas is twelve of them.
-        ''
-        '' STRINGIFY IS THE OTHER WAY ROUND and stays so: '#x' must NOT expand, which
-        '' is why the two helpers exist side by side.
-        dim as ArgList args
-        if PpReadArgs( e, m, args ) then
-            dim as string s = ""
-            for i as long = 0 to args.firsts.Count - 1
-                s += ExpandedArgText_( e, args, i )
-            next
-            RelexInto( e, s, use.loc, *buf )
-        end if
-
-    case else
-        Report( e, TKO0314, use.loc, e.names->Spelling( m->name ) )
-    end select
-
-    if buf->IsEmpty( ) then
-        delete buf
-        return true
-    end if
-    e.outp->expansionCount += 1
-    PushFrame( e, buf, m->name, FILE_NONE, true )
-    return true
-end function
+#include once "pp/macrobuiltin.bas"
 
 end namespace

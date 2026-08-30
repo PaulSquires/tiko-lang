@@ -336,19 +336,29 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
                 if (lp->textOffset + lp->textLength) <= lf->text.Count then
                     dim as string ls = space( lp->textLength )
                     memcpy( strptr( ls ), @lf->text[lp->textOffset], lp->textLength )
-                    '' The span excludes the quotes, which the spelling must carry.
+                    '' The span excludes the quotes AND the prefix, which the
+                    '' spelling must carry: fbc spells a string literal back with the
+                    '' prefix it was written with, and there is no file-versus-
+                    '' synthesised distinction. Measured, all four:
                     ''
-                    '' THE '$' OR '!' PREFIX IS NOT PUT BACK, and that is measured on
-                    '' both sides rather than settled. It IS part of a literal written
-                    '' in source: 'len( __FB_QUOTE__( t ) )' over '#define t $"hello"'
-                    '' is 8 to fbc and 7 here, and 5 against 4 for a '!' one. But it is
-                    '' NOT part of one that a macro SYNTHESISED: __FB_QUOTE__ emits its
-                    '' result as '$"..."' text, and stringising THAT again gives fbc
-                    '' '"5" = "5"' with no '$' -- three fbc-verified goldens in
-                    '' tests/pp say so, and restoring the prefix here broke all three.
-                    '' Telling the two apart needs the literal to remember whether its
-                    '' buffer was a FILE or a synthesised one, which it does not.
-                    if k = TK_STRING_LIT then return """" & ls & """"
+                    ''     #define t $"hello"  len( __FB_QUOTE__( t ) ) = 8, $"hello"
+                    ''     #define t "hello"   len( __FB_QUOTE__( t ) ) = 7, "hello"
+                    ''     #define t !"a	b"   len( __FB_QUOTE__( t ) ) = 7, !"a	b"
+                    ''     #define S(a) #a     len( S( $"q" ) ) = 4, $"q"
+                    ''
+                    '' An earlier attempt at this added '$' UNCONDITIONALLY, which put
+                    '' one on plain literals and broke three tests/pp goldens; the
+                    '' note left behind read that as 'synthesised literals take no
+                    '' prefix'. They do -- a nested __FB_QUOTE__ gives fbc
+                    '' '$"1 2 3" $"4 5 6"' -- and strKind is what says which.
+                    if k = TK_STRING_LIT then
+                        dim as string pfx = ""
+                        select case cast( StringKind, lp->strKind )
+                        case STRK_RAW     : pfx = "$"
+                        case STRK_ESCAPED : pfx = "!"
+                        end select
+                        return pfx & """" & ls & """"
+                    end if
                     return ls
                 end if
             end if

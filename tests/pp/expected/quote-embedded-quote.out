@@ -1,14 +1,14 @@
 global str $str0 "5"
 global str $str1 "tests/pp/src/quote-embedded-quote.bas"
 global str $str2 "__FB_MAINPROC__"
-global str $str3 ""5" = "5""
+global str $str3 "$"5" = "5""
 global str $str4 ""2,3""
-global str $str5 """"2,3""" = """2,3""""
+global str $str5 "$"""2,3""" = """2,3""""
 global str $str6 ""x""
-global str $str7 """"x""" = """x""""
+global str $str7 "$"""x""" = """x""""
 global str $str8 "a b"
-global str $str9 ""a b" = "a b""
-global str $str10 "LEN( """a\b""" ) = 5"
+global str $str9 "$"a b" = "a b""
+global str $str10 "LEN( $"""a\b""" ) = 5"
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:

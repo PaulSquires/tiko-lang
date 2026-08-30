@@ -4,7 +4,7 @@ global str $str2 "2 = 2"
 global str $str3 "1 = 1"
 global str $str4 "7 = 7"
 global str $str5 "p3 p4"
-global str $str6 ""p3 p4" = "p3 p4""
+global str $str6 "$"p3 p4" = "p3 p4""
 global str $str7 "4 = 4"
 func i32 main($0, $1) {
   local i32 $tmp0

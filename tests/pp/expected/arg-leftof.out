@@ -8,11 +8,11 @@ global str $str6 ""
 global str $str7 """ = """
 global str $str8 "99 = 99"
 global str $str9 "1"
-global str $str10 ""1" = "1""
+global str $str10 "$"1" = "1""
 global str $str11 "2 1 2"
-global str $str12 ""2 1 2" = "2 1 2""
+global str $str12 "$"2 1 2" = "2 1 2""
 global str $str13 "(1 2)"
-global str $str14 ""(1 2)" = "(1 2)""
+global str $str14 "$"(1 2)" = "(1 2)""
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
