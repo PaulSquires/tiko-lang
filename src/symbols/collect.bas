@@ -476,8 +476,24 @@ sub WalkNode _
             '' EXTERN merge below uses, and 'dim a( ) as T' followed by
             '' 'redim a( 0 to 9 ) as T' is what fbc-int/array-size.bas writes for every
             '' element type there is. Reporting it left 24 errors in that one file.
-            if (sk = Tko.SYM_VARIABLE) andalso _
-               (sp->op = cast( ushort, Tko.KW_REDIM )) then
+            '' A DIM OVER A COMMON IS THE SAME THING. 'DIM'ing a COMMON works
+            '' like a REDIM' is what dim/dim-common-dynamic-1.bas says in its
+            '' own comment, and it is COMPILE_ONLY_OK. Measured, the rule is
+            '' COMMON specifically -- 'dim a( ) ... dim a( 1 to 2 )' is fbc
+            '' error 4 -- and the element types still have to agree, so it
+            '' joins the REDIM row rather than getting one of its own.
+            dim as boolean redimLike = (sp->op = cast( ushort, Tko.KW_REDIM ))
+            if redimLike = false then
+                if sp->op = cast( ushort, Tko.KW_DIM ) then
+                    dim as Tko.SymbolId prevK = _
+                        w.syms->LookupLocalTyped( scope_, ip->name, false )
+                    dim as Tko.Symbol ptr pks = w.syms->SymbolAt( prevK )
+                    if pks <> 0 then
+                        redimLike = ((pks->flags and Tko.SYMF_COMMON) <> 0)
+                    end if
+                end if
+            end if
+            if (sk = Tko.SYM_VARIABLE) andalso redimLike then
                 dim as Tko.SymbolId prevR = _
                     w.syms->LookupLocalTyped( scope_, ip->name, false )
                 dim as Tko.Symbol ptr prs = w.syms->SymbolAt( prevR )
@@ -497,6 +513,7 @@ sub WalkNode _
             end if
 
             dim as boolean isExtern = (sp->op = cast( ushort, Tko.KW_EXTERN ))
+            dim as boolean isCommon = (sp->op = cast( ushort, Tko.KW_COMMON ))
             if sk = Tko.SYM_VARIABLE then
                 dim as Tko.SymbolId prev = _
                     w.syms->LookupLocalTyped( scope_, ip->name, false )
@@ -541,6 +558,7 @@ sub WalkNode _
                 if ((n->flags or w.ast->nodes[cast( long, item )].flags) and _
                     Tko.NF_BYREF) <> 0 then s->flags or= Tko.SYMF_BYREF
                 if isExtern then s->flags or= Tko.SYMF_EXTERN
+                if isCommon then s->flags or= Tko.SYMF_COMMON
                 if k = Tko.N_CONST then s->flags or= Tko.SYMF_CONST
                 s->payload = cast( long, item )
             end if

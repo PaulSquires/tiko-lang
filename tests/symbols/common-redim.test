@@ -1,0 +1,6 @@
+'' A DIM over a COMMON re-dimensions it rather than redeclaring it, exactly as a REDIM
+'' does, and neither is a duplicate.
+'' TEST: cli
+'' ARGS: --dump-symbols tests/symbols/src/common-redim.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/common-redim.out

@@ -110,6 +110,18 @@ namespace Tko
     '' packed layout are implemented; tools/gen/check-udt.sh measures the layout gap.
     const SYMF_BITFIELD  as ushort = &h4000
 
+    '' Declared by COMMON. A later DIM of the same name is NOT a duplicate: it
+    '' re-dimensions it, the way a REDIM does. Measured:
+    ''
+    ''     common a( ) as integer : dim a( 1 to 2 ) as integer   accepted
+    ''     dim    a( ) as integer : dim a( 1 to 2 ) as integer   error 4
+    ''     common a( ) as integer : dim a( 1 to 2 ) as single    error 4
+    ''
+    '' -- so it is COMMON specifically, and the element types still have to
+    '' agree. The flag lives here because the DECLARATION keyword is not on the
+    '' item, and the symbol is the only place the two can be compared from.
+    const SYMF_COMMON    as ushort = &h8000
+
     type Symbol
         as ubyte     kind
         as ushort    flags
