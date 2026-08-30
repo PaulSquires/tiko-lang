@@ -499,6 +499,31 @@ sub WalkNode _
                     dim as Tko.Symbol ptr pks = w.syms->SymbolAt( prevK )
                     if pks <> 0 then
                         redimLike = ((pks->flags and Tko.SYMF_COMMON) <> 0)
+                        '' ...AND THE NODE IS REWRITTEN TO SAY SO. 'DIM'ing a COMMON
+                        '' works like a REDIM' is what dim-common-dynamic-1.bas says
+                        '' in its own comment, and fbc emits fb_ArrayRedimEx for it.
+                        '' Leaving the node spelled DIM meant Resolve gave it no
+                        '' dynamic-array type and lowering built a fresh descriptor
+                        '' and ERASED it: the array was never sized, 'a( 1 ) = 5'
+                        '' wrote through a null descriptor, and '0 statements not
+                        '' lowered' sat beside it.
+                        ''
+                        '' Normalised HERE rather than at either consumer, because
+                        '' both of them need it and only this pass knows the previous
+                        '' declaration was COMMON.
+                        '' ...AND ONLY FOR AN ARRAY. 'common i as integer' then
+                        '' 'dim i as integer' is a SCALAR redeclaration and fbc
+                        '' rejects it (dim/dupdef-dim-common.bas is COMPILE_ONLY_FAIL);
+                        '' rewriting that one to a REDIM turned a duplicate-declaration
+                        '' diagnostic into a failed redim, which says less about the
+                        '' same refusal.
+                        dim as boolean itemIsArray = _
+                            ((w.ast->nodes[cast( long, item )].flags and _
+                              Tko.NF_ARRAY) <> 0)
+                        if redimLike andalso itemIsArray then
+                            sp->op = cast( ushort, Tko.KW_REDIM )
+                        end if
+                        if itemIsArray = false then redimLike = false
                     end if
                 end if
             end if

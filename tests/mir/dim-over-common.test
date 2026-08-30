@@ -1,0 +1,7 @@
+'' A DIM over a COMMON dynamic array is a REDIM, with constant or variable bounds.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dim-over-common.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/dim-over-common.out
