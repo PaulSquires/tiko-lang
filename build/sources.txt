@@ -77,3 +77,4 @@ io/fileput.bas
 io/fileget.bas
 io/filestr.bas
 io/filewstr.bas
+io/inputnum.bas

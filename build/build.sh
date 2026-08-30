@@ -65,12 +65,53 @@ build_one( ) {
 
     # A stale object yields a plausible archive, never an error, so the object
     # directory is removed above rather than reused.
+    REFLIB=""
+    _refdir=$(rt_reflib "$target" 2>/dev/null || true)
+    if [ -n "$_refdir" ] && [ -f "$_refdir/libfb.a" ]; then
+        REFLIB="$_refdir/libfb.a"
+    fi
+
     objs=""
     for src in $SOURCES; do
         obj="$objdir/$(echo "$src" | tr '/' '_' | sed 's/\.bas$/.o/')"
-        "$TKORT_FBC" -c "$RT_ROOT/src/$src" \
-            -target "$target" -gen llvm $(rt_incflags) \
-            $FLAGS $mtdef -o "$obj"
+
+        if ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                 -target "$target" -gen llvm $(rt_incflags)                 $FLAGS $mtdef -o "$obj"; then
+            rt_die "$target/$thread: $src failed to compile"
+        fi
+        [ -f "$obj" ] || rt_die "$target/$thread: $src produced no object"
+
+        # A NAME COLLISION WITH AN fbc MEMBER MUST NOT LOSE SYMBOLS.
+        #
+        # Objects are named after their source path -- io/input.bas became
+        # io_input.o -- and gate.sh merges them INTO fbc's archive, so llvm-ar
+        # REPLACES any member of the same name. fbc has an io_input.o of its own,
+        # and the merge dropped fb_hConsoleGetKey, fb_ConsoleHasFocus and five
+        # more that this project does not define.
+        #
+        # IT WAS SILENT ON ALL THREE TARGETS. win64 and win32 passed the whole
+        # 2,715-file suite with that member gone; only linux-x86_64 failed, and
+        # only because time_sleep.c happens to reference one of the lost symbols
+        # there.
+        #
+        # Replacing a member IS the point of the port -- str/core.bas becomes
+        # str_core.o and supplies all ten of its symbols. What must never happen
+        # is replacing one by NAME while leaving some of its symbols undefined.
+        # So the test is not "does the name collide" but "does the collision lose
+        # anything".
+        objname=$(basename "$obj")
+        if [ -n "$REFLIB" ] && "$TKORT_AR" t "$REFLIB" 2>/dev/null | grep -qx "$objname"; then
+            "$TKORT_NM" --defined-only "$obj" 2>/dev/null                 | awk '$2=="T"||$2=="D"||$2=="B"{print $3}' | sort -u > "$objdir/.ours.tmp"
+            "$TKORT_NM" --defined-only "$REFLIB" 2>/dev/null                 | awk -v m="$objname" '/:$/{c=$0; sub(":","",c)} c==m && ($2=="T"||$2=="D"||$2=="B"){print $3}'                 | sort -u > "$objdir/.theirs.tmp"
+            missing=$(comm -23 "$objdir/.theirs.tmp" "$objdir/.ours.tmp" | head -5)
+            rm -f "$objdir/.ours.tmp" "$objdir/.theirs.tmp"
+            if [ -n "$missing" ]; then
+                echo "build: $src compiles to $objname, an fbc member name," >&2
+                echo "build: so the gate's merge would REPLACE it -- losing:" >&2
+                echo "$missing" | sed 's/^/    /' >&2
+                rt_die "rename the source, or define those symbols too"
+            fi
+        fi
+
         objs="$objs $obj"
     done
 
