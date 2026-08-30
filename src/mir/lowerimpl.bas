@@ -458,7 +458,7 @@ end function
 '' so the function-table entry is found or declared by that name exactly as
 '' CallImplByName_ does -- and the body is REQUESTED, or the address would point at a
 '' declaration nothing ever defines.
-private function ImplStructorAddr_ _
+function ImplStructorAddr_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as long ) as MirValue
 
     dim as MirValue none_

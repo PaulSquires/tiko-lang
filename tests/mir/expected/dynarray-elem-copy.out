@@ -93,22 +93,26 @@ func void SYNTHESISED() {
     %3 = const i64 0
     %4 = const i64 0
     %5 = const i64 1
-    %6 = call.rtl i32 fb_ArrayRedimEx(%2, 24, -1, 0, 1, %4, %5)
-    %7 = alloca ptr b
+    %6 = func.addr ptr _ZN5INNERC1Ev
+    %7 = func.addr ptr _ZN5INNERD1Ev
+    %8 = call.rtl i32 fb_ArrayRedimObj(%2, 24, %6, %7, 1, %4, %5)
+    %9 = alloca ptr b
     call void _ZN4IBOXC1ERKS_(@b, @a)
-    %8 = field.addr @b, 0
-    %9 = const i64 0
-    %10 = const i64 24
-    %11 = mul %9, %10
-    %12 = load %8
-    %13 = ptr.add %12, %11
-    %14 = field.addr %13, 0
-    call.rtl void fb_PrintString(0, %14, 1)
+    %10 = field.addr @b, 0
+    %11 = const i64 0
+    %12 = const i64 24
+    %13 = mul %11, %12
+    %14 = load %10
+    %15 = ptr.add %14, %13
+    %16 = field.addr %15, 0
+    call.rtl void fb_PrintString(0, %16, 1)
     call void _ZN4IBOXD1Ev(@b)
     call void _ZN4IBOXD1Ev(@a)
     ret
 }
 declare void _ZN4IBOXC1Ev($0)
+declare void _ZN5INNERC1Ev($0)
+declare void _ZN5INNERD1Ev($0)
 declare void _ZN4IBOXC1ERKS_($0, $1)
 declare void _ZN4IBOXD1Ev($0)
 func i32 main($0, $1) {
@@ -304,6 +308,24 @@ func void _ZN4IBOXC1Ev($0) {
     store %18, %17
     ret
 }
+func void _ZN5INNERC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
+func void _ZN5INNERD1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+declare void fb_StrDelete($0)
 func void _ZN4IBOXC1ERKS_($0, $1) {
   entry0:
     %1 = field.addr $0, 0
@@ -340,10 +362,11 @@ declare void _ZN4IBOXaSERKS_($0, $1)
 func void _ZN4IBOXD1Ev($0) {
   entry0:
     %1 = field.addr $0, 0
-    %2 = call.rtl i32 fb_ArrayErase(%1)
+    %2 = func.addr ptr _ZN5INNERC1Ev
+    %3 = func.addr ptr _ZN5INNERD1Ev
+    %4 = call.rtl i32 fb_ArrayEraseObj(%1, %2, %3)
     ret
 }
-declare i32 fb_ArrayErase($0)
 func void _ZN4SBOXaSERKS_($0, $1) {
   local ptr $tmp0
   local ptr $tmp1
@@ -448,27 +471,7 @@ func void _ZN4IBOXaSERKS_($0, $1) {
   arrcopy.done3:
     ret
 }
-declare void _ZN5INNERC1Ev($0)
-declare void _ZN5INNERD1Ev($0)
 declare void _ZN5INNERaSERKS_($0, $1)
-func void _ZN5INNERC1Ev($0) {
-  entry0:
-    %1 = field.addr $0, 0
-    %2 = field.addr %1, 0
-    store %2, 0
-    %3 = field.addr %1, 8
-    store %3, 0
-    %4 = field.addr %1, 16
-    store %4, 0
-    ret
-}
-func void _ZN5INNERD1Ev($0) {
-  entry0:
-    %1 = field.addr $0, 0
-    call.rtl void fb_StrDelete(%1)
-    ret
-}
-declare void fb_StrDelete($0)
 func void _ZN5INNERaSERKS_($0, $1) {
   entry0:
     %1 = field.addr $1, 0
@@ -477,4 +480,4 @@ func void _ZN5INNERaSERKS_($0, $1) {
     ret
 }
 verify: ok
-lowered: 21 functions, 27 blocks, 340 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 21 functions, 27 blocks, 344 insts, 0 statements not lowered, 0 scope imbalance

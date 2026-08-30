@@ -673,6 +673,12 @@ declare function EmitRtl _
         ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
     '' lowerustr.bas -- the USTRING intrinsic family, the third beside the narrow set
     '' in lowersub.bas and the wide one in lowerwstr.bas.
+    '' The ADDRESS of a SYNTHESISED structor -- kind_ 1 for the constructor, 0 for
+    '' the destructor. FuncAddrOf names a WRITTEN procedure through its symbol; an
+    '' implicit one has only the name its body will be emitted under.
+    declare function ImplStructorAddr_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as long ) as MirValue
+
     declare function LowerUStrIntrin_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

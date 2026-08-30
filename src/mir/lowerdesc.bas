@@ -33,7 +33,7 @@ declare function RedimOne_ _
       byval presv as boolean ) as boolean
 declare function PushStructorPtr_ _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
-      byval s as Tko.SymbolId ) as boolean
+      byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as long ) as boolean
 
 
 '' The natural integer width of a descriptor field, which is the pointer width.
@@ -285,9 +285,16 @@ private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
     if c.types->Kind( et ) = Tko.TK_UDT then
         dim as Tko.SymbolId ctor = StructorOf( c, et, "__ctor" )
         dim as Tko.SymbolId dtor = StructorOf( c, et, "__dtor" )
-        if (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE) then
-            if PushStructorPtr_( c, args, ctor ) = false then return false
-            if PushStructorPtr_( c, args, dtor ) = false then return false
+        '' ...OR NEEDS THEM WITHOUT DECLARING ANY. StructorOf answers only for a
+        '' WRITTEN structor; a type whose MEMBERS need one has it synthesised,
+        '' and looked structor-less here.
+        dim as boolean hasStructors = _
+            ((ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE))
+        hasStructors = hasStructors orelse TypeNeedsInit_( c, et )
+        hasStructors = hasStructors orelse TypeNeedsDtor_( c, et )
+        if hasStructors then
+            if PushStructorPtr_( c, args, ctor, et, 1 ) = false then return false
+            if PushStructorPtr_( c, args, dtor, et, 0 ) = false then return false
             EmitRtl( c, RTL_ARRAY_CLEAR_OBJ, args )
             return true
         end if
@@ -298,11 +305,32 @@ private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
 end function
 
 '' A structor's ADDRESS as an argument, or a null pointer when there is none.
+''
+'' A SYNTHESISED one still has an address. 'StructorOf' answers only for a WRITTEN
+'' structor, so an element type that declares none but needs them -- FB.AmortizationRow
+'' declares nothing and is nine Decimal fields, every one of which does -- looked
+'' structor-less here, and the array went to the plain fb_ArrayErase and
+'' fb_ArrayRedimPresvEx. No element was constructed or destructed. kind_ is 1 for the
+'' constructor and 0 for the destructor.
 private function PushStructorPtr_ _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
-      byval s as Tko.SymbolId ) as boolean
+      byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as long ) as boolean
 
     if s = Tko.SYMBOL_NONE then
+        dim as boolean wants = false
+        if c.types->Kind( t ) = Tko.TK_UDT then
+            if kind_ = 1 then
+                wants = TypeNeedsInit_( c, t )
+            else
+                wants = TypeNeedsDtor_( c, t )
+            end if
+        end if
+        if wants then
+            dim as MirValue ip = ImplStructorAddr_( c, t, kind_ )
+            if ip.kind = cast( ubyte, MV_NONE ) then return false
+            args.Push( cast( ulong, ip.kind ) ) : args.Push( cast( ulong, ip.id ) )
+            return true
+        end if
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( 0 )
         return true
@@ -422,9 +450,16 @@ sub EmitEraseDynAt_ _
     if c.types->Kind( et ) = Tko.TK_UDT then
         dim as Tko.SymbolId ctor = StructorOf( c, et, "__ctor" )
         dim as Tko.SymbolId dtor = StructorOf( c, et, "__dtor" )
-        if (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE) then
-            if PushStructorPtr_( c, args, ctor ) then
-                if PushStructorPtr_( c, args, dtor ) then
+        '' ...OR NEEDS THEM WITHOUT DECLARING ANY. StructorOf answers only for a
+        '' WRITTEN structor; a type whose MEMBERS need one has it synthesised,
+        '' and looked structor-less here.
+        dim as boolean hasStructors = _
+            ((ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE))
+        hasStructors = hasStructors orelse TypeNeedsInit_( c, et )
+        hasStructors = hasStructors orelse TypeNeedsDtor_( c, et )
+        if hasStructors then
+            if PushStructorPtr_( c, args, ctor, et, 1 ) then
+                if PushStructorPtr_( c, args, dtor, et, 0 ) then
                     EmitRtl( c, RTL_ARRAY_ERASE_OBJ, args )
                     return
                 end if
@@ -681,11 +716,17 @@ private function RedimOne_ _
         ctor = StructorOf( c, et, "__ctor" )
         dtor = StructorOf( c, et, "__dtor" )
     end if
+    '' ...OR NEEDS THEM WITHOUT DECLARING ANY -- see PushStructorPtr_. Deciding on
+    '' the WRITTEN structors alone sent 'redim preserve' over an array of such a
+    '' type to fb_ArrayRedimPresvEx, which moves the bytes and runs nothing.
     dim as boolean useObj = (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE)
+    if c.types->Kind( et ) = Tko.TK_UDT then
+        useObj = useObj orelse TypeNeedsInit_( c, et ) orelse TypeNeedsDtor_( c, et )
+    end if
 
     if useObj then
-        if PushStructorPtr_( c, args, ctor ) = false then return false
-        if PushStructorPtr_( c, args, dtor ) = false then return false
+        if PushStructorPtr_( c, args, ctor, et, 1 ) = false then return false
+        if PushStructorPtr_( c, args, dtor, et, 0 ) = false then return false
     else
         '' Argument 4 is -1 if and only if the element is a var-len STRING.
         ''

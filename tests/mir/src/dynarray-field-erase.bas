@@ -35,6 +35,19 @@ type Plain
     dim as double v( any )
 end type
 
+'' AN ELEMENT THAT DECLARES NO STRUCTORS BUT NEEDS THEM. StructorOf answers only
+'' for a WRITTEN structor, so a type whose MEMBERS need one -- this holds a string,
+'' FB.AmortizationRow holds nine Decimals -- looked structor-less, and the array
+'' went to the plain fb_ArrayErase and fb_ArrayRedimPresvEx: the bytes moved and
+'' nothing ran.
+type Implicit
+    dim as string s
+end type
+type IBox2
+    dim as Implicit rows( any )
+end type
+
+
 '' A USTRING ELEMENT HAS ITS OWN ERASE. The narrow fb_ArrayStrErase over one frees
 '' FBSTRING descriptors across FBUSTRING data; measured, fbc emits fb_ArrayUStrErase.
 type UBox
@@ -48,5 +61,8 @@ sub go()
     redim p.v( 0 to 3 )
     dim as UBox ub
     redim ub.u( 0 to 3 )
+    dim as IBox2 ib
+    redim ib.rows( 0 to 3 )
+    redim preserve ib.rows( 0 to 5 )
 end sub
 go()

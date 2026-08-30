@@ -28,6 +28,7 @@ func void GO() {
   local agg b size 80
   local agg p size 72
   local agg ub size 72
+  local agg ib size 72
   entry0:
     %1 = alloca ptr b
     call void _ZN7BOX<23>C1Ev(@b)
@@ -46,6 +47,23 @@ func void GO() {
     %11 = const i64 0
     %12 = const i64 3
     %13 = call.rtl i32 fb_ArrayRedimEx(%9, 24, -1, -1, 1, %11, %12)
+    %14 = alloca ptr ib
+    call void _ZN5IBOX2C1Ev(@ib)
+    %15 = field.addr @ib, 0
+    %16 = const i64 0
+    %17 = const i64 0
+    %18 = const i64 3
+    %19 = func.addr ptr _ZN8IMPLICITC1Ev
+    %20 = func.addr ptr _ZN8IMPLICITD1Ev
+    %21 = call.rtl i32 fb_ArrayRedimObj(%15, 24, %19, %20, 1, %17, %18)
+    %22 = field.addr @ib, 0
+    %23 = const i64 0
+    %24 = const i64 0
+    %25 = const i64 5
+    %26 = func.addr ptr _ZN8IMPLICITC1Ev
+    %27 = func.addr ptr _ZN8IMPLICITD1Ev
+    %28 = call.rtl i32 fb_ArrayRedimPresvObj(%22, 24, %26, %27, 1, %24, %25)
+    call void _ZN5IBOX2D1Ev(@ib)
     call void _ZN4UBOXD1Ev(@ub)
     call void _ZN5PLAIND1Ev(@p)
     call void _ZN7BOX<23>D1Ev(@b)
@@ -56,6 +74,12 @@ declare void _ZN7BOX<23>6SHRINKEv()
 declare void _ZN5PLAINC1Ev($0)
 declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
 declare void _ZN4UBOXC1Ev($0)
+declare void _ZN5IBOX2C1Ev($0)
+declare void _ZN8IMPLICITC1Ev($0)
+declare void _ZN8IMPLICITD1Ev($0)
+declare i32 fb_ArrayRedimObj($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayRedimPresvObj($0, $1, $2, $3, $4, $5)
+declare void _ZN5IBOX2D1Ev($0)
 declare void _ZN4UBOXD1Ev($0)
 declare void _ZN5PLAIND1Ev($0)
 declare void _ZN7BOX<23>D1Ev($0)
@@ -97,7 +121,6 @@ func void _ZN7BOX<23>6SHRINKEv($0) {
     br if.join1
 }
 declare i32 fb_ArrayEraseObj($0, $1, $2)
-declare i32 fb_ArrayRedimPresvObj($0, $1, $2, $3, $4, $5)
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -207,6 +230,62 @@ func void _ZN4UBOXC1Ev($0) {
     store %18, %17
     ret
 }
+func void _ZN5IBOX2C1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const ptr 0
+    %3 = field.addr %1, 0
+    store %3, %2
+    %4 = field.addr %1, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr %1, 16
+    store %6, %5
+    %7 = const i64 24
+    %8 = field.addr %1, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr %1, 32
+    store %10, %9
+    %11 = const i64 17
+    %12 = field.addr %1, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr %1, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %1, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %1, 64
+    store %18, %17
+    ret
+}
+func void _ZN8IMPLICITC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
+func void _ZN8IMPLICITD1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+func void _ZN5IBOX2D1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = func.addr ptr _ZN8IMPLICITC1Ev
+    %3 = func.addr ptr _ZN8IMPLICITD1Ev
+    %4 = call.rtl i32 fb_ArrayEraseObj(%1, %2, %3)
+    ret
+}
 func void _ZN4UBOXD1Ev($0) {
   entry0:
     %1 = field.addr $0, 0
@@ -230,4 +309,4 @@ func void _ZN7BOX<23>D1Ev($0) {
     ret
 }
 verify: ok
-lowered: 11 functions, 14 blocks, 159 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 15 functions, 18 blocks, 216 insts, 0 statements not lowered, 0 scope imbalance
