@@ -19,7 +19,19 @@
 	end extern
 	#define TKORT_IOLOCK()   fb_Lock()
 	#define TKORT_IOUNLOCK() fb_Unlock()
+
+	'' The profiler has its OWN lock, not the I/O one. fb_ProfileLock exists
+	'' only in libfbmt.a -- there is no single-threaded definition anywhere --
+	'' so referencing it from an ST build would not link.
+	extern "rtlib"
+		declare sub fb_ProfileLock alias "fb_ProfileLock" ( )
+		declare sub fb_ProfileUnlock alias "fb_ProfileUnlock" ( )
+	end extern
+	#define TKORT_PROFLOCK()   fb_ProfileLock()
+	#define TKORT_PROFUNLOCK() fb_ProfileUnlock()
 #else
 	#define TKORT_IOLOCK()
 	#define TKORT_IOUNLOCK()
+	#define TKORT_PROFLOCK()
+	#define TKORT_PROFUNLOCK()
 #endif

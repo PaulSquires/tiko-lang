@@ -104,3 +104,4 @@ io/devwidth.bas
 chrono/pattern.bas
 fs/dirent.bas
 io/viewhlp.bas
+profile/core.bas
