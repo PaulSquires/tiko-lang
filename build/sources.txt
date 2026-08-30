@@ -83,3 +83,4 @@ strw/swap.bas
 error/assert.bas
 data/read.bas
 data/core.bas
+io/hookprint.bas

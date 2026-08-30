@@ -109,4 +109,37 @@ const FB_ERRMSG_SIZE = 1024
 '' the exit path.
 #define TKORT_CTX_ERRMSG() *cptr( any ptr ptr, @__fb_ctx_head + TKORT_ERRMSG_OFFSET )
 
+'' ================================================== __fb_ctx.hooks
+''
+'' The redirectable console operations. gfxlib installs its own here so that
+'' PRINT inside a graphics window goes to the window rather than the console;
+'' when a slot is NULL the console implementation runs instead.
+''
+'' ONLY THE TWO PRINT SLOTS ARE BOUND, by offset rather than as a struct. The
+'' table has twenty-seven function pointers and binding all of them would be
+'' twenty-five more chances to get a layout wrong for no benefit -- the same
+'' reasoning that stops TKORT_CTX_HEAD at unull_desc.
+''
+'' MEASURED, both ways. The C probe gives the 64-bit targets: hooks at ctx+72,
+'' printbuffproc at hooks+88, so ctx+160 and ctx+168. win32 comes from fbc's own
+'' compiled objects, the technique validated on fileTB:
+''
+''     hook_printstr.o    movl 0x50, %eax   rel ___fb_ctx  ->  80
+''     hook_print_wstr.o  movl 0x54, %eax   rel ___fb_ctx  ->  84
+#if defined( __FB_64BIT__ )
+	const TKORT_HOOK_PRINTBUFF  = 160
+	const TKORT_HOOK_PRINTBUFFW = 168
+#else
+	const TKORT_HOOK_PRINTBUFF  = 80
+	const TKORT_HOOK_PRINTBUFFW = 84
+#endif
+
+type FB_PRINTBUFFPROC as sub cdecl ( byval buffer as any ptr, byval length as uinteger, byval mask as long )
+type FB_PRINTBUFFWPROC as sub cdecl ( byval buffer as wstring ptr, byval length as uinteger, byval mask as long )
+
+#define TKORT_HOOK_PRINTBUFFPROC() _
+	*cptr( FB_PRINTBUFFPROC ptr, @__fb_ctx_head + TKORT_HOOK_PRINTBUFF )
+#define TKORT_HOOK_PRINTBUFFWPROC() _
+	*cptr( FB_PRINTBUFFWPROC ptr, @__fb_ctx_head + TKORT_HOOK_PRINTBUFFW )
+
 #endif '' __TKORT_CTX_BI__
