@@ -1,0 +1,8 @@
+'' A '#define' belongs to the block it was written in: the same name in two SUBs is
+'' two macros, not a redefinition.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/macro-scope.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/macro-scope.out

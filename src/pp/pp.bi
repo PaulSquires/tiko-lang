@@ -81,6 +81,11 @@ namespace Tko
         '' macro use at all, and fbc reports NAME as an undeclared variable.
         as boolean   optParens
         as boolean   isDefined       '' cleared by #undef rather than removed
+        '' THE BLOCK NESTING IT WAS DEFINED AT. fbc's macros are symbols in its
+        '' scoped table, so a '#define' inside a SUB dies with the SUB -- measured:
+        '' the same name defined in two subs is two macros, and one defined in a sub
+        '' is 'Variable not declared' at module level afterwards.
+        as long      blockDepth
         as ubyte     builtin         '' PpBuiltin; 0 for an ordinary macro
         as IdVec     params
         as TokenVec  body

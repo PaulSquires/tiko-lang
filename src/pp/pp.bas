@@ -77,6 +77,14 @@ type PpEngine
     as IdVec                  uidValues     '' the counter value that name maps to
     as boolean                stopped
 
+    '' BLOCK NESTING, counted on the tokens that reach the OUTPUT -- so a 'sub'
+    '' that arrived through a macro expansion counts, which is how fbcunit's TEST
+    '' opens one. Only SUB, FUNCTION and SCOPE are tracked: they are the forms the
+    '' corpus defines macros inside, and counting a form wrongly would undefine
+    '' macros EARLY, which is worse than the over-permissiveness it replaces.
+    as long                   blockDepth
+    as ushort                 prevKw        '' the last keyword emitted, for END/DECLARE
+
     '' '#pragma private' / '#pragma profile' and their push/pop stacks. Two options,
     '' each a boolean reported through a predefined macro; index 0 is private, 1 is
     '' profile. Fixed-size because the pragma is a nesting marker in a header, not a
@@ -469,6 +477,66 @@ private sub PpFinish( byref e as PpEngine )
     e.outp->tokens.Push( eof )
 end sub
 
+'' BLOCK NESTING, on the token about to be emitted.
+''
+'' fbc's preprocessor shares the compiler's SCOPED symbol table, so a '#define'
+'' inside a procedure dies with it. Measured:
+''
+''     sub a( ) : #define M 1 : print M : end sub
+''     sub b( ) : #define M 2 : print M : end sub      accepted, prints 1 then 2
+''     sub a( ) : #define M 1 : end sub : print M      error 42, M not declared
+''
+'' tiko-lang's preprocessor is a separate pass over a flat table, so the second
+'' '#define' was 'macro already defined' and the file was lost from there --
+'' pp/token-pasting.bas redefines four macros in each of six TEST bodies, and
+'' fbcunit's TEST expands to 'sub ... end sub'.
+''
+'' ONLY SUB, FUNCTION AND SCOPE. fbc scopes to any block, a FOR body included, but
+'' every extra form is another chance to miscount -- and miscounting UNDEFINES A
+'' MACRO EARLY, which breaks working code, where missing a form merely leaves
+'' tiko-lang as permissive as it already was.
+''
+'' The three exclusions are all real: 'declare sub' opens nothing, 'exit sub'
+'' closes nothing, and 'function = x' is a RESULT ASSIGNMENT, not a definition.
+private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
+    dim as TokenKind k = Tk( t )
+    dim as TokenKind pk = cast( TokenKind, e.prevKw )
+    dim as boolean opener = false
+    dim as boolean closer = false
+
+    if (k = KW_SUB) orelse (k = KW_FUNCTION) orelse (k = KW_SCOPE) then
+        if pk = KW_END then
+            closer = true
+        elseif (pk <> KW_DECLARE) andalso (pk <> KW_EXIT) then
+            opener = true
+            if k = KW_FUNCTION then
+                '' 'function = expr' assigns the result; it opens nothing.
+                dim as Token nx
+                if PeekTok( e, nx ) then
+                    if Tk( nx ) = TK_EQ then opener = false
+                end if
+            end if
+        end if
+    end if
+
+    if opener then e.blockDepth += 1
+    if closer then
+        if e.blockDepth > 0 then e.blockDepth -= 1
+        '' Everything defined deeper than the block just closed goes with it.
+        for i as long = 0 to e.macros.Count - 1
+            if e.macros[i].isDefined then
+                if e.macros[i].blockDepth > e.blockDepth then
+                    e.macros[i].isDefined = false
+                end if
+            end if
+        next
+    end if
+
+    '' Only KEYWORDS are remembered: an identifier between END and SUB is not a
+    '' thing, and remembering every token would make 'end' stale.
+    if IsKeywordKind( k ) then e.prevKw = cast( ushort, k )
+end sub
+
 '' Advance the engine until it has emitted at least one token, or input is done.
 '' Returns false when nothing more will ever be produced.
 private function PpStep( byref e as PpEngine ) as boolean
@@ -514,6 +582,7 @@ private function PpStep( byref e as PpEngine ) as boolean
 
         Advance( e )
         EmitTok( e, t )
+        PpTrackBlock( e, t )
         if e.outp->tokens.Count > before then return true
     loop
 end function

@@ -170,6 +170,8 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     m->isFunc = false
     m->isVariadic = false
     m->optParens = optParens
+    '' Where it was defined, so the block that closes takes it with it.
+    m->blockDepth = e.blockDepth
     m->builtin = PPB_NONE
     m->loc = at
     m->params.Clear( )
