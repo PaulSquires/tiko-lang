@@ -310,6 +310,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byval fromIdx as long = 0, _
           byval fmtNode as Tko.NodeId = Tko.NODE_NONE ) as boolean
     '' lowerdesc.bas
+    '' How many elements a FIXED array holds, across every dimension; 0 when the
+    '' shape is dynamic or its bounds do not read.
+    declare function FixedArrayElems _
+        ( byref c as Ctx, byval t as TypeId ) as longint
     declare function SynthFixedArrayDesc _
         ( byref c as Ctx, byref arrAddr as MirValue, byval t as Tko.TypeId, _
           byref outv as MirValue ) as boolean

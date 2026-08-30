@@ -324,7 +324,36 @@ private sub DestroyMember_ _
     if c.types->Kind( ft ) = Tko.TK_ARRAY then
         dim as Tko.TypeId aet = c.types->Inner( ft )
         if aet = Tko.TYPE_NONE then return
-        if IsStringType( c, aet ) = false then return
+
+        '' A UDT ELEMENT IS DESTROYED ONE AT A TIME, LAST FIRST. fbc writes an
+        '' inline reverse loop for a field and fb_ArrayDestructObj for a LOCAL of
+        '' the same shape; tiko-lang UNROLLS the local, so unrolling the field is
+        '' what keeps its own two spellings the same. All three destroy every
+        '' element exactly once, in reverse -- the observable part.
+        ''
+        '' The recursion is the point: an element with its own destructor, one with
+        '' only an implicit one, and a nested aggregate all go back through here.
+        if IsStringType( c, aet ) = false then
+            if c.types->Kind( aet ) <> Tko.TK_UDT then return
+            dim as boolean aeD = (StructorWithArity( c, StructorOf( c, aet, "__dtor" ), 0 ) <> Tko.SYMBOL_NONE)
+            if aeD = false then aeD = TypeNeedsDtor_( c, aet )
+            if aeD = false then return
+            dim as longint aeN = FixedArrayElems( c, ft )
+            if aeN <= 0 then return
+            dim as long aeSz = SizeOfType( c, aet )
+            if aeSz <= 0 then return
+            for k as longint = aeN - 1 to 0 step -1
+                dim as MirInst afa
+                afa.op = cast( ushort, M_FIELD_ADDR )
+                afa.ty = cast( ubyte, MT_PTR )
+                afa.a = addr
+                afa.imm = cast( long, k * aeSz )
+                dim as MirValue aea = Emit( c, afa )
+                if aea.kind = cast( ubyte, MV_NONE ) then return
+                DestroyMember_( c, aea, aet )
+            next
+            return
+        end if
         '' Only a VAR-LENGTH element owns anything; a 'zstring * N' element is
         '' bytes in place, exactly as it is for a scalar field above.
         dim as boolean aeU = IsUStringType( c, aet )

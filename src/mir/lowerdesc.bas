@@ -78,6 +78,25 @@ end sub
 '' 'arrAddr' is the array's own base address and 't' its TK_ARRAY type. Returns false
 '' for anything that is not a fixed array with known bounds and a known element size --
 '' a DYNAMIC array already has a descriptor and must not get a second one.
+'' HOW MANY ELEMENTS A FIXED ARRAY HOLDS, across every dimension. Returns 0 for a
+'' dynamic array or a shape whose bounds do not read, so a caller that unrolls per
+'' element emits nothing rather than guessing a count.
+function FixedArrayElems( byref c as Ctx, byval t as Tko.TypeId ) as longint
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return 0
+    dim as long dims = c.types->types[cast( long, t )].dims
+    if dims < 1 then return 0
+    dim as long first = c.types->types[cast( long, t )].first
+    if c.types->types[cast( long, t )].count < dims * 2 then return 0
+    dim as longint total = 1
+    for d as long = 0 to dims - 1
+        dim as longint l = c.types->boundPool[first + d * 2]
+        dim as longint h = c.types->boundPool[first + d * 2 + 1]
+        if h < l then return 0
+        total *= (h - l + 1)
+    next
+    return total
+end function
+
 function SynthFixedArrayDesc _
     ( byref c as Ctx, byref arrAddr as MirValue, byval t as Tko.TypeId, _
       byref outv as MirValue ) as boolean

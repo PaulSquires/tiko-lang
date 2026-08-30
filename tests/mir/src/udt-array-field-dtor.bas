@@ -20,6 +20,19 @@ type WithUStrArray
     u( 0 to 3 ) as ustring
 end type
 
+'' A UDT ELEMENT IS DESTROYED ONE AT A TIME, LAST FIRST. fbc writes an inline reverse
+'' loop for a field and fb_ArrayDestructObj for a LOCAL of the same shape, while
+'' tiko-lang UNROLLS the local -- three spellings, all of which destroy every element
+'' exactly once in reverse. Unrolling the field is what keeps tiko-lang's own two
+'' spellings the same. Measured: fbc's loop runs 4 times for the type below.
+type Elem
+    s as string
+end type
+
+type WithUdtArray
+    e( 0 to 3 ) as Elem
+end type
+
 type WithFixedZ
     z( 0 to 3 ) as zstring * 8
 end type
@@ -34,6 +47,11 @@ sub useUStr( )
     b.u( 0 ) = "y"
 end sub
 
+sub useUdt( )
+    dim c as WithUdtArray
+    c.e( 0 ).s = "e"
+end sub
+
 sub useZ( )
     dim d as WithFixedZ
     d.z( 0 ) = "z"
@@ -41,4 +59,5 @@ end sub
 
 useStr
 useUStr
+useUdt
 useZ

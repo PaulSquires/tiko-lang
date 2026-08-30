@@ -1,6 +1,7 @@
 global str $str0 "x"
 global wstr $wstr1 "y"
-global str $str2 "z"
+global str $str2 "e"
+global str $str3 "z"
 func void USESTR() {
   local agg a size 240
   entry0:
@@ -36,6 +37,23 @@ func void USEUSTR() {
 declare void _ZN13WITHUSTRARRAYC1Ev($0)
 declare ptr fb_UStrAssign($0, $1, $2, $3, $4)
 declare void _ZN13WITHUSTRARRAYD1Ev($0)
+func void USEUDT() {
+  local agg c size 96
+  entry0:
+    %1 = alloca ptr c
+    call void _ZN12WITHUDTARRAYC1Ev(@c)
+    %2 = field.addr @c, 0
+    %3 = const i64 0
+    %4 = const i64 24
+    %5 = mul %3, %4
+    %6 = ptr.add %2, %5
+    %7 = field.addr %6, 0
+    %8 = call.rtl ptr fb_StrAssign(%7, -1, @@$str2, 2, 0)
+    call void _ZN12WITHUDTARRAYD1Ev(@c)
+    ret
+}
+declare void _ZN12WITHUDTARRAYC1Ev($0)
+declare void _ZN12WITHUDTARRAYD1Ev($0)
 func void USEZ() {
   local agg d size 32
   entry0:
@@ -45,7 +63,7 @@ func void USEZ() {
     %4 = const i64 8
     %5 = mul %3, %4
     %6 = ptr.add %2, %5
-    %7 = call.rtl ptr fb_StrAssign(%6, 8, @@$str2, 2, 0)
+    %7 = call.rtl ptr fb_StrAssign(%6, 8, @@$str3, 2, 0)
     ret
 }
 func i32 main($0, $1) {
@@ -58,6 +76,7 @@ func i32 main($0, $1) {
     call.rtl void fb_Init($0, $1, %3)
     call void USESTR()
     call void USEUSTR()
+    call void USEUDT()
     call void USEZ()
     %4 = const i32 0
     call.rtl void fb_End(%4)
@@ -144,5 +163,31 @@ func void _ZN13WITHUSTRARRAYD1Ev($0) {
     ret
 }
 declare void fb_ArrayDestructUStr($0)
+func void _ZN12WITHUDTARRAYC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    ret
+}
+func void _ZN12WITHUDTARRAYD1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 72
+    call void _ZN4ELEMD1Ev(%2)
+    %3 = field.addr %1, 48
+    call void _ZN4ELEMD1Ev(%3)
+    %4 = field.addr %1, 24
+    call void _ZN4ELEMD1Ev(%4)
+    %5 = field.addr %1, 0
+    call void _ZN4ELEMD1Ev(%5)
+    ret
+}
+declare void _ZN4ELEMD1Ev($0)
+func void _ZN4ELEMD1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+declare void fb_StrDelete($0)
 verify: ok
-lowered: 8 functions, 8 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 12 functions, 12 blocks, 118 insts, 0 statements not lowered, 0 scope imbalance
