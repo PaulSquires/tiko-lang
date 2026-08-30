@@ -96,3 +96,6 @@ utf/tochar.bas
 utf/fromchar.bas
 chrono/core.bas
 chrono/iso.bas
+err/throw.bas
+array/boundchk.bas
+fs/path.bas
