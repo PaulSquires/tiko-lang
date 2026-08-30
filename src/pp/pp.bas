@@ -406,6 +406,8 @@ private sub RelexInto _
         dim as Token t = r.tokens[i]
         if Tk( t ) = TK_EOF then exit for
         if Tk( t ) = TK_EOL then continue for
+        '' Everything out of here is SYNTHESISED, whatever loc it ends up carrying.
+        t.flags or= TF_SYNTHESISED
         '' A NUMERIC literal records no text span -- only strings do, because for a
         '' file token the token's own loc and length already point at the digits. That
         '' stops being true here: the loc is about to be repointed at the use site, and

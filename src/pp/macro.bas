@@ -1240,6 +1240,41 @@ private sub PreExpandBareArgs_ _
     next
 end sub
 
+'' THE EXPANSION'S TRAILING END-OF-LINE, dropped unless the invocation was itself
+'' synthesised.
+''
+'' fbc's model has no end-of-line at the end of a macro body: 's = h( ) + h( )' over
+'' a one-line '#macro' is ONE statement to fbc, and the kept EOL split it in two --
+'' 'expected a statement' at the '+'. pp/macro_trim.bas is six of those.
+''
+'' TRIMMING IT AT DEFINITION WAS TRIED THREE TIMES AND REVERTED THREE TIMES.
+'' __FB_ARG_LISTEXPAND__ synthesises 'M( 1 ) : M( 2 ) : M( 3 )' as TEXT and relies
+'' on each repetition ending where it does; without the end-of-line they run
+'' together and a 'const' inside the body is declared twice in one scope.
+'' pp/macro-arg-listexpand.bas went 0 declines to 415 and the pp corpus 77 to 900.
+'' Two call-site tests were tried as well -- not at a line start, not after a ':' --
+'' and the note after the third attempt is the way in: 'the dependency is INSIDE an
+'' expansion, not at its call site'.
+''
+'' TF_SYNTHESISED is that distinction, and TF_FROM_MACRO is not: 'h( )' written
+'' inside 'CU_ASSERT_EQUAL( h( ) + h( ), ... )' is carried into the assert's body as
+'' an ARGUMENT and takes TF_FROM_MACRO on the way, while still being a name the
+'' program wrote. Only RelexInto sets TF_SYNTHESISED, and LISTEXPAND's repetitions
+'' are the only thing here that comes through it.
+''
+'' A body of several LINES keeps its end-of-line either way: the trailing run is
+'' trimmed, not the interior ones, so nothing that depends on statements staying
+'' apart is touched.
+private sub TrimExpansionTail_ _
+    ( byref use as Token, byref buf as TokenVec )
+
+    if (use.flags and TF_SYNTHESISED) <> 0 then return
+    while buf.Count > 0
+        if Tk( buf[buf.Count - 1] ) <> TK_EOL then exit while
+        buf.Pop( )
+    wend
+end sub
+
 declare function PpExpandBuiltin _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
 
@@ -1289,6 +1324,7 @@ private function PpExpand _
         PreExpandBareArgs_( e, args )
         dim as TokenVec ptr buf = new TokenVec
         PpSubstitute( e, m, args, use.loc, *buf )
+        TrimExpansionTail_( use, *buf )
         e.outp->expansionCount += 1
         PushFrame( e, buf, m->name, FILE_NONE, true )
         return true

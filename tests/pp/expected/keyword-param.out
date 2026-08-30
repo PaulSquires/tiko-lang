@@ -1,4 +1,4 @@
-preprocessed: 42 tokens, 0 includes, 2 expansions, depth 2
+preprocessed: 40 tokens, 0 includes, 2 expansions, depth 2
     0    1:72   EOL
     1    2:81   EOL
     2    3:82   EOL
@@ -22,22 +22,20 @@ preprocessed: 42 tokens, 0 includes, 2 expansions, depth 2
    20   14:17   INT                  [macro]
    21   11:33   TK_COMMA            ',' [macro]
    22   14:1    STRING               [macro]
-   23   11:41   EOL                  [macro]
-   24   14:23   EOL
-   25   10:9    KW_DIM              'DIM' [macro]
-   26   10:13   KW_AS               'AS' [macro]
-   27   15:7    KW_USHORT           'USHORT' [macro]
-   28   15:1    IDENT               'v_16' [macro]
-   29   10:28   TK_EQ               '=' [macro]
-   30   15:15   INT                  [macro]
-   31   10:35   EOL                  [macro]
-   32   11:9    KW_PRINT            'PRINT' [macro]
-   33   15:1    IDENT               'v_16' [macro]
-   34   11:24   TK_COMMA            ',' [macro]
-   35   15:19   INT                  [macro]
-   36   11:33   TK_COMMA            ',' [macro]
-   37   15:1    STRING               [macro]
-   38   11:41   EOL                  [macro]
-   39   15:27   EOL
-   40   16:1    EOF
-   41    1:1    EOF
+   23   14:23   EOL
+   24   10:9    KW_DIM              'DIM' [macro]
+   25   10:13   KW_AS               'AS' [macro]
+   26   15:7    KW_USHORT           'USHORT' [macro]
+   27   15:1    IDENT               'v_16' [macro]
+   28   10:28   TK_EQ               '=' [macro]
+   29   15:15   INT                  [macro]
+   30   10:35   EOL                  [macro]
+   31   11:9    KW_PRINT            'PRINT' [macro]
+   32   15:1    IDENT               'v_16' [macro]
+   33   11:24   TK_COMMA            ',' [macro]
+   34   15:19   INT                  [macro]
+   35   11:33   TK_COMMA            ',' [macro]
+   36   15:1    STRING               [macro]
+   37   15:27   EOL
+   38   16:1    EOF
+   39    1:1    EOF

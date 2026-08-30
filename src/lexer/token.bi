@@ -122,6 +122,12 @@ namespace Tko
     '' not set TF_AT_LINE_START, so without this flag there was nothing to tell the
     '' header's own tokens from the first body line's.
     const TF_LINE_JOINED   as ushort = &h0020
+    '' PRODUCED BY RelexInto, i.e. lexed out of text the preprocessor SYNTHESISED
+    '' rather than read from a source file. It is what separates a macro name the
+    '' program wrote -- even one carried in as another macro's argument -- from one
+    '' __FB_ARG_LISTEXPAND__ manufactured. TF_FROM_MACRO cannot: an argument's
+    '' tokens take that flag when they are substituted into a body.
+    const TF_SYNTHESISED   as ushort = &h0040
 
     type Token                      '' 16 bytes
         as ushort    kind
