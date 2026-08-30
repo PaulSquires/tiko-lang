@@ -192,3 +192,50 @@ sub tkort_DataReadWstr alias "fb_DataReadWstr" _
 end sub
 
 end extern
+
+'' ============================================================ THE QB DIALECT
+''
+'' Six more, identical in shape and differing only in which parsers they call --
+'' the QB variants, which carry the sign-bit rule. So READ of &hFFFF into an
+'' INTEGER gives -1 through these and 65535 through the ones above.
+''
+'' NOTE THE ZERO IS PLAIN 0 EVEN FOR THE FLOAT FORMS. fbc's macro is written once
+'' for every type and assigns `0` rather than `0.0`, where the hand-written
+'' non-QB fb_DataReadSingle assigns `0.0`. Identical result, and reproduced as
+'' written because the shapes should match.
+
+extern "rtlib"
+	declare function tkrt_Str2IntQB alias "fb_hStr2IntQB" ( byval s as zstring ptr, byval n as integer ) as long
+	declare function tkrt_Str2UIntQB alias "fb_hStr2UIntQB" ( byval s as zstring ptr, byval n as integer ) as ulong
+	declare function tkrt_Str2LongintQB alias "fb_hStr2LongintQB" ( byval s as zstring ptr, byval n as integer ) as longint
+	declare function tkrt_Str2ULongintQB alias "fb_hStr2ULongintQB" ( byval s as zstring ptr, byval n as integer ) as ulongint
+	declare function tkrt_Str2DoubleQB alias "fb_hStr2DoubleQB" ( byval s as zstring ptr, byval n as integer ) as double
+	declare function tkrt_WstrToIntQB alias "fb_WstrToIntQB" ( byval s as wstring ptr, byval n as integer ) as long
+	declare function tkrt_WstrToUIntQB alias "fb_WstrToUIntQB" ( byval s as wstring ptr, byval n as integer ) as ulong
+	declare function tkrt_WstrToLongintQB alias "fb_WstrToLongintQB" ( byval s as wstring ptr, byval n as integer ) as longint
+	declare function tkrt_WstrToULongintQB alias "fb_WstrToULongintQB" ( byval s as wstring ptr, byval n as integer ) as ulongint
+	declare function tkrt_WstrToDoubleQB alias "fb_WstrToDoubleQB" ( byval s as wstring ptr, byval n as integer ) as double
+end extern
+
+extern "rtlib"
+
+sub tkort_DataReadIntQB alias "fb_DataReadIntQB" ( byval dst as long ptr )
+	DATA_READ_NUM( dst, long, tkrt_Str2IntQB, tkrt_WstrToIntQB, 0 )
+end sub
+sub tkort_DataReadUIntQB alias "fb_DataReadUIntQB" ( byval dst as ulong ptr )
+	DATA_READ_NUM( dst, ulong, tkrt_Str2UIntQB, tkrt_WstrToUIntQB, 0 )
+end sub
+sub tkort_DataReadLongintQB alias "fb_DataReadLongintQB" ( byval dst as longint ptr )
+	DATA_READ_NUM( dst, longint, tkrt_Str2LongintQB, tkrt_WstrToLongintQB, 0 )
+end sub
+sub tkort_DataReadULongintQB alias "fb_DataReadULongintQB" ( byval dst as ulongint ptr )
+	DATA_READ_NUM( dst, ulongint, tkrt_Str2ULongintQB, tkrt_WstrToULongintQB, 0 )
+end sub
+sub tkort_DataReadSingleQB alias "fb_DataReadSingleQB" ( byval dst as single ptr )
+	DATA_READ_NUM( dst, single, tkrt_Str2DoubleQB, tkrt_WstrToDoubleQB, 0 )
+end sub
+sub tkort_DataReadDoubleQB alias "fb_DataReadDoubleQB" ( byval dst as double ptr )
+	DATA_READ_NUM( dst, double, tkrt_Str2DoubleQB, tkrt_WstrToDoubleQB, 0 )
+end sub
+
+end extern

@@ -82,3 +82,4 @@ io/inputstr.bas
 strw/swap.bas
 error/assert.bas
 data/read.bas
+data/core.bas
