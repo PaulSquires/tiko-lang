@@ -1,0 +1,7 @@
+'' abs, sgn, len and iif in a preprocessor constant expression, and sizeof still working
+'' beside them. Every #if here takes the branch fbc takes; a wrong one is an #error.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/ppexpr-funcs.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

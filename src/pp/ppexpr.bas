@@ -234,6 +234,85 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         PxNext( x )
         return PxPrimary( x )
 
+    '' ABS, SGN, LEN and IIF over CONSTANTS -- none of them needs a symbol table,
+    '' which is the only thing this evaluator is short of. Without them every '#if'
+    '' naming one was 'invalid expression' and the whole condition unevaluable.
+    ''
+    '' SAFE DESPITE THE VALUE BEING INTEGER-ONLY, and that is worth saying: a FLOAT
+    '' literal in a '#if' is already refused outright (TKO0315) rather than
+    '' truncated, so none of these can ever be handed one and quietly answer for a
+    '' number it did not get. INT, FIX, FRAC and the C* casts are left out for the
+    '' same reason from the other side: over integers they are identity or zero,
+    '' which is true but useless, and the float arguments the corpus actually
+    '' writes are refused before they reach here.
+    case KW_ABS, KW_SGN, KW_LEN
+        PxNext( x )
+        dim as boolean fparen = (PxPeek( x ) = TK_LPAREN)
+        if fparen then PxNext( x )
+        dim as PpValue a0 = PxOrElse( x )
+        if fparen then
+            if PxPeek( x ) = TK_RPAREN then
+                PxNext( x )
+            else
+                x.bad = true
+            end if
+        end if
+        if x.bad then return PxNum( 0 )
+        select case k
+        case KW_LEN
+            if a0.isStr then return PxNum( len( a0.str_ ) )
+            '' LEN of a non-string is a TYPE question here, and the
+            '' preprocessor has no symbol to ask about.
+            x.bad = true
+            return PxNum( 0 )
+        case KW_ABS
+            if a0.isStr then
+                x.bad = true
+                return PxNum( 0 )
+            end if
+            if a0.num < 0 then return PxNum( -a0.num )
+            return PxNum( a0.num )
+        case else
+            if a0.isStr then
+                x.bad = true
+                return PxNum( 0 )
+            end if
+            if a0.num > 0 then return PxNum( 1 )
+            if a0.num < 0 then return PxNum( -1 )
+            return PxNum( 0 )
+        end select
+
+    '' IIF picks a branch; BOTH are parsed, because the unchosen one still has to
+    '' be consumed for the parse to stay in step.
+    case KW_IIF
+        PxNext( x )
+        if PxPeek( x ) <> TK_LPAREN then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        PxNext( x )
+        dim as PpValue ic = PxOrElse( x )
+        if PxPeek( x ) <> TK_COMMA then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        PxNext( x )
+        dim as PpValue it = PxOrElse( x )
+        if PxPeek( x ) <> TK_COMMA then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        PxNext( x )
+        dim as PpValue ie = PxOrElse( x )
+        if PxPeek( x ) = TK_RPAREN then
+            PxNext( x )
+        else
+            x.bad = true
+        end if
+        if x.bad then return PxNum( 0 )
+        if PxTruth( ic ) then return it
+        return ie
+
     case KW_SIZEOF, KW_TYPEOF
         PxNext( x )
         dim as boolean paren = (PxPeek( x ) = TK_LPAREN)
