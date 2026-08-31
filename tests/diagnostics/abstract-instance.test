@@ -1,0 +1,6 @@
+'' An abstract type cannot be instantiated -- direct, inherited or partially implemented
+'' alike -- while a pointer, a byref parameter and a byref result to one are how it is used.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/abstract-instance.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/abstract-instance.out

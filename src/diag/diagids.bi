@@ -139,6 +139,8 @@
     DIAG( TKO0618, SEV_ERROR,   "too many expressions in the initializer for '%0'" )
     '' fbc's error 263. A method inside a procedure would need a nested procedure.
     DIAG( TKO0619, SEV_ERROR,   "'%0' is declared inside a procedure and cannot have methods" )
+    '' fbc's error 306. The vtable already knows: an abstract slot has no procedure.
+    DIAG( TKO0620, SEV_ERROR,   "'%0' has an abstract type, which cannot be instantiated" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

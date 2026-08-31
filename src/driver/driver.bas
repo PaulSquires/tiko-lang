@@ -238,6 +238,9 @@ function Run( byref args as Tko.StrVec ) as long
                 Tko.ComputeUdtLayouts( syms, ctx.types, udts )
                 dim as Tko.VTables vts
                 Tko.ComputeVTables( ast, syms, ctx.types, info, vts )
+                '' Needs the vtables: a type is ABSTRACT exactly when one of its slots
+                '' has no procedure, and nothing before this point knows that.
+                Tko.CheckAbstractInstances( ast, syms, ctx.types, info, vts, ctx.names, ctx.diags )
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                                ctx.sources, udts, vts, mm, lst )
                 print Tko.Mir.DumpModule( mm, ctx.names );

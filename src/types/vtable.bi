@@ -65,6 +65,13 @@ namespace Tko
         ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
           byref info as SemanticInfo, byref store as VTables ) as long
 
+    '' An ABSTRACT type cannot be instantiated -- fbc error 274. Runs after the tables
+    '' are built, because "abstract" here means "has a slot with no procedure".
+    declare sub CheckAbstractInstances _
+        ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+          byref info as SemanticInfo, byref store as VTables, byref names as Interner, _
+          byref diags as DiagnosticEngine )
+
     '' Slots are printed as the EMITTED SYMBOL NAME, not as 'Type.method': that is what
     '' fbc's own vtable initialiser holds, so the gate compares the two directly rather
     '' than through a spelling neither compiler uses.
