@@ -1,6 +1,8 @@
 '' 'private:' and 'protected:' inside a type, checked at the use site: four ways of
 '' reaching one from outside, and the three contexts that may -- the type's own methods,
-'' a derived type's, and a public member from anywhere.
+'' a derived type's, and a public member from anywhere. Then the IMPLICIT half: declaring
+'' a type CALLS its default constructor and its destructor, and a private one is refused
+'' with no member access written anywhere.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/member-visibility.bas
 '' EXPECT-EXIT: 1

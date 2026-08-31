@@ -807,6 +807,16 @@ sub WalkNode _
             if s <> 0 then
                 BindCallConv( w, s, sp, id, (s->payload = 0) )
                 s->flags or= Tko.SYMF_DEFINED
+                '' 'private:' / 'protected:' -- a CONSTRUCTOR takes this branch and not
+                '' the ordinary one, so it was reaching the symbol table PUBLIC however
+                '' the type body was written. OR-ed for the same reason as everywhere
+                '' else: the DEFINITION carries no visibility and would clear it.
+                if (sp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then
+                    s->flags or= Tko.SYMF_MEMB_PRIVATE
+                end if
+                if (sp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then
+                    s->flags or= Tko.SYMF_MEMB_PROTECTED
+                end if
                 '' The payload is NOT overwritten. Every 'constructor T( ... )'
                 '' definition looks up the same head-of-chain symbol, so writing the
                 '' node here made all three overloads point at whichever was defined

@@ -50,3 +50,59 @@ sub alsoOutside( )
     x.open_ = 1
     d.open_ = 2
 end sub
+
+'' -- A PRIVATE CONSTRUCTOR OR DESTRUCTOR IS REACHED BY DECLARING THE TYPE ------
+''
+'' fbc's error 204, "The default constructor has no public access", and 206 for the
+'' destructor. No member access is written anywhere: 'dim as T x' CALLS T's default
+'' constructor and its destructor.
+''
+'' THE WHOLE OVERLOAD CHAIN, not its head: fb/comptr.bi's ComInit declares a PRIVATE copy
+'' constructor first and a PUBLIC default one after it. What a bare declaration calls is
+'' the constructor that REQUIRES NO ARGUMENT.
+type PrivCtor
+    dummy as integer
+    private:
+    declare constructor( )
+end type
+
+constructor PrivCtor( )
+end constructor
+
+type PrivDtor
+    dummy as integer
+    private:
+    declare destructor( )
+end type
+
+destructor PrivDtor( )
+end destructor
+
+type PubDefault
+    dummy as integer
+    private:
+    declare constructor( byref rhs as PubDefault )
+    public:
+    declare constructor( byval mode as integer = 0 )
+end type
+
+constructor PubDefault( byref rhs as PubDefault )
+end constructor
+
+constructor PubDefault( byval mode as integer )
+end constructor
+
+'' -- refused ------------------------------------------------------------------
+sub structorsRefused( )
+    dim as PrivCtor a
+    dim as PrivDtor b
+    dim as PrivCtor arr( 0 to 1 )
+end sub
+
+'' -- accepted -----------------------------------------------------------------
+sub structorsAccepted( )
+    '' A defaulted parameter still makes it the DEFAULT constructor, and it is public.
+    dim as PubDefault ok_
+    '' A POINTER constructs nothing.
+    dim as PrivCtor ptr p
+end sub

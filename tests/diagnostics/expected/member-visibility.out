@@ -53,6 +53,65 @@ func void ALSOOUTSIDE() {
     store %3, %4
     ret
 }
+func void _ZN8PRIVCTORC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN8PRIVDTORD1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN10PUBDEFAULTC1ERS_($0, $1) {
+  local ptr this
+  local ptr rhs
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr rhs
+    store @rhs, $1
+    ret
+}
+func void _ZN10PUBDEFAULTC1Eu7INTEGER($0, $1) {
+  local ptr this
+  local i64 mode
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr mode
+    store @mode, $1
+    ret
+}
+func void STRUCTORSREFUSED() {
+  local agg a size 8
+  local agg b size 8
+  local agg arr size 16
+  entry0:
+    %1 = alloca ptr a
+    call void _ZN8PRIVCTORC1Ev(@a)
+    %2 = alloca ptr b
+    %3 = alloca ptr arr
+    %4 = field.addr @arr, 0
+    call void _ZN8PRIVCTORC1Ev(%4)
+    %5 = field.addr @arr, 8
+    call void _ZN8PRIVCTORC1Ev(%5)
+    call void _ZN8PRIVDTORD1Ev(@b)
+    ret
+}
+func void STRUCTORSACCEPTED() {
+  local agg ok_ size 8
+  local ptr p
+  entry0:
+    %1 = alloca ptr ok_
+    call void _ZN10PUBDEFAULTC1Eu7INTEGER(@ok_)
+    %2 = alloca ptr p
+    ret
+}
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -69,7 +128,7 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 5 functions, 5 blocks, 42 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/member-visibility.bas(42,6): error TKO0625: 'hidden' is not accessible here
      |
   42 |     x.hidden = 1
@@ -86,3 +145,15 @@ tests/diagnostics/src/member-visibility.bas(45,6): error TKO0625: 'shared_' is n
      |
   45 |     d.shared_ = 3
      |      ^
+tests/diagnostics/src/member-visibility.bas(97,21): error TKO0633: 'a' needs a constructor or destructor that is not accessible here
+     |
+  97 |     dim as PrivCtor a
+     |                     ^
+tests/diagnostics/src/member-visibility.bas(98,21): error TKO0633: 'b' needs a constructor or destructor that is not accessible here
+     |
+  98 |     dim as PrivDtor b
+     |                     ^
+tests/diagnostics/src/member-visibility.bas(99,21): error TKO0633: 'arr' needs a constructor or destructor that is not accessible here
+     |
+  99 |     dim as PrivCtor arr( 0 to 1 )
+     |                     ^

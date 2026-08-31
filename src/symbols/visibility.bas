@@ -175,6 +175,149 @@ private sub CheckDeref_ ( byref c as Ctx, byval id as NodeId )
     c.diags->Report( TKO0631, PointRange( c.ast->Loc( id ) ) )
 end sub
 
+'' A PRIVATE CONSTRUCTOR OR DESTRUCTOR IS REACHED BY DECLARING THE TYPE -- fbc's error
+'' 204, "The default constructor has no public access", and 206 for the destructor.
+''
+'' No member access is written anywhere: 'dim as T x' CALLS T's default constructor and
+'' its destructor, and if either is private the declaration is refused. The corpus names
+'' the shapes '<vis>-<member>-<from>-<what>', and the <from> half is the ordinary member
+'' rule -- 'private-ctor-protected-local' is an error because a DERIVED type cannot reach
+'' a PRIVATE constructor, while 'protected-ctor-protected-local' is fine.
+''
+'' A POINTER IS NOT A DECLARATION OF ONE. 'dim as T ptr p' constructs nothing; only 'new T'
+'' does, and that names its type in an expression where no symbol carries it.
+private function StructorOf_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as Symbol ptr
+
+    if udt = TYPE_NONE then return 0
+    if c.types->Kind( udt ) <> TK_UDT then return 0
+    dim as InternId tn = c.types->NameOf( udt )
+    if tn = 0 then return 0
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( udt ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return 0
+    if s->inner = SCOPE_NONE then return 0
+    return c.syms->SymbolAt( c.syms->LookupLocal( s->inner, _
+                                                  c.names->Fold( c.names->GetString( nm ) ) ) )
+end function
+
+'' The type whose procedures this SCOPE sits inside, or TYPE_NONE at module level.
+private function EnclosingTypeOf_ _
+    ( byref c as Ctx, byval scope_ as ScopeId ) as TypeId
+
+    dim as ScopeId cur = scope_
+    dim as long guard = 0
+    while (cur <> SCOPE_NONE) andalso (guard < 1000)
+        guard += 1
+        dim as SymScope ptr sc = c.syms->ScopeAt( cur )
+        if sc = 0 then return TYPE_NONE
+        if sc->kind = cast( ubyte, SCOPEK_TYPE ) then
+            dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
+            if owner = 0 then return TYPE_NONE
+            return owner->type_
+        end if
+        if sc->kind = cast( ubyte, SCOPEK_PROC ) then
+            dim as Symbol ptr pr = c.syms->SymbolAt( sc->owner )
+            if pr = 0 then return TYPE_NONE
+            dim as SymScope ptr ps = c.syms->ScopeAt( pr->parent )
+            if ps = 0 then return TYPE_NONE
+            if ps->kind <> cast( ubyte, SCOPEK_TYPE ) then return TYPE_NONE
+            dim as Symbol ptr owner2 = c.syms->SymbolAt( ps->owner )
+            if owner2 = 0 then return TYPE_NONE
+            return owner2->type_
+        end if
+        cur = sc->parent
+    wend
+    return TYPE_NONE
+end function
+
+'' How many parameters this declaration REQUIRES -- a defaulted one is not required, and
+'' neither is an ellipsis. A constructor that requires none is a DEFAULT constructor, and
+'' it is the one a bare 'dim as T x' calls.
+private function RequiredParams_ ( byref c as Ctx, byval decl as NodeId ) as long
+    if decl = NODE_NONE then return -1
+    if c.ast->Kind( decl ) <> N_PROC then return -1
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    dim as long n = 0
+    for i as long = 0 to sp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        dim as StmtPayload ptr psp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+        if psp->op = cast( ushort, TK_ELLIPSIS ) then continue for
+        if psp->b <> NODE_NONE then continue for
+        n += 1
+    next
+    return n
+end function
+
+private function StructorReachable_ _
+    ( byref c as Ctx, byval st as Symbol ptr, byval udt as TypeId, _
+      byval here as TypeId ) as boolean
+
+    dim as boolean isPriv = ((st->flags and SYMF_MEMB_PRIVATE) <> 0)
+    dim as boolean isProt = ((st->flags and SYMF_MEMB_PROTECTED) <> 0)
+    if (isPriv = false) andalso (isProt = false) then return true
+    if here = TYPE_NONE then return false
+    if isPriv then return (here = udt)
+    return DerivesFrom_( c, here, udt )
+end function
+
+'' THE WHOLE OVERLOAD CHAIN, not its head. fb/comptr.bi's ComInit declares a PRIVATE copy
+'' constructor first and a PUBLIC default one after it -- "they exist to be rejected", its
+'' own comment says -- and reading only the head refused 'dim as ComInit co', which fbc
+'' accepts. What a bare declaration calls is the constructor that REQUIRES NO ARGUMENT,
+'' and the type is fine if any such constructor is reachable.
+private sub CheckOneStructor_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string, _
+      byval here as TypeId, byval at as SourceLoc, byval vnm as InternId )
+
+    dim as Symbol ptr st = StructorOf_( c, udt, nm )
+    if st = 0 then return
+    dim as boolean sawDefault = false
+    dim as Symbol ptr walk = st
+    dim as long guard = 0
+    while (walk <> 0) andalso (guard < 1000)
+        guard += 1
+        dim as long req = RequiredParams_( c, cast( NodeId, walk->payload ) )
+        '' A DESTRUCTOR takes none by definition, and one whose declaration cannot be
+        '' read at all is counted rather than skipped: not knowing is not permission.
+        if (req = 0) orelse (req = -1) then
+            sawDefault = true
+            if StructorReachable_( c, walk, udt, here ) then return
+        end if
+        walk = c.syms->SymbolAt( walk->nextOverload )
+    wend
+    if sawDefault = false then return
+    c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
+end sub
+
+private sub CheckImplicitStructors_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        dim as SymbolKind k = cast( SymbolKind, s->kind )
+        if (k <> SYM_VARIABLE) andalso (k <> SYM_FIELD) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        '' An ARRAY of them constructs every element; a POINTER constructs nothing.
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        dim as long guard = 0
+        while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
+            guard += 1
+            u = c.types->Unqualify( c.types->Inner( u ) )
+        wend
+        if c.types->Kind( u ) <> TK_UDT then continue for
+        '' THE BASE FIELD IS THE 'extends', not a declaration of one: a derived type
+        '' constructs its base whatever the base's constructor says.
+        if (k = SYM_FIELD) andalso (s->name = c.baseName) then continue for
+        dim as TypeId here = EnclosingTypeOf_( c, s->parent )
+        CheckOneStructor_( c, u, "__ctor", here, s->loc, s->name )
+        CheckOneStructor_( c, u, "__dtor", here, s->loc, s->name )
+    next
+end sub
+
 '' 'delete' TAKES A POINTER -- fbc error 28, "Expected pointer". Measured over an
 '' integer and a single alike; a pointer of any pointee is accepted.
 ''
@@ -352,6 +495,7 @@ sub Run _
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
     '' an inferred type does not exist until Check has run.
     CheckStaticStringInits( c )
+    CheckImplicitStructors_( c )
 end sub
 
 

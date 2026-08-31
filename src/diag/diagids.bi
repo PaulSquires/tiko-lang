@@ -162,6 +162,8 @@
     DIAG( TKO0631, SEV_ERROR,   "'->' reaches a member through a pointer to a type; this is not one" )
     '' fbc's error 99. Only for a genuine overload SET: see the call site.
     DIAG( TKO0632, SEV_ERROR,   "no overload of '%0' matches these arguments" )
+    '' fbc's errors 204 and 206. Declaring the type is what calls them.
+    DIAG( TKO0633, SEV_ERROR,   "'%0' needs a constructor or destructor that is not accessible here" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
