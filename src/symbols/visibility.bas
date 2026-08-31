@@ -122,12 +122,31 @@ private sub CheckMember_ _
     end if
 end sub
 
+'' 'delete' TAKES A POINTER -- fbc error 28, "Expected pointer". Measured over an
+'' integer and a single alike; a pointer of any pointee is accepted.
+''
+'' Checked here rather than in lowering, which merely DECLINED: a declined statement is
+'' counted as not-lowered and says nothing, so 'delete a' over an integer compiled clean.
+private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->a = NODE_NONE then return
+    dim as TypeId t = c.info->TypeOf_( sp->a )
+    '' UNTYPED IS NOT AN ERROR: something earlier declined, and reporting would blame
+    '' the wrong line.
+    if t = TYPE_NONE then return
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_POINTER then return
+    c.diags->Report( TKO0629, PointRange( c.ast->Loc( sp->a ) ) )
+end sub
+
 private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     dim as TypeId inner = here
     if k = N_PROC then inner = ProcOwner_( c, id )
     if k = N_MEMBER then CheckMember_( c, id, here )
+    if k = N_DELETE_STMT then CheckDelete_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
     '' arena stores three, and a walk that knew only about statements missed every
@@ -196,6 +215,72 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     next
 end sub
 
+'' A VAR-LEN STRING WITH STATIC STORAGE CANNOT BE INITIALISED -- fbc error 87,
+'' "Var-len strings cannot be initialized". A static string's storage is written by the
+'' LOADER, and a var-len string is a descriptor whose data has to be allocated at run
+'' time; there is nothing for an initialiser to write.
+''
+'' IT IS THE STORAGE THAT DECIDES, NOT THE SCOPE, and a scope test gets it backwards both
+'' ways. Measured:
+''
+''     dim shared s as string = "foo"           error 87
+''     static s as string = "foo"               error 87    inside a sub
+''     var shared s = "foo"                     error 87
+''     namespace ns : dim s as string = "foo"   error 87    a NAMESPACE is static storage
+''     extern s as string : dim s as ... = ...  error 87    the extern makes it shared
+''     dim s as string = "foo"                  OK          at MODULE level
+''     dim s as string = "foo"                  OK          inside a sub
+''     dim shared z as zstring * 8 = "foo"      OK          a FIXED string is not one
+''
+'' OVER THE SYMBOL TABLE, after the walk, because half of these are 'var' -- the type is
+'' INFERRED from the initialiser and does not exist while the declaration is being walked.
+private function ScopeIsStatic_ _
+    ( byref c as Ctx, byval scope_ as ScopeId ) as boolean
+
+    dim as ScopeId cur = scope_
+    dim as long guard = 0
+    while (cur <> SCOPE_NONE) andalso (guard < 1000)
+        guard += 1
+        dim as SymScope ptr sc = c.syms->ScopeAt( cur )
+        if sc = 0 then return false
+        '' A NAMESPACE gives its variables static storage; a plain MODULE does not.
+        if sc->kind = cast( ubyte, SCOPEK_NAMESPACE ) then return true
+        if sc->kind = cast( ubyte, SCOPEK_TYPE ) then return true
+        if sc->kind = cast( ubyte, SCOPEK_PROC ) then return false
+        cur = sc->parent
+    wend
+    return false
+end function
+
+private sub CheckStaticStringInits( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        '' A FIXED string is an ARRAY of a character builtin and is NOT this: it has
+        '' storage of its own, and the loader can fill it.
+        if c.types->Kind( u ) <> TK_BUILTIN then continue for
+        if c.types->BuiltinOf( u ) <> TY_STRING then continue for
+
+        dim as boolean flagged = ((s->flags and (SYMF_SHARED or _
+            SYMF_STATIC or SYMF_EXTERN)) <> 0)
+        if flagged = false then
+            if ScopeIsStatic_( c, s->parent ) = false then continue for
+        end if
+
+        '' The declaration item, which is where the initialiser hangs.
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        c.diags->Report( TKO0628, PointRange( c.ast->Loc( item ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
 sub Run _
     ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _
       byref types as TypeContext, byref names as Interner, _
@@ -210,6 +295,10 @@ sub Run _
     c.info = @info
     c.baseName = names.GetString( "base" )
     Walk_( c, root, TYPE_NONE )
+    '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
+    '' an inferred type does not exist until Check has run.
+    CheckStaticStringInits( c )
 end sub
+
 
 end namespace

@@ -1,0 +1,83 @@
+global var agg REFUSED$s4 size 24
+global str $str1 "foo"
+global var agg s2 size 24
+global var agg s3 size 24
+global var agg z size 8 = bytes 66 6F 6F 00 00 00 00 00
+global var agg s7 size 24
+func void REFUSED() {
+  local i64 n
+  entry0:
+    %1 = alloca ptr n
+    ret
+}
+func void ACCEPTED() {
+  local agg s8 size 24
+  local ptr p
+  entry0:
+    %1 = alloca ptr s8
+    %2 = call.rtl ptr fb_StrInit(@s8, -1, @@$str1, 4, 0)
+    %3 = alloca ptr p
+    %4 = load @p
+    %5 = const ptr 0
+    %6 = icmp.ne %4, %5
+    condbr %6, del.body1, del.join2
+  del.body1:
+    call.rtl void free(%4)
+    br del.join2
+  del.join2:
+    call.rtl void fb_StrDelete(@s8)
+    ret
+}
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare void free($0)
+declare void fb_StrDelete($0)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg s5 size 24
+  local agg s6 size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr s5
+    %5 = call.rtl ptr fb_StrInit(@s5, -1, @@$str1, 4, 0)
+    %6 = alloca ptr s6
+    %7 = call.rtl ptr fb_StrInit(@s6, -1, @@$str1, 4, 0)
+    call.rtl void fb_StrDelete(@s6)
+    call.rtl void fb_StrDelete(@s5)
+    %8 = const i32 0
+    call.rtl void fb_End(%8)
+    %9 = load @$tmp0
+    ret %9
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 5 blocks, 23 insts, 4 statements not lowered, 0 scope imbalance
+  unlowered N_DELETE_STMT 1
+  inside N_DELETE_STMT 1
+  inside N_VAR 3
+  skip-site src\mir\lowerstore.bas:1075 3
+  skip-site src\mir\lowerctl.bas:194 1
+tests/diagnostics/src/static-string-init.bas(32,12): error TKO0629: 'delete' takes a pointer
+     |
+  32 |     delete n
+     |            ^
+tests/diagnostics/src/static-string-init.bas(22,9): error TKO0628: var-len string 's1' has static storage and cannot be initialized
+     |
+  22 |     dim s1 as string = "foo"
+     |         ^
+tests/diagnostics/src/static-string-init.bas(26,12): error TKO0628: var-len string 's2' has static storage and cannot be initialized
+     |
+  26 | dim shared s2 as string = "foo"
+     |            ^
+tests/diagnostics/src/static-string-init.bas(27,12): error TKO0628: var-len string 's3' has static storage and cannot be initialized
+     |
+  27 | var shared s3 = "foo"
+     |            ^
+tests/diagnostics/src/static-string-init.bas(30,12): error TKO0628: var-len string 's4' has static storage and cannot be initialized
+     |
+  30 |     static s4 as string = "foo"
+     |            ^

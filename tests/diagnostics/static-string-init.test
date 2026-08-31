@@ -1,0 +1,7 @@
+'' A var-len string with STATIC storage cannot be initialized, and 'delete' takes a
+'' pointer. Both were declines, not diagnostics: the statement counted as not-lowered and
+'' said nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-string-init.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/static-string-init.out

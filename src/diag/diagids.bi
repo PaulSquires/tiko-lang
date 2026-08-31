@@ -153,6 +153,10 @@
     DIAG( TKO0626, SEV_ERROR,   "'%0' takes a string" )
     '' fbc's errors 300, 302 and 303, which are one rule underneath.
     DIAG( TKO0627, SEV_ERROR,   "a pointer to a derived type casts only along its own chain" )
+    '' fbc's error 87. It is the STORAGE that decides, not the scope.
+    DIAG( TKO0628, SEV_ERROR,   "var-len string '%0' has static storage and cannot be initialized" )
+    '' fbc's error 28.
+    DIAG( TKO0629, SEV_ERROR,   "'delete' takes a pointer" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
