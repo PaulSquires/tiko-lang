@@ -180,6 +180,8 @@
     DIAG( TKO0640, SEV_ERROR,   "a parameter default cannot name '%0', which has automatic storage" )
     '' fbc's error 58. What it is passed is a DESCRIPTOR, and an element has none.
     DIAG( TKO0641, SEV_ERROR,   "this parameter takes a whole array, not an element" )
+    '' fbc's errors 24 and 119. 'swap' exchanges two STORAGE LOCATIONS.
+    DIAG( TKO0642, SEV_ERROR,   "'swap' needs two variables, not a literal or a constant" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

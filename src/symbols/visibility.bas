@@ -382,6 +382,62 @@ private sub CheckFixLenParams_( byref c as Ctx )
     next
 end sub
 
+'' A SHARED VARIABLE'S INITIALISER RUNS BEFORE ANY FRAME EXISTS, so it may not name one
+'' that is not shared -- fbc error 272, "Local symbols can't be referenced". Measured:
+''
+''     static as integer i
+''     dim shared as integer ptr pi = @i     error 272
+''
+'' 'static' STORAGE IS NOT ENOUGH: that variable outlives the frame, and fbc still calls
+'' it local. What the initialiser may name is a SHARED one, so the test is on SYMF_SHARED
+'' of what is referenced and not on "does it have automatic storage".
+private sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as InternId )
+    if id = NODE_NONE then return
+    dim as NodeKind k = c.ast->Kind( id )
+    if k = N_IDENT then
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if s = 0 then return
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
+        if (s->flags and (SYMF_SHARED or SYMF_EXTERN or SYMF_COMMON)) <> 0 then return
+        c.diags->Report( TKO0640, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( s->name ) )
+        return
+    end if
+    '' The same narrow set of shapes CheckAutoRef_ walks, for the same reason.
+    select case k
+    case N_BINARY
+        dim as BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        CheckSharedRef_( c, bp->lhs, vnm )
+        CheckSharedRef_( c, bp->rhs, vnm )
+    case N_UNARY, N_ADDROF, N_DEREF
+        dim as UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        CheckSharedRef_( c, up->operand, vnm )
+    case N_PAREN, N_TUPLE, N_INITIALIZER
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            CheckSharedRef_( c, cast( NodeId, c.ast->children[lp->first + i] ), vnm )
+        next
+    end select
+end sub
+
+private sub CheckSharedInits_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if (s->flags and SYMF_SHARED) = 0 then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        CheckSharedRef_( c, ip->b, s->name )
+    next
+end sub
+
 private sub CheckImplicitStructors_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -413,6 +469,36 @@ end sub
 ''     sub f( byval i as integer ) : f( a( 0 ) ) OK          an ordinary parameter
 ''
 '' What it is passed is a DESCRIPTOR, and an element has none.
+'' 'swap' EXCHANGES TWO STORAGE LOCATIONS, so neither operand may be a literal or a
+'' constant. Measured, and fbc has a separate error for each:
+''
+''     dim as integer a : swap a, 0        error 24    Invalid data types
+''     const a = "a" : swap a, s           error 119   Cannot modify a constant
+private sub CheckSwapOperands_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_SWAP then return
+    '' THE TWO OPERANDS ARE 'a' AND 'b', not a child list: 'swap' takes exactly two and
+    '' the parser writes them into the payload's own slots.
+    for i as long = 0 to 1
+        dim as NodeId a2 = sp->a
+        if i = 1 then a2 = sp->b
+        if a2 = NODE_NONE then continue for
+        select case c.ast->Kind( a2 )
+        case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
+            c.diags->Report( TKO0642, PointRange( c.ast->Loc( a2 ) ) )
+            return
+        case N_IDENT
+            dim as Symbol ptr s2 = c.syms->SymbolAt( c.info->RefOf( a2 ) )
+            if s2 = 0 then continue for
+            dim as SymbolKind sk2 = cast( SymbolKind, s2->kind )
+            if (sk2 <> SYM_CONSTANT) andalso (sk2 <> SYM_ENUMCONST) then continue for
+            c.diags->Report( TKO0642, PointRange( c.ast->Loc( a2 ) ) )
+            return
+        end select
+    next
+end sub
+
 '' 'a( )' -- an EMPTY subscript list over an array variable, which is how a whole array
 '' is written at a call.
 private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as boolean
@@ -640,6 +726,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id )
+    if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
@@ -795,6 +882,7 @@ sub Run _
     CheckImplicitStructors_( c )
     CheckFixLenParams_( c )
     CheckNestedStatics_( c )
+    CheckSharedInits_( c )
 end sub
 
 

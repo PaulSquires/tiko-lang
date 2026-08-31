@@ -1,0 +1,7 @@
+'' 'swap' exchanges two storage locations, so neither operand may be a literal or a
+'' constant. And a shared initialiser runs before any frame exists: 'static' storage is
+'' not enough for it to name.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/swap-and-shared-init.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/swap-and-shared-init.out

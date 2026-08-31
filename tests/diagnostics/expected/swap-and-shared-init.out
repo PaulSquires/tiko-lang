@@ -1,0 +1,58 @@
+global var i64 a
+global var i64 b
+global var agg s size 24
+global var i64 main$stat_
+global var i64 g
+global var ptr pi = @main$stat_
+global var ptr pg = @g
+func void REFUSED() {
+  entry0:
+    ret
+}
+func void ACCEPTED() {
+  local i64 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = load @@a
+    store @$tmp0, %2
+    %3 = load @@b
+    store @@a, %3
+    %4 = load @$tmp0
+    store @@b, %4
+    call.rtl void fb_StrSwap(@@s, -1, 0, @@s, -1, 0)
+    ret
+}
+declare void fb_StrSwap($0, $1, $2, $3, $4, $5)
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 16 insts, 2 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 2
+  inside N_INTRINSIC 2
+  unlowered intrinsic KW_SWAP 2
+  skip-site src\mir\lowerctl.bas:194 2
+tests/diagnostics/src/swap-and-shared-init.bas(26,13): error TKO0642: 'swap' needs two variables, not a literal or a constant
+     |
+  26 |     swap a, 0
+     |             ^
+tests/diagnostics/src/swap-and-shared-init.bas(27,10): error TKO0642: 'swap' needs two variables, not a literal or a constant
+     |
+  27 |     swap K, b
+     |          ^
+tests/diagnostics/src/swap-and-shared-init.bas(23,33): error TKO0640: a parameter default cannot name 'stat_', which has automatic storage
+     |
+  23 | dim shared as integer ptr pi = @stat_
+     |                                 ^
