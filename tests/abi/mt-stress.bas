@@ -14,8 +14,17 @@
 '' Every thread checks its own results and reports a count; the totals are then
 '' compared between the two runtimes.
 ''
-'' Build with -mt (that is the point) and run several times: a lock bug that
-'' shows up one run in ten still shows up.
+'' NEEDS-MT
+''
+'' The marker is not decoration: fbc's driver already links libfbmt.a for a
+'' program that uses THREADCREATE, so before it existed this test was linked
+'' against tiko-rt's SINGLE-THREADED objects and fbc's MULTI-THREADED archive.
+'' That happened to work only while tiko-rt owned no threading member; the
+'' moment it did, the two disagreed about fb_TlsGetCtx and the link failed --
+'' which is the honest failure, because ENABLE_MT changes what the TLS table
+'' IS and an st-linked threading test measures the wrong library.
+''
+'' Run it several times: a lock bug that shows up one run in ten still shows up.
 
 #include once "fbthread.bi"
 

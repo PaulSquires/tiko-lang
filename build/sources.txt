@@ -122,3 +122,11 @@ fs/dir.bas
 fs/lock.bas
 fs/volume.bas
 fs/watch.bas
+thread/mutex.bas
+thread/ctx.bas
+thread/self.bas
+thread/core.bas
+thread/detach.bas
+thread/park.bas
+thread/parkself.bas
+thread/cond.bas

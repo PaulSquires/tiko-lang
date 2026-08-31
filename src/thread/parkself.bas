@@ -1,0 +1,49 @@
+'' parkself.bas -- the calling thread's cached parker. Two symbols over one fbc
+'' member, and PLATFORM-INDEPENDENT: it is fb_TlsGetCtx plus a lazily created
+'' parker, so all the per-platform work stays in thread/park.bas.
+''
+'' ONE PARKER PER THREAD, NOT ONE PER WAIT. A parker is a kernel object -- an
+'' Event and a critical section on Windows, a mutex and a condition variable on
+'' POSIX -- so creating one per wait would put an object create AND destroy on
+'' the hot path of every rendezvous channel operation, where every Send and every
+'' Receive blocks by definition.
+''
+'' That is safe because a thread is in AT MOST ONE channel wait at a time. It is
+'' NOT safe to hand a parker to another thread, and nothing does.
+''
+'' The context block is calloc'd by fb_TlsGetCtx, so `parker` starts NULL and the
+'' laziness needs no separate flag; the destructor below runs from
+'' fb_TlsFreeCtxTb when the thread exits, which every platform's threadproc
+'' already calls.
+
+#include once "inc/thread.bi"
+
+extern "c"   '' NON-FBCALL: a TLS destructor, reached through a pointer.
+
+sub tkort_PARKERCTX_Destructor alias "fb_PARKERCTX_Destructor" ( byval tlsData as any ptr )
+	dim as FB_PARKERCTX ptr ctx = tlsData
+
+	if( ctx <> 0 ) then
+		if( ctx->parker <> 0 ) then
+			fb_ParkerDestroy( ctx->parker )
+			ctx->parker = 0
+		end if
+	end if
+end sub
+
+end extern
+
+extern "rtlib"
+
+function tkort_ParkerSelf alias "fb_ParkerSelf" ( ) as any ptr
+	dim as FB_PARKERCTX ptr ctx = cptr( FB_PARKERCTX ptr, _
+		fb_TlsGetCtx( FB_TLSKEY_PARKER, sizeof( FB_PARKERCTX ), @tkort_PARKERCTX_Destructor ) )
+
+	if( ctx = 0 ) then return 0
+
+	if( ctx->parker = 0 ) then ctx->parker = fb_ParkerCreate( )
+
+	return ctx->parker
+end function
+
+end extern

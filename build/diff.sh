@@ -53,6 +53,14 @@ OBJDIR="$RT_ROOT/obj/$TARGET/$CFG/st"
 
 OBJS=$(ls "$OBJDIR"/*.o 2>/dev/null) || rt_die "no objects in $OBJDIR"
 
+# The -mt objects, for tests that say NEEDS-MT. They are a DIFFERENT BUILD of
+# the same sources -- ENABLE_MT changes what the TLS table is, whether the
+# thread-flag update takes a lock, and which symbols exist at all -- so a
+# threading test linked against the st objects would be testing the wrong
+# library and would report that TLS is not per-thread.
+MTOBJDIR="$RT_ROOT/obj/$TARGET/$CFG/mt"
+MTOBJS=$(ls "$MTOBJDIR"/*.o 2>/dev/null || true)
+
 WORK="$RT_ROOT/obj/diff"
 rm -rf "$WORK"; mkdir -p "$WORK"
 
@@ -94,12 +102,26 @@ for src in "$RT_ROOT"/tests/abi/*.bas; do
     if grep -q 'NEEDS-LANG-FBLITE' "$src"; then LANGOPT="-lang fblite"; fi
     if grep -q 'NEEDS-LANG-QB' "$src"; then LANGOPT="-lang qb"; fi
 
+    # NEEDS-MT switches BOTH sides to -mt and libfbmt.a, and switches tiko-rt's
+    # side to the mt objects. Anything less compares two different libraries.
+    MTOPT=""
+    THISOBJS="$OBJS"
+    if grep -q 'NEEDS-MT' "$src"; then
+        MTOPT="-mt"
+        THISOBJS="$MTOBJS"
+        if [ -z "$MTOBJS" ]; then
+            echo "diff: SKIP $name -- NEEDS-MT and no objects in $MTOBJDIR" >&2
+            skip=$((skip + 1))
+            continue
+        fi
+    fi
+
     WRAP=""
     for sym in $(grep -oE '__real_[A-Za-z0-9_]+' "$src" | sed 's/^__real_//' | sort -u); do
         WRAP="$WRAP -Wl --wrap=$sym"
     done
 
-    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-stock.exe" $(rt_incflags) $GENOPT $LANGOPT $WRAP \
+    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-stock.exe" $(rt_incflags) $GENOPT $LANGOPT $MTOPT $WRAP \
             > "$WORK/$name-stock.build" 2>&1; then
         echo "diff: SKIP $name -- does not build against fbc's runtime" >&2
         sed 's/^/    /' "$WORK/$name-stock.build" >&2
@@ -108,7 +130,7 @@ for src in "$RT_ROOT"/tests/abi/*.bas; do
     fi
 
     # Merged: the same program, tiko-rt's objects ahead of the archive.
-    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-rt.exe" $(rt_incflags) $GENOPT $LANGOPT $WRAP $OBJS \
+    if ! "$TKORT_FBC" "$src" -x "$WORK/$name-rt.exe" $(rt_incflags) $GENOPT $LANGOPT $MTOPT $WRAP $THISOBJS \
             > "$WORK/$name-rt.build" 2>&1; then
         echo "diff: FAIL $name -- does not link over tiko-rt" >&2
         sed 's/^/    /' "$WORK/$name-rt.build" >&2
