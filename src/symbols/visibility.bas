@@ -413,6 +413,56 @@ end sub
 ''     sub f( byval i as integer ) : f( a( 0 ) ) OK          an ordinary parameter
 ''
 '' What it is passed is a DESCRIPTOR, and an element has none.
+'' 'a( )' -- an EMPTY subscript list over an array variable, which is how a whole array
+'' is written at a call.
+private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if n = NODE_NONE then return false
+    dim as NodeKind k = c.ast->Kind( n )
+    if (k <> N_CALL) andalso (k <> N_INDEX) then return false
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+    if lp->count <> 0 then return false
+    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if ts = 0 then return false
+    return ts->kind = cast( ubyte, SYM_VARIABLE )
+end function
+
+private sub CheckBydescArgs_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = NODE_NONE then return
+    dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if callee = 0 then return
+    if callee->kind <> cast( ubyte, SYM_PROC ) then return
+    dim as NodeId decl = cast( NodeId, callee->payload )
+    if decl = NODE_NONE then return
+    if c.ast->Kind( decl ) <> N_PROC then return
+    dim as StmtPayload ptr pp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    dim as long ai = 0
+    for i as long = 0 to pp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        if ai >= lp->count then exit for
+        dim as NodeId arg = cast( NodeId, c.ast->children[lp->first + ai] )
+        ai += 1
+        if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) = 0 then continue for
+        '' 'a( )' IS THE WHOLE-ARRAY SPELLING and is recognised by its SHAPE, not by its
+        '' type: an empty subscript list over an array variable types as the ELEMENT
+        '' here, so a type test alone refused dim/shared-array-1.bas and -2.bas, which
+        '' fbc accepts.
+        if WholeArraySpelling_( c, arg ) then continue for
+        dim as TypeId at2 = c.info->TypeOf_( arg )
+        '' UNTYPED IS NOT AN ERROR: something earlier declined, and blaming this
+        '' argument would point at the wrong line.
+        if at2 = TYPE_NONE then continue for
+        if c.types->Kind( c.types->Unqualify( at2 ) ) = TK_ARRAY then continue for
+        c.diags->Report( TKO0641, PointRange( c.ast->Loc( arg ) ) )
+        return
+    next
+end sub
+
 '' A PARAMETER DEFAULT CANNOT NAME A LOCAL -- fbc error 272, "Local symbols can't be
 '' referenced". The default is evaluated at the CALL SITE, where the declaring frame does
 '' not exist. Measured, and the second row is the one a scope test gets wrong:
@@ -589,6 +639,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
+    if k = N_CALL then CheckBydescArgs_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The

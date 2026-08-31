@@ -1,0 +1,6 @@
+'' A bydesc parameter takes the whole array; an element has no descriptor. 'a( )' is
+'' recognised by its SHAPE, because an empty subscript list types as the element.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bydesc-arg.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/bydesc-arg.out

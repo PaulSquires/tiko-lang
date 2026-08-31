@@ -178,6 +178,8 @@
     DIAG( TKO0639, SEV_ERROR,   "'byref' belongs before 'as', not after the return type" )
     '' fbc's error 272. A default is evaluated at the CALL SITE.
     DIAG( TKO0640, SEV_ERROR,   "a parameter default cannot name '%0', which has automatic storage" )
+    '' fbc's error 58. What it is passed is a DESCRIPTOR, and an element has none.
+    DIAG( TKO0641, SEV_ERROR,   "this parameter takes a whole array, not an element" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
