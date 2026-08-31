@@ -141,6 +141,8 @@
     DIAG( TKO0619, SEV_ERROR,   "'%0' is declared inside a procedure and cannot have methods" )
     '' fbc's error 306. The vtable already knows: an abstract slot has no procedure.
     DIAG( TKO0620, SEV_ERROR,   "'%0' has an abstract type, which cannot be instantiated" )
+    '' fbc's error 223. 'override' is a promise, and this is it not being kept.
+    DIAG( TKO0621, SEV_ERROR,   "'%0' is marked 'override' but overrides no virtual method" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

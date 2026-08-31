@@ -48,6 +48,11 @@ namespace Tko
         as FB.Array( of VtSlot ) slots
         '' The interned 'base' -- the field an EXTENDS becomes. See udtlayout.bi.
         as InternId baseName
+        '' EVERY DECLARATION THAT ACTUALLY FILLED AN INHERITED SLOT. 'override' is a
+        '' promise, and checking it needs the answer the builder already computes and
+        '' then throws away -- whether this declaration MATCHED one. Recomputing it
+        '' afterwards would mean re-running the whole match; recording it costs a push.
+        as FB.Array( of ulong ) overrode
 
         declare function Find( byval t as TypeId ) as long
         '' Which slot dispatches to this procedure, or -1 if it is not virtual in this
@@ -70,6 +75,13 @@ namespace Tko
     declare sub CheckAbstractInstances _
         ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
           byref info as SemanticInfo, byref store as VTables, byref names as Interner, _
+          byref diags as DiagnosticEngine )
+
+    '' 'override' promises that this declaration replaces an inherited virtual -- fbc
+    '' error 223 when it does not. Runs after the tables are built, over what the builder
+    '' recorded while matching.
+    declare sub CheckOverridePromise _
+        ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
           byref diags as DiagnosticEngine )
 
     '' Slots are printed as the EMITTED SYMBOL NAME, not as 'Type.method': that is what

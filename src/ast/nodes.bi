@@ -242,6 +242,13 @@ namespace Tko
     '' parameter list as the lambda's own.
     const PF_CLOSURE_INVOKE as ushort = &h4000
 
+    '' 'declare sub f( ) OVERRIDE' -- a TRAILING modifier, and not a reserved word: it
+    '' arrives as an identifier and is recognised by spelling, as 'defer' and 'each' are.
+    '' Recorded because it is a PROMISE that has to be checked -- fbc's error 223, "Not
+    '' overriding any virtual method" -- and the trailing-modifier loop used to consume
+    '' it with everything else, so a promise that was not kept said nothing at all.
+    const PF_OVERRIDE       as ushort = &h8000
+
     type UnaryPayload
         as ushort op                '' TokenKind
         as NodeId operand

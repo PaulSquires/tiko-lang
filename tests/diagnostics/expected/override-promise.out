@@ -1,0 +1,68 @@
+extern ptrs __fb_ZTS6Object [ ]
+global str $str1 "5BASE_"
+global ptrs _ZTSN5BASE_E [ 0, @$str1, @__fb_ZTS6Object ]
+global ptrs _ZTVN5BASE_E [ 0, @_ZTSN5BASE_E, _ZN5BASE_4KEPTEv ]
+global str $str4 "6NOBASE"
+global ptrs _ZTSN6NOBASEE [ 0, @$str4, @__fb_ZTS6Object ]
+global ptrs _ZTVN6NOBASEE [ 0, @_ZTSN6NOBASEE ]
+global str $str7 "9WRONGNAME"
+global ptrs _ZTSN9WRONGNAMEE [ 0, @$str7, @_ZTSN5BASE_E ]
+global ptrs _ZTVN9WRONGNAMEE [ 0, @_ZTSN9WRONGNAMEE, _ZN5BASE_4KEPTEv ]
+global str $str10 "11WRONGPARAMS"
+global ptrs _ZTSN11WRONGPARAMSE [ 0, @$str10, @_ZTSN5BASE_E ]
+global ptrs _ZTVN11WRONGPARAMSE [ 0, @_ZTSN11WRONGPARAMSE, _ZN5BASE_4KEPTEv ]
+global str $str13 "14BASENOTVIRTUAL"
+global ptrs _ZTSN14BASENOTVIRTUALE [ 0, @$str13, @_ZTSN5BASE_E ]
+global ptrs _ZTVN14BASENOTVIRTUALE [ 0, @_ZTSN14BASENOTVIRTUALE, _ZN5BASE_4KEPTEv ]
+global str $str16 "4GOOD"
+global ptrs _ZTSN4GOODE [ 0, @$str16, @_ZTSN5BASE_E ]
+global ptrs _ZTVN4GOODE [ 0, @_ZTSN4GOODE, _ZN4GOOD4KEPTEv ]
+global str $str19 "6SILENT"
+global ptrs _ZTSN6SILENTE [ 0, @$str19, @_ZTSN5BASE_E ]
+global ptrs _ZTVN6SILENTE [ 0, @_ZTSN6SILENTE, _ZN6SILENT4KEPTEv ]
+func void _ZN5BASE_4KEPTEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN5BASE_10NOTVIRTUALEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN4GOOD4KEPTEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN6SILENT4KEPTEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+verify: ok
+lowered: 4 functions, 4 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/override-promise.bas(22,13): error TKO0621: 'f' is marked 'override' but overrides no virtual method
+     |
+  22 |     declare sub f( ) override
+     |             ^
+tests/diagnostics/src/override-promise.bas(26,13): error TKO0621: 'misspelled' is marked 'override' but overrides no virtual method
+     |
+  26 |     declare sub misspelled( ) override
+     |             ^
+tests/diagnostics/src/override-promise.bas(30,13): error TKO0621: 'kept' is marked 'override' but overrides no virtual method
+     |
+  30 |     declare sub kept( byval i as integer ) override
+     |             ^
+tests/diagnostics/src/override-promise.bas(34,13): error TKO0621: 'notvirtual' is marked 'override' but overrides no virtual method
+     |
+  34 |     declare sub notVirtual( ) override
+     |             ^

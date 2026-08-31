@@ -119,4 +119,35 @@ sub CheckAbstractInstances _
     next
 end sub
 
+'' 'override' IS A PROMISE -- fbc error 223, "Not overriding any virtual method".
+''
+'' Checked against what the builder already worked out: 'overrode' holds every
+'' declaration that FILLED an inherited slot, so a declaration that says 'override' and is
+'' not in it overrode nothing. The parser used to consume the word with the rest of the
+'' trailing modifiers, so a broken promise said nothing at all.
+''
+'' fbc raises 223 for four different reasons that all come out the same way here: the name
+'' matches nothing, the PARAMETERS differ so the match fails, the base method is not
+'' virtual, or the type has no base at all.
+sub CheckOverridePromise _
+    ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
+      byref diags as DiagnosticEngine )
+
+    for n as long = 0 to ast.Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if ast.Kind( id ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[n].data )]
+        if (sp->extra and PF_OVERRIDE) = 0 then continue for
+        dim as boolean found = false
+        for i as long = 0 to store.overrode.Count - 1
+            if store.overrode[i] = cast( ulong, id ) then
+                found = true
+                exit for
+            end if
+        next
+        if found then continue for
+        diags.Report( TKO0621, PointRange( ast.Loc( id ) ), names.Spelling( sp->name ) )
+    next
+end sub
+
 end namespace

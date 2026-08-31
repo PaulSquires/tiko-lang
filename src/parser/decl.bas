@@ -1060,7 +1060,18 @@ private function ParseProc _
     if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
 
     '' Trailing modifiers: static, const, export, alias "x", lib "y", cdecl ...
+    ''
+    '' 'override' IS KEPT. It is a promise that this declaration replaces an inherited
+    '' virtual, and fbc checks it -- error 223, "Not overriding any virtual method". The
+    '' loop consumed it with everything else, so a broken promise said nothing.
     while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
+        '' Spelled out rather than through IsContextual, which is defined AFTER this
+        '' file in parser.bas: 'override' is not a reserved word, so it arrives as an
+        '' identifier and is recognised by its interned spelling.
+        if Peek( p ) = Tko.TK_IDENT then
+            dim as Tko.InternId onm = cast( Tko.InternId, Cur( p ).literal )
+            if p.names->Spelling( onm ) = "override" then sp.extra or= Tko.PF_OVERRIDE
+        end if
         Advance( p )
     wend
 

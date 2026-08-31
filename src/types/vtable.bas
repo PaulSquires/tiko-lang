@@ -197,6 +197,7 @@ private function BuildOne_ _
 
                             if at >= 0 then
                                 '' AN ABSTRACT SLOT IS NULL, and an override fills it.
+                                store.overrode.Push( cast( ulong, decl ) )
                                 dim as VtSlot ptr sl = @store.slots[v.first + at]
                                 sl->proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
                                 sl->decl = decl

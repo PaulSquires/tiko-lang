@@ -1,0 +1,6 @@
+'' 'override' promises this declaration replaces an inherited virtual; four ways of
+'' breaking the promise, and two ways of keeping it -- one of them without saying so.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-promise.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/override-promise.out
