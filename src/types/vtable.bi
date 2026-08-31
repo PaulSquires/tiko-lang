@@ -37,6 +37,19 @@ namespace Tko
         as NodeId   decl
     end type
 
+    '' WHY a matched override is still incompatible. fbc has a separate error number for
+    '' each, and they are separate here for the same reason: the fix is different.
+    enum VtMismatchKind
+        VTM_RETURN = 0     '' fbc 225 -- different return type
+        VTM_CONST          '' fbc 229 / 230 -- one is a const member and the other is not
+        VTM_BYREF          '' fbc 231 -- a parameter's byref-ness differs
+    end enum
+
+    type VtMismatch
+        as NodeId decl     '' the DERIVED declaration, which is where fbc points
+        as ubyte  kind
+    end type
+
     type VtInfo
         as TypeId   type_
         as long     first          '' into the store's slot pool
@@ -53,6 +66,10 @@ namespace Tko
         '' then throws away -- whether this declaration MATCHED one. Recomputing it
         '' afterwards would mean re-running the whole match; recording it costs a push.
         as FB.Array( of ulong ) overrode
+        '' A match on PARAMETER TYPES is not yet a legal override. Recorded here rather
+        '' than reported from the builder, which has no diagnostics engine -- and would
+        '' have to be given one on a path the dumps also take.
+        as FB.Array( of VtMismatch ) mismatches
 
         declare function Find( byval t as TypeId ) as long
         '' Which slot dispatches to this procedure, or -1 if it is not virtual in this
@@ -81,6 +98,11 @@ namespace Tko
     '' error 223 when it does not. Runs after the tables are built, over what the builder
     '' recorded while matching.
     declare sub CheckOverridePromise _
+        ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
+          byref diags as DiagnosticEngine )
+
+    '' ...and a match that is not compatible -- fbc's 225, 229, 230 and 231.
+    declare sub CheckOverrideCompatible _
         ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
           byref diags as DiagnosticEngine )
 

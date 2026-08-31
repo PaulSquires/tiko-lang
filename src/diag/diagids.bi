@@ -143,6 +143,10 @@
     DIAG( TKO0620, SEV_ERROR,   "'%0' has an abstract type, which cannot be instantiated" )
     '' fbc's error 223. 'override' is a promise, and this is it not being kept.
     DIAG( TKO0621, SEV_ERROR,   "'%0' is marked 'override' but overrides no virtual method" )
+    '' fbc's 225, 229/230 and 231. The parameter TYPES matched; these did not.
+    DIAG( TKO0622, SEV_ERROR,   "'%0' overrides a virtual method with a different return type" )
+    DIAG( TKO0623, SEV_ERROR,   "'%0' and the virtual method it overrides disagree about 'const'" )
+    DIAG( TKO0624, SEV_ERROR,   "'%0' overrides a virtual method with a different parameter mode" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

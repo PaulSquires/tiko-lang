@@ -150,4 +150,25 @@ sub CheckOverridePromise _
     next
 end sub
 
+'' ...AND A MATCH THAT IS NOT COMPATIBLE. The builder recorded WHY while matching; each
+'' reason is its own fbc error number, and its own message here, because the fix differs.
+sub CheckOverrideCompatible _
+    ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
+      byref diags as DiagnosticEngine )
+
+    for i as long = 0 to store.mismatches.Count - 1
+        dim as VtMismatch ptr m = @store.mismatches[i]
+        if m->decl = NODE_NONE then continue for
+        if ast.Kind( m->decl ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = _
+            @ast.stmts[cast( long, ast.nodes[cast( long, m->decl )].data )]
+        dim as DiagId d = TKO0622
+        select case cast( VtMismatchKind, m->kind )
+        case VTM_CONST : d = TKO0623
+        case VTM_BYREF : d = TKO0624
+        end select
+        diags.Report( d, PointRange( ast.Loc( m->decl ) ), names.Spelling( sp->name ) )
+    next
+end sub
+
 end namespace

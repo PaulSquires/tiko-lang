@@ -20,6 +20,24 @@ global ptrs _ZTVN4GOODE [ 0, @_ZTSN4GOODE, _ZN4GOOD4KEPTEv ]
 global str $str19 "6SILENT"
 global ptrs _ZTSN6SILENTE [ 0, @$str19, @_ZTSN5BASE_E ]
 global ptrs _ZTVN6SILENTE [ 0, @_ZTSN6SILENTE, _ZN6SILENT4KEPTEv ]
+global str $str22 "5RBASE"
+global ptrs _ZTSN5RBASEE [ 0, @$str22, @__fb_ZTS6Object ]
+global ptrs _ZTVN5RBASEE [ 0, @_ZTSN5RBASEE, _ZN5RBASE6WIDTH_Ev, _ZN5RBASE7SIGNED_Ev, _ZN5RBASE5PLAINEv, _ZN5RBASE10BYREFPARAMERu7INTEGER ]
+global str $str25 "10WRONGWIDTH"
+global ptrs _ZTSN10WRONGWIDTHE [ 0, @$str25, @_ZTSN5RBASEE ]
+global ptrs _ZTVN10WRONGWIDTHE [ 0, @_ZTSN10WRONGWIDTHE, _ZN10WRONGWIDTH6WIDTH_Ev, _ZN5RBASE7SIGNED_Ev, _ZN5RBASE5PLAINEv, _ZN5RBASE10BYREFPARAMERu7INTEGER ]
+global str $str28 "10WRONGCONST"
+global ptrs _ZTSN10WRONGCONSTE [ 0, @$str28, @_ZTSN5RBASEE ]
+global ptrs _ZTVN10WRONGCONSTE [ 0, @_ZTSN10WRONGCONSTE, _ZN5RBASE6WIDTH_Ev, _ZN5RBASE7SIGNED_Ev, _ZNK10WRONGCONST5PLAINEv, _ZN5RBASE10BYREFPARAMERu7INTEGER ]
+global str $str31 "9WRONGMODE"
+global ptrs _ZTSN9WRONGMODEE [ 0, @$str31, @_ZTSN5RBASEE ]
+global ptrs _ZTVN9WRONGMODEE [ 0, @_ZTSN9WRONGMODEE, _ZN5RBASE6WIDTH_Ev, _ZN5RBASE7SIGNED_Ev, _ZN5RBASE5PLAINEv, _ZN9WRONGMODE10BYREFPARAMEu7INTEGER ]
+global str $str34 "14ONLYSIGNEDNESS"
+global ptrs _ZTSN14ONLYSIGNEDNESSE [ 0, @$str34, @_ZTSN5RBASEE ]
+global ptrs _ZTVN14ONLYSIGNEDNESSE [ 0, @_ZTSN14ONLYSIGNEDNESSE, _ZN5RBASE6WIDTH_Ev, _ZN14ONLYSIGNEDNESS7SIGNED_Ev, _ZN5RBASE5PLAINEv, _ZN5RBASE10BYREFPARAMERu7INTEGER ]
+global str $str37 "9OVERLOADS"
+global ptrs _ZTSN9OVERLOADSE [ 0, @$str37, @_ZTSN5RBASEE ]
+global ptrs _ZTVN9OVERLOADSE [ 0, @_ZTSN9OVERLOADSE, _ZN5RBASE6WIDTH_Ev, _ZN5RBASE7SIGNED_Ev, _ZN5RBASE5PLAINEv, _ZN5RBASE10BYREFPARAMERu7INTEGER ]
 func void _ZN5BASE_4KEPTEv($0) {
   local ptr this
   entry0:
@@ -48,8 +66,71 @@ func void _ZN6SILENT4KEPTEv($0) {
     store @this, $0
     ret
 }
+func i32 _ZN5RBASE6WIDTH_Ev($0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = const i64 0
+    ret %4
+}
+func i32 _ZN5RBASE7SIGNED_Ev($0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = const i64 0
+    ret %4
+}
+func void _ZN5RBASE5PLAINEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN5RBASE10BYREFPARAMERu7INTEGER($0, $1) {
+  local ptr this
+  local ptr i
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    ret
+}
+func i32 _ZN14ONLYSIGNEDNESS7SIGNED_Ev($0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = const i64 0
+    ret %4
+}
+func void _ZN9OVERLOADS5PLAINEu7INTEGER($0, $1) {
+  local ptr this
+  local i64 i
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    ret
+}
 verify: ok
-lowered: 4 functions, 4 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 36 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/override-promise.bas(22,13): error TKO0621: 'f' is marked 'override' but overrides no virtual method
      |
   22 |     declare sub f( ) override
@@ -65,4 +146,16 @@ tests/diagnostics/src/override-promise.bas(30,13): error TKO0621: 'kept' is mark
 tests/diagnostics/src/override-promise.bas(34,13): error TKO0621: 'notvirtual' is marked 'override' but overrides no virtual method
      |
   34 |     declare sub notVirtual( ) override
+     |             ^
+tests/diagnostics/src/override-promise.bas(93,13): error TKO0622: 'width_' overrides a virtual method with a different return type
+     |
+  93 |     declare function width_( ) as integer override
+     |             ^
+tests/diagnostics/src/override-promise.bas(97,13): error TKO0623: 'plain' and the virtual method it overrides disagree about 'const'
+     |
+  97 |     declare const sub plain( ) override
+     |             ^
+tests/diagnostics/src/override-promise.bas(101,13): error TKO0624: 'byrefparam' overrides a virtual method with a different parameter mode
+     |
+ 101 |     declare sub byrefParam( byval i as integer ) override
      |             ^

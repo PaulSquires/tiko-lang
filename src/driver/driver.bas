@@ -242,6 +242,7 @@ function Run( byref args as Tko.StrVec ) as long
                 '' has no procedure, and nothing before this point knows that.
                 Tko.CheckAbstractInstances( ast, syms, ctx.types, info, vts, ctx.names, ctx.diags )
                 Tko.CheckOverridePromise( ast, vts, ctx.names, ctx.diags )
+                Tko.CheckOverrideCompatible( ast, vts, ctx.names, ctx.diags )
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                                ctx.sources, udts, vts, mm, lst )
                 print Tko.Mir.DumpModule( mm, ctx.names );

@@ -57,6 +57,157 @@ end sub
 '' matching on the signature is the rule rather than on the modifier. The return type
 '' is deliberately not compared: fbc rejects a mismatched one, and treating it as a
 '' NON-match here would silently append a second slot instead.
+'' A MATCH ON PARAMETER TYPES IS NOT YET A LEGAL OVERRIDE. Measured, fbc refuses three
+'' more things once the names and parameter types line up -- and ACCEPTS two that look
+'' like they should be refused, which is why each of these is a separate test rather than
+'' a general "the signatures must be identical":
+''
+''     base virtual sub f( )        derived function f( ) as integer   error 225
+''     base virtual sub f( )        derived const sub f( )             error 230
+''     base virtual sub f( byref i as integer )
+''                                  derived sub f( byval i as integer ) error 231
+''
+''     base virtual sub f( )        derived sub f( byval i as integer ) ACCEPTED
+''         -- a different parameter LIST is an ordinary OVERLOAD, not a broken override
+''     base virtual sub foo cdecl( ) derived sub foo stdcall( )         ACCEPTED
+''         -- a differing calling convention is not an incompatible override
+private function BuiltinIsFloat_( byval b as BuiltinType ) as boolean
+    select case b
+    case TY_SINGLE, TY_DOUBLE
+        return true
+    end select
+    return false
+end function
+
+private function BuiltinIsStringy_( byval b as BuiltinType ) as boolean
+    select case b
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
+private sub NoteMismatch_ _
+    ( byref store as VTables, byval decl as NodeId, byval kind as VtMismatchKind )
+
+    dim as VtMismatch m
+    m.decl = decl
+    m.kind = cast( ubyte, kind )
+    store.mismatches.Push( m )
+end sub
+
+'' The RETURN TYPE of a declaration, or TYPE_NONE for a SUB.
+private function ReturnTypeOf_ _
+    ( byref ast as AstArena, byref info as SemanticInfo, byval decl as NodeId ) as TypeId
+
+    if decl = NODE_NONE then return TYPE_NONE
+    if ast.Kind( decl ) <> N_PROC then return TYPE_NONE
+    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, decl )].data )]
+    if sp->a = NODE_NONE then return TYPE_NONE
+    return info.TypeOf_( sp->a )
+end function
+
+'' Whether each parameter was WRITTEN 'byval' or 'byref'. Only a pair where BOTH wrote
+'' something is compared: with neither keyword the default depends on the parameter's
+'' type, and two declarations that both leave it out agree whatever it resolves to.
+private sub CompareByref_ _
+    ( byref ast as AstArena, byref store as VTables, byval oldd as NodeId, _
+      byval newd as NodeId )
+
+    if (oldd = NODE_NONE) orelse (newd = NODE_NONE) then return
+    if ast.Kind( oldd ) <> N_PROC then return
+    if ast.Kind( newd ) <> N_PROC then return
+    dim as StmtPayload ptr op = @ast.stmts[cast( long, ast.nodes[cast( long, oldd )].data )]
+    dim as StmtPayload ptr np = @ast.stmts[cast( long, ast.nodes[cast( long, newd )].data )]
+    if op->count <> np->count then return
+    for i as long = 0 to op->count - 1
+        dim as NodeId a = cast( NodeId, ast.children[op->first + i] )
+        dim as NodeId b = cast( NodeId, ast.children[np->first + i] )
+        if ast.Kind( a ) <> N_PARAM then continue for
+        if ast.Kind( b ) <> N_PARAM then continue for
+        dim as ushort flagsA = ast.nodes[cast( long, a )].flags
+        dim as ushort flagsB = ast.nodes[cast( long, b )].flags
+        dim as ushort mask = cast( ushort, NF_BYREF or NF_BYVAL_WRITTEN )
+        dim as ushort ma = cast( ushort, flagsA and mask )
+        dim as ushort mb = cast( ushort, flagsB and mask )
+        if (ma = 0) orelse (mb = 0) then continue for
+        if ma <> mb then
+            NoteMismatch_( store, newd, VTM_BYREF )
+            return
+        end if
+    next
+end sub
+
+'' A RETURN TYPE MAY CHANGE ITS SIGNEDNESS AND NOTHING ELSE. Measured, and the first
+'' version of this check -- strict identity -- refused two files fbc accepts:
+''
+''     byte -> ubyte           OK          long -> integer   error 225   4 against 8
+''     long -> ulong           OK          long -> short     error 225
+''     integer -> longint      OK          long -> single    error 225   integer vs float
+''     longint -> integer      OK          long -> string    error 225
+''     boolean -> byte         OK          integer ptr -> byte ptr   error 225
+''
+'' -- so it is the WIDTH and the CLASS that must agree, not the name. 'integer' is eight
+'' bytes on win64, which is why swapping it with 'longint' is accepted there;
+'' virtual/compatible-override.bas writes exactly that pair, both ways, and spells the
+'' 32-bit half with '#ifdef __FB_64BIT__'.
+private function ReturnCompatible_ _
+    ( byref types as TypeContext, byval a as TypeId, byval b as TypeId ) as boolean
+
+    if a = b then return true
+    '' A SUB and a FUNCTION are never compatible, whatever the function returns.
+    if (a = TYPE_NONE) orelse (b = TYPE_NONE) then return false
+    '' Anything that is not a plain builtin -- a pointer, a UDT, an array -- must be the
+    '' SAME type: 'integer ptr' against 'byte ptr' is error 225.
+    if types.Kind( a ) <> TK_BUILTIN then return false
+    if types.Kind( b ) <> TK_BUILTIN then return false
+    dim as BuiltinType ba = types.BuiltinOf( a )
+    dim as BuiltinType bb = types.BuiltinOf( b )
+    if BuiltinIsFloat_( ba ) <> BuiltinIsFloat_( bb ) then return false
+    if BuiltinIsStringy_( ba ) <> BuiltinIsStringy_( bb ) then return false
+    return types.Layout( a ).size = types.Layout( b ).size
+end function
+
+private sub CheckOverrideBody_ _
+    ( byref ast as AstArena, byref info as SemanticInfo, byref types as TypeContext, _
+      byref store as VTables, byval oldd as NodeId, byval newd as NodeId )
+
+    if (oldd = NODE_NONE) orelse (newd = NODE_NONE) then return
+    if ast.Kind( oldd ) <> N_PROC then return
+    if ast.Kind( newd ) <> N_PROC then return
+    '' AN OPERATOR IS NOT COMPARED AT ALL. 'operator cast' overloads are distinguished
+    '' BY THEIR RETURN TYPE and by nothing else -- virtual.bas declares 'cast( ) as
+    '' string' beside 'cast( ) as integer' -- so a parameter-list match says nothing
+    '' about whether one overrides the other, and every pair looked incompatible.
+    dim as StmtPayload ptr osp = @ast.stmts[cast( long, ast.nodes[cast( long, oldd )].data )]
+    dim as StmtPayload ptr nsp = @ast.stmts[cast( long, ast.nodes[cast( long, newd )].data )]
+    dim as boolean isOperator = (cast( TokenKind, osp->op ) = KW_OPERATOR) orelse _
+                                (cast( TokenKind, nsp->op ) = KW_OPERATOR)
+
+    '' A COVARIANT BYREF RESULT IS LEGAL: 'byref as A' overridden by 'byref as B' where
+    '' B extends A, which compatible-override.bas writes. By VALUE the same pair is fbc
+    '' error 225, which is why the test is on the byref-ness rather than on the types.
+    dim as ushort obf = cast( ushort, ast.nodes[cast( long, oldd )].flags and NF_BYREF )
+    dim as ushort nbf = cast( ushort, ast.nodes[cast( long, newd )].flags and NF_BYREF )
+    dim as boolean bothByref = (obf <> 0) andalso (nbf <> 0)
+
+    dim as TypeId ra = ReturnTypeOf_( ast, info, oldd )
+    dim as TypeId rb = ReturnTypeOf_( ast, info, newd )
+    dim as boolean skipReturn = isOperator orelse bothByref
+    if (skipReturn = false) andalso (ReturnCompatible_( types, ra, rb ) = false) then
+        NoteMismatch_( store, newd, VTM_RETURN )
+        return
+    end if
+    if isOperator then return
+    dim as ushort ca = cast( ushort, osp->extra and PF_CONST )
+    dim as ushort cb = cast( ushort, nsp->extra and PF_CONST )
+    if ca <> cb then
+        NoteMismatch_( store, newd, VTM_CONST )
+        return
+    end if
+    CompareByref_( ast, store, oldd, newd )
+end sub
+
 private function Overrides_ _
     ( byref ast as AstArena, byref info as SemanticInfo, byval a as NodeId, _
       byval b as NodeId ) as boolean
@@ -199,6 +350,7 @@ private function BuildOne_ _
                                 '' AN ABSTRACT SLOT IS NULL, and an override fills it.
                                 store.overrode.Push( cast( ulong, decl ) )
                                 dim as VtSlot ptr sl = @store.slots[v.first + at]
+                                CheckOverrideBody_( ast, info, types, store, sl->decl, decl )
                                 sl->proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
                                 sl->decl = decl
                             elseif isVirtual then

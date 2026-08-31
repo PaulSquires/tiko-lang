@@ -1,5 +1,6 @@
-'' 'override' promises this declaration replaces an inherited virtual; four ways of
-'' breaking the promise, and two ways of keeping it -- one of them without saying so.
+'' 'override' promises this declaration replaces an inherited virtual: four ways of
+'' breaking the promise, and two of keeping it -- one without saying so. Then three
+'' MATCHED overrides that are still incompatible, and two that only look it.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/override-promise.bas
 '' EXPECT-EXIT: 1
