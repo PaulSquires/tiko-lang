@@ -68,14 +68,15 @@ MTOBJS=$(ls "$MTOBJDIR"/*.o 2>/dev/null || true)
 # tiko-rt owned the LPRINT entry points, every one of those objects referenced
 # fb_LPrintInit, which lives in fbc's file_openlpt.o, which pulls io_printer.o,
 # which needs winspool -- so all 72 differentials failed to link at once with
-# undefined EnumPrintersA.
+# undefined EnumPrintersA -- and then, once those were named, undefined
+# __imp_CreateDCA, because io_printer.o also draws through gdi32.
 #
 # fbc's own driver adds winspool only for a program that uses LPRINT, and the
 # GATE is unaffected because it merges into the archive and the linker still
 # pulls members on demand. It is only this script's over-linking that needs the
 # library named, so it is named here rather than worked around in the runtime.
 case "$TARGET" in
-    win64|win32) EXTRALIBS="-l winspool" ;;
+    win64|win32) EXTRALIBS="-l winspool -l gdi32" ;;
     *)           EXTRALIBS="" ;;
 esac
 
