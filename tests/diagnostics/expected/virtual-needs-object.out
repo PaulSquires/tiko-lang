@@ -1,0 +1,49 @@
+extern ptrs __fb_ZTS6Object [ ]
+global str $str1 "5BASED"
+global ptrs _ZTSN5BASEDE [ 0, @$str1, @__fb_ZTS6Object ]
+global ptrs _ZTVN5BASEDE [ 0, @_ZTSN5BASEDE, 0, _ZN5BASED3OK_Ev ]
+global str $str4 "7DERIVED"
+global ptrs _ZTSN7DERIVEDE [ 0, @$str4, @_ZTSN5BASEDE ]
+global ptrs _ZTVN7DERIVEDE [ 0, @_ZTSN7DERIVEDE, _ZN7DERIVED5PURE_Ev, _ZN5BASED3OK_Ev ]
+func void _ZN5BASED3OK_Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN5BASED5PURE_Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN7DERIVED5PURE_Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN5PLAIN1HEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+verify: ok
+lowered: 4 functions, 4 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/virtual-needs-object.bas(27,1): error TKO0646: 'pure_' is abstract and cannot have a body
+     |
+  27 | abstract sub Based.pure_( )
+     | ^
+tests/diagnostics/src/virtual-needs-object.bas(19,13): error TKO0645: 'f' is virtual, but its type does not extend 'object'
+     |
+  19 |     declare virtual sub f( )
+     |             ^
+tests/diagnostics/src/virtual-needs-object.bas(24,13): error TKO0645: 'g' is virtual, but its type does not extend 'object'
+     |
+  24 |     declare abstract sub g( )
+     |             ^

@@ -1,3 +1,7 @@
+extern ptrs __fb_ZTS6Object [ ]
+global str $str1 "1T"
+global ptrs _ZTSN1TE [ 0, @$str1, @__fb_ZTS6Object ]
+global ptrs _ZTVN1TE [ 0, @_ZTSN1TE, 0 ]
 func void _ZN1T5PROC1Ev($0) {
   local ptr this
   entry0:
@@ -84,7 +88,7 @@ func i32 main($0, $1) {
     %11 = bitcast %10
     store @fg, %11
     %12 = alloca ptr fv
-    %13 = const i64 -1
+    %13 = const i64 0
     store @fv, %13
     %14 = const i64 0
     store @fv, %14

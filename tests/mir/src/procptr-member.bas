@@ -5,7 +5,10 @@
 '' malformed. Both shapes are bound to their procedure symbol by then, so the type
 '' comes from the same place.
 
-type T
+'' EXTENDS OBJECT because of the ABSTRACT member below: fbc refuses 'declare abstract'
+'' in a type without a vtable (its error 222), and this file was written before anything
+'' checked that.
+type T extends object
     __ as integer
     declare sub proc1( )
     declare abstract sub v1( )

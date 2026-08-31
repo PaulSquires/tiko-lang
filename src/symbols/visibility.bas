@@ -435,6 +435,62 @@ end sub
 '' ONLY THE SHAPES THAT CERTAINLY HAVE NO ADDRESS are reported -- a literal and a call to
 '' a PROCEDURE. An indexing expression looks exactly like a call and is an lvalue, which
 '' is what the target's symbol kind tells apart.
+'' AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
+'' method". The declaration says there is nothing to call.
+''
+'' OVER THE AST, not the symbol table: the DEFINITION joins its DECLARE, and the symbol's
+'' payload stays the DECLARATION node -- which has no body, so the symbol sweep saw none.
+private sub CheckAbstractBody_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (sp->extra and PF_ABSTRACT) = 0 then return
+    if sp->b = NODE_NONE then return
+    c.diags->Report( TKO0646, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( sp->name ) )
+end sub
+
+'' 'virtual' NEEDS A VTABLE, and only a type that extends OBJECT has one -- fbc error
+'' 221, "Method declared VIRTUAL, but UDT does not extend OBJECT". 'abstract' implies
+'' virtual and is the same refusal.
+''
+'' AND AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
+'' method". The declaration says there is nothing to call.
+private function ExtendsObject_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    dim as InternId objNm = c.names->Fold( c.names->GetString( "object" ) )
+    dim as TypeId cur = t
+    dim as long guard = 0
+    while (cur <> TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        if c.names->Fold( c.types->NameOf( cur ) ) = objNm then return true
+        cur = BaseOf_( c, cur )
+    wend
+    return false
+end function
+
+private sub CheckVirtualNeedsObject_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_PROC ) then continue for
+        dim as NodeId decl = cast( NodeId, s->payload )
+        if decl = NODE_NONE then continue for
+        if c.ast->Kind( decl ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+        dim as boolean isAbstract = ((sp->extra and PF_ABSTRACT) <> 0)
+        dim as boolean isVirtual = ((sp->extra and PF_VIRTUAL) <> 0) orelse isAbstract
+        if isVirtual = false then continue for
+        dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
+        if sc = 0 then continue for
+        if sc->kind <> cast( ubyte, SCOPEK_TYPE ) then continue for
+        dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
+        if owner = 0 then continue for
+        if owner->type_ = TYPE_NONE then continue for
+        if ExtendsObject_( c, owner->type_ ) then continue for
+        c.diags->Report( TKO0645, PointRange( c.ast->Loc( decl ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckByrefBinding_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -786,6 +842,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
+    if k = N_PROC then CheckAbstractBody_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
@@ -943,6 +1000,7 @@ sub Run _
     CheckNestedStatics_( c )
     CheckSharedInits_( c )
     CheckByrefBinding_( c )
+    CheckVirtualNeedsObject_( c )
 end sub
 
 

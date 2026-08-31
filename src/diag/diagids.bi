@@ -186,6 +186,10 @@
     DIAG( TKO0643, SEV_ERROR,   "'%0' is byref, so its initializer needs an address" )
     '' fbc's error 320. And it needs one at all.
     DIAG( TKO0644, SEV_ERROR,   "'%0' is byref and must be bound where it is declared" )
+    '' fbc's error 221. Only a type that extends OBJECT has a vtable.
+    DIAG( TKO0645, SEV_ERROR,   "'%0' is virtual, but its type does not extend 'object'" )
+    '' fbc's error 224. The declaration says there is nothing to call.
+    DIAG( TKO0646, SEV_ERROR,   "'%0' is abstract and cannot have a body" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
