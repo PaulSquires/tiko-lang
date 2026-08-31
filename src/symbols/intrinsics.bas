@@ -287,6 +287,41 @@ private function NotAString_ _
     return Tko.TYPE_NONE
 end function
 
+'' 'any' -- the universal pointee.
+private function IsAnyType_ ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    return c.types->BuiltinOf( t ) = Tko.TY_ANY
+end function
+
+'' See the call site for the measured rule. TYPE_NONE anywhere in the question means
+'' something earlier declined, and reporting then would blame the wrong line.
+private sub CheckDerivedPtrCast_ _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byval rt as Tko.TypeId, _
+      byval st as Tko.TypeId )
+
+    dim as Tko.TypeId rp = c.types->Unqualify( c.types->Inner( rt ) )
+    dim as Tko.TypeId sp_ = c.types->Unqualify( c.types->Inner( st ) )
+    if (rp = Tko.TYPE_NONE) orelse (sp_ = Tko.TYPE_NONE) then return
+    '' 'any ptr' on either side is the escape hatch, and it is the commonest cast there
+    '' is -- refusing it would refuse most of the runtime headers.
+    if IsAnyType_( c, rp ) orelse IsAnyType_( c, sp_ ) then return
+
+    dim as boolean rUdt = (c.types->Kind( rp ) = Tko.TK_UDT)
+    dim as boolean sUdt = (c.types->Kind( sp_ ) = Tko.TK_UDT)
+    dim as boolean rDerived = rUdt andalso (c.types->BaseOf( rp ) <> Tko.TYPE_NONE)
+    dim as boolean sDerived = sUdt andalso (c.types->BaseOf( sp_ ) <> Tko.TYPE_NONE)
+    if (rDerived orelse sDerived) = false then return
+    if rp = sp_ then return
+    if rUdt andalso sUdt then
+        if c.types->BaseDistance( rp, sp_ ) >= 0 then return
+        if c.types->BaseDistance( sp_, rp ) >= 0 then return
+    end if
+
+    dim as Tko.NodeId at = cast( Tko.NodeId, c.ast->children[cp->first] )
+    c.diags->Report( Tko.TKO0627, Tko.PointRange( c.ast->Loc( at ) ) )
+end sub
+
 private function ExprIntrinsicType_ _
     ( byref c as Ctx, byref nm as string, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
@@ -1135,6 +1170,23 @@ private function IntrinsicCallType_ _
                     return Tko.TYPE_NONE
                 end if
             end if
+            '' A POINTER TO A DERIVED UDT MAY ONLY BE CAST ALONG ITS OWN CHAIN.
+            '' fbc has three errors for it -- 300 casting FROM an incompatible pointer,
+            '' 302 casting TO one, 303 casting to an unrelated UDT pointer -- and one
+            '' rule underneath. Measured:
+            ''
+            ''     Child ptr -> integer ptr        error 302    Child extends Parent
+            ''     Child ptr -> Unrelated ptr      error 303
+            ''     integer ptr -> Child ptr        error 300
+            ''     Child ptr -> Parent ptr         OK           and back again
+            ''     GChild ptr -> Parent ptr        OK           two links up
+            ''     Child ptr -> any ptr            OK           either side
+            ''     Plain ptr -> integer ptr        OK           Plain extends nothing
+            ''
+            '' -- so it turns on ONE SIDE BEING DERIVED, not on either being a UDT, and
+            '' 'any ptr' is the escape hatch it always is. 'cast' is refused the same
+            '' way; the corpus writes 'cptr'.
+            if srcPtr then CheckDerivedPtrCast_( c, cp, rt, st )
             return rt
         end if
         if nm = "cptr" then return Tko.TYPE_NONE

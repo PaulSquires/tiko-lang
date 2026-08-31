@@ -1,0 +1,7 @@
+'' A pointer to a derived UDT casts only along its own chain -- fbc's 300, 302 and 303,
+'' which are one rule. 'any ptr' is the escape hatch, and a type that extends nothing is
+'' not affected.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derived-ptr-cast.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/derived-ptr-cast.out

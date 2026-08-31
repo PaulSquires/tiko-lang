@@ -151,6 +151,8 @@
     DIAG( TKO0625, SEV_ERROR,   "'%0' is not accessible here" )
     '' fbc's error 58, and 99 for the overloaded ones.
     DIAG( TKO0626, SEV_ERROR,   "'%0' takes a string" )
+    '' fbc's errors 300, 302 and 303, which are one rule underneath.
+    DIAG( TKO0627, SEV_ERROR,   "a pointer to a derived type casts only along its own chain" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

@@ -1,0 +1,68 @@
+global var ptr c
+global var ptr ip
+global var ptr g
+global var ptr p
+global var ptr ap
+global var ptr pl
+func void REFUSED() {
+  entry0:
+    %1 = load @@c
+    call.rtl void fb_PrintULongint(0, %1, 1)
+    %2 = load @@c
+    call.rtl void fb_PrintULongint(0, %2, 1)
+    %3 = load @@ip
+    call.rtl void fb_PrintULongint(0, %3, 1)
+    %4 = load @@g
+    call.rtl void fb_PrintULongint(0, %4, 1)
+    ret
+}
+declare void fb_PrintULongint($0, $1, $2)
+func void ACCEPTED() {
+  entry0:
+    %1 = load @@c
+    call.rtl void fb_PrintULongint(0, %1, 1)
+    %2 = load @@p
+    call.rtl void fb_PrintULongint(0, %2, 1)
+    %3 = load @@g
+    call.rtl void fb_PrintULongint(0, %3, 1)
+    %4 = load @@c
+    call.rtl void fb_PrintULongint(0, %4, 1)
+    %5 = load @@ap
+    call.rtl void fb_PrintULongint(0, %5, 1)
+    %6 = load @@pl
+    call.rtl void fb_PrintULongint(0, %6, 1)
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 28 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/derived-ptr-cast.bas(42,17): error TKO0627: a pointer to a derived type casts only along its own chain
+     |
+  42 |     print cptr( integer ptr, c )
+     |                 ^
+tests/diagnostics/src/derived-ptr-cast.bas(43,17): error TKO0627: a pointer to a derived type casts only along its own chain
+     |
+  43 |     print cptr( Unrelated ptr, c )
+     |                 ^
+tests/diagnostics/src/derived-ptr-cast.bas(44,17): error TKO0627: a pointer to a derived type casts only along its own chain
+     |
+  44 |     print cptr( Child ptr, ip )
+     |                 ^
+tests/diagnostics/src/derived-ptr-cast.bas(45,17): error TKO0627: a pointer to a derived type casts only along its own chain
+     |
+  45 |     print cptr( Plain ptr, g )
+     |                 ^
