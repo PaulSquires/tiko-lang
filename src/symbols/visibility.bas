@@ -122,6 +122,59 @@ private sub CheckMember_ _
     end if
 end sub
 
+'' '.' AND '->' ARE NOT INTERCHANGEABLE. Measured, over 'x as UDT', 'p as UDT ptr' and
+'' 'pp as UDT ptr ptr':
+''
+''     x.i        OK        p.i        error 265   a DOT through a pointer
+''     p->i       OK        x->i       error 28    an ARROW through a value
+''     (*p).i     OK        pp->i      error 24    the pointee is not a UDT
+''     (*pp)->i   OK        (*pp).i    error 265
+''
+'' 'this' IS EXEMPT FROM THE DOT RULE. tiko-lang types it as a POINTER because that is
+'' what the ABI passes -- fbc's own C spells the receiver 'struct $1T*' -- so 'this.i'
+'' looks exactly like a dot through a pointer and is the commonest line in any method.
+''
+'' AN ARROW THROUGH A UDT IS NOT REPORTED, only through a builtin: a type may overload
+'' 'operator ->', and that question is not measured here.
+private function IsThisBase_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if n = NODE_NONE then return false
+    if c.ast->Kind( n ) <> N_IDENT then return false
+    dim as InternId nm = _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )].name
+    return c.names->Fold( nm ) = c.names->Fold( c.names->GetString( "this" ) )
+end function
+
+private sub CheckDeref_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as TokenKind op = cast( TokenKind, mp->op )
+    if (op <> TK_DOT) andalso (op <> TK_ARROW) then return
+    if mp->lhs = NODE_NONE then return
+    dim as TypeId bt = c.info->TypeOf_( mp->lhs )
+    '' UNTYPED IS NOT AN ERROR: a namespace-qualified name has no type at all, and an
+    '' expression that declined earlier would be blamed for someone else's mistake.
+    if bt = TYPE_NONE then return
+    dim as TypeId u = c.types->Unqualify( bt )
+    dim as boolean isPtr = (c.types->Kind( u ) = TK_POINTER)
+
+    if op = TK_DOT then
+        if isPtr = false then return
+        if IsThisBase_( c, mp->lhs ) then return
+        c.diags->Report( TKO0630, PointRange( c.ast->Loc( id ) ) )
+        return
+    end if
+
+    if isPtr = false then
+        if c.types->Kind( u ) <> TK_BUILTIN then return
+        c.diags->Report( TKO0631, PointRange( c.ast->Loc( id ) ) )
+        return
+    end if
+    dim as TypeId pointee = c.types->Unqualify( c.types->Inner( u ) )
+    if pointee = TYPE_NONE then return
+    if c.types->Kind( pointee ) = TK_UDT then return
+    c.diags->Report( TKO0631, PointRange( c.ast->Loc( id ) ) )
+end sub
+
 '' 'delete' TAKES A POINTER -- fbc error 28, "Expected pointer". Measured over an
 '' integer and a single alike; a pointer of any pointee is accepted.
 ''
@@ -147,6 +200,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_PROC then inner = ProcOwner_( c, id )
     if k = N_MEMBER then CheckMember_( c, id, here )
     if k = N_DELETE_STMT then CheckDelete_( c, id )
+    if k = N_MEMBER then CheckDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
     '' arena stores three, and a walk that knew only about statements missed every

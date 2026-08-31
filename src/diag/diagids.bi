@@ -157,6 +157,9 @@
     DIAG( TKO0628, SEV_ERROR,   "var-len string '%0' has static storage and cannot be initialized" )
     '' fbc's error 28.
     DIAG( TKO0629, SEV_ERROR,   "'delete' takes a pointer" )
+    '' fbc's error 265, and 28 / 24 the other way. '.' and '->' are not interchangeable.
+    DIAG( TKO0630, SEV_ERROR,   "'.' reaches a member of a value; this is a pointer, so use '->'" )
+    DIAG( TKO0631, SEV_ERROR,   "'->' reaches a member through a pointer to a type; this is not one" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

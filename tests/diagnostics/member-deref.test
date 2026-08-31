@@ -1,0 +1,6 @@
+'' '.' reaches a member of a VALUE and '->' one through a POINTER; the two are not
+'' interchangeable. 'this' is exempt from the dot rule -- tiko types it as a pointer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/member-deref.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/member-deref.out
