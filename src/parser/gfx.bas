@@ -369,6 +369,14 @@ function ParseGfxGetPut _
         '' THE MODE IS A WORD, not a number: fbc rejects 'put ..., 1'. Some of them are
         '' keywords and some are not, so it is read either way and matched by spelling.
         if Accept( p, Tko.TK_COMMA ) then
+            '' A MODE IS A WORD, NOT A STRING. 'put (0,0), image, "xor"' is fbc's
+            '' error 17, "Syntax error, found 'xor'" -- the quotes are the whole
+            '' mistake, and six corpus files exist to assert it. GfxPutMode answers 0
+            '' for anything it does not recognise, which reads as "no mode written",
+            '' so the literal was silently ignored and the PUT blended as TRANS.
+            if Peek( p ) = Tko.TK_STRING_LIT then
+                p.diags->Report( Tko.TKO0648, Tko.PointRange( Cur( p ).loc ) )
+            end if
             sp.extra or= GfxPutMode( p ) shl 12
             '' ALPHA and CUSTOM each take one more argument -- a blend level and a
             '' procedure pointer -- and they go in the same slot because no form has

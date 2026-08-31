@@ -192,6 +192,8 @@
     DIAG( TKO0646, SEV_ERROR,   "'%0' is abstract and cannot have a body" )
     '' fbc's error 233. They allocate the object; there is no receiver to dispatch through.
     DIAG( TKO0647, SEV_ERROR,   "'operator new' and 'operator delete' are implicitly static and cannot be virtual" )
+    '' fbc's error 17. A PUT mode is a WORD; the quotes are the whole mistake.
+    DIAG( TKO0648, SEV_ERROR,   "a 'put' blend mode is a word, not a string" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

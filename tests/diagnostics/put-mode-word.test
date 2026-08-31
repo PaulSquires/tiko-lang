@@ -1,0 +1,6 @@
+'' A PUT blend mode is a word, not a string. The mode reader answers 0 for anything it does
+'' not recognise, and 0 means "no mode written" -- so a quoted one blended as TRANS.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/put-mode-word.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/put-mode-word.out
