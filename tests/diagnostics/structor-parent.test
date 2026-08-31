@@ -1,0 +1,6 @@
+'' Only a UDT may own a constructor or destructor: a NAMESPACE has an inner scope too,
+'' which was the whole test, so 'constructor ns( )' opened its body inside the namespace.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/structor-parent.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/structor-parent.out

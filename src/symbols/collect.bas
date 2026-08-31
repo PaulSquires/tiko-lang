@@ -735,7 +735,26 @@ sub WalkNode _
                 '' a PATH, which is walked a component at a time.
                 dim as Tko.SymbolId osid = LookupDottedOwner_( w, scope_, ownerNm )
                 dim as Tko.Symbol ptr os = w.syms->SymbolAt( osid )
+                '' A NAMESPACE IS NOT A PARENT. 'constructor ns( )' resolves 'ns' to
+                '' something that HAS AN INNER SCOPE, which was the whole test, so the
+                '' body opened inside the namespace and the structor was accepted --
+                '' fbc calls it error 168, "Parent is not a class or UDT". Only a UDT
+                '' may own one, and this is the test that says so.
+                dim as boolean ownerIsUdt = false
                 if os <> 0 then
+                    ownerIsUdt = (os->kind = cast( ubyte, Tko.SYM_UDT ))
+                end if
+                '' Hoisted into one boolean: warning 38 fires on a mixed
+                '' boolean/non-boolean 'andalso' chain, and the house rule is to name
+                '' the condition rather than silence it.
+                dim as boolean haveOwner = (os <> 0)
+                dim as boolean badParent = haveOwner andalso isCtorDtor andalso _
+                                           (ownerIsUdt = false)
+                if badParent then
+                    w.diags->Report( Tko.TKO0323, _
+                        Tko.PointRange( w.ast->Loc( id ) ), _
+                        w.names->Spelling( ownerNm ) )
+                elseif haveOwner then
                     if os->inner <> Tko.SCOPE_NONE then parentScope = os->inner
                 elseif isCtorDtor then
                     '' A STRUCTOR WHOSE OWNER IS NOT VISIBLE HERE. 'constructor UDT( )'
