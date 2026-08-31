@@ -1,0 +1,6 @@
+'' An array name without a subscript is not a value -- checked at the sites that certainly
+'' need one, because 'erase', 'lbound' and a bydesc argument all take the bare name.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bare-array-value.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/bare-array-value.out

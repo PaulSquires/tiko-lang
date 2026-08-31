@@ -194,6 +194,8 @@
     DIAG( TKO0647, SEV_ERROR,   "'operator new' and 'operator delete' are implicitly static and cannot be virtual" )
     '' fbc's error 17. A PUT mode is a WORD; the quotes are the whole mistake.
     DIAG( TKO0648, SEV_ERROR,   "a 'put' blend mode is a word, not a string" )
+    '' fbc's error 73. The bare name is legal where a DESCRIPTOR is wanted, not a value.
+    DIAG( TKO0649, SEV_ERROR,   "an array name without a subscript is not a value" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

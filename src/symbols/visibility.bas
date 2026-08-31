@@ -435,6 +435,69 @@ end sub
 '' ONLY THE SHAPES THAT CERTAINLY HAVE NO ADDRESS are reported -- a literal and a call to
 '' a PROCEDURE. An indexing expression looks exactly like a call and is an lvalue, which
 '' is what the target's symbol kind tells apart.
+'' AN ARRAY NAME WITHOUT A SUBSCRIPT IS NOT A VALUE -- fbc error 73, "Array access, index
+'' expected". Measured:
+''
+''     print a            error 73        a( 0 to 3 )
+''     draw a             error 73
+''     dim n as integer = a               error 73
+''     print a( 0 )       OK
+''
+'' CHECKED AT THE SITES THAT CERTAINLY NEED A VALUE, and nowhere else. 'erase a',
+'' 'redim a( ... )', 'lbound( a )' and a BYDESC argument all take the bare name and are
+'' the ordinary way to write one -- a blanket rule over every N_IDENT would refuse them
+'' all. So: a binary operand, a declaration's initialiser, and the two intrinsics the
+'' corpus asserts.
+private function IsBareArray_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if n = NODE_NONE then return false
+    if c.ast->Kind( n ) <> N_IDENT then return false
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, SYM_VARIABLE ) then return false
+    if s->type_ = TYPE_NONE then return false
+    dim as TypeId u = c.types->Unqualify( s->type_ )
+    if c.types->Kind( u ) <> TK_ARRAY then return false
+    '' A FIXED-LENGTH STRING IS NOT AN ARRAY HERE, though it is one in the type table:
+    '' 'zstring * N' and 'wstring * N' are arrays of a character builtin, and comparing
+    '' two of them is ordinary. Counting them refused six files fbc accepts --
+    '' functions/argv.bas and the five wstring/utf*.bas.
+    dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+    if el <> TYPE_NONE then
+        if c.types->Kind( el ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( el )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                return false
+            end select
+        end if
+    end if
+    return true
+end function
+
+private sub CheckBareArrayOperands_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if IsBareArray_( c, bp->lhs ) then
+        c.diags->Report( TKO0649, PointRange( c.ast->Loc( bp->lhs ) ) )
+        return
+    end if
+    if IsBareArray_( c, bp->rhs ) then
+        c.diags->Report( TKO0649, PointRange( c.ast->Loc( bp->rhs ) ) )
+    end if
+end sub
+
+private sub CheckBareArrayPrint_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as TokenKind k = cast( TokenKind, sp->op )
+    if (k <> KW_PRINT) andalso (k <> KW_DRAW) then return
+    for i as long = 0 to sp->count - 1
+        dim as NodeId a2 = cast( NodeId, c.ast->children[sp->first + i] )
+        if IsBareArray_( c, a2 ) = false then continue for
+        c.diags->Report( TKO0649, PointRange( c.ast->Loc( a2 ) ) )
+        return
+    next
+end sub
+
 '' AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
 '' method". The declaration says there is nothing to call.
 ''
@@ -854,6 +917,8 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_CALL then CheckBydescArgs_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
+    if k = N_BINARY then CheckBareArrayOperands_( c, id )
+    if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
