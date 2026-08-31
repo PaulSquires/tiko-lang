@@ -1155,6 +1155,10 @@ sub WalkStmt _
                 c.pendingItem.Push( cast( ulong, item ) )
                 c.pendingScope.Push( cast( ulong, here ) )
             end if
+            '' AFTER the revisit test, not before it: a declaration whose type is not
+            '' resolved yet comes through here twice, and reporting on the first pass
+            '' gave the same error two lines apart.
+            if revisit = false then InitTooMany_( c, t, ip->b, ip->name, here )
             BindDeclType( c, here, ip->name, t, false )
             WalkStmt( c, ip->b, here )
         next

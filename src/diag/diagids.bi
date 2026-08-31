@@ -135,6 +135,8 @@
     DIAG( TKO0616, SEV_ERROR,   "'select case as const' spans more than %0 values" )
     '' fbc's error 119.
     DIAG( TKO0617, SEV_ERROR,   "cannot modify '%0': it is a constant" )
+    '' fbc's error 67. Too FEW is legal and fills with zero; only too many is refused.
+    DIAG( TKO0618, SEV_ERROR,   "too many expressions in the initializer for '%0'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

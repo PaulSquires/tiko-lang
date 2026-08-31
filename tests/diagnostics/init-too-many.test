@@ -1,0 +1,7 @@
+'' An aggregate initializer with more expressions than the type has slots is refused;
+'' too few is not. A union is one slot, an anonymous aggregate is one, 'extends' is one,
+'' and a method is none.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/init-too-many.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/init-too-many.out
