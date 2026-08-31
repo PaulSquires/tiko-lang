@@ -50,20 +50,50 @@ sub dumpreport( )
 		if( left(ln, 16) = "Executable name:" ) then ln = "Executable name: <elided>"
 		if( left(ln, 12) = "Launched on:" ) then ln = "Launched on: <elided>"
 		if( left(ln, 29) = "Total program execution time:" ) then ln = "Total program execution time: <elided>"
-		'' Times and percentages: replace each digit run that follows a '.'
-		'' or precedes a '%' with a marker, keeping the COLUMN WIDTH.
+		'' NUMERIC FIELDS ARE ERASED TOGETHER WITH THEIR LEADING SPACES, and
+		'' that is a correction rather than a tidy-up. The first version replaced
+		'' each DIGIT with a '#' and kept the column width -- which meant the
+		'' WIDTH still encoded the magnitude: a run where a percentage came out
+		'' 9.99% and one where it came out 100.00% differed by a leading space,
+		'' and the differential FAILED for a reason that had nothing to do with
+		'' the runtime. Two consecutive runs disagreed and the third agreed.
+		''
+		'' Each maximal run of digits, dots and spaces that CONTAINS A DIGIT is
+		'' now replaced by a token of the SAME TOTAL WIDTH, so the columns still
+		'' have to line up -- a misaligned report still fails -- while the value
+		'' no longer does. Runs with no digit are left alone, which is what keeps
+		'' the gap between the name and the first number meaningful.
 		dim as string o = ""
-		dim as long i = any, indigit = 0
-		for i = 1 to len(ln)
+		dim as long i = 1
+		while( i <= len(ln) )
 			dim as string c = mid(ln, i, 1)
-			if( c >= "0" andalso c <= "9" ) then
-				o += "#"
-			elseif( c = "." ) then
-				o += "."
+			if( ((c >= "0") andalso (c <= "9")) orelse (c = ".") orelse (c = " ") ) then
+				dim as long j = i, hasdigit = 0
+				while( j <= len(ln) )
+					dim as string d = mid(ln, j, 1)
+					if( (d >= "0") andalso (d <= "9") ) then hasdigit = 1
+					if( ((d >= "0") andalso (d <= "9")) orelse (d = ".") orelse (d = " ") ) then
+						j += 1
+					else
+						exit while
+					end if
+				wend
+				dim as long w = j - i
+				if( hasdigit <> 0 ) then
+					if( w = 1 ) then
+						o += "#"
+					else
+						o += "<" + string( w - 2, "#" ) + ">"
+					end if
+				else
+					o += mid(ln, i, w)
+				end if
+				i = j
 			else
 				o += c
+				i += 1
 			end if
-		next
+		wend
 		print "  ["; o; "]"
 	loop
 	close #f

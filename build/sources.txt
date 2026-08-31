@@ -132,3 +132,4 @@ thread/parkself.bas
 thread/cond.bas
 misc/misc.bas
 sys/dylib.bas
+io/conquery.bas
