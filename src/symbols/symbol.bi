@@ -164,6 +164,19 @@ namespace Tko
         '' OVERLAPS its siblings', which is what an anonymous TYPE inside a UNION is,
         '' and what winnt.bi's _SLIST_HEADER writes.
         as ubyte     anonDepth
+        '' HOW MANY anonymous aggregates OPEN at this field, and WHAT KIND each level
+        '' is. anonDepth alone could not tell two adjacent anonymous groups apart when
+        '' the second one holds no field of its own at the shared level: in
+        '' 'type { union { a }; union { type { b } } }' b sits at anonDepth 2 and the
+        '' SECOND union is invisible, so b was laid out inside the FIRST one -- 4 bytes
+        '' where fbc says 8. A field opens the levels
+        '' (anonDepth - anonOpen + 1) .. anonDepth, and a group at depth d ends at the
+        '' first field that opens a level <= d.
+        as ubyte     anonOpen
+        '' Bit i-1 is set when the aggregate at LEVEL i of this field's chain is a
+        '' UNION. One bit could not carry it: an anonymous TYPE inside an anonymous
+        '' UNION is sequential at its own level and overlapping at its parent's.
+        as ushort    anonUnionMask
         as ubyte     callConv
     end type
 

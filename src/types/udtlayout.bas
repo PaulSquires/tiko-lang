@@ -145,13 +145,33 @@ private sub PlaceGroup _
         dim as long fd = cast( long, f->anonDepth )
         if fd < depth then exit while
 
+        '' DOES THIS FIELD START A NEW GROUP AT OR ABOVE THIS DEPTH? A field opens the
+        '' levels (anonDepth - anonOpen + 1) .. anonDepth, so it ends the group at
+        '' 'depth' when the shallowest level it opens is 'depth' or above. Without
+        '' this, 'type { union { a }; union { type { b } } }' put b inside the FIRST
+        '' union -- b sits at anonDepth 2, the second union owns no field of its own at
+        '' depth 1, and nothing else said the group had ended. Measured: 4 bytes where
+        '' fbc says 8.
+        if (first = false) andalso (depth > 0) then
+            dim as long opensAt = fd - cast( long, f->anonOpen ) + 1
+            if (f->anonOpen > 0) andalso (opensAt <= depth) then exit while
+        end if
+
         if fd > depth then
             '' A nested anonymous group. Measure it, place it as ONE member, then walk
             '' it again for real.
             dim as long probe = idx
             dim as long gs = 0
             dim as long ga = 1
-            dim as boolean nestedIsUnion = ((f->flags and SYMF_UNION) <> 0)
+            '' THE KIND OF THE LEVEL BEING OPENED, not of the field's innermost
+            '' aggregate. An anonymous TYPE inside an anonymous UNION is sequential at
+            '' its own level and overlapping at its parent's, and one bit could not say
+            '' both -- so the mask is read at the level this call is about to place.
+            dim as boolean nestedIsUnion = false
+            if depth < 16 then
+                nestedIsUnion = ((f->anonUnionMask and _
+                                  cast( ushort, 1 shl depth )) <> 0)
+            end if
             PlaceGroup( flds, probe, depth + 1, nestedIsUnion, pack, 0, false, _
                         syms, types, store, u, gs, ga )
             dim as long ea = ga
@@ -171,13 +191,6 @@ private sub PlaceGroup _
                         syms, types, store, u, gs, ga )
             first = false
             continue while
-        end if
-
-        '' A field written at THIS level. A second anonymous group at the same depth
-        '' ends this one.
-        if (first = false) andalso (depth > 0) andalso _
-           ((f->flags and SYMF_UNION_FIRST) <> 0) then
-            exit while
         end if
 
         dim as long natural = MemberAlign( f->type_, types, store )

@@ -25,6 +25,10 @@ type Walker
     as boolean              inUnion      '' the immediate enclosing aggregate is a union
     as boolean              unionFirst   '' the next field starts a NEW anonymous group
     as long                 anonDepth    '' anonymous aggregates enclosing the cursor
+    '' How many anonymous aggregates have been ENTERED with no field declared since,
+    '' and the kind of each level of the current chain. See Symbol.anonOpen.
+    as long                 anonOpen
+    as ushort               anonUnionMask
     '' The parameters being walked belong to a PROTOTYPE, not a definition. fbc
     '' allows two parameters to share a name in a 'declare' and REJECTS it in a
     '' body -- measured both ways -- so the allowance is gated on this.
@@ -387,6 +391,7 @@ private function LookupDottedOwner_ _
     return found
 end function
 
+
 private sub WalkChildren _
     ( byref w as Walker, byval first as long, byval count as long, _
       byval scope_ as Tko.ScopeId )
@@ -395,6 +400,10 @@ private sub WalkChildren _
         WalkNode( w, cast( Tko.NodeId, w.ast->children[first + i] ), scope_ )
     next
 end sub
+
+'' The anonymous union / type splice, in its own file at the 1500-line cap. It calls
+'' WalkChildren, declared above it, and is called from the N_TYPE arm below.
+#include once "symbols/collectanon.bas"
 
 sub WalkNode _
     ( byref w as Walker, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
@@ -651,25 +660,7 @@ sub WalkNode _
         '' members are members of the ENCLOSING aggregate, which is the whole point
         '' of writing one.
         if sp->name = 0 then
-            '' An anonymous UNION's members overlap; an anonymous TYPE's are
-            '' sequential. The distinction has to survive the splice, or the layout
-            '' pass cannot tell them apart afterwards.
-            '' An anonymous aggregate is SPLICED into the enclosing type, so its
-            '' members become siblings of the enclosing type's own. The nesting they
-            '' lose is recorded on each field instead: one more level of anonymity,
-            '' and whether THIS level overlaps.
-            dim as boolean saved = w.inUnion
-            dim as boolean savedFirst = w.unionFirst
-            dim as long savedDepth = w.anonDepth
-            w.inUnion = ((n->flags and Tko.NF_IS_UNION) <> 0)
-            w.anonDepth = savedDepth + 1
-            '' Every anonymous group marks its OWN first field -- union or type alike --
-            '' so the layout can tell two adjacent groups apart.
-            w.unionFirst = true
-            WalkChildren( w, sp->first, sp->count, scope_ )
-            w.inUnion = saved
-            w.unionFirst = savedFirst
-            w.anonDepth = savedDepth
+            CollectAnonAggregate_( w, id, n, sp, scope_ )
             return
         end if
         dim as Tko.SymbolId sid = Declare_( w, scope_, sp->name, Tko.SYM_UDT, _
@@ -710,10 +701,16 @@ sub WalkNode _
         w.inUnion = ((n->flags and Tko.NF_IS_UNION) <> 0)
         w.unionFirst = false
         w.anonDepth = 0
+        dim as long savedO = w.anonOpen
+        dim as ushort savedM = w.anonUnionMask
+        w.anonOpen = 0
+        w.anonUnionMask = 0
         WalkChildren( w, sp->first, sp->count, inner )
         w.inUnion = savedU
         w.unionFirst = savedUF
         w.anonDepth = savedD
+        w.anonOpen = savedO
+        w.anonUnionMask = savedM
 
     case Tko.N_FIELD
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
@@ -735,10 +732,15 @@ sub WalkNode _
             '' never needs inferring.
             fs->payload = cast( long, id )
             fs->anonDepth = cast( ubyte, w.anonDepth )
+            fs->anonOpen = cast( ubyte, w.anonOpen )
+            fs->anonUnionMask = w.anonUnionMask
             if w.inUnion then fs->flags or= Tko.SYMF_UNION
             if w.unionFirst then fs->flags or= Tko.SYMF_UNION_FIRST
         end if
+        '' A field CLOSES every level opened before it: the next field along is not a
+        '' group head unless a fresh aggregate is entered in between.
         w.unionFirst = false
+        w.anonOpen = 0
 
     case Tko.N_ENUM
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )

@@ -104,6 +104,18 @@ CASES = [
     ("TypeInU", "union TypeInU\n type\n  as long f\n  as long g\n end type\n as double h\nend union", ['f', 'g', 'h']),
     ("UnionFieldClause", "union UnionFieldClause field = 4\n as long a\n as double b\nend union", ['a', 'b']),
 
+    # TWO ADJACENT ANONYMOUS GROUPS WHERE THE SECOND HOLDS NO FIELD OF ITS OWN at the
+    # shared level. anonDepth plus one "is a union" bit could not express it: in
+    # AnonUThenUT the second union owns nothing at depth 1 -- b sits at depth 2 inside
+    # an anonymous TYPE -- so b was laid out INSIDE THE FIRST UNION and the type came
+    # out 4 bytes where fbc says 8. AnonTThenField is the mirror: the field after a
+    # nested group was marked a group head, so c landed BESIDE the union rather than in
+    # it -- 16 bytes where fbc says 8. Neither was reachable from any earlier shape.
+    ("AnonUThenUT", "type AnonUThenUT\n union\n  as long a\n end union\n union\n  type\n   as long b\n  end type\n end union\nend type", ['a', 'b']),
+    ("AnonTThenField", "type AnonTThenField\n union\n  type\n   as long a\n   as long b\n  end type\n  as double c\n end union\nend type", ['a', 'b', 'c']),
+    ("AnonUTTwice", "type AnonUTTwice\n union\n  type\n   as long a\n   as long b\n  end type\n end union\n union\n  type\n   as long c\n   as long d\n  end type\n end union\nend type", ['a', 'b', 'c', 'd']),
+    ("UnionTwoAnonT", "union UnionTwoAnonT\n type\n  as long a\n  as long b\n end type\n type\n  as long c\n end type\nend union", ['a', 'b', 'c']),
+
     # TUPLE types. fbc says a tuple IS the equivalent hand-written TYPE -- same size,
     # same field offsets -- and its fields are _1.._N whatever the elements are called.
     ("Tup2", "type Tup2 as (long, string)", ['_1', '_2']),
