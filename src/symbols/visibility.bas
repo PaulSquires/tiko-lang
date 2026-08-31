@@ -405,6 +405,66 @@ private sub CheckImplicitStructors_( byref c as Ctx )
     next
 end sub
 
+'' A 'bydesc' PARAMETER TAKES THE WHOLE ARRAY -- fbc error 58, "Type mismatch".
+'' Measured:
+''
+''     sub f( a( ) as integer ) : f( a( 0 ) )    error 58    an ELEMENT is not an array
+''     sub f( a( ) as integer ) : f( a( ) )      OK
+''     sub f( byval i as integer ) : f( a( 0 ) ) OK          an ordinary parameter
+''
+'' What it is passed is a DESCRIPTOR, and an element has none.
+'' A PARAMETER DEFAULT CANNOT NAME A LOCAL -- fbc error 272, "Local symbols can't be
+'' referenced". The default is evaluated at the CALL SITE, where the declaring frame does
+'' not exist. Measured, and the second row is the one a scope test gets wrong:
+''
+''     dim shared g as integer : sub f( byval p as integer = g )     OK
+''     dim localI as integer   : sub f( byval p as integer = localI ) error 272
+''     const K = 5             : sub f( byval p as integer = K )     OK
+''     sub f( byval p as integer = 5 )                               OK
+''
+'' -- a module-level 'dim' WITHOUT 'shared' still has automatic storage in fbc's model:
+'' it lives in main's frame. So what decides is the SYMBOL's storage, not where it sits.
+private sub CheckAutoRef_ ( byref c as Ctx, byval id as NodeId )
+    if id = NODE_NONE then return
+    dim as NodeKind k = c.ast->Kind( id )
+    if k = N_IDENT then
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if s = 0 then return
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
+        if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
+                          SYMF_COMMON)) <> 0 then return
+        c.diags->Report( TKO0640, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( s->name ) )
+        return
+    end if
+    '' Only the shapes a constant-ish default is built from; anything else stops, for
+    '' the payload-pool reason spelled out in Walk_.
+    select case k
+    case N_BINARY
+        dim as BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        CheckAutoRef_( c, bp->lhs )
+        CheckAutoRef_( c, bp->rhs )
+    case N_UNARY, N_ADDROF, N_DEREF
+        dim as UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        CheckAutoRef_( c, up->operand )
+    case N_PAREN, N_CALL, N_INDEX, N_TUPLE, N_INITIALIZER
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            CheckAutoRef_( c, cast( NodeId, c.ast->children[lp->first + i] ) )
+        next
+    end select
+end sub
+
+private sub CheckParamDefault_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->b = NODE_NONE then return
+    CheckAutoRef_( c, sp->b )
+end sub
+
 '' AN ARRAY IS NOT A SUBSCRIPT -- fbc error 73, "Array access, index expected".
 '' 'print a1( a2 )' over two arrays is refused; 'a1( i )' over an integer is the ordinary
 '' access.
@@ -528,6 +588,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
+    if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The

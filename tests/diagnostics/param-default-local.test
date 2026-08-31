@@ -1,0 +1,6 @@
+'' A parameter default is evaluated at the CALL SITE, so it cannot name a variable with
+'' automatic storage -- and a module-level 'dim' without 'shared' is one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/param-default-local.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/param-default-local.out

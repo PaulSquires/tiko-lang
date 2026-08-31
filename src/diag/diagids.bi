@@ -176,6 +176,8 @@
     DIAG( TKO0638, SEV_ERROR,   "static member '%0' is only allowed in a top-level type" )
     '' fbc's error 3. A byref result is spelled 'function f( ) BYREF as T'.
     DIAG( TKO0639, SEV_ERROR,   "'byref' belongs before 'as', not after the return type" )
+    '' fbc's error 272. A default is evaluated at the CALL SITE.
+    DIAG( TKO0640, SEV_ERROR,   "a parameter default cannot name '%0', which has automatic storage" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
