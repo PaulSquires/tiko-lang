@@ -160,6 +160,8 @@
     '' fbc's error 265, and 28 / 24 the other way. '.' and '->' are not interchangeable.
     DIAG( TKO0630, SEV_ERROR,   "'.' reaches a member of a value; this is a pointer, so use '->'" )
     DIAG( TKO0631, SEV_ERROR,   "'->' reaches a member through a pointer to a type; this is not one" )
+    '' fbc's error 99. Only for a genuine overload SET: see the call site.
+    DIAG( TKO0632, SEV_ERROR,   "no overload of '%0' matches these arguments" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

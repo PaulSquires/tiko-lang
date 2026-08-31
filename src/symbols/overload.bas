@@ -925,7 +925,77 @@ private function ResolveCall_ _
         cur = s->nextOverload
     wend
 
-    if best = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    if best = Tko.SYMBOL_NONE then
+        '' NO MATCHING OVERLOADED FUNCTION -- fbc error 99. Reported only for a genuine
+        '' OVERLOAD SET, and only when every argument already has a type.
+        ''
+        '' A single-candidate call that scores unviable is far more likely to be a
+        '' conversion this compiler does not model yet than a program fbc refuses, and
+        '' blaming the user for the compiler's gap is the one thing worse than the
+        '' silent decline it replaces. An untyped argument means something earlier
+        '' declined, and reporting would point at the wrong line.
+        if overloaded then
+            '' ...AND EVERY ARGUMENT A BUILTIN OR A POINTER. A UDT ARGUMENT BRINGS
+            '' user conversions, overloaded operators and GENERIC INSTANTIATION with it,
+            '' none of which this scoring models completely -- fb/comptr.bi's
+            '' 'IidOf( byval tag as FB.IidTag( of iface ) )' is one, and reporting on it
+            '' refused eleven com/*.bas files fbc accepts. A POINTER to a UDT is fine:
+            '' the pointee is not converted.
+            dim as boolean allTyped = true
+            for i as long = 0 to argT.Count - 1
+                dim as Tko.TypeId a2t = cast( Tko.TypeId, argT[i] )
+                if a2t = Tko.TYPE_NONE then
+                    allTyped = false
+                    exit for
+                end if
+                dim as Tko.TypeId a2u = c.types->Unqualify( a2t )
+                dim as Tko.TypeKind a2k = c.types->Kind( a2u )
+                if (a2k <> Tko.TK_BUILTIN) andalso (a2k <> Tko.TK_POINTER) then
+                    allTyped = false
+                    exit for
+                end if
+            next
+            '' ...AND ONLY WHEN EVERY CANDIDATE COULD BE SCORED. A parameter whose type
+            '' is unresolved cannot be costed, so 'not viable' means nothing for it.
+            '' fb/comptr.bi declares 'IidOf overload ( byval tag as FB.IidTag( of iface ) )'
+            '' -- a GENERIC parameter, which tiko-lang does not instantiate here -- and
+            '' reporting refused eleven com/*.bas files fbc accepts.
+            dim as boolean scorable = true
+            dim as Tko.SymbolId ck = callee
+            dim as long cg = 0
+            while (ck <> Tko.SYMBOL_NONE) andalso (cg < 1000)
+                cg += 1
+                dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( ck )
+                if cs2 = 0 then exit while
+                dim as Tko.NodeId cn = cast( Tko.NodeId, cs2->payload )
+                if (cn <> Tko.NODE_NONE) andalso (c.ast->Kind( cn ) = Tko.N_PROC) then
+                    dim as Tko.StmtPayload ptr cpp = StmtOf( c, cn )
+                    '' A GENERIC candidate is not scorable at all: its parameter names a
+                    '' type parameter, and tiko-lang does not instantiate one here.
+                    if (cpp->extra and Tko.PF_GENERIC_PROC) <> 0 then scorable = false
+                    for i as long = 0 to cpp->count - 1
+                        dim as Tko.NodeId prm2 = _
+                            cast( Tko.NodeId, c.ast->children[cpp->first + i] )
+                        if c.ast->Kind( prm2 ) <> Tko.N_PARAM then continue for
+                        dim as Tko.StmtPayload ptr psp = StmtOf( c, prm2 )
+                        if psp->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+                        if psp->a = Tko.NODE_NONE then continue for
+                        if c.info->TypeOf_( psp->a ) = Tko.TYPE_NONE then
+                            scorable = false
+                            exit for
+                        end if
+                    next
+                end if
+                if scorable = false then exit while
+                ck = cs2->nextOverload
+            wend
+            if allTyped andalso scorable andalso (argT.Count > 0) then
+                c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), _
+                                 c.names->Spelling( c.syms->SymbolAt( callee )->name ) )
+            end if
+        end if
+        return Tko.TYPE_NONE
+    end if
     if ties > 0 then
         c.st->callsAmbiguous += 1
         return Tko.TYPE_NONE

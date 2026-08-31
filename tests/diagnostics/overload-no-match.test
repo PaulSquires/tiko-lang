@@ -1,0 +1,7 @@
+'' No overload matches -- reported only for a genuine overload SET, and only when every
+'' argument is a builtin or a pointer. A UDT argument brings conversions and generics the
+'' scoring does not model.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/overload-no-match.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/overload-no-match.out
