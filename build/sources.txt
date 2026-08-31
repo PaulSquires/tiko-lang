@@ -130,3 +130,4 @@ thread/detach.bas
 thread/park.bas
 thread/parkself.bas
 thread/cond.bas
+misc/misc.bas
