@@ -53,9 +53,17 @@ sub withBaseCtor( )
     end type
 end sub
 
+'' A var-len string carries its own destructor. A FIXED one does not, and telling the
+'' two apart is why 'string * len( K )' had to start folding first.
+sub withVarLenString( )
+    type F0
+        s as string
+    end type
+end sub
+
 sub inNestedScope( )
     scope
-        type F
+        type F1
             dummy as integer
             declare sub f( )
         end type

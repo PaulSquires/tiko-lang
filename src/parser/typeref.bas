@@ -471,9 +471,28 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     if Peek( p ) = Tko.TK_STAR then
         dim as long save = p.pos
         Advance( p )
+    '' ...AND AN INTRINSIC MAY START IT. 'len', 'sizeof', 'cast' and 'cptr' are
+    '' KEYWORDS, not identifiers, so the three-token test below turned them away and put
+    '' the '*' back -- and the whole declaration then failed to parse, silently, with the
+    '' field left untyped. Measured against fbc, all accepted:
+    ''
+    ''     string * len( K )              7      with K = "abcdefg"
+    ''     zstring * len( K ) + 1         8
+    ''     string * cast( integer, 6 )    6
+    ''
+    '' quirk/len-sizeof.bas writes the first of them.
+    ''
+    '' 'sizeof' IS LEFT OUT ON PURPOSE, though fbc takes it ('string * sizeof( integer )'
+    '' is 8): ConstOf cannot fold a sizeof -- it is handed no type context -- so letting
+    '' it through would turn a declaration that fails loudly into one that silently gets
+    '' a 24-byte DESCRIPTOR. Wrong quietly is worse than refused.
         dim as Tko.TokenKind lk = Peek( p )
         dim as boolean startsLen = (lk = Tko.TK_INT_LIT) orelse (lk = Tko.TK_IDENT) orelse _
                                    (lk = Tko.TK_LPAREN)
+        if startsLen = false then
+            startsLen = (lk = Tko.KW_LEN) orelse (lk = Tko.KW_CAST) orelse _
+                        (lk = Tko.KW_CPTR)
+        end if
         if startsLen then
             sp.c = Expression( p, Tko.PREC_CONCAT )
         else

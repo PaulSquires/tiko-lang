@@ -44,15 +44,18 @@ private function TypeBringsProcs_ _
     if t = Tko.TYPE_NONE then return false
     if depth > 16 then return false
     dim as Tko.TypeId u = c.types->Unqualify( t )
-    '' A VAR-LEN STRING FIELD IS NOT COUNTED, though fbc counts it: it carries its own
-    '' destructor, so 'type U { s as string }' inside a sub IS error 263. It is left out
-    '' because tiko-lang cannot yet tell one from a FIXED string whose length did not
-    '' fold. 'fstr as string * len( K )' in quirk/len-sizeof.bas is fbc's 7 bytes and
-    '' tiko-lang's 24-byte DESCRIPTOR -- ConstOf does not fold 'len' of a string
-    '' constant -- and with the string test in place that accepted file became an error.
-    '' The layout bug is the one to fix; this test comes back with it. Arrays are not
-    '' unwrapped for the same reason.
+    '' A VAR-LEN STRING FIELD COUNTS: it carries its own destructor, so
+    '' 'type U { s as string }' inside a sub is error 263 too.
+    ''
+    '' ARRAYS ARE NOT UNWRAPPED. A FIXED-LENGTH string is an ARRAY of TY_FIXSTR and needs
+    '' no destructor; 's(0 to 3) as string' is an array of the var-len kind and does. The
+    '' second is missed as a result -- the safe half of the trade, and no corpus file
+    '' writes one. This test only became possible once 'string * len( K )' resolved to
+    '' the fixed flavour at all: while its length did not fold it fell back to the plain
+    '' STRING builtin, and quirk/len-sizeof.bas -- which fbc ACCEPTS -- became an error.
     select case c.types->Kind( u )
+    case Tko.TK_BUILTIN
+        return (c.types->BuiltinOf( u ) = Tko.TY_STRING)
     case Tko.TK_UDT
         return UdtHasProcs_( c, UdtSymOfT_( c, u ), depth + 1 )
     end select

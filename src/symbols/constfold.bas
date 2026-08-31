@@ -263,6 +263,117 @@ end function
 '' conversion over a NAMED constant folded to nothing: 'cbool( FALSE )' and
 '' 'cbyte( K )' alike, and the constant they initialise then had no value -- so every
 '' USE of it declined, which is what boolean-conversions.bas is written out of.
+
+'' THE LENGTH OF A COMPILE-TIME STRING, or -1 when it is not one.
+''
+'' 'len' of a string constant IS a constant to fbc, and it folds everywhere a constant
+'' does. Measured:
+''
+''     const K = "abcdefg"
+''     len( "abc" )            3
+''     len( K )                7
+''     len( K & "xy" )         9        concatenation folds too
+''     #if len( K ) = 7                 folds in a preprocessor condition
+''     dim as string * len( K ) f       sizeof( f ) is 7
+''
+'' -- and that last one is why this exists. Without it 'string * len( K )' had no
+'' constant length, resolvetype fell back to the plain STRING builtin, and the field got
+'' a 24-BYTE DESCRIPTOR where fbc has seven raw bytes. Silently: the type laid out, it
+'' was just the wrong size, and every access read the wrong thing.
+''
+'' AN ESCAPED LITERAL IS DECLINED. '!"a\nb"' has a DECODED length that this does not
+'' compute -- the decoder lives in the MIR namespace, over its own context -- and
+'' answering with the raw span would be a wrong number rather than no number.
+private function ConstStrLen_ _
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
+      byref src as Tko.SourceManager, byref names as Tko.Interner, _
+      byval syms as Tko.SymbolTable ptr, byval scope_ as Tko.ScopeId, _
+      byval depth as long ) as long
+
+    if id = Tko.NODE_NONE then return -1
+    if depth >= 16 then return -1
+
+    select case ast.Kind( id )
+    case Tko.N_STRING_LIT
+        dim as Tko.LiteralPayload ptr lp = _
+            @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
+        if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then return -1
+        if lp->strLength <= 0 then return 0
+        dim as Tko.SourceFile ptr f = src.FileAt( cast( Tko.FileId, lp->strFile ) )
+        if f = 0 then return -1
+        if (lp->strOffset + lp->strLength) > f->text.Count then return -1
+        '' '""' INSIDE A LITERAL IS ONE QUOTE. Measured: len( "q""q" ) is 3. The span
+        '' recorded is the RAW source, so the collapse happens here -- and only for the
+        '' PLAIN kind: '$"..."' processes nothing at all.
+        if lp->strKind = cast( ubyte, Tko.STRK_RAW ) then return lp->strLength
+        dim as long n = 0
+        dim as long i = 0
+        while i < lp->strLength
+            dim as boolean doubled = (f->text[lp->strOffset + i] = 34) andalso _
+                                     (i + 1 < lp->strLength) andalso _
+                                     (f->text[lp->strOffset + i + 1] = 34)
+            n += 1
+            i += iif( doubled, 2, 1 )
+        wend
+        return n
+
+    case Tko.N_STRCAT
+        '' Adjacent literals: '"a" "b"' is one string.
+        dim as Tko.ListPayload ptr sp = _
+            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        dim as long total = 0
+        for i as long = 0 to sp->count - 1
+            dim as long n = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[sp->first + i] ), _
+                                          src, names, syms, scope_, depth + 1 )
+            if n < 0 then return -1
+            total += n
+        next
+        return total
+
+    case Tko.N_PAREN
+        dim as Tko.ListPayload ptr pp = _
+            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if pp->count <> 1 then return -1
+        return ConstStrLen_( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
+                             src, names, syms, scope_, depth + 1 )
+
+    case Tko.N_BINARY
+        '' '&' concatenates, and so does '+' between two strings.
+        dim as Tko.BinaryPayload ptr bp = _
+            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+        dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+        if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return -1
+        dim as long a = ConstStrLen_( ast, bp->lhs, src, names, syms, scope_, depth + 1 )
+        if a < 0 then return -1
+        dim as long b = ConstStrLen_( ast, bp->rhs, src, names, syms, scope_, depth + 1 )
+        if b < 0 then return -1
+        return a + b
+
+    case Tko.N_IDENT
+        '' A NAMED string constant, resolved the way the numeric N_IDENT arm above
+        '' resolves one -- including the payload-pool rule that has caught this
+        '' codebase seven times: a builtin or enum constant keeps a VALUE there, not a
+        '' node, and neither is a string.
+        if syms = 0 then return -1
+        dim as Tko.InternId inm = _
+            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+        dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
+        if csid = Tko.SYMBOL_NONE then return -1
+        dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
+        if cs = 0 then return -1
+        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return -1
+        if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return -1
+        if cs->payload = 0 then return -1
+        dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
+        if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return -1
+        dim as Tko.StmtPayload ptr cip = _
+            @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
+        return ConstStrLen_( ast, cip->b, src, names, syms, cs->parent, depth + 1 )
+    end select
+
+    return -1
+end function
+
 private function ConstCall_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
@@ -276,6 +387,17 @@ private function ConstCall_ _
     dim as Tko.IdentPayload ptr ip = _
         @ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )]
     dim as string nm = Tko.Text.LowerAscii( names.Spelling( ip->name ) )
+
+    '' 'len' OF A COMPILE-TIME STRING. See ConstStrLen_ above for why -- 'string *
+    '' len( K )' had no constant length and the field got a 24-byte descriptor.
+    '' 'len' of a NUMBER is its type's size and folds too ('len( 1 )' is 8 on win64);
+    '' that needs the operand's TYPE, which this routine is not given, and is left out.
+    if (nm = "len") andalso (cp->count = 1) then
+        dim as long sl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
+                                       src, names, syms, scope_, depth )
+        if sl >= 0 then return CVW_( cast( longint, sl ), 32 )
+        return CVNone_( )
+    end if
 
     if (nm = "iif") andalso (cp->count = 3) then
         dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), _

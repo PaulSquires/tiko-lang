@@ -116,6 +116,13 @@ CASES = [
     ("AnonUTTwice", "type AnonUTTwice\n union\n  type\n   as long a\n   as long b\n  end type\n end union\n union\n  type\n   as long c\n   as long d\n  end type\n end union\nend type", ['a', 'b', 'c', 'd']),
     ("UnionTwoAnonT", "union UnionTwoAnonT\n type\n  as long a\n  as long b\n end type\n type\n  as long c\n end type\nend union", ['a', 'b', 'c']),
 
+    # A FIXED-LENGTH STRING WHOSE LENGTH IS len() OF A STRING CONSTANT. Until ConstOf
+    # folded that, the length was not constant, resolvetype fell back to the plain
+    # STRING builtin, and the field got a 24-BYTE DESCRIPTOR where fbc has seven raw
+    # bytes -- silently, because the type still laid out. quirk/len-sizeof.bas writes it.
+    ("FixStrLen", "const KTRUTH = \"abcdefg\"\ntype FixStrLen\n as byte b\n as string * len( KTRUTH ) s\n as byte c\nend type", ['b', 's', 'c']),
+    ("FixStrLenExpr", "const KTRUTH2 = \"ab\"\ntype FixStrLenExpr\n as byte b\n as zstring * len( KTRUTH2 ) + 1 z\n as byte c\nend type", ['b', 'z', 'c']),
+
     # TUPLE types. fbc says a tuple IS the equivalent hand-written TYPE -- same size,
     # same field offsets -- and its fields are _1.._N whatever the elements are called.
     ("Tup2", "type Tup2 as (long, string)", ['_1', '_2']),

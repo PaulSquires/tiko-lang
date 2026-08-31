@@ -25,6 +25,10 @@ func void WITHBASECTOR() {
   entry0:
     ret
 }
+func void WITHVARLENSTRING() {
+  entry0:
+    ret
+}
 func void INNESTEDSCOPE() {
   entry0:
     ret
@@ -49,7 +53,7 @@ func void _ZN13ATMODULELEVEL1FEv($0) {
     ret
 }
 verify: ok
-lowered: 10 functions, 10 blocks, 6 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 6 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/type-in-proc.bas(24,5): error TKO0619: 'a' is declared inside a procedure and cannot have methods
      |
   24 |     type A
@@ -70,7 +74,11 @@ tests/diagnostics/src/type-in-proc.bas(51,5): error TKO0619: 'e' is declared ins
      |
   51 |     type E extends HasCtor
      |     ^
-tests/diagnostics/src/type-in-proc.bas(58,9): error TKO0619: 'f' is declared inside a procedure and cannot have methods
+tests/diagnostics/src/type-in-proc.bas(59,5): error TKO0619: 'f0' is declared inside a procedure and cannot have methods
      |
-  58 |         type F
+  59 |     type F0
+     |     ^
+tests/diagnostics/src/type-in-proc.bas(66,9): error TKO0619: 'f1' is declared inside a procedure and cannot have methods
+     |
+  66 |         type F1
      |         ^
