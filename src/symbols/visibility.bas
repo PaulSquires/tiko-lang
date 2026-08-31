@@ -295,6 +295,56 @@ private sub CheckOneStructor_ _
     c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
 end sub
 
+'' A FIXED-LENGTH STRING HAS NO PARAMETER FORM AT ALL -- fbc's error 324, "Fixed-length
+'' string combined with BYREF (not supported)", and error 59 for the byval spelling.
+'' Measured, and the surprise is the third row: writing NEITHER modifier is refused too,
+'' so this is not a rule about byref.
+''
+''     sub f( z as zstring * 10 )          error 324
+''     sub f( byref z as zstring * 10 )    error 324
+''     sub f( byval z as zstring * 10 )    error 59
+''     sub f( byref z as string * 10 )     error 324
+''     sub f( byref z as zstring )         OK      -- no length, so not one
+private sub CheckFixLenParams_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        dim as SymbolKind sk = cast( SymbolKind, s->kind )
+        '' A PARAMETER, a BYREF VARIABLE and a RESULT TYPE are the same refusal: none of
+        '' the three has storage of its own for a fixed-length string to live in.
+        '' Measured -- 'dim byref z as zstring * 10 = "hi"' and
+        '' 'function f( ) as zstring * 10' are both refused, byref result or not.
+        dim as boolean interesting = (sk = SYM_PARAMETER) orelse (sk = SYM_PROC)
+        if (interesting = false) andalso (sk = SYM_VARIABLE) then
+            interesting = ((s->flags and SYMF_BYREF) <> 0)
+        end if
+        if interesting = false then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        '' A REFERENCE parameter carries the reference; the fixed string is inside it.
+        if c.types->Kind( u ) = TK_REFERENCE then
+            u = c.types->Unqualify( c.types->Inner( u ) )
+        end if
+        '' A FIXED-LENGTH string is an ARRAY of a character builtin -- that is what
+        '' distinguishes it from the plain 'zstring' a byref parameter may take.
+        if c.types->Kind( u ) <> TK_ARRAY then continue for
+        dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+        if el = TYPE_NONE then continue for
+        if c.types->Kind( el ) <> TK_BUILTIN then continue for
+        '' TY_STRING IS EXCLUDED, and that is the whole difference between a
+        '' fixed-length string and an ARRAY OF STRINGS. 'string * N' is an array of
+        '' TY_FIXSTR and 'zstring * N' one of TY_ZSTRING, while 'buf( ) as T' with T
+        '' instantiated as a string is an array of TY_STRING -- fb/sort.bi's
+        '' SortMergeBy writes one, and refusing it turned generics/container-sort.bas,
+        '' which fbc accepts, into an error.
+        select case c.types->BuiltinOf( el )
+        case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        case else
+            continue for
+        end select
+        c.diags->Report( TKO0636, PointRange( s->loc ), c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckImplicitStructors_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -316,6 +366,32 @@ private sub CheckImplicitStructors_( byref c as Ctx )
         CheckOneStructor_( c, u, "__ctor", here, s->loc, s->name )
         CheckOneStructor_( c, u, "__dtor", here, s->loc, s->name )
     next
+end sub
+
+'' '&=' CONCATENATES, so its target must be a STRING -- fbc error 20, "Type mismatch".
+'' Measured: 'i &= 1' over an integer and 'd &= 1' over a double are both refused, while
+'' 's &= "a"' is the ordinary use and 'i += 1' is a different operator entirely.
+private sub CheckConcatAssign_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> TK_AMPEQ then return
+    if sp->a = NODE_NONE then return
+    dim as TypeId t = c.info->TypeOf_( sp->a )
+    if t = TYPE_NONE then return
+    dim as TypeId u = c.types->Unqualify( t )
+    '' A FIXED-LENGTH string is an ARRAY of a character builtin; unwrap to its element,
+    '' which is what makes 'fs &= "a"' as ordinary as the var-len form.
+    dim as long guard = 0
+    while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    wend
+    if c.types->Kind( u ) <> TK_BUILTIN then return
+    select case c.types->BuiltinOf( u )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return
+    end select
+    c.diags->Report( TKO0635, PointRange( c.ast->Loc( id ) ) )
 end sub
 
 '' A PROCEDURE POINTER IS NOT AN ADDRESS TO DO ARITHMETIC ON, and it does not
@@ -390,6 +466,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_DELETE_STMT then CheckDelete_( c, id )
     if k = N_MEMBER then CheckDeref_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
+    if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
@@ -543,6 +620,7 @@ sub Run _
     '' an inferred type does not exist until Check has run.
     CheckStaticStringInits( c )
     CheckImplicitStructors_( c )
+    CheckFixLenParams_( c )
 end sub
 
 

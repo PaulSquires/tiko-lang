@@ -166,6 +166,10 @@
     DIAG( TKO0633, SEV_ERROR,   "'%0' needs a constructor or destructor that is not accessible here" )
     '' fbc's error 20 for both. There is no element size to scale by, and nothing to read.
     DIAG( TKO0634, SEV_ERROR,   "a procedure pointer cannot be dereferenced or used in arithmetic" )
+    '' fbc's error 20. '&=' concatenates.
+    DIAG( TKO0635, SEV_ERROR,   "'&=' concatenates, so its target must be a string" )
+    '' fbc's errors 324 and 59. A fixed-length string has no parameter form at all.
+    DIAG( TKO0636, SEV_ERROR,   "parameter '%0' cannot be a fixed-length string" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

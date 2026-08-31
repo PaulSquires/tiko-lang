@@ -1,0 +1,6 @@
+'' A fixed-length string has no parameter, result or byref-variable form at all -- and an
+'' ARRAY OF var-len strings is not one. Plus '&=' concatenates, so its target is a string.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fixlen-and-concat.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/fixlen-and-concat.out
