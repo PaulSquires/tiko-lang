@@ -134,3 +134,4 @@ misc/misc.bas
 sys/dylib.bas
 io/conquery.bas
 io/conattr.bas
+io/lprint.bas

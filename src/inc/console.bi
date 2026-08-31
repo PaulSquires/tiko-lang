@@ -189,6 +189,7 @@ const FB_COLOR_BG_DEFAULT = &h2
 	const SEQ_SCROLL_REGION_ = 2
 	const SEQ_CLEOL_        = 4
 	const SEQ_SCROLL_       = 11
+	const SEQ_WINDOW_SIZE_  = 5
 	const SEQ_FG_COLOR_     = 7
 	const SEQ_BG_COLOR_     = 8
 	const SEQ_RESET_COLOR_  = 9
