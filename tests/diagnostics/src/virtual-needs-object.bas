@@ -4,6 +4,10 @@
 ''
 '' AND AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
 '' method". The declaration says there is nothing to call.
+''
+'' AND 'operator new' AND ITS THREE SIBLINGS ARE IMPLICITLY STATIC, so neither modifier
+'' may be written on them at all -- fbc error 233. They ALLOCATE the object; there is no
+'' receiver yet to dispatch through.
 type Based extends object
     dummy as integer
     declare abstract sub pure_( )
@@ -26,6 +30,11 @@ end type
 
 abstract sub Based.pure_( )
 end sub
+
+type AllocOps extends object
+    dummy as integer
+    declare virtual operator new( byval i as integer ) as AllocOps ptr
+end type
 
 '' -- accepted -----------------------------------------------------------------
 type Derived extends Based

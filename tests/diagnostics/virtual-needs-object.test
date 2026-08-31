@@ -1,5 +1,6 @@
 '' 'virtual' needs a vtable, and only a type that extends OBJECT has one; 'abstract'
-'' implies virtual and is the same refusal. And an abstract method has no body.
+'' implies virtual and is the same refusal. An abstract method has no body. And
+'' 'operator new' and its siblings are implicitly STATIC, so neither modifier fits them.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/virtual-needs-object.bas
 '' EXPECT-EXIT: 1

@@ -479,6 +479,17 @@ private sub CheckVirtualNeedsObject_( byref c as Ctx )
         dim as boolean isAbstract = ((sp->extra and PF_ABSTRACT) <> 0)
         dim as boolean isVirtual = ((sp->extra and PF_VIRTUAL) <> 0) orelse isAbstract
         if isVirtual = false then continue for
+        '' 'operator new' AND ITS THREE SIBLINGS ARE IMPLICITLY STATIC, so neither
+        '' modifier may be written on them -- fbc error 233, "This operator is implicitly
+        '' STATIC and cannot be VIRTUAL or ABSTRACT". They allocate the object; there is
+        '' no receiver yet to dispatch through.
+        dim as string opnm = Text.LowerAscii( c.names->Spelling( s->name ) )
+        dim as boolean allocOp = (opnm = "new") orelse (opnm = "delete") orelse _
+                                 (opnm = "new[]") orelse (opnm = "delete[]")
+        if allocOp then
+            c.diags->Report( TKO0647, PointRange( c.ast->Loc( decl ) ) )
+            continue for
+        end if
         dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
         if sc = 0 then continue for
         if sc->kind <> cast( ubyte, SCOPEK_TYPE ) then continue for

@@ -2,8 +2,11 @@ extern ptrs __fb_ZTS6Object [ ]
 global str $str1 "5BASED"
 global ptrs _ZTSN5BASEDE [ 0, @$str1, @__fb_ZTS6Object ]
 global ptrs _ZTVN5BASEDE [ 0, @_ZTSN5BASEDE, 0, _ZN5BASED3OK_Ev ]
-global str $str4 "7DERIVED"
-global ptrs _ZTSN7DERIVEDE [ 0, @$str4, @_ZTSN5BASEDE ]
+global str $str4 "8ALLOCOPS"
+global ptrs _ZTSN8ALLOCOPSE [ 0, @$str4, @__fb_ZTS6Object ]
+global ptrs _ZTVN8ALLOCOPSE [ 0, @_ZTSN8ALLOCOPSE, _ZN8ALLOCOPSnwEu7INTEGER ]
+global str $str7 "7DERIVED"
+global ptrs _ZTSN7DERIVEDE [ 0, @$str7, @_ZTSN5BASEDE ]
 global ptrs _ZTVN7DERIVEDE [ 0, @_ZTSN7DERIVEDE, _ZN7DERIVED5PURE_Ev, _ZN5BASED3OK_Ev ]
 func void _ZN5BASED3OK_Ev($0) {
   local ptr this
@@ -35,15 +38,19 @@ func void _ZN5PLAIN1HEv($0) {
 }
 verify: ok
 lowered: 4 functions, 4 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
-tests/diagnostics/src/virtual-needs-object.bas(27,1): error TKO0646: 'pure_' is abstract and cannot have a body
+tests/diagnostics/src/virtual-needs-object.bas(31,1): error TKO0646: 'pure_' is abstract and cannot have a body
      |
-  27 | abstract sub Based.pure_( )
+  31 | abstract sub Based.pure_( )
      | ^
-tests/diagnostics/src/virtual-needs-object.bas(19,13): error TKO0645: 'f' is virtual, but its type does not extend 'object'
+tests/diagnostics/src/virtual-needs-object.bas(23,13): error TKO0645: 'f' is virtual, but its type does not extend 'object'
      |
-  19 |     declare virtual sub f( )
+  23 |     declare virtual sub f( )
      |             ^
-tests/diagnostics/src/virtual-needs-object.bas(24,13): error TKO0645: 'g' is virtual, but its type does not extend 'object'
+tests/diagnostics/src/virtual-needs-object.bas(28,13): error TKO0645: 'g' is virtual, but its type does not extend 'object'
      |
-  24 |     declare abstract sub g( )
+  28 |     declare abstract sub g( )
+     |             ^
+tests/diagnostics/src/virtual-needs-object.bas(36,13): error TKO0647: 'operator new' and 'operator delete' are implicitly static and cannot be virtual
+     |
+  36 |     declare virtual operator new( byval i as integer ) as AllocOps ptr
      |             ^

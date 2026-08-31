@@ -190,6 +190,8 @@
     DIAG( TKO0645, SEV_ERROR,   "'%0' is virtual, but its type does not extend 'object'" )
     '' fbc's error 224. The declaration says there is nothing to call.
     DIAG( TKO0646, SEV_ERROR,   "'%0' is abstract and cannot have a body" )
+    '' fbc's error 233. They allocate the object; there is no receiver to dispatch through.
+    DIAG( TKO0647, SEV_ERROR,   "'operator new' and 'operator delete' are implicitly static and cannot be virtual" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
