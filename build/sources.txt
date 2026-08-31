@@ -89,6 +89,8 @@ io/hookcon.bas
 dt/serial.bas
 dt/vb.bas
 array/query.bas
+array/erase.bas
+array/redim.bas
 ctrl/gosub.bas
 io/write.bas
 utf/core.bas
