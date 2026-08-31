@@ -113,3 +113,5 @@ chrono/zone.bas
 fs/error.bas
 fs/mmap.bas
 fs/link.bas
+fs/stat.bas
+fs/ops.bas

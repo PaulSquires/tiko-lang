@@ -41,10 +41,22 @@ extern "rtlib"
 	declare function pSetHidden alias "fb_UStrFsSetHidden"     ( byval p as any ptr, byval v as long ) as long
 end extern
 
-dim shared as ustring up
+'' A ROTATING POOL, NOT ONE SHARED DESCRIPTOR.
+''
+'' Every argument of `f( U(a), U(b) )` is evaluated before the call, so a single
+'' shared `up` makes BOTH arguments point at the SECOND string. That turned
+'' CreateSymlink(target, link) into CreateSymlink(link, link) and CopyFile(a, b)
+'' into CopyFile(b, b): every two-path call reported ALREADY_EXISTS, and the
+'' differential still PASSED, because the wrong call is equally wrong on both
+'' runtimes. A test that compares two implementations cannot notice that it is
+'' asking them both the wrong question.
+const TKORT_USLOTS = 8
+dim shared as ustring upool( 0 to TKORT_USLOTS - 1 )
+dim shared as integer uslot
 function U( byref s as string ) as any ptr
-	up = s
-	return @up
+	uslot = (uslot + 1) mod TKORT_USLOTS
+	upool(uslot) = s
+	return @upool(uslot)
 end function
 
 '' The returned descriptor is a TEMP the caller owns; assigning it into a
@@ -87,9 +99,13 @@ print "  link exists="; iif( len( dir( lnk ) ) > 0, 1, 0 ); _
 
 if( rc = 0 ) then
 	st = -1
-	dim as any ptr d = pReadLink( U(lnk), @st )
-	print "  readlink st="; st; " target='"; S( d ); "'"
-	print "  matches what was asked for="; iif( S( d ) = tgt, 1, 0 )
+	'' S( ) CONSUMES THE DESCRIPTOR: it is a TEMP, and assigning it into a
+	'' ustring is what frees it. Reading the same pointer twice reads freed
+	'' memory -- and both runtimes read the same freed memory, so the
+	'' differential would pass while the second check measured nothing.
+	dim as string got = S( pReadLink( U(lnk), @st ) )
+	print "  readlink st="; st; " target='"; got; "'"
+	print "  matches what was asked for="; iif( got = tgt, 1, 0 )
 
 	'' A RELATIVE target stays relative -- ReadLink does not canonicalize.
 	dim as string rel = tmp & sep & "tkort-link-REL.txt"
