@@ -168,6 +168,7 @@ end function
 '' A dotted type name, in its own file at the 1500-line cap.
 #include once "symbols/resolvedot.bas"
 #include once "symbols/resolvesize.bas"
+#include once "symbols/resolvesel.bas"
 #include once "symbols/resolvearr.bas"
 
 private sub BindThis _
@@ -808,6 +809,11 @@ sub WalkStmt _
         WalkExpr( c, id, here )
         return
     end if
+
+    '' AS CONST refuses four things a plain SELECT accepts. Checked here, not in the
+    '' parser, because three of the four need the case values FOLDED -- and a named
+    '' 'const' only has a value by the time Resolve reaches it.
+    if k = Tko.N_SELECT then SelectConstCheck_( c, id, here )
 
     select case k
     case Tko.N_MODULE, Tko.N_BLOCK

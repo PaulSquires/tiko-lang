@@ -318,12 +318,22 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
     '' and only showed up as skips in lowering.
     if SelectIsChannel_( p ) then return ParseSelectChannel_( p, t )
     if Peek( p ) = Tko.KW_CASE then Advance( p )
+    '' 'as const' IS RECORDED, not just consumed. fbc builds a JUMP TABLE for it and
+    '' refuses four things it accepts in a plain SELECT -- 'is', a non-constant case,
+    '' a backwards range, and a span over 8192 -- so the flag has to survive parsing
+    '' or Resolve cannot tell the two statements apart. It rides in 'op', which is
+    '' unused on an N_SELECT.
+    dim as boolean isConst = false
     if Peek( p ) = Tko.KW_AS then
         Advance( p )                          '' 'select case as const'
-        if Peek( p ) = Tko.KW_CONST then Advance( p )
+        if Peek( p ) = Tko.KW_CONST then
+            Advance( p )
+            isConst = true
+        end if
     end if
 
     dim as Tko.StmtPayload sp
+    if isConst then sp.op = cast( ushort, Tko.KW_CONST )
     sp.a = Expression( p )
 
     dim as Tko.NodeIdVec cases
@@ -344,6 +354,12 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
             dim as Tko.Token pt = Cur( p )
             dim as Tko.StmtPayload pat
             if Accept( p, Tko.KW_IS ) then
+                '' Measured: 'case is > 5' under AS CONST is fbc error 9, "Expected
+                '' expression, found 'is'" -- refused at the 'is' itself, before the
+                '' relation is even read. A table index cannot be a comparison.
+                if isConst then
+                    p.diags->Report( Tko.TKO0419, Tko.PointRange( pt.loc ) )
+                end if
                 pat.op = cast( ushort, Peek( p ) )
                 Advance( p )
                 pat.a = Expression( p )
@@ -368,6 +384,14 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
         cs.b = Block( p )
         cases.Push( cast( ulong, MakeStmt( p, Tko.N_CASE, ct.loc, cs ) ) )
     loop
+
+    '' fbc error 34, "Expected 'CASE', found 'end'" -- and it fires on a PLAIN select
+    '' too, not only AS CONST. A lone 'case else' satisfies it: that is why the test is
+    '' on both slots and not on the case count alone.
+    dim as boolean hasElse = (sp.c <> Tko.NODE_NONE)
+    if (cases.Count = 0) andalso (hasElse = false) then
+        p.diags->Report( Tko.TKO0418, Tko.PointRange( t.loc ) )
+    end if
 
     sp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, cases )
     ExpectEnd( p, Tko.KW_SELECT )

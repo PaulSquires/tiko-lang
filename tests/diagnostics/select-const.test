@@ -1,0 +1,6 @@
+'' 'select case as const' refuses four things a plain SELECT accepts, and 'no cases'
+'' is refused on both. One construct per fbc error, measured.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/select-const.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/select-const.out

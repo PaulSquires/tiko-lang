@@ -104,6 +104,10 @@
     DIAG( TKO0415, SEV_ERROR,   "expected receive, send, timeout or else after 'case'" )
     DIAG( TKO0416, SEV_ERROR,   "expected '%0' in this 'select channel' case" )
     DIAG( TKO0417, SEV_ERROR,   "only one 'case timeout' and one 'case else' are allowed" )
+    '' fbc's error 34: every SELECT, plain or AS CONST, needs a case.
+    DIAG( TKO0418, SEV_ERROR,   "'select case' needs at least one 'case'" )
+    '' fbc's error 9. AS CONST builds a jump table, and a relation is not an index.
+    DIAG( TKO0419, SEV_ERROR,   "'is' is not allowed in a 'select case as const'" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )
@@ -123,6 +127,12 @@
     DIAG( TKO0612, SEV_ERROR,   "var-len array '%0' cannot be initialized" )
     '' fbc's error 50. The limit is on TOTAL BYTES and it is 2147483647 exactly.
     DIAG( TKO0613, SEV_ERROR,   "array '%0' is too big" )
+    '' fbc's error 11: AS CONST indexes a table, so every case must fold.
+    DIAG( TKO0614, SEV_ERROR,   "'select case as const' needs a constant case value" )
+    '' fbc's error 323.
+    DIAG( TKO0615, SEV_ERROR,   "invalid 'case' range: the start value is greater than the end value" )
+    '' fbc's error 69. The span is min..max ACROSS THE WHOLE STATEMENT, not per case.
+    DIAG( TKO0616, SEV_ERROR,   "'select case as const' spans more than %0 values" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
