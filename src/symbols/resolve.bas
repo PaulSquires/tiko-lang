@@ -167,6 +167,7 @@ end function
 '' sibling fields and the mangled name all come out of one arrangement.
 '' A dotted type name, in its own file at the 1500-line cap.
 #include once "symbols/resolvedot.bas"
+#include once "symbols/resolvesize.bas"
 #include once "symbols/resolvearr.bas"
 
 private sub BindThis _
@@ -1109,6 +1110,7 @@ sub WalkStmt _
             '' local array reserved one ELEMENT -- four bytes where forty were needed --
             '' which nothing noticed only because indexing was not lowered either.
             t = ArrayFromBoundsNode( c, t, ip->c, ip->b, here )
+            ArrayTooBig_( c, t, item, ip->name )
             '' 'dim BYREF rb as integer = a' ALIASES a. Its type is a REFERENCE, which
             '' is the same shape a byref PARAMETER has -- and every piece of the model
             '' already follows from that one fact: the slot lowers to a pointer, and

@@ -1,0 +1,5 @@
+'' An array over 2147483647 bytes is refused, and one just under it is not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-too-big.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/array-too-big.out

@@ -1239,7 +1239,11 @@ function ArrayFromPairs _
         return base_
     end if
 
-    dim as long total = 1
+    '' A LONGINT, and that is not caution. 'dim as byte t(0 to &h7FFFFFFF)' is
+    '' 2147483648 elements, which overflowed a LONG to a negative -- and the
+    '' 'total <= 0' test below then turned the whole declaration into a DYNAMIC
+    '' array, silently. fbc says error 50, 'Array too big'.
+    dim as longint total = 1
     dim as boolean known = true
     dim as FB.Array( of longint ) bounds
     for i as long = 0 to los.Count - 1
@@ -1265,7 +1269,7 @@ function ArrayFromPairs _
         else
             known = false
         end if
-        if known then total *= cast( long, hi - lo + 1 )
+        if known then total *= (hi - lo + 1)
         bounds.Push( lo )
         bounds.Push( hi )
     next
@@ -1273,7 +1277,19 @@ function ArrayFromPairs _
     '' a(any)', 'dim a(0 to n)'. The rank is still written down, and it is what decides
     '' how many dimtb slots the descriptor carries, so it is kept.
     if (known = false) orelse (total <= 0) then return c.types->DynArrayOf( base_, los.Count )
-    return c.types->ArrayOf( base_, los.Count, total, @bounds )
+    '' TOO MANY ELEMENTS TO COUNT IN A LONG is already over fbc's limit, whatever
+    '' the element size: the limit is 2147483647 BYTES and an element is at least
+    '' one. Reported here rather than later because the type cannot carry the
+    '' count -- TypeRecord.elems is a long -- so nothing downstream could see it.
+    '' OVER THE LIMIT, and the type still has to carry the BOUNDS: a count of 1
+    '' keeps TypeRecord.elems honest -- it is a long and cannot hold the real
+    '' one -- while ArrayTooBig_ recomputes from those bounds in 64 bits and
+    '' reports. Reporting HERE instead gave the error twice, because a
+    '' declaration whose type is not yet complete is revisited.
+    if total > 2147483647 then
+        return c.types->ArrayOf( base_, los.Count, 1, @bounds )
+    end if
+    return c.types->ArrayOf( base_, los.Count, cast( long, total ), @bounds )
 end function
 
 end namespace

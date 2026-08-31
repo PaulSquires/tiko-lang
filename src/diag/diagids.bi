@@ -121,6 +121,8 @@
     '' fbc's error 75, in its own words. A DYNAMIC array has no storage at the point
     '' of declaration, so there is nothing for an initialiser to write into.
     DIAG( TKO0612, SEV_ERROR,   "var-len array '%0' cannot be initialized" )
+    '' fbc's error 50. The limit is on TOTAL BYTES and it is 2147483647 exactly.
+    DIAG( TKO0613, SEV_ERROR,   "array '%0' is too big" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
