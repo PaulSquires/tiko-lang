@@ -1,0 +1,229 @@
+'' collectshape.bas -- DO TWO DECLARATIONS OF ONE NAME AGREE?
+''
+'' Split out of collect.bas at the 1500-line lint cap and included from it, inside its
+'' own namespace. Nothing in it changed in the move.
+''
+'' An EXTERN is a forward declaration and a repeated CONST is not a duplicate -- both
+'' are allowed exactly when the WRITTEN SHAPES agree, which is what these compare: the
+'' bounds, the type reference and the literal value, as spelled, without resolving
+'' anything. Resolve has not run yet when Collect asks.
+
+private function SameDeclShape_ _
+    ( byref w as Walker, byval aItem as Tko.NodeId, byval bItem as Tko.NodeId ) as boolean
+
+    if (aItem = Tko.NODE_NONE) orelse (bItem = Tko.NODE_NONE) then return true
+    if (cast( long, aItem ) >= w.ast->nodes.Count) orelse _
+       (cast( long, bItem ) >= w.ast->nodes.Count) then return true
+
+    dim as Tko.AstNode ptr an = @w.ast->nodes[cast( long, aItem )]
+    dim as Tko.AstNode ptr bn = @w.ast->nodes[cast( long, bItem )]
+
+    '' 'extern a as integer' against 'extern a( ) as integer' -- one is an array and
+    '' the other is not. fbc error 54.
+    dim as boolean aArr = ((an->flags and Tko.NF_ARRAY) <> 0)
+    dim as boolean bArr = ((bn->flags and Tko.NF_ARRAY) <> 0)
+    if aArr <> bArr then return false
+
+    dim as Tko.StmtPayload ptr ap = StmtOf( w, aItem )
+    dim as Tko.StmtPayload ptr bp = StmtOf( w, bItem )
+    if SameBounds_( w, ap->c, bp->c ) = false then return false
+    return SameTypeRef_( w, ap->a, bp->a )
+end function
+
+'' How many dimensions a bounds block declares. NODE_NONE is none.
+private function DimCount_( byref w as Walker, byval id as Tko.NodeId ) as long
+    if id = Tko.NODE_NONE then return 0
+    if w.ast->Kind( id ) <> Tko.N_BLOCK then return 0
+    return w.ast->lists[cast( long, w.ast->nodes[cast( long, id )].data )].count
+end function
+
+'' Two bounds blocks: the same number of dimensions, and where both sides wrote an
+'' integer LITERAL, the same value. 'extern array(0 to 1)' against 'dim array(0 to 0)'
+'' is fbc error 37 -- the dimension count agrees and the bounds do not, so comparing
+'' the count alone let seven corpus files through.
+private function SameBounds_ _
+    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+
+    dim as long na = DimCount_( w, a )
+    dim as long nb = DimCount_( w, b )
+
+    '' VAR-LEN against FIXED is the distinction, not the dimension count. Measured, and
+    '' it took two passes to get right because the obvious rule fits three rows and not
+    '' the fourth:
+    ''
+    ''   ()        vs (any)        accepted, either order
+    ''   ()        vs (any,any)    accepted
+    ''   (any)     vs (any,any)    fbc error 36, wrong number of dimensions
+    ''   ()        vs (0 to 1)     fbc error 54, EXPECTED VAR-LEN ARRAY
+    ''
+    '' So: a bounds list with no dimensions written, or with every dimension 'any', is
+    '' VAR-LEN. One with a real bound is FIXED. The two never agree; two var-len forms
+    '' agree unless both wrote a count and the counts differ.
+    dim as boolean aVar = IsVarLenBounds_( w, a )
+    dim as boolean bVar = IsVarLenBounds_( w, b )
+    if aVar <> bVar then return false
+    if aVar then
+        if (na = 0) orelse (nb = 0) then return true
+        return (na = nb)
+    end if
+    if na <> nb then return false
+
+    dim as Tko.ListPayload ptr la = _
+        @w.ast->lists[cast( long, w.ast->nodes[cast( long, a )].data )]
+    dim as Tko.ListPayload ptr lb = _
+        @w.ast->lists[cast( long, w.ast->nodes[cast( long, b )].data )]
+    for i as long = 0 to na - 1
+        dim as Tko.NodeId da = cast( Tko.NodeId, w.ast->children[la->first + i] )
+        dim as Tko.NodeId db = cast( Tko.NodeId, w.ast->children[lb->first + i] )
+        '' 'a(9)' is a bare expression -- the upper bound -- and 'a(0 to 9)' is an
+        '' N_CASE_RANGE. A mix of the two spellings is left alone rather than guessed at.
+        '' 'any' marks a VAR-LEN dimension. Measured: 'extern a(any)' against
+        '' 'dim a(0 to 2)' is fbc error 54, so ANY on one side and a bound on the other
+        '' is a difference -- while ANY on both is agreement.
+        dim as boolean aa = IsAnyBound_( w, da )
+        dim as boolean ab = IsAnyBound_( w, db )
+        if aa <> ab then return false
+        if aa then continue for
+
+        dim as boolean ra = (w.ast->Kind( da ) = Tko.N_CASE_RANGE)
+        dim as boolean rb = (w.ast->Kind( db ) = Tko.N_CASE_RANGE)
+        if ra <> rb then continue for
+        if ra then
+            dim as Tko.StmtPayload ptr sa = StmtOf( w, da )
+            dim as Tko.StmtPayload ptr sb = StmtOf( w, db )
+            if SameLiteral_( w, sa->a, sb->a ) = false then return false
+            if SameLiteral_( w, sa->b, sb->b ) = false then return false
+        else
+            if SameLiteral_( w, da, db ) = false then return false
+        end if
+    next
+    return true
+end function
+
+'' Two constants' initialisers. Compared only when both are integer literals; anything
+'' else counts as agreeing, the same permissive rule the shape comparison uses. That
+'' can accept a pair fbc would reject -- 'const X = f( 1 )' written twice with different
+'' f -- and accepting is the direction that does not lose a working file.
+private function SameConstValue_ _
+    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+
+    if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return true
+    dim as Tko.StmtPayload ptr ap = StmtOf( w, a )
+    dim as Tko.StmtPayload ptr bp = StmtOf( w, b )
+    return SameLiteral_( w, ap->b, bp->b )
+end function
+
+'' A VAR-LEN bounds list: none written at all, or every dimension 'any'. Anything with
+'' a real bound in it is FIXED, and the two are never the same shape.
+private function IsVarLenBounds_( byref w as Walker, byval id as Tko.NodeId ) as boolean
+    dim as long n = DimCount_( w, id )
+    if n = 0 then return true
+    dim as Tko.ListPayload ptr lp = _
+        @w.ast->lists[cast( long, w.ast->nodes[cast( long, id )].data )]
+    for i as long = 0 to n - 1
+        if IsAnyBound_( w, cast( Tko.NodeId, w.ast->children[lp->first + i] ) ) = false then
+            return false
+        end if
+    next
+    return true
+end function
+
+'' The 'any' of 'a( any )', which arrives as an ordinary identifier.
+private function IsAnyBound_( byref w as Walker, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    if w.ast->Kind( id ) <> Tko.N_IDENT then return false
+    dim as Tko.InternId nm = _
+        w.ast->idents[cast( long, w.ast->nodes[cast( long, id )].data )].name
+    return (w.names->Spelling( nm ) = "any")
+end function
+
+'' Equal when BOTH are integer literals and differ; otherwise "cannot tell", which
+'' counts as agreeing.
+private function SameLiteral_ _
+    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+
+    dim as longint av = 0, bv = 0
+    if LiteralLen_( w, a, av ) = false then return true
+    if LiteralLen_( w, b, bv ) = false then return true
+    return (av = bv)
+end function
+
+'' Two written type references, compared as far as syntax allows.
+private function SameTypeRef_ _
+    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+
+    if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return true
+    if (w.ast->Kind( a ) <> Tko.N_TYPEREF) orelse (w.ast->Kind( b ) <> Tko.N_TYPEREF) then
+        return true
+    end if
+    dim as Tko.StmtPayload ptr ap = StmtOf( w, a )
+    dim as Tko.StmtPayload ptr bp = StmtOf( w, b )
+
+    '' The builtin keyword, or 0 for a named type. A different builtin is fbc error 4.
+    '' The builtin keyword -- but only when BOTH sides wrote one. A named type has
+    '' op = TK_IDENT and may be a TYPEDEF for the builtin on the other side, which is
+    '' exactly the ULONG / CULONG pair below, so comparing across the two kinds
+    '' rejects a legal restatement.
+    dim as boolean aNamed = (ap->op = cast( ushort, Tko.TK_IDENT ))
+    dim as boolean bNamed = (bp->op = cast( ushort, Tko.TK_IDENT ))
+    if (aNamed = false) andalso (bNamed = false) then
+        if ap->op <> bp->op then return false
+    end if
+    '' A NAMED type is NOT compared, even when both sides name something and the
+    '' spellings differ. Two names can be one type through a typedef, and Collect has
+    '' no types to ask -- crt/io.bi and crt/win32/wchar.bi both declare
+    ''
+    ''     #ifndef _fsize_t
+    ''     type _fsize_t as ulong        (io.bi)
+    ''     type _fsize_t as culong       (wchar.bi)
+    ''     #endif
+    ''
+    '' with NOTHING ever defining _fsize_t, so both guards fire and both declarations
+    '' happen. fbc accepts them because CULONG is a typedef for ULONG on Windows; a
+    '' comparison on spellings cannot see that and rejected four corpus files.
+    ''
+    '' Nothing is lost that the corpus checks: its duplicate tests differ by BUILTIN
+    '' type, which the 'op' comparison above catches, and by array shape and string
+    '' length, which are compared below.
+
+    '' 'zstring * 4' against 'zstring * 8' -- fbc error 20. Only comparable when both
+    '' lengths are integer literals; anything else is left alone.
+    '' The fixed length is in 'c', NOT 'a' -- 'a' is the ELEMENT type reference, and
+    '' reading one for the other compared a length against a type and found them equal.
+    dim as longint alen = 0, blen = 0
+    dim as boolean aHas = LiteralLen_( w, ap->c, alen )
+    dim as boolean bHas = LiteralLen_( w, bp->c, blen )
+    if aHas andalso bHas andalso (alen <> blen) then return false
+    '' One written and one not is a difference too: 'zstring * 4' is not 'zstring'.
+    if aHas <> bHas then return false
+
+    '' PTR nests another N_TYPEREF in 'a'; recursing compares the pointed-to type and,
+    '' by arriving at different depths, the pointer depth too.
+    return SameTypeRef_( w, ap->a, bp->a )
+end function
+
+'' The integer literal a fixed-length string's size was written as, if it was one.
+private function LiteralLen_ _
+    ( byref w as Walker, byval id as Tko.NodeId, byref outv as longint ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if w.ast->Kind( id ) <> Tko.N_INT_LIT then return false
+    outv = w.ast->literals[cast( long, w.ast->nodes[cast( long, id )].data )].intValue
+    return true
+end function
+
+declare sub WalkNode _
+    ( byref w as Walker, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+declare function Effective_( byval c as Tko.CallConv ) as Tko.CallConv
+declare sub BindCallConv _
+    ( byref w as Walker, byval s as Tko.Symbol ptr, _
+      byval sp as Tko.StmtPayload ptr, byval id as Tko.NodeId, _
+      byval firstSighting as boolean )
+declare function ProcArity _
+    ( byref w as Walker, byval sp as Tko.StmtPayload ptr ) as long
+declare function UndefinedProcWithArity _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval want as long ) as Tko.SymbolId
+declare function MemberDeclForDef_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId

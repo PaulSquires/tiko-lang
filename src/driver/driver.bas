@@ -10,6 +10,7 @@
 #include once "symbols/resolve.bi"
 #include once "symbols/mangle.bi"
 #include once "symbols/check.bi"
+#include once "symbols/visibility.bi"
 #include once "mir/lower.bi"
 #include once "mir/dump.bi"
 #include once "mir/verify.bi"
@@ -232,6 +233,9 @@ function Run( byref args as Tko.StrVec ) as long
                 dim as Tko.Check.Stats cst
                 Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
+                '' AFTER Check: a member access needs its symbol, and only Check binds
+                '' one -- a field means nothing until its base has a type.
+                Tko.Vis.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info )
                 dim as Tko.Mir.MirModule mm
                 dim as Tko.Mir.LowerStats lst
                 dim as Tko.UdtLayouts udts

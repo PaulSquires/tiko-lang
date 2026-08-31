@@ -1,0 +1,52 @@
+'' 'private:' AND 'protected:' INSIDE A TYPE -- fbc error 202, "Illegal member access".
+'' A PRIVATE member may be named only from inside its own type's procedures; a PROTECTED
+'' one from those and from a DERIVED type's.
+''
+'' A PASS OF ITS OWN, after Check, and that is the whole reason it exists. The question
+'' needs two things at once: WHICH MEMBER -- which only Check knows, because a field means
+'' nothing until its base has a type -- and WHICH PROCEDURE ENCLOSES THE USE, which Check
+'' does not track and Resolve cannot answer for a field.
+''
+'' A CONST OR A STATIC INSIDE A TYPE BODY IS A MEMBER TOO: 'T.SECRET' from outside is the
+'' same error as a private field, and only fields and procedures were being marked.
+type T
+    open_ as integer
+    private:
+    hidden as integer
+    const SECRET = 123
+    declare sub hiddenMethod( )
+    protected:
+    shared_ as integer
+end type
+
+sub T.hiddenMethod( )
+    '' From inside its own type, every member is reachable.
+    hidden = 1
+    shared_ = 2
+end sub
+
+type Derived extends T
+    declare sub reach( )
+end type
+
+sub Derived.reach( )
+    '' PROTECTED reaches down the derivation chain...
+    shared_ = 3
+end sub
+
+dim shared as T x
+dim shared as Derived d
+
+'' -- refused ------------------------------------------------------------------
+sub outside( )
+    x.hidden = 1
+    x.shared_ = 2
+    dim as integer n = T.SECRET
+    d.shared_ = 3
+end sub
+
+'' -- accepted -----------------------------------------------------------------
+sub alsoOutside( )
+    x.open_ = 1
+    d.open_ = 2
+end sub

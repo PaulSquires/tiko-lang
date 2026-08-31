@@ -21,6 +21,7 @@ src/symbols/generic.bas
 src/symbols/mangle.bas
 src/symbols/constfold.bas
 src/symbols/check.bas
+src/symbols/visibility.bas
 src/types/udtlayout.bas
 src/types/vtable.bas
 src/types/abstractcheck.bas

@@ -1,0 +1,7 @@
+'' 'private:' and 'protected:' inside a type, checked at the use site: four ways of
+'' reaching one from outside, and the three contexts that may -- the type's own methods,
+'' a derived type's, and a public member from anywhere.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/member-visibility.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/member-visibility.out

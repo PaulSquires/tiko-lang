@@ -84,7 +84,8 @@ private sub DumpAny _
     '' Member visibility lives in 'extra', not in the node flags, so it needs its own
     '' line here -- and without one a 'private:' label is invisible in the dump, which
     '' is exactly how a parsed-but-discarded label would look.
-    if (n->kind = Tko.N_FIELD) orelse (n->kind = Tko.N_PROC) then
+    if (n->kind = Tko.N_FIELD) orelse (n->kind = Tko.N_PROC) orelse _
+       (n->kind = Tko.N_CONST) orelse (n->kind = Tko.N_VAR) then
         if (sp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then row += " private"
         if (sp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then row += " protected"
     end if

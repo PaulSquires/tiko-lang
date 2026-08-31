@@ -131,6 +131,16 @@ namespace Tko
     '' Past &h8000, which is why 'flags' is a ulong.
     const SYMF_REDIM     as ulong  = &h00010000
 
+    '' 'private:' and 'protected:' inside a TYPE. Carried from the declaration node onto
+    '' the symbol because the USE SITE is where they matter -- fbc's error 202, "Illegal
+    '' member access" -- and a use has the symbol, not the declaration.
+    ''
+    '' NOT SYMF_PRIVATE, which is module linkage ('private sub f') and an unrelated
+    '' question: a private MODULE procedure is visible to the whole file, and a private
+    '' MEMBER is visible only inside its own type.
+    const SYMF_MEMB_PRIVATE   as ulong = &h00020000
+    const SYMF_MEMB_PROTECTED as ulong = &h00040000
+
     type Symbol
         as ubyte     kind
         as ulong     flags

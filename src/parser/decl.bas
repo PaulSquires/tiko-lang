@@ -1100,35 +1100,8 @@ private function ParseProc _
 end function
 
 #include once "parser/lambda.bas"
+#include once "parser/declvis.bas"
 
-'' An access section reaches into a nested anonymous TYPE or UNION -- measured: a
-'' field of a union written under 'private:' is an illegal member access from outside.
-'' The nested body parses with its own section state, so the label is applied here
-'' instead, and only to members that carry none of their own.
-private sub ApplyVisibility _
-    ( byref p as Tko.ParserState, byval n as Tko.NodeId, byval vis as ushort )
-
-    if (vis = 0) orelse (n = Tko.NODE_NONE) then return
-    if p.ast->nodes[cast( long, n )].kind <> Tko.N_TYPE then return
-
-    dim as Tko.StmtPayload ptr tp = _
-        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
-
-    for i as long = 0 to tp->count - 1
-        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[tp->first + i] )
-        if m = Tko.NODE_NONE then continue for
-        dim as Tko.NodeKind mk = p.ast->nodes[cast( long, m )].kind
-        if mk = Tko.N_TYPE then
-            ApplyVisibility( p, m, vis )
-        elseif (mk = Tko.N_FIELD) orelse (mk = Tko.N_PROC) then
-            dim as Tko.StmtPayload ptr mp = _
-                @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
-            dim as ushort had = mp->extra and _
-                                (Tko.PF_MEMB_PRIVATE or Tko.PF_MEMB_PROTECTED)
-            if had = 0 then mp->extra or= vis
-        end if
-    next
-end sub
 
 '' A FIELD whose NAME is a keyword. MEASURED against fbc, one keyword at a time over
 '' all 247 of them: it accepts 223 and REJECTS exactly these twenty-four --
@@ -1366,7 +1339,11 @@ private function ParseAggregateBody _
             dim as boolean tagIt = (vis <> 0) andalso (mn <> Tko.NODE_NONE)
             if tagIt then
                 select case p.ast->nodes[cast( long, mn )].kind
-                case Tko.N_PROC
+                '' N_CONST and N_VAR belong here with N_PROC: a 'const' or a 'static'
+                '' inside a type body is a MEMBER, and 'T.MYCONST' from outside is fbc
+                '' error 202 exactly as a private field is. All three carry a
+                '' StmtPayload whose 'extra' is the modifier set.
+                case Tko.N_PROC, Tko.N_CONST, Tko.N_VAR
                     dim as Tko.StmtPayload ptr mp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, mn )].data )]
                     mp->extra or= vis

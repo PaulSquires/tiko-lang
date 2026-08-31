@@ -147,6 +147,8 @@
     DIAG( TKO0622, SEV_ERROR,   "'%0' overrides a virtual method with a different return type" )
     DIAG( TKO0623, SEV_ERROR,   "'%0' and the virtual method it overrides disagree about 'const'" )
     DIAG( TKO0624, SEV_ERROR,   "'%0' overrides a virtual method with a different parameter mode" )
+    '' fbc's error 202.
+    DIAG( TKO0625, SEV_ERROR,   "'%0' is not accessible here" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
