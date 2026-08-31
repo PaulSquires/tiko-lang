@@ -112,3 +112,4 @@ chrono/clock.bas
 chrono/zone.bas
 fs/error.bas
 fs/mmap.bas
+fs/link.bas

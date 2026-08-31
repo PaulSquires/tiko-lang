@@ -263,41 +263,36 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 
 	dim as integer want = hReallocSize( length )
 
-	'' CORRECTED. This branch used reallocate( 0, ... ), on the reasoning that
-	'' fbc reaches an empty descriptor through realloc and that matching the NAME
-	'' matters as much as matching the count. The reasoning was sound; the premise
-	'' was wrong. fbc uses MALLOC here.
+	'' THE EMPTY-DESCRIPTOR SHORTCUT EXISTS ONLY FOR THE ASSIGN MODE.
 	''
-	'' It went unseen because alloc-count.bas prints four columns -- malloc,
-	'' calloc, realloc, free -- and was being compared BY HAND on two of them.
-	'' Totals matched, allocation parity was recorded as reached, and the
-	'' malloc/realloc split was off by 1,000 operations per 1,000 iterations on
-	'' both assign_grow and temp_churn. build/diff.sh diffs the whole output and
-	'' found it on its first run.
+	'' fbc's allocator depends on the MODE, not on whether there is a block yet.
+	'' Measured, per 1,000 iterations:
 	''
-	'' realloc(NULL, n) and malloc(n) do the same thing, so nothing a program can
-	'' observe was wrong -- which is the class of difference Gate 3 exists for,
-	'' and the class a partial comparison cannot see.
-	if( s->data = 0 ) then
-		'' No zero-length shortcut here either: length 0 still gets a real
-		'' one-byte block, exactly as fb_hStrAlloc does. Measured -- fbc's
+	''     assign_grow / temp_churn (not keepdata)  fbc: 1000 malloc,  0 realloc
+	''     append / concat_assign_growing (keepdata) fbc:    0 malloc, 54 realloc
+	''
+	'' so the append path's FIRST allocation is realloc(NULL, n), not malloc(n).
+	''
+	'' AND IT CANNOT BE WRITTEN AS ITS OWN BRANCH. An earlier version had
+	'' `if s->data = 0 then ... reallocate( 0, want + 1 )`, which is correct C
+	'' and correct FreeBASIC and still came out WRONG: inside that branch the
+	'' pointer is provably null, and LLVM's InstCombine folds realloc(null, n)
+	'' into malloc(n). alloc-count then reported
+	''
+	''     append   fbc: 0 malloc 54 realloc    tiko-rt: 2 malloc 52 realloc
+	''
+	'' -- ONLY IN RELEASE. The fold does not happen at -O0, so Debug was green
+	'' and Release was not, and nothing in the source had changed between them.
+	''
+	'' The fix is structural rather than a barrier: the keepdata mode reaches
+	'' ONE realloc call site below, with a pointer the optimiser cannot prove is
+	'' null, and the empty case is folded into the ordinary grow rule.
+	if( (s->data = 0) andalso (keepdata = 0) ) then
+		'' No zero-length shortcut here: length 0 still gets a real one-byte
+		'' block, exactly as fb_hStrAlloc does. Measured -- fbc's
 		'' fb_hStrRealloc( fresh, 0, either mode ) returns size 0 and a NON-NULL
 		'' pointer, and its callers write the terminator regardless.
-		'' AND THE ALLOCATOR DEPENDS ON THE MODE, which is the second half of the
-		'' same correction. Measured, per 1,000 iterations:
-		''
-		''     assign_grow / temp_churn (not keepdata)  fbc: 1000 malloc,  0 realloc
-		''     append / concat_assign_growing (keepdata) fbc:    0 malloc, 54 realloc
-		''
-		'' Making this branch malloc unconditionally fixed the first pair and broke
-		'' the second, by exactly the two first-allocations it contains. The mode
-		'' governs the allocator even when there is nothing yet to keep:
-		'' realloc(NULL, n) is the append path's ordinary case, not a special one.
-		if( keepdata <> 0 ) then
-			s->data = cptr( zstring ptr, reallocate( 0, want + 1 ) )
-		else
-			s->data = cptr( zstring ptr, allocate( want + 1 ) )
-		end if
+		s->data = cptr( zstring ptr, allocate( want + 1 ) )
 		if( s->data = 0 ) then
 			s->size = 0
 			FB_STRSETLEN( s, 0 )
@@ -370,7 +365,11 @@ function tkort_hStrRealloc alias "fb_hStrRealloc" _
 	'' from probes, the two disagreed and only the wide one was right.
 	dim as integer resize = any
 	if( keepdata <> 0 ) then
-		resize = (length > s->size)
+		'' `s->data = 0` is part of the GROW test rather than a branch of its
+		'' own -- see the note above on the realloc(null) fold. A fresh
+		'' descriptor has size 0, so this is only reached for length 0, where
+		'' the block still has to exist for the terminator.
+		resize = ((length > s->size) orelse (s->data = 0))
 	else
 		dim as integer grow_ = (length > s->size)
 		dim as integer shrink_ = (want < (s->size - (s->size shr 3)))

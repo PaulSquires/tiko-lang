@@ -78,16 +78,38 @@ function tkort_GosubReturn alias "fb_GosubReturn" ( byval ctx as GOSUBCTX ptr ) 
 			'' fbc marks the copy a TODO; under this allocation strategy it
 			'' is not optional.
 			''
-			'' MEASURED, after a wrong guess: FreeBASIC gives this local the
-			'' same 256 bytes and the same 16-byte alignment clang gives C's
-			'' jmp_buf, so no manual alignment is needed here. An earlier
-			'' version aligned it by hand on the theory that longjmp's movaps
-			'' restore of xmm6-15 was faulting; the probe says otherwise.
-			dim as jmp_buf buf = any
-			memcpy( @buf, @ctx->top->buf, sizeof( jmp_buf ) )
+			'' THE COPY IS HAND-ALIGNED TO 16, AND THIS IS NOT DEFENSIVE.
+			'' mingw-w64's x64 setjmp/longjmp save and restore xmm6-xmm15 with
+			'' MOVAPS, which faults on a misaligned address, and C's jmp_buf
+			'' carries __attribute__((aligned(16))) for exactly that reason.
+			'' FreeBASIC's crt/setjmp.bi declares jmp_buf as a plain UDT with no
+			'' alignment attribute, so a `dim as jmp_buf` local gets whatever the
+			'' frame layout gives it.
+			''
+			'' MEASURED, TWICE, AND THE FIRST MEASUREMENT WAS WRONG. An earlier
+			'' version aligned this by hand, then removed the alignment after a
+			'' probe reported the local was already 16-aligned -- a probe built
+			'' in DEBUG. In Release the disassembly says otherwise:
+			''
+			''     Debug    subq $0x138,%rsp ; leaq 0x20(%rsp)  -> 16-aligned
+			''     Release  4 pushes + subq $0x128,%rsp ; leaq 0x28(%rsp) -> 8
+			''
+			'' so gosub-parity passed in Debug and SEGFAULTED in Release. Adding a
+			'' trace to find out why moved the frame and made it pass -- which is
+			'' what a codegen-alignment bug looks like from the outside, and why
+			'' the answer had to come from objdump rather than from a printf.
+			''
+			'' The SOURCE needs no such care: it lives at offset 0 of a malloc'd
+			'' node, and malloc is 16-aligned on every target here.
+			dim as ubyte raw( 0 to sizeof( jmp_buf ) + 15 ) = any
+			dim as uinteger a = cast( uinteger, @raw(0) )
+			a = (a + 15) and (not cast( uinteger, 15 ))
+			dim as jmp_buf ptr buf = cptr( jmp_buf ptr, a )
+
+			memcpy( buf, @ctx->top->buf, sizeof( jmp_buf ) )
 			free( ctx->top )
 			ctx->top = node
-			longjmp( @buf, -1 )
+			longjmp( buf, -1 )
 		end if
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_RETURNWITHOUTGOSUB )

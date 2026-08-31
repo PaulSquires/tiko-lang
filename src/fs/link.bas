@@ -1,0 +1,652 @@
+'' link.bas -- links and permissions: seven entry points over one fbc member,
+'' split by platform.
+''
+'' ARGUMENT ORDER IS (target, link) THROUGHOUT -- the thing that exists first,
+'' matching ln -s, symlink(2) and Python. On POSIX that is symlink(2)'s own
+'' order and nothing is swapped; on Windows it is the OPPOSITE of
+'' CreateSymbolicLinkW, so the Windows side swaps and the POSIX side does not.
+'' Getting it backwards creates a dangling link pointing at the wrong place and
+'' returns SUCCESS, so the differential uses two DISTINGUISHABLE paths and reads
+'' the target back -- a reversed implementation cannot pass that.
+''
+'' isdir IS REQUIRED ON WINDOWS AND IGNORED ON POSIX. Windows encodes the
+'' target's kind IN THE LINK and needs it at creation time, even when the target
+'' does not exist yet -- which is exactly why it cannot be inferred. The
+'' parameter is named and unused on POSIX rather than dropped, so both platforms
+'' share one signature.
+''
+'' READLINK RETURNS THE TARGET AS STORED: unresolved, possibly relative,
+'' possibly dangling. It does not canonicalize; CanonicalPath answers that
+'' different question, and conflating them would make a dangling link
+'' unreadable.
+''
+'' "THIS IS NOT A LINK" IS ONE CODE ON BOTH PLATFORMS -- FS_INVALID_PATH. POSIX
+'' reaches it through readlink's EINVAL; Windows through
+'' ERROR_NOT_A_REPARSE_POINT, which is mapped explicitly because the generic
+'' mapper does not know that name.
+''
+'' SetHidden is portable in name only and says so: on POSIX hiddenness is a
+'' naming convention, not an attribute, so honouring it would mean renaming the
+'' file behind the caller's back. FS_UNSUPPORTED means "this will never work
+'' here", which is exactly true.
+
+#include once "inc/descriptors.bi"
+#include once "inc/fserror.bi"
+#include once "inc/fspath.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+extern "rtlib"
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: the ustring temp builder, declared plain.
+	declare function tkrt_UStrAllocTemp alias "fb_hUStrAllocTemp" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare sub tkrt_UStrCopy2 alias "fb_hUStrCopy" _
+		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
+end extern
+
+'' Unpack a USTRING argument through FB_USTRSIZE, never ->len raw: the temp
+'' flag lives in the sign bit.
+private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
+	static as FB_UCHAR empty_(0 to 0) = { 0 }
+	if( s = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	elseif( s->data = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	else
+		*ptr_ = s->data
+		*len_ = FB_USTRSIZE( s )
+	end if
+end sub
+
+'' A caller-freed TEMP, or the shared empty descriptor when there is nothing to
+'' return. Same builder fs/path.bas and fs/dirent.bas use.
+private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
+	dim as FBUSTRING ptr dst = any
+	if( units <= 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( 0, units )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data <> 0 ) then
+		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+		dst->data[units] = 0
+	end if
+	return dst
+end function
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+
+'' ---------------------------------------------------------- Windows backend
+
+const INVALID_HANDLE_VALUE_     = -1
+const INVALID_FILE_ATTRIBUTES_  = &hFFFFFFFFul
+const FILE_SHARE_READ_          = &h00000001ul
+const FILE_SHARE_WRITE_         = &h00000002ul
+const FILE_SHARE_DELETE_        = &h00000004ul
+const OPEN_EXISTING_            = 3
+const FILE_FLAG_BACKUP_SEMANTICS_   = &h02000000ul
+const FILE_FLAG_OPEN_REPARSE_POINT_ = &h00200000ul
+const FILE_ATTRIBUTE_HIDDEN_    = &h00000002ul
+const SYMLINK_FLAG_DIRECTORY_   = &h00000001ul
+const SYMLINK_FLAG_UNPRIV_      = &h00000002ul
+const ERROR_INVALID_PARAMETER_  = 87
+const ERROR_NOT_A_REPARSE_POINT_ = 4390
+const FSCTL_GET_REPARSE_POINT_  = &h000900A8ul
+const MAX_REPARSE_SIZE_         = 16384
+const IO_REPARSE_TAG_SYMLINK_     = &hA000000Cul
+const IO_REPARSE_TAG_MOUNT_POINT_ = &hA0000003ul
+
+'' nNumberOfLinks sits at byte 40 of BY_HANDLE_FILE_INFORMATION: one DWORD of
+'' attributes, three FILETIMEs (8 each), then the volume serial and the two
+'' size halves. Every member is DWORD-aligned, so there is no padding to guess.
+const BHFI_SIZE_            = 52
+const BHFI_NUMLINKS_OFFSET_ = 40
+
+'' REPARSE_DATA_BUFFER: tag at 0, data length at 4, reserved at 6. Both name
+'' surrogates then carry the same four USHORTs at 8..15; SYMLINK has an extra
+'' ULONG of flags, so its PathBuffer starts at 20 and MOUNT_POINT's at 16.
+const RP_SUBST_OFF_   = 8
+const RP_SUBST_LEN_   = 10
+const RP_PRINT_OFF_   = 12
+const RP_PRINT_LEN_   = 14
+const RP_PATH_SYMLINK_    = 20
+const RP_PATH_MOUNTPOINT_ = 16
+
+extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
+	declare function w_CreateSymbolicLinkW stdcall alias "CreateSymbolicLinkW" _
+		( byval lnk as wstring ptr, byval target as wstring ptr, byval flags as ulong ) as ubyte
+	declare function w_CreateHardLinkW stdcall alias "CreateHardLinkW" _
+		( byval lnk as wstring ptr, byval target as wstring ptr, byval sa as any ptr ) as long
+	declare function w_CreateFileW stdcall alias "CreateFileW" _
+		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
+		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+	declare function w_DeviceIoControl stdcall alias "DeviceIoControl" _
+		( byval h as any ptr, byval code as ulong, byval inb as any ptr, byval inn as ulong, _
+		  byval outb as any ptr, byval outn as ulong, byval got as ulong ptr, byval ov as any ptr ) as long
+	declare function w_GetFileInformationByHandle stdcall alias "GetFileInformationByHandle" _
+		( byval h as any ptr, byval info as any ptr ) as long
+	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as ulong
+	declare function w_SetFileAttributesW stdcall alias "SetFileAttributesW" _
+		( byval n as wstring ptr, byval attrs as ulong ) as long
+	declare function w_GetLastError stdcall alias "GetLastError" ( ) as ulong
+end extern
+
+'' NUL-terminated wide copy of a USTRING path, heap-allocated because paths are
+'' NOT bounded by MAX_PATH -- a \\?\ path may be far longer, and truncating one
+'' silently operates on the WRONG FILE.
+private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any
+	dim as FB_UCHAR ptr w = any
+
+	hUArg( p, @s, @len_ )
+	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
+	if( w = 0 ) then return 0
+	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
+	w[len_] = 0
+	return cptr( wstring ptr, w )
+end function
+
+extern "rtlib"
+
+function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr, byval isdir as long ) as long
+
+	dim as wstring ptr wt = any, wl = any
+	dim as ulong flags = any
+	dim as long r = FB_FS_OK
+
+	'' target first -- see the file header
+	wt = hFsWide( target )
+	wl = hFsWide( lnk )
+
+	if( (wt = 0) orelse (wl = 0) ) then
+		free( wt ) : free( wl )
+		return FB_FS_UNKNOWN
+	end if
+
+	flags = iif( isdir <> 0, SYMLINK_FLAG_DIRECTORY_, 0ul )
+
+	'' SYMLINK CREATION USUALLY NEEDS PRIVILEGE. SeCreateSymbolicLink is not
+	'' held by a normal user, so this fails with FS_ACCESS_DENIED unless the
+	'' process is elevated OR Developer Mode is on and the unprivileged flag is
+	'' accepted. Windows builds too old to accept the flag reject the call with
+	'' ERROR_INVALID_PARAMETER rather than ignoring it, so there is a retry
+	'' without it. BOTH branches exist: a one-branch implementation works on the
+	'' developer's machine and fails on the user's.
+	if( w_CreateSymbolicLinkW( wl, wt, flags or SYMLINK_FLAG_UNPRIV_ ) = 0 ) then
+		if( w_GetLastError( ) = ERROR_INVALID_PARAMETER_ ) then
+			if( w_CreateSymbolicLinkW( wl, wt, flags ) = 0 ) then
+				r = tkrt_FsMapOsError( )
+			end if
+		else
+			r = tkrt_FsMapOsError( )
+		end if
+	end if
+
+	free( wt ) : free( wl )
+	return r
+end function
+
+function tkort_UStrFsCreateHardLink alias "fb_UStrFsCreateHardLink" _
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr ) as long
+
+	dim as wstring ptr wt = any, wl = any
+	dim as long r = FB_FS_OK
+
+	wt = hFsWide( target )
+	wl = hFsWide( lnk )
+
+	if( (wt = 0) orelse (wl = 0) ) then
+		free( wt ) : free( wl )
+		return FB_FS_UNKNOWN
+	end if
+
+	if( w_CreateHardLinkW( wl, wt, 0 ) = 0 ) then r = tkrt_FsMapOsError( )
+
+	free( wt ) : free( wl )
+	return r
+end function
+
+'' FILE_FLAG_OPEN_REPARSE_POINT is essential: without it the open FOLLOWS the
+'' link and there is no reparse data left to read.
+function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
+	( byval lnk as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+
+	dim as wstring ptr wl = any
+	dim as any ptr h = any
+	dim as ubyte ptr buf = any
+	dim as ulong got = 0
+	dim as long ec = any
+	dim as ulong tag = any
+	dim as FB_UCHAR ptr path_ = any, sub_ = any
+	dim as ushort nameoff = any, namelen = any, printoff = any, printlen = any
+	dim as integer sublen = any
+	dim as FBUSTRING ptr res = any
+
+	if( status <> 0 ) then *status = FB_FS_OK
+
+	wl = hFsWide( lnk )
+	if( wl = 0 ) then
+		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		return TKORT_UNULL_DESC()
+	end if
+
+	h = w_CreateFileW( wl, 0, _
+		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
+		0, OPEN_EXISTING_, _
+		FILE_FLAG_BACKUP_SEMANTICS_ or FILE_FLAG_OPEN_REPARSE_POINT_, 0 )
+	free( wl )
+
+	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then
+		if( status <> 0 ) then *status = tkrt_FsMapOsError( )
+		return TKORT_UNULL_DESC()
+	end if
+
+	buf = malloc( MAX_REPARSE_SIZE_ )
+	if( buf = 0 ) then
+		w_CloseHandle( h )
+		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		return TKORT_UNULL_DESC()
+	end if
+
+	if( w_DeviceIoControl( h, FSCTL_GET_REPARSE_POINT_, 0, 0, _
+	                       buf, MAX_REPARSE_SIZE_, @got, 0 ) = 0 ) then
+		'' Not a reparse point at all. Reported as FS_INVALID_PATH, matching
+		'' the POSIX side's EINVAL, so "this is not a link" is one code on both.
+		ec = tkrt_FsMapOsError( )
+		if( w_GetLastError( ) = ERROR_NOT_A_REPARSE_POINT_ ) then ec = FB_FS_INVALID_PATH
+		free( buf )
+		w_CloseHandle( h )
+		if( status <> 0 ) then *status = ec
+		return TKORT_UNULL_DESC()
+	end if
+
+	w_CloseHandle( h )
+
+	tag = *cptr( ulong ptr, buf )
+
+	if( tag = IO_REPARSE_TAG_SYMLINK_ ) then
+		path_ = cptr( FB_UCHAR ptr, buf + RP_PATH_SYMLINK_ )
+	elseif( tag = IO_REPARSE_TAG_MOUNT_POINT_ ) then
+		path_ = cptr( FB_UCHAR ptr, buf + RP_PATH_MOUNTPOINT_ )
+	else
+		'' dedup, cloud placeholders and the rest: a reparse point, but not a
+		'' name surrogate, so there is no target to report
+		free( buf )
+		if( status <> 0 ) then *status = FB_FS_INVALID_PATH
+		return TKORT_UNULL_DESC()
+	end if
+
+	nameoff  = *cptr( ushort ptr, buf + RP_SUBST_OFF_ )
+	namelen  = *cptr( ushort ptr, buf + RP_SUBST_LEN_ )
+	printoff = *cptr( ushort ptr, buf + RP_PRINT_OFF_ )
+	printlen = *cptr( ushort ptr, buf + RP_PRINT_LEN_ )
+
+	'' PRINT NAME FIRST. It is the form the user wrote -- a relative target
+	'' stays relative -- whereas SubstituteName is the kernel's form and carries
+	'' a "\??\" device prefix that would leak into every result. PrintName is
+	'' empty for some junctions, so SubstituteName is the fallback, with the
+	'' prefix stripped.
+	if( printlen > 0 ) then
+		res = hTemp( path_ + (printoff \ sizeof( FB_UCHAR )), printlen \ sizeof( FB_UCHAR ) )
+	else
+		sub_ = path_ + (nameoff \ sizeof( FB_UCHAR ))
+		sublen = namelen \ sizeof( FB_UCHAR )
+
+		if( sublen >= 4 ) then
+			if( (sub_[0] = 92) andalso (sub_[1] = 63) andalso _
+			    (sub_[2] = 63) andalso (sub_[3] = 92) ) then
+				sub_ += 4
+				sublen -= 4
+			end if
+		end if
+
+		res = hTemp( sub_, sublen )
+	end if
+
+	free( buf )
+	return res
+end function
+
+'' Hard links to the object. The only way to know whether deleting a file frees
+'' its data.
+function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
+	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+
+	dim as wstring ptr w = any
+	dim as any ptr h = any
+	dim as ubyte bhfi( 0 to BHFI_SIZE_ - 1 ) = any
+	dim as long r = FB_FS_OK
+
+	*out_ = 0
+
+	w = hFsWide( p )
+	if( w = 0 ) then return FB_FS_UNKNOWN
+
+	h = w_CreateFileW( w, 0, _
+		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
+		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+	free( w )
+
+	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
+
+	if( w_GetFileInformationByHandle( h, @bhfi(0) ) = 0 ) then
+		r = tkrt_FsMapOsError( )
+	else
+		*out_ = *cptr( ulong ptr, @bhfi(BHFI_NUMLINKS_OFFSET_) )
+	end if
+
+	w_CloseHandle( h )
+	return r
+end function
+
+'' ---------------------------------------------------------------- permissions
+''
+'' ONE PAIR SERVES BOTH FB NAMES. GetPosixMode and GetWin32Attributes are the
+'' same two entry points; the FB layer exposes whichever is meaningful on this
+'' platform and returns FS_UNSUPPORTED for the other.
+''
+'' On Windows the value is dwFileAttributes.
+
+function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
+	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+
+	dim as wstring ptr w = hFsWide( p )
+	dim as ulong attrs = any
+
+	*out_ = 0
+	if( w = 0 ) then return FB_FS_UNKNOWN
+
+	attrs = w_GetFileAttributesW( w )
+	free( w )
+
+	if( attrs = INVALID_FILE_ATTRIBUTES_ ) then return tkrt_FsMapOsError( )
+
+	*out_ = attrs
+	return FB_FS_OK
+end function
+
+function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
+	( byval p as FBUSTRING ptr, byval v as ulong ) as long
+
+	dim as wstring ptr w = hFsWide( p )
+	dim as long r = FB_FS_OK
+
+	if( w = 0 ) then return FB_FS_UNKNOWN
+	if( w_SetFileAttributesW( w, v ) = 0 ) then r = tkrt_FsMapOsError( )
+	free( w )
+	return r
+end function
+
+function tkort_UStrFsSetHidden alias "fb_UStrFsSetHidden" _
+	( byval p as FBUSTRING ptr, byval v as long ) as long
+
+	dim as wstring ptr w = hFsWide( p )
+	dim as ulong attrs = any
+	dim as long r = FB_FS_OK
+
+	if( w = 0 ) then return FB_FS_UNKNOWN
+
+	attrs = w_GetFileAttributesW( w )
+	if( attrs = INVALID_FILE_ATTRIBUTES_ ) then
+		free( w )
+		return tkrt_FsMapOsError( )
+	end if
+
+	if( v <> 0 ) then
+		attrs or= FILE_ATTRIBUTE_HIDDEN_
+	else
+		attrs and= not FILE_ATTRIBUTE_HIDDEN_
+	end if
+
+	if( w_SetFileAttributesW( w, attrs ) = 0 ) then r = tkrt_FsMapOsError( )
+
+	free( w )
+	return r
+end function
+
+end extern
+
+#else
+
+'' ------------------------------------------------------------ POSIX backend
+''
+'' struct stat on linux-x86_64: st_dev 0, st_ino 8, st_nlink 16, st_mode 24.
+'' The size offset 48 is the one fs/mmap.bas already measures against, so the
+'' whole prefix is pinned by a test that passes.
+const STAT_BUF_SIZE     = 144
+const STAT_NLINK_OFFSET = 16
+const STAT_MODE_OFFSET  = 24
+const PERM_MASK         = &o7777
+
+type stat_
+	as ubyte raw( 0 to STAT_BUF_SIZE - 1 )
+end type
+
+extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
+	declare function u_symlink alias "symlink" ( byval target as zstring ptr, byval lnk as zstring ptr ) as long
+	declare function u_link alias "link" ( byval target as zstring ptr, byval lnk as zstring ptr ) as long
+	declare function u_readlink alias "readlink" ( byval p as zstring ptr, byval buf as zstring ptr, byval cap as uinteger ) as integer
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
+	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
+	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as ulong ) as long
+	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
+		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
+	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
+		( byval src as zstring ptr, byval bytes as integer, byval dst as FB_UCHAR ptr, byval cap as integer ) as integer
+end extern
+
+'' UTF-16 -> UTF-8, heap-allocated. Three bytes per unit is the worst case for
+'' the BMP, and a surrogate PAIR is two units producing four bytes, so the bound
+'' holds for astral code points too.
+private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, cap = any, n = any
+	dim as zstring ptr b = any
+
+	hUArg( p, @s, @len_ )
+	cap = len_ * 3 + 1
+	b = malloc( cap )
+	if( b = 0 ) then return 0
+	n = u_utf16to8( s, len_, b, cap - 1 )
+	if( n < 0 ) then n = 0
+	b[n] = 0
+	return b
+end function
+
+'' UTF-8 (ptr, bytes) -> a caller-freed TEMP. One UTF-16 unit per byte is the
+'' bound: the shortest UTF-8 sequence is one byte, and every longer sequence
+'' produces at most two units from at least four bytes.
+private function hFsFromNarrow( byval b as zstring ptr, byval bytes as integer ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr tmp = any
+	dim as FBUSTRING ptr res = any
+	dim as integer cap = any, n = any
+
+	if( bytes <= 0 ) then return TKORT_UNULL_DESC()
+
+	cap = bytes + 1
+	tmp = malloc( cap * sizeof( FB_UCHAR ) )
+	if( tmp = 0 ) then return TKORT_UNULL_DESC()
+
+	n = u_utf8to16( b, bytes, tmp, cap )
+	if( n < 0 ) then n = 0
+
+	res = hTemp( tmp, n )
+	free( tmp )
+	return res
+end function
+
+extern "rtlib"
+
+function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr, byval isdir as long ) as long
+
+	dim as zstring ptr tp = any, lp = any
+	dim as long r = FB_FS_OK
+
+	'' isdir is meaningless here; named and unused deliberately rather than
+	'' dropped from the signature, so the two platforms share one API.
+	scope : dim as long unused_ = isdir : end scope
+
+	tp = hFsNarrow( target )
+	lp = hFsNarrow( lnk )
+
+	if( (tp = 0) orelse (lp = 0) ) then
+		free( tp ) : free( lp )
+		return FB_FS_UNKNOWN
+	end if
+
+	if( u_symlink( tp, lp ) <> 0 ) then r = tkrt_FsMapOsError( )
+
+	free( tp ) : free( lp )
+	return r
+end function
+
+function tkort_UStrFsCreateHardLink alias "fb_UStrFsCreateHardLink" _
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr ) as long
+
+	dim as zstring ptr tp = any, lp = any
+	dim as long r = FB_FS_OK
+
+	tp = hFsNarrow( target )
+	lp = hFsNarrow( lnk )
+
+	if( (tp = 0) orelse (lp = 0) ) then
+		free( tp ) : free( lp )
+		return FB_FS_UNKNOWN
+	end if
+
+	if( u_link( tp, lp ) <> 0 ) then r = tkrt_FsMapOsError( )
+
+	free( tp ) : free( lp )
+	return r
+end function
+
+'' readlink does NOT NUL-terminate and does not report the needed size, so the
+'' buffer is grown until the result stops filling it -- the standard idiom, and
+'' the reason a fixed PATH_MAX buffer here would silently truncate a long target
+'' into a valid-looking WRONG path.
+function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
+	( byval lnk as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+
+	dim as zstring ptr lp = any, buf = any
+	dim as integer cap = 256, n = any
+	dim as long ec = any
+	dim as FBUSTRING ptr res = any
+
+	if( status <> 0 ) then *status = FB_FS_OK
+
+	lp = hFsNarrow( lnk )
+	if( lp = 0 ) then
+		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		return TKORT_UNULL_DESC()
+	end if
+
+	do
+		buf = malloc( cap )
+		if( buf = 0 ) then
+			free( lp )
+			if( status <> 0 ) then *status = FB_FS_NO_SPACE
+			return TKORT_UNULL_DESC()
+		end if
+
+		n = u_readlink( lp, buf, cap )
+
+		if( n < 0 ) then
+			'' EINVAL means "not a symlink", which is the same answer the
+			'' Windows side gives as FS_INVALID_PATH for a non-reparse point --
+			'' one code for "this is not a link" on both.
+			ec = tkrt_FsMapOsError( )
+			free( buf ) : free( lp )
+			if( status <> 0 ) then *status = ec
+			return TKORT_UNULL_DESC()
+		end if
+
+		if( n < cap ) then
+			res = hFsFromNarrow( buf, n )
+			free( buf ) : free( lp )
+			return res
+		end if
+
+		'' filled the buffer exactly: the target may be longer
+		free( buf )
+		cap shl= 1
+
+		if( cap > (1 shl 20) ) then
+			free( lp )
+			if( status <> 0 ) then *status = FB_FS_NAME_TOO_LONG
+			return TKORT_UNULL_DESC()
+		end if
+	loop
+end function
+
+function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
+	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+
+	dim as zstring ptr path_ = hFsNarrow( p )
+	dim as stat_ st = any
+	dim as long r = FB_FS_OK
+
+	*out_ = 0
+	if( path_ = 0 ) then return FB_FS_UNKNOWN
+
+	if( u_lstat( path_, @st ) <> 0 ) then
+		r = tkrt_FsMapOsError( )
+	else
+		*out_ = cast( ulong, *cptr( ulongint ptr, @st.raw(STAT_NLINK_OFFSET) ) )
+	end if
+
+	free( path_ )
+	return r
+end function
+
+'' ---------------------------------------------------------------- permissions
+''
+'' On POSIX the value is st_mode's permission bits: 07777, so setuid, setgid and
+'' the sticky bit survive a get/set round trip.
+
+function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
+	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+
+	dim as zstring ptr path_ = hFsNarrow( p )
+	dim as stat_ st = any
+	dim as long r = FB_FS_OK
+
+	*out_ = 0
+	if( path_ = 0 ) then return FB_FS_UNKNOWN
+
+	if( u_stat( path_, @st ) <> 0 ) then
+		r = tkrt_FsMapOsError( )
+	else
+		*out_ = *cptr( ulong ptr, @st.raw(STAT_MODE_OFFSET) ) and PERM_MASK
+	end if
+
+	free( path_ )
+	return r
+end function
+
+function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
+	( byval p as FBUSTRING ptr, byval v as ulong ) as long
+
+	dim as zstring ptr path_ = hFsNarrow( p )
+	dim as long r = FB_FS_OK
+
+	if( path_ = 0 ) then return FB_FS_UNKNOWN
+	if( u_chmod( path_, v and PERM_MASK ) <> 0 ) then r = tkrt_FsMapOsError( )
+	free( path_ )
+	return r
+end function
+
+'' FS_UNSUPPORTED, NOT a rename -- see the file header.
+function tkort_UStrFsSetHidden alias "fb_UStrFsSetHidden" _
+	( byval p as FBUSTRING ptr, byval v as long ) as long
+	scope : dim as any ptr unused_p = p : dim as long unused_v = v : end scope
+	return FB_FS_UNSUPPORTED
+end function
+
+end extern
+
+#endif

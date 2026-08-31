@@ -24,6 +24,14 @@
 # is therefore information: it means the batch was sized by symbol when it should
 # have been sized by member.
 #
+# RUN IT IN BOTH CONFIGURATIONS. This defaults to Debug and gate.sh uses Release,
+# so for fifteen batches the differential was only ever proving something about
+# -O0 -- and two real defects sat in the shipped configuration the whole time: a
+# jmp_buf local that Release placed at rsp+0x28 (mingw's longjmp needs 16-byte
+# alignment for its MOVAPS restores, so GOSUB segfaulted), and LLVM's InstCombine
+# folding realloc(NULL, n) into malloc(n) inside a provably-null branch, which
+# moved two operations between columns in alloc-count. Neither reproduces at -O0.
+#
 # HOST TARGET ONLY. These are RUN tests; win32 and Linux behaviour is covered by
 # gate.sh, which executes fbc's own suite on each target.
 
