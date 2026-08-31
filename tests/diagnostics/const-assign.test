@@ -1,0 +1,6 @@
+'' Assigning to a constant is refused -- symbolic and const-qualified alike, plain and
+'' compound -- and a POINTER TO CONST is still assignable.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-assign.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/const-assign.out

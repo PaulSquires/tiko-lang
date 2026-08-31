@@ -133,6 +133,8 @@
     DIAG( TKO0615, SEV_ERROR,   "invalid 'case' range: the start value is greater than the end value" )
     '' fbc's error 69. The span is min..max ACROSS THE WHOLE STATEMENT, not per case.
     DIAG( TKO0616, SEV_ERROR,   "'select case as const' spans more than %0 values" )
+    '' fbc's error 119.
+    DIAG( TKO0617, SEV_ERROR,   "cannot modify '%0': it is a constant" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

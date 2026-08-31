@@ -161,6 +161,27 @@ private sub ResolveAmbiguous _
     end if
 
     if isAssign then
+        '' fbc error 119, "Cannot modify a constant" -- for the SYMBOLIC form
+        '' ('const i = 0' then 'i = 0') and for the QUALIFIER ('dim as const integer
+        '' i' then 'i = 1') alike, and for a compound assignment the same way.
+        ''
+        '' ONLY WHEN THE TARGET IS THE BARE NAME. 'p = ...' over a 'const integer ptr'
+        '' is LEGAL -- the const is on the POINTEE, and the pointer itself is writable
+        '' -- so the test is on the symbol's own type, never on what it points at,
+        '' and a member or an index is left alone until there is a measurement for it.
+        dim as boolean bareName = (c.ast->Kind( sp->a ) = Tko.N_IDENT)
+        if bareName andalso (s <> 0) then
+            dim as boolean symConst = ((s->flags and Tko.SYMF_CONST) <> 0) orelse _
+                                      (cast( Tko.SymbolKind, s->kind ) = Tko.SYM_CONSTANT)
+            dim as boolean typeConst = c.types->IsConst( s->type_ )
+            if symConst orelse typeConst then
+                c.diags->Report( Tko.TKO0617, Tko.PointRange( c.ast->Loc( sp->a ) ), _
+                                 c.names->Spelling( s->name ) )
+                c.info->SetAmbiguous( id, Tko.AMB_ERROR )
+                return
+            end if
+        end if
+
         '' Assigning to the enclosing function name is BASIC's result assignment.
         dim as boolean isResult = (c.currentProc <> Tko.SYMBOL_NONE) andalso _
                                   (sid = c.currentProc)
