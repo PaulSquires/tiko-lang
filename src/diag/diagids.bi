@@ -149,6 +149,8 @@
     DIAG( TKO0624, SEV_ERROR,   "'%0' overrides a virtual method with a different parameter mode" )
     '' fbc's error 202.
     DIAG( TKO0625, SEV_ERROR,   "'%0' is not accessible here" )
+    '' fbc's error 58, and 99 for the overloaded ones.
+    DIAG( TKO0626, SEV_ERROR,   "'%0' takes a string" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

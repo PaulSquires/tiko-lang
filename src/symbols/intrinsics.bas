@@ -260,6 +260,33 @@ private function IsVirtualKeyword_( byref c as Ctx, byval a as Tko.NodeId ) as b
     return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "virtual")
 end function
 
+'' A STRING INTRINSIC GIVEN SOMETHING THAT IS NOT A STRING -- fbc's error 58, "Type
+'' mismatch", or error 99 for the overloaded ones. Measured: 'lcase( 0 )', 'lcase( w )'
+'' over a 'wstring ptr' and 'lcase( z )' over a 'zstring ptr' are all refused, and so are
+'' the whole 'val' family and 'left'/'right' over a number.
+''
+'' ONLY WHEN THE ARGUMENT HAS A TYPE. An untyped argument means something earlier
+'' declined, and reporting there would blame the wrong line. Declining rather than
+'' reporting is what this table did for every one of these, so the call came out untyped
+'' and the ENCLOSING statement declined instead -- silently, with nothing to say why.
+private function NotAString_ _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byref nm as string, _
+      byval a0 as Tko.TypeId ) as Tko.TypeId
+
+    if a0 = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if cp->count < 1 then return Tko.TYPE_NONE
+    '' A USER SYMBOL OF THAT NAME IS NOT THE INTRINSIC. tests/mir/src/cleanup.bas
+    '' declares 'type Val' with a constructor, and 'Val( 5 )' is a CONSTRUCTION -- the
+    '' table read it as the val intrinsic and this turned a passing test into an error.
+    '' The typing above has the same blind spot; it merely declined, so nothing said so.
+    if cp->target <> Tko.NODE_NONE then
+        if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    end if
+    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[cp->first] )
+    c.diags->Report( Tko.TKO0626, Tko.PointRange( c.ast->Loc( arg ) ), nm )
+    return Tko.TYPE_NONE
+end function
+
 private function ExprIntrinsicType_ _
     ( byref c as Ctx, byref nm as string, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
@@ -351,6 +378,11 @@ private function ExprIntrinsicType_ _
         if isArr = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
     case "instr", "instrrev"
+        '' NOT REPORTED, only declined. 'instr' HAS A THREE-ARGUMENT FORM whose first
+        '' argument is a START POSITION -- 'instr( i + 1, result, a )' -- so a
+        '' non-string in slot zero is ordinary, and reporting it refused three files fbc
+        '' accepts. The acceptance test below still reads slot zero, which is why it
+        '' answers TYPE_NONE for the three-argument form; that is a separate gap.
         if isStr = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
     '' ASC IS ULONG, and it matches fb_ASC's own uint32 return. An earlier note here
@@ -358,22 +390,22 @@ private function ExprIntrinsicType_ _
     '' so does the intrin truth table it is checked against. Typed a width too wide,
     '' every 'asc' fed a LONGINT where fbc has a LONG.
     case "asc"
-        if isStr = false then return Tko.TYPE_NONE
+        if isStr = false then return NotAString_( c, cp, nm, a0 )
         return c.types->Builtin( Tko.TY_ULONG )
     '' THE VAL FAMILY, which was not in this table at all -- so 'print val( s )' had
     '' nothing to print and declined, while 'dim as double d = val( s )' lowered
     '' because the DECLARATION supplies the type. Measured with '#print typeof', and
     '' the two middle rows are the surprise: 'valint' is LONG and 'valuint' is ULONG,
     '' NOT integer and uinteger, whatever their names say.
-    case "val"     : if isStr = false then return Tko.TYPE_NONE
+    case "val"     : if isStr = false then return NotAString_( c, cp, nm, a0 )
                      return c.types->Builtin( Tko.TY_DOUBLE )
-    case "vallng"  : if isStr = false then return Tko.TYPE_NONE
+    case "vallng"  : if isStr = false then return NotAString_( c, cp, nm, a0 )
                      return c.types->Builtin( Tko.TY_LONGINT )
-    case "valulng" : if isStr = false then return Tko.TYPE_NONE
+    case "valulng" : if isStr = false then return NotAString_( c, cp, nm, a0 )
                      return c.types->Builtin( Tko.TY_ULONGINT )
-    case "valint"  : if isStr = false then return Tko.TYPE_NONE
+    case "valint"  : if isStr = false then return NotAString_( c, cp, nm, a0 )
                      return c.types->Builtin( Tko.TY_LONG )
-    case "valuint" : if isStr = false then return Tko.TYPE_NONE
+    case "valuint" : if isStr = false then return NotAString_( c, cp, nm, a0 )
                      return c.types->Builtin( Tko.TY_ULONG )
     case "peek"
         if (isNum orelse isPtr) = false then return Tko.TYPE_NONE
@@ -572,7 +604,7 @@ private function ExprIntrinsicType_ _
         if isNum = false then return Tko.TYPE_NONE
         return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     case "trim", "ltrim", "rtrim", "ucase", "lcase", "mid", "left", "right"
-        if isStr = false then return Tko.TYPE_NONE
+        if isStr = false then return NotAString_( c, cp, nm, a0 )
         '' A WIDE ARGUMENT GIVES 'WSTRING * 1', not a bare WSTRING. The two are
         '' different types to fbc -- '*p' over a 'wstring ptr' prints WSTRING and
         '' 'trim( w )' prints WSTRING * 1 -- and the bare one is what a byref

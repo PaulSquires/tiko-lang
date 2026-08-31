@@ -1,0 +1,7 @@
+'' A string intrinsic given something that is not a string: a number, and a POINTER to a
+'' string, which needs a deref. 'instr' is exempt -- its three-argument form starts with a
+'' position.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/string-intrinsic-arg.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/string-intrinsic-arg.out
