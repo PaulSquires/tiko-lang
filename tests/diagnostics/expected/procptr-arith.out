@@ -1,0 +1,96 @@
+global var ptr p
+global var i64 n
+global var ptr ip
+func void S1() {
+  entry0:
+    ret
+}
+func void S2() {
+  entry0:
+    ret
+}
+func void REFUSED() {
+  entry0:
+    %1 = load @@p
+    %2 = const i64 1
+    %3 = bitcast %2
+    %4 = const ptr 8
+    %5 = mul %3, %4
+    %6 = add %1, %5
+    %7 = bitcast %6
+    call.rtl void fb_PrintLongint(0, %7, 1)
+    %8 = func.addr ptr S1
+    %9 = func.addr ptr S2
+    %10 = sub %8, %9
+    %11 = const i64 8
+    %12 = sdiv %10, %11
+    call.rtl void fb_PrintLongint(0, %12, 1)
+    ret
+}
+declare void fb_PrintLongint($0, $1, $2)
+func void ACCEPTED() {
+  entry0:
+    %1 = load @@p
+    %2 = const i64 0
+    %3 = bitcast %2
+    %4 = icmp.eq %1, %3
+    condbr %4, if.then2, if.else3
+  if.join1:
+    %6 = load @@p
+    %7 = const i64 0
+    %8 = bitcast %7
+    %9 = icmp.ne %6, %8
+    condbr %9, if.then5, if.else6
+  if.then2:
+    %5 = const i64 1
+    store @@n, %5
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %11 = func.addr ptr S1
+    store @@p, %11
+    %12 = load @@ip
+    %13 = const i64 1
+    %14 = bitcast %13
+    %15 = const ptr 8
+    %16 = mul %14, %15
+    %17 = add %12, %16
+    %18 = bitcast %17
+    call.rtl void fb_PrintLongint(0, %18, 1)
+    %19 = load @@ip
+    %20 = load %19
+    call.rtl void fb_PrintLongint(0, %20, 1)
+    ret
+  if.then5:
+    %10 = const i64 2
+    store @@n, %10
+    br if.join4
+  if.else6:
+    br if.join4
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 5 functions, 11 blocks, 47 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/procptr-arith.bas(29,28): error TKO0634: a procedure pointer cannot be dereferenced or used in arithmetic
+     |
+  29 |     print cast( integer, p + 1 )
+     |                            ^
+tests/diagnostics/src/procptr-arith.bas(30,30): error TKO0634: a procedure pointer cannot be dereferenced or used in arithmetic
+     |
+  30 |     print cast( integer, @s1 - @s2 )
+     |                              ^

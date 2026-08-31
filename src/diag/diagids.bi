@@ -164,6 +164,8 @@
     DIAG( TKO0632, SEV_ERROR,   "no overload of '%0' matches these arguments" )
     '' fbc's errors 204 and 206. Declaring the type is what calls them.
     DIAG( TKO0633, SEV_ERROR,   "'%0' needs a constructor or destructor that is not accessible here" )
+    '' fbc's error 20 for both. There is no element size to scale by, and nothing to read.
+    DIAG( TKO0634, SEV_ERROR,   "a procedure pointer cannot be dereferenced or used in arithmetic" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

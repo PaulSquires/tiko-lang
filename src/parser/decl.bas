@@ -1343,7 +1343,7 @@ private function ParseAggregateBody _
                 '' inside a type body is a MEMBER, and 'T.MYCONST' from outside is fbc
                 '' error 202 exactly as a private field is. All three carry a
                 '' StmtPayload whose 'extra' is the modifier set.
-                case Tko.N_PROC, Tko.N_CONST, Tko.N_VAR
+                case Tko.N_PROC, Tko.N_CONST, Tko.N_VAR, Tko.N_ENUM
                     dim as Tko.StmtPayload ptr mp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, mn )].data )]
                     mp->extra or= vis

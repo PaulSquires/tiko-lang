@@ -318,6 +318,51 @@ private sub CheckImplicitStructors_( byref c as Ctx )
     next
 end sub
 
+'' A PROCEDURE POINTER IS NOT AN ADDRESS TO DO ARITHMETIC ON, and it does not
+'' DEREFERENCE either -- fbc calls both error 20, "Type mismatch". Measured:
+''
+''     p + 1              error 20        p as sub ptr
+''     @sub1 - @sub2      error 20
+''     p += 1             error 20
+''     *p = 1             error 20
+''     dim as integer i = *p             error 20
+''
+'' A pointer to DATA does all three; what makes a procedure pointer different is that
+'' there is no element size to scale by and nothing at the far end to read.
+private function IsProcPtr_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> TK_POINTER then return false
+    dim as TypeId inner_ = c.types->Unqualify( c.types->Inner( u ) )
+    if inner_ = TYPE_NONE then return false
+    return c.types->Kind( inner_ ) = TK_PROC
+end function
+
+private sub CheckProcPtrArith_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as TokenKind op = cast( TokenKind, bp->op )
+    '' ARITHMETIC ONLY. A comparison between two procedure pointers is ordinary and fbc
+    '' accepts it -- that is how a callback is tested against null.
+    select case op
+    case TK_PLUS, TK_MINUS, TK_STAR, TK_SLASH, TK_BACKSLASH
+    case else
+        return
+    end select
+    if IsProcPtr_( c, c.info->TypeOf_( bp->lhs ) ) orelse _
+       IsProcPtr_( c, c.info->TypeOf_( bp->rhs ) ) then
+        c.diags->Report( TKO0634, PointRange( c.ast->Loc( id ) ) )
+    end if
+end sub
+
+private sub CheckProcPtrDeref_ ( byref c as Ctx, byval id as NodeId )
+    dim as UnaryPayload ptr up = _
+        @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if IsProcPtr_( c, c.info->TypeOf_( up->operand ) ) then
+        c.diags->Report( TKO0634, PointRange( c.ast->Loc( id ) ) )
+    end if
+end sub
+
 '' 'delete' TAKES A POINTER -- fbc error 28, "Expected pointer". Measured over an
 '' integer and a single alike; a pointer of any pointee is accepted.
 ''
@@ -344,6 +389,8 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_MEMBER then CheckMember_( c, id, here )
     if k = N_DELETE_STMT then CheckDelete_( c, id )
     if k = N_MEMBER then CheckDeref_( c, id )
+    if k = N_BINARY then CheckProcPtrArith_( c, id )
+    if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
     '' arena stores three, and a walk that knew only about statements missed every

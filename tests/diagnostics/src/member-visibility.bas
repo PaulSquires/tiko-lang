@@ -15,6 +15,11 @@ type T
     hidden as integer
     const SECRET = 123
     declare sub hiddenMethod( )
+    '' A nested ENUM is a member too -- structs/obj_access_const.bas writes
+    '' 'Test.first.one' over a private one, and fbc answers error 202.
+    enum Hidden_
+        ONE = 1
+    end enum
     protected:
     shared_ as integer
 end type
@@ -43,6 +48,7 @@ sub outside( )
     x.shared_ = 2
     dim as integer n = T.SECRET
     d.shared_ = 3
+    dim as integer e = T.Hidden_.ONE
 end sub
 
 '' -- accepted -----------------------------------------------------------------

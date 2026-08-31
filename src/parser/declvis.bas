@@ -27,8 +27,11 @@ private sub ApplyVisibility _
         '' MEMBER, and 'T.MYCONST' from outside is fbc error 202 exactly as a private
         '' field is -- visibility/private-const-public-plainaccess.bas writes it. Only
         '' fields and procedures were marked, so those declarations came through public.
+        '' N_ENUM TOO: a nested enum under 'private:' is a private member, and
+        '' 'Test.first.one' from outside is fbc error 202 --
+        '' structs/obj_access_const.bas writes exactly that.
         elseif (mk = Tko.N_FIELD) orelse (mk = Tko.N_PROC) orelse _
-               (mk = Tko.N_CONST) orelse (mk = Tko.N_VAR) then
+               (mk = Tko.N_CONST) orelse (mk = Tko.N_VAR) orelse (mk = Tko.N_ENUM) then
             dim as Tko.StmtPayload ptr mp = _
                 @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
             dim as ushort had = mp->extra and _

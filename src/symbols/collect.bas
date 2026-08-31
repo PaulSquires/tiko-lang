@@ -545,6 +545,17 @@ sub WalkNode _
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
         dim as Tko.SymbolId sid = Declare_( w, scope_, sp->name, Tko.SYM_ENUM, _
                                             w.ast->Loc( id ) )
+        '' 'private:' / 'protected:' on a nested ENUM -- the parser put it on the
+        '' declaration; the USE SITE needs it on the symbol.
+        dim as Tko.Symbol ptr es = w.syms->SymbolAt( sid )
+        if es <> 0 then
+            if (sp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then
+                es->flags or= Tko.SYMF_MEMB_PRIVATE
+            end if
+            if (sp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then
+                es->flags or= Tko.SYMF_MEMB_PROTECTED
+            end if
+        end if
         '' Enum constants land in the ENCLOSING scope, as in FreeBASIC: 'Red' is
         '' usable without qualification -- AND in a scope of the enum's own, which
         '' is what 'E.Red' reaches into.

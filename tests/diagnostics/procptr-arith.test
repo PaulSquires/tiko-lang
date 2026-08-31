@@ -1,0 +1,6 @@
+'' A procedure pointer does no arithmetic and no dereference -- there is no element size
+'' to scale by and nothing at the far end. A COMPARISON is not arithmetic.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/procptr-arith.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/procptr-arith.out

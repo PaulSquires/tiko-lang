@@ -28,6 +28,7 @@ func void _ZN7DERIVED5REACHEv($0) {
 }
 func void OUTSIDE() {
   local i64 n
+  local i64 e
   entry0:
     %1 = field.addr @@x, 8
     %2 = const i64 1
@@ -41,6 +42,9 @@ func void OUTSIDE() {
     %7 = field.addr @@d, 16
     %8 = const i64 3
     store %7, %8
+    %9 = alloca ptr e
+    %10 = const i64 1
+    store @e, %10
     ret
 }
 func void ALSOOUTSIDE() {
@@ -128,32 +132,36 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 11 functions, 11 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance
-tests/diagnostics/src/member-visibility.bas(42,6): error TKO0625: 'hidden' is not accessible here
+lowered: 11 functions, 11 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/member-visibility.bas(47,6): error TKO0625: 'hidden' is not accessible here
      |
-  42 |     x.hidden = 1
+  47 |     x.hidden = 1
      |      ^
-tests/diagnostics/src/member-visibility.bas(43,6): error TKO0625: 'shared_' is not accessible here
+tests/diagnostics/src/member-visibility.bas(48,6): error TKO0625: 'shared_' is not accessible here
      |
-  43 |     x.shared_ = 2
+  48 |     x.shared_ = 2
      |      ^
-tests/diagnostics/src/member-visibility.bas(44,25): error TKO0625: 'secret' is not accessible here
+tests/diagnostics/src/member-visibility.bas(49,25): error TKO0625: 'secret' is not accessible here
      |
-  44 |     dim as integer n = T.SECRET
+  49 |     dim as integer n = T.SECRET
      |                         ^
-tests/diagnostics/src/member-visibility.bas(45,6): error TKO0625: 'shared_' is not accessible here
+tests/diagnostics/src/member-visibility.bas(50,6): error TKO0625: 'shared_' is not accessible here
      |
-  45 |     d.shared_ = 3
+  50 |     d.shared_ = 3
      |      ^
-tests/diagnostics/src/member-visibility.bas(97,21): error TKO0633: 'a' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/member-visibility.bas(51,25): error TKO0625: 'hidden_' is not accessible here
      |
-  97 |     dim as PrivCtor a
+  51 |     dim as integer e = T.Hidden_.ONE
+     |                         ^
+tests/diagnostics/src/member-visibility.bas(103,21): error TKO0633: 'a' needs a constructor or destructor that is not accessible here
+     |
+ 103 |     dim as PrivCtor a
      |                     ^
-tests/diagnostics/src/member-visibility.bas(98,21): error TKO0633: 'b' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/member-visibility.bas(104,21): error TKO0633: 'b' needs a constructor or destructor that is not accessible here
      |
-  98 |     dim as PrivDtor b
+ 104 |     dim as PrivDtor b
      |                     ^
-tests/diagnostics/src/member-visibility.bas(99,21): error TKO0633: 'arr' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/member-visibility.bas(105,21): error TKO0633: 'arr' needs a constructor or destructor that is not accessible here
      |
-  99 |     dim as PrivCtor arr( 0 to 1 )
+ 105 |     dim as PrivCtor arr( 0 to 1 )
      |                     ^
