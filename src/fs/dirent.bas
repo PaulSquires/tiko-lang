@@ -23,41 +23,8 @@
 '' precisely the drift the hooks exist to catch.
 
 #include once "inc/descriptors.bi"
+#include once "inc/fsdefs.bi"
 #include once "inc/fspath.bi"
-
-const FB_FS_MAXNAME = 260
-const FB_FS_MAXPATH = 512
-
-type FB_FSINFO
-	as ulongint  size_
-	as longint   mtime, ctime, atime      '' ticks; 0 when absent
-	as ulong     native_attrs             '' dwFileAttributes / st_mode
-	as long      kind                     '' FB_FSKIND_*
-	as long      flags                    '' FB_FSFLAG_*
-end type
-
-type FB_FSDIRENT
-	as FB_UCHAR  name( 0 to FB_FS_MAXNAME - 1 )
-	as long      namelen
-	as long      kind
-	as long      has_info
-	as FB_FSINFO info
-end type
-
-type FB_FSVOLUME
-	as FB_UCHAR  root( 0 to FB_FS_MAXPATH - 1 )
-	as FB_UCHAR  name( 0 to FB_FS_MAXNAME - 1 )
-	as FB_UCHAR  fstype( 0 to FB_FS_MAXNAME - 1 )
-	as long      rootlen, namelen, fstypelen
-	as ulong     maxcomp
-	as long      flags
-end type
-
-type FB_FSCHANGE
-	as FB_UCHAR  path( 0 to FB_FS_MAXPATH - 1 )
-	as long      pathlen
-	as long      kind
-end type
 
 extern "c"   '' NON-FBCALL: the ustring temp builder, declared plain.
 	declare function tkrt_UStrAllocTemp alias "fb_hUStrAllocTemp" _

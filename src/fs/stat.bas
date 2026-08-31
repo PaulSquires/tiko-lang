@@ -30,37 +30,11 @@
 '' exactly the path form the RFC warns about.
 
 #include once "inc/descriptors.bi"
+#include once "inc/fsdefs.bi"
 #include once "inc/fserror.bi"
 #include once "inc/fspath.bi"
 #include once "crt/stdlib.bi"
 #include once "crt/string.bi"
-
-'' 0001-01-01 to 1601-01-01 and to 1970-01-01, in 100 ns ticks.
-const FB_FS_TICKS_TO_FILETIME   = 504911232000000000ll
-const FB_FS_TICKS_TO_UNIX_EPOCH = 621355968000000000ll
-
-const FB_FSKIND_NONE  = 0
-const FB_FSKIND_FILE  = 1
-const FB_FSKIND_DIR   = 2
-const FB_FSKIND_LINK  = 3
-const FB_FSKIND_OTHER = 4
-
-const FB_FSFLAG_READONLY  = 1
-const FB_FSFLAG_HIDDEN    = 2
-const FB_FSFLAG_HAS_CTIME = 4
-const FB_FSFLAG_HAS_ATIME = 8
-
-'' Every field is naturally aligned and the struct needs no padding guesses;
-'' fbc's own filesystem.fsinfo_dir suite cross-checks this sizeof.
-type FB_FSINFO
-	as ulongint  size_
-	as longint   mtime
-	as longint   ctime
-	as longint   atime
-	as ulong     native_attrs
-	as long      kind
-	as long      flags
-end type
 
 extern "rtlib"
 	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long

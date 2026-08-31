@@ -1,0 +1,205 @@
+'' text.bas -- whole-file TEXT. Two entry points over one fbc member, and
+'' PORTABLE ON PURPOSE: the BOM and encoding rules are the same code on every
+'' platform, so the two cannot disagree about what a file says. The bytes come
+'' from the per-platform ReadWhole/WriteWhole in fs/ops.bas.
+''
+'' THE FIVE RULES, each of which has a defensible opposite:
+''
+''   1. A BOM is honoured and CONSUMED -- UTF-8, UTF-16LE, UTF-16BE. It is not
+''      part of the returned text.
+''   2. No BOM means UTF-8. NOT the ANSI codepage and NOT the console codepage:
+''      a codepage-dependent default would make the same file read differently
+''      on two machines.
+''   3. Invalid input is REPLACED, not rejected. ReadAllText on a binary file
+''      succeeds and returns mojibake; it does not fail. A caller who needs to
+''      know is reading bytes.
+''   4. WriteAllText writes UTF-8 with NO BOM. A BOM-writing variant is not
+''      provided; write one through WriteAllBytes if you need it.
+''   5. Line splitting is ReadAllLines' job and lives in the FB layer, because
+''      it fills an Array.
+''
+'' UTF-16LE IS A COPY, NOT A DECODE, on a little-endian host: the payload is
+'' already in the target representation. UTF-16BE is the same payload
+'' byte-swapped. Only the second needs a temporary.
+
+#include once "inc/descriptors.bi"
+#include once "inc/fserror.bi"
+#include once "inc/fspath.bi"
+#include once "crt/stdlib.bi"
+
+extern "rtlib"
+	declare function tkrt_FsReadWhole alias "fb_UStrFsReadWhole" _
+		( byval p as FBUSTRING ptr, byval o as ubyte ptr ptr, byval n as longint ptr ) as long
+	declare function tkrt_FsWriteWhole alias "fb_UStrFsWriteWhole" _
+		( byval p as FBUSTRING ptr, byval d as ubyte ptr, byval n as longint, byval ap as long ) as long
+	declare sub tkrt_FsFreeBuf alias "fb_FsFreeBuf" ( byval b as any ptr )
+end extern
+
+extern "c"   '' NON-FBCALL: the ustring temp builder and the UTF kernels.
+	declare function tkrt_UStrAllocTemp alias "fb_hUStrAllocTemp" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare sub tkrt_UStrCopy2 alias "fb_hUStrCopy" _
+		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
+	declare function tkrt_Utf8ToUtf16 alias "fb_hUtf8ToUtf16" _
+		( byval src as zstring ptr, byval bytes as integer, byval dst as FB_UCHAR ptr, byval cap as integer ) as integer
+	declare function tkrt_Utf16ToUtf8 alias "fb_hUtf16ToUtf8" _
+		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
+end extern
+
+private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
+	static as FB_UCHAR empty_(0 to 0) = { 0 }
+	if( s = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	elseif( s->data = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	else
+		*ptr_ = s->data
+		*len_ = FB_USTRSIZE( s )
+	end if
+end sub
+
+private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
+	dim as FBUSTRING ptr dst = any
+	if( units <= 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( 0, units )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data <> 0 ) then
+		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+		dst->data[units] = 0
+	end if
+	return dst
+end function
+
+extern "rtlib"
+
+function tkort_UStrFsReadAllText alias "fb_UStrFsReadAllText" _
+	( byval p as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+
+	dim as ubyte ptr buf = 0
+	dim as longint len_ = 0
+	dim as long r = any
+	dim as FBUSTRING ptr res = any
+	dim as integer units = any, i = any, bytes = any, cap = any, n = any
+	dim as FB_UCHAR ptr tmp = any
+	dim as ubyte ptr start = any
+
+	if( status <> 0 ) then *status = FB_FS_OK
+
+	r = tkrt_FsReadWhole( p, @buf, @len_ )
+	if( r <> FB_FS_OK ) then
+		if( status <> 0 ) then *status = r
+		return TKORT_UNULL_DESC()
+	end if
+
+	if( len_ = 0 ) then
+		tkrt_FsFreeBuf( buf )
+		return TKORT_UNULL_DESC()
+	end if
+
+	'' -------- rule 1: a BOM decides the encoding and is consumed --------
+
+	if( len_ >= 2 ) then
+		if( (buf[0] = &hFF) andalso (buf[1] = &hFE) ) then
+			'' UTF-16LE. On a little-endian host this is a copy, not a decode.
+			units = cast( integer, (len_ - 2) \ 2 )
+			res = hTemp( cptr( FB_UCHAR ptr, buf + 2 ), units )
+			tkrt_FsFreeBuf( buf )
+			return res
+		end if
+
+		if( (buf[0] = &hFE) andalso (buf[1] = &hFF) ) then
+			'' UTF-16BE: byte-swap into the host's UTF-16.
+			units = cast( integer, (len_ - 2) \ 2 )
+			if( units <= 0 ) then
+				tkrt_FsFreeBuf( buf )
+				return TKORT_UNULL_DESC()
+			end if
+
+			tmp = malloc( (units + 1) * sizeof( FB_UCHAR ) )
+			if( tmp = 0 ) then
+				tkrt_FsFreeBuf( buf )
+				if( status <> 0 ) then *status = FB_FS_NO_SPACE
+				return TKORT_UNULL_DESC()
+			end if
+
+			for i = 0 to units - 1
+				tmp[i] = cast( FB_UCHAR, (cast( ulong, buf[2 + i*2] ) shl 8) or cast( ulong, buf[3 + i*2] ) )
+			next
+
+			res = hTemp( tmp, units )
+			free( tmp )
+			tkrt_FsFreeBuf( buf )
+			return res
+		end if
+	end if
+
+	start = buf
+	bytes = cast( integer, len_ )
+
+	if( len_ >= 3 ) then
+		if( (buf[0] = &hEF) andalso (buf[1] = &hBB) andalso (buf[2] = &hBF) ) then
+			start += 3                  '' UTF-8 BOM, consumed
+			bytes -= 3
+		end if
+	end if
+
+	if( bytes <= 0 ) then
+		tkrt_FsFreeBuf( buf )
+		return TKORT_UNULL_DESC()
+	end if
+
+	'' -------- rules 2 and 3: UTF-8, and invalid input is REPLACED --------
+	''
+	'' fb_hUtf8ToUtf16 substitutes U+FFFD rather than failing, which IS rule 3
+	'' -- so there is no error path here to report. One UTF-16 unit per byte is
+	'' the bound: the shortest sequence is one byte, and every longer one
+	'' produces at most two units from at least four bytes.
+	cap = bytes + 1
+	tmp = malloc( cap * sizeof( FB_UCHAR ) )
+	if( tmp = 0 ) then
+		tkrt_FsFreeBuf( buf )
+		if( status <> 0 ) then *status = FB_FS_NO_SPACE
+		return TKORT_UNULL_DESC()
+	end if
+
+	n = tkrt_Utf8ToUtf16( cptr( zstring ptr, start ), bytes, tmp, cap )
+	if( n < 0 ) then n = 0
+
+	res = hTemp( tmp, n )
+
+	free( tmp )
+	tkrt_FsFreeBuf( buf )
+	return res
+end function
+
+'' Rule 4: UTF-8, no BOM.
+function tkort_UStrFsWriteAllText alias "fb_UStrFsWriteAllText" _
+	( byval p as FBUSTRING ptr, byval s as FBUSTRING ptr, byval append_ as long ) as long
+
+	dim as FB_UCHAR ptr src = any
+	dim as integer len_ = any, cap = any, n = any
+	dim as zstring ptr tmp = any
+	dim as long r = any
+
+	hUArg( s, @src, @len_ )
+
+	if( len_ = 0 ) then return tkrt_FsWriteWhole( p, cptr( ubyte ptr, @"" ), 0, append_ )
+
+	'' Three bytes per unit is the worst case for the BMP, and a surrogate PAIR
+	'' is two units producing four bytes, so the bound holds for astral code
+	'' points too.
+	cap = len_ * 3 + 1
+
+	tmp = malloc( cap )
+	if( tmp = 0 ) then return FB_FS_NO_SPACE
+
+	n = tkrt_Utf16ToUtf8( src, len_, tmp, cap - 1 )
+	if( n < 0 ) then n = 0
+
+	r = tkrt_FsWriteWhole( p, cptr( ubyte ptr, tmp ), n, append_ )
+
+	free( tmp )
+	return r
+end function
+
+end extern

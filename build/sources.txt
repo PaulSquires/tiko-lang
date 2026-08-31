@@ -115,3 +115,10 @@ fs/mmap.bas
 fs/link.bas
 fs/stat.bas
 fs/ops.bas
+fs/glob.bas
+fs/text.bas
+fs/errmsg.bas
+fs/dir.bas
+fs/lock.bas
+fs/volume.bas
+fs/watch.bas
