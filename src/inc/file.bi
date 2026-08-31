@@ -1,6 +1,8 @@
 #ifndef __TKORT_FILE_BI__
 #define __TKORT_FILE_BI__
 
+#include once "inc/ctx.bi"   '' TKORT_LANG_OFFSET and __fb_ctx_bytes
+
 '' file.bi -- FB_FILE, its hook table, and the file-handle lookup.
 ''
 '' NO ENTRY POINTS DEPEND ON THIS YET. It lands on its own because getting it
@@ -165,6 +167,37 @@ end extern
 '' table. Omitting the check turns a bad file number into a write into whatever
 '' follows fileTB in the context struct.
 const FB_MAX_FILES = FB_RESERVED_FILES + 255
+
+'' fb_file.h: char putback_buffer[4]. Four BYTES, which on a wide channel is one
+'' character on Linux and two on Windows -- an asymmetry that is observable and
+'' is not a bug to be fixed here.
+const TKORT_PUTBACK_BYTES = 4
+
+'' fbc's FB_FILE_TO_HANDLE_VALID: no range check and no special cases, for the
+'' loops that walk the whole table by index. The checked form below is what
+'' every entry point taking a user file number must use instead.
+#define TKORT_FILE_TO_HANDLE_VALID( n ) ( TKORT_FILETB() + ((n) - 1 + FB_RESERVED_FILES) )
+
+'' __fb_ctx.do_file_reset, DERIVED AND SELF-CHECKING. fb.h has
+''
+''     FB_FILE fileTB[FB_MAX_FILES];  int do_file_reset;  int lang;
+''
+'' so its offset is the measured lang offset minus one int -- and the two
+'' offsets were measured INDEPENDENTLY (lang by disassembly on win32), yet
+''
+''     TKORT_FILETB_OFFSET + FB_MAX_FILES * sizeof( FB_FILE )
+''
+'' lands exactly four bytes below TKORT_LANG_OFFSET on both widths: 20856 vs
+'' 20860, 16600 vs 16604. Two independent measurements agreeing on the gap is
+'' what makes this arithmetic rather than a guess. The #assert holds it.
+''
+'' It is the flag that makes fb_End close the channels: a program that never
+'' opened anything skips the whole file-reset path at exit.
+const TKORT_DOFILERESET_OFFSET = TKORT_LANG_OFFSET - 4
+
+#assert TKORT_FILETB_OFFSET + FB_MAX_FILES * sizeof( FB_FILE ) = TKORT_DOFILERESET_OFFSET
+
+#define TKORT_DO_FILE_RESET() (*cptr( long ptr, @__fb_ctx_bytes + TKORT_DOFILERESET_OFFSET ))
 
 #define TKORT_FILE_INDEX_VALID( n ) _
 	( ((n) >= 1) andalso ((n) <= (FB_MAX_FILES - FB_RESERVED_FILES)) )

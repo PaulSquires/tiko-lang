@@ -333,8 +333,57 @@ function tkort_FileSeekLarge alias "fb_FileSeekLarge" _
 	return tkort_FileSeekEx( TKORT_FILE_TO_HANDLE( fnum ), newpos )
 end function
 
+'' ALL THREE SYMBOLS OF fbc's file_flush.o LIVE IN THIS OBJECT, and that is not
+'' tidiness. fb_FileFlushAll was first written in io/fileinput.bas, leaving
+'' fb_FileFlush here to REFERENCE it across modules -- and a link that does not
+'' happen to include io_fileinput.o then resolves the reference from fbc's
+'' file_flush.o, which ALSO defines fb_FileFlush and fb_FileFlushEx. The result
+'' is "multiple definition", and it appeared in the DEBUG differential only,
+'' because the Release link happened to pull tiko-rt's object first.
+''
+'' A member may be owned in pieces -- gate.sh deletes fbc's members by SYMBOL --
+'' but a piece that references another piece of the SAME member must not be in
+'' a different object.
+
+'' NO MODE CHECK HERE, unlike fb_FileFlushEx. FLUSH with no argument walks every
+'' channel, and one open for INPUT simply has no pfnFlush to call -- so the loop
+'' skips it silently instead of reporting error 1 for it.
+sub tkort_FileFlushAll alias "fb_FileFlushAll" ( byval systembuffers as long )
+
+	IOLOCK()
+
+	for i as integer = 1 to (FB_MAX_FILES - FB_RESERVED_FILES)
+		dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE_VALID( i )
+		if( (h->hooks <> 0) andalso (h->hooks->pfnFlush <> 0) ) then
+			dim as long res = h->hooks->pfnFlush( h )
+			'' TWO LEVELS OF BUFFER: the hook empties the CRT's, and
+			'' systembuffers additionally asks the OS to commit to the medium.
+			if( (res = FB_RTERROR_OK) andalso (systembuffers <> 0) ) then
+				tkrt_hFileFlushEx( h->opaque )
+			end if
+		end if
+	next
+
+	IOUNLOCK()
+end sub
+
+'' -1 IS "ALL", NOT THE PRINTER, and fb_FileFlush is the ONLY entry point in this
+'' runtime where that is true. Everywhere else -1 is FB_HANDLE_PRINTER, and this
+'' function was written that way: it routed FLUSH-with-no-argument to the printer
+'' handle, which has no hooks, and returned error 1 where fbc returns 0.
+''
+'' It shipped and passed THREE full gate cycles on all three targets before the
+'' differential caught it -- fbc's own 2,715-file suite never calls FLUSH without
+'' an argument, and no earlier test did either. A wrong answer that nothing asks
+'' for is invisible until something asks.
 function tkort_FileFlush alias "fb_FileFlush" _
 	( byval fnum as long, byval systembuffers as long ) as long
+
+	if( fnum = -1 ) then
+		tkort_FileFlushAll( systembuffers )
+		return tkrt_ErrorSetNum( FB_RTERROR_OK )
+	end if
+
 	return tkort_FileFlushEx( TKORT_FILE_TO_HANDLE( fnum ), systembuffers )
 end function
 

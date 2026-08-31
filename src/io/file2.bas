@@ -37,8 +37,6 @@ const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
 const FB_RTERROR_FILEIO = 3
 const FB_FILE_ENCOD_ASCII = 0
 
-'' fb_file.h: char putback_buffer[4].
-const TKORT_PUTBACK_BYTES = 4
 
 extern "rtlib"
 	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long

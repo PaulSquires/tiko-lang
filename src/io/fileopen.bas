@@ -69,24 +69,6 @@ const SEEK_END_ = 2
 '' devfile.bas's header.
 const STAGE = 1024
 
-'' do_file_reset SITS IMMEDIATELY BEFORE lang IN __fb_ctx -- fb.h has
-''
-''     FB_FILE fileTB[FB_MAX_FILES];  int do_file_reset;  int lang;
-''
-'' so its offset is the measured lang offset minus one int. That derivation is
-'' self-checking: fileTB's offset and lang's offset were measured INDEPENDENTLY
-'' (lang by disassembly on win32), and
-''
-''     TKORT_FILETB_OFFSET + FB_MAX_FILES * sizeof( FB_FILE )
-''
-'' lands exactly four bytes below TKORT_LANG_OFFSET on both widths -- 20856 vs
-'' 20860 and 16600 vs 16604. Two independent measurements agreeing on the gap is
-'' what makes this an arithmetic fact rather than a guess.
-const TKORT_DOFILERESET_OFFSET = TKORT_LANG_OFFSET - 4
-
-#assert TKORT_FILETB_OFFSET + FB_MAX_FILES * sizeof( FB_FILE ) = TKORT_DOFILERESET_OFFSET
-
-#define TKORT_DO_FILE_RESET() (*cptr( long ptr, @__fb_ctx_bytes + TKORT_DOFILERESET_OFFSET ))
 
 '' NOT `access_`, AND THAT IS A LINUX-ONLY COLLISION: FreeBASIC's own
 '' crt/linux/unistd.bi binds POSIX access(2) as `access_ alias "access"`, and
