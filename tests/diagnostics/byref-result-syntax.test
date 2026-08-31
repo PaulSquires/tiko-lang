@@ -1,0 +1,6 @@
+'' A byref result is spelled 'function f( ) BYREF as T'. Written after the return type the
+'' keyword is a syntax error to fbc, and the trailing-modifier loop swallowed it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-result-syntax.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/byref-result-syntax.out

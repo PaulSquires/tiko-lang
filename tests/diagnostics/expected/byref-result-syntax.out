@@ -1,0 +1,36 @@
+global var i64 target_
+func ptr GOOD1() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@target_
+    %3 = load @$tmp0
+    ret %3
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 13 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/byref-result-syntax.bas(10,37): error TKO0639: 'byref' belongs before 'as', not after the return type
+     |
+  10 | declare function bad1( ) as integer byref
+     |                                     ^
+tests/diagnostics/src/byref-result-syntax.bas(11,36): error TKO0639: 'byref' belongs before 'as', not after the return type
+     |
+  11 | declare function bad2( ) as string byref
+     |                                    ^

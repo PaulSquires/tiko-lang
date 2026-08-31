@@ -174,6 +174,8 @@
     DIAG( TKO0637, SEV_ERROR,   "an array is not a subscript" )
     '' fbc's error 264. 'nested' means inside a PROCEDURE and nothing else.
     DIAG( TKO0638, SEV_ERROR,   "static member '%0' is only allowed in a top-level type" )
+    '' fbc's error 3. A byref result is spelled 'function f( ) BYREF as T'.
+    DIAG( TKO0639, SEV_ERROR,   "'byref' belongs before 'as', not after the return type" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

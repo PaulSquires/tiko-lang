@@ -1072,6 +1072,13 @@ private function ParseProc _
             dim as Tko.InternId onm = cast( Tko.InternId, Cur( p ).literal )
             if p.names->Spelling( onm ) = "override" then sp.extra or= Tko.PF_OVERRIDE
         end if
+        '' 'BYREF' IS NOT A TRAILING MODIFIER. A byref result is spelled
+        '' 'function f( ) BYREF as T' -- the keyword sits between the parameter list and
+        '' the AS -- and 'function f( ) as T byref' is fbc error 3, "Expected
+        '' End-of-Line". Swallowed with the rest, the wrong spelling compiled clean.
+        if Peek( p ) = Tko.KW_BYREF then
+            p.diags->Report( Tko.TKO0639, Tko.PointRange( Cur( p ).loc ) )
+        end if
         Advance( p )
     wend
 
