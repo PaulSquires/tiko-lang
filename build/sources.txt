@@ -138,3 +138,5 @@ io/lprint.bas
 io/conpage.bas
 io/devscrn2.bas
 io/devfile.bas
+io/fileopen.bas
+io/devfileencod.bas
