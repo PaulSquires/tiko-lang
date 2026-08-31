@@ -1,0 +1,6 @@
+'' A type declared inside a procedure may not have methods -- directly, through a field,
+'' or through a base -- and at module level a method is exactly what a type is for.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-in-proc.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/type-in-proc.out

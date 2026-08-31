@@ -169,6 +169,7 @@ end function
 #include once "symbols/resolvedot.bas"
 #include once "symbols/resolvesize.bas"
 #include once "symbols/resolvesel.bas"
+#include once "symbols/resolveudt.bas"
 #include once "symbols/resolvearr.bas"
 
 private sub BindThis _
@@ -1477,6 +1478,9 @@ sub Run _
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )
     BackpatchTypedefs( c )
+    '' AFTER the walk: a type declared inside a procedure may not have methods, and
+    '' deciding that needs every field's type resolved.
+    CheckNoMethodsInProc_( c )
 end sub
 #include once "symbols/resolvedump.bas"
 

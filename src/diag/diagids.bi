@@ -137,6 +137,8 @@
     DIAG( TKO0617, SEV_ERROR,   "cannot modify '%0': it is a constant" )
     '' fbc's error 67. Too FEW is legal and fills with zero; only too many is refused.
     DIAG( TKO0618, SEV_ERROR,   "too many expressions in the initializer for '%0'" )
+    '' fbc's error 263. A method inside a procedure would need a nested procedure.
+    DIAG( TKO0619, SEV_ERROR,   "'%0' is declared inside a procedure and cannot have methods" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

@@ -1,0 +1,76 @@
+func void _ZN7HASCTORC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void WITHMETHOD() {
+  entry0:
+    ret
+}
+func void WITHCTOR() {
+  entry0:
+    ret
+}
+func void WITHOPERATOR() {
+  entry0:
+    ret
+}
+func void WITHFIELDCTOR() {
+  entry0:
+    ret
+}
+func void WITHBASECTOR() {
+  entry0:
+    ret
+}
+func void INNESTEDSCOPE() {
+  entry0:
+    ret
+}
+func void PLAINFIELDS() {
+  local agg g size 16
+  entry0:
+    %1 = alloca ptr g
+    ret
+}
+func void PLAINUNION() {
+  local agg h size 8
+  entry0:
+    %1 = alloca ptr h
+    ret
+}
+func void _ZN13ATMODULELEVEL1FEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+verify: ok
+lowered: 10 functions, 10 blocks, 6 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/type-in-proc.bas(24,5): error TKO0619: 'a' is declared inside a procedure and cannot have methods
+     |
+  24 |     type A
+     |     ^
+tests/diagnostics/src/type-in-proc.bas(31,5): error TKO0619: 'b' is declared inside a procedure and cannot have methods
+     |
+  31 |     type B
+     |     ^
+tests/diagnostics/src/type-in-proc.bas(38,5): error TKO0619: 'c' is declared inside a procedure and cannot have methods
+     |
+  38 |     type C
+     |     ^
+tests/diagnostics/src/type-in-proc.bas(45,5): error TKO0619: 'd' is declared inside a procedure and cannot have methods
+     |
+  45 |     type D
+     |     ^
+tests/diagnostics/src/type-in-proc.bas(51,5): error TKO0619: 'e' is declared inside a procedure and cannot have methods
+     |
+  51 |     type E extends HasCtor
+     |     ^
+tests/diagnostics/src/type-in-proc.bas(58,9): error TKO0619: 'f' is declared inside a procedure and cannot have methods
+     |
+  58 |         type F
+     |         ^
