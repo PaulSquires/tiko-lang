@@ -182,6 +182,10 @@
     DIAG( TKO0641, SEV_ERROR,   "this parameter takes a whole array, not an element" )
     '' fbc's errors 24 and 119. 'swap' exchanges two STORAGE LOCATIONS.
     DIAG( TKO0642, SEV_ERROR,   "'swap' needs two variables, not a literal or a constant" )
+    '' fbc's error 24. A byref binding needs something with an ADDRESS.
+    DIAG( TKO0643, SEV_ERROR,   "'%0' is byref, so its initializer needs an address" )
+    '' fbc's error 320. And it needs one at all.
+    DIAG( TKO0644, SEV_ERROR,   "'%0' is byref and must be bound where it is declared" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

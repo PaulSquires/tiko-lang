@@ -423,6 +423,65 @@ private sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as I
     end select
 end sub
 
+'' A BYREF BINDING NEEDS SOMETHING WITH AN ADDRESS, and it needs one at all. Measured:
+''
+''     dim byref i as integer = 1          error 24     a literal has no address
+''     var byref i = f( )                  error 24     nor does a call's RESULT
+''     dim byref i as integer = g + 1      error 3      nor an arithmetic expression
+''     dim byref i as integer              error 320    and it may not be left unbound
+''     dim byref i as integer = g          OK
+''     dim byref i as integer = g( 0 )     OK           an element has one
+''
+'' ONLY THE SHAPES THAT CERTAINLY HAVE NO ADDRESS are reported -- a literal and a call to
+'' a PROCEDURE. An indexing expression looks exactly like a call and is an lvalue, which
+'' is what the target's symbol kind tells apart.
+private sub CheckByrefBinding_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if (s->flags and SYMF_BYREF) = 0 then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then
+            c.diags->Report( TKO0644, PointRange( s->loc ), c.names->Spelling( s->name ) )
+            continue for
+        end if
+        dim as NodeId init = ip->b
+        dim as boolean noAddress = false
+        select case c.ast->Kind( init )
+        '' A STRING LITERAL IS NOT IN THIS SET. It lives in the data segment and has an
+        '' address of its own -- 'var byref i = "abc"' and 'dim byref rz as zstring =
+        '' "foo"' are both accepted, and counting them refused two files fbc takes.
+        case N_INT_LIT, N_FLOAT_LIT
+            noAddress = true
+        case N_CALL
+            dim as ListPayload ptr lp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+            dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+            if ts <> 0 then
+                noAddress = (ts->kind = cast( ubyte, SYM_PROC ))
+                '' ...UNLESS IT RETURNS BYREF. That result IS a reference, and binding
+                '' one to it is the whole point -- 'dim byref as long r = o.Value( )' in
+                '' generics/container-optional.bas is exactly that.
+                if noAddress then
+                    dim as NodeId cd = cast( NodeId, ts->payload )
+                    if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
+                        if (c.ast->nodes[cast( long, cd )].flags and NF_BYREF) <> 0 then
+                            noAddress = false
+                        end if
+                    end if
+                end if
+            end if
+        end select
+        if noAddress = false then continue for
+        c.diags->Report( TKO0643, PointRange( c.ast->Loc( init ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckSharedInits_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -883,6 +942,7 @@ sub Run _
     CheckFixLenParams_( c )
     CheckNestedStatics_( c )
     CheckSharedInits_( c )
+    CheckByrefBinding_( c )
 end sub
 
 

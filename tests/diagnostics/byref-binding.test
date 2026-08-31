@@ -1,0 +1,6 @@
+'' A byref binding needs something with an ADDRESS, and needs one at all -- but a string
+'' literal has one, and so does a BYREF result.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-binding.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/byref-binding.out
