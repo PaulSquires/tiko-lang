@@ -1,0 +1,7 @@
+'' An array is not a subscript -- but passing a whole array to a bydesc parameter is how
+'' one is passed. And a static member is only allowed in a TOP-LEVEL type: "nested" means
+'' inside a PROCEDURE and nothing else.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/subscript-and-static.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/subscript-and-static.out

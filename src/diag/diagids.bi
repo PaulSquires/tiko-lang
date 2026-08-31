@@ -170,6 +170,10 @@
     DIAG( TKO0635, SEV_ERROR,   "'&=' concatenates, so its target must be a string" )
     '' fbc's errors 324 and 59. A fixed-length string has no parameter form at all.
     DIAG( TKO0636, SEV_ERROR,   "parameter '%0' cannot be a fixed-length string" )
+    '' fbc's error 73.
+    DIAG( TKO0637, SEV_ERROR,   "an array is not a subscript" )
+    '' fbc's error 264. 'nested' means inside a PROCEDURE and nothing else.
+    DIAG( TKO0638, SEV_ERROR,   "static member '%0' is only allowed in a top-level type" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

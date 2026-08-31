@@ -305,6 +305,43 @@ end sub
 ''     sub f( byval z as zstring * 10 )    error 59
 ''     sub f( byref z as string * 10 )     error 324
 ''     sub f( byref z as zstring )         OK      -- no length, so not one
+'' A STATIC MEMBER VARIABLE IS ONLY ALLOWED IN A TOP-LEVEL UDT -- fbc error 264, "Static
+'' member variable in nested UDT". Measured, and "nested" means INSIDE A PROCEDURE and
+'' nothing else: a type declared inside another TYPE takes one, and so does a top-level
+'' type.
+private sub CheckNestedStatics_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        '' A STATIC MEMBER IS AN N_VAR, not an N_FIELD -- it has storage of its own and
+        '' no place in the layout -- so its symbol is a VARIABLE living in the TYPE's
+        '' scope. Testing SYM_FIELD alone found none of them.
+        dim as SymbolKind mk = cast( SymbolKind, s->kind )
+        if (mk <> SYM_FIELD) andalso (mk <> SYM_VARIABLE) then continue for
+        if (s->flags and (SYMF_STATIC or SYMF_SHARED)) = 0 then continue for
+        dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
+        if sc = 0 then continue for
+        if sc->kind <> cast( ubyte, SCOPEK_TYPE ) then continue for
+        '' The type's OWN declaring scope is what decides, not the field's.
+        dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
+        if owner = 0 then continue for
+        dim as boolean inProc = false
+        dim as ScopeId cur = owner->parent
+        dim as long guard = 0
+        while (cur <> SCOPE_NONE) andalso (guard < 1000)
+            guard += 1
+            dim as SymScope ptr ps = c.syms->ScopeAt( cur )
+            if ps = 0 then exit while
+            if ps->kind = cast( ubyte, SCOPEK_PROC ) then
+                inProc = true
+                exit while
+            end if
+            cur = ps->parent
+        wend
+        if inProc = false then continue for
+        c.diags->Report( TKO0638, PointRange( s->loc ), c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckFixLenParams_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -365,6 +402,29 @@ private sub CheckImplicitStructors_( byref c as Ctx )
         dim as TypeId here = EnclosingTypeOf_( c, s->parent )
         CheckOneStructor_( c, u, "__ctor", here, s->loc, s->name )
         CheckOneStructor_( c, u, "__dtor", here, s->loc, s->name )
+    next
+end sub
+
+'' AN ARRAY IS NOT A SUBSCRIPT -- fbc error 73, "Array access, index expected".
+'' 'print a1( a2 )' over two arrays is refused; 'a1( i )' over an integer is the ordinary
+'' access.
+''
+'' ONLY WHEN THE TARGET IS A VARIABLE. The same node shape is a CALL, and passing a whole
+'' array to a 'bydesc' parameter -- 'f( a( ) )' -- is exactly how one is passed.
+private sub CheckArraySubscript_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = NODE_NONE then return
+    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if ts = 0 then return
+    if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    for i as long = 0 to lp->count - 1
+        dim as NodeId a2 = cast( NodeId, c.ast->children[lp->first + i] )
+        dim as TypeId at2 = c.info->TypeOf_( a2 )
+        if at2 = TYPE_NONE then continue for
+        if c.types->Kind( c.types->Unqualify( at2 ) ) <> TK_ARRAY then continue for
+        c.diags->Report( TKO0637, PointRange( c.ast->Loc( a2 ) ) )
+        return
     next
 end sub
 
@@ -467,6 +527,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_MEMBER then CheckDeref_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
+    if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
@@ -621,6 +682,7 @@ sub Run _
     CheckStaticStringInits( c )
     CheckImplicitStructors_( c )
     CheckFixLenParams_( c )
+    CheckNestedStatics_( c )
 end sub
 
 
