@@ -1,0 +1,85 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr p
+  local f32 f
+  local f64 d
+  local i64 n
+  local ptr okp
+  local ptr badp
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr p
+    %5 = alloca ptr f
+    %6 = alloca ptr d
+    %7 = alloca ptr n
+    %8 = load @p
+    %9 = bitcast %8
+    store @n, %9
+    %10 = const i64 1
+    %11 = bitcast %10
+    store @p, %11
+    %12 = load @p
+    %13 = bitcast %12
+    %14 = sitofp %13
+    store @f, %14
+    %15 = alloca ptr okp
+    %16 = const i64 0
+    %17 = bitcast %16
+    store @okp, %17
+    %18 = load @p
+    %19 = bitcast %18
+    %20 = sitofp %19
+    store @f, %20
+    %21 = load @p
+    %22 = bitcast %21
+    %23 = sitofp %22
+    store @d, %23
+    %24 = load @f
+    %25 = nearbyint %24
+    %26 = fptosi %25
+    %27 = bitcast %26
+    store @p, %27
+    %28 = const f64 1
+    %29 = nearbyint %28
+    %30 = fptosi %29
+    %31 = bitcast %30
+    store @p, %31
+    %32 = alloca ptr badp
+    %33 = const f64 2.5
+    %34 = nearbyint %33
+    %35 = fptosi %34
+    %36 = bitcast %35
+    store @badp, %36
+    %37 = const i32 0
+    call.rtl void fb_End(%37)
+    %38 = load @$tmp0
+    ret %38
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/ptr-float-convert.bas(14,1): error TKO0670: a pointer and a floating-point value do not convert into each other
+     |
+  14 | f = p
+     | ^
+tests/diagnostics/src/ptr-float-convert.bas(15,1): error TKO0670: a pointer and a floating-point value do not convert into each other
+     |
+  15 | d = p
+     | ^
+tests/diagnostics/src/ptr-float-convert.bas(16,1): error TKO0670: a pointer and a floating-point value do not convert into each other
+     |
+  16 | p = f
+     | ^
+tests/diagnostics/src/ptr-float-convert.bas(17,1): error TKO0670: a pointer and a floating-point value do not convert into each other
+     |
+  17 | p = 1.0
+     | ^
+tests/diagnostics/src/ptr-float-convert.bas(18,5): error TKO0670: a pointer and a floating-point value do not convert into each other
+     |
+  18 | dim badp as byte ptr = 2.5
+     |     ^

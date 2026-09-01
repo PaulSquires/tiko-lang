@@ -333,6 +333,17 @@ private sub CheckIifArms_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean pa = (c.types->Kind( ua ) = TK_POINTER)
     dim as boolean pb = (c.types->Kind( ub ) = TK_POINTER)
     if pa andalso pb then bad = true
+    '' A UDT ARM MUST MEET THE SAME UDT -- fbc error 24. Measured: two DIFFERENT types, a
+    '' type and an integer, a type and a pointer, and even a BASE and its DERIVED are all
+    '' refused, while two arms of the identical plain type are accepted (the 'ua = ub'
+    '' return above).
+    ''
+    '' NOT MODELLED: fbc also refuses two arms of one type when that type has
+    '' CONSTRUCTORS. That is a miss rather than a wrong answer, and guessing at it would
+    '' refuse the plain case this measured as accepted.
+    if (c.types->Kind( ua ) = TK_UDT) orelse (c.types->Kind( ub ) = TK_UDT) then
+        bad = true
+    end if
     if bad = false then return
     c.diags->Report( TKO0655, PointRange( c.ast->Loc( id ) ) )
 end sub
@@ -725,6 +736,59 @@ private sub CheckExplicitStructor_ ( byref c as Ctx, byval id as NodeId )
     c.diags->Report( TKO0666, PointRange( c.ast->Loc( mp->rhs ) ), nm )
 end sub
 
+'' A POINTER AND A FLOAT DO NOT CONVERT INTO EACH OTHER -- fbc error 181, "Invalid
+'' assignment/conversion", in BOTH directions. An INTEGER does, which is what makes this a
+'' rule about the float rather than about the pointer.
+''
+'' MEASURED:
+''     dim p as byte ptr : dim f as single
+''     f = p      error 181        n = p      OK    (n as integer)
+''     p = f      error 181        p = 1      OK
+''     p = 1.0    error 181        f = cast( single, cast( integer, p ) )   OK
+private sub PtrFloatPair_ _
+    ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId )
+
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    dim as TypeId lu = c.types->Unqualify( lt )
+    dim as TypeId ru = c.types->Unqualify( rt )
+
+    dim as boolean lPtr = (c.types->Kind( lu ) = TK_POINTER)
+    dim as boolean rPtr = (c.types->Kind( ru ) = TK_POINTER)
+    dim as boolean lFlt = false
+    dim as boolean rFlt = false
+    if c.types->Kind( lu ) = TK_BUILTIN then
+        select case c.types->BuiltinOf( lu )
+        case TY_SINGLE, TY_DOUBLE : lFlt = true
+        end select
+    end if
+    if c.types->Kind( ru ) = TK_BUILTIN then
+        select case c.types->BuiltinOf( ru )
+        case TY_SINGLE, TY_DOUBLE : rFlt = true
+        end select
+    end if
+
+    dim as boolean bad = (lPtr andalso rFlt) orelse (lFlt andalso rPtr)
+    if bad = false then return
+    c.diags->Report( TKO0670, PointRange( c.ast->Loc( at ) ) )
+end sub
+
+private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->op = 0 then return
+    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    PtrFloatPair_( c, id, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ) )
+end sub
+
+'' ...AND AN INITIALISER, which is the same conversion written differently:
+'' 'dim p as byte ptr = 1.0' is error 181 exactly as 'p = 1.0' is.
+private sub CheckPtrFloatInit_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr ip = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
+    PtrFloatPair_( c, id, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ) )
+end sub
+
 '' '&=' CONCATENATES, so its target must be a STRING -- fbc error 20, "Type mismatch".
 '' Measured: 'i &= 1' over an integer and 'd &= 1' over a double are both refused, while
 '' 's &= "a"' is the ordinary use and 'i += 1' is a different operator entirely.
@@ -1090,6 +1154,8 @@ private sub Walk_ _
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
+    if k = N_AMBIGUOUS then CheckPtrFloatAssign_( c, id )
+    if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
     if k = N_CALL then CheckConstThisCall_( c, id, here, innerConst )
     if k = N_MEMBER then CheckExplicitStructor_( c, id )

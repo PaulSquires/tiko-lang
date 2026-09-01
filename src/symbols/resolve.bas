@@ -475,6 +475,7 @@ private sub WalkExpr _
         else
             WalkExpr( c, bp->rhs, scope_ )
         end if
+        DivByConstZero_( c, id, scope_ )
 
     case Tko.N_MEMBER
         '' Only the base: the member name needs the base's type.

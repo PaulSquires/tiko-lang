@@ -1,0 +1,7 @@
+'' An iif arm that is a UDT must meet the same UDT (fbc error 24) -- two different types,
+'' a type and an integer, a type and a pointer, and even a base and its derived. Two arms
+'' of the identical plain type are accepted. Matches fbc on lines 27-30.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/iif-udt-arms.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/iif-udt-arms.out

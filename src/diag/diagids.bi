@@ -234,6 +234,9 @@
     DIAG( TKO0668, SEV_ERROR,   "a shared initialiser cannot reference '%0', which is not shared" )
     '' fbc's errors 158 and 131.
     DIAG( TKO0669, SEV_ERROR,   "'%0' adds a new name to a namespace from outside it" )
+    '' fbc's errors 181 and 100.
+    DIAG( TKO0670, SEV_ERROR,   "a pointer and a floating-point value do not convert into each other" )
+    DIAG( TKO0671, SEV_ERROR,   "division by a constant zero" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

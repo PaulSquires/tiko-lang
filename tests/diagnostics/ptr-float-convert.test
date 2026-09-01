@@ -1,0 +1,7 @@
+'' A pointer and a floating-point value do not convert into each other in either
+'' direction (fbc error 181); an integer does, and an explicit cast chain is allowed.
+'' Assignments and initialisers alike. Matches fbc on lines 14-18.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ptr-float-convert.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/ptr-float-convert.out

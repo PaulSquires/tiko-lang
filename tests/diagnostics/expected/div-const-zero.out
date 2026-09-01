@@ -1,0 +1,59 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 z
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr z
+    %5 = const i64 0
+    store @z, %5
+    %6 = const i64 1
+    %7 = const i64 0
+    %8 = fdiv %6, %7
+    call.rtl void fb_PrintDouble(0, %8, 1)
+    %9 = const i64 1
+    %10 = load @z
+    %11 = sdiv %9, %10
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = const i64 1
+    %13 = load @z
+    %14 = srem %12, %13
+    call.rtl void fb_PrintLongint(0, %14, 1)
+    %15 = const i64 1
+    %16 = const i64 0
+    %17 = sdiv %15, %16
+    call.rtl void fb_PrintLongint(0, %17, 1)
+    %18 = const i64 1
+    %19 = const i64 0
+    %20 = srem %18, %19
+    call.rtl void fb_PrintLongint(0, %20, 1)
+    %21 = const i64 1
+    %22 = const i64 0
+    %23 = sdiv %21, %22
+    call.rtl void fb_PrintLongint(0, %23, 1)
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
+    %25 = load @$tmp0
+    ret %25
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintDouble($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/div-const-zero.bas(10,9): error TKO0671: division by a constant zero
+     |
+  10 | print 1 \ 0
+     |         ^
+tests/diagnostics/src/div-const-zero.bas(11,9): error TKO0671: division by a constant zero
+     |
+  11 | print 1 mod 0
+     |         ^
+tests/diagnostics/src/div-const-zero.bas(12,9): error TKO0671: division by a constant zero
+     |
+  12 | print 1 \ K
+     |         ^

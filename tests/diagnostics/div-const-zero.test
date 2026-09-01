@@ -1,0 +1,7 @@
+'' Integer division by a constant zero is refused at constant-evaluation time (fbc error
+'' 100). Float division is not this, and a variable divisor is not constant. Matches fbc
+'' on lines 10, 11 and 12.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/div-const-zero.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/div-const-zero.out

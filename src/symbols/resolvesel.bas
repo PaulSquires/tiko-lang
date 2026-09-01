@@ -43,6 +43,34 @@ private function SelConstVal_ _
     return true
 end function
 
+'' INTEGER DIVISION BY A CONSTANT ZERO -- fbc error 100, at CONSTANT-EVALUATION time.
+'' The fold already declines on a zero divisor; it declined SILENTLY, so 'print 1 \\ 0'
+'' compiled.
+''
+'' MEASURED, and every part of the boundary matters:
+''     print 1 \\ 0                  error 100
+''     print 1 mod 0                error 100
+''     const K = 0 : print 1 \\ K    error 100   a NAMED constant counts
+''     print 1 / 0                  OK          FLOAT division is not this
+''     dim z as integer = 0
+''     print 1 \\ z                  OK          a variable is not constant
+private sub DivByConstZero_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
+
+    dim as Tko.BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    select case cast( Tko.TokenKind, bp->op )
+    case Tko.TK_BACKSLASH, Tko.KW_MOD
+    case else
+        return
+    end select
+    if bp->rhs = Tko.NODE_NONE then return
+    dim as longint rv = 0
+    if SelConstVal_( c, bp->rhs, here, rv ) = false then return
+    if rv <> 0 then return
+    c.diags->Report( Tko.TKO0671, Tko.PointRange( c.ast->Loc( id ) ) )
+end sub
+
 '' Reports on the FIRST case that pushes the span over, which is where fbc reports it.
 private sub SelectConstCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
