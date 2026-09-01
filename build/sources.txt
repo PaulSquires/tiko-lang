@@ -82,6 +82,7 @@ io/inputnum.bas
 io/inputstr.bas
 strw/swap.bas
 error/assert.bas
+error/errmsg.bas
 data/read.bas
 data/core.bas
 io/hookprint.bas
@@ -148,3 +149,5 @@ io/devfile.bas
 io/fileopen.bas
 io/devfileencod.bas
 io/fileinput.bas
+io/devstd.bas
+io/conprint.bas
