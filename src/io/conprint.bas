@@ -6,6 +6,8 @@
 '' there have replaced fbc's real member with nothing and lost both symbols.
 '' The build refused it and named them.
 ''
+'' EMPTY-ON: win64 win32
+''
 '' POSIX ONLY. The Windows implementation is a different function entirely --
 '' WriteConsoleOutput into CHAR_INFO cells, a scroll hook, a VIEW PRINT region
 '' and a UTF-16 stream path through MultiByteToWideChar -- 220 lines against

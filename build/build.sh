@@ -112,6 +112,43 @@ build_one( ) {
             fi
         fi
 
+        # A SOURCE THAT CONTRIBUTES NO GLOBAL SYMBOL SHIPPED NOTHING.
+        #
+        # src/error/errmsg.bas defined __fb_errmsg as a bare "dim shared" inside
+        # an EXTERN "c" block, which FreeBASIC emits as a FILE-LOCAL symbol --
+        # nm shows lowercase b, not B. tiko-rt's archive therefore still carried
+        # an UNDEFINED reference to the name and fbc's own error_message.o kept
+        # supplying it.
+        #
+        # ALL THREE EXISTING CHECKS PASSED. symbols.sh compares the names
+        # tiko-rt DOES define, and an absent symbol is not a mismatch. gate.sh
+        # deletes fbc's members BY SYMBOL, and there was none to delete. The
+        # differential was reading fbc's buffer.
+        #
+        # A check that compares what was emitted cannot see what was not. This
+        # one asks a different question: did this file put anything in the
+        # archive at all.
+        #
+        # A MODULE THAT IS DELIBERATELY EMPTY ON SOME TARGETS MUST SAY SO, with
+        # a marker naming them -- io/conprint.bas is the POSIX console writer and
+        # is #ifdef-ed to nothing on Windows. The marker is what separates that
+        # from a module that meant to define something and did not.
+        ngl=$("$TKORT_NM" --defined-only "$obj" 2>/dev/null | awk '$2=="T"||$2=="D"||$2=="B"||$2=="R"' | wc -l)
+        if [ "$ngl" -eq 0 ]; then
+            if grep -q "EMPTY-ON:.*$target" "$RT_ROOT/src/$src" 2>/dev/null; then
+                : # declared empty for this target
+            else
+                echo "build: $src compiles to an object with NO GLOBAL SYMBOLS on $target." >&2
+                echo "build: it is in build/sources.txt but contributes nothing to the archive." >&2
+                echo "build: a data definition needs the EXTERN ... ALIAS declaration inside" >&2
+                echo "build: an extern block AND the DIM SHARED outside it -- a bare" >&2
+                echo "build: dim shared inside the block is file-local. See src/utf/core.bas." >&2
+                echo "build: if the file is empty on this target BY DESIGN, add a comment" >&2
+                echo "build: line naming them, e.g.   '' EMPTY-ON: win64 win32" >&2
+                rt_die "define something, mark it EMPTY-ON, or take it out of sources.txt"
+            fi
+        fi
+
         objs="$objs $obj"
     done
 
