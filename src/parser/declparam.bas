@@ -1,0 +1,298 @@
+'' declparam.bas -- ONE PARAMETER of a procedure declaration.
+''
+'' Split out of decl.bas at the 1500-line lint cap and included from it, inside its
+'' namespace. Nothing else moved with it: a parameter is the one part of a declaration
+'' that is parsed by a single self-contained function.
+
+'' One parameter: '[byval|byref] name [( )] [as T] [= default]'.
+private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.StmtPayload sp
+    dim as ushort flags = 0
+
+    if Accept( p, Tko.KW_BYVAL ) then
+        '' RECORDED, because the absence of NF_BYREF does NOT mean byval: with neither
+        '' keyword written the default is BYREF for a UDT or a string and BYVAL for
+        '' everything else, and which one that is depends on a type this pass has not
+        '' resolved. Resolve settles it.
+        flags or= Tko.NF_BYVAL_WRITTEN
+    elseif Accept( p, Tko.KW_BYREF ) then
+        flags or= Tko.NF_BYREF
+    end if
+
+    if Peek( p ) = Tko.TK_ELLIPSIS then
+        Advance( p )
+        '' MARKED, because an ellipsis parameter is otherwise indistinguishable from an
+        '' unnamed one by anything but the ABSENCE of a typeref -- and lowering has to
+        '' know: a variadic procedure has no parameter list to run past, so nothing
+        '' after the written arguments is defaulted. Without the mark, 'printf( @s )'
+        '' looked like a one-argument call to a two-parameter procedure and declined.
+        ''
+        '' 'op' is the keyword that spelled a node, which is free on an N_PARAM.
+        sp.op = cast( ushort, Tko.TK_ELLIPSIS )
+        dim as Tko.NodeId v = MakeStmt( p, Tko.N_PARAM, t.loc, sp )
+        return v
+    end if
+
+    '' An UNNAMED parameter -- 'sub( byref as long )' -- which is how a procedure
+    '' POINTER type is normally written, the names being meaningless there. The name is
+    '' simply absent and 'as' follows straight away.
+    ''
+    '' Measured: fbc accepts this in a DECLARE and in a procedure type, but REJECTS it
+    '' in a definition ("error 59: Illegal specification, at parameter 1"). That is a
+    '' semantic rule rather than a syntactic one -- the shape parses either way -- so it
+    '' is accepted here and the diagnostic is owed from the checker, which does not
+    '' emit it yet.
+    '' ... or an unnamed ARRAY-DESCRIPTOR parameter: 'declare sub f( ( ) as integer )'
+    '' and 'dim p as sub cdecl( byval as integer, ( ) as integer )'. The bounds follow
+    '' where the name would be, so '(' means the name is absent just as 'as' does. The
+    '' NAMED forms -- 'a( )', 'a( any )', 'a( any, any )' -- already worked, which is
+    '' why only two of the eight files in this bucket failed on the descriptor itself.
+    dim as Tko.TokenKind pk = Peek( p )
+    if (pk <> Tko.KW_AS) andalso (pk <> Tko.TK_LPAREN) then
+        if DeclName( p, sp.name ) = false then return ErrorNode( p, Tko.TKO0406 )
+    end if
+
+    if Peek( p ) = Tko.TK_LPAREN then
+        Advance( p )
+        '' THE RANK IS THE COMMA COUNT, and it is recorded rather than discarded.
+        '' 'a( any, any )' is TWO dimensions and Resolve typed every array
+        '' parameter rank 1, so 'a( 1, 1 )' inside the body found a rank
+        '' mismatch and declined -- while fbc indexes it
+        '' '*(int32*)((uint8*)((*(int64*)(A + 72) << 2) + *(int64*)A) + 4)',
+        '' scaling by DIMTB[1].ELEMENTS exactly as the dynamic-local path here
+        '' already does.
+        ''
+        '' 'a( )' STAYS RANK ZERO -- UNSPECIFIED -- because fbc accepts a
+        '' two-dimensional array through one and indexes it by the SUBSCRIPT
+        '' COUNT at the use, which is what rank 0 means downstream.
+        ''
+        '' 'extra' is free on an N_PARAM -- 'op' already carries the ellipsis marker
+        '' and 'first/count' are NOT free after all: the AST dumper prints a
+        '' statement's children from them, so a rank written there came out as
+        '' phantom child nodes in every parser golden.
+        dim as long acommas = 0
+        dim as long adepth = 0
+        dim as boolean anyInside = false
+        while (AtEnd( p ) = false)
+            dim as Tko.TokenKind at2 = Peek( p )
+            if (at2 = Tko.TK_RPAREN) andalso (adepth = 0) then exit while
+            anyInside = true
+            if at2 = Tko.TK_LPAREN then adepth += 1
+            if at2 = Tko.TK_RPAREN then adepth -= 1
+            if (at2 = Tko.TK_COMMA) andalso (adepth = 0) then acommas += 1
+            Advance( p )
+        wend
+        Expect( p, Tko.TK_RPAREN, ")" )
+        flags or= Tko.NF_ARRAY
+        if anyInside then sp.extra = cast( ushort, acommas + 1 )
+    end if
+
+    if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
+    '' 'byval i as integer => 456' -- '=>' is an exact synonym for '=' here too.
+    ''
+    '' TWO SIDE-EFFECTING CALLS IN ONE 'orelse' DO NOT BEHAVE. Written as
+    '' 'if Accept( TK_EQ ) orelse Accept( TK_FATARROW ) then', the arrow was consumed and
+    '' the TOKEN AFTER IT went missing -- 'for j => 1 to 3' lost its 'to 3'. Each Accept
+    '' advances, so they are sequenced explicitly and never in a condition together.
+    dim as boolean sawEq = Accept( p, Tko.TK_EQ )
+    if sawEq = false then sawEq = Accept( p, Tko.TK_FATARROW )
+    if sawEq then sp.b = Expression( p )
+
+    dim as Tko.NodeId n = MakeStmt( p, Tko.N_PARAM, t.loc, sp )
+    p.ast->nodes[cast( long, n )].flags or= flags
+    return n
+end function
+
+'' The bounds of an array declarator: '(0 to 3)', '(3)', '(0 to 1, 0 to 2)'. Stored
+'' as LOW/HIGH PAIRS in the child list, with an omitted low bound written as 0 --
+'' 'a(3)' means 0 to 3 in FreeBASIC, four elements, not three.
+''
+'' They used to be skipped token by token, which cost the element count and made
+'' every array field lay out as a single element.
+private sub ParseArrayBounds _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+
+    dim as Tko.NodeIdVec bounds
+    if Accept( p, Tko.TK_LPAREN ) = false then return
+    if Peek( p ) <> Tko.TK_RPAREN then
+        do
+            dim as long before = p.pos
+            dim as Tko.NodeId first_ = BoundExpr( p )
+            if Accept( p, Tko.KW_TO ) then
+                bounds.Push( cast( ulong, first_ ) )
+                bounds.Push( cast( ulong, BoundExpr( p ) ) )
+            else
+                bounds.Push( cast( ulong, Tko.NODE_NONE ) )
+                bounds.Push( cast( ulong, first_ ) )
+            end if
+            if p.pos = before then exit do
+            if Accept( p, Tko.TK_COMMA ) = false then exit do
+        loop
+    end if
+    Expect( p, Tko.TK_RPAREN, ")" )
+    sp.first = p.ast->children.Count
+    sp.count = bounds.Count
+    for i as long = 0 to bounds.Count - 1
+        p.ast->children.Push( bounds[i] )
+    next
+end sub
+
+'' Intern the text of the string literal at the cursor, WITHOUT advancing. The
+'' literal pool records the span with the quotes already stripped, and the case is
+'' preserved: an ALIAS keeps exactly the spelling that was written.
+function StringLitText( byref p as Tko.ParserState ) as Tko.InternId
+    dim as Tko.Token t = Cur( p )
+    if p.litPool = 0 then return 0
+    if cast( long, t.literal ) >= p.litPool->Count then return 0
+    dim as Tko.Literal ptr lit = @(*p.litPool)[cast( long, t.literal )]
+    if lit->textLength <= 0 then return 0
+    '' The literal's OWN file. Taking it from t.loc breaks for any token produced by
+    '' macro expansion, whose loc points at the use site rather than at the text.
+    dim as Tko.SourceFile ptr f = p.src->FileAt( cast( Tko.FileId, lit->textFile ) )
+    if f = 0 then return 0
+    if (lit->textOffset + lit->textLength) > f->text.Count then return 0
+    return p.names->Get( @f->text[lit->textOffset], lit->textLength )
+end function
+
+sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    dim as Tko.NodeIdVec params
+    if Peek( p ) = Tko.TK_LPAREN then
+        Advance( p )
+        if Peek( p ) <> Tko.TK_RPAREN then
+            do
+                dim as long before = p.pos
+                params.Push( cast( ulong, ParseParam( p ) ) )
+                if p.pos = before then exit do
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
+            loop
+        end if
+        Expect( p, Tko.TK_RPAREN, ")" )
+    end if
+    sp.first = p.ast->children.Count
+    sp.count = params.Count
+    for i as long = 0 to params.Count - 1
+        p.ast->children.Push( params[i] )
+    next
+end sub
+
+'' sub / function / property / constructor / destructor / operator, declaration or
+'' definition. 'declare' prefixes the declaration-only form.
+'' Is the cursor on a ':' ? There is no TK_COLON in the token stream: the lexer turns
+'' every ':' into a TK_EOL marked TF_COLON, because it separates statements exactly as
+'' a newline does. Anything looking for a literal colon has to ask this instead, and
+'' the field reader's bitfield width did not -- so it never fired.
+private function IsColonHere( byref p as Tko.ParserState ) as boolean
+    if Peek( p ) <> Tko.TK_EOL then return false
+    return ((Cur( p ).flags and Tko.TF_COLON) <> 0)
+end function
+
+'' The '( of T, U )' parameter list. Defined below; both the TYPE and the PROCEDURE
+'' forms need it, and the procedure one is parsed first.
+declare function ParseTypeParams( byref p as Tko.ParserState ) as Tko.NodeId
+
+'' A 'BYREF' that introduces a RESULT TYPE, consumed if so. It is only that when an AS
+'' follows: 'function F( ) byref as T'. A bare BYREF anywhere else is somebody's trailing
+'' modifier and is left alone.
+private function ByrefResult_( byref p as Tko.ParserState ) as boolean
+    if Peek( p ) <> Tko.KW_BYREF then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.KW_AS then return false
+    Advance( p )
+    return true
+end function
+
+'' AN OPERATOR'S NAME CAN BE A TOKEN RATHER THAN A WORD: 'operator +'.
+''
+'' IT WAS SKIPPED, NOT RECORDED. 'private operator = ( byref a as D, byref b as D ) as
+'' boolean' reached Collect with NO NAME AT ALL, so nothing was declared for it, Resolve
+'' set no return type, and the body's result assignment declined for want of a result
+'' slot -- while the function itself went out under an EMPTY mangled name. Every
+'' comparison operator in the runtime headers is spelled this way; fb/decimal.bi alone
+'' has six.
+''
+'' The spelling comes from the token table's TEXT column -- '=' -- rather than from the
+'' source, because RawSpelling only reads identifiers and these are punctuation.
+''
+'' Called from TWO places, which is the whole reason it is a procedure: the name may
+'' follow the procedure keyword directly, or a QUALIFIER -- and in a generic the
+'' qualifier comes after the type arguments, 'operator Array( of T ).[]', which is a
+'' second dot loop further down. Only the first ran this, so the generic form lost its
+'' name, its parameter list AND its return type: fbc's own Array( of T ) subscript
+'' operator instantiated as a no-argument sub returning nothing.
+private sub ReadOperatorName _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+
+    '' 'operator and=' IS TWO TOKENS AND ONE NAME. The PUNCTUATION compounds -- '+=',
+    '' '*=' -- lex as a single token, but a WORD one does not, and the KEYWORD half has
+    '' already been taken as the name by the time this runs. So 'and=' was read as
+    '' 'and' and mangled as the BINARY operator: '_ZN1TanEu7INTEGER' where fbc emits
+    '' '_ZN1TaNEu7INTEGER', a name nothing defines.
+    if (sp.name <> 0) andalso (Peek( p ) = Tko.TK_EQ) then
+        dim as string had = Tko.Text.LowerAscii( p.names->Spelling( sp.name ) )
+        select case had
+        case "mod", "shl", "shr", "and", "or", "xor", "eqv", "imp"
+            Advance( p )
+            sp.name = p.names->Fold( p.names->GetString( had & "=" ) )
+            sp.rawName = p.names->GetString( had & "=" )
+            return
+        end select
+    end if
+
+    '' A WORD NAME IS ALREADY THE NAME, and there is nothing here left to read.
+    ''
+    '' 'operator udt.cast as integer' -- the PARENLESS spelling, which fbc accepts and
+    '' which uop_coersion.bas is written in -- arrived with 'cast' already taken as the
+    '' name and 'as' as the next token, so the loop below ate the AS. The return type
+    '' was then never parsed: the operator mangled as _ZN3UDTcvvEv, a cast to VOID,
+    '' where fbc emits _ZN3UDTcvu7INTEGEREv for both spellings. That is an ABI mismatch
+    '' and not a decline -- the name links against nothing.
+    ''
+    '' The compound WORD operators are the one exception and are taken above, before
+    '' this, because their keyword half is what got read as the name.
+    '' 'operator new[]' AND 'operator delete[]' ARE TWO TOKENS AND ONE NAME, the same
+    '' way 'operator []' is -- and the word half has already been taken as the name by
+    '' the time this runs, so the early-out below fired and left the '[' where the
+    '' PARAMETER LIST was expected. The whole list was then lost: 'operator bar.new[](
+    '' byval size as uinteger )' arrived with no parameters at all, so 'size' was
+    '' unbound and the declared 'buf' became the implicit 'this'. fbc mangles them 'na'
+    '' and 'da'; tiko-lang mangled '_ZN3BARv13newEv', a no-argument sub.
+    if (sp.name <> 0) andalso (Peek( p ) = Tko.TK_LBRACKET) then
+        dim as string hadw = Tko.Text.LowerAscii( p.names->Spelling( sp.name ) )
+        if (hadw = "new") orelse (hadw = "delete") then
+            dim as long sv = p.pos
+            Advance( p )
+            if Peek( p ) = Tko.TK_RBRACKET then
+                Advance( p )
+                sp.name = p.names->Fold( p.names->GetString( hadw & "[]" ) )
+                sp.rawName = p.names->GetString( hadw & "[]" )
+                return
+            end if
+            p.pos = sv
+        end if
+    end if
+    if sp.name <> 0 then return
+    if (Peek( p ) = Tko.TK_LPAREN) orelse AtEnd( p ) then return
+    if Peek( p ) = Tko.TK_EOL then return
+    if Peek( p ) = Tko.TK_DOT then return
+    dim as string opNm = Tko.TokenKindText( Peek( p ) )
+    if len( opNm ) = 0 then return
+    Advance( p )
+    '' 'operator []' IS TWO TOKENS AND ONE NAME. Taking only the '[' left the ']' where
+    '' the parameter list was expected, so the whole list was lost and the subscript
+    '' operator reached lowering with nothing but a receiver.
+    if (opNm = "[") andalso (Peek( p ) = Tko.TK_RBRACKET) then
+        opNm = "[]"
+        Advance( p )
+    end if
+    if sp.name = 0 then
+        sp.name = p.names->Fold( p.names->GetString( opNm ) )
+        sp.rawName = p.names->GetString( opNm )
+    end if
+end sub
+
+
+
+
+
+

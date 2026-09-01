@@ -237,6 +237,11 @@
     '' fbc's errors 181 and 100.
     DIAG( TKO0670, SEV_ERROR,   "a pointer and a floating-point value do not convert into each other" )
     DIAG( TKO0671, SEV_ERROR,   "division by a constant zero" )
+    '' fbc's errors 304 and 305.
+    DIAG( TKO0672, SEV_ERROR,   "the ALIAS name string is empty" )
+    DIAG( TKO0673, SEV_ERROR,   "the LIB name string is empty" )
+    '' fbc's error 11, over an LBOUND or UBOUND in a CONST initialiser.
+    DIAG( TKO0674, SEV_ERROR,   "this array bound is not known at compile time" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

@@ -1,0 +1,7 @@
+'' An empty ALIAS or LIB string is an error (fbc 304 and 305): it would mangle to a name
+'' with nothing in it, or link against a library with no name. A non-empty one is the
+'' ordinary use. Matches fbc on lines 7, 8 and 9.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/empty-alias.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/empty-alias.out

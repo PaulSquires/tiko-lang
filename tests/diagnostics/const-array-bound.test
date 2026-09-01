@@ -1,0 +1,9 @@
+'' A const initialised from lbound/ubound needs a bound known at compile time (fbc error
+'' 11): a dynamic array has none, and a variable dimension argument means fbc cannot tell
+'' which bound is asked for. A fixed array folds, and a plain DIM takes any of them.
+'' Matches fbc on lines 15 and 16 (reported in the other order -- the dimension test runs
+'' in Resolve and the array test in the post-Check pass).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-array-bound.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/const-array-bound.out

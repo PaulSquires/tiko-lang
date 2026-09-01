@@ -206,7 +206,9 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' rather than skipped and the diagnostic is owed from the checker.
     if Accept( p, Tko.KW_ALIAS ) then
         if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token aTok = Cur( p )
             sp.aliasName = StringLitText( p )
+            EmptyAliasCheck( p, sp.aliasName, aTok, false )
             Advance( p )
         end if
     end if
@@ -450,7 +452,9 @@ function TakeProcPrefix_ _
     end if
     if Accept( p, Tko.KW_ALIAS ) then
         if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token aTok2 = Cur( p )
             sp.aliasName = StringLitText( p )
+            EmptyAliasCheck( p, sp.aliasName, aTok2, false )
             Advance( p )
         end if
         return true

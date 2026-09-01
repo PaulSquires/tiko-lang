@@ -43,6 +43,58 @@ private function SelConstVal_ _
     return true
 end function
 
+'' 'const N = lbound( a )' NEEDS A BOUND THAT IS KNOWN NOW -- fbc error 11, "Expected
+'' constant". A FIXED array's bounds are known and fold; a DYNAMIC one's are not, a BYDESC
+'' parameter's are not, an ELLIPSIS bound is not, and a VARIABLE dimension argument means
+'' fbc cannot tell which bound is being asked for even when it knows them all.
+''
+'' MEASURED:
+''     dim a(0 to 3) as integer   : const N = lbound( a )       OK
+''     dim a() as integer         : const N = lbound( a )       error 11
+''     dim a(0 to 3, 1 to 5) ...  : const N = ubound( a, 2 )    OK
+''     ...                        : const N = ubound( a, i )    error 11
+''     dim n as integer = lbound( a )                           OK -- a DIM is not a const
+''
+'' IT REPORTS ONLY WHAT IT CAN POSITIVELY ESTABLISH IS NOT CONSTANT -- a DYNAMIC array, or
+'' a dimension argument that does not fold. Asking "did the fold succeed" instead measured
+'' THIS compiler's folder against fbc's rather than measuring fbc: tiko-lang does not fold
+'' lbound of a FIXED array either, so all three of the accepted lines above were refused.
+private sub ConstBoundCheck_ _
+    ( byref c as Ctx, byval item as Tko.NodeId, byval here as Tko.ScopeId )
+
+    dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+    if ip = 0 then return
+    if ip->b = Tko.NODE_NONE then return
+    if c.ast->Kind( ip->b ) <> Tko.N_CALL then return
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->b )].data )]
+    if lp->target = Tko.NODE_NONE then return
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return
+    '' A USER SYMBOL OF THAT NAME IS NOT THE INTRINSIC.
+    if c.info->RefOf( lp->target ) <> Tko.SYMBOL_NONE then return
+    dim as Tko.InternId nm = _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name
+    dim as string spell = c.names->Spelling( nm )
+    if (spell <> "lbound") andalso (spell <> "ubound") then return
+    if lp->count < 1 then return
+
+    '' THE DIMENSION ARGUMENT, when written: 'ubound( a, 2 )' is constant, 'ubound( a, i )'
+    '' is not -- and fbc refuses the latter even over an array whose bounds it knows,
+    '' because it cannot tell WHICH bound is being asked for.
+    if lp->count >= 2 then
+        dim as Tko.NodeId dimArg = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+        dim as longint dv = 0
+        if SelConstVal_( c, dimArg, here, dv ) = false then
+            c.diags->Report( Tko.TKO0674, Tko.PointRange( c.ast->Loc( ip->b ) ) )
+            return
+        end if
+    end if
+
+    '' THE ARRAY ITSELF IS ASKED ABOUT LATER, in the post-Check pass: here its symbol has
+    '' no type yet -- this walk is what gives declarations theirs -- so IsDynArray said no
+    '' to every one of them.
+end sub
+
 '' INTEGER DIVISION BY A CONSTANT ZERO -- fbc error 100, at CONSTANT-EVALUATION time.
 '' The fold already declines on a zero divisor; it declined SILENTLY, so 'print 1 \\ 0'
 '' compiled.
