@@ -1,6 +1,7 @@
 '' An extern or common variable cannot be initialised; a UDT whose constructors include no
 '' default one cannot be declared without an initialiser; and a declaration may not cross
-'' the string/number divide, for a variable exactly as for a constant.
+'' the string/number divide, for a variable exactly as for a constant. A STATIC MEMBER is
+'' really an extern, and a DYNAMIC ARRAY cannot be a union member.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/extern-init-and-ctor.bas
 '' EXPECT-EXIT: 1

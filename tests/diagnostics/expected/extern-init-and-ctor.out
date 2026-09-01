@@ -63,19 +63,27 @@ verify: ok
 lowered: 4 functions, 4 blocks, 27 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
   skip-site src\mir\lowerstore.bas:1075 1
-tests/diagnostics/src/extern-init-and-ctor.bas(33,9): error TKO0653: 'badstr' and its initializer disagree about being a string
+tests/diagnostics/src/extern-init-and-ctor.bas(50,9): error TKO0653: 'badstr' and its initializer disagree about being a string
      |
-  33 |     dim badStr as string = 1
+  50 |     dim badStr as string = 1
      |         ^
-tests/diagnostics/src/extern-init-and-ctor.bas(34,9): error TKO0653: 'badnum' and its initializer disagree about being a string
+tests/diagnostics/src/extern-init-and-ctor.bas(51,9): error TKO0653: 'badnum' and its initializer disagree about being a string
      |
-  34 |     dim badNum as integer = "x"
+  51 |     dim badNum as integer = "x"
      |         ^
-tests/diagnostics/src/extern-init-and-ctor.bas(27,8): error TKO0656: 'externinit' is extern or common and cannot be initialized
+tests/diagnostics/src/extern-init-and-ctor.bas(34,8): error TKO0656: 'externinit' is extern or common and cannot be initialized
      |
-  27 | extern externInit as integer = 1
+  34 | extern externInit as integer = 1
      |        ^
-tests/diagnostics/src/extern-init-and-ctor.bas(28,12): error TKO0657: the type of 'nodefault' has no constructor that takes no argument
+tests/diagnostics/src/extern-init-and-ctor.bas(35,12): error TKO0657: the type of 'nodefault' has no constructor that takes no argument
      |
-  28 | dim shared noDefault as NeedsArg
+  35 | dim shared noDefault as NeedsArg
      |            ^
+tests/diagnostics/src/extern-init-and-ctor.bas(39,12): error TKO0656: 'si' is extern or common and cannot be initialized
+     |
+  39 |     static si as integer = 1
+     |            ^
+tests/diagnostics/src/extern-init-and-ctor.bas(43,5): error TKO0659: dynamic array 'arr' cannot be a member of a union
+     |
+  43 |     arr( any ) as integer
+     |     ^

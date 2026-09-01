@@ -337,7 +337,18 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
             @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
 
         if ip->b <> NODE_NONE then
-            if (s->flags and (SYMF_EXTERN or SYMF_COMMON)) <> 0 then
+            '' A STATIC MEMBER IS REALLY AN EXTERN -- its storage lives outside the type
+            '' and is defined elsewhere -- so 'static i as integer = 1' inside a TYPE is
+            '' fbc error 135 just as a plain extern is. dim/member-var-bad-1.bas says so
+            '' in its own comment.
+            dim as boolean staticMember = false
+            if (s->flags and SYMF_STATIC) <> 0 then
+                dim as SymScope ptr ms = c.syms->ScopeAt( s->parent )
+                if ms <> 0 then
+                    staticMember = (ms->kind = cast( ubyte, SCOPEK_TYPE ))
+                end if
+            end if
+            if ((s->flags and (SYMF_EXTERN or SYMF_COMMON)) <> 0) orelse staticMember then
                 c.diags->Report( TKO0656, PointRange( c.ast->Loc( item ) ), _
                                  c.names->Spelling( s->name ) )
             end if
@@ -372,6 +383,38 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
         if sawDefault then continue for
         c.diags->Report( TKO0657, PointRange( c.ast->Loc( item ) ), _
                          c.names->Spelling( s->name ) )
+    next
+end sub
+
+'' A DYNAMIC ARRAY CANNOT BE A MEMBER OF A UNION -- fbc error 162, "Dynamic arrays cannot
+'' be part of UNION's or nested TYPE's". A dynamic array is a DESCRIPTOR that has to be
+'' constructed and destroyed, and a union's members overlap: there is no way to say which
+'' of them owns the storage.
+private sub CheckDynArrayInUnion_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_FIELD ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        if c.types->Kind( u ) <> TK_ARRAY then continue for
+        '' A DYNAMIC array records a NEGATIVE rank, and its magnitude is rank + 1: -1 is
+        '' 'dim a( )', -2 is 'a( any )', -3 is 'a( any, any )'. Testing for -1 alone found
+        '' only the unspecified form and missed every one the corpus writes.
+        if c.types->types[cast( long, u )].dims >= 0 then continue for
+
+        '' Either the field's immediate enclosing aggregate is a UNION -- which is what
+        '' SYMF_UNION records for an anonymous one -- or the named type it sits in is.
+        dim as boolean inUnion = ((s->flags and SYMF_UNION) <> 0)
+        if inUnion = false then
+            dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
+            if sc = 0 then continue for
+            if sc->kind <> cast( ubyte, SCOPEK_TYPE ) then continue for
+            dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
+            if owner = 0 then continue for
+            inUnion = ((owner->flags and SYMF_UNION_KIND) <> 0)
+        end if
+        if inUnion = false then continue for
+        c.diags->Report( TKO0659, PointRange( s->loc ), c.names->Spelling( s->name ) )
     next
 end sub
 

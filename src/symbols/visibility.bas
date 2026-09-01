@@ -961,6 +961,7 @@ sub Run _
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )
     CheckExternInitAndDefaultCtor_( c )
+    CheckDynArrayInUnion_( c )
     CheckVirtualNeedsObject_( c )
 end sub
 

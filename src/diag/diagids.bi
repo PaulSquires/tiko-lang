@@ -214,6 +214,8 @@
     DIAG( TKO0657, SEV_ERROR,   "the type of '%0' has no constructor that takes no argument" )
     '' fbc's error 36. As many subscripts as the array has dimensions, or none at all.
     DIAG( TKO0658, SEV_ERROR,   "'%0' is indexed with the wrong number of subscripts" )
+    '' fbc's error 162. A union's members overlap; a descriptor has to be owned by one.
+    DIAG( TKO0659, SEV_ERROR,   "dynamic array '%0' cannot be a member of a union" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
