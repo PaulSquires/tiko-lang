@@ -151,3 +151,4 @@ io/devfileencod.bas
 io/fileinput.bas
 io/devstd.bas
 io/conprint.bas
+io/conlineinp.bas
