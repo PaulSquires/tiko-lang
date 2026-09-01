@@ -568,6 +568,16 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
     case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
         c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
         return
+    case N_MEMBER
+        '' 'ns.foo = 1' OVER A NAMESPACE CONSTANT. Resolve refuses the BARE name, which
+        '' is all it can see -- a qualified one is not bound until Check -- so the
+        '' qualified spelling reached lowering and stored into the constant's slot.
+        dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if ms = 0 then return
+        dim as SymbolKind mk = cast( SymbolKind, ms->kind )
+        if (mk <> SYM_CONSTANT) andalso (mk <> SYM_ENUMCONST) then return
+        c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                         c.names->Spelling( ms->name ) )
     end select
 end sub
 

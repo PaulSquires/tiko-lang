@@ -24,3 +24,16 @@ ci += 1
 cp = @q
 q = K
 q += K
+
+'' -- AND THE QUALIFIED SPELLING -----------------------------------------------
+''
+'' 'ns.foo = 1' over a namespace constant is fbc error 119 too. Resolve refuses the BARE
+'' name, which is all it can see -- a QUALIFIED one is not bound until Check -- so the
+'' qualified spelling reached lowering and stored into the constant's slot.
+namespace ns
+    const nsConst = 1
+end namespace
+
+sub qualifiedRefused( )
+    ns.nsConst = 2
+end sub

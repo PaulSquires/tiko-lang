@@ -1,5 +1,6 @@
 '' Assigning to a constant is refused -- symbolic and const-qualified alike, plain and
-'' compound -- and a POINTER TO CONST is still assignable.
+'' compound -- and a POINTER TO CONST is still assignable. The QUALIFIED spelling counts
+'' too: Resolve sees only the bare name, so 'ns.foo = 1' needs the later pass.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/const-assign.bas
 '' EXPECT-EXIT: 1

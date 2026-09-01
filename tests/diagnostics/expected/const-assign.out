@@ -1,6 +1,13 @@
 global var i64 ci = 0
 global var ptr cp
 global var i64 q
+func void QUALIFIEDREFUSED() {
+  local void ns
+  entry0:
+    %1 = alloca ptr ns
+    %2 = const i64 2
+    ret
+}
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -24,9 +31,10 @@ func i32 main($0, $1) {
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
 verify: ok
-lowered: 1 functions, 1 blocks, 15 insts, 4 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 4
+lowered: 2 functions, 2 blocks, 17 insts, 5 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 5
   amb other 4
+  skip-site src\mir\lowerassign.bas:375 1
   skip-site src\mir\lower.bas:874 4
   amb-other-class 5 4
 tests/diagnostics/src/const-assign.bas(18,1): error TKO0617: cannot modify 'k': it is a constant
@@ -45,3 +53,7 @@ tests/diagnostics/src/const-assign.bas(21,1): error TKO0617: cannot modify 'ci':
      |
   21 | ci += 1
      | ^
+tests/diagnostics/src/const-assign.bas(38,7): error TKO0617: cannot modify 'nsconst': it is a constant
+     |
+  38 |     ns.nsConst = 2
+     |       ^
