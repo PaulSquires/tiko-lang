@@ -1,0 +1,31 @@
+func void _ZN5PROTPC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN5PRIVCC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN5PRIVDD1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+verify: ok
+lowered: 3 functions, 3 blocks, 6 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/private-base-structor.bas(24,1): error TKO0662: 'badc' cannot reach its base type's private default constructor
+     |
+  24 | type BadC extends PrivC
+     | ^
+tests/diagnostics/src/private-base-structor.bas(35,1): error TKO0663: 'badd' cannot reach its base type's private destructor
+     |
+  35 | type BadD extends PrivD
+     | ^

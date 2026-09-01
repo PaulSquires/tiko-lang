@@ -220,6 +220,9 @@
     DIAG( TKO0660, SEV_ERROR,   "the call to '%0' matches more than one overload" )
     '' fbc's error 147.
     DIAG( TKO0661, SEV_ERROR,   "'%0' was not declared as a static member variable" )
+    '' fbc's errors 207 and 208.
+    DIAG( TKO0662, SEV_ERROR,   "'%0' cannot reach its base type's private default constructor" )
+    DIAG( TKO0663, SEV_ERROR,   "'%0' cannot reach its base type's private destructor" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

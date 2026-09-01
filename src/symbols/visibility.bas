@@ -970,6 +970,7 @@ sub Run _
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )
+    CheckPrivateBaseStructor_( c )
     CheckExternInitAndDefaultCtor_( c )
     CheckDynArrayInUnion_( c )
     CheckVirtualNeedsObject_( c )

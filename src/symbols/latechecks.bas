@@ -447,6 +447,57 @@ private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
     next
 end sub
 
+'' A DERIVED TYPE CANNOT REACH A PRIVATE BASE STRUCTOR -- fbc errors 207 and 208.
+''
+'' Every constructor a derived type has, written or implicit, calls the base's default
+'' one; every destructor calls the base's. When that structor is PRIVATE the derived type
+'' is not allowed to, and fbc refuses THE DERIVATION -- on the line of the 'type', with no
+'' instance of it needed anywhere.
+''
+'' MEASURED, and the boundary is exactly private:
+''     protected base ctor + a derived type          accepted -- that is what protected IS
+''     private base ctor, NOTHING derived from it    accepted
+''     private ctor that is not the DEFAULT one      error 186 instead, a different rule
+''
+'' THE WHOLE OVERLOAD CHAIN IS WALKED for the ctor, because the default one need not be
+'' first: ComInit declares its private copy constructor before its public default one, and
+'' reading only the head of the chain refused a file fbc accepts.
+private sub CheckPrivateBaseStructor_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId base_ = BaseOf_( c, s->type_ )
+        if base_ = TYPE_NONE then continue for
+
+        '' THE DEFAULT CONSTRUCTOR, found the same way CheckBaseHasDefaultCtor_ finds it:
+        '' the first in the chain that can be called with no argument.
+        dim as Symbol ptr bc = StructorOf_( c, base_, "__ctor" )
+        dim as long guard = 0
+        while (bc <> 0) andalso (guard < 1000)
+            guard += 1
+            dim as long req = RequiredParams_( c, cast( NodeId, bc->payload ) )
+            if req = 0 then
+                if (bc->flags and SYMF_MEMB_PRIVATE) <> 0 then
+                    c.diags->Report( TKO0662, PointRange( s->loc ), _
+                                     c.names->Spelling( s->name ) )
+                end if
+                exit while
+            end if
+            '' A declaration that cannot be read says nothing either way, and guessing
+            '' here would refuse a derivation fbc accepts.
+            if req = -1 then exit while
+            bc = c.syms->SymbolAt( bc->nextOverload )
+        wend
+
+        '' ...AND THE DESTRUCTOR, which cannot be overloaded, so there is no chain.
+        dim as Symbol ptr bd = StructorOf_( c, base_, "__dtor" )
+        if bd = 0 then continue for
+        if (bd->flags and SYMF_MEMB_PRIVATE) = 0 then continue for
+        c.diags->Report( TKO0663, PointRange( s->loc ), c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckConstDeclTypes_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]

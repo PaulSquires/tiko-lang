@@ -117,6 +117,67 @@ sub CheckAbstractInstances _
         if AbstractHere_( types, store, info.TypeOf_( pp->a ) ) = false then continue for
         diags.Report( TKO0620, PointRange( ast.Loc( id ) ), names.Spelling( pp->name ) )
     next
+
+    '' ...AND THE EXPRESSIONS THAT NAME A TYPE WITHOUT DECLARING ANYTHING. The header
+    '' listed these as not covered; they are now. 'new A' and 'type<A>( )' each build a
+    '' VALUE of the named type, and fbc refuses both for the same reason it refuses
+    '' 'dim x as A' -- there is nothing to put in the null slot.
+    ''
+    '' BOTH ARE LIST NODES WITH A 'target', and the target is the TYPEREF -- which is the
+    '' handle wanted here. An N_NEW's own type is 'A ptr', and a pointer to an abstract
+    '' type is legal, so reading the node's type instead would have found nothing.
+    ''
+    '' PLACEMENT NEW IS THE SAME NODE and the same rule: 'new( buf ) A' still constructs
+    '' an A, it only chooses where.
+    for n as long = 0 to ast.Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        dim as NodeKind nk = ast.Kind( id )
+        dim as boolean builds = (nk = N_NEW)
+        if nk = N_TUPLE then
+            builds = ((ast.nodes[n].flags and NF_TYPE_LITERAL) <> 0)
+        end if
+        if builds = false then continue for
+        dim as ListPayload ptr lp = @ast.lists[cast( long, ast.nodes[n].data )]
+        '' A BARE 'type( )' NAMES NO TYPE. It takes one from the parameter it is being
+        '' passed to, so the only handle is the type Check gave the node itself --
+        '' 'foo( type( ) )' over a 'byref x as A' is still constructing an A.
+        dim as TypeId tt
+        if lp->target = NODE_NONE then
+            if nk <> N_TUPLE then continue for
+            tt = info.TypeOf_( id )
+        else
+            tt = info.TypeOf_( lp->target )
+        end if
+        if AbstractHere_( types, store, tt ) = false then continue for
+        diags.Report( TKO0620, PointRange( ast.Loc( id ) ), _
+                      names.Spelling( types.NameOf( types.Unqualify( tt ) ) ) )
+    next
+
+    '' 'A( )' -- A CONSTRUCTED TEMPORARY, which is an ordinary CALL node whose callee
+    '' happens to name a TYPE rather than a procedure. Its own type is the A, so unlike
+    '' 'new A' the node carries what is wanted directly.
+    ''
+    '' THE CALLEE MUST RESOLVE TO A UDT SYMBOL. A function RETURNING an abstract type by
+    '' reference is legal and is how one is used at all, so a test on the call's type
+    '' alone would have refused every such call.
+    for n as long = 0 to ast.Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if ast.Kind( id ) <> N_CALL then continue for
+        dim as ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[n].data )]
+        if cp->target = NODE_NONE then continue for
+        dim as Symbol ptr cs = syms.SymbolAt( info.RefOf( cp->target ) )
+        if cs = 0 then continue for
+        '' ...OR TO A TYPEDEF FOR ONE. 'type A2 as A : A2( )' constructs the same A,
+        '' and fbc refuses it on the same line number.
+        dim as boolean namesType = _
+            (cs->kind = cast( ubyte, SYM_UDT )) orelse _
+            (cs->kind = cast( ubyte, SYM_TYPEDEF ))
+        if namesType = false then continue for
+        dim as TypeId ct = info.TypeOf_( id )
+        if AbstractHere_( types, store, ct ) = false then continue for
+        diags.Report( TKO0620, PointRange( ast.Loc( id ) ), _
+                      names.Spelling( types.NameOf( types.Unqualify( ct ) ) ) )
+    next
 end sub
 
 '' 'override' IS A PROMISE -- fbc error 223, "Not overriding any virtual method".

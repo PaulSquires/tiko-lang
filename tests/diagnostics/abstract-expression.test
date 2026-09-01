@@ -1,0 +1,7 @@
+'' An abstract type cannot be instantiated by an expression either: 'new A',
+'' 'type<A>( )', 'A( )' and a typedef for A are all fbc error 306, on the same four
+'' lines. A pointer or reference to one stays legal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/abstract-expression.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/abstract-expression.out

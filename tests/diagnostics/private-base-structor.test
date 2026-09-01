@@ -1,0 +1,8 @@
+'' A derived type cannot reach a private base constructor or destructor (fbc errors 207
+'' and 208); protected is accepted, and so is a private structor with nothing derived
+'' from it. LOCATION DIFFERS DELIBERATELY: fbc points at the derived type's 'end type',
+'' this points at the 'type' line that opens it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/private-base-structor.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/private-base-structor.out
