@@ -126,6 +126,7 @@ fs/dir.bas
 fs/lock.bas
 fs/volume.bas
 fs/watch.bas
+fs/fileops2.bas
 thread/mutex.bas
 thread/ctx.bas
 thread/self.bas
@@ -136,6 +137,7 @@ thread/parkself.bas
 thread/cond.bas
 misc/misc.bas
 sys/dylib.bas
+sys/process.bas
 io/conquery.bas
 io/conattr.bas
 io/lprint.bas
