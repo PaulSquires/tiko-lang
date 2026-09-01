@@ -305,4 +305,107 @@ roundTrip( "3-byte      ", @u3 )
 roundTrip( "4-byte      ", @u4 )
 roundTrip( "mixed       ", @umix )
 
+'' ------------------------------------------------------- bulk, at benchmark size
+
+'' THE SIZE THE BENCHMARK USES, AND FOR THE SAME REASON THE BENCHMARK EXISTS.
+'' Every fill-mode case above uses a capacity of 1 to 4 characters, so a bug that
+'' only appears once a conversion runs for hundreds of characters -- an early
+'' exit, a miscounted terminator, a growth step never taken -- would pass all of
+'' them.
+''
+'' Gate 4 reported these two entry points at 0.28x-0.53x against C, which is too
+'' fast to be codegen. The first thing to rule out is that tiko-rt is simply
+'' doing LESS WORK, and this is the check that rules it out: same input, same
+'' capacity, and the full output compared unit by unit through a checksum rather
+'' than by eye.
+print "-- bulk conversion at 512 characters"
+
+const BULK = 512
+
+dim shared as ubyte  bsrc( 0 to 4 * BULK + 8 )
+dim shared as ushort bw16( 0 to 2 * BULK + 8 )
+dim shared as ulong  bw32( 0 to 2 * BULK + 8 )
+dim shared as any ptr bdst
+if( WSZ = 2 ) then bdst = cast( any ptr, @bw16(0) ) else bdst = cast( any ptr, @bw32(0) )
+
+'' A checksum over the produced units, order-sensitive, so a shifted or
+'' truncated result cannot collide with a correct one.
+function wsum( byval p as any ptr, byval n as integer ) as ulongint
+	dim as ulongint h = 1469598103934665603ull
+	for i as integer = 0 to n - 1
+		dim as ulongint v = any
+		if( WSZ = 2 ) then
+			v = *cptr( ushort ptr, cptr( ubyte ptr, p ) + i * 2 )
+		else
+			v = *cptr( ulong ptr, cptr( ubyte ptr, p ) + i * 4 )
+		end if
+		h = (h xor v) * 1099511628211ull
+	next
+	return h
+end function
+
+sub bulkToW( byref label as string, byval nb as integer )
+	dim as integer cap = 2 * BULK
+	dim as any ptr w = pToW( ENCOD_UTF8, @bsrc(0), bdst, @cap )
+	print "  "; label; " -> wchars="; cap; " ok="; ( w <> 0 ); _
+	      " checksum="; hex( wsum( bdst, cap ), 16 )
+end sub
+
+'' ASCII: 512 bytes in, 512 wchars out on both widths.
+dim as integer nb = 0
+for i as integer = 0 to BULK - 1
+	bsrc(nb) = 32 + (i mod 90) : nb += 1
+next
+bsrc(nb) = 0
+bulkToW( "ascii  ", nb )
+
+'' BMP: 1536 bytes in, 512 wchars out on both widths.
+nb = 0
+for i as integer = 0 to BULK - 1
+	bsrc(nb) = &hE2 : bsrc(nb+1) = &h82 : bsrc(nb+2) = &hAC : nb += 3
+next
+bsrc(nb) = 0
+bulkToW( "bmp    ", nb )
+
+'' SUPPLEMENTARY: 2048 bytes in, and the count DIFFERS BY WIDTH -- 1024 wchars
+'' on Windows (surrogate pairs), 512 on Linux. That difference is the contract.
+nb = 0
+for i as integer = 0 to BULK - 1
+	bsrc(nb) = &hF0 : bsrc(nb+1) = &h9F : bsrc(nb+2) = &h98 : bsrc(nb+3) = &h80 : nb += 4
+next
+bsrc(nb) = 0
+bulkToW( "supp   ", nb )
+
+'' AND THE REVERSE DIRECTION at the same size, with the byte output summed the
+'' same way.
+print "-- bulk fb_WCharToUTF at 512 characters"
+dim shared as ubyte bout( 0 to 4 * BULK + 8 )
+
+function bsum( byval p as any ptr, byval n as integer ) as ulongint
+	dim as ulongint h = 1469598103934665603ull
+	for i as integer = 0 to n - 1
+		h = (h xor cptr( ubyte ptr, p )[i]) * 1099511628211ull
+	next
+	return h
+end function
+
+sub bulkFromW( byref label as string, byval nw as integer )
+	dim as integer nbytes = 4 * BULK
+	dim as any ptr r = pFromW( ENCOD_UTF8, bdst, nw, @bout(0), @nbytes )
+	print "  "; label; " -> bytes="; nbytes; " ok="; ( r <> 0 ); _
+	      " checksum="; hex( bsum( @bout(0), nbytes ), 16 )
+end sub
+
+for i as integer = 0 to BULK - 1
+	bw16(i) = 32 + (i mod 90)
+	bw32(i) = 32 + (i mod 90)
+next
+bulkFromW( "ascii  ", BULK )
+
+for i as integer = 0 to BULK - 1
+	bw16(i) = &h20AC
+	bw32(i) = &h20AC
+next
+bulkFromW( "bmp    ", BULK )
+
 print "done"

@@ -90,9 +90,35 @@ OUT="$RT_ROOT/obj/cbase/$TARGET"
 rm -rf "$OUT"; mkdir -p "$OUT/st" "$OUT/mt" "$OUT/lib"
 
 echo "cbase: rebuilding fbc's own members with clang for $TRIPLE"
+# THE SOURCE IS NOT ALWAYS AT THE RTLIB ROOT. Per-target members live under
+# win32/ or unix/ or linux/, and the member NAME does not say which -- fbc's
+# makefile knows the mapping and the archive does not. So the source is searched
+# for, in the same order fbc's own build prefers: the target's own directory
+# first, then the shared POSIX one, then the root.
+#
+# The first version of this loop looked only at the root and died on
+# drv_intl_get.c, which is win32/drv_intl_get.c. Every per-target member tiko-rt
+# has replaced since -- the whole locale layer, file_dir, the sys_* singletons --
+# would have hit the same wall.
+case "$TARGET" in
+    win64|win32)  CB_DIRS="win32 ." ;;
+    linux-x86_64) CB_DIRS="linux unix ." ;;
+    *)            CB_DIRS="." ;;
+esac
+
+cb_find_src() {
+    for d in $CB_DIRS; do
+        if [ -f "$RTLIB/$d/$1.c" ]; then
+            printf '%s
+' "$RTLIB/$d/$1.c"
+            return 0
+        fi
+    done
+    return 1
+}
+
 for m in $MEMBERS; do
-    src="$RTLIB/$m.c"
-    [ -f "$src" ] || rt_die "missing source $src"
+    src=$(cb_find_src "$m") || rt_die "no source for member $m.c under $RTLIB (searched: $CB_DIRS)"
     for thread in st mt; do
         case $thread in st) mtdef="" ;; mt) mtdef="-DENABLE_MT" ;; esac
         "$CLANG" --target="$TRIPLE" $CFL $mtdef -I "$RTLIB" \
