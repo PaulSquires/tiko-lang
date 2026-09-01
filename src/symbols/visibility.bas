@@ -565,6 +565,57 @@ private sub CheckVirtualNeedsObject_( byref c as Ctx )
     next
 end sub
 
+'' A 'const' DECLARATION MAY NOT CROSS THE STRING/NUMBER DIVIDE -- fbc error 20 one way
+'' and 24 the other. Measured:
+''
+''     const s as string = 1       error 20
+''     const s as integer = "x"    error 24
+''     const s as string = "x"     OK
+''     const s as double = 1       OK        widening within the numbers is fine
+''
+'' NARROWED TO THAT ONE DIVIDE deliberately: everything numeric converts to everything
+'' numeric in a constant, and answering which narrowings fbc also refuses is a separate
+'' measurement.
+private function IsStringyType_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    dim as TypeId u = c.types->Unqualify( t )
+    '' A FIXED-LENGTH string is an ARRAY of a character builtin, and counts.
+    dim as long guard = 0
+    while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    wend
+    if c.types->Kind( u ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( u )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
+private sub CheckConstDeclTypes_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_CONSTANT ) then continue for
+        if (s->flags and SYMF_BUILTIN) <> 0 then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        '' A DECLARED TYPE is what makes the question askable: 'const K = 1' takes its
+        '' type from the value and can never disagree with it.
+        if ip->a = NODE_NONE then continue for
+        if ip->b = NODE_NONE then continue for
+        dim as TypeId dt = c.info->TypeOf_( ip->a )
+        dim as TypeId vt = c.info->TypeOf_( ip->b )
+        if (dt = TYPE_NONE) orelse (vt = TYPE_NONE) then continue for
+        if IsStringyType_( c, dt ) = IsStringyType_( c, vt ) then continue for
+        c.diags->Report( TKO0653, PointRange( c.ast->Loc( item ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckByrefBinding_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -901,6 +952,29 @@ private sub CheckArraySubscript_ ( byref c as Ctx, byval id as NodeId )
     next
 end sub
 
+'' WHAT AN ASSIGNMENT MAY NOT WRITE INTO, beyond the bare constant name Resolve already
+'' refuses. Measured:
+''
+''     0 = 1     error 24    a LITERAL has no storage to write into
+''
+'' NOT THE POINTER HALF. '*cptr( const integer ptr, pi ) = 123' is fbc's error 119 and is
+'' still accepted here, because tiko-lang does not yet tell 'const integer ptr' -- a
+'' pointer to a CONSTANT -- from 'integer const ptr', a CONSTANT pointer to a writable
+'' integer. Both put TF_CONST on the pointee, so testing it refused five files fbc
+'' accepts: 'type t as u const ptr' then '*p = 0', which is the const-POINTER spelling and
+'' perfectly legal. The two spellings have to become two types before this can be asked.
+private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->op = 0 then return
+    if sp->a = NODE_NONE then return
+    select case c.ast->Kind( sp->a )
+    case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
+        c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
+        return
+    end select
+end sub
+
 '' '&=' CONCATENATES, so its target must be a STRING -- fbc error 20, "Type mismatch".
 '' Measured: 'i &= 1' over an integer and 'd &= 1' over a double are both refused, while
 '' 's &= "a"' is the ordinary use and 'i += 1' is a different operator entirely.
@@ -1120,6 +1194,7 @@ private sub Walk_ _
     if k = N_MEMBER then CheckDeref_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
+    if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id, here )
@@ -1285,6 +1360,7 @@ sub Run _
     CheckNestedStatics_( c )
     CheckSharedInits_( c )
     CheckByrefBinding_( c )
+    CheckConstDeclTypes_( c )
     CheckVirtualNeedsObject_( c )
 end sub
 

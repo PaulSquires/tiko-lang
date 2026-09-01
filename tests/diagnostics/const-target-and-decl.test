@@ -1,0 +1,7 @@
+'' A literal cannot be assigned to, and a 'const' declaration may not cross the
+'' string/number divide -- narrowed to that one divide, because everything numeric
+'' converts to everything numeric in a constant.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-target-and-decl.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/const-target-and-decl.out

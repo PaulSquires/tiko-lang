@@ -200,6 +200,10 @@
     DIAG( TKO0650, SEV_ERROR,   "a byref result cannot return a local" )
     '' fbc's error 20, and it is symmetric: either half may be the one that is wrong.
     DIAG( TKO0651, SEV_ERROR,   "the definition of '%0' disagrees with its declaration about 'byref'" )
+    '' fbc's error 24. A literal has no storage to write into.
+    DIAG( TKO0652, SEV_ERROR,   "a literal cannot be assigned to" )
+    '' fbc's errors 20 and 24. A constant may not cross the string/number divide.
+    DIAG( TKO0653, SEV_ERROR,   "constant '%0' and its value disagree about being a string" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

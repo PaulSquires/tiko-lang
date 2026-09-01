@@ -78,6 +78,18 @@ private function NonMacroNode_( byref c as Ctx, byval n0 as ulong ) as ulong
     return n0
 end function
 
+'' THE SITE'S FILE NAME, CUT DOWN TO THE REPOSITORY. '__FILE__' expands to the path fbc
+'' was given, which is ABSOLUTE for some sources and relative for others -- so a skip-site
+'' line in a golden held the checkout's own directory, and the same test passed in one tree
+'' and failed in another. Measured the hard way: tests/diagnostics/const-target-and-decl
+'' differed between C:\dev	iko-iso and C:\dev	iko-iso2 by nothing but that.
+private function SkipSiteName_( byref fileName as string ) as string
+    dim as long at = instr( fileName, "src" & chr( 92 ) )
+    if at = 0 then at = instr( fileName, "src/" )
+    if at = 0 then return fileName
+    return mid( fileName, at )
+end function
+
 sub SkipAt _
     ( byref c as Ctx, byref fileName as string, byval lineNo as long )
 
@@ -102,7 +114,7 @@ sub SkipAt _
     end if
     '' The site, found by linear scan: about twenty of them, so a map would cost more
     '' than it saved and would not keep the order stable across runs.
-    dim as Tko.InternId fid = c.names->GetString( fileName )
+    dim as Tko.InternId fid = c.names->GetString( SkipSiteName_( fileName ) )
     dim as boolean seen = false
     for i as long = 0 to c.st->skipSiteN.Count - 1
         if (c.st->skipSiteFile[i] = cast( ulong, fid )) andalso _
