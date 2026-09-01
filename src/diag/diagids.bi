@@ -223,6 +223,10 @@
     '' fbc's errors 207 and 208.
     DIAG( TKO0662, SEV_ERROR,   "'%0' cannot reach its base type's private default constructor" )
     DIAG( TKO0663, SEV_ERROR,   "'%0' cannot reach its base type's private destructor" )
+    '' fbc's errors 119, 276 and 18, inside or about a CONST method.
+    DIAG( TKO0664, SEV_ERROR,   "'%0' cannot be written from a const method" )
+    DIAG( TKO0665, SEV_ERROR,   "a const method cannot call the non-const method '%0'" )
+    DIAG( TKO0666, SEV_ERROR,   "the type declares no '%0' to call" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

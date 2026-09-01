@@ -1,0 +1,75 @@
+func void _ZN1T2RWEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN1T6ALSOROEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN1T2ROEv($0) {
+  local ptr this
+  local ptr $tmp1
+  local agg other size 8
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    call.rtl void fb_PrintLongint(0, %4, 1)
+    %5 = load @this
+    call void _ZNK1T6ALSOROEv(%5)
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = const i64 4
+    store %7, %8
+    %9 = load @this
+    %10 = field.addr %9, 0
+    %11 = const i64 5
+    store %10, %11
+    %12 = alloca ptr $tmp1
+    store @$tmp1, @this
+    %13 = load @$tmp1
+    %14 = load %13
+    %15 = field.addr %14, 0
+    %16 = const i64 6
+    store %15, %16
+    %17 = alloca ptr other
+    %18 = load @other
+    %19 = sext %18
+    %20 = bitcast %19
+    store @this, %20
+    %21 = load @this
+    call void _ZN1T2RWEv(%21)
+    ret
+}
+declare void fb_PrintLongint($0, $1, $2)
+declare void _ZNK1T6ALSOROEv()
+verify: ok
+lowered: 3 functions, 3 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/const-method.bas(25,5): error TKO0664: 'value' cannot be written from a const method
+     |
+  25 |     value = 4
+     |     ^
+tests/diagnostics/src/const-method.bas(26,9): error TKO0664: 'value' cannot be written from a const method
+     |
+  26 |     this.value = 5
+     |         ^
+tests/diagnostics/src/const-method.bas(28,9): error TKO0664: 'value' cannot be written from a const method
+     |
+  28 |         .value = 6
+     |         ^
+tests/diagnostics/src/const-method.bas(31,5): error TKO0664: 'this' cannot be written from a const method
+     |
+  31 |     this = other
+     |     ^
+tests/diagnostics/src/const-method.bas(32,7): error TKO0665: a const method cannot call the non-const method 'rw'
+     |
+  32 |     rw( )
+     |       ^

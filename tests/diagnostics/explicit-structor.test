@@ -1,0 +1,7 @@
+'' 'x.constructor( )' is legal only when the type declared one -- the implicit structor is
+'' not a member anything can name (fbc error 18). Matches fbc on lines 25 and 26; the
+'' calls on a type that DOES declare both are accepted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/explicit-structor.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/explicit-structor.out

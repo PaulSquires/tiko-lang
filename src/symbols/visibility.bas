@@ -581,6 +581,142 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
     end select
 end sub
 
+'' INSIDE A CONST METHOD, 'this' IS CONST -- so a FIELD CANNOT BE WRITTEN. fbc error 119,
+'' the same "Cannot modify a constant" it gives for a named constant.
+''
+'' MEASURED, and all three spellings of the same write are refused while a READ is not:
+''     const sub T.c( ) : i = 4        : end sub    error 119   the BARE field
+''     const sub T.c( ) : this.i = 4   : end sub    error 119
+''     const sub T.c( ) : with this : .i = 4 : ...  error 119   the WITH shorthand
+''     const sub T.c( ) : print i      : end sub    OK
+''
+'' ONE TEST COVERS ALL THREE, because Check bound every one of them to the same FIELD
+'' symbol -- the shape of the reference does not matter, only what it names.
+private sub CheckConstThisWrite_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
+      byval constMethod as boolean, byval withThis as boolean )
+
+    if constMethod = false then return
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->op = 0 then return
+    if sp->a = NODE_NONE then return
+    '' 'this = x' WRITES THE WHOLE OBJECT, which is the same refusal for the same reason
+    '' and is fbc error 119 too. It names no field, so the symbol test below misses it.
+    if IsThisBase_( c, sp->a ) then
+        c.diags->Report( TKO0664, PointRange( c.ast->Loc( sp->a ) ), "this" )
+        return
+    end if
+    '' IT MUST BE THIS OBJECT'S FIELD. 'it.p = ...' inside a const method writes a LOCAL
+    '' of another type, which is ordinary and which fbc compiles -- and a test that asked
+    '' only "is the target a field" refused it, and with it the whole iterator-protocol
+    '' corpus file. Two things are demanded now: the reference is reached through THIS
+    '' (bare, written out, or the shorthand inside 'with this'), and the field belongs to
+    '' the type the method is a member of.
+    dim as boolean throughThis = false
+    select case c.ast->Kind( sp->a )
+    case N_IDENT
+        throughThis = true
+    case N_MEMBER
+        dim as BinaryPayload ptr amp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        if amp->lhs = NODE_NONE then
+            throughThis = withThis
+        else
+            throughThis = IsThisBase_( c, amp->lhs )
+        end if
+    end select
+    if throughThis = false then return
+
+    dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if fs = 0 then return
+    if fs->kind <> cast( ubyte, SYM_FIELD ) then return
+    if OwningType_( c, fs ) <> here then return
+    c.diags->Report( TKO0664, PointRange( c.ast->Loc( sp->a ) ), _
+                     c.names->Spelling( fs->name ) )
+end sub
+
+'' ...AND A NON-CONST METHOD CANNOT BE CALLED FROM ONE -- fbc error 276, "Const UDT cannot
+'' invoke non-const method". Calling a method that is ITSELF const is the ordinary case and
+'' is accepted, which is what makes this worth checking rather than assuming.
+''
+'' ONLY A METHOD OF THE ENCLOSING TYPE. A free procedure, or a method reached through some
+'' other object, says nothing about THIS -- and refusing either would refuse files fbc
+'' accepts. The owner comparison is what limits it.
+private sub CheckConstThisCall_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
+      byval constMethod as boolean )
+
+    if constMethod = false then return
+    if here = TYPE_NONE then return
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = NODE_NONE then return
+
+    '' THE CALLEE MUST BE NAMED BARE, or through 'this'. Anything else is another object.
+    dim as NodeId callee = lp->target
+    select case c.ast->Kind( callee )
+    case N_IDENT
+    case N_MEMBER
+        dim as BinaryPayload ptr mp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, callee )].data )]
+        if mp->lhs = NODE_NONE then return
+        if IsThisBase_( c, mp->lhs ) = false then return
+    case else
+        return
+    end select
+
+    dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( callee ) )
+    if ps = 0 then return
+    if ps->kind <> cast( ubyte, SYM_PROC ) then return
+    if OwningType_( c, ps ) <> here then return
+    dim as NodeId decl = cast( NodeId, ps->payload )
+    if decl = NODE_NONE then return
+    if c.ast->Kind( decl ) <> N_PROC then return
+    dim as StmtPayload ptr dp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    '' A STATIC METHOD HAS NO 'this' at all, so its constness is not a question.
+    if (dp->extra and PF_STATIC) <> 0 then return
+    if (dp->extra and PF_CONST) <> 0 then return
+    c.diags->Report( TKO0665, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( ps->name ) )
+end sub
+
+'' 'x.constructor( )' AND 'x.destructor( )' NAME A STRUCTOR EXPLICITLY -- which is legal
+'' only when the type DECLARED one. fbc gives error 18, "Element not defined": the IMPLICIT
+'' structor is not a member anything can name.
+''
+'' MEASURED both ways round, and through a pointer too: with a declared constructor
+'' 'x.constructor( )' compiles, without one it does not, and 'p->constructor( )' behaves
+'' exactly as the dot does.
+private sub CheckExplicitStructor_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if mp->lhs = NODE_NONE then return
+    if mp->rhs = NODE_NONE then return
+    if c.ast->Kind( mp->rhs ) <> N_IDENT then return
+    dim as string nm = c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
+    dim as string want = ""
+    if nm = "constructor" then want = "__ctor"
+    if nm = "destructor" then want = "__dtor"
+    if len( want ) = 0 then return
+
+    '' THE OBJECT'S TYPE, WITH POINTERS UNWRAPPED, because 'p->destructor( )' is the same
+    '' question as 'x.destructor( )' and fbc answers it the same way.
+    dim as TypeId ot = c.info->TypeOf_( mp->lhs )
+    if ot = TYPE_NONE then return
+    dim as long guard = 0
+    while (c.types->Kind( c.types->Unqualify( ot ) ) = TK_POINTER) andalso (guard < 16)
+        guard += 1
+        ot = c.types->Inner( c.types->Unqualify( ot ) )
+    wend
+    ot = c.types->Unqualify( ot )
+    if c.types->Kind( ot ) <> TK_UDT then return
+    if StructorOf_( c, ot, want ) <> 0 then return
+    c.diags->Report( TKO0666, PointRange( c.ast->Loc( mp->rhs ) ), nm )
+end sub
+
 '' '&=' CONCATENATES, so its target must be a STRING -- fbc error 20, "Type mismatch".
 '' Measured: 'i &= 1' over an integer and 'd &= 1' over a double are both refused, while
 '' 's &= "a"' is the ordinary use and 'i += 1' is a different operator entirely.
@@ -783,13 +919,50 @@ end sub
 
 private sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
-      byval byrefResult as boolean = false )
+      byval byrefResult as boolean = false, byval constMethod as boolean = false, _
+      byval withThis as boolean = false )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     dim as TypeId inner = here
     dim as boolean innerByref = byrefResult
+    '' INSIDE A CONST METHOD 'this' IS CONST, and everything that follows from that --
+    '' a field cannot be written and a non-const method cannot be called -- is asked of
+    '' the STATEMENTS, not of the declaration. So it is carried down, the same way the
+    '' byref result is, rather than looked up again at each site.
+    dim as boolean innerConst = constMethod
+    '' 'with this : .f = 1 : end with' -- THE SHORTHAND NAMES NO BASE, so whether '.f' is
+    '' a write through THIS depends on what the enclosing 'with' opened. Carried down for
+    '' the same reason the constness is: the answer is not in the node.
+    dim as boolean innerWith = withThis
+    if k = N_WITH then
+        dim as StmtPayload ptr wp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        innerWith = IsThisBase_( c, wp->a )
+    end if
+    if k = N_PROC then innerWith = false
     if k = N_PROC then
         inner = ProcOwner_( c, id )
+        '' THE 'const' IS ON THE DECLARATION, NOT ON THE BODY. 'declare const sub proc3( )'
+        '' inside the type, then 'sub T.proc3( )' outside it -- the definition does not
+        '' repeat the word, so reading the body's own node found nothing and every const
+        '' method looked ordinary. Resolve bound the definition to its declaration; that
+        '' symbol's declaration node is the one that carries the modifier.
+        dim as StmtPayload ptr cpp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        innerConst = ((cpp->extra and PF_CONST) <> 0)
+        if innerConst = false then
+            dim as Symbol ptr dsym = c.syms->SymbolAt( c.info->RefOf( id ) )
+            if dsym <> 0 then
+                dim as NodeId ddecl = cast( NodeId, dsym->payload )
+                if (ddecl <> NODE_NONE) andalso (ddecl <> id) then
+                    if c.ast->Kind( ddecl ) = N_PROC then
+                        dim as StmtPayload ptr dpp = _
+                            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, ddecl )].data )]
+                        innerConst = ((dpp->extra and PF_CONST) <> 0)
+                    end if
+                end if
+            end if
+        end if
         '' A BYREF RESULT changes what its body may return, and the flag is on the
         '' PROCEDURE node -- so it is carried down rather than looked up at each return.
         innerByref = ((c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0)
@@ -801,6 +974,9 @@ private sub Walk_ _
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
+    if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
+    if k = N_CALL then CheckConstThisCall_( c, id, here, innerConst )
+    if k = N_MEMBER then CheckExplicitStructor_( c, id )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckSubscriptCount_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
@@ -822,20 +998,20 @@ private sub Walk_ _
         case N_BINARY
             dim as BinaryPayload ptr bp = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, bp->lhs, inner, innerByref )
-            Walk_( c, bp->rhs, inner, innerByref )
+            Walk_( c, bp->lhs, inner, innerByref, innerConst, innerWith )
+            Walk_( c, bp->rhs, inner, innerByref, innerConst, innerWith )
             return
         case N_MEMBER
             dim as BinaryPayload ptr mp = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
             '' ONLY THE BASE. The right-hand side is the member NAME, and Check bound it
             '' to the same symbol -- walking it would report the same access twice.
-            Walk_( c, mp->lhs, inner, innerByref )
+            Walk_( c, mp->lhs, inner, innerByref, innerConst, innerWith )
             return
         case N_UNARY, N_ADDROF, N_DEREF
             dim as UnaryPayload ptr up = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, up->operand, inner, innerByref )
+            Walk_( c, up->operand, inner, innerByref, innerConst, innerWith )
             return
         '' THE LIST KINDS, SPELLED OUT. 'data' is an index into ONE OF FOUR POOLS and
         '' the node kind is the only thing that says which -- the payload-pool mistake
@@ -845,9 +1021,9 @@ private sub Walk_ _
         case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_INITIALIZER, N_STRCAT
             dim as ListPayload ptr lp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, lp->target, inner, innerByref )
+            Walk_( c, lp->target, inner, innerByref, innerConst, innerWith )
             for i as long = 0 to lp->count - 1
-                Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref )
+                Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith )
             next
             return
         case else
@@ -865,18 +1041,18 @@ private sub Walk_ _
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         for i as long = 0 to lp->count - 1
-            Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref )
+            Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith )
         next
         return
     end if
 
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    Walk_( c, sp->a, inner, innerByref )
-    Walk_( c, sp->b, inner, innerByref )
-    Walk_( c, sp->c, inner, innerByref )
+    Walk_( c, sp->a, inner, innerByref, innerConst, innerWith )
+    Walk_( c, sp->b, inner, innerByref, innerConst, innerWith )
+    Walk_( c, sp->c, inner, innerByref, innerConst, innerWith )
     for i as long = 0 to sp->count - 1
-        Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner, innerByref )
+        Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner, innerByref, innerConst, innerWith )
     next
 end sub
 

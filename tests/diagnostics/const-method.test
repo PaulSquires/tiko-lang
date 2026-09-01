@@ -1,0 +1,8 @@
+'' Inside a const method 'this' is const: writing a field (bare, through 'this', or in a
+'' 'with') is fbc error 119, writing 'this' itself is 119, and calling a non-const method
+'' is 276. Reading a field and calling a const method stay accepted. Matches fbc line for
+'' line -- 25, 26, 28, 31, 32.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-method.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/const-method.out
