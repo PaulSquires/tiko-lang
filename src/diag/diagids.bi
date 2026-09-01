@@ -196,6 +196,10 @@
     DIAG( TKO0648, SEV_ERROR,   "a 'put' blend mode is a word, not a string" )
     '' fbc's error 73. The bare name is legal where a DESCRIPTOR is wanted, not a value.
     DIAG( TKO0649, SEV_ERROR,   "an array name without a subscript is not a value" )
+    '' fbc's error 272. The frame the reference points into is gone by the time it is read.
+    DIAG( TKO0650, SEV_ERROR,   "a byref result cannot return a local" )
+    '' fbc's error 20, and it is symmetric: either half may be the one that is wrong.
+    DIAG( TKO0651, SEV_ERROR,   "the definition of '%0' disagrees with its declaration about 'byref'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

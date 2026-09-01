@@ -1001,11 +1001,120 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
     CheckOneStructor_( c, pointee, "__dtor", here, c.ast->Loc( id ), 0 )
 end sub
 
-private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+'' A DEFINITION MUST REPEAT THE DECLARATION'S 'byref' -- fbc error 20, "Type mismatch",
+'' and it is symmetric: declaring BYREF and defining byval is refused, and so is the
+'' reverse. Measured both ways, with 'both BYREF' accepted.
+''
+'' The symbol's payload is the DECLARATION node -- a definition joins its declare rather
+'' than chaining beside it -- so the two nodes are both to hand here and nowhere else.
+private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->b = NODE_NONE then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if s = 0 then return
+    dim as NodeId decl = cast( NodeId, s->payload )
+    if decl = NODE_NONE then return
+    if decl = id then return
+    if c.ast->Kind( decl ) <> N_PROC then return
+    dim as ushort a2 = cast( ushort, c.ast->nodes[cast( long, decl )].flags and NF_BYREF )
+    dim as ushort b2 = cast( ushort, c.ast->nodes[cast( long, id )].flags and NF_BYREF )
+    if a2 = b2 then return
+    c.diags->Report( TKO0651, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( sp->name ) )
+end sub
+
+'' A BYREF RESULT CANNOT RETURN A LOCAL -- fbc error 272, "Local symbols can't be
+'' referenced". The caller is handed a reference, and the frame it points into is gone by
+'' the time it is read. Measured, all three shapes:
+''
+''     function = x.i           x a local UDT              error 272
+''     function = array( i )    array a local array        error 272
+''     function = f1( )         a call's RESULT is a temp  error 272
+''     function = g             g SHARED                   OK
+''
+'' THE BASE OF THE CHAIN IS WHAT MATTERS: 'x.i' is local because x is, and 'array( i )'
+'' because array is. So the walk goes down to the head of the member and index chain, and
+'' a CALL is refused outright unless it returns byref itself.
+private sub CheckByrefResultValue_ _
+    ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean )
+
+    if byrefResult = false then return
+    if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->b = NODE_NONE then return
+
+    '' Down to the head of the chain.
+    dim as NodeId head = sp->b
+    dim as long guard = 0
+    while guard < 64
+        guard += 1
+        dim as NodeKind hk = c.ast->Kind( head )
+        if hk = N_MEMBER then
+            head = c.ast->binaries[cast( long, c.ast->nodes[cast( long, head )].data )].lhs
+        elseif (hk = N_INDEX) orelse (hk = N_PAREN) then
+            dim as ListPayload ptr lp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
+            if hk = N_PAREN then
+                if lp->count <> 1 then exit while
+                head = cast( NodeId, c.ast->children[lp->first] )
+            else
+                head = lp->target
+            end if
+        else
+            exit while
+        end if
+    wend
+    if head = NODE_NONE then return
+
+    if c.ast->Kind( head ) = N_CALL then
+        '' A CALL's result is a temporary -- unless the callee returns BYREF, in which
+        '' case what comes back is already somebody else's storage.
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
+        dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if ts = 0 then return
+        if ts->kind <> cast( ubyte, SYM_PROC ) then
+            '' An INDEXING expression, not a call: fall through to the variable test.
+            if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
+            if (ts->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
+                               SYMF_COMMON)) <> 0 then return
+            c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
+            return
+        end if
+        dim as NodeId cd = cast( NodeId, ts->payload )
+        if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
+            if (c.ast->nodes[cast( long, cd )].flags and NF_BYREF) <> 0 then return
+        end if
+        c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
+        return
+    end if
+
+    if c.ast->Kind( head ) <> N_IDENT then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( head ) )
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
+                      SYMF_COMMON)) <> 0 then return
+    c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ), _
+                     c.names->Spelling( s->name ) )
+end sub
+
+private sub Walk_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
+      byval byrefResult as boolean = false )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     dim as TypeId inner = here
-    if k = N_PROC then inner = ProcOwner_( c, id )
+    dim as boolean innerByref = byrefResult
+    if k = N_PROC then
+        inner = ProcOwner_( c, id )
+        '' A BYREF RESULT changes what its body may return, and the flag is on the
+        '' PROCEDURE node -- so it is carried down rather than looked up at each return.
+        innerByref = ((c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0)
+    end if
+    if k = N_AMBIGUOUS then CheckByrefResultValue_( c, id, innerByref )
     if k = N_MEMBER then CheckMember_( c, id, here )
     if k = N_DELETE_STMT then CheckDelete_( c, id, here )
     if k = N_MEMBER then CheckDeref_( c, id )
@@ -1016,6 +1125,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_CALL then CheckBydescArgs_( c, id, here )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
+    if k = N_PROC then CheckByrefResultAgrees_( c, id )
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
@@ -1029,20 +1139,20 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
         case N_BINARY
             dim as BinaryPayload ptr bp = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, bp->lhs, inner )
-            Walk_( c, bp->rhs, inner )
+            Walk_( c, bp->lhs, inner, innerByref )
+            Walk_( c, bp->rhs, inner, innerByref )
             return
         case N_MEMBER
             dim as BinaryPayload ptr mp = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
             '' ONLY THE BASE. The right-hand side is the member NAME, and Check bound it
             '' to the same symbol -- walking it would report the same access twice.
-            Walk_( c, mp->lhs, inner )
+            Walk_( c, mp->lhs, inner, innerByref )
             return
         case N_UNARY, N_ADDROF, N_DEREF
             dim as UnaryPayload ptr up = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, up->operand, inner )
+            Walk_( c, up->operand, inner, innerByref )
             return
         '' THE LIST KINDS, SPELLED OUT. 'data' is an index into ONE OF FOUR POOLS and
         '' the node kind is the only thing that says which -- the payload-pool mistake
@@ -1052,9 +1162,9 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
         case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_INITIALIZER, N_STRCAT
             dim as ListPayload ptr lp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, lp->target, inner )
+            Walk_( c, lp->target, inner, innerByref )
             for i as long = 0 to lp->count - 1
-                Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner )
+                Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref )
             next
             return
         case else
@@ -1072,18 +1182,18 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         for i as long = 0 to lp->count - 1
-            Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner )
+            Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref )
         next
         return
     end if
 
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    Walk_( c, sp->a, inner )
-    Walk_( c, sp->b, inner )
-    Walk_( c, sp->c, inner )
+    Walk_( c, sp->a, inner, innerByref )
+    Walk_( c, sp->b, inner, innerByref )
+    Walk_( c, sp->c, inner, innerByref )
     for i as long = 0 to sp->count - 1
-        Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner )
+        Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner, innerByref )
     next
 end sub
 

@@ -1,0 +1,6 @@
+'' A byref result cannot return a local -- the base of the member/index chain is what
+'' decides -- and a definition must repeat the declaration's 'byref', symmetrically.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-result.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/byref-result.out
