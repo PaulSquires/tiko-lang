@@ -1,0 +1,507 @@
+'' wallclock.bas -- DATE$, TIME$, NOW, DATEVALUE, TIMEVALUE, ISDATE, the two name
+'' lookups, SLEEP and the two setters. Twelve symbols across ten fbc members,
+'' and portable.
+''
+'' NOT clock.bas. The build refused that name: it compiles to dt_clock.o, which
+'' is an fbc MEMBER NAME, and gate.sh merges by replacing whole members -- so
+'' fbc's dt_clock.o and its five FB_DT_* symbols would have been dropped on the
+'' floor by a file that defines none of them. The check named all five.
+''
+'' THE GLOBAL LOCK IS HELD ACROSS localtime, NOT AROUND IT. localtime returns a
+'' pointer into a STATIC struct, so two threads calling DATE$ at once would each
+'' read the other's answer -- the lock has to cover the read of *ptm as well as
+'' the call, which is why the sprintf is inside it.
+''
+'' localtime CAN RETURN NULL, and both DATE$ and TIME$ test for it. That is not
+'' defensive clutter: time() may hand back a negative time_t on a misconfigured
+'' clock, and MSDN and the Linux man page both document the NULL. The answer is
+'' the NULL DESCRIPTOR, not an error -- DATE$ on a broken clock is "", and the
+'' program carries on.
+''
+'' THE ALLOCATION IS DONE LAST, and the `&&` ordering is load-bearing: allocating
+'' the temp descriptor before testing ptm would LEAK it on the NULL path, because
+'' nothing would then take ownership of the temp.
+''
+'' NOW IS NOT LOCKED ON THE WAY OUT. fbc's fb_Now returns 0.0 from INSIDE the
+'' lock when localtime fails -- it never unlocks. Reproduced exactly, because an
+'' unlock tiko-rt adds is a behaviour difference on a path a program can reach:
+'' fbc deadlocks there and so must this.
+''
+'' fb_SetTime's DIGIT LOOP IS WRONG AND IS REPRODUCED WRONG. It multiplies by a
+'' counter that starts at ZERO and grows by ten:
+''
+''     for( i = 0, t = s; digit; t++, i += 10 )  h = h * i + c - '0';
+''
+'' so a two-digit field works by accident -- h*0 + 2, then 2*10 + 3 -- and a
+'' THREE-digit field does not: "123" gives 1, then 12, then 12*20+3 = 243. The
+'' range checks then reject most of what that produces, which is why the bug has
+'' survived. Writing the obvious `h*10 + digit` here would make tiko-rt accept
+'' and reject different strings from fbc.
+''
+'' NEITHER SETTER DELETES ITS TEMP ON AN ERROR PATH. Every early return in
+'' fb_SetDate and fb_SetTime skips fb_hStrDelTemp, so `SETDATE "bad"` leaks one
+'' descriptor. Reproduced, because allocation-count parity is a gate.
+''
+'' MONTHNAME AND WEEKDAYNAME VALIDATE, THEN DELEGATE. The names themselves come
+'' from fb_IntlGetMonthName / fb_IntlGetWeekdayName, which are fbc's and stay
+'' fbc's -- these two only range-check and rotate the weekday by the caller's
+'' first-day-of-week.
+''
+'' SLEEP WITH A NEGATIVE ARGUMENT WAITS FOR A KEY, and SLEEP under 100 ms does
+'' NOT poll the keyboard at all: the console check is slow enough to wreck the
+'' precision of a short sleep. Between the two, it polls every 50 ms and returns
+'' early on a keystroke.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+#include once "inc/iolock.bi"
+#include once "inc/rterror.bi"
+#include once "crt/stdio.bi"
+#include once "crt/time.bi"
+
+'' fb_datetime.h. FB_WEEK_DAY_SYSTEM means "ask the OS", which fbc has never
+'' implemented -- it falls back to the default, and so does this.
+const FB_WEEK_DAY_SYSTEM  = 0
+const FB_WEEK_DAY_DEFAULT = 1
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	'' AS LONG, NOT AS DOUBLE. fb_DateSerial returns an INT -- a whole day
+	'' count -- and only fb_TimeSerial returns a fraction. Declaring it double
+	'' here compiled and linked, and read the value out of XMM0 instead of RAX:
+	'' NOW came back as the TIME OF DAY with a date serial of ZERO, so it was
+	'' still positive, still monotonic, and still wrong by 126 years. The C is
+	'' `double dblDate = fb_DateSerial(...)`, an implicit int-to-double
+	'' conversion, and that is what this is.
+	declare function tkrt_DateSerial alias "fb_DateSerial" _
+		( byval year_ as long, byval month_ as long, byval day_ as long ) as long
+	declare function tkrt_TimeSerial alias "fb_TimeSerial" _
+		( byval hour_ as long, byval minute_ as long, byval second_ as long ) as double
+	declare function tkrt_DateParse alias "fb_DateParse" _
+		( byval s as FBSTRING ptr, byval pDay as long ptr, _
+		  byval pMonth as long ptr, byval pYear as long ptr ) as long
+	declare function tkrt_TimeParse alias "fb_TimeParse" _
+		( byval s as FBSTRING ptr, byval pHour as long ptr, _
+		  byval pMinute as long ptr, byval pSecond as long ptr ) as long
+	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as long )
+end extern
+
+extern "c"   '' NON-FBCALL: the h-prefixed internals and the Intl lookups are
+             '' undecorated in fbc's win32 archive.
+	declare function tkrt_hStrAllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_IntlGetMonthName alias "fb_IntlGetMonthName" _
+		( byval month_ as long, byval abbrev as long, byval is_wide as long ) as FBSTRING ptr
+	declare function tkrt_IntlGetWeekdayName alias "fb_IntlGetWeekdayName" _
+		( byval weekday_ as long, byval abbrev as long, byval is_wide as long ) as FBSTRING ptr
+	declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as long )
+	declare function tkrt_InputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as long
+	declare function tkrt_hSetDate alias "fb_hSetDate" _
+		( byval year_ as long, byval month_ as long, byval day_ as long ) as long
+	declare function tkrt_hSetTime alias "fb_hSetTime" _
+		( byval hour_ as long, byval minute_ as long, byval second_ as long ) as long
+end extern
+
+'' isdigit, written out: the crt binding is a macro on some targets and a call on
+'' others, and the answer here is three instructions either way.
+#define TKORT_ISDIGIT( c ) ( ((c) >= 48) andalso ((c) <= 57) )
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------ DATE$
+
+'' mm-dd-yyyy, ten characters. The separator is a HYPHEN, not a slash -- QBASIC
+'' used slashes and FreeBASIC does not, and a program that parses DATE$ back
+'' notices.
+function tkort_Date alias "fb_Date" ( ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = any
+	dim as time_t rawtime = any
+	dim as tm ptr ptm = any
+
+	'' localtime and time are not guaranteed thread-safe, and localtime's
+	'' result points into a shared static -- so the lock covers the READ too.
+	TKORT_IOLOCK()
+
+	rawtime = time_( 0 )
+	ptm = localtime( @rawtime )
+
+	'' The allocation is LAST so that a NULL ptm cannot leak it.
+	if( ptm <> 0 ) then
+		dst = tkrt_hStrAllocTemp( 0, 2 + 1 + 2 + 1 + 4 )
+	else
+		dst = 0
+	end if
+
+	if( dst <> 0 ) then
+		sprintf( dst->data, @"%02d-%02d-%04d", 1 + ptm->tm_mon, ptm->tm_mday, 1900 + ptm->tm_year )
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	TKORT_IOUNLOCK()
+
+	return dst
+end function
+
+'' ------------------------------------------------------------------ TIME$
+
+'' hh:mm:ss, eight characters, 24-hour.
+function tkort_Time alias "fb_Time" ( ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = any
+	dim as time_t rawtime = any
+	dim as tm ptr ptm = any
+
+	TKORT_IOLOCK()
+
+	rawtime = time_( 0 )
+	ptm = localtime( @rawtime )
+
+	if( ptm <> 0 ) then
+		dst = tkrt_hStrAllocTemp( 0, 2 + 1 + 2 + 1 + 2 )
+	else
+		dst = 0
+	end if
+
+	if( dst <> 0 ) then
+		sprintf( dst->data, @"%02d:%02d:%02d", ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	TKORT_IOUNLOCK()
+
+	return dst
+end function
+
+'' ------------------------------------------------------------------ NOW
+
+'' THE EARLY RETURN DOES NOT UNLOCK, and that is fbc's, reproduced. See the file
+'' header: adding the unlock would make tiko-rt survive a path on which fbc
+'' deadlocks, which is a behaviour difference and not a fix.
+function tkort_Now alias "fb_Now" ( ) as double
+
+	dim as time_t rawtime = any
+	dim as tm ptr ptm = any
+
+	TKORT_IOLOCK()
+
+	time_( @rawtime )
+	ptm = localtime( @rawtime )
+	if( ptm = 0 ) then return 0.0
+
+	dim as double dblDate = tkrt_DateSerial( 1900 + ptm->tm_year, 1 + ptm->tm_mon, ptm->tm_mday )
+	dim as double dblTime = tkrt_TimeSerial( ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
+
+	TKORT_IOUNLOCK()
+
+	return dblDate + dblTime
+end function
+
+'' ------------------------------------------------------- the parse wrappers
+
+'' THE TEMP IS DELETED BEFORE THE RESULT IS USED, on both the success and the
+'' failure path -- the parse has already copied out everything it needs.
+function tkort_DateValue alias "fb_DateValue" ( byval s as FBSTRING ptr ) as long
+
+	dim as long year_ = any, month_ = any, day_ = any
+	dim as long ok = tkrt_DateParse( s, @day_, @month_, @year_ )
+
+	tkrt_DelTemp( s )
+
+	if( ok = 0 ) then
+		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		return 0
+	end if
+
+	tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	'' NOTE the truncation: fb_DateSerial returns a double and this returns an
+	'' int, so DATEVALUE drops any time part the string carried.
+	return tkrt_DateSerial( year_, month_, day_ )
+end function
+
+function tkort_TimeValue alias "fb_TimeValue" ( byval s as FBSTRING ptr ) as double
+
+	dim as long hour_ = any, minute_ = any, second_ = any
+	dim as long ok = tkrt_TimeParse( s, @hour_, @minute_, @second_ )
+
+	tkrt_DelTemp( s )
+
+	if( ok = 0 ) then
+		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		return 0
+	end if
+
+	tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	return tkrt_TimeSerial( hour_, minute_, second_ )
+end function
+
+'' ISDATE SETS NO ERROR. It is a question, not an operation -- a string that does
+'' not parse is FALSE, and ERR is left exactly as it was.
+function tkort_IsDate alias "fb_IsDate" ( byval s as FBSTRING ptr ) as long
+
+	dim as long year_ = any, month_ = any, day_ = any
+	dim as long ok = tkrt_DateParse( s, @day_, @month_, @year_ )
+
+	tkrt_DelTemp( s )
+
+	if( ok = 0 ) then return 0
+	return -1
+end function
+
+'' ------------------------------------------------------------- the name table
+
+function tkort_MonthName alias "fb_MonthName" _
+	( byval month_ as long, byval abbreviation as long ) as FBSTRING ptr
+
+	if( (month_ < 1) orelse (month_ > 12) ) then
+		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		return TKORT_NULLSTR()
+	end if
+
+	tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	dim as FBSTRING ptr res = tkrt_IntlGetMonthName( month_, abbreviation, 0 )
+	if( res = 0 ) then
+		'' The OK set above is OVERWRITTEN here, so a locale that has no name
+		'' for a valid month reports error 1 -- the same code as an
+		'' out-of-range month, from a different cause.
+		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		res = TKORT_NULLSTR()
+	end if
+
+	return res
+end function
+
+'' first_day_of_week ROTATES THE WEEK, and 0 means "ask the system" -- which fbc
+'' has never implemented, so it becomes the default of 1 (Sunday). The rotation
+'' wraps by subtracting seven, not by a modulo, because the inputs are already
+'' range-checked into 1..7.
+function tkort_WeekdayName alias "fb_WeekdayName" _
+	( byval weekday_ as long, byval abbreviation as long, _
+	  byval first_day_of_week as long ) as FBSTRING ptr
+
+	if( (weekday_ < 1) orelse (weekday_ > 7) orelse _
+	    (first_day_of_week < 0) orelse (first_day_of_week > 7) ) then
+		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		return TKORT_NULLSTR()
+	end if
+
+	tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	if( first_day_of_week = FB_WEEK_DAY_SYSTEM ) then
+		first_day_of_week = FB_WEEK_DAY_DEFAULT
+	end if
+
+	weekday_ += first_day_of_week - 1
+	if( weekday_ > 7 ) then weekday_ -= 7
+
+	dim as FBSTRING ptr res = tkrt_IntlGetWeekdayName( weekday_, abbreviation, 0 )
+	if( res = 0 ) then
+		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		res = TKORT_NULLSTR()
+	end if
+
+	return res
+end function
+
+'' ------------------------------------------------------------------ SLEEP
+
+'' kind 0 is SLEEP (interruptible), kind 1 is the raw delay. Anything else is
+'' error 1 and no sleep at all.
+function tkort_SleepEx alias "fb_SleepEx" _
+	( byval msecs as long, byval kind as long ) as long
+
+	select case kind
+	case 0
+		tkrt_Sleep( msecs )
+	case 1
+		tkrt_Delay( msecs )
+	case else
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end select
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern
+
+extern "c"   '' NON-FBCALL: fb_ConsoleSleep is the hookable implementation behind
+             '' fb_Sleep, declared plainly in fb_console.h.
+
+'' THREE REGIMES, AND THE 100 ms BOUNDARY IS THE INTERESTING ONE. Below it the
+'' keyboard is never polled -- a console check costs more than the sleep it would
+'' interrupt -- so SLEEP 50 cannot be cut short by a keystroke and SLEEP 100 can.
+'' -1 waits forever, polling every 50 ms.
+sub tkort_ConsoleSleep alias "fb_ConsoleSleep" ( byval msecs as long )
+
+	if( msecs = -1 ) then
+		while( tkrt_InputBufferChanged( ) = 0 )
+			tkrt_Delay( 50 )
+		wend
+		exit sub
+	end if
+
+	if( msecs >= 100 ) then
+		while( msecs > 50 )
+			if( tkrt_InputBufferChanged( ) <> 0 ) then exit sub
+			tkrt_Delay( 50 )
+			msecs -= 50
+		wend
+	end if
+
+	'' The remainder, and the whole of a short sleep. A NEGATIVE msecs other
+	'' than -1 falls through to here and sleeps for nothing.
+	if( msecs >= 0 ) then tkrt_Delay( msecs )
+end sub
+
+end extern
+
+extern "rtlib"
+
+'' ------------------------------------------------------------- the setters
+
+'' mm/dd/yy, mm/dd/yyyy, mm-dd-yy or mm-dd-yyyy -- and THE TWO SEPARATORS MUST
+'' MATCH: "1/2-2020" is rejected, because the second separator is compared
+'' against the first rather than against the set.
+''
+'' A TWO-DIGIT YEAR GETS 1900 ADDED, which is VBDOS's rule and not a windowing
+'' one: "1-1-25" is 1925, never 2025.
+function tkort_SetDate alias "fb_SetDate" ( byval dstr as FBSTRING ptr ) as long
+
+	if( (dstr <> 0) andalso (dstr->data <> 0) ) then
+
+		dim as ubyte ptr t = cast( ubyte ptr, dstr->data )
+		dim as ubyte c = any, sep = any
+		dim as long m = 0, d = 0, y = 0
+
+		'' month
+		c = *t
+		while( (c <> 0) andalso TKORT_ISDIGIT( c ) )
+			m = m * 10 + (c - 48)
+			t += 1
+			c = *t
+		wend
+
+		if( ((c <> 47) andalso (c <> 45)) orelse (m < 1) orelse (m > 12) ) then
+			'' NO DelTemp HERE -- fbc leaks the descriptor on every error path
+			'' in this function, and allocation-count parity is a gate.
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+		sep = c
+
+		'' day
+		t += 1
+		c = *t
+		while( (c <> 0) andalso TKORT_ISDIGIT( c ) )
+			d = d * 10 + (c - 48)
+			t += 1
+			c = *t
+		wend
+
+		if( (c <> sep) orelse (d < 1) orelse (d > 31) ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+
+		'' year
+		t += 1
+		c = *t
+		while( (c <> 0) andalso TKORT_ISDIGIT( c ) )
+			y = y * 10 + (c - 48)
+			t += 1
+			c = *t
+		wend
+
+		if( y < 100 ) then y += 1900
+
+		if( tkrt_hSetDate( y, m, d ) <> 0 ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	end if
+
+	tkrt_DelTemp( dstr )
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' hh, hh:mm or hh:mm:ss -- and the accumulator is fbc's, multiplier and all.
+'' See the file header: `h = h * i + digit` with i starting at ZERO is right for
+'' one and two digits and wrong for three, and reproducing the obvious `h * 10`
+'' would accept and reject different strings.
+'' NOT `time_` FOR THE PARAMETER: FreeBASIC's own crt/time.bi binds C's time()
+'' as `declare function time_ alias "time"`, using the same trailing-underscore
+'' convention this project does for keyword collisions. Third instance of that
+'' clash, after access_ and EOF_.
+function tkort_SetTime alias "fb_SetTime" ( byval tstr as FBSTRING ptr ) as long
+
+	if( (tstr <> 0) andalso (tstr->data <> 0) ) then
+
+		dim as ubyte ptr t = cast( ubyte ptr, tstr->data )
+		dim as ubyte c = any
+		dim as long i = any, h = 0, m = 0, s = 0
+
+		'' hours
+		i = 0
+		c = *t
+		while( (c <> 0) andalso TKORT_ISDIGIT( c ) )
+			h = h * i + (c - 48)
+			t += 1
+			i += 10
+			c = *t
+		wend
+
+		if( (h > 23) orelse ((c <> 0) andalso (c <> 58)) ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+
+		if( c <> 0 ) then
+			'' minutes
+			i = 0
+			t += 1
+			c = *t
+			while( (c <> 0) andalso TKORT_ISDIGIT( c ) )
+				m = m * i + (c - 48)
+				t += 1
+				i += 10
+				c = *t
+			wend
+
+			if( (m > 59) orelse ((c <> 0) andalso (c <> 58)) ) then
+				return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+			end if
+
+			if( c <> 0 ) then
+				'' seconds
+				i = 0
+				t += 1
+				c = *t
+				while( (c <> 0) andalso TKORT_ISDIGIT( c ) )
+					s = s * i + (c - 48)
+					t += 1
+					i += 10
+					c = *t
+				wend
+			end if
+		end if
+
+		'' THE FINAL TEST IS ON c, NOT ON THE SECONDS LOOP'S EXIT. A trailing
+		'' non-digit anywhere -- "12:00:00x" -- lands here and is rejected.
+		if( (s > 59) orelse (c <> 0) ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+
+		if( tkrt_hSetTime( h, m, s ) <> 0 ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	end if
+
+	tkrt_DelTemp( tstr )
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern

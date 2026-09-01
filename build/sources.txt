@@ -89,6 +89,7 @@ io/hookkey.bas
 io/hookcon.bas
 dt/serial.bas
 dt/vb.bas
+dt/wallclock.bas
 array/query.bas
 array/erase.bas
 array/redim.bas
