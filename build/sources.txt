@@ -155,3 +155,4 @@ io/conlineinp.bas
 io/conprinttty.bas
 io/conttytail.bas
 io/hookmisc.bas
+io/devlpttest.bas

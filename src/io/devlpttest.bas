@@ -1,0 +1,242 @@
+'' devlpttest.bas -- the LPT device-string parser. Two symbols across one fbc
+'' member, and portable.
+''
+'' IT PARSES BY CUTTING THE STRING UP IN PLACE. One calloc holds the whole
+'' DEV_LPT_PROTOCOL header AND a copy of the device string, and the four
+'' char-pointer fields end up pointing INTO that copy -- so the caller frees one
+'' block and everything goes with it. Every separator is overwritten with a NUL
+'' as it is passed, which is why nothing is copied twice.
+''
+'' THE FOUR POINTERS ALL START AT THE TERMINATOR, not at NULL. `proto`, `name`,
+'' `title` and `emu` are initialised to the end of the copied string, so a field
+'' that was never given reads as the EMPTY STRING rather than crashing whoever
+'' dereferences it. That is the whole reason the allocation is
+'' `sizeof(header) + len + 2` and not `+ 1`: there has to be a NUL to point at
+'' after the last one the parser writes.
+''
+'' "PRN:" IS REWRITTEN TO "LPT1:" IN PLACE when the caller asks, which is safe
+'' only because the replacement is exactly one byte longer and the buffer has the
+'' spare byte above. subst_prn FALSE leaves it as "PRN:" and still reports port 1.
+''
+'' THE PORT NUMBER IS READ BACKWARDS FROM THE COLON. The parser finds the ':',
+'' walks LEFT over digits, and atoi's from there -- so "LPT12:" is port 12 and
+'' "LPT:" is port 0, because the walk stops immediately on the 'T'. Reading
+'' forwards from "LPT" would give the same answer for both.
+''
+'' A KEY WITHOUT AN '=' BECOMES THE NAME, and the test for that is subtle: the
+'' parser looks for the next '=' and the next ',', and if the '=' is BEYOND the
+'' ',' it belongs to a later field, so this one has no value and is the name.
+'' `LPT:printer,EMU=TTY` therefore names "printer" and not "printer,EMU".
+''
+'' SPACES ARE STRIPPED FROM BOTH SIDES OF '=' AND FROM BEFORE EACH ',', by
+'' overwriting them with NULs -- backwards from the separator, so the value ends
+'' where its last non-space is. Spaces AFTER a comma are skipped by the outer
+'' loop instead.
+''
+'' UNKNOWN KEYS ARE IGNORED, deliberately: fbc's comment says "to allow forward
+'' compatibility", so `LPT:p,FUTURE=x` parses and simply drops FUTURE.
+
+#include once "inc/descriptors.bi"
+#include once "inc/file.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+'' fb_printer.h. `char raw[]` is a flexible array member, so the type here is the
+'' header alone and the copy lives immediately after it.
+type DEV_LPT_PROTOCOL
+	as zstring ptr proto
+	as long        iPort
+	as zstring ptr name_
+	as zstring ptr title_
+	as zstring ptr emu
+end type
+
+#if defined( __FB_64BIT__ )
+	#assert sizeof( DEV_LPT_PROTOCOL ) = 40
+	#assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 16
+#else
+	#assert sizeof( DEV_LPT_PROTOCOL ) = 20
+	#assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 8
+#endif
+
+'' The copy starts immediately after the header -- fbc's `raw` member.
+#define TKORT_LPT_RAW( pr ) cast( ubyte ptr, cast( ubyte ptr, pr ) + sizeof( DEV_LPT_PROTOCOL ) )
+
+'' isspace, over the ASCII set the parser can meet.
+#define TKORT_ISSPACE( c ) ( ((c) = 32) orelse (((c) >= 9) andalso ((c) <= 13)) )
+
+'' Case-insensitive compare of a NUL-terminated string against an ASCII literal,
+'' written out because strcasecmp is _stricmp on MinGW and binding it needs a
+'' different name per platform for four lines of code.
+private function hEqualsCI( byval s as ubyte ptr, byval lit as zstring ptr ) as long
+	dim as ubyte ptr l = cast( ubyte ptr, lit )
+	dim as integer i = 0
+	do
+		dim as ubyte a = s[i], b = l[i]
+		if( (a >= 97) andalso (a <= 122) ) then a -= 32
+		if( (b >= 97) andalso (b <= 122) ) then b -= 32
+		if( a <> b ) then return 0
+		if( a = 0 ) then return 1
+		i += 1
+	loop
+end function
+
+'' Case-insensitive compare of the first n characters.
+private function hEqualsCIN( byval s as ubyte ptr, byval lit as zstring ptr, byval n as integer ) as long
+	dim as ubyte ptr l = cast( ubyte ptr, lit )
+	for i as integer = 0 to n - 1
+		dim as ubyte a = s[i], b = l[i]
+		if( (a >= 97) andalso (a <= 122) ) then a -= 32
+		if( (b >= 97) andalso (b <= 122) ) then b -= 32
+		if( a <> b ) then return 0
+		if( a = 0 ) then return 0
+	next
+	return 1
+end function
+
+'' strchr over a ubyte ptr, returning NULL when absent.
+private function hChr( byval s as ubyte ptr, byval c as ubyte ) as ubyte ptr
+	dim as integer i = 0
+	do
+		if( s[i] = c ) then return s + i
+		if( s[i] = 0 ) then return 0
+		i += 1
+	loop
+end function
+
+extern "c"   '' NON-FBCALL: fb_printer.h declares both plainly.
+
+function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
+	( byval lpt_proto_out as DEV_LPT_PROTOCOL ptr ptr, byval proto_raw as zstring ptr, _
+	  byval proto_raw_len as uinteger, byval subst_prn as long ) as long
+
+	if( proto_raw = 0 ) then return 0
+	if( lpt_proto_out = 0 ) then return 0
+
+	'' + 2, not + 1: one for this string's terminator and one to spare, because
+	'' "PRN:" may be rewritten to the one-byte-longer "LPT1:".
+	*lpt_proto_out = cast( DEV_LPT_PROTOCOL ptr, _
+	                       calloc( sizeof( DEV_LPT_PROTOCOL ) + proto_raw_len + 2, 1 ) )
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = *lpt_proto_out
+	if( lpt_proto = 0 ) then return 0
+
+	dim as ubyte ptr raw_ = TKORT_LPT_RAW( lpt_proto )
+	strncpy( cast( zstring ptr, raw_ ), proto_raw, proto_raw_len )
+	raw_[proto_raw_len] = 0
+
+	dim as ubyte ptr p = raw_
+	dim as ubyte ptr ptail = raw_ + strlen( cast( zstring ptr, raw_ ) )
+
+	'' ALL FOUR AT THE TERMINATOR, so an absent field reads as "" -- see the
+	'' file header.
+	lpt_proto->iPort = 0
+	lpt_proto->proto  = cast( zstring ptr, ptail )
+	lpt_proto->name_  = cast( zstring ptr, ptail )
+	lpt_proto->title_ = cast( zstring ptr, ptail )
+	lpt_proto->emu    = cast( zstring ptr, ptail )
+
+	'' "PRN:"
+	if( hEqualsCI( p, @"PRN:" ) <> 0 ) then
+		if( subst_prn <> 0 ) then strcpy( cast( zstring ptr, p ), @"LPT1:" )
+		lpt_proto->proto = cast( zstring ptr, p )
+		lpt_proto->iPort = 1
+		return 1
+	end if
+
+	'' "LPTx:"
+	if( hEqualsCIN( p, @"LPT", 3 ) = 0 ) then return 0
+
+	dim as ubyte ptr pc = hChr( p, 58 )                 '' ':'
+	if( pc = 0 ) then return 0
+
+	lpt_proto->proto = cast( zstring ptr, p )
+	p = pc + 1
+	*pc = 0
+	pc -= 1
+
+	'' BACKWARDS OVER THE DIGITS from just before the colon -- so "LPT12:" is 12
+	'' and "LPT:" is 0, because the walk stops on the 'T'.
+	while( (*pc >= 48) andalso (*pc <= 57) )
+		pc -= 1
+	wend
+	pc += 1
+	lpt_proto->iPort = atoi( cast( zstring ptr, pc ) )
+
+	'' name, TITLE=, EMU=
+	while( *p <> 0 )
+		if( TKORT_ISSPACE( *p ) orelse (*p = 44) ) then      '' ',' or space
+			p += 1
+		else
+			dim as ubyte ptr pt = any
+			dim as ubyte ptr pe = hChr( p, 61 )              '' '='
+			pc = hChr( p, 44 )                               '' ','
+
+			'' AN '=' BEYOND THE NEXT ',' BELONGS TO A LATER FIELD, so this one
+			'' has no value and is the name.
+			if( (pc <> 0) andalso (pe > pc) ) then pe = 0
+
+			if( pe = 0 ) then
+				lpt_proto->name_ = cast( zstring ptr, p )
+			else
+				'' Spaces before '=' become NULs, backwards.
+				pt = pe - 1
+				while( TKORT_ISSPACE( *pt ) )
+					*pt = 0
+					pt -= 1
+				wend
+
+				'' The '=' itself, then spaces after it, forwards.
+				*pe = 0
+				pe += 1
+				while( TKORT_ISSPACE( *pe ) )
+					*pe = 0
+					pe += 1
+				wend
+
+				if( hEqualsCI( p, @"EMU" ) <> 0 ) then
+					lpt_proto->emu = cast( zstring ptr, pe )
+				elseif( hEqualsCI( p, @"TITLE" ) <> 0 ) then
+					lpt_proto->title_ = cast( zstring ptr, pe )
+				end if
+				'' Anything else is IGNORED, for forward compatibility.
+			end if
+
+			'' Spaces before the ',' -- or before the end -- become NULs.
+			pt = iif( pc <> 0, pc, ptail )
+			pt -= 1
+			while( TKORT_ISSPACE( *pt ) )
+				*pt = 0
+				pt -= 1
+			wend
+
+			if( pc <> 0 ) then
+				p = pc + 1
+				*pc = 0
+			else
+				p = ptail
+			end if
+		end if
+	wend
+
+	return 1
+end function
+
+'' PARSE AND THROW AWAY. This is the "would this device string work?" question,
+'' asked by the OPEN dispatcher before it commits to the LPT device -- so the
+'' block is freed immediately and only the yes/no survives.
+''
+'' subst_prn is FALSE here: the test must not rewrite the caller's idea of the
+'' device, only answer whether it parses.
+function tkort_DevLptTestProtocol alias "fb_DevLptTestProtocol" _
+	( byval handle as FB_FILE ptr, byval filename as zstring ptr, _
+	  byval filename_len as uinteger ) as long
+
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = any
+	dim as long ret = tkort_DevLptParseProtocol( @lpt_proto, filename, filename_len, 0 )
+	'' FREED EVEN WHEN THE PARSE FAILED -- the allocation happens before any of
+	'' the failure returns, so a rejected string still has a block to release.
+	if( lpt_proto <> 0 ) then free( lpt_proto )
+	return ret
+end function
+
+end extern
