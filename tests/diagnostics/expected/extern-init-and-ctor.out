@@ -1,0 +1,81 @@
+global str $str0 "x"
+global var agg nodefault size 8
+global var i64 oknum = 1
+global var agg constructed size 8
+global var agg plain_ size 8
+func void _ZN8NEEDSARGC1Eu7INTEGER($0, $1) {
+  local ptr this
+  local i64 n
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    ret
+}
+func void DECLREFUSED() {
+  local agg badstr size 24
+  local i64 badnum
+  entry0:
+    %1 = alloca ptr badstr
+    %2 = const i64 1
+    %3 = call.rtl ptr fb_LongintToStr(%2)
+    %4 = call.rtl ptr fb_StrInit(@badstr, -1, %3, -1, 0)
+    %5 = alloca ptr badnum
+    %6 = bitcast @@$str0
+    store @badnum, %6
+    call.rtl void fb_StrDelete(@badstr)
+    ret
+}
+declare ptr fb_LongintToStr($0)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+func void DECLACCEPTED() {
+  local agg okstr size 24
+  entry0:
+    %1 = alloca ptr okstr
+    %2 = call.rtl ptr fb_StrInit(@okstr, -1, @@$str0, 2, 0)
+    call.rtl void fb_StrDelete(@okstr)
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 externinit
+  local i64 externplain
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr externinit
+    %5 = const i64 1
+    store @externinit, %5
+    %6 = alloca ptr externplain
+    %7 = const i32 0
+    call.rtl void fb_End(%7)
+    %8 = load @$tmp0
+    ret %8
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 4 functions, 4 blocks, 27 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_VAR 1
+  skip-site src\mir\lowerstore.bas:1075 1
+tests/diagnostics/src/extern-init-and-ctor.bas(33,9): error TKO0653: 'badstr' and its initializer disagree about being a string
+     |
+  33 |     dim badStr as string = 1
+     |         ^
+tests/diagnostics/src/extern-init-and-ctor.bas(34,9): error TKO0653: 'badnum' and its initializer disagree about being a string
+     |
+  34 |     dim badNum as integer = "x"
+     |         ^
+tests/diagnostics/src/extern-init-and-ctor.bas(27,8): error TKO0656: 'externinit' is extern or common and cannot be initialized
+     |
+  27 | extern externInit as integer = 1
+     |        ^
+tests/diagnostics/src/extern-init-and-ctor.bas(28,12): error TKO0657: the type of 'nodefault' has no constructor that takes no argument
+     |
+  28 | dim shared noDefault as NeedsArg
+     |            ^

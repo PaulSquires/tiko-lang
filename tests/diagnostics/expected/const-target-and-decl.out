@@ -11,11 +11,11 @@ tests/diagnostics/src/const-target-and-decl.bas(29,7): error TKO0652: a literal 
      |
   29 |     : 0 = 1
      |       ^
-tests/diagnostics/src/const-target-and-decl.bas(25,7): error TKO0653: constant 'badstr' and its value disagree about being a string
+tests/diagnostics/src/const-target-and-decl.bas(25,7): error TKO0653: 'badstr' and its initializer disagree about being a string
      |
   25 | const badStr as string = 1
      |       ^
-tests/diagnostics/src/const-target-and-decl.bas(26,7): error TKO0653: constant 'badnum' and its value disagree about being a string
+tests/diagnostics/src/const-target-and-decl.bas(26,7): error TKO0653: 'badnum' and its initializer disagree about being a string
      |
   26 | const badNum as integer = "x"
      |       ^

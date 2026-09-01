@@ -203,11 +203,15 @@
     '' fbc's error 24. A literal has no storage to write into.
     DIAG( TKO0652, SEV_ERROR,   "a literal cannot be assigned to" )
     '' fbc's errors 20 and 24. A constant may not cross the string/number divide.
-    DIAG( TKO0653, SEV_ERROR,   "constant '%0' and its value disagree about being a string" )
+    DIAG( TKO0653, SEV_ERROR,   "'%0' and its initializer disagree about being a string" )
     '' fbc's errors 186 and 188. There is nothing the derived construction can call.
     DIAG( TKO0654, SEV_ERROR,   "the base of '%0' has no constructor that takes no argument" )
     '' fbc's error 24. 'iif' returns ONE type, so its arms may not disagree.
     DIAG( TKO0655, SEV_ERROR,   "the two arms of 'iif' have incompatible types" )
+    '' fbc's error 135. The storage belongs to another module.
+    DIAG( TKO0656, SEV_ERROR,   "'%0' is extern or common and cannot be initialized" )
+    '' fbc's error 183. Nothing to call, and no initialiser naming what to call instead.
+    DIAG( TKO0657, SEV_ERROR,   "the type of '%0' has no constructor that takes no argument" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
