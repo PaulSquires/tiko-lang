@@ -253,6 +253,11 @@
     DIAG( TKO0679, SEV_ERROR,   "VIRTUAL and ABSTRACT belong to a member of a type" )
     DIAG( TKO0680, SEV_ERROR,   "VIRTUAL and ABSTRACT belong to the declaration, not to the body" )
     DIAG( TKO0681, SEV_ERROR,   "a structor cannot be declared this way" )
+    '' fbc's errors 259, 258, 234 and 78.
+    DIAG( TKO0682, SEV_ERROR,   "CONST is for a member procedure, which has a THIS to be const" )
+    DIAG( TKO0683, SEV_ERROR,   "STATIC is for a member procedure" )
+    DIAG( TKO0684, SEV_ERROR,   "this operator is implicitly STATIC and cannot be CONST" )
+    DIAG( TKO0685, SEV_ERROR,   "the bitfield '%0' is wider than its type" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

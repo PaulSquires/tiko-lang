@@ -881,6 +881,27 @@ private function ParseProc _
     if sawVA andalso vaNoOwner then
         p.diags->Report( Tko.TKO0679, Tko.PointRange( vaTok.loc ) )
     end if
+    '' CONST AND STATIC NEED AN OWNER TOO -- fbc's errors 259 and 258, "CONST/STATIC used
+    '' on non-member procedure". Both describe THIS: a free procedure has none. The same
+    '' owner test the virtual one uses, and for the same reason.
+    '' 'operator new' AND 'operator delete' ARE IMPLICITLY STATIC, so there is no THIS
+    '' for CONST to describe -- fbc's error 234. Measured over all four spellings; an
+    '' ordinary 'declare const sub m( )' beside them is the legal case.
+    if (kw = Tko.KW_OPERATOR) andalso ((sp.extra and Tko.PF_CONST) <> 0) then
+        dim as string opnm = Tko.Text.LowerAscii( p.names->Spelling( sp.name ) )
+        if (opnm = "new") orelse (opnm = "delete") orelse _
+           (opnm = "new[]") orelse (opnm = "delete[]") then
+            p.diags->Report( Tko.TKO0684, Tko.PointRange( t.loc ) )
+        end if
+    end if
+    if vaNoOwner then
+        if (sp.extra and Tko.PF_CONST) <> 0 then
+            p.diags->Report( Tko.TKO0682, Tko.PointRange( t.loc ) )
+        end if
+        if (sp.extra and Tko.PF_STATIC) <> 0 then
+            p.diags->Report( Tko.TKO0683, Tko.PointRange( t.loc ) )
+        end if
+    end if
     if declareOnly then
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
         if qualified then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_QUALIFIED

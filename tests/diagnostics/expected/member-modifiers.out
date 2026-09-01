@@ -1,0 +1,38 @@
+func void LOOSECONST() {
+  entry0:
+    ret
+}
+func void LOOSESTATIC() {
+  entry0:
+    ret
+}
+verify: ok
+lowered: 2 functions, 2 blocks, 0 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/member-modifiers.bas(19,13): error TKO0684: this operator is implicitly STATIC and cannot be CONST
+     |
+  19 |     declare const operator new( byval n as integer ) as Bad ptr
+     |             ^
+tests/diagnostics/src/member-modifiers.bas(20,13): error TKO0684: this operator is implicitly STATIC and cannot be CONST
+     |
+  20 |     declare const operator delete( byval p as any ptr )
+     |             ^
+tests/diagnostics/src/member-modifiers.bas(23,1): error TKO0682: CONST is for a member procedure, which has a THIS to be const
+     |
+  23 | const sub looseConst( )
+     | ^
+tests/diagnostics/src/member-modifiers.bas(26,1): error TKO0683: STATIC is for a member procedure
+     |
+  26 | static sub looseStatic( )
+     | ^
+tests/diagnostics/src/member-modifiers.bas(16,5): error TKO0685: the bitfield 'badbyte' is wider than its type
+     |
+  16 |     badByte : 9 as byte
+     |     ^
+tests/diagnostics/src/member-modifiers.bas(17,5): error TKO0685: the bitfield 'badshort' is wider than its type
+     |
+  17 |     badShort : 17 as short
+     |     ^
+tests/diagnostics/src/member-modifiers.bas(18,5): error TKO0685: the bitfield 'badlong' is wider than its type
+     |
+  18 |     badLong : 33 as long
+     |     ^

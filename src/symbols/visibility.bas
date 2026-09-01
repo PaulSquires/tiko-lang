@@ -1409,6 +1409,7 @@ sub Run _
     CheckConstBounds_( c )
     CheckReturnStyles_( c )
     CheckDuplicateOverloads_( c )
+    CheckBitfieldWidths_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )

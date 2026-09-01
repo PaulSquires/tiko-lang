@@ -1,0 +1,9 @@
+'' CONST and STATIC describe a THIS, so a free procedure may have neither (fbc 259, 258).
+'' 'operator new' and 'operator delete' are implicitly STATIC and so CONST on one is error
+'' 234. A bitfield cannot be wider than its type (error 78) -- measured at the boundary
+'' for each width. Same seven lines as fbc: 16, 17, 18, 19, 20, 23, 26 (the bitfield
+'' reports come last, from the post-Check sweep that has the resolved field type).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/member-modifiers.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/member-modifiers.out

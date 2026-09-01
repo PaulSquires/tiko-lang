@@ -383,3 +383,33 @@ private sub CheckDuplicateOverloads_( byref c as Ctx )
         wend
     next
 end sub
+
+'' A BITFIELD CANNOT BE WIDER THAN ITS TYPE -- fbc error 78, "Invalid bitfield". MEASURED
+'' at the boundary for every width the corpus uses: ':8 as byte' is accepted and ':9' is
+'' not, ':16 as short' yes and ':17' no, ':32 as long' yes and ':33' no.
+''
+'' HERE AND NOT IN THE PARSER, which has the width but not the TYPE: the field's type is a
+'' typeref that nothing has resolved yet when the ':' is read.
+private sub CheckBitfieldWidths_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_FIELD then continue for
+        dim as StmtPayload ptr fp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if fp->b = NODE_NONE then continue for
+        '' THE WIDTH AS WRITTEN. Only a plain integer literal is judged: anything else
+        '' would need the folder, which this pass does not carry, and a width that does
+        '' not fold is somebody else's diagnostic.
+        if c.ast->Kind( fp->b ) <> N_INT_LIT then continue for
+        dim as longint w = cast( longint, c.ast->literals[cast( long, c.ast->nodes[cast( long, fp->b )].data )].intValue )
+        if w <= 0 then continue for
+        dim as TypeId ft = c.types->Unqualify( c.info->TypeOf_( fp->a ) )
+        if ft = TYPE_NONE then continue for
+        if c.types->Kind( ft ) <> TK_BUILTIN then continue for
+        dim as long bits = c.types->Layout( ft ).size * 8
+        if bits <= 0 then continue for
+        if w <= bits then continue for
+        c.diags->Report( TKO0685, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( fp->name ) )
+    next
+end sub
