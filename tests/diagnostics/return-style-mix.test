@@ -1,0 +1,13 @@
+'' RETURN and 'FUNCTION =' cannot be mixed when the result is a UDT with constructors
+'' (fbc 178 and 179); 'exit function' counts as the assignment style, and the same mix
+'' over an INTEGER result is accepted. A parameter default that names nothing is fbc
+'' error 42.
+''
+'' LOCATION DIFFERS DELIBERATELY: fbc reports on whichever spelling came second (lines 36
+'' and 44), this reports once on the PROCEDURE (31 and 39) -- the fact is about the
+'' procedure as a whole, and the two spellings may be anywhere in the body. The
+'' undeclared default matches fbc exactly, on line 47.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/return-style-mix.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/return-style-mix.out

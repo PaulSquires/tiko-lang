@@ -132,3 +132,89 @@ private sub CheckConstBounds_( byref c as Ctx )
     next
 end sub
 
+
+'' RETURN AND 'FUNCTION =' CANNOT BE MIXED when the result is a UDT WITH CONSTRUCTORS --
+'' fbc errors 178 and 179. The two styles construct the result differently, and fbc says
+'' outright that using both together is unsupported for such a type.
+''
+'' MEASURED, and the type is half the rule:
+''     return x  ... function = x     error 179
+''     function = x ... return x      error 178
+''     exit function ... return x     error 178   -- EXIT counts as the other style
+''     return x only                  OK
+''     function = x only              OK
+''     the same mix over an INTEGER result          OK
+''
+'' ONE ERROR PER PROCEDURE, on the procedure, because the two spellings may be anywhere in
+'' the body and fbc's line number is whichever came second -- which is not worth modelling
+'' when the fact being reported is about the procedure as a whole.
+private sub ScanReturnStyles_ _
+    ( byref c as Ctx, byval id as NodeId, byref sawReturn as boolean, _
+      byref sawAssign as boolean )
+
+    if id = NODE_NONE then return
+    dim as NodeKind k = c.ast->Kind( id )
+    '' A NESTED PROCEDURE IS ITS OWN QUESTION -- and in FreeBASIC there are none inside a
+    '' body, so this is a guard rather than a case that arises.
+    if k = N_PROC then return
+    if k = N_RETURN then sawReturn = true
+    if k = N_EXIT then
+        dim as StmtPayload ptr xp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' 'exit operator' AND 'exit property' COUNT TOO -- the corpus writes the same
+        '' pair of files for each of the three, and fbc gives all three error 178.
+        select case cast( TokenKind, xp->op )
+        case KW_FUNCTION, KW_OPERATOR, KW_PROPERTY
+            sawAssign = true
+        end select
+    end if
+    if k = N_AMBIGUOUS then
+        if c.info->AmbiguousOf( id ) = AMB_RESULT then sawAssign = true
+    end if
+
+    if NodeKindCategory( k ) = NCAT_EXPR then return
+    if NodeKindCategory( k ) = NCAT_TYPE then return
+    if (k = N_MODULE) orelse (k = N_BLOCK) then
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            ScanReturnStyles_( c, cast( NodeId, c.ast->children[lp->first + i] ), _
+                               sawReturn, sawAssign )
+        next
+        return
+    end if
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    ScanReturnStyles_( c, sp->b, sawReturn, sawAssign )
+    ScanReturnStyles_( c, sp->c, sawReturn, sawAssign )
+    for i as long = 0 to sp->count - 1
+        ScanReturnStyles_( c, cast( NodeId, c.ast->children[sp->first + i] ), _
+                           sawReturn, sawAssign )
+    next
+end sub
+
+private sub CheckReturnStyles_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if sp->a = NODE_NONE then continue for
+        '' A UDT RESULT WITH A CONSTRUCTOR, and nothing else.
+        dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+        if rt = TYPE_NONE then continue for
+        if c.types->Kind( rt ) <> TK_UDT then continue for
+        if StructorOf_( c, rt, "__ctor" ) = 0 then continue for
+
+        dim as boolean sawReturn = false
+        dim as boolean sawAssign = false
+        for i as long = 0 to sp->count - 1
+            ScanReturnStyles_( c, cast( NodeId, c.ast->children[sp->first + i] ), _
+                               sawReturn, sawAssign )
+        next
+        ScanReturnStyles_( c, sp->b, sawReturn, sawAssign )
+        if (sawReturn andalso sawAssign) = false then continue for
+        c.diags->Report( TKO0676, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( sp->name ) )
+    next
+end sub

@@ -500,6 +500,28 @@ private sub CheckParamDefault_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->b = NODE_NONE then return
     CheckAutoRef_( c, sp->b )
+
+    '' A DEFAULT THAT NAMES NOTHING -- fbc error 42, "Variable not declared". tiko-lang
+    '' does not report an undeclared name anywhere yet; a parameter DEFAULT is a small,
+    '' closed context where it can be asked safely, because the only things a default may
+    '' legally name are constants and shared variables, and both bind a symbol.
+    ''
+    '' A BARE IDENT AND NOTHING ELSE. An unresolved CALL may be an intrinsic -- 'iif' and
+    '' the string intrinsics bind no symbol either -- and reporting one would refuse files
+    '' fbc accepts. A bare name that resolves to nothing has no such excuse.
+    if c.ast->Kind( sp->b ) <> N_IDENT then return
+    if c.info->RefOf( sp->b ) <> SYMBOL_NONE then return
+    '' ...UNLESS IT HAS A TYPE, which means something did resolve it and only this pass
+    '' cannot see what.
+    if c.info->TypeOf_( sp->b ) <> TYPE_NONE then return
+    '' '= any' IS THE KEYWORD, not a name. It means "no initial value" and the parser
+    '' leaves it as an ident, so it resolved to nothing and read as undeclared --
+    '' warnings/suffix-fb.bas writes it, and fbc compiles that file.
+    dim as InternId dnm = _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, sp->b )].data )].name
+    if c.names->Fold( dnm ) = c.names->Fold( c.names->GetString( "any" ) ) then return
+    c.diags->Report( TKO0675, PointRange( c.ast->Loc( sp->b ) ), _
+                     c.names->Spelling( dnm ) )
 end sub
 
 '' AN ARRAY IS INDEXED WITH AS MANY SUBSCRIPTS AS IT HAS DIMENSIONS -- fbc error 36,
@@ -1385,6 +1407,7 @@ sub Run _
     CheckQualifiedInits_( c )
     CheckOutsideNamespace_( c )
     CheckConstBounds_( c )
+    CheckReturnStyles_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )

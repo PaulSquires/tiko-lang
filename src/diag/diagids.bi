@@ -242,6 +242,10 @@
     DIAG( TKO0673, SEV_ERROR,   "the LIB name string is empty" )
     '' fbc's error 11, over an LBOUND or UBOUND in a CONST initialiser.
     DIAG( TKO0674, SEV_ERROR,   "this array bound is not known at compile time" )
+    '' fbc's error 42, in a PARAMETER DEFAULT.
+    DIAG( TKO0675, SEV_ERROR,   "a parameter default names '%0', which is not declared" )
+    '' fbc's errors 178 and 179.
+    DIAG( TKO0676, SEV_ERROR,   "'%0' mixes RETURN with 'FUNCTION =' over a result type that has constructors" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
