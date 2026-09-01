@@ -90,6 +90,7 @@ io/hookcon.bas
 dt/serial.bas
 dt/vb.bas
 dt/wallclock.bas
+dt/parse.bas
 array/query.bas
 array/erase.bas
 array/redim.bas
