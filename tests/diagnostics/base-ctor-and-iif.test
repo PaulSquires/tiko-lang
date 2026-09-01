@@ -1,0 +1,7 @@
+'' A base with constructors but none callable with no argument cannot be initialised for
+'' you; a base with NO constructor at all is fine. And 'iif' returns one type, so its arms
+'' may not disagree about being a string or about which pointer they are.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/base-ctor-and-iif.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/base-ctor-and-iif.out

@@ -593,6 +593,46 @@ private function IsStringyType_ ( byref c as Ctx, byval t as TypeId ) as boolean
     return false
 end function
 
+'' A BASE WITH NO DEFAULT CONSTRUCTOR CANNOT BE INITIALISED FOR YOU -- fbc errors 186 and
+'' 188, "base UDT without default constructor requires manual initialization". Measured:
+''
+''     base declares constructor( byval as integer ) only,
+''       derived declares a constructor                    error 188
+''       derived declares none                             error 186
+''     base declares constructor( ) as well                OK
+''     base declares NO constructor at all                 OK -- the implicit one
+''
+'' What makes it an error is the base HAVING constructors and none of them being callable
+'' with no argument: there is then nothing the derived type's own construction can call.
+private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId base_ = BaseOf_( c, s->type_ )
+        if base_ = TYPE_NONE then continue for
+        dim as Symbol ptr bc = StructorOf_( c, base_, "__ctor" )
+        '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
+        if bc = 0 then continue for
+        dim as boolean sawDefault = false
+        dim as Symbol ptr walk = bc
+        dim as long guard = 0
+        while (walk <> 0) andalso (guard < 1000)
+            guard += 1
+            dim as long req = RequiredParams_( c, cast( NodeId, walk->payload ) )
+            '' A declaration that cannot be read is counted as a default rather than
+            '' against one: not knowing is not grounds for refusing.
+            if (req = 0) orelse (req = -1) then
+                sawDefault = true
+                exit while
+            end if
+            walk = c.syms->SymbolAt( walk->nextOverload )
+        wend
+        if sawDefault then continue for
+        c.diags->Report( TKO0654, PointRange( s->loc ), c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckConstDeclTypes_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -774,6 +814,46 @@ private sub CheckImplicitStructors_( byref c as Ctx )
         end if
         CheckOneStructor_( c, u, "__dtor", here, s->loc, s->name )
     next
+end sub
+
+'' 'iif' RETURNS ONE TYPE, so its two arms may not disagree about what they are -- fbc
+'' error 24, "Invalid data types". Measured:
+''
+''     iif( c, an_integer, a_string )        error 24
+''     iif( c, @sub1, @sub2 )                error 24   two DIFFERENT procedure pointers
+''     iif( c, an_integer_ptr, a_byte_ptr )  error 24   pointers must match EXACTLY
+''     iif( c, a_long, a_double )            OK         numbers convert to each other
+''     iif( c, an_integer, an_integer )      OK
+''
+'' NARROWED TO WHAT WAS MEASURED: the string/number divide and a pointer mismatch. Whether
+'' a pointer may face a number here is not measured, so it is not asked.
+private sub CheckIifArms_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 3 then return
+    if lp->target = NODE_NONE then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    '' A USER SYMBOL OF THAT NAME IS NOT THE INTRINSIC -- the same guard the string
+    '' intrinsics needed, and for the same reason.
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    dim as InternId nm = _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name
+    if c.names->Fold( nm ) <> c.names->Fold( c.names->GetString( "iif" ) ) then return
+
+    dim as TypeId ta = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + 1] ) )
+    dim as TypeId tb = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + 2] ) )
+    if (ta = TYPE_NONE) orelse (tb = TYPE_NONE) then return
+    dim as TypeId ua = c.types->Unqualify( ta )
+    dim as TypeId ub = c.types->Unqualify( tb )
+    if ua = ub then return
+
+    dim as boolean bad = false
+    if IsStringyType_( c, ua ) <> IsStringyType_( c, ub ) then bad = true
+    dim as boolean pa = (c.types->Kind( ua ) = TK_POINTER)
+    dim as boolean pb = (c.types->Kind( ub ) = TK_POINTER)
+    if pa andalso pb then bad = true
+    if bad = false then return
+    c.diags->Report( TKO0655, PointRange( c.ast->Loc( id ) ) )
 end sub
 
 '' A 'bydesc' PARAMETER TAKES THE WHOLE ARRAY -- fbc error 58, "Type mismatch".
@@ -1198,6 +1278,7 @@ private sub Walk_ _
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id, here )
+    if k = N_CALL then CheckIifArms_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
     if k = N_PROC then CheckByrefResultAgrees_( c, id )
@@ -1361,6 +1442,7 @@ sub Run _
     CheckSharedInits_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
+    CheckBaseHasDefaultCtor_( c )
     CheckVirtualNeedsObject_( c )
 end sub
 
