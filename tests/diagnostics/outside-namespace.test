@@ -1,0 +1,7 @@
+'' A namespace cannot be added to from outside it (fbc errors 158 and 131). Defining
+'' something the namespace already declared is the ordinary use and is accepted; a NEW
+'' name is not. Matches fbc on lines 18 and 21.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/outside-namespace.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/outside-namespace.out

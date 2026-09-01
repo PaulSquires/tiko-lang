@@ -1,0 +1,6 @@
+'' An enum item is a constant: assigning to one is fbc error 119, bare or qualified.
+'' Matches fbc on lines 10 and 11.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/enum-const-assign.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/enum-const-assign.out

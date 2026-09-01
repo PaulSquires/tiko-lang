@@ -1,0 +1,8 @@
+'' A private member NAMED WITHOUT A QUALIFIER inside a derived type's method is still a
+'' member access (fbc error 202); protected reaches that far and is accepted. A constant,
+'' a static member variable and a method are one rule -- the check asks the question of
+'' the SYMBOL Check bound, not of the syntax. Matches fbc on lines 35, 36 and 37.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/implicit-member-access.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/implicit-member-access.out

@@ -1,0 +1,67 @@
+global var i64 _ZN6PARENT6SHUTV$E
+func void _ZN6PARENT5OPENMEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN6PARENT5SHUTMEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN5CHILD4TESTEv($0) {
+  local ptr this
+  local i64 a
+  local i64 b
+  local i64 c
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr a
+    %3 = const i64 7
+    store @a, %3
+    %4 = load @this
+    call void _ZN6PARENT5OPENMEv(%4)
+    %5 = alloca ptr b
+    %6 = const i64 123
+    store @b, %6
+    %7 = alloca ptr c
+    %8 = load @@_ZN6PARENT6SHUTV$E
+    store @c, %8
+    %9 = load @this
+    call void _ZN6PARENT5SHUTMEv(%9)
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 4 functions, 4 blocks, 27 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/implicit-member-access.bas(35,24): error TKO0625: 'shutc' is not accessible here
+     |
+  35 |     dim as integer b = SHUTC
+     |                        ^
+tests/diagnostics/src/implicit-member-access.bas(36,24): error TKO0625: 'shutv' is not accessible here
+     |
+  36 |     dim as integer c = shutV
+     |                        ^
+tests/diagnostics/src/implicit-member-access.bas(37,5): error TKO0625: 'shutm' is not accessible here
+     |
+  37 |     shutM( )
+     |     ^

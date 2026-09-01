@@ -232,6 +232,8 @@
     '' fbc's error 272, over an INITIALISER. Was reported as TKO0640, whose wording is
     '' about a PARAMETER DEFAULT and was wrong for this shape.
     DIAG( TKO0668, SEV_ERROR,   "a shared initialiser cannot reference '%0', which is not shared" )
+    '' fbc's errors 158 and 131.
+    DIAG( TKO0669, SEV_ERROR,   "'%0' adds a new name to a namespace from outside it" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

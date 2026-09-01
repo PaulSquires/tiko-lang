@@ -565,6 +565,14 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
     if sp->op = 0 then return
     if sp->a = NODE_NONE then return
     select case c.ast->Kind( sp->a )
+    case N_IDENT
+        '' 'foo = 1' OVER A BARE ENUM CONSTANT. Resolve refuses a bare CONST but an enum
+        '' item reached this far, and the store went into the constant's slot.
+        dim as Symbol ptr es = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if es = 0 then return
+        if es->kind <> cast( ubyte, SYM_ENUMCONST ) then return
+        c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                         c.names->Spelling( es->name ) )
     case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
         c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
         return
@@ -1064,6 +1072,19 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckByrefResultValue_( c, id, innerByref )
     if k = N_AMBIGUOUS then CheckByrefResultType_( c, id, innerByref, innerResult )
     if k = N_MEMBER then CheckMember_( c, id, here )
+    '' ...AND THE MEMBER NAMED WITHOUT A QUALIFIER. Inside a DERIVED type's method the
+    '' bare name resolves to the base's member, and fbc refuses a private one with the
+    '' same error 202 it gives for 'x.privateThing'. Eleven corpus files write it -- a
+    '' constant, a static member variable, a field, a method and a static method, which
+    '' are one rule here because CheckMember_ asks the question OF THE SYMBOL Check bound
+    '' rather than of the syntax.
+    ''
+    '' THE IDENT AND NOTHING ELSE. Hooking N_CALL as well reported the same access twice,
+    '' once for the call and once for the callee that names it. The operator-invoking
+    '' shapes in this corpus directory -- 'n = t' through 'operator cast', 'delete p',
+    '' 'for x as T', 'x += 1' -- bind no symbol onto their node at all, so hooking those
+    '' kinds bought nothing and only widened what could go wrong.
+    if k = N_IDENT then CheckMember_( c, id, here )
     if k = N_DELETE_STMT then CheckDelete_( c, id, here )
     if k = N_MEMBER then CheckDeref_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
@@ -1243,6 +1264,90 @@ private sub CheckQualifiedStringInits_( byref c as Ctx )
     next
 end sub
 
+'' A NAMESPACE CANNOT BE ADDED TO FROM OUTSIDE IT -- fbc error 158, "Declaration outside
+'' the original namespace or class". DEFINING something the namespace already declared is
+'' the ordinary and accepted use; introducing a NEW name is not.
+''
+'' MEASURED, and the accepted half is what makes the rule narrow enough to be safe:
+''     namespace a : declare sub f1( ) : end namespace
+''     sub a.f1( ) : end sub                              OK    -- a DEFINITION
+''     namespace a : extern s as string : end namespace
+''     dim a.s as string                                  OK    -- likewise
+''     namespace a : end namespace
+''     sub a.f1( ) : end sub                              error 158
+''     dim a.s as integer                                 error 131
+''
+'' So the test is "does that namespace already have this name", and nothing finer. fbc
+'' separates a re-DECLARATION from a definition and gives 158 for the former even when the
+'' name is there; that distinction is not modelled, and missing it costs an accepted file,
+'' not a wrong one.
+private function NamespaceScopeOf_ _
+    ( byref c as Ctx, byval path as InternId ) as ScopeId
+
+    if path = 0 then return SCOPE_NONE
+    dim as string qp = c.names->Spelling( path )
+    '' THE FIRST COMPONENT IS FOUND IN THE SYMBOL TABLE, not from SCOPE_GLOBAL: a
+    '' file's namespaces live in the MODULE scope, which is a child of the global one and
+    '' which nothing here holds a handle to. Only an UNAMBIGUOUS match counts -- two
+    '' namespaces of one name under different parents would make the wrong scope the
+    '' answer, and a wrong scope here means refusing a file fbc accepts.
+    dim as long firstDot = instr( qp, "." )
+    dim as long firstEnd = firstDot
+    if firstEnd = 0 then firstEnd = len( qp ) + 1
+    dim as InternId head = c.names->GetString( left( qp, firstEnd - 1 ) )
+    dim as ScopeId sc = SCOPE_NONE
+    dim as long hits = 0
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr ns = @c.syms->symbols[i]
+        if ns->kind <> cast( ubyte, SYM_NAMESPACE ) then continue for
+        if c.names->Fold( ns->name ) <> c.names->Fold( head ) then continue for
+        hits += 1
+        sc = ns->inner
+    next
+    if (hits <> 1) orelse (sc = SCOPE_NONE) then return SCOPE_NONE
+    if firstDot = 0 then return sc
+    dim as long at = firstDot
+    dim as long guard = 0
+    while (at <= len( qp )) andalso (guard < 64)
+        guard += 1
+        dim as long dot = instr( at + 1, qp, "." )
+        dim as long stop_ = dot
+        if stop_ = 0 then stop_ = len( qp ) + 1
+        dim as string comp = mid( qp, at + 1, stop_ - at - 1 )
+        if len( comp ) = 0 then return SCOPE_NONE
+        dim as SymbolId sid = _
+            c.syms->LookupLocal( sc, c.names->Fold( c.names->GetString( comp ) ) )
+        dim as Symbol ptr sym = c.syms->SymbolAt( sid )
+        if sym = 0 then return SCOPE_NONE
+        '' ONLY A NAMESPACE. A TYPE's members are a different rule with a different error,
+        '' and answering for one here would report the other's shape.
+        if sym->kind <> cast( ubyte, SYM_NAMESPACE ) then return SCOPE_NONE
+        if sym->inner = SCOPE_NONE then return SCOPE_NONE
+        sc = sym->inner
+        if dot = 0 then return sc
+        at = dot
+    wend
+    return SCOPE_NONE
+end function
+
+private sub CheckOutsideNamespace_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        dim as NodeKind k = c.ast->Kind( id )
+        if (k <> N_PROC) andalso (k <> N_VAR_ITEM) then continue for
+        if (c.ast->nodes[n].flags and NF_QUALIFIED) = 0 then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        dim as ScopeId ns = NamespaceScopeOf_( c, sp->ownerName )
+        if ns = SCOPE_NONE then continue for
+        dim as SymbolId have = c.syms->LookupLocal( ns, c.names->Fold( sp->name ) )
+        if have <> SYMBOL_NONE then continue for
+        c.diags->Report( TKO0669, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( sp->ownerName ) & "." & _
+                         c.names->Spelling( sp->name ) )
+    next
+end sub
+
 private sub CheckStaticStringInits( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -1295,6 +1400,7 @@ sub Run _
     CheckNestedStatics_( c )
     CheckSharedInits_( c )
     CheckQualifiedInits_( c )
+    CheckOutsideNamespace_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )
