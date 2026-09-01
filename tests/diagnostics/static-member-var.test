@@ -1,0 +1,6 @@
+'' A qualified 'dim UDT.i' defines a STATIC member variable: refused when the type has
+'' no such member, and refused when the member is an ordinary field (fbc error 147).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-member-var.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/static-member-var.out

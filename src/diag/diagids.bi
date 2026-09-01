@@ -218,6 +218,8 @@
     DIAG( TKO0659, SEV_ERROR,   "dynamic array '%0' cannot be a member of a union" )
     '' fbc's error 98. Guarded exactly as TKO0632 is, and for the same reasons.
     DIAG( TKO0660, SEV_ERROR,   "the call to '%0' matches more than one overload" )
+    '' fbc's error 147.
+    DIAG( TKO0661, SEV_ERROR,   "'%0' was not declared as a static member variable" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

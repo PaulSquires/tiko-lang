@@ -1123,6 +1123,9 @@ sub WalkStmt _
             '' which nothing noticed only because indexing was not lowered either.
             t = ArrayFromBoundsNode( c, t, ip->c, ip->b, here )
             ArrayTooBig_( c, t, item, ip->name )
+            if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) <> 0 then
+                CheckStaticMemberVar_( c, scope_, item, ip->ownerName, ip->name )
+            end if
             '' 'dim BYREF rb as integer = a' ALIASES a. Its type is a REFERENCE, which
             '' is the same shape a byref PARAMETER has -- and every piece of the model
             '' already follows from that one fact: the slot lowers to a pointer, and

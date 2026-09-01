@@ -154,3 +154,45 @@ private function LookupDottedType_ _
     wend
     return found
 end function
+
+'' 'dim UDT.i as integer' -- the DEFINITION of a static member variable. MEASURED with
+'' fbc: it is error 147 unless the type DECLARED 'static i as ...'. Both ways of getting
+'' it wrong are refused -- no such member at all (member-var-bad-3-*), and a member that
+'' is an ordinary FIELD rather than a static one (member-var-bad-4-*) -- and the good
+'' spelling beside them compiles, so the STATIC is what is being demanded, not the name.
+''
+'' Declines rather than reports whenever the owner does not resolve to a UDT: a qualifier
+'' naming a namespace, a generic, or something not collected yet is somebody else's
+'' diagnostic, and guessing here would refuse a file fbc accepts.
+private sub CheckStaticMemberVar_ _
+    ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval item as Tko.NodeId, _
+      byval ownerName as Tko.InternId, byval memberName as Tko.InternId )
+
+    if (ownerName = 0) orelse (memberName = 0) then return
+    dim as Tko.SymbolId osid = LookupDottedType_( c, scope_, ownerName )
+    dim as Tko.Symbol ptr osym = c.syms->SymbolAt( osid )
+    if osym = 0 then return
+    if osym->kind <> cast( ubyte, Tko.SYM_UDT ) then return
+    if osym->inner = Tko.SCOPE_NONE then return
+
+    '' THE BASES TOO. A static declared on the parent is reachable through the child's
+    '' name -- the same walk LookupDottedType_ makes for a static CALL.
+    dim as Tko.ScopeId sc = osym->inner
+    dim as Tko.SymbolId msid = c.syms->LookupLocalTyped( sc, memberName, true )
+    dim as long bdepth = 0
+    do while (msid = Tko.SYMBOL_NONE) andalso (bdepth < 32)
+        sc = BaseScopeOf_( c, sc )
+        if sc = Tko.SCOPE_NONE then exit do
+        msid = c.syms->LookupLocalTyped( sc, memberName, true )
+        bdepth += 1
+    loop
+
+    dim as Tko.Symbol ptr msym = c.syms->SymbolAt( msid )
+    if msym <> 0 then
+        if (msym->flags and Tko.SYMF_STATIC) <> 0 then return
+    end if
+    c.diags->Report( Tko.TKO0661, Tko.PointRange( c.ast->Loc( item ) ), _
+                     c.names->Spelling( ownerName ) & "." & _
+                     c.names->Spelling( memberName ) )
+end sub
+
