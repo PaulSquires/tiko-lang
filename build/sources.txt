@@ -152,3 +152,5 @@ io/fileinput.bas
 io/devstd.bas
 io/conprint.bas
 io/conlineinp.bas
+io/conprinttty.bas
+io/conttytail.bas

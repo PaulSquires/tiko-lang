@@ -1,0 +1,67 @@
+#ifndef __TKORT_CONHOOKS_BI__
+#define __TKORT_CONHOOKS_BI__
+
+'' conhooks.bi -- fb_ConHooks and fb_hConCheckScroll.
+''
+'' THE STRUCT IS THE CALLER'S, so its layout is the contract: every console
+'' driver -- fbc's win32 one, fbc's unix one, gfxlib2's -- fills one of these on
+'' its own stack and hands the address to fb_ConPrintTTY. Plain ints, natural
+'' alignment, and the #asserts hold it.
+''
+'' fb_hConCheckScroll IS A `static __inline__` IN fb_console.h AND HAS NO SYMBOL.
+'' Every C caller compiles its own copy; the archive exports none. Binding it as
+'' a function would compile and archive cleanly and then fail to link -- the same
+'' trap fb_wstr_Len sprang, where a single unresolved reference in one object
+'' broke every test in the differential, because diff.sh links tiko-rt's objects
+'' explicitly.
+''
+'' So it is a MACRO here, which is what an inline function is. It is a statement
+'' rather than an expression: fbc's returns TRUE/FALSE and not one caller in the
+'' runtime looks at the value.
+''
+'' Bottom = -1 MEANS "NO BOTTOM", i.e. never scroll -- not "row minus one".
+
+type fb_Rect
+	as long Left_, Top_, Right_, Bottom_
+end type
+
+type fb_Coord
+	as long X_, Y_
+end type
+
+type fb_ConHooks_ as fb_ConHooks
+
+type FnConScroll as sub cdecl _
+	( byval handle as fb_ConHooks_ ptr, byval x1 as long, byval y1 as long, _
+	  byval x2 as long, byval y2 as long, byval rows as long )
+type FnConWrite as function cdecl _
+	( byval handle as fb_ConHooks_ ptr, byval buffer as any ptr, byval length_ as uinteger ) as long
+
+type fb_ConHooks
+	as any ptr      Opaque
+	as FnConScroll  Scroll_
+	as FnConWrite   Write_
+	as fb_Rect      Border
+	as fb_Coord     Coord_
+end type
+
+#if defined( __FB_64BIT__ )
+	#assert sizeof( fb_ConHooks ) = 48
+	#assert offsetof( fb_ConHooks, Border ) = 24
+	#assert offsetof( fb_ConHooks, Coord_ ) = 40
+#else
+	#assert sizeof( fb_ConHooks ) = 36
+	#assert offsetof( fb_ConHooks, Border ) = 12
+	#assert offsetof( fb_ConHooks, Coord_ ) = 28
+#endif
+
+#define TKORT_CONCHECKSCROLL( h ) _
+	if( (h)->Border.Bottom_ <> -1 ) then : _
+		if( (h)->Coord_.Y_ > (h)->Border.Bottom_ ) then : _
+			(h)->Scroll_( (h), (h)->Border.Left_, (h)->Border.Top_, _
+			              (h)->Border.Right_, (h)->Border.Bottom_, _
+			              (h)->Coord_.Y_ - (h)->Border.Bottom_ ) : _
+		end if : _
+	end if
+
+#endif '' __TKORT_CONHOOKS_BI__

@@ -1,0 +1,297 @@
+'' conttytail.bas -- fb_ConPrintTTY and fb_ConPrintTTYWstr, the teletype layer
+'' over io/conprinttty.bas's raw one. Two symbols across two fbc members.
+''
+'' A SECOND FILE, NOT A SECOND HALF. fbc keeps con_print_raw.o and
+'' con_print_tty.o separate, and so does this: a program that only ever calls
+'' RAW must not drag the TTY interpreter in. The two are one .h template each,
+'' instantiated over `char` and over `FB_WCHAR`.
+''
+'' THE OUTPUT BUFFER IS AN ACCUMULATOR, AND ITS FLUSH POINTS ARE THE CONTRACT.
+'' Ordinary characters pile up in a 1024-element buffer; it is flushed when the
+'' next item would overflow it, or when a control code MOVES THE CURSOR.
+'' Flushing on cursor movement is what keeps the text and the position in step --
+'' without it, `PRINT "a" & CHR(13) & "b"` would draw both characters at the
+'' second position.
+''
+'' TAB EXPANDS TO SPACES, TO THE NEXT MULTIPLE OF EIGHT FROM THE LEFT BORDER:
+''
+''     ((x - left + 8) and not 7) - (x - left)
+''
+'' which is between 1 and 8 and never zero. The border matters -- a VIEW PRINT
+'' region tabs relative to its own left edge, not to the screen's.
+''
+'' LINE FEED BEHAVES DIFFERENTLY IN TEXT AND GRAPHICS MODE. In text mode it
+'' returns to the left border AND drops a row, which is a BASIC newline; in
+'' graphics mode it only drops a row, because a graphics cursor keeps its column.
+'' The flag is the caller's.
+''
+'' BACKSPACE AT THE LEFT BORDER MOVES NOTHING and still counts as a movement, so
+'' it still flushes. Not a wasted flush: the coordinate is re-read from the hooks
+'' afterwards, and the flush may have scrolled.
+''
+'' THE WRAP IS ARITHMETIC, NOT A LOOP. A tab, or a batch that crosses several
+'' lines, advances the column past the right border and is then reduced modulo
+'' the border width with the quotient added to the row. A loop would be right for
+'' one line and wrong for three.
+''
+'' A ZERO-WIDTH BORDER RETURNS IMMEDIATELY, and that is a real guard: gfxlib2 can
+'' produce a console of zero columns and the modulo would divide by zero.
+
+#include once "inc/descriptors.bi"
+#include once "inc/conhooks.bi"
+
+const OUTPUT_BUFFER_SIZE = 1024
+
+extern "rtlib"
+	declare sub tkrt_Beep alias "fb_Beep" ( )
+end extern
+
+extern "c"   '' NON-FBCALL: fb_console.h declares these plainly, and the raw
+             '' layer they call lives in io/conprinttty.bas.
+	declare sub tkrt_ConPrintRaw alias "fb_ConPrintRaw" _
+		( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, byval textLength as uinteger )
+	declare sub tkrt_ConPrintRawWstr alias "fb_ConPrintRawWstr" _
+		( byval handle as fb_ConHooks ptr, byval pachText as wstring ptr, byval textLength as uinteger )
+end extern
+
+extern "c"   '' NON-FBCALL, as above.
+
+'' The narrow and wide bodies are identical except for the element type, and fbc
+'' generates both from one template. They are written out twice rather than
+'' behind a FreeBASIC macro: a ninety-line macro is harder to read than the
+'' duplication, and the two differ in three places anyway.
+
+sub tkort_ConPrintTTY alias "fb_ConPrintTTY" _
+	( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, _
+	  byval TextLength as uinteger, byval is_text_mode as long )
+
+	'' Eight spaces, the most a tab can expand to.
+	static as ubyte achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
+
+	dim as ubyte OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
+	dim as uinteger OutputBufferLength = 0, OutputBufferChars = 0
+	dim as fb_Coord dwCurrentCoord = any, dwMoveCoord
+	dim as long fGotNewCoordinate = 0
+	dim as long BorderWidth = handle->Border.Right_ - handle->Border.Left_ + 1
+
+	if( BorderWidth = 0 ) then exit sub
+
+	dwCurrentCoord = handle->Coord_
+	dwMoveCoord.X_ = 0
+	dwMoveCoord.Y_ = 0
+
+	for IndexText as uinteger = 0 to TextLength - 1
+
+		dim as ubyte ptr pachOutputData = pachText
+		dim as uinteger OutputDataLength = 0, OutputDataChars = 0
+		dim as long fDoFlush = 0, fSetNewCoord = 0
+		dim as ubyte ch = *pachOutputData
+
+		select case ch
+		case 7                             '' bell
+			tkrt_Beep( )
+
+		case 8                             '' backspace
+			fSetNewCoord = 1
+			'' AT THE LEFT BORDER IT MOVES NOTHING -- and still flushes.
+			dwMoveCoord.X_ = iif( dwCurrentCoord.X_ > handle->Border.Left_, -1, 0 )
+			dwMoveCoord.Y_ = 0
+
+		case 10                            '' line feed
+			fSetNewCoord = 1
+			if( is_text_mode <> 0 ) then
+				'' Text mode: back to the left border AND down a row.
+				dwMoveCoord.X_ = handle->Border.Left_ - dwCurrentCoord.X_
+				dwMoveCoord.Y_ = 1
+			else
+				'' Graphics mode keeps the column.
+				dwMoveCoord.X_ = 0
+				dwMoveCoord.Y_ = 1
+			end if
+
+		case 13                            '' carriage return
+			fSetNewCoord = 1
+			dwMoveCoord.X_ = handle->Border.Left_ - dwCurrentCoord.X_
+			dwMoveCoord.Y_ = 0
+
+		case 9                             '' tab
+			pachOutputData = @achTabSpaces(0)
+			OutputDataLength = ((dwCurrentCoord.X_ - handle->Border.Left_ + 8) and (not 7)) - _
+			                    (dwCurrentCoord.X_ - handle->Border.Left_)
+			OutputDataChars = OutputDataLength
+
+		case else
+			OutputDataLength = 1
+			OutputDataChars = 1
+		end select
+
+		if( OutputDataLength + OutputBufferLength > OUTPUT_BUFFER_SIZE ) then
+			fDoFlush = 1
+		elseif( fSetNewCoord <> 0 ) then
+			fDoFlush = 1
+		end if
+
+		if( fDoFlush <> 0 ) then
+			if( OutputBufferLength <> 0 ) then
+				tkrt_ConPrintRaw( handle, @OutputBuffer(0), OutputBufferChars )
+				OutputBufferLength = 0
+				OutputBufferChars = 0
+				fGotNewCoordinate = 0
+			end if
+		end if
+
+		if( fSetNewCoord <> 0 ) then
+			handle->Coord_.X_ += dwMoveCoord.X_
+			handle->Coord_.Y_ += dwMoveCoord.Y_
+			'' RE-READ FROM THE HOOKS, not kept in the local -- the flush above
+			'' may have scrolled and moved it.
+			dwCurrentCoord = handle->Coord_
+			fGotNewCoordinate = 1
+		end if
+
+		if( OutputDataLength <> 0 ) then
+			dwCurrentCoord.X_ += OutputDataChars
+			if( dwCurrentCoord.X_ > handle->Border.Right_ ) then
+				'' ARITHMETIC, NOT A LOOP -- a batch may cross several lines.
+				dim as long NormalX = dwCurrentCoord.X_ - handle->Border.Left_
+				dwCurrentCoord.X_ = (NormalX mod BorderWidth) + handle->Border.Left_
+				dwCurrentCoord.Y_ += NormalX \ BorderWidth
+			end if
+			for k as uinteger = 0 to OutputDataLength - 1
+				OutputBuffer(OutputBufferLength) = pachOutputData[k]
+				OutputBufferLength += 1
+			next
+			OutputBufferChars += OutputDataChars
+		end if
+
+		pachText += 1
+	next
+
+	if( OutputBufferLength <> 0 ) then
+		tkrt_ConPrintRaw( handle, @OutputBuffer(0), OutputBufferChars )
+	elseif( fGotNewCoordinate <> 0 ) then
+		'' NOTHING WAS DRAWN BUT THE CURSOR MOVED -- a lone CHR(13) on the
+		'' bottom row still has to be able to scroll.
+		TKORT_CONCHECKSCROLL( handle )
+	end if
+end sub
+
+sub tkort_ConPrintTTYWstr alias "fb_ConPrintTTYWstr" _
+	( byval handle as fb_ConHooks ptr, byval pachText as wstring ptr, _
+	  byval TextLength as uinteger, byval is_text_mode as long )
+
+	#if sizeof( wstring ) = 2
+		static as ushort achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
+		dim as ushort OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
+		dim as ushort ptr t = cast( ushort ptr, pachText )
+		dim as ushort ptr pachOutputData = any
+	#else
+		static as ulong achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
+		dim as ulong OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
+		dim as ulong ptr t = cast( ulong ptr, pachText )
+		dim as ulong ptr pachOutputData = any
+	#endif
+
+	dim as uinteger OutputBufferLength = 0, OutputBufferChars = 0
+	dim as fb_Coord dwCurrentCoord = any, dwMoveCoord
+	dim as long fGotNewCoordinate = 0
+	dim as long BorderWidth = handle->Border.Right_ - handle->Border.Left_ + 1
+
+	if( BorderWidth = 0 ) then exit sub
+
+	dwCurrentCoord = handle->Coord_
+	dwMoveCoord.X_ = 0
+	dwMoveCoord.Y_ = 0
+
+	for IndexText as uinteger = 0 to TextLength - 1
+
+		pachOutputData = t
+		dim as uinteger OutputDataLength = 0, OutputDataChars = 0
+		dim as long fDoFlush = 0, fSetNewCoord = 0
+		dim as ulong ch = *pachOutputData
+
+		select case ch
+		case 7
+			tkrt_Beep( )
+
+		case 8
+			fSetNewCoord = 1
+			dwMoveCoord.X_ = iif( dwCurrentCoord.X_ > handle->Border.Left_, -1, 0 )
+			dwMoveCoord.Y_ = 0
+
+		case 10
+			fSetNewCoord = 1
+			if( is_text_mode <> 0 ) then
+				dwMoveCoord.X_ = handle->Border.Left_ - dwCurrentCoord.X_
+				dwMoveCoord.Y_ = 1
+			else
+				dwMoveCoord.X_ = 0
+				dwMoveCoord.Y_ = 1
+			end if
+
+		case 13
+			fSetNewCoord = 1
+			dwMoveCoord.X_ = handle->Border.Left_ - dwCurrentCoord.X_
+			dwMoveCoord.Y_ = 0
+
+		case 9
+			pachOutputData = @achTabSpaces(0)
+			OutputDataLength = ((dwCurrentCoord.X_ - handle->Border.Left_ + 8) and (not 7)) - _
+			                    (dwCurrentCoord.X_ - handle->Border.Left_)
+			OutputDataChars = OutputDataLength
+
+		case else
+			'' ONE CHARACTER, NOT ONE BYTE. fbc's FB_TCHAR_GET_CHAR_SIZE is 1
+			'' for both instantiations, so the buffer is indexed in ELEMENTS
+			'' and the wide version needs no width arithmetic anywhere.
+			OutputDataLength = 1
+			OutputDataChars = 1
+		end select
+
+		if( OutputDataLength + OutputBufferLength > OUTPUT_BUFFER_SIZE ) then
+			fDoFlush = 1
+		elseif( fSetNewCoord <> 0 ) then
+			fDoFlush = 1
+		end if
+
+		if( fDoFlush <> 0 ) then
+			if( OutputBufferLength <> 0 ) then
+				tkrt_ConPrintRawWstr( handle, cast( wstring ptr, @OutputBuffer(0) ), OutputBufferChars )
+				OutputBufferLength = 0
+				OutputBufferChars = 0
+				fGotNewCoordinate = 0
+			end if
+		end if
+
+		if( fSetNewCoord <> 0 ) then
+			handle->Coord_.X_ += dwMoveCoord.X_
+			handle->Coord_.Y_ += dwMoveCoord.Y_
+			dwCurrentCoord = handle->Coord_
+			fGotNewCoordinate = 1
+		end if
+
+		if( OutputDataLength <> 0 ) then
+			dwCurrentCoord.X_ += OutputDataChars
+			if( dwCurrentCoord.X_ > handle->Border.Right_ ) then
+				dim as long NormalX = dwCurrentCoord.X_ - handle->Border.Left_
+				dwCurrentCoord.X_ = (NormalX mod BorderWidth) + handle->Border.Left_
+				dwCurrentCoord.Y_ += NormalX \ BorderWidth
+			end if
+			for k as uinteger = 0 to OutputDataLength - 1
+				OutputBuffer(OutputBufferLength) = pachOutputData[k]
+				OutputBufferLength += 1
+			next
+			OutputBufferChars += OutputDataChars
+		end if
+
+		t += 1
+	next
+
+	if( OutputBufferLength <> 0 ) then
+		tkrt_ConPrintRawWstr( handle, cast( wstring ptr, @OutputBuffer(0) ), OutputBufferChars )
+	elseif( fGotNewCoordinate <> 0 ) then
+		TKORT_CONCHECKSCROLL( handle )
+	end if
+end sub
+
+end extern
