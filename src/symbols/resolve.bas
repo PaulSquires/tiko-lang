@@ -1005,6 +1005,11 @@ sub WalkStmt _
             if c.ast->Kind( it ) <> Tko.N_ENUM_ITEM then continue for
             dim as Tko.StmtPayload ptr ip = StmtOf( c, it )
             if ip->b <> Tko.NODE_NONE then
+                '' WALKED, not only folded. ConstOf answers the VALUE without binding
+                '' anything, so an initialiser like 'NEXTCONST = T.MYCONST' reached
+                '' every later pass with no symbol on it at all -- and the member-access
+                '' checks, which need one, could say nothing about it.
+                WalkExpr( c, ip->b, here )
                 dim as Tko.Check.ConstVal ev = Tko.Check.ConstOf( _
                     *c.ast, ip->b, *c.srcMgr, *c.names, 64, c.syms, here )
                 '' An initialiser that will not fold leaves the running value alone:
