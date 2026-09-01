@@ -490,6 +490,41 @@ private sub CheckParamDefault_ ( byref c as Ctx, byval id as NodeId )
     CheckAutoRef_( c, sp->b )
 end sub
 
+'' AN ARRAY IS INDEXED WITH AS MANY SUBSCRIPTS AS IT HAS DIMENSIONS -- fbc error 36,
+'' "Wrong number of dimensions". Measured: 'a( 0 )' over 'a( 0 to 1, 0 to 1 )' is refused,
+'' and so is a 'redim' that changes the count.
+''
+'' NONE AT ALL IS THE WHOLE-ARRAY SPELLING and is left alone; a DYNAMIC array records -1
+'' for its rank and is not asked, because its shape is whatever the last redim made it.
+private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count = 0 then return
+    if lp->target = NODE_NONE then return
+    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if ts = 0 then return
+    if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    if ts->type_ = TYPE_NONE then return
+    dim as TypeId u = c.types->Unqualify( ts->type_ )
+    if c.types->Kind( u ) <> TK_ARRAY then return
+    '' A FIXED-LENGTH STRING is an array of a character builtin, and 's( 0 )' over one is
+    '' an ordinary character access rather than a rank mismatch.
+    dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+    if el <> TYPE_NONE then
+        if c.types->Kind( el ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( el )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                return
+            end select
+        end if
+    end if
+    dim as long dims = c.types->types[cast( long, u )].dims
+    if dims <= 0 then return
+    if lp->count = dims then return
+    c.diags->Report( TKO0658, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( ts->name ) )
+end sub
+
 '' AN ARRAY IS NOT A SUBSCRIPT -- fbc error 73, "Array access, index expected".
 '' 'print a1( a2 )' over two arrays is refused; 'a1( i )' over an integer is the ordinary
 '' access.
@@ -757,6 +792,7 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
+    if (k = N_CALL) orelse (k = N_INDEX) then CheckSubscriptCount_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id, here )
     if k = N_CALL then CheckIifArms_( c, id )

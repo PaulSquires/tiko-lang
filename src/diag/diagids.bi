@@ -212,6 +212,8 @@
     DIAG( TKO0656, SEV_ERROR,   "'%0' is extern or common and cannot be initialized" )
     '' fbc's error 183. Nothing to call, and no initialiser naming what to call instead.
     DIAG( TKO0657, SEV_ERROR,   "the type of '%0' has no constructor that takes no argument" )
+    '' fbc's error 36. As many subscripts as the array has dimensions, or none at all.
+    DIAG( TKO0658, SEV_ERROR,   "'%0' is indexed with the wrong number of subscripts" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

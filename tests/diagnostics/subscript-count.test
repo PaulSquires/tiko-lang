@@ -1,0 +1,6 @@
+'' An array is indexed with as many subscripts as it has dimensions -- but none at all is
+'' the whole-array spelling, and a dynamic array's rank is whatever the last redim made it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/subscript-count.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/subscript-count.out
