@@ -1,0 +1,11 @@
+'' A byref result must be assigned something of exactly its type (fbc error 318) --
+'' 'long' is refused against 'integer' though it is the same width, and const goes one
+'' way only. A local still cannot be returned at all (272), through a field's array too.
+'' Matches fbc line for line -- 25, 30, 35, 40. THE RULE IS CHECKED ONLY FOR A NAMED
+'' variable of a non-string scalar builtin: fbc's real rule is wider for strings and for
+'' expressions that are not names, and four of this suite's own MIR tests proved it after
+'' a 1222-file corpus scan had reported nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-result-type.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/byref-result-type.out

@@ -1,0 +1,8 @@
+'' A var-len string with static storage cannot be initialised (fbc error 87), including
+'' the two shapes whose initialiser does not hang off the symbol's own declaration: a
+'' type's static member defined outside the type, and a namespace variable defined by a
+'' qualified name. A FIXED string is not one. Matches fbc on lines 18 and 19.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/qualified-string-init.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/qualified-string-init.out

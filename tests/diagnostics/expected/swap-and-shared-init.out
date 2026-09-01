@@ -43,7 +43,7 @@ lowered: 3 functions, 3 blocks, 16 insts, 2 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 2
   inside N_INTRINSIC 2
   unlowered intrinsic KW_SWAP 2
-  skip-site src\mir\lowerctl.bas:194 2
+  skip-site src\mir\lowerctl.bas:206 2
 tests/diagnostics/src/swap-and-shared-init.bas(26,13): error TKO0642: 'swap' needs two variables, not a literal or a constant
      |
   26 |     swap a, 0
@@ -52,7 +52,7 @@ tests/diagnostics/src/swap-and-shared-init.bas(27,10): error TKO0642: 'swap' nee
      |
   27 |     swap K, b
      |          ^
-tests/diagnostics/src/swap-and-shared-init.bas(23,33): error TKO0640: a parameter default cannot name 'stat_', which has automatic storage
+tests/diagnostics/src/swap-and-shared-init.bas(23,33): error TKO0668: a shared initialiser cannot reference 'stat_', which is not shared
      |
   23 | dim shared as integer ptr pi = @stat_
      |                                 ^

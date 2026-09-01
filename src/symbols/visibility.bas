@@ -840,6 +840,79 @@ private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
                      c.names->Spelling( sp->name ) )
 end sub
 
+'' A BYREF RESULT MUST BE ASSIGNED SOMETHING OF EXACTLY ITS TYPE -- fbc error 318, "Type
+'' mismatch in byref function result assignment". A byref result hands back the storage
+'' itself, so there is nowhere for a conversion to happen.
+''
+'' EXACTLY is the word. Measured, against 'function f( ) byref as integer':
+''     static i as integer          OK
+''     static i as double           error 318
+''     static i as long             error 318   -- the SAME SIZE, and still refused
+''     static i as const integer    error 318   -- the qualifier counts
+''     ...and 'byref as const integer' takes the const one, so it is identity, not width.
+private sub CheckByrefResultType_ _
+    ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean, _
+      byval resultType as TypeId )
+
+    if byrefResult = false then return
+    if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->b = NODE_NONE then return
+    '' ONLY WHAT WAS MEASURED: a NAMED variable of a non-string scalar builtin, on both
+    '' sides. The corpus scan reported no false rejection, and this suite's own MIR tests
+    '' then found four -- every one of them a STRING:
+    ''
+    ''     operator U.cast( ) byref as const zstring : operator = this._data
+    ''         'zstring * N' is an ARRAY of TY_ZSTRING, never identical to plain zstring
+    ''     function refZ( ) byref as zstring : function = "also good"
+    ''         a LITERAL, and fbc takes it
+    ''     function refI( ) byref as integer : function = byval pi
+    ''         not a name at all
+    ''
+    '' fbc's real rule here is wider than identity for those shapes and this pass cannot
+    '' model it, so they are declined rather than guessed at. A CLEAN CORPUS SCAN IS NOT
+    '' PROOF: 1222 files said nothing about any of the four.
+    if c.ast->Kind( sp->b ) <> N_IDENT then return
+    dim as TypeId rt = resultType
+    dim as TypeId vt = c.info->TypeOf_( sp->b )
+    if (rt = TYPE_NONE) orelse (vt = TYPE_NONE) then return
+    if rt = vt then return
+    '' A REFERENCE ON EITHER SIDE IS THE SAME TYPE. A byref parameter's type is spelled
+    '' as one, and returning it is the ordinary way to pass storage through.
+    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Inner( rt )
+    if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Inner( vt )
+    if rt = vt then return
+
+    '' CONST GOES ONE WAY ONLY, and the two directions are not symmetric -- measured:
+    ''     byref as integer       <- const integer     error 318   dropping it
+    ''     byref as const integer <- integer           OK          adding it
+    '' So the unqualified types must be identical, and a const value additionally
+    '' demands a const result. Comparing the qualified ids outright refused the second
+    '' line, which is a file fbc accepts.
+    '' Both sides a NON-STRING scalar builtin -- see the header.
+    if c.types->Kind( c.types->Unqualify( rt ) ) <> TK_BUILTIN then return
+    if c.types->Kind( c.types->Unqualify( vt ) ) <> TK_BUILTIN then return
+    select case c.types->BuiltinOf( c.types->Unqualify( rt ) )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return
+    end select
+    select case c.types->BuiltinOf( c.types->Unqualify( vt ) )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return
+    end select
+
+    dim as boolean valueConst = c.types->IsConst( vt )
+    dim as boolean resConst = c.types->IsConst( rt )
+    if c.types->Unqualify( rt ) <> c.types->Unqualify( vt ) then
+        c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
+        return
+    end if
+    if valueConst andalso (resConst = false) then
+        c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
+    end if
+end sub
+
 '' A BYREF RESULT CANNOT RETURN A LOCAL -- fbc error 272, "Local symbols can't be
 '' referenced". The caller is handed a reference, and the frame it points into is gone by
 '' the time it is read. Measured, all three shapes:
@@ -869,6 +942,18 @@ private sub CheckByrefResultValue_ _
         dim as NodeKind hk = c.ast->Kind( head )
         if hk = N_MEMBER then
             head = c.ast->binaries[cast( long, c.ast->nodes[cast( long, head )].data )].lhs
+        elseif hk = N_CALL then
+            '' AN ARRAY SUBSCRIPT IS SPELLED LIKE A CALL. 'x.a(0)' over a FIELD array
+            '' stopped the walk here: the branch below resolved the target 'x.a' to a
+            '' SYM_FIELD, which is neither a proc nor a variable, and the statement was
+            '' let through. Descending into the target continues to 'x' -- which is the
+            '' local the rule is about. A real CALL still stops, and is judged below.
+            dim as ListPayload ptr cl = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
+            dim as Symbol ptr cts = c.syms->SymbolAt( c.info->RefOf( cl->target ) )
+            if cts = 0 then exit while
+            if cts->kind <> cast( ubyte, SYM_FIELD ) then exit while
+            head = cl->target
         elseif (hk = N_INDEX) orelse (hk = N_PAREN) then
             dim as ListPayload ptr lp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
@@ -920,7 +1005,7 @@ end sub
 private sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
       byval byrefResult as boolean = false, byval constMethod as boolean = false, _
-      byval withThis as boolean = false )
+      byval withThis as boolean = false, byval resultType as TypeId = TYPE_NONE )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     dim as TypeId inner = here
@@ -934,12 +1019,21 @@ private sub Walk_ _
     '' a write through THIS depends on what the enclosing 'with' opened. Carried down for
     '' the same reason the constness is: the answer is not in the node.
     dim as boolean innerWith = withThis
+    '' THE DECLARED RESULT TYPE, carried down because 'function = expr' names no symbol
+    '' -- Check leaves the N_FUNCRESULT untyped, so the only handle on what the result
+    '' was declared as is the procedure node the walk came through.
+    dim as TypeId innerResult = resultType
     if k = N_WITH then
         dim as StmtPayload ptr wp = _
             @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
         innerWith = IsThisBase_( c, wp->a )
     end if
     if k = N_PROC then innerWith = false
+    if k = N_PROC then
+        dim as StmtPayload ptr rpp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        innerResult = c.info->TypeOf_( rpp->a )
+    end if
     if k = N_PROC then
         inner = ProcOwner_( c, id )
         '' THE 'const' IS ON THE DECLARATION, NOT ON THE BODY. 'declare const sub proc3( )'
@@ -968,6 +1062,7 @@ private sub Walk_ _
         innerByref = ((c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0)
     end if
     if k = N_AMBIGUOUS then CheckByrefResultValue_( c, id, innerByref )
+    if k = N_AMBIGUOUS then CheckByrefResultType_( c, id, innerByref, innerResult )
     if k = N_MEMBER then CheckMember_( c, id, here )
     if k = N_DELETE_STMT then CheckDelete_( c, id, here )
     if k = N_MEMBER then CheckDeref_( c, id )
@@ -998,20 +1093,20 @@ private sub Walk_ _
         case N_BINARY
             dim as BinaryPayload ptr bp = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, bp->lhs, inner, innerByref, innerConst, innerWith )
-            Walk_( c, bp->rhs, inner, innerByref, innerConst, innerWith )
+            Walk_( c, bp->lhs, inner, innerByref, innerConst, innerWith, innerResult )
+            Walk_( c, bp->rhs, inner, innerByref, innerConst, innerWith, innerResult )
             return
         case N_MEMBER
             dim as BinaryPayload ptr mp = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
             '' ONLY THE BASE. The right-hand side is the member NAME, and Check bound it
             '' to the same symbol -- walking it would report the same access twice.
-            Walk_( c, mp->lhs, inner, innerByref, innerConst, innerWith )
+            Walk_( c, mp->lhs, inner, innerByref, innerConst, innerWith, innerResult )
             return
         case N_UNARY, N_ADDROF, N_DEREF
             dim as UnaryPayload ptr up = _
                 @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, up->operand, inner, innerByref, innerConst, innerWith )
+            Walk_( c, up->operand, inner, innerByref, innerConst, innerWith, innerResult )
             return
         '' THE LIST KINDS, SPELLED OUT. 'data' is an index into ONE OF FOUR POOLS and
         '' the node kind is the only thing that says which -- the payload-pool mistake
@@ -1021,9 +1116,9 @@ private sub Walk_ _
         case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_INITIALIZER, N_STRCAT
             dim as ListPayload ptr lp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-            Walk_( c, lp->target, inner, innerByref, innerConst, innerWith )
+            Walk_( c, lp->target, inner, innerByref, innerConst, innerWith, innerResult )
             for i as long = 0 to lp->count - 1
-                Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith )
+                Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
             next
             return
         case else
@@ -1041,18 +1136,18 @@ private sub Walk_ _
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         for i as long = 0 to lp->count - 1
-            Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith )
+            Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
         next
         return
     end if
 
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    Walk_( c, sp->a, inner, innerByref, innerConst, innerWith )
-    Walk_( c, sp->b, inner, innerByref, innerConst, innerWith )
-    Walk_( c, sp->c, inner, innerByref, innerConst, innerWith )
+    Walk_( c, sp->a, inner, innerByref, innerConst, innerWith, innerResult )
+    Walk_( c, sp->b, inner, innerByref, innerConst, innerWith, innerResult )
+    Walk_( c, sp->c, inner, innerByref, innerConst, innerWith, innerResult )
     for i as long = 0 to sp->count - 1
-        Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner, innerByref, innerConst, innerWith )
+        Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
     next
 end sub
 
@@ -1092,6 +1187,61 @@ private function ScopeIsStatic_ _
     wend
     return false
 end function
+
+'' ...AND THE DECLARATIONS THE SYMBOL SWEEP CANNOT SEE. CheckStaticStringInits walks the
+'' SYMBOL table and reads the initialiser off the symbol's own declaration item -- which
+'' is the FIRST declaration of that name. Two shapes hang the initialiser somewhere else:
+''
+''     extern s as string        the symbol's item is the EXTERN, which has no initialiser
+''     dim s as string = "foo"   ...and this one, which does, is not the symbol's item
+''
+''     type UDT : static s as string : end type    likewise: the symbol's item is inside
+''     var UDT.s = "foo"                           the type, and the DEFINITION is here
+''
+'' So this sweeps the AST instead, and reports only when the item is NOT the symbol's own
+'' -- otherwise every ordinary static string initialiser would be reported twice.
+''
+'' A QUALIFIED NAME IS ALWAYS STATIC STORAGE: it defines a type's static member or a
+'' namespace's variable, and neither is a local.
+private sub CheckQualifiedStringInits_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if ip->b = NODE_NONE then continue for
+
+        '' A VAR-LEN STRING, whether written out or inferred from the initialiser.
+        dim as TypeId t = TYPE_NONE
+        if ip->a <> NODE_NONE then
+            t = c.info->TypeOf_( ip->a )
+        else
+            t = c.info->TypeOf_( ip->b )
+        end if
+        if t = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( t )
+        if c.types->Kind( u ) <> TK_BUILTIN then continue for
+        if c.types->BuiltinOf( u ) <> TY_STRING then continue for
+
+        dim as boolean qualified = _
+            ((c.ast->nodes[n].flags and NF_QUALIFIED) <> 0)
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if qualified = false then
+            if s = 0 then continue for
+            '' NOT THE SYMBOL'S OWN ITEM -- see above; that one is already reported.
+            if cast( NodeId, s->payload ) = id then continue for
+            if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN)) = 0 then
+                if ScopeIsStatic_( c, s->parent ) = false then continue for
+            end if
+        else
+            if s <> 0 then
+                if cast( NodeId, s->payload ) = id then continue for
+            end if
+        end if
+        c.diags->Report( TKO0628, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( ip->name ) )
+    next
+end sub
 
 private sub CheckStaticStringInits( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
@@ -1139,10 +1289,12 @@ sub Run _
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
     '' an inferred type does not exist until Check has run.
     CheckStaticStringInits( c )
+    CheckQualifiedStringInits_( c )
     CheckImplicitStructors_( c )
     CheckFixLenParams_( c )
     CheckNestedStatics_( c )
     CheckSharedInits_( c )
+    CheckQualifiedInits_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )

@@ -1,0 +1,9 @@
+'' A shared initialiser may not reference something that is not shared (fbc error 272) --
+'' a module-level 'static' has internal linkage. A SHARED source, a plain module-level
+'' 'dim' target, a 'static' target and merely reading the static are all accepted. Now
+'' reaches through a constructor call's arguments and through a qualified definition.
+'' Matches fbc on lines 14 and 21.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-source-init.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/static-source-init.out

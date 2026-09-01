@@ -227,6 +227,11 @@
     DIAG( TKO0664, SEV_ERROR,   "'%0' cannot be written from a const method" )
     DIAG( TKO0665, SEV_ERROR,   "a const method cannot call the non-const method '%0'" )
     DIAG( TKO0666, SEV_ERROR,   "the type declares no '%0' to call" )
+    '' fbc's error 318.
+    DIAG( TKO0667, SEV_ERROR,   "a byref result must be assigned something of exactly its type" )
+    '' fbc's error 272, over an INITIALISER. Was reported as TKO0640, whose wording is
+    '' about a PARAMETER DEFAULT and was wrong for this shape.
+    DIAG( TKO0668, SEV_ERROR,   "a shared initialiser cannot reference '%0', which is not shared" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

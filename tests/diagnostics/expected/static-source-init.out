@@ -1,0 +1,36 @@
+global var i64 main$si
+global var i64 shi
+global var ptr main$okstatic = @main$si
+global var ptr okshared = @shi
+global var ptr bad1 = @main$si
+global var ptr _ZN6HOLDER3HP$E = @main$si
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr okplain
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr okplain
+    store @okplain, @@main$si
+    call.rtl void fb_PrintULongint(0, @@main$si, 1)
+    %5 = const i32 0
+    call.rtl void fb_End(%5)
+    %6 = load @$tmp0
+    ret %6
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintULongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 11 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/static-source-init.bas(14,35): error TKO0668: a shared initialiser cannot reference 'si', which is not shared
+     |
+  14 | dim shared as integer ptr bad1 = @si
+     |                                   ^
+tests/diagnostics/src/static-source-init.bas(21,33): error TKO0668: a shared initialiser cannot reference 'si', which is not shared
+     |
+  21 | dim Holder.hp as integer ptr = @si
+     |                                 ^

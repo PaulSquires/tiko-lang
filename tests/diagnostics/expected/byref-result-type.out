@@ -1,0 +1,90 @@
+global var i64 OK1$i
+global var i64 OK2$i
+global var f64 BAD1$d
+global var i32 BAD2$l
+global var i64 BAD3$ci = 0
+func ptr OK1() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@OK1$i
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr OK2() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@OK2$i
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr BAD1() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@BAD1$d
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr BAD2() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@BAD2$l
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr BAD3() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@BAD3$ci
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr BAD4() {
+  local ptr $tmp0
+  local agg x size 16
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr x
+    %4 = field.addr @x, 0
+    %5 = const i64 0
+    %6 = const i64 8
+    %7 = mul %5, %6
+    %8 = ptr.add %4, %7
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    ret %9
+}
+verify: ok
+lowered: 6 functions, 6 blocks, 36 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/byref-result-type.bas(25,16): error TKO0667: a byref result must be assigned something of exactly its type
+     |
+  25 |     function = d
+     |                ^
+tests/diagnostics/src/byref-result-type.bas(30,16): error TKO0667: a byref result must be assigned something of exactly its type
+     |
+  30 |     function = l
+     |                ^
+tests/diagnostics/src/byref-result-type.bas(35,16): error TKO0667: a byref result must be assigned something of exactly its type
+     |
+  35 |     function = ci
+     |                ^
+tests/diagnostics/src/byref-result-type.bas(40,19): error TKO0650: a byref result cannot return a local
+     |
+  40 |     function = x.a(0)
+     |                   ^

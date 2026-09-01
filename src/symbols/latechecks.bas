@@ -112,7 +112,7 @@ private sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as I
         if s = 0 then return
         if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
         if (s->flags and (SYMF_SHARED or SYMF_EXTERN or SYMF_COMMON)) <> 0 then return
-        c.diags->Report( TKO0640, PointRange( c.ast->Loc( id ) ), _
+        c.diags->Report( TKO0668, PointRange( c.ast->Loc( id ) ), _
                          c.names->Spelling( s->name ) )
         return
     end if
@@ -127,7 +127,11 @@ private sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as I
         dim as UnaryPayload ptr up = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
         CheckSharedRef_( c, up->operand, vnm )
-    case N_PAREN, N_TUPLE, N_INITIALIZER
+    case N_PAREN, N_TUPLE, N_INITIALIZER, N_CALL
+        '' A CALL'S ARGUMENTS, BUT NOT ITS CALLEE. 'dim shared as UDT g = UDT( si )'
+        '' constructs from a module-level static, which fbc refuses for exactly the same
+        '' reason as '@si' -- and stopping at the call let it through. The callee names a
+        '' type or a procedure, never a variable, so walking it would say nothing.
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         for i as long = 0 to lp->count - 1
@@ -574,6 +578,22 @@ private sub CheckByrefBinding_( byref c as Ctx )
         if noAddress = false then continue for
         c.diags->Report( TKO0643, PointRange( c.ast->Loc( init ) ), _
                          c.names->Spelling( s->name ) )
+    next
+end sub
+
+'' ...AND THE QUALIFIED DEFINITIONS, over the AST. 'dim UDT.pi as integer ptr = @si'
+'' defines a type's STATIC MEMBER, which has static storage and the same restriction -- but
+'' the symbol's own declaration item is the 'static pi as ...' INSIDE the type, which
+'' carries no initialiser, so the sweep below never saw this one.
+private sub CheckQualifiedInits_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
+        if (c.ast->nodes[n].flags and NF_QUALIFIED) = 0 then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if ip->b = NODE_NONE then continue for
+        CheckSharedRef_( c, ip->b, ip->name )
     next
 end sub
 
