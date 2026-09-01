@@ -1213,6 +1213,43 @@ end function
 '' that NOTHING EVER INITIALISES, so every element access dereferenced a garbage data
 '' pointer, with 0 statements not lowered and verify ok. fbc writes 'static int32
 '' T$[3];' and, run, prints ' 0 2 10 20 30' for lbound/ubound and the three elements.
+'' THE TYPEREFS INSIDE A BOUND, RESOLVED BEFORE IT IS FOLDED. A bound is folded HERE, to
+'' build the array's type, and the expression it sits in is not walked until afterwards --
+'' so 'sizeof( zstring * 16 )' inside one reached ConstOf with its N_TYPEREF still untyped
+'' and answered nothing. The array then had no constant size and became DYNAMIC.
+private sub ResolveBoundTypeRefs_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId, _
+      byval depth as long = 0 )
+
+    if id = Tko.NODE_NONE then return
+    if depth > 16 then return
+    dim as Tko.NodeKind k = c.ast->Kind( id )
+    if k = Tko.N_TYPEREF then
+        ResolveTypeRef( c, id, scope_ )
+        return
+    end if
+    '' Only the shapes a bound is built from, spelled out: 'data' indexes one of four
+    '' pools and the node kind is the only thing that says which.
+    select case k
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        ResolveBoundTypeRefs_( c, bp->lhs, scope_, depth + 1 )
+        ResolveBoundTypeRefs_( c, bp->rhs, scope_, depth + 1 )
+    case Tko.N_UNARY
+        dim as Tko.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        ResolveBoundTypeRefs_( c, up->operand, scope_, depth + 1 )
+    case Tko.N_CALL, Tko.N_PAREN, Tko.N_INDEX, Tko.N_TUPLE
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            ResolveBoundTypeRefs_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
+                                   scope_, depth + 1 )
+        next
+    end select
+end sub
+
 function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
       byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
@@ -1249,10 +1286,13 @@ function ArrayFromPairs _
     for i as long = 0 to los.Count - 1
         dim as longint lo = 0
         dim as Tko.NodeId loN = cast( Tko.NodeId, los[i] )
+        ResolveBoundTypeRefs_( c, loN, cscope )
+        ResolveBoundTypeRefs_( c, cast( Tko.NodeId, his[i] ), cscope )
         if loN <> Tko.NODE_NONE then
             dim as Tko.Check.ConstVal lv = _
                 Tko.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits, c.syms, cscope )
+                                   c.types->target.pointerBits, c.syms, cscope, 0, _
+                                   c.types, c.info )
             if lv.known then lo = lv.value else known = false
         end if
         dim as longint hi = lo - 1
@@ -1262,9 +1302,14 @@ function ArrayFromPairs _
             dim as long got = InitCountAt( c, init, i )
             if got > 0 then hi = lo + got - 1 else known = false
         elseif hiN <> Tko.NODE_NONE then
+            '' 'types' AND 'info' ARE FOR 'sizeof( T )'. The corpus writes an array at
+            '' the size limit as 'LIMIT \ sizeof( zstring * 16 )', and without them that
+            '' bound is not constant -- so the declaration silently became a DYNAMIC array
+            '' and the size check had nothing to check.
             dim as Tko.Check.ConstVal hv = _
                 Tko.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits, c.syms, cscope )
+                                   c.types->target.pointerBits, c.syms, cscope, 0, _
+                                   c.types, c.info )
             if hv.known then hi = hv.value else known = false
         else
             known = false

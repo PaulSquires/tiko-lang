@@ -7,6 +7,8 @@ global var agg under1 size 2147483647
 global var agg under2 size 2147483644
 global var agg under3 size 2147483646
 global var agg under4 size 101
+global var agg zover size -2147483648
+global var agg zunder size 2147483632
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -43,4 +45,8 @@ tests/diagnostics/src/array-too-big.bas(20,20): error TKO0613: array 'over4' is 
 tests/diagnostics/src/array-too-big.bas(21,28): error TKO0613: array 'over5' is too big
      |
   21 | dim shared as zstring * 16 over5( 0 to 134217728 )
+     |                            ^
+tests/diagnostics/src/array-too-big.bas(41,28): error TKO0613: array 'zover' is too big
+     |
+  41 | dim shared as zstring * 16 zover( 0 to LIMIT2 \ sizeof( zstring * 16 ) )
      |                            ^

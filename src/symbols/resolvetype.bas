@@ -390,7 +390,8 @@ function ResolveTypeRef _
             '' every one was the wrong size and every access read the wrong thing.
             dim as Tko.Check.ConstVal lv = _
                 Tko.Check.ConstOf( *c.ast, sp->c, *c.srcMgr, *c.names, _
-                                   c.types->target.pointerBits, c.syms, scope_ )
+                                   c.types->target.pointerBits, c.syms, scope_, 0, _
+                                   c.types, c.info )
             if lv.known andalso (lv.value > 0) then
                 if k = Tko.KW_STRING then base_ = c.types->Builtin( Tko.TY_FIXSTR )
                 '' 'ustring * N' NEEDS ITS OWN ELEMENT for the same reason 'string * N'

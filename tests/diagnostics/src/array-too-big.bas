@@ -25,3 +25,18 @@ dim shared as byte under1( 0 to &h7FFFFFFE )
 dim shared as long under2( 0 to 536870910 )
 dim shared as short under3( 0 to 1073741822 )
 dim shared as byte under4( 0 to 100 )
+
+'' -- AND THE 'sizeof' SPELLING ------------------------------------------------
+''
+'' The corpus writes an array at the size limit as 'LIMIT \ sizeof( zstring * 16 )'.
+'' A BOUND IS FOLDED BEFORE ITS EXPRESSION IS WALKED, to build the array's type, so the
+'' N_TYPEREF inside that sizeof was still untyped when ConstOf reached it and answered
+'' nothing -- the array then had no constant size and became DYNAMIC, and the size check
+'' had nothing to check.
+''
+'' A UDT'S sizeof STILL DOES NOT FOLD HERE: its layout is computed after Resolve, and
+'' answering 0 would be a wrong number rather than no number.
+const LIMIT2 = &h7FFFFFFF
+
+dim shared as zstring * 16 zover( 0 to LIMIT2 \ sizeof( zstring * 16 ) )
+dim shared as zstring * 16 zunder( 0 to (LIMIT2 \ sizeof( zstring * 16 )) - 1 )

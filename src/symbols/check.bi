@@ -189,11 +189,16 @@ namespace Tko.Check
     '' 'syms' and 'scope_' are OPTIONAL and enable one thing: folding a NAMED
     '' constant. Without them an identifier is simply not constant, which is the
     '' honest answer for a caller with no scope to look a name up in.
+    '' 'types' and 'info' are for ONE question -- 'sizeof( T )' -- and both are optional
+    '' for the same reason 'syms' is: a caller with no type context gets the honest answer
+    '' for a caller with no type context, which is "not a constant".
     declare function ConstOf _
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
           byref src as Tko.SourceManager, byref names as Tko.Interner, _
           byval intBits as long = 64, byval syms as Tko.SymbolTable ptr = 0, _
-          byval scope_ as Tko.ScopeId = 0, byval depth as long = 0 ) as ConstVal
+          byval scope_ as Tko.ScopeId = 0, byval depth as long = 0, _
+          byval types as Tko.TypeContext ptr = 0, _
+          byval info as Tko.SemanticInfo ptr = 0 ) as ConstVal
 
     declare function AssignableTo _
         ( byval src as Tko.TypeId, byval dst as Tko.TypeId, _

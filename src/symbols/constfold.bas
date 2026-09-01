@@ -378,7 +378,8 @@ private function ConstCall_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
       byval intBits as long, byval syms as Tko.SymbolTable ptr, _
-      byval scope_ as Tko.ScopeId, byval depth as long ) as ConstVal
+      byval scope_ as Tko.ScopeId, byval depth as long, _
+      byval types as Tko.TypeContext ptr, byval info as Tko.SemanticInfo ptr ) as ConstVal
 
     dim as Tko.ListPayload ptr cp = _
         @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
@@ -392,6 +393,32 @@ private function ConstCall_ _
     '' len( K )' had no constant length and the field got a 24-byte descriptor.
     '' 'len' of a NUMBER is its type's size and folds too ('len( 1 )' is 8 on win64);
     '' that needs the operand's TYPE, which this routine is not given, and is left out.
+    '' 'sizeof( T )' AND 'len( T )' OVER A TYPE. The argument is an N_TYPEREF, and Resolve
+    '' has already given it a TypeId -- so the size is a table lookup, not a computation.
+    ''
+    '' IT EXISTS FOR THE ARRAY BOUND. 'dim shared as zstring * 16 t( 0 to LIMIT \
+    '' sizeof( zstring * 16 ) )' is how the corpus writes an array at the size limit, and
+    '' without this the bound was not constant, so the declaration silently became a
+    '' DYNAMIC array and the size check had nothing to check.
+    ''
+    '' A UDT IS NOT ANSWERED HERE. Its layout is computed after Resolve, and Layout would
+    '' report 0 for one this early -- a wrong number rather than no number.
+    if ((nm = "sizeof") orelse (nm = "len")) andalso (cp->count = 1) andalso _
+       (types <> 0) andalso (info <> 0) then
+        dim as Tko.NodeId ta = cast( Tko.NodeId, ast.children[cp->first] )
+        if ast.Kind( ta ) = Tko.N_TYPEREF then
+            dim as Tko.TypeId tt = info->TypeOf_( ta )
+            if tt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId tu = types->Unqualify( tt )
+                if types->Kind( tu ) <> Tko.TK_UDT then
+                    dim as long sz = types->Layout( tu ).size
+                    if sz > 0 then return CVW_( cast( longint, sz ), 32 )
+                end if
+            end if
+            return CVNone_( )
+        end if
+    end if
+
     if (nm = "len") andalso (cp->count = 1) then
         dim as long sl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
                                        src, names, syms, scope_, depth )
@@ -401,11 +428,12 @@ private function ConstCall_ _
 
     if (nm = "iif") andalso (cp->count = 3) then
         dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
-                                     src, names, intBits, syms, scope_, depth )
+                                     src, names, intBits, syms, scope_, depth, _
+                                     types, info )
         if c.known = false then return CVNone_( )
         dim as long pick = iif( c.value <> 0, 1, 2 )
         return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + pick] ), _
-                        src, names, intBits, syms, scope_, depth )
+                        src, names, intBits, syms, scope_, depth, types, info)
     end if
 
     '' 'cast( T, expr )' AND 'cptr( T, expr )' FOLD TO THEIR OPERAND. The conversion
@@ -421,7 +449,7 @@ private function ConstCall_ _
     '' pointed at never mentioned a cast.
     if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
         return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), src, _
-                        names, intBits, syms, scope_, depth )
+                        names, intBits, syms, scope_, depth, types, info)
     end if
 
     if cp->count <> 1 then return CVNone_( )
@@ -498,7 +526,7 @@ private function ConstCall_ _
 
     dim as double d = 0
     dim as boolean isNum = LitNum_( ast, a0, d )
-    dim as ConstVal iv = ConstOf( ast, a0, src, names, intBits, syms, scope_, depth )
+    dim as ConstVal iv = ConstOf( ast, a0, src, names, intBits, syms, scope_, depth, types, info)
     '' A NAMED float constant, or an EXPRESSION over one, is a number too -- but only
     '' asked for when the integer folder already said it had nothing, so a named
     '' INTEGER constant keeps the exact integer path below rather than going round
@@ -626,7 +654,9 @@ function ConstOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
       byval intBits as long = 64, byval syms as Tko.SymbolTable ptr = 0, _
-      byval scope_ as Tko.ScopeId = 0, byval depth as long = 0 ) as ConstVal
+      byval scope_ as Tko.ScopeId = 0, byval depth as long = 0, _
+      byval types as Tko.TypeContext ptr = 0, _
+      byval info as Tko.SemanticInfo ptr = 0 ) as ConstVal
 
     if id = Tko.NODE_NONE then return CVNone_( )
 
@@ -681,7 +711,7 @@ function ConstOf _
         dim as Tko.StmtPayload ptr cip = _
             @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
         dim as ConstVal ivv = _
-            ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1 )
+            ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1, types, info)
         '' AT THE CONSTANT'S OWN DECLARED WIDTH AND SIGNEDNESS.
         ''
         '' 'const v as ubyte = not u' folded to the INITIALISER's value and stopped
@@ -698,12 +728,12 @@ function ConstOf _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return CVNone_( )
         return ConstOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), src, names, _
-                        intBits, syms, scope_, depth )
+                        intBits, syms, scope_, depth, types, info)
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits, syms, scope_, depth )
+        dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits, syms, scope_, depth, types, info)
         if v.known = false then return CVNone_( )
         '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
         '' '-(1 shl 31)' at 32 bits is 2147483648 rather than -2147483648.
@@ -717,9 +747,9 @@ function ConstOf _
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
             @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
-        dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits, syms, scope_, depth )
+        dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits, syms, scope_, depth, types, info)
         if l.known = false then return CVNone_( )
-        dim as ConstVal r = ConstOf( ast, bp->rhs, src, names, intBits, syms, scope_, depth )
+        dim as ConstVal r = ConstOf( ast, bp->rhs, src, names, intBits, syms, scope_, depth, types, info)
         if r.known = false then return CVNone_( )
         dim as longint a = l.value
         dim as longint b = r.value
@@ -789,7 +819,7 @@ function ConstOf _
         return CVNone_( )
 
     case Tko.N_CALL
-        return ConstCall_( ast, id, src, names, intBits, syms, scope_, depth )
+        return ConstCall_( ast, id, src, names, intBits, syms, scope_, depth, types, info )
     end select
 
     return CVNone_( )
