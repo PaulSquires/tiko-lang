@@ -216,6 +216,8 @@
     DIAG( TKO0658, SEV_ERROR,   "'%0' is indexed with the wrong number of subscripts" )
     '' fbc's error 162. A union's members overlap; a descriptor has to be owned by one.
     DIAG( TKO0659, SEV_ERROR,   "dynamic array '%0' cannot be a member of a union" )
+    '' fbc's error 98. Guarded exactly as TKO0632 is, and for the same reasons.
+    DIAG( TKO0660, SEV_ERROR,   "the call to '%0' matches more than one overload" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

@@ -1,0 +1,6 @@
+'' An ambiguous call to an overloaded procedure is refused (fbc error 98). The tie is
+'' what is refused: the same pair of candidates with only ONE viable is accepted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/overload-ambiguous.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/overload-ambiguous.out

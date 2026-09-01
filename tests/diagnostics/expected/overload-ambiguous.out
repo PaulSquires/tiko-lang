@@ -1,0 +1,46 @@
+func void _Z1Fu7INTEGER($0) {
+  local i64 p1
+  entry0:
+    %1 = alloca ptr p1
+    store @p1, $0
+    ret
+}
+func void _Z1Fv() {
+  entry0:
+    ret
+}
+func void _Z1Gu7INTEGER($0) {
+  local i64 p1
+  entry0:
+    %1 = alloca ptr p1
+    store @p1, $0
+    ret
+}
+func void _Z1Gv() {
+  entry0:
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i64 0
+    call void _Z1Fu7INTEGER(%4)
+    call void _Z1Gv()
+    %5 = const i32 0
+    call.rtl void fb_End(%5)
+    %6 = load @$tmp0
+    ret %6
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 5 functions, 5 blocks, 15 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/overload-ambiguous.bas(16,2): error TKO0660: the call to 'f' matches more than one overload
+     |
+  16 | f( )
+     |  ^

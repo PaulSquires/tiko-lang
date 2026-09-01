@@ -998,6 +998,30 @@ private function ResolveCall_ _
     end if
     if ties > 0 then
         c.st->callsAmbiguous += 1
+        '' AMBIGUOUS CALL TO AN OVERLOADED FUNCTION -- fbc error 98. Measured: two
+        '' candidates both viable with no argument (one of them through a DEFAULTED
+        '' parameter) is refused, while the same pair with only one viable is not.
+        ''
+        '' Guarded exactly as the no-match report above is, and for the same reasons: a
+        '' UDT argument brings conversions and generics this scoring does not model, and
+        '' an untyped one means something earlier declined.
+        dim as boolean tieTyped = true
+        for i as long = 0 to argT.Count - 1
+            dim as Tko.TypeId a3 = cast( Tko.TypeId, argT[i] )
+            if a3 = Tko.TYPE_NONE then
+                tieTyped = false
+                exit for
+            end if
+            dim as Tko.TypeKind a3k = c.types->Kind( c.types->Unqualify( a3 ) )
+            if (a3k <> Tko.TK_BUILTIN) andalso (a3k <> Tko.TK_POINTER) then
+                tieTyped = false
+                exit for
+            end if
+        next
+        if tieTyped then
+            c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( id ) ), _
+                             c.names->Spelling( c.syms->SymbolAt( callee )->name ) )
+        end if
         return Tko.TYPE_NONE
     end if
     c.st->callsResolved += 1
