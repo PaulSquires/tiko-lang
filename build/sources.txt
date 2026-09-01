@@ -18,6 +18,7 @@ str/instrrev.bas
 str/base.bas
 str/set.bas
 str/assign.bas
+str/trimex.bas
 str/concat.bas
 str/tempdesc.bas
 str/instrany.bas
@@ -92,7 +93,9 @@ dt/serial.bas
 dt/vb.bas
 dt/wallclock.bas
 dt/parse.bas
+dt/timerset.bas
 dt/intl.bas
+dt/intldrv.bas
 array/query.bas
 array/erase.bas
 array/redim.bas
@@ -100,6 +103,8 @@ ctrl/gosub.bas
 io/write.bas
 utf/core.bas
 utf/tochar.bas
+utf/towchar.bas
+utf/fromwchar.bas
 utf/fromchar.bas
 chrono/core.bas
 chrono/iso.bas
@@ -130,6 +135,8 @@ fs/lock.bas
 fs/volume.bas
 fs/watch.bas
 fs/fileops2.bas
+fs/filelow.bas
+fs/legacydir.bas
 thread/mutex.bas
 thread/ctx.bas
 thread/self.bas
@@ -141,6 +148,8 @@ thread/cond.bas
 misc/misc.bas
 sys/dylib.bas
 sys/process.bas
+sys/hostinfo.bas
+sys/misc.bas
 io/conquery.bas
 io/conattr.bas
 io/lprint.bas
@@ -148,6 +157,7 @@ io/conpage.bas
 io/devscrn2.bas
 io/devfile.bas
 io/fileopen.bas
+io/openqb.bas
 io/devfileencod.bas
 io/fileinput.bas
 io/devstd.bas
@@ -157,3 +167,4 @@ io/conprinttty.bas
 io/conttytail.bas
 io/hookmisc.bas
 io/devlpttest.bas
+io/devcomtest.bas
