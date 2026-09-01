@@ -1,5 +1,6 @@
 global var agg x size 24
 global var agg d size 24
+global var agg src_ size 8
 func void _ZN1T12HIDDENMETHODEv($0) {
   local ptr this
   entry0:
@@ -116,6 +117,65 @@ func void STRUCTORSACCEPTED() {
     %2 = alloca ptr p
     ret
 }
+func void _ZN6NOCOPYC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN6NOCOPYC1Eu7INTEGER($0, $1) {
+  local ptr this
+  local i64 n
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    ret
+}
+func void _ZN6NOCOPYC1ERS_($0, $1) {
+  local ptr this
+  local ptr rhs
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr rhs
+    store @rhs, $1
+    ret
+}
+func void COPYREFUSED() {
+  local agg c1 size 8
+  local ptr p
+  entry0:
+    %1 = alloca ptr c1
+    call void _ZN6NOCOPYC1Ev(@c1)
+    %2 = load @@src_
+    store @c1, %2
+    %3 = alloca ptr p
+    %4 = load @p
+    %5 = const ptr 0
+    %6 = icmp.ne %4, %5
+    condbr %6, del.body1, del.join2
+  del.body1:
+    call void _ZN8PRIVDTORD1Ev(%4)
+    call.rtl void free(%4)
+    br del.join2
+  del.join2:
+    ret
+}
+declare void free($0)
+func void COPYACCEPTED() {
+  local agg c2 size 8
+  local agg c3 size 8
+  entry0:
+    %1 = alloca ptr c2
+    call void _ZN6NOCOPYC1Ev(@c2)
+    %2 = alloca ptr c3
+    %3 = const i64 1
+    call void _ZN6NOCOPYC1Eu7INTEGER(@c3, %3)
+    ret
+}
 func i32 main($0, $1) {
   local i32 $tmp0
   entry0:
@@ -131,8 +191,19 @@ func i32 main($0, $1) {
 }
 declare void fb_Init($0, $1, $2)
 declare void fb_End($0)
+attribute constructor
+func void _GLOBAL__I() {
+  entry0:
+    call void _ZN6NOCOPYC1Ev(@@src_)
+    ret
+}
+attribute destructor
+func void _GLOBAL__D() {
+  entry0:
+    ret
+}
 verify: ok
-lowered: 11 functions, 11 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 18 functions, 20 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/member-visibility.bas(47,6): error TKO0625: 'hidden' is not accessible here
      |
   47 |     x.hidden = 1
@@ -153,6 +224,10 @@ tests/diagnostics/src/member-visibility.bas(51,25): error TKO0625: 'hidden_' is 
      |
   51 |     dim as integer e = T.Hidden_.ONE
      |                         ^
+tests/diagnostics/src/member-visibility.bas(148,5): error TKO0633: '' needs a constructor or destructor that is not accessible here
+     |
+ 148 |     delete p
+     |     ^
 tests/diagnostics/src/member-visibility.bas(103,21): error TKO0633: 'a' needs a constructor or destructor that is not accessible here
      |
  103 |     dim as PrivCtor a
@@ -165,3 +240,7 @@ tests/diagnostics/src/member-visibility.bas(105,21): error TKO0633: 'arr' needs 
      |
  105 |     dim as PrivCtor arr( 0 to 1 )
      |                     ^
+tests/diagnostics/src/member-visibility.bas(146,19): error TKO0633: 'c1' needs a constructor or destructor that is not accessible here
+     |
+ 146 |     dim as NoCopy c1 = src_
+     |                   ^

@@ -627,6 +627,48 @@ private sub CheckSharedInits_( byref c as Ctx )
     next
 end sub
 
+'' THE COPY CONSTRUCTOR -- the '__ctor' overload whose one required parameter is a
+'' reference to the type itself. A private one is what stops a type being copied, which is
+'' the point of declaring one.
+private sub CheckCopyStructor_ _
+    ( byref c as Ctx, byval udt as TypeId, byval here as TypeId, _
+      byval at as SourceLoc, byval vnm as InternId )
+
+    dim as Symbol ptr st = StructorOf_( c, udt, "__ctor" )
+    if st = 0 then return
+    dim as boolean sawCopy = false
+    dim as Symbol ptr walk = st
+    dim as long guard = 0
+    while (walk <> 0) andalso (guard < 1000)
+        guard += 1
+        dim as NodeId decl = cast( NodeId, walk->payload )
+        if (decl <> NODE_NONE) andalso (c.ast->Kind( decl ) = N_PROC) then
+            if RequiredParams_( c, decl ) = 1 then
+                dim as StmtPayload ptr sp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+                for i as long = 0 to sp->count - 1
+                    dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+                    if c.ast->Kind( prm ) <> N_PARAM then continue for
+                    dim as StmtPayload ptr psp = _
+                        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+                    dim as TypeId pt = c.types->Unqualify( c.info->TypeOf_( psp->a ) )
+                    if pt = TYPE_NONE then exit for
+                    if c.types->Kind( pt ) = TK_REFERENCE then
+                        pt = c.types->Unqualify( c.types->Inner( pt ) )
+                    end if
+                    if pt <> udt then exit for
+                    sawCopy = true
+                    if StructorReachable_( c, walk, udt, here ) then return
+                    exit for
+                next
+            end if
+        end if
+        walk = c.syms->SymbolAt( walk->nextOverload )
+    wend
+    if sawCopy = false then return
+    c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
+end sub
+
 private sub CheckImplicitStructors_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -645,7 +687,40 @@ private sub CheckImplicitStructors_( byref c as Ctx )
         '' constructs its base whatever the base's constructor says.
         if (k = SYM_FIELD) andalso (s->name = c.baseName) then continue for
         dim as TypeId here = EnclosingTypeOf_( c, s->parent )
-        CheckOneStructor_( c, u, "__ctor", here, s->loc, s->name )
+        '' 'dim x2 as UDT = x1' CALLS THE COPY CONSTRUCTOR, not the default one, and a
+        '' private copy constructor is what stops a type being copied at all -- which is
+        '' the point of declaring one. So which structor to look at depends on whether
+        '' the declaration was INITIALISED FROM ANOTHER OF ITS OWN TYPE.
+        dim as boolean copies = false
+        if s->payload <> 0 then
+            dim as NodeId it2 = cast( NodeId, s->payload )
+            if c.ast->Kind( it2 ) = N_VAR_ITEM then
+                dim as StmtPayload ptr ip2 = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, it2 )].data )]
+                '' A COPY IS FROM A NAME, not from a CONSTRUCTION. 'dim as ComInit
+                '' wrong = ComInit( COINIT_MULTITHREADED )' builds the object directly
+                '' and calls no copy constructor -- fbc accepts it, and treating it as
+                '' a copy refused com/comptr-companions.bas.
+                dim as boolean fromName = false
+                if ip2->b <> NODE_NONE then
+                    select case c.ast->Kind( ip2->b )
+                    case N_IDENT, N_MEMBER, N_DEREF
+                        fromName = true
+                    end select
+                end if
+                if fromName then
+                    dim as TypeId it = c.info->TypeOf_( ip2->b )
+                    if it <> TYPE_NONE then
+                        copies = (c.types->Unqualify( it ) = u)
+                    end if
+                end if
+            end if
+        end if
+        if copies then
+            CheckCopyStructor_( c, u, here, s->loc, s->name )
+        else
+            CheckOneStructor_( c, u, "__ctor", here, s->loc, s->name )
+        end if
         CheckOneStructor_( c, u, "__dtor", here, s->loc, s->name )
     next
 end sub
@@ -889,7 +964,7 @@ end sub
 ''
 '' Checked here rather than in lowering, which merely DECLINED: a declined statement is
 '' counted as not-lowered and says nothing, so 'delete a' over an integer compiled clean.
-private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId )
+private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->a = NODE_NONE then return
@@ -898,8 +973,19 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId )
     '' the wrong line.
     if t = TYPE_NONE then return
     dim as TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) = TK_POINTER then return
-    c.diags->Report( TKO0629, PointRange( c.ast->Loc( sp->a ) ) )
+    if c.types->Kind( u ) <> TK_POINTER then
+        c.diags->Report( TKO0629, PointRange( c.ast->Loc( sp->a ) ) )
+        return
+    end if
+    '' 'delete p' CALLS THE POINTEE'S DESTRUCTOR, so a private one is out of reach here
+    '' exactly as it is at a declaration.
+    dim as TypeId pointee = c.types->Unqualify( c.types->Inner( u ) )
+    if pointee = TYPE_NONE then return
+    if c.types->Kind( pointee ) <> TK_UDT then return
+    '' THE ENCLOSING TYPE, carried down by the walk: a private destructor is perfectly
+    '' reachable from inside its own type, and passing TYPE_NONE here refused three
+    '' files fbc accepts -- the '*-dtor-*-usage' trio, which delete from a method.
+    CheckOneStructor_( c, pointee, "__dtor", here, c.ast->Loc( id ), 0 )
 end sub
 
 private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
@@ -908,7 +994,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as TypeId inner = here
     if k = N_PROC then inner = ProcOwner_( c, id )
     if k = N_MEMBER then CheckMember_( c, id, here )
-    if k = N_DELETE_STMT then CheckDelete_( c, id )
+    if k = N_DELETE_STMT then CheckDelete_( c, id, here )
     if k = N_MEMBER then CheckDeref_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )

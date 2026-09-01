@@ -112,3 +112,45 @@ sub structorsAccepted( )
     '' A POINTER constructs nothing.
     dim as PrivCtor ptr p
 end sub
+
+'' -- AND THE TWO OTHER SITES A STRUCTOR IS CALLED FROM -----------------------
+''
+'' 'dim x2 as UDT = x1' CALLS THE COPY CONSTRUCTOR, not the default one, and a private
+'' copy constructor is what stops a type being copied at all -- which is the point of
+'' declaring one. A COPY IS FROM A NAME, not from a CONSTRUCTION: 'dim as T x = T( 1 )'
+'' builds the object directly and calls no copy constructor.
+''
+'' AND 'delete p' CALLS THE POINTEE'S DESTRUCTOR, so a private one is out of reach there
+'' exactly as it is at a declaration -- but perfectly reachable from inside its own type.
+type NoCopy
+    dummy as integer
+    declare constructor( )
+    declare constructor( byval n as integer )
+    private:
+    declare constructor( byref rhs as NoCopy )
+end type
+
+constructor NoCopy( )
+end constructor
+
+constructor NoCopy( byval n as integer )
+end constructor
+
+constructor NoCopy( byref rhs as NoCopy )
+end constructor
+
+dim shared as NoCopy src_
+
+'' -- refused ------------------------------------------------------------------
+sub copyRefused( )
+    dim as NoCopy c1 = src_
+    dim as PrivDtor ptr p
+    delete p
+end sub
+
+'' -- accepted -----------------------------------------------------------------
+sub copyAccepted( )
+    '' The DEFAULT constructor is public, and so is the one-argument form.
+    dim as NoCopy c2
+    dim as NoCopy c3 = NoCopy( 1 )
+end sub
