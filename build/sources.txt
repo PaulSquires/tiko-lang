@@ -92,6 +92,7 @@ dt/serial.bas
 dt/vb.bas
 dt/wallclock.bas
 dt/parse.bas
+dt/intl.bas
 array/query.bas
 array/erase.bas
 array/redim.bas
