@@ -620,18 +620,67 @@ private function ParseProc _
     '' 'const function T.F( )' and 'static sub T.S( )' put the modifier BEFORE the
     '' procedure keyword. Const-ness is not cosmetic: it is what makes the mangled
     '' name _ZNK... rather than _ZN..., so a procedure that loses it links wrong.
+    dim as Tko.Token vaTok = Cur( p )
+    dim as boolean sawVA = false
     do
-        select case Peek( p )
+        dim as Tko.TokenKind mk = Peek( p )
+        select case mk
         case Tko.KW_CONST    : sp.extra or= Tko.PF_CONST
         case Tko.KW_STATIC   : sp.extra or= Tko.PF_STATIC
         case Tko.KW_ABSTRACT : sp.extra or= Tko.PF_ABSTRACT
         case Tko.KW_VIRTUAL  : sp.extra or= Tko.PF_VIRTUAL
         case else            : exit do
         end select
+        if (mk = Tko.KW_ABSTRACT) orelse (mk = Tko.KW_VIRTUAL) then
+            if sawVA = false then vaTok = Cur( p )
+            sawVA = true
+        end if
         Advance( p )
+        '' 'virtual' AND 'abstract' COME LAST. MEASURED: 'const virtual sub' is accepted
+        '' while 'virtual const', 'virtual static', 'static virtual' and 'virtual
+        '' abstract' are all fbc's error 17 -- so once one of the two has been read, the
+        '' only thing that may follow is the procedure keyword itself.
+        if sawVA then
+            select case Peek( p )
+            case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
+                 Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+            case else
+                p.diags->Report( Tko.TKO0678, Tko.PointRange( Cur( p ).loc ) )
+                exit do
+            end select
+        end if
     loop
 
     dim as Tko.TokenKind kw = Peek( p )
+    if sawVA then
+        '' STATIC AND VIRTUAL DO NOT COMBINE, IN EITHER ORDER. 'virtual static' is caught
+        '' by the run test above; 'static virtual' reads cleanly and is fbc's error 17
+        '' just the same -- a static member has no THIS and so no vtable to dispatch on.
+        if (sp.extra and Tko.PF_STATIC) <> 0 then
+            p.diags->Report( Tko.TKO0678, Tko.PointRange( vaTok.loc ) )
+        end if
+
+        '' A VTABLE SLOT BELONGS TO A TYPE, and the check that it does is DEFERRED to
+        '' after the name is read -- see vaNeedsOwner below. 'virtual sub VBase.vs( )' is
+        '' a member's DEFINITION written outside the type and is accepted by fbc; only a
+        '' name with no owner at all is error 17.
+        ''
+        '' fbc's error 219 for 'virtual' on a definition whose DECLARATION was not
+        '' virtual is deliberately not modelled: it is a question about the declaration,
+        '' not about this syntax, and reading it as one refused two of this suite's own
+        '' tests -- both of which fbc compiles without a word.
+
+        '' A CONSTRUCTOR CANNOT BE EITHER -- errors 210 and 211: the vptr the lookup
+        '' needs is what the constructor itself initialises. A DESTRUCTOR may be VIRTUAL,
+        '' which is the ordinary way to delete through a base pointer, but not ABSTRACT
+        '' (error 212): it always has a body to run.
+        if kw = Tko.KW_CONSTRUCTOR then
+            p.diags->Report( Tko.TKO0681, Tko.PointRange( vaTok.loc ) )
+        elseif (kw = Tko.KW_DESTRUCTOR) andalso _
+               ((sp.extra and Tko.PF_ABSTRACT) <> 0) then
+            p.diags->Report( Tko.TKO0681, Tko.PointRange( vaTok.loc ) )
+        end if
+    end if
     sp.op = cast( ushort, kw )
     Advance( p )
 
@@ -820,6 +869,18 @@ private function ParseProc _
         Advance( p )
     wend
 
+    '' THE DEFERRED VIRTUAL/ABSTRACT OWNER TEST -- see the modifier loop above.
+    '' A STRUCTOR NAMES ITS TYPE IN 'name', not through a dotted path, so 'qualified' is
+    '' false for one even though it plainly has an owner. 'virtual destructor Shape( )'
+    '' written outside the type is the ordinary way to define a virtual destructor, and
+    '' generics/container-sharedptr.bas -- which fbc compiles -- writes exactly that.
+    dim as boolean vaStructor = (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR)
+    dim as boolean vaAtModule = (p.aggDepth = 0)
+    dim as boolean vaNoOwner = _
+        vaAtModule andalso (qualified = false) andalso (vaStructor = false)
+    if sawVA andalso vaNoOwner then
+        p.diags->Report( Tko.TKO0679, Tko.PointRange( vaTok.loc ) )
+    end if
     if declareOnly then
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
         if qualified then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_QUALIFIED

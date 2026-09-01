@@ -248,6 +248,11 @@
     DIAG( TKO0676, SEV_ERROR,   "'%0' mixes RETURN with 'FUNCTION =' over a result type that has constructors" )
     '' fbc's error 4, over two overloads with one signature.
     DIAG( TKO0677, SEV_ERROR,   "'%0' is already declared with these parameter types" )
+    '' fbc's errors 17, 219, and 210/211/212 -- VIRTUAL and ABSTRACT, misplaced.
+    DIAG( TKO0678, SEV_ERROR,   "nothing may follow VIRTUAL or ABSTRACT but the procedure keyword" )
+    DIAG( TKO0679, SEV_ERROR,   "VIRTUAL and ABSTRACT belong to a member of a type" )
+    DIAG( TKO0680, SEV_ERROR,   "VIRTUAL and ABSTRACT belong to the declaration, not to the body" )
+    DIAG( TKO0681, SEV_ERROR,   "a structor cannot be declared this way" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

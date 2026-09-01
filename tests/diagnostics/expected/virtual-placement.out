@@ -1,0 +1,37 @@
+extern ptrs __fb_ZTS6Object [ ]
+global str $str1 "4GOOD"
+global ptrs _ZTSN4GOODE [ 0, @$str1, @__fb_ZTS6Object ]
+global ptrs _ZTVN4GOODE [ 0, @_ZTSN4GOODE, _ZN4GOOD1VEv, _ZNK4GOOD2CVEv, 0, _ZN4GOODD1Ev ]
+global str $str4 "3BAD"
+global ptrs _ZTSN3BADE [ 0, @$str4, @__fb_ZTS6Object ]
+global ptrs _ZTVN3BADE [ 0, @_ZTSN3BADE, _ZN3BAD3SUBEv, _ZN3BAD2B3Ev, _ZN3BADC1Ev, 0 ]
+verify: ok
+lowered: 0 functions, 0 blocks, 0 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/virtual-placement.bas(18,21): error TKO0678: nothing may follow VIRTUAL or ABSTRACT but the procedure keyword
+     |
+  18 |     declare virtual const sub b1( )
+     |                     ^
+tests/diagnostics/src/virtual-placement.bas(19,21): error TKO0678: nothing may follow VIRTUAL or ABSTRACT but the procedure keyword
+     |
+  19 |     declare virtual static sub b2( )
+     |                     ^
+tests/diagnostics/src/virtual-placement.bas(20,20): error TKO0678: nothing may follow VIRTUAL or ABSTRACT but the procedure keyword
+     |
+  20 |     declare static virtual sub b3( )
+     |                    ^
+tests/diagnostics/src/virtual-placement.bas(21,21): error TKO0678: nothing may follow VIRTUAL or ABSTRACT but the procedure keyword
+     |
+  21 |     declare virtual abstract sub b4( )
+     |                     ^
+tests/diagnostics/src/virtual-placement.bas(22,13): error TKO0681: a structor cannot be declared this way
+     |
+  22 |     declare virtual constructor( )
+     |             ^
+tests/diagnostics/src/virtual-placement.bas(23,13): error TKO0681: a structor cannot be declared this way
+     |
+  23 |     declare abstract destructor( )
+     |             ^
+tests/diagnostics/src/virtual-placement.bas(26,9): error TKO0679: VIRTUAL and ABSTRACT belong to a member of a type
+     |
+  26 | declare virtual sub loose( )
+     |         ^

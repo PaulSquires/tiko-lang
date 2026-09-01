@@ -1,0 +1,14 @@
+'' VIRTUAL and ABSTRACT come last in the modifier run, belong to a member of a type, and
+'' are not for a constructor. 'const virtual' leads with const and is accepted; 'virtual
+'' const', 'virtual static', 'static virtual' and 'virtual abstract' are fbc error 17, a
+'' loose one at module level is 17, an abstract/virtual constructor is 210/211 and an
+'' abstract destructor is 212 -- while a VIRTUAL destructor is the ordinary case.
+''
+'' NOT MODELLED: fbc's error 219 for VIRTUAL on a definition whose declaration was not
+'' virtual. That is a question about the declaration, not about this syntax, and reading
+'' it as one refused two of this suite's own tests that fbc compiles.
+'' Matches fbc line for line -- 18, 19, 20, 21, 22, 23, 26.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/virtual-placement.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/virtual-placement.out
