@@ -777,7 +777,8 @@ private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as bo
     return ts->kind = cast( ubyte, SYM_VARIABLE )
 end function
 
-private sub CheckBydescArgs_ ( byref c as Ctx, byval id as NodeId )
+private sub CheckBydescArgs_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->target = NODE_NONE then return
@@ -797,6 +798,18 @@ private sub CheckBydescArgs_ ( byref c as Ctx, byval id as NodeId )
         if ai >= lp->count then exit for
         dim as NodeId arg = cast( NodeId, c.ast->children[lp->first + ai] )
         ai += 1
+        '' PASSING A UDT BYVAL CALLS ITS COPY CONSTRUCTOR, so a private one is out of
+        '' reach at the call site too -- fbc error 205. Only when 'byval' is WRITTEN:
+        '' for a UDT the FreeBASIC default is byref, and byref copies nothing.
+        if (c.ast->nodes[cast( long, prm )].flags and NF_BYVAL_WRITTEN) <> 0 then
+            dim as TypeId ut = c.info->TypeOf_( arg )
+            if ut <> TYPE_NONE then
+                dim as TypeId uu = c.types->Unqualify( ut )
+                if c.types->Kind( uu ) = TK_UDT then
+                    CheckCopyStructor_( c, uu, here, c.ast->Loc( arg ), 0 )
+                end if
+            end if
+        end if
         if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) = 0 then continue for
         '' 'a( )' IS THE WHOLE-ARRAY SPELLING and is recognised by its SHAPE, not by its
         '' type: an empty subscript list over an array variable types as the ELEMENT
@@ -1000,7 +1013,7 @@ private sub Walk_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if (k = N_CALL) orelse (k = N_INDEX) then CheckArraySubscript_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
-    if k = N_CALL then CheckBydescArgs_( c, id )
+    if k = N_CALL then CheckBydescArgs_( c, id, here )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
     if k = N_BINARY then CheckBareArrayOperands_( c, id )

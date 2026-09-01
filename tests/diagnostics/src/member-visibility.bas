@@ -122,6 +122,10 @@ end sub
 ''
 '' AND 'delete p' CALLS THE POINTEE'S DESTRUCTOR, so a private one is out of reach there
 '' exactly as it is at a declaration -- but perfectly reachable from inside its own type.
+''
+'' PASSING A UDT BYVAL CALLS ITS COPY CONSTRUCTOR TOO, so the same refusal reaches a call
+'' site -- fbc error 205. Only when 'byval' is WRITTEN: for a UDT the FreeBASIC default is
+'' BYREF, and byref copies nothing.
 type NoCopy
     dummy as integer
     declare constructor( )
@@ -142,8 +146,12 @@ end constructor
 dim shared as NoCopy src_
 
 '' -- refused ------------------------------------------------------------------
+declare sub takesByval( byval x as NoCopy )
+declare sub takesByref( byref x as NoCopy )
+
 sub copyRefused( )
     dim as NoCopy c1 = src_
+    takesByval( src_ )
     dim as PrivDtor ptr p
     delete p
 end sub
@@ -153,4 +161,5 @@ sub copyAccepted( )
     '' The DEFAULT constructor is public, and so is the one-argument form.
     dim as NoCopy c2
     dim as NoCopy c3 = NoCopy( 1 )
+    takesByref( src_ )
 end sub
