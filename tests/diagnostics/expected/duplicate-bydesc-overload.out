@@ -1,0 +1,17 @@
+func void _Z9OKDEFINEDR7FBARRAYIu7INTEGERE($0) {
+  local ptr a
+  entry0:
+    %1 = alloca ptr a
+    store @a, $0
+    ret
+}
+verify: ok
+lowered: 1 functions, 1 blocks, 2 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/duplicate-bydesc-overload.bas(18,9): error TKO0677: 'badsame' is already declared with these parameter types
+     |
+  18 | declare sub badSame overload( a(any) as integer )
+     |         ^
+tests/diagnostics/src/duplicate-bydesc-overload.bas(21,9): error TKO0677: 'badunknown' is already declared with these parameter types
+     |
+  21 | declare sub badUnknown overload( a() as integer )
+     |         ^

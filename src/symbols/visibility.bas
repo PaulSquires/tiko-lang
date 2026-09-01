@@ -1408,6 +1408,7 @@ sub Run _
     CheckOutsideNamespace_( c )
     CheckConstBounds_( c )
     CheckReturnStyles_( c )
+    CheckDuplicateOverloads_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )

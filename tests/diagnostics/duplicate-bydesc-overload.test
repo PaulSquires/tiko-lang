@@ -1,0 +1,12 @@
+'' Two overloads with one signature are a duplicate definition (fbc error 4). Over BYDESC
+'' parameters the array RANK decides: '()' is unknown rank and collides with any, two
+'' known ranks collide only when equal. A definition of an already-declared overload is
+'' not a second one, and neither is a pair differing in element or result type.
+''
+'' ONLY A PAIR WITH A BYDESC PARAMETER IS JUDGED -- the general scalar case produced 13
+'' false rejections over the 1222 fbc-accepted files (cross-namespace overload chains, and
+'' the CRT headers' _rotl family). Matches fbc on lines 18 and 21.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/duplicate-bydesc-overload.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/duplicate-bydesc-overload.out

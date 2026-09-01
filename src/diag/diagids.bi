@@ -246,6 +246,8 @@
     DIAG( TKO0675, SEV_ERROR,   "a parameter default names '%0', which is not declared" )
     '' fbc's errors 178 and 179.
     DIAG( TKO0676, SEV_ERROR,   "'%0' mixes RETURN with 'FUNCTION =' over a result type that has constructors" )
+    '' fbc's error 4, over two overloads with one signature.
+    DIAG( TKO0677, SEV_ERROR,   "'%0' is already declared with these parameter types" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

@@ -218,3 +218,168 @@ private sub CheckReturnStyles_( byref c as Ctx )
                          c.names->Spelling( sp->name ) )
     next
 end sub
+
+'' TWO OVERLOADS WITH THE SAME SIGNATURE ARE A DUPLICATE DEFINITION -- fbc error 4.
+'' tiko-lang did not detect one at all, of any shape.
+''
+'' MEASURED, and the ARRAY RANK is the interesting part:
+''     f( byval a as integer ) twice                error 4
+''     f( a(any) as integer ) twice                 error 4
+''     f( a(any) ... ) and f( a() ... )             error 4   -- () is UNKNOWN rank and
+''                                                               collides with any rank
+''     f( a(any,any) ... ) and f( a(any) ... )      OK        -- two KNOWN ranks differ
+''     f( byval a as integer ) and f( ... as single )  OK
+''
+'' TYPES ARE COMPARED AS WRITTEN, qualifiers included. fbc's own rule for when a const
+'' difference collides is not measured here, so a pair that differs only in one is left
+'' alone -- a miss rather than a wrong answer.
+private function ParamTypeAt_ _
+    ( byref c as Ctx, byval decl as NodeId, byval want as long, _
+      byref rank as long ) as TypeId
+
+    rank = -1
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    dim as long seen = 0
+    for i as long = 0 to sp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        if seen = want then
+            dim as StmtPayload ptr pp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+            '' THE RANK AS WRITTEN, which the parser recorded in 'extra' as the comma
+            '' count plus one -- 0 for 'a()', 1 for 'a(any)', 2 for 'a(any,any)'. The
+            '' TYPEREF's own type is the ELEMENT type and says nothing about the rank,
+            '' so reading the rank from it made 'a(any,any)' and 'a(any)' compare equal
+            '' and refused a pair fbc accepts.
+            if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) <> 0 then
+                rank = cast( long, pp->extra )
+            end if
+            return c.info->TypeOf_( pp->a )
+        end if
+        seen += 1
+    next
+    return TYPE_NONE
+end function
+
+private function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as long
+    if decl = NODE_NONE then return -1
+    if c.ast->Kind( decl ) <> N_PROC then return -1
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    dim as long n = 0
+    for i as long = 0 to sp->count - 1
+        if c.ast->Kind( cast( NodeId, c.ast->children[sp->first + i] ) ) = N_PARAM then
+            n += 1
+        end if
+    next
+    return n
+end function
+
+private function SameSignature_ _
+    ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as boolean
+
+    dim as long na = ParamCount_( c, a )
+    dim as long nb = ParamCount_( c, b )
+    if (na < 0) orelse (nb < 0) then return false
+    if na <> nb then return false
+
+    '' THE RESULT TYPE COUNTS TOO. 'declare operator cast( ) as byte' and 'as double'
+    '' take no parameters and differ only in what they return, which FreeBASIC allows for
+    '' a conversion operator -- comparing parameters alone called them duplicates and
+    '' broke three of this suite's own MIR tests. A SUB has no result and both sides
+    '' report TYPE_NONE, which compares equal as it should.
+    dim as StmtPayload ptr sa = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, a )].data )]
+    dim as StmtPayload ptr sb = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, b )].data )]
+    if c.info->TypeOf_( sa->a ) <> c.info->TypeOf_( sb->a ) then return false
+    '' ONLY A PAIR WITH A BYDESC PARAMETER IS JUDGED, which is the whole of what was
+    '' measured and the whole of what the corpus asks for. The general scalar case looks
+    '' identical and is not: run over all 1222 fbc-accepted files it produced THIRTEEN
+    '' false rejections, from two causes this pass cannot tell apart from a duplicate --
+    '' the same name declared in two NAMESPACES whose overload chain links across them,
+    '' and the CRT headers' '_rotl' family. Both are shapes where "same name, same
+    '' parameter types" is not the question fbc is actually asking.
+    dim as boolean anyBydesc = false
+    for i as long = 0 to na - 1
+        dim as long rx, ry
+        ParamTypeAt_( c, a, i, rx )
+        ParamTypeAt_( c, b, i, ry )
+        if (rx >= 0) orelse (ry >= 0) then
+            anyBydesc = true
+            exit for
+        end if
+    next
+    if anyBydesc = false then return false
+
+    for i as long = 0 to na - 1
+        dim as long ra, rb
+        dim as TypeId ta = ParamTypeAt_( c, a, i, ra )
+        dim as TypeId tb = ParamTypeAt_( c, b, i, rb )
+        '' AN UNTYPED PARAMETER MEANS SOMETHING EARLIER DECLINED, and two of them are
+        '' not evidence of anything.
+        if (ta = TYPE_NONE) orelse (tb = TYPE_NONE) then return false
+        if (ra >= 0) andalso (rb >= 0) then
+            '' BOTH BYDESC: rank 0 is 'unknown' and collides with any; two known ranks
+            '' collide only when equal. The ELEMENT type still has to match.
+            if (ra > 0) andalso (rb > 0) andalso (ra <> rb) then return false
+            '' The ELEMENT type is what the TYPEREF carries for a bydesc parameter.
+            if ta <> tb then return false
+        else
+            if ta <> tb then return false
+        end if
+    next
+    return true
+end function
+
+private sub CheckDuplicateOverloads_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_PROC ) then continue for
+        if s->nextOverload = SYMBOL_NONE then continue for
+        dim as NodeId da = cast( NodeId, s->payload )
+        if da = NODE_NONE then continue for
+        if c.ast->Kind( da ) <> N_PROC then continue for
+
+        dim as Symbol ptr o = c.syms->SymbolAt( s->nextOverload )
+        dim as long guard = 0
+        while (o <> 0) andalso (guard < 1000)
+            guard += 1
+            '' THE SAME SCOPE ONLY. Two namespaces may each hold an 'f'.
+            if o->parent = s->parent then
+                dim as NodeId db = cast( NodeId, o->payload )
+                if (db <> NODE_NONE) andalso (db <> da) then
+                    if c.ast->Kind( db ) = N_PROC then
+                        '' A DEFINITION OF AN ALREADY-DECLARED OVERLOAD IS NOT A SECOND
+                        '' ONE. 'declare function pr overload( byval p as long )' and the
+                        '' 'function pr( byval p as long )' that follows are the same
+                        '' procedure -- and because OVERLOAD belongs to the NAME rather
+                        '' than to the declaration that spelled it, they are two symbols
+                        '' in the chain with one signature. Reporting that broke seven of
+                        '' this suite's own MIR tests at once.
+                        ''
+                        '' So the pair must AGREE about having a body: two declarations
+                        '' collide, and so do two definitions; a declaration and its
+                        '' definition do not.
+                        dim as StmtPayload ptr pa = _
+                            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, da )].data )]
+                        dim as StmtPayload ptr pb = _
+                            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, db )].data )]
+                        dim as boolean bodyA = (pa->b <> NODE_NONE)
+                        dim as boolean bodyB = (pb->b <> NODE_NONE)
+                        if bodyA <> bodyB then
+                            o = c.syms->SymbolAt( o->nextOverload )
+                            continue while
+                        end if
+                        if SameSignature_( c, da, db ) then
+                            c.diags->Report( TKO0677, PointRange( c.ast->Loc( db ) ), _
+                                             c.names->Spelling( s->name ) )
+                        end if
+                    end if
+                end if
+            end if
+            o = c.syms->SymbolAt( o->nextOverload )
+        wend
+    next
+end sub
