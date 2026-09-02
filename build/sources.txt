@@ -141,6 +141,8 @@ fs/watch.bas
 fs/fileops2.bas
 fs/filelow.bas
 fs/legacydir.bas
+thread/claimlock.bas
+thread/sched.bas
 thread/mutex.bas
 thread/ctx.bas
 thread/self.bas
