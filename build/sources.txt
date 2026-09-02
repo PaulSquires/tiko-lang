@@ -175,6 +175,8 @@ io/devlpttest.bas
 io/devcomtest.bas
 io/scancode.bas
 io/coninput.bas
+io/x11keys.bas
+io/xfocus.bas
 io/devlptio.bas
 io/conreadstr.bas
 io/devwidth2.bas
