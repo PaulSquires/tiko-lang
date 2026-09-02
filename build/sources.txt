@@ -177,6 +177,7 @@ io/scancode.bas
 io/coninput.bas
 io/x11keys.bas
 io/xfocus.bas
+io/conwindow.bas
 io/devlptio.bas
 io/conreadstr.bas
 io/devwidth2.bas
