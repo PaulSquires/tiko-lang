@@ -1005,6 +1005,142 @@ private sub CheckLetUnpackVisibility_ _
     ReportHiddenField_( c, f, st, id )
 end sub
 
+'' The name an expression carries, for the diagnostic's '%0'.
+private function SpellOf_ ( byref c as Ctx, byval n as NodeId ) as string
+    if n = NODE_NONE then return ""
+    if c.ast->Kind( n ) <> N_IDENT then return ""
+    return c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )].name )
+end function
+
+'' NOTHING CONST MAY BE WRITTEN -- fbc error 119, "Cannot modify a constant". The simple
+'' case, an assignment straight to a const VARIABLE, is CheckAssignTarget_'s; these are the
+'' spellings that reach const storage through an expression, and every one was measured:
+''
+''     *p = 1          p as const integer ptr          error 119
+''     *p = 1          p as integer const ptr          ACCEPTED -- the POINTEE is writable
+''     cast( const integer, i ) = 1                    error 24
+''     *cptr( const integer ptr, pci ) = 123           error 119
+''     swap a, b       either one const                error 119
+''     let( i ) = x    i a const                       error 119
+''     *p = 0          p from 'var p = @( x.n )', n a const FIELD    error 119
+''     (*strptr( s ))[0] = c    s a const string       error 119
+''
+'' ALL OF THEM ASK ONE QUESTION -- is the type this expression designates CONST -- so the
+'' target's own type answers it, and a const POINTER answers 'no' because its POINTEE is
+'' what a dereference designates. That is the distinction the const-pointer parser fix
+'' made expressible; before it every one of these was a coin toss.
+private function ConstDesignated_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if n = NODE_NONE then return false
+    dim as TypeId t = c.info->TypeOf_( n )
+    if t = TYPE_NONE then return false
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Inner( t )
+    return c.types->IsConst( t )
+end function
+
+'' The assignment targets CheckAssignTarget_ does not reach: a DEREFERENCE and a CAST.
+'' A plain N_IDENT is left to it so nothing is reported twice.
+private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->a = NODE_NONE then return
+    dim as NodeKind k = c.ast->Kind( sp->a )
+    dim as boolean judged = (k = N_DEREF) orelse (k = N_INDEX)
+    if k = N_CALL then
+        '' 'cast( const T, x ) = ...' -- a CAST is not a call, and its result type is
+        '' what is being written. A real call on the left is a property or an array
+        '' subscript and is somebody else's question.
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        if lp->target <> NODE_NONE then
+            if c.ast->Kind( lp->target ) = N_IDENT then
+                if c.info->RefOf( lp->target ) = SYMBOL_NONE then
+                    dim as string cn = lcase( c.names->Spelling( _
+                        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+                    judged = (cn = "cast") orelse (cn = "cptr")
+                    '' 'mid( s, i, n ) = v' WRITES INTO s, so a const string there is
+                    '' fbc's 119 -- while a const INDEX argument is fine. The call's own
+                    '' type is the string it returns, so argument 0 is what is judged.
+                    if cn = "mid" then
+                        if lp->count >= 1 then
+                            dim as NodeId m0 = cast( NodeId, c.ast->children[lp->first] )
+                            if ConstDesignated_( c, m0 ) then
+                                c.diags->Report( TKO0617, _
+                                    PointRange( c.ast->Loc( m0 ) ), SpellOf_( c, m0 ) )
+                            end if
+                        end if
+                        return
+                    end if
+                end if
+            end if
+        end if
+    end if
+    if judged = false then return
+    if ConstDesignated_( c, sp->a ) = false then return
+    c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), "" )
+end sub
+
+'' SWAP WRITES BOTH OPERANDS, so a const on either side is fbc's 119. Measured both ways.
+private sub CheckSwapConst_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_SWAP then return
+    for pass_ as long = 0 to 1
+        dim as NodeId v = sp->a
+        if pass_ = 1 then v = sp->b
+        if v = NODE_NONE then continue for
+        '' A LITERAL and a NAMED CONSTANT are TKO0642's, not this rule's -- reporting them
+        '' here too put two diagnostics on one 'swap K, b'. What TKO0642 does not see is a
+        '' variable whose TYPE is const, which is what rtl-swap.bas writes.
+        dim as boolean bad = ConstDesignated_( c, v )
+        if bad then
+            c.diags->Report( TKO0617, PointRange( c.ast->Loc( v ) ), _
+                             SpellOf_( c, v ) )
+            return
+        end if
+    next
+end sub
+
+'' A CONSTANT'S TYPE MUST BE ONE A VALUE CAN BE FOLDED INTO -- fbc error 24. Measured
+'' across the whole set, and the accepted side is wide:
+''
+''     integer  double  single  longint  ubyte  boolean       accepted
+''     string (plain)   any pointer      an enum              accepted
+''     any              string * 20      zstring * 20         error 24
+''     wstring * 20     a UDT            a UDT with no '='    error 24
+''
+'' A FIXED STRING IS AN ARRAY of a character builtin in this type model, which is what the
+'' TK_ARRAY test below is reading; a const ARRAY is not a thing FreeBASIC has.
+private sub CheckConstDeclTypes2_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_CONST then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        for i as long = 0 to sp->count - 1
+            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+            dim as StmtPayload ptr ip = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            '' WITHOUT AN EXPLICIT TYPE there is nothing to judge: 'const k = 1' infers.
+            if ip->a = NODE_NONE then continue for
+            dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( ip->a ) )
+            if t = TYPE_NONE then continue for
+            dim as boolean bad = false
+            select case c.types->Kind( t )
+            case TK_UDT, TK_ARRAY
+                bad = true
+            case TK_BUILTIN
+                bad = (c.types->BuiltinOf( t ) = TY_ANY)
+            end select
+            if bad = false then continue for
+            c.diags->Report( TKO0748, PointRange( c.ast->Loc( item ) ), _
+                             c.names->Spelling( ip->name ) )
+        next
+    next
+end sub
+
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
       byval here as TypeId )
@@ -1016,6 +1152,8 @@ private sub WalkExtra_ _
     if k = N_PROC then CheckProcDefinitionShapes_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
+    if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id )
+    if k = N_INTRINSIC then CheckSwapConst_( c, id )
 end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )
@@ -1024,4 +1162,5 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckExternBlock_( c, c.root )
     CheckEllipsisUbound_( c )
     CheckAggregateInitVisibility_( c )
+    CheckConstDeclTypes2_( c )
 end sub

@@ -343,6 +343,8 @@
     DIAG( TKO0746, SEV_ERROR,   "the %0 of '%1' is private or protected and cannot be reached from here" )
     '' fbc's error 181 for a pointer that loses a pointee's CONST.
     DIAG( TKO0747, SEV_ERROR,   "this drops a pointee's 'const'" )
+    '' fbc's error 24 for a CONST of a type that cannot be one.
+    DIAG( TKO0748, SEV_ERROR,   "a constant cannot have the type of '%0'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

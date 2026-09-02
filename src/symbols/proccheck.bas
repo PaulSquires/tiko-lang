@@ -177,6 +177,17 @@ private sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
     if sp->a = NODE_NONE then return
     dim as TypeId t = c.info->TypeOf_( sp->a )
     if t = TYPE_NONE then return
+    '' THE TARGET IS WRITTEN, so a CONST one is fbc's 119 -- 'dim p as const any ptr' or
+    '' 'as const FB.IMAGE ptr' handed to LINE or GET. Measured: those two refuse a const
+    '' image while imagedestroy, imageinfo and PUT's SOURCE image take one.
+    dim as TypeId pt = c.types->Unqualify( t )
+    if c.types->Kind( pt ) = TK_POINTER then
+        if c.types->IsConst( c.types->Inner( pt ) ) then
+            c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                             "the image target" )
+            return
+        end if
+    end if
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
     select case c.types->Kind( u )
