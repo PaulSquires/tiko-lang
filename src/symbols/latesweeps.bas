@@ -71,6 +71,23 @@ private function NamespaceScopeOf_ _
     return SCOPE_NONE
 end function
 
+'' Does the FIRST component of a dotted owner path name a namespace or a type anywhere?
+private function OwnerHeadExists_ ( byref c as Ctx, byval path as InternId ) as boolean
+    if path = 0 then return true
+    dim as string qp = c.names->Spelling( path )
+    dim as long dot = instr( qp, "." )
+    if dot > 0 then qp = left( qp, dot - 1 )
+    dim as InternId head = c.names->Fold( c.names->GetString( qp ) )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if (s->kind <> cast( ubyte, SYM_NAMESPACE )) andalso _
+           (s->kind <> cast( ubyte, SYM_UDT )) andalso _
+           (s->kind <> cast( ubyte, SYM_TYPEDEF )) then continue for
+        if c.names->Fold( s->name ) = head then return true
+    next
+    return false
+end function
+
 private sub CheckOutsideNamespace_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
@@ -79,10 +96,38 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
         if (c.ast->nodes[n].flags and NF_QUALIFIED) = 0 then continue for
         dim as StmtPayload ptr sp = _
             @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        '' 'redim x.arr( 0 to 9 )' NAMES ITS ARRAY THROUGH AN OBJECT -- 'x' is a variable,
+        '' or 'this' -- and declares nothing into anything. The parser marks such an item
+        '' with the REDIM keyword in 'extra'; five of this suite's own MIR tests write it,
+        '' and the owner test read 'x' as a namespace that did not exist.
+        if (k = N_VAR_ITEM) andalso (sp->extra = cast( ushort, KW_REDIM )) then continue for
         dim as ScopeId ns = NamespaceScopeOf_( c, sp->ownerName )
-        if ns = SCOPE_NONE then continue for
+        if ns = SCOPE_NONE then
+            '' AN OWNER THAT NAMES NOTHING AT ALL. 'dim shared a.i1 as integer' with no
+            '' 'a' anywhere is fbc's error 147, and 'declare sub a.f1( )' its error 3;
+            '' Collect meanwhile read 'a' as a TYPE and gave f1 an implicit THIS. Only
+            '' when neither a namespace nor a type of that head name exists -- a type is
+            '' the other legitimate owner, and is somebody else's question.
+            if OwnerHeadExists_( c, sp->ownerName ) then continue for
+            c.diags->Report( TKO0694, PointRange( c.ast->Loc( id ) ), _
+                             c.names->Spelling( sp->ownerName ) )
+            continue for
+        end if
         dim as SymbolId have = c.syms->LookupLocal( ns, c.names->Fold( sp->name ) )
-        if have <> SYMBOL_NONE then continue for
+        dim as boolean bad = (have = SYMBOL_NONE)
+        if bad = false then
+            '' THE NAME EXISTS -- but only a DEFINITION of something DECLARED may come
+            '' from outside. Measured: a second 'declare' of a declared procedure is
+            '' error 158, and so is 'dim shared a.i1' or 'redim shared ns1.array1( )'
+            '' over a member that was a plain dim rather than an extern.
+            dim as Symbol ptr hs = c.syms->SymbolAt( have )
+            if k = N_PROC then
+                bad = (sp->b = NODE_NONE)
+            elseif hs <> 0 then
+                bad = ((hs->flags and SYMF_EXTERN) = 0)
+            end if
+        end if
+        if bad = false then continue for
         c.diags->Report( TKO0669, PointRange( c.ast->Loc( id ) ), _
                          c.names->Spelling( sp->ownerName ) & "." & _
                          c.names->Spelling( sp->name ) )
@@ -262,19 +307,6 @@ private function ParamTypeAt_ _
     return TYPE_NONE
 end function
 
-private function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as long
-    if decl = NODE_NONE then return -1
-    if c.ast->Kind( decl ) <> N_PROC then return -1
-    dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
-    dim as long n = 0
-    for i as long = 0 to sp->count - 1
-        if c.ast->Kind( cast( NodeId, c.ast->children[sp->first + i] ) ) = N_PARAM then
-            n += 1
-        end if
-    next
-    return n
-end function
 
 private function SameSignature_ _
     ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as boolean
@@ -414,3 +446,143 @@ private sub CheckBitfieldWidths_( byref c as Ctx )
     next
 end sub
 
+
+'' A REDIM WRITES AS MANY DIMENSIONS AS THE ARRAY HAS -- fbc error 36 -- when the array
+'' was declared with 'any' and so has a KNOWN rank. Measured: 'redim a(0 to 1, 0 to 1)'
+'' over 'a(any)' is refused, over a field too, while 'redim a(0 to 1)' is the ordinary
+'' use. A plain 'a()' has rank 0 and takes any shape.
+''
+'' THE RANK WRITTEN is the number of ranges in the bounds block.
+private sub CheckRedimRank_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if sp->op <> cast( ushort, KW_REDIM ) then continue for
+        for i as long = 0 to sp->count - 1
+            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+            dim as StmtPayload ptr ip = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            '' THE BOUNDS ARE AN N_BLOCK OF RANGES in 'c', one per dimension -- not the
+            '' item's own children, which is where a DIM's initialiser list goes.
+            dim as long written = 0
+            if ip->c <> NODE_NONE then
+                if c.ast->Kind( ip->c ) = N_BLOCK then
+                    written = c.ast->lists[cast( long, _
+                        c.ast->nodes[cast( long, ip->c )].data )].count
+                end if
+            end if
+            '' The array: a QUALIFIED target sits in 'b' as an expression; a bare one
+            '' is the item's own name, bound on the item.
+            dim as NodeId tgt = item
+            if (ip->b <> NODE_NONE) andalso (ip->extra = cast( ushort, KW_REDIM )) then
+                tgt = ip->b
+            end if
+            dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+            if s = 0 then continue for
+            if s->type_ = TYPE_NONE then continue for
+            dim as TypeId u = c.types->Unqualify( s->type_ )
+            '' 'redim a' OVER SOMETHING THAT IS NOT AN ARRAY -- fbc error 63 ("Expected
+            '' array"), and 147 when bounds are written. Measured over an extern scalar.
+            if c.types->Kind( u ) <> TK_ARRAY then
+                c.diags->Report( TKO0695, PointRange( c.ast->Loc( item ) ), _
+                                 c.names->Spelling( s->name ) )
+                continue for
+            end if
+            if c.types->IsDynArray( u ) = false then continue for
+            dim as long rank = c.types->DynRank( u )
+            if rank <= 0 then continue for
+            if written <= 0 then continue for
+            if written = rank then continue for
+            c.diags->Report( TKO0658, PointRange( c.ast->Loc( item ) ), _
+                             c.names->Spelling( s->name ) )
+        next
+    next
+end sub
+
+'' THREE THINGS AN ARRAY DECLARATION MAY NOT SAY, each measured against fbc:
+''
+''     type U : a(any) as const integer : end type     error 275  -- a DYNAMIC array
+''     type U : a(0 to 3) as const integer : end type  OK         -- field cannot be const
+''     dim a(any) as const integer                      error 237  -- a VARIABLE cannot be
+''     dim a(0 to 3) as const integer                   error 237     const either way
+''     type U : a(0 to ...) as integer : end type      error 77   -- '...' on a FIELD
+''     dim a(0 to ...) as integer = { 1, 2 }            OK         -- fine on a variable
+''
+'' The ellipsis is read off the bounds block, where the parser leaves an N_ELLIPSIS node;
+'' the const off the element type.
+private function BoundsHaveEllipsis_ ( byref c as Ctx, byval bounds as NodeId ) as boolean
+    if bounds = NODE_NONE then return false
+    if c.ast->Kind( bounds ) <> N_BLOCK then return false
+    dim as ListPayload ptr bl = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, bounds )].data )]
+    for i as long = 0 to bl->count - 1
+        dim as NodeId r = cast( NodeId, c.ast->children[bl->first + i] )
+        if r = NODE_NONE then continue for
+        if c.ast->Kind( r ) = N_ELLIPSIS then return true
+        if c.ast->Kind( r ) <> N_CASE_RANGE then continue for
+        dim as BinaryPayload ptr rp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, r )].data )]
+        if (rp->lhs <> NODE_NONE) andalso (c.ast->Kind( rp->lhs ) = N_ELLIPSIS) then return true
+        if (rp->rhs <> NODE_NONE) andalso (c.ast->Kind( rp->rhs ) = N_ELLIPSIS) then return true
+    next
+    return false
+end function
+
+private sub CheckArrayDeclShapes_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        dim as SymbolKind k = cast( SymbolKind, s->kind )
+        if (k <> SYM_FIELD) andalso (k <> SYM_VARIABLE) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        dim as NodeKind ik = c.ast->Kind( item )
+        if (ik <> N_FIELD) andalso (ik <> N_VAR_ITEM) then continue for
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        if c.types->Kind( u ) <> TK_ARRAY then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        '' A FIXED STRING is an array of a character builtin and is none of this.
+        dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+        if c.types->Kind( el ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( el )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                continue for
+            end select
+        end if
+        dim as boolean constEl = c.types->IsConst( c.types->Inner( u ) )
+        if ik = N_FIELD then
+            if constEl andalso c.types->IsDynArray( u ) then
+                c.diags->Report( TKO0690, PointRange( c.ast->Loc( item ) ), _
+                                 c.names->Spelling( s->name ) )
+            end if
+            '' A FIELD'S BOUNDS ARE ITS OWN CHILDREN, not a block in 'c' the way a
+            '' variable's are -- the parser stores them flat, one node per bound.
+            dim as boolean ell = BoundsHaveEllipsis_( c, ip->c )
+            for b as long = 0 to ip->count - 1
+                dim as NodeId bn = cast( NodeId, c.ast->children[ip->first + b] )
+                if bn = NODE_NONE then continue for
+                if c.ast->Kind( bn ) = N_ELLIPSIS then ell = true
+            next
+            if ell then
+                c.diags->Report( TKO0691, PointRange( c.ast->Loc( item ) ), _
+                                 c.names->Spelling( s->name ) )
+            end if
+        else
+            '' A PARAMETER IS NOT A VARIABLE HERE, and neither is a bydesc one.
+            if (c.ast->nodes[cast( long, item )].flags and NF_ARRAY) = 0 then continue for
+            '' ...UNLESS IT IS INITIALISED. 'dim x(0 to 2) as const integer = { 1, 2, 3 }'
+            '' is accepted by fbc with a warning -- warnings/const-discard.bas writes it --
+            '' and the corpus scan caught that. A const element with nothing to set it
+            '' from is what is refused.
+            if ip->b <> NODE_NONE then continue for
+            if constEl then
+                c.diags->Report( TKO0692, PointRange( c.ast->Loc( item ) ), _
+                                 c.names->Spelling( s->name ) )
+            end if
+        end if
+    next
+end sub

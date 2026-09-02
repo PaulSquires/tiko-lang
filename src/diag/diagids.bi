@@ -262,6 +262,14 @@
     DIAG( TKO0686, SEV_ERROR,   "these pointer types do not convert into each other" )
     '' fbc's error 58.
     DIAG( TKO0687, SEV_ERROR,   "a bydesc parameter takes an array of exactly its element type" )
+    '' fbc's errors 275, 77, 237 and 67.
+    DIAG( TKO0690, SEV_ERROR,   "the dynamic array field '%0' cannot have a const element type" )
+    DIAG( TKO0691, SEV_ERROR,   "the array field '%0' cannot take an ellipsis bound" )
+    DIAG( TKO0692, SEV_ERROR,   "the array '%0' cannot have a const element type" )
+    DIAG( TKO0693, SEV_ERROR,   "base( ) is given more values than the base type has fields" )
+    '' fbc's errors 147/3 and 63.
+    DIAG( TKO0694, SEV_ERROR,   "'%0' names neither a namespace nor a type" )
+    DIAG( TKO0695, SEV_ERROR,   "'%0' is not an array and cannot be redimensioned" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

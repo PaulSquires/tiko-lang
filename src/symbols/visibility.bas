@@ -254,6 +254,22 @@ private function RequiredParams_ ( byref c as Ctx, byval decl as NodeId ) as lon
     return n
 end function
 
+'' Every parameter of a declaration, defaulted or not. Lives here, before the
+'' latechecks include, because the array default-constructor test there needs it.
+private function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as long
+    if decl = NODE_NONE then return -1
+    if c.ast->Kind( decl ) <> N_PROC then return -1
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    dim as long n = 0
+    for i as long = 0 to sp->count - 1
+        if c.ast->Kind( cast( NodeId, c.ast->children[sp->first + i] ) ) = N_PARAM then
+            n += 1
+        end if
+    next
+    return n
+end function
+
 private function StructorReachable_ _
     ( byref c as Ctx, byval st as Symbol ptr, byval udt as TypeId, _
       byval here as TypeId ) as boolean
@@ -561,7 +577,9 @@ private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = 0 then return
-    if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    '' A FIELD ARRAY IS THE SAME QUESTION: 'x.arr(0, 0)' over 'arr(any) as integer'.
+    if (ts->kind <> cast( ubyte, SYM_VARIABLE )) andalso _
+       (ts->kind <> cast( ubyte, SYM_FIELD )) then return
     if ts->type_ = TYPE_NONE then return
     dim as TypeId u = c.types->Unqualify( ts->type_ )
     if c.types->Kind( u ) <> TK_ARRAY then return
@@ -577,6 +595,11 @@ private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
         end if
     end if
     dim as long dims = c.types->types[cast( long, u )].dims
+    '' A DYNAMIC ARRAY DECLARED WITH 'any' HAS A KNOWN RANK: 'a(any)' is one dimension
+    '' and 'a(any, any)' two, recorded as -(rank + 1). Measured: 'a(0, 0)' over 'a(any)'
+    '' is fbc error 36 exactly as over a fixed one, and 'a(0)' over 'a(any, any)' too.
+    '' Only 'a()' -- rank 0, its shape whatever the last redim made it -- is not asked.
+    if dims < 0 then dims = (-dims) - 1
     if dims <= 0 then return
     if lp->count = dims then return
     c.diags->Report( TKO0658, PointRange( c.ast->Loc( id ) ), _
@@ -1197,6 +1220,7 @@ private sub Walk_ _
     if (k = N_CALL) orelse (k = N_INDEX) then CheckSubscriptCount_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id, here )
+    if k = N_CALL then CheckBaseInitCount_( c, id, here )
     if k = N_CALL then CheckIifArms_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
@@ -1421,6 +1445,8 @@ sub Run _
     CheckReturnStyles_( c )
     CheckDuplicateOverloads_( c )
     CheckBitfieldWidths_( c )
+    CheckArrayDeclShapes_( c )
+    CheckRedimRank_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )

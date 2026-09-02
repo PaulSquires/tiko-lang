@@ -370,22 +370,45 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
 
         if s->type_ = TYPE_NONE then continue for
         dim as TypeId u = c.types->Unqualify( s->type_ )
+        dim as boolean isArray = false
         dim as long guard = 0
         while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
             guard += 1
+            isArray = true
             u = c.types->Unqualify( c.types->Inner( u ) )
         wend
         if c.types->Kind( u ) <> TK_UDT then continue for
         dim as Symbol ptr ct = StructorOf_( c, u, "__ctor" )
         '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
         if ct = 0 then continue for
+        '' WHAT COUNTS AS DEFAULT IS STRICTER FOR AN ARRAY. The corpus measured two
+        '' constructors that CAN be called with no argument and that fbc still refuses to
+        '' build an array from (error 183): 'constructor( byval as integer = 0 )', whose
+        '' parameter is merely defaulted, and 'constructor stdcall( )', whose calling
+        '' convention is not the type's own. So for an array it is ZERO declared
+        '' parameters and no convention written. A scalar keeps the looser test -- the
+        '' stricter one is not measured there.
         dim as boolean sawDefault = false
         dim as Symbol ptr walk = ct
         dim as long g2 = 0
         while (walk <> 0) andalso (g2 < 1000)
             g2 += 1
-            dim as long req = RequiredParams_( c, cast( NodeId, walk->payload ) )
-            if (req = 0) orelse (req = -1) then
+            dim as NodeId cd = cast( NodeId, walk->payload )
+            dim as long req = RequiredParams_( c, cd )
+            if req = -1 then
+                sawDefault = true
+                exit while
+            end if
+            if isArray then
+                dim as StmtPayload ptr cp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
+                dim as boolean conv = _
+                    ((cp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0)
+                if (ParamCount_( c, cd ) = 0) andalso (conv = false) then
+                    sawDefault = true
+                    exit while
+                end if
+            elseif req = 0 then
                 sawDefault = true
                 exit while
             end if

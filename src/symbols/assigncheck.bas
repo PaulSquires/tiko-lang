@@ -105,3 +105,46 @@ end sub
 '' type that is not the destination's and are all legal -- while closing not one corpus
 '' file, because every corpus case declares a constructor and a constructor is a possible
 '' conversion path this pass does not model. Measured and withdrawn.
+
+'' 'base( 1, 2, 3, 4 )' HANDS THE PARENT MORE VALUES THAN IT HAS FIELDS -- fbc error 67,
+'' "Too many expressions". Measured over a parent of three fields: three is accepted, two
+'' is accepted (the rest default), four is refused. So only MORE is an error.
+''
+'' The parent is the enclosing type's base, and its field count is what the symbol table
+'' holds for its scope: every SYM_FIELD there that is not the 'base' link and not static.
+private sub CheckBaseInitCount_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+
+    if here = TYPE_NONE then return
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = NODE_NONE then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    dim as InternId nm = _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name
+    if c.names->Fold( nm ) <> c.names->Fold( c.baseName ) then return
+    dim as TypeId base_ = BaseOf_( c, here )
+    if base_ = TYPE_NONE then return
+    '' A BASE WITH A CONSTRUCTOR takes ARGUMENTS, not field values, and that is a
+    '' different count altogether.
+    if StructorOf_( c, base_, "__ctor" ) <> 0 then return
+    dim as ScopeId bsc = cast( ScopeId, c.types->DeclScopeOf( base_ ) )
+    dim as InternId bn = c.types->NameOf( base_ )
+    dim as SymbolId bsid = c.syms->LookupLocalTyped( bsc, bn, true )
+    if bsid = SYMBOL_NONE then bsid = c.syms->LookupTyped( bsc, bn, true )
+    dim as Symbol ptr bsym = c.syms->SymbolAt( bsid )
+    if bsym = 0 then return
+    if bsym->inner = SCOPE_NONE then return
+    dim as long fields = 0
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr f = @c.syms->symbols[i]
+        if f->parent <> bsym->inner then continue for
+        if f->kind <> cast( ubyte, SYM_FIELD ) then continue for
+        if f->name = c.baseName then continue for
+        if (f->flags and SYMF_STATIC) <> 0 then continue for
+        fields += 1
+    next
+    if lp->count <= fields then return
+    c.diags->Report( TKO0693, PointRange( c.ast->Loc( id ) ) )
+end sub
+

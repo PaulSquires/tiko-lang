@@ -1,0 +1,10 @@
+'' A dynamic array declared with 'any' has a known rank: a subscript and a redim must
+'' write that many dimensions (fbc error 36), over a variable and a field alike; 'a()'
+'' has rank 0 and takes any shape. An array of a type with no default constructor cannot
+'' be declared without an initialiser (fbc error 183) -- a merely DEFAULTED parameter and
+'' a written calling convention do not make a default one, for an array.
+'' Matches fbc on lines 32-40.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/dynamic-rank-and-array-ctor.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/dynamic-rank-and-array-ctor.out

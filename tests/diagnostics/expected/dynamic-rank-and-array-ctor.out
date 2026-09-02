@@ -1,0 +1,379 @@
+func void _ZN1TC1Eu7INTEGER($0, $1) {
+  local ptr this
+  local i64 i
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a1 size 72
+  local agg a2 size 96
+  local agg h size 72
+  local agg okinit size 8
+  local agg badfixed size 8
+  local agg baddyn size 240
+  local agg badredim size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a1
+    %5 = const ptr 0
+    %6 = field.addr @a1, 0
+    store %6, %5
+    %7 = field.addr @a1, 8
+    store %7, %5
+    %8 = const i64 0
+    %9 = field.addr @a1, 16
+    store %9, %8
+    %10 = const i64 8
+    %11 = field.addr @a1, 24
+    store %11, %10
+    %12 = const i64 1
+    %13 = field.addr @a1, 32
+    store %13, %12
+    %14 = const i64 17
+    %15 = field.addr @a1, 40
+    store %15, %14
+    %16 = const i64 0
+    %17 = field.addr @a1, 48
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr @a1, 56
+    store %19, %18
+    %20 = const i64 0
+    %21 = field.addr @a1, 64
+    store %21, %20
+    %22 = alloca ptr a2
+    %23 = const ptr 0
+    %24 = field.addr @a2, 0
+    store %24, %23
+    %25 = field.addr @a2, 8
+    store %25, %23
+    %26 = const i64 0
+    %27 = field.addr @a2, 16
+    store %27, %26
+    %28 = const i64 8
+    %29 = field.addr @a2, 24
+    store %29, %28
+    %30 = const i64 2
+    %31 = field.addr @a2, 32
+    store %31, %30
+    %32 = const i64 18
+    %33 = field.addr @a2, 40
+    store %33, %32
+    %34 = const i64 0
+    %35 = field.addr @a2, 48
+    store %35, %34
+    %36 = const i64 0
+    %37 = field.addr @a2, 56
+    store %37, %36
+    %38 = const i64 0
+    %39 = field.addr @a2, 64
+    store %39, %38
+    %40 = const i64 0
+    %41 = field.addr @a2, 72
+    store %41, %40
+    %42 = const i64 0
+    %43 = field.addr @a2, 80
+    store %43, %42
+    %44 = const i64 0
+    %45 = field.addr @a2, 88
+    store %45, %44
+    %46 = alloca ptr h
+    call void _ZN6HOLDERC1Ev(@h)
+    %47 = alloca ptr okinit
+    %48 = field.addr @okinit, 0
+    %49 = const i64 5
+    call void _ZN1TC1Eu7INTEGER(%48, %49)
+    %50 = const i64 0
+    %51 = const i64 0
+    %52 = const i64 1
+    %53 = call.rtl i32 fb_ArrayRedimEx(@a1, 8, -1, 0, 1, %51, %52)
+    %54 = const i64 0
+    %55 = const i64 8
+    %56 = mul %54, %55
+    %57 = load @a1
+    %58 = ptr.add %57, %56
+    %59 = load %58
+    call.rtl void fb_PrintLongint(0, %59, 1)
+    %60 = const i64 0
+    %61 = const i64 0
+    %62 = const i64 1
+    %63 = const i64 0
+    %64 = const i64 0
+    %65 = const i64 1
+    %66 = call.rtl i32 fb_ArrayRedimEx(@a2, 8, -1, 0, 2, %61, %62, %64, %65)
+    %67 = const i64 0
+    %68 = const i64 0
+    %69 = field.addr @a2, 72
+    %70 = load %69
+    %71 = mul %67, %70
+    %72 = add %71, %68
+    %73 = const i64 8
+    %74 = mul %72, %73
+    %75 = load @a2
+    %76 = ptr.add %75, %74
+    %77 = load %76
+    call.rtl void fb_PrintLongint(0, %77, 1)
+    %78 = field.addr @h, 0
+    %79 = const i64 0
+    %80 = const i64 0
+    %81 = const i64 1
+    %82 = call.rtl i32 fb_ArrayRedimEx(%78, 8, -1, 0, 1, %80, %81)
+    %83 = field.addr @h, 0
+    %84 = const i64 0
+    %85 = const i64 8
+    %86 = mul %84, %85
+    %87 = load %83
+    %88 = ptr.add %87, %86
+    %89 = load %88
+    call.rtl void fb_PrintLongint(0, %89, 1)
+    %90 = const i64 0
+    %91 = const i64 0
+    %92 = const i64 1
+    %93 = const i64 0
+    %94 = const i64 0
+    %95 = const i64 1
+    %96 = call.rtl i32 fb_ArrayRedimEx(@a1, 8, -1, 0, 2, %91, %92, %94, %95)
+    %97 = const i64 0
+    %98 = const i64 0
+    %99 = const i64 1
+    %100 = call.rtl i32 fb_ArrayRedimEx(@a2, 8, -1, 0, 1, %98, %99)
+    %101 = field.addr @h, 0
+    %102 = const i64 0
+    %103 = const i64 0
+    %104 = const i64 1
+    %105 = const i64 0
+    %106 = const i64 0
+    %107 = const i64 1
+    %108 = call.rtl i32 fb_ArrayRedimEx(%101, 8, -1, 0, 2, %103, %104, %106, %107)
+    %109 = alloca ptr badfixed
+    %110 = alloca ptr baddyn
+    %111 = const ptr 0
+    %112 = field.addr @baddyn, 0
+    store %112, %111
+    %113 = field.addr @baddyn, 8
+    store %113, %111
+    %114 = const i64 0
+    %115 = field.addr @baddyn, 16
+    store %115, %114
+    %116 = const i64 8
+    %117 = field.addr @baddyn, 24
+    store %117, %116
+    %118 = const i64 0
+    %119 = field.addr @baddyn, 32
+    store %119, %118
+    %120 = const i64 8
+    %121 = field.addr @baddyn, 40
+    store %121, %120
+    %122 = const i64 0
+    %123 = field.addr @baddyn, 48
+    store %123, %122
+    %124 = const i64 0
+    %125 = field.addr @baddyn, 56
+    store %125, %124
+    %126 = const i64 0
+    %127 = field.addr @baddyn, 64
+    store %127, %126
+    %128 = const i64 0
+    %129 = field.addr @baddyn, 72
+    store %129, %128
+    %130 = const i64 0
+    %131 = field.addr @baddyn, 80
+    store %131, %130
+    %132 = const i64 0
+    %133 = field.addr @baddyn, 88
+    store %133, %132
+    %134 = const i64 0
+    %135 = field.addr @baddyn, 96
+    store %135, %134
+    %136 = const i64 0
+    %137 = field.addr @baddyn, 104
+    store %137, %136
+    %138 = const i64 0
+    %139 = field.addr @baddyn, 112
+    store %139, %138
+    %140 = const i64 0
+    %141 = field.addr @baddyn, 120
+    store %141, %140
+    %142 = const i64 0
+    %143 = field.addr @baddyn, 128
+    store %143, %142
+    %144 = const i64 0
+    %145 = field.addr @baddyn, 136
+    store %145, %144
+    %146 = const i64 0
+    %147 = field.addr @baddyn, 144
+    store %147, %146
+    %148 = const i64 0
+    %149 = field.addr @baddyn, 152
+    store %149, %148
+    %150 = const i64 0
+    %151 = field.addr @baddyn, 160
+    store %151, %150
+    %152 = const i64 0
+    %153 = field.addr @baddyn, 168
+    store %153, %152
+    %154 = const i64 0
+    %155 = field.addr @baddyn, 176
+    store %155, %154
+    %156 = const i64 0
+    %157 = field.addr @baddyn, 184
+    store %157, %156
+    %158 = const i64 0
+    %159 = field.addr @baddyn, 192
+    store %159, %158
+    %160 = const i64 0
+    %161 = field.addr @baddyn, 200
+    store %161, %160
+    %162 = const i64 0
+    %163 = field.addr @baddyn, 208
+    store %163, %162
+    %164 = const i64 0
+    %165 = field.addr @baddyn, 216
+    store %165, %164
+    %166 = const i64 0
+    %167 = field.addr @baddyn, 224
+    store %167, %166
+    %168 = const i64 0
+    %169 = field.addr @baddyn, 232
+    store %169, %168
+    %170 = alloca ptr badredim
+    %171 = const ptr 0
+    %172 = field.addr @badredim, 0
+    store %172, %171
+    %173 = field.addr @badredim, 8
+    store %173, %171
+    %174 = const i64 0
+    %175 = field.addr @badredim, 16
+    store %175, %174
+    %176 = const i64 8
+    %177 = field.addr @badredim, 24
+    store %177, %176
+    %178 = const i64 1
+    %179 = field.addr @badredim, 32
+    store %179, %178
+    %180 = const i64 17
+    %181 = field.addr @badredim, 40
+    store %181, %180
+    %182 = const i64 0
+    %183 = field.addr @badredim, 48
+    store %183, %182
+    %184 = const i64 0
+    %185 = field.addr @badredim, 56
+    store %185, %184
+    %186 = const i64 0
+    %187 = field.addr @badredim, 64
+    store %187, %186
+    %188 = const i64 0
+    %189 = const i64 0
+    %190 = const i64 0
+    %191 = func.addr ptr _ZN1TC1Eu7INTEGER
+    %192 = call.rtl i32 fb_ArrayRedimObj(@badredim, 8, %191, 0, 1, %189, %190)
+    %193 = func.addr ptr _ZN1TC1Eu7INTEGER
+    %194 = call.rtl i32 fb_ArrayEraseObj(@badredim, %193, 0)
+    %195 = func.addr ptr _ZN1TC1Eu7INTEGER
+    %196 = call.rtl i32 fb_ArrayEraseObj(@baddyn, %195, 0)
+    call void _ZN6HOLDERD1Ev(@h)
+    %197 = call.rtl i32 fb_ArrayErase(@a2)
+    %198 = call.rtl i32 fb_ArrayErase(@a1)
+    %199 = const i32 0
+    call.rtl void fb_End(%199)
+    %200 = load @$tmp0
+    ret %200
+}
+declare void fb_Init($0, $1, $2)
+declare void _ZN6HOLDERC1Ev($0)
+declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
+declare void fb_PrintLongint($0, $1, $2)
+declare i32 fb_ArrayRedimObj($0, $1, $2, $3, $4, $5)
+declare i32 fb_ArrayEraseObj($0, $1, $2)
+declare void _ZN6HOLDERD1Ev($0)
+declare i32 fb_ArrayErase($0)
+declare void fb_End($0)
+func void _ZN6HOLDERC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const ptr 0
+    %3 = field.addr %1, 0
+    store %3, %2
+    %4 = field.addr %1, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr %1, 16
+    store %6, %5
+    %7 = const i64 8
+    %8 = field.addr %1, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr %1, 32
+    store %10, %9
+    %11 = const i64 17
+    %12 = field.addr %1, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr %1, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %1, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %1, 64
+    store %18, %17
+    ret
+}
+func void _ZN6HOLDERD1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    ret
+}
+verify: ok
+lowered: 4 functions, 4 blocks, 302 insts, 3 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 3
+  inside N_INTRINSIC 3
+  unlowered intrinsic KW_PRINT 3
+  skip-site src\mir\lowerctl.bas:206 3
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(32,9): error TKO0658: 'a1' is indexed with the wrong number of subscripts
+     |
+  32 | print a1(0, 0)
+     |         ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(33,9): error TKO0658: 'a2' is indexed with the wrong number of subscripts
+     |
+  33 | print a2(0)
+     |         ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(36,12): error TKO0658: 'arr' is indexed with the wrong number of subscripts
+     |
+  36 | print h.arr(0, 0)
+     |            ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(34,7): error TKO0658: 'a1' is indexed with the wrong number of subscripts
+     |
+  34 | redim a1(0 to 1, 0 to 1)
+     |       ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(35,7): error TKO0658: 'a2' is indexed with the wrong number of subscripts
+     |
+  35 | redim a2(0 to 1)
+     |       ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(37,7): error TKO0658: 'arr' is indexed with the wrong number of subscripts
+     |
+  37 | redim h.arr(0 to 1, 0 to 1)
+     |       ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(38,5): error TKO0657: the type of 'badfixed' has no constructor that takes no argument
+     |
+  38 | dim badFixed(0 to 0) as T
+     |     ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(39,5): error TKO0657: the type of 'baddyn' has no constructor that takes no argument
+     |
+  39 | dim badDyn() as T
+     |     ^
+tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(40,7): error TKO0657: the type of 'badredim' has no constructor that takes no argument
+     |
+  40 | redim badRedim(0 to 0) as T
+     |       ^

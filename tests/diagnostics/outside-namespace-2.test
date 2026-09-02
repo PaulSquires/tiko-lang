@@ -1,0 +1,9 @@
+'' The rest of the outside-a-namespace rule: only a DEFINITION of something the namespace
+'' declared may come from outside -- a second 'declare' of a declared procedure is fbc
+'' error 158, and so is 'dim shared a.i1' over a member that was a plain dim rather than
+'' an extern. An owner naming neither a namespace nor a type is 147 on a variable and 3
+'' on a procedure. 'redim a' over a non-array is 63. Matches fbc on lines 17-20 and 23.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/outside-namespace-2.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/outside-namespace-2.out

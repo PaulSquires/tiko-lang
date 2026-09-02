@@ -108,7 +108,17 @@ private sub CheckNoMethodsInProc_( byref c as Ctx )
         dim as Tko.Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( ubyte, Tko.SYM_UDT ) then continue for
         if ScopeIsInProc_( c, s->parent ) = false then continue for
-        if UdtHasProcs_( c, cast( Tko.SymbolId, i ), 0 ) = false then continue for
+        '' 'type U extends object' INSIDE A SUB is refused too -- fbc error 263, the same
+        '' one -- with no method declared at all: extending gives the type a vtable
+        '' pointer and an implicit constructor to set it. So a BASE counts as a method
+        '' here. The base is the field Collect names 'base' in the type's scope.
+        dim as boolean hasBase = false
+        if s->inner <> Tko.SCOPE_NONE then
+            hasBase = (c.syms->LookupLocal( s->inner, _
+                c.names->Fold( c.names->GetString( "base" ) ) ) <> Tko.SYMBOL_NONE)
+        end if
+        if (hasBase = false) andalso _
+           (UdtHasProcs_( c, cast( Tko.SymbolId, i ), 0 ) = false) then continue for
         c.diags->Report( Tko.TKO0619, Tko.PointRange( s->loc ), _
                          c.names->Spelling( s->name ) )
     next

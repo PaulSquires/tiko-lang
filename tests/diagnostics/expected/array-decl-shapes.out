@@ -1,0 +1,107 @@
+func void _ZN5CHILDC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const i64 1
+    %5 = field.addr %3, 0
+    store %5, %4
+    %6 = const i64 2
+    %7 = field.addr %3, 8
+    store %7, %6
+    %8 = field.addr %3, 16
+    %9 = call.rtl ptr memset(%8, 0, 8)
+    ret
+}
+declare ptr memset($0, $1, $2)
+func void _ZN6CHILD2C1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg okellipsis size 16
+  local agg badfixed size 32
+  local agg baddyn size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr okellipsis
+    %5 = const i64 1
+    %6 = field.addr @okellipsis, 0
+    store %6, %5
+    %7 = const i64 2
+    %8 = field.addr @okellipsis, 8
+    store %8, %7
+    %9 = alloca ptr badfixed
+    %10 = alloca ptr baddyn
+    %11 = const ptr 0
+    %12 = field.addr @baddyn, 0
+    store %12, %11
+    %13 = field.addr @baddyn, 8
+    store %13, %11
+    %14 = const i64 0
+    %15 = field.addr @baddyn, 16
+    store %15, %14
+    %16 = const i64 8
+    %17 = field.addr @baddyn, 24
+    store %17, %16
+    %18 = const i64 1
+    %19 = field.addr @baddyn, 32
+    store %19, %18
+    %20 = const i64 17
+    %21 = field.addr @baddyn, 40
+    store %21, %20
+    %22 = const i64 0
+    %23 = field.addr @baddyn, 48
+    store %23, %22
+    %24 = const i64 0
+    %25 = field.addr @baddyn, 56
+    store %25, %24
+    %26 = const i64 0
+    %27 = field.addr @baddyn, 64
+    store %27, %26
+    %28 = call.rtl i32 fb_ArrayErase(@baddyn)
+    %29 = const i32 0
+    call.rtl void fb_End(%29)
+    %30 = load @$tmp0
+    ret %30
+}
+declare void fb_Init($0, $1, $2)
+declare i32 fb_ArrayErase($0)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 60 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 1
+  amb call-nocode 1
+  skip-site lowercall.bas:286 1
+tests/diagnostics/src/array-decl-shapes.bas(34,9): error TKO0693: base( ) is given more values than the base type has fields
+     |
+  34 |     base( 1, 2, 3, 4 )
+     |         ^
+tests/diagnostics/src/array-decl-shapes.bas(28,5): error TKO0690: the dynamic array field 'dynconst' cannot have a const element type
+     |
+  28 |     dynConst(any) as const integer
+     |     ^
+tests/diagnostics/src/array-decl-shapes.bas(29,5): error TKO0691: the array field 'ell' cannot take an ellipsis bound
+     |
+  29 |     ell(0 to ...) as integer
+     |     ^
+tests/diagnostics/src/array-decl-shapes.bas(31,5): error TKO0692: the array 'badfixed' cannot have a const element type
+     |
+  31 | dim badFixed(0 to 3) as const integer
+     |     ^
+tests/diagnostics/src/array-decl-shapes.bas(32,5): error TKO0692: the array 'baddyn' cannot have a const element type
+     |
+  32 | dim badDyn(any) as const integer
+     |     ^

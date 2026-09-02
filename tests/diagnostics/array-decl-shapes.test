@@ -1,0 +1,11 @@
+'' Three things an array declaration may not say, and one thing base( ) may not: a
+'' dynamic array FIELD with a const element (fbc error 275), an uninitialised array
+'' VARIABLE with a const element (237 -- an initialised one is only warned about), an
+'' ellipsis bound on an array FIELD (77; fine on a variable), and base( ) given MORE
+'' values than the parent has fields (67; fewer is accepted). Matches fbc on lines 28,
+'' 29, 31, 32 and 34; fbc's extra 181 on line 30 is the type made unassignable by its
+'' const field, which is not reported here.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-decl-shapes.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/array-decl-shapes.out

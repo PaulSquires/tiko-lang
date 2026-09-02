@@ -251,72 +251,7 @@ sub BindDeclType _
     end if
 end sub
 
-'' Bind identifiers inside an expression. A member name after a dot is NOT resolved
-'' here: it needs the base's type, which is Check's business.
-'' A member of an enclosing type's BASE chain, named without a base. Answers false
-'' when there is no enclosing type, when the name is not inherited, or when the name
-'' is 'base' itself -- a type must not find its own base field by searching for it.
-''
-'' The enclosing type is reached through THIS rather than through the scope chain,
-'' because a member defined outside its type -- 'sub T.S( )', which is how fbc wants
-'' them written -- has a proc scope whose parent is the MODULE.
-private function InheritedMember_ _
-    ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
-      byref outSid as Tko.SymbolId ) as boolean
-
-    outSid = Tko.SYMBOL_NONE
-    dim as Tko.InternId baseNm = c.names->Fold( c.names->GetString( "base" ) )
-    if nm = baseNm then return false
-
-    dim as Tko.SymbolId tsid = c.syms->LookupTyped( scope_, _
-        c.names->Fold( c.names->GetString( "this" ) ), false )
-    if tsid = Tko.SYMBOL_NONE then return false
-    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return false
-    if ts->type_ = Tko.TYPE_NONE then return false
-    if c.types->Kind( ts->type_ ) <> Tko.TK_POINTER then return false
-    dim as Tko.TypeId t = c.types->Unqualify( c.types->Inner( ts->type_ ) )
-
-    '' Down the chain, a link at a time. Single inheritance, so there is one chain
-    '' and no ambiguity; the depth cap is a cycle guard, not a language limit.
-    for depth as long = 0 to 31
-        if t = Tko.TYPE_NONE then return false
-        if c.types->Kind( t ) <> Tko.TK_UDT then return false
-        dim as Tko.InternId tn = c.types->NameOf( t )
-        if tn = 0 then return false
-        dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
-        dim as Tko.SymbolId us = c.syms->LookupLocalTyped( ds, tn, true )
-        if us = Tko.SYMBOL_NONE then us = c.syms->LookupTyped( ds, tn, true )
-        dim as Tko.Symbol ptr usy = c.syms->SymbolAt( us )
-        if usy = 0 then return false
-        if usy->inner = Tko.SCOPE_NONE then return false
-
-        dim as Tko.SymbolId bf = c.syms->LookupLocal( usy->inner, baseNm )
-        if bf = Tko.SYMBOL_NONE then return false
-        dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
-        if b = 0 then return false
-        if b->type_ = Tko.TYPE_NONE then return false
-        dim as Tko.TypeId bt = c.types->Unqualify( b->type_ )
-        if bt = t then return false
-        t = bt
-
-        '' The base's own scope, and then its base's, and so on.
-        dim as Tko.InternId bn = c.types->NameOf( t )
-        if bn = 0 then return false
-        dim as Tko.ScopeId bs = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
-        dim as Tko.SymbolId bus = c.syms->LookupLocalTyped( bs, bn, true )
-        if bus = Tko.SYMBOL_NONE then bus = c.syms->LookupTyped( bs, bn, true )
-        dim as Tko.Symbol ptr busy = c.syms->SymbolAt( bus )
-        if busy = 0 then return false
-        if busy->inner = Tko.SCOPE_NONE then return false
-        dim as Tko.SymbolId hit = c.syms->LookupLocal( busy->inner, nm )
-        if hit <> Tko.SYMBOL_NONE then
-            outSid = hit
-            return true
-        end if
-    next
-    return false
-end function
+#include once "symbols/resolveinh.bas"
 
 
 '' 'Box( of long )( 7 )' -- CONSTRUCTING A GENERIC, which is not a generic PROCEDURE
@@ -1103,6 +1038,13 @@ sub WalkStmt _
                 '' address of.
                 if rp->extra = cast( ushort, Tko.KW_REDIM ) then
                     if rp->b <> Tko.NODE_NONE then WalkStmt( c, rp->b, here )
+                elseif rp->a = Tko.NODE_NONE then
+                    '' A BARE 'redim a( ... )' names an array that already exists and
+                    '' declares nothing, so nothing bound its item to that array -- and
+                    '' the post-Check rank test then had no symbol to read the declared
+                    '' rank from. Bound here, where the scope is at hand.
+                    dim as Tko.SymbolId rsid = c.syms->Lookup( here, rp->name )
+                    if rsid <> Tko.SYMBOL_NONE then c.info->SetRef( item, rsid )
                 end if
                 if rp->c = Tko.NODE_NONE then continue for
                 if c.ast->Kind( rp->c ) <> Tko.N_BLOCK then continue for
