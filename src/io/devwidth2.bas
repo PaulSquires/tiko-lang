@@ -1,0 +1,196 @@
+'' devwidth2.bas -- fb_WidthDev, behind WIDTH "device", n. One symbol, one fbc
+'' member (io_widthdev.o).
+''
+'' A REGISTRY THAT MOSTLY NOBODY READS. Every WIDTH on a named device records the
+'' width in a per-device list AND, if the device is one of the three the runtime
+'' recognises, pushes it down to that device. The list entry is written for every
+'' device, recognised or not -- so `WIDTH "anything:", 40` succeeds, is
+'' remembered, and does nothing else.
+''
+'' THE ARGUMENT IS BOTH A SETTER AND A GETTER, chosen by width = -1:
+''
+''   width <> -1   set. Returns FB_RTERROR_OK, i.e. ZERO.
+''   width  = -1   query. Returns the WIDTH, which for an unknown device is the
+''                 -1 that was passed in.
+''
+'' So the return value means two different things depending on an argument, and a
+'' caller that ignores that reads "ok" as a width of zero.
+''
+'' THE NAME IS UPPER-CASED IN PLACE before anything looks at it, which is why the
+'' copy exists at all -- the caller's descriptor must not be modified. The
+'' comparison against the recognised devices is then case-sensitive against
+'' upper-case literals, and the two Test-Protocol calls get the upper-cased form
+'' too.
+''
+'' THE LIST IS ALLOCATED ONCE AND NEVER FREED. fbc mallocs the FB_LIST head on
+'' first use and has no teardown -- the nodes and their strdup'd names live until
+'' the process ends. Reproduced: freeing them would be a behavioural difference
+'' at exit, and an allocation-count differential would see it.
+''
+'' AND THE NODE-REMOVAL PATH IS DEAD CODE IN fbc, sitting inside `#if 0`. It is
+'' not reproduced, because it cannot be reached.
+''
+'' alloca IS NOT AVAILABLE IN FREEBASIC. fbc puts the upper-cased copy on the
+'' stack, sized from the caller's string, so it has no bound. The substitute here
+'' is malloc/free -- behaviourally identical, and differing only in that one
+'' malloc/free pair appears per call. Unlike sys/spawn.bas this path returns
+'' normally every time, so the free is unconditional and easy to see.
+''
+'' THE SCRN: BRANCH READS THE WIDTH BACK FROM THE HANDLE, not from the list. It
+'' calls fb_Width to set, then takes FB_HANDLE_SCREEN->width as the answer --
+'' so for the screen the authoritative value is the device's, and the list entry
+'' written moments earlier is ignored.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+#include once "inc/file.bi"
+#include once "inc/rterror.bi"
+#include once "crt/string.bi"
+#include once "crt/stdlib.bi"
+
+'' The per-device record. FB_LISTELEM must come FIRST: the list threads through
+'' it, and fb_hListDynElemAdd is handed the address of that member, so a node
+'' pointer and its elem pointer are the same address.
+type TKORT_DEVWIDTH
+	as FB_LISTELEM  elem
+	as zstring ptr  device
+	as long         width_
+end type
+
+extern "c"   '' NON-FBCALL: the list helpers and the string lock are all
+             '' declared plain, and the win32 archive agrees.
+	declare sub tkrt_hListDynInit alias "fb_hListDynInit" ( byval l as FB_LIST ptr )
+	declare sub tkrt_hListDynElemAdd alias "fb_hListDynElemAdd" _
+		( byval l as FB_LIST ptr, byval e as FB_LISTELEM ptr )
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+
+	'' The two device-protocol tests are tiko-rt's; the two SetWidth entry
+	'' points behind them are still fbc's, in dev_lpt.o and dev_com.o.
+	declare function tkrt_DevLptTestProtocol alias "fb_DevLptTestProtocol" _
+		( byval h as any ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevComTestProtocol alias "fb_DevComTestProtocol" _
+		( byval h as any ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevPrinterSetWidth alias "fb_DevPrinterSetWidth" _
+		( byval dev as zstring ptr, byval w as long, byval cur as long ) as long
+	declare function tkrt_DevSerialSetWidth alias "fb_DevSerialSetWidth" _
+		( byval dev as zstring ptr, byval w as long, byval cur as long ) as long
+
+	declare function crt_strdup alias "strdup" ( byval s as zstring ptr ) as zstring ptr
+end extern
+
+extern "rtlib"   '' FBCALL: both are decorated, and the win32 archive spells
+                 '' them `_fb_Width@8` and `_fb_ErrorSetNum@4`.
+	declare function tkrt_Width alias "fb_Width" ( byval cols as long, byval rows as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+#ifdef ENABLE_MT
+	#define LOCK_()   fb_StrLock()
+	#define UNLOCK_() fb_StrUnlock()
+#else
+	#define LOCK_()
+	#define UNLOCK_()
+#endif
+
+'' ALLOCATED ONCE, NEVER FREED -- see the file header. A NULL head is the
+'' "not created yet" state, which is why this is a pointer rather than the
+'' structure itself.
+dim shared as FB_LIST ptr tkort_dev_info_widths
+
+extern "rtlib"   '' FBCALL: fb_console.h decorates fb_WidthDev, and the win32
+                 '' archive spells it `_fb_WidthDev@8`.
+
+function tkort_WidthDev alias "fb_WidthDev" _
+	( byval dev as FBSTRING ptr, byval width_ as long ) as long
+
+	'' THE CURRENT WIDTH STARTS AS THE ARGUMENT, which is what makes an unknown
+	'' device's query return the -1 it was given rather than zero.
+	dim as long cur = width_
+	dim as TKORT_DEVWIDTH ptr node = 0
+
+	LOCK_()
+	if( tkort_dev_info_widths = 0 ) then
+		tkort_dev_info_widths = cptr( FB_LIST ptr, malloc( sizeof( FB_LIST ) ) )
+		if( tkort_dev_info_widths <> 0 ) then tkrt_hListDynInit( tkort_dev_info_widths )
+	end if
+	UNLOCK_()
+
+	if( tkort_dev_info_widths = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+
+	dim as integer size_ = FB_STRSIZE( dev )
+
+	'' alloca's substitute -- see the file header. One byte for the terminator.
+	dim as zstring ptr device = cptr( zstring ptr, malloc( size_ + 1 ) )
+	if( device = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+
+	if( size_ <> 0 ) then memcpy( device, dev->data, size_ )
+	device[size_] = 0
+
+	'' UPPER-CASED IN THE COPY, never in the caller's descriptor. Done by hand
+	'' rather than through toupper because toupper is locale-sensitive and the
+	'' comparisons below are against fixed ASCII literals.
+	for i as integer = 0 to size_ - 1
+		dim as ubyte c = cptr( ubyte ptr, device )[i]
+		if( (c >= 97) andalso (c <= 122) ) then          '' 'a'..'z'
+			cptr( ubyte ptr, device )[i] = c - 32
+		end if
+	next
+
+	LOCK_()
+
+	'' A LINEAR SCAN. The list is short by construction -- one node per distinct
+	'' device name a program has ever passed.
+	node = cptr( TKORT_DEVWIDTH ptr, tkort_dev_info_widths->head )
+	while( node <> 0 )
+		if( strcmp( device, node->device ) = 0 ) then exit while
+		node = cptr( TKORT_DEVWIDTH ptr, node->elem.next )
+	wend
+
+	if( width_ <> -1 ) then
+		if( node = 0 ) then
+			'' A NEW NODE, with its own copy of the name. calloc, not malloc:
+			'' the list element must start zeroed.
+			node = cptr( TKORT_DEVWIDTH ptr, calloc( 1, sizeof( TKORT_DEVWIDTH ) ) )
+			if( node <> 0 ) then
+				node->device = crt_strdup( device )
+				node->width_ = width_
+				tkrt_hListDynElemAdd( tkort_dev_info_widths, @node->elem )
+			end if
+		else
+			node->width_ = width_
+		end if
+	elseif( node <> 0 ) then
+		cur = node->width_
+	end if
+
+	'' ---- and now the three devices the runtime actually knows about.
+
+	if( strcmp( device, @"SCRN:" ) = 0 ) then
+		if( width_ <> -1 ) then
+			'' -1 for rows: leave the row count alone.
+			tkrt_Width( width_, -1 )
+		end if
+		'' READ BACK FROM THE HANDLE, not from the node -- see the file header.
+		cur = TKORT_HANDLE_SCREEN()->width
+
+	elseif( tkrt_DevLptTestProtocol( 0, device, size_ ) <> 0 ) then
+		cur = tkrt_DevPrinterSetWidth( device, width_, cur )
+
+	elseif( tkrt_DevComTestProtocol( 0, device, size_ ) <> 0 ) then
+		cur = tkrt_DevSerialSetWidth( device, width_, cur )
+
+	end if
+
+	UNLOCK_()
+
+	free( device )
+
+	'' TWO DIFFERENT MEANINGS, chosen by the argument. See the file header.
+	if( width_ = -1 ) then return cur
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+end function
+
+end extern

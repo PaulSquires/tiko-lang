@@ -152,6 +152,8 @@ sys/dylib.bas
 sys/process.bas
 sys/hostinfo.bas
 sys/misc.bas
+sys/vt100.bas
+sys/spawn.bas
 io/conquery.bas
 io/conattr.bas
 io/lprint.bas
@@ -170,3 +172,4 @@ io/conttytail.bas
 io/hookmisc.bas
 io/devlpttest.bas
 io/devcomtest.bas
+io/devwidth2.bas

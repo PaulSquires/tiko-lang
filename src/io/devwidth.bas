@@ -1,15 +1,24 @@
 '' devwidth.bas -- SPC, TAB, WIDTH # and the line-length setter: four entry
 '' points over three fbc members.
 ''
-'' fb_LPos AND fb_WidthDev ARE DELIBERATELY NOT HERE. Both reach into the
-'' printer/serial device layer -- fb_DevPrinterGetOffset, fb_DevPrinterSetWidth
-'' -- which lives in fbc's io_printer.o and imports winspool. tiko-rt's objects
-'' are linked EXPLICITLY by build/diff.sh, so referencing those symbols pulls
-'' io_printer.o into every differential program, and every one of the 53 then
-'' failed to link on WritePrinter/EndDocPrinter/ClosePrinter -- while the stock
-'' program, which never pulls that member, linked fine. Naming -l winspool did
-'' not resolve it. They belong with the io_printer batch, where the dependency
-'' is intrinsic and the harness change can be made and tested once.
+'' fb_LPos IS NOT HERE, and fb_WidthDev is no longer here EITHER -- it moved to
+'' src/io/devwidth2.bas once the obstacle below was removed.
+''
+'' Both reach into the printer/serial device layer -- fb_DevPrinterGetOffset,
+'' fb_DevPrinterSetWidth -- which lives in fbc's io_printer.o and imports
+'' winspool. tiko-rt's objects are linked EXPLICITLY by build/diff.sh, so
+'' referencing those symbols pulls io_printer.o into every differential program,
+'' and every one of them then failed to link on WritePrinter/EndDocPrinter/
+'' ClosePrinter -- while the stock program, which never pulls that member, linked
+'' fine.
+''
+'' THAT IS NO LONGER TRUE, and the note that said "naming -l winspool did not
+'' resolve it" was left standing after the fix landed. build/diff.sh now links
+'' `-l winspool -l gdi32`, and with both of them fb_WidthDev links and all 98
+'' differentials pass. The single -l was not enough; gdi32 is the other half,
+'' because io_printer.o also imports StartPage/EndPage/DeleteDC from it.
+''
+'' fb_LPos stays out, and belongs with the io_printer batch.
 ''
 '' SPC AND TAB TAKE COMPLETELY DIFFERENT PATHS FOR A SCREEN AND FOR A FILE, and
 '' the difference is not cosmetic. On a screen they ask the console where the
