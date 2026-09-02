@@ -96,7 +96,7 @@ func void _Z3OV3u7INTEGER($0) {
     store @a, $0
     ret
 }
-func void _Z3OV3Ku7INTEGER($0) {
+func void _Z3OV3u7INTEGER($0) {
   local i64 a
   entry0:
     %1 = alloca ptr a

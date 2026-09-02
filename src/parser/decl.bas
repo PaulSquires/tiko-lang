@@ -872,11 +872,15 @@ private function ParseProc _
         '' while 'sub f( ) constructor' and a static member proc are accepted. The loop
         '' swallowed the word with everything else, so both wrong shapes compiled --
         '' eight corpus files.
+        '' A QUALIFIED DEFINITION IS DECLINED HERE. Whether the method is STATIC is
+        '' settled by its DECLARATION inside the type, which this parser has not got:
+        '' functions/module-ctor-staticmemberproc.bas writes 'declare static sub ctor2( )'
+        '' and then 'sub UDT.ctor2( ) constructor' with no STATIC repeated, and fbc
+        '' accepts it. Reading the definition's own modifiers refused that file. The
+        '' DECLARE half below is syntactic and stays; the member half is owed from the
+        '' checker, which has both nodes.
         if (Peek( p ) = Tko.KW_CONSTRUCTOR) orelse (Peek( p ) = Tko.KW_DESTRUCTOR) then
             dim as boolean modBad = declareOnly
-            if (modBad = false) andalso qualified then
-                modBad = ((sp.extra and Tko.PF_STATIC) = 0)
-            end if
             if modBad then
                 p.diags->Report( Tko.TKO0701, Tko.PointRange( Cur( p ).loc ) )
             end if

@@ -160,7 +160,13 @@ private function PreludeText( ) as string
     t += "declare function screenglproc alias ""fb_GfxGetGLProcAddress"" _" & chr( 10 )
     t += "    ( byval nm as zstring ptr ) as any ptr" & chr( 10 )
     t += "declare sub windowtitle alias ""fb_GfxSetWindowTitle"" ( byref t as const string )" & chr( 10 )
-    t += "declare sub imagedestroy alias ""fb_GfxImageDestroy"" ( byval img as any ptr )" & chr( 10 )
+    '' THE IMAGE THESE READ IS A CONST POINTER, which is how fbc declares them and is
+    '' why 'dim a as const FB.IMAGE ptr' can be passed to either. Measured: fbc accepts
+    '' a 'const any ptr' argument to imagedestroy, imageinfo and PUT's source image,
+    '' and refuses one as the target of LINE or GET (error 119, they write it).
+    '' Declaring them non-const here made gfx/image-expr.bas a false rejection as soon
+    '' as the const-pointer rule could tell the two spellings apart.
+    t += "declare sub imagedestroy alias ""fb_GfxImageDestroy"" ( byval img as const any ptr )" & chr( 10 )
     t += "declare sub imageconvertrow alias ""fb_GfxImageConvertRow"" _" & chr( 10 )
     t += "    ( byval src as any ptr, byval srcbpp as long, byval dst as any ptr, _" & chr( 10 )
     t += "      byval dstbpp as long, byval w as long, byval isrgba as long = 1 )" & chr( 10 )
@@ -224,11 +230,11 @@ private function PreludeText( ) as string
     t += "declare sub screencontrol overload alias ""fb_GfxControl_s"" _" & chr( 10 )
     t += "    ( byval item as long, byref s as string )" & chr( 10 )
     t += "declare function imageinfo overload alias ""fb_GfxImageInfo32"" _" & chr( 10 )
-    t += "    ( byval img as any ptr, byref w as long = 0, byref h as long = 0, _" & chr( 10 )
+    t += "    ( byval img as const any ptr, byref w as long = 0, byref h as long = 0, _" & chr( 10 )
     t += "      byref bpp as long = 0, byref pitch as long = 0, _" & chr( 10 )
     t += "      byref pixdata as any ptr = 0, byref a7 as long = 0 ) as long" & chr( 10 )
     t += "declare function imageinfo overload alias ""fb_GfxImageInfo64"" _" & chr( 10 )
-    t += "    ( byval img as any ptr, byref w as integer = 0, byref h as integer = 0, _" & chr( 10 )
+    t += "    ( byval img as const any ptr, byref w as integer = 0, byref h as integer = 0, _" & chr( 10 )
     t += "      byref bpp as integer = 0, byref pitch as integer = 0, _" & chr( 10 )
     t += "      byref pixdata as any ptr = 0, byref a7 as integer = 0 ) as long" & chr( 10 )
     t += "declare function getjoystick alias ""fb_GfxGetJoystick"" _" & chr( 10 )

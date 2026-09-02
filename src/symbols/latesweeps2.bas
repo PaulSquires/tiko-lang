@@ -120,6 +120,23 @@ end sub
 '' constructor, an 'operator let' or an 'operator cast' -- so any of those declines the
 '' whole question. A bare parenthesised aggregate '( 1, 2 )' is an initialiser list, not
 '' a value, and is not judged; 'type<B>( ... )' is.
+'' 'this' IS NOT A CONVERSION QUESTION. tiko-lang types the receiver as a POINTER --
+'' that is what the ABI passes -- so 'dim as S r = this' and 'r = this' inside a method
+'' look like a UDT meeting a pointer and were both refused, while fbc compiles them as the
+'' ordinary copy of the object they are. Measured: 'dim as S r = this', 'r = this',
+'' '@this', 'this.field' and 'g( this )' are ALL accepted by fbc.
+''
+'' Found by a DIFFERENTIAL scan of two builds over the corpus, not by the id scan that
+'' cleared the rule when it landed: that one confirms a suspected false rejection by
+'' recompiling with fbc and DID NOT PASS fbc THE INCLUDE PATH, so every file needing
+'' fbcunit/inc failed under fbc and was dropped from the report instead of counted.
+private function EitherIsThis_ _
+    ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as boolean
+    if IsThisBase_( c, a ) then return true
+    if IsThisBase_( c, b ) then return true
+    return false
+end function
+
 private sub JudgeConversion_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
       byval byAssign as boolean )
@@ -171,7 +188,7 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
     case else
         return
     end select
-    if IsThisBase_( c, sp->a ) then return
+    if EitherIsThis_( c, sp->a, sp->b ) then return
     '' AN INTRINSIC ON THE RIGHT -- 'iif( cond, base, derived )' -- has a type of its own
     '' making, judged by the iif rule; a call that binds no symbol is not this question.
     if c.ast->Kind( sp->b ) = N_CALL then
@@ -196,6 +213,7 @@ private sub CheckUdtInits_ ( byref c as Ctx )
         if ip->b = NODE_NONE then continue for
         '' A DECLARED TYPE ONLY: 'var x = y' takes y's type and converts nothing.
         if ip->a = NODE_NONE then continue for
+        if IsThisBase_( c, ip->b ) then continue for
         select case c.ast->Kind( ip->b )
         case N_TUPLE, N_PAREN
             if (c.ast->nodes[cast( long, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
@@ -387,6 +405,20 @@ private sub CheckProcDefinitionShapes_ ( byref c as Ctx, byval id as NodeId )
     if cast( TokenKind, sp->op ) <> KW_FUNCTION then return
     if (c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0 then return
     if c.types->Kind( ru ) <> TK_UDT then return
+    '' 'RETURN' CONSTRUCTS THE RESULT IN PLACE and needs no default constructor; only the
+    '' implicit result variable that 'function =' assigns into does. Measured, over a type
+    '' whose only constructor takes an argument:
+    ''
+    ''     return Mt( 1 )                  accepted      two RETURNs      accepted
+    ''     function = Mt( 1 )              error 184     neither          error 184
+    ''     dim as Mt r = ... : return r    accepted      a DECLARE alone  accepted
+    ''
+    '' Judging the DECLARATION alone refused dim/auto_var3.bas, expressions/mult-assign.bas
+    '' and structs/temp-var-dtors.bas, all of which return.
+    dim as boolean sawReturn = false
+    dim as boolean sawAssign = false
+    ScanReturnStyles_( c, sp->b, sawReturn, sawAssign )
+    if sawReturn then return
     dim as Symbol ptr ct = StructorOf_( c, ru, "__ctor" )
     if ct = 0 then return
     dim as long guard = 0
@@ -730,6 +762,29 @@ private function MentionsUbound_ _
     return false
 end function
 
+'' Is there an 'extern <name>( lo to hi )' anywhere in this module? Collect MERGES the
+'' extern and its definition into one symbol and clears SYMF_EXTERN when the definition
+'' arrives, so the flag alone cannot answer it and the AST is searched instead.
+private function ExternDeclaredElsewhere_ _
+    ( byref c as Ctx, byval nm as InternId ) as boolean
+    dim as InternId want = c.names->Fold( nm )
+    for n as long = 0 to c.ast->Count( ) - 1
+        if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if sp->op <> cast( ushort, KW_EXTERN ) then continue for
+        for i as long = 0 to sp->count - 1
+            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+            dim as StmtPayload ptr ip = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            if ip->name = 0 then continue for
+            if c.names->Fold( ip->name ) = want then return true
+        next
+    next
+    return false
+end function
+
 private sub CheckEllipsisUbound_ ( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -753,6 +808,12 @@ private sub CheckEllipsisUbound_ ( byref c as Ctx )
             if (rp->a <> NODE_NONE) andalso (c.ast->Kind( rp->a ) = N_ELLIPSIS) then sawEllipsis = true
         next
         if sawEllipsis = false then continue for
+        '' AN EXTERN AHEAD OF IT ALREADY FIXED THE BOUNDS, so 'ubound' folds at compile
+        '' time and fbc accepts the line -- quirk/lubound.bas says so in a comment and
+        '' then writes it. Only an array whose size comes SOLELY from the initializer is
+        '' the error.
+        if (s->flags and (SYMF_EXTERN or SYMF_COMMON)) <> 0 then continue for
+        if ExternDeclaredElsewhere_( c, s->name ) then continue for
         if MentionsUbound_( c, ip->b, cast( SymbolId, i ), 0 ) = false then continue for
         c.diags->Report( TKO0744, PointRange( c.ast->Loc( ip->b ) ), _
                          c.names->Spelling( s->name ) )
@@ -907,6 +968,19 @@ private sub CheckAggregateInitVisibility_( byref c as Ctx )
         case else
             continue for
         end select
+        '' ...BUT ONLY WHEN THE TYPE DECLARES NO CONSTRUCTOR. With one, the parentheses
+        '' are a CONSTRUCTOR CALL and not an aggregate at all, and the fields are never
+        '' touched by the caller. Measured, over a type with a protected field:
+        ''
+        ''     no constructor                     dim as Hid v = ( 3 )     error 202
+        ''     constructor( byval n as integer )  dim as Hid v = ( 3 )     accepted
+        ''     constructor( byref b as Bee )      dim as Hid v = ( bb )    accepted
+        ''     a constructor that does NOT match  dim as Hid v = ( 3 )     error 24, not 202
+        ''
+        '' Counting the call form refused functions/udt_result_access4.bas and -5.bas,
+        '' which write 'dim as tfoo f2 = ( f1.bar( ) )' over a type whose constructor takes
+        '' exactly that -- and the scan that cleared this rule could not see them.
+        if DeclaresAnywhere_( c, ValueType_( c, s->type_ ), "__ctor" ) then continue for
         dim as Symbol ptr f = HiddenFieldOf_( c, s->type_, EnclosingTypeOf_( c, s->parent ) )
         if f = 0 then continue for
         ReportHiddenField_( c, f, s->type_, ip->b )

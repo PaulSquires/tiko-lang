@@ -744,6 +744,20 @@ private function ProcNameCore _
         end if
         if (ast.nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
             pt = types.Reference( pt )
+        else
+            '' A BYVAL PARAMETER'S OWN CONST IS NOT PART OF THE NAME. Read out of fbc's
+            '' generated C, which is the only ground truth for a mangling:
+            ''
+            ''     byval p as const integer            _Z1Fu7INTEGER   -- no K
+            ''     byval p as integer                  _Z1Fu7INTEGER
+            ''     byval p as zstring const ptr        _Z1FPc          -- no K
+            ''     byval p as const zstring const ptr  _Z1FPKc         -- the POINTEE's K only
+            ''     byref p as const integer            _Z1FRKu7INTEGER -- byref DOES carry it
+            ''
+            '' ...which is the same fact that makes 'byval as integer' and 'byval as const
+            '' integer' a DUPLICATE DEFINITION to fbc while the byref pair are two distinct
+            '' overloads. Only the TOP level is stripped: a pointee's const stays.
+            pt = types.Unqualify( pt )
         end if
         outp += TypeCode( pt, types, syms, names, subs )
         emitted += 1

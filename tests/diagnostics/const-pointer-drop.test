@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-pointer-drop.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/const-pointer-drop.out

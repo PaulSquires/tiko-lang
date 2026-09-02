@@ -57,6 +57,43 @@ private function PtrAssignBad_ _
     return true
 end function
 
+'' A POINTER CANNOT LOSE A POINTEE'S CONST -- fbc error 181. Measured across the whole
+'' 'const/assign-<dest>-from-<source>' family, and the boundary is exact:
+''
+''     const ubyte ptr      -> ubyte ptr           error 181   the pointee loses const
+''     ubyte const ptr      -> ubyte ptr           accepted    the const POINTER is copied
+''     ubyte ptr            -> const ubyte ptr     accepted    const may be ADDED
+''     ubyte ptr ptr        -> const ubyte ptr ptr accepted    ...at any depth
+''     const ubyte ptr      -> any ptr             error 181   'any' is no escape
+''     const ubyte ptr      -> const any ptr       accepted
+''     ubyte ptr            -> byte ptr            accepted    the TYPE alone is not this
+''     ubyte const ptr ptr  -> ubyte ptr ptr       error 181   the pointee IS a const ptr
+''
+'' So the two chains are walked in step from the FIRST POINTEE DOWN -- the top-level const
+'' belongs to the value being copied and is not part of the question -- and the first
+'' level where the source is const and the destination is not is the error. A differing
+'' pointee TYPE is somebody else's rule (TKO0686); only constness is judged here.
+private function ConstDropped_ _
+    ( byref c as Ctx, byval dst as TypeId, byval src as TypeId ) as boolean
+
+    if (dst = TYPE_NONE) orelse (src = TYPE_NONE) then return false
+    dim as TypeId d = c.types->Unqualify( dst )
+    dim as TypeId s = c.types->Unqualify( src )
+    dim as long guard = 0
+    while guard < 32
+        guard += 1
+        if c.types->Kind( d ) <> TK_POINTER then return false
+        if c.types->Kind( s ) <> TK_POINTER then return false
+        dim as TypeId dp = c.types->Inner( d )
+        dim as TypeId sp = c.types->Inner( s )
+        if (dp = TYPE_NONE) orelse (sp = TYPE_NONE) then return false
+        if c.types->IsConst( sp ) andalso (c.types->IsConst( dp ) = false) then return true
+        d = c.types->Unqualify( dp )
+        s = c.types->Unqualify( sp )
+    wend
+    return false
+end function
+
 private sub CheckPtrAssign_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -65,6 +102,10 @@ private sub CheckPtrAssign_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId lt = c.info->TypeOf_( sp->a )
     dim as TypeId rt = c.info->TypeOf_( sp->b )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if ConstDropped_( c, lt, rt ) then
+        c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )
+        return
+    end if
     if PtrAssignBad_( c, lt, rt ) = false then return
     c.diags->Report( TKO0686, PointRange( c.ast->Loc( id ) ) )
 end sub
@@ -76,6 +117,10 @@ private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId lt = c.info->TypeOf_( ip->a )
     dim as TypeId rt = c.info->TypeOf_( ip->b )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if ConstDropped_( c, lt, rt ) then
+        c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )
+        return
+    end if
     if PtrAssignBad_( c, lt, rt ) = false then return
     c.diags->Report( TKO0686, PointRange( c.ast->Loc( id ) ) )
 end sub
@@ -207,6 +252,12 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         if (pt = TYPE_NONE) orelse (at = TYPE_NONE) then continue for
         dim as boolean byvalWritten = _
             ((c.ast->nodes[cast( long, prm )].flags and NF_BYVAL_WRITTEN) <> 0)
+        '' AN ARGUMENT IS AN ASSIGNMENT: 'c( @pp )' over 'byval x as integer ptr' with a
+        '' 'const integer pp' hands over a 'const integer ptr' and is fbc's 181 too.
+        if ConstDropped_( c, pt, at ) then
+            c.diags->Report( TKO0747, PointRange( c.ast->Loc( arg ) ) )
+            return
+        end if
         dim as boolean bad = false
         if c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER then
             bad = PtrAssignBad_( c, pt, at )
@@ -232,8 +283,11 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         dim as TypeId pu = c.types->Unqualify( pt )
         if (byvalWritten = false) andalso (c.ast->Kind( arg ) = N_IDENT) then
             if c.types->IsConst( at ) andalso (c.types->IsConst( pt ) = false) then
+                '' A POINTER COUNTS TOO: 'f( r )' over 'byref l as any ptr' with an 'any
+                '' const ptr' argument binds the reference to a const pointer and drops
+                '' its const -- fbc's 181, measured.
                 dim as TypeKind pk = c.types->Kind( pu )
-                if (pk = TK_UDT) orelse (pk = TK_BUILTIN) then
+                if (pk = TK_UDT) orelse (pk = TK_BUILTIN) orelse (pk = TK_POINTER) then
                     c.diags->Report( TKO0699, PointRange( c.ast->Loc( arg ) ) )
                     return
                 end if
@@ -298,6 +352,13 @@ private sub CheckStringNumberAssign_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if cast( TokenKind, sp->op ) <> TK_EQ then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    '' A PROPERTY ON THE LEFT IS A CALL, and its setter may be OVERLOADED: structs/
+    '' obj_property.bas declares 'property v( byval as integer )' and 'property v( byval
+    '' as zstring ptr )' side by side, so 'b1.v = "2"' picks the second one while the
+    '' property's READ type is an integer. Comparing the read type against the value
+    '' refused a file fbc accepts; which overload runs is not modelled here.
+    dim as Symbol ptr lps = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if (lps <> 0) andalso (lps->kind = cast( ubyte, SYM_PROC )) then return
     dim as TypeId lt = c.info->TypeOf_( sp->a )
     dim as TypeId rt = c.info->TypeOf_( sp->b )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return

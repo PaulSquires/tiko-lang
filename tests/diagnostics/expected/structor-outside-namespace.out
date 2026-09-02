@@ -59,19 +59,15 @@ declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
 declare void fb_End($0)
 verify: ok
 lowered: 6 functions, 6 blocks, 25 insts, 0 statements not lowered, 0 scope imbalance
-tests/diagnostics/src/structor-outside-namespace.bas(31,14): error TKO0669: 'ns.arr' adds a new name to a namespace from outside it
+tests/diagnostics/src/structor-outside-namespace.bas(29,1): error TKO0722: the type 'ns' never declared this constructor, destructor or property
      |
-  31 | redim shared ns.arr(4 to 5) as integer
-     |              ^
-tests/diagnostics/src/structor-outside-namespace.bas(24,1): error TKO0722: the type 'ns' never declared this constructor, destructor or property
-     |
-  24 | constructor ns.Bare( )
+  29 | constructor ns.Bare( )
      | ^
-tests/diagnostics/src/structor-outside-namespace.bas(26,1): error TKO0722: the type 'ns' never declared this constructor, destructor or property
+tests/diagnostics/src/structor-outside-namespace.bas(31,1): error TKO0722: the type 'ns' never declared this constructor, destructor or property
      |
-  26 | destructor ns.Bare( )
+  31 | destructor ns.Bare( )
      | ^
-tests/diagnostics/src/structor-outside-namespace.bas(28,1): error TKO0722: the type 'ns.bare' never declared this constructor, destructor or property
+tests/diagnostics/src/structor-outside-namespace.bas(33,1): error TKO0722: the type 'ns.bare' never declared this constructor, destructor or property
      |
-  28 | property ns.Bare.foo( ) as integer
+  33 | property ns.Bare.foo( ) as integer
      | ^

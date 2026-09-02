@@ -1,0 +1,162 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr r1
+  local ptr r2
+  local ptr r3
+  local ptr r4
+  local ptr r5
+  local ptr r6
+  local ptr r7
+  local ptr l1
+  local ptr l2
+  local ptr l3
+  local ptr l4
+  local ptr k1
+  local ptr k2
+  local ptr k3
+  local ptr k4
+  local ptr k5
+  local ptr k6
+  local ptr k7
+  local ptr k8
+  local ptr k9
+  local ptr k10
+  local ptr a1
+  local ptr a2
+  local i64 cv
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr r1
+    %5 = const i64 0
+    %6 = bitcast %5
+    store @r1, %6
+    %7 = alloca ptr r2
+    %8 = const i64 0
+    %9 = bitcast %8
+    store @r2, %9
+    %10 = alloca ptr r3
+    %11 = const i64 0
+    %12 = bitcast %11
+    store @r3, %12
+    %13 = alloca ptr r4
+    %14 = const i64 0
+    %15 = bitcast %14
+    store @r4, %15
+    %16 = alloca ptr r5
+    %17 = const i64 0
+    %18 = bitcast %17
+    store @r5, %18
+    %19 = alloca ptr r6
+    %20 = const i64 0
+    %21 = bitcast %20
+    store @r6, %21
+    %22 = alloca ptr r7
+    %23 = const i64 0
+    %24 = bitcast %23
+    store @r7, %24
+    %25 = alloca ptr l1
+    %26 = load @r1
+    store @l1, %26
+    %27 = alloca ptr l2
+    %28 = load @r5
+    store @l2, %28
+    %29 = alloca ptr l3
+    %30 = load @r1
+    store @l3, %30
+    %31 = alloca ptr l4
+    %32 = load @r5
+    store @l4, %32
+    %33 = alloca ptr k1
+    %34 = load @r2
+    store @k1, %34
+    %35 = alloca ptr k2
+    %36 = load @r3
+    store @k2, %36
+    %37 = alloca ptr k3
+    %38 = load @r3
+    store @k3, %38
+    %39 = alloca ptr k4
+    %40 = load @r4
+    store @k4, %40
+    %41 = alloca ptr k5
+    %42 = load @r4
+    store @k5, %42
+    %43 = alloca ptr k6
+    %44 = load @r1
+    store @k6, %44
+    %45 = alloca ptr k7
+    %46 = load @r2
+    store @k7, %46
+    %47 = alloca ptr k8
+    %48 = load @r7
+    store @k8, %48
+    %49 = alloca ptr k9
+    %50 = load @r3
+    store @k9, %50
+    %51 = alloca ptr k10
+    %52 = load @r3
+    store @k10, %52
+    %53 = alloca ptr a1
+    %54 = alloca ptr a2
+    %55 = load @r1
+    store @a1, %55
+    %56 = load @r2
+    store @a1, %56
+    %57 = load @r3
+    store @a2, %57
+    %58 = load @r1
+    call void TAKESPTR(%58)
+    %59 = load @r2
+    call void TAKESPTR(%59)
+    %60 = load @r1
+    call void TAKESCONSTPTR(%60)
+    call void TAKESREF(@r3)
+    %61 = alloca ptr cv
+    %62 = const i64 0
+    store @cv, %62
+    call void TAKESINTPTR(@cv)
+    %63 = const i32 0
+    call.rtl void fb_End(%63)
+    %64 = load @$tmp0
+    ret %64
+}
+declare void fb_Init($0, $1, $2)
+declare void TAKESPTR()
+declare void TAKESCONSTPTR()
+declare void TAKESREF()
+declare void TAKESINTPTR()
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/const-pointer-drop.bas(14,5): error TKO0747: this drops a pointee's 'const'
+     |
+  14 | dim l1 as ubyte ptr = r1
+     |     ^
+tests/diagnostics/src/const-pointer-drop.bas(15,5): error TKO0747: this drops a pointee's 'const'
+     |
+  15 | dim l2 as ubyte ptr ptr = r5
+     |     ^
+tests/diagnostics/src/const-pointer-drop.bas(16,5): error TKO0747: this drops a pointee's 'const'
+     |
+  16 | dim l3 as any ptr = r1
+     |     ^
+tests/diagnostics/src/const-pointer-drop.bas(17,5): error TKO0747: this drops a pointee's 'const'
+     |
+  17 | dim l4 as byte ptr = r5
+     |     ^
+tests/diagnostics/src/const-pointer-drop.bas(33,1): error TKO0747: this drops a pointee's 'const'
+     |
+  33 | a1 = r1
+     | ^
+tests/diagnostics/src/const-pointer-drop.bas(40,11): error TKO0747: this drops a pointee's 'const'
+     |
+  40 | takesPtr( r1 )
+     |           ^
+tests/diagnostics/src/const-pointer-drop.bas(46,14): error TKO0747: this drops a pointee's 'const'
+     |
+  46 | takesIntPtr( @cv )
+     |              ^

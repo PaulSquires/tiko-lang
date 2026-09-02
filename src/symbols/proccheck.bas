@@ -188,7 +188,35 @@ private sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
         '' decline.
         if StructorOf_( c, u, "cast" ) <> 0 then return
         c.diags->Report( TKO0709, PointRange( c.ast->Loc( sp->a ) ) )
-    case TK_BUILTIN, TK_ARRAY
+    case TK_ARRAY
+        '' AN ARRAY IS A LEGAL IMAGE BUFFER -- 'line array, (0,0)-(w,h), c' over a plain
+        '' 'dim array( ... )' is what gfx/image-expr.bas calls the NIDXARRAY form, and fbc
+        '' compiles it. Only a SCALAR target is the error.
+        return
+    case TK_BUILTIN
+        '' AN ARRAY ELEMENT IS THE BUFFER'S FIRST BYTE, and fbc takes it: 'line a( 0 ),
+        '' (0,0)-(w,h), c' over 'dim a( 0 to n ) as ubyte' compiles, while a plain scalar
+        '' and a string are both error 28. gfx/image-expr.bas writes the element form
+        '' twice, under a comment naming it. So a SUBSCRIPT of an array declines.
+        dim as NodeKind tk = c.ast->Kind( sp->a )
+        if (tk = N_INDEX) orelse (tk = N_CALL) then
+            dim as ListPayload ptr tl = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+            '' The TARGET'S TYPE decides, not its symbol kind: 'pudt->array( 0 )' reaches
+            '' an array FIELD through a pointer and image-expr.bas writes that too.
+            if tl->count > 0 then
+                dim as TypeId tt = c.types->Unqualify( c.info->TypeOf_( tl->target ) )
+                if tt <> TYPE_NONE then
+                    if c.types->Kind( tt ) = TK_ARRAY then return
+                end if
+                dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( tl->target ) )
+                if ts <> 0 then
+                    if c.types->Kind( c.types->Unqualify( ts->type_ ) ) = TK_ARRAY then
+                        return
+                    end if
+                end if
+            end if
+        end if
         c.diags->Report( TKO0708, PointRange( c.ast->Loc( sp->a ) ) )
     end select
 end sub
@@ -219,6 +247,10 @@ private sub CaseValueKind_ _
     if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
     if c.types->Kind( u ) = TK_ARRAY then u = c.types->Unqualify( c.types->Inner( u ) )
     if c.types->Kind( u ) <> TK_BUILTIN then return
+    '' A CHARACTER READ THROUGH A POINTER IS A NUMBER AND A STRING BOTH -- the same
+    '' duality CheckStringNumberAssign_ declines over. compound/select_const.bas writes
+    '' 'select case as const *p' over a 'zstring ptr' and then numeric cases.
+    if CharAccess_( c, v, u ) then return
     dim as boolean vStr = IsStringyType_( c, u )
     if vStr = subjStr then return
     if vStr = false then
@@ -243,6 +275,7 @@ private sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( su ) = TK_REFERENCE then su = c.types->Unqualify( c.types->Inner( su ) )
     if c.types->Kind( su ) = TK_ARRAY then su = c.types->Unqualify( c.types->Inner( su ) )
     if c.types->Kind( su ) <> TK_BUILTIN then return
+    if CharAccess_( c, sp->a, su ) then return
     dim as boolean subjStr = IsStringyType_( c, su )
     if subjStr = false then
         select case c.types->BuiltinOf( su )

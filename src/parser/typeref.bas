@@ -511,11 +511,30 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
     p.ast->nodes[cast( long, n )].flags or= flags
 
-    '' 'ptr' may repeat, and 'const' may appear between levels: 'const zstring ptr'.
+    '' 'ptr' may repeat, and 'const' may appear between the levels.
+    ''
+    '' A 'const' HERE QUALIFIES THE POINTER THAT FOLLOWS IT, NOT THE POINTEE BEFORE IT.
+    '' 'integer const ptr' is a CONST POINTER to a writable integer; 'const integer ptr'
+    '' -- the prefix form, read by the loop above this one -- is a writable pointer to a
+    '' const integer. They are different types and fbc tells them apart:
+    ''
+    ''     dim r as ubyte const ptr : dim l as ubyte ptr = r      accepted
+    ''     dim r as const ubyte ptr : dim l as ubyte ptr = r      error 181
+    ''     dim r as ubyte const ptr : *r = 1                      accepted
+    ''     dim r as const ubyte ptr : *r = 1                      error 119
+    ''
+    '' Folding the const onto the node ALREADY BUILT made both spellings one type -- a
+    '' pointer to a const pointee -- so the whole 62-file 'const/assign-*-from-*' family
+    '' could not be judged either way without refusing half of what fbc accepts.
+    ''
+    '' A TRAILING 'const' WITH NO 'ptr' AFTER IT is fbc's error 273 ('dim x as integer
+    '' const'), and it keeps the old meaning here rather than gaining a diagnostic: that
+    '' is a rule of its own and no corpus file asks for it yet.
+    dim as boolean pendingConst = false
     do
         if Peek( p ) = Tko.KW_CONST then
             Advance( p )
-            p.ast->nodes[cast( long, n )].flags or= Tko.NF_CONST
+            pendingConst = true
             continue do
         end if
         dim as boolean isPtr = (Peek( p ) = Tko.KW_PTR) orelse (Peek( p ) = Tko.KW_POINTER)
@@ -525,7 +544,12 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         up.a = n
         n = MakeStmt( p, Tko.N_TYPEREF, t.loc, up )
         p.ast->nodes[cast( long, n )].flags or= Tko.NF_PTR
+        if pendingConst then
+            p.ast->nodes[cast( long, n )].flags or= Tko.NF_CONST
+            pendingConst = false
+        end if
     loop
+    if pendingConst then p.ast->nodes[cast( long, n )].flags or= Tko.NF_CONST
 
     return n
 end function

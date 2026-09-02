@@ -1,8 +1,13 @@
 '' A STRUCTOR OR PROPERTY OF A NAMESPACED TYPE, defined at module level through the
 '' namespace, is accepted when the type DECLARED it and is fbc error 168 ("Parent is not a
 '' class or UDT") when it did not: 'constructor ns.Bare( )' over a type with no
-'' constructor. And 'redim shared ns.arr( ) as integer' from outside is error 158 like any
-'' other outside declaration.
+'' constructor -- and a DESTRUCTOR and a PROPERTY measure the same way in isolation, which
+'' is what the three reports below are; fbc stops after the first one for a given type.
+''
+'' A REDIM OF A MEMBER THE NAMESPACE ALREADY HAS is NOT one of these. 'redim shared
+'' ns.arr( 4 to 5 ) as integer' over the 'dim shared arr( )' inside ns adds no name and fbc
+'' accepts it -- this file's own last line, which an earlier version of this test wrongly
+'' expected to be refused. Only a redim naming a member the namespace does not have is.
 namespace ns
     type Declared
         dummy as integer

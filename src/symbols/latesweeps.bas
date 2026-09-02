@@ -207,6 +207,16 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
         '' with the REDIM keyword in 'extra'; five of this suite's own MIR tests write it,
         '' and the owner test read 'x' as a namespace that did not exist.
         dim as ScopeId ns = NamespaceScopeOf_( c, sp->ownerName )
+        '' A TYPE OF THE SAME NAME MAKES THE OWNER AMBIGUOUS. FreeBASIC is case-insensitive,
+        '' so dim/member-var.bas -- which has a 'namespace a' and a 'type A' in different
+        '' scopes of one file -- had 'dim as integer A.i1' judged against the NAMESPACE and
+        '' refused, while fbc reads it as the static-member definition it is. Resolving the
+        '' owner properly needs the scope the declaration sits in, which this whole-AST
+        '' sweep does not carry, so an ambiguous owner is declined: a static member defined
+        '' from outside is CheckStaticMemberVar_'s question anyway.
+        if (k = N_VAR_ITEM) andalso (ns <> SCOPE_NONE) then
+            if TypeScopeOf_( c, sp->ownerName ) <> SCOPE_NONE then continue for
+        end if
         '' ...UNLESS THE OWNER IS A NAMESPACE, in which case 'redim shared ns1.array1( )
         '' as integer' from outside is fbc's 158 like any other outside declaration.
         '' A plain 'redim ns.arr( 4 to 5 )' with no 'as' declares nothing and is accepted.
@@ -251,9 +261,18 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
             '' from outside. Measured: a second 'declare' of a declared procedure is
             '' error 158, and so is 'dim shared a.i1' or 'redim shared ns1.array1( )'
             '' over a member that was a plain dim rather than an extern.
+            '' ...EXCEPT A REDIM, WHICH RE-DIMENSIONS WHAT IS ALREADY THERE. 'redim as
+            '' integer foo.bar( 0 to 2 )' over a 'dim as integer bar( )' declared inside
+            '' the namespace is accepted by fbc -- it adds no name at all -- and only a
+            '' redim naming a member the namespace does NOT have is refused (and that one
+            '' is TKO0745's). Judging it by the EXTERN test refused namespace/redim-1.bas.
+            dim as boolean isRedim = _
+                (k = N_VAR_ITEM) andalso (sp->extra = cast( ushort, KW_REDIM ))
             dim as Symbol ptr hs = c.syms->SymbolAt( have )
             if k = N_PROC then
                 bad = (sp->b = NODE_NONE)
+            elseif isRedim then
+                bad = false
             elseif hs <> 0 then
                 bad = ((hs->flags and SYMF_EXTERN) = 0)
             end if
@@ -416,6 +435,10 @@ private sub CheckAliasAgrees_( byref c as Ctx )
     next
 end sub
 
+'' ...AND A BYREF RESULT IS EXEMPT. It hands back storage rather than constructing an
+'' implicit result variable, so 'return x' and 'function = y' may be mixed over one:
+'' measured, a byref function over a type with constructors is accepted while the byval
+'' one is error 184. functions/return-byref.bas writes exactly that.
 private sub CheckReturnStyles_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
@@ -428,6 +451,8 @@ private sub CheckReturnStyles_( byref c as Ctx )
         if rt = TYPE_NONE then continue for
         if c.types->Kind( rt ) <> TK_UDT then continue for
         if StructorOf_( c, rt, "__ctor" ) = 0 then continue for
+        '' A BYREF RESULT IS EXEMPT -- see the header.
+        if (c.ast->nodes[n].flags and NF_BYREF) <> 0 then continue for
 
         dim as boolean sawReturn = false
         dim as boolean sawAssign = false

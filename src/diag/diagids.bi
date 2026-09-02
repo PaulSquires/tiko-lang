@@ -341,6 +341,8 @@
     DIAG( TKO0745, SEV_ERROR,   "the namespace '%0' has no member named '%1'" )
     '' fbc's errors 202, 204 and 205 -- an implicitly invoked member.
     DIAG( TKO0746, SEV_ERROR,   "the %0 of '%1' is private or protected and cannot be reached from here" )
+    '' fbc's error 181 for a pointer that loses a pointee's CONST.
+    DIAG( TKO0747, SEV_ERROR,   "this drops a pointee's 'const'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

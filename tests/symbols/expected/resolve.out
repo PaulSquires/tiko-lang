@@ -137,8 +137,8 @@ resolved: 11 references, 0 builtins, 0 unresolved, 221 type refs, 2 calls, 2 ass
   typeref #331 -> any
   typeref #332 -> any ptr
   typeref #334 -> const string
-  typeref #337 -> any
-  typeref #338 -> any ptr
+  typeref #337 -> const any
+  typeref #338 -> const any ptr
   typeref #341 -> any
   typeref #342 -> any ptr
   typeref #344 -> long
@@ -192,8 +192,8 @@ resolved: 11 references, 0 builtins, 0 unresolved, 221 type refs, 2 calls, 2 ass
   typeref #481 -> integer
   typeref #485 -> long
   typeref #487 -> string
-  typeref #490 -> any
-  typeref #491 -> any ptr
+  typeref #490 -> const any
+  typeref #491 -> const any ptr
   typeref #493 -> long
   typeref #496 -> long
   typeref #499 -> long
@@ -202,8 +202,8 @@ resolved: 11 references, 0 builtins, 0 unresolved, 221 type refs, 2 calls, 2 ass
   typeref #506 -> any ptr
   typeref #509 -> long
   typeref #512 -> long
-  typeref #514 -> any
-  typeref #515 -> any ptr
+  typeref #514 -> const any
+  typeref #515 -> const any ptr
   typeref #517 -> integer
   typeref #520 -> integer
   typeref #523 -> integer
