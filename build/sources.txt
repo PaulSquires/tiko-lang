@@ -167,6 +167,8 @@ io/devfileencod.bas
 io/fileinput.bas
 io/devstd.bas
 io/conprint.bas
+io/conprintwin.bas
+io/conprintw.bas
 io/conlineinp.bas
 io/conprinttty.bas
 io/conttytail.bas

@@ -11,8 +11,8 @@
 '' POSIX ONLY. The Windows implementation is a different function entirely --
 '' WriteConsoleOutput into CHAR_INFO cells, a scroll hook, a VIEW PRINT region
 '' and a UTF-16 stream path through MultiByteToWideChar -- 220 lines against
-'' this one's 40, and it stays fbc's for now. This file is `#ifdef` d to nothing
-'' on Windows, which is why the batch adds two symbols on Linux and none there.
+'' this one's 40, and it lives in src/io/conprintwin.bas. This file is `#ifdef`d
+'' on Windows, which is why it adds two symbols on Linux and none there.
 ''
 '' AN UNINITIALISED CONSOLE IS A PLAIN fwrite. Before fb_ConsoleInit runs -- and
 '' for a program whose output is redirected, which never initialises the console
