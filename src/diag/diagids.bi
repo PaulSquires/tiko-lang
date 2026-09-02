@@ -270,6 +270,15 @@
     '' fbc's errors 147/3 and 63.
     DIAG( TKO0694, SEV_ERROR,   "'%0' names neither a namespace nor a type" )
     DIAG( TKO0695, SEV_ERROR,   "'%0' is not an array and cannot be redimensioned" )
+    '' fbc's errors 217/218, 152, and 24/58 at a call.
+    DIAG( TKO0696, SEV_ERROR,   "%0 is written on this definition but not on its declaration" )
+    DIAG( TKO0697, SEV_ERROR,   "operator '%0' must be a member of a type" )
+    DIAG( TKO0698, SEV_ERROR,   "this argument does not convert to the parameter's type" )
+    '' fbc's errors 181 (const to non-const byref) and 28 ([] without a pointer).
+    DIAG( TKO0699, SEV_ERROR,   "a const value cannot be passed to a non-const byref parameter" )
+    DIAG( TKO0700, SEV_ERROR,   "'[ ]' indexes a pointer, and this is not one" )
+    '' fbc's errors 3 and 17, over a trailing 'constructor' / 'destructor'.
+    DIAG( TKO0701, SEV_ERROR,   "only a module-level definition or a static member can be a module constructor" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

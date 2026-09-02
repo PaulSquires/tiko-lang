@@ -148,3 +148,125 @@ private sub CheckBaseInitCount_ _
     c.diags->Report( TKO0693, PointRange( c.ast->Loc( id ) ) )
 end sub
 
+
+'' A FIELD OF A CONST VARIABLE CANNOT BE WRITTEN -- fbc error 119, the same "Cannot modify
+'' a constant" it gives the variable itself. Measured: 'dim as const foo b = ( 3 )' then
+'' 'b.x = 4' is refused and 'print b.x' is not. Resolve refuses the BARE const variable;
+'' the member spelling reached here.
+private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->op = 0 then return
+    if sp->a = NODE_NONE then return
+    if c.ast->Kind( sp->a ) <> N_MEMBER then return
+    dim as BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+    if mp->lhs = NODE_NONE then return
+    if c.ast->Kind( mp->lhs ) <> N_IDENT then return
+    dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+    if vs = 0 then return
+    if vs->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    if vs->type_ = TYPE_NONE then return
+    if c.types->Kind( c.types->Unqualify( vs->type_ ) ) <> TK_UDT then return
+    if c.types->IsConst( vs->type_ ) = false then return
+    c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                     c.names->Spelling( vs->name ) )
+end sub
+
+'' THE POINTER RULE, AT A CALL. Measured: 'byval p as D ptr' given a B pointer is fbc error
+'' 24 -- the same downcast the assignment refuses -- while 'byval p as B ptr' given a D
+'' pointer is accepted. And BY REFERENCE the value is the same question: 'byref x as D'
+'' given a B is error 58, 'byref x as B' given a D is accepted. PtrAssignBad_ already
+'' knows the pointer half; the byref half is the identical test over the pointees.
+private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = NODE_NONE then return
+    dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if callee = 0 then return
+    if callee->kind <> cast( ubyte, SYM_PROC ) then return
+    dim as NodeId decl = cast( NodeId, callee->payload )
+    if decl = NODE_NONE then return
+    if c.ast->Kind( decl ) <> N_PROC then return
+    dim as StmtPayload ptr pp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    dim as long ai = 0
+    for i as long = 0 to pp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        if ai >= lp->count then exit for
+        dim as NodeId arg = cast( NodeId, c.ast->children[lp->first + ai] )
+        ai += 1
+        if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) <> 0 then continue for
+        dim as StmtPayload ptr prp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+        if prp->a = NODE_NONE then continue for
+        dim as TypeId pt = c.info->TypeOf_( prp->a )
+        dim as TypeId at = c.info->TypeOf_( arg )
+        if (pt = TYPE_NONE) orelse (at = TYPE_NONE) then continue for
+        dim as boolean byvalWritten = _
+            ((c.ast->nodes[cast( long, prm )].flags and NF_BYVAL_WRITTEN) <> 0)
+        dim as boolean bad = false
+        if c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER then
+            bad = PtrAssignBad_( c, pt, at )
+        elseif byvalWritten = false then
+            '' BYREF: the two VALUE types, judged as if they were pointees -- and ONLY
+            '' when both are UDTs, which is what was measured. 'fz( zz )' over 'byref z
+            '' as zstring' with a 'zstring * 8' argument is an ordinary call, and this
+            '' suite's own byval-to-byref test writes it.
+            if (c.types->Kind( c.types->Unqualify( pt ) ) = TK_UDT) andalso _
+               (c.types->Kind( c.types->Unqualify( at ) ) = TK_UDT) then
+                bad = PtrAssignBad_( c, c.types->Pointer_( pt ), c.types->Pointer_( at ) )
+            end if
+        end if
+        if bad then
+            c.diags->Report( TKO0698, PointRange( c.ast->Loc( arg ) ) )
+            return
+        end if
+
+        '' A CONST VALUE CANNOT BIND TO A NON-CONST BYREF -- fbc error 181. Measured over
+        '' a UDT and an integer: 'byref x as T' given a 'const T' is refused, while
+        '' 'byref x as const T' takes it and so does 'byval'. A LITERAL binds to a
+        '' temporary and is fine, so only a NAMED argument is judged.
+        dim as TypeId pu = c.types->Unqualify( pt )
+        if (byvalWritten = false) andalso (c.ast->Kind( arg ) = N_IDENT) then
+            if c.types->IsConst( at ) andalso (c.types->IsConst( pt ) = false) then
+                dim as TypeKind pk = c.types->Kind( pu )
+                if (pk = TK_UDT) orelse (pk = TK_BUILTIN) then
+                    c.diags->Report( TKO0699, PointRange( c.ast->Loc( arg ) ) )
+                    return
+                end if
+            end if
+        end if
+
+        '' A NUMBER TO A BYREF STRING -- fbc error 58. Measured: 'byref z as zstring'
+        '' given 0 is refused, so is 'byref s as string'; a string literal is the
+        '' ordinary argument, and 'byval p as zstring ptr' given 0 is a null pointer.
+        '' 'fz( byval 0 )' PASSES THE VALUE AS THE ADDRESS -- fbc's C is 'FZ( (char*)0ll )'
+        '' -- and is the documented way to hand a byref parameter a null. An explicit
+        '' 'byval' on the argument is not this rule.
+        dim as boolean argByval = false
+        if c.ast->Kind( arg ) = N_UNARY then
+            dim as UnaryPayload ptr aup = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, arg )].data )]
+            argByval = (cast( TokenKind, aup->op ) = KW_BYVAL)
+        end if
+        if (byvalWritten = false) andalso (argByval = false) andalso _
+           (c.types->Kind( pu ) = TK_BUILTIN) then
+            dim as boolean strParam = false
+            select case c.types->BuiltinOf( pu )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING : strParam = true
+            end select
+            dim as TypeId au = c.types->Unqualify( at )
+            if strParam andalso (c.types->Kind( au ) = TK_BUILTIN) then
+                select case c.types->BuiltinOf( au )
+                case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
+                     TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE
+                    c.diags->Report( TKO0698, PointRange( c.ast->Loc( arg ) ) )
+                    return
+                end select
+            end if
+        end if
+    next
+end sub

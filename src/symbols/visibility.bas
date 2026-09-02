@@ -907,6 +907,8 @@ private sub CheckProcPtrArith_ ( byref c as Ctx, byval id as NodeId )
     end if
 end sub
 
+#include once "symbols/proccheck.bas"
+
 private sub CheckProcPtrDeref_ ( byref c as Ctx, byval id as NodeId )
     dim as UnaryPayload ptr up = _
         @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -1211,6 +1213,7 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
     if k = N_AMBIGUOUS then CheckPtrFloatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckPtrAssign_( c, id )
+    if k = N_AMBIGUOUS then CheckConstUdtField_( c, id )
     if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )
     if k = N_VAR_ITEM then CheckPtrInit_( c, id )
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
@@ -1220,14 +1223,18 @@ private sub Walk_ _
     if (k = N_CALL) orelse (k = N_INDEX) then CheckSubscriptCount_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id, here )
+    if k = N_CALL then CheckArgConversions_( c, id )
     if k = N_CALL then CheckBaseInitCount_( c, id, here )
     if k = N_CALL then CheckIifArms_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
     if k = N_PROC then CheckByrefResultAgrees_( c, id )
+    if k = N_PROC then CheckModifierAgrees_( c, id )
+    if k = N_PROC then CheckMemberOnlyOperator_( c, id )
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
+    if k = N_INDEX then CheckIndexNeedsPointer_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
     '' arena stores three, and a walk that knew only about statements missed every

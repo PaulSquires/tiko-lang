@@ -1,0 +1,203 @@
+extern ptrs __fb_ZTS6Object [ ]
+global str $str1 "1B"
+global ptrs _ZTSN1BE [ 0, @$str1, @__fb_ZTS6Object ]
+global ptrs _ZTVN1BE [ 0, @_ZTSN1BE ]
+global str $str4 "1D"
+global ptrs _ZTSN1DE [ 0, @$str4, @_ZTSN1BE ]
+global ptrs _ZTVN1DE [ 0, @_ZTSN1DE ]
+global str $str7 "6LOCAL2"
+global ptrs _ZTSN6LOCAL2E [ 0, @$str7, @__fb_ZTS6Object ]
+global ptrs _ZTVN6LOCAL2E [ 0, @_ZTSN6LOCAL2E ]
+func void _ZN1T2STEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN1T2CNEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func agg _ZplR3FOOS0_($0, $1) {
+  local agg $tmp0 size 8
+  local ptr lhs
+  local ptr rhs
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr lhs
+    store @lhs, $0
+    %3 = alloca ptr rhs
+    store @rhs, $1
+    %4 = load @lhs
+    %5 = load %4
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func void WANTSDPTR($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void WANTSBPTR($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void WANTSD($0) {
+  local ptr x
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    ret
+}
+func void WANTSB($0) {
+  local ptr x
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    ret
+}
+func void OKPLAINTYPE() {
+  entry0:
+    ret
+}
+func void _ZN1T6NORMALEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZNK1T7NORMAL2Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZaSRu7INTEGER($0) {
+  local ptr a
+  entry0:
+    %1 = alloca ptr a
+    store @a, $0
+    ret
+}
+func void _ZpLR3FOOS0_($0, $1) {
+  local ptr lhs
+  local ptr rhs
+  entry0:
+    %1 = alloca ptr lhs
+    store @lhs, $0
+    %2 = alloca ptr rhs
+    store @rhs, $1
+    ret
+}
+func void BADTYPE() {
+  entry0:
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr pb
+  local ptr pd
+  local agg vb size 16
+  local agg vd size 24
+  local agg cf size 0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr pb
+    %5 = alloca ptr pd
+    %6 = alloca ptr vb
+    call void _ZN1BC1Ev(@vb)
+    %7 = alloca ptr vd
+    call void _ZN1DC1Ev(@vd)
+    %8 = load @pd
+    call void WANTSBPTR(%8)
+    call void WANTSB(@vd)
+    %9 = alloca ptr cf
+    %10 = const i64 3
+    %11 = trunc %10
+    store @cf, %11
+    %12 = field.addr @cf, 0
+    %13 = load %12
+    call.rtl void fb_PrintLongint(0, %13, 1)
+    %14 = field.addr @cf, 0
+    %15 = const i64 4
+    store %14, %15
+    %16 = load @pb
+    call void WANTSDPTR(%16)
+    call void WANTSD(@vb)
+    %17 = const i32 0
+    call.rtl void fb_End(%17)
+    %18 = load @$tmp0
+    ret %18
+}
+declare void fb_Init($0, $1, $2)
+declare void _ZN1BC1Ev($0)
+declare void _ZN1DC1Ev($0)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_End($0)
+func void _ZN1BC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN10fb_Object$C1Ev(%1)
+    %2 = field.addr @@_ZTVN1BE, 16
+    store $0, %2
+    ret
+}
+declare void _ZN10fb_Object$C1Ev($0)
+func void _ZN1DC1Ev($0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN1BC1Ev(%1)
+    %2 = field.addr @@_ZTVN1DE, 16
+    store $0, %2
+    ret
+}
+verify: ok
+lowered: 16 functions, 16 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/member-and-call-rules.bas(66,5): error TKO0619: 'local2' is declared inside a procedure and cannot have methods
+     |
+  66 |     type Local2 extends object
+     |     ^
+tests/diagnostics/src/member-and-call-rules.bas(54,1): error TKO0696: STATIC is written on this definition but not on its declaration
+     |
+  54 | static sub T.normal( )
+     | ^
+tests/diagnostics/src/member-and-call-rules.bas(56,1): error TKO0696: CONST is written on this definition but not on its declaration
+     |
+  56 | const sub T.normal2( )
+     | ^
+tests/diagnostics/src/member-and-call-rules.bas(58,1): error TKO0697: operator 'let' must be a member of a type
+     |
+  58 | operator let ( byref a as integer )
+     | ^
+tests/diagnostics/src/member-and-call-rules.bas(60,1): error TKO0697: operator '+=' must be a member of a type
+     |
+  60 | operator += ( byref lhs as Foo, byref rhs as Foo )
+     | ^
+tests/diagnostics/src/member-and-call-rules.bas(62,3): error TKO0617: cannot modify 'cf': it is a constant
+     |
+  62 | cf.x = 4
+     |   ^
+tests/diagnostics/src/member-and-call-rules.bas(63,12): error TKO0698: this argument does not convert to the parameter's type
+     |
+  63 | wantsDptr( pb )
+     |            ^
+tests/diagnostics/src/member-and-call-rules.bas(64,9): error TKO0698: this argument does not convert to the parameter's type
+     |
+  64 | wantsD( vb )
+     |         ^

@@ -1,0 +1,12 @@
+'' CONST and STATIC on a definition must agree with the declaration (fbc 217/218 -- one the
+'' declaration lacked is refused, one it had may be repeated or left off); 'let', 'cast',
+'' '[]' and the compound assignments are members or nothing (152) while a free binary '+'
+'' and a free '->' are legal; a field of a const variable cannot be written (119); at a
+'' call, a base pointer to a 'byval as D ptr' is 24 and a base value to a 'byref as D' is
+'' 58; and 'type U extends object' inside a SUB is 263 with no method declared at all.
+'' Matches fbc on lines 54, 56, 58, 60, 62, 63 and 64; the nested type reports on its
+'' 'type' line (66) where fbc reports on the 'end type' (68).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/member-and-call-rules.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/member-and-call-rules.out

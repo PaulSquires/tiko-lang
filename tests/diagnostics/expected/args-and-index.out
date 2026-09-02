@@ -1,0 +1,170 @@
+global str $str0 "x"
+func void TAKEST($0) {
+  local ptr x
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    ret
+}
+func void TAKESCONSTT($0) {
+  local ptr x
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    ret
+}
+func void TAKESTVAL($0) {
+  local agg x size 8
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    ret
+}
+func void TAKESINT($0) {
+  local ptr x
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    ret
+}
+func void TAKESZ($0) {
+  local ptr z
+  entry0:
+    %1 = alloca ptr z
+    store @z, $0
+    ret
+}
+func void TAKESS($0) {
+  local ptr z
+  entry0:
+    %1 = alloca ptr z
+    store @z, $0
+    ret
+}
+func void TAKESZPTR($0) {
+  local ptr z
+  entry0:
+    %1 = alloca ptr z
+    store @z, $0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg cv size 0
+  local agg mv size 8
+  local i64 ci
+  local i64 n
+  local agg s size 24
+  local ptr p
+  local i64 $tmp7
+  local agg $tmp8 size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr cv
+    %5 = const i64 1
+    %6 = trunc %5
+    store @cv, %6
+    %7 = alloca ptr mv
+    %8 = alloca ptr ci
+    %9 = const i64 1
+    store @ci, %9
+    %10 = alloca ptr n
+    %11 = alloca ptr s
+    %12 = field.addr @s, 0
+    store %12, 0
+    %13 = field.addr @s, 8
+    store %13, 0
+    %14 = field.addr @s, 16
+    store %14, 0
+    %15 = alloca ptr p
+    call void TAKESCONSTT(@cv)
+    %16 = load @cv
+    call void TAKESTVAL(%16)
+    call void TAKEST(@mv)
+    %17 = const i64 1
+    %18 = alloca ptr $tmp7
+    store @$tmp7, %17
+    call void TAKESINT(@$tmp7)
+    call void TAKESZ(@@$str0)
+    %19 = const i64 0
+    %20 = bitcast %19
+    call void TAKESZPTR(%20)
+    %21 = load @p
+    %22 = const i64 0
+    %23 = const i64 8
+    %24 = mul %22, %23
+    %25 = ptr.add %21, %24
+    %26 = load %25
+    call.rtl void fb_PrintLongint(0, %26, 1)
+    %27 = field.addr @s, 0
+    %28 = load %27
+    %29 = const i64 0
+    %30 = ptr.add %28, %29
+    %31 = load %30
+    call.rtl void fb_PrintUByte(0, %31, 1)
+    call void TAKEST(@cv)
+    call void TAKESINT(@ci)
+    %32 = alloca ptr $tmp8
+    %33 = field.addr @$tmp8, 0
+    store %33, 0
+    %34 = field.addr @$tmp8, 8
+    store %34, 0
+    %35 = field.addr @$tmp8, 16
+    store %35, 0
+    %36 = const i64 0
+    %37 = call.rtl ptr fb_LongintToStr(%36)
+    %38 = call.rtl ptr fb_StrAssign(@$tmp8, -1, %37, -1, 0)
+    %39 = field.addr @$tmp8, 0
+    %40 = load %39
+    call void TAKESZ(%40)
+    call.rtl void fb_StrDelete(@$tmp8)
+    call.rtl void fb_StrDelete(@s)
+    %41 = const i32 0
+    call.rtl void fb_End(%41)
+    %42 = load @$tmp0
+    ret %42
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintUByte($0, $1, $2)
+declare ptr fb_LongintToStr($0)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 8 functions, 8 blocks, 81 insts, 3 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 2
+  inside N_AMBIGUOUS 1
+  inside N_INTRINSIC 2
+  unlowered intrinsic KW_PRINT 2
+  amb call-nocode 1
+  skip-site lowercall.bas:525 1
+  skip-site src\mir\lowerctl.bas:206 2
+tests/diagnostics/src/args-and-index.bas(42,9): error TKO0699: a const value cannot be passed to a non-const byref parameter
+     |
+  42 | takesT( cv )
+     |         ^
+tests/diagnostics/src/args-and-index.bas(43,11): error TKO0699: a const value cannot be passed to a non-const byref parameter
+     |
+  43 | takesInt( ci )
+     |           ^
+tests/diagnostics/src/args-and-index.bas(44,9): error TKO0698: this argument does not convert to the parameter's type
+     |
+  44 | takesZ( 0 )
+     |         ^
+tests/diagnostics/src/args-and-index.bas(45,9): error TKO0698: this argument does not convert to the parameter's type
+     |
+  45 | takesS( 0 )
+     |         ^
+tests/diagnostics/src/args-and-index.bas(46,8): error TKO0700: '[ ]' indexes a pointer, and this is not one
+     |
+  46 | print n[0]
+     |        ^
+tests/diagnostics/src/args-and-index.bas(47,9): error TKO0700: '[ ]' indexes a pointer, and this is not one
+     |
+  47 | print mv[0]
+     |         ^

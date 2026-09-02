@@ -866,6 +866,21 @@ private function ParseProc _
         if Peek( p ) = Tko.KW_BYREF then
             p.diags->Report( Tko.TKO0639, Tko.PointRange( Cur( p ).loc ) )
         end if
+        '' A TRAILING 'constructor' OR 'destructor' MAKES A MODULE CONSTRUCTOR, and only
+        '' a module-level DEFINITION or a static member may be one. Measured: on a
+        '' DECLARE it is fbc's error 3, on a non-static METHOD definition error 17,
+        '' while 'sub f( ) constructor' and a static member proc are accepted. The loop
+        '' swallowed the word with everything else, so both wrong shapes compiled --
+        '' eight corpus files.
+        if (Peek( p ) = Tko.KW_CONSTRUCTOR) orelse (Peek( p ) = Tko.KW_DESTRUCTOR) then
+            dim as boolean modBad = declareOnly
+            if (modBad = false) andalso qualified then
+                modBad = ((sp.extra and Tko.PF_STATIC) = 0)
+            end if
+            if modBad then
+                p.diags->Report( Tko.TKO0701, Tko.PointRange( Cur( p ).loc ) )
+            end if
+        end if
         Advance( p )
     wend
 

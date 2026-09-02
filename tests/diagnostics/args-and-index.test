@@ -1,0 +1,9 @@
+'' A const value cannot bind to a non-const byref parameter (fbc error 181; 'byref as
+'' const T' and byval take it); a number to a byref string parameter is 58 (a literal
+'' string is the ordinary argument, and 'byval as zstring ptr' given 0 is a null pointer);
+'' '[ ]' indexes a pointer (28) -- an integer or a UDT with no 'operator []' cannot be
+'' indexed, a pointer and a string can. Matches fbc on lines 42-47.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/args-and-index.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/args-and-index.out
