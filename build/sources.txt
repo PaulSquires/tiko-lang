@@ -182,5 +182,6 @@ io/x11keys.bas
 io/xfocus.bas
 io/conwindow.bas
 io/devlptio.bas
+io/devlptopen.bas
 io/conreadstr.bas
 io/devwidth2.bas
