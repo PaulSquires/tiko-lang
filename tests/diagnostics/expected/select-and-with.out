@@ -1,0 +1,121 @@
+global str $str0 "a"
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg s size 24
+  local i64 n
+  local agg x size 8
+  local ptr px
+  local ptr $tmp5
+  local i64 $tmp6
+  local ptr $tmp7
+  local ptr $tmp8
+  local ptr $tmp9
+  local i64 $tmp10
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr s
+    %5 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
+    %6 = alloca ptr n
+    %7 = const i64 0
+    store @n, %7
+    %8 = alloca ptr x
+    %9 = alloca ptr px
+    store @px, @x
+    %10 = alloca ptr $tmp5
+    store @$tmp5, @s
+    %11 = load @$tmp5
+    %12 = call.rtl i32 fb_StrCompare(%11, -1, @@$str0, 2)
+    %13 = const i32 0
+    %14 = icmp.eq %12, %13
+    %16 = alloca ptr $tmp6
+    %27 = alloca ptr $tmp7
+    %29 = alloca ptr $tmp8
+    %30 = alloca ptr $tmp9
+    %38 = alloca ptr $tmp10
+    condbr %14, sel.body2, sel.next3
+  sel.join1:
+    %15 = load @n
+    store @$tmp6, %15
+    %17 = const i64 0
+    %18 = load @$tmp6
+    %19 = icmp.eq %18, %17
+    condbr %19, sel.body5, sel.alt7
+  sel.body2:
+    br sel.join1
+  sel.next3:
+    br sel.join1
+  sel.join4:
+    store @$tmp7, @x
+    %28 = load @px
+    store @$tmp8, %28
+    store @$tmp9, @s
+    %31 = load @$tmp9
+    %32 = const i64 0
+    %33 = call.rtl ptr fb_LongintToStr(%32)
+    %34 = call.rtl i32 fb_StrCompare(%31, -1, %33, -1)
+    %35 = const i32 0
+    %36 = icmp.eq %34, %35
+    condbr %36, sel.body9, sel.next10
+  sel.body5:
+    br sel.join4
+  sel.next6:
+    br sel.join4
+  sel.alt7:
+    %20 = const i64 1
+    %21 = load @$tmp6
+    %22 = icmp.sge %21, %20
+    %23 = const i64 3
+    %24 = load @$tmp6
+    %25 = icmp.sle %24, %23
+    %26 = and %22, %25
+    condbr %26, sel.body5, sel.next6
+  sel.join8:
+    %37 = load @n
+    store @$tmp10, %37
+    %39 = bitcast @@$str0
+    %40 = load @$tmp10
+    %41 = icmp.eq %40, %39
+    condbr %41, sel.body12, sel.next13
+  sel.body9:
+    br sel.join8
+  sel.next10:
+    br sel.join8
+  sel.join11:
+    call.rtl void fb_StrDelete(@s)
+    %42 = const i32 0
+    call.rtl void fb_End(%42)
+    %43 = load @$tmp0
+    ret %43
+  sel.body12:
+    br sel.join11
+  sel.next13:
+    br sel.join11
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare i32 fb_StrCompare($0, $1, $2, $3)
+declare ptr fb_LongintToStr($0)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 14 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/select-and-with.bas(23,6): error TKO0714: this case value is not the kind the select subject is
+     |
+  23 | case 0
+     |      ^
+tests/diagnostics/src/select-and-with.bas(26,6): error TKO0714: this case value is not the kind the select subject is
+     |
+  26 | case "a"
+     |      ^
+tests/diagnostics/src/select-and-with.bas(28,6): error TKO0715: 'with' takes a UDT value, not a number or a pointer
+     |
+  28 | with 0
+     |      ^
+tests/diagnostics/src/select-and-with.bas(30,6): error TKO0715: 'with' takes a UDT value, not a number or a pointer
+     |
+  30 | with @x
+     |      ^

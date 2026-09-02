@@ -713,7 +713,36 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
     case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
         c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
         return
+    case N_CALL
+        '' 'iif( c, 0, 0 ) = 0' -- fbc error 24: a call's result is a temporary. Only the
+        '' intrinsic is judged; an indexing expression has the same shape and is an
+        '' lvalue.
+        dim as ListPayload ptr cl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        if cl->target = NODE_NONE then return
+        if c.ast->Kind( cl->target ) <> N_IDENT then return
+        if c.info->RefOf( cl->target ) <> SYMBOL_NONE then return
+        dim as InternId cn = _
+            c.ast->idents[cast( long, c.ast->nodes[cast( long, cl->target )].data )].name
+        if c.names->Fold( cn ) <> c.names->Fold( c.names->GetString( "iif" ) ) then return
+        c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
+        return
     case N_PAREN, N_TUPLE
+        '' ...AND NOT FROM A UNION: 'let( a, b ) = x' over a union is fbc error 268,
+        '' "UNIONs are not allowed" -- a union has one value, not a sequence of them.
+        if sp->b <> NODE_NONE then
+            dim as TypeId ut = c.types->Unqualify( c.info->TypeOf_( sp->b ) )
+            if (ut <> TYPE_NONE) andalso (c.types->Kind( ut ) = TK_UDT) then
+                dim as ScopeId uds = cast( ScopeId, c.types->DeclScopeOf( ut ) )
+                dim as SymbolId usid = c.syms->LookupLocalTyped( uds, c.types->NameOf( ut ), true )
+                if usid = SYMBOL_NONE then usid = c.syms->LookupTyped( uds, c.types->NameOf( ut ), true )
+                dim as Symbol ptr us = c.syms->SymbolAt( usid )
+                if (us <> 0) andalso ((us->flags and SYMF_UNION_KIND) <> 0) then
+                    c.diags->Report( TKO0718, PointRange( c.ast->Loc( sp->b ) ) )
+                    return
+                end if
+            end if
+        end if
         '' 'let( a, b ) = x' UNPACKS INTO ITS TARGETS, and each must be a variable:
         '' 'let( 0 ) = x' is fbc error 24 and 'let( K ) = x' over a constant is 119.
         '' The tuple is a list node; each element is judged the way a bare target is.
@@ -1105,6 +1134,8 @@ private sub Walk_ _
     if k = N_DELETE_STMT then CheckDelete_( c, id, here )
     if k = N_MEMBER then CheckDeref_( c, id )
     if k = N_MEMBER then CheckMemberIsValue_( c, id )
+    if k = N_MEMBER then CheckArrowOnValue_( c, id )
+    if k = N_MEMBER then CheckBaseCallAbstract_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
@@ -1132,6 +1163,8 @@ private sub Walk_ _
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_INTRINSIC then CheckGfxTarget_( c, id )
+    if k = N_SELECT then CheckSelectCaseKinds_( c, id )
+    if k = N_WITH then CheckWithSubject_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
     if k = N_INDEX then CheckIndexNeedsPointer_( c, id )
     if k = N_NEW then CheckNewString_( c, id )

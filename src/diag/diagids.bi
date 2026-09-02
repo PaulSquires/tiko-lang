@@ -296,6 +296,13 @@
     DIAG( TKO0712, SEV_ERROR,   "the alias on the definition of '%0' does not match its declaration" )
     '' fbc's error 18, over a nested type reached through an instance.
     DIAG( TKO0713, SEV_ERROR,   "'%0' is a type, not a member with a value" )
+    '' fbc's error 24, over a CASE value and a WITH subject.
+    DIAG( TKO0714, SEV_ERROR,   "this case value is not the kind the select subject is" )
+    DIAG( TKO0715, SEV_ERROR,   "'with' takes a UDT value, not a number or a pointer" )
+    '' fbc's errors 28, 307 and 268.
+    DIAG( TKO0716, SEV_ERROR,   "'->' through a value of a type that has no operator ->" )
+    DIAG( TKO0717, SEV_ERROR,   "'base.%0( )' calls an abstract method, which has no body" )
+    DIAG( TKO0718, SEV_ERROR,   "a union cannot be unpacked by let( )" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

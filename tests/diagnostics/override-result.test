@@ -1,0 +1,7 @@
+'' An override's result must match the overridden method's (fbc error 225): byref against
+'' byval either way round, and the constness of a byref result; a covariant 'byref as B'
+'' over 'byref as A' stays legal. Matches fbc on lines 18, 19 and 20.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-result.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/override-result.out

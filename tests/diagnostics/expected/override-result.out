@@ -1,0 +1,27 @@
+extern ptrs __fb_ZTS6Object [ ]
+global str $str1 "1A"
+global ptrs _ZTSN1AE [ 0, @$str1, @__fb_ZTS6Object ]
+global ptrs _ZTVN1AE [ 0, @_ZTSN1AE ]
+global str $str4 "1B"
+global ptrs _ZTSN1BE [ 0, @$str4, @_ZTSN1AE ]
+global ptrs _ZTVN1BE [ 0, @_ZTSN1BE ]
+global str $str7 "1P"
+global ptrs _ZTSN1PE [ 0, @$str7, @__fb_ZTS6Object ]
+global ptrs _ZTVN1PE [ 0, @_ZTSN1PE, _ZN1P1FEv, _ZN1P1GEv, _ZN1P1HEv, _ZN1P3COVEv ]
+global str $str10 "1C"
+global ptrs _ZTSN1CE [ 0, @$str10, @_ZTSN1PE ]
+global ptrs _ZTVN1CE [ 0, @_ZTSN1CE, _ZN1C1FEv, _ZN1C1GEv, _ZN1C1HEv, _ZN1C3COVEv ]
+verify: ok
+lowered: 0 functions, 0 blocks, 0 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/override-result.bas(18,13): error TKO0622: 'f' overrides a virtual method with a different return type
+     |
+  18 |     declare function f( ) as integer override
+     |             ^
+tests/diagnostics/src/override-result.bas(19,13): error TKO0622: 'g' overrides a virtual method with a different return type
+     |
+  19 |     declare function g( ) byref as integer override
+     |             ^
+tests/diagnostics/src/override-result.bas(20,13): error TKO0622: 'h' overrides a virtual method with a different return type
+     |
+  20 |     declare function h( ) byref as const integer override
+     |             ^

@@ -1,0 +1,7 @@
+'' '->' through a UDT value whose type has no 'operator ->' is fbc error 28; 'iif( ) = 0'
+'' assigns to a temporary (24); 'let( )' cannot unpack a union (268); 'base.f( )' to an
+'' abstract method binds to no body (307). Matches fbc on lines 27, 37, 38 and 39.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/arrow-iif-union-base.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/arrow-iif-union-base.out

@@ -193,6 +193,21 @@ private sub CheckOverrideBody_ _
 
     dim as TypeId ra = ReturnTypeOf_( ast, info, oldd )
     dim as TypeId rb = ReturnTypeOf_( ast, info, newd )
+    '' BYREF AGAINST BYVAL IS A DIFFERENT RESULT -- fbc error 225 either way round:
+    '' 'byref as integer' overridden by 'as integer', and the reverse, are both refused.
+    '' ...AND SO IS THE CONSTNESS OF A BYREF RESULT: 'byref as integer' overridden by
+    '' 'byref as const integer' is 225 too, while the covariant 'byref as B' over 'byref
+    '' as A' stays legal -- so with both byref only the qualifier is compared here.
+    if (isOperator = false) andalso ((obf <> 0) <> (nbf <> 0)) then
+        NoteMismatch_( store, newd, VTM_RETURN )
+        return
+    end if
+    if (isOperator = false) andalso bothByref then
+        if types.IsConst( ra ) <> types.IsConst( rb ) then
+            NoteMismatch_( store, newd, VTM_RETURN )
+            return
+        end if
+    end if
     dim as boolean skipReturn = isOperator orelse bothByref
     if (skipReturn = false) andalso (ReturnCompatible_( types, ra, rb ) = false) then
         NoteMismatch_( store, newd, VTM_RETURN )
