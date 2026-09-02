@@ -1124,6 +1124,15 @@ private function ParseAggregateBody _
                 dim as Tko.Token ft = Cur( p )
                 dim as Tko.StmtPayload fp
                 if DeclName( p, fp.name ) = false then exit do
+                '' 'arr() as integer' INSIDE A TYPE -- fbc error 9, "Expected
+                '' expression": a dynamic array FIELD must write its rank, '(any)'.
+                '' Empty parens read as no bounds at all and left a SCALAR field.
+                if (Peek( p ) = Tko.TK_LPAREN) andalso HasTok( p, p.pos + 1 ) then
+                    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_RPAREN then
+                        p.diags->Report( Tko.TKO0721, Tko.PointRange( Cur( p ).loc ), _
+                                         p.names->Spelling( fp.name ) )
+                    end if
+                end if
                 ParseArrayBounds( p, fp )
                 if fp.count > 0 then fp.op = cast( ushort, Tko.KW_DIM )
                 '' A FIELD INITIALISER, which the loop did not read -- so the '='
@@ -1212,6 +1221,15 @@ private function ParseAggregateBody _
             dim as Tko.Token ft = Cur( p )
             dim as Tko.StmtPayload fp
             if DeclName( p, fp.name ) then
+                '' 'arr() as integer' INSIDE A TYPE -- fbc error 9, "Expected
+                '' expression": a dynamic array FIELD must write its rank, '(any)'.
+                '' Empty parens read as no bounds at all and left a SCALAR field.
+                if (Peek( p ) = Tko.TK_LPAREN) andalso HasTok( p, p.pos + 1 ) then
+                    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_RPAREN then
+                        p.diags->Report( Tko.TKO0721, Tko.PointRange( Cur( p ).loc ), _
+                                         p.names->Spelling( fp.name ) )
+                    end if
+                end if
                 ParseArrayBounds( p, fp )
                 if fp.count > 0 then
                     fp.op = cast( ushort, Tko.KW_DIM )   '' marks 'has bounds'

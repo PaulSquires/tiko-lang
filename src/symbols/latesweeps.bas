@@ -642,6 +642,12 @@ private sub CheckArrayDeclShapes_( byref c as Ctx )
         end if
         dim as boolean constEl = c.types->IsConst( c.types->Inner( u ) )
         if ik = N_FIELD then
+            '' A DYNAMIC ARRAY FIELD WRITES ITS RANK: 'array(any) as integer' is the form,
+            '' and 'array() as integer' is fbc error 9, "Expected expression".
+            if c.types->IsDynArray( u ) andalso (c.types->DynRank( u ) = 0) then
+                c.diags->Report( TKO0721, PointRange( c.ast->Loc( item ) ), _
+                                 c.names->Spelling( s->name ) )
+            end if
             if constEl andalso c.types->IsDynArray( u ) then
                 c.diags->Report( TKO0690, PointRange( c.ast->Loc( item ) ), _
                                  c.names->Spelling( s->name ) )

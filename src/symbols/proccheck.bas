@@ -323,3 +323,120 @@ private sub CheckBaseCallAbstract_ ( byref c as Ctx, byval id as NodeId )
     if (dp->extra and PF_ABSTRACT) = 0 then return
     c.diags->Report( TKO0717, PointRange( c.ast->Loc( id ) ), c.names->Spelling( ps->name ) )
 end sub
+
+'' Does any procedure of this name exist anywhere -- member or global? Overload choice is
+'' not modelled here, so one is enough to decline.
+private function ProcNamedAnywhere_ ( byref c as Ctx, byref nm as string ) as boolean
+    dim as InternId want = c.names->Fold( c.names->GetString( nm ) )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_PROC ) then continue for
+        if c.names->Fold( s->name ) = want then return true
+    next
+    return false
+end function
+
+'' 'erase x' OVER AN ARRAY OF A TYPE WITH STRUCTORS reconstructs every element, and fbc
+'' will only do that through a plain one: a default constructor whose parameter is merely
+'' DEFAULTED is error 176, one with a calling convention written on it 174, and a
+'' destructor with one 175. Measured, one corpus file each; a parameterless cdecl pair is
+'' the ordinary case.
+private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_ERASE then return
+    for i as long = 0 to sp->count - 1
+        dim as NodeId arg = cast( NodeId, c.ast->children[sp->first + i] )
+        if arg = NODE_NONE then continue for
+        dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( arg ) )
+        if av = 0 then continue for
+        if av->type_ = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( av->type_ )
+        if c.types->Kind( u ) <> TK_ARRAY then continue for
+        dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+        if c.types->Kind( el ) <> TK_UDT then continue for
+        dim as Symbol ptr ct = StructorOf_( c, el, "__ctor" )
+        dim as long guard = 0
+        while (ct <> 0) andalso (guard < 1000)
+            guard += 1
+            dim as NodeId cd = cast( NodeId, ct->payload )
+            if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
+                if RequiredParams_( c, cd ) = 0 then
+                    dim as StmtPayload ptr cp = _
+                        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
+                    if ParamCount_( c, cd ) > 0 then
+                        c.diags->Report( TKO0719, PointRange( c.ast->Loc( arg ) ) )
+                    elseif (cp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0 then
+                        c.diags->Report( TKO0719, PointRange( c.ast->Loc( arg ) ) )
+                    end if
+                    exit while
+                end if
+            end if
+            ct = c.syms->SymbolAt( ct->nextOverload )
+        wend
+        dim as Symbol ptr dt = StructorOf_( c, el, "__dtor" )
+        if dt <> 0 then
+            dim as NodeId dd = cast( NodeId, dt->payload )
+            if (dd <> NODE_NONE) andalso (c.ast->Kind( dd ) = N_PROC) then
+                dim as StmtPayload ptr dp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, dd )].data )]
+                if (dp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0 then
+                    c.diags->Report( TKO0719, PointRange( c.ast->Loc( arg ) ) )
+                end if
+            end if
+        end if
+    next
+end sub
+
+'' A UDT COMPARED WITH ANYTHING needs an 'operator =' (or '<>', ...) -- fbc error 20 for
+'' 'print (t = e1)' over a type that declares none, and for two values of one plain type
+'' alike. Any procedure of the operator's name, member or global, is enough to decline.
+private function TupleLike_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    if c.types->Kind( t ) <> TK_UDT then return false
+    dim as InternId nm = c.types->NameOf( t )
+    if nm = 0 then return true
+    dim as string sp = c.names->Spelling( nm )
+    if len( sp ) = 0 then return true
+    dim as string h = left( sp, 1 )
+    return (h = "(") orelse (h = "$") orelse (h = "~")
+end function
+
+private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as string opnm = ""
+    select case cast( TokenKind, bp->op )
+    case TK_EQ : opnm = "="
+    case TK_NE : opnm = "<>"
+    case TK_LT : opnm = "<"
+    case TK_GT : opnm = ">"
+    case TK_LE : opnm = "<="
+    case TK_GE : opnm = ">="
+    case else
+        return
+    end select
+    if (bp->lhs = NODE_NONE) orelse (bp->rhs = NODE_NONE) then return
+    dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( bp->lhs ) )
+    dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( bp->rhs ) )
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    '' A TUPLE COMPARES ELEMENTWISE and is not this question -- this suite's own
+    '' tuple-compare test writes 'if a = b' over two '(long, long)'. Its kind, or its
+    '' synthesized name, is what tells one apart from a declared UDT.
+    if (c.types->Kind( lt ) = TK_TUPLE) orelse (c.types->Kind( rt ) = TK_TUPLE) then return
+    if TupleLike_( c, lt ) orelse TupleLike_( c, rt ) then return
+    dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
+    dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
+    if (lUdt orelse rUdt) = false then return
+    if ProcNamedAnywhere_( c, opnm ) then return
+    '' A conversion operator on the UDT may turn it into something comparable.
+    if lUdt then
+        if StructorOf_( c, lt, "cast" ) <> 0 then return
+    end if
+    if rUdt then
+        if StructorOf_( c, rt, "cast" ) <> 0 then return
+    end if
+    c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
+end sub

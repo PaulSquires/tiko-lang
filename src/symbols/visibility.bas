@@ -737,7 +737,21 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
                 dim as SymbolId usid = c.syms->LookupLocalTyped( uds, c.types->NameOf( ut ), true )
                 if usid = SYMBOL_NONE then usid = c.syms->LookupTyped( uds, c.types->NameOf( ut ), true )
                 dim as Symbol ptr us = c.syms->SymbolAt( usid )
-                if (us <> 0) andalso ((us->flags and SYMF_UNION_KIND) <> 0) then
+                '' ...OR A TYPE THAT HOLDS AN ANONYMOUS UNION, which fbc refuses the same
+                '' way: a field inside one carries SYMF_UNION.
+                dim as boolean holdsUnion = false
+                if (us <> 0) andalso (us->inner <> SCOPE_NONE) then
+                    for fi as long = 0 to c.syms->symbols.Count - 1
+                        dim as Symbol ptr ff = @c.syms->symbols[fi]
+                        if ff->parent <> us->inner then continue for
+                        if ff->kind <> cast( ubyte, SYM_FIELD ) then continue for
+                        if (ff->flags and SYMF_UNION) <> 0 then
+                            holdsUnion = true
+                            exit for
+                        end if
+                    next
+                end if
+                if (us <> 0) andalso (((us->flags and SYMF_UNION_KIND) <> 0) orelse holdsUnion) then
                     c.diags->Report( TKO0718, PointRange( c.ast->Loc( sp->b ) ) )
                     return
                 end if
@@ -1137,6 +1151,7 @@ private sub Walk_ _
     if k = N_MEMBER then CheckArrowOnValue_( c, id )
     if k = N_MEMBER then CheckBaseCallAbstract_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
+    if k = N_BINARY then CheckUdtCompare_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
     if k = N_AMBIGUOUS then CheckPtrFloatAssign_( c, id )
@@ -1163,6 +1178,7 @@ private sub Walk_ _
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_INTRINSIC then CheckGfxTarget_( c, id )
+    if k = N_INTRINSIC then CheckEraseStructors_( c, id )
     if k = N_SELECT then CheckSelectCaseKinds_( c, id )
     if k = N_WITH then CheckWithSubject_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )

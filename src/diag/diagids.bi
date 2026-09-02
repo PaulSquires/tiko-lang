@@ -303,6 +303,10 @@
     DIAG( TKO0716, SEV_ERROR,   "'->' through a value of a type that has no operator ->" )
     DIAG( TKO0717, SEV_ERROR,   "'base.%0( )' calls an abstract method, which has no body" )
     DIAG( TKO0718, SEV_ERROR,   "a union cannot be unpacked by let( )" )
+    '' fbc's errors 174/175/176, 20 and 9.
+    DIAG( TKO0719, SEV_ERROR,   "'erase' over this array needs a plain parameterless cdecl constructor and destructor" )
+    DIAG( TKO0720, SEV_ERROR,   "no operator %0 compares this type" )
+    DIAG( TKO0721, SEV_ERROR,   "the dynamic array field '%0' must write its rank: '(any)'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

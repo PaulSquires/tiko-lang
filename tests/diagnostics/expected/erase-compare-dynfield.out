@@ -1,0 +1,141 @@
+func i64 _ZN3CMPcvu7INTEGEREv($0) {
+  local i64 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    store @$tmp0, %6
+    %7 = load @$tmp0
+    ret %7
+}
+func void _ZN7DEFCTORC1Eu7INTEGER($0, $1) {
+  local ptr this
+  local i64 n
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg t size 8
+  local agg cm size 8
+  local agg okarr size 8
+  local agg $tmp4 size 72
+  local agg badarr size 8
+  local agg $tmp6 size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr t
+    %5 = alloca ptr cm
+    %6 = alloca ptr okarr
+    %7 = alloca ptr $tmp4
+    %8 = field.addr @$tmp4, 0
+    store %8, @okarr
+    %9 = field.addr @$tmp4, 8
+    store %9, @okarr
+    %10 = const i64 8
+    %11 = field.addr @$tmp4, 16
+    store %11, %10
+    %12 = const i64 8
+    %13 = field.addr @$tmp4, 24
+    store %13, %12
+    %14 = const i64 1
+    %15 = field.addr @$tmp4, 32
+    store %15, %14
+    %16 = const i64 49
+    %17 = field.addr @$tmp4, 40
+    store %17, %16
+    %18 = const i64 1
+    %19 = field.addr @$tmp4, 48
+    store %19, %18
+    %20 = const i64 0
+    %21 = field.addr @$tmp4, 56
+    store %21, %20
+    %22 = const i64 0
+    %23 = field.addr @$tmp4, 64
+    store %23, %22
+    %24 = call.rtl i32 fb_ArrayClear(@$tmp4)
+    %25 = call i64 _ZN3CMPcvu7INTEGEREv(@cm)
+    %26 = const i64 1
+    %27 = icmp.eq %25, %26
+    %28 = neg %27
+    call.rtl void fb_PrintLongint(0, %28, 1)
+    %29 = alloca ptr badarr
+    %30 = field.addr @badarr, 0
+    call void _ZN7DEFCTORC1Eu7INTEGER(%30)
+    %31 = field.addr @badarr, 0
+    %32 = const i64 1
+    call void _ZN7DEFCTORC1Eu7INTEGER(%31, %32)
+    %33 = alloca ptr $tmp6
+    %34 = field.addr @$tmp6, 0
+    store %34, @badarr
+    %35 = field.addr @$tmp6, 8
+    store %35, @badarr
+    %36 = const i64 8
+    %37 = field.addr @$tmp6, 16
+    store %37, %36
+    %38 = const i64 8
+    %39 = field.addr @$tmp6, 24
+    store %39, %38
+    %40 = const i64 1
+    %41 = field.addr @$tmp6, 32
+    store %41, %40
+    %42 = const i64 49
+    %43 = field.addr @$tmp6, 40
+    store %43, %42
+    %44 = const i64 1
+    %45 = field.addr @$tmp6, 48
+    store %45, %44
+    %46 = const i64 0
+    %47 = field.addr @$tmp6, 56
+    store %47, %46
+    %48 = const i64 0
+    %49 = field.addr @$tmp6, 64
+    store %49, %48
+    %50 = func.addr ptr _ZN7DEFCTORC1Eu7INTEGER
+    %51 = call.rtl i32 fb_ArrayClearObj(@$tmp6, %50, 0)
+    %52 = const i32 0
+    call.rtl void fb_End(%52)
+    %53 = load @$tmp0
+    ret %53
+}
+declare void fb_Init($0, $1, $2)
+declare i32 fb_ArrayClear($0)
+declare void fb_PrintLongint($0, $1, $2)
+declare i32 fb_ArrayClearObj($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 91 insts, 2 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 2
+  inside N_INTRINSIC 2
+  unlowered intrinsic KW_PRINT 2
+  skip-site src\mir\lowerctl.bas:206 2
+tests/diagnostics/src/erase-compare-dynfield.bas(40,8): error TKO0721: the dynamic array field 'arr' must write its rank: '(any)'
+     |
+  40 |     arr() as integer
+     |        ^
+tests/diagnostics/src/erase-compare-dynfield.bas(35,10): error TKO0720: no operator = compares this type
+     |
+  35 | print (t = e1)
+     |          ^
+tests/diagnostics/src/erase-compare-dynfield.bas(36,10): error TKO0720: no operator = compares this type
+     |
+  36 | print (t = t)
+     |          ^
+tests/diagnostics/src/erase-compare-dynfield.bas(38,7): error TKO0719: 'erase' over this array needs a plain parameterless cdecl constructor and destructor
+     |
+  38 | erase badArr
+     |       ^

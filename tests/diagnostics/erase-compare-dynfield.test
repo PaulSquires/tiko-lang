@@ -1,0 +1,8 @@
+'' 'erase' over an array of a type with structors needs plain parameterless cdecl ones (fbc
+'' 176/174/175); a UDT compared with anything needs an 'operator =' (20), two values of one
+'' plain type included; a dynamic array field must write its rank -- 'array()' is error 9.
+'' Matches fbc on lines 35, 36, 38 and 40.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/erase-compare-dynfield.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/erase-compare-dynfield.out
