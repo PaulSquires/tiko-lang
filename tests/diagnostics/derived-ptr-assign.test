@@ -1,0 +1,8 @@
+'' A derived pointer does not take a base one (fbc error 181): the upcast is legal, the
+'' downcast is not, 'any ptr' goes both ways. The ERROR is only for a pointee that itself
+'' extends something -- two plain types, or a plain type and a merely-extended base, are
+'' warnings in fbc and stay accepted here. Matches fbc on lines 33-37.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derived-ptr-assign.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/derived-ptr-assign.out

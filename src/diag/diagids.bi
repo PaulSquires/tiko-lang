@@ -258,6 +258,8 @@
     DIAG( TKO0683, SEV_ERROR,   "STATIC is for a member procedure" )
     DIAG( TKO0684, SEV_ERROR,   "this operator is implicitly STATIC and cannot be CONST" )
     DIAG( TKO0685, SEV_ERROR,   "the bitfield '%0' is wider than its type" )
+    '' fbc's error 181, over POINTERS.
+    DIAG( TKO0686, SEV_ERROR,   "these pointer types do not convert into each other" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

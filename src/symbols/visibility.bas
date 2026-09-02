@@ -795,22 +795,7 @@ private sub PtrFloatPair_ _
     c.diags->Report( TKO0670, PointRange( c.ast->Loc( at ) ) )
 end sub
 
-private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if sp->op = 0 then return
-    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
-    PtrFloatPair_( c, id, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ) )
-end sub
-
-'' ...AND AN INITIALISER, which is the same conversion written differently:
-'' 'dim p as byte ptr = 1.0' is error 181 exactly as 'p = 1.0' is.
-private sub CheckPtrFloatInit_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr ip = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
-    PtrFloatPair_( c, id, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ) )
-end sub
+#include once "symbols/assigncheck.bas"
 
 '' '&=' CONCATENATES, so its target must be a STRING -- fbc error 20, "Type mismatch".
 '' Measured: 'i &= 1' over an integer and 'd &= 1' over a double are both refused, while
@@ -1178,7 +1163,9 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
     if k = N_AMBIGUOUS then CheckPtrFloatAssign_( c, id )
+    if k = N_AMBIGUOUS then CheckPtrAssign_( c, id )
     if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )
+    if k = N_VAR_ITEM then CheckPtrInit_( c, id )
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
     if k = N_CALL then CheckConstThisCall_( c, id, here, innerConst )
     if k = N_MEMBER then CheckExplicitStructor_( c, id )
