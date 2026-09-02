@@ -260,6 +260,8 @@
     DIAG( TKO0685, SEV_ERROR,   "the bitfield '%0' is wider than its type" )
     '' fbc's error 181, over POINTERS.
     DIAG( TKO0686, SEV_ERROR,   "these pointer types do not convert into each other" )
+    '' fbc's error 58.
+    DIAG( TKO0687, SEV_ERROR,   "a bydesc parameter takes an array of exactly its element type" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

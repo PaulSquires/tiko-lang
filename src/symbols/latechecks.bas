@@ -44,10 +44,17 @@ private sub CheckNestedStatics_( byref c as Ctx )
             guard += 1
             dim as SymScope ptr ps = c.syms->ScopeAt( cur )
             if ps = 0 then exit while
-            if ps->kind = cast( ubyte, SCOPEK_PROC ) then
+            '' A SCOPE BLOCK COUNTS THE SAME AS A PROCEDURE -- fbc error 264 for both,
+            '' measured -- while a NAMESPACE, or nesting in another TYPE, is accepted.
+            '' Only the procedure was tested, so 'scope : type T : static i ... : end
+            '' scope' went through.
+            if (ps->kind = cast( ubyte, SCOPEK_PROC )) orelse _
+               (ps->kind = cast( ubyte, SCOPEK_BLOCK )) then
                 inProc = true
                 exit while
             end if
+            if (ps->kind = cast( ubyte, SCOPEK_MODULE )) orelse _
+               (ps->kind = cast( ubyte, SCOPEK_NAMESPACE )) then exit while
             cur = ps->parent
         wend
         if inProc = false then continue for

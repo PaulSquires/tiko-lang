@@ -1,0 +1,10 @@
+'' A bydesc parameter takes an array of exactly its element type (fbc error 58): a
+'' different UDT is refused and so is a DERIVED one -- there is no slicing through a
+'' descriptor. A static member variable belongs to a toplevel type (fbc error 264): a
+'' type declared inside a SCOPE block or a SUB is refused, one inside a namespace is not.
+'' Matches fbc on lines 36 and 37; the two nested statics report on the 'static' line
+'' (42, 49) where fbc reports on the 'end type' that follows (43, 50).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bydesc-and-nested-static.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/bydesc-and-nested-static.out

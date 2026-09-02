@@ -413,3 +413,4 @@ private sub CheckBitfieldWidths_( byref c as Ctx )
                          c.names->Spelling( fp->name ) )
     next
 end sub
+

@@ -439,7 +439,31 @@ private sub CheckBydescArgs_ _
         '' type: an empty subscript list over an array variable types as the ELEMENT
         '' here, so a type test alone refused dim/shared-array-1.bas and -2.bas, which
         '' fbc accepts.
-        if WholeArraySpelling_( c, arg ) then continue for
+        if WholeArraySpelling_( c, arg ) then
+            '' A BYDESC PARAMETER TAKES AN ARRAY OF EXACTLY ITS ELEMENT TYPE -- fbc error
+            '' 58, "Type mismatch". Measured: 'a() as P1' given a P2 array is refused, and
+            '' so is 'a() as Base' given a DERIVED array -- there is no slicing through a
+            '' descriptor. Only two UDT element types are compared; a builtin pair may
+            '' convert, and is not measured here.
+            dim as ListPayload ptr wl = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, arg )].data )]
+            dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( wl->target ) )
+            dim as StmtPayload ptr prp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+            if (av <> 0) andalso (prp->a <> NODE_NONE) then
+                dim as TypeId avt = c.types->Unqualify( av->type_ )
+                dim as TypeId pel = c.types->Unqualify( c.info->TypeOf_( prp->a ) )
+                if (c.types->Kind( avt ) = TK_ARRAY) andalso (pel <> TYPE_NONE) then
+                    dim as TypeId ael = c.types->Unqualify( c.types->Inner( avt ) )
+                    if (c.types->Kind( ael ) = TK_UDT) andalso _
+                       (c.types->Kind( pel ) = TK_UDT) andalso (ael <> pel) then
+                        c.diags->Report( TKO0687, PointRange( c.ast->Loc( arg ) ) )
+                        return
+                    end if
+                end if
+            end if
+            continue for
+        end if
         dim as TypeId at2 = c.info->TypeOf_( arg )
         '' UNTYPED IS NOT AN ERROR: something earlier declined, and blaming this
         '' argument would point at the wrong line.

@@ -97,3 +97,11 @@ private sub CheckPtrFloatInit_ ( byref c as Ctx, byval id as NodeId )
     PtrFloatPair_( c, id, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ) )
 end sub
 
+
+'' NOT HERE: assignment BY VALUE between UDTs, fbc's error 181 for 'derived = base' and
+'' for two unrelated types. A draft that compared the two sides' types by identity
+'' produced ELEVEN false rejections over the 1222 fbc-accepted files and broke four of
+'' this suite's own MIR tests -- a tuple, a type literal and 'let( n ) = x' all carry a
+'' type that is not the destination's and are all legal -- while closing not one corpus
+'' file, because every corpus case declares a constructor and a constructor is a possible
+'' conversion path this pass does not model. Measured and withdrawn.
