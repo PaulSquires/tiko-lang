@@ -139,7 +139,27 @@ end type
 '' A narrow source built by hand, so the four FB_STRSETUP forms can each be
 '' asked for by name instead of hoping the compiler picks them.
 dim as string src = "A" + chr(226,130,172) + "B"        '' A U+20AC B
-dim as zstring * 8 fixz = "hi"
+'' EVERY BYTE SET, AND `shared` -- BOTH DELIBERATE.
+''
+'' Declared as a module-level `dim ... = "hi"` this read UNINITIALISED STACK.
+'' A module-level dim in the MAIN module is a local of the implicit main
+'' procedure, not static storage: fbc emits an fb_ctor for it and the object has
+'' ZERO bytes of .data and .bss. The initialiser writes three bytes and leaves
+'' bytes 3..7 as whatever the stack held.
+''
+'' So `fixed*8` below -- a FIXED(4) conversion, which reads byte 3 -- reported
+'' whatever the two runtimes' startup paths happened to leave behind. It agreed
+'' on most runs and differed on some: [0068 0069 0000 0001] against fbc's
+'' [0068 0069 0000 0000]. The conversion was correct both times; the SOURCE
+'' differed. The raw bytes are printed below so the next difference here is
+'' attributable in a single run rather than after four.
+''
+'' `shared` puts it in static storage, and the loop gives every byte a value.
+dim shared as zstring * 8 fixz
+fixz[0] = asc("h") : fixz[1] = asc("i")
+for i as integer = 2 to 7
+	fixz[i] = 0
+next
 
 function udump( byval p as any ptr ) as string
     dim as UDESC ptr d = cptr( UDESC ptr, p )
@@ -149,8 +169,43 @@ end function
 
 print "-- StrToUStr --"
 print "varlen   "; udump( pC_ToU( cptr( any ptr, @src ), VARLEN ) )
+'' THE SOURCE'S OWN BYTES FIRST. `dim as zstring * 8 fixz = "hi"` reserves eight
+'' bytes and specifies three; whether the other five are zeroed is FreeBASIC's
+'' business, not the runtime's, and if they differ between the two binaries then
+'' any conversion reading them differs for a reason that has nothing to do with
+'' tiko-rt. Printed so the next unexplained difference here is attributable.
+print "fixz raw ";
+for i as integer = 0 to 7
+	print hex( fixz[i], 2 ); " ";
+next
+print
+
 print "fixed*8  "; udump( pC_ToU( cptr( any ptr, @fixz ), FIXED(4) ) )
 print "zptr     "; udump( pC_ToU( cptr( any ptr, @fixz ), 0 ) )
+
+'' A FIXED SOURCE WHOSE BYTES PAST THE NUL ARE NOT ZERO.
+''
+'' The `fixed*8` case above cannot distinguish "converted all four characters"
+'' from "converted three and left the fourth as whatever the fresh allocation
+'' held", because the fourth character IS a NUL and a zeroed buffer gives the
+'' right answer by accident. One Release run differed there in exactly that unit
+'' -- [0068 0069 0000 0001] against fbc's [0068 0069 0000 0000] -- and two later
+'' runs agreed, which is the signature of reading or leaving uninitialised
+'' memory rather than of a stable difference.
+''
+'' These cases put a NON-ZERO byte after the terminator, so a conversion that
+'' stops early or writes short is visible in the VALUE rather than in luck.
+'' A FIXED-length string carries its length; an embedded NUL is data.
+dim shared as zstring * 8 fixnz
+fixnz[0] = asc("h") : fixnz[1] = asc("i") : fixnz[2] = 0
+fixnz[3] = asc("A") : fixnz[4] = asc("B") : fixnz[5] = asc("C")
+fixnz[6] = asc("D") : fixnz[7] = 0
+
+print "fixnz*2  "; udump( pC_ToU( cptr( any ptr, @fixnz ), FIXED(2) ) )
+print "fixnz*3  "; udump( pC_ToU( cptr( any ptr, @fixnz ), FIXED(3) ) )
+print "fixnz*4  "; udump( pC_ToU( cptr( any ptr, @fixnz ), FIXED(4) ) )
+print "fixnz*5  "; udump( pC_ToU( cptr( any ptr, @fixnz ), FIXED(5) ) )
+print "fixnz*7  "; udump( pC_ToU( cptr( any ptr, @fixnz ), FIXED(7) ) )
 print "NULL     "; udump( pC_ToU( 0, VARLEN ) )
 
 '' MALFORMED UTF-8 -> U+FFFD, and the round trip is therefore LOSSY. This is the
