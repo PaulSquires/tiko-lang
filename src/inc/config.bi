@@ -50,6 +50,26 @@ const FB_STR_TMPDESCRIPTORS as integer = 256    '' fixed, not a free-growing poo
 const FB_MAXDIMENSIONS      as integer = 8
 const FB_ERRMSG_SIZE        as integer = 1024
 
+'' sizeof( FB_RTLIB_CTX ), READ OFF fbc's OWN BSS SYMBOL rather than derived:
+''
+''     nm -S init.o   ->   win64 0x5188   win32 0x40e8   linux 0x5188
+''
+'' The interior is NOT modelled here. __fb_ctx is a zero-filled BSS block whose
+'' field offsets every remaining fbc member computes for itself, so tiko-rt has
+'' to match the SIZE and the ALIGNMENT and nothing else. inc/ctx.bi binds the
+'' handful of fields tiko-rt reads, by measured offset, and stops there.
+''
+'' THE REQUIRED ALIGNMENT IS 8, NOT THE 32 fbc's OBJECT ASKS FOR. gcc requests
+'' 2**5 for that .bss section, but 20872 is not a multiple of 32 -- a struct
+'' whose alignment were 32 would have been padded to one. So 32 is gcc
+'' over-aligning a large static, and 8 (the alignment of the pointers and
+'' doubles inside) is the contract. FreeBASIC cannot over-align anyway.
+#if defined( __FB_64BIT__ )
+	const TKORT_CTX_SIZE as integer = 20872
+#else
+	const TKORT_CTX_SIZE as integer = 16616
+#endif
+
 '' --------------------------------------------------------------- invariants
 ''
 '' Asserted rather than assumed, on every target. Each one is silent corruption

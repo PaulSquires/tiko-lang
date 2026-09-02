@@ -84,6 +84,8 @@ io/inputstr.bas
 strw/swap.bas
 error/assert.bas
 error/errmsg.bas
+init/ctxdata.bas
+init/rtinit.bas
 data/read.bas
 data/core.bas
 io/hookprint.bas
