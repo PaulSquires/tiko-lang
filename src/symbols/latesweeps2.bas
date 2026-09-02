@@ -68,6 +68,44 @@ private function ValueType_ ( byref c as Ctx, byval t as TypeId ) as TypeId
     return u
 end function
 
+'' AN OPERATOR INVOKED IMPLICITLY IS STILL A MEMBER ACCESS -- fbc error 202, "Illegal
+'' member access". The name is never written at the use site, so CheckMember_ has nothing
+'' to bind and every one of these went through. Measured, private and protected alike,
+'' one corpus file per shape:
+''
+''     x += x        a compound assignment    operator +=
+''     @x            the address-of operator  operator @
+''     new T         allocation               operator new    (and its constructor, 204)
+''     delete p      deallocation             operator delete
+''     i = x         a conversion             operator cast   (destination NOT a UDT)
+''     for i as T    a UDT counter            operator for, next and step -- all three
+''
+'' ...and the reverse of each, with the operator PUBLIC, compiles. A UNARY ARITHMETIC
+'' operator is not in this set at all: 'declare operator -( ) as T' inside a type is fbc
+'' error 153, "Operator cannot be a member function", so only '@' is read from N_ADDROF.
+''
+'' ANY REACHABLE OVERLOAD IS ENOUGH -- the whole chain is walked, exactly as
+'' CheckOneStructor_ walks a constructor's -- and a type declaring no such operator at all
+'' is not this question and is left alone.
+private sub RequireOperator_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string, byval here as TypeId, _
+      byval at as NodeId )
+    dim as TypeId u = ValueType_( c, udt )
+    if u = TYPE_NONE then return
+    if c.types->Kind( u ) <> TK_UDT then return
+    dim as Symbol ptr st = StructorOf_( c, u, nm )
+    if st = 0 then return
+    dim as Symbol ptr walk = st
+    dim as long guard = 0
+    while (walk <> 0) andalso (guard < 1000)
+        guard += 1
+        if StructorReachable_( c, walk, u, here ) then return
+        walk = c.syms->SymbolAt( walk->nextOverload )
+    wend
+    c.diags->Report( TKO0746, PointRange( c.ast->Loc( at ) ), "operator " & nm, _
+                     c.names->Spelling( c.types->NameOf( u ) ) )
+end sub
+
 '' A UDT MEETS SOMETHING IT DOES NOT CONVERT TO -- fbc error 181 by assignment and 24 by
 '' initialiser. Measured, over types declaring no constructor and no operator:
 ''
@@ -165,6 +203,13 @@ private sub CheckUdtInits_ ( byref c as Ctx )
             continue for
         end select
         JudgeConversion_( c, item, s->type_, c.info->TypeOf_( ip->b ), false )
+        dim as TypeId idt = ValueType_( c, s->type_ )
+        dim as TypeId ivt = ValueType_( c, c.info->TypeOf_( ip->b ) )
+        if (idt <> TYPE_NONE) andalso (ivt <> TYPE_NONE) andalso (idt <> ivt) then
+            if c.types->Kind( idt ) <> TK_UDT then
+                RequireOperator_( c, ivt, "cast", EnclosingTypeOf_( c, s->parent ), ip->b )
+            end if
+        end if
     next
     '' ...AND THE QUALIFIED DEFINITION OF A STATIC MEMBER, 'var UDT.x = type<B>( ... )',
     '' whose symbol's own item is the 'static x as A' inside the type -- fbc error 20.
@@ -714,8 +759,183 @@ private sub CheckEllipsisUbound_ ( byref c as Ctx )
     next
 end sub
 
+'' The constructor arguments of an N_NEW, as a (first, count) range into the child list.
+'' The node's children are not all arguments: PLACEMENT NEW puts its buffer in child 0 and
+'' the ARRAY form its element count there, and fbc allows no constructor arguments
+'' alongside either. So 'new( buf ) T' and 'new T[ 5 ]' both call the DEFAULT constructor.
+private sub NewCtorArgs_ _
+    ( byref c as Ctx, byval id as NodeId, byref first as long, byref count as long )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    first = lp->first
+    count = lp->count
+    dim as ushort fl = c.ast->nodes[cast( long, id )].flags
+    if (fl and NF_PLACEMENT) <> 0 then
+        first += 1
+        count -= 1
+    end if
+    if (fl and NF_ARRAY) <> 0 then
+        first += 1
+        count -= 1
+    end if
+    if count < 0 then count = 0
+end sub
+
+private sub CheckOperatorVisibility_ _
+    ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval here as TypeId )
+    select case k
+    case N_AMBIGUOUS
+        if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+        dim as TokenKind op = cast( TokenKind, sp->op )
+        if op = TK_EQ then
+            '' A PLAIN '=' INVOKES THE SOURCE'S 'cast' ONLY WHEN THE DESTINATION IS NOT A
+            '' UDT: between two UDTs it is a 'let' or a copy, and 'y = x' over one type
+            '' converts nothing at all. Measured both ways -- 'y = x' with a private cast
+            '' on T is accepted, 'i = x' is error 202.
+            dim as TypeId dt = ValueType_( c, c.info->TypeOf_( sp->a ) )
+            dim as TypeId vt = ValueType_( c, c.info->TypeOf_( sp->b ) )
+            if (dt = TYPE_NONE) orelse (vt = TYPE_NONE) then return
+            if dt = vt then return
+            if c.types->Kind( dt ) = TK_UDT then return
+            RequireOperator_( c, vt, "cast", here, id )
+            return
+        end if
+        '' A COMPOUND ASSIGNMENT IS A MEMBER OPERATOR ON THE DESTINATION.
+        RequireOperator_( c, c.info->TypeOf_( sp->a ), _
+                          Text.LowerAscii( TokenKindText( op ) ), here, id )
+
+    case N_ADDROF
+        dim as UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if up->operand = NODE_NONE then return
+        '' 'varptr', 'strptr' and 'procptr' share this node; only '@' is an operator.
+        if cast( TokenKind, up->op ) <> TK_AT then return
+        RequireOperator_( c, c.info->TypeOf_( up->operand ), "@", here, id )
+
+    case N_NEW
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if lp->target = NODE_NONE then return
+        dim as TypeId nt = c.types->Unqualify( c.info->TypeOf_( lp->target ) )
+        if nt = TYPE_NONE then return
+        if c.types->Kind( nt ) <> TK_UDT then return
+        RequireOperator_( c, nt, "new", here, id )
+        '' ...AND THE CONSTRUCTOR IT CALLS -- fbc's 204 for the default one and 205 for
+        '' the copy, both the same refusal. 'new T[ 5 ]' default-constructs every element.
+        dim as long cfirst, ccount
+        NewCtorArgs_( c, id, cfirst, ccount )
+        if ccount = 0 then
+            CheckOneStructor_( c, nt, "__ctor", here, c.ast->Loc( id ), 0 )
+        elseif ccount = 1 then
+            dim as NodeId a0 = cast( NodeId, c.ast->children[cfirst] )
+            if ValueType_( c, c.info->TypeOf_( a0 ) ) = nt then
+                CheckCopyStructor_( c, nt, here, c.ast->Loc( id ), 0 )
+            end if
+        end if
+
+    case N_DELETE_STMT
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if sp->a = NODE_NONE then return
+        dim as TypeId pt = ValueType_( c, c.info->TypeOf_( sp->a ) )
+        if pt = TYPE_NONE then return
+        if c.types->Kind( pt ) <> TK_POINTER then return
+        RequireOperator_( c, c.types->Inner( pt ), "delete", here, id )
+
+    case N_FOR
+        '' A UDT COUNTER DRIVES THE LOOP THROUGH ALL THREE OF ITS OPERATORS.
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if sp->a = NODE_NONE then return
+        dim as TypeId ct = c.info->TypeOf_( sp->a )
+        RequireOperator_( c, ct, "for", here, id )
+        RequireOperator_( c, ct, "next", here, id )
+        RequireOperator_( c, ct, "step", here, id )
+    end select
+end sub
+
+'' A PRIVATE OR PROTECTED FIELD CANNOT BE FILLED FROM OUTSIDE -- fbc error 202 for
+'' 'dim as T x = ( 3 )' and 'dim as T x = type<T>( 3 )' over a type whose fields are
+'' protected, and for 'let( n ) = x' unpacking a private one. Both forms name no member,
+'' so CheckMember_ never sees them. Measured: the same declaration inside a DERIVED type's
+'' method is accepted for a protected field, and a plain copy 'dim as T y = x' is not this
+'' rule at all.
+private function HiddenFieldOf_ _
+    ( byref c as Ctx, byval udt as TypeId, byval here as TypeId ) as Symbol ptr
+    dim as TypeId u = ValueType_( c, udt )
+    if u = TYPE_NONE then return 0
+    if c.types->Kind( u ) <> TK_UDT then return 0
+    dim as Symbol ptr ts = UdtSymbolOf_( c, u )
+    if ts = 0 then return 0
+    if ts->inner = SCOPE_NONE then return 0
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr f = @c.syms->symbols[i]
+        if f->parent <> ts->inner then continue for
+        if f->kind <> cast( ubyte, SYM_FIELD ) then continue for
+        if (f->flags and (SYMF_MEMB_PRIVATE or SYMF_MEMB_PROTECTED)) = 0 then continue for
+        if StructorReachable_( c, f, u, here ) then continue for
+        return f
+    next
+    return 0
+end function
+
+private sub ReportHiddenField_ _
+    ( byref c as Ctx, byval f as Symbol ptr, byval udt as TypeId, byval at as NodeId )
+    c.diags->Report( TKO0746, PointRange( c.ast->Loc( at ) ), _
+                     "field " & c.names->Spelling( f->name ), _
+                     c.names->Spelling( c.types->NameOf( ValueType_( c, udt ) ) ) )
+end sub
+
+private sub CheckAggregateInitVisibility_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        '' BOTH SPELLINGS: the bare '( 3 )' and the 'type<T>( 3 )' literal are refused
+        '' alike, which was measured -- so NF_TYPE_LITERAL is not consulted here.
+        select case c.ast->Kind( ip->b )
+        case N_TUPLE, N_PAREN
+        case else
+            continue for
+        end select
+        dim as Symbol ptr f = HiddenFieldOf_( c, s->type_, EnclosingTypeOf_( c, s->parent ) )
+        if f = 0 then continue for
+        ReportHiddenField_( c, f, s->type_, ip->b )
+    next
+end sub
+
+private sub CheckLetUnpackVisibility_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+    if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    if cast( TokenKind, sp->op ) <> TK_EQ then return
+    select case c.ast->Kind( sp->a )
+    case N_TUPLE, N_PAREN
+    case else
+        return
+    end select
+    dim as TypeId st = c.info->TypeOf_( sp->b )
+    dim as Symbol ptr f = HiddenFieldOf_( c, st, here )
+    if f = 0 then return
+    ReportHiddenField_( c, f, st, id )
+end sub
+
 private sub WalkExtra_ _
-    ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean )
+    ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
+      byval here as TypeId )
+    CheckOperatorVisibility_( c, id, k, here )
+    if k = N_AMBIGUOUS then CheckLetUnpackVisibility_( c, id, here )
     if k = N_AMBIGUOUS then CheckUdtAssign_( c, id )
     if k = N_MEMBER then CheckMemberExists_( c, id )
     if k = N_INTRINSIC then CheckEraseDefaultCtor_( c, id )
@@ -729,4 +949,5 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckByrefInitShapes_( c )
     CheckExternBlock_( c, c.root )
     CheckEllipsisUbound_( c )
+    CheckAggregateInitVisibility_( c )
 end sub

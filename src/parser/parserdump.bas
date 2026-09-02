@@ -85,13 +85,14 @@ private sub DumpAny _
     '' line here -- and without one a 'private:' label is invisible in the dump, which
     '' is exactly how a parsed-but-discarded label would look.
     if (n->kind = Tko.N_FIELD) orelse (n->kind = Tko.N_PROC) orelse _
-       (n->kind = Tko.N_CONST) orelse (n->kind = Tko.N_VAR) then
+       (n->kind = Tko.N_CONST) orelse (n->kind = Tko.N_VAR) orelse _
+       (n->kind = Tko.N_ENUM) then
         if (sp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then row += " private"
         if (sp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then row += " protected"
     end if
     '' EXPLICIT is invisible in the dump otherwise, and an unparsed EXPLICIT looked
     '' exactly like a parsed one -- as an extra member nobody wrote.
-    if (n->kind = Tko.N_ENUM) andalso (sp->extra <> 0) then row += " explicit"
+    if (n->kind = Tko.N_ENUM) andalso ((sp->extra and 1) <> 0) then row += " explicit"
     outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
 
     DumpAny( ast, src, names, sp->a, indent + 1, outp )

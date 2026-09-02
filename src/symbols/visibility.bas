@@ -1244,7 +1244,7 @@ private sub Walk_ _
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_INTRINSIC then CheckGfxTarget_( c, id )
-    WalkExtra_( c, id, k, innerByref )
+    WalkExtra_( c, id, k, innerByref, here )
     if k = N_INTRINSIC then CheckEraseStructors_( c, id )
     if k = N_SELECT then CheckSelectCaseKinds_( c, id )
     if k = N_WITH then CheckWithSubject_( c, id )

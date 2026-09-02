@@ -39,7 +39,20 @@ type Walker
     as Tko.ScopeId          enumScope
     '' 'enum E explicit' -- the members are NOT published unqualified.
     as boolean              enumExplicit
+    '' The visibility an enum's CONSTANTS inherit -- see N_ENUM_ITEM.
+    as ushort               enumVis
 end type
+
+'' The SYMF_ visibility bits matching a declaration's PF_ ones. The RESULT IS A ULONG:
+'' SYMF_MEMB_PRIVATE is &h00020000 and Symbol.flags is a ulong, while the PF_ bits it is
+'' translated from are ushorts -- returning a ushort here truncated both to nothing, and
+'' the enum's constants silently stayed public.
+private function EnumVisFlags_ ( byval extra as ushort ) as ulong
+    dim as ulong f = 0
+    if (extra and Tko.PF_MEMB_PRIVATE) <> 0 then f or= Tko.SYMF_MEMB_PRIVATE
+    if (extra and Tko.PF_MEMB_PROTECTED) <> 0 then f or= Tko.SYMF_MEMB_PROTECTED
+    return f
+end function
 
 private function StmtOf _
     ( byref w as Walker, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
@@ -569,8 +582,16 @@ sub WalkNode _
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
         dim as Tko.ScopeId prevES = w.enumScope
         dim as boolean prevEX = w.enumExplicit
+        dim as ushort prevEV = w.enumVis
+        w.enumVis = cast( ushort, sp->extra and _
+                          (Tko.PF_MEMB_PRIVATE or Tko.PF_MEMB_PROTECTED) )
         w.enumScope = Tko.SCOPE_NONE
-        w.enumExplicit = (sp->extra <> 0)
+        '' BIT 0 ONLY. 'extra' is not this node's alone: a 'private:' or 'protected:'
+        '' label inside a TYPE ORs PF_MEMB_PRIVATE / PF_MEMB_PROTECTED into the very same
+        '' field, so 'extra <> 0' called every non-public nested enum EXPLICIT -- and an
+        '' explicit enum declares its constants ONLY in its own scope, so 'T.MYCONST' and
+        '' a bare 'MYCONST' inside the type both resolved to nothing at all.
+        w.enumExplicit = ((sp->extra and 1) <> 0)
         if s <> 0 then
             s->inner = w.syms->OpenScope( Tko.SCOPEK_NAMESPACE, scope_, sid )
             w.enumScope = s->inner
@@ -579,13 +600,23 @@ sub WalkNode _
         WalkChildren( w, sp->first, sp->count, scope_ )
         w.enumScope = prevES
         w.enumExplicit = prevEX
+        w.enumVis = prevEV
 
     case Tko.N_ENUM_ITEM
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
         '' THE ENUM'S OWN SCOPE ALWAYS, and that is also where a member repeated
         '' within one enum is caught.
+        '' A CONSTANT IS AS VISIBLE AS THE ENUM THAT DECLARES IT -- 'private: enum E :
+        '' MYCONST' inside a type makes 'T.MYCONST' fbc's error 202, and a bare 'MYCONST'
+        '' from a DERIVED type's method the same. The flags go on the CONSTANT rather
+        '' than being read back from the enum at the use site, because the copy published
+        '' into the enclosing TYPE scope below has the type for a parent and no link back
+        '' to the enum at all.
         if w.enumScope <> Tko.SCOPE_NONE then
-            Declare_( w, w.enumScope, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
+            dim as Tko.SymbolId ecid = _
+                Declare_( w, w.enumScope, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
+            dim as Tko.Symbol ptr ecs = w.syms->SymbolAt( ecid )
+            if ecs <> 0 then ecs->flags or= EnumVisFlags_( w.enumVis )
         end if
         '' UNQUALIFIED only when the name is still free. fbc does NOT reject an enum
         '' member that collides with something already declared alongside it: the
@@ -596,7 +627,10 @@ sub WalkNode _
         '' it has no other spelling. That is LC_ALL and every CLSCTX_*.
         if w.enumExplicit andalso (w.enumScope <> Tko.SCOPE_NONE) then return
         if w.syms->LookupLocal( scope_, sp->name ) <> Tko.SYMBOL_NONE then return
-        Declare_( w, scope_, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
+        dim as Tko.SymbolId eoid = _
+            Declare_( w, scope_, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
+        dim as Tko.Symbol ptr eos = w.syms->SymbolAt( eoid )
+        if eos <> 0 then eos->flags or= EnumVisFlags_( w.enumVis )
 
     case Tko.N_TYPEDEF
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
