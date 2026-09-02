@@ -1,0 +1,8 @@
+'' A variable whose type is const through a FORWARD typedef is still const (fbc error
+'' 119): the typedef is back-patched after the assignment was first walked, so the
+'' post-Check pass asks again. A pointer to the aliased type stays writable. Matches fbc
+'' on lines 14 and 15.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-via-forward-typedef.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/const-via-forward-typedef.out

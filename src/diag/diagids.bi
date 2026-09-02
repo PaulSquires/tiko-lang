@@ -290,6 +290,12 @@
     '' fbc's errors 28 and 99, over a graphics statement's image target.
     DIAG( TKO0708, SEV_ERROR,   "the image target of a graphics statement must be a pointer" )
     DIAG( TKO0709, SEV_ERROR,   "this type has no conversion to a pointer for a graphics statement to draw into" )
+    '' fbc's errors 316, 24/3 and 311, over a BYREF result and an ALIAS.
+    DIAG( TKO0710, SEV_ERROR,   "the byref function '%0' never sets its result" )
+    DIAG( TKO0711, SEV_ERROR,   "a byref result must be assigned something with an address" )
+    DIAG( TKO0712, SEV_ERROR,   "the alias on the definition of '%0' does not match its declaration" )
+    '' fbc's error 18, over a nested type reached through an instance.
+    DIAG( TKO0713, SEV_ERROR,   "'%0' is a type, not a member with a value" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

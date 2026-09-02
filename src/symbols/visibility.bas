@@ -144,6 +144,41 @@ private function IsThisBase_ ( byref c as Ctx, byval n as NodeId ) as boolean
     return c.names->Fold( nm ) = c.names->Fold( c.names->GetString( "this" ) )
 end function
 
+'' A NESTED TYPE OR TYPEDEF IS NOT A FIELD -- fbc error 18, "Element not defined",
+'' for 'u.Int_' when Int_ is 'type Int_ as long' declared inside the UDT. Through the
+'' TYPE's own name it is the ordinary qualified spelling; through an INSTANCE there is
+'' nothing to read.
+private sub CheckMemberIsValue_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (mp->lhs = NODE_NONE) orelse (mp->rhs = NODE_NONE) then return
+    '' THE BASE MUST BE AN INSTANCE. A type NAME carries the type too -- 'T.TIn.z' and
+    '' 'Outer.Inner' both resolve their left side to a UDT symbol -- so the symbol the
+    '' base binds decides, not its type: a type, typedef or namespace on the left is
+    '' the qualified spelling. Reading only the type refused this suite's own
+    '' static-member-len test and cpp/mangle-struct-fbc.bas, which fbc compiles.
+    dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+    if bs <> 0 then
+        select case cast( SymbolKind, bs->kind )
+        case SYM_UDT, SYM_TYPEDEF, SYM_NAMESPACE, SYM_ENUM
+            return
+        end select
+    end if
+    dim as TypeId bt = c.info->TypeOf_( mp->lhs )
+    if bt = TYPE_NONE then return
+    dim as TypeId bu = c.types->Unqualify( bt )
+    if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )
+    if c.types->Kind( bu ) <> TK_UDT then return
+    dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if ms = 0 then return
+    select case cast( SymbolKind, ms->kind )
+    '' NOT AN ENUM: 'print u.E_' over a nested enum is accepted by fbc.
+    case SYM_UDT, SYM_TYPEDEF
+        c.diags->Report( TKO0713, PointRange( c.ast->Loc( mp->rhs ) ), _
+                         c.names->Spelling( ms->name ) )
+    end select
+end sub
+
 private sub CheckDeref_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -529,6 +564,10 @@ private sub CheckAutoRef_ ( byref c as Ctx, byval id as NodeId )
     case N_PAREN, N_CALL, N_INDEX, N_TUPLE, N_INITIALIZER
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' THE TARGET TOO: 'locali( 0 )' over a local ARRAY reads as a call whose
+        '' target is the array, and only the arguments were walked -- so a default
+        '' naming a local array element (fbc error 272) went through.
+        CheckAutoRef_( c, lp->target )
         for i as long = 0 to lp->count - 1
             CheckAutoRef_( c, cast( NodeId, c.ast->children[lp->first + i] ) )
         next
@@ -577,9 +616,12 @@ private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = 0 then return
-    '' A FIELD ARRAY IS THE SAME QUESTION: 'x.arr(0, 0)' over 'arr(any) as integer'.
+    '' A FIELD ARRAY IS THE SAME QUESTION: 'x.arr(0, 0)' over 'arr(any) as integer' --
+    '' and so is a BYDESC PARAMETER: 'array(1, 2)' over 'array(any) as integer' is fbc
+    '' error 36 inside the procedure exactly as outside.
     if (ts->kind <> cast( ubyte, SYM_VARIABLE )) andalso _
-       (ts->kind <> cast( ubyte, SYM_FIELD )) then return
+       (ts->kind <> cast( ubyte, SYM_FIELD )) andalso _
+       (ts->kind <> cast( ubyte, SYM_PARAMETER )) then return
     if ts->type_ = TYPE_NONE then return
     dim as TypeId u = c.types->Unqualify( ts->type_ )
     if c.types->Kind( u ) <> TK_ARRAY then return
@@ -651,7 +693,21 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
         '' item reached this far, and the store went into the constant's slot.
         dim as Symbol ptr es = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
         if es = 0 then return
-        if es->kind <> cast( ubyte, SYM_ENUMCONST ) then return
+        dim as SymbolKind mk = cast( SymbolKind, es->kind )
+        if mk = SYM_ENUMCONST then
+            c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                             c.names->Spelling( es->name ) )
+            return
+        end if
+        '' ...AND A VARIABLE WHOSE TYPE WAS CONST ONLY AFTER THE WALK. 'type as const u t'
+        '' with 'u' declared LATER leaves 't' a placeholder when 'dim as t i' and 'i = 0'
+        '' are walked; the typedef is back-patched afterwards, so Resolve's own test saw
+        '' no type and said nothing. Resolve marks what it DID report AMB_ERROR, which is
+        '' what keeps this from repeating it. fbc error 119; ten corpus files in const/.
+        if mk <> SYM_VARIABLE then return
+        if c.info->AmbiguousOf( id ) = AMB_ERROR then return
+        if es->type_ = TYPE_NONE then return
+        if c.types->IsConst( es->type_ ) = false then return
         c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
                          c.names->Spelling( es->name ) )
     case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
@@ -968,190 +1024,8 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
     CheckOneStructor_( c, pointee, "__dtor", here, c.ast->Loc( id ), 0 )
 end sub
 
-'' A DEFINITION MUST REPEAT THE DECLARATION'S 'byref' -- fbc error 20, "Type mismatch",
-'' and it is symmetric: declaring BYREF and defining byval is refused, and so is the
-'' reverse. Measured both ways, with 'both BYREF' accepted.
-''
-'' The symbol's payload is the DECLARATION node -- a definition joins its declare rather
-'' than chaining beside it -- so the two nodes are both to hand here and nowhere else.
-private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if sp->b = NODE_NONE then return
-    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if s = 0 then return
-    dim as NodeId decl = cast( NodeId, s->payload )
-    if decl = NODE_NONE then return
-    if decl = id then return
-    if c.ast->Kind( decl ) <> N_PROC then return
-    dim as ushort a2 = cast( ushort, c.ast->nodes[cast( long, decl )].flags and NF_BYREF )
-    dim as ushort b2 = cast( ushort, c.ast->nodes[cast( long, id )].flags and NF_BYREF )
-    if a2 = b2 then return
-    c.diags->Report( TKO0651, PointRange( c.ast->Loc( id ) ), _
-                     c.names->Spelling( sp->name ) )
-end sub
+#include once "symbols/byrefcheck.bas"
 
-'' A BYREF RESULT MUST BE ASSIGNED SOMETHING OF EXACTLY ITS TYPE -- fbc error 318, "Type
-'' mismatch in byref function result assignment". A byref result hands back the storage
-'' itself, so there is nowhere for a conversion to happen.
-''
-'' EXACTLY is the word. Measured, against 'function f( ) byref as integer':
-''     static i as integer          OK
-''     static i as double           error 318
-''     static i as long             error 318   -- the SAME SIZE, and still refused
-''     static i as const integer    error 318   -- the qualifier counts
-''     ...and 'byref as const integer' takes the const one, so it is identity, not width.
-private sub CheckByrefResultType_ _
-    ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean, _
-      byval resultType as TypeId )
-
-    if byrefResult = false then return
-    if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
-    dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if sp->b = NODE_NONE then return
-    '' ONLY WHAT WAS MEASURED: a NAMED variable of a non-string scalar builtin, on both
-    '' sides. The corpus scan reported no false rejection, and this suite's own MIR tests
-    '' then found four -- every one of them a STRING:
-    ''
-    ''     operator U.cast( ) byref as const zstring : operator = this._data
-    ''         'zstring * N' is an ARRAY of TY_ZSTRING, never identical to plain zstring
-    ''     function refZ( ) byref as zstring : function = "also good"
-    ''         a LITERAL, and fbc takes it
-    ''     function refI( ) byref as integer : function = byval pi
-    ''         not a name at all
-    ''
-    '' fbc's real rule here is wider than identity for those shapes and this pass cannot
-    '' model it, so they are declined rather than guessed at. A CLEAN CORPUS SCAN IS NOT
-    '' PROOF: 1222 files said nothing about any of the four.
-    if c.ast->Kind( sp->b ) <> N_IDENT then return
-    dim as TypeId rt = resultType
-    dim as TypeId vt = c.info->TypeOf_( sp->b )
-    if (rt = TYPE_NONE) orelse (vt = TYPE_NONE) then return
-    if rt = vt then return
-    '' A REFERENCE ON EITHER SIDE IS THE SAME TYPE. A byref parameter's type is spelled
-    '' as one, and returning it is the ordinary way to pass storage through.
-    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Inner( rt )
-    if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Inner( vt )
-    if rt = vt then return
-
-    '' CONST GOES ONE WAY ONLY, and the two directions are not symmetric -- measured:
-    ''     byref as integer       <- const integer     error 318   dropping it
-    ''     byref as const integer <- integer           OK          adding it
-    '' So the unqualified types must be identical, and a const value additionally
-    '' demands a const result. Comparing the qualified ids outright refused the second
-    '' line, which is a file fbc accepts.
-    '' Both sides a NON-STRING scalar builtin -- see the header.
-    if c.types->Kind( c.types->Unqualify( rt ) ) <> TK_BUILTIN then return
-    if c.types->Kind( c.types->Unqualify( vt ) ) <> TK_BUILTIN then return
-    select case c.types->BuiltinOf( c.types->Unqualify( rt ) )
-    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
-        return
-    end select
-    select case c.types->BuiltinOf( c.types->Unqualify( vt ) )
-    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
-        return
-    end select
-
-    dim as boolean valueConst = c.types->IsConst( vt )
-    dim as boolean resConst = c.types->IsConst( rt )
-    if c.types->Unqualify( rt ) <> c.types->Unqualify( vt ) then
-        c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
-        return
-    end if
-    if valueConst andalso (resConst = false) then
-        c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
-    end if
-end sub
-
-'' A BYREF RESULT CANNOT RETURN A LOCAL -- fbc error 272, "Local symbols can't be
-'' referenced". The caller is handed a reference, and the frame it points into is gone by
-'' the time it is read. Measured, all three shapes:
-''
-''     function = x.i           x a local UDT              error 272
-''     function = array( i )    array a local array        error 272
-''     function = f1( )         a call's RESULT is a temp  error 272
-''     function = g             g SHARED                   OK
-''
-'' THE BASE OF THE CHAIN IS WHAT MATTERS: 'x.i' is local because x is, and 'array( i )'
-'' because array is. So the walk goes down to the head of the member and index chain, and
-'' a CALL is refused outright unless it returns byref itself.
-private sub CheckByrefResultValue_ _
-    ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean )
-
-    if byrefResult = false then return
-    if c.info->AmbiguousOf( id ) <> AMB_RESULT then return
-    dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if sp->b = NODE_NONE then return
-
-    '' Down to the head of the chain.
-    dim as NodeId head = sp->b
-    dim as long guard = 0
-    while guard < 64
-        guard += 1
-        dim as NodeKind hk = c.ast->Kind( head )
-        if hk = N_MEMBER then
-            head = c.ast->binaries[cast( long, c.ast->nodes[cast( long, head )].data )].lhs
-        elseif hk = N_CALL then
-            '' AN ARRAY SUBSCRIPT IS SPELLED LIKE A CALL. 'x.a(0)' over a FIELD array
-            '' stopped the walk here: the branch below resolved the target 'x.a' to a
-            '' SYM_FIELD, which is neither a proc nor a variable, and the statement was
-            '' let through. Descending into the target continues to 'x' -- which is the
-            '' local the rule is about. A real CALL still stops, and is judged below.
-            dim as ListPayload ptr cl = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
-            dim as Symbol ptr cts = c.syms->SymbolAt( c.info->RefOf( cl->target ) )
-            if cts = 0 then exit while
-            if cts->kind <> cast( ubyte, SYM_FIELD ) then exit while
-            head = cl->target
-        elseif (hk = N_INDEX) orelse (hk = N_PAREN) then
-            dim as ListPayload ptr lp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
-            if hk = N_PAREN then
-                if lp->count <> 1 then exit while
-                head = cast( NodeId, c.ast->children[lp->first] )
-            else
-                head = lp->target
-            end if
-        else
-            exit while
-        end if
-    wend
-    if head = NODE_NONE then return
-
-    if c.ast->Kind( head ) = N_CALL then
-        '' A CALL's result is a temporary -- unless the callee returns BYREF, in which
-        '' case what comes back is already somebody else's storage.
-        dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
-        dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if ts = 0 then return
-        if ts->kind <> cast( ubyte, SYM_PROC ) then
-            '' An INDEXING expression, not a call: fall through to the variable test.
-            if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
-            if (ts->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
-                               SYMF_COMMON)) <> 0 then return
-            c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
-            return
-        end if
-        dim as NodeId cd = cast( NodeId, ts->payload )
-        if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
-            if (c.ast->nodes[cast( long, cd )].flags and NF_BYREF) <> 0 then return
-        end if
-        c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ) )
-        return
-    end if
-
-    if c.ast->Kind( head ) <> N_IDENT then return
-    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( head ) )
-    if s = 0 then return
-    if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
-    if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
-                      SYMF_COMMON)) <> 0 then return
-    c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ), _
-                     c.names->Spelling( s->name ) )
-end sub
 
 private sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
@@ -1230,6 +1104,7 @@ private sub Walk_ _
     if k = N_IDENT then CheckMember_( c, id, here )
     if k = N_DELETE_STMT then CheckDelete_( c, id, here )
     if k = N_MEMBER then CheckDeref_( c, id )
+    if k = N_MEMBER then CheckMemberIsValue_( c, id )
     if k = N_BINARY then CheckProcPtrArith_( c, id )
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
@@ -1477,6 +1352,8 @@ sub Run _
     CheckOutsideNamespace_( c )
     CheckConstBounds_( c )
     CheckReturnStyles_( c )
+    CheckByrefResultSet_( c )
+    CheckAliasAgrees_( c )
     CheckDuplicateOverloads_( c )
     CheckBitfieldWidths_( c )
     CheckArrayDeclShapes_( c )

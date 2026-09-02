@@ -1,0 +1,137 @@
+global var i64 g
+global str $str1 "text"
+func void _ZN3UDT3AAAEv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func ptr OKBRANCH() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = load @@g
+    condbr %3, if.then2, if.else3
+  if.join1:
+    %4 = load @$tmp0
+    ret %4
+  if.then2:
+    store @$tmp0, @@g
+    br if.join1
+  if.else3:
+    br if.join1
+}
+func ptr OKRETURN() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@g
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr OKSTR() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    store @$tmp0, @@$str1
+    %3 = load @$tmp0
+    ret %3
+}
+func void foo() {
+  entry0:
+    ret
+}
+func ptr NEVERSET() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr BADLIT() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr BADADDR() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = load @$tmp0
+    ret %3
+}
+func ptr BADEXPR() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = load @$tmp0
+    ret %3
+}
+func void bar() {
+  entry0:
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 11 functions, 14 blocks, 42 insts, 3 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 3
+  skip-site src\mir\lower.bas:638 3
+tests/diagnostics/src/byref-result-and-owner.bas(35,16): error TKO0711: a byref result must be assigned something with an address
+     |
+  35 |     function = 123
+     |                ^
+tests/diagnostics/src/byref-result-and-owner.bas(38,16): error TKO0711: a byref result must be assigned something with an address
+     |
+  38 |     function = @g
+     |                ^
+tests/diagnostics/src/byref-result-and-owner.bas(41,18): error TKO0711: a byref result must be assigned something with an address
+     |
+  41 |     function = g + 1
+     |                  ^
+tests/diagnostics/src/byref-result-and-owner.bas(43,9): error TKO0669: 'udt.bbb' adds a new name to a namespace from outside it
+     |
+  43 | declare sub UDT.bbb( )
+     |         ^
+tests/diagnostics/src/byref-result-and-owner.bas(44,9): error TKO0669: 'udt.aaa' adds a new name to a namespace from outside it
+     |
+  44 | declare sub UDT.aaa( )
+     |         ^
+tests/diagnostics/src/byref-result-and-owner.bas(32,1): error TKO0710: the byref function 'neverset' never sets its result
+     |
+  32 | function neverSet( ) byref as integer
+     | ^
+tests/diagnostics/src/byref-result-and-owner.bas(46,1): error TKO0712: the alias on the definition of 'aliased2' does not match its declaration
+     |
+  46 | sub aliased2 alias "bar"( )
+     | ^

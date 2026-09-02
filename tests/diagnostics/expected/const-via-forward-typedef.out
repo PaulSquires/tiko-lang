@@ -1,0 +1,44 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local i64 i
+  local i64 j
+  local ptr p
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr i
+    %5 = const i64 0
+    store @i, %5
+    %6 = alloca ptr j
+    %7 = const i64 0
+    store @j, %7
+    %8 = alloca ptr p
+    %9 = const i64 0
+    %10 = bitcast %9
+    store @p, %10
+    %11 = const i64 0
+    store @i, %11
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 20 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 1
+  amb other 1
+  skip-site src\mir\lower.bas:874 1
+  amb-other-class 5 1
+tests/diagnostics/src/const-via-forward-typedef.bas(15,1): error TKO0617: cannot modify 'j': it is a constant
+     |
+  15 | j = 0
+     | ^
+tests/diagnostics/src/const-via-forward-typedef.bas(14,1): error TKO0617: cannot modify 'i': it is a constant
+     |
+  14 | i = 0
+     | ^

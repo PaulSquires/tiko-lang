@@ -1,0 +1,87 @@
+global var agg g size 16
+func void OKRANK($0) {
+  local ptr array
+  entry0:
+    %1 = alloca ptr array
+    store @array, $0
+    %2 = load @array
+    %3 = const i64 1
+    %4 = const i64 8
+    %5 = mul %3, %4
+    %6 = load %2
+    %7 = ptr.add %6, %5
+    %8 = load %7
+    call.rtl void fb_PrintLongint(0, %8, 1)
+    ret
+}
+declare void fb_PrintLongint($0, $1, $2)
+func void OKDEFAULT($0) {
+  local i64 p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void BADRANK($0) {
+  local ptr array
+  entry0:
+    %1 = alloca ptr array
+    store @array, $0
+    ret
+}
+func void BADDEFAULT($0) {
+  local i64 p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg locali size 16
+  local agg u size 8
+  local i32 ok1
+  local i64 ok2
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr locali
+    %5 = alloca ptr u
+    %6 = alloca ptr ok1
+    %7 = const i64 1
+    %8 = trunc %7
+    store @ok1, %8
+    %9 = alloca ptr ok2
+    %10 = const i64 0
+    store @ok2, %10
+    %11 = const i64 0
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 5 functions, 5 blocks, 34 insts, 2 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 1
+  inside N_AMBIGUOUS 1
+  inside N_INTRINSIC 1
+  unlowered intrinsic KW_PRINT 1
+  skip-site src\mir\lowerctl.bas:206 1
+  skip-site src\mir\lowerassign.bas:375 1
+tests/diagnostics/src/small-member-rules.bas(27,16): error TKO0658: 'array' is indexed with the wrong number of subscripts
+     |
+  27 |     print array(1, 2)
+     |                ^
+tests/diagnostics/src/small-member-rules.bas(29,38): error TKO0640: a parameter default cannot name 'locali', which has automatic storage
+     |
+  29 | sub badDefault( byval p as integer = locali(0) )
+     |                                      ^
+tests/diagnostics/src/small-member-rules.bas(31,3): error TKO0713: 'int_' is a type, not a member with a value
+     |
+  31 | u.Int_ = 0
+     |   ^

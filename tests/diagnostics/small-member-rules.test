@@ -1,0 +1,9 @@
+'' A bydesc parameter declared 'array(any)' has a known rank inside the procedure (fbc
+'' error 36); a parameter default may not name a local array's element (272); a nested
+'' type or typedef reached through an INSTANCE is not a field (18), while through the
+'' type's own name it is the ordinary qualified spelling. Matches fbc on lines 27, 29
+'' and 31.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/small-member-rules.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/small-member-rules.out

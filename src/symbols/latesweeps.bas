@@ -88,6 +88,26 @@ private function OwnerHeadExists_ ( byref c as Ctx, byval path as InternId ) as 
     return false
 end function
 
+'' The scope of a TYPE named by a plain (undotted, non-generic) owner path, or SCOPE_NONE.
+private function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as ScopeId
+    if path = 0 then return SCOPE_NONE
+    dim as string qp = c.names->Spelling( path )
+    if (instr( qp, "." ) > 0) orelse (instr( qp, "(" ) > 0) then return SCOPE_NONE
+    dim as InternId head = c.names->Fold( c.names->GetString( qp ) )
+    dim as ScopeId found = SCOPE_NONE
+    dim as long hits = 0
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if c.names->Fold( s->name ) <> head then continue for
+        if s->inner = SCOPE_NONE then continue for
+        hits += 1
+        found = s->inner
+    next
+    if hits <> 1 then return SCOPE_NONE
+    return found
+end function
+
 private sub CheckOutsideNamespace_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
@@ -102,6 +122,26 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
         '' and the owner test read 'x' as a namespace that did not exist.
         if (k = N_VAR_ITEM) andalso (sp->extra = cast( ushort, KW_REDIM )) then continue for
         dim as ScopeId ns = NamespaceScopeOf_( c, sp->ownerName )
+        if (ns = SCOPE_NONE) andalso (k = N_PROC) then
+            '' THE OWNER MAY BE A TYPE, and the rule is the same one fbc gives a
+            '' namespace, with the same error 158: 'declare sub U.bbb( )' when the type
+            '' never declared bbb is refused, and so is a DEFINITION of one; a second
+            '' 'declare' of a declared member is refused too, while the definition of a
+            '' declared member is the ordinary use. A GENERIC's owner path carries its
+            '' type arguments and is not judged.
+            dim as ScopeId ts = TypeScopeOf_( c, sp->ownerName )
+            if ts <> SCOPE_NONE then
+                dim as SymbolId have2 = c.syms->LookupLocal( ts, c.names->Fold( sp->name ) )
+                dim as boolean bad2 = (have2 = SYMBOL_NONE)
+                if bad2 = false then bad2 = (sp->b = NODE_NONE)
+                if bad2 then
+                    c.diags->Report( TKO0669, PointRange( c.ast->Loc( id ) ), _
+                                     c.names->Spelling( sp->ownerName ) & "." & _
+                                     c.names->Spelling( sp->name ) )
+                end if
+                continue for
+            end if
+        end if
         if ns = SCOPE_NONE then
             '' AN OWNER THAT NAMES NOTHING AT ALL. 'dim shared a.i1 as integer' with no
             '' 'a' anywhere is fbc's error 147, and 'declare sub a.f1( )' its error 3;
@@ -235,6 +275,53 @@ private sub ScanReturnStyles_ _
     for i as long = 0 to sp->count - 1
         ScanReturnStyles_( c, cast( NodeId, c.ast->children[sp->first + i] ), _
                            sawReturn, sawAssign )
+    next
+end sub
+
+'' A BYREF FUNCTION MUST SET ITS RESULT SOMEWHERE -- fbc error 316, "Byref function
+'' result not set". Measured: a body with neither 'function =' nor 'return' is refused;
+'' one that assigns in a single branch, or returns, is accepted -- fbc asks whether the
+'' result is set at all, not on every path. The same body scan the return-style rule
+'' uses.
+private sub CheckByrefResultSet_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_PROC then continue for
+        if (c.ast->nodes[n].flags and NF_BYREF) = 0 then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if sp->b = NODE_NONE then continue for
+        dim as boolean sawReturn = false
+        dim as boolean sawAssign = false
+        ScanReturnStyles_( c, sp->b, sawReturn, sawAssign )
+        if sawReturn orelse sawAssign then continue for
+        c.diags->Report( TKO0710, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( sp->name ) )
+    next
+end sub
+
+'' THE ALIAS ON A DEFINITION MUST MATCH THE DECLARATION'S -- fbc error 311. Measured:
+'' 'declare sub f alias "foo"( )' then 'sub f alias "bar"( )' is refused; the same alias
+'' twice, or an alias on the declare alone, is accepted.
+private sub CheckAliasAgrees_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if sp->b = NODE_NONE then continue for
+        if sp->aliasName = 0 then continue for
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if s = 0 then continue for
+        dim as NodeId decl = cast( NodeId, s->payload )
+        if (decl = NODE_NONE) orelse (decl = id) then continue for
+        if c.ast->Kind( decl ) <> N_PROC then continue for
+        dim as StmtPayload ptr dp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+        if dp->aliasName = 0 then continue for
+        if c.names->Spelling( dp->aliasName ) = c.names->Spelling( sp->aliasName ) then continue for
+        c.diags->Report( TKO0712, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( sp->name ) )
     next
 end sub
 

@@ -1,0 +1,12 @@
+'' A byref function must set its result somewhere (fbc 316; one branch or a return is
+'' enough); a byref result must be assigned something with an address (24 for a literal
+'' or an address-of, 3 for an expression; a string literal into 'byref as zstring' is
+'' fine); a qualified declare or definition into a TYPE that never declared the name is
+'' 158, and so is a second declare of a declared member; the alias on a definition must
+'' match its declaration's (311). Matches fbc on lines 33, 35, 38, 41, 43, 44 and 46;
+'' fbc's 316 on 36 and 39 is a cascade from the refused assignment and is not repeated;
+'' the never-set report sits on the 'function' line (32) where fbc uses 'end function'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-result-and-owner.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/byref-result-and-owner.out
