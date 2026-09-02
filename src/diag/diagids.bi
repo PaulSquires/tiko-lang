@@ -279,6 +279,17 @@
     DIAG( TKO0700, SEV_ERROR,   "'[ ]' indexes a pointer, and this is not one" )
     '' fbc's errors 3 and 17, over a trailing 'constructor' / 'destructor'.
     DIAG( TKO0701, SEV_ERROR,   "only a module-level definition or a static member can be a module constructor" )
+    '' fbc's errors 181 (string/number by assignment), 232 and 68.
+    DIAG( TKO0702, SEV_ERROR,   "a string and a number do not convert into each other" )
+    DIAG( TKO0703, SEV_ERROR,   "operator [] cannot be STATIC" )
+    DIAG( TKO0704, SEV_ERROR,   "operator [] needs an explicit result type" )
+    '' fbc's errors 28, 201 and 20, over NEW and NOT.
+    DIAG( TKO0705, SEV_ERROR,   "'new' of a bare zstring or wstring allocates nothing" )
+    DIAG( TKO0706, SEV_ERROR,   "'new' cannot allocate a fixed-length string" )
+    DIAG( TKO0707, SEV_ERROR,   "'not' over a pointer; compare it with 0 instead" )
+    '' fbc's errors 28 and 99, over a graphics statement's image target.
+    DIAG( TKO0708, SEV_ERROR,   "the image target of a graphics statement must be a pointer" )
+    DIAG( TKO0709, SEV_ERROR,   "this type has no conversion to a pointer for a graphics statement to draw into" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

@@ -1,0 +1,8 @@
+'' A graphics statement's image target is a pointer: 'any ptr' / 'ubyte ptr' are taken, an
+'' integer or a string is fbc error 28, and a UDT is taken only when it declares
+'' 'operator cast( ) as any ptr' (error 99 otherwise). PSET and CIRCLE measure the same as
+'' LINE. Matches fbc on lines 25-29.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/gfx-target.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/gfx-target.out

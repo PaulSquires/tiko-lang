@@ -1,0 +1,8 @@
+'' A string and a number do not convert into each other by assignment (fbc error 181) in
+'' every direction -- a literal, a byte, an integer, a fixed zstring, a byte through a
+'' pointer, and a string index. 'operator []' is never static (232) and always returns
+'' something (68). Matches fbc on lines 23-29, 33 and 34.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/string-number-assign.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/string-number-assign.out

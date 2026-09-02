@@ -884,6 +884,19 @@ private function ParseProc _
         Advance( p )
     wend
 
+    '' 'operator []' IS NEVER STATIC AND ALWAYS RETURNS SOMETHING. Measured: 'declare
+    '' static operator []( ... )' is fbc's error 232 and 'declare operator []( ... )' with
+    '' no result type its error 68. Two corpus files each.
+    if kw = Tko.KW_OPERATOR then
+        if p.names->Spelling( sp.name ) = "[]" then
+            if (sp.extra and Tko.PF_STATIC) <> 0 then
+                p.diags->Report( Tko.TKO0703, Tko.PointRange( t.loc ) )
+            elseif sp.a = Tko.NODE_NONE then
+                p.diags->Report( Tko.TKO0704, Tko.PointRange( t.loc ) )
+            end if
+        end if
+    end if
+
     '' THE DEFERRED VIRTUAL/ABSTRACT OWNER TEST -- see the modifier loop above.
     '' A STRUCTOR NAMES ITS TYPE IN 'name', not through a dotted path, so 'qualified' is
     '' false for one even though it plainly has an owner. 'virtual destructor Shape( )'

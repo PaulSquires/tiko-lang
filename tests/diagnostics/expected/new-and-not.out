@@ -1,0 +1,158 @@
+func void F() {
+  entry0:
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr ip
+  local ptr pp_
+  local i32 n
+  local ptr $tmp4
+  local ptr $tmp5
+  local ptr $tmp6
+  local ptr $tmp7
+  local ptr $tmp8
+  local ptr $tmp9
+  local ptr $tmp10
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr ip
+    %5 = alloca ptr pp_
+    %6 = func.addr ptr F
+    store @pp_, %6
+    %7 = alloca ptr n
+    %8 = call.rtl ptr calloc(8, 1)
+    %9 = alloca ptr $tmp4
+    store @$tmp4, %8
+    %10 = load @$tmp4
+    call.rtl void fb_PrintULongint(0, %10, 1)
+    %11 = call.rtl ptr calloc(24, 1)
+    %12 = alloca ptr $tmp5
+    store @$tmp5, %11
+    %13 = load @$tmp5
+    call.rtl void fb_PrintULongint(0, %13, 1)
+    %14 = load @ip
+    %15 = const i64 0
+    %16 = bitcast %15
+    %17 = icmp.eq %14, %16
+    %29 = alloca ptr $tmp6
+    %32 = alloca ptr $tmp7
+    %38 = alloca ptr $tmp8
+    %41 = alloca ptr $tmp9
+    %44 = alloca ptr $tmp10
+    condbr %17, if.then2, if.else3
+  if.join1:
+    %19 = load @n
+    %20 = not %19
+    condbr %20, if.then6, if.else7
+  if.then2:
+    %18 = const i32 0
+    call.rtl void fb_End(%18)
+    unreachable
+  if.else3:
+    br if.join1
+  end.after4:
+    br if.join1
+  if.join5:
+    %22 = load @ip
+    %23 = const i64 1
+    %24 = bitcast %23
+    %25 = const ptr 8
+    %26 = mul %24, %25
+    %27 = add %22, %26
+    store @ip, %27
+    %28 = call.rtl ptr calloc(1, 1)
+    store @$tmp6, %28
+    %30 = load @$tmp6
+    call.rtl void fb_PrintULongint(0, %30, 1)
+    %31 = call.rtl ptr calloc(2, 1)
+    store @$tmp7, %31
+    %33 = load @$tmp7
+    call.rtl void fb_PrintULongint(0, %33, 1)
+    %34 = const i64 10
+    %35 = const i64 1
+    %36 = mul %34, %35
+    %37 = call.rtl ptr calloc(%36, 1)
+    store @$tmp8, %37
+    %39 = load @$tmp8
+    call.rtl void fb_PrintULongint(0, %39, 1)
+    %40 = call.rtl ptr calloc(10, 1)
+    store @$tmp9, %40
+    %42 = load @$tmp9
+    call.rtl void fb_PrintULongint(0, %42, 1)
+    %43 = call.rtl ptr calloc(10, 1)
+    store @$tmp10, %43
+    %45 = load @$tmp10
+    call.rtl void fb_PrintULongint(0, %45, 1)
+    %46 = load @ip
+    br if.then10
+  if.then6:
+    %21 = const i32 0
+    call.rtl void fb_End(%21)
+    unreachable
+  if.else7:
+    br if.join5
+  end.after8:
+    br if.join5
+  if.join9:
+    %48 = load @pp_
+    %49 = const i64 1
+    %50 = bitcast %49
+    %51 = const ptr 8
+    %52 = mul %50, %51
+    %53 = add %48, %52
+    store @pp_, %53
+    %54 = const i32 0
+    call.rtl void fb_End(%54)
+    %55 = load @$tmp0
+    ret %55
+  if.then10:
+    %47 = const i32 0
+    call.rtl void fb_End(%47)
+    unreachable
+  if.else11:
+    br if.join9
+  end.after12:
+    br if.join9
+}
+declare void fb_Init($0, $1, $2)
+declare ptr calloc($0, $1)
+declare void fb_PrintULongint($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 14 blocks, 78 insts, 2 statements not lowered, 0 scope imbalance
+  inside N_IF 2
+  skip-site src\mir\lowerutil.bas:37 1
+  skip-site src\mir\lowerctl.bas:1006 1
+tests/diagnostics/src/new-and-not.bas(17,7): error TKO0705: 'new' of a bare zstring or wstring allocates nothing
+     |
+  17 | print new zstring
+     |       ^
+tests/diagnostics/src/new-and-not.bas(18,7): error TKO0705: 'new' of a bare zstring or wstring allocates nothing
+     |
+  18 | print new wstring
+     |       ^
+tests/diagnostics/src/new-and-not.bas(19,7): error TKO0705: 'new' of a bare zstring or wstring allocates nothing
+     |
+  19 | print new zstring[10]
+     |       ^
+tests/diagnostics/src/new-and-not.bas(20,7): error TKO0706: 'new' cannot allocate a fixed-length string
+     |
+  20 | print new zstring * 10
+     |       ^
+tests/diagnostics/src/new-and-not.bas(21,7): error TKO0706: 'new' cannot allocate a fixed-length string
+     |
+  21 | print new string * 10
+     |       ^
+tests/diagnostics/src/new-and-not.bas(22,4): error TKO0707: 'not' over a pointer; compare it with 0 instead
+     |
+  22 | if not ip then end
+     |    ^
+tests/diagnostics/src/new-and-not.bas(23,1): error TKO0646: '' is abstract and cannot have a body
+     |
+  23 | pp_ += 1
+     | ^

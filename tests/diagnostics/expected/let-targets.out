@@ -1,0 +1,63 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg x size 16
+  local i64 a
+  local i64 b
+  local ptr $tmp4
+  local ptr $tmp5
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr x
+    %5 = alloca ptr a
+    %6 = alloca ptr b
+    %7 = alloca ptr $tmp4
+    store @$tmp4, @x
+    %8 = load @$tmp4
+    %9 = field.addr %8, 0
+    %10 = load %9
+    store @a, %10
+    %11 = load @$tmp4
+    %12 = field.addr %11, 8
+    %13 = load %12
+    store @b, %13
+    %14 = load @x
+    %15 = sext %14
+    store @a, %15
+    %16 = load @x
+    %17 = load @x
+    %18 = alloca ptr $tmp5
+    store @$tmp5, @x
+    %19 = load @$tmp5
+    %20 = field.addr %19, 0
+    %21 = load %20
+    store @a, %21
+    %22 = load @$tmp5
+    %23 = field.addr %22, 8
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
+    %25 = load @$tmp0
+    ret %25
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 34 insts, 3 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 3
+  skip-site src\mir\lowerassign.bas:375 2
+  skip-site src\mir\lowerassign.bas:363 1
+tests/diagnostics/src/let-targets.bas(13,6): error TKO0652: a literal cannot be assigned to
+     |
+  13 | let( 0 ) = x
+     |      ^
+tests/diagnostics/src/let-targets.bas(14,6): error TKO0617: cannot modify 'k': it is a constant
+     |
+  14 | let( K ) = x
+     |      ^
+tests/diagnostics/src/let-targets.bas(15,9): error TKO0652: a literal cannot be assigned to
+     |
+  15 | let( a, 1 ) = x
+     |         ^

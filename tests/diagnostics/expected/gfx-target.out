@@ -1,0 +1,190 @@
+func ptr _ZN3IMGcvPvEv($0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = const i64 0
+    %5 = bitcast %4
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local ptr pa
+  local ptr pb
+  local agg im size 8
+  local agg pl size 8
+  local i64 n
+  local agg s size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr pa
+    %5 = alloca ptr pb
+    %6 = alloca ptr im
+    %7 = alloca ptr pl
+    %8 = alloca ptr n
+    %9 = alloca ptr s
+    %10 = field.addr @s, 0
+    store %10, 0
+    %11 = field.addr @s, 8
+    store %11, 0
+    %12 = field.addr @s, 16
+    store %12, 0
+    %13 = load @pa
+    %14 = const i64 0
+    %15 = sitofp %14
+    %16 = const i64 0
+    %17 = sitofp %16
+    %18 = const i64 1
+    %19 = sitofp %18
+    %20 = const i64 1
+    %21 = sitofp %20
+    %22 = const i64 1
+    %23 = trunc %22
+    %24 = const i32 65535
+    call.rtl void fb_GfxLine(%13, %15, %17, %19, %21, %23, 0, %24, 0)
+    %25 = load @pb
+    %26 = const i64 0
+    %27 = sitofp %26
+    %28 = const i64 0
+    %29 = sitofp %28
+    %30 = const i64 1
+    %31 = sitofp %30
+    %32 = const i64 1
+    %33 = sitofp %32
+    %34 = const i64 1
+    %35 = trunc %34
+    %36 = const i32 65535
+    call.rtl void fb_GfxLine(%25, %27, %29, %31, %33, %35, 0, %36, 0)
+    %37 = load @im
+    %38 = sext %37
+    %39 = bitcast %38
+    %40 = const i64 0
+    %41 = sitofp %40
+    %42 = const i64 0
+    %43 = sitofp %42
+    %44 = const i64 1
+    %45 = sitofp %44
+    %46 = const i64 1
+    %47 = sitofp %46
+    %48 = const i64 1
+    %49 = trunc %48
+    %50 = const i32 65535
+    call.rtl void fb_GfxLine(%39, %41, %43, %45, %47, %49, 0, %50, 0)
+    %51 = load @pa
+    %52 = const i64 0
+    %53 = sitofp %52
+    %54 = const i64 0
+    %55 = sitofp %54
+    %56 = const i64 1
+    %57 = trunc %56
+    call.rtl void fb_GfxPset(%51, %53, %55, %57, 4, 0)
+    %58 = load @n
+    %59 = bitcast %58
+    %60 = const i64 0
+    %61 = sitofp %60
+    %62 = const i64 0
+    %63 = sitofp %62
+    %64 = const i64 1
+    %65 = sitofp %64
+    %66 = const i64 1
+    %67 = sitofp %66
+    %68 = const i64 1
+    %69 = trunc %68
+    %70 = const i32 65535
+    call.rtl void fb_GfxLine(%59, %61, %63, %65, %67, %69, 0, %70, 0)
+    %71 = load @s
+    %72 = sext %71
+    %73 = bitcast %72
+    %74 = const i64 0
+    %75 = sitofp %74
+    %76 = const i64 0
+    %77 = sitofp %76
+    %78 = const i64 1
+    %79 = sitofp %78
+    %80 = const i64 1
+    %81 = sitofp %80
+    %82 = const i64 1
+    %83 = trunc %82
+    %84 = const i32 65535
+    call.rtl void fb_GfxLine(%73, %75, %77, %79, %81, %83, 0, %84, 0)
+    %85 = load @pl
+    %86 = sext %85
+    %87 = bitcast %86
+    %88 = const i64 0
+    %89 = sitofp %88
+    %90 = const i64 0
+    %91 = sitofp %90
+    %92 = const i64 1
+    %93 = sitofp %92
+    %94 = const i64 1
+    %95 = sitofp %94
+    %96 = const i64 1
+    %97 = trunc %96
+    %98 = const i32 65535
+    call.rtl void fb_GfxLine(%87, %89, %91, %93, %95, %97, 0, %98, 0)
+    %99 = load @n
+    %100 = bitcast %99
+    %101 = const i64 0
+    %102 = sitofp %101
+    %103 = const i64 0
+    %104 = sitofp %103
+    %105 = const i64 1
+    %106 = trunc %105
+    call.rtl void fb_GfxPset(%100, %102, %104, %106, 4, 0)
+    %107 = load @n
+    %108 = bitcast %107
+    %109 = const i64 0
+    %110 = sitofp %109
+    %111 = const i64 0
+    %112 = sitofp %111
+    %113 = const i64 5
+    %114 = sitofp %113
+    %115 = const i32 0
+    %116 = const f32 0
+    %117 = const f32 6.283185482025146
+    %118 = const f32 0
+    call.rtl void fb_GfxEllipse(%108, %110, %112, %114, %115, %118, %116, %117, 0, -2147483644)
+    call.rtl void fb_StrDelete(@s)
+    %119 = const i32 0
+    call.rtl void fb_End(%119)
+    %120 = load @$tmp0
+    ret %120
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_GfxLine($0, $1, $2, $3, $4, $5, $6, $7, $8)
+declare void fb_GfxPset($0, $1, $2, $3, $4, $5)
+declare void fb_GfxEllipse($0, $1, $2, $3, $4, $5, $6, $7, $8, $9)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 2 functions, 2 blocks, 145 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/gfx-target.bas(25,6): error TKO0708: the image target of a graphics statement must be a pointer
+     |
+  25 | line n, (0,0)-(1,1), 1
+     |      ^
+tests/diagnostics/src/gfx-target.bas(26,6): error TKO0708: the image target of a graphics statement must be a pointer
+     |
+  26 | line s, (0,0)-(1,1), 1
+     |      ^
+tests/diagnostics/src/gfx-target.bas(27,6): error TKO0709: this type has no conversion to a pointer for a graphics statement to draw into
+     |
+  27 | line pl, (0,0)-(1,1), 1
+     |      ^
+tests/diagnostics/src/gfx-target.bas(28,6): error TKO0708: the image target of a graphics statement must be a pointer
+     |
+  28 | pset n, (0,0), 1
+     |      ^
+tests/diagnostics/src/gfx-target.bas(29,8): error TKO0708: the image target of a graphics statement must be a pointer
+     |
+  29 | circle n, (0,0), 5
+     |        ^

@@ -1,0 +1,8 @@
+'' 'new zstring' / 'new wstring' and their vector forms allocate nothing (fbc error 28);
+'' 'new' of a fixed-length string is 201; 'not p' over a pointer is 20, and so is
+'' 'p += 1' over a procedure pointer, while a data pointer takes it. Matches fbc on
+'' lines 17-23.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/new-and-not.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/new-and-not.out

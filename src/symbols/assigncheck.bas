@@ -270,3 +270,68 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         end if
     next
 end sub
+
+'' A STRING AND A NUMBER DO NOT CONVERT INTO EACH OTHER BY ASSIGNMENT -- fbc error 181, in
+'' every direction measured: 's = 65', 's = b' over a byte, 's = n' over an integer,
+'' 'b = s', 'n = s', 'd = s', 'n = z' over a fixed zstring, and '*p = s' through a byte
+'' pointer. The initialiser form was already refused (TKO0634); this is the same question
+'' one line later, and the corpus writes it with a dereference or a string index on one
+'' side: 's = *p', 'l[5] = r'.
+''
+'' A UDT ON EITHER SIDE IS NOT THIS QUESTION -- a conversion operator may exist -- and
+'' neither is a pointer: 'p = s' is a different mismatch.
+private function CharAccess_ _
+    ( byref c as Ctx, byval n as NodeId, byval u as TypeId ) as boolean
+    if n = NODE_NONE then return false
+    dim as NodeKind k = c.ast->Kind( n )
+    if (k <> N_DEREF) andalso (k <> N_INDEX) then return false
+    if c.types->Kind( u ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( u )
+    case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
+private sub CheckStringNumberAssign_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> TK_EQ then return
+    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    dim as TypeId lt = c.info->TypeOf_( sp->a )
+    dim as TypeId rt = c.info->TypeOf_( sp->b )
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    dim as TypeId lu = c.types->Unqualify( lt )
+    dim as TypeId ru = c.types->Unqualify( rt )
+    if c.types->Kind( lu ) = TK_REFERENCE then lu = c.types->Unqualify( c.types->Inner( lu ) )
+    if c.types->Kind( ru ) = TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+    '' A FIXED STRING is an array of a character builtin: look through it to the element.
+    if c.types->Kind( lu ) = TK_ARRAY then lu = c.types->Unqualify( c.types->Inner( lu ) )
+    if c.types->Kind( ru ) = TK_ARRAY then ru = c.types->Unqualify( c.types->Inner( ru ) )
+    if (c.types->Kind( lu ) <> TK_BUILTIN) orelse (c.types->Kind( ru ) <> TK_BUILTIN) then return
+    dim as boolean lStr = IsStringyType_( c, lu )
+    dim as boolean rStr = IsStringyType_( c, ru )
+    '' A CHARACTER IS A NUMBER. '*pz' through a 'zstring ptr' and 'pz[1]' are one
+    '' character each, and fbc takes an integer into one and one into an integer --
+    '' three of this suite's own MIR tests write it. Their TYPE is the bare zstring, the
+    '' same as a byref zstring parameter's, so the NODE decides: a dereference or an
+    '' index over a zstring/wstring is a character, and a character is on the number
+    '' side of this rule. That is also what makes 'l[5] = r' (character = string) and
+    '' 'l = r[1]' (string = character) the refusals fbc measures them as.
+    '' ...AND IT IS ALSO A STRING. '*pz = s' over a 'zstring ptr' copies the string in,
+    '' which four more of this suite's MIR tests write. A dereferenced zstring takes
+    '' BOTH, so an access through one is not judged at all, on either side; what remains
+    '' is the plain scalar case, which is what the corpus files write with a byte pointer
+    '' ('*p = s' over 'byte ptr' types as a BYTE and is refused as measured).
+    if CharAccess_( c, sp->a, lu ) orelse CharAccess_( c, sp->b, ru ) then return
+    if lStr = rStr then return
+    dim as TypeId num = ru
+    if rStr then num = lu
+    select case c.types->BuiltinOf( num )
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
+         TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE
+    case else
+        return
+    end select
+    c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
+end sub

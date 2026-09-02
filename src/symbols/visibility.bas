@@ -657,6 +657,28 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
     case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
         c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
         return
+    case N_PAREN, N_TUPLE
+        '' 'let( a, b ) = x' UNPACKS INTO ITS TARGETS, and each must be a variable:
+        '' 'let( 0 ) = x' is fbc error 24 and 'let( K ) = x' over a constant is 119.
+        '' The tuple is a list node; each element is judged the way a bare target is.
+        dim as ListPayload ptr tl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        for i as long = 0 to tl->count - 1
+            dim as NodeId el = cast( NodeId, c.ast->children[tl->first + i] )
+            if el = NODE_NONE then continue for
+            select case c.ast->Kind( el )
+            case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
+                c.diags->Report( TKO0652, PointRange( c.ast->Loc( el ) ) )
+            case N_IDENT
+                dim as Symbol ptr es2 = c.syms->SymbolAt( c.info->RefOf( el ) )
+                if es2 = 0 then continue for
+                dim as SymbolKind ek = cast( SymbolKind, es2->kind )
+                if (ek <> SYM_CONSTANT) andalso (ek <> SYM_ENUMCONST) then continue for
+                c.diags->Report( TKO0617, PointRange( c.ast->Loc( el ) ), _
+                                 c.names->Spelling( es2->name ) )
+            end select
+        next
+        return
     case N_MEMBER
         '' 'ns.foo = 1' OVER A NAMESPACE CONSTANT. Resolve refuses the BARE name, which
         '' is all it can see -- a qualified one is not bound until Check -- so the
@@ -1214,6 +1236,7 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckPtrFloatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckPtrAssign_( c, id )
     if k = N_AMBIGUOUS then CheckConstUdtField_( c, id )
+    if k = N_AMBIGUOUS then CheckStringNumberAssign_( c, id )
     if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )
     if k = N_VAR_ITEM then CheckPtrInit_( c, id )
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
@@ -1233,8 +1256,12 @@ private sub Walk_ _
     if k = N_PROC then CheckMemberOnlyOperator_( c, id )
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
+    if k = N_INTRINSIC then CheckGfxTarget_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
     if k = N_INDEX then CheckIndexNeedsPointer_( c, id )
+    if k = N_NEW then CheckNewString_( c, id )
+    if k = N_UNARY then CheckNotPointer_( c, id )
+    if k = N_AMBIGUOUS then CheckProcPtrCompound_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
     '' arena stores three, and a walk that knew only about statements missed every
