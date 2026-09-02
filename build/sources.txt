@@ -179,6 +179,7 @@ io/hookmisc.bas
 io/devlpttest.bas
 io/devcomtest.bas
 io/devcomopen.bas
+io/serialwin.bas
 io/scancode.bas
 io/coninput.bas
 io/x11keys.bas
