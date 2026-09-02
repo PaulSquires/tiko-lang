@@ -168,6 +168,7 @@ io/fileinput.bas
 io/devstd.bas
 io/conprint.bas
 io/conprintwin.bas
+io/coninpevt.bas
 io/conprintw.bas
 io/conlineinp.bas
 io/conprinttty.bas
