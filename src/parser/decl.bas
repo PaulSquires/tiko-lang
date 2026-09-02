@@ -1131,6 +1131,10 @@ private function ParseAggregateBody _
                 dim as Tko.Token ft = Cur( p )
                 dim as Tko.StmtPayload fp
                 if DeclName( p, fp.name ) = false then exit do
+                '' 'as integer i$' -- a TYPE SUFFIX on a field name is fbc's error 17.
+                if (ft.flags and Tko.TF_HAS_SUFFIX) <> 0 then
+                    p.diags->Report( Tko.TKO0741, Tko.PointRange( ft.loc ) )
+                end if
                 '' 'arr() as integer' INSIDE A TYPE -- fbc error 9, "Expected
                 '' expression": a dynamic array FIELD must write its rank, '(any)'.
                 '' Empty parens read as no bounds at all and left a SCALAR field.
@@ -1228,6 +1232,10 @@ private function ParseAggregateBody _
             dim as Tko.Token ft = Cur( p )
             dim as Tko.StmtPayload fp
             if DeclName( p, fp.name ) then
+                '' 'i$ as integer' -- a TYPE SUFFIX on a field name is fbc's error 17.
+                if (ft.flags and Tko.TF_HAS_SUFFIX) <> 0 then
+                    p.diags->Report( Tko.TKO0741, Tko.PointRange( ft.loc ) )
+                end if
                 '' 'arr() as integer' INSIDE A TYPE -- fbc error 9, "Expected
                 '' expression": a dynamic array FIELD must write its rank, '(any)'.
                 '' Empty parens read as no bounds at all and left a SCALAR field.

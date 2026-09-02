@@ -130,6 +130,18 @@ private sub CompareByref_ _
         dim as ushort mask = cast( ushort, NF_BYREF or NF_BYVAL_WRITTEN )
         dim as ushort ma = cast( ushort, flagsA and mask )
         dim as ushort mb = cast( ushort, flagsB and mask )
+        '' A BYDESC PARAMETER'S RANK IS PART OF THE SIGNATURE -- fbc error 231 for
+        '' '( ) as integer' overridden by '( any ) as integer', and 223 ("not overriding
+        '' any virtual method") for '( any )' by '( any, any )'. The rank as written is
+        '' what the parser recorded in 'extra': 0 for '( )', 1 for '( any )', and so on.
+        if ((flagsA and NF_ARRAY) <> 0) andalso ((flagsB and NF_ARRAY) <> 0) then
+            dim as StmtPayload ptr pa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
+            dim as StmtPayload ptr pb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+            if pa->extra <> pb->extra then
+                NoteMismatch_( store, newd, VTM_RANK )
+                return
+            end if
+        end if
         if (ma = 0) orelse (mb = 0) then continue for
         if ma <> mb then
             NoteMismatch_( store, newd, VTM_BYREF )

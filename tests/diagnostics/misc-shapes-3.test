@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/misc-shapes-3.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/misc-shapes-3.out

@@ -227,6 +227,7 @@ sub CheckOverrideCompatible _
         select case cast( VtMismatchKind, m->kind )
         case VTM_CONST : d = TKO0623
         case VTM_BYREF : d = TKO0624
+        case VTM_RANK  : d = TKO0740
         end select
         diags.Report( d, PointRange( ast.Loc( m->decl ) ), names.Spelling( sp->name ) )
     next

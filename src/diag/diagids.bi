@@ -332,6 +332,13 @@
     DIAG( TKO0737, SEV_ERROR,   "'erase' over this array needs a default constructor" )
     DIAG( TKO0738, SEV_ERROR,   "no conversion between these two types" )
     DIAG( TKO0739, SEV_ERROR,   "'%0' has no member named '%1'" )
+    '' fbc's errors 231/223, 17, 20, 42, 58 and 8.
+    DIAG( TKO0740, SEV_ERROR,   "'%0' overrides a virtual method with an array parameter of a different rank" )
+    DIAG( TKO0741, SEV_ERROR,   "a field name cannot carry a type suffix" )
+    DIAG( TKO0742, SEV_ERROR,   "'on ... goto' needs a numeric selector, not a string" )
+    DIAG( TKO0743, SEV_ERROR,   "'%0' is not declared" )
+    DIAG( TKO0744, SEV_ERROR,   "'%0' cannot be sized by 'ubound' inside its own initializer" )
+    DIAG( TKO0745, SEV_ERROR,   "the namespace '%0' has no member named '%1'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

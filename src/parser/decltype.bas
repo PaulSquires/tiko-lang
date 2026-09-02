@@ -134,6 +134,17 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     end if
     ParseFieldClause( p, sp )
 
+    '' 'type UDT alias ""' -- fbc's error 304 -- the same empty-alias test the other
+    '' sites make; a non-empty one is accepted and, as a mangling control, otherwise
+    '' left alone here.
+    if Accept( p, Tko.KW_ALIAS ) then
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token aTok = Cur( p )
+            EmptyAliasCheck( p, StringLitText( p ), aTok, false )
+            Advance( p )
+        end if
+    end if
+
     if Accept( p, Tko.KW_EXTENDS ) then sp.c = TypeRef( p )
 
     dim as boolean isGeneric = (sp.b <> Tko.NODE_NONE)
@@ -159,6 +170,14 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' a bare 'A' is error 42 for an explicit enum, and tiko-lang still resolves it, because
     '' the members would need a scope of their own and 'E.A' a path to reach into it.
     '' Accepting more than fbc never loses a file; the diagnostic is owed.
+    '' 'enum E alias ""' is fbc's error 304 as well.
+    if Accept( p, Tko.KW_ALIAS ) then
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token eaTok = Cur( p )
+            EmptyAliasCheck( p, StringLitText( p ), eaTok, false )
+            Advance( p )
+        end if
+    end if
     dim as boolean isExplicit = Accept( p, Tko.KW_EXPLICIT )
 
     dim as Tko.NodeIdVec items
@@ -292,6 +311,14 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
             dim as Tko.InternId lang = StringLitText( p )
             sp.aliasName = lang
             sp.a = Expression( p, Tko.PREC_POSTFIX )
+            '' 'extern "c" lib ""' -- fbc's error 305, "LIB name string is empty".
+            if Accept( p, Tko.KW_LIB ) then
+                if Peek( p ) = Tko.TK_STRING_LIT then
+                    dim as Tko.Token lbTok = Cur( p )
+                    EmptyAliasCheck( p, StringLitText( p ), lbTok, true )
+                    Advance( p )
+                end if
+            end if
             EndOfStatement( p )
             dim as boolean foreign_ = false
             if lang <> 0 then

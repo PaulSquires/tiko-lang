@@ -25,6 +25,23 @@ private sub CheckModifierAgrees_ ( byref c as Ctx, byval id as NodeId )
     if ((sp->extra and PF_CONST) <> 0) andalso ((dp->extra and PF_CONST) = 0) then
         c.diags->Report( TKO0696, PointRange( c.ast->Loc( id ) ), "CONST" )
     end if
+    '' ...AND VIRTUAL / ABSTRACT -- fbc's errors 219 and 220, "VIRTUAL used here, but
+    '' not in the DECLARE statement". Measured over 'virtual sub UDT.f( )' against a
+    '' plain 'declare sub f( )'; with 'declare virtual sub f( )' it is accepted.
+    if ((sp->extra and PF_VIRTUAL) <> 0) andalso _
+       ((dp->extra and (PF_VIRTUAL or PF_ABSTRACT)) = 0) then
+        c.diags->Report( TKO0696, PointRange( c.ast->Loc( id ) ), "VIRTUAL" )
+    end if
+    if ((sp->extra and PF_ABSTRACT) <> 0) andalso ((dp->extra and PF_ABSTRACT) = 0) then
+        c.diags->Report( TKO0696, PointRange( c.ast->Loc( id ) ), "ABSTRACT" )
+    end if
+    '' ...AND A BODY FOR A METHOD THE DECLARATION CALLED ABSTRACT -- fbc error 224 --
+    '' whether or not the definition repeats the word. CheckAbstractBody_ sees only the
+    '' definition's own modifiers.
+    if ((dp->extra and PF_ABSTRACT) <> 0) andalso ((sp->extra and PF_ABSTRACT) = 0) then
+        c.diags->Report( TKO0646, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( sp->name ) )
+    end if
 end sub
 
 '' SOME OPERATORS ARE MEMBERS OR NOTHING -- fbc error 152, "Operator must be a member

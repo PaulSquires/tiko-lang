@@ -605,16 +605,128 @@ private sub CheckExternBlock_ ( byref c as Ctx, byval blk as NodeId )
     CheckExternRange_( c, bl->first, bl->count )
 end sub
 
+'' 'on s goto ...' OVER A STRING -- fbc error 20, "Type mismatch, before 'goto'": the
+'' selector is a number. Measured: a string variable and a literal are refused, a double
+'' is accepted. The parser records 2 for GOTO and 3 for GOSUB in 'extra'; ON ERROR is 1.
+private sub CheckOnGotoSelector_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_ON then return
+    if (sp->extra <> 2) andalso (sp->extra <> 3) then return
+    if sp->a = NODE_NONE then return
+    dim as TypeId t = ValueType_( c, c.info->TypeOf_( sp->a ) )
+    if t = TYPE_NONE then return
+    if c.types->Kind( t ) = TK_ARRAY then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_BUILTIN then return
+    if IsStringyType_( c, t ) = false then return
+    c.diags->Report( TKO0742, PointRange( c.ast->Loc( sp->a ) ) )
+end sub
+
+'' WITHDRAWN: 'sizeof( undeclaredid )' as fbc's error 42. A TYPE NAME reaches this pass as
+'' a plain N_IDENT too -- 'sizeof( IMAGE_SYMBOL_EX )' in winnt.bi and 'sizeof( T )' over a
+'' generic parameter in fb/comptr.bi -- so an unbound name is not an undeclared one. The
+'' corpus scan refused eight COM files fbc accepts before the rule was an hour old.
+
+'' 'ns.a' WHERE THE NAMESPACE HAS NO 'a' -- fbc error 8, "Undefined symbol". Only when
+'' the left side binds a NAMESPACE symbol and this pass's own search of it, 'using'
+'' included, finds nothing.
+private sub CheckNamespaceMember_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, mp->op ) <> TK_DOT then return
+    if (mp->lhs = NODE_NONE) orelse (mp->rhs = NODE_NONE) then return
+    if c.ast->Kind( mp->rhs ) <> N_IDENT then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
+    dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+    if bs = 0 then return
+    if bs->kind <> cast( ubyte, SYM_NAMESPACE ) then return
+    if bs->inner = SCOPE_NONE then return
+    dim as InternId want = c.names->Fold( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
+    if c.syms->LookupInNamespace( bs->inner, want ) <> SYMBOL_NONE then return
+    c.diags->Report( TKO0745, PointRange( c.ast->Loc( mp->rhs ) ), _
+                     c.names->Spelling( bs->name ), c.names->Spelling( want ) )
+end sub
+
+'' 'dim array(0 to ...) as integer = { ubound( array ) }' -- fbc error 58: the size comes
+'' from the initializer, so the initializer cannot ask for it. Measured: 'ubound' in any
+'' element position is refused; 'lbound' is accepted (it is the written lower bound).
+private function MentionsUbound_ _
+    ( byref c as Ctx, byval n as NodeId, byval sym as SymbolId, byval depth as long ) as boolean
+    if (n = NODE_NONE) orelse (depth > 8) then return false
+    select case c.ast->Kind( n )
+    case N_CALL
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if (lp->target <> NODE_NONE) andalso (c.ast->Kind( lp->target ) = N_IDENT) then
+            dim as string tn = lcase( c.names->Spelling( _
+                c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+            if (tn = "ubound") andalso (lp->count >= 1) then
+                dim as NodeId a0 = cast( NodeId, c.ast->children[lp->first] )
+                if c.info->RefOf( a0 ) = sym then return true
+            end if
+        end if
+        for i as long = 0 to lp->count - 1
+            if MentionsUbound_( c, cast( NodeId, c.ast->children[lp->first + i] ), sym, depth + 1 ) then return true
+        next
+    case N_INITIALIZER, N_TUPLE, N_PAREN
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        for i as long = 0 to lp->count - 1
+            if MentionsUbound_( c, cast( NodeId, c.ast->children[lp->first + i] ), sym, depth + 1 ) then return true
+        next
+    case N_BINARY
+        dim as BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if MentionsUbound_( c, bp->lhs, sym, depth + 1 ) then return true
+        if MentionsUbound_( c, bp->rhs, sym, depth + 1 ) then return true
+    end select
+    return false
+end function
+
+private sub CheckEllipsisUbound_ ( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if (ip->b = NODE_NONE) orelse (ip->c = NODE_NONE) then continue for
+        if c.ast->Kind( ip->c ) <> N_BLOCK then continue for
+        dim as ListPayload ptr bl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
+        dim as boolean sawEllipsis = false
+        for d as long = 0 to bl->count - 1
+            dim as NodeId r = cast( NodeId, c.ast->children[bl->first + d] )
+            if (r = NODE_NONE) orelse (c.ast->Kind( r ) <> N_CASE_RANGE) then continue for
+            dim as StmtPayload ptr rp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, r )].data )]
+            if (rp->b <> NODE_NONE) andalso (c.ast->Kind( rp->b ) = N_ELLIPSIS) then sawEllipsis = true
+            if (rp->a <> NODE_NONE) andalso (c.ast->Kind( rp->a ) = N_ELLIPSIS) then sawEllipsis = true
+        next
+        if sawEllipsis = false then continue for
+        if MentionsUbound_( c, ip->b, cast( SymbolId, i ), 0 ) = false then continue for
+        c.diags->Report( TKO0744, PointRange( c.ast->Loc( ip->b ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean )
     if k = N_AMBIGUOUS then CheckUdtAssign_( c, id )
     if k = N_MEMBER then CheckMemberExists_( c, id )
     if k = N_INTRINSIC then CheckEraseDefaultCtor_( c, id )
     if k = N_PROC then CheckProcDefinitionShapes_( c, id )
+    if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
+    if k = N_MEMBER then CheckNamespaceMember_( c, id )
 end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckUdtInits_( c )
     CheckByrefInitShapes_( c )
     CheckExternBlock_( c, c.root )
+    CheckEllipsisUbound_( c )
 end sub
