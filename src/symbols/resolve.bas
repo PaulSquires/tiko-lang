@@ -1270,6 +1270,9 @@ sub WalkStmt _
         '' low/high pairs and the element count is their product -- which the layout
         '' needs, and which was simply lost while the bounds were being skipped.
         t = ArrayFromBounds( c, t, sp->first, sp->count, here )
+        '' A FIELD ARRAY HAS THE SAME LIMIT -- 'as byte test(0 to &h7FFFFFFF)' inside a
+        '' type is fbc's error 50 exactly as at module level. Four corpus files.
+        ArrayTooBig_( c, t, id, sp->name )
         BindDeclType( c, here, sp->name, t, false )
 
         '' A BITFIELD is marked, not modelled. 'b' holds the width expression; the

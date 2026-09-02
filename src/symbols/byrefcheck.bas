@@ -59,6 +59,19 @@ private sub CheckByrefResultType_ _
     '' fbc's real rule here is wider than identity for those shapes and this pass cannot
     '' model it, so they are declined rather than guessed at. A CLEAN CORPUS SCAN IS NOT
     '' PROOF: 1222 files said nothing about any of the four.
+    '' A STRING LITERAL INTO A 'byref as STRING' RESULT -- fbc error 318 -- while the same
+    '' literal into a 'byref as zstring' result is accepted (above). Measured both.
+    if c.ast->Kind( sp->b ) = N_STRING_LIT then
+        dim as TypeId lrt = resultType
+        if lrt = TYPE_NONE then return
+        if c.types->Kind( lrt ) = TK_REFERENCE then lrt = c.types->Inner( lrt )
+        lrt = c.types->Unqualify( lrt )
+        if c.types->Kind( lrt ) <> TK_BUILTIN then return
+        if c.types->BuiltinOf( lrt ) = TY_STRING then
+            c.diags->Report( TKO0667, PointRange( c.ast->Loc( sp->b ) ) )
+        end if
+        return
+    end if
     if c.ast->Kind( sp->b ) <> N_IDENT then return
     dim as TypeId rt = resultType
     dim as TypeId vt = c.info->TypeOf_( sp->b )
@@ -127,7 +140,7 @@ private sub CheckByrefResultValue_ _
     '' ...and 'function = "also good"' in a 'byref as zstring' function is ACCEPTED,
     '' so a string literal is left alone.
     select case c.ast->Kind( sp->b )
-    case N_INT_LIT, N_FLOAT_LIT, N_ADDROF, N_BINARY
+    case N_INT_LIT, N_FLOAT_LIT, N_ADDROF, N_BINARY, N_IIF
         c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
         return
     case N_TUPLE
@@ -178,7 +191,17 @@ private sub CheckByrefResultValue_ _
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, head )].data )]
         dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if ts = 0 then return
+        if ts = 0 then
+            '' 'iif( a, b, c )' IS A TEMPORARY -- error 24 -- and it binds no symbol.
+            if c.ast->Kind( lp->target ) = N_IDENT then
+                dim as string tn = c.names->Spelling( _
+                    c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name )
+                if lcase( tn ) = "iif" then
+                    c.diags->Report( TKO0711, PointRange( c.ast->Loc( sp->b ) ) )
+                end if
+            end if
+            return
+        end if
         if ts->kind <> cast( ubyte, SYM_PROC ) then
             '' An INDEXING expression, not a call: fall through to the variable test.
             if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
@@ -198,6 +221,22 @@ private sub CheckByrefResultValue_ _
     if c.ast->Kind( head ) <> N_IDENT then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( head ) )
     if s = 0 then return
+    '' A BYVAL PARAMETER IS A LOCAL TOO -- error 272 for 'function = i' over 'byval i as
+    '' integer', while a BYREF one is the caller's storage and passes. Measured both.
+    '' A parameter's symbol carries no node; its TYPE says how it is passed -- Resolve
+    '' types a byref one as a REFERENCE and a bydesc one as an ARRAY. 'this' is a
+    '' pointer to the caller's object and is exempt.
+    if s->kind = cast( ubyte, SYM_PARAMETER ) then
+        if IsThisBase_( c, head ) then return
+        if s->type_ = TYPE_NONE then return
+        select case c.types->Kind( c.types->Unqualify( s->type_ ) )
+        case TK_REFERENCE, TK_ARRAY
+            return
+        end select
+        c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ), _
+                         c.names->Spelling( s->name ) )
+        return
+    end if
     if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
     if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                       SYMF_COMMON)) <> 0 then return

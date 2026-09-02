@@ -240,6 +240,8 @@ function Run( byref args as Tko.StrVec ) as long
                 dim as Tko.Mir.LowerStats lst
                 dim as Tko.UdtLayouts udts
                 Tko.ComputeUdtLayouts( syms, ctx.types, udts )
+                '' Needs the layouts: an array of a UDT has no size before them.
+                Tko.CheckArraySizes( syms, ctx.types, udts, ctx.names, ctx.diags )
                 dim as Tko.VTables vts
                 Tko.ComputeVTables( ast, syms, ctx.types, info, vts )
                 '' Needs the vtables: a type is ABSTRACT exactly when one of its slots

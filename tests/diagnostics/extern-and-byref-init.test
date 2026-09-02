@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/extern-and-byref-init.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/extern-and-byref-init.out

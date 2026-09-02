@@ -1,0 +1,620 @@
+'' latesweeps2.bas -- MORE POST-CHECK SWEEPS, each measured against fbc first.
+''
+'' Included from visibility.bas after byrefcheck.bas, inside its namespace, so every helper
+'' there (StructorOf_, RequiredParams_, DerivesFrom_, IsStringyType_, TupleLike_) is to
+'' hand. WalkExtra_ is called once per node from Walk_; RunLateSweeps2_ once from Run.
+
+'' The UDT symbol behind a type, or 0.
+private function UdtSymbolOf_ ( byref c as Ctx, byval udt as TypeId ) as Symbol ptr
+    if udt = TYPE_NONE then return 0
+    if c.types->Kind( udt ) <> TK_UDT then return 0
+    dim as InternId tn = c.types->NameOf( udt )
+    if tn = 0 then return 0
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( udt ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    return c.syms->SymbolAt( ts )
+end function
+
+'' Does the type, or any base of it, declare a procedure of this name? Its presence may
+'' make a conversion legal, so it is a reason to decline, never to report. A GENERIC or a
+'' TUPLE is declined outright: neither is measured here.
+private function DeclaresAnywhere_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as boolean
+    dim as TypeId t = udt
+    dim as long guard = 0
+    while (t <> TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        if c.types->Kind( t ) <> TK_UDT then return true
+        dim as string tn = c.names->Spelling( c.types->NameOf( t ) )
+        if (instr( tn, "<" ) > 0) orelse (instr( tn, "(" ) > 0) then return true
+        if TupleLike_( c, t ) then return true
+        if StructorOf_( c, t, nm ) <> 0 then return true
+        t = BaseOf_( c, t )
+    wend
+    return false
+end function
+
+'' WHICH DECLARATION RESCUES WHICH FORM. Measured, each way:
+''     b = 1     with 'constructor( byval i as integer )' on AA     error 181  still
+''     b = 1     with 'operator let( byval i as integer )' on AA    OK
+''     b = d     with 'constructor( byref r as BB )' on AA          error 181  still
+''     dim b as AA = 1   with the constructor                       OK
+''     dim b as AA = d   with 'operator let( byref r as BB )'       error 24   still
+''     i = b / dim i as integer = b   with 'operator cast( ) as integer' on AA   OK
+'' So an ASSIGNMENT is rescued by a LET on the destination or a CAST on the source, an
+'' INITIALISER by a CONSTRUCTOR on the destination or a CAST on the source.
+private function Rescued_ _
+    ( byref c as Ctx, byval dst as TypeId, byval src as TypeId, _
+      byval byAssign as boolean ) as boolean
+    if c.types->Kind( dst ) = TK_UDT then
+        if byAssign then
+            if DeclaresAnywhere_( c, dst, "let" ) then return true
+        else
+            if DeclaresAnywhere_( c, dst, "__ctor" ) then return true
+        end if
+    end if
+    if c.types->Kind( src ) = TK_UDT then
+        if DeclaresAnywhere_( c, src, "cast" ) then return true
+    end if
+    return false
+end function
+
+'' Strip a reference; a fixed string stays what it is.
+private function ValueType_ ( byref c as Ctx, byval t as TypeId ) as TypeId
+    if t = TYPE_NONE then return TYPE_NONE
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    return u
+end function
+
+'' A UDT MEETS SOMETHING IT DOES NOT CONVERT TO -- fbc error 181 by assignment and 24 by
+'' initialiser. Measured, over types declaring no constructor and no operator:
+''
+''     d = b        derived  <- base          181      b = d    base <- derived    OK
+''     x = y        two unrelated UDTs        181      b = 1    UDT <- integer     181
+''     i = b        integer <- UDT            181      s = b    string <- UDT      181
+''     p = b        ptr <- UDT                181      b = p    UDT <- any ptr     181
+''     dim as AA x = type<BB>( 1, 2, 3 )      24       dim as AA x = 1            24
+''     dim as integer i = b                   24       dim d as BB = b (base)     24
+''
+'' ...and every one of them is accepted again as soon as either type declares a
+'' constructor, an 'operator let' or an 'operator cast' -- so any of those declines the
+'' whole question. A bare parenthesised aggregate '( 1, 2 )' is an initialiser list, not
+'' a value, and is not judged; 'type<B>( ... )' is.
+private sub JudgeConversion_ _
+    ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
+      byval byAssign as boolean )
+    dim as TypeId lu = ValueType_( c, lt )
+    dim as TypeId ru = ValueType_( c, rt )
+    if (lu = TYPE_NONE) orelse (ru = TYPE_NONE) then return
+    dim as TypeKind lk = c.types->Kind( lu )
+    dim as TypeKind rk = c.types->Kind( ru )
+    dim as boolean lUdt = (lk = TK_UDT)
+    dim as boolean rUdt = (rk = TK_UDT)
+    if (lUdt orelse rUdt) = false then return
+    if lu = ru then return
+    if lUdt andalso rUdt then
+        if DerivesFrom_( c, ru, lu ) then return
+        if Rescued_( c, lu, ru, byAssign ) then return
+        c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
+        return
+    end if
+    '' One side a UDT, the other a scalar builtin or a pointer. A fixed string, an
+    '' array, an enum and a procedure type are not measured.
+    dim as TypeId other = ru
+    dim as TypeId udt = lu
+    if rUdt then other = lu : udt = ru
+    dim as TypeKind ok = c.types->Kind( other )
+    if (ok <> TK_BUILTIN) andalso (ok <> TK_POINTER) then return
+    if ok = TK_BUILTIN then
+        select case c.types->BuiltinOf( other )
+        case TY_ANY, TY_FIXSTR, TY_FIXUSTR
+            return
+        end select
+    end if
+    if Rescued_( c, lu, ru, byAssign ) then return
+    c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
+end sub
+
+private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> TK_EQ then return
+    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    '' A PROPERTY on the left is a call, and its setter's parameter is not measured.
+    dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if (ls <> 0) andalso (ls->kind = cast( ubyte, SYM_PROC )) then return
+    '' ONLY A PLAIN LVALUE ON THE LEFT: 'let( a, b ) = x' unpacks and is its own rule,
+    '' and 'this = other' assigns the object, which tiko-lang types as a POINTER.
+    select case c.ast->Kind( sp->a )
+    case N_IDENT, N_MEMBER, N_INDEX, N_CALL, N_UNARY
+    case else
+        return
+    end select
+    if IsThisBase_( c, sp->a ) then return
+    '' AN INTRINSIC ON THE RIGHT -- 'iif( cond, base, derived )' -- has a type of its own
+    '' making, judged by the iif rule; a call that binds no symbol is not this question.
+    if c.ast->Kind( sp->b ) = N_CALL then
+        dim as ListPayload ptr rl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
+        if c.info->RefOf( rl->target ) = SYMBOL_NONE then return
+    end if
+    JudgeConversion_( c, id, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), true )
+end sub
+
+private sub CheckUdtInits_ ( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if (s->flags and SYMF_BYREF) <> 0 then continue for
+        if s->type_ = TYPE_NONE then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        '' A DECLARED TYPE ONLY: 'var x = y' takes y's type and converts nothing.
+        if ip->a = NODE_NONE then continue for
+        select case c.ast->Kind( ip->b )
+        case N_TUPLE, N_PAREN
+            if (c.ast->nodes[cast( long, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
+        case N_INITIALIZER
+            continue for
+        end select
+        JudgeConversion_( c, item, s->type_, c.info->TypeOf_( ip->b ), false )
+    next
+    '' ...AND THE QUALIFIED DEFINITION OF A STATIC MEMBER, 'var UDT.x = type<B>( ... )',
+    '' whose symbol's own item is the 'static x as A' inside the type -- fbc error 20.
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
+        if (c.ast->nodes[n].flags and NF_QUALIFIED) = 0 then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if ip->b = NODE_NONE then continue for
+        dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if ms = 0 then
+            '' Nothing bound the item: the member is found through its OWNER, the way
+            '' the qualified-init sweeps do -- a single UDT of that name, or nothing.
+            dim as ScopeId osc = TypeScopeOf_( c, ip->ownerName )
+            if osc = SCOPE_NONE then continue for
+            ms = c.syms->SymbolAt( c.syms->LookupLocal( osc, c.names->Fold( ip->name ) ) )
+            if ms = 0 then continue for
+        end if
+        if ms->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if ms->type_ = TYPE_NONE then continue for
+        select case c.ast->Kind( ip->b )
+        case N_TUPLE, N_PAREN
+            if (c.ast->nodes[cast( long, ip->b )].flags and NF_TYPE_LITERAL) = 0 then continue for
+        case N_INITIALIZER
+            continue for
+        end select
+        JudgeConversion_( c, id, ms->type_, c.info->TypeOf_( ip->b ), false )
+    next
+end sub
+
+'' A MEMBER THAT DOES NOT EXIST -- fbc error 18, "Element not defined", for 'u.A = 0'
+'' over a type that declares no A. Only through an INSTANCE of a plain UDT, only when
+'' Check bound nothing, and only after this pass has searched the type and every base
+'' itself and found nothing either: a name Check declined to bind for a reason of its own
+'' is not evidence.
+private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as TokenKind op = cast( TokenKind, mp->op )
+    if (op <> TK_DOT) andalso (op <> TK_ARROW) then return
+    if (mp->lhs = NODE_NONE) orelse (mp->rhs = NODE_NONE) then return
+    if c.ast->Kind( mp->rhs ) <> N_IDENT then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
+    dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+    if bs = 0 then return
+    select case cast( SymbolKind, bs->kind )
+    case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+    case else
+        return
+    end select
+    if IsThisBase_( c, mp->lhs ) then return
+    dim as TypeId bt = c.info->TypeOf_( mp->lhs )
+    if bt = TYPE_NONE then return
+    dim as TypeId bu = ValueType_( c, bt )
+    if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )
+    if c.types->Kind( bu ) <> TK_UDT then return
+    dim as string tnm = c.names->Spelling( c.types->NameOf( bu ) )
+    if (instr( tnm, "<" ) > 0) orelse (instr( tnm, "(" ) > 0) then return
+    if TupleLike_( c, bu ) then return
+    dim as InternId want = c.names->Fold( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
+    '' 'b.constructor( )' and 'pb->destructor( )' are explicit structor calls, which
+    '' CheckExplicitStructor_ judges; neither name is ever a member.
+    select case lcase( c.names->Spelling( want ) )
+    case "constructor", "destructor"
+        return
+    end select
+    dim as TypeId t = bu
+    dim as long guard = 0
+    while (t <> TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        dim as Symbol ptr ts = UdtSymbolOf_( c, t )
+        if ts = 0 then return
+        if ts->inner = SCOPE_NONE then return
+        '' A UNION or an ANONYMOUS aggregate inside the type is not searched here, so
+        '' a type holding one is not judged at all.
+        if (ts->flags and SYMF_UNION_KIND) <> 0 then return
+        for i as long = 0 to c.syms->symbols.Count - 1
+            dim as Symbol ptr f = @c.syms->symbols[i]
+            if f->parent <> ts->inner then continue for
+            if (f->flags and SYMF_UNION) <> 0 then return
+            if c.names->Fold( f->name ) = want then return
+            if f->kind = cast( ubyte, SYM_FIELD ) then
+                '' An anonymous nested TYPE/UNION field opens its members into the
+                '' owner: decline over any field whose type is an unnamed UDT.
+                if f->type_ <> TYPE_NONE then
+                    dim as TypeId fu = c.types->Unqualify( f->type_ )
+                    if c.types->Kind( fu ) = TK_UDT then
+                        if c.types->NameOf( fu ) = 0 then return
+                        if left( c.names->Spelling( c.types->NameOf( fu ) ), 1 ) = "_" then return
+                    end if
+                end if
+            end if
+        next
+        t = BaseOf_( c, t )
+    wend
+    c.diags->Report( TKO0739, PointRange( c.ast->Loc( mp->rhs ) ), _
+                     tnm, c.names->Spelling( want ) )
+end sub
+
+'' 'erase x' OVER AN ARRAY WHOSE TYPE HAS NO DEFAULT CONSTRUCTOR -- fbc error 183: the
+'' elements are reconstructed and there is nothing to do it with. Measured over 'dim as T
+'' x(0 to 0) = { T( 5 ) }' with only 'constructor( byval as integer )'; one with every
+'' parameter defaulted is a default constructor and passes.
+private sub CheckEraseDefaultCtor_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_ERASE then return
+    for i as long = 0 to sp->count - 1
+        dim as NodeId arg = cast( NodeId, c.ast->children[sp->first + i] )
+        if arg = NODE_NONE then continue for
+        dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( arg ) )
+        if av = 0 then continue for
+        if av->type_ = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( av->type_ )
+        if c.types->Kind( u ) <> TK_ARRAY then continue for
+        dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+        if c.types->Kind( el ) <> TK_UDT then continue for
+        dim as Symbol ptr ct = StructorOf_( c, el, "__ctor" )
+        if ct = 0 then continue for
+        dim as boolean hasDefault = false
+        dim as long guard = 0
+        while (ct <> 0) andalso (guard < 1000)
+            guard += 1
+            dim as NodeId cd = cast( NodeId, ct->payload )
+            if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
+                if RequiredParams_( c, cd ) = 0 then hasDefault = true
+            else
+                hasDefault = true
+            end if
+            ct = c.syms->SymbolAt( ct->nextOverload )
+        wend
+        if hasDefault then continue for
+        c.diags->Report( TKO0737, PointRange( c.ast->Loc( arg ) ) )
+    next
+end sub
+
+'' THREE THINGS A PROCEDURE DEFINITION CANNOT DO. All measured, one corpus file each:
+''
+''     function f( ) as any            error 24    'any' is not a value type
+''     sub f( ( ) as integer )         error 59    a DEFINITION names every parameter
+''                                                 ('declare sub f( ( ) as integer )' is fine)
+''     function f( ) as UDT ...        error 184   the result is constructed, and UDT
+''                                                 declares constructors but no default one
+''         -- a 'byref as UDT' result is not constructed and passes; so does a UDT whose
+''            only constructor has every parameter defaulted; so does a declaration.
+private sub CheckProcDefinitionShapes_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->b = NODE_NONE then return
+    for i as long = 0 to sp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        dim as StmtPayload ptr pp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+        if pp->op = cast( ushort, TK_ELLIPSIS ) then continue for
+        if pp->name = 0 then
+            c.diags->Report( TKO0733, PointRange( c.ast->Loc( prm ) ) )
+            exit for
+        end if
+    next
+    if sp->a = NODE_NONE then return
+    dim as TypeId rt = c.info->TypeOf_( sp->a )
+    if rt = TYPE_NONE then return
+    dim as TypeId ru = c.types->Unqualify( rt )
+    if c.types->Kind( ru ) = TK_BUILTIN then
+        if c.types->BuiltinOf( ru ) = TY_ANY then
+            c.diags->Report( TKO0732, PointRange( c.ast->Loc( id ) ), _
+                             c.names->Spelling( sp->name ) )
+        end if
+        return
+    end if
+    if cast( TokenKind, sp->op ) <> KW_FUNCTION then return
+    if (c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0 then return
+    if c.types->Kind( ru ) <> TK_UDT then return
+    dim as Symbol ptr ct = StructorOf_( c, ru, "__ctor" )
+    if ct = 0 then return
+    dim as long guard = 0
+    while (ct <> 0) andalso (guard < 1000)
+        guard += 1
+        dim as NodeId cd = cast( NodeId, ct->payload )
+        if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return
+        if RequiredParams_( c, cd ) = 0 then return
+        ct = c.syms->SymbolAt( ct->nextOverload )
+    wend
+    c.diags->Report( TKO0736, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( sp->name ) )
+end sub
+
+'' WHAT A BYREF VARIABLE MAY BE BOUND TO, beyond what CheckByrefBinding_ measured:
+''
+''     var byref x = type<UDT>( 123 )          error 24    a temporary
+''     var byref x = UDT( )                    error 24    a temporary
+''     dim byref d as double = i (integer)     error 24    not exactly its type
+''     dim byref j as long = i (integer)       error 24    the same size, still refused
+''     dim byref t as zstring = s (string)     error 24
+''     dim byref t as zstring = z (zstring*8)  OK          a fixed string IS a zstring
+''     dim byref j as const integer = i        OK          adding const
+''     static byref ri as integer = i (local)  error 11    a static reference to a local
+''     static byref ri as integer = g (shared) OK
+private sub CheckByrefInitShapes_ ( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if (s->flags and SYMF_BYREF) = 0 then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        dim as NodeId init = ip->b
+        dim as NodeKind ik = c.ast->Kind( init )
+        if (ik = N_TUPLE) andalso _
+           ((c.ast->nodes[cast( long, init )].flags and NF_TYPE_LITERAL) <> 0) then
+            c.diags->Report( TKO0643, PointRange( c.ast->Loc( init ) ), _
+                             c.names->Spelling( s->name ) )
+            continue for
+        end if
+        if ik = N_CALL then
+            dim as ListPayload ptr lp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+            dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+            if (ts <> 0) andalso (ts->kind = cast( ubyte, SYM_UDT )) then
+                c.diags->Report( TKO0643, PointRange( c.ast->Loc( init ) ), _
+                                 c.names->Spelling( s->name ) )
+                continue for
+            end if
+        end if
+        '' A STRING LITERAL INTO 'byref as STRING' is error 24 -- while into 'byref as
+        '' zstring' (CheckByrefBinding_) and 'var byref' it is accepted. Measured.
+        if (ik = N_STRING_LIT) andalso (ip->a <> NODE_NONE) andalso (s->type_ <> TYPE_NONE) then
+            dim as TypeId sdt = ValueType_( c, s->type_ )
+            if c.types->Kind( sdt ) = TK_BUILTIN then
+                if c.types->BuiltinOf( sdt ) = TY_STRING then
+                    c.diags->Report( TKO0729, PointRange( c.ast->Loc( init ) ), _
+                                     c.names->Spelling( s->name ) )
+                end if
+            end if
+            continue for
+        end if
+        if (ik <> N_IDENT) andalso (ik <> N_MEMBER) then continue for
+        '' The static-reference rule.
+        if ((s->flags and SYMF_STATIC) <> 0) andalso (ik = N_IDENT) then
+            dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( init ) )
+            if (vs <> 0) andalso (vs->kind = cast( ubyte, SYM_VARIABLE )) then
+                if (vs->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
+                                   SYMF_COMMON)) = 0 then
+                    c.diags->Report( TKO0730, PointRange( c.ast->Loc( init ) ), _
+                                     c.names->Spelling( s->name ) )
+                    continue for
+                end if
+            end if
+        end if
+        '' The exact-type rule, over a DECLARED type and a builtin on both sides.
+        if ip->a = NODE_NONE then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId dt = ValueType_( c, s->type_ )
+        dim as TypeId vt = ValueType_( c, c.info->TypeOf_( init ) )
+        if (dt = TYPE_NONE) orelse (vt = TYPE_NONE) then continue for
+        if c.types->Kind( vt ) = TK_ARRAY then
+            dim as TypeId ve = c.types->Unqualify( c.types->Inner( vt ) )
+            if c.types->Kind( ve ) = TK_BUILTIN then
+                select case c.types->BuiltinOf( ve )
+                case TY_ZSTRING, TY_WSTRING, TY_USTRING
+                    vt = ve
+                end select
+            end if
+        end if
+        if (c.types->Kind( dt ) <> TK_BUILTIN) orelse (c.types->Kind( vt ) <> TK_BUILTIN) then
+            continue for
+        end if
+        if c.types->BuiltinOf( dt ) = TY_ANY then continue for
+        if dt = vt then continue for
+        c.diags->Report( TKO0729, PointRange( c.ast->Loc( init ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
+'' One folded array bound, or 'known = false'.
+private function FoldBound_ _
+    ( byref c as Ctx, byval n as NodeId, byref known as boolean ) as longint
+    known = false
+    if n = NODE_NONE then return 0
+    select case c.ast->Kind( n )
+    case N_INT_LIT
+        known = true
+        return cast( longint, c.ast->literals[cast( long, c.ast->nodes[cast( long, n )].data )].intValue )
+    case N_UNARY
+        dim as UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if cast( TokenKind, up->op ) <> TK_MINUS then return 0
+        dim as longint v = FoldBound_( c, up->operand, known )
+        return -v
+    end select
+    return 0
+end function
+
+'' The written bounds of a declaration item: lo/hi pairs into 'lo'/'hi', the rank as the
+'' result, -1 when any bound does not fold. '...' takes its size from the initializer.
+private function WrittenBounds_ _
+    ( byref c as Ctx, byval item as NodeId, lo() as longint, hi() as longint ) as long
+    dim as StmtPayload ptr ip = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+    if ip->c = NODE_NONE then return 0
+    if c.ast->Kind( ip->c ) <> N_BLOCK then return 0
+    dim as ListPayload ptr bl = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
+    if bl->count <= 0 then return 0
+    if bl->count > 8 then return -1
+    for d as long = 0 to bl->count - 1
+        dim as NodeId r = cast( NodeId, c.ast->children[bl->first + d] )
+        if r = NODE_NONE then return -1
+        if c.ast->Kind( r ) <> N_CASE_RANGE then return -1
+        dim as StmtPayload ptr rp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, r )].data )]
+        if (rp->a = NODE_NONE) orelse (rp->b = NODE_NONE) then return -1
+        dim as boolean k1, k2
+        lo(d) = FoldBound_( c, rp->a, k1 )
+        if k1 = false then return -1
+        if c.ast->Kind( rp->b ) = N_ELLIPSIS then
+            if (bl->count <> 1) orelse (ip->b = NODE_NONE) then return -1
+            if c.ast->Kind( ip->b ) <> N_INITIALIZER then return -1
+            dim as ListPayload ptr il = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->b )].data )]
+            hi(d) = lo(d) + il->count - 1
+        else
+            hi(d) = FoldBound_( c, rp->b, k2 )
+            if k2 = false then return -1
+        end if
+    next
+    return bl->count
+end function
+
+'' A DEFINITION AGREES WITH ITS EXTERN. Measured, over 'extern array(0 to 1) as integer':
+''
+''     dim array(0 to 0) as integer            error 37   the bounds differ
+''     dim array(1 to 2) as integer            error 37
+''     dim array(-1 to ...) = { 1, 2 }         error 37   -1 to 0 is not 0 to 1
+''     dim array(0 to ...) = { 1, 2 }          OK         0 to 1 is
+''     dim array(0 to 1) as integer            OK
+''     extern a(0 to 1, 0 to 1) / dim a(0 to 1)   error 36   the rank differs
+''     redim array(0 to 1) as integer          error 54   the extern is a FIXED array
+''
+'' ...and 'extern s as string' then 'dim s as string = "foo"' or 'var s = "foo"' is
+'' error 87, the static-storage string rule, which CheckStaticStringInits cannot see
+'' because the merged symbol no longer says EXTERN.
+''
+'' Both statements sit in ONE BLOCK -- the module's, or a namespace's -- so the pairing
+'' is by name within a block, which is what keeps a same-named local in some procedure
+'' out of it.
+private sub CheckExternRange_ ( byref c as Ctx, byval first as long, byval count as long )
+    for i as long = 0 to count - 1
+        dim as NodeId st = cast( NodeId, c.ast->children[first + i] )
+        if st = NODE_NONE then continue for
+        if c.ast->Kind( st ) = N_NAMESPACE then
+            dim as StmtPayload ptr np = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+            CheckExternRange_( c, np->first, np->count )
+            continue for
+        end if
+        if c.ast->Kind( st ) <> N_VAR then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+        if sp->op <> cast( ushort, KW_EXTERN ) then continue for
+        for j as long = 0 to sp->count - 1
+            dim as NodeId ex = cast( NodeId, c.ast->children[sp->first + j] )
+            if c.ast->Kind( ex ) <> N_VAR_ITEM then continue for
+            dim as StmtPayload ptr ep = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, ex )].data )]
+            if ep->name = 0 then continue for
+            dim as InternId want = c.names->Fold( ep->name )
+            dim as longint elo(0 to 7), ehi(0 to 7)
+            dim as long erank = WrittenBounds_( c, ex, elo(), ehi() )
+            dim as TypeId et = TYPE_NONE
+            if ep->a <> NODE_NONE then et = c.types->Unqualify( c.info->TypeOf_( ep->a ) )
+            dim as boolean isString = false
+            if (et <> TYPE_NONE) andalso (c.types->Kind( et ) = TK_BUILTIN) then
+                isString = (c.types->BuiltinOf( et ) = TY_STRING)
+            end if
+            '' Every later declaration of the name in this block.
+            for k as long = i + 1 to count - 1
+                dim as NodeId st2 = cast( NodeId, c.ast->children[first + k] )
+                if st2 = NODE_NONE then continue for
+                if c.ast->Kind( st2 ) <> N_VAR then continue for
+                dim as StmtPayload ptr sp2 = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st2 )].data )]
+                if sp2->op = cast( ushort, KW_EXTERN ) then continue for
+                for m as long = 0 to sp2->count - 1
+                    dim as NodeId df = cast( NodeId, c.ast->children[sp2->first + m] )
+                    if c.ast->Kind( df ) <> N_VAR_ITEM then continue for
+                    dim as StmtPayload ptr dp = _
+                        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, df )].data )]
+                    if dp->name = 0 then continue for
+                    if c.names->Fold( dp->name ) <> want then continue for
+                    if (c.ast->nodes[cast( long, df )].flags and NF_QUALIFIED) <> 0 then continue for
+                    if sp2->op = cast( ushort, KW_REDIM ) then
+                        if (dp->a <> NODE_NONE) andalso (erank > 0) then
+                            c.diags->Report( TKO0723, PointRange( c.ast->Loc( df ) ) )
+                        end if
+                        continue for
+                    end if
+                    if isString andalso (dp->b <> NODE_NONE) then
+                        c.diags->Report( TKO0628, PointRange( c.ast->Loc( df ) ), _
+                                         c.names->Spelling( dp->name ) )
+                        continue for
+                    end if
+                    if erank <= 0 then continue for
+                    dim as longint dlo(0 to 7), dhi(0 to 7)
+                    dim as long drank = WrittenBounds_( c, df, dlo(), dhi() )
+                    if drank <= 0 then continue for
+                    if drank <> erank then
+                        c.diags->Report( TKO0728, PointRange( c.ast->Loc( df ) ), _
+                                         c.names->Spelling( dp->name ) )
+                        continue for
+                    end if
+                    for d as long = 0 to erank - 1
+                        if (dlo(d) <> elo(d)) orelse (dhi(d) <> ehi(d)) then
+                            c.diags->Report( TKO0727, PointRange( c.ast->Loc( df ) ), _
+                                             c.names->Spelling( dp->name ) )
+                            exit for
+                        end if
+                    next
+                next
+            next
+        next
+    next
+end sub
+
+private sub CheckExternBlock_ ( byref c as Ctx, byval blk as NodeId )
+    if blk = NODE_NONE then return
+    dim as NodeKind bk = c.ast->Kind( blk )
+    if (bk <> N_BLOCK) andalso (bk <> N_MODULE) then return
+    dim as ListPayload ptr bl = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
+    CheckExternRange_( c, bl->first, bl->count )
+end sub
+
+private sub WalkExtra_ _
+    ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean )
+    if k = N_AMBIGUOUS then CheckUdtAssign_( c, id )
+    if k = N_MEMBER then CheckMemberExists_( c, id )
+    if k = N_INTRINSIC then CheckEraseDefaultCtor_( c, id )
+    if k = N_PROC then CheckProcDefinitionShapes_( c, id )
+end sub
+
+private sub RunLateSweeps2_ ( byref c as Ctx )
+    CheckUdtInits_( c )
+    CheckByrefInitShapes_( c )
+    CheckExternBlock_( c, c.root )
+end sub

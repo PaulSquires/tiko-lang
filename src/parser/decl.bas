@@ -922,6 +922,13 @@ private function ParseProc _
             p.diags->Report( Tko.TKO0684, Tko.PointRange( t.loc ) )
         end if
     end if
+    '' ...AND NEITHER HAS A CONSTRUCTOR OR DESTRUCTOR -- fbc's errors 314 and 315, "CONST
+    '' used on constructor (not needed)", for 'declare const constructor( )' inside the
+    '' type and for 'const constructor UDT( )' defining it. Four corpus files.
+    if ((kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR)) andalso _
+       ((sp.extra and Tko.PF_CONST) <> 0) then
+        p.diags->Report( Tko.TKO0734, Tko.PointRange( t.loc ) )
+    end if
     if vaNoOwner then
         if (sp.extra and Tko.PF_CONST) <> 0 then
             p.diags->Report( Tko.TKO0682, Tko.PointRange( t.loc ) )

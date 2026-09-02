@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/proc-definition-shapes.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/proc-definition-shapes.out

@@ -1,0 +1,230 @@
+global str $str0 "foo"
+global str $str1 "abc"
+global var ptr main$r12
+global var i64 sh
+global var ptr main$r13
+func void _ZN3UDTC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func i64 F() {
+  local i64 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = const i64 0
+    store @$tmp0, %3
+    %4 = load @$tmp0
+    ret %4
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a1 size 16
+  local agg a2 size 16
+  local agg a3 size 16
+  local agg a4 size 16
+  local agg a5 size 32
+  local agg a6 size 16
+  local agg s1 size 24
+  local agg s2 size 24
+  local agg s3 size 24
+  local i64 i
+  local i64 g
+  local ptr r1
+  local ptr r2
+  local ptr r3
+  local ptr r4
+  local agg z size 8
+  local ptr r5
+  local agg s size 24
+  local ptr r6
+  local ptr r7
+  local ptr r8
+  local ptr r9
+  local agg $tmp23 size 8
+  local ptr r10
+  local agg $tmp25 size 8
+  local ptr r11
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a1
+    %5 = alloca ptr a2
+    %6 = alloca ptr a3
+    %7 = const i64 1
+    %8 = field.addr @a3, 0
+    store %8, %7
+    %9 = const i64 2
+    %10 = field.addr @a3, 8
+    store %10, %9
+    %11 = alloca ptr a4
+    %12 = const i64 1
+    %13 = field.addr @a4, 0
+    store %13, %12
+    %14 = const i64 2
+    %15 = field.addr @a4, 8
+    store %15, %14
+    %16 = alloca ptr a5
+    %17 = alloca ptr a6
+    %18 = alloca ptr s1
+    %19 = field.addr @s1, 0
+    store %19, 0
+    %20 = field.addr @s1, 8
+    store %20, 0
+    %21 = field.addr @s1, 16
+    store %21, 0
+    %22 = call.rtl ptr fb_StrInit(@s1, -1, @@$str0, 4, 0)
+    %23 = alloca ptr s2
+    %24 = field.addr @s2, 0
+    store %24, 0
+    %25 = field.addr @s2, 8
+    store %25, 0
+    %26 = field.addr @s2, 16
+    store %26, 0
+    %27 = call.rtl ptr fb_StrInit(@s2, -1, @@$str0, 4, 0)
+    %28 = alloca ptr s3
+    %29 = field.addr @s3, 0
+    store %29, 0
+    %30 = field.addr @s3, 8
+    store %30, 0
+    %31 = field.addr @s3, 16
+    store %31, 0
+    %32 = field.addr @s3, 0
+    store %32, 0
+    %33 = field.addr @s3, 8
+    store %33, 0
+    %34 = field.addr @s3, 16
+    store %34, 0
+    %35 = alloca ptr i
+    %36 = alloca ptr g
+    %37 = alloca ptr r1
+    store @r1, @i
+    %38 = alloca ptr r2
+    store @r2, @i
+    %39 = alloca ptr r3
+    store @r3, @i
+    %40 = alloca ptr r4
+    store @r4, @i
+    %41 = alloca ptr z
+    %42 = alloca ptr r5
+    store @r5, @z
+    %43 = alloca ptr s
+    %44 = field.addr @s, 0
+    store %44, 0
+    %45 = field.addr @s, 8
+    store %45, 0
+    %46 = field.addr @s, 16
+    store %46, 0
+    %47 = alloca ptr r6
+    store @r6, @s
+    %48 = alloca ptr r7
+    store @r7, @@$str1
+    %49 = alloca ptr r8
+    store @r8, @@$str1
+    %50 = alloca ptr r9
+    %51 = alloca ptr $tmp23
+    call void _ZN3UDTC1Ev(@$tmp23)
+    store @r9, @$tmp23
+    %52 = alloca ptr r10
+    %53 = alloca ptr $tmp25
+    call void _ZN3UDTC1Ev(@$tmp25)
+    store @r10, @$tmp25
+    %54 = alloca ptr r11
+    store @r11, @@$str1
+    store @@main$r12, @g
+    store @@main$r13, @@sh
+    call.rtl void fb_StrDelete(@s)
+    call.rtl void fb_StrDelete(@s3)
+    call.rtl void fb_StrDelete(@s3)
+    call.rtl void fb_StrDelete(@s2)
+    call.rtl void fb_StrDelete(@s2)
+    call.rtl void fb_StrDelete(@s1)
+    call.rtl void fb_StrDelete(@s1)
+    %55 = const i32 0
+    call.rtl void fb_End(%55)
+    %56 = load @$tmp0
+    ret %56
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_StrInit($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 3 functions, 3 blocks, 108 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_VAR 1
+  skip-site src\mir\lower.bas:162 1
+tests/diagnostics/src/extern-and-byref-init.bas(7,5): error TKO0600: 'a2' is already declared in this scope
+     |
+   7 | dim a2(0 to 0) as integer
+     |     ^
+tests/diagnostics/src/extern-and-byref-init.bas(6,8): note: declared here
+     |
+   6 | extern a2(0 to 1) as integer
+     |        ^
+tests/diagnostics/src/extern-and-byref-init.bas(13,5): error TKO0600: 'a5' is already declared in this scope
+     |
+  13 | dim a5(0 to 1) as integer
+     |     ^
+tests/diagnostics/src/extern-and-byref-init.bas(12,8): note: declared here
+     |
+  12 | extern a5(0 to 1, 0 to 1) as integer
+     |        ^
+tests/diagnostics/src/extern-and-byref-init.bas(35,26): error TKO0729: 'r3' is byref and its initializer must have exactly its type
+     |
+  35 | dim byref r3 as double = i
+     |                          ^
+tests/diagnostics/src/extern-and-byref-init.bas(36,24): error TKO0729: 'r4' is byref and its initializer must have exactly its type
+     |
+  36 | dim byref r4 as long = i
+     |                        ^
+tests/diagnostics/src/extern-and-byref-init.bas(40,27): error TKO0729: 'r6' is byref and its initializer must have exactly its type
+     |
+  40 | dim byref r6 as zstring = s
+     |                           ^
+tests/diagnostics/src/extern-and-byref-init.bas(41,26): error TKO0729: 'r7' is byref and its initializer must have exactly its type
+     |
+  41 | dim byref r7 as string = "abc"
+     |                          ^
+tests/diagnostics/src/extern-and-byref-init.bas(43,16): error TKO0643: 'r9' is byref, so its initializer needs an address
+     |
+  43 | var byref r9 = type<UDT>( )
+     |                ^
+tests/diagnostics/src/extern-and-byref-init.bas(44,20): error TKO0643: 'r10' is byref, so its initializer needs an address
+     |
+  44 | var byref r10 = UDT( )
+     |                    ^
+tests/diagnostics/src/extern-and-byref-init.bas(46,31): error TKO0730: 'r12' is a static reference and cannot be bound to a local
+     |
+  46 | static byref r12 as integer = g
+     |                               ^
+tests/diagnostics/src/extern-and-byref-init.bas(7,5): error TKO0727: the bounds of 'a2' disagree with its EXTERN declaration
+     |
+   7 | dim a2(0 to 0) as integer
+     |     ^
+tests/diagnostics/src/extern-and-byref-init.bas(9,5): error TKO0727: the bounds of 'a3' disagree with its EXTERN declaration
+     |
+   9 | dim a3(-1 to ...) as integer = { 1, 2 }
+     |     ^
+tests/diagnostics/src/extern-and-byref-init.bas(13,5): error TKO0728: 'a5' is declared EXTERN with a different number of dimensions
+     |
+  13 | dim a5(0 to 1) as integer
+     |     ^
+tests/diagnostics/src/extern-and-byref-init.bas(15,7): error TKO0723: only a var-len array can be redimensioned
+     |
+  15 | redim a6(0 to 1) as integer
+     |       ^
+tests/diagnostics/src/extern-and-byref-init.bas(17,5): error TKO0628: var-len string 's1' has static storage and cannot be initialized
+     |
+  17 | dim s1 as string = "foo"
+     |     ^
+tests/diagnostics/src/extern-and-byref-init.bas(19,5): error TKO0628: var-len string 's2' has static storage and cannot be initialized
+     |
+  19 | var s2 = "foo"
+     |     ^

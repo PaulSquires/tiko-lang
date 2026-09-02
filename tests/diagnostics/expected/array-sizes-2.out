@@ -1,0 +1,44 @@
+global var agg fits size 2147483616
+global var agg big size -2147483648
+global var agg big2 size -2147483648
+func i32 main($0, $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/array-sizes-2.bas(13,13): error TKO0613: array 'test' is too big
+     |
+  13 |     as byte test(0 to LIMIT)
+     |             ^
+tests/diagnostics/src/array-sizes-2.bas(16,5): error TKO0613: array 'test' is too big
+     |
+  16 |     test(0 to LIMIT \ 4) as integer
+     |     ^
+tests/diagnostics/src/array-sizes-2.bas(19,21): error TKO0613: array 'test' is too big
+     |
+  19 |     as zstring * 16 test(0 to LIMIT \ 16)
+     |                     ^
+tests/diagnostics/src/array-sizes-2.bas(25,12): error TKO0613: array 'test' is too big
+     |
+  25 |     as UDT test(0 to 67108863)
+     |            ^
+tests/diagnostics/src/array-sizes-2.bas(28,19): error TKO0613: array 'big' is too big
+     |
+  28 | dim shared as UDT big(0 to 67108863)
+     |                   ^
+tests/diagnostics/src/array-sizes-2.bas(29,19): error TKO0613: array 'big2' is too big
+     |
+  29 | dim shared as UDT big2(0 to 8191, 0 to 8191)
+     |                   ^

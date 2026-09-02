@@ -486,6 +486,80 @@ private function ParamTypeAt_ _
 end function
 
 
+'' The N-th N_PARAM node of a declaration, or NODE_NONE.
+private function ParamNodeAt_ _
+    ( byref c as Ctx, byval decl as NodeId, byval want as long ) as NodeId
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    dim as long seen = 0
+    for i as long = 0 to sp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        if seen = want then return prm
+        seen += 1
+    next
+    return NODE_NONE
+end function
+
+'' TWO TYPES THAT MANGLE ALIKE: a top-level CONST on a BYVAL parameter is not part of the
+'' name -- 'byval as integer' and 'byval as const integer' are one signature, and so are
+'' 'integer ptr' and 'integer const ptr' -- while a const on the POINTEE ('const integer
+'' ptr') and every BYREF qualifier are. The same question is asked of every parameter of
+'' a procedure-pointer parameter, which is where the corpus writes it (six files).
+private function MangleEq_ _
+    ( byref c as Ctx, byval ta as TypeId, byval tb as TypeId ) as boolean
+    if ta = tb then return true
+    if (ta = TYPE_NONE) orelse (tb = TYPE_NONE) then return false
+    if (c.types->Kind( ta ) = TK_REFERENCE) orelse (c.types->Kind( tb ) = TK_REFERENCE) then
+        return false
+    end if
+    dim as TypeId ua = c.types->Unqualify( ta )
+    dim as TypeId ub = c.types->Unqualify( tb )
+    if ua = ub then return true
+    if (c.types->Kind( ua ) = TK_POINTER) andalso (c.types->Kind( ub ) = TK_POINTER) then
+        dim as TypeId ia = c.types->Inner( ua )
+        dim as TypeId ib = c.types->Inner( ub )
+        if (c.types->Kind( ia ) = TK_PROC) andalso (c.types->Kind( ib ) = TK_PROC) then
+            return MangleEq_( c, ia, ib )
+        end if
+        return false
+    end if
+    if (c.types->Kind( ua ) <> TK_PROC) orelse (c.types->Kind( ub ) <> TK_PROC) then
+        return false
+    end if
+    if c.types->ProcParamCount( ua ) <> c.types->ProcParamCount( ub ) then return false
+    if c.types->Inner( ua ) <> c.types->Inner( ub ) then return false
+    for i as long = 0 to c.types->ProcParamCount( ua ) - 1
+        if MangleEq_( c, c.types->ProcParam( ua, i ), c.types->ProcParam( ub, i ) ) = false then
+            return false
+        end if
+    next
+    return true
+end function
+
+'' Two declarations whose parameters are NOT identical but mangle alike -- fbc error 4,
+'' "Duplicated definition". Identical pairs are not this test's (see SameSignature_).
+private function ByvalConstTwin_ _
+    ( byref c as Ctx, byval a as NodeId, byval b as NodeId, byval n as long ) as boolean
+    dim as boolean sawTwin = false
+    for i as long = 0 to n - 1
+        dim as NodeId pa = ParamNodeAt_( c, a, i )
+        dim as NodeId pb = ParamNodeAt_( c, b, i )
+        if (pa = NODE_NONE) orelse (pb = NODE_NONE) then return false
+        dim as ushort flA = c.ast->nodes[cast( long, pa )].flags
+        dim as ushort flB = c.ast->nodes[cast( long, pb )].flags
+        if ((flA or flB) and (NF_BYREF or NF_ARRAY)) <> 0 then return false
+        dim as long ra, rb
+        dim as TypeId ta = ParamTypeAt_( c, a, i, ra )
+        dim as TypeId tb = ParamTypeAt_( c, b, i, rb )
+        if (ta = TYPE_NONE) orelse (tb = TYPE_NONE) then return false
+        if ta = tb then continue for
+        if MangleEq_( c, ta, tb ) = false then return false
+        sawTwin = true
+    next
+    return sawTwin
+end function
+
 private function SameSignature_ _
     ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as boolean
 
@@ -521,7 +595,8 @@ private function SameSignature_ _
             exit for
         end if
     next
-    if anyBydesc = false then return false
+    '' ...EXCEPT a pair that differs only by a BYVAL CONST, which mangles to one name.
+    if anyBydesc = false then return ByvalConstTwin_( c, a, b, na )
 
     for i as long = 0 to na - 1
         dim as long ra, rb

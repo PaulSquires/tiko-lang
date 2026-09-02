@@ -1,6 +1,7 @@
 '' udtlayout.bas -- see udtlayout.bi for the measured rules this implements.
 
 #include once "types/udtlayout.bi"
+#include once "diag/diagids.bi"
 
 namespace Tko
 
@@ -470,6 +471,55 @@ function DumpUdtLayouts _
     next
     outp += "udts: " & str( store.udts.Count ) & chr( 10 )
     return outp
+end function
+
+end namespace
+
+namespace Tko
+
+'' See udtlayout.bi. The count is recomputed from the bounds in 64 bits, exactly as
+'' Resolve does for a builtin element: TypeInfo.elems has already overflowed for the
+'' shapes furthest over the limit.
+function CheckArraySizes _
+    ( byref syms as SymbolTable, byref types as TypeContext, _
+      byref store as UdtLayouts, byref names as Interner, _
+      byref diags as DiagnosticEngine ) as long
+
+    dim as long reported = 0
+    for i as long = 0 to syms.symbols.Count - 1
+        dim as Symbol ptr s = @syms.symbols[i]
+        if (s->kind <> cast( ubyte, SYM_VARIABLE )) andalso _
+           (s->kind <> cast( ubyte, SYM_FIELD )) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId t = types.Unqualify( s->type_ )
+        if types.Kind( t ) <> TK_ARRAY then continue for
+        if types.IsDynArray( t ) then continue for
+        dim as TypeId et = types.Unqualify( types.Inner( t ) )
+        if types.Kind( et ) <> TK_UDT then continue for
+        dim as long vi = store.Find( et )
+        if vi < 0 then continue for
+        dim as longint esz = cast( longint, store.udts[vi].size )
+        if esz <= 0 then continue for
+        dim as long dims = types.types[cast( long, t )].dims
+        if dims < 1 then continue for
+        dim as long bfirst = types.types[cast( long, t )].first
+        if types.types[cast( long, t )].count < dims * 2 then continue for
+        dim as longint n = 1
+        dim as boolean bad = false
+        for d as long = 0 to dims - 1
+            dim as longint lo = types.boundPool[bfirst + d * 2]
+            dim as longint hi = types.boundPool[bfirst + d * 2 + 1]
+            if hi < lo then bad = true : exit for
+            n *= (hi - lo + 1)
+            if n > 2147483647 then exit for
+        next
+        if bad then continue for
+        if n <= 0 then continue for
+        if (esz * n) <= 2147483647 then continue for
+        diags.Report( TKO0613, PointRange( s->loc ), names.Spelling( s->name ) )
+        reported += 1
+    next
+    return reported
 end function
 
 end namespace

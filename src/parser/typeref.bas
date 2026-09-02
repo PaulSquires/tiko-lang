@@ -45,6 +45,14 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         '' was left for the caller to trip over: 'expected )'. The same shape as the
         '' byref-returning procedure DECLARATION, which cost a run of its own.
         dim as boolean byrefRet = Accept( p, Tko.KW_BYREF )
+        '' ...AND IT NEEDS A RESULT TO BE A REFERENCE TO. 'sub( ) byref' is fbc's error
+        '' 17 and 'function( ) byref' with no 'as' is 68, "Expected explicit result
+        '' type". Both measured; one file each in the corpus.
+        if byrefRet then
+            if (pk = Tko.KW_SUB) orelse (Peek( p ) <> Tko.KW_AS) then
+                p.diags->Report( Tko.TKO0731, Tko.PointRange( t.loc ) )
+            end if
+        end if
         if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         if byrefRet then sp.extra or= Tko.PF_BYREF_RESULT
         dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )

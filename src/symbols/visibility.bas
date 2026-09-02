@@ -37,6 +37,7 @@ type Ctx
     as NodeIdVec             redimSym
     as NodeIdVec             redimRank
     as NodeIdVec             redimItem
+    as NodeId                root
 end type
 
 '' The TYPE a symbol was declared in, or TYPE_NONE. A member's scope is the type's own.
@@ -560,6 +561,17 @@ private sub CheckBydescArgs_ _
                     dim as TypeId ael = c.types->Unqualify( c.types->Inner( avt ) )
                     if (c.types->Kind( ael ) = TK_UDT) andalso _
                        (c.types->Kind( pel ) = TK_UDT) andalso (ael <> pel) then
+                        c.diags->Report( TKO0687, PointRange( c.ast->Loc( arg ) ) )
+                        return
+                    end if
+                    '' ...AND TWO BUILTINS DO NOT CONVERT EITHER: an integer array to
+                    '' 'a() as double' and a long array to 'a() as integer' are both
+                    '' fbc's error 58. Measured.
+                    '' ...EXCEPT 'a( ) as any', which takes any element at all --
+                    '' this suite's own any-array-param test passes three through one.
+                    if (c.types->Kind( ael ) = TK_BUILTIN) andalso _
+                       (c.types->Kind( pel ) = TK_BUILTIN) andalso (ael <> pel) andalso _
+                       (c.types->BuiltinOf( pel ) <> TY_ANY) then
                         c.diags->Report( TKO0687, PointRange( c.ast->Loc( arg ) ) )
                         return
                     end if
@@ -1121,6 +1133,7 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
 end sub
 
 #include once "symbols/byrefcheck.bas"
+#include once "symbols/latesweeps2.bas"
 
 
 private sub Walk_ _
@@ -1231,6 +1244,7 @@ private sub Walk_ _
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_INTRINSIC then CheckGfxTarget_( c, id )
+    WalkExtra_( c, id, k, innerByref )
     if k = N_INTRINSIC then CheckEraseStructors_( c, id )
     if k = N_SELECT then CheckSelectCaseKinds_( c, id )
     if k = N_WITH then CheckWithSubject_( c, id )
@@ -1441,6 +1455,7 @@ sub Run _
     c.diags = @diags
     c.info = @info
     c.baseName = names.GetString( "base" )
+    c.root = root
     RecordFirstRedims_( c )
     Walk_( c, root, TYPE_NONE )
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
@@ -1465,6 +1480,7 @@ sub Run _
     CheckUnionInitGroups_( c )
     CheckStaticInitFromVar_( c )
     CheckSharedInBlock_( c )
+    RunLateSweeps2_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )

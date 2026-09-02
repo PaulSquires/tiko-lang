@@ -1238,6 +1238,15 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' 'base.vs( )' -- a call on the BASE-class receiver. Like '.field' inside a
             '' WITH, the base is implicit and what follows is an ordinary member
             '' expression, so it is the same call-or-assign ambiguity.
+            '' A BARE 'base' IS NOTHING -- fbc error 120, "Expected period", for 'print
+            '' base : i1' and for 'base' alone on a line. Only '.' and a base-constructor
+            '' argument list may follow it. Measured; two corpus files.
+            if HasTok( p, p.pos + 1 ) then
+                dim as Tko.TokenKind bk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                if (bk <> Tko.TK_DOT) andalso (bk <> Tko.TK_LPAREN) then
+                    p.diags->Report( Tko.TKO0735, Tko.PointRange( t.loc ) )
+                end if
+            end if
             n = ParseAmbiguous( p )
         elseif k = Tko.TK_STAR then
             '' Assignment THROUGH A POINTER: '*p = 5', '**pp = 5'. A statement may begin

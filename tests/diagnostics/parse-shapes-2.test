@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/parse-shapes-2.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/parse-shapes-2.out

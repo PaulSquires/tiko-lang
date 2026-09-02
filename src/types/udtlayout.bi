@@ -20,6 +20,8 @@
 #include once "tko.bi"
 #include once "types/type.bi"
 #include once "symbols/symbol.bi"
+#include once "ast/nodes.bi"
+#include once "diag/engine.bi"
 
 namespace Tko
 
@@ -63,6 +65,14 @@ namespace Tko
     declare function ComputeUdtLayouts _
         ( byref syms as SymbolTable, byref types as TypeContext, _
           byref store as UdtLayouts ) as long
+
+    '' AN ARRAY OF A UDT IS SIZED ONLY ONCE THE UDT IS. Resolve's own size test cannot
+    '' see a UDT element, so after the layouts exist every fixed array of one is
+    '' measured against fbc's 2147483647-byte limit (error 50). Reports TKO0613.
+    declare function CheckArraySizes _
+        ( byref syms as SymbolTable, byref types as TypeContext, _
+          byref store as UdtLayouts, byref names as Interner, _
+          byref diags as DiagnosticEngine ) as long
 
     declare function DumpUdtLayouts _
         ( byref store as UdtLayouts, byref types as TypeContext, _

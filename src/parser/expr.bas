@@ -1303,6 +1303,16 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
     '' A keyword in primary position is usually an intrinsic function call; the
     '' statement layer will route those. Anything else is a real syntax error.
     if Tko.IsKeywordKind( k ) then
+        '' A BARE 'base' IN AN EXPRESSION -- 'print base' -- is fbc error 120, the same
+        '' as at statement start (see the statement dispatch). Only '.' and '(' follow it.
+        if k = Tko.KW_BASE then
+            if HasTok( p, p.pos + 1 ) then
+                dim as Tko.TokenKind bk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                if (bk <> Tko.TK_DOT) andalso (bk <> Tko.TK_LPAREN) then
+                    p.diags->Report( Tko.TKO0735, Tko.PointRange( t.loc ) )
+                end if
+            end if
+        end if
         Advance( p )
         return PostfixChain( p, MakeIdent( p, t ) )
     end if

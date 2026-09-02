@@ -315,6 +315,23 @@
     '' fbc's errors 11 and 96/61.
     DIAG( TKO0725, SEV_ERROR,   "'%0' has static storage and must be initialised from a constant, not a variable" )
     DIAG( TKO0726, SEV_ERROR,   "'%0' is shared, which belongs at module level, not inside a block or procedure" )
+    '' fbc's errors 37 and 36, over an EXTERN.
+    DIAG( TKO0727, SEV_ERROR,   "the bounds of '%0' disagree with its EXTERN declaration" )
+    DIAG( TKO0728, SEV_ERROR,   "'%0' is declared EXTERN with a different number of dimensions" )
+    '' fbc's errors 24 and 11, over a BYREF variable.
+    DIAG( TKO0729, SEV_ERROR,   "'%0' is byref and its initializer must have exactly its type" )
+    DIAG( TKO0730, SEV_ERROR,   "'%0' is a static reference and cannot be bound to a local" )
+    '' fbc's errors 68/17, 24, 59, 314/315 and 120.
+    DIAG( TKO0731, SEV_ERROR,   "a byref procedure type must be a 'function' with an explicit result type" )
+    DIAG( TKO0732, SEV_ERROR,   "'%0' returns 'any', which is not a value" )
+    DIAG( TKO0733, SEV_ERROR,   "every parameter of a definition needs a name" )
+    DIAG( TKO0734, SEV_ERROR,   "CONST is not needed on a constructor or destructor" )
+    DIAG( TKO0735, SEV_ERROR,   "'base' must be followed by '.' or an argument list" )
+    '' fbc's errors 184, 183, 181/24 and 18.
+    DIAG( TKO0736, SEV_ERROR,   "the result type of '%0' has no default constructor" )
+    DIAG( TKO0737, SEV_ERROR,   "'erase' over this array needs a default constructor" )
+    DIAG( TKO0738, SEV_ERROR,   "no conversion between these two types" )
+    DIAG( TKO0739, SEV_ERROR,   "'%0' has no member named '%1'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

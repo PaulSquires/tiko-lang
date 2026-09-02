@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-sizes-2.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/array-sizes-2.out

@@ -1,0 +1,506 @@
+func void _ZN7WITHLETaSEu7INTEGER($0, $1) {
+  local ptr this
+  local i64 i
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    ret
+}
+func void _ZN8WITHCTORC1Ev($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN8WITHCTORC1Eu7INTEGER($0, $1) {
+  local ptr this
+  local i64 i
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    ret
+}
+func i64 _ZN8WITHCASTcvu7INTEGEREv($0) {
+  local i64 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = const i64 1
+    ret %4
+}
+func void _ZN2T1C1Eu7INTEGER($0, $1) {
+  local ptr this
+  local i64 i
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr i
+    store @i, $1
+    ret
+}
+func void TAKESDOUBLE($0) {
+  local ptr arr
+  entry0:
+    %1 = alloca ptr arr
+    store @arr, $0
+    ret
+}
+func void TAKESINTEGER($0) {
+  local ptr arr
+  entry0:
+    %1 = alloca ptr arr
+    store @arr, $0
+    ret
+}
+func void _Z3OV1PFvu7INTEGERE($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void _Z3OV1PFvKu7INTEGERE($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void _Z3OV2PFvRu7INTEGERE($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void _Z3OV2PFvRKu7INTEGERE($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void _Z3OV3u7INTEGER($0) {
+  local i64 a
+  entry0:
+    %1 = alloca ptr a
+    store @a, $0
+    ret
+}
+func void _Z3OV3Ku7INTEGER($0) {
+  local i64 a
+  entry0:
+    %1 = alloca ptr a
+    store @a, $0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg a size 8
+  local agg b size 8
+  local agg c size 16
+  local agg wl size 8
+  local agg wc size 8
+  local agg wk size 8
+  local i64 i
+  local agg s size 24
+  local ptr p
+  local agg d1 size 8
+  local agg d2 size 16
+  local agg d3 size 8
+  local agg d4 size 8
+  local i64 d5
+  local agg d6 size 8
+  local i64 d7
+  local agg d8 size 8
+  local agg u size 8
+  local agg x size 8
+  local agg $tmp20 size 72
+  local agg y size 8
+  local agg $tmp22 size 72
+  local agg ints size 32
+  local agg dbls size 32
+  local agg $tmp25 size 72
+  local agg $tmp26 size 72
+  local agg $tmp27 size 72
+  local agg $tmp28 size 72
+  local agg $tmp29 size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = alloca ptr b
+    %6 = alloca ptr c
+    %7 = alloca ptr wl
+    %8 = alloca ptr wc
+    call void _ZN8WITHCTORC1Ev(@wc)
+    %9 = alloca ptr wk
+    %10 = alloca ptr i
+    %11 = alloca ptr s
+    %12 = field.addr @s, 0
+    store %12, 0
+    %13 = field.addr @s, 8
+    store %13, 0
+    %14 = field.addr @s, 16
+    store %14, 0
+    %15 = alloca ptr p
+    %16 = load @c
+    store @a, %16
+    %17 = load @a
+    store @c, %17
+    %18 = load @b
+    store @a, %18
+    %19 = const i64 1
+    %20 = trunc %19
+    store @a, %20
+    %21 = load @a
+    %22 = sext %21
+    store @i, %22
+    %23 = load @a
+    %24 = sext %23
+    %25 = bitcast %24
+    store @p, %25
+    %26 = load @p
+    %27 = bitcast %26
+    %28 = trunc %27
+    store @a, %28
+    %29 = const i64 1
+    %30 = trunc %29
+    store @wl, %30
+    %31 = const i64 1
+    %32 = trunc %31
+    store @wc, %32
+    %33 = call i64 _ZN8WITHCASTcvu7INTEGEREv(@wk)
+    store @i, %33
+    %34 = alloca ptr d1
+    %35 = load @c
+    store @d1, %35
+    %36 = alloca ptr d2
+    %37 = load @a
+    store @d2, %37
+    %38 = alloca ptr d3
+    %39 = const i64 1
+    %40 = field.addr @d3, 0
+    store %40, %39
+    %41 = alloca ptr d4
+    %42 = const i64 1
+    %43 = trunc %42
+    store @d4, %43
+    %44 = alloca ptr d5
+    %45 = load @a
+    %46 = sext %45
+    store @d5, %46
+    %47 = alloca ptr d6
+    %48 = const i64 1
+    call void _ZN8WITHCTORC1Eu7INTEGER(@d6, %48)
+    %49 = alloca ptr d7
+    %50 = call i64 _ZN8WITHCASTcvu7INTEGEREv(@wk)
+    store @d7, %50
+    %51 = alloca ptr d8
+    %52 = const i64 1
+    %53 = field.addr @d8, 0
+    store %53, %52
+    %54 = alloca ptr u
+    %55 = field.addr @u, 0
+    %56 = const i64 1
+    store %55, %56
+    %57 = const i64 1
+    %58 = alloca ptr x
+    %59 = field.addr @x, 0
+    %60 = const i64 5
+    call void _ZN2T1C1Eu7INTEGER(%59, %60)
+    %61 = alloca ptr $tmp20
+    %62 = field.addr @$tmp20, 0
+    store %62, @x
+    %63 = field.addr @$tmp20, 8
+    store %63, @x
+    %64 = const i64 8
+    %65 = field.addr @$tmp20, 16
+    store %65, %64
+    %66 = const i64 8
+    %67 = field.addr @$tmp20, 24
+    store %67, %66
+    %68 = const i64 1
+    %69 = field.addr @$tmp20, 32
+    store %69, %68
+    %70 = const i64 49
+    %71 = field.addr @$tmp20, 40
+    store %71, %70
+    %72 = const i64 1
+    %73 = field.addr @$tmp20, 48
+    store %73, %72
+    %74 = const i64 0
+    %75 = field.addr @$tmp20, 56
+    store %75, %74
+    %76 = const i64 0
+    %77 = field.addr @$tmp20, 64
+    store %77, %76
+    %78 = func.addr ptr _ZN2T1C1Eu7INTEGER
+    %79 = call.rtl i32 fb_ArrayClearObj(@$tmp20, %78, 0)
+    %80 = alloca ptr y
+    %81 = field.addr @y, 0
+    call void _ZN8WITHCTORC1Ev(%81)
+    %82 = alloca ptr $tmp22
+    %83 = field.addr @$tmp22, 0
+    store %83, @y
+    %84 = field.addr @$tmp22, 8
+    store %84, @y
+    %85 = const i64 8
+    %86 = field.addr @$tmp22, 16
+    store %86, %85
+    %87 = const i64 8
+    %88 = field.addr @$tmp22, 24
+    store %88, %87
+    %89 = const i64 1
+    %90 = field.addr @$tmp22, 32
+    store %90, %89
+    %91 = const i64 49
+    %92 = field.addr @$tmp22, 40
+    store %92, %91
+    %93 = const i64 1
+    %94 = field.addr @$tmp22, 48
+    store %94, %93
+    %95 = const i64 0
+    %96 = field.addr @$tmp22, 56
+    store %96, %95
+    %97 = const i64 0
+    %98 = field.addr @$tmp22, 64
+    store %98, %97
+    %99 = func.addr ptr _ZN8WITHCTORC1Ev
+    %100 = call.rtl i32 fb_ArrayClearObj(@$tmp22, %99, 0)
+    %101 = alloca ptr ints
+    %102 = alloca ptr dbls
+    %103 = alloca ptr $tmp25
+    %104 = field.addr @$tmp25, 0
+    store %104, @dbls
+    %105 = field.addr @$tmp25, 8
+    store %105, @dbls
+    %106 = const i64 32
+    %107 = field.addr @$tmp25, 16
+    store %107, %106
+    %108 = const i64 8
+    %109 = field.addr @$tmp25, 24
+    store %109, %108
+    %110 = const i64 1
+    %111 = field.addr @$tmp25, 32
+    store %111, %110
+    %112 = const i64 49
+    %113 = field.addr @$tmp25, 40
+    store %113, %112
+    %114 = const i64 4
+    %115 = field.addr @$tmp25, 48
+    store %115, %114
+    %116 = const i64 0
+    %117 = field.addr @$tmp25, 56
+    store %117, %116
+    %118 = const i64 3
+    %119 = field.addr @$tmp25, 64
+    store %119, %118
+    call void TAKESDOUBLE(@$tmp25)
+    %120 = alloca ptr $tmp26
+    %121 = field.addr @$tmp26, 0
+    store %121, @ints
+    %122 = field.addr @$tmp26, 8
+    store %122, @ints
+    %123 = const i64 32
+    %124 = field.addr @$tmp26, 16
+    store %124, %123
+    %125 = const i64 8
+    %126 = field.addr @$tmp26, 24
+    store %126, %125
+    %127 = const i64 1
+    %128 = field.addr @$tmp26, 32
+    store %128, %127
+    %129 = const i64 49
+    %130 = field.addr @$tmp26, 40
+    store %130, %129
+    %131 = const i64 4
+    %132 = field.addr @$tmp26, 48
+    store %132, %131
+    %133 = const i64 0
+    %134 = field.addr @$tmp26, 56
+    store %134, %133
+    %135 = const i64 3
+    %136 = field.addr @$tmp26, 64
+    store %136, %135
+    call void TAKESDOUBLE(@$tmp26)
+    %137 = alloca ptr $tmp27
+    %138 = field.addr @$tmp27, 0
+    store %138, @ints
+    %139 = field.addr @$tmp27, 8
+    store %139, @ints
+    %140 = const i64 32
+    %141 = field.addr @$tmp27, 16
+    store %141, %140
+    %142 = const i64 8
+    %143 = field.addr @$tmp27, 24
+    store %143, %142
+    %144 = const i64 1
+    %145 = field.addr @$tmp27, 32
+    store %145, %144
+    %146 = const i64 49
+    %147 = field.addr @$tmp27, 40
+    store %147, %146
+    %148 = const i64 4
+    %149 = field.addr @$tmp27, 48
+    store %149, %148
+    %150 = const i64 0
+    %151 = field.addr @$tmp27, 56
+    store %151, %150
+    %152 = const i64 3
+    %153 = field.addr @$tmp27, 64
+    store %153, %152
+    call void TAKESINTEGER(@$tmp27)
+    %154 = alloca ptr $tmp28
+    %155 = field.addr @$tmp28, 0
+    store %155, @ints
+    %156 = field.addr @$tmp28, 8
+    store %156, @ints
+    %157 = const i64 32
+    %158 = field.addr @$tmp28, 16
+    store %158, %157
+    %159 = const i64 8
+    %160 = field.addr @$tmp28, 24
+    store %160, %159
+    %161 = const i64 1
+    %162 = field.addr @$tmp28, 32
+    store %162, %161
+    %163 = const i64 49
+    %164 = field.addr @$tmp28, 40
+    store %164, %163
+    %165 = const i64 4
+    %166 = field.addr @$tmp28, 48
+    store %166, %165
+    %167 = const i64 0
+    %168 = field.addr @$tmp28, 56
+    store %168, %167
+    %169 = const i64 3
+    %170 = field.addr @$tmp28, 64
+    store %170, %169
+    call void TAKESANY(@$tmp28)
+    %171 = alloca ptr $tmp29
+    %172 = field.addr @$tmp29, 0
+    store %172, @dbls
+    %173 = field.addr @$tmp29, 8
+    store %173, @dbls
+    %174 = const i64 32
+    %175 = field.addr @$tmp29, 16
+    store %175, %174
+    %176 = const i64 8
+    %177 = field.addr @$tmp29, 24
+    store %177, %176
+    %178 = const i64 1
+    %179 = field.addr @$tmp29, 32
+    store %179, %178
+    %180 = const i64 49
+    %181 = field.addr @$tmp29, 40
+    store %181, %180
+    %182 = const i64 4
+    %183 = field.addr @$tmp29, 48
+    store %183, %182
+    %184 = const i64 0
+    %185 = field.addr @$tmp29, 56
+    store %185, %184
+    %186 = const i64 3
+    %187 = field.addr @$tmp29, 64
+    store %187, %186
+    call void TAKESANY(@$tmp29)
+    call.rtl void fb_StrDelete(@s)
+    %188 = const i32 0
+    call.rtl void fb_End(%188)
+    %189 = load @$tmp0
+    ret %189
+}
+declare void fb_Init($0, $1, $2)
+declare i32 fb_ArrayClearObj($0, $1, $2)
+declare void TAKESANY()
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 14 functions, 14 blocks, 322 insts, 2 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 2
+  amb assign 1
+  amb-assign-kind 1 1
+  amb-assign-val N_IDENT 1
+  skip-site src\mir\lowerassign.bas:154 1
+  skip-site src\mir\lowerassign.bas:375 1
+tests/diagnostics/src/udt-conversions.bas(48,1): error TKO0738: no conversion between these two types
+     |
+  48 | c = a
+     | ^
+tests/diagnostics/src/udt-conversions.bas(49,1): error TKO0738: no conversion between these two types
+     |
+  49 | a = b
+     | ^
+tests/diagnostics/src/udt-conversions.bas(50,1): error TKO0738: no conversion between these two types
+     |
+  50 | a = 1
+     | ^
+tests/diagnostics/src/udt-conversions.bas(51,1): error TKO0738: no conversion between these two types
+     |
+  51 | i = a
+     | ^
+tests/diagnostics/src/udt-conversions.bas(52,1): error TKO0738: no conversion between these two types
+     |
+  52 | s = a
+     | ^
+tests/diagnostics/src/udt-conversions.bas(53,1): error TKO0738: no conversion between these two types
+     |
+  53 | p = a
+     | ^
+tests/diagnostics/src/udt-conversions.bas(54,1): error TKO0738: no conversion between these two types
+     |
+  54 | a = p
+     | ^
+tests/diagnostics/src/udt-conversions.bas(56,1): error TKO0738: no conversion between these two types
+     |
+  56 | wc = 1
+     | ^
+tests/diagnostics/src/udt-conversions.bas(68,3): error TKO0739: 'aa' has no member named 'zzz'
+     |
+  68 | u.zzz = 1
+     |   ^
+tests/diagnostics/src/udt-conversions.bas(70,7): error TKO0737: 'erase' over this array needs a default constructor
+     |
+  70 | erase x
+     |       ^
+tests/diagnostics/src/udt-conversions.bas(82,18): error TKO0687: a bydesc parameter takes an array of exactly its element type
+     |
+  82 | takesDouble( ints( ) )
+     |                  ^
+tests/diagnostics/src/udt-conversions.bas(88,1): error TKO0677: 'ov1' is already declared with these parameter types
+     |
+  88 | sub ov1 overload( byval p as sub( byval as const integer ) )
+     | ^
+tests/diagnostics/src/udt-conversions.bas(96,1): error TKO0677: 'ov3' is already declared with these parameter types
+     |
+  96 | sub ov3 overload( byval a as const integer )
+     | ^
+tests/diagnostics/src/udt-conversions.bas(59,5): error TKO0738: no conversion between these two types
+     |
+  59 | dim d2 as CC = a
+     |     ^
+tests/diagnostics/src/udt-conversions.bas(60,5): error TKO0738: no conversion between these two types
+     |
+  60 | dim d3 as AA = type<BB>( 1 )
+     |     ^
+tests/diagnostics/src/udt-conversions.bas(61,5): error TKO0738: no conversion between these two types
+     |
+  61 | dim d4 as AA = 1
+     |     ^
+tests/diagnostics/src/udt-conversions.bas(62,5): error TKO0738: no conversion between these two types
+     |
+  62 | dim d5 as integer = a
+     |     ^

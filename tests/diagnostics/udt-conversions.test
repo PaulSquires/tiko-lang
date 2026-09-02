@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-conversions.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/udt-conversions.out
