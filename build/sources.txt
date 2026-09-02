@@ -84,6 +84,7 @@ io/inputstr.bas
 strw/swap.bas
 error/assert.bas
 error/errmsg.bas
+error/signals.bas
 init/ctxdata.bas
 init/rtinit.bas
 data/read.bas
@@ -172,4 +173,7 @@ io/conttytail.bas
 io/hookmisc.bas
 io/devlpttest.bas
 io/devcomtest.bas
+io/scancode.bas
+io/devlptio.bas
+io/conreadstr.bas
 io/devwidth2.bas
