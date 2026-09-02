@@ -171,6 +171,7 @@ io/conprint.bas
 io/conprintwin.bas
 io/coninpevt.bas
 io/conprintw.bas
+io/conreadline.bas
 io/conlineinp.bas
 io/conprinttty.bas
 io/conttytail.bas

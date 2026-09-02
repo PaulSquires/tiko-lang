@@ -132,6 +132,17 @@
 '' can hold, and the point past which the fixed part is scaled instead.
 const FB_MAXFIXLEN = 19
 
+'' 2^64 -- the smallest double that will not fit an unsigned 64-bit integer, and
+'' the threshold the exponent normalisation divides down to.
+''
+'' WRITTEN IN EXPONENT FORM DELIBERATELY. Spelled out as 18446744073709551616.0
+'' FreeBASIC parses the digits as an INTEGER literal first, overflows it, warns
+'' `Literal number too big, truncated` -- and yields 1.844674407370955e+20, which
+'' is TEN TIMES TOO LARGE. The loop then fails to normalise values it should
+'' have, and nothing else says so. Measured with a probe; this form compares
+'' equal to 2.0 ^ 64 and the plain one does not.
+const TKORT_TWO_POW_64 as double = 1.8446744073709551616e19
+
 const FB_WEEK_DAY_SUNDAY_ = 1
 
 '' fb_intl.h's eFB_IntlIndex, in declaration order.
@@ -460,7 +471,7 @@ private function hProcessMask _
 					end if
 				end if
 
-				while( value >= 18446744073709551616.0 )
+				while( value >= TKORT_TWO_POW_64 )
 					value /= 10.0
 					ExpValue += 1
 				wend

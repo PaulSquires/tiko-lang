@@ -49,7 +49,16 @@
 
 const FB_RTERROR_OK = 0
 
-extern "rtlib"
+'' Their neighbours in fbc's fb_console.h carry FBCALL (fb_ConsoleGetSize is
+'' _fb_ConsoleGetSize@8 in the win32 libfb.a) but these three are declared
+'' PLAIN, so they are cdecl on every target -- _fb_ConsoleInkey /
+'' _fb_ConsoleGetkey / _fb_ConsoleKeyHit, no @N.
+'' Declaring them "rtlib" made no difference to the two that are only ever
+'' CALLED (zero arguments, so stdcall and cdecl agree, and the alias suppresses
+'' the decoration), but @tkrt_ConsoleGetkey is STORED in an FB_GETKEYPROC, and
+'' that typedef is cdecl because fbc's hook typedef is plain too. Only win32
+'' distinguishes the two conventions, so only win32 warned.
+extern "c"   '' NON-FBCALL, AND THE ONE PLACE IT SHOWS.
 	declare function tkrt_ConsoleInkey alias "fb_ConsoleInkey" ( ) as FBSTRING ptr
 	declare function tkrt_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as long
 	declare function tkrt_ConsoleKeyHit alias "fb_ConsoleKeyHit" ( ) as long
