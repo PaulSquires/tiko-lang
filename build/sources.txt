@@ -19,6 +19,7 @@ str/base.bas
 str/set.bas
 str/assign.bas
 str/trimex.bas
+str/format.bas
 str/concat.bas
 str/tempdesc.bas
 str/instrany.bas
