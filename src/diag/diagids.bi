@@ -307,6 +307,11 @@
     DIAG( TKO0719, SEV_ERROR,   "'erase' over this array needs a plain parameterless cdecl constructor and destructor" )
     DIAG( TKO0720, SEV_ERROR,   "no operator %0 compares this type" )
     DIAG( TKO0721, SEV_ERROR,   "the dynamic array field '%0' must write its rank: '(any)'" )
+    '' fbc's error 168.
+    DIAG( TKO0722, SEV_ERROR,   "the type '%0' never declared this constructor, destructor or property" )
+    '' fbc's errors 54 and 7.
+    DIAG( TKO0723, SEV_ERROR,   "only a var-len array can be redimensioned" )
+    DIAG( TKO0724, SEV_ERROR,   "a union is initialised with one value, not a group" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

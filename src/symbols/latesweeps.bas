@@ -108,6 +108,92 @@ private function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as Scop
     return found
 end function
 
+'' A STRUCTOR OR PROPERTY OF A NAMESPACED TYPE IS DEFINED INSIDE THE NAMESPACE -- fbc
+'' error 168, "Parent is not a class or UDT", for 'constructor ns.UDT( )', 'destructor
+'' ns.UDT( )' and 'property ns.UDT.foo( )' written at module level. The dotted owner path
+'' is the tell: a structor names its type in 'name' and its namespace in 'ownerName', a
+'' property its type in 'ownerName' -- and when that path leads through a NAMESPACE the
+'' definition has been written outside it.
+private sub CheckStructorOutsideNamespace_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        '' A DEFINITION, not a declare. A structor keeps its body among its CHILDREN
+        '' rather than in 'b' -- testing 'b' alone skipped every constructor.
+        dim as boolean hasBody = (sp->b <> NODE_NONE)
+        for bi as long = 0 to sp->count - 1
+            dim as NodeId ch = cast( NodeId, c.ast->children[sp->first + bi] )
+            if (ch <> NODE_NONE) andalso (c.ast->Kind( ch ) = N_BLOCK) then hasBody = true
+        next
+        if hasBody = false then continue for
+        if sp->ownerName = 0 then continue for
+        dim as string path = c.names->Spelling( sp->ownerName )
+        dim as string head = path
+        dim as long dot = instr( head, "." )
+        if dot > 0 then head = left( head, dot - 1 )
+        '' MEASURED MORE CLOSELY: when the type DID declare the structor or property, the
+        '' module-level definition through the namespace is accepted. So the question is
+        '' the one the type-owner rule asks -- did the type declare it -- with fbc's 168
+        '' as the answer when it did not.
+        dim as string nsPath = path
+        dim as string typeName = ""
+        dim as string want = ""
+        '' THE PARSER FOLDS A STRUCTOR'S OWNER INTO ONE DOTTED PATH -- 'constructor
+        '' ns.Bare( )' arrives with ownerName 'ns.bare' -- so for every one of the three
+        '' the type is the LAST component and the namespace what precedes it.
+        select case cast( TokenKind, sp->op )
+        case KW_CONSTRUCTOR, KW_DESTRUCTOR
+            '' 'constructor ns.Bare( )': the parser leaves 'ns' in ownerName and the TYPE
+            '' in 'name'.
+            typeName = c.names->Spelling( sp->name )
+            if cast( TokenKind, sp->op ) = KW_CONSTRUCTOR then want = "__ctor" else want = "__dtor"
+        case KW_PROPERTY
+            '' 'property ns.Bare.foo( )': the type is the last component of the path.
+            if dot = 0 then continue for
+            dim as long lastDot = instrrev( path, "." )
+            nsPath = left( path, lastDot - 1 )
+            typeName = mid( path, lastDot + 1 )
+            want = c.names->Spelling( sp->name )
+        case else
+            continue for
+        end select
+        dim as ScopeId nsc = NamespaceScopeOf_( c, c.names->GetString( nsPath ) )
+        if nsc = SCOPE_NONE then continue for
+        dim as Symbol ptr ts = c.syms->SymbolAt( c.syms->LookupLocalTyped( nsc, _
+            c.names->GetString( typeName ), true ) )
+        if ts = 0 then continue for
+        if ts->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if ts->inner = SCOPE_NONE then continue for
+        '' THE DEFINITION ITSELF PUTS A SYMBOL IN THE TYPE'S SCOPE -- Collect declares
+        '' 'constructor ns.Bare( )' into Bare as it would any member -- so "is there a
+        '' symbol" always says yes. What is asked is whether one was DECLARED: a symbol
+        '' in the chain whose node is a declare, with no body.
+        dim as Symbol ptr ms = c.syms->SymbolAt( _
+            c.syms->LookupLocal( ts->inner, c.names->Fold( c.names->GetString( want ) ) ) )
+        dim as boolean declared = false
+        dim as long guard = 0
+        while (ms <> 0) andalso (guard < 1000)
+            guard += 1
+            dim as NodeId md = cast( NodeId, ms->payload )
+            if (md <> NODE_NONE) andalso (md <> id) andalso (c.ast->Kind( md ) = N_PROC) then
+                dim as StmtPayload ptr mp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, md )].data )]
+                dim as boolean body = (mp->b <> NODE_NONE)
+                for bj as long = 0 to mp->count - 1
+                    dim as NodeId ch2 = cast( NodeId, c.ast->children[mp->first + bj] )
+                    if (ch2 <> NODE_NONE) andalso (c.ast->Kind( ch2 ) = N_BLOCK) then body = true
+                next
+                if body = false then declared = true
+            end if
+            ms = c.syms->SymbolAt( ms->nextOverload )
+        wend
+        if declared then continue for
+        c.diags->Report( TKO0722, PointRange( c.ast->Loc( id ) ), path )
+    next
+end sub
+
 private sub CheckOutsideNamespace_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
@@ -120,8 +206,13 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
         '' or 'this' -- and declares nothing into anything. The parser marks such an item
         '' with the REDIM keyword in 'extra'; five of this suite's own MIR tests write it,
         '' and the owner test read 'x' as a namespace that did not exist.
-        if (k = N_VAR_ITEM) andalso (sp->extra = cast( ushort, KW_REDIM )) then continue for
         dim as ScopeId ns = NamespaceScopeOf_( c, sp->ownerName )
+        '' ...UNLESS THE OWNER IS A NAMESPACE, in which case 'redim shared ns1.array1( )
+        '' as integer' from outside is fbc's 158 like any other outside declaration.
+        '' A plain 'redim ns.arr( 4 to 5 )' with no 'as' declares nothing and is accepted.
+        if (k = N_VAR_ITEM) andalso (sp->extra = cast( ushort, KW_REDIM )) then
+            if (ns = SCOPE_NONE) orelse (sp->a = NODE_NONE) then continue for
+        end if
         if (ns = SCOPE_NONE) andalso (k = N_PROC) then
             '' THE OWNER MAY BE A TYPE, and the rule is the same one fbc gives a
             '' namespace, with the same error 158: 'declare sub U.bbb( )' when the type
@@ -540,6 +631,45 @@ end sub
 '' use. A plain 'a()' has rank 0 and takes any shape.
 ''
 '' THE RANK WRITTEN is the number of ranges in the bounds block.
+'' A UNION IS INITIALISED WITH ONE VALUE, NOT A GROUP -- fbc error 7, "Expected ')'",
+'' for 'dim as U x = ( ( 1, 2 ) )' and for '( ( 1, 2 ), 3 )' and '( 1, ( 2, 3 ) )' alike:
+'' any nested parenthesised group inside a union's initializer is refused, whatever the
+'' union holds. Eleven corpus files, all over a declared UNION.
+private sub CheckUnionInitGroups_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        if c.types->Kind( u ) <> TK_UDT then continue for
+        dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( u ) )
+        dim as SymbolId tsid = c.syms->LookupLocalTyped( ds, c.types->NameOf( u ), true )
+        if tsid = SYMBOL_NONE then tsid = c.syms->LookupTyped( ds, c.types->NameOf( u ), true )
+        dim as Symbol ptr ts = c.syms->SymbolAt( tsid )
+        if ts = 0 then continue for
+        if (ts->flags and SYMF_UNION_KIND) = 0 then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        dim as NodeKind bk = c.ast->Kind( ip->b )
+        if (bk <> N_TUPLE) andalso (bk <> N_PAREN) andalso (bk <> N_INITIALIZER) then continue for
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->b )].data )]
+        for j as long = 0 to lp->count - 1
+            dim as NodeId el = cast( NodeId, c.ast->children[lp->first + j] )
+            if el = NODE_NONE then continue for
+            select case c.ast->Kind( el )
+            case N_TUPLE, N_PAREN, N_INITIALIZER
+                c.diags->Report( TKO0724, PointRange( c.ast->Loc( el ) ) )
+                exit for
+            end select
+        next
+    next
+end sub
+
 private sub CheckRedimRank_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
@@ -568,17 +698,51 @@ private sub CheckRedimRank_( byref c as Ctx )
                 tgt = ip->b
             end if
             dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
-            if s = 0 then continue for
-            if s->type_ = TYPE_NONE then continue for
-            dim as TypeId u = c.types->Unqualify( s->type_ )
+            dim as TypeId u = TYPE_NONE
+            dim as string nm = ""
+            if s <> 0 then
+                if s->type_ = TYPE_NONE then continue for
+                u = c.types->Unqualify( s->type_ )
+                nm = c.names->Spelling( s->name )
+            elseif (tgt <> item) andalso (c.ast->Kind( tgt ) <> N_IDENT) then
+                '' 'redim ( 1 )( 0 to 0 )', 'redim ( a + b )( ... )', 'redim ( *pi )( ... )'
+                '' -- an EXPRESSION in the target slot that binds no symbol. Its type is
+                '' what is judged: fbc's error 54 for every one that is not a var-len
+                '' array. Eight corpus files write one.
+                u = c.types->Unqualify( c.info->TypeOf_( tgt ) )
+                if u = TYPE_NONE then continue for
+                if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+            else
+                continue for
+            end if
             '' 'redim a' OVER SOMETHING THAT IS NOT AN ARRAY -- fbc error 63 ("Expected
             '' array"), and 147 when bounds are written. Measured over an extern scalar.
             if c.types->Kind( u ) <> TK_ARRAY then
-                c.diags->Report( TKO0695, PointRange( c.ast->Loc( item ) ), _
-                                 c.names->Spelling( s->name ) )
+                if s <> 0 then
+                    c.diags->Report( TKO0695, PointRange( c.ast->Loc( item ) ), nm )
+                else
+                    c.diags->Report( TKO0723, PointRange( c.ast->Loc( item ) ) )
+                end if
                 continue for
             end if
-            if c.types->IsDynArray( u ) = false then continue for
+            '' ...AND A FIXED-SIZE ARRAY CANNOT BE REDIMENSIONED EITHER -- fbc error 54,
+            '' "Expected var-len array": a variable, a field, 'this.array', the WITH
+            '' shorthand and a parenthesised name all measure the same. Thirteen files.
+            '' A FIXED STRING is an array of a character builtin and is not this.
+            if c.types->IsDynArray( u ) = false then
+                dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+                dim as boolean fixstr = false
+                if c.types->Kind( el ) = TK_BUILTIN then
+                    select case c.types->BuiltinOf( el )
+                    case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                        fixstr = true
+                    end select
+                end if
+                if fixstr = false then
+                    c.diags->Report( TKO0723, PointRange( c.ast->Loc( item ) ) )
+                end if
+                continue for
+            end if
             dim as long rank = c.types->DynRank( u )
             if rank <= 0 then continue for
             if written <= 0 then continue for

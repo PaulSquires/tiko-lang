@@ -20,6 +20,10 @@ namespace ns
     type UDT
         dummy as integer
         declare sub Touch( )
+        '' DECLARED HERE: fbc refuses 'constructor ns.UDT( )' for a type that never
+        '' declared one (error 158), so the definitions below need these.
+        declare constructor( )
+        declare destructor( )
     end type
 end namespace
 

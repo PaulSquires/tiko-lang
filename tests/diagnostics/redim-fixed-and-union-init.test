@@ -1,0 +1,8 @@
+'' Only a var-len array can be redimensioned (fbc error 54): a fixed-size variable or
+'' field, and an expression in the target slot that is no array at all. A union is
+'' initialised with one value, not a group (error 7; fbc gives 67 on line 33 for the same
+'' nested group, one line apart in its own accounting). Matches fbc on lines 27-33.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/redim-fixed-and-union-init.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/redim-fixed-and-union-init.out

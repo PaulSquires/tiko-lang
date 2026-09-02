@@ -1,0 +1,9 @@
+'' A constructor, destructor or property of a namespaced type defined at module level
+'' through the namespace is accepted when the type declared it and is fbc error 168 when
+'' it did not; 'redim shared ns.arr( ) as integer' from outside is 158, while a plain
+'' redim with no 'as' declares nothing and is accepted. fbc stops at its first 168 (line
+'' 24); each shape was measured alone -- this reports 24, 26, 28 and 31.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/structor-outside-namespace.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/structor-outside-namespace.out
