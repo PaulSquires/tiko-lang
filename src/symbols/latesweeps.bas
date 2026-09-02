@@ -744,6 +744,16 @@ private sub CheckRedimRank_( byref c as Ctx )
                 continue for
             end if
             dim as long rank = c.types->DynRank( u )
+            if rank <= 0 then
+                '' A RANK-0 ARRAY TAKES ITS RANK FROM ITS FIRST REDIM; that redim itself is
+                '' not judged, every later one is.
+                dim as boolean isFirst = false
+                for ri as long = 0 to c.redimItem.Count - 1
+                    if c.redimItem[ri] = cast( ulong, item ) then isFirst = true
+                next
+                if isFirst then continue for
+                if s <> 0 then rank = RecordedRank_( c, c.info->RefOf( tgt ) )
+            end if
             if rank <= 0 then continue for
             if written <= 0 then continue for
             if written = rank then continue for
@@ -841,5 +851,58 @@ private sub CheckArrayDeclShapes_( byref c as Ctx )
                                  c.names->Spelling( s->name ) )
             end if
         end if
+    next
+end sub
+
+'' A STATIC-STORAGE SCALAR IS INITIALISED FROM A CONSTANT -- fbc error 11, "Expected
+'' constant", for 'dim shared i as integer = x' over another shared variable, for 'static
+'' i as integer = x' inside a sub, and for 'dim shared z as zstring * 32 = a' from a
+'' string variable. A literal, a constant and an ADDRESS ('= @x') are accepted, and so is
+'' a plain 'dim' from anything, and a BYREF from a shared. Only a bare NAMED variable on
+'' the right is judged.
+private sub CheckStaticInitFromVar_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if (s->flags and (SYMF_SHARED or SYMF_STATIC)) = 0 then continue for
+        if (s->flags and SYMF_EXTERN) <> 0 then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        if (c.ast->nodes[cast( long, item )].flags and NF_BYREF) <> 0 then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        if c.ast->Kind( ip->b ) <> N_IDENT then continue for
+        dim as Symbol ptr src = c.syms->SymbolAt( c.info->RefOf( ip->b ) )
+        if src = 0 then continue for
+        if src->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        '' A type-level static MEMBER ('var UDT.i = ...') is another rule; the type must
+        '' be a scalar builtin or a fixed string here, which is what was measured.
+        if s->type_ = TYPE_NONE then continue for
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        if c.types->Kind( u ) = TK_ARRAY then u = c.types->Unqualify( c.types->Inner( u ) )
+        if c.types->Kind( u ) <> TK_BUILTIN then continue for
+        c.diags->Report( TKO0725, PointRange( c.ast->Loc( item ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
+'' 'dim shared' INSIDE A SCOPE BLOCK OR A PROCEDURE -- fbc error 96 in a scope and 61 in
+'' a sub: shared storage is a module-level thing. 'static' inside a scope is fine.
+private sub CheckSharedInBlock_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if (s->flags and SYMF_SHARED) = 0 then continue for
+        dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
+        if sc = 0 then continue for
+        if (sc->kind <> cast( ubyte, SCOPEK_BLOCK )) andalso _
+           (sc->kind <> cast( ubyte, SCOPEK_PROC )) then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        c.diags->Report( TKO0726, PointRange( c.ast->Loc( item ) ), _
+                         c.names->Spelling( s->name ) )
     next
 end sub

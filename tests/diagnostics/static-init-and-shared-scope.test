@@ -1,0 +1,8 @@
+'' A static-storage scalar is initialised from a constant (fbc error 11), not from a
+'' variable; 'dim shared' inside a scope block is 96 (61 inside a sub); the first redim of
+'' a rank-0 dynamic array fixes its rank, and a later subscript or redim of another rank
+'' is 36. Matches fbc on lines 22, 23, 26, 29, 31 and 32.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-init-and-shared-scope.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/static-init-and-shared-scope.out

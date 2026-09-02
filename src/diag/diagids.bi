@@ -312,6 +312,9 @@
     '' fbc's errors 54 and 7.
     DIAG( TKO0723, SEV_ERROR,   "only a var-len array can be redimensioned" )
     DIAG( TKO0724, SEV_ERROR,   "a union is initialised with one value, not a group" )
+    '' fbc's errors 11 and 96/61.
+    DIAG( TKO0725, SEV_ERROR,   "'%0' has static storage and must be initialised from a constant, not a variable" )
+    DIAG( TKO0726, SEV_ERROR,   "'%0' is shared, which belongs at module level, not inside a block or procedure" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

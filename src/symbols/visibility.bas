@@ -30,6 +30,13 @@ type Ctx
     as DiagnosticEngine ptr diags
     as SemanticInfo ptr     info
     as InternId             baseName
+    '' THE FIRST REDIM OF A RANK-0 DYNAMIC ARRAY FIXES ITS RANK. 'dim a( )' then
+    '' 'redim a( 0 to 0 )' makes a one-dimensional array, and 'a( 0, 0 )' or a second
+    '' 'redim a( 0 to 0, 0 to 0 )' after it is fbc error 36 -- five corpus files. Recorded
+    '' in source order before the walk, by symbol; consulted by the two rank tests.
+    as NodeIdVec             redimSym
+    as NodeIdVec             redimRank
+    as NodeIdVec             redimItem
 end type
 
 '' The TYPE a symbol was declared in, or TYPE_NONE. A member's scope is the type's own.
@@ -345,6 +352,51 @@ private sub CheckOneStructor_ _
     if sawDefault = false then return
     c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
 end sub
+'' The rank the FIRST redim gave a rank-0 dynamic array, or 0.
+private function RecordedRank_ ( byref c as Ctx, byval sid as SymbolId ) as long
+    if sid = SYMBOL_NONE then return 0
+    for i as long = 0 to c.redimSym.Count - 1
+        if c.redimSym[i] = cast( ulong, sid ) then return cast( long, c.redimRank[i] )
+    next
+    return 0
+end function
+
+'' Source-order sweep, before the walk: the first redim of each rank-0 dynamic array.
+private sub RecordFirstRedims_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if sp->op <> cast( ushort, KW_REDIM ) then continue for
+        for i as long = 0 to sp->count - 1
+            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+            dim as StmtPayload ptr ip = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            dim as long written = 0
+            if (ip->c <> NODE_NONE) andalso (c.ast->Kind( ip->c ) = N_BLOCK) then
+                written = c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )].count
+            end if
+            if written <= 0 then continue for
+            dim as NodeId tgt = item
+            if (ip->b <> NODE_NONE) andalso (ip->extra = cast( ushort, KW_REDIM )) then tgt = ip->b
+            dim as SymbolId sid = c.info->RefOf( tgt )
+            if sid = SYMBOL_NONE then continue for
+            dim as Symbol ptr s = c.syms->SymbolAt( sid )
+            if s = 0 then continue for
+            if s->type_ = TYPE_NONE then continue for
+            dim as TypeId u = c.types->Unqualify( s->type_ )
+            if c.types->IsDynArray( u ) = false then continue for
+            if c.types->DynRank( u ) <> 0 then continue for
+            if RecordedRank_( c, sid ) <> 0 then continue for
+            c.redimSym.Push( cast( ulong, sid ) )
+            c.redimRank.Push( cast( ulong, written ) )
+            c.redimItem.Push( cast( ulong, item ) )
+        next
+    next
+end sub
+
 #include once "symbols/latechecks.bas"
 #include once "symbols/latesweeps.bas"
 
@@ -642,6 +694,7 @@ private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
     '' is fbc error 36 exactly as over a fixed one, and 'a(0)' over 'a(any, any)' too.
     '' Only 'a()' -- rank 0, its shape whatever the last redim made it -- is not asked.
     if dims < 0 then dims = (-dims) - 1
+    if dims <= 0 then dims = RecordedRank_( c, c.info->RefOf( lp->target ) )
     if dims <= 0 then return
     if lp->count = dims then return
     c.diags->Report( TKO0658, PointRange( c.ast->Loc( id ) ), _
@@ -1388,6 +1441,7 @@ sub Run _
     c.diags = @diags
     c.info = @info
     c.baseName = names.GetString( "base" )
+    RecordFirstRedims_( c )
     Walk_( c, root, TYPE_NONE )
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
     '' an inferred type does not exist until Check has run.
@@ -1409,6 +1463,8 @@ sub Run _
     CheckArrayDeclShapes_( c )
     CheckRedimRank_( c )
     CheckUnionInitGroups_( c )
+    CheckStaticInitFromVar_( c )
+    CheckSharedInBlock_( c )
     CheckByrefBinding_( c )
     CheckConstDeclTypes_( c )
     CheckBaseHasDefaultCtor_( c )
