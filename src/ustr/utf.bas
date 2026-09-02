@@ -128,6 +128,25 @@ function tkort_hUtf8ToUtf16 alias "fb_hUtf8ToUtf16" _
 
 	dim as integer i = 0
 	dim as integer n = 0          '' units the answer WOULD occupy
+
+	'' THE CAPACITY, WITH THE NULL TEST FOLDED IN. `dst = 0` is LOOP-INVARIANT
+	'' and fbc-modern will not hoist it: written as the natural
+	''
+	''     if( dst <> 0 ) then
+	''         if( n < dst_units ) then dst[n] = ...
+	''
+	'' it emits `test/setne/cmp/setl/and/cmp/jne` -- SIX instructions per
+	'' character, if-converted rather than branched -- where clang hoists the
+	'' invariant and leaves `cmp/jge`, two. Measured directly, with a two-function
+	'' probe that differs in nothing else (RFC-0004 5.9).
+	''
+	'' Setting the capacity to ZERO when there is no buffer makes `n < cap` false
+	'' for every n, so the store is skipped without a second test and `dst[n]` is
+	'' never evaluated. One comparison per character, and the behaviour is
+	'' identical: measure mode still counts, fill mode still truncates at
+	'' dst_units.
+	dim as integer cap = 0
+	if( dst <> 0 ) then cap = dst_units
 	dim as integer used = 0
 	dim as ulong cp = 0
 	dim as ubyte lead = any, b = any, lo = any, hi = any, lo2 = any, hi2 = any
@@ -137,10 +156,24 @@ function tkort_hUtf8ToUtf16 alias "fb_hUtf8ToUtf16" _
 	do while( i < src_bytes )
 		lead = src[i]
 
-		'' ASCII, the overwhelmingly common case, on its own and first.
+		'' ASCII, THE OVERWHELMINGLY COMMON CASE, HANDLED COMPLETELY AND LEFT.
+		''
+		'' This emits and CONTINUES rather than falling through to the shared
+		'' tail below, which is what fbc's C does (`UEMIT(b0); i += 1;
+		'' continue;`). The tail is written for the general case: it re-tests
+		'' `cp < &h10000`, adds a VARIABLE `used` to `i`, and carries `cp`
+		'' through a register move -- none of which an ASCII byte needs, since
+		'' its codepoint can never reach the surrogate range and its width is
+		'' always one.
+		''
+		'' MEASURED, not assumed. Sharing the tail cost about eleven extra
+		'' instructions per character in the measure-only path -- 20 against
+		'' clang's 9 -- and `u8to16_measure` ran at 1.71x. See RFC-0004 5.9.
 		if( lead < &h80 ) then
-			cp = cast( ulong, lead )
-			used = 1
+			if( n < cap ) then dst[n] = cast( ushort, lead )
+			n += 1
+			i += 1
+			continue do
 		else
 			extra = 0
 			lo2 = &h80
@@ -220,9 +253,7 @@ function tkort_hUtf8ToUtf16 alias "fb_hUtf8ToUtf16" _
 		i += used
 
 		if( cp < &h10000 ) then
-			if( dst <> 0 ) then
-				if( n < dst_units ) then dst[n] = cast( ushort, cp )
-			end if
+			if( n < cap ) then dst[n] = cast( ushort, cp )
 			n += 1
 		else
 			'' A supplementary codepoint becomes a surrogate pair, and the pair is
@@ -230,10 +261,8 @@ function tkort_hUtf8ToUtf16 alias "fb_hUtf8ToUtf16" _
 			cp -= &h10000
 			hi_ = cast( ushort, &hD800 + (cp shr 10) )
 			lo_ = cast( ushort, &hDC00 + (cp and &h3FF) )
-			if( dst <> 0 ) then
-				if( n     < dst_units ) then dst[n]     = hi_
-				if( n + 1 < dst_units ) then dst[n + 1] = lo_
-			end if
+			if( n     < cap ) then dst[n]     = hi_
+			if( n + 1 < cap ) then dst[n + 1] = lo_
 			n += 2
 		end if
 	loop
