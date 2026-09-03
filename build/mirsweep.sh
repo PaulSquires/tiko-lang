@@ -10,7 +10,7 @@
 # VERIFIER FAILURES ARE NOT ZERO AT BASELINE ANY MORE, and the count is stated here so
 # that a NEW one is visible rather than lost in a total:
 #
-#     96 verify failures in 25 files
+#     82 verify failures in 20 files
 #
 # All of them are the CALL-ARITY rule (docs/plan/09 rule 5), which could not be checked
 # until a MirFunction carried a signature rather than an arity -- before that a
@@ -20,13 +20,11 @@
 # now visible. They were 125 in 33 files when the rule first ran; four defects fixed in
 # the same batch account for the difference.
 #
+# They were 96 in 25 files until 'sleep n, flag' was fixed -- that was 14 of them, and
+# it took five files to zero on its own.
+#
 # The families, so that a new failure can be told from an old one:
 #
-#     14  fb_Sleep got=2 want=1   'sleep n, flag' is fb_SleepEx( int32, int32 ), a
-#                                 DIFFERENT entry point -- measured. The prelude
-#                                 declares only the one-argument fb_Sleep, so the
-#                                 two-argument form passes an argument to a
-#                                 one-parameter function. Needs a prelude overload.
 #     ~20 a constructor called with 'this' alone, dropping its own arguments
 #     ~16 FB.LOGEVENT.* got=4 want=3, one argument too many
 #     ~16 generic accessors (OPTIONAL.VALUE, RESULT.VALUE, SHAREDPTR.REF) got=2 want=1
