@@ -272,6 +272,87 @@ private sub CheckOutsideDefinitions_( byref c as Ctx )
     CheckOutsideRange_( c, c.root )
 end sub
 
+'' AN ARRAY DECLARATION IS ALL 'any' OR ALL WRITTEN BOUNDS -- fbc's error 9 with the
+'' bounds first and 94 with 'any' first, but one refusal either way. Measured:
+''
+''     dim a( 0 to 0, any )    error 9      dim a( any, any )        accepted
+''     dim a( any, 0 to 0 )    error 94     dim a( 0 to 0, 0 to 1 )  accepted
+''                                          dim a( any )             accepted
+''
+'' The two spellings sit side by side in the bounds block: a written range is an
+'' N_CASE_RANGE and an 'any' is a bare N_IDENT, so the mix is visible without resolving
+'' anything.
+''
+'' ...AND A TYPE'S ARRAY FIELD IS DECLARED WITH 'dim', NOT 'redim' -- 'type UDT { redim
+'' array( ) as integer }' is fbc's 9 as well, while 'array( any ) as integer' is the form.
+private sub CheckArrayBoundKinds_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if ip->c = NODE_NONE then continue for
+        if c.ast->Kind( ip->c ) <> N_BLOCK then continue for
+        dim as ListPayload ptr bl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
+        if bl->count < 2 then continue for
+        dim as boolean sawAny = false
+        dim as boolean sawBounds = false
+        for i as long = 0 to bl->count - 1
+            dim as NodeId b = cast( NodeId, c.ast->children[bl->first + i] )
+            if b = NODE_NONE then continue for
+            if c.ast->Kind( b ) = N_CASE_RANGE then
+                sawBounds = true
+            elseif c.ast->Kind( b ) = N_IDENT then
+                dim as string bn = lcase( c.names->Spelling( _
+                    c.ast->idents[cast( long, c.ast->nodes[cast( long, b )].data )].name ) )
+                if bn = "any" then sawAny = true
+            end if
+        next
+        if (sawAny andalso sawBounds) = false then continue for
+        c.diags->Report( TKO0765, PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( ip->name ) )
+    next
+end sub
+
+private sub CheckRedimInType_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_TYPE then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        for i as long = 0 to sp->count - 1
+            dim as NodeId m = cast( NodeId, c.ast->children[sp->first + i] )
+            if m = NODE_NONE then continue for
+            if c.ast->Kind( m ) <> N_VAR then continue for
+            dim as StmtPayload ptr mp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, m )].data )]
+            if mp->op <> cast( ushort, KW_REDIM ) then continue for
+            '' ...ONLY WITH EMPTY PARENS. 'redim a( 0 to 0 )' and 'redim a( any )' inside a
+            '' type are both accepted -- structs/dynamic-array-fields.bas says in a comment
+            '' that REDIM makes a dynamic array there even with constant bounds, and
+            '' structs/udt-array-ops-1.bas writes the 'any' form. Only a field with NOTHING
+            '' between the parentheses is fbc's 9, which is the same empty-parens-versus-
+            '' bounds distinction TKO0751 and TKO0762 turn on.
+            for k as long = 0 to mp->count - 1
+                dim as NodeId it = cast( NodeId, c.ast->children[mp->first + k] )
+                if c.ast->Kind( it ) <> N_VAR_ITEM then continue for
+                dim as StmtPayload ptr ipp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, it )].data )]
+                if ipp->c <> NODE_NONE then
+                    if c.ast->Kind( ipp->c ) = N_BLOCK then
+                        if c.ast->lists[cast( long, _
+                            c.ast->nodes[cast( long, ipp->c )].data )].count > 0 then continue for
+                    end if
+                end if
+                c.diags->Report( TKO0766, PointRange( c.ast->Loc( m ) ) )
+                exit for
+            next
+            continue for
+        next
+    next
+end sub
+
 private sub CheckPointerDepth_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )

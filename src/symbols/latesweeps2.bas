@@ -1049,4 +1049,6 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckAggregateInitFields_( c )
     CheckPointerDepth_( c )
     CheckOutsideDefinitions_( c )
+    CheckArrayBoundKinds_( c )
+    CheckRedimInType_( c )
 end sub

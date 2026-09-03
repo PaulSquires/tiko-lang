@@ -371,6 +371,9 @@
     '' fbc's errors 7 and 4, over '#pragma reserve'.
     DIAG( TKO0763, SEV_ERROR,   "'#pragma reserve' takes 'asm' or 'extern', not '%0'" )
     DIAG( TKO0764, SEV_ERROR,   "'%0' is already reserved for that use" )
+    '' fbc's errors 9 and 94, over an array declaration.
+    DIAG( TKO0765, SEV_ERROR,   "'%0' mixes 'any' with written bounds; use one or the other" )
+    DIAG( TKO0766, SEV_ERROR,   "a type's array field is declared with 'dim', not 'redim'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-bound-kinds.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/array-bound-kinds.out
