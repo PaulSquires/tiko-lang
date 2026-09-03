@@ -358,6 +358,9 @@
     DIAG( TKO0755, SEV_ERROR,   "'%0' is byref with a default, which needs a complete type" )
     '' fbc's error 28 for a cast to a string type with no size.
     DIAG( TKO0756, SEV_ERROR,   "a cast needs a SIZED string type, as in 'zstring * n'" )
+    '' fbc's error 24 for what an aggregate initialiser cannot fill.
+    DIAG( TKO0757, SEV_ERROR,   "'%0' holds a var-len string, which an initializer list cannot fill" )
+    DIAG( TKO0758, SEV_ERROR,   "'%0' has static storage and holds a bitfield, which its initializer cannot fill" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

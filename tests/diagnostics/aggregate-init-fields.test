@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/aggregate-init-fields.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/aggregate-init-fields.out
