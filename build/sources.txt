@@ -158,6 +158,7 @@ sys/dylib.bas
 sys/process.bas
 sys/hostinfo.bas
 sys/misc.bas
+sys/ports.bas
 sys/vt100.bas
 sys/spawn.bas
 io/conquery.bas
