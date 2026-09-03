@@ -1282,6 +1282,88 @@ private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
     next
 end sub
 
+'' TWO THINGS EVERY REDIM MUST HAVE. Measured, with the accepted line beside each:
+''
+''     redim array( 1 to 2 )                     error 147 -- it DECLARES, with no type
+''     redim shared a( 0 to 1 )                  error 147
+''     redim a$( 0 to 1 )                        error 147 -- a suffix is not a type
+''     extern a( ) as integer : redim a( )       error 147 -- still declares nothing typed
+''     redim array( 1 to 2 ) as integer          accepted
+''     dim a( ) as integer : redim a( 0 to 2 )   accepted -- the DIM gave it a type
+''     redim a( 0 to 2 ) as integer : redim a( 0 to 3 )    accepted -- so did the first
+''     sub s( a( ) as integer ) : redim a( 0 to 2 )        accepted -- so did the parameter
+''
+''     redim array as integer                    error 63 -- no bounds at all
+''     redim a$                                  error 63
+''     dim a( ) as integer : redim a as integer  error 63
+''
+'' The first rule is about a redim that DECLARES: the ordinary re-dimensioning of an array
+'' something else already declared needs no type, which is the commonest spelling there is.
+'' The symbol's own declaration item is what says which this is -- when the redim item IS
+'' the declaration, nothing else typed the array.
+private sub CheckRedimDeclShape_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if sp->op <> cast( ushort, KW_REDIM ) then continue for
+        for i as long = 0 to sp->count - 1
+            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+            dim as StmtPayload ptr ip = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+
+            '' BOUNDS FIRST: without them there is no array to re-dimension at all, and
+            '' that is the error whether or not a type was written.
+            '' NO PARENTHESES AT ALL is the 63: there is no array here to re-dimension.
+            '' EMPTY parens 'a( )' are a different thing and are read below.
+            dim as boolean hasParens = false
+            dim as long bounds = 0
+            if ip->c <> NODE_NONE then
+                if c.ast->Kind( ip->c ) = N_BLOCK then
+                    hasParens = true
+                    bounds = c.ast->lists[cast( long, _
+                        c.ast->nodes[cast( long, ip->c )].data )].count
+                end if
+            end if
+            if hasParens = false then
+                '' ...UNLESS THE TARGET IS NOT AN ARRAY AT ALL, which is TKO0695's. 'redim
+                '' scalar' over an 'extern scalar as integer' is one fbc error, and putting
+                '' both on it made two -- caught by this suite's outside-namespace-2 test.
+                dim as Symbol ptr ns = c.syms->SymbolAt( c.info->RefOf( item ) )
+                if ns <> 0 then
+                    if ns->type_ <> TYPE_NONE then
+                        if c.types->Kind( c.types->Unqualify( ns->type_ ) ) <> TK_ARRAY then
+                            continue for
+                        end if
+                    end if
+                end if
+                c.diags->Report( TKO0752, PointRange( c.ast->Loc( item ) ), _
+                                 c.names->Spelling( ip->name ) )
+                continue for
+            end if
+
+            if ip->a <> NODE_NONE then continue for
+            '' A QUALIFIED or object-target redim names something declared elsewhere.
+            if (c.ast->nodes[cast( long, item )].flags and NF_QUALIFIED) <> 0 then continue for
+            if (ip->b <> NODE_NONE) andalso (ip->extra = cast( ushort, KW_REDIM )) then continue for
+            '' WITHOUT A TYPE the redim must be RE-dimensioning something already declared,
+            '' and it must actually write bounds. Measured, and both halves are needed:
+            ''
+            ''     dim a( ) as integer : redim a( 0 to 2 )   accepted
+            ''     dim a( ) as integer : redim a( )          error 147 -- empty parens
+            ''     redim array( 1 to 2 )                     error 147 -- nothing declared it
+            ''     redim a( ) as integer                     accepted
+            dim as boolean declaredElsewhere = _
+                (c.info->RefOf( item ) <> SYMBOL_NONE)
+            if declaredElsewhere andalso (bounds > 0) then continue for
+            c.diags->Report( TKO0751, PointRange( c.ast->Loc( item ) ), _
+                             c.names->Spelling( ip->name ) )
+        next
+    next
+end sub
+
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
       byval here as TypeId )
@@ -1305,4 +1387,5 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckEllipsisUbound_( c )
     CheckAggregateInitVisibility_( c )
     CheckConstDeclTypes2_( c )
+    CheckRedimDeclShape_( c )
 end sub

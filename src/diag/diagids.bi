@@ -348,6 +348,9 @@
     '' fbc's errors 289 and 288, over THREADCALL.
     DIAG( TKO0749, SEV_ERROR,   "'threadcall' runs a SUB; '%0' is not one" )
     DIAG( TKO0750, SEV_ERROR,   "'threadcall' cannot run '%0': %1" )
+    '' fbc's errors 147 and 63, over REDIM.
+    DIAG( TKO0751, SEV_ERROR,   "a REDIM that declares '%0' must write its type" )
+    DIAG( TKO0752, SEV_ERROR,   "REDIM needs the array's bounds: '%0( ... )'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
