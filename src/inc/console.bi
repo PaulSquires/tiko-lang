@@ -15,11 +15,19 @@
 ''           driver was chosen. The runtime keeps all of it, because a terminal
 ''           will not tell you.
 ''
-'' THE OBJECT ITSELF STAYS fbc's. It is defined in win32/io_window.o and in
-'' unix/hinit.o -- neither of which tiko-rt owns -- and it is read by two dozen
-'' members that tiko-rt also does not own, from the print buffer to the graphics
-'' library. So the layouts below MIRROR fbc's rather than replacing it, and a
-'' wrong offset here is a silent write into an unrelated field.
+'' THE OBJECT ITSELF IS NOW tiko-rt's ON BOTH PLATFORMS -- src/init/hinitwin.bas
+'' on Windows and src/init/hinitposix.bas on POSIX, each defining it with its own
+'' #assert'd struct. This header used to say it lived in win32/io_window.o; that
+'' was WRONG. fbc's io_window.o carries __fb_con as U (and on win64 as the
+'' mingw-w64 `.refptr.__fb_con` indirection, which is what made it look like a
+'' definition to a careless read); the only definer on Windows was, and is,
+'' hinit.o.
+''
+'' The layouts below still MIRROR rather than include those definitions, because
+'' it is read by two dozen members tiko-rt does NOT own, from the print buffer to
+'' the graphics library -- a wrong offset here is a silent write into an
+'' unrelated field, in fbc's code as much as in ours. The two records are kept
+'' honest by the #asserts in the defining modules, not by the compiler.
 ''
 '' EVERY OFFSET IS MEASURED.
 ''

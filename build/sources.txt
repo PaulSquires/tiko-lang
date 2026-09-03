@@ -89,6 +89,7 @@ error/signals.bas
 init/ctxdata.bas
 init/rtinit.bas
 init/hinitposix.bas
+init/hinitwin.bas
 data/read.bas
 data/core.bas
 io/hookprint.bas

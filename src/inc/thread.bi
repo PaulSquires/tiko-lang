@@ -217,9 +217,9 @@ extern "c"   '' NON-FBCALL: internal, and declared plain in fb_private_thread.h.
 end extern
 
 '' The runtime's win32-only MT core lock, used for one-time initialisation that
-'' must not race. It lives in fbc's win32/hinit.o -- which tiko-rt does not
-'' implement -- and exists only in libfbmt.a, so the ST build must expand to
-'' nothing rather than to a call.
+'' must not race. It is fbc's win32/hinit.o -- now src/init/hinitwin.bas, which
+'' DEFINES both of these under the names declared here -- and exists only in
+'' libfbmt.a, so the ST build must expand to nothing rather than to a call.
 #if defined( ENABLE_MT ) and (defined( __FB_WIN32__ ) or defined( __FB_WIN64__ ))
 	extern "rtlib"
 		declare sub fb_MtLock alias "fb_MtLock" ( )
