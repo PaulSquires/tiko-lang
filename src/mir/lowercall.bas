@@ -1022,6 +1022,7 @@ function LowerCallParts _
         '' byte count and a declaration is where that number would otherwise be lost.
         if (callTy = MT_AGG) andalso (cs <> 0) then
             decl->retSize = SizeOfType( c, cs->type_ )
+            decl->retClass = ClassifyEightbytes( c, cs->type_ )
         end if
         decl->isDefinition = false
         '' THE SIGNATURE, from the procedure this call resolved to. The two hidden

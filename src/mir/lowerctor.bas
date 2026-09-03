@@ -431,8 +431,10 @@ function LowerCtorInit _
         '' same types the argument values below are coerced to.
         decl->AddParam( MT_PTR )
         for ai as long = 0 to argT.Count - 1
-            decl->AddParam( LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ), _
-                            cast( ulong, SizeOfType( c, cast( Tko.TypeId, argT[ai] ) ) ) )
+            dim as Tko.TypeId at_ = cast( Tko.TypeId, argT[ai] )
+            decl->AddParam( LowerType( at_, *c.types ), _
+                            cast( ulong, SizeOfType( c, at_ ) ), _
+                            ClassifyEightbytes( c, at_ ) )
         next
         fidx = c.m->functions.Count - 1
     end if

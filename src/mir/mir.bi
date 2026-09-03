@@ -177,6 +177,31 @@ namespace Tko.Mir
     '' Terminators are separate from instructions: every block ends in exactly one,
     '' and nothing follows it. Keeping them out of the instruction list makes that
     '' structural rather than something the verifier has to notice.
+    '' THE SysV EIGHTBYTE CLASSES of an aggregate, packed two bits each.
+    ''
+    '' Win64 classifies an aggregate by its SIZE and needs nothing else, which is why
+    '' paramAggs holds a byte count. SysV cannot be answered from a size: '{int,int}'
+    '' and '{float,float}' are both eight bytes and go in different register files.
+    '' Its classifier needs to know what is IN each eightbyte -- field-level layout the
+    '' backend does not have, and should not be given, because handing it the layout
+    '' store back is exactly the coupling docs/plan/10 exists to prevent.
+    ''
+    '' So MIR carries the CONCLUSION rather than the evidence. The frontend has the
+    '' layout store and works this out once, where it records the signature; two bits
+    '' per eightbyte is the whole descriptor. Measured rules, in
+    '' docs/internals/phase-8-sysv-abi.md: over sixteen bytes is MEMORY, otherwise an
+    '' eightbyte is SSE when every field overlapping it is a float or a double and
+    '' INTEGER otherwise, and a 'long double' forces MEMORY.
+    const TKO_EB_NONE    as ulong = 0
+    const TKO_EB_INTEGER as ulong = 1
+    const TKO_EB_SSE     as ulong = 2
+    const TKO_EB_MEMORY  as ulong = 3
+    '' Eightbyte 0 in bits 0-1, eightbyte 1 in bits 2-3. MEMORY in eightbyte 0 means
+    '' the whole aggregate, and nothing reads eightbyte 1 then.
+    #define TKO_EB_PACK( c0, c1 )  ((c0) or ((c1) shl 2))
+    #define TKO_EB0( p )           ((p) and 3)
+    #define TKO_EB1( p )           (((p) shr 2) and 3)
+
     '' THE CALLING CONVENTIONS. One on x86-64 -- they differ only in who cleans the
     '' stack, and on x86-64 nobody does -- but three in the source language and three on
     '' win32, so the distinction is recorded rather than collapsed at the point where it
@@ -267,6 +292,8 @@ namespace Tko.Mir
         as ubyte    retTy
         '' ...and the same for an MT_AGG return, 0 otherwise. Same reason.
         as long     retSize
+        '' ...and the return's, same encoding.
+        as ulong    retClass
         as long     paramCount
         as MirLocalVec locals
         as MirBlockVec blocks
@@ -279,7 +306,8 @@ namespace Tko.Mir
         '' 'paramCount += 1' goes through here, so an arity can no longer be recorded
         '' without the type that belongs to it.
         declare sub AddParam _
-            ( byval ty as MirType, byval aggSize as ulong = 0 )
+            ( byval ty as MirType, byval aggSize as ulong = 0, _
+              byval aggClass as ulong = 0 )
         as boolean  isModuleCtor
         as boolean  isModuleDtor
         as boolean  isDefinition    '' false for a declaration with no body
@@ -301,6 +329,9 @@ namespace Tko.Mir
         '' docs/plan/10 exists to avoid. The frontend knows the size when it records the
         '' signature; it writes it down there.
         as FB.Array( of ulong ) paramAggs
+        '' ...and its SysV eightbyte classes, packed as above. Zero for a parameter
+        '' that is not an aggregate, and unread on win64.
+        as FB.Array( of ulong ) paramClasses
         '' A VARIADIC TAIL. LLVM spells it '(i32, ...)' and a call to a variadic differs
         '' from a call to a fixed function at the ABI level -- on win64 a float argument in
         '' the tail goes in BOTH an XMM and a GPR -- so this is an ABI fact, not a spelling.

@@ -138,7 +138,10 @@ sub LowerProc _
     dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
     '' AN AGGREGATE RETURN NEEDS ITS SIZE for the same reason a parameter does: the ABI
     '' classifier's whole question is how many bytes it is.
-    if declRet = MT_AGG then f->retSize = SizeOfType( c, rt )
+    if declRet = MT_AGG then
+        f->retSize = SizeOfType( c, rt )
+        f->retClass = ClassifyEightbytes( c, rt )
+    end if
     f->isDefinition = true
     f->callConv = ProcCallConv_( c, id )
     dim as MirFunction ptr savedF = c.f
@@ -519,14 +522,22 @@ sub LowerProc _
             '' that holds an address.
             dim as MirType pmt = cast( MirType, c.f->locals[pslot].ty )
             dim as ulong psz = 0
-            if pmt = MT_AGG then psz = cast( ulong, c.f->locals[pslot].size )
-            f->AddParam( pmt, psz )
+            dim as ulong pcl = 0
+            if pmt = MT_AGG then
+                psz = cast( ulong, c.f->locals[pslot].size )
+                pcl = ClassifyEightbytes( c, c.f->locals[pslot].frontendType )
+            end if
+            f->AddParam( pmt, psz, pcl )
         else
             dim as Tko.TypeId pt = c.info->TypeOf_( pp->a )
             dim as MirType pmt2 = ParamMirType( c, pt )
             dim as ulong psz2 = 0
-            if pmt2 = MT_AGG then psz2 = cast( ulong, SizeOfType( c, pt ) )
-            f->AddParam( pmt2, psz2 )
+            dim as ulong pcl2 = 0
+            if pmt2 = MT_AGG then
+                psz2 = cast( ulong, SizeOfType( c, pt ) )
+                pcl2 = ClassifyEightbytes( c, pt )
+            end if
+            f->AddParam( pmt2, psz2, pcl2 )
         end if
         if psid <> Tko.SYMBOL_NONE then
             dim as long slot = pslot
@@ -1167,8 +1178,12 @@ sub SignatureFromProc _
             '' path above for what recording it otherwise did.
             dim as MirType smt = ParamMirType( c, pt )
             dim as ulong ssz = 0
-            if smt = MT_AGG then ssz = cast( ulong, SizeOfType( c, pt ) )
-            f->AddParam( smt, ssz )
+            dim as ulong scl = 0
+            if smt = MT_AGG then
+                ssz = cast( ulong, SizeOfType( c, pt ) )
+                scl = ClassifyEightbytes( c, pt )
+            end if
+            f->AddParam( smt, ssz, scl )
         end if
     next
     f->callConv = ProcCallConv_( c, pn )

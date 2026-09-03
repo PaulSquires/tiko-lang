@@ -537,6 +537,10 @@ private sub DeclineInconsistentReturns _
                 if cast( MirType, ins->ty ) = MT_AGG then continue for
                 if callee->retSize <> 0 then
                     callee->retSize = 0
+                    '' ...and its classification with it. Declining means "leave this
+                    '' return exactly as it was", and a size of zero beside a live
+                    '' eightbyte class describes nothing that exists.
+                    callee->retClass = 0
                     st.declined += 1
                 end if
             next
