@@ -1141,6 +1141,147 @@ private sub CheckConstDeclTypes2_( byref c as Ctx )
     next
 end sub
 
+'' WHAT 'threadcall' CAN RUN. Two fbc errors, both measured over the whole threads/
+'' family, and the accepted side of each measured beside it:
+''
+''     threadcall goodSub( )                 accepted
+''     threadcall someFunction( )            error 289 -- a FUNCTION is not a sub
+''     threadcall bc.BadMember( )            error 289 -- and neither is a qualified call
+''     threadcall pascalSub( )               error 288 -- the calling convention
+''     threadcall cdeclSub( ) / stdcallSub( )  accepted
+''     threadcall f( u )  u a BYVAL UDT holding an ARRAY, STRING or BITFIELD   error 288
+''     threadcall f( u )  u a byval UNION, or a UDT with an anonymous one   error 288
+''     threadcall f( u )  u a byval UDT holding a BITFIELD        error 288
+''     threadcall f( u )  u a byval PLAIN UDT                     accepted
+''
+'' The 288 cases are all the same shape: the thread trampoline copies each byval argument,
+'' and fbc will not copy an aggregate whose layout it cannot pass through one pointer.
+private function ThreadUnsupportedUdt_ _
+    ( byref c as Ctx, byval t as TypeId, byref why as string, byval depth as long ) as boolean
+
+    if depth > 8 then return false
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> TK_UDT then return false
+    dim as Symbol ptr ts = UdtSymbolOf_( c, u )
+    if ts = 0 then return false
+    if (ts->flags and SYMF_UNION_KIND) <> 0 then
+        why = "a union cannot be passed to a thread"
+        return true
+    end if
+    if ts->inner = SCOPE_NONE then return false
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr f = @c.syms->symbols[i]
+        if f->parent <> ts->inner then continue for
+        if f->kind <> cast( ubyte, SYM_FIELD ) then continue for
+        if (f->flags and SYMF_UNION) <> 0 then
+            why = "a union field cannot be passed to a thread"
+            return true
+        end if
+        if (f->flags and SYMF_BITFIELD) <> 0 then
+            why = "a bitfield cannot be passed to a thread"
+            return true
+        end if
+        if f->type_ = TYPE_NONE then continue for
+        dim as TypeId ft = c.types->Unqualify( f->type_ )
+        if c.types->Kind( ft ) = TK_BUILTIN then
+            if c.types->BuiltinOf( ft ) = TY_STRING then
+                why = "a string field cannot be passed byval to a thread"
+                return true
+            end if
+        end if
+        if c.types->Kind( ft ) = TK_ARRAY then
+            '' A FIXED STRING is an array of a character builtin and is not this.
+            dim as TypeId el = c.types->Unqualify( c.types->Inner( ft ) )
+            dim as boolean fixstr = false
+            if c.types->Kind( el ) = TK_BUILTIN then
+                select case c.types->BuiltinOf( el )
+                case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                    fixstr = true
+                end select
+            end if
+            if fixstr = false then
+                why = "an array field cannot be passed to a thread"
+                return true
+            end if
+        end if
+        if c.types->Kind( ft ) = TK_UDT then
+            if ThreadUnsupportedUdt_( c, ft, why, depth + 1 ) then return true
+        end if
+    next
+    return false
+end function
+
+private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_THREADCALL then return
+    '' THE CALL IS THE ONE CHILD, not 'a': the parser pushes it into the child list.
+    if sp->count < 1 then return
+    dim as NodeId tcall = cast( NodeId, c.ast->children[sp->first] )
+    if tcall = NODE_NONE then return
+    if c.ast->Kind( tcall ) <> N_CALL then return
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, tcall )].data )]
+    if lp->target = NODE_NONE then return
+
+    '' A QUALIFIED CALL is not a plain sub either -- 'bc.BadMember( )' is fbc's 289.
+    if c.ast->Kind( lp->target ) = N_MEMBER then
+        c.diags->Report( TKO0749, PointRange( c.ast->Loc( tcall ) ), "this member call" )
+        return
+    end if
+    dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( tcall ) )
+    if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if callee = 0 then return
+    if callee->kind <> cast( ubyte, SYM_PROC ) then return
+    dim as NodeId decl = cast( NodeId, callee->payload )
+    if decl = NODE_NONE then return
+    if c.ast->Kind( decl ) <> N_PROC then return
+    dim as StmtPayload ptr pp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+
+    '' A FUNCTION IS NOT A SUB. The result type is what says so: a SUB has none.
+    if cast( TokenKind, pp->op ) = KW_FUNCTION then
+        c.diags->Report( TKO0749, PointRange( c.ast->Loc( tcall ) ), _
+                         c.names->Spelling( pp->name ) )
+        return
+    end if
+    if (pp->extra and PF_PASCAL) <> 0 then
+        c.diags->Report( TKO0750, PointRange( c.ast->Loc( tcall ) ), _
+                         c.names->Spelling( pp->name ), _
+                         "the PASCAL calling convention is not supported" )
+        return
+    end if
+    for i as long = 0 to pp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        '' BYVAL ONLY. The byval side is consistent and was measured whole: a UDT holding
+        '' an ARRAY, a STRING or a BITFIELD, and a UNION, are each fbc's 288, while a plain
+        '' UDT, an integer and a string PARAMETER are all accepted.
+        ''
+        '' THE BYREF SIDE IS NOT MODELLED, because it does not reduce to "contains X" and
+        '' guessing it refused threads/threadcall.bas, which fbc compiles:
+        ''
+        ''     byref, UDT holding an array only          error 288
+        ''     byref, that UDT plus a STRING field       ACCEPTED
+        ''     byref, that UDT plus a BITFIELD           ACCEPTED
+        ''     byref, a UNION                            error 288
+        ''
+        '' Whatever decides that, it is not the field list alone, so the whole byref half
+        '' is declined rather than half-modelled.
+        if (c.ast->nodes[cast( long, prm )].flags and NF_BYREF) <> 0 then continue for
+        if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) <> 0 then continue for
+        dim as StmtPayload ptr prp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+        if prp->a = NODE_NONE then continue for
+        dim as string why = ""
+        if ThreadUnsupportedUdt_( c, c.info->TypeOf_( prp->a ), why, 0 ) then
+            c.diags->Report( TKO0750, PointRange( c.ast->Loc( tcall ) ), _
+                             c.names->Spelling( pp->name ), why )
+            return
+        end if
+    next
+end sub
+
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
       byval here as TypeId )
@@ -1154,6 +1295,7 @@ private sub WalkExtra_ _
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id )
     if k = N_INTRINSIC then CheckSwapConst_( c, id )
+    if k = N_INTRINSIC then CheckThreadCall_( c, id )
 end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )

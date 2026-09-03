@@ -345,6 +345,9 @@
     DIAG( TKO0747, SEV_ERROR,   "this drops a pointee's 'const'" )
     '' fbc's error 24 for a CONST of a type that cannot be one.
     DIAG( TKO0748, SEV_ERROR,   "a constant cannot have the type of '%0'" )
+    '' fbc's errors 289 and 288, over THREADCALL.
+    DIAG( TKO0749, SEV_ERROR,   "'threadcall' runs a SUB; '%0' is not one" )
+    DIAG( TKO0750, SEV_ERROR,   "'threadcall' cannot run '%0': %1" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

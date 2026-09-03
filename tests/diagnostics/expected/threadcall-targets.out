@@ -1,0 +1,206 @@
+global str $str0 "x"
+func void _ZN9HASMEMBER6MEMBEREv($0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void GOODSUB() {
+  entry0:
+    ret
+}
+func void GOODCDECL() {
+  entry0:
+    ret
+}
+func void GOODSTDCALL() {
+  entry0:
+    ret
+}
+func void GOODPLAINUDT($0) {
+  local agg p size 8
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void GOODBYREF($0) {
+  local ptr p
+  entry0:
+    %1 = alloca ptr p
+    store @p, $0
+    ret
+}
+func void GOODSTRINGPARAM($0) {
+  local ptr sx
+  entry0:
+    %1 = alloca ptr sx
+    store @sx, $0
+    ret
+}
+func i64 ISFUNCTION() {
+  local i64 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = const i64 0
+    ret %3
+}
+func void BADPASCAL() {
+  entry0:
+    ret
+}
+func void BADARRAY($0) {
+  local agg h size 16
+  entry0:
+    %1 = alloca ptr h
+    store @h, $0
+    ret
+}
+func void BADBITFIELD($0) {
+  local agg h size 8
+  entry0:
+    %1 = alloca ptr h
+    store @h, $0
+    ret
+}
+func void BADUNION($0) {
+  local agg u size 8
+  entry0:
+    %1 = alloca ptr u
+    store @u, $0
+    ret
+}
+func void BADANONUNION($0) {
+  local agg h size 16
+  entry0:
+    %1 = alloca ptr h
+    store @h, $0
+    ret
+}
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg p size 8
+  local agg ha size 16
+  local agg hb size 8
+  local agg iu size 8
+  local agg au size 16
+  local agg hm size 8
+  local ptr t1
+  local ptr t2
+  local ptr t3
+  local ptr t4
+  local ptr t5
+  local ptr $tmp12
+  local ptr t5b
+  local agg $tmp14 size 24
+  local ptr $tmp15
+  local ptr t6
+  local ptr t7
+  local ptr t8
+  local ptr t9
+  local ptr t10
+  local ptr t11
+  local ptr t12
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr p
+    %5 = alloca ptr ha
+    %6 = alloca ptr hb
+    %7 = alloca ptr iu
+    %8 = alloca ptr au
+    %9 = alloca ptr hm
+    %10 = alloca ptr t1
+    %11 = func.addr ptr GOODSUB
+    %12 = call.rtl ptr fb_ThreadCall(%11, 0, 0, 0)
+    store @t1, %12
+    %13 = alloca ptr t2
+    %14 = func.addr ptr GOODCDECL
+    %15 = call.rtl ptr fb_ThreadCall(%14, 1, 0, 0)
+    store @t2, %15
+    %16 = alloca ptr t3
+    %17 = func.addr ptr GOODSTDCALL
+    %18 = call.rtl ptr fb_ThreadCall(%17, 0, 0, 0)
+    store @t3, %18
+    %19 = alloca ptr t4
+    %20 = func.addr ptr GOODPLAINUDT
+    %21 = alloca ptr t5
+    %22 = func.addr ptr GOODBYREF
+    %23 = alloca ptr $tmp12
+    store @$tmp12, @p
+    %24 = call.rtl ptr fb_ThreadCall(%22, 0, 0, 1, 13, @$tmp12)
+    store @t5, %24
+    %25 = alloca ptr t5b
+    %26 = func.addr ptr GOODSTRINGPARAM
+    %27 = alloca ptr $tmp14
+    %28 = field.addr @$tmp14, 0
+    store %28, 0
+    %29 = field.addr @$tmp14, 8
+    store %29, 0
+    %30 = field.addr @$tmp14, 16
+    store %30, 0
+    %31 = call.rtl ptr fb_StrAssign(@$tmp14, -1, @@$str0, 2, 0)
+    %32 = alloca ptr $tmp15
+    store @$tmp15, @$tmp14
+    %33 = call.rtl ptr fb_ThreadCall(%26, 0, 0, 1, 13, @$tmp15)
+    call.rtl void fb_StrDelete(@$tmp14)
+    store @t5b, %33
+    %34 = alloca ptr t6
+    %35 = alloca ptr t7
+    %36 = alloca ptr t8
+    %37 = alloca ptr t9
+    %38 = func.addr ptr BADARRAY
+    %39 = alloca ptr t10
+    %40 = func.addr ptr BADBITFIELD
+    %41 = alloca ptr t11
+    %42 = func.addr ptr BADUNION
+    %43 = alloca ptr t12
+    %44 = func.addr ptr BADANONUNION
+    %45 = const i32 0
+    call.rtl void fb_End(%45)
+    %46 = load @$tmp0
+    ret %46
+}
+declare void fb_Init($0, $1, $2)
+declare ptr fb_ThreadCall($0, $1, $2, $3, $4)
+declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 14 functions, 14 blocks, 80 insts, 8 statements not lowered, 0 scope imbalance
+  inside N_VAR 8
+  skip-site src\mir\lower.bas:583 8
+tests/diagnostics/src/threadcall-targets.bas(78,42): error TKO0749: 'threadcall' runs a SUB; 'isfunction' is not one
+     |
+  78 | dim t6 as any ptr = threadcall isFunction( )
+     |                                          ^
+tests/diagnostics/src/threadcall-targets.bas(79,41): error TKO0749: 'threadcall' runs a SUB; 'this member call' is not one
+     |
+  79 | dim t7 as any ptr = threadcall hm.member( )
+     |                                         ^
+tests/diagnostics/src/threadcall-targets.bas(81,41): error TKO0750: 'threadcall' cannot run 'badpascal': the PASCAL calling convention is not supported
+     |
+  81 | dim t8 as any ptr = threadcall badPascal( )
+     |                                         ^
+tests/diagnostics/src/threadcall-targets.bas(82,40): error TKO0750: 'threadcall' cannot run 'badarray': an array field cannot be passed to a thread
+     |
+  82 | dim t9 as any ptr = threadcall badArray( ha )
+     |                                        ^
+tests/diagnostics/src/threadcall-targets.bas(83,44): error TKO0750: 'threadcall' cannot run 'badbitfield': a bitfield cannot be passed to a thread
+     |
+  83 | dim t10 as any ptr = threadcall badBitfield( hb )
+     |                                            ^
+tests/diagnostics/src/threadcall-targets.bas(84,41): error TKO0750: 'threadcall' cannot run 'badunion': a union cannot be passed to a thread
+     |
+  84 | dim t11 as any ptr = threadcall badUnion( iu )
+     |                                         ^
+tests/diagnostics/src/threadcall-targets.bas(85,45): error TKO0750: 'threadcall' cannot run 'badanonunion': a union field cannot be passed to a thread
+     |
+  85 | dim t12 as any ptr = threadcall badAnonUnion( au )
+     |                                             ^
