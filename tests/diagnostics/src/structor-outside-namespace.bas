@@ -4,10 +4,16 @@
 '' constructor -- and a DESTRUCTOR and a PROPERTY measure the same way in isolation, which
 '' is what the three reports below are; fbc stops after the first one for a given type.
 ''
-'' A REDIM OF A MEMBER THE NAMESPACE ALREADY HAS is NOT one of these. 'redim shared
-'' ns.arr( 4 to 5 ) as integer' over the 'dim shared arr( )' inside ns adds no name and fbc
-'' accepts it -- this file's own last line, which an earlier version of this test wrongly
-'' expected to be refused. Only a redim naming a member the namespace does not have is.
+'' A REDIM OF A MEMBER THE NAMESPACE ALREADY HAS is NOT one of these -- but only without
+'' SHARED. Measured in ISOLATION, which matters here:
+''
+''     redim ns.arr( 4 to 5 ) as integer          accepted -- it re-dimensions
+''     redim SHARED ns.arr( 4 to 5 ) as integer   error 158 -- SHARED re-declares
+''
+'' An earlier version of this test read the second line as accepted, because it measured it
+'' INSIDE THIS FILE and fbc had already stopped at the 168 above: **fbc's first error can
+'' mask every later one, so a line measured inside a file that already fails is not
+'' measured at all.** The last line below is the SHARED form and is refused.
 namespace ns
     type Declared
         dummy as integer

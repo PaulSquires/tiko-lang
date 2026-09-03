@@ -1048,4 +1048,5 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckRedimDeclShape_( c )
     CheckAggregateInitFields_( c )
     CheckPointerDepth_( c )
+    CheckOutsideDefinitions_( c )
 end sub

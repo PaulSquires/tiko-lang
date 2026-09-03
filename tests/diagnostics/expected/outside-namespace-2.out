@@ -47,3 +47,7 @@ tests/diagnostics/src/outside-namespace-2.bas(23,7): error TKO0695: 'scalar' is 
      |
   23 | redim scalar
      |       ^
+tests/diagnostics/src/outside-namespace-2.bas(18,12): error TKO0761: 'a.plain' is declared SHARED from outside its namespace
+     |
+  18 | dim shared a.plain as integer
+     |            ^

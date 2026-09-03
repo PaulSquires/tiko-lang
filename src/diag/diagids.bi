@@ -365,6 +365,9 @@
     DIAG( TKO0759, SEV_ERROR,   "'swap' needs two operands of the same kind" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
+    '' fbc's error 158, twice over.
+    DIAG( TKO0761, SEV_ERROR,   "'%0' is declared SHARED from outside its namespace" )
+    DIAG( TKO0762, SEV_ERROR,   "'%0' is already defined from outside" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

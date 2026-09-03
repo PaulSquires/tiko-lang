@@ -150,6 +150,128 @@ private function PointerDepth_ ( byref c as Ctx, byval t as TypeId ) as long
     return n
 end function
 
+'' TWO WAYS TO GET fbc's 158 FROM OUTSIDE, both measured with their accepted twins:
+''
+''     namespace ns { dim shared arr( ) }
+''       redim ns.arr( 4 to 5 ) as integer            accepted
+''       redim SHARED ns.arr( 4 to 5 ) as integer     error 158 -- SHARED re-declares
+''     namespace ns { extern i as integer }
+''       dim ns.i as integer                          accepted -- defines the extern
+''       ...a SECOND 'dim ns.i as integer'            error 158
+''     namespace ns { extern arr( ) as integer }
+''       redim ns.arr( ) as integer  (once)           accepted
+''       ...a SECOND 'redim ns.arr( )'                error 158
+''       redim ns.arr( ) then redim ns.arr( 0 to 2 )  accepted -- the second RE-DIMENSIONS
+''     type U { static i( ) as integer }
+''       redim U.i( ) as integer  (once)              accepted
+''       ...a SECOND one                              error 158
+''
+'' The second half turns on the same distinction TKO0751 needed: EMPTY parens declare and
+'' written BOUNDS re-dimension, so only a bounds-less qualified declaration is a
+'' DEFINITION, and only a second definition of one name is the error.
+'' Is this qualified item a DEFINITION -- a type written and no bounds?
+private function IsOutsideDefinition_ ( byref c as Ctx, byval item as NodeId ) as boolean
+    if c.ast->Kind( item ) <> N_VAR_ITEM then return false
+    if (c.ast->nodes[cast( long, item )].flags and NF_QUALIFIED) = 0 then return false
+    dim as StmtPayload ptr ip = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+    if ip->ownerName = 0 then return false
+    if ip->a = NODE_NONE then return false
+    if ip->c <> NODE_NONE then
+        if c.ast->Kind( ip->c ) = N_BLOCK then
+            if c.ast->lists[cast( long, _
+                c.ast->nodes[cast( long, ip->c )].data )].count > 0 then return false
+        end if
+    end if
+    return true
+end function
+
+'' ONE STATEMENT LIST AT A TIME. Comparing qualified definitions across the WHOLE file
+'' called two independent ones a duplicate: dim/member-var.bas declares a 'type UDT' with
+'' a static member inside SEVERAL test blocks and defines 'UDT.a' in each, and
+'' namespace/outside.bas does the same with 'varB.i2'. Two definitions collide only when
+'' they sit in the SAME list, which is what fbc means by a redefinition here.
+private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
+    if blk = NODE_NONE then return
+    dim as NodeKind bk = c.ast->Kind( blk )
+    if (bk <> N_BLOCK) andalso (bk <> N_MODULE) then return
+    dim as ListPayload ptr bl = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
+    for i as long = 0 to bl->count - 1
+        dim as NodeId st = cast( NodeId, c.ast->children[bl->first + i] )
+        if st = NODE_NONE then continue for
+        dim as NodeKind sk = c.ast->Kind( st )
+        '' Descend into everything that carries a statement list of its own.
+        if sk = N_NAMESPACE then
+            dim as StmtPayload ptr np = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+            CheckOutsideRange_( c, np->b )
+            continue for
+        end if
+        if sk = N_PROC then
+            dim as StmtPayload ptr pp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+            CheckOutsideRange_( c, pp->b )
+            continue for
+        end if
+        if sk = N_SCOPE then
+            dim as StmtPayload ptr cp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+            CheckOutsideRange_( c, cp->b )
+            continue for
+        end if
+        if sk <> N_VAR then continue for
+        dim as StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
+        dim as boolean isShared = _
+            ((c.ast->nodes[cast( long, st )].flags and NF_SHARED) <> 0)
+        for k as long = 0 to sp->count - 1
+            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
+            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+            if (c.ast->nodes[cast( long, item )].flags and NF_QUALIFIED) = 0 then continue for
+            dim as StmtPayload ptr ip = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            if ip->ownerName = 0 then continue for
+            if isShared then
+                if NamespaceScopeOf_( c, ip->ownerName ) <> SCOPE_NONE then
+                    c.diags->Report( TKO0761, PointRange( c.ast->Loc( item ) ), _
+                                     c.names->Spelling( ip->ownerName ) & "." & _
+                                     c.names->Spelling( ip->name ) )
+                    continue for
+                end if
+            end if
+            if IsOutsideDefinition_( c, item ) = false then continue for
+            dim as InternId wo = c.names->Fold( ip->ownerName )
+            dim as InternId wn = c.names->Fold( ip->name )
+            dim as boolean seen = false
+            for m as long = 0 to i - 1
+                dim as NodeId ps = cast( NodeId, c.ast->children[bl->first + m] )
+                if ps = NODE_NONE then continue for
+                if c.ast->Kind( ps ) <> N_VAR then continue for
+                dim as StmtPayload ptr pv = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, ps )].data )]
+                for j as long = 0 to pv->count - 1
+                    dim as NodeId pit = cast( NodeId, c.ast->children[pv->first + j] )
+                    if IsOutsideDefinition_( c, pit ) = false then continue for
+                    dim as StmtPayload ptr pip = _
+                        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pit )].data )]
+                    if c.names->Fold( pip->ownerName ) <> wo then continue for
+                    if c.names->Fold( pip->name ) <> wn then continue for
+                    seen = true
+                next
+            next
+            if seen = false then continue for
+            c.diags->Report( TKO0762, PointRange( c.ast->Loc( item ) ), _
+                             c.names->Spelling( ip->ownerName ) & "." & _
+                             c.names->Spelling( ip->name ) )
+        next
+    next
+end sub
+
+private sub CheckOutsideDefinitions_( byref c as Ctx )
+    CheckOutsideRange_( c, c.root )
+end sub
+
 private sub CheckPointerDepth_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
