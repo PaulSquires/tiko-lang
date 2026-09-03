@@ -1,18 +1,18 @@
-func void _ZN1TC1Ev($0) {
+func void _ZN1TC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1TD1Ev($0) {
+func void _ZN1TD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func ptr G1($0) {
+func ptr G1(ptr $0) {
   local ptr $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -22,7 +22,7 @@ func ptr G1($0) {
     %3 = load @$tmp0
     ret %3
 }
-func ptr G2($0) {
+func ptr G2(ptr $0) {
   local ptr $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -32,7 +32,7 @@ func ptr G2($0) {
     %3 = load @$tmp0
     ret %3
 }
-func ptr G3($0) {
+func ptr G3(ptr $0) {
   local ptr $tmp0
   local agg $tmp1 size 8
   entry0:
@@ -47,7 +47,7 @@ func ptr G3($0) {
     %5 = load @$tmp0
     ret %5
 }
-func ptr G4($0) {
+func ptr G4(ptr $0) {
   local ptr $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -57,7 +57,7 @@ func ptr G4($0) {
     %3 = load @$tmp0
     ret %3
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 8
   local agg $tmp2 size 8
@@ -122,8 +122,8 @@ func i32 main($0, $1) {
     %29 = load @$tmp0
     ret %29
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 7 functions, 7 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance

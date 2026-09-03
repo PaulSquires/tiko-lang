@@ -1,4 +1,4 @@
-func void Q($0) {
+func void Q(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
@@ -14,7 +14,7 @@ func void Q($0) {
     store %7, %9
     ret
 }
-func void BUILD($0) {
+func void BUILD(ptr $0) {
   local ptr rows
   entry0:
     %1 = alloca ptr rows
@@ -38,8 +38,8 @@ func void BUILD($0) {
     %17 = call.rtl i32 fb_ArrayErase(%16)
     ret
 }
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayErase($0)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i32 fb_ArrayErase(ptr $0)
 func void P() {
   local agg v size 16
   local agg $tmp1 size 72

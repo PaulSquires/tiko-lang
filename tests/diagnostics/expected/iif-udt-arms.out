@@ -5,7 +5,7 @@ global ptrs _ZTVN7PARENT_E [ 0, @_ZTSN7PARENT_E ]
 global str $str4 "7DERIVED"
 global ptrs _ZTSN7DERIVEDE [ 0, @$str4, @_ZTSN7PARENT_E ]
 global ptrs _ZTVN7DERIVEDE [ 0, @_ZTSN7DERIVEDE ]
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 cond
   local agg a size 8
@@ -113,11 +113,11 @@ func i32 main($0, $1) {
     %41 = load @$tmp0
     ret %41
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN7PARENT_C1Ev($0)
-declare void _ZN7DERIVEDC1Ev($0)
-declare void fb_End($0)
-func void _ZN7PARENT_C1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN7PARENT_C1Ev(ptr $0)
+declare void _ZN7DERIVEDC1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN7PARENT_C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -125,8 +125,8 @@ func void _ZN7PARENT_C1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
-func void _ZN7DERIVEDC1Ev($0) {
+declare void _ZN10fb_Object$C1Ev(ptr $0)
+func void _ZN7DERIVEDC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN7PARENT_C1Ev(%1)

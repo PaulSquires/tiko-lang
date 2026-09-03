@@ -1,4 +1,4 @@
-func void NARROW($0, $1) {
+func void NARROW(ptr $0, ptr $1) {
   local ptr img
   local ptr pix
   local i32 w
@@ -30,9 +30,9 @@ func void NARROW($0, $1) {
     call.rtl void fb_PrintInt(0, %14, 1)
     ret
 }
-declare i32 fb_GfxImageInfo32()
-declare void fb_PrintInt($0, $1, $2)
-func void WIDE($0, $1) {
+declare i32 fb_GfxImageInfo32(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func void WIDE(ptr $0, ptr $1) {
   local ptr img
   local ptr pix
   local i64 w
@@ -63,8 +63,8 @@ func void WIDE($0, $1) {
     call.rtl void fb_PrintInt(0, %13, 1)
     ret
 }
-declare i32 fb_GfxImageInfo64()
-func i32 main($0, $1) {
+declare i32 fb_GfxImageInfo64(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr img
   local ptr pix
@@ -94,8 +94,8 @@ func i32 main($0, $1) {
     %18 = load @$tmp0
     ret %18
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_GfxScreen($0, $1, $2, $3, $4)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_GfxScreen(i32 $0, i32 $1, i32 $2, i32 $3, i32 $4)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 60 insts, 0 statements not lowered, 0 scope imbalance

@@ -17,14 +17,14 @@ global var agg on_ size 24 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 
 global var agg u2a size 16 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00
 global var agg u1s size 16 = bytes 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 global var agg bd size 8
-func void _ZN10WITHMETHOD1FEv($0) {
+func void _ZN10WITHMETHOD1FEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -37,12 +37,12 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 10 insts, 7 statements not lowered, 0 scope imbalance
   inside N_VAR 7
-  skip-site src\mir\lowerstore.bas:1075 7
+  skip-site src\mir\lowerstore.bas:1097 7
 tests/diagnostics/src/init-too-many.bas(57,31): error TKO0618: too many expressions in the initializer for 'p3'
      |
   57 | dim shared as Pair       p3 = ( 1, 2, 3 )

@@ -3,7 +3,7 @@ global str $str1 "asd"
 global str $str2 "x"
 global str $str3 "123"
 global wstr $wstr4 "123"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 code_
   local agg w size 16
@@ -141,24 +141,24 @@ func i32 main($0, $1) {
     %85 = load @$tmp0
     ret %85
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_WstrChr($0, $1)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare ptr fb_WstrToUStr($0)
-declare ptr fb_UStrConcatAssign($0, $1, $2, $3, $4)
-declare ptr fb_UStrInit($0, $1, $2, $3, $4)
-declare void fb_PrintWstr($0, $1, $2)
-declare void fb_PrintUStr($0, $1, $2)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare ptr fb_CHR($0, $1)
-declare ptr fb_StrConcat($0, $1, $2, $3, $4)
-declare ptr fb_StrToWstr($0)
-declare void fb_WstrDelete($0)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_PrintDouble($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_UStrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrChr(i32 $0, ...)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare ptr fb_WstrToUStr(ptr $0)
+declare ptr fb_UStrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintUStr(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_CHR(i32 $0, ...)
+declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
+declare ptr fb_StrToWstr(ptr $0)
+declare void fb_WstrDelete(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_UStrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 117 insts, 0 statements not lowered, 0 scope imbalance

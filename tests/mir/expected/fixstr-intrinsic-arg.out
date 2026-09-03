@@ -1,5 +1,5 @@
 global str $str0 "abcdef"
-func i32 PW($0) {
+func i32 PW(ptr $0) {
   local i32 $tmp0
   local ptr b
   entry0:
@@ -11,7 +11,7 @@ func i32 PW($0) {
     %4 = const i64 1
     ret %4
 }
-func i32 PZ($0) {
+func i32 PZ(ptr $0) {
   local i32 $tmp0
   local ptr b
   entry0:
@@ -23,7 +23,7 @@ func i32 PZ($0) {
     %4 = const i64 2
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg fs size 10
   local i32 r
@@ -114,23 +114,23 @@ func i32 main($0, $1) {
     %56 = load @$tmp0
     ret %56
 }
-declare void fb_Init($0, $1, $2)
-declare ptr memset($0, $1, $2)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrToWstr($0)
-declare void fb_PrintWstr($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_WstrDelete($0)
-declare ptr fb_StrAllocTempDescF($0, $1)
-declare f64 fb_VAL($0)
-declare void fb_PrintDouble($0, $1, $2)
-declare i32 fb_ASC($0, $1)
-declare void fb_PrintUInt($0, $1, $2)
-declare ptr fb_LEFT($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_TRIM($0)
-declare ptr fb_StrUcase2($0, $1)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrToWstr(ptr $0)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_WstrDelete(ptr $0)
+declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
+declare f64 fb_VAL(ptr $0)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare i32 fb_ASC(ptr $0, i64 $1)
+declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
+declare ptr fb_LEFT(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_TRIM(ptr $0)
+declare ptr fb_StrUcase2(ptr $0, i32 $1)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance

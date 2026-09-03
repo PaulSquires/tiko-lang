@@ -1,4 +1,4 @@
-func void _ZN1T5CLEAREv($0) {
+func void _ZN1T5CLEAREv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -11,8 +11,8 @@ func void _ZN1T5CLEAREv($0) {
     call.rtl void fb_ArrayStrErase(%6)
     ret
 }
-declare i32 fb_ArrayErase($0)
-declare void fb_ArrayStrErase($0)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_ArrayStrErase(ptr $0)
 func void P() {
   local agg a size 72
   local agg s size 72

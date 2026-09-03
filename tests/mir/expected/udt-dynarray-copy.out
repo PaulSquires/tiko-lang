@@ -32,11 +32,11 @@ func void FROMVARIABLE() {
     call void _ZN3BOXD1Ev(@a)
     ret
 }
-declare void _ZN3BOXC1Ev($0)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare void _ZN3BOXC1ERKS_($0, $1)
-declare void fb_PrintDouble($0, $1, $2)
-declare void _ZN3BOXD1Ev($0)
+declare void _ZN3BOXC1Ev(ptr $0)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare void _ZN3BOXC1ERKS_(ptr $0, ptr $1)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void _ZN3BOXD1Ev(ptr $0)
 func agg MAKE() {
   local agg $tmp0 size 72
   local agg r size 72
@@ -82,7 +82,7 @@ func void FROMCALL() {
     call void _ZN3BOXD1Ev(@c)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -97,9 +97,9 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
-func void _ZN3BOXC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN3BOXC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = const ptr 0
@@ -130,7 +130,7 @@ func void _ZN3BOXC1Ev($0) {
     store %18, %17
     ret
 }
-func void _ZN3BOXC1ERKS_($0, $1) {
+func void _ZN3BOXC1ERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 0
     %2 = const ptr 0
@@ -162,15 +162,15 @@ func void _ZN3BOXC1ERKS_($0, $1) {
     call void _ZN3BOXaSERKS_($0, $1)
     ret
 }
-declare void _ZN3BOXaSERKS_($0, $1)
-func void _ZN3BOXD1Ev($0) {
+declare void _ZN3BOXaSERKS_(ptr $0, ptr $1)
+func void _ZN3BOXD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl i32 fb_ArrayErase(%1)
     ret
 }
-declare i32 fb_ArrayErase($0)
-func void _ZN3BOXaSERKS_($0, $1) {
+declare i32 fb_ArrayErase(ptr $0)
+func void _ZN3BOXaSERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
     %2 = field.addr $0, 0
@@ -186,7 +186,7 @@ func void _ZN3BOXaSERKS_($0, $1) {
     %12 = call.rtl ptr memcpy(%7, %9, %11)
     ret
 }
-declare i32 fb_ArrayRedimTo($0, $1, $2, $3, $4)
-declare ptr memcpy($0, $1, $2)
+declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
+declare ptr memcpy(ptr $0, ptr $1, i64 $2)
 verify: ok
 lowered: 8 functions, 8 blocks, 141 insts, 0 statements not lowered, 0 scope imbalance

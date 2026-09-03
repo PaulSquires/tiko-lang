@@ -5,7 +5,7 @@ global str $str3 "FIX "
 global str $str4 "SGN "
 global str $str5 "|"
 global str $str6 "lit run"
-func ptr _ZngR6MYTYPE($0) {
+func ptr _ZngR6MYTYPE(ptr $0) {
   local agg $tmp0 size 24
   local ptr a
   entry0:
@@ -27,11 +27,11 @@ func ptr _ZngR6MYTYPE($0) {
     %12 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %12
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_LongintToStr($0)
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempResult($0)
-func ptr _ZplR6MYTYPES0_($0, $1) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_LongintToStr(i64 $0)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempResult(ptr $0)
+func ptr _ZplR6MYTYPES0_(ptr $0, ptr $1) {
   local agg $tmp0 size 24
   local ptr a
   local ptr b
@@ -61,7 +61,7 @@ func ptr _ZplR6MYTYPES0_($0, $1) {
     %18 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %18
 }
-func ptr _Zv13absR6MYTYPE($0) {
+func ptr _Zv13absR6MYTYPE(ptr $0) {
   local agg $tmp0 size 24
   local ptr a
   entry0:
@@ -83,7 +83,7 @@ func ptr _Zv13absR6MYTYPE($0) {
     %12 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %12
 }
-func i64 _Zv13lenR6MYTYPE($0) {
+func i64 _Zv13lenR6MYTYPE(ptr $0) {
   local i64 $tmp0
   local ptr a
   entry0:
@@ -97,7 +97,7 @@ func i64 _Zv13lenR6MYTYPE($0) {
     %6 = load %5
     ret %6
 }
-func ptr _Zv13fixR6MYTYPE($0) {
+func ptr _Zv13fixR6MYTYPE(ptr $0) {
   local agg $tmp0 size 24
   local ptr a
   entry0:
@@ -119,7 +119,7 @@ func ptr _Zv13fixR6MYTYPE($0) {
     %12 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %12
 }
-func ptr _Zv13sgnR6MYTYPE($0) {
+func ptr _Zv13sgnR6MYTYPE(ptr $0) {
   local agg $tmp0 size 24
   local ptr a
   entry0:
@@ -141,7 +141,7 @@ func ptr _Zv13sgnR6MYTYPE($0) {
     %12 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %12
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 8
   local agg b size 8
@@ -204,11 +204,11 @@ func i32 main($0, $1) {
     %34 = load @$tmp0
     ret %34
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare ptr fb_StrConcat($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 7 functions, 7 blocks, 149 insts, 0 statements not lowered, 0 scope imbalance

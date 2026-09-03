@@ -1,6 +1,6 @@
 global var i64 g
 global str $str1 "text"
-func void _ZN3UDT3AAAEv($0) {
+func void _ZN3UDT3AAAEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -88,7 +88,7 @@ func void bar() {
   entry0:
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -101,12 +101,12 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 11 functions, 14 blocks, 42 insts, 3 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 3
-  skip-site src\mir\lower.bas:638 3
+  skip-site src\mir\lower.bas:637 3
 tests/diagnostics/src/byref-result-and-owner.bas(35,16): error TKO0711: a byref result must be assigned something with an address
      |
   35 |     function = 123

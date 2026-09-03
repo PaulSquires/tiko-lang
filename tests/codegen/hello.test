@@ -1,0 +1,49 @@
+'' THE FIRST PROGRAM THROUGH THE BACKEND: MIR to textual LLVM IR.
+''
+'' Every assertion here is a decision recorded in docs/plan/10 or in llvmemit.bas, and
+'' each one was checked by handing the output to a real clang -- 'clang -Wno-override-
+'' module -c hello.ll' produces an object defining 'main' and leaving the four runtime
+'' symbols undefined. A golden alone cannot say the IR is VALID, only that it has not
+'' changed, so the validity was established separately and is recorded here.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/hello.bas
+'' EXPECT-EXIT: 0
+
+'' The datalayout is clang's own, read out of it rather than transcribed. A datalayout
+'' that disagrees with the one clang -c assumes lays structures out differently on the
+'' two sides of the object file, silently.
+'' EXPECT-OUT: target datalayout = "e-m:w-
+
+'' The UNVERSIONED triple. clang warns about it whether it is written this way or left
+'' out altogether, because what it compares against carries the installed MSVC's
+'' version; the driver passes -Wno-override-module rather than pinning the IR to one
+'' machine. D13: the msvc triple, not the mingw one.
+'' EXPECT-OUT: target triple = "x86_64-pc-windows-msvc"
+
+'' A literal is private and unnamed_addr: it is not a symbol anyone links against, and
+'' two identical literals may share storage -- which MIR has already done by merging
+'' them. The NUL is part of the constant and not part of the length.
+'' EXPECT-OUT: @"$str0" = private unnamed_addr constant [14 x i8] c"Hello, World!\00", align 1
+
+'' Values are NAMED, not numbered. LLVM numbers unnamed values in strict sequence from
+'' the first argument, so a numbered scheme has to count every value-producing
+'' instruction and breaks the moment one stops producing one.
+'' EXPECT-OUT: define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+'' EXPECT-OUT: %s0 = alloca i32, align 4
+
+'' A CONSTANT IS AN OPERAND. M_CONST emits nothing and its uses substitute the literal,
+'' so the zero below is written into the call rather than materialised first.
+'' EXPECT-OUT: call void @"fb_Init"(i32 %p0, ptr %p1, i32 0)
+'' EXPECT-NOT: = const
+
+'' The report goes to stderr under --emit-ir: stdout is a .ll file, and a 'verify: ok'
+'' line in the middle of a module is not a comment.
+'' EXPECT-NOT: verify:
+'' EXPECT-NOT: lowered:
+
+'' A declaration carries its PARAMETER TYPES. It could not before -- MIR recorded an
+'' arity and nothing else -- and 'declare void @"fb_Init"()' is a different function
+'' from the real one.
+'' EXPECT-OUT: declare void @"fb_Init"(i32, ptr, i32)
+'' EXPECT-OUT: declare ptr @"fb_StrAllocTempDescZEx"(ptr, i64)
+'' GOLDEN: expected/hello.out

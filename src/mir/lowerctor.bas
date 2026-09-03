@@ -427,7 +427,12 @@ function LowerCtorInit _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
         decl->isDefinition = false
-        decl->paramCount = argT.Count + 1
+        '' THIS, then the constructor's own arguments in their lowered types -- the
+        '' same types the argument values below are coerced to.
+        decl->AddParam( MT_PTR )
+        for ai as long = 0 to argT.Count - 1
+            decl->AddParam( LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ), argT[ai] )
+        next
         fidx = c.m->functions.Count - 1
     end if
 
@@ -915,7 +920,6 @@ private function EmitStaticDtorThunk_ _
         c.names->GetString( c.names->Spelling( c.m->globals[g].name ) & "$dtor" )
     dim as MirFunction ptr f = c.m->AddFunction( nm, MT_VOID )
     f->isDefinition = true
-    f->paramCount = 0
     dim as long idx = c.m->functions.Count - 1
 
     dim as MirFunction ptr savedF = c.f

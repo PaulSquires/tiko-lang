@@ -1,4 +1,4 @@
-func void _ZN7HASCTORC1Ev($0) {
+func void _ZN7HASCTORC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -45,7 +45,7 @@ func void PLAINUNION() {
     %1 = alloca ptr h
     ret
 }
-func void _ZN13ATMODULELEVEL1FEv($0) {
+func void _ZN13ATMODULELEVEL1FEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this

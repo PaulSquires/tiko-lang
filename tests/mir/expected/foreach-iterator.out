@@ -1,4 +1,4 @@
-func i8 _ZN4ITER7ISVALIDEv($0) {
+func i8 _ZN4ITER7ISVALIDEv(ptr $0) {
   local i8 $tmp0
   local ptr this
   entry0:
@@ -17,7 +17,7 @@ func i8 _ZN4ITER7ISVALIDEv($0) {
     %11 = neg %10
     ret %11
 }
-func i32 _ZN4ITER5VALUEEv($0) {
+func i32 _ZN4ITER5VALUEEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -34,7 +34,7 @@ func i32 _ZN4ITER5VALUEEv($0) {
     %9 = mul %8, %7
     ret %9
 }
-func void _ZN4ITER8MOVENEXTEv($0) {
+func void _ZN4ITER8MOVENEXTEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -48,7 +48,7 @@ func void _ZN4ITER8MOVENEXTEv($0) {
     store %3, %7
     ret
 }
-func agg _ZN4COLL11GETITERATOREv($0) {
+func agg _ZN4COLL11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 8
   local ptr this
   local agg t size 8

@@ -1,5 +1,5 @@
 global str $str0 "scrn:"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 n
   local i64 c
@@ -52,11 +52,11 @@ func i32 main($0, $1) {
     %37 = load @$tmp0
     ret %37
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_Width($0, $1)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare i32 fb_WidthDev($0, $1)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_Width(i32 $0, i32 $1)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare i32 fb_WidthDev(ptr $0, i32 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 45 insts, 0 statements not lowered, 0 scope imbalance

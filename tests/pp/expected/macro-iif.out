@@ -6,7 +6,7 @@ global str $str4 "7 = 7"
 global str $str5 "p3 p4"
 global str $str6 "$"p3 p4" = "p3 p4""
 global str $str7 "4 = 4"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -145,9 +145,9 @@ func i32 main($0, $1) {
   if.else27:
     br if.join25
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_Assert($0, $1, $2, $3)
-declare i32 fb_StrCompare($0, $1, $2, $3)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_Assert(ptr $0, i64 $1, ptr $2, ptr $3)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 28 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance

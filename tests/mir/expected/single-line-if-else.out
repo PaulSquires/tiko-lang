@@ -7,7 +7,7 @@ global str $str5 "else-arm 2"
 global str $str6 "inner-then"
 global str $str7 "inner-else"
 global str $str8 "after"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 e
   local i32 f
@@ -100,9 +100,9 @@ func i32 main($0, $1) {
     call.rtl void fb_PrintString(0, %29, 1)
     br if.join16
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 19 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

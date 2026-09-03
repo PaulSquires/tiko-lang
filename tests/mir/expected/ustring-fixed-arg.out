@@ -1,6 +1,6 @@
 global str $str0 "x"
 global wstr $wstr1 "x"
-func i32 _Z1GRK8FBSTRING($0) {
+func i32 _Z1GRK8FBSTRING(ptr $0) {
   local i32 $tmp0
   local ptr v
   entry0:
@@ -12,7 +12,7 @@ func i32 _Z1GRK8FBSTRING($0) {
     %4 = const i64 1
     ret %4
 }
-func i32 _Z1GRK9FBUSTRING($0) {
+func i32 _Z1GRK9FBUSTRING(ptr $0) {
   local i32 $tmp0
   local ptr v
   entry0:
@@ -24,7 +24,7 @@ func i32 _Z1GRK9FBUSTRING($0) {
     %4 = const i64 2
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg nf size 24
   local agg uf size 48
@@ -66,13 +66,13 @@ func i32 main($0, $1) {
     %25 = load @$tmp0
     ret %25
 }
-declare void fb_Init($0, $1, $2)
-declare ptr memset($0, $1, $2)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_UStrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempDescF($0, $1)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_UStrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_UStrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

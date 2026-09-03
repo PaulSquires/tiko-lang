@@ -1,4 +1,4 @@
-func agg SIDEFX_BYVAL($0) {
+func agg SIDEFX_BYVAL(agg $0) {
   local agg $tmp0 size 8
   local agg a size 8
   entry0:
@@ -10,7 +10,7 @@ func agg SIDEFX_BYVAL($0) {
     %4 = load @$tmp0
     ret %4
 }
-func void F($0, $1) {
+func void F(i64 $0, ...) {
   local i64 n
   local agg args size 8
   local agg $tmp2 size 8
@@ -29,8 +29,8 @@ func void F($0, $1) {
     va.end @args
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-func i32 main($0, $1) {
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -46,7 +46,7 @@ func i32 main($0, $1) {
     %7 = load @$tmp0
     ret %7
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 29 insts, 0 statements not lowered, 0 scope imbalance

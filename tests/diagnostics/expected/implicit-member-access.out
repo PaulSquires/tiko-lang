@@ -1,19 +1,19 @@
 global var i64 _ZN6PARENT6SHUTV$E
-func void _ZN6PARENT5OPENMEv($0) {
+func void _ZN6PARENT5OPENMEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN6PARENT5SHUTMEv($0) {
+func void _ZN6PARENT5SHUTMEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN5CHILD4TESTEv($0) {
+func void _ZN5CHILD4TESTEv(ptr $0) {
   local ptr this
   local i64 a
   local i64 b
@@ -36,7 +36,7 @@ func void _ZN5CHILD4TESTEv($0) {
     call void _ZN6PARENT5SHUTMEv(%9)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -49,8 +49,8 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 27 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/implicit-member-access.bas(35,24): error TKO0625: 'shutc' is not accessible here

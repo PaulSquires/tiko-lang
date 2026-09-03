@@ -1,4 +1,4 @@
-func void _ZN7WITHLETaSEu7INTEGER($0, $1) {
+func void _ZN7WITHLETaSEu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 i
   entry0:
@@ -8,14 +8,14 @@ func void _ZN7WITHLETaSEu7INTEGER($0, $1) {
     store @i, $1
     ret
 }
-func void _ZN8WITHCTORC1Ev($0) {
+func void _ZN8WITHCTORC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN8WITHCTORC1Eu7INTEGER($0, $1) {
+func void _ZN8WITHCTORC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 i
   entry0:
@@ -25,7 +25,7 @@ func void _ZN8WITHCTORC1Eu7INTEGER($0, $1) {
     store @i, $1
     ret
 }
-func i64 _ZN8WITHCASTcvu7INTEGEREv($0) {
+func i64 _ZN8WITHCASTcvu7INTEGEREv(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -37,7 +37,7 @@ func i64 _ZN8WITHCASTcvu7INTEGEREv($0) {
     %4 = const i64 1
     ret %4
 }
-func void _ZN2T1C1Eu7INTEGER($0, $1) {
+func void _ZN2T1C1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 i
   entry0:
@@ -47,63 +47,63 @@ func void _ZN2T1C1Eu7INTEGER($0, $1) {
     store @i, $1
     ret
 }
-func void TAKESDOUBLE($0) {
+func void TAKESDOUBLE(ptr $0) {
   local ptr arr
   entry0:
     %1 = alloca ptr arr
     store @arr, $0
     ret
 }
-func void TAKESINTEGER($0) {
+func void TAKESINTEGER(ptr $0) {
   local ptr arr
   entry0:
     %1 = alloca ptr arr
     store @arr, $0
     ret
 }
-func void _Z3OV1PFvu7INTEGERE($0) {
+func void _Z3OV1PFvu7INTEGERE(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void _Z3OV1PFvKu7INTEGERE($0) {
+func void _Z3OV1PFvKu7INTEGERE(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void _Z3OV2PFvRu7INTEGERE($0) {
+func void _Z3OV2PFvRu7INTEGERE(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void _Z3OV2PFvRKu7INTEGERE($0) {
+func void _Z3OV2PFvRKu7INTEGERE(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void _Z3OV3u7INTEGER($0) {
+func void _Z3OV3u7INTEGER(i64 $0) {
   local i64 a
   entry0:
     %1 = alloca ptr a
     store @a, $0
     ret
 }
-func void _Z3OV3u7INTEGER($0) {
+func void _Z3OV3u7INTEGER(i64 $0) {
   local i64 a
   entry0:
     %1 = alloca ptr a
     store @a, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 8
   local agg b size 8
@@ -423,11 +423,11 @@ func i32 main($0, $1) {
     %189 = load @$tmp0
     ret %189
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_ArrayClearObj($0, $1, $2)
-declare void TAKESANY()
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_ArrayClearObj(ptr $0, ptr $1, ptr $2)
+declare void TAKESANY(void $0)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 14 functions, 14 blocks, 322 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2

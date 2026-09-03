@@ -271,6 +271,16 @@ declare function EmitRtl _
 
     '' lowerstore.bas -- frame slot vs module storage.
     declare function LocalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
+    declare function ProcIsStatic_ _
+        ( byref c as Ctx, byval defn as Tko.NodeId, byval sid as Tko.SymbolId ) as boolean
+    declare function ProcCallConv_ _
+        ( byref c as Ctx, byval pn as Tko.NodeId ) as ubyte
+    declare function ParamMirType _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as MirType
+    '' Fills a function's signature from the procedure it declares -- see lowerproc.bas.
+    declare sub SignatureFromProc _
+        ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
+          byval withSret as boolean, byval withThis as boolean )
     declare function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     declare function IsStaticLocal( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     declare function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long

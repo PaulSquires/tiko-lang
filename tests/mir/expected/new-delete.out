@@ -2,14 +2,14 @@ global var ptr tp
 global var ptr q
 global var i32 g
 global var ptr s
-func void _ZN1CC1Ev($0) {
+func void _ZN1CC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1CC1Ei($0, $1) {
+func void _ZN1CC1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 x
   entry0:
@@ -23,7 +23,7 @@ func void _ZN1CC1Ei($0, $1) {
     store %4, %5
     ret
 }
-func void _ZN1CD1Ev($0) {
+func void _ZN1CD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -110,10 +110,10 @@ func void MAIN_() {
   del.join12:
     ret
 }
-declare ptr calloc($0, $1)
-declare void free($0)
-declare void fb_StrDelete($0)
-func i32 main($0, $1) {
+declare ptr calloc(i64 $0, i64 $1)
+declare void free(ptr $0)
+declare void fb_StrDelete(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -126,7 +126,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 17 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance

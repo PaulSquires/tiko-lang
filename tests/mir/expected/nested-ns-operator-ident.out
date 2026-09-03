@@ -1,4 +1,4 @@
-func i64 _ZN3AAA3BBBplERNS_3UDTES2_($0, $1) {
+func i64 _ZN3AAA3BBBplERNS_3UDTES2_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr l
   local ptr r
@@ -19,7 +19,7 @@ func i64 _ZN3AAA3BBBplERNS_3UDTES2_($0, $1) {
     %11 = add %7, %10
     ret %11
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x size 8
   local agg y size 8
@@ -54,9 +54,9 @@ func i32 main($0, $1) {
     %18 = load @$tmp0
     ret %18
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

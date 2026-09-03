@@ -112,6 +112,34 @@ function Verify _
                     end if
                 end if
 
+                '' Rule 9b: a CALL passes exactly as many arguments as the callee
+                '' declares. docs/plan/09 rule 5. It could not be checked while a
+                '' function recorded only an arity and the arity of a declaration was
+                '' whatever its first call site happened to push -- the two agreed by
+                '' construction and the rule was vacuous. Now the signature comes from
+                '' the DECLARATION and this is a real check.
+                ''
+                '' A VARIADIC callee is checked as a MINIMUM: the tail is what it is.
+                if (op = M_CALL) orelse (op = M_CALL_RTL) then
+                    dim as long ci = cast( long, ins->callee )
+                    if (ci >= 0) andalso (ci < m.functions.Count) then
+                        dim as MirFunction ptr cf = m.functions[ci]
+                        if cf <> 0 then
+                            dim as boolean bad = false
+                            if cf->isVariadic then
+                                bad = (ins->count < cf->paramCount)
+                            else
+                                bad = (ins->count <> cf->paramCount)
+                            end if
+                            if bad then
+                                Fail( r, iw, "calls " & names.Spelling( cf->name ) & _
+                                    " with " & str( ins->count ) & " arguments, " & _
+                                    "which declares " & str( cf->paramCount ) )
+                            end if
+                        end if
+                    end if
+                end if
+
                 '' Rule 10: a STORE's value must have the destination slot's type.
                 ''
                 '' MIR has no implicit conversions, so a mismatch is a WRONG STORE --

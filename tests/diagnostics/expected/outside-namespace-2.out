@@ -3,7 +3,7 @@ func void _ZN1A8DECLAREDEv() {
   entry0:
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 ev
   local i64 scalar
@@ -20,12 +20,12 @@ func i32 main($0, $1) {
     %7 = load @$tmp0
     ret %7
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 10 insts, 2 statements not lowered, 0 scope imbalance
   inside N_VAR 2
-  skip-site src\mir\lower.bas:196 1
+  skip-site src\mir\lower.bas:195 1
   skip-site src\mir\lower.bas:162 1
 tests/diagnostics/src/outside-namespace-2.bas(17,9): error TKO0669: 'a.declared' adds a new name to a namespace from outside it
      |

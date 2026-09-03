@@ -1,6 +1,6 @@
 global str $str0 "abc"
 global wstr $wstr1 "abc"
-func i32 _Z2PRi($0) {
+func i32 _Z2PRi(i32 $0) {
   local i32 $tmp0
   local i32 p
   entry0:
@@ -12,7 +12,7 @@ func i32 _Z2PRi($0) {
     %4 = const i64 1
     ret %4
 }
-func f64 _Z2PRd($0) {
+func f64 _Z2PRd(f64 $0) {
   local f64 $tmp0
   local f64 p
   entry0:
@@ -24,7 +24,7 @@ func f64 _Z2PRd($0) {
     %4 = const i64 2
     ret %4
 }
-func i32 _Z2TXRK8FBSTRING($0) {
+func i32 _Z2TXRK8FBSTRING(ptr $0) {
   local i32 $tmp0
   local ptr p
   entry0:
@@ -36,7 +36,7 @@ func i32 _Z2TXRK8FBSTRING($0) {
     %4 = const i64 10
     ret %4
 }
-func i32 _Z2TXRK9FBUSTRING($0) {
+func i32 _Z2TXRK9FBUSTRING(ptr $0) {
   local i32 $tmp0
   local ptr p
   entry0:
@@ -48,7 +48,7 @@ func i32 _Z2TXRK9FBUSTRING($0) {
     %4 = const i64 11
     ret %4
 }
-func i32 _Z2TXRKw($0) {
+func i32 _Z2TXRKw(ptr $0) {
   local i32 $tmp0
   local ptr p
   entry0:
@@ -60,7 +60,7 @@ func i32 _Z2TXRKw($0) {
     %4 = const i64 12
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -85,10 +85,10 @@ func i32 main($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintDouble($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 6 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance

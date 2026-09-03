@@ -1,5 +1,5 @@
 global var agg garr size 32
-func void _ZN2C1C1ER7FBARRAYIu7INTEGERE($0, $1) {
+func void _ZN2C1C1ER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
   local ptr this
   local ptr a
   entry0:
@@ -21,8 +21,8 @@ func void _ZN2C1C1ER7FBARRAYIu7INTEGERE($0, $1) {
     store %4, %13
     ret
 }
-declare i64 fb_ArrayUBound($0, $1)
-func void TESTER2($0) {
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+func void TESTER2(ptr $0) {
   local ptr x
   entry0:
     %1 = alloca ptr x
@@ -33,8 +33,8 @@ func void TESTER2($0) {
     call.rtl void fb_PrintLongint(0, %4, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-func void TESTER3($0) {
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func void TESTER3(ptr $0) {
   local ptr x
   entry0:
     %1 = alloca ptr x
@@ -45,7 +45,7 @@ func void TESTER3($0) {
     call.rtl void fb_PrintLongint(0, %4, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg b size 8
   local agg $tmp2 size 72
@@ -150,7 +150,7 @@ func i32 main($0, $1) {
     %59 = load @$tmp0
     ret %59
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance

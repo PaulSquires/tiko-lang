@@ -1,4 +1,4 @@
-func agg _Zv25+<23>R7BOX<23>S0_($0, $1) {
+func agg _Zv25+<23>R7BOX<23>S0_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr a
   local ptr b
@@ -20,7 +20,7 @@ func agg _Zv25+<23>R7BOX<23>S0_($0, $1) {
     %10 = load @$tmp0
     ret %10
 }
-func ptr _Zv15*<23>R7BOX<23>($0) {
+func ptr _Zv15*<23>R7BOX<23>(ptr $0) {
   local ptr $tmp0
   local ptr a
   entry0:
@@ -36,7 +36,7 @@ func ptr _Zv15*<23>R7BOX<23>($0) {
     %7 = load @$tmp0
     ret %7
 }
-func ptr _Zv16-><23>R7BOX<23>($0) {
+func ptr _Zv16-><23>R7BOX<23>(ptr $0) {
   local ptr $tmp0
   local ptr a
   entry0:
@@ -52,7 +52,7 @@ func ptr _Zv16-><23>R7BOX<23>($0) {
     %7 = load @$tmp0
     ret %7
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg pay size 8
   local agg x size 8
@@ -112,9 +112,9 @@ func i32 main($0, $1) {
     %37 = load @$tmp0
     ret %37
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

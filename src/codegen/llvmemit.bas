@@ -1,0 +1,1032 @@
+'' llvmemit.bas -- see the header.
+
+#include once "codegen/llvmemit.bi"
+#include once "codegen/llvmtype.bi"
+
+namespace Tko.Codegen
+
+using Tko.Mir
+
+'' The emission state. 'ice' is set once and never cleared: the first failure is the
+'' one worth reporting, and everything after it is downstream of a module that was
+'' already known to be wrong.
+type EmitCtx
+    as MirModule ptr    m
+    as Tko.Interner ptr names
+    as TargetDescription ptr tgt
+    as string           outp
+    as string           ice
+    as MirFunction ptr  f
+    '' A temp that is really a CONSTANT. M_CONST has no LLVM counterpart -- a constant
+    '' in LLVM is an operand, not an instruction -- so the instruction emits nothing
+    '' and its uses substitute the literal. That produces the IR a C frontend would
+    '' write instead of a pile of 'add i64 0, 5'.
+    as FB.Array( of string ) constText
+    as FB.Array( of ubyte )  isConst
+    '' A temp produced by M_ALLOCA names a SLOT. The slot has its own stable name, so
+    '' both spellings of the same address print the same way and the IR does not carry
+    '' two names for one alloca.
+    as FB.Array( of long )   allocaSlot
+    '' THE TYPE EACH TEMP WAS PRODUCED WITH. Needed only for a VARIADIC TAIL, where
+    '' there is no declared parameter to take the type from and the argument pool
+    '' carries a (kind, id) pair and no type at all. Defaulting the tail to i64 is
+    '' right for a character code and for a REDIM bound, and wrong for fb_ThreadCall,
+    '' whose tail is the user's own arguments and may hold a double -- 'i64 %t7' over
+    '' a double is not a coercion, it is IR clang rejects.
+    as FB.Array( of ubyte )  tempTy
+end type
+
+'' Forward, because EmitGlobal dispatches to it and FreeBASIC resolves a private
+'' procedure only after it has been declared.
+declare sub EmitVarGlobal _
+    ( byref e as EmitCtx, byref g as MirGlobal, byref nm as string )
+
+private sub Ice( byref e as EmitCtx, byref why as string )
+    if len( e.ice ) = 0 then e.ice = why
+end sub
+
+'' ---------------------------------------------------------------- names
+''
+'' EVERY EMITTED NAME IS QUOTED. MIR names are frontend names -- '$str0', 'a$3',
+'' '_ZN1T2S1Ev' -- and LLVM's bare identifier syntax accepts only some of them. Quoting
+'' is uniform, does not change the symbol the linker sees, and removes a whole class of
+'' "works until a name has a dollar in it" bug.
+private function GlobalName( byref e as EmitCtx, byval nm as Tko.InternId ) as string
+    return "@""" & e.names->Spelling( nm ) & """"
+end function
+
+'' VALUES ARE NAMED, NOT NUMBERED. LLVM requires UNNAMED values to be numbered in
+'' strict sequence from the function's first argument, so a numbered scheme has to
+'' count parameters, allocas and every instruction that happens to yield a value, and
+'' silently miscompiles the moment one of them stops producing one. Named values have
+'' no such rule, and 'source temp 5' stays '%t5' wherever it lands.
+private function TempName( byval id as ulong ) as string
+    return "%t" & str( id )
+end function
+private function SlotName( byval id as long ) as string
+    return "%s" & str( id )
+end function
+private function ParamName( byval id as ulong ) as string
+    return "%p" & str( id )
+end function
+private function BlockName( byval id as long ) as string
+    return "L" & str( id )
+end function
+
+'' ---------------------------------------------------------------- operands
+private function SlotSizeOf( byref e as EmitCtx, byval slot as long ) as long
+    if e.f = 0 then return 0
+    if (slot < 0) orelse (slot >= e.f->locals.Count) then return 0
+    return e.f->locals[slot].size
+end function
+
+'' The LLVM type of a value, which for an aggregate needs the size of the thing it
+'' came from -- MIR carries that beside the slot and not in the type.
+private function ValType( byref e as EmitCtx, byref v as MirValue ) as string
+    dim as MirType t = cast( MirType, v.ty )
+    '' A TEMP IS TYPED BY WHAT PRODUCED IT, not by what the use site recorded. MirValue
+    '' carries a 'ty' filled in at each use, and where the two disagree LLVM refuses the
+    '' module outright -- "'%t7' defined with type 'i32' but expected 'i64'". There is
+    '' exactly one definition of a temp and it is the authority; a use that wants
+    '' another width has to convert, and if MIR did not emit a conversion then the
+    '' disagreement is a frontend bug that this makes visible rather than papers over.
+    if v.kind = cast( ubyte, MV_TEMP ) then
+        dim as long tid = cast( long, v.id )
+        if (tid >= 0) andalso (tid < e.tempTy.Count) then
+            dim as MirType tt = cast( MirType, e.tempTy[tid] )
+            if tt <> MT_VOID then t = tt
+        end if
+    end if
+    if t <> MT_AGG then return LlvmType( t )
+    if v.kind = cast( ubyte, MV_LOCAL ) then
+        return AggType( SlotSizeOf( e, cast( long, v.id ) ) )
+    end if
+    if v.kind = cast( ubyte, MV_GLOBAL ) then
+        if cast( long, v.id ) < e.m->globals.Count then
+            return AggType( e.m->globals[cast( long, v.id )].size )
+        end if
+    end if
+    '' An aggregate VALUE with no storage behind it to size. The ABI pass is what
+    '' removes these; until it runs, saying so is better than guessing a width.
+    Ice( e, "an aggregate value with no size" )
+    return "void"
+end function
+
+'' AN INTEGER CONSTANT IS NOT A POINTER. MIR carries a null pointer as the number 0 --
+'' at its level a pointer IS an integer -- and LLVM will not take one: 'store ptr 0' is
+'' rejected with "integer constant must have integer type". A zero is 'null'; anything
+'' else is a genuine address literal and needs the conversion spelled out.
+private function IntAsPtr( byval n as longint ) as string
+    if n = 0 then return "null"
+    return "inttoptr (i64 " & str( n ) & " to ptr)"
+end function
+
+private function ValStr( byref e as EmitCtx, byref v as MirValue ) as string
+    select case v.kind
+    case MV_TEMP
+        dim as long id = cast( long, v.id )
+        if (id >= 0) andalso (id < e.isConst.Count) then
+            if e.isConst[id] <> 0 then return e.constText[id]
+            if e.allocaSlot[id] >= 0 then return SlotName( e.allocaSlot[id] )
+        end if
+        return TempName( v.id )
+    '' SIGNED. The id field is 32 bits and the -1 that marks a var-length string
+    '' descriptor must read back as -1 rather than as 4294967295 -- the same trap the
+    '' MIR dump documents.
+    case MV_CONST_INT
+        dim as longint iv = cast( longint, cast( long, v.id ) )
+        if cast( MirType, v.ty ) = MT_PTR then return IntAsPtr( iv )
+        return str( iv )
+    case MV_LOCAL       : return SlotName( cast( long, v.id ) )
+    case MV_PARAM       : return ParamName( v.id )
+    case MV_GLOBAL
+        if cast( long, v.id ) < e.m->globals.Count then
+            return GlobalName( e, e.m->globals[cast( long, v.id )].name )
+        end if
+        Ice( e, "a global operand out of range" )
+        return "undef"
+    case MV_UNDEF       : return "undef"
+    end select
+    Ice( e, "an operand with no kind" )
+    return "undef"
+end function
+
+'' A typed operand, which is how LLVM spells nearly every one of them.
+private function Operand( byref e as EmitCtx, byref v as MirValue ) as string
+    return ValType( e, v ) & " " & ValStr( e, v )
+end function
+
+'' ---------------------------------------------------------------- alignment
+''
+'' STATED AT EVERY MEMORY OPERATION, because the byte-array aggregate type carries an
+'' alignment of 1 and a scalar's type carries the natural one only by convention. An
+'' over-statement is safe and an under-statement is a fault on some paths, so an
+'' aggregate takes the target's maximum rather than a computed field alignment: the
+'' frontend's layout already placed the fields, and this is only about the block.
+private function AlignOf _
+    ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as long ) as long
+
+    select case t
+    case MT_I8  : return 1
+    case MT_I16 : return 2
+    case MT_I32, MT_F32 : return 4
+    case MT_I64, MT_F64 : return 8
+    case MT_PTR : return e.tgt->layout.pointerBits \ 8
+    end select
+    dim as long a = e.tgt->layout.maxAlign
+    if sizeBytes < a then
+        '' A block smaller than the maximum alignment cannot need more than its own
+        '' size, and asking for more of a field inside a larger object is wrong.
+        a = 1
+        while (a * 2) <= sizeBytes
+            a *= 2
+        wend
+    end if
+    if a < 1 then a = 1
+    return a
+end function
+
+
+'' ---------------------------------------------------------------- instructions
+''
+'' One MIR instruction in, one or two LLVM lines out. The second line appears only
+'' where LLVM's shape genuinely differs from MIR's -- a comparison yields i1 and MIR's
+'' yields an integer -- and never to work around something this file could have got
+'' right the first time.
+
+private sub Line( byref e as EmitCtx, byref t as string )
+    e.outp += "  " & t & chr( 10 )
+end sub
+
+'' MIR compares into an INTEGER; LLVM compares into an i1.
+private function CmpPred _
+    ( byval op as MirOp, byref isFloat as boolean ) as string
+
+    isFloat = true
+    select case op
+    '' ORDERED, EXCEPT FOR '<>'. That is C's rule and fbc emits C: 'a == b' is false
+    '' when either operand is NaN, and 'a <> b' is TRUE. Spelling the second one 'one'
+    '' rather than 'une' would make 'x <> x' false for a NaN, which is the one case
+    '' the ordered/unordered distinction exists for.
+    case M_FCMP_EQ : return "oeq"
+    case M_FCMP_NE : return "une"
+    case M_FCMP_LT : return "olt"
+    case M_FCMP_GT : return "ogt"
+    case M_FCMP_LE : return "ole"
+    case M_FCMP_GE : return "oge"
+    end select
+    isFloat = false
+    select case op
+    case M_ICMP_EQ  : return "eq"
+    case M_ICMP_NE  : return "ne"
+    case M_ICMP_SLT : return "slt"
+    case M_ICMP_SGT : return "sgt"
+    case M_ICMP_SLE : return "sle"
+    case M_ICMP_SGE : return "sge"
+    case M_ICMP_ULT : return "ult"
+    case M_ICMP_UGT : return "ugt"
+    end select
+    return ""
+end function
+
+'' The LLVM intrinsic a math opcode becomes, without its type suffix.
+private function MathIntrinsic( byval op as MirOp ) as string
+    select case op
+    case M_FLOOR     : return "llvm.floor"
+    case M_SQRT      : return "llvm.sqrt"
+    case M_SIN       : return "llvm.sin"
+    case M_COS       : return "llvm.cos"
+    case M_LOG       : return "llvm.log"
+    case M_EXP       : return "llvm.exp"
+    case M_FABS      : return "llvm.fabs"
+    case M_NEARBYINT : return "llvm.nearbyint"
+    end select
+    return ""
+end function
+
+'' NO INTRINSIC EXISTS for these four, so they are ordinary libm calls -- which is
+'' what fbc emits for them too, with no builtin prefix at all.
+private function LibmName( byval op as MirOp ) as string
+    select case op
+    case M_TAN  : return "tan"
+    case M_ASIN : return "asin"
+    case M_ACOS : return "acos"
+    case M_ATAN : return "atan"
+    end select
+    return ""
+end function
+
+'' The argument list of a call, read out of the module's argument pool. The pool holds
+'' (kind, id) pairs and NO types, so each argument's type comes from the CALLEE's
+'' signature -- which is exactly why the signature had to exist before this file could.
+private function CallArgs _
+    ( byref e as EmitCtx, byref ins as MirInst, byval callee as MirFunction ptr ) as string
+
+    dim as string r
+    for i as long = 0 to ins.count - 1
+        dim as long k = (ins.first + i) * 2
+        if (k + 1) >= e.m->argPool.Count then
+            Ice( e, "a call argument past the end of the pool" )
+            return r
+        end if
+        dim as MirValue v
+        v.kind = cast( ubyte, e.m->argPool[k] )
+        v.id = e.m->argPool[k + 1]
+        dim as MirType pt = MT_I64
+        if callee <> 0 then
+            if i < callee->paramTys.Count then
+                pt = cast( MirType, callee->paramTys[i] )
+            elseif v.kind = cast( ubyte, MV_TEMP ) then
+                '' PAST THE DECLARED PARAMETERS: a variadic tail. The value's own
+                '' producer is the only thing that knows its type.
+                dim as long tid = cast( long, v.id )
+                if (tid >= 0) andalso (tid < e.tempTy.Count) then
+                    dim as MirType tt = cast( MirType, e.tempTy[tid] )
+                    if tt <> MT_VOID then pt = tt
+                end if
+            end if
+        end if
+        '' A SLOT OR A GLOBAL IS ITS ADDRESS, whatever it holds -- the pool records
+        '' where the argument lives, and for those two that is a pointer.
+        if (v.kind = cast( ubyte, MV_LOCAL )) orelse _
+           (v.kind = cast( ubyte, MV_GLOBAL )) then
+            pt = MT_PTR
+        end if
+        v.ty = cast( ubyte, pt )
+        if len( r ) > 0 then r += ", "
+        r += LlvmType( pt ) & " " & ValStr( e, v )
+    next
+    return r
+end function
+
+private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
+    dim as MirOp op = cast( MirOp, ins.op )
+    dim as MirType rt = cast( MirType, ins.ty )
+    dim as string res = TempName( ins.result )
+    dim as string ty = LlvmType( rt )
+    dim as boolean isFlt = (rt = MT_F32) orelse (rt = MT_F64)
+
+    '' Recorded before the dispatch, so it holds for every opcode that yields a value --
+    '' including the ones that emit nothing and substitute a literal.
+    if OpHasResult( op ) then
+        dim as long rid = cast( long, ins.result )
+        if (rid >= 0) andalso (rid < e.tempTy.Count) then
+            e.tempTy[rid] = cast( ubyte, rt )
+        end if
+    end if
+
+    select case op
+
+    '' A CONSTANT IS AN OPERAND, not an instruction: LLVM has no place to put one on
+    '' its own. Nothing is emitted and the uses substitute the literal, which produces
+    '' the IR a C frontend would write instead of a pile of 'add i64 0, 5'.
+    case M_CONST
+        dim as long id = cast( long, ins.result )
+        if (id >= 0) andalso (id < e.isConst.Count) then
+            e.isConst[id] = 1
+            if isFlt then
+                e.constText[id] = LlvmFloatConst( ins.fimm, (rt = MT_F32) )
+            elseif rt = MT_PTR then
+                '' ...and the same for a constant that is CARRIED as a temp rather than
+                '' written inline. A pointer-typed M_CONST is how a null literal
+                '' reaches here.
+                e.constText[id] = IntAsPtr( ins.imm )
+            else
+                e.constText[id] = str( ins.imm )
+            end if
+        end if
+
+    case M_ALLOCA
+        '' Emitted under the SLOT's name; the instruction's own temp is recorded as
+        '' another spelling of that address rather than given a second name.
+        dim as long slot = cast( long, ins.imm )
+        dim as long rid = cast( long, ins.result )
+        if (rid >= 0) andalso (rid < e.allocaSlot.Count) then
+            e.allocaSlot[rid] = slot
+        end if
+        if (slot < 0) orelse (e.f = 0) then
+            Ice( e, "an alloca with no slot" )
+            return
+        end if
+        if slot >= e.f->locals.Count then
+            Ice( e, "an alloca of a slot that does not exist" )
+            return
+        end if
+        dim as MirType st = cast( MirType, e.f->locals[slot].ty )
+        dim as long sz = e.f->locals[slot].size
+        '' A VOID SLOT has no storage and no type. It is what a declined declaration
+        '' leaves behind; 'alloca void' is not legal IR and would be a worse answer
+        '' than saying so.
+        if st = MT_VOID then
+            Ice( e, "an alloca of a void slot" )
+            return
+        end if
+        Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & _
+                 ", align " & str( AlignOf( e, st, sz ) ) )
+
+    case M_LOAD
+        if rt = MT_VOID then
+            Ice( e, "a load of a void" )
+            return
+        end if
+        dim as long sz = 0
+        if ins.a.kind = cast( ubyte, MV_LOCAL ) then
+            sz = SlotSizeOf( e, cast( long, ins.a.id ) )
+        end if
+        Line( e, res & " = load " & LlvmType( rt, sz ) & ", ptr " & ValStr( e, ins.a ) & _
+                 ", align " & str( AlignOf( e, rt, sz ) ) )
+
+    case M_STORE
+        dim as MirType vt = cast( MirType, ins.b.ty )
+        dim as long sz = 0
+        if ins.a.kind = cast( ubyte, MV_LOCAL ) then
+            sz = SlotSizeOf( e, cast( long, ins.a.id ) )
+        end if
+        Line( e, "store " & LlvmType( vt, sz ) & " " & ValStr( e, ins.b ) & _
+                 ", ptr " & ValStr( e, ins.a ) & _
+                 ", align " & str( AlignOf( e, vt, sz ) ) )
+
+    '' BOTH ADDRESS OPCODES ARE A BYTE GEP. MIR's offsets are already in BYTES -- which
+    '' is the whole reason M_PTR_ADD is not M_ADD -- so the element type is i8 and LLVM
+    '' does no scaling of its own. A typed gep here would scale the offset a second
+    '' time by the element size.
+    case M_FIELD_ADDR
+        Line( e, res & " = getelementptr i8, ptr " & ValStr( e, ins.a ) & _
+                 ", i64 " & str( ins.imm ) )
+    case M_PTR_ADD
+        Line( e, res & " = getelementptr i8, ptr " & ValStr( e, ins.a ) & _
+                 ", " & Operand( e, ins.b ) )
+
+    case M_ADD, M_SUB, M_MUL
+        dim as string o = "add"
+        if op = M_SUB then o = "sub"
+        if op = M_MUL then o = "mul"
+        if isFlt then o = "f" & o
+        Line( e, res & " = " & o & " " & ty & " " & ValStr( e, ins.a ) & _
+                 ", " & ValStr( e, ins.b ) )
+
+    case M_SDIV, M_UDIV, M_FDIV, M_SREM, M_UREM
+        dim as string o = "sdiv"
+        select case op
+        case M_UDIV : o = "udiv"
+        case M_FDIV : o = "fdiv"
+        case M_SREM : o = "srem"
+        case M_UREM : o = "urem"
+        end select
+        Line( e, res & " = " & o & " " & ty & " " & ValStr( e, ins.a ) & _
+                 ", " & ValStr( e, ins.b ) )
+
+    case M_AND, M_OR, M_XOR, M_SHL, M_LSHR, M_ASHR
+        dim as string o = "and"
+        select case op
+        case M_OR   : o = "or"
+        case M_XOR  : o = "xor"
+        case M_SHL  : o = "shl"
+        case M_LSHR : o = "lshr"
+        case M_ASHR : o = "ashr"
+        end select
+        Line( e, res & " = " & o & " " & ty & " " & ValStr( e, ins.a ) & _
+                 ", " & ValStr( e, ins.b ) )
+
+    '' NEGATION IS A SUBTRACTION FROM ZERO on an integer and its own instruction on a
+    '' float, where 'fsub 0.0, x' is NOT the same thing: it gets -0.0 wrong.
+    case M_NEG
+        if isFlt then
+            Line( e, res & " = fneg " & ty & " " & ValStr( e, ins.a ) )
+        else
+            Line( e, res & " = sub " & ty & " 0, " & ValStr( e, ins.a ) )
+        end if
+
+    '' LLVM HAS NO 'not'. It is an exclusive-or with all ones.
+    case M_NOT
+        Line( e, res & " = xor " & ty & " " & ValStr( e, ins.a ) & ", -1" )
+
+    case M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
+         M_ICMP_ULT, M_ICMP_UGT, M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, _
+         M_FCMP_LE, M_FCMP_GE
+        dim as boolean cmpFloat = false
+        dim as string pred = CmpPred( op, cmpFloat )
+        if len( pred ) = 0 then
+            Ice( e, "a comparison with no predicate" )
+            return
+        end if
+        dim as string i1 = res & ".c"
+        dim as string opc = "icmp "
+        if cmpFloat then opc = "fcmp "
+        Line( e, i1 & " = " & opc & pred & " " & Operand( e, ins.a ) & _
+                 ", " & ValStr( e, ins.b ) )
+        '' WIDENED, because MIR's comparison yields an integer and every use expects
+        '' that width. ZERO extension: a MIR comparison is 0 or 1, and FreeBASIC's own
+        '' -1 for true is produced above this by lowering, not here.
+        Line( e, res & " = zext i1 " & i1 & " to " & ty )
+
+    case M_TRUNC, M_SEXT, M_ZEXT, M_FPTRUNC, M_FPEXT, M_FPTOSI, M_FPTOUI, _
+         M_SITOFP, M_UITOFP, M_BITCAST
+        dim as string o = "trunc"
+        select case op
+        case M_SEXT    : o = "sext"
+        case M_ZEXT    : o = "zext"
+        case M_FPTRUNC : o = "fptrunc"
+        case M_FPEXT   : o = "fpext"
+        case M_FPTOSI  : o = "fptosi"
+        case M_FPTOUI  : o = "fptoui"
+        case M_SITOFP  : o = "sitofp"
+        case M_UITOFP  : o = "uitofp"
+        case M_BITCAST : o = "bitcast"
+        end select
+        '' A POINTER IS NOT BITCASTABLE TO AN INTEGER. LLVM has three distinct
+        '' instructions here and 'bitcast' is only the one for two values of the same
+        '' KIND and the same width -- 'bitcast ptr %x to i64' is rejected outright with
+        '' "invalid cast opcode for cast". MIR has one opcode for all three because at
+        '' its level they are the same operation: reinterpret these bits.
+        ''
+        '' This was the single largest reason emitted IR failed to compile.
+        if op = M_BITCAST then
+            dim as MirType st = cast( MirType, ins.a.ty )
+            if (st = MT_PTR) andalso (rt <> MT_PTR) then
+                o = "ptrtoint"
+            elseif (st <> MT_PTR) andalso (rt = MT_PTR) then
+                o = "inttoptr"
+            end if
+        end if
+        '' A CONVERSION BETWEEN TWO IDENTICAL TYPES IS NOT LEGAL LLVM -- 'trunc i64 to
+        '' i64' is rejected outright -- and MIR produces them wherever a coercion was a
+        '' no-op on this target, which is common: INTEGER and LONGINT are one type
+        '' here. The value passes through instead of being converted.
+        dim as string src = ValType( e, ins.a )
+        if src = ty then
+            dim as long rid = cast( long, ins.result )
+            if (rid >= 0) andalso (rid < e.isConst.Count) then
+                e.isConst[rid] = 1
+                e.constText[rid] = ValStr( e, ins.a )
+            end if
+            return
+        end if
+        Line( e, res & " = " & o & " " & src & " " & ValStr( e, ins.a ) & " to " & ty )
+
+    case M_IABS
+        '' llvm.abs takes a second, CONSTANT argument saying whether the minimum signed
+        '' value is poison. It is not: FreeBASIC's abs of the minimum is itself, which
+        '' is what 'false' here means.
+        Line( e, res & " = call " & ty & " @llvm.abs." & ty & "(" & _
+                 Operand( e, ins.a ) & ", i1 false)" )
+
+    case M_FLOOR, M_SQRT, M_SIN, M_COS, M_LOG, M_EXP, M_FABS, M_NEARBYINT
+        Line( e, res & " = call " & ty & " @" & MathIntrinsic( op ) & "." & ty & _
+                 "(" & Operand( e, ins.a ) & ")" )
+
+    case M_TAN, M_ASIN, M_ACOS, M_ATAN
+        dim as string nm = LibmName( op )
+        if rt = MT_F32 then nm += "f"
+        Line( e, res & " = call " & ty & " @""" & nm & """(" & Operand( e, ins.a ) & ")" )
+
+    '' THE ADDRESS OF A FUNCTION IS A CONSTANT, so like M_CONST it emits nothing and
+    '' its uses substitute the name.
+    case M_FUNC_ADDR
+        dim as long ci = cast( long, ins.callee )
+        if (ci < 0) orelse (ci >= e.m->functions.Count) then
+            Ice( e, "the address of a function that does not exist" )
+            return
+        end if
+        dim as long rid = cast( long, ins.result )
+        if (rid >= 0) andalso (rid < e.isConst.Count) then
+            e.isConst[rid] = 1
+            e.constText[rid] = GlobalName( e, e.m->functions[ci]->name )
+        end if
+
+    case M_CALL, M_CALL_RTL, M_CALL_IND
+        dim as MirFunction ptr cf = 0
+        dim as string target_
+        if op = M_CALL_IND then
+            target_ = ValStr( e, ins.a )
+        else
+            dim as long ci = cast( long, ins.callee )
+            if (ci < 0) orelse (ci >= e.m->functions.Count) then
+                Ice( e, "a call to a function that does not exist" )
+                return
+            end if
+            cf = e.m->functions[ci]
+            target_ = GlobalName( e, cf->name )
+        end if
+        dim as string args = CallArgs( e, ins, cf )
+        '' A VARIADIC CALLEE NEEDS ITS FULL SIGNATURE AT THE CALL SITE, not just the
+        '' return type: LLVM has to be told where the fixed parameters stop, and on
+        '' win64 that is what decides whether a float argument is duplicated into a
+        '' general-purpose register as well as an XMM one.
+        dim as string sig = ty
+        if cf <> 0 then
+            if cf->isVariadic then
+                sig = ty & " ("
+                for i as long = 0 to cf->paramTys.Count - 1
+                    if i > 0 then sig += ", "
+                    sig += LlvmType( cast( MirType, cf->paramTys[i] ) )
+                next
+                if cf->paramTys.Count > 0 then sig += ", "
+                sig += "...)"
+            end if
+        end if
+        if rt = MT_VOID then
+            Line( e, "call " & sig & " " & target_ & "(" & args & ")" )
+        else
+            Line( e, res & " = call " & sig & " " & target_ & "(" & args & ")" )
+        end if
+
+    '' llvm.va_start takes ONLY the list pointer. MIR carries the last named parameter
+    '' as a second operand because fbc emits it; LLVM has nowhere to put it, so it is
+    '' dropped HERE rather than in lowering, where it is the only record of which
+    '' signature the cursor walks.
+    case M_VA_START
+        Line( e, "call void @llvm.va_start.p0(ptr " & ValStr( e, ins.a ) & ")" )
+    case M_VA_END
+        Line( e, "call void @llvm.va_end.p0(ptr " & ValStr( e, ins.a ) & ")" )
+    case M_VA_COPY
+        Line( e, "call void @llvm.va_copy.p0(ptr " & ValStr( e, ins.a ) & _
+                 ", ptr " & ValStr( e, ins.b ) & ")" )
+    case M_VA_ARG
+        Line( e, res & " = va_arg ptr " & ValStr( e, ins.a ) & ", " & ty )
+
+    case else
+        Ice( e, "no emission for opcode '" & OpName( op ) & "'" )
+    end select
+end sub
+
+'' ---------------------------------------------------------------- blocks
+''
+'' MIR has no implicit fallthrough and every block carries exactly one terminator, so
+'' this is a transcription rather than a control-flow reconstruction.
+private sub EmitBlock _
+    ( byref e as EmitCtx, byref b as MirBlock, byval bi as long )
+
+    e.outp += BlockName( bi ) & ":" & chr( 10 )
+    for i as long = 0 to b.insts.Count - 1
+        EmitInst( e, b.insts[i] )
+    next
+
+    select case cast( MirTermKind, b.term )
+    case MTERM_RET
+        if b.cond.kind = cast( ubyte, MV_NONE ) then
+            Line( e, "ret void" )
+        else
+            Line( e, "ret " & Operand( e, b.cond ) )
+        end if
+    case MTERM_BR
+        Line( e, "br label %" & BlockName( b.target ) )
+    case MTERM_CONDBR
+        '' NARROWED TO i1. MIR's condition is an integer of whatever width the
+        '' comparison produced, and LLVM's branch takes an i1 and nothing else. The
+        '' test is against ZERO rather than against one, because FreeBASIC's true is
+        '' -1 and any non-zero value is true.
+        dim as string c1 = "%b" & str( bi ) & ".c"
+        Line( e, c1 & " = icmp ne " & Operand( e, b.cond ) & ", 0" )
+        Line( e, "br i1 " & c1 & ", label %" & BlockName( b.target ) & _
+                 ", label %" & BlockName( b.target2 ) )
+    case MTERM_UNREACHABLE
+        Line( e, "unreachable" )
+    case else
+        Ice( e, "a block with no terminator" )
+    end select
+    e.outp += chr( 10 )
+end sub
+
+'' ---------------------------------------------------------------- functions
+private function ParamList _
+    ( byref e as EmitCtx, byval f as MirFunction ptr, byval named as boolean ) as string
+
+    dim as string r
+    for i as long = 0 to f->paramTys.Count - 1
+        if i > 0 then r += ", "
+        r += LlvmType( cast( MirType, f->paramTys[i] ) )
+        if named then r += " " & ParamName( cast( ulong, i ) )
+    next
+    if f->isVariadic then
+        if f->paramTys.Count > 0 then r += ", "
+        r += "..."
+    end if
+    return r
+end function
+
+private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
+    e.f = f
+    dim as string ret = LlvmType( cast( MirType, f->retTy ) )
+    '' AN AGGREGATE RETURN HAS NO SIZE HERE. Returning one by value is what the ABI
+    '' pass removes -- it becomes a hidden pointer -- so reaching this with one means
+    '' the pass has not run, and inventing a width would emit a function whose callers
+    '' disagree with it.
+    if cast( MirType, f->retTy ) = MT_AGG then
+        Ice( e, "a function returning an aggregate by value; the ABI pass has not run" )
+        return
+    end if
+    '' AND NEITHER DOES AN AGGREGATE PARAMETER. Its size lives in the frontend's layout
+    '' store, which this file does not have, and the ABI pass is what removes these --
+    '' every one becomes a pointer or a coerced integer. Emitting '[0 x i8]' instead
+    '' produced a signature whose own body disagreed with it.
+    for i as long = 0 to f->paramTys.Count - 1
+        if cast( MirType, f->paramTys[i] ) = MT_AGG then
+            Ice( e, "an aggregate parameter passed by value; the ABI pass has not run" )
+            return
+        end if
+    next
+
+    if f->isDefinition = false then
+        e.outp += "declare " & ret & " " & GlobalName( e, f->name ) & _
+                  "(" & ParamList( e, f, false ) & ")" & chr( 10 )
+        return
+    end if
+
+    '' 'nounwind' ON EVERYTHING: FreeBASIC does not unwind, and saying so lets LLVM
+    '' drop the landing-pad machinery it would otherwise have to assume.
+    e.outp += "define " & ret & " " & GlobalName( e, f->name ) & _
+              "(" & ParamList( e, f, true ) & ") nounwind {" & chr( 10 )
+
+    '' Per-function value bookkeeping. Sized to nextTemp because that is the highest
+    '' temp the function can name.
+    e.constText.Clear( )
+    e.isConst.Clear( )
+    e.allocaSlot.Clear( )
+    e.tempTy.Clear( )
+    for i as long = 0 to f->nextTemp
+        e.constText.Push( "" )
+        e.isConst.Push( 0 )
+        e.allocaSlot.Push( -1 )
+        e.tempTy.Push( cast( ubyte, MT_VOID ) )
+    next
+
+    for bi as long = 0 to f->blocks.Count - 1
+        EmitBlock( e, f->blocks[bi], bi )
+    next
+    e.outp += "}" & chr( 10 ) & chr( 10 )
+    e.f = 0
+end sub
+
+'' ---------------------------------------------------------------- globals
+''
+'' EVERY BYTE IS ESCAPED THAT IS NOT PLAINLY PRINTABLE. LLVM's c"..." accepts raw bytes
+'' and a backslash-hex escape, and the set that MUST be escaped is smaller than the set
+'' that SHOULD be: a literal newline inside a constant is legal and unreadable, and a
+'' stray quote or backslash ends or corrupts the string. Escaping conservatively costs
+'' nothing and removes the whole question.
+private function CString( byref b as string ) as string
+    dim as string r = "c"""
+    for i as long = 0 to len( b ) - 1
+        dim as long ch = b[i]
+        dim as boolean plain = (ch >= 32) andalso (ch <= 126)
+        if (ch = 34) orelse (ch = 92) then plain = false
+        if plain then
+            r += chr( ch )
+        else
+            r += "\" & hex( ch, 2 )
+        end if
+    next
+    return r & """"
+end function
+
+'' A wide literal's code units, as an array of the target's wchar. THE WIDTH IS THE
+'' TARGET'S -- 2 bytes on Windows, 4 on Linux -- which is why MIR keeps the units and
+'' not the bytes: baking a width in would have made the IR target-specific.
+private function WideArray _
+    ( byref e as EmitCtx, byref g as MirGlobal ) as string
+
+    dim as long w = e.tgt->layout.wcharBytes
+    dim as string ety = "i16"
+    if w = 4 then ety = "i32"
+    dim as long n = g.wcharCount + 1        '' the terminating NUL
+    dim as string r = "[" & str( n ) & " x " & ety & "] ["
+    for i as long = 0 to g.wcharCount - 1
+        if i > 0 then r += ", "
+        r += ety & " " & str( e.m->wcharPool[g.wcharFirst + i] )
+    next
+    if g.wcharCount > 0 then r += ", "
+    r += ety & " 0]"
+    return r
+end function
+
+private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
+    dim as string nm = GlobalName( e, g.name )
+
+    '' DECLARED HERE, DEFINED ELSEWHERE -- 'object's RTTI record lives in the runtime.
+    '' Without 'external' an empty table would read as a real one with no entries.
+    if g.isExternal then
+        e.outp += nm & " = external global ptr" & chr( 10 )
+        return
+    end if
+
+    '' 'private' because a literal is not a symbol anyone links against, and
+    '' 'unnamed_addr' because two identical literals may share storage -- which is
+    '' what MIR has already done by merging them.
+    if g.isString then
+        dim as long n = len( g.bytes ) + 1
+        e.outp += nm & " = private unnamed_addr constant [" & str( n ) & " x i8] " & _
+                  CString( g.bytes & chr( 0 ) ) & ", align 1" & chr( 10 )
+        return
+    end if
+
+    if g.isWide then
+        e.outp += nm & " = private unnamed_addr constant " & WideArray( e, g ) & _
+                  ", align " & str( e.tgt->layout.wcharBytes ) & chr( 10 )
+        return
+    end if
+
+    '' A VTABLE OR AN RTTI RECORD: a run of pointer-sized words, each a null, another
+    '' global's address, or a FUNCTION's address BY NAME -- by name because the
+    '' function may be defined in another module and have no index here.
+    if g.isPtrTable then
+        dim as string body
+        for i as long = 0 to g.ptrCount - 1
+            if i > 0 then body += ", "
+            dim as long k = e.m->ptrKinds[g.ptrFirst + i]
+            dim as ulong ref = e.m->ptrRefs[g.ptrFirst + i]
+            select case k
+            case 0
+                body += "ptr null"
+            case 1
+                if cast( long, ref ) >= e.m->globals.Count then
+                    Ice( e, "a pointer table entry naming a global that does not exist" )
+                    return
+                end if
+                body += "ptr " & GlobalName( e, e.m->globals[cast( long, ref )].name )
+            case 2
+                body += "ptr @""" & e.names->Spelling( cast( Tko.InternId, ref ) ) & """"
+            case else
+                Ice( e, "a pointer table entry of an unknown kind" )
+                return
+            end select
+        next
+        e.outp += nm & " = global [" & str( g.ptrCount ) & " x ptr] [" & body & _
+                  "], align " & str( e.tgt->layout.pointerBits \ 8 ) & chr( 10 )
+        return
+    end if
+
+    '' A DATA BLOCK is a packed array of { int16 TYPE; ptr NODE }. PACKED, because the
+    '' pair is 2 + 8 bytes with no padding between entries -- an unpacked struct would
+    '' align each one to 8 and the runtime walks the block by stride.
+    if g.isData then
+        dim as string body
+        for i as long = 0 to g.dataCount - 1
+            if i > 0 then body += ", "
+            dim as long dt = e.m->dataTypes[g.dataFirst + i]
+            dim as long dr = e.m->dataRefs[g.dataFirst + i]
+            dim as string p = "ptr null"
+            if dr >= 0 then
+                if dr >= e.m->globals.Count then
+                    Ice( e, "a data entry naming a global that does not exist" )
+                    return
+                end if
+                p = "ptr " & GlobalName( e, e.m->globals[dr].name )
+            end if
+            body += "<{ i16, ptr }> <{ i16 " & str( dt ) & ", " & p & " }>"
+        next
+        e.outp += nm & " = global [" & str( g.dataCount ) & " x <{ i16, ptr }>] [" & _
+                  body & "], align 8" & chr( 10 )
+        return
+    end if
+
+    if g.isVar = false then
+        Ice( e, "a global that is neither storage nor a literal" )
+        return
+    end if
+    EmitVarGlobal( e, g, nm )
+end sub
+
+'' A DIM SHARED VARIABLE. The initialiser is part of the DEFINITION and not a store
+'' executed in main -- 'static int32 H$ = 5;' is what fbc writes -- so it appears here
+'' or nowhere.
+sub EmitVarGlobal _
+    ( byref e as EmitCtx, byref g as MirGlobal, byref nm as string )
+
+    dim as MirType vt = cast( MirType, g.ty )
+    dim as string ty = LlvmType( vt, g.size )
+    dim as string init_ = "zeroinitializer"
+
+    if vt <> MT_AGG then
+        if g.hasInit then
+            select case vt
+            case MT_F32 : init_ = LlvmFloatConst( g.initFlt, true )
+            case MT_F64 : init_ = LlvmFloatConst( g.initFlt, false )
+            case else   : init_ = str( g.initInt )
+            end select
+        else
+            init_ = "0"
+            if vt = MT_PTR then init_ = "null"
+            if (vt = MT_F32) orelse (vt = MT_F64) then init_ = "0.0"
+        end if
+        '' An UNINITIALISED pointer global is still 'null' rather than '0': LLVM will
+        '' not take an integer for a pointer initialiser.
+        if (vt = MT_PTR) andalso g.hasInit then
+            if g.initInt = 0 then init_ = "null"
+        end if
+    elseif len( g.initBytes ) > 0 then
+        '' AN AGGREGATE'S INITIAL VALUE IS THE BYTE IMAGE OF ITS STORAGE, which is what
+        '' a field-by-field initialiser with its offsets already is. It is exactly
+        '' 'size' bytes and gets no terminator: this is an object, not a literal.
+        dim as string img = g.initBytes
+        if len( img ) > g.size then img = left( img, g.size )
+        while len( img ) < g.size
+            img += chr( 0 )
+        wend
+        init_ = CString( img )
+    end if
+
+    '' AN ADDRESS AS AN INITIAL VALUE IS A RELOCATION, not a number: 'static px as UDT
+    '' ptr = @x' is neither of the two branches above -- one holds a constant and the
+    '' other a byte image, and the address of another global is neither.
+    if g.initReloc >= 0 then
+        if g.initReloc >= e.m->globals.Count then
+            Ice( e, "a relocation naming a global that does not exist" )
+            return
+        end if
+        dim as string baseSym = GlobalName( e, e.m->globals[g.initReloc].name )
+        if g.initRelocOff <> 0 then
+            init_ = "getelementptr (i8, ptr " & baseSym & ", i64 " & _
+                    str( g.initRelocOff ) & ")"
+        else
+            init_ = baseSym
+        end if
+    elseif g.initRelocFn <> 0 then
+        init_ = "@""" & e.names->Spelling( g.initRelocFn ) & """"
+    end if
+
+    e.outp += nm & " = global " & ty & " " & init_ & _
+              ", align " & str( AlignOf( e, vt, g.size ) ) & chr( 10 )
+end sub
+
+'' ---------------------------------------------------------------- the module
+''
+'' AN INTRINSIC MUST BE DECLARED before it is called, and which ones are needed is only
+'' known once every function has been emitted. So the body is built first and the
+'' declarations are prepended -- which is also why the emitter builds one string and
+'' writes it once rather than streaming to a file.
+private function IntrinsicDecls( byref body as string ) as string
+    dim as string r
+    '' The full set this emitter can produce, each declared only if it appears. A
+    '' declaration that is never called is harmless but noisy, and noise in emitted IR
+    '' is what makes a real difference hard to see in a golden diff.
+    dim as string names_( ... ) = { _
+        "llvm.floor.float", "llvm.floor.double", _
+        "llvm.sqrt.float", "llvm.sqrt.double", _
+        "llvm.sin.float", "llvm.sin.double", _
+        "llvm.cos.float", "llvm.cos.double", _
+        "llvm.log.float", "llvm.log.double", _
+        "llvm.exp.float", "llvm.exp.double", _
+        "llvm.fabs.float", "llvm.fabs.double", _
+        "llvm.nearbyint.float", "llvm.nearbyint.double" }
+    for i as long = lbound( names_ ) to ubound( names_ )
+        dim as string n = names_( i )
+        if instr( body, "@" & n & "(" ) = 0 then continue for
+        dim as string t = "double"
+        if right( n, 6 ) = ".float" then t = "float"
+        r += "declare " & t & " @" & n & "(" & t & ") nounwind" & chr( 10 )
+    next
+
+    dim as string ints( ... ) = { "i8", "i16", "i32", "i64" }
+    for i as long = lbound( ints ) to ubound( ints )
+        dim as string t = ints( i )
+        if instr( body, "@llvm.abs." & t & "(" ) = 0 then continue for
+        r += "declare " & t & " @llvm.abs." & t & "(" & t & ", i1) nounwind" & chr( 10 )
+    next
+
+    dim as string vas( ... ) = { "va_start", "va_end" }
+    for i as long = lbound( vas ) to ubound( vas )
+        if instr( body, "@llvm." & vas( i ) & ".p0(" ) = 0 then continue for
+        r += "declare void @llvm." & vas( i ) & ".p0(ptr) nounwind" & chr( 10 )
+    next
+    if instr( body, "@llvm.va_copy.p0(" ) > 0 then
+        r += "declare void @llvm.va_copy.p0(ptr, ptr) nounwind" & chr( 10 )
+    end if
+
+    '' The four libm functions with no intrinsic. Declared with their real signatures
+    '' so that LLVM does not invent one from the call.
+    dim as string libm( ... ) = { "tan", "asin", "acos", "atan" }
+    for i as long = lbound( libm ) to ubound( libm )
+        dim as string n = libm( i )
+        if instr( body, "@""" & n & """(" ) > 0 then
+            r += "declare double @""" & n & """(double) nounwind" & chr( 10 )
+        end if
+        if instr( body, "@""" & n & "f""(" ) > 0 then
+            r += "declare float @""" & n & "f""(float) nounwind" & chr( 10 )
+        end if
+    next
+    return r
+end function
+
+function EmitLlvm _
+    ( byref m as MirModule, byref names as Tko.Interner, _
+      byref target as TargetDescription ) as EmitResult
+
+    dim as EmitResult res
+    dim as EmitCtx e
+    e.m = @m
+    e.names = @names
+    e.tgt = @target
+
+    for gi as long = 0 to m.globals.Count - 1
+        EmitGlobal( e, m.globals[gi] )
+    next
+    if m.globals.Count > 0 then e.outp += chr( 10 )
+
+    '' DEFINITIONS FIRST, then declarations, which is only a readability choice -- LLVM
+    '' does not care -- but it keeps a golden diff of the code away from the churn of
+    '' an added runtime declaration.
+    for fi as long = 0 to m.functions.Count - 1
+        dim as MirFunction ptr f = m.functions[fi]
+        if f = 0 then continue for
+        if f->isDefinition then EmitFunction( e, f )
+    next
+    '' A DECLARATION OF SOMETHING THIS MODULE ALSO DEFINES IS SKIPPED. Two MirFunction
+    '' entries can carry one name: a call lowered before the definition was reached
+    '' creates a declaration, and the definition arrives later as its own entry. MIR
+    '' does not mind -- the call names an index, not a name -- but LLVM does, and
+    '' emitting both is "invalid redefinition of function". The declaration is the
+    '' redundant one: everything it could say, the definition says.
+    for fi as long = 0 to m.functions.Count - 1
+        dim as MirFunction ptr f = m.functions[fi]
+        if f = 0 then continue for
+        if f->isDefinition then continue for
+        dim as boolean alsoDefined = false
+        for gi as long = 0 to m.functions.Count - 1
+            dim as MirFunction ptr g = m.functions[gi]
+            if g = 0 then continue for
+            if g->isDefinition = false then continue for
+            if g->name = f->name then
+                alsoDefined = true
+                exit for
+            end if
+        next
+        if alsoDefined then continue for
+        EmitFunction( e, f )
+    next
+
+    '' MODULE-LIFETIME CONSTRUCTORS. gcc spells this an attribute and LLVM spells it a
+    '' list; the priority 65535 is the default one, and the third field -- the data a
+    '' constructor is associated with -- is null because these belong to the module
+    '' rather than to any one object.
+    dim as string ctors
+    dim as long nctor = 0
+    for fi as long = 0 to m.functions.Count - 1
+        dim as MirFunction ptr f = m.functions[fi]
+        if f = 0 then continue for
+        if f->isModuleCtor = false then continue for
+        if nctor > 0 then ctors += ", "
+        ctors += "{ i32, ptr, ptr } { i32 65535, ptr " & GlobalName( e, f->name ) & _
+                 ", ptr null }"
+        nctor += 1
+    next
+    if nctor > 0 then
+        e.outp += "@llvm.global_ctors = appending global [" & str( nctor ) & _
+                  " x { i32, ptr, ptr }] [" & ctors & "]" & chr( 10 )
+    end if
+
+    if len( e.ice ) > 0 then
+        res.ok = false
+        res.ice = e.ice
+        return res
+    end if
+
+    dim as string hdr = _
+        "target datalayout = """ & target.dataLayout & """" & chr( 10 ) & _
+        "target triple = """ & target.triple & """" & chr( 10 ) & chr( 10 )
+    res.ok = true
+    res.text = hdr & IntrinsicDecls( e.outp ) & chr( 10 ) & e.outp
+    return res
+end function
+
+end namespace

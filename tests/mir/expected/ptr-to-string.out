@@ -1,4 +1,4 @@
-func i32 PW($0) {
+func i32 PW(ptr $0) {
   local i32 $tmp0
   local ptr b
   entry0:
@@ -10,7 +10,7 @@ func i32 PW($0) {
     %4 = const i64 1
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr wsp
   local ptr ap
@@ -54,12 +54,12 @@ func i32 main($0, $1) {
     %26 = load @$tmp0
     ret %26
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_ULongintToStr($0)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_ULongintToWstr($0)
-declare void fb_PrintWstr($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_ULongintToStr(i64 $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_ULongintToWstr(i64 $0)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

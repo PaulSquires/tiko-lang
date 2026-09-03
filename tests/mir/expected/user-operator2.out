@@ -1,4 +1,4 @@
-func agg _ZN2NSmiERNS_1DES1_($0, $1) {
+func agg _ZN2NSmiERNS_1DES1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr a
   local ptr b
@@ -15,7 +15,7 @@ func agg _ZN2NSmiERNS_1DES1_($0, $1) {
     %6 = load @$tmp0
     ret %6
 }
-func agg _ZN2NSdvERNS_1DES1_($0, $1) {
+func agg _ZN2NSdvERNS_1DES1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr a
   local ptr b
@@ -32,7 +32,7 @@ func agg _ZN2NSdvERNS_1DES1_($0, $1) {
     %6 = load @$tmp0
     ret %6
 }
-func agg _ZN2NSngERNS_1DE($0) {
+func agg _ZN2NSngERNS_1DE(ptr $0) {
   local agg $tmp0 size 4
   local ptr a
   local agg r size 4
@@ -72,7 +72,7 @@ func void G() {
     store @q, %11
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -85,7 +85,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance

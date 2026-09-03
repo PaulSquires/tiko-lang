@@ -5,7 +5,7 @@ global var agg u size 16 = bytes 61 00 62 00 63 00 00 00 00 00 00 00 00 00 00 00
 global var agg z2 size 4 = bytes 61 62 63 00
 global var agg s2 size 4 = bytes 61 62 63 64
 global var agg w2 size 8 = bytes 61 00 62 00 63 00 00 00
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -23,10 +23,10 @@ func i32 main($0, $1) {
     %8 = load @$tmp0
     ret %8
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAllocTempDescZ($0)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_StrAllocTempDescF($0, $1)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 13 insts, 0 statements not lowered, 0 scope imbalance

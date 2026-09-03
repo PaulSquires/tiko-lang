@@ -1,6 +1,6 @@
 global str $str0 "b"
 global str $str1 "bbb"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr p
   local i32 x
@@ -78,14 +78,14 @@ func i32 main($0, $1) {
     %40 = load @$tmp0
     ret %40
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_PrintDouble($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance

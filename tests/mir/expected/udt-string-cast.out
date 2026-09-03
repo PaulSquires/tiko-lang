@@ -7,14 +7,14 @@ global str $str5 "z2"
 global wstr $wstr6 "abc"
 global str $str7 "w"
 global str $str8 "w2"
-func void _ZN1UC1Ev($0) {
+func void _ZN1UC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1UC1EPKc($0, $1) {
+func void _ZN1UC1EPKc(ptr $0, ptr $1) {
   local ptr this
   local ptr rhs
   entry0:
@@ -24,7 +24,7 @@ func void _ZN1UC1EPKc($0, $1) {
     store @rhs, $1
     ret
 }
-func ptr _ZN1UcvcEv($0) {
+func ptr _ZN1UcvcEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -39,7 +39,7 @@ func ptr _ZN1UcvcEv($0) {
     %6 = load @$tmp0
     ret %6
 }
-func ptr _ZN1WcvwEv($0) {
+func ptr _ZN1WcvwEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -153,19 +153,19 @@ func void G() {
     call.rtl void fb_StrDelete(@s)
     ret
 }
-declare ptr fb_StrAllocTempDescZ($0)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_PrintWstr($0, $1, $2)
-declare ptr fb_IntToStr($0)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-declare ptr fb_WstrConcatWA($0, $1, $2)
-declare ptr fb_WstrConcat($0, $1)
-declare void fb_WstrDelete($0)
-declare ptr fb_StrMid($0, $1, $2)
-declare ptr fb_WstrAssignFromA($0, $1, $2, $3)
-declare ptr fb_StrToWstr($0)
-declare i32 fb_WstrCompare($0, $1)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare ptr fb_IntToStr(i32 $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
+declare ptr fb_WstrConcat(ptr $0, ptr $1)
+declare void fb_WstrDelete(ptr $0)
+declare ptr fb_StrMid(ptr $0, i64 $1, i64 $2)
+declare ptr fb_WstrAssignFromA(ptr $0, i64 $1, ptr $2, i64 $3)
+declare ptr fb_StrToWstr(ptr $0)
+declare i32 fb_WstrCompare(ptr $0, ptr $1)
 func void COMPAREAGAINSTFIXED() {
   local agg sz size 50
   local agg uz size 32
@@ -225,8 +225,8 @@ func void COMPAREAGAINSTFIXED() {
   if.else12:
     br if.join10
 }
-declare i32 fb_StrCompare($0, $1, $2, $3)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare ptr fb_WstrAssign($0, $1, $2)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 verify: ok
 lowered: 6 functions, 18 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance

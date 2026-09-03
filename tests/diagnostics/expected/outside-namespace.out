@@ -6,7 +6,7 @@ func void _ZN6EMPTY_8NOTTHEREEv() {
   entry0:
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 ev
   entry0:
@@ -21,12 +21,12 @@ func i32 main($0, $1) {
     %6 = load @$tmp0
     ret %6
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 9 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
-  skip-site src\mir\lower.bas:196 1
+  skip-site src\mir\lower.bas:195 1
 tests/diagnostics/src/outside-namespace.bas(18,1): error TKO0669: 'empty_.notthere' adds a new name to a namespace from outside it
      |
   18 | sub empty_.notThere( )

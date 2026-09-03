@@ -4,7 +4,7 @@ global str $str2 "abc"
 global var i64 ga
 global var i64 gb
 global var i64 gc
-func void _ZN3UDTC1Eu7INTEGER($0, $1) {
+func void _ZN3UDTC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 i
   entry0:
@@ -14,7 +14,7 @@ func void _ZN3UDTC1Eu7INTEGER($0, $1) {
     store @i, $1
     ret
 }
-func void _ZN9DEFAULTEDC1Eu7INTEGER($0, $1) {
+func void _ZN9DEFAULTEDC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 i
   entry0:
@@ -28,7 +28,7 @@ func void F1() {
   entry0:
     ret
 }
-func void F2($0) {
+func void F2(i64 $0) {
   entry0:
     ret
 }
@@ -71,7 +71,7 @@ func ptr F5() {
     %8 = load @$tmp0
     ret %8
 }
-func ptr F7($0) {
+func ptr F7(i64 $0) {
   local ptr $tmp0
   local i64 i
   entry0:
@@ -84,7 +84,7 @@ func ptr F7($0) {
     %4 = load @$tmp0
     ret %4
 }
-func ptr F8($0) {
+func ptr F8(ptr $0) {
   local ptr $tmp0
   local ptr i
   entry0:
@@ -127,7 +127,7 @@ func ptr F11() {
     %3 = load @$tmp0
     ret %3
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -140,12 +140,12 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 13 functions, 15 blocks, 65 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lower.bas:638 1
+  skip-site src\mir\lower.bas:637 1
 tests/diagnostics/src/proc-definition-shapes.bas(21,1): error TKO0732: 'f1' returns 'any', which is not a value
      |
   21 | function f1( ) as any

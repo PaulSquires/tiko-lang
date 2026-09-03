@@ -1,5 +1,5 @@
 global var i32 cmps
-func i64 _ZeqR7WATCHEDS0_($0, $1) {
+func i64 _ZeqR7WATCHEDS0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr a
   local ptr b
@@ -26,7 +26,7 @@ func i64 _ZeqR7WATCHEDS0_($0, $1) {
     %16 = neg %15
     ret %16
 }
-func i64 _ZneR7WATCHEDS0_($0, $1) {
+func i64 _ZneR7WATCHEDS0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr a
   local ptr b
@@ -53,7 +53,7 @@ func i64 _ZneR7WATCHEDS0_($0, $1) {
     %16 = neg %15
     ret %16
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 8
   local agg b size 8
@@ -244,8 +244,8 @@ func i32 main($0, $1) {
     %95 = load @$tmp12
     condbr %95, if.then14, if.else15
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 21 blocks, 178 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,4 +1,4 @@
-func i64 _Zv24+<8>R9HOLDER<8>S0_($0, $1) {
+func i64 _Zv24+<8>R9HOLDER<8>S0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr a
   local ptr b
@@ -13,7 +13,7 @@ func i64 _Zv24+<8>R9HOLDER<8>S0_($0, $1) {
     %5 = const i64 100
     ret %5
 }
-func i64 _Zv24+<8>R8OTHER<8>S0_($0, $1) {
+func i64 _Zv24+<8>R8OTHER<8>S0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr a
   local ptr b
@@ -28,7 +28,7 @@ func i64 _Zv24+<8>R8OTHER<8>S0_($0, $1) {
     %5 = const i64 200
     ret %5
 }
-func i64 _Zv24=<8>R6BOX<8>S0_($0, $1) {
+func i64 _Zv24=<8>R6BOX<8>S0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr x
   local ptr y
@@ -50,7 +50,7 @@ func i64 _Zv24=<8>R6BOX<8>S0_($0, $1) {
     %12 = neg %11
     ret %12
 }
-func i64 _Zv25<><8>R6BOX<8>S0_($0, $1) {
+func i64 _Zv25<><8>R6BOX<8>S0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr x
   local ptr y
@@ -72,7 +72,7 @@ func i64 _Zv25<><8>R6BOX<8>S0_($0, $1) {
     %12 = neg %11
     ret %12
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg h1 size 8
   local agg h2 size 8
@@ -111,8 +111,8 @@ func i32 main($0, $1) {
     %19 = load @$tmp0
     ret %19
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance

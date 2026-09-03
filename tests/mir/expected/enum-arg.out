@@ -1,4 +1,4 @@
-func void _ZN1N1CC1Ev($0) {
+func void _ZN1N1CC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -10,7 +10,7 @@ func void _ZN1N1CC1Ev($0) {
     store %3, %5
     ret
 }
-func agg _ZN1N2MKEh($0) {
+func agg _ZN1N2MKEh(i8 $0) {
   local agg $tmp0 size 4
   local i8 idx
   local agg c size 4

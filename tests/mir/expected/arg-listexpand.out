@@ -1,4 +1,4 @@
-func void F($0, $1, $2) {
+func void F(i32 $0, i32 $1, i32 $2) {
   local i32 n
   local i32 a
   local i32 b
@@ -11,7 +11,7 @@ func void F($0, $1, $2) {
     store @b, $2
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -129,7 +129,7 @@ func i32 main($0, $1) {
     %95 = load @$tmp0
     ret %95
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 119 insts, 0 statements not lowered, 0 scope imbalance

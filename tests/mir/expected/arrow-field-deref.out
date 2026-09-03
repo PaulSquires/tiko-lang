@@ -1,5 +1,5 @@
 global var i64 globali = 123
-func agg _ZptR3UDT($0) {
+func agg _ZptR3UDT(ptr $0) {
   local agg $tmp0 size 16
   local ptr l
   entry0:
@@ -12,7 +12,7 @@ func agg _ZptR3UDT($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x size 16
   local ptr a1
@@ -55,8 +55,8 @@ func i32 main($0, $1) {
     %25 = load @$tmp0
     ret %25
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 42 insts, 0 statements not lowered, 0 scope imbalance

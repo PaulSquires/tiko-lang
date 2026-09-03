@@ -2,7 +2,7 @@ global str $str0 "a"
 global str $str1 "abcdef"
 global str $str2 "ghijkl"
 global wstr $wstr3 "a"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg bare size 48
   local agg $tmp2 size 72
@@ -143,15 +143,15 @@ func i32 main($0, $1) {
     %93 = load @$tmp0
     ret %93
 }
-declare void fb_Init($0, $1, $2)
-declare ptr memset($0, $1, $2)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_ArrayDestructStr($0)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare ptr fb_UStrAssign($0, $1, $2, $3, $4)
-declare void fb_PrintUStr($0, $1, $2)
-declare void fb_ArrayDestructUStr($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_ArrayDestructStr(ptr $0)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintUStr(i32 $0, ptr $1, i32 $2)
+declare void fb_ArrayDestructUStr(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 130 insts, 0 statements not lowered, 0 scope imbalance

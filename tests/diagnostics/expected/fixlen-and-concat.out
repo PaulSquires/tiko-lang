@@ -27,15 +27,15 @@ func void CONCATACCEPTED() {
     call.rtl void fb_StrDelete(@s)
     ret
 }
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 16 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   amb assign 2
   amb-assign-kind 1 2
   amb-assign-val N_INT_LIT 2
-  skip-site src\mir\lower.bas:695 2
+  skip-site src\mir\lower.bas:694 2
 tests/diagnostics/src/fixlen-and-concat.bas(32,5): error TKO0635: '&=' concatenates, so its target must be a string
      |
   32 |     i &= 1

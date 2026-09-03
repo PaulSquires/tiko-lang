@@ -1,6 +1,6 @@
 global str $str0 "AbC"
 global wstr $wstr1 "AbC"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s size 24
   local agg t size 24
@@ -98,20 +98,20 @@ func i32 main($0, $1) {
     %64 = load @$tmp0
     ret %64
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare ptr fb_StrUcase2($0, $1)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrLcase2($0, $1)
-declare ptr fb_WstrUcase2($0, $1)
-declare void fb_WstrDelete($0)
-declare ptr fb_WstrLcase2($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_PrintWstr($0, $1, $2)
-declare ptr memset($0, $1, $2)
-declare void fb_PrintUByte($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare ptr fb_StrUcase2(ptr $0, i32 $1)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrLcase2(ptr $0, i32 $1)
+declare ptr fb_WstrUcase2(ptr $0, i32 $1)
+declare void fb_WstrDelete(ptr $0)
+declare ptr fb_WstrLcase2(ptr $0, i32 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

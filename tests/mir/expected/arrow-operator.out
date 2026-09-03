@@ -1,5 +1,5 @@
 global str $str0 "ok"
-func i32 _ZN5INNER5TWICEEv($0) {
+func i32 _ZN5INNER5TWICEEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -16,7 +16,7 @@ func i32 _ZN5INNER5TWICEEv($0) {
     %9 = mul %8, %7
     ret %9
 }
-func void _ZN5INNER4BUMPEi($0, $1) {
+func void _ZN5INNER4BUMPEi(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:
@@ -32,7 +32,7 @@ func void _ZN5INNER4BUMPEi($0, $1) {
     store %4, %7
     ret
 }
-func ptr _ZptR6HOLDER($0) {
+func ptr _ZptR6HOLDER(ptr $0) {
   local ptr $tmp0
   local ptr h
   entry0:
@@ -48,7 +48,7 @@ func ptr _ZptR6HOLDER($0) {
     %7 = load @$tmp0
     ret %7
 }
-func ptr _ZdeR6HOLDER($0) {
+func ptr _ZdeR6HOLDER(ptr $0) {
   local ptr $tmp0
   local ptr h
   entry0:
@@ -64,7 +64,7 @@ func ptr _ZdeR6HOLDER($0) {
     %7 = load @$tmp0
     ret %7
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg i size 8
   local agg h size 8
@@ -122,10 +122,10 @@ func i32 main($0, $1) {
   if.else3:
     br if.join1
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 8 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance

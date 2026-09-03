@@ -9,7 +9,7 @@ global var agg under3 size 2147483646
 global var agg under4 size 101
 global var agg zover size -2147483648
 global var agg zunder size 2147483632
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -22,8 +22,8 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/array-too-big.bas(17,20): error TKO0613: array 'over1' is too big

@@ -8,7 +8,7 @@ global var agg fromliteral size 24
 global var agg fromvar size 24
 global var agg bitstatic size 8
 global var agg bittypeini size 8
-func void _ZN16HASSTRINGANDCTORC1Eu7INTEGER($0, $1) {
+func void _ZN16HASSTRINGANDCTORC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -48,10 +48,10 @@ func void LOCALSCOPE() {
     call void _ZN9HASSTRINGD1Ev(@localstring)
     ret
 }
-declare void _ZN9HASSTRINGC1Ev($0)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void _ZN9HASSTRINGD1Ev($0)
-func i32 main($0, $1) {
+declare void _ZN9HASSTRINGC1Ev(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void _ZN9HASSTRINGD1Ev(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg tup size 32
   entry0:
@@ -74,10 +74,10 @@ func i32 main($0, $1) {
     %11 = load @$tmp0
     ret %11
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN9$TUP:6:15C1Ev($0)
-declare void _ZN9$TUP:6:15D1Ev($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN9$TUP:6:15C1Ev(ptr $0)
+declare void _ZN9$TUP:6:15D1Ev(ptr $0)
+declare void fb_End(i32 $0)
 attribute constructor
 func void _GLOBAL__I() {
   entry0:
@@ -87,7 +87,7 @@ func void _GLOBAL__I() {
     call void _ZN9HASSTRINGC1Ev(@@fromvar)
     ret
 }
-declare void _ZN16HASSTRINGANDCTORC1Ev($0)
+declare void _ZN16HASSTRINGANDCTORC1Ev(ptr $0)
 attribute destructor
 func void _GLOBAL__D() {
   entry0:
@@ -97,8 +97,8 @@ func void _GLOBAL__D() {
     call void _ZN9HASSTRINGD1Ev(@@noinit)
     ret
 }
-declare void _ZN16HASSTRINGANDCTORD1Ev($0)
-func void _ZN9HASSTRINGC1Ev($0) {
+declare void _ZN16HASSTRINGANDCTORD1Ev(ptr $0)
+func void _ZN9HASSTRINGC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = field.addr %1, 0
@@ -109,14 +109,14 @@ func void _ZN9HASSTRINGC1Ev($0) {
     store %4, 0
     ret
 }
-func void _ZN9HASSTRINGD1Ev($0) {
+func void _ZN9HASSTRINGD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call.rtl void fb_StrDelete(%1)
     ret
 }
-declare void fb_StrDelete($0)
-func void _ZN9$TUP:6:15C1Ev($0) {
+declare void fb_StrDelete(ptr $0)
+func void _ZN9$TUP:6:15C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     %2 = field.addr %1, 0
@@ -127,13 +127,13 @@ func void _ZN9$TUP:6:15C1Ev($0) {
     store %4, 0
     ret
 }
-func void _ZN9$TUP:6:15D1Ev($0) {
+func void _ZN9$TUP:6:15D1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call.rtl void fb_StrDelete(%1)
     ret
 }
-func void _ZN16HASSTRINGANDCTORC1Ev($0) {
+func void _ZN16HASSTRINGANDCTORC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = field.addr %1, 0
@@ -144,7 +144,7 @@ func void _ZN16HASSTRINGANDCTORC1Ev($0) {
     store %4, 0
     ret
 }
-func void _ZN16HASSTRINGANDCTORD1Ev($0) {
+func void _ZN16HASSTRINGANDCTORD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call.rtl void fb_StrDelete(%1)
@@ -153,7 +153,7 @@ func void _ZN16HASSTRINGANDCTORD1Ev($0) {
 verify: ok
 lowered: 11 functions, 11 blocks, 79 insts, 5 statements not lowered, 0 scope imbalance
   inside N_VAR 5
-  skip-site src\mir\lowerstore.bas:1075 5
+  skip-site src\mir\lowerstore.bas:1097 5
 tests/diagnostics/src/aggregate-init-fields.bas(32,12): error TKO0757: 'fromliteral' holds a var-len string, which an initializer list cannot fill
      |
   32 | dim shared fromLiteral as HasString = ( "123" )

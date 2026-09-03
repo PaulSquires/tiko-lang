@@ -1,4 +1,4 @@
-func void _ZN1TC1Ev($0) {
+func void _ZN1TC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -33,7 +33,7 @@ func void _ZN1TC1Ev($0) {
     store %20, %19
     ret
 }
-func void _ZN1TC1ER7FBARRAYIu7INTEGERE($0, $1) {
+func void _ZN1TC1ER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
   local ptr this
   local ptr array
   entry0:
@@ -81,10 +81,10 @@ func void _ZN1TC1ER7FBARRAYIu7INTEGERE($0, $1) {
     %31 = call.rtl i32 fb_ArrayRedimEx(%23, 8, -1, 0, 1, %27, %30)
     ret
 }
-declare i64 fb_ArrayLBound($0, $1)
-declare i64 fb_ArrayUBound($0, $1)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-func void _ZN1TaSER7FBARRAYIu7INTEGERE($0, $1) {
+declare i64 fb_ArrayLBound(ptr $0, i64 $1)
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+func void _ZN1TaSER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
   local ptr this
   local ptr array
   entry0:
@@ -104,7 +104,7 @@ func void _ZN1TaSER7FBARRAYIu7INTEGERE($0, $1) {
     %12 = call.rtl i32 fb_ArrayRedimEx(%4, 8, -1, 0, 1, %8, %11)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 80
   local agg x size 72
@@ -182,15 +182,15 @@ func i32 main($0, $1) {
     %42 = load @$tmp0
     ret %42
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN1TD1Ev($0)
-declare void fb_End($0)
-func void _ZN1TD1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN1TD1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN1TD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl i32 fb_ArrayErase(%1)
     ret
 }
-declare i32 fb_ArrayErase($0)
+declare i32 fb_ArrayErase(ptr $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 156 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,4 +1,4 @@
-func i8 LESS($0, $1) {
+func i8 LESS(ptr $0, ptr $1) {
   local i8 $tmp0
   local ptr x
   local ptr y
@@ -18,7 +18,7 @@ func i8 LESS($0, $1) {
     %10 = neg %9
     ret %10
 }
-func i64 DEREF<8>($0) {
+func i64 DEREF<8>(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -31,7 +31,7 @@ func i64 DEREF<8>($0) {
     %5 = load %4
     ret %5
 }
-func f64 DEREF<13>($0) {
+func f64 DEREF<13>(ptr $0) {
   local f64 $tmp0
   local ptr p
   entry0:
@@ -44,7 +44,7 @@ func f64 DEREF<13>($0) {
     %5 = load %4
     ret %5
 }
-func void APPLY_<29>($0) {
+func void APPLY_<29>(ptr $0) {
   local ptr f
   local i32 $tmp1
   local i32 $tmp2
@@ -65,8 +65,8 @@ func void APPLY_<29>($0) {
     call.rtl void fb_PrintBool(0, %10, 1)
     ret
 }
-declare void fb_PrintBool($0, $1, $2)
-func i32 main($0, $1) {
+declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 v
   local f64 d
@@ -96,9 +96,9 @@ func i32 main($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintDouble($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 63 insts, 0 statements not lowered, 0 scope imbalance

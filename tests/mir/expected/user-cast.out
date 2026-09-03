@@ -1,4 +1,4 @@
-func ptr _ZN1UcvcEv($0) {
+func ptr _ZN1UcvcEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -38,11 +38,11 @@ func void P() {
     call.rtl void fb_StrDelete(@r)
     ret
 }
-declare ptr fb_StrAllocTempDescZ($0)
-declare ptr fb_TRIM($0)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-func ptr _ZN1WcvwEv($0) {
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare ptr fb_TRIM(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+func ptr _ZN1WcvwEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -87,9 +87,9 @@ func void Q() {
     call.rtl void fb_StrDelete(@r)
     ret
 }
-declare ptr fb_WstrTrim($0)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare void fb_WstrDelete($0)
-declare ptr fb_WstrAssignToA($0, $1, $2, $3)
+declare ptr fb_WstrTrim(ptr $0)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare void fb_WstrDelete(ptr $0)
+declare ptr fb_WstrAssignToA(ptr $0, i64 $1, ptr $2, i32 $3)
 verify: ok
 lowered: 4 functions, 4 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance

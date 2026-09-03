@@ -1,4 +1,4 @@
-func i32 _ZN1DcviEv($0) {
+func i32 _ZN1DcviEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -12,7 +12,7 @@ func i32 _ZN1DcviEv($0) {
     %6 = load %5
     ret %6
 }
-func agg _ZmiR1DS0_($0, $1) {
+func agg _ZmiR1DS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr a
   local ptr b
@@ -29,7 +29,7 @@ func agg _ZmiR1DS0_($0, $1) {
     %6 = load @$tmp0
     ret %6
 }
-func agg _ZmlR1Di($0, $1) {
+func agg _ZmlR1Di(ptr $0, i32 $1) {
   local agg $tmp0 size 4
   local ptr a
   local i32 n

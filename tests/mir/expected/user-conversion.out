@@ -1,4 +1,4 @@
-func void _ZN4CONVC1Ei($0, $1) {
+func void _ZN4CONVC1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:
@@ -12,14 +12,14 @@ func void _ZN4CONVC1Ei($0, $1) {
     store %4, %5
     ret
 }
-func void _ZN4CONVD1Ev($0) {
+func void _ZN4CONVD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN5PLAINC1Ei($0, $1) {
+func void _ZN5PLAINC1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:
@@ -33,7 +33,7 @@ func void _ZN5PLAINC1Ei($0, $1) {
     store %4, %5
     ret
 }
-func i32 _ZN5CASTScviEv($0) {
+func i32 _ZN5CASTScviEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -47,7 +47,7 @@ func i32 _ZN5CASTScviEv($0) {
     %6 = load %5
     ret %6
 }
-func void TAKESCONV($0) {
+func void TAKESCONV(ptr $0) {
   local ptr x
   entry0:
     %1 = alloca ptr x
@@ -58,8 +58,8 @@ func void TAKESCONV($0) {
     call.rtl void fb_PrintInt(0, %4, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-func void TAKESPLAIN($0) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func void TAKESPLAIN(agg $0) {
   local agg x size 4
   entry0:
     %1 = alloca ptr x
@@ -69,7 +69,7 @@ func void TAKESPLAIN($0) {
     call.rtl void fb_PrintInt(0, %3, 1)
     ret
 }
-func i32 _Z5WANTSi($0) {
+func i32 _Z5WANTSi(i32 $0) {
   local i32 $tmp0
   local i32 i
   entry0:
@@ -81,7 +81,7 @@ func i32 _Z5WANTSi($0) {
     %4 = load @i
     ret %4
 }
-func i32 _Z5WANTS8FBSTRING($0) {
+func i32 _Z5WANTS8FBSTRING(ptr $0) {
   local i32 $tmp0
   local ptr s
   entry0:
@@ -94,7 +94,7 @@ func i32 _Z5WANTS8FBSTRING($0) {
     %5 = call.rtl i64 fb_StrLen(%4, -1)
     ret %5
 }
-declare i64 fb_StrLen($0, $1)
+declare i64 fb_StrLen(ptr $0, i64 $1)
 func void S1() {
   local agg $tmp0 size 4
   local agg $tmp1 size 4
@@ -138,7 +138,7 @@ func void S1() {
     call.rtl void fb_PrintInt(0, %21, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -152,7 +152,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 10 functions, 10 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance

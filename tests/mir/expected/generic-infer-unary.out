@@ -1,4 +1,4 @@
-func i64 IDENT<8>($0) {
+func i64 IDENT<8>(i64 $0) {
   local i64 $tmp0
   local i64 x
   entry0:
@@ -10,7 +10,7 @@ func i64 IDENT<8>($0) {
     %4 = load @x
     ret %4
 }
-func f32 IDENT<12>($0) {
+func f32 IDENT<12>(f32 $0) {
   local f32 $tmp0
   local f32 x
   entry0:
@@ -22,7 +22,7 @@ func f32 IDENT<12>($0) {
     %4 = load @x
     ret %4
 }
-func i64 IDENT<9>($0) {
+func i64 IDENT<9>(i64 $0) {
   local i64 $tmp0
   local i64 x
   entry0:
@@ -34,7 +34,7 @@ func i64 IDENT<9>($0) {
     %4 = load @x
     ret %4
 }
-func i8 IDENT<14>($0) {
+func i8 IDENT<14>(i8 $0) {
   local i8 $tmp0
   local i8 x
   entry0:
@@ -46,7 +46,7 @@ func i8 IDENT<14>($0) {
     %4 = load @x
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 n
   local f32 f
@@ -104,11 +104,11 @@ func i32 main($0, $1) {
     %35 = load @$tmp0
     ret %35
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintSingle($0, $1, $2)
-declare void fb_PrintULongint($0, $1, $2)
-declare void fb_PrintBool($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintSingle(i32 $0, f32 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance

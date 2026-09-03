@@ -44,7 +44,7 @@ func void PERITERATION() {
   for.exit4:
     ret
 }
-func void THROUGHSCOPES($0) {
+func void THROUGHSCOPES(i32 $0) {
   local i32 f
   local i32 x
   entry0:
@@ -88,7 +88,7 @@ func void MEMBERS() {
     store %5, %6
     ret
 }
-func void _ZN3RESC1Ev($0) {
+func void _ZN3RESC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -100,7 +100,7 @@ func void _ZN3RESC1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN3RESD1Ev($0) {
+func void _ZN3RESD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -112,7 +112,7 @@ func void _ZN3RESD1Ev($0) {
     store %3, %5
     ret
 }
-func void STRUCTORS($0) {
+func void STRUCTORS(i32 $0) {
   local i32 f
   local agg a size 4
   local agg inner size 4
@@ -140,7 +140,7 @@ func void STRUCTORS($0) {
   if.else3:
     br if.join1
 }
-func void _ZN3VALC1Ev($0) {
+func void _ZN3VALC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -152,7 +152,7 @@ func void _ZN3VALC1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN3VALC1Ei($0, $1) {
+func void _ZN3VALC1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 a
   entry0:
@@ -166,7 +166,7 @@ func void _ZN3VALC1Ei($0, $1) {
     store %4, %5
     ret
 }
-func void _ZN3VALC1Ed($0, $1) {
+func void _ZN3VALC1Ed(ptr $0, f64 $1) {
   local ptr this
   local f64 d
   entry0:

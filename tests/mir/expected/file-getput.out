@@ -1,5 +1,5 @@
 global str $str0 "read"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 f
   local i8 b
@@ -96,12 +96,12 @@ func i32 main($0, $1) {
   if.else3:
     br if.join1
 }
-declare void fb_Init($0, $1, $2)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_FileFree()
-declare i32 fb_FilePutLarge($0, $1, $2, $3)
-declare i32 fb_FileGetLarge($0, $1, $2, $3)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_End($0)
+declare i32 fb_FilePutLarge(i32 $0, i64 $1, ptr $2, i64 $3)
+declare i32 fb_FileGetLarge(i32 $0, i64 $1, ptr $2, i64 $3)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 4 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance

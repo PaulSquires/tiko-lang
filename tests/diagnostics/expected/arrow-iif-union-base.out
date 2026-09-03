@@ -5,21 +5,21 @@ global ptrs _ZTVN6PARENTE [ 0, @_ZTSN6PARENTE, 0 ]
 global str $str4 "5CHILD"
 global ptrs _ZTSN5CHILDE [ 0, @$str4, @_ZTSN6PARENTE ]
 global ptrs _ZTVN5CHILDE [ 0, @_ZTSN5CHILDE, _ZN5CHILD1FEv ]
-func void _ZN6PARENT1GEv($0) {
+func void _ZN6PARENT1GEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN5CHILD1FEv($0) {
+func void _ZN5CHILD1FEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN5CHILD1HEv($0) {
+func void _ZN5CHILD1HEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -32,8 +32,8 @@ func void _ZN5CHILD1HEv($0) {
     call void _ZN6PARENT1FEv(%5)
     ret
 }
-declare void _ZN6PARENT1FEv()
-func i32 main($0, $1) {
+declare void _ZN6PARENT1FEv(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x size 8
   local ptr p
@@ -86,9 +86,9 @@ func i32 main($0, $1) {
     %30 = load @$tmp0
     ret %30
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 53 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1

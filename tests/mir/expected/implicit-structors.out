@@ -3,21 +3,21 @@ global str $str1 "x"
 global var agg sh1 size 32
 global var agg sh2 size 32
 global var agg sharr size 64
-func void _ZN5BASEWC1Ev($0) {
+func void _ZN5BASEWC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN5BASEWD1Ev($0) {
+func void _ZN5BASEWD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN8DERIVEDWC1Ev($0) {
+func void _ZN8DERIVEDWC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -37,8 +37,8 @@ func void _ZN8DERIVEDWC1Ev($0) {
     %10 = call.rtl ptr fb_StrAssign(%9, -1, @@$str0, 3, 0)
     ret
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-func void _ZN8DERIVEDWD1Ev($0) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func void _ZN8DERIVEDWD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -50,7 +50,7 @@ func void _ZN8DERIVEDWD1Ev($0) {
     call void _ZN5BASEWD1Ev(%4)
     ret
 }
-declare void fb_StrDelete($0)
+declare void fb_StrDelete(ptr $0)
 func void COPIES() {
   local agg a size 32
   local agg b size 32
@@ -64,10 +64,10 @@ func void COPIES() {
     call void _ZN6HASSTRD1Ev(@a)
     ret
 }
-declare void _ZN6HASSTRC1Ev($0)
-declare void _ZN6HASSTRC1ERKS_($0, $1)
-declare void _ZN6HASSTRaSERKS_($0, $1)
-declare void _ZN6HASSTRD1Ev($0)
+declare void _ZN6HASSTRC1Ev(ptr $0)
+declare void _ZN6HASSTRC1ERKS_(ptr $0, ptr $1)
+declare void _ZN6HASSTRaSERKS_(ptr $0, ptr $1)
+declare void _ZN6HASSTRD1Ev(ptr $0)
 func void ALLOCS() {
   local agg arr size 96
   local ptr p
@@ -117,8 +117,8 @@ func void ALLOCS() {
     call void _ZN6HASSTRD1Ev(%23)
     ret
 }
-declare ptr calloc($0, $1)
-declare void free($0)
+declare ptr calloc(i64 $0, i64 $1)
+declare void free(ptr $0)
 func void USE() {
   local agg h size 32
   local agg q size 72
@@ -143,9 +143,9 @@ func void USE() {
     call void _ZN6HASSTRD1Ev(@h)
     ret
 }
-declare void _ZN6HASARRC1Ev($0)
-declare void _ZN6HASARRD1Ev($0)
-func i32 main($0, $1) {
+declare void _ZN6HASARRC1Ev(ptr $0)
+declare void _ZN6HASARRD1Ev(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -161,8 +161,8 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 attribute constructor
 func void _GLOBAL__I() {
   entry0:
@@ -185,7 +185,7 @@ func void _GLOBAL__D() {
     call void _ZN6HASSTRD1Ev(@@sh1)
     ret
 }
-func void _ZN6HASSTRC1Ev($0) {
+func void _ZN6HASSTRC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     %2 = field.addr %1, 0
@@ -196,7 +196,7 @@ func void _ZN6HASSTRC1Ev($0) {
     store %4, 0
     ret
 }
-func void _ZN6HASSTRC1ERKS_($0, $1) {
+func void _ZN6HASSTRC1ERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 8
     %2 = field.addr %1, 0
@@ -208,7 +208,7 @@ func void _ZN6HASSTRC1ERKS_($0, $1) {
     call void _ZN6HASSTRaSERKS_($0, $1)
     ret
 }
-func void _ZN6HASSTRaSERKS_($0, $1) {
+func void _ZN6HASSTRaSERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
     %2 = field.addr $0, 0
@@ -219,13 +219,13 @@ func void _ZN6HASSTRaSERKS_($0, $1) {
     %6 = call.rtl ptr fb_StrAssign(%5, -1, %4, -1, 0)
     ret
 }
-func void _ZN6HASSTRD1Ev($0) {
+func void _ZN6HASSTRD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call.rtl void fb_StrDelete(%1)
     ret
 }
-func void _ZN6HASARRC1Ev($0) {
+func void _ZN6HASARRC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = const ptr 0
@@ -256,12 +256,12 @@ func void _ZN6HASARRC1Ev($0) {
     store %18, %17
     ret
 }
-func void _ZN6HASARRD1Ev($0) {
+func void _ZN6HASARRD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl i32 fb_ArrayErase(%1)
     ret
 }
-declare i32 fb_ArrayErase($0)
+declare i32 fb_ArrayErase(ptr $0)
 verify: ok
 lowered: 16 functions, 20 blocks, 159 insts, 0 statements not lowered, 0 scope imbalance

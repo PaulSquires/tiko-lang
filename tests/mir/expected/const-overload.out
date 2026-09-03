@@ -2,7 +2,7 @@ extern ptrs __fb_ZTS6Object [ ]
 global str $str1 "2T1"
 global ptrs _ZTSN2T1E [ 0, @$str1, @__fb_ZTS6Object ]
 global ptrs _ZTVN2T1E [ 0, @_ZTSN2T1E ]
-func i64 _Z1DRK2T1($0) {
+func i64 _Z1DRK2T1(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -14,7 +14,7 @@ func i64 _Z1DRK2T1($0) {
     %4 = const i64 193
     ret %4
 }
-func i64 _Z1DR2T1($0) {
+func i64 _Z1DR2T1(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -26,7 +26,7 @@ func i64 _Z1DR2T1($0) {
     %4 = const i64 1
     ret %4
 }
-func i64 _Z1ERK2T1($0) {
+func i64 _Z1ERK2T1(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -38,7 +38,7 @@ func i64 _Z1ERK2T1($0) {
     %4 = const i64 193
     ret %4
 }
-func i64 _Z1GPK2T1($0) {
+func i64 _Z1GPK2T1(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -50,7 +50,7 @@ func i64 _Z1GPK2T1($0) {
     %4 = const i64 193
     ret %4
 }
-func i64 _Z1HP2T1($0) {
+func i64 _Z1HP2T1(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -62,7 +62,7 @@ func i64 _Z1HP2T1($0) {
     %4 = const i64 1
     ret %4
 }
-func i64 _Z1HPK2T1($0) {
+func i64 _Z1HPK2T1(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -74,7 +74,7 @@ func i64 _Z1HPK2T1($0) {
     %4 = const i64 193
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x1 size 8
   local agg cx1 size 0
@@ -109,11 +109,11 @@ func i32 main($0, $1) {
     %15 = load @$tmp0
     ret %15
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN2T1C1Ev($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
-func void _ZN2T1C1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN2T1C1Ev(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN2T1C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -121,6 +121,6 @@ func void _ZN2T1C1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
+declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
 lowered: 8 functions, 8 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance

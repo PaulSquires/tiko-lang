@@ -39,8 +39,8 @@ func agg GIVESLS() {
     %8 = load @$tmp0
     ret %8
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-func i32 main($0, $1) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 a
   local i32 b
@@ -160,15 +160,15 @@ func i32 main($0, $1) {
     %63 = load @$tmp0
     ret %63
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void _ZN9$TUP:6:15aSERKS_($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void _ZN9$TUP:6:15C1Ev($0)
-declare void fb_StrDelete($0)
-declare void _ZN9$TUP:6:15D1Ev($0)
-declare void fb_End($0)
-func void _ZN9$TUP:6:15aSERKS_($0, $1) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void _ZN9$TUP:6:15C1Ev(ptr $0)
+declare void fb_StrDelete(ptr $0)
+declare void _ZN9$TUP:6:15D1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
     %2 = field.addr $0, 0
@@ -179,7 +179,7 @@ func void _ZN9$TUP:6:15aSERKS_($0, $1) {
     %6 = call.rtl ptr fb_StrAssign(%5, -1, %4, -1, 0)
     ret
 }
-func void _ZN9$TUP:6:15C1Ev($0) {
+func void _ZN9$TUP:6:15C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     %2 = field.addr %1, 0
@@ -190,7 +190,7 @@ func void _ZN9$TUP:6:15C1Ev($0) {
     store %4, 0
     ret
 }
-func void _ZN9$TUP:6:15D1Ev($0) {
+func void _ZN9$TUP:6:15D1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call.rtl void fb_StrDelete(%1)

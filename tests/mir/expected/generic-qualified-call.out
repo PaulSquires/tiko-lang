@@ -7,7 +7,7 @@ func i32 _ZN2NS4FIVEEv() {
     %3 = const i64 5
     ret %3
 }
-func ptr _ZN2NS6BOX<6>5VALUEEv($0) {
+func ptr _ZN2NS6BOX<6>5VALUEEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -22,7 +22,7 @@ func ptr _ZN2NS6BOX<6>5VALUEEv($0) {
     %6 = load @$tmp0
     ret %6
 }
-func ptr _ZN2NS7BOX<13>5VALUEEv($0) {
+func ptr _ZN2NS7BOX<13>5VALUEEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -37,7 +37,7 @@ func ptr _ZN2NS7BOX<13>5VALUEEv($0) {
     %6 = load @$tmp0
     ret %6
 }
-func agg _ZN2NS5MK<8>ERu7INTEGER($0) {
+func agg _ZN2NS5MK<8>ERu7INTEGER(ptr $0) {
   local agg $tmp0 size 8
   local ptr x
   local agg r size 8
@@ -55,7 +55,7 @@ func agg _ZN2NS5MK<8>ERu7INTEGER($0) {
     %8 = load @$tmp0
     ret %8
 }
-func agg _ZN2NS5MK<6>ERi($0) {
+func agg _ZN2NS5MK<6>ERi(ptr $0) {
   local agg $tmp0 size 4
   local ptr x
   local agg r size 4
@@ -73,7 +73,7 @@ func agg _ZN2NS5MK<6>ERi($0) {
     %8 = load @$tmp0
     ret %8
 }
-func agg _ZN2NS6MK<13>ERd($0) {
+func agg _ZN2NS6MK<13>ERd(ptr $0) {
   local agg $tmp0 size 8
   local ptr x
   local agg r size 8
@@ -91,7 +91,7 @@ func agg _ZN2NS6MK<13>ERd($0) {
     %8 = load @$tmp0
     ret %8
 }
-func ptr _ZN2NS6BOX<8>5VALUEEv($0) {
+func ptr _ZN2NS6BOX<8>5VALUEEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -106,7 +106,7 @@ func ptr _ZN2NS6BOX<8>5VALUEEv($0) {
     %6 = load @$tmp0
     ret %6
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg b size 4
   local i64 $tmp2
@@ -163,9 +163,9 @@ func i32 main($0, $1) {
     %29 = load @$tmp0
     ret %29
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintDouble($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 8 functions, 8 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance

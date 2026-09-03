@@ -134,11 +134,11 @@ func void P() {
   if.else19:
     br if.join17
 }
-declare i32 fb_WstrCompare($0, $1)
-declare ptr fb_LongintToWstr($0)
-declare ptr fb_WstrTrim($0)
-declare void fb_WstrDelete($0)
-declare i64 fb_WstrLen($0)
+declare i32 fb_WstrCompare(ptr $0, ptr $1)
+declare ptr fb_LongintToWstr(i64 $0)
+declare ptr fb_WstrTrim(ptr $0)
+declare void fb_WstrDelete(ptr $0)
+declare i64 fb_WstrLen(ptr $0)
 func void Q() {
   local agg a size 64
   local agg b size 64
@@ -199,9 +199,9 @@ func void Q() {
     call.rtl void fb_WstrDelete(%33)
     ret
 }
-declare ptr fb_WstrAlloc($0)
-declare ptr fb_WstrAssign($0, $1, $2)
-func void R($0, $1, $2) {
+declare ptr fb_WstrAlloc(i64 $0)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+func void R(ptr $0, ptr $1, ptr $2) {
   local ptr a
   local ptr b
   local ptr c
@@ -248,7 +248,7 @@ func void R($0, $1, $2) {
     %27 = call.rtl ptr fb_WstrConcatAssign(%23, 0, %26)
     ret
 }
-declare ptr fb_WstrConcatAssign($0, $1, $2)
+declare ptr fb_WstrConcatAssign(ptr $0, i64 $1, ptr $2)
 func void S() {
   local agg a size 66
   local agg b size 66
@@ -291,7 +291,7 @@ func void S() {
     call.rtl void fb_WstrDelete(%21)
     ret
 }
-declare ptr fb_WstrConcat($0, $1)
+declare ptr fb_WstrConcat(ptr $0, ptr $1)
 func void T() {
   local agg a size 100
   local agg b size 100
@@ -342,9 +342,9 @@ func void T() {
     call.rtl void fb_WstrDelete(%25)
     ret
 }
-declare void fb_PrintWstr($0, $1, $2)
-declare ptr fb_WstrConcatWA($0, $1, $2)
-func i32 main($0, $1) {
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -357,7 +357,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 37 blocks, 228 insts, 0 statements not lowered, 0 scope imbalance

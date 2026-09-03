@@ -1,18 +1,18 @@
-func void _ZN1T2RWEv($0) {
+func void _ZN1T2RWEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1T6ALSOROEv($0) {
+func void _ZN1T6ALSOROEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1T2ROEv($0) {
+func void _ZN1T2ROEv(ptr $0) {
   local ptr this
   local ptr $tmp1
   local agg other size 8
@@ -49,8 +49,8 @@ func void _ZN1T2ROEv($0) {
     call void _ZN1T2RWEv(%21)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-declare void _ZNK1T6ALSOROEv()
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void _ZNK1T6ALSOROEv(ptr $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/const-method.bas(25,5): error TKO0664: 'value' cannot be written from a const method

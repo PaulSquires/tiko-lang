@@ -1,4 +1,4 @@
-func void TAKESBYDESC($0) {
+func void TAKESBYDESC(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
@@ -10,8 +10,8 @@ func void TAKESBYDESC($0) {
     %6 = call.rtl i32 fb_ArrayRedimEx(%2, 8, -1, 0, 1, %4, %5)
     ret
 }
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-func i32 main($0, $1) {
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg declared size 240
   local agg ext size 240
@@ -376,9 +376,9 @@ func i32 main($0, $1) {
     %243 = load @$tmp0
     ret %243
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_ArrayErase($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 361 insts, 7 statements not lowered, 0 scope imbalance
   inside N_VAR 7

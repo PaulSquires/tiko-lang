@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr a
   local ptr b
@@ -77,18 +77,18 @@ func i32 main($0, $1) {
     %38 = load @$tmp0
     ret %38
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_Cls($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_Cls(i32 $0)
 declare f64 fb_Timer()
 declare i32 fb_GetX()
-declare ptr fb_DirNext($0)
-declare ptr malloc($0)
-declare ptr fb_HEX_b($0)
-declare ptr fb_ThreadCreate($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare ptr fb_DirNext(ptr $0)
+declare ptr malloc(i64 $0)
+declare ptr fb_HEX_b(i8 $0)
+declare ptr fb_ThreadCreate(ptr $0, ptr $1, i64 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 declare ptr fb_Inkey()
-declare f32 fb_GfxCursor($0)
-declare void fb_PrintULongint($0, $1, $2)
+declare f32 fb_GfxCursor(i32 $0)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 verify: ok
 lowered: 1 functions, 1 blocks, 63 insts, 0 statements not lowered, 0 scope imbalance

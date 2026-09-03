@@ -1,4 +1,4 @@
-func void __TKO_LAMBDA_F70C46B_0($0, $1) {
+func void __TKO_LAMBDA_F70C46B_0(ptr $0, i32 $1) {
   local ptr __tko_cl
   local i32 v
   local ptr acc
@@ -19,7 +19,7 @@ func void __TKO_LAMBDA_F70C46B_0($0, $1) {
     store %7, %10
     ret
 }
-func void __TKO_LAMBDA_F70C46B_1($0, $1) {
+func void __TKO_LAMBDA_F70C46B_1(ptr $0, i32 $1) {
   local ptr __tko_cl
   local i32 v
   local ptr n
@@ -42,8 +42,8 @@ func void __TKO_LAMBDA_F70C46B_1($0, $1) {
     call.rtl void fb_PrintInt(0, %11, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-func i32 __TKO_LAMBDA_F70C46B_2($0, $1) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func i32 __TKO_LAMBDA_F70C46B_2(ptr $0, i32 $1) {
   local i32 $tmp0
   local ptr __tko_cl
   local i32 x
@@ -93,7 +93,7 @@ func i32 __TKO_LAMBDA_F70C46B_2($0, $1) {
   if.else6:
     br if.join4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 acc
   local agg c size 8
@@ -182,7 +182,7 @@ func i32 main($0, $1) {
     %51 = load @$tmp0
     ret %51
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 10 blocks, 133 insts, 0 statements not lowered, 0 scope imbalance

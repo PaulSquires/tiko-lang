@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg ints size 32
   local agg dbls size 16
@@ -216,13 +216,13 @@ func i32 main($0, $1) {
     %135 = load @$tmp0
     ret %135
 }
-declare void fb_Init($0, $1, $2)
-declare ptr DESCOF()
-declare i64 SUMOF()
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare void fb_PrintULongint($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare i32 fb_ArrayErase($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr DESCOF(void $0)
+declare i64 SUMOF(i64 $0)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 203 insts, 0 statements not lowered, 0 scope imbalance

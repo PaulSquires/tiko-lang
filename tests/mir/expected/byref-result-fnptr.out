@@ -1,5 +1,5 @@
 global var i32 g1 = 11
-func ptr PK($0, $1) {
+func ptr PK(ptr $0, ptr $1) {
   local ptr $tmp0
   local ptr lo
   local ptr hi
@@ -40,7 +40,7 @@ func ptr F1() {
     %3 = load @$tmp0
     ret %3
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 lo
   local i32 hi
@@ -92,9 +92,9 @@ func i32 main($0, $1) {
     %31 = load @$tmp0
     ret %31
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 6 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance

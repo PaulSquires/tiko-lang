@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s size 24
   local agg w size 128
@@ -62,16 +62,16 @@ func i32 main($0, $1) {
     %34 = load @$tmp0
     ret %34
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_WstrHex_l($0)
-declare ptr fb_WstrAssignToA($0, $1, $2, $3)
-declare void fb_WstrDelete($0)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_WstrOct_l($0)
-declare ptr fb_WstrBin_l($0)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare void fb_PrintWstr($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrHex_l(i64 $0)
+declare ptr fb_WstrAssignToA(ptr $0, i64 $1, ptr $2, i32 $3)
+declare void fb_WstrDelete(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrOct_l(i64 $0)
+declare ptr fb_WstrBin_l(i64 $0)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance

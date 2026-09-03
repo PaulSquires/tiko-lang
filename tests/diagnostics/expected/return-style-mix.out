@@ -1,4 +1,4 @@
-func void _ZN4CTORC1Ev($0) {
+func void _ZN4CTORC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -29,7 +29,7 @@ func agg OKASSIGN() {
     %4 = load @$tmp0
     ret %4
 }
-func i64 OKINT($0) {
+func i64 OKINT(i64 $0) {
   local i64 $tmp0
   local i64 i
   entry0:
@@ -53,7 +53,7 @@ func i64 OKINT($0) {
   if.else3:
     br if.join1
 }
-func agg BADMIX($0) {
+func agg BADMIX(i64 $0) {
   local agg $tmp0 size 8
   local i64 i
   local agg x size 8
@@ -80,7 +80,7 @@ func agg BADMIX($0) {
   if.else3:
     br if.join1
 }
-func agg BADEXIT($0) {
+func agg BADEXIT(i64 $0) {
   local agg $tmp0 size 8
   local i64 i
   local agg x size 8
@@ -105,7 +105,7 @@ func agg BADEXIT($0) {
   if.else3:
     br if.join1
 }
-func void BADDEFAULT($0) {
+func void BADDEFAULT(i64 $0) {
   local i64 n
   entry0:
     %1 = alloca ptr n

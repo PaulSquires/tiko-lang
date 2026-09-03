@@ -7,7 +7,7 @@ func void REFUSED() {
     call void _Z1FPa(%1)
     ret
 }
-declare void _Z1FPa()
+declare void _Z1FPa(ptr $0)
 func void ACCEPTED() {
   entry0:
     %1 = load @@bp
@@ -16,8 +16,8 @@ func void ACCEPTED() {
     call void _Z1Gi(%2)
     ret
 }
-declare void _Z1Gi()
-func i32 main($0, $1) {
+declare void _Z1Gi(i32 $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -30,8 +30,8 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 14 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/overload-no-match.bas(25,6): error TKO0632: no overload of 'f' matches these arguments

@@ -1,4 +1,4 @@
-func i8 _ZN4ITER7ISVALIDEv($0) {
+func i8 _ZN4ITER7ISVALIDEv(ptr $0) {
   local i8 $tmp0
   local ptr this
   entry0:
@@ -16,7 +16,7 @@ func i8 _ZN4ITER7ISVALIDEv($0) {
     %10 = neg %9
     ret %10
 }
-func ptr _ZN4ITER5VALUEEv($0) {
+func ptr _ZN4ITER5VALUEEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   local ptr b
@@ -45,7 +45,7 @@ func ptr _ZN4ITER5VALUEEv($0) {
     %18 = load @$tmp0
     ret %18
 }
-func void _ZN4ITER8MOVENEXTEv($0) {
+func void _ZN4ITER8MOVENEXTEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -59,7 +59,7 @@ func void _ZN4ITER8MOVENEXTEv($0) {
     store %3, %7
     ret
 }
-func agg _ZN3BAG11GETITERATOREv($0) {
+func agg _ZN3BAG11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 16
   local ptr this
   local agg it size 16
@@ -79,7 +79,7 @@ func agg _ZN3BAG11GETITERATOREv($0) {
     %9 = load @$tmp0
     ret %9
 }
-func i32 SUMOF($0) {
+func i32 SUMOF(ptr $0) {
   local i32 $tmp0
   local ptr a
   local i32 s
@@ -116,7 +116,7 @@ func i32 SUMOF($0) {
     %14 = load @s
     ret %14
 }
-func i32 SUMOFVAL($0) {
+func i32 SUMOFVAL(ptr $0) {
   local i32 $tmp0
   local ptr a
   local i32 s

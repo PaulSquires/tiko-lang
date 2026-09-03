@@ -3,7 +3,7 @@ global str $str1 "abc"
 global var ptr main$r12
 global var i64 sh
 global var ptr main$r13
-func void _ZN3UDTC1Ev($0) {
+func void _ZN3UDTC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -21,7 +21,7 @@ func i64 F() {
     %4 = load @$tmp0
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a1 size 16
   local agg a2 size 16
@@ -152,10 +152,10 @@ func i32 main($0, $1) {
     %56 = load @$tmp0
     ret %56
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 108 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1

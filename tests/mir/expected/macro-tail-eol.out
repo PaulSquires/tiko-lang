@@ -2,7 +2,7 @@ global str $str0 "hello"
 global str $str1 "hellohello"
 global str $str2 "MISMATCH"
 global str $str3 "world!"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s size 24
   local agg $tmp2 size 24
@@ -51,16 +51,16 @@ func i32 main($0, $1) {
   if.else3:
     br if.join1
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_StrConcat($0, $1, $2, $3, $4)
-declare i32 fb_StrCompare($0, $1, $2, $3)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare i64 fb_StrLen($0, $1)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare i64 fb_StrLen(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 4 blocks, 36 insts, 0 statements not lowered, 0 scope imbalance

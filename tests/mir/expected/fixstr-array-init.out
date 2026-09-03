@@ -3,7 +3,7 @@ global str $str1 "ghijkl"
 global str $str2 "ab"
 global str $str3 "cd"
 global str $str4 "|"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg z size 64
   local agg f size 16
@@ -60,12 +60,12 @@ func i32 main($0, $1) {
     %41 = load @$tmp0
     ret %41
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempDescZ($0)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_StrAllocTempDescF($0, $1)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance

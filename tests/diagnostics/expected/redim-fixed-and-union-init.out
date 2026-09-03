@@ -1,4 +1,4 @@
-func void _ZN3UDT1FEv($0) {
+func void _ZN3UDT1FEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -11,8 +11,8 @@ func void _ZN3UDT1FEv($0) {
     %7 = call.rtl i32 fb_ArrayRedimEx(%3, 8, -1, 0, 1, %5, %6)
     ret
 }
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-func i32 main($0, $1) {
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg dyn size 240
   local agg fixed_ size 16
@@ -165,12 +165,12 @@ func i32 main($0, $1) {
     %96 = load @$tmp0
     ret %96
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN3UDTC1Ev($0)
-declare void _ZN3UDTD1Ev($0)
-declare i32 fb_ArrayErase($0)
-declare void fb_End($0)
-func void _ZN3UDTC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN3UDTC1Ev(ptr $0)
+declare void _ZN3UDTD1Ev(ptr $0)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN3UDTC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 16
     %2 = const ptr 0
@@ -201,7 +201,7 @@ func void _ZN3UDTC1Ev($0) {
     store %18, %17
     ret
 }
-func void _ZN3UDTD1Ev($0) {
+func void _ZN3UDTD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 16
     %2 = call.rtl i32 fb_ArrayErase(%1)

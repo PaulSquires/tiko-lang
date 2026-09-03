@@ -1,4 +1,4 @@
-func void _ZN7SELFOPSpLERS_($0, $1) {
+func void _ZN7SELFOPSpLERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr other
   entry0:
@@ -8,7 +8,7 @@ func void _ZN7SELFOPSpLERS_($0, $1) {
     store @other, $1
     ret
 }
-func ptr _ZN7SELFOPSadEv($0) {
+func ptr _ZN7SELFOPSadEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -21,7 +21,7 @@ func ptr _ZN7SELFOPSadEv($0) {
     %4 = load @$tmp0
     ret %4
 }
-func void _ZN9PUBLICOPSpLERS_($0, $1) {
+func void _ZN9PUBLICOPSpLERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr other
   entry0:
@@ -31,7 +31,7 @@ func void _ZN9PUBLICOPSpLERS_($0, $1) {
     store @other, $1
     ret
 }
-func ptr _ZN9PUBLICOPSadEv($0) {
+func ptr _ZN9PUBLICOPSadEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -44,7 +44,7 @@ func ptr _ZN9PUBLICOPSadEv($0) {
     %4 = load @$tmp0
     ret %4
 }
-func ptr _ZN5ALLOCnwEu8UINTEGER($0) {
+func ptr _ZN5ALLOCnwEu8UINTEGER(i64 $0) {
   local ptr $tmp0
   local i64 size
   entry0:
@@ -59,14 +59,14 @@ func ptr _ZN5ALLOCnwEu8UINTEGER($0) {
     %6 = load @$tmp0
     ret %6
 }
-func void _ZN5ALLOCdlEPS_($0) {
+func void _ZN5ALLOCdlEPS_(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func i64 _ZN4CONVcvu7INTEGEREv($0) {
+func i64 _ZN4CONVcvu7INTEGEREv(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -80,7 +80,7 @@ func i64 _ZN4CONVcvu7INTEGEREv($0) {
     %5 = load @$tmp0
     ret %5
 }
-func void _ZN7COUNTERv23forERS_($0, $1) {
+func void _ZN7COUNTERv23forERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr x
   entry0:
@@ -90,7 +90,7 @@ func void _ZN7COUNTERv23forERS_($0, $1) {
     store @x, $1
     ret
 }
-func i64 _ZN7COUNTERv34nextERS_S0_($0, $1, $2) {
+func i64 _ZN7COUNTERv34nextERS_S0_(ptr $0, ptr $1, ptr $2) {
   local i64 $tmp0
   local ptr this
   local ptr cond
@@ -108,7 +108,7 @@ func i64 _ZN7COUNTERv34nextERS_S0_($0, $1, $2) {
     %6 = const i64 0
     ret %6
 }
-func void _ZN7COUNTERv24stepERS_($0, $1) {
+func void _ZN7COUNTERv24stepERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr stp
   entry0:
@@ -118,21 +118,21 @@ func void _ZN7COUNTERv24stepERS_($0, $1) {
     store @stp, $1
     ret
 }
-func void _ZN10HIDDENCTORC1Ev($0) {
+func void _ZN10HIDDENCTORC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN10HIDDENCOPYC1Ev($0) {
+func void _ZN10HIDDENCOPYC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN10HIDDENCOPYC1ERS_($0, $1) {
+func void _ZN10HIDDENCOPYC1ERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr rhs
   entry0:
@@ -142,7 +142,7 @@ func void _ZN10HIDDENCOPYC1ERS_($0, $1) {
     store @rhs, $1
     ret
 }
-func void _ZN5OWNER9REACHABLEEv($0) {
+func void _ZN5OWNER9REACHABLEEv(ptr $0) {
   local ptr this
   local i64 n
   entry0:
@@ -153,7 +153,7 @@ func void _ZN5OWNER9REACHABLEEv($0) {
     store @n, %3
     ret
 }
-func void _ZN4HEIR7BLOCKEDEv($0) {
+func void _ZN4HEIR7BLOCKEDEv(ptr $0) {
   local ptr this
   local i64 n
   entry0:
@@ -164,7 +164,7 @@ func void _ZN4HEIR7BLOCKEDEv($0) {
     store @n, %3
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg so size 8
   local agg po size 8
@@ -361,11 +361,11 @@ func i32 main($0, $1) {
     %95 = load @$tmp0
     ret %95
 }
-declare void fb_Init($0, $1, $2)
-declare ptr calloc($0, $1)
-declare void free($0)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr calloc(i64 $0, i64 $1)
+declare void free(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 16 functions, 32 blocks, 209 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/operator-visibility.bas(102,24): error TKO0625: 'myconst' is not accessible here

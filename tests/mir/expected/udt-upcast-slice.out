@@ -1,11 +1,11 @@
-func void _ZN2T1D1Ev($0) {
+func void _ZN2T1D1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2T2D1Ev($0) {
+func void _ZN2T2D1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -36,8 +36,8 @@ func void FROMLITERAL() {
     call void _ZN2T1D1Ev(@u1)
     ret
 }
-declare ptr memcpy($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
+declare ptr memcpy(ptr $0, ptr $1, i64 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 func void FROMVARIABLE() {
   local agg v size 16
   local agg u2 size 8
@@ -53,7 +53,7 @@ func void FROMVARIABLE() {
     call void _ZN2T2D1Ev(@v)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -68,7 +68,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

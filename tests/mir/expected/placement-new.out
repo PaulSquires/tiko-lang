@@ -1,4 +1,4 @@
-func void _ZN8WITHCTORC1Ev($0) {
+func void _ZN8WITHCTORC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -9,7 +9,7 @@ func void _ZN8WITHCTORC1Ev($0) {
     store %3, %4
     ret
 }
-func void _ZN8WITHBOTHC1Ev($0) {
+func void _ZN8WITHBOTHC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -20,7 +20,7 @@ func void _ZN8WITHBOTHC1Ev($0) {
     store %3, %4
     ret
 }
-func void _ZN8WITHBOTHC1Eu7INTEGER($0, $1) {
+func void _ZN8WITHBOTHC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -34,7 +34,7 @@ func void _ZN8WITHBOTHC1Eu7INTEGER($0, $1) {
     store %4, %5
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr buf
   local ptr pa
@@ -243,11 +243,11 @@ func i32 main($0, $1) {
     %118 = load @$tmp0
     ret %118
 }
-declare void fb_Init($0, $1, $2)
-declare ptr malloc($0)
-declare ptr memset($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void free($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr malloc(i64 $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void free(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 20 blocks, 174 insts, 0 statements not lowered, 0 scope imbalance

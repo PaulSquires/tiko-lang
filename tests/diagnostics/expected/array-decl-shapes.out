@@ -1,4 +1,4 @@
-func void _ZN5CHILDC1Ev($0) {
+func void _ZN5CHILDC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -15,8 +15,8 @@ func void _ZN5CHILDC1Ev($0) {
     %9 = call.rtl ptr memset(%8, 0, 8)
     ret
 }
-declare ptr memset($0, $1, $2)
-func void _ZN6CHILD2C1Ev($0) {
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void _ZN6CHILD2C1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -25,7 +25,7 @@ func void _ZN6CHILD2C1Ev($0) {
     %3 = field.addr %2, 0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg okellipsis size 16
   local agg badfixed size 32
@@ -77,9 +77,9 @@ func i32 main($0, $1) {
     %30 = load @$tmp0
     ret %30
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_ArrayErase($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 60 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1

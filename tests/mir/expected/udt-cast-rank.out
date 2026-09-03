@@ -1,4 +1,4 @@
-func i8 _ZN3FOOcvaEv($0) {
+func i8 _ZN3FOOcvaEv(ptr $0) {
   local i8 $tmp0
   local ptr this
   entry0:
@@ -14,7 +14,7 @@ func i8 _ZN3FOOcvaEv($0) {
     %8 = fptosi %7
     ret %8
 }
-func f64 _ZN3FOOcvdEv($0) {
+func f64 _ZN3FOOcvdEv(ptr $0) {
   local f64 $tmp0
   local ptr this
   entry0:
@@ -28,7 +28,7 @@ func f64 _ZN3FOOcvdEv($0) {
     %6 = load %5
     ret %6
 }
-func void SHOW($0) {
+func void SHOW(f64 $0) {
   local f64 d
   entry0:
     %1 = alloca ptr d
@@ -37,8 +37,8 @@ func void SHOW($0) {
     call.rtl void fb_PrintDouble(0, %2, 1)
     ret
 }
-declare void fb_PrintDouble($0, $1, $2)
-func i8 _ZN4BAR2cvaEv($0) {
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+func i8 _ZN4BAR2cvaEv(ptr $0) {
   local i8 $tmp0
   local ptr this
   entry0:
@@ -50,7 +50,7 @@ func i8 _ZN4BAR2cvaEv($0) {
     %4 = const i64 1
     ret %4
 }
-func i16 _ZN4BAR2cvsEv($0) {
+func i16 _ZN4BAR2cvsEv(ptr $0) {
   local i16 $tmp0
   local ptr this
   entry0:
@@ -62,7 +62,7 @@ func i16 _ZN4BAR2cvsEv($0) {
     %4 = const i64 2
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg l size 8
   local agg r size 8
@@ -101,8 +101,8 @@ func i32 main($0, $1) {
     %22 = load @$tmp0
     ret %22
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 6 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance

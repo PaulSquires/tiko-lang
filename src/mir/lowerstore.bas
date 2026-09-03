@@ -45,6 +45,24 @@ function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long
 end function
 
 
+'' THE MIR TYPE OF A PARAMETER -- the one rule, used by the SLOT that holds it and by
+'' the SIGNATURE that declares it. They were derived separately as soon as a signature
+'' existed at all, and two derivations of one fact can disagree: the slot would hold a
+'' pointer while the declaration said 'agg', which is a miscompile no verifier sees
+'' because each half is internally consistent.
+''
+'' Three parameters lower to a POINTER that are not pointers in the source, and every
+'' one of them was read off fbc's own C rather than reasoned about. See the comments in
+'' LocalFor below, which is where each was found.
+function ParamMirType _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as MirType
+
+    if c.types->IsDynArray( t ) then return MT_PTR
+    if ByvalUdtIndirect_( c, t ) then return MT_PTR
+    if ByvalStrIndirect_( c, t ) then return MT_PTR
+    return LowerType( t, *c.types )
+end function
+
 function LocalFor _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as long
 
@@ -80,6 +98,8 @@ function LocalFor _
     '' signature says so -- 'void P( struct $7FBARRAYI1RE* ROWS$1 )' -- and giving it
     '' the descriptor's own 72 bytes described a local the caller never passed.
     if s->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
+        '' ...all three of which are ParamMirType above; the cases are spelled out here
+        '' because this is where each was found, and it is the one that decides.
         if c.types->IsDynArray( s->type_ ) then
             l.ty = cast( ubyte, MT_PTR )
         end if
@@ -454,7 +474,9 @@ sub EmitStructorCall _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
         decl->isDefinition = false
-        decl->paramCount = nargs
+        '' The receiver is parameter zero -- see this sub's own comment -- and the
+        '' structor's declared parameters follow it.
+        SignatureFromProc( c, decl, pn, false, true )
         fidx = c.m->functions.Count - 1
     end if
 
@@ -471,113 +493,6 @@ sub EmitDtorCall _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long )
     EmitStructorCall( c, sym, slot )
 end sub
-
-'' CALL A MEMBER ON A RECEIVER whose address is already in hand, with no call node in
-'' the AST to lower from.
-''
-'' EmitStructorCall does this for constructors and destructors and hard-codes a VOID
-'' result; the iterator protocol needs the same thing for functions that return
-'' something. Same shape, one more parameter.
-'' The same, with ARGUMENTS after the receiver. EmitMemberCall takes none, which is
-'' right for the iterator protocol it was written for and wrong for 'operator []'.
-'' A DIRECT CALL to a known procedure with a ready argument list -- no receiver, no
-'' overload work. What a user-defined GLOBAL operator needs: Check chose the symbol and
-'' the caller has already produced the operands the way the parameters want them.
-function EmitDirectCall_ _
-    ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
-      byref args as FB.Array( of ulong ) ) as MirValue
-
-    dim as MirValue none_
-    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return none_
-    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-    if pn = Tko.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
-
-    dim as long first = c.m->argPool.Count \ 2
-    for i as long = 0 to args.Count - 1
-        c.m->argPool.Push( args[i] )
-    next
-    dim as long nargs = args.Count \ 2
-
-    dim as Tko.InternId nm = c.names->GetString( _
-        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, rt )
-        decl->isDefinition = false
-        decl->paramCount = nargs
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, rt )
-    ins.first = first
-    ins.count = nargs
-    ins.callee = fidx
-    return Emit( c, ins )
-end function
-
-function EmitMemberCallArgs_ _
-    ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
-      byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
-
-    dim as MirValue none_
-    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return none_
-    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-    if pn = Tko.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
-    if self_.kind = cast( ubyte, MV_NONE ) then return none_
-
-    dim as long first = c.m->argPool.Count \ 2
-    c.m->argPool.Push( cast( ulong, self_.kind ) )
-    c.m->argPool.Push( cast( ulong, self_.id ) )
-    dim as long nargs = 1
-    if args <> 0 then
-        for i as long = 0 to args->Count - 1
-            c.m->argPool.Push( (*args)[i] )
-        next
-        nargs += args->Count \ 2
-    end if
-
-    dim as Tko.InternId nm = c.names->GetString( _
-        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, rt )
-        decl->isDefinition = false
-        decl->paramCount = nargs
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as MirInst ins
-    ins.op = cast( ushort, M_CALL )
-    ins.ty = cast( ubyte, rt )
-    ins.first = first
-    ins.count = nargs
-    ins.callee = fidx
-    return Emit( c, ins )
-end function
-
-function EmitMemberCall _
-    ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
-      byval rt as MirType ) as MirValue
-    return EmitMemberCallArgs_( c, sym, self_, rt, 0 )
-end function
 
 '' The paren-less STATEMENT form: 'W 1, 2'. The callee is the statement's own 'a' and
 '' the arguments are its children, so nothing about it looks like a call node -- which

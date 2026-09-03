@@ -1,4 +1,4 @@
-func void SUM($0, $1) {
+func void SUM(i64 $0, ...) {
   local i64 n
   local agg args size 8
   local agg copy_ size 8
@@ -36,9 +36,9 @@ func void SUM($0, $1) {
     call.rtl void fb_PrintLongint(0, %15, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintDouble($0, $1, $2)
-func agg OPENED($0, $1) {
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+func agg OPENED(i64 $0, ...) {
   local agg $tmp0 size 8
   local i64 n
   local agg args size 8
@@ -54,7 +54,7 @@ func agg OPENED($0, $1) {
     %6 = load @$tmp0
     ret %6
 }
-func void WALK($0) {
+func void WALK(ptr $0) {
   local ptr args
   local i64 x
   entry0:
@@ -68,7 +68,7 @@ func void WALK($0) {
     call.rtl void fb_PrintLongint(0, %5, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -86,7 +86,7 @@ func i32 main($0, $1) {
     %9 = load @$tmp0
     ret %9
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance

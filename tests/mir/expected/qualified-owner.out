@@ -1,25 +1,25 @@
-func void _ZN2NS3UDTC1Ev($0) {
+func void _ZN2NS3UDTC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2NS3UDTD1Ev($0) {
+func void _ZN2NS3UDTD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2NS3UDT5TOUCHEv($0) {
+func void _ZN2NS3UDT5TOUCHEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN3TWO4BOTHEv($0) {
+func void _ZN3TWO4BOTHEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -34,7 +34,7 @@ func void _ZN3TWO4BOTHEv($0) {
     store %6, %7
     ret
 }
-func i64 _ZN3TWO3GETEv($0) {
+func i64 _ZN3TWO3GETEv(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -48,7 +48,7 @@ func i64 _ZN3TWO3GETEv($0) {
     %6 = load %5
     ret %6
 }
-func void _ZN5OUTER5INNER5DEEP2C1Ev($0) {
+func void _ZN5OUTER5INNER5DEEP2C1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -59,7 +59,7 @@ func void _ZN5OUTER5INNER5DEEP2C1Ev($0) {
     store %3, %4
     ret
 }
-func void _ZN5OUTER5INNER5DEEP24POKEEv($0) {
+func void _ZN5OUTER5INNER5DEEP24POKEEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -70,7 +70,7 @@ func void _ZN5OUTER5INNER5DEEP24POKEEv($0) {
     store %3, %4
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg d size 8
   local agg u size 8
@@ -89,7 +89,7 @@ func i32 main($0, $1) {
     %7 = load @$tmp0
     ret %7
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 8 functions, 8 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

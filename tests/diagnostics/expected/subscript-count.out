@@ -55,11 +55,11 @@ func void ACCEPTED() {
     call.rtl void fb_PrintString(0, %32, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-declare void TAKESARRAY()
-declare ptr fb_StrAllocTempDescZ($0)
-declare void fb_PrintString($0, $1, $2)
-func i32 main($0, $1) {
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void TAKESARRAY(i64 $0)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -72,8 +72,8 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 53 insts, 2 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 2

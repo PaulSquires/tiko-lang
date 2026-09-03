@@ -1,4 +1,4 @@
-func void _ZN1PC1Ev($0) {
+func void _ZN1PC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -10,7 +10,7 @@ func void _ZN1PC1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN1PC1Eu7INTEGER($0, $1) {
+func void _ZN1PC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -24,7 +24,7 @@ func void _ZN1PC1Eu7INTEGER($0, $1) {
     store %4, %5
     ret
 }
-func void _ZN1PC1Ed($0, $1) {
+func void _ZN1PC1Ed(ptr $0, f64 $1) {
   local ptr this
   local f64 d
   entry0:
@@ -40,7 +40,7 @@ func void _ZN1PC1Ed($0, $1) {
     store %4, %7
     ret
 }
-func void _ZN2C_C1Eu7INTEGER($0, $1) {
+func void _ZN2C_C1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -61,7 +61,7 @@ func void _ZN2C_C1Eu7INTEGER($0, $1) {
     store %8, %11
     ret
 }
-func void _ZN2C_C1Edu7INTEGER($0, $1, $2) {
+func void _ZN2C_C1Edu7INTEGER(ptr $0, f64 $1, i64 $2) {
   local ptr this
   local f64 d
   local i64 n
@@ -83,7 +83,7 @@ func void _ZN2C_C1Edu7INTEGER($0, $1, $2) {
     store %9, %10
     ret
 }
-func void _ZN2D_C1Ev($0) {
+func void _ZN2D_C1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -99,7 +99,7 @@ func void _ZN2D_C1Ev($0) {
     store %5, %8
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 16
   local agg b size 16
@@ -124,7 +124,7 @@ func i32 main($0, $1) {
     %11 = load @$tmp0
     ret %11
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 7 functions, 7 blocks, 83 insts, 0 statements not lowered, 0 scope imbalance

@@ -14,6 +14,7 @@
 #include once "mir/lower.bi"
 #include once "mir/dump.bi"
 #include once "mir/verify.bi"
+#include once "codegen/llvmemit.bi"
 #include once "mir/rtl.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
@@ -179,7 +180,8 @@ function Run( byref args as Tko.StrVec ) as long
 
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
-           ctx.options.dumpIr orelse ctx.options.dumpUdt orelse _
+           ctx.options.dumpIr orelse ctx.options.emitIr orelse _
+           ctx.options.dumpUdt orelse _
            ctx.options.dumpVtable then
         for i as long = 1 to ctx.sources.Count( )
             dim as Tko.FileId id = cast( Tko.FileId, i )
@@ -224,7 +226,7 @@ function Run( byref args as Tko.StrVec ) as long
                 dim as Tko.UdtLayouts store
                 Tko.ComputeUdtLayouts( syms, ctx.types, store )
                 print Tko.DumpUdtLayouts( store, ctx.types, ctx.names, syms );
-            elseif ctx.options.dumpIr then
+            elseif ctx.options.dumpIr orelse ctx.options.emitIr then
                 '' MIR needs the full frontend in front of it: resolve binds names,
                 '' check gives every expression a type, and lowering reads both.
                 dim as Tko.Resolve.Stats rst
@@ -251,11 +253,46 @@ function Run( byref args as Tko.StrVec ) as long
                 Tko.CheckOverrideCompatible( ast, vts, ctx.names, ctx.diags )
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                                ctx.sources, udts, vts, mm, lst )
-                print Tko.Mir.DumpModule( mm, ctx.names );
+                '' '--emit-ir' RUNS THE SAME FRONTEND and prints the backend's
+                '' output instead of MIR's. It is the escape hatch docs/plan/10 asks
+                '' for, and it is the only way to see what the emitter produced
+                '' without a working link.
+                if ctx.options.emitIr then
+                    dim as Tko.Codegen.TargetDescription td = _
+                        Tko.Codegen.TargetFor( ctx.options.target )
+                    dim as Tko.Codegen.EmitResult er = _
+                        Tko.Codegen.EmitLlvm( mm, ctx.names, td )
+                    if er.ok then
+                        print er.text;
+                    else
+                        '' NOT A DIAGNOSTIC. A failure here is the compiler being
+                        '' unable to emit something it accepted, which is an internal
+                        '' fault and is reported as one.
+                        print "emit: ICE: " & er.ice
+                    end if
+                else
+                    print Tko.Mir.DumpModule( mm, ctx.names );
+                end if
+                '' THE REPORT GOES TO STDERR UNDER '--emit-ir', because stdout is
+                '' then a .ll FILE: a 'verify: ok' line in the middle of a module is
+                '' not a comment, and clang rejects the whole thing. Under '--dump-ir'
+                '' stdout is a report already and the two stay together.
+                dim as boolean quiet = ctx.options.emitIr
                 '' The verifier is an ICE check, not a diagnostic: a failure means
                 '' the compiler built something malformed.
                 dim as Tko.Mir.VerifyResult vr = Tko.Mir.Verify( mm, ctx.names )
-                if vr.failures > 0 then
+                if quiet then
+                    '' STDERR, opened here rather than through the diagnostic engine:
+                    '' this is not a diagnostic, it is the compiler reporting that it
+                    '' built something malformed, and it must not land in the .ll.
+                    if vr.failures > 0 then
+                        dim as long eh = freefile
+                        open err for output as #eh
+                        print #eh, "verify: " & str( vr.failures ) & " FAILURES"
+                        print #eh, vr.report;
+                        close #eh
+                    end if
+                elseif vr.failures > 0 then
                     print "verify: " & str( vr.failures ) & " FAILURES"
                     print vr.report;
                 else
@@ -279,6 +316,14 @@ function Run( byref args as Tko.StrVec ) as long
                 if lst.blocksRepaired > 0 then
                     sum_ += ", " & str( lst.blocksRepaired ) & " blocks repaired"
                 end if
+                '' THE WHOLE REPORT IS SUPPRESSED UNDER '--emit-ir', not just the
+                '' summary line: stdout is a .ll file and EVERY line of this is a
+                '' syntax error in it. Guarding the prints one at a time would be
+                '' twenty chances to miss one, and one missed line makes the whole
+                '' module unparseable -- which is exactly how it was found, as
+                '' 'expected top-level entity' on an 'inside N_AMBIGUOUS 1' that had
+                '' landed in the middle of the IR.
+                if quiet = false then
                 print sum_
                 '' The breakdown of what did NOT lower, printed only when there is
                 '' something to say. One 'skipped' total invites guessing at the next
@@ -372,6 +417,7 @@ function Run( byref args as Tko.StrVec ) as long
                     print "  amb-unbound-name " & _
                           ctx.names.Spelling( cast( Tko.InternId, lst.ambUnboundNames[i] ) )
                 next
+                end if
             elseif ctx.options.checkOnly then
                 dim as Tko.Resolve.Stats rst
                 Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _

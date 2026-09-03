@@ -278,11 +278,26 @@ function DumpModule _
         outp += iif( f->isDefinition, "func ", "declare " )
         outp += TypeName( cast( MirType, f->retTy ) ) & " " & _
                 names.Spelling( f->name ) & "("
+        '' THE PARAMETER'S TYPE, beside its number. The dump used to print '$0, $1'
+        '' and nothing else, which is all there was to print; the signature is now
+        '' recorded and a golden that cannot see it cannot protect it.
         for i as long = 0 to f->paramCount - 1
             if i > 0 then outp += ", "
-            outp += "$" & str( i )
+            dim as string pty = "?"
+            if i < f->paramTys.Count then
+                pty = TypeName( cast( MirType, f->paramTys[i] ) )
+            end if
+            outp += pty & " $" & str( i )
         next
+        if f->isVariadic then
+            if f->paramCount > 0 then outp += ", "
+            outp += "..."
+        end if
         outp += ")"
+        select case f->callConv
+        case TKO_CC_STDCALL : outp += " stdcall"
+        case TKO_CC_PASCAL  : outp += " pascal"
+        end select
         if f->isDefinition = false then
             outp += chr( 10 )
             continue for

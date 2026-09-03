@@ -2,7 +2,7 @@ global str $str0 "LONGINT PTR"
 global str $str1 "INTEGER PTR"
 global str $str2 "ULONGINT PTR"
 global str $str3 "|"
-func ptr _Z1FPx($0) {
+func ptr _Z1FPx(ptr $0) {
   local agg $tmp0 size 24
   local ptr p
   entry0:
@@ -19,9 +19,9 @@ func ptr _Z1FPx($0) {
     %7 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %7
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempResult($0)
-func ptr _Z1FPu7INTEGER($0) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempResult(ptr $0)
+func ptr _Z1FPu7INTEGER(ptr $0) {
   local agg $tmp0 size 24
   local ptr p
   entry0:
@@ -38,7 +38,7 @@ func ptr _Z1FPu7INTEGER($0) {
     %7 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %7
 }
-func ptr _Z1JPx($0) {
+func ptr _Z1JPx(ptr $0) {
   local agg $tmp0 size 24
   local ptr p
   entry0:
@@ -55,7 +55,7 @@ func ptr _Z1JPx($0) {
     %7 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %7
 }
-func ptr _Z1JPy($0) {
+func ptr _Z1JPy(ptr $0) {
   local agg $tmp0 size 24
   local ptr p
   entry0:
@@ -72,7 +72,7 @@ func ptr _Z1JPy($0) {
     %7 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %7
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr pll
   local ptr pull
@@ -111,9 +111,9 @@ func i32 main($0, $1) {
     %20 = load @$tmp0
     ret %20
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance

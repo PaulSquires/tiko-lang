@@ -37,11 +37,11 @@ func void S1() {
     ret
 }
 declare void __TKO_LAMBDA_801F6C16_0()
-declare void fb_PrintBool($0, $1, $2)
+declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void __TKO_LAMBDA_801F6C16_1()
-declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void __TKO_LAMBDA_801F6C16_2()
-func i8 __TKO_LAMBDA_801F6C16_0($0, $1) {
+func i8 __TKO_LAMBDA_801F6C16_0(ptr $0, ptr $1) {
   local i8 $tmp0
   local ptr x
   local ptr y
@@ -61,7 +61,7 @@ func i8 __TKO_LAMBDA_801F6C16_0($0, $1) {
     %10 = neg %9
     ret %10
 }
-func ptr __TKO_LAMBDA_801F6C16_1($0, $1) {
+func ptr __TKO_LAMBDA_801F6C16_1(ptr $0, ptr $1) {
   local ptr $tmp0
   local ptr p
   local ptr q
@@ -92,7 +92,7 @@ func ptr __TKO_LAMBDA_801F6C16_1($0, $1) {
   if.else3:
     br if.join1
 }
-func i32 __TKO_LAMBDA_801F6C16_2($0) {
+func i32 __TKO_LAMBDA_801F6C16_2(i32 $0) {
   local i32 $tmp0
   local i32 x
   entry0:
@@ -107,7 +107,7 @@ func i32 __TKO_LAMBDA_801F6C16_2($0) {
     %7 = add %6, %5
     ret %7
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -121,7 +121,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 8 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance

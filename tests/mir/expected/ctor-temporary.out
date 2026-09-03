@@ -1,4 +1,4 @@
-func void _ZN1PC1Ev($0) {
+func void _ZN1PC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -10,7 +10,7 @@ func void _ZN1PC1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN1PC1Ei($0, $1) {
+func void _ZN1PC1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:
@@ -24,7 +24,7 @@ func void _ZN1PC1Ei($0, $1) {
     store %4, %5
     ret
 }
-func agg _ZN1P5TWICEEv($0) {
+func agg _ZN1P5TWICEEv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg r size 4
@@ -48,7 +48,7 @@ func agg _ZN1P5TWICEEv($0) {
     %13 = load @$tmp0
     ret %13
 }
-func i32 _ZN1P11HALF__get__Ev($0) {
+func i32 _ZN1P11HALF__get__Ev(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -65,7 +65,7 @@ func i32 _ZN1P11HALF__get__Ev($0) {
     %9 = sdiv %8, %7
     ret %9
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 a
   local agg $tmp2 size 4
@@ -145,8 +145,8 @@ func i32 main($0, $1) {
     %43 = load @$tmp0
     ret %43
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance

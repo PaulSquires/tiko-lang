@@ -1,4 +1,4 @@
-func void _ZN1TpLEu7INTEGER($0, $1) {
+func void _ZN1TpLEu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 a
   entry0:
@@ -8,7 +8,7 @@ func void _ZN1TpLEu7INTEGER($0, $1) {
     store @a, $1
     ret
 }
-func void _ZN1TpLERKS_($0, $1) {
+func void _ZN1TpLERKS_(ptr $0, ptr $1) {
   local ptr this
   local ptr a
   entry0:
@@ -18,7 +18,7 @@ func void _ZN1TpLERKS_($0, $1) {
     store @a, $1
     ret
 }
-func i64 _ZN1TixEu7INTEGER($0, $1) {
+func i64 _ZN1TixEu7INTEGER(ptr $0, i64 $1) {
   local i64 $tmp0
   local ptr this
   local i64 a
@@ -33,7 +33,7 @@ func i64 _ZN1TixEu7INTEGER($0, $1) {
     %5 = load @a
     ret %5
 }
-func i64 _ZN1TixERKS_($0, $1) {
+func i64 _ZN1TixERKS_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr this
   local ptr a
@@ -48,7 +48,7 @@ func i64 _ZN1TixERKS_($0, $1) {
     %5 = const i64 0
     ret %5
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr f1
   local ptr f2
@@ -77,7 +77,7 @@ func i32 main($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance

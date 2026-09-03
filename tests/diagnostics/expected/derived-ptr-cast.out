@@ -16,7 +16,7 @@ func void REFUSED() {
     call.rtl void fb_PrintULongint(0, %4, 1)
     ret
 }
-declare void fb_PrintULongint($0, $1, $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 func void ACCEPTED() {
   entry0:
     %1 = load @@c
@@ -33,7 +33,7 @@ func void ACCEPTED() {
     call.rtl void fb_PrintULongint(0, %6, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -46,8 +46,8 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 28 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/derived-ptr-cast.bas(42,17): error TKO0627: a pointer to a derived type casts only along its own chain

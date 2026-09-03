@@ -8,7 +8,7 @@ global str $str6 "0"
 global str $str7 "255"
 global str $str8 "3"
 global data $data9 [ 1 -> $str4, 7 -> $str5, 1 -> $str6, 3 -> $str7, 1 -> $str8, -1 -> null ]
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 a
   local agg s size 24
@@ -48,14 +48,14 @@ func i32 main($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_DataRestore($0)
-declare void fb_DataReadLongint($0)
-declare void fb_DataReadStr($0, $1, $2)
-declare void fb_DataReadDouble($0)
-declare void fb_DataReadByte($0)
-declare void fb_DataReadWstr($0, $1)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_DataRestore(ptr $0)
+declare void fb_DataReadLongint(ptr $0)
+declare void fb_DataReadStr(ptr $0, i64 $1, i32 $2)
+declare void fb_DataReadDouble(ptr $0)
+declare void fb_DataReadByte(ptr $0)
+declare void fb_DataReadWstr(ptr $0, i64 $1)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 2 blocks, 28 insts, 0 statements not lowered, 0 scope imbalance

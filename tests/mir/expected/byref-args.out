@@ -2,7 +2,7 @@ global str $str0 ""
 global wstr $wstr1 "a"
 global wstr $wstr2 "lit"
 global str $str3 "lit"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 a
   local i32 b
@@ -213,19 +213,19 @@ func i32 main($0, $1) {
     %122 = load @$tmp0
     ret %122
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_GfxScreenInfo32()
-declare i32 fb_GetMouse()
-declare i32 fb_GfxImageInfo32()
-declare i32 fb_GfxGetJoystick()
-declare i32 fb_GfxScreenRes()
-declare void TAKESREF()
-declare void TAKESUDT()
-declare void TAKESW()
-declare void TAKESZ()
-declare void TAKESANY()
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_GfxScreenInfo32(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
+declare i32 fb_GetMouse(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4)
+declare i32 fb_GfxImageInfo32(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
+declare i32 fb_GfxGetJoystick(i32 $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6, ptr $7, ptr $8, ptr $9)
+declare i32 fb_GfxScreenRes(i32 $0, i32 $1, i32 $2, i32 $3, i32 $4, i32 $5)
+declare void TAKESREF(ptr $0)
+declare void TAKESUDT(ptr $0)
+declare void TAKESW(ptr $0)
+declare void TAKESZ(ptr $0)
+declare void TAKESANY(ptr $0)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 172 insts, 0 statements not lowered, 0 scope imbalance

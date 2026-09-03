@@ -1,4 +1,4 @@
-func i8 LESS($0, $1) {
+func i8 LESS(ptr $0, ptr $1) {
   local i8 $tmp0
   local ptr x
   local ptr y
@@ -18,7 +18,7 @@ func i8 LESS($0, $1) {
     %10 = neg %9
     ret %10
 }
-func void SBYTE_($0) {
+func void SBYTE_(i8 $0) {
   local i8 b
   entry0:
     %1 = alloca ptr b
@@ -27,8 +27,8 @@ func void SBYTE_($0) {
     call.rtl void fb_PrintByte(0, %2, 1)
     ret
 }
-declare void fb_PrintByte($0, $1, $2)
-func void RUN_($0) {
+declare void fb_PrintByte(i32 $0, i8 $1, i32 $2)
+func void RUN_(ptr $0) {
   local ptr f
   local i32 $tmp1
   local i32 $tmp2
@@ -49,8 +49,8 @@ func void RUN_($0) {
     call.rtl void fb_PrintBool(0, %10, 1)
     ret
 }
-declare void fb_PrintBool($0, $1, $2)
-func i8 __TKO_LAMBDA_B9179CFB_0($0, $1) {
+declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
+func i8 __TKO_LAMBDA_B9179CFB_0(ptr $0, ptr $1) {
   local i8 $tmp0
   local ptr x
   local ptr y
@@ -70,7 +70,7 @@ func i8 __TKO_LAMBDA_B9179CFB_0($0, $1) {
     %10 = neg %9
     ret %10
 }
-func void APPLY_<28>($0) {
+func void APPLY_<28>(ptr $0) {
   local ptr f
   local i32 $tmp1
   local i32 $tmp2
@@ -91,7 +91,7 @@ func void APPLY_<28>($0) {
     call.rtl void fb_PrintBool(0, %10, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr $tmp1
   local ptr p
@@ -127,7 +127,7 @@ func i32 main($0, $1) {
     %16 = load @$tmp0
     ret %16
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 6 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

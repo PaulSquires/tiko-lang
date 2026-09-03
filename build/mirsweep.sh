@@ -4,8 +4,37 @@
 # Separate from sweep.sh (which stops after parsing) because lowering every file takes
 # minutes rather than seconds.
 #
-# The numbers that matter are the ones that must be ZERO: verifier failures, scope
-# imbalance, and label-depth mismatches.
+# The numbers that matter are the ones that must be ZERO: scope imbalance and
+# label-depth mismatches.
+#
+# VERIFIER FAILURES ARE NOT ZERO AT BASELINE ANY MORE, and the count is stated here so
+# that a NEW one is visible rather than lost in a total:
+#
+#     96 verify failures in 25 files
+#
+# All of them are the CALL-ARITY rule (docs/plan/09 rule 5), which could not be checked
+# until a MirFunction carried a signature rather than an arity -- before that a
+# declaration's arity was whatever its first call site pushed, so the two agreed by
+# construction and the rule was vacuous. Every one of these is a call that disagrees
+# with the callee it is calling, which is a miscompile that was already there and is
+# now visible. They were 125 in 33 files when the rule first ran; four defects fixed in
+# the same batch account for the difference.
+#
+# The families, so that a new failure can be told from an old one:
+#
+#     14  fb_Sleep got=2 want=1   'sleep n, flag' is fb_SleepEx( int32, int32 ), a
+#                                 DIFFERENT entry point -- measured. The prelude
+#                                 declares only the one-argument fb_Sleep, so the
+#                                 two-argument form passes an argument to a
+#                                 one-parameter function. Needs a prelude overload.
+#     ~20 a constructor called with 'this' alone, dropping its own arguments
+#     ~16 FB.LOGEVENT.* got=4 want=3, one argument too many
+#     ~16 generic accessors (OPTIONAL.VALUE, RESULT.VALUE, SHAREDPTR.REF) got=2 want=1
+#      8  global operators '+' and '-' got=3 want=2
+#      ~5 a paren-less member call passing NO receiver, and one passing one too many
+#
+# This is Phase-6 debt surfaced by Phase-7 groundwork. Fixing it is tracked in HANDOFF;
+# what must not happen is the number drifting upward unnoticed.
 #
 # The two breakdowns say WHICH thing to implement next; a single total invites guessing.
 # They divide the declines into statements never STARTED (the dispatch) and statements

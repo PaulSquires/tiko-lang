@@ -3,7 +3,7 @@ global str $str1 "ab"
 global str $str2 "##_ ##"
 global str $str3 ", "
 global str $str4 "!"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg f size 24
   local agg s size 24
@@ -102,20 +102,20 @@ func i32 main($0, $1) {
     %69 = load @$tmp0
     ret %69
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare i32 fb_PrintUsingInit($0)
-declare i32 fb_PrintUsingDouble($0, $1, $2)
-declare i32 fb_PrintUsingEnd($0)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare i32 fb_PrintUsingLongint($0, $1, $2)
-declare i32 fb_PrintUsingStr($0, $1, $2)
-declare i32 fb_PrintUsingULongint($0, $1, $2)
-declare i32 fb_PrintUsingSingle($0, $1, $2)
-declare i32 fb_PrintUsingBoolean($0, $1, $2)
-declare ptr fb_StrConcat($0, $1, $2, $3, $4)
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare i32 fb_PrintUsingInit(ptr $0)
+declare i32 fb_PrintUsingDouble(i32 $0, f64 $1, i32 $2)
+declare i32 fb_PrintUsingEnd(i32 $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare i32 fb_PrintUsingLongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_PrintUsingStr(i32 $0, ptr $1, i32 $2)
+declare i32 fb_PrintUsingULongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_PrintUsingSingle(i32 $0, f32 $1, i32 $2)
+declare i32 fb_PrintUsingBoolean(i32 $0, i8 $1, i32 $2)
+declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

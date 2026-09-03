@@ -1,4 +1,4 @@
-func void _ZN4UDT31MER4UDT2($0, $1) {
+func void _ZN4UDT31MER4UDT2(ptr $0, ptr $1) {
   local ptr this
   local ptr u2
   entry0:
@@ -12,7 +12,7 @@ func void _ZN4UDT31MER4UDT2($0, $1) {
     store %3, %5
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x size 16
   local agg y size 8
@@ -36,8 +36,8 @@ func i32 main($0, $1) {
     %11 = load @$tmp0
     ret %11
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 25 insts, 0 statements not lowered, 0 scope imbalance

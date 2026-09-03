@@ -4,7 +4,7 @@ global str $str2 "z"
 global str $str3 "n="
 global str $str4 "!"
 global str $str5 "lit"
-func void P($0) {
+func void P(i64 $0) {
   local i64 c
   local agg a size 24
   local agg b size 24
@@ -131,14 +131,14 @@ func void P($0) {
     call.rtl void fb_StrDelete(@a)
     ret
 }
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintLongint($0, $1, $2)
-func void Q($0) {
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func void Q(i64 $0) {
   local i64 c
   local agg a size 16
   local agg b size 16

@@ -27,7 +27,7 @@ func ptr REFJ() {
     %5 = load @$tmp0
     ret %5
 }
-func void TAKESDEFAULT($0) {
+func void TAKESDEFAULT(i64 $0) {
   local i64 n
   entry0:
     %1 = alloca ptr n
@@ -36,7 +36,7 @@ func void TAKESDEFAULT($0) {
     call.rtl void fb_PrintLongint(0, %2, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 func void S1() {
   local i64 i
   local i64 t
@@ -96,7 +96,7 @@ func void S1() {
     call.rtl void fb_PrintLongint(0, %30, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -110,7 +110,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 9 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance

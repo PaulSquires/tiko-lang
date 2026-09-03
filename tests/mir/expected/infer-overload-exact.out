@@ -1,4 +1,4 @@
-func i8 _Z4PICKaa($0, $1) {
+func i8 _Z4PICKaa(i8 $0, i8 $1) {
   local i8 $tmp0
   local i8 a
   local i8 b
@@ -13,7 +13,7 @@ func i8 _Z4PICKaa($0, $1) {
     %5 = load @a
     ret %5
 }
-func i32 _Z4PICKii($0, $1) {
+func i32 _Z4PICKii(i32 $0, i32 $1) {
   local i32 $tmp0
   local i32 a
   local i32 b
@@ -30,7 +30,7 @@ func i32 _Z4PICKii($0, $1) {
     %7 = add %5, %6
     ret %7
 }
-func f64 _Z4PICKdd($0, $1) {
+func f64 _Z4PICKdd(f64 $0, f64 $1) {
   local f64 $tmp0
   local f64 a
   local f64 b
@@ -47,7 +47,7 @@ func f64 _Z4PICKdd($0, $1) {
     %7 = mul %5, %6
     ret %7
 }
-func agg SOME<2>($0) {
+func agg SOME<2>(i8 $0) {
   local agg $tmp0 size 2
   local i8 x
   local agg r size 2
@@ -67,7 +67,7 @@ func agg SOME<2>($0) {
     %9 = load @$tmp0
     ret %9
 }
-func agg SOME<6>($0) {
+func agg SOME<6>(i32 $0) {
   local agg $tmp0 size 8
   local i32 x
   local agg r size 8
@@ -87,7 +87,7 @@ func agg SOME<6>($0) {
     %9 = load @$tmp0
     ret %9
 }
-func agg SOME<13>($0) {
+func agg SOME<13>(f64 $0) {
   local agg $tmp0 size 16
   local f64 x
   local agg r size 16
@@ -107,7 +107,7 @@ func agg SOME<13>($0) {
     %9 = load @$tmp0
     ret %9
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i8 bb
   local i32 ll
@@ -164,10 +164,10 @@ func i32 main($0, $1) {
     %34 = load @$tmp0
     ret %34
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintBool($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintDouble($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 7 functions, 7 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance

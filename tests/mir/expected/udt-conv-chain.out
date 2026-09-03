@@ -1,12 +1,12 @@
 global str $str0 ""
-func void _ZN2TUC1Ev($0) {
+func void _ZN2TUC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2TUC1ER8FBSTRING($0, $1) {
+func void _ZN2TUC1ER8FBSTRING(ptr $0, ptr $1) {
   local ptr this
   local ptr s
   entry0:
@@ -16,14 +16,14 @@ func void _ZN2TUC1ER8FBSTRING($0, $1) {
     store @s, $1
     ret
 }
-func void _ZN2TUD1Ev($0) {
+func void _ZN2TUD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func ptr _ZN2TVcv8FBSTRINGEv($0) {
+func ptr _ZN2TVcv8FBSTRINGEv(ptr $0) {
   local agg $tmp0 size 24
   local ptr this
   entry0:
@@ -40,9 +40,9 @@ func ptr _ZN2TVcv8FBSTRINGEv($0) {
     %7 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %7
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempResult($0)
-func i64 _ZneR2TUS0_($0, $1) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempResult(ptr $0)
+func i64 _ZneR2TUS0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr ul
   local ptr ur
@@ -64,7 +64,7 @@ func i64 _ZneR2TUS0_($0, $1) {
     %12 = neg %11
     ret %12
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg u size 8
   local agg v size 8
@@ -107,7 +107,7 @@ func i32 main($0, $1) {
   if.else3:
     br if.join1
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 9 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance

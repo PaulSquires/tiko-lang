@@ -1,4 +1,4 @@
-func void _ZN7CTORUDTC1Ev($0) {
+func void _ZN7CTORUDTC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -13,7 +13,7 @@ func void _ZN7CTORUDTC1Ev($0) {
     store %6, %7
     ret
 }
-func void SINK($0) {
+func void SINK(i64 $0) {
   local i64 n
   entry0:
     %1 = alloca ptr n
@@ -22,7 +22,7 @@ func void SINK($0) {
     call.rtl void fb_PrintLongint(0, %2, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 func void S1() {
   local agg $tmp0 size 16
   local agg $tmp1 size 16
@@ -51,7 +51,7 @@ func void S1() {
     call void SINK(%12)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -65,7 +65,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 43 insts, 0 statements not lowered, 0 scope imbalance

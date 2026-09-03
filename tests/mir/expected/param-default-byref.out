@@ -1,6 +1,6 @@
 global str $str0 "changed"
 global str $str1 "x"
-func void MUT($0) {
+func void MUT(ptr $0) {
   local ptr u
   entry0:
     %1 = alloca ptr u
@@ -12,7 +12,7 @@ func void MUT($0) {
     store %3, %5
     ret
 }
-func void MUTS($0) {
+func void MUTS(ptr $0) {
   local ptr s
   entry0:
     %1 = alloca ptr s
@@ -21,8 +21,8 @@ func void MUTS($0) {
     %3 = call.rtl ptr fb_StrAssign(%2, -1, @@$str0, 8, 0)
     ret
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-func void KEEPS($0) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func void KEEPS(agg $0) {
   local agg u size 4
   entry0:
     %1 = alloca ptr u
@@ -33,7 +33,7 @@ func void KEEPS($0) {
     store %2, %4
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 4
   local agg t size 24
@@ -67,11 +67,11 @@ func i32 main($0, $1) {
     %16 = load @$tmp0
     ret %16
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance

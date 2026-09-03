@@ -25,16 +25,16 @@ func void ACCEPTED() {
     call.rtl void fb_PrintString(0, %9, 1)
     ret
 }
-declare ptr fb_StrLcase2($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_StrUcase2($0, $1)
-declare ptr fb_LEFT($0, $1)
-declare f64 fb_VAL($0)
-declare void fb_PrintDouble($0, $1, $2)
-declare i32 fb_VALINT($0)
-declare void fb_PrintInt($0, $1, $2)
-declare ptr fb_StrAllocTempDescZ($0)
-func i32 main($0, $1) {
+declare ptr fb_StrLcase2(ptr $0, i32 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrUcase2(ptr $0, i32 $1)
+declare ptr fb_LEFT(ptr $0, i64 $1)
+declare f64 fb_VAL(ptr $0)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare i32 fb_VALINT(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -47,14 +47,14 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 23 insts, 7 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 7
   inside N_INTRINSIC 7
   unlowered intrinsic KW_PRINT 7
-  skip-site src\mir\lowerctl.bas:194 7
+  skip-site src\mir\lowerctl.bas:206 7
 tests/diagnostics/src/string-intrinsic-arg.bas(19,18): error TKO0626: 'lcase' takes a string
      |
   19 |     print lcase( 0 )

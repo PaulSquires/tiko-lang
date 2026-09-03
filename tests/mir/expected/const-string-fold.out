@@ -29,10 +29,10 @@ func void S1() {
     call.rtl void fb_StrDelete(@s)
     ret
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_StrDelete($0)
-func i32 main($0, $1) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -46,7 +46,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 29 insts, 0 statements not lowered, 0 scope imbalance

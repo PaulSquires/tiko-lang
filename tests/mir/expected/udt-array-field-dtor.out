@@ -16,9 +16,9 @@ func void USESTR() {
     call void _ZN12WITHSTRARRAYD1Ev(@a)
     ret
 }
-declare void _ZN12WITHSTRARRAYC1Ev($0)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void _ZN12WITHSTRARRAYD1Ev($0)
+declare void _ZN12WITHSTRARRAYC1Ev(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void _ZN12WITHSTRARRAYD1Ev(ptr $0)
 func void USEUSTR() {
   local agg b size 96
   entry0:
@@ -34,9 +34,9 @@ func void USEUSTR() {
     call void _ZN13WITHUSTRARRAYD1Ev(@b)
     ret
 }
-declare void _ZN13WITHUSTRARRAYC1Ev($0)
-declare ptr fb_UStrAssign($0, $1, $2, $3, $4)
-declare void _ZN13WITHUSTRARRAYD1Ev($0)
+declare void _ZN13WITHUSTRARRAYC1Ev(ptr $0)
+declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void _ZN13WITHUSTRARRAYD1Ev(ptr $0)
 func void USEUDT() {
   local agg c size 96
   entry0:
@@ -52,8 +52,8 @@ func void USEUDT() {
     call void _ZN12WITHUDTARRAYD1Ev(@c)
     ret
 }
-declare void _ZN12WITHUDTARRAYC1Ev($0)
-declare void _ZN12WITHUDTARRAYD1Ev($0)
+declare void _ZN12WITHUDTARRAYC1Ev(ptr $0)
+declare void _ZN12WITHUDTARRAYD1Ev(ptr $0)
 func void USEZ() {
   local agg d size 32
   entry0:
@@ -66,7 +66,7 @@ func void USEZ() {
     %7 = call.rtl ptr fb_StrAssign(%6, 8, @@$str3, 2, 0)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -83,14 +83,14 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
-func void _ZN12WITHSTRARRAYC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN12WITHSTRARRAYC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     ret
 }
-func void _ZN12WITHSTRARRAYD1Ev($0) {
+func void _ZN12WITHSTRARRAYD1Ev(ptr $0) {
   local agg $tmp0 size 72
   entry0:
     %1 = field.addr $0, 0
@@ -123,13 +123,13 @@ func void _ZN12WITHSTRARRAYD1Ev($0) {
     call.rtl void fb_ArrayDestructStr(@$tmp0)
     ret
 }
-declare void fb_ArrayDestructStr($0)
-func void _ZN13WITHUSTRARRAYC1Ev($0) {
+declare void fb_ArrayDestructStr(ptr $0)
+func void _ZN13WITHUSTRARRAYC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     ret
 }
-func void _ZN13WITHUSTRARRAYD1Ev($0) {
+func void _ZN13WITHUSTRARRAYD1Ev(ptr $0) {
   local agg $tmp0 size 72
   entry0:
     %1 = field.addr $0, 0
@@ -162,13 +162,13 @@ func void _ZN13WITHUSTRARRAYD1Ev($0) {
     call.rtl void fb_ArrayDestructUStr(@$tmp0)
     ret
 }
-declare void fb_ArrayDestructUStr($0)
-func void _ZN12WITHUDTARRAYC1Ev($0) {
+declare void fb_ArrayDestructUStr(ptr $0)
+func void _ZN12WITHUDTARRAYC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     ret
 }
-func void _ZN12WITHUDTARRAYD1Ev($0) {
+func void _ZN12WITHUDTARRAYD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = field.addr %1, 72
@@ -181,13 +181,13 @@ func void _ZN12WITHUDTARRAYD1Ev($0) {
     call void _ZN4ELEMD1Ev(%5)
     ret
 }
-declare void _ZN4ELEMD1Ev($0)
-func void _ZN4ELEMD1Ev($0) {
+declare void _ZN4ELEMD1Ev(ptr $0)
+func void _ZN4ELEMD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call.rtl void fb_StrDelete(%1)
     ret
 }
-declare void fb_StrDelete($0)
+declare void fb_StrDelete(ptr $0)
 verify: ok
 lowered: 12 functions, 12 blocks, 118 insts, 0 statements not lowered, 0 scope imbalance

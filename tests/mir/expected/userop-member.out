@@ -1,18 +1,18 @@
-func void _ZN3BIGC1Ev($0) {
+func void _ZN3BIGC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN3BIGD1Ev($0) {
+func void _ZN3BIGD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func ptr _ZplR3BIGS0_($0, $1, $2) {
+func ptr _ZplR3BIGS0_(ptr $0, ptr $1, ptr $2) {
   local ptr $tmp0
   local ptr x
   local ptr y
@@ -42,7 +42,7 @@ func ptr _ZplR3BIGS0_($0, $1, $2) {
     %15 = load @$tmp0
     ret %15
 }
-func agg _ZplR5SMALLS0_($0, $1) {
+func agg _ZplR5SMALLS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr x
   local ptr y
@@ -69,7 +69,7 @@ func agg _ZplR5SMALLS0_($0, $1) {
     %15 = load @$tmp0
     ret %15
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg p size 32
   local agg q size 32
@@ -115,9 +115,9 @@ func i32 main($0, $1) {
     %21 = load @$tmp0
     ret %21
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance

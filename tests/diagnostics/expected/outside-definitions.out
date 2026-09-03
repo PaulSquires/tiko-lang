@@ -1,6 +1,6 @@
 global var agg arr size 240
 global var agg _ZN6HOLDER5STAT$E size 240
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 ext
   local agg extarr size 240
@@ -33,9 +33,9 @@ func i32 main($0, $1) {
     %23 = load @$tmp0
     ret %23
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 26 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/outside-definitions.bas(28,14): error TKO0761: 'ns.arr' is declared SHARED from outside its namespace

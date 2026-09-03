@@ -25,6 +25,6 @@ func void P() {
     store @g, %13
     ret
 }
-declare ptr fb_ErrorThrowEx($0, $1, $2, $3, $4)
+declare ptr fb_ErrorThrowEx(i32 $0, i32 $1, ptr $2, ptr $3, ptr $4)
 verify: ok
 lowered: 1 functions, 2 blocks, 16 insts, 0 statements not lowered, 0 scope imbalance

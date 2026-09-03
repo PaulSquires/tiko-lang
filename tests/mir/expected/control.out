@@ -1,6 +1,6 @@
 global str $str0 "x"
 global var i32 counter
-func void SEL($0) {
+func void SEL(i32 $0) {
   local i32 n
   local i32 r
   local i32 $tmp2
@@ -73,7 +73,7 @@ func void SEL($0) {
     store @r, %39
     br sel.join1
 }
-func void JUMP($0) {
+func void JUMP(i32 $0) {
   local i32 n
   local i32 r
   local agg s size 24
@@ -122,9 +122,9 @@ func void JUMP($0) {
   goto.after9:
     br if.join6
 }
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-func void DUP($0) {
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+func void DUP(i32 $0) {
   local i32 n
   local i32 r
   entry0:
@@ -143,7 +143,7 @@ func void DUP($0) {
     store @r, %6
     ret
 }
-func void ENDING($0) {
+func void ENDING(i32 $0) {
   local i32 n
   local agg s size 24
   entry0:
@@ -183,8 +183,8 @@ func void ENDING($0) {
   end.after8:
     br if.join5
 }
-declare void fb_End($0)
-func void _ZN3NSQ5GREETEi($0) {
+declare void fb_End(i32 $0)
+func void _ZN3NSQ5GREETEi(i32 $0) {
   local i32 n
   entry0:
     %1 = alloca ptr n

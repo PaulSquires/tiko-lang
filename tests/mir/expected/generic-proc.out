@@ -19,9 +19,9 @@ func void P() {
     store @a2, %11
     ret
 }
-declare agg MK<6>()
-declare agg MK<13>()
-func agg MK<6>($0) {
+declare agg MK<6>(i32 $0)
+declare agg MK<13>(f64 $0)
+func agg MK<6>(i32 $0) {
   local agg $tmp0 size 4
   local i32 x
   local agg b size 4
@@ -38,7 +38,7 @@ func agg MK<6>($0) {
     %7 = load @$tmp0
     ret %7
 }
-func agg MK<13>($0) {
+func agg MK<13>(f64 $0) {
   local agg $tmp0 size 8
   local f64 x
   local agg b size 8

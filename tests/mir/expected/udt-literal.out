@@ -28,7 +28,7 @@ func agg MAKEPTYPED() {
     %8 = load @$tmp0
     ret %8
 }
-func void _ZN7CTORUDTC1Ev($0) {
+func void _ZN7CTORUDTC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -41,7 +41,7 @@ func void _ZN7CTORUDTC1Ev($0) {
     store %3, %6
     ret
 }
-func void _ZN7CTORUDTC1Ei($0, $1) {
+func void _ZN7CTORUDTC1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:
@@ -55,7 +55,7 @@ func void _ZN7CTORUDTC1Ei($0, $1) {
     store %4, %5
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg d size 8
   local agg e size 8
@@ -236,11 +236,11 @@ func i32 main($0, $1) {
     %121 = load @$tmp0
     ret %121
 }
-declare void fb_Init($0, $1, $2)
-declare void Q()
-declare void R()
-declare void S()
-declare ptr memset($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void Q(agg $0)
+declare void R(ptr $0)
+declare void S(ptr $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 198 insts, 0 statements not lowered, 0 scope imbalance

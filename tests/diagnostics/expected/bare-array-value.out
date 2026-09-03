@@ -59,10 +59,10 @@ func void ACCEPTED() {
     call.rtl void fb_PrintLongint(0, %28, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-declare i32 fb_ArrayClear($0)
-declare i32 fb_StrCompare($0, $1, $2, $3)
-func i32 main($0, $1) {
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_ArrayClear(ptr $0)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -75,15 +75,15 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 55 insts, 2 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 2
   inside N_INTRINSIC 2
   unlowered intrinsic KW_PRINT 1
   unlowered intrinsic KW_DRAW 1
-  skip-site src\mir\lowerctl.bas:194 2
+  skip-site src\mir\lowerctl.bas:206 2
 tests/diagnostics/src/bare-array-value.bas(25,11): error TKO0649: an array name without a subscript is not a value
      |
   25 |     print a

@@ -137,6 +137,7 @@ sub LowerProc _
     end if
     dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
     f->isDefinition = true
+    f->callConv = ProcCallConv_( c, id )
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym
@@ -189,6 +190,18 @@ sub LowerProc _
             end select
         end if
 
+        '' A STATIC MEMBER HAS NO RECEIVER either, and the word is on the DECLARE
+        '' rather than on the definition: 'declare static sub s1( )' inside the type,
+        '' then 'private sub T.s1( )' outside it, which repeats nothing. So the
+        '' definition's own flags cannot answer this and the SYMBOL's declaration is
+        '' consulted -- the same place mangling reads it from.
+        ''
+        '' Found by the call-arity rule: the definition took a 'this' and every call
+        '' site correctly passed none, so the method read a receiver that was never
+        '' written. The four allocation operators above are the same fact arrived at
+        '' from the other direction; this is the general case they are an instance of.
+        if ProcIsStatic_( c, id, sid ) then thisSym = Tko.SYMBOL_NONE
+
         if isStructor = false then
             '' Otherwise: a receiver exists only if a TYPE scope encloses the
             '' procedure. 'private function procA.f1( ) as integer' inside 'namespace
@@ -220,14 +233,12 @@ sub LowerProc _
     '' every call site agree on the arity -- on win32 fbc EXCLUDES it from the stdcall
     '' '@N' but the callee still pops it, so the two numbers are genuinely different
     '' things and only this one is the argument count.
-    if UsesSretReturn( c, rt ) then f->paramCount += 1
-    if thisSym <> Tko.SYMBOL_NONE then f->paramCount += 1
-
-    for i as long = 0 to sp->count - 1
-        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) = Tko.N_PARAM then
-            f->paramCount += 1
-        end if
-    next
+    '' THE SIGNATURE IS RECORDED BELOW, beside the parameter slots, because only there
+    '' are the TYPES known -- a slot's type is the answer to what byref, a descriptor and
+    '' an aggregate each lower to, and re-deriving it here would be a second opinion that
+    '' could disagree with the first. The arity used to be counted here and the types
+    '' never recorded at all, which is what left 'declare i32 @F()' for every function
+    '' this module does not define.
 
     c.curBlock = NewBlock( c, "entry" )
     '' The scope this procedure's body lives in -- see the field's comment.
@@ -428,7 +439,11 @@ sub LowerProc _
     '' hidden pointer, RCX is the pointer and RDX is 'this', and a later double lands
     '' in XMM3 rather than XMM1.
     dim as long pidx = 0
-    if c.sretParam >= 0 then pidx = 1
+    if c.sretParam >= 0 then
+        f->AddParam( MT_PTR )
+        f->hasSretParam = true
+        pidx = 1
+    end if
     if thisSym <> Tko.SYMBOL_NONE then
         '' THIS is a POINTER TO the object -- the symbol carries that type, so the slot
         '' comes out a pointer and 'this.field' reaches through it like any other
@@ -444,11 +459,15 @@ sub LowerProc _
             thisTyped = (c.f->locals[tslot].ty <> cast( ubyte, MT_VOID ))
         end if
         if thisTyped = false then
+            '' The ARGUMENT still exists and is still a pointer -- only the STORE into
+            '' the slot is skipped -- so the signature keeps it.
+            f->AddParam( MT_PTR )
             pidx += 1
             thisSym = Tko.SYMBOL_NONE
         end if
     end if
     if thisSym <> Tko.SYMBOL_NONE then
+        f->AddParam( MT_PTR )
         dim as long tslot = LocalFor( c, thisSym )
         if tslot < 0 then tslot = 0
         dim as MirValue taddr
@@ -471,10 +490,31 @@ sub LowerProc _
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
+        '' ...and is not one here either -- see SignatureFromProc below. It used to be
+        '' COUNTED into the arity, which nothing noticed while the arity was all there
+        '' was: a variadic's declared arity was one too many and every call to it
+        '' disagreed with it by exactly the ellipsis.
+        if pp->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+            f->isVariadic = true
+            pidx += 1
+            continue for
+        end if
         dim as Tko.SymbolId psid = _
             c.syms->LookupLocalTyped( c.info->ScopeOf( id ), pp->name, false )
+        '' THE SLOT'S TYPE IS THE PARAMETER'S TYPE. Where there is no slot -- an
+        '' unresolved or unnamed parameter -- the declared type is lowered instead, so
+        '' the arity and the signature stay the same length either way.
+        dim as long pslot = -1
+        if psid <> Tko.SYMBOL_NONE then pslot = LocalFor( c, psid )
+        if (pslot >= 0) andalso (pslot < c.f->locals.Count) then
+            f->AddParam( cast( MirType, c.f->locals[pslot].ty ), _
+                         cast( ulong, c.f->locals[pslot].frontendType ) )
+        else
+            dim as Tko.TypeId pt = c.info->TypeOf_( pp->a )
+            f->AddParam( ParamMirType( c, pt ), cast( ulong, pt ) )
+        end if
         if psid <> Tko.SYMBOL_NONE then
-            dim as long slot = LocalFor( c, psid )
+            dim as long slot = pslot
             if slot >= 0 then
                 dim as MirValue addr
                 addr.kind = cast( ubyte, MV_LOCAL )
@@ -844,7 +884,10 @@ sub LowerMainModule( byref c as Ctx, byval root as Tko.NodeId )
 
     dim as MirFunction ptr f = c.m->AddFunction( c.names->GetString( "main" ), MT_I32 )
     f->isDefinition = true
-    f->paramCount = 2                     '' argc, argv
+    '' argc, argv -- 'int32 main( int32 ARGC$1, char** ARGV$1 )', which is what fbc
+    '' emits and what the C runtime calls.
+    f->AddParam( MT_I32 )
+    f->AddParam( MT_PTR )
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
     c.f = f
@@ -1057,6 +1100,97 @@ end function
 '' The copy-construction half of a UDT result. False when the type has no copy
 '' constructor at all, written or synthesised, which is the trivial structure fbc
 '' stores whole.
+'' THE SIGNATURE OF A PROCEDURE THIS MODULE DOES NOT DEFINE.
+''
+'' The definition path records a signature from the parameter SLOTS, which is the
+'' authority -- a slot's type is what the body actually reads. A declaration has no
+'' slots, so the types come from the DECLARED types instead, through ParamMirType,
+'' which is the rule the slots were built with. One rule, two entry points.
+''
+'' The two hidden parameters are the caller's business and are passed in rather than
+'' re-derived here: given only a proc node this cannot see whether the call site
+'' decided to pass a hidden result pointer, and guessing would put the arity of the
+'' declaration and the arity of the call out of step.
+sub SignatureFromProc _
+    ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
+      byval withSret as boolean, byval withThis as boolean )
+
+    if f = 0 then return
+    if withSret then
+        f->AddParam( MT_PTR )
+        f->hasSretParam = true
+    end if
+    if withThis then f->AddParam( MT_PTR )
+    if pn = Tko.NODE_NONE then return
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
+    if sp = 0 then return
+
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        '' THE ELLIPSIS IS AN N_PARAM and is not a parameter: it carries no type and
+        '' contributes no argument. LLVM spells it in the signature's tail instead.
+        if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+            f->isVariadic = true
+            continue for
+        end if
+        '' THE TYPE IS ON THE TYPEREF CHILD, not on the N_PARAM -- which carries none,
+        '' so reading it there gives TYPE_NONE and every parameter comes out 'void'.
+        '' ParamTypeAt has always read it this way; this is the same fact.
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        '' BYREF IS ON THE PARAMETER, NOT IN THE TYPEREF. The typeref carries the bare
+        '' type either way; Resolve settles byref -- including the DEFAULT, which is
+        '' byref for a UDT or a string and byval for everything else -- by writing
+        '' NF_BYREF onto this node and making the SYMBOL's type a reference. The slot
+        '' path reads the symbol and so sees a pointer; reading the typeref alone does
+        '' not, and 'byref q as Pt' came out an aggregate passed by value.
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            f->AddParam( MT_PTR, cast( ulong, pt ) )
+        else
+            f->AddParam( ParamMirType( c, pt ), cast( ulong, pt ) )
+        end if
+    next
+    f->callConv = ProcCallConv_( c, pn )
+end sub
+
+'' Whether a procedure is a STATIC member, which is the question "does it have a
+'' receiver" asked the other way round. PF_STATIC may sit on EITHER node: on the
+'' definition when the definition repeats the word, and on the DECLARE when -- as is
+'' usual and as fbc requires for the allocation operators -- it does not.
+function ProcIsStatic_ _
+    ( byref c as Ctx, byval defn as Tko.NodeId, byval sid as Tko.SymbolId ) as boolean
+
+    if defn <> Tko.NODE_NONE then
+        dim as Tko.StmtPayload ptr dp = StmtOf( c, defn )
+        if dp <> 0 then
+            if (dp->extra and Tko.PF_STATIC) <> 0 then return true
+        end if
+    end if
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
+    if psp = 0 then return false
+    return ((psp->extra and Tko.PF_STATIC) <> 0)
+end function
+
+'' cdecl / stdcall / pascal, off the proc's own flags. All three are one convention on
+'' x86-64 and the emitted IR is identical; it is carried because it is part of the
+'' signature, because win32 is a stated target, and because it is unrecoverable later.
+function ProcCallConv_ _
+    ( byref c as Ctx, byval pn as Tko.NodeId ) as ubyte
+
+    if pn = Tko.NODE_NONE then return TKO_CC_CDECL
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
+    if sp = 0 then return TKO_CC_CDECL
+    if (sp->extra and Tko.PF_STDCALL) <> 0 then return TKO_CC_STDCALL
+    if (sp->extra and Tko.PF_PASCAL) <> 0 then return TKO_CC_PASCAL
+    return TKO_CC_CDECL
+end function
+
 private function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
 

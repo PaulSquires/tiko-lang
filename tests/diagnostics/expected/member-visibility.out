@@ -1,7 +1,7 @@
 global var agg x size 24
 global var agg d size 24
 global var agg src_ size 8
-func void _ZN1T12HIDDENMETHODEv($0) {
+func void _ZN1T12HIDDENMETHODEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -16,7 +16,7 @@ func void _ZN1T12HIDDENMETHODEv($0) {
     store %6, %7
     ret
 }
-func void _ZN7DERIVED5REACHEv($0) {
+func void _ZN7DERIVED5REACHEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -58,21 +58,21 @@ func void ALSOOUTSIDE() {
     store %3, %4
     ret
 }
-func void _ZN8PRIVCTORC1Ev($0) {
+func void _ZN8PRIVCTORC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN8PRIVDTORD1Ev($0) {
+func void _ZN8PRIVDTORD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN10PUBDEFAULTC1ERS_($0, $1) {
+func void _ZN10PUBDEFAULTC1ERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr rhs
   entry0:
@@ -82,7 +82,7 @@ func void _ZN10PUBDEFAULTC1ERS_($0, $1) {
     store @rhs, $1
     ret
 }
-func void _ZN10PUBDEFAULTC1Eu7INTEGER($0, $1) {
+func void _ZN10PUBDEFAULTC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 mode
   entry0:
@@ -117,14 +117,14 @@ func void STRUCTORSACCEPTED() {
     %2 = alloca ptr p
     ret
 }
-func void _ZN6NOCOPYC1Ev($0) {
+func void _ZN6NOCOPYC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN6NOCOPYC1Eu7INTEGER($0, $1) {
+func void _ZN6NOCOPYC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -134,7 +134,7 @@ func void _ZN6NOCOPYC1Eu7INTEGER($0, $1) {
     store @n, $1
     ret
 }
-func void _ZN6NOCOPYC1ERS_($0, $1) {
+func void _ZN6NOCOPYC1ERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr rhs
   entry0:
@@ -166,8 +166,8 @@ func void COPYREFUSED() {
   del.join2:
     ret
 }
-declare void TAKESBYVAL()
-declare void free($0)
+declare void TAKESBYVAL(agg $0)
+declare void free(ptr $0)
 func void COPYACCEPTED() {
   local agg c2 size 8
   local agg c3 size 8
@@ -180,8 +180,8 @@ func void COPYACCEPTED() {
     call void TAKESBYREF(@@src_)
     ret
 }
-declare void TAKESBYREF()
-func i32 main($0, $1) {
+declare void TAKESBYREF(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -194,8 +194,8 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 attribute constructor
 func void _GLOBAL__I() {
   entry0:
@@ -207,7 +207,8 @@ func void _GLOBAL__D() {
   entry0:
     ret
 }
-verify: ok
+verify: 1 FAILURES
+  STRUCTORSACCEPTED:0:1 call: calls _ZN10PUBDEFAULTC1Eu7INTEGER with 1 arguments, which declares 2
 lowered: 18 functions, 20 blocks, 98 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/member-visibility.bas(47,6): error TKO0625: 'hidden' is not accessible here
      |

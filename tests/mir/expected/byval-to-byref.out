@@ -1,5 +1,5 @@
 global str $str0 "ab"
-func ptr FZ($0) {
+func ptr FZ(ptr $0) {
   local ptr $tmp0
   local ptr z
   entry0:
@@ -13,7 +13,7 @@ func ptr FZ($0) {
     %5 = load @$tmp0
     ret %5
 }
-func void G($0, $1) {
+func void G(ptr $0, ptr $1) {
   local ptr a
   local ptr b
   entry0:
@@ -27,7 +27,7 @@ func void G($0, $1) {
     store %3, %5
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg zz size 8
   local ptr p1
@@ -80,10 +80,10 @@ func i32 main($0, $1) {
     %27 = load @$tmp0
     ret %27
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_PrintULongint($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance

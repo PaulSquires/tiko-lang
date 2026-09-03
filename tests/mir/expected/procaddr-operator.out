@@ -3,7 +3,7 @@ func void MYSUB() {
   entry0:
     ret
 }
-func ptr _ZN3NSXeqERNS_6MYTYPEES1_($0, $1) {
+func ptr _ZN3NSXeqERNS_6MYTYPEES1_(ptr $0, ptr $1) {
   local agg $tmp0 size 24
   local ptr a
   local ptr b
@@ -23,9 +23,9 @@ func ptr _ZN3NSXeqERNS_6MYTYPEES1_($0, $1) {
     %8 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
     ret %8
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempResult($0)
-func i64 _ZN3NSX6MYTYPEcvu7INTEGEREv($0) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempResult(ptr $0)
+func i64 _ZN3NSX6MYTYPEcvu7INTEGEREv(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -57,7 +57,7 @@ func void _ZN3NSX4ALL_Ev() {
     store %6, %5
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr p
   local i64 lastone
@@ -80,7 +80,7 @@ func i32 main($0, $1) {
     %10 = load @$tmp0
     ret %10
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance

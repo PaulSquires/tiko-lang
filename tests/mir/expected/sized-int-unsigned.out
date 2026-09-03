@@ -14,9 +14,9 @@ func void T1() {
     call.rtl void fb_PrintLongint(0, %6, 1)
     ret
 }
-declare void fb_PrintByte($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-func void T2($0) {
+declare void fb_PrintByte(i32 $0, i8 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func void T2(ptr $0) {
   local ptr x
   local i64 addrof_x
   entry0:

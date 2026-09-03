@@ -1,4 +1,4 @@
-func i32 ADD($0, $1) {
+func i32 ADD(i32 $0, i32 $1) {
   local i32 $tmp0
   local i32 a
   local i32 b
@@ -55,7 +55,7 @@ func void COUNTED() {
   for.exit4:
     ret
 }
-func void BRANCH($0) {
+func void BRANCH(i32 $0) {
   local i32 x
   local i32 y
   entry0:
@@ -80,7 +80,7 @@ func void BRANCH($0) {
     store @y, %10
     br if.join1
 }
-func void LOOPING($0) {
+func void LOOPING(i32 $0) {
   local i32 n
   local i32 i
   entry0:

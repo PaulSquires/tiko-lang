@@ -1,4 +1,4 @@
-func void _ZN1TC1Eu7INTEGER($0, $1) {
+func void _ZN1TC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 i
   entry0:
@@ -8,7 +8,7 @@ func void _ZN1TC1Eu7INTEGER($0, $1) {
     store @i, $1
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a1 size 72
   local agg a2 size 96
@@ -289,16 +289,16 @@ func i32 main($0, $1) {
     %200 = load @$tmp0
     ret %200
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN6HOLDERC1Ev($0)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare void fb_PrintLongint($0, $1, $2)
-declare i32 fb_ArrayRedimObj($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayEraseObj($0, $1, $2)
-declare void _ZN6HOLDERD1Ev($0)
-declare i32 fb_ArrayErase($0)
-declare void fb_End($0)
-func void _ZN6HOLDERC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN6HOLDERC1Ev(ptr $0)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_ArrayRedimObj(ptr $0, i64 $1, ptr $2, ptr $3, i64 $4, ...)
+declare i32 fb_ArrayEraseObj(ptr $0, ptr $1, ptr $2)
+declare void _ZN6HOLDERD1Ev(ptr $0)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN6HOLDERC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = const ptr 0
@@ -329,7 +329,7 @@ func void _ZN6HOLDERC1Ev($0) {
     store %18, %17
     ret
 }
-func void _ZN6HOLDERD1Ev($0) {
+func void _ZN6HOLDERD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl i32 fb_ArrayErase(%1)

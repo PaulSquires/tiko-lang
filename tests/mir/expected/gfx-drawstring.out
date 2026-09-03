@@ -2,7 +2,7 @@ global str $str0 "&"
 global str $str1 "a"
 global str $str2 "z"
 global wstr $wstr3 "x"
-func void PU($0) {
+func void PU(ptr $0) {
   local ptr s
   entry0:
     %1 = alloca ptr s
@@ -14,11 +14,11 @@ func void PU($0) {
     %6 = call.rtl i32 fb_PrintUsingEnd(0)
     ret
 }
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare i32 fb_PrintUsingInit($0)
-declare i32 fb_PrintUsingWstr($0, $1, $2)
-declare i32 fb_PrintUsingEnd($0)
-func i32 main($0, $1) {
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare i32 fb_PrintUsingInit(ptr $0)
+declare i32 fb_PrintUsingWstr(i32 $0, ptr $1, i32 $2)
+declare i32 fb_PrintUsingEnd(i32 $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr img
   entry0:
@@ -91,10 +91,10 @@ func i32 main($0, $1) {
     %61 = load @$tmp0
     ret %61
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_GfxScreenRes()
-declare ptr fb_GfxImageCreate($0, $1, $2, $3, $4)
-declare i64 fb_GfxDrawString($0, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_GfxScreenRes(i32 $0, i32 $1, i32 $2, i32 $3, i32 $4, i32 $5)
+declare ptr fb_GfxImageCreate(i32 $0, i32 $1, i32 $2, i32 $3, i32 $4)
+declare i64 fb_GfxDrawString(ptr $0, f32 $1, f32 $2, i32 $3, ptr $4, i32 $5, ptr $6, i32 $7, ptr $8, ptr $9, ptr $10)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance

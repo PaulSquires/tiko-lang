@@ -1,4 +1,4 @@
-func i64 _Z2P2u7INTEGER($0) {
+func i64 _Z2P2u7INTEGER(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -12,7 +12,7 @@ func i64 _Z2P2u7INTEGER($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2P21E($0) {
+func i64 _Z2P21E(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -26,7 +26,7 @@ func i64 _Z2P21E($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2Q2x($0) {
+func i64 _Z2Q2x(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -40,7 +40,7 @@ func i64 _Z2Q2x($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2Q21E($0) {
+func i64 _Z2Q21E(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -54,7 +54,7 @@ func i64 _Z2Q21E($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2R2b($0) {
+func i64 _Z2R2b(i8 $0) {
   local i64 $tmp0
   local i8 a
   entry0:
@@ -68,7 +68,7 @@ func i64 _Z2R2b($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2R21E($0) {
+func i64 _Z2R21E(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -82,7 +82,7 @@ func i64 _Z2R21E($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 ONLY_($0) {
+func i64 ONLY_(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -96,7 +96,7 @@ func i64 ONLY_($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2S2u7INTEGER($0) {
+func i64 _Z2S2u7INTEGER(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -110,7 +110,7 @@ func i64 _Z2S2u7INTEGER($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2S2a($0) {
+func i64 _Z2S2a(i8 $0) {
   local i64 $tmp0
   local i8 a
   entry0:
@@ -124,7 +124,7 @@ func i64 _Z2S2a($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2T2f($0) {
+func i64 _Z2T2f(f32 $0) {
   local i64 $tmp0
   local f32 a
   entry0:
@@ -138,7 +138,7 @@ func i64 _Z2T2f($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2T2u7INTEGER($0) {
+func i64 _Z2T2u7INTEGER(i64 $0) {
   local i64 $tmp0
   local i64 a
   entry0:
@@ -152,7 +152,7 @@ func i64 _Z2T2u7INTEGER($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 i
   local i64 ev
@@ -193,8 +193,8 @@ func i32 main($0, $1) {
     %23 = load @$tmp0
     ret %23
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 12 functions, 12 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance

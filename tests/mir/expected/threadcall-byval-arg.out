@@ -1,5 +1,5 @@
 global str $str0 "in thread"
-func void S3($0) {
+func void S3(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
@@ -8,9 +8,9 @@ func void S3($0) {
     call.rtl void fb_PrintString(0, %2, 1)
     ret
 }
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-func i32 main($0, $1) {
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 bv
   local ptr h
@@ -45,9 +45,9 @@ func i32 main($0, $1) {
     %16 = load @$tmp0
     ret %16
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_ThreadCall($0, $1, $2, $3, $4)
-declare void fb_ThreadWait()
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_ThreadCall(ptr $0, i32 $1, i64 $2, i32 $3, ...)
+declare void fb_ThreadWait(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,4 +1,4 @@
-func ptr _ZN2FB6ARR<6>ixEi($0, $1) {
+func ptr _ZN2FB6ARR<6>ixEi(ptr $0, i32 $1) {
   local ptr $tmp0
   local ptr this
   local i32 i
@@ -22,7 +22,7 @@ func ptr _ZN2FB6ARR<6>ixEi($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-func void _ZN2FB6ARR<6>7RESERVEEi($0, $1) {
+func void _ZN2FB6ARR<6>7RESERVEEi(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:
@@ -53,10 +53,10 @@ func void _ZN2FB6ARR<6>7RESERVEEi($0, $1) {
     %23 = call.rtl i32 fb_ArrayErase(%22)
     ret
 }
-declare i32 fb_ArrayRedimPresvEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayErase($0)
-func i32 main($0, $1) {
+declare i32 fb_ArrayRedimPresvEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i32 fb_ArrayErase(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg v size 72
   entry0:
@@ -76,11 +76,11 @@ func i32 main($0, $1) {
     %8 = load @$tmp0
     ret %8
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN2FB6ARR<6>C1Ev($0)
-declare void _ZN2FB6ARR<6>D1Ev($0)
-declare void fb_End($0)
-func void _ZN2FB6ARR<6>C1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN2FB6ARR<6>C1Ev(ptr $0)
+declare void _ZN2FB6ARR<6>D1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN2FB6ARR<6>C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = const ptr 0
@@ -111,7 +111,7 @@ func void _ZN2FB6ARR<6>C1Ev($0) {
     store %18, %17
     ret
 }
-func void _ZN2FB6ARR<6>D1Ev($0) {
+func void _ZN2FB6ARR<6>D1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl i32 fb_ArrayErase(%1)

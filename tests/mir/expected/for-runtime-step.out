@@ -1,4 +1,4 @@
-func void P($0) {
+func void P(i32 $0) {
   local i32 s
   local i32 n
   local i32 i

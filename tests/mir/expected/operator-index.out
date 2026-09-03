@@ -1,4 +1,4 @@
-func ptr _ZN1M1TixEi($0, $1) {
+func ptr _ZN1M1TixEi(ptr $0, i32 $1) {
   local ptr $tmp0
   local ptr this
   local i32 i
@@ -16,7 +16,7 @@ func ptr _ZN1M1TixEi($0, $1) {
     %7 = load @$tmp0
     ret %7
 }
-func void P($0) {
+func void P(ptr $0) {
   local ptr t
   local i32 n
   entry0:

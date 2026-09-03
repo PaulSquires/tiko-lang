@@ -1,5 +1,5 @@
 global wstr $wstr0 "abcdefgh"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg d size 100
   local agg w1 size 100
@@ -66,15 +66,15 @@ func i32 main($0, $1) {
     %37 = load @$tmp0
     ret %37
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare ptr fb_WstrLeft($0, $1)
-declare void fb_WstrDelete($0)
-declare void fb_PrintWstr($0, $1, $2)
-declare ptr fb_WstrRight($0, $1)
-declare ptr fb_WstrMid($0, $1, $2)
-declare ptr fb_WstrUcase2($0, $1)
-declare ptr fb_WstrTrim($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare ptr fb_WstrLeft(ptr $0, i64 $1)
+declare void fb_WstrDelete(ptr $0)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrRight(ptr $0, i64 $1)
+declare ptr fb_WstrMid(ptr $0, i64 $1, i64 $2)
+declare ptr fb_WstrUcase2(ptr $0, i32 $1)
+declare ptr fb_WstrTrim(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

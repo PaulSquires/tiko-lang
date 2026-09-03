@@ -1,4 +1,4 @@
-func i32 PLAIN($0) {
+func i32 PLAIN(i32 $0) {
   local i32 $tmp0
   local i32 x
   local i32 bias
@@ -29,8 +29,8 @@ func i32 PLAIN($0) {
     %15 = load @total
     ret %15
 }
-declare void FOREACH2<6,26>()
-func void __TKO_LAMBDA_11ED1ED_1($0, $1) {
+declare void FOREACH2<6,26>(i32 $0, ptr $1)
+func void __TKO_LAMBDA_11ED1ED_1(ptr $0, i32 $1) {
   local ptr __tko_cl
   local i32 v
   local ptr total
@@ -58,7 +58,7 @@ func void __TKO_LAMBDA_11ED1ED_1($0, $1) {
     store %10, %15
     ret
 }
-func void __TKO_LAMBDA_11ED1ED_2($0, $1) {
+func void __TKO_LAMBDA_11ED1ED_2(ptr $0, i32 $1) {
   local ptr __tko_cl
   local i32 v
   local ptr total
@@ -86,7 +86,7 @@ func void __TKO_LAMBDA_11ED1ED_2($0, $1) {
     store %10, %15
     ret
 }
-func i32 WITHCAPTURE<6>($0) {
+func i32 WITHCAPTURE<6>(i32 $0) {
   local i32 $tmp0
   local i32 x
   local i32 bias
@@ -117,8 +117,8 @@ func i32 WITHCAPTURE<6>($0) {
     %15 = load @total
     ret %15
 }
-declare void FOREACH2()
-func void FOREACH2<6,26>($0, $1) {
+declare void FOREACH2(void $0, ptr $1)
+func void FOREACH2<6,26>(i32 $0, ptr $1) {
   local i32 x
   local ptr f
   entry0:
@@ -131,7 +131,7 @@ func void FOREACH2<6,26>($0, $1) {
     call void __TKO_LAMBDA_11ED1ED_1(%3, %4)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -152,8 +152,8 @@ func i32 main($0, $1) {
     %11 = load @$tmp0
     ret %11
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 6 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance

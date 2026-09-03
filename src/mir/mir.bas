@@ -13,6 +13,14 @@ destructor MirModule( )
     next
 end destructor
 
+sub MirFunction.AddParam _
+    ( byval ty as MirType, byval aggType as ulong )
+
+    this.paramTys.Push( cast( ubyte, ty ) )
+    this.paramAggs.Push( aggType )
+    this.paramCount = this.paramTys.Count
+end sub
+
 function MirModule.AddFunction _
     ( byval nm as InternId, byval retTy as MirType ) as MirFunction ptr
 

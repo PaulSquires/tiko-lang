@@ -1,5 +1,5 @@
 global str $str0 ""
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 i
   local i32 l
@@ -98,13 +98,13 @@ func i32 main($0, $1) {
     %52 = load @$tmp0
     ret %52
 }
-declare void fb_Init($0, $1, $2)
-declare void _Z3p64Ru7INTEGER()
-declare void _Z3p32Ri()
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_GfxScreenInfo32()
-declare void fb_GfxScreenInfo64()
-declare i32 fb_GfxImageInfo32()
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _Z3p64Ru7INTEGER(ptr $0)
+declare void _Z3p32Ri(ptr $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_GfxScreenInfo32(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
+declare void fb_GfxScreenInfo64(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
+declare i32 fb_GfxImageInfo32(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance

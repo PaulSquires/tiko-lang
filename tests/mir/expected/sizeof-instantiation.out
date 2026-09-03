@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 n1
   local i32 n2
@@ -48,8 +48,8 @@ func i32 main($0, $1) {
     %26 = load @$tmp0
     ret %26
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 39 insts, 0 statements not lowered, 0 scope imbalance

@@ -5,7 +5,7 @@ global str $str3 "d"
 global str $str4 "e"
 global str $str5 "g"
 global wstr $wstr6 "a"
-func ptr _ZN1TixEi($0, $1) {
+func ptr _ZN1TixEi(ptr $0, i32 $1) {
   local ptr $tmp0
   local ptr this
   local i32 i
@@ -28,7 +28,7 @@ func ptr _ZN1TixEi($0, $1) {
     %12 = load @$tmp0
     ret %12
 }
-func ptr _ZN1T2ATEi($0, $1) {
+func ptr _ZN1T2ATEi(ptr $0, i32 $1) {
   local ptr $tmp0
   local ptr this
   local i32 i
@@ -104,7 +104,7 @@ func void H() {
     call.rtl void fb_StrDelete(@s)
     ret
 }
-declare void fb_StrDelete($0)
+declare void fb_StrDelete(ptr $0)
 func void I() {
   local agg s size 24
   local agg w size 20
@@ -181,7 +181,7 @@ func void I() {
   sel.next13:
     br sel.join11
 }
-declare i32 fb_StrCompare($0, $1, $2, $3)
-declare i32 fb_WstrCompare($0, $1)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare i32 fb_WstrCompare(ptr $0, ptr $1)
 verify: ok
 lowered: 5 functions, 18 blocks, 110 insts, 0 statements not lowered, 0 scope imbalance

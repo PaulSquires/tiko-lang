@@ -2,7 +2,7 @@ global str $str0 "fOObAR"
 global var f64 mydbl
 global str $str2 "5"
 global data $data3 [ -2 -> $str0, -2 -> mydbl, 1 -> $str2, -1 -> null ]
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr p
   local i32 i
@@ -47,15 +47,15 @@ func i32 main($0, $1) {
     %24 = load @$tmp0
     ret %24
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_DataRestore($0)
-declare void fb_DataReadULongint($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare ptr fb_HEX_i($0)
-declare i32 fb_hStrDelTemp($0)
-declare ptr fb_WstrHex_i($0)
-declare void fb_WstrDelete($0)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_DataRestore(ptr $0)
+declare void fb_DataReadULongint(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare ptr fb_HEX_i(i32 $0)
+declare i32 fb_hStrDelTemp(ptr $0)
+declare ptr fb_WstrHex_i(i32 $0)
+declare void fb_WstrDelete(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 2 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance

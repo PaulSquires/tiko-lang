@@ -1,4 +1,4 @@
-func void S2($0) {
+func void S2(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
@@ -18,8 +18,8 @@ func void S2($0) {
     call.rtl void fb_PrintInt(0, %13, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-func void S3($0) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func void S3(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
@@ -44,7 +44,7 @@ func void S3($0) {
     call.rtl void fb_PrintInt(0, %18, 1)
     ret
 }
-func void SOPEN($0) {
+func void SOPEN(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
@@ -64,7 +64,7 @@ func void SOPEN($0) {
     call.rtl void fb_PrintInt(0, %13, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg m size 36
   local agg $tmp2 size 96
@@ -227,7 +227,7 @@ func i32 main($0, $1) {
     %106 = load @$tmp0
     ret %106
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 203 insts, 0 statements not lowered, 0 scope imbalance

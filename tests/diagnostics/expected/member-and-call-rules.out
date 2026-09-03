@@ -8,21 +8,18 @@ global ptrs _ZTVN1DE [ 0, @_ZTSN1DE ]
 global str $str7 "6LOCAL2"
 global ptrs _ZTSN6LOCAL2E [ 0, @$str7, @__fb_ZTS6Object ]
 global ptrs _ZTVN6LOCAL2E [ 0, @_ZTSN6LOCAL2E ]
-func void _ZN1T2STEv($0) {
+func void _ZN1T2STEv() {
+  entry0:
+    ret
+}
+func void _ZN1T2CNEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1T2CNEv($0) {
-  local ptr this
-  entry0:
-    %1 = alloca ptr this
-    store @this, $0
-    ret
-}
-func agg _ZplR3FOOS0_($0, $1) {
+func agg _ZplR3FOOS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr lhs
   local ptr rhs
@@ -38,28 +35,28 @@ func agg _ZplR3FOOS0_($0, $1) {
     %6 = load @$tmp0
     ret %6
 }
-func void WANTSDPTR($0) {
+func void WANTSDPTR(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void WANTSBPTR($0) {
+func void WANTSBPTR(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void WANTSD($0) {
+func void WANTSD(ptr $0) {
   local ptr x
   entry0:
     %1 = alloca ptr x
     store @x, $0
     ret
 }
-func void WANTSB($0) {
+func void WANTSB(ptr $0) {
   local ptr x
   entry0:
     %1 = alloca ptr x
@@ -70,28 +67,25 @@ func void OKPLAINTYPE() {
   entry0:
     ret
 }
-func void _ZN1T6NORMALEv($0) {
+func void _ZN1T6NORMALEv() {
+  entry0:
+    ret
+}
+func void _ZNK1T7NORMAL2Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZNK1T7NORMAL2Ev($0) {
-  local ptr this
-  entry0:
-    %1 = alloca ptr this
-    store @this, $0
-    ret
-}
-func void _ZaSRu7INTEGER($0) {
+func void _ZaSRu7INTEGER(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
     store @a, $0
     ret
 }
-func void _ZpLR3FOOS0_($0, $1) {
+func void _ZpLR3FOOS0_(ptr $0, ptr $1) {
   local ptr lhs
   local ptr rhs
   entry0:
@@ -105,7 +99,7 @@ func void BADTYPE() {
   entry0:
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr pb
   local ptr pd
@@ -145,12 +139,12 @@ func i32 main($0, $1) {
     %18 = load @$tmp0
     ret %18
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN1BC1Ev($0)
-declare void _ZN1DC1Ev($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
-func void _ZN1BC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN1BC1Ev(ptr $0)
+declare void _ZN1DC1Ev(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN1BC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -158,8 +152,8 @@ func void _ZN1BC1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
-func void _ZN1DC1Ev($0) {
+declare void _ZN10fb_Object$C1Ev(ptr $0)
+func void _ZN1DC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN1BC1Ev(%1)
@@ -168,7 +162,7 @@ func void _ZN1DC1Ev($0) {
     ret
 }
 verify: ok
-lowered: 16 functions, 16 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 16 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/member-and-call-rules.bas(66,5): error TKO0619: 'local2' is declared inside a procedure and cannot have methods
      |
   66 |     type Local2 extends object

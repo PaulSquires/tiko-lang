@@ -899,6 +899,11 @@ namespace Tko.Mir
     declare function RtlParams( byval r as RtlId ) as string
     declare function RtlByName( byref nm as string ) as RtlId
     declare function RtlArity( byval r as RtlId ) as long
+    '' Fills a DECLARATION's signature from the runtime inventory. The arity alone used
+    '' to be recorded, which is all MIR needed while nothing read a signature; an LLVM
+    '' 'declare' needs the types, and the inventory is where they already are.
+    declare sub RtlSignature _
+        ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean )
     declare function RtlParamType _
         ( byval r as RtlId, byval i as long, byval is32 as boolean ) as MirType
 

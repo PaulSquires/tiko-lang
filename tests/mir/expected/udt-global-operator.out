@@ -1,4 +1,4 @@
-func agg _ZplRK1US1_($0, $1) {
+func agg _ZplRK1US1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr lhs
   local ptr rhs
@@ -25,7 +25,7 @@ func agg _ZplRK1US1_($0, $1) {
     %15 = load @$tmp0
     ret %15
 }
-func agg _ZmiRK1US1_($0, $1) {
+func agg _ZmiRK1US1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr lhs
   local ptr rhs
@@ -52,7 +52,7 @@ func agg _ZmiRK1US1_($0, $1) {
     %15 = load @$tmp0
     ret %15
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 4
   local agg b size 4
@@ -98,8 +98,8 @@ func i32 main($0, $1) {
     %25 = load @$tmp0
     ret %25
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance

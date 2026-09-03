@@ -1,4 +1,4 @@
-func void _ZN1T1SEv($0) {
+func void _ZN1T1SEv(ptr $0) {
   local ptr this
   local ptr p
   local ptr q
@@ -51,10 +51,10 @@ func void _ZN1T1SEv($0) {
     call.rtl void fb_PrintLongint(0, %37, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintUByte($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-func ptr _ZN1TcvwEv($0) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func ptr _ZN1TcvwEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -71,7 +71,7 @@ func ptr _ZN1TcvwEv($0) {
     %8 = load @$tmp0
     ret %8
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg t1 size 12
   entry0:
@@ -87,7 +87,7 @@ func i32 main($0, $1) {
     %6 = load @$tmp0
     ret %6
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 67 insts, 0 statements not lowered, 0 scope imbalance

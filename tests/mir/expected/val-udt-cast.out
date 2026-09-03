@@ -1,5 +1,5 @@
 global str $str0 "42"
-func ptr _ZN2UZcvcEv($0) {
+func ptr _ZN2UZcvcEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -14,7 +14,7 @@ func ptr _ZN2UZcvcEv($0) {
     %6 = load @$tmp0
     ret %6
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg u size 16
   entry0:
@@ -47,17 +47,17 @@ func i32 main($0, $1) {
     %20 = load @$tmp0
     ret %20
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempDescZ($0)
-declare i32 fb_VALINT($0)
-declare void fb_PrintInt($0, $1, $2)
-declare i64 fb_VALLNG($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare i32 fb_VALUINT($0)
-declare void fb_PrintUInt($0, $1, $2)
-declare i64 fb_VALULNG($0)
-declare void fb_PrintULongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare i32 fb_VALINT(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare i64 fb_VALLNG(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_VALUINT(ptr $0)
+declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
+declare i64 fb_VALULNG(ptr $0)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 36 insts, 0 statements not lowered, 0 scope imbalance

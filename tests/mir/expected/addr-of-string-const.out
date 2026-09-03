@@ -1,5 +1,5 @@
 global str $str0 "abc"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr p
   local ptr z
@@ -26,10 +26,10 @@ func i32 main($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAllocTempDescZ($0)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_PrintByte($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintByte(i32 $0, i8 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 20 insts, 0 statements not lowered, 0 scope imbalance

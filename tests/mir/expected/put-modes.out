@@ -1,4 +1,4 @@
-func i32 CUSTOMCALLBACK($0, $1, $2) {
+func i32 CUSTOMCALLBACK(i32 $0, i32 $1, ptr $2) {
   local i32 $tmp0
   local i32 source_pixel
   local i32 destination_pixel
@@ -19,7 +19,7 @@ func i32 CUSTOMCALLBACK($0, $1, $2) {
     %8 = load @$tmp0
     ret %8
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr image
   entry0:
@@ -154,19 +154,19 @@ func i32 main($0, $1) {
     %126 = load @$tmp0
     ret %126
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_GfxScreen($0, $1, $2, $3, $4)
-declare void fb_hPutXor($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare i32 fb_GfxPut($0, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-declare void fb_hPutTrans($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutPSet($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutPReset($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutAnd($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutOr($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutAlpha($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutBlend($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutAdd($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_hPutCustom($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_GfxScreen(i32 $0, i32 $1, i32 $2, i32 $3, i32 $4)
+declare void fb_hPutXor(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare i32 fb_GfxPut(ptr $0, f32 $1, f32 $2, ptr $3, i32 $4, i32 $5, i32 $6, i32 $7, i32 $8, i32 $9, ptr $10, i32 $11, ptr $12, ptr $13)
+declare void fb_hPutTrans(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutPSet(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutPReset(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutAnd(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutOr(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutAlpha(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutBlend(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutAdd(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_hPutCustom(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 142 insts, 0 statements not lowered, 0 scope imbalance

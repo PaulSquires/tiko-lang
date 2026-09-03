@@ -1,6 +1,6 @@
 global wstr $wstr0 "123"
 global str $str1 "42"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i8 b1
   local i16 s1
@@ -104,27 +104,27 @@ func i32 main($0, $1) {
     %52 = load @$tmp0
     ret %52
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintByte($0, $1, $2)
-declare void fb_PrintShort($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintUByte($0, $1, $2)
-declare void fb_PrintUShort($0, $1, $2)
-declare void fb_PrintUInt($0, $1, $2)
-declare void fb_PrintULongint($0, $1, $2)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare i64 fb_WstrValLng($0)
-declare i64 fb_WstrValULng($0)
-declare i32 fb_WstrValInt($0)
-declare i32 fb_WstrValUInt($0)
-declare f64 fb_WstrVal($0)
-declare void fb_PrintDouble($0, $1, $2)
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare f64 fb_VAL($0)
-declare i32 fb_VALINT($0)
-declare i32 fb_ASC($0, $1)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintByte(i32 $0, i8 $1, i32 $2)
+declare void fb_PrintShort(i32 $0, i16 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
+declare void fb_PrintUShort(i32 $0, i16 $1, i32 $2)
+declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare i64 fb_WstrValLng(ptr $0)
+declare i64 fb_WstrValULng(ptr $0)
+declare i32 fb_WstrValInt(ptr $0)
+declare i32 fb_WstrValUInt(ptr $0)
+declare f64 fb_WstrVal(ptr $0)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare f64 fb_VAL(ptr $0)
+declare i32 fb_VALINT(ptr $0)
+declare i32 fb_ASC(ptr $0, i64 $1)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

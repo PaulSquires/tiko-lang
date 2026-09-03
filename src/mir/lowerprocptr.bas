@@ -241,7 +241,7 @@ function LowerProcPtr _
                 dim as MirFunction ptr rdecl = _
                     c.m->AddFunction( rnm, RtlReturn( rr, is32 ) )
                 rdecl->isDefinition = false
-                rdecl->paramCount = RtlArity( rr )
+                RtlSignature( rdecl, rr, is32 )
                 ridx = c.m->functions.Count - 1
             end if
             dim as MirInst rfa

@@ -548,7 +548,10 @@ function ImplStructorAddr_ _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
         decl->isDefinition = false
-        decl->paramCount = 1
+        '' AN IMPLICIT STRUCTOR TAKES POINTERS. 'this' is parameter zero and the
+        '' right-hand side, where there is one, parameter one -- the same shape a
+        '' written structor gets, and the reason both can be called through one path.
+        decl->AddParam( MT_PTR )
         fidx = c.m->functions.Count - 1
     end if
     dim as MirInst fa
@@ -928,7 +931,10 @@ private sub CallImplByName_ _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
         decl->isDefinition = false
-        decl->paramCount = 1
+        '' AN IMPLICIT STRUCTOR TAKES POINTERS. 'this' is parameter zero and the
+        '' right-hand side, where there is one, parameter one -- the same shape a
+        '' written structor gets, and the reason both can be called through one path.
+        decl->AddParam( MT_PTR )
         fidx = c.m->functions.Count - 1
     end if
     dim as long first = c.m->argPool.Count \ 2
@@ -974,7 +980,11 @@ private sub CallImplTwo_ _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
         decl->isDefinition = false
-        decl->paramCount = 2
+        '' AN IMPLICIT STRUCTOR TAKES POINTERS. 'this' is parameter zero and the
+        '' right-hand side, where there is one, parameter one -- the same shape a
+        '' written structor gets, and the reason both can be called through one path.
+        decl->AddParam( MT_PTR )
+        decl->AddParam( MT_PTR )
         fidx = c.m->functions.Count - 1
     end if
     dim as long first = c.m->argPool.Count \ 2
@@ -1038,7 +1048,8 @@ private sub EmitOneImplicit_ _
     dim as boolean twoArgs = (kind_ >= 2)
     dim as MirFunction ptr f = c.m->AddFunction( id, MT_VOID )
     f->isDefinition = true
-    f->paramCount = iif( twoArgs, 2, 1 )
+    f->AddParam( MT_PTR )
+    if twoArgs then f->AddParam( MT_PTR )
 
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
@@ -1192,7 +1203,6 @@ sub EmitModuleInit_( byref c as Ctx )
         dim as Tko.InternId nm = c.names->GetString( iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" ) )
         dim as MirFunction ptr f = c.m->AddFunction( nm, MT_VOID )
         f->isDefinition = true
-        f->paramCount = 0
         f->isModuleCtor = isCtor
         f->isModuleDtor = (isCtor = false)
 

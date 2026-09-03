@@ -8,7 +8,7 @@ global str $str6 "4IMPL"
 global ptrs _ZTSN4IMPLE [ 0, @$str6, @_ZTSN5IFACEE ]
 global ptrs _ZTVN4IMPLE [ 0, @_ZTSN4IMPLE, _ZN4IMPL4POKEEv ]
 global ptrs _ZTVN5IFACEE [ 0, @_ZTSN5IFACEE, 0 ]
-func i32 _ZN4IMPL4POKEEv($0) {
+func i32 _ZN4IMPL4POKEEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -25,7 +25,7 @@ func i32 _ZN4IMPL4POKEEv($0) {
     %9 = add %8, %7
     ret %9
 }
-func ptr _ZptR1H($0) {
+func ptr _ZptR1H(ptr $0) {
   local ptr $tmp0
   local ptr h
   entry0:
@@ -41,7 +41,7 @@ func ptr _ZptR1H($0) {
     %7 = load @$tmp0
     ret %7
 }
-func ptr _ZdeR1H($0) {
+func ptr _ZdeR1H(ptr $0) {
   local ptr $tmp0
   local ptr h
   entry0:
@@ -57,7 +57,7 @@ func ptr _ZdeR1H($0) {
     %7 = load @$tmp0
     ret %7
 }
-func i32 GRAB<6>($0, $1) {
+func i32 GRAB<6>(ptr $0, ptr $1) {
   local i32 $tmp0
   local ptr src
   local ptr dst
@@ -77,7 +77,7 @@ func i32 GRAB<6>($0, $1) {
     %9 = const i64 5
     ret %9
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg im size 16
   local agg hh size 8
@@ -175,13 +175,13 @@ func i32 main($0, $1) {
   if.else9:
     br if.join7
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN4IMPLC1Ev($0)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
-func void _ZN4IMPLC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN4IMPLC1Ev(ptr $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN4IMPLC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN5IFACEC1Ev(%1)
@@ -189,8 +189,8 @@ func void _ZN4IMPLC1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN5IFACEC1Ev($0)
-func void _ZN5IFACEC1Ev($0) {
+declare void _ZN5IFACEC1Ev(ptr $0)
+func void _ZN5IFACEC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -198,6 +198,6 @@ func void _ZN5IFACEC1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
+declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
 lowered: 7 functions, 16 blocks, 121 insts, 0 statements not lowered, 0 scope imbalance

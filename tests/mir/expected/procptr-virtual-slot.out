@@ -5,35 +5,35 @@ global ptrs _ZTVN1BE [ 0, @_ZTSN1BE, 0, _ZN1B5PROC2Ev, _ZN1B5PROC3Ev ]
 global str $str4 "1D"
 global ptrs _ZTSN1DE [ 0, @$str4, @_ZTSN1BE ]
 global ptrs _ZTVN1DE [ 0, @_ZTSN1DE, _ZN1D5PROC1Ev, _ZN1D5PROC2Ev, _ZN1B5PROC3Ev ]
-func void _ZN1B5PROC2Ev($0) {
+func void _ZN1B5PROC2Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1B5PROC3Ev($0) {
+func void _ZN1B5PROC3Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1D5PROC1Ev($0) {
+func void _ZN1D5PROC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1D5PROC2Ev($0) {
+func void _ZN1D5PROC2Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 fq
   local i64 fp
@@ -68,8 +68,8 @@ func i32 main($0, $1) {
     %16 = load @$tmp0
     ret %16
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance

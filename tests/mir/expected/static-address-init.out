@@ -38,8 +38,8 @@ func void S1() {
     call.rtl void fb_PrintLongint(0, %21, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 func i64 FOO() {
   local i64 $tmp0
   entry0:
@@ -49,7 +49,7 @@ func i64 FOO() {
     %3 = const i64 1
     ret %3
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -63,7 +63,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

@@ -9,7 +9,7 @@
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/this.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: func void _ZN1T6CALLEREv($0)
+'' EXPECT-OUT: func void _ZN1T6CALLEREv(ptr $0)
 '' EXPECT-OUT: store @this, $0
 '' EXPECT-OUT: call void _ZN1T1MEv(@@obj)
 '' EXPECT-NOT: call void _ZN1T1MEv()

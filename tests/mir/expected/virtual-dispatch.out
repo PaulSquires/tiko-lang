@@ -8,7 +8,7 @@ global ptrs _ZTVN1BE [ 0, @_ZTSN1BE, _ZN1B1FEv, _ZN1AD1Ev ]
 global str $str7 "1C"
 global ptrs _ZTSN1CE [ 0, @$str7, @__fb_ZTS6Object ]
 global ptrs _ZTVN1CE [ 0, @_ZTSN1CE, _ZN1C1GEv ]
-func i32 _ZN1A1FEv($0) {
+func i32 _ZN1A1FEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -20,7 +20,7 @@ func i32 _ZN1A1FEv($0) {
     %4 = const i64 1
     ret %4
 }
-func void _ZN1AC1Ev($0) {
+func void _ZN1AC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -32,8 +32,8 @@ func void _ZN1AC1Ev($0) {
     store %2, %4
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
-func void _ZN1AD1Ev($0) {
+declare void _ZN10fb_Object$C1Ev(ptr $0)
+func void _ZN1AD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -43,7 +43,7 @@ func void _ZN1AD1Ev($0) {
     store %2, %3
     ret
 }
-func i32 _ZN1B1FEv($0) {
+func i32 _ZN1B1FEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -55,7 +55,7 @@ func i32 _ZN1B1FEv($0) {
     %4 = const i64 2
     ret %4
 }
-func void _ZN1BC1Ev($0) {
+func void _ZN1BC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -67,7 +67,7 @@ func void _ZN1BC1Ev($0) {
     store %2, %4
     ret
 }
-func void _ZN1B9CALLSBASEEv($0) {
+func void _ZN1B9CALLSBASEEv(ptr $0) {
   local ptr this
   local i32 r
   entry0:
@@ -83,14 +83,14 @@ func void _ZN1B9CALLSBASEEv($0) {
     store @r, %7
     ret
 }
-func void _ZN1C1GEv($0) {
+func void _ZN1C1GEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg bb size 8
   local agg cc size 8
@@ -123,12 +123,12 @@ func i32 main($0, $1) {
     %16 = load @$tmp0
     ret %16
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN1CC1Ev($0)
-declare void fb_PrintInt($0, $1, $2)
-declare void _ZN1BD1Ev($0)
-declare void fb_End($0)
-func void _ZN1CC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN1CC1Ev(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void _ZN1BD1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN1CC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -136,7 +136,7 @@ func void _ZN1CC1Ev($0) {
     store $0, %2
     ret
 }
-func void _ZN1BD1Ev($0) {
+func void _ZN1BD1Ev(ptr $0) {
   entry0:
     %1 = field.addr @@_ZTVN1BE, 16
     store $0, %1

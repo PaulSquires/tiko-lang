@@ -45,7 +45,18 @@ function LowerUStrIntrin_ _
     '' WHICH ENTRY POINT, decided before anything is emitted: StrDescriptorOf_ may emit
     '' a call of its own, and a decline afterwards would leave it behind.
     dim as RtlId r = RTL_NONE
-    dim as boolean secondIsMode = false
+    '' THE THREE ARGUMENT SHAPES, and they are not one shape with options. Measured by
+    '' reading what fbc emits for 'ucase( u )', 'left( u, 2 )' and 'mid( u, 2 )':
+    ''
+    ''   fb_UStrUcase( (void*)&U$0, -1ll )              ptr + LENGTH TAG
+    ''   fb_UStrTrim ( (void*)&U$0, -1ll )              ptr + LENGTH TAG
+    ''   fb_UStrMid  ( (void*)&U$0, -1ll, 2ll, -1ll )   ptr + LENGTH TAG + start + len
+    ''   fb_UStrLeftD( (FBUSTRING*)&U$0, 2ll )          ptr + COUNT, no length tag
+    ''
+    '' left and right take the DESCRIPTOR and a count -- note fbc even spells the
+    '' pointer 'FBUSTRING*' there and 'void*' everywhere else -- so passing them the
+    '' (pointer, -1) pair every other entry point takes handed them -1 as the COUNT.
+    dim as boolean takesLenTag = true
     select case nm
     '' NO 'any' FORM HERE. fbc has no fb_UStrTrimAny and the two- argument trim over a
     '' ustring is not modelled, so those decline rather than reach a narrow entry point.
@@ -60,22 +71,25 @@ function LowerUStrIntrin_ _
         r = RTL_USTR_RTRIM
     case "left"
         if cp->count <> 2 then return false
+        takesLenTag = false
         r = RTL_USTR_LEFT
     case "right"
         if cp->count <> 2 then return false
+        takesLenTag = false
         r = RTL_USTR_RIGHT
     case "mid"
         if (cp->count < 2) orelse (cp->count > 3) then return false
         r = RTL_USTR_MID
-    '' THE SECOND ARGUMENT IS THE CASE MODE and it is a COUNT-sized value here, not the
-    '' int32 the narrow twin takes: measured, 'fb_UStrUcase( (void*)&U$0, -1ll )'.
+    '' THERE IS NO CASE MODE HERE. The narrow twin takes one; the ustring entry point
+    '' does not, and fbc DROPS the argument rather than passing it -- 'ucase( u, 1 )'
+    '' and 'ucase( u )' both emit 'fb_UStrUcase( (void*)&U$0, -1ll )', where the -1 is
+    '' the length tag every other entry point also takes and not a mode. Read as a
+    '' mode it produced a third argument to a two-parameter function.
     case "ucase"
         if (cp->count < 1) orelse (cp->count > 2) then return false
-        secondIsMode = true
         r = RTL_USTR_UCASE
     case "lcase"
         if (cp->count < 1) orelse (cp->count > 2) then return false
-        secondIsMode = true
         r = RTL_USTR_LCASE
     case else
         return false
@@ -86,16 +100,22 @@ function LowerUStrIntrin_ _
 
     dim as FB.Array( of ulong ) args
 
-    PushStrArg( args, s0 )
+    if takesLenTag then
+        PushStrArg( args, s0 )
+    else
+        args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
+    end if
 
-    if a1 <> Tko.NODE_NONE then
+    '' The COUNT for left and right, and the START for mid. ucase and lcase take
+    '' nothing further, so a second written argument is dropped exactly as fbc drops
+    '' it -- see the case labels above.
+    dim as boolean wantsSecond = _
+        (r = RTL_USTR_LEFT) orelse (r = RTL_USTR_RIGHT) orelse (r = RTL_USTR_MID)
+    if wantsSecond andalso (a1 <> Tko.NODE_NONE) then
         dim as MirValue n1 = LowerExpr( c, a1 )
         if n1.kind = cast( ubyte, MV_NONE ) then return false
         n1 = Coerce( c, n1, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
         args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
-    elseif secondIsMode then
-        '' 'ucase( u )' with no mode passes 0, the same default the narrow twin has.
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
 
     if r = RTL_USTR_MID then

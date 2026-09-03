@@ -1,5 +1,5 @@
 global var agg g size 16
-func void OKRANK($0) {
+func void OKRANK(ptr $0) {
   local ptr array
   entry0:
     %1 = alloca ptr array
@@ -14,29 +14,29 @@ func void OKRANK($0) {
     call.rtl void fb_PrintLongint(0, %8, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-func void OKDEFAULT($0) {
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func void OKDEFAULT(i64 $0) {
   local i64 p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void BADRANK($0) {
+func void BADRANK(ptr $0) {
   local ptr array
   entry0:
     %1 = alloca ptr array
     store @array, $0
     ret
 }
-func void BADDEFAULT($0) {
+func void BADDEFAULT(i64 $0) {
   local i64 p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg locali size 16
   local agg u size 8
@@ -63,8 +63,8 @@ func i32 main($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 34 insts, 2 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 1

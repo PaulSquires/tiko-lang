@@ -1,37 +1,31 @@
-func agg _ZN2NS5STAMP9FROMTICKSEx($0, $1) {
+func agg _ZN2NS5STAMP9FROMTICKSEx(i64 $0) {
   local agg $tmp0 size 8
-  local ptr this
   local i64 v
   local agg r size 8
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr this
-    store @this, $0
-    %3 = alloca ptr v
-    store @v, $1
-    %4 = alloca ptr r
-    %5 = field.addr @r, 0
-    %6 = load @v
-    store %5, %6
-    %7 = load @r
-    store @$tmp0, %7
-    %8 = load @$tmp0
-    ret %8
+    %2 = alloca ptr v
+    store @v, $0
+    %3 = alloca ptr r
+    %4 = field.addr @r, 0
+    %5 = load @v
+    store %4, %5
+    %6 = load @r
+    store @$tmp0, %6
+    %7 = load @$tmp0
+    ret %7
 }
-func agg _ZN2NS5STAMP8MIDNIGHTEv($0) {
+func agg _ZN2NS5STAMP8MIDNIGHTEv() {
   local agg $tmp0 size 8
-  local ptr this
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr this
-    store @this, $0
-    %3 = const i64 0
-    %4 = call agg _ZN2NS5STAMP9FROMTICKSEx(%3)
-    store @$tmp0, %4
-    %5 = load @$tmp0
-    ret %5
+    %2 = const i64 0
+    %3 = call agg _ZN2NS5STAMP9FROMTICKSEx(%2)
+    store @$tmp0, %3
+    %4 = load @$tmp0
+    ret %4
 }
-func void _ZN3FOOC1Ev($0) {
+func void _ZN3FOOC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -43,7 +37,7 @@ func void _ZN3FOOC1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN3FOOC1ERa($0, $1) {
+func void _ZN3FOOC1ERa(ptr $0, ptr $1) {
   local ptr this
   local ptr v
   entry0:
@@ -59,7 +53,7 @@ func void _ZN3FOOC1ERa($0, $1) {
     store %4, %7
     ret
 }
-func void BYVAL_($0) {
+func void BYVAL_(agg $0) {
   local agg f size 4
   entry0:
     %1 = alloca ptr f
@@ -69,8 +63,8 @@ func void BYVAL_($0) {
     call.rtl void fb_PrintInt(0, %3, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-func void _ZN1TC1Ev($0) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func void _ZN1TC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -82,14 +76,14 @@ func void _ZN1TC1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN1TD1Ev($0) {
+func void _ZN1TD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void HPASSBYVAL($0) {
+func void HPASSBYVAL(ptr $0) {
   local ptr x
   entry0:
     %1 = alloca ptr x
@@ -100,7 +94,7 @@ func void HPASSBYVAL($0) {
     call.rtl void fb_PrintInt(0, %4, 1)
     ret
 }
-func void HPASSBYREF($0) {
+func void HPASSBYREF(ptr $0) {
   local ptr x
   entry0:
     %1 = alloca ptr x
@@ -111,7 +105,7 @@ func void HPASSBYREF($0) {
     call.rtl void fb_PrintInt(0, %4, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg st size 8
   local i8 $tmp2
@@ -150,8 +144,8 @@ func i32 main($0, $1) {
     %15 = load @$tmp0
     ret %15
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
-lowered: 10 functions, 10 blocks, 91 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance

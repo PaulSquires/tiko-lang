@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 okvar
   local i64 badvar
@@ -15,8 +15,8 @@ func i32 main($0, $1) {
     %7 = load @$tmp0
     ret %7
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 10 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/empty-alias.bas(7,24): error TKO0672: the ALIAS name string is empty

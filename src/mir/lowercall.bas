@@ -1019,6 +1019,15 @@ function LowerCallParts _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
         decl->isDefinition = false
+        '' THE SIGNATURE, from the procedure this call resolved to. The two hidden
+        '' parameters are reported rather than re-derived: whether a hidden result
+        '' pointer and a receiver were passed was decided ABOVE, by this call, and the
+        '' declaration has to agree with the argument list that is about to be built.
+        if cs <> 0 then
+            SignatureFromProc( c, decl, cast( Tko.NodeId, cs->payload ), _
+                               (sretTmp.kind <> cast( ubyte, MV_NONE )), _
+                               (self_.kind <> cast( ubyte, MV_NONE )) )
+        end if
         fidx = c.m->functions.Count - 1
     end if
 

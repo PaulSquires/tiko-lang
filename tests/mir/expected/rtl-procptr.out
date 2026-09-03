@@ -1,7 +1,7 @@
 global str $str0 "tests/mir/src/rtl-procptr.bas"
 global str $str1 "__FB_MAINPROC__"
 global str $str2 "chk <> 0"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr chk
   entry0:
@@ -271,23 +271,23 @@ func i32 main($0, $1) {
   if.else45:
     br if.join43
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_LPrintInt($0, $1, $2)
-declare void fb_Assert($0, $1, $2, $3)
-declare void fb_LPrintString($0, $1, $2)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_LPrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_Assert(ptr $0, i64 $1, ptr $2, ptr $3)
+declare void fb_LPrintString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_ErrorResume()
-declare ptr fb_ErrorSetHandler($0)
-declare ptr memmove($0, $1, $2)
-declare ptr memcpy($0, $1, $2)
-declare void fb_LEFTSELF($0, $1)
-declare i32 fb_FileGet($0, $1, $2, $3)
-declare i32 fb_FilePut($0, $1, $2, $3)
-declare ptr fb_ThreadCall($0, $1, $2, $3, $4)
-declare ptr fb_ArrayBoundChkEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_IsTypeOf($0, $1)
-declare i64 fb_CVLONGINTFROMD($0)
-declare void fb_hPutAdd($0, $1, $2, $3, $4, $5, $6, $7, $8)
-declare void fb_MemCopyClear($0, $1, $2, $3)
-declare void fb_End($0)
+declare ptr fb_ErrorSetHandler(ptr $0)
+declare ptr memmove(ptr $0, ptr $1, i64 $2)
+declare ptr memcpy(ptr $0, ptr $1, i64 $2)
+declare void fb_LEFTSELF(ptr $0, i64 $1)
+declare i32 fb_FileGet(i32 $0, i32 $1, ptr $2, i64 $3)
+declare i32 fb_FilePut(i32 $0, i32 $1, ptr $2, i64 $3)
+declare ptr fb_ThreadCall(ptr $0, i32 $1, i64 $2, i32 $3, ...)
+declare ptr fb_ArrayBoundChkEx(i64 $0, i64 $1, i64 $2, i32 $3, ptr $4, ptr $5)
+declare i32 fb_IsTypeOf(ptr $0, ptr $1)
+declare i64 fb_CVLONGINTFROMD(f64 $0)
+declare void fb_hPutAdd(ptr $0, ptr $1, i32 $2, i32 $3, i32 $4, i32 $5, i32 $6, ptr $7, ptr $8)
+declare void fb_MemCopyClear(ptr $0, i64 $1, ptr $2, i64 $3)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 46 blocks, 174 insts, 0 statements not lowered, 0 scope imbalance

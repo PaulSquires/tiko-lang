@@ -1,4 +1,4 @@
-func i32 _ZN1T8V__get__Ev($0) {
+func i32 _ZN1T8V__get__Ev(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -12,7 +12,7 @@ func i32 _ZN1T8V__get__Ev($0) {
     %6 = load %5
     ret %6
 }
-func void _ZN1T8V__set__Ei($0, $1) {
+func void _ZN1T8V__set__Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:

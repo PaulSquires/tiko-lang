@@ -1,4 +1,4 @@
-func void TWO($0, $1) {
+func void TWO(i64 $0, i64 $1) {
   local i64 a
   local i64 opt
   entry0:
@@ -12,8 +12,8 @@ func void TWO($0, $1) {
     call.rtl void fb_PrintLongint(0, %4, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
-func void ARROPT($0, $1) {
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func void ARROPT(ptr $0, i64 $1) {
   local ptr anarray
   local i64 opt
   entry0:
@@ -29,8 +29,8 @@ func void ARROPT($0, $1) {
     call.rtl void fb_PrintLongint(0, %6, 1)
     ret
 }
-declare i64 fb_ArrayUBound($0, $1)
-func void REFOPT($0, $1) {
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+func void REFOPT(ptr $0, i64 $1) {
   local ptr bv
   local i64 opt
   entry0:
@@ -45,7 +45,7 @@ func void REFOPT($0, $1) {
     call.rtl void fb_PrintLongint(0, %5, 1)
     ret
 }
-func void ARRREF($0, $1) {
+func void ARRREF(ptr $0, ptr $1) {
   local ptr anarray
   local ptr bv
   entry0:
@@ -62,7 +62,7 @@ func void ARRREF($0, $1) {
     call.rtl void fb_PrintLongint(0, %7, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg anarray size 48
   local ptr bv
@@ -212,11 +212,11 @@ func i32 main($0, $1) {
     %84 = load @$tmp0
     ret %84
 }
-declare void fb_Init($0, $1, $2)
-declare ptr memset($0, $1, $2)
-declare ptr fb_ThreadCall($0, $1, $2, $3, $4)
-declare void fb_ThreadWait()
-declare void fb_ArrayDestructStr($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_ThreadCall(ptr $0, i32 $1, i64 $2, i32 $3, ...)
+declare void fb_ThreadWait(ptr $0)
+declare void fb_ArrayDestructStr(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 169 insts, 0 statements not lowered, 0 scope imbalance

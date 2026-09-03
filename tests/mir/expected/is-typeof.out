@@ -9,14 +9,14 @@ global str $str7 "andalso"
 global ptrs _ZTVN3DOGE [ 0, @_ZTSN3DOGE, _ZN6ANIMAL5SPEAKEv ]
 global ptrs _ZTVN6ANIMALE [ 0, @_ZTSN6ANIMALE, _ZN6ANIMAL5SPEAKEv ]
 global ptrs _ZTVN3CATE [ 0, @_ZTSN3CATE, _ZN6ANIMAL5SPEAKEv ]
-func void _ZN6ANIMAL5SPEAKEv($0) {
+func void _ZN6ANIMAL5SPEAKEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg d size 8
   local ptr a
@@ -85,15 +85,15 @@ func i32 main($0, $1) {
     %31 = load @$tmp4
     condbr %31, if.then2, if.else3
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN3DOGC1Ev($0)
-declare i32 fb_IsTypeOf($0, $1)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_End($0)
-func void _ZN3DOGC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN3DOGC1Ev(ptr $0)
+declare i32 fb_IsTypeOf(ptr $0, ptr $1)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN3DOGC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN6ANIMALC1Ev(%1)
@@ -101,8 +101,8 @@ func void _ZN3DOGC1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN6ANIMALC1Ev($0)
-func void _ZN6ANIMALC1Ev($0) {
+declare void _ZN6ANIMALC1Ev(ptr $0)
+func void _ZN6ANIMALC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -110,6 +110,6 @@ func void _ZN6ANIMALC1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
+declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
 lowered: 4 functions, 10 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance

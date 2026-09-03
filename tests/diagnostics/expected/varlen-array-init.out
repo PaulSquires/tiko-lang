@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 72
   local agg b size 72
@@ -220,10 +220,10 @@ func i32 main($0, $1) {
     %145 = load @$tmp0
     ret %145
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayErase($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 211 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/varlen-array-init.bas(7,7): error TKO0612: var-len array 'a' cannot be initialized

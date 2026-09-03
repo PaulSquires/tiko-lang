@@ -2,7 +2,7 @@ global var ptr p
 global var ptr pp
 global var agg x size 8
 global var i64 n
-func void _ZN3UDT1MEv($0) {
+func void _ZN3UDT1MEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -26,7 +26,7 @@ func void REFUSED() {
     call.rtl void fb_PrintLongint(0, %7, 1)
     ret
 }
-declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 func void ACCEPTED() {
   entry0:
     %1 = field.addr @@x, 0
@@ -55,7 +55,7 @@ func void ACCEPTED() {
     call.rtl void fb_PrintLongint(0, %19, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -68,14 +68,14 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 47 insts, 3 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 3
   inside N_INTRINSIC 3
   unlowered intrinsic KW_PRINT 3
-  skip-site src\mir\lowerctl.bas:194 3
+  skip-site src\mir\lowerctl.bas:206 3
 tests/diagnostics/src/member-deref.bas(31,12): error TKO0630: '.' reaches a member of a value; this is a pointer, so use '->'
      |
   31 |     print p.i

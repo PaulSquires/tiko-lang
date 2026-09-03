@@ -2,7 +2,7 @@ global str $str0 "abc"
 global str $str1 ", "
 global str $str2 "q"
 global str $str3 """
-func void _ZN1UC1EPKc($0, $1) {
+func void _ZN1UC1EPKc(ptr $0, ptr $1) {
   local ptr this
   local ptr s
   entry0:
@@ -16,8 +16,8 @@ func void _ZN1UC1EPKc($0, $1) {
     %6 = call.rtl ptr fb_StrAssign(%4, 0, %5, 0, 0)
     ret
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-func ptr _ZN1UcvcEv($0) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func ptr _ZN1UcvcEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -32,7 +32,7 @@ func ptr _ZN1UcvcEv($0) {
     %6 = load @$tmp0
     ret %6
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x size 33
   local agg $tmp2 size 24
@@ -135,12 +135,12 @@ func i32 main($0, $1) {
     %58 = load @$tmp0
     ret %58
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAllocTempDescZ($0)
-declare void fb_PrintString($0, $1, $2)
-declare ptr fb_StrConcat($0, $1, $2, $3, $4)
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance

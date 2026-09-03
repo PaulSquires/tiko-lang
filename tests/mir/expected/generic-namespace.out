@@ -12,9 +12,9 @@ func void P() {
     store @p, %5
     ret
 }
-declare agg _ZN1N7COLL<6>11GETITERATOREv()
-declare agg _ZN1N7COLL<6>1AEv()
-func agg _ZN1N7COLL<6>11GETITERATOREv($0) {
+declare agg _ZN1N7COLL<6>11GETITERATOREv(ptr $0)
+declare agg _ZN1N7COLL<6>1AEv(ptr $0)
+func agg _ZN1N7COLL<6>11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg it size 4
@@ -32,7 +32,7 @@ func agg _ZN1N7COLL<6>11GETITERATOREv($0) {
     %8 = load @$tmp0
     ret %8
 }
-func agg _ZN1N7COLL<6>1AEv($0) {
+func agg _ZN1N7COLL<6>1AEv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg p size 4
@@ -46,7 +46,7 @@ func agg _ZN1N7COLL<6>1AEv($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i8 _ZN1N5IT<6>7ISVALIDEv($0) {
+func i8 _ZN1N5IT<6>7ISVALIDEv(ptr $0) {
   local i8 $tmp0
   local ptr this
   entry0:
@@ -64,7 +64,7 @@ func i8 _ZN1N5IT<6>7ISVALIDEv($0) {
     %10 = neg %9
     ret %10
 }
-func ptr _ZN1N5IT<6>5VALUEEv($0) {
+func ptr _ZN1N5IT<6>5VALUEEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   local i32 z
@@ -79,7 +79,7 @@ func ptr _ZN1N5IT<6>5VALUEEv($0) {
     %5 = load @$tmp0
     ret %5
 }
-func void _ZN1N5IT<6>8MOVENEXTEv($0) {
+func void _ZN1N5IT<6>8MOVENEXTEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this

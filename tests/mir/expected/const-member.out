@@ -1,4 +1,4 @@
-func void _ZN3RECC1Ev($0) {
+func void _ZN3RECC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -10,7 +10,7 @@ func void _ZN3RECC1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN3RECC1ERKS_($0, $1) {
+func void _ZN3RECC1ERKS_(ptr $0, ptr $1) {
   local ptr this
   local ptr x
   entry0:
@@ -30,7 +30,7 @@ func void _ZN3RECC1ERKS_($0, $1) {
     store %4, %11
     ret
 }
-func void BYREFCONST($0) {
+func void BYREFCONST(ptr $0) {
   local ptr x
   local i32 v
   entry0:
@@ -45,8 +45,8 @@ func void BYREFCONST($0) {
     call.rtl void fb_PrintInt(0, %6, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-func void PTRTOCONST($0) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func void PTRTOCONST(ptr $0) {
   local ptr p
   local i32 v
   entry0:
@@ -61,7 +61,7 @@ func void PTRTOCONST($0) {
     call.rtl void fb_PrintInt(0, %6, 1)
     ret
 }
-func void BYREFPLAIN($0) {
+func void BYREFPLAIN(ptr $0) {
   local ptr x
   local i32 v
   entry0:
@@ -76,7 +76,7 @@ func void BYREFPLAIN($0) {
     call.rtl void fb_PrintInt(0, %6, 1)
     ret
 }
-func void PTRPLAIN($0) {
+func void PTRPLAIN(ptr $0) {
   local ptr p
   local i32 v
   entry0:
@@ -91,7 +91,7 @@ func void PTRPLAIN($0) {
     call.rtl void fb_PrintInt(0, %6, 1)
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 4
   local agg b size 4
@@ -117,7 +117,7 @@ func i32 main($0, $1) {
     %9 = load @$tmp0
     ret %9
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 7 functions, 7 blocks, 76 insts, 0 statements not lowered, 0 scope imbalance

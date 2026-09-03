@@ -1,5 +1,5 @@
 global str $str0 "hi"
-func void T($0) {
+func void T(ptr $0) {
   local ptr array
   entry0:
     %1 = alloca ptr array
@@ -14,10 +14,10 @@ func void T($0) {
     call.rtl void fb_PrintLongint(0, %7, 1)
     ret
 }
-declare i64 fb_ArrayLBound($0, $1)
-declare void fb_PrintLongint($0, $1, $2)
-declare i64 fb_ArrayUBound($0, $1)
-func i32 main($0, $1) {
+declare i64 fb_ArrayLBound(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 n
   local agg a size 16
@@ -71,10 +71,10 @@ func i32 main($0, $1) {
     %29 = load @$tmp0
     ret %29
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance

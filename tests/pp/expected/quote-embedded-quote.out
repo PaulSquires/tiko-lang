@@ -9,7 +9,7 @@ global str $str7 "$"""x""" = """x""""
 global str $str8 "a b"
 global str $str9 "$"a b" = "a b""
 global str $str10 "LEN( $"""a\b""" ) = 5"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -92,9 +92,9 @@ func i32 main($0, $1) {
   if.else15:
     br if.join13
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_StrCompare($0, $1, $2, $3)
-declare void fb_Assert($0, $1, $2, $3)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare void fb_Assert(ptr $0, i64 $1, ptr $2, ptr $3)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 16 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

@@ -10,18 +10,15 @@ global ptrs _ZTVN6PARENTE [ 0, @_ZTSN6PARENTE ]
 global str $str9 "5CHILD"
 global ptrs _ZTSN5CHILDE [ 0, @$str9, @_ZTSN6PARENTE ]
 global ptrs _ZTVN5CHILDE [ 0, @_ZTSN5CHILDE ]
-func void _ZN6PARENT3FOOEv($0) {
-  local ptr this
+func void _ZN6PARENT3FOOEv() {
   entry0:
-    %1 = alloca ptr this
-    store @this, $0
-    %2 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 3)
-    call.rtl void fb_PrintString(0, %2, 1)
+    %1 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 3)
+    call.rtl void fb_PrintString(0, %1, 1)
     ret
 }
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-func void _ZNK1A3S07Ev($0) {
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+func void _ZNK1A3S07Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -30,7 +27,7 @@ func void _ZNK1A3S07Ev($0) {
     call.rtl void fb_PrintString(0, %2, 1)
     ret
 }
-func i64 _ZNK1A3F07Ev($0) {
+func i64 _ZNK1A3F07Ev(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -42,7 +39,7 @@ func i64 _ZNK1A3F07Ev($0) {
     %4 = const i64 7
     ret %4
 }
-func i64 _ZN1A1GEv($0) {
+func i64 _ZN1A1GEv(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -56,7 +53,7 @@ func i64 _ZN1A1GEv($0) {
     %5 = load @$tmp0
     ret %5
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg obj size 8
   entry0:
@@ -85,11 +82,11 @@ func i32 main($0, $1) {
     %14 = load @$tmp0
     ret %14
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN1AC1Ev($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
-func void _ZN1AC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN1AC1Ev(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN1AC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -97,6 +94,6 @@ func void _ZN1AC1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
+declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 47 insts, 0 statements not lowered, 0 scope imbalance

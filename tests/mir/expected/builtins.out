@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 row_
   local i32 col
@@ -95,21 +95,21 @@ func i32 main($0, $1) {
     %56 = load @$tmp0
     ret %56
 }
-declare void fb_Init($0, $1, $2)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_GetY()
 declare i32 fb_GetX()
-declare i32 fb_Pos()
-declare f64 fb_Rnd()
-declare i64 fb_GetMemAvail()
-declare i32 fb_FileEof()
-declare i64 fb_FileSize()
-declare i64 fb_FileLocation()
-declare i32 fb_LPos()
-declare i32 fb_In()
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintDouble($0, $1, $2)
-declare void fb_PrintULongint($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare i32 fb_Pos(i32 $0)
+declare f64 fb_Rnd(f32 $0)
+declare i64 fb_GetMemAvail(i32 $0)
+declare i32 fb_FileEof(i32 $0)
+declare i64 fb_FileSize(i32 $0)
+declare i64 fb_FileLocation(i32 $0)
+declare i32 fb_LPos(i32 $0)
+declare i32 fb_In(i16 $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,4 +1,4 @@
-func void _ZN4G<6>C1Ev($0) {
+func void _ZN4G<6>C1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -10,7 +10,7 @@ func void _ZN4G<6>C1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN4G<6>C1ERS_($0, $1) {
+func void _ZN4G<6>C1ERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr rhs
   entry0:
@@ -30,14 +30,14 @@ func void _ZN4G<6>C1ERS_($0, $1) {
     store %4, %11
     ret
 }
-func void _ZN4G<6>D1Ev($0) {
+func void _ZN4G<6>D1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i32 _ZN4H<6>3GETEv($0) {
+func i32 _ZN4H<6>3GETEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -51,7 +51,7 @@ func i32 _ZN4H<6>3GETEv($0) {
     %6 = load %5
     ret %6
 }
-func void _ZN4K<6>C1Ev($0) {
+func void _ZN4K<6>C1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -63,7 +63,7 @@ func void _ZN4K<6>C1Ev($0) {
     store %3, %5
     ret
 }
-func void _ZN4K<6>C1Ei($0, $1) {
+func void _ZN4K<6>C1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 n
   entry0:
@@ -77,14 +77,14 @@ func void _ZN4K<6>C1Ei($0, $1) {
     store %4, %5
     ret
 }
-func void _ZN4K<6>D1Ev($0) {
+func void _ZN4K<6>D1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 4
   local agg b size 4
@@ -142,8 +142,8 @@ func i32 main($0, $1) {
     %27 = load @$tmp0
     ret %27
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 8 functions, 8 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance

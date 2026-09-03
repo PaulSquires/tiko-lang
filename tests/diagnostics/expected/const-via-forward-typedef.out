@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 i
   local i64 j
@@ -26,13 +26,13 @@ func i32 main($0, $1) {
     %13 = load @$tmp0
     ret %13
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 20 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
   amb other 1
-  skip-site src\mir\lower.bas:874 1
+  skip-site src\mir\lower.bas:873 1
   amb-other-class 5 1
 tests/diagnostics/src/const-via-forward-typedef.bas(15,1): error TKO0617: cannot modify 'j': it is a constant
      |

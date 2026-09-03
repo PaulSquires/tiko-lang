@@ -1,9 +1,6 @@
 global str $str0 "x"
-func void _ZN9HASMEMBER6MEMBEREv($0) {
-  local ptr this
+func void _ZN9HASMEMBER6MEMBEREv() {
   entry0:
-    %1 = alloca ptr this
-    store @this, $0
     ret
 }
 func void GOODSUB() {
@@ -14,25 +11,25 @@ func void GOODCDECL() {
   entry0:
     ret
 }
-func void GOODSTDCALL() {
+func void GOODSTDCALL() stdcall {
   entry0:
     ret
 }
-func void GOODPLAINUDT($0) {
+func void GOODPLAINUDT(agg $0) {
   local agg p size 8
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void GOODBYREF($0) {
+func void GOODBYREF(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void GOODSTRINGPARAM($0) {
+func void GOODSTRINGPARAM(ptr $0) {
   local ptr sx
   entry0:
     %1 = alloca ptr sx
@@ -48,39 +45,39 @@ func i64 ISFUNCTION() {
     %3 = const i64 0
     ret %3
 }
-func void BADPASCAL() {
+func void BADPASCAL() pascal {
   entry0:
     ret
 }
-func void BADARRAY($0) {
+func void BADARRAY(agg $0) {
   local agg h size 16
   entry0:
     %1 = alloca ptr h
     store @h, $0
     ret
 }
-func void BADBITFIELD($0) {
+func void BADBITFIELD(agg $0) {
   local agg h size 8
   entry0:
     %1 = alloca ptr h
     store @h, $0
     ret
 }
-func void BADUNION($0) {
+func void BADUNION(agg $0) {
   local agg u size 8
   entry0:
     %1 = alloca ptr u
     store @u, $0
     ret
 }
-func void BADANONUNION($0) {
+func void BADANONUNION(agg $0) {
   local agg h size 16
   entry0:
     %1 = alloca ptr h
     store @h, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg p size 8
   local agg ha size 16
@@ -167,15 +164,15 @@ func i32 main($0, $1) {
     %46 = load @$tmp0
     ret %46
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_ThreadCall($0, $1, $2, $3, $4)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_ThreadCall(ptr $0, i32 $1, i64 $2, i32 $3, ...)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
-lowered: 14 functions, 14 blocks, 80 insts, 8 statements not lowered, 0 scope imbalance
+lowered: 14 functions, 14 blocks, 78 insts, 8 statements not lowered, 0 scope imbalance
   inside N_VAR 8
-  skip-site src\mir\lower.bas:583 8
+  skip-site src\mir\lower.bas:582 8
 tests/diagnostics/src/threadcall-targets.bas(78,42): error TKO0749: 'threadcall' runs a SUB; 'isfunction' is not one
      |
   78 | dim t6 as any ptr = threadcall isFunction( )

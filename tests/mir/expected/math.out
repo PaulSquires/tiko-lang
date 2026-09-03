@@ -121,14 +121,14 @@ func void P() {
     store @g, %82
     ret
 }
-declare f32 fb_FIXSingle($0)
-declare f64 fb_FIXDouble($0)
-declare f32 fb_FRACf($0)
-declare f64 fb_FRACd($0)
-declare i32 fb_SGNSingle($0)
-declare i32 fb_SGNDouble($0)
-declare i32 fb_SGNl($0)
-declare f64 atan2($0, $1)
-declare f64 pow($0, $1)
+declare f32 fb_FIXSingle(f32 $0)
+declare f64 fb_FIXDouble(f64 $0)
+declare f32 fb_FRACf(f32 $0)
+declare f64 fb_FRACd(f64 $0)
+declare i32 fb_SGNSingle(f32 $0)
+declare i32 fb_SGNDouble(f64 $0)
+declare i32 fb_SGNl(i64 $0)
+declare f64 atan2(f64 $0, f64 $1)
+declare f64 pow(f64 $0, f64 $1)
 verify: ok
 lowered: 1 functions, 1 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance

@@ -177,6 +177,14 @@ namespace Tko.Mir
     '' Terminators are separate from instructions: every block ends in exactly one,
     '' and nothing follows it. Keeping them out of the instruction list makes that
     '' structural rather than something the verifier has to notice.
+    '' THE CALLING CONVENTIONS. One on x86-64 -- they differ only in who cleans the
+    '' stack, and on x86-64 nobody does -- but three in the source language and three on
+    '' win32, so the distinction is recorded rather than collapsed at the point where it
+    '' happens to make no difference.
+    const TKO_CC_CDECL   as ubyte = 0
+    const TKO_CC_STDCALL as ubyte = 1
+    const TKO_CC_PASCAL  as ubyte = 2
+
     enum MirTermKind
         MTERM_NONE = 0
         MTERM_RET
@@ -265,9 +273,44 @@ namespace Tko.Mir
         '' '_GLOBAL__D' with these, so module-lifetime objects are constructed before
         '' main and destroyed after it. A backend has to know which is which; the name
         '' alone is a convention, and this is not.
+        '' The ONLY way a parameter is added. Every site that used to write
+        '' 'paramCount += 1' goes through here, so an arity can no longer be recorded
+        '' without the type that belongs to it.
+        declare sub AddParam _
+            ( byval ty as MirType, byval aggType as ulong = 0 )
         as boolean  isModuleCtor
         as boolean  isModuleDtor
         as boolean  isDefinition    '' false for a declaration with no body
+        '' THE SIGNATURE. docs/plan/09 gives every function and extern a signature and a
+        '' calling convention; nothing consumed them until the backend, so until now only
+        '' the ARITY was recorded. An LLVM 'declare' cannot be written from an arity --
+        '' 'declare i32 @MessageBoxA()' is a different function from the real one -- and the
+        '' ABI pass classifies each parameter by type, so both are needed here and not
+        '' recoverable downstream: a DECLARATION has no locals to read them off.
+        ''
+        '' paramCount is 'paramTys.Count' and is maintained only through AddParam.
+        as FB.Array( of ubyte ) paramTys        '' MirType, one per parameter
+        '' The frontend type of an MT_AGG parameter, TYPE_NONE otherwise. An aggregate's
+        '' layout is a frontend question (see MirValue.aggIdx and MirLocal.frontendType),
+        '' and the ABI classifier needs the SIZE, which only the layout store has.
+        as FB.Array( of ulong ) paramAggs
+        '' A VARIADIC TAIL. LLVM spells it '(i32, ...)' and a call to a variadic differs
+        '' from a call to a fixed function at the ABI level -- on win64 a float argument in
+        '' the tail goes in BOTH an XMM and a GPR -- so this is an ABI fact, not a spelling.
+        '' THE FIRST PARAMETER IS THE HIDDEN RESULT POINTER. Recorded rather than
+        '' re-derived, because "does this return through a hidden pointer" is NOT a
+        '' property of the return type: 'operator cast' over a UDT with a destructor
+        '' returns 'struct TU*' with NO hidden parameter -- fbc gives it a STATIC
+        '' result instead -- while a member function returning the same type gets
+        '' '( struct TU*, struct HOLDER* )'. Both were measured. A caller that asks
+        '' the type instead of the callee gets the second answer for the first case
+        '' and passes an argument nothing declared.
+        as boolean  hasSretParam
+        as boolean  isVariadic
+        '' cdecl / stdcall / pascal. All three collapse on x86-64 and the emitted IR is the
+        '' same, but the convention is still carried: it is part of the signature, win32 is
+        '' a stated target, and dropping it here would make it unrecoverable later.
+        as ubyte    callConv
     end type
 
     type MirFunctionVec as FB.Array( of MirFunction ptr )

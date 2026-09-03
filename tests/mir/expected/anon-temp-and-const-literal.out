@@ -1,5 +1,5 @@
 global var i64 g
-func void _ZN3UDTC1Ev($0) {
+func void _ZN3UDTC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -10,7 +10,7 @@ func void _ZN3UDTC1Ev($0) {
     store %3, %4
     ret
 }
-func void _ZN3UDT12COPYTOGLOBALEv($0) {
+func void _ZN3UDT12COPYTOGLOBALEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -21,7 +21,7 @@ func void _ZN3UDT12COPYTOGLOBALEv($0) {
     store @@g, %4
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg $tmp1 size 8
   local agg x size 8
@@ -65,8 +65,8 @@ func i32 main($0, $1) {
     %19 = load @$tmp0
     ret %19
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

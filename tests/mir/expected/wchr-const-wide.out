@@ -1,6 +1,6 @@
 global wstr $wstr0 "ABC"
 global wstr $wstr1 "\u0100\u0101\u0102"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s size 64
   local agg t size 64
@@ -41,12 +41,12 @@ func i32 main($0, $1) {
     %23 = load @$tmp0
     ret %23
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare i64 fb_WstrLen($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare i32 fb_WstrAsc($0, $1)
-declare void fb_PrintUInt($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare i64 fb_WstrLen(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_WstrAsc(ptr $0, i64 $1)
+declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance

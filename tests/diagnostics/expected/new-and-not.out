@@ -2,7 +2,7 @@ func void F() {
   entry0:
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr ip
   local ptr pp_
@@ -119,10 +119,10 @@ func i32 main($0, $1) {
   end.after12:
     br if.join9
 }
-declare void fb_Init($0, $1, $2)
-declare ptr calloc($0, $1)
-declare void fb_PrintULongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr calloc(i64 $0, i64 $1)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 14 blocks, 78 insts, 2 statements not lowered, 0 scope imbalance
   inside N_IF 2

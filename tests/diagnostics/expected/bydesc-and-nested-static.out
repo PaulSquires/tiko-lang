@@ -1,11 +1,11 @@
-func void TAKESP1($0) {
+func void TAKESP1(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
     store @a, $0
     ret
 }
-func void TAKESRT($0) {
+func void TAKESRT(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a
@@ -16,7 +16,7 @@ func void PROC() {
   entry0:
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg ap1 size 24
   local agg ap2 size 24
@@ -125,8 +125,8 @@ func i32 main($0, $1) {
     %65 = load @$tmp0
     ret %65
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 102 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/bydesc-and-nested-static.bas(36,13): error TKO0687: a bydesc parameter takes an array of exactly its element type

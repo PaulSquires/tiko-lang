@@ -1,4 +1,4 @@
-func i64 _ZN3CMPcvu7INTEGEREv($0) {
+func i64 _ZN3CMPcvu7INTEGEREv(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -14,7 +14,7 @@ func i64 _ZN3CMPcvu7INTEGEREv($0) {
     %7 = load @$tmp0
     ret %7
 }
-func void _ZN7DEFCTORC1Eu7INTEGER($0, $1) {
+func void _ZN7DEFCTORC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -24,7 +24,7 @@ func void _ZN7DEFCTORC1Eu7INTEGER($0, $1) {
     store @n, $1
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg t size 8
   local agg cm size 8
@@ -112,12 +112,13 @@ func i32 main($0, $1) {
     %53 = load @$tmp0
     ret %53
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_ArrayClear($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare i32 fb_ArrayClearObj($0, $1, $2)
-declare void fb_End($0)
-verify: ok
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_ArrayClear(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i32 fb_ArrayClearObj(ptr $0, ptr $1, ptr $2)
+declare void fb_End(i32 $0)
+verify: 1 FAILURES
+  main:0:42 call: calls _ZN7DEFCTORC1Eu7INTEGER with 1 arguments, which declares 2
 lowered: 3 functions, 3 blocks, 91 insts, 2 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 2
   inside N_INTRINSIC 2

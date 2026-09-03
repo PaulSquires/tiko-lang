@@ -1,5 +1,5 @@
 global var agg narr size 240
-func void GROWSINABLOCK($0) {
+func void GROWSINABLOCK(i32 $0) {
   local i32 want
   local agg outer_ size 72
   local i32 i
@@ -81,10 +81,10 @@ func void GROWSINABLOCK($0) {
   for.exit7:
     br if.join1
 }
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayRedimPresvEx($0, $1, $2, $3, $4, $5)
-declare i32 fb_ArrayErase($0)
-func i32 main($0, $1) {
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i32 fb_ArrayRedimPresvEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i32 fb_ArrayErase(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x size 144
   local agg a size 240
@@ -315,11 +315,11 @@ func i32 main($0, $1) {
     %157 = load @$tmp0
     ret %157
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN1TC1Ev($0)
-declare void _ZN1TD1Ev($0)
-declare void fb_End($0)
-func void _ZN1TC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN1TC1Ev(ptr $0)
+declare void _ZN1TD1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN1TC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = const ptr 0
@@ -377,7 +377,7 @@ func void _ZN1TC1Ev($0) {
     store %36, %35
     ret
 }
-func void _ZN1TD1Ev($0) {
+func void _ZN1TD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 72
     %2 = call.rtl i32 fb_ArrayErase(%1)

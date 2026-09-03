@@ -1,4 +1,4 @@
-func void _ZN9HOLDER<6>2B1Eu8UINTEGER($0, $1) {
+func void _ZN9HOLDER<6>2B1Eu8UINTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   local i64 k
@@ -14,8 +14,8 @@ func void _ZN9HOLDER<6>2B1Eu8UINTEGER($0, $1) {
     call.rtl void fb_PrintULongint(0, %5, 1)
     ret
 }
-declare void fb_PrintULongint($0, $1, $2)
-func void _ZN9HOLDER<6>2B2Eu8UINTEGER($0, $1) {
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+func void _ZN9HOLDER<6>2B2Eu8UINTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -38,7 +38,7 @@ func i64 SZOF<13>() {
     %3 = const i64 8
     ret %3
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg h size 8
   entry0:
@@ -59,7 +59,7 @@ func i32 main($0, $1) {
     %9 = load @$tmp0
     ret %9
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 36 insts, 0 statements not lowered, 0 scope imbalance

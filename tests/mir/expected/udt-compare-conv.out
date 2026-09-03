@@ -1,13 +1,13 @@
 global var agg _ZN2CVcv2TUEv$t size 4
 global var i64 _ZN2CVcv2TUEv$t$init
-func void _ZN2TUC1Ev($0) {
+func void _ZN2TUC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2TUC1ER2TV($0, $1) {
+func void _ZN2TUC1ER2TV(ptr $0, ptr $1) {
   local ptr this
   local ptr rhs
   entry0:
@@ -23,14 +23,14 @@ func void _ZN2TUC1ER2TV($0, $1) {
     store %4, %7
     ret
 }
-func void _ZN2TUD1Ev($0) {
+func void _ZN2TUD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i64 _ZneR2TUS0_($0, $1) {
+func i64 _ZneR2TUS0_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr a
   local ptr b
@@ -52,7 +52,7 @@ func i64 _ZneR2TUS0_($0, $1) {
     %12 = neg %11
     ret %12
 }
-func ptr _ZN2CVcv2TUEv($0, $1) {
+func ptr _ZN2CVcv2TUEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -87,8 +87,8 @@ func void _ZN2CVcv2TUEv$t$dtor() {
     call void _ZN2TUD1Ev(@@_ZN2CVcv2TUEv$t)
     ret
 }
-declare i32 atexit($0)
-func i32 main($0, $1) {
+declare i32 atexit(ptr $0)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg uu size 4
   local agg vv size 4
@@ -126,8 +126,8 @@ func i32 main($0, $1) {
     %16 = load @$tmp0
     ret %16
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 7 functions, 9 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance

@@ -146,11 +146,11 @@ func void S1() {
     call.rtl void fb_PrintLongint(0, %115, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare i64 fb_ArrayUBound($0, $1)
-declare void fb_PrintLongint($0, $1, $2)
-func i32 main($0, $1) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -164,7 +164,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 145 insts, 0 statements not lowered, 0 scope imbalance

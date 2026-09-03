@@ -1,4 +1,4 @@
-func void _ZN3BAR6FOOBAREN3FOO2T1E($0) {
+func void _ZN3BAR6FOOBAREN3FOO2T1E(agg $0) {
   local agg a size 4
   entry0:
     %1 = alloca ptr a
@@ -8,8 +8,8 @@ func void _ZN3BAR6FOOBAREN3FOO2T1E($0) {
     call.rtl void fb_PrintInt(0, %3, 1)
     ret
 }
-declare void fb_PrintInt($0, $1, $2)
-func i32 main($0, $1) {
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg $tmp1 size 4
   entry0:
@@ -31,7 +31,7 @@ func i32 main($0, $1) {
     %11 = load @$tmp0
     ret %11
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 21 insts, 0 statements not lowered, 0 scope imbalance

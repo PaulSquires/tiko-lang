@@ -1,4 +1,4 @@
-func void _Z9OKDEFINEDR7FBARRAYIu7INTEGERE($0) {
+func void _Z9OKDEFINEDR7FBARRAYIu7INTEGERE(ptr $0) {
   local ptr a
   entry0:
     %1 = alloca ptr a

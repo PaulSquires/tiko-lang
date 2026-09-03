@@ -1,4 +1,4 @@
-func void P($0) {
+func void P(i32 $0) {
   local i32 q
   local i64 i
   local i64 $tmp2
@@ -111,9 +111,9 @@ func void P($0) {
     call.rtl void fb_PrintLongint(0, %60, 1)
     ret
 }
-declare f64 pow($0, $1)
+declare f64 pow(f64 $0, f64 $1)
 declare i32 SIDE_()
-declare void fb_PrintLongint($0, $1, $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 func i32 SIDE_() {
   local i32 $tmp0
   entry0:
@@ -123,7 +123,7 @@ func i32 SIDE_() {
     %3 = const i64 7
     ret %3
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -139,7 +139,7 @@ func i32 main($0, $1) {
     %7 = load @$tmp0
     ret %7
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 15 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance

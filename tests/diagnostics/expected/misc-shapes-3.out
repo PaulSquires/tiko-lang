@@ -9,28 +9,28 @@ global ptrs _ZTVN2B1E [ 0, @_ZTSN2B1E, _ZN2B11FER7FBARRAYIu7INTEGERE, _ZN2B11GER
 global str $str8 "2U1"
 global ptrs _ZTSN2U1E [ 0, @$str8, @__fb_ZTS6Object ]
 global ptrs _ZTVN2U1E [ 0, @_ZTSN2U1E, _ZN2U11HEv ]
-func void _ZN2U11FEv($0) {
+func void _ZN2U11FEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2U11GEv($0) {
+func void _ZN2U11GEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2U11HEv($0) {
+func void _ZN2U11HEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s size 24
   local f64 d
@@ -101,10 +101,10 @@ func i32 main($0, $1) {
     %19 = icmp.eq %17, 0
     condbr %19, lbl.lbl1, on.after4
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_StrDelete($0)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 9 blocks, 57 insts, 1 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 1

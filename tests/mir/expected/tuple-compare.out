@@ -8,7 +8,7 @@ global str $str6 "seq"
 global str $str7 "sne"
 global str $str8 "neq"
 global str $str9 "nne"
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 8
   local agg b size 8
@@ -627,16 +627,16 @@ func i32 main($0, $1) {
     %343 = load @$tmp43
     condbr %343, if.then59, if.else60
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void fb_PrintString($0, $1, $2)
-declare void fb_PrintInt($0, $1, $2)
-declare void _ZN9$TUP:6:15C1Ev($0)
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare i32 fb_StrCompare($0, $1, $2, $3)
-declare void _ZN9$TUP:6:15D1Ev($0)
-declare void fb_End($0)
-func void _ZN9$TUP:6:15C1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void _ZN9$TUP:6:15C1Ev(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare void _ZN9$TUP:6:15D1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN9$TUP:6:15C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     %2 = field.addr %1, 0
@@ -647,12 +647,12 @@ func void _ZN9$TUP:6:15C1Ev($0) {
     store %4, 0
     ret
 }
-func void _ZN9$TUP:6:15D1Ev($0) {
+func void _ZN9$TUP:6:15D1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call.rtl void fb_StrDelete(%1)
     ret
 }
-declare void fb_StrDelete($0)
+declare void fb_StrDelete(ptr $0)
 verify: ok
 lowered: 3 functions, 69 blocks, 448 insts, 0 statements not lowered, 0 scope imbalance

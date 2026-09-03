@@ -2,21 +2,21 @@ extern ptrs __fb_ZTS6Object [ ]
 global str $str1 "1A"
 global ptrs _ZTSN1AE [ 0, @$str1, @__fb_ZTS6Object ]
 global ptrs _ZTVN1AE [ 0, @_ZTSN1AE, 0 ]
-func void TAKES($0) {
+func void TAKES(ptr $0) {
   local ptr r
   entry0:
     %1 = alloca ptr r
     store @r, $0
     ret
 }
-func void TAKING($0) {
+func void TAKING(ptr $0) {
   local ptr p
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr ok1
   local ptr bad1
@@ -60,12 +60,12 @@ func i32 main($0, $1) {
     %20 = load @$tmp0
     ret %20
 }
-declare void fb_Init($0, $1, $2)
-declare ptr calloc($0, $1)
-declare void _ZN1AC1Ev($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
-func void _ZN1AC1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr calloc(i64 $0, i64 $1)
+declare void _ZN1AC1Ev(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN1AC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -73,7 +73,7 @@ func void _ZN1AC1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
+declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
 lowered: 4 functions, 6 blocks, 37 insts, 2 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 2

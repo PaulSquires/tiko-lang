@@ -172,6 +172,26 @@ end function
 
 '' The MIR type a parameter letter names. Kept next to the table so the two cannot
 '' drift apart.
+sub RtlSignature _
+    ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean )
+
+    if f = 0 then return
+    '' THE '.' IS NOT A PARAMETER. RtlArity is the LENGTH of the parameter string and
+    '' counts it, which is right for the fixed-prefix check it was written for and
+    '' wrong here: it produced a fifth, void parameter on fb_ThreadCall, whose real
+    '' signature is 'void* fb_ThreadCall( void*, int32, int64, int32, ... )'.
+    dim as string ps = RtlParams( r )
+    for i as long = 0 to len( ps ) - 1
+        if ps[i] = asc( "." ) then exit for
+        f->AddParam( RtlParamType( r, i, is32 ) )
+    next
+    '' '.' marks a variadic tail -- a REDIM's bounds, PRINT's argument list -- and only
+    '' the fixed prefix above is typed. LLVM needs to be TOLD, because a call to a
+    '' variadic is a different call: on win64 a float in the tail goes in an XMM
+    '' register AND its shadow GPR.
+    f->isVariadic = (instr( RtlParams( r ), "." ) > 0)
+end sub
+
 function RtlParamType _
     ( byval r as RtlId, byval i as long, byval is32 as boolean ) as MirType
 

@@ -17,7 +17,7 @@
 '' EXPECT-OUT: 0 scope imbalance
 
 '' Two parameters, argc and argv, and an i32 return -- the process exit code.
-'' EXPECT-OUT: func i32 main($0, $1)
+'' EXPECT-OUT: func i32 main(i32 $0, ptr $1)
 '' EXPECT-OUT: call.rtl void fb_Init($0, $1
 
 '' Module-level DIM is a LOCAL of main, not a global: a module-level DIM without SHARED

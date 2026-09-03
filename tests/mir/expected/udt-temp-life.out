@@ -2,7 +2,7 @@ global str $str0 ""
 global str $str1 "a"
 global str $str2 "x"
 global str $str3 "b"
-func void _ZN1SD1Ev($0) {
+func void _ZN1SD1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -12,7 +12,7 @@ func void _ZN1SD1Ev($0) {
     call.rtl void fb_StrDelete(%3)
     ret
 }
-declare void fb_StrDelete($0)
+declare void fb_StrDelete(ptr $0)
 func void P() {
   local agg $tmp0 size 24
   local agg $tmp1 size 24
@@ -65,12 +65,12 @@ func void P() {
     call void _ZN1SD1Ev(@q)
     ret
 }
-declare ptr MAKE_()
-declare void fb_PrintString($0, $1, $2)
-declare i32 fb_StrCompare($0, $1, $2, $3)
-declare ptr fb_StrAllocTempDescZEx($0, $1)
-declare void _ZN1SC1ERKS_($0, $1)
-func ptr G($0) {
+declare ptr MAKE_(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void _ZN1SC1ERKS_(ptr $0, ptr $1)
+func ptr G(ptr $0) {
   local ptr $tmp0
   local agg t size 24
   entry0:
@@ -84,8 +84,8 @@ func ptr G($0) {
     %4 = load @$tmp0
     ret %4
 }
-declare void _ZN1SC1Ev($0)
-func ptr MAKE_($0) {
+declare void _ZN1SC1Ev(ptr $0)
+func ptr MAKE_(ptr $0) {
   local ptr $tmp0
   local agg r size 24
   entry0:
@@ -99,7 +99,7 @@ func ptr MAKE_($0) {
     %4 = load @$tmp0
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -113,9 +113,9 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
-func void _ZN1SC1ERKS_($0, $1) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN1SC1ERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 0
     %2 = field.addr %1, 0
@@ -127,8 +127,8 @@ func void _ZN1SC1ERKS_($0, $1) {
     call void _ZN1SaSERKS_($0, $1)
     ret
 }
-declare void _ZN1SaSERKS_($0, $1)
-func void _ZN1SC1Ev($0) {
+declare void _ZN1SaSERKS_(ptr $0, ptr $1)
+func void _ZN1SC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = field.addr %1, 0
@@ -139,13 +139,13 @@ func void _ZN1SC1Ev($0) {
     store %4, 0
     ret
 }
-func void _ZN1SaSERKS_($0, $1) {
+func void _ZN1SaSERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
     %2 = field.addr $0, 0
     %3 = call.rtl ptr fb_StrAssign(%2, -1, %1, -1, 0)
     ret
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 verify: ok
 lowered: 8 functions, 14 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance

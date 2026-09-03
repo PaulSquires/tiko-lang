@@ -1,7 +1,7 @@
 global wstr $wstr0 "q"
 global str $str1 "z"
 global wstr $wstr2 "qz"
-func i32 G($0) {
+func i32 G(ptr $0) {
   local i32 $tmp0
   local ptr s
   entry0:
@@ -14,8 +14,8 @@ func i32 G($0) {
     %5 = call.rtl i64 fb_UStrLen(%4, -1)
     ret %5
 }
-declare i64 fb_UStrLen($0, $1)
-func i32 main($0, $1) {
+declare i64 fb_UStrLen(ptr $0, i64 $1)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg w size 16
   local i32 r1
@@ -103,16 +103,16 @@ func i32 main($0, $1) {
   if.else3:
     br if.join1
 }
-declare void fb_Init($0, $1, $2)
-declare ptr fb_WstrAssign($0, $1, $2)
-declare ptr fb_WstrToUStr($0)
-declare ptr fb_UStrAssign($0, $1, $2, $3, $4)
-declare void fb_UStrDelete($0)
-declare ptr fb_WstrConcatWA($0, $1, $2)
-declare void fb_WstrDelete($0)
-declare void fb_PrintInt($0, $1, $2)
-declare ptr fb_UStrInit($0, $1, $2, $3, $4)
-declare i32 fb_UStrCompare($0, $1, $2, $3)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare ptr fb_WstrToUStr(ptr $0)
+declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_UStrDelete(ptr $0)
+declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
+declare void fb_WstrDelete(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare i32 fb_UStrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 5 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance

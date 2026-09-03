@@ -8,28 +8,28 @@ global ptrs _ZTVN8ALLOCOPSE [ 0, @_ZTSN8ALLOCOPSE, _ZN8ALLOCOPSnwEu7INTEGER ]
 global str $str7 "7DERIVED"
 global ptrs _ZTSN7DERIVEDE [ 0, @$str7, @_ZTSN5BASEDE ]
 global ptrs _ZTVN7DERIVEDE [ 0, @_ZTSN7DERIVEDE, _ZN7DERIVED5PURE_Ev, _ZN5BASED3OK_Ev ]
-func void _ZN5BASED3OK_Ev($0) {
+func void _ZN5BASED3OK_Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN5BASED5PURE_Ev($0) {
+func void _ZN5BASED5PURE_Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN7DERIVED5PURE_Ev($0) {
+func void _ZN7DERIVED5PURE_Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN5PLAIN1HEv($0) {
+func void _ZN5PLAIN1HEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this

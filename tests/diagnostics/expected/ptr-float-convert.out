@@ -1,4 +1,4 @@
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr p
   local f32 f
@@ -59,8 +59,8 @@ func i32 main($0, $1) {
     %38 = load @$tmp0
     ret %38
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/ptr-float-convert.bas(14,1): error TKO0670: a pointer and a floating-point value do not convert into each other

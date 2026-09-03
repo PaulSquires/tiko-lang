@@ -8,7 +8,7 @@ global ptrs _ZTVN2T2E [ 0, @_ZTSN2T2E ]
 global str $str7 "2T3"
 global ptrs _ZTSN2T3E [ 0, @$str7, @_ZTSN2T2E ]
 global ptrs _ZTVN2T3E [ 0, @_ZTSN2T3E ]
-func i64 _Z1AR6OBJECT($0) {
+func i64 _Z1AR6OBJECT(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -20,7 +20,7 @@ func i64 _Z1AR6OBJECT($0) {
     %4 = const i64 0
     ret %4
 }
-func i64 _Z1AR2T1($0) {
+func i64 _Z1AR2T1(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -32,7 +32,7 @@ func i64 _Z1AR2T1($0) {
     %4 = const i64 1
     ret %4
 }
-func i64 _Z1AR2T2($0) {
+func i64 _Z1AR2T2(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -44,7 +44,7 @@ func i64 _Z1AR2T2($0) {
     %4 = const i64 2
     ret %4
 }
-func i64 _Z1BR6OBJECT($0) {
+func i64 _Z1BR6OBJECT(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -56,7 +56,7 @@ func i64 _Z1BR6OBJECT($0) {
     %4 = const i64 0
     ret %4
 }
-func i64 _Z1BR2T1($0) {
+func i64 _Z1BR2T1(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -68,7 +68,7 @@ func i64 _Z1BR2T1($0) {
     %4 = const i64 1
     ret %4
 }
-func i64 _Z2PAPv($0) {
+func i64 _Z2PAPv(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -80,7 +80,7 @@ func i64 _Z2PAPv($0) {
     %4 = const i64 9
     ret %4
 }
-func i64 _Z2PAP2T1($0) {
+func i64 _Z2PAP2T1(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -92,7 +92,7 @@ func i64 _Z2PAP2T1($0) {
     %4 = const i64 1
     ret %4
 }
-func i64 _Z2PBP6OBJECT($0) {
+func i64 _Z2PBP6OBJECT(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -104,7 +104,7 @@ func i64 _Z2PBP6OBJECT($0) {
     %4 = const i64 0
     ret %4
 }
-func i64 _Z2PBP2T1($0) {
+func i64 _Z2PBP2T1(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -116,7 +116,7 @@ func i64 _Z2PBP2T1($0) {
     %4 = const i64 1
     ret %4
 }
-func i64 _Z2PBP2T2($0) {
+func i64 _Z2PBP2T2(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -128,7 +128,7 @@ func i64 _Z2PBP2T2($0) {
     %4 = const i64 2
     ret %4
 }
-func i64 ONE($0) {
+func i64 ONE(ptr $0) {
   local i64 $tmp0
   local ptr x
   entry0:
@@ -140,7 +140,7 @@ func i64 ONE($0) {
     %4 = const i64 7
     ret %4
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x1 size 8
   local agg x2 size 8
@@ -184,13 +184,13 @@ func i32 main($0, $1) {
     %19 = load @$tmp0
     ret %19
 }
-declare void fb_Init($0, $1, $2)
-declare void _ZN2T1C1Ev($0)
-declare void _ZN2T2C1Ev($0)
-declare void _ZN2T3C1Ev($0)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
-func void _ZN2T1C1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN2T1C1Ev(ptr $0)
+declare void _ZN2T2C1Ev(ptr $0)
+declare void _ZN2T3C1Ev(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN2T1C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -198,8 +198,8 @@ func void _ZN2T1C1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
-func void _ZN2T2C1Ev($0) {
+declare void _ZN10fb_Object$C1Ev(ptr $0)
+func void _ZN2T2C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN2T1C1Ev(%1)
@@ -207,7 +207,7 @@ func void _ZN2T2C1Ev($0) {
     store $0, %2
     ret
 }
-func void _ZN2T3C1Ev($0) {
+func void _ZN2T3C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN2T2C1Ev(%1)

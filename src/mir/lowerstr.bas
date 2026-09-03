@@ -340,7 +340,7 @@ function EmitRtl _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
         decl->isDefinition = false
-        decl->paramCount = RtlArity( r )
+        RtlSignature( decl, r, is32 )
         fidx = c.m->functions.Count - 1
     end if
 

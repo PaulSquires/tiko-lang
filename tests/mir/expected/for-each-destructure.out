@@ -1,6 +1,6 @@
 global str $str0 "v"
 global str $str1 ""
-func i8 _ZN8PAIRITER7ISVALIDEv($0) {
+func i8 _ZN8PAIRITER7ISVALIDEv(ptr $0) {
   local i8 $tmp0
   local ptr this
   entry0:
@@ -18,7 +18,7 @@ func i8 _ZN8PAIRITER7ISVALIDEv($0) {
     %10 = neg %9
     ret %10
 }
-func agg _ZN8PAIRITER5VALUEEv($0) {
+func agg _ZN8PAIRITER5VALUEEv(ptr $0) {
   local agg $tmp0 size 32
   local ptr this
   local agg $tmp2 size 32
@@ -44,10 +44,10 @@ func agg _ZN8PAIRITER5VALUEEv($0) {
     %16 = load @$tmp0
     ret %16
 }
-declare ptr fb_StrAssign($0, $1, $2, $3, $4)
-declare ptr fb_IntToStr($0)
-declare ptr fb_StrConcatAssign($0, $1, $2, $3, $4)
-func void _ZN8PAIRITER8MOVENEXTEv($0) {
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_IntToStr(i32 $0)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func void _ZN8PAIRITER8MOVENEXTEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -61,7 +61,7 @@ func void _ZN8PAIRITER8MOVENEXTEv($0) {
     store %3, %7
     ret
 }
-func agg _ZN8PAIRCOLL11GETITERATOREv($0) {
+func agg _ZN8PAIRCOLL11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg it size 4
@@ -192,11 +192,11 @@ func void S1() {
   if.else14:
     br if.join12
 }
-declare ptr fb_StrInit($0, $1, $2, $3, $4)
-declare void fb_StrDelete($0)
-declare void fb_PrintInt($0, $1, $2)
-declare void fb_PrintString($0, $1, $2)
-func i32 main($0, $1) {
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -210,7 +210,7 @@ func i32 main($0, $1) {
     %5 = load @$tmp0
     ret %5
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 20 blocks, 129 insts, 0 statements not lowered, 0 scope imbalance

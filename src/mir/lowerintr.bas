@@ -891,7 +891,7 @@ function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     if idx < 0 then
         dim as MirFunction ptr d = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
         d->isDefinition = false
-        d->paramCount = RtlArity( r )
+        RtlSignature( d, r, is32 )
         idx = c.m->functions.Count - 1
     end if
     dim as MirInst fa

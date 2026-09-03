@@ -8,7 +8,7 @@ global ptrs _ZTSN3NS14UDT2E [ 0, @$str5, @_ZTSN3NS14UDT1E ]
 global ptrs _ZTVN3NS14UDT1E [ 0, @_ZTSN3NS14UDT1E ]
 global ptrs _ZTVN3NS14UDT2E [ 0, @_ZTSN3NS14UDT2E ]
 global ptrs _ZTVN4UDT1E [ 0, @_ZTSN4UDT1E ]
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local ptr pudt1
   local ptr $tmp2
@@ -81,15 +81,15 @@ func i32 main($0, $1) {
     %33 = load @$tmp0
     ret %33
 }
-declare void fb_Init($0, $1, $2)
-declare ptr calloc($0, $1)
-declare void _ZN3NS14UDT1C1Ev($0)
-declare i32 fb_IsTypeOf($0, $1)
-declare void fb_PrintInt($0, $1, $2)
-declare void free($0)
-declare void _ZN3NS14UDT2C1Ev($0)
-declare void fb_End($0)
-func void _ZN3NS14UDT1C1Ev($0) {
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr calloc(i64 $0, i64 $1)
+declare void _ZN3NS14UDT1C1Ev(ptr $0)
+declare i32 fb_IsTypeOf(ptr $0, ptr $1)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void free(ptr $0)
+declare void _ZN3NS14UDT2C1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN3NS14UDT1C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN4UDT1C1Ev(%1)
@@ -97,8 +97,8 @@ func void _ZN3NS14UDT1C1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN4UDT1C1Ev($0)
-func void _ZN3NS14UDT2C1Ev($0) {
+declare void _ZN4UDT1C1Ev(ptr $0)
+func void _ZN3NS14UDT2C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN3NS14UDT1C1Ev(%1)
@@ -106,7 +106,7 @@ func void _ZN3NS14UDT2C1Ev($0) {
     store $0, %2
     ret
 }
-func void _ZN4UDT1C1Ev($0) {
+func void _ZN4UDT1C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
@@ -114,6 +114,6 @@ func void _ZN4UDT1C1Ev($0) {
     store $0, %2
     ret
 }
-declare void _ZN10fb_Object$C1Ev($0)
+declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
 lowered: 4 functions, 12 blocks, 60 insts, 0 statements not lowered, 0 scope imbalance

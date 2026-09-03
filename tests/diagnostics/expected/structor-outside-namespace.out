@@ -1,12 +1,12 @@
 global var agg arr size 240
-func void _ZN2NS8DECLAREDC1Ev($0) {
+func void _ZN2NS8DECLAREDC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func i64 _ZN2NS8DECLARED10FOO__get__Ev($0) {
+func i64 _ZN2NS8DECLARED10FOO__get__Ev(ptr $0) {
   local i64 $tmp0
   local ptr this
   entry0:
@@ -18,14 +18,14 @@ func i64 _ZN2NS8DECLARED10FOO__get__Ev($0) {
     %4 = const i64 0
     ret %4
 }
-func void _ZN2NS4BAREC1Ev($0) {
+func void _ZN2NS4BAREC1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN2NS4BARED1Ev($0) {
+func void _ZN2NS4BARED1Ev(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -37,7 +37,7 @@ func void _ZN2NS4BARE10FOO__get__Ev() {
     %1 = const i64 0
     ret %1
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -54,9 +54,9 @@ func i32 main($0, $1) {
     %9 = load @$tmp0
     ret %9
 }
-declare void fb_Init($0, $1, $2)
-declare i32 fb_ArrayRedimEx($0, $1, $2, $3, $4, $5)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 6 blocks, 25 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/structor-outside-namespace.bas(35,1): error TKO0722: the type 'ns' never declared this constructor, destructor or property

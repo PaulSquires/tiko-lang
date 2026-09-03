@@ -1,19 +1,16 @@
-func agg _ZN2DT8MAXVALUEEv($0) {
+func agg _ZN2DT8MAXVALUEEv() {
   local agg $tmp0 size 8
-  local ptr this
   local agg r size 8
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr this
-    store @this, $0
-    %3 = alloca ptr r
-    %4 = field.addr @r, 0
-    %5 = const i64 5
-    store %4, %5
-    %6 = load @r
-    store @$tmp0, %6
-    %7 = load @$tmp0
-    ret %7
+    %2 = alloca ptr r
+    %3 = field.addr @r, 0
+    %4 = const i64 5
+    store %3, %4
+    %5 = load @r
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
 }
 func agg MK() {
   local agg $tmp0 size 8
@@ -29,7 +26,7 @@ func agg MK() {
     %6 = load @$tmp0
     ret %6
 }
-func i32 main($0, $1) {
+func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg $tmp1 size 8
   local agg $tmp2 size 8
@@ -79,8 +76,8 @@ func i32 main($0, $1) {
     %30 = load @$tmp0
     ret %30
 }
-declare void fb_Init($0, $1, $2)
-declare void fb_PrintLongint($0, $1, $2)
-declare void fb_End($0)
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 59 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance
