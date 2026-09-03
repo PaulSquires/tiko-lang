@@ -73,6 +73,13 @@ type PpEngine
     '' Two parallel arrays used as one stack: names are interned, so the top entry
     '' for a name is found by scanning backwards. The stacks are shallow (the
     '' fbcunit headers nest two deep) so a linear scan is the right shape.
+    '' '#pragma reserve' -- one entry per directive, the name and the modes it claimed.
+    '' PLAIN, ASM and EXTERN are three INDEPENDENT modes: measured, '(asm)' then
+    '' '(extern)' is accepted and either one twice is fbc's error 4, and a BARE reserve is
+    '' its own mode rather than both of the others -- 'reserve x' then 'reserve (asm) x'
+    '' is accepted while 'reserve x' twice is not.
+    as IdVec                  reserveNames
+    as IdVec                  reserveModes
     as IdVec                  uidNames      '' InternId, innermost last
     as IdVec                  uidValues     '' the counter value that name maps to
     as boolean                stopped

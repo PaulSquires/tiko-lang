@@ -510,6 +510,65 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         case "private", "profile"
             PragmaOption( e, at, opt, isPush, isPop )
             SkipToEol( e )
+        case "reserve"
+            '' '#pragma reserve [ ( asm [, extern] ) ] name'. Only the two options exist;
+            '' anything else is fbc's error 7. An empty '( )' and a missing comma are both
+            '' tolerated, which was measured.
+            dim as long modes = 0
+            dim as boolean sawParen = false
+            if PeekOnLine( e, t ) then
+                if Tk( t ) = TK_LPAREN then
+                    sawParen = true
+                    Advance( e )
+                    do
+                        if PeekOnLine( e, t ) = false then exit do
+                        if Tk( t ) = TK_RPAREN then
+                            Advance( e )
+                            exit do
+                        end if
+                        if Tk( t ) = TK_COMMA then
+                            Advance( e )
+                            continue do
+                        end if
+                        dim as string o = PpDirectiveWord( e, t )
+                        if len( o ) = 0 then exit do
+                        Advance( e )
+                        select case o
+                        case "asm"    : modes or= 2
+                        case "extern" : modes or= 4
+                        case else
+                            Report( e, TKO0763, at, o )
+                            SkipToEol( e )
+                            return
+                        end select
+                    loop
+                end if
+            end if
+            if sawParen = false then modes = 1
+            '' THE NAME. Without one fbc says error 14; that half is not modelled here.
+            dim as string rname = ""
+            if PeekOnLine( e, t ) then rname = PpDirectiveWord( e, t )
+            if len( rname ) > 0 then
+                Advance( e )
+                dim as InternId rid = e.names->Fold( e.names->GetString( rname ) )
+                if modes <> 0 then
+                    dim as boolean clash = false
+                    for i as long = 0 to e.reserveNames.Count - 1
+                        if e.reserveNames[i] <> cast( ulong, rid ) then continue for
+                        if (cast( long, e.reserveModes[i] ) and modes) <> 0 then
+                            clash = true
+                            exit for
+                        end if
+                    next
+                    if clash then
+                        Report( e, TKO0764, at, rname )
+                    else
+                        e.reserveNames.Push( cast( ulong, rid ) )
+                        e.reserveModes.Push( cast( ulong, modes ) )
+                    end if
+                end if
+            end if
+            SkipToEol( e )
         case "once"
             '' '#pragma once' IS '#include once' SAID FROM THE OTHER END, and it was a
             '' NO-OP -- listed as recognised and then skipped. So a header guarded that

@@ -1,0 +1,18 @@
+verify: ok
+lowered: 0 functions, 0 blocks, 0 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/pragma-reserve.bas(24,1): error TKO0763: '#pragma reserve' takes 'asm' or 'extern', not 'shared'
+     |
+  24 | #pragma reserve (shared) eta
+     | ^
+tests/diagnostics/src/pragma-reserve.bas(26,1): error TKO0764: 'beta' is already reserved for that use
+     |
+  26 | #pragma reserve (asm) beta
+     | ^
+tests/diagnostics/src/pragma-reserve.bas(28,1): error TKO0764: 'theta' is already reserved for that use
+     |
+  28 | #pragma reserve theta
+     | ^
+tests/diagnostics/src/pragma-reserve.bas(29,1): error TKO0764: 'zeta' is already reserved for that use
+     |
+  29 | #pragma reserve (asm,extern) zeta
+     | ^

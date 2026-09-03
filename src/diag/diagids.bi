@@ -368,6 +368,9 @@
     '' fbc's error 158, twice over.
     DIAG( TKO0761, SEV_ERROR,   "'%0' is declared SHARED from outside its namespace" )
     DIAG( TKO0762, SEV_ERROR,   "'%0' is already defined from outside" )
+    '' fbc's errors 7 and 4, over '#pragma reserve'.
+    DIAG( TKO0763, SEV_ERROR,   "'#pragma reserve' takes 'asm' or 'extern', not '%0'" )
+    DIAG( TKO0764, SEV_ERROR,   "'%0' is already reserved for that use" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
