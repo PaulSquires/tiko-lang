@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/pointer-depth.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/pointer-depth.out

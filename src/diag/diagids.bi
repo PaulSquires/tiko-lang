@@ -363,6 +363,8 @@
     DIAG( TKO0758, SEV_ERROR,   "'%0' has static storage and holds a bitfield, which its initializer cannot fill" )
     '' fbc's error 20 -- SWAP exchanges storage and converts nothing.
     DIAG( TKO0759, SEV_ERROR,   "'swap' needs two operands of the same kind" )
+    '' fbc's error 274. The limit is EIGHT, counted through typedefs.
+    DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

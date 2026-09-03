@@ -1047,4 +1047,5 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckConstDeclTypes2_( c )
     CheckRedimDeclShape_( c )
     CheckAggregateInitFields_( c )
+    CheckPointerDepth_( c )
 end sub

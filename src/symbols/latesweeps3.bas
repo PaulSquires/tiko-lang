@@ -128,6 +128,44 @@ private function SwapKindOf_ _
     return 0
 end function
 
+'' EIGHT LEVELS OF POINTER IS THE LIMIT -- fbc error 274, "Too many levels of pointer
+'' indirection". Measured exactly at the boundary, and it counts THROUGH TYPEDEFS:
+''
+''     dim p as integer ptr x8                                  accepted
+''     dim p as integer ptr x9                                  error 274
+''     type t as integer ptr x4 : dim p as t ptr x4             accepted
+''     type t as integer ptr x4 : dim p as t ptr x5             error 274
+''     type t as integer ptr x4 : type u as t ptr x4 : dim p as u ptr   error 274
+''
+'' The RESOLVED type is what carries the answer, so the count is a walk down Inner( ) --
+'' a typedef has already been substituted by the time this runs.
+private function PointerDepth_ ( byref c as Ctx, byval t as TypeId ) as long
+    dim as long n = 0
+    dim as TypeId u = c.types->Unqualify( t )
+    while (u <> TYPE_NONE) andalso (n < 64)
+        if c.types->Kind( u ) <> TK_POINTER then exit while
+        n += 1
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    wend
+    return n
+end function
+
+private sub CheckPointerDepth_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_TYPEREF then continue for
+        '' ONLY THE OUTERMOST typeref of a chain is judged: the inner ones are the same
+        '' type one level shallower, and reporting each would give nine diagnostics for
+        '' one declaration. A typeref whose PARENT is another typeref is an inner one --
+        '' which is what a pointer wrapper is, so the test is on the node's own flags.
+        if (c.ast->nodes[n].flags and NF_PTR) = 0 then continue for
+        dim as long depth = PointerDepth_( c, c.info->TypeOf_( id ) )
+        if depth <= 8 then continue for
+        c.diags->Report( TKO0760, PointRange( c.ast->Loc( id ) ) )
+        return
+    next
+end sub
+
 private sub CheckSwapTypes_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
