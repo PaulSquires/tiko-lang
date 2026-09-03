@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/gfx-target-and-cast-size.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/gfx-target-and-cast-size.out

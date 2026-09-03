@@ -203,6 +203,17 @@ private sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
         '' AN ARRAY IS A LEGAL IMAGE BUFFER -- 'line array, (0,0)-(w,h), c' over a plain
         '' 'dim array( ... )' is what gfx/image-expr.bas calls the NIDXARRAY form, and fbc
         '' compiles it. Only a SCALAR target is the error.
+        ''
+        '' ...EXCEPT A FIXED STRING, which is an array of a CHARACTER builtin and is not a
+        '' buffer: 'dim z as zstring * 32 : line z, ...' is fbc's 28, measured for zstring
+        '' and wstring alike, while the ubyte array beside it compiles.
+        dim as TypeId ael = c.types->Unqualify( c.types->Inner( u ) )
+        if c.types->Kind( ael ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( ael )
+            case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                c.diags->Report( TKO0708, PointRange( c.ast->Loc( sp->a ) ) )
+            end select
+        end if
         return
     case TK_BUILTIN
         '' AN ARRAY ELEMENT IS THE BUFFER'S FIRST BYTE, and fbc takes it: 'line a( 0 ),

@@ -1409,6 +1409,34 @@ private sub CheckByrefParamDefault_ ( byref c as Ctx, byval id as NodeId )
                      c.names->Spelling( sp->name ) )
 end sub
 
+'' A CAST TO A STRING TYPE NEEDS A SIZE -- fbc error 28. 'cast( zstring, "a" )' and
+'' 'cast( wstring, wstr( "a" ) )' name a type with no storage to cast into, while
+'' 'cast( zstring * 4, z )' and 'cast( zstring ptr, @z )' are both fine. A cast to a plain
+'' STRING is fbc's error 20 and a different question, so only the character types are read.
+private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = NODE_NONE then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    dim as string cn = lcase( c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+    if (cn <> "cast") andalso (cn <> "cptr") then return
+    if lp->count < 1 then return
+    dim as NodeId tref = cast( NodeId, c.ast->children[lp->first] )
+    if tref = NODE_NONE then return
+    if c.ast->Kind( tref ) <> N_TYPEREF then return
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( tref ) )
+    if t = TYPE_NONE then return
+    '' A SIZED string is an ARRAY of the character type and a POINTER is a pointer; only
+    '' the bare builtin has nothing to cast into.
+    if c.types->Kind( t ) <> TK_BUILTIN then return
+    select case c.types->BuiltinOf( t )
+    case TY_ZSTRING, TY_WSTRING, TY_USTRING
+        c.diags->Report( TKO0756, PointRange( c.ast->Loc( id ) ) )
+    end select
+end sub
+
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
       byval here as TypeId )
@@ -1424,6 +1452,7 @@ private sub WalkExtra_ _
     if k = N_INTRINSIC then CheckSwapConst_( c, id )
     if k = N_INTRINSIC then CheckThreadCall_( c, id )
     if k = N_PARAM then CheckByrefParamDefault_( c, id )
+    if k = N_CALL then CheckCastStringSize_( c, id )
 end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )

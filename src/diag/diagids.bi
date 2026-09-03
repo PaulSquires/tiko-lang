@@ -356,6 +356,8 @@
     DIAG( TKO0754, SEV_ERROR,   "the type '%0' is too big" )
     '' fbc's error 71 -- an incomplete type where a complete one is needed.
     DIAG( TKO0755, SEV_ERROR,   "'%0' is byref with a default, which needs a complete type" )
+    '' fbc's error 28 for a cast to a string type with no size.
+    DIAG( TKO0756, SEV_ERROR,   "a cast needs a SIZED string type, as in 'zstring * n'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
