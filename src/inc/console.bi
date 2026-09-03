@@ -185,6 +185,24 @@ const FB_COLOR_BG_DEFAULT = &h2
 
 	const TKORT_CON_SCROLLREGION = 196
 
+	'' The handler slots, all function pointers -- MEASURED with the rest of the
+	'' struct (gcc 13.3 under WSL, sizeof 408). These are how the keyboard and
+	'' mouse drivers install themselves: src/io/multikeyposix.bas and
+	'' src/io/mouseposix.bas WRITE them, and src/init/hinitposix.bas's
+	'' background thread and console init/exit CALL through them.
+	'' h_in is the /dev/tty descriptor the console layer opened.
+	const TKORT_CON_HIN          = 8
+
+	const TKORT_CON_KBGETCH      = 336
+	const TKORT_CON_KBINIT       = 344
+	const TKORT_CON_KBEXIT       = 352
+	const TKORT_CON_KBHANDLER    = 360
+	const TKORT_CON_MOUSEINIT    = 368
+	const TKORT_CON_MOUSEEXIT    = 376
+	const TKORT_CON_MOUSEHANDLER = 384
+	const TKORT_CON_MOUSEUPDATE  = 392
+	const TKORT_CON_GFXEXIT      = 400
+
 	const SEQ_LOCATE_       = 0
 	const SEQ_SCROLL_REGION_ = 2
 	const SEQ_CLEOL_        = 4
