@@ -1,0 +1,161 @@
+'' bmp.bi -- BMP output for BSAVE.
+''
+'' Derived from: gfx_bsave.c (save_bmp). LGPL-2.1-or-later with the
+'' static-linking exception.
+''
+'' BSAVE picks this path purely on the FILENAME EXTENSION -- `strrchr` for '.'
+'' and a case-insensitive compare against "bmp". Not on a flag, not on the data.
+'' So `BSAVE "x.BMP", img` and `BSAVE "x.bmp", img` both produce a BMP and
+'' `BSAVE "x.bsv", img` produces the raw block, from identical arguments.
+''
+'' THE OUTPUT DEPTH IS DERIVED FROM THE INPUT DEPTH, not chosen freely:
+''
+''   input 8bpp   -> 8-bit (default) or 24-bit
+''   input 16bpp  -> 24-bit ONLY
+''   input 32bpp  -> 32-bit (default) or 24-bit
+''
+'' An out-of-range request is silently coerced rather than rejected.
+''
+'' ROWS ARE WRITTEN BOTTOM-UP. `biHeight` is POSITIVE and the writer starts at
+'' the last row and walks backwards. That is the opposite of the DIB the GDI
+'' presenter builds, where biHeight is negative -- the two are different
+'' conventions in the same library for good reason, and confusing them flips
+'' the image vertically.
+''
+'' ROW PADDING IS TO 4 BYTES, and differs per output depth:
+''   8-bit   (w + 3) and not 3
+''   24-bit  (w * 3 + 3) and not 3
+''   32-bit  w * 4          -- already aligned, no padding
+''
+'' THE 8-BIT PALETTE IS BGRA, 256 ENTRIES, ALWAYS. Written as
+'' blue, green, red, 0 -- and 256 entries regardless of how many the mode
+'' actually uses, so a 16-colour image still carries a 1KB palette block.
+
+#pragma once
+
+#include once "image.bi"
+#include once "palette.bi"
+#include once "crt/string.bi"
+
+namespace TkoGfx
+
+const BMP_FILE_HEADER_SIZE = 54
+const BMP_PELS_PER_METER   = &hB12
+
+private sub BmpPut16( byval f as long, byval v as ulong )
+    dim as ushort t = cast( ushort, v and &hFFFF )
+    put #f, , t
+end sub
+
+private sub BmpPut32( byval f as long, byval v as ulong )
+    dim as ulong t = v
+    put #f, , t
+end sub
+
+'' Write the 54-byte header. Fields are written individually rather than as a
+'' struct so nothing depends on FreeBASIC's packing matching the C compiler's.
+private sub BmpWriteHeader( _
+        byval f as long, byval w as long, byval h as long, _
+        byval outbpp as long, byval clrused as long )
+
+    dim as long outpitch, sizeimage, offbits
+    select case outbpp
+    case 1
+        outpitch = (w + 3) and (not 3)
+        offbits = BMP_FILE_HEADER_SIZE + 256 * 4
+    case 3
+        outpitch = ((w * 3) + 3) and (not 3)
+        offbits = BMP_FILE_HEADER_SIZE
+    case else
+        outpitch = w * 4
+        offbits = BMP_FILE_HEADER_SIZE
+    end select
+    sizeimage = outpitch * h
+
+    BmpPut16( f, &h4D42 )                       '' 'BM'
+    BmpPut32( f, offbits + sizeimage )          '' bfSize
+    BmpPut16( f, 0 )                            '' bfReserved1
+    BmpPut16( f, 0 )                            '' bfReserved2
+    BmpPut32( f, offbits )                      '' bfOffBits
+    BmpPut32( f, 40 )                           '' biSize
+    BmpPut32( f, w )                            '' biWidth
+    BmpPut32( f, h )                            '' biHeight -- POSITIVE, bottom-up
+    BmpPut16( f, 1 )                            '' biPlanes
+    BmpPut16( f, outbpp * 8 )                   '' biBitCount
+    BmpPut32( f, 0 )                            '' biCompression
+    BmpPut32( f, sizeimage )
+    BmpPut32( f, BMP_PELS_PER_METER )
+    BmpPut32( f, BMP_PELS_PER_METER )
+    BmpPut32( f, clrused )
+    BmpPut32( f, clrused )                      '' biClrImportant == biClrUsed
+end sub
+
+'' BSAVE of a 32bpp image as a 32-bit BMP. Pixels go out unchanged -- the
+'' in-memory BGRA order is already what BMP wants.
+private function BmpSave32( _
+        byref path as string, byval img as TkoAbi.PUT_HEADER ptr ) as long
+
+    if img = 0 then return 1
+    if img->bpp <> 4 then return 1
+
+    dim as long w = img->width, h = img->height
+    dim as long f = freefile
+    if open( path, for binary, access write, as #f ) <> 0 then return 1
+
+    BmpWriteHeader( f, w, h, 4, 0 )
+
+    '' bottom-up
+    dim as integer y = h - 1
+    while y >= 0
+        dim as ulong ptr row = cptr( ulong ptr, TkoImagePixels( img ) + cast( integer, y ) * img->pitch )
+        put #f, , *row, w
+        y -= 1
+    wend
+
+    close #f
+    return 0
+end function
+
+'' BSAVE of an 8bpp image as an 8-bit BMP, with its 256-entry BGRA palette.
+private function BmpSave8( _
+        byref path as string, byval img as TkoAbi.PUT_HEADER ptr, _
+        byref pal as GfxPalette ) as long
+
+    if img = 0 then return 1
+    if img->bpp <> 1 then return 1
+
+    dim as long w = img->width, h = img->height
+    dim as long outpitch = (w + 3) and (not 3)
+
+    dim as long f = freefile
+    if open( path, for binary, access write, as #f ) <> 0 then return 1
+
+    BmpWriteHeader( f, w, h, 1, 256 )
+
+    '' Palette: blue, green, red, 0 -- and always 256 entries.
+    for i as integer = 0 to 255
+        dim as ulong c = pal.entry(i)
+        dim as ubyte b4(0 to 3)
+        b4(0) = cast( ubyte, (c shr 16) and &hFF )   '' blue
+        b4(1) = cast( ubyte, (c shr 8) and &hFF )    '' green
+        b4(2) = cast( ubyte, c and &hFF )            '' red
+        b4(3) = 0
+        dim as ubyte ptr bp = @b4(0)
+        put #f, , *bp, 4
+    next
+
+    dim as ubyte ptr pad = callocate( outpitch )
+    dim as integer y = h - 1
+    while y >= 0
+        dim as ubyte ptr row = TkoImagePixels( img ) + cast( integer, y ) * img->pitch
+        memcpy( pad, row, w )
+        put #f, , *pad, outpitch
+        y -= 1
+    wend
+    deallocate( pad )
+
+    close #f
+    return 0
+end function
+
+end namespace

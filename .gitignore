@@ -8,6 +8,8 @@
 *.o
 *.a
 *.exe
+# -gen llvm drops the IR beside the source
+*.ll
 
 # editor and OS noise
 *.swp
