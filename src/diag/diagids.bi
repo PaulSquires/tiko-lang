@@ -351,6 +351,9 @@
     '' fbc's errors 147 and 63, over REDIM.
     DIAG( TKO0751, SEV_ERROR,   "a REDIM that declares '%0' must write its type" )
     DIAG( TKO0752, SEV_ERROR,   "REDIM needs the array's bounds: '%0( ... )'" )
+    '' fbc's errors 24 (a bitfield has no address) and 51.
+    DIAG( TKO0753, SEV_ERROR,   "'%0' is a bitfield and has no address to bind byref" )
+    DIAG( TKO0754, SEV_ERROR,   "the type '%0' is too big" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

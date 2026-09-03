@@ -438,7 +438,21 @@ private sub CheckDynArrayInUnion_( byref c as Ctx )
 
         '' Either the field's immediate enclosing aggregate is a UNION -- which is what
         '' SYMF_UNION records for an anonymous one -- or the named type it sits in is.
+        '' ...OR ANY ENCLOSING AGGREGATE IS. structs/dynamic-array-field-in-union-2.bas
+        '' writes 'type UDT { union { type { array( any ) } } }' -- the field sits in an
+        '' anonymous TYPE whose parent is the union, so neither its own SYMF_UNION nor its
+        '' immediate owner says union, and fbc still reports 162. The walk goes outward
+        '' through the enclosing type scopes.
+        '' ...OR ANY ENCLOSING ANONYMOUS AGGREGATE IS A UNION. structs/dynamic-array-
+        '' field-in-union-2.bas writes 'type UDT { union { type { array( any ) } } }': the
+        '' field sits in an anonymous TYPE nested in the union, so its own SYMF_UNION is
+        '' clear and the enclosing SCOPE is the outer UDT -- anonymous aggregates are
+        '' flattened into one scope, so no scope walk can see the union either. Collect
+        '' already records the answer per field: anonUnionMask has a bit per nesting
+        '' level, set for the levels that are unions, so a non-zero mask means 'inside a
+        '' union somewhere'. fbc reports 162 for all of them.
         dim as boolean inUnion = ((s->flags and SYMF_UNION) <> 0)
+        if inUnion = false then inUnion = (s->anonUnionMask <> 0)
         if inUnion = false then
             dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
             if sc = 0 then continue for

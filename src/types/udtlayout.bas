@@ -486,6 +486,71 @@ function CheckArraySizes _
       byref diags as DiagnosticEngine ) as long
 
     dim as long reported = 0
+    '' A TYPE THAT DOES NOT FIT -- fbc error 51, "User Defined Type too big". Measured at
+    '' the boundary: 'as byte array( 0 to &h7FFFFFFF - 1 )' alone is accepted at exactly
+    '' 2147483647 bytes, and one more byte beside it is refused.
+    ''
+    '' DETECTED BY THE OVERFLOW ITSELF. UdtInfo.size is a LONG, so the refused case has
+    '' already wrapped to -2147483648 by the time anything can look at it -- a NEGATIVE
+    '' size with fields present is the signature. A total that wrapped all the way round
+    '' to a small positive number would be missed, which is an under-detection and not a
+    '' wrong answer; computing it in 64 bits belongs in ComputeUdtLayouts itself.
+    for ui as long = 0 to store.udts.Count - 1
+        dim as UdtInfo ptr ui2 = @store.udts[ui]
+        if ui2->size >= 0 then continue for
+        if ui2->count <= 0 then continue for
+        '' ...UNLESS ONE MEMBER ARRAY IS ITSELF OVER THE LIMIT, in which case that array is
+        '' the error fbc reports (50) and the type's overflow is its consequence. Reporting
+        '' both put two diagnostics on one declaration, which this suite's array-sizes-2
+        '' test caught.
+        dim as boolean memberTooBig = false
+        for fi as long = 0 to ui2->count - 1
+            dim as TypeId ft = types.Unqualify( store.fields[ui2->first + fi].type_ )
+            if types.Kind( ft ) <> TK_ARRAY then continue for
+            if types.IsDynArray( ft ) then continue for
+            dim as TypeId fe = types.Unqualify( types.Inner( ft ) )
+            '' A UDT ELEMENT'S SIZE LIVES IN THE LAYOUT STORE, not the type table --
+            '' types.Layout answers 0 for one, which made this test skip exactly the
+            '' Container6 shape it exists to suppress.
+            dim as longint fesz = 0
+            if types.Kind( fe ) = TK_UDT then
+                dim as long fvi = store.Find( fe )
+                if fvi >= 0 then fesz = cast( longint, store.udts[fvi].size )
+            else
+                fesz = cast( longint, types.Layout( fe ).size )
+            end if
+            if fesz <= 0 then continue for
+            dim as long fdims = types.types[cast( long, ft )].dims
+            if fdims < 1 then continue for
+            dim as long ffirst = types.types[cast( long, ft )].first
+            if types.types[cast( long, ft )].count < fdims * 2 then continue for
+            dim as longint fn = 1
+            for d as long = 0 to fdims - 1
+                dim as longint flo = types.boundPool[ffirst + d * 2]
+                dim as longint fhi = types.boundPool[ffirst + d * 2 + 1]
+                if fhi < flo then fn = 0 : exit for
+                fn *= (fhi - flo + 1)
+                if fn > 2147483647 then exit for
+            next
+            if fn <= 0 then continue for
+            if (fesz * fn) > 2147483647 then
+                memberTooBig = true
+                exit for
+            end if
+        next
+        if memberTooBig then continue for
+        dim as InternId unm = types.NameOf( ui2->type_ )
+        dim as SourceLoc uloc
+        for k as long = 0 to syms.symbols.Count - 1
+            dim as Symbol ptr us = @syms.symbols[k]
+            if us->kind <> cast( ubyte, SYM_UDT ) then continue for
+            if us->type_ <> ui2->type_ then continue for
+            uloc = us->loc
+            exit for
+        next
+        diags.Report( TKO0754, PointRange( uloc ), names.Spelling( unm ) )
+        reported += 1
+    next
     for i as long = 0 to syms.symbols.Count - 1
         dim as Symbol ptr s = @syms.symbols[i]
         if (s->kind <> cast( ubyte, SYM_VARIABLE )) andalso _

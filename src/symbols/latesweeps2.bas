@@ -485,6 +485,18 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
             end if
             continue for
         end if
+        '' A BITFIELD HAS NO ADDRESS -- fbc error 24 for 'dim byref y as integer = x.n'
+        '' over an 'n:1 as integer'. A plain field of the same type binds fine.
+        if ik = N_MEMBER then
+            dim as Symbol ptr bfs = c.syms->SymbolAt( c.info->RefOf( init ) )
+            if bfs <> 0 then
+                if (bfs->flags and SYMF_BITFIELD) <> 0 then
+                    c.diags->Report( TKO0753, PointRange( c.ast->Loc( init ) ), _
+                                     c.names->Spelling( bfs->name ) )
+                    continue for
+                end if
+            end if
+        end if
         if (ik <> N_IDENT) andalso (ik <> N_MEMBER) then continue for
         '' The static-reference rule.
         if ((s->flags and SYMF_STATIC) <> 0) andalso (ik = N_IDENT) then

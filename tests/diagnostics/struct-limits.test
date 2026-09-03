@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/struct-limits.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/struct-limits.out
