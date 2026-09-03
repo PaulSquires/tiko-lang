@@ -142,6 +142,25 @@ end function
 private function SameLiteral_ _
     ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
 
+    '' A FLOAT LITERAL'S VALUE COUNTS TOO. LiteralLen_ reads N_INT_LIT and nothing else,
+    '' and 'cannot tell' defaults to SAME so that two identical non-literal initialisers
+    '' are not called duplicates -- which meant 'const a = 1.0' followed by 'const a = 1.5'
+    '' was silently merged instead of being fbc's error 4.
+    ''
+    '' A STRING LITERAL IS STILL NOT COMPARED: its text lives in the source buffer and this
+    '' walker has no source manager, so 'const a = "1"' against 'const a = "2"' stays
+    '' suppressed. Comparing the raw span instead would call two IDENTICAL strings at
+    '' different offsets a duplicate, which fbc accepts -- the wrong half to be wrong on.
+    if (a <> Tko.NODE_NONE) andalso (b <> Tko.NODE_NONE) then
+        if (w.ast->Kind( a ) = Tko.N_FLOAT_LIT) andalso _
+           (w.ast->Kind( b ) = Tko.N_FLOAT_LIT) then
+            dim as double af = _
+                w.ast->literals[cast( long, w.ast->nodes[cast( long, a )].data )].fltValue
+            dim as double bf = _
+                w.ast->literals[cast( long, w.ast->nodes[cast( long, b )].data )].fltValue
+            return (af = bf)
+        end if
+    end if
     dim as longint av = 0, bv = 0
     if LiteralLen_( w, a, av ) = false then return true
     if LiteralLen_( w, b, bv ) = false then return true
@@ -164,6 +183,13 @@ private function SameTypeRef_ _
     '' op = TK_IDENT and may be a TYPEDEF for the builtin on the other side, which is
     '' exactly the ULONG / CULONG pair below, so comparing across the two kinds
     '' rejects a legal restatement.
+    '' CONST IS PART OF THE TYPE. 'const a as const integer = 0' and 'const a as integer
+    '' = 0' are two different declarations of one name -- fbc error 4 -- and comparing only
+    '' the underlying type called them the same and merged them.
+    dim as boolean aConst = ((w.ast->nodes[cast( long, a )].flags and Tko.NF_CONST) <> 0)
+    dim as boolean bConst = ((w.ast->nodes[cast( long, b )].flags and Tko.NF_CONST) <> 0)
+    if aConst <> bConst then return false
+
     dim as boolean aNamed = (ap->op = cast( ushort, Tko.TK_IDENT ))
     dim as boolean bNamed = (bp->op = cast( ushort, Tko.TK_IDENT ))
     if (aNamed = false) andalso (bNamed = false) then

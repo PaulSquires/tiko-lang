@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/dup-const-and-byref-default.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/dup-const-and-byref-default.out

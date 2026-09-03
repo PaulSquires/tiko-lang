@@ -1,0 +1,34 @@
+verify: ok
+lowered: 0 functions, 0 blocks, 0 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/dup-const-and-byref-default.bas(19,7): error TKO0600: 'dupint' is already declared in this scope
+     |
+  19 | const dupInt = 2
+     |       ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(18,7): note: declared here
+     |
+  18 | const dupInt = 1
+     |       ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(21,7): error TKO0600: 'dupfloat' is already declared in this scope
+     |
+  21 | const dupFloat = 1.5
+     |       ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(20,7): note: declared here
+     |
+  20 | const dupFloat = 1.0
+     |       ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(23,7): error TKO0600: 'dupconstness' is already declared in this scope
+     |
+  23 | const dupConstness as integer = 0
+     |       ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(22,7): note: declared here
+     |
+  22 | const dupConstness as const integer = 0
+     |       ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(30,21): error TKO0755: 'x' is byref with a default, which needs a complete type
+     |
+  30 | declare sub badAny( byref x as any = 0 )
+     |                     ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(31,21): error TKO0755: 'x' is byref with a default, which needs a complete type
+     |
+  31 | declare sub badFwd( byref x as fwd = 0 )
+     |                     ^

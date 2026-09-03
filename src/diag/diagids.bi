@@ -354,6 +354,8 @@
     '' fbc's errors 24 (a bitfield has no address) and 51.
     DIAG( TKO0753, SEV_ERROR,   "'%0' is a bitfield and has no address to bind byref" )
     DIAG( TKO0754, SEV_ERROR,   "the type '%0' is too big" )
+    '' fbc's error 71 -- an incomplete type where a complete one is needed.
+    DIAG( TKO0755, SEV_ERROR,   "'%0' is byref with a default, which needs a complete type" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

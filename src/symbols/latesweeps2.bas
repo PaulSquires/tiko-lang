@@ -1376,6 +1376,39 @@ private sub CheckRedimDeclShape_( byref c as Ctx )
     next
 end sub
 
+'' A BYREF PARAMETER WITH A DEFAULT NEEDS A COMPLETE TYPE -- fbc error 71. The default
+'' has to be materialised somewhere for the reference to point at, and neither 'any' nor a
+'' forward declaration says how big that is. Measured, and the DEFAULT is what makes the
+'' difference:
+''
+''     declare sub f( byref x as any = 0 )               error 71
+''     declare sub f( byref x as any )                   accepted
+''     type td as forward : declare sub f( byref x as td = 0 )   error 71
+''     type td as forward : declare sub f( byref x as td )       accepted
+private sub CheckByrefParamDefault_ ( byref c as Ctx, byval id as NodeId )
+    if (c.ast->nodes[cast( long, id )].flags and NF_BYREF) = 0 then return
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->b = NODE_NONE then return
+    if sp->a = NODE_NONE then return
+    dim as TypeId t = c.info->TypeOf_( sp->a )
+    dim as boolean incomplete = false
+    if t = TYPE_NONE then
+        incomplete = true
+    else
+        dim as TypeId u = c.types->Unqualify( t )
+        select case c.types->Kind( u )
+        case TK_FORWARD
+            incomplete = true
+        case TK_BUILTIN
+            incomplete = (c.types->BuiltinOf( u ) = TY_ANY)
+        end select
+    end if
+    if incomplete = false then return
+    c.diags->Report( TKO0755, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( sp->name ) )
+end sub
+
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
       byval here as TypeId )
@@ -1390,6 +1423,7 @@ private sub WalkExtra_ _
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id )
     if k = N_INTRINSIC then CheckSwapConst_( c, id )
     if k = N_INTRINSIC then CheckThreadCall_( c, id )
+    if k = N_PARAM then CheckByrefParamDefault_( c, id )
 end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )
