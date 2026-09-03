@@ -2,30 +2,44 @@ func void P() {
   local agg a size 4
   local agg d size 8
   local agg a2 size 4
+  local agg $abi3 size 4
+  local agg $abi4 size 8
+  local agg $abi5 size 4
   entry0:
+    %12 = alloca ptr $abi3
+    %14 = alloca ptr $abi4
+    %16 = alloca ptr $abi5
     %1 = alloca ptr a
     %2 = const i64 7
     %3 = trunc %2
-    %4 = call agg MK<6>(%3)
+    %13 = call i32 MK<6>(%3)
+    store @$abi3, %13
+    %4 = load @$abi3
     store @a, %4
     %5 = alloca ptr d
     %6 = const f64 2.5
-    %7 = call agg MK<13>(%6)
+    %15 = call i64 MK<13>(%6)
+    store @$abi4, %15
+    %7 = load @$abi4
     store @d, %7
     %8 = alloca ptr a2
     %9 = const i64 9
     %10 = trunc %9
-    %11 = call agg MK<6>(%10)
+    %17 = call i32 MK<6>(%10)
+    store @$abi5, %17
+    %11 = load @$abi5
     store @a2, %11
     ret
 }
-declare agg MK<6>(i32 $0)
-declare agg MK<13>(f64 $0)
-func agg MK<6>(i32 $0) {
+declare i32 MK<6>(i32 $0)
+declare i64 MK<13>(f64 $0)
+func i32 MK<6>(i32 $0) {
   local agg $tmp0 size 4
   local i32 x
   local agg b size 4
+  local agg $abi3 size 4
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -36,13 +50,17 @@ func agg MK<6>(i32 $0) {
     %6 = load @b
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
-func agg MK<13>(f64 $0) {
+func i64 MK<13>(f64 $0) {
   local agg $tmp0 size 8
   local f64 x
   local agg b size 8
+  local agg $abi3 size 8
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -53,7 +71,9 @@ func agg MK<13>(f64 $0) {
     %6 = load @b
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
 verify: ok
 lowered: 3 functions, 3 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance

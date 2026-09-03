@@ -27,8 +27,10 @@ func i32 _Z4PICKii(i32 $0, i32 $1) {
     store @b, $1
     %5 = load @a
     %6 = load @b
-    %7 = add %5, %6
-    ret %7
+    %7 = sext %5
+    %8 = sext %6
+    %9 = add %7, %8
+    ret %9
 }
 func f64 _Z4PICKdd(f64 $0, f64 $1) {
   local f64 $tmp0
@@ -47,11 +49,13 @@ func f64 _Z4PICKdd(f64 $0, f64 $1) {
     %7 = mul %5, %6
     ret %7
 }
-func agg SOME<2>(i8 $0) {
+func i16 SOME<2>(i8 $0) {
   local agg $tmp0 size 2
   local i8 x
   local agg r size 2
+  local agg $abi3 size 2
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -65,13 +69,17 @@ func agg SOME<2>(i8 $0) {
     %8 = load @r
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
-func agg SOME<6>(i32 $0) {
+func i64 SOME<6>(i32 $0) {
   local agg $tmp0 size 8
   local i32 x
   local agg r size 8
+  local agg $abi3 size 8
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -85,9 +93,11 @@ func agg SOME<6>(i32 $0) {
     %8 = load @r
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
-func agg SOME<13>(f64 $0) {
+func void SOME<13>(ptr $0, f64 $1) {
   local agg $tmp0 size 16
   local f64 x
   local agg r size 16
@@ -105,7 +115,8 @@ func agg SOME<13>(f64 $0) {
     %8 = load @r
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store $0, %9
+    ret
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -115,7 +126,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg ob size 2
   local agg ol size 8
   local agg od size 16
+  local agg $abi7 size 2
+  local agg $abi8 size 8
+  local agg $abi9 size 16
   entry0:
+    %35 = alloca ptr $abi7
+    %37 = alloca ptr $abi8
+    %39 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -136,19 +153,24 @@ func i32 main(i32 $0, ptr $1) {
     %13 = load @bb
     %14 = load @bb
     %15 = call i8 _Z4PICKaa(%13, %14)
-    %16 = call agg SOME<2>(%15)
+    %36 = call i16 SOME<2>(%15)
+    store @$abi7, %36
+    %16 = load @$abi7
     store @ob, %16
     %17 = alloca ptr ol
     %18 = load @ll
     %19 = load @ll
     %20 = call i32 _Z4PICKii(%18, %19)
-    %21 = call agg SOME<6>(%20)
+    %38 = call i64 SOME<6>(%20)
+    store @$abi8, %38
+    %21 = load @$abi8
     store @ol, %21
     %22 = alloca ptr od
     %23 = load @dd
     %24 = load @dd
     %25 = call f64 _Z4PICKdd(%23, %24)
-    %26 = call agg SOME<13>(%25)
+    call void SOME<13>(@$abi9, %25)
+    %26 = load @$abi9
     store @od, %26
     %27 = field.addr @ob, 1
     %28 = load %27
@@ -170,4 +192,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 115 insts, 0 statements not lowered, 0 scope imbalance

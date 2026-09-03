@@ -1,9 +1,11 @@
-func agg _Zv25+<23>R7BOX<23>S0_(ptr $0, ptr $1) {
+func i64 _Zv25+<23>R7BOX<23>S0_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr a
   local ptr b
   local agg r size 8
+  local agg $abi4 size 8
   entry0:
+    %11 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
     store @a, $0
@@ -18,7 +20,9 @@ func agg _Zv25+<23>R7BOX<23>S0_(ptr $0, ptr $1) {
     %9 = load @r
     store @$tmp0, %9
     %10 = load @$tmp0
-    ret %10
+    store @$abi4, %10
+    %12 = load @$abi4
+    ret %12
 }
 func ptr _Zv15*<23>R7BOX<23>(ptr $0) {
   local ptr $tmp0
@@ -59,7 +63,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg y size 8
   local agg z size 8
   local agg px size 8
+  local agg $abi6 size 8
   entry0:
+    %38 = alloca ptr $abi6
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -73,7 +79,9 @@ func i32 main(i32 $0, ptr $1) {
     %8 = field.addr @y, 0
     store %8, @pay
     %9 = alloca ptr z
-    %10 = call agg _Zv25+<23>R7BOX<23>S0_(@x, @y)
+    %39 = call i64 _Zv25+<23>R7BOX<23>S0_(@x, @y)
+    store @$abi6, %39
+    %10 = load @$abi6
     store @z, %10
     %11 = field.addr @z, 0
     %12 = load %11

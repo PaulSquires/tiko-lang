@@ -59,7 +59,7 @@ func void _ZN4ITER8MOVENEXTEv(ptr $0) {
     store %3, %7
     ret
 }
-func agg _ZN3BAG11GETITERATOREv(ptr $0) {
+func void _ZN3BAG11GETITERATOREv(ptr $0, ptr $1) {
   local agg $tmp0 size 16
   local ptr this
   local agg it size 16
@@ -77,7 +77,8 @@ func agg _ZN3BAG11GETITERATOREv(ptr $0) {
     %8 = load @it
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store $0, %9
+    ret
 }
 func i32 SUMOF(ptr $0) {
   local i32 $tmp0
@@ -85,7 +86,9 @@ func i32 SUMOF(ptr $0) {
   local i32 s
   local i32 e
   local agg $tmp4 size 16
+  local agg $abi5 size 16
   entry0:
+    %15 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -95,7 +98,8 @@ func i32 SUMOF(ptr $0) {
     %5 = alloca ptr e
     %6 = load @a
     %7 = alloca ptr $tmp4
-    %8 = call agg _ZN3BAG11GETITERATOREv(%6)
+    call void _ZN3BAG11GETITERATOREv(@$abi5, %6)
+    %8 = load @$abi5
     store @$tmp4, %8
     br each.test3
   each.body1:
@@ -122,7 +126,9 @@ func i32 SUMOFVAL(ptr $0) {
   local i32 s
   local i32 e
   local agg $tmp4 size 16
+  local agg $abi5 size 16
   entry0:
+    %15 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -132,7 +138,8 @@ func i32 SUMOFVAL(ptr $0) {
     %5 = alloca ptr e
     %6 = load @a
     %7 = alloca ptr $tmp4
-    %8 = call agg _ZN3BAG11GETITERATOREv(%6)
+    call void _ZN3BAG11GETITERATOREv(@$abi5, %6)
+    %8 = load @$abi5
     store @$tmp4, %8
     br each.test3
   each.body1:

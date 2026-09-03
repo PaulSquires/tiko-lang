@@ -22,7 +22,7 @@ func void MUTS(ptr $0) {
     ret
 }
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-func void KEEPS(agg $0) {
+func void KEEPS(i32 $0) {
   local agg u size 4
   entry0:
     %1 = alloca ptr u
@@ -37,7 +37,9 @@ func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 4
   local agg t size 24
+  local agg $abi3 size 4
   entry0:
+    %17 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -57,7 +59,9 @@ func i32 main(i32 $0, ptr $1) {
     call void MUTS(@t)
     call.rtl void fb_PrintString(0, @t, 1)
     %12 = load @a
-    call void KEEPS(%12)
+    store @$abi3, %12
+    %18 = load @$abi3
+    call void KEEPS(%18)
     %13 = field.addr @a, 0
     %14 = load %13
     call.rtl void fb_PrintInt(0, %14, 1)

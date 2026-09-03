@@ -1,6 +1,8 @@
-func agg MAKEP() {
+func i64 MAKEP() {
   local agg $tmp0 size 8
+  local agg $abi1 size 8
   entry0:
+    %9 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
     %2 = const i64 1
     %3 = trunc %2
@@ -11,11 +13,15 @@ func agg MAKEP() {
     %7 = field.addr @$tmp0, 4
     store %7, %5
     %8 = load @$tmp0
-    ret %8
+    store @$abi1, %8
+    %10 = load @$abi1
+    ret %10
 }
-func agg MAKEPTYPED() {
+func i64 MAKEPTYPED() {
   local agg $tmp0 size 8
+  local agg $abi1 size 8
   entry0:
+    %9 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
     %2 = const i64 3
     %3 = trunc %2
@@ -26,7 +32,9 @@ func agg MAKEPTYPED() {
     %7 = field.addr @$tmp0, 4
     store %7, %5
     %8 = load @$tmp0
-    ret %8
+    store @$abi1, %8
+    %10 = load @$abi1
+    ret %10
 }
 func void _ZN7CTORUDTC1Ev(ptr $0) {
   local ptr this
@@ -71,7 +79,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg witharg size 4
   local agg withnone size 4
   local agg viacall size 4
+  local agg $abi15 size 8
   entry0:
+    %122 = alloca ptr $abi15
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -105,7 +115,9 @@ func i32 main(i32 $0, ptr $1) {
     %24 = field.addr @$tmp3, 4
     store %24, %22
     %25 = load @$tmp3
-    call void Q(%25)
+    store @$abi15, %25
+    %123 = load @$abi15
+    call void Q(%123)
     %26 = alloca ptr $tmp4
     %27 = const i64 11
     %28 = trunc %27
@@ -237,7 +249,7 @@ func i32 main(i32 $0, ptr $1) {
     ret %121
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare void Q(agg $0)
+declare void Q(i64 $0)
 declare void R(ptr $0)
 declare void S(ptr $0)
 declare ptr memset(ptr $0, i32 $1, i64 $2)

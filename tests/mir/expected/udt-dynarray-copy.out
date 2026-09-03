@@ -37,7 +37,7 @@ declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare void _ZN3BOXC1ERKS_(ptr $0, ptr $1)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void _ZN3BOXD1Ev(ptr $0)
-func agg MAKE() {
+func void MAKE(ptr $0) {
   local agg $tmp0 size 72
   local agg r size 72
   entry0:
@@ -62,14 +62,18 @@ func agg MAKE() {
     store @$tmp0, %16
     call void _ZN3BOXD1Ev(@r)
     %17 = load @$tmp0
-    ret %17
+    store $0, %17
+    ret
 }
 func void FROMCALL() {
   local agg c size 72
+  local agg $abi1 size 72
   entry0:
+    %10 = alloca ptr $abi1
     %1 = alloca ptr c
     call void _ZN3BOXC1Ev(@c)
-    %2 = call agg MAKE()
+    call void MAKE(@$abi1)
+    %2 = load @$abi1
     store @c, %2
     %3 = field.addr @c, 0
     %4 = const i64 0

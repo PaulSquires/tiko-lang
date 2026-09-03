@@ -25,9 +25,11 @@ func void _ZN1AC1Eii(ptr $0, i32 $1, i32 $2) {
     %5 = field.addr %4, 0
     %6 = load @c
     %7 = load @os
-    %8 = add %6, %7
-    %9 = trunc %8
-    store %5, %9
+    %8 = sext %6
+    %9 = sext %7
+    %10 = add %8, %9
+    %11 = trunc %10
+    store %5, %11
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -88,4 +90,4 @@ declare ptr calloc(i64 $0, i64 $1)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 5 blocks, 60 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 5 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance

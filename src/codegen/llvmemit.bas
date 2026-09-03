@@ -40,6 +40,10 @@ end type
 '' procedure only after it has been declared.
 declare sub EmitVarGlobal _
     ( byref e as EmitCtx, byref g as MirGlobal, byref nm as string )
+'' Forward for the same reason: a CALL carries the sret attribute too, and call
+'' emission comes before the signature emission that defines it.
+declare function SretAttr _
+    ( byref e as EmitCtx, byval f as MirFunction ptr ) as string
 
 private sub Ice( byref e as EmitCtx, byref why as string )
     if len( e.ice ) = 0 then e.ice = why
@@ -74,6 +78,35 @@ private function BlockName( byval id as long ) as string
 end function
 
 '' ---------------------------------------------------------------- operands
+'' HOW MANY BYTES AN AGGREGATE LOAD OR STORE MOVES.
+''
+'' Three sources, in order. The INSTRUCTION's own 'imm' wins where it is set, because
+'' whoever built the instruction knew the size and wrote it down -- the ABI pass copies
+'' aggregates whose address is a global or a computed field, and neither of those can be
+'' sized by looking at a slot. Then the local's slot, then the global's own size.
+''
+'' Deriving it from the address alone was the bug: only MV_LOCAL was handled, so every
+'' copy through a global or a field address emitted '[0 x i8]' -- a zero-byte load,
+'' which clang rejects as a type mismatch against the thing it feeds.
+private function AggSizeOfAddr _
+    ( byref e as EmitCtx, byref v as MirValue, byval immSize as longint ) as long
+
+    if immSize > 0 then return cast( long, immSize )
+    if v.kind = cast( ubyte, MV_LOCAL ) then
+        dim as long slot = cast( long, v.id )
+        if e.f <> 0 then
+            if (slot >= 0) andalso (slot < e.f->locals.Count) then
+                return e.f->locals[slot].size
+            end if
+        end if
+    elseif v.kind = cast( ubyte, MV_GLOBAL ) then
+        if cast( long, v.id ) < e.m->globals.Count then
+            return e.m->globals[cast( long, v.id )].size
+        end if
+    end if
+    return 0
+end function
+
 private function SlotSizeOf( byref e as EmitCtx, byval slot as long ) as long
     if e.f = 0 then return 0
     if (slot < 0) orelse (slot >= e.f->locals.Count) then return 0
@@ -272,8 +305,12 @@ private function CallArgs _
         dim as MirValue v
         v.kind = cast( ubyte, e.m->argPool[k] )
         v.id = e.m->argPool[k + 1]
+        dim as string attr
         dim as MirType pt = MT_I64
         if callee <> 0 then
+            '' ...and so does the CALL, because LLVM matches the two and lowers from
+            '' what the call says.
+            if i = 0 then attr = SretAttr( e, callee )
             if i < callee->paramTys.Count then
                 pt = cast( MirType, callee->paramTys[i] )
             elseif v.kind = cast( ubyte, MV_TEMP ) then
@@ -294,7 +331,7 @@ private function CallArgs _
         end if
         v.ty = cast( ubyte, pt )
         if len( r ) > 0 then r += ", "
-        r += LlvmType( pt ) & " " & ValStr( e, v )
+        r += LlvmType( pt ) & attr & " " & ValStr( e, v )
     next
     return r
 end function
@@ -369,19 +406,13 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
             Ice( e, "a load of a void" )
             return
         end if
-        dim as long sz = 0
-        if ins.a.kind = cast( ubyte, MV_LOCAL ) then
-            sz = SlotSizeOf( e, cast( long, ins.a.id ) )
-        end if
+        dim as long sz = AggSizeOfAddr( e, ins.a, ins.imm )
         Line( e, res & " = load " & LlvmType( rt, sz ) & ", ptr " & ValStr( e, ins.a ) & _
                  ", align " & str( AlignOf( e, rt, sz ) ) )
 
     case M_STORE
         dim as MirType vt = cast( MirType, ins.b.ty )
-        dim as long sz = 0
-        if ins.a.kind = cast( ubyte, MV_LOCAL ) then
-            sz = SlotSizeOf( e, cast( long, ins.a.id ) )
-        end if
+        dim as long sz = AggSizeOfAddr( e, ins.a, ins.imm )
         Line( e, "store " & LlvmType( vt, sz ) & " " & ValStr( e, ins.b ) & _
                  ", ptr " & ValStr( e, ins.a ) & _
                  ", align " & str( AlignOf( e, vt, sz ) ) )
@@ -629,6 +660,23 @@ private sub EmitBlock _
 end sub
 
 '' ---------------------------------------------------------------- functions
+'' THE HIDDEN RESULT POINTER IS MARKED 'sret', which is not decoration. On win64 the
+'' callee must also return that pointer in RAX, and LLVM only knows to do that when the
+'' attribute is there -- measured against what clang emits for the same shape:
+''
+''     declare dso_local void @r12(ptr dead_on_unwind writable sret(%struct.S12) align 4)
+''
+'' The type inside sret(...) is the object's, which here is its byte array. clang also
+'' writes 'dead_on_unwind' and 'writable'; both are optimisation permissions that depend
+'' on unwinding semantics tiko-lang does not have, so they are left off rather than
+'' copied for resemblance.
+function SretAttr( byref e as EmitCtx, byval f as MirFunction ptr ) as string
+    if f->hasSretParam = false then return ""
+    if f->retSize <= 0 then return ""
+    return " sret(" & AggType( f->retSize ) & ") align " & _
+           str( AlignOf( e, MT_AGG, f->retSize ) )
+end function
+
 private function ParamList _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval named as boolean ) as string
 
@@ -636,6 +684,7 @@ private function ParamList _
     for i as long = 0 to f->paramTys.Count - 1
         if i > 0 then r += ", "
         r += LlvmType( cast( MirType, f->paramTys[i] ) )
+        if i = 0 then r += SretAttr( e, f )
         if named then r += " " & ParamName( cast( ulong, i ) )
     next
     if f->isVariadic then

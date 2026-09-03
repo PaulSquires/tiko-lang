@@ -1018,6 +1018,11 @@ function LowerCallParts _
     next
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
+        '' The return's SIZE, where it is an aggregate -- the ABI pass classifies by
+        '' byte count and a declaration is where that number would otherwise be lost.
+        if (callTy = MT_AGG) andalso (cs <> 0) then
+            decl->retSize = SizeOfType( c, cs->type_ )
+        end if
         decl->isDefinition = false
         '' THE SIGNATURE, from the procedure this call resolved to. The two hidden
         '' parameters are reported rather than re-derived: whether a hidden result

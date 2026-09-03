@@ -14,11 +14,13 @@ func i32 ADD(i32 $0, i32 $1) {
     %5 = alloca ptr r
     %6 = load @a
     %7 = load @b
-    %8 = add %6, %7
-    %9 = trunc %8
-    store @r, %9
-    %10 = load @r
-    ret %10
+    %8 = sext %6
+    %9 = sext %7
+    %10 = add %8, %9
+    %11 = trunc %10
+    store @r, %11
+    %12 = load @r
+    ret %12
 }
 func void COUNTED() {
   local i32 i
@@ -42,15 +44,17 @@ func void COUNTED() {
   for.body2:
     %11 = load @total
     %12 = load @i
-    %13 = add %11, %12
-    %14 = trunc %13
-    store @total, %14
+    %13 = sext %11
+    %14 = sext %12
+    %15 = add %13, %14
+    %16 = trunc %15
+    store @total, %16
     br for.step3
   for.step3:
-    %15 = load @i
-    %16 = const i32 1
-    %17 = add %15, %16
-    store @i, %17
+    %17 = load @i
+    %18 = const i32 1
+    %19 = add %17, %18
+    store @i, %19
     br for.head1
   for.exit4:
     ret
@@ -130,4 +134,4 @@ func void LOOPING(i32 $0) {
     ret
 }
 verify: ok
-lowered: 4 functions, 20 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 20 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance

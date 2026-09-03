@@ -136,6 +136,9 @@ sub LowerProc _
         end if
     end if
     dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
+    '' AN AGGREGATE RETURN NEEDS ITS SIZE for the same reason a parameter does: the ABI
+    '' classifier's whole question is how many bytes it is.
+    if declRet = MT_AGG then f->retSize = SizeOfType( c, rt )
     f->isDefinition = true
     f->callConv = ProcCallConv_( c, id )
     dim as MirFunction ptr savedF = c.f
@@ -507,11 +510,23 @@ sub LowerProc _
         dim as long pslot = -1
         if psid <> Tko.SYMBOL_NONE then pslot = LocalFor( c, psid )
         if (pslot >= 0) andalso (pslot < c.f->locals.Count) then
-            f->AddParam( cast( MirType, c.f->locals[pslot].ty ), _
-                         cast( ulong, c.f->locals[pslot].frontendType ) )
+            '' The SLOT already knows how many bytes it reserved, which is the same
+            '' number the ABI classifier wants -- but ONLY for a parameter that really
+            '' is an aggregate. A byval non-trivial UDT and a byval var-length string
+            '' both lower to a POINTER (see ParamMirType), and recording their object's
+            '' size against a pointer parameter told the ABI pass it had an aggregate
+            '' to classify. It then rewrote the prologue to copy an object into a slot
+            '' that holds an address.
+            dim as MirType pmt = cast( MirType, c.f->locals[pslot].ty )
+            dim as ulong psz = 0
+            if pmt = MT_AGG then psz = cast( ulong, c.f->locals[pslot].size )
+            f->AddParam( pmt, psz )
         else
             dim as Tko.TypeId pt = c.info->TypeOf_( pp->a )
-            f->AddParam( ParamMirType( c, pt ), cast( ulong, pt ) )
+            dim as MirType pmt2 = ParamMirType( c, pt )
+            dim as ulong psz2 = 0
+            if pmt2 = MT_AGG then psz2 = cast( ulong, SizeOfType( c, pt ) )
+            f->AddParam( pmt2, psz2 )
         end if
         if psid <> Tko.SYMBOL_NONE then
             dim as long slot = pslot
@@ -1146,9 +1161,14 @@ sub SignatureFromProc _
         '' path reads the symbol and so sees a pointer; reading the typeref alone does
         '' not, and 'byref q as Pt' came out an aggregate passed by value.
         if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
-            f->AddParam( MT_PTR, cast( ulong, pt ) )
+            f->AddParam( MT_PTR )
         else
-            f->AddParam( ParamMirType( c, pt ), cast( ulong, pt ) )
+            '' The SIZE only where it is genuinely an aggregate -- see the definition
+            '' path above for what recording it otherwise did.
+            dim as MirType smt = ParamMirType( c, pt )
+            dim as ulong ssz = 0
+            if smt = MT_AGG then ssz = cast( ulong, SizeOfType( c, pt ) )
+            f->AddParam( smt, ssz )
         end if
     next
     f->callConv = ProcCallConv_( c, pn )

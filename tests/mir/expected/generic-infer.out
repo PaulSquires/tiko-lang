@@ -1,21 +1,27 @@
 func void P(f64 $0) {
   local f64 q
   local agg d size 8
+  local agg $abi2 size 8
   entry0:
+    %5 = alloca ptr $abi2
     %1 = alloca ptr q
     store @q, $0
     %2 = alloca ptr d
     %3 = load @q
-    %4 = call agg WRAP<13>(%3)
+    %6 = call i64 WRAP<13>(%3)
+    store @$abi2, %6
+    %4 = load @$abi2
     store @d, %4
     ret
 }
-declare agg WRAP<13>(f64 $0)
-func agg WRAP<6>(i32 $0) {
+declare i64 WRAP<13>(f64 $0)
+func i32 WRAP<6>(i32 $0) {
   local agg $tmp0 size 4
   local i32 x
   local agg r size 4
+  local agg $abi3 size 4
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -26,13 +32,17 @@ func agg WRAP<6>(i32 $0) {
     %6 = load @r
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
-func agg WRAP<8>(i64 $0) {
+func i64 WRAP<8>(i64 $0) {
   local agg $tmp0 size 8
   local i64 x
   local agg r size 8
+  local agg $abi3 size 8
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -43,13 +53,17 @@ func agg WRAP<8>(i64 $0) {
     %6 = load @r
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
-func agg WRAP<3>(i8 $0) {
+func i8 WRAP<3>(i8 $0) {
   local agg $tmp0 size 1
   local i8 x
   local agg r size 1
+  local agg $abi3 size 1
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -60,13 +74,17 @@ func agg WRAP<3>(i8 $0) {
     %6 = load @r
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
-func agg WRAP<13>(f64 $0) {
+func i64 WRAP<13>(f64 $0) {
   local agg $tmp0 size 8
   local f64 x
   local agg r size 8
+  local agg $abi3 size 8
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -77,7 +95,9 @@ func agg WRAP<13>(f64 $0) {
     %6 = load @r
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -86,7 +106,15 @@ func i32 main(i32 $0, ptr $1) {
   local agg b size 8
   local agg c size 1
   local agg e size 4
+  local agg $abi6 size 4
+  local agg $abi7 size 8
+  local agg $abi8 size 1
+  local agg $abi9 size 4
   entry0:
+    %22 = alloca ptr $abi6
+    %24 = alloca ptr $abi7
+    %26 = alloca ptr $abi8
+    %28 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -98,20 +126,28 @@ func i32 main(i32 $0, ptr $1) {
     store @n, %6
     %7 = alloca ptr a
     %8 = load @n
-    %9 = call agg WRAP<6>(%8)
+    %23 = call i32 WRAP<6>(%8)
+    store @$abi6, %23
+    %9 = load @$abi6
     store @a, %9
     %10 = alloca ptr b
     %11 = const i64 3
-    %12 = call agg WRAP<8>(%11)
+    %25 = call i64 WRAP<8>(%11)
+    store @$abi7, %25
+    %12 = load @$abi7
     store @b, %12
     %13 = alloca ptr c
     %14 = load @n
     %15 = trunc %14
-    %16 = call agg WRAP<3>(%15)
+    %27 = call i8 WRAP<3>(%15)
+    store @$abi8, %27
+    %16 = load @$abi8
     store @c, %16
     %17 = alloca ptr e
     %18 = load @n
-    %19 = call agg WRAP<6>(%18)
+    %29 = call i32 WRAP<6>(%18)
+    store @$abi9, %29
+    %19 = load @$abi9
     store @e, %19
     %20 = const i32 0
     call.rtl void fb_End(%20)

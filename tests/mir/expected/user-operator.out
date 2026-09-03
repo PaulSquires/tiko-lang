@@ -12,12 +12,14 @@ func i32 _ZN1DcviEv(ptr $0) {
     %6 = load %5
     ret %6
 }
-func agg _ZmiR1DS0_(ptr $0, ptr $1) {
+func i32 _ZmiR1DS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr a
   local ptr b
   local agg r size 4
+  local agg $abi4 size 4
   entry0:
+    %7 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
     store @a, $0
@@ -27,14 +29,18 @@ func agg _ZmiR1DS0_(ptr $0, ptr $1) {
     %5 = load @r
     store @$tmp0, %5
     %6 = load @$tmp0
-    ret %6
+    store @$abi4, %6
+    %8 = load @$abi4
+    ret %8
 }
-func agg _ZmlR1Di(ptr $0, i32 $1) {
+func i32 _ZmlR1Di(ptr $0, i32 $1) {
   local agg $tmp0 size 4
   local ptr a
   local i32 n
   local agg r size 4
+  local agg $abi4 size 4
   entry0:
+    %7 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
     store @a, $0
@@ -44,7 +50,9 @@ func agg _ZmlR1Di(ptr $0, i32 $1) {
     %5 = load @r
     store @$tmp0, %5
     %6 = load @$tmp0
-    ret %6
+    store @$abi4, %6
+    %8 = load @$abi4
+    ret %8
 }
 func void G() {
   local agg x size 4
@@ -52,19 +60,31 @@ func void G() {
   local agg a size 4
   local agg b size 4
   local agg $tmp4 size 4
+  local agg $abi5 size 4
+  local agg $abi6 size 4
+  local agg $abi7 size 4
   entry0:
+    %11 = alloca ptr $abi5
+    %13 = alloca ptr $abi6
+    %15 = alloca ptr $abi7
     %1 = alloca ptr x
     %2 = alloca ptr y
     %3 = alloca ptr a
-    %4 = call agg _ZmiR1DS0_(@x, @y)
+    %12 = call i32 _ZmiR1DS0_(@x, @y)
+    store @$abi5, %12
+    %4 = load @$abi5
     store @a, %4
     %5 = alloca ptr b
-    %6 = call agg _ZmiR1DS0_(@x, @y)
+    %14 = call i32 _ZmiR1DS0_(@x, @y)
+    store @$abi6, %14
+    %6 = load @$abi6
     %7 = alloca ptr $tmp4
     store @$tmp4, %6
     %8 = const i64 2
     %9 = trunc %8
-    %10 = call agg _ZmlR1Di(@$tmp4, %9)
+    %16 = call i32 _ZmlR1Di(@$tmp4, %9)
+    store @$abi7, %16
+    %10 = load @$abi7
     store @b, %10
     ret
 }

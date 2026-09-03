@@ -147,13 +147,17 @@ func void _ZN6NOCOPYC1ERS_(ptr $0, ptr $1) {
 func void COPYREFUSED() {
   local agg c1 size 8
   local ptr p
+  local agg $abi2 size 8
   entry0:
+    %8 = alloca ptr $abi2
     %1 = alloca ptr c1
     call void _ZN6NOCOPYC1Ev(@c1)
     %2 = load @@src_
     store @c1, %2
     %3 = load @@src_
-    call void TAKESBYVAL(%3)
+    store @$abi2, %3
+    %9 = load @$abi2
+    call void TAKESBYVAL(%9)
     %4 = alloca ptr p
     %5 = load @p
     %6 = const ptr 0
@@ -166,7 +170,7 @@ func void COPYREFUSED() {
   del.join2:
     ret
 }
-declare void TAKESBYVAL(agg $0)
+declare void TAKESBYVAL(i64 $0)
 declare void free(ptr $0)
 func void COPYACCEPTED() {
   local agg c2 size 8

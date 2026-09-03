@@ -14,6 +14,8 @@
 #include once "mir/lower.bi"
 #include once "mir/dump.bi"
 #include once "mir/verify.bi"
+#include once "codegen/abi.bi"
+#include once "codegen/toolchain.bi"
 #include once "codegen/llvmemit.bi"
 #include once "mir/rtl.bi"
 #include once "types/udtlayout.bi"
@@ -83,6 +85,70 @@ private sub ReportStats( byref ctx as Tko.CompilerContext )
     print "warnings         "; ctx.diags.WarningCount( )
 end sub
 
+'' THE REST OF THE BUILD: IR to an object, and an object to an executable.
+''
+'' Separated from the emission above only so that the pass pipeline reads as one thing
+'' and the toolchain as another. Every failure here is reported to stderr and returns
+'' false; none of them is a source diagnostic, because none of them is about the
+'' program being compiled.
+private function BuildFromIr _
+    ( byref ctx as Tko.CompilerContext, byref irText as string, _
+      byref td as Tko.Codegen.TargetDescription ) as boolean
+
+    dim as long eh = freefile
+    open err for output as #eh
+
+    dim as Tko.Codegen.ToolPaths tools = _
+        Tko.Codegen.FindTools( "", ctx.options.libPaths )
+    if tools.found = false then
+        print #eh, "tiko: " & tools.why
+        close #eh
+        return false
+    end if
+
+    '' THE INTERMEDIATE IS NAMED AFTER THE OUTPUT, not after the input: two inputs
+    '' producing one output must not race for one '.ll', and '--keep-temps' leaves a
+    '' file whose name says what it belongs to.
+    dim as string outp = ctx.options.outputPath
+    dim as string irPath = outp & ".ll"
+    dim as string objPath = outp
+    if ctx.options.compileOnly = false then objPath = outp & ".o"
+
+    dim as long fh = freefile
+    '' The function form of OPEN inside an IF condition confuses the parser here --
+    '' it is spelled as its own statement instead, which is clearer anyway.
+    dim as long orc = open( irPath for output as #fh )
+    if orc <> 0 then
+        print #eh, "tiko: cannot write '" & irPath & "'"
+        close #eh
+        return false
+    end if
+    print #fh, irText;
+    close #fh
+
+    dim as long rc = Tko.Codegen.CompileIr( tools, td, irPath, objPath, _
+                                            ctx.options.keepTemps )
+    if rc <> 0 then
+        print #eh, "tiko: clang failed on '" & irPath & "' (exit " & str( rc ) & ")"
+        close #eh
+        return false
+    end if
+    if ctx.options.compileOnly then
+        close #eh
+        return true
+    end if
+
+    rc = Tko.Codegen.LinkExe( tools, td, objPath, outp )
+    if rc <> 0 then
+        print #eh, "tiko: link failed (exit " & str( rc ) & ")"
+        close #eh
+        return false
+    end if
+    if ctx.options.keepTemps = false then kill( objPath )
+    close #eh
+    return true
+end function
+
 function Run( byref args as Tko.StrVec ) as long
     dim as Tko.CompilerContext ctx
 
@@ -147,6 +213,9 @@ function Run( byref args as Tko.StrVec ) as long
     dim as double tLoad = timer - tLoadStart
 
     '' ---- what this build can do -------------------------------------------
+    '' HOISTED: a length test beside booleans in an 'orelse' chain is warning 38, which
+    '' this project treats as a rule rather than as noise.
+    dim as boolean wantsOutput = (len( ctx.options.outputPath ) > 0)
     if ctx.options.dumpTypes then
         print Tko.DumpTypes( ctx.types );
     elseif ctx.options.dumpSource then
@@ -181,6 +250,7 @@ function Run( byref args as Tko.StrVec ) as long
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
            ctx.options.dumpIr orelse ctx.options.emitIr orelse _
+           wantsOutput orelse _
            ctx.options.dumpUdt orelse _
            ctx.options.dumpVtable then
         for i as long = 1 to ctx.sources.Count( )
@@ -226,7 +296,8 @@ function Run( byref args as Tko.StrVec ) as long
                 dim as Tko.UdtLayouts store
                 Tko.ComputeUdtLayouts( syms, ctx.types, store )
                 print Tko.DumpUdtLayouts( store, ctx.types, ctx.names, syms );
-            elseif ctx.options.dumpIr orelse ctx.options.emitIr then
+            elseif ctx.options.dumpIr orelse ctx.options.emitIr orelse _
+                   wantsOutput then
                 '' MIR needs the full frontend in front of it: resolve binds names,
                 '' check gives every expression a type, and lowering reads both.
                 dim as Tko.Resolve.Stats rst
@@ -253,17 +324,42 @@ function Run( byref args as Tko.StrVec ) as long
                 Tko.CheckOverrideCompatible( ast, vts, ctx.names, ctx.diags )
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                                ctx.sources, udts, vts, mm, lst )
+                '' THE ABI PASS, between lowering and emission (docs/plan/10 section
+                '' 3). It rewrites signatures and call sites so the emitted IR carries
+                '' no implicit ABI behaviour -- and it runs under '--dump-ir' too, so
+                '' the MIR dump shows what will actually be passed rather than what the
+                '' frontend meant. Seeing the ABI without reading LLVM is the point of
+                '' having it as a separate pass at all.
+                dim as Tko.Codegen.AbiStats abist
+                dim as Tko.Codegen.TargetDescription abitgt = _
+                    Tko.Codegen.TargetFor( ctx.options.target )
+                Tko.Codegen.LowerModule( mm, ctx.names, abitgt, abist )
+
                 '' '--emit-ir' RUNS THE SAME FRONTEND and prints the backend's
                 '' output instead of MIR's. It is the escape hatch docs/plan/10 asks
                 '' for, and it is the only way to see what the emitter produced
                 '' without a working link.
-                if ctx.options.emitIr then
+                '' AN OUTPUT PATH MEANS BUILD. '--emit-ir' without one is the escape
+                '' hatch that prints the module; with one, or with neither, the driver
+                '' produces the file that was asked for. 'tiko foo.bas -o foo.exe' is
+                '' the spelling that matters and it used to report "not implemented".
+                dim as boolean doCodegen = ctx.options.emitIr orelse wantsOutput
+                if doCodegen then
                     dim as Tko.Codegen.TargetDescription td = _
                         Tko.Codegen.TargetFor( ctx.options.target )
                     dim as Tko.Codegen.EmitResult er = _
                         Tko.Codegen.EmitLlvm( mm, ctx.names, td )
                     if er.ok then
-                        print er.text;
+                        '' AN OUTPUT PATH TURNS '--emit-ir' INTO A REAL BUILD: the IR
+                        '' goes to a file beside it, clang makes the object, and the
+                        '' link happens unless '-c' asked for the object alone. Without
+                        '' one the IR goes to stdout, which is what the escape hatch
+                        '' docs/plan/10 section 4 describes is for.
+                        if len( ctx.options.outputPath ) > 0 then
+                            BuildFromIr( ctx, er.text, td )
+                        else
+                            print er.text;
+                        end if
                     else
                         '' NOT A DIAGNOSTIC. A failure here is the compiler being
                         '' unable to emit something it accepted, which is an internal
@@ -277,7 +373,7 @@ function Run( byref args as Tko.StrVec ) as long
                 '' then a .ll FILE: a 'verify: ok' line in the middle of a module is
                 '' not a comment, and clang rejects the whole thing. Under '--dump-ir'
                 '' stdout is a report already and the two stay together.
-                dim as boolean quiet = ctx.options.emitIr
+                dim as boolean quiet = ctx.options.emitIr orelse wantsOutput
                 '' The verifier is an ICE check, not a diagnostic: a failure means
                 '' the compiler built something malformed.
                 dim as Tko.Mir.VerifyResult vr = Tko.Mir.Verify( mm, ctx.names )
@@ -559,7 +655,7 @@ function Run( byref args as Tko.StrVec ) as long
                 print Tko.Lex.Dump( ctx.sources, id, ctx.names, r );
             end if
         next
-    else
+    elseif wantsOutput = false then
         '' Honest rather than silent: the pipeline genuinely stops here in this
         '' build, and each later phase replaces this branch with real work.
         ctx.diags.ReportGlobal( Tko.TKO0992, _

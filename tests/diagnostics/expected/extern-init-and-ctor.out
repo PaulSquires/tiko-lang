@@ -62,7 +62,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 27 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
-  skip-site src\mir\lowerstore.bas:1097 1
+  skip-site src\mir\lowerstore.bas:990 1
 tests/diagnostics/src/extern-init-and-ctor.bas(50,9): error TKO0653: 'badstr' and its initializer disagree about being a string
      |
   50 |     dim badStr as string = 1

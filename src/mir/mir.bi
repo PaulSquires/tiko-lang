@@ -265,6 +265,8 @@ namespace Tko.Mir
     type MirFunction
         as InternId name            '' ALREADY MANGLED -- MIR never sees a source name
         as ubyte    retTy
+        '' ...and the same for an MT_AGG return, 0 otherwise. Same reason.
+        as long     retSize
         as long     paramCount
         as MirLocalVec locals
         as MirBlockVec blocks
@@ -277,7 +279,7 @@ namespace Tko.Mir
         '' 'paramCount += 1' goes through here, so an arity can no longer be recorded
         '' without the type that belongs to it.
         declare sub AddParam _
-            ( byval ty as MirType, byval aggType as ulong = 0 )
+            ( byval ty as MirType, byval aggSize as ulong = 0 )
         as boolean  isModuleCtor
         as boolean  isModuleDtor
         as boolean  isDefinition    '' false for a declaration with no body
@@ -290,9 +292,14 @@ namespace Tko.Mir
         ''
         '' paramCount is 'paramTys.Count' and is maintained only through AddParam.
         as FB.Array( of ubyte ) paramTys        '' MirType, one per parameter
-        '' The frontend type of an MT_AGG parameter, TYPE_NONE otherwise. An aggregate's
-        '' layout is a frontend question (see MirValue.aggIdx and MirLocal.frontendType),
-        '' and the ABI classifier needs the SIZE, which only the layout store has.
+        '' THE SIZE IN BYTES of an MT_AGG parameter, 0 otherwise.
+        ''
+        '' The SIZE, not the frontend TypeId it used to hold. The ABI classifier's whole
+        '' input is a byte count -- on win64 an aggregate is passed in a register if and
+        '' only if its size is 1, 2, 4 or 8 -- and a TypeId would have forced the backend
+        '' to ask the frontend's layout store a question, which is the coupling
+        '' docs/plan/10 exists to avoid. The frontend knows the size when it records the
+        '' signature; it writes it down there.
         as FB.Array( of ulong ) paramAggs
         '' A VARIADIC TAIL. LLVM spells it '(i32, ...)' and a call to a variadic differs
         '' from a call to a fixed function at the ABI level -- on win64 a float argument in

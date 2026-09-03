@@ -607,6 +607,35 @@ function LowerExpr _
         dim as MirInst ins
         ins.op = cast( ushort, op )
         ins.ty = cast( ubyte, iif( mt = MT_VOID, opTy, mt ) )
+
+        '' THE OPERANDS ARE WIDENED TO THE RESULT, for an operation whose result IS a
+        '' value of that type. The result type comes from what Check decided the
+        '' expression is; the operands were coerced above to a type derived from the
+        '' OPERANDS. Where FreeBASIC's promotion makes the result wider than either
+        '' operand -- 'long + long' is an INTEGER, measured -- those two disagree and
+        '' the instruction is malformed: 'add i64' over two i32 values.
+        ''
+        '' fbc widens both and truncates the store, which is exactly this:
+        ''
+        ''     *(int32*)&R$0 = (int32)((int64)*(int32*)&A$0 + (int64)*(int32*)&B$0);
+        ''
+        '' NOT FOR A COMPARISON. Its result is an integer whatever the operands are, so
+        '' widening them to it would compare two values at a width neither has -- and
+        '' the comment above on signedness is making the same point from the other side.
+        dim as MirType resTy = cast( MirType, ins.ty )
+        dim as boolean isCmp = false
+        select case op
+        case M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
+             M_ICMP_ULT, M_ICMP_UGT, M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, _
+             M_FCMP_LE, M_FCMP_GE
+            isCmp = true
+        end select
+        if isCmp = false then
+            if (resTy <> opTy) andalso (resTy <> MT_VOID) andalso (resTy <> MT_AGG) then
+                l = Coerce( c, l, resTy, IsUnsignedType( c, lt ) )
+                r = Coerce( c, r, resTy, IsUnsignedType( c, rt ) )
+            end if
+        end if
         ins.a = l
         ins.b = r
         dim as MirValue res = Emit( c, ins )

@@ -48,11 +48,13 @@ func void _ZN4ITER8MOVENEXTEv(ptr $0) {
     store %3, %7
     ret
 }
-func agg _ZN4COLL11GETITERATOREv(ptr $0) {
+func i64 _ZN4COLL11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 8
   local ptr this
   local agg t size 8
+  local agg $abi3 size 8
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr this
     store @this, $0
@@ -65,7 +67,9 @@ func agg _ZN4COLL11GETITERATOREv(ptr $0) {
     %8 = load @t
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 func void P() {
   local agg c size 4
@@ -74,12 +78,18 @@ func void P() {
   local agg $tmp3 size 8
   local i32 y
   local agg $tmp5 size 8
+  local agg $abi6 size 8
+  local agg $abi7 size 8
   entry0:
+    %27 = alloca ptr $abi6
+    %29 = alloca ptr $abi7
     %1 = alloca ptr c
     %2 = alloca ptr total
     %3 = alloca ptr x
     %4 = alloca ptr $tmp3
-    %5 = call agg _ZN4COLL11GETITERATOREv(@c)
+    %28 = call i64 _ZN4COLL11GETITERATOREv(@c)
+    store @$abi6, %28
+    %5 = load @$abi6
     store @$tmp3, %5
     %11 = alloca ptr y
     %12 = alloca ptr $tmp5
@@ -99,7 +109,9 @@ func void P() {
     %10 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
     condbr %10, each.body1, each.exit4
   each.exit4:
-    %13 = call agg _ZN4COLL11GETITERATOREv(@c)
+    %30 = call i64 _ZN4COLL11GETITERATOREv(@c)
+    store @$abi7, %30
+    %13 = load @$abi7
     store @$tmp5, %13
     br each.test7
   each.body5:
