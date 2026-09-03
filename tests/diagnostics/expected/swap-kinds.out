@@ -1,0 +1,155 @@
+func i32 main($0, $1) {
+  local i32 $tmp0
+  local agg s1 size 24
+  local agg s2 size 24
+  local i64 i1
+  local i64 i2
+  local i32 lng
+  local f64 dbl
+  local i8 bool
+  local agg z1 size 8
+  local agg z2 size 8
+  local ptr ip
+  local ptr ap
+  local agg par size 8
+  local agg chi size 16
+  local agg pl1 size 8
+  local agg pl2 size 8
+  local agg arr1 size 32
+  local agg arr2 size 32
+  local i64 $tmp18
+  local i64 $tmp19
+  local i64 $tmp20
+  local i64 $tmp21
+  local ptr $tmp22
+  local i64 $tmp23
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr s1
+    %5 = field.addr @s1, 0
+    store %5, 0
+    %6 = field.addr @s1, 8
+    store %6, 0
+    %7 = field.addr @s1, 16
+    store %7, 0
+    %8 = alloca ptr s2
+    %9 = field.addr @s2, 0
+    store %9, 0
+    %10 = field.addr @s2, 8
+    store %10, 0
+    %11 = field.addr @s2, 16
+    store %11, 0
+    %12 = alloca ptr i1
+    %13 = alloca ptr i2
+    %14 = alloca ptr lng
+    %15 = alloca ptr dbl
+    %16 = alloca ptr bool
+    %17 = alloca ptr z1
+    %18 = alloca ptr z2
+    %19 = alloca ptr ip
+    %20 = alloca ptr ap
+    %21 = alloca ptr par
+    %22 = alloca ptr chi
+    %23 = alloca ptr pl1
+    %24 = alloca ptr pl2
+    %25 = alloca ptr arr1
+    %26 = alloca ptr arr2
+    %27 = alloca ptr $tmp18
+    %28 = load @i1
+    store @$tmp18, %28
+    %29 = load @i2
+    store @i1, %29
+    %30 = load @$tmp18
+    store @i2, %30
+    %31 = alloca ptr $tmp19
+    %32 = load @i1
+    store @$tmp19, %32
+    %33 = load @lng
+    %34 = sext %33
+    store @i1, %34
+    %35 = load @$tmp19
+    %36 = trunc %35
+    store @lng, %36
+    %37 = alloca ptr $tmp20
+    %38 = load @i1
+    store @$tmp20, %38
+    %39 = load @dbl
+    %40 = nearbyint %39
+    %41 = fptosi %40
+    store @i1, %41
+    %42 = load @$tmp20
+    %43 = sitofp %42
+    store @dbl, %43
+    %44 = alloca ptr $tmp21
+    %45 = load @i1
+    store @$tmp21, %45
+    %46 = load @bool
+    %47 = sext %46
+    store @i1, %47
+    %48 = load @$tmp21
+    %49 = trunc %48
+    store @bool, %49
+    call.rtl void fb_StrSwap(@s1, -1, 0, @s2, -1, 0)
+    call.rtl void fb_StrSwap(@z1, 8, 0, @z2, 8, 0)
+    call.rtl void fb_StrSwap(@z1, 8, 0, @s1, -1, 0)
+    %50 = alloca ptr $tmp22
+    %51 = load @ip
+    store @$tmp22, %51
+    %52 = load @ap
+    store @ip, %52
+    %53 = load @$tmp22
+    store @ap, %53
+    call.rtl void fb_MemSwap(@pl1, @pl2, 8)
+    %54 = const i64 0
+    %55 = const i64 8
+    %56 = mul %54, %55
+    %57 = ptr.add @arr1, %56
+    %58 = const i64 0
+    %59 = const i64 8
+    %60 = mul %58, %59
+    %61 = ptr.add @arr2, %60
+    %62 = alloca ptr $tmp23
+    %63 = load %57
+    store @$tmp23, %63
+    %64 = load %61
+    store %57, %64
+    %65 = load @$tmp23
+    store %61, %65
+    call.rtl void fb_StrDelete(@s2)
+    call.rtl void fb_StrDelete(@s1)
+    %66 = const i32 0
+    call.rtl void fb_End(%66)
+    %67 = load @$tmp0
+    ret %67
+}
+declare void fb_Init($0, $1, $2)
+declare void fb_StrSwap($0, $1, $2, $3, $4, $5)
+declare void fb_MemSwap($0, $1, $2)
+declare void fb_StrDelete($0)
+declare void fb_End($0)
+verify: ok
+lowered: 1 functions, 1 blocks, 100 insts, 4 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 4
+  inside N_INTRINSIC 4
+  unlowered intrinsic KW_SWAP 4
+  skip-site src\mir\lowerctl.bas:206 4
+tests/diagnostics/src/swap-kinds.bas(42,1): error TKO0759: 'swap' needs two operands of the same kind
+     |
+  42 | swap s1, i1
+     | ^
+tests/diagnostics/src/swap-kinds.bas(43,1): error TKO0759: 'swap' needs two operands of the same kind
+     |
+  43 | swap par, ap
+     | ^
+tests/diagnostics/src/swap-kinds.bas(44,1): error TKO0759: 'swap' needs two operands of the same kind
+     |
+  44 | swap par, chi
+     | ^
+tests/diagnostics/src/swap-kinds.bas(45,1): error TKO0759: 'swap' needs two operands of the same kind
+     |
+  45 | swap s1, ap
+     | ^

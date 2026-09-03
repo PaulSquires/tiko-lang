@@ -83,6 +83,76 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 '' SWAP WRITES BOTH OPERANDS, so a const on either side is fbc's 119. Measured both ways.
+'' SWAP EXCHANGES STORAGE AND CONVERTS NOTHING, so its two operands must be of the same
+'' KIND -- fbc error 20. Measured across the whole grid, and the kinds are broad:
+''
+''     string  <-> integer          error 20      integer <-> long      accepted
+''     UDT     <-> any ptr          error 20      integer <-> double    accepted
+''     Parent  <-> Child            error 20      integer <-> boolean   accepted
+''     string  <-> any ptr          error 20      zstring * 8 <-> string   accepted
+''                                                integer ptr <-> any ptr  accepted
+''                                                two of the SAME udt      accepted
+''
+'' So NUMBER, STRING, POINTER and each UDT are the four kinds, a fixed string counts as a
+'' STRING (it is an array of a character builtin), and two UDTs must be the same type.
+'' Anything else -- an array that is not a fixed string, a procedure -- is declined.
+private function SwapKindOf_ _
+    ( byref c as Ctx, byval t as TypeId, byref udt as TypeId ) as long
+    udt = TYPE_NONE
+    dim as TypeId u = ValueType_( c, t )
+    if u = TYPE_NONE then return 0
+    if c.types->Kind( u ) = TK_ARRAY then
+        dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+        if c.types->Kind( el ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( el )
+            case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                return 2
+            end select
+        end if
+        return 0
+    end if
+    if c.types->Kind( u ) = TK_POINTER then return 3
+    if c.types->Kind( u ) = TK_UDT then
+        udt = u
+        return 4
+    end if
+    if c.types->Kind( u ) <> TK_BUILTIN then return 0
+    select case c.types->BuiltinOf( u )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return 2
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
+         TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE, _
+         TY_BOOLEAN
+        return 1
+    end select
+    return 0
+end function
+
+private sub CheckSwapTypes_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_SWAP then return
+    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    dim as TypeId au, bu
+    dim as long ak = SwapKindOf_( c, c.info->TypeOf_( sp->a ), au )
+    dim as long bk = SwapKindOf_( c, c.info->TypeOf_( sp->b ), bu )
+    if (ak = 0) orelse (bk = 0) then return
+    '' A UDT WITH A CONVERSION OPERATOR IS NOT THIS QUESTION. 'swap str( u1 ), u2' over a
+    '' type that casts to a zstring is accepted by fbc, and this suite's own
+    '' swap-udt-zstring test writes exactly that mixed spelling -- which overload runs is
+    '' not modelled here, so any 'cast' at all declines.
+    if au <> TYPE_NONE then
+        if DeclaresAnywhere_( c, au, "cast" ) then return
+    end if
+    if bu <> TYPE_NONE then
+        if DeclaresAnywhere_( c, bu, "cast" ) then return
+    end if
+    dim as boolean bad = (ak <> bk)
+    if (bad = false) andalso (ak = 4) then bad = (au <> bu)
+    if bad = false then return
+    c.diags->Report( TKO0759, PointRange( c.ast->Loc( id ) ) )
+end sub
+
 private sub CheckSwapConst_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]

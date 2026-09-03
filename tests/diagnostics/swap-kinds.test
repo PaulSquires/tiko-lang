@@ -1,0 +1,4 @@
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/swap-kinds.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/swap-kinds.out

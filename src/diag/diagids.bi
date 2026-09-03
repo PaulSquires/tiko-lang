@@ -361,6 +361,8 @@
     '' fbc's error 24 for what an aggregate initialiser cannot fill.
     DIAG( TKO0757, SEV_ERROR,   "'%0' holds a var-len string, which an initializer list cannot fill" )
     DIAG( TKO0758, SEV_ERROR,   "'%0' has static storage and holds a bitfield, which its initializer cannot fill" )
+    '' fbc's error 20 -- SWAP exchanges storage and converts nothing.
+    DIAG( TKO0759, SEV_ERROR,   "'swap' needs two operands of the same kind" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
