@@ -191,5 +191,6 @@ io/conwindow.bas
 io/devlptio.bas
 io/devlptopen.bas
 io/printerposix.bas
+io/printerwin.bas
 io/conreadstr.bas
 io/devwidth2.bas
