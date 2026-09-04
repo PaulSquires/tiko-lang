@@ -36,6 +36,8 @@ core/font-data.bi         GENERATED -- 9728 bytes of console font
 core/vgaport.bi           the VGA DAC behind INP and OUT
 core/cells.bi             the character-cell plane behind SCREEN()
 core/lzw.bi               the 12-bit LZW codec (fb_hEncode / fb_hDecode)
+core/events.bi            the event ring behind SCREENEVENT
+driver/window.bi          the Win32 window, its thread and message pump
 raster/text.bi            console text rendering on a graphics screen
 raster/pixel.bi           PSET / POINT, 32bpp
 raster/line.bi            LINE, 32bpp, solid style
@@ -82,6 +84,8 @@ tools/abtest-print.bas    42 text-rendering cases vs gfxlib2
 tools/abtest-vgaport.bas  406 INP/OUT checks vs gfxlib2
 tools/abtest-cells.bas    542 character-cell checks vs gfxlib2
 tools/abtest-lzw.bas      807 LZW checks vs gfxlib2
+tools/abtest-events.bas   59 event-ring checks vs gfxlib2
+tools/probe-window.bas    13 checks against a REAL window
 tools/gen-fonts.bas       extracts the console fonts by rendering them
 tools/abtest-dirty.bas    12 dirty-span cases vs gfxlib2's own array
 tools/probe-driver.bas    registry + presentation unit test
@@ -1445,3 +1449,73 @@ reference to `_fb_hEncode@16` ``, stripping one underscore, so the error names
 exactly the symbol that *does* exist and the mistake reads as a missing library.
 `nm` on our own object was what settled it.
 
+## The window and the message pump
+
+`driver/window.bi` -- the last large structural piece, and the first thing here
+that cannot be A/B tested: gfxlib2's window and ours cannot coexist in one
+process, both wanting the same framebuffer and the same focus. So
+`probe-window.bas` verifies against **the real window instead** -- it opens one,
+draws, and reads the pixels back off it with `BitBlt`. 13 checks, no skips.
+
+**Four of the five load-bearing rules fail as a hang, not an error.**
+
+- **The window is created on the thread that pumps it.** A window's messages go
+  to the queue of the thread that *created* it, so creating it on the caller and
+  pumping on the worker drains an empty queue forever while the window never
+  repaints and never closes.
+- **The ready handshake waits on the thread handle too.** `WaitForMultipleObjects`
+  on *both* the ready event and the thread, where only the event means success.
+  Waiting on the event alone leaves the caller blocked forever when
+  `CreateWindowEx` fails -- an unopenable window becomes indistinguishable from
+  a hung machine.
+- **Teardown joins the thread and must not run under the loader lock.** This is
+  why gfxlib2 tears down from `fb_End` rather than `atexit`, and why nothing in
+  this library runs at module level.
+- **The frame and the message dispatch share one lock**, so `SCREENLOCK` really
+  does freeze presentation.
+- **The client area is the requested size.** `AdjustWindowRect` converts the
+  wanted client rectangle to an outer one; without it a 320x200 request yields a
+  **314x171** client area and every present is clipped. Verified, and the
+  mutation fails exactly those two checks.
+
+DPI is deliberately *not* handled. gfxlib2 never marks the process DPI-aware, so
+on a scaled display its window is stretched and ours must stretch identically.
+
+### The probe had a false-pass path, and the negative test found it
+
+The pixel checks originally retried the capture until the first row matched, and
+**skipped** if it never did. With a bottom-up DIB the image comes back upside
+down, row 0 never matches, every pixel check was skipped -- and the probe
+reported **PASS**. The negative test for DIB orientation passed happily.
+
+The two outcomes are now separated: `ReadBack` *failing* is a capture problem and
+skips; `ReadBack` *succeeding* yields a frame whose contents are compared and can
+fail. The retry can no longer swallow a wrong frame, and that mutation now fails
+4 checks with the top and bottom rows exactly swapped.
+
+A related one: the probe's own surface had **no dirty array** — `SurfaceInit`
+leaves it null on purpose, since an offscreen image tracks nothing. Every pixel
+check still passed, because `WM_PAINT` paints the whole surface. What caught it
+was the frame counter staying at zero and the **positive** half of the dirty
+test — "a marked row IS presented" — failing. The negative half passed for the
+wrong reason: nothing was ever presented from the pump at all. **A negative check
+needs its positive twin or it asserts nothing.**
+
+## The event ring
+
+`core/events.bi` -- **59 checks**, a genuine A/B: `fb_hPostEvent` is an exported
+symbol, so events are pushed into gfxlib2's own ring and into ours in lockstep
+and the reads compared.
+
+Three behaviours are not the obvious ones:
+
+- **The queue drops the oldest event, silently.** When full, a post advances the
+  head as well as the tail. It never blocks and never reports overflow, so a
+  program that stops polling loses its oldest input and is told nothing.
+  "Refuse when full" is the natural guess; it fails 5 checks.
+- **`SCREENEVENT` with no argument is a peek**, not a read -- the C only advances
+  the head `if (event)`. An implementation that consumes on peek passes every
+  ordinary FIFO test and fails 3 here.
+- **Capacity is `MAX_EVENTS - 1`**, because a head-equals-tail ring cannot tell
+  full from empty. The test pins the *exact* drop count: after `MAX_EVENTS + 10`
+  posts the oldest survivor is post 11, not post 0.

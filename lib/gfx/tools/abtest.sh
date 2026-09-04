@@ -33,7 +33,11 @@ status=0
 # probe-driver is a unit test rather than an A/B (gfxlib2's driver table is
 # internal and its presentation is only observable by eye), but it runs in the
 # same four configurations and fails the same way, so it lives here.
-for src in "$HERE"/abtest-*.bas "$HERE"/probe-driver.bas "$HERE"/probe-gdi.bas; do
+# probe-window opens a REAL WINDOW and reads pixels back off it, so it needs a
+# desktop session -- it cannot run on a headless runner and will fail there
+# rather than skip. That is deliberate: the checks it makes (client size,
+# orientation, dirty presentation) have no offscreen equivalent.
+for src in "$HERE"/abtest-*.bas "$HERE"/probe-driver.bas "$HERE"/probe-gdi.bas "$HERE"/probe-window.bas; do
     [ -f "$src" ] || continue
     name=$( basename "$src" .bas )
 
