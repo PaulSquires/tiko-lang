@@ -3,7 +3,7 @@
 
     python tools/gen/promo-truth.py
 
-Writes tests/types/expected/fbc-promotion.txt and fbc-promotion-win32.txt: one row per (lhs, op, rhs) giving the
+Writes tests/types/expected/fbc-promotion.txt: one row per (lhs, op, rhs) giving the
 result type fbc computes, and whether fbc accepts the combination at all. Those are
 two different questions -- fbc reports a type mismatch and STILL prints a fallback
 type -- and the checker needs both: one drives promotion, the other drives the

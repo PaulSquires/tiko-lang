@@ -265,7 +265,8 @@ function Run( byref args as Tko.StrVec ) as long
     elseif ctx.options.dumpRtl then
         '' The inventory does not depend on any input, so it is answered before the
         '' sources are even looked at.
-        print Tko.Mir.DumpRtl( ctx.options.target = Tko.TARGET_WIN32 );
+        '' FALSE: the stdcall-decorated inventory was win32's, and win32 is gone.
+        print Tko.Mir.DumpRtl( false );
 
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _

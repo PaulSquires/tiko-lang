@@ -34,5 +34,4 @@ one( ) {
 }
 
 one tests/types/expected/fbc-layout.txt       ""              win64 || rc=1
-one tests/types/expected/fbc-layout-win32.txt "-target win32" win32 || rc=1
 exit $rc

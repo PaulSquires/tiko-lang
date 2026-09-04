@@ -153,12 +153,16 @@ namespace Tko
         as TypeId   baseType
     end type
 
-    '' The targets tiko-lang can compile for. Windows comes in both widths; Linux is 64-bit
-    '' only, deliberately -- x86-32 Linux is a THIRD set of layout numbers (wchar is 4
-    '' bytes there, and 8-byte alignment differs) and nobody has asked for it.
+    '' The targets tiko-lang can compile for. X86-64 IS THE ARCHITECTURE (D14):
+    '' 32-bit Windows was removed 2026-09-04, and x86-32 Linux never existed --
+    '' it is a THIRD set of layout numbers (wchar is 4 bytes there, and 8-byte
+    '' alignment differs) and nobody asked for it.
+    ''
+    '' ARM64 is considered and not implemented. When it arrives it is a new member
+    '' here, a new TargetLayout, and a THIRD AbiKind -- AAPCS64 is not a variation
+    '' on either of the two that exist. See tiko-rt RFC-0007 section 9.
     enum TargetId
         TARGET_WIN64 = 0
-        TARGET_WIN32
         TARGET_LINUX_X86_64
     end enum
 

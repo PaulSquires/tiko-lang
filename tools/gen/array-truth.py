@@ -3,7 +3,7 @@
 
     python tools/gen/array-truth.py
 
-Writes tests/types/expected/fbc-array.txt and fbc-array-win32.txt.
+Writes tests/types/expected/fbc-array.txt.
 
 NOTE ON THE ORACLE. 'sizeof' is NOT usable here: applied to an array FreeBASIC returns
 the ELEMENT size, not the total -- sizeof(a) is 4 for 'dim as long a(0 to 9)'. So the
@@ -47,7 +47,8 @@ def one_target() -> int:
     src.write_text(body, encoding="utf-8")
     # The 32-bit fbc needs the gcc backend to leave a C intermediate at all; without
     # it there is no file to read the __builtin_memset sizes out of.
-    gen = ["-gen", "gcc"] if LABEL == "win32" else []
+    # -gen gcc was win32's; LABEL cannot be win32 any more (D14).
+    gen = []
     proc = subprocess.run([str(FBC), "-c", "-r", str(src), "-o", str(WORK / "arr.o")] + gen,
                           capture_output=True, text=True, cwd=str(WORK))
     c = WORK / "arr.c"

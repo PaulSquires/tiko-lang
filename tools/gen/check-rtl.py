@@ -3,7 +3,7 @@
 
     python tools/gen/check-rtl.py
 
-Reads tests/expected/fbc-rtl.txt and fbc-rtl-win32.txt -- produced by rtl-truth.py from
+Reads tests/expected/fbc-rtl.txt -- produced by rtl-truth.py from
 the C intermediate fbc leaves behind, and cross-checked against libfb.a -- and compares
 each with 'tiko-lang --dump-rtl' for that target.
 
@@ -22,7 +22,6 @@ TKO = ROOT / "bin/tiko.exe"
 
 TARGETS = [
     ("win64", ROOT / "tests/expected/fbc-rtl.txt", []),
-    ("win32", ROOT / "tests/expected/fbc-rtl-win32.txt", ["-target", "win32"]),
 ]
 
 # fbc's C spelling -> the MIR type tiko-lang names it by.

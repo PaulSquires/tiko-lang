@@ -3,7 +3,7 @@
 
     python tools/gen/ptr-truth.py
 
-Writes tests/types/expected/fbc-ptr.txt and fbc-ptr-win32.txt in two sections:
+Writes tests/types/expected/fbc-ptr.txt in two sections:
 
     accept <arg-expr> <param-type> yes|no
     pick   <cand-a> <cand-b> <arg-expr> <winner>|reject

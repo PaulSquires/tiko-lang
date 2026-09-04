@@ -1,5 +1,10 @@
 """The targets every gate measures against, in one place.
 
+X86-64 IS THE ARCHITECTURE (D14). win32 was removed 2026-09-04 -- these two
+functions returned a win64/win32 pair, and shrinking them here is what removed it
+from every Python gate at once. FBC32 is kept below because control.py uses it to
+compare fbc RELEASES, which is a different question from which targets are built.
+
 Imported by the tools/gen truth generators and checkers. They run as scripts from this
 directory, so a plain 'import tkotargets' finds it.
 
@@ -33,14 +38,12 @@ FBC32_OLD = TC_OLD / "fbc32.exe"
 def truth_targets(out, work):
     """(label, fbc, out, work) per target, given the win64 paths.
 
-    The win32 expectations sit beside the win64 ones as '<name>-win32.txt', and each
-    target gets its own scratch directory so a half-finished run of one cannot be read
-    as the other.
+    ONE ENTRY since win32 was removed. The shape is kept as a list because it is what
+    every caller iterates, and because ARM64 would be a second entry rather than a
+    rewrite -- see tiko-rt RFC-0007 section 9.
     """
     return [
         ("win64", FBC64, out, work),
-        ("win32", FBC32, out.with_name(out.stem + "-win32" + out.suffix),
-         work.with_name(work.name + "32")),
     ]
 
 
@@ -48,6 +51,4 @@ def check_targets(truth):
     """(label, truth, tiko-lang-args) per target, given the win64 truth path."""
     return [
         ("win64", truth, []),
-        ("win32", truth.with_name(truth.stem + "-win32" + truth.suffix),
-         ["-target", "win32"]),
     ]

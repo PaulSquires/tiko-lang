@@ -13,12 +13,11 @@ namespace Tko.Codegen
 '' the string is evidence, and it is refreshed the same way if a clang version ever
 '' changes it.
 ''
-'' Windows 64 and Windows 32 share nothing here -- 'm:w' is the mangling for both, but
-'' the pointer sizes and stack alignment differ -- so each is written out in full.
+'' ONE WINDOWS DATALAYOUT NOW. win32's was written out in full beside this one until
+'' 2026-09-04 -- it shared only the 'm:w' mangling and differed in pointer size and
+'' stack alignment -- and x86-64 is now the only architecture (D14).
 const DL_WIN64 as string = _
     "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
-const DL_WIN32 as string = _
-    "e-m:x-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:32-n8:16:32-a:0:32-S32"
 const DL_LINUX64 as string = _
     "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
 
@@ -55,18 +54,12 @@ function TargetFor( byval t as TargetId ) as TargetDescription
     dim as TargetDescription d
     d.id = t
     d.layout = TargetLayoutFor( t )
+    '' CDECL ON EVERY TARGET. win32 was the one target whose default was STDCALL --
+    '' a real difference, not a spelling, since it decides who pops the stack -- and
+    '' it is gone (D14). The field stays because it is a target fact, and because
+    '' AAPCS64 will need one of its own.
     d.defaultCallConv = Tko.Mir.TKO_CC_CDECL
     select case t
-    case TARGET_WIN32
-        d.triple = "i686-w64-windows-gnu"
-        d.dataLayout = DL_WIN32
-        d.objFormat = OBJ_COFF
-        '' x86-32 has no register classifier worth the name; the ABI pass's win32 half
-        '' is stack rules and the stdcall/pascal distinction that x86-64 collapses.
-        d.abi = ABI_WIN64
-        '' STDCALL IS THE DEFAULT ON WIN32 for anything fbc declares itself, and that
-        '' is a real difference rather than a spelling: it decides who pops the stack.
-        d.defaultCallConv = Tko.Mir.TKO_CC_STDCALL
     case TARGET_LINUX_X86_64
         d.triple = "x86_64-pc-linux-gnu"
         d.dataLayout = DL_LINUX64

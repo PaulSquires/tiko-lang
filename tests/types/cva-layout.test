@@ -2,8 +2,10 @@
 '' the length of the memset at the declaration:
 ''
 ''     win64   __builtin_memset( &ARGS$1, 0, 8ll )
-''     win32   __builtin_memset( &ARGS$1, 0, 4 )
 ''     linux   __builtin_memset( &ARGS$1, 0, 24ll )
+''
+'' win32's was 4, the pointer width there, and it had a test of its own until the
+'' 32-bit target was removed (D14).
 ''
 '' NOT derivable from the pointer width. On Linux a va_list is the SysV register-save
 '' record -- three words -- where on Windows it is one pointer. Reserving 8 bytes for

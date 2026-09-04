@@ -19,8 +19,6 @@ TKO = ROOT / "bin/tiko.exe"
 
 TARGETS = [
     ("win64", ROOT / "tests/types/expected/fbc-const.txt", []),
-    ("win32", ROOT / "tests/types/expected/fbc-const-win32.txt",
-     ["-target", "win32"]),
 ]
 
 

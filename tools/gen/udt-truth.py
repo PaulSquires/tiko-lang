@@ -3,7 +3,7 @@
 
     python tools/gen/udt-truth.py
 
-Writes tests/types/expected/fbc-udt.txt and fbc-udt-win32.txt. A struct's layout is ABI, so it is
+Writes tests/types/expected/fbc-udt.txt. A struct's layout is ABI, so it is
 compatibility surface in the strictest sense: a field at the wrong offset does not
 fail, it reads the neighbouring field's bytes.
 

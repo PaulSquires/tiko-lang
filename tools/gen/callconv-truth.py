@@ -3,7 +3,7 @@
 
     python tools/gen/callconv-truth.py
 
-Writes tests/types/expected/fbc-callconv.txt and fbc-callconv-win32.txt: one row per (declaration convention,
+Writes tests/types/expected/fbc-callconv.txt: one row per (declaration convention,
 definition convention) giving accept or reject.
 
 The rule is ASYMMETRIC and none of it follows from the names: absence on the DEFINITION

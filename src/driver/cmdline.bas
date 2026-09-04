@@ -435,17 +435,13 @@ function Parse _
         i += 1
     wend
 
-    '' The width override, now that the whole line is known. Linux is 64-bit only by
-    '' decision, so -m32 there is an error rather than a silent win32.
+    '' The width override. -m32 IS NOW AN ERROR EVERYWHERE: x86-64 is the only
+    '' architecture (D14), so there is no 32-bit target left to select. It is
+    '' rejected rather than ignored -- silently producing a 64-bit binary for
+    '' someone who asked for 32 is worse than telling them.
     if opts.widthOverride = 32 then
-        if Tko.TargetIsWindows( opts.target ) then
-            opts.target = Tko.TARGET_WIN32
-        else
-            diags.ReportGlobal( Tko.TKO0104 )
-            ok = false
-        end if
-    elseif opts.widthOverride = 64 then
-        if Tko.TargetIsWindows( opts.target ) then opts.target = Tko.TARGET_WIN64
+        diags.ReportGlobal( Tko.TKO0104 )
+        ok = false
     end if
     opts.targetName = Tko.TargetName( opts.target )
 

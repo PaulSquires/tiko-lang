@@ -2,7 +2,12 @@
 '' the type context is built before the command line is parsed, so 'targetName' was
 '' written and read by nothing, and every compilation used the host's layout.
 '' Every number here is measured from fbc for that target.
+''
+'' LINUX IS THE WITNESS NOW. This used to select win32, whose 32-bit pointer made the
+'' host's layout impossible to mistake for the target's. Linux (D14) differs in wchar
+'' and cva_list rather than in pointer width, which is a narrower but still sufficient
+'' discriminator from a Windows host.
 '' TEST: cli
-'' ARGS: --dump-types -target win32 tests/source/plain.bas
+'' ARGS: --dump-types -target linux-x86_64 tests/source/plain.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: pointer=32 bits, wchar=2 bytes, string=12 bytes align 4
+'' EXPECT-OUT: pointer=64 bits, wchar=4 bytes, string=24 bytes align 8

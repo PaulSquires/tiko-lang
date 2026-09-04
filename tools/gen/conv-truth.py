@@ -3,7 +3,7 @@
 
     python tools/gen/conv-truth.py
 
-Writes tests/types/expected/fbc-conv.txt and fbc-conv-win32.txt: one row per (intrinsic, argument type) giving
+Writes tests/types/expected/fbc-conv.txt: one row per (intrinsic, argument type) giving
 the result type fbc computes, or 'reject'.
 
 These are keywords in expression position, not procedures, so overload resolution has

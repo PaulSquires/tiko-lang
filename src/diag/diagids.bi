@@ -45,7 +45,7 @@
     DIAG( TKO0101, SEV_ERROR,   "option '%0' requires an argument" )
     DIAG( TKO0102, SEV_ERROR,   "no input files" )
     DIAG( TKO0103, SEV_ERROR,   "unknown target '%0'" )
-    DIAG( TKO0104, SEV_ERROR,   "32-bit is supported on Windows only" )
+    DIAG( TKO0104, SEV_ERROR,   "32-bit targets are not supported; x86-64 only" )
     DIAG( TKO0105, SEV_WARNING, "unknown diagnostic id '%0'" )
     DIAG( TKO0106, SEV_ERROR,   "'%0' is not a recognised value for '%1'" )
     DIAG( TKO0107, SEV_WARNING, "ignoring unsupported option '%0'" )

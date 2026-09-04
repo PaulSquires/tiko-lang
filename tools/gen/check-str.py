@@ -13,21 +13,20 @@ tiko-lang's side comes from tools/gen/strfmt.bas, compiled against src/support/f
 the stage0 compiler. Rows are keyed by BIT PATTERN, so neither side's literal parser can
 get into the measurement.
 
-win64 is EXACT and this gate fails on a single mismatch.
+THE GATE IS EXACT AND FAILS ON A SINGLE MISMATCH.
 
-win32 IS NOT, deliberately, and the shortfall is named rather than fitted away. fbc32
-folds DATA with the legacy msvcrt renderer: three-digit exponents, '1.#INF' / '1.#QNAN'
-/ '-1.#IND' for the specials, ties rounded half-AWAY-from-zero rather than half-to-even,
-and a residue of last-digit errors that come from an internal 17-digit intermediate and
-follow no rule that could be reimplemented. tiko-lang renders one way on both targets; the
-count below says exactly what that costs, and the breakdown says which part of it is a
-rule tiko-lang could adopt and which part is msvcrt being wrong.
+It was not always. Until 2026-09-04 win32 was measured too and DELIBERATELY not
+matched: fbc32 folds DATA with the legacy msvcrt renderer -- three-digit exponents,
+'1.#INF' / '1.#QNAN' / '-1.#IND' for the specials, ties rounded half-AWAY-from-zero,
+and a residue of last-digit errors following no rule that could be reimplemented. The
+gate bucketed that shortfall rather than fitting to it. x86-64 is now the only
+architecture (D14), so the exception, its classifier and its buckets are gone and
+every supported target is held to the exact standard.
 """
 import re
 import struct
 import subprocess
 import sys
-from decimal import Context, Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP
 from pathlib import Path
 
 import tkotargets
@@ -45,13 +44,6 @@ def rows(path):
             kind, bits, text = line.split("\t", 2)
             out.append((kind, bits, text))
     return out
-
-
-def two_digit_exponent(t):
-    m = re.match(r"^(.*)e([+-])0*(\d+)$", t)
-    if not m:
-        return t
-    return "%se%s%02d" % (m.group(1), m.group(2), int(m.group(3)))
 
 
 def build():
@@ -90,50 +82,6 @@ def tiko_rows(exe, truth):
     return out
 
 
-SPECIALS = ("#INF", "#QNAN", "#IND")
-
-
-def half_up(bits, kind):
-    """The row's exact expansion rounded half-AWAY-from-zero, or None if not a tie.
-
-    Decimal(float) is the exact value, so this distinguishes 'fbc32 uses a different
-    tie rule' -- which IS a rule, and one tiko-lang could adopt if win32 ever had to match --
-    from 'msvcrt got the last digit wrong', which is not.
-    """
-    if kind == "d":
-        x = struct.unpack("<d", struct.pack("<Q", int(bits, 16)))[0]
-        prec = 16
-    else:
-        x = struct.unpack("<f", struct.pack("<I", int(bits, 16)))[0]
-        prec = 7
-    exact = Decimal(x)
-    ctx = Context(prec=prec, rounding=ROUND_HALF_EVEN)
-    even = ctx.plus(exact)
-    ctx.rounding = ROUND_HALF_UP
-    away = ctx.plus(exact)
-    return None if even == away else away
-
-
-def digits_of(t):
-    """The significant digits of a rendering, with sign, point and exponent removed."""
-    d = t.split("e")[0].lstrip("-").replace(".", "").lstrip("0")
-    return d.rstrip("0") or "0"
-
-
-def classify(bits, kind, want, got):
-    """Which of win32's known departures a row belongs to."""
-    if any(s in want for s in SPECIALS):
-        return "specials spelled the msvcrt way"
-    if two_digit_exponent(want) == two_digit_exponent(got):
-        return "exponent padded to three digits"
-    away = half_up(bits, kind)
-    away_digits = ("".join(str(x) for x in away.as_tuple().digits).rstrip("0") or "0"
-                   ) if away is not None else None
-    if away_digits is not None and away_digits == digits_of(want):
-        return "exact tie rounded half-AWAY-from-zero, not half-to-even"
-    return "msvcrt's last digit, no rule behind it"
-
-
 def main() -> int:
     if not TRUTH.exists():
         print("check-str: no truth file; run tools/gen/str-truth.py", file=sys.stderr)
@@ -163,24 +111,11 @@ def main() -> int:
 
         bad = [(w[0], w[1], w[2], g[2]) for w, g in zip(want, got) if w[2] != g[2]]
         n = len(want)
-        if label == "win64":
-            print("check-str: win64 %d/%d renderings identical to fbc" % (n - len(bad), n))
-            for _, bits, w, g in bad[:20]:
-                print("    %s  fbc=%s  tiko-lang=%s" % (bits, w, g))
-            if bad:
-                rc = 1
-        else:
-            print("check-str: win32 %d/%d identical; the %d that are not are fbc32's "
-                  "legacy msvcrt renderer, NOT reproduced (see the module header)"
-                  % (n - len(bad), n, len(bad)))
-            buckets = {}
-            for kind, bits, w, g in bad:
-                buckets.setdefault(classify(bits, kind, w, g), []).append((bits, w, g))
-            for name in sorted(buckets, key=lambda k: -len(buckets[k])):
-                rowset = buckets[name]
-                bits, w, g = rowset[0]
-                print("    %5d  %s   e.g. %s fbc32=%s tiko-lang=%s"
-                      % (len(rowset), name, bits, w, g))
+        print("check-str: %s %d/%d renderings identical to fbc" % (label, n - len(bad), n))
+        for _, bits, w, g in bad[:20]:
+            print("    %s  fbc=%s  tiko-lang=%s" % (bits, w, g))
+        if bad:
+            rc = 1
     return rc
 
 

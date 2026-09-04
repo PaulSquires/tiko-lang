@@ -3,7 +3,7 @@
 
     python tools/gen/vtable-truth.py
 
-Writes tests/types/expected/fbc-vtable.txt and fbc-vtable-win32.txt.
+Writes tests/types/expected/fbc-vtable.txt.
 
 Read straight out of the C fbc generates -- 'static void* _ZTVN1AE[6] = { ... };' -- so
 this measures the table fbc actually emits rather than what documentation says it emits.

@@ -3,7 +3,7 @@
 
     python tools/gen/check-vtable.py
 
-Reads tests/types/expected/fbc-vtable.txt and fbc-vtable-win32.txt -- produced by
+Reads tests/types/expected/fbc-vtable.txt -- produced by
 vtable-truth.py from the C fbc leaves behind -- and compares each with
 'tiko-lang --dump-vtable' over the same source.
 

@@ -1,5 +1,0 @@
-'' sizeof( cva_list ) on win32 -- 4, the pointer width there. See cva-layout.test.
-'' TEST: cli
-'' ARGS: --dump-types -m32 tests/lexer/src/basics.bas
-'' EXPECT-EXIT: 0
-'' EXPECT-OUT: cva_list               size=  4 align= 4

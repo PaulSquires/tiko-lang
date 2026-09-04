@@ -2,11 +2,16 @@
 '' for '-target linux-x86_64'. Getting it wrong does not fail -- it silently selects
 '' the other half of every header, and the corpus branches on it 214 times.
 ''
-'' It is DEFINED AND EMPTY on a 64-bit target and NOT DEFINED on a 32-bit one, which is
-'' measured: fbc errors on '#if __FB_64BIT__' because the macro has no body.
+'' WHAT THIS CAN STILL PROVE, and what it cannot. win32 was the only target on which
+'' __FB_64BIT__ was ABSENT, so its removal (D14) takes with it the case that
+'' distinguished a target-derived macro from a host-derived one THROUGH THAT MACRO.
+'' Both remaining targets define it. The platform macros still discriminate, so this
+'' now pins -target reaching the predefine table via __FB_LINUX__ from a Windows host,
+'' which is the same mechanism and a weaker witness. Recorded rather than quietly
+'' downgraded.
 '' TEST: cli
-'' ARGS: --pp-only -target win32 tests/driver/src/predefines.bas
+'' ARGS: --pp-only -target linux-x86_64 tests/driver/src/predefines.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: NO64
-'' EXPECT-OUT: WIN
-'' EXPECT-NOT: HAS64
+'' EXPECT-OUT: HAS64
+'' EXPECT-OUT: LIN
+'' EXPECT-NOT: WIN

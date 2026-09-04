@@ -3,7 +3,7 @@
 
     python tools/gen/intrin-truth.py
 
-Writes tests/types/expected/fbc-intrin.txt and fbc-intrin-win32.txt: one row per
+Writes tests/types/expected/fbc-intrin.txt: one row per
 (intrinsic, argument spelling) giving the result type, or 'reject'.
 
 These are the 48 IFORM_EXPR keywords -- LEN, ASC, LBOUND, STR, ABS and the rest. They are

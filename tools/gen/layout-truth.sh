@@ -3,7 +3,7 @@
 #
 #   tools/gen/layout-truth.sh
 #
-# Writes tests/types/expected/fbc-layout.txt and fbc-layout-win32.txt. The win32 half
+# Writes tests/types/expected/fbc-layout.txt. The win32 half
 # comes from a different fbc, because fbc-modern has no 32-bit build; run
 # tools/gen/control.py for what that costs.
 #
@@ -51,4 +51,3 @@ one( ) {
 }
 
 one "$FBC64" "$ROOT/tests/types/expected/fbc-layout.txt"       win64
-one "$FBC32" "$ROOT/tests/types/expected/fbc-layout-win32.txt" win32

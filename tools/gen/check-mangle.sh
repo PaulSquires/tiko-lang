@@ -19,7 +19,6 @@ if [ ! -f "$EXPECTED" ]; then
     exit 3
 fi
 
-EXPECTED32="$ROOT/tests/mangle/expected/fbc-mangle-win32.txt"
 
 mkdir -p "$WORK"
 rc=0
@@ -42,5 +41,4 @@ one( ) {
 }
 
 one "$EXPECTED"   ""              win64 || rc=1
-one "$EXPECTED32" "-target win32" win32 || rc=1
 exit $rc

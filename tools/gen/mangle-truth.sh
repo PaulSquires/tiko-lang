@@ -23,22 +23,8 @@ if [ ! -x "$FBC" ]; then
     exit 3
 fi
 
-# The win32 half comes from a DIFFERENT fbc, because fbc-modern has no 32-bit build.
-# That is a cross-version comparison, so it is controlled rather than assumed: running
-# 1.10.1 win64 over the same probe gives a file BYTE-IDENTICAL to fbc-modern's, which is
-# what makes 1.10.1 win32 usable as ground truth for mangling.
-FBC32=${TKO_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
-OUT32="$ROOT/tests/mangle/expected/fbc-mangle-win32.txt"
-
 mkdir -p "$WORK"
 "$FBC" -c "$SRC" -o "$WORK/probe.o"
 python "$ROOT/tools/gen/coffsyms.py" "$WORK/probe.o" | tr -d "\r" | sort > "$OUT"
 echo "mangle-truth: $(wc -l < "$OUT" | tr -d ' ') symbols -> tests/mangle/expected/fbc-mangle.txt"
 
-if [ -x "$FBC32" ]; then
-    "$FBC32" -c "$SRC" -o "$WORK/probe32.o"
-    python "$ROOT/tools/gen/coffsyms.py" "$WORK/probe32.o" | tr -d "\r" | sort > "$OUT32"
-    echo "mangle-truth: $(wc -l < "$OUT32" | tr -d ' ') symbols -> tests/mangle/expected/fbc-mangle-win32.txt"
-else
-    echo "mangle-truth: no 32-bit fbc at $FBC32; win32 expectations left as they are" >&2
-fi

@@ -3,7 +3,7 @@
 
     python tools/gen/assign-truth.py
 
-Writes tests/types/expected/fbc-assign.txt and fbc-assign-win32.txt: one row per (target, source) pair saying
+Writes tests/types/expected/fbc-assign.txt: one row per (target, source) pair saying
 whether 'target = source' compiles, and whether fbc warns.
 
 Assignment legality is a DIFFERENT question from binary promotion, and the answers do

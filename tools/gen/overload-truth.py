@@ -3,7 +3,7 @@
 
     python tools/gen/overload-truth.py
 
-Writes tests/types/expected/fbc-overload.txt and fbc-overload-win32.txt: for every pair of candidate parameter
+Writes tests/types/expected/fbc-overload.txt: for every pair of candidate parameter
 types and every argument type, which candidate fbc selects -- or that it refuses.
 
 The trick that makes this observable at COMPILE time is giving the two candidates

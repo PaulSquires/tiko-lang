@@ -34,10 +34,6 @@ TARGETS = {
     "win64": (tkotargets.FBC64,
               [tkotargets.TC / "lib/win64/libfb.a", tkotargets.TC / "lib/win64/libfbgfx.a"],
               ROOT / "tests/expected/fbc-rtl.txt", ROOT / "build/.rt", []),
-    "win32": (tkotargets.FBC32,
-              [tkotargets.TC / "lib/win32/libfb.a", tkotargets.TC / "lib/win32/libfbgfx.a"],
-              ROOT / "tests/expected/fbc-rtl-win32.txt", ROOT / "build/.rt32",
-              ["-gen", "gcc"]),
 }
 
 # Each probe is a fragment whose lowering pulls in a family of runtime calls. They are

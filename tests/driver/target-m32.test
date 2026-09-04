@@ -1,6 +1,13 @@
-'' -m32 selects win32 rather than being refused. It is resolved AFTER the whole line
-'' is read, so it does not matter whether it comes before or after -target.
+'' -m32 IS REFUSED, on every target and in either argument order. x86-64 is the only
+'' architecture (D14), so there is no 32-bit target left to select.
+''
+'' Until 2026-09-04 this test asserted the OPPOSITE -- that -m32 selected win32 -- and
+'' a separate test asserted that Linux refused it. The refusal is the whole behaviour
+'' now, so the two are one test.
+''
+'' IT MUST BE AN ERROR RATHER THAN AN IGNORED FLAG: silently handing a 64-bit binary
+'' to someone who asked for 32 is worse than telling them.
 '' TEST: cli
 '' ARGS: --dump-types -m32 tests/source/plain.bas
-'' EXPECT-EXIT: 0
-'' EXPECT-OUT: pointer=32 bits
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: TKO0104: 32-bit targets are not supported; x86-64 only

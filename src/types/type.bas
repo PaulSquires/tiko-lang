@@ -66,7 +66,6 @@ end function
 
 function TargetName( byval t as TargetId ) as string
     select case t
-    case TARGET_WIN32           : return "win32"
     case TARGET_LINUX_X86_64    : return "linux-x86_64"
     end select
     return "win64"
@@ -76,37 +75,32 @@ function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     ok = true
     dim as string s = Text.LowerAscii( nm )
     if s = "win64" then return TARGET_WIN64
-    if s = "win32" then return TARGET_WIN32
     if s = "linux-x86_64" then return TARGET_LINUX_X86_64
     ok = false
     return HostTarget( )
 end function
 
+'' ALWAYS TRUE since 2026-09-04, and kept as a function on purpose: it is a
+'' target FACT, and the callers that ask for it are asking a question that ARM64
+'' will not change the answer to but a future 32-bit target would. Deleting it
+'' would scatter the assumption instead of naming it.
 function TargetIs64( byval t as TargetId ) as boolean
-    return t <> TARGET_WIN32
+    return true
 end function
 
 function TargetIsWindows( byval t as TargetId ) as boolean
     return t <> TARGET_LINUX_X86_64
 end function
 
-'' Measured, per target, rather than derived from the pointer width -- because two of
-'' these numbers do not follow from it. The FBSTRING descriptor is 12 bytes on win32
-'' and 24 on win64, but its ALIGNMENT is 4 there and 8 here; and maxAlign stays 8 on
-'' win32, where an 8-byte field still aligns to 8. 'type W { byte; string }' is 16
-'' bytes with the string at offset 4 on win32, which is what pins both.
+'' MEASURED PER TARGET rather than derived from the pointer width. That mattered
+'' most for win32, where two of the numbers did not follow from it -- the FBSTRING
+'' descriptor was 12 bytes but aligned to 4, while maxAlign stayed 8 -- and win32
+'' is gone (D14). The discipline stays: cvaList is still 4 bytes on Windows and a
+'' 24-byte SysV register-save record on Linux, which no pointer width predicts.
 function TargetLayoutFor( byval t as TargetId ) as TargetLayout
     dim as TargetLayout r
     r.maxAlign = 8
     select case t
-    case TARGET_WIN32
-        r.pointerBits = 32
-        r.wcharBytes = 2
-        r.stringBytes = 12
-        r.stringAlign = 4
-        r.cvaListBytes = 4
-        r.cvaListAlign = 4
-        r.isWindows = true
     case TARGET_LINUX_X86_64
         r.pointerBits = 64
         r.wcharBytes = 4
