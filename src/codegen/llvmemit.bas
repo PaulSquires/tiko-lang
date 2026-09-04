@@ -308,7 +308,25 @@ private function CallArgs _
         v.kind = cast( ubyte, e.m->argPool[k] )
         v.id = e.m->argPool[k + 1]
         dim as string attr
+        '' MT_I64 IS ONLY A FALLBACK, and reaching it used to be a silent mistype.
+        '' An INDIRECT call has no callee, so every argument took this default and was
+        '' emitted as 'i64' whatever it really was -- LLVM then refused the module on
+        '' the first pointer passed through a function pointer: "'%t58' defined with
+        '' type 'ptr' but expected 'i64'". A virtual method call is exactly that
+        '' shape, since the object pointer is argument zero.
+        ''
+        '' So an argument with no declared parameter type is typed BY ITS PRODUCER,
+        '' which is the same authority ValType uses for a temp and the same rule the
+        '' variadic tail below already followed. The two cases are one rule and are
+        '' now written once.
         dim as MirType pt = MT_I64
+        if (callee = 0) andalso (v.kind = cast( ubyte, MV_TEMP )) then
+            dim as long tid0 = cast( long, v.id )
+            if (tid0 >= 0) andalso (tid0 < e.tempTy.Count) then
+                dim as MirType tt0 = cast( MirType, e.tempTy[tid0] )
+                if tt0 <> MT_VOID then pt = tt0
+            end if
+        end if
         if callee <> 0 then
             '' ...and so does the CALL, because LLVM matches the two and lowers from
             '' what the call says.
