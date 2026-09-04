@@ -147,7 +147,7 @@ zhigh[0] = &hE2 : zhigh[1] = &h82 : zhigh[2] = &hAC : zhigh[3] = 0
 '' reached here -- which is itself the locale dependence this family is being
 '' contrasted for. The '?' path is exercised only where mbstowcs actually
 '' fails, and this file does not claim to cover it.
-dim as wstring ptr hw = pW_StoW( @zhigh )
+dim as wstring ptr hw = pW_StoW( @zhigh )
 print "StrToWstr utf8src "; wshow( hw, 3 )
 if( hw <> 0 ) then deallocate( hw )
 
