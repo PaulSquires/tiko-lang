@@ -87,7 +87,7 @@ end function
 
 function LinkExe _
     ( byref t as ToolPaths, byref target as TargetDescription, _
-      byref objPath as string, byref outPath as string ) as long
+      byref objs as Tko.StrVec, byref outPath as string ) as long
 
     '' THE LINK LINE IS THE RUNTIME'S, not this compiler's invention. tiko-rt is built
     '' to drop into fbc's link line, and on Windows it needs the printer and GDI import
@@ -95,8 +95,14 @@ function LinkExe _
     '' io_printer, which imports from winspool and gdi32. The C runtime gets away
     '' without them because nothing references that entry point unless a program opens
     '' a file -- so this is not optional and not symmetrical.
-    dim as string cmd = "-target " & target.triple & " " & Q( objPath ) & _
-                        " -o " & Q( outPath )
+    '' EVERY OBJECT, IN THE ORDER GIVEN. Order is not cosmetic to a linker: an
+    '' archive is searched once, at the point it appears, so a module naming a symbol
+    '' has to come before whatever resolves it.
+    dim as string cmd = "-target " & target.triple
+    for i as long = 0 to objs.Count - 1
+        cmd += " " & Q( objs[i] )
+    next
+    cmd += " -o " & Q( outPath )
     '' EVERY LIBRARY PATH, IN THE ORDER GIVEN, and each one's libfb named as a FILE
     '' rather than found with '-lfb'.
     ''

@@ -37,10 +37,12 @@ namespace Tko.Codegen
           byref irPath as string, byref objPath as string, _
           byval keepTemps as boolean ) as long
 
-    '' Objects to an executable.
+    '' ObjectS to an executable -- plural, and it always was in this comment.
+    '' It took ONE path until 2026-09-04, which is why a program could never be
+    '' built from more than one module.
     declare function LinkExe _
         ( byref t as ToolPaths, byref target as TargetDescription, _
-          byref objPath as string, byref outPath as string ) as long
+          byref objs as Tko.StrVec, byref outPath as string ) as long
 
 end namespace
 

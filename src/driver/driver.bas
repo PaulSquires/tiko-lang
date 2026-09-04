@@ -96,9 +96,14 @@ end sub
 '' will fail the same way, while EXIT_TOOL_FAILED means clang or the linker rejected
 '' this particular build. Collapsing them to 'false' threw that away, and returning
 '' the boolean at all was what let the whole failure be discarded at the call site.
+''
+'' COMPILES ONE MODULE AND STOPS THERE. It used to link as well, from inside the
+'' per-source loop, which is why more than one input could never work: each input
+'' overwrote the previous one's '.ll' and object and then tried to link it alone. The
+'' link is now done once, after every module is an object -- see LinkAll.
 private function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
-      byref td as Tko.Codegen.TargetDescription ) as long
+      byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
 
     dim as long eh = freefile
     open err for output as #eh
@@ -111,13 +116,11 @@ private function BuildFromIr _
         return Tko.EXIT_NO_TOOLCHAIN
     end if
 
-    '' THE INTERMEDIATE IS NAMED AFTER THE OUTPUT, not after the input: two inputs
-    '' producing one output must not race for one '.ll', and '--keep-temps' leaves a
-    '' file whose name says what it belongs to.
-    dim as string outp = ctx.options.outputPath
-    dim as string irPath = outp & ".ll"
-    dim as string objPath = outp
-    if ctx.options.compileOnly = false then objPath = outp & ".o"
+    '' THE INTERMEDIATE IS NAMED AFTER THE OBJECT, which is per-module. Naming it
+    '' after the OUTPUT was the bug: two inputs producing one output raced for one
+    '' '.ll', and the comment here used to say that must not happen while the code
+    '' made it happen.
+    dim as string irPath = objPath & ".ll"
 
     dim as long fh = freefile
     '' The function form of OPEN inside an IF condition confuses the parser here --
@@ -143,13 +146,40 @@ private function BuildFromIr _
         return Tko.EXIT_OK
     end if
 
-    rc = Tko.Codegen.LinkExe( tools, td, objPath, outp )
+    close #eh
+    return Tko.EXIT_OK
+end function
+
+'' THE LINK, ONCE, OVER EVERY OBJECT the build produced or was handed.
+private function LinkAll _
+    ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
+      byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as long
+
+    dim as long eh = freefile
+    open err for output as #eh
+
+    dim as Tko.Codegen.ToolPaths tools = _
+        Tko.Codegen.FindTools( "", ctx.options.libPaths )
+    if tools.found = false then
+        print #eh, "tiko: " & tools.why
+        close #eh
+        return Tko.EXIT_NO_TOOLCHAIN
+    end if
+
+    dim as long rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then
         print #eh, "tiko: link failed (exit " & str( rc ) & ")"
         close #eh
         return Tko.EXIT_TOOL_FAILED
     end if
-    if ctx.options.keepTemps = false then kill( objPath )
+
+    '' ONLY WHAT THIS BUILD MADE. An object the user named on the command line is
+    '' theirs and is not deleted, however temporary it looks.
+    if ctx.options.keepTemps = false then
+        for i as long = 0 to keep.Count - 1
+            kill( keep[i] )
+        next
+    end if
     close #eh
     return Tko.EXIT_OK
 end function
@@ -203,9 +233,26 @@ function Run( byref args as Tko.StrVec ) as long
         return Tko.EXIT_CMDLINE
     end if
 
-    '' ---- load every input -------------------------------------------------
-    dim as double tLoadStart = timer
+    '' ---- partition the inputs ---------------------------------------------
+    ''
+    '' AN OBJECT IS AN INPUT, NOT A SOURCE. Passing one used to send it through the
+    '' lexer, which reported 'TKO0003: not valid UTF-8' and pointed at the COFF
+    '' header -- an honest complaint about the wrong question. The suite's own build
+    '' compiles every test to its own '.o' and then links the lot, so consuming
+    '' objects is not a convenience, it is the whole of how fbc's makefile works.
+    dim as Tko.StrVec objInputs
+    dim as Tko.StrVec srcInputs
     for each inputPath as string in ctx.options.inputs
+        if Tko.Text.LowerAscii( right( inputPath, 2 ) ) = ".o" then
+            objInputs.Push( inputPath )
+        else
+            srcInputs.Push( inputPath )
+        end if
+    next
+
+    '' ---- load every source ------------------------------------------------
+    dim as double tLoadStart = timer
+    for each inputPath as string in srcInputs
         dim as ustring why = ""
         dim as Tko.FileId id = ctx.sources.LoadFile( inputPath, why )
 
@@ -274,7 +321,20 @@ function Run( byref args as Tko.StrVec ) as long
            wantsOutput orelse _
            ctx.options.dumpUdt orelse _
            ctx.options.dumpVtable then
-        for i as long = 1 to ctx.sources.Count( )
+        '' ONE OBJECT PER SOURCE, and the link after all of them. Compiling AND
+        '' LINKING inside this loop was the multi-module bug: every input overwrote
+        '' the previous one's output and was then linked on its own, so a two-module
+        '' program failed on whichever half went second -- with no diagnostic naming
+        '' the input that had been discarded.
+        dim as Tko.StrVec linkObjs
+        dim as Tko.StrVec tempObjs
+        for i as long = 0 to objInputs.Count - 1
+            linkObjs.Push( objInputs[i] )
+        next
+        '' THE BOUND IS FROZEN. Count( ) grows as the preprocessor opens includes,
+        '' and reading it each time round would compile every header as a unit.
+        dim as long srcCount = ctx.sources.Count( )
+        for i as long = 1 to srcCount
             dim as Tko.FileId id = cast( Tko.FileId, i )
             dim as Tko.PpResult pr
             dim as Tko.PpConfig cfg = MakePpConfig( ctx )
@@ -381,7 +441,17 @@ function Run( byref args as Tko.StrVec ) as long
                             '' own failure to stderr -- clang missing, clang failed,
                             '' the link failed -- and none of those is a diagnostic,
                             '' so discarding this returned 0 with nothing built.
-                            toolExit = BuildFromIr( ctx, er.text, td )
+                            '' THE OBJECT'S NAME. Under '-c' the user named it and
+                            '' there is exactly one. Otherwise it is an intermediate,
+                            '' named after the OUTPUT plus the module's index so two
+                            '' sources cannot collide, and deleted after the link.
+                            dim as string objPath = ctx.options.outputPath
+                            if ctx.options.compileOnly = false then
+                                objPath = ctx.options.outputPath & "." & str( i ) & ".o"
+                                tempObjs.Push( objPath )
+                            end if
+                            toolExit = BuildFromIr( ctx, er.text, td, objPath )
+                            if toolExit = Tko.EXIT_OK then linkObjs.Push( objPath )
                         else
                             print er.text;
                         end if
@@ -564,6 +634,28 @@ function Run( byref args as Tko.StrVec ) as long
                 print Tko.Collect.Dump( syms, ctx.names, ctx.types, ctx.sources );
             end if
         next
+
+        '' ---- the link, once, over every object --------------------------------
+        ''
+        '' NOT UNDER '-c', which asked for objects and nothing more, and not when the
+        '' frontend already failed: linking half a program produces a second, louder
+        '' failure that buries the first.
+        '' HOISTED, each to its own boolean: a four-term 'andalso' chain mixing a
+        '' flag with three comparisons is warning 38, which this file already treats
+        '' as a rule rather than as noise.
+        dim as boolean linkWanted = wantsOutput
+        dim as boolean notCompileOnly = (ctx.options.compileOnly = false)
+        dim as boolean toolsOk = (toolExit = Tko.EXIT_OK)
+        dim as boolean frontendOk = (ctx.diags.HasErrors( ) = false)
+        if linkWanted andalso notCompileOnly andalso toolsOk andalso frontendOk then
+            if linkObjs.Count = 0 then
+                ctx.diags.ReportGlobal( Tko.TKO0102 )
+            else
+                dim as Tko.Codegen.TargetDescription ltd = _
+                    Tko.Codegen.TargetFor( ctx.options.target )
+                toolExit = LinkAll( ctx, linkObjs, ltd, tempObjs )
+            end if
+        end if
 
     elseif ctx.options.dumpAst orelse ctx.options.parseOnly then
         dim as longint nodes = 0
