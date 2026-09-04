@@ -39,6 +39,7 @@ core/lzw.bi               the 12-bit LZW codec (fb_hEncode / fb_hDecode)
 core/events.bi            the event ring behind SCREENEVENT
 driver/window.bi          the Win32 window, its thread and message pump
 raster/text.bi            console text rendering on a graphics screen
+raster/blit.bi            the 21 device blitters and their dispatch
 raster/pixel.bi           PSET / POINT, 32bpp
 raster/line.bi            LINE, 32bpp, solid style
 raster/box.bi             LINE B / BF, 32bpp, solid style
@@ -85,6 +86,7 @@ tools/abtest-vgaport.bas  406 INP/OUT checks vs gfxlib2
 tools/abtest-cells.bas    542 character-cell checks vs gfxlib2
 tools/abtest-lzw.bas      807 LZW checks vs gfxlib2
 tools/abtest-events.bas   59 event-ring checks vs gfxlib2
+tools/abtest-blit.bas     170 blitter comparisons vs gfxlib2
 tools/probe-window.bas    13 checks against a REAL window
 tools/gen-fonts.bas       extracts the console fonts by rendering them
 tools/abtest-dirty.bas    12 dirty-span cases vs gfxlib2's own array
@@ -1519,3 +1521,101 @@ Three behaviours are not the obvious ones:
 - **Capacity is `MAX_EVENTS - 1`**, because a head-equals-tail ring cannot tell
   full from empty. The test pins the *exact* drop count: after `MAX_EVENTS + 10`
   posts the oldest survivor is post 11, not post 0.
+
+## The blitter table
+
+`raster/blit.bi` -- **170 comparisons**, all four configurations. A blitter
+converts the whole framebuffer into a *device* format whose depth differs from
+the mode's; it is the presenter's fallback, and on these three targets it rarely
+runs, because every modern display is 32bpp.
+
+The individual blitters are `static` in the C and unreachable by name, but
+`fb_hGetBlitter` is exported and hands back a **function pointer** -- so the
+reference's own blitter is fetched and *called*, and its bytes compared with
+ours. That tests the dispatch and the conversion together: a correct blitter
+reached through a wrong dispatch still fails.
+
+**`device_depth` is a parameter, not the mode's depth.** That is what makes 15bpp
+and 24bpp -- formats no machine here has -- testable at all.
+
+### Two of the reference's blitters are broken, and we reproduce them
+
+`8to15RGB` and `8to16RGB` are each wrong in two ways:
+
+- **Missing parentheses.** The second pixel is written `... | (a | b | c << 16)`,
+  and `<<` binds tighter than `|`, so only the *last* term reaches the high half
+  — the other two land in the low half and corrupt the first pixel. Every other
+  paired blitter parenthesises correctly, so this is a typo in exactly two
+  functions, not a convention.
+- **The wrong five bits of blue.** `8to15RGB` shifts by 6 where 9 is correct,
+  taking the *bottom* five bits of the channel; `8to16RGB` shifts by 5 where 8 is
+  correct.
+
+Found by reading, then **confirmed by measurement**: correcting the parentheses
+makes 18 of 170 cases differ, and correcting the blue shift makes 14 differ. That
+is the proof the reference behaves this way — not the source listing.
+
+Both are reproduced deliberately. A binary drop-in matches the output, not the
+intent. And because the suite compares bytes, if the reference is ever fixed
+these stop matching and the gate says so.
+
+A third oddity is recorded without interpretation: `8to15RGB` puts red in the low
+bits and blue in the high, while `32to15RGB` does the opposite. The two disagree
+about what "RGB" means.
+
+### Three harness bugs, each of which compared the wrong thing
+
+1. **The dirty array must be the reference's own.** Passing null and letting our
+   frame loop treat that as "all dirty" made **40 of 50** cases fail with the
+   reference having written *nothing* — its array was clear, so it skipped every
+   row while we blitted every row. The comparison was between two different
+   questions. The real array is now reached through the ABI seam.
+2. **The palette must be the reference's own.** `PALETTE GET` *masks* its index
+   to the mode's palette size, so on a 2-colour mode it answers for index 200 as
+   though it were index 0. The blitter does **not** mask — it indexes
+   `device_palette` directly with whatever byte is in the framebuffer, and
+   entries past the palette size are zero. Rebuilding the array through
+   `PALETTE GET` disagreed for every out-of-range index.
+3. **The presenter thread clears the dirty array every 10ms.** Both blitters read
+   it, so between the reference's call and ours a row could be cleared and our
+   side would skip it. Three failures in fifty, at different rows each run —
+   the signature of a race, not a conversion bug. Both calls now run under
+   `SCREENLOCK`, which takes the same critical section the presenter does.
+
+   That was not quite enough. Setting the dirty pattern under *one* lock and
+   consuming it under *another* left the same window: the pattern could vanish
+   between them, both sides would then skip everything and **agree**, and the
+   win32 divergence count moved between runs (145/25, then 144/26). A flaky
+   count in a suite that still reports PASS is worse than a failure. The pattern
+   is now written inside the same lock scope that runs the comparison, and the
+   count is stable across repeated runs.
+
+### Coverage that is asserted, not assumed
+
+The legacy `SCREEN` modes only reach depth 8 and are all 320 or 640 wide, so the
+16bpp and 32bpp blitters and **every tail path** were unreached by the first
+version of the suite. `SCREENRES` supplies arbitrary widths and depths; widths
+320–323 give `w mod 4` of 0, 1, 2 and 3, which is what `16to24` needs — it packs
+four pixels into three dwords and then has a two-pixel and a one-pixel tail
+written in a different byte order from the packed path.
+
+The suite now **counts** how many width variants ran at each source depth and
+**fails** if any depth ran none, rather than quietly testing 8bpp while claiming
+three. It reports `8/16/32 ran 4/4/4`.
+
+### win32 selects MMX blitters, and they disagree with the C ones
+
+`fb_hGetBlitter` switches to a block of hand-written MMX blitters when the host
+is 32-bit **and** `scanline_size` is 1 **and** the width is a multiple of four.
+
+Measured: win64 matches all 170 cases exactly; win32 takes the MMX path in **76**
+of them and differs in **26** — with the 24bpp RGB and BGR results coming back
+*swapped*. So gfxlib2 disagrees with **itself** across the two targets, the same
+way it does for CIRCLE arcs and PMAP under x87 excess precision.
+
+tiko rejects inline asm by policy (`TKO0407`) and `obj/win64` ships no `*_mmx.o`
+at all, so there is no MMX path to match. Those 26 are counted as a **known
+target divergence**, exactly as the win32 PMAP results are — and every case
+*outside* the MMX condition must still match win32 exactly, which is what stops
+this becoming a blanket excuse. The suite also **fails** if no case ever takes
+the MMX path, so the exemption cannot go stale and silently cover everything.

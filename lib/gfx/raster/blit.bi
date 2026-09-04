@@ -1,0 +1,551 @@
+'' blit.bi -- the device blitters and fb_hGetBlitter's dispatch.
+''
+'' Derived from: gfx_blitter.c (fb_hBlitCopy, the twenty conversion blitters,
+'' fb_hGetBlitter).
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' A blitter converts the whole framebuffer into a DEVICE format whose depth
+'' differs from the mode's. It is the presenter's fallback: when the device can
+'' take the framebuffer as-is the driver blits it directly and no blitter runs at
+'' all. On the three targets here that is the usual case, since every modern
+'' display is 32bpp -- which is why the paths below are, in practice, rarely
+'' executed, and why two of them have carried bugs for years (see BUGS).
+''
+'' THE FRAME LOOP IS THE SAME EVERYWHERE, and it is the part that is easy to get
+'' wrong:
+''
+''   - it iterates `h * scanline_size` DESTINATION rows, not h;
+''   - `dirty` is indexed per SOURCE row and only advances every scanline_size
+''     destination rows, which is how a doubled-scanline mode emits each source
+''     row twice;
+''   - a clean row is SKIPPED, not written -- but the destination pointer still
+''     advances, so skipping the advance shears the image;
+''   - the source pointer advances by the source pitch, the destination by the
+''     pitch passed in. They are unrelated numbers.
+''
+'' It is factored out here into BlitFrame, with one row converter per format. The
+'' C repeats the loop in all twenty-one functions; repeating it here would be
+'' twenty-one chances to get the scanline arithmetic subtly wrong.
+''
+'' ============================ BUGS REPRODUCED ============================
+''
+'' Blit8to15RGB and Blit8to16RGB are WRONG IN THE REFERENCE, in two ways each,
+'' and both are reproduced deliberately because this library is a binary drop-in:
+'' matching means matching the output, not the intent.
+''
+''   1. MISSING PARENTHESES. The second pixel is written as
+''         ... | (a | b | c << 16)
+''      where `<<` binds tighter than `|`, so only the LAST term is shifted into
+''      the high half. The other two land in the low half and corrupt the first
+''      pixel. Every other paired blitter -- 8to15BGR, 16to15RGB, 16to16RGB,
+''      32to15RGB, 32to15BGR -- parenthesises correctly, so this is a typo in
+''      exactly two functions and not a convention.
+''
+''   2. THE WRONG FIVE BITS OF BLUE. 8to15RGB uses `(c >> 6) and &h7C00`, which
+''      takes source bits 16..20 -- the BOTTOM five bits of the blue channel --
+''      where the correct shift is 9. 8to16RGB has the same fault with `>> 5`
+''      instead of `>> 8`.
+''
+'' Both were found by reading and then CONFIRMED by measurement against the
+'' reference, not assumed from the source. tools/abtest-blit.bas compares the
+'' bytes, so if the reference is ever fixed these stop matching and the gate
+'' says so.
+''
+'' A THIRD ODDITY, NOT A BUG WE CAN CALL: 8to15RGB puts red in the low bits and
+'' blue in the high, while 32to15RGB does the opposite. The two disagree about
+'' what "RGB" means. Reproduced as-is; no interpretation is imposed.
+
+#pragma once
+
+#include once "../core/surface.bi"
+#include once "crt/string.bi"
+
+namespace TkoGfx
+
+'' Everything a blitter reads. The C takes all of it from the __fb_gfx global;
+'' passing it makes each converter a pure function of its inputs and testable
+'' without a screen.
+type BlitSrc
+    pixels        as ubyte ptr
+    pitch         as integer
+    w             as long
+    h             as long
+    scanline_size as long
+    dirty         as ubyte ptr      '' one byte per SOURCE row
+    palette       as ulong ptr      '' device_palette, for the 8bpp sources
+    conv          as ulong ptr      '' 512-entry 16->32 table, for the 16bpp ones
+end type
+
+type BlitRowProc as sub ( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+
+'' The shared frame loop -- see the header. `rowproc` converts one row.
+private sub BlitFrame( _
+        byref s as BlitSrc, byval dest as ubyte ptr, byval pitch as long, _
+        byval rowproc as BlitRowProc )
+
+    if (s.pixels = 0) orelse (dest = 0) orelse (rowproc = 0) then exit sub
+    dim as long ss = iif( s.scanline_size > 0, s.scanline_size, 1 )
+
+    dim as ubyte ptr src = s.pixels
+    dim as ubyte ptr dst = dest
+    dim as ubyte ptr dirty = s.dirty
+    dim as long z = 0
+
+    for y as integer = s.h * ss to 1 step -1
+        '' a null dirty array means "everything is dirty" -- the C always has
+        '' one, but a caller testing a single frame should not have to fake it
+        if (dirty = 0) orelse (*dirty <> 0) then
+            rowproc( s, src, dst )
+        end if
+        z += 1
+        if z >= ss then
+            z = 0
+            if dirty <> 0 then dirty += 1
+            src += s.pitch
+        end if
+        dst += pitch
+    next
+end sub
+
+'' ---- the 16 -> 32 lookup table ----
+''
+'' Built by fb_hGetBlitter as a SIDE EFFECT of asking for a blitter, and used by
+'' the 16bpp sources. Two halves of 256: the low byte of a 5-6-5 pixel indexes
+'' the first, the high byte the second, and the two results are OR-ed.
+private sub BlitConvInit( byval conv as ulong ptr, byval is_rgb as long )
+    if conv = 0 then exit sub
+    for i as integer = 0 to 255
+        if is_rgb then
+            conv[i]       = ((i and &h1F) shl 19) or ((i and &hE0) shl 5)
+            conv[256 + i] = ((i and &h07) shl 13) or (i and &hF8)
+        else
+            conv[i]       = ((i and &h1F) shl 3) or ((i and &hE0) shl 5)
+            conv[256 + i] = ((i and &h07) shl 13) or ((i and &hF8) shl 16)
+        end if
+    next
+end sub
+
+'' ---- straight copy ----
+private sub BlitRowCopy( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    memcpy( dp, sp, s.pitch )
+end sub
+
+'' ---- 8bpp source ----
+
+private sub BlitRow8to15RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    dim as ubyte ptr p = sp
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = pal[p[0]]
+        dim as ulong c2 = pal[p[1]]
+        '' REPRODUCED VERBATIM, BUGS INCLUDED -- see BUGS in the header. The
+        '' `shl 16` binds to the last term only, and the blue shift is 6 where
+        '' 9 would be correct.
+        *d = ((c1 shr 3) and &h001F) or ((c1 shr 6) and &h03E0) or ((c1 shr 6) and &h7C00) or _
+             (((c2 shr 3) and &h001F) or ((c2 shr 6) and &h03E0) or ((c2 shr 6) and &h7C00) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = pal[p[0]]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shr 3) and &h001F) or ((c1 shr 6) and &h03E0) or ((c1 shr 6) and &h7C00) )
+    end if
+end sub
+
+private sub BlitRow8to15BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    dim as ubyte ptr p = sp
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = pal[p[0]]
+        dim as ulong c2 = pal[p[1]]
+        *d = ((c1 shl 7) and &h7C00) or ((c1 shr 6) and &h03E0) or ((c1 shr 19) and &h001F) or _
+             ((((c2 shl 7) and &h7C00) or ((c2 shr 6) and &h03E0) or ((c2 shr 19) and &h001F)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = pal[p[0]]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shl 7) and &h7C00) or ((c1 shr 6) and &h03E0) or ((c1 shr 19) and &h001F) )
+    end if
+end sub
+
+private sub BlitRow8to16RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    dim as ubyte ptr p = sp
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = pal[p[0]]
+        dim as ulong c2 = pal[p[1]]
+        '' REPRODUCED VERBATIM, BUGS INCLUDED -- see BUGS in the header.
+        *d = ((c1 shr 3) and &h001F) or ((c1 shr 5) and &h07E0) or ((c1 shr 5) and &hF800) or _
+             (((c2 shr 3) and &h001F) or ((c2 shr 5) and &h07E0) or ((c2 shr 5) and &hF800) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = pal[p[0]]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shr 3) and &h001F) or ((c1 shr 5) and &h07E0) or ((c1 shr 5) and &hF800) )
+    end if
+end sub
+
+private sub BlitRow8to16BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    dim as ubyte ptr p = sp
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = pal[p[0]]
+        dim as ulong c2 = pal[p[1]]
+        *d = ((c1 shl 8) and &hF800) or ((c1 shr 5) and &h07E0) or ((c1 shr 19) and &h001F) or _
+             ((((c2 shl 8) and &hF800) or ((c2 shr 5) and &h07E0) or ((c2 shr 19) and &h001F)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = pal[p[0]]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shl 8) and &hF800) or ((c1 shr 5) and &h07E0) or ((c1 shr 19) and &h001F) )
+    end if
+end sub
+
+private sub BlitRow8to24RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ubyte ptr d = dp
+    dim as ubyte ptr p = sp
+    for x as integer = s.w to 1 step -1
+        dim as ulong c = pal[p[0]]
+        d[0] = cast( ubyte, (c shr 16) and &hFF )
+        d[1] = cast( ubyte, (c shr 8) and &hFF )
+        d[2] = cast( ubyte, c and &hFF )
+        p += 1
+        d += 3
+    next
+end sub
+
+private sub BlitRow8to24BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ubyte ptr d = dp
+    dim as ubyte ptr p = sp
+    for x as integer = s.w to 1 step -1
+        dim as ulong c = pal[p[0]]
+        d[0] = cast( ubyte, c and &hFF )
+        d[1] = cast( ubyte, (c shr 8) and &hFF )
+        d[2] = cast( ubyte, (c shr 16) and &hFF )
+        p += 1
+        d += 3
+    next
+end sub
+
+private sub BlitRow8to32RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    dim as ubyte ptr p = sp
+    for x as integer = s.w to 1 step -1
+        *d = pal[p[0]]
+        p += 1
+        d += 1
+    next
+end sub
+
+private sub BlitRow8to32BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr pal = s.palette
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    dim as ubyte ptr p = sp
+    for x as integer = s.w to 1 step -1
+        dim as ulong c = pal[p[0]]
+        *d = ((c shl 16) and &hFF0000) or (c and &hFF00) or (c shr 16)
+        p += 1
+        d += 1
+    next
+end sub
+
+'' ---- 16bpp source ----
+
+private sub BlitRow16to15RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ushort ptr p = cast( ushort ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = p[0]
+        dim as ulong c2 = p[1]
+        *d = ((c1 shl 10) and &h7C00) or ((c1 shr 1) and &h03E0) or (c1 shr 11) or _
+             ((((c2 shl 10) and &h7C00) or ((c2 shr 1) and &h03E0) or (c2 shr 11)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = p[0]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shl 10) and &h7C00) or ((c1 shr 1) and &h03E0) or (c1 shr 11) )
+    end if
+end sub
+
+private sub BlitRow16to15BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ushort ptr p = cast( ushort ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = p[0]
+        dim as ulong c2 = p[1]
+        '' 5-6-5 to 5-5-5: green loses its low bit, so blue passes straight
+        '' through and everything above it shifts down one.
+        *d = (c1 and &h001F) or ((c1 shr 1) and &h7FE0) or _
+             (((c2 and &h001F) or ((c2 shr 1) and &h7FE0)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = p[0]
+        *cast( ushort ptr, d ) = cast( ushort, (c1 and &h001F) or ((c1 shr 1) and &h7FE0) )
+    end if
+end sub
+
+private sub BlitRow16to16RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ushort ptr p = cast( ushort ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = p[0]
+        dim as ulong c2 = p[1]
+        *d = ((c1 shl 11) and &hF800) or (c1 and &h07E0) or (c1 shr 11) or _
+             ((((c2 shl 11) and &hF800) or (c2 and &h07E0) or (c2 shr 11)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = p[0]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shl 11) and &hF800) or (c1 and &h07E0) or (c1 shr 11) )
+    end if
+end sub
+
+'' FOUR pixels into THREE dwords, then a two-pixel and a one-pixel tail. The
+'' packed path writes whole dwords; the tails write bytes in the opposite order.
+'' Whether those two agree is a question for the A/B, not for reading.
+private sub BlitRow16to24( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr conv = s.conv
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+
+    for x as integer = s.w shr 2 to 1 step -1
+        dim as ulong c1 = conv[*p and &hFF] or conv[256 + ((*p shr 8) and &hFF)]
+        dim as ulong temp = conv[(*p shr 16) and &hFF] or conv[256 + ((*p shr 24) and &hFF)]
+        *d = c1 or (temp shl 24)
+        d += 1
+        dim as ulong c2 = temp shr 8
+        p += 1
+        temp = conv[*p and &hFF] or conv[256 + ((*p shr 8) and &hFF)]
+        *d = c2 or (temp shl 16)
+        d += 1
+        dim as ulong c3 = temp shr 16
+        *d = c3 or ((conv[(*p shr 16) and &hFF] or conv[256 + ((*p shr 24) and &hFF)]) shl 8)
+        d += 1
+        p += 1
+    next
+
+    dim as ubyte ptr dc = cast( ubyte ptr, d )
+    if (s.w and 2) <> 0 then
+        dim as ulong c1 = conv[*p and &hFF] or conv[256 + ((*p shr 8) and &hFF)]
+        dim as ulong c2 = conv[(*p shr 16) and &hFF] or conv[256 + ((*p shr 24) and &hFF)]
+        dc[0] = cast( ubyte, (c1 shr 16) and &hFF )
+        dc[1] = cast( ubyte, (c1 shr 8) and &hFF )
+        dc[2] = cast( ubyte, c1 and &hFF )
+        dc[3] = cast( ubyte, (c2 shr 16) and &hFF )
+        dc[4] = cast( ubyte, (c2 shr 8) and &hFF )
+        dc[5] = cast( ubyte, c2 and &hFF )
+        dc += 6
+        p += 1
+    end if
+    if (s.w and 1) <> 0 then
+        dim as ushort ptr ss = cast( ushort ptr, p )
+        dim as ulong c1 = conv[*ss and &hFF] or conv[256 + ((*ss shr 8) and &hFF)]
+        dc[0] = cast( ubyte, (c1 shr 16) and &hFF )
+        dc[1] = cast( ubyte, (c1 shr 8) and &hFF )
+        dc[2] = cast( ubyte, c1 and &hFF )
+    end if
+end sub
+
+private sub BlitRow16to32( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr conv = s.conv
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c = *p
+        p += 1
+        *d = conv[c and &hFF] or conv[256 + ((c shr 8) and &hFF)]
+        d += 1
+        *d = conv[(c shr 16) and &hFF] or conv[256 + ((c shr 24) and &hFF)]
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c = *cast( ushort ptr, p )
+        *d = conv[c and &hFF] or conv[256 + ((c shr 8) and &hFF)]
+    end if
+end sub
+
+'' ---- 32bpp source ----
+
+private sub BlitRow32to15RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = p[0]
+        dim as ulong c2 = p[1]
+        *d = (c1 shr 19) or ((c1 shr 6) and &h03E0) or ((c1 shl 7) and &h7C00) or _
+             (((c2 shr 19) or ((c2 shr 6) and &h03E0) or ((c2 shl 7) and &h7C00)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = p[0]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            (c1 shr 19) or ((c1 shr 6) and &h03E0) or ((c1 shl 7) and &h7C00) )
+    end if
+end sub
+
+private sub BlitRow32to15BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = p[0]
+        dim as ulong c2 = p[1]
+        *d = ((c1 shr 3) and &h001F) or ((c1 shr 6) and &h03E0) or ((c1 shr 9) and &h7C00) or _
+             ((((c2 shr 3) and &h001F) or ((c2 shr 6) and &h03E0) or ((c2 shr 9) and &h7C00)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = p[0]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shr 3) and &h001F) or ((c1 shr 6) and &h03E0) or ((c1 shr 9) and &h7C00) )
+    end if
+end sub
+
+private sub BlitRow32to16RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = p[0]
+        dim as ulong c2 = p[1]
+        *d = (c1 shr 19) or ((c1 shr 5) and &h07E0) or ((c1 shl 8) and &hF800) or _
+             (((c2 shr 19) or ((c2 shr 5) and &h07E0) or ((c2 shl 8) and &hF800)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = p[0]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            (c1 shr 19) or ((c1 shr 5) and &h07E0) or ((c1 shl 8) and &hF800) )
+    end if
+end sub
+
+private sub BlitRow32to16BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w shr 1 to 1 step -1
+        dim as ulong c1 = p[0]
+        dim as ulong c2 = p[1]
+        *d = ((c1 shr 3) and &h001F) or ((c1 shr 5) and &h07E0) or ((c1 shr 8) and &hF800) or _
+             ((((c2 shr 3) and &h001F) or ((c2 shr 5) and &h07E0) or ((c2 shr 8) and &hF800)) shl 16)
+        p += 2
+        d += 1
+    next
+    if (s.w and 1) <> 0 then
+        dim as ulong c1 = p[0]
+        *cast( ushort ptr, d ) = cast( ushort, _
+            ((c1 shr 3) and &h001F) or ((c1 shr 5) and &h07E0) or ((c1 shr 8) and &hF800) )
+    end if
+end sub
+
+private sub BlitRow32to24RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ubyte ptr d = dp
+    for x as integer = s.w to 1 step -1
+        dim as ulong c = *p
+        d[0] = cast( ubyte, (c shr 16) and &hFF )
+        d[1] = cast( ubyte, (c shr 8) and &hFF )
+        d[2] = cast( ubyte, c and &hFF )
+        p += 1
+        d += 3
+    next
+end sub
+
+private sub BlitRow32to24BGR( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ubyte ptr d = dp
+    for x as integer = s.w to 1 step -1
+        dim as ulong c = *p
+        d[0] = cast( ubyte, c and &hFF )
+        d[1] = cast( ubyte, (c shr 8) and &hFF )
+        d[2] = cast( ubyte, (c shr 16) and &hFF )
+        p += 1
+        d += 3
+    next
+end sub
+
+private sub BlitRow32to32RGB( byref s as BlitSrc, byval sp as ubyte ptr, byval dp as ubyte ptr )
+    dim as ulong ptr p = cast( ulong ptr, sp )
+    dim as ulong ptr d = cast( ulong ptr, dp )
+    for x as integer = s.w to 1 step -1
+        '' the alpha byte is DISCARDED before the swap, so it comes out zero
+        dim as ulong c = (*p) and &hFFFFFF
+        p += 1
+        *d = (c shr 16) or (c and &hFF00) or (c shl 16)
+        d += 1
+    next
+end sub
+
+'' ---- dispatch ----
+''
+'' fb_hGetBlitter's table is a flat array of 24 walked by pointer arithmetic:
+'' `blitter += 12` selects BGR, `+= 24` selects the MMX block. The switch then
+'' indexes 0..11 by source depth and device depth. Written here as an explicit
+'' two-level select, because the arithmetic form is where an off-by-twelve hides.
+''
+'' THE MMX BLOCK DOES NOT EXIST ON THESE TARGETS. It is guarded by HOST_X86 --
+'' 32-bit only -- and needs scanline_size = 1 and a width that is a multiple of
+'' four. obj/win64 contains no *_mmx.o at all. Since tiko has no inline asm by
+'' policy (TKO0407), there is no MMX path here either and the condition is
+'' recorded rather than implemented.
+''
+'' `device_depth` is a PARAMETER, not the mode's depth: a caller can ask for any
+'' device format regardless of what screen is open, which is what makes the whole
+'' table testable without exotic hardware.
+private function BlitSelect( _
+        byval depth as long, byval device_depth as long, byval is_rgb as long ) as BlitRowProc
+
+    select case depth
+    case 1, 2, 4, 8
+        select case device_depth
+        case 8  : return @BlitRowCopy
+        case 15 : return iif( is_rgb, @BlitRow8to15RGB, @BlitRow8to15BGR )
+        case 16 : return iif( is_rgb, @BlitRow8to16RGB, @BlitRow8to16BGR )
+        case 24 : return iif( is_rgb, @BlitRow8to24RGB, @BlitRow8to24BGR )
+        case 32 : return iif( is_rgb, @BlitRow8to32RGB, @BlitRow8to32BGR )
+        end select
+
+    case 15, 16
+        select case device_depth
+        case 15 : return iif( is_rgb, @BlitRow16to15RGB, @BlitRow16to15BGR )
+        '' NOTE the asymmetry: 16 -> 16 BGR is a straight COPY, not a converter.
+        '' The table's BGR half puts fb_hBlitCopy in that slot.
+        case 16 : return iif( is_rgb, @BlitRow16to16RGB, @BlitRowCopy )
+        case 24 : return @BlitRow16to24        '' one function for both orders
+        case 32 : return @BlitRow16to32        '' likewise
+        end select
+
+    case 24, 32
+        select case device_depth
+        case 15 : return iif( is_rgb, @BlitRow32to15RGB, @BlitRow32to15BGR )
+        case 16 : return iif( is_rgb, @BlitRow32to16RGB, @BlitRow32to16BGR )
+        case 24 : return iif( is_rgb, @BlitRow32to24RGB, @BlitRow32to24BGR )
+        '' and again: 32 -> 32 BGR is a copy
+        case 32 : return iif( is_rgb, @BlitRow32to32RGB, @BlitRowCopy )
+        end select
+    end select
+
+    return 0
+end function
+
+end namespace
