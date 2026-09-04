@@ -32,3 +32,22 @@ __pycache__/
 tests/vendor/**/*.c
 tests/vendor/**/*.exe
 tests/vendor/**/*.o
+
+# ------------------------------------------------------------------ lib/rt
+# The runtime's build products. Its own .gitignore said 'obj/' and 'lib/' when it
+# was its own repo at C:\dev\tiko-rt; re-rooted here so the rules cannot reach the
+# COMPILER's lib/, which is source (lib/gfx) rather than output.
+/lib/rt/obj/
+/lib/rt/lib/
+
+# ------------------------------------------------------------- toolchains
+# Distributable builds. The TREE and its READMEs are tracked so the layout is
+# reviewable; every byte the packaging step drops into it is a build product and
+# is not. Listed per payload directory rather than as a blanket /toolchains/**,
+# because git cannot re-include a file once its parent directory is excluded.
+/toolchains/*/bin/
+/toolchains/*/inc/
+/toolchains/*/include/
+/toolchains/*/lib/
+/toolchains/*/tiko
+/toolchains/*/tiko.exe
