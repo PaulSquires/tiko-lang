@@ -88,12 +88,17 @@ end sub
 '' THE REST OF THE BUILD: IR to an object, and an object to an executable.
 ''
 '' Separated from the emission above only so that the pass pipeline reads as one thing
-'' and the toolchain as another. Every failure here is reported to stderr and returns
-'' false; none of them is a source diagnostic, because none of them is about the
-'' program being compiled.
+'' and the toolchain as another. Every failure here is reported to stderr; none of them
+'' is a source diagnostic, because none of them is about the program being compiled.
+''
+'' RETURNS AN EXIT CODE, not a boolean. The distinction the codes make is the one a
+'' caller acts on: EXIT_NO_TOOLCHAIN means this machine is not set up, and rerunning
+'' will fail the same way, while EXIT_TOOL_FAILED means clang or the linker rejected
+'' this particular build. Collapsing them to 'false' threw that away, and returning
+'' the boolean at all was what let the whole failure be discarded at the call site.
 private function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
-      byref td as Tko.Codegen.TargetDescription ) as boolean
+      byref td as Tko.Codegen.TargetDescription ) as long
 
     dim as long eh = freefile
     open err for output as #eh
@@ -103,7 +108,7 @@ private function BuildFromIr _
     if tools.found = false then
         print #eh, "tiko: " & tools.why
         close #eh
-        return false
+        return Tko.EXIT_NO_TOOLCHAIN
     end if
 
     '' THE INTERMEDIATE IS NAMED AFTER THE OUTPUT, not after the input: two inputs
@@ -121,7 +126,7 @@ private function BuildFromIr _
     if orc <> 0 then
         print #eh, "tiko: cannot write '" & irPath & "'"
         close #eh
-        return false
+        return Tko.EXIT_TOOL_FAILED
     end if
     print #fh, irText;
     close #fh
@@ -131,26 +136,41 @@ private function BuildFromIr _
     if rc <> 0 then
         print #eh, "tiko: clang failed on '" & irPath & "' (exit " & str( rc ) & ")"
         close #eh
-        return false
+        return Tko.EXIT_TOOL_FAILED
     end if
     if ctx.options.compileOnly then
         close #eh
-        return true
+        return Tko.EXIT_OK
     end if
 
     rc = Tko.Codegen.LinkExe( tools, td, objPath, outp )
     if rc <> 0 then
         print #eh, "tiko: link failed (exit " & str( rc ) & ")"
         close #eh
-        return false
+        return Tko.EXIT_TOOL_FAILED
     end if
     if ctx.options.keepTemps = false then kill( objPath )
     close #eh
-    return true
+    return Tko.EXIT_OK
 end function
 
 function Run( byref args as Tko.StrVec ) as long
     dim as Tko.CompilerContext ctx
+
+    '' THE EXIT CODE OF A FAILURE THAT IS NOT A DIAGNOSTIC.
+    ''
+    '' The tail of this function returns EXIT_USER_ERROR when the diagnostic engine
+    '' holds an error and EXIT_OK otherwise -- which is right for everything that IS
+    '' about the program being compiled, and wrong for everything that is not. A
+    '' clang that would not run, a link that failed, an ICE in emission: none of them
+    '' raises a diagnostic, so all three used to exit 0 having written no output.
+    '' Measured 2026-09-04: a win32 link failed, every runtime symbol undefined, and
+    '' 'tiko ... ; echo $?' said 0. A build script cannot tell that from success.
+    ''
+    '' Set once, at the point of failure, and returned by the tail in preference to
+    '' EXIT_OK. It does not override EXIT_USER_ERROR: a program that failed to
+    '' compile is a user error first, and the toolchain never ran.
+    dim as long toolExit = Tko.EXIT_OK
 
     dim as boolean cmdOk = Tko.Cmdline.Parse( args, ctx.options, ctx.diags )
     ApplyDiagPolicy( ctx )
@@ -356,15 +376,20 @@ function Run( byref args as Tko.StrVec ) as long
                         '' one the IR goes to stdout, which is what the escape hatch
                         '' docs/plan/10 section 4 describes is for.
                         if len( ctx.options.outputPath ) > 0 then
-                            BuildFromIr( ctx, er.text, td )
+                            '' The result IS the exit code. BuildFromIr reports its
+                            '' own failure to stderr -- clang missing, clang failed,
+                            '' the link failed -- and none of those is a diagnostic,
+                            '' so discarding this returned 0 with nothing built.
+                            toolExit = BuildFromIr( ctx, er.text, td )
                         else
                             print er.text;
                         end if
                     else
                         '' NOT A DIAGNOSTIC. A failure here is the compiler being
                         '' unable to emit something it accepted, which is an internal
-                        '' fault and is reported as one.
+                        '' fault and is reported as one -- and exits as one.
                         print "emit: ICE: " & er.ice
+                        toolExit = Tko.EXIT_ICE
                     end if
                 else
                     print Tko.Mir.DumpModule( mm, ctx.names );
@@ -667,6 +692,7 @@ function Run( byref args as Tko.StrVec ) as long
     if ctx.options.stats then ReportStats( ctx )
 
     if ctx.diags.HasErrors( ) then return Tko.EXIT_USER_ERROR
+    if toolExit <> Tko.EXIT_OK then return toolExit
     return Tko.EXIT_OK
 end function
 

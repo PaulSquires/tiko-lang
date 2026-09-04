@@ -1,0 +1,24 @@
+'' A TOOLCHAIN FAILURE MUST NOT EXIT 0.
+''
+'' The tail of Run returns EXIT_USER_ERROR when the diagnostic engine holds an error
+'' and EXIT_OK otherwise. That is right for everything the diagnostics know about and
+'' wrong for everything they do not: a clang that will not run, a link that failed, an
+'' ICE in emission. None of the three raises a diagnostic, and the call to BuildFromIr
+'' discarded its result, so all three exited 0 having written no output.
+''
+'' Measured 2026-09-04: a win32 link failed with every runtime symbol undefined, no
+'' executable was produced, and the exit code was 0. A build script cannot tell that
+'' from success, and build/package.sh's --verify was written believing it could.
+''
+'' The missing-clang path is the one that is deterministic on any machine -- it needs
+'' no clang, no linker and no runtime archive, and it fails before any of them is
+'' reached. TKO_CLANG names a file that cannot exist, so this is EXIT_NO_TOOLCHAIN (3)
+'' rather than EXIT_TOOL_FAILED (5): the codes are distinct because the actions are.
+'' The link-failure path is not tested here, because a test that must first succeed at
+'' finding clang is a test of the machine it runs on.
+'' TEST: cli
+'' ENV: TKO_CLANG=tests/driver/src/no-such-clang.exe
+'' ARGS: -target win64 -o tests/driver/src/toolchain-exit-out.exe tests/source/plain.bas
+'' EXPECT-EXIT: 3
+'' EXPECT-OUT: clang not found
+'' EXPECT-NOT: error TKO

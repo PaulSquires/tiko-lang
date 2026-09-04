@@ -23,7 +23,7 @@
 #
 #   clang    src/codegen/toolchain.bas runs clang for BOTH steps -- the .ll to .o
 #            compile and the link. It is found at C:\Program Files\LLVM\bin, or
-#            TKO_CLANG, or -clangpath. Bundling LLVM is a gigabyte and a separate
+#            wherever TKO_CLANG points. Bundling LLVM is a gigabyte and a separate
 #            decision, so a packaged toolchain depends on an installed one.
 #
 #   libfb    tiko-rt is PARTIAL. Its thread layer references fb_AtomicCasLong,
@@ -318,7 +318,7 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     echo "-- what is NOT in here -------------------------------------------------"
     echo "clang       REQUIRED, not bundled. The compiler runs it for both the"
     echo "            .ll -> .o step and the link. Install LLVM, and point at it"
-    echo "            with TKO_CLANG or -clangpath if it is not at the default"
+    echo "            by setting TKO_CLANG if it is not at the default"
     echo "            C:\\Program Files\\LLVM\\bin\\clang.exe."
     echo "graphics    $GFX_STATE"
     echo

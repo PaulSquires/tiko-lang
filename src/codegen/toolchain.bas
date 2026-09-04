@@ -36,7 +36,7 @@ function FindTools _
     end if
     if FileExists_( t.clangExe ) = false then
         t.why = "clang not found at '" & t.clangExe & "'" & _
-                " -- set TKO_CLANG or pass -clangpath"
+                " -- set TKO_CLANG to the clang to use"
         return t
     end if
 

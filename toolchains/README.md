@@ -62,8 +62,8 @@ file and why one directory would not do.
 ## Not self-contained
 
 **clang is required and not bundled.** The compiler runs it for both the `.ll` to
-`.o` step and the link; it is looked for at `C:\Program Files\LLVM\bin`, or `TKO_CLANG`,
-or `-clangpath`. Bundling LLVM is a gigabyte and a separate decision.
+`.o` step and the link; it is looked for at `C:\Program Files\LLVM\bin`, or wherever
+`TKO_CLANG` points. Bundling LLVM is a gigabyte and a separate decision.
 
 ## Status
 
