@@ -47,6 +47,7 @@
 
 #include once "driver.bi"
 #include once "gdi.bi"
+#include once "mouse.bi"
 #include once "windows.bi"
 
 namespace TkoGfx
@@ -72,6 +73,7 @@ type GfxWindow
     surf        as Surface ptr
     lock_       as CRITICAL_SECTION
     lock_ready  as long
+    mouse       as MouseState
     title       as zstring * 256
 end type
 
@@ -100,6 +102,11 @@ private function WindowProc cdecl ( _
     end if
 
     if w <> 0 then
+        '' The pointer state is fed EVERY message, not just mouse ones -- the
+        '' reference recomputes "is the cursor inside" at the top of its window
+        '' procedure regardless of what arrived. See driver/mouse.bi note 2.
+        MouseHandleMessage( w->mouse, hwnd, msg, wp, lp )
+
         select case msg
         case WM_CLOSE
             '' Record it and stop the pump. NOT DestroyWindow here: the surface
@@ -238,6 +245,7 @@ private function WindowOpen( _
     w.w = cw : w.h = ch
     w.surf = @s
     w.title = left( caption, 255 )
+    MouseInit( w.mouse )
     w.hinst = GetModuleHandle( NULL )
 
     InitializeCriticalSection( @w.lock_ )

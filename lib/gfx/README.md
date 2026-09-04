@@ -38,6 +38,7 @@ core/cells.bi             the character-cell plane behind SCREEN()
 core/lzw.bi               the 12-bit LZW codec (fb_hEncode / fb_hDecode)
 core/events.bi            the event ring behind SCREENEVENT
 driver/window.bi          the Win32 window, its thread and message pump
+driver/mouse.bi           the pointer state behind GETMOUSE and SETMOUSE
 raster/text.bi            console text rendering on a graphics screen
 raster/blit.bi            the 21 device blitters and their dispatch
 raster/pixel.bi           PSET / POINT, 32bpp
@@ -87,6 +88,7 @@ tools/abtest-cells.bas    542 character-cell checks vs gfxlib2
 tools/abtest-lzw.bas      807 LZW checks vs gfxlib2
 tools/abtest-events.bas   59 event-ring checks vs gfxlib2
 tools/abtest-blit.bas     170 blitter comparisons vs gfxlib2
+tools/abtest-mouse.bas    65 pointer checks vs gfxlib2
 tools/probe-window.bas    13 checks against a REAL window
 tools/gen-fonts.bas       extracts the console fonts by rendering them
 tools/abtest-dirty.bas    12 dirty-span cases vs gfxlib2's own array
@@ -1619,3 +1621,66 @@ target divergence**, exactly as the win32 PMAP results are — and every case
 *outside* the MMX condition must still match win32 exactly, which is what stops
 this becoming a blanket excuse. The suite also **fails** if no case ever takes
 the MMX path, so the exemption cannot go stale and silently cover everything.
+
+## The pointer
+
+`driver/mouse.bi` -- **65 checks**, by moving the **real cursor** with
+`SetCursorPos` and reading it back through both implementations.
+
+The two sides cannot run at once — only one window can be under the pointer — so
+they are driven **sequentially over the identical protocol** and the recorded
+sequences compared. Client-relative coordinates are what make that legitimate:
+where each window sits on the desktop cancels out.
+
+**`GETMOUSE` is a cache, not a query.** It reports what the window procedure
+stored the last time a message arrived; it never calls `GetCursorPos` itself. An
+implementation that queries live looks identical in a slow interactive test and
+diverges under automation — which is exactly where it gets used. That mutation
+fails 12 of 65.
+
+Three more details, each with a mutation that catches it:
+
+- **Coordinates are the *unsigned* low words of `lParam`.** Windows' own
+  `GET_X_LPARAM` sign-extends, because a captured drag reports negative
+  coordinates once the pointer leaves to the left or above; the reference does
+  not, so those become ~65535. Sign-extending fails 1 check.
+- **The wheel is a running total**, not a per-read delta — it is only reset when
+  the mode is set. Treating it as a delta fails 2.
+- **Failure writes `-1` to every output**, and means the window is inactive *or*
+  the pointer is outside it.
+
+### The bug this found in our own window
+
+Our side first reported *success* from outside the window. Once the pointer
+leaves, **no message arrives**, so the cached "is the cursor inside" flag kept
+its last value — the reference gets a `WM_MOUSELEAVE` because it arms
+`TrackMouseEvent`, and we did not. Measured: ours answered `(0,199)` and "ok"
+where the reference answered `-1`. Arming it (and re-arming after each leave,
+since the notification is one-shot) fixed it, and removing it again fails 6.
+
+### What is deliberately not covered
+
+Buttons and the wheel would need synthesised input — `mouse_event` or
+`SendInput` — which clicks on whatever is under the pointer and can act on
+unrelated windows. That is a real risk to the desktop, so it is left to the
+author's interactive pass and **stated** rather than faked with a stub that
+passes. The button and wheel *state machine* is still verified from synthetic
+messages, which costs nothing and catches the bit twiddling.
+
+The suite also asserts the reference produced **both** outcomes — at least one
+point inside and one outside — so a run where every point failed cannot satisfy
+the comparison by accident.
+
+### That assertion earned its place on the first suite run
+
+Run by hand the test passed; run *inside* the suite it failed 37 of 65, and the
+discrimination check named the cause: `reference saw at least one point INSIDE`.
+The reference's window never became **active**, so `GETMOUSE` failed at every
+point. Windows refuses a bare `SetForegroundWindow` from a process that is not
+already in the foreground.
+
+Both windows are now forced foreground through the documented
+`AttachThreadInput` route, and the result is **waited for and checked** rather
+than assumed. If focus never arrives the suite fails with a message naming the
+cause — treating "could not focus" as a skip would turn an environment problem
+into a green run.
