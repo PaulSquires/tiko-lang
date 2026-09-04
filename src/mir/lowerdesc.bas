@@ -381,6 +381,16 @@ end function
 
 
 
+'' One descriptor word, written into a byte image LITTLE-ENDIAN. Both remaining
+'' targets are little-endian x86-64; a big-endian target would need this and the
+'' emitter's byte-image path to agree, so it is spelled out rather than assumed.
+private sub DescPoke_ _
+    ( byref img as string, byval off as long, byval v as longint, byval nbytes as long )
+    for i as long = 0 to nbytes - 1
+        img[ off + i ] = cast( ubyte, (v shr (i * 8)) and &hFF )
+    next
+end sub
+
 '' The descriptor's byte size for a given RANK. Rank 0 is an unspecified dimension
 '' count, which fbc gives the full eight dimtb slots because it does not know either.
 function DescBytesFor( byref c as Ctx, byval rank as long ) as long
@@ -411,6 +421,29 @@ sub InitDynArrayDesc _
     if slots <= 0 then slots = 8
     dim as long pb = DescPtrBytes_( c )
     dim as long elemLen = SizeOfType( c, c.types->Inner( t ) )
+    dim as long flags = 8
+    if rank > 0 then flags = 16 + rank
+
+    '' A MODULE-LEVEL descriptor is DATA, not code. Every word above is a compile-time
+    '' constant, so writing them from the module constructor is not merely wasteful --
+    '' it is WRONG. fbc emits FBCU_SUITES into .data; tiko emitted it into .bss and
+    '' filled it from fb_ctor__<module>, so any OTHER module's constructor that ran
+    '' first and touched the array had its work zeroed out from under it. That is the
+    '' fbcunit segfault: ADD_SUITE allocated, then this code nulled DATA back to 0.
+    '' Ordering is not the answer -- fbc's answer is that no code runs at all.
+    if desc.kind = cast( ubyte, MV_GLOBAL ) then
+        if desc.id < c.m->globals.Count then
+            dim as MirGlobal ptr gp = @c.m->globals[ desc.id ]
+            if gp->isVar then
+                dim as string img = string( DescBytesFor( c, rank ), chr( 0 ) )
+                DescPoke_( img, 3 * pb, elemLen, pb )
+                DescPoke_( img, 4 * pb, rank, pb )
+                DescPoke_( img, 5 * pb, flags, pb )
+                gp->initBytes = img
+                exit sub
+            end if
+        end if
+    end if
 
     dim as MirValue nul = ConstInt( c, 0, MT_PTR )
     DescStore_( c, desc, 0, nul )
@@ -418,8 +451,6 @@ sub InitDynArrayDesc _
     DescStoreConst_( c, desc, 2 * pb, 0 )
     DescStoreConst_( c, desc, 3 * pb, elemLen )
     DescStoreConst_( c, desc, 4 * pb, rank )
-    dim as long flags = 8
-    if rank > 0 then flags = 16 + rank
     DescStoreConst_( c, desc, 5 * pb, flags )
 
     for i as long = 0 to slots * 3 - 1
