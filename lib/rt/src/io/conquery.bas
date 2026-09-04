@@ -1,0 +1,383 @@
+'' conquery.bas -- the console queries: cursor position, sizes, the character and
+'' colour under a cell, and whether the console is redirected. Twelve symbols on
+'' Windows and five on POSIX, across eight fbc members.
+''
+'' THE MEMBER -> SYMBOL MAP IS NOT THE SAME ON THE TWO PLATFORMS, which is why
+'' this file is one module and not eight. `io_getx.o` exports three symbols on
+'' win32 (`fb_ConsoleGetX`, `fb_ConsoleGetRawX`, `fb_ConsoleGetRawXEx`) and ONE
+'' on unix; `io_screensize.o` does not exist on unix at all. The gate replaces
+'' members BY SYMBOL, so one tiko-rt object covering several fbc members is
+'' exactly as valid as one per member -- and far less misleading than eight files
+'' that would each mean something different per target.
+''
+'' RAW VERSUS CONVERTED IS THE WHOLE OF THE WINDOWS SIDE. VIEW PRINT sets a
+'' scrolling window, so the row a program calls 1 is not the row the console
+'' calls 0. The `Raw` entry points speak the CONSOLE's coordinates and the plain
+'' ones speak the PROGRAM's; `fb_hConvertFromConsole` is the translation, and it
+'' lives in fbc's io_window.o. POSIX has no such split because its context stores
+'' the program-visible cursor directly.
+''
+'' fb_ConsoleGetRawXYEx REPRODUCES AN INVERTED TEST IN fbc. Its success branch
+'' writes -1 and its failure branch reads the buffer the failed call never
+'' filled:
+''
+''     if( GetConsoleScreenBufferInfo( h, &info ) ) { *col = -1; ... }
+''     else                                        { *col = info.dwCursorPosition.X; ... }
+''
+'' That is backwards, and it is reproduced rather than fixed, because a drop-in
+'' replacement that quietly returned the right answer here would change what
+'' every caller of this internal entry point sees. It is recorded here so the
+'' next reader does not "correct" it.
+''
+'' ONLY FOUR OF THESE ARE FBCALL, AND THE win32 ARCHIVE IS WHAT SAYS SO:
+''
+''     _fb_ConsoleGetSize@8   _fb_ConsoleGetScreenSize@8
+''     _fb_ConsoleGetXY@8     _fb_ConsoleReadXY@12
+''
+'' every other name in this file appears UNDECORATED, so it is plain cdecl. The
+'' rule is not "an entry point the compiler calls is FBCALL" -- fb_ConsoleGetX is
+'' called by fbc's own hook_getx.o and is still cdecl. Only the archive settles
+'' it, and build/symbols.sh is what caught this file getting it wrong: eleven
+'' names carried an @N that fbc's own do not. That is the FIFTH time that check
+'' has caught this class.
+''
+'' A REDIRECTED CONSOLE IS DETECTED DIFFERENTLY ON EACH SIDE and the two agree
+'' only because both answer the same question. GetConsoleMode FAILS on a handle
+'' that is not a console; isatty returns 0 for the same reason. Neither is a
+'' test of the FILE -- a program whose output is a pipe has a perfectly good
+'' input console, which is why the flag is per-direction.
+
+#include once "inc/descriptors.bi"
+#include once "inc/console.bi"
+#include once "crt/string.bi"
+
+'' FreeBASIC's TRUE is -1, and every predicate in this runtime returns it.
+const TKORT_FB_TRUE  = -1
+const TKORT_FB_FALSE = 0
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+
+'' ---------------------------------------------------------- Windows backend
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+function tkort_ConsoleGetRawXEx alias "fb_ConsoleGetRawXEx" ( byval h as any ptr ) as long
+	dim as ubyte info( 0 to CSBI_SIZE_ - 1 ) = any
+	if( w_GetConsoleScreenBufferInfo( h, @info(0) ) = 0 ) then return 0
+	return *cptr( short ptr, @info(CSBI_CURSOR_X_) )
+end function
+
+function tkort_ConsoleGetRawX alias "fb_ConsoleGetRawX" ( ) as long
+	return tkort_ConsoleGetRawXEx( TKORT_OUT_HANDLE() )
+end function
+
+function tkort_ConsoleGetX alias "fb_ConsoleGetX" ( ) as long
+	dim as long x = tkort_ConsoleGetRawX( )
+	tkrt_hConvertFromConsole( @x, 0, 0, 0 )
+	return x
+end function
+
+function tkort_ConsoleGetRawYEx alias "fb_ConsoleGetRawYEx" ( byval h as any ptr ) as long
+	dim as ubyte info( 0 to CSBI_SIZE_ - 1 ) = any
+	if( w_GetConsoleScreenBufferInfo( h, @info(0) ) = 0 ) then return 0
+	return *cptr( short ptr, @info(CSBI_CURSOR_Y_) )
+end function
+
+function tkort_ConsoleGetRawY alias "fb_ConsoleGetRawY" ( ) as long
+	return tkort_ConsoleGetRawYEx( TKORT_OUT_HANDLE() )
+end function
+
+function tkort_ConsoleGetY alias "fb_ConsoleGetY" ( ) as long
+	dim as long y = tkort_ConsoleGetRawY( )
+	tkrt_hConvertFromConsole( 0, @y, 0, 0 )
+	return y
+end function
+
+'' THE TEST IS INVERTED, DELIBERATELY -- see the file header.
+sub tkort_ConsoleGetRawXYEx alias "fb_ConsoleGetRawXYEx" _
+	( byval h as any ptr, byval col as long ptr, byval row as long ptr )
+
+	'' ZEROED, unlike the other queries here, because this is the one whose
+	'' FAILURE branch reads the buffer -- fbc reads a local the failed call never
+	'' filled, so its answer there is undefined. Zeroing costs a 22-byte clear on
+	'' a call that is not on the print hot path (fb_ConsoleGetRawX and RawY are,
+	'' and they return 0 explicitly instead of reading).
+	dim as ubyte info( 0 to CSBI_SIZE_ - 1 )
+
+	if( w_GetConsoleScreenBufferInfo( h, @info(0) ) <> 0 ) then
+		if( col <> 0 ) then *col = -1
+		if( row <> 0 ) then *row = -1
+	else
+		if( col <> 0 ) then *col = *cptr( short ptr, @info(CSBI_CURSOR_X_) )
+		if( row <> 0 ) then *row = *cptr( short ptr, @info(CSBI_CURSOR_Y_) )
+	end if
+end sub
+
+sub tkort_ConsoleGetRawXY alias "fb_ConsoleGetRawXY" ( byval col as long ptr, byval row as long ptr )
+	tkort_ConsoleGetRawXYEx( TKORT_OUT_HANDLE(), col, row )
+end sub
+
+end extern
+
+extern "rtlib"
+
+'' Not the inverted one: this is the entry point PRINT and POS use, and it reads
+'' the buffer only when the call succeeded.
+sub tkort_ConsoleGetXY alias "fb_ConsoleGetXY" ( byval col as long ptr, byval row as long ptr )
+	dim as ubyte info( 0 to CSBI_SIZE_ - 1 ) = any
+
+	if( w_GetConsoleScreenBufferInfo( TKORT_OUT_HANDLE(), @info(0) ) = 0 ) then
+		if( col <> 0 ) then *col = 0
+		if( row <> 0 ) then *row = 0
+	else
+		if( col <> 0 ) then *col = *cptr( short ptr, @info(CSBI_CURSOR_X_) )
+		if( row <> 0 ) then *row = *cptr( short ptr, @info(CSBI_CURSOR_Y_) )
+		tkrt_hConvertFromConsole( col, row, 0, 0 )
+	end if
+end sub
+
+end extern
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+'' The SCREEN BUFFER, which is not the window: a console with a scrollback is
+'' taller than what is visible, and this reports the buffer.
+sub tkort_ConsoleGetScreenSizeEx alias "fb_ConsoleGetScreenSizeEx" _
+	( byval h as any ptr, byval cols as long ptr, byval rows as long ptr )
+
+	dim as ubyte info( 0 to CSBI_SIZE_ - 1 ) = any
+
+	if( w_GetConsoleScreenBufferInfo( h, @info(0) ) = 0 ) then
+		if( cols <> 0 ) then *cols = FB_SCRN_DEFAULT_WIDTH
+		if( rows <> 0 ) then *rows = FB_SCRN_DEFAULT_HEIGHT
+	else
+		if( cols <> 0 ) then *cols = *cptr( short ptr, @info(CSBI_DWSIZE_X_) )
+		if( rows <> 0 ) then *rows = *cptr( short ptr, @info(CSBI_DWSIZE_Y_) )
+	end if
+end sub
+
+end extern
+
+extern "rtlib"
+
+sub tkort_ConsoleGetScreenSize alias "fb_ConsoleGetScreenSize" ( byval cols as long ptr, byval rows as long ptr )
+	tkort_ConsoleGetScreenSizeEx( TKORT_OUT_HANDLE(), cols, rows )
+end sub
+
+'' The WINDOW, which is not the buffer -- what the user can actually see, and
+'' what VIEW PRINT works within.
+sub tkort_ConsoleGetSize alias "fb_ConsoleGetSize" ( byval cols as long ptr, byval rows as long ptr )
+	dim as long ncols = any, nrows = any
+
+	'' The rect is filled lazily, so it MUST be asked for before being tested --
+	'' an unread rect is indistinguishable from a redirected one.
+	tkrt_InitConsoleWindow( )
+
+	if( TKORT_CON_WINDOW_EMPTY() ) then
+		ncols = FB_SCRN_DEFAULT_WIDTH
+		nrows = FB_SCRN_DEFAULT_HEIGHT
+	else
+		tkrt_hConsoleGetWindow( 0, 0, @ncols, @nrows )
+	end if
+
+	if( cols <> 0 ) then *cols = ncols
+	if( rows <> 0 ) then *rows = nrows
+end sub
+
+end extern
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+'' The largest window this console COULD have, which is a property of the screen
+'' and the font rather than of the current window. +1 because the API reports a
+'' maximum index and the caller wants a count.
+function tkort_ConsoleGetMaxRow alias "fb_ConsoleGetMaxRow" ( ) as long
+	dim as ulong c = w_GetLargestConsoleWindowSize( TKORT_OUT_HANDLE() )
+	dim as short maxy = cast( short, (c shr 16) and &hFFFF )
+
+	if( maxy = 0 ) then return FB_SCRN_DEFAULT_HEIGHT
+	return maxy + 1
+end function
+
+end extern
+
+extern "rtlib"
+
+'' SCREEN( row, col [, colorflag] ) -- the character or the attribute at a cell.
+function tkort_ConsoleReadXY alias "fb_ConsoleReadXY" _
+	( byval col as long, byval row as long, byval colorflag as long ) as ulong
+
+	'' ZEROED, NOT `any`. When the handle is redirected the Read* call FAILS and
+	'' leaves the buffer untouched; fbc then returns whatever was on its stack,
+	'' which is undefined and differed between the two runtimes on the very
+	'' first differential run -- 0 from fbc, 232 from here. Zeroing makes the
+	'' answer DEFINED, and the defined answer is the 0 fbc produces in practice.
+	dim as ushort attribute = 0
+	dim as zstring * 2 character = ""
+	dim as ulong got = 0
+	dim as long c = col, r = row
+
+	tkrt_hConvertToConsole( @c, @r, 0, 0 )
+
+	if( colorflag <> 0 ) then
+		w_ReadConsoleOutputAttribute( TKORT_OUT_HANDLE(), @attribute, 1, TKORT_COORD( c, r ), @got )
+		return cast( ulong, attribute ) and &hFFFFul
+	end if
+
+	w_ReadConsoleOutputCharacterA( TKORT_OUT_HANDLE(), @character, 1, TKORT_COORD( c, r ), @got )
+	return cast( ulong, character[0] ) and &hFFul
+end function
+
+end extern
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+'' GetConsoleMode FAILS on a handle that is not a console, which is the test.
+function tkort_ConsoleIsRedirected alias "fb_ConsoleIsRedirected" ( byval is_input as long ) as long
+	dim as ulong mode_ = any
+	dim as any ptr h = iif( is_input <> 0, TKORT_IN_HANDLE(), TKORT_OUT_HANDLE() )
+	'' FB_TRUE IS -1, NOT 1. Every predicate in this runtime returns FreeBASIC's
+	'' TRUE, and a 1 here is a different value to a caller that compares against
+	'' it -- caught by the differential on its first run.
+	return iif( w_GetConsoleMode( h, @mode_ ) = 0, TKORT_FB_TRUE, TKORT_FB_FALSE )
+end function
+
+end extern
+
+#else
+
+'' ------------------------------------------------------------ POSIX backend
+''
+'' Everything here reads the runtime's OWN shadow of the terminal, because a
+'' terminal will not answer questions. `inited` gates all of it: before the
+'' console has been set up there is nothing to report and the documented
+'' fallbacks apply.
+
+extern "rtlib"
+
+sub tkort_ConsoleGetXY alias "fb_ConsoleGetXY" ( byval col as long ptr, byval row as long ptr )
+	dim as long x = any, y = any
+
+	if( TKORT_CON_L( TKORT_CON_INITED ) <> 0 ) then
+		tkrt_BgLock( )
+
+		'' THE CURSOR IS ALWAYS REQUERIED HERE. Nothing signals a cursor move
+		'' the runtime did not make itself, so the position may be stale even
+		'' when the SIZE has not changed -- which is why the size recheck is
+		'' told NOT to do its own cursor update and the explicit one follows.
+		tkrt_hRecheckConsoleSize( 0 )
+		tkrt_hRecheckCursorPos( )
+
+		x = TKORT_CON_L( TKORT_CON_CURX )
+		y = TKORT_CON_L( TKORT_CON_CURY )
+
+		tkrt_BgUnlock( )
+	else
+		x = 1
+		y = 1
+	end if
+
+	if( col <> 0 ) then *col = x
+	if( row <> 0 ) then *row = y
+end sub
+
+end extern
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+function tkort_ConsoleGetX alias "fb_ConsoleGetX" ( ) as long
+	dim as long x = any
+	tkort_ConsoleGetXY( @x, 0 )
+	return x
+end function
+
+function tkort_ConsoleGetY alias "fb_ConsoleGetY" ( ) as long
+	dim as long y = any
+	tkort_ConsoleGetXY( 0, @y )
+	return y
+end function
+
+end extern
+
+extern "rtlib"
+
+sub tkort_ConsoleGetSize alias "fb_ConsoleGetSize" ( byval cols as long ptr, byval rows as long ptr )
+	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then
+		'' 80x24, NOT 80x25: the POSIX default is one row shorter than the
+		'' Windows one, and both are reproduced as they stand.
+		if( cols <> 0 ) then *cols = 80
+		if( rows <> 0 ) then *rows = 24
+		exit sub
+	end if
+
+	tkrt_BgLock( )
+	tkrt_hRecheckConsoleSize( 1 )
+	tkrt_BgUnlock( )
+
+	if( cols <> 0 ) then *cols = TKORT_CON_L( TKORT_CON_W )
+	if( rows <> 0 ) then *rows = TKORT_CON_L( TKORT_CON_H )
+end sub
+
+end extern
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+function tkort_ConsoleGetMaxRow alias "fb_ConsoleGetMaxRow" ( ) as long
+	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then return 24
+
+	tkrt_BgLock( )
+	tkrt_hRecheckConsoleSize( 1 )
+	tkrt_BgUnlock( )
+
+	return TKORT_CON_L( TKORT_CON_H )
+end function
+
+end extern
+
+extern "rtlib"
+
+'' The cell is read from the runtime's SHADOW BUFFERS, not from the terminal:
+'' there is no escape sequence that reads back a character. Coordinates are
+'' 1-based and out-of-range is 0 rather than an error.
+function tkort_ConsoleReadXY alias "fb_ConsoleReadXY" _
+	( byval x as long, byval y as long, byval colorflag as long ) as ulong
+
+	dim as ubyte ptr buffer = any
+	dim as long w = any, h = any
+
+	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then return 0
+
+	tkrt_BgLock( )
+	tkrt_hRecheckConsoleSize( 1 )
+	tkrt_BgUnlock( )
+
+	w = TKORT_CON_L( TKORT_CON_W )
+	h = TKORT_CON_L( TKORT_CON_H )
+
+	if( (x < 1) orelse (x > w) orelse (y < 1) orelse (y > h) ) then return 0
+
+	if( colorflag <> 0 ) then
+		buffer = TKORT_CON_P( TKORT_CON_ATTRBUF )
+	else
+		buffer = TKORT_CON_P( TKORT_CON_CHARBUF )
+	end if
+
+	if( buffer = 0 ) then return 0
+
+	return cast( ulong, buffer[((y - 1) * w) + x - 1] )
+end function
+
+end extern
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+'' isatty on the underlying descriptor -- 0 and 1 are stdin and stdout by
+'' definition, so there is no need to go through FILE* and fileno.
+function tkort_ConsoleIsRedirected alias "fb_ConsoleIsRedirected" ( byval is_input as long ) as long
+	'' FB_TRUE is -1 -- see the Windows half.
+	return iif( c_isatty( iif( is_input <> 0, 0, 1 ) ) = 0, TKORT_FB_TRUE, TKORT_FB_FALSE )
+end function
+
+end extern
+
+#endif

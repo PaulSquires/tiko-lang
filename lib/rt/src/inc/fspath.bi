@@ -1,0 +1,52 @@
+'' fspath.bi -- the path-grammar constants and the two USTRING helpers that are
+'' static inlines in fbc's headers.
+''
+'' THE GRAMMAR IS A PARAMETER, NOT AN #ifdef. Every path entry point takes
+'' `gram`, so both grammars can be evaluated on either host -- which is what
+'' makes the differential able to test Windows path rules on Linux and POSIX
+'' rules on Windows. Do not "simplify" this into a compile-time choice.
+
+#pragma once
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+
+const FB_PATH_POSIX = 0
+const FB_PATH_WIN32 = 1
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+	const FB_PATH_NATIVE = FB_PATH_WIN32
+#else
+	const FB_PATH_NATIVE = FB_PATH_POSIX
+#endif
+
+const FB_FS_OK           = 0
+const FB_FS_INVALID_PATH = 7
+const FB_FS_UNKNOWN      = 16
+
+'' __fb_ctx.unull_desc -- the shared empty USTRING every path entry point
+'' returns for "nothing".
+''
+'' MEASURED TWO WAYS, AND THEY AGREE. win32 came from disassembling fbc's own
+'' fs_path.o: `movl $0x14, %eax` against an IMAGE_REL_I386_DIR32 relocation on
+'' ___fb_ctx, at eight separate sites. 64-bit came from a C probe compiled
+'' against fbc's headers. Each also equals null_desc + sizeof(FBSTRING) on its
+'' target -- 8 + 12 and 16 + 24 -- so the offsets, the disassembly and the
+'' struct arithmetic all say the same thing.
+#if defined( __FB_64BIT__ )
+	const TKORT_UNULL_DESC_OFFSET = 40
+#else
+	const TKORT_UNULL_DESC_OFFSET = 20
+#endif
+
+#define TKORT_UNULL_DESC() _
+	cptr( FBUSTRING ptr, @__fb_ctx_head + TKORT_UNULL_DESC_OFFSET )
+
+'' fb_hUStrSetLength is a static inline in fb_ustring.h -- no symbol to match.
+'' PRESERVES THE TEMP FLAG: the flag lives in the sign bit of the field being
+'' written, so a plain assignment silently clears it and the descriptor is then
+'' never freed.
+#define TKORT_USTR_SETLEN( s, newlen ) _
+	cptr( FBUSTRING ptr, s )->len = _
+		((newlen) and (not FB_TEMPSTRBIT)) or _
+		(cptr( FBUSTRING ptr, s )->len and FB_TEMPSTRBIT)

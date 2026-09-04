@@ -1,0 +1,368 @@
+'' conv.bas -- ustr_conv.o: USTRING <-> STRING, six entry points.
+''
+'' ENCODING POLICY, AND IT IS NOT THE ONE STRING <-> WSTRING USES.
+''
+'' The byte world is UTF-8 HERE, on every target, and malformed input becomes
+'' U+FFFD rather than failing. STRING <-> WSTRING goes through the C locale
+'' (mbstowcs / wcstombs) and is therefore codepage- and platform-dependent; a
+'' USTRING must convert identically everywhere or the type has no reason to
+'' exist. The two families genuinely disagree, deliberately.
+''
+'' THE CONSEQUENCE, STATED PLAINLY: arbitrary binary does NOT round-trip through
+'' a ustring. Bytes that are not valid UTF-8 become U+FFFD and the originals are
+'' gone. Binary belongs in STRING, which is unchanged and still available.
+''
+'' MEASURE, THEN FILL -- every conversion here runs the codec TWICE, once with a
+'' NULL destination to get the exact length and once to write it. One extra pass
+'' over the text buys a descriptor sized to the result instead of to the UTF-8
+'' worst case (4 bytes per unit), which would over-allocate every ASCII string by
+'' four. It is also what makes the `size` values match fbc's, which the
+'' descriptor differential reads.
+''
+'' THE LOCK IS DROPPED AROUND THE ASSIGN HAND-OFFS. fb_StrAssignEx and
+'' fb_UStrAssignEx take FB_STRLOCK themselves, and it is a RECURSIVE mutex on
+'' both platforms -- so holding it across the call would work. It is released
+'' anyway, matching fbc: a recursive lock held across a call that also locks is
+'' correct only for as long as nobody changes the mutex, and this library has
+'' three targets that would fail differently if anyone did.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ustr.bi"
+#include once "inc/ctx.bi"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_StrLock alias "fb_StrLock" ( )
+		declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+	end extern
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "c"   '' NON-FBCALL: fb_unicode.h declares the two codecs without FBCALL.
+	declare function tkrt_Utf8ToUtf16 alias "fb_hUtf8ToUtf16" _
+		( byval src as ubyte ptr, byval src_bytes as integer, _
+		  byval dst as ushort ptr, byval dst_units as integer ) as integer
+	declare function tkrt_Utf16ToUtf8 alias "fb_hUtf16ToUtf8" _
+		( byval src as ushort ptr, byval src_units as integer, _
+		  byval dst as ubyte ptr, byval dst_bytes as integer ) as integer
+end extern
+
+extern "rtlib"
+	declare sub tkrt_UDelete alias "fb_UStrDelete" ( byval s as FBUSTRING ptr )
+	declare function tkrt_UAlloc alias "fb_hUStrAlloc" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare function tkrt_URealloc alias "fb_hUStrRealloc" _
+		( byval s as FBUSTRING ptr, byval units as integer, byval k as long ) as FBUSTRING ptr
+	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
+		( byval s as FBUSTRING ptr ) as long
+	declare function tkrt_AllocTempNoLock alias "fb_hStrAllocTemp_NoLock" _
+		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
+	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare function tkrt_StrAssignEx alias "fb_StrAssignEx" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as any ptr, byval src_size as integer, _
+		  byval fill_rem as long, byval is_init as long ) as any ptr
+	declare function tkrt_UStrAssignEx alias "fb_UStrAssignEx" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as any ptr, byval src_size as integer, _
+		  byval fill_rem as long, byval is_init as long ) as any ptr
+end extern
+
+'' Decode UTF-8 bytes into a ustring descriptor's buffer.
+''
+'' is_init SELECTS THE ALLOCATOR, and the two do not round to the same granule
+'' (src/ustr/core.bas). An initialising assignment reaches a descriptor that has
+'' never held anything, so it must NOT be shown the old contents -- hence
+'' fb_hUStrAlloc, which does not look; a re-assignment goes through
+'' fb_hUStrRealloc, which is the only entry point allowed to free the old block.
+private function hFromBytes _
+	( byval dst as FBUSTRING ptr, byval src as ubyte ptr, byval src_bytes as integer, _
+	  byval is_init as long ) as FBUSTRING ptr
+
+	if( src_bytes <= 0 ) then
+		if( is_init = 0 ) then
+			tkrt_UDelete( dst )
+		else
+			'' NOT UStrDelete: there is nothing valid to free.
+			dst->data = 0
+			dst->len  = 0
+			dst->size = 0
+		end if
+		return dst
+	end if
+
+	dim as integer units = tkrt_Utf8ToUtf16( src, src_bytes, 0, 0 )
+
+	if( is_init = 0 ) then
+		if( tkrt_URealloc( dst, units, 0 ) = 0 ) then return 0
+	else
+		if( tkrt_UAlloc( dst, units ) = 0 ) then return 0
+	end if
+
+	tkrt_Utf8ToUtf16( src, src_bytes, dst->data, units )
+	return dst
+
+end function
+
+extern "rtlib"
+
+'' ------------------------------------------------ narrow -> ustring (assign)
+
+function tkort_UStrAssignFromA alias "fb_UStrAssignFromA" _
+	( byval dst as any ptr, byval dst_size as integer, _
+	  byval src as any ptr, byval src_size as integer, _
+	  byval fill_rem as long, byval is_init as long ) as any ptr
+
+	STRLOCK()
+
+	'' A NULL destination still has to CONSUME the source. `u = a + b` with a
+	'' discarded result would otherwise leak the concatenation's temporary.
+	if( dst = 0 ) then
+		if( src_size = FB_STRSIZEVARLEN ) then
+			tkrt_DelTempNoLock( cptr( FBSTRING ptr, src ) )
+		end if
+		STRUNLOCK()
+		return dst
+	end if
+
+	dim as zstring ptr src_ptr = any
+	dim as integer src_len = any
+
+	'' FIX, not DYN -- and the narrow LENGTH is authoritative, so EMBEDDED NULs
+	'' survive into the ustring instead of truncating it.
+	FB_STRSETUP_FIX( src, src_size, src_ptr, src_len )
+
+	if( dst_size = FB_USTRSIZEVARLEN ) then
+		hFromBytes( cptr( FBUSTRING ptr, dst ), cptr( ubyte ptr, src_ptr ), src_len, is_init )
+	else
+		'' Fixed-length or raw-pointer destination: decode into scratch and hand
+		'' it to the ordinary assign, so clamping, padding and the terminator are
+		'' decided in exactly ONE place rather than re-derived here.
+		dim as integer units = tkrt_Utf8ToUtf16( cptr( ubyte ptr, src_ptr ), src_len, 0, 0 )
+		dim as FB_UCHAR ptr tmp = _
+			cptr( FB_UCHAR ptr, allocate( (units + 1) * sizeof( FB_UCHAR ) ) )
+
+		if( tmp <> 0 ) then
+			tkrt_Utf8ToUtf16( cptr( ubyte ptr, src_ptr ), src_len, tmp, units )
+			STRUNLOCK()
+			tkrt_UStrAssignEx( dst, dst_size, tmp, units or FB_STRISFIXED, fill_rem, is_init )
+			STRLOCK()
+			deallocate( tmp )
+		end if
+	end if
+
+	if( src_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTempNoLock( cptr( FBSTRING ptr, src ) )
+	end if
+
+	STRUNLOCK()
+	return dst
+
+end function
+
+'' ------------------------------------------------ ustring -> narrow (assign)
+
+function tkort_UStrAssignToA alias "fb_UStrAssignToA" _
+	( byval dst as any ptr, byval dst_size as integer, _
+	  byval src as any ptr, byval src_size as integer, _
+	  byval fill_rem as long, byval is_init as long ) as any ptr
+
+	STRLOCK()
+
+	if( dst = 0 ) then
+		if( src_size = FB_USTRSIZEVARLEN ) then
+			tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, src ) )
+		end if
+		STRUNLOCK()
+		return dst
+	end if
+
+	dim as FB_UCHAR ptr src_ptr = any
+	dim as integer src_len = any
+	FB_USTRSETUP( src, src_size, src_ptr, src_len )
+
+	dim as integer nbytes = tkrt_Utf16ToUtf8( src_ptr, src_len, 0, 0 )
+	dim as ubyte ptr tmp = cptr( ubyte ptr, allocate( nbytes + 1 ) )
+
+	'' ALWAYS through the narrow assign, never a copy written here: STRING * N
+	'' space-padding, ZSTRING * N clamping and the temp-stealing rules all live
+	'' in fb_StrAssignEx and there is no second implementation of them.
+	if( tmp <> 0 ) then
+		tkrt_Utf16ToUtf8( src_ptr, src_len, tmp, nbytes )
+		STRUNLOCK()
+		tkrt_StrAssignEx( dst, dst_size, tmp, nbytes or FB_STRISFIXED, fill_rem, is_init )
+		STRLOCK()
+		deallocate( tmp )
+	end if
+
+	if( src_size = FB_USTRSIZEVARLEN ) then
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, src ) )
+	end if
+
+	STRUNLOCK()
+	return dst
+
+end function
+
+'' -------------------------------------------------- expression conversions
+''
+'' Used where a conversion appears INSIDE an expression rather than as the whole
+'' of an assignment, so the result is a temporary the caller will release.
+''
+'' ON ALLOCATION FAILURE THE SHARED EMPTY DESCRIPTOR IS RETURNED, not NULL. It
+'' lives in fbc's own __fb_ctx and there is exactly one of it per width; handing
+'' back NULL here would make every caller in fbc's codegen fault instead.
+
+function tkort_StrToUStr alias "fb_StrToUStr" _
+	( byval src as any ptr, byval src_size as integer ) as FBUSTRING ptr
+
+	STRLOCK()
+
+	dim as zstring ptr src_ptr = any
+	dim as integer src_len = any
+	FB_STRSETUP_FIX( src, src_size, src_ptr, src_len )
+
+	dim as integer units = tkrt_Utf8ToUtf16( cptr( ubyte ptr, src_ptr ), src_len, 0, 0 )
+
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, units )
+	if( dst <> 0 ) then
+		'' The data pointer is checked SEPARATELY from the descriptor: a
+		'' zero-length temporary is a valid descriptor, and the codec must not
+		'' be handed a NULL destination with a non-zero count.
+		if( dst->data <> 0 ) then
+			tkrt_Utf8ToUtf16( cptr( ubyte ptr, src_ptr ), src_len, dst->data, units )
+		end if
+	else
+		dst = TKORT_UNULLSTR()
+	end if
+
+	if( src_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTempNoLock( cptr( FBSTRING ptr, src ) )
+	end if
+
+	STRUNLOCK()
+	return dst
+
+end function
+
+function tkort_UStrToStr alias "fb_UStrToStr" _
+	( byval src as any ptr, byval src_size as integer ) as FBSTRING ptr
+
+	STRLOCK()
+
+	dim as FB_UCHAR ptr src_ptr = any
+	dim as integer src_len = any
+	FB_USTRSETUP( src, src_size, src_ptr, src_len )
+
+	dim as integer nbytes = tkrt_Utf16ToUtf8( src_ptr, src_len, 0, 0 )
+
+	dim as FBSTRING ptr dst = tkrt_AllocTempNoLock( 0, nbytes )
+	if( dst <> 0 ) then
+		if( dst->data <> 0 ) then
+			tkrt_Utf16ToUtf8( src_ptr, src_len, cptr( ubyte ptr, dst->data ), nbytes )
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	if( src_size = FB_USTRSIZEVARLEN ) then
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, src ) )
+	end if
+
+	STRUNLOCK()
+	return dst
+
+end function
+
+'' ---------------------------------------------------- mixed concatenation
+''
+'' "narrow + ustring" and "ustring + narrow". THE NARROW OPERAND IS DECODED and
+'' the result is a USTRING -- text never silently degrades to bytes, which is the
+'' direction a mixed expression would otherwise take by accident.
+
+function tkort_UStrConcatAU alias "fb_UStrConcatAU" _
+	( byval dst as FBUSTRING ptr, _
+	  byval str1 as any ptr, byval str1_size as integer, _
+	  byval str2 as any ptr, byval str2_size as integer ) as FBUSTRING ptr
+
+	STRLOCK()
+
+	dim as zstring ptr a_ptr = any
+	dim as FB_UCHAR ptr u_ptr = any
+	dim as integer a_len = any, u_len = any
+	FB_STRSETUP_FIX( str1, str1_size, a_ptr, a_len )
+	FB_USTRSETUP( str2, str2_size, u_ptr, u_len )
+
+	dim as integer a_units = tkrt_Utf8ToUtf16( cptr( ubyte ptr, a_ptr ), a_len, 0, 0 )
+
+	dst = tkrt_UAllocTempNoLock( dst, a_units + u_len )
+
+	if( dst <> 0 ) then
+		if( dst->data <> 0 ) then
+			tkrt_Utf8ToUtf16( cptr( ubyte ptr, a_ptr ), a_len, dst->data, a_units )
+			'' hUStrCopy, the TERMINATING form -- this is the tail, so the
+			'' terminator it writes is the string's. The UA case below is the
+			'' mirror image and uses CopyN plus an explicit terminator, because
+			'' there the copy comes FIRST. The asymmetry is real, not an
+			'' inconsistency to be tidied away.
+			tkrt_UStrCopy( dst->data + a_units, u_ptr, u_len )
+		end if
+	end if
+
+	if( str1_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTempNoLock( cptr( FBSTRING ptr, str1 ) )
+	end if
+	if( str2_size = FB_USTRSIZEVARLEN ) then
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, str2 ) )
+	end if
+
+	STRUNLOCK()
+	return dst
+
+end function
+
+function tkort_UStrConcatUA alias "fb_UStrConcatUA" _
+	( byval dst as FBUSTRING ptr, _
+	  byval str1 as any ptr, byval str1_size as integer, _
+	  byval str2 as any ptr, byval str2_size as integer ) as FBUSTRING ptr
+
+	STRLOCK()
+
+	dim as FB_UCHAR ptr u_ptr = any
+	dim as zstring ptr a_ptr = any
+	dim as integer u_len = any, a_len = any
+	FB_USTRSETUP( str1, str1_size, u_ptr, u_len )
+	FB_STRSETUP_FIX( str2, str2_size, a_ptr, a_len )
+
+	dim as integer a_units = tkrt_Utf8ToUtf16( cptr( ubyte ptr, a_ptr ), a_len, 0, 0 )
+
+	dst = tkrt_UAllocTempNoLock( dst, u_len + a_units )
+
+	if( dst <> 0 ) then
+		if( dst->data <> 0 ) then
+			tkrt_UStrCopyN( dst->data, u_ptr, u_len )
+			tkrt_Utf8ToUtf16( cptr( ubyte ptr, a_ptr ), a_len, dst->data + u_len, a_units )
+			dst->data[u_len + a_units] = 0
+		end if
+	end if
+
+	if( str1_size = FB_USTRSIZEVARLEN ) then
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, str1 ) )
+	end if
+	if( str2_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTempNoLock( cptr( FBSTRING ptr, str2 ) )
+	end if
+
+	STRUNLOCK()
+	return dst
+
+end function
+
+end extern

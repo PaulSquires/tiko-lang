@@ -1,0 +1,249 @@
+'' hookmisc.bas -- the last six hook dispatchers: LOCATE's core, the two LINE
+'' INPUTs, the console string reader and the two mouse queries. Six symbols
+'' across six fbc members, and portable.
+''
+'' EVERY ONE OF THESE IS THE SAME THREE LINES -- read a function pointer out of
+'' __fb_ctx.hooks, call it if it is set, and fall back to the console
+'' implementation if it is not. That is how gfxlib2 takes over the console
+'' without either library knowing about the other: SCREEN 13 installs its own
+'' procedures and every entry point below silently starts going there.
+''
+'' THE POINTER IS READ UNDER THE LOCK AND CALLED OUTSIDE IT, in the two LINE
+'' INPUTs and nowhere else. Those two BLOCK for as long as the user takes to
+'' type, and holding the global I/O lock across that would stop every other
+'' thread in the program. The mouse and string readers do not block, so fbc
+'' holds the lock across them -- and that asymmetry is reproduced rather than
+'' tidied, because it is a locking contract and not a style.
+''
+'' fb_LocateEx IS THE ONE WITH REAL WORK. It validates against the VIEW PRINT
+'' region rather than against the screen: `row < start_y || row > end_y`, where
+'' those come from fb_ConsoleGetView. So LOCATE 1,1 is an ERROR inside a
+'' `VIEW PRINT 5 TO 20`, and the column is validated against the full width
+'' regardless.
+''
+'' ZERO MEANS "DO NOT MOVE" FOR BOTH ROW AND COLUMN, and is checked BEFORE the
+'' range test -- which is what lets fb_Locate call this with (0,0) purely to read
+'' the current position back.
+''
+'' AND IT UPDATES line_length ON THE SCREEN HANDLE. Setting the column also sets
+'' the screen channel's notion of how far along the line it is, so that a
+'' following PRINT's TAB and SPC land correctly. Only a non-zero column does it.
+''
+'' fb_ReadString DISPATCHES ON THE STREAM, not on a hook alone: anything that is
+'' not stdin goes straight to fgets and never looks at the hook. That is what
+'' lets LINE INPUT from a FILE work while a graphics library owns the console.
+''
+'' fb_GetMouse64 IS A WIDENING WRAPPER, and its five locals are initialised to
+'' -1 -- so a hook that fills only some of them still yields -1 for the rest
+'' rather than stack rubbish.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+#include once "inc/file.bi"
+#include once "inc/iolock.bi"
+#include once "inc/rterror.bi"
+#include once "crt/stdio.bi"
+
+'' fb_hook.h's table, by index. The five used here continue the run that
+'' inc/ctx.bi already covers.
+#define TKORT_HK_LOCATE     TKORT_HOOK_AT( 5 )
+#define TKORT_HK_READSTR    TKORT_HOOK_AT( 13 )
+#define TKORT_HK_GETMOUSE   TKORT_HOOK_AT( 15 )
+#define TKORT_HK_LINEINPUT  TKORT_HOOK_AT( 20 )
+#define TKORT_HK_LINEINPUTW TKORT_HOOK_AT( 21 )
+
+type FB_LOCATEPROC as function cdecl _
+	( byval row as long, byval col as long, byval cursor as long ) as long
+type FB_READSTRPROC as function cdecl _
+	( byval buffer as zstring ptr, byval length_ as integer ) as zstring ptr
+type FB_GETMOUSEPROC as function cdecl _
+	( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
+	  byval buttons as long ptr, byval clip as long ptr ) as long
+type FB_LINEINPUTPROC as function cdecl _
+	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
+	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+type FB_LINEINPUTWPROC as function cdecl _
+	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
+	  byval addquestion as long, byval addnewline as long ) as long
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+	declare sub tkrt_DevScrnInit_NoOpen alias "fb_DevScrnInit_NoOpen" ( )
+end extern
+
+extern "c"   '' NON-FBCALL: the console implementations these fall back to, and
+             '' the view query -- all undecorated in fbc's win32 archive.
+	declare sub tkrt_ConsoleGetView alias "fb_ConsoleGetView" _
+		( byval start_row as long ptr, byval end_row as long ptr )
+	declare function tkrt_ConsoleLocate alias "fb_ConsoleLocate" _
+		( byval row as long, byval col as long, byval cursor as long ) as long
+	declare function tkrt_ConsoleReadStr alias "fb_ConsoleReadStr" _
+		( byval buffer as zstring ptr, byval length_ as integer ) as zstring ptr
+	declare function tkrt_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
+		( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
+		  byval buttons as long ptr, byval clip as long ptr ) as long
+	declare function tkrt_ConsoleLineInput alias "fb_ConsoleLineInput" _
+		( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
+		  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+	declare function tkrt_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
+		( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
+		  byval addquestion as long, byval addnewline as long ) as long
+end extern
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------ LOCATE
+
+'' THE ROW IS VALIDATED AGAINST THE VIEW PRINT REGION and the column against the
+'' full width. Both zeros mean "do not move" and skip their range test entirely.
+function tkort_LocateEx alias "fb_LocateEx" _
+	( byval row as long, byval col as long, byval cursor as long, _
+	  byval current_pos as long ptr ) as long
+
+	dim as long tmp_current_pos = 0
+	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as long start_y = any, end_y = any, con_width = any
+
+	tkrt_ConsoleGetView( @start_y, @end_y )
+	tkrt_GetSize( @con_width, 0 )
+
+	if( (row <> 0) andalso ((row < start_y) orelse (row > end_y)) ) then
+		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	elseif( (col <> 0) andalso ((col < 1) orelse (col > con_width)) ) then
+		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	else
+		tkrt_DevScrnInit_NoOpen( )
+
+		TKORT_IOLOCK()
+
+		dim as FB_LOCATEPROC p = TKORT_HOOKPTR( FB_LOCATEPROC, TKORT_HK_LOCATE )
+		if( p <> 0 ) then
+			tmp_current_pos = p( row, col, cursor )
+		else
+			tmp_current_pos = tkrt_ConsoleLocate( row, col, cursor )
+		end if
+
+		'' THE SCREEN CHANNEL'S line_length FOLLOWS THE COLUMN, so a following
+		'' PRINT's TAB and SPC land correctly. Only a non-zero column sets it.
+		if( col <> 0 ) then TKORT_HANDLE_SCREEN()->line_length = col - 1
+
+		TKORT_IOUNLOCK()
+	end if
+
+	'' WRITTEN EVEN ON THE ERROR PATH, where it is the zero initialised above --
+	'' so a rejected LOCATE reports position zero rather than leaving the
+	'' caller's variable alone.
+	if( current_pos <> 0 ) then *current_pos = tmp_current_pos
+
+	return res
+end function
+
+'' ------------------------------------------------------------ LINE INPUT
+
+'' THE POINTER IS READ UNDER THE LOCK AND CALLED OUTSIDE IT. These two block for
+'' as long as the user takes to type; holding the global I/O lock across that
+'' would stop every other thread.
+function tkort_LineInput alias "fb_LineInput" _
+	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
+	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+
+	TKORT_IOLOCK()
+	dim as FB_LINEINPUTPROC p = TKORT_HOOKPTR( FB_LINEINPUTPROC, TKORT_HK_LINEINPUT )
+	TKORT_IOUNLOCK()
+
+	if( p <> 0 ) then
+		return p( text_, dst, dst_len, fillrem, addquestion, addnewline )
+	end if
+	return tkrt_ConsoleLineInput( text_, dst, dst_len, fillrem, addquestion, addnewline )
+end function
+
+function tkort_LineInputWstr alias "fb_LineInputWstr" _
+	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
+	  byval addquestion as long, byval addnewline as long ) as long
+
+	TKORT_IOLOCK()
+	dim as FB_LINEINPUTWPROC p = TKORT_HOOKPTR( FB_LINEINPUTWPROC, TKORT_HK_LINEINPUTW )
+	TKORT_IOUNLOCK()
+
+	if( p <> 0 ) then
+		return p( text_, dst, max_chars, addquestion, addnewline )
+	end if
+	return tkrt_ConsoleLineInputWstr( text_, dst, max_chars, addquestion, addnewline )
+end function
+
+'' ------------------------------------------------------------------ mouse
+
+'' THE LOCK IS HELD ACROSS THE CALL here, unlike the two above -- a mouse query
+'' does not block, so there is nothing to release it for.
+function tkort_GetMouse alias "fb_GetMouse" _
+	( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
+	  byval buttons as long ptr, byval clip as long ptr ) as long
+
+	dim as long res = any
+
+	TKORT_IOLOCK()
+
+	dim as FB_GETMOUSEPROC p = TKORT_HOOKPTR( FB_GETMOUSEPROC, TKORT_HK_GETMOUSE )
+	if( p <> 0 ) then
+		res = p( x, y, z, buttons, clip )
+	else
+		res = tkrt_ConsoleGetMouse( x, y, z, buttons, clip )
+	end if
+
+	TKORT_IOUNLOCK()
+
+	return res
+end function
+
+'' THE FIVE LOCALS START AT -1, so a hook that fills only some of them still
+'' yields -1 for the rest rather than whatever was on the stack. That -1 is
+'' also what a program tests for "no mouse".
+function tkort_GetMouse64 alias "fb_GetMouse64" _
+	( byval x as longint ptr, byval y as longint ptr, byval z as longint ptr, _
+	  byval buttons as longint ptr, byval clip as longint ptr ) as long
+
+	dim as long ix = -1, iy = -1, iz = -1, ibuttons = -1, iclip = -1
+
+	dim as long res = tkort_GetMouse( @ix, @iy, @iz, @ibuttons, @iclip )
+
+	if( x <> 0 )       then *x = ix
+	if( y <> 0 )       then *y = iy
+	if( z <> 0 )       then *z = iz
+	if( buttons <> 0 ) then *buttons = ibuttons
+	if( clip <> 0 )    then *clip = iclip
+
+	return res
+end function
+
+end extern
+
+'' ------------------------------------------------------------ the reader
+
+extern "c"   '' NON-FBCALL: fb_console.h declares fb_ReadString plainly.
+
+'' DISPATCHES ON THE STREAM FIRST. Anything that is not stdin goes to fgets and
+'' never looks at the hook -- which is what lets LINE INPUT from a FILE keep
+'' working while a graphics library owns the console.
+function tkort_ReadString alias "fb_ReadString" _
+	( byval buffer as zstring ptr, byval length_ as integer, byval f as FILE ptr ) as zstring ptr
+
+	dim as zstring ptr result_ = any
+
+	if( f <> stdin ) then
+		result_ = fgets( buffer, length_, f )
+	else
+		TKORT_IOLOCK()
+		dim as FB_READSTRPROC p = TKORT_HOOKPTR( FB_READSTRPROC, TKORT_HK_READSTR )
+		if( p <> 0 ) then
+			result_ = p( buffer, length_ )
+		else
+			result_ = tkrt_ConsoleReadStr( buffer, length_ )
+		end if
+		TKORT_IOUNLOCK()
+	end if
+
+	return result_
+end function
+
+end extern

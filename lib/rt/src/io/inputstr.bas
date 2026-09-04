@@ -1,0 +1,226 @@
+'' inputstr.bas -- the string INPUT forms: four entry points over four fbc
+'' members.
+''
+'' INPUT of a STRING and INPUT$ of N BYTES are different operations sharing a
+'' name. The first takes a TOKEN from the tokeniser; the second reads a fixed
+'' COUNT straight from the device.
+''
+'' ================================================== THE SCREEN READS IN A LOOP
+''
+'' INPUT$ from a FILE issues ONE read and takes what it gets. INPUT$ from the
+'' SCREEN loops until it has the full count, because a console read returns when
+'' the user presses enter rather than when the buffer is full.
+''
+'' So INPUT$( 10 ) on a file that holds 3 bytes returns 3, while the same call on
+'' the console blocks until 10 characters have been typed. Same entry point, two
+'' behaviours, chosen by FB_HANDLE_IS_SCREEN -- which is a DEREFERENCED compare
+'' against the screen handle, so a redirected SCRN: still counts as the screen.
+''
+'' AND A SHORT READ SHRINKS THE DESCRIPTOR. The temporary is allocated for the
+'' full count and its length is then set to what actually arrived -- so `size`
+'' and `len` disagree afterwards, the same pattern STR$ uses.
+
+#include once "inc/descriptors.bi"
+#include once "inc/file.bi"
+#include once "inc/ctx.bi"
+#include once "inc/wstr.bi"
+#include once "inc/print.bi"      '' tkort_HandleDeref
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_Lock alias "fb_Lock" ( )
+		declare sub fb_Unlock alias "fb_Unlock" ( )
+	end extern
+	#define IOLOCK()   fb_Lock()
+	#define IOUNLOCK() fb_Unlock()
+#else
+	#define IOLOCK()
+	#define IOUNLOCK()
+#endif
+
+const FB_RTERROR_OK = 0
+const FB_RTERROR_OUTOFMEM = 4
+const FB_INPUT_MAXSTRINGLEN = 4096
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_AllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_StrAssign alias "fb_StrAssign" _
+		( byval dst as any ptr, byval dst_size as integer, byval src as any ptr, _
+		  byval src_size as integer, byval fill_rem as long ) as any ptr
+	declare function tkrt_WstrAssign alias "fb_WstrAssign" _
+		( byval dst as wstring ptr, byval dst_chars as integer, _
+		  byval src as wstring ptr ) as wstring ptr
+end extern
+
+extern "c"   '' NON-FBCALL: the tokeniser, the data path and the screen setup.
+	declare function tkrt_NextToken alias "fb_FileInputNextToken" _
+		( byval buffer as zstring ptr, byval maxlen as long, byval isstring as long, _
+		  byval isfp as long ptr ) as integer
+	declare sub tkrt_NextTokenWstr alias "fb_FileInputNextTokenWstr" _
+		( byval buffer as wstring ptr, byval maxlen as long, byval isstring as long )
+	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
+		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		  byval length as uinteger, byval bytesread as uinteger ptr, _
+		  byval adjust as long, byval is_uni as long ) as long
+	declare sub tkrt_DevScrnInitRead alias "fb_DevScrnInit_Read" ( )
+	declare sub tkrt_DevScrnInitReadWstr alias "fb_DevScrnInit_ReadWstr" ( )
+end extern
+
+'' The screen test is a DEREFERENCED compare, so a handle redirected to SCRN:
+'' still counts as the screen.
+private function hIsScreen( byval h as FB_FILE ptr ) as integer
+	if( h = 0 ) then return 0
+	if( tkort_HandleDeref( h ) = TKORT_FILETB() ) then return -1
+	return 0
+end function
+
+extern "rtlib"
+
+'' INPUT of a STRING: one token, then the ordinary assign so that STRING * N
+'' padding and ZSTRING clamping happen in one place.
+function tkort_InputString alias "fb_InputString" _
+	( byval dst as any ptr, byval strlen_ as integer, byval fillrem as long ) as long
+	dim as zstring * (FB_INPUT_MAXSTRINGLEN + 1) buffer
+	dim as long isfp = any
+	tkrt_NextToken( @buffer, FB_INPUT_MAXSTRINGLEN, -1, @isfp )
+	'' src_size 0: a plain zstring pointer, length walked.
+	tkrt_StrAssign( dst, strlen_, @buffer, 0, fillrem )
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+function tkort_InputWstr alias "fb_InputWstr" _
+	( byval str_ as wstring ptr, byval length as integer ) as long
+	dim as wstring * (FB_INPUT_MAXSTRINGLEN + 1) buffer
+	tkrt_NextTokenWstr( @buffer, FB_INPUT_MAXSTRINGLEN, -1 )
+	tkrt_WstrAssign( str_, length, @buffer )
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' INPUT$( n [, #f] ) -- n BYTES, not a token.
+function tkort_FileStrInput alias "fb_FileStrInput" _
+	( byval bytes as integer, byval fnum as long ) as FBSTRING ptr
+
+	tkrt_DevScrnInitRead( )
+
+	IOLOCK()
+
+	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
+	if( TKORT_HANDLE_USED( h ) = 0 ) then
+		IOUNLOCK()
+		return TKORT_NULLSTR()
+	end if
+
+	dim as long res = FB_RTERROR_OK
+	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, bytes )
+
+	if( dst <> 0 ) then
+		dim as integer read_count = 0
+		dim as uinteger length = any
+
+		if( hIsScreen( h ) ) then
+			'' THE SCREEN LOOPS: a console read returns on enter, not when full.
+			dst->data[0] = 0
+			while( read_count <> bytes )
+				res = tkrt_GetDataEx( h, 0, dst->data + read_count, _
+				                      bytes - read_count, @length, -1, 0 )
+				if( res <> FB_RTERROR_OK ) then exit while
+				read_count += length
+				dst->data[read_count] = 0
+			wend
+		else
+			'' A FILE TAKES WHAT ONE READ GIVES.
+			res = tkrt_GetDataEx( h, 0, dst->data, bytes, @length, -1, 0 )
+			if( res = FB_RTERROR_OK ) then read_count += length
+		end if
+
+		dst->data[read_count] = 0
+
+		'' A short read shrinks the LENGTH and leaves the allocation alone.
+		if( read_count <> bytes ) then FB_STRSETLEN( dst, read_count )
+	else
+		res = FB_RTERROR_OUTOFMEM
+	end if
+
+	if( res <> FB_RTERROR_OK ) then
+		if( dst <> 0 ) then tkrt_DelTemp( dst )
+		dst = TKORT_NULLSTR()
+	end if
+
+	IOUNLOCK()
+	return dst
+
+end function
+
+'' The wide twin. NOTE IT RETURNS NULL rather than a shared empty on failure --
+'' the wstring family's rule, where empty and absent are the same value.
+''
+'' THE LENGTH IS IN CHARACTERS, NOT BYTES. fb_FileGetDataEx counts CHARACTERS
+'' when is_unicode is set, and the first version here multiplied by
+'' sizeof( wstring ) first -- asking for two to four times the buffer.
+''
+'' That overran on every target. Both Windows gates PASSED it: the screen loop
+'' is unreachable in a non-interactive suite, and at 2 bytes per character the
+'' file path's overrun landed inside slack. Linux is where a wchar is FOUR
+'' bytes, and glibc caught it -- "corrupted size vs. prev_size", a core dump at
+'' 748 of ~1,477 invocations.
+''
+'' AND THE FILE BRANCH SETS read_chars TO THE FULL COUNT regardless of what was
+'' actually read, so the terminator goes at `chars` even on a short read. That
+'' is fbc's, and it differs from the narrow INPUT$ next door, which tracks the
+'' real count and shrinks the descriptor.
+function tkort_FileWstrInput alias "fb_FileWstrInput" _
+	( byval chars as integer, byval fnum as long ) as wstring ptr
+
+	tkrt_DevScrnInitReadWstr( )
+
+	IOLOCK()
+
+	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
+	if( TKORT_HANDLE_USED( h ) = 0 ) then
+		IOUNLOCK()
+		return 0
+	end if
+
+	dim as long res = FB_RTERROR_OK
+	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
+
+	if( dst <> 0 ) then
+		dim as integer read_chars = 0
+		dim as uinteger length = any
+		dim as ubyte ptr b = cptr( ubyte ptr, dst )
+
+		if( hIsScreen( h ) ) then
+			while( read_chars <> chars )
+				res = tkrt_GetDataEx( h, 0, b + read_chars * sizeof( wstring ), _
+				                      chars - read_chars, @length, -1, -1 )
+				if( res <> FB_RTERROR_OK ) then exit while
+				read_chars += length
+			wend
+		else
+			res = tkrt_GetDataEx( h, 0, dst, chars, @length, -1, -1 )
+			'' The full count, not what arrived.
+			read_chars = chars
+		end if
+
+		if( res = FB_RTERROR_OK ) then
+			'' Terminate through a byte pointer, so the width is the target's.
+			for k as integer = 0 to sizeof( wstring ) - 1
+				b[read_chars * sizeof( wstring ) + k] = 0
+			next
+		else
+			FB_WSTR_DEL( dst )
+			dst = 0
+		end if
+	else
+		res = FB_RTERROR_OUTOFMEM
+	end if
+
+	IOUNLOCK()
+	return dst
+
+end function
+
+end extern

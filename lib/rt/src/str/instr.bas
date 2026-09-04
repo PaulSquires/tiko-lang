@@ -1,0 +1,186 @@
+'' instr.bas -- fb_StrInstr (str_instr.o).
+''
+'' FIRST MODULE WRITTEN WITH THE C BODY AVAILABLE (PROVENANCE.md: R2 lifted
+'' 2026-08-29). What that bought is visible here: fb_StrInstr uses BOYER-MOORE
+'' with both shift tables, and the guard conditions have an exact order. Probing
+'' would have established the ANSWERS -- which are algorithm-independent -- and
+'' could not have established the ALLOCATION BEHAVIOUR, which is not.
+''
+'' THE ALGORITHM IS REPRODUCED, NOT IMPROVED. Boyer-Moore mallocs two arrays of
+'' (len_pattern + 1) ssize_t on every call and frees them. A naive search gives
+'' identical answers with zero allocations -- and would put tiko-rt's allocator
+'' traffic permanently out of step with fbc's, which Gate 3 compares
+'' (RFC-0004 section 4). Faster is available later; comparable comes first.
+''
+'' THE GUARDS, in order. Any of these answers 0:
+''   src or patt NULL, or either data pointer NULL
+''   either length 0
+''   start < 1, or start > len(src)
+''   len(patt) > len(src)
+''
+'' A ONE-CHARACTER PATTERN takes a memchr fast path rather than Boyer-Moore --
+'' the tables would cost more than the search.
+''
+'' Both operands are consumed, inside ONE critical section (fbc takes FB_STRLOCK
+'' around the pair and uses the _NoLock releases). Reproduced here, unlike the
+'' earlier modules which take the lock twice: with two releases adjacent there is
+'' a real reason to hold it across both.
+
+#include once "inc/descriptors.bi"
+
+extern "rtlib"
+	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+'' Boyer-Moore: right-to-left comparison, bad-character and good-suffix shifts.
+private function hFindBM _
+	( _
+		byval start as integer, _
+		byval text_ as ubyte ptr, byval len_text as integer, _
+		byval patt as ubyte ptr, byval len_patt as integer _
+	) as integer
+
+	dim as integer len_max = len_text - len_patt
+	dim as integer bm_bc(0 to 255)
+	dim as integer i = any, j = any
+
+	'' ALLOCATE + MEMSET, NOT CALLOCATE. fbc does malloc then memset(0), and
+	'' calloc is a THIRD column in alloc-count.bas. Using callocate here would
+	'' have moved two allocations per call out of malloc and into calloc --
+	'' behaviourally invisible, and the exact shape of the divergence that sat
+	'' unread in that report for eight batches (RFC-0002 section 4.7).
+	dim as integer bytes_ = (len_patt + 1) * sizeof( integer )
+	dim as integer ptr bm_gc = allocate( bytes_ )
+	dim as integer ptr suffixes = allocate( bytes_ )
+	if( bm_gc = 0 ) then
+		if( suffixes <> 0 ) then deallocate( suffixes )
+		return 0
+	end if
+	if( suffixes = 0 ) then
+		deallocate( bm_gc )
+		return 0
+	end if
+	memset( bm_gc, 0, bytes_ )
+	memset( suffixes, 0, bytes_ )
+
+	'' bad-character shifts
+	for i = 0 to 255
+		bm_bc(i) = -1
+	next
+	for i = 0 to len_patt - 1
+		bm_bc( patt[i] ) = i
+	next
+
+	'' good-suffix, case 1
+	i = len_patt : j = len_patt + 1
+	suffixes[i] = j
+	while( i <> 0 )
+		dim as ubyte ch1 = patt[i - 1]
+		while( (j <= len_patt) andalso (ch1 <> patt[j - 1]) )
+			if( bm_gc[j] = 0 ) then bm_gc[j] = j - i
+			j = suffixes[j]
+		wend
+		i -= 1
+		j -= 1
+		suffixes[i] = j
+	wend
+
+	'' good-suffix, case 2
+	j = suffixes[0]
+	for i = 0 to len_patt
+		if( bm_gc[i] = 0 ) then bm_gc[i] = j
+		if( i = j ) then j = suffixes[j]
+	next
+
+	dim as integer result = 0
+
+	i = start
+	while( i <= len_max )
+		j = len_patt
+		while( (j <> 0) andalso (patt[j - 1] = text_[i + j - 1]) )
+			j -= 1
+		wend
+
+		if( j = 0 ) then
+			result = i + 1
+			exit while
+		end if
+
+		dim as ubyte chText = text_[i + j - 1]
+		dim as integer shift_gc = bm_gc[j]
+		dim as integer shift_bc = j - 1 - bm_bc( chText )
+		if( shift_gc > shift_bc ) then i += shift_gc else i += shift_bc
+	wend
+
+	deallocate( bm_gc )
+	deallocate( suffixes )
+
+	return result
+
+end function
+
+function tkort_StrInstr alias "fb_StrInstr" _
+	( _
+		byval start as integer, byval src as FBSTRING ptr, byval patt as FBSTRING ptr _
+	) as integer
+
+	dim as integer r = 0
+	dim as integer ok = 0
+
+	if( src <> 0 ) then
+		if( src->data <> 0 ) then
+			if( patt <> 0 ) then
+				if( patt->data <> 0 ) then ok = 1
+			end if
+		end if
+	end if
+
+	if( ok <> 0 ) then
+		dim as integer size_src = FB_STRSIZE( src )
+		dim as integer size_patt = FB_STRSIZE( patt )
+
+		if( (size_src = 0) orelse (size_patt = 0) ) then
+			r = 0
+		elseif( (start < 1) orelse (start > size_src) ) then
+			r = 0
+		elseif( size_patt > size_src ) then
+			r = 0
+		elseif( size_patt = 1 ) then
+			'' One character: memchr, not Boyer-Moore.
+			dim as any ptr hit = memchr( src->data + start - 1, _
+			                             cptr( ubyte ptr, patt->data )[0], _
+			                             size_src - start + 1 )
+			if( hit = 0 ) then
+				r = 0
+			else
+				r = cast( integer, cast( ubyte ptr, hit ) - cptr( ubyte ptr, src->data ) ) + 1
+			end if
+		else
+			r = hFindBM( start - 1, cptr( ubyte ptr, src->data ), size_src, _
+			                        cptr( ubyte ptr, patt->data ), size_patt )
+		end if
+	end if
+
+	STRLOCK()
+	tkrt_DelTempNoLock( src )
+	tkrt_DelTempNoLock( patt )
+	STRUNLOCK()
+
+	return r
+
+end function
+
+end extern

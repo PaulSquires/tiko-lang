@@ -1,0 +1,304 @@
+'' devlptopen.bas -- fb_DevLptOpen, fb_DevPrinterSetWidth and
+'' fb_DevPrinterGetOffset: opening an LPT device and querying the two things
+'' LPRINT needs from it. Three symbols, one fbc member (dev_lpt.o), portable.
+''
+'' THE REST OF THIS MEMBER IS ALREADY tiko-rt's -- fb_DevLptClose,
+'' fb_DevLptWrite and fb_DevLptWriteWstr are in src/io/devlptio.bas and the
+'' protocol parser is in src/io/devlpttest.bas. This file is the open path and
+'' the two width/offset queries, and it is the last of dev_lpt.o.
+''
+'' A PRINTER CAN BE OPENED TWICE AND MUST NOT BE OPENED TWICE. `OPEN "LPT1:"`
+'' followed by another `OPEN "LPT1:"` has to reach the same physical device, so
+'' the open path SEARCHES THE WHOLE FILE TABLE for a printer already using this
+'' device name, and if it finds one it shares that handle's DEV_LPT_INFO and
+'' bumps its reference count instead of opening a second time.
+''
+'' THE SHARING IS EXPRESSED AS A REDIRECTION, AND ITS DIRECTION DEPENDS ON WHO
+'' IS ASKING. That is the subtlest thing in this file:
+''
+''   opening LPT1 when the PRINTER handle already has it
+''       the caller's handle redirects TO the existing one.
+''   opening the PRINTER handle when a file number already has LPT1
+''       the EXISTING handle redirects to the PRINTER handle, and the PRINTER
+''       handle inherits its width and line_length.
+''
+'' So the arrow is reversed for the LPRINT handle, because LPRINT must keep
+'' working through whichever handle is real. fbc's comment says only that
+'' redirection is allowed between OPEN "LPT1:" and LPRINT; the asymmetry is in
+'' the code, not the comment.
+''
+'' THE PRINTER HANDLE IS __fb_ctx.fileTB + 1, not an error stream and not file
+'' number 1 -- inc/file.bi documents that mapping. Comparing against it by
+'' address is what distinguishes LPRINT from a user OPEN, and there is no flag
+'' that says so.
+''
+'' A SHARED OPEN NEVER CALLS THE DRIVER, and that is what driver_opaque tests.
+'' It is NULL on a freshly calloc'd DEV_LPT_INFO and non-NULL once the platform
+'' driver has opened the port, so it doubles as "has this been opened". A shared
+'' handle inherits a non-NULL one and takes the redirection branch instead.
+''
+'' AND A NON-SHARED, NON-DRIVER PATH SETS width TO 80. That branch is reachable
+'' only when the found handle is in the table but NOT in use -- FB_HANDLE_USED
+'' is a hooks check, not a NULL check -- which is a state the file layer can
+'' produce during close. Reproduced rather than folded into the branch above it.
+''
+'' THE DEVICE NAME IS "proto:name", REBUILT EVERY TIME. fb_DevLptParseProtocol
+'' splits the string; this joins the two halves back with a colon into a fresh
+'' calloc. The join is what the table search compares, so a printer opened as
+'' "LPT1:" and one opened as "lpt1:" are DIFFERENT devices -- the comparison is
+'' strcmp and the parser does not upcase.
+''
+'' THE TWO QUERIES LEAK NOTHING AND FIND NOTHING QUIETLY. Both parse, join,
+'' search with no_redir TRUE -- i.e. skipping any handle that is itself
+'' redirected -- and return a default when the search fails: 80 (or the caller's
+'' default) for the width, 0 for the offset. A missing printer is not an error.
+
+#include once "inc/descriptors.bi"
+#include once "inc/file.bi"
+#include once "inc/rterror.bi"
+#include once "inc/iolock.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+'' DEV_LPT_INFO and DEV_LPT_PROTOCOL, from fb_printer.h. Both are spelled again
+'' here rather than shared through inc/, matching src/io/devlptio.bas and
+'' src/io/devlpttest.bas -- and the #asserts below are what keeps the three
+'' copies honest.
+type DEV_LPT_INFO
+	as any ptr      driver_opaque
+	as zstring ptr  pszDevice
+	as long         iPort
+	as uinteger     uiRefCount
+end type
+
+type DEV_LPT_PROTOCOL
+	as zstring ptr proto
+	as long        iPort
+	as zstring ptr name_
+	as zstring ptr title_
+	as zstring ptr emu
+end type
+
+#if defined( __FB_64BIT__ )
+	#assert sizeof( DEV_LPT_PROTOCOL ) = 40
+	#assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 16
+#else
+	#assert sizeof( DEV_LPT_PROTOCOL ) = 20
+	#assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 8
+#endif
+
+extern "c"   '' NON-FBCALL: fb_printer.h declares all of these plainly, and the
+             '' win32 archive spells them without `@N`.
+	declare function tkrt_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
+		( byval lpt_proto_out as DEV_LPT_PROTOCOL ptr ptr, byval proto_raw as zstring ptr, _
+		  byval proto_raw_len as uinteger, byval subst_prn as long ) as long
+	declare function tkrt_DevLptClose alias "fb_DevLptClose" ( byval handle as FB_FILE ptr ) as long
+	declare function tkrt_DevLptWrite alias "fb_DevLptWrite" _
+		( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	declare function tkrt_DevLptWriteWstr alias "fb_DevLptWriteWstr" _
+		( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+	declare function tkrt_PrinterOpen alias "fb_PrinterOpen" _
+		( byval devInfo as DEV_LPT_INFO ptr, byval iPort as long, byval pszDevice as zstring ptr ) as long
+end extern
+
+extern "rtlib"   '' FBCALL: fb_ErrorSetNum is decorated on win32.
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+'' THE HOOK TABLE IS A CONSTANT AND ITS ADDRESS IS STORED IN EVERY HANDLE, so it
+'' must outlive them -- a module-level `dim shared`, never a local. Ten of the
+'' fourteen slots are NULL: a printer cannot be read, sought or told its length,
+'' and asking is a runtime error raised by the file layer rather than by a stub
+'' here.
+dim shared as FB_FILE_HOOKS tkort_hooks_dev_lpt = ( _
+	0, _
+	@tkrt_DevLptClose, _
+	0, _
+	0, _
+	0, _
+	0, _
+	@tkrt_DevLptWrite, _
+	@tkrt_DevLptWriteWstr, _
+	0, _
+	0, _
+	0, _
+	0, _
+	0, _
+	0 )
+
+'' SEARCHES THE WHOLE FILE TABLE for an open printer on this device. See the
+'' file header on why the comparison is a strcmp of the rebuilt "proto:name".
+''
+'' iPort 0 MATCHES ANY PORT. That is how the two query functions find a printer
+'' opened as "LPT:" with no number.
+private function tkort_lpt_find_by_name( byval iPort as long, byval filename as zstring ptr, _
+                                         byval no_redir as long ) as FB_FILE ptr
+
+	for i as integer = 0 to FB_MAX_FILES - 1
+		dim as FB_FILE ptr handle = TKORT_FILETB() + i
+		if( handle->type_ = FB_FILE_TYPE_PRINTER ) then
+			if( (no_redir = 0) orelse (handle->redirection_to = 0) ) then
+				dim as DEV_LPT_INFO ptr devInfo = cptr( DEV_LPT_INFO ptr, handle->opaque )
+				if( devInfo <> 0 ) then
+					if( (iPort = 0) orelse (iPort = devInfo->iPort) ) then
+						if( strcmp( devInfo->pszDevice, filename ) = 0 ) then
+							return handle
+						end if
+					end if
+				end if
+			end if
+		end if
+	next
+
+	return 0
+end function
+
+'' "proto" + ":" + "name", into a fresh allocation the caller frees. The + 3 is
+'' fbc's: one for the colon, one for the terminator, and one spare.
+private function tkort_lpt_make_device_name( byval lpt_proto as DEV_LPT_PROTOCOL ptr ) as zstring ptr
+
+	if( lpt_proto = 0 ) then return 0
+
+	dim as zstring ptr p = cast( zstring ptr, _
+		calloc( strlen( lpt_proto->proto ) + strlen( lpt_proto->name_ ) + 3, 1 ) )
+	strcpy( p, lpt_proto->proto )
+	strcat( p, @":" )
+	strcat( p, lpt_proto->name_ )
+	return p
+end function
+
+extern "c"   '' NON-FBCALL: fb_printer.h declares all three plainly and the
+             '' archive agrees on every target -- no `@N` on win32.
+
+function tkort_DevLptOpen alias "fb_DevLptOpen" _
+	( byval handle as FB_FILE ptr, byval filename as zstring ptr, _
+	  byval filename_len as uinteger ) as long
+
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+	dim as DEV_LPT_INFO ptr devInfo = any
+	dim as FB_FILE ptr redir_handle = 0, tmp_handle = 0
+	dim as long res = any
+
+	'' A FAILED PARSE STILL MAY HAVE ALLOCATED -- the parser writes the pointer
+	'' before it decides the string is bad, so the free is not dead code.
+	if( tkrt_DevLptParseProtocol( @lpt_proto, filename, filename_len, 1 ) = 0 ) then
+		if( lpt_proto <> 0 ) then free( lpt_proto )
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	TKORT_IOLOCK()
+
+	devInfo = cptr( DEV_LPT_INFO ptr, calloc( 1, sizeof( DEV_LPT_INFO ) ) )
+	devInfo->uiRefCount = 1
+	devInfo->iPort = lpt_proto->iPort
+	devInfo->pszDevice = tkort_lpt_make_device_name( lpt_proto )
+	devInfo->driver_opaque = 0
+
+	'' ALREADY OPEN? Share it. The freshly built devInfo is thrown away -- and
+	'' note that fbc frees the STRUCT but NOT devInfo->pszDevice, which it has
+	'' just allocated. That is a leak of one device-name string per duplicate
+	'' open, and it is reproduced: a program that opens the same printer in a
+	'' loop leaks in fbc too, and fixing it here would be a rewrite dividend.
+	tmp_handle = tkort_lpt_find_by_name( devInfo->iPort, devInfo->pszDevice, 0 )
+	if( tmp_handle <> 0 ) then
+		free( devInfo )
+		redir_handle = tmp_handle
+		devInfo = cptr( DEV_LPT_INFO ptr, tmp_handle->opaque )
+		devInfo->uiRefCount += 1
+	end if
+
+	if( devInfo->driver_opaque = 0 ) then
+		'' NOT OPEN YET: ask the platform driver.
+		res = tkrt_PrinterOpen( devInfo, devInfo->iPort, filename )
+	else
+		res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+		if( TKORT_HANDLE_USED( redir_handle ) ) then
+			'' THE ARROW REVERSES FOR THE LPRINT HANDLE -- see the file header.
+			if( handle = (TKORT_FILETB() + 1) ) then
+				redir_handle->redirection_to = handle
+				handle->width = redir_handle->width
+				handle->line_length = redir_handle->line_length
+			else
+				handle->redirection_to = redir_handle
+			end if
+		else
+			'' Found in the table but not in use. See the file header.
+			handle->width = 80
+		end if
+	end if
+
+	if( res = FB_RTERROR_OK ) then
+		handle->hooks = @tkort_hooks_dev_lpt
+		handle->opaque = devInfo
+		handle->type_ = FB_FILE_TYPE_PRINTER
+	else
+		if( devInfo->pszDevice <> 0 ) then free( devInfo->pszDevice )
+		free( devInfo )
+	end if
+
+	if( lpt_proto <> 0 ) then free( lpt_proto )
+
+	TKORT_IOUNLOCK()
+
+	return res
+end function
+
+'' WIDTH IS BOTH A GETTER AND A SETTER: width = -1 asks, anything else sets, and
+'' either way the CURRENT width comes back. default_width = -1 means "80".
+function tkort_DevPrinterSetWidth alias "fb_DevPrinterSetWidth" _
+	( byval pszDevice as zstring ptr, byval width_ as long, byval default_width as long ) as long
+
+	dim as FB_FILE ptr tmp_handle = 0
+	dim as long cur = iif( default_width = -1, 80, default_width )
+	dim as zstring ptr pszDev = any
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+
+	if( tkrt_DevLptParseProtocol( @lpt_proto, pszDevice, strlen( pszDevice ), 1 ) = 0 ) then
+		if( lpt_proto <> 0 ) then free( lpt_proto )
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	pszDev = tkort_lpt_make_device_name( lpt_proto )
+
+	'' no_redir TRUE: a handle that is itself redirected is not the real one.
+	tmp_handle = tkort_lpt_find_by_name( lpt_proto->iPort, pszDev, 1 )
+	if( tmp_handle <> 0 ) then
+		if( width_ <> -1 ) then tmp_handle->width = width_
+		cur = tmp_handle->width
+	end if
+
+	if( lpt_proto <> 0 ) then free( lpt_proto )
+	free( pszDev )
+
+	return cur
+end function
+
+'' THE OFFSET IS line_length -- how far along the current line the printer is --
+'' and it is what POS() reports for LPT. A printer that is not open reports 0,
+'' which is indistinguishable from one at the start of a line. fbc makes the
+'' same conflation.
+function tkort_DevPrinterGetOffset alias "fb_DevPrinterGetOffset" _
+	( byval pszDevice as zstring ptr ) as long
+
+	dim as FB_FILE ptr tmp_handle = 0
+	dim as long cur = 0
+	dim as zstring ptr pszDev = any
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+
+	if( tkrt_DevLptParseProtocol( @lpt_proto, pszDevice, strlen( pszDevice ), 1 ) = 0 ) then
+		if( lpt_proto <> 0 ) then free( lpt_proto )
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	pszDev = tkort_lpt_make_device_name( lpt_proto )
+
+	tmp_handle = tkort_lpt_find_by_name( lpt_proto->iPort, pszDev, 1 )
+	if( tmp_handle <> 0 ) then cur = tmp_handle->line_length
+
+	if( lpt_proto <> 0 ) then free( lpt_proto )
+	free( pszDev )
+
+	return cur
+end function
+
+end extern

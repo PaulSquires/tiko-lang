@@ -1,0 +1,222 @@
+'' assign.bas -- fb_StrAssign, fb_StrAssignEx, fb_StrInit (str_assign.o).
+''
+'' The hottest and most intricate entry point in the string core, and the one
+'' most worth having read rather than probed. Three of its behaviours are
+'' invisible from outside.
+''
+'' 1. THE WHOLE BODY RUNS UNDER ONE LOCK, with three exit paths, each unlocking
+''    before it returns. Not a wrapper around a locked helper -- the lock spans
+''    the descriptor surgery below, which is what makes that surgery safe.
+''
+''    FB_STRLOCK IS RECURSIVE on both platforms: CRITICAL_SECTION on win32/win64,
+''    and a pthread_mutex with PTHREAD_MUTEX_RECURSIVE set explicitly in
+''    unix/hinit.c. That is why fbc can call fb_hStrDelTempDesc from inside the
+''    lock, and why tiko-rt's core.bas -- whose fb_hStrDelTempDesc takes the lock
+''    where fbc's does not -- is a granularity difference rather than a deadlock.
+''    Checked before this file was written: a self-deadlock on Linux would be
+''    exactly the sort of bug that only appears under -mt, which this project
+''    cannot yet validate.
+''
+'' 2. A TEMPORARY SOURCE IS STOLEN, NOT COPIED. If src is a var-len descriptor
+''    carrying the temp bit, its data POINTER moves into dst, the source
+''    descriptor is zeroed, and the descriptor alone goes back to the pool via
+''    fb_hStrDelTempDesc -- not fb_hStrDelTemp, which would free the block dst
+''    now owns. It then returns EARLY, so the release at the bottom cannot run a
+''    second time.
+''
+''    This is the most valuable optimisation in the string runtime: `s = f(x)`
+''    moves a pointer instead of copying the characters. A probe could not have
+''    found it. The answer is identical either way and only the allocator
+''    traffic differs -- the same blind spot that hid the realloc/malloc split.
+''
+'' 3. INIT AND ASSIGN DIFFER ONLY IN WHAT THEY DO TO THE OLD VALUE. Assign calls
+''    fb_StrDelete first; init writes straight over the fields, because at init
+''    the destination is uninitialised memory whose "old value" is stack garbage.
+''
+'' 4. ASSIGN REALLOCATES ONLY WHEN THE LENGTH CHANGES -- `FB_STRSIZE(dst) <>
+''    src_len`. Init always calls fb_hStrAlloc. Two different allocator laws
+''    (RFC-0002 section 4.4) reached through one entry point.
+''
+'' 5. THE THREE DESTINATION FORMS PAD DIFFERENTLY. A fixed-length STRING pads
+''    with SPACES to its full width. A fixed-length ZSTRING truncates to
+''    dst_size - 1 and pads with NULs only if fill_rem says so. A zstring PTR
+''    (dst_size 0) assumes the caller's buffer is large enough, exactly as C does.
+
+#include once "inc/descriptors.bi"
+
+extern "rtlib"
+	declare sub fb_hStrCopy alias "fb_hStrCopy" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
+	declare sub fb_hStrCopyN alias "fb_hStrCopyN" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
+	declare function fb_hStrAlloc alias "fb_hStrAlloc" _
+		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
+	declare function fb_hStrRealloc alias "fb_hStrRealloc" _
+		( byval s as FBSTRING ptr, byval length as integer, byval keepdata as long ) as FBSTRING ptr
+	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTempDesc alias "fb_hStrDelTempDesc" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+function tkort_StrAssignEx alias "fb_StrAssignEx" _
+	( _
+		byval dst as any ptr, byval dst_size as integer, _
+		byval src as any ptr, byval src_size as integer, _
+		byval fill_rem as long, byval is_init as long _
+	) as any ptr
+
+	dim as FBSTRING ptr dstr = any
+	dim as zstring ptr src_ptr = any
+	dim as integer src_len = any
+
+	STRLOCK()
+
+	'' A NULL destination still consumes the source.
+	if( dst = 0 ) then
+		if( src_size = FB_STRSIZEVARLEN ) then
+			tkrt_DelTempNoLock( cptr( FBSTRING ptr, src ) )
+		end if
+		STRUNLOCK()
+		return dst
+	end if
+
+	FB_STRSETUP_FIX( src, src_size, src_ptr, src_len )
+
+	if( dst_size = FB_STRSIZEVARLEN ) then
+		dstr = cptr( FBSTRING ptr, dst )
+
+		if( src_len = 0 ) then
+			if( is_init = 0 ) then
+				tkrt_StrDelete( dstr )
+			else
+				'' At init there is no old value to free -- the fields hold
+				'' whatever the stack left behind.
+				dstr->data = 0
+				dstr->len = 0
+				dstr->size = 0
+			end if
+		else
+			dim as integer steal = 0
+			if( src_size = FB_STRSIZEVARLEN ) then
+				if( FB_ISTEMP( src ) ) then steal = 1
+			end if
+
+			if( steal <> 0 ) then
+				dim as FBSTRING ptr s = cptr( FBSTRING ptr, src )
+
+				if( is_init = 0 ) then tkrt_StrDelete( dstr )
+
+				'' Move the block. `len` is written RAW: the destination is an
+				'' ordinary string and must not inherit the temp bit.
+				dstr->data = src_ptr
+				dstr->len = src_len
+				dstr->size = s->size
+
+				s->data = 0
+				s->len = 0
+				s->size = 0
+
+				'' The DESCRIPTOR returns to the pool; the DATA does not,
+				'' because dst owns it now. fb_hStrDelTemp here would free it.
+				tkrt_DelTempDesc( s )
+
+				STRUNLOCK()
+				return dst
+			end if
+
+			if( is_init = 0 ) then
+				'' Reallocate only when the length actually changes.
+				if( FB_STRSIZE( dst ) <> src_len ) then
+					fb_hStrRealloc( dstr, src_len, 0 )
+				end if
+			else
+				fb_hStrAlloc( dstr, src_len )
+			end if
+
+			fb_hStrCopy( dstr->data, src_ptr, src_len )
+		end if
+
+	elseif( (dst_size and FB_STRISFIXED) <> 0 ) then
+		'' Fixed-length STRING: truncate, then pad the remainder with SPACES.
+		dst_size = dst_size and FB_STRSIZEMSK
+
+		if( src_len > 0 ) then
+			if( dst_size < src_len ) then src_len = dst_size
+			fb_hStrCopyN( dst, src_ptr, src_len )
+		end if
+
+		dst_size -= src_len
+		if( dst_size > 0 ) then
+			memset( cptr( ubyte ptr, dst ) + src_len, 32, dst_size )
+		end if
+
+	else
+		'' Fixed-length ZSTRING, or a plain zstring pointer.
+		if( src_len = 0 ) then
+			*cptr( ubyte ptr, dst ) = 0
+		else
+			if( dst_size = 0 ) then
+				'' A byte pointer: as in C, assume the caller's buffer fits.
+				dst_size = src_len
+			else
+				'' Less the terminator, then truncate.
+				dst_size -= 1
+				if( dst_size < src_len ) then src_len = dst_size
+			end if
+
+			fb_hStrCopy( dst, src_ptr, src_len )
+		end if
+
+		'' Only this form pads with NULs, and only when asked.
+		if( fill_rem <> 0 ) then
+			dst_size -= src_len
+			if( dst_size > 0 ) then
+				memset( cptr( ubyte ptr, dst ) + src_len, 0, dst_size )
+			end if
+		end if
+	end if
+
+	if( src_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTempNoLock( cptr( FBSTRING ptr, src ) )
+	end if
+
+	STRUNLOCK()
+
+	return dst
+
+end function
+
+function tkort_StrAssign alias "fb_StrAssign" _
+	( _
+		byval dst as any ptr, byval dst_size as integer, _
+		byval src as any ptr, byval src_size as integer, byval fill_rem as long _
+	) as any ptr
+	return tkort_StrAssignEx( dst, dst_size, src, src_size, fill_rem, 0 )
+end function
+
+'' FB_TRUE is -1 in FreeBASIC and 1 in C. is_init is only ever tested against
+'' zero, so either works -- but fbc passes C's FB_TRUE, and matching it keeps the
+'' two readable side by side.
+function tkort_StrInit alias "fb_StrInit" _
+	( _
+		byval dst as any ptr, byval dst_size as integer, _
+		byval src as any ptr, byval src_size as integer, byval fill_rem as long _
+	) as any ptr
+	return tkort_StrAssignEx( dst, dst_size, src, src_size, fill_rem, 1 )
+end function
+
+end extern

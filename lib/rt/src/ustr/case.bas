@@ -1,0 +1,111 @@
+'' case.bas -- ustr_case.o: UCASE and LCASE.
+''
+'' USES THE GENERATED BMP TABLE, NOT towupper/towlower. Those are
+'' LOCALE-DEPENDENT, so the same ustring would fold differently depending on the
+'' user's locale and on which libc the program linked against -- which is the
+'' exact platform divergence this type exists to remove. src/ustr/ops.bas makes
+'' the same choice for its ignore-case comparisons.
+''
+'' SIMPLE CASE MAPPING ONLY: one code unit in, one out. Mappings that change
+'' length -- German sharp s upper-casing to "SS", and the Turkish dotted/dotless
+'' i pair, which is locale-sensitive on top -- are NOT applied. That matches
+'' every other FB string type and is the most an in-place unit transform can
+'' express; a length-changing fold would also make UCASE's result size
+'' unpredictable from its input.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ustr.bi"
+#include once "inc/ctx.bi"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_StrLock alias "fb_StrLock" ( )
+		declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+	end extern
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+	declare function tkrt_UAllocTempDesc alias "fb_hUStrAllocTempDesc" ( ) as FBUSTRING ptr
+	declare function tkrt_UDelTempDesc alias "fb_hUStrDelTempDesc" ( byval s as FBUSTRING ptr ) as long
+	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
+		( byval s as FBUSTRING ptr ) as long
+	declare sub tkrt_UDelete alias "fb_UStrDelete" ( byval s as FBUSTRING ptr )
+	declare function tkrt_UAlloc alias "fb_hUStrAlloc" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare function tkrt_URealloc alias "fb_hUStrRealloc" _
+		( byval s as FBUSTRING ptr, byval units as integer, byval k as long ) as FBUSTRING ptr
+end extern
+
+'' Release a var-len operand. EVERY entry point that takes one must do this:
+'' LEN( a + b ) hands in a temporary built for the call and nothing else will
+'' free it. On the narrow side the same omission leaked 1,000 blocks per 1,000
+'' iterations while every output matched and every gate passed.
+private sub hRelTemp( byval src as any ptr, byval src_size as integer )
+	if( src_size = FB_USTRSIZEVARLEN ) then
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, src ) )
+	end if
+end sub
+
+extern "c"   '' NON-FBCALL: the fold table's accessors are declared plainly.
+	declare function tkrt_UToUpper alias "fb_hUStrToUpper" ( byval c as FB_UCHAR ) as FB_UCHAR
+	declare function tkrt_UToLower alias "fb_hUStrToLower" ( byval c as FB_UCHAR ) as FB_UCHAR
+end extern
+
+private function hCase _
+	( byval src as any ptr, byval src_size as integer, byval toupper_ as long ) as FBUSTRING ptr
+
+	dim as FB_UCHAR ptr src_ptr = any
+	dim as integer src_len = any
+	FB_USTRSETUP( src, src_size, src_ptr, src_len )
+
+	if( src_len <= 0 ) then return TKORT_UNULLSTR()
+
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( 0, src_len )
+	if( dst = 0 ) then return TKORT_UNULLSTR()
+
+	if( dst->data <> 0 ) then
+		if( toupper_ <> 0 ) then
+			for i as integer = 0 to src_len - 1
+				dst->data[i] = tkrt_UToUpper( src_ptr[i] )
+			next
+		else
+			for i as integer = 0 to src_len - 1
+				dst->data[i] = tkrt_UToLower( src_ptr[i] )
+			next
+		end if
+		'' The wide allocator writes no terminator; this one does.
+		dst->data[src_len] = 0
+	end if
+
+	return dst
+
+end function
+
+extern "rtlib"
+
+function tkort_UStrUcase alias "fb_UStrUcase" _
+	( byval src as any ptr, byval src_size as integer ) as FBUSTRING ptr
+	STRLOCK()
+	dim as FBUSTRING ptr dst = hCase( src, src_size, 1 )
+	hRelTemp( src, src_size )
+	STRUNLOCK()
+	return dst
+end function
+
+function tkort_UStrLcase alias "fb_UStrLcase" _
+	( byval src as any ptr, byval src_size as integer ) as FBUSTRING ptr
+	STRLOCK()
+	dim as FBUSTRING ptr dst = hCase( src, src_size, 0 )
+	hRelTemp( src, src_size )
+	STRUNLOCK()
+	return dst
+end function
+
+end extern

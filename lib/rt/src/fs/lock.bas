@@ -1,0 +1,307 @@
+'' lock.bas -- advisory file locking. Two entry points over one fbc member,
+'' split by platform.
+''
+'' THE FACILITY IS ADVISORY, and that is the only promise both platforms can
+'' keep. LockFileEx on Windows is MANDATORY -- the kernel enforces it against
+'' every process, whether or not that process asked. POSIX flock is ADVISORY --
+'' it binds only processes that also call it. Code that relies on the Windows
+'' behaviour silently protects nothing on Linux.
+''
+'' THE LOCK IS ON A FILE THIS OBJECT OPENS AND OWNS, not on a byte range of a
+'' file the caller already has open. That is the difference from the legacy
+'' Lock/Unlock, and it is what a lockfile guarding a build directory or a
+'' single-instance check actually needs.
+''
+'' flock, NOT fcntl, ON POSIX. fcntl locks are released when ANY descriptor for
+'' the file is closed by the process, not just the one that took the lock -- so
+'' an unrelated part of the program merely opening and closing the same lockfile
+'' silently drops it, with no error anywhere, and the library cannot defend
+'' against that. flock's lock belongs to the open file DESCRIPTION and only
+'' closing that descriptor releases it. Its cost is that it is unreliable over
+'' NFS, which is a limitation with a visible cause. A hazard the caller cannot
+'' see beats a limitation they can.
+''
+'' POLLED RATHER THAN BLOCKING, ON BOTH PLATFORMS, so that a timeout is
+'' expressible at all: LockFileEx without FAIL_IMMEDIATELY and a blocking flock
+'' both have no way to give up, and "wait forever" is the one behaviour a lock
+'' API must not force on a caller. 25 ms is short enough to feel instant and
+'' long enough not to spin a core.
+''
+'' CLOSING THE HANDLE RELEASES THE LOCK. The explicit unlock call is redundant
+'' and is omitted rather than written as reassurance.
+
+#include once "inc/descriptors.bi"
+#include once "inc/fserror.bi"
+#include once "inc/fspath.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+extern "rtlib"
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+end extern
+
+private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
+	static as FB_UCHAR empty_(0 to 0) = { 0 }
+	if( s = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	elseif( s->data = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	else
+		*ptr_ = s->data
+		*len_ = FB_USTRSIZE( s )
+	end if
+end sub
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+
+'' ---------------------------------------------------------- Windows backend
+
+const INVALID_HANDLE_VALUE_ = -1
+const GENERIC_READ_    = &h80000000ul
+const GENERIC_WRITE_   = &h40000000ul
+const FILE_SHARE_READ_   = &h00000001ul
+const FILE_SHARE_WRITE_  = &h00000002ul
+const FILE_SHARE_DELETE_ = &h00000004ul
+const OPEN_ALWAYS_       = 4
+const FILE_ATTRIBUTE_NORMAL_ = &h00000080ul
+const LOCKFILE_FAIL_IMMEDIATELY_ = &h00000001ul
+const LOCKFILE_EXCLUSIVE_LOCK_   = &h00000002ul
+const ERROR_LOCK_VIOLATION_ = 33
+const ERROR_IO_PENDING_     = 997
+
+'' OVERLAPPED is three pointer-sized fields plus hEvent; only its SIZE matters
+'' here, because it is passed zeroed and never read back.
+#if defined( __FB_64BIT__ )
+	const OVERLAPPED_SIZE_ = 32
+#else
+	const OVERLAPPED_SIZE_ = 20
+#endif
+
+type FB_FSLOCK
+	as any ptr h
+end type
+
+extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
+	declare function w_CreateFileW stdcall alias "CreateFileW" _
+		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
+		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+	declare function w_LockFileEx stdcall alias "LockFileEx" _
+		( byval h as any ptr, byval flags as ulong, byval reserved as ulong, _
+		  byval lo as ulong, byval hi as ulong, byval ov as any ptr ) as long
+	declare function w_GetLastError stdcall alias "GetLastError" ( ) as ulong
+	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as ulong )
+end extern
+
+private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any
+	dim as FB_UCHAR ptr w = any
+
+	hUArg( p, @s, @len_ )
+	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
+	if( w = 0 ) then return 0
+	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
+	w[len_] = 0
+	return cptr( wstring ptr, w )
+end function
+
+extern "rtlib"
+
+function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
+	( byval p as FBUSTRING ptr, byval exclusive as long, byval timeoutms as long, _
+	  byval out_ as FB_FSLOCK ptr ptr ) as long
+
+	dim as wstring ptr w = any
+	dim as FB_FSLOCK ptr l = any
+	dim as any ptr h = any
+	dim as ubyte ov( 0 to OVERLAPPED_SIZE_ - 1 ) = any
+	dim as ulong flags = LOCKFILE_FAIL_IMMEDIATELY_, e = any
+	dim as long waited = 0, r = any
+
+	*out_ = 0
+
+	w = hFsWide( p )
+	if( w = 0 ) then return FB_FS_UNKNOWN
+
+	'' OPEN_ALWAYS: the lockfile is created if it is not there, which is the
+	'' normal case for a lock that guards a directory rather than a document.
+	'' Sharing is wide open -- the LOCK is the exclusion mechanism, not the
+	'' share mode, and a restrictive share mode would make contenders fail to
+	'' OPEN rather than fail to LOCK, losing the timeout behaviour.
+	h = w_CreateFileW( w, GENERIC_READ_ or GENERIC_WRITE_, _
+		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
+		0, OPEN_ALWAYS_, FILE_ATTRIBUTE_NORMAL_, 0 )
+	free( w )
+
+	if( cast( integer, h ) = INVALID_HANDLE_VALUE_ ) then return tkrt_FsMapOsError( )
+
+	if( exclusive <> 0 ) then flags or= LOCKFILE_EXCLUSIVE_LOCK_
+
+	do
+		memset( @ov(0), 0, OVERLAPPED_SIZE_ )
+
+		'' A whole-file lock is a byte range of the maximum size: LockFileEx has
+		'' no "whole file" mode, and locking [0, 2^64-1) is the documented idiom
+		'' -- it works on a ZERO-LENGTH file, which matters, because a lockfile
+		'' usually has no contents at all.
+		if( w_LockFileEx( h, flags, 0, &hFFFFFFFFul, &hFFFFFFFFul, @ov(0) ) <> 0 ) then exit do
+
+		'' LOCKFILE_FAIL_IMMEDIATELY reports contention as ERROR_LOCK_VIOLATION;
+		'' anything else is a real failure.
+		e = w_GetLastError( )
+		if( (e <> ERROR_LOCK_VIOLATION_) andalso (e <> ERROR_IO_PENDING_) ) then
+			r = tkrt_FsMapOsError( )
+			w_CloseHandle( h )
+			return r
+		end if
+
+		if( timeoutms = 0 ) then
+			w_CloseHandle( h )
+			return FB_FS_IN_USE
+		end if
+
+		w_Sleep( 25 )
+		waited += 25
+
+		if( (timeoutms > 0) andalso (waited >= timeoutms) ) then
+			w_CloseHandle( h )
+			return FB_FS_IN_USE
+		end if
+	loop
+
+	l = calloc( 1, sizeof( FB_FSLOCK ) )
+	if( l = 0 ) then
+		w_CloseHandle( h )
+		return FB_FS_UNKNOWN
+	end if
+
+	l->h = h
+	*out_ = l
+	return FB_FS_OK
+end function
+
+sub tkort_FsLockRelease alias "fb_FsLockRelease" ( byval l as FB_FSLOCK ptr )
+	if( l = 0 ) then exit sub
+	if( cast( integer, l->h ) <> INVALID_HANDLE_VALUE_ ) then w_CloseHandle( l->h )
+	free( l )
+end sub
+
+end extern
+
+#else
+
+'' ------------------------------------------------------------ POSIX backend
+
+const O_RDWR_   = &o2
+const O_CREAT_  = &o100
+
+const LOCK_SH_ = 1
+const LOCK_EX_ = 2
+const LOCK_NB_ = 4
+
+const EINTR_      = 4
+const EAGAIN_     = 11          '' EWOULDBLOCK is the same value on Linux
+
+type FB_FSLOCK
+	as long fd
+end type
+
+extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
+	declare function u_open alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
+	declare function u_close alias "close" ( byval fd as long ) as long
+	declare function u_flock alias "flock" ( byval fd as long, byval op as long ) as long
+	declare function u_usleep alias "usleep" ( byval us as ulong ) as long
+	declare function u_errno_location alias "__errno_location" ( ) as long ptr
+	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
+		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
+end extern
+
+#define TKORT_ERRNO (*u_errno_location( ))
+
+private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, cap = any, n = any
+	dim as zstring ptr b = any
+
+	hUArg( p, @s, @len_ )
+	cap = len_ * 3 + 1
+	b = malloc( cap )
+	if( b = 0 ) then return 0
+	n = u_utf16to8( s, len_, b, cap - 1 )
+	if( n < 0 ) then n = 0
+	b[n] = 0
+	return b
+end function
+
+extern "rtlib"
+
+function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
+	( byval p as FBUSTRING ptr, byval exclusive as long, byval timeoutms as long, _
+	  byval out_ as FB_FSLOCK ptr ptr ) as long
+
+	dim as zstring ptr path_ = any
+	dim as FB_FSLOCK ptr l = any
+	dim as long fd = any, op = any, waited = 0, r = any, e = any
+
+	*out_ = 0
+
+	path_ = hFsNarrow( p )
+	if( path_ = 0 ) then return FB_FS_UNKNOWN
+
+	'' Created if absent -- the normal case for a lock guarding a directory
+	'' rather than a document. 0666 so a lock shared between users works; the
+	'' umask narrows it as the system intends.
+	fd = u_open( path_, O_RDWR_ or O_CREAT_, &o666 )
+	free( path_ )
+
+	if( fd < 0 ) then return tkrt_FsMapOsError( )
+
+	op = iif( exclusive <> 0, LOCK_EX_, LOCK_SH_ ) or LOCK_NB_
+
+	do
+		if( u_flock( fd, op ) = 0 ) then exit do
+
+		e = TKORT_ERRNO
+		if( e = EINTR_ ) then continue do
+
+		if( e <> EAGAIN_ ) then
+			r = tkrt_FsMapOsError( )
+			u_close( fd )
+			return r
+		end if
+
+		if( timeoutms = 0 ) then
+			u_close( fd )
+			return FB_FS_IN_USE
+		end if
+
+		u_usleep( 25000 )
+		waited += 25
+
+		if( (timeoutms > 0) andalso (waited >= timeoutms) ) then
+			u_close( fd )
+			return FB_FS_IN_USE
+		end if
+	loop
+
+	l = calloc( 1, sizeof( FB_FSLOCK ) )
+	if( l = 0 ) then
+		u_close( fd )
+		return FB_FS_UNKNOWN
+	end if
+
+	l->fd = fd
+	*out_ = l
+	return FB_FS_OK
+end function
+
+sub tkort_FsLockRelease alias "fb_FsLockRelease" ( byval l as FB_FSLOCK ptr )
+	if( l = 0 ) then exit sub
+	if( l->fd >= 0 ) then u_close( l->fd )
+	free( l )
+end sub
+
+end extern
+
+#endif

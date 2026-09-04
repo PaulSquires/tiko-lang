@@ -1,0 +1,150 @@
+'' hookkey.bas -- INKEY, GETKEY, KEYHIT and the port hooks: six entry points
+'' over two fbc members.
+''
+'' ================================================== GETKEY RELEASES THE LOCK
+''
+'' The print hook is CALLED under the lock. GETKEY is not: it reads the hook,
+'' releases, and only then calls -- because GETKEY BLOCKS. fbc's comment gives
+'' the reason and it is the whole design:
+''
+''   "getkey() is blocking, thus we shouldn't hold the FB_LOCK() for the whole
+''    duration, but only when needed, as short as possible, to allow other hooks
+''    to be called in the meantime. This of course requires the
+''    fb_ConsoleGetkey/fb_GfxGetkey to take care of synchronization themselves."
+''
+'' So the implementations behind this hook carry a synchronisation obligation
+'' that the print ones do not. INKEY and KEYHIT, which poll and return at once,
+'' keep the lock across the call like PRINT does.
+''
+'' Three sibling functions in one file, two locking disciplines, decided by
+'' whether the callee can block.
+''
+'' ================================================== THE PORTS FALL THROUGH
+''
+'' IN and OUT do NOT choose between hook and default -- they try the hook and
+'' fall through on a NEGATIVE RESULT:
+''
+''     res = -1
+''     if hook then res = hook( port )
+''     if res < 0 then res = fb_hIn( port )
+''
+'' So a hook may DECLINE a port by returning negative and let the real hardware
+'' path handle it, which a plain if/else could not express. The platform
+'' fb_hIn / fb_hOut stay fbc's -- they are the driver path.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_Lock alias "fb_Lock" ( )
+		declare sub fb_Unlock alias "fb_Unlock" ( )
+	end extern
+	#define IOLOCK()   fb_Lock()
+	#define IOUNLOCK() fb_Unlock()
+#else
+	#define IOLOCK()
+	#define IOUNLOCK()
+#endif
+
+const FB_RTERROR_OK = 0
+
+'' Their neighbours in fbc's fb_console.h carry FBCALL (fb_ConsoleGetSize is
+'' _fb_ConsoleGetSize@8 in the win32 libfb.a) but these three are declared
+'' PLAIN, so they are cdecl on every target -- _fb_ConsoleInkey /
+'' _fb_ConsoleGetkey / _fb_ConsoleKeyHit, no @N.
+'' Declaring them "rtlib" made no difference to the two that are only ever
+'' CALLED (zero arguments, so stdcall and cdecl agree, and the alias suppresses
+'' the decoration), but @tkrt_ConsoleGetkey is STORED in an FB_GETKEYPROC, and
+'' that typedef is cdecl because fbc's hook typedef is plain too. Only win32
+'' distinguishes the two conventions, so only win32 warned.
+extern "c"   '' NON-FBCALL, AND THE ONE PLACE IT SHOWS.
+	declare function tkrt_ConsoleInkey alias "fb_ConsoleInkey" ( ) as FBSTRING ptr
+	declare function tkrt_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as long
+	declare function tkrt_ConsoleKeyHit alias "fb_ConsoleKeyHit" ( ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: the platform port helpers.
+	declare function tkrt_hIn alias "fb_hIn" ( byval port as ushort ) as long
+	declare function tkrt_hOut alias "fb_hOut" ( byval port as ushort, byval value as ubyte ) as long
+end extern
+
+extern "rtlib"
+
+'' Polls and returns: the lock spans the call.
+function tkort_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
+	IOLOCK()
+	dim as FBSTRING ptr res = any
+	dim as FB_INKEYPROC p = TKORT_HOOK_INKEYPROC()
+	if( p <> 0 ) then
+		res = p( )
+	else
+		res = tkrt_ConsoleInkey( )
+	end if
+	IOUNLOCK()
+	return res
+end function
+
+'' BLOCKS: the lock covers only the hook lookup. See the header.
+function tkort_Getkey alias "fb_Getkey" ( ) as long
+	dim as FB_GETKEYPROC getkeyproc = any
+	IOLOCK()
+	getkeyproc = TKORT_HOOK_GETKEYPROC()
+	if( getkeyproc = 0 ) then getkeyproc = @tkrt_ConsoleGetkey
+	IOUNLOCK()
+	return getkeyproc( )
+end function
+
+function tkort_KeyHit alias "fb_KeyHit" ( ) as long
+	IOLOCK()
+	dim as long res = any
+	dim as FB_KEYHITPROC p = TKORT_HOOK_KEYHITPROC()
+	if( p <> 0 ) then
+		res = p( )
+	else
+		res = tkrt_ConsoleKeyHit( )
+	end if
+	IOUNLOCK()
+	return res
+end function
+
+'' A NEGATIVE RESULT MEANS "NOT HANDLED", so the hardware path runs after a
+'' declining hook rather than instead of a missing one.
+function tkort_In alias "fb_In" ( byval port as ushort ) as long
+	dim as long res = -1
+	IOLOCK()
+	dim as FB_INPROC p = TKORT_HOOK_INPROC()
+	if( p <> 0 ) then res = p( port )
+	if( res < 0 ) then res = tkrt_hIn( port )
+	IOUNLOCK()
+	return res
+end function
+
+function tkort_Out alias "fb_Out" _
+	( byval port as ushort, byval value as ubyte ) as long
+	dim as long res = -1
+	IOLOCK()
+	dim as FB_OUTPROC p = TKORT_HOOK_OUTPROC()
+	if( p <> 0 ) then res = p( port, value )
+	if( res < 0 ) then res = tkrt_hOut( port, value )
+	IOUNLOCK()
+	return res
+end function
+
+'' WAIT polls a port until (value XOR xor) AND and is non-zero.
+''
+'' NOTE IT PROPAGATES A NEGATIVE READ IMMEDIATELY rather than looping forever on
+'' a port that cannot be read -- the one exit that is not the condition being met.
+'' `and` and `xor` are FreeBASIC keywords, hence the trailing underscores.
+function tkort_Wait alias "fb_Wait" _
+	( byval port as ushort, byval and_ as long, byval xor_ as long ) as long
+	dim as long res = any
+	do
+		res = tkort_In( port )
+		if( res < 0 ) then return res
+		res xor= xor_
+	loop while( (res and and_) = 0 )
+	return FB_RTERROR_OK
+end function
+
+end extern

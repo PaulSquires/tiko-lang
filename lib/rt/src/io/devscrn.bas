@@ -1,0 +1,95 @@
+'' devscrn.bas -- the SCREEN device's lazy initialisation: five entry points
+'' over one fbc member.
+''
+'' THE SCREEN HANDLE IS SET UP ON FIRST USE, NOT AT STARTUP. Almost every I/O
+'' entry point calls fb_DevScrnInit_NoOpen first, and the guard is
+'' `hooks = NULL` -- so a program that never prints never touches the console.
+'' That laziness is why fb_GetSize can appear in a startup path without opening
+'' one, and why the hooks pointer, not a separate flag, is the "initialised"
+'' marker.
+''
+'' THE HOOK TABLE IS ALL NULLS. It exists only so the pointer is non-NULL: the
+'' screen has no read, no seek and no close, and every dispatcher tests the
+'' individual hook before calling it. Pointing it at a table of stubs would
+'' work too and would change what FB_HANDLE_USED means.
+''
+'' fb_DevScrnUpdateWidth READS THE CURSOR TO SET line_length, because a console
+'' can be resized under a running program and the padding logic in PRINT reads
+'' that field. line_length is the CURRENT COLUMN minus one, not a width -- the
+'' two live next to each other in the handle and mean different things.
+
+#include once "inc/descriptors.bi"
+#include once "inc/file.bi"
+#include once "inc/iolock.bi"
+#include once "crt/string.bi"
+#include once "crt/stdlib.bi"
+
+'' The SCREEN device's opaque block: a small pushback buffer for INPUT.
+type DEV_SCRN_INFO
+	as zstring * 16 buffer
+	as ulong        length_
+end type
+
+const FB_FILE_ACCESS_READWRITE = 3
+
+extern "rtlib"
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+	declare function tkrt_GetX alias "fb_GetX" ( ) as long
+end extern
+
+'' All-NULL, and file-scope so its address is stable for the life of the
+'' process. `static` in fbc, so there is no symbol to match.
+dim shared as FB_FILE_HOOKS hooks_dev_scrn_null
+
+extern "c"   '' NON-FBCALL: fb_device.h declares all five plain.
+
+sub tkort_DevScrnUpdateWidth alias "fb_DevScrnUpdateWidth" ( )
+	dim as long cols = any
+	tkrt_GetSize( @cols, 0 )
+	'' The COLUMN, minus one -- not the width. See the header.
+	TKORT_HANDLE_SCREEN()->line_length = tkrt_GetX( ) - 1
+	TKORT_HANDLE_SCREEN()->width = cols
+end sub
+
+'' Only if the screen was already initialised: otherwise there is nothing to
+'' update and asking would open a console.
+sub tkort_DevScrnMaybeUpdateWidth alias "fb_DevScrnMaybeUpdateWidth" ( )
+	if( TKORT_HANDLE_SCREEN()->hooks <> 0 ) then
+		tkort_DevScrnUpdateWidth( )
+	end if
+end sub
+
+sub tkort_DevScrnInit_Screen alias "fb_DevScrnInit_Screen" ( )
+	tkort_DevScrnUpdateWidth( )
+	TKORT_HANDLE_SCREEN()->opaque = calloc( 1, sizeof( DEV_SCRN_INFO ) )
+end sub
+
+sub tkort_DevScrnEnd alias "fb_DevScrnEnd" ( byval handle as FB_FILE ptr )
+	if( handle->opaque <> 0 ) then
+		free( handle->opaque )
+		handle->opaque = 0
+	end if
+end sub
+
+'' THE WHOLE HANDLE IS ZEROED FIRST, then four fields are set. Zeroing after
+'' setting them -- or skipping it because the table starts zeroed -- leaves a
+'' reopened screen carrying the previous run's line_length.
+sub tkort_DevScrnInit_NoOpen alias "fb_DevScrnInit_NoOpen" ( )
+	TKORT_IOLOCK()
+	if( TKORT_HANDLE_SCREEN()->hooks = 0 ) then
+		memset( TKORT_HANDLE_SCREEN(), 0, sizeof( FB_FILE ) )
+
+		TKORT_HANDLE_SCREEN()->mode = FB_FILE_MODE_APPEND
+		TKORT_HANDLE_SCREEN()->type_ = FB_FILE_TYPE_VFS
+		TKORT_HANDLE_SCREEN()->access = FB_FILE_ACCESS_READWRITE
+
+		tkort_DevScrnInit_Screen( )
+
+		'' Set LAST: it is the initialised flag, so publishing it before the
+		'' rest would let another thread see a half-built handle.
+		TKORT_HANDLE_SCREEN()->hooks = @hooks_dev_scrn_null
+	end if
+	TKORT_IOUNLOCK()
+end sub
+
+end extern

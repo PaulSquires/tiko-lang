@@ -1,0 +1,95 @@
+'' midassign.bas -- fb_StrAssignMid (str_midassign.o).
+''
+'' The MID STATEMENT: `mid( d, start, len ) = s`, which OVERWRITES part of the
+'' destination in place. Not to be confused with fb_StrMid (mid.bas), the
+'' function, which extracts.
+''
+'' It never grows the destination and never reallocates: the copy is clipped to
+'' whatever room start leaves.
+''
+''   start <= 0, or start > len(dst), or len = 0   -> nothing copied
+''   len < 0, or len > len(src)                    -> len = len(src)
+''   start + len > len(dst)                        -> len = len(dst) - start
+''
+'' A NULL, data-less or empty operand on EITHER side short-circuits -- and both
+'' guard paths still release BOTH temporaries before returning, which is the only
+'' interesting thing about them. Three exit paths, three releases; forget one and
+'' the pool leaks on a degenerate MID assignment.
+''
+'' The whole body is under one lock and uses the _NoLock releases.
+
+#include once "inc/descriptors.bi"
+
+extern "rtlib"
+	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+sub tkort_StrAssignMid alias "fb_StrAssignMid" _
+	( _
+		byval dst as FBSTRING ptr, byval start as integer, _
+		byval length as integer, byval src as FBSTRING ptr _
+	)
+
+	STRLOCK()
+
+	dim as integer dst_ok = 0
+	if( dst <> 0 ) then
+		if( dst->data <> 0 ) then
+			if( FB_STRSIZE( dst ) <> 0 ) then dst_ok = 1
+		end if
+	end if
+
+	if( dst_ok = 0 ) then
+		tkrt_DelTempNoLock( src )
+		tkrt_DelTempNoLock( dst )
+		STRUNLOCK()
+		exit sub
+	end if
+
+	dim as integer src_ok = 0
+	if( src <> 0 ) then
+		if( src->data <> 0 ) then
+			if( FB_STRSIZE( src ) <> 0 ) then src_ok = 1
+		end if
+	end if
+
+	if( src_ok = 0 ) then
+		tkrt_DelTempNoLock( src )
+		tkrt_DelTempNoLock( dst )
+		STRUNLOCK()
+		exit sub
+	end if
+
+	dim as integer src_len = FB_STRSIZE( src )
+	dim as integer dst_len = FB_STRSIZE( dst )
+
+	if( (start > 0) andalso (start <= dst_len) andalso (length <> 0) ) then
+		start -= 1
+
+		if( (length < 0) orelse (length > src_len) ) then length = src_len
+		if( start + length > dst_len ) then length = dst_len - start
+
+		memcpy( cptr( ubyte ptr, dst->data ) + start, src->data, length )
+	end if
+
+	tkrt_DelTempNoLock( src )
+	tkrt_DelTempNoLock( dst )
+
+	STRUNLOCK()
+
+end sub
+
+end extern

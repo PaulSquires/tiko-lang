@@ -1,0 +1,234 @@
+'' arrayerase.bas -- ERASE, in its six forms. Ten symbols across seven fbc
+'' members, and portable.
+''
+'' SIX ENTRY POINTS BECAUSE THE COMPILER KNOWS THINGS THE RUNTIME DOES NOT. fbc
+'' picks the call from what it can prove at compile time:
+''
+''   known FIXED-LEN, plain elements        fb_ArrayClear
+''   known FIXED-LEN, STRING*N elements     fb_ArrayFill        (fills with 32)
+''   known FIXED-LEN, objects               fb_ArrayClearObj
+''   dynamic or unknown, plain              fb_ArrayErase
+''   dynamic or unknown, objects            fb_ArrayEraseObj
+''   var-len STRING elements, either        fb_ArrayDestructStr / fb_ArrayStrErase
+''
+'' The three "unknown" forms re-test FBARRAY_FLAGS_FIXED_LEN at RUN time and
+'' route to the clear-only path; the three "known" forms do not test it at all.
+'' Calling the wrong one is not a crash -- it FREES A FIXED-LENGTH ARRAY'S
+'' STORAGE, which the descriptor does not own.
+''
+'' STRING*N IS FILLED WITH SPACES, NOT ZEROED. fb_ArrayFill exists for exactly
+'' that: an erased fixed-length string array holds blanks, because that is what
+'' an empty STRING*N is in BASIC. Zeroing it would make every element compare
+'' equal to a string of NULs instead.
+''
+'' DESTRUCTORS RUN IN REVERSE ORDER, from the last element down. That is the
+'' inverse of construction and is the C++ rule fbc follows; running them forward
+'' would destroy an element that a later element's destructor still refers to.
+''
+'' keep_idx IS WHY THE DTOR HELPERS ARE SEPARATE FROM THE ENTRY POINTS. REDIM
+'' PRESERVE shrinking an array destroys only the elements PAST the new end, so
+'' the loop stops at keep_idx rather than at zero. The public ERASE forms pass
+'' zero.
+''
+'' fb_ArrayClear MEMSETS array->size BYTES FROM base_ptr, not from index_ptr.
+'' index_ptr is @array(lbound...) and points INTO the block, so clearing from it
+'' would run off the end by exactly the lbound offset.
+
+#include once "inc/descriptors.bi"
+#include once "inc/rterror.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+'' fb_array.h: void (*)( void * ), cdecl.
+type FB_DEFCTOR as sub cdecl ( byval this_ as any ptr )
+'' void (*)( FBARRAY *, FB_DEFCTOR, size_t ), cdecl. Passed to fb_hArrayRealloc
+'' so it can destroy the tail of a shrinking array without knowing what is in it.
+type FB_DTORMULT as sub cdecl ( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval base_idx as uinteger )
+
+'' STRING*N erases to spaces.
+const FILL_SPACE = 32
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ArrayLen alias "fb_ArrayLen" ( byval a as FBARRAY ptr ) as uinteger
+	declare sub tkrt_ArrayResetDesc alias "fb_ArrayResetDesc" ( byval a as FBARRAY ptr )
+	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+end extern
+
+extern "rtlib"
+
+declare function tkort_ArrayClear alias "fb_ArrayClear" ( byval a as FBARRAY ptr ) as long
+declare function tkort_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as long
+declare sub tkort_ArrayDestructObj alias "fb_ArrayDestructObj" _
+	( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR )
+declare function tkort_ArrayClearObj alias "fb_ArrayClearObj" _
+	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+declare sub tkort_ArrayDestructStr alias "fb_ArrayDestructStr" ( byval a as FBARRAY ptr )
+
+'' ------------------------------------------------------------------ clear
+
+'' A NULL base_ptr IS NOT AN ERROR. A global dynamic array that was never
+'' allocated still gets erased at program exit.
+function tkort_ArrayClear alias "fb_ArrayClear" ( byval a as FBARRAY ptr ) as long
+	if( a->base_ptr <> 0 ) then memset( a->base_ptr, 0, a->size )
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' The STRING*N form. Same memset, a caller-chosen byte -- fbc passes 32.
+function tkort_ArrayFill alias "fb_ArrayFill" _
+	( byval a as FBARRAY ptr, byval fillchar as long ) as long
+
+	if( a->base_ptr <> 0 ) then memset( a->base_ptr, fillchar, a->size )
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern
+
+'' ------------------------------------------------------------------ the loops
+''
+'' Three loops, one shape, and each is a separate SYMBOL because REDIM PRESERVE
+'' needs to call them through a pointer with a non-zero keep_idx.
+
+extern "c"   '' NON-FBCALL: fb_array.h declares the h-prefixed helpers plainly,
+             '' and they are also called through an FB_DTORMULT pointer.
+
+'' Forward, from the first element up -- construction order.
+sub tkort_ArrayCtorObj alias "fb_hArrayCtorObj" _
+	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR )
+
+	if( a->base_ptr = 0 ) then exit sub
+
+	dim as uinteger elements = tkrt_ArrayLen( a )
+	dim as uinteger element_len = a->element_len
+	dim as ubyte ptr this_ = cast( ubyte ptr, a->base_ptr )
+
+	while( elements > 0 )
+		ctor( this_ )
+		this_ += element_len
+		elements -= 1
+	wend
+end sub
+
+'' BACKWARD, from the last element down, and stopping at keep_idx. See the header.
+sub tkort_ArrayDtorObj alias "fb_hArrayDtorObj" _
+	( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval keep_idx as uinteger )
+
+	if( a->base_ptr = 0 ) then exit sub
+
+	dim as uinteger elements = tkrt_ArrayLen( a )
+	dim as uinteger element_len = a->element_len
+	dim as ubyte ptr this_ = cast( ubyte ptr, a->base_ptr ) + ((elements - 1) * element_len)
+
+	while( elements > keep_idx )
+		dtor( this_ )
+		this_ -= element_len
+		elements -= 1
+	wend
+end sub
+
+'' The same walk over FBSTRING elements. THE dtor PARAMETER IS IGNORED -- it
+'' exists so this can be used as an FB_DTORMULT, and a var-len string's
+'' destructor is always fb_StrDelete.
+''
+'' A NULL data POINTER IS SKIPPED rather than passed to fb_StrDelete: an
+'' unassigned element has no allocation, and deleting it would be a free of NULL
+'' inside a lock for no reason.
+sub tkort_ArrayDtorStr alias "fb_hArrayDtorStr" _
+	( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval keep_idx as uinteger )
+
+	if( a->base_ptr = 0 ) then exit sub
+
+	dim as uinteger elements = tkrt_ArrayLen( a )
+	dim as FBSTRING ptr this_ = cast( FBSTRING ptr, a->base_ptr ) + (elements - 1)
+
+	while( elements > keep_idx )
+		if( this_->data <> 0 ) then tkrt_StrDelete( this_ )
+		this_ -= 1
+		elements -= 1
+	wend
+end sub
+
+end extern
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------ destruct
+
+sub tkort_ArrayDestructObj alias "fb_ArrayDestructObj" _
+	( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR )
+
+	tkort_ArrayDtorObj( a, dtor, 0 )
+end sub
+
+sub tkort_ArrayDestructStr alias "fb_ArrayDestructStr" ( byval a as FBARRAY ptr )
+	tkort_ArrayDtorStr( a, 0, 0 )
+end sub
+
+'' ------------------------------------------------------------------ erase
+
+'' FIXED-LENGTH ARRAYS ARE CLEARED, NEVER FREED. Their storage is not the
+'' descriptor's -- it is a global, a local or a UDT field -- so freeing it would
+'' free memory the descriptor does not own.
+function tkort_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as long
+
+	'' NULL is legal: a global dynamic array that was never allocated is still
+	'' destroyed at exit.
+	if( a->base_ptr <> 0 ) then
+		if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) <> 0 ) then
+			tkort_ArrayClear( a )
+		else
+			free( a->base_ptr )
+			tkrt_ArrayResetDesc( a )
+		end if
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' EITHER ctor OR dtor MAY BE NULL. A type with only a destructor gets
+'' fb_ArrayClear instead of construction; a type with only a constructor gets no
+'' destruction pass -- and the constructor is then responsible for the whole
+'' initialisation, which is why the clear is skipped when it exists.
+function tkort_ArrayClearObj alias "fb_ArrayClearObj" _
+	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+
+	if( dtor <> 0 ) then tkort_ArrayDestructObj( a, dtor )
+
+	if( ctor <> 0 ) then
+		tkort_ArrayCtorObj( a, ctor )
+	else
+		tkort_ArrayClear( a )
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' The run-time test fb_ArrayClearObj does not make.
+function tkort_ArrayEraseObj alias "fb_ArrayEraseObj" _
+	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+
+	if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) <> 0 ) then
+		tkort_ArrayClearObj( a, ctor, dtor )
+	else
+		if( dtor <> 0 ) then tkort_ArrayDestructObj( a, dtor )
+		tkort_ArrayErase( a )
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' THE NULL TEST IS AFTER THE DESTRUCT, NOT BEFORE, and that is fbc's order:
+'' fb_ArrayDestructStr already tolerates a NULL base_ptr, and the `a <> 0` guard
+'' here is on the DESCRIPTOR rather than on its storage. Moving the test earlier
+'' would change nothing; moving the destruct later would leak every element of a
+'' fixed-length string array.
+sub tkort_ArrayStrErase alias "fb_ArrayStrErase" ( byval a as FBARRAY ptr )
+
+	tkort_ArrayDestructStr( a )
+
+	if( (a <> 0) andalso ((a->flags and FBARRAY_FLAGS_FIXED_LEN) = 0) ) then
+		tkort_ArrayErase( a )
+	end if
+end sub
+
+end extern

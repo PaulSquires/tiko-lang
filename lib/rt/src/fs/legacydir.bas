@@ -1,0 +1,515 @@
+'' legacydir.bas -- DIR, the legacy one-cursor-per-thread directory scan, and
+'' the destructor that closes it when the thread dies. Two symbols, one fbc
+'' member.
+''
+'' ONE CURSOR PER THREAD, AND THAT IS THE WHOLE CHARACTER OF THIS ENTRY POINT.
+'' The state lives in a TLS FB_DIRCTX, so two interleaved scans on one thread
+'' destroy each other -- which is why every FB program that recurses through
+'' directories has to buffer a whole level into an array before descending. The
+'' reentrant replacement is fb_UStrFsDirOpen and friends; this is kept because
+'' DIR is in the language.
+''
+'' THE PROTOCOL IS THE ARGUMENT'S LENGTH: a non-empty filespec is FINDFIRST and
+'' an empty one is FINDNEXT. There is no separate entry point and no handle in
+'' the caller's hands.
+''
+'' AND THE TWO PLATFORMS DO NOT SHARE ONE LINE OF IT.
+''
+''   Windows  _findfirst/_findnext do the globbing IN THE C RUNTIME, and the
+''            attributes come back in the find record for free.
+''   POSIX    opendir/readdir cannot glob, so the pattern is split off by hand,
+''            every entry is stat'd, the DOS attribute bits are SYNTHESISED from
+''            the mode, and a hand-written wildcard matcher does the rest.
+''
+'' THE ATTRIBUTE MASK IS AN EXCLUSION TEST, NOT AN INCLUSION ONE. The loop skips
+'' an entry while `entry_attrib AND (NOT ctx->attrib)` is non-zero -- so a bit
+'' the caller did NOT ask for rejects the entry, and asking for nothing matches
+'' only files with no attributes at all. Windows widens the mask with 0xFFFFFF00
+'' first so that bits newer Windows versions invent cannot reject everything;
+'' POSIX does not, because it builds the bits itself.
+''
+'' `if( (attrib AND &h10) = 0 ) then attrib OR= &h20` ON BOTH PLATFORMS: a caller
+'' who did not ask for directories is given ARCHIVE, so plain files match. It
+'' reads like a typo for the archive bit and it is not -- 0x10 is DIRECTORY and
+'' 0x20 is ARCHIVE.
+''
+'' THE POSIX HIDDEN BIT IS "THE NAME STARTS WITH A DOT", which means `.` and `..`
+'' are hidden rather than filtered -- so DIR on Linux returns them when the mask
+'' allows, and on Windows it also returns them because the CRT does. Callers must
+'' filter; fb_UStrFsDirOpen filters for them and this does not.
+''
+'' AND THE POSIX WILDCARD MATCHER IS NOT fnmatch. It is a hand-written
+'' backtracking loop over '*' and '?', it treats "*.*" and "*." as "*" to match
+'' DOS, and it has no character classes. A filespec with brackets in it matches
+'' them literally.
+''
+'' THE RESULT IS A TEMP DESCRIPTOR AND THE ARGUMENT IS DELETED, both under the
+'' string lock -- so a failed allocation gives the NULL DESCRIPTOR rather than
+'' NULL, and out_attrib is zeroed only on the not-found path.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+#include once "inc/thread.bi"
+#include once "crt/string.bi"
+
+const TKORT_DIR_MAX_PATH = 1024      '' fb.h's MAX_PATH, which is NOT Windows'
+                                     '' 260 -- fbc defines its own.
+
+'' FB_TLSKEY_DIR. The enum is ERROR, DIR, INPUT, ... so DIR is 1, and it is
+'' spelled as a number here because the enum is C's.
+const FB_TLSKEY_DIR_ = 1
+
+extern "c"   '' NON-FBCALL: the TLS allocator and the string internals are all
+             '' declared plain in fb_thread.h and fb_string.h.
+	declare function tkrt_TlsGetCtx alias "fb_TlsGetCtx" _
+		( byval id as long, byval size_ as uinteger, byval dtor as any ptr ) as any ptr
+	declare function tkrt_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
+		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
+	declare sub tkrt_hStrCopy alias "fb_hStrCopy" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval l as integer )
+	declare function tkrt_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+'' THE STRING LOCK IS A NO-OP IN THE ST BUILD, exactly as fbc's FB_STRLOCK macro
+'' is -- the same spelling src/str/assign.bas uses.
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+#ifdef __FB_WIN32__
+
+	'' FB_DIRCTX, MEASURED FROM fbc's OWN OBJECTS because there are no 32-bit
+	'' MinGW headers on this machine. Disassembling `fb_Dir` in both
+	'' obj/win32/file_dir.o and obj/win64/file_dir.o gives, identically:
+	''
+	''   fb_TlsGetCtx( 1, 0x138, dtor )   -> sizeof( FB_DIRCTX ) = 312
+	''   lea 0x8(%rax)                    -> data   at offset 8
+	''   mov %rax, 0x130(%rdx)            -> handle at offset 304
+	''   add $0x2c, %rax                  -> data.name at 8 + 36
+	''
+	'' and a C probe on win64 confirms `struct _finddata_t` is 296 bytes with
+	'' attrib at 0 and name at 36. The two targets agree because every field is
+	'' fixed-width and time_t is 64-bit on both under MinGW-w64.
+	type FB_DIRCTX_
+		as long     in_use
+		as long     attrib
+		as ulong    d_attrib               '' data.attrib
+		as ulong    d_pad0                 '' padding to the 8-aligned times
+		as longint  d_time_create
+		as longint  d_time_access
+		as longint  d_time_write
+		as ulong    d_size
+		as zstring * 260 d_name            '' 44 .. 303, ending exactly where
+		                                   '' handle begins -- the #asserts
+		                                   '' below are what proved that, after
+		                                   '' a guessed pad byte made the struct
+		                                   '' 320 and both of them fail.
+		as integer  handle                 '' intptr_t
+	end type
+
+	#assert offsetof( FB_DIRCTX_, d_attrib ) = 8
+	#assert offsetof( FB_DIRCTX_, d_name ) = 8 + 36
+	#assert offsetof( FB_DIRCTX_, handle ) = 304
+	#assert sizeof( FB_DIRCTX_ ) = 312
+
+	extern "c"   '' NON-FBCALL: MSVCRT's find family, whose C names all carry a
+	             '' leading underscore that the alias supplies.
+		declare function crt_findfirst alias "_findfirst" _
+			( byval spec as zstring ptr, byval data_ as any ptr ) as integer
+		declare function crt_findnext alias "_findnext" _
+			( byval h as integer, byval data_ as any ptr ) as long
+		declare function crt_findclose alias "_findclose" ( byval h as integer ) as long
+	end extern
+
+#else
+
+	'' The POSIX context: no find record, but two MAX_PATH buffers -- the
+	'' pattern and the directory it was split off -- because opendir cannot glob
+	'' and the pattern has to survive until the next readdir.
+	type FB_DIRCTX_
+		as long     in_use
+		as long     attrib
+		as any ptr  dir_
+		as zstring * TKORT_DIR_MAX_PATH filespec
+		as zstring * TKORT_DIR_MAX_PATH dirname
+	end type
+
+	'' struct stat and struct dirent, MEASURED under WSL against glibc:
+	''   stat   size 144, st_mode 24, st_uid 28, st_gid 32
+	''   dirent size 280, d_name 19
+	const STAT_BUF_SIZE_ = 144
+	const STAT_MODE_     = 24
+	const STAT_UID_      = 28
+	const STAT_GID_      = 32
+	const DIRENT_NAME_   = 19
+
+	'' The mode bits, measured with the same probe -- they are macros in C and
+	'' the numbers are not universal across libcs.
+	const S_IWUSR_ = &o200
+	const S_IWGRP_ = &o20
+	const S_IWOTH_ = &o2
+	const S_IFMT_  = &o170000
+	const S_IFDIR_ = &o40000
+	const S_IFCHR_ = &o20000
+	const S_IFBLK_ = &o60000
+	const S_IFIFO_ = &o10000
+	const S_IFSOCK_= &o140000
+
+	type STATBUF_
+		as ubyte raw( 0 to STAT_BUF_SIZE_ - 1 )
+	end type
+
+	extern "c"   '' NON-FBCALL: libc. `stat64` and not `stat`, for the same
+	             '' reason fs/fileops2.bas gives -- plain `stat` is a macro whose
+	             '' expansion binds a different struct.
+		declare function u_stat alias "stat64" _
+			( byval path as zstring ptr, byval buf as STATBUF_ ptr ) as long
+		declare function u_opendir alias "opendir" ( byval path as zstring ptr ) as any ptr
+		declare function u_readdir alias "readdir" ( byval d as any ptr ) as any ptr
+		declare function u_closedir alias "closedir" ( byval d as any ptr ) as long
+		declare function u_geteuid alias "geteuid" ( ) as ulong
+		declare function u_getegid alias "getegid" ( ) as ulong
+	end extern
+
+#endif
+
+'' The one place the context is fetched. fbc's FB_TLSGETCTX macro pastes three
+'' names out of one token, which FreeBASIC's preprocessor cannot do -- so it is
+'' spelled out, exactly as inc/thread.bi does for FBTHREAD.
+#define TKORT_TLSGET_DIR() _
+	cptr( FB_DIRCTX_ ptr, tkrt_TlsGetCtx( FB_TLSKEY_DIR_, sizeof( FB_DIRCTX_ ), _
+	                                      cast( any ptr, @tkort_DIRCTX_Destructor ) ) )
+
+'' THE FORWARD DECLARATION DECIDES THE CALLING CONVENTION, and it must be inside
+'' the same EXTERN "c" block as the definition. Written at file scope it took
+'' FreeBASIC's win32 stdcall default and the definition below did NOT override
+'' it: the symbol came out `_fb_DIRCTX_Destructor@4` where fbc spells it
+'' `_fb_DIRCTX_Destructor`. Both targets built clean; only symbols.sh saw it.
+'' This is the second time in this port -- src/io/devscrn2.bas had eight of them.
+extern "c"   '' NON-FBCALL, as the definition below.
+	declare sub tkort_DIRCTX_Destructor alias "fb_DIRCTX_Destructor" ( byval data_ as any ptr )
+end extern
+
+extern "c"   '' NON-FBCALL for the destructor; fb_Dir itself is FBCALL and is
+             '' defined in its own block below.
+
+private sub hCloseDirInternal( byval ctx as FB_DIRCTX_ ptr )
+	#ifdef __FB_WIN32__
+		crt_findclose( ctx->handle )
+	#else
+		u_closedir( ctx->dir_ )
+	#endif
+	ctx->in_use = 0
+end sub
+
+'' CALLED BY THE TLS LAYER WHEN THE THREAD ENDS, with the context as an untyped
+'' pointer. A thread that exits mid-scan leaks the OS handle without this.
+sub tkort_DIRCTX_Destructor alias "fb_DIRCTX_Destructor" ( byval data_ as any ptr )
+	dim as FB_DIRCTX_ ptr ctx = cptr( FB_DIRCTX_ ptr, data_ )
+	if( ctx->in_use <> 0 ) then hCloseDirInternal( ctx )
+end sub
+
+private sub hCloseDir( )
+	hCloseDirInternal( TKORT_TLSGET_DIR( ) )
+end sub
+
+#ifndef __FB_WIN32__
+
+'' THE DOS ATTRIBUTE BITS, SYNTHESISED FROM A POSIX MODE. Nothing here is a
+'' translation of a real attribute -- POSIX has none -- so each bit is a
+'' convention:
+''
+''   0x01 read-only   the WRITE bit is clear for THIS process's relationship to
+''                    the file: owner, else group, else other. So the same file
+''                    is read-only for one user and not another.
+''   0x02 hidden      the name starts with a dot. `.` and `..` are therefore
+''                    hidden rather than filtered -- see the file header.
+''   0x04 system      a character device, block device, FIFO or socket.
+''   0x10 directory / 0x20 archive, and exactly one of the two is always set.
+private function hGetAttrib( byval name_ as zstring ptr, byval info as STATBUF_ ptr ) as long
+
+	dim as long attrib = 0, mask = any
+	dim as ulong mode_ = *cptr( ulong ptr, @info->raw(STAT_MODE_) )
+	dim as ulong uid = *cptr( ulong ptr, @info->raw(STAT_UID_) )
+	dim as ulong gid = *cptr( ulong ptr, @info->raw(STAT_GID_) )
+
+	if( uid = u_geteuid( ) ) then
+		mask = S_IWUSR_
+	elseif( gid = u_getegid( ) ) then
+		mask = S_IWGRP_
+	else
+		mask = S_IWOTH_
+	end if
+
+	if( (mode_ and mask) = 0 ) then attrib or= &h1
+
+	if( name_[0] = 46 ) then attrib or= &h2          '' '.'
+
+	dim as ulong fmt = mode_ and S_IFMT_
+	if( (fmt = S_IFCHR_) orelse (fmt = S_IFBLK_) orelse _
+	    (fmt = S_IFIFO_) orelse (fmt = S_IFSOCK_) ) then attrib or= &h4
+
+	if( fmt = S_IFDIR_ ) then
+		attrib or= &h10
+	else
+		attrib or= &h20
+	end if
+
+	return attrib
+end function
+
+'' A HAND-WRITTEN BACKTRACKING MATCHER, not fnmatch -- '*' and '?' only, no
+'' character classes, and a bracket matches itself. `any` remembers the last '*'
+'' so a failed literal can restart there.
+''
+'' THE LOOP CONDITION IS `(*spec) OR (*name)`, so a spec that runs out with name
+'' left over falls into the default branch and compares NUL against a character.
+'' That is what makes "ab" not match "abc" without a separate length test.
+private function hMatchSpec( byval name_ as zstring ptr ) as long
+
+	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
+	dim as zstring ptr any_ = 0
+	dim as zstring ptr spec = @ctx->filespec
+
+	while( (spec[0] <> 0) orelse (name_[0] <> 0) )
+		'' THE SELECTOR IS CAST EXPLICITLY. `spec[0]` on a `zstring ptr` types as
+		'' a one-character ZSTRING rather than a byte, so `select case spec[0]`
+		'' compared a string against an integer literal and gave error 24 --
+		'' pointing at the trailing comment, not at the selector, which is why
+		'' the first two attempts to fix it removed the wrong thing.
+		select case cast( long, spec[0] )
+		case 42                                  '' asterisk
+			any_ = spec
+			spec += 1
+			'' SKIP TO THE NEXT CHARACTER THE SPEC WANTS -- or to the end.
+			while( (name_[0] <> spec[0]) andalso (name_[0] <> 0) )
+				name_ += 1
+			wend
+
+		case 63                                  '' question mark
+			spec += 1
+			if( name_[0] <> 0 ) then name_ += 1
+
+		case else
+			if( spec[0] <> name_[0] ) then
+				'' BACKTRACK TO THE LAST '*' if there was one and there is
+				'' still input; otherwise the match has failed.
+				if( (any_ <> 0) andalso (name_[0] <> 0) ) then
+					spec = any_
+				else
+					return 0
+				end if
+			else
+				spec += 1
+				name_ += 1
+			end if
+		end select
+	wend
+
+	return 1
+end function
+
+#endif
+
+'' ADVANCES TO THE NEXT MATCH, or closes the scan and returns NULL. The two
+'' platforms share only the shape.
+private function hFindNext( byval attrib as long ptr ) as zstring ptr
+
+	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
+	dim as zstring ptr name_ = 0
+
+	#ifdef __FB_WIN32__
+		do
+			if( crt_findnext( ctx->handle, @ctx->d_attrib ) <> 0 ) then
+				hCloseDir( )
+				return 0
+			end if
+			name_ = @ctx->d_name
+		loop while( (ctx->d_attrib and (not ctx->attrib)) <> 0 )
+
+		'' THE HIGH 24 BITS ARE MASKED OFF on the way out, so the caller never
+		'' sees a Windows-only attribute the mask was widened to tolerate.
+		*attrib = ctx->d_attrib and (not &hFFFFFF00)
+		return name_
+	#else
+		dim as STATBUF_ info = any
+		dim as zstring * TKORT_DIR_MAX_PATH buffer = any
+
+		do
+			dim as any ptr entry = u_readdir( ctx->dir_ )
+			if( entry = 0 ) then
+				hCloseDir( )
+				return 0
+			end if
+			name_ = cptr( zstring ptr, cptr( ubyte ptr, entry ) + DIRENT_NAME_ )
+
+			'' THE FULL PATH IS REBUILT FOR EVERY ENTRY because readdir gives a
+			'' bare name and stat needs a path. Both concatenations are bounded
+			'' and both re-terminate, because strncpy does not.
+			strncpy( @buffer, @ctx->dirname, TKORT_DIR_MAX_PATH )
+			buffer[TKORT_DIR_MAX_PATH - 1] = 0
+			strncat( @buffer, name_, TKORT_DIR_MAX_PATH - strlen( @buffer ) - 1 )
+			buffer[TKORT_DIR_MAX_PATH - 1] = 0
+
+			'' AN ENTRY THAT CANNOT BE STAT'D IS SKIPPED, not reported -- a
+			'' dangling symlink simply does not appear.
+			if( u_stat( @buffer, @info ) = 0 ) then
+				*attrib = hGetAttrib( name_, @info )
+				if( ((*attrib and (not ctx->attrib)) = 0) andalso _
+				    (hMatchSpec( name_ ) <> 0) ) then
+					return name_
+				end if
+			end if
+		loop
+	#endif
+end function
+
+end extern
+
+extern "rtlib"   '' FBCALL: fb_file.h decorates fb_Dir, and the win32 archive
+                 '' spells it `_fb_Dir@12`.
+
+function tkort_Dir alias "fb_Dir" _
+	( byval filespec as FBSTRING ptr, byval attrib as long, _
+	  byval out_attrib as long ptr ) as FBSTRING ptr
+
+	dim as FBSTRING ptr res = any
+	dim as integer l = any
+	dim as long tmp_attrib = any
+	dim as zstring ptr name_ = 0
+
+	'' out_attrib IS OPTIONAL and is redirected at a local rather than tested
+	'' at every write -- so everything below can assume it.
+	if( out_attrib = 0 ) then out_attrib = @tmp_attrib
+
+	l = FB_STRSIZE( filespec )
+
+	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
+
+	if( l > 0 ) then
+		'' ------------------------------------------------------- FINDFIRST
+
+		'' A NEW SCAN ABANDONS THE OLD ONE, which is the one-cursor rule made
+		'' concrete.
+		if( ctx->in_use <> 0 ) then hCloseDir( )
+
+		#ifdef __FB_WIN32__
+			ctx->handle = crt_findfirst( filespec->data, @ctx->d_attrib )
+
+			if( ctx->handle <> -1 ) then
+				'' THE MASK IS WIDENED BY 0xFFFFFF00 so that attribute bits a
+				'' newer Windows invents cannot reject every entry.
+				ctx->attrib = attrib or &hFFFFFF00
+
+				'' NOT ASKING FOR DIRECTORIES MEANS ASKING FOR ARCHIVE -- see
+				'' the file header; 0x10 is DIRECTORY and 0x20 is ARCHIVE.
+				if( (attrib and &h10) = 0 ) then ctx->attrib or= &h20
+
+				if( (ctx->d_attrib and (not ctx->attrib)) <> 0 ) then
+					'' The first entry was rejected; step to the next.
+					name_ = hFindNext( out_attrib )
+				else
+					name_ = @ctx->d_name
+					*out_attrib = ctx->d_attrib and (not &hFFFFFF00)
+				end if
+
+				if( name_ <> 0 ) then ctx->in_use = 1
+			end if
+		#else
+			'' TWO ENTIRELY DIFFERENT PATHS, chosen by whether the spec has a
+			'' wildcard in it: opendir for a pattern, a single stat for a name.
+			if( (strchr( filespec->data, 42 ) <> 0) orelse _
+			    (strchr( filespec->data, 63 ) <> 0) ) then
+
+				dim as zstring ptr p = strrchr( filespec->data, 47 )     '' '/'
+				if( p <> 0 ) then
+					strncpy( @ctx->filespec, p + 1, TKORT_DIR_MAX_PATH )
+					ctx->filespec[TKORT_DIR_MAX_PATH - 1] = 0
+					l = cast( integer, p - filespec->data ) + 1
+					if( l > TKORT_DIR_MAX_PATH - 1 ) then l = TKORT_DIR_MAX_PATH - 1
+					memcpy( @ctx->dirname, filespec->data, l )
+					ctx->dirname[l] = 0
+				else
+					strncpy( @ctx->filespec, filespec->data, TKORT_DIR_MAX_PATH )
+					ctx->filespec[TKORT_DIR_MAX_PATH - 1] = 0
+					'' THE TRAILING SLASH MATTERS -- hFindNext concatenates
+					'' without inserting one.
+					strcpy( @ctx->dirname, @"./" )
+				end if
+
+				'' "*.*" AND "*." ARE DOS SPELLINGS OF "EVERYTHING" and are
+				'' rewritten, or a POSIX name with no dot in it would not match.
+				if( (strcmp( @ctx->filespec, @"*.*" ) = 0) orelse _
+				    (strcmp( @ctx->filespec, @"*." ) = 0) ) then
+					strcpy( @ctx->filespec, @"*" )
+				end if
+
+				if( (attrib and &h10) = 0 ) then attrib or= &h20
+				'' AND NO 0xFFFFFF00 WIDENING HERE, unlike Windows -- the bits
+				'' are built by hGetAttrib and there are no unknown ones.
+				ctx->attrib = attrib
+
+				ctx->dir_ = u_opendir( @ctx->dirname )
+				if( ctx->dir_ <> 0 ) then
+					name_ = hFindNext( out_attrib )
+					if( name_ <> 0 ) then ctx->in_use = 1
+				end if
+			else
+				'' NO WILDCARD: one stat, no scan opened, and in_use stays
+				'' FALSE -- so a following DIR("") returns nothing rather than
+				'' re-reporting this file.
+				dim as STATBUF_ info = any
+				if( u_stat( filespec->data, @info ) = 0 ) then
+					tmp_attrib = hGetAttrib( filespec->data, @info )
+					if( (tmp_attrib and (not attrib)) = 0 ) then
+						name_ = strrchr( filespec->data, 47 )
+						if( name_ = 0 ) then
+							name_ = filespec->data
+						else
+							name_ += 1
+						end if
+						*out_attrib = tmp_attrib
+					end if
+				end if
+			end if
+		#endif
+	else
+		'' -------------------------------------------------------- FINDNEXT
+		if( ctx->in_use <> 0 ) then name_ = hFindNext( out_attrib )
+	end if
+
+	STRLOCK()
+
+	if( name_ <> 0 ) then
+		l = strlen( name_ )
+		res = tkrt_hStrAllocTemp_NoLock( 0, l )
+		if( res <> 0 ) then
+			tkrt_hStrCopy( res->data, name_, l )
+		else
+			'' AN ALLOCATION FAILURE IS THE NULL DESCRIPTOR, not NULL -- every
+			'' caller dereferences the result.
+			res = TKORT_NULLSTR( )
+		end if
+	else
+		res = TKORT_NULLSTR( )
+		'' ZEROED ONLY HERE. A successful call leaves whatever the scan found.
+		*out_attrib = 0
+	end if
+
+	'' THE ARGUMENT IS DELETED UNDER THE SAME LOCK, because it may be a temp the
+	'' caller built inline.
+	tkrt_hStrDelTemp_NoLock( filespec )
+
+	STRUNLOCK()
+
+	return res
+end function
+
+end extern

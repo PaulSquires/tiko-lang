@@ -1,0 +1,307 @@
+'' fileio.bas -- PRINT, WRITE, INPUT # and LINE INPUT # for USTRINGs. Four
+'' symbols across two fbc members, and the last of the ustring family.
+''
+'' EVERY ONE OF THESE FOUR BRANCHES ON WHERE THE BYTES ARE GOING, and the branch
+'' is what the whole file is for. A ustring is UTF-16 in memory and UTF-8 on
+'' disk, so the wrong route does not fail -- it produces MOJIBAKE that looks like
+'' a codepage problem.
+''
+'' ENCODING IS A RUNTIME PROPERTY. The STRING/WSTRING split is settled in the
+'' compiler; `OPEN ... ENCODING "utf16"` is not known until the OPEN runs. So
+'' these entry points test handle->encod, and there is no way to hoist it.
+''
+'' WRITING TO AN ENCODED FILE MUST NOT PRE-ENCODE. Sending the UTF-8 bytes of
+'' "h<U+00E9>i" to a file opened ENCODING "utf16" gives
+'' FF FE 68 00 C3 00 A9 00 69 00 -- each UTF-8 byte widened separately. Handing
+'' the UTF-16 to the WIDE path instead lets fb_WCharToUTF encode it once,
+'' correctly, exactly as it does for a WSTRING.
+''
+'' READING FROM AN ENCODED FILE MUST NOT DECODE TWICE, which is the mirror image:
+'' the device already decoded UTF-16 to one narrow byte 0xE9, and reading that as
+'' UTF-8 is malformed, so "h<U+00E9>i" came back as h, U+FFFD, i.
+''
+'' A REAL WINDOWS CONSOLE TAKES THE WIDE PATH TOO, so the OS renders UTF-16
+'' directly and fbc's cursor tracking stays right. Everything else -- redirected
+'' output, files, every non-Windows console -- gets UTF-8 bytes, which is the
+'' point: a ustring redirected to a file must produce a portable file on every
+'' platform, and a Linux terminal is UTF-8 already.
+''
+'' NOTE WHAT THIS DELIBERATELY DOES NOT COPY. The WSTRING path writes RAW UTF-16
+'' BYTES when output is redirected, producing a file no other tool reads as text.
+'' A portable string type cannot behave that way, and fbc's own ustring code does
+'' not.
+''
+'' THE CONSOLE RECT IS READ BEFORE IT IS TESTED, and that ordering was a real
+'' bug. __fb_con.window is filled LAZILY -- fb_hUpdateConsoleWindow runs at the
+'' END of a console print -- so on the FIRST output of a program the rect was
+'' still all zeros and a real console looked redirected. `print ustr` as the very
+'' first statement emitted UTF-8 bytes that a CP-437 console drew as box
+'' characters, and preceding it with any non-empty narrow print hid it. Reading
+'' the rect first costs nothing: it stays empty for a pipe or a file.
+''
+'' LINE INPUT # ON AN ENCODED FILE GROWS ITS OWN BUFFER rather than calling
+'' fb_FileLineInputWstr, which needs a caller-supplied maximum and truncates past
+'' it. A ustring is var-len, so a line limit here would be one the plain-file
+'' path does not have -- and it would truncate silently.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ustr.bi"
+#include once "inc/file.bi"
+#include once "inc/rterror.bi"
+#include once "inc/config.bi"
+#include once "inc/console.bi"
+#include once "inc/thread.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+'' fb_file.h. The tokenisers bound a token at this, so a ustring is neither more
+'' nor less capable than a wstring here.
+const FB_INPUT_MAXSTRINGLEN = 2048
+
+'' The encoded LINE INPUT # buffer's starting capacity, in characters. It
+'' doubles, so the constant is a starting point and not a limit.
+const LINEBUF_INIT = 256
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+	declare sub tkrt_WstrDelete alias "fb_WstrDelete" ( byval s as wstring ptr )
+
+	declare function tkrt_UStrToWstr alias "fb_UStrToWstr" _
+		( byval src as any ptr, byval src_size as integer ) as wstring ptr
+	declare function tkrt_UStrToStr alias "fb_UStrToStr" _
+		( byval src as any ptr, byval src_size as integer ) as FBSTRING ptr
+	declare function tkrt_UStrAssignFromA alias "fb_UStrAssignFromA" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as any ptr, byval src_size as integer, _
+		  byval fill_rem as long, byval is_init as long ) as any ptr
+	declare function tkrt_UStrAssignFromW alias "fb_UStrAssignFromW" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as wstring ptr, byval fill_rem as long, byval is_init as long ) as any ptr
+
+	declare sub tkrt_PrintWstr alias "fb_PrintWstr" _
+		( byval fnum as long, byval s as wstring ptr, byval mask as long )
+	declare sub tkrt_PrintString alias "fb_PrintString" _
+		( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+	declare sub tkrt_WriteWstr alias "fb_WriteWstr" _
+		( byval fnum as long, byval s as wstring ptr, byval mask as long )
+	declare sub tkrt_WriteString alias "fb_WriteString" _
+		( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+
+	declare function tkrt_FileLineInput alias "fb_FileLineInput" _
+		( byval fnum as long, byval dst as any ptr, byval dst_len as integer, _
+		  byval fillrem as long ) as long
+	declare function tkrt_InputString alias "fb_InputString" _
+		( byval dst as any ptr, byval strlen_ as integer, byval fillrem as long ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: the *Ex forms, the tokeniser and the TLS accessor are
+             '' all undecorated in fbc's win32 archive.
+	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
+		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		  byval length as uinteger, byval bytesread as uinteger ptr, _
+		  byval adjust as long, byval is_uni as long ) as long
+	declare function tkrt_PutBackEx alias "fb_FilePutBackEx" _
+		( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as long
+	declare sub tkrt_NextTokenWstr alias "fb_FileInputNextTokenWstr" _
+		( byval b as wstring ptr, byval max_chars as integer, byval is_string as long )
+	declare function tkrt_TlsGetCtx alias "fb_TlsGetCtx" _
+		( byval keyid as long, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
+	declare sub tkrt_INPUTCTX_Destructor alias "fb_INPUTCTX_Destructor" ( byval d as any ptr )
+end extern
+
+'' FB_INPUTCTX, as io/fileinput.bas measures it. Only `handle` is read here, but
+'' the whole shape has to be right for the offset to be.
+type FB_INPUTCTX field = 1
+	as FB_FILE ptr handle
+	as long        status
+	#if defined( __FB_64BIT__ )
+		as long    pad0_
+	#endif
+	as FBSTRING    str_
+	as long        cursor
+	#if defined( __FB_64BIT__ )
+		as long    pad1_
+	#endif
+end type
+
+#if defined( __FB_64BIT__ )
+	#assert sizeof( FB_INPUTCTX ) = 48
+#else
+	#assert sizeof( FB_INPUTCTX ) = 24
+#endif
+
+#define TKORT_TLSGET_INPUT() _
+	cptr( FB_INPUTCTX ptr, tkrt_TlsGetCtx( FB_TLSKEY_INPUT, sizeof( FB_INPUTCTX ), _
+	                                       @tkrt_INPUTCTX_Destructor ) )
+
+'' TRUE when the DEVICE does the encoding, so this file must not do it too.
+private function hIsEncoded( byval h as FB_FILE ptr ) as long
+	if( h = 0 ) then return 0
+	return iif( h->encod <> FB_FILE_ENCOD_ASCII, 1, 0 )
+end function
+
+private function hIsEncodedFile( byval fnum as long ) as long
+	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
+	if( TKORT_HANDLE_USED( h ) = 0 ) then return 0
+	return iif( h->encod <> FB_FILE_ENCOD_ASCII, 1, 0 )
+end function
+
+'' TRUE only for a REAL Windows console -- not a pipe, not a file, and never on
+'' any other platform.
+private function hIsRealConsole( byval fnum as long ) as long
+	#ifdef __FB_WIN32__
+		if( fnum <> 0 ) then return 0
+		'' Read the rect BEFORE testing it. See the file header.
+		tkrt_InitConsoleWindow( )
+		return iif( TKORT_CON_WINDOW_EMPTY() = 0, 1, 0 )
+	#else
+		return 0
+	#endif
+end function
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------ output
+''
+'' THE SIGNATURE IS (fnum, descriptor, mask), not the (ptr, size) pair the rest
+'' of the ustring API uses: fbc's PRINT dispatch pushes its arguments uniformly
+'' for every data type, so every print entry point has the same three-argument
+'' shape. A `USTRING * N` has already become a temp descriptor by the time it
+'' arrives.
+
+sub tkort_PrintUStr alias "fb_PrintUStr" _
+	( byval fnum as long, byval src as FBUSTRING ptr, byval mask as long )
+
+	if( (hIsRealConsole( fnum ) <> 0) orelse (hIsEncodedFile( fnum ) <> 0) ) then
+		'' Straight to the wide path: NO conversion at all where wchar_t is
+		'' 16 bits, and correct cursor tracking either way.
+		dim as wstring ptr w = tkrt_UStrToWstr( src, FB_USTRSIZEVARLEN )
+		tkrt_PrintWstr( fnum, w, mask )
+		tkrt_WstrDelete( w )
+	else
+		'' fb_PrintString releases the temp descriptor itself.
+		tkrt_PrintString( fnum, tkrt_UStrToStr( src, FB_USTRSIZEVARLEN ), mask )
+	end if
+end sub
+
+sub tkort_WriteUStr alias "fb_WriteUStr" _
+	( byval fnum as long, byval src as FBUSTRING ptr, byval mask as long )
+
+	if( (hIsRealConsole( fnum ) <> 0) orelse (hIsEncodedFile( fnum ) <> 0) ) then
+		dim as wstring ptr w = tkrt_UStrToWstr( src, FB_USTRSIZEVARLEN )
+		tkrt_WriteWstr( fnum, w, mask )
+		tkrt_WstrDelete( w )
+	else
+		tkrt_WriteString( fnum, tkrt_UStrToStr( src, FB_USTRSIZEVARLEN ), mask )
+	end if
+end sub
+
+'' ------------------------------------------------------------- LINE INPUT #
+
+function tkort_FileLineInputUStr alias "fb_FileLineInputUStr" _
+	( byval fnum as long, byval dst as FBUSTRING ptr ) as long
+
+	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
+	dim as long res = any
+
+	if( TKORT_HANDLE_USED( h ) = 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( hIsEncoded( h ) = 0 ) then
+		'' A plain file is bytes, and a ustring file is UTF-8 -- so the narrow
+		'' reader plus a UTF-8 decode is exactly right and nothing else runs.
+		dim as FBSTRING tmp
+		tmp.data = 0
+		tmp.len = 0
+		tmp.size = 0
+
+		res = tkrt_FileLineInput( fnum, @tmp, FB_STRSIZEVARLEN, 0 )
+		tkrt_UStrAssignFromA( dst, FB_USTRSIZEVARLEN, @tmp, FB_STRSIZEVARLEN, 0, 0 )
+		tkrt_StrDelete( @tmp )
+
+		return res
+	end if
+
+	'' Encoded: the device decodes, so read WIDE and grow. See the header on why
+	'' fb_FileLineInputWstr is not used.
+	dim as integer cap = LINEBUF_INIT, n = 0
+	dim as wstring ptr buf = cast( wstring ptr, malloc( (cap + 1) * sizeof( wstring ) ) )
+	if( buf = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+
+	res = FB_RTERROR_OK
+
+	do
+		dim as wstring * 2 c = any
+		dim as uinteger length_ = any
+
+		res = tkrt_GetDataEx( h, 0, @c, 1, @length_, 0, 1 )
+		if( (res <> FB_RTERROR_OK) orelse (length_ = 0) ) then exit do
+
+		if( c[0] = 13 ) then
+			'' Swallow a following LF, but only if it is actually there.
+			res = tkrt_GetDataEx( h, 0, @c, 1, @length_, 0, 1 )
+			if( (res = FB_RTERROR_OK) andalso (length_ <> 0) andalso (c[0] <> 10) ) then
+				tkrt_PutBackEx( h, @c, 1 )
+			end if
+			exit do
+		end if
+
+		if( c[0] = 10 ) then exit do
+
+		if( n >= cap ) then
+			cap *= 2
+			dim as any ptr bigger = realloc( buf, (cap + 1) * sizeof( wstring ) )
+			if( bigger = 0 ) then
+				free( buf )
+				return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+			end if
+			buf = cast( wstring ptr, bigger )
+		end if
+
+		buf[n] = c[0]
+		n += 1
+	loop
+
+	buf[n] = 0
+
+	'' Re-encodes only where a wchar is not 16 bits; a straight copy on Windows,
+	'' where a ustring already IS UTF-16.
+	tkrt_UStrAssignFromW( dst, FB_USTRSIZEVARLEN, buf, 0, 0 )
+
+	free( buf )
+
+	return tkrt_ErrorSetNum( res )
+end function
+
+'' ------------------------------------------------------------------ INPUT #
+''
+'' THE TOKEN RULES LIVE IN THE EXISTING TOKENISERS, so this only picks which one
+'' runs. The file comes from the INPUT context, which fb_FileInput set -- INPUT #
+'' is two calls, one naming the channel and one per destination, so there is no
+'' file number to pass here.
+
+function tkort_InputUStr alias "fb_InputUStr" ( byval dst as FBUSTRING ptr ) as long
+
+	dim as FB_INPUTCTX ptr ctx = TKORT_TLSGET_INPUT()
+
+	if( hIsEncoded( ctx->handle ) <> 0 ) then
+		dim as wstring * (FB_INPUT_MAXSTRINGLEN + 1) buffer
+		tkrt_NextTokenWstr( @buffer, FB_INPUT_MAXSTRINGLEN, -1 )
+		tkrt_UStrAssignFromW( dst, FB_USTRSIZEVARLEN, @buffer, 0, 0 )
+	else
+		dim as FBSTRING tmp
+		tmp.data = 0
+		tmp.len = 0
+		tmp.size = 0
+
+		tkrt_InputString( @tmp, FB_STRSIZEVARLEN, 0 )
+		tkrt_UStrAssignFromA( dst, FB_USTRSIZEVARLEN, @tmp, FB_STRSIZEVARLEN, 0, 0 )
+		tkrt_StrDelete( @tmp )
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern

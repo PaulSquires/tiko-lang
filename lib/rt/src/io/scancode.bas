@@ -1,0 +1,103 @@
+'' scancode.bas -- fb_hScancodeToExtendedKey. One symbol, one fbc member
+'' (scancodes.o).
+''
+'' A PURE TABLE, and the only member of the console keyboard family that touches
+'' no hardware at all -- which makes it the one a differential can drive
+'' completely.
+''
+'' TWO NUMBER SPACES THAT LOOK ALIKE AND ARE NOT. A SCANCODE is the position of a
+'' physical key (SC_F1 = 0x3B); an EXTENDED KEY is what INKEY reports for it, and
+'' its encoding is `(letter << 8) + 255` -- the FB_EXT_CHAR marker in the low
+'' byte, the letter in the high one. So F1's scancode is 0x3B and its key is
+'' 0x3BFF, which differ by exactly the marker and are easy to confuse when both
+'' are printed in hex.
+''
+'' THE LETTERS ARE NOT THE SCANCODES. KEY_F1 is FB_MAKE_EXT_KEY( ';' ) = 0x3BFF,
+'' and ';' happens to be 0x3B -- so for the function keys the letter and the
+'' scancode coincide and the mapping looks like an identity. IT IS NOT. From
+'' SC_HOME onward they diverge: SC_LEFT is 0x4B but KEY_LEFT is
+'' FB_MAKE_EXT_KEY( 'K' ) = 0x4BFF, and 'K' is 0x4B -- still equal -- while
+'' SC_CLEAR is 0x4C against 'L' = 0x4C. The coincidence holds for every entry in
+'' this table because IBM chose the scancodes and the letters together, and an
+'' implementation that assumed it and computed `(scancode << 8) + 255` would pass
+'' every one of these cases and then be wrong for any key added later that breaks
+'' it. The table is written out.
+''
+'' EVERYTHING NOT IN THE TABLE IS ZERO, including F11 and F12, which HAVE
+'' scancodes (0x57, 0x58) and keys (KEY_F11, KEY_F12) but no entry here. fbc's
+'' comment says the function is "currently only used for extended keys", and the
+'' set it covers is the twenty-one keys the console layer asks about. Adding F11
+'' and F12 would be an improvement and therefore a difference.
+
+#include once "inc/descriptors.bi"
+
+'' FB_EXT_CHAR, the marker in the low byte -- 255, and fb.h spells it
+'' `((char)255)` which is -1 on a signed-char platform. Used here as the unsigned
+'' value it is cast to inside FB_MAKE_EXT_KEY.
+const TKORT_EXT_CHAR = 255
+
+'' FB_MAKE_EXT_KEY( ch ) = (ch << 8) + FB_EXT_CHAR.
+#define TKORT_EXT_KEY( ch ) ((cast( long, ch ) shl 8) + TKORT_EXT_CHAR)
+
+'' The scancodes, from fb_event.h. Named rather than written as literals at the
+'' point of use, because a bare 0x4C in a select case is unreadable and this file
+'' is otherwise nothing but a mapping.
+const SC_F1_       = &h3B
+const SC_F2_       = &h3C
+const SC_F3_       = &h3D
+const SC_F4_       = &h3E
+const SC_F5_       = &h3F
+const SC_F6_       = &h40
+const SC_F7_       = &h41
+const SC_F8_       = &h42
+const SC_F9_       = &h43
+const SC_F10_      = &h44
+const SC_HOME_     = &h47
+const SC_UP_       = &h48
+const SC_PAGEUP_   = &h49
+const SC_LEFT_     = &h4B
+const SC_CLEAR_    = &h4C
+const SC_RIGHT_    = &h4D
+const SC_END_      = &h4F
+const SC_DOWN_     = &h50
+const SC_PAGEDOWN_ = &h51
+const SC_INSERT_   = &h52
+const SC_DELETE_   = &h53
+
+extern "c"   '' NON-FBCALL: fb_event.h declares it plainly, and the win32
+             '' archive spells it `_fb_hScancodeToExtendedKey` with no `@N`.
+
+function tkort_hScancodeToExtendedKey alias "fb_hScancodeToExtendedKey" _
+	( byval scancode as long ) as long
+
+	select case as const scancode
+	case SC_F1_       : return TKORT_EXT_KEY( asc( ";" ) )
+	case SC_F2_       : return TKORT_EXT_KEY( asc( "<" ) )
+	case SC_F3_       : return TKORT_EXT_KEY( asc( "=" ) )
+	case SC_F4_       : return TKORT_EXT_KEY( asc( ">" ) )
+	case SC_F5_       : return TKORT_EXT_KEY( asc( "?" ) )
+	case SC_F6_       : return TKORT_EXT_KEY( asc( "@" ) )
+	case SC_F7_       : return TKORT_EXT_KEY( asc( "A" ) )
+	case SC_F8_       : return TKORT_EXT_KEY( asc( "B" ) )
+	case SC_F9_       : return TKORT_EXT_KEY( asc( "C" ) )
+	case SC_F10_      : return TKORT_EXT_KEY( asc( "D" ) )
+	case SC_HOME_     : return TKORT_EXT_KEY( asc( "G" ) )
+	case SC_UP_       : return TKORT_EXT_KEY( asc( "H" ) )
+	case SC_PAGEUP_   : return TKORT_EXT_KEY( asc( "I" ) )
+	case SC_LEFT_     : return TKORT_EXT_KEY( asc( "K" ) )
+	case SC_CLEAR_    : return TKORT_EXT_KEY( asc( "L" ) )
+	case SC_RIGHT_    : return TKORT_EXT_KEY( asc( "M" ) )
+	case SC_END_      : return TKORT_EXT_KEY( asc( "O" ) )
+	case SC_DOWN_     : return TKORT_EXT_KEY( asc( "P" ) )
+	case SC_PAGEDOWN_ : return TKORT_EXT_KEY( asc( "Q" ) )
+	case SC_INSERT_   : return TKORT_EXT_KEY( asc( "R" ) )
+	case SC_DELETE_   : return TKORT_EXT_KEY( asc( "S" ) )
+	end select
+
+	'' EVERY OTHER SCANCODE IS ZERO -- including F11 and F12. See the file
+	'' header: they have both a scancode and a key, and no entry.
+	return 0
+
+end function
+
+end extern

@@ -1,0 +1,91 @@
+'' errmsg.bas -- the filesystem error message table. One entry point, portable.
+''
+'' NOT FormatMessageW AND NOT strerror. Those are locale-dependent, vary between
+'' Windows builds and between libc versions, and produce text that cannot be
+'' asserted in a test. This is a fixed table keyed on the PORTABLE code, so
+'' fbc's own filesystem.error suite asserts exact strings on every machine and
+'' in every locale. A caller who wants the OS's own wording has OsCode( ) and
+'' can ask the OS itself.
+''
+'' THE FILE IS errmsg, NOT error, AND THAT MATTERS ON THE C SIDE: fbc's makefile
+'' globs each platform directory and flattens every source to one object
+'' directory, so a basename appearing in both the root and win32/ collides and
+'' one silently wins. tiko-rt's build names objects after their source PATH, so
+'' the collision cannot happen here -- but the member name is part of the ABI
+'' the gate replaces, so the split is kept.
+''
+'' The table is indexed by FB_FS_*, so its ORDER is the contract, not its
+'' contents.
+
+#include once "inc/descriptors.bi"
+#include once "inc/fserror.bi"
+#include once "inc/fspath.bi"
+
+extern "c"   '' NON-FBCALL: the ustring temp builder, declared plain.
+	declare function tkrt_UStrAllocTemp alias "fb_hUStrAllocTemp" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+end extern
+
+'' One zstring per code, in FB_FS_* order. A `zstring ptr` array rather than a
+'' fixed-width table: the longest message would set the width for all of them,
+'' and the widths are what a reader would have to check.
+dim shared as zstring ptr hFsMessages( 0 to FB_FS_CODE_MAX ) = { _
+	@"no error", _
+	@"no such file or directory", _
+	@"access denied", _
+	@"already exists", _
+	@"not a directory", _
+	@"is a directory", _
+	@"directory not empty", _
+	@"invalid path", _
+	@"name too long", _
+	@"too many symbolic links", _
+	@"no space left on device", _
+	@"read-only", _
+	@"in use", _
+	@"cross-device link", _
+	@"interrupted", _
+	@"unsupported", _
+	@"unknown error" _
+}
+
+extern "rtlib"
+
+function tkort_UStrFsErrorMessage alias "fb_UStrFsErrorMessage" ( byval fs_code as long ) as FBUSTRING ptr
+	'' READ THROUGH A ubyte ptr, NOT THE zstring ptr. `msg[i]` on a
+	'' `zstring ptr` yields a string EXPRESSION, not a character, so
+	'' `cast( FB_UCHAR, msg[i] )` numeric-converts a one-character string and
+	'' gives 0 for every letter. The lengths still came out right, so the
+	'' differential printed the correct NUMBER of NULs -- a defect that looks
+	'' like a working loop until the bytes are compared.
+	dim as ubyte ptr msg = any
+	dim as FBUSTRING ptr dst = any
+	dim as integer i = any, len_ = any
+	dim as long code_ = fs_code
+
+	'' An out-of-range code is UNKNOWN rather than an empty string: a caller
+	'' printing the message of a code it invented should still get a sentence.
+	if( (code_ < 0) orelse (code_ > FB_FS_CODE_MAX) ) then code_ = FB_FS_UNKNOWN
+
+	msg = cptr( ubyte ptr, hFsMessages(code_) )
+
+	len_ = 0
+	while( msg[len_] <> 0 )
+		len_ += 1
+	wend
+
+	dst = tkrt_UStrAllocTemp( 0, len_ )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+
+	'' ASCII only, by construction -- a widening copy is exact and needs no
+	'' encoder.
+	for i = 0 to len_ - 1
+		dst->data[i] = cast( FB_UCHAR, msg[i] )
+	next
+
+	dst->data[len_] = 0
+	return dst
+end function
+
+end extern

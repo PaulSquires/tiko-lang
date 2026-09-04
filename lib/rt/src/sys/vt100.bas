@@ -1,0 +1,47 @@
+'' vt100.bas -- __fb_enable_vt100_escapes. One data symbol, one fbc member,
+'' POSIX only.
+''
+'' EMPTY-ON: win64 win32
+''
+'' THE OBJECT FILE BOUNDARY IS THE CONTRACT, not the value. fbc puts this single
+'' int in a member of its very own, and its comment says exactly why: so that the
+'' linker PREFERS a __fb_enable_vt100_escapes provided by an earlier object --
+'' the FB program's own, if it defines one. An archive member is pulled only when
+'' something still needs a symbol it defines, so a program that defines the
+'' variable itself never drags this one in, and a program that does not gets this
+'' default.
+''
+'' So the thing to preserve is that NOTHING ELSE GOES IN THIS FILE. Adding a
+'' second symbol here would make the member get pulled for that symbol's sake and
+'' the override would stop working -- silently, and only for programs that
+'' override it.
+''
+'' MINUS ONE, NOT ONE. fbc writes `int __fb_enable_vt100_escapes = -1;` and -1 is
+'' FB_TRUE, the runtime's own spelling of true. fb_hTermOut tests it as a
+'' boolean, so any non-zero value behaves the same -- but the differential
+'' compares the VALUE, and a program that prints it would see the difference.
+''
+'' IT IS ALSO NOT IN BSS. A zero-initialised int would go to .bss; -1 is a real
+'' initialiser and goes to .data, which is why this is a `dim shared ... = -1`
+'' rather than a bare declaration.
+''
+'' THE WHOLE FILE IS WINDOWS-EMPTY. fbc has no win32 counterpart -- the variable
+'' exists to disable hard-coded VT100 sequences in the POSIX fb_hTermOut, and
+'' Windows has no fb_hTermOut at all. The EMPTY-ON marker at the top is what
+'' stops build.sh refusing an object with no global symbols.
+
+#include once "inc/config.bi"
+
+#ifndef __FB_WIN32__
+
+extern "c"   '' NON-FBCALL: a data symbol carries no decoration, and the
+             '' declaration is what gives the definition below external linkage.
+             '' A `dim shared` INSIDE this block would be file-local -- the
+             '' __fb_errmsg trap.
+	extern __fb_enable_vt100_escapes alias "__fb_enable_vt100_escapes" as long
+end extern
+
+'' OUTSIDE the block, and initialised to -1 so it lands in .data.
+dim shared __fb_enable_vt100_escapes as long = -1
+
+#endif

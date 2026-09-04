@@ -1,0 +1,580 @@
+'' serialposix.bas -- the POSIX serial driver: fb_SerialOpen, fb_SerialRead,
+'' fb_SerialWrite, fb_SerialGetRemaining and fb_SerialClose. Five symbols, one
+'' fbc member (linux/io_serial.o).
+''
+'' EMPTY-ON: win64 win32
+''
+'' THE WINDOWS HALF IS src/io/serialwin.bas and shares nothing with this but the
+'' FB_SERIAL_OPTIONS block it is handed. That block describes a DCB; this file
+'' has to express the same intent in termios, and the two vocabularies do not
+'' line up -- which is where most of the surprises below come from.
+''
+'' EVERY CONSTANT AND OFFSET HERE WAS MEASURED, not transcribed. A C probe
+'' compiled by gcc 13.3 under WSL against glibc's own headers printed all of
+'' them; the numbers that would be easiest to get wrong are called out where
+'' they are used. This matters more than usual because a wrong termios bit does
+'' not fail to compile and does not fail to open -- it misconfigures a live
+'' port.
+''
+''   struct termios   60 bytes: c_iflag 0, c_oflag 4, c_cflag 8, c_lflag 12,
+''                    c_line 16, c_cc 17 (NCCS = 32), c_ispeed 52, c_ospeed 56.
+''                    NOTE c_cc AT 17 -- it is deliberately unaligned, sitting
+''                    immediately after the one-byte c_line, and the struct then
+''                    pads from 49 to 52.
+''   CRTSCTS          &h80000000. It is the ONLY flag here that sets the sign
+''                    bit, so it must be handled as UNSIGNED or the OR turns
+''                    into a sign-extension.
+''   VTIME 5, VMIN 6  in that order -- VTIME is the LOWER index, which is the
+''                    reverse of how the pair is always written.
+''   FIONREAD         &h541B.
+''
+'' THE BAUD RATE IS OR'd STRAIGHT INTO c_cflag. On Linux the Bnnnn constants ARE
+'' the CBAUD bit pattern (B9600 is 13, B115200 is 4098), so there is no
+'' cfsetspeed call -- the speed is just another set of bits in the control flag.
+''
+'' THE SPEED TABLE'S SENTINEL IS REACHABLE AS A SPEED. The lookup runs
+'' `while sp(n).speed <> wanted` and tests for the ENDSPD sentinel INSIDE the
+'' body, so asking for 111111 baud exits the loop ON the sentinel row and
+'' returns its value -- which is 0, i.e. B0, hanging up the line. Every other
+'' unlisted speed correctly returns BADSPEED. Reproduced.
+''
+'' DS AND CD ARE INVERTED RELATIVE TO WINDOWS. On Windows a non-zero DurationCD
+'' or DurationDSR means "wait for that line"; here it means "do NOT set CLOCAL",
+'' i.e. stop ignoring modem control lines. Same option, opposite spelling.
+''
+'' CTS BECOMES RTS/CTS FLOW CONTROL, NOT A TIMEOUT. termios has no CTS timeout,
+'' so a non-zero DurationCTS is reinterpreted as "enable CRTSCTS" -- and only if
+'' SuppressRTS is clear. On Windows the same option additionally became a read
+'' timeout. One option, three different meanings across two platforms.
+''
+'' AddLF SWITCHES CANONICAL MODE ON. On Windows it merely inverted fBinary and
+'' did nothing else; here it turns on ICANON, OPOST and ONLCR, which means the
+'' driver starts doing line editing and newline translation. Clearing it calls
+'' cfmakeraw and sets VMIN = 1, VTIME = 0.
+''
+'' SPACE PARITY IS IMPLEMENTED AS EIGHT BITS AND NO PARITY, on the reasoning
+'' that 7S1 and 8N1 put the same bits on the wire. It therefore OVERRIDES the
+'' data-bit setting the caller asked for. fbc's own comment on MARK parity says
+'' "I'm not sure for mark parity ... Fix me!" -- and MARK falls through into
+'' EVEN, so it sets PARENB without PARODD and is even parity with PARMRK on the
+'' input side.
+''
+'' 1.5 STOP BITS FALLS THROUGH TO 2. termios cannot express it.
+''
+'' SuppressRTS CLEARS THE SOFTWARE FLOW FLAGS AND THEN SETS TWO OF THEM BACK --
+'' `&= ~(IXON|IXOFF|IXANY)` immediately followed by `|= (IXON|IXANY)`. The net
+'' effect is IXON and IXANY on, IXOFF off, and the clear is only there to drop
+'' IXOFF. Written as fbc wrote it.
+''
+'' THE ALARM AROUND open() AND write() IS THE ONLY TIMEOUT. alarm(3) arranges
+'' for SIGALRM to interrupt a blocking call on a port whose far end never
+'' asserts. fb_SerialWrite installs the handler; fb_SerialOpen does NOT -- it
+'' calls alarm(3) having never called signal(), so on a port that blocks, the
+'' default SIGALRM action applies and the PROCESS IS KILLED. Reproduced: it is
+'' fbc's, and the fix would change a hang into a returned error, which is a
+'' behaviour change rather than a repair.
+''
+'' READ IS NON-BLOCKING VIA select() WITH A 70 ms TIMEOUT, and when nothing
+'' arrives it returns SUCCESS with a length of zero rather than an error.
+''
+'' HAS_LOCKDEV IS OFF. fbc guards the lockdev calls behind it and ships with it
+'' undefined, so LINUX_SERIAL_INFO has no pplckid field in the build that
+'' matters. The struct below matches that build.
+
+#include once "inc/descriptors.bi"
+#include once "inc/rterror.bi"
+#include once "inc/file.bi"
+#include once "crt/stdio.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+#ifndef __FB_WIN32__
+
+const FB_FILE_ACCESS_READ_      = 1
+const FB_FILE_ACCESS_WRITE_     = 2
+const FB_FILE_ACCESS_READWRITE_ = 3
+const FB_FILE_ACCESS_ANY_       = 0
+
+'' MEASURED (see the file header). open() flags.
+const O_RDONLY_   = 0
+const O_WRONLY_   = 1
+const O_RDWR_     = 2
+const O_NOCTTY_   = 256
+const O_NONBLOCK_ = 2048
+
+'' c_iflag
+const IGNPAR_ = 4
+const PARMRK_ = 8
+const INPCK_  = 16
+const ISTRIP_ = 32
+const IXON_   = 1024
+const IXANY_  = 2048
+const IXOFF_  = 4096
+
+'' c_oflag
+const OPOST_ = 1
+const ONLCR_ = 4
+
+'' c_cflag
+const CSTOPB_ = 64
+const CREAD_  = 128
+const PARENB_ = 256
+const PARODD_ = 512
+const HUPCL_  = 1024
+const CLOCAL_ = 2048
+const CSIZE_  = 48
+const CS5_    = 0
+const CS6_    = 16
+const CS7_    = 32
+const CS8_    = 48
+'' THE ONLY FLAG WITH THE SIGN BIT SET -- see the file header.
+const CRTSCTS_ = &h80000000u
+
+'' c_lflag
+const ICANON_ = 2
+
+'' c_cc indices. VTIME IS THE LOWER ONE.
+const VTIME_ = 5
+const VMIN_  = 6
+
+const TCSAFLUSH_ = 2
+const TCIOFLUSH_ = 2
+const FIONREAD_  = &h541B
+const SIGALRM_   = 14
+
+const NCCS_ = 32
+
+'' Three seconds around open and write; 70 ms for a read poll.
+const SERIAL_TIMEOUT_ = 3
+const SREAD_TIMEOUT_  = 70
+
+const ENDSPD_   = 111111
+const BADSPEED_ = 999999
+
+'' FB_SERIAL_PARITY / FB_SERIAL_STOP_BITS, as elsewhere.
+const FB_SERIAL_PARITY_NONE_  = 0
+const FB_SERIAL_PARITY_EVEN_  = 1
+const FB_SERIAL_PARITY_ODD_   = 2
+const FB_SERIAL_PARITY_SPACE_ = 3
+const FB_SERIAL_PARITY_MARK_  = 4
+
+const FB_SERIAL_STOP_BITS_1_   = 0
+const FB_SERIAL_STOP_BITS_1_5_ = 1
+const FB_SERIAL_STOP_BITS_2_   = 2
+
+'' MEASURED: 60 bytes, and c_cc is at 17 rather than 20 -- see the file header.
+type TERMIOS_
+	as ulong c_iflag
+	as ulong c_oflag
+	as ulong c_cflag
+	as ulong c_lflag
+	as ubyte c_line
+	as ubyte c_cc( 0 to NCCS_ - 1 )
+	as ubyte pad_( 0 to 2 )
+	as ulong c_ispeed
+	as ulong c_ospeed
+end type
+
+#assert sizeof( TERMIOS_ ) = 60
+#assert offsetof( TERMIOS_, c_cflag ) = 8
+#assert offsetof( TERMIOS_, c_line ) = 16
+#assert offsetof( TERMIOS_, c_cc(0) ) = 17
+#assert offsetof( TERMIOS_, c_ispeed ) = 52
+
+type FB_SERIAL_OPTIONS
+	as ulong uiSpeed
+	as ulong uiDataBits
+	as long  Parity
+	as long  StopBits
+	as ulong DurationCTS
+	as ulong DurationDSR
+	as ulong DurationCD
+	as ulong OpenTimeout
+	as long  SuppressRTS
+	as long  AddLF
+	as long  CheckParity
+	as long  KeepDTREnabled
+	as long  DiscardOnError
+	as long  IgnoreAllErrors
+	as ulong IRQNumber
+	as ulong TransmitBuffer
+	as ulong ReceiveBuffer
+end type
+
+#assert sizeof( FB_SERIAL_OPTIONS ) = 68
+
+'' LINUX_SERIAL_INFO without HAS_LOCKDEV -- see the file header.
+type LINUX_SERIAL_INFO
+	as long     sfd
+	as TERMIOS_ oldtty
+	as TERMIOS_ newtty
+	as long     iPort
+	as FB_SERIAL_OPTIONS ptr pOptions
+end type
+
+'' fd_set is 1024 bits. MEASURED at 128 bytes.
+type FDSET_
+	as ulongint fds_bits( 0 to 15 )
+end type
+
+#assert sizeof( FDSET_ ) = 128
+
+type TIMEVAL_
+	as longint tv_sec
+	as longint tv_usec
+end type
+
+#assert sizeof( TIMEVAL_ ) = 16
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function c_open alias "open" ( byval path as zstring ptr, byval flags as long, ... ) as long
+	declare function c_close alias "close" ( byval fd as long ) as long
+	declare function c_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function c_write alias "write" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function c_ioctl alias "ioctl" ( byval fd as long, byval req as ulong, ... ) as long
+	declare function c_select alias "select" _
+		( byval nfds as long, byval rd as FDSET_ ptr, byval wr as FDSET_ ptr, _
+		  byval ex as FDSET_ ptr, byval tv as TIMEVAL_ ptr ) as long
+	declare function c_tcgetattr alias "tcgetattr" ( byval fd as long, byval t as TERMIOS_ ptr ) as long
+	declare function c_tcsetattr alias "tcsetattr" _
+		( byval fd as long, byval act as long, byval t as TERMIOS_ ptr ) as long
+	declare function c_tcflush alias "tcflush" ( byval fd as long, byval q as long ) as long
+	declare sub c_cfmakeraw alias "cfmakeraw" ( byval t as TERMIOS_ ptr )
+	declare function c_alarm alias "alarm" ( byval secs as ulong ) as ulong
+	declare function c_signal alias "signal" ( byval sig as long, byval h as any ptr ) as any ptr
+	declare function c_strcasecmp alias "strcasecmp" ( byval a as zstring ptr, byval b as zstring ptr ) as long
+end extern
+
+extern "rtlib"   '' FBCALL: decorated on win32, though this file is empty there.
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+'' The SIGALRM handler, which deliberately does nothing: its only job is to
+'' exist, so the signal interrupts the blocking call rather than killing the
+'' process.
+private sub tkort_alrm cdecl ( byval signal_number as long )
+end sub
+
+'' The speed table. The sentinel row is REACHABLE AS A SPEED -- see the file
+'' header.
+type TKORT_SPEEDROW
+	as ulong speed
+	as ulong bits
+end type
+
+#define _SP( s, b ) type<TKORT_SPEEDROW>( s, b )
+
+dim shared as TKORT_SPEEDROW tkort_speeds( 0 to 28 ) = { _
+	_SP(       0,    0 ), _SP(      50,    1 ), _SP(     150,    5 ), _
+	_SP(     300,    7 ), _SP(     600,    8 ), _SP(    1200,    9 ), _
+	_SP(    1800,   10 ), _SP(    2400,   11 ), _SP(    4800,   12 ), _
+	_SP(    9600,   13 ), _SP(   19200,   14 ), _SP(   38400,   15 ), _
+	_SP(   57600, 4097 ), _SP(  115200, 4098 ), _SP(  230400, 4099 ), _
+	_SP(  460800, 4100 ), _SP(  500000, 4101 ), _SP(  576000, 4102 ), _
+	_SP(  921600, 4103 ), _SP( 1000000, 4104 ), _SP( 1152000, 4105 ), _
+	_SP( 1500000, 4106 ), _SP( 2000000, 4107 ), _SP( 2500000, 4108 ), _
+	_SP( 3000000, 4109 ), _SP( 3500000, 4110 ), _SP( 4000000, 4111 ), _
+	_SP( ENDSPD_,    0 ), _SP(       0,    0 ) }
+
+'' THE SENTINEL TEST IS INSIDE THE LOOP BODY, exactly as fbc's is, which is what
+'' makes 111111 baud resolve to B0 instead of an error.
+private function tkort_get_speed( byval speed as ulong ) as ulong
+	dim as integer n = 0
+	while( tkort_speeds(n).speed <> speed )
+		if( tkort_speeds(n).speed = ENDSPD_ ) then return BADSPEED_
+		n += 1
+	wend
+	return tkort_speeds(n).bits
+end function
+
+'' FD_ZERO / FD_SET / FD_ISSET, which are macros in C.
+#define TKORT_FD_ZERO( s ) for i_ as integer = 0 to 15 : (s).fds_bits(i_) = 0 : next
+#define TKORT_FD_SET( fd, s )   (s).fds_bits( (fd) \ 64 ) or= (1ull shl ((fd) mod 64))
+#define TKORT_FD_ISSET( fd, s ) (((s).fds_bits( (fd) \ 64 ) and (1ull shl ((fd) mod 64))) <> 0)
+
+extern "c"   '' NON-FBCALL: fb_serial.h declares all five plainly.
+
+function tkort_SerialOpen alias "fb_SerialOpen" _
+	( byval handle as FB_FILE ptr, byval iPort as long, byval options as FB_SERIAL_OPTIONS ptr, _
+	  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as long
+
+	dim as long res = FB_RTERROR_OK
+	dim as long DesiredAccess = O_RDWR_ or O_NOCTTY_ or O_NONBLOCK_
+	dim as long SerialFD = -1
+	dim as zstring * 512 DeviceName
+	dim as TERMIOS_ oldserp, nwserp
+	dim as ulong TermSpeed = any
+
+	if( options->IRQNumber <> 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	'' NOTE THE OR: DesiredAccess already holds O_RDWR, so the READ and WRITE
+	'' cases ADD O_RDONLY (0) or O_WRONLY (1) rather than replacing it -- and
+	'' O_RDWR or O_WRONLY is 3, which is not a valid access mode. fbc's, kept.
+	select case handle->access
+	case FB_FILE_ACCESS_READ_
+		DesiredAccess or= O_RDONLY_
+	case FB_FILE_ACCESS_WRITE_
+		DesiredAccess or= O_WRONLY_
+	case FB_FILE_ACCESS_READWRITE_, FB_FILE_ACCESS_ANY_
+		DesiredAccess or= O_RDWR_
+	end select
+
+	DeviceName[0] = 0
+
+	if( iPort = 0 ) then
+		'' A BARE "COM" MEANS /dev/modem; anything else is taken as a literal
+		'' device path.
+		if( c_strcasecmp( pszDevice, @"COM" ) = 0 ) then
+			strcpy( @DeviceName, @"/dev/modem" )
+		else
+			strcpy( @DeviceName, pszDevice )
+		end if
+	else
+		'' /dev/ttyS0 IS COM1 -- the port number is one-based, the node is not.
+		sprintf( @DeviceName, @"/dev/ttyS%d", iPort - 1 )
+	end if
+
+	TermSpeed = tkort_get_speed( options->uiSpeed )
+	if( TermSpeed = BADSPEED_ ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	'' NO signal() HERE, ONLY alarm() -- so if open blocks, the default SIGALRM
+	'' action kills the process. See the file header.
+	c_alarm( SERIAL_TIMEOUT_ )
+	SerialFD = c_open( @DeviceName, DesiredAccess )
+	c_alarm( 0 )
+	if( SerialFD < 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
+	end if
+
+	if( c_tcgetattr( SerialFD, @oldserp ) <> 0 ) then
+		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( c_tcflush( SerialFD, TCIOFLUSH_ ) <> 0 ) then
+		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( c_tcgetattr( SerialFD, @nwserp ) <> 0 ) then
+		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( res = FB_RTERROR_OK ) then
+		'' CREAD is set twice in fbc's source, once here and once two lines on.
+		'' Idempotent, and kept so the shape matches.
+		nwserp.c_cflag or= CREAD_
+		nwserp.c_iflag and= not (IXON_ or IXOFF_ or IXANY_)
+		nwserp.c_cflag or= CREAD_
+
+		if( options->AddLF <> 0 ) then
+			'' CANONICAL MODE -- see the file header on how differently this
+			'' option behaves from its Windows counterpart.
+			nwserp.c_lflag or= ICANON_
+			nwserp.c_oflag or= (OPOST_ or ONLCR_)
+		else
+			c_cfmakeraw( @nwserp )
+			nwserp.c_cc(VMIN_) = 1
+			nwserp.c_cc(VTIME_) = 0
+		end if
+
+		if( options->KeepDTREnabled <> 0 ) then
+			nwserp.c_cflag and= not HUPCL_
+		else
+			nwserp.c_cflag or= HUPCL_
+		end if
+
+		'' INVERTED RELATIVE TO WINDOWS: a duration here means "do not ignore
+		'' the modem lines". See the file header.
+		if( (options->DurationDSR <> 0) orelse (options->DurationCD <> 0) ) then
+			nwserp.c_cflag and= not CLOCAL_
+		else
+			nwserp.c_cflag or= CLOCAL_
+		end if
+
+		'' CTS BECOMES FLOW CONTROL, NOT A TIMEOUT.
+		if( (options->DurationCTS <> 0) andalso (options->SuppressRTS = 0) ) then
+			nwserp.c_cflag or= CRTSCTS_
+		else
+			nwserp.c_cflag and= not CRTSCTS_
+		end if
+
+		'' THE SPEED IS JUST MORE c_cflag BITS -- no cfsetspeed.
+		nwserp.c_cflag or= TermSpeed
+		nwserp.c_cflag and= not CSIZE_
+
+		select case options->uiDataBits
+		case 5 : nwserp.c_cflag or= CS5_
+		case 6 : nwserp.c_cflag or= CS6_
+		case 7 : nwserp.c_cflag or= CS7_
+		case else : nwserp.c_cflag or= CS8_
+		end select
+
+		select case options->Parity
+		case FB_SERIAL_PARITY_NONE_
+			nwserp.c_cflag and= not PARENB_
+
+		case FB_SERIAL_PARITY_SPACE_
+			'' 7S1 AND 8N1 PUT THE SAME BITS ON THE WIRE, so space parity is
+			'' eight bits and no parity -- OVERRIDING the data-bit setting just
+			'' applied above.
+			nwserp.c_cflag and= not PARENB_
+			nwserp.c_cflag or= CS8_
+
+		case FB_SERIAL_PARITY_MARK_
+			'' fbc: "I'm not sure for mark parity ... Fix me!". It sets PARMRK
+			'' and then FALLS THROUGH into EVEN, so mark parity is even parity
+			'' with input marking.
+			nwserp.c_iflag or= PARMRK_
+			nwserp.c_iflag or= (INPCK_ or ISTRIP_)
+			nwserp.c_cflag or= PARENB_
+
+		case FB_SERIAL_PARITY_EVEN_
+			nwserp.c_iflag or= (INPCK_ or ISTRIP_)
+			nwserp.c_cflag or= PARENB_
+
+		case FB_SERIAL_PARITY_ODD_
+			nwserp.c_iflag or= (INPCK_ or ISTRIP_)
+			nwserp.c_cflag or= (PARENB_ or PARODD_)
+		end select
+
+		if( options->IgnoreAllErrors <> 0 ) then
+			nwserp.c_iflag or= IGNPAR_
+		else
+			nwserp.c_iflag and= not IGNPAR_
+		end if
+
+		select case options->StopBits
+		case FB_SERIAL_STOP_BITS_1_
+			nwserp.c_cflag and= not CSTOPB_
+		case FB_SERIAL_STOP_BITS_1_5_, FB_SERIAL_STOP_BITS_2_
+			'' 1.5 IS NOT EXPRESSIBLE and falls through to 2.
+			nwserp.c_cflag or= CSTOPB_
+		end select
+
+		if( options->SuppressRTS <> 0 ) then
+			'' CLEARED AND THEN TWO PUT BACK -- the clear exists only to drop
+			'' IXOFF. See the file header.
+			nwserp.c_iflag and= not (IXON_ or IXOFF_ or IXANY_)
+			nwserp.c_iflag or= (IXON_ or IXANY_)
+		end if
+
+		if( res = FB_RTERROR_OK ) then
+			if( c_tcsetattr( SerialFD, TCSAFLUSH_, @nwserp ) <> 0 ) then
+				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+			end if
+		end if
+	end if
+
+	if( res <> FB_RTERROR_OK ) then
+		'' The old discipline is put back before the descriptor is dropped.
+		c_tcsetattr( SerialFD, TCSAFLUSH_, @oldserp )
+		c_close( SerialFD )
+	else
+		dim as LINUX_SERIAL_INFO ptr pInfo = _
+			cast( LINUX_SERIAL_INFO ptr, calloc( 1, sizeof( LINUX_SERIAL_INFO ) ) )
+		*ppvHandle = pInfo
+		pInfo->sfd = SerialFD
+		'' BOTH DISCIPLINES ARE COPIED BY VALUE into the info block -- unlike
+		'' the options pointer beside them, which is borrowed.
+		pInfo->oldtty = oldserp
+		pInfo->newtty = nwserp
+		pInfo->iPort = iPort
+		pInfo->pOptions = options
+	end if
+
+	return res
+end function
+
+function tkort_SerialGetRemaining alias "fb_SerialGetRemaining" _
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, byval pLength as longint ptr ) as long
+
+	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
+	dim as long rBytes = any
+
+	if( c_ioctl( pInfo->sfd, FIONREAD_, @rBytes ) <> 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( pLength <> 0 ) then *pLength = rBytes
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' THE HANDLER IS INSTALLED HERE AND NOWHERE ELSE, which is what makes a
+'' blocking write recoverable and a blocking open fatal. See the file header.
+function tkort_SerialWrite alias "fb_SerialWrite" _
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
+	  byval data_ as any ptr, byval length_ as uinteger ) as long
+
+	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
+	dim as integer rlng = 0
+
+	c_signal( SIGALRM_, cast( any ptr, @tkort_alrm ) )
+	c_alarm( SERIAL_TIMEOUT_ )
+	rlng = c_write( pInfo->sfd, data_, length_ )
+	c_alarm( 0 )
+
+	'' A ZERO-LENGTH WRITE IS AN ERROR HERE, because the test is `<= 0` rather
+	'' than `< 0` -- so asking to write nothing reports FILEIO.
+	if( rlng <= 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+
+	if( length_ <> cast( uinteger, rlng ) ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' NOTHING WAITING IS SUCCESS WITH ZERO LENGTH, not an error -- see the header.
+function tkort_SerialRead alias "fb_SerialRead" _
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
+	  byval data_ as any ptr, byval pLength as uinteger ptr ) as long
+
+	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
+	dim as integer count_ = 0
+	dim as FDSET_ rfds
+	dim as TIMEVAL_ tmout
+
+	TKORT_FD_ZERO( rfds )
+	TKORT_FD_SET( pInfo->sfd, rfds )
+
+	tmout.tv_sec = 0
+	tmout.tv_usec = SREAD_TIMEOUT_ * 1000
+
+	'' THE RETURN OF select IS IGNORED; only the descriptor set is consulted.
+	c_select( pInfo->sfd + 1, @rfds, 0, 0, @tmout )
+	if( TKORT_FD_ISSET( pInfo->sfd, rfds ) ) then
+		count_ = c_read( pInfo->sfd, data_, *pLength )
+		if( count_ < 0 ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	end if
+
+	*pLength = cast( uinteger, count_ )
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+function tkort_SerialClose alias "fb_SerialClose" _
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as long
+
+	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
+	dim as TERMIOS_ oserp = pInfo->oldtty
+
+	'' The saved discipline is restored from the COPY taken at open.
+	c_tcsetattr( pInfo->sfd, TCSAFLUSH_, @oserp )
+
+	c_close( pInfo->sfd )
+	free( pInfo )
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern
+
+#endif
