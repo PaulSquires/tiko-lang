@@ -249,6 +249,15 @@ namespace Tko
     '' it with everything else, so a promise that was not kept said nothing at all.
     const PF_OVERRIDE       as ushort = &h8000
 
+    '' A TRAILING 'constructor' / 'destructor' -- a MODULE structor, which the C
+    '' runtime calls around main. Nothing to do with a UDT's constructor: this is
+    '' 'sub f( ) constructor' at module level, which fbcunit's SUITE and TEST macros
+    '' use to register every test before main runs.
+    ''
+    '' PAST BIT 15, which is why StmtPayload.extra is a ULONG.
+    const PF_MODCTOR        as ulong = &h00010000
+    const PF_MODDTOR        as ulong = &h00020000
+
     type UnaryPayload
         as ushort op                '' TokenKind
         as NodeId operand
@@ -310,7 +319,13 @@ namespace Tko
         as long     first           '' child list, into the shared pool (signed: see ListPayload)
         as long     count
         as ushort   op              '' keyword that spelled it, for dumps
-        as ushort   extra           '' levels for EXIT/CONTINUE, intrinsic id, PF_* ...
+        '' ULONG, NOT USHORT. All sixteen PF_* bits were allocated, and a trailing
+        '' 'constructor' had nowhere to be recorded -- the parser recognised it,
+        '' checked it, and then threw it away, so a module constructor was emitted as
+        '' an ordinary procedure that nothing ever called. Widening here was cheaper
+        '' and more honest than borrowing an NF_* bit that happens to be free for
+        '' N_PROC today.
+        as ulong    extra           '' levels for EXIT/CONTINUE, intrinsic id, PF_* ...
                                     '' -- and, on an OPEN, its CLAUSE WORDS: see
                                     '' the OPEN_* codes below.
         as InternId aliasName       '' N_PROC: the ALIAS spelling, CASE PRESERVED, or 0

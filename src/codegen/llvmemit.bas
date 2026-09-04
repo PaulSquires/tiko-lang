@@ -802,7 +802,9 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
 
     '' 'nounwind' ON EVERYTHING: FreeBASIC does not unwind, and saying so lets LLVM
     '' drop the landing-pad machinery it would otherwise have to assume.
-    e.outp += "define " & ret & " " & GlobalName( e, f->name ) & _
+    dim as string linkage = ""
+    if f->isPrivate then linkage = "internal "
+    e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
               "(" & ParamList( e, f, true ) & ") nounwind {" & chr( 10 )
 
     '' Per-function value bookkeeping. Sized to nextTemp because that is the highest

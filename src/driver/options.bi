@@ -53,6 +53,7 @@ namespace Tko
     OPT( OPT_DEBUG,     "-g",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "emit debug information" )
     OPT( OPT_OPTLEVEL,  "-O",         OPTK_JOINED,OPTCAT_OUTPUT,  "level",    "optimisation level 0-3" )
     OPT( OPT_MT,        "-mt",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "link the thread-safe runtime" )
+    OPT( OPT_MAINMOD,   "-m",         OPTK_VALUE, OPTCAT_OUTPUT,  "name",     "which module owns main; the others become module constructors" )
 
     OPT( OPT_TARGET,    "-target",    OPTK_VALUE, OPTCAT_TARGET,  "name",     "win64 or linux-x86_64" )
     OPT( OPT_M64,       "-m64",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "64-bit target (the only supported width)" )
@@ -123,6 +124,12 @@ namespace Tko
         '' answer would depend on the order: '-m32 -target linux-x86_64' would quietly
         '' end up on Linux, while the reverse order errors.
         as long    widthOverride
+        '' WHICH MODULE OWNS main. fbc's -m, and it names a MODULE, not a file:
+        '' measured, the name is matched against the OBJECT's basename, so
+        '' '-o b.o -m b' makes that module main whatever the source was called.
+        '' Empty means "the first source", which is what keeps a one-file
+        '' 'tiko hello.bas -o hello.exe' producing a program.
+        as string  mainModule
 
         as boolean compileOnly
         as boolean debugInfo

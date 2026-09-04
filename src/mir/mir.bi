@@ -325,6 +325,11 @@ namespace Tko.Mir
             ( byval ty as MirType, byval aggSize as ulong = 0, _
               byval aggClass as ulong = 0, byval attr as ubyte = 0 )
         as boolean  isModuleCtor
+        '' LOCAL LINKAGE -- 'internal' in LLVM, lowercase 't' to nm. A module
+        '' constructor is file-scope in fbc, and it matters: two modules whose
+        '' constructors were both global would collide on the ctor instead of on
+        '' main, which is the same bug wearing a different name.
+        as boolean  isPrivate
         as boolean  isModuleDtor
         as boolean  isDefinition    '' false for a declaration with no body
         '' THE SIGNATURE. docs/plan/09 gives every function and extern a signature and a

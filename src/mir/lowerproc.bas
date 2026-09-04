@@ -144,6 +144,16 @@ sub LowerProc _
     end if
     f->isDefinition = true
     f->callConv = ProcCallConv_( c, id )
+    '' A TRAILING 'constructor' / 'destructor' -- see PF_MODCTOR. The C runtime calls
+    '' these around main, and without the flag the procedure was emitted correctly and
+    '' then never called by anything.
+    if (sp->extra and Tko.PF_MODCTOR) <> 0 then f->isModuleCtor = true
+    if (sp->extra and Tko.PF_MODDTOR) <> 0 then f->isModuleDtor = true
+    '' PRIVATE MEANS INTERNAL LINKAGE, and it did not: 'private sub f' emitted a
+    '' GLOBAL symbol, so two modules each with their own private helper of the same
+    '' name would collide at the link. fbc gives it lowercase 't'; measured on the
+    '' same source, tiko gave 'T'.
+    if (sp->extra and Tko.PF_PRIVATE) <> 0 then f->isPrivate = true
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym
@@ -900,51 +910,91 @@ function LowerSretResult _
 end function
 
 
-sub LowerMainModule( byref c as Ctx, byval root as Tko.NodeId )
+'' A PROGRAM HAS ONE main AND ANY NUMBER OF MODULE CONSTRUCTORS.
+''
+'' Every module's top-level code has to run. In the module named by '-m' it becomes
+'' 'main'; in every other module it becomes a CONSTRUCTOR that the C runtime calls
+'' before main. Emitting 'main' from each was the multiple-definition failure the
+'' comment below already predicted -- and it only appeared once more than one module
+'' could be linked at all.
+''
+'' MEASURED AGAINST fbc, which is the contract:
+''
+''     fbc -c mod.bas -m mod -o a.o     ->  T main, and it references fb_Init/fb_End
+''     fbc -c mod.bas        -o b.o     ->  t fb_ctor__b, and an 8-byte .ctors entry
+''
+'' Two things that are easy to get wrong and are therefore stated. The ctor's name
+'' comes from the OBJECT's basename, not the source's -- '-o zzz.o' gives
+'' 'fb_ctor__zzz' whatever the file was called. And it is LOCAL, lowercase 't': two
+'' modules in one program would otherwise collide on the ctor instead of on main,
+'' which is the same bug wearing a different name.
+sub LowerMainModule _
+    ( byref c as Ctx, byval root as Tko.NodeId, _
+      byval isMainModule as boolean, byref moduleName as string )
+
     if root = Tko.NODE_NONE then return
     if c.ast->Kind( root ) <> Tko.N_MODULE then return
 
-    '' Nothing to run means no main at all, rather than an empty one: a module compiled
-    '' as a library has no entry point and emitting one would collide at link time.
+    '' Nothing to run means no entry point at all, rather than an empty one: a module
+    '' compiled as a library has none, and emitting one would collide at link time.
     if ModuleHasCode( c, root ) = false then return
 
-    dim as MirFunction ptr f = c.m->AddFunction( c.names->GetString( "main" ), MT_I32 )
-    f->isDefinition = true
-    '' argc, argv -- 'int32 main( int32 ARGC$1, char** ARGV$1 )', which is what fbc
-    '' emits and what the C runtime calls.
-    f->AddParam( MT_I32 )
-    f->AddParam( MT_PTR )
+    '' ONE FUNCTION, TWO SHAPES. The body below is identical either way -- it is the
+    '' PROLOGUE and EPILOGUE that differ, so the two are parameterised here rather
+    '' than duplicated into paths that would drift.
+    dim as MirFunction ptr f
+    if isMainModule then
+        f = c.m->AddFunction( c.names->GetString( "main" ), MT_I32 )
+        f->isDefinition = true
+        '' argc, argv -- 'int32 main( int32 ARGC$1, char** ARGV$1 )', which is what fbc
+        '' emits and what the C runtime calls.
+        f->AddParam( MT_I32 )
+        f->AddParam( MT_PTR )
+    else
+        '' NO argc/argv, NO fb_Init AND NO fb_End: the runtime is already up by the
+        '' time a constructor runs, and tearing it down here would end the program
+        '' before main started.
+        f = c.m->AddFunction( c.names->GetString( "fb_ctor__" & moduleName ), MT_VOID )
+        f->isDefinition = true
+        f->isModuleCtor = true
+        f->isPrivate = true
+    end if
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
     c.f = f
     c.st->functions += 1
     c.curBlock = NewBlock( c, "entry" )
 
-    dim as long resSlot = NewTempLocal( c, MT_I32, 4 )
+    '' DECLARED OUTSIDE THE GUARD because the epilogue reads it: a 'dim' inside an
+    '' IF is scoped to that IF, and main's return value is stored here at the top and
+    '' loaded at the bottom.
     dim as MirValue resAddr
-    resAddr.kind = cast( ubyte, MV_LOCAL )
-    resAddr.ty = cast( ubyte, MT_PTR )
-    resAddr.id = resSlot
-    dim as MirInst z
-    z.op = cast( ushort, M_STORE )
-    z.ty = cast( ubyte, MT_VOID )
-    z.a = resAddr
-    z.b = ConstInt( c, 0, MT_I32 )
-    Emit( c, z )
+    if isMainModule then
+        dim as long resSlot = NewTempLocal( c, MT_I32, 4 )
+        resAddr.kind = cast( ubyte, MV_LOCAL )
+        resAddr.ty = cast( ubyte, MT_PTR )
+        resAddr.id = resSlot
+        dim as MirInst z
+        z.op = cast( ushort, M_STORE )
+        z.ty = cast( ubyte, MT_VOID )
+        z.a = resAddr
+        z.b = ConstInt( c, 0, MT_I32 )
+        Emit( c, z )
 
-    dim as MirValue argcv, argvv
-    argcv.kind = cast( ubyte, MV_PARAM )
-    argcv.ty = cast( ubyte, MT_I32 )
-    argcv.id = 0
-    argvv.kind = cast( ubyte, MV_PARAM )
-    argvv.ty = cast( ubyte, MT_PTR )
-    argvv.id = 1
-    dim as FB.Array( of ulong ) ia
-    ia.Push( cast( ulong, argcv.kind ) ) : ia.Push( cast( ulong, argcv.id ) )
-    ia.Push( cast( ulong, argvv.kind ) ) : ia.Push( cast( ulong, argvv.id ) )
-    dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
-    ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
-    EmitRtl( c, RTL_INIT, ia )
+        dim as MirValue argcv, argvv
+        argcv.kind = cast( ubyte, MV_PARAM )
+        argcv.ty = cast( ubyte, MT_I32 )
+        argcv.id = 0
+        argvv.kind = cast( ubyte, MV_PARAM )
+        argvv.ty = cast( ubyte, MT_PTR )
+        argvv.id = 1
+        dim as FB.Array( of ulong ) ia
+        ia.Push( cast( ulong, argcv.kind ) ) : ia.Push( cast( ulong, argcv.id ) )
+        ia.Push( cast( ulong, argvv.kind ) ) : ia.Push( cast( ulong, argvv.id ) )
+        dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
+        ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
+        EmitRtl( c, RTL_INIT, ia )
+    end if
 
     while c.labelName.Count > 0
         c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
@@ -977,13 +1027,18 @@ sub LowerMainModule( byref c as Ctx, byval root as Tko.NodeId )
     '' fb_End comes AFTER the scope's cleanups: the measurement shows fb_StrDelete
     '' preceding it, so shutting the runtime down before releasing its strings would
     '' invert the order fbc actually emits.
-    dim as FB.Array( of ulong ) ea
-    dim as MirValue zend = ConstInt( c, 0, MT_I32 )
-    ea.Push( cast( ulong, zend.kind ) ) : ea.Push( cast( ulong, zend.id ) )
-    EmitRtl( c, RTL_END, ea )
+    if isMainModule then
+        dim as FB.Array( of ulong ) ea
+        dim as MirValue zend = ConstInt( c, 0, MT_I32 )
+        ea.Push( cast( ulong, zend.kind ) ) : ea.Push( cast( ulong, zend.id ) )
+        EmitRtl( c, RTL_END, ea )
 
-    dim as MirValue rv = LowerExprLoad( c, resAddr, MT_I32 )
-    Terminate( c, MTERM_RET, -1, -1, rv )
+        dim as MirValue rv = LowerExprLoad( c, resAddr, MT_I32 )
+        Terminate( c, MTERM_RET, -1, -1, rv )
+    else
+        dim as MirValue novalue
+        Terminate( c, MTERM_RET, -1, -1, novalue )
+    end if
 
     '' The same repair the procedure path makes, for the same reason: module-level
     '' code is where the GOTO-into-a-declined-WITH files put their broken block.
@@ -1044,7 +1099,9 @@ function Lower _
       byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
       byref src as Tko.SourceManager, byref udts as Tko.UdtLayouts, _
       byref vts as Tko.VTables, _
-      byref m as MirModule, byref st as LowerStats ) as long
+      byref m as MirModule, byref st as LowerStats, _
+      byval isMainModule as boolean = true, _
+      byref moduleName as string = "" ) as long
 
     dim as Ctx c
     c.srcMgr = @src
@@ -1076,7 +1133,7 @@ function Lower _
     for i as long = 0 to ast.extraTopLevel.Count - 1
         WalkTop( c, cast( Tko.NodeId, ast.extraTopLevel[i] ) )
     next
-    LowerMainModule( c, root )
+    LowerMainModule( c, root, isMainModule, moduleName )
     '' THE SYNTHESISED STRUCTORS, after every written one exists to be called by them
     '' and before the tables, whose destructor slot may name one.
     '' THE MODULE INITIALISER, before the structors it calls are written.

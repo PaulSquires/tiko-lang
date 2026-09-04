@@ -325,6 +325,7 @@ function Parse _
         case Tko.OPT_INCLUDE  : opts.includePaths.Push( value )
         case Tko.OPT_DEFINE   : opts.defines.Push( value )
         case Tko.OPT_LIBPATH  : opts.libPaths.Push( value )
+        case Tko.OPT_MAINMOD  : opts.mainModule = value
         case Tko.OPT_LIB      : opts.libs.Push( value )
 
         case Tko.OPT_OUTPUT   : opts.outputPath = value

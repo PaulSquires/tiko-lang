@@ -40,6 +40,25 @@ end namespace
 namespace Tko.Driver
 
 '' The preprocessor's view of the command line: include paths and -d defines.
+'' A MODULE'S NAME: the basename with no directory and no extension. fbc matches
+'' '-m' against exactly this, and against the OBJECT rather than the source -- but the
+'' two agree for every invocation the suite's makefile makes ('%.o : %.bas'), and
+'' taking it from the source is what lets a module know its own name before an object
+'' path exists.
+private function ModuleStem( byref path_ as string ) as string
+    dim as string r = path_
+    for i as long = len( r ) to 1 step -1
+        dim as string ch = mid( r, i, 1 )
+        if (ch = "/") orelse (ch = "\\") then
+            r = mid( r, i + 1 )
+            exit for
+        end if
+    next
+    dim as long dot = instrrev( r, "." )
+    if dot > 1 then r = left( r, dot - 1 )
+    return r
+end function
+
 private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     dim as Tko.PpConfig cfg
     cfg.includePaths = @ctx.options.includePaths
@@ -403,8 +422,37 @@ function Run( byref args as Tko.StrVec ) as long
                 Tko.CheckAbstractInstances( ast, syms, ctx.types, info, vts, ctx.names, ctx.diags )
                 Tko.CheckOverridePromise( ast, vts, ctx.names, ctx.diags )
                 Tko.CheckOverrideCompatible( ast, vts, ctx.names, ctx.diags )
+                '' WHICH MODULE OWNS main. Three arms, and all three are fbc's,
+                '' measured 2026-09-04:
+                ''
+                ''   '-m NAME'          that module is main. The name is matched
+                ''                      against a basename, so '-m b' picks module b
+                ''                      whatever path it came from.
+                ''   no '-m', LINKING   the FIRST source is main. Reversing the input
+                ''                      order moves main with it:
+                ''                        fbc a.bas b.bas -> B ctor, then A as main
+                ''                        fbc b.bas a.bas -> A ctor, then B as main
+                ''   no '-m', '-c'      NO module is main. 'fbc -c mod.bas' emits a
+                ''                      constructor and a .ctors entry and no 'main'
+                ''                      at all -- which is what stops two separately
+                ''                      compiled objects from each claiming it.
+                ''
+                '' That last arm is easy to miss and is the whole point of the
+                '' feature: defaulting to "first source" under '-c' would put a main
+                '' in every object and collide at the link, which is the bug '-m'
+                '' exists to prevent.
+                dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
+                dim as boolean isMain
+                if len( ctx.options.mainModule ) > 0 then
+                    isMain = (Tko.Text.LowerAscii( modName ) = _
+                              Tko.Text.LowerAscii( ctx.options.mainModule ))
+                elseif ctx.options.compileOnly then
+                    isMain = false
+                else
+                    isMain = (i = 1)
+                end if
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
-                               ctx.sources, udts, vts, mm, lst )
+                               ctx.sources, udts, vts, mm, lst, isMain, modName )
                 '' THE ABI PASS, between lowering and emission (docs/plan/10 section
                 '' 3). It rewrites signatures and call sites so the emitted IR carries
                 '' no implicit ABI behaviour -- and it runs under '--dump-ir' too, so

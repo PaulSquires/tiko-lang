@@ -883,6 +883,16 @@ private function ParseProc _
             dim as boolean modBad = declareOnly
             if modBad then
                 p.diags->Report( Tko.TKO0701, Tko.PointRange( Cur( p ).loc ) )
+            else
+                '' RECORDED, not just validated. This loop used to check the word and
+                '' then Advance past it, so the attribute reached nothing downstream
+                '' and the procedure was emitted as an ordinary one that the runtime
+                '' never called -- which is why fbcunit registered zero suites.
+                if Peek( p ) = Tko.KW_CONSTRUCTOR then
+                    sp.extra or= Tko.PF_MODCTOR
+                else
+                    sp.extra or= Tko.PF_MODDTOR
+                end if
             end if
         end if
         Advance( p )

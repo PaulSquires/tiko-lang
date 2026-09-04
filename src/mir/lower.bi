@@ -104,13 +104,18 @@ namespace Tko.Mir
         as FB.Array( of long )  skipSiteN
     end type
 
+    '' isMainModule: does this module's top-level code become 'main', or a module
+    '' CONSTRUCTOR? Exactly one module in a program may answer true; the rest emit
+    '' 'fb_ctor__<moduleName>'. See LowerMainModule for the measurements behind it.
     declare function Lower _
         ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
           byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
           byref src as Tko.SourceManager, byref udts as Tko.UdtLayouts, _
           byref vts as Tko.VTables, _
-          byref m as MirModule, byref st as LowerStats ) as long
+          byref m as MirModule, byref st as LowerStats, _
+          byval isMainModule as boolean = true, _
+          byref moduleName as string = "" ) as long
 
 end namespace
 

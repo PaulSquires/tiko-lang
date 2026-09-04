@@ -238,7 +238,11 @@ declare function EmitRtl _
     declare function LoadResult( byref c as Ctx ) as MirValue
     '' lowerproc.bas -- the two procedure lowerings.
     declare sub LowerProc( byref c as Ctx, byval id as Tko.NodeId )
-    declare sub LowerMainModule( byref c as Ctx, byval root as Tko.NodeId )
+    '' isMainModule decides whether the top-level code becomes 'main' or a module
+    '' constructor named 'fb_ctor__<moduleName>'.
+    declare sub LowerMainModule _
+        ( byref c as Ctx, byval root as Tko.NodeId, _
+          byval isMainModule as boolean, byref moduleName as string )
     declare function ZeroOf( byref c as Ctx, byval t as MirType ) as MirValue
     '' 'srcUnsigned' is the SOURCE's signedness, which a MirType cannot carry: MT_I32
     '' says 32 bits and nothing about how to widen them. Without it a ULONG widened to
