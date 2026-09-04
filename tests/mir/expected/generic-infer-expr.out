@@ -13,11 +13,13 @@ func void MK<8>(ptr $0, ptr $1) {
     store %4, %6
     %7 = field.addr @r, 8
     %8 = const i8 -1
-    store %7, %8
-    %9 = load @r
-    store @$tmp0, %9
-    %10 = load @$tmp0
-    store $0, %10
+    %9 = const i8 0
+    %10 = icmp.ne %8, %9
+    store %7, %10
+    %11 = load @r
+    store @$tmp0, %11
+    %12 = load @$tmp0
+    store $0, %12
     ret
 }
 func i64 G<8>(i64 $0) {
@@ -47,11 +49,13 @@ func void MK<13>(ptr $0, ptr $1) {
     store %4, %6
     %7 = field.addr @r, 8
     %8 = const i8 -1
-    store %7, %8
-    %9 = load @r
-    store @$tmp0, %9
-    %10 = load @$tmp0
-    store $0, %10
+    %9 = const i8 0
+    %10 = icmp.ne %8, %9
+    store %7, %10
+    %11 = load @r
+    store @$tmp0, %11
+    %12 = load @$tmp0
+    store $0, %12
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -133,4 +137,4 @@ declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance

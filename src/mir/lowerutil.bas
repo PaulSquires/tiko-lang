@@ -180,6 +180,22 @@ end function
 '' 'bool -> bool' here. fbc gives -1 for the first and leaves the second as true;
 '' tiko currently leaves both. Closing it needs the DESTINATION's frontend type,
 '' which most call sites do not have.
+'' A VALUE REDUCED TO A BOOLEAN'S STORAGE: 0 or 1, as an i8. This is 'v <> 0', which
+'' is what fbc writes at every store into a boolean -- '(boolean)(I$ != 0ll)' -- and
+'' what makes the negation that widens one give -1 rather than some other bit pattern.
+function NormaliseBool _
+    ( byref c as Ctx, byref v as MirValue ) as MirValue
+    if v.kind = cast( ubyte, MV_NONE ) then return v
+    dim as MirType ht = cast( MirType, v.ty )
+    if (ht = MT_VOID) orelse (ht = MT_PTR) then return v
+    dim as MirInst ne
+    ne.op = cast( ushort, iif( IsFloatTy( ht ), M_FCMP_NE, M_ICMP_NE ) )
+    ne.ty = cast( ubyte, MT_I8 )
+    ne.a = v
+    ne.b = ZeroOf( c, ht )
+    return Emit( c, ne )
+end function
+
 function CoerceTy _
     ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
       byval srcTid as Tko.TypeId, _
@@ -209,20 +225,25 @@ function CoerceTy _
     '' MIR type instead, and MT_I8 is also what a comparison RESULT and an ordinary
     '' byte want -- so it rewrote values that were never going to a boolean at all and
     '' miscompiled three MIR tests. dstTid is the only thing that tells them apart.
-    dim as boolean narrow = dstBool andalso (srcBool = false) andalso haveVal
+    '' A BOOLEAN SOURCE IS NORMALISED TOO, because a CONSTANT one is not already 0 or
+    '' 1: 'true' is the integer -1, which is its widened MEANING and not its storage.
+    '' 'dim b as boolean = true' stored -1, and the widening below then read '0 - -1'
+    '' and answered +1 -- so EVERY boolean widening was wrong, not only the ones under
+    '' an explicit cast. fbc stores the storage value and negates it:
+    ''
+    ''     BV$0 = (boolean)1ll;    J$0 = (int64)-BV$0;
+    ''
+    '' Applied at every store into a boolean rather than only to constants: the
+    '' invariant is then enforced at the one place it can be, and a loaded boolean
+    '' needs no further thought anywhere else. The redundant compare on a plain
+    '' 'b2 = b1' is the price, and it is the cheap half of the trade.
+    dim as boolean narrow = dstBool andalso haveVal
     if narrow then
         dim as MirType ht = cast( MirType, v.ty )
         if (ht = MT_VOID) orelse (ht = MT_PTR) then narrow = false
     end if
     if narrow then
-        dim as MirType ht = cast( MirType, v.ty )
-        dim as MirInst ne
-        ne.op = cast( ushort, iif( IsFloatTy( ht ), M_FCMP_NE, M_ICMP_NE ) )
-        ne.ty = cast( ubyte, MT_I8 )
-        ne.a = v
-        ne.b = ZeroOf( c, ht )
-        dim as MirValue nb = Emit( c, ne )
-        return Coerce( c, nb, want, true )
+        return Coerce( c, NormaliseBool( c, v ), want, true )
     end if
 
     '' A BOOLEAN SOURCE NEGATES. MT_I8 is included ONLY when the destination type is
@@ -231,11 +252,20 @@ function CoerceTy _
     dim as boolean negate = srcBool andalso (dstBool = false) andalso haveVal
     if negate andalso (want = MT_I8) andalso (dstTid = Tko.TYPE_NONE) then negate = false
     if negate then
+        '' THE NEGATION IS OF THE STORAGE VALUE, so the source is normalised first.
+        '' A boolean CONSTANT arrives as the integer -1 -- 'true' is declared -1, and
+        '' cbool folds to -1, both of them the widened MEANING rather than the stored
+        '' byte -- so '0 - -1' answered +1 and every widening of a boolean constant
+        '' was wrong: 'cint(bool_T)' gave 1 where fbc gives -1, and so did the plain
+        '' 'dim as integer i = bool_T'. Normalising here costs one compare on a value
+        '' that is already 0 or 1, and is the only place that sees both kinds.
+        dim as MirValue bv = NormaliseBool( c, v )
+        if bv.kind = cast( ubyte, MV_NONE ) then return bv
         dim as MirInst ng
         ng.op = cast( ushort, M_SUB )
         ng.ty = cast( ubyte, MT_I8 )
         ng.a = ConstInt( c, 0, MT_I8 )
-        ng.b = v
+        ng.b = bv
         dim as MirValue nv = Emit( c, ng )
         return Coerce( c, nv, want, false )
     end if

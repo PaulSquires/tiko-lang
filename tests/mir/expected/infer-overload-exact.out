@@ -56,7 +56,7 @@ func i16 SOME<2>(i8 $0) {
   local agg r size 2
   local agg $abi3 size 2
   entry0:
-    %10 = alloca ptr $abi3
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -66,13 +66,15 @@ func i16 SOME<2>(i8 $0) {
     store %4, %5
     %6 = field.addr @r, 1
     %7 = const i8 -1
-    store %6, %7
-    %8 = load @r
-    store @$tmp0, %8
-    %9 = load @$tmp0
-    store @$abi3, %9
-    %11 = load @$abi3
-    ret %11
+    %8 = const i8 0
+    %9 = icmp.ne %7, %8
+    store %6, %9
+    %10 = load @r
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
 func i64 SOME<6>(i32 $0) {
   local agg $tmp0 size 8
@@ -80,7 +82,7 @@ func i64 SOME<6>(i32 $0) {
   local agg r size 8
   local agg $abi3 size 8
   entry0:
-    %10 = alloca ptr $abi3
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -90,13 +92,15 @@ func i64 SOME<6>(i32 $0) {
     store %4, %5
     %6 = field.addr @r, 4
     %7 = const i8 -1
-    store %6, %7
-    %8 = load @r
-    store @$tmp0, %8
-    %9 = load @$tmp0
-    store @$abi3, %9
-    %11 = load @$abi3
-    ret %11
+    %8 = const i8 0
+    %9 = icmp.ne %7, %8
+    store %6, %9
+    %10 = load @r
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
 func void SOME<13>(ptr $0, f64 $1) {
   local agg $tmp0 size 16
@@ -112,11 +116,13 @@ func void SOME<13>(ptr $0, f64 $1) {
     store %4, %5
     %6 = field.addr @r, 8
     %7 = const i8 -1
-    store %6, %7
-    %8 = load @r
-    store @$tmp0, %8
-    %9 = load @$tmp0
-    store $0, %9
+    %8 = const i8 0
+    %9 = icmp.ne %7, %8
+    store %6, %9
+    %10 = load @r
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    store $0, %11
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -193,4 +199,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 116 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance

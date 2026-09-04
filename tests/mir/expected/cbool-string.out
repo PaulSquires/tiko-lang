@@ -10,15 +10,19 @@ func void NARROW() {
     %2 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 5, 0)
     %3 = alloca ptr a
     %4 = call.rtl i8 fb_VALBOOL(@s)
-    store @a, %4
-    %5 = alloca ptr b
-    %6 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
-    %7 = call.rtl i8 fb_VALBOOL(%6)
-    store @b, %7
-    %8 = load @a
-    call.rtl void fb_PrintBool(0, %8, 0)
-    %9 = load @b
-    call.rtl void fb_PrintBool(0, %9, 1)
+    %5 = const i8 0
+    %6 = icmp.ne %4, %5
+    store @a, %6
+    %7 = alloca ptr b
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
+    %9 = call.rtl i8 fb_VALBOOL(%8)
+    %10 = const i8 0
+    %11 = icmp.ne %9, %10
+    store @b, %11
+    %12 = load @a
+    call.rtl void fb_PrintBool(0, %12, 0)
+    %13 = load @b
+    call.rtl void fb_PrintBool(0, %13, 1)
     call.rtl void fb_StrDelete(@s)
     ret
 }
@@ -35,9 +39,11 @@ func void WIDE() {
     %2 = call.rtl ptr fb_WstrAssign(@w, 8, @@$wstr2)
     %3 = alloca ptr a
     %4 = call.rtl i8 fb_WstrValBool(@w)
-    store @a, %4
-    %5 = load @a
-    call.rtl void fb_PrintBool(0, %5, 1)
+    %5 = const i8 0
+    %6 = icmp.ne %4, %5
+    store @a, %6
+    %7 = load @a
+    call.rtl void fb_PrintBool(0, %7, 1)
     ret
 }
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
@@ -60,4 +66,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 37 insts, 0 statements not lowered, 0 scope imbalance

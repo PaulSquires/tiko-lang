@@ -389,6 +389,8 @@ declare function EmitRtl _
     declare function LowerRedim _
         ( byref c as Ctx, byval id as Tko.NodeId, _
           byval sp as Tko.StmtPayload ptr ) as boolean
+    declare function NormaliseBool _
+        ( byref c as Ctx, byref v as MirValue ) as MirValue
     declare function AnyDimCount _
         ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as long
     declare function EmitArrayBounds _
