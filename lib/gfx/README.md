@@ -37,6 +37,7 @@ core/vgaport.bi           the VGA DAC behind INP and OUT
 core/cells.bi             the character-cell plane behind SCREEN()
 core/lzw.bi               the 12-bit LZW codec (fb_hEncode / fb_hDecode)
 core/events.bi            the event ring behind SCREENEVENT
+core/keyboard.bi          the key ring behind INKEY/GETKEY/KEYHIT, and MULTIKEY
 driver/window.bi          the Win32 window, its thread and message pump
 driver/mouse.bi           the pointer state behind GETMOUSE and SETMOUSE
 raster/text.bi            console text rendering on a graphics screen
@@ -89,6 +90,7 @@ tools/abtest-lzw.bas      807 LZW checks vs gfxlib2
 tools/abtest-events.bas   59 event-ring checks vs gfxlib2
 tools/abtest-blit.bas     170 blitter comparisons vs gfxlib2
 tools/abtest-mouse.bas    65 pointer checks vs gfxlib2
+tools/abtest-keyboard.bas 113 keyboard checks vs gfxlib2
 tools/probe-window.bas    13 checks against a REAL window
 tools/gen-fonts.bas       extracts the console fonts by rendering them
 tools/abtest-dirty.bas    12 dirty-span cases vs gfxlib2's own array
@@ -1684,3 +1686,73 @@ Both windows are now forced foreground through the documented
 than assumed. If focus never arrives the suite fails with a message naming the
 cause — treating "could not focus" as a skip would turn an environment problem
 into a green run.
+
+### And focus was still not enough
+
+Even with focus confirmed, the suite failed on **one configuration in roughly one
+run in four** — 19 of 65 checks, all of them the reference reporting `-1` while
+ours reported a position. Focus arriving is not the same as `GETMOUSE` working:
+the driver only marks the window active once its pump has processed
+`WM_ACTIVATE`, and it only recomputes "pointer inside" when a message arrives. A
+fixed sleep is a guess, and the guess was wrong often enough to matter.
+
+Two fixes, both replacing an assumption with a check:
+
+- **Poll the reference at a mid-client point until it answers**, then start
+  comparing. If it never answers, fail saying so rather than comparing against a
+  window that is not yet live.
+- **Verify every `SetCursorPos`.** It can be clamped to the visible desktop or
+  refused, and a move that did not happen generates no `WM_MOUSEMOVE` — so the
+  window keeps reporting the *previous* position and the comparison drifts
+  silently. The cursor position is read back and the move retried.
+
+## The keyboard
+
+`core/keyboard.bi` -- **113 checks**, a real A/B: `fb_hPostKey` is exported and
+is exactly what the driver calls when a key arrives, so keys go into gfxlib2's
+own ring and ours in lockstep.
+
+**Nothing here injects keystrokes, and that is deliberate.** `SendInput` and
+`keybd_event` deliver to whatever window has focus — and focus moves, because
+these suites open and close windows — so injected keys would land in whatever
+the author has open. Posting to the library's own buffer exercises the same code
+path the driver drives without ever touching the desktop.
+
+### Two mechanisms that answer different questions
+
+| | what it is | who reads it |
+| --- | --- | --- |
+| the **key ring** | 16 entries of key *codes*, in order | `INKEY`, `GETKEY`, `KEYHIT` |
+| the **key table** | 128 booleans by *scancode*, refreshed wholesale each frame | `MULTIKEY` |
+
+A key held for a second appears **once** in the ring and stays true in the table
+the whole time. Neither can answer the other's question.
+
+### INKEY's encoding is just the 16-bit value, little-endian
+
+Measured, not assumed:
+
+| code | result |
+| --- | --- |
+| ≤ 255 | one character, `chr(code)` |
+| > 255 | **two** characters, low byte first |
+
+There is no "extended key" flag. The familiar `chr(255)` prefix appears only
+because extended keys are posted as `(scancode shl 8) or 255`, so the low byte —
+emitted first — happens to be 255. Special-casing 255 instead of emitting the low
+byte agrees on **every real extended key** and differs at 256 and 300; that
+mutation fails 20 checks, big-endian fails 22, and moving the boundary from 255
+to 256 fails exactly 1.
+
+The ring drops the oldest like the event queue — 16 slots, so **15** usable,
+measured by posting twenty and reading back fifteen. "Refuse when full" fails 17.
+
+### What is not covered
+
+**`MULTIKEY`'s live state.** The table is refreshed from `GetKeyboardState` in
+the driver's frame loop, so making it report true means physically holding a key.
+What *is* compared is the bounds behaviour — 0–127 from the table, anything
+outside **false** rather than an error (accepting >127 fails 3) — and the
+all-clear case across all 128 scancodes, which is what the reference gives when
+nothing is held. Actual key-down reporting belongs to the author's interactive
+pass.

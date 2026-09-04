@@ -111,14 +111,25 @@ function ForceForeground( byval hwin as HWND ) as long
 end function
 
 '' Move the pointer to a client point of `hwin` and let the window pump.
+''
+'' SetCursorPos IS VERIFIED, not assumed: it can be clamped to the visible
+'' desktop or refused outright, and a move that did not happen produces no
+'' WM_MOUSEMOVE, so the window keeps reporting the PREVIOUS position and the
+'' comparison silently drifts.
 sub MoveTo( byval hwin as HWND, byval cx as long, byval cy as long )
     dim as POINT p
     p.x = cx : p.y = cy
     ClientToScreen( hwin, @p )
-    SetCursorPos( p.x, p.y )
+    for attempt as integer = 1 to 5
+        SetCursorPos( p.x, p.y )
+        Sleep( 60 )
+        dim as POINT now
+        GetCursorPos( @now )
+        if (now.x = p.x) andalso (now.y = p.y) then exit for
+    next
     '' see case 4: the value updates when the window processes the move, so both
     '' sides get the same settling time rather than an immediate read
-    Sleep( 90 )
+    Sleep( 60 )
 end sub
 
 '' ---- side A: the reference ----
@@ -138,7 +149,31 @@ scope
         screen 0
         end 1
     end if
-    Sleep( 120 )
+
+    '' WAIT FOR THE REFERENCE TO ACTUALLY ANSWER before comparing anything.
+    ''
+    '' Focus arriving is not the same as GETMOUSE working: the driver only marks
+    '' the window active once its pump has processed WM_ACTIVATE, and it only
+    '' recomputes "pointer inside" when a message arrives. A fixed sleep is a
+    '' guess, and the wrong guess made this suite fail on ONE configuration in
+    '' roughly one run in four -- 19 of 65 checks, all of them the reference
+    '' reporting -1 while ours reported a position.
+    ''
+    '' So it is polled at a mid-client point until it answers, and if it never
+    '' does the run FAILS saying so rather than comparing against a dead window.
+    dim as long settled = 0
+    for attempt as integer = 1 to 40
+        MoveTo( hwin, CW \ 2, CH \ 2 )
+        dim as long qx, qy, qz, qb, qc
+        getmouse qx, qy, qz, qb, qc
+        if qx <> -1 then settled = 1 : exit for
+    next
+    if settled = 0 then
+        print "abtest-mouse: FAIL -- the reference never reported a pointer"
+        print "  position even with focus and the cursor over its client area."
+        screen 0
+        end 1
+    end if
 
     for i as integer = 0 to NPTS - 1
         MoveTo( hwin, px(i), py(i) )
@@ -174,7 +209,21 @@ scope
         WindowClose( wnd )
         end 1
     end if
-    Sleep( 120 )
+
+    '' the same settling wait, so both sides start from a live window
+    dim as long settled2 = 0
+    for attempt as integer = 1 to 40
+        MoveTo( wnd.hwnd, CW \ 2, CH \ 2 )
+        dim as long qx, qy, qz, qb, qc
+        if MouseGet( wnd.mouse, wnd.active, qx, qy, qz, qb, qc ) = 0 then
+            settled2 = 1 : exit for
+        end if
+    next
+    if settled2 = 0 then
+        print "abtest-mouse: FAIL -- our window never reported a pointer position"
+        WindowClose( wnd )
+        end 1
+    end if
 
     for i as integer = 0 to NPTS - 1
         MoveTo( wnd.hwnd, px(i), py(i) )
