@@ -76,11 +76,7 @@ type TKORT_CRITSEC
 	as uinteger SpinCount
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( TKORT_CRITSEC ) = 40
-#else
-	#assert sizeof( TKORT_CRITSEC ) = 24
-#endif
+#assert sizeof( TKORT_CRITSEC ) = 40
 
 extern "c"   '' NON-FBCALL: kernel32 imports.
 	declare sub w_InitializeCriticalSection stdcall alias "InitializeCriticalSection" _

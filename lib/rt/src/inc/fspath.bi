@@ -33,11 +33,7 @@ const FB_FS_UNKNOWN      = 16
 '' against fbc's headers. Each also equals null_desc + sizeof(FBSTRING) on its
 '' target -- 8 + 12 and 16 + 24 -- so the offsets, the disassembly and the
 '' struct arithmetic all say the same thing.
-#if defined( __FB_64BIT__ )
-	const TKORT_UNULL_DESC_OFFSET = 40
-#else
-	const TKORT_UNULL_DESC_OFFSET = 20
-#endif
+const TKORT_UNULL_DESC_OFFSET = 40
 
 #define TKORT_UNULL_DESC() _
 	cptr( FBUSTRING ptr, @__fb_ctx_head + TKORT_UNULL_DESC_OFFSET )

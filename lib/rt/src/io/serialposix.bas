@@ -2,7 +2,7 @@
 '' fb_SerialWrite, fb_SerialGetRemaining and fb_SerialClose. Five symbols, one
 '' fbc member (linux/io_serial.o).
 ''
-'' EMPTY-ON: win64 win32
+'' EMPTY-ON: win64
 ''
 '' THE WINDOWS HALF IS src/io/serialwin.bas and shares nothing with this but the
 '' FB_SERIAL_OPTIONS block it is handed. That block describes a DCB; this file

@@ -51,19 +51,11 @@ const FB_CONSOLE_MAXPAGES = 4
 '' MEASURED with the rest of the context (see inc/console.bi):
 ''   pgHandleTb  16 / 8      active  48 / 24      visible  52 / 28
 ''   setByUser   64 / 40
-#if defined( __FB_64BIT__ )
-	const TKORT_CON_PGTB      = 16
-	const TKORT_CON_ACTIVE    = 48
-	const TKORT_CON_VISIBLE   = 52
-	const TKORT_CON_SETBYUSER = 64
-	const TKORT_CON_OUTHANDLE = 8
-#else
-	const TKORT_CON_PGTB      = 8
-	const TKORT_CON_ACTIVE    = 24
-	const TKORT_CON_VISIBLE   = 28
-	const TKORT_CON_SETBYUSER = 40
-	const TKORT_CON_OUTHANDLE = 4
-#endif
+const TKORT_CON_PGTB      = 16
+const TKORT_CON_ACTIVE    = 48
+const TKORT_CON_VISIBLE   = 52
+const TKORT_CON_SETBYUSER = 64
+const TKORT_CON_OUTHANDLE = 8
 
 #define TKORT_CON_PAGE( i )  (*cptr( any ptr ptr, @__fb_con + TKORT_CON_PGTB + (i) * sizeof( any ptr ) ))
 #define TKORT_CON_ACTIVEPG() (*cptr( long ptr, @__fb_con + TKORT_CON_ACTIVE ))

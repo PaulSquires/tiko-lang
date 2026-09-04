@@ -106,19 +106,11 @@ end extern
 	''   pgHandleTb   16       8
 	''   active       48      24
 	''   visible      52      28
-	#if defined( __FB_64BIT__ )
-		const TKORT_CON_INHANDLE  = 0
-		const TKORT_CON_OUTHANDLE = 8
-		const TKORT_CON_PGTB      = 16
-		const TKORT_CON_ACTIVE    = 48
-		const TKORT_CON_VISIBLE   = 52
-	#else
-		const TKORT_CON_INHANDLE  = 0
-		const TKORT_CON_OUTHANDLE = 4
-		const TKORT_CON_PGTB      = 8
-		const TKORT_CON_ACTIVE    = 24
-		const TKORT_CON_VISIBLE   = 28
-	#endif
+	const TKORT_CON_INHANDLE  = 0
+	const TKORT_CON_OUTHANDLE = 8
+	const TKORT_CON_PGTB      = 16
+	const TKORT_CON_ACTIVE    = 48
+	const TKORT_CON_VISIBLE   = 52
 
 	#define TKORT_CON_IN()        (*cptr( any ptr ptr, @__fb_con + TKORT_CON_INHANDLE ))
 	#define TKORT_CON_OUT()       (*cptr( any ptr ptr, @__fb_con + TKORT_CON_OUTHANDLE ))

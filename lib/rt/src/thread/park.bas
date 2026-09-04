@@ -129,13 +129,8 @@ end sub
 '' lpMinimumApplicationAddress and lpMaximumApplicationAddress next,
 '' dwActiveProcessorMask (ULONG_PTR), then dwNumberOfProcessors. 48 bytes on
 '' x64 and 36 on x86; only the processor count is read.
-#if defined( __FB_64BIT__ )
-	const SYSINFO_SIZE_    = 48
-	const SYSINFO_NPROCS_  = 32
-#else
-	const SYSINFO_SIZE_    = 36
-	const SYSINFO_NPROCS_  = 20
-#endif
+const SYSINFO_SIZE_    = 48
+const SYSINFO_NPROCS_  = 32
 
 function tkort_CpuCount alias "fb_CpuCount" ( ) as long
 	dim as ubyte si( 0 to SYSINFO_SIZE_ - 1 ) = any

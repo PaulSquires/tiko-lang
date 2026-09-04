@@ -1,7 +1,7 @@
 '' vt100.bas -- __fb_enable_vt100_escapes. One data symbol, one fbc member,
 '' POSIX only.
 ''
-'' EMPTY-ON: win64 win32
+'' EMPTY-ON: win64
 ''
 '' THE OBJECT FILE BOUNDARY IS THE CONTRACT, not the value. fbc puts this single
 '' int in a member of its very own, and its comment says exactly why: so that the

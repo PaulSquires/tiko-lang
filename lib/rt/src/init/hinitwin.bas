@@ -111,25 +111,14 @@ type FBCONSOLE_
 	as any ptr  mouseEventHook
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( FBCONSOLE_ ) = 80
-	#assert offsetof( FBCONSOLE_, outHandle ) = 8
-	#assert offsetof( FBCONSOLE_, pgHandleTb(0) ) = 16
-	#assert offsetof( FBCONSOLE_, active ) = 48
-	#assert offsetof( FBCONSOLE_, window_Left ) = 56
-	#assert offsetof( FBCONSOLE_, setByUser ) = 64
-	#assert offsetof( FBCONSOLE_, scrollWasOff ) = 68
-	#assert offsetof( FBCONSOLE_, mouseEventHook ) = 72
-#else
-	#assert sizeof( FBCONSOLE_ ) = 52
-	#assert offsetof( FBCONSOLE_, outHandle ) = 4
-	#assert offsetof( FBCONSOLE_, pgHandleTb(0) ) = 8
-	#assert offsetof( FBCONSOLE_, active ) = 24
-	#assert offsetof( FBCONSOLE_, window_Left ) = 32
-	#assert offsetof( FBCONSOLE_, setByUser ) = 40
-	#assert offsetof( FBCONSOLE_, scrollWasOff ) = 44
-	#assert offsetof( FBCONSOLE_, mouseEventHook ) = 48
-#endif
+#assert sizeof( FBCONSOLE_ ) = 80
+#assert offsetof( FBCONSOLE_, outHandle ) = 8
+#assert offsetof( FBCONSOLE_, pgHandleTb(0) ) = 16
+#assert offsetof( FBCONSOLE_, active ) = 48
+#assert offsetof( FBCONSOLE_, window_Left ) = 56
+#assert offsetof( FBCONSOLE_, setByUser ) = 64
+#assert offsetof( FBCONSOLE_, scrollWasOff ) = 68
+#assert offsetof( FBCONSOLE_, mouseEventHook ) = 72
 
 '' _controlfp's flags. _PC_64 and _RC_NEAR are both ZERO -- the value written is
 '' 0 and it is the MASK that does the work. Spelled out rather than folded into

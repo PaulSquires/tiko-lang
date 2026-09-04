@@ -60,21 +60,13 @@ const FB_PRINT_FORCE_ADJUST = 8
 type FB_INPUTCTX field = 1
 	as FB_FILE ptr handle
 	as long        status
-	#if defined( __FB_64BIT__ )
-		as long    pad0_
-	#endif
+	as long    pad0_
 	as FBSTRING    str_
 	as long        cursor
-	#if defined( __FB_64BIT__ )
-		as long    pad1_
-	#endif
+	as long    pad1_
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( FB_INPUTCTX ) = 48
-#else
-	#assert sizeof( FB_INPUTCTX ) = 24
-#endif
+#assert sizeof( FB_INPUTCTX ) = 48
 
 extern "rtlib"
 	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long

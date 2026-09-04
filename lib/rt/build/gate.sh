@@ -151,22 +151,15 @@ TARGETOPT=""
 LIBOPT="-p $GATELIB"
 TARGETVAR=""
 case "$TARGET" in
-    win32)
-        TC="$FBC_TREE/toolchains/fbc-modern-windows"
-        export AS="$TC/bin/win32/as.exe" LD="$TC/bin/win32/ld.exe"
-        export AR="$TC/bin/win32/ar.exe" GCC="$TC/bin/win32/gcc.exe"
-        export DLLTOOL="$TC/bin/win32/dlltool.exe"
-        TARGETOPT="-target win32"
-        TARGETVAR="TARGET=win32"
-        ;;
     linux-x86_64)
         # Runs inside WSL: the suite has to EXECUTE, and these are ELF binaries.
         # The merge above already produced ELF archives -- llvm-ar handles them
         # regardless of which host it runs on.
         #
         # libfbgfx*.a for Linux is present in fbc's tree. libfbcunit.a is NOT
-        # per-target-safe: it is one file, rebuilt by whichever gate ran last, and
-        # right now it holds win32 objects because the win32 gate built it.
+        # per-target-safe: it is one file, rebuilt by whichever gate ran last, so
+        # it may hold objects of the wrong architecture -- it used to be win32's,
+        # and is now win64's.
         # `make` rebuilds it for whatever FBC it is handed, so the only thing
         # needed is to delete it first and let the Linux run regenerate it --
         # otherwise make sees an up-to-date archive of the wrong architecture and

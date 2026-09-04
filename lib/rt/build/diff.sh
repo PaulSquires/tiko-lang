@@ -76,7 +76,7 @@ MTOBJS=$(ls "$MTOBJDIR"/*.o 2>/dev/null || true)
 # pulls members on demand. It is only this script's over-linking that needs the
 # library named, so it is named here rather than worked around in the runtime.
 case "$TARGET" in
-    win64|win32) EXTRALIBS="-l winspool -l gdi32" ;;
+    win64)       EXTRALIBS="-l winspool -l gdi32" ;;
     *)           EXTRALIBS="" ;;
 esac
 

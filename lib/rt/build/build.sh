@@ -144,7 +144,7 @@ build_one( ) {
                 echo "build: an extern block AND the DIM SHARED outside it -- a bare" >&2
                 echo "build: dim shared inside the block is file-local. See src/utf/core.bas." >&2
                 echo "build: if the file is empty on this target BY DESIGN, add a comment" >&2
-                echo "build: line naming them, e.g.   '' EMPTY-ON: win64 win32" >&2
+                echo "build: line naming them, e.g.   '' EMPTY-ON: win64" >&2
                 rt_die "define something, mark it EMPTY-ON, or take it out of sources.txt"
             fi
         fi

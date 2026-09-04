@@ -98,13 +98,14 @@ const FB_SCHED_MAX_WORKERS_  = 256
 '' says the same thing for a DECLARATION, but a procedure TYPE has to spell the
 '' convention out, so the #if below is what FBCALL means.
 ''
-'' Getting this wrong on win32 is a stack imbalance at every spawned call, not a
-'' compile error -- and win64 and Linux would both stay green.
-#if defined( __FB_WIN32__ ) and not defined( __FB_64BIT__ )
-	type FB_SPAWNPROC as sub stdcall ( byval ctx as any ptr )
-#else
-	type FB_SPAWNPROC as sub cdecl ( byval ctx as any ptr )
-#endif
+'' ONE ARM LEFT, AND THE WARNING OUTLIVES IT. Until 2026-09-04 the win32 arm
+'' spelled this `stdcall`, because FBCALL is __stdcall there; getting it wrong was
+'' a stack imbalance at every spawned call rather than a compile error, and win64
+'' and Linux would both have stayed green. x86-64 is now the only architecture
+'' (D14), so cdecl is unconditional -- but the reason a procedure TYPE must spell
+'' its convention out at all has not changed, and neither has the fact that no
+'' remaining target can catch it being wrong.
+type FB_SPAWNPROC as sub cdecl ( byval ctx as any ptr )
 
 '' The thread proc type and the parker type both live inside src/thread/core.bas
 '' and src/thread/park.bas rather than in a shared header, so neither is visible

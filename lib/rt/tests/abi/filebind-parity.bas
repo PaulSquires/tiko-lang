@@ -49,23 +49,7 @@ extern "c"
     extern __fb_ctx alias "__fb_ctx" as ubyte
 end extern
 
-#if defined( __FB_64BIT__ )
-    const FILETB_OFFSET = 296
-#else
-    '' win32: MEASURED, after a derived value turned out to be wrong.
-    ''
-    '' The first version of this file DERIVED 148 by counting the members ahead
-    '' of fileTB under ILP32 rules. It was off by four, and the checks below said
-    '' so at once -- width read back 0 instead of 40, mode read 0 on an open
-    '' handle, hooks was null. Nothing crashed.
-    ''
-    '' The real number came from asking the runtime: set a distinctive width on
-    '' an open handle, then scan __fb_ctx for the entry whose width field holds
-    '' it and work back to the table base. Run on win64 as a control first, where
-    '' it returned 296 -- exactly what the C probe had reported -- and only then
-    '' on win32, where it returned 152.
-    const FILETB_OFFSET = 152
-#endif
+const FILETB_OFFSET = 296
 const FB_RESERVED_FILES = 2
 
 function handle_of( byval fnum as long ) as T_FILE ptr

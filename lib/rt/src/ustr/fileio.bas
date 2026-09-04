@@ -115,21 +115,13 @@ end extern
 type FB_INPUTCTX field = 1
 	as FB_FILE ptr handle
 	as long        status
-	#if defined( __FB_64BIT__ )
-		as long    pad0_
-	#endif
+	as long    pad0_
 	as FBSTRING    str_
 	as long        cursor
-	#if defined( __FB_64BIT__ )
-		as long    pad1_
-	#endif
+	as long    pad1_
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( FB_INPUTCTX ) = 48
-#else
-	#assert sizeof( FB_INPUTCTX ) = 24
-#endif
+#assert sizeof( FB_INPUTCTX ) = 48
 
 #define TKORT_TLSGET_INPUT() _
 	cptr( FB_INPUTCTX ptr, tkrt_TlsGetCtx( FB_TLSKEY_INPUT, sizeof( FB_INPUTCTX ), _

@@ -67,13 +67,8 @@ const FB_COLOR_BG_DEFAULT = &h2
 	''   scrollWasOff 68      44
 	''   mouseHook    72      48
 	''   sizeof       80      52
-	#if defined( __FB_64BIT__ )
-		const TKORT_CON_WINDOW       = 56
-		const TKORT_CON_SCROLLWASOFF = 68
-	#else
-		const TKORT_CON_WINDOW       = 32
-		const TKORT_CON_SCROLLWASOFF = 44
-	#endif
+	const TKORT_CON_WINDOW       = 56
+	const TKORT_CON_SCROLLWASOFF = 68
 
 	'' SMALL_RECT is Left, Top, Right, Bottom as SHORT, in that order.
 	const TKORT_RECT_LEFT   = 0

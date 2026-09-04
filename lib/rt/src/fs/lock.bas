@@ -71,11 +71,7 @@ const ERROR_IO_PENDING_     = 997
 
 '' OVERLAPPED is three pointer-sized fields plus hEvent; only its SIZE matters
 '' here, because it is passed zeroed and never read back.
-#if defined( __FB_64BIT__ )
-	const OVERLAPPED_SIZE_ = 32
-#else
-	const OVERLAPPED_SIZE_ = 20
-#endif
+const OVERLAPPED_SIZE_ = 32
 
 type FB_FSLOCK
 	as any ptr h

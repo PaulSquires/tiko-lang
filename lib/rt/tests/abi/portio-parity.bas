@@ -40,7 +40,7 @@ extern "rtlib"
 	declare function errGetNum alias "fb_ErrorGetNum" ( ) as long
 end extern
 
-#if defined( __FB_WIN32__ ) and defined( __FB_64BIT__ )
+#if defined( __FB_WIN32__ )
 print "-- win64: both are unconditional stubs, so they are CALLED"
 
 '' Port 0x3F8 is COM1's data register -- a real port number, chosen so the test

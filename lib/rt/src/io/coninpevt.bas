@@ -151,11 +151,7 @@ const MAPVK_VK_TO_CHAR_ = 2
 
 '' __fb_con.mouseHook, spelled locally in the same style src/io/coninput.bas
 '' uses. inc/console.bi documents the offset -- 72 on win64, 48 on win32.
-#if defined( __FB_64BIT__ )
-	const TKORT_CON_MOUSEHOOK_OFF2 = 72
-#else
-	const TKORT_CON_MOUSEHOOK_OFF2 = 48
-#endif
+const TKORT_CON_MOUSEHOOK_OFF2 = 72
 
 #define TKORT_CON_MOUSEHOOK2() (*cptr( any ptr ptr, @__fb_con + TKORT_CON_MOUSEHOOK_OFF2 ))
 

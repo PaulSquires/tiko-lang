@@ -1,7 +1,7 @@
 '' multikeyposix.bas -- fb_ConsoleMultikey and fb_hConsoleGfxMode, the Linux
 '' raw-keyboard driver. Two symbols, one fbc member (linux/io_multikey.o).
 ''
-'' EMPTY-ON: win64 win32
+'' EMPTY-ON: win64
 ''
 '' MULTIKEY NEEDS TO KNOW WHICH KEYS ARE HELD, AND A TERMINAL CANNOT TELL YOU.
 '' A tty delivers characters, not key transitions -- there is no way to ask it

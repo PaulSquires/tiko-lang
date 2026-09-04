@@ -45,15 +45,9 @@ type fb_ConHooks
 	as fb_Coord     Coord_
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( fb_ConHooks ) = 48
-	#assert offsetof( fb_ConHooks, Border ) = 24
-	#assert offsetof( fb_ConHooks, Coord_ ) = 40
-#else
-	#assert sizeof( fb_ConHooks ) = 36
-	#assert offsetof( fb_ConHooks, Border ) = 12
-	#assert offsetof( fb_ConHooks, Coord_ ) = 28
-#endif
+#assert sizeof( fb_ConHooks ) = 48
+#assert offsetof( fb_ConHooks, Border ) = 24
+#assert offsetof( fb_ConHooks, Coord_ ) = 40
 
 #define TKORT_CONCHECKSCROLL( h ) _
 	if( (h)->Border.Bottom_ <> -1 ) then : _

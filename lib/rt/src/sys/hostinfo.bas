@@ -60,25 +60,14 @@
 	'' bytes on win64, so it is NOT. Bound as a raw buffer with the offset
 	'' measured rather than assumed.
 	type MEMSTATUS_
-		#if defined( __FB_64BIT__ )
-			as ulong  dwLength
-			as ulong  dwMemoryLoad
-			as ulongint dwTotalPhys
-			as ulongint dwAvailPhys
-			as ulongint dwTotalPageFile
-			as ulongint dwAvailPageFile
-			as ulongint dwTotalVirtual
-			as ulongint dwAvailVirtual
-		#else
-			as ulong dwLength
-			as ulong dwMemoryLoad
-			as ulong dwTotalPhys
-			as ulong dwAvailPhys
-			as ulong dwTotalPageFile
-			as ulong dwAvailPageFile
-			as ulong dwTotalVirtual
-			as ulong dwAvailVirtual
-		#endif
+		as ulong  dwLength
+		as ulong  dwMemoryLoad
+		as ulongint dwTotalPhys
+		as ulongint dwAvailPhys
+		as ulongint dwTotalPageFile
+		as ulongint dwAvailPageFile
+		as ulongint dwTotalVirtual
+		as ulongint dwAvailVirtual
 	end type
 
 #else

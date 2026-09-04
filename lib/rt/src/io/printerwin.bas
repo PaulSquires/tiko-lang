@@ -154,11 +154,7 @@ type DEV_LPT_PROTOCOL
 	as zstring ptr emu
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( DEV_LPT_PROTOCOL ) = 40
-#else
-	#assert sizeof( DEV_LPT_PROTOCOL ) = 20
-#endif
+#assert sizeof( DEV_LPT_PROTOCOL ) = 40
 
 '' MEASURED: 60 bytes, and lfCharSet sits at 23 -- the four BYTE fields pack
 '' tightly after lfWeight with no padding. No pointers, so win32 agrees.
@@ -221,10 +217,8 @@ type DOCINFOA_
 	as ulong       fwType
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( DOCINFOA_ ) = 40
-	#assert offsetof( DOCINFOA_, lpszDocName ) = 8
-#endif
+#assert sizeof( DOCINFOA_ ) = 40
+#assert offsetof( DOCINFOA_, lpszDocName ) = 8
 
 '' MEASURED on win64: 24 bytes, three pointers.
 type DOC_INFO_1A_
@@ -233,9 +227,7 @@ type DOC_INFO_1A_
 	as zstring ptr pDatatype
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( DOC_INFO_1A_ ) = 24
-#endif
+#assert sizeof( DOC_INFO_1A_ ) = 24
 
 '' MEASURED on win64: 136 bytes, pServerName at 0, pPrinterName at 8, pPortName
 '' at 24. Only those three are read; the rest is present so the SIZE is right,
@@ -266,10 +258,8 @@ type PRINTER_INFO_2A_
 	as ulong       AveragePPM
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( PRINTER_INFO_2A_ ) = 136
-	#assert offsetof( PRINTER_INFO_2A_, pPortName ) = 24
-#endif
+#assert sizeof( PRINTER_INFO_2A_ ) = 136
+#assert offsetof( PRINTER_INFO_2A_, pPortName ) = 24
 
 '' MEASURED on win64: 32 bytes (28 of content, padded).
 type PRINTER_INFO_5A_
@@ -280,9 +270,7 @@ type PRINTER_INFO_5A_
 	as ulong       TransmissionRetryTimeout
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( PRINTER_INFO_5A_ ) = 32
-#endif
+#assert sizeof( PRINTER_INFO_5A_ ) = 32
 
 '' The emulator's per-handle state. Nested exactly as fbc nests it, because
 '' nothing outside this file reads it and the shape documents the split between

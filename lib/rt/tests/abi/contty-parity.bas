@@ -43,11 +43,7 @@ type HooksT
 	as fb_Coord_   Coord_
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( HooksT ) = 48
-#else
-	#assert sizeof( HooksT ) = 36
-#endif
+#assert sizeof( HooksT ) = 48
 
 extern "c"
 	declare sub pRaw     alias "fb_ConPrintRaw" _

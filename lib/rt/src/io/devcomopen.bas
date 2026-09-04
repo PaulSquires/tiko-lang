@@ -113,13 +113,8 @@ type DEV_COM_INFO
 	as FB_SERIAL_OPTIONS Options
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( DEV_COM_INFO ) = 88
-	#assert offsetof( DEV_COM_INFO, Options ) = 20
-#else
-	#assert sizeof( DEV_COM_INFO ) = 80
-	#assert offsetof( DEV_COM_INFO, Options ) = 12
-#endif
+#assert sizeof( DEV_COM_INFO ) = 88
+#assert offsetof( DEV_COM_INFO, Options ) = 20
 
 extern "c"   '' NON-FBCALL: fb_serial.h and fb_device.h declare every one of
              '' these plainly, and the win32 archive spells them without `@N`.

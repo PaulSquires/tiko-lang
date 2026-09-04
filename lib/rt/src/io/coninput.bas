@@ -80,11 +80,7 @@ const MOUSE_WHEELED_          = 4
 '' for the page table. inc/console.bi documents the offset in its header comment
 '' -- 72 on win64, 48 on win32 -- but does not bind it, because until now nothing
 '' needed it.
-#if defined( __FB_64BIT__ )
-	const TKORT_CON_MOUSEHOOK_OFF = 72
-#else
-	const TKORT_CON_MOUSEHOOK_OFF = 48
-#endif
+const TKORT_CON_MOUSEHOOK_OFF = 72
 
 #define TKORT_CON_MOUSEHOOK() (*cptr( any ptr ptr, @__fb_con + TKORT_CON_MOUSEHOOK_OFF ))
 

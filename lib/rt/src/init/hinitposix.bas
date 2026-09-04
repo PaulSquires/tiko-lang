@@ -2,7 +2,7 @@
 '' console context itself. Eleven symbols in libfb.a and TWENTY-ONE in
 '' libfbmt.a, one fbc member (unix/hinit.o).
 ''
-'' EMPTY-ON: win64 win32
+'' EMPTY-ON: win64
 ''
 '' THIS MEMBER OWNS __fb_con, WHICH EVERY OTHER POSIX CONSOLE MODULE READS.
 '' src/io/conprint.bas, conattr.bas, conttytail.bas and half a dozen more

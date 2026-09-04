@@ -51,13 +51,8 @@ type DEV_LPT_PROTOCOL
 	as zstring ptr emu
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( DEV_LPT_PROTOCOL ) = 40
-	#assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 16
-#else
-	#assert sizeof( DEV_LPT_PROTOCOL ) = 20
-	#assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 8
-#endif
+#assert sizeof( DEV_LPT_PROTOCOL ) = 40
+#assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 16
 
 '' The copy starts immediately after the header -- fbc's `raw` member.
 #define TKORT_LPT_RAW( pr ) cast( ubyte ptr, cast( ubyte ptr, pr ) + sizeof( DEV_LPT_PROTOCOL ) )

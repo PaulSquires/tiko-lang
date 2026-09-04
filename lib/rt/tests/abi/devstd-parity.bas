@@ -102,11 +102,7 @@ type TKORT_FB_FILE
 	as any ptr   redirection_to
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( TKORT_FB_FILE ) = 80
-#else
-	#assert sizeof( TKORT_FB_FILE ) = 64
-#endif
+#assert sizeof( TKORT_FB_FILE ) = 80
 
 const MODE_BINARY = 0
 const MODE_RANDOM = 1

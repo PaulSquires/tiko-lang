@@ -1,7 +1,7 @@
 '' ports.bas -- fb_hIn and fb_hOut, the INP and OUT statements' back end. Two
 '' symbols, one fbc member (win32/sys_portio.o) -- and ONLY on win64.
 ''
-'' EMPTY-ON: win32 linux-x86_64
+'' EMPTY-ON: linux-x86_64
 ''
 '' NAMED ports.bas RATHER THAN portio.bas ON PURPOSE. The build flattens
 '' src/sys/portio.bas to sys_portio.o, which is fbc's OWN member name, and
@@ -69,7 +69,7 @@
 
 #include once "inc/rterror.bi"
 
-#if defined( __FB_WIN32__ ) and defined( __FB_64BIT__ )
+#if defined( __FB_WIN32__ )
 
 extern "rtlib"   '' FBCALL.
 	declare function tkrt_ErrorSetNum4 alias "fb_ErrorSetNum" ( byval e as long ) as long

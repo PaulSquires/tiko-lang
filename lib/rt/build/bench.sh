@@ -93,7 +93,7 @@ benches=$(find "$RT_ROOT/tests/bench" -name '*.bas' 2>/dev/null | sort)
 # They change nothing about what is measured: no benchmark calls a printer
 # function, and BOTH sides get the same flags.
 case "$TARGET" in
-    win64|win32) BENCHLIBS="-l winspool -l gdi32" ;;
+    win64)       BENCHLIBS="-l winspool -l gdi32" ;;
     *)           BENCHLIBS="" ;;
 esac
 

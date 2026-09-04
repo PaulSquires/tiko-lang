@@ -73,13 +73,8 @@ extern "c"
 end extern
 
 '' Measured, and the same run inc/ctx.bi already uses.
-#if defined( __FB_64BIT__ )
-	const HOOKS_BASE = 72
-	const PTR_SIZE   = 8
-#else
-	const HOOKS_BASE = 36
-	const PTR_SIZE   = 4
-#endif
+const HOOKS_BASE = 72
+const PTR_SIZE   = 8
 
 #define HOOK_AT( n ) (*cptr( any ptr ptr, @__fb_ctx_bytes + HOOKS_BASE + (n) * PTR_SIZE ))
 

@@ -25,11 +25,7 @@ type LptProto
 	as zstring ptr emu
 end type
 
-#if defined( __FB_64BIT__ )
-	#assert sizeof( LptProto ) = 40
-#else
-	#assert sizeof( LptProto ) = 20
-#endif
+#assert sizeof( LptProto ) = 40
 
 extern "c"
 	declare function pParse alias "fb_DevLptParseProtocol" _

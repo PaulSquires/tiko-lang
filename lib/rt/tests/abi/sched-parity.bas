@@ -88,14 +88,13 @@ print "  goroutines="; pGoroutineCount( ); " workers="; pWorkerCount( )
 dim shared as long tot = 0
 dim shared as long done_count = 0
 
-'' FBCALL, spelled out: on 32-bit Windows a spawned proc is __stdcall and
-'' everywhere else cdecl. Declaring it cdecl on win32 would imbalance the stack
-'' at every call and leave win64 and Linux green.
-#if defined( __FB_WIN32__ ) and not defined( __FB_64BIT__ )
-sub worker_ stdcall ( byval ctx as any ptr )
-#else
+'' CDECL, SPELLED OUT. It is unconditional now that x86-64 is the only
+'' architecture (D14) -- 32-bit Windows was the one target where a spawned proc
+'' was __stdcall, and declaring it cdecl there imbalanced the stack at every
+'' call while leaving win64 and Linux green. The convention is still written out
+'' rather than left to the default, because nothing that remains could catch it
+'' being wrong.
 sub worker_ cdecl ( byval ctx as any ptr )
-#endif
 	dim as long idx = cast( long, cast( integer, ctx ) )
 	pClaimLock( )
 	tot += idx

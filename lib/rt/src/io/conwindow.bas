@@ -63,13 +63,8 @@ const FB_CONSOLE_MAXPAGES_ = 4
 '' The __fb_con fields this file needs beyond what inc/console.bi binds, spelled
 '' locally in the style src/io/conpage.bas uses. MEASURED, and quoted in
 '' inc/console.bi's own header comment.
-#if defined( __FB_64BIT__ )
-	const TKORT_CON_PGTB_      = 16
-	const TKORT_CON_SETBYUSER_ = 64
-#else
-	const TKORT_CON_PGTB_      = 8
-	const TKORT_CON_SETBYUSER_ = 40
-#endif
+const TKORT_CON_PGTB_      = 16
+const TKORT_CON_SETBYUSER_ = 64
 
 #define TKORT_CON_PAGE_( i )   (*cptr( any ptr ptr, @__fb_con + TKORT_CON_PGTB_ + (i) * sizeof( any ptr ) ))
 #define TKORT_CON_SETBYUSER()  (*cptr( long ptr, @__fb_con + TKORT_CON_SETBYUSER_ ))

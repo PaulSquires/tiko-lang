@@ -42,7 +42,6 @@ RTLIB="$FBC_TREE/src/src/rtlib"
 
 case "$TARGET" in
     win64)        TRIPLE=x86_64-w64-windows-gnu ;;
-    win32)        TRIPLE=i686-w64-windows-gnu ;;
     linux-x86_64) TRIPLE=x86_64-pc-linux-gnu ;;
 esac
 
@@ -101,7 +100,9 @@ echo "cbase: rebuilding fbc's own members with clang for $TRIPLE"
 # has replaced since -- the whole locale layer, file_dir, the sys_* singletons --
 # would have hit the same wall.
 case "$TARGET" in
-    win64|win32)  CB_DIRS="win32 ." ;;
+    # win32 IS A DIRECTORY NAME HERE, not a target: fbc keeps its Windows
+    # sources in rtlib/win32/ whatever the word size.
+    win64)        CB_DIRS="win32 ." ;;
     linux-x86_64) CB_DIRS="linux unix ." ;;
     *)            CB_DIRS="." ;;
 esac
