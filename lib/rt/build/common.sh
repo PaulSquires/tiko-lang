@@ -48,9 +48,18 @@ fi
 
 # ------------------------------------------------------------------ targets
 
-# The three targets of R3. Any other target is not a gap to be filled later:
-# it is out of scope, and the build refuses it rather than guessing.
-RT_TARGETS="win64 win32 linux-x86_64"
+# The targets of R3, as amended 2026-09-04. Any other target is not a gap to be
+# filled later: it is out of scope, and the build refuses it rather than guessing.
+#
+# X86-64 IS THE SUPPORTED ARCHITECTURE. win32 was removed here first, ahead of
+# the source changes, because this line is the whole of RFC-0007 phase 3 and
+# putting it back is the whole of undoing it. Everything after this point in the
+# plan deletes code and is not reversible for one edit.
+#
+# ARM64 is considered and not implemented -- fbc-modern refuses aarch64 outright
+# (error 83), so there is no runtime to build and no fbc archive to gate against.
+# RFC-0007 section 9.
+RT_TARGETS="win64 linux-x86_64"
 
 # Include path. fbc's src/inc supplies the OS bindings (src/sys/sys.bi explains
 # why they, and not #cinclude, are the primary binding under the amended R6).
@@ -65,7 +74,13 @@ rt_incflags( ) {
 }
 
 rt_is_target( ) {
-    for t in $RT_TARGETS; do [ "$1" = "$t" ] && return 0; done
+    # __t, NOT t. Shell functions share the caller's scope, and build.sh validates
+    # with `for t in $TARGETS; do rt_is_target "$t" ...`. Using t here CLOBBERED the
+    # caller's loop variable: every rejection named the LAST entry of RT_TARGETS
+    # instead of the target actually asked for, so `build.sh Debug win32` reported
+    # "unsupported target 'linux-x86_64'" -- naming a target that IS supported.
+    # Found 2026-09-04 while narrowing RT_TARGETS for RFC-0007 phase 3.
+    for __t in $RT_TARGETS; do [ "$1" = "$__t" ] && return 0; done
     return 1
 }
 
