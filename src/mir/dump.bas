@@ -9,6 +9,21 @@
 
 namespace Tko.Mir
 
+'' The SysV eightbyte classes, spelled. '[I]' one INTEGER eightbyte, '[S,I]' an SSE
+'' then an INTEGER, '[M]' MEMORY. Empty when nothing was classified.
+private function EbName( byval packed as ulong ) as string
+    if packed = 0 then return ""
+    if packed = TKO_EB_MEMORY then return "[M]"
+    dim as string r = "["
+    dim as ulong c0 = TKO_EB0( packed )
+    dim as ulong c1 = TKO_EB1( packed )
+    if c0 = TKO_EB_SSE then r += "S" else r += "I"
+    if c1 <> TKO_EB_NONE then
+        if c1 = TKO_EB_SSE then r += ",S" else r += ",I"
+    end if
+    return r & "]"
+end function
+
 private function ValStr _
     ( byref f as MirFunction, byref v as MirValue, byref names as Tko.Interner, _
       byval m as MirModule ptr = 0 ) as string
@@ -276,8 +291,11 @@ function DumpModule _
         if f->isModuleCtor then outp += "attribute constructor" & chr( 10 )
         if f->isModuleDtor then outp += "attribute destructor" & chr( 10 )
         outp += iif( f->isDefinition, "func ", "declare " )
-        outp += TypeName( cast( MirType, f->retTy ) ) & " " & _
-                names.Spelling( f->name ) & "("
+        dim as string rty = TypeName( cast( MirType, f->retTy ) )
+        if (cast( MirType, f->retTy ) = MT_AGG) andalso (f->retSize > 0) then
+            rty += ":" & str( f->retSize ) & EbName( f->retClass )
+        end if
+        outp += rty & " " & names.Spelling( f->name ) & "("
         '' THE PARAMETER'S TYPE, beside its number. The dump used to print '$0, $1'
         '' and nothing else, which is all there was to print; the signature is now
         '' recorded and a golden that cannot see it cannot protect it.
@@ -286,6 +304,18 @@ function DumpModule _
             dim as string pty = "?"
             if i < f->paramTys.Count then
                 pty = TypeName( cast( MirType, f->paramTys[i] ) )
+                '' AN AGGREGATE SHOWS ITS SIZE AND ITS SysV EIGHTBYTE CLASSES. Both are
+                '' ABI intent that nothing else in the dump reveals, and a classifier
+                '' that cannot be READ cannot be checked against the toolchain it has
+                '' to agree with.
+                if cast( MirType, f->paramTys[i] ) = cast( ubyte, MT_AGG ) then
+                    '' Only where a size is actually known. A zero is how a DECLINED
+                    '' or unrecorded aggregate reads, and annotating that says nothing
+                    '' while churning every golden that contains one.
+                    if f->paramAggs[i] > 0 then
+                        pty += ":" & str( f->paramAggs[i] ) & EbName( f->paramClasses[i] )
+                    end if
+                end if
             end if
             outp += pty & " $" & str( i )
         next

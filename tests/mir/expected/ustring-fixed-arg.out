@@ -10,7 +10,8 @@ func i32 _Z1GRK8FBSTRING(ptr $0) {
     %3 = alloca ptr v
     store @v, $0
     %4 = const i64 1
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func i32 _Z1GRK9FBUSTRING(ptr $0) {
   local i32 $tmp0
@@ -22,7 +23,8 @@ func i32 _Z1GRK9FBUSTRING(ptr $0) {
     %3 = alloca ptr v
     store @v, $0
     %4 = const i64 2
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -75,4 +77,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_UStrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

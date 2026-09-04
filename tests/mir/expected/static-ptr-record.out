@@ -10,7 +10,8 @@ func i32 FUNC_CB() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i64 9
-    ret %3
+    %4 = trunc %3
+    ret %4
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -36,4 +37,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 19 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 20 insts, 0 statements not lowered, 0 scope imbalance

@@ -43,6 +43,29 @@ function Verify _
             defined_.Push( 0 )
         next
 
+        '' ...AND WHICH SLOTS HAVE STORAGE. A slot is named by MV_LOCAL and reserved by
+        '' M_ALLOCA, and nothing checked that the second ever happened. The ABI pass
+        '' pushed its new allocas into the entry block while the entry block was itself
+        '' being rebuilt, the rebuild dropped them, and every rule here still passed --
+        '' clang was what noticed, with "use of undefined value '%s10'".
+        ''
+        '' Collected in a first sweep because an alloca may follow a use in program
+        '' ORDER: the entry block is where they all live, but a later block's use is
+        '' seen before the entry block is finished being read only if the walk is
+        '' single-pass. Two passes is simpler than reasoning about that.
+        dim as FB.Array( of ubyte ) allocated_
+        for i as long = 0 to f->locals.Count
+            allocated_.Push( 0 )
+        next
+        for bi as long = 0 to f->blocks.Count - 1
+            for ii as long = 0 to f->blocks[bi].insts.Count - 1
+                dim as MirInst ptr ai = @f->blocks[bi].insts[ii]
+                if cast( MirOp, ai->op ) <> M_ALLOCA then continue for
+                dim as long sl = cast( long, ai->imm )
+                if (sl >= 0) andalso (sl < allocated_.Count) then allocated_[sl] = 1
+            next
+        next
+
         for bi as long = 0 to f->blocks.Count - 1
             dim as MirBlock ptr b = @f->blocks[bi]
             dim as string bn = fn & ":" & str( bi )
@@ -93,6 +116,28 @@ function Verify _
                     end if
                 elseif ins->result <> 0 then
                     Fail( r, iw, "opcode with no result carries a result temp" )
+                end if
+
+                '' Rule 9c: a slot that is USED must have been ALLOCATED. See the
+                '' sweep above for what this is for. A GLOBAL is storage in its own
+                '' right and is not allocated by anything here.
+                if ins->a.kind = cast( ubyte, MV_LOCAL ) then
+                    dim as long sl = cast( long, ins->a.id )
+                    if (sl >= 0) andalso (sl < allocated_.Count) then
+                        if allocated_[sl] = 0 then
+                            Fail( r, iw, "uses slot " & str( sl ) & _
+                                  " which is never allocated" )
+                        end if
+                    end if
+                end if
+                if ins->b.kind = cast( ubyte, MV_LOCAL ) then
+                    dim as long sl = cast( long, ins->b.id )
+                    if (sl >= 0) andalso (sl < allocated_.Count) then
+                        if allocated_[sl] = 0 then
+                            Fail( r, iw, "uses slot " & str( sl ) & _
+                                  " which is never allocated" )
+                        end if
+                    end if
                 end if
 
                 '' Operands that name a temp must name one that exists.

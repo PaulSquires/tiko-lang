@@ -121,7 +121,8 @@ func i32 SIDE_() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i64 7
-    ret %3
+    %4 = trunc %3
+    ret %4
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -142,4 +143,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 15 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 15 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance

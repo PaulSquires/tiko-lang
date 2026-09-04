@@ -27,7 +27,8 @@ func i32 BAZ(i32 $0) {
     %5 = const i64 1
     %6 = sext %4
     %7 = add %6, %5
-    ret %7
+    %8 = trunc %7
+    ret %8
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -64,4 +65,4 @@ declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 39 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance

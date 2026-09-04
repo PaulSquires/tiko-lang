@@ -18,8 +18,11 @@ func i32 __TKO_LAMBDA_2E76842F_0(ptr $0, i32 $1) {
     %8 = load @v
     %9 = load @bias
     %10 = load %9
-    %11 = add %8, %10
-    ret %11
+    %11 = sext %8
+    %12 = sext %10
+    %13 = add %11, %12
+    %14 = trunc %13
+    ret %14
 }
 func i32 __TKO_LAMBDA_2E76842F_1(i32 $0) {
   local i32 $tmp0
@@ -34,7 +37,8 @@ func i32 __TKO_LAMBDA_2E76842F_1(i32 $0) {
     %5 = const i64 100
     %6 = sext %4
     %7 = add %6, %5
-    ret %7
+    %8 = trunc %7
+    ret %8
 }
 func i32 APPLYR<26>(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -118,4 +122,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance

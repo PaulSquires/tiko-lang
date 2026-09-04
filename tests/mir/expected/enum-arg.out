@@ -10,11 +10,13 @@ func void _ZN1N1CC1Ev(ptr $0) {
     store %3, %5
     ret
 }
-func agg _ZN1N2MKEh(i8 $0) {
+func i32 _ZN1N2MKEh(i8 $0) {
   local agg $tmp0 size 4
   local i8 idx
   local agg c size 4
+  local agg $abi3 size 4
   entry0:
+    %15 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr idx
     store @idx, $0
@@ -34,18 +36,28 @@ func agg _ZN1N2MKEh(i8 $0) {
     %13 = load @c
     store @$tmp0, %13
     %14 = load @$tmp0
-    ret %14
+    store @$abi3, %14
+    %16 = load @$abi3
+    ret %16
 }
-func agg _ZN1N3BLKEv() {
+func i32 _ZN1N3BLKEv() {
   local agg $tmp0 size 4
+  local agg $abi1 size 4
+  local agg $abi2 size 4
   entry0:
+    %8 = alloca ptr $abi2
+    %6 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
     %2 = const i64 0
     %3 = trunc %2
-    %4 = call agg _ZN1N2MKEh(%3)
+    %7 = call i32 _ZN1N2MKEh(%3)
+    store @$abi1, %7
+    %4 = load @$abi1
     store @$tmp0, %4
     %5 = load @$tmp0
-    ret %5
+    store @$abi2, %5
+    %9 = load @$abi2
+    ret %9
 }
 verify: ok
 lowered: 3 functions, 3 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance

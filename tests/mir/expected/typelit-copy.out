@@ -1,4 +1,4 @@
-func void PROC2(agg $0, i32 $1) {
+func void PROC2(i32 $0, i32 $1) {
   local agg v size 4
   local i32 n
   entry0:
@@ -22,7 +22,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg x4 size 4
   local agg x5 size 4
   local agg $tmp6 size 4
+  local agg $abi7 size 4
   entry0:
+    %34 = alloca ptr $abi7
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -39,7 +41,9 @@ func i32 main(i32 $0, ptr $1) {
     %10 = load @x
     %11 = const i64 2
     %12 = trunc %11
-    call void PROC2(%10, %12)
+    store @$abi7, %10
+    %35 = load @$abi7
+    call void PROC2(%35, %12)
     %13 = load @y
     store @x, %13
     %14 = load @y

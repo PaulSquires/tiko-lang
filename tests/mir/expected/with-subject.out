@@ -15,7 +15,8 @@ func i32 SLOT(i32 $0) {
     %6 = const i64 7
     %7 = sext %5
     %8 = and %7, %6
-    ret %8
+    %9 = trunc %8
+    ret %9
 }
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
@@ -138,4 +139,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 114 insts, 0 statements not lowered, 0 scope imbalance

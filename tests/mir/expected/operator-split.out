@@ -26,11 +26,13 @@ func void _ZN2DTC1Ex(ptr $0, i64 $1) {
     store %4, %5
     ret
 }
-func agg _ZplR2DTR2TS(ptr $0, ptr $1) {
+func i64 _ZplR2DTR2TS(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr a
   local ptr b
+  local agg $abi3 size 8
   entry0:
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
     store @a, $0
@@ -45,13 +47,17 @@ func agg _ZplR2DTR2TS(ptr $0, ptr $1) {
     %10 = add %6, %9
     call void _ZN2DTC1Ex(@$tmp0, %10)
     %11 = load @$tmp0
-    ret %11
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
-func agg _ZmiR2DTR2TS(ptr $0, ptr $1) {
+func i64 _ZmiR2DTR2TS(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr a
   local ptr b
+  local agg $abi3 size 8
   entry0:
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
     store @a, $0
@@ -66,13 +72,17 @@ func agg _ZmiR2DTR2TS(ptr $0, ptr $1) {
     %10 = sub %6, %9
     call void _ZN2DTC1Ex(@$tmp0, %10)
     %11 = load @$tmp0
-    ret %11
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
-func agg _ZmiR2DTS0_(ptr $0, ptr $1) {
+func i64 _ZmiR2DTS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr a
   local ptr b
+  local agg $abi3 size 8
   entry0:
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
     store @a, $0
@@ -87,7 +97,9 @@ func agg _ZmiR2DTS0_(ptr $0, ptr $1) {
     %10 = sub %6, %9
     call void _ZN2TSC1Ex(@$tmp0, %10)
     %11 = load @$tmp0
-    ret %11
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -100,7 +112,19 @@ func i32 main(i32 $0, ptr $1) {
   local i64 k
   local agg $tmp8 size 8
   local agg $tmp9 size 8
+  local agg $abi10 size 8
+  local agg $abi11 size 8
+  local agg $abi12 size 8
+  local agg $abi13 size 8
+  local agg $abi14 size 8
+  local agg $abi15 size 8
   entry0:
+    %30 = alloca ptr $abi10
+    %32 = alloca ptr $abi11
+    %34 = alloca ptr $abi12
+    %36 = alloca ptr $abi13
+    %38 = alloca ptr $abi14
+    %40 = alloca ptr $abi15
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -113,22 +137,34 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const i64 5
     call void _ZN2TSC1Ex(@s, %7)
     %8 = alloca ptr g
-    %9 = call agg _ZplR2DTR2TS(@d, @s)
+    %31 = call i64 _ZplR2DTR2TS(@d, @s)
+    store @$abi10, %31
+    %9 = load @$abi10
     %10 = alloca ptr $tmp4
     store @$tmp4, %9
-    %11 = call agg _ZmiR2DTR2TS(@$tmp4, @s)
+    %33 = call i64 _ZmiR2DTR2TS(@$tmp4, @s)
+    store @$abi11, %33
+    %11 = load @$abi11
     store @g, %11
     %12 = alloca ptr h
-    %13 = call agg _ZplR2DTR2TS(@d, @s)
+    %35 = call i64 _ZplR2DTR2TS(@d, @s)
+    store @$abi12, %35
+    %13 = load @$abi12
     %14 = alloca ptr $tmp6
     store @$tmp6, %13
-    %15 = call agg _ZmiR2DTR2TS(@$tmp6, @s)
+    %37 = call i64 _ZmiR2DTR2TS(@$tmp6, @s)
+    store @$abi13, %37
+    %15 = load @$abi13
     store @h, %15
     %16 = alloca ptr k
-    %17 = call agg _ZplR2DTR2TS(@d, @s)
+    %39 = call i64 _ZplR2DTR2TS(@d, @s)
+    store @$abi14, %39
+    %17 = load @$abi14
     %18 = alloca ptr $tmp8
     store @$tmp8, %17
-    %19 = call agg _ZmiR2DTR2TS(@$tmp8, @s)
+    %41 = call i64 _ZmiR2DTR2TS(@$tmp8, @s)
+    store @$abi15, %41
+    %19 = load @$abi15
     %20 = alloca ptr $tmp9
     store @$tmp9, %19
     %21 = field.addr @$tmp9, 0

@@ -28,7 +28,7 @@ func void T1(ptr $0) {
     ret
 }
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
-func void T2(agg $0) {
+func void T2(i32 $0) {
   local agg v size 4
   entry0:
     %1 = alloca ptr v
@@ -69,7 +69,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp5 size 4
   local agg $tmp6 size 24
   local agg $tmp7 size 16
+  local agg $abi8 size 4
   entry0:
+    %15 = alloca ptr $abi8
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -88,7 +90,9 @@ func i32 main(i32 $0, ptr $1) {
     call void T1(@$tmp5)
     call void _ZN2D1D1Ev(@$tmp5)
     %10 = load @c
-    call void T2(%10)
+    store @$abi8, %10
+    %16 = load @$abi8
+    call void T2(%16)
     %11 = alloca ptr $tmp6
     call void _ZN2S1C1ERKS_(@$tmp6, @s)
     call void T3(@$tmp6)

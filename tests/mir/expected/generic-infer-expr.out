@@ -1,4 +1,4 @@
-func agg MK<8>(ptr $0) {
+func void MK<8>(ptr $0, ptr $1) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
@@ -17,7 +17,8 @@ func agg MK<8>(ptr $0) {
     %9 = load @r
     store @$tmp0, %9
     %10 = load @$tmp0
-    ret %10
+    store $0, %10
+    ret
 }
 func i64 G<8>(i64 $0) {
   local i64 $tmp0
@@ -31,7 +32,7 @@ func i64 G<8>(i64 $0) {
     %4 = const i64 1
     ret %4
 }
-func agg MK<13>(ptr $0) {
+func void MK<13>(ptr $0, ptr $1) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
@@ -50,7 +51,8 @@ func agg MK<13>(ptr $0) {
     %9 = load @r
     store @$tmp0, %9
     %10 = load @$tmp0
-    ret %10
+    store $0, %10
+    ret
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -62,7 +64,13 @@ func i32 main(i32 $0, ptr $1) {
   local i64 z
   local agg d size 16
   local f64 $tmp8
+  local agg $abi9 size 16
+  local agg $abi10 size 16
+  local agg $abi11 size 16
   entry0:
+    %38 = alloca ptr $abi9
+    %39 = alloca ptr $abi10
+    %40 = alloca ptr $abi11
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -75,7 +83,8 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const i64 3
     store @b, %7
     %8 = alloca ptr p
-    %9 = call agg MK<8>(@a)
+    call void MK<8>(@$abi9, @a)
+    %9 = load @$abi9
     store @p, %9
     %10 = alloca ptr w
     %11 = load @a
@@ -83,7 +92,8 @@ func i32 main(i32 $0, ptr $1) {
     %13 = add %11, %12
     %14 = alloca ptr $tmp5
     store @$tmp5, %13
-    %15 = call agg MK<8>(@$tmp5)
+    call void MK<8>(@$abi10, @$tmp5)
+    %15 = load @$abi10
     store @w, %15
     %16 = alloca ptr z
     %17 = load @a
@@ -94,30 +104,33 @@ func i32 main(i32 $0, ptr $1) {
     %21 = alloca ptr d
     %22 = load @a
     %23 = load @b
-    %24 = fdiv %22, %23
-    %25 = alloca ptr $tmp8
-    store @$tmp8, %24
-    %26 = call agg MK<13>(@$tmp8)
-    store @d, %26
-    %27 = field.addr @p, 8
-    %28 = load %27
-    call.rtl void fb_PrintBool(0, %28, 2)
-    %29 = field.addr @w, 8
+    %24 = sitofp %22
+    %25 = sitofp %23
+    %26 = fdiv %24, %25
+    %27 = alloca ptr $tmp8
+    store @$tmp8, %26
+    call void MK<13>(@$abi11, @$tmp8)
+    %28 = load @$abi11
+    store @d, %28
+    %29 = field.addr @p, 8
     %30 = load %29
     call.rtl void fb_PrintBool(0, %30, 2)
-    %31 = load @z
-    call.rtl void fb_PrintLongint(0, %31, 2)
-    %32 = field.addr @d, 8
-    %33 = load %32
-    call.rtl void fb_PrintBool(0, %33, 1)
-    %34 = const i32 0
-    call.rtl void fb_End(%34)
-    %35 = load @$tmp0
-    ret %35
+    %31 = field.addr @w, 8
+    %32 = load %31
+    call.rtl void fb_PrintBool(0, %32, 2)
+    %33 = load @z
+    call.rtl void fb_PrintLongint(0, %33, 2)
+    %34 = field.addr @d, 8
+    %35 = load %34
+    call.rtl void fb_PrintBool(0, %35, 1)
+    %36 = const i32 0
+    call.rtl void fb_End(%36)
+    %37 = load @$tmp0
+    ret %37
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance

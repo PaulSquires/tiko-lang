@@ -15,10 +15,16 @@
 '' EXPECT-OUT: target datalayout = "e-m:w-
 
 '' The UNVERSIONED triple. clang warns about it whether it is written this way or left
-'' out altogether, because what it compares against carries the installed MSVC's
+'' out altogether, because what it compares against carries the installed toolchain's
 '' version; the driver passes -Wno-override-module rather than pinning the IR to one
-'' machine. D13: the msvc triple, not the mingw one.
-'' EXPECT-OUT: target triple = "x86_64-pc-windows-msvc"
+'' machine.
+''
+'' THE MinGW TRIPLE, NOT THE MSVC ONE. D13 originally said the opposite, on the premise
+'' that the runtime would be rebuilt for the Microsoft ABI. Neither runtime that exists
+'' is: fbc's C libfb identifies Windows only through __MINGW32__, and tiko-rt's win64
+'' archive imports __mingw_sprintf and is built to drop into fbc's link line. Objects
+'' emitted for msvc linked against neither. Amended on the author's decision.
+'' EXPECT-OUT: target triple = "x86_64-w64-windows-gnu"
 
 '' A literal is private and unnamed_addr: it is not a symbol anyone links against, and
 '' two identical literals may share storage -- which MIR has already done by merging

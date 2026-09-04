@@ -39,6 +39,7 @@ src/mir/lowerswap.bas
 src/mir/lowerwstr.bas
 src/mir/lowerctl.bas
 src/mir/lowereach.bas
+src/mir/eightbyte.bas
 src/mir/lowerstore.bas
 src/mir/lowercallemit.bas
 src/mir/lowerarr.bas
@@ -64,6 +65,8 @@ src/mir/lowerudtlit.bas
 src/mir/lowerterm.bas
 src/codegen/target.bas
 src/codegen/llvmtype.bas
+src/codegen/abi.bas
 src/codegen/llvmemit.bas
+src/codegen/toolchain.bas
 src/driver/cmdline.bas
 src/driver/driver.bas

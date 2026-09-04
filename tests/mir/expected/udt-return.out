@@ -1,4 +1,4 @@
-func agg MAKEV(f64 $0) {
+func void MAKEV(ptr $0, f64 $1) {
   local agg $tmp0 size 24
   local f64 a
   local agg t size 24
@@ -13,9 +13,10 @@ func agg MAKEV(f64 $0) {
     %6 = load @t
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store $0, %7
+    ret
 }
-func agg MAKEV2() {
+func void MAKEV2(ptr $0) {
   local agg $tmp0 size 24
   local agg t size 24
   entry0:
@@ -24,7 +25,8 @@ func agg MAKEV2() {
     %3 = load @t
     store @$tmp0, %3
     %4 = load @$tmp0
-    ret %4
+    store $0, %4
+    ret
 }
 func void _ZN1DD1Ev(ptr $0) {
   local ptr this
@@ -60,13 +62,19 @@ func void P() {
   local agg $tmp3 size 8
   local agg c2 size 8
   local agg $tmp5 size 8
+  local agg $abi6 size 24
+  local agg $abi7 size 24
   entry0:
+    %16 = alloca ptr $abi6
+    %17 = alloca ptr $abi7
     %1 = alloca ptr a
     %2 = const f64 1
-    %3 = call agg MAKEV(%2)
+    call void MAKEV(@$abi6, %2)
+    %3 = load @$abi6
     store @a, %3
     %4 = alloca ptr b
-    %5 = call agg MAKEV2()
+    call void MAKEV2(@$abi7)
+    %5 = load @$abi7
     store @b, %5
     %6 = alloca ptr c1
     %7 = alloca ptr $tmp3

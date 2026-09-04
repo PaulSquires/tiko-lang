@@ -14,10 +14,13 @@ destructor MirModule( )
 end destructor
 
 sub MirFunction.AddParam _
-    ( byval ty as MirType, byval aggType as ulong )
+    ( byval ty as MirType, byval aggSize as ulong, byval aggClass as ulong, _
+      byval attr as ubyte )
 
     this.paramTys.Push( cast( ubyte, ty ) )
-    this.paramAggs.Push( aggType )
+    this.paramAggs.Push( aggSize )
+    this.paramClasses.Push( aggClass )
+    this.paramAttrs.Push( attr )
     this.paramCount = this.paramTys.Count
 end sub
 

@@ -38,11 +38,13 @@ func void SUM(i64 $0, ...) {
 }
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
-func agg OPENED(i64 $0, ...) {
+func i64 OPENED(i64 $0, ...) {
   local agg $tmp0 size 8
   local i64 n
   local agg args size 8
+  local agg $abi3 size 8
   entry0:
+    %7 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr n
     store @n, $0
@@ -52,7 +54,9 @@ func agg OPENED(i64 $0, ...) {
     %5 = load @args
     store @$tmp0, %5
     %6 = load @$tmp0
-    ret %6
+    store @$abi3, %6
+    %8 = load @$abi3
+    ret %8
 }
 func void WALK(ptr $0) {
   local ptr args

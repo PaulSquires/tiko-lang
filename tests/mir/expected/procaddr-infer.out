@@ -14,7 +14,8 @@ func i32 F(i32 $0) {
     %5 = const i64 4
     %6 = sext %4
     %7 = mul %6, %5
-    ret %7
+    %8 = trunc %7
+    ret %8
 }
 func i32 __TKO_LAMBDA_CC302C5_0(i32 $0) {
   local i32 $tmp0
@@ -29,7 +30,8 @@ func i32 __TKO_LAMBDA_CC302C5_0(i32 $0) {
     %5 = const i64 1
     %6 = sext %4
     %7 = add %6, %5
-    ret %7
+    %8 = trunc %7
+    ret %8
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -103,4 +105,4 @@ declare i32 fb_Chain(ptr $0)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance

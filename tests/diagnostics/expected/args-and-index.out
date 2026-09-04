@@ -13,7 +13,7 @@ func void TAKESCONSTT(ptr $0) {
     store @x, $0
     ret
 }
-func void TAKESTVAL(agg $0) {
+func void TAKESTVAL(i64 $0) {
   local agg x size 8
   entry0:
     %1 = alloca ptr x
@@ -58,7 +58,9 @@ func i32 main(i32 $0, ptr $1) {
   local ptr p
   local i64 $tmp7
   local agg $tmp8 size 24
+  local agg $abi9 size 8
   entry0:
+    %43 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -83,7 +85,9 @@ func i32 main(i32 $0, ptr $1) {
     %15 = alloca ptr p
     call void TAKESCONSTT(@cv)
     %16 = load @cv
-    call void TAKESTVAL(%16)
+    store @$abi9, %16
+    %44 = load @$abi9
+    call void TAKESTVAL(%44)
     call void TAKEST(@mv)
     %17 = const i64 1
     %18 = alloca ptr $tmp7

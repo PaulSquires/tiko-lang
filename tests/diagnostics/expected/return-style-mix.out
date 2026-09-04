@@ -5,29 +5,37 @@ func void _ZN4CTORC1Ev(ptr $0) {
     store @this, $0
     ret
 }
-func agg OKRETURN() {
+func i64 OKRETURN() {
   local agg $tmp0 size 8
   local agg x size 8
+  local agg $abi2 size 8
   entry0:
+    %5 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     call void _ZN4CTORC1Ev(@x)
     %3 = load @x
     store @$tmp0, %3
     %4 = load @$tmp0
-    ret %4
+    store @$abi2, %4
+    %6 = load @$abi2
+    ret %6
 }
-func agg OKASSIGN() {
+func i64 OKASSIGN() {
   local agg $tmp0 size 8
   local agg x size 8
+  local agg $abi2 size 8
   entry0:
+    %5 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     call void _ZN4CTORC1Ev(@x)
     %3 = load @x
     store @$tmp0, %3
     %4 = load @$tmp0
-    ret %4
+    store @$abi2, %4
+    %6 = load @$abi2
+    ret %6
 }
 func i64 OKINT(i64 $0) {
   local i64 $tmp0
@@ -53,11 +61,15 @@ func i64 OKINT(i64 $0) {
   if.else3:
     br if.join1
 }
-func agg BADMIX(i64 $0) {
+func i64 BADMIX(i64 $0) {
   local agg $tmp0 size 8
   local i64 i
   local agg x size 8
+  local agg $abi3 size 8
+  local agg $abi4 size 8
   entry0:
+    %11 = alloca ptr $abi3
+    %13 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr i
     store @i, $0
@@ -71,20 +83,28 @@ func agg BADMIX(i64 $0) {
     %9 = load @x
     store @$tmp0, %9
     %10 = load @$tmp0
-    ret %10
+    store @$abi3, %10
+    %12 = load @$abi3
+    ret %12
   if.then2:
     %7 = load @x
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi4, %8
+    %14 = load @$abi4
+    ret %14
   if.else3:
     br if.join1
 }
-func agg BADEXIT(i64 $0) {
+func i64 BADEXIT(i64 $0) {
   local agg $tmp0 size 8
   local i64 i
   local agg x size 8
+  local agg $abi3 size 8
+  local agg $abi4 size 8
   entry0:
+    %10 = alloca ptr $abi3
+    %12 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr i
     store @i, $0
@@ -98,10 +118,14 @@ func agg BADEXIT(i64 $0) {
     %8 = load @x
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
   if.then2:
     %7 = load @$tmp0
-    ret %7
+    store @$abi4, %7
+    %13 = load @$abi4
+    ret %13
   if.else3:
     br if.join1
 }

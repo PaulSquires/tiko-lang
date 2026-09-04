@@ -24,11 +24,13 @@ func void _ZN1PC1Ei(ptr $0, i32 $1) {
     store %4, %5
     ret
 }
-func agg _ZN1P5TWICEEv(ptr $0) {
+func i32 _ZN1P5TWICEEv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg r size 4
+  local agg $abi3 size 4
   entry0:
+    %14 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr this
     store @this, $0
@@ -46,7 +48,9 @@ func agg _ZN1P5TWICEEv(ptr $0) {
     %12 = load @r
     store @$tmp0, %12
     %13 = load @$tmp0
-    ret %13
+    store @$abi3, %13
+    %15 = load @$abi3
+    ret %15
 }
 func i32 _ZN1P11HALF__get__Ev(ptr $0) {
   local i32 $tmp0
@@ -63,7 +67,8 @@ func i32 _ZN1P11HALF__get__Ev(ptr $0) {
     %7 = const i64 2
     %8 = sext %6
     %9 = sdiv %8, %7
-    ret %9
+    %10 = trunc %9
+    ret %10
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -79,7 +84,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp10 size 4
   local agg $tmp11 size 4
   local agg e size 4
+  local agg $abi13 size 4
+  local agg $abi14 size 4
+  local agg $abi15 size 4
   entry0:
+    %44 = alloca ptr $abi13
+    %46 = alloca ptr $abi14
+    %48 = alloca ptr $abi15
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -98,7 +109,9 @@ func i32 main(i32 $0, ptr $1) {
     %12 = const i64 3
     %13 = trunc %12
     call void _ZN1PC1Ei(@$tmp4, %13)
-    %14 = call agg _ZN1P5TWICEEv(@$tmp4)
+    %45 = call i32 _ZN1P5TWICEEv(@$tmp4)
+    store @$abi13, %45
+    %14 = load @$abi13
     %15 = alloca ptr $tmp5
     store @$tmp5, %14
     %16 = field.addr @$tmp5, 0
@@ -116,10 +129,14 @@ func i32 main(i32 $0, ptr $1) {
     %25 = const i64 5
     %26 = trunc %25
     call void _ZN1PC1Ei(@$tmp9, %26)
-    %27 = call agg _ZN1P5TWICEEv(@$tmp9)
+    %47 = call i32 _ZN1P5TWICEEv(@$tmp9)
+    store @$abi14, %47
+    %27 = load @$abi14
     %28 = alloca ptr $tmp10
     store @$tmp10, %27
-    %29 = call agg _ZN1P5TWICEEv(@$tmp10)
+    %49 = call i32 _ZN1P5TWICEEv(@$tmp10)
+    store @$abi15, %49
+    %29 = load @$abi15
     %30 = alloca ptr $tmp11
     store @$tmp11, %29
     %31 = field.addr @$tmp11, 0
@@ -149,4 +166,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance

@@ -332,6 +332,9 @@ declare function EmitRtl _
     declare function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long
+    '' The SysV eightbyte classes of a type -- see mir/eightbyte.bas.
+    declare function ClassifyEightbytes _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as ulong
     '' A cleanup entry that is neither a symbol nor the string-delete 0: erase the
     '' dynamic array in this slot. Deliberately an impossible SymbolId.
     const CLEANUP_ERASE_ARRAY as ulong = &hFFFFFFFF

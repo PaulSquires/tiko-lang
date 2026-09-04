@@ -15,7 +15,7 @@ func void GOODSTDCALL() stdcall {
   entry0:
     ret
 }
-func void GOODPLAINUDT(agg $0) {
+func void GOODPLAINUDT(i64 $0) {
   local agg p size 8
   entry0:
     %1 = alloca ptr p
@@ -49,32 +49,34 @@ func void BADPASCAL() pascal {
   entry0:
     ret
 }
-func void BADARRAY(agg $0) {
+func void BADARRAY(ptr $0) {
   local agg h size 16
   entry0:
     %1 = alloca ptr h
-    store @h, $0
+    %2 = load $0
+    store @h, %2
     ret
 }
-func void BADBITFIELD(agg $0) {
+func void BADBITFIELD(i64 $0) {
   local agg h size 8
   entry0:
     %1 = alloca ptr h
     store @h, $0
     ret
 }
-func void BADUNION(agg $0) {
+func void BADUNION(i64 $0) {
   local agg u size 8
   entry0:
     %1 = alloca ptr u
     store @u, $0
     ret
 }
-func void BADANONUNION(agg $0) {
+func void BADANONUNION(ptr $0) {
   local agg h size 16
   entry0:
     %1 = alloca ptr h
-    store @h, $0
+    %2 = load $0
+    store @h, %2
     ret
 }
 func i32 main(i32 $0, ptr $1) {

@@ -59,7 +59,8 @@ func i8 __TKO_LAMBDA_801F6C16_0(ptr $0, ptr $1) {
     %8 = load %7
     %9 = icmp.slt %6, %8
     %10 = neg %9
-    ret %10
+    %11 = trunc %10
+    ret %11
 }
 func ptr __TKO_LAMBDA_801F6C16_1(ptr $0, ptr $1) {
   local ptr $tmp0
@@ -105,7 +106,8 @@ func i32 __TKO_LAMBDA_801F6C16_2(i32 $0) {
     %5 = const i64 100
     %6 = sext %4
     %7 = add %6, %5
-    ret %7
+    %8 = trunc %7
+    ret %8
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -124,4 +126,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 8 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 8 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance

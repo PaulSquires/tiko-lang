@@ -12,39 +12,41 @@ func i32 main(i32 $0, ptr $1) {
     store @z, %5
     %6 = const i64 1
     %7 = const i64 0
-    %8 = fdiv %6, %7
-    call.rtl void fb_PrintDouble(0, %8, 1)
-    %9 = const i64 1
-    %10 = load @z
-    %11 = sdiv %9, %10
-    call.rtl void fb_PrintLongint(0, %11, 1)
-    %12 = const i64 1
-    %13 = load @z
-    %14 = srem %12, %13
-    call.rtl void fb_PrintLongint(0, %14, 1)
-    %15 = const i64 1
-    %16 = const i64 0
-    %17 = sdiv %15, %16
-    call.rtl void fb_PrintLongint(0, %17, 1)
-    %18 = const i64 1
-    %19 = const i64 0
-    %20 = srem %18, %19
-    call.rtl void fb_PrintLongint(0, %20, 1)
-    %21 = const i64 1
-    %22 = const i64 0
-    %23 = sdiv %21, %22
-    call.rtl void fb_PrintLongint(0, %23, 1)
-    %24 = const i32 0
-    call.rtl void fb_End(%24)
-    %25 = load @$tmp0
-    ret %25
+    %8 = sitofp %6
+    %9 = sitofp %7
+    %10 = fdiv %8, %9
+    call.rtl void fb_PrintDouble(0, %10, 1)
+    %11 = const i64 1
+    %12 = load @z
+    %13 = sdiv %11, %12
+    call.rtl void fb_PrintLongint(0, %13, 1)
+    %14 = const i64 1
+    %15 = load @z
+    %16 = srem %14, %15
+    call.rtl void fb_PrintLongint(0, %16, 1)
+    %17 = const i64 1
+    %18 = const i64 0
+    %19 = sdiv %17, %18
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    %20 = const i64 1
+    %21 = const i64 0
+    %22 = srem %20, %21
+    call.rtl void fb_PrintLongint(0, %22, 1)
+    %23 = const i64 1
+    %24 = const i64 0
+    %25 = sdiv %23, %24
+    call.rtl void fb_PrintLongint(0, %25, 1)
+    %26 = const i32 0
+    call.rtl void fb_End(%26)
+    %27 = load @$tmp0
+    ret %27
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 37 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/div-const-zero.bas(10,9): error TKO0671: division by a constant zero
      |
   10 | print 1 \ 0

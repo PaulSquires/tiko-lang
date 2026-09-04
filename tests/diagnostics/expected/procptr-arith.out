@@ -21,10 +21,12 @@ func void REFUSED() {
     call.rtl void fb_PrintLongint(0, %7, 1)
     %8 = func.addr ptr S1
     %9 = func.addr ptr S2
-    %10 = sub %8, %9
-    %11 = const i64 8
-    %12 = sdiv %10, %11
-    call.rtl void fb_PrintLongint(0, %12, 1)
+    %10 = bitcast %8
+    %11 = bitcast %9
+    %12 = sub %10, %11
+    %13 = const i64 8
+    %14 = sdiv %12, %13
+    call.rtl void fb_PrintLongint(0, %14, 1)
     ret
 }
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -85,7 +87,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 11 blocks, 47 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 11 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/procptr-arith.bas(29,28): error TKO0634: a procedure pointer cannot be dereferenced or used in arithmetic
      |
   29 |     print cast( integer, p + 1 )

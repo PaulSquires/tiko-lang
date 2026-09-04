@@ -32,23 +32,31 @@ func void F2(i64 $0) {
   entry0:
     ret
 }
-func agg F3() {
+func i64 F3() {
   local agg $tmp0 size 8
+  local agg $abi1 size 8
   entry0:
+    %4 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
     %2 = const i64 1
     call void _ZN3UDTC1Eu7INTEGER(@$tmp0, %2)
     %3 = load @$tmp0
-    ret %3
+    store @$abi1, %3
+    %5 = load @$abi1
+    ret %5
 }
-func agg F4() {
+func i64 F4() {
   local agg $tmp0 size 8
+  local agg $abi1 size 8
   entry0:
+    %4 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
     %2 = const i64 1
     call void _ZN9DEFAULTEDC1Eu7INTEGER(@$tmp0, %2)
     %3 = load @$tmp0
-    ret %3
+    store @$abi1, %3
+    %5 = load @$abi1
+    ret %5
 }
 func ptr F5() {
   local ptr $tmp0

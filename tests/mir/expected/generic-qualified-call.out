@@ -5,7 +5,8 @@ func i32 _ZN2NS4FIVEEv() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i64 5
-    ret %3
+    %4 = trunc %3
+    ret %4
 }
 func ptr _ZN2NS6BOX<6>5VALUEEv(ptr $0) {
   local ptr $tmp0
@@ -37,11 +38,13 @@ func ptr _ZN2NS7BOX<13>5VALUEEv(ptr $0) {
     %6 = load @$tmp0
     ret %6
 }
-func agg _ZN2NS5MK<8>ERu7INTEGER(ptr $0) {
+func i64 _ZN2NS5MK<8>ERu7INTEGER(ptr $0) {
   local agg $tmp0 size 8
   local ptr x
   local agg r size 8
+  local agg $abi3 size 8
   entry0:
+    %9 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -53,13 +56,17 @@ func agg _ZN2NS5MK<8>ERu7INTEGER(ptr $0) {
     %7 = load @r
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi3, %8
+    %10 = load @$abi3
+    ret %10
 }
-func agg _ZN2NS5MK<6>ERi(ptr $0) {
+func i32 _ZN2NS5MK<6>ERi(ptr $0) {
   local agg $tmp0 size 4
   local ptr x
   local agg r size 4
+  local agg $abi3 size 4
   entry0:
+    %9 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -71,13 +78,17 @@ func agg _ZN2NS5MK<6>ERi(ptr $0) {
     %7 = load @r
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi3, %8
+    %10 = load @$abi3
+    ret %10
 }
-func agg _ZN2NS6MK<13>ERd(ptr $0) {
+func i64 _ZN2NS6MK<13>ERd(ptr $0) {
   local agg $tmp0 size 8
   local ptr x
   local agg r size 8
+  local agg $abi3 size 8
   entry0:
+    %9 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -89,7 +100,9 @@ func agg _ZN2NS6MK<13>ERd(ptr $0) {
     %7 = load @r
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi3, %8
+    %10 = load @$abi3
+    ret %10
 }
 func ptr _ZN2NS6BOX<8>5VALUEEv(ptr $0) {
   local ptr $tmp0
@@ -116,7 +129,15 @@ func i32 main(i32 $0, ptr $1) {
   local i32 $tmp6
   local agg d size 8
   local f64 $tmp8
+  local agg $abi9 size 8
+  local agg $abi10 size 8
+  local agg $abi11 size 4
+  local agg $abi12 size 8
   entry0:
+    %30 = alloca ptr $abi9
+    %32 = alloca ptr $abi10
+    %34 = alloca ptr $abi11
+    %36 = alloca ptr $abi12
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -126,7 +147,9 @@ func i32 main(i32 $0, ptr $1) {
     %5 = const i64 5
     %6 = alloca ptr $tmp2
     store @$tmp2, %5
-    %7 = call agg _ZN2NS5MK<8>ERu7INTEGER(@$tmp2)
+    %31 = call i64 _ZN2NS5MK<8>ERu7INTEGER(@$tmp2)
+    store @$abi9, %31
+    %7 = load @$abi9
     store @b, %7
     %8 = call ptr _ZN2NS6BOX<6>5VALUEEv(@b)
     %9 = load %8
@@ -135,7 +158,9 @@ func i32 main(i32 $0, ptr $1) {
     %11 = const i64 7
     %12 = alloca ptr $tmp4
     store @$tmp4, %11
-    %13 = call agg _ZN2NS5MK<8>ERu7INTEGER(@$tmp4)
+    %33 = call i64 _ZN2NS5MK<8>ERu7INTEGER(@$tmp4)
+    store @$abi10, %33
+    %13 = load @$abi10
     store @c, %13
     %14 = call ptr _ZN2NS6BOX<6>5VALUEEv(@c)
     %15 = load %14
@@ -144,7 +169,9 @@ func i32 main(i32 $0, ptr $1) {
     %17 = call i32 _ZN2NS4FIVEEv()
     %18 = alloca ptr $tmp6
     store @$tmp6, %17
-    %19 = call agg _ZN2NS5MK<6>ERi(@$tmp6)
+    %35 = call i32 _ZN2NS5MK<6>ERi(@$tmp6)
+    store @$abi11, %35
+    %19 = load @$abi11
     store @e, %19
     %20 = call ptr _ZN2NS6BOX<6>5VALUEEv(@e)
     %21 = load %20
@@ -153,7 +180,9 @@ func i32 main(i32 $0, ptr $1) {
     %23 = const f64 2.5
     %24 = alloca ptr $tmp8
     store @$tmp8, %23
-    %25 = call agg _ZN2NS6MK<13>ERd(@$tmp8)
+    %37 = call i64 _ZN2NS6MK<13>ERd(@$tmp8)
+    store @$abi12, %37
+    %25 = load @$abi12
     store @d, %25
     %26 = call ptr _ZN2NS7BOX<13>5VALUEEv(@d)
     %27 = load %26
@@ -168,4 +197,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 109 insts, 0 statements not lowered, 0 scope imbalance

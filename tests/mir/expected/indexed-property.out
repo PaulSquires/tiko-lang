@@ -14,7 +14,8 @@ func i64 _ZN3FOO10BAR__get__Ev(ptr $0) {
     %8 = mul %6, %7
     %9 = ptr.add %5, %8
     %10 = load %9
-    ret %10
+    %11 = sext %10
+    ret %11
 }
 func void _ZN3FOO10BAR__set__Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
@@ -54,7 +55,8 @@ func i64 _ZN3FOO10BAR__get__Eu7INTEGER(ptr $0, i64 $1) {
     %9 = mul %7, %8
     %10 = ptr.add %6, %9
     %11 = load %10
-    ret %11
+    %12 = sext %11
+    ret %12
 }
 func void _ZN3FOO10BAR__set__Eu7INTEGERS0_(ptr $0, i64 $1, i64 $2) {
   local ptr this
@@ -107,4 +109,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance
