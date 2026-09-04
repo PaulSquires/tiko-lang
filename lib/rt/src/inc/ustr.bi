@@ -1,0 +1,56 @@
+#ifndef __TKORT_USTR_BI__
+#define __TKORT_USTR_BI__
+
+'' ustr.bi -- the ustring primitives and the ustring argument decoder.
+''
+'' Separate from descriptors.bi because FB_USTRSETUP needs to CALL fb_hUStrLen,
+'' and descriptors.bi is included by the module that DEFINES it. A declaration
+'' and a definition of the same alias in one code unit are two symbols, not one.
+
+#include once "inc/descriptors.bi"
+
+extern "c"   '' NON-FBCALL: fb_ustring.h declares all ten without FBCALL.
+	declare function tkrt_UStrLen alias "fb_hUStrLen" _
+		( byval s as FB_UCHAR ptr ) as integer
+	declare function tkrt_UStrCompare alias "fb_hUStrCompare" _
+		( byval s1 as FB_UCHAR ptr, byval len1 as integer, _
+		  byval s2 as FB_UCHAR ptr, byval len2 as integer ) as long
+	declare sub tkrt_UStrCopy alias "fb_hUStrCopy" _
+		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
+	declare sub tkrt_UStrCopyN alias "fb_hUStrCopyN" _
+		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
+	declare sub tkrt_UStrMove alias "fb_hUStrMove" _
+		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
+	declare sub tkrt_UStrFill alias "fb_hUStrFill" _
+		( byval dst as FB_UCHAR ptr, byval c as FB_UCHAR, byval units as integer )
+	declare function tkrt_UStrChr alias "fb_hUStrChr" _
+		( byval s as FB_UCHAR ptr, byval length as integer, byval c as FB_UCHAR ) as integer
+	declare function tkrt_UStrStr alias "fb_hUStrStr" _
+		( byval hay as FB_UCHAR ptr, byval haylen as integer, _
+		  byval needle as FB_UCHAR ptr, byval needlelen as integer ) as integer
+	declare function tkrt_UStrSkipChar alias "fb_hUStrSkipChar" _
+		( byval s as FB_UCHAR ptr, byval length as integer, byval c as FB_UCHAR ) as FB_UCHAR ptr
+	declare function tkrt_UStrSkipCharRev alias "fb_hUStrSkipCharRev" _
+		( byval s as FB_UCHAR ptr, byval length as integer, byval c as FB_UCHAR ) as FB_UCHAR ptr
+end extern
+
+'' The ustring argument decoder, and it is NOT FB_STRSETUP_FIX at another width.
+'' THE LAST TWO BRANCHES COLLAPSE INTO ONE: a fixed-length USTRING * N is
+'' NUL-PADDED, so its length has to be WALKED rather than taken from the size --
+'' the size carries the CAPACITY and reading must yield the text.
+''
+'' That is the WSTRING rule, not the STRING rule. STRING * N is SPACE-padded, so
+'' there the declared length really is the capacity and FB_STRSETUP_FIX takes it
+'' straight from the size. Writers are unaffected either way: they are handed the
+'' capacity as an argument rather than reading it back.
+#macro FB_USTRSETUP( s, sz, ptr_, len_ )
+	if( (s) = 0 ) then
+		ptr_ = 0 : len_ = 0
+	elseif( (sz) = FB_USTRSIZEVARLEN ) then
+		ptr_ = cptr( FBUSTRING ptr, s )->data : len_ = FB_USTRSIZE( s )
+	else
+		ptr_ = cptr( FB_UCHAR ptr, s ) : len_ = tkrt_UStrLen( cptr( FB_UCHAR ptr, s ) )
+	end if
+#endmacro
+
+#endif '' __TKORT_USTR_BI__

@@ -1,0 +1,905 @@
+'' hinitposix.bas -- the POSIX runtime and console initialisation, and the
+'' console context itself. Eleven symbols in libfb.a and TWENTY-ONE in
+'' libfbmt.a, one fbc member (unix/hinit.o).
+''
+'' EMPTY-ON: win64 win32
+''
+'' THIS MEMBER OWNS __fb_con, WHICH EVERY OTHER POSIX CONSOLE MODULE READS.
+'' src/io/conprint.bas, conattr.bas, conttytail.bas and half a dozen more
+'' currently MIRROR fbc's layout through inc/console.bi; from here on they
+'' mirror THIS definition, so a single wrong offset silently corrupts an
+'' unrelated field in all of them.
+''
+'' THE WHOLE STRUCT WAS RE-MEASURED before it was written: a gcc 13.3 probe
+'' under WSL against glibc's headers printed sizeof = 408 and all 29 offsets,
+'' and every one matched what inc/console.bi had already recorded. That
+'' agreement is the evidence the mirror was right, not an assumption that it
+'' was.
+''
+'' ---------------------------------------------------------------------------
+'' THE MT ARCHIVE OWES TEN MORE SYMBOLS THAN THE ST ONE. fb_Lock, fb_Unlock,
+'' fb_StrLock, fb_StrUnlock, fb_GraphicsLock, fb_GraphicsUnlock, fb_MathLock,
+'' fb_MathUnlock, fb_ProfileLock and fb_ProfileUnlock exist ONLY under
+'' ENABLE_MT and ONLY in this member. Providing the other eleven without them
+'' would pass the single-threaded gate and strip every lock out of libfbmt.a.
+''
+'' ALL SIX MUTEXES ARE RECURSIVE, deliberately, "to behave the same on Win32 and
+'' Linux": a Windows CRITICAL_SECTION is re-entrant and a default pthread mutex
+'' is not, so the attribute is set explicitly to remove the difference.
+''
+'' ---------------------------------------------------------------------------
+'' THE x87 CONTROL WORD IS WHY fbc CALLS THIS FILE UNPORTABLE, AND IT DOES NOT
+'' APPLY HERE. The fstcw/fldcw pair is inside `#if defined(__GNUC__) &&
+'' defined(__i386__)`, so on x86-64 it is not compiled at all. -gen llvm rejects
+'' inline asm permanently (error 374), which would have made this member
+'' impossible -- but only on 32-bit x86, which is not a target of this file.
+''
+'' ---------------------------------------------------------------------------
+'' TERMINAL SETUP IS NOT ONE-SHOT. fb_hInitConsole and fb_hExitConsole are also
+'' called around SHELL, EXEC, CHAIN, RUN, DYLIBLOAD and DYLIBFREE, so the tty
+'' can be configured and unconfigured many times in one process -- and fbc's own
+'' comment admits THE CALLS CAN BE UNBALANCED, because each is individually
+'' locked rather than the pair being locked together. That is why every "saved"
+'' flag is checked before capturing: the original tty state must be captured on
+'' the FIRST run only, or a later capture would save fbc's own modified state
+'' and "restoring" it at exit would leave echo disabled.
+''
+'' fb_hExitConsole IGNORES SIGTTOU AROUND ITS tcsetattr. A background process
+'' writing to the terminal is normally suspended, which is correct in general
+'' and catastrophic here -- the program would hang at exit while restoring the
+'' terminal. The handler is restored immediately afterwards rather than left
+'' ignored.
+''
+'' ---------------------------------------------------------------------------
+'' THE TERMINAL IS QUERIED BY ASKING IT AND READING THE ANSWER BACK OFF STDIN,
+'' and fbc's comment is blunt that if the terminal does not answer, THE PROGRAM
+'' HANGS FOREVER. Two consequences are reproduced exactly:
+''
+''   ANYTHING THE USER TYPED WHILE THE QUERY WAS IN FLIGHT IS PUSHED INTO THE
+''   INKEY BUFFER rather than discarded -- fb_hAddCh on every byte that is not
+''   the escape introducer.
+''
+''   THE SIZE AND CURSOR CHECKS ARE LAZY. __fb_console_resized starts TRUE so
+''   the first fb_hRecheckConsoleSize does the work, and a program that never
+''   uses console I/O never queries the terminal at all -- which is what keeps
+''   a hang from happening on every FB program's startup.
+''
+'' AND THE FALLBACK IS 80x25 WHEN EVERY QUERY FAILS. Not zero: fb_ConReadLine
+'' and others assume a non-zero size, so an unknown terminal is given a
+'' plausible one instead of forcing every caller to handle the unknown case.
+''
+'' THE RESIZE HANDLER RE-ARMS ITSELF. signal() is the one-shot BSD-vs-SysV
+'' spelling, so sigwinch_handler calls signal( SIGWINCH, ... ) again from inside
+'' itself; without that, only the first resize would ever be seen.
+''
+'' AND THE SHADOW BUFFERS ARE REALLOCATED AND COPIED ROW BY ROW on resize, in
+'' ONE allocation -- attr_buffer points into the middle of char_buffer's block,
+'' which is why only char_buffer is ever freed and why attr_buffer must never be
+'' freed separately.
+''
+'' ---------------------------------------------------------------------------
+'' THE BACKGROUND THREAD POLLS AT 30 ms and exists only to run the keyboard and
+'' mouse handlers. It is started lazily by fb_hStartBgThread and JOINED by
+'' fb_hEnd -- unlike the goroutine scheduler, which deliberately does not join.
+'' It can be joined safely because it is not created by a global constructor and
+'' its loop condition is __fb_con.inited, which fb_hEnd clears first.
+
+#include once "inc/descriptors.bi"
+'' inc/console.bi IS DELIBERATELY NOT INCLUDED. It declares __fb_con as an
+'' opaque `ubyte` for the modules that MIRROR the struct through byte offsets;
+'' this file DEFINES the real object, and having both in scope is a
+'' redefinition of the global. Everything needed from it is spelled out below.
+#include once "crt/stdio.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+
+#ifndef __FB_WIN32__
+
+const NSIG_ = 65
+
+const SIGABRT_ = 6
+const SIGFPE_  = 8
+const SIGILL_  = 4
+const SIGSEGV_ = 11
+const SIGTERM_ = 15
+const SIGINT_  = 2
+const SIGQUIT_ = 3
+const SIGTTOU_ = 22
+const SIGWINCH_ = 28
+const SIG_IGN_ = 1
+
+const STDIN_FILENO_  = 0
+const STDOUT_FILENO_ = 1
+
+const TIOCGWINSZ_ = &h5413
+const TCSANOW_    = 0
+
+const F_GETFL_ = 3
+const F_SETFL_ = 4
+const O_NONBLOCK_ = 2048
+
+'' termios flags used here -- MEASURED, as in src/io/serialposix.bas.
+const OPOST_  = 1
+const BRKINT_ = 2
+const IGNBRK_ = 1
+const IXON_   = 1024
+const IXOFF_  = 4096
+const ICANON_ = 2
+const ECHO_   = 8
+const VTIME_  = 5
+const VMIN_   = 6
+const NCCS_   = 32
+
+'' SEQ_* -- the termcap slot indices, then the hard-coded VT100 extras.
+const SEQ_MAX_          = 17
+const SEQ_EXTRA_        = 100
+const SEQ_INIT_CHARSET_ = 100
+const SEQ_EXIT_CHARSET_ = 101
+const SEQ_QUERY_CURSOR_ = 102
+const SEQ_QUERY_WINDOW_ = 103
+const SEQ_SET_COLOR_EX_ = 107
+
+const INIT_CONSOLE__ = 1
+const INIT_X11__     = 2
+const TERM_GENERIC__ = 0
+const TERM_XTERM__   = 1
+const TERM_ETERM__   = 2
+
+type TERMIOS2_
+	as ulong c_iflag
+	as ulong c_oflag
+	as ulong c_cflag
+	as ulong c_lflag
+	as ubyte c_line
+	as ubyte c_cc( 0 to NCCS_ - 1 )
+	as ubyte pad_( 0 to 2 )
+	as ulong c_ispeed
+	as ulong c_ospeed
+end type
+
+#assert sizeof( TERMIOS2_ ) = 60
+
+type WINSIZE_
+	as ushort ws_row
+	as ushort ws_col
+	as ushort ws_xpixel
+	as ushort ws_ypixel
+end type
+
+#assert sizeof( WINSIZE_ ) = 8
+
+'' THE CONSOLE CONTEXT. MEASURED: sizeof 408, and all 29 offsets agree with
+'' inc/console.bi -- see the file header on why that agreement is the evidence.
+type FBCONSOLE_
+	as long     inited                        '' 0
+	as long     term_type                     '' 4
+	as long     h_in                          '' 8
+	as any ptr  f_in                          '' 16
+	as TERMIOS2_ old_term_out                 '' 24
+	as TERMIOS2_ old_term_in                  '' 84
+	as long     old_in_flags                  '' 144
+	'' C `bool`, one byte each and NOT padded apart.
+	as ubyte    saved_old_term_out            '' 148
+	as ubyte    saved_old_term_in             '' 149
+	as ubyte    saved_old_in_flags            '' 150
+	as ubyte    pad0_                         '' 151
+	as ulong    fg_color                      '' 152
+	as ulong    bg_color                      '' 156
+	as long     cur_x                         '' 160
+	as long     cur_y                         '' 164
+	as long     w                             '' 168
+	as long     h                             '' 172
+	as ubyte ptr char_buffer                  '' 176
+	as ubyte ptr attr_buffer                  '' 184
+	as long     has_perm                      '' 192
+	as long     scroll_region_changed         '' 196
+	as zstring ptr seq( 0 to SEQ_MAX_ - 1 )   '' 200
+	as any ptr  keyboard_getch                '' 336
+	as any ptr  keyboard_init                 '' 344
+	as any ptr  keyboard_exit                 '' 352
+	as any ptr  keyboard_handler              '' 360
+	as any ptr  mouse_init                    '' 368
+	as any ptr  mouse_exit                    '' 376
+	as any ptr  mouse_handler                 '' 384
+	as any ptr  mouse_update                  '' 392
+	as any ptr  gfx_exit                      '' 400
+end type
+
+#assert sizeof( FBCONSOLE_ ) = 408
+#assert offsetof( FBCONSOLE_, old_term_in ) = 84
+#assert offsetof( FBCONSOLE_, saved_old_term_out ) = 148
+#assert offsetof( FBCONSOLE_, fg_color ) = 152
+#assert offsetof( FBCONSOLE_, char_buffer ) = 176
+#assert offsetof( FBCONSOLE_, has_perm ) = 192
+#assert offsetof( FBCONSOLE_, seq(0) ) = 200
+#assert offsetof( FBCONSOLE_, keyboard_getch ) = 336
+#assert offsetof( FBCONSOLE_, gfx_exit ) = 400
+
+'' pthread_mutex_t is 40 bytes and PTHREAD_MUTEX_INITIALIZER is all zeroes --
+'' measured for src/thread/claimlock.bas. The attr block is 4.
+type PTHREAD_MUTEX2_
+	as ubyte raw( 0 to 39 )
+end type
+
+type PTHREAD_MUTEXATTR_
+	as ubyte raw( 0 to 3 )
+end type
+
+#assert sizeof( PTHREAD_MUTEX2_ ) = 40
+
+const PTHREAD_MUTEX_RECURSIVE_ = 1
+
+type FNVOID as sub cdecl ( )
+type FNINT  as function cdecl ( ) as long
+type FNSIG  as sub cdecl ( byval sig as long )
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function c_getenv alias "getenv" ( byval n as zstring ptr ) as zstring ptr
+	declare function c_isatty2 alias "isatty" ( byval fd as long ) as long
+	declare function c_fopen2 alias "fopen" ( byval p as zstring ptr, byval m as zstring ptr ) as any ptr
+	declare function c_fclose2 alias "fclose" ( byval f as any ptr ) as long
+	declare function c_fileno alias "fileno" ( byval f as any ptr ) as long
+	declare function c_fgetc2 alias "fgetc" ( byval f as any ptr ) as long
+	declare function c_getchar2 alias "getchar" ( ) as long
+	declare function c_putchar2 alias "putchar" ( byval c as long ) as long
+	declare function c_scanf2 alias "scanf" ( byval fmt as zstring ptr, ... ) as long
+	declare function c_fprintf2 alias "fprintf" ( byval f as any ptr, byval fmt as zstring ptr, ... ) as long
+	declare function c_fputs2 alias "fputs" ( byval s as zstring ptr, byval f as any ptr ) as long
+	declare function c_tcgetattr2 alias "tcgetattr" ( byval fd as long, byval t as TERMIOS2_ ptr ) as long
+	declare function c_tcsetattr2 alias "tcsetattr" _
+		( byval fd as long, byval act as long, byval t as TERMIOS2_ ptr ) as long
+	declare function c_cfgetospeed alias "cfgetospeed" ( byval t as TERMIOS2_ ptr ) as ulong
+	declare function c_tcgetpgrp alias "tcgetpgrp" ( byval fd as long ) as long
+	declare function c_getpgid alias "getpgid" ( byval pid as long ) as long
+	declare function c_ioctl2 alias "ioctl" ( byval fd as long, byval req as ulong, ... ) as long
+	declare function c_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+	declare function c_signal2 alias "signal" ( byval sig as long, byval h as any ptr ) as any ptr
+	declare function c_raise alias "raise" ( byval sig as long ) as long
+	declare function c_usleep alias "usleep" ( byval us as ulong ) as long
+	declare function c_ioperm alias "ioperm" _
+		( byval from_ as ulongint, byval num as ulongint, byval turn_on as long ) as long
+	declare function c_strncasecmp alias "strncasecmp" _
+		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+
+	declare function c_pthread_create alias "pthread_create" _
+		( byval t as ulongint ptr, byval attr as any ptr, byval fn_ as any ptr, _
+		  byval arg as any ptr ) as long
+	declare function c_pthread_join alias "pthread_join" _
+		( byval t as ulongint, byval ret as any ptr ptr ) as long
+	declare function c_pthread_mutex_init alias "pthread_mutex_init" _
+		( byval m as PTHREAD_MUTEX2_ ptr, byval attr as PTHREAD_MUTEXATTR_ ptr ) as long
+	declare function c_pthread_mutex_destroy alias "pthread_mutex_destroy" _
+		( byval m as PTHREAD_MUTEX2_ ptr ) as long
+	declare function c_pthread_mutex_lock3 alias "pthread_mutex_lock" _
+		( byval m as PTHREAD_MUTEX2_ ptr ) as long
+	declare function c_pthread_mutex_unlock3 alias "pthread_mutex_unlock" _
+		( byval m as PTHREAD_MUTEX2_ ptr ) as long
+	declare function c_pthread_mutexattr_init alias "pthread_mutexattr_init" _
+		( byval a as PTHREAD_MUTEXATTR_ ptr ) as long
+	declare function c_pthread_mutexattr_settype alias "pthread_mutexattr_settype" _
+		( byval a as PTHREAD_MUTEXATTR_ ptr, byval kind as long ) as long
+end extern
+
+'' TERMCAP. tgetent/tgetstr/tgetflag/tgoto/tputs plus FOUR GLOBALS the library
+'' reads: BC, UP, PC and ospeed. They are DATA, not functions, and tputs will
+'' read PC and ospeed whether or not this file sets them -- which is why fbc
+'' assigns them and why they are declared here rather than ignored.
+extern "c"   '' NON-FBCALL: termcap, not rtlib entry points.
+	declare function c_tgetent alias "tgetent" ( byval buf as zstring ptr, byval name_ as zstring ptr ) as long
+	declare function c_tgetstr alias "tgetstr" ( byval id as zstring ptr, byval area as zstring ptr ptr ) as zstring ptr
+	declare function c_tgetflag alias "tgetflag" ( byval id as zstring ptr ) as long
+	declare function c_tgoto alias "tgoto" ( byval cap as zstring ptr, byval col as long, byval row as long ) as zstring ptr
+	declare function c_tputs alias "tputs" ( byval str_ as zstring ptr, byval affcnt as long, byval putc as any ptr ) as long
+
+	extern BC alias "BC" as zstring ptr
+	extern UP alias "UP" as zstring ptr
+	extern PC alias "PC" as byte
+	extern ospeed alias "ospeed" as short
+end extern
+
+extern "c"   '' NON-FBCALL: rtlib internals owned elsewhere.
+	declare sub tkrt_hAddCh2 alias "fb_hAddCh" ( byval ch as long )
+	declare sub tkrt_DevScrnMaybeUpdateWidth alias "fb_DevScrnMaybeUpdateWidth" ( )
+end extern
+
+extern "rtlib"   '' FBCALL.
+	declare function tkrt_ConsoleGetMaxRow alias "fb_ConsoleGetMaxRow" ( ) as long
+	declare function tkrt_ConsoleGetTopRow alias "fb_ConsoleGetTopRow" ( ) as long
+	declare function tkrt_ConsoleGetBotRow alias "fb_ConsoleGetBotRow" ( ) as long
+end extern
+
+'' __fb_enable_vt100_escapes is src/sys/vt100.bas's.
+extern "c"   '' NON-FBCALL: src/sys/vt100.bas's flag, declared plain.
+	extern __fb_enable_vt100_escapes alias "__fb_enable_vt100_escapes" as long
+end extern
+
+'' THE CONSOLE CONTEXT ITSELF. Declared extern first so the definition below
+'' gets external linkage -- a bare `dim shared` would be file-local, and every
+'' other console module resolves __fb_con by name.
+extern "c"   '' NON-FBCALL: the console context is DATA, declared plain.
+	extern __fb_con alias "__fb_con" as FBCONSOLE_
+end extern
+
+dim shared __fb_con as FBCONSOLE_
+
+'' File-local state.
+dim shared as any ptr    tkort_old_sighandler( 0 to NSIG_ - 1 )
+dim shared as long       tkort_console_resized
+dim shared as ulongint   tkort_bg_thread
+dim shared as long       tkort_bgthread_inited
+dim shared as PTHREAD_MUTEX2_ tkort_bg_mutex
+
+#ifdef ENABLE_MT
+	dim shared as PTHREAD_MUTEX2_ tkort_global_mutex
+	dim shared as PTHREAD_MUTEX2_ tkort_string_mutex
+	dim shared as PTHREAD_MUTEX2_ tkort_graphics_mutex
+	dim shared as PTHREAD_MUTEX2_ tkort_math_mutex
+	dim shared as PTHREAD_MUTEX2_ tkort_profile_mutex
+#endif
+
+'' The seventeen termcap capability names, in SEQ_ order. Held as real objects
+'' because tgetstr takes a mutable char* and a literal's address is not
+'' something to hand it.
+dim shared as zstring * 4 tkort_seqname( 0 to SEQ_MAX_ - 1 )
+
+private sub tkort_init_seqnames( )
+	tkort_seqname(0) = "cm" : tkort_seqname(1) = "ho" : tkort_seqname(2) = "cs"
+	tkort_seqname(3) = "cl" : tkort_seqname(4) = "ce" : tkort_seqname(5) = "WS"
+	tkort_seqname(6) = "bl" : tkort_seqname(7) = "AF" : tkort_seqname(8) = "AB"
+	tkort_seqname(9) = "me" : tkort_seqname(10) = "md" : tkort_seqname(11) = "SF"
+	tkort_seqname(12) = "ve" : tkort_seqname(13) = "vi" : tkort_seqname(14) = "dc"
+	tkort_seqname(15) = "ks" : tkort_seqname(16) = "ke"
+end sub
+
+'' The seven hard-coded VT100 sequences, indices SEQ_EXTRA_ .. SEQ_EXTRA_+6.
+'' EMITTED AS EXPLICIT BYTES: 27 is ESC. Written as numbers rather than as
+'' escaped literals for the reason src/io/conprint.bas records -- a literal
+'' produced the UTF-8 encoding of the wrong character and nothing said so.
+dim shared as zstring * 24 tkort_extra_seq( 0 to 6 )
+
+private sub tkort_init_extra_seq( )
+	dim as ubyte e = 27
+	'' \e(U  -- init PC437 charset
+	tkort_extra_seq(0) = chr( e ) + "(U"
+	'' \e(B  -- exit it
+	tkort_extra_seq(1) = chr( e ) + "(B"
+	'' \e[6n -- query cursor
+	tkort_extra_seq(2) = chr( e ) + "[6n"
+	'' \e[18t -- query window
+	tkort_extra_seq(3) = chr( e ) + "[18t"
+	'' \e[?1000h\e[?1003h -- enable X11 mouse
+	tkort_extra_seq(4) = chr( e ) + "[?1000h" + chr( e ) + "[?1003h"
+	'' \e[?1003l\e[?1000l -- disable it
+	tkort_extra_seq(5) = chr( e ) + "[?1003l" + chr( e ) + "[?1000l"
+	'' \e[H\e[J\e[0m -- clean up after console gfx mode
+	tkort_extra_seq(6) = chr( e ) + "[H" + chr( e ) + "[J" + chr( e ) + "[0m"
+end sub
+
+'' ------------------------------------------------------------- the bg thread
+
+private function tkort_bg_thread_proc cdecl ( byval arg as any ptr ) as any ptr
+
+	while( __fb_con.inited <> 0 )
+		c_pthread_mutex_lock3( @tkort_bg_mutex )
+		if( __fb_con.keyboard_handler <> 0 ) then
+			dim as FNVOID fn_ = cast( FNVOID, __fb_con.keyboard_handler )
+			fn_( )
+		end if
+		if( __fb_con.mouse_handler <> 0 ) then
+			dim as FNVOID fn_ = cast( FNVOID, __fb_con.mouse_handler )
+			fn_( )
+		end if
+		c_pthread_mutex_unlock3( @tkort_bg_mutex )
+
+		c_usleep( 30000 )
+	wend
+
+	return 0
+end function
+
+private function tkort_default_getch cdecl ( ) as long
+	return c_fgetc2( __fb_con.f_in )
+end function
+
+'' ------------------------------------------------------------------- exports
+
+extern "rtlib"   '' FBCALL: fb_BgLock and fb_BgUnlock are declared with FBCALL,
+                 '' and so are the ten MT locks below.
+
+sub tkort_BgLock alias "fb_BgLock" ( )
+	c_pthread_mutex_lock3( @tkort_bg_mutex )
+end sub
+
+sub tkort_BgUnlock alias "fb_BgUnlock" ( )
+	c_pthread_mutex_unlock3( @tkort_bg_mutex )
+end sub
+
+#ifdef ENABLE_MT
+'' THESE TEN EXIST ONLY IN libfbmt.a AND ONLY IN THIS MEMBER -- see the file
+'' header on why omitting them would pass the ST gate and break the MT one.
+sub tkort_Lock alias "fb_Lock" ( )
+	c_pthread_mutex_lock3( @tkort_global_mutex )
+end sub
+sub tkort_Unlock alias "fb_Unlock" ( )
+	c_pthread_mutex_unlock3( @tkort_global_mutex )
+end sub
+sub tkort_StrLock alias "fb_StrLock" ( )
+	c_pthread_mutex_lock3( @tkort_string_mutex )
+end sub
+sub tkort_StrUnlock alias "fb_StrUnlock" ( )
+	c_pthread_mutex_unlock3( @tkort_string_mutex )
+end sub
+sub tkort_GraphicsLock alias "fb_GraphicsLock" ( )
+	c_pthread_mutex_lock3( @tkort_graphics_mutex )
+end sub
+sub tkort_GraphicsUnlock alias "fb_GraphicsUnlock" ( )
+	c_pthread_mutex_unlock3( @tkort_graphics_mutex )
+end sub
+sub tkort_MathLock alias "fb_MathLock" ( )
+	c_pthread_mutex_lock3( @tkort_math_mutex )
+end sub
+sub tkort_MathUnlock alias "fb_MathUnlock" ( )
+	c_pthread_mutex_unlock3( @tkort_math_mutex )
+end sub
+sub tkort_ProfileLock alias "fb_ProfileLock" ( )
+	c_pthread_mutex_lock3( @tkort_profile_mutex )
+end sub
+sub tkort_ProfileUnlock alias "fb_ProfileUnlock" ( )
+	c_pthread_mutex_unlock3( @tkort_profile_mutex )
+end sub
+#endif
+
+end extern
+
+extern "c"   '' NON-FBCALL: the rest are declared plain in fb_private_console.h
+             '' and fb.h, and the archive agrees.
+
+'' Forward declarations, inside the block so they cannot inherit stdcall.
+declare function tkort_hTermOut alias "fb_hTermOut" _
+	( byval code_ as long, byval param1 as long, byval param2 as long ) as long
+declare sub tkort_hEnd alias "fb_hEnd" ( byval unused as long )
+declare function tkort_hInitConsole alias "fb_hInitConsole" ( ) as long
+declare sub tkort_hExitConsole alias "fb_hExitConsole" ( )
+declare sub tkort_hRecheckCursorPos alias "fb_hRecheckCursorPos" ( )
+
+end extern
+
+'' A SIGNAL HANDLER THAT SHUTS DOWN AND RE-RAISES. The original handler is put
+'' back FIRST, so the re-raise reaches it rather than looping back here.
+private sub tkort_signal_handler cdecl ( byval sig as long )
+	c_signal2( sig, tkort_old_sighandler( sig ) )
+	tkort_hEnd( 1 )
+	c_raise( sig )
+end sub
+
+'' RE-ARMS ITSELF -- see the file header.
+private sub tkort_sigwinch_handler cdecl ( byval sig as long )
+	tkort_console_resized = -1
+	c_signal2( SIGWINCH_, cast( any ptr, @tkort_sigwinch_handler ) )
+end sub
+
+'' ASKS THE TERMINAL AND READS THE ANSWER OFF STDIN. Hangs forever if the
+'' terminal does not answer -- see the file header.
+private function tkort_hTermQuery _
+	( byval code_ as long, byval val1 as long ptr, byval val2 as long ptr ) as long
+
+	if( tkort_hTermOut( code_, 0, 0 ) = 0 ) then return 0
+
+	dim as long filled = any
+	do
+		dim as long c = any
+		'' Skip everything until ESC '[' -- and PUSH WHAT WAS SKIPPED INTO THE
+		'' INKEY BUFFER, so a keystroke that arrived mid-query is not lost.
+		do
+			do
+				c = c_getchar2( )
+				if( c = -1 ) then return 0
+				if( c = 27 ) then exit do
+				tkrt_hAddCh2( c )
+			loop
+
+			c = c_getchar2( )
+			if( c = 91 ) then exit do          '' '['
+			tkrt_hAddCh2( c )
+		loop
+
+		if( code_ = SEQ_QUERY_WINDOW_ ) then
+			filled = c_scanf2( @"8;%d;%dt", val1, val2 )
+		else
+			filled = c_scanf2( @"%d;%dR", val1, val2 )
+		end if
+	loop while( filled <> 2 )
+
+	return -1
+end function
+
+extern "c"   '' NON-FBCALL, as declared above.
+
+sub tkort_hRecheckCursorPos alias "fb_hRecheckCursorPos" ( )
+	dim as long x = 0, y = 0
+	if( tkort_hTermQuery( SEQ_QUERY_CURSOR_, @y, @x ) <> 0 ) then
+		__fb_con.cur_x = x
+		__fb_con.cur_y = y
+	end if
+end sub
+
+'' LAZY, AND THE FLAG IS CLEARED BEFORE THE WORK. A SIGWINCH arriving during
+'' the check is either absorbed (the size is about to be read anyway) or missed
+'' this once and handled by the next call -- fbc documents both cases and
+'' accepts them.
+sub tkort_hRecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval requery_cursorpos as long )
+
+	if( tkort_console_resized = 0 ) then exit sub
+
+	tkort_console_resized = 0
+
+	dim as WINSIZE_ win
+	win.ws_row = 0 : win.ws_col = 0 : win.ws_xpixel = 0 : win.ws_ypixel = 0
+
+	if( c_ioctl2( STDOUT_FILENO_, TIOCGWINSZ_, @win ) <> 0 ) then
+		'' The ioctl failed; ask the terminal instead.
+		dim as long r = any, c = any
+		if( tkort_hTermQuery( SEQ_QUERY_WINDOW_, @r, @c ) <> 0 ) then
+			win.ws_row = cast( ushort, r )
+			win.ws_col = cast( ushort, c )
+		end if
+	end if
+
+	'' 80x25 WHEN EVERYTHING FAILED -- see the file header on why not zero.
+	if( (win.ws_row = 0) orelse (win.ws_col = 0) ) then
+		win.ws_row = 25
+		win.ws_col = 80
+	end if
+
+	'' ONE ALLOCATION FOR BOTH SHADOWS: attr_buffer points into the middle of
+	'' char_buffer's block, which is why only char_buffer is freed.
+	dim as ubyte ptr char_buffer = cast( ubyte ptr, calloc( 1, win.ws_row * win.ws_col * 2 ) )
+	dim as ubyte ptr attr_buffer = char_buffer + (win.ws_row * win.ws_col)
+
+	if( __fb_con.char_buffer <> 0 ) then
+		dim as long h_ = iif( __fb_con.h < win.ws_row, __fb_con.h, win.ws_row )
+		dim as long w_ = iif( __fb_con.w < win.ws_col, __fb_con.w, win.ws_col )
+		for r as long = 0 to h_ - 1
+			memcpy( char_buffer + (r * win.ws_col), _
+			        __fb_con.char_buffer + (r * __fb_con.w), w_ )
+			memcpy( attr_buffer + (r * win.ws_col), _
+			        __fb_con.attr_buffer + (r * __fb_con.w), w_ )
+		next
+		free( __fb_con.char_buffer )
+	end if
+
+	__fb_con.char_buffer = char_buffer
+	__fb_con.attr_buffer = attr_buffer
+	__fb_con.h = win.ws_row
+	__fb_con.w = win.ws_col
+
+	if( requery_cursorpos <> 0 ) then tkort_hRecheckCursorPos( )
+
+	tkrt_DevScrnMaybeUpdateWidth( )
+end sub
+
+'' CODES BELOW SEQ_MAX COME FROM TERMCAP; the rest are the hard-coded VT100
+'' sequences, and those are gated on __fb_enable_vt100_escapes because an old
+'' terminal that does not understand them will never answer and the program
+'' would hang waiting.
+function tkort_hTermOut alias "fb_hTermOut" _
+	( byval code_ as long, byval param1 as long, byval param2 as long ) as long
+
+	if( __fb_con.inited = 0 ) then return 0
+
+	if( code_ > SEQ_MAX_ ) then
+		if( __fb_enable_vt100_escapes = 0 ) then return 0
+
+		if( code_ = SEQ_SET_COLOR_EX_ ) then
+			'' FEWER THAN FOUR CHARACTERS WRITTEN IS A FAILURE -- "\e[Nm" is
+			'' four at minimum, so the test is on the printf return.
+			if( c_fprintf2( stdout, @!"\033[%dm", param1 ) < 4 ) then return 0
+		else
+			if( c_fputs2( @tkort_extra_seq( code_ - SEQ_EXTRA_ ), stdout ) = -1 ) then return 0
+		end if
+	else
+		if( __fb_con.seq( code_ ) = 0 ) then return 0
+		dim as zstring ptr str_ = c_tgoto( __fb_con.seq( code_ ), param1, param2 )
+		if( str_ = 0 ) then return 0
+		c_tputs( str_, 1, cast( any ptr, @c_putchar2 ) )
+	end if
+
+	'' The terminal must SEE the sequence before anything waits on a reply.
+	fflush( stdout )
+
+	return -1
+end function
+
+'' CALLED MANY TIMES PER PROCESS, POSSIBLY UNBALANCED -- see the file header on
+'' why every "saved" flag is checked before capturing.
+function tkort_hInitConsole alias "fb_hInitConsole" ( ) as long
+
+	dim as TERMIOS2_ term_out, term_in
+
+	if( __fb_con.inited = 0 ) then return -1
+
+	if( (c_isatty2( STDOUT_FILENO_ ) = 0) orelse (c_isatty2( STDIN_FILENO_ ) = 0) ) then
+		return -1
+	end if
+
+	if( __fb_con.f_in = 0 ) then
+		'' /dev/tty, NOT stdin: input must come from the controlling terminal
+		'' even when stdin has been redirected.
+		__fb_con.f_in = c_fopen2( @"/dev/tty", @"r+b" )
+		if( __fb_con.f_in = 0 ) then return -1
+		__fb_con.h_in = c_fileno( __fb_con.f_in )
+	end if
+
+	'' A BACKGROUND PROCESS CANNOT CONTROL THE TERMINAL.
+	if( c_tcgetpgrp( STDOUT_FILENO_ ) <> c_getpgid( 0 ) ) then return -1
+
+	if( __fb_con.saved_old_term_out = 0 ) then
+		if( c_tcgetattr2( STDOUT_FILENO_, @__fb_con.old_term_out ) <> 0 ) then return -1
+		__fb_con.saved_old_term_out = 1
+	end if
+	memcpy( @term_out, @__fb_con.old_term_out, sizeof( TERMIOS2_ ) )
+	term_out.c_oflag or= OPOST_
+	if( c_tcsetattr2( STDOUT_FILENO_, TCSANOW_, @term_out ) <> 0 ) then return -1
+
+	if( __fb_con.saved_old_term_in = 0 ) then
+		if( c_tcgetattr2( __fb_con.h_in, @__fb_con.old_term_in ) <> 0 ) then return -1
+		__fb_con.saved_old_term_in = 1
+	end if
+	memcpy( @term_in, @__fb_con.old_term_in, sizeof( TERMIOS2_ ) )
+	'' SIGINT on control-C stays on; Xon/Xoff and BREAK-ignoring go off.
+	term_in.c_iflag or= BRKINT_
+	term_in.c_iflag and= not (IXOFF_ or IXON_ or IGNBRK_)
+	'' Character oriented, no echo.
+	term_in.c_lflag and= not (ICANON_ or ECHO_)
+	term_in.c_cc(VMIN_) = 1
+	term_in.c_cc(VTIME_) = 0
+	if( c_tcsetattr2( __fb_con.h_in, TCSANOW_, @term_in ) <> 0 ) then return -1
+
+	if( __fb_con.saved_old_in_flags = 0 ) then
+		__fb_con.old_in_flags = c_fcntl( __fb_con.h_in, F_GETFL_, 0 )
+		__fb_con.saved_old_in_flags = 1
+	end if
+	c_fcntl( __fb_con.h_in, F_SETFL_, __fb_con.old_in_flags or O_NONBLOCK_ )
+
+	if( __fb_con.inited = INIT_CONSOLE__ ) then
+		tkort_hTermOut( SEQ_INIT_CHARSET_, 0, 0 )
+	end if
+	tkort_hTermOut( 15, 0, 0 )                 '' SEQ_INIT_KEYPAD
+
+	c_pthread_mutex_lock3( @tkort_bg_mutex )
+	if( __fb_con.keyboard_init <> 0 ) then
+		dim as FNINT fn_ = cast( FNINT, __fb_con.keyboard_init )
+		fn_( )
+	end if
+	if( __fb_con.mouse_init <> 0 ) then
+		dim as FNINT fn_ = cast( FNINT, __fb_con.mouse_init )
+		fn_( )
+	end if
+	c_pthread_mutex_unlock3( @tkort_bg_mutex )
+
+	return 0
+end function
+
+sub tkort_hExitConsole alias "fb_hExitConsole" ( )
+
+	if( __fb_con.inited = 0 ) then exit sub
+
+	'' SIGTTOU IGNORED ACROSS THE RESTORE -- see the file header. Restored
+	'' immediately afterwards rather than left ignored.
+	dim as any ptr old_sigttou = c_signal2( SIGTTOU_, cast( any ptr, SIG_IGN_ ) )
+
+	if( __fb_con.gfx_exit <> 0 ) then
+		dim as FNVOID fn_ = cast( FNVOID, __fb_con.gfx_exit )
+		fn_( )
+	end if
+
+	c_pthread_mutex_lock3( @tkort_bg_mutex )
+	if( __fb_con.keyboard_exit <> 0 ) then
+		dim as FNVOID fn_ = cast( FNVOID, __fb_con.keyboard_exit )
+		fn_( )
+	end if
+	if( __fb_con.mouse_exit <> 0 ) then
+		dim as FNVOID fn_ = cast( FNVOID, __fb_con.mouse_exit )
+		fn_( )
+	end if
+	c_pthread_mutex_unlock3( @tkort_bg_mutex )
+
+	'' ONLY IF WE CHANGED IT. fb_ConsoleGetMaxRow may have to query the
+	'' terminal, which is slow, unsupported on some terminals, and unsafe from
+	'' a signal handler -- and this runs from one.
+	if( __fb_con.scroll_region_changed <> 0 ) then
+		dim as long bottom = tkrt_ConsoleGetMaxRow( )
+		if( (tkrt_ConsoleGetTopRow( ) <> 0) orelse (tkrt_ConsoleGetBotRow( ) <> bottom - 1) ) then
+			tkort_hTermOut( 2, bottom - 1, 0 )   '' SEQ_SCROLL_REGION
+			tkort_hTermOut( 3, 0, 0 )            '' SEQ_CLS
+			tkort_hTermOut( 1, 0, 0 )            '' SEQ_HOME
+		end if
+		__fb_con.scroll_region_changed = 0
+	end if
+
+	if( __fb_con.inited = INIT_CONSOLE__ ) then
+		tkort_hTermOut( SEQ_EXIT_CHARSET_, 0, 0 )
+	end if
+	tkort_hTermOut( 9, 0, 0 )                    '' SEQ_RESET_COLOR
+	tkort_hTermOut( 12, 0, 0 )                   '' SEQ_SHOW_CURSOR
+	tkort_hTermOut( 16, 0, 0 )                   '' SEQ_EXIT_KEYPAD
+
+	'' THE SAVED STATE IS KEPT, not cleared -- this may not be the final call.
+	if( __fb_con.saved_old_term_out <> 0 ) then
+		c_tcsetattr2( STDOUT_FILENO_, TCSANOW_, @__fb_con.old_term_out )
+	end if
+	if( __fb_con.saved_old_in_flags <> 0 ) then
+		c_fcntl( __fb_con.h_in, F_SETFL_, __fb_con.old_in_flags )
+	end if
+	if( __fb_con.saved_old_term_in <> 0 ) then
+		c_tcsetattr2( __fb_con.h_in, TCSANOW_, @__fb_con.old_term_in )
+	end if
+
+	'' The FILE* IS closed though, or it leaks across repeated SHELL calls.
+	if( __fb_con.f_in <> 0 ) then
+		c_fclose2( __fb_con.f_in )
+		__fb_con.f_in = 0
+	end if
+
+	c_signal2( SIGTTOU_, old_sigttou )
+end sub
+
+end extern
+
+'' ---------------------------------------------------------------------- init
+
+private sub tkort_hInitInner( )
+
+	dim as long sigs( 0 to 6 ) = { SIGABRT_, SIGFPE_, SIGILL_, SIGSEGV_, _
+	                               SIGTERM_, SIGINT_, SIGQUIT_ }
+	dim as zstring * 2048 buffer_
+	dim as TERMIOS2_ tty
+	dim as zstring ptr term = any
+
+	tkort_init_seqnames( )
+	tkort_init_extra_seq( )
+
+	memset( @__fb_con, 0, sizeof( FBCONSOLE_ ) )
+
+	'' TERMCAP. Every one of these failures returns EARLY and leaves
+	'' __fb_con.inited at 0, which is what makes every console entry point fall
+	'' back to plain stdout.
+	term = c_getenv( @"TERM" )
+	if( (term = 0) orelse (c_tgetent( @buffer_, term ) <= 0) ) then exit sub
+
+	'' BC, UP, PC AND ospeed ARE TERMCAP'S OWN GLOBALS and tputs reads them --
+	'' see the file header. PC is the pad character; a missing "pc" capability
+	'' means NUL.
+	BC = 0
+	UP = 0
+	dim as zstring ptr p = c_tgetstr( @"pc", 0 )
+	PC = iif( p <> 0, cptr( byte ptr, p )[0], 0 )
+
+	if( c_tcgetattr2( 1, @tty ) <> 0 ) then exit sub
+	ospeed = cast( short, c_cfgetospeed( @tty ) )
+
+	'' NO AUTOMATIC MARGINS MEANS THE TERMINAL IS UNUSABLE for FB's console
+	'' model, which assumes a line wraps.
+	if( c_tgetflag( @"am" ) = 0 ) then exit sub
+
+	for i as long = 0 to SEQ_MAX_ - 1
+		__fb_con.seq( i ) = c_tgetstr( @tkort_seqname( i ), 0 )
+	next
+
+	'' "console" or "linux*" is a real Linux console; everything else is
+	'' treated as X11.
+	if( (strcmp( term, @"console" ) = 0) orelse _
+	    (strncmp( term, @"linux", 5 ) = 0) ) then
+		__fb_con.inited = INIT_CONSOLE__
+	else
+		__fb_con.inited = INIT_X11__
+	end if
+
+	'' NOTE THE ASYMMETRY: eterm is matched case-INsensitively and xterm
+	'' case-sensitively. fbc's, reproduced.
+	if( c_strncasecmp( term, @"eterm", 5 ) = 0 ) then
+		__fb_con.term_type = TERM_ETERM__
+	elseif( strncmp( term, @"xterm", 5 ) = 0 ) then
+		__fb_con.term_type = TERM_XTERM__
+	else
+		__fb_con.term_type = TERM_GENERIC__
+	end if
+
+	if( tkort_hInitConsole( ) <> 0 ) then
+		__fb_con.inited = 0
+		exit sub
+	end if
+
+	__fb_con.keyboard_getch = cast( any ptr, @tkort_default_getch )
+
+	for i as long = 0 to 6
+		tkort_old_sighandler( sigs(i) ) = _
+			c_signal2( sigs(i), cast( any ptr, @tkort_signal_handler ) )
+	next
+
+	__fb_con.char_buffer = 0
+	__fb_con.fg_color = 7
+	__fb_con.bg_color = 0
+
+	'' LAZY: TRUE so the FIRST fb_hRecheckConsoleSize does the work. A program
+	'' that never uses console I/O never queries the terminal -- which is what
+	'' keeps the hang described in the file header off every FB program's
+	'' startup path.
+	tkort_console_resized = -1
+
+	'' 1,1 if the real position cannot be retrieved.
+	__fb_con.cur_x = 1
+	__fb_con.cur_y = 1
+
+	c_signal2( SIGWINCH_, cast( any ptr, @tkort_sigwinch_handler ) )
+end sub
+
+extern "c"   '' NON-FBCALL: fb.h declares fb_hInit and fb_hEnd plainly.
+
+sub tkort_hInit alias "fb_hInit" ( )
+
+	'' THE MUTEXES ARE CREATED BEFORE ANYTHING CAN TAKE THEM. All recursive --
+	'' see the file header on why.
+	dim as PTHREAD_MUTEXATTR_ attr
+	c_pthread_mutexattr_init( @attr )
+	c_pthread_mutexattr_settype( @attr, PTHREAD_MUTEX_RECURSIVE_ )
+
+	#ifdef ENABLE_MT
+		c_pthread_mutex_init( @tkort_global_mutex, @attr )
+		c_pthread_mutex_init( @tkort_string_mutex, @attr )
+		c_pthread_mutex_init( @tkort_graphics_mutex, @attr )
+		c_pthread_mutex_init( @tkort_math_mutex, @attr )
+		c_pthread_mutex_init( @tkort_profile_mutex, @attr )
+	#endif
+
+	c_pthread_mutex_init( @tkort_bg_mutex, @attr )
+
+	tkort_hInitInner( )
+
+	'' PORT I/O PERMISSION, x86 only. A non-zero return means it was refused --
+	'' the usual case for a non-root process -- and has_perm then gates every
+	'' INP/OUT.
+	__fb_con.has_perm = iif( c_ioperm( 0, &h400, 1 ) <> 0, 0, -1 )
+end sub
+
+sub tkort_hStartBgThread alias "fb_hStartBgThread" ( )
+	if( tkort_bgthread_inited = 0 ) then
+		c_pthread_create( @tkort_bg_thread, 0, cast( any ptr, @tkort_bg_thread_proc ), 0 )
+		tkort_bgthread_inited = -1
+	end if
+end sub
+
+'' JOINS THE BACKGROUND THREAD, unlike the goroutine scheduler which
+'' deliberately does not -- see the file header. inited is cleared FIRST, which
+'' is what makes the thread's loop terminate.
+sub tkort_hEnd alias "fb_hEnd" ( byval unused as long )
+
+	tkort_hExitConsole( )
+	__fb_con.inited = 0
+
+	if( tkort_bgthread_inited <> 0 ) then
+		c_pthread_join( tkort_bg_thread, 0 )
+		tkort_bgthread_inited = 0
+	end if
+	c_pthread_mutex_destroy( @tkort_bg_mutex )
+
+	'' ONE BLOCK, TWO SHADOWS -- attr_buffer points inside char_buffer's
+	'' allocation and must not be freed.
+	if( __fb_con.char_buffer <> 0 ) then
+		free( __fb_con.char_buffer )
+		__fb_con.char_buffer = 0
+		__fb_con.attr_buffer = 0
+	end if
+
+	#ifdef ENABLE_MT
+		c_pthread_mutex_destroy( @tkort_global_mutex )
+		c_pthread_mutex_destroy( @tkort_string_mutex )
+		c_pthread_mutex_destroy( @tkort_graphics_mutex )
+		c_pthread_mutex_destroy( @tkort_math_mutex )
+		c_pthread_mutex_destroy( @tkort_profile_mutex )
+	#endif
+end sub
+
+end extern
+
+#endif

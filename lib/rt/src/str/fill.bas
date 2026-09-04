@@ -1,0 +1,84 @@
+'' fill.bas -- fb_StrFill1 and fb_StrFill2, the two forms of STRING().
+''
+''   fb_StrFill1( cnt, fchar )  -- STRING( n, ch )
+''   fb_StrFill2( cnt, src )    -- STRING( n, str ), which uses src's FIRST
+''                                 character and repeats it. It does NOT repeat
+''                                 the whole string.
+''
+'' MEASURED (PROBE-37):
+''
+''   Fill1( 5, "x" )   -> "xxxxx"          Fill1( 3, 0 )    -> three NUL bytes
+''   Fill1( 0, "x" )   -> the shared empty Fill1( -3, "x" ) -> the shared empty
+''   Fill2( 4, "xyz" ) -> "xxxx"           Fill2( 3, "" )   -> the shared empty
+''   Fill2( 0, "xyz" ) -> the shared empty Fill2( 3, NULL ) -> the shared empty
+''
+'' Fill1 with a fill character of 0 produces real NUL bytes and a length of 3 --
+'' it is not treated as an empty string, and the result is not terminated early.
+''
+'' fb_StrFill2 CONSUMES its source temporary (str_fill.o lists fb_hStrDelTemp);
+'' fb_StrFill1 has no descriptor to consume. Measured: Fill2 of a temporary
+'' leaves the source len 0, data NULL.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+
+extern "rtlib"
+	declare function fb_hStrAllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
+		( byval s as FBSTRING ptr ) as long
+end extern
+
+extern "rtlib"
+
+private function hFill _
+	( byval cnt as integer, byval ch as long ) as FBSTRING ptr
+
+	if( cnt <= 0 ) then return TKORT_NULLSTR( )
+
+	dim as FBSTRING ptr r = fb_hStrAllocTemp( 0, cnt )
+	if( r = 0 ) then return TKORT_NULLSTR( )
+
+	memset( r->data, ch, cnt )
+	return r
+
+end function
+
+function tkort_StrFill1 alias "fb_StrFill1" _
+	( byval cnt as integer, byval fchar as long ) as FBSTRING ptr
+	return hFill( cnt, fchar )
+end function
+
+function tkort_StrFill2 alias "fb_StrFill2" _
+	( byval cnt as integer, byval src as FBSTRING ptr ) as FBSTRING ptr
+
+	'' The character is read BEFORE the source is released, and the release
+	'' happens on every path including the degenerate ones -- an early return
+	'' that skipped it would strand a pool descriptor per call, which is the
+	'' shape of bugs 12 through 15.
+	dim as long ch = 0
+	dim as integer usable = 0
+
+	if( src <> 0 ) then
+		if( src->data <> 0 ) then
+			if( FB_STRSIZE( src ) > 0 ) then
+				ch = cast( long, cptr( ubyte ptr, src->data )[0] )
+				usable = 1
+			end if
+		end if
+	end if
+
+	dim as FBSTRING ptr r = any
+	if( usable = 0 ) then
+		r = TKORT_NULLSTR( )
+	else
+		r = hFill( cnt, ch )
+	end if
+
+	if( src <> 0 ) then tkrt_DelTemp( src )
+
+	return r
+
+end function
+
+end extern

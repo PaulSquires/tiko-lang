@@ -1,0 +1,85 @@
+'' concat.bas -- fb_StrConcat (str_concat.o).
+''
+'' Both operands use FIX decoding, so all four argument forms reach it.
+''
+'' TWO THINGS THE SIGNATURE DOES NOT SAY:
+''
+'' 1. `dst` IS A DESCRIPTOR TO REUSE, NOT A DESTINATION TO WRITE INTO. It is
+''    handed to fb_hStrAllocTemp, which fills it in and returns it; when dst is
+''    NULL that helper takes a descriptor from the pool instead. So the return
+''    value is what matters and `dst` is an optimisation, not an output
+''    parameter.
+''
+'' 2. AN EMPTY RESULT DELETES dst AND RETURNS IT. When both operands are empty,
+''    fbc calls fb_StrDelete( dst ) and returns dst unchanged -- it does NOT
+''    return the shared empty descriptor the way fb_TRIM and fb_LEFT do
+''    (RFC-0002 section 4.6). Same family, different convention, and only reading
+''    or measuring tells them apart.
+''
+'' The temp releases are gated on `size = -1` explicitly rather than on the temp
+'' bit, because only a var-len descriptor can carry one -- and both happen inside
+'' a single lock, as in instr.bas.
+
+#include once "inc/descriptors.bi"
+
+extern "rtlib"
+	declare function fb_hStrAllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
+	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+function tkort_StrConcat alias "fb_StrConcat" _
+	( _
+		byval dst as FBSTRING ptr, _
+		byval str1 as any ptr, byval str1_size as integer, _
+		byval str2 as any ptr, byval str2_size as integer _
+	) as FBSTRING ptr
+
+	dim as zstring ptr p1 = any, p2 = any
+	dim as integer n1 = any, n2 = any
+
+	FB_STRSETUP_FIX( str1, str1_size, p1, n1 )
+	FB_STRSETUP_FIX( str2, str2_size, p2, n2 )
+
+	if( n1 + n2 = 0 ) then
+		'' Not the shared empty descriptor -- dst, emptied.
+		tkrt_StrDelete( dst )
+	else
+		dst = fb_hStrAllocTemp( dst, n1 + n2 )
+		if( dst <> 0 ) then
+			'' Two copies and one terminator, written straight out. fbc's helper
+			'' is `static __inline__` and does exactly this.
+			if( n1 > 0 ) then memcpy( dst->data, p1, n1 )
+			if( n2 > 0 ) then memcpy( cptr( ubyte ptr, dst->data ) + n1, p2, n2 )
+			dst->data[n1 + n2] = 0
+		end if
+	end if
+
+	STRLOCK()
+	if( str1_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTempNoLock( cptr( FBSTRING ptr, str1 ) )
+	end if
+	if( str2_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTempNoLock( cptr( FBSTRING ptr, str2 ) )
+	end if
+	STRUNLOCK()
+
+	return dst
+
+end function
+
+end extern

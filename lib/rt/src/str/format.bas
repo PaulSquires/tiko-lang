@@ -1,0 +1,1344 @@
+'' format.bas -- fb_StrFormat and fb_hStrFormat: FORMAT$, the mask language.
+'' Two symbols, one fbc member (str_format.o), portable.
+''
+'' THE LAST PURE FUNCTION IN THE PORT, and that matters more than its size. Every
+'' other member left takes a console, a serial port or a spooler, and can only be
+'' proved by address. This one is a double and a string in, a string out -- so it
+'' is the one place a differential can be exhaustive, and
+'' tests/abi/format-parity.bas runs several hundred cases rather than a sample.
+''
+'' ONE FUNCTION RUNS TWICE, AND THE TWO RUNS ARE DIFFERENT PROGRAMS.
+'' fb_hProcessMask is called first with dst = NULL to MEASURE and again with a
+'' real descriptor to BUILD, and `do_output` selects between them at roughly
+'' forty separate points. fbc's own comment on it reads "This function is a
+'' mess, but hey, it works" and promises a cleanup that never came; it is
+'' reproduced as it stands, because the measuring pass's arithmetic IS the
+'' allocation size and any simplification would have to prove it computes the
+'' same total for every mask in the language.
+''
+'' THE MEASURING PASS OVER-ESTIMATES ON PURPOSE. length_min counts what the mask
+'' must emit and length_opt what it might; the buffer is their sum, and the final
+'' length is whatever the build pass actually wrote. So FORMAT$ routinely
+'' allocates more than it returns, and fb_hStrSetLength trims it after the fact.
+''
+'' ---------------------------------------------------------------------------
+'' THE MASK LANGUAGE, since the control flow will not tell you:
+''
+''   THE TYPE IS INFERRED FROM THE FIRST CHARACTER THAT IMPLIES ONE. `#0,.+%Ee`
+''   make it a NUMBER mask, `dnmMyhHst:/` make it a DATE/TIME mask, and whichever
+''   comes first wins for the whole mask. fbc has the "and the other kind is an
+''   error" branch written out and #if 0'd, so a mask mixing both is not
+''   rejected -- it is interpreted under whichever type it acquired first.
+''
+''   A COMMA MEANS TWO THINGS AND THE DIFFERENCE IS WHAT FOLLOWS IT. A comma
+''   among the digits is a THOUSANDS SEPARATOR; a comma immediately before the
+''   decimal point, or another comma, DIVIDES BY 1000 per comma. That is what
+''   last_was_comma and was_k_div are for, and the decision is deferred until the
+''   next character is known -- which is why the resolution sits at the bottom of
+''   the loop rather than in the ',' case.
+''
+''   '#' IS AN OPTIONAL DIGIT AND '0' IS A REQUIRED ONE. They differ only in
+''   which counter the measuring pass increments (length_opt vs length_min) and
+''   in whether the build pass emits a character when the number has run out.
+''
+''   A BACKSLASH ESCAPES THE NEXT CHARACTER; a double quote opens a literal run
+''   that ends at the next double quote. Neither is a state machine so much as a
+''   one-shot flag consumed at the top of the next iteration.
+''
+''   'ttttt' AND 'ddddd' RECURSE. They fetch the locale's time or date format and
+''   call fb_hStrFormat again with it, then splice in the result. So a locale
+''   format containing 'ttttt' would recurse forever; fbc does not guard it and
+''   neither does this.
+''
+''   'AM/PM' AND 'A/P' ARE MATCHED AS WHOLE WORDS, case-insensitively, and the
+''   output is taken FROM THE MASK ITSELF rather than from a constant -- so
+''   `am/pm` prints lower case and `Am/Pm` prints exactly that. The pointer
+''   arithmetic that picks the second half is why.
+''
+''   'm' IS MINUTES OR MONTHS DEPENDING ON WHAT CAME BEFORE IT. A single or
+''   double 'm' immediately after an hour field is MINUTES; anywhere else, or
+''   three or more, is MONTHS. did_hour carries that across iterations and is
+''   cleared by every other field.
+''
+'' ---------------------------------------------------------------------------
+'' THE ROUNDING IS NOT THE C LIBRARY'S, AND THAT IS DELIBERATE.
+''
+'' hRound converts the fraction to FIXED POINT before comparing against a half,
+'' because the value may otherwise be sitting in an x87 register at 80-bit
+'' precision and compare differently depending on whether the optimiser spilled
+'' it. fbc's comment says exactly that.
+''
+'' AND IT ROUNDS LIKE VBDOS, NOT LIKE VB6: 2.55 formatted to one decimal gives
+'' 2.5, not 2.6. The fraction-of-the-fraction is discarded before the comparison,
+'' which is what produces the difference. This is a compatibility decision with a
+'' visible result and it is reproduced exactly.
+''
+'' THE MAGIC CONSTANTS ARE 1.E+15 AND 5.E+14 -- a scale to fixed point and a
+'' half in that scale -- and in the fractional case both are divided by 10^n.
+'' Writing them as anything else changes which values round up.
+''
+'' ---------------------------------------------------------------------------
+'' A NULL OR EMPTY MASK IS A COMPLETELY DIFFERENT FUNCTION. fb_hBuildDouble runs
+'' instead, with VBDOS's default precision of ELEVEN digits, where a real mask
+'' gets the mask's own digit count. So FORMAT$(x) and FORMAT$(x, "") do not go
+'' near any of the above.
+''
+'' ---------------------------------------------------------------------------
+'' EVERY DOUBLE-TO-INTEGER CAST IN THIS FILE IS WRAPPED IN fix(), AND IT HAS TO
+'' BE. FreeBASIC's `cast( ulongint, 9.99 )` is **10** -- it ROUNDS TO NEAREST.
+'' C's `(unsigned long long)9.99` is **9** -- it TRUNCATES. Measured, not
+'' assumed: a probe printed the two side by side.
+''
+'' This is not a detail. FORMAT$( 9.995, "#.##E+##" ) returned ".E+1" instead of
+'' "9.99E+0" from exactly one unwrapped cast: rounding 9.99 up to 10 gave the
+'' value an extra digit, which sent it down the "rounded into the next power of
+'' ten" branch, and the mantissa vanished while the exponent gained one.
+''
+'' The ONLY cast here that does not need fix() is ullFix in fb_hGetNumberParts,
+'' whose input came from modf and is already integral. It is marked where it
+'' stands.
+''
+'' A KNOWN, UNFIXED DIVERGENCE FROM THE C RUNTIME, and the only one in this
+'' file. fb_hGetNumberParts casts the fixed part to `unsigned long long`. For a
+'' double whose integer part exceeds 2^64 that cast is UNDEFINED BEHAVIOUR in C,
+'' and the two compilers resolve it differently:
+''
+''     FORMAT$( 1e20 )     clang-built libfb -> ""   (the cast yields 0)
+''                         tiko-rt          -> "18446744073709551615"
+''
+'' Only the NO-MASK path is exposed. Every masked path scales the value below
+'' 2^64 before the cast, so FORMAT$( 1e20, "####" ) agrees exactly.
+''
+'' It is left alone deliberately. Matching clang would mean reproducing one
+'' clang build's undefined behaviour -- a target that moves with the compiler --
+'' and fbc's own test suite does not exercise it. tests/abi/format-parity.bas
+'' keeps its no-mask values below 2^64 and says why.
+''
+'' AND THE SIGN COMES BACK AS '+' FOR ZERO-WITH-POSITIVE-VALUE. fb_hGetNumberParts
+'' returns '-' for a negative, '+' for a positive whose integer part is zero, and
+'' NUL for a plain zero -- three states in a char, and the callers test for '-'
+'' specifically rather than for truthiness.
+
+#include once "inc/descriptors.bi"
+#include once "inc/rterror.bi"
+#include once "inc/iolock.bi"
+#include once "inc/ctx.bi"
+#include once "crt/stdio.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/string.bi"
+#include once "crt/math.bi"
+
+'' floor( log10( 2^64 ) ) -- the most decimal digits an unsigned 64-bit integer
+'' can hold, and the point past which the fixed part is scaled instead.
+const FB_MAXFIXLEN = 19
+
+'' 2^64 -- the smallest double that will not fit an unsigned 64-bit integer, and
+'' the threshold the exponent normalisation divides down to.
+''
+'' WRITTEN IN EXPONENT FORM DELIBERATELY. Spelled out as 18446744073709551616.0
+'' FreeBASIC parses the digits as an INTEGER literal first, overflows it, warns
+'' `Literal number too big, truncated` -- and yields 1.844674407370955e+20, which
+'' is TEN TIMES TOO LARGE. The loop then fails to normalise values it should
+'' have, and nothing else says so. Measured with a probe; this form compares
+'' equal to 2.0 ^ 64 and the plain one does not.
+const TKORT_TWO_POW_64 as double = 1.8446744073709551616e19
+
+const FB_WEEK_DAY_SUNDAY_ = 1
+
+'' fb_intl.h's eFB_IntlIndex, in declaration order.
+const eFIL_DateDivider_           = 0
+const eFIL_TimeDivider_           = 1
+const eFIL_NumDecimalPoint_       = 2
+const eFIL_NumThousandsSeparator_ = 3
+
+'' eMaskType
+const eMT_Unknown_  = 0
+const eMT_Number_   = 1
+const eMT_DateTime_ = 2
+
+type FormatMaskInfo
+	as long    mask_type
+
+	as long    has_decimal_point
+	as long    has_thousand_sep
+	as long    has_percent
+	as long    has_exponent
+	as long    exponent_add_plus
+	as long    has_sign
+	as long    sign_add_plus
+	as long    num_digits_fix
+	as long    num_digits_frac
+	as long    num_digits_omit
+	as long    exp_digits
+
+	as long    has_ampm
+
+	'' ssize_t: pointer-width, unlike everything above it.
+	as integer length_min
+	as integer length_opt
+end type
+
+extern "rtlib"   '' FBCALL: every one of these is decorated on win32.
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_Year alias "fb_Year" ( byval serial as double ) as long
+	declare function tkrt_Month alias "fb_Month" ( byval serial as double ) as long
+	declare function tkrt_Day alias "fb_Day" ( byval serial as double ) as long
+	declare function tkrt_Hour alias "fb_Hour" ( byval serial as double ) as long
+	declare function tkrt_Minute alias "fb_Minute" ( byval serial as double ) as long
+	declare function tkrt_Second alias "fb_Second" ( byval serial as double ) as long
+	declare function tkrt_Weekday alias "fb_Weekday" _
+		( byval serial as double, byval first_day_of_week as long ) as long
+	declare function tkrt_WeekdayName alias "fb_WeekdayName" _
+		( byval weekday_ as long, byval abbreviation as long, _
+		  byval first_day_of_week as long ) as FBSTRING ptr
+	declare function tkrt_MonthName alias "fb_MonthName" _
+		( byval month_ as long, byval abbreviation as long ) as FBSTRING ptr
+end extern
+
+extern "c"   '' NON-FBCALL: internal helpers, declared plain in fb_string.h,
+             '' fb_intl.h and fb.h.
+	declare function tkrt_hStrAllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
+	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_IntlGet alias "fb_IntlGet" _
+		( byval index_ as long, byval disallow_localized as long ) as zstring ptr
+	declare function tkrt_IntlGetDateFormat alias "fb_IntlGetDateFormat" _
+		( byval buffer as zstring ptr, byval length_ as uinteger, _
+		  byval disallow_localized as long ) as long
+	declare function tkrt_IntlGetTimeFormat alias "fb_IntlGetTimeFormat" _
+		( byval buffer as zstring ptr, byval length_ as uinteger, _
+		  byval disallow_localized as long ) as long
+	declare function tkrt_IntLog10_64 alias "fb_IntLog10_64" ( byval x as ulongint ) as long
+end extern
+
+'' fb_hStrFormat calls itself for the 'ttttt' and 'ddddd' forms -- see the file
+'' header. Declared inside an `extern "rtlib"` block because it IS FBCALL and a
+'' bare forward `declare` would inherit the module convention.
+extern "rtlib"
+	declare function tkort_hStrFormat alias "fb_hStrFormat" _
+		( byval value as double, byval mask as zstring ptr, _
+		  byval mask_length as uinteger ) as FBSTRING ptr
+end extern
+
+'' strdup and strncasecmp, written out -- MinGW spells them _strdup and
+'' _strnicmp. Same reason as src/io/devcomopen.bas.
+private function hStrDup( byval s as zstring ptr ) as zstring ptr
+	dim as uinteger n = strlen( s )
+	dim as zstring ptr p = cast( zstring ptr, malloc( n + 1 ) )
+	if( p = 0 ) then return 0
+	memcpy( p, s, n + 1 )
+	return p
+end function
+
+private function hNCaseEq( byval a as zstring ptr, byval b as zstring ptr, byval n as integer ) as long
+	dim as ubyte ptr pa = cast( ubyte ptr, a )
+	dim as ubyte ptr pb = cast( ubyte ptr, b )
+	for i as integer = 0 to n - 1
+		dim as ubyte ca = pa[i], cb = pb[i]
+		if( (ca >= 97) andalso (ca <= 122) ) then ca -= 32
+		if( (cb >= 97) andalso (cb <= 122) ) then cb -= 32
+		if( ca <> cb ) then return 0
+		if( ca = 0 ) then return 1
+	next
+	return 1
+end function
+
+'' ------------------------------------------------------- fb_hGetNumberParts
+''
+'' Splits a double into its fixed and fractional digit strings and a sign
+'' character. `precision` is 11 for a bare FORMAT$ and the mask's own fractional
+'' digit count otherwise -- see the file header.
+
+private sub hGetNumberParts _
+	( byval number as double, byval pachFixPart as zstring ptr, byval pcchLenFix as integer ptr, _
+	  byval pachFracPart as zstring ptr, byval pcchLenFrac as integer ptr, _
+	  byval pchSign as ubyte ptr, byval chDecimalPoint as ubyte, byval precision as long )
+
+	dim as double dblFix = any
+	dim as double dblFrac = modf( number, @dblFix )
+	dim as long neg = iif( number < 0.0, 1, 0 )
+	'' No fix() here, and that is not an oversight: dblFix came out of modf and
+	'' is already integral, so rounding and truncation agree. Everywhere else in
+	'' this file they do NOT -- see the file header.
+	dim as ulongint ullFix = cast( ulongint, iif( neg <> 0, -dblFix, dblFix ) )
+	dim as integer len_fix = any, len_frac = any
+	dim as ubyte chSign = any
+
+	if( dblFrac < 0.0 ) then dblFrac = -dblFrac
+
+	len_frac = sprintf( pachFracPart, @"%.*f", precision, dblFrac )
+
+	'' STRIP TRAILING ZEROES, and the decimal point too if nothing survives. The
+	'' walk starts one past the point -- or two, for the "-0.0" case, which
+	'' sprintf really can produce.
+	dim as ubyte ptr pszFracStart = cast( ubyte ptr, pachFracPart )
+	dim as ubyte ptr pszFracEnd = any
+	if( pszFracStart[0] = 45 ) then pszFracStart += 1    '' '-'
+	pszFracStart += 1
+	pszFracEnd = cast( ubyte ptr, pachFracPart ) + len_frac
+	while( pszFracEnd <> pszFracStart )
+		pszFracEnd -= 1
+		if( pszFracEnd[0] <> 48 ) then                   '' '0'
+			if( pszFracEnd[0] <> chDecimalPoint ) then
+				pszFracStart += 1
+				pszFracEnd += 1
+			end if
+			exit while
+		end if
+	wend
+
+	len_frac = cast( integer, pszFracEnd - pszFracStart )
+	memmove( pachFracPart, pszFracStart, len_frac )
+	pachFracPart[len_frac] = 0
+
+	'' THREE SIGN STATES, not two -- see the file header.
+	if( (ullFix = 0) andalso (neg <> 0) ) then
+		pachFixPart[0] = 0
+		len_fix = 0
+		chSign = 45                                      '' '-'
+	elseif( (ullFix = 0) andalso (number > 0.0) ) then
+		pachFixPart[0] = 0
+		len_fix = 0
+		chSign = 43                                      '' '+'
+	else
+		if( neg <> 0 ) then
+			chSign = 45
+		elseif( ullFix > 0 ) then
+			chSign = 43
+		else
+			chSign = 0
+		end if
+		len_fix = sprintf( pachFixPart, @"%llu", ullFix )
+	end if
+
+	if( pcchLenFix <> 0 ) then *pcchLenFix = len_fix
+	if( pcchLenFrac <> 0 ) then *pcchLenFrac = len_frac
+	if( pchSign <> 0 ) then *pchSign = chSign
+end sub
+
+'' ---------------------------------------------------------- fb_hBuildDouble
+''
+'' The no-mask path. Eleven digits of precision, VBDOS's default.
+
+private function hBuildDouble _
+	( byval num as double, byval decimal_point as ubyte, _
+	  byval thousands_separator as ubyte ) as FBSTRING ptr
+
+	dim as zstring * 128 FixPart, FracPart
+	dim as ubyte chSign = any
+	dim as integer LenFix = any, LenFrac = any
+	dim as integer LenSign = any, LenDecPoint = any, LenTotal = any
+	dim as FBSTRING ptr dst = any
+
+	hGetNumberParts( num, @FixPart, @LenFix, @FracPart, @LenFrac, @chSign, 46, 11 )
+
+	'' ONLY '-' IS EMITTED. chSign is '+' for a positive value with a zero
+	'' integer part, and that '+' is deliberately dropped here.
+	LenSign = iif( chSign = 45, 1, 0 )
+	LenDecPoint = iif( LenFrac <> 0, 1, 0 )
+	LenTotal = LenSign + LenFix + LenDecPoint + LenFrac
+
+	dst = tkrt_hStrAllocTemp( 0, LenTotal )
+	if( dst <> 0 ) then
+		if( LenSign <> 0 ) then dst->data[0] = chSign
+		memcpy( dst->data + LenSign, @FixPart, LenFix )
+		if( LenDecPoint <> 0 ) then dst->data[LenSign + LenFix] = decimal_point
+		memcpy( dst->data + LenSign + LenFix + LenDecPoint, @FracPart, LenFrac )
+		dst->data[LenTotal] = 0
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	return dst
+end function
+
+'' ------------------------------------------------------------------ hRound
+''
+'' VBDOS rounding through fixed point -- see the file header for both halves of
+'' why this is not just `printf( "%.*f" )`.
+
+'' `frac` is FreeBASIC's FRAC() intrinsic, so the local here is fracpart.
+private function hRound( byval value as double, byval pInfo as FormatMaskInfo ptr ) as double
+
+	dim as double fix_ = any
+	dim as double fracpart = modf( value, @fix_ )
+
+	if( pInfo->num_digits_frac = 0 ) then
+		'' modf at GetNumberParts will not round, so it happens here. The scale
+		'' to fixed point is what keeps an 80-bit x87 register from deciding the
+		'' comparison.
+		dim as longint intfrac = cast( longint, fix( fracpart * 1.E+15 ) )
+		if( intfrac > cast( longint, 5.E+14 ) ) then
+			value = ceil( value )
+		elseif( intfrac < -cast( longint, 5.E+14 ) ) then
+			value = floor( value )
+		end if
+	else
+		'' THE FRACTION OF THE FRACTION IS DISCARDED, which is what makes 2.55
+		'' round to 2.5 like VBDOS rather than to 2.6 like VB6.
+		if( fracpart <> 0.0 ) then
+			dim as double p10 = pow( 10.0, pInfo->num_digits_frac )
+			dim as double fracfrac = modf( fracpart * p10, @fracpart )
+			dim as longint intfrac = cast( longint, fix( fracfrac * (1.E+15 / p10) ) )
+
+			if( intfrac > cast( longint, fix( 5.E+14 / p10 ) ) ) then
+				fracpart += 1.0
+			elseif( intfrac < -cast( longint, fix( 5.E+14 / p10 ) ) ) then
+				fracpart += -1.0
+			end if
+
+			fracpart /= p10
+			value = fix_ + fracpart
+		end if
+	end if
+
+	return value
+end function
+
+'' The literals the exponent and AM/PM paths point at. Held as real objects
+'' because their ADDRESS is taken and stored, and a FreeBASIC literal has no
+'' address that outlives the expression.
+dim shared as zstring * 2 tkort_minus_lit = "-"
+dim shared as zstring * 2 tkort_plus_lit = "+"
+dim shared as zstring * 4 tkort_am_lit = "AM"
+dim shared as zstring * 4 tkort_pm_lit = "PM"
+
+'' -------------------------------------------------------- fb_hProcessMask
+''
+'' ONE FUNCTION, TWO PROGRAMS -- see the file header. dst = NULL measures; a real
+'' descriptor builds.
+
+private function hProcessMask _
+	( byval dst as FBSTRING ptr, byval mask as zstring ptr, byval mask_length as integer, _
+	  byval value as double, byval pInfo as FormatMaskInfo ptr, _
+	  byval chThousandsSep as ubyte, byval chDecimalPoint as ubyte, _
+	  byval chDateSep as ubyte, byval chTimeSep as ubyte ) as long
+
+	dim as zstring * 128 FixPart, FracPart, ExpPart
+	dim as ubyte chSign = 0
+	dim as integer LenFix = any, LenFrac = any, LenExp = 0
+	dim as integer IndexFix = any, IndexFrac = any, IndexExp = 0
+	dim as integer ExpValue = any, ExpAdjust = 0
+	dim as integer NumSkipFix = 0, NumSkipExp = 0, NonZero = 0
+	dim as long do_skip = 0, do_exp = 0, do_string = 0
+	dim as long did_sign = 0, did_exp = 0, did_hour = 0, did_thousandsep = 0
+	dim as long do_num_frac = 0, last_was_comma = 0, was_k_div = 0
+	dim as long do_output = iif( dst <> 0, 1, 0 )
+	dim as long do_add = 0
+	dim as integer LenOut = any
+	dim as ubyte ptr pszOut = any
+	dim as integer i = any
+	dim as ubyte ptr pmask = cast( ubyte ptr, mask )
+
+	if( do_output = 0 ) then
+		memset( pInfo, 0, sizeof( FormatMaskInfo ) )
+		pszOut = 0
+		LenOut = 0
+	else
+		if( pInfo->mask_type = eMT_Number_ ) then
+			if( pInfo->has_percent <> 0 ) then value *= 100.0
+			'' THE COMMA-BEFORE-THE-POINT DIVISION, applied once, here.
+			value /= pow( 10.0, pInfo->num_digits_omit )
+		end if
+		pszOut = cast( ubyte ptr, dst->data )
+		LenOut = FB_STRSIZE( dst )
+	end if
+
+	if( value <> 0.0 ) then
+		ExpValue = cast( integer, cast( long, floor( log10( fabs( value ) ) ) ) + 1 )
+		NonZero = 1
+	else
+		ExpValue = 0
+		NonZero = 0
+	end if
+
+	if( do_output <> 0 ) then
+		if( pInfo->mask_type = eMT_Number_ ) then
+
+			if( pInfo->has_exponent <> 0 ) then
+				'' Scale the mantissa so it fills the fixed digits.
+				if( NonZero <> 0 ) then ExpValue -= pInfo->num_digits_fix
+
+				if( ExpValue <> 0 ) then
+					if( -ExpValue <= 308 ) then
+						value *= pow( 10.0, -ExpValue )
+					else
+						'' PAST THE EXPONENT RANGE OF A DOUBLE, so the power is
+						'' split into 5^n and 2^n -- each of which stays finite
+						'' where 10^n would already be inf.
+						value *= pow( 5.0, -ExpValue )
+						value *= pow( 2.0, -ExpValue )
+					end if
+				end if
+
+				while( value >= TKORT_TWO_POW_64 )
+					value /= 10.0
+					ExpValue += 1
+				wend
+
+				LenExp = sprintf( @ExpPart, @"%d", cast( long, ExpValue ) )
+
+				'' A NEGATIVE EXPONENT'S '-' IS PART OF ExpPart, so the digit
+				'' index and the skip count both start one further along.
+				if( ExpValue < 0 ) then
+					IndexExp = 1 : ExpAdjust = 1
+				else
+					IndexExp = 0 : ExpAdjust = 0
+				end if
+
+				NumSkipExp = pInfo->exp_digits - (LenExp - ExpAdjust)
+
+			elseif( ExpValue < 0 ) then
+				'' TOO SMALL TO SHOW: the value becomes exactly zero rather than
+				'' being scaled. fbc carries the scaling version beside this
+				'' under #if 0; the live branch throws the value away.
+				if( -ExpValue >= pInfo->num_digits_frac ) then
+					value = 0.0
+					ExpValue = 0
+				end if
+			else
+				'' TOO BIG FOR A 64-BIT INTEGER: scale down and remember by how
+				'' much, so the zeroes can be appended as text later.
+				if( ExpValue > FB_MAXFIXLEN ) then
+					ExpValue -= FB_MAXFIXLEN
+					value *= pow( 10.0, -ExpValue )
+				else
+					ExpValue = 0
+				end if
+			end if
+
+			value = hRound( value, pInfo )
+
+			'' ROUNDING MAY HAVE CARRIED INTO A NEW POWER OF TEN, which changes
+			'' the exponent after it was already formatted -- so it is formatted
+			'' again.
+			if( (pInfo->has_exponent <> 0) andalso _
+			    (tkrt_IntLog10_64( cast( ulongint, fix( fabs( value ) ) ) ) = pInfo->num_digits_fix) ) then
+				value /= 10.0
+				ExpValue += 1
+				LenExp = sprintf( @ExpPart, @"%d", cast( long, ExpValue ) )
+				if( ExpValue < 0 ) then
+					IndexExp = 1 : ExpAdjust = 1
+				else
+					IndexExp = 0 : ExpAdjust = 0
+				end if
+				NumSkipExp = pInfo->exp_digits - (LenExp - ExpAdjust)
+			end if
+
+			hGetNumberParts( value, @FixPart, @LenFix, @FracPart, @LenFrac, _
+			                 @chSign, 46, pInfo->num_digits_frac )
+
+			'' THE SCALED-DOWN DIGITS COME BACK AS LITERAL ZEROES appended to the
+			'' fixed part -- there is no other way to show 10^25 without an
+			'' exponent.
+			if( (ExpValue > 0) andalso (pInfo->has_exponent = 0) ) then
+				for j as long = 0 to ExpValue - 1
+					FixPart[LenFix + j] = 48
+				next
+				LenFix += ExpValue
+				FixPart[LenFix] = 0
+			end if
+
+			NumSkipFix = pInfo->num_digits_fix - LenFix
+		end if
+	else
+		'' THE MEASURING PASS ASSUMES THE WORST, because it has not computed the
+		'' digits yet and the buffer must be big enough for any of them.
+		LenFix = iif( ExpValue > FB_MAXFIXLEN, ExpValue, FB_MAXFIXLEN )
+		LenFrac = 0
+	end if
+
+	IndexFix = 0 : IndexFrac = 0
+	i = 0
+	while( i <> mask_length )
+		dim as ubyte ptr pszAdd = pmask + i
+		dim as zstring ptr pszAddFree = 0
+		dim as integer LenAdd = 1
+		dim as ubyte chCurrent = pszAdd[0]
+
+		if( do_skip <> 0 ) then
+			'' The character after a backslash, emitted as itself.
+			do_skip = 0
+			if( do_output = 0 ) then
+				pInfo->length_min += 1
+			else
+				do_add = 1
+			end if
+
+		elseif( do_exp <> 0 ) then
+			'' THE CHARACTER AFTER 'E' MUST BE '+' OR '-' and nothing else is
+			'' tolerated -- this is the one place the mask language has a hard
+			'' syntax error.
+			if( do_output = 0 ) then
+				pInfo->has_exponent = 1
+				select case chCurrent
+				case 45                        '' '-'
+					pInfo->exponent_add_plus = 0
+					pInfo->length_opt += 1
+				case 43                        '' '+'
+					pInfo->exponent_add_plus = 1
+					pInfo->length_min += 1
+				case else
+					tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+					return 0
+				end select
+			else
+				if( (pInfo->exponent_add_plus <> 0) orelse (ExpValue < 0) ) then
+					if( ExpValue < 0 ) then
+						pszAdd = @tkort_minus_lit
+					else
+						pszAdd = @tkort_plus_lit
+					end if
+					do_add = 1
+				end if
+			end if
+			do_exp = 0
+			did_exp = 1
+			do_num_frac = 0
+
+		elseif( do_string <> 0 ) then
+			if( chCurrent = 34 ) then           '' '"'
+				do_string = 0
+			elseif( do_output = 0 ) then
+				pInfo->length_min += 1
+			else
+				do_add = 1
+			end if
+
+		else
+			'' THE DIGIT-FLUSH PRE-PASS. Before a '.', '#' or '0' is interpreted
+			'' as itself, any sign that has not been emitted goes out, and any
+			'' fixed digits BEYOND what the mask asked for are flushed. Both
+			'' decrement `i` and continue, so the same mask character is then
+			'' reprocessed -- that is the loop's central trick and the reason
+			'' `i` is a mutable index rather than a for-variable.
+			if( do_output <> 0 ) then
+				select case chCurrent
+				case 46, 35, 48                 '' '.', '#', '0'
+					if( (pInfo->has_sign = 0) andalso (did_sign = 0) ) then
+						did_sign = 1
+						if( (pInfo->sign_add_plus <> 0) orelse (chSign = 45) ) then
+							pszAdd = @chSign
+							do_add = 1
+						else
+							'' C's `--i; continue;` lands on the for's ++i and
+							'' reprocesses this same character. FreeBASIC's
+							'' `continue while` skips the increment at the bottom
+							'' of the loop, which is the same thing said once.
+							continue while
+						end if
+					elseif( NumSkipFix < 0 ) then
+						'' MORE DIGITS THAN THE MASK HAS ROOM FOR: they are
+						'' emitted anyway, in runs, with thousands separators
+						'' spliced in where they fall.
+						pszAdd = cast( ubyte ptr, @FixPart ) + IndexFix
+						if( pInfo->has_thousand_sep <> 0 ) then
+							dim as long remaining_ = LenFix - IndexFix
+							if( (IndexFix <> LenFix) andalso ((remaining_ mod 3) = 0) ) then
+								if( did_thousandsep <> 0 ) then
+									did_thousandsep = 0
+									LenAdd = 3
+								else
+									if( IndexFix >= 1 ) then
+										did_thousandsep = 1
+										pszAdd = @chThousandsSep
+										LenAdd = 1
+									end if
+								end if
+							else
+								LenAdd = remaining_ mod 3
+							end if
+						else
+							LenAdd = -NumSkipFix
+						end if
+						do_add = 1
+						if( did_thousandsep = 0 ) then
+							IndexFix += LenAdd
+							NumSkipFix += LenAdd
+						end if
+					end if
+				end select
+				if( do_add <> 0 ) then i -= 1
+			end if
+
+			if( do_add = 0 ) then
+				'' THE TYPE INFERENCE. First character that implies a type wins,
+				'' for the whole mask -- see the file header.
+				select case chCurrent
+				case 37, 44, 35, 48, 43, 69, 101      '' % , # 0 + E e
+					if( pInfo->mask_type = eMT_Unknown_ ) then pInfo->mask_type = eMT_Number_
+				case 45, 46                           '' - .
+					if( pInfo->mask_type = eMT_Unknown_ ) then pInfo->mask_type = eMT_Number_
+				case 100, 110, 109, 77, 121, 104, 72, 115, 116, 58, 47
+					'' d n m M y h H s t : /
+					if( pInfo->mask_type = eMT_Unknown_ ) then pInfo->mask_type = eMT_DateTime_
+				end select
+
+				select case chCurrent
+
+				case 37     '' '%' -- percent
+					if( do_output = 0 ) then
+						if( pInfo->mask_type = eMT_Number_ ) then
+							if( pInfo->has_percent = 0 ) then
+								pInfo->has_percent = 1
+								pInfo->length_min += 1
+							else
+								'' A SECOND '%' IS AN ERROR, unlike a second of
+								'' almost anything else.
+								tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+								return 0
+							end if
+						else
+							pInfo->length_min += 1
+						end if
+					else
+						do_add = 1
+					end if
+
+				case 46     '' '.' -- decimal point
+					if( do_output = 0 ) then
+						if( pInfo->mask_type = eMT_Number_ ) then
+							if( pInfo->has_decimal_point = 0 ) then
+								pInfo->has_decimal_point = 1
+								'' A COMMA IMMEDIATELY BEFORE THE POINT DIVIDES
+								'' BY 1000 -- see the file header.
+								if( last_was_comma <> 0 ) then
+									pInfo->num_digits_omit += 3
+									was_k_div = 1
+								elseif( pInfo->num_digits_omit <> 0 ) then
+									pInfo->num_digits_omit += 3
+								end if
+							end if
+						end if
+						pInfo->length_min += 1
+					else
+						do_add = 1
+						if( pInfo->mask_type = eMT_Number_ ) then pszAdd = @chDecimalPoint
+					end if
+					do_num_frac = 1
+
+				case 44     '' ',' -- thousands separator OR a divide by 1000
+					if( do_output = 0 ) then
+						if( pInfo->mask_type = eMT_Number_ ) then
+							if( last_was_comma <> 0 ) then
+								pInfo->num_digits_omit += 3
+								was_k_div = 1
+							end if
+							last_was_comma = 1
+						else
+							pInfo->length_min += 1
+						end if
+					else
+						if( pInfo->mask_type = eMT_Number_ ) then
+							if( last_was_comma <> 0 ) then was_k_div = 1
+							last_was_comma = 1
+						else
+							do_add = 1
+						end if
+					end if
+
+				case 35, 48 '' '#' optional digit, '0' required digit
+					if( do_output = 0 ) then
+						if( pInfo->mask_type = eMT_Number_ ) then
+							if( do_num_frac <> 0 ) then
+								pInfo->num_digits_frac += 1
+							elseif( did_exp <> 0 ) then
+								pInfo->exp_digits += 1
+							else
+								pInfo->num_digits_fix += 1
+							end if
+							'' THE ONLY DIFFERENCE BETWEEN '#' AND '0' HERE.
+							if( chCurrent = 35 ) then
+								pInfo->length_opt += 1
+							else
+								pInfo->length_min += 1
+							end if
+						else
+							pInfo->length_min += 1
+						end if
+					else
+						if( pInfo->mask_type = eMT_Number_ ) then
+							if( do_num_frac <> 0 ) then
+								if( IndexFrac <> LenFrac ) then
+									pszAdd = cast( ubyte ptr, @FracPart ) + IndexFrac
+									IndexFrac += 1
+									do_add = 1
+								elseif( chCurrent = 48 ) then
+									'' AND THE OTHER DIFFERENCE: '0' pads where
+									'' '#' emits nothing.
+									do_add = 1
+								end if
+							elseif( did_exp <> 0 ) then
+								if( NumSkipExp > 0 ) then
+									if( chCurrent = 48 ) then do_add = 1
+									NumSkipExp -= 1
+								elseif( IndexExp <> LenExp ) then
+									pszAdd = cast( ubyte ptr, @ExpPart ) + IndexExp
+									IndexExp += 1
+									'' AN EXPONENT WIDER THAN THE MASK reprocesses
+									'' this same character until it is spent.
+									if( ((IndexExp - ExpAdjust) >= pInfo->exp_digits) andalso _
+									    (IndexExp <> LenExp) ) then
+										i -= 1
+									end if
+									do_add = 1
+								end if
+							else
+								if( pInfo->has_thousand_sep <> 0 ) then
+									dim as long remaining_ = LenFix - IndexFix + NumSkipFix
+									if( (remaining_ mod 3) = 0 ) then
+										if( did_thousandsep <> 0 ) then
+											did_thousandsep = 0
+										else
+											if( (NumSkipFix = 0) andalso (IndexFix <> 0) ) then
+												did_thousandsep = 1
+												pszAdd = @chThousandsSep
+												LenAdd = 1
+												do_add = 1
+												i -= 1
+											end if
+										end if
+									end if
+								end if
+
+								if( do_add = 0 ) then
+									if( NumSkipFix <> 0 ) then
+										if( chCurrent = 48 ) then do_add = 1
+										NumSkipFix -= 1
+									else
+										if( IndexFix <> LenFix ) then
+											pszAdd = cast( ubyte ptr, @FixPart ) + IndexFix
+											IndexFix += 1
+											do_add = 1
+										elseif( chCurrent = 48 ) then
+											do_add = 1
+										end if
+									end if
+								end if
+							end if
+						else
+							do_add = 1
+						end if
+					end if
+
+				case 69, 101 '' 'E', 'e'
+					if( pInfo->mask_type = eMT_Number_ ) then
+						if( did_exp = 0 ) then
+							do_exp = 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+							else
+								do_add = 1
+							end if
+						else
+							'' A SECOND EXPONENT IS AN ERROR.
+							tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+							return 0
+						end if
+					else
+						if( do_output = 0 ) then
+							pInfo->length_min += 1
+						else
+							do_add = 1
+						end if
+					end if
+
+				case 92     '' '\' -- escape the next character
+					do_skip = 1
+
+				case 42, 36, 40, 41, 32, 9      '' * $ ( ) space tab
+					if( do_output = 0 ) then
+						pInfo->length_min += 1
+					else
+						do_add = 1
+					end if
+
+				case 43, 45 '' '+', '-' -- the sign's position
+					if( do_output = 0 ) then
+						pInfo->length_min += 1
+						if( pInfo->has_sign = 0 ) then
+							pInfo->has_sign = 1
+							pInfo->sign_add_plus = iif( chCurrent = 43, 1, 0 )
+						end if
+					else
+						if( pInfo->mask_type = eMT_DateTime_ ) then
+							do_add = 1
+						elseif( did_sign = 0 ) then
+							did_sign = 1
+							if( (pInfo->sign_add_plus <> 0) orelse (chSign = 45) ) then
+								pszAdd = @chSign
+								do_add = 1
+							end if
+						else
+							do_add = 1
+						end if
+					end if
+
+				case 100, 109, 110, 77, 121, 104, 72, 115, 116
+					'' d m n M y h H s t -- the date/time fields
+					if( pInfo->mask_type = eMT_DateTime_ ) then
+						dim as long old_did_hour = did_hour
+						dim as integer count_ = 1
+						while( pmask[i + count_] = chCurrent )
+							count_ += 1
+						wend
+						did_hour = 0
+
+						'' 'm' IS MINUTES ONLY DIRECTLY AFTER AN HOUR, and only
+						'' one or two of them -- see the file header.
+						if( chCurrent = 109 ) then
+							if( (count_ > 2) orelse (old_did_hour = 0) ) then chCurrent = 77
+						end if
+
+						if( (chCurrent = 116) andalso (count_ = 5) ) then
+							'' 'ttttt' -- the locale's time format, RECURSIVELY.
+							i += count_ - 1
+							tkrt_IntlGetTimeFormat( @FixPart, 128, 0 )
+							dim as FBSTRING ptr tmp = tkort_hStrFormat( value, @FixPart, strlen( @FixPart ) )
+							if( do_output = 0 ) then
+								pInfo->length_min += FB_STRSIZE( tmp )
+							else
+								pszAddFree = hStrDup( tmp->data )
+								LenAdd = FB_STRSIZE( tmp )
+								do_add = 1
+							end if
+							tkrt_hStrDelTemp( tmp )
+
+						elseif( (chCurrent = 116) andalso ((count_ = 1) orelse (count_ = 2)) ) then
+							'' 't' or 'tt' -- AM/PM, but LenAdd is the COUNT, so
+							'' a single 't' emits only "A" or "P".
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += count_
+								pInfo->has_ampm = 1
+							else
+								if( tkrt_Hour( value ) >= 12 ) then
+									pszAdd = @tkort_pm_lit
+								else
+									pszAdd = @tkort_am_lit
+								end if
+								LenAdd = count_
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 100) andalso (count_ = 5) ) then
+							'' 'ddddd' -- the locale's date format, recursively.
+							i += count_ - 1
+							tkrt_IntlGetDateFormat( @FixPart, 128, 0 )
+							dim as FBSTRING ptr tmp = tkort_hStrFormat( value, @FixPart, strlen( @FixPart ) )
+							if( do_output = 0 ) then
+								pInfo->length_min += FB_STRSIZE( tmp )
+							else
+								pszAddFree = hStrDup( tmp->data )
+								LenAdd = FB_STRSIZE( tmp )
+								do_add = 1
+							end if
+							tkrt_hStrDelTemp( tmp )
+
+						elseif( (chCurrent = 100) andalso (count_ = 1) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+								pInfo->length_opt += 1
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%d", tkrt_Day( value ) )
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 100) andalso (count_ = 2) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 2
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%02d", tkrt_Day( value ) )
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 100) andalso ((count_ = 3) orelse (count_ = 4)) ) then
+							'' 'ddd'/'dddd' -- the weekday name, abbreviated at 3.
+							dim as long weekday_ = tkrt_Weekday( value, FB_WEEK_DAY_SUNDAY_ )
+							dim as FBSTRING ptr tmp = tkrt_WeekdayName( weekday_, iif( count_ = 3, 1, 0 ), FB_WEEK_DAY_SUNDAY_ )
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += FB_STRSIZE( tmp )
+							else
+								pszAddFree = hStrDup( tmp->data )
+								'' LenAdd = 0 MEANS "measure it with strlen at
+								'' the bottom", which is not the same as
+								'' FB_STRSIZE if the name contains a NUL.
+								LenAdd = 0
+								do_add = 1
+							end if
+							tkrt_hStrDelTemp( tmp )
+
+						elseif( ((chCurrent = 109) orelse (chCurrent = 110)) andalso (count_ = 1) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+								pInfo->length_opt += 1
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%d", tkrt_Minute( value ) )
+								do_add = 1
+							end if
+
+						elseif( ((chCurrent = 109) orelse (chCurrent = 110)) andalso (count_ = 2) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 2
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%02d", tkrt_Minute( value ) )
+								do_add = 1
+							end if
+
+						elseif( ((chCurrent = 104) orelse (chCurrent = 72)) andalso (count_ = 1) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+								pInfo->length_opt += 1
+							else
+								dim as long hour_ = tkrt_Hour( value )
+								'' LOWER-CASE 'h' IS 12-HOUR **ONLY IF** THE MASK
+								'' ALSO HAS AM/PM. Upper-case 'H' is always 24.
+								if( (pInfo->has_ampm <> 0) andalso (chCurrent = 104) ) then
+									if( hour_ > 12 ) then
+										hour_ -= 12
+									elseif( hour_ = 0 ) then
+										hour_ += 12
+									end if
+								end if
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%d", hour_ )
+								do_add = 1
+							end if
+							did_hour = 1
+
+						elseif( ((chCurrent = 104) orelse (chCurrent = 72)) andalso (count_ = 2) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 2
+							else
+								dim as long hour_ = tkrt_Hour( value )
+								if( (pInfo->has_ampm <> 0) andalso (chCurrent = 104) ) then
+									if( hour_ > 12 ) then
+										hour_ -= 12
+									elseif( hour_ = 0 ) then
+										hour_ += 12
+									end if
+								end if
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%02d", hour_ )
+								do_add = 1
+							end if
+							did_hour = 1
+
+						elseif( (chCurrent = 115) andalso (count_ = 1) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+								pInfo->length_opt += 1
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%d", tkrt_Second( value ) )
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 115) andalso (count_ = 2) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 2
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%02d", tkrt_Second( value ) )
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 77) andalso (count_ = 1) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+								pInfo->length_opt += 1
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%d", tkrt_Month( value ) )
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 77) andalso (count_ = 2) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 2
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%02d", tkrt_Month( value ) )
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 77) andalso ((count_ = 3) orelse (count_ = 4)) ) then
+							dim as long month_ = tkrt_Month( value )
+							dim as FBSTRING ptr tmp = tkrt_MonthName( month_, iif( count_ = 3, 1, 0 ) )
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += FB_STRSIZE( tmp )
+							else
+								pszAddFree = hStrDup( tmp->data )
+								LenAdd = 0
+								do_add = 1
+							end if
+							tkrt_hStrDelTemp( tmp )
+
+						elseif( (chCurrent = 121) andalso (count_ < 3) ) then
+							'' 'y' AND 'yy' ARE BOTH TWO DIGITS -- a single 'y'
+							'' does not give a one-digit year.
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 2
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%02d", tkrt_Year( value ) mod 100 )
+								do_add = 1
+							end if
+
+						elseif( (chCurrent = 121) andalso (count_ = 4) ) then
+							i += count_ - 1
+							if( do_output = 0 ) then
+								pInfo->length_min += 4
+							else
+								pszAdd = cast( ubyte ptr, @FixPart )
+								LenAdd = sprintf( @FixPart, @"%04d", tkrt_Year( value ) )
+								do_add = 1
+							end if
+
+						else
+							'' 'yyy', and any run length with no rule: the
+							'' character is emitted as itself, ONCE, and the
+							'' run is NOT consumed -- so 'yyy' emits three of
+							'' them one at a time.
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+							else
+								do_add = 1
+							end if
+						end if
+					else
+						if( do_output = 0 ) then
+							pInfo->length_min += 1
+						else
+							do_add = 1
+						end if
+					end if
+
+				case 47     '' '/' -- date divider
+					if( do_output = 0 ) then
+						pInfo->length_min += 1
+					else
+						if( pInfo->mask_type = eMT_DateTime_ ) then pszAdd = @chDateSep
+						do_add = 1
+					end if
+
+				case 58     '' ':' -- time divider
+					if( do_output = 0 ) then
+						pInfo->length_min += 1
+					else
+						if( pInfo->mask_type = eMT_DateTime_ ) then pszAdd = @chTimeSep
+						do_add = 1
+					end if
+
+				case 97, 65 '' 'a', 'A' -- AM/PM or A/P
+					if( pInfo->mask_type = eMT_DateTime_ ) then
+						if( (hNCaseEq( cast( zstring ptr, pmask + i ), @"AM/PM", 5 ) <> 0) orelse _
+						    (hNCaseEq( cast( zstring ptr, pmask + i ), @"A/P", 3 ) <> 0) ) then
+							if( do_output = 0 ) then
+								pInfo->has_ampm = 1
+							else
+								'' THE OUTPUT COMES OUT OF THE MASK, so the case
+								'' the user wrote is the case that prints.
+								dim as long ampm_small = iif( pmask[i + 1] = 47, 1, 0 )
+								LenAdd = iif( ampm_small <> 0, 1, 2 )
+								if( tkrt_Hour( value ) >= 12 ) then
+									pszAdd = pmask + i + LenAdd + 1
+								else
+									pszAdd = pmask + i
+								end if
+								do_add = 1
+							end if
+							i += iif( pmask[i + 1] = 47, 2, 4 )
+						else
+							if( do_output = 0 ) then
+								pInfo->length_min += 1
+							else
+								do_add = 1
+							end if
+						end if
+					else
+						if( do_output = 0 ) then
+							pInfo->length_min += 1
+						else
+							do_add = 1
+						end if
+					end if
+
+				case 34     '' '"' -- open a literal run
+					do_string = 1
+
+				case else
+					if( do_output = 0 ) then
+						pInfo->length_min += 1
+					else
+						do_add = 1
+					end if
+				end select
+			end if
+		end if
+
+		'' THE DEFERRED COMMA DECISION, resolved once the next character is
+		'' known -- or at the end of the mask. See the file header.
+		if( (last_was_comma <> 0) andalso _
+		    ((chCurrent <> 44) orelse (i = (mask_length - 1))) ) then
+			if( (do_output = 0) andalso (was_k_div = 0) ) then
+				pInfo->has_thousand_sep = 1
+			end if
+			last_was_comma = 0
+			was_k_div = 0
+		end if
+
+		if( do_add <> 0 ) then
+			do_add = 0
+			if( pszAddFree <> 0 ) then pszAdd = cast( ubyte ptr, pszAddFree )
+			if( LenAdd = 0 ) then LenAdd = strlen( cast( zstring ptr, pszAdd ) )
+			memcpy( pszOut, pszAdd, LenAdd )
+			pszOut += LenAdd
+			LenOut -= LenAdd
+			if( pszAddFree <> 0 ) then free( pszAddFree )
+		end if
+
+		i += 1
+	wend
+
+	if( do_output = 0 ) then
+		'' THE TRAILING-COMMA DIVISION, applied only if no decimal point ever
+		'' appeared -- "###," divides by 1000 with nothing after it.
+		if( pInfo->has_decimal_point = 0 ) then
+			if( pInfo->num_digits_omit <> 0 ) then pInfo->num_digits_omit += 3
+		end if
+		'' ROOM FOR THE SEPARATORS THEMSELVES, one per three fixed digits.
+		if( pInfo->has_thousand_sep <> 0 ) then
+			pInfo->length_min += (pInfo->num_digits_fix - 1) \ 3
+		end if
+		if( LenFix > pInfo->num_digits_fix ) then
+			pInfo->length_min += LenFix - pInfo->num_digits_fix
+		end if
+		'' AN EXPONENT CAN ALWAYS NEED FIVE CHARACTERS, however few the mask asked
+		'' for -- and this is added even when the mask has no exponent at all.
+		if( pInfo->exp_digits < 5 ) then
+			pInfo->length_opt += 5 - pInfo->exp_digits
+		end if
+		'' AND ROOM FOR A SIGN THE MASK DID NOT POSITION.
+		if( pInfo->has_sign = 0 ) then pInfo->length_min += 1
+	else
+		*pszOut = 0
+		'' FB_STRSETLEN, not a call: fb_hStrSetLength is `static __inline__` in
+		'' fb_string.h and is not an exported symbol. Same trap as
+		'' src/str/concatbyref.bas.
+		FB_STRSETLEN( dst, cast( integer, pszOut - cast( ubyte ptr, dst->data ) ) )
+	end if
+
+	return -1
+end function
+
+extern "rtlib"   '' FBCALL: fb_string.h declares both with FBCALL and the win32
+                 '' archive decorates them.
+
+function tkort_hStrFormat alias "fb_hStrFormat" _
+	( byval value as double, byval mask as zstring ptr, byval mask_length as uinteger ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = TKORT_NULLSTR()
+	dim as zstring ptr pszIntlResult = any
+	dim as ubyte chDecimalPoint = any, chThousandsSep = any
+	dim as ubyte chDateSep = any, chTimeSep = any
+
+	tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	'' THE FOUR LOCALE CHARACTERS ARE READ UNDER ONE LOCK, so a concurrent
+	'' fb_I18nSet cannot produce a string using two different locales.
+	TKORT_IOLOCK()
+	'' cptr( ubyte ptr, p )[0], NOT p[0]: indexing a `zstring ptr` yields a
+	'' ZSTRING, not a byte, and FreeBASIC will not put one in a ubyte. The same
+	'' trap made all six trims in src/str/trimex.bas differ at once -- there it
+	'' COMPILED, and silently turned every character into 0.
+	pszIntlResult = tkrt_IntlGet( eFIL_NumDecimalPoint_, 0 )
+	if( pszIntlResult = 0 ) then
+		chDecimalPoint = 46
+	else
+		chDecimalPoint = cptr( ubyte ptr, pszIntlResult )[0]
+	end if
+
+	pszIntlResult = tkrt_IntlGet( eFIL_NumThousandsSeparator_, 0 )
+	if( pszIntlResult = 0 ) then
+		chThousandsSep = 44
+	else
+		chThousandsSep = cptr( ubyte ptr, pszIntlResult )[0]
+	end if
+
+	pszIntlResult = tkrt_IntlGet( eFIL_DateDivider_, 0 )
+	if( pszIntlResult = 0 ) then
+		chDateSep = 47
+	else
+		chDateSep = cptr( ubyte ptr, pszIntlResult )[0]
+	end if
+
+	pszIntlResult = tkrt_IntlGet( eFIL_TimeDivider_, 0 )
+	if( pszIntlResult = 0 ) then
+		chTimeSep = 58
+	else
+		chTimeSep = cptr( ubyte ptr, pszIntlResult )[0]
+	end if
+	TKORT_IOUNLOCK()
+
+	'' A LOCALE THAT RETURNS AN EMPTY STRING falls back too -- the NULL check
+	'' above is not enough, and only these two get the second chance. The date
+	'' and time dividers do not, so a locale with an empty divider produces a
+	'' NUL byte in the middle of the result.
+	if( chDecimalPoint = 0 ) then chDecimalPoint = 46
+	if( chThousandsSep = 0 ) then chThousandsSep = 44
+
+	if( (mask = 0) orelse (mask_length = 0) ) then
+		'' NO MASK IS A DIFFERENT FUNCTION -- see the file header.
+		dst = hBuildDouble( value, chDecimalPoint, 0 )
+	else
+		dim as FormatMaskInfo info
+
+		'' PASS ONE: measure.
+		if( hProcessMask( 0, mask, cast( integer, mask_length ), value, @info, _
+		                  chThousandsSep, chDecimalPoint, chDateSep, chTimeSep ) <> 0 ) then
+			dst = tkrt_hStrAllocTemp( 0, info.length_min + info.length_opt )
+			if( dst = 0 ) then
+				tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+				dst = TKORT_NULLSTR()
+			else
+				'' PASS TWO: build, into a buffer sized by pass one.
+				hProcessMask( dst, mask, cast( integer, mask_length ), value, @info, _
+				              chThousandsSep, chDecimalPoint, chDateSep, chTimeSep )
+			end if
+		end if
+	end if
+
+	return dst
+end function
+
+'' THE MASK IS DELETED IF TEMP, which makes this the owning wrapper: a caller
+'' passing FORMAT$(x, "###" & suffix) hands over a temporary and gets it freed.
+function tkort_StrFormat alias "fb_StrFormat" _
+	( byval value as double, byval mask as FBSTRING ptr ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = tkort_hStrFormat( value, mask->data, FB_STRSIZE( mask ) )
+
+	tkrt_hStrDelTemp( mask )
+
+	return dst
+end function
+
+end extern

@@ -1,0 +1,9 @@
+# tiko-rt was developed as its own repository with an all-LF working tree.
+# Bringing it in here, under core.autocrlf=true, rewrote all 364 files to CRLF on
+# checkout. That is harmless for the .bas sources but not for the rest: build/*.sh
+# is executed, and tests/abi/baseline/*.summary is diffed against freshly generated
+# output that has LF. Pin the whole subtree back to what it was built and gated as.
+#
+# Scoped to lib/rt on purpose -- the compiler's own tree has a mix already, and
+# renormalising it is not part of this move.
+lib/rt/** text eol=lf

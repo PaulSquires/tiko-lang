@@ -1,0 +1,181 @@
+'' palette.bi -- PALETTE and PALETTE GET.
+''
+'' Derived from: gfx_palette.c (fb_GfxPalette, fb_hSetPaletteColorRgb),
+'' gfx_paletteget.c (fb_GfxPaletteGet). LGPL-2.1-or-later with the
+'' static-linking exception.
+''
+'' THREE THINGS THE STORAGE FORMAT GETS WRONG-LOOKING ON PURPOSE
+''
+'' 1. RED IS THE LOW BYTE. An entry is stored as `r or (g shl 8) or (b shl 16)`,
+''    which is the opposite of the &hRRGGBB convention every other colour in the
+''    library uses. Reading a palette entry as if it were an ordinary colour
+''    swaps red and blue -- and produces plausible output, which is why it is
+''    worth stating loudly rather than discovering.
+''
+'' 2. THE INDEX IS MASKED, NOT RANGE-CHECKED. `index and (colors - 1)` -- so on a
+''    16-colour mode, PALETTE 17 writes entry 1. It never errors, and it never
+''    writes out of bounds. The mask depends on the MODE's palette size, which is
+''    why this needs core/mode.bi.
+''
+'' 3. THE ONE-ARGUMENT GET RETURNS 6-BIT CHANNELS. `PALETTE GET index, v` yields
+''    `(colour and &hFCFCFC) shr 2`, packing three 6-bit values -- the VGA DAC's
+''    native precision -- not the 8-bit value that was stored. The three-argument
+''    form returns full 8-bit channels. So the two forms of the same statement
+''    disagree by a factor of four, deliberately.
+''
+'' Any PALETTE call also marks the WHOLE screen dirty, since every pixel's
+'' meaning may have changed.
+
+#pragma once
+
+#include once "mode.bi"
+#include once "palette-data.bi"
+#include once "surface.bi"
+#include once "dirty.bi"
+
+namespace TkoGfx
+
+const PALETTE_MAX = 256
+
+'' gfxlib2 keeps THREE palette arrays, and conflating them is the whole trap
+'' here. They are not copies of each other:
+''
+''   entry()  device_palette -- what the driver is handed, what PALETTE GET
+''            reads, and what a pixel index resolves through
+''   base()   palette[] -- the REGISTER FILE. On the low-colour modes the
+''            two-argument `PALETTE attr, reg` form does not set a colour at
+''            all: it points attribute `attr` at register `reg`, and the
+''            colour is copied out of here
+''   assoc()  color_association -- which register each attribute currently
+''            points at. Read back by the VGA DAC port emulation
+''
+'' base() is invisible to PALETTE GET, which is why it went unmodelled until
+'' the packed setter was implemented. It is extracted through the indirection
+'' itself -- see tools/gen-palettes.bas.
+type GfxPalette
+    colors as long                            '' 2, 16, 64 or 256
+    entry(0 to PALETTE_MAX - 1) as ulong      '' r or (g shl 8) or (b shl 16)
+    base(0 to PALETTE_MAX - 1) as ulong       '' the register file
+    assoc(0 to PALETTE_MAX - 1) as long       '' attribute -> register
+end type
+
+private sub PaletteInit( byref p as GfxPalette, byval colors as long )
+    p.colors = iif( colors > 0, colors, PALETTE_MAX )
+    for i as integer = 0 to PALETTE_MAX - 1
+        p.entry(i) = 0
+        p.base(i)  = 0
+        p.assoc(i) = i
+    next
+end sub
+
+'' Mask an index into range, as gfxlib2 does. Requires a power-of-two size,
+'' which every mode's palette is.
+private function PaletteWrap( byref p as GfxPalette, byval index as long ) as long
+    return index and (p.colors - 1)
+end function
+
+'' PALETTE index, r, g, b
+private sub PaletteSetRgb( _
+        byref p as GfxPalette, byval index as long, _
+        byval r as long, byval g as long, byval b as long )
+    dim as long i = PaletteWrap( p, index )
+    p.entry(i) = cast( ulong, r and &hFF ) or _
+                 (cast( ulong, g and &hFF ) shl 8) or _
+                 (cast( ulong, b and &hFF ) shl 16)
+end sub
+
+'' PALETTE index, value -- the two- and three-argument forms, i.e. any call with
+'' a NEGATIVE green or blue.
+''
+'' THIS IS TWO DIFFERENT STATEMENTS WEARING ONE SYNTAX, and the difference is
+'' not a detail:
+''
+''   256-colour modes   `value` is a packed colour with three 6-BIT channels,
+''                      scaled up to 8 bits as (v * 255) / 63
+''   low-colour modes   `value` is a REGISTER NUMBER. The attribute is pointed
+''                      at that register and the colour is copied from base()
+''
+'' So on mode 13 `PALETTE 3, 5` sets a near-black colour, and on mode 9 the same
+'' statement makes attribute 3 magenta. Measured, both.
+''
+'' THE SCALE IS (v * 255) / 63, NOT v shl 2. Truncating integer division, so
+'' 63 -> 255 and 1 -> 4. `v shl 2` gives 252 for 63 and is wrong for every
+'' channel value above zero. The 6 -> 8 -> 6 round trip through PALETTE GET is
+'' still lossless, because the error never reaches 4 -- which is exactly why a
+'' round-trip test cannot catch getting this wrong. Compare the RGB.
+private sub PaletteSetPacked( _
+        byref p as GfxPalette, byval index as long, byval col as ulong )
+    dim as long i = PaletteWrap( p, index )
+
+    if p.colors >= 256 then
+        dim as long r = cast( long, col and &h3F )
+        dim as long g = cast( long, (col shr 8) and &h3F )
+        dim as long b = cast( long, (col shr 16) and &h3F )
+        p.entry(i) = cast( ulong, (r * 255) \ 63 ) or _
+                     (cast( ulong, (g * 255) \ 63 ) shl 8) or _
+                     (cast( ulong, (b * 255) \ 63 ) shl 16)
+    else
+        dim as long reg = cast( long, col ) and (p.colors - 1)
+        p.assoc(i) = reg
+        p.entry(i) = p.base(reg)
+    end if
+end sub
+
+'' PALETTE GET index, r, g, b -- full 8-bit channels, red from the LOW byte.
+private sub PaletteGetRgb( _
+        byref p as GfxPalette, byval index as long, _
+        byref r as long, byref g as long, byref b as long )
+    dim as ulong c = p.entry( PaletteWrap( p, index ) )
+    r = cast( long, c and &hFF )
+    g = cast( long, (c and &hFF00) shr 8 )
+    b = cast( long, (c and &hFF0000) shr 16 )
+end sub
+
+'' PALETTE GET index, v -- three 6-bit channels packed together. See note 3.
+private function PaletteGetPacked( byref p as GfxPalette, byval index as long ) as long
+    dim as ulong c = p.entry( PaletteWrap( p, index ) )
+    return cast( long, (c and &hFCFCFC) shr 2 )
+end function
+
+'' Load a mode's default palette. This is what SCREEN n leaves in place, and what
+'' PALETTE with a NEGATIVE index restores.
+''
+'' The data is EXTRACTED from gfxlib2 by tools/gen-palettes.bas rather than
+'' transcribed -- 2692 RGB triples is precisely the amount of hand-copying that
+'' yields one wrong entry nobody notices. For the modes with a colour association
+'' (CGA and EGA), the extracted table already has the association applied, which
+'' is the form the driver is handed.
+private function PaletteLoadDefaults( _
+        byref p as GfxPalette, byval mode as long ) as long
+    if (mode < 0) orelse (mode >= NUM_MODES) then return 0
+    dim as long ofs = DefaultPaletteOfs(mode)
+    dim as long n = DefaultPaletteCount(mode)
+    if (ofs < 0) orelse (n <= 0) then return 0
+
+    PaletteInit( p, n )
+    for i as integer = 0 to n - 1
+        p.entry(i) = DefaultPaletteData(ofs + i)
+    next
+
+    '' The register file, where the mode has one. A 256-colour mode has no
+    '' register file: its two-argument PALETTE takes the DAC-scaling branch.
+    dim as long bo = DefaultPaletteBaseOfs(mode)
+    dim as long bn = DefaultPaletteBaseCount(mode)
+    if (bo >= 0) andalso (bn > 0) then
+        for i as integer = 0 to bn - 1
+            p.base(i) = DefaultPaletteBase(bo + i)
+        next
+        '' and which register each attribute starts pointing at. Only the first
+        '' (1 shl depth) attributes are meaningful -- gfxlib2 fills the device
+        '' palette no further, so the inverted association reads 0 beyond that.
+        dim as long ao = DefaultPaletteAssocOfs(mode)
+        if ao >= 0 then
+            for i as integer = 0 to bn - 1
+                p.assoc(i) = DefaultPaletteAssoc(ao + i)
+            next
+        end if
+    end if
+    return 1
+end function
+
+end namespace

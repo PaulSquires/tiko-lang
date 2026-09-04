@@ -1,0 +1,296 @@
+'' devstd.bas -- the CONS:, ERR: and PIPE: devices, the shared stdio close and
+'' the null-pointer check. Six symbols across six fbc members, and portable.
+''
+'' __fb_errmsg IS NOT HERE. It is fbc's error_message.o, one data symbol, and it
+'' has to live in a module that does NOT include inc/ctx.bi -- which already
+'' declares `extern __fb_errmsg alias "__fb_errmsg"`, and a module that both
+'' declares and defines the same name is error 4. It is in src/error/errmsg.bas.
+''
+'' THREE DEVICES SHARE ONE CLOSE AND MOST OF ONE HOOK TABLE. CONS:, ERR: and the
+'' standard streams all wrap a CRT FILE* that the runtime does NOT own -- stdin,
+'' stdout and stderr belong to the process -- so their close hook NULLS THE
+'' POINTER AND CLOSES NOTHING. Calling fclose there would shut the program's own
+'' output.
+''
+'' PIPE: IS THE EXCEPTION: it owns its stream, so its close is a real pclose.
+'' Using fclose on a pipe instead would leak the child process and lose its exit
+'' status.
+''
+'' EVERY ONE OF THE THREE TABLES HAS SIX NULL SLOTS -- seek, tell, lock, unlock
+'' and set-width, plus the fourteenth. A stream device cannot seek, and the NULL
+'' is how the dispatchers in io/file.bas learn that: they test the slot rather
+'' than the device type.
+''
+'' CONS: TAKES ITS STREAM FROM THE MODE. INPUT gets stdin and everything else
+'' gets stdout, decided once at open -- so `OPEN CONS: FOR OUTPUT` writes to
+'' stdout even when the program's stdout is a file.
+''
+'' AND ITS type IS FB_FILE_TYPE_PIPE, not CONSOLE. All three of these devices
+'' claim to be pipes, which is what keeps TAB and SPC from trying to track a
+'' cursor on them.
+''
+'' ERR: SETS ITS ERROR CODE BEFORE IT CAN FAIL, and then tests it. fbc writes
+'' `res = fb_ErrorSetNum( OK )` at the top and `if( res == OK )` below, so the
+'' branch is always taken -- reproduced as written, because the alternative is
+'' to decide which of the two fbc meant.
+''
+'' PIPE: VALIDATES ACCESS AGAINST MODE AND THEN OPENS ANYWAY. An INPUT pipe with
+'' write access sets error 1 -- and the popen still runs, because the check does
+'' not `return`. The handle comes back with an open pipe AND an error set.
+''
+'' fb_NullPtrChk RETURNS NULL ON SUCCESS. That reads backwards until you see the
+'' call site: fbc emits `if( fb_NullPtrChk( p, ... ) )` purely for the side
+'' effect of throwing, so the USEFUL return is the one from the error handler --
+'' and a good pointer must produce something falsy.
+''
+'' __fb_errmsg IS A 1024-BYTE BUFFER SHARED BY fb_Die AND fb_Assert, and it is
+'' the one DATA symbol in this file. It is defined and never referenced here,
+'' which is what lets a `dim shared` carry an alias at all.
+
+#include once "inc/descriptors.bi"
+#include once "inc/file.bi"
+#include once "inc/iolock.bi"
+#include once "inc/rterror.bi"
+#include once "inc/ctx.bi"
+#include once "crt/stdio.bi"
+#include once "crt/string.bi"
+
+const FB_FILE_ACCESS_ANY       = 0
+const FB_FILE_ACCESS_READ      = 1
+const FB_FILE_ACCESS_WRITE     = 2
+const FB_FILE_ACCESS_READWRITE = 3
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorThrowEx alias "fb_ErrorThrowEx" _
+		( byval errnum as long, byval linenum as long, byval fname as zstring ptr, _
+		  byval res_label as any ptr, byval resnext_label as any ptr ) as any ptr
+end extern
+
+'' The FILE* device's hooks, which these three borrow wholesale for everything
+'' but close. All undecorated in fbc's win32 archive.
+extern "c"   '' NON-FBCALL: device hooks.
+	declare function tkrt_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as long
+	declare function tkrt_DevFileRead alias "fb_DevFileRead" _
+		( byval h as FB_FILE ptr, byval v as any ptr, byval pl as uinteger ptr ) as long
+	declare function tkrt_DevFileReadWstr alias "fb_DevFileReadWstr" _
+		( byval h as FB_FILE ptr, byval d as wstring ptr, byval pc as uinteger ptr ) as long
+	declare function tkrt_DevFileWrite alias "fb_DevFileWrite" _
+		( byval h as FB_FILE ptr, byval v as any ptr, byval l as uinteger ) as long
+	declare function tkrt_DevFileWriteWstr alias "fb_DevFileWriteWstr" _
+		( byval h as FB_FILE ptr, byval v as wstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevFileReadLine alias "fb_DevFileReadLine" _
+		( byval h as FB_FILE ptr, byval d as FBSTRING ptr ) as long
+	declare function tkrt_DevFileReadLineWstr alias "fb_DevFileReadLineWstr" _
+		( byval h as FB_FILE ptr, byval d as wstring ptr, byval c as integer ) as long
+	declare function tkrt_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as long
+end extern
+
+'' pclose. MinGW spells it with a leading underscore.
+extern "c"   '' NON-FBCALL: CRT.
+	#ifdef __FB_WIN32__
+		declare function crt_popen alias "_popen" _
+			( byval cmd as zstring ptr, byval mode_ as zstring ptr ) as FILE ptr
+		declare function crt_pclose alias "_pclose" ( byval f as FILE ptr ) as long
+	#else
+		declare function crt_popen alias "popen" _
+			( byval cmd as zstring ptr, byval mode_ as zstring ptr ) as FILE ptr
+		declare function crt_pclose alias "pclose" ( byval f as FILE ptr ) as long
+	#endif
+end extern
+
+'' Every name here is plain cdecl, forward declarations included -- see
+'' io/devfile.bas on why the declarations must be inside the block.
+extern "c"   '' NON-FBCALL: fb_device.h declares these without FBCALL.
+
+declare function tkort_DevStdIoClose alias "fb_DevStdIoClose" ( byval h as FB_FILE ptr ) as long
+declare function tkort_DevPipeClose alias "fb_DevPipeClose" ( byval h as FB_FILE ptr ) as long
+
+end extern
+
+'' THE SIX NULLS ARE THE CONTRACT, not omissions: seek, tell, lock, unlock and
+'' set-width are absent because a stream cannot do them, and io/file.bas tests
+'' the slot rather than the device type.
+dim shared as FB_FILE_HOOKS hooks_dev_cons = ( _
+	@tkrt_DevFileEof, @tkort_DevStdIoClose, 0, 0, _
+	@tkrt_DevFileRead, @tkrt_DevFileReadWstr, _
+	@tkrt_DevFileWrite, @tkrt_DevFileWriteWstr, _
+	0, 0, _
+	@tkrt_DevFileReadLine, @tkrt_DevFileReadLineWstr, _
+	0, @tkrt_DevFileFlush )
+
+'' IDENTICAL TO THE ABOVE, and a SEPARATE OBJECT because fbc's are separate --
+'' two members, two file-scope tables. Sharing one would be correct and would
+'' also mean a program linking only dev_err_open pulled dev_cons_open's member.
+dim shared as FB_FILE_HOOKS hooks_dev_err = ( _
+	@tkrt_DevFileEof, @tkort_DevStdIoClose, 0, 0, _
+	@tkrt_DevFileRead, @tkrt_DevFileReadWstr, _
+	@tkrt_DevFileWrite, @tkrt_DevFileWriteWstr, _
+	0, 0, _
+	@tkrt_DevFileReadLine, @tkrt_DevFileReadLineWstr, _
+	0, @tkrt_DevFileFlush )
+
+'' The pipe's differs in exactly one slot: it CLOSES what it opened.
+dim shared as FB_FILE_HOOKS hooks_dev_pipe = ( _
+	@tkrt_DevFileEof, @tkort_DevPipeClose, 0, 0, _
+	@tkrt_DevFileRead, @tkrt_DevFileReadWstr, _
+	@tkrt_DevFileWrite, @tkrt_DevFileWriteWstr, _
+	0, 0, _
+	@tkrt_DevFileReadLine, @tkrt_DevFileReadLineWstr, _
+	0, @tkrt_DevFileFlush )
+
+extern "c"   '' NON-FBCALL, as declared above.
+
+'' ------------------------------------------------------------------ close
+
+'' CLOSES NOTHING. The stream belongs to the process, so only the handle's
+'' reference to it is dropped -- see the file header.
+function tkort_DevStdIoClose alias "fb_DevStdIoClose" ( byval h as FB_FILE ptr ) as long
+	TKORT_IOLOCK()
+	h->opaque = 0
+	TKORT_IOUNLOCK()
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' pclose, NOT fclose -- a pipe owns its stream and its child process, and
+'' fclose would leak both.
+function tkort_DevPipeClose alias "fb_DevPipeClose" ( byval h as FB_FILE ptr ) as long
+	TKORT_IOLOCK()
+	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
+	if( fp <> 0 ) then crt_pclose( fp )
+	h->opaque = 0
+	TKORT_IOUNLOCK()
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' ------------------------------------------------------------------ CONS:
+
+'' THE MODE IS VALIDATED BEFORE THE LOCK IS TAKEN, and BINARY and RANDOM are
+'' rejected outright: a console stream has no record structure and no position.
+function tkort_DevConsOpen alias "fb_DevConsOpen" _
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+
+	select case h->mode
+	case FB_FILE_MODE_INPUT, FB_FILE_MODE_OUTPUT, FB_FILE_MODE_APPEND
+		'' allowed
+	case else
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end select
+
+	TKORT_IOLOCK()
+
+	h->hooks = @hooks_dev_cons
+
+	if( h->access = FB_FILE_ACCESS_ANY ) then h->access = FB_FILE_ACCESS_WRITE
+
+	'' DECIDED ONCE, FROM THE MODE. Nothing later re-tests it.
+	h->opaque = iif( h->mode = FB_FILE_MODE_INPUT, stdin, stdout )
+	h->type_ = FB_FILE_TYPE_PIPE
+
+	TKORT_IOUNLOCK()
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' ------------------------------------------------------------------ ERR:
+
+'' NO MODE CHECK AT ALL, unlike CONS: -- `OPEN ERR: FOR BINARY` succeeds and
+'' gets stderr. And the `res` test below is always true, because res was set to
+'' OK three lines above and nothing between can change it; reproduced as
+'' written rather than simplified, since simplifying means choosing which of the
+'' two fbc meant.
+function tkort_DevErrOpen alias "fb_DevErrOpen" _
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+
+	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	TKORT_IOLOCK()
+
+	h->hooks = @hooks_dev_err
+
+	'' READWRITE, not WRITE -- stderr is opened both ways even though nothing
+	'' can be read from it.
+	if( h->access = FB_FILE_ACCESS_ANY ) then h->access = FB_FILE_ACCESS_READWRITE
+
+	if( res = FB_RTERROR_OK ) then
+		h->opaque = stderr
+		h->type_ = FB_FILE_TYPE_PIPE
+	end if
+
+	TKORT_IOUNLOCK()
+
+	return res
+end function
+
+'' ------------------------------------------------------------------ PIPE:
+
+'' THE ACCESS CHECK SETS AN ERROR AND FALLS THROUGH. An INPUT pipe opened for
+'' writing reports error 1 -- and the popen still runs below, because the check
+'' does not return. The handle comes back with a live child process AND an
+'' error, which is fbc's behaviour and is reproduced.
+function tkort_DevPipeOpen alias "fb_DevPipeOpen" _
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+
+	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as FILE ptr fp = 0
+	dim as zstring * 16 openmask = any
+
+	TKORT_IOLOCK()
+
+	h->hooks = @hooks_dev_pipe
+
+	openmask[0] = 0
+
+	select case h->mode
+	case FB_FILE_MODE_INPUT
+		if( h->access = FB_FILE_ACCESS_ANY ) then h->access = FB_FILE_ACCESS_READ
+		if( h->access <> FB_FILE_ACCESS_READ ) then res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		strcpy( @openmask, @"r" )
+
+	case FB_FILE_MODE_OUTPUT
+		if( h->access = FB_FILE_ACCESS_ANY ) then h->access = FB_FILE_ACCESS_WRITE
+		if( h->access <> FB_FILE_ACCESS_WRITE ) then res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		strcpy( @openmask, @"w" )
+
+	case FB_FILE_MODE_BINARY
+		'' NO ACCESS CHECK HERE -- BINARY accepts whatever it is given and
+		'' picks the direction from it.
+		if( h->access = FB_FILE_ACCESS_ANY ) then h->access = FB_FILE_ACCESS_WRITE
+		strcpy( @openmask, iif( h->access = FB_FILE_ACCESS_WRITE, @"wb", @"rb" ) )
+
+	case else
+		res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end select
+
+	if( res = FB_RTERROR_OK ) then
+		fp = crt_popen( filename, @openmask )
+		if( fp = 0 ) then res = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
+		'' opaque IS SET EVEN WHEN popen FAILED, to NULL -- which is what every
+		'' hook then tests for.
+		h->opaque = fp
+		h->type_ = FB_FILE_TYPE_PIPE
+	end if
+
+	TKORT_IOUNLOCK()
+
+	return res
+end function
+
+end extern
+
+'' ------------------------------------------------------- the pointer check
+
+extern "rtlib"
+
+'' NULL ON SUCCESS, and the thrown handler's answer on failure -- see the file
+'' header. fbc emits this inside an `if`, for the side effect.
+function tkort_NullPtrChk alias "fb_NullPtrChk" _
+	( byval p as any ptr, byval linenum as long, byval fname as zstring ptr ) as any ptr
+
+	if( p = 0 ) then
+		return tkrt_ErrorThrowEx( FB_RTERROR_NULLPTR, linenum, fname, 0, 0 )
+	end if
+	return 0
+end function
+
+end extern

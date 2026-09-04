@@ -1,0 +1,296 @@
+'' draw.bi -- DRAW, the turtle command language, for 32bpp.
+''
+'' Derived from: gfx_draw.c (fb_GfxDraw, parse_number, dsin, dcos, mod360).
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' FOUR BEHAVIOURS THAT LOOK LIKE BUGS AND ARE NOT
+''
+'' 1. SCALE AND ANGLE PERSIST BETWEEN CALLS. `base_scale` and `base_angle` are
+''    file-scope statics in gfxlib2, not per-call state. `DRAW "S8"` followed by
+''    a separate `DRAW "R10"` draws a line of 20, not 10. Resetting them per call
+''    would be tidier and would be wrong.
+''
+'' 2. M AND THE LETTER COMMANDS ROUND DIFFERENTLY. `M` passes `(int)x` --
+''    truncation -- to the line drawer, while U/D/L/R/E/F/G/H pass `CINT(x)`,
+''    which rounds half away from zero. Two rounding rules inside one statement.
+''    Neither is "the" rule; both are copied.
+''
+'' 3. THE LETTER CASES FALL THROUGH TO ACCUMULATE THE ANGLE. F/D add 90 then fall
+''    into G/L which adds 90 (180) then H/U (270) then E/R. So R=0, U=90, L=180,
+''    D=270 -- and E/F/G/H are the diagonals, detected by letter range, not by a
+''    separate flag.
+''
+'' 4. A DIAGONAL IS NOT A ROTATED STEP. It is computed as
+''    x2 = x + (dx + dy), y2 = y + (dy - dx), which makes it sqrt(2) times longer
+''    than the equivalent axis step rather than the same length at 45 degrees.
+''
+'' `X` EXECUTES A SUBSTRING BY POINTER. `DRAW "X" + STR( VARPTR( s ) )` parses the
+'' number as an FBSTRING DESCRIPTOR address and recurses into it. That is why the
+'' parser accepts a number far larger than any coordinate -- it is an address.
+'' The mirrored FBSTRING from abi/rtlabi.bi is what makes reading it possible.
+''
+'' ONE DELIBERATE DIVERGENCE: A RECURSION LIMIT. gfxlib2 recurses with no depth
+'' check at all, so a string containing its own address -- or two strings
+'' referring to each other -- overflows the stack and takes the process with it.
+'' There is nothing to be gained from reproducing a crash, so this stops at
+'' DRAW_MAX_DEPTH and returns. Second intentional divergence in the library,
+'' after the stale-target aliasing in gfx_image.c.
+
+#pragma once
+
+#include once "line.bi"
+#include once "paint.bi"
+#include once "../abi/rtlabi.bi"
+#include once "crt/string.bi"
+#include once "../core/dirty.bi"
+
+namespace TkoGfx
+
+'' Persist across calls -- see note 1. These are the FB spelling of gfxlib2's
+'' file-scope statics, and they are why this file needs a `dim shared` allowlist
+'' entry rather than being pure.
+dim shared as single DrawBaseScale = 1.0
+dim shared as long   DrawBaseAngle = 0
+
+'' Exact values at the quadrants, matching gfxlib2, so a 90-degree step is not
+'' 6.1e-17 off and does not round the wrong way.
+private function DSin( byval angle as long ) as single
+    select case angle
+    case 0   : return 0.0
+    case 90  : return 1.0
+    case 180 : return 0.0
+    case 270 : return -1.0
+    end select
+    return csng( sin( csng( angle ) * PI_ / 180.0 ) )
+end function
+
+private function DCos( byval angle as long ) as single
+    select case angle
+    case 0   : return 1.0
+    case 90  : return 0.0
+    case 180 : return -1.0
+    case 270 : return 0.0
+    end select
+    return csng( cos( csng( angle ) * PI_ / 180.0 ) )
+end function
+
+'' Wrap to 0..359 the way gfxlib2 does, including for negatives.
+private function DrawMod360( byval angle as long ) as long
+    if angle < 0 then return ((angle + 1) mod 360) + 359
+    if angle >= 360 then
+        if angle < 720 then return angle - 360
+        return angle mod 360
+    end if
+    return angle
+end function
+
+const DRAW_NAN as longint = -2147483648
+
+'' See the header. gfxlib2 has no limit; a self-referencing X crashes it.
+const DRAW_MAX_DEPTH = 64
+
+'' Leading whitespace and any run of + / - (each '-' flips the sign), then digits.
+'' Returns DRAW_NAN when no digits were present.
+private function DrawParseNumber( byref cmd as string, byref i as integer ) as longint
+    dim as longint n = DRAW_NAN
+    dim as long neg = 0
+
+    while i <= len( cmd )
+        dim as ubyte ch = cmd[i - 1]
+        if (ch = asc( " " )) orelse (ch = 9) orelse (ch = asc( "+" )) orelse (ch = asc( "-" )) then
+            if ch = asc( "-" ) then neg = not neg
+            i += 1
+        else
+            exit while
+        end if
+    wend
+
+    while i <= len( cmd )
+        dim as ubyte ch = cmd[i - 1]
+        if (ch < asc( "0" )) orelse (ch > asc( "9" )) then exit while
+        if n = DRAW_NAN then n = 0
+        n = n * 10 + (ch - asc( "0" ))
+        i += 1
+    wend
+
+    if neg andalso (n <> DRAW_NAN) then n = -n
+    return n
+end function
+
+'' The runtime's CINT, as in circle.bi -- round half away from zero.
+private function DrawCInt( byval v as single ) as long
+    if v > 0.0 then return fix( v + 0.5 )
+    return fix( v - 0.5 )
+end function
+
+'' Execute a DRAW command string. cx/cy are the graphics cursor, updated in place
+'' -- gfxlib2 keeps them in the drawing context; here they are explicit.
+declare sub Draw32( _
+        byref s as Surface, _
+        byref cmd as string, _
+        byref cx as single, byref cy as single, _
+        byref fg as ulong, _
+        byval depth as long = 0 )
+
+private sub Draw32( _
+        byref s as Surface, _
+        byref cmd as string, _
+        byref cx as single, byref cy as single, _
+        byref fg as ulong, _
+        byval depth as long )
+
+    dim as single x = cx, y = cy
+    dim as long angle = 0
+    dim as long draw_ = 1, move_ = 1
+    dim as integer i = 1
+
+    while i <= len( cmd )
+        dim as ubyte raw = cmd[i - 1]
+        dim as string ch = ucase( chr( raw ) )
+
+        select case ch
+        case "B"
+            i += 1
+            draw_ = 0
+
+        case "N"
+            i += 1
+            move_ = 0
+
+        case "C"
+            i += 1
+            dim as longint v = DrawParseNumber( cmd, i )
+            if v = DRAW_NAN then exit while
+            fg = cast( ulong, v )
+
+        case "S"
+            i += 1
+            dim as longint v = DrawParseNumber( cmd, i )
+            if v = DRAW_NAN then exit while
+            DrawBaseScale = csng( v ) / 4.0
+
+        case "A"
+            i += 1
+            dim as longint v = DrawParseNumber( cmd, i )
+            if v = DRAW_NAN then exit while
+            DrawBaseAngle = (cast( long, v ) and 3) * 90
+
+        case "T"
+            i += 1
+            if i > len( cmd ) then exit while
+            if ucase( chr( cmd[i - 1] ) ) <> "A" then exit while
+            i += 1
+            dim as longint v = DrawParseNumber( cmd, i )
+            if v = DRAW_NAN then exit while
+            DrawBaseAngle = DrawMod360( cast( long, v ) )
+
+        case "X"
+            i += 1
+            dim as longint v = DrawParseNumber( cmd, i )
+            if v = DRAW_NAN then exit while
+            if (v <> 0) andalso (depth < DRAW_MAX_DEPTH) then
+                '' The number is an FBSTRING descriptor address.
+                dim as TkoAbi.FBSTRING ptr sub_ = cptr( TkoAbi.FBSTRING ptr, cast( integer, v ) )
+                if (sub_ <> 0) andalso (sub_->dat <> 0) andalso (sub_->len > 0) then
+                    dim as string inner = space( sub_->len )
+                    memcpy( strptr( inner ), sub_->dat, sub_->len )
+                    '' The cursor and colour carry INTO and OUT OF the substring,
+                    '' exactly as gfxlib2 stores them in the context around the
+                    '' recursive call.
+                    Draw32( s, inner, x, y, fg, depth + 1 )
+                end if
+            end if
+
+        case "P"
+            i += 1
+            dim as longint v1 = DrawParseNumber( cmd, i )
+            if v1 = DRAW_NAN then exit while
+            dim as longint v2 = v1
+            if i <= len( cmd ) andalso cmd[i - 1] = asc( "," ) then
+                i += 1
+                v2 = DrawParseNumber( cmd, i )
+                if v2 = DRAW_NAN then exit while
+            end if
+            Paint32( s, fix( x ), fix( y ), cast( ulong, v1 ), cast( ulong, v2 ) )
+
+        case "M"
+            i += 1
+            while i <= len( cmd ) andalso ((cmd[i - 1] = asc( " " )) orelse (cmd[i - 1] = 9))
+                i += 1
+            wend
+            dim as long rel = 0
+            if i <= len( cmd ) then
+                if (cmd[i - 1] = asc( "+" )) orelse (cmd[i - 1] = asc( "-" )) then rel = 1
+            end if
+            dim as longint v1 = DrawParseNumber( cmd, i )
+            if v1 = DRAW_NAN then exit while
+            if i > len( cmd ) orelse cmd[i - 1] <> asc( "," ) then exit while
+            i += 1
+            dim as longint v2 = DrawParseNumber( cmd, i )
+            if v2 = DRAW_NAN then exit while
+
+            dim as single x2 = csng( v1 )
+            dim as single y2 = csng( v2 )
+            if rel then
+                dim as single ax = DCos( DrawBaseAngle )
+                dim as single ay = -DSin( DrawBaseAngle )
+                dim as single dx = x2
+                dim as single dy = y2
+                x2 = ((dx * ax) - (dy * ay)) * DrawBaseScale + x
+                y2 = ((dy * ax) + (dx * ay)) * DrawBaseScale + y
+            end if
+            '' TRUNCATION here, not CINT -- see note 2.
+            if draw_ then DrawLine32( s, fix( x ), fix( y ), fix( x2 ), fix( y2 ), fg )
+            if move_ then
+                x = x2
+                y = y2
+            end if
+            move_ = 1 : draw_ = 1
+
+        case "F", "D", "G", "L", "H", "U", "E", "R"
+            select case ch
+            case "F", "D" : angle += 270
+            case "G", "L" : angle += 180
+            case "H", "U" : angle += 90
+            end select
+            dim as long diagonal = iif( (ch >= "E") andalso (ch <= "H"), 1, 0 )
+            i += 1
+            dim as longint v = DrawParseNumber( cmd, i )
+            dim as long length_ = 1
+            if v <> DRAW_NAN then length_ = cast( long, v )
+
+            angle = DrawMod360( angle + DrawBaseAngle )
+            dim as single dx = csng( length_ ) * DrawBaseScale * DCos( angle )
+            dim as single dy = csng( length_ ) * DrawBaseScale * -DSin( angle )
+
+            dim as single x2, y2
+            if diagonal then
+                x2 = x + (dx + dy)
+                y2 = y + (dy - dx)
+            else
+                x2 = x + dx
+                y2 = y + dy
+            end if
+
+            '' CINT here, not truncation -- see note 2.
+            if draw_ then
+                DrawLine32( s, DrawCInt( x ), DrawCInt( y ), DrawCInt( x2 ), DrawCInt( y2 ), fg )
+            end if
+            if move_ then
+                x = x2
+                y = y2
+            end if
+
+            angle = 0
+            move_ = 1 : draw_ = 1
+
+        case else
+            i += 1
+        end select
+    wend
+
+    cx = x
+    cy = y
+end sub
+
+end namespace

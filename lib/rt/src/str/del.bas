@@ -1,0 +1,50 @@
+'' del.bas -- fb_StrDelete.
+''
+'' MEASURED (PROBE-37):
+''
+''   Del(temp)            -> data freed, data = NULL, len = 0, size = 0
+''   Del(non-temp, owned) -> the same
+''   Del(NULL)            -> returns quietly
+''
+'' TWO THINGS IT DOES NOT DO, and both matter.
+''
+'' 1. IT DOES NOT RELEASE THE POOL DESCRIPTOR. fbc's str_del.o lists exactly one
+''    undefined symbol -- `free` -- and in particular not fb_hStrDelTempDesc. So
+''    this frees the DATA and clears the descriptor in place; returning the
+''    descriptor to the 256-entry pool is fb_hStrDelTemp's job, not this one.
+''    Calling the pool release from here would hand the same slot out twice.
+''
+'' 2. IT DOES NOT CONSULT THE TEMP BIT. Both a temporary and an ordinary owned
+''    string are freed identically. fbc emits this call only where the callee
+''    owns the data, so the bit carries no information here.
+''
+'' NOTE THE PARAMETER NAME. fb_string.h calls it `str`; here it is `s`, because
+'' STR is a FreeBASIC keyword and `if( str = 0 )` parses as a call to it -- the
+'' error surfaces as "Expected 'END IF'" two dozen lines later, at END EXTERN.
+'' Fourth reserved word to collide with a natural parameter name in this project,
+'' after PRESERVE, POS and LEN.
+''
+'' Clearing `len` also clears the temp flag, which is the intent: the descriptor
+'' is left in the state a freshly declared empty string has.
+
+#include once "inc/descriptors.bi"
+
+extern "rtlib"
+
+sub tkort_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+
+	if( s = 0 ) then exit sub
+
+	if( s->data <> 0 ) then
+		deallocate( s->data )
+		s->data = 0
+	end if
+
+	'' Written raw, NOT through FB_STRSETLEN: that macro preserves the temp bit,
+	'' and here the bit must go with everything else.
+	s->len = 0
+	s->size = 0
+
+end sub
+
+end extern

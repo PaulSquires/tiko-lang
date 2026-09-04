@@ -3,6 +3,11 @@
 #
 #   build/lint.sh
 #
+# lib/rt is EXCLUDED from every rule here. The runtime is a separate source area
+# with its own lint (lib/rt/build/lint.sh) and its own conventions -- it was gated
+# under those before it was consolidated into this tree, and re-judging it by the
+# compiler's rules produced 7 failures on code that had passed its own lint.
+#
 # These are the rules from docs/plan/14 section 6 that are mechanical. A violation is
 # a build failure, not a warning, because every one of them is cheap to fix now and
 # expensive to fix after it has spread.
@@ -13,6 +18,9 @@
 #   3. FILE SIZE. No source file over 1500 lines.
 #   4. TRAILING WHITESPACE.
 #   5. TABS in source. tiko-lang sources are space-indented.
+#   6. UNSIGNED LOOP COUNTERS.
+#   7. NARROW LOOP COUNTERS in lib/gfx hot loops (see below -- costs 4x).
+#   8. ATTRIBUTION HEADER on every lib/gfx source (LGPL obligation).
 #
 # TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
@@ -108,7 +116,7 @@ for f in $(find src -name '*.bas' -o -name '*.bi' | sort); do
 done
 
 # ------------------------------------------------------------- 3. file size
-for f in $(find src tools -name '*.bas' -o -name '*.bi' | sort); do
+for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
     n=$(wc -l < "$f")
     if [ "$n" -gt 1500 ]; then
         note "SIZE $f is $n lines (limit 1500)"
@@ -120,14 +128,43 @@ done
 # 'for i as ulong = 0 to n - 1' with n = 0 underflows to 4294967295 and the loop
 # runs four billion times. This cost real debugging time twice, so it is a rule:
 # loop counters are signed, and so is anything they are compared against.
-for f in $(find src tools -name '*.bas' -o -name '*.bi' | sort); do
+for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
     if grep -nqE 'for [A-Za-z_][A-Za-z0-9_]* as (ulong|uinteger|ulongint|ushort|ubyte) ' "$f"; then
         note "UNSIGNED LOOP $f uses an unsigned loop counter (see docs/internals/known-toolchain-issues.md)"
     fi
 done
 
+# ------------------------- 7. narrow loop counters in the graphics hot loops
+#
+# MEASURED 2026-08-29. fbc's LLVM backend widens a narrow induction variable
+# through i32 -> sext i64 -> add -> trunc i32, and ScalarEvolution cannot read
+# that as an affine recurrence, so the loop does not vectorise. On win64, where
+# FB 'long' is 32-bit and a pointer is 64-bit, that is the difference between
+# 1.04x and 3.96x of the equivalent C on a row-convert loop.
+#
+# 'integer' is pointer-width on every target we build, so it is the portable
+# answer. This applies only to the pixel-pushing modules; elsewhere a 'long'
+# counter is fine and this rule would just be noise.
+for f in $(find lib/gfx/raster lib/gfx/blit lib/gfx/put -name '*.bas' -o -name '*.bi' 2>/dev/null | sort); do
+    if grep -nqE 'for [A-Za-z_][A-Za-z0-9_]* as (long|short|byte) ' "$f"; then
+        note "NARROW LOOP $f uses a narrow loop counter in a hot path; use 'integer' (docs/graphics/probe-results.md)"
+    fi
+done
+
+# ------------------------------- 8. attribution headers on lib/gfx sources
+#
+# libtkogfx is a derivative work of gfxlib2 and carries its licence. Every file
+# must say where its bodies came from -- 'Derived from: <gfxlib2 file>' or
+# 'ORIGINAL WORK'. This is a licence obligation, and it is also how you find the
+# file to re-check when upstream fbc fixes a rasterizer bug.
+for f in $(find lib/gfx -name '*.bas' -o -name '*.bi' -o -name '*.c' 2>/dev/null | sort); do
+    if ! head -20 "$f" | grep -qE 'Derived from:|ORIGINAL WORK'; then
+        note "ATTRIBUTION $f has no provenance header (see docs/graphics/RFC-0001 D13)"
+    fi
+done
+
 # ------------------------------------- 4/5. trailing whitespace and hard tabs
-for f in $(find src tools -name '*.bas' -o -name '*.bi' | sort); do
+for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
     if grep -nq '[[:space:]]$' "$f"; then
         note "WHITESPACE $f has trailing whitespace"
     fi

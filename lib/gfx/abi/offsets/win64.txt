@@ -1,0 +1,146 @@
+== types ==
+FBSTRING         sizeof=24    align=8
+FBARRAY          sizeof=72    align=8
+FBARRAYDIM       sizeof=24    align=8
+EVENT            sizeof=20    align=1
+FB_HOOKSTB       sizeof=224   align=8
+FB_RTLIB_CTX     sizeof=20872 align=8
+FB_GFXCTX        sizeof=216   align=8
+FBGFX            sizeof=208   align=8
+GFXDRIVER        sizeof=120   align=8
+PUT_HEADER       sizeof=32    align=1
+GFX_CHAR_CELL    sizeof=12    align=4
+== FBSTRING ==
+FBSTRING         .data               off=0     size=8
+FBSTRING         .len                off=8     size=8
+FBSTRING         .size               off=16    size=8
+== FBARRAY ==
+FBARRAY          .data               off=0     size=8
+FBARRAY          .ptr                off=8     size=8
+FBARRAY          .size               off=16    size=8
+FBARRAY          .element_len        off=24    size=8
+FBARRAY          .dimensions         off=32    size=8
+FBARRAY          .flags              off=40    size=8
+FBARRAY          .dimTB              off=48    size=24
+== FB_RTLIB_CTX (the two offsets the seam needs) ==
+FB_RTLIB_CTX     .hooks              off=72    size=224
+FB_RTLIB_CTX     .exit_gfxlib2       off=20864 size=8
+FB_RTLIB_CTX     .null_desc          off=16    size=24
+FB_RTLIB_CTX     .lang               off=20860 size=4
+== FB_HOOKSTB ==
+FB_HOOKSTB       .inkeyproc          off=0     size=8
+FB_HOOKSTB       .getkeyproc         off=8     size=8
+FB_HOOKSTB       .keyhitproc         off=16    size=8
+FB_HOOKSTB       .clsproc            off=24    size=8
+FB_HOOKSTB       .colorproc          off=32    size=8
+FB_HOOKSTB       .locateproc         off=40    size=8
+FB_HOOKSTB       .widthproc          off=48    size=8
+FB_HOOKSTB       .getxproc           off=56    size=8
+FB_HOOKSTB       .getyproc           off=64    size=8
+FB_HOOKSTB       .getxyproc          off=72    size=8
+FB_HOOKSTB       .getsizeproc        off=80    size=8
+FB_HOOKSTB       .printbuffproc      off=88    size=8
+FB_HOOKSTB       .printbuffwproc     off=96    size=8
+FB_HOOKSTB       .readstrproc        off=104   size=8
+FB_HOOKSTB       .multikeyproc       off=112   size=8
+FB_HOOKSTB       .getmouseproc       off=120   size=8
+FB_HOOKSTB       .setmouseproc       off=128   size=8
+FB_HOOKSTB       .inproc             off=136   size=8
+FB_HOOKSTB       .outproc            off=144   size=8
+FB_HOOKSTB       .viewupdateproc     off=152   size=8
+FB_HOOKSTB       .lineinputproc      off=160   size=8
+FB_HOOKSTB       .lineinputwproc     off=168   size=8
+FB_HOOKSTB       .readxyproc         off=176   size=8
+FB_HOOKSTB       .sleepproc          off=184   size=8
+FB_HOOKSTB       .isredirproc        off=192   size=8
+FB_HOOKSTB       .pagecopyproc       off=200   size=8
+FB_HOOKSTB       .pagesetproc        off=208   size=8
+FB_HOOKSTB       .posteventproc      off=216   size=8
+== PUT_HEADER (the 32-byte image contract) ==
+PUT_HEADER       .bpp                off=4     size=4
+PUT_HEADER       .width              off=8     size=4
+PUT_HEADER       .height             off=12    size=4
+PUT_HEADER       .pitch              off=16    size=4
+PUT_HEADER       .tex                off=20    size=4
+== FB_GFXCTX ==
+FB_GFXCTX        .id                 off=0     size=4
+FB_GFXCTX        .work_page          off=4     size=4
+FB_GFXCTX        .line               off=8     size=8
+FB_GFXCTX        .max_h              off=16    size=4
+FB_GFXCTX        .target_bpp         off=20    size=4
+FB_GFXCTX        .target_pitch       off=24    size=4
+FB_GFXCTX        .last_target        off=32    size=8
+FB_GFXCTX        .last_x             off=40    size=4
+FB_GFXCTX        .last_y             off=44    size=4
+FB_GFXCTX        .view               off=48    size=16
+FB_GFXCTX        .old_view           off=64    size=16
+FB_GFXCTX        .win_x              off=80    size=4
+FB_GFXCTX        .win_y              off=84    size=4
+FB_GFXCTX        .win_w              off=88    size=4
+FB_GFXCTX        .win_h              off=92    size=4
+FB_GFXCTX        .fg_color           off=96    size=4
+FB_GFXCTX        .bg_color           off=100   size=4
+FB_GFXCTX        .put_pixel          off=104   size=8
+FB_GFXCTX        .get_pixel          off=112   size=8
+FB_GFXCTX        .pixel_set          off=120   size=8
+FB_GFXCTX        .putter             off=128   size=80
+FB_GFXCTX        .flags              off=208   size=4
+== FBGFX ==
+FBGFX            .id                 off=0     size=4
+FBGFX            .mode_num           off=4     size=4
+FBGFX            .page               off=8     size=8
+FBGFX            .num_pages          off=16    size=4
+FBGFX            .visible_page       off=20    size=4
+FBGFX            .framebuffer        off=24    size=8
+FBGFX            .w                  off=32    size=4
+FBGFX            .h                  off=36    size=4
+FBGFX            .depth              off=40    size=4
+FBGFX            .bpp                off=44    size=4
+FBGFX            .pitch              off=48    size=4
+FBGFX            .palette            off=56    size=8
+FBGFX            .device_palette     off=64    size=8
+FBGFX            .color_association  off=72    size=8
+FBGFX            .dirty              off=80    size=8
+FBGFX            .driver             off=88    size=8
+FBGFX            .color_mask         off=96    size=4
+FBGFX            .default_palette    off=104   size=8
+FBGFX            .scanline_size      off=112   size=4
+FBGFX            .cursor_x           off=116   size=4
+FBGFX            .cursor_y           off=120   size=4
+FBGFX            .font               off=128   size=8
+FBGFX            .text_w             off=136   size=4
+FBGFX            .text_h             off=140   size=4
+FBGFX            .aspect             off=144   size=4
+FBGFX            .key                off=152   size=8
+FBGFX            .refresh_rate       off=160   size=4
+FBGFX            .con_pages          off=168   size=8
+FBGFX            .event_queue        off=176   size=8
+FBGFX            .event_head         off=184   size=4
+FBGFX            .event_tail         off=188   size=4
+FBGFX            .event_mutex        off=192   size=8
+FBGFX            .flags              off=200   size=4
+FBGFX            .lock_count         off=204   size=4
+== GFXDRIVER ==
+GFXDRIVER        .name               off=0     size=8
+GFXDRIVER        .init               off=8     size=8
+GFXDRIVER        .exit               off=16    size=8
+GFXDRIVER        .lock               off=24    size=8
+GFXDRIVER        .unlock             off=32    size=8
+GFXDRIVER        .set_palette        off=40    size=8
+GFXDRIVER        .wait_vsync         off=48    size=8
+GFXDRIVER        .get_mouse          off=56    size=8
+GFXDRIVER        .set_mouse          off=64    size=8
+GFXDRIVER        .set_window_title   off=72    size=8
+GFXDRIVER        .set_window_pos     off=80    size=8
+GFXDRIVER        .fetch_modes        off=88    size=8
+GFXDRIVER        .flip               off=96    size=8
+GFXDRIVER        .poll_events        off=104   size=8
+GFXDRIVER        .update             off=112   size=8
+== GFX_CHAR_CELL ==
+GFX_CHAR_CELL    .ch                 off=0     size=2
+GFX_CHAR_CELL    .fg                 off=4     size=4
+GFX_CHAR_CELL    .bg                 off=8     size=4
+== constants ==
+FB_TLSKEY_GFX    = 4
+PUT_HEADER_NEW   = 7
+MASK_COLOR_32    = 16711935

@@ -1,0 +1,261 @@
+'' hinitwin.bas -- the Windows runtime initialisation, and the console context
+'' itself. THREE symbols in libfb.a and FIFTEEN in libfbmt.a, one fbc member
+'' (win32/hinit.o -- which is the Windows directory, not the 32-bit one, and so
+'' serves win64 and win32 alike).
+''
+'' EMPTY-ON: linux-x86_64
+''
+'' ---------------------------------------------------------------------------
+'' THIS MEMBER WAS CLASSIFIED "STAYS IN C" AND THAT CLASSIFICATION WAS WRONG.
+''
+'' The plan (section 6) lists "the x87 control word (win32/hinit.c)" among the
+'' seventeen inline-asm sites that -gen llvm rejects outright (error 374), and
+'' the frontier table has carried hinit.o as Class A on both Windows targets
+'' ever since. Reading the member settles it differently: the fstcw/fldcw pair
+'' is in an `#elif defined HOST_X86` arm, and the arm BEFORE it is
+'' `#ifdef HOST_MINGW`. Every Windows build of fbc-modern is a MinGW build, so
+'' on win32 as much as on win64 the asm is not compiled -- the _controlfp branch
+'' is.
+''
+'' AND THAT IS NOT AN ARGUMENT FROM READING, IT IS MEASURED. fbc's own shipped
+'' objects name their imports:
+''
+''     obj/win64/hinit.o     U __imp__controlfp    U memset
+''     obj/win32/hinit.o     U __imp___controlfp   U _memset
+''
+'' Neither object contains an x87 instruction to set the control word, because
+'' neither was compiled from that arm. If the asm had been live on win32 there
+'' would be no _controlfp import there at all. So this file covers BOTH Windows
+'' targets, and the honest correction is recorded here rather than left as a
+'' silently widened scope.
+''
+'' (The 64-bit CRT ignores _MCW_PC -- x87 precision control is meaningless when
+'' the FPU is SSE. The call is reproduced anyway, argument for argument: it is
+'' what fbc does, and the point of this file is to be indistinguishable from it,
+'' not to be cleverer than it.)
+''
+'' ---------------------------------------------------------------------------
+'' THE MT ARCHIVE OWES TWELVE MORE SYMBOLS THAN THE ST ONE, and they exist ONLY
+'' here. fb_Lock, fb_Unlock, fb_StrLock, fb_StrUnlock, fb_MtLock, fb_MtUnlock,
+'' fb_GraphicsLock, fb_GraphicsUnlock, fb_MathLock, fb_MathUnlock,
+'' fb_ProfileLock and fb_ProfileUnlock are all inside `#ifdef ENABLE_MT`.
+'' Shipping the three unconditional symbols alone would pass the single-threaded
+'' gate and strip every lock out of libfbmt.a -- the exact failure the POSIX
+'' half of this pair (src/init/hinitposix.bas) records in its own header.
+''
+'' TWELVE HERE, TEN THERE. The POSIX member has no fb_MtLock/fb_MtUnlock; on
+'' Linux those come from unix/thread.c instead. The two files are NOT mirror
+'' images and a symbol count copied from one to the other would be wrong.
+''
+'' A CRITICAL_SECTION IS ALREADY RECURSIVE, which is why nothing here sets an
+'' attribute: hinitposix.bas has to ask pthreads explicitly for a recursive
+'' mutex to remove the difference. Same semantics, opposite amount of code.
+''
+'' ---------------------------------------------------------------------------
+'' THIS MEMBER OWNS __fb_con ON WINDOWS. It is the only definition in either
+'' archive -- io_window.o and every other console module carries it as U, and
+'' win64's io_window.o even carries the mingw-w64 `.refptr.__fb_con`
+'' indirection. src/inc/console.bi's header said the object lived in
+'' io_window.o; that was wrong and is corrected in the same commit as this file.
+''
+'' THE LAYOUT IS MEASURED, not derived from the struct declaration:
+''
+''     obj/win64/hinit.o   .bss  0x60 bytes, align 2**5   -> sizeof 80 padded
+''     obj/win32/hinit.o   .bss  0x40 bytes, align 2**5   -> sizeof 52 padded
+''
+'' and the field offsets below are the ones src/inc/console.bi already carried
+'' and had confirmed by disassembling fbc's io_locate.o and io_getsize.o. The
+'' #asserts are what keeps the two records from drifting apart: this file
+'' deliberately does NOT include console.bi (which declares __fb_con as an
+'' opaque UBYTE and would collide with defining it), so the compiler cannot
+'' cross-check them for us.
+''
+'' fb_hInit MEMSETS THE WHOLE STRUCT rather than relying on .bss being zero,
+'' and that is not redundant: fb_hInit is reachable more than once through the
+'' RUN/CHAIN path, where the previous run's handles are still sitting in it.
+
+#include once "crt/string.bi"      '' memset
+#include once "inc/thread.bi"      '' TKORT_CRITSEC_SIZE, w_*CriticalSection
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+
+const FB_CONSOLE_MAXPAGES_ = 4
+
+'' MEASURED (see the file header).
+''
+''                 win64   win32
+''   inHandle          0       0
+''   outHandle         8       4
+''   pgHandleTb       16       8      4 entries
+''   active           48      24
+''   visible          52      28
+''   window           56      32      SMALL_RECT: 4 SHORTs, 8 bytes
+''   setByUser        64      40
+''   scrollWasOff     68      44
+''   mouseEventHook   72      48      (win64: 4 bytes of padding before it)
+''   sizeof           80      52
+type FBCONSOLE_
+	as any ptr  inHandle
+	as any ptr  outHandle
+	as any ptr  pgHandleTb( 0 to FB_CONSOLE_MAXPAGES_ - 1 )
+	as long     active
+	as long     visible
+	'' SMALL_RECT, spelled out: FreeBASIC would lay a nested UDT out the same
+	'' way, but four named SHORTs make the offset asserts below direct.
+	as short    window_Left
+	as short    window_Top
+	as short    window_Right
+	as short    window_Bottom
+	as long     setByUser
+	as long     scrollWasOff
+	as any ptr  mouseEventHook
+end type
+
+#if defined( __FB_64BIT__ )
+	#assert sizeof( FBCONSOLE_ ) = 80
+	#assert offsetof( FBCONSOLE_, outHandle ) = 8
+	#assert offsetof( FBCONSOLE_, pgHandleTb(0) ) = 16
+	#assert offsetof( FBCONSOLE_, active ) = 48
+	#assert offsetof( FBCONSOLE_, window_Left ) = 56
+	#assert offsetof( FBCONSOLE_, setByUser ) = 64
+	#assert offsetof( FBCONSOLE_, scrollWasOff ) = 68
+	#assert offsetof( FBCONSOLE_, mouseEventHook ) = 72
+#else
+	#assert sizeof( FBCONSOLE_ ) = 52
+	#assert offsetof( FBCONSOLE_, outHandle ) = 4
+	#assert offsetof( FBCONSOLE_, pgHandleTb(0) ) = 8
+	#assert offsetof( FBCONSOLE_, active ) = 24
+	#assert offsetof( FBCONSOLE_, window_Left ) = 32
+	#assert offsetof( FBCONSOLE_, setByUser ) = 40
+	#assert offsetof( FBCONSOLE_, scrollWasOff ) = 44
+	#assert offsetof( FBCONSOLE_, mouseEventHook ) = 48
+#endif
+
+'' _controlfp's flags. _PC_64 and _RC_NEAR are both ZERO -- the value written is
+'' 0 and it is the MASK that does the work. Spelled out rather than folded into
+'' a literal 0 because the pair is the whole point of the call.
+const PC_64_    = &h00000000
+const RC_NEAR_  = &h00000000
+const MCW_RC_   = &h00000300    '' rounding
+const MCW_PC_   = &h00030000    '' precision
+
+extern "c"   '' NON-FBCALL: a CRT entry point, not an rtlib one.
+	declare function c_controlfp alias "_controlfp" _
+		( byval unNew as ulong, byval unMask as ulong ) as ulong
+end extern
+
+#ifdef ENABLE_MT
+	'' Raw storage; nothing here reads a field, only the address is passed on.
+	dim shared as ubyte tkort_global_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as ubyte tkort_string_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as ubyte tkort_mtcore_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as ubyte tkort_graphics_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as ubyte tkort_math_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as ubyte tkort_profile_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+#endif
+
+'' ------------------------------------------------------------------- exports
+
+'' THE CONSOLE CONTEXT ITSELF. Declared extern first so the definition below
+'' gets external linkage -- a bare `dim shared` would be file-local, and every
+'' other Windows console module resolves __fb_con by name.
+''
+'' NOT INITIALISED, exactly as fbc leaves it: it is .bss in both, and fb_hInit
+'' is what clears it.
+extern "c"   '' NON-FBCALL: the console context is DATA, declared plain.
+	extern __fb_con alias "__fb_con" as FBCONSOLE_
+end extern
+
+dim shared __fb_con as FBCONSOLE_
+
+extern "c"   '' NON-FBCALL: fb.h declares fb_hInit and fb_hEnd plainly.
+
+sub tkort_hInit alias "fb_hInit" ( )
+
+	'' FPU to 64-bit precision, round to nearest -- "as in QB". See the file
+	'' header on why this is a call and not an fstcw/fldcw pair.
+	c_controlfp( PC_64_ or RC_NEAR_, MCW_PC_ or MCW_RC_ )
+
+	#ifdef ENABLE_MT
+		w_InitializeCriticalSection( @tkort_global_mutex(0) )
+		w_InitializeCriticalSection( @tkort_string_mutex(0) )
+		w_InitializeCriticalSection( @tkort_mtcore_mutex(0) )
+		w_InitializeCriticalSection( @tkort_graphics_mutex(0) )
+		w_InitializeCriticalSection( @tkort_math_mutex(0) )
+		w_InitializeCriticalSection( @tkort_profile_mutex(0) )
+	#endif
+
+	memset( @__fb_con, 0, sizeof( FBCONSOLE_ ) )
+end sub
+
+'' The parameter is unused in fbc too, and is part of the signature rather than
+'' an oversight: fb_hEnd is called through the same shutdown path as the other
+'' hEnd hooks.
+sub tkort_hEnd alias "fb_hEnd" ( byval unused as long )
+
+	#ifdef ENABLE_MT
+		w_DeleteCriticalSection( @tkort_global_mutex(0) )
+		w_DeleteCriticalSection( @tkort_string_mutex(0) )
+		w_DeleteCriticalSection( @tkort_mtcore_mutex(0) )
+		w_DeleteCriticalSection( @tkort_graphics_mutex(0) )
+		w_DeleteCriticalSection( @tkort_math_mutex(0) )
+		w_DeleteCriticalSection( @tkort_profile_mutex(0) )
+	#endif
+
+end sub
+
+end extern
+
+#ifdef ENABLE_MT
+
+extern "rtlib"   '' FBCALL: all twelve are declared with FBCALL, and on win32
+                 '' that is _fb_Lock@0 and friends -- confirmed against fbc's
+                 '' own obj/win32/mt/hinit.o.
+
+sub tkort_Lock alias "fb_Lock" ( )
+	w_EnterCriticalSection( @tkort_global_mutex(0) )
+end sub
+sub tkort_Unlock alias "fb_Unlock" ( )
+	w_LeaveCriticalSection( @tkort_global_mutex(0) )
+end sub
+sub tkort_StrLock alias "fb_StrLock" ( )
+	w_EnterCriticalSection( @tkort_string_mutex(0) )
+end sub
+sub tkort_StrUnlock alias "fb_StrUnlock" ( )
+	w_LeaveCriticalSection( @tkort_string_mutex(0) )
+end sub
+'' NAMED fb_MtLock RATHER THAN tkort_MtLock: inc/thread.bi already DECLARES
+'' these two (TKORT_MTLOCK expands to a call to them), and FreeBASIC treats a
+'' second FB-level name with the same alias as a duplicate definition rather
+'' than as the definition of the declaration. So the definition takes the
+'' declared name.
+sub fb_MtLock alias "fb_MtLock" ( )
+	w_EnterCriticalSection( @tkort_mtcore_mutex(0) )
+end sub
+sub fb_MtUnlock alias "fb_MtUnlock" ( )
+	w_LeaveCriticalSection( @tkort_mtcore_mutex(0) )
+end sub
+sub tkort_GraphicsLock alias "fb_GraphicsLock" ( )
+	w_EnterCriticalSection( @tkort_graphics_mutex(0) )
+end sub
+sub tkort_GraphicsUnlock alias "fb_GraphicsUnlock" ( )
+	w_LeaveCriticalSection( @tkort_graphics_mutex(0) )
+end sub
+sub tkort_MathLock alias "fb_MathLock" ( )
+	w_EnterCriticalSection( @tkort_math_mutex(0) )
+end sub
+sub tkort_MathUnlock alias "fb_MathUnlock" ( )
+	w_LeaveCriticalSection( @tkort_math_mutex(0) )
+end sub
+sub tkort_ProfileLock alias "fb_ProfileLock" ( )
+	w_EnterCriticalSection( @tkort_profile_mutex(0) )
+end sub
+sub tkort_ProfileUnlock alias "fb_ProfileUnlock" ( )
+	w_LeaveCriticalSection( @tkort_profile_mutex(0) )
+end sub
+
+end extern
+
+#endif
+
+#endif

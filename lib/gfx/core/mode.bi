@@ -1,0 +1,121 @@
+'' mode.bi -- the legacy SCREEN 1..21 mode table.
+''
+'' Derived from: gfx_screen.c (MODEINFO, mode_info[]). LGPL-2.1-or-later with
+'' the static-linking exception.
+''
+'' `SCREEN n` selects a fixed mode from this table; `SCREENRES w, h, depth`
+'' bypasses it entirely. The table is the only place the CGA/EGA/VGA geometry,
+'' palette size and font height live, and PALETTE's colour associations key off
+'' the mode number, so this has to exist before those can.
+''
+'' MODES 3, 4, 5 AND 6 ARE HOLES. They are real QBasic modes that gfxlib2 does
+'' not implement, and they are present in the table as all-zero rows rather than
+'' absent -- so `SCREEN 3` indexes a valid row whose width is 0 and fails on
+'' that, not on a range check. Keeping the holes means mode numbers are indices,
+'' which is what the rest of the code assumes.
+''
+'' `scanline_size` IS NOT A STRIDE. It is a vertical doubling factor: mode 2 and
+'' mode 8 are 640x200 modes displayed at 640x400 by drawing each line twice.
+'' It multiplies the DISPLAYED height, not the buffer's.
+''
+'' `num_pages` HERE IS A MAXIMUM, not an allocation. Mode 1 allows 8 pages, mode
+'' 13 allows 1. SCREEN takes a requested count and fails if it exceeds this.
+
+#pragma once
+
+namespace TkoGfx
+
+const NUM_MODES = 22
+
+'' Palette sizes, in gfxlib2's enum order.
+const FB_PALETTE_2   = 0
+const FB_PALETTE_16  = 1
+const FB_PALETTE_64  = 2
+const FB_PALETTE_256 = 3
+
+'' Font heights, in gfxlib2's enum order.
+const FB_FONT_8  = 0
+const FB_FONT_14 = 1
+const FB_FONT_16 = 2
+
+type ModeInfo
+    w             as ushort
+    h             as ushort
+    depth         as ubyte
+    scanline_size as ubyte
+    num_pages     as ubyte
+    palette       as byte     '' -1 for an unsupported mode
+    font          as byte     '' -1 for an unsupported mode
+    text_w        as ubyte
+    text_h        as ubyte
+end type
+
+'' Indexed by mode number. Row 0 is the NULL mode (SCREEN 0, the text console).
+dim shared as ModeInfo ModeTable(0 to NUM_MODES - 1) = { _
+    ( 0, 0, 0, 0, 1, -1, -1, 0, 0 ), _
+    ( 320, 200, 2, 1, 8, FB_PALETTE_16, FB_FONT_8, 40, 25 ), _
+    ( 640, 200, 1, 2, 1, FB_PALETTE_16, FB_FONT_8, 80, 25 ), _
+    ( 0, 0, 0, 0, 1, -1, -1, 0, 0 ), _
+    ( 0, 0, 0, 0, 1, -1, -1, 0, 0 ), _
+    ( 0, 0, 0, 0, 1, -1, -1, 0, 0 ), _
+    ( 0, 0, 0, 0, 1, -1, -1, 0, 0 ), _
+    ( 320, 200, 4, 1, 8, FB_PALETTE_16, FB_FONT_8, 40, 25 ), _
+    ( 640, 200, 4, 2, 4, FB_PALETTE_16, FB_FONT_8, 80, 25 ), _
+    ( 640, 350, 4, 1, 2, FB_PALETTE_64, FB_FONT_14, 80, 25 ), _
+    ( 640, 350, 1, 1, 2, FB_PALETTE_2, FB_FONT_14, 80, 25 ), _
+    ( 640, 480, 1, 1, 1, FB_PALETTE_2, FB_FONT_16, 80, 30 ), _
+    ( 640, 480, 4, 1, 1, FB_PALETTE_256, FB_FONT_16, 80, 30 ), _
+    ( 320, 200, 8, 1, 1, FB_PALETTE_256, FB_FONT_8, 40, 25 ), _
+    ( 320, 240, 8, 1, 1, FB_PALETTE_256, FB_FONT_8, 40, 30 ), _
+    ( 400, 300, 8, 1, 1, FB_PALETTE_256, FB_FONT_8, 50, 37 ), _
+    ( 512, 384, 8, 1, 1, FB_PALETTE_256, FB_FONT_16, 64, 24 ), _
+    ( 640, 400, 8, 1, 1, FB_PALETTE_256, FB_FONT_16, 80, 25 ), _
+    ( 640, 480, 8, 1, 1, FB_PALETTE_256, FB_FONT_16, 80, 30 ), _
+    ( 800, 600, 8, 1, 1, FB_PALETTE_256, FB_FONT_16, 100, 37 ), _
+    ( 1024, 768, 8, 1, 1, FB_PALETTE_256, FB_FONT_16, 128, 48 ), _
+    ( 1280, 1024, 8, 1, 1, FB_PALETTE_256, FB_FONT_16, 160, 64 ) }
+
+'' Is this a mode SCREEN can actually open?
+private function ModeSupported( byval mode as long ) as long
+    if (mode < 1) orelse (mode >= NUM_MODES) then return 0
+    if ModeTable(mode).w = 0 then return 0
+    return 1
+end function
+
+'' Font height in pixels for a mode, or 0 if unsupported.
+private function ModeFontHeight( byval mode as long ) as long
+    if ModeSupported( mode ) = 0 then return 0
+    select case ModeTable(mode).font
+    case FB_FONT_8  : return 8
+    case FB_FONT_14 : return 14
+    case else       : return 16
+    end select
+end function
+
+'' Number of palette entries for a mode, or 0 if unsupported.
+private function ModePaletteColors( byval mode as long ) as long
+    if ModeSupported( mode ) = 0 then return 0
+    select case ModeTable(mode).palette
+    case FB_PALETTE_2   : return 2
+    case FB_PALETTE_16  : return 16
+    case FB_PALETTE_64  : return 64
+    case else           : return 256
+    end select
+end function
+
+
+'' Number of ATTRIBUTES a mode actually has -- 1 shl depth, capped at 256.
+''
+'' NOT the same as ModePaletteColors. On the EGA modes there are 64 palette
+'' REGISTERS but only 16 attributes that select among them, and gfxlib2 sizes
+'' its color_association array by the attribute count while masking indices by
+'' the register count. Anything that indexes a per-attribute array must use
+'' this, not the palette size.
+private function ModeAttributeCount( byval mode as long ) as long
+    if ModeSupported( mode ) = 0 then return 0
+    dim as long d = ModeTable(mode).depth
+    if d >= 8 then return 256
+    return 1 shl d
+end function
+
+end namespace

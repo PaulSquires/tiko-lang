@@ -69,24 +69,60 @@ Configurations: `Debug` (`-g -exx`), `RelWithDebInfo` (`-g`), `Release`.
 
 ## Layout
 
+The repository holds **three source areas** -- the compiler, the runtime library and the
+graphics library -- plus the toolchains they are packaged into. Each area builds itself;
+there is no top-level build.
+
 ```
-src/support/    arenas, string interning, UTF-8/UTF-16, terminal detection
-src/diag/       the diagnostic id table, engine and renderer
-src/source/     source manager: files, encodings, locations, line index
-src/lexer/      token model, generated keyword vocabulary, the scanner
-src/pp/         the preprocessor: includes, macros, conditionals, builtins
-src/ast/        the node model: arenas, payloads, NodeId
-src/parser/     precedence table, Pratt expressions, statements, the intrinsic registry
-src/types/      the canonical type model and its target-injected layout
-src/symbols/    symbols, scopes and declaration collection
-src/driver/     option table, command line, pipeline orchestration
-tools/tiko-test/ the test runner
-tests/          the suite; goldens live in expected/ beside their tests
-docs/plan/      the architecture and implementation plan (16 documents)
+src/          (1) THE COMPILER
+  support/       arenas, string interning, UTF-8/UTF-16, terminal detection
+  diag/          the diagnostic id table, engine and renderer
+  source/        source manager: files, encodings, locations, line index
+  lexer/         token model, generated keyword vocabulary, the scanner
+  pp/            the preprocessor: includes, macros, conditionals, builtins
+  ast/           the node model: arenas, payloads, NodeId
+  parser/        precedence table, Pratt expressions, statements, intrinsics
+  types/         the canonical type model and its target-injected layout
+  symbols/       symbols, scopes and declaration collection
+  mir/           the typed IR
+  codegen/       ABI lowering, the LLVM backend, the toolchain driver
+  driver/        option table, command line, pipeline orchestration
+
+lib/rt/       (2) THE RUNTIME LIBRARY -- libfb, reimplemented in FreeBASIC
+  src/           str ustr strw utf io fs dt chrono math mem thread sys init ...
+  build/         its own build, gate, lint, bench and symbol scripts
+  tests/         abi/ (parity against fbc's own archives), bench/, unit/
+  LICENSE, PROVENANCE.md
+
+lib/gfx/      (3) THE GRAPHICS LIBRARY -- libtkogfx, a drop-in for libfbgfx
+  abi/           the runtime seam: struct mirrors, context offsets
+  core/          surfaces, modes, palettes, images, events, the console hooks
+  raster/        the drawing primitives
+  driver/        the GDI, memory and window drivers
+  tools/         the A/B tests against gfxlib2
+
+toolchains/   the distributable Windows and Linux builds (see its README)
+build/        the compiler's build, test, lint and corpus-sweep scripts
+tools/        tiko-test, the generators, the corpus vendoring script
+tests/        the compiler suite; goldens live in expected/ beside their tests
+docs/plan/    the architecture and implementation plan (16 documents)
 docs/internals/ per-subsystem notes, written by the phase that builds the subsystem
 docs/language/  measured specifications: precedence, behavioural probes
 ```
 
+The runtime and the graphics library were developed as separate trees (`C:\dev\tiko-rt` and
+this repository's `lib/gfx`) and were consolidated here so that one clone is the whole
+project. **`C:\dev\tiko-rt` no longer exists** -- not as a repository and not as a link.
+`lib/rt` is the only copy, and the runtime's 117 commits are reachable from this
+repository's history.
+
 ## Licence
 
-TBD before first release.
+Per area, because they do not share one:
+
+- **`lib/rt/`** -- LGPL-2.1-or-later. It is a derivative work of `libfb`; see
+  [`lib/rt/LICENSE`](lib/rt/LICENSE) and [`lib/rt/PROVENANCE.md`](lib/rt/PROVENANCE.md).
+- **`lib/gfx/`** -- LGPL-2.1-or-later with the static-linking exception. It is a
+  derivative work of `gfxlib2`; see [`lib/gfx/README.md`](lib/gfx/README.md). The licence
+  text itself is not yet in the tree.
+- **`src/`, `tools/`, `tests/`** -- TBD before first release.

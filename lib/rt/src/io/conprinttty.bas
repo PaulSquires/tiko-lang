@@ -1,0 +1,87 @@
+'' conprinttty.bas -- fb_ConPrintRaw and fb_ConPrintRawWstr, the layer that
+'' actually draws. Two symbols across two fbc members, and portable.
+''
+'' TWO LAYERS, TWO OBJECTS. RAW draws characters and wraps at the right border,
+'' and knows nothing else; TTY -- in io/conttytail.bas -- interprets the control
+'' codes and hands everything else to RAW in batches. fbc keeps them in separate
+'' members so that a program using only RAW does not link the interpreter, and
+'' this follows.
+''
+'' NEITHER WRITES TO A TERMINAL. Both go through the caller's fb_ConHooks, whose
+'' Write and Scroll come from whichever console driver is in use -- fbc's win32
+'' one, fbc's unix one, or gfxlib2's. That is why these two are portable while
+'' the drivers are not.
+''
+'' THE WRAP IS PER-RUN, NOT PER-CHARACTER. Each iteration hands the hook as much
+'' as fits before the right border, then moves to the left border and the next
+'' row. A hook that returns anything but TRUE STOPS THE WHOLE THING and the
+'' remaining text is DISCARDED -- there is no partial-write accounting.
+''
+'' THE SCROLL CHECK RUNS BEFORE EACH RUN, NOT AFTER. The row may already be past
+'' the bottom from the previous iteration's wrap, and drawing first would draw
+'' off-screen.
+
+#include once "inc/descriptors.bi"
+#include once "inc/conhooks.bi"
+
+extern "c"   '' NON-FBCALL: fb_console.h declares both plainly.
+
+sub tkort_ConPrintRaw alias "fb_ConPrintRaw" _
+	( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, byval textLength as uinteger )
+
+	dim as uinteger remaining = textLength
+
+	while( remaining <> 0 )
+		dim as uinteger remainingWidth = handle->Border.Right_ - handle->Coord_.X_ + 1
+		dim as uinteger copySize = iif( remaining > remainingWidth, remainingWidth, remaining )
+
+		TKORT_CONCHECKSCROLL( handle )
+
+		if( handle->Write_( handle, pachText, copySize ) <> 1 ) then exit while
+
+		remaining -= copySize
+		pachText += copySize
+		handle->Coord_.X_ += copySize
+
+		'' EQUALITY, NOT >=. The run above was clipped to the border, so the
+		'' column lands exactly one past it or short of it, never beyond.
+		if( handle->Coord_.X_ = (handle->Border.Right_ + 1) ) then
+			handle->Coord_.X_ = handle->Border.Left_
+			handle->Coord_.Y_ += 1
+		end if
+	wend
+end sub
+
+'' THE WIDE FORM DIFFERS ONLY IN THE POINTER ARITHMETIC. Advancing by copySize
+'' moves that many CHARACTERS, and the hook is handed a character count too --
+'' so the hook, not this function, knows the element width.
+sub tkort_ConPrintRawWstr alias "fb_ConPrintRawWstr" _
+	( byval handle as fb_ConHooks ptr, byval pachText as wstring ptr, byval textLength as uinteger )
+
+	dim as uinteger remaining = textLength
+	#if sizeof( wstring ) = 2
+		dim as ushort ptr p = cast( ushort ptr, pachText )
+	#else
+		dim as ulong ptr p = cast( ulong ptr, pachText )
+	#endif
+
+	while( remaining <> 0 )
+		dim as uinteger remainingWidth = handle->Border.Right_ - handle->Coord_.X_ + 1
+		dim as uinteger copySize = iif( remaining > remainingWidth, remainingWidth, remaining )
+
+		TKORT_CONCHECKSCROLL( handle )
+
+		if( handle->Write_( handle, p, copySize ) <> 1 ) then exit while
+
+		remaining -= copySize
+		p += copySize
+		handle->Coord_.X_ += copySize
+
+		if( handle->Coord_.X_ = (handle->Border.Right_ + 1) ) then
+			handle->Coord_.X_ = handle->Border.Left_
+			handle->Coord_.Y_ += 1
+		end if
+	wend
+end sub
+
+end extern

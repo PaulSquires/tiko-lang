@@ -1,0 +1,233 @@
+'' rtinit.bas -- fb_hRtInit, fb_hRtExit, fb_Init and fb_End: the runtime's
+'' startup and shutdown. Four symbols, one fbc member (init.o) shared with
+'' src/init/ctxdata.bas, which owns __fb_ctx itself.
+''
+'' TWO PAIRS THAT ARE NOT THE PAIR THEY LOOK LIKE.
+''
+''   fb_hRtInit / fb_hRtExit   called by fbrt0, the module CONSTRUCTOR and
+''                             DESTRUCTOR. They bracket the whole program,
+''                             including every FB global ctor/dtor.
+''   fb_Init / fb_End          called by the FB PROGRAM. fb_Init records argc,
+''                             argv and the language dialect; fb_End exits.
+''
+'' So fb_hRtInit runs BEFORE fb_Init, and fb_hRtExit runs AFTER fb_End would
+'' have -- except that fb_End calls exit(), so on the normal path fb_hRtExit runs
+'' from the destructor that exit() triggers. Reversing them puts the memset after
+'' argc is stored and loses the command line.
+''
+'' THE COUNTER IS A GUARD AGAINST DOUBLE INITIALISATION, not a nesting depth. It
+'' is incremented first and tested against exactly 1, so the second and later
+'' calls return having done nothing -- which is what makes a program that links
+'' the runtime twice (a DLL plus its host) survive.
+''
+'' CLEAN-UP HAPPENS IN THE GLOBAL DESTRUCTOR, NOT IN atexit(). fbc's own comment
+'' is explicit about why: FB supports global ctors/dtors, so FB code can run from
+'' them, and atexit handlers fire before global dtors on some platforms and after
+'' on others. It cannot be relied on. The gfxlib2 half is the exception and is
+'' done from fb_End instead, because waiting on a thread from a global destructor
+'' can dead-lock on the Windows loader lock.
+''
+'' THE ORDER IN fb_hRtExit IS LOAD-BEARING and is preserved exactly:
+''
+''   1. fb_SchedShutdown   stop the scheduler accepting work and wake its idle
+''                         workers, BEFORE the state they might touch is torn
+''                         down. It deliberately does NOT join them -- waiting
+''                         for a thread here dead-locks on the loader lock, so
+''                         goroutines still running are abandoned, which is Go's
+''                         own semantics too.
+''   2. fb_FileReset       close the channels while the console still exists.
+''   3. fb_hEnd            per-target termination.
+''   4. fb_DevScrnEnd      the screen device.
+''   5. fb_TlsFreeCtxTb    the main thread's TLS contexts.
+''   6. fb_TlsExit         MT only.
+''   7. the error message   LAST, and that is the point: the DOS gfxlib clears
+''                         the console on exit, so a message printed earlier
+''                         would be wiped. It goes to stderr.
+''
+'' setlocale( LC_CTYPE, "" ) IS THE ONE LINE MOST LIKELY TO BE GOT WRONG, and
+'' the constant is NOT the same number on the two platforms:
+''
+''     LC_CTYPE   Windows 2   Linux 0
+''     LC_ALL     Windows 0   Linux 6
+''
+'' MEASURED, both. So the Linux value of LC_CTYPE is the Windows value of
+'' LC_ALL -- hard-coding either would silently set the WHOLE locale on one
+'' platform, which changes LC_NUMERIC, which changes the decimal separator, which
+'' changes every float-to-string conversion in the runtime. No compiler
+'' diagnostic, no crash, and a differential that happened to run in the C locale
+'' would not see it either.
+''
+'' AND THE ARGUMENT IS AN EMPTY STRING, NOT NULL. `""` means "the locale from the
+'' environment"; NULL means "query, change nothing". strptr( "" ) is NULL in
+'' FreeBASIC, so a literal FB string here would silently turn the call into a
+'' query and leave the C locale in place -- the exact bug fb_wstr_ConvFromA needs
+'' this line to prevent. A fixed zstring with a terminator in it is passed.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ctx.bi"
+#include once "inc/file.bi"
+#include once "crt/string.bi"
+#include once "crt/stdlib.bi"
+#include once "crt/stdio.bi"
+
+'' LC_CTYPE, measured with a C probe against each platform's own headers. See
+'' the file header on why guessing this one is unusually dangerous.
+#ifdef __FB_WIN32__
+	const TKORT_LC_CTYPE = 2
+#else
+	const TKORT_LC_CTYPE = 0
+#endif
+
+'' The empty locale name, as a real object with a real address -- strptr( "" )
+'' is NULL and would change the call's meaning. See the file header.
+dim shared as zstring * 2 tkort_locale_env
+
+extern "c"   '' NON-FBCALL: libc, and fbc's own internals, all declared plain.
+	declare function crt_setlocale alias "setlocale" _
+		( byval category as long, byval locale as zstring ptr ) as zstring ptr
+	declare function crt_fputs alias "fputs" _
+		( byval s as zstring ptr, byval stream as any ptr ) as long
+	declare sub crt_exit alias "exit" ( byval code as long )
+
+	'' Still fbc's: hinit.o and sched.o are both inline asm and stay C.
+	declare sub tkrt_hInit alias "fb_hInit" ( )
+	declare sub tkrt_hEnd alias "fb_hEnd" ( byval iserror as long )
+	declare sub tkrt_SchedShutdown alias "fb_SchedShutdown" ( )
+
+	'' tiko-rt's own.
+	declare sub tkrt_AllocateMainFBThread alias "fb_AllocateMainFBThread" ( )
+	declare sub tkrt_TlsFreeCtxTb alias "fb_TlsFreeCtxTb" ( )
+	declare sub tkrt_DevScrnEnd alias "fb_DevScrnEnd" ( byval handle as FB_FILE ptr )
+
+	#ifdef ENABLE_MT
+		'' ONLY IN libfbmt.a -- there is no single-threaded definition anywhere,
+		'' so referencing either from an ST build would not link.
+		declare sub tkrt_TlsInit alias "fb_TlsInit" ( )
+		declare sub tkrt_TlsExit alias "fb_TlsExit" ( )
+	#endif
+end extern
+
+extern "rtlib"   '' FBCALL: fb_FileReset is decorated, and the win32 archive
+                 '' spells it `_fb_FileReset@0`.
+	declare function tkrt_FileReset alias "fb_FileReset" ( ) as long
+end extern
+
+'' stderr comes from crt/stdio.bi, the same way src/error/assert.bas gets it.
+
+'' THE GUARD, and a FILE-STATIC. FreeBASIC emits a module-level `dim shared` as a
+'' LOCAL symbol (`b NAME.0`), which is what fbc's `static int __fb_is_inicnt`
+'' is too -- so this adds nothing to the exported surface and symbols.sh stays
+'' quiet.
+dim shared as long tkort_is_inicnt
+
+'' The exit_gfxlib2 slot, which inc/ctx.bi does not bind because nothing else
+'' needs it. It is the LAST field: lang sits at TKORT_LANG_OFFSET and this
+'' follows immediately, which the measured sizes confirm --
+''   win64/linux  20860 + 4 = 20864, 8-aligned, + 8 = 20872 = sizeof
+''   win32        16604 + 4 = 16608, 4-aligned, + 4 = 16612, padded to 16616
+#define TKORT_CTX_EXITGFX() _
+	(*cptr( sub( ) ptr, @__fb_ctx_head + TKORT_LANG_OFFSET + 4 ))
+
+extern "c"   '' NON-FBCALL: fb.h declares fb_hRtInit and fb_hRtExit plainly, and
+             '' the win32 archive confirms no `@N` on either.
+
+'' CALLED FROM fbrt0, as the first global constructor.
+sub tkort_hRtInit alias "fb_hRtInit" ( )
+
+	'' INCREMENT FIRST, then test against exactly one. See the file header: this
+	'' is a double-initialisation guard, not a depth count.
+	tkort_is_inicnt += 1
+	if( tkort_is_inicnt <> 1 ) then exit sub
+
+	'' THE WHOLE CONTEXT IS ZEROED HERE even though it lives in BSS and is
+	'' already zero at load. fbc does it, and it matters for a runtime that is
+	'' initialised twice in one process image -- the guard above stops the
+	'' second call, but a host that unloaded and reloaded a DLL would arrive
+	'' with the counter reset and stale contents.
+	memset( @__fb_ctx_head, 0, TKORT_CTX_SIZE )
+
+	'' Per-target initialisation, still fbc's.
+	tkrt_hInit( )
+
+	#ifdef ENABLE_MT
+		tkrt_TlsInit( )
+	#endif
+	tkrt_AllocateMainFBThread( )
+
+	'' THE LOCALE, AND ONLY LC_CTYPE. With the default "C" locale mbstowcs
+	'' cannot convert bytes outside 7-bit ASCII, so fb_wstr_ConvFromA silently
+	'' produces nothing for anything the user's locale can express. Changing
+	'' only LC_CTYPE fixes that WITHOUT touching LC_NUMERIC -- which would move
+	'' the decimal separator and change every float-to-string conversion. See
+	'' the file header on the two constants.
+	tkort_locale_env[0] = 0
+	crt_setlocale( TKORT_LC_CTYPE, @tkort_locale_env )
+
+end sub
+
+'' CALLED FROM fbrt0, as the last global destructor.
+sub tkort_hRtExit alias "fb_hRtExit" ( )
+
+	tkort_is_inicnt -= 1
+	if( tkort_is_inicnt <> 0 ) then exit sub
+
+	'' THE ORDER BELOW IS LOAD-BEARING -- see the file header.
+
+	'' Stop the scheduler before anything it might touch is torn down. It does
+	'' not join its workers, deliberately.
+	tkrt_SchedShutdown( )
+
+	tkrt_FileReset( )
+
+	tkrt_hEnd( 0 )
+
+	tkrt_DevScrnEnd( TKORT_HANDLE_SCREEN() )
+
+	tkrt_TlsFreeCtxTb( )
+
+	#ifdef ENABLE_MT
+		tkrt_TlsExit( )
+	#endif
+
+	'' LAST, AND TO stderr. A message printed before the console clean-up above
+	'' would be wiped by a gfx backend that clears the screen on exit.
+	dim as any ptr msg = TKORT_CTX_ERRMSG()
+	if( msg <> 0 ) then
+		crt_fputs( cptr( zstring ptr, msg ), stderr )
+	end if
+
+end sub
+
+end extern
+
+extern "rtlib"   '' FBCALL: fb.h decorates both, and the win32 archive spells
+                 '' them `_fb_Init@12` and `_fb_End@4`.
+
+'' CALLED BY THE FB PROGRAM, from its main -- so AFTER fb_hRtInit's memset.
+'' Records three things and does nothing else.
+sub tkort_Init alias "fb_Init" _
+	( byval argc as long, byval argv as zstring ptr ptr, byval lang as long )
+
+	__fb_ctx.argc = argc
+	__fb_ctx.argv = argv
+	TKORT_CTX_LANG() = lang
+
+end sub
+
+'' CALLED BY THE FB PROGRAM, or by fb_Die on an assertion failure or runtime
+'' error. Does NOT return.
+sub tkort_End alias "fb_End" ( byval errlevel as long )
+
+	'' THE GFX CLEAN-UP HAPPENS HERE, not in fb_hRtExit, because waiting for a
+	'' thread from a global destructor can dead-lock on the Windows loader lock
+	'' and the win32 gfx backends use a background thread. The slot is NULL
+	'' unless gfxlib2 was linked, which is what makes this a feature switch
+	'' rather than a dependency.
+	dim as sub( ) exitgfx = TKORT_CTX_EXITGFX()
+	if( exitgfx <> 0 ) then exitgfx( )
+
+	crt_exit( errlevel )
+
+end sub
+
+end extern

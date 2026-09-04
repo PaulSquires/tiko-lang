@@ -1,0 +1,87 @@
+'' comp.bas -- ustr_comp.o: comparison.
+''
+'' Returns <0, 0, >0 like fb_StrCompare, so the compiler can lower `a < b` to
+'' `fb_UStrCompare( a, b ) < 0` rather than emitting a branch per operator.
+''
+'' Ordering is BY CODE UNIT -- see fb_hUStrCompare in src/ustr/prim.bas for the
+'' UTF-16 ordering caveat this inherits: astral characters sort BELOW
+'' U+E000..U+FFFF, because surrogates live at D800..DFFF. That is what every
+'' UTF-16 environment does and what codepoint order would cost a decode to fix.
+
+#include once "inc/descriptors.bi"
+#include once "inc/ustr.bi"
+#include once "inc/ctx.bi"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_StrLock alias "fb_StrLock" ( )
+		declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+	end extern
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+	declare function tkrt_UAllocTempDesc alias "fb_hUStrAllocTempDesc" ( ) as FBUSTRING ptr
+	declare function tkrt_UDelTempDesc alias "fb_hUStrDelTempDesc" ( byval s as FBUSTRING ptr ) as long
+	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
+		( byval s as FBUSTRING ptr ) as long
+	declare sub tkrt_UDelete alias "fb_UStrDelete" ( byval s as FBUSTRING ptr )
+	declare function tkrt_UAlloc alias "fb_hUStrAlloc" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare function tkrt_URealloc alias "fb_hUStrRealloc" _
+		( byval s as FBUSTRING ptr, byval units as integer, byval k as long ) as FBUSTRING ptr
+end extern
+
+'' Release a var-len operand. EVERY entry point that takes one must do this:
+'' LEN( a + b ) hands in a temporary built for the call and nothing else will
+'' free it. On the narrow side the same omission leaked 1,000 blocks per 1,000
+'' iterations while every output matched and every gate passed.
+private sub hRelTemp( byval src as any ptr, byval src_size as integer )
+	if( src_size = FB_USTRSIZEVARLEN ) then
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, src ) )
+	end if
+end sub
+
+extern "c"   '' NON-FBCALL: fb_ustring.h declares the primitive plainly.
+	declare function tkrt_UCompare alias "fb_hUStrCompare" _
+		( byval s1 as FB_UCHAR ptr, byval l1 as integer, _
+		  byval s2 as FB_UCHAR ptr, byval l2 as integer ) as long
+end extern
+
+extern "rtlib"
+
+function tkort_UStrCompare alias "fb_UStrCompare" _
+	( byval s1 as any ptr, byval s1_size as integer, _
+	  byval s2 as any ptr, byval s2_size as integer ) as long
+
+	dim as FB_UCHAR ptr p1 = any, p2 = any
+	dim as integer l1 = any, l2 = any
+	FB_USTRSETUP( s1, s1_size, p1, l1 )
+	FB_USTRSETUP( s2, s2_size, p2, l2 )
+
+	dim as long res = tkrt_UCompare( p1, l1, p2, l2 )
+
+	'' BOTH operands are released, and the lock is taken once rather than per
+	'' operand: comparing two concatenations must not leak either of them.
+	dim as integer any_temp = 0
+	if( s1_size = FB_USTRSIZEVARLEN ) then any_temp = -1
+	if( s2_size = FB_USTRSIZEVARLEN ) then any_temp = -1
+
+	if( any_temp ) then
+		STRLOCK()
+		if( s1_size = FB_USTRSIZEVARLEN ) then tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, s1 ) )
+		if( s2_size = FB_USTRSIZEVARLEN ) then tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, s2 ) )
+		STRUNLOCK()
+	end if
+
+	return res
+
+end function
+
+end extern

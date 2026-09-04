@@ -1,0 +1,191 @@
+'' list.bas -- the intrusive list behind the temporary-descriptor pools.
+''
+'' Six internal helpers. They are declared WITHOUT FBCALL in fb.h, so they are
+'' plain cdecl and belong in EXTERN "C", not EXTERN "rtlib" -- measured over the
+'' shipped win32 archive, where they appear as _fb_hListInit with no @N while
+'' every FBCALL entry point carries one (RFC-0002 section 2.3).
+''
+'' WHO CALLS THEM, from nm over fbc's own archive:
+''
+''   str_core.o  ustr_core.o     Init / AllocElem / FreeElem  -- the fixed pools
+''   io_printer.o io_widthdev.o  DynInit / DynElemAdd / DynElemRemove
+''
+'' That matters for how this module gets validated. Those callers are still
+'' fbc's C, so merging this module makes the ENTIRE string suite -- every
+'' temporary, in 4.9M assertions -- run through tiko-rt's list. There is no
+'' cheaper way to exercise a data structure this thoroughly.
+''
+'' WHAT IS AND IS NOT ESTABLISHED (PROVENANCE.md -- list.c was not opened):
+''
+''   From the header, so certain:
+''     - FB_LIST is { cnt, head, tail, fhead }, and fb.h documents cnt as
+''       "Number of used elements", head/tail as first/last used, fhead as the
+''       first free element.
+''     - fb_hListInit takes (list, table, elem_size, size): a caller-provided
+''       array of `size` elements of `elem_size` bytes each.
+''     - The Dyn variants take no table, so their elements are caller-owned.
+''
+''   Deduced from the structure, and therefore VALIDATED BY THE GATE rather than
+''   asserted here:
+''     - the used list is appended at the TAIL (that is what `tail` is for) and
+''       the free list is a stack through `fhead` (there is no `ftail`);
+''     - AllocElem returns NULL on exhaustion. A fixed pool that silently
+''       recycled a LIVE temporary would be a corruption bug, so returning
+''       nothing is the only defensible reading -- but it is a reading.
+''
+''   NOT established: what str_core.c does with a NULL. If fbc's 256-descriptor
+''   pool is never exhausted by fbc's own suite, the gate cannot cover that path,
+''   and this stays an untested branch. Recorded in status/spike.md rather than
+''   quietly assumed to be fine.
+
+#include once "inc/descriptors.bi"
+
+extern "c"   '' NON-FBCALL: fb.h declares all six without FBCALL, so cdecl.
+
+'' Build a free list of `size` elements over a caller-provided table. Each
+'' element is `elem_size` bytes and BEGINS with its FB_LISTELEM, which is what
+'' makes the list intrusive and the cast below legal.
+sub tkort_hListInit alias "fb_hListInit" _
+	( _
+		byval lst as FB_LIST ptr, byval table_ as any ptr, _
+		byval elem_size as uinteger, byval size as uinteger _
+	)
+
+	if( lst = 0 ) then exit sub
+
+	lst->cnt   = 0
+	lst->head  = 0
+	lst->tail  = 0
+	lst->fhead = 0
+
+	if( (table_ = 0) orelse (elem_size = 0) orelse (size = 0) ) then exit sub
+
+	'' Threaded backwards so that fhead ends up pointing at element 0 and the
+	'' pool is handed out in ascending order. Nothing depends on that; it just
+	'' makes a dump of the pool readable when something goes wrong.
+	dim as ubyte ptr p = cptr( ubyte ptr, table_ )
+	dim as FB_LISTELEM ptr e = any
+	dim as FB_LISTELEM ptr nxt = 0
+	dim as integer i = any
+
+	for i = cast( integer, size ) - 1 to 0 step -1
+		e = cptr( FB_LISTELEM ptr, p + (cast( integer, elem_size ) * i) )
+		e->prev = 0
+		e->next = nxt
+		nxt = e
+	next
+
+	lst->fhead = nxt
+
+end sub
+
+'' Take an element from the free list and append it to the used list.
+'' Returns NULL when the pool is exhausted -- see the header comment.
+function tkort_hListAllocElem alias "fb_hListAllocElem" _
+	( byval lst as FB_LIST ptr ) as FB_LISTELEM ptr
+
+	if( lst = 0 ) then return 0
+
+	dim as FB_LISTELEM ptr e = lst->fhead
+	if( e = 0 ) then return 0
+
+	lst->fhead = e->next
+
+	'' Append at the tail, in order.
+	e->next = 0
+	e->prev = lst->tail
+	if( lst->tail <> 0 ) then
+		lst->tail->next = e
+	else
+		lst->head = e
+	end if
+	lst->tail = e
+
+	lst->cnt += 1
+	return e
+
+end function
+
+'' Unlink from the used list and push back onto the free list.
+sub tkort_hListFreeElem alias "fb_hListFreeElem" _
+	( byval lst as FB_LIST ptr, byval e as FB_LISTELEM ptr )
+
+	if( (lst = 0) orelse (e = 0) ) then exit sub
+
+	if( e->prev <> 0 ) then
+		e->prev->next = e->next
+	else
+		lst->head = e->next
+	end if
+
+	if( e->next <> 0 ) then
+		e->next->prev = e->prev
+	else
+		lst->tail = e->prev
+	end if
+
+	e->prev = 0
+	e->next = lst->fhead
+	lst->fhead = e
+
+	lst->cnt -= 1
+
+end sub
+
+'' The dynamic variants: no table, elements are allocated and owned by the
+'' caller, so there is no free list to maintain.
+sub tkort_hListDynInit alias "fb_hListDynInit" ( byval lst as FB_LIST ptr )
+
+	if( lst = 0 ) then exit sub
+
+	lst->cnt   = 0
+	lst->head  = 0
+	lst->tail  = 0
+	lst->fhead = 0
+
+end sub
+
+sub tkort_hListDynElemAdd alias "fb_hListDynElemAdd" _
+	( byval lst as FB_LIST ptr, byval e as FB_LISTELEM ptr )
+
+	if( (lst = 0) orelse (e = 0) ) then exit sub
+
+	e->next = 0
+	e->prev = lst->tail
+	if( lst->tail <> 0 ) then
+		lst->tail->next = e
+	else
+		lst->head = e
+	end if
+	lst->tail = e
+
+	lst->cnt += 1
+
+end sub
+
+sub tkort_hListDynElemRemove alias "fb_hListDynElemRemove" _
+	( byval lst as FB_LIST ptr, byval e as FB_LISTELEM ptr )
+
+	if( (lst = 0) orelse (e = 0) ) then exit sub
+
+	if( e->prev <> 0 ) then
+		e->prev->next = e->next
+	else
+		lst->head = e->next
+	end if
+
+	if( e->next <> 0 ) then
+		e->next->prev = e->prev
+	else
+		lst->tail = e->prev
+	end if
+
+	'' The element is the caller's; do NOT put it on a free list.
+	e->prev = 0
+	e->next = 0
+
+	lst->cnt -= 1
+
+end sub
+
+end extern
