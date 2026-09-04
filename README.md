@@ -112,8 +112,9 @@ docs/language/  measured specifications: precedence, behavioural probes
 
 The runtime and the graphics library were developed as separate trees (`C:\dev\tiko-rt` and
 this repository's `lib/gfx`) and were consolidated here so that one clone is the whole
-project. `C:\dev\tiko-rt` is now a directory junction pointing at `lib/rt`, so paths that
-predate the move still resolve; it is not a second copy.
+project. **`C:\dev\tiko-rt` no longer exists** -- not as a repository and not as a link.
+`lib/rt` is the only copy, and the runtime's 117 commits are reachable from this
+repository's history.
 
 ## Licence
 
