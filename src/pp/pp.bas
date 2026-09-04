@@ -350,7 +350,7 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
                     ''
                     ''     #define t $"hello"  len( __FB_QUOTE__( t ) ) = 8, $"hello"
                     ''     #define t "hello"   len( __FB_QUOTE__( t ) ) = 7, "hello"
-                    ''     #define t !"a	b"   len( __FB_QUOTE__( t ) ) = 7, !"a	b"
+                    ''     #define t !"a\tb"   len( __FB_QUOTE__( t ) ) = 7, !"a\tb"
                     ''     #define S(a) #a     len( S( $"q" ) ) = 4, $"q"
                     ''
                     '' An earlier attempt at this added '$' UNCONDITIONALLY, which put

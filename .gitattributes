@@ -7,3 +7,25 @@
 # Scoped to lib/rt on purpose -- the compiler's own tree has a mix already, and
 # renormalising it is not part of this move.
 lib/rt/** text eol=lf
+
+# THE COMPILER'S OWN SHELL SCRIPTS, for the same reason and with the same fix.
+# They were a mix: build/build.sh and build/test.sh happened to be LF, while
+# build/lint.sh and build/mirsweep.sh were CRLF, so under WSL lint.sh died on
+#
+#     build/lint.sh: line 29: exit: 2: numeric argument required
+#
+# -- the '\r' is part of the argument. Worse, a FRESH checkout on Windows gets
+# CRLF for ALL of them plus build/sources.txt, so 'git worktree add' produced a
+# tree whose Linux build could not start at all: 'syntax error near unexpected
+# token $'in\r'' from build.sh, then error 81 from fbc on "src/driver/main.bas\r".
+#
+# sources.txt is here because it is READ BY a script -- grep hands each line to
+# fbc as an argument -- not because it is one.
+#
+# tests/vendor/ is fbc's own suite and has shell scripts of its own; it is not
+# named here and is not renormalised, deliberately.
+build/*.sh text eol=lf
+build/sources.txt text eol=lf
+lib/gfx/tools/*.sh text eol=lf
+tools/*.sh text eol=lf
+tools/gen/*.sh text eol=lf

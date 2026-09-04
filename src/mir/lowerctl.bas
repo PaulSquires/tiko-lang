@@ -82,7 +82,7 @@ end function
 '' was given, which is ABSOLUTE for some sources and relative for others -- so a skip-site
 '' line in a golden held the checkout's own directory, and the same test passed in one tree
 '' and failed in another. Measured the hard way: tests/diagnostics/const-target-and-decl
-'' differed between C:\dev	iko-iso and C:\dev	iko-iso2 by nothing but that.
+'' differed between C:\dev\tiko-iso and C:\dev\tiko-iso2 by nothing but that.
 private function SkipSiteName_( byref fileName as string ) as string
     dim as long at = instr( fileName, "src" & chr( 92 ) )
     if at = 0 then at = instr( fileName, "src/" )

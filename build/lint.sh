@@ -165,10 +165,19 @@ done
 
 # ------------------------------------- 4/5. trailing whitespace and hard tabs
 for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
-    if grep -nq '[[:space:]]$' "$f"; then
+    # THE CR OF A CRLF FILE IS NOT TRAILING WHITESPACE. Git Bash grep treats
+    # a CR-LF pair as the line terminator and never saw it; the WSL grep does
+    # not, so every CRLF source in the tree read as a violation the moment
+    # this script became runnable on Linux -- 160 of them. Strip the CR and
+    # test what the line actually ends in.
+    if tr -d '\r' < "$f" | grep -q '[[:space:]]$'; then
         note "WHITESPACE $f has trailing whitespace"
     fi
-    if grep -Pnq '\t' "$f" 2>/dev/null; then
+    # NOT 'grep -P'. Git Bash refuses it outright -- 'grep: -P supports only
+    # unibyte and UTF-8 locales' -- and the 2>/dev/null that hid the message
+    # hid the fact that this check had never once run on Windows. It found
+    # two real violations the first time it did. A literal tab is portable.
+    if grep -q "$(printf '\t')" "$f"; then
         note "TABS $f contains hard tabs"
     fi
 done
