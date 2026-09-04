@@ -19,12 +19,42 @@ end function
 function ClassifyAggregate _
     ( byval sizeBytes as long, byref target as TargetDescription ) as AbiClassKind
 
-    '' WIN64 ONLY so far. SysV classifies by walking an aggregate's fields into
-    '' per-eightbyte classes, which is a different algorithm and not a parameter of
-    '' this one -- so it is not silently approximated here. Phase 7 is Windows.
-    if target.abi <> ABI_WIN64 then return ABIC_INDIRECT
-    if DirectIntType( sizeBytes ) <> MT_VOID then return ABIC_DIRECT_INT
-    return ABIC_INDIRECT
+    if target.abi = ABI_WIN64 then
+        if DirectIntType( sizeBytes ) <> MT_VOID then return ABIC_DIRECT_INT
+        return ABIC_INDIRECT
+    end if
+    '' SysV: over sixteen bytes is MEMORY, and the rest is decided by the EIGHTBYTE
+    '' CLASSES, which a size cannot answer -- see SysvClass below. This entry point is
+    '' kept for the size-only question the win64 path asks.
+    if sizeBytes > 16 then return ABIC_INDIRECT
+    return ABIC_DIRECT_INT
+end function
+
+'' The MIR type one SysV eightbyte travels in.
+''
+'' 'nbytes' is how much of the aggregate this eightbyte actually covers -- the last one
+'' is often partial, and a twelve-byte aggregate's second eightbyte is four bytes, which
+'' clang passes as i32 rather than i64.
+''
+'' AN SSE EIGHTBYTE BECOMES 'double' (or 'float' when partial) WHERE CLANG WRITES
+'' '<2 x float>'. MIR has no vector type and adding one for this would be a large change
+'' to every layer. The two are register-compatible -- both occupy the low bits of one
+'' XMM and nothing else is passed there -- but that is an ARGUMENT, not a measurement,
+'' and it is the reason tests/abi has to run a real cross-ABI call before this is
+'' trusted. It is written down here so the assumption is findable rather than implicit.
+function SysvEightbyteType _
+    ( byval cls as ulong, byval nbytes as long ) as MirType
+
+    if cls = TKO_EB_SSE then
+        if nbytes <= 4 then return MT_F32
+        return MT_F64
+    end if
+    select case nbytes
+    case 1 : return MT_I8
+    case 2 : return MT_I16
+    case 3, 4 : return MT_I32
+    end select
+    return MT_I64
 end function
 
 '' ---------------------------------------------------------------- helpers
@@ -112,6 +142,22 @@ private sub StoreAggInto _
     r.outp.Push( s )
 end sub
 
+'' The address of a byte offset inside something. SysV's second eightbyte lives eight
+'' bytes into the copy, and M_FIELD_ADDR is exactly a base plus a constant byte offset.
+private function FieldAddr _
+    ( byref r as Rewriter, byref base_ as MirValue, byval off as long ) as MirValue
+
+    dim as MirInst g
+    g.op = cast( ushort, M_FIELD_ADDR )
+    g.ty = cast( ubyte, MT_PTR )
+    g.a = base_
+    g.imm = off
+    g.result = r.f->nextTemp
+    r.f->nextTemp += 1
+    r.outp.Push( g )
+    return TempVal( g.result, MT_PTR )
+end function
+
 '' Load from an address at a given type, returning the new temp.
 private function LoadAs _
     ( byref r as Rewriter, byref addr as MirValue, byval ty as MirType, _
@@ -128,65 +174,122 @@ private function LoadAs _
     return TempVal( l.result, ty )
 end function
 
-'' ---------------------------------------------------------------- call sites
-''
 '' EVERY AGGREGATE ARGUMENT IS MATERIALISED INTO A FRESH SLOT FIRST, whatever its
-'' class. That is one rule instead of two, it needs no def-use analysis to find where
-'' the value came from, and it is what clang emits: a per-call copy that the callee
-'' owns. The direct case then loads an integer back out of that slot, which looks
-'' wasteful and is not -- LLVM's SROA removes the slot entirely and leaves the load.
+'' class. One rule instead of several, it needs no def-use analysis to find where the
+'' value came from, and it is what clang emits: a per-call copy the callee owns. The
+'' direct cases then load out of that slot, which looks wasteful and is not -- LLVM's
+'' SROA removes the slot and leaves the loads.
+''
+'' THE ARGUMENT RUN IS REBUILT RATHER THAN PATCHED, because on SysV one aggregate can
+'' become TWO arguments: a twelve-byte struct is passed as 'i64, i32'. An in-place
+'' patch cannot express that, and the signature rewrite expands the same way from the
+'' same original signature, so the two agree by construction.
 private sub RewriteCallArgs _
     ( byref r as Rewriter, byref ins as MirInst, byval callee as MirFunction ptr, _
       byref names as Tko.Interner )
 
     if callee = 0 then return
-    dim as long first = ins.first
+    dim as boolean anyAgg = false
     for i as long = 0 to ins.count - 1
         if i >= callee->paramTys.Count then exit for
-        if cast( MirType, callee->paramTys[i] ) <> MT_AGG then continue for
-        dim as long sz = cast( long, callee->paramAggs[i] )
-        if sz <= 0 then
-            '' An aggregate parameter whose size was never recorded. Declining leaves
-            '' the emitter to ICE on it, which says so; guessing a width would emit a
-            '' call whose two halves disagree about how many bytes moved.
-            r.st->declined += 1
-            continue for
-        end if
+        if cast( MirType, callee->paramTys[i] ) = MT_AGG then anyAgg = true
+    next
+    if anyAgg = false then return
 
-        dim as long k = (first + i) * 2
-        if (k + 1) >= r.m->argPool.Count then
-            r.st->declined += 1
-            continue for
-        end if
+    dim as long oldFirst = ins.first
+    dim as long oldCount = ins.count
+    '' The new run goes on the END of the pool. The old one is left where it is --
+    '' nothing reclaims argument-pool space, and a run that is still referenced by an
+    '' instruction this pass has not reached yet must not be disturbed.
+    dim as long newFirst = r.m->argPool.Count \ 2
+    dim as long newCount = 0
+
+    for i as long = 0 to oldCount - 1
+        dim as long k = (oldFirst + i) * 2
+        if (k + 1) >= r.m->argPool.Count then exit for
         dim as MirValue av
         av.kind = cast( ubyte, r.m->argPool[k] )
-        av.ty = cast( ubyte, MT_AGG )
         av.id = r.m->argPool[k + 1]
 
-        '' A slot or a global is ALREADY an address and needs no copy of its own for
-        '' the indirect case -- but it does for correctness: the callee owns its copy
-        '' and may write to it. So the copy is made either way.
+        dim as MirType pt = MT_I64
+        if i < callee->paramTys.Count then pt = cast( MirType, callee->paramTys[i] )
+        if pt <> MT_AGG then
+            r.m->argPool.Push( cast( ulong, av.kind ) )
+            r.m->argPool.Push( av.id )
+            newCount += 1
+            continue for
+        end if
+
+        dim as long sz = cast( long, callee->paramAggs[i] )
+        if sz <= 0 then
+            '' An aggregate whose size was never recorded. Passed through untouched so
+            '' the emitter ICEs on it and says so; a guessed width would move a
+            '' different number of bytes at each end of the call.
+            r.st->declined += 1
+            r.m->argPool.Push( cast( ulong, av.kind ) )
+            r.m->argPool.Push( av.id )
+            newCount += 1
+            continue for
+        end if
+
+        '' The per-call copy.
+        av.ty = cast( ubyte, MT_AGG )
         dim as long slot = NewAggSlot( r, sz, names )
-        if av.kind = cast( ubyte, MV_LOCAL ) orelse av.kind = cast( ubyte, MV_GLOBAL ) then
+        if (av.kind = cast( ubyte, MV_LOCAL )) orelse (av.kind = cast( ubyte, MV_GLOBAL )) then
             dim as MirValue loaded = LoadAs( r, av, MT_AGG, sz )
             StoreAggInto( r, slot, loaded, sz )
         else
             StoreAggInto( r, slot, av, sz )
         end if
 
-        if ClassifyAggregate( sz, *r.tgt ) = ABIC_DIRECT_INT then
-            dim as MirType it = DirectIntType( sz )
-            dim as MirValue iv = LoadAs( r, LocalVal( slot ), it )
-            r.m->argPool[k] = cast( ulong, iv.kind )
-            r.m->argPool[k + 1] = iv.id
-            r.st->coercedParams += 1
-        else
-            '' The ADDRESS of the copy, which is what the callee receives.
-            r.m->argPool[k] = cast( ulong, MV_LOCAL )
-            r.m->argPool[k + 1] = cast( ulong, slot )
+        if r.tgt->abi = ABI_WIN64 then
+            if ClassifyAggregate( sz, *r.tgt ) = ABIC_DIRECT_INT then
+                dim as MirValue iv = LoadAs( r, LocalVal( slot ), DirectIntType( sz ) )
+                r.m->argPool.Push( cast( ulong, iv.kind ) )
+                r.m->argPool.Push( iv.id )
+                newCount += 1
+                r.st->coercedParams += 1
+            else
+                r.m->argPool.Push( cast( ulong, MV_LOCAL ) )
+                r.m->argPool.Push( cast( ulong, slot ) )
+                newCount += 1
+                r.st->indirectParams += 1
+            end if
+            continue for
+        end if
+
+        '' ---- SysV
+        dim as ulong packed = callee->paramClasses[i]
+        if (sz > 16) orelse (packed = TKO_EB_MEMORY) orelse (packed = 0) then
+            '' MEMORY: the slot's address, and the signature marks it byval so it
+            '' travels on the stack rather than as a pointer in a register.
+            r.m->argPool.Push( cast( ulong, MV_LOCAL ) )
+            r.m->argPool.Push( cast( ulong, slot ) )
+            newCount += 1
             r.st->indirectParams += 1
+            continue for
+        end if
+        '' One register per eightbyte, loaded from the copy at its own offset.
+        dim as long n0 = sz
+        if n0 > 8 then n0 = 8
+        dim as MirValue v0 = LoadAs( r, LocalVal( slot ), _
+                                     SysvEightbyteType( TKO_EB0( packed ), n0 ) )
+        r.m->argPool.Push( cast( ulong, v0.kind ) )
+        r.m->argPool.Push( v0.id )
+        newCount += 1
+        r.st->coercedParams += 1
+        if sz > 8 then
+            dim as MirValue a1 = FieldAddr( r, LocalVal( slot ), 8 )
+            dim as MirValue v1 = LoadAs( r, a1, _
+                                         SysvEightbyteType( TKO_EB1( packed ), sz - 8 ) )
+            r.m->argPool.Push( cast( ulong, v1.kind ) )
+            r.m->argPool.Push( v1.id )
+            newCount += 1
         end if
     next
+
+    ins.first = newFirst
+    ins.count = newCount
 end sub
 
 '' A call that RETURNS an aggregate. Direct: the call yields an integer and the value
@@ -264,58 +367,78 @@ private sub RewriteCallReturn _
     r.st->sretReturns += 1
 end sub
 
-'' ---------------------------------------------------------------- signatures
+'' THE PROLOGUE STORE, against the signature the pass has just produced.
 ''
-'' A DEFINITION's aggregate parameter arrives either as an integer or as a pointer to
-'' the caller's copy. Either way the body keeps its own slot and its own type: the
-'' prologue's 'store @slot, $i' is rewritten to put the right bytes there, and nothing
-'' else in the function has to change. That is deliberate -- a pass that rewrote every
-'' USE of a parameter would have to understand the whole body.
+'' The body still names parameters by their ORIGINAL index, and the pass may have moved
+'' them: an sret pointer shifts everything right by one, and on SysV one aggregate
+'' becomes two. paramOrig maps new to old, so the original index is found by searching
+'' rather than assumed to be unchanged -- assuming it silently made '$1' the second
+'' eightbyte of '$0'.
 private sub RewriteParamStore _
     ( byref r as Rewriter, byref ins as MirInst, byref changed as boolean )
 
     changed = false
     if ins.b.kind <> cast( ubyte, MV_PARAM ) then return
-    dim as long pi = cast( long, ins.b.id )
-    if (pi < 0) orelse (pi >= r.f->paramTys.Count) then return
-    dim as MirType pt = cast( MirType, r.f->paramTys[pi] )
-    dim as long sz = cast( long, r.f->paramAggs[pi] )
-    if sz <= 0 then return
+    dim as long oldIdx = cast( long, ins.b.id )
+    if oldIdx < 0 then return
 
     '' AND THE DESTINATION MUST REALLY BE AN AGGREGATE SLOT. A parameter that was
     '' ALWAYS a pointer -- a byval non-trivial UDT, a byval var-length string -- has a
-    '' pointer-sized slot holding an address, and this rewrite would copy an object into
-    '' it. The signature says 'ptr' in both cases and cannot tell them apart; the SLOT
-    '' can, and it is the thing being written to.
+    '' pointer-sized slot holding an address, and this rewrite would copy an object
+    '' into it. The signature says 'ptr' in both cases and cannot tell them apart; the
+    '' SLOT can, and it is the thing being written to.
     if ins.a.kind <> cast( ubyte, MV_LOCAL ) then return
     dim as long dslot = cast( long, ins.a.id )
     if (dslot < 0) orelse (dslot >= r.f->locals.Count) then return
     if cast( MirType, r.f->locals[dslot].ty ) <> MT_AGG then return
 
-    if pt = MT_PTR then
-        '' INDIRECT: the parameter is the address of the caller's copy, so the body's
-        '' slot is filled by copying through it.
+    '' Every new parameter that came from this original one, in order.
+    dim as FB.Array( of long ) parts
+    for j as long = 0 to r.f->paramOrig.Count - 1
+        if r.f->paramOrig[j] = oldIdx then parts.Push( j )
+    next
+    if parts.Count = 0 then return
+
+    dim as long sz = cast( long, r.f->paramAggs[parts[0]] )
+    if sz <= 0 then return
+    dim as MirType t0 = cast( MirType, r.f->paramTys[parts[0]] )
+
+    '' INDIRECT: the parameter is the address of the caller's copy -- a win64 pointer
+    '' or a SysV byval -- so the body's slot is filled by copying through it.
+    if (parts.Count = 1) andalso (t0 = MT_PTR) then
         dim as MirValue pv
         pv.kind = cast( ubyte, MV_PARAM )
         pv.ty = cast( ubyte, MT_PTR )
-        pv.id = ins.b.id
+        pv.id = cast( ulong, parts[0] )
         dim as MirValue loaded = LoadAs( r, pv, MT_AGG, sz )
-        dim as MirInst s = ins
-        s.b = loaded
-        s.imm = sz
-        r.outp.Push( s )
+        dim as MirInst st2
+        st2.op = cast( ushort, M_STORE )
+        st2.ty = cast( ubyte, MT_VOID )
+        st2.a = ins.a
+        st2.b = loaded
+        st2.imm = sz
+        r.outp.Push( st2 )
         changed = true
         return
     end if
 
-    if pt <> MT_VOID then
-        '' DIRECT: the parameter is an integer of the aggregate's own width, and
-        '' storing it into the slot writes exactly those bytes.
-        dim as MirInst s = ins
-        s.b.ty = cast( ubyte, pt )
-        r.outp.Push( s )
-        changed = true
-    end if
+    '' DIRECT: one register per eightbyte, each written at its own offset in the slot.
+    for k as long = 0 to parts.Count - 1
+        dim as long j = parts[k]
+        dim as MirValue pv
+        pv.kind = cast( ubyte, MV_PARAM )
+        pv.ty = r.f->paramTys[j]
+        pv.id = cast( ulong, j )
+        dim as MirValue dst = ins.a
+        if r.f->paramPart[j] > 0 then dst = FieldAddr( r, ins.a, r.f->paramPart[j] )
+        dim as MirInst st3
+        st3.op = cast( ushort, M_STORE )
+        st3.ty = cast( ubyte, MT_VOID )
+        st3.a = dst
+        st3.b = pv
+        r.outp.Push( st3 )
+    next
+    changed = true
 end sub
 
 '' A DEFINITION that returns an aggregate. Direct: the value is put in a slot and the
@@ -357,19 +480,91 @@ end sub
 private sub RewriteSignature _
     ( byval f as MirFunction ptr, byref target as TargetDescription, byref st as AbiStats )
 
+    '' THE PARAMETER LIST IS REBUILT, because on SysV one aggregate can become TWO
+    '' parameters and an in-place rewrite cannot say that. RewriteCallArgs expands the
+    '' same way from the same original signature, and the two agree by construction --
+    '' which is why the pass does every call site BEFORE any signature.
+    dim as FB.Array( of ubyte ) ptys
+    dim as FB.Array( of ulong ) paggs
+    dim as FB.Array( of ulong ) pcls
+    dim as FB.Array( of ubyte ) pattr
+    dim as FB.Array( of long )  porig
+    dim as FB.Array( of long )  ppart
+
     for i as long = 0 to f->paramTys.Count - 1
-        if cast( MirType, f->paramTys[i] ) <> MT_AGG then continue for
+        dim as MirType pt = cast( MirType, f->paramTys[i] )
         dim as long sz = cast( long, f->paramAggs[i] )
-        if sz <= 0 then
-            st.declined += 1
+        dim as ulong packed = 0
+        if i < f->paramClasses.Count then packed = f->paramClasses[i]
+        dim as ubyte at_ = TKO_PA_NONE
+        if i < f->paramAttrs.Count then at_ = f->paramAttrs[i]
+
+        if (pt <> MT_AGG) orelse (sz <= 0) then
+            if (pt = MT_AGG) andalso (sz <= 0) then st.declined += 1
+            ptys.Push( cast( ubyte, pt ) )
+            paggs.Push( cast( ulong, sz ) )
+            pcls.Push( packed )
+            pattr.Push( at_ )
+            porig.Push( i ) : ppart.Push( 0 )
             continue for
         end if
-        if ClassifyAggregate( sz, target ) = ABIC_DIRECT_INT then
-            f->paramTys[i] = cast( ubyte, DirectIntType( sz ) )
-        else
-            f->paramTys[i] = cast( ubyte, MT_PTR )
+
+        if target.abi = ABI_WIN64 then
+            '' THE SIZE IS KEPT EITHER WAY. The prologue rewrite reads it to know how
+            '' many bytes the parameter stands for; zeroing it silently disabled that
+            '' rewrite, and the store kept its '[8 x i8]' operand while the parameter
+            '' had already become an i64.
+            if ClassifyAggregate( sz, target ) = ABIC_DIRECT_INT then
+                ptys.Push( cast( ubyte, DirectIntType( sz ) ) )
+            else
+                ptys.Push( cast( ubyte, MT_PTR ) )
+            end if
+            paggs.Push( cast( ulong, sz ) )
+            pcls.Push( packed )
+            pattr.Push( TKO_PA_NONE )
+            porig.Push( i ) : ppart.Push( 0 )
+            continue for
+        end if
+
+        '' ---- SysV
+        if (sz > 16) orelse (packed = TKO_EB_MEMORY) orelse (packed = 0) then
+            ptys.Push( cast( ubyte, MT_PTR ) )
+            paggs.Push( cast( ulong, sz ) )
+            pcls.Push( packed )
+            '' BYVAL: on the stack, by value. Without it this is a pointer in a
+            '' register, which is a different ABI.
+            pattr.Push( TKO_PA_BYVAL )
+            porig.Push( i ) : ppart.Push( 0 )
+            continue for
+        end if
+        dim as long n0 = sz
+        if n0 > 8 then n0 = 8
+        ptys.Push( cast( ubyte, SysvEightbyteType( TKO_EB0( packed ), n0 ) ) )
+        paggs.Push( cast( ulong, sz ) )
+        pcls.Push( 0 )
+        pattr.Push( TKO_PA_NONE )
+        porig.Push( i ) : ppart.Push( 0 )
+        if sz > 8 then
+            ptys.Push( cast( ubyte, SysvEightbyteType( TKO_EB1( packed ), sz - 8 ) ) )
+            paggs.Push( cast( ulong, sz ) )
+            pcls.Push( 0 )
+            pattr.Push( TKO_PA_NONE )
+            porig.Push( i ) : ppart.Push( 8 )
         end if
     next
+
+    f->paramTys.Clear( ) : f->paramAggs.Clear( )
+    f->paramClasses.Clear( ) : f->paramAttrs.Clear( )
+    f->paramOrig.Clear( ) : f->paramPart.Clear( )
+    for i as long = 0 to ptys.Count - 1
+        f->paramTys.Push( ptys[i] )
+        f->paramAggs.Push( paggs[i] )
+        f->paramClasses.Push( pcls[i] )
+        f->paramAttrs.Push( pattr[i] )
+        f->paramOrig.Push( porig[i] )
+        f->paramPart.Push( ppart[i] )
+    next
+    f->paramCount = f->paramTys.Count
 
     if cast( MirType, f->retTy ) <> MT_AGG then return
     if f->retSize <= 0 then
@@ -384,19 +579,42 @@ private sub RewriteSignature _
     '' other parameter right. It is inserted rather than appended, because that is where
     '' the ABI puts it and because the call sites do the same.
     f->retTy = cast( ubyte, MT_VOID )
-    dim as FB.Array( of ubyte ) ptys
-    dim as FB.Array( of ulong ) paggs
-    ptys.Push( cast( ubyte, MT_PTR ) )
-    paggs.Push( 0 )
+    dim as FB.Array( of ubyte ) rtys
+    dim as FB.Array( of ulong ) raggs
+    dim as FB.Array( of ulong ) rcls
+    dim as FB.Array( of ubyte ) rattr
+    rtys.Push( cast( ubyte, MT_PTR ) )
+    raggs.Push( cast( ulong, f->retSize ) )
+    rcls.Push( 0 )
+    '' SRET, and it is not decoration: the callee must also return this pointer, which
+    '' LLVM does only when told. An fbc-compiled caller reads it -- fbc's own C is
+    '' 'struct T* vr = F( &tmp )'.
+    rattr.Push( TKO_PA_SRET )
+    dim as FB.Array( of long ) rorig
+    dim as FB.Array( of long ) rpart
+    '' -1: the pass invented this parameter, so no original index maps onto it.
+    rorig.Push( -1 ) : rpart.Push( 0 )
+    '' ALL FOUR ARRAYS MOVE TOGETHER. They are parallel and indexed by parameter, so
+    '' one that is shorter than the others is a silent misread of every parameter after
+    '' the gap -- which is what inserting into two of them used to do.
     for i as long = 0 to f->paramTys.Count - 1
-        ptys.Push( f->paramTys[i] )
-        paggs.Push( f->paramAggs[i] )
+        rtys.Push( f->paramTys[i] )
+        raggs.Push( f->paramAggs[i] )
+        rcls.Push( iif( i < f->paramClasses.Count, f->paramClasses[i], 0ul ) )
+        rattr.Push( iif( i < f->paramAttrs.Count, f->paramAttrs[i], TKO_PA_NONE ) )
+        rorig.Push( iif( i < f->paramOrig.Count, f->paramOrig[i], cast( long, i ) ) )
+        rpart.Push( iif( i < f->paramPart.Count, f->paramPart[i], 0l ) )
     next
-    f->paramTys.Clear( )
-    f->paramAggs.Clear( )
-    for i as long = 0 to ptys.Count - 1
-        f->paramTys.Push( ptys[i] )
-        f->paramAggs.Push( paggs[i] )
+    f->paramTys.Clear( ) : f->paramAggs.Clear( )
+    f->paramClasses.Clear( ) : f->paramAttrs.Clear( )
+    f->paramOrig.Clear( ) : f->paramPart.Clear( )
+    for i as long = 0 to rtys.Count - 1
+        f->paramTys.Push( rtys[i] )
+        f->paramAggs.Push( raggs[i] )
+        f->paramClasses.Push( rcls[i] )
+        f->paramAttrs.Push( rattr[i] )
+        f->paramOrig.Push( rorig[i] )
+        f->paramPart.Push( rpart[i] )
     next
     f->paramCount = f->paramTys.Count
     f->hasSretParam = true

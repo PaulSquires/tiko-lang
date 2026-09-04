@@ -18,7 +18,8 @@ func i32 _ZN1A1FEv(ptr $0) {
     %3 = alloca ptr this
     store @this, $0
     %4 = const i64 1
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func void _ZN1AC1Ev(ptr $0) {
   local ptr this
@@ -53,7 +54,8 @@ func i32 _ZN1B1FEv(ptr $0) {
     %3 = alloca ptr this
     store @this, $0
     %4 = const i64 2
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func void _ZN1BC1Ev(ptr $0) {
   local ptr this
@@ -145,4 +147,4 @@ func void _ZN1BD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 10 functions, 10 blocks, 76 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance

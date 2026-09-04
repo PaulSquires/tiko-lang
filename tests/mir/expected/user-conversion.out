@@ -92,7 +92,8 @@ func i32 _Z5WANTS8FBSTRING(ptr $0) {
     store @s, $0
     %4 = load @s
     %5 = call.rtl i64 fb_StrLen(%4, -1)
-    ret %5
+    %6 = trunc %5
+    ret %6
 }
 declare i64 fb_StrLen(ptr $0, i64 $1)
 func void S1() {
@@ -159,4 +160,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 10 functions, 10 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 93 insts, 0 statements not lowered, 0 scope imbalance

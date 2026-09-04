@@ -30,7 +30,8 @@ func i32 _Z4PICKii(i32 $0, i32 $1) {
     %7 = sext %5
     %8 = sext %6
     %9 = add %7, %8
-    ret %9
+    %10 = trunc %9
+    ret %10
 }
 func f64 _Z4PICKdd(f64 $0, f64 $1) {
   local f64 $tmp0
@@ -192,4 +193,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 115 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 116 insts, 0 statements not lowered, 0 scope imbalance

@@ -44,6 +44,8 @@ declare sub EmitVarGlobal _
 '' emission comes before the signature emission that defines it.
 declare function SretAttr _
     ( byref e as EmitCtx, byval f as MirFunction ptr ) as string
+declare function ByvalAttr _
+    ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as long ) as string
 
 private sub Ice( byref e as EmitCtx, byref why as string )
     if len( e.ice ) = 0 then e.ice = why
@@ -311,6 +313,7 @@ private function CallArgs _
             '' ...and so does the CALL, because LLVM matches the two and lowers from
             '' what the call says.
             if i = 0 then attr = SretAttr( e, callee )
+            attr += ByvalAttr( e, callee, i )
             if i < callee->paramTys.Count then
                 pt = cast( MirType, callee->paramTys[i] )
             elseif v.kind = cast( ubyte, MV_TEMP ) then
@@ -677,6 +680,27 @@ function SretAttr( byref e as EmitCtx, byval f as MirFunction ptr ) as string
            str( AlignOf( e, MT_AGG, f->retSize ) )
 end function
 
+'' BYVAL, for a SysV MEMORY-class aggregate.
+''
+'' Not a spelling of "pass a pointer": it says the argument travels ON THE STACK by
+'' value, which is what the SysV MEMORY class means. A plain pointer parameter would
+'' put an address in a register instead -- a different ABI, and one that links happily
+'' against a C callee and then reads the wrong bytes.
+''
+'' Like sret it must appear identically on the signature and at the call site, which is
+'' why both go through here.
+function ByvalAttr _
+    ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as long ) as string
+
+    if f = 0 then return ""
+    if i >= f->paramAttrs.Count then return ""
+    if f->paramAttrs[i] <> TKO_PA_BYVAL then return ""
+    dim as long sz = 0
+    if i < f->paramAggs.Count then sz = cast( long, f->paramAggs[i] )
+    if sz <= 0 then return ""
+    return " byval(" & AggType( sz ) & ") align " & str( AlignOf( e, MT_AGG, sz ) )
+end function
+
 private function ParamList _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval named as boolean ) as string
 
@@ -685,6 +709,7 @@ private function ParamList _
         if i > 0 then r += ", "
         r += LlvmType( cast( MirType, f->paramTys[i] ) )
         if i = 0 then r += SretAttr( e, f )
+        r += ByvalAttr( e, f, i )
         if named then r += " " & ParamName( cast( ulong, i ) )
     next
     if f->isVariadic then

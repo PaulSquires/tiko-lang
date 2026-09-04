@@ -14,7 +14,8 @@ func i32 SIDEFX() {
     %6 = add %3, %5
     store @@calls, %6
     %7 = const i64 1
-    ret %7
+    %8 = trunc %7
+    ret %8
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -266,4 +267,4 @@ declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 32 blocks, 176 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 32 blocks, 177 insts, 0 statements not lowered, 0 scope imbalance

@@ -14,7 +14,8 @@ func i32 _ZN5INNER5TWICEEv(ptr $0) {
     %7 = const i64 2
     %8 = sext %6
     %9 = mul %8, %7
-    ret %9
+    %10 = trunc %9
+    ret %10
 }
 func void _ZN5INNER4BUMPEi(ptr $0, i32 $1) {
   local ptr this
@@ -128,4 +129,4 @@ declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 8 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 8 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance

@@ -23,7 +23,8 @@ func i32 _ZN4IMPL4POKEEv(ptr $0) {
     %7 = const i64 1
     %8 = sext %6
     %9 = add %8, %7
-    ret %9
+    %10 = trunc %9
+    ret %10
 }
 func ptr _ZptR1H(ptr $0) {
   local ptr $tmp0
@@ -75,7 +76,8 @@ func i32 GRAB<6>(ptr $0, ptr $1) {
     %8 = trunc %7
     store %6, %8
     %9 = const i64 5
-    ret %9
+    %10 = trunc %9
+    ret %10
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -200,4 +202,4 @@ func void _ZN5IFACEC1Ev(ptr $0) {
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
-lowered: 7 functions, 16 blocks, 121 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 16 blocks, 123 insts, 0 statements not lowered, 0 scope imbalance

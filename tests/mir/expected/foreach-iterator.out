@@ -15,7 +15,8 @@ func i8 _ZN4ITER7ISVALIDEv(ptr $0) {
     %9 = load %8
     %10 = icmp.slt %6, %9
     %11 = neg %10
-    ret %11
+    %12 = trunc %11
+    ret %12
 }
 func i32 _ZN4ITER5VALUEEv(ptr $0) {
   local i32 $tmp0
@@ -32,7 +33,8 @@ func i32 _ZN4ITER5VALUEEv(ptr $0) {
     %7 = const i64 10
     %8 = sext %6
     %9 = mul %8, %7
-    ret %9
+    %10 = trunc %9
+    ret %10
 }
 func void _ZN4ITER8MOVENEXTEv(ptr $0) {
   local ptr this
@@ -152,4 +154,4 @@ func void P() {
     br if.join12
 }
 verify: ok
-lowered: 5 functions, 19 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 19 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance

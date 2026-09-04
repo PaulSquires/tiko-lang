@@ -76,7 +76,31 @@ sub Terminate _
     b->term = cast( ubyte, k )
     b->target = t1
     b->target2 = t2
-    b->cond = cond
+
+    '' A RETURNED VALUE IS COERCED TO THE FUNCTION'S DECLARED RETURN TYPE.
+    ''
+    '' FreeBASIC's promotions make an expression wider than what it is returned as --
+    '' 'function f( ) as long' whose body is 'a * 100 + b' computes in INTEGER, because
+    '' long + long is integer. fbc truncates at the return: '(int32)((int64)A * 100 +
+    '' (int64)B)'. Without this the emitted IR says 'ret i64' from a function declared
+    '' i32, which LLVM rejects outright -- "value doesn't match function result type".
+    ''
+    '' Scalars only. An aggregate is copied rather than converted, a pointer return is
+    '' already the shape the ABI wants, and a void return has no value to coerce.
+    dim as MirValue rv = cond
+    if k = MTERM_RET then
+        if rv.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirType want = cast( MirType, c.f->retTy )
+            dim as MirType have = cast( MirType, rv.ty )
+            dim as boolean bothScalar = _
+                (want <> MT_VOID) andalso (want <> MT_AGG) andalso _
+                (have <> MT_VOID) andalso (have <> MT_AGG)
+            if bothScalar andalso (want <> have) then
+                rv = Coerce( c, rv, want, false )
+            end if
+        end if
+    end if
+    b->cond = rv
 end sub
 
 function ConstInt _

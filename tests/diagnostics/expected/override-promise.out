@@ -76,7 +76,8 @@ func i32 _ZN5RBASE6WIDTH_Ev(ptr $0) {
     %3 = alloca ptr this
     store @this, $0
     %4 = const i64 0
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func i32 _ZN5RBASE7SIGNED_Ev(ptr $0) {
   local i32 $tmp0
@@ -88,7 +89,8 @@ func i32 _ZN5RBASE7SIGNED_Ev(ptr $0) {
     %3 = alloca ptr this
     store @this, $0
     %4 = const i64 0
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func void _ZN5RBASE5PLAINEv(ptr $0) {
   local ptr this
@@ -117,7 +119,8 @@ func i32 _ZN14ONLYSIGNEDNESS7SIGNED_Ev(ptr $0) {
     %3 = alloca ptr this
     store @this, $0
     %4 = const i64 0
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func void _ZN9OVERLOADS5PLAINEu7INTEGER(ptr $0, i64 $1) {
   local ptr this
@@ -130,7 +133,7 @@ func void _ZN9OVERLOADS5PLAINEu7INTEGER(ptr $0, i64 $1) {
     ret
 }
 verify: ok
-lowered: 10 functions, 10 blocks, 36 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 39 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/override-promise.bas(22,13): error TKO0621: 'f' is marked 'override' but overrides no virtual method
      |
   22 |     declare sub f( ) override

@@ -26,7 +26,8 @@ func i32 F3() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i64 123
-    ret %3
+    %4 = trunc %3
+    ret %4
 }
 func ptr F4(ptr $0) {
   local ptr $tmp0
@@ -64,4 +65,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 33 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance

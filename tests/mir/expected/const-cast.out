@@ -21,7 +21,8 @@ func i32 FAILED(i32 $0) {
     %6 = icmp.eq %4, %5
     %7 = neg %6
     %8 = neg %7
-    ret %8
+    %9 = trunc %8
+    ret %9
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -63,4 +64,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 42 insts, 0 statements not lowered, 0 scope imbalance

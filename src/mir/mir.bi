@@ -202,6 +202,22 @@ namespace Tko.Mir
     #define TKO_EB0( p )           ((p) and 3)
     #define TKO_EB1( p )           (((p) shr 2) and 3)
 
+    '' PARAMETER ATTRIBUTES. Not decoration -- each one CHANGES how the argument
+    '' travels, and LLVM will not do it without being told.
+    ''
+    '' SRET marks the hidden result pointer. On win64 the callee must also return that
+    '' pointer in RAX; a plain pointer parameter gets it into RCX correctly and leaves
+    '' RAX undefined, which an fbc-compiled caller reads -- fbc's own C is
+    '' 'struct T* vr = F( &tmp )'. So without this, tiko-lang's objects link against
+    '' fbc's and then disagree about the return value.
+    ''
+    '' BYVAL marks a MEMORY-class aggregate on SysV, which is passed ON THE STACK by
+    '' value. A plain pointer would pass an address in a register instead: a different
+    '' ABI, not a different spelling.
+    const TKO_PA_NONE  as ubyte = 0
+    const TKO_PA_SRET  as ubyte = 1
+    const TKO_PA_BYVAL as ubyte = 2
+
     '' THE CALLING CONVENTIONS. One on x86-64 -- they differ only in who cleans the
     '' stack, and on x86-64 nobody does -- but three in the source language and three on
     '' win32, so the distinction is recorded rather than collapsed at the point where it
@@ -307,7 +323,7 @@ namespace Tko.Mir
         '' without the type that belongs to it.
         declare sub AddParam _
             ( byval ty as MirType, byval aggSize as ulong = 0, _
-              byval aggClass as ulong = 0 )
+              byval aggClass as ulong = 0, byval attr as ubyte = 0 )
         as boolean  isModuleCtor
         as boolean  isModuleDtor
         as boolean  isDefinition    '' false for a declaration with no body
@@ -332,6 +348,21 @@ namespace Tko.Mir
         '' ...and its SysV eightbyte classes, packed as above. Zero for a parameter
         '' that is not an aggregate, and unread on win64.
         as FB.Array( of ulong ) paramClasses
+        '' ...and its attribute, TKO_PA_*. The attribute's TYPE comes from paramAggs,
+        '' which is why that keeps holding the aggregate's size after the parameter
+        '' itself has become a pointer.
+        as FB.Array( of ubyte ) paramAttrs
+        '' WHERE EACH PARAMETER CAME FROM, filled by the ABI pass.
+        ''
+        '' SysV turns one aggregate into TWO parameters, which shifts the index of every
+        '' parameter after it -- and the body still refers to parameters by their
+        '' ORIGINAL index. Without a map, '$1' silently becomes the second eightbyte of
+        '' '$0'. paramOrig[new] is the original index (-1 for a parameter the pass
+        '' invented, such as the sret pointer) and paramPart[new] is the byte offset
+        '' within that original aggregate, so a prologue store knows which half it is
+        '' writing and where it goes.
+        as FB.Array( of long ) paramOrig
+        as FB.Array( of long ) paramPart
         '' A VARIADIC TAIL. LLVM spells it '(i32, ...)' and a call to a variadic differs
         '' from a call to a fixed function at the ABI level -- on win64 a float argument in
         '' the tail goes in BOTH an XMM and a GPR -- so this is an ABI fact, not a spelling.

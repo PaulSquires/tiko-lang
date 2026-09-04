@@ -67,7 +67,8 @@ func i32 _ZN1P11HALF__get__Ev(ptr $0) {
     %7 = const i64 2
     %8 = sext %6
     %9 = sdiv %8, %7
-    ret %9
+    %10 = trunc %9
+    ret %10
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -165,4 +166,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance

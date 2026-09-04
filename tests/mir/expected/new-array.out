@@ -11,7 +11,8 @@ func i32 SIDEFX() {
     %6 = add %3, %5
     store @@calls, %6
     %7 = const i64 3
-    ret %7
+    %8 = trunc %7
+    ret %8
 }
 func void _ZN1CC1Ev(ptr $0) {
   local ptr this
@@ -244,4 +245,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void free(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 21 blocks, 176 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 21 blocks, 177 insts, 0 statements not lowered, 0 scope imbalance

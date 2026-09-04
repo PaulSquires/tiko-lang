@@ -10,7 +10,8 @@ func i32 _Z2PRi(i32 $0) {
     %3 = alloca ptr p
     store @p, $0
     %4 = const i64 1
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func f64 _Z2PRd(f64 $0) {
   local f64 $tmp0
@@ -22,7 +23,8 @@ func f64 _Z2PRd(f64 $0) {
     %3 = alloca ptr p
     store @p, $0
     %4 = const i64 2
-    ret %4
+    %5 = sitofp %4
+    ret %5
 }
 func i32 _Z2TXRK8FBSTRING(ptr $0) {
   local i32 $tmp0
@@ -34,7 +36,8 @@ func i32 _Z2TXRK8FBSTRING(ptr $0) {
     %3 = alloca ptr p
     store @p, $0
     %4 = const i64 10
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func i32 _Z2TXRK9FBUSTRING(ptr $0) {
   local i32 $tmp0
@@ -46,7 +49,8 @@ func i32 _Z2TXRK9FBUSTRING(ptr $0) {
     %3 = alloca ptr p
     store @p, $0
     %4 = const i64 11
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func i32 _Z2TXRKw(ptr $0) {
   local i32 $tmp0
@@ -58,7 +62,8 @@ func i32 _Z2TXRKw(ptr $0) {
     %3 = alloca ptr p
     store @p, $0
     %4 = const i64 12
-    ret %4
+    %5 = trunc %4
+    ret %5
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -91,4 +96,4 @@ declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

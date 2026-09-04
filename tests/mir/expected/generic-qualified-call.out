@@ -5,7 +5,8 @@ func i32 _ZN2NS4FIVEEv() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i64 5
-    ret %3
+    %4 = trunc %3
+    ret %4
 }
 func ptr _ZN2NS6BOX<6>5VALUEEv(ptr $0) {
   local ptr $tmp0
@@ -196,4 +197,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 109 insts, 0 statements not lowered, 0 scope imbalance
