@@ -23,6 +23,7 @@ func void APPLY<25>(i32 $0, ptr $1) {
   local i32 n
   local ptr f
   local i32 i
+  local i32 $tmp3
   entry0:
     %1 = alloca ptr n
     store @n, $0
@@ -32,22 +33,25 @@ func void APPLY<25>(i32 $0, ptr $1) {
     %4 = const i64 1
     %5 = trunc %4
     store @i, %5
+    %6 = alloca ptr $tmp3
+    %7 = load @n
+    store @$tmp3, %7
     br for.head1
   for.head1:
-    %6 = load @i
-    %7 = load @n
-    %8 = icmp.sle %6, %7
-    condbr %8, for.body2, for.exit4
+    %8 = load @i
+    %9 = load @$tmp3
+    %10 = icmp.sle %8, %9
+    condbr %10, for.body2, for.exit4
   for.body2:
-    %9 = load @f
-    %10 = load @i
-    call void __TKO_LAMBDA_5B527DDB_0(%9, %10)
+    %11 = load @f
+    %12 = load @i
+    call void __TKO_LAMBDA_5B527DDB_0(%11, %12)
     br for.step3
   for.step3:
-    %11 = load @i
-    %12 = const i32 1
-    %13 = add %11, %12
-    store @i, %13
+    %13 = load @i
+    %14 = const i32 1
+    %15 = add %13, %14
+    store @i, %15
     br for.head1
   for.exit4:
     ret
@@ -83,4 +87,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 7 blocks, 52 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 7 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

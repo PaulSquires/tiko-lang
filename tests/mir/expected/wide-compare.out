@@ -9,6 +9,7 @@ func void P() {
   local ptr $tmp4
   local ptr pz
   local i64 i
+  local i64 $tmp7
   entry0:
     %1 = alloca ptr a
     %2 = alloca ptr b
@@ -19,6 +20,7 @@ func void P() {
     %20 = alloca ptr $tmp4
     %37 = alloca ptr pz
     %48 = alloca ptr i
+    %50 = alloca ptr $tmp7
     condbr %6, if.then2, if.else3
   if.join1:
     %9 = call.rtl i32 fb_WstrCompare(@a, @@$wstr0)
@@ -88,6 +90,10 @@ func void P() {
     store @n, %47
     %49 = const i64 0
     store @i, %49
+    %51 = call.rtl i64 fb_WstrLen(@a)
+    %52 = const i64 1
+    %53 = sub %51, %52
+    store @$tmp7, %53
     br for.head13
   if.then11:
     %24 = const i64 4
@@ -97,39 +103,37 @@ func void P() {
   if.else12:
     br if.join10
   for.head13:
-    %50 = load @i
-    %51 = call.rtl i64 fb_WstrLen(@a)
-    %52 = const i64 1
-    %53 = sub %51, %52
-    %54 = icmp.sle %50, %53
-    condbr %54, for.body14, for.exit16
+    %54 = load @i
+    %55 = load @$tmp7
+    %56 = icmp.sle %54, %55
+    condbr %56, for.body14, for.exit16
   for.body14:
-    %55 = load @i
-    %56 = const i64 2
-    %57 = mul %55, %56
-    %58 = ptr.add @a, %57
-    %59 = load %58
-    %60 = load @i
-    %61 = const i64 2
-    %62 = mul %60, %61
-    %63 = ptr.add @b, %62
-    %64 = load %63
-    %65 = icmp.ne %59, %64
-    condbr %65, if.then18, if.else19
+    %57 = load @i
+    %58 = const i64 2
+    %59 = mul %57, %58
+    %60 = ptr.add @a, %59
+    %61 = load %60
+    %62 = load @i
+    %63 = const i64 2
+    %64 = mul %62, %63
+    %65 = ptr.add @b, %64
+    %66 = load %65
+    %67 = icmp.ne %61, %66
+    condbr %67, if.then18, if.else19
   for.step15:
-    %68 = load @i
-    %69 = const i64 1
-    %70 = add %68, %69
-    store @i, %70
+    %70 = load @i
+    %71 = const i64 1
+    %72 = add %70, %71
+    store @i, %72
     br for.head13
   for.exit16:
     ret
   if.join17:
     br for.step15
   if.then18:
-    %66 = const i64 5
-    %67 = trunc %66
-    store @n, %67
+    %68 = const i64 5
+    %69 = trunc %68
+    store @n, %69
     br if.join17
   if.else19:
     br if.join17
@@ -360,4 +364,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 37 blocks, 228 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 37 blocks, 231 insts, 0 statements not lowered, 0 scope imbalance

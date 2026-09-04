@@ -88,6 +88,7 @@ func void _ZN1TpLER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
   local ptr this
   local ptr array
   local i64 i
+  local i64 $tmp3
   entry0:
     %1 = alloca ptr this
     store @this, $0
@@ -98,38 +99,41 @@ func void _ZN1TpLER7FBARRAYIu7INTEGERE(ptr $0, ptr $1) {
     %5 = const i64 1
     %6 = call.rtl i64 fb_ArrayLBound(%4, %5)
     store @i, %6
-    br for.head1
-  for.head1:
-    %7 = load @i
+    %7 = alloca ptr $tmp3
     %8 = load @array
     %9 = const i64 1
     %10 = call.rtl i64 fb_ArrayUBound(%8, %9)
-    %11 = icmp.sle %7, %10
-    condbr %11, for.body2, for.exit4
+    store @$tmp3, %10
+    br for.head1
+  for.head1:
+    %11 = load @i
+    %12 = load @$tmp3
+    %13 = icmp.sle %11, %12
+    condbr %13, for.body2, for.exit4
   for.body2:
-    %12 = load @this
-    %13 = field.addr %12, 0
-    %14 = load @i
-    %15 = const i64 8
-    %16 = mul %14, %15
-    %17 = load %13
-    %18 = ptr.add %17, %16
-    %19 = load %18
-    %20 = load @array
-    %21 = load @i
-    %22 = const i64 8
-    %23 = mul %21, %22
-    %24 = load %20
-    %25 = ptr.add %24, %23
-    %26 = load %25
-    %27 = add %19, %26
-    store %18, %27
+    %14 = load @this
+    %15 = field.addr %14, 0
+    %16 = load @i
+    %17 = const i64 8
+    %18 = mul %16, %17
+    %19 = load %15
+    %20 = ptr.add %19, %18
+    %21 = load %20
+    %22 = load @array
+    %23 = load @i
+    %24 = const i64 8
+    %25 = mul %23, %24
+    %26 = load %22
+    %27 = ptr.add %26, %25
+    %28 = load %27
+    %29 = add %21, %28
+    store %20, %29
     br for.step3
   for.step3:
-    %28 = load @i
-    %29 = const i64 1
-    %30 = add %28, %29
-    store @i, %30
+    %30 = load @i
+    %31 = const i64 1
+    %32 = add %30, %31
+    store @i, %32
     br for.head1
   for.exit4:
     ret
@@ -246,4 +250,4 @@ func void _ZN1TD1Ev(ptr $0) {
 }
 declare i32 fb_ArrayErase(ptr $0)
 verify: ok
-lowered: 5 functions, 13 blocks, 189 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 13 blocks, 192 insts, 0 statements not lowered, 0 scope imbalance

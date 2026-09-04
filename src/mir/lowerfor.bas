@@ -66,6 +66,54 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         Emit( c, st0 )
     end if
 
+    '' THE LIMIT IS EVALUATED ONCE TOO, and BEFORE the step -- measured against fbc,
+    '' which for 'for i = f( ) to g( ) step h( )' emits
+    ''
+    ''     vr$0 = F( ); I$1 = vr$0;
+    ''     vr$1 = G( ); TMP$5$1 = vr$1;
+    ''     vr$2 = H( ); TMP$6$1 = vr$2;
+    ''
+    '' and prints 'fgh' once, not once per iteration. It was lowered INSIDE the head
+    '' block, so it ran on every test: a limit with a side effect repeated it, and a
+    '' limit naming a variable the body changes never settled. fbcunit writes
+    ''
+    ''     for fbcu_tests_count as integer = 1 to fbcu_tests_count
+    ''
+    '' -- the counter SHADOWS the shared name, so re-reading the limit read the
+    '' counter and the loop could not terminate.
+    ''
+    '' A CONSTANT limit is left where it was. It cannot have a side effect and cannot
+    '' be reassigned, so hoisting it would only add a slot and a load.
+    dim as long limSlot = -1
+    dim as MirValue limAddr
+    if toE <> Tko.NODE_NONE then
+        dim as Tko.Check.ConstVal lv = _
+            Tko.Check.ConstOf( *c.ast, toE, *c.srcMgr, *c.names, _
+                               c.types->target.pointerBits )
+        if lv.known = false then
+            limSlot = NewTempLocal( c, ity, 8 )
+            if limSlot < 0 then
+                SkipHere( c )
+                return
+            end if
+            limAddr.kind = cast( ubyte, MV_LOCAL )
+            limAddr.ty = cast( ubyte, MT_PTR )
+            limAddr.id = limSlot
+            dim as MirValue lv0 = _
+                CoerceTy( c, LowerExpr( c, toE ), ity, c.info->TypeOf_( toE ) )
+            if lv0.kind = cast( ubyte, MV_NONE ) then
+                SkipHere( c )
+                return
+            end if
+            dim as MirInst lst
+            lst.op = cast( ushort, M_STORE )
+            lst.ty = cast( ubyte, MT_VOID )
+            lst.a = limAddr
+            lst.b = lv0
+            Emit( c, lst )
+        end if
+    end if
+
     '' THE STEP IS EVALUATED ONCE, BEFORE THE LOOP, into a temporary -- which is what
     '' fbc does ('TMP$2$1 = S$0'). It used to be re-lowered inside the step block, so
     '' a step expression with a side effect ran once per iteration.
@@ -145,7 +193,13 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     '' guard: counter <= limit for a rising step, >= for a falling one.
     c.curBlock = headB
     dim as MirValue cur = LowerExprLoad( c, addr, ity )
-    dim as MirValue lim = CoerceTy( c, LowerExpr( c, toE ), ity, c.info->TypeOf_( toE ) )
+    '' From the TEMPORARY when there is one, exactly as the step is.
+    dim as MirValue lim
+    if limSlot >= 0 then
+        lim = LowerExprLoad( c, limAddr, ity )
+    else
+        lim = CoerceTy( c, LowerExpr( c, toE ), ity, c.info->TypeOf_( toE ) )
+    end if
 
     if signSlot >= 0 then
         '' Two tests, chosen at run time. The limit is loaded ONCE, above, and both

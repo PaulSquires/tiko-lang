@@ -3,6 +3,7 @@ func void GROWSINABLOCK(i32 $0) {
   local i32 want
   local agg outer_ size 72
   local i32 i
+  local i32 $tmp3
   entry0:
     %1 = alloca ptr want
     store @want, $0
@@ -38,9 +39,10 @@ func void GROWSINABLOCK(i32 $0) {
     %22 = sext %20
     %23 = icmp.sgt %22, %21
     %31 = alloca ptr i
+    %34 = alloca ptr $tmp3
     condbr %23, if.then2, if.else3
   if.join1:
-    %49 = call.rtl i32 fb_ArrayErase(@outer_)
+    %51 = call.rtl i32 fb_ArrayErase(@outer_)
     ret
   if.then2:
     %24 = const i64 0
@@ -53,30 +55,32 @@ func void GROWSINABLOCK(i32 $0) {
     %32 = const i64 0
     %33 = trunc %32
     store @i, %33
-    br for.head4
-  if.else3:
-    br if.join1
-  for.head4:
-    %34 = load @i
     %35 = load @want
     %36 = const i64 1
     %37 = sext %35
     %38 = sub %37, %36
     %39 = trunc %38
-    %40 = icmp.sle %34, %39
-    condbr %40, for.body5, for.exit7
+    store @$tmp3, %39
+    br for.head4
+  if.else3:
+    br if.join1
+  for.head4:
+    %40 = load @i
+    %41 = load @$tmp3
+    %42 = icmp.sle %40, %41
+    condbr %42, for.body5, for.exit7
   for.body5:
-    %41 = const i64 0
-    %42 = const i64 0
-    %43 = load @i
-    %44 = sext %43
-    %45 = call.rtl i32 fb_ArrayRedimPresvEx(@outer_, 8, -1, 0, 1, %42, %44)
+    %43 = const i64 0
+    %44 = const i64 0
+    %45 = load @i
+    %46 = sext %45
+    %47 = call.rtl i32 fb_ArrayRedimPresvEx(@outer_, 8, -1, 0, 1, %44, %46)
     br for.step6
   for.step6:
-    %46 = load @i
-    %47 = const i32 1
-    %48 = add %46, %47
-    store @i, %48
+    %48 = load @i
+    %49 = const i32 1
+    %50 = add %48, %49
+    store @i, %50
     br for.head4
   for.exit7:
     br if.join1
@@ -386,4 +390,4 @@ func void _ZN1TD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 4 functions, 11 blocks, 342 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 11 blocks, 345 insts, 0 statements not lowered, 0 scope imbalance

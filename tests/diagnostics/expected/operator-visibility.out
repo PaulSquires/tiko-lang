@@ -179,16 +179,17 @@ func i32 main(i32 $0, ptr $1) {
   local agg cv2 size 8
   local agg i size 8
   local agg $tmp13 size 8
-  local i8 $tmp14
+  local agg $tmp14 size 8
+  local i8 $tmp15
   local ptr hp
-  local ptr $tmp16
+  local ptr $tmp17
   local ptr hv
-  local ptr $tmp18
   local ptr $tmp19
-  local i64 $tmp20
+  local ptr $tmp20
+  local i64 $tmp21
   local agg hc size 8
   local ptr cp
-  local ptr $tmp23
+  local ptr $tmp24
   local agg hf size 8
   local agg hf2 size 8
   local agg pf size 8
@@ -227,20 +228,21 @@ func i32 main(i32 $0, ptr $1) {
     %25 = alloca ptr i
     %27 = alloca ptr $tmp13
     %29 = alloca ptr $tmp14
-    %41 = alloca ptr hp
-    %43 = alloca ptr $tmp16
-    %48 = alloca ptr hv
-    %53 = alloca ptr $tmp18
-    %54 = alloca ptr $tmp19
-    %55 = alloca ptr $tmp20
-    %69 = alloca ptr hc
-    %70 = alloca ptr cp
-    %72 = alloca ptr $tmp23
-    %78 = alloca ptr hf
-    %81 = alloca ptr hf2
-    %84 = alloca ptr pf
-    %87 = alloca ptr hf3
-    %90 = alloca ptr pf3
+    %31 = alloca ptr $tmp15
+    %43 = alloca ptr hp
+    %45 = alloca ptr $tmp17
+    %50 = alloca ptr hv
+    %55 = alloca ptr $tmp19
+    %56 = alloca ptr $tmp20
+    %57 = alloca ptr $tmp21
+    %71 = alloca ptr hc
+    %72 = alloca ptr cp
+    %74 = alloca ptr $tmp24
+    %80 = alloca ptr hf
+    %83 = alloca ptr hf2
+    %86 = alloca ptr pf
+    %89 = alloca ptr hf3
+    %92 = alloca ptr pf3
     condbr %19, del.body1, del.join2
   del.body1:
     call.rtl void free(%17)
@@ -256,110 +258,112 @@ func i32 main(i32 $0, ptr $1) {
     store @i, %26
     %28 = load @ct
     store @$tmp13, %28
-    %30 = load @$tmp13
-    %31 = const agg 0
-    %32 = icmp.sge %30, %31
-    store @$tmp14, %32
+    %30 = load @ct
+    store @$tmp14, %30
+    %32 = load @$tmp14
+    %33 = const agg 0
+    %34 = icmp.sge %32, %33
+    store @$tmp15, %34
     br for.head3
   for.head3:
-    %33 = load @i
-    %34 = load @ct
-    %35 = load @$tmp14
-    condbr %35, for.up7, for.down8
+    %35 = load @i
+    %36 = load @$tmp13
+    %37 = load @$tmp15
+    condbr %37, for.up7, for.down8
   for.body4:
     br for.step5
   for.step5:
-    %38 = load @i
-    %39 = load @$tmp13
-    %40 = add %38, %39
-    store @i, %40
+    %40 = load @i
+    %41 = load @$tmp14
+    %42 = add %40, %41
+    store @i, %42
     br for.head3
   for.exit6:
-    %42 = call.rtl ptr calloc(8, 1)
-    store @$tmp16, %42
-    %44 = load @$tmp16
-    %45 = const ptr 0
-    %46 = icmp.ne %44, %45
-    condbr %46, new.ctor9, new.join10
+    %44 = call.rtl ptr calloc(8, 1)
+    store @$tmp17, %44
+    %46 = load @$tmp17
+    %47 = const ptr 0
+    %48 = icmp.ne %46, %47
+    condbr %48, new.ctor9, new.join10
   for.up7:
-    %36 = icmp.sle %33, %34
-    condbr %36, for.body4, for.exit6
+    %38 = icmp.sle %35, %36
+    condbr %38, for.body4, for.exit6
   for.down8:
-    %37 = icmp.sge %33, %34
-    condbr %37, for.body4, for.exit6
+    %39 = icmp.sge %35, %36
+    condbr %39, for.body4, for.exit6
   new.ctor9:
-    call void _ZN10HIDDENCTORC1Ev(%44)
+    call void _ZN10HIDDENCTORC1Ev(%46)
     br new.join10
   new.join10:
-    %47 = load @$tmp16
-    store @hp, %47
-    %49 = const i64 5
-    %50 = const i64 8
-    %51 = mul %49, %50
-    %52 = call.rtl ptr calloc(%51, 1)
-    store @$tmp18, %52
-    %56 = load @$tmp18
-    %57 = const ptr 0
-    %58 = icmp.ne %56, %57
-    condbr %58, newarr.init11, newarr.done14
+    %49 = load @$tmp17
+    store @hp, %49
+    %51 = const i64 5
+    %52 = const i64 8
+    %53 = mul %51, %52
+    %54 = call.rtl ptr calloc(%53, 1)
+    store @$tmp19, %54
+    %58 = load @$tmp19
+    %59 = const ptr 0
+    %60 = icmp.ne %58, %59
+    condbr %60, newarr.init11, newarr.done14
   newarr.init11:
-    store @$tmp19, %56
-    store @$tmp20, %49
+    store @$tmp20, %58
+    store @$tmp21, %51
     br newarr.test12
   newarr.test12:
-    %59 = load @$tmp20
-    %60 = const i64 0
-    %61 = icmp.ne %59, %60
-    condbr %61, newarr.body13, newarr.done14
+    %61 = load @$tmp21
+    %62 = const i64 0
+    %63 = icmp.ne %61, %62
+    condbr %63, newarr.body13, newarr.done14
   newarr.body13:
-    %62 = load @$tmp19
-    call void _ZN10HIDDENCTORC1Ev(%62)
-    %63 = const i64 8
-    %64 = ptr.add %62, %63
-    store @$tmp19, %64
-    %65 = load @$tmp20
-    %66 = const i64 1
-    %67 = sub %65, %66
-    store @$tmp20, %67
+    %64 = load @$tmp20
+    call void _ZN10HIDDENCTORC1Ev(%64)
+    %65 = const i64 8
+    %66 = ptr.add %64, %65
+    store @$tmp20, %66
+    %67 = load @$tmp21
+    %68 = const i64 1
+    %69 = sub %67, %68
+    store @$tmp21, %69
     br newarr.test12
   newarr.done14:
-    %68 = load @$tmp18
-    store @hv, %68
+    %70 = load @$tmp19
+    store @hv, %70
     call void _ZN10HIDDENCOPYC1Ev(@hc)
-    %71 = call.rtl ptr calloc(8, 1)
-    store @$tmp23, %71
-    %73 = load @hc
-    %74 = load @$tmp23
-    %75 = const ptr 0
-    %76 = icmp.ne %74, %75
-    condbr %76, new.ctor15, new.join16
+    %73 = call.rtl ptr calloc(8, 1)
+    store @$tmp24, %73
+    %75 = load @hc
+    %76 = load @$tmp24
+    %77 = const ptr 0
+    %78 = icmp.ne %76, %77
+    condbr %78, new.ctor15, new.join16
   new.ctor15:
-    call void _ZN10HIDDENCOPYC1ERS_(%74, %73)
+    call void _ZN10HIDDENCOPYC1ERS_(%76, %75)
     br new.join16
   new.join16:
-    %77 = load @$tmp23
-    store @cp, %77
-    %79 = const i64 3
-    %80 = field.addr @hf, 0
-    store %80, %79
-    %82 = const i64 3
-    %83 = field.addr @hf2, 0
-    store %83, %82
-    %85 = const i64 3
-    %86 = field.addr @pf, 0
-    store %86, %85
-    %88 = load @hf3
-    %89 = sext %88
-    store @n, %89
-    %91 = load @pf3
-    %92 = sext %91
-    store @n, %92
-    %93 = const i64 123
-    call.rtl void fb_PrintInt(0, %93, 1)
-    %94 = const i32 0
-    call.rtl void fb_End(%94)
-    %95 = load @$tmp0
-    ret %95
+    %79 = load @$tmp24
+    store @cp, %79
+    %81 = const i64 3
+    %82 = field.addr @hf, 0
+    store %82, %81
+    %84 = const i64 3
+    %85 = field.addr @hf2, 0
+    store %85, %84
+    %87 = const i64 3
+    %88 = field.addr @pf, 0
+    store %88, %87
+    %90 = load @hf3
+    %91 = sext %90
+    store @n, %91
+    %93 = load @pf3
+    %94 = sext %93
+    store @n, %94
+    %95 = const i64 123
+    call.rtl void fb_PrintInt(0, %95, 1)
+    %96 = const i32 0
+    call.rtl void fb_End(%96)
+    %97 = load @$tmp0
+    ret %97
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr calloc(i64 $0, i64 $1)
@@ -367,7 +371,7 @@ declare void free(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 16 functions, 32 blocks, 209 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 32 blocks, 212 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/operator-visibility.bas(102,24): error TKO0625: 'myconst' is not accessible here
      |
  102 |     dim as integer n = MYCONST

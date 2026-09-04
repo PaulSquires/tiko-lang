@@ -1,38 +1,17 @@
 global var i64 idx
 global var i64 cnt = 3
 func void G() {
+  local i64 $tmp0
   entry0:
     %1 = const i64 1
     store @@idx, %1
-    br for.head1
-  for.head1:
-    %2 = load @@idx
+    %2 = alloca ptr $tmp0
     %3 = load @@cnt
-    %4 = icmp.sle %2, %3
-    condbr %4, for.body2, for.exit4
-  for.body2:
-    br for.step3
-  for.step3:
-    %5 = load @@idx
-    %6 = const i64 1
-    %7 = add %5, %6
-    store @@idx, %7
-    br for.head1
-  for.exit4:
-    ret
-}
-func i8 F() {
-  local i8 $tmp0
-  entry0:
-    %1 = alloca ptr $tmp0
-    %2 = const i8 0
-    store @$tmp0, %2
-    %3 = const i64 1
-    store @@idx, %3
+    store @$tmp0, %3
     br for.head1
   for.head1:
     %4 = load @@idx
-    %5 = load @@cnt
+    %5 = load @$tmp0
     %6 = icmp.sle %4, %5
     condbr %6, for.body2, for.exit4
   for.body2:
@@ -44,8 +23,37 @@ func i8 F() {
     store @@idx, %9
     br for.head1
   for.exit4:
-    %10 = const i8 0
-    ret %10
+    ret
+}
+func i8 F() {
+  local i8 $tmp0
+  local i64 $tmp1
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = const i64 1
+    store @@idx, %3
+    %4 = alloca ptr $tmp1
+    %5 = load @@cnt
+    store @$tmp1, %5
+    br for.head1
+  for.head1:
+    %6 = load @@idx
+    %7 = load @$tmp1
+    %8 = icmp.sle %6, %7
+    condbr %8, for.body2, for.exit4
+  for.body2:
+    br for.step3
+  for.step3:
+    %9 = load @@idx
+    %10 = const i64 1
+    %11 = add %9, %10
+    store @@idx, %11
+    br for.head1
+  for.exit4:
+    %12 = const i8 0
+    ret %12
 }
 func void H() {
   local i16 k
@@ -89,4 +97,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 16 blocks, 43 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 16 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
