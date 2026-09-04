@@ -115,16 +115,31 @@ function LinkExe _
         cmd += " " & Q( t.libPaths[i] & "/libfb.a" )
     next
 
-    '' THE C RUNTIME COMES FROM THE SAME TOOLCHAIN AS libfb, and that is not clang's
-    '' default sysroot. fbc's crt2.o is built SJLJ (winlibs64-sjlj-9.3.0); the MinGW
-    '' clang finds on its own is SEH, and mixing the two leaves
-    '' '__mingw_init_ehandler' and '__security_init_cookie' undefined. '-B' points
-    '' clang's file search at the directory holding crt2.o, crtbegin.o and crtend.o.
-    for i as long = 0 to t.libPaths.Count - 1
-        cmd += " -B" & Q( t.libPaths[i] )
-    next
+    '' THE SYSTEM LIBRARIES THE RUNTIME REACHES INTO, and they are not the same set on
+    '' the two platforms. Neither list is guessable; each was found by linking and
+    '' reading what was still undefined.
     if target.objFormat = OBJ_COFF then
+        '' THE C RUNTIME MUST COME FROM THE SAME TOOLCHAIN AS libfb, and that is not
+        '' clang's default sysroot. fbc's crt2.o is built SJLJ (winlibs64-sjlj-9.3.0);
+        '' the MinGW clang finds on its own is SEH, and mixing them leaves
+        '' '__mingw_init_ehandler' and '__security_init_cookie' undefined. '-B' points
+        '' clang's file search at the directory holding crt2.o, crtbegin.o and crtend.o.
+        ''
+        '' LINUX MUST NOT GET THIS. There the system's own crt1.o and libc are the right
+        '' ones, and pointing '-B' at a directory of FreeBASIC archives only hides them.
+        for i as long = 0 to t.libPaths.Count - 1
+            cmd += " -B" & Q( t.libPaths[i] )
+        next
+        '' The printer and GDI imports: tiko-rt's file layer references fb_DevLptOpen,
+        '' which pulls io_printer, which imports from winspool and gdi32. The C runtime
+        '' gets away without them because nothing reaches that entry point unless a
+        '' program opens a file.
         cmd += " -lwinspool -lgdi32"
+    else
+        '' ELF. '-ltinfo' is the counterpart of the pair above: the runtime's console
+        '' layer calls tgoto and tputs, which live in terminfo. '-lm' and '-lpthread'
+        '' are the ordinary companions of a runtime that does arithmetic and threads.
+        cmd += " -lm -lpthread -ltinfo"
     end if
     return exec( t.clangExe, cmd )
 end function
