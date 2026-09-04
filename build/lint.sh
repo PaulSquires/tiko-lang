@@ -3,6 +3,11 @@
 #
 #   build/lint.sh
 #
+# lib/rt is EXCLUDED from every rule here. The runtime is a separate source area
+# with its own lint (lib/rt/build/lint.sh) and its own conventions -- it was gated
+# under those before it was consolidated into this tree, and re-judging it by the
+# compiler's rules produced 7 failures on code that had passed its own lint.
+#
 # These are the rules from docs/plan/14 section 6 that are mechanical. A violation is
 # a build failure, not a warning, because every one of them is cheap to fix now and
 # expensive to fix after it has spread.
@@ -111,7 +116,7 @@ for f in $(find src -name '*.bas' -o -name '*.bi' | sort); do
 done
 
 # ------------------------------------------------------------- 3. file size
-for f in $(find src tools lib -name '*.bas' -o -name '*.bi' | sort); do
+for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
     n=$(wc -l < "$f")
     if [ "$n" -gt 1500 ]; then
         note "SIZE $f is $n lines (limit 1500)"
@@ -123,7 +128,7 @@ done
 # 'for i as ulong = 0 to n - 1' with n = 0 underflows to 4294967295 and the loop
 # runs four billion times. This cost real debugging time twice, so it is a rule:
 # loop counters are signed, and so is anything they are compared against.
-for f in $(find src tools lib -name '*.bas' -o -name '*.bi' | sort); do
+for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
     if grep -nqE 'for [A-Za-z_][A-Za-z0-9_]* as (ulong|uinteger|ulongint|ushort|ubyte) ' "$f"; then
         note "UNSIGNED LOOP $f uses an unsigned loop counter (see docs/internals/known-toolchain-issues.md)"
     fi
@@ -159,7 +164,7 @@ for f in $(find lib/gfx -name '*.bas' -o -name '*.bi' -o -name '*.c' 2>/dev/null
 done
 
 # ------------------------------------- 4/5. trailing whitespace and hard tabs
-for f in $(find src tools lib -name '*.bas' -o -name '*.bi' | sort); do
+for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
     if grep -nq '[[:space:]]$' "$f"; then
         note "WHITESPACE $f has trailing whitespace"
     fi
