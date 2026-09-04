@@ -62,35 +62,37 @@ func i32 main(i32 $0, ptr $1) {
     %9 = const i64 0
     %10 = icmp.ne %8, %9
     %11 = neg %10
-    %12 = trunc %11
-    store @r1, %12
-    %13 = alloca ptr r2
-    %14 = call i64 _ZN3UDTcvu7INTEGEREv(@u)
-    %15 = const i64 1
-    %16 = icmp.eq %14, %15
-    %17 = neg %16
-    %18 = trunc %17
-    store @r2, %18
-    %19 = alloca ptr n
-    %20 = call i64 _ZN3UDTcvu7INTEGEREv(@u)
-    %21 = const i64 1
-    %22 = add %20, %21
-    store @n, %22
-    %23 = load @r1
-    call.rtl void fb_PrintBool(0, %23, 2)
-    %24 = load @r2
-    call.rtl void fb_PrintBool(0, %24, 2)
-    %25 = load @n
-    call.rtl void fb_PrintLongint(0, %25, 1)
+    %12 = const i64 0
+    %13 = icmp.ne %11, %12
+    store @r1, %13
+    %14 = alloca ptr r2
+    %15 = call i64 _ZN3UDTcvu7INTEGEREv(@u)
+    %16 = const i64 1
+    %17 = icmp.eq %15, %16
+    %18 = neg %17
+    %19 = const i64 0
+    %20 = icmp.ne %18, %19
+    store @r2, %20
+    %21 = alloca ptr n
+    %22 = call i64 _ZN3UDTcvu7INTEGEREv(@u)
+    %23 = const i64 1
+    %24 = add %22, %23
+    store @n, %24
+    %25 = load @r1
+    call.rtl void fb_PrintBool(0, %25, 2)
+    %26 = load @r2
+    call.rtl void fb_PrintBool(0, %26, 2)
+    %27 = load @n
+    call.rtl void fb_PrintLongint(0, %27, 1)
     call void _ZN3UDTD1Ev(@u)
-    %26 = const i32 0
-    call.rtl void fb_End(%26)
-    %27 = load @$tmp0
-    ret %27
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 59 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance

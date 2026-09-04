@@ -103,20 +103,22 @@ func i32 main(i32 $0, ptr $1) {
     %62 = call.rtl i32 fb_WstrCompare(%54, %61)
     %63 = icmp.eq %62, 0
     %64 = neg %63
-    store @b, %64
-    %65 = load @$tmp12
-    call.rtl void fb_WstrDelete(%65)
-    %66 = load @$tmp11
-    call.rtl void fb_WstrDelete(%66)
-    %67 = load @$tmp10
+    %65 = const i8 0
+    %66 = icmp.ne %64, %65
+    store @b, %66
+    %67 = load @$tmp12
     call.rtl void fb_WstrDelete(%67)
-    %68 = load @b
-    call.rtl void fb_PrintBool(0, %68, 1)
+    %68 = load @$tmp11
+    call.rtl void fb_WstrDelete(%68)
+    %69 = load @$tmp10
+    call.rtl void fb_WstrDelete(%69)
+    %70 = load @b
+    call.rtl void fb_PrintBool(0, %70, 1)
     call.rtl void fb_StrDelete(@s)
-    %69 = const i32 0
-    call.rtl void fb_End(%69)
-    %70 = load @$tmp0
-    ret %70
+    %71 = const i32 0
+    call.rtl void fb_End(%71)
+    %72 = load @$tmp0
+    ret %72
   sel.body5:
     %41 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 4)
     call.rtl void fb_PrintString(0, %41, 1)
@@ -144,4 +146,4 @@ declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 7 blocks, 91 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 7 blocks, 93 insts, 0 statements not lowered, 0 scope imbalance

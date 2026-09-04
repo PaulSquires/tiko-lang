@@ -41,101 +41,104 @@ func i32 main(i32 $0, ptr $1) {
     %20 = load @b
     %21 = icmp.slt %19, %20
     %22 = neg %21
-    %23 = trunc %22
-    store @t, %23
-    %24 = load @a
-    %25 = load @b
-    %26 = icmp.slt %24, %25
-    %27 = neg %26
-    %28 = trunc %27
-    store @y, %28
-    %29 = load @a
-    %30 = load @b
-    %31 = icmp.slt %29, %30
-    %32 = neg %31
-    %33 = sitofp %32
-    store @d, %33
-    %34 = load @a
-    %35 = load @b
-    %36 = icmp.slt %34, %35
-    %37 = neg %36
-    call.rtl void fb_PrintLongint(0, %37, 1)
-    %38 = load @a
-    %39 = load @b
-    %40 = icmp.slt %38, %39
-    %41 = neg %40
-    %42 = const i64 1
-    %43 = add %41, %42
-    call.rtl void fb_PrintLongint(0, %43, 1)
-    %44 = load @a
-    %45 = load @b
-    %46 = icmp.slt %44, %45
-    %55 = alloca ptr s
-    %57 = alloca ptr s2
-    %66 = alloca ptr p
-    condbr %46, if.then2, if.else3
+    %23 = const i64 0
+    %24 = icmp.ne %22, %23
+    store @t, %24
+    %25 = load @a
+    %26 = load @b
+    %27 = icmp.slt %25, %26
+    %28 = neg %27
+    %29 = trunc %28
+    store @y, %29
+    %30 = load @a
+    %31 = load @b
+    %32 = icmp.slt %30, %31
+    %33 = neg %32
+    %34 = sitofp %33
+    store @d, %34
+    %35 = load @a
+    %36 = load @b
+    %37 = icmp.slt %35, %36
+    %38 = neg %37
+    call.rtl void fb_PrintLongint(0, %38, 1)
+    %39 = load @a
+    %40 = load @b
+    %41 = icmp.slt %39, %40
+    %42 = neg %41
+    %43 = const i64 1
+    %44 = add %42, %43
+    call.rtl void fb_PrintLongint(0, %44, 1)
+    %45 = load @a
+    %46 = load @b
+    %47 = icmp.slt %45, %46
+    %56 = alloca ptr s
+    %58 = alloca ptr s2
+    %69 = alloca ptr p
+    condbr %47, if.then2, if.else3
   if.join1:
-    %48 = load @a
-    %49 = load @b
-    %50 = icmp.slt %48, %49
-    %51 = neg %50
-    %52 = const i64 1
-    %53 = add %51, %52
-    condbr %53, if.then5, if.else6
+    %49 = load @a
+    %50 = load @b
+    %51 = icmp.slt %49, %50
+    %52 = neg %51
+    %53 = const i64 1
+    %54 = add %52, %53
+    condbr %54, if.then5, if.else6
   if.then2:
-    %47 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
-    call.rtl void fb_PrintString(0, %47, 1)
+    %48 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %48, 1)
     br if.join1
   if.else3:
     br if.join1
   if.join4:
-    %56 = call.rtl ptr fb_StrInit(@s, -1, @@$str2, 2, 0)
-    %58 = call.rtl ptr fb_StrInit(@s2, -1, @@$str0, 2, 0)
-    %59 = call.rtl i32 fb_StrCompare(@s, -1, @s2, -1)
-    %60 = icmp.eq %59, 0
-    %61 = neg %60
-    %62 = sext %61
-    store @r, %62
-    %63 = call.rtl i32 fb_StrCompare(@s, -1, @s2, -1)
-    %64 = icmp.eq %63, 0
-    %65 = neg %64
-    store @t, %65
-    %67 = load @p
-    %68 = const i64 0
-    %69 = bitcast %68
-    %70 = icmp.ne %67, %69
-    %71 = neg %70
-    %72 = trunc %71
-    store @r, %72
-    %73 = load @p
-    %74 = const i64 0
-    %75 = bitcast %74
-    %76 = icmp.eq %73, %75
-    condbr %76, if.then8, if.else9
+    %57 = call.rtl ptr fb_StrInit(@s, -1, @@$str2, 2, 0)
+    %59 = call.rtl ptr fb_StrInit(@s2, -1, @@$str0, 2, 0)
+    %60 = call.rtl i32 fb_StrCompare(@s, -1, @s2, -1)
+    %61 = icmp.eq %60, 0
+    %62 = neg %61
+    %63 = sext %62
+    store @r, %63
+    %64 = call.rtl i32 fb_StrCompare(@s, -1, @s2, -1)
+    %65 = icmp.eq %64, 0
+    %66 = neg %65
+    %67 = const i8 0
+    %68 = icmp.ne %66, %67
+    store @t, %68
+    %70 = load @p
+    %71 = const i64 0
+    %72 = bitcast %71
+    %73 = icmp.ne %70, %72
+    %74 = neg %73
+    %75 = trunc %74
+    store @r, %75
+    %76 = load @p
+    %77 = const i64 0
+    %78 = bitcast %77
+    %79 = icmp.eq %76, %78
+    condbr %79, if.then8, if.else9
   if.then5:
-    %54 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 1)
-    call.rtl void fb_PrintString(0, %54, 1)
+    %55 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 1)
+    call.rtl void fb_PrintString(0, %55, 1)
     br if.join4
   if.else6:
     br if.join4
   if.join7:
-    %78 = load @r
-    call.rtl void fb_PrintInt(0, %78, 2)
-    %79 = load @t
-    call.rtl void fb_PrintBool(0, %79, 2)
-    %80 = load @y
-    call.rtl void fb_PrintByte(0, %80, 2)
-    %81 = load @d
-    call.rtl void fb_PrintDouble(0, %81, 1)
+    %81 = load @r
+    call.rtl void fb_PrintInt(0, %81, 2)
+    %82 = load @t
+    call.rtl void fb_PrintBool(0, %82, 2)
+    %83 = load @y
+    call.rtl void fb_PrintByte(0, %83, 2)
+    %84 = load @d
+    call.rtl void fb_PrintDouble(0, %84, 1)
     call.rtl void fb_StrDelete(@s2)
     call.rtl void fb_StrDelete(@s)
-    %82 = const i32 0
-    call.rtl void fb_End(%82)
-    %83 = load @$tmp0
-    ret %83
+    %85 = const i32 0
+    call.rtl void fb_End(%85)
+    %86 = load @$tmp0
+    ret %86
   if.then8:
-    %77 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 4)
-    call.rtl void fb_PrintString(0, %77, 1)
+    %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 4)
+    call.rtl void fb_PrintString(0, %80, 1)
     br if.join7
   if.else9:
     br if.join7
@@ -153,4 +156,4 @@ declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 10 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 10 blocks, 109 insts, 0 statements not lowered, 0 scope imbalance

@@ -189,18 +189,42 @@ function CoerceTy _
     dim as boolean dstBool = IsBooleanType( c, dstTid )
     dim as boolean haveVal = (v.kind <> cast( ubyte, MV_NONE ))
 
-    '' NARROWING TO BOOLEAN IS NOT DONE HERE, and that is a known gap rather than an
-    '' oversight. fbc NORMALISES -- every value stored into a BOOLEAN becomes 0 or 1,
-    '' measured: byte -1 -> 1, integer -1 -> 1, integer 5 -> 1, where tiko truncates
-    '' the low byte and stores 255, 255 and 5. It is invisible until the boolean is
-    '' widened again, when '0 - 255' is 1 rather than -1.
+    '' NARROWING TO BOOLEAN NORMALISES. Every value stored into a BOOLEAN becomes 0
+    '' or 1, and fbc spells it as a compare against zero -- measured, one assignment
+    '' per source type:
     ''
-    '' AN ATTEMPT AT IT WAS REVERTED. Emitting 'v <> 0' here fixed 39 more assertions
-    '' in fbc's boolean-conversions but MISCOMPILED three MIR tests -- wide-concat-mixed
-    '' printed 'false' where fbc prints 'true' -- because the rule is not uniform: a
-    '' STRING reaching a boolean is not a compare-against-zero, and restricting it to
-    '' numeric sources did not fix those three either. The narrowing needs its own
-    '' investigation, not a guard bolted onto this one.
+    ''     integer  BT$ = (boolean)(I$ != 0ll);    byte    BT$ = (boolean)(B$ != 0ll);
+    ''     ubyte    BT$ = (boolean)(U$ != 0ll);    double  BT$ = (boolean)(D$ != 0ll);
+    ''     boolean  BT$ = BB$;                     cbool   BT$ = (boolean)(I$ != 0ll);
+    ''
+    '' -- so a BOOLEAN source is copied and every other numeric source is compared.
+    '' POINTER and STRING sources are not modelled because fbc REFUSES them: 'bt = p'
+    '' and 'bt = s' are its error 181, so there is no behaviour to reproduce.
+    ''
+    '' tiko truncated the low byte instead, storing 255 for byte -1, 255 for integer
+    '' -1 and 5 for integer 5. It is invisible until the boolean is WIDENED again,
+    '' where the negation below turns '0 - 255' into 1 rather than -1.
+    ''
+    '' ONLY WITH A KNOWN BOOLEAN DESTINATION. An earlier attempt keyed off the wanted
+    '' MIR type instead, and MT_I8 is also what a comparison RESULT and an ordinary
+    '' byte want -- so it rewrote values that were never going to a boolean at all and
+    '' miscompiled three MIR tests. dstTid is the only thing that tells them apart.
+    dim as boolean narrow = dstBool andalso (srcBool = false) andalso haveVal
+    if narrow then
+        dim as MirType ht = cast( MirType, v.ty )
+        if (ht = MT_VOID) orelse (ht = MT_PTR) then narrow = false
+    end if
+    if narrow then
+        dim as MirType ht = cast( MirType, v.ty )
+        dim as MirInst ne
+        ne.op = cast( ushort, iif( IsFloatTy( ht ), M_FCMP_NE, M_ICMP_NE ) )
+        ne.ty = cast( ubyte, MT_I8 )
+        ne.a = v
+        ne.b = ZeroOf( c, ht )
+        dim as MirValue nb = Emit( c, ne )
+        return Coerce( c, nb, want, true )
+    end if
+
     '' A BOOLEAN SOURCE NEGATES. MT_I8 is included ONLY when the destination type is
     '' known and is not itself a boolean -- 'bool -> byte' is -1 in fbc, and without
     '' dstTid it cannot be told apart from 'bool -> bool', which must stay as it is.

@@ -147,9 +147,11 @@ func void G() {
     %52 = call.rtl i32 fb_WstrCompare(%51, @rv)
     %53 = icmp.eq %52, 0
     %54 = neg %53
-    store @r, %54
-    %55 = load @$tmp14
-    call.rtl void fb_WstrDelete(%55)
+    %55 = const i8 0
+    %56 = icmp.ne %54, %55
+    store @r, %56
+    %57 = load @$tmp14
+    call.rtl void fb_WstrDelete(%57)
     call.rtl void fb_StrDelete(@s)
     ret
 }
@@ -229,4 +231,4 @@ declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 verify: ok
-lowered: 6 functions, 18 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 18 blocks, 133 insts, 0 statements not lowered, 0 scope imbalance
