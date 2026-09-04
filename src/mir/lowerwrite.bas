@@ -26,7 +26,7 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
-        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+        chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
     end if
 
     '' A bare 'write' is a newline on its own.

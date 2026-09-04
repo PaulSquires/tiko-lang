@@ -622,6 +622,11 @@ function ClampConstToTypeRef _
     dim as long bits = 0
     dim as boolean uns = false
     select case cast( Tko.TokenKind, tp->op )
+    '' BOOLEAN IS NOT A WIDTH, and falling through to the mask below treated it as
+    '' one: 'bits' stayed 0, so the mask was 0, the value was ANDed away, and the sign
+    '' test shifted by -1. A boolean constant is -1 or 0 -- fbc's truth is all bits
+    '' set -- so it returns here rather than being clamped to a width it does not have.
+    case Tko.KW_BOOLEAN  : return CV_( iif( v.value <> 0, -1, 0 ) )
     case Tko.KW_BYTE     : bits = 8
     case Tko.KW_UBYTE    : bits = 8  : uns = true
     case Tko.KW_SHORT    : bits = 16

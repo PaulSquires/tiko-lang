@@ -393,7 +393,7 @@ function LowerTypeLitConvert_ _
     end if
     dim as MirValue av = LowerExpr( c, a0 )
     if av.kind = cast( ubyte, MV_NONE ) then return false
-    outv = Coerce( c, av, mt, IsUnsignedType( c, t ) )
+    outv = CoerceTy( c, av, mt, t)
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 

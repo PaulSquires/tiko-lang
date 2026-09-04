@@ -156,7 +156,7 @@ function LowerStrRvalue _
             '' A COUNT is 64-bit; the case MODE is the int32 fbc declares.
             dim as MirType nw = MT_I64
             if secondIsMode then nw = MT_I32
-            n1 = Coerce( c, n1, nw, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            n1 = CoerceTy( c, n1, nw, c.info->TypeOf_( a1 ))
             args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
         end if
     end if
@@ -168,7 +168,7 @@ function LowerStrRvalue _
             dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
             dim as MirValue n2 = LowerExpr( c, a2 )
             if n2.kind = cast( ubyte, MV_NONE ) then return false
-            n2 = Coerce( c, n2, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a2 ) ) )
+            n2 = CoerceTy( c, n2, MT_I64, c.info->TypeOf_( a2 ))
             args.Push( cast( ulong, n2.kind ) ) : args.Push( cast( ulong, n2.id ) )
         else
             args.Push( cast( ulong, MV_CONST_INT ) )
@@ -231,7 +231,7 @@ function LowerRadixCall_ _
         if cp->count <> 1 then return false
         dim as MirValue n0 = LowerExpr( c, a0 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
-        n0 = Coerce( c, n0, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a0 ) ) )
+        n0 = CoerceTy( c, n0, MT_I64, c.info->TypeOf_( a0 ))
         dim as FB.Array( of ulong ) sa
         sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
         outv = EmitRtl( c, RTL_STR_SPACE, sa )
@@ -246,7 +246,7 @@ function LowerRadixCall_ _
         dim as boolean fillWide = (nm = "wstring")
         dim as MirValue n0 = LowerExpr( c, a0 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
-        n0 = Coerce( c, n0, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a0 ) ) )
+        n0 = CoerceTy( c, n0, MT_I64, c.info->TypeOf_( a0 ))
         dim as FB.Array( of ulong ) sa
         sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
 
@@ -267,7 +267,7 @@ function LowerRadixCall_ _
         else
             dim as MirValue cv = LowerExpr( c, a1 )
             if cv.kind = cast( ubyte, MV_NONE ) then return false
-            cv = Coerce( c, cv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            cv = CoerceTy( c, cv, MT_I32, c.info->TypeOf_( a1 ))
             sa.Push( cast( ulong, cv.kind ) ) : sa.Push( cast( ulong, cv.id ) )
             outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL1, RTL_STR_FILL1 ), sa )
         end if
@@ -402,7 +402,7 @@ function LowerRadixCall_ _
     if a1 <> Tko.NODE_NONE then
         dim as MirValue n1 = LowerExpr( c, a1 )
         if n1.kind = cast( ubyte, MV_NONE ) then return false
-        n1 = Coerce( c, n1, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+        n1 = CoerceTy( c, n1, MT_I32, c.info->TypeOf_( a1 ))
         args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
     end if
 
@@ -452,7 +452,7 @@ function LowerStrOf_ _
             dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
             dim as MirValue av = LowerExpr( c, ai )
             if av.kind = cast( ubyte, MV_NONE ) then return false
-            av = Coerce( c, av, MT_I64, IsUnsignedType( c, c.info->TypeOf_( ai ) ) )
+            av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( ai ))
             ca.Push( cast( ulong, av.kind ) ) : ca.Push( cast( ulong, av.id ) )
         next
         outv = EmitRtl( c, RTL_STR_CHR, ca )
@@ -480,7 +480,7 @@ function LowerStrOf_ _
         dim as Tko.NodeId ma = cast( Tko.NodeId, c.ast->children[cp->first] )
         dim as MirValue mv = LowerExpr( c, ma )
         if mv.kind = cast( ubyte, MV_NONE ) then return false
-        mv = Coerce( c, mv, mt2, IsUnsignedType( c, c.info->TypeOf_( ma ) ) )
+        mv = CoerceTy( c, mv, mt2, c.info->TypeOf_( ma ))
         dim as FB.Array( of ulong ) ma2
         ma2.Push( cast( ulong, mv.kind ) ) : ma2.Push( cast( ulong, mv.id ) )
         outv = EmitRtl( c, mr, ma2 )
@@ -686,7 +686,7 @@ function LowerStrNumCall_ _
             if fr = RTL_NONE then return false
             dim as MirValue nv = LowerExpr( c, v0 )
             if nv.kind = cast( ubyte, MV_NONE ) then return false
-            nv = Coerce( c, nv, want, IsUnsignedType( c, v0t ) )
+            nv = CoerceTy( c, nv, want, v0t)
             dim as FB.Array( of ulong ) fa
             fa.Push( cast( ulong, nv.kind ) ) : fa.Push( cast( ulong, nv.id ) )
             outv = EmitRtl( c, fr, fa )
@@ -763,7 +763,7 @@ function LowerStrNumCall_ _
             '' win32, measured on both halves of the family.
             dim as MirType pw = MT_I64
             if c.types->target.pointerBits = 32 then pw = MT_I32
-            nv = Coerce( c, nv, pw, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            nv = CoerceTy( c, nv, pw, c.info->TypeOf_( a1 ))
             aa.Push( cast( ulong, nv.kind ) ) : aa.Push( cast( ulong, nv.id ) )
         else
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
@@ -854,7 +854,7 @@ function LowerStrNumCall_ _
     if startE <> Tko.NODE_NONE then
         stv = LowerExpr( c, startE )
         if stv.kind = cast( ubyte, MV_NONE ) then return false
-        stv = Coerce( c, stv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( startE ) ) )
+        stv = CoerceTy( c, stv, MT_I64, c.info->TypeOf_( startE ))
     end if
 
     dim as FB.Array( of ulong ) args

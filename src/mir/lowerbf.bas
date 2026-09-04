@@ -155,7 +155,7 @@ function BitfieldCompound_ _
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
     dim as boolean uns = IsUnsignedType( c, c.info->TypeOf_( target ) )
     cur = Coerce( c, cur, MT_I64, uns )
-    rhs = Coerce( c, rhs, MT_I64, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
+    rhs = CoerceTy( c, rhs, MT_I64, c.info->TypeOf_( value ))
 
     dim as MirValue res
     if (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
@@ -187,7 +187,7 @@ function LowerBitfieldStore _
 
     dim as MirValue val = LowerExpr( c, value )
     if val.kind = cast( ubyte, MV_NONE ) then return false
-    val = Coerce( c, val, MT_I64, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
+    val = CoerceTy( c, val, MT_I64, c.info->TypeOf_( value ))
     return BitfieldStoreParts_( c, addr, bitOff, bitWidth, unitTy, unitUns, val )
 end function
 

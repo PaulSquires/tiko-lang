@@ -121,7 +121,7 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.NodeId vn = cast( Tko.NodeId, c.ast->children[base_ + 1] )
     dim as MirValue val = LowerExpr( c, vn )
     if val.kind = cast( ubyte, MV_NONE ) then return false
-    val = Coerce( c, val, mt, IsUnsignedType( c, c.info->TypeOf_( vn ) ) )
+    val = CoerceTy( c, val, mt, c.info->TypeOf_( vn ))
 
     '' THE DESTINATION MUST BE A POINTER VALUE, not a slot. In this IR 'store @p, v'
     '' means 'into the slot p' and 'store %t, v' means 'through the pointer in %t' --
@@ -209,8 +209,8 @@ function LowerBitOp _
     if av.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue bv = LowerExpr( c, bn )
     if bv.kind = cast( ubyte, MV_NONE ) then return false
-    av = Coerce( c, av, MT_I64, IsUnsignedType( c, c.info->TypeOf_( an ) ) )
-    bv = Coerce( c, bv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( bn ) ) )
+    av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( an ))
+    bv = CoerceTy( c, bv, MT_I64, c.info->TypeOf_( bn ))
 
     dim as MirValue k63
     k63.kind = cast( ubyte, MV_CONST_INT )
@@ -854,7 +854,7 @@ function LowerFileGetPut _
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
-        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+        chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
     end if
 
     '' 'get #f, pos, v' -- the POSITION then the VARIABLE. With one item written the
@@ -878,7 +878,7 @@ function LowerFileGetPut _
         if c.ast->Kind( posN ) <> Tko.N_ELIDED then
             dim as MirValue p0 = LowerExpr( c, posN )
             if p0.kind = cast( ubyte, MV_NONE ) then return false
-            pv = Coerce( c, p0, zt, IsUnsignedType( c, c.info->TypeOf_( posN ) ) )
+            pv = CoerceTy( c, p0, zt, c.info->TypeOf_( posN ))
         end if
     end if
 
@@ -1035,7 +1035,7 @@ function LowerOpenCall_ _
 
     dim as MirValue num = LowerExpr( c, sp->b )
     if num.kind = cast( ubyte, MV_NONE ) then return false
-    num = Coerce( c, num, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->b ) ) )
+    num = CoerceTy( c, num, MT_I32, c.info->TypeOf_( sp->b ))
     if num.kind = cast( ubyte, MV_NONE ) then return false
 
     '' The record length, or 0 -- NOT 128. Lowered before the argument list is built so
@@ -1044,7 +1044,7 @@ function LowerOpenCall_ _
     if sp->c <> Tko.NODE_NONE then
         rl = LowerExpr( c, sp->c )
         if rl.kind = cast( ubyte, MV_NONE ) then return false
-        rl = Coerce( c, rl, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->c ) ) )
+        rl = CoerceTy( c, rl, MT_I32, c.info->TypeOf_( sp->c ))
         if rl.kind = cast( ubyte, MV_NONE ) then return false
     else
         rl = ConstInt( c, 0, MT_I32 )
@@ -1132,7 +1132,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue fn = LowerExpr( c, sp->a )
         if fn.kind = cast( ubyte, MV_NONE ) then return false
-        fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+        fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( sp->a ))
         args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
     else
         '' THE PROMPT IS A DESCRIPTOR on the narrow path and a uint16* on the wide one,
@@ -1290,7 +1290,7 @@ function LowerInput _
     if toFile then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
-        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+        chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
     end if
 
     if isLine then

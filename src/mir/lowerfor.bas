@@ -56,8 +56,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     end if
 
     '' init
-    dim as MirValue init_ = Coerce( c, LowerExpr( c, fromE ), ity, _
-                                    IsUnsignedType( c, c.info->TypeOf_( fromE ) ) )
+    dim as MirValue init_ = CoerceTy( c, LowerExpr( c, fromE ), ity, c.info->TypeOf_( fromE ) )
     if init_.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst st0
         st0.op = cast( ushort, M_STORE )
@@ -89,8 +88,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         stepAddr.kind = cast( ubyte, MV_LOCAL )
         stepAddr.ty = cast( ubyte, MT_PTR )
         stepAddr.id = stepSlot
-        dim as MirValue sv0 = Coerce( c, LowerExpr( c, stepE ), ity, _
-                                      IsUnsignedType( c, c.info->TypeOf_( stepE ) ) )
+        dim as MirValue sv0 = CoerceTy( c, LowerExpr( c, stepE ), ity, c.info->TypeOf_( stepE ) )
         if sv0.kind = cast( ubyte, MV_NONE ) then
             SkipHere( c )
             return
@@ -147,8 +145,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     '' guard: counter <= limit for a rising step, >= for a falling one.
     c.curBlock = headB
     dim as MirValue cur = LowerExprLoad( c, addr, ity )
-    dim as MirValue lim = Coerce( c, LowerExpr( c, toE ), ity, _
-                                  IsUnsignedType( c, c.info->TypeOf_( toE ) ) )
+    dim as MirValue lim = CoerceTy( c, LowerExpr( c, toE ), ity, c.info->TypeOf_( toE ) )
 
     if signSlot >= 0 then
         '' Two tests, chosen at run time. The limit is loaded ONCE, above, and both

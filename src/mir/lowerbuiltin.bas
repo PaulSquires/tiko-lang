@@ -271,8 +271,7 @@ function LowerBuiltinProc _
 
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        av = Coerce( c, av, RtlParamType( r, i, (c.types->target.pointerBits = 32) ), _
-                     IsUnsignedType( c, c.info->TypeOf_( a ) ) )
+        av = CoerceTy( c, av, RtlParamType( r, i, (c.types->target.pointerBits = 32) ), c.info->TypeOf_( a ) )
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     next
     '' 'callocate( n )' -- fbc supplies the element size itself.

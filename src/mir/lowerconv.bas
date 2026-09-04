@@ -234,6 +234,19 @@ function LowerConvIntrinsic _
     '' pointer argument differ only in what the type system calls them.
     dim as MirType want = mt
     if want = MT_VOID then want = cast( MirType, x.ty )
+    '' BEFORE THE IDENTITY SHORT-CIRCUIT. 'cbyte( someBool )' is MT_I8 to MT_I8, so
+    '' the test below returned the value untouched and the conversion never happened
+    '' -- it is a NEGATE, not a widening, and skipping it gave 1 where fbc gives -1.
+    if IsBooleanType( c, c.info->TypeOf_( arg ) ) then
+        dim as MirInst ng0
+        ng0.op = cast( ushort, M_SUB )
+        ng0.ty = cast( ubyte, MT_I8 )
+        ng0.a = ConstInt( c, 0, MT_I8 )
+        ng0.b = x
+        x = Emit( c, ng0 )
+        if want = MT_I8 then return x
+        return Coerce( c, x, want, false )
+    end if
     if want = cast( MirType, x.ty ) then return x
     if (want = MT_PTR) orelse (x.ty = cast( ubyte, MT_PTR )) then
         dim as MirInst bc
@@ -250,6 +263,21 @@ function LowerConvIntrinsic _
                           (nm = "cubyte")
     if (nm = "cast") orelse (nm = "cptr") then
         dstU = IsUnsignedType( c, c.info->TypeOf_( id ) )
+    end if
+    '' A BOOLEAN SOURCE NEGATES FIRST -- see CoerceTy, which cannot be used here
+    '' because this call names a DESTINATION signedness too. 'cint( someBool )' is -1
+    '' for the same reason 'dim as integer i = someBool' is.
+    '' NO MT_I8 GUARD HERE, unlike CoerceTy's. This is an EXPLICIT conversion and its
+    '' name says the destination: 'cbyte' and 'cubyte' are never boolean -- 'cbool' is,
+    '' and it returned long before this point. So a boolean source always negates.
+    if IsBooleanType( c, c.info->TypeOf_( arg ) ) then
+        dim as MirInst ng
+        ng.op = cast( ushort, M_SUB )
+        ng.ty = cast( ubyte, MT_I8 )
+        ng.a = ConstInt( c, 0, MT_I8 )
+        ng.b = x
+        x = Emit( c, ng )
+        return Coerce( c, x, want, false, dstU )
     end if
     return Coerce( c, x, want, IsUnsignedType( c, c.info->TypeOf_( arg ) ), dstU )
 end function

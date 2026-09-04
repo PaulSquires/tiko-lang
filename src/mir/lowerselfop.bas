@@ -175,7 +175,7 @@ function SelfOpMemberCall_ _
         if av.kind <> cast( ubyte, MV_NONE ) then
             dim as MirType pmt = LowerType( ParamTypeAt( c, want, 0 ), *c.types )
             if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
-                av = Coerce( c, av, pmt, IsUnsignedType( c, vt ) )
+                av = CoerceTy( c, av, pmt, vt)
             end if
         end if
     end if
@@ -233,7 +233,7 @@ function LowerRgbCall_ _
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
         dim as MirValue v = LowerExpr( c, an )
         if v.kind = cast( ubyte, MV_NONE ) then return false
-        v = Coerce( c, v, MT_I64, IsUnsignedType( c, c.info->TypeOf_( an ) ) )
+        v = CoerceTy( c, v, MT_I64, c.info->TypeOf_( an ))
         dim as MirInst m
         m.op = cast( ushort, M_AND )
         m.ty = cast( ubyte, MT_I64 )

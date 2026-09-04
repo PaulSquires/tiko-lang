@@ -20,46 +20,50 @@ func i32 main(i32 $0, ptr $1) {
     store @a, %7
     %8 = alloca ptr b
     %9 = const i8 0
-    %10 = sext %9
-    store @b, %10
-    %11 = alloca ptr c
-    %12 = const i8 44
-    %13 = sext %12
-    store @c, %13
-    %14 = alloca ptr d
-    %15 = const i32 300
-    store @d, %15
-    %16 = alloca ptr e_
-    %17 = const i64 300
-    %18 = trunc %17
-    store @e_, %18
-    %19 = alloca ptr bb
-    %20 = alloca ptr f
-    %21 = load @bb
-    %22 = const i8 -1
-    %23 = icmp.eq %21, %22
-    %24 = neg %23
-    %25 = trunc %24
-    store @f, %25
-    %26 = load @a
-    call.rtl void fb_PrintInt(0, %26, 2)
-    %27 = load @b
-    call.rtl void fb_PrintInt(0, %27, 2)
-    %28 = load @c
-    call.rtl void fb_PrintInt(0, %28, 2)
-    %29 = load @d
-    call.rtl void fb_PrintInt(0, %29, 2)
-    %30 = load @e_
+    %10 = const i8 0
+    %11 = sub %10, %9
+    %12 = sext %11
+    store @b, %12
+    %13 = alloca ptr c
+    %14 = const i8 44
+    %15 = sext %14
+    store @c, %15
+    %16 = alloca ptr d
+    %17 = const i32 300
+    store @d, %17
+    %18 = alloca ptr e_
+    %19 = const i64 300
+    %20 = trunc %19
+    store @e_, %20
+    %21 = alloca ptr bb
+    %22 = alloca ptr f
+    %23 = load @bb
+    %24 = const i8 -1
+    %25 = const i8 0
+    %26 = sub %25, %24
+    %27 = icmp.eq %23, %26
+    %28 = neg %27
+    %29 = trunc %28
+    store @f, %29
+    %30 = load @a
     call.rtl void fb_PrintInt(0, %30, 2)
-    %31 = load @f
-    call.rtl void fb_PrintInt(0, %31, 1)
-    %32 = const i32 0
-    call.rtl void fb_End(%32)
-    %33 = load @$tmp0
-    ret %33
+    %31 = load @b
+    call.rtl void fb_PrintInt(0, %31, 2)
+    %32 = load @c
+    call.rtl void fb_PrintInt(0, %32, 2)
+    %33 = load @d
+    call.rtl void fb_PrintInt(0, %33, 2)
+    %34 = load @e_
+    call.rtl void fb_PrintInt(0, %34, 2)
+    %35 = load @f
+    call.rtl void fb_PrintInt(0, %35, 1)
+    %36 = const i32 0
+    call.rtl void fb_End(%36)
+    %37 = load @$tmp0
+    ret %37
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 52 insts, 0 statements not lowered, 0 scope imbalance

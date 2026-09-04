@@ -83,7 +83,7 @@ function LowerPrintUsing _
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
-        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+        chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
     end if
 
     '' The format is an FBSTRING DESCRIPTOR. A literal has none, so it borrows a
@@ -266,8 +266,7 @@ private function UsingOne_ _
                 dim as MirValue uv
                 if UserCastToNum_( c, it, uv ) then
                     if uv.kind <> cast( ubyte, MV_NONE ) then
-                        uv = Coerce( c, uv, LowerType( ut, *c.types ), _
-                                     IsUnsignedType( c, ut ) )
+                        uv = CoerceTy( c, uv, LowerType( ut, *c.types ), ut )
                         dim as FB.Array( of ulong ) uargs
                         uargs.Push( cast( ulong, chan.kind ) )
                         uargs.Push( cast( ulong, chan.id ) )
@@ -346,7 +345,7 @@ private function UsingOne_ _
 
     dim as MirValue v = LowerExpr( c, it )
     if v.kind = cast( ubyte, MV_NONE ) then return false
-    v = Coerce( c, v, want, IsUnsignedType( c, t ) )
+    v = CoerceTy( c, v, want, t)
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
     PushConst( args, mask )
     EmitRtl( c, which, args )
@@ -433,7 +432,7 @@ function LowerPrintPos _
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as MirValue n = LowerExpr( c, a0 )
     if n.kind = cast( ubyte, MV_NONE ) then return false
-    n = Coerce( c, n, want, IsUnsignedType( c, c.info->TypeOf_( a0 ) ) )
+    n = CoerceTy( c, n, want, c.info->TypeOf_( a0 ))
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )

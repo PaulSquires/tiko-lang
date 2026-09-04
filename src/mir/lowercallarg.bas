@@ -203,7 +203,7 @@ private function UdtConvTemp_ _
     if (byrefP = false) andalso (chainCast = Tko.SYMBOL_NONE) then
         dim as MirType cmt = LowerType( cpt, *c.types )
         if (cmt = MT_VOID) orelse (cmt = MT_AGG) then return false
-        av = Coerce( c, av, cmt, IsUnsignedType( c, c.info->TypeOf_( argNode ) ) )
+        av = CoerceTy( c, av, cmt, c.info->TypeOf_( argNode ))
         if av.kind = cast( ubyte, MV_NONE ) then return false
     end if
 

@@ -21,10 +21,10 @@ private function LowerSeekStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boo
 
     dim as MirValue ch = LowerExpr( c, chE )
     if ch.kind = cast( ubyte, MV_NONE ) then return false
-    ch = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( chE ) ) )
+    ch = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( chE ))
     dim as MirValue po = LowerExpr( c, poE )
     if po.kind = cast( ubyte, MV_NONE ) then return false
-    po = Coerce( c, po, MT_I64, IsUnsignedType( c, c.info->TypeOf_( poE ) ) )
+    po = CoerceTy( c, po, MT_I64, c.info->TypeOf_( poE ))
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, ch.kind ) ) : args.Push( cast( ulong, ch.id ) )
@@ -69,7 +69,7 @@ private function LowerColorArgs_ _
         else
             dim as MirValue v = LowerExpr( c, e )
             if v.kind = cast( ubyte, MV_NONE ) then return false
-            v = Coerce( c, v, MT_I32, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+            v = CoerceTy( c, v, MT_I32, c.info->TypeOf_( e ))
             args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
         end if
     next
@@ -133,7 +133,7 @@ private function LowerErrSet_( byref c as Ctx, byval id as Tko.NodeId ) as boole
     if sp->a = Tko.NODE_NONE then return false
     dim as MirValue v = LowerExpr( c, sp->a )
     if v.kind = cast( ubyte, MV_NONE ) then return false
-    v = Coerce( c, v, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+    v = CoerceTy( c, v, MT_I32, c.info->TypeOf_( sp->a ))
     if v.kind = cast( ubyte, MV_NONE ) then return false
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
@@ -163,7 +163,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
             if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
             dim as MirValue nv = LowerExpr( c, a1 )
             if nv.kind = cast( ubyte, MV_NONE ) then return false
-            nv = Coerce( c, nv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            nv = CoerceTy( c, nv, MT_I32, c.info->TypeOf_( a1 ))
             dim as FB.Array( of ulong ) dargs
             dargs.Push( cast( ulong, dv.kind ) ) : dargs.Push( cast( ulong, dv.id ) )
             dargs.Push( cast( ulong, nv.kind ) ) : dargs.Push( cast( ulong, nv.id ) )
@@ -185,7 +185,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
         else
             dim as MirValue v = LowerExpr( c, e )
             if v.kind = cast( ubyte, MV_NONE ) then return false
-            v = Coerce( c, v, MT_I32, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+            v = CoerceTy( c, v, MT_I32, c.info->TypeOf_( e ))
             args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
         end if
     next

@@ -581,8 +581,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' decline in this file is counted; this one was not.
                 if val.kind = cast( ubyte, MV_NONE ) then SkipHere( c )
                 if val.kind <> cast( ubyte, MV_NONE ) then
-                    val = Coerce( c, val, cast( MirType, c.f->locals[slot].ty ), _
-                                  IsUnsignedType( c, c.info->TypeOf_( ip->b ) ) )
+                    '' dstT is the DECLARED type, already in hand -- and CoerceTy needs
+                    '' it: 'dim as boolean b = i' is a comparison and 'dim as byte b = t'
+                    '' a negate, and both are MT_I8 to the slot.
+                    val = CoerceTy( c, val, cast( MirType, c.f->locals[slot].ty ), _
+                                    c.info->TypeOf_( ip->b ), dstT )
                     dim as MirValue addr
                     addr.kind = cast( ubyte, MV_LOCAL )
                     addr.ty = cast( ubyte, MT_PTR )
@@ -671,8 +674,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     '' MIR has no implicit conversions, so the narrowing FreeBASIC
                     '' allows on a result assignment is explicit here, exactly as it
                     '' is for an ordinary assignment.
-                    rs.b = Coerce( c, rval, cast( MirType, c.resultTy ), _
-                                   IsUnsignedType( c, c.info->TypeOf_( sp->b ) ) )
+                    rs.b = CoerceTy( c, rval, cast( MirType, c.resultTy ), c.info->TypeOf_( sp->b ) )
                     Emit( c, rs )
                 end if
             end if

@@ -144,7 +144,7 @@ private function ByrefTemp_ _
         case else             : sz = 8
         end select
     else
-        if pmt <> MT_AGG then rv = Coerce( c, rv, pmt, IsUnsignedType( c, pt ) )
+        if pmt <> MT_AGG then rv = CoerceTy( c, rv, pmt, pt)
         sz = c.types->Layout( pt ).size
         if pmt = MT_AGG then sz = SizeOfType( c, pt )
     end if
@@ -863,7 +863,7 @@ function LowerCallParts _
             elseif (pt <> Tko.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
                 dim as MirType pmt = LowerType( pt, *c.types )
                 if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
-                    a = Coerce( c, a, pmt, IsUnsignedType( c, pt ) )
+                    a = CoerceTy( c, a, pmt, pt)
                 end if
             end if
         end if
@@ -1166,6 +1166,16 @@ function BinOpFor _
     case Tko.TK_GE        : return iif( f, M_FCMP_GE, M_ICMP_SGE )
     end select
     return M_NONE
+end function
+
+'' IS THIS THE BOOLEAN TYPE? Its own question, because MIR cannot answer it: mir.bas
+'' maps TY_BOOLEAN, TY_BYTE and TY_UBYTE all to MT_I8, so by the time a value reaches
+'' Coerce a boolean is indistinguishable from a byte -- and the two widen DIFFERENTLY.
+function IsBooleanType _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    return (c.types->BuiltinOf( t ) = Tko.TY_BOOLEAN)
 end function
 
 function IsUnsignedType _

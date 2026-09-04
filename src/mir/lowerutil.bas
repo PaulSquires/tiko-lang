@@ -158,6 +158,69 @@ end function
 '' type differs from the one an instruction needs gets an explicit one. Without this
 '' an integer literal -- which FreeBASIC types as INTEGER, so i64 -- is compared
 '' against an i32 counter, and the IR states something the backend cannot honour.
+'' THE CONVERSION, TOLD WHAT THE SOURCE ACTUALLY WAS.
+''
+'' TRUE CONVERTS TO -1, NOT 1, IN EVERY NUMERIC TYPE. Measured against fbc:
+''
+''     bool -> byte   -1     bool -> integer   -1     bool -> single  -1
+''     bool -> ubyte 255     bool -> uinteger 2^64-1  bool -> double  -1
+''
+'' and the STORED BYTE is 1 in both compilers, so the representation was never the
+'' problem -- only the widening. Getting this wrong is invisible: 'dim as integer w =
+'' someBool' gave 1, every comparison against fbc's TRUE (-1) went the wrong way, and
+'' 136 of 244 assertions in fbc's own boolean-conversions test failed while 574 unit
+'' tests and 16 gates stayed green.
+''
+'' ONE NEGATE COVERS THE WHOLE TABLE. 0 - b over the 0/1 byte gives 0 or 0xFF, and the
+'' ordinary SIGNED conversion then produces -1, 255, 2^64-1 and -1.0 respectively --
+'' so this needs no per-target-type cases.
+''
+'' MT_I8 IS LEFT ALONE, and that is a known residue rather than an oversight: a
+'' boolean and a byte are the same MirType, so 'bool -> byte' cannot be told from
+'' 'bool -> bool' here. fbc gives -1 for the first and leaves the second as true;
+'' tiko currently leaves both. Closing it needs the DESTINATION's frontend type,
+'' which most call sites do not have.
+function CoerceTy _
+    ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
+      byval srcTid as Tko.TypeId, _
+      byval dstTid as Tko.TypeId = Tko.TYPE_NONE ) as MirValue
+
+    dim as boolean srcBool = IsBooleanType( c, srcTid )
+    dim as boolean dstBool = IsBooleanType( c, dstTid )
+    dim as boolean haveVal = (v.kind <> cast( ubyte, MV_NONE ))
+
+    '' NARROWING TO BOOLEAN IS NOT DONE HERE, and that is a known gap rather than an
+    '' oversight. fbc NORMALISES -- every value stored into a BOOLEAN becomes 0 or 1,
+    '' measured: byte -1 -> 1, integer -1 -> 1, integer 5 -> 1, where tiko truncates
+    '' the low byte and stores 255, 255 and 5. It is invisible until the boolean is
+    '' widened again, when '0 - 255' is 1 rather than -1.
+    ''
+    '' AN ATTEMPT AT IT WAS REVERTED. Emitting 'v <> 0' here fixed 39 more assertions
+    '' in fbc's boolean-conversions but MISCOMPILED three MIR tests -- wide-concat-mixed
+    '' printed 'false' where fbc prints 'true' -- because the rule is not uniform: a
+    '' STRING reaching a boolean is not a compare-against-zero, and restricting it to
+    '' numeric sources did not fix those three either. The narrowing needs its own
+    '' investigation, not a guard bolted onto this one.
+    '' A BOOLEAN SOURCE NEGATES. MT_I8 is included ONLY when the destination type is
+    '' known and is not itself a boolean -- 'bool -> byte' is -1 in fbc, and without
+    '' dstTid it cannot be told apart from 'bool -> bool', which must stay as it is.
+    dim as boolean negate = srcBool andalso (dstBool = false) andalso haveVal
+    if negate andalso (want = MT_I8) andalso (dstTid = Tko.TYPE_NONE) then negate = false
+    if negate then
+        dim as MirInst ng
+        ng.op = cast( ushort, M_SUB )
+        ng.ty = cast( ubyte, MT_I8 )
+        ng.a = ConstInt( c, 0, MT_I8 )
+        ng.b = v
+        dim as MirValue nv = Emit( c, ng )
+        return Coerce( c, nv, want, false )
+    end if
+    '' Coerce, NOT CoerceTy. The mechanical rewrite that introduced this function
+    '' ran over this file too and turned its own tail call into a call to itself --
+    '' infinite recursion, and the compiler segfaulted on the first boolean it saw.
+    return Coerce( c, v, want, IsUnsignedType( c, srcTid ) )
+end function
+
 function Coerce _
     ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
       byval srcUnsigned as boolean = false, _

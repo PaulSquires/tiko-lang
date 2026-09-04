@@ -60,8 +60,7 @@ private function LowerNewArray_ _
     dim as Tko.NodeId cntE = cast( Tko.NodeId, c.ast->children[cntAt] )
     dim as MirValue cnt0 = LowerExpr( c, cntE )
     if cnt0.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirValue cnt = Coerce( c, cnt0, zt, _
-                                  IsUnsignedType( c, c.info->TypeOf_( cntE ) ) )
+    dim as MirValue cnt = CoerceTy( c, cnt0, zt, c.info->TypeOf_( cntE ) )
 
     '' n * sizeof( T ), folded into calloc's FIRST argument as the scalar form does.
     dim as MirInst mul
@@ -373,7 +372,7 @@ function LowerNew_ _
             dim as Tko.NodeId ive = cast( Tko.NodeId, c.ast->children[argFirst] )
             dim as MirValue iv = LowerExpr( c, ive )
             if iv.kind = cast( ubyte, MV_NONE ) then return false
-            iv = Coerce( c, iv, LowerType( el, *c.types ), IsUnsignedType( c, el ) )
+            iv = CoerceTy( c, iv, LowerType( el, *c.types ), el)
             if iv.kind = cast( ubyte, MV_NONE ) then return false
             StoreThrough( c, pv, iv )
         elseif placeZero then

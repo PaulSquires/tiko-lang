@@ -249,6 +249,15 @@ declare function EmitRtl _
     '' a LONGINT sign-extended -- 4,000,000,000 became -294,967,296 -- and a ULONGINT
     '' converted to a DOUBLE went through sitofp and came out -1. Both measured by
     '' running fbc, which prints 4000000000 and 1.844674407370955e+019.
+    '' COERCE, GIVEN THE SOURCE'S FRONTEND TYPE. Prefer this to Coerce wherever the
+    '' source type is known: it asks BOTH questions the conversion depends on --
+    '' signedness and booleanness -- where the bare Coerce could only be told one.
+    declare function CoerceTy _
+        ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
+          byval srcTid as Tko.TypeId, _
+          byval dstTid as Tko.TypeId = Tko.TYPE_NONE ) as MirValue
+    declare function IsBooleanType _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function Coerce _
         ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
           byval srcUnsigned as boolean = false, _

@@ -79,7 +79,7 @@ private function CtorArgValue_ _
     if pt <> Tko.TYPE_NONE then
         dim as MirType pmt = LowerType( pt, *c.types )
         if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
-            outv = Coerce( c, outv, pmt, IsUnsignedType( c, pt ) )
+            outv = CoerceTy( c, outv, pmt, pt)
         end if
     end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -390,7 +390,7 @@ function LowerCtorInit _
             dim as MirValue dv = LowerExpr( c, dsp->b )
             if dv.kind = cast( ubyte, MV_NONE ) then return false
             dim as Tko.TypeId dt = c.info->TypeOf_( dsp->a )
-            dv = Coerce( c, dv, LowerType( dt, *c.types ), IsUnsignedType( c, dt ) )
+            dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt)
             if dv.kind = cast( ubyte, MV_NONE ) then return false
             argT.Push( cast( ulong, dt ) )
             argKind.Push( cast( ulong, dv.kind ) )
@@ -526,7 +526,7 @@ function PushCtorArgs_ _
         next
         pi += 1
         if pt <> Tko.TYPE_NONE then
-            av = Coerce( c, av, LowerType( pt, *c.types ), IsUnsignedType( c, pt ) )
+            av = CoerceTy( c, av, LowerType( pt, *c.types ), pt)
             if av.kind = cast( ubyte, MV_NONE ) then return false
         end if
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
@@ -548,8 +548,7 @@ function PushCtorArgs_ _
             if dv.kind = cast( ubyte, MV_NONE ) then return false
             dim as Tko.TypeId dt = c.info->TypeOf_( dp->a )
             if dt <> Tko.TYPE_NONE then
-                dv = Coerce( c, dv, LowerType( dt, *c.types ), _
-                             IsUnsignedType( c, dt ) )
+                dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt )
                 if dv.kind = cast( ubyte, MV_NONE ) then return false
             end if
             args.Push( cast( ulong, dv.kind ) ) : args.Push( cast( ulong, dv.id ) )
@@ -622,7 +621,7 @@ private function LowerBaseFieldInit_ _
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        av = Coerce( c, av, fmt, IsUnsignedType( c, c.info->TypeOf_( a ) ) )
+        av = CoerceTy( c, av, fmt, c.info->TypeOf_( a ))
         if av.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirInst fa
         fa.op = cast( ushort, M_FIELD_ADDR )
@@ -737,8 +736,7 @@ function LowerBaseCtorCall_ _
         av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
         av.id = argId[ai]
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        dim as MirValue cv = Coerce( c, av, LowerType( pt, *c.types ), _
-                                     IsUnsignedType( c, pt ) )
+        dim as MirValue cv = CoerceTy( c, av, LowerType( pt, *c.types ), pt )
         if cv.kind = cast( ubyte, MV_NONE ) then return false
         cargs.Push( cast( ulong, cv.kind ) ) : cargs.Push( cast( ulong, cv.id ) )
         ai += 1

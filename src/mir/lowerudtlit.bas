@@ -387,7 +387,7 @@ function LowerUdtParenInit_ _
             wend
             if span < 1 then return false
         else
-            v = Coerce( c, v, fmt, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+            v = CoerceTy( c, v, fmt, c.info->TypeOf_( e ))
             if v.kind = cast( ubyte, MV_NONE ) then return false
         end if
         vOff.Push( cast( ulong, fOff[cur] ) )

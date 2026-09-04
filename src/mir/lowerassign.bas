@@ -234,7 +234,7 @@ private sub LowerAssign _
                     return
                 end if
             end if
-            nv = Coerce( c, nv, elemTy, IsUnsignedType( c, nvt ) )
+            nv = CoerceTy( c, nv, elemTy, nvt)
             if nv.kind = cast( ubyte, MV_NONE ) then
                 SkipHere( c )
                 return
@@ -391,8 +391,11 @@ private sub LowerAssign _
     '' conversions, so the narrowing FreeBASIC allows on assignment is explicit here.
     '' The type comes from the target EXPRESSION, not from the local slot: a member
     '' store's address is a temp from field.addr, and there is no slot to ask.
-    val = Coerce( c, val, LowerType( c.info->TypeOf_( target ), *c.types ), _
-                  IsUnsignedType( c, c.info->TypeOf_( value ) ) )
+    '' THE DESTINATION TYPE IS PASSED, not just its MirType. A boolean and a byte are
+    '' both MT_I8, and 'x = v' means a COMPARISON when x is a boolean and a truncation
+    '' when it is a byte -- CoerceTy cannot tell them apart without this.
+    val = CoerceTy( c, val, LowerType( c.info->TypeOf_( target ), *c.types ), _
+                    c.info->TypeOf_( value ), c.info->TypeOf_( target ) )
     dim as MirInst ins
     ins.op = cast( ushort, M_STORE )
     ins.ty = cast( ubyte, MT_VOID )

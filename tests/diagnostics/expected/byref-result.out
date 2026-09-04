@@ -103,7 +103,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 8 functions, 8 blocks, 54 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lower.bas:637 1
+  skip-site src\mir\lower.bas:640 1
 tests/diagnostics/src/byref-result.bas(31,17): error TKO0650: a byref result cannot return a local
      |
   31 |     function = x.i

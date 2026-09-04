@@ -733,11 +733,11 @@ private function RedimOne_ _
         if loN <> Tko.NODE_NONE then
             lv = LowerExpr( c, loN )
             if lv.kind = cast( ubyte, MV_NONE ) then return false
-            lv = Coerce( c, lv, zt, IsUnsignedType( c, c.info->TypeOf_( loN ) ) )
+            lv = CoerceTy( c, lv, zt, c.info->TypeOf_( loN ))
         end if
         dim as MirValue hv = LowerExpr( c, hiN )
         if hv.kind = cast( ubyte, MV_NONE ) then return false
-        hv = Coerce( c, hv, zt, IsUnsignedType( c, c.info->TypeOf_( hiN ) ) )
+        hv = CoerceTy( c, hv, zt, c.info->TypeOf_( hiN ))
 
         bk.Push( cast( ulong, lv.kind ) ) : bi.Push( cast( ulong, lv.id ) )
         bk.Push( cast( ulong, hv.kind ) ) : bi.Push( cast( ulong, hv.id ) )
@@ -844,7 +844,7 @@ function LowerDynArrayIndex _
         dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         dim as MirValue iv = LowerExpr( c, ix )
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
-        iv = Coerce( c, iv, offTy, IsUnsignedType( c, c.info->TypeOf_( ix ) ) )
+        iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
 
         if acc.kind = cast( ubyte, MV_NONE ) then
             acc = iv
@@ -973,7 +973,7 @@ function LowerArrayBoundCall _
         dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         dim as MirValue dv = LowerExpr( c, a1 )
         if dv.kind = cast( ubyte, MV_NONE ) then return false
-        dimV = Coerce( c, dv, zt, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+        dimV = CoerceTy( c, dv, zt, c.info->TypeOf_( a1 ))
     end if
 
     dim as FB.Array( of ulong ) args

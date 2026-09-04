@@ -454,7 +454,7 @@ function LowerDestructure _
         if ev.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirType dmt = LowerType( c.info->TypeOf_( nm ), *c.types )
         if dmt = MT_VOID then dmt = emt
-        StoreThrough( c, daddr, Coerce( c, ev, dmt, IsUnsignedType( c, et ) ) )
+        StoreThrough( c, daddr, CoerceTy( c, ev, dmt, et) )
     next
     return true
 end function

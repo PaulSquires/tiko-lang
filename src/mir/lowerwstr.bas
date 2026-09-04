@@ -802,7 +802,7 @@ function NumberToWideTemp_ _
 
     dim as MirValue av = LowerExpr( c, e )
     if av.kind = cast( ubyte, MV_NONE ) then return false
-    av = Coerce( c, av, want, IsUnsignedType( c, at ) )
+    av = CoerceTy( c, av, want, at)
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     return WideConcatStep_( c, args, r, outv )
@@ -1279,7 +1279,7 @@ function LowerWideRvalue _
             dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
             dim as MirValue av = LowerExpr( c, ai )
             if av.kind = cast( ubyte, MV_NONE ) then return false
-            av = Coerce( c, av, MT_I64, IsUnsignedType( c, c.info->TypeOf_( ai ) ) )
+            av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( ai ))
             wca.Push( cast( ulong, av.kind ) ) : wca.Push( cast( ulong, av.id ) )
         next
         outv = EmitRtl( c, RTL_WSTR_CHR, wca )
@@ -1299,7 +1299,7 @@ function LowerWideRvalue _
         dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first] )
         dim as MirValue nv = LowerExpr( c, sn )
         if nv.kind = cast( ubyte, MV_NONE ) then return false
-        nv = Coerce( c, nv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( sn ) ) )
+        nv = CoerceTy( c, nv, MT_I64, c.info->TypeOf_( sn ))
         if nv.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) sa
         sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )
@@ -1403,7 +1403,7 @@ function LowerWideRvalue _
             if n1.kind = cast( ubyte, MV_NONE ) then return false
             dim as MirType nw = MT_I64
             if secondIsMode then nw = MT_I32
-            n1 = Coerce( c, n1, nw, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+            n1 = CoerceTy( c, n1, nw, c.info->TypeOf_( a1 ))
             args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
         end if
     end if
@@ -1415,7 +1415,7 @@ function LowerWideRvalue _
             dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
             dim as MirValue n2 = LowerExpr( c, a2 )
             if n2.kind = cast( ubyte, MV_NONE ) then return false
-            n2 = Coerce( c, n2, MT_I64, IsUnsignedType( c, c.info->TypeOf_( a2 ) ) )
+            n2 = CoerceTy( c, n2, MT_I64, c.info->TypeOf_( a2 ))
             args.Push( cast( ulong, n2.kind ) ) : args.Push( cast( ulong, n2.id ) )
         else
             args.Push( cast( ulong, MV_CONST_INT ) )

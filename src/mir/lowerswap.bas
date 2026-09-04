@@ -448,7 +448,7 @@ private function PushPropIndexArgs_ _
             if av.kind <> cast( ubyte, MV_NONE ) then
                 dim as MirType pmt = LowerType( pt, *c.types )
                 if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
-                    av = Coerce( c, av, pmt, IsUnsignedType( c, c.info->TypeOf_( a ) ) )
+                    av = CoerceTy( c, av, pmt, c.info->TypeOf_( a ))
                 end if
             end if
         end if
@@ -824,7 +824,7 @@ private function OperandValue_ _
             tmp.kind = cast( ubyte, MV_LOCAL )
             tmp.ty = cast( ubyte, MT_PTR )
             tmp.id = slot
-            if pmt <> MT_AGG then rv = Coerce( c, rv, pmt, IsUnsignedType( c, pt ) )
+            if pmt <> MT_AGG then rv = CoerceTy( c, rv, pmt, pt)
             StoreThrough( c, tmp, rv )
             v = tmp
         end if
@@ -833,7 +833,7 @@ private function OperandValue_ _
         if v.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirType pmt = LowerType( pt, *c.types )
         if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
-            v = Coerce( c, v, pmt, IsUnsignedType( c, pt ) )
+            v = CoerceTy( c, v, pmt, pt)
         end if
     end if
     if v.kind = cast( ubyte, MV_NONE ) then return false
@@ -896,7 +896,7 @@ function LowerPropertySet_ _
     if pt <> Tko.TYPE_NONE then
         dim as MirType vmt = LowerType( pt, *c.types )
         if (vmt <> MT_VOID) andalso (vmt <> MT_AGG) then
-            v = Coerce( c, v, vmt, IsUnsignedType( c, pt ) )
+            v = CoerceTy( c, v, vmt, pt)
             if v.kind = cast( ubyte, MV_NONE ) then return false
         end if
     end if

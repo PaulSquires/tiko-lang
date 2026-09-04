@@ -83,7 +83,7 @@ private function GfxInt _
         ok = false
         return v
     end if
-    return Coerce( c, v, MT_I32, IsUnsignedType( c, c.info->TypeOf_( n ) ) )
+    return CoerceTy( c, v, MT_I32, c.info->TypeOf_( n ))
 end function
 
 '' The TARGET buffer, or a null pointer. Every graphics statement takes one and fbc

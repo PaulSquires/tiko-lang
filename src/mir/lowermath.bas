@@ -59,7 +59,7 @@ function LowerMathCall_ _
         dim as MirValue v1 = LowerExpr( c, a1 )
         if v1.kind = cast( ubyte, MV_NONE ) then return false
         v0 = Coerce( c, v0, MT_F64, uns )
-        v1 = Coerce( c, v1, MT_F64, IsUnsignedType( c, c.info->TypeOf_( a1 ) ) )
+        v1 = CoerceTy( c, v1, MT_F64, c.info->TypeOf_( a1 ))
         dim as FB.Array( of ulong ) aa
         aa.Push( cast( ulong, v0.kind ) ) : aa.Push( cast( ulong, v0.id ) )
         aa.Push( cast( ulong, v1.kind ) ) : aa.Push( cast( ulong, v1.id ) )

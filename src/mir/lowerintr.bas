@@ -42,7 +42,7 @@ function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as MirValue fn = LowerExpr( c, it )
         if fn.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) args
-        fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( it ) ) )
+        fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( it ))
         args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
         EmitRtl( c, RTL_FILE_CLOSE, args )
     next
@@ -78,7 +78,7 @@ function LowerCloseCall_ _
 
     dim as MirValue fn = LowerExpr( c, it )
     if fn.kind = cast( ubyte, MV_NONE ) then return false
-    fn = Coerce( c, fn, MT_I32, IsUnsignedType( c, c.info->TypeOf_( it ) ) )
+    fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( it ))
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
     outv = EmitRtl( c, RTL_FILE_CLOSE, args )
@@ -108,7 +108,7 @@ function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.NodeId numE = cast( Tko.NodeId, c.ast->children[sp->first] )
     dim as MirValue num = LowerExpr( c, numE )
     if num.kind = cast( ubyte, MV_NONE ) then return false
-    num = Coerce( c, num, MT_I32, IsUnsignedType( c, c.info->TypeOf_( numE ) ) )
+    num = CoerceTy( c, num, MT_I32, c.info->TypeOf_( numE ))
 
     dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
     dim as string fname = ""
@@ -310,7 +310,7 @@ function LowerCompoundAssign _
         if sv.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue sa = LowerAddr( c, target )
         if sa.kind = cast( ubyte, MV_NONE ) then return false
-        StoreThrough( c, sa, Coerce( c, sv, smt, IsUnsignedType( c, stt ) ) )
+        StoreThrough( c, sa, CoerceTy( c, sv, smt, stt) )
         return true
     end if
 
@@ -378,10 +378,10 @@ function LowerCompoundAssign _
     if addr.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue cur = LowerExprLoad( c, addr, mt )
     if cur.kind = cast( ubyte, MV_NONE ) then return false
-    cur = Coerce( c, cur, wt, IsUnsignedType( c, tt ) )
+    cur = CoerceTy( c, cur, wt, tt)
     dim as MirValue rhs = LowerExpr( c, value )
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
-    rhs = Coerce( c, rhs, wt, IsUnsignedType( c, c.info->TypeOf_( value ) ) )
+    rhs = CoerceTy( c, rhs, wt, c.info->TypeOf_( value ))
 
     '' POINTER ARITHMETIC IS SCALED BY THE POINTEE HERE TOO. 'p += 1' over a
     '' 'short ptr' is '(uint8*)P$0 + 2ll' to fbc and was a one-BYTE add here --
@@ -733,7 +733,7 @@ function LowerIif _
         ts.op = cast( ushort, M_STORE )
         ts.ty = cast( ubyte, MT_VOID )
         ts.a = taddr
-        ts.b = Coerce( c, tv, rt, IsUnsignedType( c, c.info->TypeOf_( thenE ) ) )
+        ts.b = CoerceTy( c, tv, rt, c.info->TypeOf_( thenE ))
         Emit( c, ts )
     end if
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
@@ -745,7 +745,7 @@ function LowerIif _
         es.op = cast( ushort, M_STORE )
         es.ty = cast( ubyte, MT_VOID )
         es.a = taddr
-        es.b = Coerce( c, ev, rt, IsUnsignedType( c, c.info->TypeOf_( elseE ) ) )
+        es.b = CoerceTy( c, ev, rt, c.info->TypeOf_( elseE ))
         Emit( c, es )
     end if
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )

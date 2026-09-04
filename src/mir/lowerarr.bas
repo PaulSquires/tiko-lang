@@ -786,7 +786,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
             dim as Tko.NodeId ie = cast( Tko.NodeId, c.ast->children[sp->first] )
             dim as MirValue iv = LowerExpr( c, ie )
             if iv.kind = cast( ubyte, MV_NONE ) then return none_
-            iv = Coerce( c, iv, MT_I32, IsUnsignedType( c, c.info->TypeOf_( ie ) ) )
+            iv = CoerceTy( c, iv, MT_I32, c.info->TypeOf_( ie ))
             dim as FB.Array( of ulong ) ia
             ia.Push( cast( ulong, iv.kind ) ) : ia.Push( cast( ulong, iv.id ) )
             return EmitMemberCallArgs_( c, ixs, self_, MT_PTR, @ia )
@@ -867,7 +867,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first] )
     dim as MirValue iv = LowerExpr( c, ix )
     if iv.kind = cast( ubyte, MV_NONE ) then return none_
-    iv = Coerce( c, iv, offTy, IsUnsignedType( c, c.info->TypeOf_( ix ) ) )
+    iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
 
     dim as MirValue term = iv
     if esz <> 1 then
@@ -1182,7 +1182,7 @@ function LowerArrayInit _
         st.op = cast( ushort, M_STORE )
         st.ty = cast( ubyte, MT_VOID )
         st.a = ea
-        st.b = Coerce( c, ev, emt, IsUnsignedType( c, c.info->TypeOf_( e ) ) )
+        st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ))
         Emit( c, st )
     next
     return true

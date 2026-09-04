@@ -51,7 +51,7 @@ function LowerMidAssign _
 
     dim as MirValue sv = LowerExpr( c, startN )
     if sv.kind = cast( ubyte, MV_NONE ) then return false
-    sv = Coerce( c, sv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( startN ) ) )
+    sv = CoerceTy( c, sv, MT_I64, c.info->TypeOf_( startN ))
 
     '' AN OMITTED LENGTH IS -1 -- 'to the end' -- and not 0.
     dim as MirValue lv
@@ -61,7 +61,7 @@ function LowerMidAssign _
     if lenN <> Tko.NODE_NONE then
         lv = LowerExpr( c, lenN )
         if lv.kind = cast( ubyte, MV_NONE ) then return false
-        lv = Coerce( c, lv, MT_I64, IsUnsignedType( c, c.info->TypeOf_( lenN ) ) )
+        lv = CoerceTy( c, lv, MT_I64, c.info->TypeOf_( lenN ))
     end if
 
     dim as Tko.TypeId dt = c.info->TypeOf_( dstN )
@@ -301,7 +301,7 @@ function LowerDir _
     else
         dim as MirValue av = LowerExpr( c, attr )
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        av = Coerce( c, av, MT_I32, IsUnsignedType( c, c.info->TypeOf_( attr ) ) )
+        av = CoerceTy( c, av, MT_I32, c.info->TypeOf_( attr ))
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     end if
     args.Push( cast( ulong, outp.kind ) ) : args.Push( cast( ulong, outp.id ) )

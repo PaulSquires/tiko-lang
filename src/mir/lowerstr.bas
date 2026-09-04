@@ -443,7 +443,7 @@ function LowerPredeclared _
         if (cv.known = false) andalso (IsFloatTy( mt ) = false) then
             dim as MirValue iv2 = LowerExpr( c, ip->b )
             if iv2.kind = cast( ubyte, MV_NONE ) then return v
-            return Coerce( c, iv2, mt, IsUnsignedType( c, c.info->TypeOf_( id ) ) )
+            return CoerceTy( c, iv2, mt, c.info->TypeOf_( id ))
         end if
         '' ConstOf answers INTEGERS only, so a float constant never reaches here with
         '' a known value -- and must not be given one by casting an integer field to a
@@ -675,7 +675,7 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
-        chan = Coerce( c, ch, MT_I32, IsUnsignedType( c, c.info->TypeOf_( sp->a ) ) )
+        chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
     end if
 
     '' No items at all is the bare 'print', a newline on its own.
@@ -1353,7 +1353,7 @@ function LowerWstrOf _
 
     dim as MirValue av = LowerExpr( c, a )
     if av.kind = cast( ubyte, MV_NONE ) then return false
-    av = Coerce( c, av, want, IsUnsignedType( c, at ) )
+    av = CoerceTy( c, av, want, at)
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     outv = EmitRtl( c, r, args )

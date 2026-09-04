@@ -540,8 +540,8 @@ function LowerExpr _
         '' operand it may evaluate twice. tiko-lang always calls pow. Same value, different
         '' code, and no risk of evaluating a call twice.
         if tk = Tko.TK_CARET then
-            dim as MirValue pl = Coerce( c, l, MT_F64, IsUnsignedType( c, c.info->TypeOf_( bp->lhs ) ) )
-            dim as MirValue pr = Coerce( c, r, MT_F64, IsUnsignedType( c, c.info->TypeOf_( bp->rhs ) ) )
+            dim as MirValue pl = CoerceTy( c, l, MT_F64, c.info->TypeOf_( bp->lhs ))
+            dim as MirValue pr = CoerceTy( c, r, MT_F64, c.info->TypeOf_( bp->rhs ))
             dim as FB.Array( of ulong ) pa
             pa.Push( cast( ulong, pl.kind ) ) : pa.Push( cast( ulong, pl.id ) )
             pa.Push( cast( ulong, pr.kind ) ) : pa.Push( cast( ulong, pr.id ) )
@@ -558,8 +558,8 @@ function LowerExpr _
             opTy = cast( MirType, r.ty )
         end if
         if IsFloatTy( cast( MirType, r.ty ) ) then opTy = cast( MirType, r.ty )
-        l = Coerce( c, l, opTy, IsUnsignedType( c, lt ) )
-        r = Coerce( c, r, opTy, IsUnsignedType( c, rt ) )
+        l = CoerceTy( c, l, opTy, lt)
+        r = CoerceTy( c, r, opTy, rt)
 
         '' POINTER ARITHMETIC IS SCALED BY THE POINTEE, and none of it was.
         '' 'dim as short ptr q = p + 1' emitted 'add p, 1' -- one BYTE -- where fbc
@@ -632,8 +632,8 @@ function LowerExpr _
         end select
         if isCmp = false then
             if (resTy <> opTy) andalso (resTy <> MT_VOID) andalso (resTy <> MT_AGG) then
-                l = Coerce( c, l, resTy, IsUnsignedType( c, lt ) )
-                r = Coerce( c, r, resTy, IsUnsignedType( c, rt ) )
+                l = CoerceTy( c, l, resTy, lt)
+                r = CoerceTy( c, r, resTy, rt)
             end if
         end if
         ins.a = l

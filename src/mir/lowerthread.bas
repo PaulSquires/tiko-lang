@@ -280,7 +280,7 @@ function LowerThreadCall_ _
             if av.kind = cast( ubyte, MV_NONE ) then
                 dim as MirValue rv = LowerExpr( c, ae )
                 if rv.kind = cast( ubyte, MV_NONE ) then return false
-                rv = Coerce( c, rv, pmt, IsUnsignedType( c, pt ) )
+                rv = CoerceTy( c, rv, pmt, pt)
                 if rv.kind = cast( ubyte, MV_NONE ) then return false
                 dim as long vslot = NewTempLocal( c, pmt, TyWidthBytes_( pmt ) )
                 if vslot < 0 then return false
