@@ -82,7 +82,10 @@ end extern
 
 declare function hRnd_Startup cdecl ( byval n as single ) as double
 declare function hRnd_Startup32 cdecl ( ) as ulong
-declare sub hRndCtxInitMTWIST32( byval seed as ulongint )
+'' CDECL IS EXPLICIT, like its two neighbours above. A declaration outside an
+'' EXTERN block that names no convention takes the TARGET's default, which is
+'' stdcall on win32 and cdecl everywhere else -- see build/lint.sh check 3b.
+declare sub hRndCtxInitMTWIST32 cdecl ( byval seed as ulongint )
 
 '' The generator state. A file-scope static in fbc; the initial function
 '' pointers are the STARTUP pair -- see the header.
@@ -204,7 +207,7 @@ private function hRnd_MTWIST cdecl ( byval n as single ) as double
 	return cdbl( hRnd_MTWIST32( ) ) / 4294967296.0
 end function
 
-private sub hRndCtxInitMTWIST32( byval seed as ulongint )
+private sub hRndCtxInitMTWIST32 cdecl ( byval seed as ulongint )
 	ctx_.algorithm = FB_RND_MTWIST
 	ctx_.length_ = MAX_STATE
 	'' Positioned at the END, so the first call regenerates immediately.

@@ -148,6 +148,84 @@ for f in $(find src -name '*.bas' -o -name '*.bi' 2>/dev/null); do
     fi
 done
 
+
+# ------------------------------------------- 3b. no declaration may take the
+#                                                 target's DEFAULT convention
+#
+# WHY THIS EXISTS: it is the replacement for a check that win32 used to perform
+# for free, and it was built BEFORE win32 was removed so that it could be
+# validated against win32 while win32 still existed (RFC-0007 section 4).
+#
+# FreeBASIC picks a calling convention for any declaration that does not name
+# one, and the pick is PER TARGET: cdecl on win64 and linux-x86_64, and
+# **stdcall on win32**. Inside an EXTERN block the block supplies the
+# convention, so nothing is left to the target. Outside one, a declaration that
+# names no convention silently means different things on different targets.
+#
+# THIS IS NOT HYPOTHETICAL. Eight dev_scrn forward declarations sat outside
+# every extern block, took the win32 default, and decorated as
+# _fb_DevScrnRead@12 while the definitions -- moved into EXTERN "c" -- did not.
+# The DECLARATION won. symbols.sh caught it on win32; win64 and Linux were green
+# and would have stayed green, shipping eight entry points with the wrong
+# calling convention into an archive whose entire purpose is ABI compatibility.
+#
+# THE RULE IS NARROWER THAN RFC-0007 SECTION 4 SPECIFIED, and deliberately so.
+# That section says "a top-level declare outside an extern block". Measured
+# against the tree, that wording flags three declarations in src/math/rnd.bas of
+# which two are already unambiguous -- they say 'cdecl' outright. A declaration
+# that names its convention is correct on every target whether or not a block
+# encloses it, so the hazard is not the missing block, it is the missing
+# CONVENTION. Flagging the block would have taught the reader to wrap things
+# that did not need wrapping -- and wrapping a forward declaration of a PRIVATE
+# procedure in EXTERN "c" gives it external linkage, which is a different bug
+# this project has already had once.
+#
+# WHAT IT CANNOT DO. This is a check on the SHAPE of a declaration. It cannot
+# see a declaration that names a convention and names the wrong one, which is
+# what win32 could see and nothing here can. RFC-0007 section 10 records that
+# limit rather than pretending the replacement is equivalent.
+#
+# Block tracking is real rather than indentation-based: this codebase writes
+# unindented bodies inside EXTERN blocks, so column position says nothing. TYPE
+# and UNION bodies are tracked too, because a DECLARE inside one is a member
+# declaration and takes the UDT's convention, not the target's.
+
+for f in $(rtfiles); do
+    hits=$(awk '
+        {
+            out = ""; inq = 0
+            for (i = 1; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c == "\"") inq = !inq
+                if (!inq && c == "'"'"'") break
+                out = out c
+            }
+            low = tolower(out)
+            gsub(/^[ \t]+/, "", low); gsub(/[ \t]+$/, "", low)
+            if (low == "") next
+
+            if (low ~ /^end[ \t]+extern([ \t]|$)/) { ext--; next }
+            if (low ~ /^end[ \t]+type([ \t]|$)/)   { ty--;  next }
+            if (low ~ /^end[ \t]+union([ \t]|$)/)  { ty--;  next }
+            if (low ~ /^extern[ \t]*"/)            { ext++; next }
+            if (low ~ /^type([ \t]|$)/  && low !~ /^type[ \t]+[a-z0-9_]+[ \t]+as[ \t]/)  { ty++; next }
+            if (low ~ /^union([ \t]|$)/ && low !~ /^union[ \t]+[a-z0-9_]+[ \t]+as[ \t]/) { ty++; next }
+
+            if (low ~ /^(private[ \t]+)?declare([ \t]|$)/ && ext <= 0 && ty <= 0) {
+                if (low !~ /(^|[ \t(])(cdecl|stdcall|pascal)([ \t(]|$)/)
+                    printf "    %d: %s\n", FNR, substr($0, 1, 88)
+            }
+        }
+        END {
+            if (ext != 0 || ty != 0)
+                printf "    UNBALANCED extern/type nesting (extern=%d type=%d) -- this check cannot be trusted on this file\n", ext, ty
+        }
+    ' "$f")
+    if [ -n "$hits" ]; then
+        note "$f: DECLARE outside an EXTERN block naming no calling convention -- it becomes STDCALL on win32 and CDECL elsewhere (RFC-0007 section 4)"
+        echo "$hits" >&2
+    fi
+done
 # ------------------------------------------------------- 4. index width
 #
 # 'as long' is 32-bit on every target. As a length, index or offset it is both
