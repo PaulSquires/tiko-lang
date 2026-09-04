@@ -10,11 +10,22 @@ tiko-linux/
   inc/                    headers reachable by -i, incl. fb/ and fbgfx.bi
   include/                the C headers the runtime's bindings need
   lib/
-    linux-x86_64/         libfb.a, libfbmt.a, libtkogfx.a
+    linux-x86_64/         tiko-rt: libfb.a, libfbmt.a (+ libtkogfx.a when it exists)
+    linux-x86_64-fb/      fbc's libfb.a and the support libraries
+  licences/               the LGPL notices and the runtime's provenance
+  MANIFEST.txt            what was packaged, from where, at which commit, and
+                          whether the target actually compiled and ran
 ```
+
+Both directories are passed, ours first:
+`tiko -target linux-x86_64 -p lib/linux-x86_64 -p lib/linux-x86_64-fb`.
 
 The binary sits under `bin/` rather than at the root, unlike the Windows
 toolchain: that is the fbc-modern layout, and matching it is what lets the two be
 swapped for one another.
 
-Built from Windows through WSL, or natively -- both produce the same tree.
+Built by running `build/package.sh` **under Linux or WSL** -- a host packages
+itself, because `build/build.sh` compiles the compiler for the machine it runs on.
+
+**This has never been packaged.** Everything above is the intended layout, not a
+measured one.

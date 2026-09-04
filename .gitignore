@@ -51,3 +51,5 @@ tests/vendor/**/*.o
 /toolchains/*/lib/
 /toolchains/*/tiko
 /toolchains/*/tiko.exe
+/toolchains/*/licences/
+/toolchains/*/MANIFEST.txt
