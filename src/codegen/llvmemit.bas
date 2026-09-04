@@ -650,8 +650,43 @@ private sub EmitBlock _
         '' comparison produced, and LLVM's branch takes an i1 and nothing else. The
         '' test is against ZERO rather than against one, because FreeBASIC's true is
         '' -1 and any non-zero value is true.
+        ''
+        '' AND THE COMPARISON DEPENDS ON THE CONDITION'S TYPE. This was one
+        '' hard-coded `icmp ne ..., 0` -- the only hard-coded zero in this file --
+        '' and it was wrong for two of the three cases it has to serve. Every other
+        '' constant reaches LLVM through ValStr, which has spelled both correctly all
+        '' along; only this line bypassed it.
+        ''
+        ''   POINTER   `icmp ne ptr %p, null`. An integer literal against a pointer
+        ''             operand is rejected outright -- "integer constant must have
+        ''             integer type" -- so `if p then` and `while p` emitted IR that
+        ''             would not assemble. Found 2026-09-04 compiling fbcunit, the
+        ''             first thing this compiler was asked to build that tests a
+        ''             pointer for truth.
+        ''   FLOAT     `fcmp une <ty> %f, 0.0`. Wrong twice over before: `icmp` does
+        ''             not accept a float operand at all, and the literal needed a
+        ''             point. `if d then` on a DOUBLE is ordinary FreeBASIC and could
+        ''             never have compiled.
+        ''   INTEGER   `icmp ne <ty> %i, 0`, which is what it always did.
+        ''
+        '' UNE, NOT ONE, AND THAT IS MEASURED. `une` is unordered-or-not-equal and is
+        '' TRUE for a NaN; `one` is ordered and is false. fbc was asked, with a NaN
+        '' built from its bit pattern:
+        ''
+        ''     NaN is TRUE   0.0 is FALSE   1.5 is TRUE
+        ''
+        '' so `une` is the one that agrees. Choosing `one` would have made
+        '' `if nan then` silently take the other branch.
         dim as string c1 = "%b" & str( bi ) & ".c"
-        Line( e, c1 & " = icmp ne " & Operand( e, b.cond ) & ", 0" )
+        dim as string ct = ValType( e, b.cond )
+        dim as string cmpOp = "icmp ne ", zero = "0"
+        select case ct
+        case "ptr"
+            zero = "null"
+        case "double", "float"
+            cmpOp = "fcmp une " : zero = "0.0"
+        end select
+        Line( e, c1 & " = " & cmpOp & ct & " " & ValStr( e, b.cond ) & ", " & zero )
         Line( e, "br i1 " & c1 & ", label %" & BlockName( b.target ) & _
                  ", label %" & BlockName( b.target2 ) )
     case MTERM_UNREACHABLE
