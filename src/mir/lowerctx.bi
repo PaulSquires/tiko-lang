@@ -389,6 +389,11 @@ declare function EmitRtl _
     declare function LowerRedim _
         ( byref c as Ctx, byval id as Tko.NodeId, _
           byval sp as Tko.StmtPayload ptr ) as boolean
+    declare function AnyDimCount _
+        ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as long
+    declare function EmitArrayBounds _
+        ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
+          byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean
     declare sub InitDynArrayDesc _
         ( byref c as Ctx, byref desc as MirValue, byval t as Tko.TypeId )
     declare function DynArrayDataPtr _

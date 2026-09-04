@@ -699,6 +699,48 @@ private function RedimOne_ _
         aty = fs->type_
     end if
 
+    return EmitArrayBounds( c, desc, aty, ip, presv )
+end function
+
+'' THE fb_ArrayRedimEx CALL, and the bounds that go in it. Shared by REDIM and by a
+'' DIM whose bounds are not constant: 'dim a( 1 to n )' is a DYNAMIC array that fbc
+'' sets up with the same descriptor a 'dim a()' gets and then IMMEDIATELY redims --
+''
+''     fb_ArrayRedimEx( (struct $7FBARRAYIvE*)&A$1, 8ull, -1, 0, 1ull, 1ll, N$1 );
+''
+'' -- measured from fbc's own -r output. tiko wrote the descriptor and stopped, so
+'' DATA stayed NULL and the first 'a(i) = x' stored through a null pointer.
+''
+'' The descriptor setup and the scope-exit erase are the CALLER's, because a REDIM
+'' only owns them when it is the declaring form.
+'' HOW MANY LEADING DIMENSIONS ARE WRITTEN 'any'. All of them means a DECLARATION and
+'' nothing else -- no runtime call at all -- and none of them an ordinary sizing. A
+'' MIXTURE is refused by an earlier diagnostic (fbc's 9 and 94); the count is what lets
+'' both callers leave that declaration alone rather than half-lower it.
+function AnyDimCount _
+    ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as long
+    if ip->c = Tko.NODE_NONE then return 0
+    if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return 0
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )]
+    dim as long n = 0
+    for d as long = 0 to lp->count - 1
+        dim as Tko.NodeId adn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
+        if c.ast->Kind( adn ) <> Tko.N_IDENT then continue for
+        dim as Tko.IdentPayload ptr aip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, adn )].data )]
+        '' EVERY 'any', not just the leading run: 'dim a( 0 to 0, any )' is the MIXED
+        '' form, and counting only from the front called it zero and half-lowered it.
+        if Tko.Text.LowerAscii( c.names->Spelling( aip->name ) ) <> "any" then continue for
+        n += 1
+    next
+    return n
+end function
+
+function EmitArrayBounds _
+    ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
+      byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean
+
     '' The bounds, one N_CASE_RANGE or bare upper bound per dimension.
     if ip->c = Tko.NODE_NONE then return false
     if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return false
@@ -726,15 +768,7 @@ private function RedimOne_ _
     '' had already been set up above, so the statement declined with its own work
     '' already emitted. Thirty-two corpus statements, four of them in fbcunit's own
     '' framework and so re-counted in every test that includes it.
-    dim as long anyDims = 0
-    for d as long = 0 to lp->count - 1
-        dim as Tko.NodeId adn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
-        if c.ast->Kind( adn ) <> Tko.N_IDENT then exit for
-        dim as Tko.IdentPayload ptr aip = _
-            @c.ast->idents[cast( long, c.ast->nodes[cast( long, adn )].data )]
-        if Tko.Text.LowerAscii( c.names->Spelling( aip->name ) ) <> "any" then exit for
-        anyDims += 1
-    next
+    dim as long anyDims = AnyDimCount( c, ip )
     if anyDims = lp->count then
         '' The DECLARING form only. fbc rejects 'any' on a redim of an array that was
         '' already declared (error 147), so there is nothing to model for that one.

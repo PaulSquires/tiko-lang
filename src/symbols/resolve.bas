@@ -1116,6 +1116,23 @@ sub WalkStmt _
             if revisit = false then InitTooMany_( c, t, ip->b, ip->name, here )
             BindDeclType( c, here, ip->name, t, false )
             WalkStmt( c, ip->b, here )
+            '' ...AND THE BOUNDS. 'dim a( 1 to n )' sizes its array at RUN TIME, and
+            '' the bounds are ordinary expressions exactly as a REDIM's are -- which
+            '' the branch above walks for precisely this reason. Here they were only
+            '' CONST-FOLDED, by ArrayFromBoundsNode, so a non-constant bound left 'n'
+            '' with no symbol, lowering could produce no value for it, and the
+            '' fb_ArrayRedimEx that allocates the array was never emitted.
+            if ip->c <> Tko.NODE_NONE then
+                if c.ast->Kind( ip->c ) = Tko.N_BLOCK then
+                    dim as Tko.ListPayload ptr dl = _
+                        @c.ast->lists[cast( long, _
+                            c.ast->nodes[cast( long, ip->c )].data )]
+                    for d as long = 0 to dl->count - 1
+                        WalkStmt( c, cast( Tko.NodeId, _
+                            c.ast->children[dl->first + d] ), here )
+                    next
+                end if
+            end if
         next
         return
 

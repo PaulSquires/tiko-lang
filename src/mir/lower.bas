@@ -269,6 +269,22 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     c.cleanupNode.Push( CLEANUP_ERASE_ARRAY )
                     c.cleanupSlot.Push( slot )
                     c.cleanupType.Push( 0 )
+                    '' ...AND ITS BOUNDS, when it has any. 'dim a( 1 to n )' with a
+                    '' bound that is not a constant is a DYNAMIC array, and fbc
+                    '' follows the descriptor setup with an fb_ArrayRedimEx that
+                    '' allocates it. Only the setup was emitted, so DATA stayed NULL
+                    '' and the first element store wrote through it -- which is where
+                    '' fbcunit's check_internal_state faulted, on its own local
+                    '' 'dim test_suite_index( 1 to fbcu_tests_count )'.
+                    ''
+                    '' 'dim a()' and 'dim a( any )' have no bounds to apply and are
+                    '' declined inside EmitArrayBounds, exactly as the REDIM form is.
+                    if (ip->c <> Tko.NODE_NONE) andalso _
+                       (AnyDimCount( c, ip ) = 0) then
+                        if EmitArrayBounds( c, dd, vs->type_, ip, false ) = false then
+                            SkipHere( c )
+                        end if
+                    end if
                 end if
             end if
 
