@@ -12,3 +12,5 @@ single 4 4
 double 8 8
 boolean 1 1
 string 24 8
+cva_list 8 8
+wstring 2 2

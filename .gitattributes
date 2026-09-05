@@ -44,3 +44,4 @@ tools/gen/*.sh text eol=lf
 # them sit CRLF in the working tree today and nothing notices.
 tests/mangle/expected/fbc-mangle.txt text eol=lf
 tests/types/expected/fbc-layout.txt  text eol=lf
+tests/types/expected/fbc-layout-linux-x86_64.txt text eol=lf

@@ -45,4 +45,11 @@ one( ) {
 # scalars and name neither of those two types. Adding one would have turned a
 # silent pass into a mystery failure on Linux alone.
 one tests/types/expected/fbc-layout.txt       "-target win64" win64 || rc=1
+
+# BOTH TARGETS, because layout is the thing that actually differs between them:
+# wstring is 2 bytes on win64 and 4 on linux-x86_64, cva_list 8 and 24. Only
+# win64 was ever checked, so a regression in the Linux numbers had nothing
+# watching it -- and tiko-lang is cross-compiling, so neither half needs a
+# Linux host to CHECK, only to have GENERATED the expectations.
+one tests/types/expected/fbc-layout-linux-x86_64.txt "-target linux-x86_64" linux-x86_64 || rc=1
 exit $rc
