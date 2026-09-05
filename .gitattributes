@@ -29,3 +29,18 @@ build/sources.txt text eol=lf
 lib/gfx/tools/*.sh text eol=lf
 tools/*.sh text eol=lf
 tools/gen/*.sh text eol=lf
+
+# TWO DERIVED-TRUTH FILES, for the same reason lib/rt's baselines are pinned:
+# they are generated with LF by tools/gen/{layout,mangle}-truth.sh and then read
+# back BY A SHELL SCRIPT, which is byte-exact.
+#
+#   check-mangle.sh  diff -u "$want" ...          a CR is a differing character
+#   check-layout.sh  while read -r name size align   the CR lands in $align, so
+#                                                 EVERY builtin type mismatches
+#
+# Their twelve siblings in tests/types/expected/fbc-*.txt are NOT pinned and do
+# not need to be: those are read by tools/gen/check-*.py through
+# read_text().splitlines(), which is universal-newline and drops the CR. Two of
+# them sit CRLF in the working tree today and nothing notices.
+tests/mangle/expected/fbc-mangle.txt text eol=lf
+tests/types/expected/fbc-layout.txt  text eol=lf
