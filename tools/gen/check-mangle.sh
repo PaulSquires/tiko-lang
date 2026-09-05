@@ -9,8 +9,17 @@
 # is all-or-nothing.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-TKO="$ROOT/bin/tiko.exe"
-[ -x "$TKO" ] || TKO="$ROOT/bin/tiko"
+# THE HOST'S BINARY, chosen by PLATFORM and not by which file happens to
+# exist. Preferring bin/tiko.exe and falling back only when it is absent
+# picks the WINDOWS build under WSL, where both binaries sit in bin/ after
+# a dual-platform session. WSL cannot run it, the 2>/dev/null below ate the
+# error, and the comparison reported all 135 names missing rather than
+# saying it never ran. Same idiom as build/build.sh.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXT=".exe" ;; *) EXT="" ;; esac
+TKO="$ROOT/bin/tiko$EXT"
+# ...AND SAY SO WHEN IT IS NOT THERE. The dump below discards stderr, so a
+# missing binary produced an empty result that read as "every name wrong".
+[ -x "$TKO" ] || { echo "${0##*/}: $TKO not built" >&2; exit 3; }
 EXPECTED="$ROOT/tests/mangle/expected/fbc-mangle.txt"
 WORK="$ROOT/build/.mg"
 

@@ -14,8 +14,17 @@
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 FBC=${TKO_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
-TKO="$ROOT/bin/tiko.exe"
-[ -x "$TKO" ] || TKO="$ROOT/bin/tiko"
+# THE HOST'S BINARY, chosen by PLATFORM and not by which file happens to
+# exist. Preferring bin/tiko.exe and falling back only when it is absent
+# picks the WINDOWS build under WSL, where both binaries sit in bin/ after
+# a dual-platform session. WSL cannot run it, the 2>/dev/null below ate the
+# error, and the comparison reported all 135 names missing rather than
+# saying it never ran. Same idiom as build/build.sh.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXT=".exe" ;; *) EXT="" ;; esac
+TKO="$ROOT/bin/tiko$EXT"
+# ...AND SAY SO WHEN IT IS NOT THERE. The dump below discards stderr, so a
+# missing binary produced an empty result that read as "every name wrong".
+[ -x "$TKO" ] || { echo "${0##*/}: $TKO not built" >&2; exit 3; }
 LIST="$ROOT/build/.corpus.lst"
 WORK="$ROOT/build/.mg/d"
 LIMIT=${1:-400}
