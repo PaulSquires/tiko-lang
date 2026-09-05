@@ -1,5 +1,31 @@
 # PROVENANCE
 
+> ## fbc's COMPILER SOURCES MAY BE READ — 2026-09-05, by the author, explicitly
+>
+> A second and separate lift, on the author's stated grounds that **fbc, fbc-modern
+> and tiko are all GPL**. The rule until this date was CLAUDE.md's *"fbc's own compiler
+> SOURCES are GPL: never read or transcribe them"*, and it covered
+> `fbc-modern/src/src/compiler/**` — a different body of code from the R2 notice below,
+> which is about `src/src/rtlib/**`.
+>
+> **The two lifts have different consequences and should not be run together.** R2's is
+> about `libfb`, which is **LGPL-2.1+** and carries a static-linking exception, so
+> tiko-rt is a derivative and programs compiled by tiko are unaffected. fbc's compiler
+> is **GPL-2.0** with no such exception: source derived from it makes the derived work
+> GPL. The author has accepted that for tiko.
+>
+> **What is permitted is READING.** Transcribing is still not the method, and that is an
+> engineering rule that would survive any licence: a transliteration inherits fbc's bugs,
+> cannot be verified against fbc because it *is* fbc, and produces behaviour nobody has
+> measured. The value of reading is answers to questions a probe cannot ask — whether a
+> code path EXISTS, and what it is keyed on. RFC-0006 §12 is the worked example: reading
+> `llvmir.bas` established that `llvmTriple( )` is a two-way switch with no MSVC branch
+> and no hook, which running fbc could only ever have failed to disprove.
+>
+> **Everything already written stands.** No contract in this tree was established by
+> reading a compiler source, and the record of how each one was measured is at the site
+> that depends on it.
+
 > ## RULE R2 LIFTED — 2026-08-29, by the author, explicitly
 >
 > **`fbc-modern/src/src/rtlib/**/*.c` may now be read**, to make the remaining
