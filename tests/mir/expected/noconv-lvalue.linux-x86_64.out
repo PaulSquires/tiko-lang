@@ -1,0 +1,106 @@
+global str $str0 "x"
+global str $str1 ""
+global wstr $wstr2 "a"
+global wstr $wstr3 "b"
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i64 i
+  local i32 j
+  local ptr pj
+  local i64 k
+  local ptr pk
+  local i32 w
+  local i32 w2
+  local agg cmd size 24
+  local i32 r
+  local agg ws size 128
+  local ptr $tmp11
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr i
+    %5 = load @i
+    %6 = const i64 1
+    %7 = add %5, %6
+    store @i, %7
+    %8 = alloca ptr j
+    %9 = load @j
+    %10 = const i64 1
+    %11 = sext %9
+    %12 = add %11, %10
+    %13 = trunc %12
+    store @j, %13
+    %14 = alloca ptr pj
+    store @pj, @j
+    %15 = alloca ptr k
+    %16 = alloca ptr pk
+    store @pk, @k
+    %17 = alloca ptr w
+    %18 = call.rtl i32 fb_Width(-1, -1)
+    store @w, %18
+    %19 = alloca ptr w2
+    %20 = const i64 80
+    %21 = trunc %20
+    %22 = call.rtl i32 fb_Width(%21, -1)
+    store @w2, %22
+    %23 = alloca ptr cmd
+    %24 = call.rtl ptr fb_StrInit(@cmd, -1, @@$str0, 2, 0)
+    %25 = alloca ptr r
+    %26 = load @cmd
+    %27 = zext %26
+    %28 = bitcast %27
+    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 0)
+    %30 = call.rtl i32 fb_Run(%28, %29)
+    store @r, %30
+    %31 = alloca ptr ws
+    %32 = call.rtl ptr fb_WstrAssign(@ws, 32, @@$wstr2)
+    %33 = const i64 3
+    %34 = call.rtl ptr fb_WstrSpace(%33)
+    %35 = alloca ptr $tmp11
+    store @$tmp11, %34
+    %36 = load @$tmp11
+    %37 = call.rtl ptr fb_WstrConcatAssign(@ws, 32, %36)
+    %38 = call.rtl ptr fb_WstrConcatAssign(@ws, 32, @@$wstr3)
+    %39 = load @$tmp11
+    call.rtl void fb_WstrDelete(%39)
+    %40 = load @i
+    call.rtl void fb_PrintLongint(0, %40, 2)
+    %41 = load @j
+    call.rtl void fb_PrintInt(0, %41, 2)
+    %42 = load @pj
+    call.rtl void fb_PrintULongint(0, %42, 2)
+    %43 = load @pk
+    call.rtl void fb_PrintULongint(0, %43, 2)
+    %44 = load @w
+    call.rtl void fb_PrintInt(0, %44, 2)
+    %45 = load @w2
+    call.rtl void fb_PrintInt(0, %45, 2)
+    %46 = load @r
+    call.rtl void fb_PrintInt(0, %46, 2)
+    call.rtl void fb_PrintWstr(0, @ws, 1)
+    call.rtl void fb_StrDelete(@cmd)
+    %47 = const i32 0
+    call.rtl void fb_End(%47)
+    %48 = load @$tmp0
+    ret %48
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i32 fb_Width(i32 $0, i32 $1)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare i32 fb_Run(ptr $0, ptr $1)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare ptr fb_WstrSpace(i64 $0)
+declare ptr fb_WstrConcatAssign(ptr $0, i64 $1, ptr $2)
+declare void fb_WstrDelete(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 1 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

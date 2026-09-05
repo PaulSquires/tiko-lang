@@ -1,0 +1,114 @@
+global str $str0 "hello"
+global str $str1 "l"
+global wstr $wstr2 "hello"
+global wstr $wstr3 "l"
+func ptr _ZN2UWcvwEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg s size 24
+  local agg p size 24
+  local agg w size 80
+  local agg q size 80
+  local agg uw size 200
+  local agg uq size 200
+  local i64 a
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr s
+    %5 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 6, 0)
+    %6 = alloca ptr p
+    %7 = call.rtl ptr fb_StrInit(@p, -1, @@$str1, 2, 0)
+    %8 = alloca ptr w
+    %9 = alloca ptr q
+    %10 = alloca ptr uw
+    %11 = alloca ptr uq
+    %12 = alloca ptr a
+    %13 = call.rtl ptr fb_WstrAssign(@w, 20, @@$wstr2)
+    %14 = call.rtl ptr fb_WstrAssign(@q, 20, @@$wstr3)
+    %15 = call.rtl i64 fb_StrInstr(1, @s, @p)
+    store @a, %15
+    %16 = const i64 2
+    %17 = call.rtl i64 fb_StrInstr(%16, @s, @p)
+    store @a, %17
+    %18 = call.rtl i64 fb_StrInstrAny(1, @s, @p)
+    store @a, %18
+    %19 = const i64 2
+    %20 = call.rtl i64 fb_StrInstrAny(%19, @s, @p)
+    store @a, %20
+    %21 = call.rtl i64 fb_StrInstrRev(@s, @p, -1)
+    store @a, %21
+    %22 = const i64 3
+    %23 = call.rtl i64 fb_StrInstrRev(@s, @p, %22)
+    store @a, %23
+    %24 = call.rtl i64 fb_StrInstrRevAny(@s, @p, -1)
+    store @a, %24
+    %25 = const i64 3
+    %26 = call.rtl i64 fb_StrInstrRevAny(@s, @p, %25)
+    store @a, %26
+    %27 = call.rtl i64 fb_WstrInstr(1, @w, @q)
+    store @a, %27
+    %28 = const i64 2
+    %29 = call.rtl i64 fb_WstrInstr(%28, @w, @q)
+    store @a, %29
+    %30 = const i64 3
+    %31 = call.rtl i64 fb_WstrInstrRev(@w, @q, %30)
+    store @a, %31
+    %32 = call.rtl i64 fb_WstrInstrRevAny(@w, @q, -1)
+    store @a, %32
+    %33 = call ptr _ZN2UWcvwEv(@uw)
+    %34 = call.rtl i64 fb_WstrInstr(1, %33, @q)
+    store @a, %34
+    %35 = call ptr _ZN2UWcvwEv(@uq)
+    %36 = call.rtl i64 fb_WstrInstr(1, @w, %35)
+    store @a, %36
+    %37 = call ptr _ZN2UWcvwEv(@uw)
+    %38 = call ptr _ZN2UWcvwEv(@uq)
+    %39 = call.rtl i64 fb_WstrInstr(1, %37, %38)
+    store @a, %39
+    %40 = call ptr _ZN2UWcvwEv(@uw)
+    %41 = call ptr _ZN2UWcvwEv(@uq)
+    %42 = const i64 2
+    %43 = call.rtl i64 fb_WstrInstrRev(%40, %41, %42)
+    store @a, %43
+    %44 = load @a
+    call.rtl void fb_PrintLongint(0, %44, 1)
+    call.rtl void fb_StrDelete(@p)
+    call.rtl void fb_StrDelete(@s)
+    %45 = const i32 0
+    call.rtl void fb_End(%45)
+    %46 = load @$tmp0
+    ret %46
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare i64 fb_StrInstr(i64 $0, ptr $1, ptr $2)
+declare i64 fb_StrInstrAny(i64 $0, ptr $1, ptr $2)
+declare i64 fb_StrInstrRev(ptr $0, ptr $1, i64 $2)
+declare i64 fb_StrInstrRevAny(ptr $0, ptr $1, i64 $2)
+declare i64 fb_WstrInstr(i64 $0, ptr $1, ptr $2)
+declare i64 fb_WstrInstrRev(ptr $0, ptr $1, i64 $2)
+declare i64 fb_WstrInstrRevAny(ptr $0, ptr $1, i64 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_StrDelete(ptr $0)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 2 functions, 2 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance

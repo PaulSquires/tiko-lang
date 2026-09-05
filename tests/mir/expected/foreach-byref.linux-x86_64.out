@@ -1,0 +1,176 @@
+func i8 _ZN4ITER7ISVALIDEv(ptr $0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 8
+    %6 = load %5
+    %7 = const i64 1
+    %8 = sext %6
+    %9 = icmp.slt %8, %7
+    %10 = neg %9
+    %11 = trunc %10
+    ret %11
+}
+func ptr _ZN4ITER5VALUEEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  local ptr b
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = alloca ptr b
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load %6
+    store @b, %7
+    %8 = load @b
+    %9 = field.addr %8, 0
+    %10 = load @this
+    %11 = field.addr %10, 8
+    %12 = load %11
+    %13 = sext %12
+    %14 = const i64 4
+    %15 = mul %13, %14
+    %16 = load %9
+    %17 = ptr.add %16, %15
+    store @$tmp0, %17
+    %18 = load @$tmp0
+    ret %18
+}
+func void _ZN4ITER8MOVENEXTEv(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 8
+    %4 = load %3
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = add %4, %6
+    store %3, %7
+    ret
+}
+func void _ZN3BAG11GETITERATOREv(ptr $0) {
+  local agg $tmp0 size 16
+  local ptr this
+  local agg it size 16
+  local agg $abi3 size 16
+  entry0:
+    %10 = alloca ptr $abi3
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr it
+    %4 = field.addr @it, 0
+    store %4, @this
+    %5 = field.addr @it, 8
+    %6 = const i64 0
+    %7 = trunc %6
+    store %5, %7
+    %8 = load @it
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
+}
+func i32 SUMOF(ptr $0) {
+  local i32 $tmp0
+  local ptr a
+  local i32 s
+  local i32 e
+  local agg $tmp4 size 16
+  local agg $abi5 size 16
+  entry0:
+    %15 = alloca ptr $abi5
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr a
+    store @a, $0
+    %4 = alloca ptr s
+    %5 = alloca ptr e
+    %6 = load @a
+    %7 = alloca ptr $tmp4
+    %16 = call void _ZN3BAG11GETITERATOREv(%6)
+    store @$abi5, %16
+    %8 = load @$abi5
+    store @$tmp4, %8
+    br each.test3
+  each.body1:
+    %9 = call i32 _ZN4ITER5VALUEEv(@$tmp4)
+    store @e, %9
+    %10 = load @s
+    %11 = load @e
+    %12 = add %10, %11
+    store @s, %12
+    br each.cont2
+  each.cont2:
+    call void _ZN4ITER8MOVENEXTEv(@$tmp4)
+    br each.test3
+  each.test3:
+    %13 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
+    condbr %13, each.body1, each.exit4
+  each.exit4:
+    %14 = load @s
+    ret %14
+}
+func i32 SUMOFVAL(ptr $0) {
+  local i32 $tmp0
+  local ptr a
+  local i32 s
+  local i32 e
+  local agg $tmp4 size 16
+  local agg $abi5 size 16
+  entry0:
+    %15 = alloca ptr $abi5
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr a
+    store @a, $0
+    %4 = alloca ptr s
+    %5 = alloca ptr e
+    %6 = load @a
+    %7 = alloca ptr $tmp4
+    %16 = call void _ZN3BAG11GETITERATOREv(%6)
+    store @$abi5, %16
+    %8 = load @$abi5
+    store @$tmp4, %8
+    br each.test3
+  each.body1:
+    %9 = call i32 _ZN4ITER5VALUEEv(@$tmp4)
+    store @e, %9
+    %10 = load @s
+    %11 = load @e
+    %12 = add %10, %11
+    store @s, %12
+    br each.cont2
+  each.cont2:
+    call void _ZN4ITER8MOVENEXTEv(@$tmp4)
+    br each.test3
+  each.test3:
+    %13 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
+    condbr %13, each.body1, each.exit4
+  each.exit4:
+    %14 = load @s
+    ret %14
+}
+verify: 6 FAILURES
+  _ZN3BAG11GETITERATOREv:0:15 load: opcode with no result carries a result temp
+  _ZN3BAG11GETITERATOREv:0:15 load: non-call opcode produces void
+  SUMOF:0:10 call: opcode with no result carries a result temp
+  SUMOF:0:11 store: uses %16 before it is defined
+  SUMOFVAL:0:10 call: opcode with no result carries a result temp
+  SUMOFVAL:0:11 store: uses %16 before it is defined
+lowered: 6 functions, 14 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance

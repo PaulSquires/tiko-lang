@@ -9,8 +9,24 @@
 ''     '' EXPECT-EXIT: 0            required exit code
 ''     '' GOLDEN: expected/foo.out  golden output, relative to the test's directory
 ''     '' EXPECT-OUT: some text     required substring of the output (repeatable)
+''     '' EXPECT-OUT[win64]: ...    required only when running for that target
 ''     '' EXPECT-NOT: other text    forbidden substring (repeatable)
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
+''
+'' TARGETS. Every run names a target explicitly: what tiko-lang emits depends on
+'' the TARGET, not on the host, and leaving it implicit made every golden say
+'' whatever the machine that generated it happened to default to. 104 tests
+'' failed on Linux for that reason alone. The default is win64.
+''
+'' A directory may widen it with a TARGETS file -- one line, space-separated:
+''
+''     tests/mir/TARGETS      win64 linux-x86_64
+''
+'' Every test in that directory then runs once per target. The GOLDEN is shared
+'' unless a per-target one sits beside it: 'expected/foo.out' serves both, and
+'' 'expected/foo.linux-x86_64.out' overrides it for that target when the two
+'' genuinely differ. 310 of the 370 MIR tests emit identical IR for both, so a
+'' file per target per test would have been 310 duplicates.
 ''
 '' Kinds:
 ''     cli     run tiko-lang with ARGS and check exit code, golden and substrings
@@ -37,6 +53,7 @@ type TestCase
     as long   expectExit
     as boolean haveExpectExit
     as string golden          '' relative to dir_, or "" for none
+    as FB.Array( of string ) targets   '' from <dir>TARGETS, else just win64
     as long   maxDiag
     as boolean haveMaxDiag
     as Array( of string ) expectOut
@@ -91,6 +108,12 @@ end function
 '' WHICH FILE gave up and HOW OFTEN -- the line number is a navigation aid in a sweep,
 '' not a fact worth pinning.
 ''
+'' ...AND ITS PATH SEPARATOR. The same line prints 'src\mir\lowerctl.bas' on
+'' Windows and 'src/mir/lowerctl.bas' on Linux, which is where 43 of the 104
+'' Linux failures came from -- nothing to do with the TARGET, only with the host
+'' that ran the compiler. Narrowed to lines carrying 'skip-site ' so an escape
+'' test's own backslashes are left alone.
+''
 '' Applied to both sides, so a golden written before this still matches.
 function NormalizeSkipSites( byval s as string ) as string
     dim as string outp = ""
@@ -116,7 +139,26 @@ function NormalizeSkipSites( byval s as string ) as string
         outp += chr( s[i] )
         i += 1
     wend
-    return outp
+
+    '' The separator pass, line by line.
+    dim as string r = ""
+    dim as long st = 1
+    while st <= len( outp )
+        dim as long nl = instr( st, outp, chr( 10 ) )
+        dim as string ln
+        if nl = 0 then
+            ln = mid( outp, st ) : st = len( outp ) + 1
+        else
+            ln = mid( outp, st, nl - st + 1 ) : st = nl + 1
+        end if
+        if instr( ln, "skip-site " ) > 0 then
+            for k as long = 0 to len( ln ) - 1
+                if ln[k] = 92 then ln[k] = asc( "/" )
+            next
+        end if
+        r += ln
+    wend
+    return r
 end function
 
 '' ------------------------------------------------------------------- discovery
@@ -185,8 +227,20 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.haveExpectExit = true
         elseif StartsWith( ln, "GOLDEN:" ) then
             tc.golden = Trim_( mid( ln, 8 ) )
+        elseif StartsWith( ln, "EXPECT-OUT[" ) then
+            '' A TARGET-QUALIFIED SUBSTRING. Some assertions are about a byte image
+            '' whose width IS the target -- 'w size 16 = bytes 61 00 62 00 ...' is
+            '' wstring * 8 on win64 and half the characters of it on linux-x86_64.
+            '' Qualifying the line beats dropping the test to one target, which
+            '' would have taken the wide-layout coverage off Linux exactly where it
+            '' is most worth having. Stored as '<target>' & tab & '<text>'.
+            dim as long rb = instr( ln, "]:" )
+            if rb > 0 then
+                tc.expectOut.Push( mid( ln, 12, rb - 12 ) & chr( 9 ) & _
+                                   Trim_( mid( ln, rb + 2 ) ) )
+            end if
         elseif StartsWith( ln, "EXPECT-OUT:" ) then
-            tc.expectOut.Push( Trim_( mid( ln, 12 ) ) )
+            tc.expectOut.Push( chr( 9 ) & Trim_( mid( ln, 12 ) ) )
         elseif StartsWith( ln, "EXPECT-MAX-DIAG:" ) then
             tc.maxDiag = valint( Trim_( mid( ln, 17 ) ) )
             tc.haveMaxDiag = true
@@ -197,7 +251,29 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
         end if
     wend
 
-    return (len( tc.kind ) > 0)
+    '' THE DIRECTORY'S TARGETS, not the test's. Naming them per test would have
+    '' meant the same line in all 370 files under tests/mir, and a new test there
+    '' would silently get only one of them by forgetting it.
+    dim as string tf = ReadTextFile( tc.dir_ & "TARGETS" )
+    tf = Trim_( NormalizeEol( tf ) )
+    dim as long tnl = instr( tf, chr( 10 ) )
+    if tnl > 0 then tf = Trim_( left( tf, tnl - 1 ) )
+    if len( tf ) > 0 then
+        dim as long tp = 1
+        while tp <= len( tf )
+            dim as long sp = instr( tp, tf, " " )
+            dim as string one_
+            if sp = 0 then
+                one_ = Trim_( mid( tf, tp ) ) : tp = len( tf ) + 1
+            else
+                one_ = Trim_( mid( tf, tp, sp - tp ) ) : tp = sp + 1
+            end if
+            if len( one_ ) > 0 then tc.targets.Push( one_ )
+        wend
+    end if
+    if tc.targets.Count = 0 then tc.targets.Push( "win64" )
+
+    return (len( tc.kind ) > 0)
 end function
 
 '' --------------------------------------------------------------------- running
@@ -239,6 +315,40 @@ type Failure
     as string why
 end type
 
+'' DOES THIS FILE EXIST. An open-for-input probe rather than a length test: a
+'' zero-byte golden is a legitimate expectation and must not read as absent.
+function FileExists_( byval p as string ) as boolean
+    dim as long f = freefile
+    if open( p for input as #f ) <> 0 then return false
+    close #f
+    return true
+end function
+
+'' THE GOLDEN FOR ONE TARGET: 'expected/foo.out' with '.<target>' inserted before
+'' the extension. Returns "" when there is no such file, which means the base golden
+'' serves this target too -- the common case, and what keeps 310 of the MIR tests to
+'' one file apiece.
+function TargetGolden_ _
+    ( byval dir_ as string, byval golden as string, byval tgt as string ) as string
+    dim as long dot = 0
+    for i as long = len( golden ) - 1 to 0 step -1
+        if golden[i] = asc( "." ) then dot = i + 1 : exit for
+        if golden[i] = asc( "/" ) then exit for
+    next
+    dim as string cand
+    if dot = 0 then
+        cand = golden & "." & tgt
+    else
+        cand = left( golden, dot - 1 ) & "." & tgt & mid( golden, dot )
+    end if
+    if FileExists_( dir_ & cand ) then return cand
+    return ""
+end function
+
+declare function CheckOne_ _
+    ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
+      byval rc as long, byref outText as string, byref why as string ) as boolean
+
 function RunOne _
     ( byref tc as TestCase, byref opts as Options, byref why as string ) as boolean
 
@@ -267,12 +377,34 @@ function RunOne _
     next
 
     dim as string outText = ""
-    dim as long rc = RunTko( opts.tikoPath, args, outText )
+    dim as long rc = 0
+    for ti as long = 0 to tc.targets.Count - 1
+        dim as string tgt = tc.targets[ti]
+        '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
+        rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText )
+        if CheckOne_( tc, opts, tgt, rc, outText, why ) = false then
+            if tc.targets.Count > 1 then why = "[" & tgt & "] " & why
+            for each e2 as string in tc.env
+                dim as long eq2 = instr( e2, "=" )
+                if eq2 > 0 then setenviron left( e2, eq2 )
+            next
+            return false
+        end if
+    next
 
     for each e_ as string in tc.env
         dim as long eq = instr( e_, "=" )
         if eq > 0 then setenviron left( e_, eq )
     next
+
+    return true
+end function
+
+'' EVERY CHECK FOR ONE TARGET'S RUN. Split out of RunOne so the same rules apply
+'' to each target rather than to whichever one happened to run last.
+function CheckOne_ _
+    ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
+      byval rc as long, byref outText as string, byref why as string ) as boolean
 
     if tc.haveExpectExit andalso (rc <> tc.expectExit) then
         why = "exit code " & rc & ", expected " & tc.expectExit
@@ -280,8 +412,12 @@ function RunOne _
     end if
 
     for each want as string in tc.expectOut
-        if instr( outText, want ) = 0 then
-            why = "output does not contain: " & want
+        dim as long tab_ = instr( want, chr( 9 ) )
+        dim as string forTgt = left( want, tab_ - 1 )
+        dim as string text_ = mid( want, tab_ + 1 )
+        if (len( forTgt ) > 0) andalso (forTgt <> tgt) then continue for
+        if instr( outText, text_ ) = 0 then
+            why = "output does not contain: " & text_
             return false
         end if
     next
@@ -309,7 +445,13 @@ function RunOne _
     end if
 
     if len( tc.golden ) > 0 then
-        dim as string gpath = tc.dir_ & tc.golden
+        '' A PER-TARGET GOLDEN IF ONE EXISTS, the shared one otherwise. On --accept
+        '' the per-target file is written only when it is already there: creating one
+        '' for every target would turn 310 shared goldens into 620.
+        dim as string rel = tc.golden
+        dim as string tg = TargetGolden_( tc.dir_, tc.golden, tgt )
+        if len( tg ) > 0 then rel = tg
+        dim as string gpath = tc.dir_ & rel
         if opts.accept then
             WriteTextFile( gpath, outText )
         else

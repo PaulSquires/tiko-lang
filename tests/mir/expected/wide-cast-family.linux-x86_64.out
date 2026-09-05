@@ -1,0 +1,129 @@
+global wstr $wstr0 "hello"
+global wstr $wstr1 "abc"
+global wstr $wstr2 "ZZ"
+global str $str3 "abc"
+func ptr _ZN8WIDECASTcvwEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 4
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func void S1() {
+  local agg u size 52
+  local i64 k1
+  local i64 k2
+  local agg w size 40
+  local agg s2 size 24
+  local agg rep size 24
+  local agg f size 10
+  local ptr $tmp7
+  local ptr $tmp8
+  entry0:
+    %1 = alloca ptr u
+    %2 = field.addr @u, 4
+    %3 = call.rtl ptr fb_WstrAssign(%2, 12, @@$wstr0)
+    %4 = alloca ptr k1
+    %5 = call ptr _ZN8WIDECASTcvwEv(@u)
+    %6 = call.rtl i32 fb_WstrAsc(%5, 1)
+    %7 = zext %6
+    store @k1, %7
+    %8 = alloca ptr k2
+    %9 = call ptr _ZN8WIDECASTcvwEv(@u)
+    %10 = const i64 2
+    %11 = call.rtl i32 fb_WstrAsc(%9, %10)
+    %12 = zext %11
+    store @k2, %12
+    %13 = load @k1
+    call.rtl void fb_PrintLongint(0, %13, 2)
+    %14 = load @k2
+    call.rtl void fb_PrintLongint(0, %14, 1)
+    %15 = alloca ptr w
+    %16 = call.rtl ptr fb_WstrAssign(@w, 10, @@$wstr1)
+    %17 = alloca ptr s2
+    %18 = call.rtl ptr fb_WstrToStr(@w)
+    %19 = call.rtl ptr fb_StrInit(@s2, -1, %18, -1, 0)
+    call.rtl void fb_PrintString(0, @s2, 1)
+    %20 = alloca ptr rep
+    %21 = call.rtl ptr fb_WstrAssign(@rep, 6, @@$wstr2)
+    %22 = const i64 2
+    %23 = call ptr _ZN8WIDECASTcvwEv(@u)
+    call.rtl void fb_WstrAssignMid(%23, 0, %22, -1, @rep)
+    %24 = field.addr @u, 4
+    call.rtl void fb_PrintWstr(0, %24, 1)
+    %25 = alloca ptr f
+    %26 = call.rtl ptr memset(@f, 32, 10)
+    %27 = const i64 -9223372036854775798
+    %28 = call.rtl ptr fb_StrAssign(@f, %27, @@$str3, 4, -1)
+    %29 = const i64 -9223372036854775798
+    %30 = call.rtl ptr fb_StrAllocTempDescF(@f, %29)
+    %31 = load %30
+    %32 = call.rtl ptr fb_StrToWstr(%31)
+    %33 = alloca ptr $tmp7
+    store @$tmp7, %32
+    %34 = load @$tmp7
+    %35 = call.rtl i32 fb_WstrCompare(@w, %34)
+    %36 = icmp.eq %35, 0
+    %37 = neg %36
+    %38 = sext %37
+    call.rtl void fb_PrintLongint(0, %38, 2)
+    %39 = const i64 -9223372036854775798
+    %40 = call.rtl ptr fb_StrAllocTempDescF(@f, %39)
+    %41 = load %40
+    %42 = call.rtl ptr fb_StrToWstr(%41)
+    %43 = alloca ptr $tmp8
+    store @$tmp8, %42
+    %44 = load @$tmp8
+    %45 = call.rtl i32 fb_WstrCompare(%44, @w)
+    %46 = icmp.eq %45, 0
+    %47 = neg %46
+    %48 = sext %47
+    call.rtl void fb_PrintLongint(0, %48, 1)
+    %49 = load @$tmp8
+    call.rtl void fb_WstrDelete(%49)
+    %50 = load @$tmp7
+    call.rtl void fb_WstrDelete(%50)
+    call.rtl void fb_StrDelete(@s2)
+    ret
+}
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare i32 fb_WstrAsc(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare ptr fb_WstrToStr(ptr $0)
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_WstrAssignMid(ptr $0, i64 $1, i64 $2, i64 $3, ptr $4)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
+declare ptr fb_StrToWstr(ptr $0)
+declare i32 fb_WstrCompare(ptr $0, ptr $1)
+declare void fb_WstrDelete(ptr $0)
+declare void fb_StrDelete(ptr $0)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S1()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 3 functions, 3 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance

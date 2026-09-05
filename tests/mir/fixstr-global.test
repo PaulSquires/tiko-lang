@@ -24,6 +24,10 @@
 '' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-OUT: z size 8 = bytes 61 62 63 00 00 00 00 00
 '' EXPECT-OUT: s size 8 = bytes 61 62 63 20 20 20 20 20
-'' EXPECT-OUT: w size 16 = bytes 61 00 62 00 63 00 00 00 00 00 00 00 00 00 00 00
+'' The wide image IS the target: 'wstring * 8' is 16 bytes of 2-byte units on
+'' win64 and 32 bytes of 4-byte ones on linux-x86_64. Both are asserted; the
+'' per-target goldens carry the rest of the IR.
+'' EXPECT-OUT[win64]: w size 16 = bytes 61 00 62 00 63 00 00 00 00 00 00 00 00 00 00 00
+'' EXPECT-OUT[linux-x86_64]: w size 32 = bytes 61 00 62 00 63 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 '' EXPECT-OUT: s2 size 4 = bytes 61 62 63 64
 '' GOLDEN: expected/fixstr-global.out

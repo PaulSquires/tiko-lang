@@ -1,0 +1,95 @@
+func ptr _ZN1UcvcEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func void P() {
+  local agg uv size 50
+  local agg r size 24
+  local agg z size 50
+  entry0:
+    %1 = alloca ptr uv
+    %2 = alloca ptr r
+    %3 = field.addr @r, 0
+    store %3, 0
+    %4 = field.addr @r, 8
+    store %4, 0
+    %5 = field.addr @r, 16
+    store %5, 0
+    %6 = alloca ptr z
+    %7 = call ptr _ZN1UcvcEv(@uv)
+    %8 = call.rtl ptr fb_StrAllocTempDescZ(%7)
+    %9 = call.rtl ptr fb_TRIM(%8)
+    %10 = call.rtl ptr fb_StrAssign(@r, -1, %9, -1, 0)
+    %11 = call ptr _ZN1UcvcEv(@uv)
+    %12 = call.rtl ptr fb_StrAssign(@r, -1, %11, 0, 0)
+    %13 = call ptr _ZN1UcvcEv(@uv)
+    %14 = call.rtl ptr fb_StrAssign(@z, 50, %13, 0, 0)
+    call.rtl void fb_StrDelete(@r)
+    ret
+}
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare ptr fb_TRIM(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+func ptr _ZN1WcvwEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func void Q() {
+  local agg wv size 200
+  local agg z size 200
+  local agg r size 24
+  local ptr $tmp3
+  entry0:
+    %1 = alloca ptr wv
+    %2 = alloca ptr z
+    %3 = alloca ptr r
+    %4 = field.addr @r, 0
+    store %4, 0
+    %5 = field.addr @r, 8
+    store %5, 0
+    %6 = field.addr @r, 16
+    store %6, 0
+    %7 = call ptr _ZN1WcvwEv(@wv)
+    %8 = call.rtl ptr fb_WstrTrim(%7)
+    %9 = alloca ptr $tmp3
+    store @$tmp3, %8
+    %10 = load @$tmp3
+    %11 = call.rtl ptr fb_WstrAssign(@z, 50, %10)
+    %12 = load @$tmp3
+    call.rtl void fb_WstrDelete(%12)
+    %13 = call ptr _ZN1WcvwEv(@wv)
+    %14 = call.rtl ptr fb_WstrAssign(@z, 50, %13)
+    %15 = call ptr _ZN1WcvwEv(@wv)
+    %16 = call.rtl ptr fb_WstrAssignToA(@r, -1, %15, 0)
+    call.rtl void fb_StrDelete(@r)
+    ret
+}
+declare ptr fb_WstrTrim(ptr $0)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare void fb_WstrDelete(ptr $0)
+declare ptr fb_WstrAssignToA(ptr $0, i64 $1, ptr $2, i32 $3)
+verify: ok
+lowered: 4 functions, 4 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance

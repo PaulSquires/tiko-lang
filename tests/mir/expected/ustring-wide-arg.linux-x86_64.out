@@ -1,0 +1,119 @@
+global wstr $wstr0 "q"
+global str $str1 "z"
+global wstr $wstr2 "qz"
+func i32 G(ptr $0) {
+  local i32 $tmp0
+  local ptr s
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr s
+    store @s, $0
+    %4 = load @s
+    %5 = call.rtl i64 fb_UStrLen(%4, -1)
+    %6 = trunc %5
+    ret %6
+}
+declare i64 fb_UStrLen(ptr $0, i64 $1)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg w size 32
+  local i32 r1
+  local agg $tmp3 size 24
+  local i32 r2
+  local agg $tmp5 size 24
+  local ptr $tmp6
+  local agg u size 24
+  local i32 r3
+  local ptr $tmp9
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr w
+    %5 = call.rtl ptr fb_WstrAssign(@w, 8, @@$wstr0)
+    %6 = alloca ptr r1
+    %7 = alloca ptr $tmp3
+    %8 = field.addr @$tmp3, 0
+    store %8, 0
+    %9 = field.addr @$tmp3, 8
+    store %9, 0
+    %10 = field.addr @$tmp3, 16
+    store %10, 0
+    %11 = call.rtl ptr fb_WstrToUStr(@w)
+    %12 = call.rtl ptr fb_UStrAssign(@$tmp3, -1, %11, -1, 0)
+    %13 = call i32 G(@$tmp3)
+    call.rtl void fb_UStrDelete(@$tmp3)
+    store @r1, %13
+    %14 = alloca ptr r2
+    %15 = alloca ptr $tmp5
+    %16 = field.addr @$tmp5, 0
+    store %16, 0
+    %17 = field.addr @$tmp5, 8
+    store %17, 0
+    %18 = field.addr @$tmp5, 16
+    store %18, 0
+    %19 = call.rtl ptr fb_WstrConcatWA(@w, @@$str1, 2)
+    %20 = alloca ptr $tmp6
+    store @$tmp6, %19
+    %21 = load @$tmp6
+    %22 = call.rtl ptr fb_WstrToUStr(%21)
+    %23 = call.rtl ptr fb_UStrAssign(@$tmp5, -1, %22, -1, 0)
+    %24 = call i32 G(@$tmp5)
+    call.rtl void fb_UStrDelete(@$tmp5)
+    store @r2, %24
+    %25 = load @$tmp6
+    call.rtl void fb_WstrDelete(%25)
+    %26 = load @r1
+    call.rtl void fb_PrintInt(0, %26, 2)
+    %27 = load @r2
+    call.rtl void fb_PrintInt(0, %27, 1)
+    %28 = alloca ptr u
+    %29 = const i64 -9223372036854775806
+    %30 = call.rtl ptr fb_UStrInit(@u, -1, @@$wstr2, %29, 0)
+    %31 = alloca ptr r3
+    %32 = const i64 0
+    %33 = trunc %32
+    store @r3, %33
+    %34 = call.rtl ptr fb_WstrConcatWA(@w, @@$str1, 2)
+    %35 = alloca ptr $tmp9
+    store @$tmp9, %34
+    %36 = load @$tmp9
+    %37 = call.rtl ptr fb_WstrToUStr(%36)
+    %38 = call.rtl i32 fb_UStrCompare(@u, -1, %37, -1)
+    %39 = icmp.eq %38, 0
+    condbr %39, if.then2, if.else3
+  if.join1:
+    %42 = load @$tmp9
+    call.rtl void fb_WstrDelete(%42)
+    %43 = load @r3
+    call.rtl void fb_PrintInt(0, %43, 1)
+    call.rtl void fb_UStrDelete(@u)
+    %44 = const i32 0
+    call.rtl void fb_End(%44)
+    %45 = load @$tmp0
+    ret %45
+  if.then2:
+    %40 = const i64 1
+    %41 = trunc %40
+    store @r3, %41
+    br if.join1
+  if.else3:
+    br if.join1
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+declare ptr fb_WstrToUStr(ptr $0)
+declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_UStrDelete(ptr $0)
+declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
+declare void fb_WstrDelete(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare i32 fb_UStrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 2 functions, 5 blocks, 76 insts, 0 statements not lowered, 0 scope imbalance
