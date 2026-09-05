@@ -176,6 +176,71 @@ end extern
 '' or past the cap means the digits did not fit.
 const FB_F2A_ADDBLANK = 1
 
+#ifdef TKORT_MSVC
+'' A THREE-DIGIT EXPONENT, WHICH THE UCRT WILL NOT PRODUCE.
+''
+'' fbc renders PRINT's floats through snprintf, and on MinGW that is MSVCRT's,
+'' which pads the exponent to at least three digits. Measured against fbc:
+''
+''     1e20 -> 1e+020    1e-5  -> 1e-005    1e16  -> 1e+016
+''     1e100 -> 1e+100   1e308 -> 1e+308    (already three, untouched)
+''
+'' The UCRT is C99 and writes the minimum two, so the same program printed
+'' 1e+20 on this target -- every double in exponential form, not a corner case.
+'' _set_output_format( _TWO_DIGIT_EXPONENT ) was the switch for this and was
+'' REMOVED in the UCRT, so the padding is done here or not at all.
+''
+'' RETURNS THE LENGTH IT WOULD NEED, and writes nothing when that does not fit,
+'' so the caller's existing 'n >= maxlen' test decides the same way it does on
+'' MinGW -- where snprintf would itself have reported the longer length and been
+'' refused. Padding first and testing afterwards is what keeps the two targets
+'' agreeing about TRUNCATION as well as about digits.
+private function tkort_hPad3Exp _
+	( byval p as zstring ptr, byval n as long, byval maxlen as long ) as long
+
+	dim as long e = 0
+	while (e < n) andalso (p[e] <> asc( "e" )) andalso (p[e] <> asc( "E" ))
+		e += 1
+	wend
+	if( e >= n ) then return n
+
+	'' Past the 'e' and its sign, then count what digits there are.
+	dim as long d = e + 1
+	if( d < n ) then
+		if( (p[d] = asc( "+" )) orelse (p[d] = asc( "-" )) ) then d += 1
+	end if
+	dim as long j = d
+	while (j < n) andalso (p[j] >= asc( "0" )) andalso (p[j] <= asc( "9" ))
+		j += 1
+	wend
+	dim as long nd = j - d
+	if( (nd <= 0) orelse (nd >= 3) ) then return n
+
+	'' THE EXPONENT IS THE LAST FIELD, so nothing has to move: the digits are
+	'' saved, the zeros written over them, and the digits put back after. An
+	'' in-place shift was tried first and got 1e+0200 -- the copy overlaps, and
+	'' reasoning about which end to start from is exactly the kind of care this
+	'' avoids needing. nd is 1 or 2 here, so there are at most two to hold.
+	if( j <> n ) then return n
+
+	dim as long add_ = 3 - nd
+	if( (d + 3) >= maxlen ) then return d + 3
+
+	dim as ubyte d0 = p[d]
+	dim as ubyte d1 = 0
+	if( nd = 2 ) then d1 = p[d + 1]
+
+	for k as long = 0 to add_ - 1
+		p[d + k] = asc( "0" )
+	next
+	p[d + add_] = d0
+	if( nd = 2 ) then p[d + add_ + 1] = d1
+	p[d + 3] = 0
+
+	return d + 3
+end function
+#endif
+
 extern "c"   '' NON-FBCALL: fb_string.h declares fb_hFloat2Str without it.
 
 function tkort_hFloat2Str alias "fb_hFloat2Str" _
@@ -200,6 +265,14 @@ function tkort_hFloat2Str alias "fb_hFloat2Str" _
 
 	dim as integer maxlen = 1 + digits + 6 + 1
 	dim as integer n = cast( integer, tkrt_snprintf( p, maxlen, fstr, val_ ) )
+
+	'' See tkort_hPad3Exp. Only when snprintf itself succeeded: a truncation is
+	'' already the failure below, and there is nothing well-formed to pad.
+	#ifdef TKORT_MSVC
+		if( (n > 0) andalso (n < maxlen) ) then
+			n = tkort_hPad3Exp( p, n, maxlen )
+		end if
+	#endif
 
 	if( (n <= 0) orelse (n >= maxlen) ) then
 		buffer[0] = 0
