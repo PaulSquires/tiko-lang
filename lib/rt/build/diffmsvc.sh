@@ -59,7 +59,14 @@ esac
 LIB="$RT_ROOT/lib/win64-msvc/libfb.a"
 [ -f "$LIB" ] || rt_die "no archive at $LIB -- run build/build.sh $CFG win64-msvc first"
 
-OPT=$(rt_opt_level "$CFG")
+# THE PROBE PROGRAMS ARE BUILT UNOPTIMISED, ON BOTH SIDES. The archive keeps the
+# configuration it was built with -- that is the thing under test -- but the
+# tests/abi programs are the INSTRUMENT, and an instrument should not be the
+# most complicated part of the measurement. At -O2 they go through fbc's LLVM
+# backend miscompile described below, which zeroes the very input a test then
+# converts, so utf-parity ended up comparing two heap buffers full of whatever
+# had been there. Neither side was wrong about the ABI and neither agreed.
+PROBE_OPT=0
 WORK="$RT_ROOT/obj/diffmsvc"
 rm -rf "$WORK"; mkdir -p "$WORK"
 
@@ -95,8 +102,25 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     EXTRALIBS="-l winspool -l gdi32"
 
     # ---------------------------------------------------------- reference
+    #
+    # -gen llvm AND THE SAME -O AS THE SUBJECT, so the only thing that differs
+    # between the two sides is THE TRIPLE. The first version of this script
+    # built the reference with fbc's default backend and the subject through
+    # -gen llvm -O2, which compares the ABI, the backend and the optimisation
+    # level all at once -- and utf-parity duly "failed" on something that has
+    # nothing to do with the ABI:
+    #
+    #     fbc -gen llvm -O0  (gnu)   41 C3 A9 E2 82 AC   correct
+    #     fbc -gen llvm -O2  (gnu)   00 00 00 00 00 00   WRONG
+    #     fbc -gen gas64 -O2         41 C3 A9 E2 82 AC   correct
+    #
+    # -- an fbc LLVM-backend miscompile at -O2, reproduced in six lines: a SUB
+    # taking "u( ) as ubyte" and writing u( 0 ) does not write it. It is not
+    # tiko-rt's and tiko-rt is not exposed to it (it declares no array
+    # parameter anywhere), but a harness that hides it inside an "ABI"
+    # differential is worse than one that does not run at all.
     if ! "$TKORT_FBC" "$src" -x "$ref" $(rt_incflags) $LANGOPT $EXTRALIBS \
-            > "$WORK/$name.reflog" 2>&1; then
+            -gen llvm -O "$PROBE_OPT" > "$WORK/$name.reflog" 2>&1; then
         skip=$((skip + 1))
         echo "diffmsvc: SKIP $name -- does not build against fbc's runtime" >&2
         continue
@@ -119,7 +143,7 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     fi
     [ -f "$ll" ] || { skip=$((skip + 1)); echo "diffmsvc: SKIP $name -- no .ll" >&2; continue; }
 
-    if ! "$CLANG" --target=x86_64-pc-windows-msvc -march=x86-64 "-O$OPT" \
+    if ! "$CLANG" --target=x86_64-pc-windows-msvc -march=x86-64 "-O$PROBE_OPT" \
             -Wno-override-module "$ll" -c -o "$obj" >> "$WORK/$name.sublog" 2>&1; then
         differ=$((differ + 1))
         echo "diffmsvc: FAIL $name -- does not assemble for msvc, see $WORK/$name.sublog" >&2
