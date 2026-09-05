@@ -149,6 +149,14 @@ fi
 #   strncasecmp    -> _strnicmp
 #   (msvc gains _fltused, an MSVC CRT marker the CRT itself supplies)
 #
+# _set_invalid_parameter_handler is NOT a rename either, and it is the one
+# import here that changes BEHAVIOUR rather than spelling. The UCRT validates
+# arguments MSVCRT does not and its default handler is __fastfail, so a bad
+# argument kills the process with 0xC0000409 and no output where MinGW would
+# have returned an error. src/c/msvcinit.c installs a handler that returns,
+# restoring MSVCRT's behaviour, which is the behaviour FreeBASIC programs were
+# written against. Measured on fbc's own chrono/iso.bas -- see that file.
+#
 # fb_hRtExit is the one that is NOT a rename. src/c/msvcinit.c hands it to
 # atexit and calls fb_hRtInit, so the MSVC archive references BOTH where the
 # gated archive references neither --
@@ -168,6 +176,7 @@ strcasecmp
 strncasecmp
 EOT
 cat > "$WORK/allow.m" <<'EOT'
+_set_invalid_parameter_handler
 __acrt_iob_func
 __chkstk
 __stdio_common_vsprintf

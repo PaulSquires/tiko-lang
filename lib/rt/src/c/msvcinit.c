@@ -40,12 +40,48 @@
 #ifdef TKORT_MSVC
 
 #include <stdlib.h>
+#include <stdio.h>
 
 void fb_hRtInit( void );
 void fb_hRtExit( void );
 
+/* A BAD ARGUMENT TO A CRT FUNCTION MUST RETURN, NOT KILL THE PROCESS.
+**
+** MSVCRT checks little and returns an error; the UCRT validates and calls
+** its invalid-parameter handler, whose default is __fastfail -- the process
+** dies with 0xC0000409, no message, and any buffered stdout lost. That is a
+** BEHAVIOUR DIFFERENCE between the two Windows runtimes, and this runtime's
+** job is to behave like the one FreeBASIC programs were written against.
+**
+** MEASURED, and it is not hypothetical. fbc's crt/locale.bi is glibc's header
+** verbatim, with no win32 arm anywhere in src/inc/crt, so on Windows it hands
+** out POSIX category numbers: LC_ALL is 6 where Windows wants 0. The same
+** program, the same source:
+**
+**     MinGW   setlocale( 6, NULL ) -> NULL, four more calls, exit 0
+**     UCRT    setlocale( 6, NULL ) -> 0xC0000409, no output
+**
+** fbc's own chrono/iso.bas does exactly that in no_locale_leakage_, which is
+** why the MSVC gate died at startup with nothing printed. (tiko-rt itself is
+** not the caller: src/init/rtinit.bas hard-codes 2 on Windows and 0 on Linux,
+** and says why.)
+**
+** THE COST IS REAL AND IS THE POINT. A genuine bad argument now returns an
+** error instead of stopping the program at the fault -- which is exactly what
+** it does on MinGW today, and parity with that is what this target is for.
+** errno is still set and the call still fails; only the termination goes. */
+static void tkort_invalid_parameter(
+	const wchar_t *expression, const wchar_t *function,
+	const wchar_t *file, unsigned int line, uintptr_t reserved )
+{
+	(void)expression; (void)function; (void)file; (void)line; (void)reserved;
+}
+
 static void tkort_msvc_startup( void )
 {
+	/* BEFORE fb_hRtInit, which itself calls setlocale. */
+	_set_invalid_parameter_handler( tkort_invalid_parameter );
+
 	fb_hRtInit( );
 
 	/* Registered from inside the initialiser rather than beside it, so the
