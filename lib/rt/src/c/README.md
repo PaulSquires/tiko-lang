@@ -41,6 +41,12 @@ predicted list above -- every predicted entry was ported to FreeBASIC instead
 | `profile_cycles.c` | 349 | `__attribute__((section("fb_profilecycledata")))` with `__start_`/`__stop_` range symbols. FreeBASIC cannot place a variable in a named section, and on the MSVC ABI the mechanism does not exist at all -- see docs/tiko-rt/RFC-0006 section 3.2. |
 | `thread_call.c` | 241 | **libffi.** An external dependency, prebuilt for MinGW, and the source of the 11 known `threadcall` gate failures on every target. |
 
+**`oop_object_copyctor.c` and `oop_istypeof.c` were on this list and are not any
+more.** Neither DEFINES the reserved symbol -- one calls the constructor and the
+other only reads RTTI through it -- so both are ordinary FreeBASIC modules now,
+`src/oop/object_copyctor.bas` and `src/oop/istypeof.bas`. Being next to something
+that cannot move was not a reason for them not to.
+
 So the list does not shrink to zero. It shrinks to **one hard case** (`atomic.c`,
 until RFC-0002 lands), **one reserved symbol** (`oop_object.c`, which is fbc's to
 give up), **one section mechanism** (`profile_cycles.c`) and **one third-party

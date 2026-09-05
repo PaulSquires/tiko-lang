@@ -143,6 +143,8 @@ fs/watch.bas
 fs/fileops2.bas
 fs/filelow.bas
 fs/legacydir.bas
+oop/istypeof.bas
+oop/object_copyctor.bas
 thread/claimlock.bas
 thread/sched.bas
 thread/mutex.bas
