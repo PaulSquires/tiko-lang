@@ -39,29 +39,86 @@
 '' LINUX HAS NO SPLIT: glibc has one implementation and it is C99. This is
 '' genuinely about WHICH LIBC, not a width, so it is an #ifdef.
 
-'' THE MICROSOFT ABI HAS NO SPLIT TO REPRODUCE. There is one CRT there -- the
-'' UCRT -- and __mingw_sprintf does not exist in it, so the two aliases below
-'' cannot point at different implementations however much fbc's accident says
-'' they should. Both are the UCRT's, which is C99-conforming.
+'' ============================================ AND THE MICROSOFT ABI CAN DO BOTH
 ''
-'' THIS IS A KNOWN, DELIBERATE DIVERGENCE and it is the one thing about the
-'' win64-msvc target that is not ABI-neutral. Whether it is VISIBLE has not been
-'' measured: it cannot be until the archive links, which is what this file is
-'' being changed to allow. The instrument is tests/abi/tostr-parity.bas, which
-'' already carries every case, and the question it must answer is whether
-'' fb_hFloat2Str( 1e20, 16 ) still gives 1e+020 on this target or becomes
-'' 1e+20 -- the second would change what PRINT does with a double.
+'' The first version of this file said the UCRT had no split to reproduce --
+'' one CRT, C99, take it or leave it -- and left PRINT giving 1e+20 where fbc
+'' gives 1e+020. That was wrong, and the thing that was not looked at is that
+'' UCRT's printf family is a THIN WRAPPER over one function that takes the
+'' legacy behaviours as an ARGUMENT:
 ''
-'' docs/tiko-rt/RFC-0006 section 3.3 calls this the most dangerous item in the
-'' MSVC move, on the grounds that nothing fails to build or link and only the
-'' last digits move. It is confined to these two declarations.
+''     __stdio_common_vsprintf( options, buf, n, fmt, locale, ap )
+''
+'' corecrt_stdio_config.h names six option bits, and three of them are exactly
+'' the MSVCRT behaviours fbc inherits on MinGW. Measured on
+'' x86_64-pc-windows-msvc, "%.16g" of 1e20 and of 1e-20, "%.7g" of infinity:
+''
+''     options                     1e20      1e-20                    inf
+''     0                           1e+20     9.999999999999999e-21    inf
+''     MSVCRT_COMPATIBILITY (8)    1e+20     9.999999999999999e-21    1.#INF
+''     THREE_DIGIT_EXPONENTS (16)  1e+020    9.999999999999999e-021   inf
+''     8 or 16                     1e+020    9.999999999999999e-021   1.#INF
+''
+'' and STANDARD_ROUNDING (32), which the headers set by DEFAULT and MSVCRT does
+'' not have, decides the ties:
+''
+''     "%.16g" of 1009.9342041015625   off: 1009.934204101563  (MSVCRT, MinGW)
+''                                      on: 1009.934204101562  (C99, round-half-even)
+''
+'' So snprintf is bound to the common function with 8 or 16 set and 32 CLEAR,
+'' which reproduces MSVCRT digit for digit; sprintf stays the plain UCRT one,
+'' because that is the C99 side of fbc's split and __mingw_sprintf agrees with
+'' it. STANDARD_SNPRINTF_BEHAVIOR (2) is kept so the RETURN VALUE stays C99 --
+'' the truncation tests in str/tostr.bas and strw/tostr.bas already read it that
+'' way and that half was never in question.
+''
+'' WHAT STILL DIVERGES IS ACCURACY, AND IT DIVERGES THE OTHER WAY. Past about
+'' fifteen significant digits MSVCRT's digits are wrong, the UCRT's are exactly
+'' rounded, and no option bit makes the UCRT worse. Three cases survive, and in
+'' all three the MICROSOFT ABI IS THE CORRECT ONE:
+''
+''   value              exact                       MinGW/MSVCRT  UCRT
+''   2243643 / 2^24     0.133731544017791748046875  ...917918     ...917917
+''   6323511 / 2^24     0.376910626888275146484375  ...882752     ...882751
+''   double(1e-20)      9.99999999999999945...e-21  1e-20         9.999999999999999e-21
+''
+'' Every one is a dyadic rational whose decimal expansion terminates, so "the
+'' correctly rounded 16-digit answer" is not a matter of opinion -- it was
+'' computed. Two lines of rnd-parity and one of write-parity, and they are
+'' recorded here rather than papered over.
+''
+'' docs/tiko-rt/RFC-0006 section 3.3 called this the most dangerous item in the
+'' MSVC move on the grounds that nothing fails to build and only the last digits
+'' move. It was right about the danger and wrong about the remedy: the remedy is
+'' six bits, not a hand-written exponent pad.
 #ifdef TKORT_MSVC
 	extern "c"   '' NON-FBCALL: these are libc, not rtlib entry points.
 		declare function tkrt_sprintf cdecl alias "sprintf" _
 			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as long
-		declare function tkrt_snprintf cdecl alias "snprintf" _
-			( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
+		declare function tkrt_ucrt_vsnprintf cdecl alias "__stdio_common_vsprintf" _
+			( byval options as ulongint, byval s as zstring ptr, byval n as uinteger, _
+			  byval fmt as zstring ptr, byval loc as any ptr, byval ap as cva_list ) as long
 	end extern
+
+	'' _CRT_INTERNAL_PRINTF_STANDARD_SNPRINTF_BEHAVIOR  (1 shl 1)
+	'' _CRT_INTERNAL_PRINTF_LEGACY_MSVCRT_COMPATIBILITY (1 shl 3)
+	'' _CRT_INTERNAL_PRINTF_LEGACY_THREE_DIGIT_EXPONENTS(1 shl 4)
+	'' and NOT _CRT_INTERNAL_PRINTF_STANDARD_ROUNDING   (1 shl 5)
+	const TKORT_UCRT_SNPRINTF_OPTS = 2 or 8 or 16
+
+	'' PRIVATE, so every translation unit that includes this header gets its own
+	'' copy and none of them is an export -- the archive's symbol table is part
+	'' of the ABI contract and build/abidelta.sh checks it.
+	private function tkrt_snprintf cdecl _
+		( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
+
+		dim as cva_list ap = any
+		cva_start( ap, fmt )
+		dim as long r = tkrt_ucrt_vsnprintf( TKORT_UCRT_SNPRINTF_OPTS, s, n, fmt, 0, ap )
+		cva_end( ap )
+		return r
+
+	end function
 #elseif defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 	extern "c"   '' NON-FBCALL: these are libc, not rtlib entry points.
 		'' sprintf -> MinGW.  snprintf -> MSVCRT.  Both verified above.

@@ -41,6 +41,35 @@
 # UCRT does not export sprintf at all -- it is inline in the header -- so a
 # non-C caller cannot link it without that library. Measured; RFC-0006 §12.
 #
+# ---------------------------------------------------------- KNOWN DIVERGENCES
+#
+# Five tests differ and none of them is an ABI defect. They are listed so that a
+# SIXTH is visible immediately.
+#
+#   rnd-parity      2 lines   MSVCRT's printf is accurate to about fifteen
+#   write-parity    1 line    significant digits and the UCRT's is exactly
+#                             rounded, so past the fifteenth the MICROSOFT SIDE
+#                             IS THE CORRECT ONE. All three values are dyadic
+#                             rationals whose exact decimal expansion was
+#                             computed; see src/inc/fmt.bi. No UCRT option bit
+#                             makes it less accurate.
+#
+#   format-parity   2 values  NOT printf -- libm. FORMAT$ divides a value with
+#                             more than 19 integer digits by pow( 10, n ) before
+#                             rendering it, and the two pow implementations
+#                             differ in the last bit: 1e20 * pow(10,-2) is
+#                             1000000000000000000 on the UCRT and
+#                             1000000000000000256 on MinGW. Measured. Fixing it
+#                             means replacing fbc's algorithm, which is a rewrite
+#                             dividend inside a parity measurement.
+#
+#   radix-parity    both print the LENGTH of a formatted POINTER --
+#   wradix-parity   HEX_p( @marker ) is 6 characters under the reference and 10
+#                   under the subject, BIN_p 23 against 39. That is where the
+#                   image loaded, not what the ABI is; the two linkers pick
+#                   different bases. The tests measure a real entry point and
+#                   the wrong property of it, and the fix belongs in the test.
+#
 # WIN64 HOST ONLY. There is no MSVC ABI to compare against anywhere else.
 
 set -e
