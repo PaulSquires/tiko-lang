@@ -93,7 +93,22 @@ fi
 #
 #   ___chkstk_ms   -> __chkstk           the backend's, chosen by the triple
 #   __iob_func     -> __acrt_iob_func    src/sys/sys.bi -- a different CALL
-#   __mingw_sprintf-> sprintf/snprintf   src/inc/fmt.bi -- one CRT, no split
+#   __mingw_sprintf-> sprintf            src/inc/fmt.bi -- the C99 half
+#   snprintf       -> __stdio_common_vsprintf
+#                                       src/inc/fmt.bi -- the MSVCRT half. The
+#                       UCRT's whole printf family is a wrapper over that one
+#                       function, and the legacy behaviours fbc inherits from
+#                       MinGW (three-digit exponents, 1.#INF, round-half-away)
+#                       are OPTION BITS to it. Binding it directly is how the
+#                       msvc build reproduces them; the gated archive gets them
+#                       from MSVCRT's snprintf and needs no such call.
+#   _findfirst     -> _findfirst64i32   src/fs/legacydir.bas -- NOT one function.
+#   _findnext      -> _findnext64i32        The undecorated name is _finddata32_t
+#                       in the UCRT and _finddata64i32_t in MinGW: name at offset
+#                       20 against 36, so the same struct filled by the other CRT
+#                       gives the right attributes and an EMPTY name. The 64i32
+#                       spellings are what MSVC's own struct _finddata_t
+#                       describes, so FB_DIRCTX_ is identical on both.
 #   fseeko/ftello  -> _fseeki64/_ftelli64
 #   strcasecmp     -> _stricmp           the UCRT has no POSIX spelling
 #   strncasecmp    -> _strnicmp
@@ -110,6 +125,8 @@ cat > "$WORK/allow.g" <<'EOT'
 ___chkstk_ms
 __iob_func
 __mingw_sprintf
+_findfirst
+_findnext
 fseeko
 ftello
 strcasecmp
@@ -118,6 +135,9 @@ EOT
 cat > "$WORK/allow.m" <<'EOT'
 __acrt_iob_func
 __chkstk
+__stdio_common_vsprintf
+_findfirst64i32
+_findnext64i32
 _fltused
 _fseeki64
 _ftelli64
@@ -153,5 +173,8 @@ if [ "$rc" != "0" ]; then
 fi
 
 echo "abidelta: ok [$CFG] -- $(wc -l < "$WORK/g.exp" | tr -d ' ') exported names identical,"
-echo "abidelta: imports differ only by the 7 known renames and the two startup"
+# COUNTED, NOT TYPED. This line read "the 7 known renames" while allow.g held
+# nine of them -- a hardcoded number in the PASS message of a check whose
+# whole job is to notice when a list changes.
+echo "abidelta: imports differ only by the $(wc -l < "$WORK/allow.g" | tr -d ' ') known renames and the two startup"
 echo "abidelta: hooks, and .refptr stubs aside the MSVC archive is the gated archive."
