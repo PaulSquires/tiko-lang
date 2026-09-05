@@ -43,8 +43,14 @@
 #
 # ---------------------------------------------------------- KNOWN DIVERGENCES
 #
-# Three tests differ and none of them is an ABI defect. They are listed so that
-# a FOURTH is visible immediately.
+# Three tests differ and two cannot be run at all. None is an ABI defect, and
+# they are listed so that a FOURTH difference is visible immediately.
+#
+#   alloc-count     STRUCTURALLY UNMEASURABLE, and it is the linker, not the
+#   entry-count     runtime: both work by GNU ld's --wrap and lld-link has no
+#                   equivalent. See the check in the loop below for the measured
+#                   error. These are the only two of RFC-0004's gates that this
+#                   differential cannot answer.
 #
 #   rnd-parity      2 lines   MSVCRT's printf is accurate to about fifteen
 #   write-parity    1 line    significant digits and the UCRT's is exactly
@@ -109,6 +115,14 @@ esac
 LIB="$RT_ROOT/lib/win64-msvc/libfb.a"
 [ -f "$LIB" ] || rt_die "no archive at $LIB -- run build/build.sh $CFG win64-msvc first"
 
+# AND THE MT ARCHIVE, which is a DIFFERENT BUILD of the same sources rather than
+# the same objects with a flag: ENABLE_MT changes what the TLS table is, whether
+# the thread-flag update takes a lock, and which symbols exist at all. A NEEDS-MT
+# test linked against the st archive would report that TLS is not per-thread and
+# would be measuring the wrong library, which is the mistake diff.sh's own header
+# records having made.
+MTLIB="$RT_ROOT/lib/win64-msvc/libfbmt.a"
+
 # THE PROBE PROGRAMS ARE BUILT UNOPTIMISED, ON BOTH SIDES. The archive keeps the
 # configuration it was built with -- that is the thing under test -- but the
 # tests/abi programs are the INSTRUMENT, and an instrument should not be the
@@ -128,13 +142,38 @@ bothnz=0
 for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     name=$(basename "$src" .bas)
 
-    # NEEDS-MT would have to link libfbmt.a and be built with -d ENABLE_MT on
-    # both sides. Skipped rather than silently run against the wrong library,
-    # which is the mistake diff.sh's own header records having made.
-    if grep -q 'NEEDS-MT' "$src"; then
+    # A TEST THAT WRAPS THE ALLOCATOR CANNOT BE RUN HERE, and the reason is the
+    # LINKER, not the runtime. alloc-count and entry-count work by GNU ld's
+    # --wrap, which redirects references to malloc -- including the ones inside
+    # a static libfb.a -- to __wrap_malloc and leaves the original reachable as
+    # __real_malloc. lld-link has no equivalent: /ALTERNATENAME renames one way
+    # and supplies no __real_. Measured, x86_64-pc-windows-msvc:
+    #
+    #   error LNK2019: unresolved external symbol __real_malloc
+    #                  referenced in function __wrap_malloc
+    #
+    # So these two are structurally unmeasurable across this pair of link
+    # models, which is a different thing from "not wired yet" -- and until this
+    # check existed they were reported as "does not build against fbc's
+    # runtime", which points the reader at the runtime and is wrong.
+    if grep -q '__real_' "$src"; then
         skip=$((skip + 1))
-        echo "diffmsvc: SKIP $name -- NEEDS-MT, not wired here yet" >&2
+        echo "diffmsvc: SKIP $name -- wraps the allocator; the MSVC link has no --wrap" >&2
         continue
+    fi
+
+    # NEEDS-MT switches BOTH sides to -mt and the mt archive, exactly as diff.sh
+    # does. Anything less compares two different libraries.
+    MTOPT=""
+    THISLIB="$LIB"
+    if grep -q 'NEEDS-MT' "$src"; then
+        if [ ! -f "$MTLIB" ]; then
+            skip=$((skip + 1))
+            echo "diffmsvc: SKIP $name -- NEEDS-MT and no archive at $MTLIB" >&2
+            continue
+        fi
+        MTOPT="-mt"
+        THISLIB="$MTLIB"
     fi
 
     ref="$WORK/$name-ref.exe"
@@ -169,7 +208,7 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     # tiko-rt's and tiko-rt is not exposed to it (it declares no array
     # parameter anywhere), but a harness that hides it inside an "ABI"
     # differential is worse than one that does not run at all.
-    if ! "$TKORT_FBC" "$src" -x "$ref" $(rt_incflags) $LANGOPT $EXTRALIBS \
+    if ! "$TKORT_FBC" "$src" -x "$ref" $(rt_incflags) $LANGOPT $MTOPT $EXTRALIBS \
             -gen llvm -O "$PROBE_OPT" > "$WORK/$name.reflog" 2>&1; then
         skip=$((skip + 1))
         echo "diffmsvc: SKIP $name -- does not build against fbc's runtime" >&2
@@ -186,7 +225,7 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     obj="$WORK/$name.o"
     rm -f "$ll" "$obj"
     if ! "$TKORT_FBC" -c "$src" -m "$name" -target win64 -gen llvm -r \
-            $(rt_incflags) $LANGOPT -o "$obj" > "$WORK/$name.sublog" 2>&1; then
+            $(rt_incflags) $LANGOPT $MTOPT -o "$obj" > "$WORK/$name.sublog" 2>&1; then
         skip=$((skip + 1))
         echo "diffmsvc: SKIP $name -- does not compile for llvm" >&2
         continue
@@ -200,7 +239,7 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
         continue
     fi
 
-    if ! "$CLANG" --target=x86_64-pc-windows-msvc "$obj" "$LIB" -o "$sub" \
+    if ! "$CLANG" --target=x86_64-pc-windows-msvc "$obj" "$THISLIB" -o "$sub" \
             -lwinspool -lgdi32 -luser32 -ladvapi32 -llegacy_stdio_definitions -Xlinker /INCLUDE:tkort_msvc_init_ \
             >> "$WORK/$name.sublog" 2>&1; then
         differ=$((differ + 1))
