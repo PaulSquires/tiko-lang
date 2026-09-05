@@ -258,8 +258,18 @@ extern "c"   '' NON-FBCALL: libc.
 	declare function c_usleep alias "usleep" ( byval us as ulong ) as long
 	declare function c_ioperm alias "ioperm" _
 		( byval from_ as ulongint, byval num as ulongint, byval turn_on as long ) as long
+	'' _strnicmp / _stricmp ON THE MICROSOFT ABI. The UCRT has no strncasecmp or
+	'' strcasecmp -- they are POSIX names, and MSVC spells the pair with a leading
+	'' underscore and an i. Same signature and same meaning, a different name, and
+	'' the same shape as the fseeko/ftello rename. TKORT_MSVC comes from build.sh;
+	'' see src/sys/sys.bi for why fbc cannot tell us itself.
+	#ifdef TKORT_MSVC
+	declare function c_strncasecmp alias "_strnicmp" _
+		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+	#else
 	declare function c_strncasecmp alias "strncasecmp" _
 		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+	#endif
 
 	declare function c_pthread_create alias "pthread_create" _
 		( byval t as ulongint ptr, byval attr as any ptr, byval fn_ as any ptr, _

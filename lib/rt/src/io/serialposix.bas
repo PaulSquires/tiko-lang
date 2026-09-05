@@ -242,7 +242,16 @@ extern "c"   '' NON-FBCALL: libc.
 	declare sub c_cfmakeraw alias "cfmakeraw" ( byval t as TERMIOS_ ptr )
 	declare function c_alarm alias "alarm" ( byval secs as ulong ) as ulong
 	declare function c_signal alias "signal" ( byval sig as long, byval h as any ptr ) as any ptr
+	'' _strnicmp / _stricmp ON THE MICROSOFT ABI. The UCRT has no strncasecmp or
+	'' strcasecmp -- they are POSIX names, and MSVC spells the pair with a leading
+	'' underscore and an i. Same signature and same meaning, a different name, and
+	'' the same shape as the fseeko/ftello rename. TKORT_MSVC comes from build.sh;
+	'' see src/sys/sys.bi for why fbc cannot tell us itself.
+	#ifdef TKORT_MSVC
+	declare function c_strcasecmp alias "_stricmp" ( byval a as zstring ptr, byval b as zstring ptr ) as long
+	#else
 	declare function c_strcasecmp alias "strcasecmp" ( byval a as zstring ptr, byval b as zstring ptr ) as long
+	#endif
 end extern
 
 extern "rtlib"   '' FBCALL: decorated on win32, though this file is empty there.

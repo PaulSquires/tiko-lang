@@ -55,10 +55,22 @@
 extern "c"   '' NON-FBCALL: libc's case-insensitive compares. MinGW provides the
              '' POSIX names on Windows too, so one declaration serves all three
              '' targets.
+	'' _strnicmp / _stricmp ON THE MICROSOFT ABI. The UCRT has no strncasecmp or
+	'' strcasecmp -- they are POSIX names, and MSVC spells the pair with a leading
+	'' underscore and an i. Same signature and same meaning, a different name, and
+	'' the same shape as the fseeko/ftello rename. TKORT_MSVC comes from build.sh;
+	'' see src/sys/sys.bi for why fbc cannot tell us itself.
+	#ifdef TKORT_MSVC
+	declare function crt_strncasecmp alias "_strnicmp" _
+		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+	declare function crt_strcasecmp alias "_stricmp" _
+		( byval a as zstring ptr, byval b as zstring ptr ) as long
+	#else
 	declare function crt_strncasecmp alias "strncasecmp" _
 		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
 	declare function crt_strcasecmp alias "strcasecmp" _
 		( byval a as zstring ptr, byval b as zstring ptr ) as long
+	#endif
 end extern
 
 extern "c"   '' NON-FBCALL: fb_file.h, fb_serial.h and fb_printer.h declare the
