@@ -60,6 +60,26 @@ sub sshow( byref tag as string, byval p as FBC.FBSTRING ptr )
     pSDelTmp( p )
 end sub
 
+'' Both descriptors are consumed. Only the VERDICT is printed, so this is usable
+'' on values -- addresses -- whose text cannot be compared across two links.
+sub ssame( byref tag as string, byval a as FBC.FBSTRING ptr, byval b as FBC.FBSTRING ptr )
+    dim as long eq = 0
+    if( (a <> 0) andalso (b <> 0) ) then
+        if( SLN(a) = SLN(b) ) then
+            eq = 1
+            for i as integer = 0 to SLN(a) - 1
+                if( cptr( ubyte ptr, a->data )[i] <> cptr( ubyte ptr, b->data )[i] ) then
+                    eq = 0
+                    exit for
+                end if
+            next
+        end if
+    end if
+    print tag; " = _l form: "; eq
+    if( a <> 0 ) then pSDelTmp( a )
+    if( b <> 0 ) then pSDelTmp( b )
+end sub
+
 '' ---- the narrow family. Values chosen so a forward to the WRONG width shows:
 '' &hFF is 255 in every width, but -1 is FF / FFFF / FFFFFFFF / FFFFFFFFFFFFFFFF.
 print "== HEX =="
@@ -96,22 +116,46 @@ sshow( "BIN_l max   ", pBIN_l( &hFFFFFFFFFFFFFFFFull ) )
 sshow( "BINEx_b 5,8 ", pBINEx_b( 5, 8 ) )
 sshow( "BINEx_b 255,3", pBINEx_b( 255, 3 ) )
 
-'' The pointer forms print the host's natural width -- 16 hex digits on a
-'' 64-bit host, 8 on a 32-bit one. The VALUE cannot be printed (it differs per
-'' run), so only the LENGTH is compared, which is what the width rule governs.
+'' THE POINTER FORMS ONCE PRINTED THE LENGTH OF A REAL ADDRESS, which measures
+'' where the image loaded and not what the runtime does. fb_HEX_p STRIPS LEADING
+'' ZEROS -- it does not pad to the host's natural width, which is what the
+'' comment here used to claim and what would have made a length reproducible --
+'' so HEX_p( @marker ) was 6 characters under fbc's MinGW link and 10 under the
+'' MSVC one, and BIN_p 23 against 39. A real entry point measured by the wrong
+'' property -- it fails when the linker moves and passes when the forward is
+'' broken, which is backwards on both counts.
+''
+'' Two checks replace it, and both are reproducible on any host:
+''
+''   1. CONSTANT pointers, so the TEXT is compared rather than its length. These
+''      exercise the width the length was reaching for -- a _p that forwarded to
+''      the 32-bit routine truncates &hFFFFFFFFFFFFFFFF and shows up here.
+''   2. That the _p form of a REAL address agrees with the _l form of THE SAME
+''      BITS. That is the forward itself, checked at an address nobody can
+''      predict, printing only the verdict.
+dim as any ptr kp = cast( any ptr, &hDEADBEEFull )
+dim as any ptr kq = cast( any ptr, &hFFFFFFFFFFFFFFFFull )
+sshow( "HEX_p  const", pHEX_p( kp ) )
+sshow( "HEX_p  wide ", pHEX_p( kq ) )
+sshow( "HEXEx_p 4   ", pHEXEx_p( kp, 4 ) )
+sshow( "HEXEx_p 20  ", pHEXEx_p( kp, 20 ) )
+sshow( "OCT_p  const", pOCT_p( kp ) )
+sshow( "OCT_p  wide ", pOCT_p( kq ) )
+sshow( "OCTEx_p 6   ", pOCTEx_p( kp, 6 ) )
+sshow( "BIN_p  const", pBIN_p( kp ) )
+sshow( "BIN_p  wide ", pBIN_p( kq ) )
+sshow( "BINEx_p 9   ", pBINEx_p( kp, 9 ) )
+
 dim as integer marker = 0
-dim as FBC.FBSTRING ptr hp = pHEX_p( @marker )
-print "HEX_p  len="; SLN(hp) : pSDelTmp( hp )
-hp = pHEXEx_p( @marker, 4 )
-print "HEXEx_p 4 len="; SLN(hp) : pSDelTmp( hp )
-hp = pOCT_p( @marker )
-print "OCT_p  len>0="; iif( SLN(hp) > 0, 1, 0 ) : pSDelTmp( hp )
-hp = pOCTEx_p( @marker, 6 )
-print "OCTEx_p 6 len="; SLN(hp) : pSDelTmp( hp )
-hp = pBIN_p( @marker )
-print "BIN_p  len="; SLN(hp) : pSDelTmp( hp )
-hp = pBINEx_p( @marker, 9 )
-print "BINEx_p 9 len="; SLN(hp) : pSDelTmp( hp )
+dim as any ptr mp = @marker
+dim as ulongint mv = cast( ulongint, mp )
+ssame( "HEX_p  addr ", pHEX_p( mp ), pHEX_l( mv ) )
+ssame( "HEXEx_p addr", pHEXEx_p( mp, 4 ), pHEXEx_l( mv, 4 ) )
+ssame( "OCT_p  addr ", pOCT_p( mp ), pOCT_l( mv ) )
+ssame( "OCTEx_p addr", pOCTEx_p( mp, 6 ), pOCTEx_l( mv, 6 ) )
+ssame( "BIN_p  addr ", pBIN_p( mp ), pBIN_l( mv ) )
+ssame( "BINEx_p addr", pBINEx_p( mp, 9 ), pBINEx_l( mv, 9 ) )
+
 '' A NULL pointer has a value that IS reproducible.
 sshow( "HEX_p NULL  ", pHEX_p( 0 ) )
 sshow( "BIN_p NULL  ", pBIN_p( 0 ) )

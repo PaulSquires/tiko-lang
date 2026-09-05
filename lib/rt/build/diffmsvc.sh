@@ -43,8 +43,8 @@
 #
 # ---------------------------------------------------------- KNOWN DIVERGENCES
 #
-# Five tests differ and none of them is an ABI defect. They are listed so that a
-# SIXTH is visible immediately.
+# Three tests differ and none of them is an ABI defect. They are listed so that
+# a FOURTH is visible immediately.
 #
 #   rnd-parity      2 lines   MSVCRT's printf is accurate to about fifteen
 #   write-parity    1 line    significant digits and the UCRT's is exactly
@@ -62,13 +62,6 @@
 #                             1000000000000000256 on MinGW. Measured. Fixing it
 #                             means replacing fbc's algorithm, which is a rewrite
 #                             dividend inside a parity measurement.
-#
-#   radix-parity    both print the LENGTH of a formatted POINTER --
-#   wradix-parity   HEX_p( @marker ) is 6 characters under the reference and 10
-#                   under the subject, BIN_p 23 against 39. That is where the
-#                   image loaded, not what the ABI is; the two linkers pick
-#                   different bases. The tests measure a real entry point and
-#                   the wrong property of it, and the fix belongs in the test.
 #
 # WIN64 HOST ONLY. There is no MSVC ABI to compare against anywhere else.
 

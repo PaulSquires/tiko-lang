@@ -75,6 +75,29 @@ sub wshow( byref tag as string, byval p as wstring ptr )
     pWDel( p )
 end sub
 
+'' Both results are freed. Only the VERDICT is printed, so this is usable on
+'' values -- addresses -- whose text cannot be compared across two links.
+sub wsame( byref tag as string, byval a as wstring ptr, byval b as wstring ptr )
+    dim as long eq = 0
+    if( (a <> 0) andalso (b <> 0) ) then
+        dim as integer n = wlen_( a )
+        if( n = wlen_( b ) ) then
+            dim as ubyte ptr pa = cptr( ubyte ptr, a )
+            dim as ubyte ptr pb = cptr( ubyte ptr, b )
+            eq = 1
+            for i as integer = 0 to n * sizeof( wstring ) - 1
+                if( pa[i] <> pb[i] ) then
+                    eq = 0
+                    exit for
+                end if
+            next
+        end if
+    end if
+    print tag; " = _l form: "; eq
+    if( a <> 0 ) then pWDel( a )
+    if( b <> 0 ) then pWDel( b )
+end sub
+
 print "== HEXW =="
 wshow( "Hex_b 0     ", pHex_b( 0 ) )
 wshow( "Hex_b 255   ", pHex_b( 255 ) )
@@ -108,20 +131,38 @@ wshow( "Bin_l max   ", pBin_l( &hFFFFFFFFFFFFFFFFull ) )
 wshow( "BinEx_b 5,8 ", pBinEx_b( 5, 8 ) )
 wshow( "BinEx_b 255,3", pBinEx_b( 255, 3 ) )
 
-'' The pointer forms print the host's natural width. Only the LENGTH is
-'' comparable for a real address; a NULL pointer has a reproducible value.
+'' THE POINTER FORMS ONCE PRINTED THE LENGTH OF A REAL ADDRESS, which measures
+'' where the image loaded and not what the runtime does -- and the claim above
+'' this block, that they print the host's natural width, was simply wrong:
+'' fb_WstrHex_p STRIPS LEADING ZEROS. Hex_p( @marker ) came out 6 code units
+'' under fbc's MinGW link and 10 under the MSVC one. See radix-parity.bas, which
+'' carried the identical mistake in the narrow family.
+''
+'' Constant pointers for the TEXT, and an agreement check against the _l form of
+'' the same bits for the forward at an unpredictable address.
+dim as any ptr kp = cast( any ptr, &hDEADBEEFull )
+dim as any ptr kq = cast( any ptr, &hFFFFFFFFFFFFFFFFull )
+wshow( "Hex_p  const", pHex_p( kp ) )
+wshow( "Hex_p  wide ", pHex_p( kq ) )
+wshow( "HexEx_p 4   ", pHexEx_p( kp, 4 ) )
+wshow( "HexEx_p 20  ", pHexEx_p( kp, 20 ) )
+wshow( "Oct_p  const", pOct_p( kp ) )
+wshow( "Oct_p  wide ", pOct_p( kq ) )
+wshow( "OctEx_p 6   ", pOctEx_p( kp, 6 ) )
+wshow( "Bin_p  const", pBin_p( kp ) )
+wshow( "Bin_p  wide ", pBin_p( kq ) )
+wshow( "BinEx_p 9   ", pBinEx_p( kp, 9 ) )
+
 dim as integer marker = 0
-dim as wstring ptr wp = pHex_p( @marker )
-print "Hex_p  len="; wlen_( wp ) : pWDel( wp )
-wp = pHexEx_p( @marker, 4 )
-print "HexEx_p 4 len="; wlen_( wp ) : pWDel( wp )
-wp = pOct_p( @marker )
-print "Oct_p  len>0="; iif( wlen_( wp ) > 0, 1, 0 ) : pWDel( wp )
-wp = pOctEx_p( @marker, 6 )
-print "OctEx_p 6 len="; wlen_( wp ) : pWDel( wp )
-wp = pBin_p( @marker )
-print "Bin_p  len="; wlen_( wp ) : pWDel( wp )
-wp = pBinEx_p( @marker, 9 )
-print "BinEx_p 9 len="; wlen_( wp ) : pWDel( wp )
+dim as any ptr mp = @marker
+dim as ulongint mv = cast( ulongint, mp )
+wsame( "Hex_p  addr ", pHex_p( mp ), pHex_l( mv ) )
+wsame( "HexEx_p addr", pHexEx_p( mp, 4 ), pHexEx_l( mv, 4 ) )
+wsame( "Oct_p  addr ", pOct_p( mp ), pOct_l( mv ) )
+wsame( "OctEx_p addr", pOctEx_p( mp, 6 ), pOctEx_l( mv, 6 ) )
+wsame( "Bin_p  addr ", pBin_p( mp ), pBin_l( mv ) )
+wsame( "BinEx_p addr", pBinEx_p( mp, 9 ), pBinEx_l( mv, 9 ) )
+
+'' A NULL pointer has a value that IS reproducible.
 wshow( "Hex_p NULL  ", pHex_p( 0 ) )
 wshow( "Bin_p NULL  ", pBin_p( 0 ) )
