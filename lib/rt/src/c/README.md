@@ -3,7 +3,11 @@
 RFC-0003 section 4. Anything here must be listed below with its reason, or
 `build/lint.sh` fails the build. The list is closed: it shrinks, it does not grow.
 
-**Currently empty.** The spike slice (memory, strings, error, startup) needs
+**Currently empty, and the table below is what was PREDICTED. The six files the
+build actually still takes from fbc are different, and each now has a measured
+reason -- see the second table.**
+
+**Predicted:** The spike slice (memory, strings, error, startup) needs
 nothing from it. The entries expected later, each already justified in RFC-0003:
 
 | Expected file | Reason |
@@ -12,3 +16,34 @@ nothing from it. The entries expected later, each already justified in RFC-0003:
 | `sys_portio.c` | `inb`/`outb` -- inline asm, and the fbportio driver path |
 | `cpudetect.s` | hand-written assembly |
 | `fbrt0.c` `fbrt1.c` `fbrt2.c` | constructor priority **100**. PROBE-4 confirmed FB's `constructor 101` does beat every unprioritised constructor -- but 101 is FB's floor, so a user can *tie* it. The C stub sits below the range user code can express, which is why it was chosen. Staying C |
+
+---
+
+## What is actually still fbc's, measured 2026-09-05
+
+`build/gate.sh` merges 199 tiko-rt objects over fbc's archive and reports **528 of
+534 members replaced**. The six that survive are these, and none of them is on the
+predicted list above -- every predicted entry was ported to FreeBASIC instead
+(`init/hinitwin.bas`, `sys/ports.bas`).
+
+| File | Lines | Why it stays C |
+| --- | ---: | --- |
+| `atomic.c` | 84 | **FreeBASIC has no atomics.** The file says so itself: these three are the smallest primitive set a refcount needs, and `docs/concurrency/RFC-0002-atomics.md` -- `FB.Atomic( of T )` -- is still a draft that needs all four backends changed. |
+| `oop_object.c` | 12 | **fbc RESERVES `__fb_ZTS6Object`.** Measured: a module defining it through the ordinary two-part `extern ... alias` + `dim shared` idiom emits the symbol TWICE -- once as fbc's own `@__fb_ZTS6Object = external global %"8fb_RTTI$"`, which the compiler writes for the built-in `Object` type, and once as the definition. clang refuses the module. The same idiom with any other name emits exactly one, so this is specific to the reserved symbol and not a limitation of the idiom. |
+| `oop_object_copyctor.c` | 10 | Two lines that call `oop_object.c`'s constructor. Portable in principle; kept beside the thing it cannot be separated from. |
+| `oop_istypeof.c` | 21 | As above -- portable in principle, and moved only when the pair above can be. |
+| `profile_cycles.c` | 349 | `__attribute__((section("fb_profilecycledata")))` with `__start_`/`__stop_` range symbols. FreeBASIC cannot place a variable in a named section, and on the MSVC ABI the mechanism does not exist at all -- see docs/tiko-rt/RFC-0006 section 3.2. |
+| `thread_call.c` | 241 | **libffi.** An external dependency, prebuilt for MinGW, and the source of the 11 known `threadcall` gate failures on every target. |
+
+So the list does not shrink to zero. It shrinks to **one hard case** (`atomic.c`,
+until RFC-0002 lands), **one reserved symbol** (`oop_object.c`, which is fbc's to
+give up), **one section mechanism** (`profile_cycles.c`) and **one third-party
+library** (`thread_call.c`), with two small files keeping the second company.
+
+### What this costs the MSVC target
+
+`build/build.sh` compiles FreeBASIC and nothing else -- `src/c/` has been empty
+since it was created, so there is no C path in it at all. Until there is, the
+win64-msvc archive is short these six and a program linking against it fails on
+`fb_AtomicCasLong`. All six DO compile under `x86_64-pc-windows-msvc`: five
+unchanged, and `atomic.c` with a `<windows.h>` for the `Interlocked*` family.
