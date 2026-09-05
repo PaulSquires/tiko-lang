@@ -119,12 +119,42 @@ end extern
 	#assert offsetof( FB_DIRCTX_, handle ) = 304
 	#assert sizeof( FB_DIRCTX_ ) = 312
 
-	extern "c"   '' NON-FBCALL: MSVCRT's find family, whose C names all carry a
+	'' AND `_findfirst` IS NOT ONE FUNCTION. It is a HEADER MACRO in both CRTs,
+	'' selecting one of four real exports by the widths of time_t and of the
+	'' size field -- and the two CRTs resolve the UNDECORATED name differently:
+	''
+	''   MinGW    _findfirst  IS  _finddata64i32_t   name at 36, struct 296
+	''   UCRT     _findfirst  IS  _finddata32_t      name at 20, struct 276
+	''
+	'' Both fill `attrib` at offset 0, so a struct written for one and filled by
+	'' the other reports the RIGHT ATTRIBUTES AND AN EMPTY NAME -- which is
+	'' exactly what legacydir-parity and fileops2-parity showed, six entries with
+	'' attrib=32 and nothing to call them. A short name ends before offset 36, so
+	'' the mismatch reads a NUL rather than garbage and nothing warns.
+	''
+	'' Measured, not read -- `_findfirst` declared by hand over a 0xAA-filled
+	'' buffer, x86_64-pc-windows-msvc:
+	''
+	''   20 00 00 00 02 C5 9A 6A 02 C5 9A 6A 02 C5 9A 6A
+	''   8B 00 00 00 61 73 6D 2E 63 00 AA AA AA AA AA AA
+	''            ^size at 16        ^name at 20
+	''
+	'' So MSVC binds the 64i32 spellings by name, which ARE what its own
+	'' `struct _finddata_t` describes -- sizeof 296, attrib 0, name 36, the same
+	'' record FB_DIRCTX_ above already lays out. The context does not change.
+	extern "c"   '' NON-FBCALL: the CRT find family, whose C names all carry a
 	             '' leading underscore that the alias supplies.
-		declare function crt_findfirst alias "_findfirst" _
-			( byval spec as zstring ptr, byval data_ as any ptr ) as integer
-		declare function crt_findnext alias "_findnext" _
-			( byval h as integer, byval data_ as any ptr ) as long
+		#ifdef TKORT_MSVC
+			declare function crt_findfirst alias "_findfirst64i32" _
+				( byval spec as zstring ptr, byval data_ as any ptr ) as integer
+			declare function crt_findnext alias "_findnext64i32" _
+				( byval h as integer, byval data_ as any ptr ) as long
+		#else
+			declare function crt_findfirst alias "_findfirst" _
+				( byval spec as zstring ptr, byval data_ as any ptr ) as integer
+			declare function crt_findnext alias "_findnext" _
+				( byval h as integer, byval data_ as any ptr ) as long
+		#endif
 		declare function crt_findclose alias "_findclose" ( byval h as integer ) as long
 	end extern
 

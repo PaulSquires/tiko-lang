@@ -71,6 +71,25 @@ function tkort_DevComTestProtocolEx alias "fb_DevComTestProtocolEx" _
 	'' ZEROED BEFORE ANYTHING CAN FAIL -- see the file header.
 	if( pPort <> 0 ) then *pPort = 0
 
+	'' AND A NULL FILENAME IS REJECTED BEFORE THE FIRST COMPARE, because the two
+	'' CRTs disagree about what a NULL argument to a case-insensitive compare is:
+	''
+	''   MinGW    strncasecmp( NULL, "SER:", 4 )   returns, non-zero
+	''   UCRT     _strnicmp(   NULL, "SER:", 4 )   INVALID PARAMETER HANDLER,
+	''                                             process terminated
+	''
+	'' An empty FreeBASIC string has a NULL `data`, so `fb_DevComTestProtocolEx(
+	'' 0, strptr( s ), 0, @port )` on `s = ""` reaches here with NULL every time
+	'' -- and hostinfo-parity's subject died at exactly that line while the
+	'' reference printed ` [] ->  0`. Measured with `_strnicmp` declared by hand
+	'' on x86_64-pc-windows-msvc: the print before it appears and the one after
+	'' it does not.
+	''
+	'' The guard is not a behaviour change: NULL cannot match "SER:" and a NULL
+	'' filename always carries length 0, so the `filename_len < 4` test two lines
+	'' down was already going to return 0 on the platform that survives.
+	if( filename = 0 ) then return 0
+
 	'' "SER:" FIRST, and before the length test.
 	if( crt_strncasecmp( filename, @"SER:", 4 ) = 0 ) then
 		if( pPort <> 0 ) then *pPort = 1
