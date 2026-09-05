@@ -41,6 +41,21 @@ for a in "$GNU" "$MSVC"; do
     [ -f "$a" ] || rt_die "no archive at $a -- run build.sh $CFG win64 and build.sh $CFG win64-msvc first"
 done
 
+# AND BOTH MUST BE THE SAME CONFIGURATION AS EACH OTHER AND AS THIS RUN.
+#
+# This script's whole job is a symbol-table differential, and lib/<target>/ holds
+# ONE archive per target that every configuration overwrites. The first time it
+# was run it compared a RELEASE MinGW archive against a DEBUG MSVC one and
+# reported exp2, floorf, fputc, fabs and llabs as ABI differences. They were -O2
+# inlining. The header above says this script refuses to build anything itself
+# for that reason; refusing to build is only half of it -- it also has to refuse
+# to READ two archives that do not belong together.
+for d in "$RT_ROOT/lib/win64" "$RT_ROOT/lib/win64-msvc"; do
+    [ -f "$d/.config" ] || rt_die "no .config beside $d/libfb.a -- rebuild it with build/build.sh $CFG"
+    have=$(cat "$d/.config")
+    [ "$have" = "$CFG" ] || rt_die "$d was built [$have], not [$CFG] -- the two sides must match, and match this run"
+done
+
 WORK="$RT_ROOT/obj/abidelta"
 rm -rf "$WORK"; mkdir -p "$WORK"
 

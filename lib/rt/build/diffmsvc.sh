@@ -115,6 +115,21 @@ esac
 LIB="$RT_ROOT/lib/win64-msvc/libfb.a"
 [ -f "$LIB" ] || rt_die "no archive at $LIB -- run build/build.sh $CFG win64-msvc first"
 
+# AND IT MUST BE THE CONFIGURATION THIS RUN WAS ASKED FOR. lib/<target>/ holds
+# ONE archive that every configuration overwrites, so without this check
+# `diffmsvc.sh Release` run after a Debug build measures Debug and says Release.
+rt_check_cfg_stamp( ) {
+    _stamp="$1/.config"
+    if [ ! -f "$_stamp" ]; then
+        rt_die "no .config beside $1 -- rebuild with build/build.sh $CFG win64-msvc"
+    fi
+    _have=$(cat "$_stamp")
+    if [ "$_have" != "$CFG" ]; then
+        rt_die "the archives in $1 were built [$_have], not [$CFG] -- run build/build.sh $CFG win64-msvc"
+    fi
+}
+rt_check_cfg_stamp "$RT_ROOT/lib/win64-msvc"
+
 # AND THE MT ARCHIVE, which is a DIFFERENT BUILD of the same sources rather than
 # the same objects with a flag: ENABLE_MT changes what the TLS table is, whether
 # the thread-flag update takes a lock, and which symbols exist at all. A NEEDS-MT

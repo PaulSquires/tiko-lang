@@ -258,6 +258,20 @@ build_one( ) {
     rm -f "$objdir/.dup.tmp"
 
     n=$("$TKORT_NM" --defined-only "$libdir/$archive" 2>/dev/null | grep -c ' T ' || true)
+    # STAMP THE CONFIGURATION NEXT TO THE ARCHIVE.
+    #
+    # The OBJECTS are per-configuration -- obj/<target>/<cfg>/<thread> -- but the
+    # ARCHIVE is not: lib/<target>/libfb.a is one path that every configuration
+    # overwrites. So a tool told "Release" reads whatever was built last, agrees
+    # with itself, and reports a number for a library nobody asked for. That is
+    # not hypothetical either: an abidelta run in this tree compared a Release
+    # MinGW archive against a Debug MSVC one and reported five inlining
+    # differences as ABI divergences.
+    #
+    # Sixth stale-artefact incident, same shape as the five above. The stamp lets
+    # a reader of the archive CHECK rather than assume.
+    echo "$CFG" > "$libdir/.config"
+
     echo "build: $target/$archive [$CFG] -- $(echo $objs | wc -w) objects, $n text symbols"
 }
 
