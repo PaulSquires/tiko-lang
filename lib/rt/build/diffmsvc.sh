@@ -54,14 +54,42 @@
 #                             computed; see src/inc/fmt.bi. No UCRT option bit
 #                             makes it less accurate.
 #
-#   format-parity   2 values  NOT printf -- libm. FORMAT$ divides a value with
-#                             more than 19 integer digits by pow( 10, n ) before
-#                             rendering it, and the two pow implementations
-#                             differ in the last bit: 1e20 * pow(10,-2) is
-#                             1000000000000000000 on the UCRT and
-#                             1000000000000000256 on MinGW. Measured. Fixing it
-#                             means replacing fbc's algorithm, which is a rewrite
-#                             dividend inside a parity measurement.
+#   format-parity   2 values  NOT printf -- libm, and exactly one function of
+#                             it. FORMAT$ scales by pow( 10, -n ) before
+#                             rendering a value with more than 19 integer
+#                             digits, and msvcrt's pow IS WRONG where the
+#                             UCRT's is correctly rounded:
+#
+#                               pow(10,-2)   ...147C  msvcrt   ...147B  UCRT
+#                               pow(10,-11)  ...649C           ...6495
+#                               pow(10,-22)  ...5EF9           ...5EE6
+#
+#                             1 ulp at 10^-2 growing to about 19 at 10^-22,
+#                             always high, and every negative power of 10 and
+#                             of 5 is affected -- not a corner case.
+#
+#                             THE BOUNDARY WAS MEASURED, and it is narrow. The
+#                             runtime imports six libm functions: ceil, exp2,
+#                             floor, log10, modf, pow. Probed bit for bit
+#                             against fbc's own binary, 28 of 45 values differ
+#                             and ALL 28 are pow with a negative exponent.
+#                             pow of an exact power of two, exp2, log10, ceil,
+#                             floor and modf are identical on both CRTs, and
+#                             pow is called from ONE file -- src/str/format.bas,
+#                             six sites, of which the two positive-exponent ones
+#                             agree.
+#
+#                             NOT FIXED, DELIBERATELY. fbc imports pow from
+#                             msvcrt.dll (ordinal 1169) and the MSVC build could
+#                             import the same function and agree to the bit. It
+#                             would mean loading msvcrt.dll into a UCRT process
+#                             -- reintroducing the CRT this target exists to
+#                             leave -- in order to inherit a 19-ulp bug, and the
+#                             visible blast radius is FORMAT$ of a number with
+#                             more than 19 integer digits. The option is cheap
+#                             and stays open; it is recorded here so that
+#                             choosing it later is a decision and not a
+#                             discovery.
 #
 # WIN64 HOST ONLY. There is no MSVC ABI to compare against anywhere else.
 
