@@ -7,6 +7,12 @@ RFC-0003 section 4. Anything here must be listed below with its reason, or
 build actually still takes from fbc are different, and each now has a measured
 reason -- see the second table.**
 
+**Present, and compiled by `build/build.sh`:**
+
+| File | Reason |
+| --- | --- |
+| `atomic.c` | FreeBASIC has no atomic operations and no way to spell a memory barrier, so there is nothing to reimplement in FB. tiko-rt's own, written against the three signatures in `fb_thread.h`; clang builtins throughout, so the MinGW and MSVC builds of it are textually identical. |
+
 **Predicted:** The spike slice (memory, strings, error, startup) needs
 nothing from it. The entries expected later, each already justified in RFC-0003:
 

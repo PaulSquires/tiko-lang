@@ -186,6 +186,35 @@ build_one( ) {
         objs="$objs $obj"
     done
 
+    # ------------------------------------------------------------ the C residue
+    #
+    # src/c/ is the closed list of files that stay C, each listed in its README
+    # with a reason (RFC-0003 section 4, enforced by lint.sh). It was empty until
+    # 2026-09-05 and so there was no C path here at all; the six members the gate
+    # still takes from fbc are what made one necessary.
+    #
+    # CLANG, WITH THE SAME TRIPLE THE FreeBASIC MODULES GOT. For win64-msvc that
+    # is the whole point: the FB half is retargeted at its assemble step above,
+    # and a C object built for the gnu triple beside it would be the one thing in
+    # the archive with the wrong ABI.
+    #
+    # NO fbc HEADERS ON THE INCLUDE PATH, deliberately. Anything here is tiko-rt's
+    # own C written against a documented signature, not a transliteration of a
+    # body (PROVENANCE.md), and reaching for fb.h is how the second kind starts.
+    #
+    # -O2 EVEN IN Debug. These are primitives -- an atomic wrapper compiled at -O0
+    # is a call around a call -- and there is no tiko-rt source to step through in
+    # them. -g is still passed so a backtrace names the file.
+    for csrc in $(ls "$RT_ROOT"/src/c/*.c 2>/dev/null); do
+        cobj="$objdir/$(basename "$csrc" .c).o"
+        ctgt=$(rt_clang_triple "$target")
+        [ -n "$ctgt" ] || ctgt=$(rt_target_triple "$target")
+        if ! "$CLANG" --target="$ctgt" -O2 -g -std=c99 -Wall -Wextra                 -c "$csrc" -o "$cobj"; then
+            rt_die "$target/$thread: $(basename "$csrc") failed to compile"
+        fi
+        objs="$objs $cobj"
+    done
+
     if [ -z "$objs" ]; then
         # S0: no modules yet. An archive with no members is still a valid
         # archive and still proves the whole toolchain path works.

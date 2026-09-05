@@ -115,6 +115,16 @@ rt_fbc_target( ) {
     esac
 }
 
+# THE TRIPLE FOR A TARGET THAT DOES NOT RETARGET, which is what the C residue
+# needs: the FreeBASIC modules get their triple from fbc, but a .c compiled here
+# has to be told. Kept beside rt_clang_triple so the two cannot drift.
+rt_target_triple( ) {
+    case "$1" in
+        linux-x86_64) echo "x86_64-pc-linux-gnu" ;;
+        *)            echo "x86_64-w64-windows-gnu" ;;
+    esac
+}
+
 # THE ABI DEFINE THE SOURCES SEE. fbc compiles win64-msvc AS win64 (it has no
 # MSVC target), so __FB_WIN64__ is defined either way and no built-in symbol
 # tells the two ABIs apart. The sources need to: UCRT spells the stdio stream
