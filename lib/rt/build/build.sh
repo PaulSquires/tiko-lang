@@ -94,7 +94,7 @@ build_one( ) {
         if [ -n "$__ct" ]; then
             __ll="${obj%.o}.ll"
             rm -f "$__ll"
-            if ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                     -target "$(rt_fbc_target "$target")" -gen llvm -r $(rt_incflags)                     $FLAGS $mtdef -o "$obj"; then
+            if ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                     -target "$(rt_fbc_target "$target")" -gen llvm -r $(rt_incflags)                     $FLAGS $mtdef $(rt_abi_define "$target") -o "$obj"; then
                 rt_die "$target/$thread: $src failed to compile"
             fi
             [ -f "$__ll" ] || rt_die "$target/$thread: $src produced no .ll"

@@ -66,7 +66,15 @@ end extern
 
 extern "c"   '' NON-FBCALL: libc and the Win32 API.
 	declare function crt_fileno alias "fileno" ( byval f as FILE ptr ) as long
+'' _fseeki64 / _ftelli64 ON THE MICROSOFT ABI. There is no fseeko in the UCRT:
+'' the 64-bit seek pair is spelled with a leading underscore and an i64 suffix
+'' there. Same signature and same meaning, a different name. TKORT_MSVC comes
+'' from build.sh -- see src/sys/sys.bi for why fbc cannot tell us itself.
+#ifdef TKORT_MSVC
+	declare function crt_ftello alias "_ftelli64" ( byval f as FILE ptr ) as longint
+#else
 	declare function crt_ftello alias "ftello" ( byval f as FILE ptr ) as longint
+#endif
 	declare function crt_freopen alias "freopen" _
 		( byval path as zstring ptr, byval mode_ as zstring ptr, byval f as FILE ptr ) as FILE ptr
 end extern

@@ -39,7 +39,30 @@
 '' LINUX HAS NO SPLIT: glibc has one implementation and it is C99. This is
 '' genuinely about WHICH LIBC, not a width, so it is an #ifdef.
 
-#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+'' THE MICROSOFT ABI HAS NO SPLIT TO REPRODUCE. There is one CRT there -- the
+'' UCRT -- and __mingw_sprintf does not exist in it, so the two aliases below
+'' cannot point at different implementations however much fbc's accident says
+'' they should. Both are the UCRT's, which is C99-conforming.
+''
+'' THIS IS A KNOWN, DELIBERATE DIVERGENCE and it is the one thing about the
+'' win64-msvc target that is not ABI-neutral. Whether it is VISIBLE has not been
+'' measured: it cannot be until the archive links, which is what this file is
+'' being changed to allow. The instrument is tests/abi/tostr-parity.bas, which
+'' already carries every case, and the question it must answer is whether
+'' fb_hFloat2Str( 1e20, 16 ) still gives 1e+020 on this target or becomes
+'' 1e+20 -- the second would change what PRINT does with a double.
+''
+'' docs/tiko-rt/RFC-0006 section 3.3 calls this the most dangerous item in the
+'' MSVC move, on the grounds that nothing fails to build or link and only the
+'' last digits move. It is confined to these two declarations.
+#ifdef TKORT_MSVC
+	extern "c"   '' NON-FBCALL: these are libc, not rtlib entry points.
+		declare function tkrt_sprintf cdecl alias "sprintf" _
+			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as long
+		declare function tkrt_snprintf cdecl alias "snprintf" _
+			( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
+	end extern
+#elseif defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 	extern "c"   '' NON-FBCALL: these are libc, not rtlib entry points.
 		'' sprintf -> MinGW.  snprintf -> MSVCRT.  Both verified above.
 		declare function tkrt_sprintf cdecl alias "__mingw_sprintf" _

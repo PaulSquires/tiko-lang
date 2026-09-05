@@ -47,9 +47,19 @@ extern "c"   '' NON-FBCALL: an *Ex form and two libc calls.
 	declare function tkrt_FileTellEx alias "fb_FileTellEx" ( byval h as FB_FILE ptr ) as longint
 	'' The 64-bit seek/tell pair. Not in fbc's crt bindings under these names on
 	'' every target, so they are declared here with local aliases.
+'' _fseeki64 / _ftelli64 ON THE MICROSOFT ABI. There is no fseeko in the UCRT:
+'' the 64-bit seek pair is spelled with a leading underscore and an i64 suffix
+'' there. Same signature and same meaning, a different name. TKORT_MSVC comes
+'' from build.sh -- see src/sys/sys.bi for why fbc cannot tell us itself.
+#ifdef TKORT_MSVC
+	declare function tkrt_fseeko cdecl alias "_fseeki64" _
+		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
+	declare function tkrt_ftello cdecl alias "_ftelli64" ( byval f as FILE ptr ) as longint
+#else
 	declare function tkrt_fseeko cdecl alias "fseeko" _
 		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
 	declare function tkrt_ftello cdecl alias "ftello" ( byval f as FILE ptr ) as longint
+#endif
 end extern
 
 extern "c"   '' NON-FBCALL: the *Ex forms take a handle.

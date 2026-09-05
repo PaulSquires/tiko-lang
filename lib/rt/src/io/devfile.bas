@@ -100,9 +100,19 @@ extern "c"   '' NON-FBCALL: the h-prefixed internals and the two libc 64-bit
 		( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as integer
 	declare function tkrt_ConvToA alias "fb_wstr_ConvToA" _
 		( byval dst as zstring ptr, byval dst_chars as integer, byval src as wstring ptr ) as integer
+'' _fseeki64 / _ftelli64 ON THE MICROSOFT ABI. There is no fseeko in the UCRT:
+'' the 64-bit seek pair is spelled with a leading underscore and an i64 suffix
+'' there. Same signature and same meaning, a different name. TKORT_MSVC comes
+'' from build.sh -- see src/sys/sys.bi for why fbc cannot tell us itself.
+#ifdef TKORT_MSVC
+	declare function tkrt_fseeko cdecl alias "_fseeki64" _
+		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
+	declare function tkrt_ftello cdecl alias "_ftelli64" ( byval f as FILE ptr ) as longint
+#else
 	declare function tkrt_fseeko cdecl alias "fseeko" _
 		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
 	declare function tkrt_ftello cdecl alias "ftello" ( byval f as FILE ptr ) as longint
+#endif
 end extern
 
 '' The reader hook fb_DevFileReadLineDumb takes. NULL means "use fgets".

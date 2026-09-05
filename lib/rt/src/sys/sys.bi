@@ -53,6 +53,35 @@
 #include once "crt/stdlib.bi"      '' malloc, free, realloc, calloc, exit, getenv
 #include once "crt/string.bi"      '' memcpy, memmove, memset, memcmp, str*
 #include once "crt/stdio.bi"       '' f*, snprintf, stderr
+
+'' ...AND THE STREAMS AGAIN, ON THE MICROSOFT ABI.
+''
+'' crt/stdio.bi is fbc's header and it is right about MinGW: there the three
+'' streams are macros over __iob_func( ), which returns the base of a FILE array
+'' and is indexed. UCRT has no __iob_func. It exports
+''
+''     FILE* __cdecl __acrt_iob_func( unsigned _Ix )
+''
+'' -- read from the Windows SDK's own corecrt_wstdio.h, which defines stdout as
+'' __acrt_iob_func( 1 ) and not as an index into anything. So it is a different
+'' CALL, not a different spelling, and the macros are replaced rather than the
+'' symbol renamed.
+''
+'' fbc's header is not edited: it is another project's file, and it is correct
+'' for every target fbc itself builds. TKORT_MSVC comes from build.sh, because
+'' fbc compiles win64-msvc AS win64 and no built-in symbol distinguishes them.
+#ifdef TKORT_MSVC
+	extern "c"   '' NON-FBCALL: this is the UCRT, not an rtlib entry point.
+		declare function tkrt_acrt_iob cdecl alias "__acrt_iob_func" _
+			( byval ix as ulong ) as FILE ptr
+	end extern
+	#undef stdin
+	#undef stdout
+	#undef stderr
+	#define stdin  tkrt_acrt_iob( 0 )
+	#define stdout tkrt_acrt_iob( 1 )
+	#define stderr tkrt_acrt_iob( 2 )
+#endif
 #include once "crt/wchar.bi"       '' wcs*
 #include once "crt/setjmp.bi"      '' jmp_buf, setjmp, longjmp -- GOSUB needs these
 #include once "crt/ctype.bi"

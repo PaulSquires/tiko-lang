@@ -115,6 +115,18 @@ rt_fbc_target( ) {
     esac
 }
 
+# THE ABI DEFINE THE SOURCES SEE. fbc compiles win64-msvc AS win64 (it has no
+# MSVC target), so __FB_WIN64__ is defined either way and no built-in symbol
+# tells the two ABIs apart. The sources need to: UCRT spells the stdio stream
+# accessor __acrt_iob_func where MinGW spells it __iob_func, and there is no
+# __mingw_sprintf at all. Same mechanism as -d ENABLE_MT.
+rt_abi_define( ) {
+    case "$1" in
+        *-msvc) echo "-d TKORT_MSVC" ;;
+        *)      echo "" ;;
+    esac
+}
+
 # THE TRIPLE clang IS GIVEN, or empty when fbc's own assemble step is right.
 #
 # Measured 2026-09-04 (RFC-0006 section 12): clang's --target OVERRIDES the
