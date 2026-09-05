@@ -132,11 +132,18 @@ SRCS=$(sed -n 's/^SRCLIST += //p' "$T/unit-tests.inc")
 #                       libfbgfx to borrow one from. 22 symbols.
 #   threads/threadcall  libffi, which is why the MinGW gate carries 11 known
 #                       failures of its own. 1 symbol.
+#   math/fenv           feraiseexcept, which the UCRT does not EXPORT. Its own
+#                       <fenv.h> says why: "feraiseexcept is defined inline in
+#                       this header so that it is compiled". A C caller gets it
+#                       inlined and never needs the symbol; a FreeBASIC caller
+#                       naming it cannot link. Same shape as sprintf, which is
+#                       what -llegacy_stdio_definitions exists for -- there is
+#                       no equivalent library for fenv. 1 symbol.
 #
 # They are named here rather than silently dropped, so the exclusion is a
 # statement about this target and not a hole nobody can see.
 SRCS=$(printf '%s
-' $SRCS | grep -v '^\./gfx/' | grep -v '^\./fbc-int/gfx\.bas$' | grep -v '^\./threads/threadcall\.bas$')
+' $SRCS | grep -v '^\./gfx/' | grep -v '^\./fbc-int/gfx\.bas$' | grep -v '^\./threads/threadcall\.bas$' | grep -v '^\./math/fenv\.bas$')
 [ -n "$SRCS" ] || rt_die "no SRCLIST entries in $T/unit-tests.inc"
 
 if [ -n "$DIRS" ]; then
@@ -188,7 +195,7 @@ for o in $TOBJS "$W/t/fbc-tests.o"; do cygpath -m "$o" >> "$W/objs.rsp"; done
 if ! "$CLANGX" --target=x86_64-pc-windows-msvc "@$W/objs.rsp" \
         "$W/libfbcunit.a" "$LIB" -o "$W/gatemsvc.exe" \
         -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
-        -llegacy_stdio_definitions -Xlinker /INCLUDE:tkort_msvc_init_ \
+        -llegacy_stdio_definitions -Xlinker /INCLUDE:tkort_msvc_init_ -Xlinker /STACK:2097152 \
         > "$W/link.log" 2>&1; then
     echo "gatemsvc: LINK FAILED" >&2
     grep -iE 'error|unresolved' "$W/link.log" | head -20 | sed 's/^/    /' >&2

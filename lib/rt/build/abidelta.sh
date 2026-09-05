@@ -65,7 +65,7 @@ rm -rf "$WORK"; mkdir -p "$WORK"
 # defines the same symbol and the linker folds them. They are not entry points.
 exports( ) {
     "$TKORT_NM" -g --defined-only "$1" 2>/dev/null \
-        | awk '$2 ~ /^[TDBR]$/ && $3 !~ /^__(real|xmm|ymm|zmm)@/ { print $3 }' \
+        | awk '$2 ~ /^[TDBR]$/ && $3 !~ /^__(real|xmm|ymm|zmm)@/ && $3 !~ /^\?\?_C@/ { print $3 }' \
         | sort -u
 }
 imports( ) {
@@ -84,11 +84,31 @@ rc=0
 # expected to be missing there and are not entry points either way.
 comm -23 "$WORK/g.exp" "$WORK/m.exp" | grep -v '^\.refptr\.' > "$WORK/only.g" || true
 
-# tkort_msvc_init_ is the ONE export the MSVC archive is meant to have and the
+# THE MSVC ARCHIVE IS MEANT TO HAVE THREE EXPORTS THE GATED ONE DOES NOT.
+#
+#   _ZN10fb_Object$C1Ev   fb_Object$'s default constructor, and
+#   __fb_ZTS6Object       its RTTI record. On the gnu targets these come from
+#                         fbc's own oop_object.o, which the gate links; under
+#                         MSVC there is no fbc archive to borrow from, so
+#                         src/c/oop_object.c supplies them and is empty
+#                         elsewhere. build/gatemsvc.sh is what found the gap:
+#                         728 modules of fbc's suite linked three symbols
+#                         short. RFC-0008 section 18.4.
+#
+# A string COMDAT (??_C@...) is excluded by the exports filter rather than
+# listed: clang names a string literal after its own hash and COMDATs it, the
+# same way it does __real@ and __xmm@ for float constants. "6OBJECT" is the
+# RTTI id and the symbol is an artefact of how MSVC emits it, not an entry
+# point.
+#
+# tkort_msvc_init_ is the third, and the
 # gated one is not: src/c/msvcinit.c is empty on the gnu targets, where fbc's
 # own fbrt0.o already calls fb_hRtInit. It is a .CRT$XCB table entry, not an
 # entry point, and a program names it only through /INCLUDE:.
-comm -13 "$WORK/g.exp" "$WORK/m.exp" | grep -v '^tkort_msvc_init_$' > "$WORK/only.m" || true
+comm -13 "$WORK/g.exp" "$WORK/m.exp"\
+    | grep -v '^tkort_msvc_init_$'\
+    | grep -v '^_ZN10fb_Object\$C1Ev$'\
+    | grep -v '^__fb_ZTS6Object$' > "$WORK/only.m" || true
 
 if [ -s "$WORK/only.g" ]; then
     echo "abidelta: exported by the GATED archive and NOT by the MSVC one:" >&2
@@ -187,7 +207,11 @@ if [ "$rc" != "0" ]; then
     exit 1
 fi
 
-echo "abidelta: ok [$CFG] -- $(wc -l < "$WORK/g.exp" | tr -d ' ') exported names identical,"
+# THE INTERSECTION, NOT ONE SIDE'S COUNT. This line used to print g.exp's
+# length and call it "identical", which is the gated archive's export count
+# and not the number the two agree on -- 1240 against 1236 once the MSVC side
+# gained fb_Object's constructor and the gnu side its .refptr stubs.
+echo "abidelta: ok [$CFG] -- $(comm -12 "$WORK/g.exp" "$WORK/m.exp" | wc -l | tr -d ' ') exported names identical,"
 # COUNTED, NOT TYPED. This line read "the 7 known renames" while allow.g held
 # nine of them -- a hardcoded number in the PASS message of a check whose
 # whole job is to notice when a list changes.
