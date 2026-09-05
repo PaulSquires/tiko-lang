@@ -33,5 +33,16 @@ one( ) {
     echo "check-layout: $label ok ($(grep -c . "$TRUTH") builtin types agree with fbc)"
 }
 
-one tests/types/expected/fbc-layout.txt       ""              win64 || rc=1
+# NAME THE TARGET, do not inherit the host's. The label said win64 while the
+# empty argument asked for whatever the host defaults to -- true on Windows and
+# false under WSL, where this measured linux-x86_64 and still called it win64.
+# The expectations are fbc's WIN64 answers, so win64 is what must be asked for.
+#
+# THIS ONE WAS NOT MERELY MISLABELLED. Layout DOES differ by target --
+# measured, wstring is 2 bytes on win64 and 4 on linux-x86_64, cva_list 8 and
+# 24 -- so under WSL this compared LINUX sizes against WIN64 expectations. It
+# passed only because the expectations cover the fourteen target-independent
+# scalars and name neither of those two types. Adding one would have turned a
+# silent pass into a mystery failure on Linux alone.
+one tests/types/expected/fbc-layout.txt       "-target win64" win64 || rc=1
 exit $rc

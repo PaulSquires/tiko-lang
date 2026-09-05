@@ -49,5 +49,15 @@ one( ) {
     return 1
 }
 
-one "$EXPECTED"   ""              win64 || rc=1
+# NAME THE TARGET, do not inherit the host's. The label said win64 while the
+# empty argument asked for whatever the host defaults to -- true on Windows and
+# false under WSL, where this measured linux-x86_64 and still called it win64.
+# The expectations are fbc's WIN64 answers, so win64 is what must be asked for.
+#
+# MEASURED 2026-09-04: --dump-mangle is byte-identical for win64 and
+# linux-x86_64, all 135 names. It always was going to be -- win32's '@N'
+# stdcall decoration was the only target-dependent part, and win32 was removed
+# -- so the old invocation gave the right ANSWER on both hosts. It gave it for
+# the wrong reason, and would have stopped the day a target diverged.
+one "$EXPECTED"   "-target win64" win64 || rc=1
 exit $rc
