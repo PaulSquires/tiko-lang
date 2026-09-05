@@ -61,6 +61,18 @@ fi
 # RFC-0007 section 9.
 RT_TARGETS="win64 linux-x86_64"
 
+# BUILD-ONLY TARGETS. Buildable, and deliberately NOT in RT_TARGETS, because
+# RT_TARGETS is what gate.sh, symbols.sh and diff.sh validate against -- leaving
+# win64-msvc out of it is what makes those three refuse it with the message they
+# already have, rather than accepting it and failing somewhere less obvious.
+#
+# win64-msvc is the Microsoft ABI (docs/tiko-rt/RFC-0006). It CANNOT be gated:
+# the gate works by dropping this archive into fbc's own MinGW link line, and an
+# MSVC-ABI archive cannot link there. RFC-0006 section 5 is the open question of
+# what replaces that, and until it is answered this target is built and not
+# validated. Nothing should be shipped from it.
+RT_BUILD_ONLY_TARGETS="win64-msvc"
+
 # Include path. fbc's src/inc supplies the OS bindings (src/sys/sys.bi explains
 # why they, and not #cinclude, are the primary binding under the amended R6).
 #
@@ -84,11 +96,54 @@ rt_is_target( ) {
     return 1
 }
 
+# ...AND THE WIDER SET build.sh ACCEPTS. Separate from rt_is_target on purpose;
+# see RT_BUILD_ONLY_TARGETS above.
+rt_is_buildable( ) {
+    for __t in $RT_TARGETS $RT_BUILD_ONLY_TARGETS; do
+        [ "$1" = "$__t" ] && return 0
+    done
+    return 1
+}
+
+# THE TARGET NAME fbc IS GIVEN. fbc has no MSVC target -- its -target table is
+# win64, win32, x86_64-w64-mingw32 and linux-x86_64, and every msvc spelling is
+# its error 81 -- so win64-msvc compiles as win64 and is retargeted afterwards.
+rt_fbc_target( ) {
+    case "$1" in
+        win64-msvc) echo "win64" ;;
+        *)          echo "$1" ;;
+    esac
+}
+
+# THE TRIPLE clang IS GIVEN, or empty when fbc's own assemble step is right.
+#
+# Measured 2026-09-04 (RFC-0006 section 12): clang's --target OVERRIDES the
+# 'target triple' line fbc writes into the .ll, and the object that comes out is
+# symbol-for-symbol identical to one built from an .ll whose line was rewritten.
+# So the IR needs no editing -- only the assemble step changes.
+rt_clang_triple( ) {
+    case "$1" in
+        win64-msvc) echo "x86_64-pc-windows-msvc" ;;
+        *)          echo "" ;;
+    esac
+}
+
 # ------------------------------------------------------------------ flags
 
 # Configuration flags. Note what is ABSENT: -exx and -e are NEVER used, on any
 # configuration. They insert bounds and null checks that call into the runtime,
 # which is the code being defined. See docs/tiko-rt/RFC-0003 section 3.
+# The -O level fbc would have passed to clang, for the targets where this script
+# calls clang itself. fbc computes it the same way -- 'clopts += "-O" & level'.
+rt_opt_level( ) {
+    case "$1" in
+        Debug)          echo 0 ;;
+        RelWithDebInfo) echo 2 ;;
+        Release)        echo 2 ;;
+        *)              echo 0 ;;
+    esac
+}
+
 rt_cfg_flags( ) {
     case "$1" in
         Debug)          echo "-g -w all" ;;

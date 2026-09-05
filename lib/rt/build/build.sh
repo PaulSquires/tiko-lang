@@ -28,7 +28,7 @@ shift 2>/dev/null || true
 
 TARGETS=${*:-$RT_TARGETS}
 for t in $TARGETS; do
-    rt_is_target "$t" || rt_die "unsupported target '$t' (R3: $RT_TARGETS)"
+    rt_is_buildable "$t" || rt_die "unsupported target '$t' (R3: $RT_TARGETS $RT_BUILD_ONLY_TARGETS)"
 done
 
 SOURCES=$(rt_sources)
@@ -75,7 +75,34 @@ build_one( ) {
     for src in $SOURCES; do
         obj="$objdir/$(echo "$src" | tr '/' '_' | sed 's/\.bas$/.o/')"
 
-        if ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                 -target "$target" -gen llvm $(rt_incflags)                 $FLAGS $mtdef -o "$obj"; then
+        # THE ASSEMBLE STEP IS OURS WHEN THE TRIPLE IS NOT fbc's.
+        #
+        # fbc cannot be asked for the Microsoft ABI: llvmTriple( ) is a two-way
+        # switch on the target with no MSVC branch, and -Wc does not reach the
+        # -gen llvm clang call at all (hCompileStage2ModuleLlvm builds its own
+        # option string and never appends extopt.gcc). Measured 2026-09-04.
+        #
+        # So -r stops fbc at the .ll -- it emits no object then, verified -- and
+        # clang is called here with the triple we want. The .ll is NOT edited:
+        # clang's --target overrides the module's own 'target triple' line, and
+        # the resulting object is symbol-for-symbol identical to one built from a
+        # rewritten .ll. RFC-0006 section 12.
+        #
+        # The clang line mirrors fbc's own, which is visible with -v:
+        #   clang --target=<t> -march=x86-64 -O<n> -Wno-override-module x.ll -c -o x.o
+        __ct=$(rt_clang_triple "$target")
+        if [ -n "$__ct" ]; then
+            __ll="${obj%.o}.ll"
+            rm -f "$__ll"
+            if ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                     -target "$(rt_fbc_target "$target")" -gen llvm -r $(rt_incflags)                     $FLAGS $mtdef -o "$obj"; then
+                rt_die "$target/$thread: $src failed to compile"
+            fi
+            [ -f "$__ll" ] || rt_die "$target/$thread: $src produced no .ll"
+            if ! "$CLANG" --target="$__ct" -march=x86-64 "-O$(rt_opt_level "$CFG")"                     -Wno-override-module "$__ll" -c -o "$obj"; then
+                rt_die "$target/$thread: $src failed to assemble for $__ct"
+            fi
+            rm -f "$__ll"
+        elif ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                 -target "$target" -gen llvm $(rt_incflags)                 $FLAGS $mtdef -o "$obj"; then
             rt_die "$target/$thread: $src failed to compile"
         fi
         [ -f "$obj" ] || rt_die "$target/$thread: $src produced no object"
@@ -135,7 +162,14 @@ build_one( ) {
         # from a module that meant to define something and did not.
         ngl=$("$TKORT_NM" --defined-only "$obj" 2>/dev/null | awk '$2=="T"||$2=="D"||$2=="B"||$2=="R"' | wc -l)
         if [ "$ngl" -eq 0 ]; then
-            if grep -q "EMPTY-ON:.*$target" "$RT_ROOT/src/$src" 2>/dev/null; then
+            # THE PLATFORM, NOT THE ABI. win64-msvc is win64 with a different
+            # calling-convention-free ABI: the same files are empty on it for
+            # the same reasons, and hinitposix.bas is empty on both because
+            # neither is POSIX. Matching the full target name instead would
+            # mean adding "win64-msvc" to every EMPTY-ON line in the tree, and
+            # again to each one for any later ABI variant.
+            __base=${target%-msvc}
+            if grep -qE "EMPTY-ON:.*($target|$__base)" "$RT_ROOT/src/$src" 2>/dev/null; then
                 : # declared empty for this target
             else
                 echo "build: $src compiles to an object with NO GLOBAL SYMBOLS on $target." >&2
@@ -170,7 +204,14 @@ build_one( ) {
     # Names beginning with '.' are excluded: .refptr.__fb_ctx and friends are
     # COMDAT thunks the backend emits ONCE PER OBJECT THAT REFERENCES THE
     # SYMBOL, so they are duplicated by design and the linker folds them.
-    "$TKORT_NM" --defined-only "$libdir/$archive" 2>/dev/null         | awk '($2=="T"||$2=="D"||$2=="B"||$2=="R") && $3 !~ /^\./{print $3}'         | sort | uniq -d > "$objdir/.dup.tmp"
+    #
+    # __real@... and __xmm@... are excluded for exactly the same reason on the
+    # MSVC ABI. Under the gnu triple a float constant is an anonymous .rdata
+    # label; under msvc clang gives it a NAME derived from its bit pattern and
+    # puts it in a COMDAT, so every module using 1.0 defines __real@3ff00...0
+    # and the linker folds them. Anything else that collides is still a real
+    # duplicate, which is the whole point of this check.
+    "$TKORT_NM" --defined-only "$libdir/$archive" 2>/dev/null         | awk '($2=="T"||$2=="D"||$2=="B"||$2=="R") && $3 !~ /^\./ && $3 !~ /^__(real|xmm|ymm|zmm)@/{print $3}'         | sort | uniq -d > "$objdir/.dup.tmp"
     if [ -s "$objdir/.dup.tmp" ]; then
         echo "build: $target/$archive defines these symbols TWICE:" >&2
         sed 's/^/    /' "$objdir/.dup.tmp" >&2
