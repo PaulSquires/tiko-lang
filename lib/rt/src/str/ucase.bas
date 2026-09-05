@@ -76,7 +76,31 @@ function tkort_StrUcase2 alias "fb_StrUcase2" _
 		else
 			for i as integer = 0 to length - 1
 				c = s[i]
-				if( islower( c ) ) then c = toupper( c )
+			'' THE CLASSIFIER TAKES AN UNSIGNED CHAR VALUE OR EOF, AND 0xFF IS BOTH.
+			''
+			'' C says an is*/to* argument must be EOF or representable as UNSIGNED
+			'' CHAR. fbc walks the source with a SIGNED char, so byte 224 reaches
+			'' islower as -32 and byte 255 reaches it as -1 -- and -1 is EOF, for
+			'' which islower is DEFINED to answer false. Those are two different
+			'' situations that look like one:
+			''
+			''     islower( -32 )   MinGW 2 (true)   MSVC 0 (FALSE)   undefined, differs
+			''     islower( -1  )   MinGW 0          MSVC 0           EOF, agrees
+			''     islower( 224 )   MinGW 2          MSVC 2
+			''     toupper( 255 )   MinGW 9F         MSVC 9F          the tables AGREE
+			''
+			'' So fbc's behaviour is: classify as UNSIGNED, except that 0xFF is left
+			'' alone because it arrives as EOF. Passing the unsigned value for every
+			'' byte fixed the accented characters on MSVC and CHANGED 0xFF on BOTH
+			'' targets -- 'y' with a diaeresis became 9F where fbc leaves FF. The
+			'' win64 gate did not see that; build/diff.sh's swap-case-mid did.
+			''
+			'' THE SOURCE IS STILL READ SIGNED, which is what makes the EOF case
+			'' reachable at all and is measured in the note above.
+				if( c <> -1 ) then
+					dim as long uc = c and &hFF
+					if( islower( uc ) ) then c = toupper( uc )
+				end if
 				d[i] = cast( ubyte, c )
 			next
 		end if

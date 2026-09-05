@@ -209,7 +209,14 @@ build_one( ) {
         cobj="$objdir/$(basename "$csrc" .c).o"
         ctgt=$(rt_clang_triple "$target")
         [ -n "$ctgt" ] || ctgt=$(rt_target_triple "$target")
-        if ! "$CLANG" --target="$ctgt" -O2 -g -std=c99 -Wall -Wextra                 -c "$csrc" -o "$cobj"; then
+        # THE SAME ABI DEFINE THE FreeBASIC MODULES GET, spelled -D rather than -d.
+        # A C file has no more way than a .bas one to tell win64 from win64-msvc:
+        # fbc compiles both AS win64 and clang defines _MSC_VER for the msvc
+        # triple only by accident of which headers it reaches for.
+        cabi=""
+        case "$target" in *-msvc) cabi="-D TKORT_MSVC" ;; esac
+        if ! "$CLANG" --target="$ctgt" -O2 -g -std=c99 -Wall -Wextra $cabi \
+                -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"
         fi
         objs="$objs $cobj"

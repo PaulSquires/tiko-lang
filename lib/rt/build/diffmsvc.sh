@@ -30,6 +30,13 @@
 # and fbc is the only thing that answers that. It is also the same reference
 # diff.sh uses, so a failure here and a pass there localises to the ABI.
 #
+# /INCLUDE:tkort_msvc_init_ IS REQUIRED TOO, and for a subtler reason. An
+# archive member is extracted only when it RESOLVES AN UNDEFINED SYMBOL, and
+# nothing references a CRT initialiser -- the CRT walks a section, it does not
+# call a name. So src/c/msvcinit.o sat in the archive and was never linked:
+# measured, the locale stayed "C" with the object present. /INCLUDE: names it
+# and is the supported way to pull one in.
+#
 # -llegacy_stdio_definitions IS REQUIRED and is not optional decoration: the
 # UCRT does not export sprintf at all -- it is inline in the header -- so a
 # non-C caller cannot link it without that library. Measured; RFC-0006 §12.
@@ -120,7 +127,7 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     fi
 
     if ! "$CLANG" --target=x86_64-pc-windows-msvc "$obj" "$LIB" -o "$sub" \
-            -lwinspool -lgdi32 -luser32 -ladvapi32 -llegacy_stdio_definitions \
+            -lwinspool -lgdi32 -luser32 -ladvapi32 -llegacy_stdio_definitions -Xlinker /INCLUDE:tkort_msvc_init_ \
             >> "$WORK/$name.sublog" 2>&1; then
         differ=$((differ + 1))
         echo "diffmsvc: FAIL $name -- does not LINK against the msvc runtime, see $WORK/$name.sublog" >&2

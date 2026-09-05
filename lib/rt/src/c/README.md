@@ -11,6 +11,7 @@ reason -- see the second table.**
 
 | File | Reason |
 | --- | --- |
+| `msvcinit.c` | The runtime's startup hook for the MSVC ABI, and MSVC-only -- empty on the gnu targets, where fbc's own `fbrt0.o` is on the link line doing this job. fbc names that object itself and it is not an archive member, so a program linked against tiko-rt's archive ALONE never calls `fb_hRtInit`. Measured: the process stayed in the `C` locale and `UCASE` left every accented character alone. `.CRT$XCB` sorts before the `.CRT$XCU` that module constructors land in -- RFC-0006 §4.4. |
 | `atomic.c` | FreeBASIC has no atomic operations and no way to spell a memory barrier, so there is nothing to reimplement in FB. tiko-rt's own, written against the three signatures in `fb_thread.h`; clang builtins throughout, so the MinGW and MSVC builds of it are textually identical. |
 
 **Predicted:** The spike slice (memory, strings, error, startup) needs

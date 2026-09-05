@@ -68,7 +68,12 @@ rc=0
 # object that references a shared datum. MSVC does not use them, so they are
 # expected to be missing there and are not entry points either way.
 comm -23 "$WORK/g.exp" "$WORK/m.exp" | grep -v '^\.refptr\.' > "$WORK/only.g" || true
-comm -13 "$WORK/g.exp" "$WORK/m.exp"                        > "$WORK/only.m" || true
+
+# tkort_msvc_init_ is the ONE export the MSVC archive is meant to have and the
+# gated one is not: src/c/msvcinit.c is empty on the gnu targets, where fbc's
+# own fbrt0.o already calls fb_hRtInit. It is a .CRT$XCB table entry, not an
+# entry point, and a program names it only through /INCLUDE:.
+comm -13 "$WORK/g.exp" "$WORK/m.exp" | grep -v '^tkort_msvc_init_$' > "$WORK/only.m" || true
 
 if [ -s "$WORK/only.g" ]; then
     echo "abidelta: exported by the GATED archive and NOT by the MSVC one:" >&2
@@ -90,7 +95,14 @@ fi
 #   __iob_func     -> __acrt_iob_func    src/sys/sys.bi -- a different CALL
 #   __mingw_sprintf-> sprintf/snprintf   src/inc/fmt.bi -- one CRT, no split
 #   fseeko/ftello  -> _fseeki64/_ftelli64
+#   strcasecmp     -> _stricmp           the UCRT has no POSIX spelling
+#   strncasecmp    -> _strnicmp
 #   (msvc gains _fltused, an MSVC CRT marker the CRT itself supplies)
+#
+# fb_hRtExit is the one that is NOT a rename. src/c/msvcinit.c hands it to
+# atexit and calls fb_hRtInit, so the MSVC archive references BOTH where the
+# gated archive references neither --
+# there fbc's own fbrt0.o holds that reference, from outside the archive.
 #
 # A NEW name on either side is the thing this check exists to catch: it means
 # the two builds have started to diverge somewhere nobody decided they should.
@@ -100,6 +112,8 @@ __iob_func
 __mingw_sprintf
 fseeko
 ftello
+strcasecmp
+strncasecmp
 EOT
 cat > "$WORK/allow.m" <<'EOT'
 __acrt_iob_func
@@ -107,6 +121,10 @@ __chkstk
 _fltused
 _fseeki64
 _ftelli64
+_stricmp
+_strnicmp
+fb_hRtExit
+fb_hRtInit
 sprintf
 snprintf
 EOT
@@ -135,5 +153,5 @@ if [ "$rc" != "0" ]; then
 fi
 
 echo "abidelta: ok [$CFG] -- $(wc -l < "$WORK/g.exp" | tr -d ' ') exported names identical,"
-echo "abidelta: imports differ only by the 5 known renames, and .refptr stubs aside"
-echo "abidelta: the MSVC archive is the gated archive."
+echo "abidelta: imports differ only by the 7 known renames and the two startup"
+echo "abidelta: hooks, and .refptr stubs aside the MSVC archive is the gated archive."
