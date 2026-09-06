@@ -107,6 +107,30 @@ private function KeyInkeyStr( byval code as long ) as string
     return chr( code and &hFF ) + chr( (code shr 8) and &hFF )
 end function
 
+'' THE SCANCODES AN EDITING LOOP NEEDS, and only those.
+''
+'' These are PC set-1 codes, which is what FreeBASIC's SC_* are and what a
+'' WM_KEYDOWN lParam carries -- fbgfx.bi declares SC_LEFT as &h4B and the rest
+'' follow from it. They are restated here rather than included, because this
+'' library cannot include fbgfx.bi; tools/smoke-entry.bas asserts them against
+'' the reference header's own constants so the restatement cannot drift.
+const SC_HOME_   = &h47
+const SC_LEFT_   = &h4B
+const SC_RIGHT_  = &h4D
+const SC_END_    = &h4F
+const SC_DELETE_ = &h53
+
+'' An extended key is (scancode shl 8) or 255, so the low byte identifies one.
+'' A plain character is 1..255 and can never collide: 255 alone is not a code
+'' this library posts, and a two-byte code always has a non-zero high byte.
+private function KeyIsExtended( byval code as long ) as long
+    return iif( (code > 255) andalso ((code and &hFF) = 255), 1, 0 )
+end function
+
+private function KeyScancode( byval code as long ) as long
+    return (code shr 8) and &hFF
+end function
+
 '' MULTIKEY. The table is 128 entries and anything outside is FALSE rather than
 '' an error, so a program probing an unknown scancode gets a clean answer.
 type KeyTable

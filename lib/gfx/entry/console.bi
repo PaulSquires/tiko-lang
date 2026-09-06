@@ -225,46 +225,97 @@ end function
 '' Shared by INPUT and LINE INPUT, which differ in what they do with the string
 '' and not in how they collect it.
 ''
-'' WHAT IT SUPPORTS: printable characters, Backspace, Enter. What it does NOT is
-'' every other editing key -- arrows, Home, End, Delete, insert mode. Those
-'' arrive as extended codes that driver/window.bi does not post yet (it says so
-'' there), so implementing them here would be writing against an input source
-'' that produces nothing.
+'' THERE IS A CURSOR WITHIN THE LINE. Left, Right, Home, End and Delete move and
+'' edit at it; a character typed mid-line INSERTS rather than overwriting, which
+'' is what every other BASIC console does. Insert-mode toggling is not
+'' implemented -- there is one mode and it inserts.
 ''
-'' THE ECHO IS THE CURSOR. There is no caret: the character appears where it was
-'' typed and Backspace erases it. A blinking overlay is a timer and a
-'' determinism problem, and it is not needed to make INPUT usable.
+'' THE ECHO IS STILL THE CURSOR. There is no caret: after every edit the line is
+'' redrawn from where it started and the console cursor is left at the editing
+'' position, so the next character lands where the eye expects. A blinking
+'' overlay is a timer and a determinism problem and is not needed for this.
+''
+'' WRAPPING IS HONEST BUT NOT CLEVER. A line longer than the row wraps, and the
+'' redraw wraps with it because ConPutChar does. What is NOT handled is a line
+'' long enough to scroll the screen while it is being edited: the start row
+'' moves under the redraw and the line is then drawn one row too low. A 64x48
+'' screen is 8 columns, so that is reachable -- it is a real limit rather than a
+'' theoretical one, and it is here rather than hidden because fixing it means
+'' tracking the scroll, not adding a bound.
+private sub ConEditPlace( byval startrow as long, byval startcol as long, byval idx as long )
+    dim as long flat = startrow * TheCon.cols + startcol + idx
+    dim as long r = flat \ TheCon.cols
+    dim as long c = flat mod TheCon.cols
+    if r > TheCon.viewbot then r = TheCon.viewbot
+    TheCon.row = r
+    TheCon.col = c
+end sub
+
+'' Repaint the line and one cell past its end, so a character that was deleted
+'' leaves no ghost, then put the cursor back where the caller is editing.
+private sub ConEditRedraw( byref acc as string, byval startrow as long, _
+        byval startcol as long, byval idx as long )
+    ConEditPlace( startrow, startcol, 0 )
+    for i as integer = 0 to len( acc ) - 1
+        ConPutChar( acc[i] )
+    next
+    ConPutChar( 32 )
+    ConEditPlace( startrow, startcol, idx )
+end sub
+
 private function ConEditLine( ) as string
     dim as string acc
+    dim as long idx = 0
+    dim as long startrow = TheCon.row
+    dim as long startcol = TheCon.col
 
     do
         dim as long c = ConKeyWait( )
         if c = 0 then exit do              '' the window went away
 
-        select case c
-        case 13                            '' Enter
-            ConNewline( )
-            exit do
-        case 8                             '' Backspace
-            if len( acc ) > 0 then
-                acc = left( acc, len( acc ) - 1 )
-                '' Step back and blank the cell, which is what erasing looks
-                '' like when the echo IS the cursor.
-                if TheCon.col > 0 then
-                    TheCon.col -= 1
-                    dim as CharCell ptr cell = CellAt( TheCon.cp, 0, TheCon.col, TheCon.row )
-                    if cell <> 0 then
-                        cell->ch = 32
-                        cell->fg = TheCon.fg
-                        cell->bg = TheCon.bg
-                    end if
-                    ConDrawCell( TheCon.col, TheCon.row )
+        if KeyIsExtended( c ) then
+            select case KeyScancode( c )
+            case SC_LEFT_
+                if idx > 0 then idx -= 1
+            case SC_RIGHT_
+                if idx < len( acc ) then idx += 1
+            case SC_HOME_
+                idx = 0
+            case SC_END_
+                idx = len( acc )
+            case SC_DELETE_
+                '' Forward delete: the character UNDER the cursor goes and the
+                '' cursor stays put, which is the half that tells Delete from
+                '' Backspace.
+                if idx < len( acc ) then
+                    acc = left( acc, idx ) + mid( acc, idx + 2 )
+                    ConEditRedraw( acc, startrow, startcol, idx )
                 end if
-            end if
-        case is >= 32
-            acc += chr( c )
-            ConPutChar( c )
-        end select
+            case else
+                '' Every other extended key is swallowed rather than inserted.
+                '' An arrow that fell through to the printable branch would put
+                '' chr(255) in the string.
+            end select
+            ConEditPlace( startrow, startcol, idx )
+
+        else
+            select case c
+            case 13                            '' Enter
+                ConEditPlace( startrow, startcol, len( acc ) )
+                ConNewline( )
+                exit do
+            case 8                             '' Backspace deletes BEHIND
+                if idx > 0 then
+                    acc = left( acc, idx - 1 ) + mid( acc, idx + 1 )
+                    idx -= 1
+                    ConEditRedraw( acc, startrow, startcol, idx )
+                end if
+            case is >= 32
+                acc = left( acc, idx ) + chr( c ) + mid( acc, idx + 1 )
+                idx += 1
+                ConEditRedraw( acc, startrow, startcol, idx )
+            end select
+        end if
     loop
 
     return acc

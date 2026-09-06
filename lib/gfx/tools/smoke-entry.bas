@@ -146,6 +146,18 @@ scope
         for i as integer = 1 to 4
             ext += inkey
         next
+        '' THE RESTATED SCANCODES MUST MATCH fbgfx.bi. core/keyboard.bi cannot
+        '' include the reference header, so it restates the five codes the
+        '' editing loop needs; this is what stops that restatement drifting.
+        '' The expected values come from fbgfx.bi, the actual ones from what the
+        '' library acts on -- posting each key and seeing the edit happen is the
+        '' same assertion made the long way round.
+        chk( "SC_LEFT is &h4B",   &h4B, SC_LEFT )
+        chk( "SC_RIGHT is &h4D",  &h4D, SC_RIGHT )
+        chk( "SC_HOME is &h47",   &h47, SC_HOME )
+        chk( "SC_END is &h4F",    &h4F, SC_END )
+        chk( "SC_DELETE is &h53", &h53, SC_DELETE )
+
         chk( "extended keys arrive as chr(255) + scancode", 0, _
              iif( ext = chr( 255 ) + chr( SC_UP ) + chr( 255 ) + chr( SC_LEFT ), 0, 1 ) )
 
@@ -199,6 +211,77 @@ scope
         dim as string got2
         input "", got2
         chk( "backspace edits the line", 0, iif( got2 = "AY", 0, 1 ) )
+
+        '' ---- the editing loop moves within the line ----
+        ''
+        '' Left twice, then a character: it must INSERT, not overwrite or append.
+        '' "abc" with the cursor between a and b, typing X, gives "aXbc".
+        dim as string t1 = "abc"
+        for i as integer = 0 to len( t1 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, t1[i] ), 0 )
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
+        PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
+        PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "X" ) ), 0 )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 200 )
+        dim as string e1
+        input "", e1
+        chk( "left arrow then a character inserts", 0, iif( e1 = "aXbc", 0, 1 ) )
+
+        '' HOME to the front, then insert. Distinguishes Home from a stack of
+        '' Lefts only in that it is one key, but it is the key programs use.
+        dim as string t2 = "bc"
+        for i as integer = 0 to len( t2 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, t2[i] ), 0 )
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_HOME, cast( LPARAM, SC_HOME shl 16 ) )
+        PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "a" ) ), 0 )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 200 )
+        dim as string e2
+        input "", e2
+        chk( "home then a character prepends", 0, iif( e2 = "abc", 0, 1 ) )
+
+        '' DELETE REMOVES FORWARD AND BACKSPACE REMOVES BACKWARD, which is the
+        '' whole difference between them. From "abc" with the cursor at the end:
+        '' Home, Delete -> "bc". A Delete that behaved like Backspace would give
+        '' "abc" unchanged, because there is nothing behind the start.
+        dim as string t3 = "abc"
+        for i as integer = 0 to len( t3 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, t3[i] ), 0 )
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_HOME, cast( LPARAM, SC_HOME shl 16 ) )
+        PostMessage( hw, WM_KEYDOWN, VK_DELETE, cast( LPARAM, SC_DELETE shl 16 ) )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 200 )
+        dim as string e3
+        input "", e3
+        chk( "delete removes forward", 0, iif( e3 = "bc", 0, 1 ) )
+
+        '' END returns to the tail, so a character appends after a Home.
+        dim as string t4 = "ab"
+        for i as integer = 0 to len( t4 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, t4[i] ), 0 )
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_HOME, cast( LPARAM, SC_HOME shl 16 ) )
+        PostMessage( hw, WM_KEYDOWN, VK_END, cast( LPARAM, SC_END shl 16 ) )
+        PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "c" ) ), 0 )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 200 )
+        dim as string e4
+        input "", e4
+        chk( "end returns to the tail", 0, iif( e4 = "abc", 0, 1 ) )
+
+        '' AN ARROW MUST NOT LAND IN THE STRING. If an extended code fell
+        '' through to the printable branch it would insert chr(255).
+        PostMessage( hw, WM_KEYDOWN, VK_UP, cast( LPARAM, SC_UP shl 16 ) )
+        PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "z" ) ), 0 )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 200 )
+        dim as string e5
+        input "", e5
+        chk( "an unhandled arrow is swallowed", 0, iif( e5 = "z", 0, 1 ) )
 
         '' LINE INPUT into a VAR-LEN string: dst_len is -1 there, which is an
         '' FBSTRING to assign and not a byte count.
