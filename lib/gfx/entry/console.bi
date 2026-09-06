@@ -26,6 +26,8 @@
 ''     pagecopy, pageset
 ''                 core/cells.bi    the one-page answers, see below
 ''
+''     printbuff's caret   the one-byte chr(255) form, gated by gate-entry
+''
 ''     inkey, getkey, keyhit, multikey, readstr, lineinput
 ''                 core/keyboard.bi gated by tools/abtest-keyboard.bas, plus the
 ''                 editing loop below, which is new
@@ -88,6 +90,41 @@ private sub ConDrawCell( byval c as long, byval r as long )
     if cell = 0 then exit sub
     DrawGlyph( ScreenCtx.surf, c * FONT_WIDTH, r * TheCon.fh, _
                cell->ch, TheCon.fidx, cell->fg, cell->bg )
+end sub
+
+'' ------------------------------------------------------------------ the caret
+''
+'' TWO SHAPES, BOTH TAKEN FROM gfxlib2 rather than chosen (D1 -- derived work,
+'' attribution rather than a firewall):
+''
+''   UNDERLINE  gfx_print.c's console-write hook treats a ONE-BYTE buffer whose
+''              byte is 255 as a caret: it draws a single row of fg_color across
+''              the bottom pixel row of the cell instead of the glyph for 255.
+''              That is how the runtime's own line editor shows a cursor, and it
+''              is what gfxlib2's LINE INPUT displays, because gfx_lineinp.c
+''              delegates to fb_ConReadLine.
+''
+''   BLOCK      gfx_readstr.c prints chr(219) -- the solid block -- at the
+''              cursor and moves back over it. That is what the READSTR hook
+''              shows; see the editing loop for why a program almost never
+''              reaches it.
+''
+'' IT DOES NOT BLINK, in either library. The note that used to stand where the
+'' editing loop is said a caret was "a timer and a determinism problem"; that
+'' was a guess about gfxlib2 and it was wrong. Both shapes are steady, which is
+'' why the underline can be A/B compared like any other pixel.
+const CARET_UNDER = 255
+const CARET_BLOCK = 219
+
+'' One row of fg across the bottom of the cell. PSetAny, not PutPixel: the caret
+'' is clipped by the viewport exactly as a glyph is, because gfxlib2 draws it
+'' through the same clipped put_pixel the glyph renderer uses.
+private sub ConDrawUnderline( byval c as long, byval r as long )
+    if (c < 0) orelse (r < 0) orelse (c >= TheCon.cols) orelse (r >= TheCon.rows) then exit sub
+    dim as long py = r * TheCon.fh + TheCon.fh - 1
+    for x as integer = 0 to FONT_WIDTH - 1
+        PSetAny( ScreenCtx.surf, c * FONT_WIDTH + x, py, TheCon.fg )
+    next
 end sub
 
 '' Scroll the VIEW PRINT region up one row, plane and pixels together.
@@ -183,6 +220,96 @@ private sub ConPutChar( byval ch as long )
     TheCon.col += 1
 end sub
 
+'' PRINT of a lone chr(255): the caret shape, and the cell still says 255.
+''
+'' THE PLANE IS WRITTEN EITHER WAY. gfxlib2's hook draws the underline instead
+'' of the glyph but still stores the byte in the character cell, so SCREEN(r,c)
+'' reports 255 and the cursor advances one column -- only the pixels differ.
+'' Storing something else here would make the two disagree about a cell whose
+'' pixels this library had just drawn.
+private sub ConPutCaretCell( )
+    if TheCon.col >= TheCon.cols then ConNewline( )
+
+    dim as CharCell ptr cell = CellAt( TheCon.cp, 0, TheCon.col, TheCon.row )
+    if cell <> 0 then
+        cell->ch = 255
+        cell->fg = TheCon.fg
+        cell->bg = TheCon.bg
+    end if
+    ConDrawUnderline( TheCon.col, TheCon.row )
+    TheCon.col += 1
+end sub
+
+'' WHERE A CARET IS RECOGNISED: per WRITE, not per PRINT.
+''
+'' gfxlib2 does not decide this itself. The runtime's tty layer accumulates
+'' printable characters into a run, flushes that run whenever it has to move the
+'' cursor, and hands each piece to the graphics library; the raw writer splits a
+'' run again at the right border. The caret test is applied to what arrives --
+'' one byte, value 255 -- so the SAME PRINT can be a glyph or a caret depending
+'' on where the run breaks.
+''
+'' MEASURED, because the buffer-level rule was wrong in three of eleven gate
+'' cases:
+''
+''   print chr(255);                one write   -> caret
+''   print "A" + chr(255);          one write   -> glyph (blank)
+''   locate 2,8 : print "A"+chr(255)   splits at the border -> caret
+''   print chr(13) + chr(255);      CR flushes  -> caret
+''   print chr(255) + chr(13);      CR flushes  -> caret
+''
+'' A TAB DOES NOT END A RUN -- it expands to spaces INSIDE it, which is why it is
+'' not in the flush list. At eight columns a tab stop always coincides with the
+'' border so the two are indistinguishable here; on a wider screen they are not,
+'' and the run is what the tty layer actually does.
+private sub ConPrintRun( byref run_ as string )
+    dim as long n = len( run_ )
+    dim as long i = 0
+
+    while i < n
+        if TheCon.col >= TheCon.cols then ConNewline( )
+        dim as long room = TheCon.cols - TheCon.col
+        dim as long take = n - i
+        if take > room then take = room
+
+        if (take = 1) andalso (run_[i] = 255) then
+            ConPutCaretCell( )
+        else
+            for k as integer = 0 to take - 1
+                ConPutChar( run_[i + k] )
+            next
+        end if
+        i += take
+    wend
+end sub
+
+private sub ConPrintTty( byval p as ubyte ptr, byval n as long )
+    dim as string run_
+    dim as long simcol = TheCon.col     '' where the pending run stands, tracked
+                                        '' across it rather than after each write
+
+    for i as integer = 0 to n - 1
+        dim as long ch = p[i]
+        select case ch
+        case 7                          '' bell: no output and no flush
+        case 8, 10, 13                  '' these MOVE the cursor, so the run ends
+            ConPrintRun( run_ )
+            run_ = ""
+            ConPutChar( ch )
+            simcol = TheCon.col
+        case 9                          '' tab: spaces into the run
+            dim as long k = 8 - (simcol mod 8)
+            run_ += space( k )
+            simcol = (simcol + k) mod TheCon.cols
+        case else
+            run_ += chr( ch )
+            simcol = (simcol + 1) mod TheCon.cols
+        end select
+    next
+
+    ConPrintRun( run_ )
+end sub
+
 '' ------------------------------------------------------------- the keyboard
 ''
 '' THE RING IS THE WINDOW'S, not the console's. driver/window.bi fills it from
@@ -230,10 +357,27 @@ end function
 '' is what every other BASIC console does. Insert-mode toggling is not
 '' implemented -- there is one mode and it inserts.
 ''
-'' THE ECHO IS STILL THE CURSOR. There is no caret: after every edit the line is
-'' redrawn from where it started and the console cursor is left at the editing
-'' position, so the next character lands where the eye expects. A blinking
-'' overlay is a timer and a determinism problem and is not needed for this.
+'' THERE IS A CARET NOW, and it is steady rather than blinking -- see the caret
+'' section above for where both shapes come from. It is shown while the loop is
+'' BLOCKED on a key and hidden the moment one arrives, so no edit ever has to
+'' work around it.
+''
+'' IT IS PIXELS ONLY. The caret is never written to the cell plane, so
+'' SCREEN(r,c) reports the character underneath it and hiding the caret is one
+'' ConDrawCell -- a repaint from the plane that is already correct. gfxlib2
+'' prints its block caret through PRINT and therefore does put it in the cell,
+'' then overprints it; the end state is the same and this route cannot leave a
+'' 219 behind if the loop exits early.
+''
+'' THE SHAPE DIFFERS BY HOOK, because it differs by hook in gfxlib2: readstr
+'' shows a block, and lineinput shows an underline because gfxlib2 hands that
+'' one to the runtime's editor, which draws its caret by printing chr(255).
+''
+'' WHICH ONE A PROGRAM SEES: the underline, nearly always. `INPUT s` on a
+'' graphics screen does NOT reach readstr -- fb_ConsoleInput asks isredir, is
+'' told no, and calls fb_LineInput, so both INPUT and LINE INPUT come through
+'' the lineinput hook. readstr is the channel path, and the block belongs to
+'' it.
 ''
 '' WRAPPING AND SCROLLING BOTH WORK, and the second was doubted without cause.
 ''
@@ -255,6 +399,30 @@ end function
 '' here: with them removed the checks still pass, and with them present an
 '' injected fault in either could not be detected. Complexity that cannot be
 '' shown to do anything is complexity that cannot be maintained.
+private sub ConCaretHide( byref cr as long, byref cc as long )
+    if cr < 0 then exit sub
+    ConDrawCell( cc, cr )
+    cr = -1
+    cc = -1
+end sub
+
+private sub ConCaretShow( byval style as long, byref cr as long, byref cc as long )
+    ConCaretHide( cr, cc )
+
+    dim as long r = TheCon.row
+    dim as long c = TheCon.col
+    if (r < 0) orelse (c < 0) orelse (r >= TheCon.rows) orelse (c >= TheCon.cols) then exit sub
+
+    if style = CARET_UNDER then
+        ConDrawUnderline( c, r )
+    else
+        DrawGlyph( ScreenCtx.surf, c * FONT_WIDTH, r * TheCon.fh, _
+                   style, TheCon.fidx, TheCon.fg, TheCon.bg )
+    end if
+    cr = r
+    cc = c
+end sub
+
 private sub ConEditPlace( byval startrow as long, byval startcol as long, byval idx as long )
     dim as long flat = startrow * TheCon.cols + startcol + idx
     dim as long r = flat \ TheCon.cols
@@ -276,14 +444,20 @@ private sub ConEditRedraw( byref acc as string, byval startrow as long, _
     ConEditPlace( startrow, startcol, idx )
 end sub
 
-private function ConEditLine( ) as string
+private function ConEditLine( byval caret as long ) as string
     dim as string acc
     dim as long idx = 0
     dim as long startrow = TheCon.row
     dim as long startcol = TheCon.col
+    dim as long cr = -1, cc = -1
 
     do
+        '' Shown only across the WAIT. Every edit below redraws from the plane,
+        '' so a caret left up would be repainted over rather than erased -- and
+        '' on a cursor move, which redraws nothing, it would simply stay.
+        ConCaretShow( caret, cr, cc )
         dim as long c = ConKeyWait( )
+        ConCaretHide( cr, cc )
         if c = 0 then exit do              '' the window went away
 
         if KeyIsExtended( c ) then
@@ -372,11 +546,7 @@ sub TkoConPrintBuff cdecl ( byval buffer as const any ptr, _
     '' write -- `print ""` and `print ;` both reach here with length 0.
     dim as ubyte ptr p = cptr( ubyte ptr, buffer )
     dim as integer n = cast( integer, length )
-    if (p <> 0) andalso (n > 0) then
-        for i as integer = 0 to n - 1
-            TkoGfx.ConPutChar( p[i] )
-        next
-    end if
+    if (p <> 0) andalso (n > 0) then TkoGfx.ConPrintTty( p, n )
 
     '' PAD is what `PRINT x,` asks for: advance to the next 14-column zone.
     if (mask and TkoGfx.FB_PRINT_PAD) <> 0 then
@@ -637,7 +807,8 @@ function TkoConReadStr cdecl ( byval buffer as zstring ptr, _
         byval length_ as integer ) as zstring ptr
     if (TkoGfx.TheCon.live = 0) orelse (buffer = 0) orelse (length_ <= 0) then return 0
 
-    dim as string acc = TkoGfx.ConEditLine( )
+    '' INPUT's caret is the block, which is what gfxlib2's readstr draws.
+    dim as string acc = TkoGfx.ConEditLine( TkoGfx.CARET_BLOCK )
     if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) andalso (len( acc ) = 0) then return 0
 
     dim as long n = len( acc )
@@ -670,7 +841,9 @@ function TkoConLineInput cdecl ( byval text_ as TkoAbi.FBSTRING ptr, _
         TkoGfx.ConPutChar( 32 )
     end if
 
-    dim as string acc = TkoGfx.ConEditLine( )
+    '' LINE INPUT's caret is the underline: gfxlib2 hands this to the
+    '' runtime's editor, which draws one by printing chr(255).
+    dim as string acc = TkoGfx.ConEditLine( TkoGfx.CARET_UNDER )
     if addnewline = 0 then
         '' ConEditLine already advanced on Enter; undo it when the caller asked
         '' for the cursor to stay put.

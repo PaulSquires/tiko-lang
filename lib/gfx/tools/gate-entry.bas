@@ -610,6 +610,56 @@ Blank( ) : color 15, 0 : locate 1, 1 : print "Z"; : Report( "print after color r
 Blank( ) : locate 1, 1 : print "AAAA"; : cls : Report( "cls after print" )
 Blank( ) : locate 1, 1 : print "AAAA"; : cls 2 : Report( "cls 2 clears the text" )
 
+'' ---- THE TEXT CARET, which is a PRINT and therefore comparable ----
+''
+'' The caret a graphics screen shows is not an overlay drawn by the input loop:
+'' it is a one-byte PRINT of chr(255), which the console-write path draws as a
+'' row of foreground across the bottom of the cell instead of as the glyph for
+'' 255. That makes the shape ordinary output, and ordinary output is A/B'd.
+''
+'' THE TEST IS PER WRITE, NOT PER PRINT, which these cases are what established:
+'' the console layer gathers printable characters into a run, flushes it whenever
+'' the cursor has to move, and splits it again at the right border, so the same
+'' PRINT can be a glyph or a caret depending on where the pieces fall. Three of
+'' these failed against a buffer-length rule, which is how that was learnt.
+Blank( ) : locate 2, 2 : print chr( 255 ); : Report( "a lone chr(255) is a caret" )
+Blank( ) : locate 2, 2 : print "A" + chr( 255 ); : Report( "chr(255) in a longer buffer is a glyph" )
+Blank( ) : locate 2, 2 : print chr( 255 ) + chr( 255 ); : Report( "two carets are two glyphs" )
+
+'' The caret takes the CURRENT foreground, and is drawn on top of whatever the
+'' cell already had rather than clearing it -- the second case is what shows the
+'' difference between drawing one row of pixels and repainting the cell.
+Blank( ) : color 4, 1 : locate 2, 2 : print chr( 255 ); : Report( "the caret takes the colour" )
+Blank( ) : locate 2, 2 : print "W"; : locate 2, 2 : print chr( 255 ); : Report( "a caret over a glyph" )
+
+'' AND THE CELL STILL SAYS 255. Only the pixels are special-cased: the character
+'' goes into the plane and the cursor advances, which is what SCREEN(r,c), POS
+'' and CSRLIN report. Folded into one digest.
+scope
+    Blank( )
+    dim as ulongint acc = 14695981039346656037ull
+    locate 2, 2
+    print chr( 255 );
+    acc = (acc xor cast( ulongint, screen( 2, 2, 0 ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, csrlin( ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, pos( ) )) * 1099511628211ull
+    Emit( "a caret is still a character cell", acc )
+end scope
+
+'' AT THE LAST COLUMN, where the console is 8 wide. "A" + chr(255) starting in
+'' column 8 is one buffer of two but TWO WRITES OF ONE, so the second is a caret.
+'' This is the case that answered it.
+Blank( ) : locate 2, 8 : print chr( 255 ); : Report( "a caret in the last column" )
+Blank( ) : locate 2, 8 : print "A" + chr( 255 ); : Report( "a caret that wraps with its buffer" )
+
+'' A CONTROL CHARACTER ENDS THE RUN, which can leave a 255 alone that was not
+'' written alone. Both orders, because the flush happens before the move in one
+'' and after it in the other.
+Blank( ) : locate 2, 2 : print chr( 13 ) + chr( 255 ); : Report( "a caret after a carriage return" )
+Blank( ) : locate 2, 2 : print chr( 255 ) + chr( 13 ); : Report( "a caret before a carriage return" )
+Blank( ) : locate 2, 3 : print chr( 8 ) + chr( 255 ); : Report( "a caret after a backspace" )
+Blank( ) : locate 2, 1 : print chr( 9 ) + chr( 255 ); : Report( "a caret after a tab" )
+
 '' ---- VIEW PRINT: the text region, and what it protects ----
 ''
 '' THIS ONE IS A REAL A/B. VIEW PRINT is output only -- no keystroke has to be

@@ -328,7 +328,77 @@ scope
         input "", e5
         chk( "an unhandled arrow is swallowed", 0, iif( e5 = "z", 0, 1 ) )
 
-        '' LINE INPUT into a VAR-LEN string: dst_len is -1 there, which is an
+'' ---- THE CARET LEAVES NOTHING BEHIND ----
+        ''
+        '' WHAT THIS CAN AND CANNOT CHECK. The caret is only on screen while the
+        '' editing loop is BLOCKED on a key, and this program is the one that is
+        '' blocked, so it can never look at the screen while the caret is up.
+        '' What it can check is the other half -- that hiding it restores the
+        '' cell -- and that half is where the bug would be: a caret drawn and not
+        '' erased is a smear that survives the input.
+        ''
+        '' The shape itself IS compared against gfxlib2, in tools/gate-entry.bas,
+        '' through the PRINT that draws it. Only the loop's use of it is here.
+        ''
+        '' THE UNDERLINE, not the block: `INPUT s` reaches the lineinput hook
+        '' rather than readstr (fb_ConsoleInput asks isredir first), so the
+        '' residue to look for is one row of pixels, not a filled cell. The
+        '' block belongs to readstr and nothing here exercises it.
+        cls
+        locate 3, 1
+        dim as string typed4 = "ab" + chr( 13 )
+        for i as integer = 0 to len( typed4 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typed4[i] ), 0 )
+        next
+        Sleep( 200 )
+        dim as string e7
+        input "", e7
+        chk( "input still reads after a cls", 0, iif( e7 = "ab", 0, 1 ) )
+
+        '' Cell (3,3) is where the caret stood when Enter arrived -- one past the
+        '' "b". Every pixel of it must be background.
+        dim as long resid
+        for y as integer = 0 to 7
+            for x as integer = 0 to 7
+                if (point( 2 * 8 + x, 2 * 8 + y ) and &hFFFFFF) <> 0 then resid += 1
+            next
+        next
+        chk( "the input caret is erased when the line ends", 0, resid )
+
+        '' AND THE CHARACTER UNDER IT SURVIVES. Left puts the caret ON the "b";
+        '' Enter then ends the line with the caret sitting over a glyph rather
+        '' than over a blank. Erasing it repaints that cell from the plane, so
+        '' the "b" must be identical to one that was never covered.
+        cls
+        locate 5, 1
+        print "b";
+        dim as long want_
+        for y as integer = 0 to 7
+            for x as integer = 0 to 7
+                if (point( x, 4 * 8 + y ) and &hFFFFFF) <> 0 then want_ += 1
+            next
+        next
+
+        cls
+        locate 3, 1
+        dim as string typed5 = "ab"
+        for i as integer = 0 to len( typed5 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typed5[i] ), 0 )
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 200 )
+        dim as string e8
+        input "", e8
+        dim as long got_
+        for y as integer = 0 to 7
+            for x as integer = 0 to 7
+                if (point( 8 + x, 2 * 8 + y ) and &hFFFFFF) <> 0 then got_ += 1
+            next
+        next
+        chk( "the caret does not eat the character under it", want_, got_ )
+
+                '' LINE INPUT into a VAR-LEN string: dst_len is -1 there, which is an
         '' FBSTRING to assign and not a byte count.
         dim as string typed3 = "Q" + chr( 13 )
         for i as integer = 0 to len( typed3 ) - 1

@@ -59,14 +59,29 @@ for fi as integer = 0 to 2
     ofs(fi) = total
 
     for ch as integer = 0 to 255
-        '' CLEAR THE CELL FIRST. PRINT is normally opaque and repaints the whole
+'' CLEAR THE CELL FIRST. PRINT is normally opaque and repaints the whole
         '' cell, but at least one character -- chr(255) -- draws NOTHING, so
         '' without a clear its slot captures the PREVIOUS character's bitmap.
         '' That produced a font where 255 was a copy of 254, and showed up as the
         '' only failing character in abtest-print.
         line (0, 0)-(7, fh - 1), 0, BF
         locate 1, 1, 0
-        print chr( ch );
+
+        '' A TRAILING SPACE, so the buffer is never one byte long.
+        ''
+        '' A ONE-BYTE PRINT OF chr(255) IS NOT A GLYPH -- gfxlib2's console-write
+        '' hook reads that exact shape as the text CARET and draws a row of
+        '' foreground across the bottom of the cell instead of the character.
+        '' Printing chr(255) alone therefore extracted the caret and stored it as
+        '' font data: 00 00 00 00 00 00 00 FF where the real glyph is blank.
+        ''
+        '' That is what abtest-print's "unresolved divergence" was. It was read as
+        '' "PRINT is transparent for this one character", which fitted the
+        '' observation -- the rows above the caret keep whatever was under them --
+        '' and was the wrong explanation. RFC-0011 section 9.14.
+        ''
+        '' The space lands in the NEXT cell, and only the first is read back.
+        print chr( ch ) + " ";
 
         dim as ubyte ptr fbp = cptr( ubyte ptr, screenptr( ) )
         dim as long pitch

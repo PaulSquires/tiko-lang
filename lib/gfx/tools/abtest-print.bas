@@ -22,20 +22,23 @@
 ''   - printing at several cell positions, so the cell-to-pixel mapping is
 ''     exercised rather than just (0,0)
 ''
-'' chr(255) IS EXCLUDED, AND THE REASON IS UNRESOLVED.
+'' chr(255) IS INCLUDED NOW, AND THE OLD EXCLUSION WAS A WRONG EXPLANATION.
 ''
-'' Measured on mode 13 with COLOR 2,5 over a cell pre-filled with 3: gfxlib2
-'' leaves rows 0..6 as the PRE-FILL (3) and draws row 7 in the foreground (2).
-'' Every other character repaints the whole cell, background included. So for
-'' this one character PRINT is transparent rather than opaque.
+'' What this file used to say: that PRINT is transparent for this one character,
+'' because gfxlib2 left the cell's pre-fill in rows 0..6 and drew row 7 in the
+'' foreground where every other character repaints the whole cell. The
+'' observation was right and the explanation was not.
 ''
-'' The glyph data itself is right -- our extracted bytes are
-'' `00 00 00 00 00 00 00 FF`, matching the single bottom row gfxlib2 draws. What
-'' differs is only whether the empty rows are painted.
+'' chr(255) PRINTED ALONE IS THE TEXT CARET, not a glyph. A one-byte write of
+'' 255 draws a row of foreground across the bottom of the cell and touches
+'' nothing else -- which is exactly "the pre-fill survives and row 7 is drawn".
+'' The real glyph is BLANK in all three fonts, and the `00 ... 00 FF` this file
+'' called "the glyph data" was the caret, captured by an extractor that printed
+'' every character on its own. RFC-0011 section 9.14.
 ''
-'' Recorded as an unexplained divergence rather than worked around with a
-'' special case in the renderer, because inventing a rule from one observation
-'' is how a wrong rule gets baked in. It is one character out of 224.
+'' Here it is printed inside a block of sixteen, so it is a glyph and comparable
+'' like the other 223. The caret shape has its own cases in tools/gate-entry.bas,
+'' where a public PRINT can be compared.
 
 #include once "../raster/text.bi"
 #include once "abtest.bi"
@@ -82,8 +85,7 @@ for mi as integer = 0 to ubound( modes )
         dim as string txt
         for k as integer = 0 to 15
             dim as long cc = blk * 16 + k
-            '' chr(255) EXCLUDED -- measured special case, see below
-            if cc <> 255 then txt += chr( cc )
+            txt += chr( cc )
         next
 
         dim as long crow = (blk mod 4) + 1
@@ -100,7 +102,9 @@ for mi as integer = 0 to ubound( modes )
         color 2, 5
         cls
         line (0,0)-(sw-1,sh-1), 3, BF
-        '' cursor OFF -- otherwise gfxlib2 overlays a caret after PRINT
+        '' cursor OFF. Measured since: LOCATE's third argument changes nothing a
+        '' graphics screen draws -- gfxlib2 ignores it there -- so this is
+        '' belt-and-braces rather than load-bearing.
         locate crow, ccol, 0
         print txt;
 
