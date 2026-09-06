@@ -115,6 +115,8 @@ type State
     as long     ran
     as long     failures
     as long     skipped       '' reference-only cases the subject could not run
+    as long     seeds         '' values the subject took FROM the recording
+    as long     known         '' differences the reference is known to be wrong about
     as string   report
     as string   emitted       '' EMIT: the recording being built
     as string   golden(any)   '' SUT: one "hex<tab>case" line per case
@@ -261,6 +263,82 @@ sub Interop_ ( byval cname as string, byval a as ulongint, byval b as ulongint, 
 #endif
 end sub
 
+'' A value the reference determined and the subject has to know.
+''
+'' Some tests are not pure comparisons. They ask gfxlib2 something first -- what
+'' the default foreground colour is in this mode, whether this mode really got
+'' two pages -- and then use the answer to set OUR side up, or to decide which
+'' cases to run at all. Neither is available with no reference present, and
+'' guessing would make the subject test a different thing from the reference.
+''
+'' So the answer is recorded like a case, and the subject reads it back. It
+'' occupies a slot, so ordering still lines up, and it is counted separately and
+'' reported -- a test that seeds heavily is proving less under MSVC than its
+'' case count suggests, and that should be visible rather than inferred.
+''
+'' A seed is NOT an assertion: nothing is compared here. Use Case_ for anything
+'' the subject can compute for itself.
+''
+'' Recorded with a leading "=" on the name, so a seed and a case can never be
+'' read as each other even if the names happen to match.
+function Datum_ ( byval dname as string, byval v as ulongint ) as ulongint
+    dim as long i = st.ran
+    st.ran += 1
+
+#if defined( ABTEST_EMIT )
+    st.emitted += hex( v, 16 ) + chr( 9 ) + "=" + dname + chr( 10 )
+    return v
+
+#elseif defined( ABTEST_SUT )
+    if i >= st.ngolden then
+        st.report += "  NO RECORDING for seed " + dname + chr( 10 )
+        st.failures += 1
+        return 0
+    end if
+    dim as string ln = st.golden( i )
+    if mid( ln, 18 ) <> "=" + dname then
+        st.report += "  RECORDING OUT OF STEP at case" + str( i ) + _
+                     ": expected seed """ + dname + """, recorded """ + mid( ln, 18 ) + """" + chr( 10 )
+        st.failures += 1
+        return 0
+    end if
+    st.seeds += 1
+    return cast( ulongint, valulng( "&h" + left( ln, 16 ) ) )
+
+#else
+    return v
+#endif
+end function
+
+'' A case where the reference is known to disagree with ITSELF across targets.
+''
+'' gfxlib2 built for win32 accumulates some angles in x87 registers at 80-bit
+'' precision and draws a different figure from gfxlib2 built for win64, from the
+'' same source and the same arguments. There is no answer that matches both, so
+'' matching one and reporting the other is the honest outcome.
+''
+'' A difference here is a NOTE, not a failure, and it is counted and printed --
+'' a suite that hides a divergence is worse than one that fails on it. The case
+'' still occupies its slot, so the recording lines up either way.
+sub Known_ ( byval cname as string, byval a as ulongint, byval b as ulongint, _
+        byval why as string )
+    dim as long i = st.ran
+    st.ran += 1
+
+#if defined( ABTEST_EMIT )
+    st.emitted += hex( a, 16 ) + chr( 9 ) + cname + chr( 10 )
+#elseif defined( ABTEST_SUT )
+    '' Recordings are made on win64, where this divergence does not arise, so a
+    '' difference here in the subject role is a real one and reported as such.
+    Case_( cname, a, b )
+#else
+    if a <> b then
+        st.known += 1
+        st.report += "  KNOWN divergence " + cname + ": " + why + chr( 10 )
+    end if
+#endif
+end sub
+
 '' A case that failed before it could produce a digest -- imagecreate returned
 '' NULL, a file would not open. Counted, never recorded, and fatal in every
 '' role, so a recording can never contain a hole.
@@ -291,8 +369,19 @@ sub Finish_ ( )
     if st.skipped > 0 then
         print st.tname; ": "; st.skipped; " reference-only case(s) SKIPPED -- gfxlib2 has to be present to run them"
     end if
+    if st.seeds > 0 then
+        print st.tname; ": "; st.seeds; " value(s) SEEDED from the recording, not compared"
+    end if
+    if st.known > 0 then
+        print st.report;
+        print st.tname; ": "; st.known; " KNOWN target divergence(s) tolerated -- see above"
+    end if
     if st.failures = 0 then
-        print st.tname; ": PASS -- "; st.passline
+        if st.known > 0 then
+            print st.tname; ": PASS -- "; st.ran - st.known; " identical, "; st.known; " known target divergence(s)"
+        else
+            print st.tname; ": PASS -- "; st.passline
+        end if
         end 0
     else
         print st.report;

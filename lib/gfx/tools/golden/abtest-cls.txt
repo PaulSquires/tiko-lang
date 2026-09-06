@@ -1,0 +1,8 @@
+190C27A24F25D250	case 0 mode 0 (no viewport)
+190C27A24F25D250	case 1 mode -1 (no viewport)
+9C10777F15E9EFCA	case 2 mode 0 (viewport)
+8E16A33413B3713A	case 3 mode 1 (viewport)
+78199C11D24345EB	case 4 mode -1 (viewport)
+78199C11D24345EB	case 5 mode 1 (viewport)
+190C27A24F25D250	case 6 mode -1 (viewport)
+EDE401975E688DC2	case 7 mode 1 (viewport)

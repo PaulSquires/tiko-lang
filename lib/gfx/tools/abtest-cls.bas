@@ -21,11 +21,14 @@
 #include once "../raster/cls.bi"
 #include once "../raster/line.bi"
 #include once "../raster/box.bi"
-#include once "fbgfx.bi"
+#include once "abtest.bi"
 #include once "crt/string.bi"
+#ifdef ABTEST_HAS_GFXLIB2
+#include once "fbgfx.bi"
+using FB
+#endif
 
 using TkoGfx
-using FB
 
 const W = 96
 const H = 72
@@ -33,22 +36,19 @@ const BG = &hFF000000
 const PAT = &hFF3070B0
 const MARK = &hFFFFFFFF
 
-function Digest( byval pixels as any ptr, byval pitch as integer ) as ulongint
-    dim as ulongint acc = 14695981039346656037ull
-    for y as integer = 0 to H - 1
-        dim as ulong ptr row = cptr( ulong ptr, cptr( ubyte ptr, pixels ) + y * pitch )
-        for x as integer = 0 to W - 1
-            acc = (acc xor row[x]) * 1099511628211ull
-        next
-    next
-    return acc
-end function
-
+'' The reference draws into the live framebuffer, so its pitch is whatever the
+'' driver chose. Without a screen there is nothing to ask, and nothing that
+'' needs asking: the digest reads W pixels per row and ignores the padding.
+dim as integer pitch = W * 4
+#ifdef ABTEST_HAS_GFXLIB2
 screenres W, H, 32, 1, GFX_NULL
 dim as any ptr fb_ = screenptr( )
 dim as long sw, sh, sd, sb, sp_, sr
 screeninfo sw, sh, sd, sb, sp_, sr
-dim as integer pitch = sp_
+pitch = sp_
+#endif
+
+Abtest.Begin( "abtest-cls", "every case is pixel-identical" )
 
 '' viewport per case (-1 = none), and the CLS mode
 dim as long cvx1(...)  = { -1, -1, 10, 10, 20, 20,  0, 30 }
@@ -57,11 +57,12 @@ dim as long cvx2(...)  = { -1, -1, 80, 80, 70, 70, 95, 90 }
 dim as long cvy2(...)  = { -1, -1, 60, 60, 55, 55, 71, 65 }
 dim as long cmode(...) = {  0, -1,  0,  1, -1,  1, -1, 1 }   '' -1 = CLS with no arg
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
-
 for i as integer = 0 to ubound( cvx1 )
+    dim as string tag = "case " + str(i) + " mode " + str( cmode(i) ) + _
+                        iif( cvx1(i) >= 0, " (viewport)", " (no viewport)" )
+    dim as ulongint ha, hb
+
+#ifdef ABTEST_HAS_GFXLIB2
     '' ---- A: gfxlib2 ----
     view screen (0,0)-(W-1,H-1)
     window
@@ -75,7 +76,8 @@ for i as integer = 0 to ubound( cvx1 )
     end if
     '' show where the cursor ended up: a short relative line from it
     line -step(6,0), MARK
-    dim as ulongint ha = Digest( fb_, pitch )
+    ha = Abtest.Digest( fb_, W, H, pitch )
+#endif
 
     '' ---- B: libtkogfx ----
     dim as any ptr mine = allocate( pitch * H )
@@ -97,25 +99,14 @@ for i as integer = 0 to ubound( cvx1 )
     TranslateCoord( vp, cx, cy, p1x, p1y )
     TranslateCoord( vp, cx + 6.0, cy, p2x, p2y )
     DrawLine32( s, p1x, p1y, p2x, p2y, MARK )
-    dim as ulongint hb = Digest( mine, pitch )
-
-    ran += 1
-    if ha <> hb then
-        report += "  MISMATCH case " + str(i) + " mode " + str( cmode(i) ) + _
-                  iif( cvx1(i) >= 0, " (viewport)", " (no viewport)" ) + chr(10)
-        failures += 1
-    end if
+    hb = Abtest.Digest( mine, W, H, pitch )
     deallocate( mine )
+
+    Abtest.Case_( tag, ha, hb )
 next
 
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-cls -- "; ran; " CLS cases against gfxlib2, 32bpp "; W; "x"; H
-if failures = 0 then
-    print "abtest-cls: PASS -- every case is pixel-identical"
-    end 0
-else
-    print report;
-    print "abtest-cls: FAIL -- "; failures; " of"; ran; " cases differ"
-    end 1
-end if
+Abtest.Finish_( )

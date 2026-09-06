@@ -36,19 +36,19 @@ abtest-box          split
 abtest-bpp          mingw-only
 abtest-bsave        mingw-only  # fb_GfxBload fb_GfxBsave fb_GfxScreenRes
 abtest-cells        mingw-only  # fb_GfxPageSet fb_GfxScreenInfo32 fb_GfxScreenRes fb_GfxView
-abtest-circle       mingw-only
-abtest-cls          mingw-only
+abtest-circle       split
+abtest-cls          split
 abtest-color        split
 abtest-control      mingw-only  # fb_GfxControl_i32 fb_GfxScreenInfo32 fb_GfxView
 abtest-convert      mingw-only  # fb_GfxImageConvertRow fb_GfxPalette fb_GfxScreenRes
 abtest-dirty        mingw-only
 abtest-draw         mingw-only
-abtest-events       mingw-only  # fb_GfxEvent fb_hPostEvent
+abtest-events       split
 abtest-image        mingw-only
-abtest-keyboard     mingw-only  # fb_GfxLock fb_GfxUnlock fb_hPostKey
+abtest-keyboard     split
 abtest-lzw          mingw-only  # fb_hDecode fb_hEncode
 abtest-mode         split
-abtest-mouse        mingw-only  # fb_GfxControl_i32
+abtest-mouse        split
 abtest-paint        mingw-only
 abtest-palette      mingw-only  # fb_GfxPalette fb_GfxPaletteGet
 abtest-print        mingw-only
