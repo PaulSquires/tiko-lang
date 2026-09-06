@@ -235,13 +235,26 @@ end function
 '' position, so the next character lands where the eye expects. A blinking
 '' overlay is a timer and a determinism problem and is not needed for this.
 ''
-'' WRAPPING IS HONEST BUT NOT CLEVER. A line longer than the row wraps, and the
-'' redraw wraps with it because ConPutChar does. What is NOT handled is a line
-'' long enough to scroll the screen while it is being edited: the start row
-'' moves under the redraw and the line is then drawn one row too low. A 64x48
-'' screen is 8 columns, so that is reachable -- it is a real limit rather than a
-'' theoretical one, and it is here rather than hidden because fixing it means
-'' tracking the scroll, not adding a bound.
+'' WRAPPING AND SCROLLING BOTH WORK, and the second was doubted without cause.
+''
+'' This comment used to claim that a line long enough to scroll the console
+'' while being edited would be redrawn a row too low, because the recorded
+'' start row goes stale. That was READ OUT OF THE CODE AND NEVER REPRODUCED.
+'' tools/smoke-entry.bas now edits a line that scrolls the region twice -- it
+'' starts on the bottom row, which reaches a scroll in ten characters -- and
+'' the line lands where it should, both the row it starts on and the row it
+'' wraps onto.
+''
+'' THE REASON IT WORKS is that every keystroke redraws the WHOLE line from the
+'' start rather than appending to it. A stale start row makes the redraw write
+'' lower, which scrolls again, and the line settles where the writing ends up.
+'' The state that matters is rebuilt from `acc` each time, so there is nothing
+'' for a stale row to corrupt.
+''
+'' A scroll counter and a retrying redraw were written to fix this and are NOT
+'' here: with them removed the checks still pass, and with them present an
+'' injected fault in either could not be detected. Complexity that cannot be
+'' shown to do anything is complexity that cannot be maintained.
 private sub ConEditPlace( byval startrow as long, byval startcol as long, byval idx as long )
     dim as long flat = startrow * TheCon.cols + startcol + idx
     dim as long r = flat \ TheCon.cols

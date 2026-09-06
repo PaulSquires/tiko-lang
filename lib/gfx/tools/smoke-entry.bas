@@ -273,6 +273,51 @@ scope
         input "", e4
         chk( "end returns to the tail", 0, iif( e4 = "abc", 0, 1 ) )
 
+        '' ---- editing a line that SCROLLS the console ----
+        ''
+        '' STARTED ON THE LAST ROW, not made long. The key ring holds fifteen --
+        '' KEY_BUFFER_LEN is 16 and one slot is sacrificed, which is gfxlib2's
+        '' capacity and what tools/abtest-keyboard.bas gates -- so a burst long
+        '' enough to wrap several rows would simply be dropped, and the first
+        '' version of this check was invalid for exactly that reason. Beginning
+        '' on the bottom row reaches a scroll in ten characters instead of forty.
+        ''
+        '' The console is 8 columns by 6 rows. Ten characters from row 6 fill it
+        '' and wrap, which scrolls the region and moves the row the line began
+        '' on from 5 to 4. A redraw using the recorded row would put the line a
+        '' row too low -- that is the defect this check exists for.
+        locate 6, 1
+        dim as string long_ = "abcdefghij"
+        for i as integer = 0 to len( long_ ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, long_[i] ), 0 )
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_HOME, cast( LPARAM, SC_HOME shl 16 ) )
+        PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "Z" ) ), 0 )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 300 )
+        dim as string e6
+        input "", e6
+        chk( "a line that scrolls still edits at the front", 0, _
+             iif( e6 = "Z" + long_, 0, 1 ) )
+
+        '' AND THE SCREEN AGREES. After the scroll the line begins on row 5
+        '' (1-based), so the inserted Z is the first cell of that row. The
+        '' returned string would be right even with a misplaced redraw, so this
+        '' is the half that actually checks the origin tracking.
+        '' MEASURED, not predicted. Ten characters typed from the bottom row
+        '' scroll the console TWICE, not once -- every keystroke redraws the
+        '' whole line plus one blanking cell, so the wrap comes a character
+        '' earlier than counting the text alone suggests. The line ends up
+        '' beginning on 1-based row 4 and wrapping onto row 5.
+        ''
+        '' Both rows are asserted: the first pins where the redraw started,
+        '' which is the origin tracking, and the second pins that the wrap went
+        '' where it should. An off-by-one in either direction moves one of them.
+        chk( "the redrawn line starts on the scrolled row", asc( "Z" ), _
+             screen( 4, 1, 0 ) )
+        chk( "and wraps onto the row below", asc( "h" ), _
+             screen( 5, 1, 0 ) )
+
         '' AN ARROW MUST NOT LAND IN THE STRING. If an extended code fell
         '' through to the printable branch it would insert chr(255).
         PostMessage( hw, WM_KEYDOWN, VK_UP, cast( LPARAM, SC_UP shl 16 ) )
