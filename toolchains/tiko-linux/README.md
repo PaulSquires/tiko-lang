@@ -17,8 +17,9 @@ tiko-linux/
                           whether the target actually compiled and ran
 ```
 
-Both directories are passed, ours first:
-`tiko -target linux-x86_64 -p lib/linux-x86_64 -p lib/linux-x86_64-fb`.
+Neither directory has to be named: the compiler appends both to its own library
+search, ours first, as it appends `inc/` to the include search. Plain
+`tiko -target linux-x86_64 yourprogram.bas` links.
 
 The binary sits under `bin/` rather than at the root, unlike the Windows
 toolchain: that is the fbc-modern layout, and matching it is what lets the two be

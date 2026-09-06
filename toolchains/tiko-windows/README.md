@@ -26,5 +26,9 @@ runtime builds for it; a toolchain that shipped only `win64` would make that fla
 fail at link time rather than at the point it was passed. **It does not link
 today** -- see the parent README.
 
-Both directories of a pair are passed, ours first:
-`tiko -target win64 -p lib/win64 -p lib/win64-fb`.
+Neither directory has to be named. The compiler appends `<exe-dir>/lib/<target>`
+and then `<exe-dir>/lib/<target>-fb` to its own library search -- ours first, so a
+single `-l` resolves out of tiko-rt before it reaches fbc's -- exactly as it appends
+`<exe-dir>/inc` to the include search. `tiko -target win64 yourprogram.bas` links.
+
+A `-p` of your own is searched before both, and `TKO_LIBPATH` replaces them.

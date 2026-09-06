@@ -200,6 +200,60 @@ private sub AppendDefaultIncludeDir( byref opts as Tko.DriverOptions )
     if FB.IsDir( cand ) then opts.includePaths.Push( cand )
 end sub
 
+'' The library half of the same rule, and it was the half still missing: the include
+'' search learned <exe-dir>/inc above, but a link still had to be told where libfb.a
+'' was -- the packaged toolchain's own MANIFEST tells the reader to type
+'' '-p lib/win64 -p lib/win64-fb' on every build. fbc needs neither, and this is why:
+'' it appends <exe-dir>/lib/<target> after the -p paths and searches it last. Measured,
+'' not assumed -- 'fbc64 -v hello.bas' emits
+''
+''     -L "<prefix>\lib\win64" -L "."
+''
+'' with no -p given, and with '-p X' the X comes FIRST. The directory is per target
+'' where inc/ is not, which is fbc's shape too and the reason the two rules cannot
+'' share one helper.
+''
+'' TWO directories are appended, not one, and the second is ours alone. tiko-rt is a
+'' partial runtime: its thread layer calls fb_AtomicCasLong, which only fbc's libfb
+'' defines, so the packaged tree carries lib/<target>-fb behind lib/<target> and a
+'' single -lfb resolves out of whichever has it first. Ours first is the whole point
+'' -- reverse them and the link silently picks up fbc's runtime instead. When tiko-rt
+'' is complete the '-fb' directory stops existing and this stops finding it; nothing
+'' else here changes.
+''
+'' Appended LAST and only when the directory is really there, for the reason the
+'' include rule gives: a -p the user typed still wins, and a path that does not exist
+'' buys a stat per library for nothing.
+''
+'' TKO_LIBPATH overrides the bundled tree, exactly as TKO_INCLUDE overrides inc/. It
+'' used to be read in FindTools, and only when no -p was given at all; it is read here
+'' now because a default pushed into libPaths would have made that test true forever
+'' and dropped the variable on the floor without saying so.
+private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )
+    dim as ustring env_ = environ( "TKO_LIBPATH" )
+    if len( env_ ) > 0 then
+        opts.libPaths.Push( env_ )
+        return
+    end if
+
+    dim as ustring exeDir = exepath( )
+    if len( exeDir ) = 0 then return
+
+    '' <exe-dir>/lib is fbc's shape, which the packaged toolchain copies;
+    '' <exe-dir>/../lib is the development tree, where the exe sits in bin/.
+    dim as ustring root = FB.PathJoin( exeDir, "lib" )
+    if FB.IsDir( root ) = false then
+        root = FB.PathJoin( FB.PathParent( exeDir ), "lib" )
+        if FB.IsDir( root ) = false then return
+    end if
+
+    dim as ustring cand = FB.PathJoin( root, opts.targetName )
+    if FB.IsDir( cand ) then opts.libPaths.Push( cand )
+
+    cand = FB.PathJoin( root, opts.targetName & "-fb" )
+    if FB.IsDir( cand ) then opts.libPaths.Push( cand )
+end sub
+
 private function MatchExact( byval arg as string ) as Tko.OptId
     Tko.InitOptTable( )
     for i as long = 1 to Tko.OPT_COUNT - 1
@@ -447,6 +501,7 @@ function Parse _
     opts.targetName = Tko.TargetName( opts.target )
 
     AppendDefaultIncludeDir( opts )
+    AppendDefaultLibDir( opts )
 
     return ok
 end function

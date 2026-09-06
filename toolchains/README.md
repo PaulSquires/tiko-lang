@@ -48,11 +48,15 @@ READMEs and nothing else.
 ## Two directories per target
 
 `lib/<target>/` is tiko-rt's runtime and `lib/<target>-fb/` is fbc's, and a link
-names **both, ours first**:
+needs **both, ours first**. It gets them without being asked: the compiler appends
+both to its library search relative to its own executable, the way it appends
+`inc/` to the include search and the way fbc appends `lib/<target>` to its own.
 
 ```bash
-tiko -target win64 -p lib/win64 -p lib/win64-fb yourprogram.bas
+tiko -target win64 yourprogram.bas
 ```
+
+A `-p` is searched first and overrides either; `TKO_LIBPATH` replaces both.
 
 tiko-rt is partial -- its thread layer references `fb_AtomicCasLong`, which only
 fbc's `libfb` defines. A single `-l` resolves once, from the first path that has

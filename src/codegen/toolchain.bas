@@ -40,14 +40,15 @@ function FindTools _
         return t
     end if
 
-    if libOpt.Count > 0 then
-        for i as long = 0 to libOpt.Count - 1
-            t.libPaths.Push( libOpt[i] )
-        next
-    else
-        dim as string envp = environ( "TKO_LIBPATH" )
-        if len( envp ) > 0 then t.libPaths.Push( envp )
-    end if
+    '' The search order arrives already decided: the -p paths the user typed, then
+    '' the bundled <exe-dir>/lib/<target> and its '-fb' backing directory, or
+    '' TKO_LIBPATH in place of those. Cmdline settles all of it -- see
+    '' AppendDefaultLibDir -- because only there is the target final, and because
+    '' TKO_LIBPATH read HERE could only ever have been reached when no -p was given,
+    '' which a bundled default would have made impossible.
+    for i as long = 0 to libOpt.Count - 1
+        t.libPaths.Push( libOpt[i] )
+    next
     t.found = true
     return t
 end function

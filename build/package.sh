@@ -255,7 +255,7 @@ verify_target( ) {
     printf 'print "ok"
 ' > "$_tmp/hello.bas"
 
-    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t"             -p "lib/$_t" -p "lib/$_t-fb"             ".verify.$_t/hello.bas" -o ".verify.$_t/hello$EXT" ) >"$_tmp/log" 2>&1 || true
+    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t"             ".verify.$_t/hello.bas" -o ".verify.$_t/hello$EXT" ) >"$_tmp/log" 2>&1 || true
 
     # THE EXIT CODE IS NOT THE TEST. Measured 2026-09-04: tiko returns 0 when the
     # link fails and writes no executable, so trusting it reported a win32 link
@@ -328,13 +328,20 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     echo "$VERIFY_LINES"
     echo
     echo "-- linking -------------------------------------------------------------"
-    echo "tiko-rt is partial: its thread layer references fb_AtomicCasLong, which"
-    echo "only fbc's libfb defines. BOTH library paths must be given, OURS FIRST --"
-    echo "a single -l resolves once, from the first path that has the archive."
+    echo "Nothing has to be passed. tiko appends inc/ to the include search and"
+    echo "lib/<target>/ to the library search on its own, both relative to the"
+    echo "executable, exactly as fbc does -- and lib/<target>-fb/ after them,"
+    echo "which fbc has no equivalent of: tiko-rt is partial, its thread layer"
+    echo "references fb_AtomicCasLong, and only fbc's libfb defines that. OURS"
+    echo "COMES FIRST -- a single -l resolves once, from the first path holding"
+    echo "the archive -- and the order is fixed here, not left to the caller."
     echo
     for t in $TARGETS; do
-        echo "  tiko -target $t -p lib/$t -p lib/$t-fb  yourprogram.bas"
+        echo "  tiko -target $t yourprogram.bas"
     done
+    echo
+    echo "A -p of your own is searched BEFORE both, so it can override either."
+    echo "TKO_LIBPATH replaces them instead, as TKO_INCLUDE replaces inc/."
     echo
     echo "-- licences ------------------------------------------------------------"
     echo "licences/ holds the runtime's LGPL-2.1 notice and its provenance, and"
