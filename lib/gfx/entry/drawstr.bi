@@ -75,10 +75,12 @@ end sub
 ''   The blender slot is filled only when a custom font is supplied, so it is
 ''   unreachable for the same reason.
 ''
-''   THE BLEND MODES. Only TRANS and PSET are honoured; the bitwise and alpha
-''   modes fall back to TRANS. raster/text.bi draws glyph-by-glyph rather than
-''   through a putter, so routing them needs the glyph rendered to a scratch
-''   surface first -- which is work, not a line.
+''   THE BLEND MODES. Every mode draws the glyph transparently in its
+''   foreground colour; the bitwise and alpha blenders are not applied.
+''   raster/text.bi draws glyph-by-glyph rather than through a putter, so
+''   routing them needs the glyph rendered to a scratch surface first -- which
+''   is work, not a line. PSET and TRANS are correct today because neither
+''   paints the clear pixels; the rest are approximated by TRANS.
 function TkoGfxDrawString alias "fb_GfxDrawString" ( _
         byval target as any ptr, _
         byval fx as single, byval fy as single, _
@@ -122,18 +124,17 @@ function TkoGfxDrawString alias "fb_GfxDrawString" ( _
     '' font_ is named and NOT honoured -- see the header.
     if font_ = 0 then : end if
 
-    '' PSET is opaque, everything else is drawn transparent. TRANS is the
-    '' default and the fallback, which is stated in the header rather than left
-    '' to be inferred from this select.
-    dim as long isopaque = iif( mode = TkoGfx.PUTMODE_PSET, 1, 0 )
-
+    '' EVERY MODE IS TRANSPARENT, INCLUDING PSET. Measured: with the screen
+    '' pre-filled &h777777, `draw string (4,16), "A", &hFFFFFF, , PSET` leaves
+    '' the cell's clear pixels at &h777777, and setting a background with COLOR
+    '' first changes nothing.
+    ''
+    '' That is the opposite of PRINT, which repaints the whole cell -- and
+    '' assuming DRAW STRING behaved like PRINT is exactly what this did until
+    '' tools/gate-entry.sh compared them. The mode argument selects a BLENDER for
+    '' the glyph, and none of them paints where the glyph is clear.
     for i as integer = 0 to len( s ) - 1
-        dim as long px = x + i * TkoGfx.FONT_WIDTH
-        if isopaque then
-            TkoGfx.DrawGlyph( c->surf, px, y, s[i], fidx, col, c->draw.bg_color )
-        else
-            TkoGfx.DrawGlyphTrans( c->surf, px, y, s[i], fidx, col )
-        end if
+        TkoGfx.DrawGlyphTrans( c->surf, x + i * TkoGfx.FONT_WIDTH, y, s[i], fidx, col )
     next
 
     return 0

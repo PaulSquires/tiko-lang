@@ -63,8 +63,24 @@ private sub DrawStateInit( byref d as DrawState, byval depth as long )
         d.fg_color = 15
         d.bg_color = 0
     else
-        d.fg_color = FixColor( iif( depth = 16, 2, 4 ), &hFFFFFF )
-        d.bg_color = 0
+        '' MEASURED, not FixColor. gfxlib2 opens white on black WITH ALPHA at
+        '' 32bpp -- probed: a defaulted PSET writes &hFFFFFFFF and a defaulted
+        '' PRESET writes &hFF000000. FixColor passes a 32bpp colour through
+        '' unchanged, so building the pair with it gives &hFFFFFF and 0, both of
+        '' which are transparent and neither of which is what a program sees.
+        ''
+        '' tools/abtest-color.bas could not have caught this: it synchronises
+        '' both sides with an explicit `color 15, 0` before its first
+        '' comparison, so the OPENING pair was never compared. tools/gate-entry.sh
+        '' found it through PRESET, which is the only statement that reads the
+        '' background without being told one.
+        if depth = 16 then
+            d.fg_color = FixColor( 2, &hFFFFFF )
+            d.bg_color = FixColor( 2, 0 )
+        else
+            d.fg_color = &hFFFFFFFFul
+            d.bg_color = &hFF000000ul
+        end if
     end if
     d.last_x = 0
     d.last_y = 0

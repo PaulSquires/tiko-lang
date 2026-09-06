@@ -249,10 +249,10 @@ function TkoGfxPut alias "fb_GfxPut" ( _
     '' blitting one over the other is how the stale-target defect looked.
     if sbpp <> c->surf.bpp then return FB_RTERROR_ILLEGALFUNCTIONCALL
 
-    '' PUT's coordinate is convention B in everything but its flag base: one
-    '' point, optionally STEP.
+    '' PUT is CONVENTION A with one point, so its STEP is bit 1, not bit 0. See
+    '' CoordPut in entry/context.bi for the measurement.
     dim as long dx, dy
-    TkoGfx.CoordB( *c, fx, fy, flags, dx, dy )
+    TkoGfx.CoordPut( *c, fx, fy, flags, dx, dy )
 
     '' The source rectangle, defaulting to the whole image.
     dim as long rx1 = sx1, ry1 = sy1, rx2 = sx2, ry2 = sy2

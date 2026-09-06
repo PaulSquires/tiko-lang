@@ -240,6 +240,24 @@ private sub CoordB( byref c as GfxContext, _
     TranslateCoord( c.vp, fx, fy, px, py )
 end sub
 
+'' PUT is convention A with ONE point, and its STEP is therefore BIT 1, not
+'' bit 0. Measured -- `put step(5,5), img, PSET` emits coordflags 2, while
+'' `pset step(1,1)` emits 5, which is convention B's base 4 plus bit 0. Reading
+'' PUT with CoordB sees no STEP at all and draws at the raw offset, which is
+'' what it did until tools/gate-entry.sh compared the two.
+private sub CoordPut( byref c as GfxContext, _
+        byval fx as single, byval fy as single, byval flags as long, _
+        byref px as long, byref py as long )
+
+    if (flags and COORD_A_P1_REL) <> 0 then
+        fx += c.draw.last_x
+        fy += c.draw.last_y
+    end if
+    c.draw.last_x = fx
+    c.draw.last_y = fy
+    TranslateCoord( c.vp, fx, fy, px, py )
+end sub
+
 '' Convention A: two points, each independently relative. The FIRST point's
 '' relativity is bit 1 and the SECOND's is bit 0 -- the reverse of the reading
 '' order, which is why they are named rather than indexed here.
