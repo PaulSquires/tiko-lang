@@ -50,8 +50,9 @@
 '' readstrproc is installed as well, and is the path INPUT takes from a real
 '' channel rather than from the console.
 ''
-'' WHAT IS STILL LEFT NULL, all five of them: in, out, sleep, postevent and
-'' lineinputw. Twenty-three of the 28 slots are filled.
+'' WHAT IS STILL LEFT NULL, all four of them: in, out, sleep and postevent.
+'' Twenty-four of the 28 slots are filled, and the four that are not are the
+'' mouse-free, port-level ones plus SLEEP.
 ''
 '' The port internals are gated but nothing routes them yet; the wide LINE INPUT
 '' needs the wstring editing loop that the narrow one above is only half of.
@@ -332,6 +333,20 @@ private sub ConPrintNarrow( byval p as ubyte ptr, byval n as long, byval mask as
     if (mask and FB_PRINT_NEWLINE) <> 0 then ConNewline( )
 end sub
 
+'' HOW LONG A wstring IS, counted here.
+''
+'' fb_wstr_Len is a `static __inline__` in the runtime's header and the archive
+'' exports no symbol for it, so binding it compiles, archives, and then fails to
+'' link. tiko-rt's src/io/conprintw.bas hit exactly that and counts its own.
+private function WideLen( byval s as wstring ptr ) as long
+    if s = 0 then return 0
+    dim as long n = 0
+    while s[n] <> 0
+        n += 1
+    wend
+    return n
+end function
+
 '' ------------------------------------------------------------- the keyboard
 ''
 '' THE RING IS THE WINDOW'S, not the console's. driver/window.bi fills it from
@@ -564,6 +579,20 @@ extern "c"
     declare function fb_wstr_ConvToA_ alias "fb_wstr_ConvToA" ( _
         byval dst as zstring ptr, byval dst_chars as integer, _
         byval src as wstring ptr ) as integer
+
+    '' THE RUNTIME OWNS THE OTHER DIRECTION TOO. `line input` into a WSTRING has
+    '' to end in the runtime's converter for the same reason the narrow one ends
+    '' in fb_StrAssign: the destination's rules -- the capacity, the terminator,
+    '' what a capacity of zero means -- belong to whoever defined the type.
+    ''
+    '' src_size IS ZERO HERE, NOT -1, and the difference is a heap corruption.
+    '' -1 is FB_STRSIZEVARLEN, which tells the runtime the source is a TEMP
+    '' FBSTRING and to DELETE it when it is done; the string this library passes
+    '' belongs to an FB local that fbc will free itself. Zero means "a plain
+    '' zstring, measure it with strlen", which is what a strptr( ) is.
+    declare function fb_WstrAssignFromA_ alias "fb_WstrAssignFromA" ( _
+        byval dst as wstring ptr, byval dst_chars as integer, _
+        byval src as any ptr, byval src_size as integer ) as wstring ptr
 end extern
 
 extern "c"
@@ -748,6 +777,66 @@ function TkoConPageSet cdecl ( byval active as long, byval visible as long ) as 
     if TkoGfx.TheCon.live = 0 then return 0
     return TkoGfx.CellPageSetResult( iif( active < 0, 0, active ), _
                                      iif( visible < 0, 0, visible ) )
+end function
+
+'' LINE INPUT into a WSTRING.
+''
+'' NO WIDE INPUT EXISTS, and that is the reference's position rather than this
+'' library's shortfall: gfx_lineinp_wstr.c carries a "!!!FIXME!!! no support for
+'' unicode input" comment, collects the line with the SAME narrow editor its
+'' narrow form uses, and converts the result up. Anything a keyboard produces
+'' that ASCII cannot hold is lost in both libraries, identically.
+''
+'' THE ARGUMENTS ARE NOT THE NARROW ONES. There is no fillrem -- a wstring
+'' destination has no space-padded fixed form to fill -- and `dst_len` is
+'' MAX_CHARS, a count of characters rather than of bytes, which fbc emits as the
+'' declared size: `dim as wstring * 16` passes 16. Measured, not assumed.
+function TkoConLineInputW cdecl ( byval text_ as wstring ptr, _
+        byval dst as wstring ptr, byval max_chars as integer, _
+        byval addquestion as long, byval addnewline as long ) as long
+
+    if TkoGfx.TheCon.live = 0 then return 0
+
+    '' The prompt goes through the same conversion PRINT of a wstring does, and
+    '' is drawn here rather than by the runtime for the same reason the narrow
+    '' prompt is: the runtime's console printer is what these hooks displaced.
+    if text_ <> 0 then
+        dim as integer n = TkoGfx.WideLen( text_ )
+        if n > 0 then
+            dim as ubyte ptr tmp = callocate( n + 1 )
+            if tmp <> 0 then
+                fb_wstr_ConvToA_( cptr( zstring ptr, tmp ), n, text_ )
+                for i as integer = 0 to n - 1
+                    TkoGfx.ConPutChar( tmp[i] )
+                next
+                deallocate( tmp )
+            end if
+        end if
+        if addquestion <> 0 then
+            TkoGfx.ConPutChar( asc( "?" ) )
+            TkoGfx.ConPutChar( 32 )
+        end if
+    end if
+
+    dim as string acc = TkoGfx.ConEditLine( TkoGfx.CARET_UNDER )
+    if addnewline = 0 then
+        '' ConEditLine already advanced on Enter; undo it when the caller asked
+        '' for the cursor to stay put. Same as the narrow form.
+        if TkoGfx.TheCon.row > TkoGfx.TheCon.viewtop then TkoGfx.TheCon.row -= 1
+    end if
+
+    if dst <> 0 then
+        '' AN EMPTY LINE PASSES A NULL, AND THAT IS FINE -- measured, not
+        '' assumed. strptr of an empty var-len string is NULL, and the runtime's
+        '' setup macro turns a NULL source into a zero-length one and empties
+        '' the destination. A guard substituting a pointer to "" was written
+        '' here first and removed: with it deliberately taken out the smoke
+        '' check still passed, so it was doing nothing.
+        fb_WstrAssignFromA_( dst, max_chars, strptr( acc ), 0 )
+    end if
+
+    RtlErrorSetNum( TkoAbi.FB_RTERROR_OK )
+    return TkoAbi.FB_RTERROR_OK
 end function
 
 end extern
@@ -972,6 +1061,7 @@ private sub ConsoleStart( byval mode as long )
     tb.multikeyproc   = @TkoConMultikey
     tb.readstrproc    = @TkoConReadStr
     tb.lineinputproc  = @TkoConLineInput
+    tb.lineinputwproc = @TkoConLineInputW
     tb.isredirproc    = @TkoConIsRedir
     tb.viewupdateproc = @TkoConViewUpdate
 

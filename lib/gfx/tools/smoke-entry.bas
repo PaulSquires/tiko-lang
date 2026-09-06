@@ -502,6 +502,64 @@ scope
         dim as string got3
         line input "P"; got3
         chk( "line input assigns a var-len string", 0, iif( got3 = "Q", 0, 1 ) )
+
+        '' ---- LINE INPUT into a WSTRING ----
+        ''
+        '' A DIFFERENT HOOK WITH DIFFERENT ARGUMENTS: no fillrem, and the third
+        '' argument is MAX_CHARS -- a character count, which fbc emits as the
+        '' declared size, not a byte count. Measured: `dim as wstring * 16`
+        '' passes 16.
+        ''
+        '' The line is still collected by the NARROW editor, in both libraries:
+        '' gfxlib2's wide form carries a "no support for unicode input" comment
+        '' and converts the result up, which is what this does.
+        dim as string typedw = "Wq" + chr( 13 )
+        for i as integer = 0 to len( typedw ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typedw[i] ), 0 )
+        next
+        Sleep( 200 )
+        dim as wstring * 16 wgot
+        line input wgot
+        chk( "wide line input assigns the wstring", 0, iif( wgot = wstr( "Wq" ), 0, 1 ) )
+
+        '' AN EMPTY LINE MUST EMPTY THE DESTINATION, not leave the old value.
+        '' strptr of an empty FB string is NULL, and passing that through would
+        '' have the runtime skip the assignment entirely -- so the previous
+        '' answer would still be sitting there and this check is what sees it.
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 200 )
+        line input wgot
+        chk( "an empty wide line input clears it", 0, iif( len( wgot ) = 0, 0, 1 ) )
+
+'' THESE FOUR CHECK THE STATEMENT, NOT THE HOOK, and that distinction is
+        '' measured rather than assumed: with lineinputwproc deliberately left
+        '' NULL, all four still pass. The runtime's own editor falls back onto
+        '' the inkey, getkey and printbuff hooks -- which ARE installed -- so
+        '' wide LINE INPUT already read the window and echoed to the screen.
+        ''
+        '' So this is not a hole being closed. It is the same editor serving
+        '' both widths instead of two editors that happen to agree, and nothing
+        '' here can tell them apart. Said plainly because a check that cannot
+        '' fail for the reason you think it can is worse than no check.
+        dim as string typedx = "ab"
+        for i as integer = 0 to len( typedx ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typedx[i] ), 0 )
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
+        PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "X" ) ), 0 )
+        PostMessage( hw, WM_CHAR, 13, 0 )
+        Sleep( 250 )
+        line input wgot
+        chk( "wide line input edits with the arrows", 0, iif( wgot = wstr( "aXb" ), 0, 1 ) )
+
+        dim as wstring * 4 wshort
+        dim as string typedy = "abcdef" + chr( 13 )
+        for i as integer = 0 to len( typedy ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typedy[i] ), 0 )
+        next
+        Sleep( 250 )
+        line input wshort
+        chk( "max_chars truncates the wide destination", 3, len( wshort ) )
     end if
 end scope
 
