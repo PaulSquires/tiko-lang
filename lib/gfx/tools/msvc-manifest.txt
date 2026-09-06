@@ -42,14 +42,14 @@ abtest-color        split
 abtest-control      mingw-only  # fb_GfxControl_i32 fb_GfxScreenInfo32 fb_GfxView
 abtest-convert      mingw-only  # fb_GfxImageConvertRow fb_GfxPalette fb_GfxScreenRes
 abtest-dirty        mingw-only
-abtest-draw         mingw-only
+abtest-draw         split
 abtest-events       split
 abtest-image        mingw-only
 abtest-keyboard     split
 abtest-lzw          mingw-only  # fb_hDecode fb_hEncode
 abtest-mode         split
 abtest-mouse        split
-abtest-paint        mingw-only
+abtest-paint        split
 abtest-palette      mingw-only  # fb_GfxPalette fb_GfxPaletteGet
 abtest-print        mingw-only
 abtest-put          mingw-only

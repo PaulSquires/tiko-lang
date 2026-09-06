@@ -36,11 +36,14 @@
 #include once "../raster/box.bi"
 #include once "../raster/line.bi"
 #include once "../raster/circle.bi"
-#include once "fbgfx.bi"
+#include once "abtest.bi"
 #include once "crt/string.bi"
+#ifdef ABTEST_HAS_GFXLIB2
+#include once "fbgfx.bi"
+using FB
+#endif
 
 using TkoGfx
-using FB
 
 const W = 72
 const H = 56
@@ -48,18 +51,7 @@ const BORDER = &hFF00FF00
 const FILLC  = &hFFFF0000
 const OTHER  = &hFF0000FF
 
-function Digest( byval pixels as any ptr, byval pitch as integer ) as ulongint
-    dim as ulongint acc = 14695981039346656037ull
-    for y as integer = 0 to H - 1
-        dim as ulong ptr row = cptr( ulong ptr, cptr( ubyte ptr, pixels ) + y * pitch )
-        for x as integer = 0 to W - 1
-            acc = (acc xor row[x]) * 1099511628211ull
-        next
-    next
-    return acc
-end function
-
-'' Draw scene `n` with gfxlib2 into an image target.
+#ifdef ABTEST_HAS_GFXLIB2
 sub SceneGfx( byval img as any ptr, byval n as long )
     select case n
     case 0   '' plain box
@@ -101,6 +93,7 @@ sub SceneGfx( byval img as any ptr, byval n as long )
         line img, (8,47)-(63,8), BORDER
     end select
 end sub
+#endif
 
 sub SceneTko( byref s as Surface, byval n as long )
     select case n
@@ -140,7 +133,9 @@ sub SceneTko( byref s as Surface, byval n as long )
     end select
 end sub
 
+#ifdef ABTEST_HAS_GFXLIB2
 screenres W, H, 32, 1, GFX_NULL
+#endif
 
 '' seed points per scene, plus edge cases
 dim as long sx(...)   = { 35, 35, 35, 35, 35, 35, 36, 10, 12, 20,  10, 100, 35, 35 , 35}
@@ -152,20 +147,28 @@ dim as string nm(...) = { "box", "concave C", "island", "gap escapes", _
                           "comb", "diagonal", "seed ON border", "seed outside", _
                           "seed outside shape", "fill == border" , "fill-colour bar"}
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-paint", "every scene is pixel-identical" )
 
 for i as integer = 0 to ubound( sx )
+    dim as string tag = nm(i) + " seed (" + str(sx(i)) + "," + str(sy(i)) + ")"
+    dim as ulongint ha, hb
+    dim as integer ipitch = W * 4
+
+#ifdef ABTEST_HAS_GFXLIB2
     dim as any ptr img = imagecreate( W, H, 0, 32 )
-    if img = 0 then continue for
+    if img = 0 then
+        Abtest.Fail_( tag, "imagecreate FAILED" )
+        continue for
+    end if
     SceneGfx( img, scn(i) )
     paint img, ( sx(i), sy(i) ), fc(i), BORDER
 
-    dim as integer iw, ih, ibpp, ipitch
+    dim as integer iw, ih, ibpp
     dim as any ptr idata
     imageinfo( img, iw, ih, ibpp, ipitch, idata )
-    dim as ulongint ha = Digest( idata, ipitch )
+    ha = Abtest.Digest( idata, W, H, ipitch )
+    imagedestroy( img )
+#endif
 
     dim as any ptr mine = allocate( ipitch * H )
     memset( mine, 0, ipitch * H )
@@ -173,15 +176,10 @@ for i as integer = 0 to ubound( sx )
     SurfaceInit( s, mine, W, H, ipitch, 4 )
     SceneTko( s, scn(i) )
     Paint32( s, sx(i), sy(i), fc(i), BORDER )
-    dim as ulongint hb = Digest( mine, ipitch )
-
-    ran += 1
-    if ha <> hb then
-        report += "  MISMATCH " + nm(i) + " seed (" + str(sx(i)) + "," + str(sy(i)) + ")" + chr(10)
-        failures += 1
-    end if
+    hb = Abtest.Digest( mine, W, H, ipitch )
     deallocate( mine )
-    imagedestroy( img )
+
+    Abtest.Case_( tag, ha, hb )
 next
 
 
@@ -217,16 +215,27 @@ for pk as integer = 0 to 4
     dim as long bx(...) = {  8, 11, 16,  9, 12, 33 }
     dim as long bw(...) = { 32, 29, 24, 31, 26,  3 }
     for bi as integer = 0 to ubound( bx )
+        dim as string tag = "pattern " + str(pk) + " box x=" + str(bx(bi)) + _
+                            " w=" + str(bw(bi))
+        dim as ulongint ha, hb
+        dim as integer ipitch = W * 4
+
+#ifdef ABTEST_HAS_GFXLIB2
         dim as any ptr img = imagecreate( W, H, 0, 32 )
-        if img = 0 then continue for
+        if img = 0 then
+            Abtest.Fail_( tag, "imagecreate FAILED" )
+            continue for
+        end if
         line img, (0,0)-(W-1,H-1), 0, BF
         line img, (bx(bi), 12)-(bx(bi) + bw(bi), 34), BORDER, B
         paint img, ( bx(bi) + 2, 20 ), pat, BORDER
 
-        dim as integer iw, ih, ibpp, ipitch
+        dim as integer iw, ih, ibpp
         dim as any ptr idata
         imageinfo( img, iw, ih, ibpp, ipitch, idata )
-        dim as ulongint ha = Digest( idata, ipitch )
+        ha = Abtest.Digest( idata, W, H, ipitch )
+        imagedestroy( img )
+#endif
 
         dim as any ptr mine = allocate( ipitch * H )
         memset( mine, 0, ipitch * H )
@@ -234,27 +243,15 @@ for pk as integer = 0 to 4
         SurfaceInit( s, mine, W, H, ipitch, 4 )
         LineBox32( s, bx(bi), 12, bx(bi) + bw(bi), 34, BORDER, 0 )
         Paint32( s, bx(bi) + 2, 20, 0, BORDER, @tile(0) )
-        dim as ulongint hb = Digest( mine, ipitch )
-
-        ran += 1
-        if ha <> hb then
-            report += "  MISMATCH pattern " + str(pk) + " box x=" + str(bx(bi)) + _
-                      " w=" + str(bw(bi)) + chr(10)
-            failures += 1
-        end if
+        hb = Abtest.Digest( mine, W, H, ipitch )
         deallocate( mine )
-        imagedestroy( img )
+
+        Abtest.Case_( tag, ha, hb )
     next
 next
 
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-paint -- "; ran; " flood-fill scenes against gfxlib2, 32bpp "; W; "x"; H
-if failures = 0 then
-    print "abtest-paint: PASS -- every scene is pixel-identical"
-    end 0
-else
-    print report;
-    print "abtest-paint: FAIL -- "; failures; " of"; ran; " scenes differ"
-    end 1
-end if
+Abtest.Finish_( )

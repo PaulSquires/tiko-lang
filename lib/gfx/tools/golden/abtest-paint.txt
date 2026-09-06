@@ -1,0 +1,45 @@
+128034851DDD3A25	box seed (35,28)
+6C412007C57EFC25	concave C seed (35,15)
+FFC2CE7E1F472B25	island seed (35,15)
+4FD745148E8FFD25	gap escapes seed (35,28)
+128034851DDD3A25	fill colour inside seed (35,15)
+D09FD9416D513025	nested seed (35,10)
+84DE5D15B4F2CA25	circle seed (36,28)
+7EF2A2307854BF25	circle island seed (10,28)
+274AE97DFEFB3625	comb seed (12,28)
+A1A2086749509025	diagonal seed (20,40)
+EDFB1F6207F53A25	seed ON border seed (10,10)
+EDFB1F6207F53A25	seed outside seed (100,100)
+324EF84F3CD33A25	seed outside shape seed (35,2)
+2B6F875F24C31625	fill == border seed (35,28)
+128034851DDD3A25	fill-colour bar seed (35,15)
+905746CF01C88C25	pattern 0 box x=8 w=32
+397196AE82D85E25	pattern 0 box x=11 w=29
+2D3E65CE2A515825	pattern 0 box x=16 w=24
+8723176169810825	pattern 0 box x=9 w=31
+250E6104F4A9A025	pattern 0 box x=12 w=26
+41D14CBD093DAA25	pattern 0 box x=33 w=3
+06EE352E68DE6725	pattern 1 box x=8 w=32
+EA64F17EC6F194A5	pattern 1 box x=11 w=29
+AA889E0C304B2225	pattern 1 box x=16 w=24
+80D85939DC0B47E5	pattern 1 box x=9 w=31
+122C6B84DCD49F65	pattern 1 box x=12 w=26
+8DEDE016600945E5	pattern 1 box x=33 w=3
+1264FD6E3628C565	pattern 2 box x=8 w=32
+0042C8D0BC11B6CD	pattern 2 box x=11 w=29
+9FE31102B61E3165	pattern 2 box x=16 w=24
+E629A9742227B3A9	pattern 2 box x=9 w=31
+2F72D040F34C0DE5	pattern 2 box x=12 w=26
+15DDED84DD4F6081	pattern 2 box x=33 w=3
+EF6BEB33E1702FA5	pattern 3 box x=8 w=32
+DEF67AD744D09E25	pattern 3 box x=11 w=29
+07383561D92AD9A5	pattern 3 box x=16 w=24
+229813E40C68B025	pattern 3 box x=9 w=31
+E54A055D31A529A5	pattern 3 box x=12 w=26
+B0E5B03388DC2225	pattern 3 box x=33 w=3
+887D53B066083405	pattern 4 box x=8 w=32
+C95498D38748D415	pattern 4 box x=11 w=29
+D5F169CBA0F4A5C5	pattern 4 box x=16 w=24
+FEDEBBC4A5317A39	pattern 4 box x=9 w=31
+21850DB72C415589	pattern 4 box x=12 w=26
+B83474A8B45D2959	pattern 4 box x=33 w=3
