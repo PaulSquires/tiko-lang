@@ -33,7 +33,7 @@ abtest-line         split
 abtest-blit         mingw-only  # __fb_gfx fb_GfxLock fb_GfxPaletteGet fb_GfxPset fb_GfxScreenInfo32 fb_GfxScreenPtr fb_GfxScreenRes fb_GfxUnlock fb_hGetBlitter
 abtest-bmp          mingw-only
 abtest-box          split     
-abtest-bpp          mingw-only
+abtest-bpp          split
 abtest-bsave        mingw-only  # fb_GfxBload fb_GfxBsave fb_GfxScreenRes
 abtest-cells        mingw-only  # fb_GfxPageSet fb_GfxScreenInfo32 fb_GfxScreenRes fb_GfxView
 abtest-circle       split
@@ -51,7 +51,7 @@ abtest-mode         split
 abtest-mouse        split
 abtest-paint        split
 abtest-palette      split
-abtest-print        mingw-only
+abtest-print        split
 abtest-put          split
 abtest-putbpp       split
 abtest-vgaport      split

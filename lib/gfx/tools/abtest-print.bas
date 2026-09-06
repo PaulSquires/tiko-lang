@@ -38,15 +38,16 @@
 '' is how a wrong rule gets baked in. It is one character out of 224.
 
 #include once "../raster/text.bi"
-#include once "fbgfx.bi"
+#include once "abtest.bi"
 #include once "crt/string.bi"
+#ifdef ABTEST_HAS_GFXLIB2
+#include once "fbgfx.bi"
+using FB
+#endif
 
 using TkoGfx
-using FB
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-print", "glyphs are pixel-identical" )
 
 '' one mode per font height
 dim as long modes(...) = { 13, 9, 11 }
@@ -57,9 +58,17 @@ for mi as integer = 0 to ubound( modes )
     dim as long fidx = FontIndexForMode( mode )
     if fidx < 0 then continue for
 
+    dim as long spitch = 0
+#ifdef ABTEST_HAS_GFXLIB2
     screen mode
-    dim as long sw, sh, sdepth, sbpp, spitch, srefresh
-    screeninfo sw, sh, sdepth, sbpp, spitch, srefresh
+    dim as long xw, xh, sdepth, sbpp, srefresh
+    screeninfo xw, xh, sdepth, sbpp, spitch, srefresh
+#endif
+    '' The geometry is the mode table's -- abtest-mode proves it agrees with
+    '' SCREENINFO. Only the pitch is the driver's, so only the pitch is seeded.
+    dim as long sw = ModeTable(mode).w
+    dim as long sh = ModeTable(mode).h
+    spitch = cast( long, Abtest.Datum_( "m" + str(mode) + " pitch", spitch ) )
     dim as long fh = FontHeight(fidx)
 
     '' Characters 32..255 in blocks of 16.
@@ -80,6 +89,12 @@ for mi as integer = 0 to ubound( modes )
         dim as long crow = (blk mod 4) + 1
         dim as long ccol = (blk mod 3) + 1
 
+        dim as string tag = "mode " + str(mode) + " font" + str(fh) + _
+                            " chars " + str(blk*16) + ".." + str(blk*16+15) + _
+                            " at cell (" + str(ccol) + "," + str(crow) + ")"
+        dim as ulongint want = 0
+
+#ifdef ABTEST_HAS_GFXLIB2
         '' ---- A: gfxlib2 ----
         '' pre-fill so an opaque PRINT is distinguishable from a transparent one
         color 2, 5
@@ -90,13 +105,14 @@ for mi as integer = 0 to ubound( modes )
         print txt;
 
         dim as ubyte ptr fbp = cptr( ubyte ptr, screenptr( ) )
-        dim as ulongint want = 14695981039346656037ull
+        want = 14695981039346656037ull
         for y as integer = 0 to sh - 1
             dim as ubyte ptr r = fbp + y * spitch
             for x as integer = 0 to sw - 1
                 want = (want xor r[x]) * 1099511628211ull
             next
         next
+#endif
 
         '' ---- B: libtkogfx, into our own 8bpp buffer ----
         dim as ubyte ptr mine = allocate( spitch * sh )
@@ -124,24 +140,12 @@ for mi as integer = 0 to ubound( modes )
             next
         next
 
-        ran += 1
-        if want <> got then
-            report += "  MISMATCH mode " + str(mode) + " font" + str(fh) + _
-                      " chars " + str(blk*16) + ".." + str(blk*16+15) + _
-                      " at cell (" + str(ccol) + "," + str(crow) + ")" + chr(10)
-            failures += 1
-        end if
+        Abtest.Case_( tag, want, got )
         deallocate( mine )
     next
+#ifdef ABTEST_HAS_GFXLIB2
     screen 0
+#endif
 next
 
-print "abtest-print -- "; ran; " text-rendering cases against gfxlib2"
-if failures = 0 then
-    print "abtest-print: PASS -- glyphs are pixel-identical"
-    end 0
-else
-    print report;
-    print "abtest-print: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )

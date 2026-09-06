@@ -54,11 +54,16 @@
 ''   which sets last_target to NULL and forces gfxlib2 to rebind.
 
 #include once "../raster/pixelfmt.bi"
-#include once "fbgfx.bi"
+#include once "abtest.bi"
 #include once "crt/string.bi"
+#ifdef ABTEST_HAS_GFXLIB2
+#include once "fbgfx.bi"
+#endif
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
+#endif
 
 const W = 40
 const H = 24
@@ -85,23 +90,31 @@ function Digest16( byval p as any ptr, byval pitch as integer ) as ulongint
     return acc
 end function
 
+#ifdef ABTEST_HAS_GFXLIB2
 screenres 320, 200, 8, 1, GFX_NULL
+#endif
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-bpp", "every case is pixel-identical" )
 
 '' colour values chosen to overflow each element width
 dim as ulong cols(...) = { 0, 1, 15, 255, 256, &h1FF, &hFFFF, &h1FFFF, &hABCDEF, &hFFFFFFFF }
 
 '' ---- 8 bpp ----
 for c as integer = 0 to ubound( cols )
+    dim as string tag = "8bpp colour &h" + hex( cols(c) )
+    dim as ulongint ha, hb
+    dim as integer ipitch = W * 1
+
+#ifdef ABTEST_HAS_GFXLIB2
     '' Reset gfxlib2's last_target so it cannot alias a recycled block -- see
     '' the STALE TARGET ALIASING note above.
     pset ( 0, 0 ), 0
     dim as any ptr img = imagecreate( W, H, 0, 8 )
-    if img = 0 then continue for
-    dim as integer iw, ih, ibpp, ipitch
+    if img = 0 then
+        Abtest.Fail_( tag, "imagecreate FAILED" )
+        continue for
+    end if
+    dim as integer iw, ih, ibpp
     dim as any ptr idata
     imageinfo( img, iw, ih, ibpp, ipitch, idata )
     '' MUST clear explicitly -- imagecreate's own fill is unreliable across
@@ -113,7 +126,9 @@ for c as integer = 0 to ubound( cols )
         pset img, ( k * 3, k * 2 ), cols(c)
     next
     line img, (4, 14)-(35, 20), cols(c), BF
-    dim as ulongint ha = Digest8( idata, ipitch )
+    ha = Digest8( idata, ipitch )
+    imagedestroy( img )
+#endif
 
     dim as any ptr mine = allocate( ipitch * H )
     memset( mine, 0, ipitch * H )
@@ -123,23 +138,28 @@ for c as integer = 0 to ubound( cols )
         PSet8( s, k * 3, k * 2, FixColor( 1, cols(c) ) )
     next
     FillRect8( s, 4, 14, 35, 20, FixColor( 1, cols(c) ) )
-    dim as ulongint hb = Digest8( mine, ipitch )
-
-    ran += 1
-    if ha <> hb then
-        report += "  MISMATCH 8bpp colour &h" + hex( cols(c) ) + chr(10)
-        failures += 1
-    end if
+    hb = Digest8( mine, ipitch )
     deallocate( mine )
-    imagedestroy( img )
+
+    Abtest.Case_( tag, ha, hb )
 next
 
 '' ---- 16 bpp ----
 for c as integer = 0 to ubound( cols )
+    dim as string tag = "16bpp colour &h" + hex( cols(c) )
+    dim as ulongint ha, hb
+    dim as integer ipitch = W * 2
+
+#ifdef ABTEST_HAS_GFXLIB2
+    '' Reset gfxlib2's last_target so it cannot alias a recycled block -- see
+    '' the STALE TARGET ALIASING note above.
     pset ( 0, 0 ), 0
     dim as any ptr img = imagecreate( W, H, 0, 16 )
-    if img = 0 then continue for
-    dim as integer iw, ih, ibpp, ipitch
+    if img = 0 then
+        Abtest.Fail_( tag, "imagecreate FAILED" )
+        continue for
+    end if
+    dim as integer iw, ih, ibpp
     dim as any ptr idata
     imageinfo( img, iw, ih, ibpp, ipitch, idata )
     '' MUST clear explicitly -- imagecreate's own fill is unreliable across
@@ -151,7 +171,9 @@ for c as integer = 0 to ubound( cols )
         pset img, ( k * 3, k * 2 ), cols(c)
     next
     line img, (4, 14)-(35, 20), cols(c), BF
-    dim as ulongint ha = Digest16( idata, ipitch )
+    ha = Digest16( idata, ipitch )
+    imagedestroy( img )
+#endif
 
     dim as any ptr mine = allocate( ipitch * H )
     memset( mine, 0, ipitch * H )
@@ -161,18 +183,15 @@ for c as integer = 0 to ubound( cols )
         PSet16( s, k * 3, k * 2, FixColor( 2, cols(c) ) )
     next
     FillRect16( s, 4, 14, 35, 20, FixColor( 2, cols(c) ) )
-    dim as ulongint hb = Digest16( mine, ipitch )
-
-    ran += 1
-    if ha <> hb then
-        report += "  MISMATCH 16bpp colour &h" + hex( cols(c) ) + chr(10)
-        failures += 1
-    end if
+    hb = Digest16( mine, ipitch )
     deallocate( mine )
-    imagedestroy( img )
+
+    Abtest.Case_( tag, ha, hb )
 next
 
 '' ---- POINT reads back what PSET wrote, at each width ----
+'' Entirely libtkogfx -- no gfxlib2 half at all, so it is reported as ordinary
+'' cases against a constant rather than as a comparison.
 dim as long roundtripbad = 0
 for depth as integer = 0 to 1
     dim as long bpp = iif( depth = 0, 1, 2 )
@@ -191,7 +210,6 @@ for depth as integer = 0 to 1
             PSet16( s, px, py, masked )
             if Point16( s, px, py ) <> cast( long, masked ) then roundtripbad += 1
         end if
-        ran += 1
     next
     '' POINT outside the clip box must be -1 at every width
     if bpp = 1 then
@@ -199,22 +217,12 @@ for depth as integer = 0 to 1
     else
         if Point16( s, -1, 0 ) <> -1 then roundtripbad += 1
     end if
-    ran += 1
     deallocate( buf )
 next
-if roundtripbad > 0 then
-    report += "  MISMATCH " + str( roundtripbad ) + " POINT round-trip(s)" + chr(10)
-    failures += roundtripbad
-end if
+Abtest.Case_( "POINT round-trips at every width", 0, roundtripbad )
 
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-bpp -- "; ran; " cases across 8 and 16 bpp against gfxlib2"
-if failures = 0 then
-    print "abtest-bpp: PASS -- every case is pixel-identical"
-    end 0
-else
-    print report;
-    print "abtest-bpp: FAIL -- "; failures; " of"; ran; " cases differ"
-    end 1
-end if
+Abtest.Finish_( )
