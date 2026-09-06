@@ -117,8 +117,31 @@ function LinkExe _
     for i as long = 0 to t.libPaths.Count - 1
         cmd += " -L" & Q( t.libPaths[i] )
     next
+    '' EACH ONE ONLY IF IT IS THERE. A '-p' path need not carry the runtime:
+    '' lib/gfx/lib/<target> holds libtkogfx.a and nothing else, and naming a
+    '' libfb.a that does not exist fails the link with clang's own 'no such file
+    '' or directory' before it has looked at a single object.
     for i as long = 0 to t.libPaths.Count - 1
-        cmd += " " & Q( t.libPaths[i] & "/libfb.a" )
+        dim as string rtLib = t.libPaths[i] & "/libfb.a"
+        if FileExists_( rtLib ) then cmd += " " & Q( rtLib )
+    next
+
+    '' AND libtkogfx.a WHERE ONE EXISTS, named the same way and for the same
+    '' reason: '-ltkogfx' resolves once, from the first path that has it.
+    ''
+    '' IT IS OPTIONAL, and silently so. A program that never writes SCREEN or
+    '' PSET emits no fb_Gfx* call and needs no graphics archive, which is the
+    '' common case; naming a file that is not there would fail every one of
+    '' those links. A program that DOES use graphics and has no archive gets
+    '' the linker's own message naming the symbol -- 'unresolved external
+    '' symbol fb_GfxScreen' -- which says more than anything this could.
+    ''
+    '' AFTER libfb.a, because libtkogfx calls INTO the runtime -- it shares
+    '' __fb_ctx and calls fb_End -- and an archive is searched once, where it
+    '' appears.
+    for i as long = 0 to t.libPaths.Count - 1
+        dim as string gfxLib = t.libPaths[i] & "/libtkogfx.a"
+        if FileExists_( gfxLib ) then cmd += " " & Q( gfxLib )
     next
 
     '' THE SYSTEM LIBRARIES THE RUNTIME REACHES INTO, and they are not the same set on

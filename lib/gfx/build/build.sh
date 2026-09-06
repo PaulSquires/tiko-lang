@@ -82,7 +82,16 @@ for target in $TARGETS; do
     # five separate incidents of exactly that.
     rm -f "$LIBDIR/libtkogfx.a" "$LIBDIR/.config"
 
-    ( cd "$OBJDIR" && "$FBC" -c "$GFX_ROOT/src/all.bas" -m all \
+    # -m NAMES THE MAIN MODULE, AND all.bas MUST NOT BE IT. Compiled as the main
+    # module fbc emits a `main` into it, and the archive then collides with every
+    # program that links it:
+    #
+    #     libtkogfx.a(all.o) : error LNK2005: main already defined
+    #
+    # Naming a module that does not exist in this build makes every module here a
+    # NON-main one, which is what a library wants -- the same device fbc's own
+    # suite uses when it passes -m fbc-tests to every test module.
+    ( cd "$OBJDIR" && "$FBC" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib \
         -target win64 -gen llvm -r -z msvc -mt \
         -o "$OBJDIR/all.o" ) > "$OBJDIR/fbc.log" 2>&1 \
         || { sed 's/^/    /' "$OBJDIR/fbc.log" >&2; die "fbc failed -- see $OBJDIR/fbc.log"; }
