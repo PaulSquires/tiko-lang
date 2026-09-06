@@ -74,3 +74,4 @@
 #include once "../entry/screen.bi"
 #include once "../entry/putblend.bi"
 #include once "../entry/draw2d.bi"
+#include once "../entry/palette.bi"
