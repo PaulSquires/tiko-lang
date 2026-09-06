@@ -22,11 +22,16 @@
 
 #include once "../raster/put.bi"
 #include once "../core/image.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+#endif
 #include once "crt/string.bi"
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
+#endif
 
 const IW = 20
 const IH = 12
@@ -98,9 +103,7 @@ sub FillDst16( byval p as any ptr, byval pitch as integer )
     next
 end sub
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-putbpp", "every mode is pixel-identical" )
 
 dim as string modename(...) = { "PSET", "TRANS", "ALPHA", "ADD" }
 
@@ -108,11 +111,16 @@ for di as integer = 0 to 1
     dim as long depth = iif( di = 0, 8, 16 )
     dim as long bpp = iif( di = 0, 1, 2 )
 
+#ifdef ABTEST_HAS_GFXLIB2
     screenres 64, 48, depth, 1, GFX_NULL
+#endif
 
     for m as integer = 0 to ubound( modename )
         dim as long al = 128
+        dim as string tag = str(depth) + "bpp " + modename(m)
+        dim as ulongint want, got
 
+#ifdef ABTEST_HAS_GFXLIB2
         '' reset gfxlib2's last_target so a recycled block cannot alias
         pset ( 0, 0 ), 0
 
@@ -137,7 +145,15 @@ for di as integer = 0 to 1
         case 2 : put dii, (0,0), si, ALPHA
         case else : put dii, (0,0), si, ADD, al
         end select
-        dim as ulongint want = iif( depth = 8, Digest8( ddat, sp_ ), Digest16( ddat, dp_ ) )
+        '' An IF, not IIF: IIF evaluates both arms, and only one of the two
+        '' digests is meaningful for a given depth.
+        if depth = 8 then
+            want = Digest8( ddat, sp_ )
+        else
+            want = Digest16( ddat, dp_ )
+        end if
+        imagedestroy( si ) : imagedestroy( dii )
+#endif
 
         '' ---- libtkogfx ----
         dim as TkoAbi.PUT_HEADER ptr ms = TkoImageNew( IW, IH, bpp )
@@ -165,26 +181,19 @@ for di as integer = 0 to 1
             case else : PutAdd16( s2, d2, IW, IH, ms->pitch, md->pitch, al )
             end select
         end if
-        dim as ulongint got = iif( depth = 8, Digest8( d2, ms->pitch ), Digest16( d2, md->pitch ) )
-
-        ran += 1
-        if want <> got then
-            report += "  MISMATCH " + str(depth) + "bpp " + modename(m) + chr(10)
-            failures += 1
+        if depth = 8 then
+            got = Digest8( d2, ms->pitch )
+        else
+            got = Digest16( d2, md->pitch )
         end if
 
+        Abtest.Case_( tag, want, got )
+
         TkoImageFree( ms ) : TkoImageFree( md )
-        imagedestroy( si ) : imagedestroy( dii )
     next
+#ifdef ABTEST_HAS_GFXLIB2
     screen 0
+#endif
 next
 
-print "abtest-putbpp -- "; ran; " PUT cases at 8 and 16 bpp against gfxlib2"
-if failures = 0 then
-    print "abtest-putbpp: PASS -- every mode is pixel-identical"
-    end 0
-else
-    print report;
-    print "abtest-putbpp: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )

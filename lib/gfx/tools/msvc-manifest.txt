@@ -52,7 +52,7 @@ abtest-mouse        split
 abtest-paint        split
 abtest-palette      mingw-only  # fb_GfxPalette fb_GfxPaletteGet
 abtest-print        mingw-only
-abtest-put          mingw-only
-abtest-putbpp       mingw-only
+abtest-put          split
+abtest-putbpp       split
 abtest-vgaport      split
 abtest-view         split

@@ -28,26 +28,19 @@
 
 #include once "../raster/put.bi"
 #include once "../core/image.bi"
-#include once "fbgfx.bi"
+#include once "abtest.bi"
 #include once "crt/string.bi"
+#ifdef ABTEST_HAS_GFXLIB2
+#include once "fbgfx.bi"
+#endif
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
+#endif
 
 const IW = 24
 const IH = 16
-
-function Digest( byval p as any ptr, byval pitch as integer, _
-                 byval w as long, byval h as long ) as ulongint
-    dim as ulongint acc = 14695981039346656037ull
-    for y as integer = 0 to h - 1
-        dim as ulong ptr row = cptr( ulong ptr, cptr( ubyte ptr, p ) + y * pitch )
-        for x as integer = 0 to w - 1
-            acc = (acc xor row[x]) * 1099511628211ull
-        next
-    next
-    return acc
-end function
 
 '' Source: varied alpha, some magenta, some bright, some dark.
 sub FillSrc( byval p as any ptr, byval pitch as integer )
@@ -87,11 +80,12 @@ function MyBlender cdecl ( byval sc as ulong, byval dc as ulong, byval param as 
     return ((sc and &hFEFEFEFE) shr 1) + ((dc and &hFCFCFCFC) shr 2) + k
 end function
 
+#ifdef ABTEST_HAS_GFXLIB2
 screenres 64, 48, 32, 1, GFX_NULL
+#endif
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-put", "every mode is pixel-identical" )
+
 dim as ulong blendparam = &h00010203
 
 dim as string modename(...) = { "PSET", "PRESET", "AND", "OR", "XOR", "TRANS", "ALPHA", "ADD", "CUSTOM" }
@@ -100,6 +94,10 @@ for m as integer = 0 to ubound( modename )
     for alpha as integer = 0 to 2
         dim as long al = iif( alpha = 0, 255, iif( alpha = 1, 128, 32 ) )
 
+        dim as string tag = modename(m) + iif( m = 7, " alpha=" + str(al), "" )
+        dim as ulongint want, got
+
+#ifdef ABTEST_HAS_GFXLIB2
         '' ---- A: gfxlib2 ----
         dim as any ptr srcimg = imagecreate( IW, IH, 0, 32 )
         dim as any ptr dstimg = imagecreate( IW, IH, 0, 32 )
@@ -121,7 +119,9 @@ for m as integer = 0 to ubound( modename )
         case 7 : put dstimg, (0,0), srcimg, ADD, al
         case else : put dstimg, (0,0), srcimg, CUSTOM, @MyBlender, @blendparam
         end select
-        dim as ulongint want = Digest( ddat, dp_, IW, IH )
+        want = Abtest.Digest( ddat, IW, IH, dp_ )
+        imagedestroy( srcimg ) : imagedestroy( dstimg )
+#endif
 
         '' ---- B: libtkogfx, same source and destination content ----
         dim as TkoAbi.PUT_HEADER ptr ms = TkoImageNew( IW, IH, 4 )
@@ -142,32 +142,19 @@ for m as integer = 0 to ubound( modename )
         case 7 : PutAdd32( sp2, dp2, IW, IH, ms->pitch, md->pitch, al )
         case else : PutCustom32( sp2, dp2, IW, IH, ms->pitch, md->pitch, @MyBlender, @blendparam )
         end select
-        dim as ulongint got = Digest( dp2, md->pitch, IW, IH )
+        got = Abtest.Digest( dp2, IW, IH, md->pitch )
 
-        ran += 1
-        if want <> got then
-            report += "  MISMATCH " + modename(m)
-            if m = 7 then report += " alpha=" + str(al)
-            report += chr(10)
-            failures += 1
-        end if
+        Abtest.Case_( tag, want, got )
 
         TkoImageFree( ms ) : TkoImageFree( md )
-        imagedestroy( srcimg ) : imagedestroy( dstimg )
 
         '' only ADD varies with alpha; the rest run once
         if m <> 7 then exit for
     next
 next
 
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-put -- "; ran; " PUT blend-mode cases against gfxlib2, 32bpp"
-if failures = 0 then
-    print "abtest-put: PASS -- every mode is pixel-identical"
-    end 0
-else
-    print report;
-    print "abtest-put: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )
