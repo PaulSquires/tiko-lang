@@ -1,0 +1,42 @@
+B816764B503283A5	B  inside
+8A3A6C450C829ADD	B  inside tall
+5065C164FD89CAC5	B  inside wide
+0FD0703348F29CCA	B  off bottom
+604A4AAD8338442A	B  off top
+72704C0D21A31B5E	B  off left
+E078F6E994514F7A	B  off right
+4A96336271F90512	B  off bottom-right
+98B4913552B424C8	B  off top-left
+86091633BE7998E5	B  three out (top only in)
+0D2BE5AC3C4C6FA6	B  three out (left only in)
+7E8E0FA784351325	B  covers all
+C0F8D8DBAD35D2A9	B  exactly full
+D3EE1DE280351CA8	B  degenerate point
+A1115AB28B319E60	B  degenerate row
+AC4DB2280818D1AA	B  degenerate col
+B92956906121CA05	B  reversed corners
+B92956906121CA05	B  reversed x only
+83E2BE1081320DED	B  reversed y only
+7E8E0FA784351325	B  fully outside
+5E4D82003E676028	B  one pixel in corner
+DFC738D70B39D69A	BF inside
+164F9A4E8FDC3500	BF inside tall
+23F53FC9664B0682	BF inside wide
+2C07CCCFE922A525	BF off bottom
+5D1F94137C7CF3EA	BF off top
+7A05EC22023330C8	BF off left
+95053FBAFDAFEDBD	BF off right
+043650ACF9D81075	BF off bottom-right
+0C13D0DAC3728EC8	BF off top-left
+71D7319ABDA771A5	BF three out (top only in)
+DD1A0989EBF4AA06	BF three out (left only in)
+784CC0AB914AFF25	BF covers all
+784CC0AB914AFF25	BF exactly full
+D3EE1DE280351CA8	BF degenerate point
+A1115AB28B319E60	BF degenerate row
+AC4DB2280818D1AA	BF degenerate col
+9EC9CD9A22DBC1EA	BF reversed corners
+9EC9CD9A22DBC1EA	BF reversed x only
+AD3B87FFF7350B60	BF reversed y only
+7E8E0FA784351325	BF fully outside
+5E4D82003E676028	BF one pixel in corner

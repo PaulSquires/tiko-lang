@@ -1,0 +1,58 @@
+# msvc-manifest.txt -- which abtests can run against the MSVC ABI, and how.
+#
+# ORIGINAL WORK. Part of libtkogfx (LGPL-2.1-or-later with the static-linking
+# exception).
+#
+# gfxlib2 ships as a MinGW archive. An MSVC-ABI binary cannot link it, so a
+# test that calls gfxlib2 in-process cannot be built for MSVC at all. This file
+# records, per source, which of three shapes it has. abtest.sh reads it, and
+# fails if a source listed as native or split stops building -- so the MSVC
+# coverage here can only ever go up.
+#
+#   native      Calls no gfxlib2 entry point. Builds for MSVC unmodified.
+#               These are unit tests of libtkogfx, not A/B comparisons.
+#
+#   split       Converted to the abtest.bi role model: the gfxlib2 half is
+#               #ifdef'd out under -d ABTEST_SUT and its answers come from the
+#               recording in golden/ instead. Runs on every ABI.
+#
+#   mingw-only  Still calls gfxlib2 in-process. Runs in the four MinGW
+#               configurations only. The comment names the entry points that
+#               hold it back, measured by linking it for MSVC and reading the
+#               unresolved externals -- convert it to split and it moves up.
+#
+# Converting the rest is incremental and each one is independent; abtest-line
+# is the worked example.
+
+probe-driver        native
+probe-gdi           native
+probe-window        native
+
+abtest-line         split
+
+abtest-blit         mingw-only  # __fb_gfx fb_GfxLock fb_GfxPaletteGet fb_GfxPset fb_GfxScreenInfo32 fb_GfxScreenPtr fb_GfxScreenRes fb_GfxUnlock fb_hGetBlitter
+abtest-bmp          mingw-only
+abtest-box          split     
+abtest-bpp          mingw-only
+abtest-bsave        mingw-only  # fb_GfxBload fb_GfxBsave fb_GfxScreenRes
+abtest-cells        mingw-only  # fb_GfxPageSet fb_GfxScreenInfo32 fb_GfxScreenRes fb_GfxView
+abtest-circle       mingw-only
+abtest-cls          mingw-only
+abtest-color        mingw-only  # fb_GfxScreenRes
+abtest-control      mingw-only  # fb_GfxControl_i32 fb_GfxScreenInfo32 fb_GfxView
+abtest-convert      mingw-only  # fb_GfxImageConvertRow fb_GfxPalette fb_GfxScreenRes
+abtest-dirty        mingw-only
+abtest-draw         mingw-only
+abtest-events       mingw-only  # fb_GfxEvent fb_hPostEvent
+abtest-image        mingw-only
+abtest-keyboard     mingw-only  # fb_GfxLock fb_GfxUnlock fb_hPostKey
+abtest-lzw          mingw-only  # fb_hDecode fb_hEncode
+abtest-mode         mingw-only  # fb_GfxScreenInfo32
+abtest-mouse        mingw-only  # fb_GfxControl_i32
+abtest-paint        mingw-only
+abtest-palette      mingw-only  # fb_GfxPalette fb_GfxPaletteGet
+abtest-print        mingw-only
+abtest-put          mingw-only
+abtest-putbpp       mingw-only
+abtest-vgaport      mingw-only  # fb_GfxPaletteGet fb_GfxScreenInfo32
+abtest-view         mingw-only
