@@ -53,6 +53,7 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     end select
 
     '' A second SCREEN replaces the first, as it does in fbc.
+    ConsoleShutdownIfLive( )
     ScreenTeardown( )
 
     '' The pitch is the width in bytes, unpadded. gfxlib2 pads its FRAMEBUFFER
@@ -125,6 +126,17 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     if bpp = 1 then TheScreen.wnd.lut = @PaletteLut(0)
 
     TheScreen.isOpen = 1
+
+    '' THE CONSOLE HOOKS GO IN LAST, once the surface, the palette and the window
+    '' all exist -- ConsoleStart draws into the surface and reads the colour pair
+    '' out of ScreenCtx.draw, so neither may still be half-built.
+    ''
+    '' From here PRINT lands on the graphics screen instead of stdout, which is
+    '' what fbc does and what every abtest already assumes: they buffer their
+    '' reports and print after SCREEN 0 precisely because gfxlib2 hooks the
+    '' console. Anything that printed mid-run was relying on us NOT doing this.
+    ConsoleStart( mode )
+
     return 0
 end function
 
@@ -166,6 +178,7 @@ function TkoGfxScreen alias "fb_GfxScreen" ( _
     end scope
 
     if mode = 0 then
+        TkoGfx.ConsoleShutdownIfLive( )
         TkoGfx.ScreenTeardown( )
         return 0
     end if
@@ -215,6 +228,7 @@ function TkoGfxScreenQB alias "fb_GfxScreenQB" ( _
     end scope
 
     if mode = 0 then
+        TkoGfx.ConsoleShutdownIfLive( )
         TkoGfx.ScreenTeardown( )
         return 0
     end if

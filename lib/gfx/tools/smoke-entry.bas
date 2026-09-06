@@ -28,9 +28,16 @@ using FB
 
 dim shared as long fails
 
+'' FAILURES ARE BUFFERED UNTIL AFTER SCREEN 0, and this is not cosmetic. Once
+'' the console hooks are installed PRINT on a graphics screen draws into the
+'' FRAMEBUFFER, so a failure reported mid-run is written to a window nobody
+'' reads and the program exits non-zero with no message. This test only ever
+'' printed on failure, so it passed either way and the trap stayed invisible.
+dim shared as string Log_
+
 sub chk( byref what as string, byval want as long, byval got as long )
     if want <> got then
-        print "  FAIL "; what; " -- want "; want; " got "; got
+        Log_ += "  FAIL " + what + " -- want " + str( want ) + " got " + str( got ) + chr( 10 )
         fails += 1
     end if
 end sub
@@ -91,6 +98,7 @@ chk( "draw string put pixels down", 1, iif( lit > 0, 1, 0 ) )
 imagedestroy( im )
 screen 0
 
+print Log_;
 if fails = 0 then
     print "smoke: PASS -- the entry layer answers"
     end 0

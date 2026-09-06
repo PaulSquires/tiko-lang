@@ -568,6 +568,93 @@ scope
     end if
 end scope
 
+'' ------------------------------------------------ the CONSOLE HOOKS
+''
+'' PRINT ON A GRAPHICS SCREEN GOES TO THE FRAMEBUFFER, not to stdout, because
+'' both libraries install a hook table when a screen opens. That is exactly why
+'' this file buffers its report and prints after SCREEN 0 -- and it is what
+'' makes these cases possible: the glyphs PRINT draws are ordinary pixels, so
+'' the same POINT digest compares them.
+''
+'' THE OUTPUT OF THESE CASES IS THE SCREEN, NOT THE LOG. Nothing printed below
+'' reaches the report; it is drawn, digested, and overwritten by the next case.
+''
+'' 64x48 with the 8x8 font is 8 columns by 6 rows, which is small on purpose:
+'' wrapping and scrolling are two lines of text away rather than forty.
+screenres W, H, 32
+
+Blank( ) : locate 1, 1 : print "Hi"; : Report( "print a string" )
+Blank( ) : locate 3, 2 : print "Ab"; : Report( "print after locate" )
+Blank( ) : locate 1, 1 : print "AB" : print "CD"; : Report( "print with newline" )
+Blank( ) : locate 1, 1 : print "ABCDEFGHIJ"; : Report( "print wraps at the margin" )
+Blank( ) : locate 1, 1 : print "A" & chr(9) & "B"; : Report( "print with a tab" )
+Blank( ) : locate 1, 1 : print "AB" & chr(8) & "C"; : Report( "print with a backspace" )
+Blank( ) : locate 1, 1 : print "AB" & chr(13) & "C"; : Report( "print with a carriage return" )
+Blank( ) : locate 2, 1 : print "A", "B"; : Report( "print with a comma pad" )
+
+'' Scrolling: six rows exist, so eight lines forces two scrolls.
+scope
+    Blank( )
+    locate 1, 1
+    for i as integer = 1 to 8
+        print chr( asc( "A" ) + i - 1 )
+    next
+    Report( "print scrolls the screen" )
+end scope
+
+'' COLOR must reach the text attributes, not just the drawing state.
+Blank( ) : color 2, 5 : locate 2, 2 : print "Xy"; : Report( "print after color" )
+Blank( ) : color 15, 0 : locate 1, 1 : print "Z"; : Report( "print after color reset" )
+
+'' CLS on a graphics screen: 0 and 1 clear pixels, 2 clears the text view.
+Blank( ) : locate 1, 1 : print "AAAA"; : cls : Report( "cls after print" )
+Blank( ) : locate 1, 1 : print "AAAA"; : cls 2 : Report( "cls 2 clears the text" )
+
+'' ---- what the console REPORTS, rather than what it draws ----
+''
+'' POS, CSRLIN, the WIDTH pair and SCREEN(r,c) all come back through hooks of
+'' their own. Folded into one digest per group so the stream stays readable.
+scope
+    Blank( )
+    dim as ulongint acc = 14695981039346656037ull
+    locate 1, 1
+    print "AB";
+    acc = (acc xor cast( ulongint, pos( ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, csrlin( ) )) * 1099511628211ull
+    locate 3, 4
+    acc = (acc xor cast( ulongint, pos( ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, csrlin( ) )) * 1099511628211ull
+    print "C";
+    acc = (acc xor cast( ulongint, pos( ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, csrlin( ) )) * 1099511628211ull
+    Emit( "pos and csrlin", acc )
+end scope
+
+scope
+    dim as ulongint acc = 14695981039346656037ull
+    acc = (acc xor cast( ulongint, cast( ulong, width( ) ) )) * 1099511628211ull
+    Emit( "width reports the text geometry", acc )
+end scope
+
+'' SCREEN(r,c) reads the CELL PLANE back -- the character at 0 and the packed
+'' attribute at 1. A console that drew the glyph but did not record the cell
+'' passes every pixel case above and fails this one.
+scope
+    Blank( )
+    color 2, 5
+    locate 2, 2
+    print "Qz";
+    dim as ulongint acc = 14695981039346656037ull
+    for r as integer = 1 to 3
+        for c as integer = 1 to 4
+            acc = (acc xor cast( ulongint, cast( ulong, screen( r, c, 0 ) ) )) * 1099511628211ull
+            acc = (acc xor cast( ulongint, cast( ulong, screen( r, c, 1 ) ) )) * 1099511628211ull
+        next
+    next
+    color 15, 0
+    Emit( "screen(r,c) reads the cells back", acc )
+end scope
+
 screen 0
 
 print Log_;
