@@ -26,12 +26,28 @@
 ''     pagecopy, pageset
 ''                 core/cells.bi    the one-page answers, see below
 ''
-'' WHAT IS DELIBERATELY LEFT NULL: inkey, getkey, keyhit, readstr, lineinput,
-'' multikey, getmouse, setmouse, in, out, sleep, isredir, viewupdate,
-'' posteventproc. Their internals exist and are gated, but routing INPUT and
-'' LINE INPUT through a graphics screen needs a text cursor and an editing loop
-'' that does not exist yet, and installing the input half without the editing
-'' half would take INPUT from working to broken.
+''     inkey, getkey, keyhit, multikey, readstr, lineinput
+''                 core/keyboard.bi gated by tools/abtest-keyboard.bas, plus the
+''                 editing loop below, which is new
+''
+'' INPUT DOES NOT REACH THE readstr HOOK, AND THAT IS A RUNTIME DEFECT RATHER
+'' THAN A GAP HERE. Measured, both ways: a program doing `INPUT s` on a graphics
+'' screen with stdin redirected from a file reads the FILE under tiko-rt and
+'' BLOCKS ON THE WINDOW under fbc's own runtime with gfxlib2 -- the reference
+'' timed out waiting for a keystroke while this one returned the file's first
+'' line. fb_InputString goes through the console device's ReadLine, which
+'' reaches fgets rather than fb_ReadString, so `readstrproc` is installed and
+'' never called.
+''
+'' LINE INPUT is unaffected: fb_LineInput consults lineinputproc directly, and
+'' that path works. So `LINE INPUT` on a graphics screen reads the window and
+'' `INPUT` reads stdin, which is the one place this library and the reference
+'' disagree about where input comes from. Fixing it is a change to lib/rt.
+''
+'' WHAT IS STILL LEFT NULL: getmouse, setmouse, in, out, sleep, isredir,
+'' viewupdate, posteventproc and lineinputw. The mouse and port internals are
+'' gated but nothing routes them yet; the wide LINE INPUT needs the wstring
+'' editing loop that the narrow one above is only half of.
 ''
 '' THE CALLBACKS ARE CDECL. core/hooks.bi says why at length: the runtime's hook
 '' typedefs carry no FBCALL even though the entry points that consult them do.
@@ -165,6 +181,93 @@ private sub ConPutChar( byval ch as long )
     TheCon.col += 1
 end sub
 
+'' ------------------------------------------------------------- the keyboard
+''
+'' THE RING IS THE WINDOW'S, not the console's. driver/window.bi fills it from
+'' WM_CHAR on the pump thread; everything here reads it under the same lock. A
+'' ring of its own here would need the window to know about the console, which
+'' is the dependency this library is arranged to avoid.
+private function ConKeyGet( ) as long
+    if TheScreen.isOpen = 0 then return 0
+    WindowLock( TheScreen.wnd )
+    dim as long c = KeyGet( TheScreen.wnd.keys )
+    WindowUnlock( TheScreen.wnd )
+    return c
+end function
+
+private function ConKeyHit( ) as long
+    if TheScreen.isOpen = 0 then return 0
+    WindowLock( TheScreen.wnd )
+    dim as long n = KeyHit( TheScreen.wnd.keys )
+    WindowUnlock( TheScreen.wnd )
+    return n
+end function
+
+'' Block until a key arrives, or until the window closes.
+''
+'' THE WINDOW-CLOSED TEST IS NOT OPTIONAL. Without it, closing the window while
+'' a program sits in INPUT leaves that program spinning on a pump that has
+'' stopped, with no way out but the task manager. Returning 0 lets the editing
+'' loop give up and the program continue to its own end.
+private function ConKeyWait( ) as long
+    do
+        dim as long c = ConKeyGet( )
+        if c <> 0 then return c
+        if WindowWasClosed( TheScreen.wnd ) then return 0
+        Sleep( 5 )
+    loop
+end function
+
+'' ---------------------------------------------------------- the editing loop
+''
+'' Shared by INPUT and LINE INPUT, which differ in what they do with the string
+'' and not in how they collect it.
+''
+'' WHAT IT SUPPORTS: printable characters, Backspace, Enter. What it does NOT is
+'' every other editing key -- arrows, Home, End, Delete, insert mode. Those
+'' arrive as extended codes that driver/window.bi does not post yet (it says so
+'' there), so implementing them here would be writing against an input source
+'' that produces nothing.
+''
+'' THE ECHO IS THE CURSOR. There is no caret: the character appears where it was
+'' typed and Backspace erases it. A blinking overlay is a timer and a
+'' determinism problem, and it is not needed to make INPUT usable.
+private function ConEditLine( ) as string
+    dim as string acc
+
+    do
+        dim as long c = ConKeyWait( )
+        if c = 0 then exit do              '' the window went away
+
+        select case c
+        case 13                            '' Enter
+            ConNewline( )
+            exit do
+        case 8                             '' Backspace
+            if len( acc ) > 0 then
+                acc = left( acc, len( acc ) - 1 )
+                '' Step back and blank the cell, which is what erasing looks
+                '' like when the echo IS the cursor.
+                if TheCon.col > 0 then
+                    TheCon.col -= 1
+                    dim as CharCell ptr cell = CellAt( TheCon.cp, 0, TheCon.col, TheCon.row )
+                    if cell <> 0 then
+                        cell->ch = 32
+                        cell->fg = TheCon.fg
+                        cell->bg = TheCon.bg
+                    end if
+                    ConDrawCell( TheCon.col, TheCon.row )
+                end if
+            end if
+        case is >= 32
+            acc += chr( c )
+            ConPutChar( c )
+        end select
+    loop
+
+    return acc
+end function
+
 end namespace
 
 '' ---------------------------------------------------------------- the hooks
@@ -172,6 +275,18 @@ end namespace
 '' extern "c" for the same reason the entry points are: these are called through
 '' function pointers the runtime holds, with no name mangling involved, and
 '' saying so is clearer than relying on a convention that no longer varies.
+'' THE RUNTIME OWNS STRING ASSIGNMENT, and LINE INPUT into a var-len STRING has
+'' to go through it: the destination is an FBSTRING the runtime allocated and
+'' will free, so writing bytes into it from here would corrupt the heap. It is
+'' declared rather than reimplemented for the same reason the library binds
+'' libc rather than shipping one.
+extern "rtlib"
+    declare function fb_StrAssign_ alias "fb_StrAssign" ( _
+        byval dst as any ptr, byval dst_size as integer, _
+        byval src as any ptr, byval src_size as integer, _
+        byval fill_rem as long ) as any ptr
+end extern
+
 extern "c"
 
 sub TkoConPrintBuff cdecl ( byval buffer as const any ptr, _
@@ -337,6 +452,119 @@ end extern
 
 namespace TkoGfx
 
+extern "c"
+
+'' INKEY returns a pointer to a static the runtime immediately copies. The
+'' string has to OUTLIVE the call and may be one or two characters, which is
+'' what KeyInkeyStr decides -- an extended key is two, and abtest-keyboard
+'' compares that encoding against gfxlib2.
+dim shared as zstring * 8 InkeyChars
+dim shared as TkoAbi.FBSTRING InkeyStr
+
+function TkoConInkey cdecl ( ) as TkoAbi.FBSTRING ptr
+    InkeyChars = ""
+    dim as string t
+    if TkoGfx.TheCon.live <> 0 then
+        dim as long c = TkoGfx.ConKeyGet( )
+        if c <> 0 then t = TkoGfx.KeyInkeyStr( c )
+    end if
+    if len( t ) > 0 then InkeyChars = t
+
+    '' A STATIC DESCRIPTOR OVER A STATIC BUFFER. The runtime returns this pointer
+    '' to the caller unchanged, so it has to outlive the call; and `len` carries
+    '' no temp bit, because a temp descriptor is one the runtime would free.
+    InkeyStr.dat  = @InkeyChars
+    InkeyStr.len  = len( t )
+    InkeyStr.size = 8
+    return @InkeyStr
+end function
+
+'' GETKEY blocks. It returns the CODE, not the string.
+function TkoConGetKey cdecl ( ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    return TkoGfx.ConKeyWait( )
+end function
+
+function TkoConKeyHit cdecl ( ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    return TkoGfx.ConKeyHit( )
+end function
+
+'' MULTIKEY asks whether a scancode is HELD, which the window tracks from
+'' WM_KEYDOWN and WM_KEYUP rather than from the ring.
+function TkoConMultikey cdecl ( byval scancode as long ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
+    dim as long r = TkoGfx.KeyMultikey( TkoGfx.TheScreen.wnd.ktab, scancode )
+    TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
+    return r
+end function
+
+'' INPUT's collector. The runtime asks for at most `length_` bytes and takes the
+'' returned pointer; returning NULL is how the console reports end-of-input, and
+'' a closed window is exactly that.
+function TkoConReadStr cdecl ( byval buffer as zstring ptr, _
+        byval length_ as integer ) as zstring ptr
+    if (TkoGfx.TheCon.live = 0) orelse (buffer = 0) orelse (length_ <= 0) then return 0
+
+    dim as string acc = TkoGfx.ConEditLine( )
+    if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) andalso (len( acc ) = 0) then return 0
+
+    dim as long n = len( acc )
+    if n > length_ - 1 then n = length_ - 1
+    if n > 0 then memcpy( buffer, strptr( acc ), n )
+    buffer[n] = 0
+    return buffer
+end function
+
+'' LINE INPUT. The prompt is printed here rather than by the runtime, because
+'' the runtime's console printer is exactly what the hooks displaced.
+''
+'' `fillrem` asks for the destination to be padded with spaces, which is what a
+'' FIXED-LENGTH string target needs; `dst_len` is that target's size.
+function TkoConLineInput cdecl ( byval text_ as TkoAbi.FBSTRING ptr, _
+        byval dst as any ptr, byval dst_len as integer, _
+        byval fillrem as long, byval addquestion as long, _
+        byval addnewline as long ) as long
+
+    if TkoGfx.TheCon.live = 0 then return 0
+
+    dim as string prompt = TkoGfx.StrFromDescriptor( text_ )
+    if len( prompt ) > 0 then
+        for i as integer = 0 to len( prompt ) - 1
+            TkoGfx.ConPutChar( prompt[i] )
+        next
+    end if
+    if addquestion <> 0 then
+        TkoGfx.ConPutChar( asc( "?" ) )
+        TkoGfx.ConPutChar( 32 )
+    end if
+
+    dim as string acc = TkoGfx.ConEditLine( )
+    if addnewline = 0 then
+        '' ConEditLine already advanced on Enter; undo it when the caller asked
+        '' for the cursor to stay put.
+        if TkoGfx.TheCon.row > TkoGfx.TheCon.viewtop then TkoGfx.TheCon.row -= 1
+    end if
+
+    '' dst_len IS NOT A BYTE COUNT WHEN IT IS NEGATIVE. Measured: `line input s`
+    '' into an ordinary var-len STRING emits dst_len = -1, which means "the
+    '' destination is an FBSTRING, assign it"; a positive value is the size of a
+    '' fixed-length STRING * N or a ZSTRING. Treating -1 as a length silently
+    '' wrote nothing at all, which is how this first presented.
+    ''
+    '' fb_StrAssign handles both, including the fillrem padding a fixed-length
+    '' destination wants -- which is why the branch below only chooses the
+    '' arguments and never copies bytes itself.
+    if dst <> 0 then
+        dim as zstring ptr src = iif( len( acc ) > 0, strptr( acc ), cptr( zstring ptr, @"" ) )
+        fb_StrAssign_( dst, dst_len, src, 0, fillrem )
+    end if
+    return 0
+end function
+
+end extern
+
 declare sub ConsoleShutdownIfLive( )
 
 '' Build the console for the mode that is open and install the table. Called by
@@ -375,6 +603,12 @@ private sub ConsoleStart( byval mode as long )
     tb.readxyproc     = @TkoConReadXY
     tb.pagecopyproc   = @TkoConPageCopy
     tb.pagesetproc    = @TkoConPageSet
+    tb.inkeyproc      = @TkoConInkey
+    tb.getkeyproc     = @TkoConGetKey
+    tb.keyhitproc     = @TkoConKeyHit
+    tb.multikeyproc   = @TkoConMultikey
+    tb.readstrproc    = @TkoConReadStr
+    tb.lineinputproc  = @TkoConLineInput
 
     HooksInstall( @tb )
     TheCon.live = 1

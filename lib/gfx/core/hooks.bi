@@ -34,7 +34,12 @@
 namespace TkoGfx
 
 '' The signatures the runtime will call us through. CDECL -- see above.
-type FB_INKEYPROC      as function cdecl ( ) as any ptr
+'''' INKEY RETURNS AN FBSTRING DESCRIPTOR, NOT A BYTE POINTER. tiko-rt's
+'''' inc/ctx.bi types it `as FBSTRING ptr` and fb_Inkey hands the result
+'''' straight back to the caller as a string. Declaring it `any ptr` here
+'''' compiled and returned a zstring, which the runtime then read as a
+'''' descriptor -- INKEY came back empty with the keys still in the ring.
+type FB_INKEYPROC      as function cdecl ( ) as TkoAbi.FBSTRING ptr
 type FB_GETKEYPROC     as function cdecl ( ) as long
 type FB_KEYHITPROC     as function cdecl ( ) as long
 type FB_CLSPROC        as sub cdecl ( byval mode as long )

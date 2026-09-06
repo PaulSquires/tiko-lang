@@ -57,8 +57,14 @@ if ! "$FBC_REF" -gen llvm "$src" -x "$TMP/ref.exe" > "$TMP/ref.log" 2>&1; then
     sed -n '1,10p' "$TMP/ref.log" >&2
     exit 1
 fi
-if ! "$TMP/ref.exe" > "$TMP/ref.out" 2>&1; then
-    echo "gate-entry: the REFERENCE failed to run" >&2
+# A TIMEOUT, because the gate now drives INPUT. A blocking read that never sees
+# its Enter would wedge the run forever, and a hung gate is worse than a failing
+# one -- nobody looks at it and nothing says why. 120s is far beyond what the
+# whole file takes and far below anyone's patience.
+: "${GATE_TIMEOUT:=120}"
+
+if ! timeout "$GATE_TIMEOUT" "$TMP/ref.exe" > "$TMP/ref.out" 2>&1; then
+    echo "gate-entry: the REFERENCE failed to run (or timed out after ${GATE_TIMEOUT}s)" >&2
     sed -n '1,20p' "$TMP/ref.out" >&2
     exit 1
 fi
@@ -87,8 +93,8 @@ if ! "$CLANG" --target=x86_64-pc-windows-msvc "$TMP/sub.o" "$TKOGFX" "$LIBFB" \
         | sed 's/unresolved external symbol /    /' | sort -u >&2
     exit 1
 fi
-if ! "$TMP/sub.exe" > "$TMP/sub.out" 2>&1; then
-    echo "gate-entry: the SUBJECT failed to run" >&2
+if ! timeout "$GATE_TIMEOUT" "$TMP/sub.exe" > "$TMP/sub.out" 2>&1; then
+    echo "gate-entry: the SUBJECT failed to run (or timed out after ${GATE_TIMEOUT}s)" >&2
     sed -n '1,20p' "$TMP/sub.out" >&2
     exit 1
 fi

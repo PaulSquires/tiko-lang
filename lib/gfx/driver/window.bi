@@ -48,6 +48,7 @@
 #include once "driver.bi"
 #include once "gdi.bi"
 #include once "mouse.bi"
+#include once "../core/keyboard.bi"   '' KeyRing / KeyTable, filled from WM_CHAR
 #include once "windows.bi"
 
 namespace TkoGfx
@@ -83,6 +84,14 @@ type GfxWindow
     lock_       as CRITICAL_SECTION
     lock_ready  as long
     mouse       as MouseState
+
+    '' KEYBOARD. Filled on the WINDOW THREAD from WM_CHAR and WM_KEYDOWN, read
+    '' on the caller's thread by the INKEY/GETKEY hooks, so both ends go through
+    '' WindowLock. core/keyboard.bi owns the ring's behaviour and
+    '' tools/abtest-keyboard.bas compares it against gfxlib2; what is new here is
+    '' only where the codes come from.
+    keys        as KeyRing
+    ktab        as KeyTable
     title       as zstring * 256
 end type
 
@@ -150,6 +159,35 @@ private function WindowProc cdecl ( _
             w->closed = 1
             w->running = 0
             return 0
+
+        '' WM_CHAR IS THE ASCII PATH, and it is the one INPUT needs: Windows has
+        '' already applied the keyboard layout, the shift state and the dead-key
+        '' composition, so what arrives is the character the user meant. Enter is
+        '' 13 and Backspace is 8, which is exactly what the editing loop reads.
+        ''
+        '' THE EXTENDED-KEY ENCODING IS NOT DONE HERE. gfxlib2 posts arrows and
+        '' function keys as (scancode shl 8) or 255, and this posts nothing for
+        '' them -- so INKEY returns the characters and not the specials. Stated
+        '' rather than half-implemented: a wrong scancode is worse than an
+        '' absent one, and nothing gates the mapping yet.
+        case WM_CHAR
+            WindowLock( *w )
+            KeyPost( w->keys, cast( long, wp ) )
+            WindowUnlock( *w )
+            return 0
+
+        '' The MULTIKEY table is a snapshot of what is HELD, which is a different
+        '' question from what was typed -- a key held down produces one WM_KEYDOWN
+        '' and many auto-repeats, and MULTIKEY has to answer true throughout.
+        case WM_KEYDOWN, WM_SYSKEYDOWN
+            WindowLock( *w )
+            KeyTableSet( w->ktab, cast( long, (lp shr 16) and &hFF ), 1 )
+            WindowUnlock( *w )
+
+        case WM_KEYUP, WM_SYSKEYUP
+            WindowLock( *w )
+            KeyTableSet( w->ktab, cast( long, (lp shr 16) and &hFF ), 0 )
+            WindowUnlock( *w )
 
         case WM_SETFOCUS
             w->active = 1
@@ -312,6 +350,8 @@ private function WindowOpen( _
     end if
     w.title = left( caption, 255 )
     MouseInit( w.mouse )
+    KeyRingInit( w.keys )
+    KeyTableClear( w.ktab )
     w.hinst = GetModuleHandle( NULL )
 
     InitializeCriticalSection( @w.lock_ )

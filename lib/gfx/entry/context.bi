@@ -193,6 +193,22 @@ private sub ContextForget( byval target as any ptr )
     next
 end sub
 
+'' An FBSTRING's length carries the TEMP BIT in its sign bit -- an fbc
+'' temporary descriptor has a negative len. Masking it off is not optional: a
+'' bare read gives a huge or negative length for exactly the descriptors these
+'' two entry points are most often handed, because `DRAW "R10"` is a temporary.
+private function StrFromDescriptor( byval p as any ptr ) as string
+    dim as TkoAbi.FBSTRING ptr s = cptr( TkoAbi.FBSTRING ptr, p )
+    if s = 0 then return ""
+    if s->dat = 0 then return ""
+    dim as integer n = s->len
+    if n < 0 then n and= not (cast( integer, 1 ) shl (sizeof( integer ) * 8 - 1))
+    if n <= 0 then return ""
+    dim as string out_ = space( n )
+    memcpy( strptr( out_ ), s->dat, n )
+    return out_
+end function
+
 '' ------------------------------------------------------------- the palette
 ''
 '' HERE RATHER THAN IN entry/palette.bi, AND THE REASON IS ORDERING. The entry

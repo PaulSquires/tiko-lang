@@ -119,6 +119,17 @@ private sub KeyTableClear( byref t as KeyTable )
     next
 end sub
 
+'' Mark one scancode held or released.
+''
+'' The bounds test is the same one KeyMultikey applies on the way out, and it is
+'' not shared with it on purpose: this is fed by window messages, whose scancode
+'' byte is whatever the OS put there, and the read side is fed by a program's
+'' argument. Two different untrusted sources, checked where each arrives.
+private sub KeyTableSet( byref t as KeyTable, byval scancode as long, byval down as long )
+    if (scancode < 0) orelse (scancode >= KEY_TABLE_LEN) then exit sub
+    t.down(scancode) = iif( down, 1, 0 )
+end sub
+
 private function KeyMultikey( byref t as KeyTable, byval scancode as long ) as long
     if (scancode < 0) orelse (scancode >= KEY_TABLE_LEN) then return 0
     return iif( t.down(scancode) <> 0, -1, 0 )      '' FB_TRUE is -1
