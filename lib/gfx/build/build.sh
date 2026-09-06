@@ -119,7 +119,7 @@ for target in $TARGETS; do
     # archive containing two symbols and no code.
     ir=$(grep -c "^define" "$OBJDIR/all.ll" || echo 0)
     code=$(llvm-nm --defined-only "$LIBDIR/libtkogfx.a" 2>/dev/null | grep -c " T \| t " || true)
-    pub=$(llvm-nm --defined-only "$LIBDIR/libtkogfx.a" 2>/dev/null | awk '$2=="T"{print $3}' | grep -c "^fb_Gfx" || true)
+    pub=$(llvm-nm --defined-only "$LIBDIR/libtkogfx.a" 2>/dev/null | awk '$2=="T"{print $3}' | grep -cE "^fb_(Gfx|h)" || true)
     echo "build: $target/libtkogfx.a [$CFG] -- $ir functions compiled, $code reached the archive, $pub public entry points"
     if [ "$pub" = "0" ]; then
         echo "build: NOTE -- no entry points exist yet, so the archive holds no code." >&2

@@ -1,4 +1,4 @@
-'' entry/screen.bi -- fb_GfxScreen, the first public entry point.
+'' entry/screen.bi -- the SCREEN family.
 ''
 '' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
 '' exception.
@@ -10,12 +10,11 @@
 '' it means an entry point does not merely expose a routine -- it is what pulls
 '' the routine into the library at all.
 ''
-'' THE SIGNATURE IS TIKO'S, NOT A GUESS. src/mir/rtl.bi:
-''
-''     RTL( RTL_GFX_SCREEN, "fb_GfxScreen", "l", "lllll" )
-''
-'' and src/mir/lowergfx.bas pushes five arguments with the SECOND defaulting to
-'' 8, which fixes the order as ( mode, depth, num_pages, flags, refresh ).
+'' THE SIGNATURES ARE TIKO'S, NOT GUESSES. src/mir/rtl.bi names each one and
+'' docs/language/graphics-abi.md records the argument order and every default,
+'' read out of the C that `fbc -r -gen gcc` generates. Where a default is a
+'' sentinel rather than a flag -- SCREENRES's pages, the QB forms' depth -- the
+'' sentinel is named here rather than written as a literal.
 ''
 '' extern "c", NOT "rtlib". FBCALL is cdecl on x86-64 and win32 is gone (D14),
 '' so the two spell the same thing here -- but "c" says why the name is
@@ -33,45 +32,43 @@ const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
 
 namespace TkoGfx
 
-'' THE FRAMEBUFFER IS 32BPP WHATEVER THE MODE SAYS, and that is a deliberate
-'' first step rather than an approximation of one.
+'' Open a framebuffer of this geometry and show it. Shared by SCREEN and
+'' SCREENRES, which differ only in where the geometry comes from.
 ''
-'' ModeTable's `depth` is BITS per pixel and every legacy mode is 8 or fewer;
-'' Surface.bpp is BYTES. Presenting an 8-bit surface needs the palette pushed
-'' into the BITMAPINFO, and driver/gdi.bi's GdiDescribe writes a bare
-'' BITMAPINFOHEADER with biBitCount = bpp * 8 and BI_RGB -- correct for 32bpp
-'' and silently wrong for 8, where the colour table it does not write is
-'' required. The raster layer agrees: pixel, line, box, circle and paint are all
-'' documented 32bpp. So 32bpp is what BOTH ends already implement, and paletted
-'' modes wait for core/palette.bi to be wired into GdiDescribe.
-''
-'' WHAT THIS MEANS FOR A CALLER TODAY: the geometry of SCREEN 1..21 is honoured
-'' exactly -- 320x200 is 320x200 -- and the pixel format is not.
-type ScreenState
-    surf     as Surface
-    wnd      as GfxWindow
-    pixels   as any ptr
-    mode     as long
-    isOpen   as long
-end type
+'' `mode` is recorded for SCREENINFO and the palette rules; SCREENRES passes 0,
+'' which is what fbc reports for a resolution-set screen.
+private function ScreenOpen( byval mode as long, byval w as long, byval h as long ) as long
+    if (w <= 0) orelse (h <= 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
 
-dim shared as ScreenState TheScreen
+    '' A second SCREEN replaces the first, as it does in fbc.
+    ScreenTeardown( )
 
-'' Tear down whatever is open. Safe to call when nothing is.
-''
-'' ORDER MATTERS: the window thread presents FROM the surface, so it has to be
-'' stopped before the pixels under it are freed. WindowClose joins that thread.
-private sub ScreenTeardown( )
-    if TheScreen.isOpen = 0 then exit sub
-    WindowClose( TheScreen.wnd )
-    if TheScreen.pixels <> 0 then
-        deallocate( TheScreen.pixels )
+    dim as integer pitch = w * 4
+
+    '' CALLOCATE, not ALLOCATE: a fresh screen is black, and the window thread
+    '' may present before anything has drawn.
+    dim as any ptr px = callocate( pitch * h )
+    if px = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
+
+    SurfaceInit( ScreenCtx.surf, px, w, h, pitch, 4 )
+    ViewportInit( ScreenCtx.vp, w, h )
+    DrawStateInit( ScreenCtx.draw, 32 )
+    ScreenCtx.target = 0
+    ScreenCtx.inuse = 1
+
+    TheScreen.pixels = px
+    TheScreen.mode = mode
+
+    if WindowOpen( TheScreen.wnd, ScreenCtx.surf, w, h, "tiko" ) <> 0 then
+        deallocate( px )
         TheScreen.pixels = 0
+        ScreenCtx.inuse = 0
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
-    SurfaceInit( TheScreen.surf, 0, 0, 0, 0, 0 )
-    TheScreen.mode = 0
-    TheScreen.isOpen = 0
-end sub
+
+    TheScreen.isOpen = 1
+    return 0
+end function
 
 end namespace
 
@@ -86,7 +83,7 @@ extern "c"
 '' NOT YET HONOURED, and each is a silent no-op rather than a refusal because a
 '' refusal would break programs that pass the ordinary defaults:
 ''
-''   depth       the framebuffer is 32bpp -- see the note above
+''   depth       the framebuffer is 32bpp -- see entry/context.bi
 ''   num_pages   one page; PCOPY and SCREENSET have no entry points yet
 ''   flags       no GL, no fullscreen, no alpha-request handling
 ''   refresh     the GDI presenter does not drive a refresh rate
@@ -119,31 +116,53 @@ function TkoGfxScreen alias "fb_GfxScreen" ( _
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
-    '' A second SCREEN replaces the first, as it does in fbc.
-    TkoGfx.ScreenTeardown( )
+    return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h )
+end function
 
-    dim as long w = TkoGfx.ModeTable(mode).w
-    dim as long h = TkoGfx.ModeTable(mode).h
-    dim as integer pitch = w * 4
+'' SCREENRES w, h [, depth [, num_pages [, flags [, refresh ]]]]
+''
+'' The mode is recorded as 0: there is no legacy mode number for an arbitrary
+'' resolution, and that is what SCREENINFO reports for one.
+function TkoGfxScreenRes alias "fb_GfxScreenRes" ( _
+        byval w as long, _
+        byval h as long, _
+        byval depth as long, _
+        byval num_pages as long, _
+        byval flags as long, _
+        byval refresh as long ) as long
 
-    '' CALLOCATE, not ALLOCATE: a fresh screen is black, and the window thread
-    '' may present before anything has drawn.
-    dim as any ptr px = callocate( pitch * h )
-    if px = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
+    scope
+        dim as long ignored = depth + num_pages + flags + refresh
+    end scope
 
-    TkoGfx.SurfaceInit( TkoGfx.TheScreen.surf, px, w, h, pitch, 4 )
-    TkoGfx.TheScreen.pixels = px
-    TkoGfx.TheScreen.mode = mode
+    if (w <= 0) orelse (h <= 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
+    return TkoGfx.ScreenOpen( 0, w, h )
+end function
 
-    if TkoGfx.WindowOpen( TkoGfx.TheScreen.wnd, TkoGfx.TheScreen.surf, _
-                          w, h, "tiko" ) <> 0 then
-        deallocate( px )
-        TkoGfx.TheScreen.pixels = 0
+'' SCREEN's QB form -- `SCREEN mode, colorswitch, activepage, visiblepage`
+'' reduced by fbc to three arguments.
+''
+'' THE TWO PAGE ARGUMENTS ARE NOT HONOURED, and saying so is the whole of the
+'' difference from fbc: one page exists, so an active or visible page other than
+'' 0 is accepted and ignored rather than refused. A refusal would break the
+'' common `screen 13, , 0, 0`.
+function TkoGfxScreenQB alias "fb_GfxScreenQB" ( _
+        byval mode as long, _
+        byval active_page as long, _
+        byval visible_page as long ) as long
+
+    scope
+        dim as long ignored = active_page + visible_page
+    end scope
+
+    if mode = 0 then
+        TkoGfx.ScreenTeardown( )
+        return 0
+    end if
+    if TkoGfx.ModeSupported( mode ) = 0 then
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
-
-    TkoGfx.TheScreen.isOpen = 1
-    return 0
+    return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h )
 end function
 
 end extern
