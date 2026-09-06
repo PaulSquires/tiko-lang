@@ -50,9 +50,9 @@
 '' readstrproc is installed as well, and is the path INPUT takes from a real
 '' channel rather than from the console.
 ''
-'' WHAT IS STILL LEFT NULL, all three of them: in, out and postevent. The port
-'' pair has gated internals with nothing routing them; postevent belongs to the
-'' event queue rather than the console. Twenty-five of the 28 slots are filled.
+'' WHAT IS STILL LEFT NULL: posteventproc, and only that. It belongs to the
+'' event queue rather than to the console. Twenty-seven of the 28 slots are
+'' filled.
 ''
 '' The port internals are gated but nothing routes them yet; the wide LINE INPUT
 '' needs the wstring editing loop that the narrow one above is only half of.
@@ -1125,6 +1125,11 @@ private sub ConsoleStart( byval mode as long )
     tb.keyhitproc     = @TkoConKeyHit
     tb.multikeyproc   = @TkoConMultikey
     tb.sleepproc      = @TkoConSleep
+
+    '' INP and OUT, which are entry/ports.bi's. Installed here for the same
+    '' reason the mouse pair is: the table is built here and goes in whole.
+    tb.inproc         = @TkoGfxIn
+    tb.outproc        = @TkoGfxOut
     tb.readstrproc    = @TkoConReadStr
     tb.lineinputproc  = @TkoConLineInput
     tb.lineinputwproc = @TkoConLineInputW

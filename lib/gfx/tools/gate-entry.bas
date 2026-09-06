@@ -348,6 +348,111 @@ scope
     Emit( "palette restored to defaults", acc )
 end scope
 
+'' ---- THE DAC PORTS, which are the same table by another road ----
+''
+'' On a graphics screen INP and OUT are the VGA colour DAC. The port behaviour
+'' itself is gated by tools/abtest-vgaport.bas; these cases exist because the
+'' HOOKS were null until now, so nothing here reached it, and because the table
+'' is readable through PALETTE GET -- which makes a DAC write comparable without
+'' needing paletted pixels.
+''
+'' THE THREE-BYTE SEQUENCE IS THE POINT. 3C8 sets the index, then three writes
+'' to 3C9 carry R, G and B in the top six bits, and only the third commits.
+scope
+    palette
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to 7
+        out &h3C8, i * 17
+        out &h3C9, (i * 5) and &h3F
+        out &h3C9, (i * 9) and &h3F
+        out &h3C9, (i * 13) and &h3F
+    next
+    for i as integer = 0 to 7
+        dim as long r, g, b
+        palette get i * 17, r, g, b
+        acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    next
+    Emit( "the dac writes eight entries", acc )
+end scope
+
+'' AN UNFINISHED SEQUENCE COMMITS NOTHING, and the two bytes it did write are
+'' still sitting in the shared state afterwards -- which the next case inherits
+'' on purpose.
+scope
+    palette
+    out &h3C8, 40
+    out &h3C9, 63
+    out &h3C9, 63
+    dim as ulongint acc = 14695981039346656037ull
+    dim as long r, g, b
+    palette get 40, r, g, b
+    acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+
+    '' The third byte lands now, from a SEPARATE statement, and the entry
+    '' becomes what the whole sequence asked for.
+    out &h3C9, 63
+    palette get 40, r, g, b
+    acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    Emit( "an unfinished dac write commits nothing", acc )
+end scope
+
+'' THE INDEX AUTO-ADVANCES after a commit, so a run of writes fills consecutive
+'' entries without touching 3C8 again.
+scope
+    palette
+    out &h3C8, 100
+    for i as integer = 0 to 2
+        out &h3C9, 63
+        out &h3C9, 0
+        out &h3C9, 63
+    next
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 100 to 103
+        dim as long r, g, b
+        palette get i, r, g, b
+        acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    next
+    Emit( "the dac index auto-advances", acc )
+end scope
+
+'' READING IT BACK THROUGH INP, which shares the index and shift with the write
+'' side -- an interleaved read does not peek, it ADVANCES the sequence.
+scope
+    palette
+    dim as ulongint acc = 14695981039346656037ull
+    out &h3C8, 5
+    for i as integer = 0 to 5
+        acc = (acc xor cast( ulongint, cast( ulong, inp( &h3C9 ) ) )) * 1099511628211ull
+    next
+    Emit( "inp reads the dac back", acc )
+end scope
+
+'' 3C7 IS THE SAME PORT AS 3C8 here, which is not true of real hardware and is
+'' true of the reference.
+scope
+    palette
+    dim as ulongint acc = 14695981039346656037ull
+    out &h3C7, 9
+    out &h3C9, 21
+    out &h3C9, 42
+    out &h3C9, 63
+    dim as long r, g, b
+    palette get 9, r, g, b
+    acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    Emit( "3C7 sets the index like 3C8", acc )
+end scope
+
+'' AN UNHANDLED PORT ANSWERS -1 IN BOTH DIRECTIONS.
+scope
+    dim as ulongint acc = 14695981039346656037ull
+    acc = (acc xor cast( ulongint, cast( ulong, inp( &h3C4 ) ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, cast( ulong, inp( &h60 ) ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, cast( ulong, inp( &h3DA ) ) )) * 1099511628211ull
+    out &h3C4, 1
+    out &h3DA, 1
+    Emit( "unhandled ports answer -1", acc )
+end scope
+
 '' ---- the other legacy palette sizes ----
 ''
 '' 16 and 4 colours, where the table is shorter and the wrap is tighter. Mode 9
@@ -441,49 +546,19 @@ scope
     Emit( "8bpp point returns", acc )
 end scope
 
-'' ------------------------------------ 8bpp PRESENTATION, off the real window
+'' THE CAPTURE, LIFTED OUT SO TWO CASES CAN USE IT.
 ''
-'' THE LAST UNGATED PIECE, and the only one that leaves the framebuffer.
-'' Everything above compares what was WRITTEN; this compares what is DISPLAYED.
-''
-'' It matters because the two libraries present a paletted surface completely
-'' differently. gfxlib2 hands GDI an 8bpp DIB with a 256-entry RGBQUAD colour
-'' table. libtkogfx expands into a 32bpp mirror through a lookup table first
-'' (GdiExpand8), because BITMAPINFO here has no room for the table. Those are
-'' different code paths that must put the same colour on the glass, and nothing
-'' compared them until this section.
-''
-'' READBACK IS FRAGILE BY NATURE -- probe-window says so at length. BitBlt from
-'' a window DC captures whatever is actually on screen, so an occluding window,
-'' a screen blank or DWM deciding not to redraw all produce a blank grab. So the
-'' capture is RETRIED, and if it never yields a non-blank frame the case emits
-'' CAPTURE-FAILED rather than a digest. gate-entry.sh treats that as a SKIP on
-'' either side, which is the difference between an honest gap and a flaky gate.
-scope
-    screenres W, H, 8
-
-    '' A palette where every index maps somewhere distinctive, so an expansion
-    '' that dropped a channel or swapped R and B cannot come out equal. The
-    '' default VGA table has too many greys near the bottom to discriminate.
-    for i as integer = 0 to 255
-        palette i, (i * 7) and 63, (i * 13) and 63, (i * 29) and 63
-    next
-
-    '' Something with structure. Flat fills would agree under a broken LUT as
-    '' long as index 0 happened to match.
-    line ( 0, 0 )-( W - 1, H - 1 ), 0, BF
-    for y as integer = 0 to H - 1
-        line ( 0, y )-( W - 1, y ), (y * 5 + 3) and &hFF
-    next
-    line ( 8, 8 )-( 40, 30 ), 200, B
-    circle ( 32, 24 ), 9, 100, , , , F
-
+'' It was one inline block until the DAC cases needed a second frame. The
+'' comments inside it are the reasons the retry and the black-frame rule are
+'' shaped the way they are, and they are worth more than the duplication
+'' would have been.
+sub CaptureAndEmit( byref nm as string )
     dim as long winh
     screencontrol GET_WINDOW_HANDLE, winh
     dim as HWND hw = cast( HWND, cast( any ptr, cast( uinteger, winh ) ) )
 
     if hw = 0 then
-        Log_ += "CAPTURE-FAILED" + chr( 9 ) + "8bpp presentation" + chr( 10 )
+        Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
     else
         SetWindowPos( hw, HWND_TOPMOST, 0, 0, 0, 0, _
                       SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE )
@@ -561,12 +636,73 @@ scope
         next
 
         if got then
-            Emit( "8bpp presentation", dig )
+            Emit( nm, dig )
         else
-            Log_ += "CAPTURE-FAILED" + chr( 9 ) + "8bpp presentation" + chr( 10 )
+            Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
         end if
     end if
+end sub
+
+'' ------------------------------------ 8bpp PRESENTATION, off the real window
+''
+'' THE LAST UNGATED PIECE, and the only one that leaves the framebuffer.
+'' Everything above compares what was WRITTEN; this compares what is DISPLAYED.
+''
+'' It matters because the two libraries present a paletted surface completely
+'' differently. gfxlib2 hands GDI an 8bpp DIB with a 256-entry RGBQUAD colour
+'' table. libtkogfx expands into a 32bpp mirror through a lookup table first
+'' (GdiExpand8), because BITMAPINFO here has no room for the table. Those are
+'' different code paths that must put the same colour on the glass, and nothing
+'' compared them until this section.
+''
+'' READBACK IS FRAGILE BY NATURE -- probe-window says so at length. BitBlt from
+'' a window DC captures whatever is actually on screen, so an occluding window,
+'' a screen blank or DWM deciding not to redraw all produce a blank grab. So the
+'' capture is RETRIED, and if it never yields a non-blank frame the case emits
+'' CAPTURE-FAILED rather than a digest. gate-entry.sh treats that as a SKIP on
+'' either side, which is the difference between an honest gap and a flaky gate.
+scope
+    screenres W, H, 8
+
+    '' A palette where every index maps somewhere distinctive, so an expansion
+    '' that dropped a channel or swapped R and B cannot come out equal. The
+    '' default VGA table has too many greys near the bottom to discriminate.
+    for i as integer = 0 to 255
+        palette i, (i * 7) and 63, (i * 13) and 63, (i * 29) and 63
+    next
+
+    '' Something with structure. Flat fills would agree under a broken LUT as
+    '' long as index 0 happened to match.
+    line ( 0, 0 )-( W - 1, H - 1 ), 0, BF
+    for y as integer = 0 to H - 1
+        line ( 0, y )-( W - 1, y ), (y * 5 + 3) and &hFF
+    next
+    line ( 8, 8 )-( 40, 30 ), 200, B
+    circle ( 32, 24 ), 9, 100, , , , F
+
+    CaptureAndEmit( "8bpp presentation" )
 end scope
+
+'' ---- AND THE SAME WINDOW AFTER A DAC WRITE ----
+''
+'' THIS IS THE ONLY CASE THAT SEES THE LUT REBUILD. Writing the palette through
+'' the DAC ports has to refresh the table the window expands a paletted surface
+'' through, and mark every scanline dirty so the unchanged pixels are presented
+'' again. Both are the port hook's work rather than the port layer's, so nothing
+'' below the entry layer can test them -- and the value cases above cannot
+'' either, because they read the TABLE and this is about the GLASS.
+scope
+    '' Rewrite every entry through the ports, to colours far from the ones the
+    '' case above left, so a stale LUT cannot come out equal.
+    for i as integer = 0 to 255
+        out &h3C8, i
+        out &h3C9, (63 - ((i * 7) and 63))
+        out &h3C9, (63 - ((i * 13) and 63))
+        out &h3C9, (63 - ((i * 29) and 63))
+    next
+    CaptureAndEmit( "8bpp presentation after a dac write" )
+end scope
+
 
 '' ------------------------------------------------ the CONSOLE HOOKS
 ''
@@ -659,6 +795,30 @@ Blank( ) : locate 2, 2 : print chr( 13 ) + chr( 255 ); : Report( "a caret after 
 Blank( ) : locate 2, 2 : print chr( 255 ) + chr( 13 ); : Report( "a caret before a carriage return" )
 Blank( ) : locate 2, 3 : print chr( 8 ) + chr( 255 ); : Report( "a caret after a backspace" )
 Blank( ) : locate 2, 1 : print chr( 9 ) + chr( 255 ); : Report( "a caret after a tab" )
+
+'' ---- INP AND OUT: the VGA DAC, which is neither of those on a screen ----
+''
+'' Deterministic and output-visible, so this is an ordinary A/B. The internals
+'' are gated by tools/abtest-vgaport.bas; what these add is the seam, the LUT
+'' rebuild after a commit and the dirty marking -- the last two being invisible
+'' in the port layer and very visible on an 8bpp screen.
+''
+'' THE 32BPP CASES COME FIRST AND MUST BE NO-OPS. Above 8bpp the DAC data port
+'' is refused in both directions, and only the status port still answers.
+scope
+    Blank( )
+    dim as ulongint acc = 14695981039346656037ull
+    acc = (acc xor cast( ulongint, cast( ulong, inp( &h3C9 ) ) )) * 1099511628211ull
+    out &h3C8, 3
+    out &h3C9, 63
+    acc = (acc xor cast( ulongint, cast( ulong, inp( &h3C9 ) ) )) * 1099511628211ull
+
+    '' THE STATUS PORT STILL ANSWERS AT EVERY DEPTH, which is the asymmetry: the
+    '' depth check guards the DAC data port, not the whole hook. It also waits a
+    '' frame, so a program polling it for a retrace does not spin.
+    acc = (acc xor cast( ulongint, cast( ulong, inp( &h3DA ) ) )) * 1099511628211ull
+    Emit( "the dac is refused above 8bpp", acc )
+end scope
 
 '' ---- PRINT OF A WSTRING, which is a different hook and the same path ----
 ''
