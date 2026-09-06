@@ -1,4 +1,15 @@
-/* oop_object.c -- fb_Object$'s default constructor and its RTTI record.
+/* msvcobject.c -- fb_Object$'s default constructor and its RTTI record.
+**
+** NOT NAMED oop_object.c, AND THAT IS LOAD-BEARING. build/gate.sh merges
+** tiko-rt's objects into fbc's archive BY MEMBER NAME, so a file called
+** oop_object.c produces oop_object.o and REPLACES fbc's member of that name.
+** On the gnu targets this file is empty, so that replacement deleted
+** _ZN10fb_Object$C1Ev from the merged archive and the win64 gate stopped
+** building fbcunit. Measured: `llvm-nm` on obj/gate/win64/lib/libfb.a showed
+** oop_object.o carrying nothing but @feat.00 and the constructor gone.
+**
+** The first version of this comment worried about the opposite -- TWO
+** definitions reaching the merged archive. The real hazard was ZERO.
 **
 ** EMPTY EXCEPT ON THE MICROSOFT ABI, exactly like msvcinit.c.  On the gnu
 ** targets fbc's own oop_object.o supplies both symbols and the gate links it;

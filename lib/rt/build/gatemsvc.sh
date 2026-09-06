@@ -132,6 +132,13 @@ SRCS=$(sed -n 's/^SRCLIST += //p' "$T/unit-tests.inc")
 #                       libfbgfx to borrow one from. 22 symbols.
 #   threads/threadcall  libffi, which is why the MinGW gate carries 11 known
 #                       failures of its own. 1 symbol.
+#   quirk/inline-asm    Inline ASM, which -gen llvm rejects permanently and by
+#   quirk/inline-asm-   design -- error 374. gate-win.sh moves these same two
+#     syntax            files aside for its own llvm runs. THEY WERE NOT LISTED
+#                       HERE AT FIRST, and this script reported '0 failed to
+#                       build' anyway -- because gate-win.sh had them moved
+#                       aside while these runs happened. Two harnesses sharing
+#                       one tree, and a number that was right by accident.
 #   math/fenv           feraiseexcept, which the UCRT does not EXPORT. Its own
 #                       <fenv.h> says why: "feraiseexcept is defined inline in
 #                       this header so that it is compiled". A C caller gets it
@@ -143,7 +150,7 @@ SRCS=$(sed -n 's/^SRCLIST += //p' "$T/unit-tests.inc")
 # They are named here rather than silently dropped, so the exclusion is a
 # statement about this target and not a hole nobody can see.
 SRCS=$(printf '%s
-' $SRCS | grep -v '^\./gfx/' | grep -v '^\./fbc-int/gfx\.bas$' | grep -v '^\./threads/threadcall\.bas$' | grep -v '^\./math/fenv\.bas$')
+' $SRCS | grep -v '^\./gfx/' | grep -v '^\./fbc-int/gfx\.bas$' | grep -v '^\./threads/threadcall\.bas$' | grep -v '^\./math/fenv\.bas$' | grep -v '^\./quirk/inline-asm\.bas$' | grep -v '^\./quirk/inline-asm-syntax\.bas$')
 [ -n "$SRCS" ] || rt_die "no SRCLIST entries in $T/unit-tests.inc"
 
 if [ -n "$DIRS" ]; then
