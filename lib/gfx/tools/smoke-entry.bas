@@ -24,6 +24,7 @@
 '' Run by tools/smoke.sh.
 
 #include once "fbgfx.bi"
+#include once "windows.bi"
 using FB
 
 dim shared as long fails
@@ -94,6 +95,69 @@ for y as integer = 20 to 27
     next
 next
 chk( "draw string put pixels down", 1, iif( lit > 0, 1, 0 ) )
+
+'' ---- the console input half ----
+''
+'' NOT AN A/B, AND IT CANNOT BE. tools/gate-entry.sh drives both libraries from
+'' one source, and there is no key-injection route they share: PostMessage of
+'' WM_CHAR reaches this library's window procedure and does NOT reach gfxlib2 --
+'' measured, the reference run timed out with nothing in its queue. SendInput
+'' would reach both and would also type into whatever else has focus, which is
+'' the desktop risk the project already refuses for mouse clicks.
+''
+'' So this is a REGRESSION check against what was measured by hand, not a
+'' comparison. It is here rather than in the gate for exactly that reason.
+scope
+    dim as long winh
+    screencontrol GET_WINDOW_HANDLE, winh
+    dim as HWND hw = cast( HWND, cast( any ptr, cast( uinteger, winh ) ) )
+    chk( "screencontrol returns a window handle", 1, iif( hw <> 0, 1, 0 ) )
+
+    if hw <> 0 then
+        '' Posted BEFORE the read, so neither side races the pump.
+        for i as integer = 0 to 2
+            PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "a" ) + i ), 0 )
+        next
+        Sleep( 150 )
+        dim as string acc
+        for i as integer = 1 to 6
+            acc += inkey
+        next
+        chk( "inkey drains the posted keys", 0, iif( acc = "abc", 0, 1 ) )
+
+        '' INPUT reads the WINDOW, not stdin. That is what isredirproc decides:
+        '' with it null the runtime asks the OS, and a redirected stdin wins.
+        dim as string typed = "Hi" + chr( 13 )
+        for i as integer = 0 to len( typed ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typed[i] ), 0 )
+        next
+        Sleep( 150 )
+        dim as string got
+        input "", got
+        chk( "input reads the window", 0, iif( got = "Hi", 0, 1 ) )
+
+        '' Backspace really edits: AXB, two rubs, Y -> AY.
+        dim as string typed2 = "AXB" + chr( 8 ) + chr( 8 ) + "Y" + chr( 13 )
+        for i as integer = 0 to len( typed2 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typed2[i] ), 0 )
+        next
+        Sleep( 150 )
+        dim as string got2
+        input "", got2
+        chk( "backspace edits the line", 0, iif( got2 = "AY", 0, 1 ) )
+
+        '' LINE INPUT into a VAR-LEN string: dst_len is -1 there, which is an
+        '' FBSTRING to assign and not a byte count.
+        dim as string typed3 = "Q" + chr( 13 )
+        for i as integer = 0 to len( typed3 ) - 1
+            PostMessage( hw, WM_CHAR, cast( WPARAM, typed3[i] ), 0 )
+        next
+        Sleep( 150 )
+        dim as string got3
+        line input "P"; got3
+        chk( "line input assigns a var-len string", 0, iif( got3 = "Q", 0, 1 ) )
+    end if
+end scope
 
 imagedestroy( im )
 screen 0

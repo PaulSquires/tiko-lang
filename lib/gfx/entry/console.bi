@@ -30,19 +30,21 @@
 ''                 core/keyboard.bi gated by tools/abtest-keyboard.bas, plus the
 ''                 editing loop below, which is new
 ''
-'' INPUT DOES NOT REACH THE readstr HOOK, AND THAT IS A RUNTIME DEFECT RATHER
-'' THAN A GAP HERE. Measured, both ways: a program doing `INPUT s` on a graphics
-'' screen with stdin redirected from a file reads the FILE under tiko-rt and
-'' BLOCKS ON THE WINDOW under fbc's own runtime with gfxlib2 -- the reference
-'' timed out waiting for a keystroke while this one returned the file's first
-'' line. fb_InputString goes through the console device's ReadLine, which
-'' reaches fgets rather than fb_ReadString, so `readstrproc` is installed and
-'' never called.
+'' HOW INPUT ACTUALLY GETS THERE, because it is not the obvious route and a
+'' wrong guess about it cost a wasted diagnosis.
 ''
-'' LINE INPUT is unaffected: fb_LineInput consults lineinputproc directly, and
-'' that path works. So `LINE INPUT` on a graphics screen reads the window and
-'' `INPUT` reads stdin, which is the one place this library and the reference
-'' disagree about where input comes from. Fixing it is a change to lib/rt.
+'' `INPUT s` reaches fb_ConsoleInput, which asks fb_IsRedirected FIRST. If the
+'' console is redirected it deletes the prompt and does a file INPUT on channel
+'' 0 -- the real stdin, no hooks involved. Only when it is NOT redirected does
+'' it call fb_LineInput, which is what consults lineinputproc.
+''
+'' So `isredirproc` is load-bearing for INPUT, and with it null the runtime
+'' answered from the OS: a program whose stdin was a file read the file. That
+'' looked exactly like a runtime defect and was reported as one; it was this
+'' file's omission. tiko-rt consults every hook it should.
+''
+'' readstrproc is installed as well, and is the path INPUT takes from a real
+'' channel rather than from the console.
 ''
 '' WHAT IS STILL LEFT NULL: getmouse, setmouse, in, out, sleep, isredir,
 '' viewupdate, posteventproc and lineinputw. The mouse and port internals are
@@ -503,6 +505,24 @@ end function
 '' INPUT's collector. The runtime asks for at most `length_` bytes and takes the
 '' returned pointer; returning NULL is how the console reports end-of-input, and
 '' a closed window is exactly that.
+'' IS THE CONSOLE REDIRECTED? NO, WHILE A GRAPHICS SCREEN IS OPEN.
+''
+'' THIS IS THE HOOK THAT MAKES `INPUT` WORK, and leaving it null is what broke
+'' it. fb_ConsoleInput asks fb_IsRedirected first and, when the answer is yes,
+'' deletes the prompt unread and does a FILE INPUT on channel 0 -- it reads the
+'' real stdin and never touches the keyboard. With this slot null the runtime
+'' answered from the OS, so a program whose stdin happened to be a file or a
+'' pipe read that instead of the window.
+''
+'' A graphics screen is not redirected by definition: PRINT goes to the window
+'' whatever the shell did with the handles, so INPUT has to read the window too.
+'' Answering 0 for both directions is what makes the pair consistent.
+function TkoConIsRedir cdecl ( byval is_input as long ) as long
+    scope : dim as long ignored = is_input : end scope
+    if TkoGfx.TheCon.live = 0 then return 0
+    return 0
+end function
+
 function TkoConReadStr cdecl ( byval buffer as zstring ptr, _
         byval length_ as integer ) as zstring ptr
     if (TkoGfx.TheCon.live = 0) orelse (buffer = 0) orelse (length_ <= 0) then return 0
@@ -609,6 +629,7 @@ private sub ConsoleStart( byval mode as long )
     tb.multikeyproc   = @TkoConMultikey
     tb.readstrproc    = @TkoConReadStr
     tb.lineinputproc  = @TkoConLineInput
+    tb.isredirproc    = @TkoConIsRedir
 
     HooksInstall( @tb )
     TheCon.live = 1

@@ -64,11 +64,16 @@ if ! "$CLANG" --target=x86_64-pc-windows-msvc "$TMP/$name.o" "$TKOGFX" "$LIBFB" 
     exit 1
 fi
 
-if "$TMP/$name.exe"; then
+# A TIMEOUT, because the smoke test now drives INPUT. A blocking read that never
+# sees its Enter would wedge the run; a hung test says nothing and nobody waits
+# for it.
+: "${SMOKE_TIMEOUT:=90}"
+
+if timeout "$SMOKE_TIMEOUT" "$TMP/$name.exe"; then
     echo "smoke: ok -- win64-msvc, entry points reached through fb_Gfx*"
 else
     rc=$?
-    echo "smoke: FAILED (exit $rc)" >&2
+    echo "smoke: FAILED (exit $rc, or timed out after ${SMOKE_TIMEOUT}s)" >&2
     exit 1
 fi
 
