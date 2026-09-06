@@ -125,6 +125,60 @@ scope
         next
         chk( "inkey drains the posted keys", 0, iif( acc = "abc", 0, 1 ) )
 
+        '' ---- extended keys ----
+        ''
+        '' ASSERTED AGAINST fbgfx.bi's OWN SC_* CONSTANTS, which is what makes
+        '' this more than a restatement: the expected string is built from
+        '' SC_UP and SC_LEFT as the reference header declares them, not from a
+        '' number written here. If FreeBASIC's scancodes were ever NOT the PC
+        '' set-1 codes that lParam carries, this is what would say so.
+        ''
+        '' The lParam is crafted -- scancode in bits 16..23 -- because that is
+        '' where the window procedure reads it from. Posting the VK alone would
+        '' pass a zero scancode and prove nothing.
+        for i as integer = 1 to 6
+            inkey
+        next
+        PostMessage( hw, WM_KEYDOWN, VK_UP, cast( LPARAM, SC_UP shl 16 ) )
+        PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
+        Sleep( 150 )
+        dim as string ext
+        for i as integer = 1 to 4
+            ext += inkey
+        next
+        chk( "extended keys arrive as chr(255) + scancode", 0, _
+             iif( ext = chr( 255 ) + chr( SC_UP ) + chr( 255 ) + chr( SC_LEFT ), 0, 1 ) )
+
+        '' A CHARACTER KEY MUST ARRIVE ONCE, not twice. WM_KEYDOWN fires for
+        '' ordinary keys too, and if the window procedure posted an extended
+        '' code for those as well, every letter would arrive as itself AND as a
+        '' scancode pair. Only WM_KEYDOWN is posted here: the pump's
+        '' TranslateMessage is what turns it into the WM_CHAR, which is exactly
+        '' what a real key press does.
+        ''
+        '' Posting WM_CHAR alongside it is what the first version of this check
+        '' did, and it failed -- correctly. Two WM_CHARs reach the ring because
+        '' the test sent one and TranslateMessage made another; that is the
+        '' harness double-counting, not the library.
+        for i as integer = 1 to 6
+            inkey
+        next
+        PostMessage( hw, WM_KEYDOWN, cast( WPARAM, asc( "A" ) ), cast( LPARAM, &h1E shl 16 ) )
+        Sleep( 150 )
+        dim as string once_
+        for i as integer = 1 to 4
+            once_ += inkey
+        next
+        '' LOWERCASE, and that is the point rather than a detail. The VK posted
+        '' is 'A' -- virtual keys are uppercase letters -- and what comes back
+        '' is "a", because TranslateMessage applied the shift state and no
+        '' Shift was held. That is exactly why WM_CHAR is the source this
+        '' library reads: the layout, the shift state and any dead-key
+        '' composition are already resolved by the time it arrives.
+        ''
+        '' Measured: expecting "A" here failed with chr(97).
+        chk( "a character key arrives once", 0, iif( once_ = "a", 0, 1 ) )
+
         '' INPUT reads the WINDOW, not stdin. That is what isredirproc decides:
         '' with it null the runtime asks the OS, and a redirected stdin wins.
         dim as string typed = "Hi" + chr( 13 )

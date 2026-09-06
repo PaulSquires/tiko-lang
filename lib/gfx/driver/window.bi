@@ -182,6 +182,31 @@ private function WindowProc cdecl ( _
         case WM_KEYDOWN, WM_SYSKEYDOWN
             WindowLock( *w )
             KeyTableSet( w->ktab, cast( long, (lp shr 16) and &hFF ), 1 )
+
+            '' EXTENDED KEYS, the ones that never become a WM_CHAR. gfxlib2
+            '' encodes them as (scancode shl 8) or 255, and core/keyboard.bi's
+            '' KeyInkeyStr turns that into the two-byte INKEY string --
+            '' tools/abtest-keyboard.bas compares that encoding against gfxlib2
+            '' for codes posted directly, so what is new here is only the source.
+            ''
+            '' THE SCANCODE COMES STRAIGHT OUT OF lParam, and that works because
+            '' FreeBASIC's SC_* ARE the PC set-1 scancodes: fbgfx.bi has
+            '' SC_ESCAPE = &h01 and SC_LEFT = &h4B, which is what bits 16..23 of
+            '' a WM_KEYDOWN carry. No translation table is needed and none is
+            '' written, because one would be a second place to be wrong.
+            ''
+            '' THE LIST IS EXPLICIT rather than "whatever produces no character".
+            '' Backspace, Tab, Enter and Escape all reach WM_CHAR as well, so
+            '' posting them here too would deliver every one of them twice.
+            select case cast( long, wp )
+            case VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, _
+                 VK_HOME, VK_END, VK_PRIOR, VK_NEXT, _
+                 VK_INSERT, VK_DELETE, _
+                 VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, _
+                 VK_F7, VK_F8, VK_F9, VK_F10, VK_F11, VK_F12
+                KeyPost( w->keys, (cast( long, (lp shr 16) and &hFF ) shl 8) or 255 )
+            end select
+
             WindowUnlock( *w )
 
         case WM_KEYUP, WM_SYSKEYUP
