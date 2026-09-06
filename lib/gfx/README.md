@@ -1756,3 +1756,44 @@ outside **false** rather than an error (accepting >127 fails 3) — and the
 all-clear case across all 128 scancodes, which is what the reference gives when
 nothing is held. Actual key-down reporting belongs to the author's interactive
 pass.
+
+---
+
+## Build, 2026-09-05
+
+```
+build/build.sh [Debug|Release|RelWithDebInfo]      win64-msvc only
+```
+
+**win64-msvc is the only target and that is the point.** tiko emits the Microsoft ABI on Windows
+(`TARGET_WIN64_MSVC`), and there is no MSVC `libfbgfx` to fall back to — fbc's is MinGW, so it
+cannot go into an MSVC binary at all. That absence is why `lib/rt/build/gatemsvc.sh` excludes
+`gfx/` and `fbc-int/gfx`, and why 22 of the 26 unresolved symbols in its first full link were
+`fb_Gfx*`.
+
+**The status line above is out of date in one direction and right in the other.** There IS graphics
+code — 7,781 lines across 39 headers, compiling to **108 functions**, and the whole tree builds
+clean for `x86_64-pc-windows-msvc`. What does not exist is the **entry-point layer**.
+
+**And until it does, the archive holds no code.** Every routine here is `private`, nothing public
+references them, so clang discards all 108 and `libtkogfx.a` comes out at 902 bytes carrying
+`@feat.00` and `__fbctinf`. That is the structure working as designed — RFC-0001 makes the entry
+points the only public surface — but it means the build proves the tree COMPILES for MSVC and
+nothing more. `build.sh` says so on every run rather than reporting the IR count as if it were the
+archive's.
+
+### The surface that is owed, measured
+
+`tiko-lang/src/mir/rtl.bi` names **32 `RTL_GFX` entry points with full signatures** — that table
+IS the ABI this library owes, and it is narrower than fbc's 172 exports. `fb_GfxScreen( l, l, l, l,
+l ) as l` is the one a `SCREEN` statement reaches, and it is what a graphics program fails on
+today:
+
+```
+test2.exe.1.o : error LNK2019: unresolved external symbol fb_GfxScreen
+```
+
+The pieces it needs exist — `driver/window.bi`'s `WindowOpen`/`WindowClose`, `core/mode.bi`'s
+`ModeTable` and `ModeSupported`, `core/surface.bi`, `core/hooks.bi`'s install/clear — so this is
+integration rather than new invention. **No entry point is stubbed.** One that links and does
+nothing turns a loud failure into a silent one, which is the harder bug of the two.
