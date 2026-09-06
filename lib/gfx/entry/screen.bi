@@ -59,7 +59,13 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     TheScreen.pixels = px
     TheScreen.mode = mode
 
-    if WindowOpen( TheScreen.wnd, ScreenCtx.surf, w, h, "tiko" ) <> 0 then
+    '' WindowOpen RETURNS 1 ON SUCCESS AND 0 ON FAILURE -- driver/window.bi says
+    '' so in a comment above it. Testing it the other way round treats every
+    '' successful open as a failure, frees the framebuffer and leaves isOpen at
+    '' 0, so SCREEN reports error 1 and every later call finds no context and
+    '' answers -1. That is exactly what it did until the first fbc-compiled
+    '' program was run against this library.
+    if WindowOpen( TheScreen.wnd, ScreenCtx.surf, w, h, "tiko" ) = 0 then
         deallocate( px )
         TheScreen.pixels = 0
         ScreenCtx.inuse = 0

@@ -75,3 +75,6 @@
 #include once "../entry/putblend.bi"
 #include once "../entry/draw2d.bi"
 #include once "../entry/palette.bi"
+#include once "../entry/image.bi"
+#include once "../entry/drawstr.bi"
+#include once "../entry/misc.bi"

@@ -76,6 +76,41 @@ private sub DrawGlyph( _
     wend
 end sub
 
+'' The same glyph, TRANSPARENT: clear bits are left alone rather than painted
+'' with a background colour.
+''
+'' UNGATED. tools/abtest-print.bas compares the OPAQUE path, because that is
+'' what PRINT uses -- gfxlib2's PRINT repaints the whole cell. Nothing compares
+'' this one: its only caller is DRAW STRING, whose default mode is TRANS, and
+'' that entry point has no A/B test yet. It is a five-line variant of a routine
+'' that is measured, which is a reason to believe it and not a reason to say it
+'' is checked.
+private sub DrawGlyphTrans( _
+        byref s as Surface, _
+        byval px as long, byval py as long, _
+        byval ch as long, byval fidx as long, _
+        byval fg as ulong )
+
+    if (fidx < 0) orelse (fidx > 2) then exit sub
+    dim as long fh = FontHeight(fidx)
+    dim as ubyte ptr glyph = @FontData( FontDataOfs(fidx) + (ch and &hFF) * fh )
+
+    dim as integer row = 0
+    while row < fh
+        dim as ubyte bits = glyph[row]
+        dim as integer col = 0
+        while col < FONT_WIDTH
+            '' bit 0 is the LEFTMOST pixel -- see the header
+            if (bits and (1 shl col)) <> 0 then
+                '' PSetAny, NOT PSet32 -- the reason is at DrawGlyph above.
+                PSetAny( s, px + col, py + row, fg )
+            end if
+            col += 1
+        wend
+        row += 1
+    wend
+end sub
+
 '' Draw a string starting at a CHARACTER CELL. Cells are 1-based in the
 '' statement (LOCATE 1,1 is the top-left) and 0-based here.
 private sub DrawText( _
