@@ -8,7 +8,7 @@ One directory per host platform:
 
 | Directory | Host | Ships |
 | --- | --- | --- |
-| `tiko-windows/` | Windows x86-64 | `tiko.exe`, `inc/`, `lib/win64{,-fb}/`, `lib/win64-msvc/` |
+| `tiko-windows/` | Windows x86-64 | `tiko.exe`, `inc/`, `lib/win64-msvc/` (default), `lib/win64{,-fb}/` |
 | `tiko-linux/`   | Linux x86-64   | `bin/tiko`, `inc/`, `include/`, `lib/linux-x86_64{,-fb}/` |
 
 No binutils: the compiler drives **clang** for both steps -- the `.ll` to `.o`
@@ -72,11 +72,17 @@ file and why one directory would not do.
 
 ## Status
 
-`win64` and `win64-msvc` are both verified end to end: a packaged toolchain
-compiles, links and runs a program on each (`--verify`, 2026-09-06). `win64-msvc`
-additionally links a graphics program -- removing `libtkogfx.a` from its directory
-turns that into three unresolved `fb_Gfx*` externals, which is how the archive was
-confirmed to be the thing satisfying them.
+`win64-msvc` is the default target on Windows and is verified end to end: a
+packaged toolchain compiles, links and runs a program, and a graphics program
+**draws** -- `point()` reads back 15 where `line` wrote colour 15, and 0 off it.
+It is the default because `libtkogfx.a` is built for that ABI and no other, so it
+is the only Windows target on which a `SCREEN` program links at all.
+
+`win64`, the MinGW ABI, is also verified end to end for a non-graphics program
+(`--verify`, 2026-09-06) and is selected with `-target win64`. Removing
+`libtkogfx.a` from the msvc directory turns a graphics link into three unresolved
+`fb_Gfx*` externals, which is how the archive was confirmed to be the thing
+satisfying them.
 
 `win32` is no longer a target and is no longer shipped. It never linked; D14 then
 removed the architecture outright.

@@ -56,9 +56,31 @@ end function
 ''     byte/ubyte/boolean  1     integer/uinteger  8     string   24, align 8
 ''     short/ushort        2     longint/ulongint  8     ustring  24, align 8
 ''     long/ulong/single   4     double            8     pointers 8
+'' THE DEFAULT TARGET, which on Windows is the MICROSOFT ABI and not the MinGW one.
+''
+'' It was TARGET_WIN64, and that made 'tiko test.bas' the one invocation that could
+'' not use graphics. libtkogfx IS tiko's graphics library -- fbc's libfbgfx is not a
+'' substitute and is not reached for -- and lib/gfx builds it for win64-msvc alone,
+'' the ABI it was written against. So the default target was the target with no
+'' graphics archive, and a SCREEN program answered 'undefined reference to
+'' fb_GfxScreen' unless the user knew to pass -target win64-msvc.
+''
+'' NOTHING ELSE ABOUT THE TWO DIFFERS. Same machine, same calling convention, same
+'' type layout, same object format -- x86-64 Windows is one ABI and the CRT is what
+'' changes. What follows the triple is the link line.
+''
+'' AND IT NEEDS NOTHING BEHIND IT. Measured 2026-09-06: a program built for
+'' win64-msvc against lib/win64-msvc alone -- no fbc directory, and fbc has no MSVC
+'' target to supply one -- linked and ran. tiko-rt's MSVC archive carries no MinGW
+'' imports (build/abidelta.sh; gatemsvc.sh at 3,922,073 assertions), where win64
+'' still needs fbc's libfb behind it for fb_AtomicCasLong. The default is now the
+'' target that stands on its own and has the graphics library.
+''
+'' '-target win64' still selects the MinGW ABI, and the toolchain still ships
+'' lib/win64 and lib/win64-fb for it.
 function HostTarget( ) as TargetId
     #ifdef __FB_WIN32__
-        return TARGET_WIN64
+        return TARGET_WIN64_MSVC
     #else
         return TARGET_LINUX_X86_64
     #endif

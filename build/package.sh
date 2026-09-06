@@ -93,19 +93,21 @@ esac
 # packaged on Windows at all, which is also why no libtkogfx ever reached a
 # toolchain: the script never got as far as copying one.
 #
-# WIN64-MSVC IS SHIPPED, for three reasons and not as a spare. It is a real
-# -target; it is the only target lib/gfx builds, so leaving it out means
-# shipping no graphics at all; and it is the ONE target that links with nothing
-# but our own archives behind it. That last is measured, 2026-09-06: a program
-# built -target win64-msvc against lib/win64-msvc alone -- no fbc directory,
-# none to have -- linked and ran. tiko-rt's MSVC archive carries no MinGW
-# imports (build/abidelta.sh, and gatemsvc.sh at 3,922,073 assertions), which is
-# what makes that possible where win64 still needs fbc's libfb behind it.
+# WIN64-MSVC IS THE DEFAULT and is listed first. It is the only target lib/gfx
+# builds, so it is the only one where a SCREEN program links; and it is the ONE
+# target that needs nothing behind it. That is measured, 2026-09-06: a program
+# built for win64-msvc against lib/win64-msvc alone -- no fbc directory, none to
+# have -- linked and ran. tiko-rt's MSVC archive carries no MinGW imports
+# (build/abidelta.sh, and gatemsvc.sh at 3,922,073 assertions), where win64 still
+# needs fbc's libfb behind it for fb_AtomicCasLong.
+#
+# win64 is still shipped and still selected with -target win64. It is the MinGW
+# ABI, it is what fbc's own libraries are built for, and it has no graphics.
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; EXT=".exe"; BINSUB=""
-        TARGETS="win64 win64-msvc"
+        TARGETS="win64-msvc win64"
         FBTC="$FBC_TREE/toolchains/fbc-modern-windows"
         ;;
     Linux)
@@ -446,9 +448,14 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     echo "compiler, not left to the caller. win64-msvc needs no second directory"
     echo "at all; it was measured linking against ours alone."
     echo
+    echo "  tiko yourprogram.bas                  the default, win64-msvc"
     for t in $TARGETS; do
         echo "  tiko -target $t yourprogram.bas"
     done
+    echo
+    echo "GRAPHICS IS win64-msvc ONLY. libtkogfx is built for the Microsoft ABI"
+    echo "and there is no MinGW build of it, so a SCREEN or PSET program links"
+    echo "on the default target and nowhere else. That is why it is the default."
     echo
     echo "A -p of your own is searched BEFORE both, so it can override either."
     echo "TKO_LIBPATH replaces them instead, as TKO_INCLUDE replaces inc/."

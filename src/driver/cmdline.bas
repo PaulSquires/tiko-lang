@@ -96,11 +96,10 @@ function VersionText( ) as string
                       str( Tko.TKO_VERSION_PATCH ) & Tko.TKO_VERSION_SUFFIX
 
     dim as string arch = "x86_64"
-    #ifdef __FB_WIN32__
-        dim as string os_ = "win64"
-    #else
-        dim as string os_ = "linux-" & arch
-    #endif
+    '' THE DEFAULT TARGET, asked rather than repeated. This said "win64" as a
+    '' literal, so it kept saying so after the default became win64-msvc -- a
+    '' version banner that names the wrong ABI is worse than one that names none.
+    dim as string os_ = Tko.TargetName( Tko.HostTarget( ) )
 
     dim as string outp = ""
     outp += "tiko-lang " & v & " -- a FreeBASIC-compatible compiler" & chr( 10 )
