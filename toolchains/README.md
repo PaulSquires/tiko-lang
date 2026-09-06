@@ -8,7 +8,7 @@ One directory per host platform:
 
 | Directory | Host | Ships |
 | --- | --- | --- |
-| `tiko-windows/` | Windows x86-64 | `tiko.exe`, `inc/`, `lib/win64{,-fb}/`, `lib/win32{,-fb}/` |
+| `tiko-windows/` | Windows x86-64 | `tiko.exe`, `inc/`, `lib/win64{,-fb}/`, `lib/win64-msvc/` |
 | `tiko-linux/`   | Linux x86-64   | `bin/tiko`, `inc/`, `include/`, `lib/linux-x86_64{,-fb}/` |
 
 No binutils: the compiler drives **clang** for both steps -- the `.ll` to `.o`
@@ -24,7 +24,7 @@ toolchain can be dropped in wherever an fbc-modern one is expected and the
 | --- | --- |
 | the compiler binary | `build/build.sh Release` -> `bin/tiko[.exe]` |
 | `lib/<target>/libfb.a`, `libfbmt.a` | `lib/rt/build/build.sh Release` -> `lib/rt/lib/<target>/` |
-| `lib/<target>/libtkogfx.a` | `lib/gfx` -- **not yet**, it produces no archive |
+| `lib/<target>/libtkogfx.a` | `lib/gfx/build/build.sh Release win64-msvc` -> `lib/gfx/lib/win64-msvc/`; that is the only target it builds |
 | `lib/<target>-fb/` | copied from the reference fbc toolchain: its `libfb.a`, the CRT objects, the import libraries |
 | `inc/`, `include/` | copied from the reference fbc toolchain; tiko ships no headers of its own yet |
 
@@ -34,7 +34,8 @@ toolchain can be dropped in wherever an fbc-modern one is expected and the
 build/package.sh --verify
 ```
 
-Builds the compiler and the runtime at `Release`, assembles the tree for the
+Builds the compiler, the runtime **and the graphics library** at `Release`,
+assembles the tree for the
 current host, then compiles **and runs** a program per target and records the
 result in `MANIFEST.txt`. `--no-build` packages what is already built, `--no-inc`
 skips the ~100 MB header copy, `--clean` empties the output first, and `--help`
@@ -71,10 +72,13 @@ file and why one directory would not do.
 
 ## Status
 
-`win64` is verified end to end: a packaged toolchain compiles, links and runs a
-program. **`win32` does not link** -- clang picks a 64-bit `ld` off `PATH` for a
-32-bit link and every runtime symbol comes back undefined. That is a gap in the
-compiler's toolchain driver rather than in packaging, and `--verify` records it in
-the manifest instead of letting a broken toolchain look complete.
+`win64` and `win64-msvc` are both verified end to end: a packaged toolchain
+compiles, links and runs a program on each (`--verify`, 2026-09-06). `win64-msvc`
+additionally links a graphics program -- removing `libtkogfx.a` from its directory
+turns that into three unresolved `fb_Gfx*` externals, which is how the archive was
+confirmed to be the thing satisfying them.
+
+`win32` is no longer a target and is no longer shipped. It never linked; D14 then
+removed the architecture outright.
 
 `tiko-linux` has never been packaged; it needs a run under WSL.
