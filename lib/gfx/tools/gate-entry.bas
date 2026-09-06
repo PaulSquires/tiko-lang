@@ -197,6 +197,174 @@ Blank( ) : draw "C" & str( &hFF8040 ) & "BM10,10S8" : draw "R10" : Report( "draw
 Blank( ) : draw string ( 4, 16 ), "Ag~", &hFFFFFF : Report( "draw string" )
 Blank( ) : draw string ( 4, 16 ), "Ag~", &hFFFFFF, , PSET : Report( "draw string PSET" )
 
+'' ---------------------------------------------------------------- 8bpp
+''
+'' PALETTE IS COMPARED THROUGH THE VALUES IT RETURNS, NOT THROUGH PIXELS, and
+'' the reason is a real limit rather than a shortcut.
+''
+'' libtkogfx's framebuffer is 32bpp whatever the mode says (RFC-0011 section 1).
+'' On SCREEN 13 gfxlib2's POINT therefore answers a palette INDEX and ours
+'' answers a 32-bit colour, so a framebuffer digest would differ on every case
+'' for a reason that has nothing to do with PALETTE. Comparing pixels at 8bpp
+'' needs an 8bpp framebuffer AND per-depth LINE, BOX, CIRCLE, PAINT, DRAW and
+'' CLS, none of which exist -- raster/ is 32bpp above the pixel level.
+''
+'' What PALETTE actually promises is observable without any of that: PALETTE GET
+'' and PALETTE GET USING read the table back, and those are entry points on both
+'' sides. So this section drives all seven and digests their ANSWERS.
+''
+'' It covers the TABLE, not paletted rendering. Nothing here proves a pixel is
+'' displayed in the right colour.
+screen 13
+
+'' ---- the mode's generated defaults, whole ----
+''
+'' One digest over every entry rather than one case per entry: 256 cases would
+'' say nothing more, and a digest over the lot catches a single wrong entry just
+'' as surely.
+scope
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to 255
+        dim as long r, g, b
+        palette get i, r, g, b
+        acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    next
+    Emit( "palette defaults, all 256 entries", acc )
+end scope
+
+'' ---- the packed one-argument GET, which is a different code path ----
+scope
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to 255
+        dim as long v
+        palette get i, v
+        acc = (acc xor cast( ulongint, cast( ulong, v ) )) * 1099511628211ull
+    next
+    Emit( "palette get packed, all 256", acc )
+end scope
+
+'' ---- SET, four-argument form, then read back ----
+''
+'' The values include both saturation ends and the midpoint, because the 6-bit
+'' scale is (v * 255) \ 63 and a `shl 2` implementation round-trips
+'' identically through GET -- only the stored RGB tells them apart.
+scope
+    dim as long rs(...) = { 0, 63, 255, 1, 2, 3, 128, 170, 85, 254, 7, 200 }
+    dim as long gs(...) = { 0, 255, 63, 2, 3, 1, 64, 85, 170, 253, 8, 100 }
+    dim as long bs(...) = { 0, 128, 31, 3, 1, 2, 32, 51, 204, 252, 9, 50 }
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to ubound( rs )
+        palette i, rs(i), gs(i), bs(i)
+        dim as long r, g, b
+        palette get i, r, g, b
+        acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    next
+    Emit( "palette set rgb then get", acc )
+end scope
+
+'' ---- SET, two-argument packed form ----
+''
+'' `PALETTE i, value` and `PALETTE i, r, g, b` reach the SAME entry point; the
+'' second is told apart by -1 in g and b. On a 256-colour mode the value is
+'' three 6-bit channels.
+scope
+    dim as long c6(0 to 6) = { 0, 1, 2, 31, 32, 62, 63 }
+    dim as ulongint acc = 14695981039346656037ull
+    for k as integer = 0 to 23
+        dim as long v = c6(k mod 7) or (c6((k + 2) mod 7) shl 8) or (c6((k + 4) mod 7) shl 16)
+        palette k, v
+        dim as long r, g, b
+        palette get k, r, g, b
+        acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    next
+    Emit( "palette set packed then get", acc )
+end scope
+
+'' ---- out-of-range indices are MASKED, not errors ----
+scope
+    dim as long probes(...) = { 256, 257, 300, 511, 512, 1000, -1, -256 }
+    dim as ulongint acc = 14695981039346656037ull
+    for k as integer = 0 to ubound( probes )
+        palette probes(k), 11, 22, 33
+        dim as long r, g, b
+        palette get probes(k), r, g, b
+        acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    next
+    Emit( "palette wrapped indices", acc )
+end scope
+
+'' ---- USING and GET USING, both element widths ----
+''
+'' `dim as long` reaches fb_GfxPaletteUsing and `dim as integer` reaches
+'' fb_GfxPaletteUsing64 -- a DIFFERENT SYMBOL, because integer is 64-bit on
+'' win64 and fbc does not convert at the call site. Both are driven here, which
+'' is the only thing that tells the two apart.
+scope
+    dim as long a(0 to 255)
+    for i as integer = 0 to 255
+        a(i) = (i and 63) or (((63 - (i and 63))) shl 8) or (((i * 5) and 63) shl 16)
+    next
+    palette using a(0)
+
+    dim as long back(0 to 255)
+    palette get using back(0)
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to 255
+        acc = (acc xor cast( ulongint, cast( ulong, back(i) ) )) * 1099511628211ull
+    next
+    Emit( "palette using long, then get using", acc )
+end scope
+
+scope
+    dim as integer b(0 to 255)
+    for i as integer = 0 to 255
+        b(i) = ((i * 3) and 63) or (((i * 7) and 63) shl 8) or (((i * 11) and 63) shl 16)
+    next
+    palette using b(0)
+
+    dim as integer back(0 to 255)
+    palette get using back(0)
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to 255
+        acc = (acc xor cast( ulongint, back(i) )) * 1099511628211ull
+    next
+    Emit( "palette using integer, then get using", acc )
+end scope
+
+'' ---- a bare PALETTE restores the mode's defaults ----
+''
+'' Everything above has scribbled on the table, so this both tests the restore
+'' and returns the state to the one the defaults case already digested -- the
+'' two lines must therefore agree, which is a check in itself.
+scope
+    palette
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to 255
+        dim as long r, g, b
+        palette get i, r, g, b
+        acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+    next
+    Emit( "palette restored to defaults", acc )
+end scope
+
+'' ---- the other legacy palette sizes ----
+''
+'' 16 and 4 colours, where the table is shorter and the wrap is tighter. Mode 9
+'' is 16-colour EGA, mode 1 is 4-colour CGA.
+scope
+    dim as long modes(...) = { 9, 1, 11, 18 }
+    for mi as integer = 0 to ubound( modes )
+        screen modes(mi)
+        dim as ulongint acc = 14695981039346656037ull
+        for i as integer = 0 to 255
+            dim as long r, g, b
+            palette get i, r, g, b
+            acc = (acc xor cast( ulongint, (r shl 16) or (g shl 8) or b )) * 1099511628211ull
+        next
+        Emit( "palette defaults, mode" + str( modes(mi) ), acc )
+    next
+end scope
+
 screen 0
 
 print Log_;
