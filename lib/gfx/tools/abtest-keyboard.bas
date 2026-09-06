@@ -39,62 +39,87 @@
 '' pass.
 
 #include once "../core/keyboard.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+using FB
+#endif
 
 using TkoGfx
-using FB
 
 '' The driver's own entry point. A plain exported symbol, cdecl on every target.
+#ifdef ABTEST_HAS_GFXLIB2
 declare sub fb_hPostKey cdecl alias "fb_hPostKey" ( byval k as long )
+#endif
 
-dim shared as string report
-dim shared as long failures = 0
-dim shared as long ran = 0
+Abtest.Begin( "abtest-keyboard", "the key ring and MULTIKEY agree" )
 
 sub chk( byref what as string, byval want as longint, byval got as longint )
-    ran += 1
-    if want <> got then
-        report += "  MISMATCH " + what + " want " + str(want) + " got " + str(got) + chr(10)
-        failures += 1
-    end if
+    Abtest.Case_( what, want, got )
 end sub
 
+'' Strings are compared through their digest, because that is the only thing a
+'' recording can carry. The byte dump is still produced and handed to Case_ as
+'' the detail line, so a mismatch reports what it always did.
 sub chkstr( byref what as string, byref want as string, byref got as string )
-    ran += 1
-    if want <> got then
-        dim as string wd, gd
-        for i as integer = 0 to len(want) - 1  : wd += " " + str(want[i])  : next
-        for i as integer = 0 to len(got) - 1   : gd += " " + str(got[i])   : next
-        report += "  MISMATCH " + what + " want [" + wd + " ] got [" + gd + " ]" + chr(10)
-        failures += 1
-    end if
+    dim as string wd, gd
+    for i as integer = 0 to len(want) - 1  : wd += " " + str(want[i])  : next
+    for i as integer = 0 to len(got) - 1   : gd += " " + str(got[i])   : next
+    Abtest.Case_( what, Abtest.Digest( want ), Abtest.Digest( got ), _
+                  "want [" + wd + " ] got [" + gd + " ]" )
 end sub
+
+'' A check ABOUT the reference rather than against it -- see Interop_ in
+'' abtest.bi. It keeps its slot in the recording and the subject skips it.
+sub rchkstr( byref what as string, byref want as string, byref got as string )
+    Abtest.Interop_( what, Abtest.Digest( want ), Abtest.Digest( got ) )
+end sub
+
+sub rchk( byref what as string, byval want as longint, byval got as longint )
+    Abtest.Interop_( what, want, got )
+end sub
+
+'' The reference seam. INKEY answers the empty string in the subject role, which
+'' is what an absent reference should look like to everything downstream.
+function RefInkey( ) as string
+#ifdef ABTEST_HAS_GFXLIB2
+    return inkey
+#else
+    return ""
+#endif
+end function
 
 '' The reference's ring may already hold keys from opening the screen.
 sub DrainReference( )
+#ifdef ABTEST_HAS_GFXLIB2
     dim as long guard = 0
     while (inkey <> "") andalso (guard < 4096)
         guard += 1
     wend
+#endif
 end sub
 
 '' fb_hPostKey expects the driver lock held -- that is what SCREENLOCK takes.
 sub PostRef( byval code as long )
+#ifdef ABTEST_HAS_GFXLIB2
     screenlock
     fb_hPostKey( code )
     screenunlock
+#endif
 end sub
 
+#ifdef ABTEST_HAS_GFXLIB2
 screen 13
+#endif
 
 dim as KeyRing k
 KeyRingInit( k )
 DrainReference( )
 
 '' ---- 1. empty, then FIFO ----
-chkstr( "empty: reference", "", inkey )
+rchkstr( "empty: reference", "", RefInkey( ) )
 chkstr( "empty: ours", "", KeyInkeyStr( KeyGet( k ) ) )
-chk( "empty: keyhit reference", 0, iif( inkey <> "", 1, 0 ) )
+rchk( "empty: keyhit reference", 0, iif( RefInkey( ) <> "", 1, 0 ) )
 chk( "empty: keyhit ours", 0, KeyHit( k ) )
 
 dim as long codes(...) = { 65, 97, 13, 27, 32, 126 }
@@ -103,9 +128,9 @@ for i as integer = 0 to ubound( codes )
     KeyPost( k, codes(i) )
 next
 for i as integer = 0 to ubound( codes )
-    chkstr( "fifo " + str(codes(i)), inkey, KeyInkeyStr( KeyGet( k ) ) )
+    chkstr( "fifo " + str(codes(i)), RefInkey( ), KeyInkeyStr( KeyGet( k ) ) )
 next
-chkstr( "drained", inkey, KeyInkeyStr( KeyGet( k ) ) )
+chkstr( "drained", RefInkey( ), KeyInkeyStr( KeyGet( k ) ) )
 
 '' ---- 2. the encoding, across the one-byte boundary ----
 ''
@@ -117,7 +142,7 @@ dim as long enc(...) = { 1, 65, 254, 255, 256, 257, 300, 511, 512, _
 for i as integer = 0 to ubound( enc )
     PostRef( enc(i) )
     KeyPost( k, enc(i) )
-    chkstr( "encode " + str(enc(i)), inkey, KeyInkeyStr( KeyGet( k ) ) )
+    chkstr( "encode " + str(enc(i)), RefInkey( ), KeyInkeyStr( KeyGet( k ) ) )
 next
 
 '' ---- 3. KEYHIT does not consume ----
@@ -128,7 +153,7 @@ scope
     for t as integer = 1 to 2
         chk( "keyhit " + str(t) + " ours", 1, KeyHit( k ) )
     next
-    chkstr( "still there after keyhit", inkey, KeyInkeyStr( KeyGet( k ) ) )
+    chkstr( "still there after keyhit", RefInkey( ), KeyInkeyStr( KeyGet( k ) ) )
     chk( "empty after the read", 0, KeyHit( k ) )
 end scope
 
@@ -145,17 +170,20 @@ scope
 
     chk( "capacity is KEY_BUFFER_LEN - 1", KEY_BUFFER_LEN - 1, KeyCount( k ) )
 
+    '' Bounded by OUR ring, not by whichever side runs dry first: a loop whose
+    '' trip count comes from the reference has a different trip count in a role
+    '' with no reference, and the recording would not line up.
     dim as long n = 0
     dim as long first_ours = -1
-    do
-        dim as string a = inkey
+    for t as integer = 0 to KEY_BUFFER_LEN - 2
+        dim as string a = RefInkey( )
         dim as long bc = KeyGet( k )
         dim as string b = KeyInkeyStr( bc )
-        if (a = "") andalso (b = "") then exit do
+        chkstr( "overflow " + str(t), a, b )
+        if b = "" then exit for
         if first_ours < 0 then first_ours = bc
-        chkstr( "overflow " + str(n), a, b )
         n += 1
-    loop while n < KEY_BUFFER_LEN * 2
+    next
 
     chk( "overflow: same number survived", KEY_BUFFER_LEN - 1, n )
     '' and the drop really happened -- otherwise this section proves nothing
@@ -171,7 +199,7 @@ scope
         dim as long c = 33 + (i mod 90)
         PostRef( c )
         KeyPost( k, c )
-        chkstr( "wrap " + str(i), inkey, KeyInkeyStr( KeyGet( k ) ) )
+        chkstr( "wrap " + str(i), RefInkey( ), KeyInkeyStr( KeyGet( k ) ) )
     next
 end scope
 
@@ -185,7 +213,7 @@ scope
 
     dim as long probes(...) = { -1000, -1, 0, 1, 27, 64, 126, 127, 128, 200, 1000 }
     for i as integer = 0 to ubound( probes )
-        chk( "multikey " + str(probes(i)), multikey( probes(i) ), _
+        chk( "multikey " + str(probes(i)), REF( multikey( probes(i) ) ), _
              KeyMultikey( t, probes(i) ) )
     next
 
@@ -193,19 +221,13 @@ scope
     '' pass a handful of spot checks
     dim as long diffs = 0
     for sc as integer = 0 to KEY_TABLE_LEN - 1
-        if multikey( sc ) <> KeyMultikey( t, sc ) then diffs += 1
+        if REF( multikey( sc ) ) <> KeyMultikey( t, sc ) then diffs += 1
     next
     chk( "multikey: all 128 scancodes agree with nothing held", 0, diffs )
 end scope
 
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-keyboard -- "; ran; " keyboard checks against gfxlib2"
-if failures = 0 then
-    print "abtest-keyboard: PASS -- the key ring and MULTIKEY agree"
-    end 0
-else
-    print report;
-    print "abtest-keyboard: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )

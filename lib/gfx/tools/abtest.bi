@@ -172,7 +172,8 @@ end sub
 '' argument is ignored and b is checked against the recording; in the default
 '' role the two are compared directly. Every role therefore calls this with the
 '' same arguments, and a case that is skipped in one role is skipped in all.
-sub Case_ ( byval cname as string, byval a as ulongint, byval b as ulongint )
+sub Case_ ( byval cname as string, byval a as ulongint, byval b as ulongint, _
+        byval detail as string = "" )
     dim as long i = st.ran
     st.ran += 1
 
@@ -196,14 +197,16 @@ sub Case_ ( byval cname as string, byval a as ulongint, byval b as ulongint )
     end if
     if want <> b then
         st.report += "  MISMATCH " + cname + _
-                     "  gfxlib2=" + hex( want, 16 ) + "  tko=" + hex( b, 16 ) + chr( 10 )
+                     "  gfxlib2=" + hex( want, 16 ) + "  tko=" + hex( b, 16 ) + _
+                     iif( len( detail ) > 0, "  " + detail, "" ) + chr( 10 )
         st.failures += 1
     end if
 
 #else
     if a <> b then
         st.report += "  MISMATCH " + cname + _
-                     "  gfxlib2=" + hex( a, 16 ) + "  tko=" + hex( b, 16 ) + chr( 10 )
+                     "  gfxlib2=" + hex( a, 16 ) + "  tko=" + hex( b, 16 ) + _
+                     iif( len( detail ) > 0, "  " + detail, "" ) + chr( 10 )
         st.failures += 1
     end if
 #endif
@@ -220,7 +223,8 @@ end sub
 '' Such a case still occupies a position in the recording, so the sequence stays
 '' aligned and every case after it is compared against the right line. The
 '' subject skips it and says so; it is reported as a skip, never as a pass.
-sub Interop_ ( byval cname as string, byval a as ulongint, byval b as ulongint )
+sub Interop_ ( byval cname as string, byval a as ulongint, byval b as ulongint, _
+        byval detail as string = "" )
     dim as long i = st.ran
     st.ran += 1
 
@@ -247,7 +251,8 @@ sub Interop_ ( byval cname as string, byval a as ulongint, byval b as ulongint )
 #else
     if a <> b then
         st.report += "  MISMATCH " + cname + _
-                     "  gfxlib2=" + hex( a, 16 ) + "  tko=" + hex( b, 16 ) + chr( 10 )
+                     "  gfxlib2=" + hex( a, 16 ) + "  tko=" + hex( b, 16 ) + _
+                     iif( len( detail ) > 0, "  " + detail, "" ) + chr( 10 )
         st.failures += 1
     end if
 #ifdef ABTEST_EMIT

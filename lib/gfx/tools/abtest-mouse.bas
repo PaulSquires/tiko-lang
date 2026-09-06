@@ -37,24 +37,34 @@
 '' pass and stated here rather than faked with a passing stub. The button and
 '' wheel STATE MACHINE is still verified below from synthetic messages, which
 '' costs nothing and catches the bit twiddling.
+''
+'' Split into roles (abtest.bi). This one was already written as side A, then
+'' side B, then compare, so the split is just the A scope disappearing -- the
+'' readings it fills come from the recording instead. Both windows still have
+'' to take focus and the cursor still really moves, in whichever role is
+'' running; that requirement did not go away, it just applies to one window at
+'' a time now.
 
 #include once "../driver/window.bi"
-#include once "fbgfx.bi"
+#include once "abtest.bi"
 #include once "windows.bi"
+#ifdef ABTEST_HAS_GFXLIB2
+#include once "fbgfx.bi"
+using FB
+#endif
 
 using TkoGfx
-using FB
 
-dim shared as string report
-dim shared as long failures = 0
-dim shared as long ran = 0
+Abtest.Begin( "abtest-mouse", "the pointer mapping agrees" )
 
 sub chk( byref what as string, byval want as longint, byval got as longint )
-    ran += 1
-    if want <> got then
-        report += "  MISMATCH " + what + " want " + str(want) + " got " + str(got) + chr(10)
-        failures += 1
-    end if
+    Abtest.Case_( what, want, got )
+end sub
+
+'' A check ABOUT the reference rather than against it -- see Interop_ in
+'' abtest.bi. It keeps its slot in the recording and the subject skips it.
+sub rchk( byref what as string, byval want as longint, byval got as longint )
+    Abtest.Interop_( what, want, got )
 end sub
 
 const NPTS = 7
@@ -133,6 +143,7 @@ sub MoveTo( byval hwin as HWND, byval cx as long, byval cy as long )
 end sub
 
 '' ---- side A: the reference ----
+#ifdef ABTEST_HAS_GFXLIB2
 scope
     screen 13
     dim as long h
@@ -188,6 +199,7 @@ scope
     next
     screen 0
 end scope
+#endif
 
 '' ---- side B: ours, over the identical protocol ----
 scope
@@ -266,8 +278,8 @@ scope
     for i as integer = 0 to NPTS - 1
         nok += refr(i).ok
     next
-    chk( "reference saw at least one point INSIDE",  0, iif( nok > 0, 0, 1 ) )
-    chk( "reference saw at least one point OUTSIDE", 0, iif( nok < NPTS, 0, 1 ) )
+    rchk( "reference saw at least one point INSIDE",  0, iif( nok > 0, 0, 1 ) )
+    rchk( "reference saw at least one point OUTSIDE", 0, iif( nok < NPTS, 0, 1 ) )
 end scope
 
 '' ---- the button and wheel state machine, from synthetic messages ----
@@ -329,12 +341,4 @@ scope
     chk( "failure clip", -1, c )
 end scope
 
-print "abtest-mouse -- "; ran; " pointer checks against gfxlib2"
-if failures = 0 then
-    print "abtest-mouse: PASS -- the pointer mapping agrees"
-    end 0
-else
-    print report;
-    print "abtest-mouse: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )
