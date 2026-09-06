@@ -82,6 +82,7 @@ const POINT_AXIS_SENTINEL as single = -8388607.0f
 type ScreenState
     wnd      as GfxWindow
     pixels   as any ptr
+    dirty    as any ptr        '' one byte per row; see ScreenOpen
     mode     as long
     isOpen   as long
 end type
@@ -259,6 +260,10 @@ private sub ScreenTeardown( )
     if TheScreen.pixels <> 0 then
         deallocate( TheScreen.pixels )
         TheScreen.pixels = 0
+    end if
+    if TheScreen.dirty <> 0 then
+        deallocate( TheScreen.dirty )
+        TheScreen.dirty = 0
     end if
     SurfaceInit( ScreenCtx.surf, 0, 0, 0, 0, 0 )
     ViewportInit( ScreenCtx.vp, 0, 0 )

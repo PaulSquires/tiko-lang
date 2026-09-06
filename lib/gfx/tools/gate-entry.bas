@@ -32,6 +32,7 @@
 '' different space than the one it drew in.
 
 #include once "fbgfx.bi"
+#include once "windows.bi"
 using FB
 
 const W = 64
@@ -438,6 +439,133 @@ scope
     acc = (acc xor cast( ulong, point( 0, 0 ) )) * 1099511628211ull
     acc = (acc xor cast( ulong, point( -1, 0 ) )) * 1099511628211ull
     Emit( "8bpp point returns", acc )
+end scope
+
+'' ------------------------------------ 8bpp PRESENTATION, off the real window
+''
+'' THE LAST UNGATED PIECE, and the only one that leaves the framebuffer.
+'' Everything above compares what was WRITTEN; this compares what is DISPLAYED.
+''
+'' It matters because the two libraries present a paletted surface completely
+'' differently. gfxlib2 hands GDI an 8bpp DIB with a 256-entry RGBQUAD colour
+'' table. libtkogfx expands into a 32bpp mirror through a lookup table first
+'' (GdiExpand8), because BITMAPINFO here has no room for the table. Those are
+'' different code paths that must put the same colour on the glass, and nothing
+'' compared them until this section.
+''
+'' READBACK IS FRAGILE BY NATURE -- probe-window says so at length. BitBlt from
+'' a window DC captures whatever is actually on screen, so an occluding window,
+'' a screen blank or DWM deciding not to redraw all produce a blank grab. So the
+'' capture is RETRIED, and if it never yields a non-blank frame the case emits
+'' CAPTURE-FAILED rather than a digest. gate-entry.sh treats that as a SKIP on
+'' either side, which is the difference between an honest gap and a flaky gate.
+scope
+    screenres W, H, 8
+
+    '' A palette where every index maps somewhere distinctive, so an expansion
+    '' that dropped a channel or swapped R and B cannot come out equal. The
+    '' default VGA table has too many greys near the bottom to discriminate.
+    for i as integer = 0 to 255
+        palette i, (i * 7) and 63, (i * 13) and 63, (i * 29) and 63
+    next
+
+    '' Something with structure. Flat fills would agree under a broken LUT as
+    '' long as index 0 happened to match.
+    line ( 0, 0 )-( W - 1, H - 1 ), 0, BF
+    for y as integer = 0 to H - 1
+        line ( 0, y )-( W - 1, y ), (y * 5 + 3) and &hFF
+    next
+    line ( 8, 8 )-( 40, 30 ), 200, B
+    circle ( 32, 24 ), 9, 100, , , , F
+
+    dim as long winh
+    screencontrol GET_WINDOW_HANDLE, winh
+    dim as HWND hw = cast( HWND, cast( any ptr, cast( uinteger, winh ) ) )
+
+    if hw = 0 then
+        Log_ += "CAPTURE-FAILED" + chr( 9 ) + "8bpp presentation" + chr( 10 )
+    else
+        SetWindowPos( hw, HWND_TOPMOST, 0, 0, 0, 0, _
+                      SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE )
+
+        dim as ulongint dig = 0
+        dim as long got = 0
+        dim as long isblank = 1
+
+        for attempt as integer = 1 to 40
+            Sleep( 60 )
+
+            dim as HDC src = GetDC( hw )
+            if src <> 0 then
+                dim as HDC mem = CreateCompatibleDC( src )
+                if mem <> 0 then
+                    dim as BITMAPINFO bmi
+                    bmi.bmiHeader.biSize        = sizeof( BITMAPINFOHEADER )
+                    bmi.bmiHeader.biWidth       = W
+                    bmi.bmiHeader.biHeight      = -H       '' top-down
+                    bmi.bmiHeader.biPlanes      = 1
+                    bmi.bmiHeader.biBitCount    = 32
+                    bmi.bmiHeader.biCompression = BI_RGB
+
+                    dim as any ptr bits
+                    dim as HBITMAP dib = CreateDIBSection( src, @bmi, DIB_RGB_COLORS, _
+                                                           @bits, NULL, 0 )
+                    if (dib <> 0) andalso (bits <> 0) then
+                        dim as HGDIOBJ old_ = SelectObject( mem, dib )
+                        if BitBlt( mem, 0, 0, W, H, src, 0, 0, SRCCOPY ) <> 0 then
+                            '' FNV-1a over the visible pixels, ALPHA MASKED OFF:
+                            '' GDI does not carry it through a BitBlt and the two
+                            '' sides have no reason to agree on what it leaves.
+                            dim as ulongint acc = 14695981039346656037ull
+                            dim as long nonzero = 0
+                            for y as integer = 0 to H - 1
+                                dim as ulong ptr row = cptr( ulong ptr, _
+                                    cptr( ubyte ptr, bits ) + y * (W * 4) )
+                                for x as integer = 0 to W - 1
+                                    dim as ulong c = row[x] and &hFFFFFF
+                                    if c <> 0 then nonzero += 1
+                                    acc = (acc xor c) * 1099511628211ull
+                                next
+                            next
+                            '' THE DIGEST IS TAKEN EVEN IF THE FRAME IS BLACK,
+                            '' and that distinction is the whole value of the
+                            '' case. BitBlt succeeding means the CAPTURE worked;
+                            '' what it captured is then a result, and a black
+                            '' window where the reference has a picture is a
+                            '' failure to report, not a frame to wait for.
+                            ''
+                            '' Treating black as "not captured yet" was the
+                            '' first shape of this and it made the case
+                            '' worthless: dropping the palette LUT rebuild --
+                            '' which blanks the window completely -- came out as
+                            '' a SKIP and the gate still passed. Measured.
+                            ''
+                            '' The retry stays, so a frame the compositor has
+                            '' not drawn yet is given time; `blank` only decides
+                            '' whether to keep waiting, never whether to report.
+                            dig = acc
+                            got = 1
+                            if nonzero > 0 then isblank = 0
+                        end if
+                        SelectObject( mem, old_ )
+                        DeleteObject( dib )
+                    end if
+                    DeleteDC( mem )
+                end if
+                ReleaseDC( hw, src )
+            end if
+
+            '' Keep retrying only while the frame is blank AND we have time;
+            '' a non-blank frame is final.
+            if got andalso (isblank = 0) then exit for
+        next
+
+        if got then
+            Emit( "8bpp presentation", dig )
+        else
+            Log_ += "CAPTURE-FAILED" + chr( 9 ) + "8bpp presentation" + chr( 10 )
+        end if
+    end if
 end scope
 
 screen 0

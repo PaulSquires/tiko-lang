@@ -66,7 +66,29 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     dim as any ptr px = callocate( pitch * h )
     if px = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
 
+    '' THE DIRTY ARRAY, WITHOUT WHICH NOTHING IS EVER PRESENTED.
+    ''
+    '' DirtyMark returns immediately when Surface.dirty is NULL, and
+    '' GdiPresentDirty presents only rows that are marked. A screen surface with
+    '' no array therefore draws correctly into memory and shows NOTHING: the
+    '' window displays whatever its first WM_PAINT put there, which is the black
+    '' frame from before the program drew anything.
+    ''
+    '' This was true at EVERY depth, not just 8bpp, from the day fb_GfxScreen was
+    '' written. Nothing caught it because nothing looked at the window:
+    '' tools/smoke.sh reads the framebuffer back through POINT, gate-entry
+    '' digests through POINT, and tools/probe-window.bas allocates a dirty array
+    '' of its own because it calls WindowOpen directly rather than through
+    '' SCREEN. It took reading pixels off the presented window to see it.
+    dim as any ptr dirtybuf = callocate( h )
+    if dirtybuf = 0 then
+        deallocate( px )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
+
     SurfaceInit( ScreenCtx.surf, px, w, h, pitch, bpp )
+    ScreenCtx.surf.dirty = dirtybuf
+    TheScreen.dirty = dirtybuf
     ViewportInit( ScreenCtx.vp, w, h )
     DrawStateInit( ScreenCtx.draw, bpp * 8 )
     ScreenCtx.target = 0

@@ -96,6 +96,10 @@ end sub
 
 '' The per-window state lives in the HWND's user data, set from the CREATESTRUCT
 '' the moment WM_NCCREATE arrives. Nothing here is a process global.
+'' The OUTER size CreateWindowEx is about to ask for, so WM_GETMINMAXINFO can
+'' answer before the window has a GfxWindow attached. See that case.
+dim shared as long PendingMinW, PendingMinH
+
 private function WindowProc cdecl ( _
         byval hwnd as HWND, byval msg as UINT, _
         byval wp as WPARAM, byval lp as LPARAM ) as LRESULT
@@ -108,6 +112,28 @@ private function WindowProc cdecl ( _
         SetWindowLongPtr( hwnd, GWLP_USERDATA, cast( LONG_PTR, w ) )
     else
         w = cast( GfxWindow ptr, GetWindowLongPtr( hwnd, GWLP_USERDATA ) )
+    end if
+
+    '' ANSWERED BEFORE THE `w <> 0` GUARD, and that is the whole point.
+    ''
+    '' WM_GETMINMAXINFO arrives while CreateWindowEx is deciding the size --
+    '' BEFORE WM_NCCREATE -- so GWLP_USERDATA is still empty and the select
+    '' below never runs for it. Putting the case in there looked right and did
+    '' nothing: measured, the client stayed clamped at 120 pixels wide.
+    ''
+    '' Windows clamps a captioned window to whatever its caption buttons need.
+    '' SCREENRES 64, 48 asked for a 64-pixel client and got 120; gfxlib2's comes
+    '' back at exactly 64. tools/probe-window.bas opens 320x200, far above the
+    '' clamp, which is why nothing saw this until a gate read pixels off a small
+    '' window. WindowOpen leaves the wanted OUTER size in PendingMin*; one window
+    '' exists at a time, which is what makes a shared safe here.
+    if msg = WM_GETMINMAXINFO then
+        if PendingMinW > 0 then
+            dim as MINMAXINFO ptr mmi = cast( MINMAXINFO ptr, lp )
+            mmi->ptMinTrackSize.x = PendingMinW
+            mmi->ptMinTrackSize.y = PendingMinH
+        end if
+        return 0
     end if
 
     if w <> 0 then
@@ -196,6 +222,12 @@ private function WindowCreate( byref w as GfxWindow ) as long
 
     dim as long x = (GetSystemMetrics( SM_CXSCREEN ) - outer_w) \ 2
     dim as long y = (GetSystemMetrics( SM_CYSCREEN ) - outer_h) \ 2
+
+    '' Windows clamps a captioned window to whatever its buttons need -- measured
+    '' at 120 pixels for a 64-pixel client -- and does it silently. Telling
+    '' WM_GETMINMAXINFO the size we want is the documented way out.
+    PendingMinW = outer_w
+    PendingMinH = outer_h
 
     w.hwnd = CreateWindowEx( 0, @WINDOW_CLASS_NAME, @w.title, style, _
                              x, y, outer_w, outer_h, _

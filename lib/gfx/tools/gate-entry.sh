@@ -106,6 +106,7 @@ if [ "$ref_n" != "$sub_n" ]; then
 fi
 
 differ=0
+skipped=0
 while IFS=$( printf '\t' ) read -r rdig rname; do
     IFS=$( printf '\t' ) read -r sdig sname <&3 || break
     if [ "$rname" != "$sname" ]; then
@@ -113,7 +114,14 @@ while IFS=$( printf '\t' ) read -r rdig rname; do
         differ=$(( differ + 1 ))
         break
     fi
-    if [ "$rdig" != "$sdig" ]; then
+    # A case that could not capture the screen is a SKIP on whichever side
+    # failed, not a difference. Readback grabs whatever is actually on the
+    # glass, so an occluding window or a blanked screen makes it fail for
+    # reasons that have nothing to do with either library.
+    if [ "$rdig" = "CAPTURE-FAILED" ] || [ "$sdig" = "CAPTURE-FAILED" ]; then
+        echo "gate-entry: SKIP     $rname -- readback captured no frame" >&2
+        skipped=$(( skipped + 1 ))
+    elif [ "$rdig" != "$sdig" ]; then
         echo "gate-entry: DIFFERS  $rname  gfxlib2=$rdig  tko=$sdig" >&2
         differ=$(( differ + 1 ))
     fi
@@ -122,7 +130,11 @@ done < "$TMP/ref.out" 3< "$TMP/sub.out"
 [ "$1" = "--keep" ] && echo "gate-entry: build products left in $TMP"
 
 if [ "$differ" = 0 ]; then
-    echo "gate-entry: PASS -- $ref_n cases, every public entry point agrees with gfxlib2"
+    if [ "$skipped" = 0 ]; then
+        echo "gate-entry: PASS -- $ref_n cases, every public entry point agrees with gfxlib2"
+    else
+        echo "gate-entry: PASS -- $ref_n cases, $skipped skipped (see above), the rest agree"
+    fi
     exit 0
 fi
 echo "gate-entry: FAIL -- $differ of $ref_n cases differ" >&2

@@ -36,6 +36,15 @@
 
 #pragma once
 
+'' EVERY MUTATOR REFRESHES THE PRESENTATION LUT.
+''
+'' entry/context.bi keeps 256 packed values that the window expands a paletted
+'' surface through. Changing the table without rebuilding it leaves the screen
+'' showing the OLD colours -- or, from a SCREENRES 8bpp start where the table
+'' begins all zero, showing black however much the program draws. Measured that
+'' way: tools/gate-entry.sh could not capture a non-blank frame from an 8bpp
+'' window until this was added, while 32bpp presented correctly all along.
+
 extern "c"
 
 '' PALETTE index, r, g, b   -- or PALETTE index, value when g and b are -1.
@@ -51,6 +60,8 @@ sub TkoGfxPalette alias "fb_GfxPalette" ( _
 
     if index < 0 then
         TkoGfx.PaletteForget( )
+        TkoGfx.PaletteCurrent( )
+        TkoGfx.PaletteLutRebuild( )
         exit sub
     end if
 
@@ -61,6 +72,7 @@ sub TkoGfxPalette alias "fb_GfxPalette" ( _
     else
         TkoGfx.PaletteSetRgb( *p, index, r, g, b )
     end if
+    TkoGfx.PaletteLutRebuild( )
 end sub
 
 '' PALETTE GET index, r [, g, b]
@@ -123,6 +135,7 @@ sub TkoGfxPaletteUsing alias "fb_GfxPaletteUsing" ( byval src as long ptr )
     for i as integer = 0 to n - 1
         TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
     next
+    TkoGfx.PaletteLutRebuild( )
 end sub
 
 sub TkoGfxPaletteUsing64 alias "fb_GfxPaletteUsing64" ( byval src as longint ptr )
@@ -132,6 +145,7 @@ sub TkoGfxPaletteUsing64 alias "fb_GfxPaletteUsing64" ( byval src as longint ptr
     for i as integer = 0 to n - 1
         TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
     next
+    TkoGfx.PaletteLutRebuild( )
 end sub
 
 '' PALETTE GET USING array(0) -- the same, outward.

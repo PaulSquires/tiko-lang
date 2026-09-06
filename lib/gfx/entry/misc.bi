@@ -176,6 +176,68 @@ function TkoGfxScreenList alias "fb_GfxScreenList" ( byval depth as long ) as lo
     return 0
 end function
 
+'' SCREENCONTROL selector, a [, b [, c [, d ]]]
+''
+'' NOT IN src/mir/rtl.bi, like fb_GfxImageDestroy: tiko has no RTL entry for it.
+'' fbc emits it for SCREENCONTROL, and without it a program cannot ask for its
+'' own window handle -- which is also what tools/gate-entry.sh needs to read
+'' pixels back off the presented window. Probed: the signature is
+'' ( int32, int32*, int32*, int32*, int32* ) and every omitted output is a
+'' temporary, never NULL.
+''
+'' THE DRIVER SELECTORS ARE ANSWERED HERE, NOT IN core/control.bi. That file
+'' declines all four on purpose -- it is a pure function of the SCREEN STATE and
+'' has no driver to ask -- and tools/abtest-control.bas compares that decision
+'' against gfxlib2. This layer has the window, so it answers the two it can and
+'' leaves the rest declined.
+''
+'' GET_WINDOW_POS and GET_DESKTOP_SIZE are still not answered: the first has a
+'' set direction this does not implement, and the second needs a monitor
+'' enumeration nothing else here does. An unanswered selector leaves the
+'' caller's outputs untouched, which is what fbc does with one its driver
+'' refuses.
+sub TkoGfxControl alias "fb_GfxControl_i32" ( _
+        byval selector as long, _
+        byval pa as long ptr, byval pb as long ptr, _
+        byval pc as long ptr, byval pd as long ptr )
+
+    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( 0 )
+    if c = 0 then exit sub
+
+    if selector = TkoGfx.GET_WINDOW_HANDLE then
+        '' An HWND is pointer-wide and the output is int32. That is fbc's own
+        '' signature, not a narrowing introduced here -- SCREENCONTROL predates
+        '' 64-bit handles and the value is passed back through `integer` at the
+        '' BASIC level. Truncating is what the reference does too.
+        if pa <> 0 then *pa = cast( long, cast( integer, TkoGfx.TheScreen.wnd.hwnd ) )
+        exit sub
+    end if
+
+    dim as long cfg, cbg
+    cfg = cast( long, c->draw.fg_color )
+    cbg = cast( long, c->draw.bg_color )
+
+    dim as TkoGfx.GfxScreenState st
+    if TkoGfx.ScreenStateFromMode( st, TkoGfx.TheScreen.mode, c->surf.pitch ) = 0 then
+        '' SCREENRES has no legacy mode number, so build the state from the
+        '' surface instead of the table.
+        st.w = c->surf.w
+        st.h = c->surf.h
+        st.depth = c->surf.bpp * 8
+        st.bpp = c->surf.bpp
+        st.pitch = c->surf.pitch
+    end if
+
+    dim as integer g1, g2, g3, g4
+    if TkoGfx.ScreenControlGet( st, c->vp, cfg, cbg, 0, 0, selector, g1, g2, g3, g4 ) = 0 then
+        exit sub
+    end if
+    if pa <> 0 then *pa = cast( long, g1 )
+    if pb <> 0 then *pb = cast( long, g2 )
+    if pc <> 0 then *pc = cast( long, g3 )
+    if pd <> 0 then *pd = cast( long, g4 )
+end sub
+
 '' PUT ..., ADD -- the tenth blender, and the one src/mir/rtl.bi files under
 '' RTL_H_PUT_ADD rather than with the other nine.
 ''
