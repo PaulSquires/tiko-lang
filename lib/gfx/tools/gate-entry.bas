@@ -660,6 +660,33 @@ Blank( ) : locate 2, 2 : print chr( 255 ) + chr( 13 ); : Report( "a caret before
 Blank( ) : locate 2, 3 : print chr( 8 ) + chr( 255 ); : Report( "a caret after a backspace" )
 Blank( ) : locate 2, 1 : print chr( 9 ) + chr( 255 ); : Report( "a caret after a tab" )
 
+'' ---- PRINT OF A WSTRING, which is a different hook and the same path ----
+''
+'' The console fonts are 256 CP437 glyphs, so the reference converts a wide
+'' string to ASCII and prints that; the wide hook has no glyph machinery of its
+'' own. What these compare is that the conversion, the length it prints and the
+'' mask all agree -- and, for the last two, what happens when a character does
+'' NOT survive the conversion, which is the half nobody can predict from the
+'' source alone.
+Blank( ) : locate 2, 2 : print wstr( "Hi" ); : Report( "print of a wstring" )
+Blank( ) : locate 2, 2 : print wstr( "Hi" ) : Report( "wide print with a newline" )
+Blank( ) : locate 2, 2 : print wstr( "" ); : Report( "an empty wide print" )
+Blank( ) : locate 2, 2 : print wstr( "" ) : Report( "an empty wide print with a newline" )
+Blank( ) : locate 2, 2 : print wstr( "abcdefghij" ); : Report( "a wide print that wraps" )
+Blank( ) : locate 2, 2 : print wstr( "ab" ), : Report( "a wide print with a pad" )
+
+'' THE CARET RULE APPLIES TO WHAT THE CONVERSION PRODUCES, not to what was
+'' written: a wide chr(255) that converts to one byte 255 is a caret by the time
+'' the tty layer sees it.
+Blank( ) : locate 2, 2 : print wchr( 255 ); : Report( "a wide caret" )
+
+'' AND A CHARACTER THAT CANNOT BE REPRESENTED. Whatever the runtime substitutes
+'' -- a question mark, a truncation, nothing at all -- both sides have to agree,
+'' and neither this file nor the library decides it.
+Blank( ) : locate 2, 2 : print wchr( 233 ); : Report( "a wide latin-1 character" )
+Blank( ) : locate 2, 2 : print wchr( &h4E2D ); : Report( "a wide character with no ascii" )
+Blank( ) : locate 2, 2 : print wchr( &hD83D ) + wchr( &hDE00 ); : Report( "a wide surrogate pair" )
+
 '' ---- VIEW PRINT: the text region, and what it protects ----
 ''
 '' THIS ONE IS A REAL A/B. VIEW PRINT is output only -- no keystroke has to be

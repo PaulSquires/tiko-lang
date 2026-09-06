@@ -27,6 +27,8 @@
 ''                 core/cells.bi    the one-page answers, see below
 ''
 ''     printbuff's caret   the one-byte chr(255) form, gated by gate-entry
+''     printbuffw          converted to ASCII by the runtime, then the same
+''                         path -- gated by gate-entry
 ''
 ''     inkey, getkey, keyhit, multikey, readstr, lineinput
 ''                 core/keyboard.bi gated by tools/abtest-keyboard.bas, plus the
@@ -48,14 +50,8 @@
 '' readstrproc is installed as well, and is the path INPUT takes from a real
 '' channel rather than from the console.
 ''
-'' WHAT IS STILL LEFT NULL, all six of them: printbuffw, in, out, sleep,
-'' postevent and lineinputw. Twenty-two of the 28 slots are filled.
-''
-'' printbuffw HAS NEVER BEEN ON THIS LIST and should have been: PRINT of a
-'' WSTRING goes to the runtime's console rather than to the graphics screen,
-'' because that slot is null and a null slot falls back. It is a hole in the
-'' output surface, not just an unimplemented extra, and it wants the whole
-'' narrow path again over wide characters.
+'' WHAT IS STILL LEFT NULL, all five of them: in, out, sleep, postevent and
+'' lineinputw. Twenty-three of the 28 slots are filled.
 ''
 '' The port internals are gated but nothing routes them yet; the wide LINE INPUT
 '' needs the wstring editing loop that the narrow one above is only half of.
@@ -317,6 +313,25 @@ private sub ConPrintTty( byval p as ubyte ptr, byval n as long )
     ConPrintRun( run_ )
 end sub
 
+'' THE WHOLE OF PRINT'S BODY, so the wide hook can reach it too.
+''
+'' Both printbuff and printbuffw end here: gfxlib2's wide hook converts to ASCII
+'' and calls its narrow one, and the mask -- the PAD and NEWLINE bits -- is
+'' applied once, after whatever text there was.
+private sub ConPrintNarrow( byval p as ubyte ptr, byval n as long, byval mask as long )
+    if (p <> 0) andalso (n > 0) then ConPrintTty( p, n )
+
+    '' PAD is what `PRINT x,` asks for: advance to the next 14-column zone.
+    if (mask and FB_PRINT_PAD) <> 0 then
+        dim as long k = 14 - (TheCon.col mod 14)
+        for i as integer = 1 to k
+            ConPutChar( 32 )
+        next
+    end if
+
+    if (mask and FB_PRINT_NEWLINE) <> 0 then ConNewline( )
+end sub
+
 '' ------------------------------------------------------------- the keyboard
 ''
 '' THE RING IS THE WINDOW'S, not the console's. driver/window.bi fills it from
@@ -541,6 +556,16 @@ extern "rtlib"
         byval fill_rem as long ) as any ptr
 end extern
 
+'' NOT FBCALL, unlike everything above. fb_unicode.h declares fb_wstr_ConvToA
+'' plain, and tiko-rt's src/strw/conv.bas says so where it defines it. On win32
+'' that is the difference between cdecl and stdcall, which is a corrupted stack
+'' rather than a wrong answer.
+extern "c"
+    declare function fb_wstr_ConvToA_ alias "fb_wstr_ConvToA" ( _
+        byval dst as zstring ptr, byval dst_chars as integer, _
+        byval src as wstring ptr ) as integer
+end extern
+
 extern "c"
 
 sub TkoConPrintBuff cdecl ( byval buffer as const any ptr, _
@@ -553,17 +578,44 @@ sub TkoConPrintBuff cdecl ( byval buffer as const any ptr, _
     '' write -- `print ""` and `print ;` both reach here with length 0.
     dim as ubyte ptr p = cptr( ubyte ptr, buffer )
     dim as integer n = cast( integer, length )
-    if (p <> 0) andalso (n > 0) then TkoGfx.ConPrintTty( p, n )
+    TkoGfx.ConPrintNarrow( p, cast( long, n ), mask )
+end sub
 
-    '' PAD is what `PRINT x,` asks for: advance to the next 14-column zone.
-    if (mask and TkoGfx.FB_PRINT_PAD) <> 0 then
-        dim as long n = 14 - (TkoGfx.TheCon.col mod 14)
-        for i as integer = 1 to n
-            TkoGfx.ConPutChar( 32 )
-        next
+'' PRINT of a WSTRING. Sixteen console slots were filled before this one and
+'' every list of what was missing left it out, so a program that printed a wide
+'' string on a graphics screen had it go to the RUNTIME's console -- a null slot
+'' falls back, and the fallback writes somewhere else entirely.
+''
+'' UNICODE IS CONVERTED AWAY, and that is the reference's decision rather than a
+'' shortcut here: gfx_print_wstr.c converts to ASCII with fb_wstr_ConvToA and
+'' calls the narrow path, because the console fonts are 256 CP437 glyphs and
+'' there is nothing else to draw with. Anything the conversion cannot represent
+'' is the runtime's business, not this library's -- so it is BOUND, not
+'' reimplemented.
+''
+'' `len` BYTES ARE PRINTED, whatever the conversion reports back. That is the
+'' reference's shape too, and the two only disagree when a character converts to
+'' more or fewer bytes than one; gate-entry compares that rather than assuming
+'' it.
+sub TkoConPrintBuffW cdecl ( byval buffer as const any ptr, _
+        byval length as uinteger, byval mask as long )
+    if TkoGfx.TheCon.live = 0 then exit sub
+
+    dim as integer n = cast( integer, length )
+    if (buffer = 0) orelse (n <= 0) then
+        '' THE MASK STILL APPLIES with nothing to print: `print wstr("")` is a
+        '' newline and reaches here with a length of zero.
+        TkoGfx.ConPrintNarrow( 0, 0, mask )
+        exit sub
     end if
 
-    if (mask and TkoGfx.FB_PRINT_NEWLINE) <> 0 then TkoGfx.ConNewline( )
+    '' The conversion writes a terminator past dst_chars, so the buffer is one
+    '' byte longer than the count asked for.
+    dim as ubyte ptr tmp = callocate( n + 1 )
+    if tmp = 0 then exit sub
+    fb_wstr_ConvToA_( cptr( zstring ptr, tmp ), n, cptr( wstring ptr, buffer ) )
+    TkoGfx.ConPrintNarrow( tmp, cast( long, n ), mask )
+    deallocate( tmp )
 end sub
 
 sub TkoConCls cdecl ( byval mode as long )
@@ -910,6 +962,7 @@ private sub ConsoleStart( byval mode as long )
     tb.getxyproc      = @TkoConGetXY
     tb.getsizeproc    = @TkoConGetSize
     tb.printbuffproc  = @TkoConPrintBuff
+    tb.printbuffwproc = @TkoConPrintBuffW
     tb.readxyproc     = @TkoConReadXY
     tb.pagecopyproc   = @TkoConPageCopy
     tb.pagesetproc    = @TkoConPageSet
