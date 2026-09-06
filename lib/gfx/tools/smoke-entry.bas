@@ -27,6 +27,18 @@
 #include once "windows.bi"
 using FB
 
+'' THE SETTLING WAITS MUST ACTUALLY WAIT, so they are not the SLEEP statement.
+''
+'' `Sleep( 150 )` is FB's SLEEP -- the keyword wins the parse -- and SLEEP on a
+'' graphics screen is INTERRUPTED BY A KEYSTROKE above 100 ms. Every settle here
+'' follows a PostMessage of a key, so the statement would return the moment that
+'' key arrived and the wait it was supposed to provide would be gone.
+''
+'' The API is bound under a name the parser cannot claim.
+extern "windows"
+    declare sub WinSleep alias "Sleep" ( byval ms as ulong )
+end extern
+
 dim shared as long fails
 
 '' FAILURES ARE BUFFERED UNTIL AFTER SCREEN 0, and this is not cosmetic. Once
@@ -62,7 +74,7 @@ function ForceForeground( byval hwin as HWND ) as long
 
     for i as integer = 1 to 40
         if GetForegroundWindow( ) = hwin then return 1
-        Sleep( 25 )
+        WinSleep( 25 )
     next
     return 0
 end function
@@ -142,7 +154,7 @@ scope
         for i as integer = 0 to 2
             PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "a" ) + i ), 0 )
         next
-        Sleep( 150 )
+        WinSleep( 150 )
         dim as string acc
         for i as integer = 1 to 6
             acc += inkey
@@ -165,7 +177,7 @@ scope
         next
         PostMessage( hw, WM_KEYDOWN, VK_UP, cast( LPARAM, SC_UP shl 16 ) )
         PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
-        Sleep( 150 )
+        WinSleep( 150 )
         dim as string ext
         for i as integer = 1 to 4
             ext += inkey
@@ -200,7 +212,7 @@ scope
             inkey
         next
         PostMessage( hw, WM_KEYDOWN, cast( WPARAM, asc( "A" ) ), cast( LPARAM, &h1E shl 16 ) )
-        Sleep( 150 )
+        WinSleep( 150 )
         dim as string once_
         for i as integer = 1 to 4
             once_ += inkey
@@ -221,7 +233,7 @@ scope
         for i as integer = 0 to len( typed ) - 1
             PostMessage( hw, WM_CHAR, cast( WPARAM, typed[i] ), 0 )
         next
-        Sleep( 150 )
+        WinSleep( 150 )
         dim as string got
         input "", got
         chk( "input reads the window", 0, iif( got = "Hi", 0, 1 ) )
@@ -231,7 +243,7 @@ scope
         for i as integer = 0 to len( typed2 ) - 1
             PostMessage( hw, WM_CHAR, cast( WPARAM, typed2[i] ), 0 )
         next
-        Sleep( 150 )
+        WinSleep( 150 )
         dim as string got2
         input "", got2
         chk( "backspace edits the line", 0, iif( got2 = "AY", 0, 1 ) )
@@ -248,7 +260,7 @@ scope
         PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
         PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "X" ) ), 0 )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as string e1
         input "", e1
         chk( "left arrow then a character inserts", 0, iif( e1 = "aXbc", 0, 1 ) )
@@ -262,7 +274,7 @@ scope
         PostMessage( hw, WM_KEYDOWN, VK_HOME, cast( LPARAM, SC_HOME shl 16 ) )
         PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "a" ) ), 0 )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as string e2
         input "", e2
         chk( "home then a character prepends", 0, iif( e2 = "abc", 0, 1 ) )
@@ -278,7 +290,7 @@ scope
         PostMessage( hw, WM_KEYDOWN, VK_HOME, cast( LPARAM, SC_HOME shl 16 ) )
         PostMessage( hw, WM_KEYDOWN, VK_DELETE, cast( LPARAM, SC_DELETE shl 16 ) )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as string e3
         input "", e3
         chk( "delete removes forward", 0, iif( e3 = "bc", 0, 1 ) )
@@ -292,7 +304,7 @@ scope
         PostMessage( hw, WM_KEYDOWN, VK_END, cast( LPARAM, SC_END shl 16 ) )
         PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "c" ) ), 0 )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as string e4
         input "", e4
         chk( "end returns to the tail", 0, iif( e4 = "abc", 0, 1 ) )
@@ -318,7 +330,7 @@ scope
         PostMessage( hw, WM_KEYDOWN, VK_HOME, cast( LPARAM, SC_HOME shl 16 ) )
         PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "Z" ) ), 0 )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 300 )
+        WinSleep( 300 )
         dim as string e6
         input "", e6
         chk( "a line that scrolls still edits at the front", 0, _
@@ -347,7 +359,7 @@ scope
         PostMessage( hw, WM_KEYDOWN, VK_UP, cast( LPARAM, SC_UP shl 16 ) )
         PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "z" ) ), 0 )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as string e5
         input "", e5
         chk( "an unhandled arrow is swallowed", 0, iif( e5 = "z", 0, 1 ) )
@@ -374,7 +386,7 @@ scope
         for i as integer = 0 to len( typed4 ) - 1
             PostMessage( hw, WM_CHAR, cast( WPARAM, typed4[i] ), 0 )
         next
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as string e7
         input "", e7
         chk( "input still reads after a cls", 0, iif( e7 = "ab", 0, 1 ) )
@@ -411,7 +423,7 @@ scope
         next
         PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as string e8
         input "", e8
         dim as long got_
@@ -422,7 +434,72 @@ scope
         next
         chk( "the caret does not eat the character under it", want_, got_ )
 
-        '' ---- THE POINTER ----
+'' ---- SLEEP, AND THE 100 ms BOUNDARY ----
+        ''
+        '' WHAT THE HOOK CHANGES IS WHICH BUFFER IS POLLED. With the slot null
+        '' the runtime polls its CONSOLE input, so a key typed into the graphics
+        '' window cannot cut a sleep short -- the sleep and the keyboard look at
+        '' different places. These checks measure that, and they fail with the
+        '' hook removed, which is what makes them worth having.
+        ''
+        '' Win32 Sleep is used for the settling waits on purpose: FB's SLEEP is
+        '' the thing under test.
+        scope
+            '' Drain first: reading a key clears the "changed" flag, so a
+            '' leftover keystroke from an earlier check would cut the sleep
+            '' short for the wrong reason.
+            for i as integer = 1 to 20
+                inkey
+            next
+
+            PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "k" ) ), 0 )
+            WinSleep( 150 )
+            dim as double t0 = timer
+            sleep 400
+            dim as long ms = clng( (timer - t0) * 1000 )
+            chk( "a key cuts a long sleep short", 1, iif( ms < 250, 1, 0 ) )
+
+            '' AND THE KEY SURVIVES IT. Only the flag is consumed; the code
+            '' stays on the ring, so the INKEY after a woken sleep still sees it.
+            chk( "the key that woke it is still readable", 0, iif( inkey = "k", 0, 1 ) )
+
+            '' BELOW 100 ms NOTHING IS POLLED. A pending key must NOT shorten
+            '' this one -- that asymmetry is the reference's and the runtime's.
+            for i as integer = 1 to 20
+                inkey
+            next
+            PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "j" ) ), 0 )
+            WinSleep( 150 )
+            t0 = timer
+            sleep 60
+            ms = clng( (timer - t0) * 1000 )
+            chk( "a key does NOT cut a short sleep short", 1, iif( ms >= 40, 1, 0 ) )
+
+'' THE INFINITE FORM. Bare SLEEP is fb_Sleep( -1 ) -- measured -- and waits
+            '' until a key arrives, polling every 50 ms. If this branch were broken
+            '' the check would not fail, it would HANG, which the harness turns
+            '' into a timeout rather than a message.
+            for i as integer = 1 to 20
+                inkey
+            next
+            PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "z" ) ), 0 )
+            WinSleep( 150 )
+            t0 = timer
+            sleep
+            ms = clng( (timer - t0) * 1000 )
+            chk( "a bare sleep returns when a key arrives", 1, iif( ms < 250, 1, 0 ) )
+
+            '' And an uninterrupted sleep actually waits.
+            for i as integer = 1 to 20
+                inkey
+            next
+            t0 = timer
+            sleep 200
+            ms = clng( (timer - t0) * 1000 )
+            chk( "an uninterrupted sleep waits", 1, iif( ms >= 150, 1, 0 ) )
+        end scope
+
+                '' ---- THE POINTER ----
         ''
         '' THIS MOVES THE REAL CURSOR, which is what SETMOUSE is. It is put back
         '' where it was afterwards, and the clip is released on every path --
@@ -498,7 +575,7 @@ scope
         for i as integer = 0 to len( typed3 ) - 1
             PostMessage( hw, WM_CHAR, cast( WPARAM, typed3[i] ), 0 )
         next
-        Sleep( 150 )
+        WinSleep( 150 )
         dim as string got3
         line input "P"; got3
         chk( "line input assigns a var-len string", 0, iif( got3 = "Q", 0, 1 ) )
@@ -517,7 +594,7 @@ scope
         for i as integer = 0 to len( typedw ) - 1
             PostMessage( hw, WM_CHAR, cast( WPARAM, typedw[i] ), 0 )
         next
-        Sleep( 200 )
+        WinSleep( 200 )
         dim as wstring * 16 wgot
         line input wgot
         chk( "wide line input assigns the wstring", 0, iif( wgot = wstr( "Wq" ), 0, 1 ) )
@@ -527,7 +604,7 @@ scope
         '' have the runtime skip the assignment entirely -- so the previous
         '' answer would still be sitting there and this check is what sees it.
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 200 )
+        WinSleep( 200 )
         line input wgot
         chk( "an empty wide line input clears it", 0, iif( len( wgot ) = 0, 0, 1 ) )
 
@@ -548,7 +625,7 @@ scope
         PostMessage( hw, WM_KEYDOWN, VK_LEFT, cast( LPARAM, SC_LEFT shl 16 ) )
         PostMessage( hw, WM_CHAR, cast( WPARAM, asc( "X" ) ), 0 )
         PostMessage( hw, WM_CHAR, 13, 0 )
-        Sleep( 250 )
+        WinSleep( 250 )
         line input wgot
         chk( "wide line input edits with the arrows", 0, iif( wgot = wstr( "aXb" ), 0, 1 ) )
 
@@ -557,7 +634,7 @@ scope
         for i as integer = 0 to len( typedy ) - 1
             PostMessage( hw, WM_CHAR, cast( WPARAM, typedy[i] ), 0 )
         next
-        Sleep( 250 )
+        WinSleep( 250 )
         line input wshort
         chk( "max_chars truncates the wide destination", 3, len( wshort ) )
     end if

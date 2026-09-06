@@ -48,6 +48,22 @@
 #include once "driver.bi"
 #include once "gdi.bi"
 #include once "mouse.bi"
+
+'' SLEEP IS A KEYWORD, AND THAT IS A TRAP THIS LIBRARY WALKED INTO.
+''
+'' `Sleep( 10 )` in FreeBASIC source is the SLEEP STATEMENT, not the Win32 API,
+'' even with windows.bi included -- the keyword wins the parse. The statement
+'' compiles to fb_Sleep, which consults __fb_ctx.hooks.sleepproc, which since
+'' entry/console.bi installed one is THIS LIBRARY. Every internal wait became a
+'' call back into our own sleep hook, and the hook's own waits recursed.
+''
+'' It hung tools/smoke.sh outright the first time the hook was installed. So the
+'' API is bound under a name the parser cannot claim, and every internal wait
+'' uses it. A wait inside a graphics library must not depend on what the program
+'' installed as its sleep.
+extern "windows"
+    declare sub WinSleep alias "Sleep" ( byval ms as ulong )
+end extern
 #include once "../core/keyboard.bi"   '' KeyRing / KeyTable, filled from WM_CHAR
 #include once "windows.bi"
 
@@ -353,7 +369,7 @@ private function WindowThread cdecl ( byval param as any ptr ) as DWORD
         w->started = 1
 
         WindowUnlock( *w )
-        Sleep( WINDOW_FRAME_MS )
+        WinSleep( WINDOW_FRAME_MS )
     wend
 
     '' Destroy from the owning thread. DestroyWindow from another thread is

@@ -50,9 +50,9 @@
 '' readstrproc is installed as well, and is the path INPUT takes from a real
 '' channel rather than from the console.
 ''
-'' WHAT IS STILL LEFT NULL, all four of them: in, out, sleep and postevent.
-'' Twenty-four of the 28 slots are filled, and the four that are not are the
-'' mouse-free, port-level ones plus SLEEP.
+'' WHAT IS STILL LEFT NULL, all three of them: in, out and postevent. The port
+'' pair has gated internals with nothing routing them; postevent belongs to the
+'' event queue rather than the console. Twenty-five of the 28 slots are filled.
 ''
 '' The port internals are gated but nothing routes them yet; the wide LINE INPUT
 '' needs the wstring editing loop that the narrow one above is only half of.
@@ -369,6 +369,18 @@ private function ConKeyHit( ) as long
     return n
 end function
 
+'' DID ANY KEY ARRIVE? Reading the flag CLEARS it, and taking a key off the ring
+'' clears it too -- core/keyboard.bi owns both rules. It exists so SLEEP can tell
+'' that input happened without consuming the key, which is what makes a keystroke
+'' that cut a sleep short still readable by the INKEY after it.
+private function ConKeyChanged( ) as long
+    if TheScreen.isOpen = 0 then return 0
+    WindowLock( TheScreen.wnd )
+    dim as long r = KeyBufferChanged( TheScreen.wnd.keys )
+    WindowUnlock( TheScreen.wnd )
+    return r
+end function
+
 '' Block until a key arrives, or until the window closes.
 ''
 '' THE WINDOW-CLOSED TEST IS NOT OPTIONAL. Without it, closing the window while
@@ -380,7 +392,7 @@ private function ConKeyWait( ) as long
         dim as long c = ConKeyGet( )
         if c <> 0 then return c
         if WindowWasClosed( TheScreen.wnd ) then return 0
-        Sleep( 5 )
+        WinSleep( 5 )
     loop
 end function
 
@@ -891,6 +903,59 @@ function TkoConMultikey cdecl ( byval scancode as long ) as long
     return r
 end function
 
+'' SLEEP, and the 100 ms boundary is the whole of it.
+''
+'' THREE REGIMES, taken from gfx_sleep.c and identical in the runtime's own
+'' console version (tiko-rt src/dt/wallclock.bas), which is what makes the two
+'' comparable at all:
+''
+''   -1        wait forever, polling every 50 ms
+''   >= 100    poll in 50 ms steps while more than 50 remain, then sleep the
+''             remainder -- so a keystroke can cut it short
+''   < 100     no polling at all. A console check costs more than the sleep it
+''             would interrupt, so SLEEP 50 cannot be interrupted and SLEEP 100
+''             can. That asymmetry is deliberate in the reference and is
+''             reproduced rather than smoothed over.
+''
+'' WHAT INSTALLING THIS ACTUALLY CHANGES: which buffer is polled. With the slot
+'' null the runtime polls its CONSOLE input, so a key typed into the graphics
+'' window would not cut a sleep short -- the sleep and the keyboard would be
+'' looking at different places. tools/smoke.sh measures exactly that.
+''
+'' THE CLOSED WINDOW IS AN EXIT, which the reference does not have: `sleep` with
+'' no argument on a window the user has closed waits forever there, and the only
+'' way out is the task manager. Same decision as ConKeyWait, made for the same
+'' reason and noted here because it is a deliberate difference rather than an
+'' accident.
+sub TkoConSleep cdecl ( byval msecs as long )
+    if TkoGfx.TheCon.live = 0 then
+        if msecs > 0 then WinSleep( msecs )
+        exit sub
+    end if
+
+    if msecs = -1 then
+        do
+            if TkoGfx.ConKeyChanged( ) <> 0 then exit sub
+            if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) then exit sub
+            WinSleep( 50 )
+        loop
+    end if
+
+    dim as long remaining = msecs
+    if remaining >= 100 then
+        while remaining > 50
+            if TkoGfx.ConKeyChanged( ) <> 0 then exit sub
+            if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) then exit sub
+            WinSleep( 50 )
+            remaining -= 50
+        wend
+    end if
+
+    '' The remainder, and the whole of a short sleep. A negative value that is
+    '' not -1 falls through to here and sleeps for nothing, as both references do.
+    if remaining > 0 then WinSleep( remaining )
+end sub
+
 '' INPUT's collector. The runtime asks for at most `length_` bytes and takes the
 '' returned pointer; returning NULL is how the console reports end-of-input, and
 '' a closed window is exactly that.
@@ -1059,6 +1124,7 @@ private sub ConsoleStart( byval mode as long )
     tb.getkeyproc     = @TkoConGetKey
     tb.keyhitproc     = @TkoConKeyHit
     tb.multikeyproc   = @TkoConMultikey
+    tb.sleepproc      = @TkoConSleep
     tb.readstrproc    = @TkoConReadStr
     tb.lineinputproc  = @TkoConLineInput
     tb.lineinputwproc = @TkoConLineInputW
