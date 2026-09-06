@@ -1,0 +1,144 @@
+0000000000000010	pitch depth 8 w=1
+0000000000000010	pitch depth 8 w=2
+0000000000000010	pitch depth 8 w=3
+0000000000000010	pitch depth 8 w=4
+0000000000000010	pitch depth 8 w=5
+0000000000000010	pitch depth 8 w=6
+0000000000000010	pitch depth 8 w=7
+0000000000000010	pitch depth 8 w=8
+0000000000000010	pitch depth 8 w=9
+0000000000000010	pitch depth 8 w=10
+0000000000000010	pitch depth 8 w=11
+0000000000000010	pitch depth 8 w=12
+0000000000000010	pitch depth 8 w=13
+0000000000000010	pitch depth 8 w=14
+0000000000000010	pitch depth 8 w=15
+0000000000000010	pitch depth 8 w=16
+0000000000000020	pitch depth 8 w=17
+0000000000000020	pitch depth 8 w=18
+0000000000000020	pitch depth 8 w=19
+0000000000000020	pitch depth 8 w=20
+0000000000000020	pitch depth 8 w=21
+0000000000000020	pitch depth 8 w=22
+0000000000000020	pitch depth 8 w=23
+0000000000000020	pitch depth 8 w=24
+0000000000000020	pitch depth 8 w=25
+0000000000000020	pitch depth 8 w=26
+0000000000000020	pitch depth 8 w=27
+0000000000000020	pitch depth 8 w=28
+0000000000000020	pitch depth 8 w=29
+0000000000000020	pitch depth 8 w=30
+0000000000000020	pitch depth 8 w=31
+0000000000000020	pitch depth 8 w=32
+0000000000000030	pitch depth 8 w=33
+0000000000000030	pitch depth 8 w=34
+0000000000000030	pitch depth 8 w=35
+0000000000000030	pitch depth 8 w=36
+0000000000000030	pitch depth 8 w=37
+0000000000000030	pitch depth 8 w=38
+0000000000000030	pitch depth 8 w=39
+0000000000000030	pitch depth 8 w=40
+0000000000000010	pitch depth 16 w=1
+0000000000000010	pitch depth 16 w=2
+0000000000000010	pitch depth 16 w=3
+0000000000000010	pitch depth 16 w=4
+0000000000000010	pitch depth 16 w=5
+0000000000000010	pitch depth 16 w=6
+0000000000000010	pitch depth 16 w=7
+0000000000000010	pitch depth 16 w=8
+0000000000000020	pitch depth 16 w=9
+0000000000000020	pitch depth 16 w=10
+0000000000000020	pitch depth 16 w=11
+0000000000000020	pitch depth 16 w=12
+0000000000000020	pitch depth 16 w=13
+0000000000000020	pitch depth 16 w=14
+0000000000000020	pitch depth 16 w=15
+0000000000000020	pitch depth 16 w=16
+0000000000000030	pitch depth 16 w=17
+0000000000000030	pitch depth 16 w=18
+0000000000000030	pitch depth 16 w=19
+0000000000000030	pitch depth 16 w=20
+0000000000000030	pitch depth 16 w=21
+0000000000000030	pitch depth 16 w=22
+0000000000000030	pitch depth 16 w=23
+0000000000000030	pitch depth 16 w=24
+0000000000000040	pitch depth 16 w=25
+0000000000000040	pitch depth 16 w=26
+0000000000000040	pitch depth 16 w=27
+0000000000000040	pitch depth 16 w=28
+0000000000000040	pitch depth 16 w=29
+0000000000000040	pitch depth 16 w=30
+0000000000000040	pitch depth 16 w=31
+0000000000000040	pitch depth 16 w=32
+0000000000000050	pitch depth 16 w=33
+0000000000000050	pitch depth 16 w=34
+0000000000000050	pitch depth 16 w=35
+0000000000000050	pitch depth 16 w=36
+0000000000000050	pitch depth 16 w=37
+0000000000000050	pitch depth 16 w=38
+0000000000000050	pitch depth 16 w=39
+0000000000000050	pitch depth 16 w=40
+0000000000000010	pitch depth 32 w=1
+0000000000000010	pitch depth 32 w=2
+0000000000000010	pitch depth 32 w=3
+0000000000000010	pitch depth 32 w=4
+0000000000000020	pitch depth 32 w=5
+0000000000000020	pitch depth 32 w=6
+0000000000000020	pitch depth 32 w=7
+0000000000000020	pitch depth 32 w=8
+0000000000000030	pitch depth 32 w=9
+0000000000000030	pitch depth 32 w=10
+0000000000000030	pitch depth 32 w=11
+0000000000000030	pitch depth 32 w=12
+0000000000000040	pitch depth 32 w=13
+0000000000000040	pitch depth 32 w=14
+0000000000000040	pitch depth 32 w=15
+0000000000000040	pitch depth 32 w=16
+0000000000000050	pitch depth 32 w=17
+0000000000000050	pitch depth 32 w=18
+0000000000000050	pitch depth 32 w=19
+0000000000000050	pitch depth 32 w=20
+0000000000000060	pitch depth 32 w=21
+0000000000000060	pitch depth 32 w=22
+0000000000000060	pitch depth 32 w=23
+0000000000000060	pitch depth 32 w=24
+0000000000000070	pitch depth 32 w=25
+0000000000000070	pitch depth 32 w=26
+0000000000000070	pitch depth 32 w=27
+0000000000000070	pitch depth 32 w=28
+0000000000000080	pitch depth 32 w=29
+0000000000000080	pitch depth 32 w=30
+0000000000000080	pitch depth 32 w=31
+0000000000000080	pitch depth 32 w=32
+0000000000000090	pitch depth 32 w=33
+0000000000000090	pitch depth 32 w=34
+0000000000000090	pitch depth 32 w=35
+0000000000000090	pitch depth 32 w=36
+00000000000000A0	pitch depth 32 w=37
+00000000000000A0	pitch depth 32 w=38
+00000000000000A0	pitch depth 32 w=39
+00000000000000A0	pitch depth 32 w=40
+reference-only--	dir1 (gfxlib2 PUT of OUR image) 17x11
+reference-only--	dir2 (we read both buffers) 17x11
+reference-only--	dir3 (we wrote THEIR buffer) 17x11
+reference-only--	dir4 IMAGEINFO on our image 17x11
+reference-only--	dir1 (gfxlib2 PUT of OUR image) 32x16
+reference-only--	dir2 (we read both buffers) 32x16
+reference-only--	dir3 (we wrote THEIR buffer) 32x16
+reference-only--	dir4 IMAGEINFO on our image 32x16
+reference-only--	dir1 (gfxlib2 PUT of OUR image) 33x24
+reference-only--	dir2 (we read both buffers) 33x24
+reference-only--	dir3 (we wrote THEIR buffer) 33x24
+reference-only--	dir4 IMAGEINFO on our image 33x24
+reference-only--	dir1 (gfxlib2 PUT of OUR image) 40x24
+reference-only--	dir2 (we read both buffers) 40x24
+reference-only--	dir3 (we wrote THEIR buffer) 40x24
+reference-only--	dir4 IMAGEINFO on our image 40x24
+reference-only--	dir1 (gfxlib2 PUT of OUR image) 63x40
+reference-only--	dir2 (we read both buffers) 63x40
+reference-only--	dir3 (we wrote THEIR buffer) 63x40
+reference-only--	dir4 IMAGEINFO on our image 63x40
+reference-only--	dir1 (gfxlib2 PUT of OUR image) 64x48
+reference-only--	dir2 (we read both buffers) 64x48
+reference-only--	dir3 (we wrote THEIR buffer) 64x48
+reference-only--	dir4 IMAGEINFO on our image 64x48

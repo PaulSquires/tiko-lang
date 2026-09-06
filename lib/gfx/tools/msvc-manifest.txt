@@ -31,7 +31,7 @@ probe-window        native
 abtest-line         split
 
 abtest-blit         mingw-only  # __fb_gfx fb_GfxLock fb_GfxPaletteGet fb_GfxPset fb_GfxScreenInfo32 fb_GfxScreenPtr fb_GfxScreenRes fb_GfxUnlock fb_hGetBlitter
-abtest-bmp          mingw-only
+abtest-bmp          split
 abtest-box          split     
 abtest-bpp          split
 abtest-bsave        mingw-only  # fb_GfxBload fb_GfxBsave fb_GfxScreenRes
@@ -44,7 +44,7 @@ abtest-convert      split
 abtest-dirty        split
 abtest-draw         split
 abtest-events       split
-abtest-image        mingw-only
+abtest-image        split
 abtest-keyboard     split
 abtest-lzw          mingw-only  # fb_hDecode fb_hEncode
 abtest-mode         split

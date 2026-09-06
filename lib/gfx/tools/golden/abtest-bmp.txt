@@ -1,0 +1,11 @@
+B942089F7DB99DEE	bmp32 4x3
+2082B7498678B160	bmp32 5x4
+B64D665FD6042CEA	bmp32 6x5
+74328CDE919D0092	bmp32 7x6
+C1862E3AA56A138C	bmp32 16x9
+F0D4B176D4B270FF	bmp32 17x10
+BB151AD468658C5E	bmp32 30x11
+14CA2862FF650B31	bmp32 33x12
+reference-only--	an image to .bsv leaves a zero-length file
+reference-only--	a .bmp starts with BM
+reference-only--	a sized buffer to .bsv starts with &hFE

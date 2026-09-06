@@ -27,11 +27,16 @@
 #include once "../core/image.bi"
 #include once "../raster/box.bi"
 #include once "../raster/line.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+#endif
 #include once "crt/string.bi"
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
+#endif
 
 const SW = 96
 const SH = 72
@@ -48,6 +53,13 @@ function Digest( byval pixels as any ptr, byval pitch as integer, _
     return acc
 end function
 
+'' Split into roles (abtest.bi). Section 0 -- that our pitch equals the one
+'' gfxlib2 picks -- is an ordinary comparison and runs everywhere. Sections 1
+'' to 4 are the reason this file exists and are NOT splittable: each of them
+'' hands a buffer ONE library made to the OTHER library at run time, and no
+'' recording can stand in for a gfxlib2 that has to be present to read it.
+'' They are Interop_, so they hold their slots and are reported as skips.
+''
 '' Paint a recognisable, asymmetric pattern into a Surface.
 sub FillPattern( byref s as Surface )
     LineBox32( s, 0, 0, s.w - 1, s.h - 1, &hFF203040, 1 )
@@ -59,11 +71,11 @@ sub FillPattern( byref s as Surface )
     next
 end sub
 
+#ifdef ABTEST_HAS_GFXLIB2
 screenres SW, SH, 32, 1, GFX_NULL
+#endif
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-image", "buffers are interchangeable in both directions" )
 
 '' widths chosen so pitch padding actually differs from width * bpp for 8bpp,
 '' and sizes that are not multiples of anything convenient
@@ -79,29 +91,35 @@ for bi as integer = 0 to 2
     dim as long depth = iif( bi = 0, 8, iif( bi = 1, 16, 32 ) )
     dim as long bpp = iif( bi = 0, 1, iif( bi = 1, 2, 4 ) )
     for w as integer = 1 to 40
+        dim as long ip = 0
+#ifdef ABTEST_HAS_GFXLIB2
         dim as any ptr im = imagecreate( w, 4, 0, depth )
-        if im = 0 then continue for
-        dim as integer iw, ih, ib, ip
-        dim as any ptr dd
-        imageinfo( im, iw, ih, ib, ip, dd )
-        imagedestroy( im )
-        ran += 1
-        if ip <> ImagePitch( w, bpp ) then
-            report += "  MISMATCH pitch depth " + str(depth) + " w=" + str(w) + _
-                      ": gfxlib2=" + str(ip) + " tko=" + str( ImagePitch( w, bpp ) ) + chr(10)
-            failures += 1
+        if im = 0 then
+            Abtest.Fail_( "pitch depth " + str(depth) + " w=" + str(w), "imagecreate FAILED" )
+            continue for
         end if
+        dim as integer iw, ih, ib, xp
+        dim as any ptr dd
+        imageinfo( im, iw, ih, ib, xp, dd )
+        imagedestroy( im )
+        ip = xp
+#endif
+        Abtest.Case_( "pitch depth " + str(depth) + " w=" + str(w), _
+                      ip, ImagePitch( w, bpp ), "tko=" + str( ImagePitch( w, bpp ) ) )
     next
 next
 
 for i as integer = 0 to ubound( ws )
     dim as long w = ws(i), h = hs(i)
+    dim as string sz = str(w) + "x" + str(h)
+    dim as ulongint after_ours, after_theirs, theirs_by_us, ours_by_us, written_by_us
+    dim as long infook = 0
 
+#ifdef ABTEST_HAS_GFXLIB2
     '' ---- 1. ours -> gfxlib2 reads ----
     dim as TkoAbi.PUT_HEADER ptr mine = TkoImageNew( w, h, 4 )
     if mine = 0 then
-        report += "  ImageCreate failed for " + str(w) + "x" + str(h) + chr(10)
-        failures += 1
+        Abtest.Fail_( sz, "TkoImageNew failed" )
         continue for
     end if
     dim as Surface ms
@@ -110,7 +128,7 @@ for i as integer = 0 to ubound( ws )
 
     cls
     put ( 4, 4 ), mine, PSET
-    dim as ulongint after_ours = Digest( screenptr( ), SW * 4, SW, SH )
+    after_ours = Digest( screenptr( ), SW * 4, SW, SH )
 
     '' the same content in a gfxlib2 image, drawn the same way
     dim as any ptr theirs = imagecreate( w, h, 0, 32 )
@@ -123,22 +141,11 @@ for i as integer = 0 to ubound( ws )
 
     cls
     put ( 4, 4 ), theirs, PSET
-    dim as ulongint after_theirs = Digest( screenptr( ), SW * 4, SW, SH )
-
-    ran += 1
-    if after_ours <> after_theirs then
-        report += "  MISMATCH dir1 (gfxlib2 PUT of OUR image) " + str(w) + "x" + str(h) + chr(10)
-        failures += 1
-    end if
+    after_theirs = Digest( screenptr( ), SW * 4, SW, SH )
 
     '' ---- 2. gfxlib2's image, read by us ----
-    dim as ulongint theirs_by_us = Digest( tdata, tpitch, w, h )
-    dim as ulongint ours_by_us = Digest( TkoImagePixels( mine ), mine->pitch, w, h )
-    ran += 1
-    if theirs_by_us <> ours_by_us then
-        report += "  MISMATCH dir2 (we read both buffers) " + str(w) + "x" + str(h) + chr(10)
-        failures += 1
-    end if
+    theirs_by_us = Digest( tdata, tpitch, w, h )
+    ours_by_us = Digest( TkoImagePixels( mine ), mine->pitch, w, h )
 
     '' ---- 3. we WRITE into THEIR buffer, they display it ----
     memset( tdata, 0, tpitch * h )
@@ -147,39 +154,30 @@ for i as integer = 0 to ubound( ws )
     FillPattern( ts2 )
     cls
     put ( 4, 4 ), theirs, PSET
-    dim as ulongint written_by_us = Digest( screenptr( ), SW * 4, SW, SH )
-    ran += 1
-    if written_by_us <> after_theirs then
-        report += "  MISMATCH dir3 (we wrote THEIR buffer) " + str(w) + "x" + str(h) + chr(10)
-        failures += 1
-    end if
+    written_by_us = Digest( screenptr( ), SW * 4, SW, SH )
 
     '' ---- 4. IMAGEINFO agreement on OUR image ----
     dim as integer gw, gh, gbpp, gpitch
     dim as any ptr gdata
     dim as long rc = imageinfo( mine, gw, gh, gbpp, gpitch, gdata )
-    ran += 1
-    if (rc <> 0) orelse (gw <> w) orelse (gh <> h) orelse (gbpp <> 4) orelse _
-       (gpitch <> mine->pitch) orelse (gdata <> TkoImagePixels( mine )) then
-        report += "  MISMATCH dir4 IMAGEINFO on our " + str(w) + "x" + str(h) + _
-                  ": rc=" + str(rc) + " w=" + str(gw) + " h=" + str(gh) + _
-                  " bpp=" + str(gbpp) + " pitch=" + str(gpitch) + _
-                  " (ours pitch=" + str(mine->pitch) + ")" + chr(10)
-        failures += 1
-    end if
+    infook = iif( (rc = 0) andalso (gw = w) andalso (gh = h) andalso (gbpp = 4) andalso _
+                  (gpitch = mine->pitch) andalso (gdata = TkoImagePixels( mine )), 1, 0 )
 
     imagedestroy( theirs )      '' theirs frees theirs
     TkoImageFree( mine )        '' ours frees ours
+#endif
+
+    '' Every one of these hands a buffer from one library to the other at run
+    '' time. There is nothing for the subject role to run and nothing a
+    '' recording could substitute, so they are skipped and counted, not passed.
+    Abtest.Interop_( "dir1 (gfxlib2 PUT of OUR image) " + sz, after_ours, after_theirs )
+    Abtest.Interop_( "dir2 (we read both buffers) " + sz, theirs_by_us, ours_by_us )
+    Abtest.Interop_( "dir3 (we wrote THEIR buffer) " + sz, after_theirs, written_by_us )
+    Abtest.Interop_( "dir4 IMAGEINFO on our image " + sz, 1, infook )
 next
 
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-image -- "; ran; " cross-library interchange checks against gfxlib2"
-if failures = 0 then
-    print "abtest-image: PASS -- buffers are interchangeable in both directions"
-    end 0
-else
-    print report;
-    print "abtest-image: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )

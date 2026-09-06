@@ -19,20 +19,40 @@
 
 #include once "../core/bmp.bi"
 #include once "../core/bsave.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+#endif
 #include once "crt/string.bi"
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
-
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+#endif
 
 dim as string tmpdir = environ( "TEMP" )
 if tmpdir = "" then tmpdir = "."
 dim as string fa = tmpdir + "\abtest_bmp_a.bmp"
 dim as string fb2 = tmpdir + "\abtest_bmp_b.bmp"
+
+'' The whole file in one digest, so a recording can carry it. Zero for a file
+'' that will not open, which is distinguishable from any real content.
+function FileDigest( byref path as string, byref n as ulong ) as ulongint
+    n = 0
+    dim as long h = freefile
+    if open( path, for binary, access read, as #h ) <> 0 then return 0
+    n = lof( h )
+    if n = 0 then
+        close #h
+        return 1
+    end if
+    dim as ubyte ptr d = allocate( n )
+    get #h, , *d, n
+    close #h
+    dim as ulongint r = Abtest.Digest( d, cast( integer, n ) )
+    deallocate( d )
+    return r
+end function
 
 '' Compare two files byte for byte; returns -1 if equal, else the first index.
 function DiffFiles( byref p1 as string, byref p2 as string, byref n1 as ulong, byref n2 as ulong ) as long
@@ -63,7 +83,11 @@ function DiffFiles( byref p1 as string, byref p2 as string, byref n1 as ulong, b
     return res
 end function
 
+#ifdef ABTEST_HAS_GFXLIB2
 screenres 64, 48, 32, 1, GFX_NULL
+#endif
+
+Abtest.Begin( "abtest-bmp", "files are byte-identical" )
 
 '' every residue mod 4, plus a couple of larger sizes
 dim as long ws(...) = { 4, 5, 6, 7, 16, 17, 30, 33 }
@@ -72,6 +96,10 @@ dim as long hs(...) = { 3, 4, 5, 6, 9, 10, 11, 12 }
 for i as integer = 0 to ubound( ws )
     dim as long w = ws(i), h = hs(i)
 
+    dim as ulongint dref = 0
+    dim as ulong nref = 0
+
+#ifdef ABTEST_HAS_GFXLIB2
     pset ( 0, 0 ), 0
     dim as any ptr theirs = imagecreate( w, h, 0, 32 )
     dim as integer tw, th, tb, tp
@@ -84,6 +112,7 @@ for i as integer = 0 to ubound( ws )
             row[x] = &hFF000000 or (cuint(x*17) shl 16) or (cuint(y*29) shl 8) or cuint(x+y*3)
         next
     next
+#endif
 
     dim as TkoAbi.PUT_HEADER ptr mine = TkoImageNew( w, h, 4 )
     for y as integer = 0 to h - 1
@@ -94,20 +123,31 @@ for i as integer = 0 to ubound( ws )
     next
 
     kill fa : kill fb2
+#ifdef ABTEST_HAS_GFXLIB2
     bsave fa, theirs
+    dref = FileDigest( fa, nref )
+#endif
     BmpSave32( fb2, mine )
 
+    dim as ulong nmine
+    dim as ulongint dmine = FileDigest( fb2, nmine )
+
+    '' Two files that were compared byte for byte are now compared by digest --
+    '' the same claim, and one a recording can carry. The first differing offset
+    '' is still computed where both files exist, and goes in the detail line.
+    dim as string detail = "len " + str(nmine)
+#ifdef ABTEST_HAS_GFXLIB2
     dim as ulong n1, n2
-    dim as long d = DiffFiles( fa, fb2, n1, n2 )
-    ran += 1
-    if d <> -1 then
-        report += "  MISMATCH bmp32 " + str(w) + "x" + str(h) + _
-                  ": lens " + str(n1) + "/" + str(n2) + " first diff at " + str(d) + chr(10)
-        failures += 1
-    end if
+    dim as long dpos = DiffFiles( fa, fb2, n1, n2 )
+    if dpos <> -1 then detail += ", lens " + str(n1) + "/" + str(n2) + _
+                                 ", first diff at " + str(dpos)
+#endif
+    Abtest.Case_( "bmp32 " + str(w) + "x" + str(h), dref, dmine, detail )
 
     TkoImageFree( mine )
+#ifdef ABTEST_HAS_GFXLIB2
     imagedestroy( theirs )
+#endif
 next
 
 '' ---- the extension really does select the format ----
@@ -120,7 +160,15 @@ next
 '' with ILLEGALFUNCTIONCALL -- but only AFTER opening the file, so a zero-length
 '' file is left behind. So the raw path needs an explicit size and a plain
 '' buffer; an image is a BMP-only argument.
+''
+'' All three of these are statements about BSAVE alone -- gfxlib2 on both sides
+'' of the check -- so there is nothing for the subject role to run.
 dim as string fbsv = tmpdir + "\abtest_bmp_c.bsv"
+dim as long zlen = -1
+dim as long bmpmagic = 0
+dim as long rawmagic = 0
+
+#ifdef ABTEST_HAS_GFXLIB2
 kill fa : kill fbsv
 pset ( 0, 0 ), 0
 dim as any ptr im = imagecreate( 8, 8, 0, 32 )
@@ -130,15 +178,9 @@ bsave fa, im
 '' an image to .bsv: zero-length file, nothing written
 bsave fbsv, im
 dim as long hz = freefile
-dim as long zlen = -1
 if open( fbsv, for binary, access read, as #hz ) = 0 then
     zlen = lof( hz )
     close #hz
-end if
-ran += 1
-if zlen <> 0 then
-    report += "  MISMATCH image->.bsv should leave a zero-length file, got " + str(zlen) + chr(10)
-    failures += 1
 end if
 imagedestroy( im )
 
@@ -148,11 +190,7 @@ dim as ubyte m1(0 to 1)
 dim as ubyte ptr mp = @m1(0)
 get #hh, , *mp, 2
 close #hh
-ran += 1
-if (m1(0) <> asc("B")) orelse (m1(1) <> asc("M")) then
-    report += "  MISMATCH .bmp did not start with 'BM'" + chr(10)
-    failures += 1
-end if
+bmpmagic = iif( (m1(0) = asc("B")) andalso (m1(1) = asc("M")), 1, 0 )
 
 '' a plain buffer WITH a size does take the raw path
 dim as ubyte raw_(0 to 15)
@@ -164,21 +202,14 @@ bsave fbsv, @raw_(0), 16
 open fbsv for binary access read as #hh
 get #hh, , *mp, 2
 close #hh
-ran += 1
-if m1(0) <> &hFE then
-    report += "  MISMATCH buffer->.bsv did not start with &hFE, got &h" + hex(m1(0),2) + chr(10)
-    failures += 1
-end if
+rawmagic = iif( m1(0) = &hFE, 1, 0 )
 
 kill fa : kill fb2 : kill fbsv
 screen 0
+#endif
 
-print "abtest-bmp -- "; ran; " BMP byte-for-byte checks against gfxlib2"
-if failures = 0 then
-    print "abtest-bmp: PASS -- files are byte-identical"
-    end 0
-else
-    print report;
-    print "abtest-bmp: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Interop_( "an image to .bsv leaves a zero-length file", 0, zlen )
+Abtest.Interop_( "a .bmp starts with BM", 1, bmpmagic )
+Abtest.Interop_( "a sized buffer to .bsv starts with &hFE", 1, rawmagic )
+
+Abtest.Finish_( )
