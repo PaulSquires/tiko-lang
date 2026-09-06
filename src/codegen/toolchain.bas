@@ -124,7 +124,29 @@ function LinkExe _
     '' THE SYSTEM LIBRARIES THE RUNTIME REACHES INTO, and they are not the same set on
     '' the two platforms. Neither list is guessable; each was found by linking and
     '' reading what was still undefined.
-    if target.objFormat = OBJ_COFF then
+    if target.id = TARGET_WIN64_MSVC then
+        '' THE MICROSOFT ABI. Not a variant of the MinGW branch below -- it shares none
+        '' of it. There is no crt2.o to point '-B' at, because the UCRT supplies the
+        '' startup; clang's own msvc driver finds it.
+        ''
+        '' -llegacy_stdio_definitions IS NOT OPTIONAL. The UCRT does not EXPORT
+        '' sprintf: it is inline in <stdio.h>, so a caller that is not a C translation
+        '' unit cannot link it. Measured; docs/tiko-rt RFC-0006 section 12.
+        ''
+        '' /INCLUDE:tkort_msvc_init_ IS NOT OPTIONAL EITHER, and for a subtler reason.
+        '' An archive member is extracted only when it RESOLVES AN UNDEFINED SYMBOL,
+        '' and nothing references a CRT initialiser -- the CRT walks a section, it does
+        '' not call a name. So tiko-rt's msvcinit.o sits in the archive and is never
+        '' linked: measured, the locale stays "C" and UCASE leaves every accented
+        '' character alone. Naming it is the supported way to pull one in.
+        ''
+        '' THE IMPORT LIBRARIES ARE THE SAME SET THE MinGW BRANCH NEEDS, plus ws2_32:
+        '' getaddrinfo and friends resolve under MSVC only when it is on the line, and
+        '' that is a link-library question rather than an ABI one.
+        cmd += " -llegacy_stdio_definitions"
+        cmd += " -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32"
+        cmd += " -Xlinker /INCLUDE:tkort_msvc_init_"
+    elseif target.objFormat = OBJ_COFF then
         '' THE C RUNTIME MUST COME FROM THE SAME TOOLCHAIN AS libfb, and that is not
         '' clang's default sysroot. fbc's crt2.o is built SJLJ (winlibs64-sjlj-9.3.0);
         '' the MinGW clang finds on its own is SEH, and mixing them leaves

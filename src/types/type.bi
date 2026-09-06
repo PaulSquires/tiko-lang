@@ -164,6 +164,14 @@ namespace Tko
     enum TargetId
         TARGET_WIN64 = 0
         TARGET_LINUX_X86_64
+        '' THE MICROSOFT ABI. The same machine, the same calling convention and the
+        '' same type layout as TARGET_WIN64 -- what differs is the TRIPLE clang is
+        '' given and the LINK LINE that follows from it. It is a separate target and
+        '' not a flag on win64 because the runtime archive is a different file:
+        '' lib/win64-msvc/libfb.a, built for the UCRT, whose imports are
+        '' __acrt_iob_func and _stricmp where the MinGW one has __iob_func and
+        '' strcasecmp. Mixing them links and then fails at runtime.
+        TARGET_WIN64_MSVC
     end enum
 
     '' Target facts, injected. The frontend never hard-codes a size.

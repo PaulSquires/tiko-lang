@@ -67,6 +67,7 @@ end function
 function TargetName( byval t as TargetId ) as string
     select case t
     case TARGET_LINUX_X86_64    : return "linux-x86_64"
+    case TARGET_WIN64_MSVC      : return "win64-msvc"
     end select
     return "win64"
 end function
@@ -75,6 +76,7 @@ function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     ok = true
     dim as string s = Text.LowerAscii( nm )
     if s = "win64" then return TARGET_WIN64
+    if s = "win64-msvc" then return TARGET_WIN64_MSVC
     if s = "linux-x86_64" then return TARGET_LINUX_X86_64
     ok = false
     return HostTarget( )
