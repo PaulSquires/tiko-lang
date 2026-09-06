@@ -32,12 +32,25 @@
 #pragma once
 
 #include once "pixel.bi"
+#include once "pixelfmt.bi"   '' PutPixel8 / PutPixel16
 #include once "../core/dirty.bi"
 
 namespace TkoGfx
 
 '' Ordered corners assumed: x1 <= x2, y1 <= y2.
-private sub DrawBox32( _
+''
+'' ONE BODY, THREE INSTANCES. Only the STORE depends on the pixel width, so the
+'' body below is a #macro instantiated for ubyte, ushort and ulong -- the shape
+'' raster/pixelfmt.bi already uses. Calling a depth-dispatching PSetAny per
+'' pixel would have been shorter and would put a `select case` inside the inner
+'' loop of every fill this library does; RFC-0001 section 7 is explicit that
+'' these loops are where the only available vectorisation lives.
+''
+'' The 32bpp instance generates textually what was here before the template, so
+'' the abtests gate it unchanged.
+#macro TKO_DEFINE_BOX( suffix, elem )
+
+private sub DrawBox##suffix( _
         byref s as Surface, _
         byval x1 as long, byval y1 as long, _
         byval x2 as long, byval y2 as long, _
@@ -67,10 +80,10 @@ private sub DrawBox32( _
     if full then
         y = cy1
         while y <= cy2
-            dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, y ) )
+            dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y ) )
             x = cx1
             while x <= cx2
-                row[x] = col
+                row[x] = cast( elem, col )
                 x += 1
             wend
             y += 1
@@ -78,20 +91,20 @@ private sub DrawBox32( _
     else
         '' bottom edge -- only if y2 itself is in view
         if y2 <= vy2 then
-            dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, y2 ) )
+            dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y2 ) )
             x = cx1
             while x <= cx2
-                row[x] = col
+                row[x] = cast( elem, col )
                 x += 1
             wend
         end if
 
         '' top edge
         if y1 >= vy1 then
-            dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, y1 ) )
+            dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y1 ) )
             x = cx1
             while x <= cx2
-                row[x] = col
+                row[x] = cast( elem, col )
                 x += 1
             wend
         end if
@@ -100,7 +113,7 @@ private sub DrawBox32( _
         if x2 <= vx2 then
             y = cy1
             while y <= cy2
-                PutPixel32( s, x2, y, col )
+                PutPixel##suffix( s, x2, y, col )
                 y += 1
             wend
         end if
@@ -109,7 +122,7 @@ private sub DrawBox32( _
         if x1 >= vx1 then
             y = cy1
             while y <= cy2
-                PutPixel32( s, x1, y, col )
+                PutPixel##suffix( s, x1, y, col )
                 y += 1
             wend
         end if
@@ -118,7 +131,7 @@ end sub
 
 '' Statement-level entry: order the corners, then draw. This is what LINE B/BF
 '' does before reaching fb_hGfxBox.
-private sub LineBox32( _
+private sub LineBox##suffix( _
         byref s as Surface, _
         byval x1 as long, byval y1 as long, _
         byval x2 as long, byval y2 as long, _
@@ -127,7 +140,29 @@ private sub LineBox32( _
 
     if x1 > x2 then swap x1, x2
     if y1 > y2 then swap y1, y2
-    DrawBox32( s, x1, y1, x2, y2, col, full )
+    DrawBox##suffix( s, x1, y1, x2, y2, col, full )
+end sub
+
+#endmacro
+
+TKO_DEFINE_BOX( 8, ubyte )
+TKO_DEFINE_BOX( 16, ushort )
+TKO_DEFINE_BOX( 32, ulong )
+
+'' Draw at whatever depth the surface is. The entry layer calls this; the
+'' abtests call the suffixed instances, because a test naming the dispatcher
+'' could not say which depth it had exercised.
+private sub LineBoxAny( _
+        byref s as Surface, _
+        byval x1 as long, byval y1 as long, _
+        byval x2 as long, byval y2 as long, _
+        byval col as ulong, _
+        byval full as long )
+    select case s.bpp
+    case 1 : LineBox8( s, x1, y1, x2, y2, col, full )
+    case 2 : LineBox16( s, x1, y1, x2, y2, col, full )
+    case else : LineBox32( s, x1, y1, x2, y2, col, full )
+    end select
 end sub
 
 end namespace

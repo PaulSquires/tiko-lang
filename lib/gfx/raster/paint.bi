@@ -44,6 +44,7 @@
 #pragma once
 
 #include once "pixel.bi"
+#include once "pixelfmt.bi"   '' PutPixel8 / PutPixel16
 #include once "../core/dirty.bi"
 
 namespace TkoGfx
@@ -58,7 +59,19 @@ end type
 '' Extend from x across row y, bounded by the clip box and the border colour.
 '' Advances x past the run. Returns the new span's index, or -1 if an identical
 '' span is already recorded for this row.
-private function PaintAddSpan( _
+''
+'' ONE BODY, THREE INSTANCES. Only the STORE depends on the pixel width, so the
+'' body below is a #macro instantiated for ubyte, ushort and ulong -- the shape
+'' raster/pixelfmt.bi already uses. Calling a depth-dispatching PSetAny per
+'' pixel would have been shorter and would put a `select case` inside the inner
+'' loop of every fill this library does; RFC-0001 section 7 is explicit that
+'' these loops are where the only available vectorisation lives.
+''
+'' The 32bpp instance generates textually what was here before the template, so
+'' the abtests gate it unchanged.
+#macro TKO_DEFINE_PAINT( suffix, elem )
+
+private function PaintAddSpan##suffix( _
         byref s as Surface, _
         byval spans as PaintSpan ptr, _
         byref nspans as long, _
@@ -71,10 +84,10 @@ private function PaintAddSpan( _
     dim as long x1 = x
     dim as long x2 = x
 
-    while (x1 > s.clip_x1) andalso (GetPixel32( s, x1 - 1, y ) <> border)
+    while (x1 > s.clip_x1) andalso (GetPixel##suffix( s, x1 - 1, y ) <> border)
         x1 -= 1
     wend
-    while (x2 < s.clip_x2) andalso (GetPixel32( s, x2 + 1, y ) <> border)
+    while (x2 < s.clip_x2) andalso (GetPixel##suffix( s, x2 + 1, y ) <> border)
         x2 += 1
     wend
 
@@ -117,13 +130,13 @@ end function
 '' before the middle loop, making it exclusive there and inclusive everywhere
 '' else -- reproduced rather than normalised, because the loop bound
 '' `(x2 and not 7) shr 3` depends on it.
-private sub PaintPatternSpan32( _
+private sub PaintPatternSpan##suffix( _
         byref s as Surface, _
         byval y as long, byval x1 as long, byval x2 as long, _
-        byval pattern as ulong ptr )
+        byval pattern as elem ptr )
 
-    dim as ulong ptr src = pattern + ((y and 7) shl 3)
-    dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, y ) )
+    dim as elem ptr src = pattern + ((y and 7) shl 3)
+    dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y ) )
     dim as long dst = x1
 
     dim as long same_block = iif( (x1 and (not 7)) = (x2 and (not 7)), 1, 0 )
@@ -161,16 +174,16 @@ private sub PaintPatternSpan32( _
 end sub
 
 '' PAINT with a solid colour, flooding until it meets `border`.
-private sub Paint32( _
+private sub Paint##suffix( _
         byref s as Surface, _
         byval x as long, byval y as long, _
         byval col as ulong, byval border as ulong, _
-        byval pattern as ulong ptr = 0 )
+        byval pattern as elem ptr = 0 )
 
     if SurfaceClipEmpty( s ) then exit sub
     if (x < s.clip_x1) orelse (x > s.clip_x2) then exit sub
     if (y < s.clip_y1) orelse (y > s.clip_y2) then exit sub
-    if GetPixel32( s, x, y ) = border then exit sub
+    if GetPixel##suffix( s, x, y ) = border then exit sub
 
     dim as long clip_h = s.clip_y2 - s.clip_y1 + 1
     dim as long clip_w = s.clip_x2 - s.clip_x1 + 1
@@ -194,7 +207,7 @@ private sub Paint32( _
     next
 
     dim as long nspans = 0
-    dim as long seed = PaintAddSpan( s, spans, nspans, cap, rowhead, x, y, border )
+    dim as long seed = PaintAddSpan##suffix( s, spans, nspans, cap, rowhead, x, y, border )
     if seed < 0 then
         deallocate( spans ) : deallocate( rowhead )
         exit sub
@@ -211,8 +224,8 @@ private sub Paint32( _
         if sy - 1 >= s.clip_y1 then
             dim as long sx = sx1
             while sx <= sx2
-                if GetPixel32( s, sx, sy - 1 ) <> border then
-                    PaintAddSpan( s, spans, nspans, cap, rowhead, sx, sy - 1, border )
+                if GetPixel##suffix( s, sx, sy - 1 ) <> border then
+                    PaintAddSpan##suffix( s, spans, nspans, cap, rowhead, sx, sy - 1, border )
                 else
                     sx += 1
                 end if
@@ -222,8 +235,8 @@ private sub Paint32( _
         if sy + 1 <= s.clip_y2 then
             dim as long sx = sx1
             while sx <= sx2
-                if GetPixel32( s, sx, sy + 1 ) <> border then
-                    PaintAddSpan( s, spans, nspans, cap, rowhead, sx, sy + 1, border )
+                if GetPixel##suffix( s, sx, sy + 1 ) <> border then
+                    PaintAddSpan##suffix( s, spans, nspans, cap, rowhead, sx, sy + 1, border )
                 else
                     sx += 1
                 end if
@@ -238,14 +251,14 @@ private sub Paint32( _
     dim as long bottom = s.clip_y1
     for i as integer = 0 to nspans - 1
         if pattern = 0 then
-            dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, spans[i].y ) )
+            dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, spans[i].y ) )
             dim as integer px = spans[i].x1
             while px <= spans[i].x2
-                row[px] = col
+                row[px] = cast( elem, col )
                 px += 1
             wend
         else
-            PaintPatternSpan32( s, spans[i].y, spans[i].x1, spans[i].x2, pattern )
+            PaintPatternSpan##suffix( s, spans[i].y, spans[i].x1, spans[i].x2, pattern )
         end if
         if spans[i].y < top then top = spans[i].y
         if spans[i].y > bottom then bottom = spans[i].y
@@ -255,6 +268,26 @@ private sub Paint32( _
 
     deallocate( spans )
     deallocate( rowhead )
+end sub
+
+#endmacro
+
+TKO_DEFINE_PAINT( 8, ubyte )
+TKO_DEFINE_PAINT( 16, ushort )
+TKO_DEFINE_PAINT( 32, ulong )
+
+'' Flood-fill at whatever depth the surface is. The pattern tile is 8x8 of the
+'' SURFACE element type, so its pointer is passed untyped and cast per instance.
+private sub PaintAny( _
+        byref s as Surface, _
+        byval x as long, byval y as long, _
+        byval col as ulong, byval border as ulong, _
+        byval pattern as any ptr = 0 )
+    select case s.bpp
+    case 1 : Paint8( s, x, y, col, border, cptr( ubyte ptr, pattern ) )
+    case 2 : Paint16( s, x, y, col, border, cptr( ushort ptr, pattern ) )
+    case else : Paint32( s, x, y, col, border, cptr( ulong ptr, pattern ) )
+    end select
 end sub
 
 end namespace

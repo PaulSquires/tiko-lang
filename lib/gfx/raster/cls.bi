@@ -37,6 +37,7 @@
 #pragma once
 
 #include once "pixel.bi"
+#include once "pixelfmt.bi"   '' PutPixel8 / PutPixel16
 #include once "../core/viewport.bi"
 #include once "../core/dirty.bi"
 
@@ -45,7 +46,19 @@ namespace TkoGfx
 const CLS_DEFAULT as long = &hFFFF0000
 
 '' Clear `rows` rows of `width` pixels starting at (x, y).
-private sub ClsFillRect( _
+''
+'' ONE BODY, THREE INSTANCES. Only the STORE depends on the pixel width, so the
+'' body below is a #macro instantiated for ubyte, ushort and ulong -- the shape
+'' raster/pixelfmt.bi already uses. Calling a depth-dispatching PSetAny per
+'' pixel would have been shorter and would put a `select case` inside the inner
+'' loop of every fill this library does; RFC-0001 section 7 is explicit that
+'' these loops are where the only available vectorisation lives.
+''
+'' The 32bpp instance generates textually what was here before the template, so
+'' the abtests gate it unchanged.
+#macro TKO_DEFINE_CLS( suffix, elem )
+
+private sub ClsFillRect##suffix( _
         byref s as Surface, _
         byval x as long, byval y as long, _
         byval width_ as long, byval rows as long, _
@@ -53,11 +66,11 @@ private sub ClsFillRect( _
 
     dim as integer r = 0
     while r < rows
-        dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, y + r ) )
+        dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y + r ) )
         dim as integer i = x
         dim as integer stop_ = x + width_ - 1
         while i <= stop_
-            row[i] = col
+            row[i] = cast( elem, col )
             i += 1
         wend
         r += 1
@@ -69,7 +82,7 @@ end sub
 '' cx/cy are the graphics cursor, moved for modes 0 and 1. Mode 2 is not
 '' implemented and is treated as a no-op rather than silently clearing something
 '' else -- see the header.
-private sub Cls32( _
+private sub Cls##suffix( _
         byref s as Surface, _
         byref vp as Viewport, _
         byval mode as long, _
@@ -90,7 +103,7 @@ private sub Cls32( _
 
     select case mode
     case 0
-        ClsFillRect( s, 0, 0, s.w, s.h, bg )
+        ClsFillRect##suffix( s, 0, 0, s.w, s.h, bg )
         dirty_y = 0
         dirty_n = s.h
         moved = 1
@@ -100,7 +113,7 @@ private sub Cls32( _
         exit sub
 
     case else
-        ClsFillRect( s, vp.view_x, vp.view_y, vp.view_w, vp.view_h, bg )
+        ClsFillRect##suffix( s, vp.view_x, vp.view_y, vp.view_w, vp.view_h, bg )
         dirty_y = vp.view_y
         dirty_n = vp.view_h
         moved = 1
@@ -112,6 +125,26 @@ private sub Cls32( _
         cx = csng( vp.view_x + (vp.view_w shr 1) )
         cy = csng( vp.view_y + (vp.view_h shr 1) )
     end if
+end sub
+
+#endmacro
+
+TKO_DEFINE_CLS( 8, ubyte )
+TKO_DEFINE_CLS( 16, ushort )
+TKO_DEFINE_CLS( 32, ulong )
+
+'' Clear at whatever depth the surface is.
+private sub ClsAny( _
+        byref s as Surface, _
+        byref vp as Viewport, _
+        byval mode as long, _
+        byval bg as ulong, _
+        byref cx as single, byref cy as single )
+    select case s.bpp
+    case 1 : Cls8( s, vp, mode, bg, cx, cy )
+    case 2 : Cls16( s, vp, mode, bg, cx, cy )
+    case else : Cls32( s, vp, mode, bg, cx, cy )
+    end select
 end sub
 
 end namespace
