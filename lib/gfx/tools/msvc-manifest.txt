@@ -39,9 +39,9 @@ abtest-cells        mingw-only  # fb_GfxPageSet fb_GfxScreenInfo32 fb_GfxScreenR
 abtest-circle       split
 abtest-cls          split
 abtest-color        split
-abtest-control      mingw-only  # fb_GfxControl_i32 fb_GfxScreenInfo32 fb_GfxView
+abtest-control      split
 abtest-convert      mingw-only  # fb_GfxImageConvertRow fb_GfxPalette fb_GfxScreenRes
-abtest-dirty        mingw-only
+abtest-dirty        split
 abtest-draw         split
 abtest-events       split
 abtest-image        mingw-only

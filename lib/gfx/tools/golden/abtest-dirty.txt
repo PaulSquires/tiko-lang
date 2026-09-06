@@ -1,0 +1,12 @@
+0000000007000701	line horizontal
+000000002D000301	line vertical
+000000002F000001	line diagonal
+000000002E002801	line shallow
+000000002E000101	line steep
+000000001E000001	line clipped top
+000000002F001401	line clipped bottom
+000000001E000601	box outline
+0000000028000A01	box filled
+000000002F000001	box clipped
+0000000017001701	pset
+reference-only--	an image target marks no rows

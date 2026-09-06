@@ -26,17 +26,23 @@
 
 #include once "../raster/line.bi"
 #include once "../raster/box.bi"
+#include once "abtest.bi"
+#include once "crt/string.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "../abi/rtlctx.bi"
 #include once "fbgfx.bi"
-#include once "crt/string.bi"
+#endif
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
+#endif
 
 const W = 64
 const H = 48
 const COL = &hFF60A0E0
 
+#ifdef ABTEST_HAS_GFXLIB2
 '' first/last set byte of gfxlib2's array; returns 0 when nothing is dirty
 function GfxSpan( byref y1 as long, byref y2 as long ) as long
     dim as TkoAbi.FBGFX ptr g = TkoAbi.RtlGfx( )
@@ -62,6 +68,8 @@ sub GfxSpanClear( )
     if g = 0 orelse g->dirty = 0 then exit sub
     memset( g->dirty, 0, H )
 end sub
+#endif
+
 
 dim as string cname(...) = { _
     "line horizontal", "line vertical", "line diagonal", "line shallow", _
@@ -73,16 +81,27 @@ dim as long ay1(...)  = {  7, 3, 0, 40, 1, -30, 20, 6, 10, -20, 23 }
 dim as long ax2(...)  = { 59, 10, 47, 61, 26, 30, 30, 40, 50, 90, 31 }
 dim as long ay2(...)  = {  7, 45, 47, 46, 46, 30, 90, 30, 40, 90, 23 }
 
+#ifdef ABTEST_HAS_GFXLIB2
 screenres W, H, 32, 1, GFX_NULL
+#endif
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-dirty", "spans identical" )
+
+'' The whole answer for one case in one number, so it can be recorded: a flag
+'' that anything was marked, and the first and last marked row.
+function SpanKey( byval anyset as long, byval y1 as long, byval y2 as long ) as ulongint
+    if anyset = 0 then return 0
+    return 1 or (cast( ulongint, y1 ) shl 8) or (cast( ulongint, y2 ) shl 24)
+end function
 
 dim as ubyte ptr mydirty = allocate( H )
 dim as any ptr mypix = allocate( W * 4 * H )
 
 for i as integer = 0 to ubound( cname )
+    dim as ulongint gkey, mkey
+    dim as long ga1, ga2, gany
+
+#ifdef ABTEST_HAS_GFXLIB2
     '' ---- A: gfxlib2, drawing to the screen ----
     GfxSpanClear( )
     select case kind(i)
@@ -91,8 +110,9 @@ for i as integer = 0 to ubound( cname )
     case 2 : line ( ax1(i), ay1(i) )-( ax2(i), ay2(i) ), COL, BF
     case 3 : pset ( ax1(i), ay1(i) ), COL
     end select
-    dim as long ga1, ga2
-    dim as long gany = GfxSpan( ga1, ga2 )
+    gany = GfxSpan( ga1, ga2 )
+    gkey = SpanKey( gany, ga1, ga2 )
+#endif
 
     '' ---- B: libtkogfx, tracking on ----
     memset( mydirty, 0, H )
@@ -107,40 +127,29 @@ for i as integer = 0 to ubound( cname )
     end select
     dim as long ma1, ma2
     dim as long many = DirtySpan( s, ma1, ma2 )
+    mkey = SpanKey( many, ma1, ma2 )
 
-    ran += 1
-    if (gany <> many) orelse (gany andalso ((ga1 <> ma1) orelse (ga2 <> ma2))) then
-        report += "  MISMATCH " + cname(i) + _
-                  "  gfxlib2=" + iif( gany, str(ga1) + ".." + str(ga2), "none" ) + _
-                  "  tko=" + iif( many, str(ma1) + ".." + str(ma2), "none" ) + chr(10)
-        failures += 1
-    end if
+    Abtest.Case_( cname(i), gkey, mkey, _
+                  "tko=" + iif( many, str(ma1) + ".." + str(ma2), "none" ) )
 next
 
-'' An IMAGE target must mark nothing at all.
+'' An IMAGE target must mark nothing at all. This is entirely a statement about
+'' gfxlib2 -- there is no libtkogfx half to compare -- so it is reference-only.
+dim as long imgmarked = 0
+#ifdef ABTEST_HAS_GFXLIB2
 GfxSpanClear( )
 dim as any ptr img = imagecreate( W, H, 0, 32 )
 line img, (0,0)-(W-1,H-1), COL, BF
 dim as long q1, q2
-dim as long imgmarked = GfxSpan( q1, q2 )
+imgmarked = GfxSpan( q1, q2 )
 imagedestroy( img )
-ran += 1
-if imgmarked then
-    report += "  MISMATCH image target marked rows " + str(q1) + ".." + str(q2) + _
-              " (should mark none)" + chr(10)
-    failures += 1
-end if
+#endif
+Abtest.Interop_( "an image target marks no rows", 0, imgmarked )
 
 deallocate( mypix )
 deallocate( mydirty )
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-dirty -- "; ran; " cases against gfxlib2's own dirty array"
-if failures = 0 then
-    print "abtest-dirty: PASS -- spans identical"
-    end 0
-else
-    print report;
-    print "abtest-dirty: FAIL -- "; failures; " of"; ran; " cases differ"
-    end 1
-end if
+Abtest.Finish_( )

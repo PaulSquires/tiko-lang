@@ -20,116 +20,53 @@
 ''   w vs h           differ except on a square mode, so none is used
 ''   viewport corners vs origin+extent -- differ whenever a VIEW is set
 ''
-'' The window/driver selectors (FB.GET_WINDOW_POS, FB.GET_WINDOW_HANDLE,
-'' FB.GET_DESKTOP_SIZE) are NOT compared: they go to the OS, and libtkogfx has no
+'' The window/driver selectors (TkoGfx.GET_WINDOW_POS, TkoGfx.GET_WINDOW_HANDLE,
+'' TkoGfx.GET_DESKTOP_SIZE) are NOT compared: they go to the OS, and libtkogfx has no
 '' presenter yet. They are reported as unhandled by ScreenControlGet, and this
 '' test asserts that too -- claiming to answer them would be worse than
 '' declining.
 
 #include once "../core/control.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+using FB
+#endif
 
 using TkoGfx
-using FB
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+Abtest.Begin( "abtest-control", "every selector agrees" )
 
 '' ---- our selector NUMBERS must equal fbgfx.bi's ----
 ''
 '' They are transcribed constants, and fbgfx.bi declares the same set. The
-'' collision that forced the FB. qualification below is itself the opportunity:
+'' collision that forced the FB. qualification is itself the opportunity:
 '' compare the two definitions directly rather than assuming the transcription
-'' was right.
-scope
-    ran += 1
-    if FB.GET_SCREEN_SIZE <> TkoGfx.GET_SCREEN_SIZE then
-        report += "  SELECTOR NUMBER MISMATCH GET_SCREEN_SIZE: fbgfx.bi=" + str(FB.GET_SCREEN_SIZE) + " tko=" + str(TkoGfx.GET_SCREEN_SIZE) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_SCREEN_DEPTH <> TkoGfx.GET_SCREEN_DEPTH then
-        report += "  SELECTOR NUMBER MISMATCH GET_SCREEN_DEPTH: fbgfx.bi=" + str(FB.GET_SCREEN_DEPTH) + " tko=" + str(TkoGfx.GET_SCREEN_DEPTH) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_SCREEN_BPP <> TkoGfx.GET_SCREEN_BPP then
-        report += "  SELECTOR NUMBER MISMATCH GET_SCREEN_BPP: fbgfx.bi=" + str(FB.GET_SCREEN_BPP) + " tko=" + str(TkoGfx.GET_SCREEN_BPP) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_SCREEN_PITCH <> TkoGfx.GET_SCREEN_PITCH then
-        report += "  SELECTOR NUMBER MISMATCH GET_SCREEN_PITCH: fbgfx.bi=" + str(FB.GET_SCREEN_PITCH) + " tko=" + str(TkoGfx.GET_SCREEN_PITCH) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_SCREEN_REFRESH <> TkoGfx.GET_SCREEN_REFRESH then
-        report += "  SELECTOR NUMBER MISMATCH GET_SCREEN_REFRESH: fbgfx.bi=" + str(FB.GET_SCREEN_REFRESH) + " tko=" + str(TkoGfx.GET_SCREEN_REFRESH) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_TRANSPARENT_COLOR <> TkoGfx.GET_TRANSPARENT_COLOR then
-        report += "  SELECTOR NUMBER MISMATCH GET_TRANSPARENT_COLOR: fbgfx.bi=" + str(FB.GET_TRANSPARENT_COLOR) + " tko=" + str(TkoGfx.GET_TRANSPARENT_COLOR) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_VIEWPORT <> TkoGfx.GET_VIEWPORT then
-        report += "  SELECTOR NUMBER MISMATCH GET_VIEWPORT: fbgfx.bi=" + str(FB.GET_VIEWPORT) + " tko=" + str(TkoGfx.GET_VIEWPORT) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_COLOR <> TkoGfx.GET_COLOR then
-        report += "  SELECTOR NUMBER MISMATCH GET_COLOR: fbgfx.bi=" + str(FB.GET_COLOR) + " tko=" + str(TkoGfx.GET_COLOR) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_ALPHA_PRIMITIVES <> TkoGfx.GET_ALPHA_PRIMITIVES then
-        report += "  SELECTOR NUMBER MISMATCH GET_ALPHA_PRIMITIVES: fbgfx.bi=" + str(FB.GET_ALPHA_PRIMITIVES) + " tko=" + str(TkoGfx.GET_ALPHA_PRIMITIVES) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_HIGH_PRIORITY <> TkoGfx.GET_HIGH_PRIORITY then
-        report += "  SELECTOR NUMBER MISMATCH GET_HIGH_PRIORITY: fbgfx.bi=" + str(FB.GET_HIGH_PRIORITY) + " tko=" + str(TkoGfx.GET_HIGH_PRIORITY) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_SCANLINE_SIZE <> TkoGfx.GET_SCANLINE_SIZE then
-        report += "  SELECTOR NUMBER MISMATCH GET_SCANLINE_SIZE: fbgfx.bi=" + str(FB.GET_SCANLINE_SIZE) + " tko=" + str(TkoGfx.GET_SCANLINE_SIZE) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_X86_MMX_ENABLED <> TkoGfx.GET_X86_MMX_ENABLED then
-        report += "  SELECTOR NUMBER MISMATCH GET_X86_MMX_ENABLED: fbgfx.bi=" + str(FB.GET_X86_MMX_ENABLED) + " tko=" + str(TkoGfx.GET_X86_MMX_ENABLED) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_WINDOW_POS <> TkoGfx.GET_WINDOW_POS then
-        report += "  SELECTOR NUMBER MISMATCH GET_WINDOW_POS: fbgfx.bi=" + str(FB.GET_WINDOW_POS) + " tko=" + str(TkoGfx.GET_WINDOW_POS) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_WINDOW_HANDLE <> TkoGfx.GET_WINDOW_HANDLE then
-        report += "  SELECTOR NUMBER MISMATCH GET_WINDOW_HANDLE: fbgfx.bi=" + str(FB.GET_WINDOW_HANDLE) + " tko=" + str(TkoGfx.GET_WINDOW_HANDLE) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_DESKTOP_SIZE <> TkoGfx.GET_DESKTOP_SIZE then
-        report += "  SELECTOR NUMBER MISMATCH GET_DESKTOP_SIZE: fbgfx.bi=" + str(FB.GET_DESKTOP_SIZE) + " tko=" + str(TkoGfx.GET_DESKTOP_SIZE) + chr(10)
-        failures += 1
-    end if
-    ran += 1
-    if FB.GET_DRIVER_NAME <> TkoGfx.GET_DRIVER_NAME then
-        report += "  SELECTOR NUMBER MISMATCH GET_DRIVER_NAME: fbgfx.bi=" + str(FB.GET_DRIVER_NAME) + " tko=" + str(TkoGfx.GET_DRIVER_NAME) + chr(10)
-        failures += 1
-    end if
-end scope
+'' was right. Recorded, so the subject checks its own constants against the
+'' numbers fbgfx.bi really had -- which is also what lets the rest of this file
+'' use TkoGfx's constants where it used to use FB's.
+Abtest.Case_( "selector number GET_SCREEN_SIZE", REF( TkoGfx.GET_SCREEN_SIZE ), TkoGfx.GET_SCREEN_SIZE )
+Abtest.Case_( "selector number GET_SCREEN_DEPTH", REF( TkoGfx.GET_SCREEN_DEPTH ), TkoGfx.GET_SCREEN_DEPTH )
+Abtest.Case_( "selector number GET_SCREEN_BPP", REF( TkoGfx.GET_SCREEN_BPP ), TkoGfx.GET_SCREEN_BPP )
+Abtest.Case_( "selector number GET_SCREEN_PITCH", REF( TkoGfx.GET_SCREEN_PITCH ), TkoGfx.GET_SCREEN_PITCH )
+Abtest.Case_( "selector number GET_SCREEN_REFRESH", REF( TkoGfx.GET_SCREEN_REFRESH ), TkoGfx.GET_SCREEN_REFRESH )
+Abtest.Case_( "selector number GET_TRANSPARENT_COLOR", REF( TkoGfx.GET_TRANSPARENT_COLOR ), TkoGfx.GET_TRANSPARENT_COLOR )
+Abtest.Case_( "selector number GET_VIEWPORT", REF( TkoGfx.GET_VIEWPORT ), TkoGfx.GET_VIEWPORT )
+Abtest.Case_( "selector number GET_COLOR", REF( TkoGfx.GET_COLOR ), TkoGfx.GET_COLOR )
+Abtest.Case_( "selector number GET_ALPHA_PRIMITIVES", REF( TkoGfx.GET_ALPHA_PRIMITIVES ), TkoGfx.GET_ALPHA_PRIMITIVES )
+Abtest.Case_( "selector number GET_HIGH_PRIORITY", REF( TkoGfx.GET_HIGH_PRIORITY ), TkoGfx.GET_HIGH_PRIORITY )
+Abtest.Case_( "selector number GET_SCANLINE_SIZE", REF( TkoGfx.GET_SCANLINE_SIZE ), TkoGfx.GET_SCANLINE_SIZE )
+Abtest.Case_( "selector number GET_X86_MMX_ENABLED", REF( TkoGfx.GET_X86_MMX_ENABLED ), TkoGfx.GET_X86_MMX_ENABLED )
+Abtest.Case_( "selector number GET_WINDOW_POS", REF( TkoGfx.GET_WINDOW_POS ), TkoGfx.GET_WINDOW_POS )
+Abtest.Case_( "selector number GET_WINDOW_HANDLE", REF( TkoGfx.GET_WINDOW_HANDLE ), TkoGfx.GET_WINDOW_HANDLE )
+Abtest.Case_( "selector number GET_DESKTOP_SIZE", REF( TkoGfx.GET_DESKTOP_SIZE ), TkoGfx.GET_DESKTOP_SIZE )
+Abtest.Case_( "selector number GET_DRIVER_NAME", REF( TkoGfx.GET_DRIVER_NAME ), TkoGfx.GET_DRIVER_NAME )
 
-dim as long sel(...)  = { FB.GET_SCREEN_SIZE, FB.GET_SCREEN_DEPTH, FB.GET_SCREEN_BPP, _
-                          FB.GET_SCREEN_PITCH, FB.GET_SCREEN_REFRESH, _
-                          FB.GET_TRANSPARENT_COLOR, FB.GET_VIEWPORT, FB.GET_COLOR, _
-                          FB.GET_ALPHA_PRIMITIVES, FB.GET_HIGH_PRIORITY, _
-                          FB.GET_SCANLINE_SIZE, FB.GET_X86_MMX_ENABLED }
+dim as long sel(...)  = { TkoGfx.GET_SCREEN_SIZE, TkoGfx.GET_SCREEN_DEPTH, TkoGfx.GET_SCREEN_BPP, _
+                          TkoGfx.GET_SCREEN_PITCH, TkoGfx.GET_SCREEN_REFRESH, _
+                          TkoGfx.GET_TRANSPARENT_COLOR, TkoGfx.GET_VIEWPORT, TkoGfx.GET_COLOR, _
+                          TkoGfx.GET_ALPHA_PRIMITIVES, TkoGfx.GET_HIGH_PRIORITY, _
+                          TkoGfx.GET_SCANLINE_SIZE, TkoGfx.GET_X86_MMX_ENABLED }
 dim as string selname(...) = { "SCREEN_SIZE", "SCREEN_DEPTH", "SCREEN_BPP", _
                           "SCREEN_PITCH", "SCREEN_REFRESH", _
                           "TRANSPARENT_COLOR", "VIEWPORT", "COLOR", _
@@ -143,25 +80,37 @@ for mi as integer = 0 to ubound( modes )
     dim as long mode = modes(mi)
     if ModeSupported( mode ) = 0 then continue for
 
+    dim as long iw, ih, idepth, ibpp, ipitch, irefresh
+    ipitch = 0 : irefresh = 0
+#ifdef ABTEST_HAS_GFXLIB2
     screen mode
 
     '' our state, derived from the mode table plus the pitch SCREENINFO reports
-    dim as long iw, ih, idepth, ibpp, ipitch, irefresh
     screeninfo iw, ih, idepth, ibpp, ipitch, irefresh
+#endif
+
+    '' The pitch and the refresh rate are the driver's, not the table's, so with
+    '' no driver they come from the recording. Everything else below is derived
+    '' from the mode table and is computed in every role.
+    ipitch   = cast( long, Abtest.Datum_( "m" + str(mode) + " pitch", ipitch ) )
+    irefresh = cast( long, Abtest.Datum_( "m" + str(mode) + " refresh", irefresh ) )
 
     dim as GfxScreenState st
     if ScreenStateFromMode( st, mode, ipitch ) = 0 then
-        report += "  mode " + str(mode) + " not in our table" + chr(10)
-        failures += 1
+        Abtest.Fail_( "mode " + str(mode), "not in our table" )
+#ifdef ABTEST_HAS_GFXLIB2
         screen 0
+#endif
         continue for
     end if
     st.refresh_rate = irefresh
 
-    '' a viewport, so FB.GET_VIEWPORT is not just 0,0,w-1,h-1
+    '' a viewport, so TkoGfx.GET_VIEWPORT is not just 0,0,w-1,h-1
     dim as long vx1 = 3, vy1 = 5
     dim as long vx2 = st.w \ 2, vy2 = st.h \ 2
+#ifdef ABTEST_HAS_GFXLIB2
     view (vx1, vy1)-(vx2, vy2)
+#endif
 
     dim as Surface dummy
     dim as any ptr dbuf = allocate( st.w * 4 )
@@ -171,32 +120,42 @@ for mi as integer = 0 to ubound( modes )
     ViewSet( vp, dummy, vx1, vy1, vx2, vy2, 0 )
 
     '' a known colour pair
-    color 9, 3
     dim as long cfg, cbg
-    screencontrol FB.GET_COLOR, cfg, cbg
+    cfg = 0 : cbg = 0
+#ifdef ABTEST_HAS_GFXLIB2
+    color 9, 3
+    screencontrol TkoGfx.GET_COLOR, cfg, cbg
+#endif
+    '' What COLOR 9,3 means depends on the mode's legacy rules, which is
+    '' abtest-color's subject, not this file's. Taken from the reference, and
+    '' from the recording when there is none.
+    cfg = cast( long, Abtest.Datum_( "m" + str(mode) + " cfg", cfg ) )
+    cbg = cast( long, Abtest.Datum_( "m" + str(mode) + " cbg", cbg ) )
 
     for si as integer = 0 to ubound( sel )
-        dim as long w1, w2, w3, w4
-        w1 = 0 : w2 = 0 : w3 = 0 : w4 = 0
-        screencontrol sel(si), w1, w2, w3, w4
+        dim as string tag = "mode " + str(mode) + " " + selname(si)
+        dim as long w(0 to 3)
+        w(0) = 0 : w(1) = 0 : w(2) = 0 : w(3) = 0
+#ifdef ABTEST_HAS_GFXLIB2
+        screencontrol sel(si), w(0), w(1), w(2), w(3)
+#endif
 
         dim as integer g1, g2, g3, g4
         dim as long handled = ScreenControlGet( st, vp, cfg, cbg, 0, 0, sel(si), g1, g2, g3, g4 )
+        dim as long g(0 to 3) = { g1, g2, g3, g4 }
 
-        ran += 1
-        if handled = 0 then
-            report += "  mode " + str(mode) + " selector " + selname(si) + " NOT HANDLED" + chr(10)
-            failures += 1
-        elseif (w1 <> g1) orelse (w2 <> g2) orelse (w3 <> g3) orelse (w4 <> g4) then
-            report += "  MISMATCH mode " + str(mode) + " " + selname(si) + _
-                      ": gfxlib2=(" + str(w1) + "," + str(w2) + "," + str(w3) + "," + str(w4) + ")" + _
-                      " tko=(" + str(g1) + "," + str(g2) + "," + str(g3) + "," + str(g4) + ")" + chr(10)
-            failures += 1
-        end if
+        '' Four values in one digest, so the whole answer is one recordable
+        '' number; the readable form goes in the detail line.
+        Abtest.Case_( tag + " handled", 1, handled )
+        Abtest.Case_( tag, Abtest.Digest( @w(0), 4 * sizeof( long ) ), _
+                      Abtest.Digest( @g(0), 4 * sizeof( long ) ), _
+                      "tko=(" + str(g1) + "," + str(g2) + "," + str(g3) + "," + str(g4) + ")" )
     next
 
     deallocate( dbuf )
+#ifdef ABTEST_HAS_GFXLIB2
     screen 0
+#endif
 next
 
 '' ---- the driver selectors must be DECLINED, not guessed ----
@@ -204,22 +163,11 @@ scope
     dim as GfxScreenState st
     dim as Viewport vp
     dim as integer a, b, c, d
-    dim as long drv(...) = { FB.GET_WINDOW_POS, FB.GET_WINDOW_HANDLE, FB.GET_DESKTOP_SIZE, FB.GET_DRIVER_NAME }
+    dim as long drv(...) = { TkoGfx.GET_WINDOW_POS, TkoGfx.GET_WINDOW_HANDLE, TkoGfx.GET_DESKTOP_SIZE, TkoGfx.GET_DRIVER_NAME }
     for i as integer = 0 to ubound( drv )
-        ran += 1
-        if ScreenControlGet( st, vp, 0, 0, 0, 0, drv(i), a, b, c, d ) <> 0 then
-            report += "  selector " + str(drv(i)) + " claims to be handled but needs a driver" + chr(10)
-            failures += 1
-        end if
+        Abtest.Case_( "driver selector " + str(drv(i)) + " is declined", _
+                      0, ScreenControlGet( st, vp, 0, 0, 0, 0, drv(i), a, b, c, d ) )
     next
 end scope
 
-print "abtest-control -- "; ran; " SCREENCONTROL checks across "; ubound(modes) + 1; " modes"
-if failures = 0 then
-    print "abtest-control: PASS -- every selector agrees"
-    end 0
-else
-    print report;
-    print "abtest-control: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )
