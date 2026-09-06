@@ -55,4 +55,4 @@ abtest-print        mingw-only
 abtest-put          mingw-only
 abtest-putbpp       mingw-only
 abtest-vgaport      split
-abtest-view         mingw-only
+abtest-view         split
