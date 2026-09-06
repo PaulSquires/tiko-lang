@@ -59,6 +59,73 @@ private function ModuleStem( byref path_ as string ) as string
     return r
 end function
 
+'' THE OUTPUT NAME WHEN NONE WAS GIVEN. 'tiko test.bas' used to answer
+''
+''     error TKO0992: not implemented in this build: compilation -- this build
+''     implements the phase 2 skeleton only
+''
+'' which was untrue and had been for a long time: the condition behind that
+'' message was never 'the compiler cannot do this', it was 'len( outputPath ) = 0'.
+'' The phase-2 text simply outlived the phase. Anyone who typed the obvious thing
+'' was told the compiler was a stub.
+''
+'' fbc names the output after the FIRST INPUT MODULE, and that is measured rather
+'' than assumed: 'fbc prog.bas' writes prog.exe, 'fbc -c prog.bas' writes prog.o,
+'' 'fbc prog.bas second.bas' writes prog.exe, and 'fbc sub/deep.bas' writes
+'' sub/deep.exe -- the DIRECTORY IS KEPT, only the extension is replaced. fbc.bas
+'' does it in two steps, mainname = first module with the extension stripped and
+'' then outname = mainname + '.exe' on Windows targets only; on Linux nothing is
+'' appended. Both steps are reproduced here.
+private function StripExt_( byref path_ as string ) as string
+    '' The last dot, but only after the last separator: 'a.b/c' has no extension,
+    '' and a leading dot is the whole name rather than an empty one.
+    dim as long cut = 0
+    for i as long = len( path_ ) to 1 step -1
+        dim as string ch = mid( path_, i, 1 )
+        if (ch = "/") orelse (ch = "\") then exit for
+        if (ch = ".") andalso (cut = 0) then cut = i
+    next
+    if cut > 1 then return left( path_, cut - 1 )
+    return path_
+end function
+
+private function DefaultOutputPath_( byref o as Tko.DriverOptions ) as string
+    '' NOT UNDER '-c'. There is no single output then -- fbc writes one object per
+    '' module, named after that module -- so the name is settled per module at the
+    '' emit instead, and this returns nothing rather than a name that would be wrong
+    '' for every module after the first.
+    ''
+    '' Getting this wrong was silent, which is the point of the note: an earlier cut
+    '' appended '.exe' regardless, so 'tiko -c prog.bas' wrote a COFF OBJECT into a
+    '' file called prog.exe and exited 0. It looked like a build.
+    if o.compileOnly then return ""
+    if o.inputs.Count = 0 then return ""
+    dim as string stem = StripExt_( o.inputs[0] )
+    if len( stem ) = 0 then return ""
+    if Tko.TargetIsWindows( o.target ) then return stem & ".exe"
+    return stem
+end function
+
+'' WHETHER SOME OTHER MODE WAS ASKED FOR. The list is long and it is written out
+'' rather than derived, because there is no property of an option that separates
+'' these from '--keep-temps' or '--stats': OPTCAT_DEVEL holds both the modes and
+'' the modifiers. Every name here appears in the if/elseif chain below, which is
+'' the invariant -- a mode added there and not here would start silently building
+'' an executable as a side effect of a dump.
+''
+'' That is not hypothetical. '--dump-ir' and '--parse-only' reach the same branch
+'' as a real build, and inside it 'doCodegen' is 'emitIr orelse wantsOutput'; had
+'' the default been applied unconditionally, every corpus run would have started
+'' emitting objects and linking them.
+private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
+    if o.dumpTypes orelse o.dumpSource orelse o.lexOnly orelse o.dumpRtl then return true
+    if o.dumpSymbols orelse o.resolveOnly orelse o.dumpMangle orelse o.checkOnly then return true
+    if o.dumpIr orelse o.emitIr orelse o.emitAsm orelse o.dumpUdt then return true
+    if o.dumpVtable orelse o.ppOnly orelse o.dumpTokens orelse o.dumpAst then return true
+    if o.parseExpr orelse o.parseOnly then return true
+    return false
+end function
+
 private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     dim as Tko.PpConfig cfg
     cfg.includePaths = @ctx.options.includePaths
@@ -301,7 +368,20 @@ function Run( byref args as Tko.StrVec ) as long
     '' ---- what this build can do -------------------------------------------
     '' HOISTED: a length test beside booleans in an 'orelse' chain is warning 38, which
     '' this project treats as a rule rather than as noise.
-    dim as boolean wantsOutput = (len( ctx.options.outputPath ) > 0)
+    '' THE DEFAULT, APPLIED HERE and not in the command line, because it must not
+    '' fire when a dump was asked for -- and only the chain below knows that.
+    if len( ctx.options.outputPath ) = 0 then
+        if AnotherModeWasAsked_( ctx.options ) = false then
+            ctx.options.outputPath = DefaultOutputPath_( ctx.options )
+        end if
+    end if
+
+    '' 'PRODUCES BUILD OUTPUT', which is not the same as 'has an -o'. Under '-c'
+    '' with no -o there is no single output path -- each module names its own
+    '' object, as fbc's does -- so the old test read false and the run fell through
+    '' to the error below. The link is gated separately on 'notCompileOnly'.
+    dim as boolean hasOutPath = (len( ctx.options.outputPath ) > 0)
+    dim as boolean wantsOutput = hasOutPath orelse ctx.options.compileOnly
     if ctx.options.dumpTypes then
         print Tko.DumpTypes( ctx.types );
     elseif ctx.options.dumpSource then
@@ -484,7 +564,13 @@ function Run( byref args as Tko.StrVec ) as long
                         '' link happens unless '-c' asked for the object alone. Without
                         '' one the IR goes to stdout, which is what the escape hatch
                         '' docs/plan/10 section 4 describes is for.
-                        if len( ctx.options.outputPath ) > 0 then
+                        ''
+                        '' THE TEST IS 'DOES THIS RUN BUILD', not 'is there an -o'.
+                        '' They stopped being the same thing when '-c' gained the
+                        '' right to name its own objects: with no -o the path is
+                        '' empty, and this gate sent a '-c' run down the print-to-
+                        '' stdout arm -- object never written, exit code 0.
+                        if wantsOutput then
                             '' The result IS the exit code. BuildFromIr reports its
                             '' own failure to stderr -- clang missing, clang failed,
                             '' the link failed -- and none of those is a diagnostic,
@@ -497,6 +583,14 @@ function Run( byref args as Tko.StrVec ) as long
                             if ctx.options.compileOnly = false then
                                 objPath = ctx.options.outputPath & "." & str( i ) & ".o"
                                 tempObjs.Push( objPath )
+                            elseif len( objPath ) = 0 then
+                                '' '-c' WITH NO -o: EACH MODULE NAMES ITS OWN OBJECT,
+                                '' as fbc does. One shared default would have been
+                                '' worse than the error it replaced -- 'tiko -c a.bas
+                                '' b.bas' would write b's object over a's and report
+                                '' success, and a silent wrong answer beats a loud
+                                '' wrong one only from the compiler's point of view.
+                                objPath = StripExt_( ctx.sources.PathOf( id ) ) & ".o"
                             end if
                             toolExit = BuildFromIr( ctx, er.text, td, objPath )
                             if toolExit = Tko.EXIT_OK then linkObjs.Push( objPath )
@@ -822,11 +916,17 @@ function Run( byref args as Tko.StrVec ) as long
             end if
         next
     elseif wantsOutput = false then
-        '' Honest rather than silent: the pipeline genuinely stops here in this
-        '' build, and each later phase replaces this branch with real work.
+        '' UNREACHABLE FOR A NORMAL BUILD, and kept anyway. Every path that has an
+        '' input and no mode flag now has an output name too, so what is left here is
+        '' the case where there was nothing to name one after. TKO0102 catches the
+        '' empty command line before this, which leaves inputs that all failed to
+        '' load -- already diagnosed, and worth a closing line rather than silence.
+        ''
+        '' What this used to say was that the compiler implemented 'the phase 2
+        '' skeleton only'. It was the message for 'no -o', and it survived every
+        '' phase that made it false.
         ctx.diags.ReportGlobal( Tko.TKO0992, _
-            "compilation -- this build implements the phase 2 skeleton only " & _
-            "(source loading and diagnostics); try --dump-source" )
+            "compilation -- no output could be named from the inputs given" )
     end if
 
     ctx.diags.Flush( )

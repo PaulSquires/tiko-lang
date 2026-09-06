@@ -1,0 +1,39 @@
+'' THE OUTPUT NAME IS NO LONGER REQUIRED, and this file used to assert the opposite.
+''
+'' It was not-implemented.test, and it pinned this:
+''
+''     error TKO0992: not implemented in this build: compilation -- this build
+''     implements the phase 2 skeleton only (source loading and diagnostics)
+''
+'' The message was true in phase 2 and the condition behind it was never what it
+'' described: it was 'len( outputPath ) = 0'. Every phase after the second made the
+'' text false and none of them changed it, so 'tiko test.bas' -- the first thing
+'' anyone types -- answered that the compiler was a stub. The test kept it that way.
+''
+'' tiko now names the output after the first input module, as fbc does: prog.bas ->
+'' prog.exe on Windows, prog with no extension on Linux, sub/deep.bas -> sub/deep.exe
+'' keeping the directory, and under '-c' one object per module named after that
+'' module. Measured against fbc 1.20.0 rather than assumed.
+''
+'' WHAT THIS FILE CAN ACTUALLY CHECK is the half that needs no toolchain. The naming
+'' itself is only observable as a file appearing on disk, and the runner has no
+'' directive for that -- so it is verified by hand and said so in the commit, rather
+'' than asserted here in a form that would really be testing whether clang and the
+'' runtime happen to be installed.
+''
+'' The invariant below is the one that matters most, because getting it wrong is
+'' silent and expensive: A DUMP MODE MUST NOT ACQUIRE AN OUTPUT NAME. '--emit-ir'
+'' and '--dump-ir' reach the same branch as a real build, and inside it the codegen
+'' test is 'emitIr orelse wantsOutput'. Had the default been applied unconditionally,
+'' every --emit-ir run -- and every corpus sweep built on one -- would have started
+'' emitting objects and linking them.
+'' TEST: cli
+'' ARGS: --emit-ir tests/source/plain.bas
+'' EXPECT-EXIT: 0
+
+'' Still IR on stdout, not a build.
+'' EXPECT-OUT: target triple = "x86_64-w64-windows-gnu"
+
+'' And the message that sent people to this file is gone for good.
+'' EXPECT-NOT: TKO0992
+'' EXPECT-NOT: phase 2 skeleton
