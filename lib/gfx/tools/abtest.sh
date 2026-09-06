@@ -106,7 +106,11 @@ for src in "$HERE"/abtest-*.bas "$HERE"/probe-driver.bas "$HERE"/probe-gdi.bas "
         fi
 
         if "$TMP/$name-$label.exe" > "$TMP/$name-$label.out" 2>&1; then
-            sed -n '$p' "$TMP/$name-$label.out" | sed "s/^/abtest: $label -- /"
+            # The SKIPPED, SEEDED and KNOWN lines are the honest part of a
+            # result: they say what was NOT compared. Printing only the PASS
+            # line would hide exactly the thing worth reading.
+            grep -E "SKIPPED|SEEDED|KNOWN|: PASS" "$TMP/$name-$label.out" |
+                sed "s/^/abtest: $label -- /"
         else
             echo "abtest: $name/$label -- PIXELS DIFFER FROM gfxlib2" >&2
             cat "$TMP/$name-$label.out" >&2
@@ -217,7 +221,11 @@ else
         fi
 
         if ABTEST_GOLDEN="$HERE/golden" "$exe" > "$TMP/$name-msvc.out" 2>&1; then
-            sed -n '$p' "$TMP/$name-msvc.out" | sed "s/^/abtest: win64-msvc -- /"
+            # The SKIPPED and SEEDED lines are the honest part of the result:
+            # they say what MSVC did NOT check. Printing only the PASS line
+            # would hide exactly the thing worth seeing.
+            grep -E "SKIPPED|SEEDED|KNOWN|: PASS" "$TMP/$name-msvc.out" |
+                sed "s/^/abtest: win64-msvc -- /"
         else
             echo "abtest: $name/win64-msvc -- FAILED" >&2
             cat "$TMP/$name-msvc.out" >&2

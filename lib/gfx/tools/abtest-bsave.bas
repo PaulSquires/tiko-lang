@@ -20,15 +20,16 @@
 
 #include once "../core/bsave.bi"
 #include once "../core/image.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+#endif
 #include once "crt/string.bi"
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
-
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+#endif
 
 dim as string tmpdir = environ( "TEMP" )
 if tmpdir = "" then tmpdir = "."
@@ -36,7 +37,30 @@ dim as string fa = tmpdir + "\abtest_bsave_a.bsv"
 dim as string fb_ = tmpdir + "\abtest_bsave_b.bsv"
 dim as string fbad = tmpdir + "\abtest_bsave_bad.bsv"
 
+#ifdef ABTEST_HAS_GFXLIB2
 screenres 64, 48, 32, 1, GFX_NULL
+#endif
+
+Abtest.Begin( "abtest-bsave", "the file format is interchangeable" )
+
+'' A whole file in one number, so the byte-for-byte comparison of direction 3
+'' survives into a recording. Zero when the file will not open.
+function FileDigest( byref path as string, byref n as ulong ) as ulongint
+    n = 0
+    dim as long h = freefile
+    if open( path, for binary, access read, as #h ) <> 0 then return 0
+    n = lof( h )
+    if n = 0 then
+        close #h
+        return 1
+    end if
+    dim as ubyte ptr d = allocate( n )
+    get #h, , *d, n
+    close #h
+    dim as ulongint r = Abtest.Digest( d, cast( integer, n ) )
+    deallocate( d )
+    return r
+end function
 
 '' sizes chosen to exercise every byte of the little-endian length field
 dim as ulong sizes(...) = { 1, 2, 255, 256, 257, 1000, 65535, 65536, 70000 }
@@ -50,64 +74,48 @@ for si as integer = 0 to ubound( sizes )
 
     kill fa : kill fb_
 
+    dim as long dir1ok = 0, dir2ok = 0
+    dim as ulongint dref = 0
+    dim as ulong lenref = 0
+
+#ifdef ABTEST_HAS_GFXLIB2
     '' ---- gfxlib2 writes ----
     bsave fa, buf, n
+    dref = FileDigest( fa, lenref )
 
-    '' ---- 1. we read it ----
+    '' ---- 1. we read THEIR file ----
     dim as ubyte ptr back = allocate( n )
     memset( back, 0, n )
     dim as ulong got
     dim as long rc = BLoadRaw( fa, back, n, got )
-    ran += 1
-    if (rc <> 0) orelse (got <> n) orelse (memcmp( back, buf, n ) <> 0) then
-        report += "  MISMATCH dir1 size " + str(n) + ": rc=" + str(rc) + _
-                  " got=" + str(got) + chr(10)
-        failures += 1
-    end if
+    dir1ok = iif( (rc = 0) andalso (got = n) andalso (memcmp( back, buf, n ) = 0), 1, 0 )
+    deallocate( back )
+#endif
 
-    '' ---- 2. we write, gfxlib2 reads ----
+    '' ---- we write ----
     BSaveRaw( fb_, buf, n )
+    dim as ulong lenmine
+    dim as ulongint dmine = FileDigest( fb_, lenmine )
+
+#ifdef ABTEST_HAS_GFXLIB2
+    '' ---- 2. gfxlib2 reads OUR file ----
     dim as ubyte ptr back2 = allocate( n )
     memset( back2, 0, n )
     bload fb_, back2
-    ran += 1
-    if memcmp( back2, buf, n ) <> 0 then
-        report += "  MISMATCH dir2 size " + str(n) + " (gfxlib2 BLOAD of our file)" + chr(10)
-        failures += 1
-    end if
+    dir2ok = iif( memcmp( back2, buf, n ) = 0, 1, 0 )
+    deallocate( back2 )
+#endif
 
-    '' ---- 3. the files are byte-identical ----
-    dim as long f1 = freefile
-    open fa for binary access read as #f1
-    dim as ulong len1 = lof( f1 )
-    dim as ubyte ptr d1 = allocate( len1 )
-    get #f1, , *d1, len1
-    close #f1
+    '' Directions 1 and 2 each hand a FILE one library wrote to the other
+    '' library at run time. A recording cannot stand in for a reader, so they
+    '' are reference-only. Direction 3 -- that the two files are the same bytes
+    '' -- is an ordinary comparison and runs everywhere.
+    Abtest.Interop_( "dir1 size " + str(n) + " (we read gfxlib2's file)", 1, dir1ok )
+    Abtest.Interop_( "dir2 size " + str(n) + " (gfxlib2 BLOAD of our file)", 1, dir2ok )
+    Abtest.Case_( "dir3 size " + str(n) + " (byte-identical files)", dref, dmine, _
+                  "len " + str(lenmine) )
 
-    dim as long f2 = freefile
-    open fb_ for binary access read as #f2
-    dim as ulong len2 = lof( f2 )
-    dim as ubyte ptr d2 = allocate( len2 )
-    get #f2, , *d2, len2
-    close #f2
-
-    ran += 1
-    if (len1 <> len2) orelse (memcmp( d1, d2, len1 ) <> 0) then
-        dim as long fb2 = -1
-        if len1 = len2 then
-            for k as integer = 0 to len1 - 1
-                if d1[k] <> d2[k] then fb2 = k : exit for
-            next
-        end if
-        report += "  MISMATCH dir3 size " + str(n) + ": lens " + str(len1) + "/" + str(len2)
-        if fb2 >= 0 then report += " first differing byte " + str(fb2) + _
-                                   " gfxlib2=&h" + hex(d1[fb2],2) + " tko=&h" + hex(d2[fb2],2)
-        report += chr(10)
-        failures += 1
-    end if
-
-    deallocate( d1 ) : deallocate( d2 )
-    deallocate( back ) : deallocate( back2 ) : deallocate( buf )
+    deallocate( buf )
 next
 
 '' ---- 4. a bad magic must be rejected ----
@@ -119,24 +127,15 @@ dim as ubyte ptr jp = @junk(0)
 put #fbf, , *jp, 9
 close #fbf
 
+'' Entirely ours: BLoadRaw has to refuse it, and gfxlib2 is not involved.
 dim as ubyte dummy(0 to 15)
 dim as ulong g2
 dim as long rc2 = BLoadRaw( fbad, @dummy(0), 16, g2 )
-ran += 1
-if rc2 = 0 then
-    report += "  MISMATCH dir4: a file with magic &h7F was ACCEPTED" + chr(10)
-    failures += 1
-end if
+Abtest.Case_( "dir4: a file with magic &h7F is rejected", 1, iif( rc2 <> 0, 1, 0 ) )
 
 kill fa : kill fb_ : kill fbad
+#ifdef ABTEST_HAS_GFXLIB2
 screen 0
+#endif
 
-print "abtest-bsave -- "; ran; " BSAVE/BLOAD file-format checks against gfxlib2"
-if failures = 0 then
-    print "abtest-bsave: PASS -- files are interchangeable in both directions"
-    end 0
-else
-    print report;
-    print "abtest-bsave: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )

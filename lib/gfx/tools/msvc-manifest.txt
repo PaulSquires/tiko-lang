@@ -16,26 +16,39 @@
 #               #ifdef'd out under -d ABTEST_SUT and its answers come from the
 #               recording in golden/ instead. Runs on every ABI.
 #
-#   mingw-only  Still calls gfxlib2 in-process. Runs in the four MinGW
-#               configurations only. The comment names the entry points that
-#               hold it back, measured by linking it for MSVC and reading the
-#               unresolved externals -- convert it to split and it moves up.
+#               Some split tests still contain reference-only cases (Interop_)
+#               or reference-supplied seeds (Datum_). Both are counted and
+#               printed by the run, so what MSVC actually checked is on the
+#               line rather than inferred from the case count.
 #
-# Converting the rest is incremental and each one is independent; abtest-line
-# is the worked example.
+#   mingw-only  Cannot be split, with the reason. Runs in the four MinGW
+#               configurations only.
+#
+# Two remain, and neither is a matter of effort:
+#
+#   abtest-blit  Its SOURCE DATA is gfxlib2's live framebuffer, dirty array and
+#                device_palette, all reached through the ABI seam, and its
+#                reference blitter is a function pointer from fb_hGetBlitter.
+#                Remove gfxlib2 and there is nothing to blit and nothing to
+#                blit it with. Seeding a framebuffer from a recording would be
+#                tens of thousands of values and would test the seeding.
+#
+#   abtest-cells Our cell plane is written FROM the reference: the default
+#                fg/bg, and every cell's attribute, are read out of gfxlib2 and
+#                stored into our plane, which is then read back and compared.
+#                Split, it would seed more values than it compares -- the
+#                harness would print more seeds than cases, which is the honest
+#                signal that it is not worth doing. What it would still check
+#                under MSVC is CellReadXY's packing, and nothing else.
 
 probe-driver        native
 probe-gdi           native
 probe-window        native
 
-abtest-line         split
-
-abtest-blit         mingw-only  # __fb_gfx fb_GfxLock fb_GfxPaletteGet fb_GfxPset fb_GfxScreenInfo32 fb_GfxScreenPtr fb_GfxScreenRes fb_GfxUnlock fb_hGetBlitter
 abtest-bmp          split
-abtest-box          split     
+abtest-box          split
 abtest-bpp          split
-abtest-bsave        mingw-only  # fb_GfxBload fb_GfxBsave fb_GfxScreenRes
-abtest-cells        mingw-only  # fb_GfxPageSet fb_GfxScreenInfo32 fb_GfxScreenRes fb_GfxView
+abtest-bsave        split
 abtest-circle       split
 abtest-cls          split
 abtest-color        split
@@ -46,7 +59,8 @@ abtest-draw         split
 abtest-events       split
 abtest-image        split
 abtest-keyboard     split
-abtest-lzw          mingw-only  # fb_hDecode fb_hEncode
+abtest-line         split
+abtest-lzw          split
 abtest-mode         split
 abtest-mouse        split
 abtest-paint        split
@@ -56,3 +70,6 @@ abtest-put          split
 abtest-putbpp       split
 abtest-vgaport      split
 abtest-view         split
+
+abtest-blit         mingw-only  # blits gfxlib2's own live framebuffer -- see above
+abtest-cells        mingw-only  # our plane is written from the reference -- see above
