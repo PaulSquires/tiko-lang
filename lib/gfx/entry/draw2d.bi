@@ -48,9 +48,9 @@ sub TkoGfxLine alias "fb_GfxLine" ( _
     dim as ulong col = TkoGfx.ResolveColor( *c, colour, flags )
 
     select case boxflag
-    case 1 : TkoGfx.LineBox32( c->surf, x1, y1, x2, y2, col, 0 )
-    case 2 : TkoGfx.LineBox32( c->surf, x1, y1, x2, y2, col, 1 )
-    case else : TkoGfx.DrawLine32( c->surf, x1, y1, x2, y2, col )
+    case 1 : TkoGfx.LineBoxAny( c->surf, x1, y1, x2, y2, col, 0 )
+    case 2 : TkoGfx.LineBoxAny( c->surf, x1, y1, x2, y2, col, 1 )
+    case else : TkoGfx.DrawLineAny( c->surf, x1, y1, x2, y2, col )
     end select
 end sub
 
@@ -81,7 +81,7 @@ sub TkoGfxPset alias "fb_GfxPset" ( _
         col = colour
     end if
 
-    TkoGfx.PSet32( c->surf, x, y, col )
+    TkoGfx.PSetAny( c->surf, x, y, col )
 end sub
 
 '' -------------------------------------------------------------------- CIRCLE
@@ -119,7 +119,7 @@ sub TkoGfxEllipse alias "fb_GfxEllipse" ( _
     dim as single asp = aspect
     if asp <= 0.0 then asp = 1.0
 
-    TkoGfx.Circle32( c->surf, x, y, radius, col, asp, _
+    TkoGfx.CircleAny( c->surf, x, y, radius, col, asp, _
                      iif( fill <> 0, 1, 0 ), start_, end_ )
 end sub
 
@@ -157,7 +157,7 @@ sub TkoGfxPaint alias "fb_GfxPaint" ( _
     if (flags and TkoGfx.COORD_BORDER_DEF) <> 0 then border = c->draw.fg_color
 
     if ispattern = 0 then
-        TkoGfx.Paint32( c->surf, x, y, TkoGfx.ResolveColor( *c, colour, flags ), border )
+        TkoGfx.PaintAny( c->surf, x, y, TkoGfx.ResolveColor( *c, colour, flags ), border )
         exit sub
     end if
 
@@ -173,7 +173,7 @@ sub TkoGfxPaint alias "fb_GfxPaint" ( _
     dim as ubyte ptr pdata = cptr( ubyte ptr, ps->dat )
     if (pdata = 0) orelse (n < 64 * 4) then exit sub
 
-    TkoGfx.Paint32( c->surf, x, y, 0, border, cptr( ulong ptr, pdata ) )
+    TkoGfx.PaintAny( c->surf, x, y, 0, border, cptr( ulong ptr, pdata ) )
 end sub
 
 '' --------------------------------------------------------------------- POINT
@@ -204,7 +204,7 @@ function TkoGfxPoint alias "fb_GfxPoint" ( _
 
     dim as long x, y
     TkoGfx.TranslateCoord( c->vp, fx, fy, x, y )
-    return TkoGfx.Point32( c->surf, x, y )
+    return TkoGfx.PointAny( c->surf, x, y )
 end function
 
 '' ---------------------------------------------------------------------- VIEW

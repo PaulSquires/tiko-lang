@@ -36,46 +36,6 @@
 
 #pragma once
 
-namespace TkoGfx
-
-'' The screen's palette. One, because PALETTE has no target argument: it is the
-'' screen's table and images do not have their own.
-dim shared as GfxPalette ThePalette
-dim shared as long ThePaletteReady
-dim shared as long ThePaletteMode = -1
-
-'' Load the defaults for the mode that is open, once. A program that never calls
-'' PALETTE still needs the table for a paletted PUT or a POINT.
-''
-'' KEYED ON THE MODE rather than reset by SCREEN: entry/screen.bi is included
-'' BEFORE this file -- the entry layer is ordered so that it can be -- so it
-'' cannot call in here to invalidate. Comparing the mode is not a workaround for
-'' that; it is the stronger rule, because it also catches a mode change that
-'' arrives by any route this file does not know about.
-private function PaletteCurrent( ) as GfxPalette ptr
-    if TheScreen.isOpen = 0 then return 0
-    if TheScreen.mode <> ThePaletteMode then
-        ThePaletteReady = 0
-        ThePaletteMode = TheScreen.mode
-    end if
-    if ThePaletteReady = 0 then
-        if PaletteLoadDefaults( ThePalette, TheScreen.mode ) = 0 then
-            '' SCREENRES and the truecolour modes have no default table.
-            PaletteInit( ThePalette, 256 )
-        end if
-        ThePaletteReady = 1
-    end if
-    return @ThePalette
-end function
-
-'' Reload the mode's defaults, discarding whatever PALETTE has set. This is what
-'' a bare `PALETTE` means.
-private sub PaletteForget( )
-    ThePaletteReady = 0
-end sub
-
-end namespace
-
 extern "c"
 
 '' PALETTE index, r, g, b   -- or PALETTE index, value when g and b are -1.

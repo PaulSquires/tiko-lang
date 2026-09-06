@@ -192,6 +192,63 @@ private sub ContextForget( byval target as any ptr )
     next
 end sub
 
+'' ------------------------------------------------------------- the palette
+''
+'' HERE RATHER THAN IN entry/palette.bi, AND THE REASON IS ORDERING. The entry
+'' layer is included in dependency order and screen.bi comes before palette.bi,
+'' but SCREEN is what has to prime the table and the presentation LUT -- a
+'' program that never calls PALETTE still has to see the mode's default colours.
+'' Keeping the state below the entry points that use it is what lets both reach
+'' it.
+''
+'' One palette, because PALETTE has no target argument: it is the screen's table
+'' and images do not have their own.
+dim shared as GfxPalette ThePalette
+dim shared as long ThePaletteReady
+dim shared as long ThePaletteMode = -1
+
+'' 256 packed 0x00BBGGRR values, handed to the window so it can expand a
+'' paletted surface for GDI. driver/ does not know what a palette is; it takes
+'' this array and indexes it.
+dim shared as ulong PaletteLut(0 to 255)
+
+private sub PaletteLutRebuild( )
+    for i as integer = 0 to 255
+        dim as long r, g, b
+        PaletteGetRgb( ThePalette, i, r, g, b )
+        '' 0x00BBGGRR -- the order a 32bpp DIB wants, which is B in the low
+        '' byte. PaletteGetRgb answers r, g, b, so this is not a copy.
+        PaletteLut(i) = cast( ulong, b ) or (cast( ulong, g ) shl 8) or _
+                        (cast( ulong, r ) shl 16)
+    next
+end sub
+
+'' Load the defaults for the mode that is open, once. Keyed on the MODE rather
+'' than reset by SCREEN, which also catches a mode change arriving by a route
+'' this file does not know about.
+private function PaletteCurrent( ) as GfxPalette ptr
+    if TheScreen.isOpen = 0 then return 0
+    if TheScreen.mode <> ThePaletteMode then
+        ThePaletteReady = 0
+        ThePaletteMode = TheScreen.mode
+    end if
+    if ThePaletteReady = 0 then
+        if PaletteLoadDefaults( ThePalette, TheScreen.mode ) = 0 then
+            '' SCREENRES and the truecolour modes have no default table.
+            PaletteInit( ThePalette, 256 )
+        end if
+        ThePaletteReady = 1
+        PaletteLutRebuild( )
+    end if
+    return @ThePalette
+end function
+
+'' Reload the mode's defaults, discarding whatever PALETTE has set. This is what
+'' a bare `PALETTE` means.
+private sub PaletteForget( )
+    ThePaletteReady = 0
+end sub
+
 '' Tear down whatever screen is open. Safe to call when nothing is.
 ''
 '' ORDER MATTERS: the window thread presents FROM the surface, so it has to be

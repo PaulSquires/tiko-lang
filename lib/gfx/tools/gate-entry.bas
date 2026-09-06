@@ -365,6 +365,81 @@ scope
     next
 end scope
 
+'' ---------------------------------------------- 8bpp, PIXEL BY PIXEL
+''
+'' NOW COMPARABLE, and it was not before. libtkogfx's framebuffer used to be
+'' 32bpp whatever the mode said, so on a paletted screen gfxlib2's POINT
+'' answered an INDEX and ours a 32-bit colour and nothing here could be
+'' compared. The framebuffer follows the mode now, so both sides answer an
+'' index and the same digest works.
+''
+'' This is what gates the 8bpp instances of the five templated rasterizers.
+'' Until this section existed they compiled and nothing called them.
+''
+'' Colours are INDICES here, not RGB. 15 on 0 is what SCREENRES opens with.
+screenres W, H, 8
+
+Blank( ) : pset ( 10, 10 ), 9 : Report( "8bpp pset" )
+Blank( ) : pset ( 10, 10 ), 9 : pset step( 5, 5 ), 12 : Report( "8bpp pset step" )
+Blank( ) : pset ( 10, 10 ), 9 : preset ( 10, 10 ) : Report( "8bpp preset over pset" )
+Blank( ) : pset ( -5, -5 ), 9 : Report( "8bpp pset clipped negative" )
+
+Blank( ) : line ( 2, 3 )-( 40, 30 ), 4 : Report( "8bpp line plain" )
+Blank( ) : line ( 2, 3 )-( 40, 30 ), 4, B : Report( "8bpp line B" )
+Blank( ) : line ( 2, 3 )-( 40, 30 ), 4, BF : Report( "8bpp line BF" )
+Blank( ) : line ( 5, 5 )-step( 20, 10 ), 7 : Report( "8bpp line step" )
+Blank( ) : line ( -10, -10 )-( 80, 60 ), 7 : Report( "8bpp line clipped both ends" )
+Blank( ) : line ( 3, 20 )-( 60, 22 ), 11 : Report( "8bpp line shallow" )
+Blank( ) : line ( 20, 2 )-( 24, 44 ), 11 : Report( "8bpp line steep" )
+
+Blank( ) : circle ( 32, 24 ), 10, 13 : Report( "8bpp circle" )
+Blank( ) : circle ( 32, 24 ), 10, 13, , , , F : Report( "8bpp circle filled" )
+Blank( ) : circle ( 32, 24 ), 15, 13, , , 0.5 : Report( "8bpp circle aspect" )
+Blank( ) : circle ( 32, 24 ), 18, 13, 0.0, 1.57 : Report( "8bpp circle arc" )
+
+Blank( ) : line ( 8, 8 )-( 40, 30 ), 2, B : paint ( 20, 20 ), 5, 2 : Report( "8bpp paint inside" )
+Blank( ) : line ( 8, 8 )-( 40, 30 ), 2, B : paint ( 2, 2 ), 5, 2 : Report( "8bpp paint outside" )
+
+Blank( ) : view ( 10, 8 )-( 50, 40 ) : pset ( 0, 0 ), 6 : Report( "8bpp view origin" )
+Blank( ) : view ( 10, 8 )-( 50, 40 ) : line ( 0, 0 )-( 100, 100 ), 6 : Report( "8bpp view clips" )
+
+Blank( ) : draw "C10BM20,20R10D10L10U10" : Report( "8bpp draw a box" )
+Blank( ) : draw "C10BM20,20S8R10" : Report( "8bpp draw scaled" )
+
+Blank( ) : draw string ( 4, 16 ), "Ag~", 14 : Report( "8bpp draw string" )
+
+'' ---- images at 8bpp, and GET/PUT through them ----
+scope
+    dim as any ptr im = imagecreate( 12, 9, 3 )
+    Blank( ) : put ( 20, 15 ), im, PSET : Report( "8bpp put PSET" )
+    Blank( ) : put ( 20, 15 ), im, XOR : Report( "8bpp put XOR" )
+    Blank( ) : put ( 20, 15 ), im, TRANS : Report( "8bpp put TRANS" )
+    Blank( ) : put ( -4, -3 ), im, PSET : Report( "8bpp put clipped" )
+    imagedestroy( im )
+end scope
+
+scope
+    dim as ubyte g(0 to 8191)
+    Blank( )
+    line ( 5, 5 )-( 20, 18 ), 8, BF
+    line ( 8, 8 )-( 12, 12 ), 1, BF
+    get ( 5, 5 )-( 20, 18 ), g(0)
+    Blank( )
+    put ( 30, 20 ), g(0), PSET
+    Report( "8bpp get then put round trip" )
+end scope
+
+'' ---- POINT's own answers at 8bpp ----
+scope
+    Blank( )
+    pset ( 11, 12 ), 9
+    dim as ulongint acc = 14695981039346656037ull
+    acc = (acc xor cast( ulong, point( 11, 12 ) )) * 1099511628211ull
+    acc = (acc xor cast( ulong, point( 0, 0 ) )) * 1099511628211ull
+    acc = (acc xor cast( ulong, point( -1, 0 ) )) * 1099511628211ull
+    Emit( "8bpp point returns", acc )
+end scope
+
 screen 0
 
 print Log_;

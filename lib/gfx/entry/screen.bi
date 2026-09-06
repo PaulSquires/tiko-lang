@@ -37,22 +37,38 @@ namespace TkoGfx
 ''
 '' `mode` is recorded for SCREENINFO and the palette rules; SCREENRES passes 0,
 '' which is what fbc reports for a resolution-set screen.
-private function ScreenOpen( byval mode as long, byval w as long, byval h as long ) as long
+private function ScreenOpen( byval mode as long, byval w as long, byval h as long, _
+        byval depth as long ) as long
     if (w <= 0) orelse (h <= 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
+
+    '' BYTES from BITS. ModeTable's depth is bits per pixel and Surface.bpp is
+    '' bytes; conflating them is a four-times buffer overrun rather than a wrong
+    '' colour, which is why the conversion is a select rather than a shift.
+    dim as long bpp
+    select case depth
+    case 1, 2, 4, 8 : bpp = 1
+    case 15, 16     : bpp = 2
+    case 24, 32     : bpp = 4
+    case else       : return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end select
 
     '' A second SCREEN replaces the first, as it does in fbc.
     ScreenTeardown( )
 
-    dim as integer pitch = w * 4
+    '' The pitch is the width in bytes, unpadded. gfxlib2 pads its FRAMEBUFFER
+    '' to the driver's stride and reports that through SCREENINFO; nothing here
+    '' reads the framebuffer through SCREENINFO yet, and the presenter is told
+    '' the pitch explicitly.
+    dim as integer pitch = w * bpp
 
     '' CALLOCATE, not ALLOCATE: a fresh screen is black, and the window thread
     '' may present before anything has drawn.
     dim as any ptr px = callocate( pitch * h )
     if px = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
 
-    SurfaceInit( ScreenCtx.surf, px, w, h, pitch, 4 )
+    SurfaceInit( ScreenCtx.surf, px, w, h, pitch, bpp )
     ViewportInit( ScreenCtx.vp, w, h )
-    DrawStateInit( ScreenCtx.draw, 32 )
+    DrawStateInit( ScreenCtx.draw, bpp * 8 )
     ScreenCtx.target = 0
     ScreenCtx.inuse = 1
 
@@ -65,12 +81,26 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     '' 0, so SCREEN reports error 1 and every later call finds no context and
     '' answers -1. That is exactly what it did until the first fbc-compiled
     '' program was run against this library.
+    '' Prime the palette and the presentation LUT BEFORE the window opens: the
+    '' pump thread may present the first frame before the caller's next
+    '' statement, and an 8bpp surface with a null LUT presents nothing.
+    TheScreen.isOpen = 1
+    if bpp = 1 then
+        PaletteCurrent( )
+        TheScreen.wnd.lut = @PaletteLut(0)
+    end if
+    TheScreen.isOpen = 0
+
     if WindowOpen( TheScreen.wnd, ScreenCtx.surf, w, h, "tiko" ) = 0 then
         deallocate( px )
         TheScreen.pixels = 0
         ScreenCtx.inuse = 0
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
+
+    '' WindowOpen resets the struct, so the LUT is re-pointed after it rather
+    '' than before -- setting it once above would leave the pump reading null.
+    if bpp = 1 then TheScreen.wnd.lut = @PaletteLut(0)
 
     TheScreen.isOpen = 1
     return 0
@@ -122,7 +152,8 @@ function TkoGfxScreen alias "fb_GfxScreen" ( _
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
-    return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h )
+    return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h, _
+                              TkoGfx.ModeTable(mode).depth )
 end function
 
 '' SCREENRES w, h [, depth [, num_pages [, flags [, refresh ]]]]
@@ -138,11 +169,11 @@ function TkoGfxScreenRes alias "fb_GfxScreenRes" ( _
         byval refresh as long ) as long
 
     scope
-        dim as long ignored = depth + num_pages + flags + refresh
+        dim as long ignored = num_pages + flags + refresh
     end scope
 
     if (w <= 0) orelse (h <= 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
-    return TkoGfx.ScreenOpen( 0, w, h )
+    return TkoGfx.ScreenOpen( 0, w, h, iif( depth > 0, depth, 8 ) )
 end function
 
 '' SCREEN's QB form -- `SCREEN mode, colorswitch, activepage, visiblepage`
@@ -168,7 +199,8 @@ function TkoGfxScreenQB alias "fb_GfxScreenQB" ( _
     if TkoGfx.ModeSupported( mode ) = 0 then
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
-    return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h )
+    return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h, _
+                              TkoGfx.ModeTable(mode).depth )
 end function
 
 end extern

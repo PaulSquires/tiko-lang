@@ -240,7 +240,7 @@ private sub Draw32( _
                 y2 = ((dy * ax) + (dx * ay)) * DrawBaseScale + y
             end if
             '' TRUNCATION here, not CINT -- see note 2.
-            if draw_ then DrawLine32( s, fix( x ), fix( y ), fix( x2 ), fix( y2 ), fg )
+            if draw_ then DrawLineAny( s, fix( x ), fix( y ), fix( x2 ), fix( y2 ), fg )
             if move_ then
                 x = x2
                 y = y2
@@ -274,7 +274,7 @@ private sub Draw32( _
 
             '' CINT here, not truncation -- see note 2.
             if draw_ then
-                DrawLine32( s, DrawCInt( x ), DrawCInt( y ), DrawCInt( x2 ), DrawCInt( y2 ), fg )
+                DrawLineAny( s, DrawCInt( x ), DrawCInt( y ), DrawCInt( x2 ), DrawCInt( y2 ), fg )
             end if
             if move_ then
                 x = x2

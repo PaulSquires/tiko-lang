@@ -71,6 +71,15 @@ type GfxWindow
     w           as long
     h           as long
     surf        as Surface ptr
+
+    '' PALETTED PRESENTATION. When surf is 8bpp it cannot go to GDI directly
+    '' (see GdiExpand8), so it is expanded into `mirror` first and THAT is what
+    '' is blitted. Both are zero for a 32bpp surface and the whole path is
+    '' skipped. `lut` is 256 packed 0x00BBGGRR values owned by the caller --
+    '' this layer does not know what a palette is.
+    mirror      as Surface
+    mirrorpx    as any ptr
+    lut         as ulong ptr
     lock_       as CRITICAL_SECTION
     lock_ready  as long
     mouse       as MouseState
@@ -133,7 +142,12 @@ private function WindowProc cdecl ( _
             dim as PAINTSTRUCT ps
             dim as HDC hdc = BeginPaint( hwnd, @ps )
             if (hdc <> 0) andalso (w->surf <> 0) then
-                GdiBlitSpan( hdc, *w->surf, 0, w->surf->h - 1 )
+                if w->mirrorpx <> 0 then
+                    GdiExpand8( w->mirror, *w->surf, w->lut, 0, w->surf->h - 1 )
+                    GdiBlitSpan( hdc, w->mirror, 0, w->surf->h - 1 )
+                else
+                    GdiBlitSpan( hdc, *w->surf, 0, w->surf->h - 1 )
+                end if
             end if
             EndPaint( hwnd, @ps )
             return 0
@@ -213,7 +227,16 @@ private function WindowThread cdecl ( byval param as any ptr ) as DWORD
         if w->surf <> 0 then
             dim as HDC hdc = GetDC( w->hwnd )
             if hdc <> 0 then
-                if GdiPresentDirty( hdc, *w->surf ) > 0 then w->frames += 1
+                if w->mirrorpx <> 0 then
+                    '' Expand the WHOLE surface rather than the dirty span:
+                    '' GdiPresentDirty finds the span itself and clears the
+                    '' marks as it goes, so there is no span to read here yet.
+                    GdiExpand8( w->mirror, *w->surf, w->lut, 0, w->surf->h - 1 )
+                    w->mirror.dirty = w->surf->dirty
+                    if GdiPresentDirty( hdc, w->mirror ) > 0 then w->frames += 1
+                else
+                    if GdiPresentDirty( hdc, *w->surf ) > 0 then w->frames += 1
+                end if
                 ReleaseDC( w->hwnd, hdc )
             end if
         end if
@@ -244,6 +267,17 @@ private function WindowOpen( _
     w.running = 1 : w.active = 0 : w.closed = 0 : w.started = 0 : w.frames = 0
     w.w = cw : w.h = ch
     w.surf = @s
+
+    '' A paletted surface needs a 32bpp mirror to present through. Allocated
+    '' here rather than lazily so a failure is reported by WindowOpen, which the
+    '' caller already checks, instead of by a silent blank window later.
+    w.mirrorpx = 0
+    w.lut = 0
+    if s.bpp = 1 then
+        w.mirrorpx = callocate( cast( integer, cw ) * 4 * ch )
+        if w.mirrorpx = 0 then return 0
+        SurfaceInit( w.mirror, w.mirrorpx, cw, ch, cw * 4, 4 )
+    end if
     w.title = left( caption, 255 )
     MouseInit( w.mouse )
     w.hinst = GetModuleHandle( NULL )
@@ -300,6 +334,10 @@ private sub WindowClose( byref w as GfxWindow )
     end if
 
     w.surf = 0
+    if w.mirrorpx <> 0 then
+        deallocate( w.mirrorpx )
+        w.mirrorpx = 0
+    end if
 end sub
 
 '' Has the user closed the window? This is what SCREENEVENT and the WM_CLOSE

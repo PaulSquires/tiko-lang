@@ -33,6 +33,37 @@
 namespace TkoGfx
 
 '' Fill a BITMAPINFOHEADER for a top-down DIB matching this surface.
+'' EXPAND A PALETTED ROW RANGE INTO A 32BPP MIRROR.
+''
+'' An 8bpp surface cannot be handed to SetDIBitsToDevice as it stands:
+'' GdiDescribe writes a bare BITMAPINFOHEADER, and at biBitCount 8 the DIB needs
+'' a 256-entry RGBQUAD colour table immediately after it, which BITMAPINFO's
+'' declaration here has no room for. Growing the struct is one option; expanding
+'' to 32bpp is the other, and it is the one taken because it needs nothing from
+'' GDI that is not already proven -- the same SetDIBitsToDevice call, the same
+'' top-down negative height, the same dirty-span arithmetic.
+''
+'' THE LUT IS THE CALLER'S. This layer does not know what a palette is;
+'' entry/palette.bi owns the table and hands down 256 packed 0x00BBGGRR values.
+'' A NULL lut is a caller error and draws nothing rather than reading garbage.
+private sub GdiExpand8( _
+        byref dst as Surface, byref src as Surface, _
+        byval lut as ulong ptr, _
+        byval y1 as long, byval y2 as long )
+
+    if (lut = 0) orelse (dst.pixels = 0) orelse (src.pixels = 0) then exit sub
+    if y1 < 0 then y1 = 0
+    if y2 > src.h - 1 then y2 = src.h - 1
+
+    for y as integer = y1 to y2
+        dim as ubyte ptr sr = SurfaceRowAddr( src, y )
+        dim as ulong ptr dr = cptr( ulong ptr, SurfaceRowAddr( dst, y ) )
+        for x as integer = 0 to src.w - 1
+            dr[x] = lut[ sr[x] ]
+        next
+    next
+end sub
+
 private sub GdiDescribe( byref bmi as BITMAPINFO, byref s as Surface )
     bmi.bmiHeader.biSize        = sizeof( BITMAPINFOHEADER )
     bmi.bmiHeader.biWidth       = s.w
