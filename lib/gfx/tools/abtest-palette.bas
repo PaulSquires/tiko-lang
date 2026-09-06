@@ -18,14 +18,66 @@
 '' Only modes with a palette are tested -- PALETTE is a no-op above 8bpp.
 
 #include once "../core/palette.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+using FB
+#endif
 
 using TkoGfx
-using FB
 
-dim as string report
-dim as long failures = 0
-dim as long ran = 0
+'' The reference seam. PALETTE and PALETTE GET are statements, so they cannot go
+'' through REF(); these evaporate in the subject role instead, and the reads
+'' answer zero -- which Case_ discards, comparing against the recording.
+#ifdef ABTEST_HAS_GFXLIB2
+#macro REFPAL4( i_, r_, g_, b_ )
+    palette i_, r_, g_, b_
+#endmacro
+#macro REFPAL2( a_, v_ )
+    palette a_, v_
+#endmacro
+#macro REFSCREEN( m_ )
+    screen m_
+#endmacro
+#else
+#macro REFPAL4( i_, r_, g_, b_ )
+#endmacro
+#macro REFPAL2( a_, v_ )
+#endmacro
+#macro REFSCREEN( m_ )
+#endmacro
+#endif
+
+sub RefPaletteGet( byval idx as long, byref r as long, byref g as long, byref b as long )
+#ifdef ABTEST_HAS_GFXLIB2
+    palette get idx, r, g, b
+#else
+    r = 0 : g = 0 : b = 0
+#endif
+end sub
+
+function RefPaletteGetPacked( byval idx as long ) as long
+#ifdef ABTEST_HAS_GFXLIB2
+    dim as long v
+    palette get idx, v
+    return v
+#else
+    return 0
+#endif
+end function
+
+'' Three channels in one number, so a colour is one recordable value.
+function Rgb3( byval r as long, byval g as long, byval b as long ) as ulongint
+    return (cast( ulongint, r ) shl 16) or (cast( ulongint, g ) shl 8) or cast( ulongint, b )
+end function
+
+sub chkrgb( byref what as string, byval wr as long, byval wg as long, byval wb as long, _
+        byval gr as long, byval gg as long, byval gb as long )
+    Abtest.Case_( what, Rgb3( wr, wg, wb ), Rgb3( gr, gg, gb ), _
+                  "tko=(" + str(gr) + "," + str(gg) + "," + str(gb) + ")" )
+end sub
+
+Abtest.Begin( "abtest-palette", "every case is identical" )
 
 '' mode, and the palette size the table says it has
 dim as long modes(...) = { 13, 1, 7, 9, 11, 18 }
@@ -44,40 +96,43 @@ dim as long bs(...) = { 0, 128, 31, 3, 1, 2, 32, 51, 204, 252, 9, 50 }
 '' the six modes sampled below, and a deliberately corrupted entry in mode 16
 '' went UNDETECTED -- 11 of 17 modes' data was unverified while the suite
 '' reported green.
+'' ONE case per mode over the WHOLE table, rather than one per entry. The
+'' per-entry form only ever printed the first two differences anyway, and a
+'' recording with 2692 lines in it is not something anyone reads; a digest over
+'' the whole table discriminates exactly as well, and the first differing entry
+'' still goes in the detail line.
 for mode as integer = 1 to NUM_MODES - 1
     if ModeSupported( mode ) = 0 then continue for
-    screen mode
+    REFSCREEN( mode )
     dim as GfxPalette defs
     if PaletteLoadDefaults( defs, mode ) = 0 then
-        report += "  MISSING generated defaults for mode " + str(mode) + chr(10)
-        failures += 1
+        Abtest.Fail_( "mode " + str(mode) + " defaults", "MISSING generated defaults" )
     else
-        dim as long badentries = 0
-        for i as integer = 0 to ModePaletteColors( mode ) - 1
+        dim as long n = ModePaletteColors( mode )
+        dim as ulongint wacc = 14695981039346656037ull
+        dim as ulongint gacc = 14695981039346656037ull
+        dim as long firstbad = -1
+        for i as integer = 0 to n - 1
             dim as long wr, wg, wb
-            palette get i, wr, wg, wb
+            RefPaletteGet( i, wr, wg, wb )
             dim as long gr, gg, gb
             PaletteGetRgb( defs, i, gr, gg, gb )
-            if (wr <> gr) orelse (wg <> gg) orelse (wb <> gb) then
-                badentries += 1
-                if badentries <= 2 then
-                    report += "  MISMATCH mode " + str(mode) + " DEFAULT entry " + str(i) + _
-                              ": gfxlib2=(" + str(wr) + "," + str(wg) + "," + str(wb) + ")" + _
-                              " generated=(" + str(gr) + "," + str(gg) + "," + str(gb) + ")" + chr(10)
-                end if
-            end if
-            ran += 1
+            wacc = (wacc xor Rgb3( wr, wg, wb )) * 1099511628211ull
+            gacc = (gacc xor Rgb3( gr, gg, gb )) * 1099511628211ull
+            if (firstbad < 0) andalso (wacc <> gacc) then firstbad = i
         next
-        failures += badentries
+        Abtest.Case_( "mode " + str(mode) + " generated defaults (" + str(n) + " entries)", _
+                      wacc, gacc, _
+                      iif( firstbad >= 0, "first differing entry " + str(firstbad), "" ) )
     end if
-    screen 0
+    REFSCREEN( 0 )
 next
 
 for mi as integer = 0 to ubound( modes )
     dim as long mode = modes(mi)
     if ModeSupported( mode ) = 0 then continue for
 
-    screen mode
+    REFSCREEN( mode )
 
     dim as GfxPalette p
     PaletteInit( p, ModePaletteColors( mode ) )
@@ -85,55 +140,35 @@ for mi as integer = 0 to ubound( modes )
     '' ---- set, then read back both ways ----
     for i as integer = 0 to ubound( rs )
         dim as long idx = i
-        palette idx, rs(i), gs(i), bs(i)
+        REFPAL4( idx, rs(i), gs(i), bs(i) )
         PaletteSetRgb( p, idx, rs(i), gs(i), bs(i) )
 
         dim as long wr, wg, wb
-        palette get idx, wr, wg, wb
+        RefPaletteGet( idx, wr, wg, wb )
         dim as long gr, gg, gb
         PaletteGetRgb( p, idx, gr, gg, gb )
-
-        ran += 1
-        if (wr <> gr) orelse (wg <> gg) orelse (wb <> gb) then
-            report += "  MISMATCH mode " + str(mode) + " idx " + str(idx) + _
-                      " rgb: gfxlib2=(" + str(wr) + "," + str(wg) + "," + str(wb) + ")" + _
-                      " tko=(" + str(gr) + "," + str(gg) + "," + str(gb) + ")" + chr(10)
-            failures += 1
-        end if
+        chkrgb( "mode " + str(mode) + " idx " + str(idx) + " rgb", wr, wg, wb, gr, gg, gb )
 
         '' the packed one-argument form
-        dim as long wv
-        palette get idx, wv
-        dim as long gv = PaletteGetPacked( p, idx )
-        ran += 1
-        if wv <> gv then
-            report += "  MISMATCH mode " + str(mode) + " idx " + str(idx) + _
-                      " packed: gfxlib2=" + str(wv) + " tko=" + str(gv) + chr(10)
-            failures += 1
-        end if
+        Abtest.Case_( "mode " + str(mode) + " idx " + str(idx) + " packed", _
+                      RefPaletteGetPacked( idx ), PaletteGetPacked( p, idx ) )
     next
 
     '' ---- out-of-range indices are MASKED, not errors ----
     dim as long size = ModePaletteColors( mode )
     dim as long probes(...) = { size, size + 1, size * 2 + 3, 255, 300, 1000 }
     for k as integer = 0 to ubound( probes )
-        palette probes(k), 11, 22, 33
+        REFPAL4( probes(k), 11, 22, 33 )
         PaletteSetRgb( p, probes(k), 11, 22, 33 )
 
         dim as long wr, wg, wb
-        palette get probes(k), wr, wg, wb
+        RefPaletteGet( probes(k), wr, wg, wb )
         dim as long gr, gg, gb
         PaletteGetRgb( p, probes(k), gr, gg, gb )
-        ran += 1
-        if (wr <> gr) orelse (wg <> gg) orelse (wb <> gb) then
-            report += "  MISMATCH mode " + str(mode) + " wrapped idx " + str(probes(k)) + _
-                      ": gfxlib2=(" + str(wr) + "," + str(wg) + "," + str(wb) + ")" + _
-                      " tko=(" + str(gr) + "," + str(gg) + "," + str(gb) + ")" + chr(10)
-            failures += 1
-        end if
+        chkrgb( "mode " + str(mode) + " wrapped idx " + str(probes(k)), wr, wg, wb, gr, gg, gb )
     next
 
-    screen 0
+    REFSCREEN( 0 )
 next
 
 
@@ -185,14 +220,14 @@ for mi as integer = 0 to ubound( modes )
     if attrs > colors then attrs = colors
 
     for k as integer = 0 to 23
-        screen mode
+        REFSCREEN( mode )
         '' PaletteLoadDefaults RETURNS 0 and leaves `p` UNTOUCHED for a mode
         '' with no default table. Using it then reads an uninitialised colour
         '' count and indexes the entry array out of range -- which is a
         '' segfault, not a reported mismatch. Check the result.
         dim as GfxPalette p
         if PaletteLoadDefaults( p, mode ) = 0 then
-            screen 0
+            REFSCREEN( 0 )
             continue for
         end if
 
@@ -205,31 +240,18 @@ for mi as integer = 0 to ubound( modes )
             val_ = (k * 5) mod colors
         end if
 
-        palette attr, val_
+        REFPAL2( attr, val_ )
         dim as long wr, wg, wb
-        palette get attr, wr, wg, wb
+        RefPaletteGet( attr, wr, wg, wb )
 
         PaletteSetPacked( p, attr, cast( ulong, val_ ) )
         dim as long gr, gg, gb
         PaletteGetRgb( p, attr, gr, gg, gb )
 
-        ran += 1
-        if (wr <> gr) orelse (wg <> gg) orelse (wb <> gb) then
-            report += "  MISMATCH mode " + str(mode) + " PALETTE " + str(attr) + _
-                      ", " + str(val_) + " want " + str(wr) + "," + str(wg) + "," + str(wb) + _
-                      " got " + str(gr) + "," + str(gg) + "," + str(gb) + chr(10)
-            failures += 1
-        end if
-        screen 0
+        chkrgb( "mode " + str(mode) + " PALETTE " + str(attr) + ", " + str(val_), _
+                wr, wg, wb, gr, gg, gb )
+        REFSCREEN( 0 )
     next
 next
 
-print "abtest-palette -- "; ran; " PALETTE cases across "; ubound(modes) + 1; " modes against gfxlib2"
-if failures = 0 then
-    print "abtest-palette: PASS -- every case is identical"
-    end 0
-else
-    print report;
-    print "abtest-palette: FAIL -- "; failures; " of"; ran; " cases differ"
-    end 1
-end if
+Abtest.Finish_( )

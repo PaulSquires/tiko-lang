@@ -40,7 +40,7 @@ abtest-circle       split
 abtest-cls          split
 abtest-color        split
 abtest-control      split
-abtest-convert      mingw-only  # fb_GfxImageConvertRow fb_GfxPalette fb_GfxScreenRes
+abtest-convert      split
 abtest-dirty        split
 abtest-draw         split
 abtest-events       split
@@ -50,7 +50,7 @@ abtest-lzw          mingw-only  # fb_hDecode fb_hEncode
 abtest-mode         split
 abtest-mouse        split
 abtest-paint        split
-abtest-palette      mingw-only  # fb_GfxPalette fb_GfxPaletteGet
+abtest-palette      split
 abtest-print        mingw-only
 abtest-put          split
 abtest-putbpp       split
