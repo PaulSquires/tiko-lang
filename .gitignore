@@ -36,9 +36,17 @@ tests/vendor/**/*.o
 # ------------------------------------------------------------------ lib/rt
 # The runtime's build products. Its own .gitignore said 'obj/' and 'lib/' when it
 # was its own repo at C:\dev\tiko-rt; re-rooted here so the rules cannot reach the
-# COMPILER's lib/, which is source (lib/gfx) rather than output.
+# COMPILER's lib/. That comment used to end 'which is source (lib/gfx) rather
+# than output' -- true until 2026-09-05, when lib/gfx gained a build of its own.
+# It is now BOTH, which is exactly why these rules stay rooted and specific.
 /lib/rt/obj/
 /lib/rt/lib/
+
+# ----------------------------------------------------------------- lib/gfx
+# Same shape as lib/rt above: build.sh writes the archive into lib/<target>/
+# and the logs into obj/, and neither is a source file.
+/lib/gfx/obj/
+/lib/gfx/lib/
 
 # ------------------------------------------------------------- toolchains
 # Distributable builds. The TREE and its READMEs are tracked so the layout is
