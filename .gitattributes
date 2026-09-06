@@ -45,3 +45,10 @@ tools/gen/*.sh text eol=lf
 tests/mangle/expected/fbc-mangle.txt text eol=lf
 tests/types/expected/fbc-layout.txt  text eol=lf
 tests/types/expected/fbc-layout-linux-x86_64.txt text eol=lf
+
+# The same hazard, in lib/gfx: golden/*.txt is a RECORDING, compared byte for
+# byte against output freshly emitted with LF line endings, and build/*.sh and
+# tools/*.sh are executed. Under core.autocrlf=true a checkout would rewrite
+# both, and the abtest gate would report every recording STALE on a fresh clone.
+lib/gfx/tools/golden/** text eol=lf
+lib/gfx/**/*.sh text eol=lf
