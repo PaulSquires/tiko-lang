@@ -46,8 +46,8 @@
 '' readstrproc is installed as well, and is the path INPUT takes from a real
 '' channel rather than from the console.
 ''
-'' WHAT IS STILL LEFT NULL: getmouse, setmouse, in, out, sleep, isredir,
-'' viewupdate, posteventproc and lineinputw. The mouse and port internals are
+'' WHAT IS STILL LEFT NULL: getmouse, setmouse, in, out, sleep,
+'' posteventproc and lineinputw. The mouse and port internals are
 '' gated but nothing routes them yet; the wide LINE INPUT needs the wstring
 '' editing loop that the narrow one above is only half of.
 ''
@@ -347,6 +347,13 @@ end namespace
 '' declared rather than reimplemented for the same reason the library binds
 '' libc rather than shipping one.
 extern "rtlib"
+    '' VIEW PRINT keeps its rows in the RUNTIME's console state, not here.
+    '' fb_ConsoleViewEx stores them and then calls fb_ViewUpdate, which is the
+    '' hook -- and the hook takes no arguments, so the only way to learn what
+    '' the new region is, is to ask. Both accessors are exported.
+    declare function fb_ConsoleGetTopRow_ alias "fb_ConsoleGetTopRow" ( ) as long
+    declare function fb_ConsoleGetBotRow_ alias "fb_ConsoleGetBotRow" ( ) as long
+
     declare function fb_StrAssign_ alias "fb_StrAssign" ( _
         byval dst as any ptr, byval dst_size as integer, _
         byval src as any ptr, byval src_size as integer, _
@@ -581,6 +588,45 @@ end function
 '' A graphics screen is not redirected by definition: PRINT goes to the window
 '' whatever the shell did with the handles, so INPUT has to read the window too.
 '' Answering 0 for both directions is what makes the pair consistent.
+'' VIEW PRINT changed the text region.
+''
+'' THE HOOK TAKES NO ARGUMENTS, so this reads the rows back out of the runtime
+'' rather than being told them. fb_ConsoleViewEx has already stored and
+'' validated them by the time it calls here -- it clamps to the size our own
+'' getsize hook reported, and refuses an inverted or out-of-range pair -- so
+'' there is nothing left to check that has not been checked.
+''
+'' The rows come back 0-BASED, which is what TheCon.viewtop and viewbot are;
+'' fb_ConsoleView's arguments are 1-based and the conversion happens on the
+'' runtime's side. Doing it again here would move the region up a row.
+''
+'' WHAT THE REGION IS FOR: ConScroll only moves rows between viewtop and
+'' viewbot, and ConNewline only scrolls when the cursor passes viewbot. Both
+'' already honoured the pair; nothing set it until now.
+sub TkoConViewUpdate cdecl ( )
+    if TkoGfx.TheCon.live = 0 then exit sub
+
+    dim as long t = fb_ConsoleGetTopRow_( )
+    dim as long b = fb_ConsoleGetBotRow_( )
+
+    '' A defensive clamp, not a validation: the runtime sized the region against
+    '' what getsize reported, and getsize reports our geometry, so these should
+    '' already be in range. If they ever are not, a region outside the cell
+    '' plane would scroll memory that is not there.
+    if t < 0 then t = 0
+    if b > TkoGfx.TheCon.rows - 1 then b = TkoGfx.TheCon.rows - 1
+    if b < t then b = t
+
+    TkoGfx.TheCon.viewtop = t
+    TkoGfx.TheCon.viewbot = b
+
+    '' The cursor can be left outside the new region by a VIEW PRINT that moves
+    '' it -- fb_ConsoleViewEx calls LOCATE afterwards, but only when it is asked
+    '' to set the cursor. Pulling it in here means no path leaves it outside.
+    if TkoGfx.TheCon.row < t then TkoGfx.TheCon.row = t
+    if TkoGfx.TheCon.row > b then TkoGfx.TheCon.row = b
+end sub
+
 function TkoConIsRedir cdecl ( byval is_input as long ) as long
     scope : dim as long ignored = is_input : end scope
     if TkoGfx.TheCon.live = 0 then return 0
@@ -694,6 +740,7 @@ private sub ConsoleStart( byval mode as long )
     tb.readstrproc    = @TkoConReadStr
     tb.lineinputproc  = @TkoConLineInput
     tb.isredirproc    = @TkoConIsRedir
+    tb.viewupdateproc = @TkoConViewUpdate
 
     HooksInstall( @tb )
     TheCon.live = 1

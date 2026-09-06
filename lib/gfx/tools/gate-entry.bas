@@ -610,6 +610,70 @@ Blank( ) : color 15, 0 : locate 1, 1 : print "Z"; : Report( "print after color r
 Blank( ) : locate 1, 1 : print "AAAA"; : cls : Report( "cls after print" )
 Blank( ) : locate 1, 1 : print "AAAA"; : cls 2 : Report( "cls 2 clears the text" )
 
+'' ---- VIEW PRINT: the text region, and what it protects ----
+''
+'' THIS ONE IS A REAL A/B. VIEW PRINT is output only -- no keystroke has to be
+'' injected -- so unlike the rest of the console INPUT half it can be compared
+'' against gfxlib2 the same way every other case here is.
+''
+'' The console is 8 columns by 6 rows. Filling every row and then scrolling a
+'' region in the middle is what shows the region is honoured: the rows outside
+'' it must be untouched, and an implementation that scrolled the whole screen
+'' would move them.
+scope
+    Blank( )
+    locate 1, 1
+    for r as integer = 1 to 6
+        locate r, 1
+        print chr( asc( "A" ) + r - 1 ); chr( asc( "A" ) + r - 1 );
+    next
+    view print 2 to 4
+    locate 4, 1
+    print "P" : print "Q";
+    Report( "view print scrolls only its region" )
+end scope
+
+scope
+    Blank( )
+    locate 1, 1
+    for r as integer = 1 to 6
+        locate r, 1
+        print chr( asc( "A" ) + r - 1 ); chr( asc( "A" ) + r - 1 );
+    next
+    view print 2 to 4
+    view print
+    locate 6, 1
+    print "P" : print "Q";
+    Report( "a bare view print restores the whole screen" )
+end scope
+
+'''' A `cls 2 clears only the view` case WAS here and is deliberately gone.
+''''
+'''' It could not be made to discriminate. Injecting a CLS 2 that ignored the
+'''' region entirely did not move it, and neither did one that cleared the
+'''' PIXELS as well -- which says the hook is not on the path `cls 2` takes at
+'''' all, not that the case was written badly. The `cls 2 clears the text` case
+'''' above is the one that covers CLS 2, and it does discriminate: it is what
+'''' caught the divergence in RFC-0011 section 9.9.
+''''
+'''' Shipping a case that cannot fail is worse than shipping no case: it reads
+'''' as coverage and is not.
+
+
+scope
+    '' VIEW PRINT moves the cursor to the top of the new region, which POS and
+    '' CSRLIN report. Folded with the region's own bounds so one line covers it.
+    Blank( )
+    dim as ulongint acc = 14695981039346656037ull
+    view print 2 to 4
+    acc = (acc xor cast( ulongint, csrlin( ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, pos( ) )) * 1099511628211ull
+    view print
+    acc = (acc xor cast( ulongint, csrlin( ) )) * 1099511628211ull
+    acc = (acc xor cast( ulongint, pos( ) )) * 1099511628211ull
+    Emit( "view print moves the cursor", acc )
+end scope
+
 '' ---- what the console REPORTS, rather than what it draws ----
 ''
 '' POS, CSRLIN, the WIDTH pair and SCREEN(r,c) all come back through hooks of
