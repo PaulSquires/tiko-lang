@@ -45,11 +45,26 @@ namespace Tko.Driver
 '' two agree for every invocation the suite's makefile makes ('%.o : %.bas'), and
 '' taking it from the source is what lets a module know its own name before an object
 '' path exists.
+'' THE MODULE NAME: the basename with the extension off. What '-m' is matched
+'' against, and therefore what decides which module owns main.
+''
+'' THE BACKSLASH ARM WAS DEAD. It read 'ch = "\\"', and FreeBASIC does no escape
+'' processing without a '!' prefix -- so that literal is TWO characters and could
+'' never equal a one-character 'ch'. Probed rather than reasoned about: len( "\\" )
+'' is 2, and it compares unequal to "\". A backslash path therefore kept its whole
+'' directory, so 'tiko C:\dir\a.bas C:\dir\b.bas -m b' compared "C:\dir\b" against
+'' "b", matched nothing, gave main to no module, and failed at the link with
+'' 'undefined reference to WinMain'. The same line with forward slashes built and
+'' ran, which is what made it look like a linker problem rather than a parsing one.
+''
+'' It survived because every test path in this tree is written with forward slashes:
+'' the suite drives tiko from bash, and Windows accepts both. Only a path typed at
+'' cmd.exe reaches this arm.
 private function ModuleStem( byref path_ as string ) as string
     dim as string r = path_
     for i as long = len( r ) to 1 step -1
         dim as string ch = mid( r, i, 1 )
-        if (ch = "/") orelse (ch = "\\") then
+        if (ch = "/") orelse (ch = "\") then
             r = mid( r, i + 1 )
             exit for
         end if
