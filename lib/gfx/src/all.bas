@@ -71,6 +71,7 @@
 '' ---- entry  (the public surface; MUST come last -- it references the
 ''              privates above, and it is what pulls them into the archive)
 #include once "../entry/context.bi"
+#include once "../entry/mouse.bi"
 #include once "../entry/console.bi"
 #include once "../entry/screen.bi"
 #include once "../entry/putblend.bi"

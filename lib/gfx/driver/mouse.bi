@@ -43,6 +43,10 @@
 
 namespace TkoGfx
 
+'' AN OMITTED COORDINATE, as fbc emits it. Not a magic number of ours: see
+'' MouseSet below for the three calls that were compiled to find it out.
+const MOUSE_KEEP as long = &h80000000
+
 '' fbgfx.bi's BUTTON_* bits.
 const MOUSE_BUTTON_LEFT   = 1
 const MOUSE_BUTTON_RIGHT  = 2
@@ -171,36 +175,80 @@ private function MouseGet( _
     return 0
 end function
 
-'' SETMOUSE x, y, cursor, clip. A negative argument means "leave alone", which is
-'' how the statement's omitted arguments arrive.
+'' SETMOUSE x, y, cursor, clip.
+''
+'' THE TWO PAIRS OF ARGUMENTS USE DIFFERENT SENTINELS, and assuming one rule for
+'' all four is the mistake this used to make. Measured from what fbc emits:
+''
+''     setmouse 10, 20      ->  fb_SetMouse( 10, 20, -1, -1 )
+''     setmouse , , 0       ->  fb_SetMouse( &h80000000, &h80000000, 0, -1 )
+''     setmouse 5           ->  fb_SetMouse( 5, &h80000000, -1, -1 )
+''
+'' So an omitted COORDINATE is &h80000000 and an omitted cursor or clip flag is
+'' -1. A rule of "negative means leave alone" would refuse `setmouse -3, -4`,
+'' which is a legal call that clamps to the top-left corner.
+''
+'' AND THE REST IS MEASURED TOO, against gfxlib2 with a probe rather than read:
+''
+''     setmouse 100, 50  then setmouse 5     ->  x=5,   y=50   (y kept)
+''     setmouse , 7                          ->  x=5,   y=7    (x kept)
+''     setmouse 1000, 1000  on 320x200       ->  x=319, y=199  (clamped)
+''     setmouse -3, -4                       ->  x=0,   y=0    (clamped)
+''
+'' THE CACHED POSITION IS UPDATED HERE, not when the WM_MOUSEMOVE arrives:
+'' GETMOUSE reads the new position back immediately. That is the one place this
+'' file's "GETMOUSE is a cache, not a query" note has an exception, and it is why
+'' the pointer also counts as inside the window from this point on.
 private sub MouseSet( _
         byref m as MouseState, byval hwnd as HWND, _
+        byval cw as long, byval ch as long, _
         byval x as long, byval y as long, _
         byval cursor as long, byval clip as long )
 
     if hwnd = 0 then exit sub
 
-    if (x >= 0) orelse (y >= 0) then
-        dim as POINT p
-        p.x = iif( x >= 0, x, m.x )
-        p.y = iif( y >= 0, y, m.y )
+    if (x <> MOUSE_KEEP) orelse (y <> MOUSE_KEEP) then
+        dim as long nx = iif( x = MOUSE_KEEP, m.x, x )
+        dim as long ny = iif( y = MOUSE_KEEP, m.y, y )
+        if nx < 0 then nx = 0
+        if ny < 0 then ny = 0
+        if nx > cw - 1 then nx = cw - 1
+        if ny > ch - 1 then ny = ch - 1
+
+        m.on_ = 1
+        m.x = nx
+        m.y = ny
+
         '' the arguments are CLIENT coordinates; SetCursorPos takes screen ones
+        dim as POINT p
+        p.x = nx
+        p.y = ny
         ClientToScreen( hwnd, @p )
         SetCursorPos( p.x, p.y )
     end if
 
-    if cursor >= 0 then m.shown = iif( cursor <> 0, 1, 0 )
+    '' THE CURSOR IS HIDDEN BY THE WINDOW PROCEDURE, not from here. SetCursor is
+    '' per-thread state and this runs on the CALLER's thread, so calling it here
+    '' would set it for the wrong thread and the pointer would stay visible. The
+    '' flag is set and WM_SETCURSOR is posted, which is the reference's route for
+    '' the same reason.
+    if (cursor = 0) andalso (m.shown <> 0) then
+        m.shown = 0
+        PostMessage( hwnd, WM_SETCURSOR, 0, 0 )
+    elseif (cursor > 0) andalso (m.shown = 0) then
+        m.shown = 1
+        PostMessage( hwnd, WM_SETCURSOR, 0, 0 )
+    end if
 
-    if clip >= 0 then
-        m.clip = iif( clip <> 0, 1, 0 )
-        if m.clip then
-            dim as RECT r
-            GetClientRect( hwnd, @r )
-            MapWindowPoints( hwnd, NULL, cast( LPPOINT, @r ), 2 )
-            ClipCursor( @r )
-        else
-            ClipCursor( NULL )
-        end if
+    if clip = 0 then
+        m.clip = 0
+        ClipCursor( NULL )
+    elseif clip > 0 then
+        m.clip = 1
+        dim as RECT r
+        GetClientRect( hwnd, @r )
+        MapWindowPoints( hwnd, NULL, cast( LPPOINT, @r ), 2 )
+        ClipCursor( @r )
     end if
 end sub
 

@@ -43,6 +43,30 @@ sub chk( byref what as string, byval want as long, byval got as long )
     end if
 end sub
 
+'' THE POINTER CHECKS NEED THE WINDOW IN FRONT, and a window that will not come
+'' to the front makes them meaningless rather than failing: GETMOUSE reports
+'' failure while the window is inactive, so every reading would be -1 and every
+'' check would "pass" for the wrong reason. Same helper as
+'' tools/abtest-mouse.bas, and the same reasoning.
+function ForceForeground( byval hwin as HWND ) as long
+    dim as HWND fg = GetForegroundWindow( )
+    dim as DWORD us = GetCurrentThreadId( )
+    dim as DWORD them = iif( fg <> 0, GetWindowThreadProcessId( fg, NULL ), 0 )
+
+    if (them <> 0) andalso (them <> us) then AttachThreadInput( us, them, TRUE )
+    ShowWindow( hwin, SW_SHOW )
+    BringWindowToTop( hwin )
+    SetForegroundWindow( hwin )
+    SetActiveWindow( hwin )
+    if (them <> 0) andalso (them <> us) then AttachThreadInput( us, them, FALSE )
+
+    for i as integer = 1 to 40
+        if GetForegroundWindow( ) = hwin then return 1
+        Sleep( 25 )
+    next
+    return 0
+end function
+
 screenres 64, 48, 32
 
 '' ---- the screen target ----
@@ -397,6 +421,76 @@ scope
             next
         next
         chk( "the caret does not eat the character under it", want_, got_ )
+
+        '' ---- THE POINTER ----
+        ''
+        '' THIS MOVES THE REAL CURSOR, which is what SETMOUSE is. It is put back
+        '' where it was afterwards, and the clip is released on every path --
+        '' leaving ClipCursor set would trap the desktop pointer inside a window
+        '' that is about to close.
+        ''
+        '' The state machine underneath is A/B'd by tools/abtest-mouse.bas
+        '' against gfxlib2, by moving the pointer over both windows in turn. What
+        '' is checked here is the SEAM: that GETMOUSE and SETMOUSE reach it, with
+        '' the arguments decoded right. The two sentinels are the part worth
+        '' having a check for -- an omitted coordinate is &h80000000 and an
+        '' omitted cursor or clip flag is -1, and one rule for all four is wrong.
+        dim as POINT saved
+        GetCursorPos( @saved )
+
+        if ForceForeground( hw ) = 0 then
+            '' NOT A FAILURE, AND NOT SILENT. An unattended or locked desktop
+            '' cannot give a window focus, and a check that cannot run must say
+            '' so rather than pass.
+            Log_ += "  SKIP the pointer checks -- the window would not take focus" + chr( 10 )
+        else
+            dim as long mx, my, mz, mb, mc
+
+            setmouse 20, 10
+            getmouse mx, my, mz, mb, mc
+            chk( "setmouse then getmouse reads back x", 20, mx )
+            chk( "setmouse then getmouse reads back y", 10, my )
+
+            '' AN OMITTED COORDINATE KEEPS THE OLD ONE. `setmouse 5` passes
+            '' &h80000000 for y, and a rule that treated any negative as "leave
+            '' alone" would work here and break the next check.
+            setmouse 5
+            getmouse mx, my, mz, mb, mc
+            chk( "an omitted y is kept", 10, my )
+            chk( "and x still moved", 5, mx )
+
+            '' A NEGATIVE COORDINATE IS A COORDINATE. It clamps to the corner
+            '' rather than being ignored -- measured against gfxlib2.
+            setmouse -3, -4
+            getmouse mx, my, mz, mb, mc
+            chk( "a negative x clamps to 0", 0, mx )
+            chk( "a negative y clamps to 0", 0, my )
+
+            '' AND THE FAR CORNER CLAMPS TO THE LAST PIXEL, not to the width.
+            setmouse 1000, 1000
+            getmouse mx, my, mz, mb, mc
+            chk( "x clamps to the last column", 63, mx )
+            chk( "y clamps to the last row", 47, my )
+
+            '' THE CLIP FLAG IS REPORTED BACK by GETMOUSE's fifth output, which
+            '' is the only way a program can see it.
+            setmouse 30, 20, , 1
+            getmouse mx, my, mz, mb, mc
+            chk( "clip on is reported", 1, mc )
+            setmouse , , , 0
+            getmouse mx, my, mz, mb, mc
+            chk( "clip off is reported", 0, mc )
+
+            '' THE CURSOR FLAG HAS NO READBACK -- there is no GETMOUSE output for
+            '' it and no way to ask Windows whose cursor is showing without
+            '' owning the thread. Both directions are exercised so the posted
+            '' WM_SETCURSOR path runs at all, and the pointer is left VISIBLE.
+            setmouse , , 0
+            setmouse , , 1
+        end if
+
+        ClipCursor( NULL )
+        SetCursorPos( saved.x, saved.y )
 
                 '' LINE INPUT into a VAR-LEN string: dst_len is -1 there, which is an
         '' FBSTRING to assign and not a byte count.

@@ -48,10 +48,17 @@
 '' readstrproc is installed as well, and is the path INPUT takes from a real
 '' channel rather than from the console.
 ''
-'' WHAT IS STILL LEFT NULL: getmouse, setmouse, in, out, sleep,
-'' posteventproc and lineinputw. The mouse and port internals are
-'' gated but nothing routes them yet; the wide LINE INPUT needs the wstring
-'' editing loop that the narrow one above is only half of.
+'' WHAT IS STILL LEFT NULL, all six of them: printbuffw, in, out, sleep,
+'' postevent and lineinputw. Twenty-two of the 28 slots are filled.
+''
+'' printbuffw HAS NEVER BEEN ON THIS LIST and should have been: PRINT of a
+'' WSTRING goes to the runtime's console rather than to the graphics screen,
+'' because that slot is null and a null slot falls back. It is a hole in the
+'' output surface, not just an unimplemented extra, and it wants the whole
+'' narrow path again over wide characters.
+''
+'' The port internals are gated but nothing routes them yet; the wide LINE INPUT
+'' needs the wstring editing loop that the narrow one above is only half of.
 ''
 '' THE CALLBACKS ARE CDECL. core/hooks.bi says why at length: the runtime's hook
 '' typedefs carry no FBCALL even though the entry points that consult them do.
@@ -914,6 +921,12 @@ private sub ConsoleStart( byval mode as long )
     tb.lineinputproc  = @TkoConLineInput
     tb.isredirproc    = @TkoConIsRedir
     tb.viewupdateproc = @TkoConViewUpdate
+
+    '' THE POINTER, which is entry/mouse.bi's. Installed here because the table
+    '' is built here and goes in whole; both slots or neither, for the reason
+    '' that file gives.
+    tb.getmouseproc   = @TkoGfxGetMouse
+    tb.setmouseproc   = @TkoGfxSetMouse
 
     HooksInstall( @tb )
     TheCon.live = 1

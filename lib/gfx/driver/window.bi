@@ -151,6 +151,19 @@ private function WindowProc cdecl ( _
         '' procedure regardless of what arrived. See driver/mouse.bi note 2.
         MouseHandleMessage( w->mouse, hwnd, msg, wp, lp )
 
+        '' WHOSE CURSOR IT IS. SetCursor sets state for the thread that owns the
+        '' window, which is THIS one -- SETMOUSE runs on the caller's thread and
+        '' can only post here. Answering TRUE claims the message so DefWindowProc
+        '' does not put the arrow back.
+        if msg = WM_SETCURSOR then
+            if (w->mouse.on_ <> 0) andalso (w->mouse.shown = 0) then
+                SetCursor( NULL )
+            else
+                SetCursor( LoadCursor( NULL, IDC_ARROW ) )
+            end if
+            return TRUE
+        end if
+
         select case msg
         case WM_CLOSE
             '' Record it and stop the pump. NOT DestroyWindow here: the surface
