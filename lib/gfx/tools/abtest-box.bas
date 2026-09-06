@@ -51,7 +51,7 @@ dim as long by2(...) = { 30, 44, 26, 90, 30, 40, 40, 90, 30, 90, 30, 120, 47, 23
 screenres W, H, 32, 1, GFX_NULL
 #endif
 
-Abtest.Begin( "abtest-box" )
+Abtest.Begin( "abtest-box", "every case is pixel-identical" )
 
 for mode as integer = 0 to 1          '' 0 = B (outline), 1 = BF (filled)
     for i as integer = 0 to ubound( cname )

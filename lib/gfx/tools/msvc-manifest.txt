@@ -38,7 +38,7 @@ abtest-bsave        mingw-only  # fb_GfxBload fb_GfxBsave fb_GfxScreenRes
 abtest-cells        mingw-only  # fb_GfxPageSet fb_GfxScreenInfo32 fb_GfxScreenRes fb_GfxView
 abtest-circle       mingw-only
 abtest-cls          mingw-only
-abtest-color        mingw-only  # fb_GfxScreenRes
+abtest-color        split
 abtest-control      mingw-only  # fb_GfxControl_i32 fb_GfxScreenInfo32 fb_GfxView
 abtest-convert      mingw-only  # fb_GfxImageConvertRow fb_GfxPalette fb_GfxScreenRes
 abtest-dirty        mingw-only
@@ -47,12 +47,12 @@ abtest-events       mingw-only  # fb_GfxEvent fb_hPostEvent
 abtest-image        mingw-only
 abtest-keyboard     mingw-only  # fb_GfxLock fb_GfxUnlock fb_hPostKey
 abtest-lzw          mingw-only  # fb_hDecode fb_hEncode
-abtest-mode         mingw-only  # fb_GfxScreenInfo32
+abtest-mode         split
 abtest-mouse        mingw-only  # fb_GfxControl_i32
 abtest-paint        mingw-only
 abtest-palette      mingw-only  # fb_GfxPalette fb_GfxPaletteGet
 abtest-print        mingw-only
 abtest-put          mingw-only
 abtest-putbpp       mingw-only
-abtest-vgaport      mingw-only  # fb_GfxPaletteGet fb_GfxScreenInfo32
+abtest-vgaport      split
 abtest-view         mingw-only

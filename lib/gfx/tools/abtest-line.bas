@@ -52,7 +52,7 @@ dim as long cy2(...) = { 4, 9, 45, 2, 47, 0, 46, 40, 26, 20, 46, 1, 46, 1, 23, 3
 screenres W, H, 32, 1, GFX_NULL
 #endif
 
-Abtest.Begin( "abtest-line" )
+Abtest.Begin( "abtest-line", "every case is pixel-identical" )
 
 for i as integer = 0 to ubound( cname )
     dim as ulongint ha, hb

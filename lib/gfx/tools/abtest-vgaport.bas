@@ -41,33 +41,57 @@
 ''
 '' &h3DA is exercised for its return value only. It also waits for vsync, which
 '' is a driver behaviour and not comparable headlessly.
+''
+'' Split into roles (abtest.bi). Two changes were needed to make the case
+'' sequence independent of the reference: the depth now comes from the MODE
+'' TABLE rather than SCREENINFO (abtest-mode proves the two agree), and the OUT
+'' statements are wrapped in REFOUT so the subject drives only its own state
+'' machine. Nothing else moved -- the single shared VgaPortState still spans
+'' every mode, for the reason above it.
 
 #include once "../core/vgaport.bi"
+#include once "abtest.bi"
+#ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
+#endif
 
 using TkoGfx
+#ifdef ABTEST_HAS_GFXLIB2
 using FB
+#endif
 
-dim shared as string report
-dim shared as long failures = 0
-dim shared as long ran = 0
+'' OUT and SCREEN are statements, so they cannot go through REF(); these
+'' evaporate in the subject role the same way.
+#ifdef ABTEST_HAS_GFXLIB2
+#macro REFOUT( port_, v_ )
+    out port_, v_
+#endmacro
+#macro REFSCREEN( m_ )
+    screen m_
+#endmacro
+#else
+#macro REFOUT( port_, v_ )
+#endmacro
+#macro REFSCREEN( m_ )
+#endmacro
+#endif
 
 sub chk( byref what as string, byval want as long, byval got as long )
-    ran += 1
-    if want <> got then
-        report += "  MISMATCH " + what + " want " + str(want) + " got " + str(got) + chr(10)
-        failures += 1
-    end if
+    Abtest.Case_( what, want, got )
 end sub
 
 sub chkrgb( byref p as GfxPalette, byref what as string, byval e as long )
     dim as long wr, wg, wb, gr, gg, gb
+#ifdef ABTEST_HAS_GFXLIB2
     palette get e, wr, wg, wb
+#endif
     PaletteGetRgb( p, e, gr, gg, gb )
     chk( what + ".r", wr, gr )
     chk( what + ".g", wg, gg )
     chk( what + ".b", wb, gb )
 end sub
+
+Abtest.Begin( "abtest-vgaport", "the DAC state machine agrees" )
 
 '' ONE state for the whole program, not one per mode. gfxlib2 keeps idx, shift
 '' and colour as file statics that no mode change resets, so a per-mode reset
@@ -87,9 +111,11 @@ for mi as integer = 0 to ubound( modes )
     if ModeSupported( mode ) = 0 then continue for
     dim as long colors = ModePaletteColors( mode )
 
-    screen mode
-    dim as long sw, sh, sdepth, sbpp, spitch, srr
-    screeninfo sw, sh, sdepth, sbpp, spitch, srr
+    REFSCREEN( mode )
+
+    '' From the TABLE, not SCREENINFO: the case sequence below branches on it,
+    '' and a sequence that depended on the reference could not be recorded.
+    dim as long sdepth = ModeTable(mode).depth
 
     dim as GfxPalette p
     '' A mode above 8bpp has no default table; only the port and depth rules
@@ -119,8 +145,8 @@ for mi as integer = 0 to ubound( modes )
     '' the hook returns -1 -- rather than compared against INP.
     chk( tag + "unhandled port returns -1", -1, _
          VgaPortIn( dac, p, sdepth, &h3C0, vsynced ) )
-    chk( tag + "in(3DA)", inp( &h3DA ), VgaPortIn( dac, p, sdepth, &h3DA, vsynced ) )
-    chk( tag + "in(3C9) depth-gated", inp( &h3C9 ), _
+    chk( tag + "in(3DA)", REF( inp( &h3DA ) ), VgaPortIn( dac, p, sdepth, &h3DA, vsynced ) )
+    chk( tag + "in(3C9) depth-gated", REF( inp( &h3C9 ) ), _
          VgaPortIn( dac, p, sdepth, &h3C9, vsynced ) )
 
     '' DAC WRITES ARE ONLY COMPARABLE WHERE THE REFERENCE IS DETERMINISTIC.
@@ -147,13 +173,13 @@ for mi as integer = 0 to ubound( modes )
         '' ---- 1 + 2. write runs, then read the palette back ----
         for base_ as integer = 0 to 2
             dim as long start = (base_ * 37) and (colors - 1)
-            out &h3C8, cast( ubyte, start )
+            REFOUT( &h3C8, cast( ubyte, start ) )
             VgaPortOut( dac, p, sdepth, &h3C8, cast( ubyte, start ), dirtied )
 
             for n as integer = 0 to 5
                 for ch as integer = 0 to 2
                     dim as ubyte v = cast( ubyte, (n * 13 + ch * 7 + base_ * 5) and &h3F )
-                    out &h3C9, v
+                    REFOUT( &h3C9, v )
                     VgaPortOut( dac, p, sdepth, &h3C9, v, dirtied )
                 next
             next
@@ -165,32 +191,32 @@ for mi as integer = 0 to ubound( modes )
         next
 
         '' ---- 3. read runs ----
-        out &h3C7, 4
+        REFOUT( &h3C7, 4 )
         VgaPortOut( dac, p, sdepth, &h3C7, 4, dirtied )
         for n as integer = 0 to 17
-            chk( tag + "rd" + str(n), inp( &h3C9 ), _
+            chk( tag + "rd" + str(n), REF( inp( &h3C9 ) ), _
                  VgaPortIn( dac, p, sdepth, &h3C9, vsynced ) )
         next
 
         '' ---- 4. interleaved read and write ----
-        out &h3C8, 9
+        REFOUT( &h3C8, 9 )
         VgaPortOut( dac, p, sdepth, &h3C8, 9, dirtied )
-        out &h3C9, 63
+        REFOUT( &h3C9, 63 )
         VgaPortOut( dac, p, sdepth, &h3C9, 63, dirtied )
-        out &h3C9, 21
+        REFOUT( &h3C9, 21 )
         VgaPortOut( dac, p, sdepth, &h3C9, 21, dirtied )
-        chk( tag + "interleaved read", inp( &h3C9 ), _
+        chk( tag + "interleaved read", REF( inp( &h3C9 ) ), _
              VgaPortIn( dac, p, sdepth, &h3C9, vsynced ) )
-        out &h3C9, 42
+        REFOUT( &h3C9, 42 )
         VgaPortOut( dac, p, sdepth, &h3C9, 42, dirtied )
-        out &h3C9, 7
+        REFOUT( &h3C9, 7 )
         VgaPortOut( dac, p, sdepth, &h3C9, 7, dirtied )
         for e as integer = 8 to 12
             chkrgb( p, tag + "ilv entry" + str(e and (colors - 1)), e and (colors - 1) )
         next
     end if
 
-    screen 0
+    REFSCREEN( 0 )
 next
 
 '' ---- 5. a partial sequence surviving a mode change ----
@@ -200,28 +226,20 @@ scope
     dim as long d
     VgaPortInit( dac )
 
-    screen 13
+    REFSCREEN( 13 )
     PaletteLoadDefaults( p, 13 )
-    out &h3C8, 3  : VgaPortOut( dac, p, 8, &h3C8, 3, d )
-    out &h3C9, 60 : VgaPortOut( dac, p, 8, &h3C9, 60, d )
-    out &h3C9, 30 : VgaPortOut( dac, p, 8, &h3C9, 30, d )
+    REFOUT( &h3C8, 3 )  : VgaPortOut( dac, p, 8, &h3C8, 3, d )
+    REFOUT( &h3C9, 60 ) : VgaPortOut( dac, p, 8, &h3C9, 60, d )
+    REFOUT( &h3C9, 30 ) : VgaPortOut( dac, p, 8, &h3C9, 30, d )
 
-    screen 0
-    screen 13
+    REFSCREEN( 0 )
+    REFSCREEN( 13 )
     '' gfxlib2 reloads the default palette on a mode set, so reload ours too.
     '' What is under test is that the PORT STATE survived, not the palette.
     PaletteLoadDefaults( p, 13 )
-    out &h3C9, 15 : VgaPortOut( dac, p, 8, &h3C9, 15, d )
+    REFOUT( &h3C9, 15 ) : VgaPortOut( dac, p, 8, &h3C9, 15, d )
     chkrgb( p, "cross-SCREEN commit", 3 )
-    screen 0
+    REFSCREEN( 0 )
 end scope
 
-print "abtest-vgaport -- "; ran; " INP/OUT checks against gfxlib2"
-if failures = 0 then
-    print "abtest-vgaport: PASS -- the DAC state machine agrees"
-    end 0
-else
-    print report;
-    print "abtest-vgaport: FAIL -- "; failures; " of"; ran; " differ"
-    end 1
-end if
+Abtest.Finish_( )
