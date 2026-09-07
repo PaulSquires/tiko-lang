@@ -1,0 +1,21 @@
+'' '#foreignlib' (fbc-modern RFC-0005) was reported as unimplemented and is not any
+'' more. The grammar and the probe order are fbc's, read from fbForeignLibResolve:
+''
+''     #foreignlib ID (STATIC|DYNAMIC) "spec" (, "spec")*
+''
+'' A spec is a BASE NAME resolved against the directory of the source that wrote it,
+'' then probed most-specific-first -- stem_<os>_<arch>, stem_<os>, stem_<arch>, stem
+'' -- with the extensions the kind and target allow. "system:name" resolves nothing
+'' and is handed to the linker as a bare name.
+''
+'' THE VARIANT ORDER IS WHAT THIS PINS. src/vendor holds probe_windows_x86_64.a AND
+'' probe_linux_x86_64.a, so a build that ignored the os tag, or took the plain stem,
+'' or picked by directory order, would resolve to the wrong file or to none -- and
+'' the test runs for both targets, so each has to choose its own.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO03
+
+#foreignlib PROBE static "src/vendor/probe"
+print "bound"

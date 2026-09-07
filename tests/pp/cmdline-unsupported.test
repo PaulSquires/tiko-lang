@@ -1,0 +1,20 @@
+'' '#cmdline' IS NOT IMPLEMENTED AND NOW SAYS SO. It was skipped in silence, which
+'' is the worst of the three available answers: the corpus writes
+'' '#cmdline "-d CMDLINESYMBOL"' and '#cmdline "-w error"', so skipping it leaves
+'' the symbol undefined or the warnings not-errors, and the file compiles into
+'' something the author did not ask for with nothing said anywhere.
+''
+'' IT IS NOT THE SAME SHAPE as '#inclib' and '#libpath', which is why it is reported
+'' rather than implemented alongside them. Those name one thing the link needs.
+'' '#cmdline' injects arbitrary OPTIONS from inside a source already being compiled
+'' under the options it wants to change -- fbc's answer is '-restart', re-invoking
+'' itself with the new command line. Anything less is a subset that works until
+'' someone writes the option that needs the restart.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0310
+'' EXPECT-OUT: '#cmdline' is not implemented in this build
+
+#cmdline "-d CMDLINESYMBOL"
+print "x"

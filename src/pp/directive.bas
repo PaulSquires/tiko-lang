@@ -32,6 +32,125 @@ end function
 '' Resolution order: relative to the INCLUDING file first, then the -i paths. This is
 '' fbc's order and it is what makes a library's internal includes work regardless of
 '' the working directory.
+'' '#foreignlib' (fbc-modern RFC-0005). The rules below are fbc's, read from
+'' fbForeignLibResolve and then checked against its own error tests:
+''
+''     #foreignlib ID (STATIC|DYNAMIC) "spec" (, "spec")*
+''
+' A spec of "system:name" is handed to the linker as a bare name and resolved no
+'' further. Anything else is a BASE NAME made absolute against the directory of the
+'' source that wrote it, then probed -- most specific variant first:
+''
+''     stem_<os>_<arch>   stem_<os>   stem_<arch>   stem
+''
+'' with the extensions the kind and target allow. An axis with no tag drops the
+'' variants that would need it rather than inventing a spelling.
+private function ForeignLibOsTag_( byref e as PpEngine ) as string
+    if e.cfg->targetIsWindows then return "windows"
+    return "linux"
+end function
+
+'' x86-64 IS THE ONLY ARCHITECTURE (D14), so this is not a choice today. It stays a
+'' function because the variant list is built around an axis that CAN be empty, and
+'' an ARM64 target would fill this in rather than rewrite the loop.
+private function ForeignLibArchTag_( byref e as PpEngine ) as string
+    if e.cfg->targetIs64 then return "x86_64"
+    return "x86"
+end function
+
+'' STATIC prefers an archive, DYNAMIC an import library. Windows gets '.lib' in
+'' both: it is the MSVC spelling of each.
+private sub ForeignLibExts_ _
+    ( byref e as PpEngine, byval isStatic as boolean, byref outp as StrVec )
+    if isStatic then
+        outp.Push( ".a" )
+        if e.cfg->targetIsWindows then outp.Push( ".lib" )
+    else
+        if e.cfg->targetIsWindows then
+            outp.Push( ".dll.a" )
+            outp.Push( ".lib" )
+            outp.Push( ".dll" )
+        else
+            outp.Push( ".so" )
+        end if
+    end if
+end sub
+
+'' One spec to a file on disk, or "" if nothing matched. 'tried' collects every
+'' candidate so the diagnostic can list them -- fbc's does, and a probe that fails
+'' silently on four variants times three extensions is a bad afternoon.
+private function ForeignLibResolve_ _
+    ( byref e as PpEngine, byval at as SourceLoc, byref spec as string, _
+      byval isStatic as boolean, byref tried as string ) as string
+
+    tried = ""
+
+    '' 'system:name' resolves nothing -- the linker is expected to know it.
+    if lcase( left( spec, 7 ) ) = "system:" then
+        return mid( spec, 8 )
+    end if
+
+    '' SOURCE-RELATIVE, not relative to the working directory: a binding written in
+    '' a header must find the library sitting beside that header whoever includes it.
+    dim as string base_ = spec
+    for i as long = 1 to len( base_ )
+        if mid( base_, i, 1 ) = "\" then mid( base_, i, 1 ) = "/"
+    next
+    dim as boolean absolute_ = false
+    if instr( base_, ":" ) > 0 then absolute_ = true
+    if left( base_, 1 ) = "/" then absolute_ = true
+    if absolute_ = false then
+        dim as DecodedLoc d = e.src->Decode( at )
+        dim as string here = e.src->PathOf( d.file )
+        dim as string dir_ = ""
+        for i as long = len( here ) to 1 step -1
+            dim as ubyte c = here[i - 1]
+            if (c = 47) orelse (c = 92) then
+                dir_ = left( here, i )
+                exit for
+            end if
+        next
+        base_ = dir_ & base_
+    end if
+
+    dim as string dirPart = ""
+    dim as string stem = base_
+    for i as long = len( base_ ) to 1 step -1
+        dim as ubyte c = base_[i - 1]
+        if (c = 47) orelse (c = 92) then
+            dirPart = left( base_, i )
+            stem = mid( base_, i + 1 )
+            exit for
+        end if
+    next
+    if len( stem ) = 0 then return ""
+
+    dim as string os_ = ForeignLibOsTag_( e )
+    dim as string arch = ForeignLibArchTag_( e )
+
+    dim as StrVec variants
+    if (len( os_ ) > 0) andalso (len( arch ) > 0) then variants.Push( stem & "_" & os_ & "_" & arch )
+    if len( os_ ) > 0 then variants.Push( stem & "_" & os_ )
+    if len( arch ) > 0 then variants.Push( stem & "_" & arch )
+    variants.Push( stem )
+
+    dim as StrVec exts
+    ForeignLibExts_( e, isStatic, exts )
+
+    for v as long = 0 to variants.Count - 1
+        for x as long = 0 to exts.Count - 1
+            dim as string cand = dirPart & variants[v] & exts[x]
+            dim as long fh = freefile
+            if open( cand for input as #fh ) = 0 then
+                close #fh
+                return cand
+            end if
+            tried += "    " & cand & chr( 10 )
+        next
+    next
+    return ""
+end function
+
 private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as boolean )
     dim as Token t
     if PeekOnLine( e, t ) = false then
@@ -632,13 +751,122 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         end if
 
     case "cmdline"
-        '' NOT IMPLEMENTED, and it is not the same shape as the two above: fbc's
-        '' '#cmdline' injects arbitrary command-line options from source, so it has
-        '' to run before the options it sets are read. Skipped as before.
+        '' NOT IMPLEMENTED, AND NOW IT SAYS SO. It was skipped in silence, which is
+        '' the worst of the three options: the corpus writes '#cmdline "-d
+        '' CMDLINESYMBOL"' and '#cmdline "-w error"', so a skipped directive means
+        '' the symbol is undefined or the warnings are not errors, and the file then
+        '' compiles to something the author did not ask for with nothing said.
+        ''
+        '' It is not the same shape as '#inclib' and '#libpath'. Those name one
+        '' thing the link needs; '#cmdline' injects arbitrary OPTIONS from inside a
+        '' source that is already being compiled under the options it wants to
+        '' change. fbc's answer is '-restart' -- it re-invokes itself with the new
+        '' command line -- and anything less than that is a subset that works until
+        '' someone writes the option that needs it.
+        if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
         SkipToEol( e )
 
-    case "cinclude", "foreignlib"
+    case "cinclude"
         if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
+        SkipToEol( e )
+
+    case "foreignlib"
+        '' #foreignlib ID (STATIC|DYNAMIC) "spec" (, "spec")*
+        dim as Token ft
+        if PeekOnLine( e, ft ) = false then
+            Report( e, TKO0327, at )
+            SkipToEol( e )
+            return
+        end if
+        if Tk( ft ) <> TK_IDENT then
+            Report( e, TKO0327, ft.loc )
+            SkipToEol( e )
+            return
+        end if
+        dim as string flId = ucase( SpellOf( e, ft ) )
+        Advance( e )
+
+        '' STATIC OR DYNAMIC, MANDATORY. fbc never infers it from what happens to be
+        '' on disk -- the same directory may hold both, and picking by luck would
+        '' make the build depend on which was built last.
+        dim as boolean flStatic = false
+        dim as boolean flHaveKind = false
+        if PeekOnLine( e, ft ) then
+            dim as string kw = ucase( SpellOf( e, ft ) )
+            if kw = "STATIC" then
+                flStatic = true
+                flHaveKind = true
+                Advance( e )
+            elseif kw = "DYNAMIC" then
+                flStatic = false
+                flHaveKind = true
+                Advance( e )
+            end if
+        end if
+        if flHaveKind = false then
+            Report( e, TKO0328, at, flId )
+            SkipToEol( e )
+            return
+        end if
+
+        dim as string flSig = ""
+        dim as boolean flBad = false
+        do
+            if PeekOnLine( e, ft ) = false then
+                Report( e, TKO0327, at )
+                flBad = true
+                exit do
+            end if
+            if Tk( ft ) <> TK_STRING_LIT then
+                Report( e, TKO0327, ft.loc )
+                flBad = true
+                exit do
+            end if
+            dim as string sp2 = SpellOf( e, ft )
+            dim as long qa2 = instr( sp2, """" )
+            dim as long qb2 = instrrev( sp2, """" )
+            dim as string spec = ""
+            if (qa2 > 0) andalso (qb2 > qa2) then spec = mid( sp2, qa2 + 1, qb2 - qa2 - 1 )
+            Advance( e )
+            if len( spec ) = 0 then
+                Report( e, TKO0327, ft.loc )
+                flBad = true
+                exit do
+            end if
+            dim as string tried = ""
+            dim as string got = ForeignLibResolve_( e, at, spec, flStatic, tried )
+            if len( got ) = 0 then
+                dim as string kindTxt = iif( flStatic, "static", "dynamic" )
+                Report( e, TKO0329, at, flId & " " & kindTxt & " " & spec, tried )
+                flBad = true
+                exit do
+            end if
+            e.outp->foreignLibFiles.Push( got )
+            flSig += got & ";"
+            '' A comma continues the list; anything else ends it.
+            if PeekOnLine( e, ft ) = false then exit do
+            if Tk( ft ) <> TK_COMMA then exit do
+            Advance( e )
+        loop
+
+        if flBad = false then
+            '' THE SAME NAME TWICE IS A REBIND ONLY IF THE SET DIFFERS. Binding it
+            '' identically twice is what an include guard-less header does when two
+            '' files pull it in, and that is not a mistake.
+            dim as boolean flDup = false
+            for i as long = 0 to e.outp->foreignLibNames.Count - 1
+                dim as string ent = e.outp->foreignLibNames[i]
+                dim as long tabAt = instr( ent, chr( 9 ) )
+                if left( ent, tabAt - 1 ) = flId then
+                    if mid( ent, tabAt + 1 ) <> flSig then Report( e, TKO0330, at, flId )
+                    flDup = true
+                    exit for
+                end if
+            next
+            if flDup = false then
+                e.outp->foreignLibNames.Push( flId & chr( 9 ) & flSig )
+            end if
+        end if
         SkipToEol( e )
 
     case else

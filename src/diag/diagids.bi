@@ -94,6 +94,12 @@
     '' name of the thing that is missing costs nothing to say and is what the reader
     '' needs, so this says it.
     DIAG( TKO0326, SEV_ERROR,   "'#%0' takes a library name in quotes" )
+    '' fbc's errors 17, 376, 377 and 378, which are #foreignlib's whole diagnostic
+    '' surface (RFC-0005).
+    DIAG( TKO0327, SEV_ERROR,   "expected a name, STATIC or DYNAMIC, then a quoted spec after #foreignlib" )
+    DIAG( TKO0328, SEV_ERROR,   "expected STATIC or DYNAMIC after the #foreignlib name, %0" )
+    DIAG( TKO0329, SEV_ERROR,   "#foreignlib found no matching library file: %0; tried: %1" )
+    DIAG( TKO0330, SEV_ERROR,   "#foreignlib name already bound to a different library set, %0" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

@@ -36,6 +36,9 @@ namespace Tko.Codegen
         '' foo out of the link and said nothing; '#inclib' was discarded by the
         '' preprocessor for the same span. Both arrive here now.
         as FB.Array( of string ) libs
+        '' '#foreignlib' results: exact paths, named as files. Kept apart from
+        '' 'libs' because those go through '-l' and these deliberately do not.
+        as FB.Array( of string ) libFiles
         '' Strip the symbol table at the link. True unless '-g' was given, which is
         '' fbc's own rule and the first thing '-g' has ever done here: it was parsed
         '' into a field nothing read.

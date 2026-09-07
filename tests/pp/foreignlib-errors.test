@@ -1,0 +1,20 @@
+'' THE THREE WAYS '#foreignlib' IS WRONG, each matching one of fbc's own errors --
+'' 376, 377 and 378, which its test suite writes as expected-error files.
+''
+'' STATIC or DYNAMIC is MANDATORY and never inferred from what is on disk: the same
+'' directory may hold both an archive and an import library, and choosing by luck
+'' would make the build depend on which was made last.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0328
+'' EXPECT-OUT: expected STATIC or DYNAMIC after the #foreignlib name, BADKIND
+
+'' A spec that resolves to nothing lists what was tried, because a silent failure
+'' across four variants times three extensions is not a debuggable afternoon.
+'' EXPECT-OUT: TKO0329
+'' EXPECT-OUT: found no matching library file
+
+#foreignlib BADKIND "src/vendor/probe"
+#foreignlib NOPE static "src/vendor/nothing-here"
+print "x"

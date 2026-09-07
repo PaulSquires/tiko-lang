@@ -252,6 +252,12 @@ function LinkExe _
     '' lib<name>.a from -l, and they consider more than that: on Linux a -p directory
     '' holding both libfoo.so and libfoo.a should yield the SHARED one, and resolving
     '' to a file here would quietly pick the static.
+    '' The '#foreignlib' bindings first: they named an exact file, so there is
+    '' nothing to resolve and no reason to let a search path answer differently.
+    for i as long = 0 to t.libFiles.Count - 1
+        cmd += " " & Q( t.libFiles[i] )
+    next
+
     for i as long = 0 to t.libs.Count - 1
         dim as string named = ""
         '' TWO SPELLINGS, AND THE IMPORT LIBRARY WINS -- which is GNU ld's order and

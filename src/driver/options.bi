@@ -138,6 +138,10 @@ namespace Tko
         '' The same split, and the same order, for the libraries themselves.
         as StrVec  libs              '' -l
         as StrVec  pragmaLibs        '' '#inclib'
+        '' '#foreignlib', already resolved to exact files. Named as FILES on the
+        '' link line rather than through '-l', which is the point of the feature:
+        '' the binding said which file, so the linker does no searching of its own.
+        as StrVec  pragmaLibFiles
         as StrVec  defines
 
         as string  outputPath

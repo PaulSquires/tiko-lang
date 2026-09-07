@@ -421,6 +421,9 @@ private function LinkAll _
     for i as long = 0 to ctx.options.pragmaLibs.Count - 1
         tools.libs.Push( ctx.options.pragmaLibs[i] )
     next
+    for i as long = 0 to ctx.options.pragmaLibFiles.Count - 1
+        tools.libFiles.Push( ctx.options.pragmaLibFiles[i] )
+    next
 
     '' fbc's RULE, read and then measured: strip unless '-g'. This is also the
     '' first effect '-g' has ever had -- OPT_DEBUG set a field that nothing read.
@@ -701,6 +704,9 @@ function Run( byref args as Tko.StrVec ) as long
             next
             for k as long = 0 to pr.libPaths.Count - 1
                 ctx.options.pragmaLibPaths.Push( pr.libPaths[k] )
+            next
+            for k as long = 0 to pr.foreignLibFiles.Count - 1
+                ctx.options.pragmaLibFiles.Push( pr.foreignLibFiles[k] )
             next
 
             dim as Tko.SymbolTable syms

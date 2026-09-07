@@ -78,3 +78,10 @@ tests/vendor/**/*.o
 /tests/driver/*.dll.a
 /tests/driver/*.a
 /tests/driver/*.exe
+
+# TEST FIXTURES THAT ARE ARCHIVES. '*.a' above is right for build output and wrong
+# for these: tests/pp/foreignlib.test resolves a #foreignlib spec by PROBING the
+# filesystem, so the files it probes for are inputs, not artefacts. Without this
+# they stay untracked, the test passes here because they exist locally, and it
+# fails on a fresh clone -- which the gate cannot see either.
+!/tests/pp/src/vendor/*.a

@@ -133,6 +133,16 @@ namespace Tko
         '' link happens once, after every module has been through.
         as StrVec   incLibs
         as StrVec   libPaths
+        '' '#foreignlib' (fbc-modern RFC-0005): libraries resolved to an EXACT file
+        '' rather than a name, so the linker does no lib-prefix guessing of its own.
+        '' fbc hands these to ld as ':<filename>'; tiko names the path, which is
+        '' what it already does for the runtime archives and works under lld-link
+        '' too -- ':' is GNU ld syntax and the MSVC driver has no equivalent.
+        as StrVec   foreignLibFiles
+        '' The bound names, so 'declare ... lib IDENT' can be checked against them.
+        '' Stored as 'ID' & tab & 'signature': the same name twice with a DIFFERENT
+        '' set is an error, and with the same set is not.
+        as StrVec   foreignLibNames
     end type
 
     '' ---------------------------------------------------------------- the stream
