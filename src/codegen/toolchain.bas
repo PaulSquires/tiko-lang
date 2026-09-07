@@ -99,7 +99,38 @@ function LinkExe _
     '' EVERY OBJECT, IN THE ORDER GIVEN. Order is not cosmetic to a linker: an
     '' archive is searched once, at the point it appears, so a module naming a symbol
     '' has to come before whatever resolves it.
-    dim as string cmd = "-target " & target.triple
+    '' LLD, NOT WHATEVER THE MACHINE HAS. clang picks a linker by looking at the
+    '' host: for the msvc triple it finds Visual Studio's link.exe, and for the gnu
+    '' one an ld.exe off PATH -- measured, it was reaching C:\dev\utils\mingw64.
+    '' Both are external installs that vary per machine, and neither is the one this
+    '' compiler's behaviour was measured against. lld ships inside the LLVM install
+    '' tiko already requires for clang, so naming it removes a dependency rather
+    '' than adding one.
+    ''
+    '' MEASURED EQUIVALENT, 2026-09-06: the same hello world links and runs under
+    '' both, on both Windows targets. lld's msvc output is 2.5% larger (168,448
+    '' against 164,352) and its gnu output smaller (681,472 against 731,044).
+    ''
+    '' THIS DOES NOT MAKE win64-msvc SELF-CONTAINED. clang still adds
+    '' '-defaultlib:libcmt' and '-defaultlib:oldnames', and libcmt.lib,
+    '' vcruntime.lib and oldnames.lib come from Visual Studio. Linking msvcrt.dll
+    '' instead -- we ship an import library for it -- is a decision about which CRT
+    '' the runtime uses, not a flag.
+    dim as string cmd = "-target " & target.triple & " -fuse-ld=lld"
+
+    '' STRIP, WHICH fbc DOES AND THIS DID NOT. Read out of fbc.bas and then
+    '' measured: '-s' is on the link line by default and absent under '-g'.
+    '' It is worth more here than there, because tiko links a runtime whose C
+    '' members and CRT carry line tables: a hello world on the gnu target was
+    '' 731,044 bytes and is 163,840 stripped, .debug_info alone accounting for
+    '' 311 KB of it.
+    ''
+    '' NOT ON THE MSVC TARGET. '-s' is a gnu-linker flag, and MSVC keeps debug data
+    '' in a separate PDB rather than in the image -- stripping the msvc output
+    '' changes nothing, measured.
+    if (target.id <> TARGET_WIN64_MSVC) andalso t.stripSymbols then
+        cmd += " -s"
+    end if
     for i as long = 0 to objs.Count - 1
         cmd += " " & Q( objs[i] )
     next
@@ -216,7 +247,29 @@ function LinkExe _
         '' THE IMPORT LIBRARIES ARE THE SAME SET THE MinGW BRANCH NEEDS, plus ws2_32:
         '' getaddrinfo and friends resolve under MSVC only when it is on the line, and
         '' that is a link-library question rather than an ABI one.
-        cmd += " -llegacy_stdio_definitions"
+        '' NO VISUAL STUDIO. '-nostdlib' turns off clang's own defaults --
+        '' '-defaultlib:libcmt' and '-defaultlib:oldnames' -- and with them the only
+        '' reason this target reached into an installed Visual Studio. Measured
+        '' 2026-09-06: libcmt.lib, libvcruntime.lib, oldnames.lib and
+        '' legacy_stdio_definitions.lib come from VC Tools and nowhere else, and
+        '' Microsoft's own redistributable set carries runtime DLLs and no static
+        '' libraries at all.
+        ''
+        '' WHAT REPLACES IT IS ucrtbase.dll, a Windows system component present on
+        '' every Windows 10 and later, reached through the import library we generate
+        '' ourselves (build/mkmsvcimplibs.sh). It exports 2,650 symbols -- every mem*
+        '' and str* routine, fileno, the whole stdio core -- and the six it does not
+        '' export are tiko-rt's own src/c/msvccrt.c: mainCRTStartup, _fltused, atexit,
+        '' sprintf, time/localtime and __chkstk.
+        ''
+        '' MEASURED: a hello world links and runs at 20,480 bytes against fbc's
+        '' 48,640, needing only ucrtbase.dll and KERNEL32.dll, and PRINT USING
+        '' matches fbc byte for byte.
+        '' kernel32 IS NAMED EXPLICITLY, and it was not before: clang's own defaults
+        '' brought it in, and '-nostdlib' drops those too. The first build without it
+        '' failed on Sleep, CreateSemaphoreA and CloseHandle from tiko-rt's thread
+        '' and timing layers.
+        cmd += " -nostdlib -lucrtbase -lkernel32"
         cmd += " -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32"
         cmd += " -Xlinker /INCLUDE:tkort_msvc_init_"
     elseif target.objFormat = OBJ_COFF then

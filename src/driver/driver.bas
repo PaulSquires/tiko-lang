@@ -357,6 +357,11 @@ private function LinkAll _
         tools.libs.Push( ctx.options.pragmaLibs[i] )
     next
 
+    '' fbc's RULE, read and then measured: strip unless '-g'. This is also the
+    '' first effect '-g' has ever had -- OPT_DEBUG set a field that nothing read.
+    '' It does NOT yet make the compiler emit debug information; that is Phase 11.
+    tools.stripSymbols = (ctx.options.debugInfo = false)
+
     dim as long rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then
         print #eh, "tiko: link failed (exit " & str( rc ) & ")"

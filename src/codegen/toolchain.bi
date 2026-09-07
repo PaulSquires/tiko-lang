@@ -26,6 +26,10 @@ namespace Tko.Codegen
         '' foo out of the link and said nothing; '#inclib' was discarded by the
         '' preprocessor for the same span. Both arrive here now.
         as FB.Array( of string ) libs
+        '' Strip the symbol table at the link. True unless '-g' was given, which is
+        '' fbc's own rule and the first thing '-g' has ever done here: it was parsed
+        '' into a field nothing read.
+        as boolean stripSymbols
         as boolean found
         as string why              '' when found is false
     end type

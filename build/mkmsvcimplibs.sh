@@ -31,13 +31,14 @@
 # an import member defines __imp_X, and a CODE import additionally defines the
 # thunk X in the same member, where a DATA import does not.
 #
-# A first attempt collected every __imp_ symbol in the archive and reported
-# GetProcAddress and EnterCriticalSection as DATA in msvcrt. They are functions.
-# libmsvcrt.dll.a is not a pure import library: it carries real objects that
-# REFERENCE __imp_GetProcAddress as undefined, and those were being counted as
-# exports. Only symbols DEFINED in a member count, which is what the extractor
-# below checks, and msvcrt then reports 1221 code and 76 DATA -- __argc, __argv,
-# _HUGE, __lc_handle and the rest, which are data.
+# It took two attempts to get right, and build/mkmsvcdef.py carries the record.
+# The first collected every __imp_ symbol in the archive and called msvcrt's
+# GetProcAddress a data export -- undefined REFERENCES from real objects inside
+# the archive were being counted as exports of it. The second asked whether the
+# member also defined a thunk, which is right for most of fbc's libraries and
+# wrong for ucrtbase, where 63 thunk-less exports are functions: floor and
+# floorf among them, which is how it was caught. The answer now comes from the
+# DLL, where an export whose RVA lands in an executable section is code.
 
 set -e
 
@@ -55,42 +56,6 @@ die( ) { echo "mkmsvcimplibs: $*" >&2; exit 1; }
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-cat > "$WORK/mkdef.py" <<'PYEOF'
-import subprocess,sys,os
-LLVM=os.environ["LLVM_BIN"]
-def scan(archive):
-    out=subprocess.run([LLVM+"/llvm-nm.exe","--no-demangle",archive],
-                       capture_output=True,text=True).stdout
-    members=[]; cur=None
-    for line in out.splitlines():
-        s=line.strip()
-        if not s: continue
-        if s.endswith(":") and " " not in s:
-            cur={"imp":set(),"text":set()}; members.append(cur); continue
-        if cur is None: continue
-        p=s.split()
-        if len(p)==2: typ,name=p[0],p[1]
-        elif len(p)>=3: typ,name=p[-2],p[-1]
-        else: continue
-        # DEFINED only. 'U __imp_X' is a REFERENCE from a real object in the
-        # archive, not an export of it -- the mistake that reported msvcrt's
-        # GetProcAddress as a data export.
-        if typ=="I" and name.startswith("__imp_"): cur["imp"].add(name[6:])
-        elif typ=="T": cur["text"].add(name)
-    code=set(); data=set()
-    for m in members:
-        for n in m["imp"]:
-            (code if n in m["text"] else data).add(n)
-    return code,data
-a,dll,out=sys.argv[1],sys.argv[2],sys.argv[3]
-code,data=scan(a)
-if not (code or data): sys.exit(2)
-lines=["LIBRARY "+dll,"EXPORTS"]
-for n in sorted(code): lines.append("  "+n)
-for n in sorted(data): lines.append("  "+n+"  DATA")
-open(out,"w").write("\n".join(lines)+"\n")
-print("%d %d" % (len(code),len(data)))
-PYEOF
 
 export LLVM_BIN="$LLVM"
 made=0; empty=0; failed=0; codes=0; datas=0
@@ -99,7 +64,7 @@ for f in "$FROM"/*.dll.a; do
     base=$(basename "$f" .dll.a)          # libkernel32
     name=${base#lib}                      # kernel32
     [ -n "$name" ] || continue
-    if counts=$( python "$WORK/mkdef.py" "$f" "$name.dll" "$WORK/$name.def" 2>/dev/null ); then
+    if counts=$( python "$ROOT/build/mkmsvcdef.py" "$f" "$name.dll" "$WORK/$name.def" 2>/dev/null ); then
         if "$LLVM/llvm-dlltool.exe" -m i386:x86-64 -d "$WORK/$name.def" \
              -l "$TO/$name.lib" 2>/dev/null; then
             made=$(( made + 1 ))

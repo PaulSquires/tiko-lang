@@ -61,3 +61,10 @@ tests/vendor/**/*.o
 /toolchains/*/tiko.exe
 /toolchains/*/licences/
 /toolchains/*/MANIFEST.txt
+
+# fbc's -gen gcc INTERMEDIATE C, written beside the .bas it came from. The root
+# rule above catches a build run from the top; a build of src/ leaves one .c per
+# module in place, and 63 of them turned up as untracked files ready to be
+# committed. tiko's own sources are .bas and .bi only, so nothing under src/ is a
+# real .c -- unlike lib/rt/src/c, lib/gfx/tools and tests/mir/src, which are.
+/src/**/*.c

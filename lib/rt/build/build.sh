@@ -98,7 +98,28 @@ build_one( ) {
                 rt_die "$target/$thread: $src failed to compile"
             fi
             [ -f "$__ll" ] || rt_die "$target/$thread: $src produced no .ll"
-            if ! "$CLANG" --target="$__ct" -march=x86-64 "-O$(rt_opt_level "$CFG")"                     -Wno-override-module "$__ll" -c -o "$obj"; then
+            # -ffunction-sections IS WHY A HELLO WORLD HALVED. Each FreeBASIC
+            # module compiles to ONE object holding every procedure in it, so a
+            # linker that discards unreferenced code could not: the unit it can
+            # drop is a section, and there was one section for the lot. A 'print'
+            # therefore dragged io_print.o, which dragged io_devscrn2.o for
+            # fb_DevScrnInit_Write, which dragged io_devfile.o -- 70 members
+            # pulled in for hello world where fbc's C libfb pulls 40.
+            #
+            # NO GC FLAG IS NEEDED AT THE LINK, which was the surprise. MSVC's
+            # linker already applies /OPT:REF in a non-debug link; it simply had
+            # nothing to work with. Measured 2026-09-06, win64-msvc hello world:
+            #
+            #     without   352,768 bytes   .text 270,560
+            #     with      164,352 bytes   .text  98,752
+            #
+            # The archive GROWS, 766 KB to 900 KB, because per-function sections
+            # cost headers. That is a build artefact; the executable is what ships.
+            #
+            # THIS TARGET ONLY, and not by choice. The gnu path below hands the
+            # whole compile to fbc, and -Wc does not reach its -gen llvm clang
+            # call (RFC-0006 section 12), so win64 keeps one section per module.
+            if ! "$CLANG" --target="$__ct" -march=x86-64 "-O$(rt_opt_level "$CFG")" -ffunction-sections -fdata-sections                     -Wno-override-module "$__ll" -c -o "$obj"; then
                 rt_die "$target/$thread: $src failed to assemble for $__ct"
             fi
             rm -f "$__ll"
