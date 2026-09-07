@@ -1,0 +1,12 @@
+'' A RESOURCE SCRIPT IS WINDOWS-ONLY, and saying so beats ignoring it. There is
+'' nothing to link a .rc into on ELF, so a build that quietly dropped it would put
+'' out a binary missing whatever the script carried.
+''
+'' The target is named in ARGS because tests/driver has no TARGETS file and the
+'' runner otherwise prepends win64.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 tests/driver/src/res.bas tests/driver/src/res.rc -o tests/driver/res-linux.out
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0108
+'' EXPECT-OUT: is a Windows resource script
+'' EXPECT-NO-FILE: tests/driver/res-linux.out

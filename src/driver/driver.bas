@@ -519,11 +519,20 @@ function Run( byref args as Tko.StrVec ) as long
     '' header -- an honest complaint about the wrong question. The suite's own build
     '' compiles every test to its own '.o' and then links the lot, so consuming
     '' objects is not a convenience, it is the whole of how fbc's makefile works.
+    '' A '.rc' IS A THIRD KIND, and it used to be the second: a resource script went
+    '' to the lexer as FreeBASIC. It did not even fail -- 'STRINGTABLE BEGIN 101,
+    '' "text" END' is identifiers and a literal, which parse as statements -- so the
+    '' program built, the resource was absent, and nothing said so.
     dim as Tko.StrVec objInputs
     dim as Tko.StrVec srcInputs
+    dim as Tko.StrVec rcInputs
     for each inputPath as string in ctx.options.inputs
-        if Tko.Text.LowerAscii( right( inputPath, 2 ) ) = ".o" then
+        dim as string ext2 = Tko.Text.LowerAscii( right( inputPath, 2 ) )
+        dim as string ext3 = Tko.Text.LowerAscii( right( inputPath, 3 ) )
+        if ext2 = ".o" then
             objInputs.Push( inputPath )
+        elseif ext3 = ".rc" then
+            rcInputs.Push( inputPath )
         else
             srcInputs.Push( inputPath )
         end if
@@ -622,6 +631,34 @@ function Run( byref args as Tko.StrVec ) as long
         dim as Tko.StrVec tempObjs
         for i as long = 0 to objInputs.Count - 1
             linkObjs.Push( objInputs[i] )
+        next
+
+        '' EVERY '.rc' BECOMES A '.res' AND JOINS THE LINK. lld-link consumes a
+        '' .res directly, so there is no object in between; fbc asks GoRC for a COFF
+        '' object instead and arrives at the same .rsrc section.
+        ''
+        '' WINDOWS ONLY, and said rather than ignored: there is nothing to link a
+        '' resource into on ELF, and a '.rc' handed to a Linux build is a mistake.
+        for i as long = 0 to rcInputs.Count - 1
+            if Tko.TargetIsWindows( ctx.options.target ) = false then
+                ctx.diags.ReportGlobal( Tko.TKO0108, rcInputs[i] )
+                continue for
+            end if
+            dim as Tko.Codegen.ToolPaths rt_ = _
+                Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
+            if rt_.found = false then
+                ctx.diags.ReportGlobal( Tko.TKO0109, rt_.why )
+                exit for
+            end if
+            dim as string resPath = StripExt_( rcInputs[i] ) & ".res"
+            dim as long rrc = Tko.Codegen.CompileRc( rt_, rcInputs[i], resPath )
+            if rrc <> 0 then
+                ctx.diags.ReportGlobal( Tko.TKO0110, rcInputs[i], str( rrc ) )
+            else
+                linkObjs.Push( resPath )
+                '' Ours to delete: the '.rc' was the user's, the '.res' was not.
+                tempObjs.Push( resPath )
+            end if
         next
         '' THE BOUND IS FROZEN. Count( ) grows as the preprocessor opens includes,
         '' and reading it each time round would compile every header as a unit.

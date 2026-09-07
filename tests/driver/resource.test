@@ -1,0 +1,19 @@
+'' A '.rc' IS COMPILED AND LINKED, and before this it was compiled as FreeBASIC.
+'' That did not even fail: 'STRINGTABLE BEGIN 101, "text" END' is identifiers and a
+'' string literal, which parse as statements -- so the program built, the resource
+'' was silently absent, and nothing said so. An icon or a version block would have
+'' gone missing from a shipped binary with no diagnostic anywhere.
+''
+'' llvm-rc, NOT GoRC. fbc runs GoRC.exe out of its own bin/ and asks for a COFF
+'' object; llvm-rc ships with the LLVM install tiko already requires and produces a
+'' .res, which lld-link consumes directly. Same .rsrc section, one less external
+'' tool -- checked: the built exe has one.
+''
+'' The '.res' is an intermediate and is deleted after the link, so only the exe is
+'' asserted here. The '.rc' is the user's and is never touched.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/res.bas tests/driver/src/res.rc -o tests/driver/res.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/res.exe
+'' EXPECT-NO-FILE: tests/driver/src/res.res

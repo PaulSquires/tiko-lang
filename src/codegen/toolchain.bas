@@ -46,10 +46,13 @@ function FindTools _
         end if
     next
     dim as string arName = "llvm-ar"
+    dim as string rcName = "llvm-rc"
     #ifdef __FB_WIN32__
         arName += ".exe"
+        rcName += ".exe"
     #endif
     t.arExe = left( t.clangExe, cut_ ) & arName
+    t.rcExe = left( t.clangExe, cut_ ) & rcName
 
     if FileExists_( t.clangExe ) = false then
         t.why = "clang not found at '" & t.clangExe & "'" & _
@@ -73,6 +76,21 @@ end function
 '' A path with spaces in it needs quoting, and on Windows most of them have spaces.
 private function Q( byref s as string ) as string
     return """" & s & """"
+end function
+
+'' A '.rc' TO A '.res', which lld-link consumes directly -- no separate cvtres
+'' step and no object in between. fbc goes the other way, asking GoRC for a COFF
+'' object; the outcome is the same .rsrc section.
+''
+'' '-fo' AND NOT '/fo'. llvm-rc accepts both, and the dash form is the one that
+'' survives being pasted into a shell: MSYS rewrote '/fo' into a path and llvm-rc
+'' then complained that exactly one input file should be provided, naming neither.
+function CompileRc _
+    ( byref t as ToolPaths, byref rcPath as string, _
+      byref resPath as string ) as long
+
+    if FileExists_( t.rcExe ) = false then return -1
+    return exec( t.rcExe, "-fo " & Q( resPath ) & " " & Q( rcPath ) )
 end function
 
 '' 'rcs': replace members, create the archive, write an index. The index is what

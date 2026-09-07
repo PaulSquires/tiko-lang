@@ -1,0 +1,4 @@
+STRINGTABLE
+BEGIN
+  101, "a resource compiled by tiko"
+END

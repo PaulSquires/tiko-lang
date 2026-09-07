@@ -23,6 +23,11 @@ namespace Tko.Codegen
         '' likely to be a foreign toolchain's as the matching one -- the same
         '' reasoning FindTools already applies to clang itself.
         as string arExe
+        '' THE RESOURCE COMPILER, for a '.rc' input. llvm-rc, beside clang, for the
+        '' same reason as llvm-ar -- and because it keeps the toolchain to the one
+        '' external install it already documents. fbc reaches for GoRC.exe out of
+        '' its own bin/, which is a tool tiko does not ship and has no claim on.
+        as string rcExe
         '' Where libfb lives, IN SEARCH ORDER. A list, not one path: a runtime may be
         '' partial and resolve the rest from one behind it.
         as FB.Array( of string ) libPaths
@@ -52,6 +57,13 @@ namespace Tko.Codegen
     '' one override works the same way everywhere.
     declare function FindTools _
         ( byref clangOpt as string, byref libOpt as FB.Array( of string ) ) as ToolPaths
+
+    '' A RESOURCE SCRIPT TO A '.res'. Windows only: there is no such thing to link
+    '' into an ELF binary, and a '.rc' passed with a Linux target is a mistake worth
+    '' reporting rather than a file to ignore.
+    declare function CompileRc _
+        ( byref t as ToolPaths, byref rcPath as string, _
+          byref resPath as string ) as long
 
     '' OBJECTS TO A STATIC LIBRARY -- fbc's '-lib'. No link runs: an archive is not
     '' linked, it is collected, and every unresolved symbol in it stays unresolved

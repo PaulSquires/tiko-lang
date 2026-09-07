@@ -49,6 +49,12 @@
     DIAG( TKO0105, SEV_WARNING, "unknown diagnostic id '%0'" )
     DIAG( TKO0106, SEV_ERROR,   "'%0' is not a recognised value for '%1'" )
     DIAG( TKO0107, SEV_WARNING, "ignoring unsupported option '%0'" )
+    '' A resource script only means something on Windows. Reported rather than
+    '' skipped: a '.rc' on a Linux command line is a mistake, and silently dropping
+    '' it is how a program ships with its icon and version block missing.
+    DIAG( TKO0108, SEV_ERROR,   "'%0' is a Windows resource script; the target is not Windows" )
+    DIAG( TKO0109, SEV_ERROR,   "no resource compiler: %0" )
+    DIAG( TKO0110, SEV_ERROR,   "compiling resource '%0' failed (exit %1)" )
 
     '' --------------------------------------------------------------------- lexer
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )
