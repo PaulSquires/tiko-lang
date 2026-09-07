@@ -312,6 +312,34 @@ for t in $TARGETS; do
     fi
 done
 
+# THE MSVC IMPORT LIBRARIES, generated rather than copied -- there is nothing to
+# copy. fbc's tree is MinGW and carries lib<name>.dll.a; the MSVC linker looks for
+# <name>.lib and finds none of them.
+#
+# WITHOUT THESE THE DEFAULT TARGET DEPENDS ON VISUAL STUDIO. Measured 2026-09-06:
+# clang's msvc driver passes -libpath for VS 2022 Community and Windows SDK
+# 10.0.26100 out of its own knowledge of the machine, so win64-msvc linked here and
+# would not link on a machine without them. A toolchain whose default target needs
+# an unrelated install is not one that can be handed to anyone.
+#
+# NOT FATAL, on the same reasoning as the graphics build above: this needs
+# llvm-dlltool, and losing the compiler and runtime because the import libraries
+# could not be generated would be the wrong trade. The manifest records what
+# happened either way.
+IMPLIB_STATE="not generated"
+if [ "$HOST" = "windows" ] && [ -d "$OUT/lib/win64-fb" ] && [ -d "$OUT/lib/win64-msvc" ]; then
+    note "msvc import libraries -> lib/win64-msvc/  (generated from lib/win64-fb)"
+    if IMPLIB_OUT=$( sh "$ROOT/build/mkmsvcimplibs.sh" "$OUT/lib/win64-fb" "$OUT/lib/win64-msvc" 2>&1 ); then
+        IMPLIB_STATE=$( echo "$IMPLIB_OUT" | sed -n 's/^mkmsvcimplibs: //p' | head -1 )
+        note "$IMPLIB_STATE"
+    else
+        IMPLIB_STATE="FAILED -- $( echo "$IMPLIB_OUT" | tail -1 )"
+        note "WARNING: msvc import libraries not generated -- $IMPLIB_STATE"
+    fi
+else
+    IMPLIB_STATE="not applicable on this host"
+fi
+
 # ----------------------------------------------------------------- the notices
 #
 # lib/rt is LGPL-2.1-or-later and a derivative of libfb; lib/gfx is
@@ -428,6 +456,14 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     echo "lib/<target>-fb/  fbc's runtime, the CRT objects and the import"
     echo "                  libraries, behind ours. Absent for win64-msvc:"
     echo "                  fbc has no MSVC target and that one links without."
+    echo
+    echo "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
+    echo "                  DLLs, GENERATED from fbc's MinGW lib<name>.dll.a --"
+    echo "                  the MSVC linker looks for <name>.lib and would"
+    echo "                  otherwise fall back on an installed Visual Studio."
+    echo "                  build/mkmsvcimplibs.sh, rerunnable on its own."
+    echo
+    echo "import libraries: $IMPLIB_STATE"
     echo
     echo "graphics:$GFX_STATE"
     echo

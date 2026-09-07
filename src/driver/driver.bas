@@ -224,6 +224,48 @@ end sub
 '' per-source loop, which is why more than one input could never work: each input
 '' overwrote the previous one's '.ll' and object and then tried to link it alone. The
 '' link is now done once, after every module is an object -- see LinkAll.
+'' WHAT CLANG ACTUALLY WROTE. The object format is not something tiko selects: it
+'' follows from the triple CompileIr passes ('-target x86_64-pc-windows-msvc' ->
+'' COFF, 'x86_64-pc-linux-gnu' -> ELF), while TargetDescription.objFormat is a
+'' SEPARATE field that decides the shape of the link line. Nothing made the two
+'' agree; they sat side by side in target.bas and were assumed to match.
+''
+'' A disagreement is not loud. objFormat picks between the '-B'/import-library
+'' branch and the '-lm -lpthread -ltinfo' one, so a target whose triple said ELF
+'' while its objFormat said COFF would get a MinGW link line for an ELF object and
+'' fail somewhere well downstream of the mistake.
+''
+'' Four bytes settle it. ELF starts 7F 'E' 'L' 'F'; a COFF object starts with its
+'' machine word, 0x8664 little-endian for x86-64, or FF FF for the bigobj header
+'' clang emits when a module has more sections than the short form can count.
+''
+'' ONLY A DEFINITE MISMATCH IS AN ERROR. Anything unrecognised is left alone --
+'' '-flto' would put LLVM bitcode here, which is neither of these and is not wrong.
+private function ObjectLooksElf_( byref path_ as string, byref known as boolean ) as boolean
+    known = false
+    dim as long fh = freefile
+    if open( path_ for binary access read as #fh ) <> 0 then return false
+    dim as ubyte b(0 to 3)
+    dim as longint n = 4
+    get #fh, 1, b(0), n
+    close #fh
+    if n < 4 then return false
+    if (b(0) = &h7F) andalso (b(1) = asc( "E" )) andalso _
+       (b(2) = asc( "L" )) andalso (b(3) = asc( "F" )) then
+        known = true
+        return true
+    end if
+    if (b(0) = &h64) andalso (b(1) = &h86) then
+        known = true
+        return false
+    end if
+    if (b(0) = &hFF) andalso (b(1) = &hFF) then
+        known = true
+        return false
+    end if
+    return false
+end function
+
 private function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
@@ -263,6 +305,21 @@ private function BuildFromIr _
         print #eh, "tiko: clang failed on '" & irPath & "' (exit " & str( rc ) & ")"
         close #eh
         return Tko.EXIT_TOOL_FAILED
+    end if
+
+    dim as boolean fmtKnown = false
+    dim as boolean isElf = ObjectLooksElf_( objPath, fmtKnown )
+    if fmtKnown then
+        dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
+        if isElf <> wantElf then
+            dim as string got_ = iif( isElf, "ELF", "COFF" )
+            dim as string want_ = iif( wantElf, "ELF", "COFF" )
+            print #eh, "tiko: '" & objPath & "' is " & got_ & " but target " & _
+                       ctx.options.targetName & " links " & want_ & _
+                       " (triple " & td.triple & ")"
+            close #eh
+            return Tko.EXIT_TOOL_FAILED
+        end if
     end if
     if ctx.options.compileOnly then
         close #eh
