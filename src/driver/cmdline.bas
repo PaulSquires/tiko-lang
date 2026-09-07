@@ -230,7 +230,7 @@ end sub
 '' used to be read in FindTools, and only when no -p was given at all; it is read here
 '' now because a default pushed into libPaths would have made that test true forever
 '' and dropped the variable on the floor without saying so.
-private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )
+private sub AppendBundledLibDirs_( byref opts as Tko.DriverOptions )
     dim as ustring env_ = environ( "TKO_LIBPATH" )
     if len( env_ ) > 0 then
         opts.defaultLibPaths.Push( env_ )
@@ -253,6 +253,28 @@ private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )
 
     cand = FB.PathJoin( root, opts.targetName & "-fb" )
     if FB.IsDir( cand ) then opts.defaultLibPaths.Push( cand )
+end sub
+
+'' ...AND THE CURRENT DIRECTORY, LAST. fbc searches it -- measured, its link line
+'' ends '-L "<its own lib>" -L "."' -- and this did not, which was a deliberate
+'' omission and a wrong one.
+''
+'' The cost was not theoretical. 'tiko -dll thing.bas' writes thing.dll and
+'' libthing.dll.a into the working directory, and 'tiko -l thing use.bas' then could
+'' not find either: the only paths searched were the bundled ones under the compiler.
+'' Building a library and linking against it beside itself is the obvious workflow
+'' and it failed on the shipped toolchain.
+''
+'' LAST, AFTER THE BUNDLED TREE, which is also fbc's order. A stray libfb.a in the
+'' working directory must not win against the runtime that was shipped with the
+'' compiler -- that is how a build picks up something nobody meant it to.
+''
+'' UNCONDITIONAL, including when TKO_LIBPATH replaced the bundled tree: fbc adds it
+'' whatever else it was told, and a variable that says where the RUNTIME lives is
+'' not a statement about the working directory.
+private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )
+    AppendBundledLibDirs_( opts )
+    opts.defaultLibPaths.Push( "." )
 end sub
 
 private function MatchExact( byval arg as string ) as Tko.OptId

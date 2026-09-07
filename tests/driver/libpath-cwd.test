@@ -1,0 +1,23 @@
+'' THE CURRENT DIRECTORY IS SEARCHED FOR LIBRARIES, LAST. fbc does -- measured, its
+'' link line ends '-L "<its own lib>" -L "."' -- and this did not, which was a
+'' deliberate omission when the library search was written and a wrong one.
+''
+'' The cost was not theoretical, and it was found by testing the SHIPPED toolchain
+'' rather than the dev build: 'tiko -dll thing.bas' writes thing.dll and
+'' libthing.dll.a into the working directory, and 'tiko -l thing use.bas' then could
+'' not find either, because the only paths searched were the bundled ones under the
+'' compiler. Building a library and linking against it beside itself is the obvious
+'' workflow.
+''
+'' LAST, AFTER THE BUNDLED TREE. A stray libfb.a in the working directory must not
+'' win against the runtime shipped with the compiler.
+''
+'' This builds a static library into tests/driver and then links against it by NAME
+'' with no -p at all, so the only way it resolves is the cwd entry. TKO_LIBPATH names
+'' the runtime because it REPLACES the bundled search -- and the '.' entry is added
+'' even then, which is the other half of what this pins.
+'' TEST: cli
+'' ARGS: -target win64-msvc -lib tests/codegen/src/export.bas -o tests/driver/libcwdprobe.a
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/libcwdprobe.a
