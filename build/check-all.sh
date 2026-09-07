@@ -38,4 +38,10 @@ grep -E "statements not lowered|verify failures|scope imbalance" build/.sweep.lo
 bash build/build.sh Release
 bash build/build.sh RelWithDebInfo
 bash build/lint.sh
+
+# THE CROSSLINK SUITE. fbc's object and tiko-lang's, linked together and run --
+# the one check here that is not tiko-lang talking to itself. It skips when the
+# toolchain has not been packaged, because that is an environment gap rather than
+# a regression, and a gate that fails for the wrong reason gets ignored.
+bash build/crosslink.sh
 echo "check-all: done"
