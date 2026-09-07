@@ -113,8 +113,9 @@ func void STRUCTORSACCEPTED() {
   local ptr p
   entry0:
     %1 = alloca ptr ok_
-    call void _ZN10PUBDEFAULTC1Eu7INTEGER(@ok_)
-    %2 = alloca ptr p
+    %2 = const i64 0
+    call void _ZN10PUBDEFAULTC1Eu7INTEGER(@ok_, %2)
+    %3 = alloca ptr p
     ret
 }
 func void _ZN6NOCOPYC1Ev(ptr $0) {
@@ -211,9 +212,8 @@ func void _GLOBAL__D() {
   entry0:
     ret
 }
-verify: 1 FAILURES
-  STRUCTORSACCEPTED:0:1 call: calls _ZN10PUBDEFAULTC1Eu7INTEGER with 1 arguments, which declares 2
-lowered: 18 functions, 20 blocks, 98 insts, 0 statements not lowered, 0 scope imbalance
+verify: ok
+lowered: 18 functions, 20 blocks, 99 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/member-visibility.bas(47,6): error TKO0625: 'hidden' is not accessible here
      |
   47 |     x.hidden = 1

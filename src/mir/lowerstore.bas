@@ -462,6 +462,41 @@ sub EmitStructorCall _
         nargs += args->Count \ 2
     end if
 
+    '' THE DEFAULTS THE CONSTRUCTOR DECLARES, for every parameter no caller wrote.
+    ''
+    '' A structor call was assembled here from the receiver and whatever the caller
+    '' handed over, and never asked the callee what it expected. So
+    ''
+    ''     declare constructor( byval a as integer = 11, byval b as integer = 22 )
+    ''     dim as bar v
+    ''
+    '' emitted the call with the receiver ALONE against a definition taking three,
+    '' and the constructor read a and b off the stack: fbc prints '11 22' and this
+    '' printed '1714698034672 0'. The verifier saw it -- 'calls ...C1Eu7INTEGERS0_
+    '' with 1 arguments, which declares 3' -- and it is the largest family in the 82
+    '' arity failures the sweep records.
+    ''
+    '' THE SAME RULE ORDINARY CALLS ALREADY FOLLOW. lowercall.bas pads to the
+    '' CALLEE's parameter count and takes ParamDefaultAt for each one the call left
+    '' out; overload selection above already reads those defaults to CHOOSE this
+    '' constructor, so not filling them in was the half that was missing.
+    ''
+    '' 'idx + 1' BECAUSE THE RECEIVER IS PARAMETER ZERO here, and ParamDefaultAt
+    '' indexes the DECLARED parameters, which do not include it.
+    dim as long declared = ParamCountOf( c, sym )
+    dim as long written = nargs - 1
+    if declared > written then
+        for i as long = written to declared - 1
+            dim as Tko.NodeId dv = ParamDefaultAt( c, sym, i )
+            if dv = Tko.NODE_NONE then exit for
+            dim as MirValue av = LowerExpr( c, dv )
+            if av.kind = cast( ubyte, MV_NONE ) then exit for
+            c.m->argPool.Push( cast( ulong, av.kind ) )
+            c.m->argPool.Push( cast( ulong, av.id ) )
+            nargs += 1
+        next
+    end if
+
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
     dim as long fidx = -1

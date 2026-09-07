@@ -10,7 +10,7 @@
 # VERIFIER FAILURES ARE NOT ZERO AT BASELINE ANY MORE, and the count is stated here so
 # that a NEW one is visible rather than lost in a total:
 #
-#     82 verify failures in 20 files
+#     60 verify failures in 12 files
 #
 # All of them are the CALL-ARITY rule (docs/plan/09 rule 5), which could not be checked
 # until a MirFunction carried a signature rather than an arity -- before that a
@@ -23,9 +23,21 @@
 # They were 96 in 25 files until 'sleep n, flag' was fixed -- that was 14 of them, and
 # it took five files to zero on its own.
 #
+# 82 in 20 until CONSTRUCTOR DEFAULT ARGUMENTS were filled at the call (2026-09-07):
+# 22 of them, and eight files to zero. That was the largest family and its entry
+# below described it wrongly -- see there.
+#
 # The families, so that a new failure can be told from an old one:
 #
-#     ~20 a constructor called with 'this' alone, dropping its own arguments
+#     ~~~20 a constructor called with 'this' alone, dropping its own arguments~~~
+#          FIXED 2026-09-07, and the description was wrong in a way worth keeping:
+#          the caller had not dropped anything, it wrote none BECAUSE the parameters
+#          were defaulted, and EmitStructorCall never filled the defaults in.
+#          'dim as bar v' against 'constructor( a as integer = 11, b = 22 )' called
+#          a three-parameter definition with one argument, and the constructor read
+#          a and b off the stack -- fbc printed '11 22', this printed
+#          '1714698034672 0'. Overload selection ALREADY read those defaults to pick
+#          the constructor; only the filling was missing.
 #     ~16 FB.LOGEVENT.* got=4 want=3, one argument too many
 #     ~16 generic accessors (OPTIONAL.VALUE, RESULT.VALUE, SHAREDPTR.REF) got=2 want=1
 #      8  global operators '+' and '-' got=3 want=2
