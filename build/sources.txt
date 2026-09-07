@@ -42,6 +42,7 @@ src/mir/lowereach.bas
 src/mir/eightbyte.bas
 src/mir/lowerstore.bas
 src/mir/lowercallemit.bas
+src/mir/lowerboundchk.bas
 src/mir/lowerarr.bas
 src/mir/lowerconv.bas
 src/mir/lowerintr.bas

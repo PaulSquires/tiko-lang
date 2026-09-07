@@ -200,6 +200,7 @@ private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfi
     cfg.targetIsWindows = Tko.TargetIsWindows( ctx.options.target )
     cfg.targetIs64 = Tko.TargetIs64( ctx.options.target )
     cfg.threadSafe = ctx.options.threadSafe
+    cfg.errLevel = ctx.options.errLevel
     cfg.reportUnsupported = true
     return cfg
 end function
@@ -786,7 +787,8 @@ function Run( byref args as Tko.StrVec ) as long
                     isMain = (i = 1)
                 end if
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
-                               ctx.sources, udts, vts, mm, lst, isMain, modName )
+                               ctx.sources, udts, vts, mm, lst, isMain, modName, _
+                               ctx.options.errLevel )
                 '' THE ABI PASS, between lowering and emission (docs/plan/10 section
                 '' 3). It rewrites signatures and call sites so the emitted IR carries
                 '' no implicit ABI behaviour -- and it runs under '--dump-ir' too, so

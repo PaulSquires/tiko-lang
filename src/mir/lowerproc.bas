@@ -1102,7 +1102,8 @@ function Lower _
       byref vts as Tko.VTables, _
       byref m as MirModule, byref st as LowerStats, _
       byval isMainModule as boolean = true, _
-      byref moduleName as string = "" ) as long
+      byref moduleName as string = "", _
+      byval errLevel as long = 0 ) as long
 
     dim as Ctx c
     c.srcMgr = @src
@@ -1116,6 +1117,11 @@ function Lower _
     c.m = @m
     c.st = @st
     c.curBlock = -1
+    c.errLevel = errLevel
+    '' THE FILE NAME THE ERROR MESSAGES CARRY. fbc puts the module's own path
+    '' into every bounds-check call so the abort can say which file the bad
+    '' index came from. Taken once here rather than decoded at each access.
+    c.errModName = moduleName
     '' THE MODULE SCOPE, recorded once -- see the field's comment.
     c.modScope = info.ScopeOf( root )
     if c.modScope = Tko.SCOPE_NONE then c.modScope = Tko.SCOPE_GLOBAL

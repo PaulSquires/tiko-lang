@@ -938,6 +938,9 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
         iv = Coerce( c, iv, offTy )
 
+        '' -exx: CHECK THE SUBSCRIPT BEFORE IT BECOMES AN ADDRESS.
+        if c.errLevel >= 3 then EmitBoundsCheck_( c, id, sp->target, at, k, iv, offTy )
+
         '' A stride of 1 needs no multiply, which is most of the single-dimension cases.
         dim as MirValue term = iv
         if strides[k] <> 1 then

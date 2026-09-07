@@ -1,0 +1,24 @@
+'' '-exx' CHECKS EVERY SUBSCRIPT. The call shape is fbc's, measured from its own
+'' '-gen llvm -r' output on this same source:
+''
+''     fb_ArraySngBoundChkEx( i64 idx, i64 ubound, i32 line, ptr file, ptr name )
+''
+'' THE SINGLE-BOUND FORM IS FOR AN LBOUND OF 0. The runtime declares its first two
+'' parameters UNSIGNED so a negative index becomes enormous and fails the one
+'' 'idx > ubound' test -- one comparison instead of two, and it is why an array whose
+'' lbound is not 0 takes fb_ArrayBoundChkEx and its signed triple instead.
+''
+'' ONE CALL PER SUBSCRIPT, so two here: the assignment reads the index once and the
+'' PRINT reads it again.
+'' TEST: cli
+'' ARGS: -exx --emit-ir tests/codegen/src/boundchk.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call ptr @"fb_ArraySngBoundChkEx"
+'' EXPECT-OUT: declare ptr @"fb_ArraySngBoundChkEx"
+
+'' The bound is the DECLARED one, folded in at compile time -- 9, not the element
+'' count 10, and not read from a descriptor a fixed array does not have.
+'' EXPECT-OUT: i64 9
+
+'' The line the subscript sits on, so the abort can name it.
+'' EXPECT-OUT: i32 3

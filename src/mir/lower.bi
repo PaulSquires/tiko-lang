@@ -107,6 +107,8 @@ namespace Tko.Mir
     '' isMainModule: does this module's top-level code become 'main', or a module
     '' CONSTRUCTOR? Exactly one module in a program may answer true; the rest emit
     '' 'fb_ctor__<moduleName>'. See LowerMainModule for the measurements behind it.
+    '' errLevel is fbc's -e/-ex/-exx as a level. Only 3 (-exx) changes what
+    '' is emitted today: it is the one that adds array bounds checks.
     declare function Lower _
         ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
           byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
@@ -115,7 +117,8 @@ namespace Tko.Mir
           byref vts as Tko.VTables, _
           byref m as MirModule, byref st as LowerStats, _
           byval isMainModule as boolean = true, _
-          byref moduleName as string = "" ) as long
+          byref moduleName as string = "", _
+          byval errLevel as long = 0 ) as long
 
 end namespace
 

@@ -983,7 +983,20 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' This was hard-coded to 0, so '-mt' changed nothing anywhere.
     PpDefineValue( e, "__FB_MT__", iif( e.cfg->threadSafe, "-1", "0" ) )
     PpDefineValue( e, "__FB_DEBUG__", "0" )
-    PpDefineValue( e, "__FB_ERR__", "0" )
+    '' __FB_ERR__ IS A BITMASK, and the values are fbc's, measured with '#print':
+    ''
+    ''     no flag  0        -e  513        -ex  515        -exx  1823
+    ''
+    '' Not decoded into named bits here. The corpus tests the WHOLE value, headers
+    '' branch on 'is it nonzero', and inventing names for bits whose meaning has not
+    '' been measured would be a guess wearing a label.
+    dim as string errVal = "0"
+    select case e.cfg->errLevel
+    case 1 : errVal = "513"
+    case 2 : errVal = "515"
+    case 3 : errVal = "1823"
+    end select
+    PpDefineValue( e, "__FB_ERR__", errVal )
     PpDefineValue( e, "__FB_GCC__", "0" )
     '' STRINGS, not numbers. The corpus writes '#if __FB_FPMODE__ = "fast"' and
     '' '#if __FB_FPMODE__ <> "fast"' -- comparing those against 0 is not false, it is

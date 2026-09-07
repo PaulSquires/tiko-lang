@@ -22,6 +22,10 @@ type Ctx
     as MirFunction ptr      f
     as LowerStats ptr       st
     as long                 curBlock
+    '' -e/-ex/-exx. Only level 3 changes emission today: array bounds checks.
+    as long                 errLevel
+    '' The module name those checks report, filled once at entry.
+    as string               errModName
     '' THE UNIT'S MODULE SCOPE, recorded once. Lowering has no scope of its own -- it
     '' walks a typed tree -- but a CONSTANT FOLD needs one: ConstOf answers 'unknown'
     '' for every identifier when it is handed no symbol table, and Lookup walks
@@ -207,6 +211,11 @@ declare function LowerStringAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 declare function NewTempLocal _
     ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
+    '' lowerboundchk.bas -- the -exx array bounds check, one dimension at a time.
+declare sub EmitBoundsCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byval at as Tko.TypeId, byval k as long, byref iv as MirValue, _
+      byval offTy as MirType )
 declare function EmitRtl _
     ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
 

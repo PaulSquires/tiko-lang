@@ -110,6 +110,8 @@ namespace Tko
         '' a header that branches on it selects a different half of itself, and
         '' getting it wrong compiles quietly.
         as boolean    threadSafe
+        '' -e / -ex / -exx as a level, for __FB_ERR__.
+        as long       errLevel
         as any ptr    queryCtx       '' passed back to queryFn
         as any ptr    queryFn        '' PpQueryFn; NULL until Phase 5
     end type

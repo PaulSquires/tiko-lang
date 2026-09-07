@@ -53,6 +53,9 @@ namespace Tko
     OPT( OPT_DLL,       "-dll",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build a DLL rather than an executable" )
     OPT( OPT_DYLIB,     "-dylib",     OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "same as -dll" )
     OPT( OPT_STATICLIB, "-lib",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build a static library" )
+    OPT( OPT_ERRCHK,    "-e",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "enable runtime error checking" )
+    OPT( OPT_ERRCHKX,   "-ex",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "-e plus RESUME support" )
+    OPT( OPT_ERRCHKXX,  "-exx",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "-ex plus array bounds and null-pointer checking" )
     OPT( OPT_DEBUG,     "-g",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "emit debug information" )
     OPT( OPT_OPTLEVEL,  "-O",         OPTK_JOINED,OPTCAT_OUTPUT,  "level",    "optimisation level 0-3" )
     OPT( OPT_MT,        "-mt",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "link the thread-safe runtime" )
@@ -166,6 +169,10 @@ namespace Tko
         '' default output name, whether there is a link at all, and what the link
         '' line says. Three states rather than two booleans: they are exclusive, and
         '' 'tiko -dll -lib' has to mean something rather than whichever won.
+        '' fbc's -e / -ex / -exx, and they are CUMULATIVE: -exx implies -ex implies
+        '' -e. Held as a level rather than three booleans so 'is checking on at all'
+        '' and 'is bounds checking on' are each one comparison.
+        as long    errLevel      '' 0 none, 1 -e, 2 -ex, 3 -exx
         as Tko.OutputKind outKind
         as boolean compileOnly
         as boolean debugInfo

@@ -54,6 +54,7 @@ constructor DriverOptions( )
     this.targetName = ""
     this.target = Tko.HostTarget( )
     this.widthOverride = 0
+    this.errLevel = 0
     this.outKind = Tko.OUT_EXE
     this.compileOnly = false
     this.debugInfo = false
@@ -389,6 +390,12 @@ function Parse _
         '' artefact is a .so rather than a .dll.
         case Tko.OPT_DLL, Tko.OPT_DYLIB : opts.outKind = Tko.OUT_DLL
         case Tko.OPT_STATICLIB          : opts.outKind = Tko.OUT_STATICLIB
+        '' THE HIGHEST WINS, whatever the order: '-exx -e' is still -exx. fbc reads
+        '' them as cumulative levels rather than as independent switches, so taking
+        '' the maximum is what reproduces it.
+        case Tko.OPT_ERRCHK   : if opts.errLevel < 1 then opts.errLevel = 1
+        case Tko.OPT_ERRCHKX  : if opts.errLevel < 2 then opts.errLevel = 2
+        case Tko.OPT_ERRCHKXX : if opts.errLevel < 3 then opts.errLevel = 3
         case Tko.OPT_DEBUG    : opts.debugInfo = true
         case Tko.OPT_MT       : opts.threadSafe = true
 

@@ -1,0 +1,8 @@
+'' WITHOUT '-exx' THERE IS NO CHECK, which is the half a test of the feature alone
+'' would not catch: emitting the call unconditionally would pass every assertion in
+'' boundchk-on.test and slow down every program ever compiled.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/boundchk.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: fb_ArraySngBoundChkEx
+'' EXPECT-NOT: fb_ArrayBoundChkEx
