@@ -1,0 +1,17 @@
+'' '-exx' CHECKS A DEREFERENCE FOR NULL. fb_NullPtrChk( p, line, filename ), the
+'' shape measured from fbc's own IR; the abort it produces is runtime error 7 with
+'' exit code 7, matched against fbc on the same program.
+''
+'' TWO CALLS FOR THE TWO DEREFERENCES, and that is the point of where the check
+'' sits. '*p = 9' lowers to LowerAddr then a store, and 'print *p' to LowerAddr then
+'' a load -- so the check goes in LowerAddr, once, rather than at the read and the
+'' write separately where the two could drift apart.
+'' TEST: cli
+'' ARGS: -exx --emit-ir tests/codegen/src/nullchk.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call ptr @"fb_NullPtrChk"
+'' EXPECT-OUT: declare ptr @"fb_NullPtrChk"
+
+'' Taking an address is not a dereference and is not checked: '@v' is legal on
+'' anything, and a check there would fire on code that is correct.
+'' EXPECT-NOT: fb_ArraySngBoundChkEx

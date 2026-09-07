@@ -605,7 +605,15 @@ function LowerAddr _
             dim as MirValue duv
             if LowerUserUnaryOp_( c, id, dp, MT_PTR, duv ) then return duv
         end if
-        return LowerExpr( c, dp->operand )
+        '' -exx: THE POINTER IS CHECKED BEFORE IT BECOMES AN ADDRESS.
+        ''
+        '' Here and not at the two call sites, because both of them come through:
+        '' reading '*p' lowers to LowerAddr and then a load, and assigning to it
+        '' lowers to LowerAddr and then a store. One check covers the pair, and two
+        '' would be two places to drift apart.
+        dim as MirValue pv = LowerExpr( c, dp->operand )
+        if c.errLevel >= 3 then EmitNullCheck_( c, id, pv )
+        return pv
     end if
 
     '' A UDT 'iif' HAS AN ADDRESS -- the temporary it builds its result in. That is

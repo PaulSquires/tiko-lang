@@ -99,4 +99,28 @@ sub EmitBoundsCheck_ _
     end if
 end sub
 
+'' -exx: A POINTER DEREFERENCE, CHECKED FOR NULL.
+''
+'' fb_NullPtrChk( p, line, filename ), measured from fbc's own IR, and the abort
+'' it produces is runtime error 7 with exit code 7.
+''
+'' THE RESULT IS IGNORED for the reason the bounds check gives: without ON ERROR
+'' there is no handler to resume into, so the failing path never returns.
+''
+'' ONLY A DEREFERENCE, not every pointer that is read. '*p' is the shape fbc checks;
+'' passing a null pointer to a procedure, or storing one, is legal and is not.
+sub EmitNullCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref pv as MirValue )
+
+    if pv.kind = cast( ubyte, MV_NONE ) then return
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+
+    dim as FB.Array( of ulong ) na
+    PushArg_( na, pv )
+    PushArg_( na, ConstInt( c, fd.lineNo, MT_I32 ) )
+    PushArg_( na, fileV )
+    EmitRtl( c, RTL_NULL_PTR_CHK, na )
+end sub
+
 end namespace

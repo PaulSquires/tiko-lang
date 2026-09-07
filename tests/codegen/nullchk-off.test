@@ -1,0 +1,6 @@
+'' WITHOUT '-exx', NO CHECK -- the half that stops the feature being emitted
+'' unconditionally. Every dereference in every program would otherwise pay for it.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/nullchk.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: fb_NullPtrChk

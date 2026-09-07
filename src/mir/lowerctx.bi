@@ -212,6 +212,8 @@ declare function LowerStringAssign _
 declare function NewTempLocal _
     ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
     '' lowerboundchk.bas -- the -exx array bounds check, one dimension at a time.
+declare sub EmitNullCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref pv as MirValue )
 declare sub EmitBoundsCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
       byval at as Tko.TypeId, byval k as long, byref iv as MirValue, _
