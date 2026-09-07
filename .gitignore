@@ -68,3 +68,13 @@ tests/vendor/**/*.o
 # committed. tiko's own sources are .bas and .bi only, so nothing under src/ is a
 # real .c -- unlike lib/rt/src/c, lib/gfx/tools and tests/mir/src, which are.
 /src/**/*.c
+
+# WHAT THE FILE-ASSERTING TESTS BUILD. tests/driver/dll-output.test and
+# output-kinds.test link a real DLL and archive to prove -dll and -lib put the
+# right names on disk, so they leave those files behind. The runner deletes them
+# BEFORE each run rather than after -- a stale artefact must never let the
+# assertion pass -- which means they exist between runs and one got committed.
+/tests/driver/*.dll
+/tests/driver/*.dll.a
+/tests/driver/*.a
+/tests/driver/*.exe
