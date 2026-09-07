@@ -106,6 +106,10 @@ namespace Tko
         '' every header. The corpus branches on __FB_64BIT__ alone 214 times.
         as boolean    targetIsWindows
         as boolean    targetIs64
+        '' '-mt'. Seeds __FB_MT__, which is the same kind of fact as the two above:
+        '' a header that branches on it selects a different half of itself, and
+        '' getting it wrong compiles quietly.
+        as boolean    threadSafe
         as any ptr    queryCtx       '' passed back to queryFn
         as any ptr    queryFn        '' PpQueryFn; NULL until Phase 5
     end type

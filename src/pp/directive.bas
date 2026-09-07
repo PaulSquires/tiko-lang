@@ -747,7 +747,13 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' is ZERO -- every one is '#ifdef', '#ifndef' or 'defined( )'. Defining them at
     '' all inverted all 43, silently, in the direction that compiles the wrong half
     '' of a platform test. fbc defines none of them on this target.
-    PpDefineValue( e, "__FB_MT__", "0" )
+    '' -1 UNDER '-mt', 0 OTHERWISE, which is fbc's spelling of a true boolean and
+    '' was measured rather than assumed: '#print __FB_MT__' emits 0 without the
+    '' flag and -1 with it. Note it is DEFINED either way, so '#ifdef __FB_MT__' is
+    '' true in both -- code testing for threading has to use '#if'.
+    ''
+    '' This was hard-coded to 0, so '-mt' changed nothing anywhere.
+    PpDefineValue( e, "__FB_MT__", iif( e.cfg->threadSafe, "-1", "0" ) )
     PpDefineValue( e, "__FB_DEBUG__", "0" )
     PpDefineValue( e, "__FB_ERR__", "0" )
     PpDefineValue( e, "__FB_GCC__", "0" )

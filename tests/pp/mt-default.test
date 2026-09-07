@@ -1,0 +1,14 @@
+'' THE OTHER HALF of mt-define.test: with no '-mt', __FB_MT__ is 0 and the '#if'
+'' arm is not taken. Without this the first test would still pass if the define
+'' were hard-coded to -1 -- which is exactly the shape of the bug it replaced,
+'' only inverted.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0309
+'' EXPECT-NOT: threading is on
+
+#if __FB_MT__
+#error threading is on
+#endif
+print "reached"

@@ -169,6 +169,7 @@ private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfi
     cfg.defines = @ctx.options.defines
     cfg.targetIsWindows = Tko.TargetIsWindows( ctx.options.target )
     cfg.targetIs64 = Tko.TargetIs64( ctx.options.target )
+    cfg.threadSafe = ctx.options.threadSafe
     cfg.reportUnsupported = true
     return cfg
 end function
@@ -361,6 +362,7 @@ private function LinkAll _
     '' first effect '-g' has ever had -- OPT_DEBUG set a field that nothing read.
     '' It does NOT yet make the compiler emit debug information; that is Phase 11.
     tools.stripSymbols = (ctx.options.debugInfo = false)
+    tools.threadSafe = ctx.options.threadSafe
 
     dim as long rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then

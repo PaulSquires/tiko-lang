@@ -1,0 +1,27 @@
+'' '-mt' SETS __FB_MT__, and until 2026-09-07 it set nothing at all. The option was
+'' parsed into a field nothing read: the define was hard-coded to 0 and the link
+'' always named libfb.a, so '-mt' selected the single-threaded runtime in silence
+'' while telling every header it was not threading.
+''
+'' THE VALUE IS fbc's AND WAS MEASURED, not assumed: '#print __FB_MT__' emits 0
+'' without the flag and -1 with it. -1 is FreeBASIC's true, so '#if' selects on it.
+''
+'' IT IS DEFINED EITHER WAY. '#ifdef __FB_MT__' is true with or without the flag --
+'' checked against fbc, which prints MT for both -- so code testing for threading
+'' must use '#if'. That is the trap this file exists to pin: a test written with
+'' '#ifdef' would pass whatever the option did.
+''
+'' The archive selection cannot be asserted here (the runner captures tiko's output,
+'' not clang's argv) and is recorded in the commit: a directory holding only
+'' libfbmt.a links under '-mt' and fails without it, and a two-thread program
+'' returns the same count as fbc's.
+'' TEST: cli
+'' ARGS: -mt --parse-only %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0309
+'' EXPECT-OUT: threading is on
+
+#if __FB_MT__
+#error threading is on
+#endif
+print "unreachable"

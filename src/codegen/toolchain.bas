@@ -202,8 +202,15 @@ function LinkExe _
         end if
     next
 
+    '' THE RUNTIME, AND WHICH ONE. '-mt' picks libfbmt.a over libfb.a, which is
+    '' fbc's rule -- measured, its link line carries -lfbmt in place of -lfb and
+    '' never both. Both archives are built for every target and both have always
+    '' been packaged; until now nothing named the second, so '-mt' quietly linked
+    '' the single-threaded runtime and a threaded program got whichever behaviour
+    '' that happened to give.
+    dim as string rtName = iif( t.threadSafe, "/libfbmt.a", "/libfb.a" )
     for i as long = 0 to t.libPaths.Count - 1
-        dim as string rtLib = t.libPaths[i] & "/libfb.a"
+        dim as string rtLib = t.libPaths[i] & rtName
         if FileExists_( rtLib ) then cmd += " " & Q( rtLib )
     next
 

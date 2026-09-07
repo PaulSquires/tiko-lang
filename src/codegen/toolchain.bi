@@ -30,6 +30,10 @@ namespace Tko.Codegen
         '' fbc's own rule and the first thing '-g' has ever done here: it was parsed
         '' into a field nothing read.
         as boolean stripSymbols
+        '' '-mt': link libfbmt.a rather than libfb.a. Both are built and both have
+        '' always shipped; nothing named the second one until 2026-09-07, so '-mt'
+        '' selected the single-threaded runtime in silence.
+        as boolean threadSafe
         as boolean found
         as string why              '' when found is false
     end type
