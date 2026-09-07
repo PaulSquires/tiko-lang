@@ -11,6 +11,8 @@
 ''     '' EXPECT-OUT: some text     required substring of the output (repeatable)
 ''     '' EXPECT-OUT[win64]: ...    required only when running for that target
 ''     '' EXPECT-NOT: other text    forbidden substring (repeatable)
+''     '' EXPECT-FILE: path        the run must CREATE this file (repeatable)
+''     '' EXPECT-NO-FILE: path     the run must NOT create it (repeatable)
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
 ''
 '' TARGETS. Every run names a target explicitly: what tiko-lang emits depends on
@@ -59,6 +61,10 @@ type TestCase
     as Array( of string ) expectOut
     as Array( of string ) expectNot
     as Array( of string ) env      '' NAME=value, set for this test's run only
+    '' FILES THE RUN IS EXPECTED TO PRODUCE, or to leave alone. Paths are
+    '' relative to the working directory, like ARGS.
+    as Array( of string ) expectFile
+    as Array( of string ) expectNoFile
 end type
 
 type Options
@@ -246,6 +252,10 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.haveMaxDiag = true
         elseif StartsWith( ln, "EXPECT-NOT:" ) then
             tc.expectNot.Push( Trim_( mid( ln, 12 ) ) )
+        elseif StartsWith( ln, "EXPECT-NO-FILE:" ) then
+            tc.expectNoFile.Push( Trim_( mid( ln, 16 ) ) )
+        elseif StartsWith( ln, "EXPECT-FILE:" ) then
+            tc.expectFile.Push( Trim_( mid( ln, 13 ) ) )
         elseif StartsWith( ln, "ENV:" ) then
             tc.env.Push( Trim_( mid( ln, 5 ) ) )
         end if
@@ -380,6 +390,17 @@ function RunOne _
     dim as long rc = 0
     for ti as long = 0 to tc.targets.Count - 1
         dim as string tgt = tc.targets[ti]
+        '' EVERY NAMED FILE IS REMOVED FIRST. Without this a test asserting that
+        '' a build produced something would pass on the artefact left by the
+        '' PREVIOUS run -- including a run of an older compiler that could still
+        '' do it. An assertion about output that survives the thing being tested
+        '' is worse than no assertion.
+        for each f_ as string in tc.expectFile
+            kill( f_ )
+        next
+        for each f2 as string in tc.expectNoFile
+            kill( f2 )
+        next
         '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
         rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText )
         if CheckOne_( tc, opts, tgt, rc, outText, why ) = false then
@@ -425,6 +446,25 @@ function CheckOne_ _
     for each bad as string in tc.expectNot
         if instr( outText, bad ) > 0 then
             why = "output unexpectedly contains: " & bad
+            return false
+        end if
+    next
+
+    '' WHAT THE RUN PUT ON DISK. The only assertion available for a build whose
+    '' result is a FILE rather than text: -dll writes a .dll and an import
+    '' library, -lib writes an archive, and a default build names its own output.
+    '' None of that is visible in tiko's stdout, so it went unasserted -- three
+    '' features verified by hand and recorded only in commit messages.
+    for each want_ as string in tc.expectFile
+        if FileExists_( want_ ) = false then
+            why = "did not create: " & want_
+            return false
+        end if
+    next
+
+    for each none_ as string in tc.expectNoFile
+        if FileExists_( none_ ) then
+            why = "unexpectedly created: " & none_
             return false
         end if
     next

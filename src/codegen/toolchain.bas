@@ -34,6 +34,23 @@ function FindTools _
             t.clangExe = "C:\Program Files\LLVM\bin\clang.exe"
         end if
     end if
+    '' llvm-ar FROM CLANG'S OWN DIRECTORY. Derived rather than searched: the two
+    '' ship together, and an 'ar' found on PATH would as often be some other
+    '' toolchain's.
+    dim as long cut_ = 0
+    for i as long = len( t.clangExe ) to 1 step -1
+        dim as string ch = mid( t.clangExe, i, 1 )
+        if (ch = "/") orelse (ch = "\") then
+            cut_ = i
+            exit for
+        end if
+    next
+    dim as string arName = "llvm-ar"
+    #ifdef __FB_WIN32__
+        arName += ".exe"
+    #endif
+    t.arExe = left( t.clangExe, cut_ ) & arName
+
     if FileExists_( t.clangExe ) = false then
         t.why = "clang not found at '" & t.clangExe & "'" & _
                 " -- set TKO_CLANG to the clang to use"
@@ -56,6 +73,25 @@ end function
 '' A path with spaces in it needs quoting, and on Windows most of them have spaces.
 private function Q( byref s as string ) as string
     return """" & s & """"
+end function
+
+'' 'rcs': replace members, create the archive, write an index. The index is what
+'' lets a linker resolve out of it without reading every member, and an archive
+'' without one links only by accident of member order.
+function ArchiveLib _
+    ( byref t as ToolPaths, byref objs as Tko.StrVec, _
+      byref outPath as string ) as long
+
+    if FileExists_( t.arExe ) = false then return -1
+    '' The archive is REPLACED, not added to. 'rcs' updates members in place, so a
+    '' stale one from a previous build with a name no longer produced would survive
+    '' and keep resolving symbols the sources no longer define.
+    kill( outPath )
+    dim as string cmd = "rcs " & Q( outPath )
+    for i as long = 0 to objs.Count - 1
+        cmd += " " & Q( objs[i] )
+    next
+    return exec( t.arExe, cmd )
 end function
 
 function CompileIr _
@@ -117,6 +153,22 @@ function LinkExe _
     '' instead -- we ship an import library for it -- is a decision about which CRT
     '' the runtime uses, not a flag.
     dim as string cmd = "-target " & target.triple & " -fuse-ld=lld"
+
+    '' A DLL, AND ITS IMPORT LIBRARY. Spelled through -Xlinker rather than with
+    '' clang's own -shared, because the import library has no clang spelling and
+    '' both halves belong together.
+    ''
+    '' THE DASH FORMS, not /DLL and /IMPLIB. lld-link accepts either; the dash ones
+    '' survive being written down and pasted into a shell, where a leading slash is
+    '' rewritten into a path by MSYS -- which turned '/DLL' into 'C:/Program
+    '' Files/Git/DLL' while this was being measured. tiko execs clang directly and
+    '' is not subject to that, but the reproduction in a bug report would be.
+    if t.buildDll then
+        cmd += " -Xlinker -dll"
+        if len( t.implibPath ) > 0 then
+            cmd += " -Xlinker -implib:" & t.implibPath
+        end if
+    end if
 
     '' STRIP, WHICH fbc DOES AND THIS DID NOT. Read out of fbc.bas and then
     '' measured: '-s' is on the link line by default and absent under '-g'.
@@ -184,11 +236,24 @@ function LinkExe _
     '' to a file here would quietly pick the static.
     for i as long = 0 to t.libs.Count - 1
         dim as string named = ""
+        '' TWO SPELLINGS, AND THE IMPORT LIBRARY WINS -- which is GNU ld's order and
+        '' was measured, not assumed: with libfblib.dll.a and libfblib.a both in one
+        '' directory, 'fbc -l fblib' produced a program that RAN, so it took the
+        '' import library. Had it taken the empty static one the link would have
+        '' failed on the undefined symbol.
+        ''
+        '' lib<name>.dll.a IS WHAT fbc's OWN -dll PRODUCES, so a tiko program calling
+        '' an fbc-built DLL finds it by the name the source uses. Without this the
+        '' link asked lld-link for '<name>.lib' and stopped there.
         if target.id = TARGET_WIN64_MSVC then
             for k as long = 0 to t.libPaths.Count - 1
-                dim as string cand = t.libPaths[k] & "/lib" & t.libs[i] & ".a"
-                if FileExists_( cand ) then
-                    named = cand
+                dim as string dllImp = t.libPaths[k] & "/lib" & t.libs[i] & ".dll.a"
+                dim as string statLib = t.libPaths[k] & "/lib" & t.libs[i] & ".a"
+                if FileExists_( dllImp ) then
+                    named = dllImp
+                    exit for
+                elseif FileExists_( statLib ) then
+                    named = statLib
                     exit for
                 end if
             next

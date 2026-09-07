@@ -104,6 +104,24 @@ private function StripExt_( byref path_ as string ) as string
     return path_
 end function
 
+'' THE EXTENSION THE OUTPUT KIND ASKS FOR. Measured against fbc: '-dll thing.bas'
+'' writes thing.dll, '-lib thing.bas' writes libthing.a, and a plain build writes
+'' thing.exe on Windows and 'thing' on Linux.
+''
+'' A STATIC LIBRARY IS PREFIXED as well as suffixed -- libthing.a, not thing.a --
+'' which is the convention every linker's '-l' search is built around.
+private function OutputSuffix_( byref o as Tko.DriverOptions ) as string
+    select case o.outKind
+    case Tko.OUT_DLL
+        if Tko.TargetIsWindows( o.target ) then return ".dll"
+        return ".so"
+    case Tko.OUT_STATICLIB
+        return ".a"
+    end select
+    if Tko.TargetIsWindows( o.target ) then return ".exe"
+    return ""
+end function
+
 private function DefaultOutputPath_( byref o as Tko.DriverOptions ) as string
     '' NOT UNDER '-c'. There is no single output then -- fbc writes one object per
     '' module, named after that module -- so the name is settled per module at the
@@ -117,8 +135,20 @@ private function DefaultOutputPath_( byref o as Tko.DriverOptions ) as string
     if o.inputs.Count = 0 then return ""
     dim as string stem = StripExt_( o.inputs[0] )
     if len( stem ) = 0 then return ""
-    if Tko.TargetIsWindows( o.target ) then return stem & ".exe"
-    return stem
+    '' A STATIC LIBRARY GAINS THE 'lib' PREFIX, and it goes on the BASENAME rather
+    '' than the path: 'sub/thing.bas' becomes sub/libthing.a, not libsub/thing.a.
+    if o.outKind = Tko.OUT_STATICLIB then
+        dim as long cut = 0
+        for i as long = len( stem ) to 1 step -1
+            dim as string ch = mid( stem, i, 1 )
+            if (ch = "/") orelse (ch = "\") then
+                cut = i
+                exit for
+            end if
+        next
+        return left( stem, cut ) & "lib" & mid( stem, cut + 1 ) & ".a"
+    end if
+    return stem & OutputSuffix_( o )
 end function
 
 '' WHETHER SOME OTHER MODE WAS ASKED FOR. The list is long and it is written out
@@ -331,6 +361,40 @@ private function BuildFromIr _
     return Tko.EXIT_OK
 end function
 
+'' '-lib': the objects into an archive, and no link at all.
+private function ArchiveAll _
+    ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
+      byref keep as Tko.StrVec ) as long
+
+    dim as long eh = freefile
+    open err for output as #eh
+
+    dim as Tko.Codegen.ToolPaths tools = _
+        Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
+    if tools.found = false then
+        print #eh, "tiko: " & tools.why
+        close #eh
+        return Tko.EXIT_NO_TOOLCHAIN
+    end if
+
+    dim as long rc = Tko.Codegen.ArchiveLib( tools, objs, ctx.options.outputPath )
+    if rc <> 0 then
+        print #eh, "tiko: archiving failed (exit " & str( rc ) & ")"
+        close #eh
+        return Tko.EXIT_TOOL_FAILED
+    end if
+
+    '' The same rule the link follows: only what THIS build made is removed.
+    if ctx.options.keepTemps = false then
+        for i as long = 0 to keep.Count - 1
+            kill( keep[i] )
+        next
+    end if
+
+    close #eh
+    return Tko.EXIT_OK
+end function
+
 '' THE LINK, ONCE, OVER EVERY OBJECT the build produced or was handed.
 private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
@@ -363,6 +427,23 @@ private function LinkAll _
     '' It does NOT yet make the compiler emit debug information; that is Phase 11.
     tools.stripSymbols = (ctx.options.debugInfo = false)
     tools.threadSafe = ctx.options.threadSafe
+
+    '' THE IMPORT LIBRARY'S NAME FOLLOWS THE OUTPUT, not the source. Measured:
+    '' 'fbc -dll thing.bas -x custom.dll' writes libcustom.dll.a. So it is built
+    '' from outputPath -- directory kept, extension replaced, 'lib' on the basename.
+    if ctx.options.outKind = Tko.OUT_DLL then
+        tools.buildDll = true
+        dim as string stem = StripExt_( ctx.options.outputPath )
+        dim as long cut = 0
+        for i as long = len( stem ) to 1 step -1
+            dim as string ch = mid( stem, i, 1 )
+            if (ch = "/") orelse (ch = "\") then
+                cut = i
+                exit for
+            end if
+        next
+        tools.implibPath = left( stem, cut ) & "lib" & mid( stem, cut + 1 ) & ".dll.a"
+    end if
 
     dim as long rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then
@@ -925,7 +1006,18 @@ function Run( byref args as Tko.StrVec ) as long
             else
                 dim as Tko.Codegen.TargetDescription ltd = _
                     Tko.Codegen.TargetFor( ctx.options.target )
-                toolExit = LinkAll( ctx, linkObjs, ltd, tempObjs )
+                '' '-lib' DOES NOT LINK. An archive is collected, not linked: its
+                '' unresolved symbols stay unresolved until something links against
+                '' it, so running the linker here would demand a main and a runtime
+                '' that a library has no business carrying. Routed before LinkAll
+                '' rather than inside it, because the two share nothing but their
+                '' inputs -- lld-link answered '-lib' with 'subsystem must be
+                '' defined', which is it asking which kind of PROGRAM this is.
+                if ctx.options.outKind = Tko.OUT_STATICLIB then
+                    toolExit = ArchiveAll( ctx, linkObjs, tempObjs )
+                else
+                    toolExit = LinkAll( ctx, linkObjs, ltd, tempObjs )
+                end if
             end if
         end if
 

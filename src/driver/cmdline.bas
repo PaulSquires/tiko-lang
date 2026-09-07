@@ -54,6 +54,7 @@ constructor DriverOptions( )
     this.targetName = ""
     this.target = Tko.HostTarget( )
     this.widthOverride = 0
+    this.outKind = Tko.OUT_EXE
     this.compileOnly = false
     this.debugInfo = false
     this.threadSafe = false
@@ -383,6 +384,11 @@ function Parse _
 
         case Tko.OPT_OUTPUT   : opts.outputPath = value
         case Tko.OPT_COMPILE  : opts.compileOnly = true
+        '' -dylib IS -dll. fbc's own help says 'Same as -dylib' and the two set one
+        '' flag there too; the second spelling exists for the platforms where the
+        '' artefact is a .so rather than a .dll.
+        case Tko.OPT_DLL, Tko.OPT_DYLIB : opts.outKind = Tko.OUT_DLL
+        case Tko.OPT_STATICLIB          : opts.outKind = Tko.OUT_STATICLIB
         case Tko.OPT_DEBUG    : opts.debugInfo = true
         case Tko.OPT_MT       : opts.threadSafe = true
 

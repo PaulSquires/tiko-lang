@@ -121,28 +121,6 @@ __declspec(allocate(".CRT$XCZ")) tkort_pvfv tkort_xc_z[] = { 0 };
 ** value is never read; only its presence is. */
 int _fltused = 0x9875;
 
-extern int main( int argc, char **argv );
-
-int mainCRTStartup( void )
-{
-    int rc;
-
-    /* 2 is _crt_argv_expanded_arguments: argv gets wildcard expansion, which
-    ** is what a C program built by MSVC gets by default. */
-    _configure_narrow_argv( 2 );
-    _initialize_narrow_environment( );
-
-    _initterm( tkort_xi_a, tkort_xi_z );
-    _initterm( tkort_xc_a, tkort_xc_z );
-
-    rc = main( *__p___argc( ), *__p___argv( ) );
-
-    /* exit(), not return: the UCRT's exit runs the _crt_atexit handlers and
-    ** flushes stdio. Returning from here would skip both. */
-    exit( rc );
-    return rc;
-}
-
 int __cdecl atexit( tkort_pvfv fn )
 {
     return _crt_atexit( fn );

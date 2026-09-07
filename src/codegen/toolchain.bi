@@ -18,6 +18,11 @@ namespace Tko.Codegen
 
     type ToolPaths
         as string clangExe
+        '' THE ARCHIVER, for '-lib'. Taken from clang's own directory rather than
+        '' searched for: llvm-ar ships beside clang, and a stray 'ar' off PATH is as
+        '' likely to be a foreign toolchain's as the matching one -- the same
+        '' reasoning FindTools already applies to clang itself.
+        as string arExe
         '' Where libfb lives, IN SEARCH ORDER. A list, not one path: a runtime may be
         '' partial and resolve the rest from one behind it.
         as FB.Array( of string ) libPaths
@@ -34,6 +39,10 @@ namespace Tko.Codegen
         '' always shipped; nothing named the second one until 2026-09-07, so '-mt'
         '' selected the single-threaded runtime in silence.
         as boolean threadSafe
+        '' Build a DLL rather than an executable, and where to write the import
+        '' library that goes with it.
+        as boolean buildDll
+        as string  implibPath
         as boolean found
         as string why              '' when found is false
     end type
@@ -43,6 +52,13 @@ namespace Tko.Codegen
     '' one override works the same way everywhere.
     declare function FindTools _
         ( byref clangOpt as string, byref libOpt as FB.Array( of string ) ) as ToolPaths
+
+    '' OBJECTS TO A STATIC LIBRARY -- fbc's '-lib'. No link runs: an archive is not
+    '' linked, it is collected, and every unresolved symbol in it stays unresolved
+    '' until something links against it.
+    declare function ArchiveLib _
+        ( byref t as ToolPaths, byref objs as Tko.StrVec, _
+          byref outPath as string ) as long
 
     '' '.ll' to '.o'. Returns the process exit code; 0 is success.
     declare function CompileIr _

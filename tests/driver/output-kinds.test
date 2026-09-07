@@ -1,0 +1,30 @@
+'' WHAT A BUILD PUTS ON DISK, which nothing could assert until EXPECT-FILE existed.
+'' The runner captures tiko's stdout, and the result of '-dll' or '-lib' is a FILE --
+'' so '-l'/'#inclib', '-mt''s archive choice and the whole of '-dll'/'-lib' were
+'' verified by hand and recorded only in commit messages.
+''
+'' THE NAMES ARE fbc's, measured on the same sources:
+''
+''     -dll thing.bas               thing.dll  AND libthing.dll.a
+''     -dll thing.bas -x custom.dll custom.dll AND libcustom.dll.a
+''     -lib thing.bas               libthing.a
+''
+'' The import library follows the OUTPUT, not the source, which is why the second
+'' line is worth stating separately.
+''
+'' TKO_LIBPATH points at the packaged runtime because a DLL still has to LINK --
+'' this is a real build, not a dump. It replaces the bundled search rather than
+'' adding to it, so the test says which libraries it means.
+'' TEST: cli
+'' ARGS: -lib tests/codegen/src/export.bas -o tests/driver/libexport.a
+'' EXPECT-EXIT: 0
+
+'' The archive appears...
+'' EXPECT-FILE: tests/driver/libexport.a
+
+'' ...and nothing else does. '-lib' must not link: an archive is collected, not
+'' linked, and running the linker demanded a main the library has no business
+'' carrying -- lld-link said 'subsystem must be defined', which is it asking what
+'' kind of PROGRAM this is.
+'' EXPECT-NO-FILE: tests/driver/libexport.exe
+'' EXPECT-NO-FILE: tests/driver/libexport.dll

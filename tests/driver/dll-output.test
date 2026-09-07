@@ -1,0 +1,29 @@
+'' '-dll' WRITES TWO FILES, and the second one's name is the part worth pinning.
+'' Measured against fbc on the same source:
+''
+''     -dll thing.bas                 thing.dll  AND libthing.dll.a
+''     -dll thing.bas -x custom.dll   custom.dll AND libcustom.dll.a
+''
+'' The import library follows the OUTPUT, not the source. A test that only checked
+'' the .dll would pass with the import library named after either.
+''
+'' THE TARGET IS NAMED IN ARGS, which overrides the one the runner puts in front of
+'' every invocation -- tests/driver has no TARGETS file, so that default is win64.
+'' The libraries below are win64-msvc's, and a win64 link against them fails on
+'' fbc's crt2.o rather than on anything this test is about. A later -target wins,
+'' checked: 'tiko -target win64 -target win64-msvc --version' reports win64-msvc.
+''
+'' THIS IS A REAL LINK, not a dump: a DLL needs the runtime, and on win64-msvc it
+'' needs _DllMainCRTStartup out of lib/rt/src/c/msvccrtdll.c. TKO_LIBPATH names the
+'' packaged tree because it REPLACES the bundled search rather than adding to it,
+'' so the test says exactly which libraries it means.
+'' TEST: cli
+'' ARGS: -target win64-msvc -dll tests/codegen/src/export.bas -o tests/driver/tmpdll.dll
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+
+'' EXPECT-FILE: tests/driver/tmpdll.dll
+'' EXPECT-FILE: tests/driver/libtmpdll.dll.a
+
+'' NOT an executable. Before -dll existed the driver linked one whatever was asked.
+'' EXPECT-NO-FILE: tests/driver/tmpdll.exe

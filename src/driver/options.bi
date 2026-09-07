@@ -50,6 +50,9 @@ namespace Tko
 
     OPT( OPT_OUTPUT,    "-o",         OPTK_VALUE, OPTCAT_OUTPUT,  "file",     "output path" )
     OPT( OPT_COMPILE,   "-c",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "compile only; do not link" )
+    OPT( OPT_DLL,       "-dll",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build a DLL rather than an executable" )
+    OPT( OPT_DYLIB,     "-dylib",     OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "same as -dll" )
+    OPT( OPT_STATICLIB, "-lib",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build a static library" )
     OPT( OPT_DEBUG,     "-g",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "emit debug information" )
     OPT( OPT_OPTLEVEL,  "-O",         OPTK_JOINED,OPTCAT_OUTPUT,  "level",    "optimisation level 0-3" )
     OPT( OPT_MT,        "-mt",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "link the thread-safe runtime" )
@@ -106,6 +109,16 @@ namespace Tko
         as zstring ptr help
     end type
 
+    '' EXE, DLL or static library. fbc spells the last one '-lib' and produces
+    '' libNAME.a from it; the DLL case produces NAME.dll AND libNAME.dll.a, the
+    '' import library, whose name follows the OUTPUT rather than the source --
+    '' measured: '-dll thing.bas -x custom.dll' writes libcustom.dll.a.
+    enum OutputKind
+        OUT_EXE = 0
+        OUT_DLL
+        OUT_STATICLIB
+    end enum
+
     type DriverOptions
         as StrVec  inputs
         as StrVec  includePaths
@@ -145,6 +158,11 @@ namespace Tko
         '' 'tiko hello.bas -o hello.exe' producing a program.
         as string  mainModule
 
+        '' WHAT THE BUILD PRODUCES. fbc's -dll/-dylib and -lib, which decide the
+        '' default output name, whether there is a link at all, and what the link
+        '' line says. Three states rather than two booleans: they are exclusive, and
+        '' 'tiko -dll -lib' has to mean something rather than whichever won.
+        as Tko.OutputKind outKind
         as boolean compileOnly
         as boolean debugInfo
         as boolean threadSafe
