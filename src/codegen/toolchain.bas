@@ -122,6 +122,55 @@ function LinkExe _
     '' lib/gfx/lib/<target> holds libtkogfx.a and nothing else, and naming a
     '' libfb.a that does not exist fails the link with clang's own 'no such file
     '' or directory' before it has looked at a single object.
+    '' THE USER'S LIBRARIES FIRST, ahead of the runtime. Measured: fbc emits
+    '' '-lzzz -lfb ...' for both '#inclib "zzz"' and '-l zzz', never the reverse.
+    '' The order is not cosmetic -- a user library calls INTO libfb, and an archive
+    '' is searched once, at the point it appears, so a runtime placed before it
+    '' cannot satisfy what it turns out to need.
+    ''
+    '' NAMED WITH -l AND NOT AS A FILE, unlike the runtime archives below. The
+    '' runtime is named by path because two directories hold a libfb.a and both are
+    '' wanted; a user library has one spelling, and letting the search path find it
+    '' is also what lets '-l m' reach a system library that is in none of these
+    '' directories.
+    '' AND THE MSVC TARGET NEEDS HELP FINDING THEM, which is measured and is not
+    '' something fbc can answer -- fbc is a MinGW toolchain and has only ever had one
+    '' convention. The two Windows targets do not agree on what '-l greet' means:
+    ''
+    ''     win64        -lgreet  ->  libgreet.a     found
+    ''     win64-msvc   -lgreet  ->  greet.lib      LNK1181, cannot open input file
+    ''
+    '' A FreeBASIC library is called libgreet.a. Since win64-msvc became the default
+    '' target, taking '-l' at face value there would have made every FB-named library
+    '' -- including every one tiko itself produces -- unfindable by the name the
+    '' source uses. So on that target the FB-conventional name is looked for in the
+    '' search paths and named as a FILE when it is there. The archive format is the
+    '' same either way; only the lookup differs, which is why this works at all.
+    ''
+    '' NOT DONE ON THE OTHER TARGETS, deliberately. MinGW ld and ELF ld already find
+    '' lib<name>.a from -l, and they consider more than that: on Linux a -p directory
+    '' holding both libfoo.so and libfoo.a should yield the SHARED one, and resolving
+    '' to a file here would quietly pick the static.
+    for i as long = 0 to t.libs.Count - 1
+        dim as string named = ""
+        if target.id = TARGET_WIN64_MSVC then
+            for k as long = 0 to t.libPaths.Count - 1
+                dim as string cand = t.libPaths[k] & "/lib" & t.libs[i] & ".a"
+                if FileExists_( cand ) then
+                    named = cand
+                    exit for
+                end if
+            next
+        end if
+        '' Nothing found means it is not ours to resolve: a system library lives in
+        '' none of these directories, and '-l' is what reaches it.
+        if len( named ) > 0 then
+            cmd += " " & Q( named )
+        else
+            cmd += " -l" & t.libs[i]
+        end if
+    next
+
     for i as long = 0 to t.libPaths.Count - 1
         dim as string rtLib = t.libPaths[i] & "/libfb.a"
         if FileExists_( rtLib ) then cmd += " " & Q( rtLib )

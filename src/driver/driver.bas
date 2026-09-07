@@ -141,6 +141,28 @@ private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
     return false
 end function
 
+'' THE LIBRARY SEARCH PATH, ASSEMBLED IN fbc's ORDER. Measured against fbc 1.20.0:
+'' '-p cmdlinedir' with '#libpath "pragmadir"' in the source emits
+''
+''     -L "cmdlinedir" -L "pragmadir" -L "<compiler's own lib>" -L "."
+''
+'' so the command line is searched first, the source's pragmas next, and the
+'' compiler's own directories last. Built here rather than kept as one list because
+'' the middle one is not known until the parse has run.
+private function AssembledLibPaths_( byref ctx as Tko.CompilerContext ) as Tko.StrVec
+    dim as Tko.StrVec r
+    for i as long = 0 to ctx.options.libPaths.Count - 1
+        r.Push( ctx.options.libPaths[i] )
+    next
+    for i as long = 0 to ctx.options.pragmaLibPaths.Count - 1
+        r.Push( ctx.options.pragmaLibPaths[i] )
+    next
+    for i as long = 0 to ctx.options.defaultLibPaths.Count - 1
+        r.Push( ctx.options.defaultLibPaths[i] )
+    next
+    return r
+end function
+
 private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     dim as Tko.PpConfig cfg
     cfg.includePaths = @ctx.options.includePaths
@@ -210,7 +232,7 @@ private function BuildFromIr _
     open err for output as #eh
 
     dim as Tko.Codegen.ToolPaths tools = _
-        Tko.Codegen.FindTools( "", ctx.options.libPaths )
+        Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
     if tools.found = false then
         print #eh, "tiko: " & tools.why
         close #eh
@@ -260,12 +282,23 @@ private function LinkAll _
     open err for output as #eh
 
     dim as Tko.Codegen.ToolPaths tools = _
-        Tko.Codegen.FindTools( "", ctx.options.libPaths )
+        Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
     if tools.found = false then
         print #eh, "tiko: " & tools.why
         close #eh
         return Tko.EXIT_NO_TOOLCHAIN
     end if
+
+    '' THE LIBRARIES THE PROGRAM ASKED FOR, in the same order as the paths: '-l'
+    '' first, then '#inclib'. fbc emits both as -l<name> ahead of its own runtime,
+    '' measured -- a user library may call INTO libfb, and an archive is searched
+    '' once, where it appears.
+    for i as long = 0 to ctx.options.libs.Count - 1
+        tools.libs.Push( ctx.options.libs[i] )
+    next
+    for i as long = 0 to ctx.options.pragmaLibs.Count - 1
+        tools.libs.Push( ctx.options.pragmaLibs[i] )
+    next
 
     dim as long rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then
@@ -469,6 +502,24 @@ function Run( byref args as Tko.StrVec ) as long
 
             dim as Tko.NodeId root = Tko.Parse.Unit( p )
             Tko.PpClose( st )
+
+            '' WHAT THE SOURCE ASKED TO LINK AGAINST. Harvested per module and
+            '' accumulated, because the link happens once over all of them: a
+            '' '#inclib' in the second file is as binding as one in the first.
+            ''
+            '' Only on the COMPILING path. The dump modes run the same open/parse
+            '' pair and link nothing, so collecting there would build a list that
+            '' is never read.
+            ''
+            '' Duplicates are not filtered. Naming a library twice is harmless to
+            '' the linker, and filtering would have to decide whether two spellings
+            '' of a name are one library -- which is the linker's question.
+            for k as long = 0 to pr.incLibs.Count - 1
+                ctx.options.pragmaLibs.Push( pr.incLibs[k] )
+            next
+            for k as long = 0 to pr.libPaths.Count - 1
+                ctx.options.pragmaLibPaths.Push( pr.libPaths[k] )
+            next
 
             dim as Tko.SymbolTable syms
             syms.Attach( @ctx.names )

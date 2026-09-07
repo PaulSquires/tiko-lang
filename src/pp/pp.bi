@@ -119,6 +119,16 @@ namespace Tko
         as long     includeCount
         as long     expansionCount
         as long     maxDepth
+        '' '#inclib' AND '#libpath', IN SOURCE ORDER. They are the source's half of
+        '' the link line -- a program says what it needs to link against, rather than
+        '' every caller repeating it on the command line -- and until this they were
+        '' recognised, skipped, and lost.
+        ''
+        '' They live on the RESULT and not in the engine because they outlive it: the
+        '' engine is per translation unit and closes when the parse does, while the
+        '' link happens once, after every module has been through.
+        as StrVec   incLibs
+        as StrVec   libPaths
     end type
 
     '' ---------------------------------------------------------------- the stream

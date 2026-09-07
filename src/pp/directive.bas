@@ -595,8 +595,46 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             end select
         end select
 
-    case "inclib", "libpath", "cmdline"
-        '' Recorded for the driver in a later phase; no semantic effect here.
+    case "inclib", "libpath"
+        '' THE SOURCE'S HALF OF THE LINK LINE. '#inclib "z"' is exactly '-l z' and
+        '' '#libpath "d"' exactly '-p d' -- measured against fbc 1.20.0, which emits
+        '' -lz in both cases and in the same place. The order is command line first,
+        '' then pragma, then the compiler's own directories; also measured.
+        ''
+        '' NOT EXPANDED. fbc takes the literal as written; a macro that produced a
+        '' library name would be a different feature and is not one fbc has.
+        dim as Token t2
+        if PeekOnLine( e, t2 ) = false then
+            Report( e, TKO0326, at, word )
+            SkipToEol( e )
+            return
+        end if
+        if Tk( t2 ) <> TK_STRING_LIT then
+            Report( e, TKO0326, t2.loc, word )
+            SkipToEol( e )
+            return
+        end if
+        dim as string spelled2 = SpellOf( e, t2 )
+        dim as long qa = instr( spelled2, """" )
+        dim as long qb = instrrev( spelled2, """" )
+        dim as string val2 = ""
+        if (qa > 0) andalso (qb > qa) then val2 = mid( spelled2, qa + 1, qb - qa - 1 )
+        Advance( e )
+        SkipToEol( e )
+        '' AN EMPTY ONE IS DROPPED rather than passed on: '-l' with nothing after it
+        '' is a clang error about the NEXT argument, which names the wrong thing.
+        if len( val2 ) > 0 then
+            if word = "inclib" then
+                e.outp->incLibs.Push( val2 )
+            else
+                e.outp->libPaths.Push( val2 )
+            end if
+        end if
+
+    case "cmdline"
+        '' NOT IMPLEMENTED, and it is not the same shape as the two above: fbc's
+        '' '#cmdline' injects arbitrary command-line options from source, so it has
+        '' to run before the options it sets are read. Skipped as before.
         SkipToEol( e )
 
     case "cinclude", "foreignlib"

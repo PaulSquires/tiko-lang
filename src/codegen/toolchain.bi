@@ -21,6 +21,11 @@ namespace Tko.Codegen
         '' Where libfb lives, IN SEARCH ORDER. A list, not one path: a runtime may be
         '' partial and resolve the rest from one behind it.
         as FB.Array( of string ) libPaths
+        '' THE USER'S LIBRARIES, in order, emitted as -l<name>. '-l' put them in a
+        '' list that nothing read until 2026-09-06, so 'tiko -l foo prog.bas' left
+        '' foo out of the link and said nothing; '#inclib' was discarded by the
+        '' preprocessor for the same span. Both arrive here now.
+        as FB.Array( of string ) libs
         as boolean found
         as string why              '' when found is false
     end type

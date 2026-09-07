@@ -84,6 +84,10 @@
     DIAG( TKO0323, SEV_ERROR,   "'%0' does not name a type here, so it cannot own this constructor or destructor" )
     DIAG( TKO0324, SEV_ERROR,   "argument %0 of '%1' must be an integer constant" )
     DIAG( TKO0325, SEV_ERROR,   "argument of '%0' must be a constant expression" )
+    '' fbc's error 17, which it reports as a bare "Syntax error in '#inclib'". The
+    '' name of the thing that is missing costs nothing to say and is what the reader
+    '' needs, so this says it.
+    DIAG( TKO0326, SEV_ERROR,   "'#%0' takes a library name in quotes" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

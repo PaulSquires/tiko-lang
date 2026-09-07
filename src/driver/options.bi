@@ -109,8 +109,22 @@ namespace Tko
     type DriverOptions
         as StrVec  inputs
         as StrVec  includePaths
-        as StrVec  libPaths
-        as StrVec  libs
+        '' THE LIBRARY SEARCH IS THREE LISTS, NOT ONE, and they are kept apart
+        '' because their ORDER is fbc's and is measured:
+        ''
+        ''     -L cmdlinedir  -L pragmadir  -L <compiler's own>  -L .
+        ''
+        '' -p first, '#libpath' second, the bundled directories last. They were one
+        '' list, with the defaults appended as the command line was parsed -- which
+        '' worked only for as long as nothing could add a path AFTER that, and
+        '' '#libpath' is read during the parse. A pragma path would have landed
+        '' behind the bundled tree and resolved out of it instead.
+        as StrVec  libPaths          '' -p, in the order given
+        as StrVec  pragmaLibPaths    '' '#libpath', in source order
+        as StrVec  defaultLibPaths   '' <exe-dir>/lib/<target>, or TKO_LIBPATH
+        '' The same split, and the same order, for the libraries themselves.
+        as StrVec  libs              '' -l
+        as StrVec  pragmaLibs        '' '#inclib'
         as StrVec  defines
 
         as string  outputPath

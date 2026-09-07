@@ -231,7 +231,7 @@ end sub
 private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )
     dim as ustring env_ = environ( "TKO_LIBPATH" )
     if len( env_ ) > 0 then
-        opts.libPaths.Push( env_ )
+        opts.defaultLibPaths.Push( env_ )
         return
     end if
 
@@ -247,10 +247,10 @@ private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )
     end if
 
     dim as ustring cand = FB.PathJoin( root, opts.targetName )
-    if FB.IsDir( cand ) then opts.libPaths.Push( cand )
+    if FB.IsDir( cand ) then opts.defaultLibPaths.Push( cand )
 
     cand = FB.PathJoin( root, opts.targetName & "-fb" )
-    if FB.IsDir( cand ) then opts.libPaths.Push( cand )
+    if FB.IsDir( cand ) then opts.defaultLibPaths.Push( cand )
 end sub
 
 private function MatchExact( byval arg as string ) as Tko.OptId

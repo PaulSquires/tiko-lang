@@ -1,0 +1,21 @@
+'' '#inclib' AND '#libpath' ARE THE SOURCE'S HALF OF THE LINK LINE, and until
+'' 2026-09-06 the preprocessor recognised both, skipped both, and lost both -- the
+'' comment said "recorded for the driver in a later phase" and nothing recorded them.
+'' '-l' was the same story from the other end: parsed into a list that was never read,
+'' so 'tiko -l foo prog.bas' left foo out of the link and said nothing about it.
+''
+'' The link line they produce cannot be asserted here -- the runner captures tiko's
+'' output, not clang's argv -- so what this pins is the diagnostic, and the end-to-end
+'' behaviour is recorded in the commit: a real archive linked three ways (-p/-l,
+'' '#libpath'/'#inclib', and a system library falling through to -l) on both targets.
+''
+'' fbc reports a bare "Syntax error in '#inclib'" (error 17) for these. Naming what is
+'' missing costs nothing.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0326
+'' EXPECT-OUT: '#inclib' takes a library name in quotes
+
+#inclib
+print "unreachable"
