@@ -804,6 +804,15 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     '' drop the landing-pad machinery it would otherwise have to assume.
     dim as string linkage = ""
     if f->isPrivate then linkage = "internal "
+    '' dllexport, which is what actually puts a name in a DLL's export table.
+    '' fbc emits it for a procedure written EXPORT and so does this now; before,
+    '' the keyword reached here as nothing at all.
+    ''
+    '' AFTER the internal test and not beside it: 'internal dllexport' is not a
+    '' combination LLVM accepts, and a private procedure has no external name to
+    '' export. If both were somehow set, internal wins and the export is dropped
+    '' rather than producing a module clang rejects.
+    if f->isExported andalso (f->isPrivate = false) then linkage = "dllexport "
     e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
               "(" & ParamList( e, f, true ) & ") nounwind {" & chr( 10 )
 

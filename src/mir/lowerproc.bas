@@ -154,6 +154,7 @@ sub LowerProc _
     '' name would collide at the link. fbc gives it lowercase 't'; measured on the
     '' same source, tiko gave 'T'.
     if (sp->extra and Tko.PF_PRIVATE) <> 0 then f->isPrivate = true
+    if (sp->extra and Tko.PF_EXPORT) <> 0 then f->isExported = true
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym

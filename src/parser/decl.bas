@@ -879,6 +879,10 @@ private function ParseProc _
         '' accepts it. Reading the definition's own modifiers refused that file. The
         '' DECLARE half below is syntactic and stays; the member half is owed from the
         '' checker, which has both nodes.
+        '' EXPORT IS RECORDED, and was not. The loop's own comment listed it among
+        '' the modifiers it handles while doing nothing with it, which is the same
+        '' shape as the CONSTRUCTOR case below: checked, advanced past, gone.
+        if Peek( p ) = Tko.KW_EXPORT then sp.extra or= Tko.PF_EXPORT
         if (Peek( p ) = Tko.KW_CONSTRUCTOR) orelse (Peek( p ) = Tko.KW_DESTRUCTOR) then
             dim as boolean modBad = declareOnly
             if modBad then

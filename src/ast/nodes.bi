@@ -223,6 +223,11 @@ namespace Tko
     '' member. Carried in StmtPayload.extra on N_FIELD as well as N_PROC, so the name
     '' says member rather than proc -- and note PF_PRIVATE above is a DIFFERENT thing,
     '' module-static linkage, which is why these are not called PF_PRIVATE.
+    '' 'function f( ) as long EXPORT' -- the procedure joins the DLL's export table.
+    '' The keyword was consumed by the trailing-modifier loop and recorded nowhere,
+    '' so fbc emitted 'define dllexport i32 @"AddUp"' where tiko-lang emitted
+    '' 'define i32 @"AddUp"' -- measured. A DLL built from that exports nothing.
+    ''
     const PF_MEMB_PRIVATE   as ushort = &h0400
     const PF_MEMB_PROTECTED as ushort = &h0800
 
@@ -257,6 +262,17 @@ namespace Tko
     '' PAST BIT 15, which is why StmtPayload.extra is a ULONG.
     const PF_MODCTOR        as ulong = &h00010000
     const PF_MODDTOR        as ulong = &h00020000
+    '' 'function f( ) as long EXPORT' -- the procedure joins the DLL's export table.
+    '' The keyword was consumed by the trailing-modifier loop and recorded nowhere,
+    '' so fbc emitted 'define dllexport i32 @"AddUp"' where tiko-lang emitted
+    '' 'define i32 @"AddUp"'. A DLL built from that exports nothing.
+    ''
+    '' &h00040000 AND NOT &h1000, which is where this was first put -- and &h1000 is
+    '' PF_GENERIC_PROC. The collision did not error: an exported function was read as
+    '' a generic one, generics are not emitted until instantiated, and the module came
+    '' out with no functions in it at all. The low sixteen bits are ALL spoken for;
+    '' anything added here goes above PF_MODDTOR.
+    const PF_EXPORT         as ulong = &h00040000
 
     type UnaryPayload
         as ushort op                '' TokenKind

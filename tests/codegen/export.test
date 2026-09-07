@@ -1,0 +1,35 @@
+'' EXPORT REACHES THE LINKAGE, and until 2026-09-07 it reached nothing. The keyword
+'' was consumed by the trailing-modifier loop in decl.bas -- whose own comment listed
+'' it among the modifiers it handled -- and recorded nowhere. Measured against fbc on
+'' the same source:
+''
+''     fbc    define dllexport i32 @"AddUp"( ... )
+''     tiko   define i32 @"AddUp"( ... )
+''
+'' A DLL built from that exports nothing, which is why this is the first thing the
+'' '-dll' work needs.
+''
+'' THE BIT MATTERS. PF_EXPORT was first given &h1000, which is PF_GENERIC_PROC. That
+'' did not error: the function was read as a generic, generics are not emitted until
+'' instantiated, and the module came out with NO FUNCTIONS AT ALL. Only comparing the
+'' emitted IR caught it, which is what this test does.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/export.bas
+'' EXPECT-EXIT: 0
+
+'' The exported one carries dllexport.
+'' EXPECT-OUT: define dllexport i32 @"AddUp"(i32 %p0, i32 %p1) nounwind {
+
+'' A PRIVATE procedure stays internal. 'internal dllexport' is not a combination LLVM
+'' accepts, and a module-static procedure has no external name to export.
+'' EXPECT-OUT: define internal i32 @"HIDDEN"
+
+'' The names are UPPERCASE because FreeBASIC identifiers are case-insensitive and
+'' the canonical form is what gets emitted; AddUp keeps its case only because it
+'' carries an explicit ALIAS.
+''
+'' AND AN ORDINARY ONE GAINS NOTHING. Without this the test would pass just as well
+'' if dllexport were emitted unconditionally.
+'' EXPECT-OUT: define i32 @"PLAIN"
+'' EXPECT-NOT: dllexport i32 @"PLAIN"
+'' EXPECT-NOT: dllexport i32 @"HIDDEN"

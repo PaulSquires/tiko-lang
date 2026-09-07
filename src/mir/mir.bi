@@ -330,6 +330,10 @@ namespace Tko.Mir
         '' constructors were both global would collide on the ctor instead of on
         '' main, which is the same bug wearing a different name.
         as boolean  isPrivate
+        '' EXPORT: emitted as 'dllexport', which is what puts the name in a DLL's
+        '' export table. Independent of isPrivate -- a private procedure is not
+        '' linker-visible at all, so the two cannot both be true.
+        as boolean  isExported
         as boolean  isModuleDtor
         as boolean  isDefinition    '' false for a declaration with no body
         '' THE SIGNATURE. docs/plan/09 gives every function and extern a signature and a
