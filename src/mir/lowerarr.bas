@@ -78,7 +78,10 @@ end function
 '' IS THIS NODE THE RECEIVER, held as a POINTER? 'this' denotes the OBJECT in source
 '' and a pointer in the ABI, so anything wanting the object's ADDRESS wants the
 '' pointer's VALUE and not the slot's address.
-private function IsThisPointerIdent_ _
+'' NOT PRIVATE ANY MORE: a BYREF RESULT asks the same question -- 'function = this'
+'' out of a 'byref as UDT' member stores the receiver, and LowerByrefResult_ in
+'' lowerinit.bas needs the predicate rather than a second copy of it.
+function IsThisPointerIdent_ _
     ( byref c as Ctx, byval n as Tko.NodeId ) as boolean
 
     if n = Tko.NODE_NONE then return false
@@ -785,20 +788,17 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     '' 'a[ 0 ]' over one is a CALL, not an address computation. What comes back is a
     '' BYREF result, so it is a pointer to the element and the caller loads through it
     '' exactly as it would through any other address this function returns.
+    '' ONLY A BYREF OPERATOR HAS AN ADDRESS TO GIVE. A byval one returns the value
+    '' itself, and handing that back here made every reader load through an integer;
+    '' the value form in lowerexpr.bas emits the call for that case instead.
     if c.types->Kind( pt ) = Tko.TK_UDT then
-        dim as Tko.SymbolId ixs = UdtMemberNamed_( c, pt, "[]" )
-        if ixs <> Tko.SYMBOL_NONE then
-            if sp->count <> 1 then return none_
-            dim as MirValue self_ = LowerAddr( c, sp->target )
-            if self_.kind = cast( ubyte, MV_NONE ) then return none_
-            dim as Tko.NodeId ie = cast( Tko.NodeId, c.ast->children[sp->first] )
-            dim as MirValue iv = LowerExpr( c, ie )
-            if iv.kind = cast( ubyte, MV_NONE ) then return none_
-            iv = CoerceTy( c, iv, MT_I32, c.info->TypeOf_( ie ))
-            dim as FB.Array( of ulong ) ia
-            ia.Push( cast( ulong, iv.kind ) ) : ia.Push( cast( ulong, iv.id ) )
-            return EmitMemberCallArgs_( c, ixs, self_, MT_PTR, @ia )
+        dim as MirValue ixv
+        dim as boolean ixByref = false
+        if LowerUdtIndexOp_( c, id, ixv, ixByref ) then
+            if ixByref then return ixv
+            return none_
         end if
+        if UdtMemberNamed_( c, pt, "[]" ) <> Tko.SYMBOL_NONE then return none_
     end if
 
     '' A STRING SUBSCRIPTED IS ITS CHARACTER -- one byte narrow, TWO wide -- and the

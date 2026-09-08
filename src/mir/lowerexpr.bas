@@ -303,6 +303,26 @@ function LowerExpr _
         '' asked for one -- without it the load carried MT_VOID, was refused by Emit
         '' and declined, which is how 'dim as integer v = p[1]' still emitted nothing
         '' after the address itself was lowering correctly.
+        '' A UDT WITH 'operator []' IS ONE CALL, and its shape is the operator's. A
+        '' BYVAL operator returns the value -- there is no address, and LowerAddr below
+        '' would have to invent one -- while a BYREF operator returns the element's
+        '' address and is loaded through here. Asked before anything else so the call is
+        '' emitted once: going through LowerAddr as well would emit a second.
+        dim as MirValue ixv
+        dim as boolean ixByref = false
+        if LowerUdtIndexOp_( c, id, ixv, ixByref ) then
+            if ixByref = false then return ixv
+            dim as Tko.ListPayload ptr xp0 = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            dim as Tko.TypeId xt0 = c.info->TypeOf_( xp0->target )
+            dim as Tko.SymbolId ixs0 = UdtMemberNamed_( c, xt0, "[]" )
+            dim as Tko.Symbol ptr ixsy0 = c.syms->SymbolAt( ixs0 )
+            if ixsy0 = 0 then return v
+            dim as MirType rmt = LowerType( ixsy0->type_, *c.types )
+            if rmt = MT_VOID then return v
+            return LowerExprLoad( c, ixv, rmt )
+        end if
+
         dim as MirType imt = mt
         if imt = MT_VOID then
             dim as Tko.ListPayload ptr xp = _

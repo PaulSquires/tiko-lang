@@ -102,7 +102,10 @@ end function
 '' alone. A UDT rvalue lowers to a LOADED aggregate -- a value, not an address -- so
 '' passing it where a pointer belongs was the same bug in a wider slot. The store is
 '' the plain M_STORE of an aggregate that a UDT return already uses.
-private function ByrefTemp_ _
+'' NOT PRIVATE ANY MORE: 'operator []( index as integer )' declares a BYREF parameter --
+'' in the fb dialect a parameter is byref unless it says otherwise -- so 'x[ 0 ]' needs
+'' the same temporary an ordinary call's byref argument does. See LowerUdtIndexOp_.
+function ByrefTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as MirValue
 
     dim as MirValue none_

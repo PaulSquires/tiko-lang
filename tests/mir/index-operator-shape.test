@@ -1,0 +1,15 @@
+'' 'operator []' called in the shape it declares: the index coerced to the operator's
+'' own parameter type, and the result taken byref or byval as declared. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/index-operator-shape.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' THE INDEX IS NOT TRUNCATED: an 'integer' parameter is i64 here, and the argument
+'' reaches it as one.
+'' EXPECT-OUT: call i64 _ZN3VALixEu7INTEGER(@v, %
+'' EXPECT-NOT: call ptr _ZN3VALixEu7INTEGER
+'' ...and the BYREF operator keeps the pointer shape, because that is what makes
+'' 'r[ 2 ] = 99' an lvalue.
+'' EXPECT-OUT: call ptr _ZN3REFixEu7INTEGER(@r, %
+'' GOLDEN: expected/index-operator-shape.out

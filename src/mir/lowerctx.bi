@@ -518,6 +518,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     '' USTRING -- the UTF-16 string flavour, lowerstr.bas.
     '' 'T( args )' as an addressable temporary -- lowerswap.bas.
+    '' 'a[ i ]' over a UDT with 'operator []', in the shape the operator declares.
+    declare function LowerUdtIndexOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byref outByref as boolean ) as boolean
     declare function LowerTypeCtorTempAddr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -618,6 +622,10 @@ declare function EmitRtl _
     declare function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerOpenCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A temporary holding an argument that must be passed BYREF and has no address of
+    '' its own -- lowercall.bas.
+    declare function ByrefTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as MirValue
     declare function StrDescriptorOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
@@ -803,6 +811,9 @@ declare function EmitRtl _
           byval tk as Tko.TokenKind ) as MirValue
 
     '' lowerarr.bas -- array indexing.
+    '' Is this node 'this' -- the receiver, held in the ABI as a POINTER?
+    declare function IsThisPointerIdent_ _
+        ( byref c as Ctx, byval n as Tko.NodeId ) as boolean
     declare function IsArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     declare function ConstFloat _

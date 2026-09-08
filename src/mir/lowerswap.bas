@@ -340,6 +340,155 @@ function LowerTypeCtorExpr_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' 'a[ i ]' OVER A UDT WITH 'operator []' -- the call, in the shape the operator itself
+'' declares. Two things were assumed rather than read, and both were wrong for anything
+'' but a container indexed by a 32-bit subscript:
+''
+''   THE INDEX WAS COERCED TO MT_I32. 'operator []( byval i as integer )' takes an i64
+''   on win64 -- fbc emits '_ZN1VixEu7INTEGER( &X$0, 3ll )' -- so the argument was
+''   truncated and handed to a parameter twice its width. clang refused the module:
+''   "'%t8' defined with type 'i32' but expected 'i64'". EVERY 'operator []' declared
+''   with the natural spelling was affected, byref and byval alike.
+''
+''   THE RESULT WAS ASSUMED BYREF. That is one of the two shapes: fbc writes
+''   'int32* vr = _ZN1TixEi( &A, 1 ); *vr = 99;' for a BYREF operator, which is what
+''   makes 'a[ 1 ] = 99' an lvalue, and 'int64 vr$2 = _ZN1VixEu7INTEGER( &X$0, 3ll );'
+''   for a BYVAL one. Taking the pointer shape for both loaded through an integer.
+''
+'' 'outByref' says which came back, because the caller's next move differs: a byref
+'' result IS an address and the value form loads through it, where a byval result is
+'' the value and has no address at all.
+function LowerUdtIndexOp_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+      byref outByref as boolean ) as boolean
+
+    outByref = false
+    if c.ast->Kind( id ) <> Tko.N_INDEX then return false
+    dim as Tko.ListPayload ptr sp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->count <> 1 then return false
+    if sp->target = Tko.NODE_NONE then return false
+    dim as Tko.TypeId pt = c.info->TypeOf_( sp->target )
+    if pt = Tko.TYPE_NONE then return false
+    if c.types->Kind( pt ) <> Tko.TK_UDT then return false
+
+    dim as Tko.SymbolId ixs = UdtMemberNamed_( c, pt, "[]" )
+    if ixs = Tko.SYMBOL_NONE then return false
+
+    '' 'operator []' MAY BE OVERLOADED, and UdtMemberNamed_ answers with the HEAD of the
+    '' chain. overload/op-ptrindex.bas declares three on one type -- by integer, by
+    '' string and by double -- so taking the head matched 'x[ "abc" ]' against the
+    '' INTEGER one: at HEAD that silently passed a truncated string pointer as a
+    '' subscript, and it lowered and verified.
+    ''
+    '' Chosen the way PropertyAt_ chooses between a getter and a setter: by conversion
+    '' cost over the written index, uniquely or not at all. A tie is a decline rather
+    '' than a guess -- picking either of two equal candidates is how the wrong one gets
+    '' called with nothing to say so.
+    dim as Tko.NodeId ie0 = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.TypeId at0 = c.types->Unqualify( c.info->TypeOf_( ie0 ) )
+    if at0 <> Tko.TYPE_NONE then
+        dim as Tko.SymbolId best = Tko.SYMBOL_NONE
+        dim as long bestCost = Tko.Check.CONV_NONE
+        dim as long ties = 0
+        dim as Tko.SymbolId cur = ixs
+        dim as long guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+            guard += 1
+            dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+            if cs = 0 then exit while
+            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
+            if cpt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId cpu = c.types->Unqualify( cpt )
+                if c.types->Kind( cpu ) = Tko.TK_REFERENCE then
+                    cpu = c.types->Unqualify( c.types->Inner( cpu ) )
+                end if
+                dim as long cst = Tko.Check.ConversionCost( at0, cpu, *c.types )
+                if cst < Tko.Check.CONV_NONE then
+                    if cst < bestCost then
+                        bestCost = cst
+                        best = cur
+                        ties = 0
+                    elseif cst = bestCost then
+                        ties += 1
+                    end if
+                end if
+            end if
+            cur = cs->nextOverload
+        wend
+        if (best <> Tko.SYMBOL_NONE) andalso (ties = 0) then ixs = best
+    end if
+
+    dim as MirValue self_ = LowerAddr( c, sp->target )
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as Tko.NodeId ie = cast( Tko.NodeId, c.ast->children[sp->first] )
+
+    '' THE ARGUMENT IN THE SHAPE THE PARAMETER ASKS FOR -- the same three-way answer an
+    '' operator's operand already gets in lowerselfop.bas, and the reason this is not a
+    '' width fix alone: fb/map.bi and fb/orderedmap.bi both declare
+    '' 'operator []( byref k as TK )', so a KEY travels as an ADDRESS. Passing its value
+    '' handed the operator a reference to nothing.
+    dim as MirValue iv
+    dim as Tko.TypeId ipt = ParamTypeAt( c, ixs, 0 )
+    if ArrayDescArg_( c, ie, ParamIsArray( c, ixs, 0 ), iv ) then
+    elseif ParamIsByref( c, ixs, 0 ) then
+        '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a LITERAL has none. This is
+        '' the whole of 'mc[ "nums" ].Count( )' -- a map keyed by string, indexed by a
+        '' literal, which is how generics/container-map.bas writes it. LowerAddr answers
+        '' nothing for a literal, so the index declined, the member call lost its
+        '' receiver, and 'calls FB.ARRAY.COUNT with 0 arguments, which declares 1' is
+        '' what the verifier made of it.
+        ''
+        '' StrDescriptorOf_ knows all four shapes -- a descriptor variable, a literal, a
+        '' fixed-length string and a concatenation -- and is what an ordinary call's
+        '' byref string argument already goes through.
+        dim as boolean gotDesc = false
+        if IsStringType( c, ipt ) then gotDesc = StrDescriptorOf_( c, ie, iv )
+        if gotDesc = false then iv = LowerAddr( c, ie )
+        '' AND A TEMPORARY FOR ANYTHING WITH NO ADDRESS, which is most subscripts:
+        '' 'operator []( index as integer )' declares a BYREF parameter, because in the
+        '' fb dialect a parameter is byref unless it says otherwise, and 'x[ 0 ]' passes
+        '' a literal to it. overload/op-ptrindex.bas writes exactly that and is nothing
+        '' but subscripts. The same temporary an ordinary call's byref argument gets.
+        if iv.kind = cast( ubyte, MV_NONE ) then iv = ByrefTemp_( c, ie, ipt )
+    else
+        iv = LowerExpr( c, ie )
+        '' TO THE PARAMETER'S WIDTH, not the subscript's. 'byval i as integer' is an i64
+        '' on win64 -- fbc emits '_ZN1VixEu7INTEGER( &X$0, 3ll )' -- and this coerced to
+        '' a fixed MT_I32, so the argument was truncated and handed to a parameter twice
+        '' its width. clang refused the module outright.
+        if iv.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirType imt = LowerType( ipt, *c.types )
+            if (imt <> MT_VOID) andalso (imt <> MT_AGG) then
+                iv = CoerceTy( c, iv, imt, c.info->TypeOf_( ie ), ipt )
+            end if
+        end if
+    end if
+    if iv.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' ...AND ITS OWN RESULT SHAPE. The BYREF flag lives on the declaration, which is
+    '' where lowercall.bas reads it from for an ordinary call.
+    dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
+    if ixsym = 0 then return false
+    dim as Tko.NodeId ixpn = cast( Tko.NodeId, ixsym->payload )
+    if ixpn <> Tko.NODE_NONE then
+        if (c.ast->nodes[cast( long, ixpn )].flags and Tko.NF_BYREF) <> 0 then
+            outByref = true
+        end if
+    end if
+
+    dim as MirType rt = MT_PTR
+    if outByref = false then
+        rt = LowerType( ixsym->type_, *c.types )
+        if rt = MT_VOID then return false
+    end if
+
+    dim as FB.Array( of ulong ) ia
+    ia.Push( cast( ulong, iv.kind ) ) : ia.Push( cast( ulong, iv.id ) )
+    outv = EmitMemberCallArgs_( c, ixs, self_, rt, @ia )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 '' 'T( args )' AS AN ADDRESSABLE TEMPORARY -- what 'P( 3 ).v' and 'DateTime( y, m, d
 '' ).AddMonths( 0 )' need. The value form loads the aggregate; a member access needs the
 '' storage it was built in.
