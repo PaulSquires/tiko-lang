@@ -430,7 +430,8 @@ declare function EmitRtl _
           byval seqE as Tko.NodeId, byval at as Tko.TypeId ) as boolean
     declare function EmitDirectCall_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
-          byref args as FB.Array( of ulong ) ) as MirValue
+          byref args as FB.Array( of ulong ), _
+          byval withSret as boolean = false ) as MirValue
     declare function EmitMemberCallArgs_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
           byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue

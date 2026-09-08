@@ -10,7 +10,7 @@
 # VERIFIER FAILURES ARE NOT ZERO AT BASELINE ANY MORE, and the count is stated here so
 # that a NEW one is visible rather than lost in a total:
 #
-#     60 verify failures in 12 files
+#     52 verify failures in 10 files
 #
 # All of them are the CALL-ARITY rule (docs/plan/09 rule 5), which could not be checked
 # until a MirFunction carried a signature rather than an arity -- before that a
@@ -24,24 +24,35 @@
 # it took five files to zero on its own.
 #
 # 82 in 20 until CONSTRUCTOR DEFAULT ARGUMENTS were filled at the call (2026-09-07):
-# 22 of them, and eight files to zero. That was the largest family and its entry
-# below described it wrongly -- see there.
+# 22 of them, and eight files to zero.
 #
-# The families, so that a new failure can be told from an old one:
+# 60 in 12 until the GLOBAL-OPERATOR declaration reported its hidden result pointer
+# (2026-09-07): 8 more, two files.
 #
-#     ~~~20 a constructor called with 'this' alone, dropping its own arguments~~~
-#          FIXED 2026-09-07, and the description was wrong in a way worth keeping:
-#          the caller had not dropped anything, it wrote none BECAUSE the parameters
-#          were defaulted, and EmitStructorCall never filled the defaults in.
-#          'dim as bar v' against 'constructor( a as integer = 11, b = 22 )' called
-#          a three-parameter definition with one argument, and the constructor read
-#          a and b off the stack -- fbc printed '11 22', this printed
-#          '1714698034672 0'. Overload selection ALREADY read those defaults to pick
-#          the constructor; only the filling was missing.
-#     ~16 FB.LOGEVENT.* got=4 want=3, one argument too many
-#     ~16 generic accessors (OPTIONAL.VALUE, RESULT.VALUE, SHAREDPTR.REF) got=2 want=1
-#      8  global operators '+' and '-' got=3 want=2
-#      ~5 a paren-less member call passing NO receiver, and one passing one too many
+# THE FAMILY LIST BELOW WAS RE-DERIVED, not edited. Two of its five entries were
+# already false by the time they were read: FB.LOGEVENT had gone with the constructor
+# fix without anyone noticing, and the constructor entry described the wrong cause.
+# A stale breakdown is worse than no breakdown -- it is read as a diagnosis.
+#
+# The families, so that a new failure can be told from an old one. Measured
+# 2026-09-07 by dumping every corpus file, not carried forward:
+#
+#      4  virtual/byval-copy    CHECKBYVALPARAMA got=4 want=2
+#      4  functions/return-byref  F4 got=1 want=0 -- a receiver passed to a free
+#         function, which is the mirror of the anon-access shape below
+#      3  structs/anon-access   COPYTOGLOBAL got=0 want=1 -- a paren-less member
+#         call passing NO receiver
+#      2  dim/redim             UDT.F1 got=3 want=1
+#      2  expressions/selfbops  F got=2 want=0
+#      2  typedef/backpatch
+#      1  each: com/comptr, comptr-qi, comptr-companions, concurrency/sched,
+#         functions/ignore-result, structs/obj_meth_ovld_sub
+#
+# THE SHAPE THEY SHARE is the one both fixes above were: a hidden parameter -- the
+# result pointer or the receiver -- that the CALL passes and the DECLARATION does not
+# name, or the reverse. Every site that builds a declaration has to report what the
+# call is about to push rather than assume it; lowercall.bas says so in its own
+# comment and is the model.
 #
 # This is Phase-6 debt surfaced by Phase-7 groundwork. Fixing it is tracked in HANDOFF;
 # what must not happen is the number drifting upward unnoticed.

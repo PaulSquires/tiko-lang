@@ -708,7 +708,7 @@ function LowerUserBinaryOp_ _
         return false
     end if
 
-    outv = EmitDirectCall_( c, op, rmt, args )
+    outv = EmitDirectCall_( c, op, rmt, args, usesSret )
     '' A CONVERTED OPERAND'S TEMPORARY IS DESTRUCTED AFTER THE OPERATOR, which is
     '' where fbc puts it: '_ZN2TUD1Ev( &TMP$2$0 )' on the line after the call.
     DestroyOperandTemps_( c, opTmpSlots, opTmpTypes )
@@ -778,6 +778,8 @@ function LowerUserUnaryOp_ _
     if OperandValue_( c, up->operand, pt, isRef, args, unTmpSlots, unTmpTypes ) = false then
         return false
     end if
+     '' NO HIDDEN RESULT POINTER on this path: the unary operator does not push a
+     '' destination temporary, so the declaration takes its parameters as written.
     outv = EmitDirectCall_( c, op, rmt, args )
     DestroyOperandTemps_( c, unTmpSlots, unTmpTypes )
     return (outv.kind <> cast( ubyte, MV_NONE ))

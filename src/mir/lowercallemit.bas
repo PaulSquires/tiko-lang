@@ -24,7 +24,7 @@ namespace Tko.Mir
 '' the caller has already produced the operands the way the parameters want them.
 function EmitDirectCall_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
-      byref args as FB.Array( of ulong ) ) as MirValue
+      byref args as FB.Array( of ulong ), byval withSret as boolean = false ) as MirValue
 
     dim as MirValue none_
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
@@ -51,7 +51,23 @@ function EmitDirectCall_ _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, rt )
         decl->isDefinition = false
-        SignatureFromProc( c, decl, pn, false, false )
+        '' WHETHER A HIDDEN RESULT POINTER WAS PASSED IS REPORTED, not re-derived.
+        '' It was hard-coded false, and a user-defined GLOBAL operator returning a
+        '' non-trivial UDT is exactly the shape that breaks: the caller pushes a
+        '' destination temporary as argument zero and this declared two parameters
+        '' against a call passing three.
+        ''
+        '' 'declare operator +( byref l as const UDT, byref r as const UDT ) as UDT'
+        '' over a UDT with a destructor emitted
+        ''
+        ''     call ptr +(@$tmp4, @a, @b)      three arguments
+        ''     declare ptr +(ptr $0, ptr $1)   two parameters
+        ''
+        '' -- the verifier's 'calls + with 3 arguments, which declares 2', and eight
+        '' of the arity failures the sweep records. lowercall.bas has always reported
+        '' both hidden parameters here and says why in its own comment; this is the
+        '' same rule, and the site that did not follow it.
+        SignatureFromProc( c, decl, pn, withSret, false )
         fidx = c.m->functions.Count - 1
     end if
 
