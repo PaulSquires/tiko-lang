@@ -303,7 +303,22 @@ private sub LowerAssign _
     if (atl <> Tko.TYPE_NONE) andalso (atl = c.info->TypeOf_( value )) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
             dim as boolean handled = false
-            dim as Tko.SymbolId ulet = StructorOf( c, atl, "let" )
+            '' THE OVERLOAD THAT TAKES THIS TYPE, not the first one declared. The
+            '' chain head is whichever 'operator let' was written first, and a type
+            '' may declare only CONVERTING ones -- 'operator let( byval d as double )'
+            '' and nothing else. Taking the head unconditionally then called that
+            '' operator for 'y = x' and passed the SOURCE OBJECT'S ADDRESS where a
+            '' double belonged: 'call void _ZN1VaSEd(@y, @x)'. It lowered, it verified,
+            '' and the operator read a pointer as a number.
+            ''
+            '' fbc does the bitwise copy for that -- '__builtin_memcpy( &Y$0, &X$0, 8 )'
+            '' -- so finding no same-type overload here is not a decline: it falls
+            '' through to the ordinary aggregate copy below, which is what a UDT with
+            '' no assignment operator at all already gets.
+            dim as FB.Array( of ulong ) sletT
+            sletT.Push( cast( ulong, atl ) )
+            dim as Tko.SymbolId ulet = _
+                PickCtor( c, StructorOf( c, atl, "let" ), sletT )
             if (ulet <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, atl ) then
                 dim as MirValue da = LowerAddr( c, target )
                 dim as MirValue sa = LowerAddr( c, value )
