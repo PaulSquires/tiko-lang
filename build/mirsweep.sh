@@ -115,14 +115,54 @@ JOBS=${MIRSWEEP_JOBS:-6}
 # silently, and the victim just reports a smaller count. That happened: a scoped run
 # was started beside a full one and the full one's result was lost, not flagged.
 # mkdir is atomic, so it is the lock.
+#
+# A STALE LOCK HEALS ITSELF. The trap below covers a normal exit, a Ctrl-C and a TERM,
+# and none of those is how a sweep usually dies: killed outright, or its terminal
+# closed, it runs NO trap and the lock outlives it. Every later sweep then refused to
+# start and told a human to delete a directory by hand -- which happened twice in one
+# session, the second time silently wasting a nine-minute run.
+#
+# The owner's PID goes IN the lock, so a lock whose owner is gone can be told from one
+# whose owner is working. Written after the mkdir, so the directory is still what makes
+# the lock atomic; a lock with no pid file at all is from an older version of this
+# script and is treated as stale.
 if ! mkdir build/.mirlock 2>/dev/null ; then
-    echo "mirsweep: a sweep is already running in this tree (build/.mirlock exists)." >&2
-    echo "mirsweep: wait for it, or remove build/.mirlock if no sweep is running." >&2
-    exit 1
+    owner=$(cat build/.mirlock/pid 2>/dev/null || true)
+    if [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null ; then
+        echo "mirsweep: a sweep is already running in this tree (pid $owner)." >&2
+        echo "mirsweep: wait for it to finish." >&2
+        exit 1
+    fi
+    echo "mirsweep: taking over a stale lock (owner ${owner:-unknown} is gone)." >&2
+    rm -rf build/.mirlock
+    if ! mkdir build/.mirlock 2>/dev/null ; then
+        echo "mirsweep: cannot take the lock; remove build/.mirlock by hand." >&2
+        exit 1
+    fi
 fi
+echo $$ > build/.mirlock/pid
 trap 'rm -rf build/.mirlock' EXIT INT TERM
 
-rm -rf build/.mirparts build/.diagparts build/.skipparts
+# A KILLED SWEEP'S CHILDREN OUTLIVE IT, and Windows will not delete a file another
+# process still has open. So this 'rm -rf' fails with "Directory not empty" for as long
+# as an orphaned tiko.exe holds one of the .raw files -- and under 'set -e' that killed
+# the NEXT sweep at its own cleanup, before it had run a single file. Retried instead.
+#
+# It must still be fatal if the directories cannot be cleared: part files left from an
+# earlier run would be counted by this one, and a corpus total that is quietly 90 files
+# short reads as a real measurement.
+tries=0
+while [ $tries -lt 15 ] ; do
+    rm -rf build/.mirparts build/.diagparts build/.skipparts 2>/dev/null || true
+    [ -d build/.mirparts ] || [ -d build/.diagparts ] || [ -d build/.skipparts ] || break
+    tries=$((tries + 1))
+    sleep 1
+done
+if [ -d build/.mirparts ] || [ -d build/.diagparts ] || [ -d build/.skipparts ] ; then
+    echo "mirsweep: cannot clear build/.mirparts -- a previous sweep's tiko is still" >&2
+    echo "mirsweep: holding files open. Wait for it to exit, or kill it." >&2
+    exit 1
+fi
 mkdir -p build/.mirparts build/.diagparts build/.skipparts
 
 # ONE tiko-lang per file, producing BOTH outputs. The diagnostics used to be collected by a
