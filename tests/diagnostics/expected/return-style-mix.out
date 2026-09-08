@@ -3,8 +3,12 @@ func void _ZN4CTORC1Ev(ptr $0) {
   entry0:
     %1 = alloca ptr this
     store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 OKRETURN() {
   local agg $tmp0 size 8
   local agg x size 8
@@ -137,7 +141,7 @@ func void BADDEFAULT(i64 $0) {
     ret
 }
 verify: ok
-lowered: 7 functions, 16 blocks, 54 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 16 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/return-style-mix.bas(47,38): error TKO0675: a parameter default names 'notdeclaredanywhere', which is not declared
      |
   47 | sub badDefault( byval n as integer = notDeclaredAnywhere )

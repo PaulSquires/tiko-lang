@@ -3,8 +3,12 @@ func void _ZN7HASCTORC1Ev(ptr $0) {
   entry0:
     %1 = alloca ptr this
     store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void WITHMETHOD() {
   entry0:
     ret
@@ -53,7 +57,7 @@ func void _ZN13ATMODULELEVEL1FEv(ptr $0) {
     ret
 }
 verify: ok
-lowered: 11 functions, 11 blocks, 6 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 9 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/type-in-proc.bas(24,5): error TKO0619: 'a' is declared inside a procedure and cannot have methods
      |
   24 |     type A

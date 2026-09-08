@@ -5,11 +5,15 @@ func void _ZN1TC1Ev(ptr $0) {
     store @this, $0
     %2 = load @this
     %3 = field.addr %2, 0
-    %4 = const i64 1
-    %5 = trunc %4
-    store %3, %5
+    %4 = call.rtl ptr memset(%3, 0, 4)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 1
+    %8 = trunc %7
+    store %6, %8
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN1TD1Ev(ptr $0) {
   local ptr this
   entry0:
@@ -54,4 +58,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 37 insts, 0 statements not lowered, 0 scope imbalance

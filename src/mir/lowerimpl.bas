@@ -240,6 +240,31 @@ private sub FieldsInOrder_ _
     wend
 end sub
 
+'' A THIRD QUESTION, and conflating it with NeedsCtorBody_ left a WRITTEN constructor
+'' with no prologue at all:
+''
+''   NeedsCtorBody_( T )     -- "must one be SYNTHESISED for T", which fbc answers no to
+''                              for 'type D : n as integer : m as integer : end type':
+''                              it emits no constructor for that type at all.
+''   CtorPrologueWork_( T )  -- "GIVEN that a constructor exists, is there anything in
+''                              front of the body" -- and every FIELD is, because each
+''                              one that nothing else initialises is zeroed.
+''
+'' Measured: fbc's written 'constructor B( )' over two plain integers is two memsets
+'' and then the body's own 'n = 7'. Asking the first question of the second's caller
+'' meant the memsets were never emitted and the field the body does not write read
+'' whatever the frame held.
+function CtorPrologueWork_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if NeedsCtorBody_( c, t ) then return true
+    if t = Tko.TYPE_NONE then return false
+    if IsObjectT_( c, t ) then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    if ImplBaseOf_( c, t ) <> Tko.TYPE_NONE then return true
+    dim as FB.Array( of ulong ) flds
+    FieldsInOrder_( c, t, flds )
+    return (flds.Count > 0)
+end function
+
 '' The address of one field, given the object's address.
 private function FieldAddr_ _
     ( byref c as Ctx, byref thisPtr as MirValue, byval t as Tko.TypeId, _
@@ -442,11 +467,44 @@ sub EmitCtorPrologue_ _
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
         dim as Tko.NodeId fi = FieldInitOf_( c, f )
-        if (TypeNeedsInit_( c, f->type_ ) = false) andalso (fi = Tko.NODE_NONE) then
+        dim as MirValue fa = FieldAddr_( c, thisPtr, t, f->name )
+        if fa.kind = cast( ubyte, MV_NONE ) then continue for
+
+        '' A FIELD WITH NOTHING ELSE TO INITIALISE IT IS ZEROED, and this ran off the
+        '' end of the loop instead. Measured, and it is a PER-FIELD memset of the
+        '' field's own declared size rather than one over the whole object:
+        ''
+        ''   type Outer : k as integer = 9 : inn as Inner : arr(0 to 2) as integer : _
+        ''                z as zstring * 8 : end type
+        ''
+        ''     *(int64*)THIS = 9ll;
+        ''     __builtin_memset( (struct $5INNER*)((uint8*)THIS +  8ll), 0, 16ll );
+        ''     __builtin_memset( (int64*)        ((uint8*)THIS + 24ll), 0, 24ll );
+        ''     __builtin_memset( (char*)         ((uint8*)THIS + 48ll), 0,  8ll );
+        ''
+        '' It is not conditional on anything: a WRITTEN constructor gets the same zeros
+        '' in front of its own statements -- fbc emits both memsets before the user's
+        '' 'n = 7' -- and so does the one synthesised for 'extends object'. Without it
+        '' 'type Q : a as integer = 5 : b as integer : end type' read b as whatever the
+        '' frame held where fbc reads 0, which is the half of the field initialisers
+        '' that a fully-initialised probe cannot show.
+        ''
+        '' A field that IS initialised is not zeroed first: fbc writes the value alone,
+        '' and the string descriptor's own zeroing is InitMember_'s.
+        dim as boolean needsInit = TypeNeedsInit_( c, f->type_ )
+        if (needsInit = false) andalso (fi = Tko.NODE_NONE) then
+            dim as long fsz = SizeOfType( c, f->type_ )
+            if fsz > 0 then
+                dim as FB.Array( of ulong ) fz
+                fz.Push( cast( ulong, fa.kind ) ) : fz.Push( cast( ulong, fa.id ) )
+                fz.Push( cast( ulong, MV_CONST_INT ) ) : fz.Push( 0 )
+                fz.Push( cast( ulong, MV_CONST_INT ) ) : fz.Push( cast( ulong, fsz ) )
+                EmitRtl( c, RTL_MEMSET, fz )
+            end if
             continue for
         end if
-        dim as MirValue fa = FieldAddr_( c, thisPtr, t, f->name )
-        if TypeNeedsInit_( c, f->type_ ) then InitMember_( c, fa, f->type_ )
+
+        if needsInit then InitMember_( c, fa, f->type_ )
         '' AFTER the default initialisation, not instead of it: a field that needs a
         '' descriptor built still needs it, and the declared value goes on top.
         if fi <> Tko.NODE_NONE then EmitFieldInit_( c, fa, f->type_, fi )

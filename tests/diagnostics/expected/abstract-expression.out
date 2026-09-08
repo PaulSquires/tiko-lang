@@ -43,7 +43,7 @@ func i32 main(i32 $0, ptr $1) {
     %12 = icmp.ne %10, %11
     %14 = alloca ptr $tmp4
     %17 = alloca ptr $tmp5
-    %18 = alloca ptr $tmp6
+    %20 = alloca ptr $tmp6
     condbr %12, new.ctor1, new.join2
   new.ctor1:
     call void _ZN1AC1Ev(%10)
@@ -55,10 +55,18 @@ func i32 main(i32 $0, ptr $1) {
     %15 = field.addr @$tmp4, 8
     %16 = load %15
     call.rtl void fb_PrintLongint(0, %16, 1)
-    %19 = const i32 0
-    call.rtl void fb_End(%19)
-    %20 = load @$tmp0
-    ret %20
+    call void _ZN1AC1Ev(@$tmp5)
+    %18 = field.addr @$tmp5, 8
+    %19 = load %18
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    call void _ZN1AC1Ev(@$tmp6)
+    %21 = field.addr @$tmp6, 8
+    %22 = load %21
+    call.rtl void fb_PrintLongint(0, %22, 1)
+    %23 = const i32 0
+    call.rtl void fb_End(%23)
+    %24 = load @$tmp0
+    ret %24
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr calloc(i64 $0, i64 $1)
@@ -69,17 +77,16 @@ func void _ZN1AC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
-    %2 = field.addr @@_ZTVN1AE, 16
-    store $0, %2
+    %2 = field.addr $0, 8
+    %3 = call.rtl ptr memset(%2, 0, 8)
+    %4 = field.addr @@_ZTVN1AE, 16
+    store $0, %4
     ret
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 verify: ok
-lowered: 4 functions, 6 blocks, 37 insts, 2 statements not lowered, 0 scope imbalance
-  unlowered N_INTRINSIC 2
-  inside N_INTRINSIC 2
-  unlowered intrinsic KW_PRINT 2
-  skip-site src\mir\lowerctl.bas:206 2
+lowered: 4 functions, 6 blocks, 47 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/abstract-expression.bas(20,21): error TKO0620: 'a' has an abstract type, which cannot be instantiated
      |
   20 | dim bad1 as A ptr = new A

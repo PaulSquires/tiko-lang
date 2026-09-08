@@ -618,7 +618,10 @@ sub LowerProc _
     dim as boolean wantsPrologue = false
     if structorType <> Tko.TYPE_NONE then
         if inCtor then
-            wantsPrologue = NeedsCtorBody_( c, structorType )
+            '' NOT NeedsCtorBody_, which asks whether one must be SYNTHESISED. This
+            '' constructor is WRITTEN and already exists; the question is whether it has
+            '' a prologue, and every field it does not initialise is a zero it owes.
+            wantsPrologue = CtorPrologueWork_( c, structorType )
         elseif c.vts <> 0 then
             wantsPrologue = (c.vts->Find( structorType ) >= 0)
         end if

@@ -121,11 +121,14 @@ func void _ZN7PARENT_C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
-    %2 = field.addr @@_ZTVN7PARENT_E, 16
-    store $0, %2
+    %2 = field.addr $0, 8
+    %3 = call.rtl ptr memset(%2, 0, 8)
+    %4 = field.addr @@_ZTVN7PARENT_E, 16
+    store $0, %4
     ret
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN7DERIVEDC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -135,7 +138,7 @@ func void _ZN7DERIVEDC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 3 functions, 18 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 18 blocks, 71 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/iif-udt-arms.bas(27,8): error TKO0655: the two arms of 'iif' have incompatible types
      |
   27 | a = iif( cond, a, o )

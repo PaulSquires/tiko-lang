@@ -879,6 +879,9 @@ declare function EmitRtl _
     declare function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function NeedsCtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' ...and whether a constructor that ALREADY EXISTS has a prologue. Not the same
+    '' question: see the comment on the definition.
+    declare function CtorPrologueWork_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     '' A byval UDT parameter that fbc passes as a POINTER to a caller-built copy.
     declare function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ParamIsIndirectUdt_ _

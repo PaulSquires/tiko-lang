@@ -5,11 +5,15 @@ func void _ZN1AC1Ev(ptr $0) {
     store @this, $0
     %2 = load @this
     %3 = field.addr %2, 0
-    %4 = const i64 1
-    %5 = trunc %4
-    store %3, %5
+    %4 = call.rtl ptr memset(%3, 0, 4)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 1
+    %8 = trunc %7
+    store %6, %8
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN1AC1Eii(ptr $0, i32 $1, i32 $2) {
   local ptr this
   local i32 c
@@ -23,13 +27,16 @@ func void _ZN1AC1Eii(ptr $0, i32 $1, i32 $2) {
     store @os, $2
     %4 = load @this
     %5 = field.addr %4, 0
-    %6 = load @c
-    %7 = load @os
-    %8 = sext %6
-    %9 = sext %7
-    %10 = add %8, %9
-    %11 = trunc %10
-    store %5, %11
+    %6 = call.rtl ptr memset(%5, 0, 4)
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = load @c
+    %10 = load @os
+    %11 = sext %9
+    %12 = sext %10
+    %13 = add %11, %12
+    %14 = trunc %13
+    store %8, %14
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -90,4 +97,4 @@ declare ptr calloc(i64 $0, i64 $1)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 5 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 5 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance

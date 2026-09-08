@@ -10,7 +10,7 @@
 # VERIFIER FAILURES ARE NOT ZERO AT BASELINE ANY MORE, and the count is stated here so
 # that a NEW one is visible rather than lost in a total:
 #
-#     5 verify failures in 3 files
+#     2 verify failures in 2 files
 #
 # All of them are the CALL-ARITY rule (docs/plan/09 rule 5), which could not be checked
 # until a MirFunction carried a signature rather than an arity -- before that a
@@ -46,11 +46,6 @@
 # without the second, four files fail that do not fail here. A breakdown taken with
 # a different invocation is not comparable to the count above it.
 #
-#      3  structs/anon-access      ATBEGINOFSTATEMENT.UDT -- a paren-less member
-#         call passing NO receiver where one is declared. Was 5: two of them were
-#         a UDT with a FIELD INITIALISER and no constructor, which had no
-#         constructor synthesised for it and so lost its receiver; the field
-#         initialisers gave it one.
 #      1  structs/obj_meth_ovld_sub  FOO.BAR got=2 want=1
 #      1  structs/obj_property_alias UDT.getv property accessor
 #

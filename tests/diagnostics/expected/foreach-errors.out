@@ -163,24 +163,29 @@ declare void _ZN9$TUP:6:15D1Ev(ptr $0)
 declare void fb_End(i32 $0)
 func void _ZN9$TUP:6:15C1Ev(ptr $0) {
   entry0:
-    %1 = field.addr $0, 8
-    %2 = field.addr %1, 0
-    store %2, 0
-    %3 = field.addr %1, 8
-    store %3, 0
-    %4 = field.addr %1, 16
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 4)
+    %3 = field.addr $0, 8
+    %4 = field.addr %3, 0
     store %4, 0
+    %5 = field.addr %3, 8
+    store %5, 0
+    %6 = field.addr %3, 16
+    store %6, 0
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN9$TUP:6:15C1ERKS_(ptr $0, ptr $1) {
   entry0:
-    %1 = field.addr $0, 8
-    %2 = field.addr %1, 0
-    store %2, 0
-    %3 = field.addr %1, 8
-    store %3, 0
-    %4 = field.addr %1, 16
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 4)
+    %3 = field.addr $0, 8
+    %4 = field.addr %3, 0
     store %4, 0
+    %5 = field.addr %3, 8
+    store %5, 0
+    %6 = field.addr %3, 16
+    store %6, 0
     call void _ZN9$TUP:6:15aSERKS_($0, $1)
     ret
 }
@@ -203,12 +208,12 @@ func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 8 functions, 16 blocks, 119 insts, 7 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 16 blocks, 123 insts, 7 statements not lowered, 0 scope imbalance
   unlowered N_FOREACH 4
   inside N_FOREACH 4
   inside N_VAR 3
   skip-site src\mir\lowerctl.bas:206 4
-  skip-site src\mir\lower.bas:582 3
+  skip-site src\mir\lower.bas:598 3
 tests/diagnostics/src/foreach-errors.bas(41,1): error TKO0609: 'for each' cannot walk a fixed-length string: it carries no length
      |
   41 | for each ch in z

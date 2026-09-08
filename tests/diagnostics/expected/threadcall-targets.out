@@ -174,7 +174,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 14 functions, 14 blocks, 78 insts, 8 statements not lowered, 0 scope imbalance
   inside N_VAR 8
-  skip-site src\mir\lower.bas:582 8
+  skip-site src\mir\lower.bas:598 8
 tests/diagnostics/src/threadcall-targets.bas(78,42): error TKO0749: 'threadcall' runs a SUB; 'isfunction' is not one
      |
   78 | dim t6 as any ptr = threadcall isFunction( )

@@ -3,8 +3,12 @@ func void _ZN3HASC1Ev(ptr $0) {
   entry0:
     %1 = alloca ptr this
     store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN3HASD1Ev(ptr $0) {
   local ptr this
   entry0:
@@ -39,7 +43,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 20 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 23 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   amb call-unbound 2
   skip-site lowercall.bas:232 2

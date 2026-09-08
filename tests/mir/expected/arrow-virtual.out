@@ -187,11 +187,14 @@ func void _ZN4IMPLC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN5IFACEC1Ev(%1)
-    %2 = field.addr @@_ZTVN4IMPLE, 16
-    store $0, %2
+    %2 = field.addr $0, 8
+    %3 = call.rtl ptr memset(%2, 0, 4)
+    %4 = field.addr @@_ZTVN4IMPLE, 16
+    store $0, %4
     ret
 }
 declare void _ZN5IFACEC1Ev(ptr $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN5IFACEC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -202,4 +205,4 @@ func void _ZN5IFACEC1Ev(ptr $0) {
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
-lowered: 7 functions, 16 blocks, 123 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 16 blocks, 125 insts, 0 statements not lowered, 0 scope imbalance

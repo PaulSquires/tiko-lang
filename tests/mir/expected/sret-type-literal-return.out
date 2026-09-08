@@ -3,8 +3,12 @@ func void _ZN1TC1Ev(ptr $0) {
   entry0:
     %1 = alloca ptr this
     store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN1TD1Ev(ptr $0) {
   local ptr this
   entry0:
@@ -126,4 +130,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 83 insts, 0 statements not lowered, 0 scope imbalance

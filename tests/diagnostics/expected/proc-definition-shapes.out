@@ -12,8 +12,12 @@ func void _ZN3UDTC1Eu7INTEGER(ptr $0, i64 $1) {
     store @this, $0
     %2 = alloca ptr i
     store @i, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 8)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN9DEFAULTEDC1Eu7INTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 i
@@ -22,6 +26,9 @@ func void _ZN9DEFAULTEDC1Eu7INTEGER(ptr $0, i64 $1) {
     store @this, $0
     %2 = alloca ptr i
     store @i, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 8)
     ret
 }
 func void F1() {
@@ -151,9 +158,9 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 13 functions, 15 blocks, 65 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 13 functions, 15 blocks, 71 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lower.bas:640 1
+  skip-site src\mir\lower.bas:656 1
 tests/diagnostics/src/proc-definition-shapes.bas(21,1): error TKO0732: 'f1' returns 'any', which is not a value
      |
   21 | function f1( ) as any

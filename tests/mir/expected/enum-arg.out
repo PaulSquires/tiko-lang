@@ -5,11 +5,21 @@ func void _ZN1N1CC1Ev(ptr $0) {
     store @this, $0
     %2 = load @this
     %3 = field.addr %2, 0
-    %4 = const i64 0
-    %5 = trunc %4
-    store %3, %5
+    %4 = call.rtl ptr memset(%3, 0, 1)
+    %5 = field.addr %2, 1
+    %6 = call.rtl ptr memset(%5, 0, 1)
+    %7 = field.addr %2, 2
+    %8 = call.rtl ptr memset(%7, 0, 1)
+    %9 = field.addr %2, 3
+    %10 = call.rtl ptr memset(%9, 0, 1)
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = const i64 0
+    %14 = trunc %13
+    store %12, %14
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 _ZN1N2MKEh(i8 $0) {
   local agg $tmp0 size 4
   local i8 idx
@@ -60,4 +70,4 @@ func i32 _ZN1N3BLKEv() {
     ret %9
 }
 verify: ok
-lowered: 3 functions, 3 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

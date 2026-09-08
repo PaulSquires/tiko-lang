@@ -6,10 +6,14 @@ func void _ZN3UDTC1Ev(ptr $0) {
     store @this, $0
     %2 = load @this
     %3 = field.addr %2, 0
-    %4 = const i64 123
-    store %3, %4
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 123
+    store %6, %7
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN3UDT12COPYTOGLOBALEv(ptr $0) {
   local ptr this
   entry0:
@@ -69,4 +73,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance

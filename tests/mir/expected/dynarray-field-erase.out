@@ -166,8 +166,11 @@ func void _ZN7BOX<23>C1Ev(ptr $0) {
     %17 = const i64 0
     %18 = field.addr %1, 64
     store %18, %17
+    %19 = field.addr $0, 72
+    %20 = call.rtl ptr memset(%19, 0, 4)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN5PLAINC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -309,4 +312,4 @@ func void _ZN7BOX<23>D1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 15 functions, 18 blocks, 216 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 15 functions, 18 blocks, 218 insts, 0 statements not lowered, 0 scope imbalance

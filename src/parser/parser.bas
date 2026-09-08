@@ -642,10 +642,27 @@ end function
 ''
 '' Testing the '(' rather than enumerating the keywords is what makes this cover the
 '' whole conversion family without a list that would go stale.
+'' 'type<UDT>( ... )' AT THE HEAD OF A STATEMENT -- the TYPE LITERAL, not a type
+'' declaration. A '<' immediately after the keyword settles it: a declaration is
+'' 'type Name', and none of the shapes IsDeclarationStart covers can have '<' there.
+''
+'' Without this, 'type<UDT>( ).copyToGlobal( )' went to the declaration parser and came
+'' back as TKO0406, 'expected an identifier', while the very same expression inside a
+'' PRINT parsed and lowered -- only the statement position consults IsDeclarationStart.
+'' structs/anon-access.bas writes both spellings on adjacent lines.
+function IsTypeLiteralHere( byref p as Tko.ParserState ) as boolean
+    if Peek( p ) <> Tko.KW_TYPE then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LT)
+end function
+
 private function KeywordLedExpression _
     ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 
     if Tko.IsKeywordKind( k ) = false then return false
+    '' The type literal is keyword-led too, and its second token is '<' rather than
+    '' the '(' every other one has.
+    if IsTypeLiteralHere( p ) then return true
     if HasTok( p, p.pos + 1 ) = false then return false
     return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN)
 end function
@@ -1118,7 +1135,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )                       '' the '='
             sp.b = Expression( p )
             n = MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
-        elseif IsDeclarationStart( k ) then
+        elseif IsDeclarationStart( k ) andalso (IsTypeLiteralHere( p ) = false) then
             n = Declaration( p )
         elseif Tko.IsStatementIntrinsic( k ) andalso FollowedByAssign( p ) then
             '' A statement intrinsic whose name is being ASSIGNED to is not the

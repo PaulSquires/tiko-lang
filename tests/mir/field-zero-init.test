@@ -1,0 +1,35 @@
+'' EVERY FIELD A CONSTRUCTOR DOES NOT OTHERWISE INITIALISE IS ZEROED. Measured from
+'' fbc's own C -- a PER-FIELD memset of the field's declared size, not one pass over the
+'' object, and emitted in front of a WRITTEN constructor's statements as much as in a
+'' synthesised one:
+''
+''   static void _ZN5OUTERC1Ev( struct $5OUTER* THIS$1 )
+''   {
+''       *(int64*)THIS$1 = 9ll;
+''       __builtin_memset( (struct $5INNER*)((uint8*)THIS$1 +  8ll), 0, 16ll );
+''       __builtin_memset( (int64*)        ((uint8*)THIS$1 + 24ll), 0, 24ll );
+''       __builtin_memset( (char*)         ((uint8*)THIS$1 + 48ll), 0,  8ll );
+''   }
+''
+'' This is the half of the field initialisers that a fully-initialised probe cannot
+'' show: 'k as integer = 9' printed 9 while the nested UDT, the array and the fixed
+'' string beside it read whatever the frame held.
+''
+'' It also needed a question of its own. NeedsCtorBody_ asks whether a constructor must
+'' be SYNTHESISED, and fbc emits none at all for a type of two plain integers; the
+'' prologue asks whether a constructor that ALREADY EXISTS has work, and every field is
+'' work. Asking the first meant a written constructor got no prologue.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/field-zero-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' The initialised field is a store; the three after it are memsets of 16, 24 and 8.
+'' EXPECT-OUT: func void _ZN5OUTERC1Ev(ptr $0) {
+'' EXPECT-OUT: const i64 9
+'' EXPECT-OUT: call.rtl ptr memset(%3, 0, 16)
+'' EXPECT-OUT: call.rtl ptr memset(%5, 0, 24)
+'' EXPECT-OUT: call.rtl ptr memset(%7, 0, 8)
+'' A WRITTEN constructor is zeroed too, in front of its own body.
+'' EXPECT-OUT: func void _ZN7WRITTENC1Ev(ptr $0) {
+'' GOLDEN: expected/field-zero-init.out

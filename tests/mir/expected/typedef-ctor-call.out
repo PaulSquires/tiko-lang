@@ -5,14 +5,20 @@ func void _ZN7CTORUDTC1Ev(ptr $0) {
     store @this, $0
     %2 = load @this
     %3 = field.addr %2, 0
-    %4 = const i64 123
-    store %3, %4
-    %5 = load @this
-    %6 = field.addr %5, 8
-    %7 = const i64 456
-    store %6, %7
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = field.addr %2, 8
+    %6 = call.rtl ptr memset(%5, 0, 8)
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = const i64 123
+    store %8, %9
+    %10 = load @this
+    %11 = field.addr %10, 8
+    %12 = const i64 456
+    store %11, %12
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void SINK(i64 $0) {
   local i64 n
   entry0:
@@ -68,4 +74,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 43 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

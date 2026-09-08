@@ -524,7 +524,31 @@ function EmitTypeCtorInto_ _
 
     dim as Tko.SymbolId ctor = StructorWithArity( c, StructorOf( c, t, "__ctor" ), _
                                                   cp->count )
-    if ctor = Tko.SYMBOL_NONE then return false
+
+    '' 'UDT( )' WITH NO WRITTEN CONSTRUCTOR runs the SYNTHESISED one. fbc accepts the
+    '' empty spelling exactly when the type has a constructor at all, and measurably so:
+    ''
+    ''   type Q : a as integer     : b as integer : end type   Q( ) is fbc's error 42,
+    ''                                                         "Variable not declared"
+    ''   type Q : a as integer = 5 : b as integer : end type   Q( ) is accepted
+    ''   type Q : a as integer     : s as string  : end type   Q( ) is accepted
+    ''
+    '' -- a field initialiser or a string field gives it one, and that is the whole
+    '' rule. This asked only for a WRITTEN constructor, so 'UDT( ).getI( )' built a
+    '' temporary, never constructed it, and the member call then emitted with NO
+    '' RECEIVER: three of structs/anon-access's verifier failures. The same member on a
+    '' constructor that takes arguments -- 'P( 3 ).getv( )' -- worked all along, which
+    '' is what kept it looking like a member-call problem rather than an empty-list one.
+    if ctor = Tko.SYMBOL_NONE then
+        if cp->count <> 0 then return false
+        if TypeNeedsInit_( c, t ) = false then return false
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL )
+        sa.ty = cast( ubyte, MT_PTR )
+        sa.id = slot
+        CallImplicitCtor_( c, t, sa )
+        return true
+    end if
 
     '' THE ARGUMENTS, coerced to the constructor's own parameter types: 'TimeSpan( 0 )'
     '' passes an INTEGER literal to a 'byval as longint', and handing the runtime the

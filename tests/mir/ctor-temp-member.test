@@ -1,0 +1,36 @@
+'' A MEMBER CALL ON A CONSTRUCTOR TEMPORARY -- 'UDT( ).getI( )'. Three of
+'' structs/anon-access.bas's verifier failures, and a fourth defect in the same file
+'' that the sweep could not see because it counts declines rather than diagnostics.
+''
+'' EmitTypeCtorInto_ asked for a WRITTEN constructor of the call's arity. With an empty
+'' argument list and none written it gave up, having already built the temporary -- so
+'' LowerAddr had no receiver to return and the member call was emitted with NONE. The
+'' mangled name said member; the call passed no object.
+''
+'' fbc accepts 'T( )' exactly when T has a constructor at all, measured three ways:
+''
+''   type Q : a as integer     : b as integer : end type   Q( ) is fbc's error 42
+''   type Q : a as integer = 5 : b as integer : end type   Q( ) is accepted
+''   type Q : a as integer     : s as string  : end type   Q( ) is accepted
+''
+'' -- so a field initialiser or a string field is enough, and the synthesised
+'' constructor is what the empty spelling runs.
+''
+'' The second defect is the parser's: 'type<UDT>( ).copyToGlobal( )' at the head of a
+'' statement went to the declaration parser, because TYPE starts a declaration, and came
+'' back as TKO0406 -- while the identical expression inside a PRINT parsed and lowered.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-temp-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' NO DIAGNOSTIC: the statement-position type literal is the one that reported one.
+'' EXPECT-MAX-DIAG: 0
+'' The temporary is CONSTRUCTED and then passed as the receiver. Both halves matter:
+'' the construction is what was missing, and the receiver is what went wrong without it.
+'' EXPECT-OUT: call void _ZN3UDTC1Ev(@$tmp
+'' EXPECT-OUT: call i64 _ZN3UDT4GETIEv(@$tmp
+'' EXPECT-OUT: call void _ZN3UDT12COPYTOGLOBALEv(@$tmp
+'' ...and the written constructor taking arguments, which worked all along.
+'' EXPECT-OUT: call i64 _ZN1P4GETVEv(@$tmp
+'' GOLDEN: expected/ctor-temp-member.out

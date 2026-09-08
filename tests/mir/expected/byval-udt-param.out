@@ -14,8 +14,12 @@ func void _ZN2C1C1Ev(ptr $0) {
   entry0:
     %1 = alloca ptr this
     store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 4)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void T1(ptr $0) {
   local ptr v
   entry0:
@@ -129,8 +133,10 @@ func void _ZN2V1C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
-    %2 = field.addr @@_ZTVN2V1E, 16
-    store $0, %2
+    %2 = field.addr $0, 8
+    %3 = call.rtl ptr memset(%2, 0, 4)
+    %4 = field.addr @@_ZTVN2V1E, 16
+    store $0, %4
     ret
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
@@ -158,8 +164,10 @@ func void _ZN2V1C1ERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 0
     call void _ZN10fb_Object$C1Ev(%1)
-    %2 = field.addr @@_ZTVN2V1E, 16
-    store $0, %2
+    %2 = field.addr $0, 8
+    %3 = call.rtl ptr memset(%2, 0, 4)
+    %4 = field.addr @@_ZTVN2V1E, 16
+    store $0, %4
     call void _ZN2V1aSERKS_($0, $1)
     ret
 }
@@ -185,4 +193,4 @@ func void _ZN2V1aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 14 functions, 14 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 14 functions, 14 blocks, 101 insts, 0 statements not lowered, 0 scope imbalance

@@ -32,7 +32,7 @@ verify: ok
 lowered: 1 functions, 1 blocks, 20 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
   amb other 1
-  skip-site src\mir\lower.bas:875 1
+  skip-site src\mir\lower.bas:891 1
   amb-other-class 5 1
 tests/diagnostics/src/const-via-forward-typedef.bas(15,1): error TKO0617: cannot modify 'j': it is a constant
      |

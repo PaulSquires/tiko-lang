@@ -172,35 +172,38 @@ declare i32 fb_ArrayErase(ptr $0)
 declare void fb_End(i32 $0)
 func void _ZN3UDTC1Ev(ptr $0) {
   entry0:
-    %1 = field.addr $0, 16
-    %2 = const ptr 0
-    %3 = field.addr %1, 0
-    store %3, %2
-    %4 = field.addr %1, 8
-    store %4, %2
-    %5 = const i64 0
-    %6 = field.addr %1, 16
-    store %6, %5
-    %7 = const i64 8
-    %8 = field.addr %1, 24
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 16)
+    %3 = field.addr $0, 16
+    %4 = const ptr 0
+    %5 = field.addr %3, 0
+    store %5, %4
+    %6 = field.addr %3, 8
+    store %6, %4
+    %7 = const i64 0
+    %8 = field.addr %3, 16
     store %8, %7
-    %9 = const i64 1
-    %10 = field.addr %1, 32
+    %9 = const i64 8
+    %10 = field.addr %3, 24
     store %10, %9
-    %11 = const i64 17
-    %12 = field.addr %1, 40
+    %11 = const i64 1
+    %12 = field.addr %3, 32
     store %12, %11
-    %13 = const i64 0
-    %14 = field.addr %1, 48
+    %13 = const i64 17
+    %14 = field.addr %3, 40
     store %14, %13
     %15 = const i64 0
-    %16 = field.addr %1, 56
+    %16 = field.addr %3, 48
     store %16, %15
     %17 = const i64 0
-    %18 = field.addr %1, 64
+    %18 = field.addr %3, 56
     store %18, %17
+    %19 = const i64 0
+    %20 = field.addr %3, 64
+    store %20, %19
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN3UDTD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 16
@@ -208,7 +211,7 @@ func void _ZN3UDTD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 4 functions, 4 blocks, 176 insts, 5 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 178 insts, 5 statements not lowered, 0 scope imbalance
   inside N_VAR 5
   skip-site src\mir\lower.bas:162 5
 tests/diagnostics/src/redim-fixed-and-union-init.bas(33,17): error TKO0618: too many expressions in the initializer for 'bad2'
