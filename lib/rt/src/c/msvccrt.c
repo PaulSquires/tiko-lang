@@ -57,6 +57,17 @@ int    __cdecl _crt_atexit( tkort_pvfv fn );
 int    __cdecl __stdio_common_vsprintf( tkort_u64 options, char *buffer,
                                         tkort_size count, char const *format,
                                         void *locale, char *arglist );
+/* 'struct _iobuf *' AND NOT 'void *', which is what FILE is on Windows. fprintf is a
+** clang BUILTIN, so a declaration that disagrees with the builtin's own signature earns
+** -Wbuiltin-requires-header -- a new warning in a build that has none. sprintf above
+** needs no such care because its (char*, char const*, ...) already matches. Declared
+** opaquely rather than by including <stdio.h>, which is the rule this whole file keeps.
+*/
+struct _iobuf;
+int    __cdecl __stdio_common_vfprintf( tkort_u64 options, struct _iobuf *stream,
+                                        char const *format,
+                                        void *locale, char *arglist );
+float  __cdecl _hypotf( float x, float y );
 long long __cdecl _time64( long long *dest );
 int       __cdecl _fileno( void *stream );
 void *    __cdecl _localtime64( long long const *src );
@@ -136,6 +147,98 @@ int __cdecl sprintf( char *buffer, char const *format, ... )
                                       format, 0, arglist );
     __builtin_va_end( arglist );
     return result < 0 ? -1 : result;
+}
+
+/* fprintf IS INLINE IN THE UCRT HEADERS TOO, exactly as sprintf is, so it is not
+** exported either. It was not on the list of six above because that list is what
+** tiko-rt ITSELF leaves undefined, and tiko-rt never calls fprintf -- but a PROGRAM
+** may, and fbc's own fbcunit does, from REPORT_CLOSE and its console reporter. On the
+** default Windows target that program could not be linked at all.
+**
+** READ, NOT GUESSED, for the same reason sprintf's option word was -- getting it wrong
+** is a silent formatting difference rather than a link error. From the SDK's stdio.h:
+** fprintf calls _vfprintf_l, which calls __stdio_common_vfprintf with
+** _CRT_INTERNAL_LOCAL_PRINTF_OPTIONS and returns the result UNCHANGED.
+**
+** THE OPTION WORD IS ZERO HERE, and that is the one place it differs from sprintf.
+** sprintf's chain goes through _vsnprintf_l, which ORs in
+** _CRT_INTERNAL_PRINTF_LEGACY_VSPRINTF_NULL_TERMINATION; fprintf's chain adds nothing,
+** and _CRT_INTERNAL_LOCAL_PRINTF_OPTIONS is (*__local_stdio_printf_options()), a
+** per-translation-unit static that is zero unless the unit sets it. Nor is there a
+** negative-result clamp: sprintf returns -1 for any negative, fprintf returns what it
+** was given.
+*/
+/* THE WARNING IS ABOUT THE HEADER, NOT THE SIGNATURE, so matching FILE* does not quiet
+** it: -Wbuiltin-requires-header fires because <stdio.h> is not included, and not
+** including it is this file's whole method -- every entry point here is declared from
+** the documented signature so that the shim depends on no SDK headers at all. sprintf
+** above escapes only because its builtin needs no type from that header.
+**
+** Scoped to the definition rather than the file: another builtin declared later should
+** still be told about.
+*/
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbuiltin-requires-header"
+int __cdecl fprintf( struct _iobuf *stream, char const *format, ... )
+{
+    int result;
+    char *arglist;
+    __builtin_va_start( arglist, format );
+    result = __stdio_common_vfprintf( 0ull, stream, format, 0, arglist );
+    __builtin_va_end( arglist );
+    return result;
+}
+#pragma clang diagnostic pop
+
+/* snprintf AND vsprintf ARE THE SAME FAMILY as sprintf -- inline in the UCRT headers,
+** so not exported -- and fbc's own suite reaches both: crt/varargs.bas calls vsprintf
+** directly, and nine modules of the finance tests call snprintf.
+**
+** READ FROM THE SDK, and the two option words are NOT the same, which is the whole
+** reason to read rather than copy sprintf:
+**
+**   snprintf -> vsnprintf     -> __stdio_common_vsprintf( STANDARD_SNPRINTF_BEHAVIOR,
+**                                    buffer, count, format, NULL, args )
+**   vsprintf -> _vsnprintf_l  -> __stdio_common_vsprintf( LEGACY_VSPRINTF_NULL_TERMINATION,
+**                                    buffer, (size_t)-1, format, NULL, args )
+**
+** from corecrt_stdio_config.h: LEGACY_VSPRINTF_NULL_TERMINATION is (1ULL << 0) and
+** STANDARD_SNPRINTF_BEHAVIOR is (1ULL << 1). Getting these the wrong way round is a
+** silent behavioural difference in truncation and termination, not a link error.
+**
+** BOTH CLAMP a negative result to -1, which sprintf above does too.
+*/
+int __cdecl snprintf( char *buffer, tkort_size count, char const *format, ... )
+{
+    int result;
+    char *arglist;
+    __builtin_va_start( arglist, format );
+    /* 2 is _CRT_INTERNAL_PRINTF_STANDARD_SNPRINTF_BEHAVIOR. */
+    result = __stdio_common_vsprintf( 2ull, buffer, count, format, 0, arglist );
+    __builtin_va_end( arglist );
+    return result < 0 ? -1 : result;
+}
+
+int __cdecl vsprintf( char *buffer, char const *format, char *arglist )
+{
+    int result;
+    /* 1 is _CRT_INTERNAL_PRINTF_LEGACY_VSPRINTF_NULL_TERMINATION, as sprintf uses. */
+    result = __stdio_common_vsprintf( 1ull, buffer, (tkort_size)-1,
+                                      format, 0, arglist );
+    return result < 0 ? -1 : result;
+}
+
+/* hypotf IS NOT SHIM WORK OF THE SAME KIND: ucrtbase.dll DOES have it, under the name
+** _hypotf, exactly as time and localtime are _time64 and _localtime64 up above. Checked
+** against the DLL's own export table rather than assumed -- the header already records
+** floor and floorf looking like this and being a bug in our generated import library
+** instead, so which of the two it is has to be established each time.
+**
+** fb/core.bas reaches it through FB.HPOW10.
+*/
+float __cdecl hypotf( float x, float y )
+{
+    return _hypotf( x, y );
 }
 
 /* fileno IS NOT AN EXPORT, whatever fbc's import library says. ucrtbase.dll

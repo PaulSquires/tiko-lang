@@ -33,9 +33,23 @@
 # is no MSVC libfbgfx, so the 14 files that touch fbgfx cannot be part of this
 # and are not silently skipped -- they are not offered.
 
+# TKORT_GATE_OPTIONAL=1 turns every REFUSAL into a SKIP. Everything this script dies on
+# is an environment gap -- no fbc that understands '-z msvc', no clang, no import
+# libraries, no win64-msvc archive of the right configuration -- and none of them is a
+# regression in tiko-lang. check-all sets it for the same reason crosslink.sh skips
+# rather than failing when the toolchain has not been packaged: a gate that fails for
+# the wrong reason gets ignored, and then it fails for the right reason and is ignored
+# too. Run by hand with it unset, the refusals stay refusals.
 set -e
 
 . "$(dirname "$0")/common.sh"
+
+# AFTER the source, or common.sh's own definition replaces this one -- and before
+# rt_check_tools, which is the first thing that can refuse.
+if [ "${TKORT_GATE_OPTIONAL:-0}" = "1" ] ; then
+    rt_die( ) { echo "gatemsvc: SKIPPED -- $*" >&2; exit 0; }
+fi
+
 rt_check_tools
 
 CFG=${1:-Release}
@@ -62,6 +76,14 @@ if ! "$FBCX" -prefix "$FBC_TREE/src" -c -gen llvm -z msvc -m __probe /dev/null -
         rt_die "$FBCX does not understand -z msvc -- it predates 2026-09-05; build fbc-modern from source"
     fi
 fi
+
+# THE MSVC IMPORT LIBRARIES, which stand in for the CRT here -- see the link step.
+# build/mkmsvcimplibs.sh generates them and this is its default output directory.
+# REFUSED rather than skipped: without them the link fails on memset, which reads as an
+# ABI difference -- exactly the misdiagnosis this script's header warns about.
+IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/win64-msvc}
+[ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/mkmsvcimplibs.sh"
+IMPLIBS=$(cygpath -m "$IMPLIBS")
 
 CLANGX=${CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
 ARX=${TKORT_AR_MSVC:-"C:/Program Files/LLVM/bin/llvm-ar.exe"}
@@ -199,10 +221,24 @@ build_obj "$T/fbc-tests.bas" "$W/t" "fbc-tests" \
 rm -f "$W/objs.rsp"
 for o in $TOBJS "$W/t/fbc-tests.o"; do cygpath -m "$o" >> "$W/objs.rsp"; done
 
+# THE SAME LINK SHAPE tiko-lang ITSELF USES, and it has to be: this gate exists to say
+# whether a program built the way tiko builds one behaves the way fbc's suite expects.
+#
+# Without '-nostdlib' clang reaches for the MSVC CRT out of a Visual Studio install, and
+# there is none on a machine that has only the toolchain -- so every module came back
+# with "unresolved external symbol memset" and the gate read as an ABI failure when it
+# was a missing library. See src/codegen/toolchain.bas: what replaces the CRT is
+# ucrtbase.dll, reached through the import library build/mkmsvcimplibs.sh generates, and
+# the handful it does not export are tiko-rt's own src/c/msvccrt.c -- already inside the
+# archive being linked here, mainCRTStartup included.
+#
+# kernel32 IS NAMED because '-nostdlib' drops clang's own defaults with it: the thread
+# and timing layers need Sleep, CreateSemaphoreA and CloseHandle.
 if ! "$CLANGX" --target=x86_64-pc-windows-msvc "@$W/objs.rsp" \
         "$W/libfbcunit.a" "$LIB" -o "$W/gatemsvc.exe" \
+        -nostdlib "-L$IMPLIBS" -lucrtbase -lkernel32 \
         -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
-        -llegacy_stdio_definitions -Xlinker /INCLUDE:tkort_msvc_init_ -Xlinker /STACK:2097152 \
+        -Xlinker /INCLUDE:tkort_msvc_init_ -Xlinker /STACK:2097152 \
         > "$W/link.log" 2>&1; then
     echo "gatemsvc: LINK FAILED" >&2
     grep -iE 'error|unresolved' "$W/link.log" | head -20 | sed 's/^/    /' >&2

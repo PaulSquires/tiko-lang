@@ -329,9 +329,16 @@ function LinkExe _
         '' of it. There is no crt2.o to point '-B' at, because the UCRT supplies the
         '' startup; clang's own msvc driver finds it.
         ''
-        '' -llegacy_stdio_definitions IS NOT OPTIONAL. The UCRT does not EXPORT
-        '' sprintf: it is inline in <stdio.h>, so a caller that is not a C translation
-        '' unit cannot link it. Measured; docs/tiko-rt RFC-0006 section 12.
+        '' -llegacy_stdio_definitions IS NOT PASSED, and this comment used to say it was
+        '' "NOT OPTIONAL" -- true when it was written and false by the time anyone read
+        '' it. The reason it was needed still holds: the UCRT does not EXPORT sprintf,
+        '' which is inline in <stdio.h>, so a caller that is not a C translation unit
+        '' cannot link it (docs/tiko-rt RFC-0006 section 12). What changed is WHO
+        '' supplies it -- tiko-rt's own src/c/msvccrt.c does, along with fprintf,
+        '' snprintf and vsprintf, so linking the library as well is a DUPLICATE SYMBOL:
+        '' 'sprintf already defined in libfbmt.a(msvccrt.o)'. That is not theoretical;
+        '' it is what the msvc gate hit when it followed this comment instead of the
+        '' code below it.
         ''
         '' /INCLUDE:tkort_msvc_init_ IS NOT OPTIONAL EITHER, and for a subtler reason.
         '' An archive member is extracted only when it RESOLVES AN UNDEFINED SYMBOL,

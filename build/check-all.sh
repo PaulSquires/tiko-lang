@@ -44,4 +44,21 @@ bash build/lint.sh
 # toolchain has not been packaged, because that is an environment gap rather than
 # a regression, and a gate that fails for the wrong reason gets ignored.
 bash build/crosslink.sh
+
+# THE MICROSOFT-ABI GATE, and it was missing from here entirely -- win64-msvc is the
+# DEFAULT Windows target, so the one configuration most users get was the one nothing
+# ran fbc's suite against. It lives under lib/rt/build rather than tools/gen, so the
+# glob above was never going to find it.
+#
+# OPTIONAL, exactly as crosslink.sh is: it needs an fbc built from source that
+# understands '-z msvc' (the prebuilt toolchain predates it), clang, the generated
+# import libraries and a win64-msvc archive of this configuration. Each of those is an
+# environment gap rather than a regression, and TKORT_GATE_OPTIONAL turns the refusal
+# into a SKIP that says which one is missing.
+#
+# It is the slowest thing here -- 726 modules, about seven minutes -- and it is worth
+# it: 3.9 million assertions over the ABI that ships by default.
+if ! TKORT_GATE_OPTIONAL=1 bash lib/rt/build/gatemsvc.sh Release ; then
+    echo "check-all: GATE NONZERO: lib/rt/build/gatemsvc.sh"
+fi
 echo "check-all: done"
