@@ -252,6 +252,72 @@ function LowerConvCtorInit_ _
     return true
 end function
 
+'' 'x = 5' OVER A TYPE DECLARING 'operator let( byval i as integer )'.
+''
+'' The same-type assignment operator is handled in lowerassign.bas, which tests that
+'' both sides name ONE type -- 'operator let' takes its own type by reference there.
+'' A CONVERTING let takes something else entirely, so that test can never reach it and
+'' the statement fell through to the ordinary store: the scalar was coerced to the
+'' UDT's own MirType and stored, which is not a narrowing but a nonsense --
+'' '%t6 = trunc i64 5 to [0 x i8]', IR that verified here and that clang rejects with
+'' 'invalid cast opcode for cast from i64 to [0 x i8]'.
+''
+'' Measured, fbc calls the operator with the scalar byval and constructs nothing:
+''
+''     struct $1V X$0;
+''     __builtin_memset( &X$0, 0, 8ll );
+''     _ZN1VaSEu7INTEGER( &X$0, 5ll );
+''
+'' The OVERLOAD is picked by the argument's type and the argument is converted the way
+'' the PARAMETER asks -- the same two rules, and the same two helpers, that
+'' LowerConvCtorInit_ above uses for 'dim as T x = 5'. The shape is settled before
+'' LowerAddr, because an address emitted for an overload that does not exist is dead.
+function LowerUserLetConv_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
+      byval value as Tko.NodeId ) as boolean
+
+    if value = Tko.NODE_NONE then return false
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId vt = c.info->TypeOf_( value )
+    if vt = Tko.TYPE_NONE then return false
+    '' The same type is the COPY the caller has already handled.
+    if c.types->Unqualify( vt ) = c.types->Unqualify( t ) then return false
+
+    dim as Tko.SymbolId lets = StructorOf( c, t, "let" )
+    if lets = Tko.SYMBOL_NONE then return false
+    dim as FB.Array( of ulong ) argT
+    argT.Push( cast( ulong, vt ) )
+    dim as Tko.SymbolId pick = PickCtor( c, lets, argT )
+    if pick = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
+    if ps = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
+    if pn = Tko.NODE_NONE then return false
+
+    '' The parameter's type, for the conversion the argument needs.
+    dim as Tko.TypeId pt = Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp = 0 then return false
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        exit for
+    next
+
+    dim as MirValue da = LowerAddr( c, target )
+    if da.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue av
+    if CtorArgValue_( c, value, pt, av ) = false then return false
+    dim as FB.Array( of ulong ) largs
+    largs.Push( cast( ulong, av.kind ) )
+    largs.Push( cast( ulong, av.id ) )
+    EmitStructorCall( c, pick, -1, @da, @largs )
+    return true
+end function
+
+
 function LowerCtorInit _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
       byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean

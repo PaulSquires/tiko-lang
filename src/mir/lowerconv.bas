@@ -86,6 +86,34 @@ function StrIdentityConvOperand_ _
     if IsStringType( c, ot ) = false then return Tko.NODE_NONE
     return op
 end function
+'' THE 'operator cast' OVERLOAD WHOSE RESULT IS EXACTLY THE NAMED TYPE.
+''
+'' UserCastToNum_ picks the BEST-RANKED numeric overload, which is right where the
+'' conversion is implicit -- 'l + r' promotes -- and wrong for an EXPLICIT cast, whose
+'' whole content is the type it names. Over a type declaring both 'cast( ) as integer'
+'' and 'cast( ) as double', fbc calls '_ZN4PAIRcvu7INTEGEREv' for 'cast( integer, p )'
+'' and '_ZN4PAIRcvdEv' for 'cast( double, p )'; ranking alone called the DOUBLE one for
+'' both. fbc rejects a cast to a type no overload yields at all -- 'error 20: Type
+'' mismatch' -- so there is no case here for a near miss, and one that gets past Check
+'' falls back to the ranked choice rather than declining.
+private function ExactCastOverload_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval dstT as Tko.TypeId ) as Tko.SymbolId
+
+    if (t = Tko.TYPE_NONE) orelse (dstT = Tko.TYPE_NONE) then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId d = c.types->Unqualify( dstT )
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        if cse->type_ <> Tko.TYPE_NONE then
+            if c.types->Unqualify( cse->type_ ) = d then return cur
+        end if
+        cur = cse->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
 function LowerConvIntrinsic _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 
@@ -208,6 +236,62 @@ function LowerConvIntrinsic _
             if vwant = MT_VOID then vwant = vmt
             dim as boolean vU = (vw = RTL_VALULNG) orelse (vw = RTL_VALUINT)
             return Coerce( c, vr2, vwant, vU, IsUnsignedType( c, c.info->TypeOf_( id ) ) )
+        end if
+    end if
+
+    '' A UDT OPERAND IS ITS 'operator cast', not its bytes. The IMPLICIT direction --
+    '' 'dim as integer r = x' -- already went through UserConvToScalar_; the EXPLICIT
+    '' spelling 'cast( integer, x )' fell straight to LowerExpr below, which asked a
+    '' UDT for a value it has not got and reached the emitter as an aggregate with no
+    '' size: 'emit: ICE: an aggregate value with no size'. Measured, fbc emits the same
+    '' call for both spellings -- 'int64 vr$2 = _ZN1Vcvu7INTEGEREv( &X$0 )'.
+    ''
+    '' THE DESTINATION COMES FROM THE TYPEREF when the call has no type of its own,
+    '' for the same reason StrIdentityConvOperand_ above reads it from there.
+    if isCastLike then
+        dim as Tko.TypeId dstT = c.info->TypeOf_( id )
+        if dstT = Tko.TYPE_NONE then
+            dim as Tko.NodeId tn3 = cast( Tko.NodeId, c.ast->children[cp->first] )
+            if c.ast->Kind( tn3 ) = Tko.N_TYPEREF then dstT = c.info->TypeOf_( tn3 )
+        end if
+        dim as MirValue uv
+        dim as boolean gotU = false
+        dim as Tko.TypeId argT2 = c.types->Unqualify( c.info->TypeOf_( arg ) )
+        dim as Tko.SymbolId exact = ExactCastOverload_( c, argT2, dstT )
+        if exact <> Tko.SYMBOL_NONE then
+            dim as MirValue eself = LowerAddr( c, arg )
+            if eself.kind <> cast( ubyte, MV_NONE ) then
+                dim as MirType emt = LowerType( c.types->Unqualify( dstT ), *c.types )
+                if (emt <> MT_VOID) andalso (emt <> MT_AGG) then
+                    uv = EmitMemberCall( c, exact, eself, emt )
+                    gotU = (uv.kind <> cast( ubyte, MV_NONE ))
+                end if
+            end if
+        end if
+        if gotU = false then gotU = UserConvToScalar_( c, arg, dstT, uv )
+        if gotU then
+            dim as MirType uwant = mt
+            if uwant = MT_VOID then uwant = LowerType( dstT, *c.types )
+            if uwant = MT_VOID then uwant = cast( MirType, uv.ty )
+            if uwant = cast( MirType, uv.ty ) then return uv
+            if (uwant = MT_PTR) orelse (uv.ty = cast( ubyte, MT_PTR )) then
+                dim as MirInst ubc
+                ubc.op = cast( ushort, M_BITCAST )
+                ubc.ty = cast( ubyte, uwant )
+                ubc.a = uv
+                return Emit( c, ubc )
+            end if
+            '' THE SOURCE SIGNEDNESS IS THE OPERATOR'S RESULT TYPE, not the UDT's --
+            '' the UDT is not a number and IsUnsignedType over it answers nothing
+            '' useful. UserCastNumOverload_ is the same choice UserCastToNum_ made.
+            dim as boolean srcU2 = false
+            dim as Tko.SymbolId ucs2 = _
+                UserCastNumOverload_( c, c.types->Unqualify( c.info->TypeOf_( arg ) ) )
+            if ucs2 <> Tko.SYMBOL_NONE then
+                dim as Tko.Symbol ptr uss2 = c.syms->SymbolAt( ucs2 )
+                if uss2 <> 0 then srcU2 = IsUnsignedType( c, uss2->type_ )
+            end if
+            return Coerce( c, uv, uwant, srcU2, IsUnsignedType( c, dstT ) )
         end if
     end if
 

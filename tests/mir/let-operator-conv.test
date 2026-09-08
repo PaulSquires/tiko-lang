@@ -1,0 +1,8 @@
+'' 'x = 5' over a UDT declaring 'operator let( byval i as integer )': a call, picked by
+'' the argument's type, not a store of the scalar into the aggregate.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/let-operator-conv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/let-operator-conv.out

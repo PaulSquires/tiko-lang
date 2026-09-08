@@ -324,6 +324,13 @@ private sub LowerAssign _
         end if
     end if
 
+    '' ...AND A CONVERTING 'operator let' -- 'x = 5' over a type declaring
+    '' 'operator let( byval i as integer )'. The two sides are never the same type, so
+    '' the equality test above can never reach it and the statement fell through to the
+    '' store below, which coerced the scalar to the UDT's OWN type: '%t6 = trunc i64 5
+    '' to [0 x i8]'. Verified here, rejected by clang. See LowerUserLetConv_.
+    if LowerUserLetConv_( c, target, atl, value ) then return
+
     '' Same reason as the read: a full-width store into a bitfield's unit would
     '' overwrite every field packed beside it, so it is a read-modify-write.
     '' 't.V = x' OVER A PROPERTY IS A CALL, not a store. Without this it reached the

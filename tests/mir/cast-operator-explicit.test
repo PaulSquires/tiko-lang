@@ -1,0 +1,8 @@
+'' 'cast( T, u )' over a UDT: the explicit spelling calls 'operator cast' too, and the
+'' overload it calls is the one whose result type the cast NAMES.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cast-operator-explicit.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/cast-operator-explicit.out
