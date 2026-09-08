@@ -1,0 +1,38 @@
+'' A WIDE LITERAL IS EMITTED AS CODE UNITS, not as its source bytes.
+''
+'' EmitGlobal tested 'isString' before 'isWide' and returned -- and a wide literal is
+'' BOTH, because AddWideStringUnits sets the two flags together so that the merge
+'' lists and the dump can ask "is this a string" before asking how wide it is. The
+'' wide branch, and WideArray with it, was therefore dead code from the day it was
+'' written: every wstring literal reached the linker as an [N x i8] of its SOURCE
+'' TEXT, and the runtime read those bytes as uint16 code units.
+''
+'' Two ASCII characters became one CJK one. Measured, before the fix:
+''
+''     dim as string k = wstr( "fOoBaR" )     printed  ????
+''     ww.a = "wid"                           read past the end of a 4-byte global
+''
+'' and the MIR was correct in both cases -- 'fb_WstrAssignToA_Init(@k, -1, @@$wstr0,
+'' 0)' is exactly fbc's call -- which is why the two 'lowerwstr.bas' entry points the
+'' bug was first attributed to were both innocent. A --dump-ir test could not have
+'' caught this: the dump prints the wcharPool, which was right all along.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/wide-literal.bas
+'' EXPECT-EXIT: 0
+
+'' i16 ON WINDOWS -- the width is the TARGET's, which is why MIR keeps units and not
+'' bytes. The trailing 0 is the terminator and is not part of the count.
+'' EXPECT-OUT: @"$wstr0" = private unnamed_addr constant [7 x i16] [i16 102, i16 79, i16 111, i16 66, i16 97, i16 82, i16 0], align 2
+
+'' THE NARROW LITERAL BESIDE IT still goes out as bytes: the reorder must not have
+'' captured the ordinary case.
+'' EXPECT-OUT: private unnamed_addr constant [2 x i8] c"[\00", align 1
+
+'' A UNIT ABOVE 255 survives, which is the half of the bug a same-width ASCII literal
+'' cannot show: one byte per unit would have truncated 0x4E2D to 0x2D.
+'' EXPECT-OUT: [i16 233, i16 20013, i16 0], align 2
+
+'' AND NO WIDE LITERAL IS EMITTED AS BYTES. 'fOoBaR' as an [N x i8] is exactly what
+'' the bug produced, and it is the one spelling that must never appear again.
+'' EXPECT-NOT: c"fOoBaR\00"
+'' EXPECT-NOT: c"wid\00"

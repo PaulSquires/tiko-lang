@@ -888,6 +888,22 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
         return
     end if
 
+    '' A WIDE LITERAL IS TESTED FIRST, and it is a STRING TOO -- AddWideStringUnits
+    '' sets isString AND isWide, because the merge lists and the dump both ask "is
+    '' this a string" before asking how wide it is. Testing isString first therefore
+    '' returned on every wide literal and this branch, and WideArray with it, was
+    '' dead code from the day it was written: every wstring literal reached the
+    '' linker as its SOURCE BYTES, one per character, and the runtime read those
+    '' bytes as uint16 code units. 'dim as string k = wstr( "fOoBaR" )' printed
+    '' '????' -- three CJK characters made out of six ASCII ones, none of which
+    '' converts back to narrow -- and a 'wstring * N' field read past the end of a
+    '' global half the size it should be.
+    if g.isWide then
+        e.outp += nm & " = private unnamed_addr constant " & WideArray( e, g ) & _
+                  ", align " & str( e.tgt->layout.wcharBytes ) & chr( 10 )
+        return
+    end if
+
     '' 'private' because a literal is not a symbol anyone links against, and
     '' 'unnamed_addr' because two identical literals may share storage -- which is
     '' what MIR has already done by merging them.
@@ -895,12 +911,6 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
         dim as long n = len( g.bytes ) + 1
         e.outp += nm & " = private unnamed_addr constant [" & str( n ) & " x i8] " & _
                   CString( g.bytes & chr( 0 ) ) & ", align 1" & chr( 10 )
-        return
-    end if
-
-    if g.isWide then
-        e.outp += nm & " = private unnamed_addr constant " & WideArray( e, g ) & _
-                  ", align " & str( e.tgt->layout.wcharBytes ) & chr( 10 )
         return
     end if
 
