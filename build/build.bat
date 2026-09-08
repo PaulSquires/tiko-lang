@@ -61,7 +61,7 @@ if errorlevel 1 ( popd & exit /b 1 )
 :done
 rem What bin\ now holds -- see the peer note in build.sh.
 if not exist "%ROOT%\build\obj" mkdir "%ROOT%\build\obj"
->"%ROOT%\build\obj\.build-stamp" echo|set /p="%CFG%|%TKO_STAGE0%"
+<nul set /p "=%CFG%|%TKO_STAGE0%">"%ROOT%\build\obj\.build-stamp"
 popd
 echo build: ok
 exit /b 0
