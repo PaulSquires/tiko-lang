@@ -183,26 +183,37 @@ sub LowerProc _
     ''
     '' Decided here rather than in Collect: only by now is the owner's KIND known.
     if thisSym <> Tko.SYMBOL_NONE then
-        '' A CONSTRUCTOR, DESTRUCTOR, OPERATOR or PROPERTY is a member by construction
-        '' and always has one. 'constructor ns.UDT( )' is qualified by a NAMESPACE and
-        '' owned by a TYPE, so nothing about the qualifier decides it -- testing the
-        '' enclosing scope's parent got that wrong and silently emptied ten corpus
-        '' files' worth of constructors.
+        '' A CONSTRUCTOR, DESTRUCTOR or PROPERTY is a member by construction and always
+        '' has one. 'constructor ns.UDT( )' is qualified by a NAMESPACE and owned by a
+        '' TYPE, so nothing about the qualifier decides it -- testing the enclosing
+        '' scope's parent got that wrong and silently emptied ten corpus files' worth
+        '' of constructors.
+        ''
+        '' AN OPERATOR IS NOT IN THAT LIST, and it was. A binary operator may be a FREE
+        '' FUNCTION -- fbc allows a global one inside a namespace, and namespace/outside
+        '' says so in its own comment before writing 'operator op.+( a as op.UDT, b as
+        '' op.UDT )' outside the namespace that declared it. Held to be a member by
+        '' construction, that definition took a 'this' every call site correctly did not
+        '' pass, so both operands arrived one place late. The receiver question is the
+        '' same one an ordinary qualified procedure asks -- is a TYPE scope around it --
+        '' and the walk below answers it for a member operator too: 'operator UDT.+'
+        '' reaches the UDT's scope from its own 'this' and keeps the receiver.
         dim as boolean isStructor = false
+        dim as boolean isOperator = (cast( Tko.TokenKind, sp->op ) = Tko.KW_OPERATOR)
         select case cast( Tko.TokenKind, sp->op )
-        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR, Tko.KW_PROPERTY
+        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR, Tko.KW_PROPERTY
             isStructor = true
         end select
 
-        '' ...EXCEPT THE FOUR ALLOCATION OPERATORS, which are STATIC whether or not the
-        '' definition repeats the word -- fbc accepts 'static' on the DECLARE only, and
-        '' emits 'void* _ZN3BARnwEu8UINTEGER( uint64 SIZE$1 )': ONE parameter, no
-        '' receiver. Treated as ordinary operators they took a 'this' nothing passes,
-        '' so every argument arrived one place late.
-        if isStructor then
+        '' THE FOUR ALLOCATION OPERATORS ARE STATIC whether or not the definition
+        '' repeats the word -- fbc accepts 'static' on the DECLARE only, and emits
+        '' 'void* _ZN3BARnwEu8UINTEGER( uint64 SIZE$1 )': ONE parameter, no receiver.
+        '' Treated as ordinary operators they took a 'this' nothing passes, so every
+        '' argument arrived one place late. The scope walk cannot answer this one --
+        '' these ARE declared inside the type -- so it stays a name test.
+        if isOperator then
             select case Tko.Text.LowerAscii( c.names->Spelling( sp->name ) )
             case "new", "delete", "new[]", "delete[]"
-                isStructor = false
                 thisSym = Tko.SYMBOL_NONE
             end select
         end if

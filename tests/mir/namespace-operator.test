@@ -1,0 +1,24 @@
+'' 'operator op.+( ... )' -- a GLOBAL operator defined outside the namespace that
+'' declared it. lowerproc.bas held CONSTRUCTOR, DESTRUCTOR, OPERATOR and PROPERTY to be
+'' members by construction and gave each a receiver; an operator is the one of the four
+'' that need not be a member. The definition then declared three parameters where every
+'' call site passed two, so both operands arrived one place late -- two of the corpus's
+'' remaining verifier failures, and a miscompile with no diagnostic against it.
+''
+'' The receiver question is now the one an ordinary qualified procedure asks -- is a
+'' TYPE scope around it -- so the member spelling 'operator V.+=' still keeps its
+'' 'this', which is the half a test of the fix alone would not catch.
+''
+'' The four ALLOCATION operators stay a name test: 'operator V.new' IS declared inside
+'' the type, so the scope walk cannot tell it from an instance member.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/namespace-operator.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' TWO parameters, not three -- the operands and no receiver.
+'' EXPECT-OUT: func i64 _ZN2OPplERNS_3UDTES1_(ptr $0, ptr $1) {
+'' EXPECT-OUT: func i64 _ZN2OPmiERNS_3UDTES1_(ptr $0, ptr $1) {
+'' ...and the member operator keeps its receiver, so it has two as well: this and rhs.
+'' EXPECT-OUT: func void _ZN1VpLERS_(ptr $0, ptr $1) {
+'' GOLDEN: expected/namespace-operator.out
