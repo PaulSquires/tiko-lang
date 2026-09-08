@@ -1292,6 +1292,16 @@ sub WalkStmt _
         ArrayTooBig_( c, t, id, sp->name )
         BindDeclType( c, here, sp->name, t, false )
 
+        '' THE FIELD'S '= value'. Nothing walked it, so every name inside it stayed
+        '' unbound -- and lowering did not decline on that, it lowered the unbound
+        '' thing: 'e as integer = f()' and 'h as integer = g' each stored a garbage
+        '' word where fbc stores 42 and 5. Check types every expression node in the
+        '' arena on its own, so binding the names here is all that was missing.
+        ''
+        '' In the FIELD'S OWN SCOPE, which chains to the one around it: a module-level
+        '' const, variable or function is what these initialisers name in practice.
+        if sp->c <> Tko.NODE_NONE then WalkExpr( c, sp->c, here )
+
         '' A BITFIELD is marked, not modelled. 'b' holds the width expression; the
         '' declared type is the storage UNIT's, not the field's, so reading or writing
         '' it as an ordinary field of that type would touch the whole unit and clobber

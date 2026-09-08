@@ -1,0 +1,42 @@
+'' 'a as integer = 123' inside a TYPE. The parser recorded the value on the field's
+'' node and NOTHING downstream read it back: the field was laid out at the right offset
+'' and then initialised by TYPE alone, so 'dim as UDT v' printed whatever the stack held
+'' where fbc prints 123, and 'dim shared as UDT g' printed 0. No diagnostic either way.
+''
+'' Three separate gaps, and closing any two of them still printed garbage:
+''
+''   the NAME-FIRST parser branch dropped the '= value' entirely -- only 'as integer i =
+''   1' kept it, and 'i as integer = 1' is the spelling everyone writes;
+''
+''   Resolve never walked the expression, so every NAME inside one was unbound -- and
+''   lowering did not decline on that, it lowered the unbound thing: '= f( )' and '= g'
+''   each stored a garbage word;
+''
+''   TypeNeedsInit_ never counted an initialiser as work, so an all-scalar UDT got no
+''   synthesised constructor at all and there was no prologue for the stores to go in.
+''
+'' Measured against fbc, which prints '123 1.5 18 hi 42 5 / abc / 123 7' for the source
+'' below -- the same line tiko-lang now prints.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/field-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: func void _ZN3UDTC1Ev(ptr $0) {
+'' A CONSTANT, A DOUBLE, A CONST EXPRESSION, A CALL AND A GLOBAL -- the three that need
+'' Resolve are the three that were silently wrong.
+'' EXPECT-OUT: const f64 1.5
+'' EXPECT-OUT: call i64 F()
+'' EXPECT-OUT: load @@g
+'' A VAR-LENGTH STRING IS ASSIGNED, and a 'zstring * 8' is assigned with its OWN length
+'' rather than -1: it is an ARRAY of TY_ZSTRING, which IsStringType says no to, and that
+'' is what sent it to the aggregate decline.
+'' EXPECT-OUT: fb_StrAssign(%9, -1, @@$str2, 3, 0)
+'' EXPECT-OUT: fb_StrAssign(%18, 8, @@$str3, 4, 0)
+'' THE TYPE-FIRST SPELLING gets its own constructor for the same reason.
+'' EXPECT-OUT: func void _ZN5OTHERC1Ev(ptr $0) {
+'' AND A BRACE LIST OVER AN ARRAY FIELD -- the same element walk a local array
+'' declaration does, which took a frame SLOT and now takes an address as well.
+'' EXPECT-OUT: func void _ZN4ARRSC1Ev(ptr $0) {
+'' EXPECT-OUT: const i64 17
+'' GOLDEN: expected/field-init.out

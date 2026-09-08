@@ -1,0 +1,219 @@
+global var i64 g = 5
+global var agg sv size 72
+global str $str2 "hi"
+global str $str3 "abc"
+global str $str4 "First"
+global str $str5 "Second"
+global str $str6 "aa"
+global str $str7 "bb"
+func i64 F() {
+  local i64 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = const i64 42
+    ret %3
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg v size 72
+  local agg o size 8
+  local agg av size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr v
+    call void _ZN3UDTC1Ev(@v)
+    %5 = alloca ptr o
+    call void _ZN5OTHERC1Ev(@o)
+    %6 = field.addr @v, 0
+    %7 = load %6
+    call.rtl void fb_PrintLongint(0, %7, 2)
+    %8 = field.addr @v, 8
+    %9 = load %8
+    call.rtl void fb_PrintDouble(0, %9, 2)
+    %10 = field.addr @v, 16
+    %11 = load %10
+    call.rtl void fb_PrintLongint(0, %11, 2)
+    %12 = field.addr @v, 24
+    call.rtl void fb_PrintString(0, %12, 2)
+    %13 = field.addr @v, 48
+    %14 = load %13
+    call.rtl void fb_PrintLongint(0, %14, 2)
+    %15 = field.addr @v, 56
+    %16 = load %15
+    call.rtl void fb_PrintLongint(0, %16, 2)
+    %17 = field.addr @v, 64
+    %18 = call.rtl ptr fb_StrAllocTempDescZ(%17)
+    call.rtl void fb_PrintString(0, %18, 1)
+    %19 = field.addr @@sv, 0
+    %20 = load %19
+    call.rtl void fb_PrintLongint(0, %20, 2)
+    %21 = field.addr @o, 0
+    %22 = load %21
+    call.rtl void fb_PrintLongint(0, %22, 1)
+    %23 = alloca ptr av
+    call void _ZN4ARRSC1Ev(@av)
+    %24 = field.addr @av, 0
+    %25 = const i64 2
+    %26 = ptr.add %24, %25
+    %27 = load %26
+    call.rtl void fb_PrintUByte(0, %27, 2)
+    %28 = field.addr @av, 8
+    %29 = const i64 1
+    %30 = const i64 24
+    %31 = mul %29, %30
+    %32 = ptr.add %28, %31
+    call.rtl void fb_PrintString(0, %32, 2)
+    %33 = field.addr @av, 56
+    %34 = const i64 0
+    %35 = const i64 8
+    %36 = mul %34, %35
+    %37 = ptr.add %33, %36
+    %38 = call.rtl ptr fb_StrAllocTempDescZ(%37)
+    call.rtl void fb_PrintString(0, %38, 1)
+    call void _ZN4ARRSD1Ev(@av)
+    call void _ZN3UDTD1Ev(@v)
+    %39 = const i32 0
+    call.rtl void fb_End(%39)
+    %40 = load @$tmp0
+    ret %40
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN3UDTC1Ev(ptr $0)
+declare void _ZN5OTHERC1Ev(ptr $0)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void _ZN4ARRSC1Ev(ptr $0)
+declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
+declare void _ZN4ARRSD1Ev(ptr $0)
+declare void _ZN3UDTD1Ev(ptr $0)
+declare void fb_End(i32 $0)
+attribute constructor
+func void _GLOBAL__I() {
+  entry0:
+    call void _ZN3UDTC1Ev(@@sv)
+    ret
+}
+attribute destructor
+func void _GLOBAL__D() {
+  entry0:
+    call void _ZN3UDTD1Ev(@@sv)
+    ret
+}
+func void _ZN3UDTC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const i64 123
+    store %1, %2
+    %3 = field.addr $0, 8
+    %4 = const f64 1.5
+    store %3, %4
+    %5 = field.addr $0, 16
+    %6 = const i64 9
+    %7 = const i64 2
+    %8 = mul %6, %7
+    store %5, %8
+    %9 = field.addr $0, 24
+    %10 = field.addr %9, 0
+    store %10, 0
+    %11 = field.addr %9, 8
+    store %11, 0
+    %12 = field.addr %9, 16
+    store %12, 0
+    %13 = call.rtl ptr fb_StrAssign(%9, -1, @@$str2, 3, 0)
+    %14 = field.addr $0, 48
+    %15 = call i64 F()
+    store %14, %15
+    %16 = field.addr $0, 56
+    %17 = load @@g
+    store %16, %17
+    %18 = field.addr $0, 64
+    %19 = call.rtl ptr fb_StrAssign(%18, 8, @@$str3, 4, 0)
+    ret
+}
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func void _ZN5OTHERC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const i64 7
+    store %1, %2
+    ret
+}
+func void _ZN4ARRSC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const i64 17
+    %3 = field.addr %1, 0
+    %4 = trunc %2
+    store %3, %4
+    %5 = const i64 18
+    %6 = field.addr %1, 1
+    %7 = trunc %5
+    store %6, %7
+    %8 = const i64 19
+    %9 = field.addr %1, 2
+    %10 = trunc %8
+    store %9, %10
+    %11 = field.addr $0, 8
+    %12 = field.addr %11, 0
+    %13 = call.rtl ptr fb_StrInit(%12, -1, @@$str4, 6, 0)
+    %14 = field.addr %11, 24
+    %15 = call.rtl ptr fb_StrInit(%14, -1, @@$str5, 7, 0)
+    %16 = field.addr $0, 56
+    %17 = field.addr %16, 0
+    %18 = call.rtl ptr fb_StrAssign(%17, 8, @@$str6, 3, 0)
+    %19 = field.addr %16, 8
+    %20 = call.rtl ptr fb_StrAssign(%19, 8, @@$str7, 3, 0)
+    ret
+}
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func void _ZN4ARRSD1Ev(ptr $0) {
+  local agg $tmp0 size 72
+  entry0:
+    %1 = field.addr $0, 8
+    %2 = alloca ptr $tmp0
+    %3 = field.addr @$tmp0, 0
+    store %3, %1
+    %4 = field.addr @$tmp0, 8
+    store %4, %1
+    %5 = const i64 48
+    %6 = field.addr @$tmp0, 16
+    store %6, %5
+    %7 = const i64 24
+    %8 = field.addr @$tmp0, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr @$tmp0, 32
+    store %10, %9
+    %11 = const i64 49
+    %12 = field.addr @$tmp0, 40
+    store %12, %11
+    %13 = const i64 2
+    %14 = field.addr @$tmp0, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr @$tmp0, 56
+    store %16, %15
+    %17 = const i64 1
+    %18 = field.addr @$tmp0, 64
+    store %18, %17
+    call.rtl void fb_ArrayDestructStr(@$tmp0)
+    ret
+}
+declare void fb_ArrayDestructStr(ptr $0)
+func void _ZN3UDTD1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 24
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+declare void fb_StrDelete(ptr $0)
+verify: ok
+lowered: 9 functions, 9 blocks, 149 insts, 0 statements not lowered, 0 scope imbalance

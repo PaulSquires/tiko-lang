@@ -1282,6 +1282,14 @@ private function ParseAggregateBody _
                     fp.b = Expression( p )
                 end if
                 if Accept( p, Tko.KW_AS ) then fp.a = TypeRef( p )
+                '' 'i as integer = 123' -- THE SAME '= value' THE TYPE-FIRST FORM
+                '' READS, and only that form read it. fbc accepts both spellings and
+                '' prints 123 for either; here the name-first one dropped the '='
+                '' clause on the floor, so the field kept whatever the storage held.
+                '' Into 'c', for the reason spelled out above: 'b' is the width.
+                dim as boolean nEq = Accept( p, Tko.TK_EQ )
+                if nEq = false then nEq = Accept( p, Tko.TK_FATARROW )
+                if nEq then fp.c = Expression( p )
                 '' NO TRAILING WIDTH. 'a as ulong : 3' is fbc error 14, and a ':' after
                 '' a field's type is a STATEMENT SEPARATOR -- 'x as integer : y as
                 '' integer' is two fields on one line. Reading a width there consumed

@@ -104,6 +104,11 @@ function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
         if f = 0 then exit while
         if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+            '' A DECLARED '= value' IS ITSELF WORK, whatever the field's type says.
+            '' Without this an all-scalar UDT answered "nothing to initialise" and no
+            '' constructor was synthesised at all, so there was no prologue for the
+            '' stores below to go in.
+            if FieldInitOf_( c, f ) <> Tko.NODE_NONE then return true
             if f->type_ <> t then
                 if TypeNeedsInit_( c, f->type_ ) then return true
             end if
@@ -171,6 +176,9 @@ private function AnyFieldNeeds_ _
             if forDtor then
                 if TypeNeedsDtor_( c, f->type_ ) then return true
             else
+                '' The same question as in TypeNeedsInit_, asked of THIS type's own
+                '' constructor: a field with an initialiser gives it a body to have.
+                if FieldInitOf_( c, f ) <> Tko.NODE_NONE then return true
                 if TypeNeedsInit_( c, f->type_ ) then return true
             end if
         end if
@@ -433,8 +441,15 @@ sub EmitCtorPrologue_ _
     for i as long = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
-        if TypeNeedsInit_( c, f->type_ ) = false then continue for
-        InitMember_( c, FieldAddr_( c, thisPtr, t, f->name ), f->type_ )
+        dim as Tko.NodeId fi = FieldInitOf_( c, f )
+        if (TypeNeedsInit_( c, f->type_ ) = false) andalso (fi = Tko.NODE_NONE) then
+            continue for
+        end if
+        dim as MirValue fa = FieldAddr_( c, thisPtr, t, f->name )
+        if TypeNeedsInit_( c, f->type_ ) then InitMember_( c, fa, f->type_ )
+        '' AFTER the default initialisation, not instead of it: a field that needs a
+        '' descriptor built still needs it, and the declared value goes on top.
+        if fi <> Tko.NODE_NONE then EmitFieldInit_( c, fa, f->type_, fi )
     next
 
     '' LAST, after the fields -- measured. A derived constructor therefore overwrites

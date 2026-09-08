@@ -1065,7 +1065,8 @@ declare function StrSwapKind_ _
 
 declare function LowerFixStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval n as longint, byval isU as boolean ) as boolean
+      byval init as Tko.NodeId, byval n as longint, byval isU as boolean, _
+      byval selfv as MirValue ptr = 0 ) as boolean
 
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
@@ -1074,7 +1075,7 @@ declare sub FlattenInitLeaves_ _
 
 declare function LowerStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
 '' THE LEAF EXPRESSIONS OF A NESTED BRACE INITIALISER, in row-major order: a nested
 '' N_INITIALIZER is read through rather than treated as a value, which is what makes
@@ -1095,9 +1096,11 @@ sub FlattenInitLeaves_ _
     next
 end sub
 
+'' The destination is a SLOT or, for storage with no slot, an ADDRESS -- selfv. A
+'' STATIC local and a UDT FIELD are both storage without a frame slot.
 function LowerArrayInit _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
     if init = Tko.NODE_NONE then return false
     if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
@@ -1114,7 +1117,7 @@ function LowerArrayInit _
         '' NARROW ONLY. fb_StrInit over an FBUSTRING would write narrow bytes into
         '' a UTF-16 descriptor; the UTF-16 form declines rather than doing that.
         if IsUStringType( c, el ) then return false
-        return LowerStrArrayInit_( c, slot, t, init )
+        return LowerStrArrayInit_( c, slot, t, init, selfv )
     end if
     '' A FIXED-LENGTH STRING ELEMENT -- 'dim as zstring * 32 z(0 to 1) = { "abcdef",
     '' "ghijkl" }' -- is an ARRAY OF ARRAYS, since 'zstring * N' is itself modelled as
@@ -1133,7 +1136,7 @@ function LowerArrayInit _
     '' a wide fixed-string array fell through to the aggregate test below, was not a UDT,
     '' and declined -- while the narrow twin one line away lowered.
     if (fek = 1) orelse (fek = 2) orelse (fek = 3) orelse (fek = 4) then
-        return LowerFixStrArrayInit_( c, slot, t, init, fen, (fek = 4) )
+        return LowerFixStrArrayInit_( c, slot, t, init, fen, (fek = 4), selfv )
     end if
 
     '' A UDT ELEMENT lowers as an aggregate, which the test below rejected outright:
@@ -1142,7 +1145,7 @@ function LowerArrayInit _
     dim as MirType emt = LowerType( el, *c.types )
     if emt = MT_AGG then
         if c.types->Kind( c.types->Unqualify( el ) ) <> Tko.TK_UDT then return false
-        return LowerUdtArrayInit_( c, slot, t, init )
+        return LowerUdtArrayInit_( c, slot, t, init, selfv )
     end if
     if emt = MT_VOID then return false
     dim as long esz = c.types->Layout( el ).size
@@ -1171,9 +1174,13 @@ function LowerArrayInit _
     end if
 
     dim as MirValue base_
-    base_.kind = cast( ubyte, MV_LOCAL )
-    base_.ty = cast( ubyte, MT_PTR )
-    base_.id = slot
+    if selfv <> 0 then
+        base_ = *selfv
+    else
+        base_.kind = cast( ubyte, MV_LOCAL )
+        base_.ty = cast( ubyte, MT_PTR )
+        base_.id = slot
+    end if
 
     for i as long = 0 to leaves.Count - 1
         if (total > 0) andalso (i >= total) then exit for
@@ -1206,7 +1213,8 @@ end function
 '' routine, called once per element with that element's address.
 private function LowerFixStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval n as longint, byval isU as boolean ) as boolean
+      byval init as Tko.NodeId, byval n as longint, byval isU as boolean, _
+      byval selfv as MirValue ptr = 0 ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     dim as long esz = SizeOfType( c, el )
@@ -1228,9 +1236,13 @@ private function LowerFixStrArrayInit_ _
     end if
 
     dim as MirValue base_
-    base_.kind = cast( ubyte, MV_LOCAL )
-    base_.ty = cast( ubyte, MT_PTR )
-    base_.id = slot
+    if selfv <> 0 then
+        base_ = *selfv
+    else
+        base_.kind = cast( ubyte, MV_LOCAL )
+        base_.ty = cast( ubyte, MT_PTR )
+        base_.id = slot
+    end if
 
     dim as long written = 0
     for i as long = 0 to cast( long, leaves.Count ) - 1
@@ -1274,7 +1286,7 @@ end function
 '' zeroed descriptor, which is the empty string -- fbc leaves it alone too.
 private function LowerStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     dim as long esz = c.types->Layout( el ).size
@@ -1284,9 +1296,13 @@ private function LowerStrArrayInit_ _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
 
     dim as MirValue base_
-    base_.kind = cast( ubyte, MV_LOCAL )
-    base_.ty = cast( ubyte, MT_PTR )
-    base_.id = slot
+    if selfv <> 0 then
+        base_ = *selfv
+    else
+        base_.kind = cast( ubyte, MV_LOCAL )
+        base_.ty = cast( ubyte, MT_PTR )
+        base_.id = slot
+    end if
 
     for i as long = 0 to lp->count - 1
         if (total > 0) andalso (i >= total) then exit for

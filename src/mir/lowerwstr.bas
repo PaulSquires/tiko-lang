@@ -470,11 +470,15 @@ end sub
 '' THE SAME, INTO A RESULT SLOT. 'function = w' inside a STRING function has no target
 '' node to take an address from -- the destination is fb$result -- so the ordinary
 '' entry point could not be reached and every one of those declined.
+'' The destination is a SLOT or, for storage with no slot, an ADDRESS -- selfv. A
+'' UDT FIELD has no frame slot, so 'k as string = wstr( "fOoBaR" )' had nowhere to
+'' write and declined.
 function LowerWideToNarrowSlot _
     ( byref c as Ctx, byval slot as long, byval dt as Tko.TypeId, _
-      byval value as Tko.NodeId, byval isInit as boolean = false ) as boolean
+      byval value as Tko.NodeId, byval isInit as boolean = false, _
+      byval selfv as MirValue ptr = 0 ) as boolean
 
-    if slot < 0 then return false
+    if (slot < 0) andalso (selfv = 0) then return false
     if IsUStringType( c, dt ) then return false
     if ChainTouchesU_( c, value ) then return false
     dim as longint dn = -1
@@ -504,9 +508,13 @@ function LowerWideToNarrowSlot _
     if src.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirValue dst
-    dst.kind = cast( ubyte, MV_LOCAL )
-    dst.ty = cast( ubyte, MT_PTR )
-    dst.id = slot
+    if selfv <> 0 then
+        dst = *selfv
+    else
+        dst.kind = cast( ubyte, MV_LOCAL )
+        dst.ty = cast( ubyte, MT_PTR )
+        dst.id = slot
+    end if
     EmitWideToNarrow_( c, dst, dn, src, isInit, pad )
     return true
 end function

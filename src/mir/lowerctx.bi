@@ -553,7 +553,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     declare function LowerWideToNarrowSlot _
         ( byref c as Ctx, byval slot as long, byval dt as Tko.TypeId, _
-          byval value as Tko.NodeId, byval isInit as boolean = false ) as boolean
+          byval value as Tko.NodeId, byval isInit as boolean = false, _
+          byval selfv as MirValue ptr = 0 ) as boolean
     declare function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerAggIif_ _
@@ -647,7 +648,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerArrayInit _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-          byval init as Tko.NodeId ) as boolean
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
     declare function PrintRtlFor( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
     declare function PrintOne _
         ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
@@ -862,6 +863,13 @@ declare function EmitRtl _
     declare function LowerGfxExprCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
+    '' lowerfieldinit.bas -- 'a as integer = 123' inside a TYPE. The value is run by
+    '' the constructor, so lowerimpl.bas is what calls both of these.
+    declare function FieldInitOf_ _
+        ( byref c as Ctx, byval f as Tko.Symbol ptr ) as Tko.NodeId
+    declare sub EmitFieldInit_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+          byval init as Tko.NodeId )
     '' lowerimpl.bas -- the structors fbc writes for you.
     declare function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
