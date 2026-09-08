@@ -1425,8 +1425,26 @@ private sub WalkAll( byref c as Ctx )
             if c.info->AmbiguousOf( n ) = Tko.AMB_CALL then
                 dim as Tko.StmtPayload ptr asp = _
                     @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+                '' AN N_MEMBER CALLEE IS THE SAME STATEMENT. 'f.bar 1' over an
+                '' overloaded member costed nothing either, and its binding lives on the
+                '' MEMBER node -- which is where LowerStmtCall reads it from, so
+                '' re-costing it through the same node is all this needs. Without it
+                ''
+                ''     declare sub bar
+                ''     declare function bar( byval i as integer ) as integer
+                ''
+                '' sent 'f.bar 1' to the SUB, so the call passed a receiver and an
+                '' argument to something declaring only a receiver: the verifier's
+                '' 'calls FOO.BAR with 2 arguments, which declares 1'.
+                dim as boolean calleeIsName = false
                 if asp->a <> Tko.NODE_NONE then
-                    if c.ast->Kind( asp->a ) = Tko.N_IDENT then
+                    select case c.ast->Kind( asp->a )
+                    case Tko.N_IDENT, Tko.N_MEMBER
+                        calleeIsName = true
+                    end select
+                end if
+                if asp->a <> Tko.NODE_NONE then
+                    if calleeIsName then
                         dim as Tko.SymbolId ac = c.info->RefOf( asp->a )
                         dim as Tko.Symbol ptr acs = c.syms->SymbolAt( ac )
                         if acs <> 0 then

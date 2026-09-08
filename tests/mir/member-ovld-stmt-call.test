@@ -1,0 +1,16 @@
+'' An overloaded MEMBER called as a paren-less statement. See the source for the shape;
+'' what matters here is which of the two 'bar's each of the three call sites reaches.
+''
+'' The binding lives on the N_MEMBER node -- which is where LowerStmtCall reads it from,
+'' so re-costing through the same node is all this needed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/member-ovld-stmt-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' 'f.bar 1' REACHES THE FUNCTION: a receiver and the argument, against a declaration
+'' that names both.
+'' EXPECT-OUT: call i64 _ZN3FOO3BAREu7INTEGER(
+'' ...and the bare 'f.bar' reaches the SUB, with the receiver alone.
+'' EXPECT-OUT: call void _ZN3FOO3BAREv(
+'' GOLDEN: expected/member-ovld-stmt-call.out
