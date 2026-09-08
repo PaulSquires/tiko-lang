@@ -1,6 +1,7 @@
 '' tikotest.bas -- the tiko-lang test runner.
 ''
-''     bin/tiko-test [suite...] [--accept] [--filter <pat>] [--tiko-lang <path>] [-v]
+''     bin/tiko-test [suite...] [--accept] [--filter <pat>] [--tiko-lang <path>]
+''                   [-j N] [-v]
 ''
 '' A test is a file under tests/ whose first lines carry directives in comments:
 ''
@@ -37,7 +38,28 @@
 '' --accept rewrites GOLDEN files. It is the only sanctioned way to update them, and
 '' the resulting diff is reviewed like code (docs/plan/13 section 3).
 ''
-'' Output is deterministic: tests run in sorted path order regardless of anything.
+'' Output is deterministic: every result is REPORTED in sorted path order regardless
+'' of anything -- including the order the runs finished in.
+''
+'' -j N RUNS N TESTS AT A TIME. The suite is 596 processes of about 75ms each and the
+'' host has more than one core; serially that is 45 seconds of mostly-idle waiting.
+'' The default is one worker per processor.
+''
+'' NOT EVERY TEST IS SAFE TO RUN BESIDE ANOTHER, and the ones that are not are the
+'' whole reason this is a partition rather than a flag:
+''
+''   - ENV sets a PROCESS-GLOBAL variable and clears it again, so two tests doing that
+''     at once see each other's.
+''   - EXPECT-FILE deletes a path, runs, and asks whether it came back. Another test
+''     writing that path in between answers the question wrongly, in either direction.
+''   - Anything that EMITS rather than dumps writes files named after its source, and
+''     a driver test's build leaves objects and an executable behind.
+''
+'' Those run serially after the rest, and --accept forces the whole suite serial: it
+'' WRITES the goldens, and a golden shared by two tests would race.
+''
+'' The temp file the output is captured through is per-worker for the same reason --
+'' one fixed name was a race that fails by handing a test ANOTHER test's output.
 
 #include once "fb/array.bi"
 #include once "fb/filesystem.bi"
@@ -73,6 +95,9 @@ type Options
     as string tikoPath
     as boolean accept
     as boolean verbose
+    '' HOW MANY TESTS RUN AT ONCE. 0 means one per processor; 1 is serial, which is
+    '' what --accept forces and what -j 1 asks for when a failure needs isolating.
+    as long jobs
 end type
 
 '' ---------------------------------------------------------------- small helpers
@@ -307,9 +332,13 @@ function NativePath( byval p as string ) as string
 end function
 
 function RunTko _
-    ( byval tikoPath as string, byval args as string, byref outText as string ) as long
+    ( byval tikoPath as string, byval args as string, byref outText as string, _
+      byval slotId as long ) as long
 
-    dim as string tmp = "build/.tikotest.out"
+    '' ONE TEMP FILE PER WORKER. A single fixed name is a race the moment two tests
+    '' run at once, and it fails by handing one test ANOTHER'S OUTPUT -- a golden
+    '' mismatch naming a test that is not the one that broke.
+    dim as string tmp = "build/.tikotest." & slotId & ".out"
     '' --color=never goes FIRST: appended last, a trailing value-taking option in
     '' the test's own ARGS would swallow it as its value.
     dim as string cmd = NativePath( tikoPath ) & " --color=never " & args & _
@@ -360,7 +389,8 @@ declare function CheckOne_ _
       byval rc as long, byref outText as string, byref why as string ) as boolean
 
 function RunOne _
-    ( byref tc as TestCase, byref opts as Options, byref why as string ) as boolean
+    ( byref tc as TestCase, byref opts as Options, byref why as string, _
+      byval slotId as long ) as boolean
 
     why = ""
 
@@ -402,7 +432,7 @@ function RunOne _
             kill( f2 )
         next
         '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
-        rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText )
+        rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText, slotId )
         if CheckOne_( tc, opts, tgt, rc, outText, why ) = false then
             if tc.targets.Count > 1 then why = "[" & tgt & "] " & why
             for each e2 as string in tc.env
@@ -506,6 +536,122 @@ function CheckOne_ _
     return true
 end function
 
+'' ------------------------------------------------------------- running in parallel
+
+'' ONE TEST AND WHAT BECAME OF IT. The result is stored rather than printed, because
+'' a worker finishes whenever it finishes and the report is owed in path order.
+type Job
+    as string path
+    as TestCase ptr tc
+    as long state          '' 0 pending, 1 passed, 2 failed
+    as string why
+end type
+
+'' IS THIS TEST SAFE TO RUN BESIDE ANOTHER? See the note at the top of this file for
+'' why each of these disqualifies a test. The last is deliberately a WHITELIST of
+'' read-only modes rather than a blacklist of emitting ones: a mode added later is
+'' then serial until someone says otherwise, which is the safe direction to be wrong.
+function IsParallelSafe_( byref tc as TestCase ) as boolean
+    if tc.env.IsEmpty( ) = false then return false
+    if tc.expectFile.IsEmpty( ) = false then return false
+    if tc.expectNoFile.IsEmpty( ) = false then return false
+    if instr( tc.args, "--dump" ) > 0 then return true
+    if instr( tc.args, "--parse-only" ) > 0 then return true
+    if instr( tc.args, "--pp-only" ) > 0 then return true
+    return false
+end function
+
+type Pool
+    as any ptr mtx
+    as long nextIdx
+    as long nJobs
+    as Array( of Job ) ptr jobs
+    as Options ptr opts
+end type
+
+type WorkerArg
+    as Pool ptr pool
+    as long slotId
+end type
+
+'' A WORKER TAKES THE NEXT INDEX AND RUNS IT. Work-stealing off one counter rather
+'' than a fixed slice each: the tests are not equal in cost -- a driver test is worth
+'' hundreds of lexer tests -- so a static split ends with one worker still going and
+'' the rest idle.
+sub Worker_ cdecl( byval ud as any ptr )
+    dim as WorkerArg ptr w = ud
+    dim as Pool ptr pl = w->pool
+    do
+        MutexLock( pl->mtx )
+        dim as long idx = pl->nextIdx
+        pl->nextIdx += 1
+        MutexUnlock( pl->mtx )
+        if idx >= pl->nJobs then exit do
+        dim as string why = ""
+        if RunOne( *(*pl->jobs)[idx].tc, *pl->opts, why, w->slotId ) then
+            (*pl->jobs)[idx].state = 1
+        else
+            (*pl->jobs)[idx].state = 2
+            (*pl->jobs)[idx].why = why
+        end if
+    loop
+end sub
+
+'' RUN THESE JOBS, n AT A TIME. One worker is not a degenerate pool but the plain
+'' loop: no thread is created, so a serial run stays exactly what it was and neither
+'' --accept nor a single-test filter depends on the threading working.
+sub RunPool_ _
+    ( byref jobs as Array( of Job ), byref opts as Options, byval nWorkers as long )
+
+    if jobs.IsEmpty( ) then return
+
+    if nWorkers <= 1 then
+        for i as long = 0 to jobs.Count - 1
+            dim as string why = ""
+            if RunOne( *jobs[i].tc, opts, why, 0 ) then
+                jobs[i].state = 1
+            else
+                jobs[i].state = 2
+                jobs[i].why = why
+            end if
+        next
+        return
+    end if
+
+    if nWorkers > jobs.Count then nWorkers = jobs.Count
+
+    dim as Pool pl
+    pl.mtx = MutexCreate( )
+    pl.nextIdx = 0
+    pl.nJobs = jobs.Count
+    pl.jobs = @jobs
+    pl.opts = @opts
+
+    dim as WorkerArg wargs( 0 to nWorkers - 1 )
+    dim as any ptr handles( 0 to nWorkers - 1 )
+    for i as long = 0 to nWorkers - 1
+        wargs( i ).pool = @pl
+        wargs( i ).slotId = i
+        handles( i ) = ThreadCreate( @Worker_, @wargs( i ) )
+    next
+    for i as long = 0 to nWorkers - 1
+        if handles( i ) <> 0 then ThreadWait( handles( i ) )
+    next
+
+    MutexDestroy( pl.mtx )
+end sub
+
+'' HOW MANY WORKERS, when -j did not say. NUMBER_OF_PROCESSORS is set on Windows and
+'' is not on Linux, where 4 is a floor that helps and cannot oversubscribe badly.
+function DefaultJobs_( ) as long
+    dim as string n = environ( "NUMBER_OF_PROCESSORS" )
+    if len( n ) > 0 then
+        dim as long v = valint( n )
+        if v >= 1 then return v
+    end if
+    return 4
+end function
+
 '' ------------------------------------------------------------------------ main
 
 dim as Options opts
@@ -516,6 +662,7 @@ opts.tikoPath = "bin/tiko.exe"
 opts.accept = false
 opts.verbose = false
 opts.filter = ""
+opts.jobs = 0
 
 dim as long argi = 1
 while len( command( argi ) ) > 0
@@ -525,6 +672,7 @@ while len( command( argi ) ) > 0
     case "-v"       : opts.verbose = true
     case "--filter" : argi += 1 : opts.filter = command( argi )
     case "--tiko-lang"    : argi += 1 : opts.tikoPath = command( argi )
+    case "-j"       : argi += 1 : opts.jobs = valint( command( argi ) )
     case else
         if StartsWith( a, "-" ) then
             print "tiko-test: unknown option '" & a & "'"
@@ -537,45 +685,97 @@ wend
 
 if opts.suites.IsEmpty( ) then opts.suites.Push( "tests" )
 
+dim as long nWorkers = opts.jobs
+if nWorkers <= 0 then nWorkers = DefaultJobs_( )
+'' --accept WRITES the goldens. See the note at the top of this file.
+if opts.accept then nWorkers = 1
+
 dim as Array( of string ) files
 for each suite as string in opts.suites
     CollectTests( suite, files )
 next
 Sort( files )
 
-dim as long passed = 0, failed = 0, skipped = 0
-dim as Array( of Failure ) failures
+'' EVERY TEST IS PARSED FIRST, and the ones that cannot be are counted here rather
+'' than inside a worker: a parse failure is a property of the file, not of the run.
+dim as long skipped = 0
+dim as Array( of Job ) parJobs
+dim as Array( of Job ) serJobs
 
 for each path as string in files
     if len( opts.filter ) > 0 then
         if instr( path, opts.filter ) = 0 then continue for
     end if
 
-    dim as TestCase tc
-    if ParseTest( path, tc ) = false then
+    dim as TestCase ptr tc = new TestCase
+    if ParseTest( path, *tc ) = false then
         skipped += 1
+        delete tc
         continue for
     end if
-
-    if tc.kind = "skip" then
+    if tc->kind = "skip" then
         skipped += 1
         if opts.verbose then print "SKIP " & path
+        delete tc
         continue for
     end if
 
+    dim as Job j
+    j.path = path
+    j.tc = tc
+    j.state = 0
+    if (nWorkers > 1) andalso IsParallelSafe_( *tc ) then
+        parJobs.Push( j )
+    else
+        serJobs.Push( j )
+    end if
+next
+
+RunPool_( parJobs, opts, nWorkers )
+'' THE UNSAFE ONES, ALONE. Not merely single-threaded: nothing else may be running.
+RunPool_( serJobs, opts, 1 )
+
+'' ------------------------------------------------------- the report, in path order
+''
+'' The two partitions are each already in path order, so this is a MERGE of two sorted
+'' lists rather than a search: the alternative -- looking each path up in both -- is
+'' quadratic, and at 596 tests that is 350k string compares to print 596 lines.
+
+dim as long passed = 0, failed = 0
+dim as Array( of Failure ) failures
+dim as long pi = 0, si = 0
+
+while (pi < parJobs.Count) orelse (si < serJobs.Count)
+    dim as boolean takePar = false
+    if si >= serJobs.Count then
+        takePar = true
+    elseif pi < parJobs.Count then
+        takePar = (parJobs[pi].path <= serJobs[si].path)
+    end if
+
+    dim as string path_ = ""
+    dim as long state = 0
     dim as string why = ""
-    if RunOne( tc, opts, why ) then
+    if takePar then
+        path_ = parJobs[pi].path : state = parJobs[pi].state : why = parJobs[pi].why
+        pi += 1
+    else
+        path_ = serJobs[si].path : state = serJobs[si].state : why = serJobs[si].why
+        si += 1
+    end if
+
+    if state = 1 then
         passed += 1
-        if opts.verbose then print "PASS " & path
+        if opts.verbose then print "PASS " & path_
     else
         failed += 1
         dim as Failure f
-        f.test = path
+        f.test = path_
         f.why = why
         failures.Push( f )
-        print "FAIL " & path & ": " & why
+        print "FAIL " & path_ & ": " & why
     end if
-next
+wend
 
 print
 print "tiko-test " & RUNNER_VERSION & ": " & passed & " passed, " & _

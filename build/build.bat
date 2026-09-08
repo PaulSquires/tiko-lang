@@ -55,10 +55,13 @@ goto :done
 
 :buildrunner
 echo build: tiko-test [%CFG%]
-"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %FLAGS% -x "bin\tiko-test.exe"
+"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %FLAGS% -mt -x "bin\tiko-test.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 :done
+rem What bin\ now holds -- see the peer note in build.sh.
+if not exist "%ROOT%\build\obj" mkdir "%ROOT%\build\obj"
+>"%ROOT%\build\obj\.build-stamp" echo|set /p="%CFG%|%TKO_STAGE0%"
 popd
 echo build: ok
 exit /b 0

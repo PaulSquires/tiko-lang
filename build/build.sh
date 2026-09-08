@@ -53,7 +53,14 @@ echo "build: tiko-lang [$CFG] with $TKO_STAGE0"
 
 if [ "$2" = "--test-runner" ] || [ "$1" = "--test-runner" ]; then
     echo "build: tiko-test [$CFG]"
-    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $FLAGS -x "bin/tiko-test$EXT" )
+    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $FLAGS -mt -x "bin/tiko-test$EXT" )
 fi
+
+# WHAT bin/ NOW HOLDS, for anything that needs to know whether it is the right thing.
+# build/test.sh skips the build when nothing changed, and a timestamp alone cannot tell
+# a Debug binary from a Release one: 'build.sh Release' leaves bin/tiko newer than every
+# source, so the Debug suite would have run the Release binary and said nothing about it.
+mkdir -p "$ROOT/build/obj"
+printf '%s' "$CFG|$TKO_STAGE0" > "$ROOT/build/obj/.build-stamp"
 
 echo "build: ok"
