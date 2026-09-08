@@ -119,6 +119,25 @@ function LowerByrefResult_ _
         end if
     end if
 
+    '' 'function = this' IS THE POINTER'S VALUE, not the slot's address. THIS holds a
+    '' pointer, so the object's address is what the slot CONTAINS -- the same rule
+    '' ReceiverOf applies to an unqualified sibling call. LowerAddr answered with
+    '' '@this', a pointer to a POINTER: the caller then took its field offset off that
+    '' and loaded garbage, and it lowered and verified the whole way.
+    '' Measured -- fbc emits 'fb$result$1 = THIS$1' for every spelling that reaches
+    '' here: 'function = this' out of a 'byref as UDT' member, 'return this', and
+    '' 'operator []( byval i as integer ) byref as UDT' returning this.
+    if IsThisPointerIdent_( c, bvE ) then
+        dim as MirValue tva = LowerAddr( c, bvE )
+        if tva.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue tvr
+        tvr.kind = cast( ubyte, MV_LOCAL )
+        tvr.ty = cast( ubyte, MT_PTR )
+        tvr.id = c.resultSlot
+        StoreThrough( c, tvr, LowerExprLoad( c, tva, MT_PTR ) )
+        return true
+    end if
+
     dim as MirValue bav = LowerAddr( c, valueE )
     '' A STRING LITERAL IS AN ADDRESS TOO. 'function = "also good"' out of a
     '' 'byref as zstring' is measured as 'fb$result$1 = (char*)"also good"' -- the

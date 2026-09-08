@@ -1,0 +1,25 @@
+'' A BYREF RESULT THAT IS 'this' IS THE RECEIVER POINTER'S VALUE. THIS holds a pointer,
+'' so the object's address is what the slot CONTAINS -- but the result assignment took
+'' the ADDRESS of the expression, so 'function = this' emitted 'store @$tmp0, @this':
+'' a pointer to a pointer returned where the declaration promises a pointer to the
+'' object. The caller then took a field offset off it and loaded garbage, and the whole
+'' thing lowered and verified. ReceiverOf already applies the rule for an unqualified
+'' sibling call; the result path did not.
+''
+'' Measured -- fbc's C for all three spellings is the same one line:
+''
+''   struct $1W* _ZN1W5SELF_Ev( struct $1W* THIS$1 )
+''   { struct $1W* fb$result$1; fb$result$1 = THIS$1; return fb$result$1; }
+''
+'' 'function = this', 'return this', and an 'operator []( ... ) byref as W' returning
+'' this -- which is how overload/op-ptrindex.bas writes its byrefResult group.
+''
+'' Asserted as the ABSENCE of ', @this' rather than against a golden: every legitimate
+'' use of the receiver in this file is the pointer's VALUE, so the slot's own address
+'' appearing anywhere as an operand is the bug itself.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-result-this.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: , @this
