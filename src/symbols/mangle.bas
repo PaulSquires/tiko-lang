@@ -654,21 +654,45 @@ private function ProcNameCore _
     if ast.Kind( proc_ ) <> Tko.N_PROC then return ""
     dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
 
-    dim as boolean aliased = (sp->aliasName <> 0)
+    '' THE ALIAS MAY BE ON THE DECLARE ALONE, and usually is: fbc accepts
+    ''
+    ''     declare sub plain alias "myPlainName"( byval i as integer )
+    ''     sub plain( byval i as integer )
+    ''
+    '' and emits 'void myPlainName( int64 )'. This read the DEFINITION's own node, found
+    '' no alias there, and emitted PLAIN -- so every procedure bound to a foreign symbol
+    '' by an alias on its declare went out under the wrong name, and the link failed on
+    '' a name nobody wrote. CheckAliasAgrees_ already walks from a definition to its
+    '' declaration this way, and refuses the two disagreeing, so reading the declaration
+    '' here cannot pick up a different name than the one written on this node.
+    dim as Tko.InternId aliasNm = sp->aliasName
+    if aliasNm = 0 then
+        dim as Tko.Symbol ptr asym = syms.SymbolAt( info.RefOf( proc_ ) )
+        if asym <> 0 then
+            dim as Tko.NodeId adecl = cast( Tko.NodeId, asym->payload )
+            if (adecl <> Tko.NODE_NONE) andalso (adecl <> proc_) then
+                if ast.Kind( adecl ) = Tko.N_PROC then
+                    aliasNm = StmtOf( ast, adecl )->aliasName
+                end if
+            end if
+        end if
+    end if
+
+    dim as boolean aliased = (aliasNm <> 0)
     dim as string written = ""
     if sp->rawName <> 0 then written = names.Spelling( sp->rawName )
     if len( written ) = 0 then written = names.Spelling( sp->name )
 
     '' Rule 3: foreign linkage takes the spelling verbatim and ignores OVERLOAD.
     if (sp->extra and Tko.PF_FOREIGN) <> 0 then
-        if aliased then return names.Spelling( sp->aliasName )
+        if aliased then return names.Spelling( aliasNm )
         return written
     end if
 
     '' Rule 2: an ALIAS replaces the identifier and KEEPS ITS CASE.
     dim as string ident = ""
     if aliased then
-        ident = names.Spelling( sp->aliasName )
+        ident = names.Spelling( aliasNm )
     else
         ident = Tko.Text.UpperAscii( written )
     end if
@@ -676,7 +700,17 @@ private function ProcNameCore _
     dim as ushort kw = sp->op
     dim as boolean isCtor = (kw = cast( ushort, Tko.KW_CONSTRUCTOR ))
     dim as boolean isDtor = (kw = cast( ushort, Tko.KW_DESTRUCTOR ))
-    if kw = cast( ushort, Tko.KW_PROPERTY ) then
+    '' ...BUT AN ALIASED PROPERTY TAKES THE ALIAS ALONE. The suffix is what fbc uses
+    '' when it has to invent a name; an alias IS the name, and appending to it names
+    '' something that does not exist. Measured over structs/obj_property_alias.bas,
+    '' where a property aliases a method that is also declared under that name:
+    ''
+    ''     declare function getv alias "getv"( ) as integer
+    ''     declare property v    alias "getv"( ) as integer
+    ''
+    '' fbc emits ONE symbol, '_ZN3UDT4getvEv', and 'x.v' calls it. tiko-lang emitted
+    '' 'getv__get__' -- a receiver-less declaration nothing defines, called with one.
+    if (kw = cast( ushort, Tko.KW_PROPERTY )) andalso (aliased = false) then
         ident += PropertySuffix( ast, proc_ )
     end if
 

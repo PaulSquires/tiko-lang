@@ -1,0 +1,18 @@
+'' The emitted name of an aliased procedure. See the source for what each line measures.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/alias-names.bas
+'' EXPECT-EXIT: 0
+'' An alias on the DECLARE, carried to the definition -- this was 'PLAIN'.
+'' EXPECT-OUT: myPlainName
+'' OVERLOAD mangles around it rather than replacing it.
+'' EXPECT-OUT: _Z10lower_caseu7INTEGER
+'' EXPECT-OUT: fx_c
+'' EXPECT-OUT: _ZN1T12myMemberNameEv
+'' An aliased PROPERTY takes the alias alone: no '__get__', and the same symbol as the
+'' method it aliases -- this was '_ZN3UDT11getv__get__Ev', declared with no receiver and
+'' called with one.
+'' EXPECT-OUT: _ZN3UDT4getvEv
+'' EXPECT-OUT: _ZN3UDT4setvEu7INTEGER
+'' EXPECT-NOT: __get__
+'' EXPECT-NOT: __set__
+'' GOLDEN: expected/alias-names.out

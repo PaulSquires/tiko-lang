@@ -1,0 +1,16 @@
+'' A property SETTER reached through an overload chain. See the source: the assignment
+'' was lowered as a store through the getter's code address, and verified.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/property-set-overload.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' THE SETTER IS CALLED, with the receiver and the value.
+'' EXPECT-OUT: call void _ZN3UDT8V__set__Eu7INTEGER(@x,
+'' EXPECT-OUT: call i64 _ZN3UDT8V__get__Ev(@x)
+'' ...and the ALIASED property is the aliased method itself, one symbol for both.
+'' EXPECT-OUT: call void _ZN7ALIASED4setvEu7INTEGER(@a,
+'' EXPECT-OUT: call i64 _ZN7ALIASED4getvEv(@a)
+'' NOT A STORE THROUGH A FUNCTION. This is the shape the bug had.
+'' EXPECT-NOT: func.addr ptr _ZN3UDT8V__get__Ev
+'' GOLDEN: expected/property-set-overload.out

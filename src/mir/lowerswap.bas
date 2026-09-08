@@ -554,7 +554,26 @@ function PropertyAt_ _
     outIdxCount = idxCount
 
     '' The whole chain, because the getter and the setter share one symbol.
-    dim as Tko.SymbolId cur = sid
+    ''
+    '' FROM THE HEAD, not from whatever Resolve bound. A chain is singly linked and a
+    '' name maps to the FIRST of its overloads, so starting at the bound symbol can only
+    '' ever see the accessors declared AFTER it. With
+    ''
+    ''     declare property v( byval new_v as integer )
+    ''     declare property v( ) as integer
+    ''
+    '' Resolve bound 'x.v' to the GETTER, the second of the two, and the walk for a
+    '' SETTER found nothing behind it -- so 'x.v = 1' fell through to the ordinary store
+    '' path and stored 1 through the address of the getter's own code. It verified: a
+    '' store of an i64 into a pointer is well formed, and nothing here knew the pointer
+    '' was a function.
+    dim as Tko.SymbolId head = sid
+    dim as Tko.Symbol ptr s0 = c.syms->SymbolAt( sid )
+    if s0 <> 0 then
+        dim as Tko.SymbolId h = c.syms->LookupLocal( s0->parent, s0->name )
+        if h <> Tko.SYMBOL_NONE then head = h
+    end if
+    dim as Tko.SymbolId cur = head
     dim as Tko.SymbolId want_ = Tko.SYMBOL_NONE
     dim as long bestCost = Tko.Check.CONV_NONE
     dim as long ties = 0

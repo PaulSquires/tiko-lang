@@ -7,56 +7,51 @@
 # The numbers that matter are the ones that must be ZERO: scope imbalance and
 # label-depth mismatches.
 #
-# VERIFIER FAILURES ARE NOT ZERO AT BASELINE ANY MORE, and the count is stated here so
-# that a NEW one is visible rather than lost in a total:
+# VERIFIER FAILURES ARE ZERO AGAIN, as of 2026-09-08, and belong with the two above:
+# any of the three being non-zero is a regression, not a baseline to compare against.
 #
-#     2 verify failures in 2 files
+# They were not zero for the whole of Phase 7. The history is kept because the SHAPE
+# repeated and the next one will have it too -- every single failure, from the first
+# 125 to the last, was a HIDDEN PARAMETER that the call passes and the declaration does
+# not name, or the reverse: the result pointer, or the receiver.
 #
-# All of them are the CALL-ARITY rule (docs/plan/09 rule 5), which could not be checked
-# until a MirFunction carried a signature rather than an arity -- before that a
-# declaration's arity was whatever its first call site pushed, so the two agreed by
-# construction and the rule was vacuous. Every one of these is a call that disagrees
-# with the callee it is calling, which is a miscompile that was already there and is
-# now visible. They were 125 in 33 files when the rule first ran; four defects fixed in
-# the same batch account for the difference.
+# The CALL-ARITY rule (docs/plan/09 rule 5) could not be checked at all until a
+# MirFunction carried a signature rather than an arity -- before that a declaration's
+# arity was whatever its first call site pushed, so the two agreed by construction and
+# the rule was vacuous. Turning it on made 125 existing miscompiles visible in 33 files.
 #
-# They were 96 in 25 files until 'sleep n, flag' was fixed -- that was 14 of them, and
-# it took five files to zero on its own.
+#   125 in 33   the rule first runs; four defects fixed in the same batch
+#    96 in 25   until 'sleep n, flag' was fixed -- 14 of them, five files
+#    82 in 20   until CONSTRUCTOR DEFAULT ARGUMENTS were filled at the call -- 22, eight
+#    60 in 12   until the GLOBAL-OPERATOR declaration reported its result pointer -- 8
+#    52 in 10   until a BYREF RETURN stopped being given an sret temporary -- 43, six
+#               files. Expected to clear two and cleared forty-three: the mismatch was
+#               in every call to a byref-returning function whose type had a
+#               destructor, not in the one file it was found in.
+#     9 in  4   until FIELD INITIALISERS were implemented -- 2 of them. A UDT with a
+#               field initialiser and no written constructor had none synthesised, so
+#               'UDT( ).method( )' lost its receiver.
+#     7 in  4   until an OPERATOR's receiver was decided by scope rather than by
+#               construction -- 2. A binary operator may be a free function, and
+#               'operator ns.+' had been given a 'this'.
+#     5 in  3   until 'T( )' with no written constructor ran the SYNTHESISED one -- 3.
+#     2 in  2   until an overloaded MEMBER called as a statement was costed -- 1 --
+#               and an aliased PROPERTY stopped taking the '__get__' suffix -- 1.
+#     0 in  0
 #
-# 82 in 20 until CONSTRUCTOR DEFAULT ARGUMENTS were filled at the call (2026-09-07):
-# 22 of them, and eight files to zero.
+# THE LESSON, since the count is now uninformative: every site that builds a
+# declaration has to report what the call is about to push rather than assume it.
+# lowercall.bas says so in its own comment and is the model.
 #
-# 60 in 12 until the GLOBAL-OPERATOR declaration reported its hidden result pointer
-# (2026-09-07): 8 more, two files.
-#
-# 52 in 10 until a BYREF RETURN stopped being given an sret temporary (2026-09-07):
-# 43 more, six files. That one was expected to clear two and cleared forty-three --
-# the mismatch was in every call to a byref-returning function whose type had a
-# destructor, not in the one file it was found in.
-#
-# THE FAMILY LIST BELOW WAS RE-DERIVED, not edited. Two of its five entries were
-# already false by the time they were read: FB.LOGEVENT had gone with the constructor
-# fix without anyone noticing, and the constructor entry described the wrong cause.
-# A stale breakdown is worse than no breakdown -- it is read as a diagnosis.
-#
-# The families, so that a new failure can be told from an old one. Measured
-# 2026-09-07 THE WAY THIS SCRIPT MEASURES: -i <corpus>/fbcunit/inc AND TKO_INCLUDE
-# set. Both matter and each was got wrong once while deriving this list -- without
+# MEASURE IT THE WAY THIS SCRIPT DOES -- '-i <corpus>/fbcunit/inc' AND TKO_INCLUDE set.
+# Both matter and each was got wrong once while deriving the old family list: without
 # the first, fbcunit does not expand and six unrelated 'f4' collapse onto one name;
-# without the second, four files fail that do not fail here. A breakdown taken with
-# a different invocation is not comparable to the count above it.
+# without the second, four files fail that do not fail here. A count taken with a
+# different invocation is not comparable to one taken with this.
 #
-#      1  structs/obj_meth_ovld_sub  FOO.BAR got=2 want=1
-#      1  structs/obj_property_alias UDT.getv property accessor
-#
-# THE SHAPE THEY SHARE is the one both fixes above were: a hidden parameter -- the
-# result pointer or the receiver -- that the CALL passes and the DECLARATION does not
-# name, or the reverse. Every site that builds a declaration has to report what the
-# call is about to push rather than assume it; lowercall.bas says so in its own
-# comment and is the model.
-#
-# This is Phase-6 debt surfaced by Phase-7 groundwork. Fixing it is tracked in HANDOFF;
-# what must not happen is the number drifting upward unnoticed.
+# A FAMILY LIST IS NOT KEPT HERE ANY MORE. The last one had five entries and two were
+# already false when they were read -- a stale breakdown is worse than none, because it
+# is read as a diagnosis. If failures come back, derive the list at that moment.
 #
 # The two breakdowns say WHICH thing to implement next; a single total invites guessing.
 # They divide the declines into statements never STARTED (the dispatch) and statements
