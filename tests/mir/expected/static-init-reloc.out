@@ -10,11 +10,14 @@ func void S() {
 func void T() {
   entry0:
     %1 = load @@T$f
-    call.rtl void fb_PrintULongint(0, %1, 2)
-    %2 = load @@T$g
+    %2 = bitcast %1
     call.rtl void fb_PrintULongint(0, %2, 2)
-    %3 = load @@T$h
-    call.rtl void fb_PrintULongint(0, %3, 1)
+    %3 = load @@T$g
+    %4 = bitcast %3
+    call.rtl void fb_PrintULongint(0, %4, 2)
+    %5 = load @@T$h
+    %6 = bitcast %5
+    call.rtl void fb_PrintULongint(0, %6, 1)
     ret
 }
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
@@ -40,4 +43,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 19 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 22 insts, 0 statements not lowered, 0 scope imbalance

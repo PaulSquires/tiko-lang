@@ -58,27 +58,30 @@ func i32 main(i32 $0, ptr $1) {
     %15 = call ptr FZ(%14)
     store @p3, %15
     %16 = load @p1
-    call.rtl void fb_PrintULongint(0, %16, 2)
-    %17 = load @p2
+    %17 = bitcast %16
     call.rtl void fb_PrintULongint(0, %17, 2)
-    %18 = load @p3
-    call.rtl void fb_PrintULongint(0, %18, 1)
-    %19 = alloca ptr x
-    %20 = alloca ptr y
-    %21 = const i64 7
-    %22 = trunc %21
-    store @y, %22
-    %23 = alloca ptr px
+    %18 = load @p2
+    %19 = bitcast %18
+    call.rtl void fb_PrintULongint(0, %19, 2)
+    %20 = load @p3
+    %21 = bitcast %20
+    call.rtl void fb_PrintULongint(0, %21, 1)
+    %22 = alloca ptr x
+    %23 = alloca ptr y
+    %24 = const i64 7
+    %25 = trunc %24
+    store @y, %25
+    %26 = alloca ptr px
     store @px, @x
     call void G(@x, @y)
-    %24 = load @px
-    call void G(%24, @y)
-    %25 = load @x
-    call.rtl void fb_PrintInt(0, %25, 1)
-    %26 = const i32 0
-    call.rtl void fb_End(%26)
-    %27 = load @$tmp0
-    ret %27
+    %27 = load @px
+    call void G(%27, @y)
+    %28 = load @x
+    call.rtl void fb_PrintInt(0, %28, 1)
+    %29 = const i32 0
+    call.rtl void fb_End(%29)
+    %30 = load @$tmp0
+    ret %30
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -86,4 +89,4 @@ declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 60 insts, 0 statements not lowered, 0 scope imbalance

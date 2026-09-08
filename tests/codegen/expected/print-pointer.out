@@ -1,0 +1,55 @@
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-w64-windows-gnu"
+
+
+define i32 @"F"() nounwind {
+L0:
+  %s0 = alloca i32, align 4
+  store i32 0, ptr %s0, align 4
+  %t4 = trunc i64 0 to i32
+  ret i32 %t4
+
+}
+
+define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+L0:
+  %s0 = alloca i32, align 4
+  store i32 0, ptr %s0, align 4
+  call void @"fb_Init"(i32 %p0, ptr %p1, i32 0)
+  %s1 = alloca [8 x i8], align 8
+  call void @"_ZN5OUTERC1Ev"(ptr %s1)
+  %t5 = getelementptr i8, ptr %s1, i64 0
+  %t6 = load ptr, ptr %t5, align 8
+  %t7 = ptrtoint ptr %t6 to i64
+  call void @"fb_PrintULongint"(i32 0, i64 %t7, i32 1)
+  %s2 = alloca ptr, align 8
+  %t9 = load ptr, ptr %s2, align 8
+  %t10 = ptrtoint ptr %t9 to i64
+  call void @"fb_PrintULongint"(i32 0, i64 %t10, i32 1)
+  %s3 = alloca ptr, align 8
+  %t12 = load ptr, ptr %s3, align 8
+  %t13 = ptrtoint ptr %t12 to i64
+  call void @"fb_PrintULongint"(i32 0, i64 %t13, i32 1)
+  %s4 = alloca ptr, align 8
+  store ptr @"F", ptr %s4, align 8
+  %t16 = load ptr, ptr %s4, align 8
+  %t17 = ptrtoint ptr %t16 to i64
+  call void @"fb_PrintULongint"(i32 0, i64 %t17, i32 1)
+  call void @"fb_End"(i32 0)
+  %t19 = load i32, ptr %s0, align 4
+  ret i32 %t19
+
+}
+
+define void @"_ZN5OUTERC1Ev"(ptr %p0) nounwind {
+L0:
+  %t1 = getelementptr i8, ptr %p0, i64 0
+  %t3 = inttoptr i64 0 to ptr
+  store ptr %t3, ptr %t1, align 8
+  ret void
+
+}
+
+declare void @"fb_Init"(i32, ptr, i32)
+declare void @"fb_PrintULongint"(i32, i64, i32)
+declare void @"fb_End"(i32)

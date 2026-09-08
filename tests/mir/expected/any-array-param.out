@@ -203,18 +203,21 @@ func i32 main(i32 $0, ptr $1) {
     %128 = call ptr DESCOF(@dyn)
     store @d3, %128
     %129 = load @d1
-    call.rtl void fb_PrintULongint(0, %129, 2)
-    %130 = load @d2
+    %130 = bitcast %129
     call.rtl void fb_PrintULongint(0, %130, 2)
-    %131 = load @s
-    call.rtl void fb_PrintLongint(0, %131, 2)
-    %132 = load @d3
-    call.rtl void fb_PrintULongint(0, %132, 1)
-    %133 = call.rtl i32 fb_ArrayErase(@dyn)
-    %134 = const i32 0
-    call.rtl void fb_End(%134)
-    %135 = load @$tmp0
-    ret %135
+    %131 = load @d2
+    %132 = bitcast %131
+    call.rtl void fb_PrintULongint(0, %132, 2)
+    %133 = load @s
+    call.rtl void fb_PrintLongint(0, %133, 2)
+    %134 = load @d3
+    %135 = bitcast %134
+    call.rtl void fb_PrintULongint(0, %135, 1)
+    %136 = call.rtl i32 fb_ArrayErase(@dyn)
+    %137 = const i32 0
+    call.rtl void fb_End(%137)
+    %138 = load @$tmp0
+    ret %138
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr DESCOF(void $0)
@@ -225,4 +228,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare i32 fb_ArrayErase(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 203 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 206 insts, 0 statements not lowered, 0 scope imbalance

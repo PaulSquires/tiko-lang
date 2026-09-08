@@ -18,15 +18,16 @@ func void P() {
     %7 = load @d
     call.rtl void fb_PrintDouble(0, %7, 1)
     %8 = load @p
-    call.rtl void fb_PrintULongint(0, %8, 1)
-    %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
-    call.rtl void fb_PrintString(0, %9, 1)
+    %9 = bitcast %8
+    call.rtl void fb_PrintULongint(0, %9, 1)
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    call.rtl void fb_PrintString(0, %10, 1)
     call.rtl void fb_PrintString(0, @s, 0)
-    %10 = load @n
-    call.rtl void fb_PrintInt(0, %10, 1)
-    call.rtl void fb_PrintString(0, @s, 2)
     %11 = load @n
     call.rtl void fb_PrintInt(0, %11, 1)
+    call.rtl void fb_PrintString(0, @s, 2)
+    %12 = load @n
+    call.rtl void fb_PrintInt(0, %12, 1)
     call.rtl void fb_PrintString(0, @s, 0)
     call.rtl void fb_StrDelete(@s)
     ret
@@ -40,4 +41,4 @@ declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_StrDelete(ptr $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 24 insts, 0 statements not lowered, 0 scope imbalance

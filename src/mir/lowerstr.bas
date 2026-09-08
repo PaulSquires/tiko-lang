@@ -756,11 +756,21 @@ end function
 
 
 '' The print entry point for a type. There is no generic one, and a POINTER has none of
-'' its own -- fbc sends it through fb_PrintULongint.
+'' its own -- fbc sends it through the UNSIGNED entry point OF ITS OWN WIDTH. Measured:
+''
+''     print p     fb_PrintULongint( 0, (uint64)P$0, 1 )     -- 64-bit
+''     print p     fb_PrintUInt( 0, (uint32)P$0, 1 )         -- 32-bit
+''
+'' so it branches on pointerBits exactly as UINTEGER does below. The CAST in those
+'' lines matters as much as the entry point: what is handed over is an INTEGER, not a
+'' pointer. PrintOne coerces it -- passing the MT_PTR straight through named
+'' fb_PrintULongint with a 'ptr' operand, and clang refused the whole module.
 function PrintRtlFor( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
     if t = Tko.TYPE_NONE then return RTL_NONE
     select case c.types->Kind( t )
-    case Tko.TK_POINTER, Tko.TK_PROC : return RTL_PRINT_ULONGINT
+    case Tko.TK_POINTER, Tko.TK_PROC
+        if c.types->target.pointerBits = 32 then return RTL_PRINT_UINT
+        return RTL_PRINT_ULONGINT
     case Tko.TK_ENUM                 : return RTL_PRINT_INT
     case Tko.TK_BUILTIN
         select case c.types->BuiltinOf( t )

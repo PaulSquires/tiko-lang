@@ -1,0 +1,33 @@
+'' A POINTER PRINTS AS AN UNSIGNED INTEGER, AND THE CONVERSION IS AN INSTRUCTION.
+''
+'' PrintRtlFor already chose fb_PrintULongint for a pointer -- measured, that is what
+'' fbc calls -- but PrintOne coerced the value to 'LowerType( t )', which for a pointer
+'' is MT_PTR: a no-op. The ptr went into the i64 parameter unchanged and clang refused
+'' the module outright with "'%t8' defined with type 'ptr' but expected 'i64'". Not a
+'' wrong number -- no object at all, for any program that prints a pointer.
+''
+'' Measured with fbc (fbc64 -r), which writes the cast into the call itself:
+''
+''     print o.b     fb_PrintULongint( 0, *(uint64*)&O$0, 1 )
+''     print ap      fb_PrintULongint( 0, (uint64)AP$0, 1 )
+''     print fp      fb_PrintULongint( 0, (uint64)FP$0, 1 )
+''
+'' A PROCEDURE POINTER TAKES THE SAME PATH as a data one, which is why one is here:
+'' TK_PROC shares the branch, and nothing else in the suite prints one.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/print-pointer.bas
+'' EXPECT-EXIT: 0
+
+'' THE DECLARATION IS THE CONTRACT the call has to match. It is written from the
+'' entry point's own signature, so it cannot drift with the argument.
+'' EXPECT-OUT: declare void @"fb_PrintULongint"(i32, i64, i32)
+
+'' AND THE CONVERSION ITSELF. 'ptrtoint' is the instruction Coerce emits for MT_PTR to
+'' the pointer-sized integer; asserting only the call would pass again the moment the
+'' operand went back to being a raw ptr, because the call TEXT is the same either way.
+'' EXPECT-OUT: = ptrtoint ptr
+
+'' NO CALL TAKES A 'ptr' IN THAT SLOT. This is the assertion that actually failed
+'' before the fix -- the four prints emitted four of these.
+'' EXPECT-NOT: @"fb_PrintULongint"(i32 0, ptr
+'' GOLDEN: expected/print-pointer.out

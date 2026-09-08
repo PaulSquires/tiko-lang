@@ -797,7 +797,19 @@ function PrintOne _
     if which = RTL_NONE then return false
     dim as MirValue v = LowerExpr( c, it )
     if v.kind = cast( ubyte, MV_NONE ) then return false
-    v = Coerce( c, v, LowerType( t, *c.types ) )
+
+    '' A POINTER PRINTS AS AN UNSIGNED INTEGER, and it must be COERCED into one first.
+    '' LowerType of a pointer is MT_PTR, so this coercion was a no-op and the ptr went
+    '' into fb_PrintULongint's i64 slot unchanged: "'%t8' defined with type 'ptr' but
+    '' expected 'i64'" and clang refused the module -- not a wrong number, no module at
+    '' all. Measured, fbc writes the cast out: 'fb_PrintULongint( 0, (uint64)P$0, 1 )'.
+    '' The width is the POINTER'S, matching the entry point PrintRtlFor chose.
+    dim as MirType pty = LowerType( t, *c.types )
+    if pty = MT_PTR then
+        pty = MT_I64
+        if c.types->target.pointerBits = 32 then pty = MT_I32
+    end if
+    v = Coerce( c, v, pty )
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
     PushConst( args, mask )
     EmitRtl( c, which, args )

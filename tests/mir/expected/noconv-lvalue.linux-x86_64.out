@@ -71,21 +71,23 @@ func i32 main(i32 $0, ptr $1) {
     %41 = load @j
     call.rtl void fb_PrintInt(0, %41, 2)
     %42 = load @pj
-    call.rtl void fb_PrintULongint(0, %42, 2)
-    %43 = load @pk
+    %43 = bitcast %42
     call.rtl void fb_PrintULongint(0, %43, 2)
-    %44 = load @w
-    call.rtl void fb_PrintInt(0, %44, 2)
-    %45 = load @w2
-    call.rtl void fb_PrintInt(0, %45, 2)
-    %46 = load @r
+    %44 = load @pk
+    %45 = bitcast %44
+    call.rtl void fb_PrintULongint(0, %45, 2)
+    %46 = load @w
     call.rtl void fb_PrintInt(0, %46, 2)
+    %47 = load @w2
+    call.rtl void fb_PrintInt(0, %47, 2)
+    %48 = load @r
+    call.rtl void fb_PrintInt(0, %48, 2)
     call.rtl void fb_PrintWstr(0, @ws, 1)
     call.rtl void fb_StrDelete(@cmd)
-    %47 = const i32 0
-    call.rtl void fb_End(%47)
-    %48 = load @$tmp0
-    ret %48
+    %49 = const i32 0
+    call.rtl void fb_End(%49)
+    %50 = load @$tmp0
+    ret %50
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_Width(i32 $0, i32 $1)
@@ -103,4 +105,4 @@ declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 71 insts, 0 statements not lowered, 0 scope imbalance

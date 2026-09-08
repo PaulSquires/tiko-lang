@@ -7,30 +7,40 @@ global var ptr pl
 func void REFUSED() {
   entry0:
     %1 = load @@c
-    call.rtl void fb_PrintULongint(0, %1, 1)
-    %2 = load @@c
+    %2 = bitcast %1
     call.rtl void fb_PrintULongint(0, %2, 1)
-    %3 = load @@ip
-    call.rtl void fb_PrintULongint(0, %3, 1)
-    %4 = load @@g
+    %3 = load @@c
+    %4 = bitcast %3
     call.rtl void fb_PrintULongint(0, %4, 1)
+    %5 = load @@ip
+    %6 = bitcast %5
+    call.rtl void fb_PrintULongint(0, %6, 1)
+    %7 = load @@g
+    %8 = bitcast %7
+    call.rtl void fb_PrintULongint(0, %8, 1)
     ret
 }
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 func void ACCEPTED() {
   entry0:
     %1 = load @@c
-    call.rtl void fb_PrintULongint(0, %1, 1)
-    %2 = load @@p
+    %2 = bitcast %1
     call.rtl void fb_PrintULongint(0, %2, 1)
-    %3 = load @@g
-    call.rtl void fb_PrintULongint(0, %3, 1)
-    %4 = load @@c
+    %3 = load @@p
+    %4 = bitcast %3
     call.rtl void fb_PrintULongint(0, %4, 1)
-    %5 = load @@ap
-    call.rtl void fb_PrintULongint(0, %5, 1)
-    %6 = load @@pl
+    %5 = load @@g
+    %6 = bitcast %5
     call.rtl void fb_PrintULongint(0, %6, 1)
+    %7 = load @@c
+    %8 = bitcast %7
+    call.rtl void fb_PrintULongint(0, %8, 1)
+    %9 = load @@ap
+    %10 = bitcast %9
+    call.rtl void fb_PrintULongint(0, %10, 1)
+    %11 = load @@pl
+    %12 = bitcast %11
+    call.rtl void fb_PrintULongint(0, %12, 1)
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -49,7 +59,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 28 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 38 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/derived-ptr-cast.bas(42,17): error TKO0627: a pointer to a derived type casts only along its own chain
      |
   42 |     print cptr( integer ptr, c )
