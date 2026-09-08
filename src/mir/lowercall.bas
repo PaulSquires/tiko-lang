@@ -324,8 +324,30 @@ function LowerCallParts _
     '' both read from it, and it is destroyed at the END OF THE STATEMENT -- measured,
     '' and registered below beside the string temporaries, which have the same life.
     dim as MirValue sretTmp
+    '' A BYREF RETURN TAKES NO HIDDEN POINTER. It hands back an ADDRESS -- there is
+    '' nothing to construct into and nothing to copy -- and the definition already
+    '' knows that: lowerproc gives it MT_PTR and no extra parameter.
+    ''
+    '' This side asked only whether the TYPE wants an sret return, which is true of
+    '' any UDT with a destructor, and pushed a temporary. So
+    ''
+    ''     function f( ) byref as UDT      -- UDT having a destructor
+    ''
+    '' emitted 'call ptr F(@$tmp1)' against 'func ptr F()': the verifier's 'calls F
+    '' with 1 arguments, which declares 0'. Without the destructor the same function
+    '' verified clean, which is what made it look like a destructor problem rather
+    '' than a byref one.
+    dim as boolean calleeByrefRet = false
+    if cs <> 0 then
+        dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
+        if cpn <> Tko.NODE_NONE then
+            if (c.ast->nodes[cast( long, cpn )].flags and Tko.NF_BYREF) <> 0 then
+                calleeByrefRet = true
+            end if
+        end if
+    end if
     if (cs <> 0) andalso (cs->kind = cast( ubyte, Tko.SYM_PROC )) then
-        if UsesSretReturn( c, cs->type_ ) then
+        if UsesSretReturn( c, cs->type_ ) andalso (calleeByrefRet = false) then
             dim as long tslot = _
                 NewTempLocal( c, MT_AGG, SizeOfType( c, cs->type_ ) )
             if tslot < 0 then return CallFailed_( c, v, __LINE__ )
@@ -930,6 +952,18 @@ function LowerCallParts _
     if byrefRet then
         callTy = MT_PTR
         if mt = MT_AGG then byrefRet = false
+        '' ...AND WHEN THE REFERENT IS AN AGGREGATE but the call's own type is not.
+        '' 'function f( ) byref as UDT' has expression type REFERENCE-TO-UDT, which
+        '' lowers to MT_PTR, so the test above does not fire and a load was emitted
+        '' through the returned address -- reading the object's first field AS a
+        '' pointer. 'f( ).dummy' then took field 0 of 123 and the program died.
+        ''
+        '' It only became reachable when the sret temporary stopped being pushed for
+        '' a byref return: before that byrefRet was never computed here at all, and
+        '' the arity mismatch meant the program did not link in the first place.
+        if cs <> 0 then
+            if c.types->Kind( cs->type_ ) = Tko.TK_UDT then byrefRet = false
+        end if
         '' ...and a DISCARDED result has nothing to read through. 'f1( 123 )' as a
         '' statement asks for no type, and loading MT_VOID answers with nothing --
         '' which turned a working call into a decline.

@@ -10,7 +10,7 @@
 # VERIFIER FAILURES ARE NOT ZERO AT BASELINE ANY MORE, and the count is stated here so
 # that a NEW one is visible rather than lost in a total:
 #
-#     52 verify failures in 10 files
+#     9 verify failures in 4 files
 #
 # All of them are the CALL-ARITY rule (docs/plan/09 rule 5), which could not be checked
 # until a MirFunction carried a signature rather than an arity -- before that a
@@ -29,24 +29,28 @@
 # 60 in 12 until the GLOBAL-OPERATOR declaration reported its hidden result pointer
 # (2026-09-07): 8 more, two files.
 #
+# 52 in 10 until a BYREF RETURN stopped being given an sret temporary (2026-09-07):
+# 43 more, six files. That one was expected to clear two and cleared forty-three --
+# the mismatch was in every call to a byref-returning function whose type had a
+# destructor, not in the one file it was found in.
+#
 # THE FAMILY LIST BELOW WAS RE-DERIVED, not edited. Two of its five entries were
 # already false by the time they were read: FB.LOGEVENT had gone with the constructor
 # fix without anyone noticing, and the constructor entry described the wrong cause.
 # A stale breakdown is worse than no breakdown -- it is read as a diagnosis.
 #
 # The families, so that a new failure can be told from an old one. Measured
-# 2026-09-07 by dumping every corpus file, not carried forward:
+# 2026-09-07 THE WAY THIS SCRIPT MEASURES: -i <corpus>/fbcunit/inc AND TKO_INCLUDE
+# set. Both matter and each was got wrong once while deriving this list -- without
+# the first, fbcunit does not expand and six unrelated 'f4' collapse onto one name;
+# without the second, four files fail that do not fail here. A breakdown taken with
+# a different invocation is not comparable to the count above it.
 #
-#      4  virtual/byval-copy    CHECKBYVALPARAMA got=4 want=2
-#      4  functions/return-byref  F4 got=1 want=0 -- a receiver passed to a free
-#         function, which is the mirror of the anon-access shape below
-#      3  structs/anon-access   COPYTOGLOBAL got=0 want=1 -- a paren-less member
-#         call passing NO receiver
-#      2  dim/redim             UDT.F1 got=3 want=1
-#      2  expressions/selfbops  F got=2 want=0
-#      2  typedef/backpatch
-#      1  each: com/comptr, comptr-qi, comptr-companions, concurrency/sched,
-#         functions/ignore-result, structs/obj_meth_ovld_sub
+#      5  structs/anon-access      ATBEGINOFSTATEMENT.UDT -- a paren-less member
+#         call passing NO receiver where one is declared
+#      2  namespace/outside        a namespaced global 'operator +'
+#      1  structs/obj_meth_ovld_sub  FOO.BAR got=2 want=1
+#      1  structs/obj_property_alias UDT.getv property accessor
 #
 # THE SHAPE THEY SHARE is the one both fixes above were: a hidden parameter -- the
 # result pointer or the receiver -- that the CALL passes and the DECLARATION does not
