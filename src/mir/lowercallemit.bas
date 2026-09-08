@@ -80,6 +80,36 @@ function EmitDirectCall_ _
     return Emit( c, ins )
 end function
 
+'' WHAT A MEMBER CALLEE ACTUALLY RETURNS, read off the callee rather than derived from
+'' its declared type. Returns MT_VOID when this module has not emitted the function yet,
+'' which is the caller's cue to fall back to the type.
+''
+'' Deriving it is what went wrong: 'operator []( index as integer ) as string' returns by
+'' value, and a var-length string travels back as a POINTER to its descriptor -- the
+'' definition comes out 'func ptr' with no hidden parameter at all. A caller that asked
+'' LowerType( string ) emitted 'call agg' against 'func ptr' and the reader then had an
+'' aggregate where a descriptor belonged, so the whole statement declined. The same
+'' mistake in the other direction is the one recorded on hasSretParam: 'operator cast'
+'' returns a UDT with a destructor and takes NO hidden pointer, because fbc gives it a
+'' static result, while an ordinary member returning that type does take one.
+function MemberCallRetTy_ _
+    ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
+    if s = 0 then return MT_VOID
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return MT_VOID
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return MT_VOID
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            return cast( MirType, c.m->functions[i]->retTy )
+        end if
+    next
+    return MT_VOID
+end function
+
 function EmitMemberCallArgs_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
       byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue

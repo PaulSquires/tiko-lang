@@ -436,6 +436,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
           byref args as FB.Array( of ulong ), _
           byval withSret as boolean = false ) as MirValue
+    declare function MemberCallRetTy_ _
+        ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
     declare function EmitMemberCallArgs_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
           byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue

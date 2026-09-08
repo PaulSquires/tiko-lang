@@ -477,10 +477,21 @@ function LowerUdtIndexOp_ _
         end if
     end if
 
+    '' WHAT THE CALLEE RETURNS, asked of the callee. 'operator []( index as integer ) as
+    '' string' returns by VALUE and still comes back as a POINTER to a descriptor -- the
+    '' definition is 'func ptr' -- so deriving the call's type from 'as string' emitted
+    '' 'call agg' against it and the whole statement declined. Where the callee has not
+    '' been emitted yet the declared type is all there is, which is the shape this had.
     dim as MirType rt = MT_PTR
     if outByref = false then
-        rt = LowerType( ixsym->type_, *c.types )
+        rt = MemberCallRetTy_( c, ixs )
+        if rt = MT_VOID then rt = LowerType( ixsym->type_, *c.types )
         if rt = MT_VOID then return false
+        '' A POINTER RESULT IS AN ADDRESS, whatever made it one, and the reader loads
+        '' through it exactly as it does for a byref result.
+        if (rt = MT_PTR) andalso (LowerType( ixsym->type_, *c.types ) <> MT_PTR) then
+            outByref = true
+        end if
     end if
 
     dim as FB.Array( of ulong ) ia
