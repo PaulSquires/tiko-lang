@@ -715,6 +715,28 @@ function Run( byref args as Tko.StrVec ) as long
             dim as Tko.SemanticInfo info
             Tko.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info )
 
+            '' '#pragma reserve NAME' TAKES A NAME OUT OF CIRCULATION -- fbc error 4 for
+            '' anything that then declares it. The two halves of that fact meet HERE and
+            '' nowhere else: the reserved names are the PREPROCESSOR's, and whether a
+            '' name was declared is COLLECT's, and neither phase can see the other's.
+            '' The engine that read the directive has already closed, which is why the
+            '' list travels on the result.
+            '' EVERY SYMBOL, not a lookup in the global scope: a module-level 'dim'
+            '' lands in the FILE's scope and a 'sub' in its own, so asking SCOPE_GLOBAL
+            '' found neither and the check silently never fired. The reserved list is a
+            '' handful of names and the table is walked once.
+            for k as long = 0 to pr.reservedNames.Count - 1
+                dim as Tko.InternId rnm = cast( Tko.InternId, pr.reservedNames[k] )
+                for si as long = 1 to syms.Count( )
+                    dim as Tko.Symbol ptr rsym = syms.SymbolAt( cast( Tko.SymbolId, si ) )
+                    if rsym = 0 then continue for
+                    if rsym->name <> rnm then continue for
+                    ctx.diags.Report( Tko.TKO0769, Tko.PointRange( rsym->loc ), _
+                                      ctx.names.Spelling( rnm ) )
+                    exit for
+                next
+            next
+
             if ctx.options.dumpVtable then
                 '' Matching an override needs the PARAMETER TYPES, so this runs after
                 '' Resolve like the layout pass does.

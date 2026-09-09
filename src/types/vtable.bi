@@ -45,7 +45,12 @@ namespace Tko
         VTM_BYREF          '' fbc 231 -- a parameter's byref-ness differs
         VTM_RANK           '' fbc 231 / 223 -- a bydesc parameter's rank differs
         VTM_CALLCONV       '' fbc 226 -- the calling conventions differ on this target
+        '' fbc 227 -- the base's virtual destructor has a convention an IMPLICIT one
+        '' cannot match. Its 'decl' is the DERIVED TYPE's node, not a procedure's:
+        '' there is no declaration to point at, which is the whole complaint.
+        VTM_IMPL_DTOR_CC
     end enum
+
 
     type VtMismatch
         as NodeId decl     '' the DERIVED declaration, which is where fbc points

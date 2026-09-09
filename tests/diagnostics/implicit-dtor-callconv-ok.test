@@ -1,0 +1,6 @@
+'' The four shapes fbc ACCEPTS, which is the half that keeps this rule from refusing
+'' ordinary code. See the source for what each one is.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/implicit-dtor-callconv-ok.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0

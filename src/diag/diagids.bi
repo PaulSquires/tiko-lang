@@ -384,6 +384,17 @@
     '' 'stdcall' overriding 'cdecl' is accepted on win64 and refused on 32-bit, which is
     '' fbc's own rule and measured both ways round.
     DIAG( TKO0767, SEV_ERROR,   "'%0' overrides a virtual method with a different calling convention" )
+
+    '' fbc 227. The derived type declares NO destructor, so the one it gets is implicit
+    '' and has the DEFAULT convention -- which cannot override a base destructor
+    '' declared 'pascal'. Declaring one explicitly with the base's convention is the fix.
+    DIAG( TKO0768, SEV_ERROR,   "'%0' inherits a virtual destructor whose calling convention an implicit one cannot match" )
+
+    '' fbc 4, reached a different way: the name was taken out of circulation by
+    '' '#pragma reserve' before anything tried to declare it. Only the PLAIN form does
+    '' that -- '( asm )' and '( extern )' reserve the name for the assembler and the
+    '' linker, and fbc still lets the source declare it. Measured, all four spellings.
+    DIAG( TKO0769, SEV_ERROR,   "'%0' is reserved by '#pragma reserve' and cannot be declared" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
     '' fbc's error 158, twice over.

@@ -684,6 +684,17 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                     else
                         e.reserveNames.Push( cast( ulong, rid ) )
                         e.reserveModes.Push( cast( ulong, modes ) )
+                        '' ...AND ONTO THE RESULT, which outlives this engine. Only the
+                        '' plain form reserves the name for the LANGUAGE: '( asm )' and
+                        '' '( extern )' reserve it for the assembler and the linker, and
+                        '' fbc still lets the source declare it. Measured: 'reserve foo'
+                        '' then 'dim as integer foo' is error 4, and the parenthesised
+                        '' forms are accepted.
+                        if (modes and 1) <> 0 then
+                            if e.outp <> 0 then
+                                e.outp->reservedNames.Push( cast( ulong, rid ) )
+                            end if
+                        end if
                     end if
                 end if
             end if

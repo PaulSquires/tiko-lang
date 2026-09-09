@@ -336,6 +336,86 @@ end function
 
 '' One type's table: the base's slots, then this type's own virtuals, with an override
 '' REPLACING the slot it matches rather than appending.
+'' The DESTRUCTOR this type declares itself, or NODE_NONE. Its own, not an inherited
+'' one: the whole question below is what happens when a type declares none.
+private function DeclaredDtorOf_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, _
+      byval ts as SymbolId ) as NodeId
+
+    dim as Symbol ptr s = syms.SymbolAt( ts )
+    if s = 0 then return NODE_NONE
+    if s->inner = SCOPE_NONE then return NODE_NONE
+    dim as SymScope ptr sc = syms.ScopeAt( s->inner )
+    if sc = 0 then return NODE_NONE
+    dim as SymbolId cur = sc->firstSym
+    dim as long guard = 0
+    while (cur <> SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Symbol ptr m = syms.SymbolAt( cur )
+        if m = 0 then exit while
+        dim as SymbolId ov = cur
+        while ov <> SYMBOL_NONE
+            dim as Symbol ptr mo = syms.SymbolAt( ov )
+            if mo = 0 then exit while
+            if mo->kind = cast( ubyte, SYM_PROC ) then
+                dim as NodeId d = cast( NodeId, mo->payload )
+                if (d <> NODE_NONE) andalso (ast.Kind( d ) = N_PROC) then
+                    dim as StmtPayload ptr dsp = _
+                        @ast.stmts[cast( long, ast.nodes[cast( long, d )].data )]
+                    if cast( TokenKind, dsp->op ) = KW_DESTRUCTOR then return d
+                end if
+            end if
+            ov = mo->nextOverload
+        wend
+        cur = m->nextInScope
+    wend
+    return NODE_NONE
+end function
+
+'' fbc 227: A TYPE THAT DECLARES NO DESTRUCTOR GETS AN IMPLICIT ONE, and an implicit one
+'' has the DEFAULT calling convention. If the base's virtual destructor was declared
+'' 'pascal', the implicit override cannot match it and fbc refuses the derived type.
+''
+'' Measured, and each clause below is one of the answers:
+''
+''     base virtual destructor pascal, derived declares nothing    error 227
+''     base destructor pascal but NOT virtual                      accepted
+''     base virtual SUB pascal, derived declares nothing           accepted
+''     base virtual destructor stdcall, derived nothing            accepted on win64
+''     derived declares 'destructor pascal( )'                     accepted
+''
+'' ONLY THE IMMEDIATE BASE, and only its DECLARED destructor. For A(pascal) <- B <- C
+'' fbc reports ONE error, against B -- not two. That is not first-error-wins: B's
+'' implicit destructor has the default convention, so C inheriting THAT matches its own
+'' implicit one. Walking further up would invent a second complaint fbc does not make.
+private sub CheckImplicitDtorConv_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref store as VTables, byval ts as SymbolId, byval bt as TypeId )
+
+    if bt = TYPE_NONE then return
+    dim as Symbol ptr s = syms.SymbolAt( ts )
+    if s = 0 then return
+    if DeclaredDtorOf_( ast, syms, ts ) <> NODE_NONE then return
+
+    dim as SymbolId bs = UdtSymbolOf_( syms, types, bt )
+    if bs = SYMBOL_NONE then return
+    dim as NodeId bd = DeclaredDtorOf_( ast, syms, bs )
+    if bd = NODE_NONE then return
+    dim as StmtPayload ptr bsp = _
+        @ast.stmts[cast( long, ast.nodes[cast( long, bd )].data )]
+    if (bsp->extra and PF_VIRTUAL) = 0 then return
+
+    '' AGAINST THE DEFAULT, which is what an implicit destructor is given -- so the
+    '' comparison is the base's flags against none, through the same target-aware test
+    '' an explicit override uses.
+    if CallConvDiffers_( types, bsp->extra, 0 ) = false then return
+
+    dim as NodeId tn = cast( NodeId, s->payload )
+    if tn = NODE_NONE then return
+    if ast.Kind( tn ) <> N_TYPE then return
+    NoteMismatch_( store, tn, VTM_IMPL_DTOR_CC )
+end sub
+
 private function BuildOne_ _
     ( byval t as TypeId, byref ast as AstArena, byref syms as SymbolTable, _
       byref types as TypeContext, byref info as SemanticInfo, _
@@ -433,6 +513,8 @@ private function BuildOne_ _
             wend
         end if
     end if
+
+    CheckImplicitDtorConv_( ast, syms, types, store, ts, bt )
 
     store.types_.Push( v )
     return true

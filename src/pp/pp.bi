@@ -141,6 +141,13 @@ namespace Tko
         '' what it already does for the runtime archives and works under lld-link
         '' too -- ':' is GNU ld syntax and the MSVC driver has no equivalent.
         as StrVec   foreignLibFiles
+        '' '#pragma reserve NAME' -- the names a translation unit has taken out of
+        '' circulation. On the RESULT for the same reason incLibs is: the engine closes
+        '' with the preprocess and this outlives it, because the thing that has to see a
+        '' reserved name is COLLECT, which runs afterwards. Recorded in the engine as
+        '' well, where the duplicate-reserve check needs them while directives are still
+        '' being read.
+        as IdVec    reservedNames
         '' The bound names, so 'declare ... lib IDENT' can be checked against them.
         '' Stored as 'ID' & tab & 'signature': the same name twice with a DIFFERENT
         '' set is an error, and with the same set is not.

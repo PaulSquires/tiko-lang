@@ -1,0 +1,6 @@
+'' fbc 227, reported against the TYPE because there is no declaration to point at --
+'' which is the complaint itself. virtual/incompatible-override-7.bas is this shape.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/implicit-dtor-callconv.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0768

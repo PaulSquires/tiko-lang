@@ -220,6 +220,17 @@ sub CheckOverrideCompatible _
     for i as long = 0 to store.mismatches.Count - 1
         dim as VtMismatch ptr m = @store.mismatches[i]
         if m->decl = NODE_NONE then continue for
+        '' fbc 227 IS REPORTED AGAINST A TYPE, not a procedure -- there is no
+        '' declaration to point at, which is the complaint itself. Its name comes from
+        '' the N_TYPE's own payload.
+        if cast( VtMismatchKind, m->kind ) = VTM_IMPL_DTOR_CC then
+            if ast.Kind( m->decl ) <> N_TYPE then continue for
+            dim as StmtPayload ptr tsp = _
+                @ast.stmts[cast( long, ast.nodes[cast( long, m->decl )].data )]
+            diags.Report( TKO0768, PointRange( ast.Loc( m->decl ) ), _
+                          names.Spelling( tsp->name ) )
+            continue for
+        end if
         if ast.Kind( m->decl ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = _
             @ast.stmts[cast( long, ast.nodes[cast( long, m->decl )].data )]

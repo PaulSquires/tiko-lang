@@ -1,0 +1,6 @@
+'' The half that keeps the rule from refusing ordinary code: only the PLAIN form
+'' reserves a name for the language. See the source for the measurement.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/reserve-ok.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0

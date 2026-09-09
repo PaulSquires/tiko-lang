@@ -1,0 +1,5 @@
+'' fbc 4, reached through '#pragma reserve' rather than through a second declaration.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/reserve-declared.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0769
