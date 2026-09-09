@@ -790,9 +790,65 @@ end sub
 '' 'on n GOSUB' is a separate statement -- it pushes a return address -- and is NOT
 '' lowered: it declines rather than jumping without one. 'on error goto' likewise; it
 '' needs the error-handler machinery, which is not built.
+'' 'ON ERROR GOTO label' and 'ON ERROR GOTO 0'. Measured from fbc's own C:
+''
+''     fb_ErrorSetHandler( &&label$2 );      installs
+''     fb_ErrorSetHandler( (void*)0ull );    'goto 0' clears it
+''
+'' The handler is an ADDRESS OF A LABEL -- GCC's '&&label', LLVM's blockaddress -- and
+'' the runtime hands it back from a failed check for the caller to jump to. That jump is
+'' the other half, at the check sites.
+''
+'' RESUME AND RESUME NEXT ARE NOT PART OF THIS and are not planned: fbc passes their
+'' addresses as fb_ErrorThrowAt's third and fourth arguments and passes NULL for both in
+'' a program that uses neither, which is what this emits.
+private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+
+    dim as FB.Array( of ulong ) args
+    if sp->name = 0 then
+        '' 'ON ERROR GOTO 0' -- a null handler. The parser leaves the name empty for the
+        '' integer form, which in the fb dialect can only be 0: a numeric label is fbc's
+        '' error 146 here, so there is no other integer to mean.
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( 0 )
+        EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
+        return
+    end if
+
+    dim as long slot = LabelSlot( c, sp->name )
+    dim as long d = c.labelDepth[slot]
+    if (d < 0) orelse (d = LABEL_AMBIGUOUS) then
+        SkipHere( c )
+        return
+    end if
+
+    '' THE ADDRESS IS NOT KNOWN YET, and cannot be made known by creating the block
+    '' early. A block is an EXTENT over the function's one instruction list, so blocks
+    '' have to be created in the order they are FILLED -- see Emit. Calling LabelBlockOf
+    '' here made the handler's block exist before the code between here and the label,
+    '' and everything after was then emitted into the wrong extent: the handler came out
+    '' as a bare 'br' into the jump block, the jump block branched back to it, and the
+    '' two formed a loop that hung the assembler. The IR read plausibly.
+    ''
+    '' So the operand goes out as a null placeholder and ResolveErrorJumps_ rewrites it
+    '' once the label has been reached and its block exists in order.
+    dim as long argAt = c.m->argPool.Count
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( 0 )
+    EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
+    c.errPendingArg.Push( cast( ulong, argAt ) )
+    c.errPendingSlot.Push( cast( ulong, slot ) )
+end sub
+
 sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    '' 1 is 'on error goto', 3 is 'on n gosub'; neither is this.
+    '' 'ON ERROR GOTO' is its own statement and not a computed goto at all.
+    if sp->extra = 1 then
+        LowerOnError_( c, id )
+        return
+    end if
+    '' 3 is 'on n gosub'; that is not this either.
     if sp->extra <> 2 then
         SkipHere( c )
         return

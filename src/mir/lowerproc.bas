@@ -749,6 +749,11 @@ sub LowerProc _
     ''
     '' Counted, not silent: a repair here always means something above declined, and a
     '' number that only ever goes down is worth being able to read.
+    '' EVERY ERROR JUMP GETS ITS DESTINATIONS. Done here because a check site can be
+    '' lowered before the ON ERROR that installs the handler, so the list is not knowable
+    '' where the jump is emitted -- only once the whole body has been seen.
+    ResolveErrorJumps_( c )
+
     '' THE RESTORE GOES BEFORE EVERY 'ret', because this IR has no single exit: a
     '' 'return' terminates whatever block it is in, so there is no one epilogue to
     '' append to the way fbc's single goto label gives it one.
@@ -1144,6 +1149,11 @@ sub LowerMainModule _
 
     '' The same repair the procedure path makes, for the same reason: module-level
     '' code is where the GOTO-into-a-declined-WITH files put their broken block.
+    '' EVERY ERROR JUMP GETS ITS DESTINATIONS. Done here because a check site can be
+    '' lowered before the ON ERROR that installs the handler, so the list is not knowable
+    '' where the jump is emitted -- only once the whole body has been seen.
+    ResolveErrorJumps_( c )
+
     '' THE RESTORE GOES BEFORE EVERY 'ret', because this IR has no single exit: a
     '' 'return' terminates whatever block it is in, so there is no one epilogue to
     '' append to the way fbc's single goto label gives it one.

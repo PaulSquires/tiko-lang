@@ -26,6 +26,30 @@ type Ctx
     as long                 errLevel
     '' The module name those checks report, filled once at entry.
     as string               errModName
+    '' 'ON ERROR GOTO label' -- the blocks a runtime error may jump to in the procedure
+    '' being lowered, and the blocks whose terminator is that jump.
+    ''
+    '' BOTH LISTS EXIST BECAUSE THE JUMP IS EMITTED BEFORE ITS DESTINATIONS ARE KNOWN.
+    '' A check site can be lowered long before the ON ERROR that installs the handler --
+    '' or after it -- so the indirectbr goes out with an empty destination list and the
+    '' list is filled once the procedure is finished. LLVM verifies that set, and an
+    '' omitted destination is a module it refuses.
+    as FB.Array( of ulong ) errHandlerBlocks
+    as FB.Array( of ulong ) errIndirectBlocks
+    '' 'ON ERROR GOTO label' WHERE THE LABEL IS NOT LOWERED YET, which is the usual
+    '' case: the handler sits at the end of the procedure and the statement naming it
+    '' at the top. A block cannot be created early to take its address -- blocks are
+    '' EXTENTS over one instruction list and must be created in the order they are
+    '' filled -- so the operand goes out as a placeholder and is rewritten once the
+    '' label has been reached. Parallel arrays: where the operand sits in the argument
+    '' pool, and which label slot it names.
+    as FB.Array( of ulong ) errPendingArg
+    as FB.Array( of ulong ) errPendingSlot
+    '' Whether this procedure has an ON ERROR at all, known before lowering starts.
+    '' Without a handler the runtime never returns from a failed check -- it aborts --
+    '' so the jump is dead code, and emitting it would mean an indirectbr with no
+    '' destinations, which LLVM will not take.
+    as boolean              hasErrHandler
     '' THE UNIT'S MODULE SCOPE, recorded once. Lowering has no scope of its own -- it
     '' walks a typed tree -- but a CONSTANT FOLD needs one: ConstOf answers 'unknown'
     '' for every identifier when it is handed no symbol table, and Lookup walks
@@ -235,6 +259,10 @@ declare function EmitRtl _
 
 
     '' lower.bas -- shared by the other lowering files.
+    '' lowerboundchk.bas -- the indirect jump a failed -e check hands back, and the
+    '' pass that gives it its destinations once the procedure's handlers are known.
+    declare sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
+    declare sub ResolveErrorJumps_( byref c as Ctx )
     declare function NewBlock( byref c as Ctx, byref label as string ) as long
     declare sub Terminate _
         ( byref c as Ctx, byval k as MirTermKind, byval t1 as long, _

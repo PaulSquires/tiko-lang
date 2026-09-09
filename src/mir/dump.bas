@@ -52,6 +52,7 @@ private function ValStr _
         end if
         return "@@?" & str( v.id )
     case MV_UNDEF       : return "undef"
+    case MV_BLOCKADDR   : return "blockaddr b" & str( v.id )
     end select
     return "_"
 end function
@@ -366,6 +367,13 @@ function DumpModule _
                         BlockName( *f, b->target2, names ) & chr( 10 )
             case MTERM_UNREACHABLE
                 outp += "    unreachable" & chr( 10 )
+            case MTERM_INDIRECTBR
+                outp += "    indirectbr " & ValStr( *f, b->cond, names, @m )
+                for ti as long = 0 to b->indirectTargets.Count - 1
+                    outp += ", " & BlockName( *f, _
+                        cast( long, b->indirectTargets[ti] ), names )
+                next
+                outp += chr( 10 )
             case else
                 '' Printed rather than hidden: a block with no terminator is exactly
                 '' what the verifier exists to catch, and the dump should show it.

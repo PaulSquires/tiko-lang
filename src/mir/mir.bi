@@ -232,6 +232,12 @@ namespace Tko.Mir
         MTERM_BR
         MTERM_CONDBR
         MTERM_UNREACHABLE
+        '' 'goto *p' -- the jump fb_ErrorThrowAt and the -e checks hand back. LLVM's
+        '' 'indirectbr' must list every block the jump can reach, so the destinations
+        '' are carried beside the value rather than being left implicit; without the
+        '' list the verifier rejects the module and the optimiser may delete the
+        '' handler as unreachable.
+        MTERM_INDIRECTBR
     end enum
 
     enum MirValueKind
@@ -243,6 +249,12 @@ namespace Tko.Mir
         MV_PARAM
         MV_GLOBAL
         MV_UNDEF
+        '' THE ADDRESS OF A BLOCK, for ON ERROR. 'id' is the block index within the
+        '' function this value appears in -- LLVM's 'blockaddress(@fn, %label)', and
+        '' GCC's '&&label', which is what fbc emits: 'fb_ErrorSetHandler( &&label$2 )'.
+        '' It exists for exactly one purpose and is not a general address: a block
+        '' address is only meaningful to the function that owns the block.
+        MV_BLOCKADDR
     end enum
 
     '' Eight bytes, per docs/plan/09 section 2.
@@ -282,6 +294,9 @@ namespace Tko.Mir
         as MirValue cond        '' MTERM_CONDBR / MTERM_RET value
         as long     target      '' MTERM_BR, or the TRUE arm of MTERM_CONDBR
         as long     target2     '' the FALSE arm
+        '' MTERM_INDIRECTBR only: every block 'goto *p' may reach, as block indices.
+        '' LLVM requires the list; see the enum.
+        as FB.Array( of ulong ) indirectTargets
     end type
 
     type MirBlockVec as FB.Array( of MirBlock )

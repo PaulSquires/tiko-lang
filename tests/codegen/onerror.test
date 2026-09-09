@@ -1,0 +1,12 @@
+'' ON ERROR GOTO, in the shape fbc emits. See the source.
+'' TEST: cli
+'' ARGS: -exx --emit-ir tests/codegen/src/onerror.bas
+'' EXPECT-EXIT: 0
+'' THE HANDLER IS A BLOCK ADDRESS, and blockaddress names the function it is in --
+'' a block address means nothing outside the function that owns the block.
+'' EXPECT-OUT: call ptr @"fb_ErrorSetHandler"(ptr blockaddress(@"RISKY"
+'' ...and the check's result is TESTED and JUMPED THROUGH, not discarded.
+'' EXPECT-OUT: indirectbr ptr
+'' EVERY REACHABLE BLOCK IS LISTED: LLVM verifies that set, and an omitted destination
+'' is a module it refuses -- an empty list would let the optimiser drop the handler.
+'' EXPECT-OUT: declare ptr @"fb_ErrorSetHandler"

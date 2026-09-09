@@ -181,6 +181,14 @@ private function ValStr( byref e as EmitCtx, byref v as MirValue ) as string
         Ice( e, "a global operand out of range" )
         return "undef"
     case MV_UNDEF       : return "undef"
+    case MV_BLOCKADDR
+        '' 'blockaddress(@fn, %label)'. It names the function it is IN, which is why
+        '' this needs the emitter's current function rather than the value alone -- a
+        '' block address is meaningless outside the function that owns the block, and
+        '' LLVM spells that ownership in the operand.
+        if e.f = 0 then Ice( e, "a block address outside a function" )
+        return "blockaddress(" & GlobalName( e, e.f->name ) & ", %" & _
+               BlockName( cast( long, v.id ) ) & ")"
     end select
     Ice( e, "an operand with no kind" )
     return "undef"
@@ -709,6 +717,17 @@ private sub EmitBlock _
                  ", label %" & BlockName( b.target2 ) )
     case MTERM_UNREACHABLE
         Line( e, "unreachable" )
+    case MTERM_INDIRECTBR
+        '' 'goto *p'. EVERY REACHABLE BLOCK MUST BE LISTED: LLVM verifies the set and
+        '' an omitted destination is a module it refuses, while an empty list would let
+        '' the optimiser delete the handler as unreachable and leave the jump pointing
+        '' at nothing.
+        dim as string dsts = ""
+        for ti as long = 0 to b.indirectTargets.Count - 1
+            if len( dsts ) > 0 then dsts += ", "
+            dsts += "label %" & BlockName( cast( long, b.indirectTargets[ti] ) )
+        next
+        Line( e, "indirectbr ptr " & ValStr( e, b.cond ) & ", [ " & dsts & " ]" )
     case else
         Ice( e, "a block with no terminator" )
     end select

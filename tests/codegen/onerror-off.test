@@ -1,0 +1,7 @@
+'' 'ON ERROR GOTO 0' clears the handler. See the source for why the integer form is the
+'' only one and what it used to parse as.
+'' TEST: cli
+'' ARGS: -exx --emit-ir tests/codegen/src/onerror-off.bas
+'' EXPECT-EXIT: 0
+'' The clearing call passes a null, not an address.
+'' EXPECT-OUT: call ptr @"fb_ErrorSetHandler"(ptr null)

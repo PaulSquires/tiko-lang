@@ -513,8 +513,21 @@ private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         Advance( p )
         sp.extra = 1
         if (Peek( p ) = Tko.KW_GOTO) orelse (Peek( p ) = Tko.KW_GOSUB) then Advance( p )
-        if (Peek( p ) = Tko.TK_IDENT) orelse (Peek( p ) = Tko.TK_INT_LIT) then
+        '' 'ON ERROR GOTO 0' DISABLES THE HANDLER, and it is the only integer spelling
+        '' that means anything here: a NUMERIC LABEL is fbc's error 146 in the fb
+        '' dialect -- 'Only valid in -lang deprecated or fblite or qb' -- so there is no
+        '' 'on error goto 5' to target.
+        ''
+        '' THE TWO CASES ARE NOT ONE. This took 'Cur( p ).literal' for both, and on an
+        '' INT_LIT that field is an index into the LITERAL POOL rather than an InternId:
+        '' 'on error goto 0' came out naming a label called 'chr', which is simply
+        '' whatever intern id 0 happens to be. It would have installed a handler at a
+        '' label nobody wrote.
+        if Peek( p ) = Tko.TK_IDENT then
             sp.name = cast( Tko.InternId, Cur( p ).literal )
+            Advance( p )
+        elseif Peek( p ) = Tko.TK_INT_LIT then
+            '' name stays 0, which is what lowering reads as 'disable'.
             Advance( p )
         end if
         return

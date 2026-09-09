@@ -92,11 +92,100 @@ sub EmitBoundsCheck_ _
     PushArg_( ba, fileV )
     PushArg_( ba, nameV )
 
+    dim as MirValue r
     if lo = 0 then
-        EmitRtl( c, RTL_ARRAY_SNG_BOUND_CHK_EX, ba )
+        r = EmitRtl( c, RTL_ARRAY_SNG_BOUND_CHK_EX, ba )
     else
-        EmitRtl( c, RTL_ARRAY_BOUND_CHK_EX, ba )
+        r = EmitRtl( c, RTL_ARRAY_BOUND_CHK_EX, ba )
     end if
+    EmitErrorJump_( c, r )
+end sub
+
+'' THE JUMP A FAILED CHECK HANDS BACK. Every -e check returns an address: null when
+'' the operation succeeded, and otherwise the place to continue at. fbc tests it and
+'' jumps, measured on the same source:
+''
+''     void* vr$5 = fb_ArraySngBoundChkEx( ... );
+''     if( vr$5 == 0ll) goto label$3;
+''     goto *vr$5;
+''     label$3:;
+''
+'' EMITTED ALWAYS, as fbc emits it, and RESOLVED AT THE END OF THE PROCEDURE. A check
+'' can be lowered before the ON ERROR that installs the handler -- or after it -- so the
+'' destination list is not knowable here; ResolveErrorJumps_ fills it once the body is
+'' finished.
+''
+'' WHERE THE PROCEDURE HAS NO HANDLER the jump block becomes 'unreachable' rather than an
+'' indirectbr with no destinations, which LLVM will not take. That is not a shortcut: with
+'' no handler installed the runtime does not return from a failed check at all, it aborts,
+'' so the non-null path genuinely cannot be reached. Ignoring the result -- what this did
+'' before ON ERROR existed -- was correct for the same reason, and stopped being correct
+'' the moment a handler could exist.
+sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
+    if r.kind = cast( ubyte, MV_NONE ) then return
+
+    '' THE JUMP BLOCK IS CREATED FIRST, and that is not a preference. A block's
+    '' instructions are an EXTENT over the function's one list, so blocks have to be
+    '' FILLED in the order they are created -- see Emit: "lowering never returns to a
+    '' finished block". Creating the continue block first and coming back to it put
+    '' every statement after the check into a block that had already been passed: the
+    '' handler came out empty, the code after it was spliced into the wrong block, and
+    '' 'exit sub' disappeared. The IR looked plausible and the program printed
+    '' 'no error' where fbc printed 'sub caught'.
+    dim as long jumpB = NewBlock( c, "errjmp" )
+    dim as long contB = NewBlock( c, "errok" )
+    Terminate( c, MTERM_CONDBR, jumpB, contB, r )
+
+    '' The jump block holds nothing but the indirect branch; its destinations are
+    '' patched in at the end of the procedure.
+    c.curBlock = jumpB
+    c.errIndirectBlocks.Push( cast( ulong, jumpB ) )
+    Terminate( c, MTERM_INDIRECTBR, -1, -1, r )
+    c.curBlock = contB
+end sub
+
+'' EVERY JUMP GETS ITS DESTINATIONS, once the procedure is finished and every ON ERROR
+'' in it has been seen. Run from the two places a procedure body ends.
+sub ResolveErrorJumps_( byref c as Ctx )
+    '' THE HANDLER ADDRESSES FIRST: every 'ON ERROR GOTO label' left a null placeholder
+    '' where the block address belongs, because the label's block did not exist yet and
+    '' could not be made to. Now it does -- the label has been lowered in its own order.
+    for i as long = 0 to c.errPendingArg.Count - 1
+        dim as long slot = cast( long, c.errPendingSlot[i] )
+        dim as long blk = c.labelBlock[slot]
+        '' A LABEL THAT WAS NEVER REACHED has no block, and inventing one here would
+        '' create it after every other -- an empty block nothing branches into, named by
+        '' a handler that can never run. The placeholder stays null, which is exactly
+        '' 'ON ERROR GOTO 0'.
+        if blk < 0 then continue for
+        dim as long at = cast( long, c.errPendingArg[i] )
+        if (at < 0) orelse (at + 1 >= c.m->argPool.Count) then continue for
+        c.m->argPool[at] = cast( ulong, MV_BLOCKADDR )
+        c.m->argPool[at + 1] = cast( ulong, blk )
+        dim as boolean known = false
+        for h as long = 0 to c.errHandlerBlocks.Count - 1
+            if c.errHandlerBlocks[h] = cast( ulong, blk ) then known = true
+        next
+        if known = false then c.errHandlerBlocks.Push( cast( ulong, blk ) )
+    next
+    c.errPendingArg.Clear( )
+    c.errPendingSlot.Clear( )
+
+    for i as long = 0 to c.errIndirectBlocks.Count - 1
+        dim as long b = cast( long, c.errIndirectBlocks[i] )
+        if (b < 0) orelse (b >= c.f->blocks.Count) then continue for
+        if c.errHandlerBlocks.Count = 0 then
+            '' No handler in this procedure: see EmitErrorJump_. The runtime aborts
+            '' rather than returning, so this block cannot be reached.
+            c.f->blocks[b].term = cast( ubyte, MTERM_UNREACHABLE )
+            continue for
+        end if
+        for h as long = 0 to c.errHandlerBlocks.Count - 1
+            c.f->blocks[b].indirectTargets.Push( c.errHandlerBlocks[h] )
+        next
+    next
+    c.errIndirectBlocks.Clear( )
+    c.errHandlerBlocks.Clear( )
 end sub
 
 '' -exx: A POINTER DEREFERENCE, CHECKED FOR NULL.
@@ -120,7 +209,7 @@ sub EmitNullCheck_ _
     PushArg_( na, pv )
     PushArg_( na, ConstInt( c, fd.lineNo, MT_I32 ) )
     PushArg_( na, fileV )
-    EmitRtl( c, RTL_NULL_PTR_CHK, na )
+    EmitErrorJump_( c, EmitRtl( c, RTL_NULL_PTR_CHK, na ) )
 end sub
 
 end namespace
