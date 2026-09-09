@@ -1,0 +1,21 @@
+'' The conversion family over a fixed zstring and over a UDT that extends zstring.
+'' Both shapes ICEd in the EMITTER, which '--dump-ir' never reaches -- see the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/conv-string-operand.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The VAL family is reached at all now. It was reached for neither operand before.
+'' EXPECT-OUT: fb_VALINT
+'' EXPECT-OUT: declare f64 fb_VAL(ptr $0)
+'' EXPECT-OUT: fb_VALBOOL
+
+'' The UDT's cast result is a bare char*, so it borrows a temporary descriptor before
+'' the VAL call. Without this the runtime read a descriptor out of string data and
+'' 'clng( u )' answered 0 for a UDT holding "42" -- a wrong ANSWER, not a crash, which
+'' would have outlived the ICE fix in silence.
+'' EXPECT-OUT: fb_StrAllocTempDescZ
+
+'' Built and RUN against fbc on the same source: both print
+''     42  42 / 42  42 / 42  42 / true  true
+'' GOLDEN: expected/conv-string-operand.out

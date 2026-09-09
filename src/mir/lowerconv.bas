@@ -15,7 +15,51 @@
 
 #include once "mir/lowerctx.bi"
 
+'' Defined in lowerterm.bas and declared per unit, the way every other caller of it
+'' does: a fixed-length string is an ARRAY of the element builtin and only this
+'' predicate sees that.
 namespace Tko.Mir
+
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nOut as longint ) as long
+
+
+'' DOES THIS UDT EXTEND THE BUILT-IN 'zstring'? Measured, and NEITHER HALF ALONE IS
+'' ENOUGH -- three probes on fbc, one line apart:
+''
+''     type UZ                     : operator cast() byref as const zstring
+''         clng( u )  ->  error 20, Type mismatch
+''     type UZB extends zstring    : type UZ extends UZB : operator cast() ...
+''         clng( u )  ->  ACCEPTED
+''     type UZ extends zstring     : no cast operator
+''         clng( u )  ->  error 20
+''
+'' So the conversion is legal only when the type INHERITS from the built-in string type
+'' AND declares the cast. Taking the cast alone would make tiko compute an answer for a
+'' program fbc REFUSES, which is the wrong direction to be wrong in -- it was written
+'' that way first and the corpus caught it.
+''
+'' The walk is over the BASE field, transitively: udt-zstring's own type is
+'' 'UZSTRING_FIXED extends UZSTRING_FIXED_BASE extends zstring', two levels.
+private function ExtendsZstring_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    dim as Tko.TypeId cur = c.types->Unqualify( t )
+    dim as long guard = 0
+    while (cur <> Tko.TYPE_NONE) andalso (guard < 32)
+        guard += 1
+        if c.types->Kind( cur ) = Tko.TK_BUILTIN then
+            return (c.types->BuiltinOf( cur ) = Tko.TY_ZSTRING)
+        end if
+        if c.types->Kind( cur ) <> Tko.TK_UDT then return false
+        dim as Tko.SymbolId bs = UdtMemberNamed_( c, cur, "base" )
+        if bs = Tko.SYMBOL_NONE then return false
+        dim as Tko.Symbol ptr bsy = c.syms->SymbolAt( bs )
+        if bsy = 0 then return false
+        cur = c.types->Unqualify( bsy->type_ )
+    wend
+    return false
+end function
 
 '' The intrinsic's spelling, or "" when this call is not one of them.
 private function ConvName_ _
@@ -206,10 +250,77 @@ function LowerConvIntrinsic _
                            IsUnsignedType( c, c.info->TypeOf_( id ) ) )
         end if
 
+        '' A UDT THAT CASTS TO A STRING IS A STRING OPERAND HERE TOO, and this was the
+        '' one place in the family that did not ask. 'clng( u )' over a type declaring
+        '' 'operator cast( ) byref as const zstring' fell past the whole VAL dispatch,
+        '' reached LowerExpr, and asked a UDT for a value it has not got -- which the
+        '' LLVM emitter meets as an aggregate with no storage:
+        ''
+        ''     emit: ICE: an aggregate value with no size
+        ''
+        '' AND --dump-ir NEVER SAW IT. The emitter runs after lowering, so the file
+        '' reported '0 statements not lowered' and mirsweep -- which dumps IR and stops
+        '' -- called it clean. The whole decline census is blind to this class.
+        ''
+        '' Measured, fbc converts through the cast and then uses the ordinary entry
+        '' point, exactly as it does for a real zstring:
+        ''
+        ''     char*     vr  = _ZN14UZSTRING_FIXEDcvcEv( &U );
+        ''     FBSTRING* vr2 = fb_StrAllocTempDescZ( vr );
+        ''     int32     vr3 = fb_VALINT( vr2 );
+        ''
+        '' UserCastToStr_ is what picks the string overload off the cast chain and
+        '' borrows the temporary descriptor for a bare char* result, so the rest of the
+        '' dispatch below is unchanged.
+        '' ...AND A 'zstring * N' IS A STRING OPERAND, which IsStringType says NO to:
+        '' a fixed narrow string is an ARRAY of TY_ZSTRING, and this file asked the one
+        '' predicate that cannot see that. The cost was not a decline:
+        ''
+        ''     dim as zstring * 50 t = "42"
+        ''     print clng( t )              fbc prints 42; tiko ICEd in the emitter
+        ''
+        '' Two lines, no UDT, nothing exotic -- and '--dump-ir' called it '0 statements
+        '' not lowered', so the sweep has never seen it. StrSwapKind_ is the predicate
+        '' the rest of the compiler uses for exactly this reason; the WIDE kinds are
+        '' already answered by the branch above, so only the narrow ones are taken here.
+        dim as longint fixN = 0
+        dim as long fixK = StrSwapKind_( c, at2, fixN )
         dim as boolean argIsStr = IsStringType( c, at2 )
-        if argIsStr then
+        if argIsStr = false then
+            argIsStr = (fixK = 0) orelse (fixK = 1) orelse (fixK = 3) orelse (fixK = 4)
+        end if
+        dim as MirValue udtSd
+        dim as boolean udtRaw = false
+        dim as boolean argIsUdtStr = false
+        if (argIsStr = false) andalso (c.types->Kind( at2 ) = Tko.TK_UDT) then
+            '' ...AND ONLY WHEN IT EXTENDS ZSTRING. See ExtendsZstring_: the cast alone
+            '' is fbc error 20, so accepting it would compute an answer for a program
+            '' fbc refuses.
+            if ExtendsZstring_( c, at2 ) then
+                argIsUdtStr = UserCastToStr_( c, arg, udtSd, udtRaw )
+            end if
+        end if
+        if argIsStr orelse argIsUdtStr then
             dim as MirValue sd
-            if StrDescriptorOf_( c, arg, sd ) = false then return v
+            if argIsUdtStr then
+                sd = udtSd
+                '' A BYREF ZSTRING RESULT IS A BARE char*, NOT A DESCRIPTOR, and
+                '' fb_VALINT takes FBSTRING*. Passing the pointer straight through made
+                '' 'clng( u )' answer 0 for a UDT holding "42" -- the runtime read a
+                '' descriptor out of string data. fbc borrows one from the no-length
+                '' entry point first, which is the whole of the difference:
+                ''
+                ''     char*     vr  = _ZN14UZSTRING_FIXEDcvcEv( &U );
+                ''     FBSTRING* vr2 = fb_StrAllocTempDescZ( vr );
+                ''     int32     vr3 = fb_VALINT( vr2 );
+                if udtRaw then
+                    dim as FB.Array( of ulong ) tda
+                    tda.Push( cast( ulong, sd.kind ) ) : tda.Push( cast( ulong, sd.id ) )
+                    sd = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, tda )
+                end if
+            else
+                if StrDescriptorOf_( c, arg, sd ) = false then return v
+            end if
             if sd.kind = cast( ubyte, MV_NONE ) then return v
             dim as FB.Array( of ulong ) vargs
             vargs.Push( cast( ulong, sd.kind ) ) : vargs.Push( cast( ulong, sd.id ) )
@@ -237,6 +348,17 @@ function LowerConvIntrinsic _
             dim as boolean vU = (vw = RTL_VALULNG) orelse (vw = RTL_VALUINT)
             return Coerce( c, vr2, vwant, vU, IsUnsignedType( c, c.info->TypeOf_( id ) ) )
         end if
+
+        '' A BLANKET 'a UDT here declines' GUARD WAS TRIED AND REVERTED. It was meant to
+        '' stop 'clng( u )' over a type with a zstring cast that does NOT extend zstring
+        '' -- fbc's error 20 -- from reaching LowerExpr and ICEing in the emitter. It
+        '' cost 196 DECLINES corpus-wide: a UDT with a NUMERIC 'operator cast' lowers
+        '' perfectly well through the fall-through below, and the guard killed all of
+        '' them. The sweep is what said so, 709 -> 905.
+        ''
+        '' So that one shape still ICEs, and it is left ICEing deliberately rather than
+        '' paid for at that price. Narrowing the guard needs a predicate that answers
+        '' "has a STRING cast" WITHOUT emitting one, and UserCastToStr_ emits.
     end if
 
     '' A UDT OPERAND IS ITS 'operator cast', not its bytes. The IMPLICIT direction --
