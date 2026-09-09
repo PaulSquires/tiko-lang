@@ -19,6 +19,9 @@ type PpFrame
     as InternId  hides         '' macro whose expansion this is; 0 for a file
     as FileId    file          '' 0 for an expansion buffer
     as boolean   owned         '' expansion buffers are ours to delete
+    '' The position TryTailJoin_ has already looked at and refused, so a peek that
+    '' happens ten times over the same token re-lexes the pair once. -1 is "not yet".
+    as long      joinTried
 end type
 
 type PpCond
@@ -198,6 +201,7 @@ private sub PushFrame _
     dim as PpFrame f
     f.toks = toks
     f.pos = 0
+    f.joinTried = -1
     f.hides = hides
     f.file = file
     f.owned = owned
@@ -211,6 +215,12 @@ private sub PopFrame( byref e as PpEngine )
     e.frames.Pop( )
     if f.owned andalso (f.toks <> 0) then delete f.toks
 end sub
+
+'' ADJACENCY: the last token an expansion emits and the next token of the enclosing
+'' stream RE-LEX AS ONE when nothing separates them in the source. Defined below, next
+'' to RelexInto, which is what it is built on; declared here because PeekTok is where
+'' the seam becomes visible.
+declare function TryTailJoin_( byref e as PpEngine ) as boolean
 
 '' Peek the next token without consuming, skipping exhausted frames. Returns false at
 '' the very end of everything.
@@ -232,6 +242,10 @@ private function PeekTok( byref e as PpEngine, byref outTok as Token ) as boolea
             PopFrame( e )
             continue while
         end if
+        '' The seam: 't' may be the last token of an expansion and the next token of
+        '' the frame below may be flush against it. Joining REWRITES this frame's last
+        '' token, so re-read rather than handing out the stale one.
+        if TryTailJoin_( e ) then continue while
         outTok = t
         return true
     wend
@@ -544,6 +558,105 @@ private sub RelexInto _
         outv.Push( t )
     next
 end sub
+
+'' ------------------------------------------------------- the adjacency re-lex
+'' fbc's preprocessor substitutes TEXT and re-lexes the line, so the LAST token a
+'' macro emits and the NEXT token of the enclosing stream become ONE token whenever
+'' the source put nothing between them. Measured on fbc 'fbc64 -pp', all of these:
+''
+''   #define letter(s) #s + letter : #define letter__ ""
+''       letter (o)__      ->  $"o" + ""        the fold in pp/hello.bas
+''   #define letterX "z"
+''       letter (o)X       ->  $"o" + "z"       so it is not about '__'
+''       letter (o) __     ->  $"o" + letter  __  and error 89: A SPACE STOPS IT
+''   #define M(x) x 12
+''       M(a)34            ->  a 1234           NUMBER meets number
+''   #define M(x) x <
+''       M(a)> 3           ->  a <> 3           OPERATOR meets operator
+''   #define M(x) x
+''       M(ab)cd           ->  abcd             the ARGUMENT's tail joins too
+''   #define M(x) x ab
+''       M(q)12            ->  q ab12
+''   #define M(x) x "s"
+''       M(q)ab            ->  q "s"ab          '"s"ab' re-lexes as TWO; no join
+''   #define N 12 : #define M(x) x N
+''       M(a)ab            ->  a Nab            the join happens BEFORE the rescan,
+''                                              so 'N' never expands
+''   #define foobar(z) (z*2) : #define M(y) y foo
+''       M(a)bar(3)        ->  a (3*2)          the JOINED name then expands, and
+''                                              takes its arguments from the source
+''   #define A(x) x q : #define B(x) r x
+''       A(1)B(2)          ->  1 qB(2)          'B' is joined away, never invoked
+''
+'' And the FRONT of an expansion never joins -- fbc emits a space before the result:
+''
+''   #define A bc :  (A)12  ->  ( bc)12
+''
+'' So "re-lex the concatenation, and take it only if it comes back as EXACTLY ONE
+'' token" is not an approximation of the rule, it IS the rule: the '"s"ab' and the
+'' '( bc)12' cases fall out of it rather than needing to be excluded. A pair that
+'' re-lexes to two tokens is what "no join" means.
+''
+'' Three guards, each of which is load-bearing:
+''
+''   frameFloor + 1 -- an ARGUMENT being expanded on its own (ExpandedArgText_) sits
+''   one frame above the floor, and the frame BELOW it is the caller's, not the text
+''   this argument is being spliced into. Reaching into it would join an argument's
+''   tail onto something it never touches.
+''
+''   Non-empty spellings -- the only way a bad SpellOf could pass the one-token test
+''   is by contributing nothing, which would DELETE a token rather than join two.
+''
+''   joinTried -- PeekTok is called many times over one position; without it every
+''   refusal re-runs the lexer.
+private function TryTailJoin_( byref e as PpEngine ) as boolean
+    if e.frames.Count <= (e.frameFloor + 1) then return false
+    if e.frames.Count < 2 then return false
+
+    dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
+    if f->file <> FILE_NONE then return false      '' only an expansion has a seam
+    if f->toks = 0 then return false
+    if f->pos <> (f->toks->Count - 1) then return false
+    if f->joinTried = f->pos then return false
+    f->joinTried = f->pos
+
+    dim as Token a = f->toks->At( f->pos )
+    dim as TokenKind ka = Tk( a )
+    if (ka = TK_EOL) orelse (ka = TK_EOF) then return false
+
+    dim as PpFrame ptr g = @e.frames[e.frames.Count - 2]
+    if g->toks = 0 then return false
+    if g->pos > (g->toks->Count - 1) then return false
+    dim as Token b = g->toks->At( g->pos )
+    dim as TokenKind kb = Tk( b )
+    if (kb = TK_EOL) orelse (kb = TK_EOF) then return false
+    if (b.flags and TF_SPACE_BEFORE) <> 0 then return false
+    if (b.flags and TF_AT_LINE_START) <> 0 then return false
+
+    dim as string sa = SpellOf( e, a )
+    dim as string sb = SpellOf( e, b )
+    if (len( sa ) = 0) orelse (len( sb ) = 0) then return false
+
+    dim as TokenVec jv
+    RelexInto( e, sa + sb, a.loc, jv )
+    if jv.Count <> 1 then return false
+
+    dim as Token j = jv[0]
+    '' The joined token stands where the expansion's tail stood: it takes that token's
+    '' leading spacing and line position, never the swallowed one's.
+    dim as ushort keep = a.flags and _
+        (TF_SPACE_BEFORE or TF_AT_LINE_START or TF_COLON or TF_LINE_JOINED)
+    j.flags = (j.flags and (not (TF_SPACE_BEFORE or TF_AT_LINE_START or _
+                                 TF_COLON or TF_LINE_JOINED))) or keep
+    '' Through a pointer: 'v->At( i ) = x' parses the '=' as equality inside the
+    '' argument list (fbc warning 34) and assigns nothing.
+    dim as Token ptr slot = @f->toks->At( f->pos )
+    *slot = j
+    g->pos += 1
+    '' A further token may be flush against this one as well -- '(a)(b)__' joins twice.
+    f->joinTried = -1
+    return true
+end function
 
 '' Forward declarations: the three parts below reference each other freely, and the
 '' main loop below them references all three. They are #included rather than compiled

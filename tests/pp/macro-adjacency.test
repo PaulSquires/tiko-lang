@@ -1,0 +1,35 @@
+'' The last token a macro expansion emits and the next token of the enclosing stream
+'' re-lex as ONE when nothing separates them in the source. Every case, and the
+'' measurements behind it, are in the source's own header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/macro-adjacency.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The fold from tests/vendor/fbc-tests/pp/hello.bas: twelve one-character literals,
+'' and the empty string that 'letter' + '__' turns into. Without the join the chain
+'' ends on a bare 'letter' instead.
+'' EXPECT-OUT: global str $str8 "!"
+'' EXPECT-OUT: global str $str9 ""
+
+'' A NUMBER meeting a number: 'TAIL( 12 )34' is one literal, folded here.
+'' EXPECT-OUT: const i64 1234
+
+'' An OPERATOR meeting an operator: '<' then '>' is '<>', so this is a comparison
+'' and not the syntax error two separate tokens would be.
+'' EXPECT-OUT: icmp.ne
+
+'' An ARGUMENT's tail meeting an identifier: 'TAIL( ab )cd' names abcd, not ab.
+'' EXPECT-OUT: load @abcd
+
+'' The join happens BEFORE the rescan looks for macro names, so 'N' never expands
+'' and the name is Nab.
+'' EXPECT-OUT: load @nab
+
+'' The JOINED name is itself a function-like macro and takes its argument from the
+'' source that followed the join: 'TAILFOO( 0 )bar( 3 )' is '(3 * 2)'.
+'' EXPECT-OUT: mul
+
+'' 'BEE' is joined away rather than invoked: qBEE, and no 999 anywhere.
+'' EXPECT-OUT: load @qbee
+'' EXPECT-NOT: const i64 999
