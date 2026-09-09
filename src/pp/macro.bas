@@ -526,10 +526,33 @@ end function
 '' known, and the preprocessor reads a raw source span: it has neither. Emitting the
 '' undecoded bytes would be a different string with nothing to say so.
 ''
-'' A QUOTE OR A CONTROL BYTE IN THE RESULT DECLINES TOO. fbc emits those raw, which
-'' produces source that will not re-lex -- '__FB_EVAL__( "A" + chr(34) + "B" )' becomes
-'' '$"A"B"'. That is a defect to reproduce nowhere: a decline says so, and a broken
-'' literal does not.
+'' A QUOTE IN THE RESULT IS EMITTED RAW, and that is not a defect to route around --
+'' it is the only way the corpus's own idiom works. pp/macro-eval.bas assigns a STRING
+'' through a macro:
+''
+''     #define tmp __FB_EVAL__( expr )
+''     __FB_UNQUOTE__( __FB_EVAL__( "#define " + sym + " " + __FB_QUOTE__( tmp ) ) )
+''     assign( "x", "hello" )
+''
+'' and every step of that was measured with 'fbc64 -pp':
+''
+''     __FB_EVAL__( "hello" )                    $"hello"
+''     __FB_QUOTE__( tmp )                       $"$""hello"""
+''     __FB_EVAL__( "#define x " + that )        $"#define x $"hello""
+''
+'' -- the last one holds two INNER quotes and fbc writes them raw. Declining there
+'' left 'x' undefined, so 'CU_ASSERT_EQUAL( x, "hello" )' reached lowering with a bare
+'' identifier for an argument and the call declined at lowercall.bas:875.
+''
+'' The broken-relex worry is real but it is fbc's own: measured, 'dim s as string =
+'' __FB_EVAL__( "A" + chr(34) + "B" )' is error 3 plus warning 12 in fbc too. Where
+'' the result feeds __FB_UNQUOTE__ -- which is what the idiom does -- the three tokens
+'' it relexes into rejoin, spacing and all, into the text UNQUOTE wanted.
+''
+'' A NEWLINE STILL DECLINES. fbc emits CR/LF raw as well ('__FB_EVAL__( "A" + chr(10)
+'' + "B" )' is two warning 12s and error 42), so BOTH compilers reject that program;
+'' the difference is only which diagnostic, and relexing a literal that spans a line
+'' break is not a shape this buffer models.
 private function EvalLiteral_ _
     ( byref v as PpValue, byref ok as boolean ) as string
 
@@ -590,14 +613,14 @@ private function EvalLiteral_ _
         next
         return h & chr( 34 )
     end if
-    '' A NEWLINE OR A QUOTE IN THE RESULT DECLINES. fbc emits those RAW, which
-    '' produces source that will not re-lex -- '__FB_EVAL__( "A" + chr(34) + "B" )'
-    '' becomes '$"AB"' followed by a stray quote, and fbc then reports an error on
-    '' its own output. That is a defect to reproduce nowhere. A TAB is fine and is
-    '' emitted raw, which is what fbc does with it.
+    '' A NEWLINE IN THE RESULT DECLINES -- see the header: fbc emits it raw and errors
+    '' on its own output, and a literal spanning a line break is not modelled here.
+    '' A QUOTE DOES NOT: it goes out raw, exactly as fbc writes it, because
+    '' '__FB_UNQUOTE__( __FB_EVAL__( ... __FB_QUOTE__( tmp ) ) )' cannot work otherwise.
+    '' A TAB is fine and is emitted raw, which is what fbc does with it.
     for i as long = 1 to len( v.str_ )
         dim as long ch = asc( mid( v.str_, i, 1 ) )
-        if (ch = 10) orelse (ch = 13) orelse (ch = 34) then
+        if (ch = 10) orelse (ch = 13) then
             ok = false
             return ""
         end if

@@ -1,0 +1,8 @@
+'' __FB_EVAL__ whose folded result contains a quote emits it raw, which is what makes
+'' the corpus's '__FB_UNQUOTE__( __FB_EVAL__( ... __FB_QUOTE__( tmp ) ) )' assignment
+'' idiom work for a STRING value -- see the source for the fbc measurements.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/eval-embedded-quote.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/eval-embedded-quote.out
