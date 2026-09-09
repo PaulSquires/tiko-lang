@@ -138,6 +138,27 @@ namespace Tko
     '' So the position is marked in place, on a TK_EOL that never reaches the output,
     '' and EmitTok arms the join when the marker is emitted. See PpSubstitute.
     const TF_JOIN_MARK     as ushort = &h0080
+    '' WHICH suffix character was written, in three spare flag bits -- 8, 9 and 10.
+    '' They were 7, 8 and 9 when this was written and bit 7 is TF_JOIN_MARK's now;
+    '' the two landed in the same release and the collision is why this shift is not
+    '' simply 'the next free bit'. TF_HAS_SUFFIX
+    '' alone cannot spell the token back, and the "suffix ignored" warning quotes what
+    '' the user wrote -- measured, fbc echoes the source text verbatim, case and all:
+    '' "Suffix ignored in 'ScOpE%'". Reading the source span recovers that for a token
+    '' the program wrote, but a SYNTHESISED one -- pasted, or re-lexed out of text the
+    '' preprocessor built -- had its loc repointed at the use site, so the span there is
+    '' the invocation's text. These bits are the fallback for those.
+    const TF_SUFFIX_SHIFT  as ushort = 8
+    const TF_SUFFIX_MASK   as ushort = &h0700
+
+    enum SuffixChar
+        SUFC_NONE = 0
+        SUFC_DOLLAR        '' $
+        SUFC_PERCENT       '' %
+        SUFC_AMP           '' &
+        SUFC_BANG          '' !
+        SUFC_HASH          '' #
+    end enum
 
     type Token                      '' 16 bytes
         as ushort    kind
@@ -219,6 +240,8 @@ namespace Tko
     declare function IsWordAssignOp( byval k as TokenKind ) as boolean
     declare function IsTypeKeyword( byval k as TokenKind ) as boolean
     declare function IsPunctKind( byval k as TokenKind ) as boolean
+    '' "" when the flags carry no suffix; otherwise the one character written.
+    declare function SuffixCharText( byval flags as ushort ) as string
 
 end namespace
 

@@ -62,6 +62,14 @@
     DIAG( TKO0203, SEV_ERROR,   "'%0' is not followed by any digits" )
     DIAG( TKO0204, SEV_ERROR,   "unexpected character %0 in source" )
     DIAG( TKO0205, SEV_ERROR,   "numeric literal is too large for any integer type" )
+    '' fbc's warning 44, "Suffix ignored in '<what was written>'". A '$ % & ! #' on a
+    '' RESERVED WORD -- 'end% scope%', 'for% i as% integer' -- is accepted and dropped,
+    '' and this is the whole of what says so. Lexical, hence the number; emitted from
+    '' the preprocessor, because that is the first place that knows a token is LIVE.
+    '' Measured (fbc-modern win64, -w all): nothing is warned inside a false '#if'
+    '' branch, and a suffix inside a '#macro' body warns ONCE PER EXPANSION -- fbc puts
+    '' each at the invocation's line, this at the body's own.
+    DIAG( TKO0206, SEV_WARNING, "suffix ignored in '%0'" )
 
     '' -------------------------------------------------------------- preprocessor
     DIAG( TKO0300, SEV_ERROR,   "unknown directive '#%0'" )

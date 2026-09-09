@@ -110,6 +110,17 @@ function IsPunctKind( byval k as TokenKind ) as boolean
     return (k > TK_PUNCT_FIRST) andalso (k < TK_PUNCT_LAST)
 end function
 
+function SuffixCharText( byval flags as ushort ) as string
+    select case cast( SuffixChar, (flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT )
+    case SUFC_DOLLAR  : return "$"
+    case SUFC_PERCENT : return "%"
+    case SUFC_AMP     : return "&"
+    case SUFC_BANG    : return "!"
+    case SUFC_HASH    : return "#"
+    end select
+    return ""
+end function
+
 function KeywordMap.KindOf( byval id as InternId ) as TokenKind
     dim as boolean out_ = (id = INTERN_NONE) orelse (cast( long, id ) > this.maxId)
     if out_ then return TK_IDENT
@@ -321,7 +332,15 @@ private sub ScanIdentifier( byref s as Scanner )
             if s.p[s.i + 1] = 35 then suffix = false
         end if
         if suffix then
-            extra = Tko.TF_HAS_SUFFIX
+            dim as ushort sc = 0
+            select case c
+            case 36 : sc = Tko.SUFC_DOLLAR
+            case 37 : sc = Tko.SUFC_PERCENT
+            case 38 : sc = Tko.SUFC_AMP
+            case 33 : sc = Tko.SUFC_BANG
+            case else : sc = Tko.SUFC_HASH
+            end select
+            extra = Tko.TF_HAS_SUFFIX or (sc shl Tko.TF_SUFFIX_SHIFT)
             s.i += 1
         end if
     end if

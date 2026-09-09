@@ -416,7 +416,137 @@ private sub DereserveKw_( byref e as PpEngine, byval k as TokenKind )
     e.dereserved[cast( long, k )] = cast( ulong, id )
 end sub
 
+'' fbc's warning 44 (TKO0206). The rule implemented here is exactly the one the
+'' measurement supports: A RESERVED WORD THAT REACHES THE PARSER CARRYING A SUFFIX.
+''
+'' Why here and not in the lexer: the lexer sees every token in the file, including the
+'' ones in a false '#if' branch, and fbc warns about none of those (measured). A token
+'' reaching EmitTok is by construction live. A '#macro' body token reaches it once per
+'' expansion, which is also fbc's count -- measured, a suffixed keyword in a body
+'' expanded twice is two warnings. fbc puts each at the INVOCATION line and this puts
+'' it at the body's own, because a body token here keeps its definition loc; that is
+'' where every diagnostic in a macro body already points and is not this one's to move.
+''
+'' NOT covered, and deliberately so rather than guessed at:
+''   - suffixes on ORDINARY IDENTIFIERS. 'dim a$' is legal and silent; 'n%' naming an
+''     'n as integer' warns. Telling those apart is a name-resolution question and
+''     there is nothing here to answer it with.
+''   - suffixes on words consumed by a DIRECTIVE and never emitted -- '#include%',
+''     '#line%', '#pragma msbitfields%'. Those need a call per directive, not one rule.
+''   - suffixes on CONTEXTUAL words that are not reserved: 'open ... for binary as% #1'
+''     warns on 'as' (reserved, covered) but 'put #1,,x,,trans%' does not reach a
+''     keyword at all.
+
+'' THE CLASSIC '$' SPELLINGS. 'CHR$', 'MID$', 'STR$' and their family are not CHR with
+'' a suffix -- the '$' is part of a second, accepted name for the intrinsic, and fbc
+'' warns about none of them. suffix-fb.bas says so itself: 26 of them under one
+'' 'WARN( 0 )' (its lines 1022-1047 after the '#line 1000'), immediately followed by
+'' 'WARN( 4 )' over 'wchr$ wstr$ wstring$ bin$', which are NOT in the family and do
+'' warn. Sixteen of the 26 are keywords here; the rest lex as identifiers and never
+'' reach this code.
+''
+'' KNOWN SHORTFALL, ONE SITE. 'STRING$' is in the family as a FUNCTION and out of it as
+'' a TYPE: measured, 'print string$( 3, 65 )' is silent and 'dim a as string$' is
+'' warning 44. Type position is a parser fact and there is none of it here, so this
+'' takes the silent half and misses suffix-fb.bas(373). Under-warning by one beats
+'' warning on every 'chr$' in the corpus.
+private function IsClassicDollarName( byval k as TokenKind ) as boolean
+    select case k
+    case KW_CHR, KW_STR, KW_STRING, KW_MKS, KW_MKD, KW_MKL, KW_MKI, KW_MKSHORT, _
+         KW_MKLONGINT, KW_LTRIM, KW_RTRIM, KW_MID, KW_LCASE, KW_UCASE, KW_TRIM, _
+         KW_INPUT
+        return true
+    end select
+    return false
+end function
+
+'' 'OPEN ... FOR BINARY ACCESS READ WRITE' -- and ONLY that phrase -- swallows the
+'' second word's suffix. Measured, six ways:
+''
+''     access write%           warns          suffix-fb.bas(895)
+''     access read% write%     read% only     suffix-fb.bas(897)
+''     access read write%      silent         probe p5(5)
+''     access read% write      read% only     probe p5(6)
+''     lock% write%            warns          suffix-fb.bas(904)
+''     lock% read% write%      warns BOTH     suffix-fb.bas(906)
+''
+'' so it is not "WRITE after READ" -- 'lock read write%' warns -- it is the ACCESS
+'' clause, whose READ WRITE fbc consumes with a lookahead that never reaches the
+'' warning. Two tokens of history is the whole context needed, and this is the only
+'' place the preprocessor keeps any.
+private function InAccessReadWrite( byref e as PpEngine, byval k as TokenKind ) as boolean
+    if k <> KW_WRITE then return false
+    dim as long n = e.outp->tokens.Count
+    if n < 2 then return false
+    if cast( TokenKind, e.outp->tokens[n - 1].kind ) <> KW_READ then return false
+    return (cast( TokenKind, e.outp->tokens[n - 2].kind ) = KW_ACCESS)
+end function
+
+private sub WarnIgnoredSuffix( byref e as PpEngine, byref t as Token )
+    if (t.flags and TF_HAS_SUFFIX) = 0 then return
+    dim as TokenKind kind = Tk( t )
+    '' A KEYWORD ONLY, and the SHORTFALL IS DELIBERATE.
+    ''
+    '' The note that used to be here said an ordinary identifier cannot be covered
+    '' because 'dim a$' is legal and silent and telling a legal suffix from an ignored
+    '' one needs name resolution. THAT IS MEASURABLY WRONG: in '#lang "fb"' there is no
+    '' legal one. Every spelling warns, and the declaration form is an error as well --
+    ''
+    ''     dim as string s : print s$        1 warning
+    ''     dim as integer n : print n%       1 warning
+    ''     dim n% as integer : print n%      2 warnings, BOTH sites
+    ''     dim a$ : a$ = "x" : print a$      3 warnings AND 2 errors
+    ''     print left%( s, 2 )               1 warning -- a PRELUDE function here, not
+    ''                                       a keyword, which is why left/right/space
+    ''                                       are in the shortfall
+    ''
+    '' Dropping this test was TRIED. It takes suffix-fb.bas from 464 of fbc's 544 sites
+    '' to 526 -- and introduces TEN FALSE POSITIVES, which is the one thing this rule
+    '' may not do. Two more sub-rules stand between here and the identifier form, and
+    '' the second is why it is not merely more work:
+    ''
+    ''   1. THE CLASSIC '$' NAMES ALSO LEX AS IDENTIFIERS. inkey$, space$, left$ and
+    ''      command$ are prelude functions here, so IsClassicDollarName below never
+    ''      sees them. Fixable: match the SPELLING rather than the token kind.
+    ''   2. 'type T%' IS SILENT AND 'type ALIAS% as integer' WARNS -- measured, one
+    ''      line apart. A UDT declaration head and a typedef head are the same two
+    ''      tokens; what separates them is whether 'as' FOLLOWS the name. EmitTok
+    ''      looks BACKWARD at what it has already emitted, the way InAccessReadWrite
+    ''      does, and has no lookahead at all. That one site is suffix-fb.bas(337).
+    ''
+    '' So the gap is not 'needs name resolution'; it is one token of lookahead this
+    '' layer does not have. 464 with zero false positives beats 526 with one.
+    if IsKeywordKind( kind ) = false then return
+
+    dim as ushort sufBits = (t.flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT
+    if cast( SuffixChar, sufBits ) = SUFC_DOLLAR then
+        if IsClassicDollarName( kind ) then return
+    end if
+    if InAccessReadWrite( e, kind ) then return
+
+    '' What fbc quotes is the SOURCE TEXT, case preserved. Read the span, and accept it
+    '' only when it still spells this token -- a macro-expanded or pasted token had its
+    '' loc repointed at the use site, exactly as SpellOf documents, and the span there
+    '' is the invocation's text. The fallback is the canonical spelling plus the
+    '' recorded suffix character.
+    dim as string suffix = SuffixCharText( t.flags )
+    dim as string canon = Text.LowerAscii( TokenKindText( Tk( t ) ) )
+    dim as DecodedLoc d = e.src->Decode( t.loc )
+    dim as SourceFile ptr f = e.src->FileAt( d.file )
+    dim as string spell = canon & suffix
+    if (f <> 0) andalso (t.length = len( spell )) then
+        if (d.offset + t.length) <= f->text.Count then
+            dim as string s = space( t.length )
+            memcpy( strptr( s ), @f->text[d.offset], t.length )
+            if Text.LowerAscii( s ) = spell then spell = s
+        end if
+    end if
+
+    Report( e, TKO0206, t.loc, spell )
+end sub
+
 private sub EmitTok( byref e as PpEngine, byref t as Token )
+    WarnIgnoredSuffix( e, t )
     '' A KEYWORD THAT HAS BEEN '#undef'ED leaves as an identifier. Done on the way
     '' out rather than in the lexer because a file is lexed once, in full, before
     '' the directive that de-reserves the word has run. 't' is byref so the caller's

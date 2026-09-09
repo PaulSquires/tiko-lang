@@ -1,0 +1,93 @@
+'' fbc's WARNING 44, "Suffix ignored" -- TKO0206. A '$ % & ! #' written on a RESERVED
+'' WORD is accepted and thrown away, and this is the only thing that says so.
+'' tests/vendor/fbc-tests/warnings/suffix-fb.bas is 1330 lines whose whole subject is
+'' this warning; it emits 544 of them under fbc-modern win64 with '-w all', and this
+'' build emits 464 of those and nothing fbc does not.
+''
+'' MEASURED (fbc-modern win64, 'fbc64 -w all -c'), and every line below is one of them:
+''
+''   scope% / end% scope%                   one warning each word
+''   dim% i as% integer%                    three
+''   for% i = 1 to% 3 step% 1               three
+''   do% / loop% until% 1                   one, then two
+''   while% 0 / wend%                       one each
+''   a suffix inside a '#macro' body        ONCE PER EXPANSION -- fbc puts each at the
+''                                          INVOCATION line, this build at the body's
+''                                          own line. The COUNT matches; the loc does
+''                                          not, because a body token here keeps its
+''                                          definition loc. That is where every
+''                                          diagnostic in a macro body already points
+''                                          and is not this warning's to change.
+''   the same inside '#if 0'                NOTHING -- a dead branch warns about nothing
+''   print chr$( 65 )                       NOTHING -- 'CHR$' is a name, not a suffix
+''   open ... access read write%            NOTHING on 'write%' -- fbc's ACCESS clause
+''                                          consumes 'READ WRITE' with a lookahead that
+''                                          never reaches the warning. 'access write%'
+''                                          and 'lock read write%' both DO warn.
+''   ScOpE% / End% Scope%                   the SOURCE spelling is echoed back, case
+''                                          and all
+''
+'' NOT covered here because it is not covered at all -- see pp.bas WarnIgnoredSuffix:
+'' suffixes on ordinary identifiers ('dim as string s$' warns in fbc), on words a
+'' DIRECTIVE eats ('#include%', '#line%', '#pragma msbitfields%'), and on contextual
+'' words that are not reserved ('put ...,,trans%'). 'dim a as string$' is the one
+'' deliberate under-warn inside the covered set.
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: TKO0206
+'' EXPECT-OUT: suffix ignored in 'scope%'
+'' EXPECT-OUT: suffix ignored in 'dim%'
+'' EXPECT-OUT: suffix ignored in 'as%'
+'' EXPECT-OUT: suffix ignored in 'integer%'
+'' EXPECT-OUT: suffix ignored in 'for%'
+'' EXPECT-OUT: suffix ignored in 'to%'
+'' EXPECT-OUT: suffix ignored in 'step%'
+'' EXPECT-OUT: suffix ignored in 'next%'
+'' EXPECT-OUT: suffix ignored in 'do%'
+'' EXPECT-OUT: suffix ignored in 'loop%'
+'' EXPECT-OUT: suffix ignored in 'until%'
+'' EXPECT-OUT: suffix ignored in 'while%'
+'' EXPECT-OUT: suffix ignored in 'wend%'
+'' EXPECT-OUT: suffix ignored in 'end%'
+'' EXPECT-OUT: suffix ignored in 'access%'
+'' EXPECT-OUT: suffix ignored in 'lock%'
+'' EXPECT-OUT: suffix ignored in 'ScOpE%'
+'' EXPECT-OUT: suffix ignored in 'End%'
+'' EXPECT-OUT: suffix ignored in 'Scope%'
+'' EXPECT-NOT: suffix ignored in 'chr$'
+'' EXPECT-NOT: suffix ignored in 'single%'
+
+scope%
+	dim% i as% integer%
+	for% i = 1 to% 3 step% 1
+		i = i + 0
+	next%
+	do%
+	loop% until% 1
+	while% 0
+	wend%
+end% scope%
+
+#macro M()
+	scope%
+	end% scope%
+#endmacro
+M()
+M()
+
+#if 0
+	scope%
+	dim never as single%
+	end% scope%
+#endif
+
+print chr$( 65 )
+print mid$( "abc", 2, 1 )
+
+open "" for binary access% write% as #1
+open "" for binary access% read write% as #2
+open "" for binary lock% read write% as #3
+
+ScOpE%
+End% Scope%
