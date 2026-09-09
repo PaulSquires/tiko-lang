@@ -117,31 +117,31 @@ func i32 main(i32 $0, ptr $1) {
     %12 = alloca ptr zf
     %13 = alloca ptr h
     %14 = func.addr ptr SONE
-    %15 = call.rtl ptr fb_ThreadCall(%14, 0, 0, 1, 6, @o1)
+    %15 = call.rtl ptr fb_ThreadCall(%14, 1, 0, 1, 6, @o1)
     store @h, %15
     %16 = func.addr ptr STWO
-    %17 = call.rtl ptr fb_ThreadCall(%16, 0, 0, 1, 12, 2, 4, 4, @t2)
+    %17 = call.rtl ptr fb_ThreadCall(%16, 1, 0, 1, 12, 2, 4, 4, @t2)
     store @h, %17
     %18 = func.addr ptr STHREE
-    %19 = call.rtl ptr fb_ThreadCall(%18, 0, 0, 1, 12, 3, 12, 2, 4, 4, 11, 6, @t3)
+    %19 = call.rtl ptr fb_ThreadCall(%18, 1, 0, 1, 12, 3, 12, 2, 4, 4, 11, 6, @t3)
     store @h, %19
     %20 = func.addr ptr SDEEP
-    %21 = call.rtl ptr fb_ThreadCall(%20, 0, 0, 1, 12, 2, 6, 8, @dd)
+    %21 = call.rtl ptr fb_ThreadCall(%20, 1, 0, 1, 12, 2, 6, 8, @dd)
     store @h, %21
     %22 = func.addr ptr SPTRF
-    %23 = call.rtl ptr fb_ThreadCall(%22, 0, 0, 1, 12, 2, 13, 2, @pf)
+    %23 = call.rtl ptr fb_ThreadCall(%22, 1, 0, 1, 12, 2, 13, 2, @pf)
     store @h, %23
     %24 = func.addr ptr SDER
-    %25 = call.rtl ptr fb_ThreadCall(%24, 0, 0, 1, 12, 2, 12, 2, 4, 4, 11, @dv)
+    %25 = call.rtl ptr fb_ThreadCall(%24, 1, 0, 1, 12, 2, 12, 2, 4, 4, 11, @dv)
     store @h, %25
     %26 = func.addr ptr SONEUDT
-    %27 = call.rtl ptr fb_ThreadCall(%26, 0, 0, 1, 12, 1, 12, 2, 4, 4, @ou)
+    %27 = call.rtl ptr fb_ThreadCall(%26, 1, 0, 1, 12, 1, 12, 2, 4, 4, @ou)
     store @h, %27
     %28 = func.addr ptr SONEONE
-    %29 = call.rtl ptr fb_ThreadCall(%28, 0, 0, 1, 12, 1, 12, 1, 12, 2, 4, 4, @oo)
+    %29 = call.rtl ptr fb_ThreadCall(%28, 1, 0, 1, 12, 1, 12, 1, 12, 2, 4, 4, @oo)
     store @h, %29
     %30 = func.addr ptr SZS
-    %31 = call.rtl ptr fb_ThreadCall(%30, 0, 0, 1, 12, 2, 3, 6, @zf)
+    %31 = call.rtl ptr fb_ThreadCall(%30, 1, 0, 1, 12, 2, 3, 6, @zf)
     store @h, %31
     %32 = func.addr ptr STWO
     %39 = call i32 MKTWO()
@@ -149,7 +149,7 @@ func i32 main(i32 $0, ptr $1) {
     %33 = load @$abi12
     %34 = alloca ptr $tmp11
     store @$tmp11, %33
-    %35 = call.rtl ptr fb_ThreadCall(%32, 0, 0, 1, 12, 2, 4, 4, @$tmp11)
+    %35 = call.rtl ptr fb_ThreadCall(%32, 1, 0, 1, 12, 2, 4, 4, @$tmp11)
     store @h, %35
     %36 = const i32 0
     call.rtl void fb_End(%36)

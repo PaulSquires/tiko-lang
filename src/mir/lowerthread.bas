@@ -18,9 +18,13 @@
 ''     any ptr, zstring ptr, wstring ptr, string, ARRAY, and EVERY BYREF   13
 ''     an ENUM is its underlying integer, so 8 on win64 and 6 on win32
 ''
-'' -- and the SECOND fixed argument is the CALLING CONVENTION: 1 for cdecl (and for a
-'' procedure inside an EXTERN "C" block), 0 for stdcall and for the default. The third
-'' never moved in any probe and is passed as the zero fbc passes.
+'' -- and the SECOND fixed argument is the CALLING CONVENTION: 1 for cdecl, 0 for
+'' stdcall, and for a procedure that wrote none the TARGET'S OWN DEFAULT -- 0 on
+'' windows, 1 on linux. An EXTERN block supplies the convention its members did not
+'' write, so EXTERN "C" is 1 and EXTERN "Windows" / "Windows-MS" are 0; being foreign
+'' is not itself a convention. The full rule, and the measurements behind it, are at
+'' the conv assignment below. The third fixed argument never moved in any probe and is
+'' passed as the zero fbc passes.
 ''
 '' A BYVAL UDT IS A COMPOSITE DESCRIPTOR, and the descriptor is a RUN of arguments
 '' rather than one: the code 12, then the field COUNT, then one descriptor per field,
@@ -350,9 +354,47 @@ function LowerThreadCall_ _
     dim as FB.Array( of ulong ) strTemps
     dim as FB.Array( of ulong ) strTempTypes
     args.Push( cast( ulong, fa.kind ) ) : args.Push( cast( ulong, fa.id ) )
+    '' THE CONVENTION IS THE CALLEE'S, RESOLVED -- and FOREIGN IS NOT A CONVENTION.
+    '' 'extern "Windows-MS"' carries PF_FOREIGN, so treating that bit as cdecl sent
+    '' convention 1 for a stdcall sub: threads/threadcall.bas, where fbc emits
+    ''
+    ''     fb_ThreadCall( (void*)&testWindowsMs, 0, 0ll, 0 )
+    ''
+    '' -- measured. The EXTERN BLOCK ALREADY GAVE ITS MEMBERS A CONVENTION of their
+    '' own (extern "C" -> PF_CDECL, extern "Windows" / "Windows-MS" -> PF_STDCALL, in
+    '' parser/decltype.bas), so the resolved convention alone decides it, exactly as
+    '' fbc's rtlThreadCall does:
+    ''
+    ''   cdecl                  -> 1
+    ''   stdcall / stdcall-ms   -> 0, BUT ONLY ON A WINDOWS TARGET; anywhere else fbc
+    ''                             raises error 288 and refuses the threadcall
+    ''   none written           -> the target's own FBCALL default: stdcall on
+    ''                             windows (0), cdecl on linux (1)
+    ''
+    '' FBC'S WINDOWS TEST IS 'env.clopt.target = FB_COMPTARGET_WIN32', which reads as a
+    '' 32-bit-only rule and is not one: FB_COMPTARGET_WIN32 is the target NAMED
+    '' "windows" and the ARCHITECTURE carries the bitness, so win64 satisfies it too.
+    '' That is why a 'Windows-MS' sub gets 0 on win64 rather than error 288. Measured,
+    '' one file holding all six shapes, 'fbc64 -r':
+    ''
+    ''                        win64/default   win32   linux
+    ''     extern "C"               1           1       1
+    ''     extern "Windows"         0           0       error 288
+    ''     extern "Windows-MS"      0           0       error 288
+    ''     sub s cdecl              1           1       1
+    ''     sub s stdcall            0           0       error 288
+    ''     plain sub s              0           0       1
     dim as long conv = 0
-    if (pp->extra and Tko.PF_CDECL) <> 0 then conv = 1
-    if (pp->extra and Tko.PF_FOREIGN) <> 0 then conv = 1
+    select case Tko.CallConvOf( pp->extra )
+    case Tko.CC_CDECL
+        conv = 1
+    case Tko.CC_STDCALL
+        if c.types->target.isWindows = false then return false
+    case else
+        '' None written -- the target's default. (CC_PASCAL cannot reach here; a
+        '' pascal sub was declined above.)
+        if c.types->target.isWindows = false then conv = 1
+    end select
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, conv ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     '' THE COUNT COMES FROM THE CALLEE, not from the call. A DEFAULTED PARAMETER IS
