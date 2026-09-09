@@ -1024,6 +1024,65 @@ function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     return LowerOpenCall_( c, id, ignored )
 end function
 
+'' A DEVICE WORD IS AN ORDINARY IDENTIFIER, and only the SYMBOL TABLE tells it from a
+'' filename. Measured on fbc, both ways round:
+''
+''     open cons for output as #1              fb_FileOpenCons
+''     dim as string cons = "t.txt"
+''     open cons for output as #1              fb_FileOpen -- cons is the FILENAME
+''
+'' ...so the parser cannot decide this: it runs before Resolve and has no table. The
+'' decision is made HERE instead, which is the stage that can ask whether the name
+'' bound to anything.
+''
+'' ERR IS THE EXCEPTION and is reserved: 'dim as string err' is fbc error 4, so
+'' 'open err' is always fb_FileOpenErr. tiko's 'err' is a KEYWORD and would never
+'' reach an identifier lookup anyway -- and until this, 'open err for output' lowered
+'' to fb_FileOpen taking the result of fb_ErrorGetNum AS THE FILENAME DESCRIPTOR. It
+'' verified. It did not decline. That is the whole reason this was worth doing.
+''
+'' THREE OF THEM TAKE AN OPERAND and three do not, and both shapes reach the same
+'' entry-point signature -- seven arguments, the ENCODING form's, with a NULL encoding:
+''
+''     open cons for output as #1          fb_FileOpenCons( ""desc,        3u,0,0, 1,0, NULL )
+''     open pipe "echo hi" for input as #2 fb_FileOpenPipe( "echo hi"desc, 2u,0,0, 2,0, NULL )
+''
+'' The one with no operand passes an EMPTY string descriptor, not a null pointer.
+private function OpenDeviceRtl_ _
+    ( byref c as Ctx, byval a as Tko.NodeId ) as RtlId
+
+    if a = Tko.NODE_NONE then return RTL_NONE
+    dim as string dw = ""
+    select case c.ast->Kind( a )
+    case Tko.N_IDENT
+        dim as Tko.IdentPayload ptr ip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, a )].data )]
+        dw = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+        '' ERR IS ASKED BEFORE THE BINDING TEST, and that order is the fix rather than
+        '' a detail. tiko's prelude declares 'err' as an alias for fb_ErrorGetNum, so
+        '' the name DOES bind -- and 'open err for output' lowered to fb_FileOpen
+        '' taking the error number's return value AS THE FILENAME DESCRIPTOR. It
+        '' verified and it did not decline. fbc reserves the name ('dim as string err'
+        '' is its error 4), so there is no filename it could ever be.
+        if dw <> "err" then
+            '' A NAME THAT BOUND IS A FILENAME. Only an UNBOUND one can be a device.
+            if c.info->RefOf( a ) <> Tko.SYMBOL_NONE then return RTL_NONE
+        end if
+    case else
+        return RTL_NONE
+    end select
+
+    select case dw
+    case "cons" : return RTL_FILE_OPEN_CONS
+    case "err"  : return RTL_FILE_OPEN_ERR
+    case "scrn" : return RTL_FILE_OPEN_SCRN
+    case "pipe" : return RTL_FILE_OPEN_PIPE
+    case "lpt"  : return RTL_FILE_OPEN_LPT
+    case "com"  : return RTL_FILE_OPEN_COM
+    end select
+    return RTL_NONE
+end function
+
 function LowerOpenCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -1047,11 +1106,33 @@ function LowerOpenCall_ _
         if ZstrDataOf_( c, en, enc ) = false then return false
     end if
 
+    '' A DEVICE FORM TAKES ITS OPERAND FROM THE CHILD LIST, or an EMPTY string when
+    '' none was written -- measured, 'open cons for output' passes
+    '' 'fb_StrAllocTempDescZEx( "", 0 )' and not a null pointer.
+    dim as RtlId devR = OpenDeviceRtl_( c, sp->a )
+
     '' THE FILENAME IS A DESCRIPTOR POINTER whatever it was spelled as -- a variable, a
     '' literal, a concatenation. fb_FileOpen takes FBSTRING*, not the (ptr, len) pair
     '' most of the string runtime wants.
     dim as MirValue fn
-    if StrDescriptorOf_( c, sp->a, fn ) = false then return false
+    if devR <> RTL_NONE then
+        dim as Tko.NodeId opN = Tko.NODE_NONE
+        if (sp->extra and Tko.OPEN_HAS_ENCODING) = 0 then
+            if sp->count >= 1 then opN = cast( Tko.NodeId, c.ast->children[sp->first] )
+        end if
+        if opN <> Tko.NODE_NONE then
+            if StrDescriptorOf_( c, opN, fn ) = false then return false
+        else
+            dim as FB.Array( of ulong ) ea
+            ea.Push( cast( ulong, MV_GLOBAL ) )
+            ea.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
+            ea.Push( cast( ulong, MV_CONST_INT ) ) : ea.Push( 0 )
+            fn = EmitRtl( c, RTL_STR_TEMPZ, ea )
+        end if
+        if fn.kind = cast( ubyte, MV_NONE ) then return false
+    else
+        if StrDescriptorOf_( c, sp->a, fn ) = false then return false
+    end if
 
     dim as MirValue num = LowerExpr( c, sp->b )
     if num.kind = cast( ubyte, MV_NONE ) then return false
@@ -1083,7 +1164,13 @@ function LowerOpenCall_ _
     args.Push( cast( ulong, lk.kind ) ) : args.Push( cast( ulong, lk.id ) )
     args.Push( cast( ulong, num.kind ) ) : args.Push( cast( ulong, num.id ) )
     args.Push( cast( ulong, rl.kind ) ) : args.Push( cast( ulong, rl.id ) )
-    if enc.kind <> cast( ubyte, MV_NONE ) then
+    if devR <> RTL_NONE then
+        '' SEVEN ARGUMENTS, the ENCODING form's, with a NULL encoding pointer -- measured
+        '' on all six: 'fb_FileOpenCons( ""desc, 3u, 0u, 0u, 1, 0, (char*)0ull )'.
+        dim as MirValue nul = ConstInt( c, 0, MT_PTR )
+        args.Push( cast( ulong, nul.kind ) ) : args.Push( cast( ulong, nul.id ) )
+        outv = EmitRtl( c, devR, args )
+    elseif enc.kind <> cast( ubyte, MV_NONE ) then
         args.Push( cast( ulong, enc.kind ) ) : args.Push( cast( ulong, enc.id ) )
         outv = EmitRtl( c, RTL_FILE_OPEN_ENCOD, args )
     else
