@@ -838,6 +838,21 @@ function Run( byref args as Tko.StrVec ) as long
                             dim as string objPath = ctx.options.outputPath
                             if ctx.options.compileOnly = false then
                                 objPath = ctx.options.outputPath & "." & str( i ) & ".o"
+                                '' A STATIC LIBRARY'S MEMBERS ARE NAMED AFTER THEIR
+                                '' SOURCES. An intermediate object's name is invisible
+                                '' when it is linked and then deleted -- but an ARCHIVE
+                                '' keeps it, as the member name, and 'ar t' on ours
+                                '' listed 'libmylib.a.1.o' and 'libmylib.a.2.o' where
+                                '' fbc lists 'thing.o' and 'other.o'. Measured on the
+                                '' same two sources.
+                                ''
+                                '' The BASENAME is what ar stores, so two sources of the
+                                '' same name in different directories give two members
+                                '' of the same name -- which is exactly what fbc does
+                                '' with them, and not a new failure mode.
+                                if ctx.options.outKind = Tko.OUT_STATICLIB then
+                                    objPath = StripExt_( ctx.sources.PathOf( id ) ) & ".o"
+                                end if
                                 tempObjs.Push( objPath )
                             elseif len( objPath ) = 0 then
                                 '' '-c' WITH NO -o: EACH MODULE NAMES ITS OWN OBJECT,

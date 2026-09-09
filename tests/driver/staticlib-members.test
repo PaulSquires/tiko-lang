@@ -1,0 +1,26 @@
+'' A STATIC LIBRARY'S MEMBERS ARE NAMED AFTER THEIR SOURCES. An intermediate object's
+'' name is invisible when it is linked and deleted -- but an ARCHIVE keeps it, as the
+'' member name. Measured on these two sources:
+''
+''     fbc    __fb_ct.inf  thing.o  other.o
+''     tiko   libmembers.a.1.o      libmembers.a.2.o
+''
+'' so 'ar t' on ours named the output and an index where fbc names the source. The
+'' member names live in the archive's own headers and in nothing tiko prints, which is
+'' why this needs EXPECT-FILE-HAS rather than EXPECT-OUT.
+''
+'' NOT ASSERTING __fb_ct.inf. That is fbc's module-constructor table, a separate
+'' artefact this does not produce; naming it here would be asserting something that has
+'' never been claimed.
+'' TEST: cli
+'' ARGS: -lib tests/driver/src/thing.bas tests/driver/src/other.bas -o libmembers.a
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: libmembers.a
+'' EXPECT-FILE-HAS: libmembers.a :: thing.o
+'' EXPECT-FILE-HAS: libmembers.a :: other.o
+'' THE TWO ABOVE ARE THE WHOLE TEST. An EXPECT-NOT for 'libmembers.a.1.o' would read
+'' well and assert nothing: EXPECT-NOT matches tiko's STDOUT, where neither the old
+'' name nor the new one ever appears. Under the old naming the archive held
+'' libmembers.a.1.o and libmembers.a.2.o and no thing.o at all, so the positive
+'' assertions are what fail -- verified by building the previous driver and running
+'' this against it.

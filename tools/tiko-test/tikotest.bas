@@ -14,6 +14,7 @@
 ''     '' EXPECT-NOT: other text    forbidden substring (repeatable)
 ''     '' EXPECT-FILE: path        the run must CREATE this file (repeatable)
 ''     '' EXPECT-NO-FILE: path     the run must NOT create it (repeatable)
+''     '' EXPECT-FILE-HAS: p :: s  the file must exist and contain those bytes
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
 ''
 '' TARGETS. Every run names a target explicitly: what tiko-lang emits depends on
@@ -87,6 +88,10 @@ type TestCase
     '' relative to the working directory, like ARGS.
     as Array( of string ) expectFile
     as Array( of string ) expectNoFile
+    '' ...and BYTES a produced file must contain, as 'path :: text'. An archive's
+    '' member names are in the file and in nothing tiko prints, so -lib's naming was
+    '' verifiable only by running 'ar t' by hand.
+    as Array( of string ) expectFileHas
 end type
 
 type Options
@@ -279,6 +284,8 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.expectNot.Push( Trim_( mid( ln, 12 ) ) )
         elseif StartsWith( ln, "EXPECT-NO-FILE:" ) then
             tc.expectNoFile.Push( Trim_( mid( ln, 16 ) ) )
+        elseif StartsWith( ln, "EXPECT-FILE-HAS:" ) then
+            tc.expectFileHas.Push( Trim_( mid( ln, 17 ) ) )
         elseif StartsWith( ln, "EXPECT-FILE:" ) then
             tc.expectFile.Push( Trim_( mid( ln, 13 ) ) )
         elseif StartsWith( ln, "ENV:" ) then
@@ -431,6 +438,14 @@ function RunOne _
         for each f2 as string in tc.expectNoFile
             kill( f2 )
         next
+        '' ...AND THE FILES WHOSE CONTENT IS ASSERTED, for the same reason: an archive
+        '' left by a previous run already contains the member names this is about to
+        '' look for, so without this the check would pass without the compiler having
+        '' produced anything at all.
+        for each f3 as string in tc.expectFileHas
+            dim as long s3 = instr( f3, "::" )
+            if s3 > 0 then kill( Trim_( left( f3, s3 - 1 ) ) )
+        next
         '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
         rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText, slotId )
         if CheckOne_( tc, opts, tgt, rc, outText, why ) = false then
@@ -499,6 +514,35 @@ function CheckOne_ _
         end if
     next
 
+    '' 'path :: text' -- the file must exist and contain those bytes. Read whole and
+    '' searched as bytes, not as lines: an archive is binary, and its member names sit
+    '' in fixed-width headers with no newline anywhere near them.
+    for each has_ as string in tc.expectFileHas
+        dim as long sep = instr( has_, "::" )
+        if sep = 0 then
+            why = "malformed EXPECT-FILE-HAS (want 'path :: text'): " & has_
+            return false
+        end if
+        dim as string hpath = Trim_( left( has_, sep - 1 ) )
+        dim as string hwant = Trim_( mid( has_, sep + 2 ) )
+        if FileExists_( hpath ) = false then
+            why = "did not create: " & hpath
+            return false
+        end if
+        dim as long hf = freefile
+        if open( hpath for binary access read as #hf ) <> 0 then
+            why = "cannot read: " & hpath
+            return false
+        end if
+        dim as string blob = space( lof( hf ) )
+        if len( blob ) > 0 then get #hf, 1, blob
+        close #hf
+        if instr( blob, hwant ) = 0 then
+            why = hpath & " does not contain: " & hwant
+            return false
+        end if
+    next
+
     if tc.haveMaxDiag then
         '' The plan's recovery criterion: a broken file yields a few useful messages,
         '' not a cascade (docs/plan/04 section 8).
@@ -553,6 +597,7 @@ end type
 '' then serial until someone says otherwise, which is the safe direction to be wrong.
 function IsParallelSafe_( byref tc as TestCase ) as boolean
     if tc.env.IsEmpty( ) = false then return false
+    if tc.expectFileHas.IsEmpty( ) = false then return false
     if tc.expectFile.IsEmpty( ) = false then return false
     if tc.expectNoFile.IsEmpty( ) = false then return false
     if instr( tc.args, "--dump" ) > 0 then return true
