@@ -37,7 +37,9 @@ function Snippet _
     dim as Tko.DecodedLoc a = src.Decode( rng.first )
     if a.file = Tko.FILE_NONE then return ""
 
-    dim as string lineText = src.LineText( a.file, a.lineNo )
+    '' The SNIPPET is read by physical line -- a '#line' renumbers what the user is
+    '' told, not where the bytes are.
+    dim as string lineText = src.LineText( a.file, a.physLine )
     if len( lineText ) = 0 then
         '' An empty line still deserves a caret: it may be exactly where the
         '' problem is (a missing END IF at end of file, say).
@@ -48,7 +50,7 @@ function Snippet _
     '' otherwise to the end of the line.
     dim as Tko.DecodedLoc b = src.Decode( rng.last )
     dim as long lastCol = a.column
-    dim as boolean sameLine = (b.file = a.file) andalso (b.lineNo = a.lineNo)
+    dim as boolean sameLine = (b.file = a.file) andalso (b.physLine = a.physLine)
     if sameLine andalso (b.column >= a.column) then lastCol = b.column
 
     dim as long gutterWidth = len( str( a.lineNo ) )
@@ -93,7 +95,7 @@ function Diagnostic_ _
 
     if d.hasLocation then
         dim as Tko.DecodedLoc loc = src.Decode( d.range.first )
-        dim as string path = src.PathOf( loc.file )
+        dim as string path = src.ShownPathOf( loc )
         if fmt = Tko.DIAGFMT_GNU then
             outp += path & ":" & loc.lineNo & ":" & loc.column & ": " & _
                     sevTinted & ": " & Tint( useColor, ANSI_BOLD, d.text ) & _
@@ -120,7 +122,7 @@ function Diagnostic_ _
         dim as boolean noteHasLoc = (n.range.first <> Tko.LOC_NONE)
         if noteHasLoc then
             dim as Tko.DecodedLoc nl = src.Decode( n.range.first )
-            dim as string npath = src.PathOf( nl.file )
+            dim as string npath = src.ShownPathOf( nl )
             if fmt = Tko.DIAGFMT_GNU then
                 outp += npath & ":" & nl.lineNo & ":" & nl.column & ": " & _
                         noteTint & ": " & n.text & chr( 10 )

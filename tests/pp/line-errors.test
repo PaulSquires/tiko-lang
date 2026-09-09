@@ -1,0 +1,10 @@
+'' fbc's error 17 for the number and its error 3 for anything after the quoted name.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/line-errors.bas
+'' EXPECT-EXIT: 1
+
+'' A missing number, and a negative one -- fbc's error 17.
+'' EXPECT-OUT: TKO0331
+
+'' An unquoted name, an expression, and a trailing token -- fbc's error 3.
+'' EXPECT-OUT: TKO0332

@@ -1,0 +1,12 @@
+'' A relative '#include' after a '#line' resolves against the presented name.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/line-include.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' src/lineinc/target.bi, reached only through the '#line' name...
+'' EXPECT-OUT: resolved_under_line_name
+
+'' ...and NOT src/target.bi, which sits beside the real source and is what the
+'' physical path resolves to.
+'' EXPECT-NOT: resolved_under_real_name

@@ -100,6 +100,9 @@ private function ForeignLibResolve_ _
     if instr( base_, ":" ) > 0 then absolute_ = true
     if left( base_, 1 ) = "/" then absolute_ = true
     if absolute_ = false then
+        '' The PHYSICAL file, unlike '#include' above: '#foreignlib' is tiko's own
+        '' (RFC-0005) and probes for binaries that ship beside the real source, where
+        '' a '#line' name is a fiction about text rather than a place on disk.
         dim as DecodedLoc d = e.src->Decode( at )
         dim as string here = e.src->PathOf( d.file )
         dim as string dir_ = ""
@@ -187,8 +190,14 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
 
     '' The directory of the INCLUDING file. Done by hand rather than through
     '' PathSplit, which wants an Array( of ustring ) and would cost more than it saves.
+    ''
+    '' A '#line' NAME IS WHAT A RELATIVE INCLUDE RESOLVES AGAINST -- measured, and it
+    '' surprised me: after '#line 5 "sub/fake.bas"', '#include "h.bi"' picks sub/h.bi
+    '' and falls back to the working directory only when that does not exist. The
+    '' generator that emitted the '#line' is describing where the text came FROM, and
+    '' fbc takes it at its word.
     dim as DecodedLoc d = e.src->Decode( at )
-    dim as string here = e.src->PathOf( d.file )
+    dim as string here = e.src->ShownPathOf( d )
     dim as string dir_ = ""
     for i as long = len( here ) to 1 step -1
         dim as ubyte c = here[i - 1]
@@ -255,8 +264,8 @@ end sub
 '' This runs the REAL expander over a frame rather than hand-rolling a partial one.
 '' The hand-rolled version expanded only object-like macros, so '#if TWO( a, b ) = 2'
 '' and '#if __FB_ARG_COUNT__( args ) = 0' silently took the false branch.
-private function PpEvalRestOfLine _
-    ( byref e as PpEngine, byval at as SourceLoc, byval what as string ) as boolean
+private sub PpExpandRestOfLine _
+    ( byref e as PpEngine, byref expanded as TokenVec )
 
     dim as TokenVec ptr raw = new TokenVec
     CollectLine( e, *raw )
@@ -264,7 +273,6 @@ private function PpEvalRestOfLine _
     dim as long baseDepth = e.frames.Count
     PushFrame( e, raw, INTERN_NONE, FILE_NONE, true )
 
-    dim as TokenVec expanded
     dim as long guard = 0
     do
         guard += 1
@@ -315,6 +323,14 @@ private function PpEvalRestOfLine _
     while e.frames.Count > baseDepth
         PopFrame( e )
     wend
+
+end sub
+
+private function PpEvalRestOfLine _
+    ( byref e as PpEngine, byval at as SourceLoc, byval what as string ) as boolean
+
+    dim as TokenVec expanded
+    PpExpandRestOfLine( e, expanded )
 
     dim as boolean ok = false
     dim as boolean result = PpEvalCondition( e, expanded, ok )
@@ -776,6 +792,66 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         '' someone writes the option that needs it.
         if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
         SkipToEol( e )
+
+    case "line"
+        '' '#line <number> [ "file" ]' RENUMBERS FROM THIS LINE, not from the next --
+        '' measured: '#line 100' on physical line 2 makes physical line 3 report 101,
+        '' and the error for a fault on physical line 4 says '(103)'.
+        ''
+        '' The number is MACRO-EXPANDED but is not an expression. Both halves are
+        '' measured: '#define N 50' then '#line N' renumbers, while '#line 10+2' is
+        '' fbc's error 3 at the '+' and '#line -3' its error 17 at the '-'. So a
+        '' single literal, after expansion, and nothing cleverer.
+        dim as TokenVec lnToks
+        PpExpandRestOfLine( e, lnToks )
+
+        if lnToks.Count = 0 then
+            Report( e, TKO0331, at )
+        elseif Tk( lnToks[0] ) <> TK_INT_LIT then
+            Report( e, TKO0331, lnToks[0].loc )
+        else
+            dim as TokenVec one
+            one.Push( lnToks[0] )
+            dim as boolean lnOk = false
+            dim as longint lnVal = PpEvalIntTokens( e, one, lnOk )
+            if lnOk = false then
+                Report( e, TKO0331, lnToks[0].loc )
+            else
+                '' fbc's line counter is 32 bits: '#line 3000000000' makes the next
+                '' line report -1294967295 rather than saturating or erroring.
+                dim as long shownLine = cast( long, lnVal )
+
+                dim as InternId shownName = INTERN_NONE
+                dim as boolean hasName = false
+                dim as boolean lnBad = false
+                if lnToks.Count >= 2 then
+                    if Tk( lnToks[1] ) <> TK_STRING_LIT then
+                        '' '#line 10 foo.bas' is fbc's error 3, and it applies the
+                        '' NUMBER before rejecting the name -- the message reads
+                        '' 'p.bas(10)'. So the mark is still recorded below.
+                        Report( e, TKO0332, lnToks[1].loc )
+                        lnBad = true
+                    else
+                        dim as string lnSp = SpellOf( e, lnToks[1] )
+                        dim as long lq = instr( lnSp, """" )
+                        dim as long rq = instrrev( lnSp, """" )
+                        dim as string nm = ""
+                        if (lq > 0) andalso (rq > lq) then nm = mid( lnSp, lq + 1, rq - lq - 1 )
+                        shownName = e.names->GetString( nm )
+                        hasName = true
+                    end if
+                end if
+                if (lnBad = false) andalso (lnToks.Count > 2) then
+                    Report( e, TKO0332, lnToks[2].loc )
+                end if
+
+                dim as DecodedLoc lnAt = e.src->Decode( at )
+                if lnAt.file <> FILE_NONE then
+                    e.src->AddLineMark( lnAt.file, lnAt.physLine, shownLine, _
+                                        shownName, hasName )
+                end if
+            end if
+        end if
 
     case "cinclude"
         if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )

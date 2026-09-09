@@ -20,10 +20,10 @@ function PpExpandBuiltin _
         RelexInto( e, str( d.lineNo ), use.loc, *buf )
 
     case PPB_FILE
-        RelexInto( e, """" & e.src->PathOf( d.file ) & """", use.loc, *buf )
+        RelexInto( e, """" & e.src->ShownPathOf( d ) & """", use.loc, *buf )
 
     case PPB_FILE_NQ, PPB_PATH
-        RelexInto( e, e.src->PathOf( d.file ), use.loc, *buf )
+        RelexInto( e, e.src->ShownPathOf( d ), use.loc, *buf )
 
     case PPB_DATE
         RelexInto( e, """" & date( ) & """", use.loc, *buf )

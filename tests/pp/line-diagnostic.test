@@ -1,0 +1,12 @@
+'' The presented name and line reach the diagnostic, and the snippet still comes from
+'' the physical line.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/line-diagnostic.bas
+'' EXPECT-EXIT: 1
+
+'' '#line 100' sits on physical line 10, so the assignment two lines below it is 102.
+'' EXPECT-OUT: fake.bas(102,
+'' EXPECT-NOT: line-diagnostic.bas(
+
+'' ...and the caret is under the code that is really there.
+'' EXPECT-OUT: x = "not a number"

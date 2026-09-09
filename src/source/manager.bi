@@ -24,6 +24,19 @@ namespace Tko
 
     type LongVec as FB.Array( of long )
 
+    '' ONE '#line' DIRECTIVE. It renumbers from its own physical line, so the line
+    '' the directive sits on becomes 'shownLine' and the next is 'shownLine + 1' --
+    '' measured, not assumed: '#line 100' on physical line 5 makes physical line 6
+    '' report 101. 'shownName' is never INTERN_NONE; a '#line' with no string
+    '' inherits the name in force, which is the previous mark's or the file's own.
+    type LineMark
+        as long     physLine
+        as long     shownLine
+        as InternId shownName
+    end type
+
+    type LineMarkVec as FB.Array( of LineMark )
+
     type SourceFile
         as InternId        path          '' absolute, normalised -- the identity
         as InternId        displayPath   '' as the user wrote it -- for diagnostics
@@ -34,6 +47,7 @@ namespace Tko
         as ulong           contentHash   '' for future incremental compilation
         as boolean         isVirtual     '' created from memory, not from disk
         as long            firstBadByte  '' offset of the first invalid UTF-8 byte, or -1
+        as LineMarkVec     lineMarks     '' '#line' directives, by increasing physLine
     end type
 
     type FileVec as FB.Array( of SourceFile ptr )
@@ -79,6 +93,17 @@ namespace Tko
         declare function LineText( byval id as FileId, byval lineNo as long ) as string
 
         declare function PathOf( byval id as FileId ) as string
+
+        '' Record a '#line'. Re-scanning a file (an include pulled in twice without a
+        '' guard) must not stack duplicates, so a mark on a line already marked
+        '' REPLACES it. Pass hasName = false to inherit the name in force.
+        declare sub AddLineMark _
+            ( byval id as FileId, byval physLine as long, byval shownLine as long, _
+              byval shownName as InternId, byval hasName as boolean )
+
+        '' The name a decoded location should be PRINTED under -- the file's own
+        '' unless a '#line' renamed it.
+        declare function ShownPathOf( byref d as DecodedLoc ) as string
         '' Did this come from the BUILTIN PRELUDE? The prelude is real source and is
         '' declared like everything else, but it is not what the user wrote, and a dump
         '' that listed its thirty declarations under every file would bury the file.

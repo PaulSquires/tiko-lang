@@ -30,11 +30,19 @@ namespace Tko
         as SourceLoc last          '' inclusive; equal to first for a point range
     end type
 
+    '' 'lineNo' is the line the user should be TOLD about and 'physLine' the line
+    '' the bytes are actually on. They differ only after a '#line', which resets the
+    '' count and may rename the file -- measured: fbc reports 'fake.bas(103)' for the
+    '' fourth physical line of a file whose first line says '#line 100 "fake.bas"'.
+    '' Anything indexing the source text (a diagnostic's snippet) wants physLine;
+    '' anything the user reads wants lineNo and shownName.
     type DecodedLoc
-        as FileId file
-        as long   lineNo           '' 1-based
-        as long   column           '' 1-based, display columns (tabs expanded)
-        as long   offset           '' byte offset within the file's buffer
+        as FileId   file
+        as long     lineNo         '' 1-based, as presented
+        as long     physLine       '' 1-based, as stored
+        as long     column         '' 1-based, display columns (tabs expanded)
+        as long     offset         '' byte offset within the file's buffer
+        as InternId shownName      '' presented path, or INTERN_NONE for the file's own
     end type
 
     declare function MakeRange _

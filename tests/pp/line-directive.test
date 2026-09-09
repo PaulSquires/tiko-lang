@@ -1,0 +1,26 @@
+'' '#line' renumbers from its own line, renames the file, and a bare '#line' keeps
+'' the name in force. Every number here came off fbc first -- see the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/line-directive.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The directive's own line is 100, so the line after it is 101.
+'' EXPECT-OUT: const i64 101
+
+'' A bare '#line 5' three lines later: 5 for the directive, 6 for the line after it.
+'' EXPECT-OUT: const i64 6
+
+'' 32-bit wrap, which is what fbc does with 3000000000. '__LINE__' expands to TEXT,
+'' so a negative one arrives as a unary minus over the literal and the dump shows the
+'' magnitude with a 'neg' beside it rather than a signed constant.
+'' EXPECT-OUT: const i64 1294967295
+'' EXPECT-OUT: = neg
+
+'' '&h10' is 16; the line after it is 17.
+'' EXPECT-OUT: const i64 17
+
+'' The name is taken by BOTH '__FILE__' uses -- the second follows a '#line' with no
+'' string at all, which inherits rather than reverting to line-directive.bas.
+'' EXPECT-OUT: "fake.bas"
+'' EXPECT-NOT: "tests/pp/src/line-directive.bas"

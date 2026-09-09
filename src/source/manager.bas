@@ -223,11 +223,78 @@ function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
         end if
     wend
 
-    d.lineNo = lineIdx + 1
+    d.physLine = lineIdx + 1
+    d.lineNo = d.physLine
+    d.shownName = INTERN_NONE
+
+    '' The last '#line' at or above this line wins, and everything below it counts on
+    '' from there. Binary search, because Decode is on the diagnostic path and a file
+    '' machine-generated from a template can carry one mark per line.
+    if f->lineMarks.Count > 0 then
+        dim as long mlo = 0, mhi = f->lineMarks.Count - 1, mFound = -1
+        while mlo <= mhi
+            dim as long mmid = (mlo + mhi) \ 2
+            if f->lineMarks[mmid].physLine <= d.physLine then
+                mFound = mmid
+                mlo = mmid + 1
+            else
+                mhi = mmid - 1
+            end if
+        wend
+        if mFound >= 0 then
+            d.lineNo = f->lineMarks[mFound].shownLine + _
+                       (d.physLine - f->lineMarks[mFound].physLine)
+            d.shownName = f->lineMarks[mFound].shownName
+        end if
+    end if
+
     dim as const ubyte ptr textBase = 0
     if f->text.Count > 0 then textBase = @f->text[0]
     d.column = Tko.Text.ColumnOf( textBase, f->lineStarts[lineIdx], off )
     return d
+end function
+
+sub SourceManager.AddLineMark _
+    ( byval id as FileId, byval physLine as long, byval shownLine as long, _
+      byval shownName as InternId, byval hasName as boolean )
+
+    dim as SourceFile ptr f = this.FileAt( id )
+    if f = 0 then return
+
+    '' A '#line' with no string keeps the name in force rather than reverting to the
+    '' file's own -- measured: after '#line 100 "fake.bas"', a bare '#line 5' still
+    '' reports fake.bas.
+    dim as InternId nm = shownName
+    if hasName = false then
+        nm = f->displayPath
+        for i as long = f->lineMarks.Count - 1 to 0 step -1
+            if f->lineMarks[i].physLine < physLine then
+                nm = f->lineMarks[i].shownName
+                exit for
+            end if
+        next
+    end if
+
+    '' Scanning a file twice must not stack two marks on one line.
+    for i as long = f->lineMarks.Count - 1 to 0 step -1
+        if f->lineMarks[i].physLine = physLine then
+            f->lineMarks[i].shownLine = shownLine
+            f->lineMarks[i].shownName = nm
+            return
+        end if
+        if f->lineMarks[i].physLine < physLine then exit for
+    next
+
+    dim as LineMark lm
+    lm.physLine = physLine
+    lm.shownLine = shownLine
+    lm.shownName = nm
+    f->lineMarks.Push( lm )
+end sub
+
+function SourceManager.ShownPathOf( byref d as DecodedLoc ) as string
+    if d.shownName <> INTERN_NONE then return this.names->Spelling( d.shownName )
+    return this.PathOf( d.file )
 end function
 
 '' ----------------------------------------------------------------------- lines

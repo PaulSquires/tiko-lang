@@ -270,8 +270,8 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         '' this IF's own line.
         if (Peek( p ) = Tko.KW_END) andalso HasTok( p, p.pos + 1 ) then
             if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
-                if p.src->Decode( Cur( p ).loc ).lineNo = _
-                   p.src->Decode( t.loc ).lineNo then
+                if p.src->Decode( Cur( p ).loc ).physLine = _
+                   p.src->Decode( t.loc ).physLine then
                     Advance( p )
                     Advance( p )
                 end if

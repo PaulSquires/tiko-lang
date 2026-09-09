@@ -100,6 +100,12 @@
     DIAG( TKO0328, SEV_ERROR,   "expected STATIC or DYNAMIC after the #foreignlib name, %0" )
     DIAG( TKO0329, SEV_ERROR,   "#foreignlib found no matching library file: %0; tried: %1" )
     DIAG( TKO0330, SEV_ERROR,   "#foreignlib name already bound to a different library set, %0" )
+    '' fbc's error 17 for a missing or non-literal number, and its error 3 for
+    '' anything after the optional quoted name. Measured: '#line -3' is error 17 at
+    '' the '-', so the number is a LITERAL and not an expression, and
+    '' '#line 10 foo.bas' is error 3 -- the name has to be quoted.
+    DIAG( TKO0331, SEV_ERROR,   "#line takes a line number, then an optional quoted file name" )
+    DIAG( TKO0332, SEV_ERROR,   "unexpected token after #line" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )
