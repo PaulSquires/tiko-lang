@@ -93,7 +93,7 @@ def one_target(tiko, label, truth, tgtargs):
         # four, __fixunsdfdi, __main and rename live in libgcc/libmingw32/msvcrt, not in
         # libfb, exactly as pow and atan2 do.
         if present != "lib" and fn not in (
-                "pow", "atan2", "rename", "__main", "__divdi3", "__udivdi3",
+                "pow", "atan2", "atan2f", "rename", "__main", "__divdi3", "__udivdi3",
                 "__moddi3", "__umoddi3", "__fixunsdfdi"):
             diffs.append(f"{fn}: not an exported symbol of libfb.a")
             continue

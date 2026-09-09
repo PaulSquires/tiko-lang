@@ -467,6 +467,14 @@ private function ExprIntrinsicType_ _
     '' lines of nothing else.
     case "dir"
         return c.types->Builtin( Tko.TY_STRING )
+
+    '' 'screen( row, col [, colourFlag ] )' -- the console READ, not the SCREEN
+    '' statement. Measured: '#print typeof( screen( 1, 2 ) )' is ULONG, and fbc emits
+    '' 'uint32 vr = fb_ReadXY( 2, 1, 0 )' -- UNSIGNED, so typing it LONG would print
+    '' through fb_PrintInt where fbc prints through fb_PrintUInt.
+    case "screen"
+        if (cp->count < 2) orelse (cp->count > 3) then return Tko.TYPE_NONE
+        return c.types->Builtin( Tko.TY_ULONG )
     case "bit", "bitset", "bitreset"
         if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
@@ -531,6 +539,18 @@ private function ExprIntrinsicType_ _
     '' because most of this table's arithmetic does accept a pointer. Answering DOUBLE
     '' for them made a rejected program lower.
     case "sin", "cos", "tan", "atn", "asin", "acos", "exp", "log", "sqr"
+        if isPtr then return Tko.TYPE_NONE
+        if isNum = false then return Tko.TYPE_NONE
+        if ab = Tko.TY_SINGLE then return c.types->Builtin( Tko.TY_SINGLE )
+        return c.types->Builtin( Tko.TY_DOUBLE )
+
+    '' ATAN2 FOLLOWS THE SAME WIDTH RULE and was simply absent. Measured with
+    '' '#print typeof( atan2( f, f ) )' -- SINGLE for two singles, DOUBLE otherwise --
+    '' and the lowering has emitted the libc call since it was written: 'dim as double
+    '' r = atan2( d, d )' is typed by its DESTINATION and lowered, while
+    '' 'print atan2( d, d )' declined for want of a type. It takes TWO arguments, so
+    '' it cannot share the row above, whose callers assume one.
+    case "atan2"
         if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
         if ab = Tko.TY_SINGLE then return c.types->Builtin( Tko.TY_SINGLE )

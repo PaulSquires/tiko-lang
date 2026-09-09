@@ -488,6 +488,10 @@ sub MathProbe( )
     g = frac( f ) : y = frac( x )
     n = sgn( f )  : n = sgn( x ) : n = sgn( q )
     y = atan2( x, x )
+    '' THE SINGLE FORM IS A DIFFERENT ENTRY POINT: 'atan2( f, f )' over two
+    '' SINGLEs is atan2f, not atan2 widened. Without this line the truth file
+    '' had only the double and check-rtl called the single one an invention.
+    g = atan2( f, f )
     y = x ^ y
 end sub
 ''',
@@ -1069,7 +1073,7 @@ FNPTR_TYPEDEF = re.compile(r"typedef\s+[\w \*]+\(\s*\*\s*([\w$]+)\s*\)\s*\(")
 
 DECL = re.compile(
     r"([A-Za-z_][\w \*]*?)\s+(?:__stdcall\s+)?"
-    r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2|atexit"
+    r"((?:fb_\w+|free|malloc|calloc|realloc|memset|pow|atan2f?|atexit"
     r"|memmove|memcpy|rename|__main|__divdi3|__udivdi3|__moddi3|__umoddi3"
     r"|__fixunsdfdi))"
     r"\s*\(([^;{]*?)\)"

@@ -387,6 +387,11 @@ namespace Tko.Mir
         RTL( RTL_SGN_DOUBLE,        "fb_SGNDouble",        "l",   "d"     )
         RTL( RTL_SGN_SINGLE,        "fb_SGNSingle",        "l",   "f"     )
         RTL( RTL_ATAN2,             "atan2",               "d",   "dd"    )
+        '' ...AND THE SINGLE ONE IS A DIFFERENT FUNCTION, not the double widened.
+        '' Measured: 'atan2( f, f )' over two SINGLEs is 'float vr = atan2f( F, F )',
+        '' and its result feeds fb_PrintSingle. Widening to atan2 and narrowing back
+        '' rounds twice and is not what fbc computes.
+        RTL( RTL_ATAN2F,            "atan2f",              "f",   "ff"    )
         '' '^'. Also a plain libc call, and BOTH OPERANDS BECOME DOUBLES whatever they
         '' were -- 'n ^ n' over two LONGs is 'pow( (double)(int64)N, (double)(int64)N )'.
         RTL( RTL_POW,               "pow",                 "d",   "dd"    )

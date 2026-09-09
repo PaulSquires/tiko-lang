@@ -721,8 +721,16 @@ function PrintOne _
         '' ...and ADJACENT LITERALS, which are one literal: '"a" "1"' folds to "a1"
         '' before it reaches any call, so it has a TEXT and StrDescriptorOf_ borrows a
         '' temporary descriptor over it exactly as it does for a single literal.
+        '' ...AND AN INTRINSIC THAT YIELDS A STRING, which is 'input( n )' and its
+        '' wide twin. It hands back a descriptor exactly as a string-returning call
+        '' does -- 'FBSTRING* vr$4 = fb_FileStrInput( 2ll, 1 )' -- and StrDescriptorOf_
+        '' has known that shape since it was written. Only this list did not, so
+        '' 'print input( 3 )' fell through to LowerAddr, which has no address to give
+        '' for an intrinsic, while 'print input( 3 ) & ""' beside it lowered through
+        '' the concatenation path.
         dim as boolean isCallish = (c.ast->Kind( it ) = Tko.N_CALL) orelse _
                                    (c.ast->Kind( it ) = Tko.N_IDENT) orelse _
+                                   (c.ast->Kind( it ) = Tko.N_INTRINSIC) orelse _
                                    (c.ast->Kind( it ) = Tko.N_STRCAT)
         if isCallish then
             dim as MirValue cd

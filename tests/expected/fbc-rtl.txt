@@ -5,6 +5,7 @@ __moddi3	int64	int64, int64	ABSENT	__moddi3
 __udivdi3	uint64	uint64, uint64	ABSENT	__udivdi3
 __umoddi3	uint64	uint64, uint64	ABSENT	__umoddi3
 atan2	double	double, double	ABSENT	atan2
+atan2f	float	float, float	ABSENT	atan2f
 atexit	int32	void*	lib	atexit
 calloc	void*	uint64, uint64	lib	calloc
 fb_ASC	uint32	FBSTRING*, int64	lib	fb_ASC

@@ -1,0 +1,25 @@
+'' An intrinsic used as a value is typed, so PRINT can classify it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/intrinsic-expr-type.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' LONG results print signed...
+'' EXPECT-OUT: fb_PrintInt
+'' ...and SCREEN's ULONG prints UNSIGNED. Typing it LONG would use fb_PrintInt for
+'' both and nothing would fail.
+'' EXPECT-OUT: fb_PrintUInt
+
+'' A string intrinsic hands back a descriptor, exactly as a string-returning call does.
+'' EXPECT-OUT: fb_FileStrInput
+'' EXPECT-OUT: fb_PrintString
+'' EXPECT-OUT: fb_FileWstrInput
+
+'' SINGLE and DOUBLE go to DIFFERENT entry points, and so do their prints.
+'' EXPECT-OUT: declare f32 atan2f(f32 $0, f32 $1)
+'' EXPECT-OUT: declare f64 atan2(f64 $0, f64 $1)
+'' EXPECT-OUT: fb_PrintSingle
+'' EXPECT-OUT: fb_PrintDouble
+
+'' The GOLDEN pins SCREEN's argument SWAP, which no substring can state.
+'' GOLDEN: expected/intrinsic-expr-type.out

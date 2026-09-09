@@ -58,12 +58,27 @@ function LowerMathCall_ _
         if v0.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue v1 = LowerExpr( c, a1 )
         if v1.kind = cast( ubyte, MV_NONE ) then return false
-        v0 = Coerce( c, v0, MT_F64, uns )
-        v1 = CoerceTy( c, v1, MT_F64, c.info->TypeOf_( a1 ))
+        '' SINGLE IN, SINGLE OUT, THROUGH A DIFFERENT ENTRY POINT. Measured:
+        '' 'atan2( f, f )' over two SINGLEs is 'atan2f( F, F )' returning a float, and
+        '' its result goes straight to fb_PrintSingle. Widening both to double and
+        '' narrowing the answer back rounds twice, which is a quiet wrong last bit
+        '' rather than a decline -- and '#print typeof( atan2( f, f ) )' says SINGLE,
+        '' so the type Check gives it now would not have matched either.
+        dim as MirType a2t = MT_F64
+        dim as RtlId a2r = RTL_ATAN2
+        dim as Tko.TypeId rt2 = c.info->TypeOf_( id )
+        if rt2 <> Tko.TYPE_NONE then
+            if LowerType( rt2, *c.types ) = MT_F32 then
+                a2t = MT_F32
+                a2r = RTL_ATAN2F
+            end if
+        end if
+        v0 = Coerce( c, v0, a2t, uns )
+        v1 = CoerceTy( c, v1, a2t, c.info->TypeOf_( a1 ))
         dim as FB.Array( of ulong ) aa
         aa.Push( cast( ulong, v0.kind ) ) : aa.Push( cast( ulong, v0.id ) )
         aa.Push( cast( ulong, v1.kind ) ) : aa.Push( cast( ulong, v1.id ) )
-        outv = EmitRtl( c, RTL_ATAN2, aa )
+        outv = EmitRtl( c, a2r, aa )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
     if cp->count <> 1 then return false

@@ -407,7 +407,21 @@ function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
 
-private sub IntrFileNumList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+'' LOCK AND UNLOCK TAKE A RANGE, and the 'to' half was being dropped in silence:
+'' 'lock #1, 3 to 9' parsed as two operands, the loop exited on the token it did not
+'' recognise, and the 9 never reached lowering. Measured on fbc:
+''
+''     lock #1, 5        fb_FileLockLarge( 1, 5ll, 0ll )   -- the second bound is 0
+''     lock #1, 3 to 9   fb_FileLockLarge( 1, 3ll, 9ll )
+''
+'' ...so the missing bound is 0 and NOT a repeat of the first, which is what a guess
+'' would have written. The 'to' is accepted only for LOCK and UNLOCK: CLOSE and SEEK
+'' share this form and fbc has no range for either.
+private sub IntrFileNumList _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byval k as Tko.TokenKind )
+
+    dim as boolean takesRange = (k = Tko.KW_LOCK) orelse (k = Tko.KW_UNLOCK)
     dim as Tko.NodeIdVec items
     do
         if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
@@ -415,6 +429,13 @@ private sub IntrFileNumList( byref p as Tko.ParserState, byref sp as Tko.StmtPay
         dim as long before = p.pos
         items.Push( cast( ulong, Expression( p ) ) )
         if p.pos = before then exit do
+        dim as boolean atRange = takesRange andalso (items.Count = 2)
+        if atRange then
+            if Accept( p, Tko.KW_TO ) then
+                items.Push( cast( ulong, Expression( p ) ) )
+                exit do
+            end if
+        end if
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     sp.first = p.ast->children.Count
@@ -608,7 +629,7 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
     case Tko.IFORM_INPUT    : IntrInput( p, sp )
     case Tko.IFORM_LINE     : IntrLine( p, sp )
     case Tko.IFORM_OPEN     : IntrOpen( p, sp )
-    case Tko.IFORM_FILENUM  : IntrFileNumList( p, sp )
+    case Tko.IFORM_FILENUM  : IntrFileNumList( p, sp, k )
     case Tko.IFORM_GETPUT   : IntrGetPut( p, sp )
     case Tko.IFORM_DATA     : IntrData( p, sp )
     case Tko.IFORM_ON       : IntrOn( p, sp )

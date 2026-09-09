@@ -1129,6 +1129,9 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if ip->op = cast( ushort, Tko.KW_SEEK ) then handled = LowerSeekStmt_( c, id )
     if ip->op = cast( ushort, Tko.KW_COLOR ) then handled = LowerColorStmt_( c, id )
     if ip->op = cast( ushort, Tko.KW_WIDTH ) then handled = LowerWidthStmt_( c, id )
+    if ip->op = cast( ushort, Tko.KW_LOCK ) then handled = LowerLockStmt_( c, id, false )
+    if ip->op = cast( ushort, Tko.KW_UNLOCK ) then handled = LowerLockStmt_( c, id, true )
+    if ip->op = cast( ushort, Tko.KW_NAME ) then handled = LowerNameStmt_( c, id )
     '' 'err = n' -- the WRITE half of the ERR pseudo-variable. The READ is an
     '' ordinary call, through the prelude's alias to fb_ErrorGetNum.
     if ip->op = cast( ushort, Tko.KW_ERR ) then handled = LowerErrSet_( c, id )
@@ -1265,6 +1268,9 @@ function LowerCallExpr_ _
     if LowerGfxExprCall_( c, id, wcv ) then return wcv
     if LowerStrPtrCall_( c, id, wcv ) then return wcv
     if LowerRgbCall_( c, id, wcv ) then return wcv
+    '' 'screen( row, col )' -- the console READ, which shares a keyword with the
+    '' SCREEN statement and swaps its arguments on the way to fb_ReadXY.
+    if LowerScreenFn_( c, id, wcv ) then return wcv
     '' Indexing and calling share a spelling; an array subscript is an address to
     '' load from, not a call to make.
     if IsArrayIndex( c, id ) then

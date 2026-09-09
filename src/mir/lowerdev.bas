@@ -199,3 +199,150 @@ private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
     return LowerColorArgs_( c, sp->first, sp->count, cv )
 end function
 
+
+'' LOCK AND UNLOCK -- a byte range of an open file.
+''
+'' Measured from fbc's own C, and the 'Large' spelling is the only one it emits on
+'' win64:
+''
+''     lock #1, 5        fb_FileLockLarge  ( 1, 5ll, 0ll )
+''     lock #1, 3 to 9   fb_FileLockLarge  ( 1, 3ll, 9ll )
+''     unlock #1, 3 to 9 fb_FileUnlockLarge( 1, 3ll, 9ll )
+''     lock h, 2         fb_FileLockLarge  ( (int32)H, 2ll, 0ll )
+''
+'' THE MISSING SECOND BOUND IS 0, not a repeat of the first -- which is what a guess
+'' would have written and is the reason it was probed. The handle is an i32 and both
+'' bounds are i64 whatever the source types are. The result is discarded.
+''
+'' The 'to' half was being dropped by the PARSER before this: 'lock #1, 3 to 9' came
+'' through as two operands and the 9 never reached lowering at all.
+private function LowerLockStmt_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval isUnlock as boolean ) as boolean
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count < 2 then return false
+    if sp->count > 3 then return false
+
+    dim as Tko.NodeId hn = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as MirValue hv = LowerExpr( c, hn )
+    if hv.kind = cast( ubyte, MV_NONE ) then return false
+    hv = CoerceTy( c, hv, MT_I32, c.info->TypeOf_( hn ) )
+    if hv.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+    dim as MirValue av = LowerExpr( c, an )
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+    av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( an ) )
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The default bound is materialised only when there is no 'to', so the range form
+    '' does not carry a dead 'const i64 0' fbc never emits.
+    dim as MirValue bv
+    if sp->count = 3 then
+        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
+        bv = LowerExpr( c, bn )
+        if bv.kind = cast( ubyte, MV_NONE ) then return false
+        bv = CoerceTy( c, bv, MT_I64, c.info->TypeOf_( bn ) )
+    else
+        bv = ConstInt( c, 0, MT_I64 )
+    end if
+    if bv.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, hv.kind ) ) : args.Push( cast( ulong, hv.id ) )
+    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    args.Push( cast( ulong, bv.kind ) ) : args.Push( cast( ulong, bv.id ) )
+    dim as long w = RTL_FILE_LOCK
+    if isUnlock then w = RTL_FILE_UNLOCK
+    dim as MirValue r = EmitRtl( c, w, args )
+    return (r.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' NAME old AS new -- rename a file.
+''
+'' LIBC, not the FB runtime, and measured rather than assumed: fbc emits a plain
+''
+''     rename( (char*)*(char**)&S$0, (char*)"z" )
+''
+'' -- the strings' DATA POINTERS, a literal passed as its own bytes, and the result
+'' discarded. It does NOT go through an fb_* entry point the way KILL, MKDIR and RMDIR
+'' do, so the same statement family is split across two conventions.
+''
+'' 'name a, b' is the SAME statement as 'name a as b': fbc accepts both spellings and
+'' emits identical calls, and the parser already folds them into one shape.
+private function LowerNameStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Tko.NODE_NONE then return false
+    if sp->b = Tko.NODE_NONE then return false
+
+    dim as MirValue oldp
+    if ZstrDataOf_( c, sp->a, oldp ) = false then return false
+    dim as MirValue newp
+    if ZstrDataOf_( c, sp->b, newp ) = false then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, oldp.kind ) ) : args.Push( cast( ulong, oldp.id ) )
+    args.Push( cast( ulong, newp.kind ) ) : args.Push( cast( ulong, newp.id ) )
+    dim as MirValue r = EmitRtl( c, RTL_RENAME, args )
+    return (r.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'screen( row, column [, colourFlag ] )' IN EXPRESSION POSITION -- the character or
+'' the colour attribute at a console cell. A different construct from the SCREEN
+'' STATEMENT, which sets a graphics mode, and they share a keyword the way GET and PUT
+'' do.
+''
+'' THE ARGUMENTS ARE SWAPPED, which is the whole reason this was probed rather than
+'' written from the name. Measured:
+''
+''     screen( 1, 2 )      uint32 vr = fb_ReadXY( 2, 1, 0 )
+''     screen( 1, 2, 1 )   uint32 vr = fb_ReadXY( 2, 1, 1 )
+''
+'' -- FreeBASIC says (row, column) and fb_ReadXY takes (x, y), so the column goes
+'' first. The third argument is 0 when not written, and '#print typeof( screen( 1, 2 ) )'
+'' is ULONG.
+private function LowerScreenFn_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "screen" then return false
+    if (cp->count < 2) orelse (cp->count > 3) then return false
+
+    dim as Tko.NodeId rowN = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId colN = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+
+    '' Source order, then swapped at the call: fbc evaluates the row expression first
+    '' even though the column is passed first, and either may have a side effect.
+    dim as MirValue rowV = LowerExpr( c, rowN )
+    if rowV.kind = cast( ubyte, MV_NONE ) then return false
+    rowV = CoerceTy( c, rowV, MT_I32, c.info->TypeOf_( rowN ) )
+    if rowV.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue colV = LowerExpr( c, colN )
+    if colV.kind = cast( ubyte, MV_NONE ) then return false
+    colV = CoerceTy( c, colV, MT_I32, c.info->TypeOf_( colN ) )
+    if colV.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue flagV
+    if cp->count = 3 then
+        dim as Tko.NodeId fN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+        flagV = LowerExpr( c, fN )
+        if flagV.kind = cast( ubyte, MV_NONE ) then return false
+        flagV = CoerceTy( c, flagV, MT_I32, c.info->TypeOf_( fN ) )
+    else
+        flagV = ConstInt( c, 0, MT_I32 )
+    end if
+    if flagV.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, colV.kind ) ) : args.Push( cast( ulong, colV.id ) )
+    args.Push( cast( ulong, rowV.kind ) ) : args.Push( cast( ulong, rowV.id ) )
+    args.Push( cast( ulong, flagV.kind ) ) : args.Push( cast( ulong, flagV.id ) )
+    outv = EmitRtl( c, RTL_READ_XY, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function

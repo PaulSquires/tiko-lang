@@ -1,0 +1,19 @@
+'' NAME renames through libc; LOCK and UNLOCK take a range whose second bound is 0
+'' when no 'to' was written.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/file-name-lock.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' LIBC, not an fb_ entry point.
+'' EXPECT-OUT: declare i32 rename(ptr $0, ptr $1)
+'' EXPECT-NOT: fb_Rename
+'' EXPECT-NOT: fb_FileName
+
+'' The 'Large' spelling, and i64 bounds whatever the source types were.
+'' EXPECT-OUT: declare i32 fb_FileLockLarge(i32 $0, i64 $1, i64 $2)
+'' EXPECT-OUT: declare i32 fb_FileUnlockLarge(i32 $0, i64 $1, i64 $2)
+
+'' The GOLDEN is what pins the ARGUMENTS -- that 'lock #1, 5' passes a second bound
+'' of 0 and 'lock #1, 3 to 9' passes 9. A substring cannot say which call got which.
+'' GOLDEN: expected/file-name-lock.out
