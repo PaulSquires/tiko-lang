@@ -270,21 +270,49 @@ end function
 ''
 '' 'name a, b' is the SAME statement as 'name a as b': fbc accepts both spellings and
 '' emits identical calls, and the parser already folds them into one shape.
-private function LowerNameStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
-    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->a = Tko.NODE_NONE then return false
-    if sp->b = Tko.NODE_NONE then return false
+private function EmitRename_ _
+    ( byref c as Ctx, byval oldN as Tko.NodeId, byval newN as Tko.NodeId, _
+      byref outv as MirValue ) as boolean
 
+    if oldN = Tko.NODE_NONE then return false
+    if newN = Tko.NODE_NONE then return false
     dim as MirValue oldp
-    if ZstrDataOf_( c, sp->a, oldp ) = false then return false
+    if ZstrDataOf_( c, oldN, oldp ) = false then return false
     dim as MirValue newp
-    if ZstrDataOf_( c, sp->b, newp ) = false then return false
+    if ZstrDataOf_( c, newN, newp ) = false then return false
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, oldp.kind ) ) : args.Push( cast( ulong, oldp.id ) )
     args.Push( cast( ulong, newp.kind ) ) : args.Push( cast( ulong, newp.id ) )
-    dim as MirValue r = EmitRtl( c, RTL_RENAME, args )
-    return (r.kind <> cast( ubyte, MV_NONE ))
+    outv = EmitRtl( c, RTL_RENAME, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+private function LowerNameStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as MirValue r
+    return EmitRename_( c, sp->a, sp->b, r )
+end function
+
+'' 'name( old, new )' IN EXPRESSION POSITION yields rename's RESULT CODE. Measured:
+'' 'print name( "a.tmp", "b.tmp" )' is 'int32 vr = rename( ... ); fb_PrintInt( 0, vr, 1 )'
+'' and '#print typeof( name( "a", "b" ) )' is LONG -- the same call the statement makes,
+'' with its result kept rather than discarded.
+private function LowerNameFn_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->count <> 2 then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "name" then return false
+
+    return EmitRename_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), _
+                        cast( Tko.NodeId, c.ast->children[cp->first + 1] ), outv )
 end function
 
 '' 'screen( row, column [, colourFlag ] )' IN EXPRESSION POSITION -- the character or

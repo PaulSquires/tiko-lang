@@ -1271,6 +1271,8 @@ function LowerCallExpr_ _
     '' 'screen( row, col )' -- the console READ, which shares a keyword with the
     '' SCREEN statement and swaps its arguments on the way to fb_ReadXY.
     if LowerScreenFn_( c, id, wcv ) then return wcv
+    '' 'name( old, new )' -- the rename, with its result kept.
+    if LowerNameFn_( c, id, wcv ) then return wcv
     '' Indexing and calling share a spelling; an array subscript is an address to
     '' load from, not a call to make.
     if IsArrayIndex( c, id ) then

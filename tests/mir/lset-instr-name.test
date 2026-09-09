@@ -1,0 +1,26 @@
+'' The comma spelling of LSET/RSET, the three-argument INSTR's type, and NAME used as
+'' a value.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/lset-instr-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' A var-len destination and a FIXED one take different entry points.
+'' EXPECT-OUT: declare void fb_StrLset(ptr $0, ptr $1)
+'' EXPECT-OUT: declare void fb_StrRset(ptr $0, ptr $1)
+'' EXPECT-OUT: declare void fb_StrLsetANA(ptr $0, i64 $1, ptr $2)
+'' EXPECT-OUT: declare void fb_StrRsetANA(ptr $0, i64 $1, ptr $2)
+
+'' 'any' is its own entry point, and the plain three-argument form is not.
+'' EXPECT-OUT: fb_StrInstrAny
+'' EXPECT-OUT: fb_StrInstrRev
+
+'' NAME is libc, and printing its result means it was TYPED.
+'' EXPECT-OUT: declare i32 rename(ptr $0, ptr $1)
+'' EXPECT-OUT: fb_PrintInt
+
+'' The GOLDEN pins what no substring can: that the comma form kept its SOURCE operand,
+'' and that each INSTR call got the right start. Built and RUN against fbc as well --
+'' '[12    ] [    12]' for the var-len pair, '[12        ]' twice for the fixed one,
+'' and 0 / 2 / 2 / 3 for the four INSTR lines.
+'' GOLDEN: expected/lset-instr-name.out

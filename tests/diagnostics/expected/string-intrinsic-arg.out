@@ -1,7 +1,8 @@
 global var agg s size 24
 global var ptr z
-global var ptr w
+global str $str2 "a"
 global var i64 n
+global var ptr w
 func void REFUSED() {
   entry0:
     ret
@@ -23,6 +24,12 @@ func void ACCEPTED() {
     %8 = call.rtl ptr fb_StrAllocTempDescZ(%7)
     %9 = call.rtl ptr fb_StrLcase2(%8, 0)
     call.rtl void fb_PrintString(0, %9, 1)
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    %11 = load @@n
+    %12 = const i64 1
+    %13 = add %11, %12
+    %14 = call.rtl i64 fb_StrInstr(%13, @@s, %10)
+    call.rtl void fb_PrintLongint(0, %14, 1)
     ret
 }
 declare ptr fb_StrLcase2(ptr $0, i32 $1)
@@ -34,6 +41,9 @@ declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare i32 fb_VALINT(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare i64 fb_StrInstr(i64 $0, ptr $1, ptr $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -50,32 +60,32 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 23 insts, 7 statements not lowered, 0 scope imbalance
-  unlowered N_INTRINSIC 7
-  inside N_INTRINSIC 7
-  unlowered intrinsic KW_PRINT 7
-  skip-site src\mir\lowerctl.bas:206 7
-tests/diagnostics/src/string-intrinsic-arg.bas(19,18): error TKO0626: 'lcase' takes a string
+lowered: 3 functions, 3 blocks, 29 insts, 6 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 6
+  inside N_INTRINSIC 6
+  unlowered intrinsic KW_PRINT 6
+  skip-site src\mir\lowerctl.bas:206 6
+tests/diagnostics/src/string-intrinsic-arg.bas(25,18): error TKO0626: 'lcase' takes a string
      |
-  19 |     print lcase( 0 )
+  25 |     print lcase( 0 )
      |                  ^
-tests/diagnostics/src/string-intrinsic-arg.bas(20,18): error TKO0626: 'ucase' takes a string
+tests/diagnostics/src/string-intrinsic-arg.bas(26,18): error TKO0626: 'ucase' takes a string
      |
-  20 |     print ucase( w )
+  26 |     print ucase( w )
      |                  ^
-tests/diagnostics/src/string-intrinsic-arg.bas(21,17): error TKO0626: 'left' takes a string
+tests/diagnostics/src/string-intrinsic-arg.bas(27,17): error TKO0626: 'left' takes a string
      |
-  21 |     print left( z, 1 )
+  27 |     print left( z, 1 )
      |                 ^
-tests/diagnostics/src/string-intrinsic-arg.bas(22,18): error TKO0626: 'right' takes a string
+tests/diagnostics/src/string-intrinsic-arg.bas(28,18): error TKO0626: 'right' takes a string
      |
-  22 |     print right( 0, 1 )
+  28 |     print right( 0, 1 )
      |                  ^
-tests/diagnostics/src/string-intrinsic-arg.bas(23,16): error TKO0626: 'val' takes a string
+tests/diagnostics/src/string-intrinsic-arg.bas(29,16): error TKO0626: 'val' takes a string
      |
-  23 |     print val( 0 )
+  29 |     print val( 0 )
      |                ^
-tests/diagnostics/src/string-intrinsic-arg.bas(24,19): error TKO0626: 'valint' takes a string
+tests/diagnostics/src/string-intrinsic-arg.bas(30,19): error TKO0626: 'valint' takes a string
      |
-  24 |     print valint( n )
+  30 |     print valint( n )
      |                   ^

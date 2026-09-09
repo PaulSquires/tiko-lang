@@ -667,9 +667,21 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
         ''
         '' Built as TK_EQ, because that is what it means and what the lowering reads.
         if (k = Tko.KW_LSET) orelse (k = Tko.KW_RSET) then
+            '' ...AND SO DOES A COMMA, which is the spelling the corpus actually uses
+            '' and the one this had no case for. Measured: fbc emits the SAME call for
+            '' all three -- 'lset x, y', 'lset x = y' and 'lset x => y' are byte for
+            '' byte 'fb_StrLset( &X$0, (FBSTRING*)&Y$0 )'.
+            ''
+            '' Without it the comma form dropped its SOURCE in silence, exactly as the
+            '' arrow did before the note below was written: the expression stopped at
+            '' 'x' and ', y' was never parsed. The statement then declined for want of
+            '' an assignment, which is the visible symptom of a parse that lost half
+            '' its meaning.
             dim as Tko.NodeId lrLhs = Expression( p )
             dim as Tko.NodeIdVec lrItems
-            if Peek( p ) = Tko.TK_FATARROW then
+            dim as boolean lrJoined = (Peek( p ) = Tko.TK_FATARROW) orelse _
+                                      (Peek( p ) = Tko.TK_COMMA)
+            if lrJoined then
                 dim as Tko.Token lrAt = Cur( p )
                 Advance( p )
                 dim as Tko.BinaryPayload lrBp

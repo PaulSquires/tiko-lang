@@ -322,6 +322,25 @@ private sub CheckDerivedPtrCast_ _
     c.diags->Report( Tko.TKO0627, Tko.PointRange( c.ast->Loc( at ) ) )
 end sub
 
+'' THE BUILTIN TYPE OF ONE ARGUMENT, by the same three rules the first argument has
+'' always been read by: a fixed string answers with its ELEMENT, a plain builtin with
+'' itself, and a UDT with whatever its 'operator cast' converts to. Split out because
+'' INSTR's text is not always slot zero -- see the case below.
+private function ArgBuiltin_ _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byval i as long ) _
+    as Tko.BuiltinType
+
+    if (i < 0) orelse (i >= cp->count) then return Tko.TY_NONE
+    dim as Tko.TypeId at = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) )
+    if at = Tko.TYPE_NONE then return Tko.TY_NONE
+    dim as Tko.TypeId fs = FixedStringElem( at, *c.types )
+    if fs <> Tko.TYPE_NONE then return c.types->BuiltinOf( fs )
+    if c.types->Kind( at ) = Tko.TK_BUILTIN then return c.types->BuiltinOf( at )
+    dim as Tko.TypeId sc = UdtStringCastType_( c, at )
+    if sc <> Tko.TYPE_NONE then return c.types->BuiltinOf( sc )
+    return Tko.TY_NONE
+end function
+
 private function ExprIntrinsicType_ _
     ( byref c as Ctx, byref nm as string, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
@@ -416,8 +435,30 @@ private function ExprIntrinsicType_ _
         '' NOT REPORTED, only declined. 'instr' HAS A THREE-ARGUMENT FORM whose first
         '' argument is a START POSITION -- 'instr( i + 1, result, a )' -- so a
         '' non-string in slot zero is ordinary, and reporting it refused three files fbc
-        '' accepts. The acceptance test below still reads slot zero, which is why it
-        '' answers TYPE_NONE for the three-argument form; that is a separate gap.
+        '' accepts.
+        ''
+        '' ...AND THE ACCEPTANCE TEST USED TO READ SLOT ZERO WHATEVER THE FORM, so the
+        '' three-argument INSTR came out UNTYPED: the start position is not a string
+        '' and 'isStr' was false. That is the gap the note here used to name and leave.
+        '' It is not a diagnostic either -- 'dim as integer n = instr( 1, s, "le" )' is
+        '' typed by its DESTINATION and lowered, while 'print instr( 1, s, "le" )'
+        '' declined for want of anything to classify.
+        ''
+        '' WHERE THE TEXT SITS IS NOT THE SAME FOR THE TWO OF THEM, and the lowering
+        '' already says so:
+        ''
+        ''     instr( start, text, pattern )      text is slot ONE
+        ''     instr( text, pattern )             text is slot zero
+        ''     instrrev( text, pattern[, start] ) text is slot zero, always
+        dim as long textSlot = 0
+        if (nm = "instr") andalso (cp->count = 3) then textSlot = 1
+        if textSlot > 0 then
+            dim as Tko.BuiltinType tb = ArgBuiltin_( c, cp, textSlot )
+            if (IsStringy_( tb ) orelse (tb = Tko.TY_FIXSTR)) = false then
+                return Tko.TYPE_NONE
+            end if
+            return c.types->Builtin( Tko.TY_INTEGER )
+        end if
         if isStr = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
     '' ASC IS ULONG, and it matches fb_ASC's own uint32 return. An earlier note here
@@ -475,6 +516,13 @@ private function ExprIntrinsicType_ _
     case "screen"
         if (cp->count < 2) orelse (cp->count > 3) then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_ULONG )
+
+    '' 'name( old, new )' AS A VALUE is rename's result code. Measured:
+    '' '#print typeof( name( "a", "b" ) )' is LONG, and fbc emits the same 'rename'
+    '' call the STATEMENT makes with the result kept.
+    case "name"
+        if cp->count <> 2 then return Tko.TYPE_NONE
+        return c.types->Builtin( Tko.TY_LONG )
     case "bit", "bitset", "bitreset"
         if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
