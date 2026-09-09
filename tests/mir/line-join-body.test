@@ -1,0 +1,42 @@
+'' '##_' AT THE END OF A MACRO BODY JOINS THE NEXT END OF LINE TO REACH THE OUTPUT,
+'' and the substitution loop is not where that can be decided. The rule was armed as an
+'' engine flag while PpSubstitute walked the body -- ahead of any of the body being
+'' emitted -- so a body of TWO lines whose second ends in '##_' ate the separator
+'' between line one and line two and kept the invocation's. One statement was split
+'' where fbc joins, and the split fell inside a declaration:
+''
+''     #macro BEGIN_ENTRIESMAP()
+''     function _GetMapEntries( ) as _MAP_ENTRY ptr
+''         static as _MAP_ENTRY _entries(0 to ...) = { ##_
+''     #endmacro
+''
+'' left 'static ... = {' alone on its line, so the array was never declared, and
+'' 'return @_entries(0)' then read '_entries' as a call to an unknown function.
+'' pp/token-pasting.bas:141 and :144, its last two declines. The join is a MARKER in
+'' the token stream now (TF_JOIN_MARK) and EmitTok arms it in output order.
+''
+'' MEASURED AGAINST fbc, and this file's own output matches fbc's byte for byte:
+''
+''   fbc -r on the declaration emits a STATICALLY INITIALISED DATA OBJECT and nothing
+''   at run time --
+''       static struct $10_MAP_ENTRY _ENTRIES$1[4] = {{1,2},{3,4},{5,6},{0,0}};
+''       static struct $8FBARRAY1I10_MAP_ENTRYE tmp$2$1 =
+''           { _ENTRIES$1, _ENTRIES$1, 64, 16, 1, 49, {{ 4, 0, 3 }} };
+''   -- no zeroed static, no construction loop, no guard flag and no atexit thunk.
+''   HANDOFF's group 11 says this shape "needs a zeroed static plus a construction
+''   loop, which this path cannot express"; that is true only of a ctor-bearing
+''   element type. _MAP_ENTRY is two integers, fbc constructs nothing, and the
+''   declaration was never what declined here.
+''
+''   THE ELLIPSIS BOUND IS RESOLVED BY COUNTING THE BRACE LIST: four elements give
+''   '[4]' and a descriptor of ELEMENTS 4, LBOUND 0, UBOUND 3.
+''
+''   The four neighbouring shapes -- the ellipsis bound on a non-static local and on a
+''   module-level 'dim shared', and an explicit bound either way -- all lowered
+''   already, before this change. They are kept in the source so that a regression in
+''   the initialiser path is told apart from one in the join.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/line-join-body.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/line-join-body.out
