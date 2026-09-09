@@ -296,11 +296,46 @@ private function ThreadCalleeOf_ _
         if lp->target = Tko.NODE_NONE then return Tko.SYMBOL_NONE
         outFirst = lp->first
         outCount = lp->count
+        '' THE OVERLOAD THE FRONTEND CHOSE, and not the head of the chain. ResolveCall_
+        '' scores a call's arguments and records the winner ON THE N_CALL NODE with
+        '' SetRef; the CALLEE IDENT keeps whatever Resolve bound, which is the FIRST
+        '' candidate. Reading the ident sent every overloaded 'threadcall' to that one:
+        '' measured, threads/threadcall.bas:170 'threadcall Overloaded( s2 )' over
+        ''
+        ''     declare sub Overloaded overload ( byval i as integer )
+        ''     declare sub Overloaded( byref s as string )
+        ''
+        '' emitted 'fb_ThreadCall( &..._u7INTEGER, 0, 0, 1, 8, @s2 )' -- the INTEGER
+        '' entry point, handed a STRING DESCRIPTOR's address as an integer, and typed
+        '' code 8 to match. fbc writes '&_Z10OVERLOADEDR8FBSTRING ... 13ll'. It lowered
+        '' and it verified, because fb_ThreadCall is VARIADIC and the argument really is
+        '' a pointer -- to the wrong thing.
+        ''
+        '' A FALLBACK RATHER THAN A REPLACEMENT: the N_CALL ref is written only when
+        '' resolution ran and settled on one candidate, and a lone candidate is already
+        '' bound on the ident.
+        ''
+        '' ASKED AFTER THE NAMESPACE TEST BELOW, never before it. The ref sits on the
+        '' N_CALL whatever the callee's spelling, so answering with it early would
+        '' answer for 'threadcall bc.m( )' too -- an INSTANCE-qualified thread call,
+        '' which is fbc error 289 and has to keep declining here.
+        dim as Tko.SymbolId rc = c.info->RefOf( it )
+        dim as boolean rcOk = false
+        if rc <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr rs = c.syms->SymbolAt( rc )
+            if rs <> 0 then
+                rcOk = (rs->kind = cast( ubyte, Tko.SYM_PROC ))
+            end if
+        end if
         '' A QUALIFIED CALLEE IS STILL A CALLEE, and the same namespace test applies.
         if c.ast->Kind( lp->target ) = Tko.N_MEMBER then
             dim as long qf, qc
-            return ThreadCalleeOf_( c, lp->target, qf, qc )
+            dim as Tko.SymbolId ms = ThreadCalleeOf_( c, lp->target, qf, qc )
+            if ms = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+            if rcOk then return rc
+            return ms
         end if
+        if rcOk then return rc
         return c.info->RefOf( lp->target )
     end if
     if c.ast->Kind( it ) = Tko.N_IDENT then return c.info->RefOf( it )
