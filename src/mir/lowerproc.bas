@@ -641,6 +641,33 @@ sub LowerProc _
         end if
     end if
 
+    '' -exx NAMES THE PROCEDURE IN A RUNTIME ABORT, and without this the slot was empty:
+    '' fbc says 'at line 4 of oob.bas::TOUCHIT()' where this said 'of oob.bas()'.
+    '' lowerboundchk.bas records why it was left alone -- setting the name at module
+    '' level only is the cheap half and makes every check inside a SUB report
+    '' {MODLEVEL}, a name that is wrong rather than missing -- and says the save/restore
+    '' pair belongs here. This is that pair.
+    ''
+    '' SAVE AND RESTORE, because the name is GLOBAL STATE. fbc keeps the previous value
+    '' in a local and puts it back on the way out; setting without restoring would leave
+    '' a returned-from procedure's name in place for everything after it, which is the
+    '' same 'wrong rather than missing' failure from the other direction.
+    ''
+    '' -exx ONLY. Measured across the whole family: '-e', '-ex' and no flag at all emit
+    '' none of this, and only '-exx' does.
+    dim as boolean namesProc = (c.errLevel >= 3)
+    dim as MirValue savedModName, savedFuncName
+    if namesProc then
+        dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( id ) )
+        dim as FB.Array( of ulong ) ma
+        dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
+        ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
+        savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
+        dim as FB.Array( of ulong ) fa
+        dim as MirValue fv = LowerTextAddr( c, Tko.Text.UpperAscii( c.names->Spelling( sp->name ) ) )
+        fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
+        savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
+    end if
     dim as long scopeDepthIn = c.scopeMark.Count
     PushScope( c )
 
@@ -722,6 +749,31 @@ sub LowerProc _
     ''
     '' Counted, not silent: a repair here always means something above declined, and a
     '' number that only ever goes down is worth being able to read.
+    '' THE RESTORE GOES BEFORE EVERY 'ret', because this IR has no single exit: a
+    '' 'return' terminates whatever block it is in, so there is no one epilogue to
+    '' append to the way fbc's single goto label gives it one.
+    ''
+    '' A block's terminator is NOT in its instruction list -- see MirBlock -- so
+    '' emitting into the block appends AFTER the returned value is already computed and
+    '' BEFORE the ret itself, which is exactly where these belong.
+    ''
+    '' Reverse order, as fbc restores them: the function name, then the module name.
+    if namesProc then
+        dim as long savedCurBlk = c.curBlock
+        for bi as long = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+            c.curBlock = bi
+            dim as FB.Array( of ulong ) ra
+            ra.Push( cast( ulong, savedFuncName.kind ) )
+            ra.Push( cast( ulong, savedFuncName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
+            dim as FB.Array( of ulong ) rb
+            rb.Push( cast( ulong, savedModName.kind ) )
+            rb.Push( cast( ulong, savedModName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )
+        next
+        c.curBlock = savedCurBlk
+    end if
     for bi as long = 0 to c.f->blocks.Count - 1
         if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
         c.st->blocksRepaired += 1
@@ -1020,6 +1072,41 @@ sub LowerMainModule _
     '' statement; a main module with READ but no DATA gets none at all.
     EmitImplicitRestore( c )
 
+    '' -exx NAMES THE PROCEDURE IN A RUNTIME ABORT, and without this the slot was empty:
+    '' fbc says 'at line 4 of oob.bas::TOUCHIT()' where this said 'of oob.bas()'.
+    '' lowerboundchk.bas records why it was left alone -- setting the name at module
+    '' level only is the cheap half and makes every check inside a SUB report
+    '' {MODLEVEL}, a name that is wrong rather than missing -- and says the save/restore
+    '' pair belongs here. This is that pair.
+    ''
+    '' SAVE AND RESTORE, because the name is GLOBAL STATE. fbc keeps the previous value
+    '' in a local and puts it back on the way out; setting without restoring would leave
+    '' a returned-from procedure's name in place for everything after it, which is the
+    '' same 'wrong rather than missing' failure from the other direction.
+    ''
+    '' -exx ONLY. Measured across the whole family: '-e', '-ex' and no flag at all emit
+    '' none of this, and only '-exx' does.
+    dim as boolean namesProc = (c.errLevel >= 3)
+    dim as MirValue savedModName, savedFuncName
+    if namesProc then
+        '' AN EMPTY NAME AT MODULE LEVEL, and that is fbc's OUTPUT rather than its
+        '' source. fbc emits 'fb_ErrorSetFuncName( "{MODLEVEL}" )' here and then aborts
+        '' with 'of oob3.bas::()' -- the marker is suppressed somewhere in its runtime,
+        '' and tiko-rt has no such marker to suppress. The empty string reproduces what
+        '' fbc PRINTS, which is what a program sees; emitting the marker made this one
+        '' say 'oob3.bas::{MODLEVEL}()'. The '::' is still there, because it appears
+        '' whenever a name has been set at all -- so setting nothing is a third answer
+        '' and matches neither.
+        dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( root ) )
+        dim as FB.Array( of ulong ) ma
+        dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
+        ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
+        savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
+        dim as FB.Array( of ulong ) fa
+        dim as MirValue fv = LowerTextAddr( c, "" )
+        fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
+        savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
+    end if
     dim as long scopeDepthIn = c.scopeMark.Count
     PushScope( c )
     '' The children are walked directly rather than through LowerBlock. N_MODULE is a
@@ -1057,6 +1144,31 @@ sub LowerMainModule _
 
     '' The same repair the procedure path makes, for the same reason: module-level
     '' code is where the GOTO-into-a-declined-WITH files put their broken block.
+    '' THE RESTORE GOES BEFORE EVERY 'ret', because this IR has no single exit: a
+    '' 'return' terminates whatever block it is in, so there is no one epilogue to
+    '' append to the way fbc's single goto label gives it one.
+    ''
+    '' A block's terminator is NOT in its instruction list -- see MirBlock -- so
+    '' emitting into the block appends AFTER the returned value is already computed and
+    '' BEFORE the ret itself, which is exactly where these belong.
+    ''
+    '' Reverse order, as fbc restores them: the function name, then the module name.
+    if namesProc then
+        dim as long savedCurBlk = c.curBlock
+        for bi as long = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+            c.curBlock = bi
+            dim as FB.Array( of ulong ) ra
+            ra.Push( cast( ulong, savedFuncName.kind ) )
+            ra.Push( cast( ulong, savedFuncName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
+            dim as FB.Array( of ulong ) rb
+            rb.Push( cast( ulong, savedModName.kind ) )
+            rb.Push( cast( ulong, savedModName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )
+        next
+        c.curBlock = savedCurBlk
+    end if
     for bi as long = 0 to c.f->blocks.Count - 1
         if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
         c.st->blocksRepaired += 1

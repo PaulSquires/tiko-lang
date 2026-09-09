@@ -1,0 +1,9 @@
+'' WITHOUT '-exx' THERE IS NO NAMING, which is the half a test of the feature alone
+'' would not catch: emitting the pair unconditionally would pass every assertion in
+'' errfuncname.test and put two runtime calls in the prologue of every procedure ever
+'' compiled. Measured: fbc emits none of this for '-e', for '-ex' or for no flag at all.
+'' TEST: cli
+'' ARGS: -ex --emit-ir tests/codegen/src/errfuncname.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: fb_ErrorSetFuncName
+'' EXPECT-NOT: fb_ErrorSetModName

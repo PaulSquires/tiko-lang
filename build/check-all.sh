@@ -58,7 +58,27 @@ bash build/crosslink.sh
 #
 # It is the slowest thing here -- 726 modules, about seven minutes -- and it is worth
 # it: 3.9 million assertions over the ABI that ships by default.
-if ! TKORT_GATE_OPTIONAL=1 bash lib/rt/build/gatemsvc.sh Release ; then
-    echo "check-all: GATE NONZERO: lib/rt/build/gatemsvc.sh"
+# OPT-IN, and it was not: running it here by default made check-all HANG.
+#
+# It builds 726 modules, and last in this script it forks them after mirsweep has
+# already spawned one compilation per corpus file and the suite its own -- the MSYS
+# process table is spent by then, and the child dies with 0xC0000142
+# (STATUS_DLL_INIT_FAILED) while bash reports "fork: retry: Resource temporarily
+# unavailable". Bash then RETRIES, so the failure presents as a hang rather than an
+# error: forty-nine minutes with no output. Standalone the same gate passes in about
+# seven minutes.
+#
+# Reordering it earlier would move the exhaustion to whatever ran last instead, so the
+# honest fix is not to spend the fork table twice in one run. Set TKO_GATE_MSVC=1 to
+# include it, or run it directly -- which is the way it is actually used:
+#
+#     bash lib/rt/build/gatemsvc.sh Release
+#
+if [ "${TKO_GATE_MSVC:-0}" = "1" ] ; then
+    if ! TKORT_GATE_OPTIONAL=1 bash lib/rt/build/gatemsvc.sh Release ; then
+        echo "check-all: GATE NONZERO: lib/rt/build/gatemsvc.sh"
+    fi
+else
+    echo "check-all: msvc gate not run (TKO_GATE_MSVC=1 to include it)"
 fi
 echo "check-all: done"

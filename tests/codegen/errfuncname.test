@@ -1,0 +1,17 @@
+'' THE FUNCTION NAME IN AN -exx ABORT. fb_ErrorSetFuncName is what makes fbc's
+'' 'oob.bas::TOUCHIT()' where this used to print 'oob.bas()'.
+''
+'' SAVE AND RESTORE, because the name is GLOBAL STATE: fbc keeps the previous value in a
+'' local and puts it back on the way out, so a returned-from procedure does not leave its
+'' name behind for everything after it. That is why each name appears TWICE -- once set
+'' on entry, once restored before the ret.
+''
+'' -exx ONLY. Measured across the family: '-e', '-ex' and no flag emit none of this.
+'' boundchk-off.test is the same shape for the checks themselves.
+'' TEST: cli
+'' ARGS: -exx --emit-ir tests/codegen/src/errfuncname.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare ptr @"fb_ErrorSetFuncName"
+'' EXPECT-OUT: declare ptr @"fb_ErrorSetModName"
+'' THE SOURCE NAME, UPPERCASED, and not the mangled one: fbc's abort says TOUCHIT.
+'' EXPECT-OUT: TOUCHIT
