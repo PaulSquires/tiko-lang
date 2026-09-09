@@ -324,6 +324,13 @@ private sub PpUndef( byref e as PpEngine, byval at as SourceLoc )
     if Tk( t ) = TK_IDENT then
         dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
         if m <> 0 then m->isDefined = false
+    elseif IsKeywordKind( Tk( t ) ) then
+        '' '#undef short'. fbc keeps keywords in the symbol table, so undefining one
+        '' removes the reserved word itself; here that is a de-reservation applied to
+        '' every token that leaves the preprocessor from now on. A keyword can never
+        '' also be a macro -- '#define short 5' is fbc's error 4 -- so there is no
+        '' order to get wrong. See DereserveKw_ in pp.bas for the measurements.
+        DereserveKw_( e, Tk( t ) )
     end if
     SkipToEol( e )
 end sub

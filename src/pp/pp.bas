@@ -102,6 +102,11 @@ type PpEngine
     as IdVec                  uidValues     '' the counter value that name maps to
     as boolean                stopped
 
+    '' '#undef' OF A KEYWORD -- see DereserveKw_. Index = TokenKind, value = the
+    '' InternId of that keyword's folded spelling once it has been de-reserved, and
+    '' 0 while it is still a keyword.
+    as IdVec                  dereserved
+
     '' BLOCK NESTING, counted on the tokens that reach the OUTPUT -- so a 'sub'
     '' that arrived through a macro expansion counts, which is how fbcunit's TEST
     '' opens one. Only SUB, FUNCTION and SCOPE are tracked: they are the forms the
@@ -304,7 +309,66 @@ private sub CollectLine _
     wend
 end sub
 
+'' ------------------------------------------------------- '#undef' OF A KEYWORD
+''
+'' fbc's keywords are ENTRIES IN THE SYMBOL TABLE, so '#undef short' deletes one and
+'' the word becomes an ordinary identifier for the rest of the compilation. That is
+'' the first thing quirk/undef.bas asks for, and it is the half of '#undef' that can
+'' be answered WITHOUT the symbol table the preprocessor does not have: the lexer's
+'' keyword decision is the only thing in play, and this layer owns the token stream.
+''
+'' MEASURED against fbc-modern (probe/p1..p11, 2026-09-09):
+''
+''   #undef short : type short as integer : dim x as short : print sizeof(x)
+''                                       -> 8. Before this, tiko-lang printed 2:
+''                                          the 'type' alias was ignored SILENTLY and
+''                                          the corpus file did not even decline.
+''   #undef short : dim short as integer = 5 : print short      -> 5, so the word is
+''                                          a plain identifier, not a removed type
+''   #undef short : dim x as short         -> error 14. Nothing puts it back.
+''   #undef mod   : dim mod as integer = 7 -> 7. OPERATOR-class words go too.
+''   #define short 5                       -> error 4, Duplicated definition. A
+''                                          keyword and a macro can never share a
+''                                          name, so '#undef NAME' is unambiguous.
+''   sub s( ) : #undef short : ... : end sub  then 'dim y as short' -> error 14.
+''                                          NOT block-scoped, unlike a '#define'.
+''   #undef short then #include a file that writes 'type short as double'
+''                                       -> sizeof( short ) = 8. It crosses files.
+''   #undef NeverExisted                  -> accepted, no diagnostic.
+''
+'' What this does NOT do is the other half: '#undef f1' / '#undef N' remove a
+'' PROCEDURE or a NAMESPACE from fbc's symbol table, and nothing here can see those.
+'' See HANDOFF's "The PREPROCESSOR CANNOT SEE DECLARED SYMBOLS".
+private function DereservedId_ _
+    ( byref e as PpEngine, byval k as TokenKind ) as InternId
+    if cast( long, k ) >= e.dereserved.Count then return INTERN_NONE
+    return cast( InternId, e.dereserved[cast( long, k )] )
+end function
+
+private sub DereserveKw_( byref e as PpEngine, byval k as TokenKind )
+    '' The folded spelling is already interned -- InitKeywords interns every keyword
+    '' FIRST, so this looks the existing id up rather than making a new one.
+    dim as InternId id = e.names->GetString( Text.LowerAscii( TokenKindText( k ) ) )
+    while e.dereserved.Count <= cast( long, k )
+        e.dereserved.Push( 0 )
+    wend
+    e.dereserved[cast( long, k )] = cast( ulong, id )
+end sub
+
 private sub EmitTok( byref e as PpEngine, byref t as Token )
+    '' A KEYWORD THAT HAS BEEN '#undef'ED leaves as an identifier. Done on the way
+    '' out rather than in the lexer because a file is lexed once, in full, before
+    '' the directive that de-reserves the word has run. 't' is byref so the caller's
+    '' copy changes too, which is what keeps PpTrackBlock's view consistent: a
+    '' de-reserved 'sub' is not a block opener either.
+    if IsKeywordKind( Tk( t ) ) then
+        dim as InternId id = DereservedId_( e, Tk( t ) )
+        if id <> INTERN_NONE then
+            t.kind = cast( ushort, TK_IDENT )
+            t.literal = cast( ulong, id )
+        end if
+    end if
+
     '' The '##_' line join, consumed by the FIRST end of line that reaches the output
     '' after it. Doing it here rather than in the substitution loop is what makes the
     '' body and the invocation cases one rule instead of two.
