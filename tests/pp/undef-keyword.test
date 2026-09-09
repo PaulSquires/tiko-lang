@@ -1,0 +1,17 @@
+'' '#undef' of a KEYWORD -- the half of quirk/undef.bas that needs no symbol table.
+'' The measurements this asserts are in the source's own header.
+''
+'' The load-bearing facts, all three of them what fbc does:
+''   'local i64 x'        'type short as integer' after '#undef short' takes effect
+''                        (this was 'local i16 x' before: WRONG, and silent)
+''   'local i64 mod'      an OPERATOR-class keyword de-reserves too, and the word
+''                        is then usable as an ordinary identifier
+''   '0 statements not lowered'  and no diagnostic for '#undef NeverExisted'
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/undef-keyword.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: local i64 x
+'' EXPECT-OUT: local i64 mod
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: local i16
+'' EXPECT-NOT: error TKO
