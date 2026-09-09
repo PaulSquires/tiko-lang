@@ -129,6 +129,16 @@ namespace Tko
     '' tokens take that flag when they are substituted into a body.
     const TF_SYNTHESISED   as ushort = &h0040
 
+    '' THE '##_' LINE JOIN, CARRIED IN THE TOKEN STREAM RATHER THAN IN A FLAG ON THE
+    '' ENGINE. What the join eats is the next end of line to reach the OUTPUT, and the
+    '' substitution loop walks a macro body ahead of any of it being emitted: setting
+    '' an engine flag when the '##_' was SUBSTITUTED ate the body's OWN earlier EOL --
+    '' a two-line body whose second line ends in '##_' lost the separator between its
+    '' lines and kept the invocation's, which is the join applied to the wrong line.
+    '' So the position is marked in place, on a TK_EOL that never reaches the output,
+    '' and EmitTok arms the join when the marker is emitted. See PpSubstitute.
+    const TF_JOIN_MARK     as ushort = &h0080
+
     type Token                      '' 16 bytes
         as ushort    kind
         as ushort    flags

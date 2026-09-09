@@ -1065,7 +1065,19 @@ private sub PpSubstitute _
     dim as long i = 0
     while i < m->body.Count
         if IsLineJoinAt_( e, m, i ) then
-            e.eatNextEol = true
+            '' A MARKER, NOT A FLAG. This loop walks the whole body before one token
+            '' of it is emitted, so arming e.eatNextEol here ate whichever EOL came
+            '' FIRST in the body rather than the first one after the join: a body of
+            '' two lines whose second ends in '##_' lost the separator between line
+            '' one and line two and kept the invocation's EOL -- one statement split
+            '' where fbc joins, which is what made pp/token-pasting.bas's static
+            '' array declaration vanish. EmitTok arms the join when this reaches it.
+            dim as Token mark = m->body[i]
+            mark.kind = cast( ushort, TK_EOL )
+            mark.length = 0
+            mark.flags or= TF_FROM_MACRO or TF_SYNTHESISED or TF_JOIN_MARK
+            mark.flags and= not (TF_COLON or TF_AT_LINE_START)
+            outv.Push( mark )
             i += 3
             continue while
         end if
@@ -1316,6 +1328,10 @@ private sub TrimExpansionTail_ _
     if (use.flags and TF_SYNTHESISED) <> 0 then return
     while buf.Count > 0
         if Tk( buf[buf.Count - 1] ) <> TK_EOL then exit while
+        '' THE LINE-JOIN MARKER IS A TK_EOL AND IS NOT A TRAILING ONE. Trimming it
+        '' would throw away the join in the '#define ENT(x) x, ##_' shape, where the
+        '' marker IS the last thing in the body and the EOL it eats is the caller's.
+        if (buf[buf.Count - 1].flags and TF_JOIN_MARK) <> 0 then exit while
         buf.Pop( )
     wend
 end sub

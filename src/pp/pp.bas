@@ -311,6 +311,13 @@ private sub EmitTok( byref e as PpEngine, byref t as Token )
     '' A ':' IS ALSO A TK_EOL and is NOT what a line join joins: 'a : b' is two
     '' statements on one line and there is no line to continue. TF_COLON is the only
     '' thing that tells them apart -- both are one byte.
+    '' THE MARKER ITSELF, which stands where the '##_' stood in the body. It arms the
+    '' join and is never output. Checked BEFORE the eat below so that two joins in a
+    '' row arm once each rather than the second cancelling the first.
+    if (t.flags and TF_JOIN_MARK) <> 0 then
+        e.eatNextEol = true
+        return
+    end if
     if e.eatNextEol andalso (Tk( t ) = TK_EOL) andalso ((t.flags and TF_COLON) = 0) then
         e.eatNextEol = false
         return
