@@ -1,0 +1,128 @@
+global str $str0 "ab"
+func void _Zv25+<15>R7BOX<15>S0_(ptr $0, ptr $1, ptr $2) {
+  local agg $tmp0 size 24
+  local ptr x
+  local ptr y
+  local agg r size 24
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr x
+    store @x, $0
+    %3 = alloca ptr y
+    store @y, $1
+    %4 = alloca ptr r
+    call void _ZN7BOX<15>C1Ev(@r)
+    %5 = field.addr @r, 0
+    %6 = load @x
+    %7 = field.addr %6, 0
+    %8 = call.rtl ptr fb_StrAssign(%5, -1, %7, -1, 0)
+    %9 = load @y
+    %10 = field.addr %9, 0
+    %11 = call.rtl ptr fb_StrConcatAssign(%5, -1, %10, -1, 0)
+    %12 = load @r
+    store @$tmp0, %12
+    call void _ZN7BOX<15>D1Ev(@r)
+    %13 = load @$tmp0
+    store $0, %13
+    ret
+}
+declare void _ZN7BOX<15>C1Ev(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void _ZN7BOX<15>D1Ev(ptr $0)
+func i64 _Zv24+<8>R6BOX<8>S0_(ptr $0, ptr $1) {
+  local agg $tmp0 size 8
+  local ptr x
+  local ptr y
+  local agg r size 8
+  local agg $abi4 size 8
+  entry0:
+    %15 = alloca ptr $abi4
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr x
+    store @x, $0
+    %3 = alloca ptr y
+    store @y, $1
+    %4 = alloca ptr r
+    %5 = field.addr @r, 0
+    %6 = load @x
+    %7 = field.addr %6, 0
+    %8 = load %7
+    %9 = load @y
+    %10 = field.addr %9, 0
+    %11 = load %10
+    %12 = add %8, %11
+    store %5, %12
+    %13 = load @r
+    store @$tmp0, %13
+    %14 = load @$tmp0
+    store @$abi4, %14
+    %16 = load @$abi4
+    ret %16
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg s1 size 24
+  local agg i1 size 8
+  local agg i2 size 8
+  local agg m size 8
+  local agg $abi5 size 8
+  entry0:
+    %20 = alloca ptr $abi5
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr s1
+    call void _ZN7BOX<15>C1Ev(@s1)
+    %5 = field.addr @s1, 0
+    %6 = call.rtl ptr fb_StrAssign(%5, -1, @@$str0, 3, 0)
+    %7 = alloca ptr i1
+    %8 = alloca ptr i2
+    %9 = field.addr @i1, 0
+    %10 = const i64 3
+    store %9, %10
+    %11 = field.addr @i2, 0
+    %12 = const i64 4
+    store %11, %12
+    %13 = alloca ptr m
+    %21 = call i64 _Zv24+<8>R6BOX<8>S0_(@i1, @i2)
+    store @$abi5, %21
+    %14 = load @$abi5
+    store @m, %14
+    %15 = field.addr @m, 0
+    %16 = load %15
+    call.rtl void fb_PrintLongint(0, %16, 2)
+    %17 = field.addr @s1, 0
+    call.rtl void fb_PrintString(0, %17, 1)
+    call void _ZN7BOX<15>D1Ev(@s1)
+    %18 = const i32 0
+    call.rtl void fb_End(%18)
+    %19 = load @$tmp0
+    ret %19
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN7BOX<15>C1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
+func void _ZN7BOX<15>D1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+declare void fb_StrDelete(ptr $0)
+verify: ok
+lowered: 5 functions, 5 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance
