@@ -725,6 +725,28 @@ function Run( byref args as Tko.StrVec ) as long
             '' lands in the FILE's scope and a 'sub' in its own, so asking SCOPE_GLOBAL
             '' found neither and the check silently never fired. The reserved list is a
             '' handful of names and the table is walked once.
+            '' ...AND ANY USE OF ONE -- fbc 325, "Illegal use of reserved symbol".
+            '' Every appearance, not just the 'sizeof( symbol )' the survey recorded:
+            '' 'print foo', 'foo = 1' and 'dim as integer x = foo' are all 325.
+            ''
+            '' A DECLARATION IS NOT AN N_IDENT, so this cannot double-report with the
+            '' declaration rule below: 'dim as integer foo' carries the name on an
+            '' N_VAR_ITEM payload and creates no identifier node at all.
+            for n as long = 1 to ast.Count( )
+                dim as Tko.NodeId un = cast( Tko.NodeId, n )
+                if ast.Kind( un ) <> Tko.N_IDENT then continue for
+                dim as Tko.IdentPayload ptr uip = _
+                    @ast.idents[cast( long, ast.nodes[cast( long, un )].data )]
+                for k as long = 0 to pr.reservedNames.Count - 1
+                    if uip->name <> cast( Tko.InternId, pr.reservedNames[k] ) then
+                        continue for
+                    end if
+                    ctx.diags.Report( Tko.TKO0770, Tko.PointRange( ast.Loc( un ) ), _
+                                      ctx.names.Spelling( uip->name ) )
+                    exit for
+                next
+            next
+
             for k as long = 0 to pr.reservedNames.Count - 1
                 dim as Tko.InternId rnm = cast( Tko.InternId, pr.reservedNames[k] )
                 for si as long = 1 to syms.Count( )

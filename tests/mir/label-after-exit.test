@@ -1,0 +1,16 @@
+'' A label after EXIT SUB or RETURN. See the source for what was dropped and why it
+'' matters.
+''
+'' THE FIX IS IN THE STATEMENT DISPATCH, not at the terminator. Opening an "after" block
+'' at every RETURN was tried and reverted -- lowerinit.bas records that it left one
+'' unreachable block, and one unreachable 'ret', per return in the corpus, 1,488 of them.
+'' Nothing needs a block there unless a label follows, and a label opens its own.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/label-after-exit.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' BOTH labels get a block, and both bodies are in it.
+'' EXPECT-OUT: lbl.tail4:
+'' EXPECT-OUT: lbl.tail24:
+'' GOLDEN: expected/label-after-exit.out

@@ -19,4 +19,6 @@ dim as integer c
 '' ...and a reserved name nothing declares is not an error either.
 #pragma reserve neverdeclared
 
+'' USING them is fine too, for the same reason: these forms reserve the name for the
+'' ASSEMBLER and the LINKER, not for the language.
 print a + b + c

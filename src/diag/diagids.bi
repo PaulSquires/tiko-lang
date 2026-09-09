@@ -395,6 +395,16 @@
     '' that -- '( asm )' and '( extern )' reserve the name for the assembler and the
     '' linker, and fbc still lets the source declare it. Measured, all four spellings.
     DIAG( TKO0769, SEV_ERROR,   "'%0' is reserved by '#pragma reserve' and cannot be declared" )
+
+    '' fbc 325, "Illegal use of reserved symbol". ANY appearance of the name, not just
+    '' the 'sizeof( symbol )' the survey recorded: measured, 'print foo', 'foo = 1',
+    '' 'sizeof( foo )' and 'dim as integer x = foo' are all 325.
+    ''
+    '' SAFE WHERE THE GENERAL RULE IS NOT. fbc answers 42 for an UNDECLARED name and
+    '' TKO0743 was withdrawn for exactly that -- a type name reaches the checker as a
+    '' plain N_IDENT too, so "unbound" is not "undeclared". A RESERVED name carries no
+    '' such doubt: it is on a list the source itself wrote, and nothing may declare it.
+    DIAG( TKO0770, SEV_ERROR,   "'%0' is reserved by '#pragma reserve' and cannot be used" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
     '' fbc's error 158, twice over.

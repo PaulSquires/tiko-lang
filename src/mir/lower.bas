@@ -36,7 +36,27 @@ declare function StrSwapKind_ _
 
 sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
     if id = Tko.NODE_NONE then return
-    if c.curBlock < 0 then return
+    '' A DEAD CURSOR STOPS EVERYTHING EXCEPT A LABEL, and the exception is the point: a
+    '' label is precisely what makes the code after it reachable again. 'exit sub' and
+    '' 'return' end their block and leave no cursor -- correctly, since nothing FALLS
+    '' into what follows -- and every later statement was then dropped in silence,
+    '' label included. So
+    ''
+    ''     sub s( ) : print "one" : exit sub : tail: : print "two" : end sub
+    ''
+    '' lowered to the first print and a ret. 'tail:' and everything after it produced no
+    '' code and no diagnostic, while fbc compiles the same source and lets a GOTO reach
+    '' the label. That is not a dead-code curiosity: 'exit sub' before the handler's
+    '' label is how an error handler is written, so the whole handler disappeared.
+    ''
+    '' OPENING A BLOCK AT THE TERMINATOR INSTEAD WOULD BE THE WRONG FIX, and was tried:
+    '' lowerinit.bas records that giving every RETURN an "after" block left one
+    '' unreachable block, and one unreachable 'ret', per return in the corpus -- 1,488 of
+    '' them. Nothing needs a block there unless a label follows, and a label opens its
+    '' own.
+    if c.curBlock < 0 then
+        if c.ast->Kind( id ) <> Tko.N_LABEL then return
+    end if
     '' Saved and restored: statements nest, and a decline belongs to the INNERMOST one.
     dim as ushort savedKind = c.curStmtKind
     dim as ulong savedNode = c.curStmtNode

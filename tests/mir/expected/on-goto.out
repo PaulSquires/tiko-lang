@@ -1,4 +1,7 @@
 global str $str0 "fell through"
+global str $str1 "one"
+global str $str2 "two"
+global str $str3 "three"
 func void PICK(i32 $0) {
   local i32 n
   entry0:
@@ -10,11 +13,17 @@ func void PICK(i32 $0) {
     %5 = icmp.ugt %4, 2
     condbr %5, on.after4, on.test5
   lbl.l11:
-    br lbl.l22
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    call.rtl void fb_PrintString(0, %10, 1)
+    ret
   lbl.l22:
-    br lbl.l33
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 3)
+    call.rtl void fb_PrintString(0, %11, 1)
+    ret
   lbl.l33:
-    br on.after4
+    %12 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 5)
+    call.rtl void fb_PrintString(0, %12, 1)
+    ret
   on.after4:
     %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 12)
     call.rtl void fb_PrintString(0, %9, 1)
@@ -70,4 +79,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 10 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance, 3 blocks repaired
+lowered: 2 functions, 10 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

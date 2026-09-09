@@ -20,10 +20,18 @@
 '' 'on n GOSUB' is a separate statement, since it pushes a return address, and is NOT
 '' lowered: it declines rather than jumping without one. The parser was recording both
 '' spellings identically, so it could not have told them apart.
-'' The golden's "blocks repaired" line is NOT from this statement: the same count
-'' appears for a plain GOTO into a label followed by 'exit sub', with no ON anywhere.
-'' It is the unreachable block a jump leaves behind, and it is well-formed IR either
-'' way -- recorded here so the next reader does not attribute it to the computed goto.
+'' THE GOLDEN USED TO RECORD THIS PROGRAM PRINTING NOTHING FOR 1, 2 AND 3, and a comment
+'' here explained it away. It said the "blocks repaired" line was the unreachable block a
+'' jump leaves behind and "well-formed IR either way" -- true of the repair, and wrong
+'' about the cause. The label blocks were EMPTY: each 'l1: print "one" : exit sub' put
+'' its print nowhere, because a label following a terminator was never lowered at all
+'' (LowerStmt returned on a dead cursor before reaching it). The computed goto dispatched
+'' correctly into blocks that did nothing.
+''
+'' So this test passed while the statement it tests was broken, and the golden was the
+'' evidence. It now prints what fbc prints:
+''
+''     fell through / one / two / three / fell through / fell through
 declare sub pick( byval n as long )
 
 pick( 0 )

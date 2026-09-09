@@ -1,0 +1,5 @@
+'' fbc 325 -- using a name '#pragma reserve' took out of circulation.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/reserve-used.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0770

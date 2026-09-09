@@ -1,0 +1,78 @@
+global str $str0 "one"
+global str $str1 "two"
+global str $str2 "three"
+global str $str3 "four"
+global str $str4 "done"
+func void VIAEXITSUB(i64 $0) {
+  local i64 jump
+  entry0:
+    %1 = alloca ptr jump
+    store @jump, $0
+    %2 = load @jump
+    condbr %2, if.then2, if.else3
+  if.join1:
+    %3 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 3)
+    call.rtl void fb_PrintString(0, %3, 1)
+    ret
+  if.then2:
+    br lbl.tail4
+  if.else3:
+    br if.join1
+  lbl.tail4:
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    call.rtl void fb_PrintString(0, %4, 1)
+    ret
+  goto.after5:
+    br if.join1
+}
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+func void VIARETURN(i64 $0) {
+  local i64 jump
+  entry0:
+    %1 = alloca ptr jump
+    store @jump, $0
+    %2 = load @jump
+    condbr %2, if.then2, if.else3
+  if.join1:
+    %3 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 5)
+    call.rtl void fb_PrintString(0, %3, 1)
+    ret
+  if.then2:
+    br lbl.tail24
+  if.else3:
+    br if.join1
+  lbl.tail24:
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 4)
+    call.rtl void fb_PrintString(0, %4, 1)
+    ret
+  goto.after5:
+    br if.join1
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i64 0
+    call void VIAEXITSUB(%4)
+    %5 = const i64 1
+    call void VIAEXITSUB(%5)
+    %6 = const i64 0
+    call void VIARETURN(%6)
+    %7 = const i64 1
+    call void VIARETURN(%7)
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 4)
+    call.rtl void fb_PrintString(0, %8, 1)
+    %9 = const i32 0
+    call.rtl void fb_End(%9)
+    %10 = load @$tmp0
+    ret %10
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 3 functions, 13 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance
