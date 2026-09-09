@@ -1,0 +1,8 @@
+'' A byval UDT threadcall argument -- fbc's composite descriptor, measured. Last decline
+'' in threads/threadcall.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/threadcall-byval-udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/threadcall-byval-udt.out

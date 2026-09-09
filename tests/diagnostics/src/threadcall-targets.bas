@@ -9,6 +9,11 @@
 '' 'threadcall f( h )' over a 'byref h as HasArray' is still ACCEPTED here and is fbc's
 '' 288 -- an over-acceptance kept on purpose, in preference to a rule that refuses working
 '' code. Every line below is one both compilers agree on.
+''
+'' 'goodPlainUdt( p )' LOWERS SINCE 2026-09-09 -- a byval UDT is fbc's composite
+'' descriptor, and 'Plain' is a single-integer type, which COLLAPSES to that field's own
+'' code. Measured: 'fb_ThreadCall( &GOODPLAINUDT, 0, 0ll, 1, 8ll, &P$0 )', code 8 and no
+'' 12 anywhere. See tests/mir/src/threadcall-byval-udt.bas for the whole rule.
 type Plain
     a as integer
 end type

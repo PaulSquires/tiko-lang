@@ -22,34 +22,190 @@
 '' procedure inside an EXTERN "C" block), 0 for stdcall and for the default. The third
 '' never moved in any probe and is passed as the zero fbc passes.
 ''
-'' WHAT IS NOT MODELLED HERE DECLINES rather than guessing:
+'' A BYVAL UDT IS A COMPOSITE DESCRIPTOR, and the descriptor is a RUN of arguments
+'' rather than one: the code 12, then the field COUNT, then one descriptor per field,
+'' recursively -- and the ADDRESS comes ONCE, after the whole run. Measured on win64,
+'' 2026-09-09, `fbc64 -r`; every line below is a probe's own output:
 ''
-''   - a BYVAL UDT argument, which fbc describes with a COMPOSITE descriptor --
-''     '12, <fieldcount>, <code per field>', recursive, with a single-field type
-''     collapsing to its field's own code. It also describes a 'zstring * N' FIELD as
-''     one ubyte, which is a defect rather than a rule; both are recorded in HANDOFF.
-''   - every shape fbc REFUSES: a boolean argument, a byref wstring, a union, a
-''     bitfield, a UDT holding an array or a string, a pascal procedure, a variadic
-''     cdecl one, a FUNCTION rather than a sub, an instance-qualified member call and a
-''     procedure POINTER. Those want a diagnostic; declining is what this build has.
+''     type One   : z as long : end type
+''     type Two   : p as short : q as short : end type
+''     type Three : a as Two : b as double : c as long : end type
+''     type Deep  : x as One : y as integer : end type
+''     type PtrF  : p as any ptr : q as byte : end type
+''
+''     sOne( o1 )     fb_ThreadCall( &SONE,   0, 0ll, 1,  6,                   &O1 )
+''     sTwo( t2 )     fb_ThreadCall( &STWO,   0, 0ll, 1,  12,2, 4, 4,          &T2 )
+''     sThree( t3 )   fb_ThreadCall( &STHREE, 0, 0ll, 1,  12,3, 12,2,4,4, 11,6,&T3 )
+''     sDeep( dd )    fb_ThreadCall( &SDEEP,  0, 0ll, 1,  12,2, 6, 8,          &DD )
+''     sPtrF( pf )    fb_ThreadCall( &SPTRF,  0, 0ll, 1,  12,2, 13, 2,         &PF )
+''
+'' THE COLLAPSE IS OF THE CODE, NOT OF THE DESCRIPTOR, and that distinction is the
+'' whole of it. A UDT with exactly ONE field takes THAT FIELD'S code -- 'One' above is
+'' 6, not '12,1,6' -- but when the single field is itself a MULTI-field UDT the code
+'' collapses to 12 and the fields that are then written out are the OUTER type's:
+''
+''     type OneUdt : only as Two    : end type   12,1, 12,2,4,4
+''     type OneOne : only as OneUdt : end type   12,1, 12,1, 12,2,4,4
+''
+'' -- count 1 each time. Reading it as "collapse the whole descriptor" would have
+'' written '12,2,4,4' for OneUdt, which is a different struct.
+''
+'' 'EXTENDS' DOES NOT FLATTEN. The base is field number one, described like any other
+'' UDT field: 'type Derived extends Two : d1 as double : end type' is '12,2, 12,2,4,4,
+'' 11'. HANDOFF recorded the opposite; the probe says otherwise.
+''
+'' A METHOD IS NOT A FIELD ('12,2,6,6' for a two-field type declaring a constructor and
+'' two subs), an rvalue argument gets the temporary hGetExprRef makes for it
+'' ('&TMP$10$0' for 'threadcall sPar( mkPar( ) )'), and a variable gets its own address
+'' with no temporary at all.
+''
+'' A 'zstring * N' FIELD IS DESCRIBED AS ONE UBYTE -- '12,2, 3, 6' for
+'' '{ zs as zstring * 8, n as long }'. The runtime builds an ffi_type out of the run,
+'' so 8 bytes are described as 1 and the marshalled copy is short. THAT IS AN fbc
+'' DEFECT AND IT IS MATCHED ON PURPOSE: the ground truth here is fbc executed, and a
+'' deliberate divergence would make a tiko-built program behave differently from an
+'' fbc-built one for no measurement's sake. Recorded in HANDOFF as a decision either
+'' way. A 'wstring * N' field, a 'string * N' field and a var-len 'string' field are
+'' all fbc error 288 instead.
+''
+'' WHAT fbc REFUSES, each measured as error 288 and each a DECLINE here rather than a
+'' diagnostic:
+''
+''     a UNION member, an ANONYMOUS union, a BITFIELD, a fixed ARRAY field, a
+''     var-len STRING field, a 'string * N' or 'wstring * N' field, a BOOLEAN
+''     field, and a type declared 'field = N' (any packing at all)
+''
+'' -- plus, outside the descriptor, a boolean argument, a byref wstring, a pascal
+'' procedure, a variadic cdecl one, a FUNCTION rather than a sub, an
+'' instance-qualified member call and a procedure POINTER.
+''
+'' AN ANONYMOUS TYPE is declined with the anonymous unions. fbc's test is
+'' 'symbGetUDTHasAnonUnion', so an anonymous TYPE inside a struct may well be
+'' accepted -- it was not probed, and the field walk below cannot reproduce fbc's
+'' 'symbUdtGetFirstField' order for one, because tiko-lang's layout FLATTENS every
+'' anonymous group into the parent's field list. Declining an unmeasured shape is the
+'' rule; a guessed field count is a miscompile in a thread.
+
+'' The UDT symbol a TypeId belongs to. Same lookup as vtable.bas's, local because the
+'' one there is private to its module.
+declare function ThreadUdtSym_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+
+private function ThreadUdtSym_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    return ts
+end function
+
+'' A UDT's fields in DECLARATION order, or false when fbc would refuse the type
+'' outright. The walk is the one udtlayout.bas does -- the per-scope linked list --
+'' rather than the computed layout, because the layout flattens anonymous groups and
+'' loses the bitfield/anon flags this needs.
+declare function ThreadUdtFields_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, _
+      byref outFlds as FB.Array( of ulong ) ) as boolean
+
+private function ThreadUdtFields_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, _
+      byref outFlds as FB.Array( of ulong ) ) as boolean
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ThreadUdtSym_( c, t ) )
+    if s = 0 then return false
+    '' A UNION IS REFUSED, and so is any packing: fbc tests 'symbGetUDTIsUnion' and
+    '' 'symbGetUDTAlign( ) <> 0' before it looks at a single field.
+    if (s->flags and Tko.SYMF_UNION_KIND) <> 0 then return false
+    if c.types->Packing( t ) <> 0 then return false
+
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return false
+    dim as Tko.SymbolId cur = sc->firstSym
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit while
+        if f->kind = cast( ubyte, Tko.SYM_FIELD ) then
+            '' ANY anonymous group -- see the header.
+            if f->anonDepth <> 0 then return false
+            outFlds.Push( cast( ulong, cur ) )
+        end if
+        cur = f->nextInScope
+    wend
+    '' A type with no fields at all describes nothing; fbc's walk would dereference
+    '' NULL, so it cannot arise there either.
+    return (outFlds.Count > 0)
+end function
+
+declare function ThreadTypeCode_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref ok as boolean, _
+      byval inUdt as boolean = false, byval depth as long = 0 ) as longint
+
+'' One FIELD's code. Separate from the type's because BITFIELD-ness lives on the field
+'' symbol and not on its type, and fbc refuses a bitfield before it reads the type.
+declare function ThreadFieldCode_ _
+    ( byref c as Ctx, byval fs as Tko.Symbol ptr, byref ok as boolean, _
+      byval depth as long ) as longint
+
+private function ThreadFieldCode_ _
+    ( byref c as Ctx, byval fs as Tko.Symbol ptr, byref ok as boolean, _
+      byval depth as long ) as longint
+
+    ok = false
+    if fs = 0 then return 0
+    if (fs->flags and Tko.SYMF_BITFIELD) <> 0 then return 0
+    return ThreadTypeCode_( c, fs->type_, ok, true, depth )
+end function
+
 private function ThreadTypeCode_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref ok as boolean ) as longint
+    ( byref c as Ctx, byval t as Tko.TypeId, byref ok as boolean, _
+      byval inUdt as boolean, byval depth as long ) as longint
 
     ok = false
     if t = Tko.TYPE_NONE then return 0
+    '' A UDT cannot hold itself by value, so this can only trip on a type graph that
+    '' is already broken -- and an unbounded recursion here would be a compiler hang.
+    if depth > 64 then return 0
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
 
     '' Everything that travels as a POINTER shares one code.
     select case c.types->Kind( u )
-    case Tko.TK_POINTER, Tko.TK_ARRAY, Tko.TK_PROC
+    case Tko.TK_POINTER, Tko.TK_PROC
         ok = true
         return 13
+    case Tko.TK_ARRAY
+        '' AN ARRAY ARGUMENT IS A POINTER; AN ARRAY FIELD IS A REFUSAL -- except that
+        '' 'zstring * N', which tiko-lang models as an array of TY_ZSTRING and fbc does
+        '' not model as an array at all, is one ubyte. See the header.
+        if inUdt = false then
+            ok = true
+            return 13
+        end if
+        dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+        while c.types->Kind( el ) = Tko.TK_ARRAY
+            el = c.types->Unqualify( c.types->Inner( el ) )
+        wend
+        if c.types->Kind( el ) <> Tko.TK_BUILTIN then return 0
+        if c.types->BuiltinOf( el ) <> Tko.TY_ZSTRING then return 0
+        ok = true
+        return 3
     case Tko.TK_ENUM
         u = c.types->Builtin( Tko.TY_INTEGER )
     case Tko.TK_UDT
-        '' The composite descriptor is not modelled -- see the header.
-        return 0
+        dim as FB.Array( of ulong ) flds
+        if ThreadUdtFields_( c, u, flds ) = false then return 0
+        if flds.Count = 1 then
+            '' THE CODE COLLAPSES, THE DESCRIPTOR DOES NOT -- see the header.
+            return ThreadFieldCode_( c, c.syms->SymbolAt( _
+                cast( Tko.SymbolId, flds[0] ) ), ok, depth + 1 )
+        end if
+        ok = true
+        return 12
     end select
     if c.types->Kind( u ) <> Tko.TK_BUILTIN then return 0
 
@@ -72,11 +228,49 @@ private function ThreadTypeCode_ _
         ok = true
         return iif( is32, 7, 9 )
     case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR
+        '' A STRING ARGUMENT IS A POINTER; A STRING FIELD IS fbc ERROR 288, measured.
+        '' The other three cannot be written as a bare field type, so refusing them
+        '' inside a UDT costs nothing and guesses nothing.
+        if inUdt then return 0
         ok = true
         return 13
     end select
     '' BOOLEAN lands here on purpose: fbc REFUSES it, error 288.
     return 0
+end function
+
+'' ONE ARGUMENT'S TYPE DESCRIPTION, pushed into the variadic tail. For everything but
+'' a composite that is the single code; for code 12 it is the code, the field count and
+'' one description per field, recursively. The type expanded is the one whose code was
+'' asked for -- NOT the single field a collapse looked through. See the header.
+declare function PushThreadDesc_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval code as longint, _
+      byref args as FB.Array( of ulong ), byval depth as long = 0 ) as boolean
+
+private function PushThreadDesc_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval code as longint, _
+      byref args as FB.Array( of ulong ), byval depth as long ) as boolean
+
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, cast( long, code ) ) )
+    if code <> 12 then return true
+    if depth > 64 then return false
+
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    dim as FB.Array( of ulong ) flds
+    if ThreadUdtFields_( c, u, flds ) = false then return false
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, flds.Count ) )
+    for i as long = 0 to flds.Count - 1
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
+        if f = 0 then return false
+        dim as boolean fok = false
+        dim as longint fc = ThreadFieldCode_( c, f, fok, depth + 1 )
+        if fok = false then return false
+        if PushThreadDesc_( c, f->type_, fc, args, depth + 1 ) = false then return false
+    next
+    return true
 end function
 
 '' The callee a 'threadcall' names, with its argument list. Both spellings reach here:
@@ -270,6 +464,14 @@ function LowerThreadCall_ _
             av.ty = cast( ubyte, MT_PTR )
             av.id = qslot
             StoreThrough( c, av, sv )
+        elseif c.types->Kind( c.types->Unqualify( pt ) ) = Tko.TK_UDT then
+            '' A BYVAL UDT TRAVELS AS ITS OWN ADDRESS, once, after the whole composite
+            '' run -- no pointer temporary the way a byref gets one. fbc's hGetExprRef
+            '' takes a VARIABLE's address directly and copies anything else into a
+            '' temporary of the argument's type first; ByrefTemp_ is that temporary.
+            av = LowerAddr( c, ae )
+            if av.kind = cast( ubyte, MV_NONE ) then av = ByrefTemp_( c, ae, pt )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
         else
             '' A BYVAL SCALAR OVER A VARIABLE PASSES THE VARIABLE'S OWN ADDRESS -- fbc
             '' makes no temporary for one -- and an RVALUE gets a temporary of the
@@ -292,8 +494,9 @@ function LowerThreadCall_ _
         end if
         if av.kind = cast( ubyte, MV_NONE ) then return false
 
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( cast( ulong, cast( long, code ) ) )
+        '' THE DESCRIPTION IS A RUN, not one value: a composite writes its code, its
+        '' field count and one description per field before the address arrives.
+        if PushThreadDesc_( c, pt, code, args ) = false then return false
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     next
 
