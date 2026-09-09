@@ -252,6 +252,53 @@ private function PeekTok( byref e as PpEngine, byref outTok as Token ) as boolea
     return false
 end function
 
+'' Peek the token AFTER the current one, consuming and popping NOTHING.
+''
+'' A function-like macro name is only an invocation when a '(' follows it, and the
+'' obvious way to look -- Advance, PeekTok, restore f->pos on a miss -- LOSES A TOKEN.
+'' When the name is the LAST token of its frame, PeekTok's own pop cascade deletes that
+'' frame, so the saved 'f' points at a popped slot and the restore writes nothing; the
+'' caller in PpStep then advances the ENCLOSING frame and eats the token PeekTok had
+'' merely looked at --
+''
+''     #define fn(x) x
+''     #define tailfn fn
+''     tailfn zzz
+''
+''         fbc -pp:  ' fn zzz'   (measured, fbc 1.10.1)
+''         tiko was: ' fn'       -- 'zzz' gone, silently.
+''
+'' So the lookahead must not mutate. This walks the frame stack downward instead,
+'' mirroring PeekTok's two skip rules -- an exhausted frame, and a file frame's
+'' trailing TK_EOF -- and its frameFloor, with 'idx + 1' standing in for the frame
+'' count PeekTok would have had after the pops it is not doing.
+private function PeekTokAhead( byref e as PpEngine, byref outTok as Token ) as boolean
+    dim as long idx = e.frames.Count - 1
+    '' the token we are looking PAST, skipped on the top frame only
+    dim as long skip = 1
+    while idx >= 0
+        dim as PpFrame ptr f = @e.frames[idx]
+        dim as long p = f->pos + skip
+        skip = 0
+        if p > f->toks->Count - 1 then
+            if (idx + 1) <= e.frameFloor then return false
+            idx -= 1
+            continue while
+        end if
+        dim as Token t = f->toks->At( p )
+        dim as boolean fileEof = (f->file <> FILE_NONE) andalso (Tk( t ) = TK_EOF)
+        dim as boolean nested = (idx + 1) > 1
+        if fileEof andalso nested then
+            if (idx + 1) <= e.frameFloor then return false
+            idx -= 1
+            continue while
+        end if
+        outTok = t
+        return true
+    wend
+    return false
+end function
+
 private sub Advance( byref e as PpEngine )
     if e.frames.IsEmpty( ) then return
     e.frames[e.frames.Count - 1].pos += 1

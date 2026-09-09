@@ -1,0 +1,37 @@
+'' A function-like macro name that ENDS an expansion frame must not eat the token
+'' after it. Deciding whether a '(' follows used to Advance first and restore f->pos
+'' on a miss; when the name was the frame's last token, PeekTok's pop cascade had
+'' already deleted that frame, so the restore wrote into a popped slot and PpStep
+'' then advanced -- and discarded -- the token from the ENCLOSING frame. Silent: the
+'' program simply lost a token. See PeekTokAhead in src/pp/pp.bas.
+''
+'' MEASURED, fbc 1.10.1 -pp on tests/pp/src/macro-bare-lookahead.bas:
+''
+''      fn aaa
+''
+''      100 + 777 bbb
+''
+''      ccc
+''
+''     dim s as string = $"o" + letter  ddd
+''
+'' TEST: cli
+'' ARGS: --dump-tokens=pp tests/pp/src/macro-bare-lookahead.bas
+'' EXPECT-EXIT: 0
+
+'' 1. 'fn' bare, and the token it used to swallow.
+'' EXPECT-OUT: IDENT               'fn'
+'' EXPECT-OUT: IDENT               'aaa'
+
+'' 2. the invocation across the frame boundary still happens -- 'takes' is consumed,
+''    not emitted -- and 'bbb' after the ')' is still there.
+'' EXPECT-NOT: IDENT               'takes'
+'' EXPECT-OUT: IDENT               'bbb'
+
+'' 3. the '?' form is still a bare invocation: 'opt' goes, its argument comes back.
+'' EXPECT-NOT: IDENT               'opt'
+'' EXPECT-OUT: IDENT               'ccc'
+
+'' 4. hidden 'letter' is emitted as an identifier, 'ddd' behind it.
+'' EXPECT-OUT: IDENT               'letter'
+'' EXPECT-OUT: IDENT               'ddd'
