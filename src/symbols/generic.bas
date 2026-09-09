@@ -835,6 +835,66 @@ end function
 '' The match is deliberately narrow: the same number of type parameters, and a FIRST
 '' parameter whose type reference names this generic. An operator over some other
 '' generic in the same file is not instantiated here.
+''
+'' AND THIS TRIGGER IS NOT FBC'S. MEASURED 2026-09-09, three probes with
+'' fbc-modern/fbc64 -r:
+''
+''   (1) 'operator * ( of T )( byref x as Box( of T ), byval k as T ) as Box( of T )'
+''       with an ill-typed body for T = string ('r.v = x.v * k'), a Box( of string )
+''       DECLARED and used, and '*' used only at T = integer:
+''       fbc COMPILES CLEAN and emits ONE operator body, '_ZmlR3BoxIu7INTEGERES0_'.
+''       There is no string '*' in the C output at all.
+''
+''   (2) the same operator actually APPLIED to a Box( of string ):
+''       fbc REJECTS it -- "error 20: Type mismatch in 'type Box( of T )' / in
+''       instantiation of 'operator *( of string )' / required from p2.bas(13)".
+''
+''   (3) the same shape with a WELL-TYPED body ('operator +'), Box( of string )
+''       declared and used but '+' used only at T = integer:
+''       fbc emits '_ZplR3BoxIu7INTEGERES2_' and NO string '+' either.
+''
+'' (3) is the one that fixes the rule: fbc does not instantiate and discard an
+'' ill-typed body, it never instantiates the body at all. A generic global operator
+'' is instantiated BY A USE SITE THAT SELECTS IT. The type's own instantiation
+'' instantiates its MEMBERS -- probe (1) emits Box( of string )'s ctor, assign and
+'' dtor -- and nothing else.
+''
+'' What this trigger does instead is instantiate the operator for EVERY T the type
+'' was instantiated with, which is a superset. On
+'' tests/vendor/fbc-tests/generics/global-operators.bas that superset contains
+'' 'operator *' at T = string, whose body is a MULTIPLICATION OF TWO STRINGS -- an
+'' expression fbc has no operator for, per probe (2) -- so lowerassign.bas:154
+'' declines it. The decline is the accurate report of a body that should not exist.
+''
+'' THE FIX IS NOT A LOWERING RULE. There is nothing for lowerassign to lower: probe
+'' (2) says string * string is error 20 in fbc, so a rule for it would be inventing
+'' semantics FreeBASIC does not have.
+''
+'' AND THE CORRECT TRIGGER IS OUT OF REACH FROM HERE, which is why this is written
+'' down rather than half-built:
+''
+''   -- instantiating requires the PARSER (InstantiateProcAt_ re-parses the body;
+''      'if c.parser = 0 then return SYMBOL_NONE'), and the parser handle exists
+''      only on Resolve's Ctx. Check has none. So instantiation cannot happen after
+''      Resolve.Run.
+''   -- selecting an operator at a use site requires the OPERAND TYPES, and only
+''      Check types expressions. Resolve.Run finishes before Check.Run
+''      (driver.bas:783/786).
+''   -- the syntactic inference this file already uses for generic CALLS
+''      (InferArgType_) reaches names, literals and casts only. The corpus file
+''      writes 'i1 + i2 + i1' and '(i1 + i2).v', whose operands are expressions;
+''      driving instantiation off that inference would DECLINE those and trade one
+''      decline for several.
+''
+'' So: one spurious instantiation, one honest decline, and no code emitted for it
+'' that any use site can reach. Closing it means letting instantiation run during
+'' Check -- a phase change, not a patch.
+''
+'' A SECOND GAP FALLS OUT OF THE SAME PROBES and is separate from this one: on
+'' probe (2) -- the operator genuinely APPLIED at T = string -- tiko exits 0 with
+'' one decline where fbc reports error 20 with an "in instantiation of" note. An
+'' ill-typed instantiated body is not diagnosed at all; it is only declined at
+'' lowering. Fixing THIS trigger would not fix that.
 private sub InstantiateGlobalOpsFor_ _
     ( byref c as Ctx, byval gname as Tko.InternId, byval scope_ as Tko.ScopeId, _
       byval argFirst as long, byval argCount as long )

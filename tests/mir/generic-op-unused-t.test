@@ -1,0 +1,10 @@
+'' A generic global operator instantiated for a type argument NO USE SITE SELECTS.
+'' fbc instantiates a global operator by use site and emits nothing for the unused T;
+'' tiko instantiates it from the TYPE's instantiation and emits a body. The golden
+'' carries that extra body. Measurements are in the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-op-unused-t.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-op-unused-t.out
