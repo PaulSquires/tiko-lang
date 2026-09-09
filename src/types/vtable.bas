@@ -180,6 +180,28 @@ private function ReturnCompatible_ _
     return types.Layout( a ).size = types.Layout( b ).size
 end function
 
+'' Do these two declarations differ in calling convention ON THIS TARGET?
+''
+'' PASCAL IS THE ONE THAT ALWAYS DIFFERS: it reverses the argument order, so it is a
+'' different convention on every target. CDECL and STDCALL coincide on x86-64 -- there
+'' is one ABI and the keywords are accepted and ignored -- and are distinct on 32-bit,
+'' which is why fbc accepts 'stdcall' over 'cdecl' on win64 and refuses it on win32.
+'' An absent keyword means CDECL, so it compares equal to a written one.
+private function CallConvDiffers_ _
+    ( byref types as TypeContext, byval a as ushort, byval b as ushort ) as boolean
+
+    dim as boolean pa = ((a and PF_PASCAL) <> 0)
+    dim as boolean pb = ((b and PF_PASCAL) <> 0)
+    if pa <> pb then return true
+    if pa then return false
+
+    '' Neither is pascal, so the two are cdecl or stdcall in some combination.
+    if types.target.pointerBits <> 32 then return false
+    dim as boolean sa = ((a and PF_STDCALL) <> 0)
+    dim as boolean sb = ((b and PF_STDCALL) <> 0)
+    return (sa <> sb)
+end function
+
 private sub CheckOverrideBody_ _
     ( byref ast as AstArena, byref info as SemanticInfo, byref types as TypeContext, _
       byref store as VTables, byval oldd as NodeId, byval newd as NodeId )
@@ -230,6 +252,21 @@ private sub CheckOverrideBody_ _
     dim as ushort cb = cast( ushort, nsp->extra and PF_CONST )
     if ca <> cb then
         NoteMismatch_( store, newd, VTM_CONST )
+        return
+    end if
+
+    '' THE CALLING CONVENTION -- fbc 226, and the comparison is TARGET-DEPENDENT rather
+    '' than a flag equality. Measured on win64:
+    ''
+    ''     base cdecl,  override stdcall   accepted   -- they coincide here
+    ''     base pascal, override default   error 226
+    ''     base pascal, override pascal    accepted
+    ''
+    '' virtual/incompatible-override-6.bas is the first of those, marked
+    '' COMPILE_ONLY_FAIL in the corpus because 32-bit DOES refuse it -- so comparing the
+    '' flags directly would refuse a file fbc compiles on the target that ships.
+    if CallConvDiffers_( types, osp->extra, nsp->extra ) then
+        NoteMismatch_( store, newd, VTM_CALLCONV )
         return
     end if
     CompareByref_( ast, store, oldd, newd )

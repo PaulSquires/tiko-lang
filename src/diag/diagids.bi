@@ -379,6 +379,11 @@
     DIAG( TKO0758, SEV_ERROR,   "'%0' has static storage and holds a bitfield, which its initializer cannot fill" )
     '' fbc's error 20 -- SWAP exchanges storage and converts nothing.
     DIAG( TKO0759, SEV_ERROR,   "'swap' needs two operands of the same kind" )
+
+    '' fbc 226. The CONVENTIONS THAT COINCIDE ON THIS TARGET are not a mismatch:
+    '' 'stdcall' overriding 'cdecl' is accepted on win64 and refused on 32-bit, which is
+    '' fbc's own rule and measured both ways round.
+    DIAG( TKO0767, SEV_ERROR,   "'%0' overrides a virtual method with a different calling convention" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
     '' fbc's error 158, twice over.

@@ -1,0 +1,6 @@
+'' The accepted half. See the source: on win64 cdecl and stdcall are one ABI, so an
+'' override may spell either -- fbc compiles this, and a flag comparison would not.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-callconv-ok.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0

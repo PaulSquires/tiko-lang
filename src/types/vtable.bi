@@ -44,6 +44,7 @@ namespace Tko
         VTM_CONST          '' fbc 229 / 230 -- one is a const member and the other is not
         VTM_BYREF          '' fbc 231 -- a parameter's byref-ness differs
         VTM_RANK           '' fbc 231 / 223 -- a bydesc parameter's rank differs
+        VTM_CALLCONV       '' fbc 226 -- the calling conventions differ on this target
     end enum
 
     type VtMismatch

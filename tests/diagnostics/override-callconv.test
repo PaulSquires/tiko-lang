@@ -1,0 +1,5 @@
+'' fbc 226, an override whose calling convention differs from the overridden method's.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-callconv.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0767
