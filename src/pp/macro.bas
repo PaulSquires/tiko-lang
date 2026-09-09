@@ -1377,23 +1377,21 @@ private function PpExpand _
 
     '' A function-like macro not followed by '(' is just an identifier, as in C.
     if m->isFunc then
-        dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
-        dim as long save = f->pos
-        Advance( e )
-
+        '' LOOK WITHOUT MOVING. Advancing first and restoring f->pos on a miss loses the
+        '' token after the name when the name ENDS its frame -- see PeekTokAhead.
         dim as Token nxt
-        dim as boolean haveParen = PeekTok( e, nxt ) andalso (Tk( nxt ) = TK_LPAREN)
+        dim as boolean haveParen = PeekTokAhead( e, nxt ) andalso (Tk( nxt ) = TK_LPAREN)
         '' '#macro NAME?( a )' may be written without parentheses -- 'NAME x'. Only with
         '' the '?': a plain function-like macro used bare is not an invocation at all,
         '' and fbc reports the name as an undeclared variable rather than expanding it.
         dim as boolean bare = false
         if haveParen = false then
-            if m->optParens = false then
-                f->pos = save
-                return false
-            end if
+            if m->optParens = false then return false
             bare = true
         end if
+
+        '' only now is the name consumed
+        Advance( e )
 
         dim as ArgList args
         if PpReadArgs( e, m, args, bare ) = false then return true
