@@ -1,0 +1,17 @@
+'' A field declared '= any' is left alone: no zero fill, no member constructor, no
+'' store -- and a dynamic array field beside it still gets its descriptor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/field-init-any.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' t1: ONE memset, of 4 bytes at offset 4, and not 8 at offset 0.
+'' EXPECT-OUT: field.addr $0, 4
+'' EXPECT-OUT: memset(%1, 0, 4)
+
+'' t6's constructor calls inner's nowhere. Nothing in this file may call it: 'inner'
+'' is constructed only as a field of t6, and that field says 'any'.
+'' EXPECT-NOT: call void _ZN5INNERC1Ev
+
+'' ...but the dynamic array field is still built, element size and all.
+'' EXPECT-OUT: const i64 17

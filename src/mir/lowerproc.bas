@@ -59,7 +59,9 @@ private function ResultTempRtl_( byref c as Ctx ) as RtlId
     return RTL_STR_TEMP_RESULT
 end function
 
-private function BodyCallsBase_( byref c as Ctx, byval body as Tko.NodeId ) as boolean
+private function BodyCallsStructorWord_ _
+    ( byref c as Ctx, byval body as Tko.NodeId, byval want as string ) as boolean
+
     if body = Tko.NODE_NONE then return false
     if c.ast->Kind( body ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr lp = _
@@ -76,9 +78,24 @@ private function BodyCallsBase_( byref c as Ctx, byval body as Tko.NodeId ) as b
         if c.ast->Kind( cp->target ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr tip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-        if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) = "base" then return true
+        if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) = want then return true
     next
     return false
+end function
+
+'' 'base( ... )' at the top level of a constructor body: an EXPLICIT base construction,
+'' which replaces the implicit one.
+private function BodyCallsBase_( byref c as Ctx, byval body as Tko.NodeId ) as boolean
+    return BodyCallsStructorWord_( c, body, "base" )
+end function
+
+'' 'constructor( ... )' at the top level of a constructor body: a DELEGATION to another
+'' constructor of the same type, which replaces the WHOLE prologue and not just the
+'' base part. Measured on fbc: the delegating constructor's C contains the delegated
+'' call and nothing else -- no base constructor, no field memset, and no vptr store,
+'' even for a type with virtual methods. The constructor it calls does all three.
+private function BodyDelegatesCtor_( byref c as Ctx, byval body as Tko.NodeId ) as boolean
+    return BodyCallsStructorWord_( c, body, "constructor" )
 end function
 
 sub LowerProc _
@@ -632,7 +649,13 @@ sub LowerProc _
         if ta.kind <> cast( ubyte, MV_NONE ) then
             dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
             if inCtor then
-                EmitCtorPrologue_( c, structorType, tv, BodyCallsBase_( c, sp->b ) )
+                '' A DELEGATING CONSTRUCTOR HAS NO PROLOGUE AT ALL -- see
+                '' BodyDelegatesCtor_ for what fbc emits. Skipping only the base, the
+                '' way an explicit 'base( )' does, would zero the fields a second time
+                '' AFTER the constructor it delegates to had filled them.
+                if BodyDelegatesCtor_( c, sp->b ) = false then
+                    EmitCtorPrologue_( c, structorType, tv, BodyCallsBase_( c, sp->b ) )
+                end if
             else
                 '' THE VPTR FIRST in a destructor, so its body -- and anything it calls
                 '' -- sees this type's own table rather than the derived one.

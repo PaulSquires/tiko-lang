@@ -1,0 +1,14 @@
+'' fbc's error 24 for '= any' over a var-len string, and only over that.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/any-string.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0771
+
+'' The four that are refused name themselves; the three accepted ones must not appear.
+'' EXPECT-OUT: 's1' is a var-len string
+'' EXPECT-OUT: 's2' is a var-len string
+'' EXPECT-OUT: 'f1' is a var-len string
+'' EXPECT-OUT: 'f2' is a var-len string
+'' EXPECT-NOT: 'ok1'
+'' EXPECT-NOT: 'ok2'
+'' EXPECT-NOT: 'ok3'

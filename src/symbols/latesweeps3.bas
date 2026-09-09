@@ -795,6 +795,73 @@ private function UdtHoldsKind_ _
     return 0
 end function
 
+'' '= ANY' OVER A VAR-LENGTH STRING IS fbc's ERROR 24, "Invalid data types". Measured,
+'' and the boundary is narrower than "anything with a string in it":
+''
+''     dim as string s = any               error 24
+''     dim as string s(0 to 2) = any       error 24
+''     dim as string s(any) = any          error 24
+''     as string s = any        (a field)  error 24
+''     s(0 to 2) as string = any (a field) error 24
+''
+''     dim as string * 8 s = any           ACCEPTED -- a fixed-length string is bytes
+''     dim as ustring s = any              ACCEPTED, in every one of those shapes
+''     i as inner = any, inner holding a
+''     var-len string                      ACCEPTED
+''
+'' So it is the DECLARED type being TY_STRING, or an array whose element is, and not
+'' whether a string can be reached through the type. That last line is the one worth
+'' keeping: fbc leaves inner's descriptor uninitialised and then DESTROYS it, which is
+'' its own hazard and not something this rule may be widened to cover.
+private function AnyInitOf_( byref c as Ctx, byval s as Symbol ptr ) as NodeId
+    if s = 0 then return NODE_NONE
+    if s->payload = 0 then return NODE_NONE
+    dim as NodeId item = cast( NodeId, s->payload )
+    dim as NodeId init = NODE_NONE
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+    select case c.ast->Kind( item )
+    case N_VAR_ITEM
+        init = sp->b
+    case N_FIELD
+        '' A BITFIELD's payload is its WIDTH IN BITS, not a node. Reading it as one
+        '' indexes the AST with a 3 -- the mistake lowerfieldinit.bas records.
+        if (s->flags and SYMF_BITFIELD) <> 0 then return NODE_NONE
+        init = sp->c
+    case else
+        return NODE_NONE
+    end select
+    if init = NODE_NONE then return NODE_NONE
+    if c.ast->Kind( init ) <> N_IDENT then return NODE_NONE
+    dim as IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, init )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "any" then return NODE_NONE
+    return init
+end function
+
+private function IsVarLenStringDecl_( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    dim as TypeId u = t
+    if c.types->Kind( u ) = TK_ARRAY then u = c.types->Inner( u )
+    if u = TYPE_NONE then return false
+    if c.types->Kind( u ) <> TK_BUILTIN then return false
+    return (c.types->BuiltinOf( u ) = TY_STRING)
+end function
+
+private sub CheckAnyInitTypes_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        dim as boolean isVarOrField = (s->kind = cast( ubyte, SYM_VARIABLE )) orelse _
+                                      (s->kind = cast( ubyte, SYM_FIELD ))
+        if isVarOrField = false then continue for
+        if IsVarLenStringDecl_( c, s->type_ ) = false then continue for
+        dim as NodeId init = AnyInitOf_( c, s )
+        if init = NODE_NONE then continue for
+        c.diags->Report( TKO0771, PointRange( c.ast->Loc( init ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub
+
 private sub CheckAggregateInitFields_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]

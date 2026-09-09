@@ -43,6 +43,35 @@ function FieldInitOf_ _
     return StmtOf( c, n )->c
 end function
 
+'' 'a as T = ANY' -- THE EXPLICIT REQUEST FOR AN UNINITIALISED FIELD, and it suppresses
+'' more than a store. Measured, four probes on fbc:
+''
+''   type t1 : a as long = any : b as long : end type
+''       the synthesised constructor memsets ONLY b -- 4 bytes at offset 4, not 8 at 0
+''
+''   type t3 : a as long = any : b as long = any : end type
+''       a constructor is still SYNTHESISED and its body is EMPTY. That is the point:
+''       'dim as t3 z' calls it and therefore does NOT memset at the declaration, where
+''       a type with no initialisers at all is memset by the CALLER
+''
+''   type t6 : i as inner = any : ... : end type,  inner having a constructor
+''       the constructor is NOT called. 'i' is left alone entirely
+''
+''   ...but t7's DESTRUCTOR still calls inner's. Construction is suppressed and
+''   destruction is not, which is asymmetric and is what fbc does
+''
+'' So an 'any' field keeps FieldInitOf_ answering non-NONE -- TypeNeedsInit_ reads that,
+'' and a constructor must still exist -- while the prologue does nothing for it at all.
+''
+'' 'any' is a keyword, so no field can be spelled that way and matching the name is safe.
+function FieldInitIsAny_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "any")
+end function
+
 '' The '= value' stored into one field, after that field's default initialisation.
 ''
 '' fbc runs these inside the constructor -- implicit or written -- which is why they
@@ -59,6 +88,9 @@ sub EmitFieldInit_ _
 
     if addr.kind = cast( ubyte, MV_NONE ) then return
     if init = Tko.NODE_NONE then return
+    '' Belt and braces: the prologue skips an 'any' field before it gets here, and
+    '' emitting a store for one would be a miscompile rather than a decline.
+    if FieldInitIsAny_( c, init ) then return
 
     '' A STRING FIELD IS ASSIGNED, not stored: the descriptor InitMember_ has just
     '' zeroed owns its buffer, and fb_StrAssign is what fills it. A FIXED-LENGTH one

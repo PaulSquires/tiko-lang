@@ -915,6 +915,10 @@ declare function EmitRtl _
     declare sub EmitFieldInit_ _
         ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
           byval init as Tko.NodeId )
+    '' ...and whether that initialiser is the word ANY, which suppresses the field's
+    '' zero fill and its member constructor as well as the store.
+    declare function FieldInitIsAny_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' lowerimpl.bas -- the structors fbc writes for you.
     declare function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean

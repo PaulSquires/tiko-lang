@@ -98,6 +98,15 @@ private function FollowedByAssign( byref p as Tko.ParserState ) as boolean
     return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ)
 end function
 
+'' The token AFTER the one at the cursor, for the two-token decisions the statement
+'' dispatch has to make.
+private function NextTokIs_ _
+    ( byref p as ParserState, byval want as Tko.TokenKind ) as boolean
+
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = want)
+end function
+
 '' The keywords that may follow END to close a block. Taken from the ExpectEnd call
 '' sites, so the two cannot drift: anything ExpectEnd is asked to close must appear here.
 private function ClosesABlock( byval k as Tko.TokenKind ) as boolean
@@ -1135,6 +1144,32 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )                       '' the '='
             sp.b = Expression( p )
             n = MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
+        '' 'constructor( ... )' AS A STATEMENT IS A CALL, NOT A DEFINITION -- one constructor
+        '' delegating to another of the same type. A definition always names the type first
+        '' ('constructor Q( )', 'constructor N.Q( )'), so a '(' straight after the keyword can
+        '' only be the argument list of a call.
+        ''
+        '' Measured on fbc, and the second half is as important as the first:
+        ''
+        ''     constructor Q( byval z as integer )
+        ''         constructor( )        ->  _ZN1QC1Ev( THIS );
+        ''         this.n += z
+        ''     end constructor
+        ''
+        '' ...and the DELEGATING constructor gets NO PROLOGUE of its own: fbc's C for it has
+        '' no memset at all, while the default constructor it calls has one. The explicit call
+        '' REPLACES the implicit initialisation, exactly as an explicit 'base( )' does.
+        ''
+        '' This was not a missing feature so much as a parse that ran away: 'constructor( )'
+        '' opened a new constructor, its 'end constructor' closed that, and the enclosing
+        '' 'end namespace' closed the real one. warnings/suffix-fb.bas lost a namespace 300
+        '' lines further down and reported 'expected end NAMESPACE' at end of file.
+        ''
+        '' 'base( )', 'x.constructor( )' and 'base.constructor( )' already worked: each begins
+        '' with something that is not a declaration keyword, so each already reached
+        '' ParseAmbiguous.
+        elseif (k = Tko.KW_CONSTRUCTOR) andalso NextTokIs_( p, Tko.TK_LPAREN ) then
+            n = ParseAmbiguous( p )
         elseif IsDeclarationStart( k ) andalso (IsTypeLiteralHere( p ) = false) then
             n = Declaration( p )
         elseif Tko.IsStatementIntrinsic( k ) andalso FollowedByAssign( p ) then

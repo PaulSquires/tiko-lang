@@ -64,6 +64,24 @@ type PpEngine
     as IdVec                  onceFiles     '' FileId values marked #include once
     as FileId                 rootFile
     as long                   uniqueCounter
+    '' '##_' AT THE END OF A MACRO BODY LINE IS A LINE JOIN, and what it joins is the
+    '' NEXT END OF LINE -- wherever that comes from. Measured on fbc, three shapes:
+    ''
+    ''   #macro M() : dim q as long = 1 + ##_ : 2 : print q : #endmacro
+    ''       'dim q as long = 1 + 2' then a NEW line for 'print q'. Exactly one EOL
+    ''       goes, the body's own, and the one after '2' stays
+    ''
+    ''   #macro N() : dim r as long = 3 + ##_ : #endmacro   then  N() / 4
+    ''       'dim r as long = 3 + 4'. Here the EOL that goes is the INVOCATION's, so
+    ''       the rule cannot be "drop a body EOL" -- it is "drop the next one"
+    ''
+    ''   #define ENT(x) x, ##_    over  BEGIN() / ENT(1) / ENT(2) / END()
+    ''       the whole array initialiser becomes one statement, which is what
+    ''       pp/token-pasting.bas is for
+    ''
+    '' '##' at end of line WITHOUT the '_' is not this: fbc reports error 9 and the '#'
+    '' survives into the output. Only the pair joins.
+    as boolean                eatNextEol
     '' __FB_UNIQUEID__ IS A STACK PER NAME, not a fresh id per use. Measured:
     ''
     ''     __fb_uniqueid_push__( k )   a NEW id becomes k's current one
@@ -287,6 +305,16 @@ private sub CollectLine _
 end sub
 
 private sub EmitTok( byref e as PpEngine, byref t as Token )
+    '' The '##_' line join, consumed by the FIRST end of line that reaches the output
+    '' after it. Doing it here rather than in the substitution loop is what makes the
+    '' body and the invocation cases one rule instead of two.
+    '' A ':' IS ALSO A TK_EOL and is NOT what a line join joins: 'a : b' is two
+    '' statements on one line and there is no line to continue. TF_COLON is the only
+    '' thing that tells them apart -- both are one byte.
+    if e.eatNextEol andalso (Tk( t ) = TK_EOL) andalso ((t.flags and TF_COLON) = 0) then
+        e.eatNextEol = false
+        return
+    end if
     e.outp->tokens.Push( t )
 end sub
 
@@ -621,6 +649,7 @@ sub PpOpen _
     e->outp = @outp
     e->rootFile = root
     e->uniqueCounter = 0
+    e->eatNextEol = false
     e->stopped = false
 
     st.engine = e

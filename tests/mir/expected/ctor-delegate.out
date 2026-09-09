@@ -1,0 +1,104 @@
+func void _ZN1QC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 5
+    store %6, %7
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void _ZN1QC1Eu7INTEGER(ptr $0, i64 $1) {
+  local ptr this
+  local i64 z
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr z
+    store @z, $1
+    %3 = load @this
+    %4 = load @this
+    call void _ZN1QC1Ev(%4)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = load @z
+    %9 = add %7, %8
+    store %6, %9
+    ret
+}
+func void _ZN2NS1RC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 100
+    store %6, %7
+    ret
+}
+func void _ZN2NS1RC1Eu7INTEGER(ptr $0, i64 $1) {
+  local ptr this
+  local i64 z
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr z
+    store @z, $1
+    %3 = load @this
+    %4 = load @this
+    call void _ZN2NS1RC1Ev(%4)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = load @z
+    %9 = add %7, %8
+    store %6, %9
+    ret
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg v size 8
+  local agg w size 8
+  local agg $tmp3 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr v
+    %5 = const i64 3
+    call void _ZN1QC1Eu7INTEGER(@v, %5)
+    %6 = alloca ptr w
+    call void _ZN2NS1RC1Ev(@w)
+    %7 = alloca ptr $tmp3
+    %8 = const i64 7
+    call void _ZN2NS1RC1Eu7INTEGER(@$tmp3, %8)
+    %9 = load @$tmp3
+    store @w, %9
+    %10 = field.addr @v, 0
+    %11 = load %10
+    call.rtl void fb_PrintLongint(0, %11, 2)
+    %12 = field.addr @w, 0
+    %13 = load %12
+    call.rtl void fb_PrintLongint(0, %13, 1)
+    %14 = const i32 0
+    call.rtl void fb_End(%14)
+    %15 = load @$tmp0
+    ret %15
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 5 functions, 5 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance

@@ -467,6 +467,30 @@ sub EmitCtorPrologue_ _
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
         if f = 0 then continue for
         dim as Tko.NodeId fi = FieldInitOf_( c, f )
+        '' '= ANY' IS THE WHOLE PROLOGUE SKIPPED FOR THIS FIELD -- no zero fill, no
+        '' member constructor, no store, and not even the field.addr: fbc's constructor
+        '' mentions the field nowhere at all. See FieldInitIsAny_ for the four probes;
+        '' the one that decides the placement is 'i as inner = any', where inner
+        '' declares a constructor and fbc's synthesised constructor is EMPTY. Skipping
+        '' only the store would still have called it.
+        ''
+        '' The DESTRUCTOR is deliberately not changed to match: fbc still destroys an
+        '' 'any' field, which is asymmetric and is what it does.
+        if FieldInitIsAny_( c, fi ) then
+            '' ...WITH ONE EXCEPTION, AND IT IS MEASURED RATHER THAN REASONED. A
+            '' DYNAMIC ARRAY field still gets its whole descriptor: fbc's constructor
+            '' for 'd(any) as long = any' writes the two pointers, the element size,
+            '' the dimension count and the dimTB memset exactly as it would without the
+            '' 'any'. Nothing else survives -- a USTRING field beside it in the same
+            '' probe is left untouched and then DELETED by the destructor, which is
+            '' fbc's own hazard and is copied here rather than second-guessed.
+            if c.types->IsDynArray( f->type_ ) then
+                dim as MirValue da = FieldAddr_( c, thisPtr, t, f->name )
+                if da.kind <> cast( ubyte, MV_NONE ) then InitMember_( c, da, f->type_ )
+            end if
+            continue for
+        end if
+
         dim as MirValue fa = FieldAddr_( c, thisPtr, t, f->name )
         if fa.kind = cast( ubyte, MV_NONE ) then continue for
 

@@ -753,7 +753,14 @@ function LowerBaseCtorCall_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "base" then return false
+    '' 'base( ... )' AND 'constructor( ... )' ARE THE SAME STATEMENT WITH A DIFFERENT
+    '' RECEIVER: one initialises the base subobject, the other DELEGATES to another
+    '' constructor of this same type over the whole of 'this'. Measured on fbc, which
+    '' emits a plain '_ZN1QC1Ev( THIS )' for the delegating form -- and emits NO
+    '' PROLOGUE at all in the delegating constructor, because the one it calls does it.
+    dim as string ctorWord = Tko.Text.LowerAscii( c.names->Spelling( tip->name ) )
+    dim as boolean delegating = (ctorWord = "constructor")
+    if (ctorWord <> "base") andalso (delegating = false) then return false
 
     '' The receiver's own type, through 'this'. Nothing outside a method has one, and
     '' a method whose type does not extend anything has no 'base' field.
@@ -771,16 +778,25 @@ function LowerBaseCtorCall_ _
     dim as Tko.TypeId ot = c.types->Inner( ts->type_ )
     if ot = Tko.TYPE_NONE then return false
 
-    dim as Tko.SymbolId bsid = UdtMemberNamed_( c, ot, "base" )
-    if bsid = Tko.SYMBOL_NONE then return false
-    dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
-    if bs = 0 then return false
-    if bs->kind <> cast( ubyte, Tko.SYM_FIELD ) then return false
-    dim as Tko.TypeId bt = bs->type_
-    if bt = Tko.TYPE_NONE then return false
+    dim as Tko.SymbolId bsid = Tko.SYMBOL_NONE
+    dim as Tko.TypeId bt = ot
+    if delegating = false then
+        bsid = UdtMemberNamed_( c, ot, "base" )
+        if bsid = Tko.SYMBOL_NONE then return false
+        dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
+        if bs = 0 then return false
+        if bs->kind <> cast( ubyte, Tko.SYM_FIELD ) then return false
+        bt = bs->type_
+        if bt = Tko.TYPE_NONE then return false
+    end if
     if c.types->Kind( bt ) <> Tko.TK_UDT then return false
 
     dim as Tko.SymbolId ctors = StructorOf( c, bt, "__ctor" )
+    '' A DELEGATING CALL WITH NOTHING TO DELEGATE TO is not the field-by-field path
+    '' below -- that one exists because a BASE with no constructor is still initialised.
+    '' 'constructor( )' naming a type that declares none is an error the checker owes,
+    '' and inventing an initialisation for it would be a guess.
+    if delegating andalso (ctors = Tko.SYMBOL_NONE) then return false
     if ctors = Tko.SYMBOL_NONE then
         '' A BASE WITH NO CONSTRUCTOR IS INITIALISED FIELD BY FIELD, not called. This
         '' returned false the moment there was nothing to pick, so the statement fell
@@ -833,7 +849,16 @@ function LowerBaseCtorCall_ _
     next
     if ai <> cast( long, argT.Count ) then return false
 
-    dim as MirValue recv = AddrOfThisField( c, bsid )
+    dim as MirValue recv
+    if delegating then
+        '' THIS holds a pointer, so the receiver is its VALUE -- the whole object, at
+        '' offset zero -- where the base form takes the address of a field inside it.
+        dim as MirValue ta = AddrOfVar( c, tsid )
+        if ta.kind = cast( ubyte, MV_NONE ) then return false
+        recv = LowerExprLoad( c, ta, MT_PTR )
+    else
+        recv = AddrOfThisField( c, bsid )
+    end if
     if recv.kind = cast( ubyte, MV_NONE ) then return false
     EmitStructorCall( c, pick, -1, @recv, @cargs )
     return true

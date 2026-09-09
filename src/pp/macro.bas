@@ -1021,6 +1021,42 @@ private function PasteSpelling_ _
     return SpellOf( e, t )
 end function
 
+'' '##_' IS A LINE JOIN, NOT A PASTE, and it has to be recognised BEFORE the paste
+'' below sees it -- otherwise the '{' or the ',' in front of it is pasted onto the
+'' spelling '_' and the join is lost. Measured on fbc:
+''
+''     #define ENT(x) x, ##_        over  BEGIN() / ENT(1) / ENT(2) / END()
+''         one statement, 'dim a(0 to ...) as long = { 1, 2, 9 }'
+''
+''     ##  at end of line, no '_'   fbc error 9, and the '#' survives into the output
+''     _   at end of line, no '##'  does NOT continue across the macro boundary
+''
+'' So the pair joins and neither half does it alone. What is joined is the NEXT end of
+'' line to reach the output, which EmitTok is what decides -- see e.eatNextEol, and the
+'' three shapes measured there.
+private function IsLineJoinAt_ _
+    ( byref e as PpEngine, byval m as PpMacro ptr, byval j as long ) as boolean
+
+    if (j + 2) >= m->body.Count then return false
+    if Tk( m->body[j] ) <> TK_HASH then return false
+    if Tk( m->body[j + 1] ) <> TK_HASH then return false
+    if Tk( m->body[j + 2] ) <> TK_IDENT then return false
+    if e.names->Spelling( cast( InternId, m->body[j + 2].literal ) ) <> "_" then return false
+
+    '' THE '_' MUST END THE LINE, and leaving that out was caught by an existing test
+    '' rather than by a probe: 'private function V##_ overload( ... )' pastes the NAME
+    '' 'Foo_' -- fbc emits '_Z4FOO_u7INTEGER' for it -- and reading that as a line join
+    '' dropped the paste and the declaration with it. mir/line-continuation is the test,
+    '' and it exists because fb/vector.bi once declared 'Vec2fdim' for the same reason.
+    ''
+    '' At the very end of the body counts: that is the '#define ENT(x) x, ##_' form,
+    '' where there is no body EOL and the INVOCATION's is what goes.
+    if (j + 3) >= m->body.Count then return true
+    if Tk( m->body[j + 3] ) <> TK_EOL then return false
+    '' A ':' is a TK_EOL and is not a line end -- the same distinction EmitTok makes.
+    return ((m->body[j + 3].flags and TF_COLON) = 0)
+end function
+
 '' Substitute parameters into the body, handling '#' stringise and '##' paste.
 private sub PpSubstitute _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
@@ -1028,6 +1064,12 @@ private sub PpSubstitute _
 
     dim as long i = 0
     while i < m->body.Count
+        if IsLineJoinAt_( e, m, i ) then
+            e.eatNextEol = true
+            i += 3
+            continue while
+        end if
+
         dim as Token bt = m->body[i]
         dim as TokenKind bk = Tk( bt )
 
@@ -1096,6 +1138,9 @@ private sub PpSubstitute _
             pasteNext = (Tk( m->body[i + 1] ) = TK_HASH) andalso _
                         (i + 2 < m->body.Count) andalso _
                         (Tk( m->body[i + 2] ) = TK_HASH)
+            '' ...unless it is the line join, which the top of the loop handles once
+            '' the token in front of it has been emitted normally.
+            if pasteNext andalso IsLineJoinAt_( e, m, i + 1 ) then pasteNext = false
         end if
         if pasteNext then
             dim as string acc = PasteSpelling_( e, m, args, bt )

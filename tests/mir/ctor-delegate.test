@@ -1,0 +1,19 @@
+'' 'constructor( )' inside a constructor body delegates; it does not open a definition.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-delegate.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The delegating constructor calls the default one...
+'' EXPECT-OUT: call void _ZN1QC1Ev
+
+'' The namespace closes: before this, 'end constructor' was eaten by the runaway
+'' 'constructor( )' and the namespace ran to end of file.
+'' EXPECT-NOT: expected 'end NAMESPACE'
+'' EXPECT-NOT: TKO0405
+
+'' ...and the GOLDEN is what pins the ABSENCE of a prologue in the delegating body.
+'' A substring assertion cannot say "no second memset"; the whole IR can. Built and RUN
+'' against fbc as well: both print '8  107', and a prologue here would print '3' --
+'' the fields zeroed after the constructor it delegates to had filled them.
+'' GOLDEN: expected/ctor-delegate.out

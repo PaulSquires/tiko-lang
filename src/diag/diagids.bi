@@ -411,6 +411,9 @@
     '' plain N_IDENT too, so "unbound" is not "undeclared". A RESERVED name carries no
     '' such doubt: it is on a list the source itself wrote, and nothing may declare it.
     DIAG( TKO0770, SEV_ERROR,   "'%0' is reserved by '#pragma reserve' and cannot be used" )
+    '' fbc's error 24, "Invalid data types". A fixed-length string and a ustring are
+    '' both accepted with '= any'; only a var-len STRING, or an array of one, is not.
+    DIAG( TKO0771, SEV_ERROR,   "'%0' is a var-len string, which cannot be declared '= any'" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
     '' fbc's error 158, twice over.

@@ -1,0 +1,17 @@
+'' '##_' at the end of a macro body line joins the next end of line.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/macro-line-join.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' Mid-body: '1 + 2' folds to 3, and the line AFTER the join still stands on its own --
+'' 'qq' is 7 and not part of the sum.
+'' EXPECT-OUT: const i64 3
+'' EXPECT-OUT: const i64 7
+
+'' End of body: the invocation's own EOL is what goes, so '3 + 4' folds to 7 as well.
+
+'' The array initialiser arrives as ONE statement, so all three elements are there.
+'' EXPECT-OUT: const i64 11
+'' EXPECT-OUT: const i64 22
+'' EXPECT-OUT: const i64 99
