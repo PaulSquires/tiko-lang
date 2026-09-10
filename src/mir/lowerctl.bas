@@ -992,12 +992,34 @@ sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     dim as long exitB = NewBlock( c, "do.exit" )
     Terminate( c, MTERM_BR, iif( postCond, bodyB, headB ), -1, NoVal( ) )
 
+    '' THE POST-TEST CONDITION LIVES IN 'c', NOT IN 'a', and this read 'a' either way.
+    ''
+    '' The parser puts a LEADING 'do while c' in sp.a and a TRAILING 'loop while c' in
+    '' sp.c -- they can both be present, which is why they are separate fields. Reading
+    '' only 'a' meant a post-test loop saw NO condition at all and fell to the
+    '' unconditional else-branch below:
+    ''
+    ''     do.head1:  br do.body2
+    ''     do.body2:  ... br do.head1
+    ''     do.exit3:  <unreachable>
+    ''
+    '' -- an infinite loop, for EVERY 'loop while' and 'loop until' in the language.
+    '' Measured: 'do : i += 1 : loop while i < 10' prints 10 under fbc and never
+    '' terminates under tiko, while the pre-test spellings were right all along.
+    ''
+    '' Nothing caught it because no golden asserts a post-test loop's RUNTIME
+    '' behaviour and the IR it produces is perfectly well formed -- the verifier has
+    '' nothing to object to. build/runscan.sh found it as a 30-second timeout in
+    '' scopes/dtor_eol_eof2.bas.
+    dim as Tko.NodeId condE = sp->a
+    if postCond then condE = sp->c
+
     c.curBlock = headB
-    if sp->a <> Tko.NODE_NONE then
+    if condE <> Tko.NODE_NONE then
         '' A UDT temporary made by the CONDITION dies here, not at the end of the
         '' loop: the head runs again on every iteration and the slot is the same one.
         dim as long umark = c.udtTemps.Count
-        dim as MirValue cond = LowerCondition( c, sp->a )
+        dim as MirValue cond = LowerCondition( c, condE )
         ReleaseUdtTemps_( c, umark )
         '' UNTIL is the same test with the arms swapped, which is cheaper than
         '' emitting a negation and is exactly what fbc's own lowering does.

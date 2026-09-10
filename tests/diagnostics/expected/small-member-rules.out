@@ -75,7 +75,7 @@ lowered: 5 functions, 5 blocks, 36 insts, 2 statements not lowered, 0 scope imba
   inside N_INTRINSIC 1
   unlowered intrinsic KW_PRINT 1
   skip-site src\mir\lowerctl.bas:206 1
-  skip-site src\mir\lowerassign.bas:439 1
+  skip-site src\mir\lowerassign.bas:440 1
 tests/diagnostics/src/small-member-rules.bas(27,16): error TKO0658: 'array' is indexed with the wrong number of subscripts
      |
   27 |     print array(1, 2)

@@ -127,14 +127,18 @@ func void LOOPING(i32 $0) {
   if.else6:
     br if.join4
   do.head7:
-    br do.body8
-  do.body8:
     %18 = load @i
-    %19 = const i64 1
+    %19 = const i64 0
     %20 = sext %18
-    %21 = sub %20, %19
-    %22 = trunc %21
-    store @i, %22
+    %21 = icmp.eq %20, %19
+    condbr %21, do.exit9, do.body8
+  do.body8:
+    %22 = load @i
+    %23 = const i64 1
+    %24 = sext %22
+    %25 = sub %24, %23
+    %26 = trunc %25
+    store @i, %26
     br do.head7
   do.exit9:
     ret
@@ -155,4 +159,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 21 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 21 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance
