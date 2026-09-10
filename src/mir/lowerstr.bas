@@ -326,6 +326,18 @@ function EmitRtl _
     ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
 
     dim as MirValue v
+    '' AN ARGUMENT THAT IS NOTHING IS NOT AN ARGUMENT, and a runtime call is no
+    '' different from a user one. Coerce answers MV_NONE for a conversion it cannot
+    '' model, and pushing that answer put a hole in the call --
+    '' 'call.rtl void fb_GfxLine(_, %39, ...)' -- which the verifier does not look at
+    '' and the emitter cannot write. LowerCallParts has kept this rule for a user
+    '' call since it existed; this is the same rule at the runtime's door.
+    for i as long = 0 to (args.Count \ 2) - 1
+        if args[i * 2] = cast( ulong, MV_NONE ) then
+            SkipHere( c )
+            return v
+        end if
+    next
     '' The LINKER-VISIBLE name, which on win32 carries the underscore and the stdcall
     '' '@N'. A 32-bit pointer means win32: Linux is 64-bit only by decision.
     dim as boolean is32 = (c.types->target.pointerBits = 32)

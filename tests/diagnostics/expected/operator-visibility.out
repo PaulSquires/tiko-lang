@@ -246,7 +246,7 @@ func i32 main(i32 $0, ptr $1) {
     %66 = alloca ptr hf2
     %69 = alloca ptr pf
     %72 = alloca ptr hf3
-    %75 = alloca ptr pf3
+    %74 = alloca ptr pf3
     condbr %19, del.body1, del.join2
   del.body1:
     call.rtl void free(%17)
@@ -326,17 +326,13 @@ func i32 main(i32 $0, ptr $1) {
     %71 = field.addr @pf, 0
     store %71, %70
     %73 = load @hf3
-    %74 = sext %73
-    store @n, %74
-    %76 = load @pf3
-    %77 = sext %76
-    store @n, %77
-    %78 = const i64 123
-    call.rtl void fb_PrintInt(0, %78, 1)
-    %79 = const i32 0
-    call.rtl void fb_End(%79)
-    %80 = load @$tmp0
-    ret %80
+    %75 = load @pf3
+    %76 = const i64 123
+    call.rtl void fb_PrintInt(0, %76, 1)
+    %77 = const i32 0
+    call.rtl void fb_End(%77)
+    %78 = load @$tmp0
+    ret %78
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr calloc(i64 $0, i64 $1)
@@ -344,9 +340,11 @@ declare void free(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 16 functions, 26 blocks, 199 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 26 blocks, 195 insts, 3 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 2
   inside N_FOR 1
   skip-site src\mir\lowerfor.bas:80 1
+  skip-site src\mir\lowerutil.bas:40 2
 tests/diagnostics/src/operator-visibility.bas(102,24): error TKO0625: 'myconst' is not accessible here
      |
  102 |     dim as integer n = MYCONST

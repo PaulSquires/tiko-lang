@@ -674,6 +674,16 @@ function LowerCallParts _
                             dim as Tko.TypeId zat = c.info->TypeOf_( argNode )
                             wantsZPtr = IsStringType( c, zat )
                             wantsZPtr = wantsZPtr orelse IsWideString_( c, zat )
+                            '' A FIXED-LENGTH STRING COUNTS TOO, and IsStringType
+                            '' says no to one: 'zstring * 50' is an ARRAY of the
+                            '' character builtin, not the builtin. Measured, fbc
+                            '' passes the array's ADDRESS and loads nothing --
+                            '' 'G( (char*)Z$0 )' -- while this fell to the generic
+                            '' path, which LOADED the fifty bytes and then asked
+                            '' for a pointer-sized value out of them.
+                            dim as longint zaskn
+                            dim as long zask = StrSwapKind_( c, zat, zaskn )
+                            if (zask = 1) orelse (zask = 3) then wantsZPtr = true
                         elseif c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
                             '' A 'wstring ptr' PARAMETER TAKES THE WIDE DATA POINTER,
                             '' which is what a wide value already IS: measured, fbc

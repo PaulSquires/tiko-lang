@@ -39,7 +39,7 @@ func i32 main(i32 $0, ptr $1) {
     %17 = alloca ptr $tmp9
     %22 = alloca ptr $tmp10
     %27 = alloca ptr $tmp11
-    %36 = alloca ptr $tmp12
+    %33 = alloca ptr $tmp12
     condbr %11, iif.then1, iif.else2
   iif.then1:
     %13 = load @a
@@ -82,36 +82,32 @@ func i32 main(i32 $0, ptr $1) {
     condbr %26, iif.then10, iif.else11
   iif.then10:
     %28 = load @a
-    %29 = sext %28
-    %30 = bitcast %29
-    store @$tmp11, %30
     br iif.join12
   iif.else11:
-    %31 = load @pp_
-    store @$tmp11, %31
+    %29 = load @pp_
+    store @$tmp11, %29
     br iif.join12
   iif.join12:
-    %32 = load @$tmp11
-    %33 = bitcast %32
-    %34 = trunc %33
-    store @a, %34
-    %35 = load @cond
-    condbr %35, iif.then13, iif.else14
+    %30 = load @$tmp11
+    %31 = load %30
+    store @a, %31
+    %32 = load @cond
+    condbr %32, iif.then13, iif.else14
   iif.then13:
-    %37 = load @bs
-    store @$tmp12, %37
+    %34 = load @bs
+    store @$tmp12, %34
     br iif.join15
   iif.else14:
-    %38 = load @dv
-    store @$tmp12, %38
+    %35 = load @dv
+    store @$tmp12, %35
     br iif.join15
   iif.join15:
-    %39 = load @$tmp12
-    store @bs, %39
-    %40 = const i32 0
-    call.rtl void fb_End(%40)
-    %41 = load @$tmp0
-    ret %41
+    %36 = load @$tmp12
+    store @bs, %36
+    %37 = const i32 0
+    call.rtl void fb_End(%37)
+    %38 = load @$tmp0
+    ret %38
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN7PARENT_C1Ev(ptr $0)
@@ -138,7 +134,9 @@ func void _ZN7DERIVEDC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 3 functions, 18 blocks, 71 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 18 blocks, 67 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 1
+  skip-site src\mir\lowerutil.bas:40 1
 tests/diagnostics/src/iif-udt-arms.bas(27,8): error TKO0655: the two arms of 'iif' have incompatible types
      |
   27 | a = iif( cond, a, o )

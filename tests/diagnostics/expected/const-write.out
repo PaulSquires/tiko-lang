@@ -85,57 +85,53 @@ func i32 main(i32 $0, ptr $1) {
     store @vb, %40
     %41 = alloca ptr u
     %42 = load @u
-    %43 = sext %42
-    store @ca, %43
-    %44 = load @u
-    %45 = sext %44
-    store @va, %45
-    %46 = const i64 1
-    %47 = const i64 1
-    %48 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    call.rtl void fb_StrAssignMid(@cs, %46, %47, %48)
-    %49 = load @ca
-    %50 = const i64 1
-    %51 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    call.rtl void fb_StrAssignMid(@vs, %49, %50, %51)
-    %52 = load @constimage
+    %43 = load @u
+    %44 = const i64 1
+    %45 = const i64 1
+    %46 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_StrAssignMid(@cs, %44, %45, %46)
+    %47 = load @ca
+    %48 = const i64 1
+    %49 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_StrAssignMid(@vs, %47, %48, %49)
+    %50 = load @constimage
+    %51 = const i64 0
+    %52 = sitofp %51
     %53 = const i64 0
     %54 = sitofp %53
-    %55 = const i64 0
+    %55 = const i64 1
     %56 = sitofp %55
     %57 = const i64 1
     %58 = sitofp %57
-    %59 = const i64 1
-    %60 = sitofp %59
-    %61 = const i64 0
-    %62 = trunc %61
-    %63 = const i32 65535
-    call.rtl void fb_GfxLine(%52, %54, %56, %58, %60, %62, 0, %63, 0)
-    %64 = load @image
+    %59 = const i64 0
+    %60 = trunc %59
+    %61 = const i32 65535
+    call.rtl void fb_GfxLine(%50, %52, %54, %56, %58, %60, 0, %61, 0)
+    %62 = load @image
+    %63 = const i64 0
+    %64 = sitofp %63
     %65 = const i64 0
     %66 = sitofp %65
-    %67 = const i64 0
+    %67 = const i64 1
     %68 = sitofp %67
     %69 = const i64 1
     %70 = sitofp %69
-    %71 = const i64 1
-    %72 = sitofp %71
-    %73 = const i64 0
-    %74 = trunc %73
-    %75 = const i32 65535
-    call.rtl void fb_GfxLine(%64, %66, %68, %70, %72, %74, 0, %75, 0)
-    %76 = alloca ptr pcf
-    %77 = field.addr @wcf, 0
-    store @pcf, %77
-    %78 = load @pcf
-    %79 = const i64 0
-    store %78, %79
+    %71 = const i64 0
+    %72 = trunc %71
+    %73 = const i32 65535
+    call.rtl void fb_GfxLine(%62, %64, %66, %68, %70, %72, 0, %73, 0)
+    %74 = alloca ptr pcf
+    %75 = field.addr @wcf, 0
+    store @pcf, %75
+    %76 = load @pcf
+    %77 = const i64 0
+    store %76, %77
     call.rtl void fb_StrDelete(@vs)
     call.rtl void fb_StrDelete(@cs)
-    %80 = const i32 0
-    call.rtl void fb_End(%80)
-    %81 = load @$tmp0
-    ret %81
+    %78 = const i32 0
+    call.rtl void fb_End(%78)
+    %79 = load @$tmp0
+    ret %79
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -153,7 +149,9 @@ func void _ZN14WITHCONSTFIELDC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 2 functions, 2 blocks, 117 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 113 insts, 2 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 2
+  skip-site src\mir\lowerutil.bas:40 2
 tests/diagnostics/src/const-write.bas(22,1): error TKO0617: cannot modify '': it is a constant
      |
   22 | *ptrToConst = 1

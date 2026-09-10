@@ -25,28 +25,27 @@ func i32 main(i32 $0, ptr $1) {
     %13 = load %12
     store @b, %13
     %14 = load @x
-    %15 = sext %14
-    store @a, %15
+    %15 = load @x
     %16 = load @x
-    %17 = load @x
-    %18 = alloca ptr $tmp5
+    %17 = alloca ptr $tmp5
     store @$tmp5, @x
-    %19 = load @$tmp5
-    %20 = field.addr %19, 0
-    %21 = load %20
-    store @a, %21
-    %22 = load @$tmp5
-    %23 = field.addr %22, 8
-    %24 = const i32 0
-    call.rtl void fb_End(%24)
-    %25 = load @$tmp0
-    ret %25
+    %18 = load @$tmp5
+    %19 = field.addr %18, 0
+    %20 = load %19
+    store @a, %20
+    %21 = load @$tmp5
+    %22 = field.addr %21, 8
+    %23 = const i32 0
+    call.rtl void fb_End(%23)
+    %24 = load @$tmp0
+    ret %24
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 34 insts, 3 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 3
+lowered: 1 functions, 1 blocks, 32 insts, 4 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 4
+  skip-site src\mir\lowerutil.bas:40 1
   skip-site src\mir\lowerassign.bas:397 2
   skip-site src\mir\lowerassign.bas:385 1
 tests/diagnostics/src/let-targets.bas(13,6): error TKO0652: a literal cannot be assigned to

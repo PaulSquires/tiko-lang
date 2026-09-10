@@ -49,7 +49,7 @@ func void IIFREFUSED() {
   entry0:
     %1 = load @@c
     %2 = alloca ptr $tmp0
-    %8 = alloca ptr $tmp1
+    %7 = alloca ptr $tmp1
     condbr %1, iif.then1, iif.else2
   iif.then1:
     %3 = load @@n1
@@ -57,26 +57,24 @@ func void IIFREFUSED() {
     br iif.join3
   iif.else2:
     %4 = load @@sv
-    %5 = zext %4
-    store @$tmp0, %5
     br iif.join3
   iif.join3:
-    %6 = load @$tmp0
-    call.rtl void fb_PrintString(0, %6, 1)
-    %7 = load @@c
-    condbr %7, iif.then4, iif.else5
+    %5 = load @$tmp0
+    call.rtl void fb_PrintString(0, %5, 1)
+    %6 = load @@c
+    condbr %6, iif.then4, iif.else5
   iif.then4:
-    %9 = load @@ip
-    store @$tmp1, %9
+    %8 = load @@ip
+    store @$tmp1, %8
     br iif.join6
   iif.else5:
-    %10 = load @@bp
-    store @$tmp1, %10
+    %9 = load @@bp
+    store @$tmp1, %9
     br iif.join6
   iif.join6:
-    %11 = load @$tmp1
-    %12 = bitcast %11
-    call.rtl void fb_PrintLongint(0, %12, 1)
+    %10 = load @$tmp1
+    %11 = bitcast %10
+    call.rtl void fb_PrintLongint(0, %11, 1)
     ret
 }
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
@@ -133,7 +131,9 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 18 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 18 blocks, 60 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_INTRINSIC 1
+  skip-site src\mir\lowerutil.bas:40 1
 tests/diagnostics/src/base-ctor-and-iif.bas(58,14): error TKO0655: the two arms of 'iif' have incompatible types
      |
   58 |     print iif( c, n1, sv )

@@ -133,7 +133,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 14 blocks, 85 insts, 2 statements not lowered, 0 scope imbalance
   inside N_IF 2
-  skip-site src\mir\lowerutil.bas:37 1
+  skip-site src\mir\lowerutil.bas:50 1
   skip-site src\mir\lowerctl.bas:1062 1
 tests/diagnostics/src/new-and-not.bas(17,7): error TKO0705: 'new' of a bare zstring or wstring allocates nothing
      |

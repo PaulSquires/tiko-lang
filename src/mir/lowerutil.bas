@@ -28,6 +28,19 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     dim as MirValue v
     if c.curBlock < 0 then return v
     dim as MirOp op = cast( MirOp, ins.op )
+    '' A STORE WITH NOTHING TO STORE IS NOT A STORE. Coerce answers MV_NONE for a
+    '' conversion it cannot model -- an aggregate on one side of a scalar cast, which
+    '' fbc rejects outright as its error 181 -- and the store sites pushed the answer
+    '' anyway, so the listing carried 'store @a, _': a hole the verifier does not look
+    '' at and the emitter cannot write. It is the same rule the call path already
+    '' keeps for a missing ARGUMENT, applied at the one place every store passes
+    '' through, and it counts as a decline like any other unlowered statement.
+    if op = M_STORE then
+        if ins.b.kind = cast( ubyte, MV_NONE ) then
+            SkipHere( c )
+            return v
+        end if
+    end if
     '' An instruction that would produce a VOID result is not emitted at all. It
     '' means the frontend could not type the expression, and a well-formed IR with a
     '' gap in it is far more useful than a complete one that is malformed.
@@ -269,6 +282,35 @@ function CoerceTy _
         dim as MirValue nv = Emit( c, ng )
         return Coerce( c, nv, want, false )
     end if
+    '' A POINTER WHERE AN AGGREGATE IS WANTED IS AN ADDRESS, and the conversion is a
+    '' LOAD THROUGH IT.
+    ''
+    '' 'dim as D d = this' over a member function is the shape: the receiver's slot
+    '' holds a pointer, its type IS 'D ptr', and the initialiser asked for a D. Coerce
+    '' below has no type id and answered with the scalar chain -- 'bitcast' to i64 and
+    '' then 'trunc' to the aggregate:
+    ''
+    ''     %t13 = trunc i64 %t12 to [0 x i8]
+    ''
+    '' which clang refuses outright, and which was 50 of the corpus's codegen
+    '' diagnostics. Measured, fbc copies the object: 'dim as D d = this' then
+    '' 'return d' prints the receiver's fields, and tiko now does too. THE SIZE COMES
+    '' FROM dstTid, which is the whole reason this belongs here and not in Coerce: an
+    '' aggregate load with no width is the '[0 x i8]' this replaces.
+    if (want = MT_AGG) andalso haveVal then
+        if cast( MirType, v.ty ) = MT_PTR then
+            dim as long asz = SizeOfType( c, dstTid )
+            if asz > 0 then
+                dim as MirInst al
+                al.op = cast( ushort, M_LOAD )
+                al.ty = cast( ubyte, MT_AGG )
+                al.a = v
+                al.imm = cast( longint, asz )
+                return Emit( c, al )
+            end if
+        end if
+    end if
+
     '' Coerce, NOT CoerceTy. The mechanical rewrite that introduced this function
     '' ran over this file too and turned its own tail call into a call to itself --
     '' infinite recursion, and the compiler segfaulted on the first boolean it saw.
@@ -284,6 +326,38 @@ function Coerce _
     dim as MirType have = cast( MirType, v.ty )
     if have = want then return v
     if (have = MT_VOID) orelse (want = MT_VOID) then return v
+
+    '' AN AGGREGATE IS NEVER THE RESULT OF A SCALAR CONVERSION, and never the source
+    '' of one. It has no WIDTH -- TyWidth answers zero -- so the integer branch below
+    '' read every one as a narrowing and emitted
+    ''
+    ''     invalid cast opcode for cast from 'i64' to '[0 x i8]'
+    ''     invalid cast opcode for cast from '[16 x i8]' to 'i64'
+    ''
+    '' -- 50 of the corpus's codegen diagnostics between them. There is no cast that
+    '' produces an aggregate: the conversion goes through MEMORY or it does not exist.
+    '' CoerceTy handles the one case that has a meaning, a POINTER to the object with
+    '' a known destination type, because it is the only caller that knows the size.
+    '' Everything else DECLINES rather than emitting IR clang refuses -- which is the
+    '' rule for a conversion this pass cannot model.
+    if (have = MT_AGG) orelse (want = MT_AGG) then
+        '' ...EXCEPT THE ONE THAT IS NOT A CONVERSION AT ALL. A local or global
+        '' aggregate IS its address in MIR -- '@z' is what an aggregate-typed
+        '' MV_LOCAL means -- so an aggregate where a POINTER is wanted is array
+        '' decay, and decay is a retype and not a cast. Measured, fbc emits
+        '' 'G( (char*)Z$0 )' for 'g( z )' over a 'zstring * 50': the array's
+        '' address, with no load anywhere.
+        if (have = MT_AGG) andalso (want = MT_PTR) then
+            if (v.kind = cast( ubyte, MV_LOCAL )) orelse _
+               (v.kind = cast( ubyte, MV_GLOBAL )) then
+                dim as MirValue pv = v
+                pv.ty = cast( ubyte, MT_PTR )
+                return pv
+            end if
+        end if
+        dim as MirValue none_
+        return none_
+    end if
 
     '' A POINTER IS NOT AN INTEGER, even where the two are the same width. TyWidth
     '' gives MT_PTR and MT_I64 both 64, so the integer branch below saw "same width"

@@ -127,21 +127,19 @@ func i32 main(i32 $0, ptr $1) {
     call void WANTSB(@vd)
     %9 = alloca ptr cf
     %10 = const i64 3
-    %11 = trunc %10
-    store @cf, %11
-    %12 = field.addr @cf, 0
-    %13 = load %12
-    call.rtl void fb_PrintLongint(0, %13, 1)
-    %14 = field.addr @cf, 0
-    %15 = const i64 4
-    store %14, %15
-    %16 = load @pb
-    call void WANTSDPTR(%16)
+    %11 = field.addr @cf, 0
+    %12 = load %11
+    call.rtl void fb_PrintLongint(0, %12, 1)
+    %13 = field.addr @cf, 0
+    %14 = const i64 4
+    store %13, %14
+    %15 = load @pb
+    call void WANTSDPTR(%15)
     call void WANTSD(@vb)
-    %17 = const i32 0
-    call.rtl void fb_End(%17)
-    %18 = load @$tmp0
-    ret %18
+    %16 = const i32 0
+    call.rtl void fb_End(%16)
+    %17 = load @$tmp0
+    ret %17
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN1BC1Ev(ptr $0)
@@ -171,7 +169,9 @@ func void _ZN1DC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 16 functions, 16 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 16 blocks, 67 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_VAR 1
+  skip-site src\mir\lowerutil.bas:40 1
 tests/diagnostics/src/member-and-call-rules.bas(66,5): error TKO0619: 'local2' is declared inside a procedure and cannot have methods
      |
   66 |     type Local2 extends object

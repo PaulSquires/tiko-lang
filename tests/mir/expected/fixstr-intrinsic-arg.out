@@ -104,9 +104,9 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@$tmp5)
     %49 = load @$tmp6
     call.rtl void fb_WstrDelete(%49)
-    %50 = load @fs
-    %51 = sext %50
-    %52 = bitcast %51
+    %50 = const i64 -9223372036854775798
+    %51 = call.rtl ptr fb_StrAllocTempDescF(@fs, %50)
+    %52 = load %51
     %53 = call i32 PZ(%52)
     store @r, %53
     %54 = load @r

@@ -173,264 +173,250 @@ func i32 main(i32 $0, ptr $1) {
     %18 = load @b
     store @a, %18
     %19 = const i64 1
-    %20 = trunc %19
-    store @a, %20
+    %20 = load @a
     %21 = load @a
-    %22 = sext %21
-    store @i, %22
-    %23 = load @a
-    %24 = sext %23
-    %25 = bitcast %24
-    store @p, %25
-    %26 = load @p
-    %27 = bitcast %26
-    %28 = trunc %27
-    store @a, %28
-    %29 = const i64 1
-    call void _ZN7WITHLETaSEu7INTEGER(@wl, %29)
-    %30 = const i64 1
-    %31 = trunc %30
-    store @wc, %31
-    %32 = call i64 _ZN8WITHCASTcvu7INTEGEREv(@wk)
-    store @i, %32
-    %33 = alloca ptr d1
-    %34 = load @c
-    store @d1, %34
-    %35 = alloca ptr d2
-    %36 = load @a
-    store @d2, %36
-    %37 = alloca ptr d3
-    %38 = const i64 1
-    %39 = field.addr @d3, 0
-    store %39, %38
-    %40 = alloca ptr d4
-    %41 = const i64 1
-    %42 = trunc %41
-    store @d4, %42
-    %43 = alloca ptr d5
-    %44 = load @a
-    %45 = sext %44
-    store @d5, %45
-    %46 = alloca ptr d6
+    %22 = load @p
+    %23 = load %22
+    store @a, %23
+    %24 = const i64 1
+    call void _ZN7WITHLETaSEu7INTEGER(@wl, %24)
+    %25 = const i64 1
+    %26 = call i64 _ZN8WITHCASTcvu7INTEGEREv(@wk)
+    store @i, %26
+    %27 = alloca ptr d1
+    %28 = load @c
+    store @d1, %28
+    %29 = alloca ptr d2
+    %30 = load @a
+    store @d2, %30
+    %31 = alloca ptr d3
+    %32 = const i64 1
+    %33 = field.addr @d3, 0
+    store %33, %32
+    %34 = alloca ptr d4
+    %35 = const i64 1
+    %36 = alloca ptr d5
+    %37 = load @a
+    %38 = alloca ptr d6
+    %39 = const i64 1
+    call void _ZN8WITHCTORC1Eu7INTEGER(@d6, %39)
+    %40 = alloca ptr d7
+    %41 = call i64 _ZN8WITHCASTcvu7INTEGEREv(@wk)
+    store @d7, %41
+    %42 = alloca ptr d8
+    %43 = const i64 1
+    %44 = field.addr @d8, 0
+    store %44, %43
+    %45 = alloca ptr u
+    %46 = field.addr @u, 0
     %47 = const i64 1
-    call void _ZN8WITHCTORC1Eu7INTEGER(@d6, %47)
-    %48 = alloca ptr d7
-    %49 = call i64 _ZN8WITHCASTcvu7INTEGEREv(@wk)
-    store @d7, %49
-    %50 = alloca ptr d8
-    %51 = const i64 1
-    %52 = field.addr @d8, 0
-    store %52, %51
-    %53 = alloca ptr u
-    %54 = field.addr @u, 0
-    %55 = const i64 1
-    store %54, %55
-    %56 = const i64 1
-    %57 = alloca ptr x
-    %58 = field.addr @x, 0
-    %59 = const i64 5
-    call void _ZN2T1C1Eu7INTEGER(%58, %59)
-    %60 = alloca ptr $tmp20
-    %61 = field.addr @$tmp20, 0
-    store %61, @x
-    %62 = field.addr @$tmp20, 8
-    store %62, @x
-    %63 = const i64 8
-    %64 = field.addr @$tmp20, 16
+    store %46, %47
+    %48 = const i64 1
+    %49 = alloca ptr x
+    %50 = field.addr @x, 0
+    %51 = const i64 5
+    call void _ZN2T1C1Eu7INTEGER(%50, %51)
+    %52 = alloca ptr $tmp20
+    %53 = field.addr @$tmp20, 0
+    store %53, @x
+    %54 = field.addr @$tmp20, 8
+    store %54, @x
+    %55 = const i64 8
+    %56 = field.addr @$tmp20, 16
+    store %56, %55
+    %57 = const i64 8
+    %58 = field.addr @$tmp20, 24
+    store %58, %57
+    %59 = const i64 1
+    %60 = field.addr @$tmp20, 32
+    store %60, %59
+    %61 = const i64 49
+    %62 = field.addr @$tmp20, 40
+    store %62, %61
+    %63 = const i64 1
+    %64 = field.addr @$tmp20, 48
     store %64, %63
-    %65 = const i64 8
-    %66 = field.addr @$tmp20, 24
+    %65 = const i64 0
+    %66 = field.addr @$tmp20, 56
     store %66, %65
-    %67 = const i64 1
-    %68 = field.addr @$tmp20, 32
+    %67 = const i64 0
+    %68 = field.addr @$tmp20, 64
     store %68, %67
-    %69 = const i64 49
-    %70 = field.addr @$tmp20, 40
-    store %70, %69
-    %71 = const i64 1
-    %72 = field.addr @$tmp20, 48
-    store %72, %71
-    %73 = const i64 0
-    %74 = field.addr @$tmp20, 56
-    store %74, %73
-    %75 = const i64 0
-    %76 = field.addr @$tmp20, 64
-    store %76, %75
-    %77 = func.addr ptr _ZN2T1C1Eu7INTEGER
-    %78 = call.rtl i32 fb_ArrayClearObj(@$tmp20, %77, 0)
-    %79 = alloca ptr y
-    %80 = field.addr @y, 0
-    call void _ZN8WITHCTORC1Ev(%80)
-    %81 = alloca ptr $tmp22
-    %82 = field.addr @$tmp22, 0
-    store %82, @y
-    %83 = field.addr @$tmp22, 8
-    store %83, @y
-    %84 = const i64 8
-    %85 = field.addr @$tmp22, 16
+    %69 = func.addr ptr _ZN2T1C1Eu7INTEGER
+    %70 = call.rtl i32 fb_ArrayClearObj(@$tmp20, %69, 0)
+    %71 = alloca ptr y
+    %72 = field.addr @y, 0
+    call void _ZN8WITHCTORC1Ev(%72)
+    %73 = alloca ptr $tmp22
+    %74 = field.addr @$tmp22, 0
+    store %74, @y
+    %75 = field.addr @$tmp22, 8
+    store %75, @y
+    %76 = const i64 8
+    %77 = field.addr @$tmp22, 16
+    store %77, %76
+    %78 = const i64 8
+    %79 = field.addr @$tmp22, 24
+    store %79, %78
+    %80 = const i64 1
+    %81 = field.addr @$tmp22, 32
+    store %81, %80
+    %82 = const i64 49
+    %83 = field.addr @$tmp22, 40
+    store %83, %82
+    %84 = const i64 1
+    %85 = field.addr @$tmp22, 48
     store %85, %84
-    %86 = const i64 8
-    %87 = field.addr @$tmp22, 24
+    %86 = const i64 0
+    %87 = field.addr @$tmp22, 56
     store %87, %86
-    %88 = const i64 1
-    %89 = field.addr @$tmp22, 32
+    %88 = const i64 0
+    %89 = field.addr @$tmp22, 64
     store %89, %88
-    %90 = const i64 49
-    %91 = field.addr @$tmp22, 40
-    store %91, %90
-    %92 = const i64 1
-    %93 = field.addr @$tmp22, 48
-    store %93, %92
-    %94 = const i64 0
-    %95 = field.addr @$tmp22, 56
-    store %95, %94
-    %96 = const i64 0
-    %97 = field.addr @$tmp22, 64
-    store %97, %96
-    %98 = func.addr ptr _ZN8WITHCTORC1Ev
-    %99 = call.rtl i32 fb_ArrayClearObj(@$tmp22, %98, 0)
-    %100 = alloca ptr ints
-    %101 = alloca ptr dbls
-    %102 = alloca ptr $tmp25
-    %103 = field.addr @$tmp25, 0
-    store %103, @dbls
-    %104 = field.addr @$tmp25, 8
-    store %104, @dbls
-    %105 = const i64 32
-    %106 = field.addr @$tmp25, 16
+    %90 = func.addr ptr _ZN8WITHCTORC1Ev
+    %91 = call.rtl i32 fb_ArrayClearObj(@$tmp22, %90, 0)
+    %92 = alloca ptr ints
+    %93 = alloca ptr dbls
+    %94 = alloca ptr $tmp25
+    %95 = field.addr @$tmp25, 0
+    store %95, @dbls
+    %96 = field.addr @$tmp25, 8
+    store %96, @dbls
+    %97 = const i64 32
+    %98 = field.addr @$tmp25, 16
+    store %98, %97
+    %99 = const i64 8
+    %100 = field.addr @$tmp25, 24
+    store %100, %99
+    %101 = const i64 1
+    %102 = field.addr @$tmp25, 32
+    store %102, %101
+    %103 = const i64 49
+    %104 = field.addr @$tmp25, 40
+    store %104, %103
+    %105 = const i64 4
+    %106 = field.addr @$tmp25, 48
     store %106, %105
-    %107 = const i64 8
-    %108 = field.addr @$tmp25, 24
+    %107 = const i64 0
+    %108 = field.addr @$tmp25, 56
     store %108, %107
-    %109 = const i64 1
-    %110 = field.addr @$tmp25, 32
+    %109 = const i64 3
+    %110 = field.addr @$tmp25, 64
     store %110, %109
-    %111 = const i64 49
-    %112 = field.addr @$tmp25, 40
-    store %112, %111
-    %113 = const i64 4
-    %114 = field.addr @$tmp25, 48
-    store %114, %113
-    %115 = const i64 0
-    %116 = field.addr @$tmp25, 56
-    store %116, %115
-    %117 = const i64 3
-    %118 = field.addr @$tmp25, 64
-    store %118, %117
     call void TAKESDOUBLE(@$tmp25)
-    %119 = alloca ptr $tmp26
-    %120 = field.addr @$tmp26, 0
-    store %120, @ints
-    %121 = field.addr @$tmp26, 8
-    store %121, @ints
-    %122 = const i64 32
-    %123 = field.addr @$tmp26, 16
+    %111 = alloca ptr $tmp26
+    %112 = field.addr @$tmp26, 0
+    store %112, @ints
+    %113 = field.addr @$tmp26, 8
+    store %113, @ints
+    %114 = const i64 32
+    %115 = field.addr @$tmp26, 16
+    store %115, %114
+    %116 = const i64 8
+    %117 = field.addr @$tmp26, 24
+    store %117, %116
+    %118 = const i64 1
+    %119 = field.addr @$tmp26, 32
+    store %119, %118
+    %120 = const i64 49
+    %121 = field.addr @$tmp26, 40
+    store %121, %120
+    %122 = const i64 4
+    %123 = field.addr @$tmp26, 48
     store %123, %122
-    %124 = const i64 8
-    %125 = field.addr @$tmp26, 24
+    %124 = const i64 0
+    %125 = field.addr @$tmp26, 56
     store %125, %124
-    %126 = const i64 1
-    %127 = field.addr @$tmp26, 32
+    %126 = const i64 3
+    %127 = field.addr @$tmp26, 64
     store %127, %126
-    %128 = const i64 49
-    %129 = field.addr @$tmp26, 40
-    store %129, %128
-    %130 = const i64 4
-    %131 = field.addr @$tmp26, 48
-    store %131, %130
-    %132 = const i64 0
-    %133 = field.addr @$tmp26, 56
-    store %133, %132
-    %134 = const i64 3
-    %135 = field.addr @$tmp26, 64
-    store %135, %134
     call void TAKESDOUBLE(@$tmp26)
-    %136 = alloca ptr $tmp27
-    %137 = field.addr @$tmp27, 0
-    store %137, @ints
-    %138 = field.addr @$tmp27, 8
-    store %138, @ints
-    %139 = const i64 32
-    %140 = field.addr @$tmp27, 16
+    %128 = alloca ptr $tmp27
+    %129 = field.addr @$tmp27, 0
+    store %129, @ints
+    %130 = field.addr @$tmp27, 8
+    store %130, @ints
+    %131 = const i64 32
+    %132 = field.addr @$tmp27, 16
+    store %132, %131
+    %133 = const i64 8
+    %134 = field.addr @$tmp27, 24
+    store %134, %133
+    %135 = const i64 1
+    %136 = field.addr @$tmp27, 32
+    store %136, %135
+    %137 = const i64 49
+    %138 = field.addr @$tmp27, 40
+    store %138, %137
+    %139 = const i64 4
+    %140 = field.addr @$tmp27, 48
     store %140, %139
-    %141 = const i64 8
-    %142 = field.addr @$tmp27, 24
+    %141 = const i64 0
+    %142 = field.addr @$tmp27, 56
     store %142, %141
-    %143 = const i64 1
-    %144 = field.addr @$tmp27, 32
+    %143 = const i64 3
+    %144 = field.addr @$tmp27, 64
     store %144, %143
-    %145 = const i64 49
-    %146 = field.addr @$tmp27, 40
-    store %146, %145
-    %147 = const i64 4
-    %148 = field.addr @$tmp27, 48
-    store %148, %147
-    %149 = const i64 0
-    %150 = field.addr @$tmp27, 56
-    store %150, %149
-    %151 = const i64 3
-    %152 = field.addr @$tmp27, 64
-    store %152, %151
     call void TAKESINTEGER(@$tmp27)
-    %153 = alloca ptr $tmp28
-    %154 = field.addr @$tmp28, 0
-    store %154, @ints
-    %155 = field.addr @$tmp28, 8
-    store %155, @ints
-    %156 = const i64 32
-    %157 = field.addr @$tmp28, 16
+    %145 = alloca ptr $tmp28
+    %146 = field.addr @$tmp28, 0
+    store %146, @ints
+    %147 = field.addr @$tmp28, 8
+    store %147, @ints
+    %148 = const i64 32
+    %149 = field.addr @$tmp28, 16
+    store %149, %148
+    %150 = const i64 8
+    %151 = field.addr @$tmp28, 24
+    store %151, %150
+    %152 = const i64 1
+    %153 = field.addr @$tmp28, 32
+    store %153, %152
+    %154 = const i64 49
+    %155 = field.addr @$tmp28, 40
+    store %155, %154
+    %156 = const i64 4
+    %157 = field.addr @$tmp28, 48
     store %157, %156
-    %158 = const i64 8
-    %159 = field.addr @$tmp28, 24
+    %158 = const i64 0
+    %159 = field.addr @$tmp28, 56
     store %159, %158
-    %160 = const i64 1
-    %161 = field.addr @$tmp28, 32
+    %160 = const i64 3
+    %161 = field.addr @$tmp28, 64
     store %161, %160
-    %162 = const i64 49
-    %163 = field.addr @$tmp28, 40
-    store %163, %162
-    %164 = const i64 4
-    %165 = field.addr @$tmp28, 48
-    store %165, %164
-    %166 = const i64 0
-    %167 = field.addr @$tmp28, 56
-    store %167, %166
-    %168 = const i64 3
-    %169 = field.addr @$tmp28, 64
-    store %169, %168
     call void TAKESANY(@$tmp28)
-    %170 = alloca ptr $tmp29
-    %171 = field.addr @$tmp29, 0
-    store %171, @dbls
-    %172 = field.addr @$tmp29, 8
-    store %172, @dbls
-    %173 = const i64 32
-    %174 = field.addr @$tmp29, 16
+    %162 = alloca ptr $tmp29
+    %163 = field.addr @$tmp29, 0
+    store %163, @dbls
+    %164 = field.addr @$tmp29, 8
+    store %164, @dbls
+    %165 = const i64 32
+    %166 = field.addr @$tmp29, 16
+    store %166, %165
+    %167 = const i64 8
+    %168 = field.addr @$tmp29, 24
+    store %168, %167
+    %169 = const i64 1
+    %170 = field.addr @$tmp29, 32
+    store %170, %169
+    %171 = const i64 49
+    %172 = field.addr @$tmp29, 40
+    store %172, %171
+    %173 = const i64 4
+    %174 = field.addr @$tmp29, 48
     store %174, %173
-    %175 = const i64 8
-    %176 = field.addr @$tmp29, 24
+    %175 = const i64 0
+    %176 = field.addr @$tmp29, 56
     store %176, %175
-    %177 = const i64 1
-    %178 = field.addr @$tmp29, 32
+    %177 = const i64 3
+    %178 = field.addr @$tmp29, 64
     store %178, %177
-    %179 = const i64 49
-    %180 = field.addr @$tmp29, 40
-    store %180, %179
-    %181 = const i64 4
-    %182 = field.addr @$tmp29, 48
-    store %182, %181
-    %183 = const i64 0
-    %184 = field.addr @$tmp29, 56
-    store %184, %183
-    %185 = const i64 3
-    %186 = field.addr @$tmp29, 64
-    store %186, %185
     call void TAKESANY(@$tmp29)
     call.rtl void fb_StrDelete(@s)
-    %187 = const i32 0
-    call.rtl void fb_End(%187)
-    %188 = load @$tmp0
-    ret %188
+    %179 = const i32 0
+    call.rtl void fb_End(%179)
+    %180 = load @$tmp0
+    ret %180
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_ArrayClearObj(ptr $0, ptr $1, ptr $2)
@@ -438,11 +424,13 @@ declare void TAKESANY(void $0)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 14 functions, 14 blocks, 330 insts, 2 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 2
+lowered: 14 functions, 14 blocks, 316 insts, 8 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 6
+  inside N_VAR 2
   amb assign 1
   amb-assign-kind 1 1
   amb-assign-val N_IDENT 1
+  skip-site src\mir\lowerutil.bas:40 6
   skip-site src\mir\lowerassign.bas:154 1
   skip-site src\mir\lowerassign.bas:397 1
 tests/diagnostics/src/udt-conversions.bas(48,1): error TKO0738: no conversion between these two types

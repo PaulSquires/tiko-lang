@@ -67,27 +67,24 @@ func i32 main(i32 $0, ptr $1) {
     %17 = call i64 _Z1G8FBSTRING(@$tmp4)
     call.rtl void fb_StrDelete(@$tmp4)
     call.rtl void fb_PrintLongint(0, %17, 0)
-    %18 = load @z
-    %19 = sext %18
-    %20 = bitcast %19
-    %21 = call i64 _Z1GPc(%20)
-    call.rtl void fb_PrintLongint(0, %21, 0)
-    %22 = alloca ptr $tmp5
-    %23 = field.addr @$tmp5, 0
-    store %23, 0
-    %24 = field.addr @$tmp5, 8
-    store %24, 0
-    %25 = field.addr @$tmp5, 16
-    store %25, 0
-    %26 = const i64 -9223372036854775777
-    %27 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @f, %26, 0)
-    %28 = call i64 H(@$tmp5)
+    %18 = call i64 _Z1GPc(@z)
+    call.rtl void fb_PrintLongint(0, %18, 0)
+    %19 = alloca ptr $tmp5
+    %20 = field.addr @$tmp5, 0
+    store %20, 0
+    %21 = field.addr @$tmp5, 8
+    store %21, 0
+    %22 = field.addr @$tmp5, 16
+    store %22, 0
+    %23 = const i64 -9223372036854775777
+    %24 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @f, %23, 0)
+    %25 = call i64 H(@$tmp5)
     call.rtl void fb_StrDelete(@$tmp5)
-    call.rtl void fb_PrintLongint(0, %28, 1)
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    call.rtl void fb_PrintLongint(0, %25, 1)
+    %26 = const i32 0
+    call.rtl void fb_End(%26)
+    %27 = load @$tmp0
+    ret %27
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -96,4 +93,4 @@ declare void fb_StrDelete(ptr $0)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 59 insts, 0 statements not lowered, 0 scope imbalance
