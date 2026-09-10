@@ -702,6 +702,35 @@ function LowerExpr _
                 r = CoerceTy( c, r, resTy, rt)
             end if
         end if
+        '' A BOOLEAN COMPARED AGAINST A BOOLEAN IS COMPARED BY ITS STORAGE VALUE.
+        ''
+        '' A boolean CONSTANT is not already 0 or 1: 'true' is the integer -1, which
+        '' is its widened MEANING and not what a boolean variable holds. So
+        ''
+        ''     %15 = load @b        '' 1, the stored value
+        ''     %16 = const i8 -1    '' true, the widened meaning
+        ''     %17 = icmp.eq %15, %16
+        ''
+        '' answered FALSE for a variable that is true. Measured: fbc prints true for
+        '' '(b = true)' and tiko printed false, while '(b = c)' between two boolean
+        '' VARIABLES was right in both and '(b = false)' was right too -- false is 0
+        '' either way, which is exactly what hid it.
+        ''
+        '' NormaliseBool is what the STORE path already applies for the same reason,
+        '' and its comment says so; this is that rule on the comparison side. Both
+        '' operands are normalised rather than just the constant, because a loaded
+        '' boolean is already 0 or 1 and the redundant compare is the cheap half of
+        '' the trade -- the same bargain the store path struck.
+        if isCmp then
+            dim as boolean lBool = IsBooleanType( c, lt )
+            dim as boolean rBool = IsBooleanType( c, rt )
+            if lBool andalso rBool then
+                l = NormaliseBool( c, l )
+                r = NormaliseBool( c, r )
+                if l.kind = cast( ubyte, MV_NONE ) then return v
+                if r.kind = cast( ubyte, MV_NONE ) then return v
+            end if
+        end if
         ins.a = l
         ins.b = r
         dim as MirValue res = Emit( c, ins )

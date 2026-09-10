@@ -106,7 +106,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 11 functions, 14 blocks, 42 insts, 3 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 3
-  skip-site src\mir\lower.bas:742 3
+  skip-site src\mir\lower.bas:790 3
 tests/diagnostics/src/byref-result-and-owner.bas(35,16): error TKO0711: a byref result must be assigned something with an address
      |
   35 |     function = 123

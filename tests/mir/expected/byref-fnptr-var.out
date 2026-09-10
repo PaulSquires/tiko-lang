@@ -30,30 +30,27 @@ func i32 main(i32 $0, ptr $1) {
     %10 = load %9
     call.rtl void fb_PrintLongint(0, %10, 1)
     %11 = call ptr F()
-    %12 = load %11
-    %13 = icmp.eq %12, @@gi
-    %14 = neg %13
-    call.rtl void fb_PrintLongint(0, %14, 1)
-    %15 = load @p1
-    %16 = call.ind ptr %15()
-    %17 = load %16
-    %18 = icmp.eq %17, @@gi
-    %19 = neg %18
-    call.rtl void fb_PrintLongint(0, %19, 1)
-    %20 = load @p2
-    %21 = load %20
-    %22 = call.ind ptr %21()
-    %23 = load %22
-    %24 = icmp.eq %23, @@gi
-    %25 = neg %24
-    call.rtl void fb_PrintLongint(0, %25, 1)
-    %26 = const i32 0
-    call.rtl void fb_End(%26)
-    %27 = load @$tmp0
-    ret %27
+    %12 = icmp.eq %11, @@gi
+    %13 = neg %12
+    call.rtl void fb_PrintLongint(0, %13, 1)
+    %14 = load @p1
+    %15 = call.ind ptr %14()
+    %16 = icmp.eq %15, @@gi
+    %17 = neg %16
+    call.rtl void fb_PrintLongint(0, %17, 1)
+    %18 = load @p2
+    %19 = load %18
+    %20 = call.ind ptr %19()
+    %21 = icmp.eq %20, @@gi
+    %22 = neg %21
+    call.rtl void fb_PrintLongint(0, %22, 1)
+    %23 = const i32 0
+    call.rtl void fb_End(%23)
+    %24 = load @$tmp0
+    ret %24
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 38 insts, 0 statements not lowered, 0 scope imbalance

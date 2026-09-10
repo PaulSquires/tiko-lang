@@ -83,10 +83,9 @@ func ptr BYREFCALLOK() {
     %2 = const ptr 0
     store @$tmp0, %2
     %3 = call ptr BYREF_()
-    %4 = load %3
-    store @$tmp0, %4
-    %5 = load @$tmp0
-    ret %5
+    store @$tmp0, %3
+    %4 = load @$tmp0
+    ret %4
 }
 declare ptr BYREF_()
 func i32 main(i32 $0, ptr $1) {
@@ -105,9 +104,9 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 57 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 56 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lower.bas:742 1
+  skip-site src\mir\lower.bas:790 1
 tests/diagnostics/src/byref-result.bas(31,17): error TKO0650: a byref result cannot return a local
      |
   31 |     function = x.i

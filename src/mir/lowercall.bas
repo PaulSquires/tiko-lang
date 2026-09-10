@@ -167,7 +167,7 @@ end function
 function LowerCallParts _
     ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as long, byval argCount as long, _
-      byval mt as MirType ) as MirValue
+      byval mt as MirType, byval wantRef as boolean = false ) as MirValue
 
     dim as MirValue v
 
@@ -1050,7 +1050,11 @@ function LowerCallParts _
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
         c.lastCallOk = true
-        if byrefRet then return LowerExprLoad( c, iv, mt )
+        '' See the byref comment above: an lvalue wants the reference itself.
+    if byrefRet then
+        if wantRef then return iv
+        return LowerExprLoad( c, iv, mt )
+    end if
         return iv
     end if
 
@@ -1116,7 +1120,25 @@ function LowerCallParts _
         if mt = MT_PTR then return sretTmp
         return LowerExprLoad( c, sretTmp, MT_AGG )
     end if
-    if byrefRet then return LowerExprLoad( c, cv, mt )
+    '' A BYREF RESULT IS AN ADDRESS, and an LVALUE wants the address itself.
+    ''
+    '' 'Pick( ) = 5' over a 'function Pick( ) byref as long' is a STORE THROUGH the
+    '' returned reference -- fbc writes 'int32* vr$2 = PICK( ); *vr$2 = 5;'. This
+    '' loaded through it unconditionally, so the store went through the four-byte
+    '' LONG read as a pointer:
+    ''
+    ''     %7 = call ptr PICK()
+    ''     %8 = load %7          '' %7 IS the address
+    ''     store %8, %10         '' stores through the value
+    ''
+    '' -- a segfault on the first such assignment. Reading a byref result was right
+    '' all along; only the lvalue side was wrong, which is why it survived so long.
+    '' The sret branch above already draws exactly this distinction.
+    '' NOT keyed off 'mt': see the declaration in lowerctx.bi for why.
+    if byrefRet then
+        if wantRef then return cv
+        return LowerExprLoad( c, cv, mt )
+    end if
     return cv
 end function
 

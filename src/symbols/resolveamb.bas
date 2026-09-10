@@ -45,6 +45,69 @@ private function ReadCallAssignAsCall_ _
     '' Only a plain '=': '+=' and its family are never a comparison.
     if cast( Tko.TokenKind, sp->op ) <> Tko.TK_EQ then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    '' A MEMBER CALL HAS NOT BOUND YET. Resolve runs before Check, so
+    '' 'a.At( 2 ) = 88' has no RefOf on its member node and 'sid' falls back to the
+    '' BASE -- the variable 'a' -- which is not a procedure, and the whole rule
+    '' declined. The comment below has always said this case folds; it did not.
+    ''
+    '' It was invisible while a byref member result was double-loaded: the store
+    '' went through the loaded VALUE and landed somewhere harmless, so the program
+    '' printed the 0 fbc prints, for the wrong reason. Fixing the lvalue path made
+    '' it print 88 and exposed this.
+    ''
+    '' The member is therefore looked up BY NAME in the base's own type scope --
+    '' what matters is only whether the name is a PROCEDURE, not which overload.
+    if s <> 0 then
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then
+            dim as Tko.NodeId cal2 = ListOf( c, sp->a )->target
+            if c.ast->Kind( cal2 ) = Tko.N_MEMBER then
+                dim as Tko.BinaryPayload ptr mb2 = _
+                    @c.ast->binaries[cast( long, c.ast->nodes[cast( long, cal2 )].data )]
+                '' THE BASE VARIABLE'S DECLARED TYPE, not the expression's. Resolve
+                '' runs before Check, so TypeOf_ on the base is TYPE_NONE here --
+                '' measured -- while the symbol the base bound to already carries it.
+                dim as Tko.TypeId bt2 = c.types->Unqualify( s->type_ )
+                if c.types->Kind( bt2 ) = Tko.TK_UDT then
+                    dim as Tko.InternId tn2 = c.types->NameOf( bt2 )
+                    if tn2 <> 0 then
+                        dim as Tko.ScopeId ds2 = _
+                            cast( Tko.ScopeId, c.types->DeclScopeOf( bt2 ) )
+                        dim as Tko.SymbolId ts2 = _
+                            c.syms->LookupLocalTyped( ds2, tn2, true )
+                        if ts2 = Tko.SYMBOL_NONE then _
+                            ts2 = c.syms->LookupTyped( ds2, tn2, true )
+                        dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( ts2 )
+                        if tsy2 <> 0 then
+                            if tsy2->inner <> Tko.SCOPE_NONE then
+                                dim as Tko.SymbolId mm2 = c.syms->LookupLocal( _
+                                    tsy2->inner, IdentNameOf( c, mb2->rhs ) )
+                                dim as Tko.Symbol ptr msy2 = c.syms->SymbolAt( mm2 )
+                                if msy2 <> 0 then
+                                    if msy2->kind = cast( ubyte, Tko.SYM_PROC ) then
+                                        '' A PROPERTY IS NOT FOLDED. 'p.Item( 2 ) = 7'
+                                        '' is a SETTER CALL, which is the one member
+                                        '' shape where the '=' really is the value --
+                                        '' measured, fbc prints 7 for it where it
+                                        '' prints 0 for the ordinary byref member.
+                                        dim as Tko.NodeId mpn2 = _
+                                            cast( Tko.NodeId, msy2->payload )
+                                        dim as boolean isProp2 = false
+                                        if mpn2 <> Tko.NODE_NONE then
+                                            if c.ast->Kind( mpn2 ) = Tko.N_PROC then
+                                                isProp2 = (StmtOf( c, mpn2 )->op = _
+                                                    cast( ushort, Tko.KW_PROPERTY ))
+                                            end if
+                                        end if
+                                        if isProp2 = false then s = msy2
+                                    end if
+                                end if
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
     if s = 0 then return false
     if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
 

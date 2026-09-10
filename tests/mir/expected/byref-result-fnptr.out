@@ -67,34 +67,31 @@ func i32 main(i32 $0, ptr $1) {
     %12 = alloca ptr r
     %13 = load @pick
     %14 = call.ind ptr %13(@lo, @hi)
-    %15 = load %14
-    store @r, %15
-    %16 = load @r
-    %17 = load %16
-    call.rtl void fb_PrintInt(0, %17, 1)
-    %18 = load @pick
-    %19 = call.ind ptr %18(@lo, @hi)
-    %20 = load %19
-    call.rtl void fb_PrintInt(0, %20, 1)
-    %21 = alloca ptr p
-    %22 = func.addr ptr F1
-    store @p, %22
-    %23 = call ptr F1()
-    %24 = load %23
-    %25 = load @p
-    %26 = call.ind ptr %25()
-    %27 = load %26
-    %28 = icmp.eq %24, %27
-    %29 = neg %28
-    call.rtl void fb_PrintLongint(0, %29, 1)
-    %30 = const i32 0
-    call.rtl void fb_End(%30)
-    %31 = load @$tmp0
-    ret %31
+    store @r, %14
+    %15 = load @r
+    %16 = load %15
+    call.rtl void fb_PrintInt(0, %16, 1)
+    %17 = load @pick
+    %18 = call.ind ptr %17(@lo, @hi)
+    %19 = load %18
+    call.rtl void fb_PrintInt(0, %19, 1)
+    %20 = alloca ptr p
+    %21 = func.addr ptr F1
+    store @p, %21
+    %22 = call ptr F1()
+    %23 = load @p
+    %24 = call.ind ptr %23()
+    %25 = icmp.eq %22, %24
+    %26 = neg %25
+    call.rtl void fb_PrintLongint(0, %26, 1)
+    %27 = const i32 0
+    call.rtl void fb_End(%27)
+    %28 = load @$tmp0
+    ret %28
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 6 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 6 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance

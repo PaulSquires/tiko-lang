@@ -356,7 +356,8 @@ function LowerAddr _
                     dim as Tko.TypeId srt2 = c.types->Inner( sigT )
                     if c.types->Kind( srt2 ) = Tko.TK_REFERENCE then
                         dim as MirValue iv = LowerCallParts( c, bl->target, bcal, _
-                                                            bl->first, bl->count, MT_PTR )
+                                                            bl->first, bl->count, MT_PTR, _
+                                                            true )
                         if iv.kind <> cast( ubyte, MV_NONE ) then return iv
                     end if
                 end if
@@ -373,7 +374,8 @@ function LowerAddr _
                         ((c.ast->nodes[cast( long, bpn )].flags and Tko.NF_BYREF) <> 0)
                     if byrefRet orelse UsesSretReturn( c, bcs->type_ ) then
                         dim as MirValue bv = LowerCallParts( c, bl->target, bcal, _
-                                                            bl->first, bl->count, MT_PTR )
+                                                            bl->first, bl->count, MT_PTR, _
+                                                            true )
                         if bv.kind <> cast( ubyte, MV_NONE ) then return bv
                     elseif bcs->type_ <> Tko.TYPE_NONE then
                         '' A SMALL UDT COMES BACK IN REGISTERS, so there is no hidden

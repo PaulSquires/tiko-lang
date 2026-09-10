@@ -96,33 +96,31 @@ func i32 main(i32 $0, ptr $1) {
     %15 = call.rtl ptr fb_StrAssign(@$tmp2, -1, @s, -1, 0)
     %16 = call ptr FZ(@$tmp2)
     call.rtl void fb_StrDelete(@$tmp2)
-    %17 = load %16
-    %18 = call.rtl ptr fb_StrAllocTempDescZ(%17)
-    call.rtl void fb_PrintString(0, %18, 2)
-    %19 = load @s
-    %20 = call ptr FZ2(%19)
-    %21 = load %20
-    %22 = call.rtl ptr fb_StrAllocTempDescZ(%21)
-    call.rtl void fb_PrintString(0, %22, 1)
-    %23 = alloca ptr v
-    %24 = call.rtl ptr fb_StrInit(@v, -1, @@$str3, 2, 0)
-    %25 = alloca ptr $tmp4
-    %26 = field.addr @$tmp4, 0
+    %17 = call.rtl ptr fb_StrAllocTempDescZ(%16)
+    call.rtl void fb_PrintString(0, %17, 2)
+    %18 = load @s
+    %19 = call ptr FZ2(%18)
+    %20 = call.rtl ptr fb_StrAllocTempDescZ(%19)
+    call.rtl void fb_PrintString(0, %20, 1)
+    %21 = alloca ptr v
+    %22 = call.rtl ptr fb_StrInit(@v, -1, @@$str3, 2, 0)
+    %23 = alloca ptr $tmp4
+    %24 = field.addr @$tmp4, 0
+    store %24, 0
+    %25 = field.addr @$tmp4, 8
+    store %25, 0
+    %26 = field.addr @$tmp4, 16
     store %26, 0
-    %27 = field.addr @$tmp4, 8
-    store %27, 0
-    %28 = field.addr @$tmp4, 16
-    store %28, 0
-    %29 = call.rtl ptr fb_StrAssign(@$tmp4, -1, @v, -1, 0)
+    %27 = call.rtl ptr fb_StrAssign(@$tmp4, -1, @v, -1, 0)
     call void TAKEBYVALSTRING(@$tmp4)
     call.rtl void fb_StrDelete(@$tmp4)
     call.rtl void fb_PrintString(0, @v, 1)
     call.rtl void fb_StrDelete(@v)
     call.rtl void fb_StrDelete(@s)
-    %30 = const i32 0
-    call.rtl void fb_End(%30)
-    %31 = load @$tmp0
-    ret %31
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -132,4 +130,4 @@ declare void fb_StrDelete(ptr $0)
 declare ptr fb_StrAllocTempDescZ(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance

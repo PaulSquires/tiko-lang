@@ -894,10 +894,14 @@ declare function EmitRtl _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long )
 
     '' A call from its PIECES, so both of FreeBASIC's spellings reach one place.
+    '' 'wantRef' asks for the REFERENCE a byref-returning call hands back rather than
+    '' the referent. LowerAddr needs the address; every value read needs the load.
+    '' It cannot be inferred from 'mt': a 'function f( ) byref as long ptr' read as a
+    '' VALUE also asks for MT_PTR, and loading is right for that one.
     declare function LowerCallParts _
         ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
           byval argFirst as long, byval argCount as long, _
-          byval mt as MirType ) as MirValue
+          byval mt as MirType, byval wantRef as boolean = false ) as MirValue
 
     '' The paren-less call statement: 'W 1, 2'.
     declare function LowerStmtCall _

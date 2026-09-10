@@ -28,8 +28,8 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 12 insts, 2 statements not lowered, 0 scope imbalance
   inside N_VAR 2
-  skip-site src\mir\lower.bas:215 1
-  skip-site src\mir\lower.bas:182 1
+  skip-site src\mir\lower.bas:254 1
+  skip-site src\mir\lower.bas:221 1
 tests/diagnostics/src/outside-namespace-2.bas(17,9): error TKO0669: 'a.declared' adds a new name to a namespace from outside it
      |
   17 | declare sub a.declared( )
